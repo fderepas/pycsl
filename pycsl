@@ -16,8 +16,19 @@ def main():
     # Set up command line arguments
     parser = argparse.ArgumentParser(description="PyCSL: Python Contract Specification Language Verifier")
     parser.add_argument("file", help="The Python file to verify")
-    parser.add_argument("-p", "--prover", default="Alt-Ergo,2.6.2,", 
-                        help="The Why3 prover to use (default: Alt-Ergo,2.6.2,). Use 'z3' for Z3.")
+    parser.add_argument("-p", "--prover", default=None,
+                        help="Single prover to use (e.g. 'Alt-Ergo,2.6.2,' or 'Z3,4.13.3,'). "
+                             "Overrides --provers and agents-config.json.")
+    parser.add_argument("--provers", default=None,
+                        help="Comma-separated list of Why3 prover IDs to try in order "
+                             "(e.g. 'Alt-Ergo,2.6.2,,Z3,4.13.3,'). "
+                             "Why3 tries each prover per goal and accepts the first Valid. "
+                             "Overrides agents-config.json. "
+                             "Default: Alt-Ergo then Z3.")
+    parser.add_argument("--memory-model", default=None,
+                        choices=["hoare", "typed", "store"],
+                        help="Memory model for WhyML emission (default: hoare). "
+                             "'typed' and 'store' use a global heap (map loc int).")
     parser.add_argument("--keep-mlw", action="store_true", 
                         help="Keep the generated WhyML (.mlw) file for debugging")
     
@@ -27,10 +38,42 @@ def main():
         print(f"[!] Error: File '{args.file}' not found.")
         sys.exit(1)
 
+    # Load agents-config.json once for all config resolution
+    import json as _json
+    _config = {}
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "agents", "agents-config.json")
+    if os.path.exists(config_path):
+        with open(config_path) as _cf:
+            _config = _json.load(_cf)
+
+    # Resolve memory model: CLI flag > agents-config.json > default "hoare"
+    memory_model = args.memory_model
+    if memory_model is None:
+        memory_model = _config.get("memory-model", "hoare")
+
+    # Resolve prover list: --prover (single) > --provers (list) > agents-config.json > default
+    _DEFAULT_PROVERS = ["Alt-Ergo,2.6.2,", "Z3,4.13.3,"]
+    if args.prover is not None:
+        # --prover overrides everything: single prover, no fallback
+        provers = [args.prover]
+    elif args.provers is not None:
+        # --provers: caller-supplied ordered list (separator is the Why3 prover ID separator)
+        # Each prover ID contains commas so we split on ",," (double-comma = ID boundary)
+        # Support both "P1,,P2" and "P1,P2" (the latter for simple names like "z3")
+        provers = [p.strip() for p in args.provers.split(",,") if p.strip()]
+    else:
+        cfg_provers = _config.get("provers", _DEFAULT_PROVERS)
+        if isinstance(cfg_provers, str):
+            provers = [p.strip() for p in cfg_provers.split(",,") if p.strip()]
+        else:
+            provers = cfg_provers
+
     with open(args.file, "r") as f:
         source_code = f.read()
 
     print(f"[*] Parsing and Semantic Analysis for '{args.file}'...")
+    print(f"[*] Memory model: {memory_model}")
 
     try:
         # [Modules 1-3] Ingest, Parse, and Weave
@@ -50,7 +93,7 @@ def main():
         json_ir = emitter.generate_json()
 
         # [Module 6] WhyML Transpilation
-        transpiler = Module6_WhyMLTranspiler(json_ir)
+        transpiler = Module6_WhyMLTranspiler(json_ir, memory_model=memory_model)
         mlw_code = transpiler.transpile()
 
     except SyntaxError as e:
@@ -70,17 +113,21 @@ def main():
     with open(mlw_filename, "w") as f:
         f.write(mlw_code)
 
-    print(f"[*] Running Proof Engine ({args.prover})...")
+    print(f"[*] Running Proof Engine (provers: {' → '.join(provers)})...")
     try:
-        # Invoke Why3 as a subprocess
-        result = subprocess.run(
-            ["why3", "prove", "-P", args.prover, mlw_filename],
-            capture_output=True,
-            text=True
-        )
-        
+        # split_vc decomposes each function's monolithic VC into per-invariant/per-branch
+        # sub-goals.  Most sub-goals are trivially linear; only genuinely hard arithmetic
+        # goals remain, and they benefit from Z3 NIA in isolation (rather than as part of a
+        # huge combined query that triggers OOM).
+        cmd = ["why3", "prove", "-a", "split_vc"]
+        for p in provers:
+            cmd += ["-P", p]
+        cmd += ["--timelimit", "30", mlw_filename]
+
+        result = subprocess.run(cmd, capture_output=True, text=True)
+
         output = result.stdout.strip()
-        
+
         print("\n--- Verification Results ---")
         if output:
             print(output)
@@ -88,10 +135,22 @@ def main():
             print("\nWarnings/Errors from Why3:")
             print(result.stderr.strip())
 
-        # Simple heuristic to determine overall success
-        if result.returncode == 0 and "Valid" in output and "Unknown" not in output and "Invalid" not in output:
+        # Determine which goals (if any) remain unproven
+        unknown_goals = [line for line in output.splitlines()
+                         if "Unknown" in line or "Timeout" in line]
+        invalid_goals = [line for line in output.splitlines() if "Invalid" in line]
+
+        if result.returncode == 0 and "Valid" in output and not unknown_goals and not invalid_goals:
             print("\n[+] Verification SUCCESS! All contracts formally proven.")
         else:
+            if unknown_goals:
+                print(f"\n[-] {len(unknown_goals)} goal(s) remain unproven after all provers:")
+                for g in unknown_goals:
+                    print(f"    {g.strip()}")
+            if invalid_goals:
+                print(f"\n[-] {len(invalid_goals)} goal(s) are Invalid:")
+                for g in invalid_goals:
+                    print(f"    {g.strip()}")
             print("\n[-] Verification FAILED or INCOMPLETE. Check the solver output.")
             sys.exit(1)
 

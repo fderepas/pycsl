@@ -115,6 +115,7 @@ def build_prompt(
     skill_agents: str,
     skill_module5: str,
     skill_module6: str,
+    memory_model: str,
     script_path: Path,
     script_content: str,
     stdout_path: Path,
@@ -125,6 +126,28 @@ def build_prompt(
     whyml_path: Path | None,
     whyml_content: str | None,
 ) -> str:
+    _memory_model_notes = {
+        "hoare": (
+            "Value-semantic arrays (`array int`). No heap. "
+            "Common errors: missing `use array.Array`, `array int` type mismatch."
+        ),
+        "typed": (
+            "Heap-based model. Arrays become `(arr: loc) (arr_len: int)` parameters. "
+            "Heap variable: `int_mem : ref (map loc int)`. "
+            "Reads: `Map.get !int_mem (arr + i)`. Writes: `int_mem := Map.set !int_mem (arr + i) v`. "
+            "Predicates: `\\valid(arr, n)`, `\\separated(a, na, b, nb)`. "
+            "Frame: `\\assigns arr[lo..hi]`. Pre-state: `\\old(arr[i])`. "
+            "Labels: `#@ label L` / `\\at(arr[i], L)`. "
+            "Common errors: `Cannot find theory Map`, `type mismatch loc vs array int`, "
+            "`arr_len unbound`, label not found."
+        ),
+        "store": (
+            "Identical to typed model but heap variable is named `store` (not `int_mem`). "
+            "Same predicates, parameters, and error patterns as typed."
+        ),
+    }
+    model_note = _memory_model_notes.get(memory_model, _memory_model_notes["hoare"])
+
     sections = [
         "You are an expert Python developer and PyCSL reconciliation agent.",
         "Given the failure context below, determine the most appropriate action to perform and return ONLY valid JSON.",
@@ -136,6 +159,9 @@ def build_prompt(
         '- "target": one of "update-pycsl-scripts", "error-in-annotations", or "unknown".',
         "",
         "Use the following context and skills:",
+        f"--- ACTIVE MEMORY MODEL: {memory_model.upper()} ---",
+        model_note,
+        "",
         "--- SKILL ANNOTATOR ---",
         skill_anotator,
         "",
@@ -181,6 +207,9 @@ def build_prompt(
             "- Just output the JSON between \"```json\" and \"```\".",
             "- Output raw JSON only, with no extra commentary.",
             "- Base the recommendation on whether the failure is in annotations or in the PyCSL scripts themselves.",
+            f"- The active memory model is `{memory_model}`. Consider model-specific errors:",
+            "  * \'error-in-annotations\': wrong \\valid/\\separated syntax, missing \\assigns region, bad #@ label placement, \\at label not found.",
+            "  * \'update-pycsl-scripts\': Module6 missing Map preamble, loc vs array int type mismatch, arr_len parameter not emitted.",
         ]
     )
     return "\n".join(sections)
@@ -203,6 +232,8 @@ def main() -> None:
 
     model = require_config_key(config, "model", script_dir, config_path)
     project_directory = Path(str(require_config_key(config, "project-directory", script_dir, config_path))).expanduser().resolve()
+    memory_model = config.get("memory-model", "hoare")
+    log(project_directory, AGENT_NAME, f"Memory model: {memory_model}")
     skill_anotator_name = str(require_config_key(config, "skill-annotate", script_dir, config_path))
     skill_agents_name = str(require_config_key(config, "skill-agents", script_dir, config_path))
     skill_module5_name = str(require_config_key(config, "skill-module5", script_dir, config_path))
@@ -233,6 +264,7 @@ def main() -> None:
         skill_agents=skill_agents,
         skill_module5=skill_module5,
         skill_module6=skill_module6,
+        memory_model=memory_model,
         script_path=script_path,
         script_content=script_content,
         stdout_path=stdout_path,

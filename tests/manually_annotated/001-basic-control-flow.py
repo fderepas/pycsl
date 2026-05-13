@@ -1,4 +1,3 @@
-#@ requires 1 == 1
 #@ ensures \result[0] >= 0
 #@ ensures \result[1] >= 0
 #@ ensures \result[2] >= 0

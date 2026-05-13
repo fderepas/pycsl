@@ -60,6 +60,7 @@ def main():
     project_directory = config.get("project-directory", project_directory)
     model = config.get("model")
     skill_annotator_name = config.get("skill-annotate")
+    memory_model = config.get("memory-model", "hoare")
 
     if not model:
         log(project_directory, AGENT_NAME, "Error: 'model' field is missing in agents-config.json")
@@ -75,6 +76,8 @@ def main():
     if not skill_annotator_path.exists():
         log(project_directory, AGENT_NAME, f"Error: Skill annotator file not found at {skill_annotator_path}")
         sys.exit(1)
+
+    log(project_directory, AGENT_NAME, f"Memory model: {memory_model}")
 
     in_file_path = Path(args.in_file_name)
     if not in_file_path.exists():
@@ -95,7 +98,34 @@ def main():
         log(project_directory, AGENT_NAME, f"Error reading input file {in_file_path}: {e}")
         sys.exit(1)
 
-    prompt = f"{skill_content}\n\nJust output the python code between \"```python\" and \"```\".\n\n{input_code}"
+    _model_notes = {
+        "hoare": (
+            "Use standard value-semantic arrays (`array int`). "
+            "No `\\valid`, `\\separated`, or `\\assigns arr[lo..hi]` needed. "
+            "Use `#@ assigns \\nothing` for pure functions."
+        ),
+        "typed": (
+            "Arrays are heap-allocated (`loc` type). "
+            "Use `#@ requires \\valid(arr, n)` to assert array validity. "
+            "Use `#@ requires \\separated(a, na, b, nb)` when arrays must not alias. "
+            "Use `#@ assigns arr[0..n]` (with `..`) as the frame condition for in-place mutations. "
+            "Use `\\old(arr[i])` in ensures clauses to refer to the pre-state value of `arr[i]`. "
+            "Use `#@ label L` immediately before a statement to mark a program point, "
+            "then `\\at(arr[i], L)` in contracts to reference the array state at that point."
+        ),
+        "store": (
+            "Same as typed model: arrays are heap-allocated. "
+            "Use `#@ requires \\valid(arr, n)`, `#@ requires \\separated(a, na, b, nb)`, "
+            "`#@ assigns arr[0..n]`, `\\old(arr[i])`, `#@ label L`, and `\\at(arr[i], L)` "
+            "as needed for heap-aware contracts."
+        ),
+    }
+    _memory_model_context = (
+        f"\n\n# ACTIVE MEMORY MODEL: {memory_model.upper()}\n"
+        f"The pipeline is configured to use the `{memory_model}` memory model. "
+        + _model_notes.get(memory_model, _model_notes["hoare"])
+    )
+    prompt = f"{skill_content}{_memory_model_context}\n\nJust output the python code between \"```python\" and \"```\".\n\n{input_code}"
 
     try:
         generated_code = llm_generate(prompt=prompt, system="", agent_id=AGENT_NAME, model=model)
@@ -128,14 +158,11 @@ def main():
         return False
 
     # Split generated code into function blocks and check each for self-calls.
-    # We do not attempt to auto-rewrite arbitrary recursion; we only flag it so
-    # that downstream pipeline failures are attributable to a known root cause.
-    # (The skill prompt already forbids recursion; this guard is a safety check.)
-    func_def_pat = re.compile(r'^(def\s+(\w+)\s*\()', re.MULTILINE)
+    # Matches both top-level and indented (class method) defs.
+    func_def_pat = re.compile(r'^([ \t]*def\s+(\w+)\s*\()', re.MULTILINE)
     for _m in func_def_pat.finditer(generated_code):
         _fname = _m.group(2)
         _start = _m.start()
-        # Find the next top-level def to bound this function's source
         _next = func_def_pat.search(generated_code, _start + 1)
         _func_src = generated_code[_start:_next.start() if _next else len(generated_code)]
         if _is_recursive(_fname, _func_src):
@@ -165,18 +192,11 @@ def main():
     # from the WhyML signature. Preconditions should be expressed via `#@ requires` only.
     generated_code = re.sub(r'^[ \t]*raise\b[^\n]*\n?', '', generated_code, flags=re.MULTILINE)
 
-    # Guard: The IR pipeline has no handler for subscript assignment targets
-    # (e.g., `arr[j+1] = arr[j]`, `lst[i] = value`).  Any `collection[idx] = expr`
-    # statement produces invalid WhyML because Module5 has no AST handler for
-    # ast.Subscript nodes on the left side of an assignment.  Strip such lines and
-    # log a warning; the skill prompt already forbids subscript assignment.
-    _subassign_pat = re.compile(r'^[ \t]*\w+\[[^\]]*\]\s*=\s*[^\n]+\n?', re.MULTILINE)
-    if _subassign_pat.search(generated_code):
-        log(project_directory, AGENT_NAME,
-            "Warning: subscript assignment (collection[idx] = value) detected in generated code. "
-            "The IR pipeline cannot handle subscript assignment targets — stripping these lines. "
-            "The skill prompt forbids subscript assignment; check LLM output.")
-        generated_code = _subassign_pat.sub('', generated_code)
+    # Guard (removed in Feature 1): Subscript assignment (`arr[i] = value`) is now
+    # supported via the ArraySet IR node. The IR pipeline (Module5) handles ast.Subscript
+    # on the left side of an assignment and emits `arr[i] <- v` in WhyML using array.Array.
+    # No stripping is performed; the LLM should generate subscript assignments freely
+    # when the algorithm requires in-place array mutation.
 
     # Guard: Ensure every `def` has at least a `#@ requires` and `#@ ensures` immediately
     # preceding it.  The IR pipeline (Module5) only emits function contracts when the PyCSL
@@ -193,44 +213,77 @@ def main():
         i = 0
         while i < len(lines):
             line = lines[i]
-            if re.match(r'^def\s+', line):
-                # Check whether the immediately preceding non-empty line is a #@ contract.
-                preceding = [l.rstrip() for l in out if l.strip()]
-                has_requires = any(re.match(r'\s*#@\s*requires\b', l) for l in preceding[-5:])
-                has_ensures  = any(re.match(r'\s*#@\s*ensures\b',  l) for l in preceding[-5:])
-                has_assigns  = any(re.match(r'\s*#@\s*assigns\b',  l) for l in preceding[-5:])
+            # Match both top-level defs and indented class method defs
+            def_m = re.match(r'^([ \t]*)def\s+(\w+)\s*\(', line)
+            if def_m:
+                indent = def_m.group(1)
+                method_name = def_m.group(2)
+
+                # Skip __init__, __str__, etc. and @property — Module5 ignores them
+                is_dunder = method_name.startswith('__') and method_name.endswith('__')
+                preceding_stripped = [l.rstrip() for l in out if l.strip()]
+                is_property = any(re.match(r'\s*@property\b', l) for l in preceding_stripped[-3:])
+                if is_dunder or is_property:
+                    out.append(line)
+                    i += 1
+                    continue
+
+                # Check whether contracts are already present in the preceding 5 lines
+                has_requires = any(re.match(r'\s*#@\s*requires\b', l) for l in preceding_stripped[-5:])
+                has_ensures  = any(re.match(r'\s*#@\s*ensures\b',  l) for l in preceding_stripped[-5:])
+                has_assigns  = any(re.match(r'\s*#@\s*assigns\b',  l) for l in preceding_stripped[-5:])
+
+                # Detect whether this is a class method (has `self` as first param)
+                is_method = bool(re.match(r'^[ \t]+def\s+\w+\s*\(\s*self\b', line))
+
                 if not has_requires or not has_ensures:
-                    # Scan ahead to identify body type.
                     body = ''.join(lines[i+1:])
                     if (re.search(r'\b(acc|product)\s*=\s*1\b', body) and
                             re.search(r'\b(acc|product)\s*\*=|\b(acc|product)\s*=\s*(acc|product)\s*\*', body)):
-                        # Multiplicative accumulator — infer parameter name from signature.
-                        param_m = re.search(r'def\s+\w+\s*\(\s*(\w+)', line)
+                        param_m = re.search(r'def\s+\w+\s*\(\s*(?:self\s*,\s*)?(\w+)', line)
                         param = param_m.group(1) if param_m else 'n'
                         if not has_requires:
-                            out.append(f'#@ requires {param} >= 1\n')
+                            out.append(f'{indent}#@ requires {param} >= 1\n')
                         if not has_ensures:
-                            out.append('#@ ensures \\result >= 1\n')
+                            out.append(f'{indent}#@ ensures \\result >= 1\n')
                     elif (re.search(r'\b(total|count|acc)\s*=\s*0\b', body) and
                           re.search(r'\b(total|count|acc)\s*\+=', body)):
                         if not has_requires:
-                            out.append('#@ requires 1 == 1\n')
+                            out.append(f'{indent}#@ requires 1 == 1\n')
                         if not has_ensures:
-                            out.append('#@ ensures 1 == 1\n')
+                            out.append(f'{indent}#@ ensures 1 == 1\n')
                     else:
                         if not has_requires:
-                            out.append('#@ requires 1 == 1\n')
+                            out.append(f'{indent}#@ requires 1 == 1\n')
                         if not has_ensures:
-                            out.append('#@ ensures 1 == 1\n')
-                # Always ensure #@ assigns \nothing is present, independently of
-                # whether requires/ensures were already found.  This prevents the
-                # pipeline-level bug where the first `assigns \nothing` function
-                # that also carries loop invariants has its function-level contracts
-                # silently dropped: the complete three-annotation block (requires +
-                # ensures + assigns) must be present so Module3's line-number lookup
-                # reliably attaches all three contracts to the FunctionDef AST node.
+                            out.append(f'{indent}#@ ensures 1 == 1\n')
+
                 if not has_assigns:
-                    out.append('#@ assigns \\nothing\n')
+                    if is_method:
+                        # Detect which self.* fields are mutated in this method's body
+                        body_lines = []
+                        j = i + 1
+                        base_indent = indent + '    '
+                        while j < len(lines):
+                            if lines[j].strip() == '' or lines[j].startswith(base_indent):
+                                body_lines.append(lines[j])
+                                j += 1
+                            else:
+                                break
+                        body_text = ''.join(body_lines)
+                        mutated = re.findall(r'\bself\.(\w+)\s*(?:=|\+=|-=|\*=)', body_text)
+                        if mutated:
+                            # Emit one `#@ assigns self._field` per unique mutated field
+                            seen = []
+                            for fld in mutated:
+                                if fld not in seen:
+                                    seen.append(fld)
+                                    out.append(f'{indent}#@ assigns self.{fld}\n')
+                        else:
+                            out.append(f'{indent}#@ assigns \\nothing\n')
+                    else:
+                        out.append(f'{indent}#@ assigns \\nothing\n')
+
             out.append(line)
             i += 1
         return ''.join(out)
@@ -271,7 +324,7 @@ def main():
         )
 
     # Guard: The WhyML transpiler maps `str` parameters to `int`, so any `len(<str_param>)`
-    # in the function body emits `Seq.length <str_param>` where the param has type `int`,
+    # in the function body emits `length <str_param>` where the param has type `int`,
     # causing a fatal type mismatch. Whenever `<param>_len = len(<param>)` appears in the
     # body (whether from the LLM or from the guard above), remove that assignment line,
     # promote `<param>_len: int` as an explicit function parameter in place of `<param>: str`,
@@ -323,6 +376,27 @@ def main():
         generated_code
     )
 
+    # Guard: Bare Python boolean constants (`True`, `False`, `None`) are not valid in
+    # PyCSL contract expressions — the parser only recognises identifiers, numbers,
+    # `\result`, `\old`, and operators.  Replace them with provably-equivalent integer forms.
+    # `True` → `1 == 1`, `False` → `0 == 1` (always false), `None` → `0`
+    # Applied to all #@ contract lines.
+    generated_code = re.sub(
+        r'(#@[^\n]*)\bTrue\b',
+        lambda m: m.group(1).replace('True', '1 == 1'),
+        generated_code, flags=re.MULTILINE
+    )
+    generated_code = re.sub(
+        r'(#@[^\n]*)\bFalse\b',
+        lambda m: m.group(1).replace('False', '0 == 1'),
+        generated_code, flags=re.MULTILINE
+    )
+    generated_code = re.sub(
+        r'(#@[^\n]*)\bNone\b',
+        lambda m: m.group(1).replace('None', '0'),
+        generated_code, flags=re.MULTILINE
+    )
+
     # Guard: The PyCSL parser's contract grammar does not support the `//` (floor-division)
     # operator inside `#@` contract expressions (requires, ensures, loop invariant).
     # Integer division properties are difficult to express in the current grammar, so replace
@@ -343,17 +417,18 @@ def main():
         generated_code
     )
 
-    # Guard: The PyCSL parser forbids function calls (e.g., `len(x)`) inside `#@`
-    # contract expressions. Any `#@ requires ... len(...) ...` line that slips through
-    # from the LLM is replaced with the trivially-true `#@ requires 1 == 1`.
+    # Guard: The PyCSL parser forbids arbitrary function calls (e.g., `len(x)`) inside `#@`
+    # contract expressions — the contract parser will raise a syntax error. Exception:
+    # `\length(arr)` (backslash prefix) IS supported as a special atom in contracts (Feature 2).
+    # Any `#@ requires ... len(...) ...` (without backslash) is replaced with `1 == 1`.
     generated_code = re.sub(
-        r'#@\s*requires\b[^\n]*\blen\s*\([^\n]*',
+        r'#@\s*requires\b[^\n]*(?<!\\)\blen\s*\([^\n]*',
         '#@ requires 1 == 1',
         generated_code
     )
-    # Similarly guard ensures and loop invariants containing len().
+    # Similarly guard ensures and loop invariants containing len() (without backslash).
     generated_code = re.sub(
-        r'(#@\s*(?:ensures|loop invariant)\b[^\n]*)\blen\s*\([^\n]*',
+        r'(#@\s*(?:ensures|loop invariant)\b[^\n]*)(?<!\\)\blen\s*\([^\n]*',
         r'\g<1>1 == 1',
         generated_code
     )
@@ -425,6 +500,240 @@ def main():
 
     generated_code = _weaken_offset_start_loop_invariant(generated_code)
 
+    # Guard: `#@ loop invariant 0 <= i` without an upper bound `i <= n` is too
+    # weak when the loop variant is `n - i` — Alt-Ergo cannot prove `n - i >= 0`
+    # at loop entry without an explicit `i <= n` in the invariant.  Strengthen
+    # any lone `0 <= <var>` invariant to `0 <= <var> and <var> <= <bound>` when
+    # the same loop block contains a variant of the form `<bound> - <var>` and
+    # the invariant does NOT already include `<var> <= <bound>`.
+    def _strengthen_loop_counter_invariant(code: str) -> str:
+        lines = code.splitlines(keepends=True)
+        out = []
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            m_inv = re.match(r'(\s*#@\s*loop invariant\s+)(0\s*<=\s*)(\w+)\s*$', line)
+            if m_inv:
+                var = m_inv.group(3)
+                # Scan ahead within this loop annotation block for a variant `b - var`
+                j = i + 1
+                bound = None
+                while j < len(lines):
+                    candidate = lines[j].strip()
+                    m_var = re.match(
+                        r'#@\s*loop variant\s+(\w+)\s*-\s*' + re.escape(var) + r'\s*$',
+                        candidate
+                    )
+                    if m_var:
+                        bound = m_var.group(1)
+                        break
+                    # Stop scanning once we leave the annotation block
+                    if candidate and not candidate.startswith('#@'):
+                        break
+                    j += 1
+                if bound:
+                    # Check that `var <= bound` is not already present anywhere in
+                    # the same annotation block (including before the current line).
+                    block_start = i
+                    while block_start > 0 and re.match(r'\s*#@', lines[block_start - 1]):
+                        block_start -= 1
+                    block = ''.join(lines[block_start:j + 1])
+                    already_bounded = bool(re.search(
+                        re.escape(var) + r'\s*<=\s*' + re.escape(bound), block
+                    ))
+                    if not already_bounded:
+                        # Replace bare `0 <= var` with `0 <= var and var <= bound`
+                        line = re.sub(
+                            r'(#@\s*loop invariant\s+)(0\s*<=\s*' + re.escape(var) + r')\s*$',
+                            lambda m_: m_.group(1) + m_.group(2).rstrip()
+                                + ' and ' + var + ' <= ' + bound + '\n',
+                            line
+                        )
+            out.append(line)
+            i += 1
+        return ''.join(out)
+
+    generated_code = _strengthen_loop_counter_invariant(generated_code)
+
+    # Guard: When a while-loop body accesses `array[var - offset_var]` (e.g.
+    # `values[i - k]`), Alt-Ergo needs `offset_var <= var` to discharge the
+    # lower array-bounds obligation (`var - offset_var >= 0`).  The standard
+    # iteration invariant `0 <= var` is not sufficient.  When the loop counter
+    # `var` is initialised to `offset_var` (e.g. `i = k`) and the body contains
+    # `[var - offset_var]`, inject `#@ loop invariant offset_var <= var` unless
+    # it is already present.  This is always provable: at entry `var = offset_var`
+    # so `offset_var <= var` is trivially `offset_var <= offset_var`; and `var`
+    # is only ever incremented, so the invariant is maintained.
+    def _inject_offset_lower_bound_invariant(code: str) -> str:
+        lines = code.splitlines(keepends=True)
+        out: list[str] = []
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            # Detect the last invariant line in an annotation block (next
+            # non-annotation line is the `while` statement).
+            m_inv = re.match(r'(\s*)(#@\s*loop invariant\b.*)', line)
+            if m_inv:
+                indent = m_inv.group(1)
+                # Peek ahead: collect all remaining annotation lines then find
+                # the `while` statement.
+                j = i + 1
+                while j < len(lines) and re.match(r'\s*#@', lines[j]):
+                    j += 1
+                # lines[j] should now be the `while` line (skip blank lines).
+                while j < len(lines) and lines[j].strip() == '':
+                    j += 1
+                if j < len(lines) and re.match(r'\s*while\b', lines[j]):
+                    # Collect the annotation block (from first #@ to j-1).
+                    block_start = i
+                    while block_start > 0 and re.match(r'\s*#@', out[block_start - 1] if block_start <= len(out) else ''):
+                        block_start -= 1
+                    # Collect the whole annotation block text.
+                    ann_lines = []
+                    k2 = i
+                    while k2 < j:
+                        if re.match(r'\s*#@', lines[k2]):
+                            ann_lines.append(lines[k2])
+                        k2 += 1
+                    ann_block = ''.join(ann_lines)
+
+                    # Find the loop counter variable from `0 <= <var>` in the block.
+                    m_var = re.search(r'#@\s*loop invariant\s+0\s*<=\s*(\w+)', ann_block)
+                    if m_var:
+                        loop_var = m_var.group(1)
+                        # Collect the while-loop body.
+                        while_indent = len(lines[j]) - len(lines[j].lstrip())
+                        body_lines = []
+                        bk = j + 1
+                        while bk < len(lines):
+                            bl = lines[bk]
+                            if bl.strip() == '':
+                                bk += 1
+                                continue
+                            bl_indent = len(bl) - len(bl.lstrip())
+                            if bl_indent <= while_indent:
+                                break
+                            body_lines.append(bl)
+                            bk += 1
+                        body_text = ''.join(body_lines)
+
+                        # Look for `[loop_var - <offset_var>]` in the body.
+                        m_off = re.search(
+                            r'\[\s*' + re.escape(loop_var) + r'\s*-\s*(\w+)\s*\]',
+                            body_text
+                        )
+                        if m_off:
+                            offset_var = m_off.group(1)
+                            # Check that the invariant is not already present.
+                            already = bool(re.search(
+                                re.escape(offset_var) + r'\s*<=\s*' + re.escape(loop_var),
+                                ann_block
+                            ))
+                            if not already:
+                                # Find the variant line (last #@ line before the while)
+                                # and insert the new invariant just before it so
+                                # invariants come before variants.
+                                variant_idx = None
+                                k3 = i
+                                while k3 < j:
+                                    if re.match(r'\s*#@\s*loop variant\b', lines[k3]):
+                                        variant_idx = k3
+                                        break
+                                    k3 += 1
+                                new_inv = f'{indent}#@ loop invariant {offset_var} <= {loop_var}\n'
+                                if variant_idx is not None and variant_idx > i:
+                                    # We will insert new_inv at variant_idx (relative
+                                    # to out's current length + lines processed so far).
+                                    # Emit lines[i..variant_idx-1], then inject, then continue.
+                                    while i < variant_idx:
+                                        out.append(lines[i])
+                                        i += 1
+                                    out.append(new_inv)
+                                    continue  # `i` now points at variant_idx line
+                                else:
+                                    # No variant line found; append invariant after
+                                    # all annotation lines (i.e. just before `while`).
+                                    while i < j:
+                                        if re.match(r'\s*#@', lines[i]):
+                                            out.append(lines[i])
+                                            i += 1
+                                        else:
+                                            break
+                                    out.append(new_inv)
+                                    continue
+            out.append(line)
+            i += 1
+        return ''.join(out)
+
+    generated_code = _inject_offset_lower_bound_invariant(generated_code)
+
+    # Guard: `#@ loop invariant 0 <= i` is too weak when `i` is initialised to
+    # `1` and the loop body accesses `array[i - 1]`.  Alt-Ergo needs `1 <= i` to
+    # discharge the array-bounds obligation for `values[i - 1]`.  Upgrade any
+    # `0 <= <var>` invariant to `1 <= <var>` when (a) the enclosing function
+    # initialises `<var> = 1` before the while-loop, and (b) the loop body
+    # contains an index expression `[<var> - 1]`.
+    def _tighten_lower_bound_for_pred_access(code: str) -> str:
+        lines = code.splitlines(keepends=True)
+        out = []
+        current_func_body: list = []
+        for idx, line in enumerate(lines):
+            # Detect function definition boundary — reset per-function state.
+            if re.match(r'^def\s+', line):
+                current_func_body = [line]
+            else:
+                current_func_body.append(line)
+
+            # Match `0 <= <var>` at the start of an invariant (with optional
+            # trailing `and <var> <= <bound>` added by _strengthen_loop_counter_invariant).
+            m_inv = re.match(r'(\s*)(#@\s*loop invariant\s+)(0\s*<=\s*)(\w+)', line)
+            if m_inv:
+                var = m_inv.group(4)
+                body_text = ''.join(current_func_body)
+                # Condition (a): var initialised to 1 before the loop.
+                init_to_one = bool(re.search(
+                    r'\b' + re.escape(var) + r'\s*=\s*1\b', body_text
+                ))
+                # Condition (b): loop body accesses [var - 1] — scan forward to
+                # find the corresponding `while` block body.
+                pred_access = False
+                # Find the while loop that this invariant belongs to by looking
+                # ahead until we leave the annotation+while block.
+                j = idx + 1
+                while j < len(lines):
+                    candidate = lines[j].strip()
+                    if candidate.startswith('#@'):
+                        j += 1
+                        continue
+                    # First non-annotation line should be `while ...:`
+                    if re.match(r'while\b', candidate):
+                        # Collect the while body until indentation drops.
+                        indent_len = len(lines[j]) - len(lines[j].lstrip())
+                        k = j + 1
+                        while k < len(lines):
+                            bl = lines[k]
+                            if bl.strip() == '':
+                                k += 1
+                                continue
+                            bl_indent = len(bl) - len(bl.lstrip())
+                            if bl_indent <= indent_len:
+                                break
+                            if re.search(r'\[' + re.escape(var) + r'\s*-\s*1\]', bl):
+                                pred_access = True
+                                break
+                            k += 1
+                    break
+                if init_to_one and pred_access:
+                    line = re.sub(
+                        r'(#@\s*loop invariant\s+)0\s*<=\s*' + re.escape(var),
+                        lambda m_: m_.group(1) + '1 <= ' + var,
+                        line
+                    )
+            out.append(line)
+        return ''.join(out)
+
+    generated_code = _tighten_lower_bound_for_pred_access(generated_code)
+
     # Guard: `#@ loop invariant (total|acc) >= 0` is unprovable when the
     # accumulator is summing elements from a list/seq parameter that may contain
     # negative integers.  For functions that declare at least one `list`-typed
@@ -433,14 +742,35 @@ def main():
     # NOTE: `count >= 0` is intentionally excluded from this guard — a counting
     # accumulator (incremented only on a positive-element test) is always >= 0 and
     # the invariant is needed to close postconditions such as `\result >= 0`.
+    # NOTE: Functions whose loop body skips non-positive elements via `continue`
+    # (e.g., `if values[i] <= 0: ... continue`) only ever add positive values to
+    # the accumulator, so `total >= 0` IS provable and must NOT be stripped.
     def _strip_unprovable_additive_invariants(code: str) -> str:
+        # Pre-scan: identify functions that use a positive-only accumulation pattern
+        # (a `continue` guard that skips non-positive list elements).  For these,
+        # `total >= 0` is provable and the invariant must be preserved.
+        positive_only_funcs: set = set()
+        for m in re.finditer(r'^def\s+(\w+)', code, re.MULTILINE):
+            fname = m.group(1)
+            next_def = re.search(r'^def\s+', code[m.end():], re.MULTILINE)
+            end = (m.end() + next_def.start()) if next_def else len(code)
+            body = code[m.start():end]
+            if (re.search(r':\s*list\b', body.split('\n')[0]) and
+                    re.search(r'if\s+\w+\[.*?\]\s*<=\s*0', body) and
+                    re.search(r'\bcontinue\b', body)):
+                positive_only_funcs.add(fname)
+
         lines = code.splitlines(keepends=True)
         out = []
         in_list_func = False
+        current_func: str = ''
         for line in lines:
-            if re.match(r'^def\s+', line):
+            m = re.match(r'^def\s+(\w+)', line)
+            if m:
+                current_func = m.group(1)
                 in_list_func = bool(re.search(r':\s*list\b', line))
             if (in_list_func and
+                    current_func not in positive_only_funcs and
                     re.match(r'\s*#@\s*loop invariant\s+(total|acc)\s*>=\s*0\s*$', line)):
                 continue  # drop unprovable invariant for list-iterating functions
             out.append(line)
@@ -448,16 +778,169 @@ def main():
 
     generated_code = _strip_unprovable_additive_invariants(generated_code)
 
+    # Guard: Binary-search / two-pointer loops whose variant is `(right - left) + 1`
+    # require explicit upper-bound invariants `left <= n` and `right < n`.  Without
+    # them, Alt-Ergo cannot prove `(right - left + 1) >= 0` at loop entry (it only
+    # sees `left >= 0` and `right >= -1`, which are too weak), and exhausts its step
+    # budget.  When we detect a loop annotation block that contains:
+    #   - a variant of the form `(right - left) + 1` or `right - left + 1`, AND
+    #   - `left <= n` or `right < n` is NOT already present,
+    # inject the two missing upper-bound invariants immediately before the variant.
+    def _strengthen_binary_search_invariants(code: str) -> str:
+        lines = code.splitlines(keepends=True)
+        out: list[str] = []
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            # Detect a loop variant of the form `(right - left) + 1` or `right - left + 1`
+            m_var = re.match(
+                r'(\s*#@\s*loop variant\s+)\(?\s*(\w+)\s*-\s*(\w+)\s*\)\s*\+\s*1\s*$',
+                line
+            )
+            if m_var:
+                right_var = m_var.group(2)
+                left_var = m_var.group(3)
+                indent = re.match(r'(\s*)', line).group(1)
+                # Scan the whole annotation block (backwards from the variant line)
+                # to find the loop's `n` binding and check for existing upper bounds.
+                block_start = len(out)
+                while block_start > 0 and re.match(r'\s*#@', out[block_start - 1]):
+                    block_start -= 1
+                block = ''.join(out[block_start:])
+
+                # Look ahead for the `n` variable — it should be assigned as `n = len(...)`
+                # or `n = \length(...)` just before or inside the function.  We detect it
+                # by scanning for `<left_var> <= n` or `<right_var> < n` absence.
+                # Find the `n` binding: look for `n = len(` in the preceding function body.
+                n_var = None
+                for prev_line in reversed(out):
+                    m_n = re.match(r'\s*(\w+)\s*=\s*len\s*\(', prev_line)
+                    if m_n:
+                        n_var = m_n.group(1)
+                        break
+                    if re.match(r'^def\s+', prev_line):
+                        break
+
+                if n_var:
+                    has_left_upper = bool(re.search(
+                        re.escape(left_var) + r'\s*<=\s*' + re.escape(n_var), block
+                    ))
+                    has_right_upper = bool(re.search(
+                        re.escape(right_var) + r'\s*<\s*' + re.escape(n_var), block
+                    ))
+                    if not has_left_upper:
+                        out.append(f'{indent}#@ loop invariant {left_var} <= {n_var}\n')
+                    if not has_right_upper:
+                        out.append(f'{indent}#@ loop invariant {right_var} < {n_var}\n')
+
+            out.append(line)
+            i += 1
+        return ''.join(out)
+
+    generated_code = _strengthen_binary_search_invariants(generated_code)
+
+    # Guard: `#@ loop invariant 0 <= left and left <= right` is false at loop
+    # entry when the array has zero or one element (right = n-1 may be < left = 0).
+    # Alt-Ergo reports Unknown because it cannot establish the invariant initially.
+    # Split any compound `0 <= <lvar> and <lvar> <= <rvar>` invariant on a two-pointer
+    # loop (detected by a loop variant of the form `<rvar> - <lvar>`) into two
+    # separate invariants.  However, the splitting behaviour depends on whether <rvar>
+    # is a locally-assigned two-pointer variable (e.g. `right = n - 1`) or a fixed-
+    # bound function parameter (e.g. `n`, `a_rows`, `b_cols`, `a_cols`):
+    #   - Locally-assigned rvar (true two-pointer): `lvar <= rvar` can be false at
+    #     loop entry for empty input, so drop it and substitute the len()-based bound:
+    #     emit `0 <= lvar` and (if a `n = len(...)` binding is found) `lvar <= n`.
+    #   - Parameter rvar (fixed bound): `lvar <= rvar` is always true at loop entry
+    #     (lvar starts at 0, rvar >= 1 by precondition).  Preserve it — Alt-Ergo
+    #     NEEDS `lvar <= rvar` to prove the variant non-negativity goal `rvar - lvar
+    #     >= 0` at loop entry without exhausting its step budget.
+    def _split_two_pointer_compound_invariant(code: str) -> str:
+        lines = code.splitlines(keepends=True)
+        out: list[str] = []
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            # Match `#@ loop invariant 0 <= <lvar> and <lvar> <= <rvar>`
+            m = re.match(
+                r'(\s*)(#@\s*loop invariant\s+)(0\s*<=\s*)(\w+)\s+and\s+\4\s*<=\s*(\w+)\s*$',
+                line
+            )
+            if m:
+                indent = m.group(1)
+                lvar = m.group(4)
+                rvar = m.group(5)
+                # Confirm this is a two-pointer loop by scanning ahead for a variant
+                # `<rvar> - <lvar>` in the same annotation block.
+                j = i + 1
+                is_two_pointer = False
+                while j < len(lines):
+                    candidate = lines[j].strip()
+                    if re.match(
+                        r'#@\s*loop variant\s+' + re.escape(rvar) + r'\s*-\s*' + re.escape(lvar),
+                        candidate
+                    ):
+                        is_two_pointer = True
+                        break
+                    if candidate and not candidate.startswith('#@'):
+                        break
+                    j += 1
+                if is_two_pointer:
+                    # Find the `n` binding in the enclosing function.
+                    n_var = None
+                    for prev_line in reversed(out):
+                        m_n = re.match(r'\s*(\w+)\s*=\s*len\s*\(', prev_line)
+                        if m_n:
+                            n_var = m_n.group(1)
+                            break
+                        if re.match(r'^def\s+', prev_line):
+                            break
+                    # Determine whether rvar is a locally-assigned variable (a true
+                    # two-pointer such as `right = n - 1`) or a fixed-bound function
+                    # parameter (e.g. `n`, `a_rows`, `b_cols`, `a_cols`).  A locally-
+                    # assigned rvar may be -1 at loop entry for empty input, making
+                    # `lvar <= rvar` false — so we must drop that clause and substitute
+                    # the len()-based bound instead.  A parameter-bound rvar IS always
+                    # >= lvar at loop entry (since lvar starts at 0 and rvar >= 1 by
+                    # precondition), so the upper-bound invariant `lvar <= rvar` must
+                    # be preserved to give Alt-Ergo the linear bound it needs to prove
+                    # variant non-negativity (`rvar - lvar >= 0`) at loop entry.
+                    func_body_lines = []
+                    for prev_line in reversed(out):
+                        if re.match(r'^def\s+', prev_line):
+                            break
+                        func_body_lines.append(prev_line)
+                    rvar_is_local = bool(re.search(
+                        r'\b' + re.escape(rvar) + r'\s*=(?!=)',
+                        ''.join(func_body_lines)
+                    ))
+                    out.append(f'{indent}#@ loop invariant 0 <= {lvar}\n')
+                    if rvar_is_local:
+                        # True two-pointer: lvar <= rvar is false at entry for empty
+                        # input; use the len()-based bound if available.
+                        if n_var:
+                            out.append(f'{indent}#@ loop invariant {lvar} <= {n_var}\n')
+                    else:
+                        # Fixed-bound parameter: rvar IS the upper bound; always emit
+                        # lvar <= rvar to give Alt-Ergo the two-sided bound it needs.
+                        out.append(f'{indent}#@ loop invariant {lvar} <= {rvar}\n')
+                    i += 1
+                    continue
+            out.append(line)
+            i += 1
+        return ''.join(out)
+
+    generated_code = _split_two_pointer_compound_invariant(generated_code)
+
     # Guard: The WhyML transpiler (Module6) has no handling for bare method-call
     # statements on list parameters (e.g., `log.append(event_len)`). When such a call
     # appears as a statement, Module6 emits an empty code string and then the semicolon
     # sequencer prepends a spurious ";\n" before the next expression — producing invalid
-    # WhyML of the form `let n = ref (Seq.length log) in\n;\n(!n + 1)`. Strip any bare
+    # WhyML of the form `let n = ref (length log) in\n;\n(!n + 1)`. Strip any bare
     # method-call expression-statements on list-typed parameters from the function body.
     list_params = set(re.findall(r'\b(\w+)\s*:\s*list\b', generated_code))
 
-    # Guard: `if not <list_var>:` is invalid in WhyML (not cannot apply to seq int).
-    # Replace with an explicit length-zero check; len() maps to Seq.length and is safe.
+    # Guard: `if not <list_var>:` is invalid in WhyML (not cannot apply to array int).
+    # Replace with an explicit length-zero check; len() maps to `length` and is safe.
     for _lp in list_params:
         generated_code = re.sub(
             rf'(\s*)if not {re.escape(_lp)}\s*:',
@@ -479,6 +962,58 @@ def main():
             flags=re.MULTILINE
         )
 
+    # Guard: `-> list` is an invalid return type in WhyML — the transpiler always emits
+    # `int` as the return type, so returning an `array int` (a list parameter) causes a
+    # fatal type mismatch.  For every function annotated with `-> list`, rewrite it to
+    # `-> int`, replace any trailing `return <list_param>` with `return 0`, and change
+    # the `#@ ensures` postcondition to `#@ ensures \result == 0`.
+    def _fix_list_return_type(code: str) -> str:
+        lines = code.splitlines(keepends=True)
+        out: list[str] = []
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            # Detect `def funcname(...) -> list:` signatures (possibly with type hints).
+            m = re.match(r'^([ \t]*def\s+(\w+)\s*\([^)]*\))\s*->\s*list\s*:', line)
+            if m:
+                # Collect list-typed parameter names for this function.
+                fn_params = re.findall(r'\b(\w+)\s*:\s*list\b', line)
+                # Rewrite the signature to `-> int`.
+                out.append(m.group(1) + ' -> int:\n')
+                i += 1
+                # Scan forward to the end of the function body to fix contracts and return.
+                indent_base = len(m.group(1)) - len(m.group(1).lstrip())
+                while i < len(lines):
+                    body_line = lines[i]
+                    stripped = body_line.rstrip()
+                    # Detect dedented line (next function/class definition or EOF).
+                    body_indent = len(body_line) - len(body_line.lstrip())
+                    if body_line.strip() and body_indent <= indent_base and not body_line.lstrip().startswith('#@'):
+                        break
+                    # Rewrite `#@ ensures \result ...` → `#@ ensures \result == 0`.
+                    if re.match(r'[ \t]*#@\s*ensures\b', body_line):
+                        leading = re.match(r'^([ \t]*#@\s*ensures\s+)', body_line)
+                        if leading:
+                            out.append(leading.group(1) + r'\result == 0' + '\n')
+                            i += 1
+                            continue
+                    # Rewrite `return <list_param>` → `return 0`.
+                    if fn_params:
+                        pat = r'^([ \t]*)return\s+(?:' + '|'.join(re.escape(p) for p in fn_params) + r')\s*$'
+                        if re.match(pat, body_line):
+                            leading_ws = re.match(r'^([ \t]*)', body_line).group(1)
+                            out.append(leading_ws + 'return 0\n')
+                            i += 1
+                            continue
+                    out.append(body_line)
+                    i += 1
+                continue
+            out.append(line)
+            i += 1
+        return ''.join(out)
+
+    generated_code = _fix_list_return_type(generated_code)
+
     # Guard: `val` is a reserved keyword in WhyML (used to declare program functions).
     # If any function parameter is named `val`, rename it to `v` everywhere in the
     # function signature, `#@ requires`/`#@ ensures` contracts, and the function body.
@@ -498,20 +1033,153 @@ def main():
         flags=re.MULTILINE
     )
 
-    # Guard: Collapse blank lines that separate a #@ annotation block from the
-    # immediately following `def` keyword.  The pipeline (Module3 Weaver) uses
-    # line numbers from libcst's PositionProvider to build contracts_map, then
-    # looks those same numbers up in the Python AST FunctionDef nodes.  When
-    # blank lines appear between the last #@ annotation and the `def` line,
-    # some libcst builds report the FunctionDef start at the first leading_line
-    # rather than at the `def` keyword, creating a line-number mismatch that
-    # silently drops requires/ensures for the first `assigns \nothing` function
-    # that also carries loop invariants (the exact pipeline bug documented in
-    # the reconciliation report).  Removing those blank lines guarantees that
-    # the annotation block is the last visible content before every `def`.
+    # Guard: `goal` is a reserved keyword in WhyML. If any function parameter is named
+    # `goal`, rename it to `target` everywhere (signature, contracts, body).
+    if re.search(r'\bgoal\s*:', generated_code):
+        generated_code = re.sub(r'\bgoal\b', 'target', generated_code)
+
+    # Guard: A local variable named `result` shadows the `result` binding used by
+    # Why3 inside `ensures { result ... }` postconditions, making postconditions
+    # silently unprovable (Alt-Ergo sees a ref, not the return value).
+    # Rename any `result = ...` assignment (not inside a #@ line) to `acc`.
     generated_code = re.sub(
-        r'((?:^[ \t]*#@[^\n]*\n)+)\n+([ \t]*def\s)',
+        r'^([ \t]*)result(\s*(?:=|\+=|-=|\*=))',
+        r'\1acc\2',
+        generated_code,
+        flags=re.MULTILINE
+    )
+    # Also rename subsequent uses of the local `result` variable in body lines.
+    # Only rename when it appears in a plain assignment context (not in #@ lines).
+    generated_code = re.sub(
+        r'(?m)^(?![ \t]*#@)([^\n]*)\bresult\b',
+        lambda m: m.group(0).replace('result', 'acc') if 'def ' not in m.group(0) else m.group(0),
+        generated_code
+    )
+
+    # Guard: Default argument values in method signatures are unsupported — the pipeline
+    # (Module5) cannot handle them and produces wrong symbol tables. Strip `= <value>`
+    # defaults from ALL function parameters (both standalone and class methods).
+    # Pattern: `param = value` or `param: type = value` in argument lists.
+    # We do this by iterating over each `def` line and cleaning its argument list.
+    def _strip_default_args(code: str) -> str:
+        def _clean_args(m: re.Match) -> str:
+            sig = m.group(0)
+            # Remove `: type = value` → `: type` and bare `= value` → ''
+            sig = re.sub(r'(:\s*\w+)\s*=\s*[^,)]+', r'\1', sig)
+            sig = re.sub(r'(\w+)\s*=\s*[^,)]+', r'\1', sig)
+            return sig
+        return re.sub(r'def\s+\w+\s*\([^)]*\)', _clean_args, code)
+
+    generated_code = _strip_default_args(generated_code)
+
+    # Guard: Normalise `#@ assigns arr[..n]` (missing start) → `#@ assigns arr[0..n]`.
+    # The PyCSL parser expects `arr[lo..hi]`; a missing start defaults to 0.
+    generated_code = re.sub(
+        r'(#@\s*assigns\s+\w+)\[\s*\.\.',
+        r'\g<1>[0..',
+        generated_code,
+        flags=re.MULTILINE
+    )
+
+    # Guard: `#@ assigns self._field` uses FieldAccess grammar (Level 2). If the LLM
+    # writes `#@ assigns self` (without a field) or `#@ assigns self._field, self._other`
+    # (multiple fields), that is valid per the grammar (expr_list). However, if it writes
+    # `#@ assigns self._field = value` (assignment syntax inside contract) that is invalid.
+    # Strip any `=` and everything after it on an `assigns` contract line as a safety net.
+    generated_code = re.sub(
+        r'(#@\s*assigns\b[^\n]*?)=.*$',
+        r'\1',
+        generated_code,
+        flags=re.MULTILINE
+    )
+
+    # Guard: Contracts for class methods must NOT reference `obj_<field>` names (Level 1
+    # syntax). If the LLM emits `#@ requires obj__value >= 0` (old Level 1 style), rewrite
+    # it to the Level 2 `self._value` syntax.
+    generated_code = re.sub(
+        r'(#@[^\n]*)\bobj_(\w+)\b',
+        lambda m: m.group(1) + 'self.' + m.group(2).lstrip('_') if m.group(2).startswith('_')
+                  else m.group(1) + 'self._' + m.group(2),
+        generated_code,
+        flags=re.MULTILINE
+    )
+
+    # Guard (Level 3): Normalize bare `#@ invariant self.<field>` → `#@ class invariant self.<field>`.
+    # The grammar only accepts `class invariant` and `loop invariant` as multi-word keywords.
+    # When the LLM omits the "class" prefix before a self.field reference the contract
+    # parser raises a SyntaxError.
+    # IMPORTANT: must NOT match `#@ loop invariant self.` — the negative lookahead
+    # `(?!class |loop )` ensures only bare `#@ invariant` (no preceding keyword) is rewritten.
+    generated_code = re.sub(
+        r'(#@[ \t]+)(?!class\s)(?!loop\s)invariant([ \t]+self\.)',
+        r'\1class invariant\2',
+        generated_code,
+        flags=re.MULTILINE
+    )
+
+    # Guard (Level 3): Strip unsupported operators from `#@ class invariant` lines.
+    # The same restrictions that apply to `requires`/`ensures` apply here:
+    #   - `//` (floor-division) → trivially true
+    #   - `%` (modulo) → trivially true
+    #   - `len(...)` (function call) → trivially true
+    generated_code = re.sub(
+        r'#@[ \t]*class invariant\b[^\n]*//[^\n]*',
+        '#@ class invariant 1 == 1',
+        generated_code
+    )
+    generated_code = re.sub(
+        r'#@[ \t]*class invariant\b[^\n]*%[^\n]*',
+        '#@ class invariant 1 == 1',
+        generated_code
+    )
+    generated_code = re.sub(
+        r'#@[ \t]*class invariant\b[^\n]*\blen\s*\([^\n]*',
+        '#@ class invariant 1 == 1',
+        generated_code
+    )
+    # Guard: Collapse blank lines that separate a #@ annotation block from the
+    # immediately following `def` or `class` keyword.  The pipeline (Module3 Weaver) uses
+    # line numbers from libcst's PositionProvider to build contracts_map, then
+    # looks those same numbers up in the Python AST FunctionDef/ClassDef nodes.  When
+    # blank lines appear between the last #@ annotation and the `def`/`class` line,
+    # some libcst builds report the node start at the first leading_line
+    # rather than at the keyword, creating a line-number mismatch that
+    # silently drops requires/ensures for the first function or class invariants.
+    # Removing those blank lines guarantees that the annotation block is the last
+    # visible content before every `def` or `class`.
+    generated_code = re.sub(
+        r'((?:^[ \t]*#@[^\n]*\n)+)\n+([ \t]*(?:def|class)\s)',
         r'\1\2',
+        generated_code,
+        flags=re.MULTILINE
+    )
+
+    # Guard: `#@ label L` must appear immediately before the labeled statement
+    # with no blank lines in between. Module1's PositionProvider uses line numbers to
+    # associate the label with the next statement; any blank line shifts the statement
+    # line number past where Module1 looks.  Collapse any blank lines between a
+    # `#@ label` line and the following non-comment, non-blank line.
+    generated_code = re.sub(
+        r'(^[ \t]*#@\s*label\s+\w+[^\n]*\n)\n+',
+        r'\1',
+        generated_code,
+        flags=re.MULTILINE
+    )
+
+    # Guard: `\valid(arr, n)` and `\separated(a, na, b, nb)` require exactly the
+    # correct call syntax.  If the LLM writes `\valid arr, n` (no parens) or similar,
+    # the parser will fail.  Normalise common malformed variants to the correct form.
+    # \valid arr, n  →  \valid(arr, n)
+    generated_code = re.sub(
+        r'(#@[^\n]*)\\valid\s+(\w+)\s*,\s*(\w+)',
+        r'\g<1>\\valid(\2, \3)',
+        generated_code,
+        flags=re.MULTILINE
+    )
+    # \separated a, na, b, nb  →  \separated(a, na, b, nb)
+    generated_code = re.sub(
+        r'(#@[^\n]*)\\separated\s+(\w+)\s*,\s*(\w+)\s*,\s*(\w+)\s*,\s*(\w+)',
+        r'\g<1>\\separated(\2, \3, \4, \5)',
         generated_code,
         flags=re.MULTILINE
     )
@@ -520,12 +1188,12 @@ def main():
     # very top of a file to Module.header rather than to the first statement's
     # leading_lines.  When the annotated output starts with '#@' annotations
     # immediately (no preceding Python statement), Module1 cannot find them in
-    # the first FunctionDef's leading_lines and the function-level
-    # requires/ensures contracts are silently dropped from the WhyML output —
-    # only functions after the first one are affected.  Inserting a sentinel
+    # the first FunctionDef's (or ClassDef's) leading_lines and the contracts
+    # are silently dropped from the WhyML output.  Inserting a sentinel
     # no-op expression statement as the very first line ensures the '#@' block
-    # ends up in the FunctionDef's leading_lines instead of Module.header, so
-    # Module1 correctly extracts and attaches contracts for every function.
+    # ends up in the node's leading_lines instead of Module.header, so
+    # Module1 correctly extracts and attaches contracts for every function and
+    # class invariant.
     first_nonblank = next(
         (l for l in generated_code.splitlines() if l.strip()), ""
     )

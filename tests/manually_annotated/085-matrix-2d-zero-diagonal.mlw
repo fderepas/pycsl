@@ -1,0 +1,26 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use array.Array
+  use matrix.Matrix
+
+  let matrix_zero_diagonal (a: matrix int) (n: int) : int
+    requires { (a.rows = n && a.columns = n) }
+    requires { (n >= 0) }
+    ensures  { ((result = 1) || (result = 0)) }
+  =
+    let result = ref 1 in
+    let _idx_i = ref 0 in
+    while !_idx_i < n do
+      invariant { ((0 <= !_idx_i) && (!_idx_i <= n)) }
+      variant { (n - !_idx_i) }
+      let i = ref (!_idx_i) in
+      if ((get a !i !i) <> 0) then begin
+        result := 0
+      end;
+      _idx_i := !_idx_i + 1
+    done;
+    !result
+
+end

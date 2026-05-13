@@ -1,0 +1,23 @@
+"""Phase 1 test: \valid with a loop that preserves an array invariant."""
+
+
+#@ requires \valid(arr, n)
+#@ requires n > 0
+#@ ensures \result >= arr[0]
+#@ assigns \nothing
+def find_max(arr: list, n: int) -> int:
+    """Find the maximum element in arr[0..n).
+
+    valid(arr, n) tells Why3 that n <= length(arr), so every arr[i] with
+    i < n is in bounds without an explicit bounds check in each iteration.
+    """
+    mx = arr[0]
+    i = 1
+    #@ loop invariant 1 <= i and i <= n
+    #@ loop invariant mx >= arr[0]
+    #@ loop variant n - i
+    while i < n:
+        if arr[i] > mx:
+            mx = arr[i]
+        i = i + 1
+    return mx

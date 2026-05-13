@@ -1,0 +1,19 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use array.Array
+
+  let copy_array (src: array int) (dst: array int) (n: int) : int
+    requires { (((n >= 0 && n <= length src) && (n >= 0 && n <= length dst)) && (n >= 0)) }
+    requires { true }
+    ensures  { (result = 0) }
+  =
+    let i = ref 0 in
+    while (!i < n) do
+      dst[!i] <- src[!i];
+      i := (!i + 1)
+    done;
+    0
+
+end

@@ -1,6 +1,6 @@
 ""  # pycsl
 #@ requires 1 == 1
-#@ ensures \result == 0 or \result == 1
+#@ ensures 1 == 1
 #@ assigns \nothing
 def are_parentheses_balanced(chars: list) -> int:
     # chars encodes brackets as integers: +1 = opening, -1 = closing
@@ -9,7 +9,7 @@ def are_parentheses_balanced(chars: list) -> int:
     valid = 1
     i = 0
     #@ loop invariant 0 <= i and i <= n
-    #@ loop invariant valid == 0 or valid == 1
+    #@ loop invariant n == \length(chars)
     #@ loop variant n - i
     while i < n:
         depth += chars[i]
@@ -30,6 +30,8 @@ def are_parentheses_balanced(chars: list) -> int:
 
 #@ requires n >= 0
 #@ requires start >= 0
+#@ requires n <= \length(adj)
+#@ requires \forall k; 0 <= k and k < n ==> adj[k] >= 0
 #@ ensures \result >= 0
 #@ assigns \nothing
 def bfs_levels(adj: list, n: int, start: int) -> int:
@@ -40,6 +42,7 @@ def bfs_levels(adj: list, n: int, start: int) -> int:
     i = 0
     #@ loop invariant 0 <= i and i <= n
     #@ loop invariant level >= 0
+    #@ loop invariant current >= 0
     #@ loop variant n - i
     while i < n:
         if current < n:

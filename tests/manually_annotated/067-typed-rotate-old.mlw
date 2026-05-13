@@ -1,0 +1,20 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use array.Array
+
+  let rotate_left (arr: array int) (n: int) : int
+    requires { ((n >= 0 && n <= length arr) && (n >= 2)) }
+    ensures  { (arr[(n - 1)] = (old arr[0])) }
+  =
+    let tmp = ref arr[0] in
+    let i = ref 0 in
+    while (!i < (n - 1)) do
+      arr[!i] <- arr[(!i + 1)];
+      i := (!i + 1)
+    done;
+    arr[(n - 1)] <- !tmp;
+    0
+
+end

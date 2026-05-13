@@ -1,7 +1,7 @@
 import libcst as cst
 from libcst.metadata import PositionProvider
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Optional
 
 # ---------------------------------------------------------
 # 1. Data Structures
@@ -32,6 +32,7 @@ class PyCSLVisitor(cst.CSTVisitor):
     def __init__(self):
         super().__init__()
         self.extracted_nodes: List[PyCSLContract] = []
+        self._current_class: Optional[str] = None
 
     def _extract_contracts_from_node(self, node: cst.CSTNode) -> List[str]:
         """Helper to extract #@ comments from a node's leading lines."""
@@ -47,15 +48,36 @@ class PyCSLVisitor(cst.CSTVisitor):
                         contracts.append(clean_contract)
         return contracts
 
-    def visit_FunctionDef(self, node: cst.FunctionDef) -> None:
-        """Hook for function definitions."""
+    def visit_ClassDef(self, node: cst.ClassDef) -> None:
+        """Track the current class and extract class-level contracts (e.g. class invariants)."""
+        self._current_class = node.name.value
         contracts = self._extract_contracts_from_node(node)
         if contracts:
             pos = self.get_metadata(PositionProvider, node).start
             self.extracted_nodes.append(
                 PyCSLContract(
-                    node_type="FunctionDef",
+                    node_type="ClassDef",
                     node_name=node.name.value,
+                    line_number=pos.line,
+                    contracts=contracts
+                )
+            )
+
+    def leave_ClassDef(self, node: cst.ClassDef) -> None:
+        self._current_class = None
+
+    def visit_FunctionDef(self, node: cst.FunctionDef) -> None:
+        """Hook for function definitions."""
+        contracts = self._extract_contracts_from_node(node)
+        if contracts:
+            pos = self.get_metadata(PositionProvider, node).start
+            name = node.name.value
+            if self._current_class:
+                name = f"{self._current_class.lower()}__{name}"
+            self.extracted_nodes.append(
+                PyCSLContract(
+                    node_type="FunctionDef",
+                    node_name=name,
                     line_number=pos.line,
                     contracts=contracts
                 )
@@ -74,6 +96,39 @@ class PyCSLVisitor(cst.CSTVisitor):
                     contracts=contracts
                 )
             )
+
+    def visit_For(self, node: cst.For) -> None:
+        """Hook for for loops — extracts loop invariants/variants from leading comments."""
+        contracts = self._extract_contracts_from_node(node)
+        if contracts:
+            pos = self.get_metadata(PositionProvider, node).start
+            self.extracted_nodes.append(
+                PyCSLContract(
+                    node_type="For",
+                    node_name="<for_loop>",
+                    line_number=pos.line,
+                    contracts=contracts
+                )
+            )
+
+    def visit_SimpleStatementLine(self, node: cst.SimpleStatementLine) -> None:
+        """Detect #@ label L annotations before simple statements."""
+        for line in node.leading_lines:
+            if isinstance(line, cst.EmptyLine) and line.comment:
+                comment_str = line.comment.value
+                if comment_str.startswith("#@") and "label" in comment_str:
+                    clean = comment_str[2:].strip()
+                    parts = clean.split()
+                    if len(parts) == 2 and parts[0] == "label":
+                        pos = self.get_metadata(PositionProvider, node).start
+                        self.extracted_nodes.append(
+                            PyCSLContract(
+                                node_type="Label",
+                                node_name=parts[1],
+                                line_number=pos.line,
+                                contracts=[clean]
+                            )
+                        )
 
 # ---------------------------------------------------------
 # 3. The Ingestion Engine

@@ -20,8 +20,11 @@ The script must read `agents-config.json` from the same directory as `agent-reco
 * `skill-agents`
 * `skill-module5`
 * `skill-module6`
+* `memory-model` (optional, defaults to `"hoare"`)
 
 The skill file paths are resolved relative to the script directory unless already absolute.
+
+The `memory-model` value is read with `config.get("memory-model", "hoare")` and logged before LLM invocation.
 
 ## 2. Prompt to generate
 
@@ -41,6 +44,14 @@ It must also include:
 
 If a WhyML file exists next to `<script>`, it must also be included. Its path is obtained by replacing the `.py` suffix with `.mlw`.
 
+A **memory model context section** is injected before `SKILL ANNOTATOR`, labelled `--- ACTIVE MEMORY MODEL: {MODEL} ---`. Its body summarises the active model:
+
+| Model | Context note |
+|-------|-------------|
+| `hoare` | Value-semantic arrays (`array int`). No heap. Common errors: missing `use array.Array`, `array int` type mismatch. |
+| `typed` | Heap-based. Arrays become `(arr: loc) (arr_len: int)`. Heap: `int_mem`. Predicates: `\valid`, `\separated`. Frame: `\assigns arr[lo..hi]`. Pre-state: `\old(arr[i])`. Labels: `#@ label L` / `\at(arr[i], L)`. Common errors: `Cannot find theory Map`, `loc vs array int`, `arr_len unbound`, label not found. |
+| `store` | Identical to `typed` but heap variable named `store`. |
+
 The prompt should ask the LLM to return raw JSON only with a strict instruction:
 
 ```
@@ -59,6 +70,11 @@ Required JSON fields:
 * `update-pycsl-scripts`
 * `error-in-annotations`
 * `unknown`
+
+The constraints section also includes model-specific guidance:
+
+* `error-in-annotations` — wrong `\valid`/`\separated` syntax, missing `\assigns` region, bad `#@ label` placement, `\at` label not found.
+* `update-pycsl-scripts` — Module6 missing Map preamble, `loc` vs `array int` type mismatch, `arr_len` parameter not emitted.
 
 ## 3. Output file
 

@@ -6,7 +6,7 @@ def transpose(matrix: list, rows: int, cols: int) -> int:
     return cols
 
 
-#@ requires n >= 0
+#@ requires n >= 0 and \length(a) >= n and \length(b) >= n
 #@ ensures 1 == 1
 #@ assigns \nothing
 def multiply(a: list, b: list, n: int) -> int:

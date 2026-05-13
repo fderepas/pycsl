@@ -1,0 +1,15 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use array.Array
+
+  let overwrite_first (arr: array int) (n: int) (v: int) : int
+    requires { ((n >= 0 && n <= length arr) && (n >= 2)) }
+    ensures  { (arr[1] = (arr[1] at PRE)) }
+  =
+    label PRE in
+    arr[0] <- v;
+    0
+
+end

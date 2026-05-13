@@ -1,5 +1,6 @@
 ""  # pycsl
 #@ requires k >= 1
+#@ requires k <= \length(values)
 #@ ensures 1 == 1
 #@ assigns \nothing
 def max_sum_subarray_k(values: list, k: int) -> int:
@@ -7,13 +8,15 @@ def max_sum_subarray_k(values: list, k: int) -> int:
     window_sum = 0
     j = 0
     #@ loop invariant 0 <= j and j <= k
+    #@ loop invariant n == \length(values)
     #@ loop variant k - j
     while j < k:
         window_sum += values[j]
         j += 1
     best = window_sum
     i = k
-    #@ loop invariant 0 <= i
+    #@ loop invariant 0 <= i and i >= k
+    #@ loop invariant n == \length(values)
     #@ loop variant n - i
     while i < n:
         prev = i - k
@@ -37,6 +40,8 @@ def two_sum_sorted(values: list, target: int) -> tuple:
     found_right = -1
     #@ loop invariant 0 <= left
     #@ loop invariant right >= -1
+    #@ loop invariant right < n
+    #@ loop invariant n == \length(values)
     #@ loop invariant found_left >= -1
     #@ loop invariant found_right >= -1
     #@ loop variant right - left

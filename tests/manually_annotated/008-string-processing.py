@@ -7,6 +7,7 @@ def normalize(chars: list) -> int:
     count = 0
     i = 0
     #@ loop invariant 0 <= i and i <= n
+    #@ loop invariant n == \length(chars)
     #@ loop invariant count >= 0
     #@ loop invariant count <= i
     #@ loop variant n - i
@@ -27,6 +28,8 @@ def is_palindrome(cleaned: list) -> int:
     result_val = 1
     #@ loop invariant 0 <= left
     #@ loop invariant right >= -1
+    #@ loop invariant right < n
+    #@ loop invariant n == \length(cleaned)
     #@ loop invariant result_val >= 0
     #@ loop variant right - left + 1
     while left < right:

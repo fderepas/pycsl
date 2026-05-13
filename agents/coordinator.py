@@ -17,7 +17,9 @@ After each file's retry loop agent-meta-monitor checks operational health.
 On halt (72 or 73) agent-meta-reviewer produces a human-readable report.
 """
 
+import argparse
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -406,26 +408,51 @@ class CoordinatorAgent:
 
     # ------------------------------------------------------------------ main loop
 
-    def run(self) -> int:
-        """Run the full coordinator workflow, processing files one by one with per-file retry (max 10)."""
+    def run(self, start_at: int = 1) -> int:
+        """Run the full coordinator workflow, processing files one by one with per-file retry (max 10).
+
+        Args:
+            start_at: Skip files whose leading number is less than this value.
+                      When > 1, the annotated/ directory is NOT cleaned so existing
+                      outputs for earlier files are preserved.
+        """
         MAX_RETRIES = 10
         self.log("Starting PyCSL Coordinator Agent")
         self.log(f"PyCSL root: {self.pycsl_dir}")
+        if start_at > 1:
+            self.log(f"--start-at {start_at}: skipping files 001–{start_at - 1:03d}, keeping existing annotated/")
 
         self.init_metrics()
 
-        # Step 1: Clean annotated directory
-        if not self.clean_annotated():
-            self.log("ERROR: Failed to clean annotated/ directory")
-            return 1
+        # Step 1: Clean annotated directory (skipped when --start-at > 1)
+        if start_at <= 1:
+            if not self.clean_annotated():
+                self.log("ERROR: Failed to clean annotated/ directory")
+                return 1
+        else:
+            if not self.annotated_dir.exists():
+                self.annotated_dir.mkdir(parents=True, exist_ok=True)
 
         if not self.to_annotate_dir.exists():
             self.log("ERROR: tests/to_annotate/ directory does not exist.")
             return 1
 
-        test_files = sorted(self.to_annotate_dir.glob("*.py"))
-        if not test_files:
+        all_test_files = sorted(self.to_annotate_dir.glob("*.py"))
+        if not all_test_files:
             self.log("No test files found in tests/to_annotate/")
+            return 0
+
+        # Filter to files whose leading number >= start_at
+        def _file_number(p: Path) -> int:
+            m = re.match(r'^(\d+)', p.name)
+            return int(m.group(1)) if m else 0
+
+        test_files = [f for f in all_test_files if _file_number(f) >= start_at]
+        skipped = len(all_test_files) - len(test_files)
+        if skipped:
+            self.log(f"Skipping {skipped} file(s) before {start_at:03d} (--start-at {start_at})")
+        if not test_files:
+            self.log(f"No test files with number >= {start_at} found.")
             return 0
 
         overall_success = True
@@ -547,6 +574,23 @@ class CoordinatorAgent:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="PyCSL Coordinator Agent"
+    )
+    parser.add_argument(
+        "--start-at",
+        dest="start_at",
+        type=int,
+        default=1,
+        metavar="N",
+        help=(
+            "Start processing at the file whose leading number is N "
+            "(e.g. --start-at 10 starts at 010-*.py). "
+            "When N > 1 the annotated/ directory is NOT cleaned."
+        ),
+    )
+    args = parser.parse_args()
+
     # Find the repo root
     current_dir = Path.cwd()
     repo_root = current_dir
@@ -562,7 +606,7 @@ def main() -> int:
         return 1
 
     coordinator = CoordinatorAgent(repo_root)
-    return coordinator.run()
+    return coordinator.run(start_at=args.start_at)
 
 
 if __name__ == "__main__":

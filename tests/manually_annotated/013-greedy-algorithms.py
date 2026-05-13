@@ -1,5 +1,6 @@
 ""  # pycsl
 #@ requires 1 == 1
+#@ requires \length(ends) == \length(starts)
 #@ ensures \result >= 0
 #@ assigns \nothing
 def select_max_non_overlapping(starts: list, ends: list) -> int:

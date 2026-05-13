@@ -1,0 +1,22 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use array.Array
+
+  let reverse_array (arr: array int) (n: int) : int
+    requires { ((n >= 0 && n <= length arr) && (n >= 0)) }
+    ensures  { (result = 0) }
+  =
+    let lo = ref 0 in
+    let hi = ref (n - 1) in
+    while (!lo < !hi) do
+      let tmp = ref arr[!lo] in
+      arr[!lo] <- arr[!hi];
+      arr[!hi] <- !tmp;
+      lo := (!lo + 1);
+      hi := (!hi - 1)
+    done;
+    0
+
+end

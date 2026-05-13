@@ -1,0 +1,18 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use array.Array
+
+  let fill_zeros (arr: array int) (n: int) : int
+    requires { ((n >= 0 && n <= length arr) && (n >= 0)) }
+    ensures  { (forall i : int. (((0 <= i) && (i < n)) -> (result = 0))) }
+  =
+    let i = ref 0 in
+    while (!i < n) do
+      arr[!i] <- 0;
+      i := (!i + 1)
+    done;
+    0
+
+end

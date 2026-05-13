@@ -1,5 +1,7 @@
 {
   "model": "claude-sonnet-4.6",
+  "memory-model": "hoare",
+  "provers": ["Alt-Ergo,2.6.2,", "Z3,4.13.3,"],
   "project-directory": "./my_project",
   "program-schema": "program-schema.json",
   "skill-annotate": "skill-annotate.md",

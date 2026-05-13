@@ -1,0 +1,29 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use array.Array
+  use matrix.Matrix
+
+  let matrix_fill (a: matrix int) (m: int) (n: int) (v: int) : unit
+    requires { (a.rows = m && a.columns = n) }
+    requires { (m >= 0) }
+    requires { (n >= 0) }
+  =
+    let _idx_i = ref 0 in
+    while !_idx_i < m do
+      invariant { ((0 <= !_idx_i) && (!_idx_i <= m)) }
+      variant { (m - !_idx_i) }
+      let i = ref (!_idx_i) in
+      let _idx_j = ref 0 in
+      while !_idx_j < n do
+        invariant { ((0 <= !_idx_j) && (!_idx_j <= n)) }
+        variant { (n - !_idx_j) }
+        let j = ref (!_idx_j) in
+        set a !i !j v;
+        _idx_j := !_idx_j + 1
+      done;
+      _idx_i := !_idx_i + 1
+    done
+
+end

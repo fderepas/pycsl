@@ -1,5 +1,6 @@
 ""  # pycsl
 #@ requires capacity >= 0
+#@ requires \length(values) == \length(weights)
 #@ ensures 1 == 1
 #@ assigns \nothing
 def knapsack_01(weights: list, values: list, capacity: int) -> int:
@@ -8,6 +9,7 @@ def knapsack_01(weights: list, values: list, capacity: int) -> int:
     total_value = 0
     i = 0
     #@ loop invariant 0 <= i and i <= n
+    #@ loop invariant n == \length(weights)
     #@ loop variant n - i
     while i < n:
         if weights[i] <= remaining:

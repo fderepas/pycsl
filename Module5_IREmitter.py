@@ -1,17 +1,21 @@
 import ast
 import json
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from Module2_Parser import (
     CSLNode, Requires, Ensures, Assigns, LoopInvariant, LoopVariant,
     BinOp as CSLBinOp, UnaryOp as CSLUnaryOp, Var as CSLVar, 
-    Number as CSLNumber, Result as CSLResult, Old as CSLOld, Nothing
+    Number as CSLNumber, Result as CSLResult, Old as CSLOld, Nothing,
+    FieldAccess as CSLFieldAccess, Forall, Exists, ArrayLength, SubscriptAccess,
+    AssignsRegion, Valid, Separated, At as CSLAt,
+    Length2D, Valid2D
 )
 
 class PyCSLToJSONEmitter(ast.NodeVisitor):
     """Walks the Annotated AST and translates it into a JSON-serializable IR."""
     
     def __init__(self):
-        self.program_ir = {"functions": []}
+        self.program_ir = {"type_decls": [], "functions": []}
+        self._current_class: Optional[str] = None
 
     # --- 1. PyCSL Contract Serialization ---
     def _csl_to_ir(self, node: CSLNode) -> Dict[str, Any]:
@@ -20,6 +24,8 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
             return {"type": "BinOp", "op": node.op, "left": self._csl_to_ir(node.left), "right": self._csl_to_ir(node.right)}
         elif isinstance(node, CSLUnaryOp):
             return {"type": "UnaryOp", "op": node.op, "expr": self._csl_to_ir(node.expr)}
+        elif isinstance(node, CSLFieldAccess):
+            return {"type": "FieldGet", "object": node.object, "field": node.field}
         elif isinstance(node, CSLVar):
             return {"type": "Var", "name": node.name}
         elif isinstance(node, CSLNumber):
@@ -27,9 +33,59 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
         elif isinstance(node, CSLResult):
             return {"type": "Result"}
         elif isinstance(node, CSLOld):
+            # Old(FieldAccess) → OldField (flat node)
+            if isinstance(node.expr, CSLFieldAccess):
+                return {"type": "OldField", "object": node.expr.object, "field": node.expr.field}
             return {"type": "Old", "expr": self._csl_to_ir(node.expr)}
         elif isinstance(node, Nothing):
             return {"type": "Nothing"}
+        elif isinstance(node, Forall):
+            return {"type": "Forall", "var": node.var, "body": self._csl_to_ir(node.body)}
+        elif isinstance(node, Exists):
+            return {"type": "Exists", "var": node.var, "body": self._csl_to_ir(node.body)}
+        elif isinstance(node, ArrayLength):
+            return {"type": "ArrayLen", "var": node.var}
+        elif isinstance(node, SubscriptAccess):
+            return {"type": "Subscript",
+                    "value": {"type": "Var", "name": node.array},
+                    "index": self._csl_to_ir(node.index)}
+        elif isinstance(node, AssignsRegion):
+            return {
+                "type": "AssignsRegion",
+                "base": node.base,
+                "low": self._csl_to_ir(node.low),
+                "high": self._csl_to_ir(node.high)
+            }
+        elif isinstance(node, Valid):
+            return {
+                "type": "Valid",
+                "base": node.base,
+                "length": self._csl_to_ir(node.length)
+            }
+        elif isinstance(node, Separated):
+            return {
+                "type": "Separated",
+                "base1": node.base1,
+                "len1": self._csl_to_ir(node.length1),
+                "base2": node.base2,
+                "len2": self._csl_to_ir(node.length2)
+            }
+        elif isinstance(node, CSLAt):
+            return {"type": "At", "expr": self._csl_to_ir(node.expr), "label": node.label}
+        elif isinstance(node, Length2D):
+            return {
+                "type": "Length2D",
+                "base": node.base,
+                "rows": self._csl_to_ir(node.rows),
+                "cols": self._csl_to_ir(node.cols)
+            }
+        elif isinstance(node, Valid2D):
+            return {
+                "type": "Valid2D",
+                "base": node.base,
+                "row": self._csl_to_ir(node.row),
+                "col": self._csl_to_ir(node.col)
+            }
         elif isinstance(node, (Requires, Ensures, LoopInvariant, LoopVariant)):
             return self._csl_to_ir(node.expr)
         return {"type": "UnknownCSL"}
@@ -83,18 +139,44 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
                 slice_node = slice_node.value
             index = self._py_expr_to_ir(slice_node)
             return {"type": "Subscript", "value": value, "index": index}
+        elif isinstance(expr, ast.List):
+            return {"type": "ArrayLit", "elts": [self._py_expr_to_ir(e) for e in expr.elts]}
+        elif isinstance(expr, ast.Attribute):
+            if isinstance(expr.value, ast.Name) and expr.value.id == 'self':
+                return {"type": "FieldGet", "object": "self", "field": expr.attr}
         return {"type": "UnknownPyExpr"}
 
     def _py_stmts_to_ir(self, stmts: List[ast.stmt]) -> List[Dict[str, Any]]:
         ir_stmts = []
         for stmt in stmts:
+            # Prepend any label declarations attached to this statement
+            for lname in getattr(stmt, 'csl_labels', []):
+                ir_stmts.append({"stmt": "Label", "name": lname})
             if isinstance(stmt, ast.Assign):
                 target = stmt.targets[0]
                 if isinstance(target, ast.Name):
                     ir_stmts.append({"stmt": "Assign", "target": target.id, "value": self._py_expr_to_ir(stmt.value)})
+                elif (isinstance(target, ast.Attribute) and
+                      isinstance(target.value, ast.Name) and
+                      target.value.id == 'self'):
+                    ir_stmts.append({"stmt": "FieldAssign", "object": "self", "field": target.attr,
+                                     "value": self._py_expr_to_ir(stmt.value)})
+                elif isinstance(target, ast.Subscript):
+                    array_ir = self._py_expr_to_ir(target.value)
+                    slice_node = target.slice
+                    if isinstance(slice_node, ast.Index):
+                        slice_node = slice_node.value
+                    index_ir = self._py_expr_to_ir(slice_node)
+                    ir_stmts.append({"stmt": "ArraySet", "array": array_ir,
+                                     "index": index_ir, "value": self._py_expr_to_ir(stmt.value)})
             elif isinstance(stmt, ast.AugAssign):
                 if isinstance(stmt.target, ast.Name):
-                    ir_stmts.append({"stmt": "AugAssign", "target": stmt.target.id, 
+                    ir_stmts.append({"stmt": "AugAssign", "target": stmt.target.id,
+                                     "op": self._py_op_to_str(stmt.op), "value": self._py_expr_to_ir(stmt.value)})
+                elif (isinstance(stmt.target, ast.Attribute) and
+                      isinstance(stmt.target.value, ast.Name) and
+                      stmt.target.value.id == 'self'):
+                    ir_stmts.append({"stmt": "FieldAugAssign", "object": "self", "field": stmt.target.attr,
                                      "op": self._py_op_to_str(stmt.op), "value": self._py_expr_to_ir(stmt.value)})
             elif isinstance(stmt, ast.Return):
                 ir_stmts.append({"stmt": "Return", "value": self._py_expr_to_ir(stmt.value) if stmt.value else None})
@@ -107,6 +189,9 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
             elif isinstance(stmt, ast.Continue):
                 ir_stmts.append({"stmt": "Continue"})
             elif isinstance(stmt, ast.Expr):
+                # Skip bare string-literal expressions (docstrings) — no WhyML equivalent.
+                if isinstance(stmt.value, ast.Constant) and isinstance(stmt.value.value, str):
+                    continue
                 ir_stmts.append({"stmt": "Expr", "value": self._py_expr_to_ir(stmt.value)})
         return ir_stmts
 
@@ -138,11 +223,135 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
             "orelse": self._py_stmts_to_ir(node.orelse)
         }
 
+    def _scan_2d_in_expr(self, expr: Dict[str, Any], param_names: set, result: set) -> None:
+        """Recursively scan an IR expression dict for a[i][j] access patterns."""
+        if not isinstance(expr, dict):
+            return
+        t = expr.get("type", "")
+        if t == "Subscript":
+            inner = expr.get("value", {})
+            if inner.get("type") == "Subscript":
+                root = inner.get("value", {})
+                if root.get("type") == "Var" and root.get("name") in param_names:
+                    result.add(root["name"])
+            self._scan_2d_in_expr(inner, param_names, result)
+            self._scan_2d_in_expr(expr.get("index", {}), param_names, result)
+        elif t in ("BinOp",):
+            self._scan_2d_in_expr(expr.get("left", {}), param_names, result)
+            self._scan_2d_in_expr(expr.get("right", {}), param_names, result)
+        elif t in ("UnaryOp",):
+            self._scan_2d_in_expr(expr.get("expr", {}), param_names, result)
+        elif t in ("Call",):
+            for arg in expr.get("args", []):
+                self._scan_2d_in_expr(arg, param_names, result)
+
+    def _scan_2d_in_stmt(self, stmt: Dict[str, Any], param_names: set, result: set) -> None:
+        """Recursively scan an IR statement dict for a[i][j] access patterns."""
+        s = stmt.get("stmt", "")
+        if s == "ArraySet":
+            arr = stmt.get("array", {})
+            # a[i][j] = v  →  ArraySet(array=Subscript(Var(a), i), index=j, ...)
+            if arr.get("type") == "Subscript":
+                root = arr.get("value", {})
+                if root.get("type") == "Var" and root.get("name") in param_names:
+                    result.add(root["name"])
+            self._scan_2d_in_expr(arr, param_names, result)
+            self._scan_2d_in_expr(stmt.get("index", {}), param_names, result)
+            self._scan_2d_in_expr(stmt.get("value", {}), param_names, result)
+        elif s in ("Assign", "AugAssign", "Return"):
+            self._scan_2d_in_expr(stmt.get("value", {}), param_names, result)
+        elif s in ("While", "For"):
+            self._scan_2d_in_expr(stmt.get("test", {}), param_names, result)
+            for child in stmt.get("body", []):
+                self._scan_2d_in_stmt(child, param_names, result)
+        elif s == "If":
+            self._scan_2d_in_expr(stmt.get("test", {}), param_names, result)
+            for child in stmt.get("body", []):
+                self._scan_2d_in_stmt(child, param_names, result)
+            for child in stmt.get("orelse", []):
+                self._scan_2d_in_stmt(child, param_names, result)
+
+    def _collect_2d_params(self, body_ir: List[Dict[str, Any]],
+                           param_names: set) -> List[str]:
+        """Return sorted list of param names used as a[i][j] in the body IR."""
+        result: set = set()
+        for stmt in body_ir:
+            self._scan_2d_in_stmt(stmt, param_names, result)
+        return sorted(result)
+
     # --- 3. Main Traversal Hooks ---
+    def visit_ClassDef(self, node: ast.ClassDef) -> Any:
+        """Collect fields from __init__, extract class invariants, and emit a type_decl record."""
+        self._current_class = node.name
+        # Collect mutable fields and their initial values from __init__ assignments to self.*
+        fields = []
+        field_names_seen = set()
+        field_defaults = {}  # field_name → initial constant value (for `by` witness)
+        for child in node.body:
+            if isinstance(child, ast.FunctionDef) and child.name == '__init__':
+                for stmt in ast.walk(child):
+                    if isinstance(stmt, ast.Assign):
+                        for target in stmt.targets:
+                            if (isinstance(target, ast.Attribute) and
+                                    isinstance(target.value, ast.Name) and
+                                    target.value.id == 'self' and
+                                    target.attr not in field_names_seen):
+                                fields.append({"name": target.attr, "type": "int", "mutable": True})
+                                field_names_seen.add(target.attr)
+                                if isinstance(stmt.value, ast.Constant) and isinstance(stmt.value.value, (int, float)):
+                                    field_defaults[target.attr] = int(stmt.value.value)
+                    elif isinstance(stmt, ast.AnnAssign):
+                        if (isinstance(stmt.target, ast.Attribute) and
+                                isinstance(stmt.target.value, ast.Name) and
+                                stmt.target.value.id == 'self' and
+                                stmt.target.attr not in field_names_seen):
+                            fields.append({"name": stmt.target.attr, "type": "int", "mutable": True})
+                            field_names_seen.add(stmt.target.attr)
+                            if (stmt.value and isinstance(stmt.value, ast.Constant) and
+                                    isinstance(stmt.value.value, (int, float))):
+                                field_defaults[stmt.target.attr] = int(stmt.value.value)
+        if fields:
+            # Convert class invariants from CSL AST to IR
+            class_invariants_ir = []
+            for inv in getattr(node, 'csl_class_invariants', []):
+                class_invariants_ir.append(self._csl_to_ir(inv.expr))
+
+            # Build default witness from initial values (fallback to 0)
+            field_witness = {}
+            for f in fields:
+                field_witness[f["name"]] = field_defaults.get(f["name"], 0)
+
+            self.program_ir["type_decls"].append({
+                "kind": "record",
+                "name": node.name,
+                "fields": fields,
+                "class_invariants": class_invariants_ir,
+                "field_defaults": field_witness
+            })
+        self.generic_visit(node)
+        self._current_class = None
+
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        # Skip dunder methods (__init__, __str__, …) and @property inside classes
+        if self._current_class:
+            if node.name.startswith('__') and node.name.endswith('__'):
+                return
+            if any(isinstance(d, ast.Name) and d.id == 'property'
+                   for d in node.decorator_list):
+                return
+
+        func_name = (f"{self._current_class.lower()}__{node.name}"
+                     if self._current_class else node.name)
+
+        # symbol_table from Module4 already excludes 'self' and includes obj_* fields
+        symbol_table = {
+            k: v for k, v in getattr(node, 'csl_symbol_table', {}).items()
+            if k != 'self'
+        }
+
         func_ir = {
-            "name": node.name,
-            "symbol_table": getattr(node, 'csl_symbol_table', {}),
+            "name": func_name,
+            "symbol_table": symbol_table,
             "contracts": {
                 "requires": self._csl_list_to_ir(getattr(node, 'csl_requires', [])),
                 "ensures": self._csl_list_to_ir(getattr(node, 'csl_ensures', [])),
@@ -150,6 +359,34 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
             },
             "body": self._py_stmts_to_ir(node.body)
         }
+        # Detect 2D array params: from \length2d contracts and from body a[i][j] patterns.
+        # Include "Any"-typed params since untyped params may be 2D arrays.
+        candidate_params = {k for k, v in symbol_table.items() if v in ("list", "Any")}
+        array2d: set = set()
+        # 1. Params declared via \length2d in requires contracts
+        for req in func_ir["contracts"]["requires"]:
+            if isinstance(req, dict) and req.get("type") == "Length2D":
+                base = req.get("base")
+                if base in candidate_params:
+                    array2d.add(base)
+        # 2. Params used as a[i][j] in the body
+        if candidate_params:
+            array2d.update(self._collect_2d_params(func_ir["body"], candidate_params))
+        if array2d:
+            func_ir["array2d_params"] = sorted(array2d)
+
+        # Detect 1D array params from \valid contracts (params not already detected as 2D).
+        array1d: set = set()
+        for req in func_ir["contracts"]["requires"]:
+            if isinstance(req, dict) and req.get("type") == "Valid":
+                base = req.get("base")
+                if base and base in candidate_params and base not in array2d:
+                    array1d.add(base)
+        if array1d:
+            func_ir["array1d_params"] = sorted(array1d)
+        if self._current_class:
+            func_ir["kind"] = "method"
+            func_ir["self_type"] = self._current_class
         self.program_ir["functions"].append(func_ir)
         self.generic_visit(node)
 

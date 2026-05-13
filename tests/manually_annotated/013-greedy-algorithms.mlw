@@ -2,13 +2,13 @@ module PyCSL_Program
   use int.Int
   use int.EuclideanDivision
   use ref.Ref
-  use seq.Seq
+  use array.Array
 
-  let select_max_non_overlapping (starts: seq int) (ends: seq int) : int
+  let select_max_non_overlapping (starts: array int) (ends: array int) : int
     requires { (1 = 1) }
     ensures  { (result >= 0) }
   =
-    let n = ref (Seq.length starts) in
+    let n = ref (length starts) in
     let count = ref 0 in
     let last_end = ref (- 1) in
     let i = ref 0 in
@@ -16,9 +16,9 @@ module PyCSL_Program
       invariant { ((0 <= !i) && (!i <= !n)) }
       invariant { (!count >= 0) }
       variant { (!n - !i) }
-      if ((Seq.get starts !i) >= !last_end) then begin
+      if (starts[!i] >= !last_end) then begin
         count := !count + 1;
-        last_end := (Seq.get ends !i)
+        last_end := ends[!i]
       end;
       i := !i + 1
     done;

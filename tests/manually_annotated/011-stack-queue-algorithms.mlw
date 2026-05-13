@@ -2,21 +2,22 @@ module PyCSL_Program
   use int.Int
   use int.EuclideanDivision
   use ref.Ref
-  use seq.Seq
+  use array.Array
 
-  let are_parentheses_balanced (chars: seq int) : int
+  let are_parentheses_balanced (chars: array int) : int
     requires { (1 = 1) }
     ensures  { ((result = 0) || (result = 1)) }
   =
-    let n = ref (Seq.length chars) in
+    let n = ref (length chars) in
     let depth = ref 0 in
     let valid = ref 1 in
     let i = ref 0 in
     while (!i < !n) do
       invariant { ((0 <= !i) && (!i <= !n)) }
+      invariant { (!n = (length chars)) }
       invariant { ((!valid = 0) || (!valid = 1)) }
       variant { (!n - !i) }
-      depth := !depth + (Seq.get chars !i);
+      depth := !depth + chars[!i];
       if (!depth < 0) then begin
         valid := 0
       end;
@@ -36,9 +37,11 @@ module PyCSL_Program
       end
     end
 
-  let bfs_levels (adj: seq int) (n: int) (start: int) : int
+  let bfs_levels (adj: array int) (n: int) (start: int) : int
     requires { (n >= 0) }
     requires { (start >= 0) }
+    requires { (n <= (length adj)) }
+    requires { (forall k : int. (((0 <= k) && (k < n)) -> (adj[k] >= 0))) }
     ensures  { (result >= 0) }
   =
     let level = ref 0 in
@@ -47,9 +50,10 @@ module PyCSL_Program
     while (!i < n) do
       invariant { ((0 <= !i) && (!i <= n)) }
       invariant { (!level >= 0) }
+      invariant { (!current >= 0) }
       variant { (n - !i) }
       if (!current < n) then begin
-        current := (Seq.get adj !current);
+        current := adj[!current];
         level := !level + 1
       end;
       i := !i + 1

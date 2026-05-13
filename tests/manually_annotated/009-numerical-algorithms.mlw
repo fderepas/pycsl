@@ -26,40 +26,23 @@ module PyCSL_Program
     !x
 
   let is_prime (n: int) : int
-    requires { (1 = 1) }
-    ensures  { ((result = 0) || (result = 1)) }
+    requires { (n >= 0) }
+    ensures  { (1 = 1) }
   =
     let is_p = ref 1 in
     if (n < 2) then begin
       is_p := 0
     end else begin
-      if (n = 2) then begin
-        is_p := 1
-      end else begin
-        if ((mod n 2) = 0) then begin
+      let divisor = ref 2 in
+      while (!divisor < n) do
+        invariant { ((2 <= !divisor) && (!divisor <= n)) }
+        invariant { ((!is_p = 0) || (!is_p = 1)) }
+        variant { (n - !divisor) }
+        if ((mod n !divisor) = 0) then begin
           is_p := 0
-        end else begin
-          let divisor = ref 3 in
-          let flag = ref 1 in
-          while (!flag = 1) do
-            invariant { (!divisor <= (n + 1)) }
-            invariant { (!divisor >= 3) }
-            invariant { ((!flag = 0) || (!flag = 1)) }
-            invariant { ((!is_p = 0) || (!is_p = 1)) }
-            variant { (((n - !divisor) + 1) + !flag) }
-            if ((!divisor * !divisor) > n) then begin
-              flag := 0
-            end else begin
-              if ((mod n !divisor) = 0) then begin
-                is_p := 0;
-                flag := 0
-              end else begin
-                divisor := !divisor + 2
-              end
-            end
-          done
-        end
-      end
+        end;
+        divisor := !divisor + 1
+      done
     end;
     !is_p
 

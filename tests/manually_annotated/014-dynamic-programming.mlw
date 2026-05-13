@@ -2,22 +2,24 @@ module PyCSL_Program
   use int.Int
   use int.EuclideanDivision
   use ref.Ref
-  use seq.Seq
+  use array.Array
 
-  let knapsack_01 (weights: seq int) (values: seq int) (capacity: int) : int
+  let knapsack_01 (weights: array int) (values: array int) (capacity: int) : int
     requires { (capacity >= 0) }
-    ensures  { (1 = 1) }
+    requires { ((length values) = (length weights)) }
+    ensures  { (result >= 0) }
   =
-    let n = ref (Seq.length weights) in
+    let n = ref (length weights) in
     let remaining = ref capacity in
     let total_value = ref 0 in
     let i = ref 0 in
     while (!i < !n) do
       invariant { ((0 <= !i) && (!i <= !n)) }
+      invariant { (!n = (length weights)) }
       variant { (!n - !i) }
-      if ((Seq.get weights !i) <= !remaining) then begin
-        remaining := !remaining - (Seq.get weights !i);
-        total_value := !total_value + (Seq.get values !i)
+      if (weights[!i] <= !remaining) then begin
+        remaining := !remaining - weights[!i];
+        total_value := !total_value + values[!i]
       end;
       i := !i + 1
     done;

@@ -1,0 +1,29 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  type score = { mutable _points: int }
+
+  let score__add (self: score) (n: int) : int
+  =
+    self._points <- self._points + n;
+    self._points
+
+  let score__subtract (self: score) (n: int) : int
+  =
+    if (self._points >= n) then begin
+      self._points <- self._points - n
+    end;
+    self._points
+
+  let score__reset (self: score) : int
+  =
+    self._points <- 0;
+    self._points
+
+  let score__get (self: score) : int
+  =
+    self._points
+
+end

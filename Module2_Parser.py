@@ -62,6 +62,80 @@ class Old(CSLNode):
 class Nothing(CSLNode):
     pass
 
+@dataclass
+class FieldAccess(CSLNode):
+    object: str   # "self"
+    field: str
+
+@dataclass
+class ClassInvariant(CSLNode):
+    expr: CSLNode
+
+@dataclass
+class SubscriptAccess(CSLNode):
+    array: str
+    index: CSLNode
+
+@dataclass
+class Forall(CSLNode):
+    var: str
+    body: CSLNode
+
+@dataclass
+class Exists(CSLNode):
+    var: str
+    body: CSLNode
+
+@dataclass
+class ArrayLength(CSLNode):
+    var: str
+
+@dataclass
+class AssignsRegion(CSLNode):
+    """Represents `arr[lo..hi]` inside an assigns clause (frame condition region)."""
+    base: str       # array parameter name
+    low: CSLNode    # lower bound expression (inclusive)
+    high: CSLNode   # upper bound expression (exclusive)
+
+@dataclass
+class Valid(CSLNode):
+    """Represents `\\valid(arr, n)` — memory region [arr, arr+n) is allocated."""
+    base: str
+    length: CSLNode
+
+@dataclass
+class Separated(CSLNode):
+    """Represents `\\separated(a, na, b, nb)` — regions [a,a+na) and [b,b+nb) don't overlap."""
+    base1: str
+    length1: CSLNode
+    base2: str
+    length2: CSLNode
+
+@dataclass
+class Label(CSLNode):
+    """Represents a `#@ label L` program point annotation."""
+    name: str
+
+@dataclass
+class At(CSLNode):
+    """Represents `\\at(expr, L)` — value of expr at program point L."""
+    expr: CSLNode
+    label: str
+
+@dataclass
+class Length2D(CSLNode):
+    """Represents `\\length2d(arr, m, n)` — arr has m rows each of length n."""
+    base: str
+    rows: CSLNode
+    cols: CSLNode
+
+@dataclass
+class Valid2D(CSLNode):
+    """Represents `\\valid2d(arr, i, j)` — (i,j) is a valid 2D index into arr."""
+    base: str
+    row: CSLNode
+    col: CSLNode
+
 # ---------------------------------------------------------
 # 2. The EBNF Grammar
 # ---------------------------------------------------------
@@ -74,20 +148,30 @@ PYCSL_GRAMMAR = r"""
              | assigns
              | loop_invariant
              | loop_variant
+             | class_invariant
+             | label_decl
 
     precondition: "requires" expr
     postcondition: "ensures" expr
     
     // Extracted alias from group to prevent Lark GrammarError
     assigns: "assigns" assigns_target
-    ?assigns_target: expr_list 
+    ?assigns_target: assigns_region_list
+                   | expr_list 
                    | "\\nothing" -> nothing
+
+    assigns_region_list: assigns_region ("," assigns_region)*
+    assigns_region: CNAME "[" expr RANGE_OP expr "]"
 
     loop_invariant: "loop" "invariant" expr
     loop_variant: "loop" "variant" expr
+    class_invariant: "class" "invariant" expr
+    label_decl: "label" CNAME
 
     // Expression hierarchy (handles operator precedence and left-recursion)
     ?expr: implication
+         | "\\forall" CNAME ";" expr -> forall_expr
+         | "\\exists" CNAME ";" expr -> exists_expr
 
     ?implication: logical_or | implication IMPL_OP logical_or
     ?logical_or: logical_and | logical_or OR_OP logical_and
@@ -101,9 +185,17 @@ PYCSL_GRAMMAR = r"""
           | atom
 
     ?atom: NUMBER -> number
+         | "self" "." CNAME -> field_access
+         | CNAME "[" expr "]" -> subscript_access
          | CNAME -> var
          | "\\result" -> result
          | "\\old" "(" expr ")" -> old_var
+         | "\\length" "(" CNAME ")" -> array_length
+         | "\\valid" "(" CNAME "," expr ")" -> valid_pred
+         | "\\separated" "(" CNAME "," expr "," CNAME "," expr ")" -> separated_pred
+         | "\\at" "(" expr "," CNAME ")" -> at_expr
+         | "\\length2d" "(" CNAME "," expr "," expr ")" -> length2d_pred
+         | "\\valid2d" "(" CNAME "," expr "," expr ")" -> valid2d_pred
          | "(" expr ")"
 
     expr_list: expr ("," expr)*
@@ -117,9 +209,10 @@ PYCSL_GRAMMAR = r"""
     ADD_OP: "+" | "-"
     MUL_OP: "*" | "/"
     UNARY_OP: "not" | "-" | "+"
+    RANGE_OP: ".."
 
     %import common.CNAME
-    %import common.NUMBER
+    %import common.INT -> NUMBER
     %import common.WS
     %ignore WS
 """
@@ -145,6 +238,21 @@ class PyCSLTransformer(Transformer):
             
     def loop_invariant(self, expr): return LoopInvariant(expr)
     def loop_variant(self, expr): return LoopVariant(expr)
+    def class_invariant(self, expr): return ClassInvariant(expr)
+
+    # Quantifiers
+    def forall_expr(self, var, body): return Forall(str(var), body)
+    def exists_expr(self, var, body): return Exists(str(var), body)
+    def array_length(self, var): return ArrayLength(str(var))
+    def subscript_access(self, name, index): return SubscriptAccess(str(name), index)
+    def assigns_region(self, name, low, _op, high): return AssignsRegion(str(name), low, high)
+    def assigns_region_list(self, *regions): return list(regions)
+    def valid_pred(self, name, length): return Valid(str(name), length)
+    def separated_pred(self, name1, len1, name2, len2): return Separated(str(name1), len1, str(name2), len2)
+    def label_decl(self, name): return Label(str(name))
+    def at_expr(self, expr, label): return At(expr, str(label))
+    def length2d_pred(self, name, rows, cols): return Length2D(str(name), rows, cols)
+    def valid2d_pred(self, name, row, col): return Valid2D(str(name), row, col)
 
     # Operations
     def implication(self, left, op, right): return BinOp(left, str(op), right)
@@ -160,6 +268,7 @@ class PyCSLTransformer(Transformer):
     # Atoms
     def number(self, n): return Number(float(n))
     def var(self, name): return Var(str(name))
+    def field_access(self, field_name): return FieldAccess("self", str(field_name))
     def result(self): return Result()
     def old_var(self, expr): return Old(expr)
     def nothing(self): return Nothing()

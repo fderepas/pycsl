@@ -1,0 +1,15 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use array.Array
+
+  let accumulate_first (arr: array int) (n: int) : int
+    requires { ((n >= 0 && n <= length arr) && (n >= 2)) }
+    ensures  { (arr[0] = ((arr[0] at PRE) + arr[1])) }
+  =
+    label PRE in
+    arr[0] <- (arr[0] + arr[1]);
+    0
+
+end

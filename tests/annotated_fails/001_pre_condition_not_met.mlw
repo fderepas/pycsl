@@ -1,0 +1,15 @@
+module PyCSL_Program
+  use int.Int
+  use ref.Ref
+
+  let multiply_by_two (x: int) : int
+  =
+    (x * 2)
+
+  let call_multiply_by_two (x: int) : int
+    ensures  { (result = (x * 2)) }
+  =
+    let a = ref (multiply_by_two (- 2)) in
+    !a
+
+end

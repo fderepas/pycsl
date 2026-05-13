@@ -1,0 +1,23 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use array.Array
+
+  let clamp_array (arr: array int) (n: int) (lo: int) (hi: int) : int
+    requires { ((n >= 0 && n <= length arr) && (n >= 0)) }
+    ensures  { (result = 0) }
+  =
+    let i = ref 0 in
+    while (!i < n) do
+      if (arr[!i] < lo) then begin
+        arr[!i] <- lo
+      end;
+      if (arr[!i] > hi) then begin
+        arr[!i] <- hi
+      end;
+      i := (!i + 1)
+    done;
+    0
+
+end

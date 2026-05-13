@@ -35,6 +35,7 @@ def extract_code_block(text: str, language: str) -> str:
 
 
 def build_prompt(recommendation: dict, project_directory: Path,
+                  memory_model: str = "hoare",
                   whyml_content: Optional[str] = None,
                   update_history: Optional[list] = None,
                   is_similar: bool = False) -> str:
@@ -54,6 +55,31 @@ Use it to understand exactly what the annotation compiled to and why the proof f
 ```
 """
 
+    _memory_model_hints = {
+        "hoare": (
+            "Standard value-semantic arrays (`array int`). No heap variable.\n"
+            "Common annotation errors: unnecessary `\\valid`/`\\separated`, wrong `\\assigns` syntax.\n"
+            "Common script errors: missing `use array.Array`, wrong array length call."
+        ),
+        "typed": (
+            "Heap-based model. Arrays become `(arr: loc) (arr_len: int)` parameters.\n"
+            "Heap variable: `int_mem : ref (map loc int)`. Preamble needs `use map.Map`.\n"
+            "Common annotation errors: `\\valid(arr, n)` missing parens, `\\assigns arr[lo..hi]` wrong range operator (`..` not `:`), "
+            "blank line between `#@ label L` and labeled statement, `\\at` label not in scope.\n"
+            "Common script errors: Module6 missing Map preamble, `loc` vs `array int` mismatch, "
+            "`arr_len` parameter not emitted, frame condition not wired after `ensures` clauses."
+        ),
+        "store": (
+            "Identical to typed model but heap variable is named `store` (not `int_mem`).\n"
+            "Same annotation/script errors as typed model — check `store` vs `int_mem` naming."
+        ),
+    }
+    memory_model_section = (
+        f"\n## Active Memory Model: `{memory_model}`\n"
+        + _memory_model_hints.get(memory_model, _memory_model_hints["hoare"])
+        + "\n"
+    )
+
     history_section = ""
     if is_similar and update_history:
         attempts_text = "\n".join(
@@ -72,7 +98,7 @@ Previous update attempts for this file:
 """
 
     return f"""You are an expert Python developer tasked with applying a reconciliation recommendation to PyCSL scripts.
-
+{memory_model_section}
 ## Recommendation Target
 {target}
 
@@ -117,8 +143,10 @@ def run_agent(recommendation: dict, config: dict, project_directory: Path,
               is_similar: bool = False) -> Optional[dict]:
     """Run the agent-script-update LLM agent to apply recommendations."""
     model = config.get("model", "claude-sonnet-4.6")
-    prompt = build_prompt(recommendation, project_directory, whyml_content, update_history, is_similar)
+    memory_model = config.get("memory-model", "hoare")
+    prompt = build_prompt(recommendation, project_directory, memory_model, whyml_content, update_history, is_similar)
 
+    log(project_directory, AGENT_NAME, f"[agent-script-update] Memory model: {memory_model}\n")
     log(project_directory, AGENT_NAME, f"[agent-script-update] Starting with target: {recommendation.get('target')}\n")
 
     try:

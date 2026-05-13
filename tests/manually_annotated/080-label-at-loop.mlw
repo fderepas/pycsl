@@ -1,0 +1,19 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use array.Array
+
+  let double_array (arr: array int) (n: int) : int
+    requires { ((n >= 0 && n <= length arr) && (n >= 0)) }
+    ensures  { (result = 0) }
+  =
+    let i = ref 0 in
+    while (!i < n) do
+      label STEP in
+      arr[!i] <- (arr[!i] * 2);
+      i := (!i + 1)
+    done;
+    0
+
+end

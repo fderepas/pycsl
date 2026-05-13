@@ -100,6 +100,119 @@ A report is automatically written to `metrics/reviewer/`.
 
 ---
 
+## Class support
+
+PyCSL supports Python classes at three levels of depth, each building on the
+previous. All three are verified end-to-end by Why3/Alt-Ergo.
+
+### Level 2 — Mutable record types
+
+Every Python class becomes a WhyML mutable record type.  Methods receive
+`(self: classname)` as their first parameter; field reads and writes lower to
+plain record-field access (`self.field`) and record-update (`self.field <-
+val`).
+
+```python
+class Counter:
+    def __init__(self):
+        self._value = 0
+
+    #@ requires amount >= 0
+    #@ ensures self._value == \old(self._value) + amount
+    #@ assigns self._value
+    def increment(self, amount: int) -> int:
+        self._value += amount
+        return self._value
+```
+
+Generated WhyML:
+
+```whyml
+type counter = { mutable _value: int }
+
+let counter__increment (self: counter) (amount: int) : int
+  requires { (amount >= 0) }
+  ensures  { (self._value = ((old self._value) + amount)) }
+=
+  self._value <- self._value + amount;
+  self._value
+```
+
+**Contract syntax for methods:**
+
+| Annotation | Meaning |
+|---|---|
+| `#@ requires self._field >= 0` | Precondition on a field |
+| `#@ ensures self._field == \old(self._field) + n` | Post-state relates to pre-state |
+| `#@ assigns self._field` | Only this field is mutated |
+| `#@ assigns \nothing` | Pure read-only method |
+
+### Level 3 — Class invariants
+
+A `#@ class invariant <expr>` annotation placed **before** the `class` keyword
+declares a property that Why3 automatically checks at every method boundary —
+no extra per-method contract is needed.
+
+```python
+""  # pycsl
+#@ class invariant self._value >= 0
+class Counter:
+    def __init__(self):
+        self._value = 0
+
+    #@ requires amount >= 0
+    #@ ensures self._value == \old(self._value) + amount
+    #@ assigns self._value
+    def increment(self, amount: int) -> int:
+        self._value += amount
+        return self._value
+```
+
+Generated WhyML:
+
+```whyml
+type counter = { mutable _value: int }
+  invariant { _value >= 0 }
+  by { _value = 0 }
+```
+
+**Invariant rules:**
+
+| Feature | Syntax / note |
+|---|---|
+| Single-field | `#@ class invariant self._n >= 0` |
+| Cross-field | `#@ class invariant self._lo <= self._hi` |
+| Compound | `#@ class invariant self._v >= 0 and self._v <= 100` |
+| Stacked | Multiple `#@ class invariant` lines — one clause per line |
+| Two classes | Each class gets its own `#@ class invariant` before its `class` |
+| Witness | Auto-generated from `__init__` initial values — no manual work needed |
+
+The `by { ... }` witness proves the type is inhabited (i.e., the invariant is
+satisfiable). It is derived automatically from the literal assignments in
+`__init__` (e.g., `self._value = 0` → `_value = 0` in the witness).
+
+---
+
+## PyCSL contract language (quick reference)
+
+| Annotation | Scope | Purpose |
+|---|---|---|
+| `#@ requires <expr>` | Function / method | Precondition |
+| `#@ ensures <expr>` | Function / method | Postcondition; `\result` is the return value |
+| `#@ assigns <targets> \| \nothing` | Function / method | Frame condition |
+| `#@ loop invariant <expr>` | `while` / `for` | Inductive property |
+| `#@ loop variant <expr>` | `while` / `for` | Termination measure |
+| `#@ class invariant <expr>` | `class` | Type-level invariant (Level 3) |
+
+**Operators supported in contract expressions:**
+`==`, `!=`, `<`, `>`, `<=`, `>=`, `+`, `-`, `*`, `and`, `or`, `not`,
+`==>` (implies), `<==>` (iff), `\result`, `\old(expr)`, `self.field`
+
+**Not supported in contracts:** `//`, `%`, `len(...)`, function calls,
+string literals, `True`/`False`/`None`.
+
+---
+
 ## Usage
 
 ### Full pipeline (annotate → prove → repair loop)
@@ -151,3 +264,4 @@ Edit `agents/agents-config.json` to change the LLM model or project directory:
 The update agent may only modify `agents/agent-annotate.py` or
 `agents/skill-annotate.md` — writing to `tests/annotated/` is blocked by the
 MCP server.
+
