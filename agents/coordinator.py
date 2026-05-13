@@ -31,9 +31,8 @@ EXIT_LOOP_DETECTED = 73  # same recommendation 3× in a row — human needed
 
 
 class CoordinatorAgent:
-    def __init__(self, repo_root: Path):
-        self.repo_root = repo_root
-        self.pycsl_dir = repo_root / "ai" / "PyCSL"
+    def __init__(self, pycsl_dir: Path):
+        self.pycsl_dir = pycsl_dir
         self.agents_dir = self.pycsl_dir / "agents"
         self.tests_dir = self.pycsl_dir / "tests"
         self.to_annotate_dir = self.tests_dir / "to_annotate"
@@ -578,6 +577,12 @@ def main() -> int:
         description="PyCSL Coordinator Agent"
     )
     parser.add_argument(
+        "--pycsl-dir",
+        dest="pycsl_dir",
+        type=str,
+        help="Path to the PyCSL directory"
+    )
+    parser.add_argument(
         "--start-at",
         dest="start_at",
         type=int,
@@ -591,21 +596,29 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    # Find the repo root
+    # Automatic discovery of pycsl_dir
     current_dir = Path.cwd()
-    repo_root = current_dir
+    pycsl_dir = None
 
-    # Try to find the PyCSL directory
-    while repo_root != repo_root.parent:
-        if (repo_root / "ai" / "PyCSL").exists():
-            break
-        repo_root = repo_root.parent
+    if args.pycsl_dir:
+        pycsl_dir = Path(args.pycsl_dir)
+    elif (current_dir / "agents" / "coordinator.py").exists():
+        # If we are in the PyCSL directory already
+        pycsl_dir = current_dir
+    else:
+        # Fallback to search for ai/PyCSL upwards from current_dir
+        search_root = current_dir
+        while search_root != search_root.parent:
+            if (search_root / "ai" / "PyCSL").exists():
+                pycsl_dir = search_root / "ai" / "PyCSL"
+                break
+            search_root = search_root.parent
 
-    if not (repo_root / "ai" / "PyCSL").exists():
+    if not pycsl_dir or not pycsl_dir.exists():
         print(f"ERROR: Could not find PyCSL directory starting from {current_dir}")
         return 1
 
-    coordinator = CoordinatorAgent(repo_root)
+    coordinator = CoordinatorAgent(pycsl_dir)
     return coordinator.run(start_at=args.start_at)
 
 
