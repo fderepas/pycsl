@@ -206,7 +206,35 @@ satisfiable). It is derived automatically from the literal assignments in
 
 **Operators supported in contract expressions:**
 `==`, `!=`, `<`, `>`, `<=`, `>=`, `+`, `-`, `*`, `and`, `or`, `not`,
-`==>` (implies), `<==>` (iff), `\result`, `\old(expr)`, `self.field`
+`==>` (implies), `<==>` (iff), `\result`, `\old(expr)`, `self.field`,
+`\forall var; expr` (universal quantifier),
+`\exists var; expr` (existential quantifier)
+
+### Quantifiers
+
+`\forall` and `\exists` let you write quantified properties over integer
+ranges — typically array index bounds.  The bound variable is separated from
+the body by a semicolon.  The variable is always typed as `int` in the
+generated WhyML.
+
+```python
+# every element in [0, n) is non-negative
+#@ requires \forall i; 0 <= i and i < n ==> arr[i] >= 0
+
+# there is at least one element equal to the target
+#@ ensures \exists j; 0 <= j and j < n and arr[j] == target
+```
+
+Generated WhyML:
+
+```whyml
+requires { (forall i : int. (0 <= i && i < n) -> arr[i] >= 0) }
+ensures  { (exists j : int. (0 <= j && j < n) && arr[j] = target) }
+```
+
+Quantifiers may appear inside any contract expression (`requires`, `ensures`,
+`loop invariant`) and can be nested.  The bound variable is excluded from
+scope checking — only the free variables in the body must be in scope.
 
 **Not supported in contracts:** `//`, `%`, `len(...)`, function calls,
 string literals, `True`/`False`/`None`.

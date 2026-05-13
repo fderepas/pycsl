@@ -169,13 +169,29 @@ PYCSL_GRAMMAR = r"""
     label_decl: "label" CNAME
 
     // Expression hierarchy (handles operator precedence and left-recursion)
+    // Quantifiers can appear at top level or as the RHS of ==>, and, or.
     ?expr: implication
          | "\\forall" CNAME ";" expr -> forall_expr
          | "\\exists" CNAME ";" expr -> exists_expr
+         | "\\exist"  CNAME ";" expr -> exists_expr
 
-    ?implication: logical_or | implication IMPL_OP logical_or
-    ?logical_or: logical_and | logical_or OR_OP logical_and
-    ?logical_and: equality | logical_and AND_OP equality
+    ?implication: logical_or | implication IMPL_OP impl_rhs
+    ?impl_rhs: logical_or
+             | "\\forall" CNAME ";" expr -> forall_expr
+             | "\\exists" CNAME ";" expr -> exists_expr
+             | "\\exist"  CNAME ";" expr -> exists_expr
+
+    ?logical_or: logical_and | logical_or OR_OP or_rhs
+    ?or_rhs: logical_and
+           | "\\forall" CNAME ";" expr -> forall_expr
+           | "\\exists" CNAME ";" expr -> exists_expr
+           | "\\exist"  CNAME ";" expr -> exists_expr
+
+    ?logical_and: equality | logical_and AND_OP and_rhs
+    ?and_rhs: equality
+            | "\\forall" CNAME ";" expr -> forall_expr
+            | "\\exists" CNAME ";" expr -> exists_expr
+            | "\\exist"  CNAME ";" expr -> exists_expr
     ?equality: comparison | equality EQ_OP comparison
     ?comparison: term | comparison COMP_OP term
     ?term: factor | term ADD_OP factor
