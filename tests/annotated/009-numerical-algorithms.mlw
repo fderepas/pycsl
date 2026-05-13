@@ -1,0 +1,66 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  let gcd (a: int) (b: int) : int
+    requires { (1 = 1) }
+    ensures  { (result >= 0) }
+  =
+    let x = ref a in
+    let y = ref b in
+    if (!x < 0) then begin
+      x := (- !x)
+    end;
+    if (!y < 0) then begin
+      y := (- !y)
+    end;
+    while (!y <> 0) do
+      invariant { (!x >= 0) }
+      invariant { (!y >= 0) }
+      variant { !y }
+      let temp = ref (mod !x !y) in
+      x := !y;
+      y := !temp
+    done;
+    !x
+
+  let is_prime (n: int) : int
+    requires { (1 = 1) }
+    ensures  { ((result = 0) || (result = 1)) }
+  =
+    let is_p = ref 1 in
+    if (n < 2) then begin
+      is_p := 0
+    end else begin
+      if (n = 2) then begin
+        is_p := 1
+      end else begin
+        if ((mod n 2) = 0) then begin
+          is_p := 0
+        end else begin
+          let divisor = ref 3 in
+          let flag = ref 1 in
+          while (!flag = 1) do
+            invariant { (!divisor <= (n + 1)) }
+            invariant { (!divisor >= 3) }
+            invariant { ((!flag = 0) || (!flag = 1)) }
+            invariant { ((!is_p = 0) || (!is_p = 1)) }
+            variant { (((n - !divisor) + 1) + !flag) }
+            if ((!divisor * !divisor) > n) then begin
+              flag := 0
+            end else begin
+              if ((mod n !divisor) = 0) then begin
+                is_p := 0;
+                flag := 0
+              end else begin
+                divisor := !divisor + 2
+              end
+            end
+          done
+        end
+      end
+    end;
+    !is_p
+
+end

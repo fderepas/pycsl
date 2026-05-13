@@ -1,0 +1,66 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use seq.Seq
+
+  let max_sum_subarray_k (values: seq int) (k: int) : int
+    requires { (k >= 1) }
+    ensures  { (1 = 1) }
+  =
+    let n = ref (Seq.length values) in
+    let window_sum = ref 0 in
+    let j = ref 0 in
+    while (!j < k) do
+      invariant { ((0 <= !j) && (!j <= k)) }
+      variant { (k - !j) }
+      window_sum := !window_sum + (Seq.get values !j);
+      j := !j + 1
+    done;
+    let best = ref !window_sum in
+    let i = ref k in
+    while (!i < !n) do
+      invariant { (0 <= !i) }
+      variant { (!n - !i) }
+      let prev = ref (!i - k) in
+      let new_elem = ref (Seq.get values !i) in
+      let old_elem = ref (Seq.get values !prev) in
+      window_sum := ((!window_sum + !new_elem) - !old_elem);
+      if (!window_sum > !best) then begin
+        best := !window_sum
+      end;
+      i := !i + 1
+    done;
+    !best
+
+  let two_sum_sorted (values: seq int) (target: int) : (int, int)
+    requires { (1 = 1) }
+    ensures  { (1 = 1) }
+  =
+    let n = ref (Seq.length values) in
+    let left = ref 0 in
+    let right = ref (!n - 1) in
+    let found_left = ref (- 1) in
+    let found_right = ref (- 1) in
+    while (!left < !right) do
+      invariant { (0 <= !left) }
+      invariant { (!right >= (- 1)) }
+      invariant { (!found_left >= (- 1)) }
+      invariant { (!found_right >= (- 1)) }
+      variant { (!right - !left) }
+      let current = ref ((Seq.get values !left) + (Seq.get values !right)) in
+      if (!current = target) then begin
+        found_left := !left;
+        found_right := !right;
+        left := !right
+      end else begin
+        if (!current < target) then begin
+          left := !left + 1
+        end else begin
+          right := !right - 1
+        end
+      end
+    done;
+    (!found_left, !found_right)
+
+end

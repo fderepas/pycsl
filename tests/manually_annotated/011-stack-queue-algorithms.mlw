@@ -1,0 +1,59 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use seq.Seq
+
+  let are_parentheses_balanced (chars: seq int) : int
+    requires { (1 = 1) }
+    ensures  { ((result = 0) || (result = 1)) }
+  =
+    let n = ref (Seq.length chars) in
+    let depth = ref 0 in
+    let valid = ref 1 in
+    let i = ref 0 in
+    while (!i < !n) do
+      invariant { ((0 <= !i) && (!i <= !n)) }
+      invariant { ((!valid = 0) || (!valid = 1)) }
+      variant { (!n - !i) }
+      depth := !depth + (Seq.get chars !i);
+      if (!depth < 0) then begin
+        valid := 0
+      end;
+      if (!valid = 0) then begin
+        i := !n
+      end else begin
+        i := !i + 1
+      end
+    done;
+    if (!valid = 0) then begin
+      0
+    end else begin
+      if (!depth = 0) then begin
+        1
+      end else begin
+        0
+      end
+    end
+
+  let bfs_levels (adj: seq int) (n: int) (start: int) : int
+    requires { (n >= 0) }
+    requires { (start >= 0) }
+    ensures  { (result >= 0) }
+  =
+    let level = ref 0 in
+    let current = ref start in
+    let i = ref 0 in
+    while (!i < n) do
+      invariant { ((0 <= !i) && (!i <= n)) }
+      invariant { (!level >= 0) }
+      variant { (n - !i) }
+      if (!current < n) then begin
+        current := (Seq.get adj !current);
+        level := !level + 1
+      end;
+      i := !i + 1
+    done;
+    !level
+
+end

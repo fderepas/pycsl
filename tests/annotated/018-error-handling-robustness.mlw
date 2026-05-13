@@ -1,0 +1,20 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use seq.Seq
+
+  let parse_int_list (tokens: seq int) : int
+    requires { (1 = 1) }
+    ensures  { (result >= 0) }
+  =
+    let n = ref (Seq.length tokens) in
+    !n
+
+  let safe_divide (a: int) (b: int) : int
+    requires { (b <> 0) }
+    ensures  { (1 = 1) }
+  =
+    (div a b)
+
+end

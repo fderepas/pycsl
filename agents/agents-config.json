@@ -1,0 +1,9 @@
+{
+  "model": "claude-sonnet-4.6",
+  "project-directory": "./my_project",
+  "program-schema": "program-schema.json",
+  "skill-annotate": "skill-annotate.md",
+  "skill-agents": "skill-agents.md",
+  "skill-module5": "skill-module5.md",
+  "skill-module6": "skill-module6.md"
+}

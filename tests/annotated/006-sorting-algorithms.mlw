@@ -1,0 +1,52 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use seq.Seq
+
+  let insertion_sort (values: seq int) : int
+    requires { (1 = 1) }
+    ensures  { (result >= 0) }
+  =
+    let n = ref (Seq.length values) in
+    let inversions = ref 0 in
+    let i = ref 0 in
+    while (!i < !n) do
+      invariant { ((0 <= !i) && (!i <= !n)) }
+      invariant { (!inversions >= 0) }
+      variant { (!n - !i) }
+      let j = ref (!i + 1) in
+      while (!j < !n) do
+        invariant { (((!i + 1) <= !j) && (!j <= !n)) }
+        invariant { (!inversions >= 0) }
+        variant { (!n - !j) }
+        if ((Seq.get values !i) > (Seq.get values !j)) then begin
+          inversions := !inversions + 1
+        end;
+        j := !j + 1
+      done;
+      i := !i + 1
+    done;
+    !inversions
+
+  let is_sorted_non_decreasing (values: seq int) : int
+    requires { (1 = 1) }
+    ensures  { (result >= 0) }
+  =
+    let n = ref (Seq.length values) in
+    let i = ref 0 in
+    let flag = ref 1 in
+    while (!i < (!n - 1)) do
+      invariant { ((0 <= !i) && (!i <= !n)) }
+      invariant { (!flag >= 0) }
+      variant { (!n - !i) }
+      if ((Seq.get values !i) > (Seq.get values (!i + 1))) then begin
+        flag := 0;
+        i := !n
+      end else begin
+        i := !i + 1
+      end
+    done;
+    !flag
+
+end

@@ -1,0 +1,16 @@
+module PyCSL_Program
+  use int.Int
+  use ref.Ref
+
+  let circle_area (radius: int) : int
+  =
+    (radius * radius)
+
+  let add_event (log_n: int) (event_len: int) : int
+    requires { (log_n >= 0) }
+    requires { (event_len > 0) }
+    ensures  { (result = (log_n + 1)) }
+  =
+    (log_n + 1)
+
+end

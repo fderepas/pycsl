@@ -1,0 +1,36 @@
+module PyCSL_Program
+  use int.Int
+  use ref.Ref
+  use seq.Seq
+
+  let factorial (n: int) : int
+    requires { (n >= 1) }
+    ensures  { (result >= 1) }
+  =
+    let k = ref n in
+    let acc = ref 1 in
+    while (!k > 1) do
+      invariant { (!k >= 0) }
+      invariant { (!acc >= 1) }
+      variant { !k }
+      acc := !acc * !k;
+      k := !k - 1
+    done;
+    !acc
+
+  let sum_list (values: seq int) : int
+    requires { (1 = 1) }
+    ensures  { (1 = 1) }
+  =
+    let n = ref (Seq.length values) in
+    let total = ref 0 in
+    let i = ref 0 in
+    while (!i < !n) do
+      invariant { ((0 <= !i) && (!i <= !n)) }
+      variant { (!n - !i) }
+      total := !total + (Seq.get values !i);
+      i := !i + 1
+    done;
+    !total
+
+end

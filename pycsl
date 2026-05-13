@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+import argparse
+import os
+import sys
+import subprocess
+
+# Import the PyCSL Pipeline Modules
+from Module1_Ingestor import Module1_Ingestor
+from Module2_Parser import Module2_Parser
+from Module3_Weaver import Module3_Weaver
+from Module4_SemanticAnalyzer import Module4_SemanticAnalyzer, PyCSLSemanticError
+from Module5_IREmitter import Module5_IREmitter
+from Module6_WhyMLTranspiler import Module6_WhyMLTranspiler
+
+def main():
+    # Set up command line arguments
+    parser = argparse.ArgumentParser(description="PyCSL: Python Contract Specification Language Verifier")
+    parser.add_argument("file", help="The Python file to verify")
+    parser.add_argument("-p", "--prover", default="Alt-Ergo,2.6.2,", 
+                        help="The Why3 prover to use (default: Alt-Ergo,2.6.2,). Use 'z3' for Z3.")
+    parser.add_argument("--keep-mlw", action="store_true", 
+                        help="Keep the generated WhyML (.mlw) file for debugging")
+    
+    args = parser.parse_args()
+
+    if not os.path.exists(args.file):
+        print(f"[!] Error: File '{args.file}' not found.")
+        sys.exit(1)
+
+    with open(args.file, "r") as f:
+        source_code = f.read()
+
+    print(f"[*] Parsing and Semantic Analysis for '{args.file}'...")
+
+    try:
+        # [Modules 1-3] Ingest, Parse, and Weave
+        ingestor = Module1_Ingestor(source_code)
+        extracted_data = ingestor.process()
+
+        parser_mod = Module2_Parser()
+        weaver = Module3_Weaver(source_code, extracted_data, parser_mod)
+        unified_ast = weaver.process()
+
+        # [Module 4] Semantic Analysis
+        analyzer = Module4_SemanticAnalyzer()
+        validated_ast = analyzer.process(unified_ast)
+
+        # [Module 5] IR Generation
+        emitter = Module5_IREmitter(validated_ast)
+        json_ir = emitter.generate_json()
+
+        # [Module 6] WhyML Transpilation
+        transpiler = Module6_WhyMLTranspiler(json_ir)
+        mlw_code = transpiler.transpile()
+
+    except SyntaxError as e:
+        print(f"\n[!] SYNTAX ERROR:\n{e}")
+        sys.exit(1)
+    except PyCSLSemanticError as e:
+        print(f"\n[!] SEMANTIC ERROR:\n{e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\n[!] UNEXPECTED PIPELINE ERROR:\n{e}")
+        sys.exit(1)
+
+    # File handling for the WhyML intermediate file
+    base_name = os.path.splitext(args.file)[0]
+    mlw_filename = f"{base_name}.mlw" if args.keep_mlw else ".pycsl_temp.mlw"
+    
+    with open(mlw_filename, "w") as f:
+        f.write(mlw_code)
+
+    print(f"[*] Running Proof Engine ({args.prover})...")
+    try:
+        # Invoke Why3 as a subprocess
+        result = subprocess.run(
+            ["why3", "prove", "-P", args.prover, mlw_filename],
+            capture_output=True,
+            text=True
+        )
+        
+        output = result.stdout.strip()
+        
+        print("\n--- Verification Results ---")
+        if output:
+            print(output)
+        if result.stderr.strip():
+            print("\nWarnings/Errors from Why3:")
+            print(result.stderr.strip())
+
+        # Simple heuristic to determine overall success
+        if result.returncode == 0 and "Valid" in output and "Unknown" not in output and "Invalid" not in output:
+            print("\n[+] Verification SUCCESS! All contracts formally proven.")
+        else:
+            print("\n[-] Verification FAILED or INCOMPLETE. Check the solver output.")
+            sys.exit(1)
+
+    except FileNotFoundError:
+        print("\n[!] ERROR: 'why3' command not found. Please ensure Why3 is installed and in your PATH.")
+        sys.exit(1)
+    finally:
+        # Clean up the temporary file unless the user asked to keep it
+        if not args.keep_mlw and os.path.exists(mlw_filename):
+            os.remove(mlw_filename)
+
+if __name__ == "__main__":
+    main()

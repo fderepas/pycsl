@@ -1,0 +1,61 @@
+module PyCSL_Program
+  use int.Int
+  use ref.Ref
+  use seq.Seq
+
+  exception PyCSL_Continue
+
+  let classify_numbers (values: seq int) : (int, int, int)
+  =
+    let negatives = ref 0 in
+    let zeros = ref 0 in
+    let positives = ref 0 in
+    let n = ref (Seq.length values) in
+    let i = ref 0 in
+    while (!i < !n) do
+      invariant { ((0 <= !i) && (!i <= !n)) }
+      invariant { (!negatives >= 0) }
+      invariant { (!zeros >= 0) }
+      invariant { (!positives >= 0) }
+      invariant { (((!negatives + !zeros) + !positives) = !i) }
+      variant { (!n - !i) }
+      if ((Seq.get values !i) < 0) then begin
+        negatives := !negatives + 1
+      end else begin
+        if ((Seq.get values !i) = 0) then begin
+          zeros := !zeros + 1
+        end else begin
+          positives := !positives + 1
+        end
+      end;
+      i := !i + 1
+    done;
+    (!negatives, !zeros, !positives)
+
+  let first_positive_prefix_sum (values: seq int) (threshold: int) : int
+    requires { (threshold > 0) }
+    ensures  { (result >= 0) }
+  =
+    let total = ref 0 in
+    let n = ref (Seq.length values) in
+    let i = ref 0 in
+    while (!i < !n) do
+      invariant { ((0 <= !i) && (!i <= !n)) }
+      invariant { (!total >= 0) }
+      variant { (!n - !i) }
+      try
+      if ((Seq.get values !i) <= 0) then begin
+        i := !i + 1;
+        raise PyCSL_Continue
+      end;
+      total := !total + (Seq.get values !i);
+      if (!total >= threshold) then begin
+        i := !n
+      end else begin
+        i := !i + 1
+      end
+      with PyCSL_Continue -> () end
+    done;
+    !total
+
+end

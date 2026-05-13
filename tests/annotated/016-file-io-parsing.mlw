@@ -1,0 +1,41 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use seq.Seq
+
+  let read_scores_csv (scores: seq int) : int
+    requires { (1 = 1) }
+    ensures  { (1 = 1) }
+  =
+    let n = ref (Seq.length scores) in
+    let total = ref 0 in
+    let i = ref 0 in
+    while (!i < !n) do
+      invariant { ((0 <= !i) && (!i <= !n)) }
+      variant { (!n - !i) }
+      total := !total + (Seq.get scores !i);
+      i := !i + 1
+    done;
+    !total
+
+  let average_score (scores: seq int) : int
+    requires { (1 = 1) }
+    ensures  { (1 = 1) }
+  =
+    let n = ref (Seq.length scores) in
+    let total = ref 0 in
+    let i = ref 0 in
+    while (!i < !n) do
+      invariant { ((0 <= !i) && (!i <= !n)) }
+      variant { (!n - !i) }
+      total := !total + (Seq.get scores !i);
+      i := !i + 1
+    done;
+    if (!n = 0) then begin
+      0
+    end else begin
+      (div !total !n)
+    end
+
+end

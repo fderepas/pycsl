@@ -1,0 +1,71 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use seq.Seq
+
+  let first_duplicate (values: seq int) : int
+    requires { (1 = 1) }
+    ensures  { (1 = 1) }
+  =
+    let n = ref (Seq.length values) in
+    let i = ref 0 in
+    let found = ref (- 1) in
+    let found_flag = ref 0 in
+    while (!i < !n) do
+      invariant { ((0 <= !i) && (!i <= !n)) }
+      invariant { (!found_flag >= 0) }
+      variant { (!n - !i) }
+      let j = ref 0 in
+      while (!j < !i) do
+        invariant { ((0 <= !j) && (!j <= !i)) }
+        invariant { (!found_flag >= 0) }
+        variant { (!i - !j) }
+        if ((Seq.get values !j) = (Seq.get values !i)) then begin
+          found := (Seq.get values !i);
+          found_flag := 1;
+          j := !i
+        end else begin
+          j := !j + 1
+        end
+      done;
+      if (!found_flag = 1) then begin
+        i := !n
+      end else begin
+        i := !i + 1
+      end
+    done;
+    !found
+
+  let group_anagrams (keys: seq int) : int
+    requires { (1 = 1) }
+    ensures  { (result >= 0) }
+  =
+    let n = ref (Seq.length keys) in
+    let count = ref 0 in
+    let i = ref 0 in
+    while (!i < !n) do
+      invariant { ((0 <= !i) && (!i <= !n)) }
+      invariant { (!count >= 0) }
+      variant { (!n - !i) }
+      let j = ref 0 in
+      let is_new = ref 1 in
+      while (!j < !i) do
+        invariant { ((0 <= !j) && (!j <= !i)) }
+        invariant { (!is_new >= 0) }
+        variant { (!i - !j) }
+        if ((Seq.get keys !j) = (Seq.get keys !i)) then begin
+          is_new := 0;
+          j := !i
+        end else begin
+          j := !j + 1
+        end
+      done;
+      if (!is_new = 1) then begin
+        count := !count + 1
+      end;
+      i := !i + 1
+    done;
+    !count
+
+end

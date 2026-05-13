@@ -1,0 +1,40 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  let counter_init () : int
+    requires { (1 = 1) }
+    ensures  { (result = 0) }
+  =
+    0
+
+  let counter_value (v: int) : int
+    requires { (v >= 0) }
+    ensures  { (result = v) }
+  =
+    v
+
+  let counter_increment (v: int) : int
+    requires { (v >= 0) }
+    ensures  { (result = (v + 1)) }
+  =
+    (v + 1)
+
+  let run_workers (v: int) (workers: int) (increments_per_worker: int) : int
+    requires { (((v >= 0) && (workers >= 0)) && (increments_per_worker >= 0)) }
+    ensures  { (result = (v + (workers * increments_per_worker))) }
+  =
+    let total = ref (workers * increments_per_worker) in
+    let current = ref v in
+    let i = ref 0 in
+    while (!i < !total) do
+      invariant { ((0 <= !i) && (!i <= !total)) }
+      invariant { (!current = (v + !i)) }
+      variant { (!total - !i) }
+      current := !current + 1;
+      i := !i + 1
+    done;
+    !current
+
+end
