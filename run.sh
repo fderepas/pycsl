@@ -15,7 +15,7 @@ set -e
 
 PYCSL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 AGENTS_DIR="$PYCSL_DIR/agents"
-REPO_ROOT="$(cd "$PYCSL_DIR/../.." && pwd)"
+REPO_ROOT="$PYCSL_DIR"
 METRICS_DIR="$PYCSL_DIR/metrics"
 
 echo "================================================"
@@ -32,9 +32,38 @@ if [[ -f "$PYCSL_DIR/.venv/bin/activate" ]]; then
     source "$PYCSL_DIR/.venv/bin/activate"
 fi
 
+
 cd "$PYCSL_DIR"
 
 # ── helpers ────────────────────────────────────────────────────────────────────
+
+check_provers() {
+    local config_file="$AGENTS_DIR/agents-config.json"
+    if [[ ! -f "$config_file" ]]; then
+        echo "ERROR: Configuration file not found at $config_file"
+        exit 1
+    fi
+
+    local missing_provers=()
+    # Extract provers list, loop through, and split by comma to get the prover name
+    while read -r prover_entry; do
+        local prover_name="${prover_entry%%,*}"
+        if ! command -v "$prover_name" >/dev/null 2>&1; then
+            missing_provers+=("$prover_name")
+        fi
+    done < <(jq -r '.provers[]' "$config_file")
+
+    if [[ ${#missing_provers[@]} -gt 0 ]]; then
+        echo "ERROR: The following required provers were not found in PATH:"
+        for p in "${missing_provers[@]}"; do
+            echo "  - $p"
+        done
+        exit 1
+    fi
+    echo "✓ All required provers are available"
+}
+
+check_provers
 
 usage() {
     echo "Usage:"
@@ -123,7 +152,7 @@ case "${1:-}" in
     --start-at)
         [[ -z "${2:-}" ]] && { echo "ERROR: --start-at requires a number"; usage; }
         echo "Starting coordinator agent (--start-at $2)..."
-        python "$AGENTS_DIR/coordinator.py" --start-at "$2"
+        python "$AGENTS_DIR/coordinator.py" --pycsl-dir "$PYCSL_DIR" --start-at "$2"
         EXIT_CODE=$?
         ;;
     --review)
@@ -149,7 +178,7 @@ case "${1:-}" in
         ;;
     "")
         echo "Starting coordinator agent (full pipeline)..."
-        python "$AGENTS_DIR/coordinator.py"
+        python "$AGENTS_DIR/coordinator.py" --pycsl-dir "$PYCSL_DIR"
         EXIT_CODE=$?
         ;;
     *)
