@@ -69,7 +69,7 @@ The **Ref** column uses the format `file.section[.subsection[.subsubsection]]`.
 | 3.2.10.1 | Special attributes | 0062, 0309, 0310 | PASS |
 | 3.2.10.2 | Special methods | 0063, 0311, 0312 | PASS |
 | 3.2.11.1 | Special attributes | 0064, 0313, 0314 | PASS |
-| 3.2.12 | I/O objects (also known as file objects) | 0065, 0315, 0316 | PASS |
+| 3.2.12 | I/O objects (also known as file objects) | 0315, 0316 | PASS |
 | 3.2.13.1.1 | Special read-only attributes | 0066, 0317, 0318 | PASS |
 | 3.2.13.1.2 | Methods on code objects | 0067, 0319, 0320 | PASS |
 | 3.2.13.2.1 | Special read-only attributes | 0068, 0321, 0322 | PASS |
@@ -116,7 +116,7 @@ The **Ref** column uses the format `file.section[.subsection[.subsubsection]]`.
 | 4.3 | Exceptions | 0109, 0385, 0386 | PASS |
 | 4.4.1 | General Computing Model | 0110 | UNSUPPORTED |
 | 4.4.2 | Python Runtime Model | 0111, 0387, 0388 | PASS |
-| 5.1 | :mod:`importlib` | 0112, 0389, 0390 | PASS |
+| 5.1 | :mod:`importlib` | 0389, 0390 | PASS |
 | 5.2.1 | Regular packages | 0113, 0391, 0392 | PASS |
 | 5.2.2 | Namespace packages | 0114, 0393, 0394 | PASS |
 | 5.3.1 | The module cache | 0115, 0395, 0396 | PASS |
@@ -133,7 +133,7 @@ The **Ref** column uses the format `file.section[.subsection[.subsubsection]]`.
 | 5.5.2 | Path entry finder protocol | 0126, 0417, 0418 | PASS |
 | 5.6 | Replacing the standard import system | 0127, 0419, 0420 | PASS |
 | 5.7 | Package Relative Imports | 0128, 0421, 0422 | PASS |
-| 5.8.1 | __main__.__spec__ | 0129, 0423, 0424 | PASS |
+| 5.8.1 | __main__.__spec__ | 0423, 0424 | PASS |
 | 5.9 | References | 0130, 0425, 0426 | PASS |
 | 6.1 | Arithmetic conversions | 0131 | UNSUPPORTED |
 | 6.2.1 | Built-in constants | 0132, 0427, 0428 | PASS |
@@ -222,4 +222,4 @@ The **Ref** column uses the format `file.section[.subsection[.subsubsection]]`.
 | 9.2 | File input | 0215, 0505, 0506 | PASS |
 | 9.3 | Interactive input | 0216, 0507, 0508 | PASS |
 | 9.4 | Expression input | 0217 | UNSUPPORTED |
-| 10.1 | Full Grammar specification | 0218, 0509, 0510 | PASS |
+| 10.1 | Full Grammar specification | 0509, 0510 | PASS |
