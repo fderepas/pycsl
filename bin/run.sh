@@ -33,6 +33,8 @@ if [[ -f "$PYCSL_DIR/.venv/bin/activate" ]]; then
     source "$PYCSL_DIR/.venv/bin/activate"
 fi
 
+# Ensure Why3 detects available provers
+why3 config detect 2>/dev/null
 
 cd "$PYCSL_DIR"
 
