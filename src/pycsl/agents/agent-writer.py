@@ -1,13 +1,15 @@
 """
-agent-writer.py — Single-function LLM annotator.
+agent-writer.py — Coordinator for the 3-agent annotation pipeline.
 
-Receives a single function (or small SCC group) via stdin as JSON, annotates it
-with PyCSL contracts (#@ requires, #@ ensures, #@ assigns, loop invariants/variants),
-and writes the annotated function to stdout.
+Receives a single function (or small SCC group) via stdin as JSON and produces
+the fully annotated function on stdout. Internally orchestrates three agents:
 
-This agent is designed to be called by agent-splitter.py for each function in
-bottom-up call-graph order. It receives callee contracts as context so it can
-write tighter invariants for callers.
+  1. agent-english-writer  — plain-English description of the function
+  2. agent-contract-writer  — function-level contracts (#@ requires/ensures/assigns)
+  3. agent-invariant-writer — loop invariants/variants + final assembly
+
+Falls back to the original monolithic single-LLM-call approach if any sub-agent
+fails, so the pipeline is never worse than before.
 
 Input (JSON on stdin):
   - function_source: str    — the raw function source code to annotate
@@ -96,14 +98,14 @@ def extract_code_block(text: str, language: str = "python") -> str:
     return text
 
 
-def build_prompt(
+def _build_monolithic_prompt(
     skill_content: str,
     function_source: str,
     callee_contracts: str,
     class_context: str,
     memory_model: str,
 ) -> str:
-    """Build the focused prompt for annotating a single function."""
+    """Build the legacy single-LLM-call prompt (used as fallback)."""
     _model_notes = {
         "hoare": (
             "Use standard value-semantic arrays (`array int`). "
@@ -161,6 +163,78 @@ def build_prompt(
     parts.append(f"\n\n# FUNCTION TO ANNOTATE\n\n{function_source}")
 
     return "\n".join(parts)
+
+
+def _run_3agent_pipeline(
+    function_source: str,
+    callee_contracts: str,
+    class_context: str,
+    memory_model: str,
+    skill_content: str,
+    model: str,
+    project_directory: str,
+) -> str:
+    """Run the 3-agent pipeline: english → contracts → invariants.
+
+    Raises on failure so the caller can fall back to the monolithic approach.
+    """
+    # Import sub-agents (they live in the same directory)
+    from importlib import util as _importlib_util
+
+    agents_dir = Path(__file__).parent
+
+    def _load_module(name: str):
+        spec = _importlib_util.spec_from_file_location(
+            name, agents_dir / f"{name}.py"
+        )
+        mod = _importlib_util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    english_writer = _load_module("agent-english-writer")
+    contract_writer = _load_module("agent-contract-writer")
+    invariant_writer = _load_module("agent-invariant-writer")
+
+    # Step 1: English description
+    log(project_directory, AGENT_NAME, "Pipeline step 1/3: English description\n")
+    english_desc = english_writer.generate(
+        function_source=function_source,
+        class_context=class_context,
+        model=model,
+        project_directory=project_directory,
+    )
+    if not english_desc.strip():
+        raise RuntimeError("English writer returned empty description")
+
+    # Step 2: Function-level contracts
+    log(project_directory, AGENT_NAME, "Pipeline step 2/3: Function contracts\n")
+    contracts = contract_writer.generate(
+        function_source=function_source,
+        english_description=english_desc,
+        class_context=class_context,
+        memory_model=memory_model,
+        model=model,
+        project_directory=project_directory,
+    )
+    if not contracts.strip():
+        raise RuntimeError("Contract writer returned empty contracts")
+
+    # Step 3: Loop invariants + final assembly
+    log(project_directory, AGENT_NAME, "Pipeline step 3/3: Loop invariants\n")
+    annotated = invariant_writer.generate(
+        function_source=function_source,
+        contracts=contracts,
+        callee_contracts=callee_contracts,
+        class_context=class_context,
+        memory_model=memory_model,
+        skill_content=skill_content,
+        model=model,
+        project_directory=project_directory,
+    )
+    if not annotated.strip():
+        raise RuntimeError("Invariant writer returned empty output")
+
+    return annotated
 
 
 def main():
@@ -224,7 +298,7 @@ def main():
             project_root=project_root,
         )
         if skill_content:
-            log(project_directory, AGENT_NAME, "Using RAG-retrieved skill chunks")
+            log(project_directory, AGENT_NAME, "Using RAG-retrieved skill chunks\n")
 
     if skill_content is None:
         skill_annotator_path = Path(skill_annotator_name)
@@ -235,26 +309,38 @@ def main():
                 f"Error: skill file not found at {skill_annotator_path}")
             sys.exit(1)
         skill_content = skill_annotator_path.read_text(encoding="utf-8")
-        log(project_directory, AGENT_NAME, "Using full skill file (RAG unavailable)")
+        log(project_directory, AGENT_NAME, "Using full skill file (RAG unavailable)\n")
 
-    prompt = build_prompt(
-        skill_content=skill_content,
-        function_source=function_source,
-        callee_contracts=callee_contracts,
-        class_context=class_context,
-        memory_model=args.memory_model,
-    )
-
+    # Try the 3-agent pipeline first; fall back to monolithic on failure
     try:
-        generated_code = llm_generate(
-            prompt=prompt, system="", agent_id=AGENT_NAME, model=model
+        generated_code = _run_3agent_pipeline(
+            function_source=function_source,
+            callee_contracts=callee_contracts,
+            class_context=class_context,
+            memory_model=args.memory_model,
+            skill_content=skill_content,
+            model=model,
+            project_directory=project_directory,
         )
+        log(project_directory, AGENT_NAME, "3-agent pipeline succeeded\n")
     except Exception as e:
-        log(project_directory, AGENT_NAME, f"Error calling LLM: {e}")
-        sys.exit(1)
-
-    # Extract code from markdown fences
-    generated_code = extract_code_block(generated_code, "python")
+        log(project_directory, AGENT_NAME,
+            f"3-agent pipeline failed ({e}), falling back to monolithic LLM call\n")
+        prompt = _build_monolithic_prompt(
+            skill_content=skill_content,
+            function_source=function_source,
+            callee_contracts=callee_contracts,
+            class_context=class_context,
+            memory_model=args.memory_model,
+        )
+        try:
+            generated_code = llm_generate(
+                prompt=prompt, system="", agent_id=AGENT_NAME, model=model
+            )
+        except Exception as e2:
+            log(project_directory, AGENT_NAME, f"Error calling LLM: {e2}")
+            sys.exit(1)
+        generated_code = extract_code_block(generated_code, "python")
 
     # Write annotated function to stdout
     sys.stdout.write(generated_code)
