@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Reconcile Output",
+  "description": "JSON produced by agent-reconcile.py after diagnosing a pycsl proof failure.",
+  "type": "object",
+  "required": ["language", "author", "recommendation", "target"],
+  "properties": {
+    "language": {
+      "type": "string",
+      "description": "Programming language of the source file."
+    },
+    "author": {
+      "type": "string",
+      "description": "Agent or person that produced the recommendation."
+    },
+    "recommendation": {
+      "type": "string",
+      "description": "Human-readable description of the recommended fix."
+    },
+    "target": {
+      "type": "string",
+      "enum": ["update-pycsl-scripts", "error-in-annotations", "unknown"],
+      "description": "Where the fix should be applied."
+    }
+  },
+  "additionalProperties": false
+}

@@ -83,6 +83,24 @@ For each .py file in tests/to_annotate/:
   └──────────────────────┘
 ```
 
+### Inter-agent data flow
+
+All agents communicate via **files on disk**, invoked as subprocesses by the
+coordinator.
+
+| Step | Writer | File(s) | Reader |
+|------|--------|---------|--------|
+| Annotate | `agent-annotate` | `tests/annotated/*.py` | `pycsl` |
+| Prove | `pycsl` | `out.std`, `out.err` | `agent-reconcile` |
+| Reconcile | `agent-reconcile` | `reconcile_<file>.json` | `agent-script-update` |
+| Update | `agent-script-update` | modified `agent-annotate.py` or `SKILL.md`; `update_*_history.json` | coordinator (re-annotate) |
+| Evaluate | `agent-meta-evaluator` | `metrics/evaluator/<stem>_<N>.json` | `agent-meta-reviewer` |
+| Monitor | `agent-meta-monitor` | `metrics/monitor/<stem>.json` | `agent-meta-reviewer` |
+| Review | `agent-meta-reviewer` | `metrics/reviewer/<stem>.json` + `<stem>.md` | human / CI |
+
+All inter-agent JSON files are validated against schemas in `config/schemas/`
+before being written.
+
 ### Loop detection
 
 If `agent-reconcile` produces the **same recommendation 3 times in a row**

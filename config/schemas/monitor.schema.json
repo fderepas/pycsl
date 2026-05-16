@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Monitor Output",
+  "description": "JSON produced by agent-meta-monitor.py with operational health metrics.",
+  "type": "object",
+  "required": ["json_validation_failures", "mcp_rejection_count", "total_execution_time_seconds", "health_status"],
+  "properties": {
+    "json_validation_failures": {
+      "type": "integer",
+      "description": "Number of JSON validation failures found in reconcile logs."
+    },
+    "mcp_rejection_count": {
+      "type": "integer",
+      "description": "Number of MCP write rejections found in update logs."
+    },
+    "total_execution_time_seconds": {
+      "type": ["number", "null"],
+      "description": "Elapsed time between first and last log timestamp, or null."
+    },
+    "health_status": {
+      "type": "string",
+      "enum": ["healthy", "warning"],
+      "description": "Overall health: healthy if no failures/rejections, warning otherwise."
+    }
+  },
+  "additionalProperties": false
+}

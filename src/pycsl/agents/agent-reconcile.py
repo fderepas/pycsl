@@ -9,6 +9,58 @@ from llm_client import llm_generate, log
 
 AGENT_NAME = "agent-reconcile"
 
+# Fixed queries to always retrieve critical reconciliation context.
+_ESSENTIAL_QUERIES = [
+    "Module5 IR emitter statement expression handler dispatch",
+    "Module6 WhyML transpiler expression statement memory model",
+    "Forbidden in contract expressions NEVER use operators",
+    "Required on every function requires ensures assigns",
+]
+
+
+def _retrieve_skill_chunks_for_reconcile(
+    index_path: Path,
+    error_context: str,
+    top_k: int = 10,
+    project_root: Path | None = None,
+) -> str | None:
+    """Retrieve relevant skill chunks via RAG for the reconciliation context.
+
+    Returns concatenated chunk content, or None if the index is unavailable.
+    """
+    if not index_path.exists():
+        return None
+
+    try:
+        if project_root:
+            skill2rag_path = str(project_root / "src")
+            if skill2rag_path not in sys.path:
+                sys.path.insert(0, skill2rag_path)
+        from skill2rag.retriever import retrieve  # noqa: E402
+
+        seen_ids: set = set()
+        chunks: list = []
+
+        # Always retrieve essential sections
+        for query in _ESSENTIAL_QUERIES:
+            for chunk in retrieve(query=query, index_path=str(index_path), top_k=3):
+                if chunk.chunk_id not in seen_ids:
+                    seen_ids.add(chunk.chunk_id)
+                    chunks.append(chunk)
+
+        # Retrieve chunks relevant to the error context
+        for chunk in retrieve(query=error_context[:1500], index_path=str(index_path), top_k=top_k):
+            if chunk.chunk_id not in seen_ids:
+                seen_ids.add(chunk.chunk_id)
+                chunks.append(chunk)
+
+        if not chunks:
+            return None
+
+        return "\n\n---\n\n".join(c.content for c in chunks)
+    except Exception:
+        return None
+
 
 def extract_code_block(text: str, language: str = "python") -> str:
     """
@@ -125,6 +177,7 @@ def build_prompt(
     ret_code: str,
     whyml_path: Path | None,
     whyml_content: str | None,
+    rag_context: str | None = None,
 ) -> str:
     _memory_model_notes = {
         "hoare": (
@@ -162,18 +215,31 @@ def build_prompt(
         f"--- ACTIVE MEMORY MODEL: {memory_model.upper()} ---",
         model_note,
         "",
-        "--- SKILL ANNOTATOR ---",
-        skill_anotator,
-        "",
-        "--- SKILL AGENTS ---",
-        skill_agents,
-        "",
-        "--- SKILL MODULE 5 ---",
-        skill_module5,
-        "",
-        "--- SKILL MODULE 6 ---",
-        skill_module6,
-        "",
+    ]
+
+    if rag_context:
+        sections.extend([
+            "--- RELEVANT SKILL KNOWLEDGE (RAG-retrieved) ---",
+            rag_context,
+            "",
+        ])
+    else:
+        sections.extend([
+            "--- SKILL ANNOTATOR ---",
+            skill_anotator,
+            "",
+            "--- SKILL AGENTS ---",
+            skill_agents,
+            "",
+            "--- SKILL MODULE 5 ---",
+            skill_module5,
+            "",
+            "--- SKILL MODULE 6 ---",
+            skill_module6,
+            "",
+        ])
+
+    sections.extend([
         "--- TARGET SCRIPT ---",
         f"Path: {script_path}",
         script_content,
@@ -188,7 +254,7 @@ def build_prompt(
         "",
         "--- RETURN CODE ---",
         ret_code,
-    ]
+    ])
 
     if whyml_path is not None and whyml_content is not None:
         sections.extend(
@@ -234,6 +300,8 @@ def main() -> None:
     model = require_config_key(config, "model", project_root, config_path)
     project_directory = Path(str(require_config_key(config, "project-directory", project_root, config_path))).expanduser().resolve()
     memory_model = config.get("memory-model", "hoare")
+    rag_index_name = config.get("rag-index")
+    rag_top_k = config.get("rag-top-k", 10)
     log(project_directory, AGENT_NAME, f"Memory model: {memory_model}")
     skill_anotator_name = str(require_config_key(config, "skill-annotate", project_root, config_path))
     skill_agents_name = str(require_config_key(config, "skill-agents", project_root, config_path))
@@ -244,11 +312,6 @@ def main() -> None:
         path = Path(name)
         return path if path.is_absolute() else project_root / path
 
-    skill_anotator = read_text(resolve_relative(skill_anotator_name), project_directory, "skill-annotate")
-    skill_agents = read_text(resolve_relative(skill_agents_name), project_directory, "skill-agents")
-    skill_module5 = read_text(resolve_relative(skill_module5_name), project_directory, "skill-module5")
-    skill_module6 = read_text(resolve_relative(skill_module6_name), project_directory, "skill-module6")
-
     script_path = Path(args.script)
     stdout_path = Path(args.stdout)
     stderr_path = Path(args.stderr)
@@ -256,6 +319,28 @@ def main() -> None:
     script_content = read_text(script_path, project_directory, "target script")
     stdout_content = read_text(stdout_path, project_directory, "stdout")
     stderr_content = read_text(stderr_path, project_directory, "stderr")
+
+    # Try RAG retrieval using error context as the query
+    rag_context = None
+    if rag_index_name:
+        rag_index_path = resolve_relative(rag_index_name)
+        error_query = f"{stderr_content}\n\n{script_content[:500]}"
+        rag_context = _retrieve_skill_chunks_for_reconcile(
+            index_path=rag_index_path,
+            error_context=error_query,
+            top_k=rag_top_k,
+            project_root=project_root,
+        )
+        if rag_context:
+            log(project_directory, AGENT_NAME, "Using RAG-retrieved skill chunks")
+
+    # Load full skill files as fallback (or when RAG not available)
+    if rag_context is None:
+        log(project_directory, AGENT_NAME, "Using full skill files (RAG index unavailable)")
+    skill_anotator = read_text(resolve_relative(skill_anotator_name), project_directory, "skill-annotate")
+    skill_agents = read_text(resolve_relative(skill_agents_name), project_directory, "skill-agents")
+    skill_module5 = read_text(resolve_relative(skill_module5_name), project_directory, "skill-module5")
+    skill_module6 = read_text(resolve_relative(skill_module6_name), project_directory, "skill-module6")
 
     whyml_path = script_path.with_suffix(".mlw") if script_path.suffix == ".py" else script_path.with_suffix(".mlw")
     whyml_content = read_optional_file(whyml_path)
@@ -275,6 +360,7 @@ def main() -> None:
         ret_code=args.ret_code,
         whyml_path=whyml_path if whyml_content is not None else None,
         whyml_content=whyml_content,
+        rag_context=rag_context,
     )
 
     try:
@@ -299,6 +385,12 @@ def main() -> None:
         sys.exit(1)
 
     out_path = Path(args.out_file_name)
+    try:
+        from schema_validator import validate_or_warn
+        validate_or_warn(result, "reconcile",
+                         logger=lambda msg: log(project_directory, AGENT_NAME, msg))
+    except ImportError:
+        pass
     try:
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

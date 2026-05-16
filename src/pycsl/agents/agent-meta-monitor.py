@@ -144,6 +144,12 @@ def main() -> int:
         "total_execution_time_seconds": exec_time,
         "health_status": health_status,
     }
+    try:
+        from schema_validator import validate_or_warn
+        validate_or_warn(result, "monitor",
+                         logger=lambda msg: log(msg, out_dir))
+    except ImportError:
+        pass
     out_path.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
     log(f"Wrote monitor metrics to {out_path}", out_dir)
     return 0

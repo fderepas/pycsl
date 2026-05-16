@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Reviewer Output",
+  "description": "JSON produced by agent-meta-reviewer.py with a PR-style report.",
+  "type": "object",
+  "required": ["pr_title", "pr_body", "system_recommendation", "requires_human_intervention"],
+  "properties": {
+    "pr_title": {
+      "type": "string",
+      "description": "Suggested PR title."
+    },
+    "pr_body": {
+      "type": "string",
+      "description": "Markdown PR body with problem description, fix, blast radius, test results."
+    },
+    "system_recommendation": {
+      "type": "string",
+      "description": "Actionable recommendation for the engineering team."
+    },
+    "requires_human_intervention": {
+      "type": "boolean",
+      "description": "Whether manual review is needed."
+    }
+  },
+  "additionalProperties": false
+}

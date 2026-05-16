@@ -147,6 +147,12 @@ def main() -> int:
     if missing:
         log(f"WARNING: LLM response missing keys: {missing}", out_dir)
 
+    try:
+        from schema_validator import validate_or_warn
+        validate_or_warn(result, "reviewer",
+                         logger=lambda msg: log(msg, out_dir))
+    except ImportError:
+        pass
     out_json.write_text(json.dumps(result, indent=2, ensure_ascii=False), encoding="utf-8")
     out_md.write_text(result.get("pr_body", ""), encoding="utf-8")
     log(f"Wrote review to {out_json} and {out_md}", out_dir)

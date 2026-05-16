@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Update History",
+  "description": "Array of update attempts written by agent-script-update.py.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["attempt", "files_changed", "summary"],
+    "properties": {
+      "attempt": {
+        "type": "integer",
+        "description": "1-based attempt number."
+      },
+      "recommendation_target": {
+        "type": ["string", "null"],
+        "description": "Target from the reconcile recommendation."
+      },
+      "recommendation_text": {
+        "type": ["string", "null"],
+        "description": "Text from the reconcile recommendation."
+      },
+      "files_changed": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "List of file paths modified by this attempt."
+      },
+      "summary": {
+        "type": "string",
+        "description": "Brief description of changes made."
+      }
+    },
+    "additionalProperties": false
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Evaluator Output",
+  "description": "JSON produced by agent-meta-evaluator.py after re-running pycsl on a fixed file.",
+  "type": "object",
+  "required": ["resolution_status", "new_ret_code", "syntax_valid", "stdout", "stderr"],
+  "properties": {
+    "resolution_status": {
+      "type": "string",
+      "description": "Whether the fix resolved the issue (e.g. 'resolved', 'still_failing')."
+    },
+    "new_ret_code": {
+      "type": "integer",
+      "description": "Return code of the pycsl re-run."
+    },
+    "syntax_valid": {
+      "type": "boolean",
+      "description": "Whether the modified file passes Python syntax check."
+    },
+    "stdout": {
+      "type": "string",
+      "description": "Captured stdout from the pycsl re-run."
+    },
+    "stderr": {
+      "type": "string",
+      "description": "Captured stderr from the pycsl re-run."
+    }
+  },
+  "additionalProperties": false
+}

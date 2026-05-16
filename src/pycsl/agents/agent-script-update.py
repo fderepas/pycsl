@@ -268,6 +268,12 @@ def main() -> int:
                 }
                 update_history.append(entry)
                 try:
+                    from schema_validator import validate_or_warn
+                    validate_or_warn(update_history, "update-history",
+                                     logger=lambda msg: log(project_directory, AGENT_NAME, msg + "\n"))
+                except ImportError:
+                    pass
+                try:
                     history_path.write_text(
                         json.dumps(update_history, indent=2, ensure_ascii=False),
                         encoding="utf-8"
