@@ -300,6 +300,28 @@ class CoordinatorAgent:
                 self.log(f"  stderr: {result.stderr}")
             return False
 
+    # ------------------------------------------------------------------ RAG index
+
+    def rebuild_rag_index(self) -> bool:
+        """Rebuild the RAG index from skill files after a skill update.
+
+        Returns True on success, False on failure (Ollama unreachable, etc.).
+        """
+        try:
+            skill_dir = str(self.config_dir / "skills")
+            index_path = str(self.pycsl_dir / "data" / "embeddings" / "skills_index.json")
+
+            sys.path.insert(0, str(self.pycsl_dir / "src"))
+            from skill2rag.indexer import build_index
+
+            self.log("Rebuilding RAG index after skill file update...")
+            build_index(skill_dir=skill_dir, index_path=index_path)
+            self.log(f"RAG index rebuilt at {index_path}")
+            return True
+        except Exception as e:
+            self.log(f"WARNING: Could not rebuild RAG index: {e}")
+            return False
+
     # ------------------------------------------------------------------ meta agents
 
     def run_meta_evaluator(
@@ -557,6 +579,9 @@ class CoordinatorAgent:
                     update_log_paths.append(upd_log)
 
                 if success:
+                    # Rebuild RAG index if any skill file was modified
+                    if any("config/skills/" in f for f in files_changed):
+                        self.rebuild_rag_index()
                     eval_json = self.run_meta_evaluator(annotated_file, files_changed, attempt)
                     if eval_json:
                         last_eval_json = eval_json
