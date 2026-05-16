@@ -34,7 +34,7 @@ if [[ -f "$PYCSL_DIR/.venv/bin/activate" ]]; then
 fi
 
 # Ensure Why3 detects available provers
-why3 config detect 2>/dev/null
+why3 config detect >/dev/null 2>&1
 
 cd "$PYCSL_DIR"
 
@@ -51,7 +51,9 @@ check_provers() {
     # Extract provers list, loop through, and split by comma to get the prover name
     while read -r prover_entry; do
         local prover_name="${prover_entry%%,*}"
-        if ! command -v "$prover_name" >/dev/null 2>&1; then
+        local prover_bin
+        prover_bin="$(echo "$prover_name" | tr '[:upper:]' '[:lower:]')"
+        if ! command -v "$prover_bin" >/dev/null 2>&1; then
             missing_provers+=("$prover_name")
         fi
     done < <(jq -r '.provers[]' "$config_file")
