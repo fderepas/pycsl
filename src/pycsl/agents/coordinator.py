@@ -20,6 +20,7 @@ On halt (72 or 73) agent-meta-reviewer produces a human-readable report.
 import argparse
 import json
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -38,9 +39,22 @@ class CoordinatorAgent:
         self.tests_dir = self.pycsl_dir / "tests"
         self.to_annotate_dir = self.tests_dir / "to_annotate"
         self.annotated_dir = self.tests_dir / "annotated"
-        self.pycsl_bin = self.pycsl_dir / "src" / "pycsl" / "pycsl"
+        self.pycsl_bin = self._find_pycsl_bin()
         self.venv_activate = self.pycsl_dir / ".venv" / "bin" / "activate"
         self.metrics_dir = self.pycsl_dir / "metrics"
+
+    def _find_pycsl_bin(self) -> Path:
+        """Locate the pycsl binary: .venv/bin/pycsl > PATH > src/pycsl/pycsl.py."""
+        venv_bin = self.pycsl_dir / ".venv" / "bin" / "pycsl"
+        if venv_bin.exists():
+            return venv_bin
+        which = shutil.which("pycsl")
+        if which:
+            return Path(which)
+        src_bin = self.pycsl_dir / "src" / "pycsl" / "pycsl.py"
+        if src_bin.exists():
+            return src_bin
+        return venv_bin  # will fail with a clear error later
 
     def init_metrics(self) -> None:
         """Create the metrics/ directory tree at startup."""
@@ -282,7 +296,7 @@ class CoordinatorAgent:
             return False
 
         self.log(f"  Running pycsl on {annotated_file.name}...")
-        cmd = ["python", str(self.pycsl_bin), "--keep-mlw", str(annotated_file)]
+        cmd = [str(self.pycsl_bin), "--keep-mlw", str(annotated_file)]
         result = self.run_command(cmd, cwd=self.pycsl_dir, check=False, capture=True)
 
         # Always write captured output so agent-reconcile gets fresh context.

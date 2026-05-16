@@ -38,6 +38,7 @@ import datetime
 import re
 import os
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any, Union
 
@@ -139,10 +140,10 @@ def ollama_generate(prompt: str, system: str, temperature: float, agent_id: str)
     current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     write_next_sequential_file(PROJECT_ROOT / "logs", agent_id+"_req",
                                f"System: {system}\nPrompt: {prompt}\n")
-    print(f"{LIGHT_GREY}--- Sending to LLM [{current_time}] ---")
-    print(f"System: {system}")
-    print(f"Prompt: {prompt}")
-    print(f"----------------------{RESET}")
+    print(f"{LIGHT_GREY}--- Sending to LLM [{current_time}] ---", file=sys.stderr)
+    print(f"System: {system}", file=sys.stderr)
+    print(f"Prompt: {prompt}", file=sys.stderr)
+    print(f"----------------------{RESET}", file=sys.stderr)
 
     body: dict[str, Any] = {
         "model": MODEL_NAME,
@@ -167,9 +168,9 @@ def ollama_generate(prompt: str, system: str, temperature: float, agent_id: str)
     # Display the answer in light green
     current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    print(f"{LIGHT_GREEN}--- LLM Response [{current_time}] ---")
-    print(f"{answer}")
-    print(f"--------------------{RESET}")
+    print(f"{LIGHT_GREEN}--- LLM Response [{current_time}] ---", file=sys.stderr)
+    print(f"{answer}", file=sys.stderr)
+    print(f"--------------------{RESET}", file=sys.stderr)
     write_next_sequential_file(PROJECT_ROOT / "logs", agent_id+"_res",
                                answer)
 
@@ -214,11 +215,11 @@ def githubcopilot_generate(prompt: str, system: str, agent_id: str, model: str) 
     current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     write_next_sequential_file(PROJECT_ROOT / "logs", agent_id + "_req",
                                f"System: {system}\nPrompt: {prompt}\n")
-    print(f"{LIGHT_GREY}--- Sending to GitHub Copilot [{current_time}] ---")
-    print(f"System: {system}")
-    print(f"Prompt: {prompt}")
-    print(f"Model: {model}")
-    print(f"--------------------------------------------------{RESET}")
+    print(f"{LIGHT_GREY}--- Sending to GitHub Copilot [{current_time}] ---", file=sys.stderr)
+    print(f"System: {system}", file=sys.stderr)
+    print(f"Prompt: {prompt}", file=sys.stderr)
+    print(f"Model: {model}", file=sys.stderr)
+    print(f"--------------------------------------------------{RESET}", file=sys.stderr)
 
     cmd = [
         "copilot",
@@ -235,9 +236,9 @@ def githubcopilot_generate(prompt: str, system: str, agent_id: str, model: str) 
     answer = result.stdout
 
     current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"{LIGHT_GREEN}--- GitHub Copilot Response [{current_time}] ---")
-    print(f"{answer}")
-    print(f"-----------------------------------------------{RESET}")
+    print(f"{LIGHT_GREEN}--- GitHub Copilot Response [{current_time}] ---", file=sys.stderr)
+    print(f"{answer}", file=sys.stderr)
+    print(f"-----------------------------------------------{RESET}", file=sys.stderr)
     write_next_sequential_file(PROJECT_ROOT / "logs", agent_id + "_res",
                                answer)
 
