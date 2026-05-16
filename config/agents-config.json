@@ -7,5 +7,7 @@
   "skill-annotate": "config/skills/pycsl-annotate/SKILL.md",
   "skill-agents": "config/agents/skill-agents.md",
   "skill-module5": "config/skills/skill-module5.md",
-  "skill-module6": "config/skills/skill-module6.md"
+  "skill-module6": "config/skills/skill-module6.md",
+  "rag-index": "data/embeddings/skills_index.json",
+  "rag-top-k": 10
 }

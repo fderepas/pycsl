@@ -16,9 +16,14 @@ dependencies = [
 dev = [
     "pytest",
 ]
+rag = [
+    "numpy>=1.24",
+]
 
 [project.scripts]
 pycsl = "pycsl.pycsl:main"
+skill2rag = "skill2rag.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+include = ["pycsl*", "skill2rag*"]

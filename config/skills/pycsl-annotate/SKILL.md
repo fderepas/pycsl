@@ -15,6 +15,7 @@ You are a formal verification engineer. Your task is to analyze Python code and 
 - A function that counts elements satisfying a property should have `#@ ensures \result >= 0` and `#@ ensures \result <= n`.
 - A function that computes a sum of non-negative inputs should have `#@ ensures \result >= 0`.
 - A method that deposits money should have `#@ ensures self._balance == \old(self._balance) + amount`.
+- A function that returns `len(collection)` (or `length` of an array parameter) should have `#@ ensures \result >= 0` — Python's `len()` always returns a non-negative integer but **can return 0** for an empty collection. Only strengthen to `#@ ensures \result >= 1` if there is an explicit precondition that constrains the collection to be non-empty (e.g., `#@ requires \length(arr) >= 1`).
 
 Reserve `#@ ensures 1 == 1` only when no useful property of the return value is provable given the constraints of the grammar (e.g., a sum over an arbitrary signed list).
 
@@ -116,6 +117,16 @@ These rules apply only inside `#@` expressions (`requires`, `ensures`, `loop inv
 - **NEVER place blank lines between a `#@` block and the `def` or `class` keyword it annotates.** Blank lines cause libcst line-number mismatch and silently drop all contracts.
 - **String literals are supported.** Double-quoted strings map to WhyML's `string` type. Example: `#@ ensures \result == "hello"`.
 - **Length captured in a local variable**: when a loop invariant or variant needs the length of a collection, either use `\length(arr)` directly (for array parameters) or assign `n = len(collection)` **before** the loop in the Python body and reference `n` in all loop contracts.
+- **NEVER compare an integer parameter to a string literal** in a contract expression. For example, `#@ requires event_len != ""` is wrong when `event_len` is an `int`. Use integer comparisons such as `#@ requires event_len > 0` or `#@ requires event_len >= 0`.
+- **NEVER write a bare identifier as the full `requires` expression** (e.g., `#@ requires event_len`). Every `requires` expression must contain a comparison operator. Use `#@ requires event_len > 0` or a similar inequality.
+- **NEVER use chained comparisons** (e.g., `#@ ensures \result == 1 == 1`, `#@ ensures len(\result) <= 1 == 1`). The PyCSL grammar does not support Python-style chained comparisons, including mixed-operator forms like `<= N == M` or `>= N == M`. Use a single comparison such as `#@ ensures 1 == 1` or `#@ ensures \result >= 0`. Note: `\result` is a scalar integer — `len(\result)` is meaningless and will cause a parse error; never write `len(\result)` in any contract.
+- **Functions returning collections (dict, set, list, or any non-integer type)** — e.g., `word_frequencies`, `unique_sorted_values`, or any function whose return type is `dict`, `set`, or `list` — cannot express a scalar postcondition on the collection itself. Do NOT write `#@ ensures len(\result) ...` (forbidden function call) or any chained comparison. Use `#@ ensures 1 == 1` for the postcondition of such functions.
+- **Functions that perform subscript assignment on a `dict`-typed variable** (e.g., `counts[word] = counts.get(word, 0) + 1` or `indexed[key] = value` where `indexed: dict = {}`) cannot be verified in the hoare model — PyCSL only permits subscript assignments on `list`-typed variables. Add `#@ \trusted` immediately before the `def` keyword (keeping all other contracts: `requires`, `ensures`, `assigns`) so the body is assumed correct without verification.
+- **NEVER leave `\old(` unclosed** (e.g., `#@ ensures \result == \old(1 == 1`). Every `\old(` must have a matching `)`. A malformed `\old(` expression will be removed entirely by the post-processing guards.
+- **NEVER use an arbitrary variable name as an `assigns` target** unless that variable is actually a global or mutable parameter being modified by the function. For pure functions that modify no external state, use `#@ assigns \nothing`. Names like `log`, `count`, `result`, etc. are not valid `assigns` targets unless they are declared as globals or class fields.
+- **NEVER write `#@ ensures \result >= 1` for a function that returns `len(collection)` (or `length log`, `length arr`, etc.) without an explicit precondition that guarantees the collection is non-empty.** `len()` always returns ≥ 0; without a `#@ requires \length(log) >= 1` (or equivalent), the solver cannot prove `result >= 1` and will time out. Use `#@ ensures \result >= 0` unless the non-empty precondition is present.
+- **NEVER write `#@ ensures \result == \old(\length(arr)) + 1` (or any variant claiming the result equals the old length plus one) unless the function body actually appends an element to `arr`.** If the function only reads the collection and returns its current length (e.g., `return len(log)`), then `result == old_length` holds — not `result == old_length + 1`. Adding the `+1` postcondition creates a contradictory contract that can never be discharged. Only use `\result == \old(\length(arr)) + 1` when the function body actually appends exactly one element before returning the new length.
+- **NEVER implement array/list traversal functions (e.g., `sum_list`, any function that iterates over all elements of an array/list parameter) using recursion with slice notation** (e.g., `values[1:]`). The hoare model transpiler does not support slice notation, and passing `values[0]` (an `int` element) as the array argument is a type error that will cause WhyML compilation to fail. Always rewrite such functions as iterative loops: capture `n = len(values)` before the loop, then use `i = 0` / `while i < n: ... i += 1` with `#@ loop invariant 0 <= i and i <= n` and `#@ loop variant n - i`. Do NOT add a function-level `#@ \variant` — that belongs only on genuinely recursive functions. See Example 8 for the canonical pattern.
 
 ---
 
@@ -495,7 +506,16 @@ For anything not covered above, consult these files in order of relevance to the
 
 ## Output requirements
 
-Output ONLY the annotated Python code — no commentary, no explanation, no markdown fencing outside the code block. The output must include:
+Output ONLY the annotated Python code — no commentary, no explanation, no markdown fencing outside the code block.
+
+**Every `if`, `elif`, and `else` block in the generated Python code MUST contain at least one statement.** An empty `if` body (a bare `if cond:` with no indented line below) is a Python syntax error (`expected an indented block`). Use `pass` as the body whenever the block has no logic to emit — for example:
+
+```python
+if radius < 0:
+    pass
+```
+
+The output must include:
 
 1. PEP 484 type hints on every parameter and return type.
 2. All three function-level contracts (`#@ requires`, `#@ ensures`, `#@ assigns`) on every function, immediately before `def` with no blank lines.
