@@ -63,13 +63,14 @@ def count_json_failures(reconcile_lines: list[str], out_dir: Path) -> int:
     ))
     failures += explicit
 
-    # Embedded JSON blocks that exist but are missing required keys
+    # Embedded JSON blocks that look like partial reconcile output
     for block in re.findall(r"\{[^{}]+\}", combined):
         try:
             obj = json.loads(block)
             if isinstance(obj, dict) and obj:
+                present = REQUIRED_RECONCILE_KEYS & set(obj.keys())
                 missing = REQUIRED_RECONCILE_KEYS - set(obj.keys())
-                if missing:
+                if present and missing:
                     failures += 1
         except json.JSONDecodeError:
             pass
