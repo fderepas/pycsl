@@ -43,6 +43,6 @@ def is_sorted_non_decreasing(values: list) -> int:
 
 if __name__ == "__main__":
     items = [5, 2, 4, 6, 1, 3]
-    ordered = insertion_sort(items)
-    print("sorted:", ordered)
-    print("is_sorted:", is_sorted_non_decreasing(ordered))
+    inversions = insertion_sort(items)
+    print("inversions:", inversions)
+    print("is_sorted:", is_sorted_non_decreasing(items))

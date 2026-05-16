@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# PyCSL generated output
+pycsl_ir.json
+pycsl_out.mlw
+*.mlw
+
+# Runtime / temp
+out.std
+out.err
+result.txt
+q.txt
+tmp/
+*.tmp
+
+# Backup files
+*~
+\#*\#
+.\#*
+
+# Environment
+.env
+
+# Data directory (except lib_stubs which is tracked)
+data/embeddings/
+data/memory/
+data/cache/
+
+# Project workspace (untracked)
+my_project/
+project/
+site-packages/
+metrics/
+test-suite/

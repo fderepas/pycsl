@@ -6,7 +6,7 @@ PYTHON:=./.venv/bin/python
 	./.venv/bin/pip install libcst lark
 
 default: .venv
-	$(PYTHON) test_123456.py
+	$(PYTHON) tests/integration/test_123456.py
 	why3 prove -P z3 pycsl_out.mlw
 
 clean:

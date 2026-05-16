@@ -200,6 +200,10 @@ satisfiable). It is derived automatically from the literal assignments in
 | `#@ requires <expr>` | Function / method | Precondition |
 | `#@ ensures <expr>` | Function / method | Postcondition; `\result` is the return value |
 | `#@ assigns <targets> \| \nothing` | Function / method | Frame condition |
+| `#@ \variant <expr>` | Function / method | Termination measure (recursive functions) |
+| `#@ \variant (<expr>, <ordering>)` | Function / method | Termination via well-founded ordering |
+| `#@ \diverges` | Function / method | Function may not terminate |
+| `#@ \trusted` | Function / method | Body not verified; contracts assumed as axioms |
 | `#@ loop invariant <expr>` | `while` / `for` | Inductive property |
 | `#@ loop variant <expr>` | `while` / `for` | Termination measure |
 | `#@ class invariant <expr>` | `class` | Type-level invariant (Level 3) |
@@ -237,7 +241,18 @@ Quantifiers may appear inside any contract expression (`requires`, `ensures`,
 scope checking — only the free variables in the body must be in scope.
 
 **Not supported in contracts:** `//`, `%`, `len(...)`, function calls,
-string literals, `True`/`False`/`None`.
+`True`/`False`/`None`.
+
+### String Literals
+
+String literals (`"hello"`) are supported in contracts and function bodies.
+Functions with `str` parameters or return types are mapped to WhyML's `string` type.
+
+```python
+#@ ensures \result == "hello"
+def greet() -> str:
+    return "hello"
+```
 
 ---
 
@@ -248,6 +263,43 @@ string literals, `True`/`False`/`None`.
 ```bash
 ./run.sh
 ```
+
+### Selective function verification
+
+```bash
+# Only verify foobar and its transitive call-dependencies (e.g. double_int)
+./pycsl --fun foobar myfile.py
+
+# Verify multiple specific functions
+./pycsl --fun foobar --fun helper myfile.py
+```
+
+Functions not selected (and not called by selected functions) become trusted
+stubs: their contracts are assumed as axioms, but their bodies are not checked.
+
+### Multi-file verification
+
+PyCSL automatically resolves `from ... import ...` and `import ...` statements
+to local source files. Imported functions are injected as trusted stubs
+(contracts assumed, bodies not re-verified).
+
+```bash
+# file2.py contains: from dir1.file1 import double_int
+./pycsl dir2/file2.py   # auto-imports double_int's contract from dir1/file1.py
+
+# Also works with module imports:
+# file3.py contains: import dir1.file1 as lib; lib.double_int(x)
+./pycsl dir3/file3.py   # resolves dir1.file1, imports double_int
+
+# Wildcard imports: from mod import *
+./pycsl file_with_wildcard.py   # imports only functions actually called
+
+# Recursive transitive resolution (A→B→C):
+./pycsl --deep file.py   # resolves dependencies' own imports too
+```
+
+External modules (stdlib, third-party) are skipped — add `\trusted` stubs
+manually if callers need their contracts.
 
 ### Re-run a meta-agent on existing metrics (without re-annotating)
 

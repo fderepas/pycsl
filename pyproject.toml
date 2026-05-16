@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pycsl"
+version = "0.1.0"
+description = "Python Contract Specification Language — compiles PyCSL annotations to WhyML for formal verification"
+requires-python = ">=3.10"
+dependencies = [
+    "libcst",
+    "lark",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[project.scripts]
+pycsl = "pycsl.pycsl:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
