@@ -15,22 +15,25 @@ The script must read `agents-config.json` from the same directory as `agent-anno
 * `project-directory`
 * `skill-annotate`
 * `memory-model` (optional, defaults to `"hoare"`)
+* `rag-index` (optional, path to RAG skill index)
+* `rag-top-k` (optional, defaults to `10`)
 
 The `skill-annotate` path is resolved relative to the script directory unless it is already absolute.
 
-## 2. Skill prompt
+## 2. Two-agent split architecture
 
-The prompt must include the contents of `<skill-annotate>` followed by the input Python program.
+For **multi-function files** (> 1 annotatable function), `agent-annotate.py` delegates to:
 
-The skill file ends with:
+1. **`agent-splitter.py`** — deterministic call-graph analysis. Parses with `ast`, builds call graph, detects mutual recursion via Tarjan's SCC, topological-sorts from leaf to root, then invokes the writer per function.
+2. **`agent-writer.py`** — single-function LLM annotator. Receives one function + callee contracts as context, produces annotated output.
 
-```python
-...
+For **single-function files**, the original monolithic LLM call is used directly.
 
-# TASK
+Both paths produce `generated_code`, which then passes through all post-processing guards.
 
-Analyze the following Python code and output the fully annotated PyCSL version. Output ONLY the valid Python code.
-```
+## 3. Skill prompt
+
+The prompt must include the contents of `<skill-annotate>` (via RAG or full file) followed by the input Python program.
 
 The model must be instructed to output only the annotated Python code in markdown code fences:
 
@@ -38,11 +41,11 @@ The model must be instructed to output only the annotated Python code in markdow
 Just output the python code between "```python" and "```".
 ```
 
-## 3. Output file
+## 4. Output file
 
 The script must create missing output directories automatically and write the generated annotated code to `<out>`.
 
-## 4. Library to use
+## 5. Library to use
 
 The script must import:
 
@@ -52,7 +55,7 @@ from llm_client import llm_generate, log
 
 It should use `log(...)` for errors and call `llm_generate(agent_id=model, prompt=prompt)` to generate the annotated code.
 
-## 5. Memory model context
+## 6. Memory model context
 
 The script reads `"memory-model"` from `agents-config.json` (defaults to `"hoare"` if absent).
 It logs the active model with `log(...)` before LLM invocation.
@@ -72,7 +75,7 @@ This tells the LLM which predicates and syntax to use:
 | `typed` | `\valid(arr, n)`, `\separated(a, na, b, nb)`, `\assigns arr[lo..hi]`, `\old(arr[i])`, `#@ label L`, `\at(arr[i], L)` | `arr: list` → `(arr: loc) (arr_len: int)` |
 | `store` | Same as `typed` | Same as `typed` |
 
-## 6. Post-processing guards for memory model annotations
+## 7. Post-processing guards for memory model annotations
 
 After LLM generation, the script applies the following normalisation guards before writing output:
 
@@ -80,4 +83,5 @@ After LLM generation, the script applies the following normalisation guards befo
 * **`\valid arr, n` → `\valid(arr, n)`**: Adds parentheses if LLM omits them.
 * **`\separated a, na, b, nb` → `\separated(a, na, b, nb)`**: Adds parentheses if LLM omits them.
 * **`#@ label L` blank-line collapse**: Removes any blank lines between a `#@ label` annotation and the labeled Python statement so Module1 can associate them by line number.
+* Plus ~40 additional guards for recursion detection, reserved keyword renaming, loop invariant strengthening/weakening, etc.
 

@@ -1,4 +1,5 @@
 import argparse
+import ast as _ast_module
 import json
 import re
 import sys
@@ -6,6 +7,64 @@ from pathlib import Path
 from llm_client import llm_generate, log
 
 AGENT_NAME = "agent-annotate"
+
+# Fixed queries used to always retrieve critical skill sections regardless of input code.
+_ESSENTIAL_QUERIES = [
+    "Required on every function requires ensures assigns loop invariant loop variant",
+    "Forbidden in contract expressions NEVER use operators quantifiers",
+    "Class support method annotation rules class invariant Level 2 Level 3",
+]
+
+
+def _retrieve_skill_chunks(
+    index_path: Path,
+    input_code: str,
+    top_k: int = 10,
+    project_root: Path | None = None,
+) -> str | None:
+    """Retrieve relevant skill chunks via RAG instead of loading the full skill file.
+
+    Returns concatenated chunk content, or None if the index is unavailable.
+    """
+    if not index_path.exists():
+        return None
+
+    try:
+        # Add skill2rag to sys.path so we can import it
+        if project_root:
+            skill2rag_path = str(project_root / "src")
+            if skill2rag_path not in sys.path:
+                sys.path.insert(0, skill2rag_path)
+        from skill2rag.retriever import retrieve  # noqa: E402
+
+        seen_ids: set = set()
+        chunks: list = []
+
+        # Always retrieve essential sections
+        for query in _ESSENTIAL_QUERIES:
+            for chunk in retrieve(query=query, index_path=str(index_path), top_k=3):
+                if chunk.chunk_id not in seen_ids:
+                    seen_ids.add(chunk.chunk_id)
+                    chunks.append(chunk)
+
+        # Retrieve chunks relevant to the input code
+        # Use first 800 chars + function signatures as the query
+        code_query = input_code[:800]
+        func_sigs = re.findall(r'^[ \t]*(?:class|def)\s+[^\n]+', input_code, re.MULTILINE)
+        if func_sigs:
+            code_query += "\n" + "\n".join(func_sigs[:5])
+
+        for chunk in retrieve(query=code_query, index_path=str(index_path), top_k=top_k):
+            if chunk.chunk_id not in seen_ids:
+                seen_ids.add(chunk.chunk_id)
+                chunks.append(chunk)
+
+        if not chunks:
+            return None
+
+        return "\n\n---\n\n".join(c.content for c in chunks)
+    except Exception:
+        return None
 
 
 def extract_code_block(text: str, language: str = "python") -> str:
@@ -62,6 +121,8 @@ def main():
     model = config.get("model")
     skill_annotator_name = config.get("skill-annotate")
     memory_model = config.get("memory-model", "hoare")
+    rag_index_name = config.get("rag-index")
+    rag_top_k = config.get("rag-top-k", 10)
 
     if not model:
         log(project_directory, AGENT_NAME, "Error: 'model' field is missing in agents-config.json")
@@ -86,56 +147,117 @@ def main():
         sys.exit(1)
 
     try:
-        with open(skill_annotator_path, 'r', encoding='utf-8') as f:
-            skill_content = f.read()
-    except Exception as e:
-        log(project_directory, AGENT_NAME, f"Error reading skill file {skill_annotator_path}: {e}")
-        sys.exit(1)
-
-    try:
         with open(in_file_path, 'r', encoding='utf-8') as f:
             input_code = f.read()
     except Exception as e:
         log(project_directory, AGENT_NAME, f"Error reading input file {in_file_path}: {e}")
         sys.exit(1)
 
-    _model_notes = {
-        "hoare": (
-            "Use standard value-semantic arrays (`array int`). "
-            "No `\\valid`, `\\separated`, or `\\assigns arr[lo..hi]` needed. "
-            "Use `#@ assigns \\nothing` for pure functions."
-        ),
-        "typed": (
-            "Arrays are heap-allocated (`loc` type). "
-            "Use `#@ requires \\valid(arr, n)` to assert array validity. "
-            "Use `#@ requires \\separated(a, na, b, nb)` when arrays must not alias. "
-            "Use `#@ assigns arr[0..n]` (with `..`) as the frame condition for in-place mutations. "
-            "Use `\\old(arr[i])` in ensures clauses to refer to the pre-state value of `arr[i]`. "
-            "Use `#@ label L` immediately before a statement to mark a program point, "
-            "then `\\at(arr[i], L)` in contracts to reference the array state at that point."
-        ),
-        "store": (
-            "Same as typed model: arrays are heap-allocated. "
-            "Use `#@ requires \\valid(arr, n)`, `#@ requires \\separated(a, na, b, nb)`, "
-            "`#@ assigns arr[0..n]`, `\\old(arr[i])`, `#@ label L`, and `\\at(arr[i], L)` "
-            "as needed for heap-aware contracts."
-        ),
-    }
-    _memory_model_context = (
-        f"\n\n# ACTIVE MEMORY MODEL: {memory_model.upper()}\n"
-        f"The pipeline is configured to use the `{memory_model}` memory model. "
-        + _model_notes.get(memory_model, _model_notes["hoare"])
-    )
-    prompt = f"{skill_content}{_memory_model_context}\n\nJust output the python code between \"```python\" and \"```\".\n\n{input_code}"
-
+    # Count annotatable functions to decide: splitter path vs direct LLM path.
+    # Multi-function files benefit from bottom-up per-function annotation via the
+    # splitter+writer agents; single-function files use the original monolithic call.
+    _use_splitter = False
     try:
-        generated_code = llm_generate(prompt=prompt, system="", agent_id=AGENT_NAME, model=model)
-    except Exception as e:
-        log(project_directory, AGENT_NAME, f"Error calling LLM: {e}")
-        sys.exit(1)
+        _tree = _ast_module.parse(input_code)
+        _func_count = 0
+        for _node in _ast_module.iter_child_nodes(_tree):
+            if isinstance(_node, _ast_module.FunctionDef):
+                if not (_node.name.startswith('__') and _node.name.endswith('__')):
+                    _func_count += 1
+            elif isinstance(_node, _ast_module.ClassDef):
+                for _child in _ast_module.iter_child_nodes(_node):
+                    if isinstance(_child, _ast_module.FunctionDef):
+                        if not (_child.name.startswith('__') and _child.name.endswith('__')):
+                            _func_count += 1
+        _use_splitter = _func_count > 1
+    except SyntaxError:
+        pass  # if the file can't parse, fall through to direct LLM path
 
-    # Extract code from markdown fences if present
-    generated_code = extract_code_block(generated_code, "python")
+    if _use_splitter:
+        log(project_directory, AGENT_NAME,
+            f"Multi-function file ({_func_count} functions), using splitter+writer pipeline")
+        try:
+            from importlib import util as _importlib_util
+            _splitter_path = Path(__file__).parent / "agent-splitter.py"
+            _spec = _importlib_util.spec_from_file_location("agent_splitter", _splitter_path)
+            _splitter_mod = _importlib_util.module_from_spec(_spec)
+            _spec.loader.exec_module(_splitter_mod)
+            generated_code = _splitter_mod.run_splitter(
+                input_path=in_file_path,
+                output_path=Path(args.out_file_name),
+                config_path=config_path,
+                project_root=project_root,
+                memory_model=memory_model,
+                project_directory=project_directory,
+            )
+        except Exception as e:
+            log(project_directory, AGENT_NAME,
+                f"Splitter failed ({e}), falling back to direct LLM annotation")
+            _use_splitter = False
+
+    if not _use_splitter:
+        # Original monolithic LLM path: load skill, build prompt, call LLM once.
+        # Try RAG retrieval first; fall back to full skill file if unavailable
+        skill_content = None
+        if rag_index_name:
+            rag_index_path = Path(rag_index_name)
+            if not rag_index_path.is_absolute():
+                rag_index_path = project_root / rag_index_path
+            skill_content = _retrieve_skill_chunks(
+                index_path=rag_index_path,
+                input_code=input_code,
+                top_k=rag_top_k,
+                project_root=project_root,
+            )
+            if skill_content:
+                log(project_directory, AGENT_NAME, "Using RAG-retrieved skill chunks")
+
+        if skill_content is None:
+            log(project_directory, AGENT_NAME, "Using full skill file (RAG index unavailable)")
+            try:
+                with open(skill_annotator_path, 'r', encoding='utf-8') as f:
+                    skill_content = f.read()
+            except Exception as e:
+                log(project_directory, AGENT_NAME, f"Error reading skill file {skill_annotator_path}: {e}")
+                sys.exit(1)
+
+        _model_notes = {
+            "hoare": (
+                "Use standard value-semantic arrays (`array int`). "
+                "No `\\valid`, `\\separated`, or `\\assigns arr[lo..hi]` needed. "
+                "Use `#@ assigns \\nothing` for pure functions."
+            ),
+            "typed": (
+                "Arrays are heap-allocated (`loc` type). "
+                "Use `#@ requires \\valid(arr, n)` to assert array validity. "
+                "Use `#@ requires \\separated(a, na, b, nb)` when arrays must not alias. "
+                "Use `#@ assigns arr[0..n]` (with `..`) as the frame condition for in-place mutations. "
+                "Use `\\old(arr[i])` in ensures clauses to refer to the pre-state value of `arr[i]`. "
+                "Use `#@ label L` immediately before a statement to mark a program point, "
+                "then `\\at(arr[i], L)` in contracts to reference the array state at that point."
+            ),
+            "store": (
+                "Same as typed model: arrays are heap-allocated. "
+                "Use `#@ requires \\valid(arr, n)`, `#@ requires \\separated(a, na, b, nb)`, "
+                "`#@ assigns arr[0..n]`, `\\old(arr[i])`, `#@ label L`, and `\\at(arr[i], L)` "
+                "as needed for heap-aware contracts."
+            ),
+        }
+        _memory_model_context = (
+            f"\n\n# ACTIVE MEMORY MODEL: {memory_model.upper()}\n"
+            f"The pipeline is configured to use the `{memory_model}` memory model. "
+            + _model_notes.get(memory_model, _model_notes["hoare"])
+        )
+        prompt = f"{skill_content}{_memory_model_context}\n\nJust output the python code between \"```python\" and \"```\".\n\n{input_code}"
+
+        try:
+            generated_code = llm_generate(prompt=prompt, system="", agent_id=AGENT_NAME, model=model)
+        except Exception as e:
+            log(project_directory, AGENT_NAME, f"Error calling LLM: {e}")
+            sys.exit(1)
+
+        # Extract code from markdown fences if present
+        generated_code = extract_code_block(generated_code, "python")
 
     # Guard: Module6 always emits `let f` (never `let rec f`), so any function that
     # calls itself by name will fail in Why3 with an unresolved-reference error.
