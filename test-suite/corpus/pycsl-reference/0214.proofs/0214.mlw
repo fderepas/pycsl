@@ -1,0 +1,27 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  let test_0214 (n: int) : int
+    requires { (n >= 0) }
+    ensures  { ((576 * result) = (((((((((((((n * n) * n) * n) * n) * n) * (n - 1)) * (n - 1)) * (n - 1)) * (n - 1)) * (n - 1)) * (n - 1)) * ((2 * n) - 1)) * ((2 * n) - 1))) }
+  =
+    let a = ref 0 in
+    let b = ref 0 in
+    let c = ref 0 in
+    let i = ref 0 in
+    while (!i < n) do
+      invariant { ((2 * !a) = (!i * (!i - 1))) }
+      invariant { ((6 * !b) = ((!i * (!i - 1)) * ((2 * !i) - 1))) }
+      invariant { ((4 * !c) = (((!i * !i) * (!i - 1)) * (!i - 1))) }
+      invariant { ((0 <= !i) && (!i <= n)) }
+      variant { (n - !i) }
+      a := (!a + !i);
+      b := (!b + (!i * !i));
+      c := (!c + ((!i * !i) * !i));
+      i := (!i + 1)
+    done;
+    ((((!a * !a) * !b) * !b) * !c)
+
+end

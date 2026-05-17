@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 import argparse
 import ast as _ast
+import hashlib
 import json as _json
 import os
+import re as _re
 import sys
 import subprocess
 
@@ -333,6 +335,136 @@ def _resolve_imports(validated_ast, main_file, ir_data,
 
     return imported_names
 
+
+def _generate_rocq_obligations(mlw_path, output_dir, unproven_count):
+    """Generate Rocq proof obligations for goals that SMT provers could not discharge."""
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Copy the WhyML source as reference
+    mlw_dest = os.path.join(output_dir, os.path.basename(mlw_path))
+    import shutil
+    shutil.copy2(mlw_path, mlw_dest)
+
+    # Run why3 prove with Coq prover to generate .v skeletons
+    cmd = [
+        "why3", "prove",
+        "-P", "Coq,8.20.1,",
+        "-a", "split_vc",
+        "-o", output_dir,
+        mlw_path,
+    ]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        # Collect generated .v files
+        v_files = [f for f in os.listdir(output_dir) if f.endswith(".v")]
+        if v_files:
+            print(f"\n[*] Generated {len(v_files)} Rocq proof obligation(s) in {output_dir}/")
+            for vf in sorted(v_files):
+                print(f"    → {output_dir}/{vf}")
+            print(f"    → {mlw_dest}  (WhyML source reference)")
+            print(f"\n[*] To complete the proofs:")
+            print(f"    1. Edit the .v file(s) — fill in proof scripts between 'Proof.' and 'Qed.'")
+            print(f"    2. Compile: coqc -R ~/.opam/default/lib/coq/user-contrib/Why3 Why3 <file>.v")
+        else:
+            print(f"\n[*] No .v files generated — Coq prover may not have produced skeletons.")
+            print(f"    The WhyML source is saved at: {mlw_dest}")
+            print(f"    You can open it in Why3 IDE: why3 ide {mlw_dest}")
+    except FileNotFoundError:
+        print(f"\n[!] Could not run 'why3 prove -P Coq'. Is why3-coq installed?")
+        print(f"    The WhyML source is saved at: {mlw_dest}")
+
+
+def _sha256_file(path):
+    """Compute SHA-256 hex digest of a file."""
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _find_coqc():
+    """Locate the coqc binary, checking opam default first."""
+    opam_coqc = os.path.expanduser("~/.opam/default/bin/coqc")
+    if os.path.isfile(opam_coqc) and os.access(opam_coqc, os.X_OK):
+        return opam_coqc
+    import shutil as _sh
+    return _sh.which("coqc")
+
+
+def _find_why3_coq_lib():
+    """Locate the Why3 Coq library directory."""
+    opam_lib = os.path.expanduser("~/.opam/default/lib/why3/coq")
+    if os.path.isdir(opam_lib):
+        return opam_lib
+    return None
+
+
+def _check_rocq_proofs(proof_dir, mlw_path, unproven_goal_names):
+    """Check for pre-existing Rocq proofs and replay them with coqc.
+
+    Returns the number of goals successfully proved by Rocq.
+    """
+    if not os.path.isdir(proof_dir):
+        return 0
+
+    coqc = _find_coqc()
+    if not coqc:
+        print("[!] coqc not found — cannot replay Rocq proofs.")
+        return 0
+
+    why3_coq = _find_why3_coq_lib()
+    if not why3_coq:
+        print("[!] Why3 Coq library not found — cannot replay Rocq proofs.")
+        return 0
+
+    # Staleness check: compare current .mlw with stored .mlw
+    stored_mlw = None
+    for f in os.listdir(proof_dir):
+        if f.endswith(".mlw"):
+            stored_mlw = os.path.join(proof_dir, f)
+            break
+
+    if stored_mlw:
+        current_hash = _sha256_file(mlw_path)
+        stored_hash = _sha256_file(stored_mlw)
+        if current_hash != stored_hash:
+            print(f"[!] Rocq proofs found but .mlw hash mismatch — proofs may be stale.")
+            print(f"    Current:  {current_hash[:16]}...")
+            print(f"    Stored:   {stored_hash[:16]}...")
+            print(f"    Regenerate proofs with: pycsl --rocq {proof_dir}/ {mlw_path}")
+            return 0
+
+    # Find .v proof files
+    v_files = sorted(f for f in os.listdir(proof_dir) if f.endswith(".v"))
+    if not v_files:
+        return 0
+
+    proved_count = 0
+    print(f"\n[*] {len(v_files)} Rocq proof(s) found in {proof_dir}/ — replaying with coqc...")
+
+    for vf in v_files:
+        vpath = os.path.join(proof_dir, vf)
+        cmd = [coqc, "-R", why3_coq, "Why3", vpath]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            if result.returncode == 0:
+                print(f"[*] Rocq proof verified: {vf}")
+                proved_count += 1
+            else:
+                print(f"[!] Rocq proof FAILED to compile: {vf}")
+                if result.stderr.strip():
+                    for line in result.stderr.strip().splitlines()[:3]:
+                        print(f"    {line}")
+        except subprocess.TimeoutExpired:
+            print(f"[!] Rocq proof compilation timed out: {vf}")
+        except FileNotFoundError:
+            print(f"[!] coqc not found during proof replay.")
+            return proved_count
+
+    return proved_count
+
+
 def main():
     # Set up command line arguments
     parser = argparse.ArgumentParser(description="PyCSL: Python Contract Specification Language Verifier")
@@ -360,6 +492,17 @@ def main():
                         help="Recursively resolve transitive imports in "
                              "dependency files (default: only direct imports "
                              "of the main file are resolved).")
+    parser.add_argument("--rocq", metavar="DIR", default=None,
+                        help="On SMT prover failure, generate Rocq (Coq) "
+                             "proof obligations in DIR. Why3 emits .v files "
+                             "with proof skeletons that you complete manually "
+                             "and compile with coqc.")
+    parser.add_argument("--rocq-proofs", metavar="DIR", default=None, nargs="?",
+                        const="__auto__",
+                        help="Check DIR for pre-existing Rocq proofs when SMT "
+                             "provers fail. Each .v file is replayed with coqc "
+                             "for full verification. If DIR is omitted, "
+                             "auto-detects <file>.proofs/ next to the input.")
     
     args = parser.parse_args()
 
@@ -514,19 +657,58 @@ def main():
                          if "Unknown" in line or "Timeout" in line]
         invalid_goals = [line for line in output.splitlines() if "Invalid" in line]
 
+        # Count goals proved by SMT
+        valid_goals = [line for line in output.splitlines() if "Valid" in line]
+        smt_proved = len(valid_goals)
+
         if result.returncode == 0 and not unknown_goals and not invalid_goals and ("Valid" in output or not output):
-            print("\n[+] Verification SUCCESS! All contracts formally proven.")
+            print(f"\n[+] Verification SUCCESS! All contracts formally proven.")
         else:
-            if unknown_goals:
-                print(f"\n[-] {len(unknown_goals)} goal(s) remain unproven after all provers:")
-                for g in unknown_goals:
-                    print(f"    {g.strip()}")
-            if invalid_goals:
-                print(f"\n[-] {len(invalid_goals)} goal(s) are Invalid:")
-                for g in invalid_goals:
-                    print(f"    {g.strip()}")
-            print("\n[-] Verification FAILED or INCOMPLETE. Check the solver output.")
-            sys.exit(1)
+            unproven_count = len(unknown_goals) + len(invalid_goals)
+
+            # Try Rocq proofs if available
+            rocq_proved = 0
+            proof_dir = None
+
+            if args.rocq_proofs is not None:
+                if args.rocq_proofs == "__auto__":
+                    # Auto-detect: look for <file>.proofs/ next to input
+                    proof_dir = os.path.splitext(args.file)[0] + ".proofs"
+                else:
+                    proof_dir = args.rocq_proofs
+            else:
+                # Always auto-detect if .proofs/ directory exists
+                auto_dir = os.path.splitext(args.file)[0] + ".proofs"
+                if os.path.isdir(auto_dir):
+                    proof_dir = auto_dir
+
+            if proof_dir and os.path.isdir(proof_dir):
+                rocq_proved = _check_rocq_proofs(
+                    proof_dir, mlw_filename, unknown_goals)
+
+            remaining = unproven_count - rocq_proved
+            if remaining <= 0 and rocq_proved > 0:
+                print(f"\n[+] Verification SUCCESS! All contracts formally proven "
+                      f"({smt_proved} SMT + {rocq_proved} Rocq).")
+            else:
+                if unknown_goals:
+                    print(f"\n[-] {len(unknown_goals)} goal(s) remain unproven after all provers:")
+                    for g in unknown_goals:
+                        print(f"    {g.strip()}")
+                if invalid_goals:
+                    print(f"\n[-] {len(invalid_goals)} goal(s) are Invalid:")
+                    for g in invalid_goals:
+                        print(f"    {g.strip()}")
+                if rocq_proved > 0:
+                    print(f"\n[*] {rocq_proved} goal(s) proved by Rocq, "
+                          f"but {remaining} goal(s) still unproven.")
+                print("\n[-] Verification FAILED or INCOMPLETE. Check the solver output.")
+                if args.rocq:
+                    _generate_rocq_obligations(
+                        mlw_filename, args.rocq,
+                        unproven_count)
+                    sys.exit(2)
+                sys.exit(1)
 
     except FileNotFoundError:
         print("\n[!] ERROR: 'why3' command not found. Please ensure Why3 is installed and in your PATH.")

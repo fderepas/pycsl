@@ -4,7 +4,7 @@ SMT solvers (Alt-Ergo, Z3) timeout on this postcondition because proving it
 requires squaring two polynomial hypotheses and multiplying a third, producing
 a degree-14 verification condition. Rocq nia tactic handles this.
 """
-# pycsl-expected: FAIL
+# pycsl-expected: PASS
 _ = 0  # anchor
 #@ requires n >= 0
 #@ ensures 576 * \result == n * n * n * n * n * n * (n - 1) * (n - 1) * (n - 1) * (n - 1) * (n - 1) * (n - 1) * (2 * n - 1) * (2 * n - 1)
