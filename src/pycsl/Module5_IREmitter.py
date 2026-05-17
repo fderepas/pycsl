@@ -7,7 +7,8 @@ from Module2_Parser import (
     Number as CSLNumber, Result as CSLResult, Old as CSLOld, Nothing,
     FieldAccess as CSLFieldAccess, Forall, Exists, ArrayLength, SubscriptAccess,
     AssignsRegion, Valid, Separated, At as CSLAt,
-    Length2D, Valid2D, FunctionVariant, StringLiteral as CSLStringLiteral
+    Length2D, Valid2D, FunctionVariant, StringLiteral as CSLStringLiteral,
+    CallExpr, IsSorted, Sum
 )
 
 class PyCSLToJSONEmitter(ast.NodeVisitor):
@@ -99,6 +100,26 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
             if node.ordering:
                 ir["ordering"] = node.ordering
             return ir
+        elif isinstance(node, CallExpr):
+            return {
+                "type": "Call",
+                "func": node.func,
+                "args": [self._csl_to_ir(a) for a in node.args]
+            }
+        elif isinstance(node, IsSorted):
+            return {
+                "type": "IsSorted",
+                "base": node.base,
+                "lo": self._csl_to_ir(node.lo),
+                "hi": self._csl_to_ir(node.hi)
+            }
+        elif isinstance(node, Sum):
+            return {
+                "type": "Sum",
+                "base": node.base,
+                "lo": self._csl_to_ir(node.lo),
+                "hi": self._csl_to_ir(node.hi)
+            }
         return {"type": "UnknownCSL"}
 
     def _csl_list_to_ir(self, csl_list: List[CSLNode]) -> List[Dict[str, Any]]:
@@ -111,7 +132,11 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
             ast.Add: "+", ast.Sub: "-", ast.Mult: "*", ast.Div: "/", ast.FloorDiv: "div",
             ast.Mod: "%",
             ast.Eq: "==", ast.NotEq: "!=", ast.Lt: "<", ast.LtE: "<=", ast.Gt: ">", ast.GtE: ">=",
-            ast.USub: "-", ast.UAdd: "+", ast.Not: "not"
+            ast.USub: "-", ast.UAdd: "+", ast.Not: "not",
+            ast.In: "in", ast.NotIn: "not in",
+            ast.Is: "==", ast.IsNot: "!=",
+            ast.BitAnd: "&", ast.BitOr: "|", ast.BitXor: "^",
+            ast.LShift: "<<", ast.RShift: ">>", ast.Pow: "**",
         }
         return ops.get(type(op), "?")
 
@@ -120,8 +145,14 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
         if isinstance(expr, ast.Name):
             return {"type": "Var", "name": expr.id}
         elif isinstance(expr, ast.Constant):
+            if expr.value is None:
+                return {"type": "None"}
+            if isinstance(expr.value, bool):
+                return {"type": "Bool", "value": expr.value}
             if isinstance(expr.value, str):
                 return {"type": "String", "value": expr.value}
+            if isinstance(expr.value, bytes):
+                return {"type": "String", "value": expr.value.decode('utf-8', errors='replace')}
             return {"type": "Number", "value": expr.value}
         elif isinstance(expr, ast.UnaryOp):
             return {
@@ -135,6 +166,12 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
         elif isinstance(expr, ast.Compare):
             return {"type": "BinOp", "op": self._py_op_to_str(expr.ops[0]),
                     "left": self._py_expr_to_ir(expr.left), "right": self._py_expr_to_ir(expr.comparators[0])}
+        elif isinstance(expr, ast.BoolOp):
+            op_str = "and" if isinstance(expr.op, ast.And) else "or"
+            result = self._py_expr_to_ir(expr.values[0])
+            for operand in expr.values[1:]:
+                result = {"type": "BinOp", "op": op_str, "left": result, "right": self._py_expr_to_ir(operand)}
+            return result
         elif isinstance(expr, ast.Call):
             if isinstance(expr.func, ast.Name):
                 return {
@@ -143,13 +180,13 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
                     "args": [self._py_expr_to_ir(arg) for arg in expr.args]
                 }
             elif isinstance(expr.func, ast.Attribute):
-                # Flatten chained attribute access: a.b.c(x) → "a.b.c"
+                # Method/attribute call: a.b.c(x) → flattened func name
                 parts = []
                 node = expr.func
                 while isinstance(node, ast.Attribute):
                     parts.append(node.attr)
                     node = node.value
-                if isinstance(node, ast.Name) and node.id != 'self':
+                if isinstance(node, ast.Name):
                     parts.append(node.id)
                     parts.reverse()
                     return {
@@ -157,6 +194,15 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
                         "func": ".".join(parts),
                         "args": [self._py_expr_to_ir(arg) for arg in expr.args]
                     }
+                # Fallback: complex receiver expression
+                receiver_ir = self._py_expr_to_ir(node)
+                parts.reverse()
+                return {
+                    "type": "Call",
+                    "func": ".".join(parts),
+                    "args": [self._py_expr_to_ir(arg) for arg in expr.args],
+                    "receiver": receiver_ir
+                }
         elif isinstance(expr, ast.Tuple):
             return {"type": "Tuple", "elts": [self._py_expr_to_ir(e) for e in expr.elts]}
         elif isinstance(expr, ast.Subscript):
@@ -172,6 +218,69 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
         elif isinstance(expr, ast.Attribute):
             if isinstance(expr.value, ast.Name) and expr.value.id == 'self':
                 return {"type": "FieldGet", "object": "self", "field": expr.attr}
+            # Non-self attribute access: obj.attr → chained attribute path
+            obj_ir = self._py_expr_to_ir(expr.value)
+            return {"type": "Attribute", "object": obj_ir, "attr": expr.attr}
+        elif isinstance(expr, ast.Dict):
+            keys = [self._py_expr_to_ir(k) if k else {"type": "None"} for k in expr.keys]
+            values = [self._py_expr_to_ir(v) for v in expr.values]
+            return {"type": "DictLit", "keys": keys, "values": values}
+        elif isinstance(expr, ast.Set):
+            return {"type": "SetLit", "elts": [self._py_expr_to_ir(e) for e in expr.elts]}
+        elif isinstance(expr, ast.ListComp):
+            elt = self._py_expr_to_ir(expr.elt)
+            generators = []
+            for gen in expr.generators:
+                target = gen.target.id if isinstance(gen.target, ast.Name) else "_comp_var"
+                generators.append({
+                    "target": target,
+                    "iter": self._py_expr_to_ir(gen.iter),
+                    "ifs": [self._py_expr_to_ir(if_) for if_ in gen.ifs]
+                })
+            return {"type": "ListComp", "elt": elt, "generators": generators}
+        elif isinstance(expr, ast.SetComp):
+            elt = self._py_expr_to_ir(expr.elt)
+            generators = []
+            for gen in expr.generators:
+                target = gen.target.id if isinstance(gen.target, ast.Name) else "_comp_var"
+                generators.append({
+                    "target": target,
+                    "iter": self._py_expr_to_ir(gen.iter),
+                    "ifs": [self._py_expr_to_ir(if_) for if_ in gen.ifs]
+                })
+            return {"type": "SetComp", "elt": elt, "generators": generators}
+        elif isinstance(expr, ast.DictComp):
+            key = self._py_expr_to_ir(expr.key)
+            value = self._py_expr_to_ir(expr.value)
+            generators = []
+            for gen in expr.generators:
+                target = gen.target.id if isinstance(gen.target, ast.Name) else "_comp_var"
+                generators.append({
+                    "target": target,
+                    "iter": self._py_expr_to_ir(gen.iter),
+                    "ifs": [self._py_expr_to_ir(if_) for if_ in gen.ifs]
+                })
+            return {"type": "DictComp", "key": key, "value": value, "generators": generators}
+        elif isinstance(expr, ast.JoinedStr):
+            # f-string: concatenation of literal parts and formatted values
+            parts = []
+            for v in expr.values:
+                if isinstance(v, ast.Constant):
+                    parts.append({"type": "String", "value": str(v.value)})
+                elif isinstance(v, ast.FormattedValue):
+                    parts.append(self._py_expr_to_ir(v.value))
+                else:
+                    parts.append(self._py_expr_to_ir(v))
+            return {"type": "FString", "parts": parts}
+        elif isinstance(expr, ast.IfExp):
+            return {
+                "type": "IfExpr",
+                "test": self._py_expr_to_ir(expr.test),
+                "body": self._py_expr_to_ir(expr.body),
+                "orelse": self._py_expr_to_ir(expr.orelse)
+            }
+        elif isinstance(expr, ast.Starred):
+            return {"type": "Starred", "value": self._py_expr_to_ir(expr.value)}
         return {"type": "UnknownPyExpr"}
 
     def _py_stmts_to_ir(self, stmts: List[ast.stmt]) -> List[Dict[str, Any]]:
@@ -180,6 +289,14 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
             # Prepend any label declarations attached to this statement
             for lname in getattr(stmt, 'csl_labels', []):
                 ir_stmts.append({"stmt": "Label", "name": lname})
+            # Prepend any ghost assignments attached to this statement
+            for ga in getattr(stmt, 'csl_ghost_assigns', []):
+                ir_stmts.append({
+                    "stmt": "GhostAssign",
+                    "target": ga.target,
+                    "value": self._csl_to_ir(ga.value),
+                    "op": ga.op
+                })
             if isinstance(stmt, ast.Assign):
                 target = stmt.targets[0]
                 if isinstance(target, ast.Name):
@@ -216,11 +333,57 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
                 ir_stmts.append(self._process_if(stmt))
             elif isinstance(stmt, ast.Continue):
                 ir_stmts.append({"stmt": "Continue"})
+            elif isinstance(stmt, ast.Raise):
+                exc_ir: Dict[str, Any] = {"stmt": "Raise", "exc_type": None, "exc_value": None}
+                if stmt.exc is not None:
+                    if isinstance(stmt.exc, ast.Call) and isinstance(stmt.exc.func, ast.Name):
+                        exc_ir["exc_type"] = stmt.exc.func.id
+                        if stmt.exc.args:
+                            exc_ir["exc_value"] = self._py_expr_to_ir(stmt.exc.args[0])
+                    elif isinstance(stmt.exc, ast.Name):
+                        exc_ir["exc_type"] = stmt.exc.id
+                ir_stmts.append(exc_ir)
+            elif isinstance(stmt, ast.AnnAssign):
+                if isinstance(stmt.target, ast.Name) and stmt.value is not None:
+                    ir_stmts.append({"stmt": "Assign", "target": stmt.target.id,
+                                     "value": self._py_expr_to_ir(stmt.value)})
             elif isinstance(stmt, ast.Expr):
                 # Skip bare string-literal expressions (docstrings) — no WhyML equivalent.
                 if isinstance(stmt.value, ast.Constant) and isinstance(stmt.value.value, str):
                     continue
                 ir_stmts.append({"stmt": "Expr", "value": self._py_expr_to_ir(stmt.value)})
+            elif isinstance(stmt, ast.Try):
+                # try/except → emit body; handlers become catch clauses
+                body_ir = self._py_stmts_to_ir(stmt.body)
+                handlers = []
+                for h in stmt.handlers:
+                    exc_type = None
+                    if h.type and isinstance(h.type, ast.Name):
+                        exc_type = h.type.id
+                    elif h.type and isinstance(h.type, ast.Tuple):
+                        exc_type = "|".join(
+                            n.id for n in h.type.elts if isinstance(n, ast.Name))
+                    handlers.append({
+                        "exc_type": exc_type,
+                        "name": h.name,
+                        "body": self._py_stmts_to_ir(h.body)
+                    })
+                ir_stmts.append({
+                    "stmt": "Try",
+                    "body": body_ir,
+                    "handlers": handlers,
+                    "orelse": self._py_stmts_to_ir(stmt.orelse),
+                    "finalbody": self._py_stmts_to_ir(stmt.finalbody)
+                })
+            elif isinstance(stmt, ast.With):
+                # with stmt → emit body (context manager is abstracted away)
+                ir_stmts.extend(self._py_stmts_to_ir(stmt.body))
+            elif isinstance(stmt, ast.Pass):
+                ir_stmts.append({"stmt": "Pass"})
+            elif isinstance(stmt, ast.Break):
+                ir_stmts.append({"stmt": "Break"})
+            elif isinstance(stmt, ast.Delete):
+                ir_stmts.append({"stmt": "Pass"})  # model as no-op
         return ir_stmts
 
     def _process_while(self, node: ast.While) -> Dict[str, Any]:
@@ -392,13 +555,24 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
             "contracts": {
                 "requires": self._csl_list_to_ir(getattr(node, 'csl_requires', [])),
                 "ensures": self._csl_list_to_ir(getattr(node, 'csl_ensures', [])),
-                "assigns": [self._csl_to_ir(t) for a in getattr(node, 'csl_assigns', []) for t in a.targets]
+                "assigns": [self._csl_to_ir(t) for a in getattr(node, 'csl_assigns', []) for t in a.targets],
+                "raises": [{"exc_type": r.exc_type, "condition": self._csl_to_ir(r.condition)}
+                           for r in getattr(node, 'csl_raises', [])]
             },
             "body": self._py_stmts_to_ir(node.body),
             "function_variants": self._csl_list_to_ir(getattr(node, 'csl_function_variants', [])),
             "diverges": getattr(node, 'csl_diverges', False),
-            "trusted": getattr(node, 'csl_trusted', False)
+            "trusted": getattr(node, 'csl_trusted', False),
+            "bounded_int": getattr(node, 'csl_bounded_int', None)
         }
+        # A function is pure if it assigns nothing, doesn't diverge, and isn't trusted
+        assigns = func_ir["contracts"]["assigns"]
+        is_pure = (len(assigns) == 1 and isinstance(assigns[0], dict)
+                   and assigns[0].get("type") == "Nothing"
+                   and not func_ir["diverges"]
+                   and not func_ir["trusted"])
+        if is_pure:
+            func_ir["pure"] = True
         # Detect 2D array params: from \length2d contracts and from body a[i][j] patterns.
         # Include "Any"-typed params since untyped params may be 2D arrays.
         candidate_params = {k for k, v in symbol_table.items() if v in ("list", "Any")}
