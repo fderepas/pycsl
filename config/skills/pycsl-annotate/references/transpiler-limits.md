@@ -20,9 +20,9 @@ When in doubt, prefer the simplest form that the transpiler can handle. Many lim
 
 ## 1. Return statements and `None`
 
-**NEVER emit `return None`.** The IR emitter (Module5) maps every `ast.Constant` — including `None` — to `{"type": "Number", "value": <constant>}`, and Module6 calls `int(value)` on that field, which raises `TypeError` when the value is `null`. Use a bare `return` statement instead (semantically equivalent in Python), which makes Module5 emit `{"stmt": "Return", "value": null}` (no nested expression node) and Module6 skips it safely.
+**NEVER emit `return None`.** The IR emitter (Module5) maps `None` to `{"type": "None"}` which Module6 renders as `0`. Use a bare `return` statement instead (semantically equivalent in Python), which makes Module5 emit `{"stmt": "Return", "value": null}` (no nested expression node) and Module6 skips it safely.
 
-**NEVER use `None` as a sentinel value for numeric variables.** Same root cause: `ast.Constant(None)` maps to `{"type": "Number", "value": null}` and Module6 calls `int(null)`. Use `-1` as a sentinel for variables that only hold non-negative integers (e.g., write `last_end = -1` instead of `last_end = None`, and `if last_end < 0` instead of `if last_end is None`).
+**`None` as a value is supported** — `None` appearing in assignments or expressions maps to integer `0` in WhyML. However, avoid using `None` as a sentinel for numeric variables when the function relies on distinguishing `None` from `0`. Use `-1` as a sentinel for variables that only hold non-negative integers.
 
 **NEVER use `return expr` inside an `if` block that is nested inside a loop body.** Module6 emits a lone `if-then` block (without `else`) as type `()`, but a bare dereference such as `!total` has type `int`, producing a fatal type mismatch at the Why3 type-checker. When a loop needs an early exit after an accumulator update, **set the index variable to `n`** (the loop bound) to force the loop condition false and let the function return normally after the loop. Replace `if total >= threshold: return total` inside a loop with `if total >= threshold: i = n` (plus `else: i += 1` so the index still advances on the non-exit path), and keep the final `return total` after the loop.
 
@@ -39,27 +39,17 @@ For `factorial`, this means writing `if n <= 1: return 1` followed by `else: ret
 
 **NEVER use `return expr` directly in a while-loop body outside any `if` block.** Module6 emits the loop body as a sequence of `unit`-typed statements; a bare dereference such as `!i` has type `int`, causing a fatal 'expected type int but got ()' error. This commonly arises in linear-search patterns where `return i` sits at the end of the loop body after an `if … continue` guard. Fix: introduce a `found` variable initialised to `-1` before the loop, replace `return i` with `found = i` followed by `i = n` (to force the loop condition false), and place the single `return found` **after** the loop. See Example 6 in `SKILL.md`.
 
-**NEVER use `raise` statements** in the annotated function body. Module5 has no handler for `ast.Raise`, so any `raise ValueError(...)` or similar statement causes the enclosing `if` block to emit `()` instead of a valid expression — and the function signature may drop parameters entirely. If a precondition is violated, express it only as a `#@ requires` contract; omit any runtime guard that raises an exception.
+**`raise` statements are supported** — `raise ExcType(...)` in the function body is transpiled to `raise ExcType` in WhyML, with the exception type auto-declared. Use `#@ raises ExcType when <cond>` for exceptional postconditions (see annotations.md §2.1.9).
 
 ---
 
 ## 2. Control flow: `if`, `while`, conditions
 
-**NEVER use subscript access inside a `while`-loop condition** (e.g., `while j >= 0 and arr[j] > key:`). The transpiler cannot lower compound boolean expressions containing a subscript inside the loop condition itself — this produces an empty condition (`while  do`) and a WhyML syntax error. Move the subscript check into the loop body: assign the element to a local variable before the condition test, or restructure the loop so the subscript check appears inside an `if` block in the body (set the index to `-1` or the loop bound to force early exit).
+**Compound boolean `while`-loop conditions are supported** (e.g., `while j >= 0 and acc[j] > key:`). Module5 now handles `ast.BoolOp` by folding the operand list into a left-associative `BinOp` tree with op `"and"` or `"or"`, which Module6 maps to `&&` and `||` in WhyML. You may write natural compound conditions directly.
 
-**NEVER use a compound boolean `while`-loop condition** (e.g., `while cond1 and cond2:` or `while flag == 1 and divisor * divisor <= n:`). The WhyML transpiler cannot lower compound boolean expressions in loop conditions and produces an empty `while  do`, causing a WhyML syntax error. Reduce the while condition to a single simple expression (e.g., `while flag == 1:`), then insert the extra guard as the **first `if` check inside the loop body** (e.g., `if divisor * divisor > n: flag = 0`). Adjust the loop variant to account for both the flag and the progress variable (e.g., `#@ loop variant (n - divisor + 1) + flag`).
+**When a nonlinear guard appears in a compound `while` condition** (e.g., `while flag == 1 and divisor * divisor <= n:`), consider whether the solver can discharge the loop variant. If the variant involves a term bounded by the nonlinear guard, add an explicit linear loop invariant (e.g., `#@ loop invariant divisor <= n + 1`) to give the solver a direct upper bound. With the linear invariant stated explicitly, the variant non-negativity goal becomes trivially provable without relying on the nonlinear guard.
 
-**Crucially, also add `#@ loop invariant divisor <= n + 1` as the first loop invariant** (before all other invariants) to give the solver a direct linear upper bound on the progress variable. Without this bound, Alt-Ergo must use the nonlinear guard `divisor * divisor > n` to infer `divisor <= n`, which exceeds its timeout budget. With `divisor <= n + 1` stated explicitly, the variant non-negativity goal `(n - divisor + 1) + flag >= 0` becomes trivially provable from `divisor <= n + 1` and `flag >= 0`.
-
-**NEVER use a compound boolean `if` condition** (e.g., `if cond1 and cond2:`) anywhere in an annotated function body. The same transpiler limitation that affects `while` conditions also applies to `if` conditions — a compound boolean `if` condition produces an empty `if  then` block and a WhyML syntax error. Fix: introduce a local integer variable (e.g., `balanced = 0`) before the compound test, then use two nested simple `if` blocks to set it:
-
-```python
-if ok == 1:
-    if depth == 0:
-        balanced = 1
-```
-
-Use `balanced` in the return or subsequent logic. Each `if` condition must be a single atomic comparison.
+**Compound boolean `if` conditions are supported** (e.g., `if cond1 and cond2:`). Module5 handles `ast.BoolOp` in all expression positions, including `if` conditions.
 
 ---
 
@@ -131,7 +121,7 @@ Use `x` and `y` for all mutations, loop invariants (e.g., `#@ loop invariant x >
 
 **NEVER use `if not <list_var>:` as an emptiness guard for list/sequence parameters.** In WhyML a list parameter is typed `array int`, and `not` cannot be applied to an array — doing so causes a fatal type mismatch. Instead, assign `n = len(list_var)` before the loop, test emptiness with `if n == 0:`, and iterate using an index-based `while i < n:` loop accessing elements via `list_var[i]`.
 
-**NEVER use slice notation** (e.g., `values[1:]`, `lst[i:]`). The IR pipeline has no handler for Python slice expressions and will produce invalid WhyML. Iterate with explicit indices instead.
+**NEVER use slice notation with step** (e.g., `values[::2]`, `lst[i:j:k]`). Only simple two-argument slices `arr[lo:hi]` are supported — the transpiler emits an abstract `array_slice` function call. Step-based slicing has no handler.
 
 **NEVER use string-literal subscript keys** (e.g., `row["id"]`, `data["name"]`). Dict-style subscript access is not supported in WhyML. When a function receives a dict-like record, rewrite it to accept the individual fields as separate integer (or list) parameters. For example, replace `def process(row): return row["id"]` with `def process(row_id: int) -> int: return row_id`.
 

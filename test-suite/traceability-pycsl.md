@@ -10,8 +10,10 @@ The **Ref** column uses the format `section.subsection.row`.
 | 2.1.3 | Frame condition \| `#@ assigns <targets>` \| Function/method \| Only listed targets may be mutated | 0003, 0070, 0071 | PASS |
 | 2.2.1 | Loop invariant \| `#@ loop invariant <expr>` \| `while`/`for` \| Inductive property preserved each iteration | 0004, 0072, 0073 | PASS |
 | 2.2.2 | Loop variant \| `#@ loop variant <expr>` \| `while`/`for` \| Termination measure (must decrease, stay ≥ 0) | 0005, 0074, 0075 | PASS |
-| 2.3.1 | Class invariant \| `#@ class invariant <expr>` \| `class` \| Must hold at every method boundary | 0006, 0076, 0077 | PASS |
+| 2.3.1 | Class invariant \| `#@ class invariant <expr>` \| `class` \| Must hold at every method boundary | 0006, 0076, 0077, 0191, 0192, 0193 | PASS |
 | 2.4.1 | Label \| `#@ label <NAME>` \| Statement \| Marks a program point for `\at` references | 0007, 0078, 0079 | PASS |
+| 2.4.2 | Ghost assign \| `#@ ghost <name> = <expr>` \| Statement \| Declare/assign ghost variable | 0207, 0208, 0209 | PASS |
+| 2.4.3 | Ghost augmented assign \| `#@ ghost <name> += <expr>` \| Statement \| Augmented assign ghost variable | 0207, 0208, 0209 | PASS |
 | 3.1.1 | `42`, `-1`, `0` \| `Number` \| Integer literal | 0008, 0080, 0081 | PASS |
 | 3.1.2 | `x`, `n`, `total` \| `Var` \| Variable reference | 0009, 0082, 0083 | PASS |
 | 3.1.3 | `self.field` \| `FieldAccess` \| Class field access | 0010 | UNPROVEN |
@@ -71,3 +73,20 @@ The **Ref** column uses the format `section.subsection.row`.
 | 9.12 | Multi-file `from mod import *` \| Wildcard import, only called functions resolved | 0063, 0182, 0183 | PASS |
 | 9.13 | Multi-file `--deep` transitive chain \| A→B→C imports recursively resolved | 0064, 0184, 0185 | PASS |
 | 9.14 | Multi-file circular import detection \| Circular imports detected with --deep, no crash | 0065, 0186, 0187 | PASS |
+| 4.1 | Pure functions in contracts \| `func(args)` in `requires`/`ensures` \| Functions with `assigns \nothing` usable in specs | 0194, 0195, 0196 | PASS |
+| 1.1 | Data structure contract atoms \| `\is_sorted`, `\sum`, `dict` type | 0197, 0198, 0199 | PASS |
+| 2.1 | Division-by-zero guards \| `//` and `%` in program code generate proof obligations | 0200 | PASS |
+| 2.1.8 | Bounded integers \| `#@ assumes bounded_int(N)` \| Overflow VCs on arithmetic | 0202, 0203, 0204 | PASS |
+| 2.1.9a | Raise statement \| `raise ExcType` in body \| Auto-declares exception, adds `raises` clause | 0205 | PASS |
+| 2.1.9b | Raises contract \| `#@ raises ExcType when <cond>` \| Exceptional postcondition | 0206 | PASS |
+| 7.1 | Assert statement \| `assert cond, "msg"` \| Emits `check { [@expl:msg] cond }` in WhyML | 0221, 0222, 0223 | PASS |
+| 3.2.8 | Floor div and modulo in contracts \| `//`, `%` in `requires`/`ensures` \| Maps to `div`/`mod` | 0224, 0225, 0226 | PASS |
+| 3.1.18 | Boolean literals in contracts \| `True`, `False` \| `CSLBool` atom | 0227, 0228 | PASS |
+| 3.1.19 | None literal in contracts \| `None` \| `CSLNone` atom (maps to 0) | 0229 | PASS |
+| 3.2.6b | Membership operators in contracts \| `in`, `not in` \| Desugared to `∃` quantifier | 0230, 0231, 0232 | PASS |
+| — | Library stubs \| `functools`, `itertools` trusted stubs | 0233 | PASS |
+| 7.3 | Walrus operator \| `(x := expr)` in body \| Named expression with side-effect | 0234, 0235 | PASS |
+| 3.1.20 | Slice notation \| `arr[lo:hi]` in contracts and body \| Abstract `array_slice` | 0236, 0237 | PASS |
+| 7.2 | Tuple unpacking \| `a, b = expr` \| Destructuring assignment | 0238, 0239 | PASS |
+| 7.4 | Match statement \| `match/case` \| Lowered to if/elif chain | 0240, 0241 | PASS |
+| 7.5 | Lambda expression \| `lambda params: body` \| Anonymous function | 0242, 0243 | PASS |
