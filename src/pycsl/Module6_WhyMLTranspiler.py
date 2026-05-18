@@ -24,6 +24,7 @@ class Module6_WhyMLTranspiler:
             "or": "||",
             "not": "not",
             "div": "div",
+            "//": "div",  # contract floor-division maps to WhyML div
             "/": "div",  # contract `/` maps to WhyML `div` (Euclidean integer division)
             "%": "mod"   # WhyML modulo from int.EuclideanDivision
         }
@@ -181,6 +182,8 @@ class Module6_WhyMLTranspiler:
         for stmt in stmts:
             if stmt["stmt"] in ("Assign", "AugAssign"):
                 assigned.add(stmt["target"])
+            elif stmt["stmt"] == "TupleUnpack":
+                assigned.update(stmt.get("targets", []))
             elif stmt["stmt"] == "While":
                 assigned.update(self._find_assigned_vars(stmt["body"]))
             elif stmt["stmt"] == "If":
@@ -195,6 +198,9 @@ class Module6_WhyMLTranspiler:
                 assigned.update(self._find_assigned_vars(stmt.get("body", [])))
                 for h in stmt.get("handlers", []):
                     assigned.update(self._find_assigned_vars(h.get("body", [])))
+            elif stmt["stmt"] == "Match":
+                for c in stmt.get("cases", []):
+                    assigned.update(self._find_assigned_vars(c.get("body", [])))
         return assigned
 
     def _find_ghost_vars(self, stmts: List[Dict[str, Any]]) -> Set[str]:
@@ -212,6 +218,23 @@ class Module6_WhyMLTranspiler:
                 ghosts.update(self._find_ghost_vars(stmt.get("body", [])))
         return ghosts
 
+    def _match_pattern_cond(self, pat: Dict[str, Any], subject: str, local_refs) -> str:
+        """Generate a WhyML boolean condition for a match pattern."""
+        kind = pat.get("pattern", "Unknown")
+        if kind == "Wildcard":
+            return "true"
+        elif kind == "Value":
+            val = self._expr_to_whyml(pat["value"], local_refs)
+            return f"({subject} = {val})"
+        elif kind == "Capture":
+            if pat.get("inner"):
+                return self._match_pattern_cond(pat["inner"], subject, local_refs)
+            return "true"
+        elif kind == "Or":
+            alts = [self._match_pattern_cond(a, subject, local_refs) for a in pat.get("alternatives", [])]
+            return " || ".join(alts) if alts else "true"
+        return "true"
+
     def _find_array_and_dict_vars(self, stmts: List[Dict[str, Any]]) -> tuple:
         """Find variables assigned array or dict values (for correct pre-declaration)."""
         array_vars = set()
@@ -224,7 +247,7 @@ class Module6_WhyMLTranspiler:
                     vt = val.get("type", "")
                     if vt == "Call" and val.get("func") in ("list",):
                         array_vars.add(target)
-                    el                    if vt in ("ListLit", "ArrayLit"):
+                    elif vt in ("ListLit", "ArrayLit"):
                         array_vars.add(target)
                     elif vt == "ListComp":
                         array_vars.add(target)
@@ -275,6 +298,16 @@ class Module6_WhyMLTranspiler:
                 return True
             for key in ("body", "orelse"):
                 if key in stmt and self._uses_continue(stmt[key]):
+                    return True
+        return False
+
+    def _uses_break(self, stmts: List[Dict[str, Any]]) -> bool:
+        """Recursively check if any statement uses Break."""
+        for stmt in stmts:
+            if stmt["stmt"] == "Break":
+                return True
+            for key in ("body", "orelse"):
+                if key in stmt and self._uses_break(stmt[key]):
                     return True
         return False
 
@@ -705,6 +738,36 @@ class Module6_WhyMLTranspiler:
             if func_name == "list" and len(args) <= 1:
                 self._add_abstract_op("val list_new (x: int) : int")
                 return f"(list_new {args[0] if args else '0'})"
+            if func_name == "join" and len(args) == 1:
+                # str.join(iterable) — argument may be an array
+                arg_ir = expr.get("args", [{}])[0] if expr.get("args") else {}
+                var_name = arg_ir.get("name", "") if arg_ir.get("type") == "Var" else ""
+                is_array = (var_name in getattr(self, "_array_locals", set()) or
+                            var_name in getattr(self, "_current_array1d_params", set()))
+                if not is_array and var_name:
+                    st = getattr(self, "_current_symbol_table", {})
+                    if st.get(var_name) == "list":
+                        is_array = True
+                # Also detect inline array expressions: BinOp("*", ArrayLit, ...) or ArrayLit
+                if not is_array:
+                    at = arg_ir.get("type", "")
+                    if at in ("ArrayLit", "ListLit", "ListComp"):
+                        is_array = True
+                    elif at == "BinOp" and arg_ir.get("op") == "*":
+                        lt = arg_ir.get("left", {}).get("type", "")
+                        rt = arg_ir.get("right", {}).get("type", "")
+                        if lt in ("ArrayLit", "ListLit") or rt in ("ArrayLit", "ListLit"):
+                            is_array = True
+                # Check if the emitted WhyML starts with Array.make (catch-all)
+                if not is_array and "Array.make" in args[0]:
+                    is_array = True
+                if is_array:
+                    self._add_abstract_op(
+                        "val join_array (a: array int) : int")
+                    return f"(join_array {args[0]})"
+                else:
+                    self._add_abstract_op("val join_1 (x: int) : int")
+                    return f"(join_1 {args[0]})"
             if func_name in ("str", "repr", "int", "bool", "abs") and len(args) == 1:
                 wf = self._whyml_ident(func_name)
                 self._add_abstract_op(f"val {wf}_conv (x: int) : int")
@@ -968,6 +1031,34 @@ class Module6_WhyMLTranspiler:
                 return f"(pycsl_sum {base} {lo} {hi})"
             return "0"
 
+        elif t == "NamedExpr":
+            # Walrus: (x := expr) → side-effectful; emit assignment then return value
+            target = self._whyml_ident(expr["target"])
+            val = self._expr_to_whyml(expr["value"], local_refs, invariant_ctx, subst)
+            if target in local_refs:
+                return f"(begin {target} := {val}; !{target} end)"
+            else:
+                local_refs.add(target)
+                return f"(let {target} = ref {val} in !{target})"
+
+        elif t == "Lambda":
+            params = expr.get("params", [])
+            body = self._expr_to_whyml(expr["body"], local_refs, invariant_ctx, subst)
+            param_str = " ".join(f"({self._whyml_ident(p)}: int)" for p in params) if params else "()"
+            return f"(fun {param_str} -> {body})"
+
+        elif t == "SliceAccess":
+            arr = self._expr_to_whyml(expr["value"], local_refs, invariant_ctx, subst)
+            sl = expr["slice"]
+            lo = self._expr_to_whyml(sl["lower"], local_refs, invariant_ctx, subst) if sl.get("lower") else "0"
+            hi = self._expr_to_whyml(sl["upper"], local_refs, invariant_ctx, subst) if sl.get("upper") else f"(Array.length {arr})"
+            self._add_abstract_op("val array_slice (a: array int) (lo: int) (hi: int) : array int")
+            return f"(array_slice {arr} {lo} {hi})"
+
+        elif t == "Slice":
+            # Standalone slice object — shouldn't normally be emitted as a top-level expr
+            return "0"
+
         return ""
 
     def _stmts_to_whyml(self, stmts: List[Dict[str, Any]], local_refs: Set[str], declared_refs: Set[str], indent: str, in_loop: bool = False) -> str:
@@ -1037,6 +1128,16 @@ class Module6_WhyMLTranspiler:
                     # With bounded ints, annotate the initial value for type inference
                     code = f"{indent}let {safe_target} = ref ({val} : int{self._bounded_int}) in\n"
                 else:
+                    # Coerce bool to int for ref declaration
+                    val_ir = stmt.get("value", {})
+                    val_type = val_ir.get("type", "")
+                    is_bool_val = val_type in ("Compare", "BoolOp") or (
+                        val_type == "UnaryOp" and val_ir.get("op") == "not") or (
+                        val_type == "BinOp" and val_ir.get("op") in (
+                            "==", "!=", "<", "<=", ">", ">=",
+                            "is", "is not", "in", "not in"))
+                    if is_bool_val:
+                        val = f"(if {val} then 1 else 0)"
                     code = f"{indent}let {safe_target} = ref {val} in\n"
                 rest_code = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
                 
@@ -1047,9 +1148,35 @@ class Module6_WhyMLTranspiler:
                     
                 return code + rest_code
             else:
-                # Standard reassignment
+                # Standard reassignment — coerce bool to int for ref assignment
+                val_ir = stmt.get("value", {})
+                val_type = val_ir.get("type", "")
+                is_compare = val_type == "Compare"
+                is_bool_op = val_type == "BoolOp"
+                is_unary_not = val_type == "UnaryOp" and val_ir.get("op") == "not"
+                is_cmp_binop = (val_type == "BinOp" and
+                                val_ir.get("op") in ("==", "!=", "<", "<=", ">", ">=",
+                                                      "is", "is not", "in", "not in"))
+                if is_compare or is_bool_op or is_unary_not or is_cmp_binop:
+                    val = f"(if {val} then 1 else 0)"
                 code = f"{indent}{safe_target} := {val}"
                 
+        elif s_type == "TupleUnpack":
+            targets = stmt["targets"]
+            val_whyml = self._expr_to_whyml(stmt["value"], local_refs)
+            safe_targets = [self._whyml_ident(t) for t in targets]
+            # let (a_tmp, b_tmp) = expr in a := a_tmp; b := b_tmp
+            tmp_names = [f"_tu_{t}" for t in safe_targets]
+            pattern = ", ".join(tmp_names)
+            lines = [f"{indent}let ({pattern}) = {val_whyml} in"]
+            for tmp, st in zip(tmp_names, safe_targets):
+                if st in local_refs:
+                    lines.append(f"{indent}{st} := {tmp};")
+                else:
+                    local_refs.add(st)
+                    lines.append(f"{indent}let {st} = ref {tmp} in")
+            code = "\n".join(lines)
+
         elif s_type == "AugAssign":
             target = stmt["target"]
             safe_target = self._whyml_ident(target)
@@ -1183,6 +1310,12 @@ class Module6_WhyMLTranspiler:
                 loop_code += body_str + "\n"
             loop_code += f"{loop_indent}done"
 
+            # Wrap with break handler if the body uses break
+            has_break = self._uses_break(stmt.get("body", []))
+            if has_break:
+                loop_code = (f"{loop_indent}try\n{loop_code}\n"
+                             f"{loop_indent}with PyCSL_Break -> () end")
+
             if has_direct_ret and not in_loop:
                 # Wrap while loop + remaining statements in try…with Return r -> r end
                 rest_code = self._stmts_to_whyml(
@@ -1224,6 +1357,12 @@ class Module6_WhyMLTranspiler:
         elif s_type == "Continue":
             # Raise the continue exception caught by the enclosing For loop's try/with
             return f"{indent}raise PyCSL_Continue"
+
+        elif s_type == "Assert":
+            test_whyml = self._expr_to_whyml(stmt["test"], local_refs)
+            test_whyml = self._to_bool(test_whyml, stmt["test"])
+            msg = stmt.get("msg", "assertion")
+            return f'{indent}check {{ [@expl:{msg}] {test_whyml} }}'
 
         elif s_type == "Raise":
             exc_type = stmt.get("exc_type", "PyCSL_Exception")
@@ -1362,7 +1501,13 @@ class Module6_WhyMLTranspiler:
 
             while_parts.append(f"{inner_indent}{idx} := !{idx} + 1")
             while_parts.append(f"{loop_indent}done")
+            has_break = self._uses_break(stmt.get("body", []))
             while_code = "\n".join(while_parts)
+
+            # Wrap the while loop with break handler if needed
+            if has_break:
+                while_code = (f"{loop_indent}try\n{while_code}\n"
+                              f"{loop_indent}with PyCSL_Break -> () end")
 
             # Introduce the index ref following the same pattern as Assign
             if self._bounded_int:
@@ -1451,6 +1596,33 @@ class Module6_WhyMLTranspiler:
             # WhyML doesn't have break; model as exception
             code = f"{indent}raise PyCSL_Break"
 
+        elif s_type == "Match":
+            # Lower match/case to if/elif chain
+            subject = self._expr_to_whyml(stmt["subject"], local_refs)
+            cases = stmt.get("cases", [])
+            lines = []
+            for i, c in enumerate(cases):
+                pat = c["pattern"]
+                guard = c.get("guard")
+                body_stmts = c.get("body", [])
+                body_str = self._stmts_to_whyml(body_stmts, local_refs, declared_refs.copy(), indent + "  ", in_loop)
+                if not body_str:
+                    body_str = f"{indent}  ()"
+                cond = self._match_pattern_cond(pat, subject, local_refs)
+                if guard:
+                    guard_str = self._expr_to_whyml(guard, local_refs)
+                    guard_str = self._to_bool(guard_str, guard)
+                    cond = f"({cond} && {guard_str})" if cond != "true" else guard_str
+                if i == 0:
+                    lines.append(f"{indent}if {cond} then begin")
+                elif cond == "true":
+                    lines.append(f"{indent}end else begin")
+                else:
+                    lines.append(f"{indent}end else if {cond} then begin")
+                lines.append(body_str)
+            lines.append(f"{indent}end")
+            code = "\n".join(lines)
+
         # Chain sequence of statements with semicolons
         if rest:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
@@ -1521,6 +1693,7 @@ class Module6_WhyMLTranspiler:
             needs_array = False  # Heap models use map.Map, not array.Array
         needs_minmax = any(self._uses_minmax(body) for body in all_bodies)
         needs_continue = any(self._uses_continue(body) for body in all_bodies)
+        needs_break = any(self._uses_break(body) for body in all_bodies)
         needs_return_exc = False
         needs_return_void = False
         for func in functions:
@@ -1576,6 +1749,9 @@ class Module6_WhyMLTranspiler:
         if needs_continue:
             out.append("")
             out.append("  exception PyCSL_Continue")
+        if needs_break:
+            out.append("")
+            out.append("  exception PyCSL_Break")
         if needs_return_exc:
             out.append("")
             out.append("  exception Return int")

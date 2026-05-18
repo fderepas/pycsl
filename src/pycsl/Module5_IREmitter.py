@@ -8,7 +8,7 @@ from Module2_Parser import (
     FieldAccess as CSLFieldAccess, Forall, Exists, ArrayLength, SubscriptAccess,
     AssignsRegion, Valid, Separated, At as CSLAt,
     Length2D, Valid2D, FunctionVariant, StringLiteral as CSLStringLiteral,
-    CallExpr, IsSorted, Sum
+    CallExpr, IsSorted, Sum, CSLBool, CSLNone, CSLIn, CSLNotIn, CSLSlice
 )
 
 class PyCSLToJSONEmitter(ast.NodeVisitor):
@@ -33,6 +33,10 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
             return {"type": "Number", "value": node.value}
         elif isinstance(node, CSLStringLiteral):
             return {"type": "String", "value": node.value}
+        elif isinstance(node, CSLBool):
+            return {"type": "Bool", "value": node.value}
+        elif isinstance(node, CSLNone):
+            return {"type": "None"}
         elif isinstance(node, CSLResult):
             return {"type": "Result"}
         elif isinstance(node, CSLOld):
@@ -120,6 +124,38 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
                 "lo": self._csl_to_ir(node.lo),
                 "hi": self._csl_to_ir(node.hi)
             }
+        elif isinstance(node, CSLIn):
+            # x in arr → ∃ _mem_i. 0 ≤ _mem_i ∧ _mem_i < length(arr) ∧ arr[_mem_i] == x
+            elt_ir = self._csl_to_ir(node.element)
+            coll_ir = self._csl_to_ir(node.collection)
+            coll_name = coll_ir.get("name", "_coll")
+            return {
+                "type": "Exists", "var": "_mem_i",
+                "body": {"type": "BinOp", "op": "and",
+                    "left": {"type": "BinOp", "op": "and",
+                        "left": {"type": "BinOp", "op": ">=",
+                            "left": {"type": "Var", "name": "_mem_i"},
+                            "right": {"type": "Number", "value": 0}},
+                        "right": {"type": "BinOp", "op": "<",
+                            "left": {"type": "Var", "name": "_mem_i"},
+                            "right": {"type": "ArrayLen", "var": coll_name}}},
+                    "right": {"type": "BinOp", "op": "==",
+                        "left": {"type": "Subscript",
+                            "value": {"type": "Var", "name": coll_name},
+                            "index": {"type": "Var", "name": "_mem_i"}},
+                        "right": elt_ir}}
+            }
+        elif isinstance(node, CSLNotIn):
+            # x not in arr → ¬(x in arr)
+            in_ir = self._csl_to_ir(CSLIn(node.element, node.collection))
+            return {"type": "UnaryOp", "op": "not", "expr": in_ir}
+        elif isinstance(node, CSLSlice):
+            return {"type": "SliceAccess",
+                    "value": {"type": "Var", "name": node.collection},
+                    "slice": {"type": "Slice",
+                              "lower": self._csl_to_ir(node.low),
+                              "upper": self._csl_to_ir(node.high),
+                              "step": None}}
         return {"type": "UnknownCSL"}
 
     def _csl_list_to_ir(self, csl_list: List[CSLNode]) -> List[Dict[str, Any]]:
@@ -207,10 +243,12 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
             return {"type": "Tuple", "elts": [self._py_expr_to_ir(e) for e in expr.elts]}
         elif isinstance(expr, ast.Subscript):
             value = self._py_expr_to_ir(expr.value)
-            # Python 3.9+: slice is the index directly; Python 3.8: wrapped in ast.Index
             slice_node = expr.slice
             if isinstance(slice_node, ast.Index):
                 slice_node = slice_node.value
+            if isinstance(slice_node, ast.Slice):
+                slice_ir = self._py_expr_to_ir(slice_node)
+                return {"type": "SliceAccess", "value": value, "slice": slice_ir}
             index = self._py_expr_to_ir(slice_node)
             return {"type": "Subscript", "value": value, "index": index}
         elif isinstance(expr, ast.List):
@@ -281,6 +319,20 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
             }
         elif isinstance(expr, ast.Starred):
             return {"type": "Starred", "value": self._py_expr_to_ir(expr.value)}
+        elif isinstance(expr, ast.NamedExpr):
+            # Walrus operator: (x := expr) → emits as NamedExpr IR
+            target_name = expr.target.id if isinstance(expr.target, ast.Name) else "_walrus"
+            return {"type": "NamedExpr", "target": target_name,
+                    "value": self._py_expr_to_ir(expr.value)}
+        elif isinstance(expr, ast.Lambda):
+            params = [arg.arg for arg in expr.args.args]
+            return {"type": "Lambda", "params": params,
+                    "body": self._py_expr_to_ir(expr.body)}
+        elif isinstance(expr, ast.Slice):
+            lower = self._py_expr_to_ir(expr.lower) if expr.lower else None
+            upper = self._py_expr_to_ir(expr.upper) if expr.upper else None
+            step = self._py_expr_to_ir(expr.step) if expr.step else None
+            return {"type": "Slice", "lower": lower, "upper": upper, "step": step}
         return {"type": "UnknownPyExpr"}
 
     def _py_stmts_to_ir(self, stmts: List[ast.stmt]) -> List[Dict[str, Any]]:
@@ -314,6 +366,10 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
                     index_ir = self._py_expr_to_ir(slice_node)
                     ir_stmts.append({"stmt": "ArraySet", "array": array_ir,
                                      "index": index_ir, "value": self._py_expr_to_ir(stmt.value)})
+                elif isinstance(target, ast.Tuple):
+                    targets = [elt.id for elt in target.elts if isinstance(elt, ast.Name)]
+                    ir_stmts.append({"stmt": "TupleUnpack", "targets": targets,
+                                     "value": self._py_expr_to_ir(stmt.value)})
             elif isinstance(stmt, ast.AugAssign):
                 if isinstance(stmt.target, ast.Name):
                     ir_stmts.append({"stmt": "AugAssign", "target": stmt.target.id,
@@ -333,6 +389,11 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
                 ir_stmts.append(self._process_if(stmt))
             elif isinstance(stmt, ast.Continue):
                 ir_stmts.append({"stmt": "Continue"})
+            elif isinstance(stmt, ast.Assert):
+                ir_node = {"stmt": "Assert", "test": self._py_expr_to_ir(stmt.test)}
+                if stmt.msg and isinstance(stmt.msg, ast.Constant) and isinstance(stmt.msg.value, str):
+                    ir_node["msg"] = stmt.msg.value
+                ir_stmts.append(ir_node)
             elif isinstance(stmt, ast.Raise):
                 exc_ir: Dict[str, Any] = {"stmt": "Raise", "exc_type": None, "exc_value": None}
                 if stmt.exc is not None:
@@ -384,6 +445,15 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
                 ir_stmts.append({"stmt": "Break"})
             elif isinstance(stmt, ast.Delete):
                 ir_stmts.append({"stmt": "Pass"})  # model as no-op
+            elif hasattr(ast, 'Match') and isinstance(stmt, ast.Match):
+                subject_ir = self._py_expr_to_ir(stmt.subject)
+                cases = []
+                for case in stmt.cases:
+                    pattern_ir = self._match_pattern_to_ir(case.pattern)
+                    guard_ir = self._py_expr_to_ir(case.guard) if case.guard else None
+                    body_ir = self._py_stmts_to_ir(case.body)
+                    cases.append({"pattern": pattern_ir, "guard": guard_ir, "body": body_ir})
+                ir_stmts.append({"stmt": "Match", "subject": subject_ir, "cases": cases})
         return ir_stmts
 
     def _process_while(self, node: ast.While) -> Dict[str, Any]:
@@ -413,6 +483,34 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
             "body": self._py_stmts_to_ir(node.body),
             "orelse": self._py_stmts_to_ir(node.orelse)
         }
+
+    def _match_pattern_to_ir(self, pattern) -> Dict[str, Any]:
+        """Translate a Python 3.10+ match pattern to IR."""
+        if hasattr(ast, 'MatchValue') and isinstance(pattern, ast.MatchValue):
+            return {"pattern": "Value", "value": self._py_expr_to_ir(pattern.value)}
+        elif hasattr(ast, 'MatchSingleton') and isinstance(pattern, ast.MatchSingleton):
+            if pattern.value is True:
+                return {"pattern": "Value", "value": {"type": "Bool", "value": True}}
+            elif pattern.value is False:
+                return {"pattern": "Value", "value": {"type": "Bool", "value": False}}
+            elif pattern.value is None:
+                return {"pattern": "Value", "value": {"type": "None"}}
+            return {"pattern": "Value", "value": {"type": "Number", "value": pattern.value}}
+        elif hasattr(ast, 'MatchAs') and isinstance(pattern, ast.MatchAs):
+            if pattern.name is None and pattern.pattern is None:
+                return {"pattern": "Wildcard"}
+            name = pattern.name if pattern.name else "_"
+            if pattern.pattern:
+                return {"pattern": "Capture", "name": name,
+                        "inner": self._match_pattern_to_ir(pattern.pattern)}
+            return {"pattern": "Capture", "name": name, "inner": None}
+        elif hasattr(ast, 'MatchOr') and isinstance(pattern, ast.MatchOr):
+            return {"pattern": "Or",
+                    "alternatives": [self._match_pattern_to_ir(p) for p in pattern.patterns]}
+        elif hasattr(ast, 'MatchSequence') and isinstance(pattern, ast.MatchSequence):
+            return {"pattern": "Sequence",
+                    "elts": [self._match_pattern_to_ir(p) for p in pattern.patterns]}
+        return {"pattern": "Unknown"}
 
     def _scan_2d_in_expr(self, expr: Dict[str, Any], param_names: set, result: set) -> None:
         """Recursively scan an IR expression dict for a[i][j] access patterns."""

@@ -156,6 +156,55 @@ class Trusted(CSLNode):
     """Represents `#@ \\trusted` — function body is not verified."""
     pass
 
+@dataclass
+class CSLBool(CSLNode):
+    """Represents True/False literals in contract expressions."""
+    value: bool
+
+@dataclass
+class CSLNone(CSLNode):
+    """Represents None literal in contract expressions."""
+    pass
+
+@dataclass
+class CSLIn(CSLNode):
+    """Represents `x in arr` membership test in contracts."""
+    element: CSLNode
+    collection: CSLNode
+
+@dataclass
+class CSLNotIn(CSLNode):
+    """Represents `x not in arr` negated membership test in contracts."""
+    element: CSLNode
+    collection: CSLNode
+
+@dataclass
+class CSLSlice(CSLNode):
+    """Represents `arr[lo:hi]` slice notation in contracts."""
+    collection: str
+    low: CSLNode
+    high: CSLNode
+
+@dataclass
+class CallExpr(CSLNode):
+    """Represents a function call in a contract expression."""
+    func: str
+    args: list
+
+@dataclass
+class IsSorted(CSLNode):
+    """Represents `\\is_sorted(a, lo, hi)` — array is sorted in range."""
+    base: str
+    lo: CSLNode
+    hi: CSLNode
+
+@dataclass
+class Sum(CSLNode):
+    """Represents `\\sum(a, lo, hi)` — sum of array elements in range."""
+    base: str
+    lo: CSLNode
+    hi: CSLNode
+
 # ---------------------------------------------------------
 # 2. The EBNF Grammar
 # ---------------------------------------------------------
@@ -221,7 +270,10 @@ PYCSL_GRAMMAR = r"""
             | "\\exists" CNAME ";" expr -> exists_expr
             | "\\exist"  CNAME ";" expr -> exists_expr
     ?equality: comparison | equality EQ_OP comparison
-    ?comparison: term | comparison COMP_OP term
+    ?comparison: membership | comparison COMP_OP membership
+    ?membership: term
+              | term "in" term -> in_expr
+              | term "not" "in" term -> not_in_expr
     ?term: factor | term ADD_OP factor
     ?factor: unary | factor MUL_OP unary
     
@@ -230,8 +282,12 @@ PYCSL_GRAMMAR = r"""
 
     ?atom: NUMBER -> number
          | ESCAPED_STRING -> string_literal
+         | "True" -> true_lit
+         | "False" -> false_lit
+         | "None" -> none_lit
          | "self" "." CNAME -> field_access
          | "\\result" "[" expr "]" -> result_subscript
+         | CNAME "[" expr ":" expr "]" -> slice_access
          | CNAME "[" expr "]" -> subscript_access
          | CNAME -> var
          | "\\result" -> result
@@ -253,7 +309,7 @@ PYCSL_GRAMMAR = r"""
     EQ_OP: "==" | "!="
     COMP_OP: ">" | "<" | ">=" | "<="
     ADD_OP: "+" | "-"
-    MUL_OP: "*" | "/"
+    MUL_OP: "*" | "//" | "/" | "%"
     UNARY_OP: "not" | "-" | "+"
     RANGE_OP: ".."
 
@@ -296,6 +352,7 @@ class PyCSLTransformer(Transformer):
     def exists_expr(self, var, body): return Exists(str(var), body)
     def array_length(self, var): return ArrayLength(str(var))
     def subscript_access(self, name, index): return SubscriptAccess(str(name), index)
+    def slice_access(self, name, low, high): return CSLSlice(str(name), low, high)
     def result_subscript(self, index): return SubscriptAccess("\\result", index)
     def assigns_region(self, name, low, _op, high): return AssignsRegion(str(name), low, high)
     def assigns_region_list(self, *regions): return list(regions)
@@ -320,11 +377,18 @@ class PyCSLTransformer(Transformer):
     # Atoms
     def number(self, n): return Number(float(n))
     def string_literal(self, s): return StringLiteral(str(s)[1:-1])  # strip quotes
+    def true_lit(self): return CSLBool(True)
+    def false_lit(self): return CSLBool(False)
+    def none_lit(self): return CSLNone()
     def var(self, name): return Var(str(name))
     def field_access(self, field_name): return FieldAccess("self", str(field_name))
     def result(self): return Result()
     def old_var(self, expr): return Old(expr)
     def nothing(self): return Nothing()
+    
+    # Membership
+    def in_expr(self, element, collection): return CSLIn(element, collection)
+    def not_in_expr(self, element, collection): return CSLNotIn(element, collection)
     
     def expr_list(self, *exprs): return list(exprs)
 
