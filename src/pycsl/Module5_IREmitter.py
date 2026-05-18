@@ -424,7 +424,11 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
             if inner.get("type") == "Subscript":
                 root = inner.get("value", {})
                 if root.get("type") == "Var" and root.get("name") in param_names:
-                    result.add(root["name"])
+                    # Exclude dict-style access (string indices) from 2D array detection
+                    idx1 = inner.get("index", {})
+                    idx2 = expr.get("index", {})
+                    if idx1.get("type") != "String" and idx2.get("type") != "String":
+                        result.add(root["name"])
             self._scan_2d_in_expr(inner, param_names, result)
             self._scan_2d_in_expr(expr.get("index", {}), param_names, result)
         elif t in ("BinOp",):
@@ -445,7 +449,10 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
             if arr.get("type") == "Subscript":
                 root = arr.get("value", {})
                 if root.get("type") == "Var" and root.get("name") in param_names:
-                    result.add(root["name"])
+                    idx1 = arr.get("index", {})
+                    idx2 = stmt.get("index", {})
+                    if idx1.get("type") != "String" and idx2.get("type") != "String":
+                        result.add(root["name"])
             self._scan_2d_in_expr(arr, param_names, result)
             self._scan_2d_in_expr(stmt.get("index", {}), param_names, result)
             self._scan_2d_in_expr(stmt.get("value", {}), param_names, result)

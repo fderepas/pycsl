@@ -13,6 +13,7 @@ class Module6_WhyMLTranspiler:
         self._abstract_ops: dict = {}      # Abstract val declarations: name → full decl string
         self._current_params: set = set()  # Parameters of current function being transpiled
         self._array_locals: set = set()    # Local array variables (no ! deref needed)
+        self._dict_locals: set = set()     # Local dict variables (not real arrays)
         # Maps Python/IR operators to WhyML operators
         self.op_map = {
             "==": "=",   # WhyML equality is single =
@@ -117,6 +118,11 @@ class Module6_WhyMLTranspiler:
             return whyml_str
         if t == "Call" and ir_expr.get("func", "") in ("isinstance", "hasattr"):
             return whyml_str
+        # Array locals can't be compared with <> 0; emit true (always allocated)
+        if t == "Var":
+            name = ir_expr.get("name", "")
+            if name in getattr(self, '_array_locals', set()):
+                return "true"
         # Coerce int → bool
         return f"({whyml_str} <> 0)"
 
@@ -127,8 +133,7 @@ class Module6_WhyMLTranspiler:
             return str(hash(whyml_str) % 2147483647)
         return whyml_str
 
-    @staticmethod
-    def _coerce_to_int(whyml_str: str) -> str:
+    def _coerce_to_int(self, whyml_str: str) -> str:
         """Coerce any non-int WhyML expression to int for abstract val arguments."""
         # String literals → int hash
         if whyml_str.startswith('"') and whyml_str.endswith('"'):
@@ -139,6 +144,12 @@ class Module6_WhyMLTranspiler:
         # Tuple literals (a, b, c) → hash to int
         if "," in whyml_str and whyml_str.startswith("(") and whyml_str.endswith(")"):
             return str(hash(whyml_str) % 2147483647)
+        # Record self → convert to int via abstract op
+        self_type = getattr(self, '_current_self_type', None)
+        if whyml_str == "self" and self_type:
+            conv_name = f"self_to_int_{self_type}"
+            self._add_abstract_op(f"val {conv_name} (x: {self_type}) : int")
+            return f"({conv_name} self)"
         return whyml_str
 
     def _uses_arrayset(self, stmts: List[Dict[str, Any]]) -> bool:
@@ -176,7 +187,14 @@ class Module6_WhyMLTranspiler:
                 assigned.update(self._find_assigned_vars(stmt.get("body", [])))
                 assigned.update(self._find_assigned_vars(stmt.get("orelse", [])))
             elif stmt["stmt"] == "For":
+                tgt = stmt.get("target", "")
+                if tgt:
+                    assigned.add(tgt)
                 assigned.update(self._find_assigned_vars(stmt.get("body", [])))
+            elif stmt["stmt"] == "Try":
+                assigned.update(self._find_assigned_vars(stmt.get("body", [])))
+                for h in stmt.get("handlers", []):
+                    assigned.update(self._find_assigned_vars(h.get("body", [])))
         return assigned
 
     def _find_ghost_vars(self, stmts: List[Dict[str, Any]]) -> Set[str]:
@@ -193,6 +211,51 @@ class Module6_WhyMLTranspiler:
             elif stmt["stmt"] == "For":
                 ghosts.update(self._find_ghost_vars(stmt.get("body", [])))
         return ghosts
+
+    def _find_array_and_dict_vars(self, stmts: List[Dict[str, Any]]) -> tuple:
+        """Find variables assigned array or dict values (for correct pre-declaration)."""
+        array_vars = set()
+        dict_vars = set()
+        for stmt in stmts:
+            if stmt.get("stmt") == "Assign":
+                val = stmt.get("value", {})
+                target = stmt.get("target", "")
+                if isinstance(val, dict):
+                    vt = val.get("type", "")
+                    if vt == "Call" and val.get("func") in ("list",):
+                        array_vars.add(target)
+                    el                    if vt in ("ListLit", "ArrayLit"):
+                        array_vars.add(target)
+                    elif vt == "ListComp":
+                        array_vars.add(target)
+                    elif vt == "DictLit":
+                        dict_vars.add(target)
+                    elif vt == "Call" and val.get("func") in ("dict",):
+                        dict_vars.add(target)
+                    elif vt == "SetLit" or (vt == "Call" and val.get("func") in ("set", "frozenset")):
+                        dict_vars.add(target)
+            for key in ("body", "orelse"):
+                if key in stmt:
+                    a, d = self._find_array_and_dict_vars(stmt[key])
+                    array_vars |= a
+                    dict_vars |= d
+            if stmt.get("stmt") == "While":
+                a, d = self._find_array_and_dict_vars(stmt.get("body", []))
+                array_vars |= a
+                dict_vars |= d
+            if stmt.get("stmt") == "For":
+                a, d = self._find_array_and_dict_vars(stmt.get("body", []))
+                array_vars |= a
+                dict_vars |= d
+            if stmt.get("stmt") == "Try":
+                a, d = self._find_array_and_dict_vars(stmt.get("body", []))
+                array_vars |= a
+                dict_vars |= d
+                for h in stmt.get("handlers", []):
+                    a, d = self._find_array_and_dict_vars(h.get("body", []))
+                    array_vars |= a
+                    dict_vars |= d
+        return array_vars, dict_vars
 
     def _has_continue(self, stmts: List[Dict[str, Any]]) -> bool:
         """Check if statements contain a Continue node (not crossing For/While boundaries)."""
@@ -216,15 +279,49 @@ class Module6_WhyMLTranspiler:
         return False
 
     def _collect_user_exceptions(self, stmts: List[Dict[str, Any]]) -> Set[str]:
-        """Collect user exception type names from Raise statements."""
+        """Collect ALL user exception type names (raised + caught) for module-level declarations."""
         result: Set[str] = set()
         for stmt in stmts:
             if stmt.get("stmt") == "Raise" and stmt.get("exc_type"):
                 result.add(stmt["exc_type"])
+            if stmt.get("stmt") == "Try":
+                for h in stmt.get("handlers", []):
+                    exc = h.get("exc_type")
+                    if exc:
+                        for ep in exc.split("|"):
+                            ep = ep.strip()
+                            if ep:
+                                result.add(ep)
+                    result |= self._collect_user_exceptions(h.get("body", []))
             for key in ("body", "orelse"):
                 if key in stmt:
                     result |= self._collect_user_exceptions(stmt[key])
         return result
+
+    def _collect_escaping_exceptions(self, stmts: List[Dict[str, Any]]) -> Set[str]:
+        """Collect exceptions that escape (raised but not fully caught at this level)."""
+        raised: Set[str] = set()
+        caught: Set[str] = set()
+        for stmt in stmts:
+            if stmt.get("stmt") == "Raise" and stmt.get("exc_type"):
+                raised.add(stmt["exc_type"])
+            if stmt.get("stmt") == "Try":
+                # Exceptions raised inside try body that are caught by handlers
+                inner_raised = self._collect_escaping_exceptions(stmt.get("body", []))
+                for h in stmt.get("handlers", []):
+                    exc = h.get("exc_type")
+                    if exc:
+                        for ep in exc.split("|"):
+                            ep = ep.strip()
+                            if ep:
+                                caught.add(ep)
+                    raised |= self._collect_escaping_exceptions(h.get("body", []))
+                raised |= (inner_raised - caught)
+                continue
+            for key in ("body", "orelse"):
+                if key in stmt:
+                    raised |= self._collect_escaping_exceptions(stmt[key])
+        return raised
 
     def _has_direct_return(self, stmts: List[Dict[str, Any]]) -> bool:
         """Check if stmts contain a Return NOT inside a nested While loop.
@@ -377,8 +474,19 @@ class Module6_WhyMLTranspiler:
                         return True
             return False
 
+        def _has_return_with_value(stmts: List[Dict[str, Any]]) -> bool:
+            for stmt in stmts:
+                if stmt["stmt"] == "Return" and stmt.get("value"):
+                    return True
+                for key in ("body", "orelse"):
+                    if key in stmt and _has_return_with_value(stmt[key]):
+                        return True
+            return False
+
         if not _has_return(stmts):
             return "unit"
+        if not _has_return_with_value(stmts):
+            return "unit"  # only bare returns (no value) → void function
 
         for stmt in stmts:
             if stmt["stmt"] == "Return" and stmt.get("value"):
@@ -387,7 +495,7 @@ class Module6_WhyMLTranspiler:
                     n = len(val.get("elts", []))
                     return "(" + ", ".join(["int"] * n) + ")"
                 if val.get("type") == "String":
-                    return "string"
+                    return "int"  # model strings as int hashes
             for key in ("body", "orelse"):
                 if key in stmt:
                     result = self._find_return_type(stmt[key])
@@ -410,13 +518,13 @@ class Module6_WhyMLTranspiler:
                 name = subst[name]
             # Array locals don't need dereference (not in a ref)
             if name in getattr(self, '_array_locals', set()):
-                return name
+                return self._whyml_ident(name)
             # If it's a local mutable variable, we must dereference it with '!'
             if name in local_refs:
-                return f"!{name}"
-            # If it's a known parameter or 'self', return as-is
+                return f"!{self._whyml_ident(name)}"
+            # If it's a known parameter or 'self', return as-is (with safe name)
             if name in self._current_params or name == "self":
-                return name
+                return self._whyml_ident(name) if name != "self" else name
             # Otherwise it's an external reference (imported module, global) — abstract constant
             safe = self._whyml_ident(name)
             self._add_abstract_op(f"val constant {safe} : int")
@@ -428,7 +536,8 @@ class Module6_WhyMLTranspiler:
 
         elif t == "String":
             escaped = expr["value"].replace('\\', '\\\\').replace('"', '\\"')
-            return f'"{escaped}"'
+            # Model strings as int hashes everywhere for type consistency
+            return str(hash(f'"{escaped}"') % 2147483647)
             
         elif t == "Result":
             return "result"
@@ -456,22 +565,40 @@ class Module6_WhyMLTranspiler:
                     return f"(mod {left} {right})"
                 return f"(pycsl_mod {left} {right})"
             elif op in ("&&", "||"):
-                # In spec context, use bool operators
+                left_b = self._to_bool(left, expr["left"])
+                right_b = self._to_bool(right, expr["right"])
                 if getattr(self, '_in_spec', False):
-                    left_b = self._to_bool(left, expr["left"])
-                    right_b = self._to_bool(right, expr["right"])
+                    # In spec context, use bool operators directly
                     return f"({left_b} {op} {right_b})"
                 else:
-                    # In body context, Python's and/or are value-returning
-                    # Model as abstract int operations to avoid bool/int type conflicts
-                    fn = "py_or" if op == "||" else "py_and"
-                    self._add_abstract_op(f"val {fn} (x: int) (y: int) : int")
-                    return f"({fn} {left} {right})"
+                    # In body context, Python's and/or return int.
+                    # Use if-then-else to convert bool result back to int,
+                    # avoiding abstract vals that can't handle mixed bool/int args.
+                    return f"(if {left_b} {op} {right_b} then 1 else 0)"
             elif expr["op"] == "in":
-                # Containment check: x in collection → abstract bool function
+                # Containment check: x in collection
+                rhs = expr.get("right", {})
+                if rhs.get("type") == "Tuple":
+                    # Expand x in (a, b, c) → x = a || x = b || x = c
+                    elts = rhs.get("elts", [])
+                    if elts:
+                        checks = []
+                        for elt in elts:
+                            elt_w = self._expr_to_whyml(elt, local_refs, invariant_ctx, subst)
+                            checks.append(f"({self._coerce_str_arg(left)} = {self._coerce_str_arg(elt_w)})")
+                        return f"({' || '.join(checks)})"
                 self._add_abstract_op("val contains_check (x: int) (c: int) : bool")
                 return f"(contains_check {self._coerce_str_arg(left)} {self._coerce_str_arg(right)})"
             elif expr["op"] == "not in":
+                rhs = expr.get("right", {})
+                if rhs.get("type") == "Tuple":
+                    elts = rhs.get("elts", [])
+                    if elts:
+                        checks = []
+                        for elt in elts:
+                            elt_w = self._expr_to_whyml(elt, local_refs, invariant_ctx, subst)
+                            checks.append(f"({self._coerce_str_arg(left)} = {self._coerce_str_arg(elt_w)})")
+                        return f"(not ({' || '.join(checks)}))"
                 self._add_abstract_op("val contains_check (x: int) (c: int) : bool")
                 return f"(not (contains_check {self._coerce_str_arg(left)} {self._coerce_str_arg(right)}))"
             elif expr["op"] in ("&", "|", "^", "<<", ">>", "**"):
@@ -508,7 +635,24 @@ class Module6_WhyMLTranspiler:
         elif t == "FieldGet":
             if invariant_ctx:
                 return expr['field']
-            return f"{expr['object']}.{expr['field']}"
+            obj = expr['object']
+            field = expr['field']
+            safe_field = self._whyml_ident(field)
+            decl_fields = getattr(self, '_all_record_fields', set())
+            if field in decl_fields:
+                return f"{obj}.{safe_field}"
+            # Undeclared field: use abstract getter with hashed field name
+            hash_field = hash(field) % 2147483647
+            # Determine the type of obj for the abstract val signature
+            self_type = getattr(self, '_current_self_type', None)
+            if obj == "self" and self_type:
+                name = f"getattr_{self_type}"
+                self._add_abstract_op(f"val {name} (x: {self_type}) (f: int) : int")
+            else:
+                name = "getattr_2"
+                self._add_abstract_op(f"val {name} (x: int) (f: int) : int")
+                obj = self._coerce_to_int(obj)
+            return f"({name} {obj} {hash_field})"
 
         elif t == "OldField":
             return f"(old {expr['object']}.{expr['field']})"
@@ -521,12 +665,14 @@ class Module6_WhyMLTranspiler:
                     # Check if the argument is a known array
                     arg_ir = expr.get("args", [{}])[0] if expr.get("args") else {}
                     var_name = arg_ir.get("name", "") if arg_ir.get("type") == "Var" else ""
-                    is_array = (var_name in getattr(self, "_array2d_params", set()) or
-                                var_name in getattr(self, "_array_locals", set()) or
-                                var_name in getattr(self, "_current_array1d_params", set()))
-                    if not is_array and var_name:
+                    is_dict = var_name in getattr(self, "_dict_locals", set())
+                    is_array = not is_dict and (
+                        var_name in getattr(self, "_array2d_params", set()) or
+                        var_name in getattr(self, "_array_locals", set()) or
+                        var_name in getattr(self, "_current_array1d_params", set()))
+                    if not is_array and not is_dict and var_name:
                         st = getattr(self, "_current_symbol_table", {})
-                        if st.get(var_name) in ("list", "dict"):
+                        if st.get(var_name) == "list":
                             is_array = True
                     if is_array:
                         return f"(length {args[0]})"
@@ -540,10 +686,16 @@ class Module6_WhyMLTranspiler:
                 fn = "MinMax.min" if func_name == "min" else "MinMax.max"
                 return f"({fn} {args[0]} {args[1]})"
             if func_name == "isinstance" and len(args) == 2:
-                self._add_abstract_op("val isinstance_check (x: int) (t: int) : bool")
-                # The type arg might be a tuple like (A, B, C) — coerce to int
+                a0 = args[0]
                 type_arg = self._coerce_to_int(args[1])
-                return f"(isinstance_check {args[0]} {type_arg})"
+                self_type = getattr(self, '_current_self_type', None)
+                if a0 == "self" and self_type:
+                    op_name = f"isinstance_check_{self_type}"
+                    self._add_abstract_op(f"val {op_name} (x: {self_type}) (t: int) : bool")
+                else:
+                    op_name = "isinstance_check"
+                    self._add_abstract_op("val isinstance_check (x: int) (t: int) : bool")
+                return f"({op_name} {a0} {type_arg})"
             if func_name in ("set", "frozenset") and len(args) == 0:
                 self._add_abstract_op("val set_empty () : int")
                 return "(set_empty ())"
@@ -558,10 +710,16 @@ class Module6_WhyMLTranspiler:
                 self._add_abstract_op(f"val {wf}_conv (x: int) : int")
                 return f"({wf}_conv {args[0]})"
             if func_name == "hasattr":
-                self._add_abstract_op("val hasattr_check (x: int) (a: int) : bool")
                 a0 = args[0] if args else '0'
                 a1 = self._coerce_str_arg(args[1] if len(args) > 1 else '0')
-                return f"(hasattr_check {a0} {a1})"
+                self_type = getattr(self, '_current_self_type', None)
+                if a0 == "self" and self_type:
+                    op_name = f"hasattr_check_{self_type}"
+                    self._add_abstract_op(f"val {op_name} (x: {self_type}) (a: int) : bool")
+                else:
+                    op_name = "hasattr_check"
+                    self._add_abstract_op("val hasattr_check (x: int) (a: int) : bool")
+                return f"({op_name} {a0} {a1})"
             # Dotted call (method or external module function)
             if "." in func_name:
                 # Model as abstract function call — coerce string args to int
@@ -570,7 +728,7 @@ class Module6_WhyMLTranspiler:
                 coerced_args = [self._coerce_to_int(a) for a in args]
                 nargs = len(coerced_args)
                 # Include arity in name to avoid partial application conflicts
-                arity_name = f"{safe_name}_{nargs}" if nargs > 0 else safe_name
+                arity_name = f"{safe_name}_{nargs}"
                 if nargs == 0:
                     self._add_abstract_op(f"val {arity_name} () : int")
                     return f"({arity_name} ())"
@@ -586,8 +744,8 @@ class Module6_WhyMLTranspiler:
                     and func_name not in getattr(self, '_current_params', set())
                     and safe_fn not in getattr(self, '_module_func_names', set())):
                 nargs = len(coerced_args)
-                # Include arity in name to avoid conflicts
-                arity_fn = f"{safe_fn}_{nargs}" if nargs > 0 else safe_fn
+                # Always include arity in name to avoid clashes with constants
+                arity_fn = f"{safe_fn}_{nargs}"
                 if nargs == 0:
                     self._add_abstract_op(f"val {arity_fn} () : int")
                 else:
@@ -622,7 +780,8 @@ class Module6_WhyMLTranspiler:
             # Detect 2D access: a[i][j] → Subscript(Subscript(Var(a), i), j)
             if (value.get("type") == "Subscript" and
                     value.get("value", {}).get("type") == "Var" and
-                    value.get("value", {}).get("name") in getattr(self, "_array2d_params", set())):
+                    value.get("value", {}).get("name") in getattr(self, "_array2d_params", set()) and
+                    value.get("value", {}).get("name") not in getattr(self, "_dict_locals", set())):
                 base = value["value"]["name"]
                 row = self._expr_to_whyml(value["index"], local_refs, invariant_ctx, subst)
                 col = index
@@ -631,12 +790,14 @@ class Module6_WhyMLTranspiler:
             if self.memory_model == "hoare":
                 # Check if the value is a known array variable
                 var_name = value.get("name", "") if value.get("type") == "Var" else ""
-                is_array = (var_name in getattr(self, "_array2d_params", set()) or
-                            var_name in getattr(self, "_array_locals", set()) or
-                            var_name in getattr(self, "_current_array1d_params", set()))
-                if not is_array and var_name:
+                is_dict = var_name in getattr(self, "_dict_locals", set())
+                is_array = not is_dict and (
+                    var_name in getattr(self, "_array2d_params", set()) or
+                    var_name in getattr(self, "_array_locals", set()) or
+                    var_name in getattr(self, "_current_array1d_params", set()))
+                if not is_array and not is_dict and var_name:
                     st = getattr(self, "_current_symbol_table", {})
-                    if st.get(var_name) in ("list", "dict"):
+                    if st.get(var_name) == "list":
                         is_array = True
                 if is_array:
                     return f"{value_str}[{index}]"
@@ -733,7 +894,9 @@ class Module6_WhyMLTranspiler:
             return "0"
 
         elif t == "Bool":
-            return "true" if expr.get("value") else "false"
+            if getattr(self, '_in_spec', False):
+                return "true" if expr.get("value") else "false"
+            return "1" if expr.get("value") else "0"
 
         elif t == "DictLit":
             # Abstract: dictionaries modeled as opaque int values
@@ -825,6 +988,7 @@ class Module6_WhyMLTranspiler:
 
         elif s_type == "GhostAssign":
             target = stmt["target"]
+            safe_target = self._whyml_ident(target)
             op = stmt.get("op", "=")
             ghost_refs = local_refs | {target}
             val = self._expr_to_whyml(stmt["value"], ghost_refs)
@@ -837,38 +1001,43 @@ class Module6_WhyMLTranspiler:
                 if not rest_code:
                     rest_code = f"{indent}()"
                 if self._bounded_int:
-                    return f"{indent}let ghost {target} = ref ({val} : int{self._bounded_int}) in\n{rest_code}"
-                return f"{indent}let ghost {target} = ref {val} in\n{rest_code}"
+                    return f"{indent}let ghost {safe_target} = ref ({val} : int{self._bounded_int}) in\n{rest_code}"
+                return f"{indent}let ghost {safe_target} = ref {val} in\n{rest_code}"
             else:
                 # Subsequent: ghost update
                 if op == "=":
-                    code = f"{indent}ghost {target} := {val}"
+                    code = f"{indent}ghost {safe_target} := {val}"
                 elif op == "+=":
-                    code = f"{indent}ghost {target} := !{target} + {val}"
+                    code = f"{indent}ghost {safe_target} := !{safe_target} + {val}"
                 elif op == "-=":
-                    code = f"{indent}ghost {target} := !{target} - {val}"
+                    code = f"{indent}ghost {safe_target} := !{safe_target} - {val}"
                 elif op == "*=":
-                    code = f"{indent}ghost {target} := !{target} * {val}"
+                    code = f"{indent}ghost {safe_target} := !{safe_target} * {val}"
                 else:
-                    code = f"{indent}ghost {target} := {val}"
+                    code = f"{indent}ghost {safe_target} := {val}"
 
         elif s_type == "Assign":
             target = stmt["target"]
+            safe_target = self._whyml_ident(target)
             val = self._expr_to_whyml(stmt["value"], local_refs)
             
             if target not in declared_refs:
                 declared_refs.add(target)
                 # Arrays are already mutable — don't wrap in ref
                 is_array_val = val.startswith("(Array.make") or val == "(Array.make 1024 0)"
+                is_dict_val = val.startswith("(dict_new")
                 if is_array_val:
-                    code = f"{indent}let {target} = {val} in\n"
+                    code = f"{indent}let {safe_target} = {val} in\n"
                     # Track as array local (no ! deref needed)
                     self._array_locals.add(target)
+                elif is_dict_val:
+                    code = f"{indent}let {safe_target} = ref {val} in\n"
+                    self._dict_locals.add(target)
                 elif self._bounded_int:
                     # With bounded ints, annotate the initial value for type inference
-                    code = f"{indent}let {target} = ref ({val} : int{self._bounded_int}) in\n"
+                    code = f"{indent}let {safe_target} = ref ({val} : int{self._bounded_int}) in\n"
                 else:
-                    code = f"{indent}let {target} = ref {val} in\n"
+                    code = f"{indent}let {safe_target} = ref {val} in\n"
                 rest_code = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
                 
                 # NEW: WhyML requires an expression after `in`. 
@@ -879,10 +1048,11 @@ class Module6_WhyMLTranspiler:
                 return code + rest_code
             else:
                 # Standard reassignment
-                code = f"{indent}{target} := {val}"
+                code = f"{indent}{safe_target} := {val}"
                 
         elif s_type == "AugAssign":
             target = stmt["target"]
+            safe_target = self._whyml_ident(target)
             val = self._expr_to_whyml(stmt["value"], local_refs)
             raw_op = stmt["op"]
             op = self._op(raw_op)
@@ -892,35 +1062,64 @@ class Module6_WhyMLTranspiler:
             if raw_op in bitwise_ops:
                 op_fn = bitwise_ops[raw_op]
                 self._add_abstract_op(f"val {op_fn} (x: int) (y: int) : int")
-                code = f"{indent}{target} := ({op_fn} !{target} {val})"
+                code = f"{indent}{safe_target} := ({op_fn} !{safe_target} {val})"
             else:
                 # Unroll AugAssign: x += 1 becomes x := !x + 1
-                code = f"{indent}{target} := !{target} {op} {val}"
+                code = f"{indent}{safe_target} := !{safe_target} {op} {val}"
 
         elif s_type == "FieldAssign":
             obj = stmt["object"]
             field = stmt["field"]
             val = self._expr_to_whyml(stmt["value"], local_refs)
-            # Record fields are int; coerce bool values
             if val == "true":
                 val = "1"
             elif val == "false":
                 val = "0"
-            code = f"{indent}{obj}.{field} <- {val}"
+            safe_field = self._whyml_ident(field)
+            decl_fields = getattr(self, '_all_record_fields', set())
+            if field in decl_fields:
+                code = f"{indent}{obj}.{safe_field} <- {val}"
+            else:
+                hash_field = hash(field) % 2147483647
+                self_type = getattr(self, '_current_self_type', None)
+                if obj == "self" and self_type:
+                    self._add_abstract_op(f"val setattr_{self_type} (x: {self_type}) (f: int) (v: int) : unit")
+                    code = f"{indent}setattr_{self_type} {obj} {hash_field} {self._coerce_to_int(val)}"
+                else:
+                    self._add_abstract_op("val setattr_3 (x: int) (f: int) (v: int) : unit")
+                    code = f"{indent}setattr_3 {self._coerce_to_int(obj)} {hash_field} {self._coerce_to_int(val)}"
 
         elif s_type == "FieldAugAssign":
             obj = stmt["object"]
             field = stmt["field"]
             val = self._expr_to_whyml(stmt["value"], local_refs)
             op = self._op(stmt["op"])
-            code = f"{indent}{obj}.{field} <- {obj}.{field} {op} {val}"
+            safe_field = self._whyml_ident(field)
+            decl_fields = getattr(self, '_all_record_fields', set())
+            if field in decl_fields:
+                code = f"{indent}{obj}.{safe_field} <- {obj}.{safe_field} {op} {val}"
+            else:
+                hash_field = hash(field) % 2147483647
+                self_type = getattr(self, '_current_self_type', None)
+                if obj == "self" and self_type:
+                    getter = f"getattr_{self_type}"
+                    setter = f"setattr_{self_type}"
+                    self._add_abstract_op(f"val {getter} (x: {self_type}) (f: int) : int")
+                    self._add_abstract_op(f"val {setter} (x: {self_type}) (f: int) (v: int) : unit")
+                    code = f"{indent}{setter} {obj} {hash_field} (({getter} {obj} {hash_field}) {op} {self._coerce_to_int(val)})"
+                else:
+                    self._add_abstract_op("val getattr_2 (x: int) (f: int) : int")
+                    self._add_abstract_op("val setattr_3 (x: int) (f: int) (v: int) : unit")
+                    obj_str = self._coerce_to_int(obj)
+                    code = f"{indent}setattr_3 {obj_str} {hash_field} ((getattr_2 {obj_str} {hash_field}) {op} {self._coerce_to_int(val)})"
 
         elif s_type == "ArraySet":
             arr = stmt["array"]
             # Detect 2D write: a[i][j] = v → ArraySet(array=Subscript(Var(a),i), index=j, ...)
             if (arr.get("type") == "Subscript" and
                     arr.get("value", {}).get("type") == "Var" and
-                    arr.get("value", {}).get("name") in getattr(self, "_array2d_params", set())):
+                    arr.get("value", {}).get("name") in getattr(self, "_array2d_params", set()) and
+                    arr.get("value", {}).get("name") not in getattr(self, "_dict_locals", set())):
                 base = arr["value"]["name"]
                 row_expr = self._expr_to_whyml(arr["index"], local_refs)
                 col_expr = self._expr_to_whyml(stmt["index"], local_refs)
@@ -933,14 +1132,17 @@ class Module6_WhyMLTranspiler:
                 if self.memory_model == "hoare":
                     # Check if target is a known array
                     var_name = arr.get("name", "") if arr.get("type") == "Var" else ""
-                    is_array = (var_name in getattr(self, "_array2d_params", set()) or
-                                var_name in getattr(self, "_array_locals", set()) or
-                                var_name in getattr(self, "_current_array1d_params", set()))
-                    if not is_array and var_name:
+                    is_dict = var_name in getattr(self, "_dict_locals", set())
+                    is_array = not is_dict and (
+                        var_name in getattr(self, "_array2d_params", set()) or
+                        var_name in getattr(self, "_array_locals", set()) or
+                        var_name in getattr(self, "_current_array1d_params", set()))
+                    if not is_array and not is_dict and var_name:
                         st = getattr(self, "_current_symbol_table", {})
-                        if st.get(var_name) in ("list", "dict"):
+                        if st.get(var_name) == "list":
                             is_array = True
                     if is_array:
+                        val_expr = self._coerce_to_int(val_expr)
                         code = f"{indent}{array_expr}[{index_expr}] <- {val_expr}"
                     else:
                         # Non-array subscript set → abstract operation
@@ -981,7 +1183,7 @@ class Module6_WhyMLTranspiler:
                 loop_code += body_str + "\n"
             loop_code += f"{loop_indent}done"
 
-            if has_direct_ret:
+            if has_direct_ret and not in_loop:
                 # Wrap while loop + remaining statements in try…with Return r -> r end
                 rest_code = self._stmts_to_whyml(
                     rest, local_refs, declared_refs, indent + "  ", in_loop)
@@ -1005,8 +1207,13 @@ class Module6_WhyMLTranspiler:
                     val = self._expr_to_whyml(val_ir, local_refs)
             use_raise = in_loop or getattr(self, '_has_early_ret', False)
             if use_raise:
-                # Return exception expects int; coerce bool/tuple/array
-                if val == "true":
+                func_ret = getattr(self, '_func_return_type', 'int')
+                if func_ret == "unit":
+                    return f"{indent}raise Return_void"
+                # Return exception expects int; coerce bare return and bool/tuple/array
+                if val == "()":
+                    val = "0"
+                elif val == "true":
                     val = "1"
                 elif val == "false":
                     val = "0"
@@ -1068,8 +1275,9 @@ class Module6_WhyMLTranspiler:
 
         elif s_type == "For":
             target = stmt["target"]
+            safe_target = self._whyml_ident(target)
             iter_ir = stmt["iter"]
-            idx = f"_idx_{target}"
+            idx = f"_idx_{safe_target}"
             has_direct_ret = self._has_direct_return(stmt.get("body", []))
             loop_indent = (indent + "  ") if has_direct_ret else indent
             inner_indent = loop_indent + "  "
@@ -1095,14 +1303,16 @@ class Module6_WhyMLTranspiler:
             elif iter_ir.get("type") == "Var" and self.memory_model == "hoare":
                 # Check if the variable is a known array
                 var_name = iter_ir.get("name", "")
-                is_array = (var_name in getattr(self, "_array2d_params", set()) or
-                            var_name in getattr(self, "_array_locals", set()) or
-                            var_name in getattr(self, "_current_array1d_params", set()))
-                if not is_array:
-                    st = getattr(self, "_current_symbol_table", {})
-                    if st.get(var_name) in ("list", "dict"):
-                        is_array = True
                 iter_expr = self._expr_to_whyml(iter_ir, local_refs)
+                is_dict = var_name in getattr(self, "_dict_locals", set())
+                is_array = not is_dict and (
+                    var_name in getattr(self, "_array2d_params", set()) or
+                    var_name in getattr(self, "_array_locals", set()) or
+                    var_name in getattr(self, "_current_array1d_params", set()))
+                if not is_array and not is_dict:
+                    st = getattr(self, "_current_symbol_table", {})
+                    if st.get(var_name) == "list":
+                        is_array = True
                 if is_array:
                     len_expr = f"length {iter_expr}"
                     elem_expr = f"{iter_expr}[!{idx}]"
@@ -1142,12 +1352,12 @@ class Module6_WhyMLTranspiler:
 
             if has_cont:
                 while_parts.append(f"{inner_indent}try")
-                while_parts.append(f"{inner_indent}  let {target} = ref ({elem_expr}) in")
+                while_parts.append(f"{inner_indent}  let {safe_target} = ref ({elem_expr}) in")
                 while_parts.append(inner_body)
                 while_parts.append(f"{inner_indent}with PyCSL_Continue -> () end;")
             else:
                 while_parts.append(
-                    f"{inner_indent}let {target} = ref ({elem_expr}) in")
+                    f"{inner_indent}let {safe_target} = ref ({elem_expr}) in")
                 while_parts.append(inner_body + ";")
 
             while_parts.append(f"{inner_indent}{idx} := !{idx} + 1")
@@ -1160,13 +1370,17 @@ class Module6_WhyMLTranspiler:
             else:
                 idx_decl = f"{loop_indent}let {idx} = ref 0 in\n{while_code}"
 
-            if has_direct_ret and not getattr(self, '_has_early_ret', False):
-                # Wrap for-loop in try…with Return r -> r end
+            if has_direct_ret and not getattr(self, '_has_early_ret', False) and not in_loop:
+                # Wrap for-loop in try…with Return (only at top-level, not nested)
                 rest_code = self._stmts_to_whyml(
                     rest, local_refs, declared_refs, indent + "  ", in_loop)
                 inner = idx_decl
                 if rest_code:
                     inner += ";\n" + rest_code
+                func_ret = getattr(self, '_func_return_type', 'int')
+                if func_ret == "unit":
+                    return (f"{indent}try\n{inner}\n"
+                            f"{indent}with Return_void -> () end")
                 return (f"{indent}try\n{inner}\n"
                         f"{indent}with Return r -> r end")
             else:
@@ -1183,9 +1397,11 @@ class Module6_WhyMLTranspiler:
                 func = val.get("func", "")
                 if func.endswith(".append") and self.memory_model == "hoare":
                     arr_name = func.rsplit(".", 1)[0].replace(".", "_")
+                    safe_arr = self._whyml_ident(arr_name)
                     arg = self._expr_to_whyml(val["args"][0], local_refs)
-                    len_ref = f"{arr_name}_len"
-                    code = f"{indent}{arr_name}[!{len_ref}] <- {arg};\n{indent}{len_ref} := !{len_ref} + 1"
+                    arg = self._coerce_to_int(arg)
+                    len_ref = f"{safe_arr}_len"
+                    code = f"{indent}{safe_arr}[!{len_ref}] <- {arg};\n{indent}{len_ref} := !{len_ref} + 1"
                 else:
                     expr_str = self._expr_to_whyml(val, local_refs)
                     code = f"{indent}let _ = {expr_str} in ()"
@@ -1197,11 +1413,22 @@ class Module6_WhyMLTranspiler:
             # try/except → try ... with ExcType -> handler end
             body_stmts = stmt.get("body", [])
             handlers = stmt.get("handlers", [])
+            # Pre-declare variables assigned inside try/handlers that may be
+            # referenced after the try block (try creates its own scope in WhyML).
+            try_assigned = self._find_assigned_vars(body_stmts)
+            for h in handlers:
+                try_assigned |= self._find_assigned_vars(h.get("body", []))
+            pre_decls = ""
+            for var in sorted(try_assigned):
+                safe_var = self._whyml_ident(var)
+                if safe_var not in declared_refs:
+                    pre_decls += f"{indent}let {safe_var} = ref 0 in\n"
+                    declared_refs.add(safe_var)
             body_str = self._stmts_to_whyml(body_stmts, local_refs, declared_refs.copy(), indent + "  ", in_loop)
             if not body_str:
                 body_str = f"{indent}  ()"
             if handlers:
-                code = f"{indent}try\n{body_str}\n"
+                code = f"{pre_decls}{indent}try\n{body_str}\n"
                 for h in handlers:
                     exc = h.get("exc_type") or "PyCSL_Exception"
                     # Handle multi-exception (piped)
@@ -1215,7 +1442,7 @@ class Module6_WhyMLTranspiler:
                         code += f"{indent}with {ep} -> \n{handler_body}\n"
                 code += f"{indent}end"
             else:
-                code = body_str
+                code = f"{pre_decls}{body_str}"
 
         elif s_type == "Pass":
             code = f"{indent}()"
@@ -1272,20 +1499,21 @@ class Module6_WhyMLTranspiler:
         type_decls = self.ir.get("type_decls", [])
         all_bodies = [func["body"] for func in functions]
 
+        # Collect all declared record fields for FieldGet resolution
+        self._all_record_fields = set()
+        for td in type_decls:
+            if td["kind"] == "record":
+                for f in td.get("fields", []):
+                    self._all_record_fields.add(f["name"])
+
         has_list_param = any(
-            v in ("list", "dict") for func in functions
+            v == "list" for func in functions
             for v in func.get("symbol_table", {}).values()
         )
-        # In the hoare model, str-typed parameters are mapped to array int (not string),
-        # so they require use array.Array but not use string.String.
-        has_str_param = any(
-            "str" in func.get("symbol_table", {}).values()
-            for func in functions
-        )
+        # Strings are now modeled as int hashes, so str params no longer trigger array use
         needs_matrix = any(func.get("array2d_params") for func in functions)
         if self.memory_model == "hoare":
             needs_array = has_list_param or \
-                        (has_str_param) or \
                         any(self._uses_for(body) for body in all_bodies) or \
                         any(self._uses_subscript(body) for body in all_bodies) or \
                         any(self._uses_arrayset(body) for body in all_bodies)
@@ -1293,15 +1521,18 @@ class Module6_WhyMLTranspiler:
             needs_array = False  # Heap models use map.Map, not array.Array
         needs_minmax = any(self._uses_minmax(body) for body in all_bodies)
         needs_continue = any(self._uses_continue(body) for body in all_bodies)
-        needs_return_exc = any(
-            self._has_in_loop_return(func["body"]) or self._has_early_return(func["body"])
-            for func in functions)
-        # In the hoare model str params are emitted as array int, so string.String is
-        # only needed when the non-hoare model has str params or string literals appear.
-        needs_string = any(
-            (self.memory_model != "hoare" and "str" in func.get("symbol_table", {}).values())
-            for func in functions
-        ) or any(self._uses_string(func) for func in functions)
+        needs_return_exc = False
+        needs_return_void = False
+        for func in functions:
+            has_ret = self._has_in_loop_return(func["body"]) or self._has_early_return(func["body"])
+            if has_ret:
+                ret_type = self._find_return_type(func["body"])
+                if ret_type == "unit":
+                    needs_return_void = True
+                else:
+                    needs_return_exc = True
+        # Strings are modeled as int hashes, so string.String is never needed
+        needs_string = False
         needs_sum = any(self._uses_sum(func) for func in functions)
         needs_divmod = any(self._uses_divmod(body) for body in all_bodies)
         bounded_sizes = {func["bounded_int"] for func in functions if func.get("bounded_int")}
@@ -1348,6 +1579,9 @@ class Module6_WhyMLTranspiler:
         if needs_return_exc:
             out.append("")
             out.append("  exception Return int")
+        if needs_return_void:
+            out.append("")
+            out.append("  exception Return_void")
         for exc_name in sorted(user_exceptions):
             out.append(f"  exception {exc_name}")
         if needs_sum:
@@ -1377,9 +1611,11 @@ class Module6_WhyMLTranspiler:
         out.append("")
 
         # Emit record type declarations (Level 2) with optional invariants (Level 3)
+        declared_types = set()
         for td in type_decls:
             if td["kind"] == "record":
                 type_name = td["name"].lower()
+                declared_types.add(type_name)
                 field_strs = []
                 for f in td["fields"]:
                     prefix = "mutable " if f.get("mutable") else ""
@@ -1442,6 +1678,15 @@ class Module6_WhyMLTranspiler:
 
                 out.append("")
 
+        # Emit opaque type aliases for classes used in methods but not declared as records
+        for func in functions:
+            if func.get("kind") == "method" and func.get("self_type"):
+                st = func["self_type"].lower()
+                if st not in declared_types:
+                    declared_types.add(st)
+                    out.append(f"  type {st} = int")
+                    out.append("")
+
         # Collect all function names in the module so we don't create abstract vals for them
         self._module_func_names = {self._whyml_ident(func["name"]) for func in functions}
 
@@ -1460,6 +1705,7 @@ class Module6_WhyMLTranspiler:
             # Track current function's parameters for Var resolution
             self._current_params = set(symbol_table.keys()) | local_refs | ghost_vars
             self._array_locals = set()  # Reset per function
+            self._dict_locals = set()   # Reset per function
             self._current_symbol_table = symbol_table  # For type lookups in Subscript
             array2d_params = set(func.get("array2d_params", []))
             array1d_params = set(func.get("array1d_params", []))
@@ -1469,54 +1715,53 @@ class Module6_WhyMLTranspiler:
             if is_method:
                 # Method: prepend (self: <type>) as first arg, no ref_params logic
                 self_type = func["self_type"].lower()
+                self._current_self_type = self_type
                 args = list(symbol_table.keys())
                 param_parts = [f"(self: {self_type})"]
                 for arg in args:
                     if arg in local_refs or arg in ghost_vars:
                         continue
+                    safe = self._whyml_ident(arg)
                     if arg in array2d_params:
-                        param_parts.append(f"({arg}: matrix {int_type})")
-                    elif arg in array1d_params or symbol_table.get(arg) in ("list", "dict"):
+                        param_parts.append(f"({safe}: matrix {int_type})")
+                    elif arg in array1d_params or symbol_table.get(arg) == "list":
                         if self.memory_model == "hoare":
-                            param_parts.append(f"({arg}: array {int_type})")
+                            param_parts.append(f"({safe}: array {int_type})")
                         else:
-                            param_parts.append(f"({arg}: loc) ({arg}_len: int)")
+                            param_parts.append(f"({safe}: loc) ({safe}_len: int)")
                     elif symbol_table.get(arg) == "str":
-                        param_parts.append(f"({arg}: {int_type})")
+                        param_parts.append(f"({safe}: {int_type})")
                     else:
-                        param_parts.append(f"({arg}: {int_type})")
+                        param_parts.append(f"({safe}: {int_type})")
                 args_str = " ".join(param_parts)
             else:
                 # Standalone function: use existing ref_params logic for obj_* vars
+                self._current_self_type = None
                 ref_params = {v for v in symbol_table if v in local_refs and v.startswith("obj_")}
                 args = [v for v in symbol_table if (v not in local_refs or v in ref_params) and v not in ghost_vars]
 
                 def _param_type(arg: str) -> str:
+                    safe = self._whyml_ident(arg)
                     if arg in ref_params:
-                        return f"({arg}: ref {int_type})"
+                        return f"({safe}: ref {int_type})"
                     if arg in array2d_params:
-                        return f"({arg}: matrix {int_type})"
-                    if arg in array1d_params or symbol_table.get(arg) in ("list", "dict"):
+                        return f"({safe}: matrix {int_type})"
+                    if arg in array1d_params or symbol_table.get(arg) == "list":
                         if self.memory_model == "hoare":
-                            return f"({arg}: array {int_type})"
+                            return f"({safe}: array {int_type})"
                         else:
-                            return f"({arg}: loc) ({arg}_len: int)"
+                            return f"({safe}: loc) ({safe}_len: int)"
                     if symbol_table.get(arg) == "str":
-                        if is_method:
-                            return f"({arg}: {int_type})"
-                        if self.memory_model == "hoare":
-                            return f"({arg}: string)"
-                        return f"({arg}: string)"
-                    return f"({arg}: {int_type})"
+                        return f"({safe}: {int_type})"
+                    return f"({safe}: {int_type})"
 
                 args_str = " ".join(_param_type(arg) for arg in args)
 
             return_type = self._find_return_type(body_stmts)
+            self._func_return_type = return_type  # track for early return handling
             # Use explicit return annotation if body inference defaults to int
             ret_ann = func.get("return_annotation")
-            if ret_ann == "str" and return_type == "int" and not is_method:
-                return_type = "string"
-            elif ret_ann == "list" and return_type == "int":
+            if ret_ann == "list" and return_type == "int":
                 return_type = "array int"
             # Bounded integers: replace int with intN in return type
             if bounded_int and return_type == "int":
@@ -1584,7 +1829,7 @@ class Module6_WhyMLTranspiler:
                 out.append("    diverges")
             # Exception specification from #@ raises contracts and body analysis
             raises_contracts = contracts.get("raises", [])
-            func_exceptions = self._collect_user_exceptions(body_stmts)
+            func_exceptions = self._collect_escaping_exceptions(body_stmts)
             if raises_contracts:
                 for rc in raises_contracts:
                     cond_str = self._expr_to_whyml(rc["condition"], spec_refs)
@@ -1610,21 +1855,47 @@ class Module6_WhyMLTranspiler:
 
             # Body — set flag for early returns
             self._has_early_ret = self._has_early_return(body_stmts)
+            # Pre-declare ALL local ref variables at function entry to avoid
+            # WhyML scoping issues (variables first assigned inside if/while/for/try
+            # branches would be scoped to that branch otherwise).
+            body_array_vars, body_dict_vars = self._find_array_and_dict_vars(body_stmts)
+            pre_decl_vars = set()
+            for v in local_refs:
+                if v in ghost_vars:
+                    continue
+                if not is_method and v in (ref_params if not is_method else set()):
+                    continue
+                # Skip array/dict vars — they need special declarations
+                if v in body_array_vars or v in body_dict_vars:
+                    continue
+                pre_decl_vars.add(v)
+            # Mark all pre-declared vars as already declared
             if is_method:
-                body_code = self._stmts_to_whyml(body_stmts, local_refs | {f"{t}_len" for t in append_targets}, set(), "    ")
+                initial_declared = {self._whyml_ident(v) for v in pre_decl_vars}
             else:
-                ref_params_set = ref_params if not is_method else set()
-                body_code = self._stmts_to_whyml(body_stmts, local_refs | {f"{t}_len" for t in append_targets}, set(ref_params_set), "    ")
+                initial_declared = set(ref_params) | {self._whyml_ident(v) for v in pre_decl_vars}
+            if is_method:
+                body_code = self._stmts_to_whyml(body_stmts, local_refs | {f"{t}_len" for t in append_targets}, initial_declared, "    ")
+            else:
+                body_code = self._stmts_to_whyml(body_stmts, local_refs | {f"{t}_len" for t in append_targets}, initial_declared, "    ")
+            # Prepend ref declarations for pre-declared vars (non-array, non-dict)
+            for var in sorted(pre_decl_vars):
+                safe_var = self._whyml_ident(var)
+                if bounded_int:
+                    body_code = f"    let {safe_var} = ref (0 : int{bounded_int}) in\n{body_code}"
+                else:
+                    body_code = f"    let {safe_var} = ref 0 in\n{body_code}"
 
             # Prepend length ref declarations for append targets
             for tgt in sorted(append_targets):
+                safe_tgt = self._whyml_ident(tgt)
                 if bounded_int:
-                    body_code = f"    let {tgt}_len = ref (0 : int{bounded_int}) in\n{body_code}"
+                    body_code = f"    let {safe_tgt}_len = ref (0 : int{bounded_int}) in\n{body_code}"
                 else:
-                    body_code = f"    let {tgt}_len = ref 0 in\n{body_code}"
+                    body_code = f"    let {safe_tgt}_len = ref 0 in\n{body_code}"
                 # If this target is not a parameter, declare the array too
                 if tgt not in local_refs and tgt not in (ref_params if not is_method else set()):
-                    body_code = f"    let {tgt} = Array.make 1024 0 in\n{body_code}"
+                    body_code = f"    let {safe_tgt} = Array.make 1024 0 in\n{body_code}"
                     self._array_locals.add(tgt)
             # Empty bodies (from `pass`-only functions) must emit `()` — the
             # WhyML unit value — so the parser doesn't treat the next `let` as
@@ -1633,7 +1904,10 @@ class Module6_WhyMLTranspiler:
                 body_code = "    ()"
             # Wrap entire function body in try/catch for early returns
             if self._has_early_ret:
-                body_code = f"    try\n{body_code}\n    with Return r -> r end"
+                if return_type == "unit":
+                    body_code = f"    try\n{body_code}\n    with Return_void -> () end"
+                else:
+                    body_code = f"    try\n{body_code}\n    with Return r -> r end"
             out.append(body_code)
             out.append("")
 
