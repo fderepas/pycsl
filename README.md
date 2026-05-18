@@ -345,6 +345,9 @@ is stored under `metrics/`.
 
 # Start at test 200 (skip 0001–0199)
 ./bin/run-reference-tests.sh --start-at 200
+
+# Run only tests 194 to 195 inclusive
+./bin/run-reference-tests.sh --start-at 194 --stop-at 195
 ```
 
 Tests support `# pycsl-flags: ...` (extra CLI flags) and

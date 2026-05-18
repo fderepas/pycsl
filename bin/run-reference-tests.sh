@@ -2,8 +2,10 @@
 # Run pycsl on all Python test files in test-suite/corpus/pycsl-reference/ and report results.
 #
 # Usage:
-#   run-reference-tests.sh                # run all tests
-#   run-reference-tests.sh --start-at N   # skip tests before number N (e.g. 200 → start at 0200.py)
+#   run-reference-tests.sh                        # run all tests
+#   run-reference-tests.sh --start-at N           # skip tests before number N
+#   run-reference-tests.sh --stop-at N            # stop after test number N
+#   run-reference-tests.sh --start-at N --stop-at M  # run tests from N to M inclusive
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -11,15 +13,34 @@ TEST_DIR="$PROJECT_ROOT/test-suite/corpus/pycsl-reference"
 PYCSL="python3 $PROJECT_ROOT/src/pycsl/pycsl.py"
 
 START_AT=0
-if [[ "${1:-}" == "--start-at" ]]; then
-    if [[ -z "${2:-}" ]]; then
-        echo "ERROR: --start-at requires a number"
-        echo "Usage: $0 [--start-at N]"
-        exit 1
-    fi
-    START_AT="$2"
-    shift 2
-fi
+STOP_AT=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --start-at)
+            if [[ -z "${2:-}" ]]; then
+                echo "ERROR: --start-at requires a number"
+                echo "Usage: $0 [--start-at N] [--stop-at N]"
+                exit 1
+            fi
+            START_AT="$2"
+            shift 2
+            ;;
+        --stop-at)
+            if [[ -z "${2:-}" ]]; then
+                echo "ERROR: --stop-at requires a number"
+                echo "Usage: $0 [--start-at N] [--stop-at N]"
+                exit 1
+            fi
+            STOP_AT="$2"
+            shift 2
+            ;;
+        *)
+            echo "ERROR: unknown option '$1'"
+            echo "Usage: $0 [--start-at N] [--stop-at N]"
+            exit 1
+            ;;
+    esac
+done
 
 if [ -f "$PROJECT_ROOT/.venv/bin/activate" ]; then
     source "$PROJECT_ROOT/.venv/bin/activate"
@@ -43,6 +64,11 @@ for py_file in "$TEST_DIR"/0*.py; do
     file_num="${file_num:-0}"
     if [[ "$file_num" -lt "$START_AT" ]]; then
         continue
+    fi
+
+    # Stop after --stop-at threshold
+    if [[ -n "$STOP_AT" && "$file_num" -gt "$STOP_AT" ]]; then
+        break
     fi
 
     # Extract extra flags from "# pycsl-flags: ..." comment in the file
