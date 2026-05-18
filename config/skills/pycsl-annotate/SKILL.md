@@ -68,13 +68,13 @@ Add PEP 484 type hints to **all** function parameters and return types, even if 
 
 **Quantifiers:** Write `\forall i; body` and `\exists i; body` (the alias `\exist` without trailing `s` is accepted). The bound variable `i` ranges over integers; write the range as part of the body using `==>`:
 
-```
+```python
 #@ requires \forall i; 0 <= i and i < n ==> arr[i] >= 0
 ```
 
 Quantifiers may appear at the top level of an expression **or** as the right-hand side of `==>`, `and`, and `or` without parentheses:
 
-```
+```python
 #@ loop invariant found == 0 ==> \exists j; i <= j and j < n and arr[j] == target
 ```
 
@@ -100,7 +100,7 @@ The memory model is selected globally and affects all functions in a file. Defau
 
 **`#@ label L`** (Phase 5) — Marks a program point. Place immediately before any Python statement (no blank lines). The label scope extends to the end of the function. Reference with `\at(expr, L)`:
 
-```
+```python
 #@ label PRE
 ... code ...
 #@ ensures arr[i] == \at(arr[i], PRE)
@@ -110,7 +110,7 @@ In hoare: `(expr at L)`. In typed/store: `Map.get (int_mem at L) (arr + i)` for 
 
 **`#@ ghost <name> = <expr>`** (Phase 5) — Ghost variable for verification only. Place before any statement, including inside loop bodies. First occurrence declares; subsequent update. Use in invariants to track iteration counts, sums, or history.
 
-```
+```python
 #@ ghost count = 0
 #@ loop invariant count == i
 while i < n:

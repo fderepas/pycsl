@@ -7,7 +7,7 @@ description: Developer guide for the PyCSL formal verification pipeline. Covers 
 
 ## 1. Project Directory Layout
 
-```
+```text
 PyCSL/
 ├── bin/                        ← Launcher scripts and utilities
 ├── config/
@@ -87,7 +87,7 @@ PyCSL/
 
 ## 3. Pipeline Architecture
 
-```
+```text
 Python file (.py)
     │
     ▼
@@ -129,7 +129,7 @@ Why3 / Alt-Ergo     ← SMT solver proves or rejects the goals
 
 ### Annotation Pipeline (per file)
 
-```
+```text
 agent-splitter.py
     ├── Step 1: Extract functions, build call graph
     ├── Step 2: Filter annotatable (skip __dunder__, @property)
@@ -145,7 +145,7 @@ agent-splitter.py
 
 ### Coordinator Loop (per file, up to 10 retries)
 
-```
+```text
 coordinator.py
     ├── agent-annotate.py       → produces annotated .py in tests/annotated/
     ├── pycsl (proof)           → exit 0 = pass, exit 1 = fail
@@ -236,7 +236,7 @@ The authoritative document listing all PyCSL annotations. Numbered sections and 
 
 Maps each annotation reference item (e.g., `2.3.1`) to test IDs:
 
-```
+```text
 | 2.3.1 | Class invariant | 0006, 0076, 0077 | PASS |
 ```
 

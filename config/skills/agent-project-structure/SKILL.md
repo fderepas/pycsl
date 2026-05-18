@@ -28,7 +28,7 @@ Apply this layout when any of the following is true:
 
 ## Recommended tree
 
-```
+```text
 my_project/
 ├── config/                        ← all project + agent configuration
 │   ├── settings.json              ← project-level agent settings
@@ -227,7 +227,7 @@ of a pre-built index. Four reasons this separation is the right call:
 
 The data flow is one-directional and reproducible:
 
-```
+```text
 config/skills/**/SKILL.md          ─┐
 config/skills/**/references/*.md   ─┼──→ src/my_project/indexing/index_skills.py
                                     │           │
@@ -271,7 +271,7 @@ pipeline). Even then, treat the bundled index as a cache the runtime may
 or may not use, place it in a clearly-named `index/` subfolder, and tag
 the subfolder with the embedding model:
 
-```
+```text
 pycsl-annotate/
 ├── SKILL.md
 ├── references/

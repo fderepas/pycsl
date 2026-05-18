@@ -22,7 +22,7 @@ You are a senior software engineer performing code review. Your job is to descri
 
 Return your answer in this exact format:
 
-```
+```text
 DESCRIPTION: <what the function does>
 RETURN VALUE: <type and properties of the return value>
 PRECONDITIONS: <what must be true before calling, or "None">

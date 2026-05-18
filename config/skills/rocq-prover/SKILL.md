@@ -251,7 +251,7 @@ Completed proofs are stored in `<file>.proofs/` directories alongside the
 Python source. When pycsl runs, it auto-detects these directories and
 **replays** each proof with `coqc` for full verification.
 
-```
+```text
 myfile.py                               # Python source
 myfile.proofs/
   myfile.mlw                            # Frozen WhyML (staleness check)

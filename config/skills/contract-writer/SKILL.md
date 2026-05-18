@@ -63,7 +63,7 @@ When the CLASS CONTEXT includes `#@ class invariant <expr>`, every method must p
 
 ### Example: BankAccount with `#@ class invariant self._balance >= 0`
 
-```
+```python
 # deposit: adds money, invariant trivially preserved
 #@ requires amount >= 0
 #@ ensures self._balance == \old(self._balance) + amount
@@ -83,7 +83,7 @@ When the CLASS CONTEXT includes `#@ class invariant <expr>`, every method must p
 
 ### Example: Interval with `#@ class invariant self._lo <= self._hi`
 
-```
+```python
 # set_bounds: must ensure lo <= hi
 #@ requires lo <= hi
 #@ ensures self._lo == lo
@@ -107,7 +107,7 @@ Same as TYPED. Use `\valid`, `\separated`, `\assigns arr[0..n]`, `\old(arr[i])`.
 Output ONLY the contract lines (each starting with `#@`), one per line. Do NOT output the function body, do NOT output ```python fences, do NOT add commentary.
 
 Example output:
-```
+```python
 #@ requires n >= 0
 #@ ensures \result >= 0
 #@ ensures \result <= n
