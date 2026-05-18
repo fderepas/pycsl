@@ -258,8 +258,8 @@ Quantifiers may appear inside any contract expression (`requires`, `ensures`,
 `loop invariant`) and can be nested.  The bound variable is excluded from
 scope checking — only the free variables in the body must be in scope.
 
-**Not supported in contracts:** `//`, `%`, `len(...)`, function calls,
-`True`/`False`/`None`.
+**Not supported in contracts:** `len(...)` (use `\length`), list comprehensions,
+`if`/`else` ternary.
 
 ### String Literals
 
@@ -336,6 +336,19 @@ manually if callers need their contracts.
 
 The `<file-stem>` argument is the filename without extension, matching what
 is stored under `metrics/`.
+
+### Run reference tests
+
+```bash
+# Run all reference tests in test-suite/corpus/pycsl-reference/
+./bin/run-reference-tests.sh
+
+# Start at test 200 (skip 0001–0199)
+./bin/run-reference-tests.sh --start-at 200
+```
+
+Tests support `# pycsl-flags: ...` (extra CLI flags) and
+`# pycsl-expected: FAIL` (expected-failure) directives in file headers.
 
 ### Output locations
 
