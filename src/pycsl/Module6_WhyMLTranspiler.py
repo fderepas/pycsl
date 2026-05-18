@@ -705,7 +705,7 @@ class Module6_WhyMLTranspiler:
                         var_name in getattr(self, "_current_array1d_params", set()))
                     if not is_array and not is_dict and var_name:
                         st = getattr(self, "_current_symbol_table", {})
-                        if st.get(var_name) == "list":
+                        if st.get(var_name) in ("list", "dict"):
                             is_array = True
                     if is_array:
                         return f"(length {args[0]})"
@@ -746,7 +746,7 @@ class Module6_WhyMLTranspiler:
                             var_name in getattr(self, "_current_array1d_params", set()))
                 if not is_array and var_name:
                     st = getattr(self, "_current_symbol_table", {})
-                    if st.get(var_name) == "list":
+                    if st.get(var_name) in ("list", "dict"):
                         is_array = True
                 # Also detect inline array expressions: BinOp("*", ArrayLit, ...) or ArrayLit
                 if not is_array:
@@ -860,7 +860,7 @@ class Module6_WhyMLTranspiler:
                     var_name in getattr(self, "_current_array1d_params", set()))
                 if not is_array and not is_dict and var_name:
                     st = getattr(self, "_current_symbol_table", {})
-                    if st.get(var_name) == "list":
+                    if st.get(var_name) in ("list", "dict"):
                         is_array = True
                 if is_array:
                     return f"{value_str}[{index}]"
@@ -1266,7 +1266,7 @@ class Module6_WhyMLTranspiler:
                         var_name in getattr(self, "_current_array1d_params", set()))
                     if not is_array and not is_dict and var_name:
                         st = getattr(self, "_current_symbol_table", {})
-                        if st.get(var_name) == "list":
+                        if st.get(var_name) in ("list", "dict"):
                             is_array = True
                     if is_array:
                         val_expr = self._coerce_to_int(val_expr)
@@ -1450,7 +1450,7 @@ class Module6_WhyMLTranspiler:
                     var_name in getattr(self, "_current_array1d_params", set()))
                 if not is_array and not is_dict:
                     st = getattr(self, "_current_symbol_table", {})
-                    if st.get(var_name) == "list":
+                    if st.get(var_name) in ("list", "dict"):
                         is_array = True
                 if is_array:
                     len_expr = f"length {iter_expr}"
@@ -1679,7 +1679,7 @@ class Module6_WhyMLTranspiler:
                     self._all_record_fields.add(f["name"])
 
         has_list_param = any(
-            v == "list" for func in functions
+            v in ("list", "dict") for func in functions
             for v in func.get("symbol_table", {}).values()
         )
         # Strings are now modeled as int hashes, so str params no longer trigger array use
@@ -1900,7 +1900,7 @@ class Module6_WhyMLTranspiler:
                     safe = self._whyml_ident(arg)
                     if arg in array2d_params:
                         param_parts.append(f"({safe}: matrix {int_type})")
-                    elif arg in array1d_params or symbol_table.get(arg) == "list":
+                    elif arg in array1d_params or symbol_table.get(arg) in ("list", "dict"):
                         if self.memory_model == "hoare":
                             param_parts.append(f"({safe}: array {int_type})")
                         else:
@@ -1922,7 +1922,7 @@ class Module6_WhyMLTranspiler:
                         return f"({safe}: ref {int_type})"
                     if arg in array2d_params:
                         return f"({safe}: matrix {int_type})"
-                    if arg in array1d_params or symbol_table.get(arg) == "list":
+                    if arg in array1d_params or symbol_table.get(arg) in ("list", "dict"):
                         if self.memory_model == "hoare":
                             return f"({safe}: array {int_type})"
                         else:

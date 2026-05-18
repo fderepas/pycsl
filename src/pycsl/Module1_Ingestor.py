@@ -132,23 +132,23 @@ class PyCSLVisitor(cst.CSTVisitor):
             )
 
     def visit_SimpleStatementLine(self, node: cst.SimpleStatementLine) -> None:
-        """Detect #@ label L annotations before simple statements."""
+        """Detect #@ annotations before simple statements (label, ghost, etc.)."""
+        contracts = []
         for line in node.leading_lines:
             if isinstance(line, cst.EmptyLine) and line.comment:
                 comment_str = line.comment.value
-                if comment_str.startswith("#@") and "label" in comment_str:
-                    clean = comment_str[2:].strip()
-                    parts = clean.split()
-                    if len(parts) == 2 and parts[0] == "label":
-                        pos = self.get_metadata(PositionProvider, node).start
-                        self.extracted_nodes.append(
-                            PyCSLContract(
-                                node_type="Label",
-                                node_name=parts[1],
-                                line_number=pos.line,
-                                contracts=[clean]
-                            )
-                        )
+                if comment_str.startswith("#@"):
+                    contracts.append(comment_str[2:].strip())
+        if contracts:
+            pos = self.get_metadata(PositionProvider, node).start
+            self.extracted_nodes.append(
+                PyCSLContract(
+                    node_type="SimpleStatement",
+                    node_name="<statement>",
+                    line_number=pos.line,
+                    contracts=contracts
+                )
+            )
 
 # ---------------------------------------------------------
 # 3. The Ingestion Engine

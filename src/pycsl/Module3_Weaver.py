@@ -5,7 +5,8 @@ from dataclasses import dataclass
 # Import the AST nodes from Module 2
 from Module2_Parser import (
     CSLNode, Requires, Ensures, Assigns, LoopInvariant, LoopVariant,
-    ClassInvariant, Label as CSLLabel, FunctionVariant, Diverges, Trusted
+    ClassInvariant, Label as CSLLabel, FunctionVariant, Diverges, Trusted,
+    GhostAssignDecl, RaisesDecl, BoundedIntDecl
 )
 from Module1_Ingestor import PyCSLContract
 
@@ -30,6 +31,8 @@ class PyCSLWeaver(ast.NodeVisitor):
         node.csl_function_variants = []
         node.csl_diverges = False
         node.csl_trusted = False
+        node.csl_raises = []
+        node.csl_bounded_int = None
 
         # In standard `ast`, node.lineno points to the 'def' keyword.
         # We check if we have any parsed contracts for this line.
@@ -48,6 +51,10 @@ class PyCSLWeaver(ast.NodeVisitor):
                     node.csl_diverges = True
                 elif isinstance(c, Trusted):
                     node.csl_trusted = True
+                elif isinstance(c, RaisesDecl):
+                    node.csl_raises.append(c)
+                elif isinstance(c, BoundedIntDecl):
+                    node.csl_bounded_int = c.size
 
         if node.csl_function_variants and node.csl_diverges:
             raise ValueError(
@@ -74,6 +81,7 @@ class PyCSLWeaver(ast.NodeVisitor):
         # Initialize the custom PyCSL fields
         node.csl_invariants = []
         node.csl_variants = []
+        node.csl_ghost_assigns = []
 
         if node.lineno in self.contracts_map:
             contracts = self.contracts_map[node.lineno]
@@ -82,6 +90,8 @@ class PyCSLWeaver(ast.NodeVisitor):
                     node.csl_invariants.append(c)
                 elif isinstance(c, LoopVariant):
                     node.csl_variants.append(c)
+                elif isinstance(c, GhostAssignDecl):
+                    node.csl_ghost_assigns.append(c)
 
         self.generic_visit(node)
 
@@ -89,6 +99,7 @@ class PyCSLWeaver(ast.NodeVisitor):
         """Attach loop_invariant and loop_variant contracts to for loops."""
         node.csl_invariants = []
         node.csl_variants = []
+        node.csl_ghost_assigns = []
 
         if node.lineno in self.contracts_map:
             contracts = self.contracts_map[node.lineno]
@@ -97,6 +108,8 @@ class PyCSLWeaver(ast.NodeVisitor):
                     node.csl_invariants.append(c)
                 elif isinstance(c, LoopVariant):
                     node.csl_variants.append(c)
+                elif isinstance(c, GhostAssignDecl):
+                    node.csl_ghost_assigns.append(c)
 
         self.generic_visit(node)
 
@@ -135,16 +148,24 @@ class Module3_Weaver:
         # Step 4: Attach label nodes to their target statement nodes.
         # Labels appear in contracts_map keyed by the line of the labeled statement.
         labels_by_line: Dict[int, List[str]] = {}
+        ghost_assigns_by_line: Dict[int, List] = {}
         for line, nodes in contracts_map.items():
             names = [n.name for n in nodes if isinstance(n, CSLLabel)]
             if names:
                 labels_by_line[line] = names
+            ghosts = [n for n in nodes if isinstance(n, GhostAssignDecl)]
+            if ghosts:
+                ghost_assigns_by_line[line] = ghosts
 
-        if labels_by_line:
+        if labels_by_line or ghost_assigns_by_line:
             for ast_node in ast.walk(python_ast):
                 if isinstance(ast_node, ast.stmt) and hasattr(ast_node, 'lineno'):
                     labels = labels_by_line.get(ast_node.lineno)
                     if labels:
                         ast_node.csl_labels = labels
+                    ghosts = ghost_assigns_by_line.get(ast_node.lineno)
+                    if ghosts:
+                        existing = getattr(ast_node, 'csl_ghost_assigns', [])
+                        ast_node.csl_ghost_assigns = existing + ghosts
 
         return python_ast

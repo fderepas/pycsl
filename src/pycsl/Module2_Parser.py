@@ -205,6 +205,24 @@ class Sum(CSLNode):
     lo: CSLNode
     hi: CSLNode
 
+@dataclass
+class GhostAssignDecl(CSLNode):
+    """Represents `ghost var = expr` or `ghost var += expr` in contracts."""
+    target: str
+    value: CSLNode
+    op: str  # "=" or "+=" or "-=" or "*="
+
+@dataclass
+class RaisesDecl(CSLNode):
+    """Represents `raises ExcType when condition` in contracts."""
+    exc_type: str
+    condition: CSLNode
+
+@dataclass
+class BoundedIntDecl(CSLNode):
+    """Represents `assumes bounded_int(N)` in contracts."""
+    size: int
+
 # ---------------------------------------------------------
 # 2. The EBNF Grammar
 # ---------------------------------------------------------
@@ -223,6 +241,10 @@ PYCSL_GRAMMAR = r"""
              | function_variant_structural
              | diverges_decl
              | trusted_decl
+             | ghost_assign
+             | ghost_aug_assign
+             | raises_decl
+             | bounded_int_decl
 
     precondition: "requires" expr
     postcondition: "ensures" expr
@@ -244,6 +266,10 @@ PYCSL_GRAMMAR = r"""
     function_variant_structural: "\\variant" "(" expr "," CNAME ")"
     diverges_decl: "\\diverges"
     trusted_decl: "\\trusted"
+    ghost_assign: "ghost" CNAME "=" expr
+    ghost_aug_assign: "ghost" CNAME GHOST_AUG_OP expr
+    raises_decl: "raises" CNAME "when" expr
+    bounded_int_decl: "assumes" "bounded_int" "(" NUMBER ")"
 
     // Expression hierarchy (handles operator precedence and left-recursion)
     // Quantifiers can appear at top level or as the RHS of ==>, and, or.
@@ -287,6 +313,10 @@ PYCSL_GRAMMAR = r"""
          | "None" -> none_lit
          | "self" "." CNAME -> field_access
          | "\\result" "[" expr "]" -> result_subscript
+         | "\\is_sorted" "(" CNAME "," expr "," expr ")" -> is_sorted_expr
+         | "\\sum" "(" CNAME "," expr "," expr ")" -> sum_expr
+         | CNAME "(" expr_list ")" -> call_expr
+         | CNAME "(" ")" -> call_expr_noargs
          | CNAME "[" expr ":" expr "]" -> slice_access
          | CNAME "[" expr "]" -> subscript_access
          | CNAME -> var
@@ -312,6 +342,7 @@ PYCSL_GRAMMAR = r"""
     MUL_OP: "*" | "//" | "/" | "%"
     UNARY_OP: "not" | "-" | "+"
     RANGE_OP: ".."
+    GHOST_AUG_OP: "+=" | "-=" | "*="
 
     %import common.CNAME
     %import common.INT -> NUMBER
@@ -346,6 +377,10 @@ class PyCSLTransformer(Transformer):
     def function_variant_structural(self, expr, ordering): return FunctionVariant(expr, str(ordering))
     def diverges_decl(self): return Diverges()
     def trusted_decl(self): return Trusted()
+    def ghost_assign(self, name, expr): return GhostAssignDecl(str(name), expr, "=")
+    def ghost_aug_assign(self, name, op, expr): return GhostAssignDecl(str(name), expr, str(op))
+    def raises_decl(self, exc_type, condition): return RaisesDecl(str(exc_type), condition)
+    def bounded_int_decl(self, size): return BoundedIntDecl(int(size))
 
     # Quantifiers
     def forall_expr(self, var, body): return Forall(str(var), body)
@@ -389,6 +424,12 @@ class PyCSLTransformer(Transformer):
     # Membership
     def in_expr(self, element, collection): return CSLIn(element, collection)
     def not_in_expr(self, element, collection): return CSLNotIn(element, collection)
+    
+    # Function calls and built-in predicates
+    def call_expr(self, name, args): return CallExpr(str(name), args if isinstance(args, list) else [args])
+    def call_expr_noargs(self, name): return CallExpr(str(name), [])
+    def is_sorted_expr(self, base, lo, hi): return IsSorted(str(base), lo, hi)
+    def sum_expr(self, base, lo, hi): return Sum(str(base), lo, hi)
     
     def expr_list(self, *exprs): return list(exprs)
 

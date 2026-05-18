@@ -202,6 +202,11 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
                         if child.annotation else "Any"
                     )
 
+        # 3. Add ghost variables to scope
+        for child in ast.walk(node):
+            for ga in getattr(child, 'csl_ghost_assigns', []):
+                self.current_scope[ga.target] = "int"
+
         # 4. Validate Function Contracts
         for req in getattr(node, 'csl_requires', []):
             self._validate_contract(req, self.current_function_name, is_postcondition=False)
