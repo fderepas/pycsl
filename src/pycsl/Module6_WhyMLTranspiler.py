@@ -14,6 +14,8 @@ class Module6_WhyMLTranspiler:
         self._current_params: set = set()  # Parameters of current function being transpiled
         self._array_locals: set = set()    # Local array variables (no ! deref needed)
         self._dict_locals: set = set()     # Local dict variables (not real arrays)
+        self._record_types: dict = {}      # class_name_lower → {fields: [...], defaults: {...}}
+        self._record_locals: set = set()   # Local variables holding record instances
         # Maps Python/IR operators to WhyML operators
         self.op_map = {
             "==": "=",   # WhyML equality is single =
@@ -319,6 +321,27 @@ class Module6_WhyMLTranspiler:
                     lambda_vars |= self._find_lambda_vars(c.get("body", []))
         return lambda_vars
 
+    def _find_record_vars(self, stmts: List[Dict[str, Any]]) -> Set[str]:
+        """Find variables assigned a record constructor call (ClassName())."""
+        record_vars = set()
+        for stmt in stmts:
+            if stmt.get("stmt") == "Assign":
+                val = stmt.get("value", {})
+                if (isinstance(val, dict) and val.get("type") == "Call" and
+                        val.get("func", "") in self._record_types):
+                    record_vars.add(stmt.get("target", ""))
+            for key in ("body", "orelse"):
+                if key in stmt and isinstance(stmt[key], list):
+                    record_vars |= self._find_record_vars(stmt[key])
+            if stmt.get("stmt") == "While":
+                record_vars |= self._find_record_vars(stmt.get("body", []))
+            if stmt.get("stmt") == "For":
+                record_vars |= self._find_record_vars(stmt.get("body", []))
+            if stmt.get("stmt") == "Match":
+                for c in stmt.get("cases", []):
+                    record_vars |= self._find_record_vars(c.get("body", []))
+        return record_vars
+
     def _has_continue(self, stmts: List[Dict[str, Any]]) -> bool:
         """Check if statements contain a Continue node (not crossing For/While boundaries)."""
         for stmt in stmts:
@@ -607,6 +630,9 @@ class Module6_WhyMLTranspiler:
             # Lambda locals don't need dereference (let-bound, not ref)
             if name in getattr(self, '_lambda_locals', set()):
                 return self._whyml_ident(name)
+            # Record locals don't need dereference (let-bound record, not ref)
+            if name in getattr(self, '_record_locals', set()):
+                return self._whyml_ident(name)
             # If it's a local mutable variable, we must dereference it with '!'
             if name in local_refs:
                 return f"!{self._whyml_ident(name)}"
@@ -854,6 +880,15 @@ class Module6_WhyMLTranspiler:
                     params = " ".join(f"(x{i}: int)" for i in range(nargs))
                     self._add_abstract_op(f"val {arity_name} {params} : int")
                     return f"({arity_name} {' '.join(coerced_args)})"
+            # Record constructor: ClassName() → { field1 = default1; ... }
+            if func_name in self._record_types and len(args) == 0:
+                rec_info = self._record_types[func_name]
+                fields = rec_info["fields"]
+                defaults = rec_info["defaults"]
+                field_inits = "; ".join(
+                    f"{fn} = {defaults.get(fn, 0)}" for fn in fields
+                )
+                return f"{{ {field_inits} }}"
             # Coerce args for non-dotted abstract calls too
             coerced_args = [self._coerce_to_int(a) for a in args]
             safe_fn = self._whyml_ident(func_name)
@@ -1004,6 +1039,12 @@ class Module6_WhyMLTranspiler:
             if isinstance(obj_ir, str):
                 # Legacy format: object is a plain string
                 return f"(get_{attr} {obj_ir})"
+            # Record field access: if obj is a record local, use direct field access
+            if obj_ir.get("type") == "Var":
+                var_name = obj_ir.get("name", "")
+                if var_name in self._record_locals:
+                    safe_var = self._whyml_ident(var_name)
+                    return f"{safe_var}.{attr}"
             obj_str = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
             self._add_abstract_op(f"val get_{attr} (x: int) : int")
             return f"(get_{attr} {obj_str})"
@@ -1174,7 +1215,13 @@ class Module6_WhyMLTranspiler:
                 is_dict_val = val.startswith("(dict_new")
                 is_lambda_val = (stmt.get("value", {}).get("type") == "Lambda")
                 is_slice_val = (stmt.get("value", {}).get("type") == "SliceAccess")
-                if is_lambda_val:
+                # Record constructor: a = ClassName() → let a = { ... } in
+                is_record_val = (stmt.get("value", {}).get("type") == "Call" and
+                                 stmt.get("value", {}).get("func", "") in self._record_types)
+                if is_record_val:
+                    code = f"{indent}let {safe_target} = {val} in\n"
+                    self._record_locals.add(target)
+                elif is_lambda_val:
                     code = f"{indent}let {safe_target} = {val} in\n"
                     self._lambda_locals.add(target)
                 elif is_array_val or is_slice_val:
@@ -1869,6 +1916,12 @@ class Module6_WhyMLTranspiler:
             if td["kind"] == "record":
                 type_name = td["name"].lower()
                 declared_types.add(type_name)
+                # Store record info for constructor/field-access recognition
+                self._record_types[td["name"]] = {
+                    "whyml_name": type_name,
+                    "fields": [f["name"] for f in td["fields"]],
+                    "defaults": td.get("field_defaults", {}),
+                }
                 field_strs = []
                 for f in td["fields"]:
                     prefix = "mutable " if f.get("mutable") else ""
@@ -1960,6 +2013,7 @@ class Module6_WhyMLTranspiler:
             self._array_locals = set()  # Reset per function
             self._dict_locals = set()   # Reset per function
             self._lambda_locals = set()  # Reset per function
+            self._record_locals = set()  # Reset per function
             self._current_symbol_table = symbol_table  # For type lookups in Subscript
             array2d_params = set(func.get("array2d_params", []))
             array1d_params = set(func.get("array1d_params", []))
@@ -2114,14 +2168,18 @@ class Module6_WhyMLTranspiler:
             # branches would be scoped to that branch otherwise).
             body_array_vars, body_dict_vars = self._find_array_and_dict_vars(body_stmts)
             body_lambda_vars = self._find_lambda_vars(body_stmts)
+            # Find variables assigned record constructors
+            body_record_vars = self._find_record_vars(body_stmts)
             pre_decl_vars = set()
             for v in local_refs:
                 if v in ghost_vars:
                     continue
                 if not is_method and v in (ref_params if not is_method else set()):
                     continue
-                # Skip array/dict/lambda vars — they need special declarations
+                # Skip array/dict/lambda/record vars — they need special declarations
                 if v in body_array_vars or v in body_dict_vars or v in body_lambda_vars:
+                    continue
+                if v in body_record_vars:
                     continue
                 pre_decl_vars.add(v)
             # Mark all pre-declared vars as already declared
