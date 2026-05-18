@@ -11,31 +11,31 @@ def CSLNode() -> int:
 
 #@ \trusted
 #@ ensures \result >= 0
-def Requires(expr: int) -> int:
+def CSLRequires(expr: int) -> int:
     """Mock: create a Requires node."""
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
-def Ensures(expr: int) -> int:
+def CSLEnsures(expr: int) -> int:
     """Mock: create an Ensures node."""
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
-def Assigns(targets: int) -> int:
+def CSLAssigns(targets: int) -> int:
     """Mock: create an Assigns node."""
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
-def LoopInvariant(expr: int) -> int:
+def CSLLoopInvariant(expr: int) -> int:
     """Mock: create a LoopInvariant node."""
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
-def LoopVariant(expr: int) -> int:
+def CSLLoopVariant(expr: int) -> int:
     """Mock: create a LoopVariant node."""
     return 0
 
@@ -53,7 +53,7 @@ def UnaryOp(op: int, expr: int) -> int:
 
 #@ \trusted
 #@ ensures \result >= 0
-def Var(name: int) -> int:
+def CSLVar(name: int) -> int:
     """Mock: create a Var node."""
     return 0
 
@@ -71,19 +71,19 @@ def StringLiteral(value: int) -> int:
 
 #@ \trusted
 #@ ensures \result >= 0
-def Result() -> int:
+def CSLResult() -> int:
     """Mock: create a Result node."""
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
-def Old(expr: int) -> int:
+def CSLOld(expr: int) -> int:
     """Mock: create an Old node."""
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
-def Nothing() -> int:
+def CSLNothing() -> int:
     """Mock: create a Nothing node."""
     return 0
 
@@ -95,7 +95,7 @@ def FieldAccess(object: int, field: int) -> int:
 
 #@ \trusted
 #@ ensures \result >= 0
-def ClassInvariant(expr: int) -> int:
+def CSLClassInvariant(expr: int) -> int:
     """Mock: create a ClassInvariant node."""
     return 0
 
@@ -107,13 +107,13 @@ def SubscriptAccess(array: int, index: int) -> int:
 
 #@ \trusted
 #@ ensures \result >= 0
-def Forall(var: int, body: int) -> int:
+def CSLForall(csl_var: int, body: int) -> int:
     """Mock: create a Forall node."""
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
-def Exists(var: int, body: int) -> int:
+def CSLExists(csl_var: int, body: int) -> int:
     """Mock: create an Exists node."""
     return 0
 
@@ -131,7 +131,7 @@ def AssignsRegion(base: int, low: int, high: int) -> int:
 
 #@ \trusted
 #@ ensures \result >= 0
-def Valid(base: int, length: int) -> int:
+def CSLValid(base: int, length: int) -> int:
     """Mock: create a Valid node."""
     return 0
 
@@ -143,13 +143,13 @@ def Separated(base1: int, length1: int, base2: int, length2: int) -> int:
 
 #@ \trusted
 #@ ensures \result >= 0
-def Label(name: int) -> int:
+def CSLLabel(name: int) -> int:
     """Mock: create a Label node."""
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
-def At(expr: int, label: int) -> int:
+def CSLAt(expr: int, lbl: int) -> int:
     """Mock: create an At node."""
     return 0
 
@@ -167,19 +167,19 @@ def Valid2D(base: int, row: int, col: int) -> int:
 
 #@ \trusted
 #@ ensures \result >= 0
-def FunctionVariant(expr: int, ordering: int) -> int:
+def CSLFunctionVariant(expr: int, ordering: int) -> int:
     """Mock: create a FunctionVariant node."""
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
-def Diverges() -> int:
+def CSLDiverges() -> int:
     """Mock: create a Diverges node."""
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
-def Trusted() -> int:
+def CSLTrusted() -> int:
     """Mock: create a Trusted node."""
     return 0
 
@@ -313,7 +313,7 @@ def PyCSLTransformer_label_decl(self: int, name: int) -> int:
 
 #@ \trusted
 #@ ensures \result >= 0
-def PyCSLTransformer_at_expr(self: int, expr: int, label: int) -> int:
+def PyCSLTransformer_at_expr(self: int, expr: int, lbl: int) -> int:
     """Mock: transform at expression."""
     return 0
 

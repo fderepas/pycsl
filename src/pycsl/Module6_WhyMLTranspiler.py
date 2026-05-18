@@ -119,6 +119,8 @@ class Module6_WhyMLTranspiler:
             return whyml_str
         if t == "Call" and ir_expr.get("func", "") in ("isinstance", "hasattr"):
             return whyml_str
+        if t in ("Exists", "Forall", "Compare"):
+            return whyml_str
         # Array locals can't be compared with <> 0; emit true (always allocated)
         if t == "Var":
             name = ir_expr.get("name", "")
@@ -201,7 +203,22 @@ class Module6_WhyMLTranspiler:
             elif stmt["stmt"] == "Match":
                 for c in stmt.get("cases", []):
                     assigned.update(self._find_assigned_vars(c.get("body", [])))
+            # Also find walrus (NamedExpr) targets in all expressions
+            self._find_named_expr_targets(stmt, assigned)
         return assigned
+
+    def _find_named_expr_targets(self, obj: Any, targets: Set[str]) -> None:
+        """Recursively walk an IR object to find NamedExpr targets (walrus operator)."""
+        if isinstance(obj, dict):
+            if obj.get("type") == "NamedExpr":
+                targets.add(obj["target"])
+            for k, v in obj.items():
+                if k == "stmt":
+                    continue
+                self._find_named_expr_targets(v, targets)
+        elif isinstance(obj, list):
+            for item in obj:
+                self._find_named_expr_targets(item, targets)
 
     def _find_ghost_vars(self, stmts: List[Dict[str, Any]]) -> Set[str]:
         """Collect ghost variable names from GhostAssign IR nodes."""
@@ -257,6 +274,8 @@ class Module6_WhyMLTranspiler:
                         dict_vars.add(target)
                     elif vt == "SetLit" or (vt == "Call" and val.get("func") in ("set", "frozenset")):
                         dict_vars.add(target)
+                    elif vt == "SliceAccess":
+                        array_vars.add(target)
             for key in ("body", "orelse"):
                 if key in stmt:
                     a, d = self._find_array_and_dict_vars(stmt[key])
@@ -279,6 +298,26 @@ class Module6_WhyMLTranspiler:
                     array_vars |= a
                     dict_vars |= d
         return array_vars, dict_vars
+
+    def _find_lambda_vars(self, stmts: List[Dict[str, Any]]) -> Set[str]:
+        """Find variables whose first assignment is a Lambda expression."""
+        lambda_vars = set()
+        for stmt in stmts:
+            if stmt.get("stmt") == "Assign":
+                val = stmt.get("value", {})
+                if isinstance(val, dict) and val.get("type") == "Lambda":
+                    lambda_vars.add(stmt.get("target", ""))
+            for key in ("body", "orelse"):
+                if key in stmt:
+                    lambda_vars |= self._find_lambda_vars(stmt[key])
+            if stmt.get("stmt") == "While":
+                lambda_vars |= self._find_lambda_vars(stmt.get("body", []))
+            if stmt.get("stmt") == "For":
+                lambda_vars |= self._find_lambda_vars(stmt.get("body", []))
+            if stmt.get("stmt") == "Match":
+                for c in stmt.get("cases", []):
+                    lambda_vars |= self._find_lambda_vars(c.get("body", []))
+        return lambda_vars
 
     def _has_continue(self, stmts: List[Dict[str, Any]]) -> bool:
         """Check if statements contain a Continue node (not crossing For/While boundaries)."""
@@ -505,6 +544,10 @@ class Module6_WhyMLTranspiler:
                 for key in ("body", "orelse"):
                     if key in stmt and _has_return(stmt[key]):
                         return True
+                if stmt.get("stmt") == "Match":
+                    for c in stmt.get("cases", []):
+                        if _has_return(c.get("body", [])):
+                            return True
             return False
 
         def _has_return_with_value(stmts: List[Dict[str, Any]]) -> bool:
@@ -514,6 +557,10 @@ class Module6_WhyMLTranspiler:
                 for key in ("body", "orelse"):
                     if key in stmt and _has_return_with_value(stmt[key]):
                         return True
+                if stmt.get("stmt") == "Match":
+                    for c in stmt.get("cases", []):
+                        if _has_return_with_value(c.get("body", [])):
+                            return True
             return False
 
         if not _has_return(stmts):
@@ -534,6 +581,11 @@ class Module6_WhyMLTranspiler:
                     result = self._find_return_type(stmt[key])
                     if result not in ("int", "unit"):
                         return result
+            if stmt.get("stmt") == "Match":
+                for c in stmt.get("cases", []):
+                    result = self._find_return_type(c.get("body", []))
+                    if result not in ("int", "unit"):
+                        return result
         return "int"
 
     def _expr_to_whyml(self, expr: Dict[str, Any], local_refs: Set[str],
@@ -551,6 +603,9 @@ class Module6_WhyMLTranspiler:
                 name = subst[name]
             # Array locals don't need dereference (not in a ref)
             if name in getattr(self, '_array_locals', set()):
+                return self._whyml_ident(name)
+            # Lambda locals don't need dereference (let-bound, not ref)
+            if name in getattr(self, '_lambda_locals', set()):
                 return self._whyml_ident(name)
             # If it's a local mutable variable, we must dereference it with '!'
             if name in local_refs:
@@ -1117,7 +1172,12 @@ class Module6_WhyMLTranspiler:
                 # Arrays are already mutable — don't wrap in ref
                 is_array_val = val.startswith("(Array.make") or val == "(Array.make 1024 0)"
                 is_dict_val = val.startswith("(dict_new")
-                if is_array_val:
+                is_lambda_val = (stmt.get("value", {}).get("type") == "Lambda")
+                is_slice_val = (stmt.get("value", {}).get("type") == "SliceAccess")
+                if is_lambda_val:
+                    code = f"{indent}let {safe_target} = {val} in\n"
+                    self._lambda_locals.add(target)
+                elif is_array_val or is_slice_val:
                     code = f"{indent}let {safe_target} = {val} in\n"
                     # Track as array local (no ! deref needed)
                     self._array_locals.add(target)
@@ -1165,6 +1225,23 @@ class Module6_WhyMLTranspiler:
             targets = stmt["targets"]
             val_whyml = self._expr_to_whyml(stmt["value"], local_refs)
             safe_targets = [self._whyml_ident(t) for t in targets]
+            # Fix abstract op return type: if value is a Call to an unknown function,
+            # the abstract val was declared with `: int` but should return a tuple.
+            val_ir = stmt.get("value", {})
+            if val_ir.get("type") == "Call":
+                func_name = val_ir.get("func", "")
+                nargs = len(val_ir.get("args", []))
+                safe_fn = self._whyml_ident(func_name)
+                arity_fn = f"{safe_fn}_{nargs}"
+                # Check if this function was registered as an abstract op
+                if arity_fn in self._abstract_ops:
+                    # Re-declare with tuple return type
+                    tuple_ret = "(" + ", ".join(["int"] * len(targets)) + ")"
+                    if nargs == 0:
+                        self._abstract_ops[arity_fn] = f"val {arity_fn} () : {tuple_ret}"
+                    else:
+                        params = " ".join(f"(x{i}: int)" for i in range(nargs))
+                        self._abstract_ops[arity_fn] = f"val {arity_fn} {params} : {tuple_ret}"
             # let (a_tmp, b_tmp) = expr in a := a_tmp; b := b_tmp
             tmp_names = [f"_tu_{t}" for t in safe_targets]
             pattern = ", ".join(tmp_names)
@@ -1362,7 +1439,7 @@ class Module6_WhyMLTranspiler:
             test_whyml = self._expr_to_whyml(stmt["test"], local_refs)
             test_whyml = self._to_bool(test_whyml, stmt["test"])
             msg = stmt.get("msg", "assertion")
-            return f'{indent}check {{ [@expl:{msg}] {test_whyml} }}'
+            code = f'{indent}check {{ [@expl:{msg}] {test_whyml} }}'
 
         elif s_type == "Raise":
             exc_type = stmt.get("exc_type", "PyCSL_Exception")
@@ -1882,6 +1959,7 @@ class Module6_WhyMLTranspiler:
             self._current_params = set(symbol_table.keys()) | local_refs | ghost_vars
             self._array_locals = set()  # Reset per function
             self._dict_locals = set()   # Reset per function
+            self._lambda_locals = set()  # Reset per function
             self._current_symbol_table = symbol_table  # For type lookups in Subscript
             array2d_params = set(func.get("array2d_params", []))
             array1d_params = set(func.get("array1d_params", []))
@@ -2035,14 +2113,15 @@ class Module6_WhyMLTranspiler:
             # WhyML scoping issues (variables first assigned inside if/while/for/try
             # branches would be scoped to that branch otherwise).
             body_array_vars, body_dict_vars = self._find_array_and_dict_vars(body_stmts)
+            body_lambda_vars = self._find_lambda_vars(body_stmts)
             pre_decl_vars = set()
             for v in local_refs:
                 if v in ghost_vars:
                     continue
                 if not is_method and v in (ref_params if not is_method else set()):
                     continue
-                # Skip array/dict vars — they need special declarations
-                if v in body_array_vars or v in body_dict_vars:
+                # Skip array/dict/lambda vars — they need special declarations
+                if v in body_array_vars or v in body_dict_vars or v in body_lambda_vars:
                     continue
                 pre_decl_vars.add(v)
             # Mark all pre-declared vars as already declared

@@ -96,13 +96,13 @@ def exc_info() -> int:
 
 #@ \trusted
 #@ ensures \result >= 0
-def exception() -> int:
+def sys_exception() -> int:
     """Mock: return current handled exception instance."""
     return 0
 
 #@ \trusted
 #@ ensures \result == 0
-def excepthook(type: int, value: int, traceback: int) -> int:
+def excepthook(exc_type: int, value: int, traceback: int) -> int:
     """Mock: print exception and traceback to stderr."""
     return 0
 
@@ -232,7 +232,7 @@ def getunicodeinternedsize() -> int:
 
 #@ \trusted
 #@ ensures \result >= 0
-def getobjects(limit: int, type: int = 0) -> int:
+def getobjects(limit: int, obj_type: int = 0) -> int:
     """Mock: return list of objects tracked by the garbage collector."""
     return 0
 

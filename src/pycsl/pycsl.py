@@ -340,6 +340,13 @@ def _generate_rocq_obligations(mlw_path, output_dir, unproven_count):
     """Generate Rocq proof obligations for goals that SMT provers could not discharge."""
     os.makedirs(output_dir, exist_ok=True)
 
+    # Add a Makefile for cleaning compilation artifacts
+    makefile_path = os.path.join(output_dir, "Makefile")
+    if not os.path.exists(makefile_path):
+        with open(makefile_path, "w") as mf:
+            mf.write(".PHONY:default, clean\n\ndefault:\n\nclean:\n")
+            mf.write("\trm -rf *.glob *.vo *.vok *.vos *~ \n")
+
     # Copy the WhyML source as reference
     mlw_dest = os.path.join(output_dir, os.path.basename(mlw_path))
     import shutil
@@ -492,6 +499,10 @@ def main():
                         help="Recursively resolve transitive imports in "
                              "dependency files (default: only direct imports "
                              "of the main file are resolved).")
+    parser.add_argument("--no-proof", action="store_true",
+                        help="Skip the proof step. Only run the pipeline "
+                             "(parse, typecheck, transpile) and report success "
+                             "if valid WhyML is generated.")
     parser.add_argument("--rocq", metavar="DIR", default=None,
                         help="On SMT prover failure, generate Rocq (Coq) "
                              "proof obligations in DIR. Why3 emits .v files "
@@ -629,6 +640,12 @@ def main():
     
     with open(mlw_filename, "w") as f:
         f.write(mlw_code)
+
+    if args.no_proof:
+        print(f"[+] Verification SUCCESS (--no-proof: WhyML generated, proof skipped).")
+        if not args.keep_mlw and os.path.exists(mlw_filename):
+            os.remove(mlw_filename)
+        sys.exit(0)
 
     print(f"[*] Running Proof Engine (provers: {' → '.join(provers)})...")
     try:

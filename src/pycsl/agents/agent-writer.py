@@ -171,6 +171,9 @@ def _run_3agent_pipeline(
     class_context: str,
     memory_model: str,
     skill_content: str,
+    english_writer_skill: str,
+    contract_writer_skill: str,
+    invariant_writer_skill: str,
     model: str,
     project_directory: str,
 ) -> str:
@@ -200,6 +203,7 @@ def _run_3agent_pipeline(
     english_desc = english_writer.generate(
         function_source=function_source,
         class_context=class_context,
+        skill_content=english_writer_skill,
         model=model,
         project_directory=project_directory,
     )
@@ -213,6 +217,7 @@ def _run_3agent_pipeline(
         english_description=english_desc,
         class_context=class_context,
         memory_model=memory_model,
+        skill_content=contract_writer_skill,
         model=model,
         project_directory=project_directory,
     )
@@ -228,6 +233,7 @@ def _run_3agent_pipeline(
         class_context=class_context,
         memory_model=memory_model,
         skill_content=skill_content,
+        task_skill_content=invariant_writer_skill,
         model=model,
         project_directory=project_directory,
     )
@@ -262,6 +268,11 @@ def main():
     skill_annotator_name = config.get("skill-annotate")
     rag_index_name = config.get("rag-index")
     rag_top_k = config.get("rag-top-k", 10)
+
+    # Sub-agent skill paths
+    skill_english_name = config.get("skill-english-writer")
+    skill_contract_name = config.get("skill-contract-writer")
+    skill_invariant_name = config.get("skill-invariant-writer")
 
     if not model:
         log(project_directory, AGENT_NAME, "Error: 'model' missing in config")
@@ -311,6 +322,23 @@ def main():
         skill_content = skill_annotator_path.read_text(encoding="utf-8")
         log(project_directory, AGENT_NAME, "Using full skill file (RAG unavailable)\n")
 
+    # Load sub-agent skill files
+    def _load_skill(name, key):
+        if not name:
+            return ""
+        p = Path(name)
+        if not p.is_absolute():
+            p = project_root / p
+        if p.exists():
+            log(project_directory, AGENT_NAME, f"Loaded skill: {key}\n")
+            return p.read_text(encoding="utf-8")
+        log(project_directory, AGENT_NAME, f"Skill file not found: {p}\n")
+        return ""
+
+    english_writer_skill = _load_skill(skill_english_name, "skill-english-writer")
+    contract_writer_skill = _load_skill(skill_contract_name, "skill-contract-writer")
+    invariant_writer_skill = _load_skill(skill_invariant_name, "skill-invariant-writer")
+
     # Try the 3-agent pipeline first; fall back to monolithic on failure
     try:
         generated_code = _run_3agent_pipeline(
@@ -319,6 +347,9 @@ def main():
             class_context=class_context,
             memory_model=args.memory_model,
             skill_content=skill_content,
+            english_writer_skill=english_writer_skill,
+            contract_writer_skill=contract_writer_skill,
+            invariant_writer_skill=invariant_writer_skill,
             model=model,
             project_directory=project_directory,
         )

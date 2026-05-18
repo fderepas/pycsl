@@ -1,172 +1,233 @@
-"""PyCSL mock for Python's threading module."""
+"""PyCSL mock for Python's threading module.
+
+Thread, Lock, Semaphore, Event, and Barrier modelled as classes with invariants.
+"""
 _ = 0  # anchor
 
-# ---------------------------------------------------------------------------
-# Module-level functions
-# ---------------------------------------------------------------------------
+# ── ThreadObj class ─────────────────────────────────────────────────
+
+""  # pycsl
+#@ class invariant self._alive >= 0 and self._alive <= 1
+class ThreadObj:
+    def __init__(self):
+        self._alive = 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures self._alive == 1
+    #@ assigns self._alive
+    def start(self) -> int:
+        self._alive = 1
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures self._alive == 0
+    #@ assigns self._alive
+    def join(self, timeout: int) -> int:
+        self._alive = 0
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result == self._alive
+    #@ assigns \nothing
+    def is_alive(self) -> int:
+        return self._alive
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def get_name(self) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def ident(self) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def native_id(self) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def daemon(self) -> int:
+        return 0
+
+# ── LockObj class ───────────────────────────────────────────────────
+
+#@ class invariant self._locked >= 0 and self._locked <= 1
+class LockObj:
+    def __init__(self):
+        self._locked = 0
+
+    #@ \trusted
+    #@ requires self._locked == 0
+    #@ ensures self._locked == 1
+    #@ assigns self._locked
+    def acquire(self, blocking: int, timeout: int) -> int:
+        self._locked = 1
+        return 1
+
+    #@ \trusted
+    #@ requires self._locked == 1
+    #@ ensures self._locked == 0
+    #@ assigns self._locked
+    def release(self) -> int:
+        self._locked = 0
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result == self._locked
+    #@ assigns \nothing
+    def locked(self) -> int:
+        return self._locked
+
+# ── SemaphoreObj class ──────────────────────────────────────────────
+
+#@ class invariant self._value >= 0
+class SemaphoreObj:
+    def __init__(self):
+        self._value = 1
+
+    #@ \trusted
+    #@ requires self._value >= 1
+    #@ ensures self._value == \old(self._value) - 1
+    #@ assigns self._value
+    def acquire(self, blocking: int, timeout: int) -> int:
+        self._value -= 1
+        return 1
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures self._value == \old(self._value) + 1
+    #@ assigns self._value
+    def release(self, n: int) -> int:
+        self._value += 1
+        return 0
+
+# ── EventObj class ──────────────────────────────────────────────────
+
+#@ class invariant self._flag >= 0 and self._flag <= 1
+class EventObj:
+    def __init__(self):
+        self._flag = 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures self._flag == 1
+    #@ assigns self._flag
+    def set(self) -> int:
+        self._flag = 1
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures self._flag == 0
+    #@ assigns self._flag
+    def clear(self) -> int:
+        self._flag = 0
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result == self._flag
+    #@ assigns \nothing
+    def is_set(self) -> int:
+        return self._flag
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def wait(self, timeout: int) -> int:
+        return self._flag
+
+# ── BarrierObj class ────────────────────────────────────────────────
+
+#@ class invariant self._parties >= 1
+#@ class invariant self._n_waiting >= 0 and self._n_waiting <= self._parties
+class BarrierObj:
+    def __init__(self):
+        self._parties = 1
+        self._n_waiting = 0
+
+    #@ \trusted
+    #@ requires self._n_waiting <= self._parties - 1
+    #@ ensures self._n_waiting == \old(self._n_waiting) + 1
+    #@ assigns self._n_waiting
+    def wait(self, timeout: int) -> int:
+        self._n_waiting += 1
+        return self._n_waiting
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures self._n_waiting == 0
+    #@ assigns self._n_waiting
+    def reset(self) -> int:
+        self._n_waiting = 0
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures self._n_waiting == 0
+    #@ assigns self._n_waiting
+    def abort(self) -> int:
+        self._n_waiting = 0
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result == self._parties
+    #@ assigns \nothing
+    def parties(self) -> int:
+        return self._parties
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result == self._n_waiting
+    #@ assigns \nothing
+    def n_waiting(self) -> int:
+        return self._n_waiting
+
+# ── Module-level functions ──────────────────────────────────────────
 
 #@ \trusted
 #@ ensures \result >= 0
 def active_count() -> int:
-    """Mock: returns the number of Thread objects currently alive."""
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
 def current_thread() -> int:
-    """Mock: returns the current Thread object."""
-    return 0
-
-#@ \trusted
-#@ ensures \result == 0
-def excepthook(args: int) -> int:
-    """Mock: handles uncaught exception raised by Thread.run."""
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
 def get_ident() -> int:
-    """Mock: returns thread identifier of the current thread."""
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
 def get_native_id() -> int:
-    """Mock: returns native integral thread ID assigned by the kernel."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def enumerate() -> int:
-    """Mock: returns list of all active Thread objects."""
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
 def main_thread() -> int:
-    """Mock: returns the main Thread object."""
-    return 0
-
-#@ \trusted
-#@ ensures \result == 0
-def settrace(func: int) -> int:
-    """Mock: sets a trace function for all threads."""
-    return 0
-
-#@ \trusted
-#@ ensures \result == 0
-def settrace_all_threads(func: int) -> int:
-    """Mock: sets a trace function for all threads including running ones."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def gettrace() -> int:
-    """Mock: returns the trace function set by settrace."""
-    return 0
-
-#@ \trusted
-#@ ensures \result == 0
-def setprofile(func: int) -> int:
-    """Mock: sets a profile function for all threads."""
-    return 0
-
-#@ \trusted
-#@ ensures \result == 0
-def setprofile_all_threads(func: int) -> int:
-    """Mock: sets a profile function for all threads including running ones."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def getprofile() -> int:
-    """Mock: returns the profile function set by setprofile."""
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
 def stack_size(size: int) -> int:
-    """Mock: returns or sets the thread stack size."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def synchronized_iterator(func: int) -> int:
-    """Mock: wraps an iterator-producing callable with serialize_iterator."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def concurrent_tee(iterable: int, n: int) -> int:
-    """Mock: returns n independent thread-safe iterators from iterable."""
-    return 0
-
-# ---------------------------------------------------------------------------
-# Classes (constructors returning opaque int >= 0)
-# ---------------------------------------------------------------------------
-
-#@ \trusted
-#@ ensures \result >= 0
-def local() -> int:
-    """Mock: creates a thread-local data object — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def Thread(group: int, target: int, thread_name: int, args: int, kwargs: int, daemon: int, context: int) -> int:
-    """Mock: creates a Thread object — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def Lock() -> int:
-    """Mock: creates a primitive lock object — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def RLock() -> int:
-    """Mock: creates a reentrant lock object — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def Condition(lock: int) -> int:
-    """Mock: creates a condition variable object — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def Semaphore(initial_value: int) -> int:
-    """Mock: creates a semaphore object — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def BoundedSemaphore(initial_value: int) -> int:
-    """Mock: creates a bounded semaphore object — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def Event() -> int:
-    """Mock: creates an event object — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def Timer(interval: int, func: int, args: int, kwargs: int) -> int:
-    """Mock: creates a timer that runs function after interval seconds — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def Barrier(parties: int, action: int, timeout: int) -> int:
-    """Mock: creates a barrier for parties threads — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def serialize_iterator(iterable: int) -> int:
-    """Mock: wraps an iterator with serialized concurrent access — opaque."""
     return 0

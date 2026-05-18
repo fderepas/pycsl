@@ -33,6 +33,28 @@ if [[ -f "$PYCSL_DIR/.venv/bin/activate" ]]; then
     source "$PYCSL_DIR/.venv/bin/activate"
 fi
 
+# Ensure local Ollama is running (used for RAG embeddings)
+EMBED_URL=$(python3 -c "import json; print(json.load(open('$CONFIG_DIR/agents-config.json')).get('nomic-embed-text-ollama-url','http://127.0.0.1:11434'))" 2>/dev/null || echo "http://127.0.0.1:11434")
+if ! curl -sf "$EMBED_URL/api/tags" >/dev/null 2>&1; then
+    echo "Starting local Ollama server..."
+    ollama serve >/dev/null 2>&1 &
+    OLLAMA_PID=$!
+    for i in $(seq 1 15); do
+        sleep 1
+        curl -sf "$EMBED_URL/api/tags" >/dev/null 2>&1 && break
+    done
+    if ! curl -sf "$EMBED_URL/api/tags" >/dev/null 2>&1; then
+        echo "WARNING: Could not start Ollama at $EMBED_URL"
+    fi
+fi
+# Ensure embedding model is available
+if curl -sf "$EMBED_URL/api/tags" 2>/dev/null | grep -q nomic-embed-text; then
+    :
+else
+    echo "Pulling nomic-embed-text model..."
+    OLLAMA_HOST="$EMBED_URL" ollama pull nomic-embed-text 2>/dev/null || true
+fi
+
 # Ensure Why3 detects available provers
 why3 config detect >/dev/null 2>&1
 

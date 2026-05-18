@@ -83,7 +83,7 @@ PyCSL/
 | `check-annotation-quality.py` | Analyze annotation quality: reports trivial contracts, missing assigns, etc. |
 | `get-meta-info.sh` | Query meta-agent outputs (evaluator, monitor, reviewer) for a given file stem. |
 | `update-rag.sh` | Rebuild the RAG index from all skills in `config/skills/`. **Must be run after any skill update.** |
-| `run-reference-tests.sh` | Run all tests in `test-suite/corpus/pycsl-reference/`. Supports `# pycsl-flags:` and `# pycsl-expected: FAIL` directives in test files. |
+| `run-reference-tests.sh` | Run all tests in `test-suite/corpus/pycsl-reference/`. Supports `# pycsl-flags:` and `# pycsl-expected: FAIL` directives in test files. Common flags: `--no-proof` (skip prover), `--fun NAME` (verify one function), `--deep` (transitive imports). |
 
 ## 3. Pipeline Architecture
 
@@ -111,6 +111,19 @@ Module6_WhyMLTranspiler   ← generates .mlw (WhyML) file
     ▼
 Why3 / Alt-Ergo     ← SMT solver proves or rejects the goals
 ```
+
+### CLI Flags (`pycsl.py`)
+
+| Flag | Effect |
+|------|--------|
+| `--no-proof` | Skip Why3 prover invocation. Reports SUCCESS if valid WhyML is generated without errors. Useful for testing transpiler output without requiring provable postconditions. |
+| `--keep-mlw` | Keep the generated `.mlw` file next to the input (instead of a temp file). |
+| `--fun NAME` | Only verify the named function (and transitive call-deps). May be repeated. |
+| `--deep` | Recursively resolve transitive imports in dependency files. |
+| `--rocq DIR` | On SMT failure, generate Rocq proof skeletons in DIR. |
+| `--rocq-proofs [DIR]` | Replay pre-existing Rocq proofs from DIR (auto-detects `<file>.proofs/`). |
+| `-p PROVER` | Use a specific prover (e.g., `Alt-Ergo,2.6.2,`). |
+| `--memory-model M` | Memory model: `hoare` (default), `typed`, or `store`. |
 
 ## 4. Agent Architecture
 

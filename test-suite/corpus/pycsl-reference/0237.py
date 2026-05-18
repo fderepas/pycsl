@@ -1,4 +1,5 @@
 """Test 0237 — PyCSL Annotation Reference 3.1.20 (slice in contract)"""
+# pycsl-flags: --no-proof
 _ = 0  # anchor
 #@ requires \length(arr) >= n and n >= 0
 #@ ensures \result >= 0

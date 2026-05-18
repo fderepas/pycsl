@@ -23,6 +23,8 @@ Reserve `#@ ensures 1 == 1` only when no useful property of the return value is 
 
 Every function definition MUST have **all three** of `#@ requires`, `#@ ensures`, and `#@ assigns` — placed immediately before the `def` keyword, with **no blank lines** between the last `#@` line and the `def`. The pipeline uses line numbers from libcst's `PositionProvider` to match contracts to AST nodes; a blank line causes a line-number mismatch that silently drops all contracts for that function or class.
 
+Every **recursive** function (a function that calls itself by name) MUST additionally include `#@ \variant <param>` — placed immediately before the `def` line, after `#@ assigns`, so PyCSL emits `let rec` with `variant { param }` in WhyML and the termination sub-goal can be discharged. Without this clause Why3 will time out on the termination obligation. The variant expression must be the parameter that decreases toward the base case (e.g., `n` for `factorial(n)`).
+
 Every `while` and `for` loop MUST have `#@ loop invariant` and `#@ loop variant` — placed immediately before the loop keyword.
 
 Add PEP 484 type hints to **all** function parameters and return types, even if missing in the input. Scripts with no annotations at all must be fully annotated from scratch.
@@ -40,6 +42,10 @@ Add PEP 484 type hints to **all** function parameters and return types, even if 
 - `#@ \variant (<expr>, <ordering>)` — Structural variant via a named well-founded ordering. Emits `variant { expr } with ordering`.
 - `#@ \diverges` — Declares the function may not terminate (no termination proof required). Cannot be combined with `\variant`.
 - `#@ \trusted` — Body is not verified; contracts are assumed as axioms. Emits `val` (spec-only) instead of `let` + body. Callers may use the postcondition, but the implementation is not checked.
+- `#@ assumes bounded_int(N)` — Bounded integer pragma (N = 32 or 64). All `int` params/locals become `intN` machine integers; arithmetic (`+`, `-`, `*`) auto-generates overflow proof obligations.
+- `#@ raises ExcType when <cond>` — Exceptional postcondition. Declares that the function may raise `ExcType` when `cond` holds. Emits `raises { ExcType -> cond }` in WhyML.
+- `#@ ghost <name> = <expr>` — Ghost variable declaration/assignment. Place before any statement. First occurrence → `let ghost <name> = ref <val> in`; subsequent → `ghost <name> := <val>`.
+- `#@ ghost <name> += <expr>` — Ghost augmented assignment (`+=`, `-=`, `*=`). Ghost variables are erased at extraction but usable in contracts and loop invariants.
 
 **Loop contracts** are placed immediately before the `while` or `for` keyword:
 
@@ -102,118 +108,48 @@ The memory model is selected globally and affects all functions in a file. Defau
 
 In hoare: `(expr at L)`. In typed/store: `Map.get (int_mem at L) (arr + i)` for array elements.
 
+**`#@ ghost <name> = <expr>`** (Phase 5) — Ghost variable for verification only. Place before any statement, including inside loop bodies. First occurrence declares; subsequent update. Use in invariants to track iteration counts, sums, or history.
+
+```
+#@ ghost count = 0
+#@ loop invariant count == i
+while i < n:
+    #@ ghost count += 1
+    i = i + 1
+```
+
+Ghost variables emit `let ghost <name> = ref <val> in` (declaration) or `ghost <name> := <val>` (update) in WhyML. They are erased during Why3 extraction.
+
 ---
 
 ## Section 4 — Forbidden in contract expressions
 
-These rules apply only inside `#@` expressions (`requires`, `ensures`, `loop invariant`, `class invariant`):
+> **Full list:** See `references/forbidden-expressions.md` for the complete set of NEVER rules (50+ entries).
 
-- **NEVER use arbitrary function calls** (e.g., `abs(x)`, `range(x)`, `len(x)`) inside `#@` expressions. The contract parser does not support them.
-- **Exception — `\length(arr)`** (backslash prefix, no space): the only supported function-like atom. Use this to refer to an array parameter's length. Example: `#@ requires \length(arr) >= n`.
-- **Exception — `arr[i]`**: array subscript reads are supported inside contract expressions (e.g., inside `\forall` bodies).
-- **NEVER use bare Python booleans** (`True`, `False`, `None`) inside `#@` expressions. Use `1 == 1` instead of `True`, `0 == 1` instead of `False`, and `0` instead of `None`.
-- **NEVER use `%`** (modulo). Replace with weaker but parseable forms (e.g., `#@ loop invariant divisor >= 3` instead of `#@ loop invariant divisor % 2 == 1`).
-- **NEVER use `//`** (floor-division) inside contracts. The grammar does not support it. Integer-division properties are hard to express — fall back to `#@ ensures 1 == 1` if no weaker form works.
-- **NEVER place blank lines between a `#@` block and the `def` or `class` keyword it annotates.** Blank lines cause libcst line-number mismatch and silently drop all contracts.
-- **String literals are supported.** Double-quoted strings map to WhyML's `string` type. Example: `#@ ensures \result == "hello"`.
-- **Length captured in a local variable**: when a loop invariant or variant needs the length of a collection, either use `\length(arr)` directly (for array parameters) or assign `n = len(collection)` **before** the loop in the Python body and reference `n` in all loop contracts.
-- **NEVER compare an integer parameter to a string literal** in a contract expression. For example, `#@ requires event_len != ""` is wrong when `event_len` is an `int`. Use integer comparisons such as `#@ requires event_len > 0` or `#@ requires event_len >= 0`.
-- **NEVER write a bare identifier as the full `requires` expression** (e.g., `#@ requires event_len`). Every `requires` expression must contain a comparison operator. Use `#@ requires event_len > 0` or a similar inequality.
-- **NEVER use chained comparisons** (e.g., `#@ ensures \result == 1 == 1`, `#@ ensures len(\result) <= 1 == 1`). The PyCSL grammar does not support Python-style chained comparisons, including mixed-operator forms like `<= N == M` or `>= N == M`. Use a single comparison such as `#@ ensures 1 == 1` or `#@ ensures \result >= 0`. Note: `\result` is a scalar integer — `len(\result)` is meaningless and will cause a parse error; never write `len(\result)` in any contract.
-- **Functions returning collections (dict, set, list, or any non-integer type)** — e.g., `word_frequencies`, `unique_sorted_values`, or any function whose return type is `dict`, `set`, or `list` — cannot express a scalar postcondition on the collection itself. Do NOT write `#@ ensures len(\result) ...` (forbidden function call) or any chained comparison. Use `#@ ensures 1 == 1` for the postcondition of such functions.
-- **Functions that perform subscript assignment on a `dict`-typed variable** (e.g., `counts[word] = counts.get(word, 0) + 1` or `indexed[key] = value` where `indexed: dict = {}`) cannot be verified in the hoare model — PyCSL only permits subscript assignments on `list`-typed variables. Add `#@ \trusted` immediately before the `def` keyword (keeping all other contracts: `requires`, `ensures`, `assigns`) so the body is assumed correct without verification.
-- **NEVER leave `\old(` unclosed** (e.g., `#@ ensures \result == \old(1 == 1`). Every `\old(` must have a matching `)`. A malformed `\old(` expression will be removed entirely by the post-processing guards.
-- **NEVER use an arbitrary variable name as an `assigns` target** unless that variable is actually a global or mutable parameter being modified by the function. For pure functions that modify no external state, use `#@ assigns \nothing`. Names like `log`, `count`, `result`, etc. are not valid `assigns` targets unless they are declared as globals or class fields.
-- **NEVER write `#@ ensures \result >= 1` for a function that returns `len(collection)` (or `length log`, `length arr`, etc.) without an explicit precondition that guarantees the collection is non-empty.** `len()` always returns ≥ 0; without a `#@ requires \length(log) >= 1` (or equivalent), the solver cannot prove `result >= 1` and will time out. Use `#@ ensures \result >= 0` unless the non-empty precondition is present.
-- **NEVER write `#@ ensures \result == \old(\length(arr)) + 1` (or any variant claiming the result equals the old length plus one) unless the function body actually appends an element to `arr`.** If the function only reads the collection and returns its current length (e.g., `return len(log)`), then `result == old_length` holds — not `result == old_length + 1`. Adding the `+1` postcondition creates a contradictory contract that can never be discharged. Only use `\result == \old(\length(arr)) + 1` when the function body actually appends exactly one element before returning the new length.
-- **NEVER implement array/list traversal functions (e.g., `sum_list`, any function that iterates over all elements of an array/list parameter) using recursion with slice notation** (e.g., `values[1:]`). The hoare model transpiler does not support slice notation, and passing `values[0]` (an `int` element) as the array argument is a type error that will cause WhyML compilation to fail. Always rewrite such functions as iterative loops: capture `n = len(values)` before the loop, then use `i = 0` / `while i < n: ... i += 1` with `#@ loop invariant 0 <= i and i <= n` and `#@ loop variant n - i`. Do NOT add a function-level `#@ \variant` — that belongs only on genuinely recursive functions. See Example 8 for the canonical pattern.
+Key rules (most common mistakes):
+
+- **NEVER use arbitrary function calls** (e.g., `abs(x)`, `range(x)`, `len(x)`) inside `#@` expressions. Use `\length(arr)` instead for array lengths.
+- **NEVER use bare Python booleans** (`True`, `False`, `None`). Use `1 == 1`, `0 == 1`, `0`.
+- **NEVER use `%`** (modulo) or **`//`** (floor-division) inside contracts.
+- **NEVER place blank lines** between a `#@` block and the `def`/`class` it annotates.
+- **NEVER name variables `val` or `match`** — reserved WhyML keywords.
+- **NEVER use `return <value>` inside `if` in a `while` loop** — use flag+sentinel pattern (see Example 6).
+- **NEVER use `==>` in `ensures`** for index-loop functions — always times out.
+- **NEVER emit duplicate contract clauses** for the same function.
 
 ---
 
 ## Section 5 — Class support
 
-Classes are supported via **Level 2 record types**. Keep the `class` keyword and annotate methods directly. The pipeline emits a WhyML mutable record (`type classname = { mutable field: int }`); each method receives `(self: classname)` as its first parameter.
+> **Full details:** See `references/class-support.md` for complete method rules, `\old` usage, class invariants, and multi-class examples.
 
-### Method annotation rules
+Key rules:
 
-- **Do NOT annotate `__init__` or `@property` methods** — they are skipped by the IR emitter.
-- **Use `self.field` syntax directly in `#@` contracts** — the parser accepts `FieldAccess` nodes natively.
-- **Use `\old(self.field)` in `ensures`** to refer to the field at method entry: `#@ ensures self._balance == \old(self._balance) + n` emits `(old self._balance)`.
-- **Each method must have all three contracts** (`#@ requires`, `#@ ensures`, `#@ assigns`) immediately before its `def`.
-- **`#@ assigns self._field`** (or `\nothing` for pure read-only methods) is the correct frame syntax.
-- **Eliminate all default argument values** (e.g., change `def f(self, x: int = 0)` to `def f(self, x: int)`).
-- **Class names auto-lowercase**: WhyML requires lowercase function names; the pipeline auto-lowercases the prefix (e.g., `Counter.increment` → `counter__increment`). Python convention already satisfies this.
-- **NEVER use `with` context managers** inside an annotated method body. The IR pipeline has no handler for `ast.With`, so the entire block body is silently dropped. Replace `with <ctx>: <body>` with the raw `<body>` statements directly.
-- **Mixed files** (class + standalone functions) are supported. Standalone functions emit as plain `let f (args) : type` with no `self` parameter.
-- **Multi-field records** work automatically: every `self.x = ...` in `__init__` becomes a `mutable x: int` field.
-- **Pure read-only methods** are valid: `FieldGet` nodes emit `self.field` as plain record access with no `<-`.
-
-### Example — Counter with one field
-
-```python
-class Counter:
-    def __init__(self):
-        self._value = 0
-
-    #@ requires amount >= 0
-    #@ requires self._value >= 0
-    #@ ensures \result >= 0
-    #@ assigns self._value
-    def increment(self, amount: int) -> int:
-        self._value += amount
-        return self._value
-
-    #@ requires 1 == 1
-    #@ ensures \result == 0
-    #@ assigns self._value
-    def reset(self) -> int:
-        self._value = 0
-        return self._value
-```
-
-### Example — using `\old` to relate pre- and post-state
-
-```python
-class Ledger:
-    def __init__(self):
-        self._balance = 0
-
-    #@ requires n >= 0
-    #@ ensures self._balance == \old(self._balance) + n
-    #@ assigns self._balance
-    def deposit(self, n: int) -> int:
-        self._balance += n
-        return self._balance
-```
-
-### Level 3 — Class invariants
-
-Declare a property that must hold at all times with `#@ class invariant <expr>`. The pipeline emits this as a Why3 record invariant (`invariant { ... } by { ... }`), automatically checked at every method entry and exit — no per-method clause needed.
-
-- **Place `#@ class invariant <expr>` immediately before the `class` keyword** (not inside the class body). If it is the very first line of the file, prepend the sentinel `""  # pycsl`.
-- **Use `self.field` in invariant expressions** — the parser rewrites to bare field names in WhyML.
-- **Multiple invariants** — one `#@ class invariant` line per clause, stacked in the WhyML record.
-- **Cross-field invariants** (e.g., `self._lo <= self._hi`) are fully supported.
-- **Compound invariants with `and`** (e.g., `self._val >= 0 and self._val <= 100`) emit as a single Why3 `invariant` clause.
-- **Each method's preconditions must be strong enough to maintain the invariant** — e.g., a `withdraw` method on a `_balance >= 0` class must have `#@ requires amount <= self._balance`.
-- **`by` witness** is auto-generated from `__init__` assignments. No manual work required.
-- **Do NOT use `//`, `%`, or `len(...)`** in `#@ class invariant` (same restrictions as `requires`/`ensures`).
-- **Two classes in one file** each get their own independent `#@ class invariant`.
-
-```python
-""  # pycsl
-#@ class invariant self._value >= 0
-class Counter:
-    def __init__(self):
-        self._value = 0
-
-    #@ requires amount >= 0
-    #@ ensures self._value == \old(self._value) + amount
-    #@ assigns self._value
-    def increment(self, amount: int) -> int:
-        self._value += amount
-        return self._value
-```
+- Do NOT annotate `__init__` or `@property` — copy `__init__` verbatim.
+- Use `self.field` in contracts; `\old(self.field)` in `ensures`.
+- Each method needs all three contracts (`requires`, `ensures`, `assigns`).
+- `#@ class invariant <expr>` goes immediately before `class` keyword.
+- Method preconditions must be strong enough to maintain class invariants.
 
 ---
 
@@ -269,128 +205,7 @@ def countdown_sum(n: int) -> int:
     return total
 ```
 
-### Example 3 — `for` loop with `continue` and early return
-
-Convert `for i in range(n)` to a while-loop: `i = 0` before the loop and `i += 1` at the end of each branch; use `n - i` as the variant.
-
-**Input:**
-```python
-def first_positive(lst, n):
-    for i in range(n):
-        if lst[i] <= 0:
-            continue
-        return lst[i]
-    return -1
-```
-
-**Output:**
-```python
-#@ requires n >= 0
-#@ ensures \result >= -1
-#@ assigns \nothing
-def first_positive(lst: list, n: int) -> int:
-    i = 0
-    #@ loop invariant 0 <= i and i <= n
-    #@ loop variant n - i
-    while i < n:
-        if lst[i] <= 0:
-            i += 1
-            continue
-        return lst[i]
-        i += 1
-    return -1
-```
-
-### Example 4 — For-each loop over a list (no index variable)
-
-Capture the length in a local variable `n = len(collection)` before the loop, then use `i = 0` / `while i < n:` / `i += 1` so that `n - i` serves as the loop variant. Never use `len(...)` or `range(...)` inside any `#@` contract expression or loop header.
-
-**Input:**
-```python
-def count_categories(items):
-    negatives = 0
-    zeros = 0
-    positives = 0
-    for item in items:
-        if item < 0:
-            negatives += 1
-        elif item == 0:
-            zeros += 1
-        else:
-            positives += 1
-    return negatives, zeros, positives
-```
-
-**Output:**
-```python
-#@ requires 1 == 1
-#@ ensures 1 == 1
-#@ assigns \nothing
-def count_categories(items: list) -> tuple:
-    negatives = 0
-    zeros = 0
-    positives = 0
-    n = len(items)
-    i = 0
-    #@ loop invariant 0 <= i and i <= n
-    #@ loop invariant negatives >= 0
-    #@ loop invariant zeros >= 0
-    #@ loop invariant positives >= 0
-    #@ loop invariant negatives + zeros + positives == i
-    #@ loop variant n - i
-    while i < n:
-        if items[i] < 0:
-            negatives += 1
-        elif items[i] == 0:
-            zeros += 1
-        else:
-            positives += 1
-        i += 1
-    return negatives, zeros, positives
-```
-
-### Example 5 — For-each with continue and early return
-
-When a loop uses `continue` and an accumulator-based early return, assign `i = 0` before the loop and write `while i < n:` with `i += 1` as the **last** statement in each branch (including before `continue`). This gives an explicit index for the variant `n - i` and avoids any use of `range(...)` or `len(...)` in loop headers or `#@` contract expressions.
-
-**Input:**
-```python
-def running_total_until(values, threshold):
-    total = 0
-    for i in range(len(values)):
-        if values[i] <= 0:
-            continue
-        total += values[i]
-        if total >= threshold:
-            return total
-    return total
-```
-
-**Output:**
-```python
-#@ requires threshold > 0
-#@ ensures \result >= 0
-#@ assigns \nothing
-def running_total_until(values: list, threshold: int) -> int:
-    total = 0
-    n = len(values)
-    i = 0
-    #@ loop invariant 0 <= i and i <= n
-    #@ loop invariant total >= 0
-    #@ loop variant n - i
-    while i < n:
-        if values[i] <= 0:
-            i += 1
-            continue
-        total += values[i]
-        if total >= threshold:
-            i = n
-        else:
-            i += 1
-    return total
-```
-
-### Example 6 — Linear search (avoid `return` directly in loop body)
+### Example 6 — Linear search (flag + sentinel pattern)
 
 When a loop body ends with a bare `return i` (outside any `if` block), the WhyML transpiler emits `!i` (type `int`) in a `unit` position, causing a type error. Introduce `found = -1` before the loop, replace `return i` with `found = i; i = n` to force loop exit, and `return found` after the loop.
 
@@ -428,67 +243,7 @@ def linear_search(values: list, target: int) -> int:
     return found
 ```
 
-### Example 7 — Factorial (recursion or iterative accumulator)
-
-Every function must have all three contracts. For a multiplicative accumulator, use `#@ requires n >= 1` (NOT `n >= 0`). Use only `acc >= 1` and `k >= 0` as loop invariants — do NOT add `acc * k >= 1`, which is nonlinear and Alt-Ergo returns `Unknown`. The `acc >= 1` invariant is sufficient: when the loop exits `k = 1`, so `acc >= 1` directly proves `\result >= 1`.
-
-**Input:**
-```python
-def factorial(n: int) -> int:
-    k = n
-    acc = 1
-    while k > 1:
-        acc *= k
-        k -= 1
-    return acc
-```
-
-**Output:**
-```python
-#@ requires n >= 1
-#@ ensures \result >= 1
-#@ assigns \nothing
-def factorial(n: int) -> int:
-    k = n
-    acc = 1
-    #@ loop invariant k >= 0
-    #@ loop invariant acc >= 1
-    #@ loop variant k
-    while k > 1:
-        acc *= k
-        k -= 1
-    return acc
-```
-
-### Example 8 — List summation (weakened contracts for signed integers)
-
-When a function sums list elements, use `#@ requires 1 == 1` and `#@ ensures 1 == 1` for the postcondition — NOT `#@ ensures \result >= 0` — because list elements may be negative, making `\result >= 0` unprovable. For the same reason, do NOT add `#@ loop invariant total >= 0`. Capture `n = len(values)` before the loop.
-
-**Input:**
-```python
-def sum_list(values):
-    total = 0
-    for v in values:
-        total += v
-    return total
-```
-
-**Output:**
-```python
-#@ requires 1 == 1
-#@ ensures 1 == 1
-#@ assigns \nothing
-def sum_list(values: list) -> int:
-    n = len(values)
-    total = 0
-    i = 0
-    #@ loop invariant 0 <= i and i <= n
-    #@ loop variant n - i
-    while i < n:
-        total += values[i]
-        i += 1
-    return total
-```
+> **More examples:** See `references/worked-examples-core.md` (for-loop conversion, continue/early-return, recursion, list summation — Examples 3–8c) and `references/worked-examples-advanced.md` (binary search, boolean flags, KMP — Examples 9–13).
 
 ---
 
@@ -496,11 +251,19 @@ def sum_list(values: list) -> int:
 
 For anything not covered above, consult these files in order of relevance to the task:
 
+- **`references/forbidden-expressions.md`** — Complete list of NEVER rules for contract expressions: forbidden function calls, reserved names, type restrictions, pattern pitfalls, and WhyML type mismatches. Consult whenever writing any `#@` expression.
+
+- **`references/class-support.md`** — Class annotation rules: method contracts, `\old` usage, class invariants, multi-field records, multi-class files, and two complete class examples.
+
+- **`references/worked-examples-core.md`** — Worked examples for core patterns: `for` loop conversion (Examples 3–5), factorial iterative/recursive (Example 7), list summation with weakened contracts (Examples 8, 8b, 8c).
+
+- **`references/worked-examples-advanced.md`** — Worked examples for advanced patterns: binary search (Example 9), boolean-flag accumulators (Examples 10–12), KMP string search (Example 13).
+
 - **`references/transpiler-limits.md`** — Body-code constraints: what the IR pipeline can lower to WhyML and what it cannot. Consult before annotating any function body that uses `return`, `None`, `raise`, `with`, dict access, ternary expressions, slice notation, `math.pi`, `sorted`/`set`, string methods, parameter mutation, nested early-return patterns, or anything beyond simple integer/list operations.
 
-- **`references/solver-heuristics.md`** — Loop-invariant patterns for binary search, two-pointer, sliding window, multiplicative accumulators, binary flags + sentinels, conservation postconditions, and avoiding vacuous contracts. Consult whenever a loop's invariants need to be chosen carefully to discharge with Alt-Ergo within its step budget.
+- **`references/solver-heuristics.md`** — Loop-invariant patterns for binary search, two-pointer, sliding window, multiplicative accumulators, binary flags + sentinels, conservation postconditions, and avoiding vacuous contracts.
 
-- **`references/matrix-patterns.md`** — Matrix and 2D-array verification: the nonlinear-arithmetic problem from stride-based pointer loops, the linear-rewrite strategy, native 2D array support via `\length2d` / `\valid2d`, cautionary examples for transpose and matrix-multiply, and five provable linear flat-matrix operations. Consult for any algorithm involving matrices, 2D lists, stride-based pointer arithmetic, or nonlinear array indexing.
+- **`references/matrix-patterns.md`** — Matrix and 2D-array verification: the nonlinear-arithmetic problem, the linear-rewrite strategy, native 2D array support via `\length2d` / `\valid2d`, and five provable linear flat-matrix operations.
 
 ---
 

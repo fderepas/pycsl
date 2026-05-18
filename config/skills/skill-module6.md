@@ -25,10 +25,12 @@ This is a recursive descent string-builder that reads the JSON IR and outputs a 
   Used wherever the heap must be read (`!int_mem`) or written (`:=`).
 * `_uses_heap_model(self) -> bool`
   Returns `True` when `self.memory_model in ("typed", "store")`. Used as a guard in preamble generation, parameter emission, and expression translation to avoid duplicating `if memory_model == "typed" or memory_model == "store"` checks throughout the code.
+* `_to_bool(self, expr: Dict[str, Any], local_refs: Set[str]) -> str`
+  Converts an expression to a WhyML boolean. If the expression is already boolean-typed (Compare, BoolOp, Exists, Forall, or unary `not`), it is returned as-is. Otherwise wraps with `<> 0` coercion (WhyML has no implicit int-to-bool). This prevents double-coercion errors like `((x > 0) <> 0)`.
 
 ## 2. Mutability Analysis (The Most Critical Step)
 * `_find_assigned_vars(self, stmts: List[Dict[str, Any]]) -> Set[str]`
-  Scans a block of IR statements to find any variable that acts as a target in an `Assign` or `AugAssign` node.
+  Scans a block of IR statements to find any variable that acts as a target in an `Assign`, `AugAssign`, or `TupleUnpack` node. Also recursively scans `While`, `If`, `For`, `Try`, and `Match` bodies. Calls `_find_named_expr_targets` on each statement to capture walrus operator (`:=`) targets.
   *Why this exists:* In WhyML, variables are immutable by default. If a Python variable is ever reassigned or modified, it MUST be declared as a mutable reference (`ref`) and MUST be dereferenced with `!` when its value is read. This function populates the `local_refs` set used throughout the translation.
   **Memory model note:** In typed/store models, `list`-typed parameters are locations (`loc`), not mutable refs. They are NEVER added to `local_refs` by this function, regardless of whether a `For` loop iterates over them. Their companion `arr_len` parameter is likewise a plain `int`, not a ref.
 
@@ -92,8 +94,10 @@ This is a recursive descent string-builder that reads the JSON IR and outputs a 
     * Typed/store model: condition `!_idx < arr_len`; element binding `let <target> = ref (Map.get !int_mem (arr + !_idx)) in`.
     * Index is incremented at the end of each iteration. Loop invariants/variants are emitted before the body. `continue` inside a for loop is wrapped in `try/with PyCSL_Continue` as with while.
   * **If:** Emits `if test then begin ... end` or `if test then begin ... end else begin ... end`.
+  * **Assert:** Emits `check { <condition> }; <rest of block>`. The `check{}` block has type `unit` so it MUST be followed by `;` and a continuation expression — it does NOT act as a return value.
   * **Return:** The last expression in a WhyML function IS its return value. A `Return` node emits the expression without a trailing semicolon.
   * **Continue:** Emits `raise PyCSL_Continue` — the enclosing loop's `try/with` catches it to simulate loop continuation.
+  * **Lambda assignment:** When an `Assign` target is in `_lambda_locals` (detected by `_find_lambda_vars`), it is emitted as `let f = <lambda_expr> in <rest>` without `ref`. Lambda-bound names are never dereferenced with `!` and never use `:=`.
 
   **Complete statement dispatch table (memory-model-aware):**
 
@@ -105,14 +109,17 @@ This is a recursive descent string-builder that reads the JSON IR and outputs a 
 
 ## 5. Return-Type Inference
 * `_find_return_type(self, stmts: List[Dict[str, Any]]) -> str`
-  Scans the body for the first `Return` statement to determine the function signature.
+  Scans the body for the first `Return` statement to determine the function signature. Recurses into `While`, `If`, `For`, `Try`, and `Match` bodies.
   * Returns `"unit"` if no `Return` statement exists anywhere in the body (handles void methods like `reset`).
   * Returns `"(int, int, …)"` if the return value is a `Tuple`.
   * Returns `"int"` otherwise.
 
 ## 5b. Analysis Helpers
 These private helpers scan IR trees without modifying them.
-* `_find_assigned_vars(self, stmts) -> Set[str]` — finds all `Assign`/`AugAssign` target names (recursing into `While`, `If`, `For` bodies). Populates `local_refs`.
+* `_find_assigned_vars(self, stmts) -> Set[str]` — finds all `Assign`/`AugAssign`/`TupleUnpack` target names (recursing into `While`, `If`, `For`, `Try`, `Match` bodies). Also calls `_find_named_expr_targets` to capture walrus operator targets. Populates `local_refs`.
+* `_find_named_expr_targets(self, obj, targets) -> None` — recursively walks an IR object tree to find `NamedExpr` targets (`:=` walrus operator). Found targets are added to the `targets` set so they get pre-declared as refs.
+* `_find_lambda_vars(self, stmts) -> Set[str]` — finds variables assigned lambda expressions. These are emitted as immutable `let f = <expr> in` bindings (NOT refs), so they must be excluded from `pre_decl_vars`.
+* `_find_array_and_dict_vars(self, stmts) -> tuple` — finds variables assigned array or dict values (including `SliceAccess`). Returns `(array_vars, dict_vars)` for special declaration handling.
 * `_has_continue(self, stmts) -> bool` — checks if a statement list directly contains a `Continue` node (does not cross `For`/`While` boundaries). Used to decide whether to wrap a loop body in `try/with`.
 * `_uses_continue(self, stmts) -> bool` — recursively checks for any `Continue` across all nested bodies. Used by `transpile()` to decide whether to emit `exception PyCSL_Continue`.
 * `_uses_for(self, stmts) -> bool` — recursively checks for any `For` statement. A `For` loop requires `array.Array` (hoare) or `map.Map` (typed/store), so this triggers `needs_array` or `needs_map` respectively.
@@ -356,8 +363,9 @@ Returns `""` — no frame condition is emitted. This is the default for function
 ---
 
 # KEY INVARIANTS
-* **`local_refs`** = set of all variable names that are ever the target of an assignment in the body. These MUST be dereferenced with `!` when read.
+* **`local_refs`** = set of all variable names that are ever the target of an assignment in the body (including walrus `:=` targets found by `_find_named_expr_targets`). These MUST be dereferenced with `!` when read.
 * **`declared_refs`** = set of `local_refs` variables that have already been introduced by a `let x = ref …` binding (or passed as a `ref` parameter). Once a variable is in `declared_refs`, reassignment uses `:=` not `let … = ref … in`.
+* **`_lambda_locals`** = set of variables assigned lambda expressions. These are excluded from `pre_decl_vars` and emitted as immutable `let f = <expr> in` bindings. They are never in `local_refs` for dereference purposes.
 * **`ref` parameters** (variables with `obj_` prefix in symbol_table of *standalone* functions that are also mutated) are added to `declared_refs` BEFORE body translation begins — they do not need a `let` wrapper.
 * **Class methods (Level 2) do NOT use `ref` parameters.** Field mutation is expressed via `FieldAssign`/`FieldAugAssign` which emit `self.field <- ...` (WhyML record update), not `:=` (ref assignment). The `(self: classname)` parameter is the only field-carrying argument.
 * **Contracts for methods use an empty `spec_refs` set**, because `FieldGet` nodes emit `self.field` as a plain field access (no `!`) and `OldField` emits `(old self.field)` — no ref-dereference machinery needed.
@@ -366,6 +374,7 @@ Returns `""` — no frame condition is emitted. This is the default for function
 * **In typed/store model, `list` parameters NEVER appear in `local_refs`.** They are locations (`loc`), not mutable refs. Their companion `arr_len` is also a plain `int` parameter, not a ref. Attempting to dereference them with `!` will cause a Why3 type error.
 * **Frame conditions are emitted AFTER `ensures` clauses** in the function spec. The order is: `requires` clauses, then `ensures` clauses, then frame conditions from `_emit_frame_condition`. Reversing this order does not affect correctness, but the conventional Why3 ordering is `requires` then `ensures` then `writes`.
 * **`Label` statement takes the REST of the block as its body.** It is not a separator. All remaining statements after a `Label` node must be nested INSIDE the `label L in …` expression. This follows the same "takes the tail" pattern as `let x = ref v in <rest>`.
+* **`Assert` emits `check { pred }` which has type `unit`.** It must ALWAYS be followed by `; <rest>`. Never use `return` after generating a check{} — chain with the remainder of the block.
 
 # EXTENSION HEURISTICS
 When adding a new IR statement kind:

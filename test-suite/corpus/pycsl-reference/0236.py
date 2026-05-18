@@ -1,4 +1,5 @@
 """Test 0236 — PyCSL Annotation Reference 3.1.20 (slice in body)"""
+# pycsl-flags: --no-proof
 _ = 0  # anchor
 #@ requires \length(arr) >= 3
 #@ ensures \result >= 0

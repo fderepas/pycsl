@@ -215,13 +215,27 @@ def _extract_contracts_text(annotated_source: str) -> str:
 
 
 def _extract_class_context(source: str, class_name: str) -> str:
-    """Extract the class definition header and __init__ for context."""
+    """Extract the class definition header, __init__, and any class invariants for context."""
     tree = ast.parse(source)
     source_lines = source.splitlines(keepends=True)
+
     for node in ast.iter_child_nodes(tree):
         if isinstance(node, ast.ClassDef) and node.name == class_name:
-            # Get class header + __init__ body
-            parts = [f"class {class_name}:"]
+            parts = []
+
+            # Collect #@ class invariant lines immediately before the class def
+            class_line = node.lineno - 1  # 0-based
+            inv_start = class_line
+            while inv_start > 0 and source_lines[inv_start - 1].strip().startswith("#@"):
+                inv_start -= 1
+            for idx in range(inv_start, class_line):
+                stripped = source_lines[idx].strip()
+                if stripped.startswith("#@"):
+                    parts.append(stripped)
+
+            parts.append(f"class {class_name}:")
+
+            # Include __init__ body
             for child in ast.iter_child_nodes(node):
                 if isinstance(child, ast.FunctionDef) and child.name == "__init__":
                     start = child.lineno - 1
@@ -233,12 +247,136 @@ def _extract_class_context(source: str, class_name: str) -> str:
     return ""
 
 
+def _generate_class_invariants(
+    source: str,
+    functions: list[FunctionInfo],
+    annotated_contracts: dict[str, str],
+    memory_model: str,
+    config_path: Path,
+    project_root: Path,
+    writer_script: Path,
+    project_directory: str,
+) -> dict[str, list[str]]:
+    """Generate class invariant annotations for each class with an __init__.
+
+    For each class found in the source, extract its __init__ body and field
+    information, then call the writer pipeline to generate appropriate
+    ``#@ class invariant`` expressions.
+
+    Returns:
+        Mapping from class name to a list of invariant expression strings
+        (without the ``#@ class invariant`` prefix).
+    """
+    tree = ast.parse(source)
+    source_lines = source.splitlines(keepends=True)
+    class_invariants: dict[str, list[str]] = {}
+
+    for node in ast.iter_child_nodes(tree):
+        if not isinstance(node, ast.ClassDef):
+            continue
+
+        # Find __init__
+        init_node = None
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, ast.FunctionDef) and child.name == "__init__":
+                init_node = child
+                break
+        if init_node is None:
+            continue
+
+        # Extract __init__ source
+        init_start = init_node.lineno - 1
+        init_end = init_node.end_lineno or init_node.lineno
+        init_source = "".join(source_lines[init_start:init_end])
+
+        # Collect annotated method contracts for context
+        method_contracts_parts = []
+        for f in functions:
+            if f.class_name == node.name and f.contracts:
+                method_contracts_parts.append(
+                    f"# Contracts for {f.name}:\n{f.contracts}"
+                )
+        method_contracts = "\n\n".join(method_contracts_parts)
+
+        # Build a synthetic function_source that is the __init__
+        # The class_context tells the writer what fields exist
+        class_ctx = _extract_class_context(source, node.name)
+
+        try:
+            log(project_directory, AGENT_NAME,
+                f"Generating class invariant for {node.name}")
+            result = _invoke_writer(
+                function_source=init_source,
+                callee_contracts=method_contracts,
+                class_context=(
+                    class_ctx
+                    + "\n\n# IMPORTANT: This is __init__. Your MAIN task is to "
+                    "generate one or more `#@ class invariant <expr>` lines "
+                    "that capture the key properties this class must maintain. "
+                    "Place them immediately before the `def __init__` line. "
+                    "Use ONLY expressions involving `self.<field>` and integer "
+                    "comparisons (e.g. `self._balance >= 0`, "
+                    "`self._lo <= self._hi`). "
+                    "For requires/ensures on __init__, use `requires 1 == 1` "
+                    "and `ensures 1 == 1`."
+                ),
+                memory_model=memory_model,
+                config_path=config_path,
+                project_root=project_root,
+                writer_script=writer_script,
+            )
+
+            # Parse the result for #@ class invariant lines
+            inv_exprs = []
+            for line in result.splitlines():
+                m = re.match(r'^\s*#@\s*class invariant\s+(.+)$', line.strip())
+                if m:
+                    expr = m.group(1).strip()
+                    if expr and expr != '1 == 1':
+                        inv_exprs.append(expr)
+
+            if inv_exprs:
+                class_invariants[node.name] = inv_exprs
+                log(project_directory, AGENT_NAME,
+                    f"Class {node.name}: generated {len(inv_exprs)} invariant(s)")
+            else:
+                log(project_directory, AGENT_NAME,
+                    f"Class {node.name}: no invariants generated")
+
+        except Exception as e:
+            log(project_directory, AGENT_NAME,
+                f"Class invariant generation failed for {node.name}: {e}")
+
+    return class_invariants
+
+
 def _reassemble_file(
     original_source: str,
     functions: list[FunctionInfo],
+    class_invariants: dict[str, list[str]] | None = None,
 ) -> str:
-    """Replace original function sources with their annotated versions."""
+    """Replace original function sources with their annotated versions
+    and insert class invariant annotations before class definitions."""
     source_lines = original_source.splitlines(keepends=True)
+
+    # Insert class invariants before class definitions (process bottom-up
+    # to avoid index shifts)
+    if class_invariants:
+        tree = ast.parse(original_source)
+        class_defs = []
+        for node in ast.iter_child_nodes(tree):
+            if isinstance(node, ast.ClassDef) and node.name in class_invariants:
+                class_defs.append((node.lineno, node.name))
+        # Sort descending by line number
+        for lineno, cname in sorted(class_defs, reverse=True):
+            inv_lines = class_invariants[cname]
+            # Detect indentation of the class line
+            class_line = source_lines[lineno - 1]
+            indent = re.match(r'^(\s*)', class_line).group(1)
+            inv_text = "".join(f"{indent}#@ class invariant {inv}\n"
+                               for inv in inv_lines)
+            source_lines.insert(lineno - 1, inv_text)
+
     # Sort functions by start_line descending so replacements don't shift indices
     sorted_funcs = sorted(functions, key=lambda f: f.start_line, reverse=True)
 
@@ -373,13 +511,21 @@ def run_splitter(
         log(project_directory, AGENT_NAME, "No annotatable functions found, returning original")
         return source
 
-    # Step 2: Detect SCCs and topological order
+    # Step 2b: Generate class invariants BEFORE annotating methods.
+    # Methods need to see the invariant to generate proper guarding `requires`.
+    class_invariants = _generate_class_invariants(
+        source, functions, {},  # no annotated contracts yet
+        memory_model, config_path, project_root, writer_script,
+        project_directory,
+    )
+
+    # Step 3: Detect SCCs and topological order
     sccs = _tarjan_scc(annotatable_map)
     log(project_directory, AGENT_NAME,
         f"Topological order: {len(sccs)} groups "
         f"(SCCs with >1 member: {sum(1 for s in sccs if len(s) > 1)})")
 
-    # Step 3: Annotate in topological order (leaves first)
+    # Step 4: Annotate in topological order (leaves first)
     annotated_contracts: dict[str, str] = {}  # qname -> contract text
 
     for scc in sccs:
@@ -413,6 +559,13 @@ def run_splitter(
             class_ctx = ""
             if info.class_name:
                 class_ctx = _extract_class_context(source, info.class_name)
+                # Inject generated class invariants so the writer sees them
+                if info.class_name in class_invariants:
+                    inv_lines = "\n".join(
+                        f"#@ class invariant {e}"
+                        for e in class_invariants[info.class_name]
+                    )
+                    class_ctx = inv_lines + "\n" + class_ctx
 
             try:
                 annotated = _invoke_writer(
@@ -447,9 +600,17 @@ def run_splitter(
             class_ctx = ""
             class_names = {f.class_name for f in scc_funcs if f.class_name}
             if class_names:
-                class_ctx = "\n\n".join(
-                    _extract_class_context(source, cn) for cn in class_names
-                )
+                parts = []
+                for cn in class_names:
+                    ctx = _extract_class_context(source, cn)
+                    if cn in class_invariants:
+                        inv_lines = "\n".join(
+                            f"#@ class invariant {e}"
+                            for e in class_invariants[cn]
+                        )
+                        ctx = inv_lines + "\n" + ctx
+                    parts.append(ctx)
+                class_ctx = "\n\n".join(parts)
 
             try:
                 annotated = _invoke_writer(
@@ -493,8 +654,8 @@ def run_splitter(
                 info.contracts = _extract_contracts_text(info.annotated_source)
                 annotated_contracts[info.name] = info.contracts
 
-    # Step 4: Reassemble the file
-    result = _reassemble_file(source, annotatable)
+    # Step 5: Reassemble the file
+    result = _reassemble_file(source, annotatable, class_invariants)
     log(project_directory, AGENT_NAME, "File reassembly complete")
     return result
 

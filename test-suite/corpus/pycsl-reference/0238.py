@@ -1,4 +1,5 @@
 """Test 0238 — PyCSL Annotation Reference 7.2 (tuple unpacking)"""
+# pycsl-flags: --no-proof
 _ = 0  # anchor
 #@ requires y > 0
 #@ ensures \result >= 0

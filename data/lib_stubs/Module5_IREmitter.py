@@ -1,102 +1,116 @@
 """PyCSL mock for Module5_IREmitter."""
 _ = 0  # anchor
 
-# ── PyCSLToJSONEmitter class ────────────────────────────────────────
+# ── PyCSLToJSONEmitterObj class ─────────────────────────────────────
 
-#@ \trusted
-#@ ensures \result >= 0
-def PyCSLToJSONEmitter() -> int:
-    """Mock: create a PyCSLToJSONEmitter."""
-    return 0
+""  # pycsl
+#@ class invariant self._ir_nodes >= 0
+class PyCSLToJSONEmitterObj:
+    def __init__(self):
+        self._ir_nodes = 0
 
-#@ \trusted
-#@ ensures \result >= 0
-def PyCSLToJSONEmitter_visit_ClassDef(self: int, node: int) -> int:
-    """Mock: emit IR for class definitions."""
-    return 0
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns self._ir_nodes
+    def visit_classdef(self, node: int) -> int:
+        return 0
 
-#@ \trusted
-#@ ensures \result >= 0
-def PyCSLToJSONEmitter_visit_FunctionDef(self: int, node: int) -> int:
-    """Mock: emit IR for function definitions."""
-    return 0
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns self._ir_nodes
+    def visit_functiondef(self, node: int) -> int:
+        return 0
 
-#@ \trusted
-#@ ensures \result >= 0
-def PyCSLToJSONEmitter__csl_to_ir(self: int, node: int) -> int:
-    """Mock: translate PyCSL nodes into IR dictionaries."""
-    return 0
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def csl_to_ir(self, node: int) -> int:
+        return 0
 
-#@ \trusted
-#@ ensures \result >= 0
-def PyCSLToJSONEmitter__csl_list_to_ir(self: int, csl_list: int) -> int:
-    """Mock: translate a list of PyCSL nodes to IR."""
-    return 0
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def csl_list_to_ir(self, csl_list: int) -> int:
+        return 0
 
-#@ \trusted
-#@ ensures \result >= 0
-def PyCSLToJSONEmitter__py_op_to_str(self: int, op: int) -> int:
-    """Mock: convert Python AST operator to string."""
-    return 0
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def py_op_to_str(self, op: int) -> int:
+        return 0
 
-#@ \trusted
-#@ ensures \result >= 0
-def PyCSLToJSONEmitter__py_expr_to_ir(self: int, expr: int) -> int:
-    """Mock: convert Python expression to IR dictionary."""
-    return 0
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def py_expr_to_ir(self, expr: int) -> int:
+        return 0
 
-#@ \trusted
-#@ ensures \result >= 0
-def PyCSLToJSONEmitter__py_stmts_to_ir(self: int, stmts: int) -> int:
-    """Mock: convert Python statements to IR list."""
-    return 0
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def py_stmts_to_ir(self, stmts: int) -> int:
+        return 0
 
-#@ \trusted
-#@ ensures \result >= 0
-def PyCSLToJSONEmitter__process_while(self: int, node: int) -> int:
-    """Mock: process while loop into IR."""
-    return 0
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def process_while(self, node: int) -> int:
+        return 0
 
-#@ \trusted
-#@ ensures \result >= 0
-def PyCSLToJSONEmitter__process_for(self: int, node: int) -> int:
-    """Mock: process for loop into IR."""
-    return 0
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def process_for(self, node: int) -> int:
+        return 0
 
-#@ \trusted
-#@ ensures \result >= 0
-def PyCSLToJSONEmitter__process_if(self: int, node: int) -> int:
-    """Mock: process if statement into IR."""
-    return 0
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def process_if(self, node: int) -> int:
+        return 0
 
-#@ \trusted
-#@ ensures \result >= 0
-def PyCSLToJSONEmitter__scan_2d_in_expr(self: int, expr: int, param_names: int, result: int) -> int:
-    """Mock: scan expression for 2D array usage."""
-    return 0
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def scan_2d_in_expr(self, expr: int, param_names: int, arr_result: int) -> int:
+        return 0
 
-#@ \trusted
-#@ ensures \result >= 0
-def PyCSLToJSONEmitter__scan_2d_in_stmt(self: int, stmt: int, param_names: int, result: int) -> int:
-    """Mock: scan statement for 2D array usage."""
-    return 0
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def scan_2d_in_stmt(self, stmt: int, param_names: int, arr_result: int) -> int:
+        return 0
 
-#@ \trusted
-#@ ensures \result >= 0
-def PyCSLToJSONEmitter__collect_2d_params(self: int, body_ir: int, symbol_table: int) -> int:
-    """Mock: collect 2D array parameters."""
-    return 0
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def collect_2d_params(self, body_ir: int, symbol_table: int) -> int:
+        return 0
 
-# ── Module5_IREmitter class ─────────────────────────────────────────
+# ── Module5EmitterObj class ─────────────────────────────────────────
 
-#@ \trusted
-#@ ensures \result >= 0
-def Module5_IREmitter(tree: int) -> int:
-    """Mock: create a Module5_IREmitter."""
-    return 0
+#@ class invariant self._processed >= 0
+class Module5EmitterObj:
+    def __init__(self):
+        self._processed = 0
 
-#@ \trusted
-#@ ensures \result >= 0
-def Module5_IREmitter_generate_json(self: int, indent: int) -> int:
-    """Mock: generate JSON IR from the annotated AST."""
-    return 0
+    #@ \trusted
+    #@ requires self._processed == 0
+    #@ ensures self._processed == 1
+    #@ assigns self._processed
+    def generate_json(self, indent: int) -> int:
+        self._processed = 1
+        return 0

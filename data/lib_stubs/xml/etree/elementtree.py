@@ -1,152 +1,176 @@
-"""PyCSL mock for Python's xml.etree.ElementTree module."""
+"""PyCSL mock for Python's xml.etree.ElementTree module.
+
+Element and ElementTree modelled as classes with invariants.
+"""
 _ = 0  # anchor
 
-# ---------------------------------------------------------------------------
-# Functions
-# ---------------------------------------------------------------------------
+# ── ElementObj class ────────────────────────────────────────────────
 
-#@ \trusted
-def canonicalize(xml_data: str) -> str:
-    """Mock: C14N 2.0 canonicalization — returns canonical XML string."""
-    return ""
+""  # pycsl
+#@ class invariant self._children >= 0
+class ElementObj:
+    def __init__(self):
+        self._children = 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def tag(self) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def text(self) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def tail(self) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def attrib(self) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures self._children == \old(self._children) + 1
+    #@ assigns self._children
+    def append(self, subelement: int) -> int:
+        self._children += 1
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def find(self, path: int, namespaces: int) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def findall(self, path: int, namespaces: int) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def findtext(self, path: int, default: int, namespaces: int) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def get(self, key: int, default: int) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result == 0
+    #@ assigns \nothing
+    def set_attr(self, key: int, value: int) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def iter(self, tagfilter: int) -> int:
+        return 0
+
+# ── ElementTreeObj class ────────────────────────────────────────────
+
+#@ class invariant self._parsed >= 0
+class ElementTreeObj:
+    def __init__(self):
+        self._parsed = 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def getroot(self) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures self._parsed == 1
+    #@ assigns self._parsed
+    def xml_parse(self, source: int, parser: int) -> int:
+        self._parsed = 1
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result == 0
+    #@ assigns \nothing
+    def write(self, file_or_filename: int, encoding: int, xml_declaration: int, method: int) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def find(self, path: int, namespaces: int) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def findall(self, path: int, namespaces: int) -> int:
+        return 0
+
+# ── Module-level functions ──────────────────────────────────────────
 
 #@ \trusted
 #@ ensures \result >= 0
-def Comment(text: str) -> int:
-    """Mock: comment element factory — opaque Element."""
-    return 0
-
-#@ \trusted
-#@ ensures \result == 0
-def dump(elem: int) -> int:
-    """Mock: writes element to stdout — side-effect."""
+def fromstring(text: int, parser: int) -> int:
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
-def fromstring(text: str, parser: int) -> int:
-    """Mock: parses XML from string — opaque Element."""
+def tostring(element: int, encoding: int, method: int) -> int:
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
-def fromstringlist(sequence: int, parser: int) -> int:
-    """Mock: parses XML from string fragments — opaque Element."""
+def xml_parse(source: int, parser: int) -> int:
     return 0
 
 #@ \trusted
-#@ ensures \result == 0
-def indent(tree: int, space: str, level: int) -> int:
-    """Mock: indents tree visually — side-effect."""
+#@ ensures \result >= 0
+def SubElement(parent: int, tag: int, attrib: int) -> int:
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
 def iselement(element: int) -> int:
-    """Mock: checks if object is element — boolean as int."""
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
-def iterparse(source: str, events: int, parser: int) -> int:
-    """Mock: incremental XML parse — opaque iterator."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def parse(source: str, parser: int) -> int:
-    """Mock: parses XML file — opaque ElementTree."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def ProcessingInstruction(target: str, text: str) -> int:
-    """Mock: PI element factory — opaque Element."""
+def iterparse(source: int, events: int, parser: int) -> int:
     return 0
 
 #@ \trusted
 #@ ensures \result == 0
-def register_namespace(prefix: str, uri: str) -> int:
-    """Mock: registers namespace prefix — side-effect."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def SubElement(parent: int, tag: str, attrib: int) -> int:
-    """Mock: subelement factory — opaque Element."""
-    return 0
-
-#@ \trusted
-def tostring(element: int, encoding: str, method: str) -> str:
-    """Mock: serializes element to XML string."""
-    return ""
-
-#@ \trusted
-#@ ensures \result >= 0
-def tostringlist(element: int, encoding: str, method: str) -> int:
-    """Mock: serializes element to list of strings — opaque list."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def XML(text: str, parser: int) -> int:
-    """Mock: parses XML literal — opaque Element."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def XMLID(text: str, parser: int) -> int:
-    """Mock: parses XML and returns (Element, id-dict) — opaque tuple."""
-    return 0
-
-# ---------------------------------------------------------------------------
-# Classes
-# ---------------------------------------------------------------------------
-
-#@ \trusted
-#@ ensures \result >= 0
-def Element(tag: str, attrib: int) -> int:
-    """Mock: Element constructor — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def ElementTree(element: int, file: int) -> int:
-    """Mock: ElementTree constructor — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def QName(text_or_uri: str, tag: str) -> int:
-    """Mock: QName constructor — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def TreeBuilder(element_factory: int) -> int:
-    """Mock: TreeBuilder constructor — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def C14NWriterTarget(write: int) -> int:
-    """Mock: C14NWriterTarget constructor — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def XMLParser(target: int, encoding: str) -> int:
-    """Mock: XMLParser constructor — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def XMLPullParser(events: int) -> int:
-    """Mock: XMLPullParser constructor — opaque."""
+def indent(tree: int, space: int, level: int) -> int:
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
 def ParseError() -> int:
-    """Mock: ParseError exception — opaque."""
     return 0

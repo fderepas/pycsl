@@ -9,5 +9,11 @@
   "skill-module5": "config/skills/skill-module5.md",
   "skill-module6": "config/skills/skill-module6.md",
   "rag-index": "data/embeddings/skills_index.json",
-  "rag-top-k": 10
+  "rag-top-k": 10,
+  "skill-english-writer": "config/skills/english-writer/SKILL.md",
+  "skill-contract-writer": "config/skills/contract-writer/SKILL.md",
+  "skill-invariant-writer": "config/skills/invariant-writer/SKILL.md",
+  "skill-rocq-prover": "config/skills/rocq-prover/SKILL.md",
+  "nomic-embed-text-ollama-url": "http://127.0.0.1:11434",
+  "llm-ollama-url": "http://192.168.1.111:11434"
 }

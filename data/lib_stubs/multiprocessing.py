@@ -1,304 +1,312 @@
 """PyCSL mock for Python's multiprocessing module."""
 _ = 0  # anchor
 
-# ---------------------------------------------------------------------------
-# Module-level functions
-# ---------------------------------------------------------------------------
+# ── ProcessObj class ────────────────────────────────────────────────
+
+""  # pycsl
+#@ class invariant self._pid >= -1
+#@ class invariant self._exitcode >= -256
+class ProcessObj:
+    def __init__(self):
+        self._pid = -1
+        self._exitcode = -256
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures self._pid >= 0
+    #@ assigns self._pid
+    def start(self) -> int:
+        self._pid = 0
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result == 0
+    #@ assigns \nothing
+    def join(self, timeout: int) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def is_alive(self) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result == self._pid
+    #@ assigns \nothing
+    def get_pid(self) -> int:
+        return self._pid
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result == self._exitcode
+    #@ assigns \nothing
+    def get_exitcode(self) -> int:
+        return self._exitcode
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result == 0
+    #@ assigns \nothing
+    def terminate(self) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result == 0
+    #@ assigns \nothing
+    def kill(self) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result == 0
+    #@ assigns \nothing
+    def close(self) -> int:
+        return 0
+
+# ── QueueObj class ──────────────────────────────────────────────────
+
+#@ class invariant self._qsize >= 0
+class QueueObj:
+    def __init__(self):
+        self._qsize = 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures self._qsize == \old(self._qsize) + 1
+    #@ assigns self._qsize
+    def put(self, obj: int, block: int, timeout: int) -> int:
+        self._qsize = self._qsize + 1
+        return 0
+
+    #@ \trusted
+    #@ requires self._qsize >= 1
+    #@ ensures self._qsize == \old(self._qsize) - 1
+    #@ assigns self._qsize
+    def get(self, block: int, timeout: int) -> int:
+        self._qsize = self._qsize - 1
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result == self._qsize
+    #@ assigns \nothing
+    def qsize(self) -> int:
+        return self._qsize
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def empty(self) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def full(self) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result == 0
+    #@ assigns \nothing
+    def close(self) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result == 0
+    #@ assigns \nothing
+    def join_thread(self) -> int:
+        return 0
+
+# ── PoolObj class ───────────────────────────────────────────────────
+
+#@ class invariant self._workers >= 1
+class PoolObj:
+    def __init__(self):
+        self._workers = 1
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def apply(self, func: int, args: int, kwds: int) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def apply_async(self, func: int, args: int, kwds: int, callback: int, error_callback: int) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def map_func(self, func: int, iterable: int, chunksize: int) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def map_async(self, func: int, iterable: int, chunksize: int, callback: int, error_callback: int) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def starmap(self, func: int, iterable: int, chunksize: int) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result == 0
+    #@ assigns \nothing
+    def close(self) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result == 0
+    #@ assigns \nothing
+    def terminate(self) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result == 0
+    #@ assigns \nothing
+    def join(self) -> int:
+        return 0
+
+# ── Standalone functions ────────────────────────────────────────────
 
 #@ \trusted
 #@ ensures \result >= 0
 def active_children() -> int:
-    """Mock: returns list of all live children of the current process."""
     return 0
 
 #@ \trusted
-#@ ensures \result >= 0
+#@ ensures \result >= 1
 def cpu_count() -> int:
-    """Mock: returns the number of CPUs in the system."""
-    return 0
+    return 1
 
 #@ \trusted
 #@ ensures \result >= 0
 def current_process() -> int:
-    """Mock: returns the Process object corresponding to the current process."""
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
 def parent_process() -> int:
-    """Mock: returns the Process object corresponding to the parent process."""
     return 0
 
 #@ \trusted
 #@ ensures \result == 0
 def freeze_support() -> int:
-    """Mock: adds support for frozen executables using multiprocessing."""
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
 def get_all_start_methods() -> int:
-    """Mock: returns list of supported start methods."""
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
 def get_context(method: int) -> int:
-    """Mock: returns a context object with same attributes as multiprocessing."""
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
 def get_start_method(allow_none: int) -> int:
-    """Mock: returns the name of the start method used for starting processes."""
     return 0
 
 #@ \trusted
 #@ ensures \result == 0
 def set_executable(executable: int) -> int:
-    """Mock: sets the path of the Python interpreter for child processes."""
-    return 0
-
-#@ \trusted
-#@ ensures \result == 0
-def set_forkserver_preload(module_names: int, on_error: int) -> int:
-    """Mock: sets module names for forkserver process to preload."""
     return 0
 
 #@ \trusted
 #@ ensures \result == 0
 def set_start_method(method: int, force: int) -> int:
-    """Mock: sets the method used to start child processes."""
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
-def Pipe(duplex: int) -> int:
-    """Mock: returns a pair of Connection objects representing pipe ends."""
+def mp_pipe(duplex: int) -> int:
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
-def Manager() -> int:
-    """Mock: returns a started SyncManager for sharing objects between processes."""
-    return 0
-
-# ---------------------------------------------------------------------------
-# Shared ctypes objects
-# ---------------------------------------------------------------------------
-
-#@ \trusted
-#@ ensures \result >= 0
-def Value(typecode_or_type: int, args: int, lock: int, ctx: int) -> int:
-    """Mock: returns a ctypes object allocated from shared memory."""
+def mp_manager() -> int:
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
-def Array(typecode_or_type: int, size_or_initializer: int, lock: int, ctx: int) -> int:
-    """Mock: returns a ctypes array allocated from shared memory."""
+def mp_value(typecode: int, args: int, lock_val: int) -> int:
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
-def RawValue(typecode_or_type: int, args: int) -> int:
-    """Mock: returns a raw ctypes object allocated from shared memory."""
+def mp_array(typecode: int, size_init: int, lock_val: int) -> int:
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
-def RawArray(typecode_or_type: int, size_or_initializer: int) -> int:
-    """Mock: returns a raw ctypes array allocated from shared memory."""
+def mp_lock() -> int:
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
-def sharedctypes_Value(typecode_or_type: int, args: int, lock: int, ctx: int) -> int:
-    """Mock: sharedctypes.Value — synchronized wrapper for a shared ctypes object."""
+def mp_rlock() -> int:
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
-def sharedctypes_Array(typecode_or_type: int, size_or_initializer: int, lock: int, ctx: int) -> int:
-    """Mock: sharedctypes.Array — synchronized wrapper for a shared ctypes array."""
+def mp_semaphore(sem_value: int) -> int:
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
-def copy(obj: int) -> int:
-    """Mock: returns a ctypes object from shared memory that copies obj."""
+def mp_event() -> int:
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
-def synchronized(obj: int, lock: int, ctx: int) -> int:
-    """Mock: returns a process-safe wrapper for a ctypes object."""
-    return 0
-
-# ---------------------------------------------------------------------------
-# Connection utilities (multiprocessing.connection)
-# ---------------------------------------------------------------------------
-
-#@ \trusted
-#@ ensures \result == 0
-def deliver_challenge(connection: int, authkey: int) -> int:
-    """Mock: sends a randomly generated challenge to the other end."""
-    return 0
-
-#@ \trusted
-#@ ensures \result == 0
-def answer_challenge(connection: int, authkey: int) -> int:
-    """Mock: receives and responds to an authentication challenge."""
+def mp_barrier(parties: int, action: int, timeout: int) -> int:
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
-def Client(address: int, family: int, authkey: int) -> int:
-    """Mock: sets up a connection to a listener, returns a Connection."""
+def mp_condition(lock_val: int) -> int:
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
-def wait(object_list: int, timeout: int) -> int:
-    """Mock: waits until an object in object_list is ready."""
+def mp_listener(address: int, family: int, backlog: int, authkey: int) -> int:
     return 0
 
-# ---------------------------------------------------------------------------
-# Logging
-# ---------------------------------------------------------------------------
+#@ \trusted
+#@ ensures \result >= 0
+def mp_client(address: int, family: int, authkey: int) -> int:
+    return 0
 
 #@ \trusted
 #@ ensures \result >= 0
 def get_logger() -> int:
-    """Mock: returns the logger used by multiprocessing."""
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
 def log_to_stderr(level: int) -> int:
-    """Mock: returns logger and adds a handler sending output to stderr."""
-    return 0
-
-# ---------------------------------------------------------------------------
-# Classes (constructors returning opaque int >= 0)
-# ---------------------------------------------------------------------------
-
-#@ \trusted
-#@ ensures \result >= 0
-def Process(group: int, target: int, process_name: int, args: int, kwargs: int, daemon: int) -> int:
-    """Mock: creates a Process object representing activity in a separate process."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def Queue(maxsize: int) -> int:
-    """Mock: creates a process-shared queue — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def SimpleQueue() -> int:
-    """Mock: creates a simplified process-shared queue — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def JoinableQueue(maxsize: int) -> int:
-    """Mock: creates a joinable process-shared queue — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def Connection() -> int:
-    """Mock: creates a Connection object for inter-process communication — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def Barrier(parties: int, action: int, timeout: int) -> int:
-    """Mock: creates a barrier for synchronizing processes — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def BoundedSemaphore(bound_value: int) -> int:
-    """Mock: creates a bounded semaphore — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def Condition(lock: int) -> int:
-    """Mock: creates a condition variable — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def Event() -> int:
-    """Mock: creates an event object — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def Lock() -> int:
-    """Mock: creates a non-recursive lock — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def RLock() -> int:
-    """Mock: creates a recursive lock — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def Semaphore(sem_value: int) -> int:
-    """Mock: creates a semaphore — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def BaseManager(address: int, authkey: int, serializer: int, ctx: int, shutdown_timeout: int) -> int:
-    """Mock: creates a BaseManager for managing shared objects — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def SyncManager() -> int:
-    """Mock: creates a SyncManager for synchronizing processes — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def Namespace() -> int:
-    """Mock: creates a Namespace object with writable attributes — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def BaseProxy() -> int:
-    """Mock: creates a BaseProxy for proxy objects — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def Pool(processes: int, initializer: int, initargs: int, maxtasksperchild: int, context: int) -> int:
-    """Mock: creates a process pool for submitting jobs — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def AsyncResult() -> int:
-    """Mock: creates an AsyncResult from Pool.apply_async — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def Listener(address: int, family: int, backlog: int, authkey: int) -> int:
-    """Mock: creates a Listener wrapping a bound socket or named pipe — opaque."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def ThreadPool(processes: int, initializer: int, initargs: int) -> int:
-    """Mock: creates a thread pool for submitting jobs — opaque."""
     return 0

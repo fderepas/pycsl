@@ -32,7 +32,7 @@ def dedent(text: int) -> int:
 
 #@ \trusted
 #@ ensures \result >= 0
-def indent(text: int, prefix: int, predicate: int) -> int:
+def indent(text: int, prefix: int, pred_fn: int) -> int:
     """Mock: add prefix to the beginning of selected lines."""
     return 0
 

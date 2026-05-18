@@ -1,56 +1,55 @@
 """PyCSL mock for Module4_SemanticAnalyzer."""
 _ = 0  # anchor
 
-# ── PyCSLSemanticError exception ────────────────────────────────────
+# ── Module4AnalyzerObj class ────────────────────────────────────────
+
+""  # pycsl
+#@ class invariant self._errors >= 0
+class Module4AnalyzerObj:
+    def __init__(self):
+        self._errors = 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns self._errors
+    def visit_classdef(self, node: int) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns self._errors
+    def visit_functiondef(self, node: int) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns self._errors
+    def visit_while(self, node: int) -> int:
+        return 0
+
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns self._errors
+    def process(self, tree: int) -> int:
+        return 0
+
+# ── Standalone functions ────────────────────────────────────────────
 
 #@ \trusted
 #@ ensures \result >= 0
 def PyCSLSemanticError(message: int) -> int:
-    """Mock: create a PyCSLSemanticError."""
     return 0
-
-# ── Utility functions ───────────────────────────────────────────────
 
 #@ \trusted
 #@ ensures \result >= 0
 def extract_variables(node: int) -> int:
-    """Mock: extract variable names from a contract AST node."""
     return 0
 
 #@ \trusted
 #@ ensures \result >= 0
 def contains_result(node: int) -> int:
-    """Mock: check if result is used in an expression."""
-    return 0
-
-# ── Module4_SemanticAnalyzer class ──────────────────────────────────
-
-#@ \trusted
-#@ ensures \result >= 0
-def Module4_SemanticAnalyzer() -> int:
-    """Mock: create a Module4_SemanticAnalyzer."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def Module4_SemanticAnalyzer_visit_ClassDef(self: int, node: int) -> int:
-    """Mock: collect fields and validate class invariants."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def Module4_SemanticAnalyzer_visit_FunctionDef(self: int, node: int) -> int:
-    """Mock: resolve scopes and validate function contracts."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def Module4_SemanticAnalyzer_visit_While(self: int, node: int) -> int:
-    """Mock: validate loop contracts against current scope."""
-    return 0
-
-#@ \trusted
-#@ ensures \result >= 0
-def Module4_SemanticAnalyzer_process(self: int, tree: int) -> int:
-    """Mock: run semantic analysis on the unified AST."""
     return 0

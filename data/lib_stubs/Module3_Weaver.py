@@ -1,48 +1,53 @@
 """PyCSL mock for Module3_Weaver."""
 _ = 0  # anchor
 
-# ── PyCSLWeaver class ───────────────────────────────────────────────
+# ── PyCSLWeaverObj class ────────────────────────────────────────────
 
-#@ \trusted
-#@ ensures \result >= 0
-def PyCSLWeaver(contracts_map: int) -> int:
-    """Mock: create a PyCSLWeaver."""
-    return 0
+""  # pycsl
+#@ class invariant self._injected >= 0
+class PyCSLWeaverObj:
+    def __init__(self):
+        self._injected = 0
 
-#@ \trusted
-#@ ensures \result >= 0
-def PyCSLWeaver_visit_FunctionDef(self: int, node: int) -> int:
-    """Mock: inject contracts into function definitions."""
-    return 0
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns self._injected
+    def visit_functiondef(self, node: int) -> int:
+        return 0
 
-#@ \trusted
-#@ ensures \result >= 0
-def PyCSLWeaver_visit_ClassDef(self: int, node: int) -> int:
-    """Mock: inject class invariants into class definitions."""
-    return 0
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns self._injected
+    def visit_classdef(self, node: int) -> int:
+        return 0
 
-#@ \trusted
-#@ ensures \result >= 0
-def PyCSLWeaver_visit_While(self: int, node: int) -> int:
-    """Mock: inject invariants and variants into while loops."""
-    return 0
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns self._injected
+    def visit_while(self, node: int) -> int:
+        return 0
 
-#@ \trusted
-#@ ensures \result >= 0
-def PyCSLWeaver_visit_For(self: int, node: int) -> int:
-    """Mock: inject invariants and variants into for loops."""
-    return 0
+    #@ \trusted
+    #@ requires 1 == 1
+    #@ ensures \result >= 0
+    #@ assigns self._injected
+    def visit_for(self, node: int) -> int:
+        return 0
 
-# ── Module3_Weaver class ───────────────────────────────────────────
+# ── Module3WeaverObj class ──────────────────────────────────────────
 
-#@ \trusted
-#@ ensures \result >= 0
-def Module3_Weaver(source_code: int, extracted_data: int, parser_module: int) -> int:
-    """Mock: create a Module3_Weaver."""
-    return 0
+#@ class invariant self._processed >= 0
+class Module3WeaverObj:
+    def __init__(self):
+        self._processed = 0
 
-#@ \trusted
-#@ ensures \result >= 0
-def Module3_Weaver_process(self: int) -> int:
-    """Mock: weave contracts into the Python AST."""
-    return 0
+    #@ \trusted
+    #@ requires self._processed == 0
+    #@ ensures self._processed == 1
+    #@ assigns self._processed
+    def process(self) -> int:
+        self._processed = 1
+        return 0

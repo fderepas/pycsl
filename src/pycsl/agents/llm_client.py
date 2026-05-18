@@ -27,7 +27,7 @@ Usage Example:
         print(response['name'])
 
 Environment:
-    OLLAMA_URL        Ollama base URL (default: http://192.168.1.111:11434)
+    OLLAMA_URL        Ollama base URL (config key: llm-ollama-url)
     MODEL_NAME        Model tag (default: gemma4:31b)
     PROJECT_ROOT      Path to project workspace (default: ./project)
 """
@@ -42,8 +42,26 @@ import sys
 from pathlib import Path
 from typing import Any, Union
 
+
+def _load_ollama_url() -> str:
+    """Read Ollama URL from env var, falling back to agents-config.json."""
+    env = os.environ.get("OLLAMA_URL")
+    if env:
+        return env
+    config_path = os.path.join(
+        os.path.dirname(__file__), os.pardir, os.pardir, os.pardir,
+        "config", "agents-config.json"
+    )
+    try:
+        with open(os.path.normpath(config_path)) as f:
+            cfg = json.load(f)
+        return cfg.get("llm-ollama-url", "http://192.168.1.111:11434")
+    except (FileNotFoundError, json.JSONDecodeError):
+        return "http://192.168.1.111:11434"
+
+
 MODEL_NAME = os.environ.get("MODEL_NAME", "gemma4:31b")
-OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://192.168.1.111:11434")
+OLLAMA_URL = _load_ollama_url()
 PROJECT_ROOT = Path(os.environ.get("PROJECT_ROOT", "./project")).resolve()
 
 def write_next_sequential_file(dirname: str, prefix: str, data: str) -> str:

@@ -8,6 +8,7 @@ Orchestrates the full workflow:
 3. Run pycsl proof on each annotated file
 4. On proof failure, run agent-reconcile.py
 5. Apply recommendations using agent-script-update.py
+6. On exhausted retries, generate Rocq proof obligations via agent-rocq-proof-writer.py
 
 Loop-detection: if agent-reconcile produces the same recommendation 3 times in a row
 the coordinator halts with exit code 73 so a human can intervene.
@@ -336,6 +337,73 @@ class CoordinatorAgent:
             self.log(f"WARNING: Could not rebuild RAG index: {e}")
             return False
 
+    # ------------------------------------------------------------------ Rocq fallback
+
+    def attempt_rocq_proof(self, annotated_file: Path) -> bool:
+        """Generate Rocq proof obligations and attempt to complete them.
+
+        Called when SMT provers exhaust all retries. Uses pycsl --rocq to
+        generate .v skeletons, then calls agent-rocq-proof-writer on each.
+
+        Returns True if all .v files are successfully completed.
+        """
+        rocq_dir = self.pycsl_dir / "to_be_proven" / annotated_file.stem
+        rocq_dir.mkdir(parents=True, exist_ok=True)
+
+        self.log(f"  Step 6: Generating Rocq proof obligations for {annotated_file.name}...")
+
+        # Generate .v skeletons via pycsl --rocq
+        cmd = [str(self.pycsl_bin), "--keep-mlw", "--rocq", str(rocq_dir), str(annotated_file)]
+        result = self.run_command(cmd, cwd=self.pycsl_dir, check=False, capture=True)
+
+        if result.returncode not in (0, 2):
+            self.log(f"  ERROR: pycsl --rocq failed (exit {result.returncode})")
+            if result.stderr:
+                self.log(f"  stderr: {result.stderr}")
+            return False
+
+        # Find generated .v files
+        v_files = sorted(rocq_dir.glob("*.v"))
+        if not v_files:
+            self.log("  WARNING: No .v files generated")
+            return False
+
+        self.log(f"  Generated {len(v_files)} .v file(s)")
+
+        # Find .mlw file for context
+        mlw_files = list(rocq_dir.glob("*.mlw"))
+        mlw_path = mlw_files[0] if mlw_files else None
+
+        # Attempt to complete each .v file via agent-rocq-proof-writer
+        all_ok = True
+        for v_file in v_files:
+            self.log(f"  Completing proof: {v_file.name}...")
+            out_file = v_file  # overwrite in place
+
+            cmd = [
+                "python",
+                str(self.agents_dir / "agent-rocq-proof-writer.py"),
+                "--in", str(v_file),
+                "--out", str(out_file),
+            ]
+            if mlw_path:
+                cmd += ["--mlw", str(mlw_path)]
+
+            log_path = self.metrics_dir / "logs" / f"rocq_{v_file.stem}.log"
+            agent_result = self.run_command(
+                cmd, cwd=self.pycsl_dir, check=False, capture=True, log_file=log_path
+            )
+
+            if agent_result.returncode == 0:
+                self.log(f"  ✓ {v_file.name} — proof completed")
+            else:
+                self.log(f"  ✗ {v_file.name} — proof incomplete (saved for manual completion)")
+                all_ok = False
+
+        status = "all completed" if all_ok else "some incomplete"
+        self.log(f"  Rocq proofs: {status}. Files in {rocq_dir}/")
+        return all_ok
+
     # ------------------------------------------------------------------ meta agents
 
     def run_meta_evaluator(
@@ -527,6 +595,8 @@ class CoordinatorAgent:
                     self.log(
                         f"ERROR: {test_file.name} still failing after {MAX_RETRIES} retries. Halting."
                     )
+                    # Attempt Rocq proof as last resort
+                    self.attempt_rocq_proof(annotated_file)
                     monitor_json = self.run_meta_monitor(
                         test_file.stem, reconcile_log_paths, update_log_paths
                     )
@@ -563,6 +633,8 @@ class CoordinatorAgent:
                         f"{consecutive + 1} times in a row for {test_file.name}. "
                         f"Halting — human review required."
                     )
+                    # Attempt Rocq proof as last resort
+                    self.attempt_rocq_proof(annotated_file)
                     monitor_json = self.run_meta_monitor(
                         test_file.stem, reconcile_log_paths, update_log_paths
                     )
