@@ -37,6 +37,46 @@ Heap-allocated arrays (`loc` type). Use `\valid(arr, n)`, `\separated(a, na, b, 
 ### STORE
 Same as TYPED. Use `\valid`, `\separated`, `\assigns arr[0..n]`, `\old(arr[i])`.
 
+### CONCURRENT
+Multithreaded programs using `threading.Lock` / `threading.RLock`.
+
+**Outer infinite loop (`while True:`) in thread entry functions:**
+- Do NOT write a `#@ loop variant` for the outer `while True:` loop — there is no decreasing measure.
+- Do NOT write a `#@ loop invariant` for the outer `while True:` loop — the mutex invariant at critical section boundaries manages shared-state properties.
+- The `#@ \diverges` annotation on the function already tells the prover that this loop diverges. No further loop annotation is required.
+
+```python
+#@ thread_entry
+#@ \diverges
+#@ requires 1 == 1
+#@ ensures 1 == 1
+#@ assigns \nothing
+def worker() -> int:
+    while True:             # <-- NO loop invariant / variant here
+        #@ critical lock_x
+        with lock_x:
+            x += 1
+    return 0
+```
+
+**Loops inside a `#@ critical` block:**
+- Do NOT add loop invariants that reference shared variables protected by the critical section's mutex. The critical section entry already havoces the shared variable and assumes the mutex invariant; the exit asserts it. Adding a loop invariant for the shared variable would duplicate and potentially conflict with that boundary.
+- DO add normal loop invariants and variants for loops that touch only **local** variables inside the critical section.
+
+```python
+#@ critical lock_buf
+with lock_buf:
+    i = 0
+    #@ loop invariant 0 <= i and i <= n   # local variable — OK
+    #@ loop variant n - i
+    while i < n:
+        buf[i] = 0                        # buf is shared but invariant handles it
+        i += 1
+```
+
+**Helper functions called inside a critical section (not `#@ thread_entry`):**
+Apply the standard loop invariant rules — these functions operate on local parameters, not on shared state.
+
 ## Important Rules
 
 - **NEVER place blank lines between a `#@` block and the `def` or `while` keyword it annotates.** Blank lines cause line-number mismatch and silently drop annotations.

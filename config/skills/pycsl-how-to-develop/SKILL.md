@@ -100,10 +100,13 @@ Module2_Parser      ← parses #@ lines using EBNF grammar → contract AST
 Module3_Weaver      ← attaches contract AST nodes to Python AST nodes
     │
     ▼
-Module4_SemanticAnalyzer  ← type/scope checking, variable resolution
+Module4_SemanticAnalyzer  ← type/scope checking, variable resolution, protected-access checks
     │
     ▼
-Module5_IREmitter   ← emits intermediate representation (functions, classes, invariants)
+ConcurrencyChecker  ← (warnings only) static concurrency analysis; recognises trusted types
+    │
+    ▼
+Module5_IREmitter   ← emits intermediate representation (functions, classes, invariants, shared state)
     │
     ▼
 Module6_WhyMLTranspiler   ← generates .mlw (WhyML) file
@@ -123,7 +126,15 @@ Why3 / Alt-Ergo     ← SMT solver proves or rejects the goals
 | `--rocq DIR` | On SMT failure, generate Rocq proof skeletons in DIR. |
 | `--rocq-proofs [DIR]` | Replay pre-existing Rocq proofs from DIR (auto-detects `<file>.proofs/`). |
 | `-p PROVER` | Use a specific prover (e.g., `Alt-Ergo,2.6.2,`). |
-| `--memory-model M` | Memory model: `hoare` (default), `typed`, or `store`. |
+| `--memory-model M` | Memory model: `hoare` (default), `typed`, `store`, or `concurrent`. |
+
+### CLI Flags (`agent-annotate.py`)
+
+| Flag | Effect |
+|------|--------|
+| `--in FILE` | Input Python source file to annotate. |
+| `--out FILE` | Output path for annotated file. |
+| `--trusted` | Progressive verification: run full LLM pipeline for real contracts, mark all functions `#@ \trusted`, then prove bottom-up (leaves first) and remove `\trusted` from each function that passes `pycsl --no-proof`. Functions that cannot be verified keep `\trusted` as temporary scaffolding. |
 
 ## 4. Agent Architecture
 
@@ -209,7 +220,8 @@ This produces `data/embeddings/skills_index.json` (chunked text + 768-dimensiona
 Convention:
 - One file per module (e.g., `math_stub.py`, `random_stub.py`)
 - Each function has `#@ \trusted` and a full contract
-- `#@ \trusted` is ONLY allowed in stub files, NEVER in annotated user code
+- `#@ \trusted` in stub files is permanent (these are axioms about external code)
+- `#@ \trusted` in user code is temporary scaffolding (see `--trusted` flag below)
 
 ## 7. Test Suite Structure
 
@@ -273,12 +285,40 @@ Follow this checklist in order:
 - **bin/ scripts**: If the feature adds or changes a script in `bin/`, update `README.md` (Usage section) — `bin/` scripts are user-facing tools and the README is the primary human documentation
 
 ### Step 5: Update skill files
-- **Whenever `test-suite/annotations.md` is updated** (new atoms, directives, grammar rules, or patterns), the corresponding agent skills **must** also be updated to stay in sync:
-  - `config/skills/contract-writer/SKILL.md` — if new contract-level constructs were added (e.g., new `requires`/`ensures` atoms like `\is_sorted`, `\sum`, pure function calls)
-  - `config/skills/invariant-writer/SKILL.md` — if new loop/class invariant constructs were added
-  - `config/skills/pycsl-annotate/SKILL.md` — the master skill; update for any new annotation feature, forbidden pattern, or grammar change
-  - `config/skills/english-writer/SKILL.md` — if the change affects how English descriptions should reference new constructs
-- **If you update `annotations.md` but forget to update the skills, agents will not know about the new feature** — they rely on the RAG-indexed skills, not on `annotations.md` directly.
+
+**ALL FIVE skills listed below must be reviewed on every new feature.** Each skill
+feeds a different LLM agent; an agent that does not know about a new feature will
+silently produce wrong output that fails at proof time.
+
+| Skill file | Agent that uses it | Update when… |
+|---|---|---|
+| `config/skills/pycsl-annotate/SKILL.md` | `agent-annotate`, `agent-writer` (fallback) | Any new annotation, grammar rule, forbidden pattern, or memory model |
+| `config/skills/contract-writer/SKILL.md` | `agent-contract-writer` | New `requires`/`ensures`/`assigns` atoms, new memory model, new function-level annotations (`\diverges`, `\trusted`, `thread_entry`, etc.) |
+| `config/skills/invariant-writer/SKILL.md` | `agent-invariant-writer` | New loop/class invariant constructs, new memory model loop rules, new control-flow annotations (`continue`, `diverges`) |
+| `config/skills/english-writer/SKILL.md` | `agent-english-writer` | Changes that affect how functions should be described in English (new constructs that require specific phrasing) |
+| `config/skills/pycsl-how-to-develop/SKILL.md` | developer reference | Any process change, new pipeline step, new memory model, new agent |
+
+**Checklist — do not close a feature branch until all five rows are checked:**
+
+```
+[ ] pycsl-annotate/SKILL.md  — master skill updated
+[ ] contract-writer/SKILL.md — new memory-model section or new atoms added
+[ ] invariant-writer/SKILL.md — new memory-model loop rules added
+[ ] english-writer/SKILL.md  — English description guidance updated if needed
+[ ] pycsl-how-to-develop/SKILL.md — this file updated if process changed
+```
+
+**Why this matters:** agents rely on RAG-indexed skills at runtime, not on
+`annotations.md` or source code. A skill that is one feature behind will produce
+annotations that fail at Module4 semantic analysis or at the Why3 proof step —
+often with an error that is hard to diagnose as a skill gap rather than a code bug.
+
+**Historical example (concurrent model, 2026-05):** `pycsl-annotate/SKILL.md` was
+updated with the full concurrent-model section (Section 6) but `contract-writer/SKILL.md`
+and `invariant-writer/SKILL.md` were not updated. This caused `agent-contract-writer`
+to write `requires`/`ensures` clauses referencing shared variables directly (which
+Module4 rejects), and `agent-invariant-writer` to add loop variants to outer
+`while True:` loops in thread entry functions (which breaks the proof).
 
 ### Step 6: Rebuild RAG
 ```bash

@@ -102,6 +102,64 @@ Heap-allocated arrays (`loc` type). Use `\valid(arr, n)`, `\separated(a, na, b, 
 ### STORE
 Same as TYPED. Use `\valid`, `\separated`, `\assigns arr[0..n]`, `\old(arr[i])`.
 
+### CONCURRENT
+Multithreaded programs using `threading.Lock` / `threading.RLock`. The mutex-invariant pattern reduces concurrent verification to sequential WP proofs.
+
+**What the contract-writer does NOT do in concurrent mode:**
+- Do NOT write `requires` or `ensures` clauses that directly name shared variables (those declared `#@ shared <var> protected_by <mutex>`). Their properties are governed by the `#@ mutex_invariant` annotation at module level, not by function-level pre/postconditions.
+- Do NOT add `#@ assigns <shared_var>` for mutations inside a `#@ critical` block — the critical section boundary handles the frame condition implicitly via the havoc+assume+assert pattern.
+
+**What the contract-writer DOES in concurrent mode:**
+
+1. **Thread entry functions** (marked `#@ thread_entry`): write trivial function-level contracts:
+   ```python
+   #@ requires 1 == 1
+   #@ ensures 1 == 1
+   #@ assigns \nothing
+   ```
+   The shared-state obligations are handled by the mutex invariant at critical section boundaries, not by the function postcondition.
+
+2. **`#@ \diverges`** must be added for thread entry functions that contain an outer infinite loop (`while True:`). Place it with the other function-level annotations:
+   ```python
+   #@ thread_entry
+   #@ \diverges
+   #@ requires 1 == 1
+   #@ ensures 1 == 1
+   #@ assigns \nothing
+   ```
+
+3. **Helper functions called inside a critical section** (not `#@ thread_entry`): write normal contracts for their local parameters and return value. Do not reference shared variables in `requires`/`ensures`.
+
+4. **`#@ critical <mutex>`** is a *statement-level* annotation on the `with lock:` block — it is NOT a function-level contract. Do not write it as part of the `requires`/`ensures`/`assigns` output; that annotation is injected by `agent-annotate` guards.
+
+**Examples:**
+
+```python
+# Thread entry — shared counter with mutex invariant
+#@ shared counter protected_by lock_counter
+#@ mutex_invariant lock_counter: counter >= 0
+
+#@ thread_entry
+#@ \diverges
+#@ requires 1 == 1
+#@ ensures 1 == 1
+#@ assigns \nothing
+def worker() -> int:
+    #@ critical lock_counter
+    with lock_counter:
+        counter += 1
+    return 0
+```
+
+```python
+# Pure helper called inside a critical section — normal contracts
+#@ requires n >= 0
+#@ ensures \result >= n
+#@ assigns \nothing
+def next_value(n: int) -> int:
+    return n + 1
+```
+
 ## Output Format
 
 Output ONLY the contract lines (each starting with `#@`), one per line. Do NOT output the function body, do NOT output ```python fences, do NOT add commentary.
