@@ -1,72 +1,53 @@
 #!/usr/bin/env bash
-# Annotate a Python file with formal verification contracts using the PyCSL
-# multi-agent LLM pipeline + progressive prove-and-strip.
+# Add loop invariants and loop variants to Python files that already have
+# human-written contracts (#@ requires, #@ ensures, #@ assigns).
+#
+# This script NEVER generates contracts — it only infers in-function
+# annotations (loop invariant, loop variant). No \trusted is ever added.
 #
 # Usage:
-#   ./bin/annotate.sh <input.py>                  # annotate in-place
-#   ./bin/annotate.sh <input.py> --out <output.py> # write to separate file
-#   ./bin/annotate.sh --help
+#   ./bin/infer-invariants-from-contract.sh <input.py>
+#   ./bin/infer-invariants-from-contract.sh <input.py> --out <output.py>
+#   ./bin/infer-invariants-from-contract --help
 #
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Log directory (matches config/agents-config.json → project-directory)
 LOG_DIR="$PROJECT_ROOT/my_project/log"
 
 usage() {
     cat <<EOF
 Usage: $(basename "$0") [OPTIONS] <input.py>
 
-Annotate a Python file with formal verification contracts (requires, ensures,
-assigns, loop invariants, loop variants) using the PyCSL multi-agent pipeline.
+Add #@ loop invariant and #@ loop variant annotations to every loop inside
+functions that already have human-written contracts. Contracts themselves
+(requires, ensures, assigns) are left untouched.
 
-By default, uses --trusted mode: generates real contracts via LLM, marks all
-functions #@ \\trusted, then progressively proves bottom-up and removes
-\\trusted from functions that pass verification.
+This script NEVER adds \\trusted and NEVER modifies requires/ensures/assigns.
 
 Arguments:
-  <input.py>          Python source file to annotate
+  <input.py>          Python source file with existing #@ contracts
 
 Options:
   --out <file>        Write annotated output to <file> (default: overwrite input)
-  --no-trusted        Skip the --trusted progressive verification (plain annotation)
   -h, --help          Show this help message
 
-Log files for troubleshooting (appended on each run):
-  $LOG_DIR/agent-annotate.log
-      Main annotation agent — pipeline decisions, guard warnings, prove-and-strip results
-
-  $LOG_DIR/agent-splitter.log
-      Call-graph analysis, topological ordering, per-function orchestration
-
-  $LOG_DIR/agent-writer.log
-      3-agent pipeline coordination (english → contract → invariant)
-
-  $LOG_DIR/agent-english-writer.log
-      English specification generation for each function
-
-  $LOG_DIR/agent-contract-writer.log
-      requires/ensures/assigns generation
-
+Log files:
+  $LOG_DIR/agent-infer-invariants.log
+      Per-function progress and any errors
   $LOG_DIR/agent-invariant-writer.log
-      Loop invariant and variant generation
+      Raw LLM calls for loop invariant generation
 
-Tip: To watch progress in real-time:
-  tail -f $LOG_DIR/agent-annotate.log
-
-Examples:
-  $(basename "$0") self/Module1_Ingestor.py
-  $(basename "$0") src/pycsl/pycsl.py --out annotated_pycsl.py
-  $(basename "$0") --no-trusted tests/to_annotate/001-basic-control-flow.py
+Tip: watch progress with:
+  tail -f $LOG_DIR/agent-infer-invariants.log
 EOF
 }
 
 # Parse arguments
 INPUT_FILE=""
 OUTPUT_FILE=""
-TRUSTED_FLAG="--trusted"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -81,10 +62,6 @@ while [[ $# -gt 0 ]]; do
             fi
             OUTPUT_FILE="$2"
             shift 2
-            ;;
-        --no-trusted)
-            TRUSTED_FLAG=""
-            shift
             ;;
         -*)
             echo "Error: unknown option '$1'" >&2
@@ -113,7 +90,6 @@ if [[ ! -f "$INPUT_FILE" ]]; then
     exit 1
 fi
 
-# Default: annotate in-place
 if [[ -z "$OUTPUT_FILE" ]]; then
     OUTPUT_FILE="$INPUT_FILE"
 fi
@@ -127,27 +103,20 @@ else
     exit 1
 fi
 
-# Ensure log directory exists
 mkdir -p "$LOG_DIR"
 
 echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║  PyCSL Annotation Pipeline                                  ║"
+echo "║  PyCSL Invariant Inference                                  ║"
 echo "╠══════════════════════════════════════════════════════════════╣"
 echo "║  Input:  $INPUT_FILE"
 echo "║  Output: $OUTPUT_FILE"
-if [[ -n "$TRUSTED_FLAG" ]]; then
-    echo "║  Mode:   --trusted (progressive verification)"
-else
-    echo "║  Mode:   plain annotation (no prove-and-strip)"
-fi
+echo "║  Mode:   loop invariants/variants only (no contracts added)  ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
-# Run the annotation agent (stdout → log, stderr visible for errors)
-AGENT_STDOUT_LOG="$LOG_DIR/agent-annotate-stdout.log"
+AGENT_STDOUT_LOG="$LOG_DIR/agent-infer-invariants-stdout.log"
 set +e
-python src/pycsl/agents/agent-annotate.py \
-    $TRUSTED_FLAG \
+python src/pycsl/agents/agent-infer-invariants.py \
     --in "$INPUT_FILE" \
     --out "$OUTPUT_FILE" \
     > "$AGENT_STDOUT_LOG" 2>&1
@@ -157,22 +126,19 @@ set -e
 echo ""
 echo "────────────────────────────────────────────────────────────────"
 if [[ $RET_CODE -eq 0 ]]; then
-    echo "✓ Annotation complete: $OUTPUT_FILE"
+    echo "✓ Invariant inference complete: $OUTPUT_FILE"
+    cat "$AGENT_STDOUT_LOG" 2>/dev/null || true
 else
-    echo "✗ Annotation failed (exit code $RET_CODE)"
+    echo "✗ Invariant inference failed (exit code $RET_CODE)"
     echo ""
     echo "Last 10 lines of agent output:"
     tail -10 "$AGENT_STDOUT_LOG" 2>/dev/null || true
 fi
 echo ""
 echo "Log files for troubleshooting:"
-echo "  Agent stdout:     $AGENT_STDOUT_LOG"
-echo "  Main agent:       $LOG_DIR/agent-annotate.log"
-echo "  Call-graph:       $LOG_DIR/agent-splitter.log"
-echo "  Writer pipeline:  $LOG_DIR/agent-writer.log"
-echo "  English specs:    $LOG_DIR/agent-english-writer.log"
-echo "  Contracts:        $LOG_DIR/agent-contract-writer.log"
-echo "  Invariants:       $LOG_DIR/agent-invariant-writer.log"
+echo "  Agent stdout:  $AGENT_STDOUT_LOG"
+echo "  Invariants:    $LOG_DIR/agent-infer-invariants.log"
+echo "  LLM calls:     $LOG_DIR/agent-invariant-writer.log"
 echo "────────────────────────────────────────────────────────────────"
 
 exit $RET_CODE
