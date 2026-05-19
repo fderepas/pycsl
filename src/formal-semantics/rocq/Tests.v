@@ -1,6 +1,7 @@
 (* Tests.v — Concrete evaluation tests for the PyCSL formalization *)
 
 Require Import ZArith String List Bool.
+Require Import Lia.
 Require Import Phase1_AST.
 Require Import Phase2_State.
 Require Import Phase3_SOS.
@@ -110,3 +111,46 @@ Lemma test_while_not_continued :
   exec st (SWhile inv var cond body) out ->
   match out with OContinued _ => False | _ => True end.
 Proof. intros. eapply while_not_continued; eauto. Qed.
+
+(* ===== Tests for Phase 1a desugaring lemmas ===== *)
+
+(* Test 14: walrus_assign is identical to SAssign *)
+Lemma test_walrus_assign_exec :
+  exec st_empty (walrus_assign "x" (EInt 7))
+    (ONormal (update st_empty "x" (VInt 7))).
+Proof. unfold walrus_assign. apply ExecAssign. Qed.
+
+(* Test 15: tuple_unpack2 assigns both elements *)
+Lemma test_tuple_unpack2 :
+  let arr_st := update st_empty "a" (VArray (1 :: 2 :: nil)) in
+  let st1 := update arr_st "x" (VInt 1) in
+  exec arr_st (tuple_unpack2 "a" "x" "y")
+    (ONormal (update st1 "y" (VInt 2))).
+Proof.
+  apply exec_tuple_unpack2_normal.
+Qed.
+
+(* Test 16: desugar_match single hit — body executes when scrutinee matches *)
+Lemma test_match_hit :
+  let st := update st_empty "v" (VInt 42) in
+  exec st
+    (desugar_match (EVar "v") ((42, SAssign "r" (EInt 1)) :: nil) (SAssign "r" (EInt 0)))
+    (ONormal (update st "r" (VInt 1))).
+Proof.
+  apply exec_desugar_match_single_hit.
+  - simpl. unfold update, lookup. simpl. reflexivity.
+  - apply ExecAssign.
+Qed.
+
+(* Test 17: desugar_match single miss — default executes when no case matches *)
+Lemma test_match_miss :
+  let st := update st_empty "v" (VInt 99) in
+  exec st
+    (desugar_match (EVar "v") ((42, SAssign "r" (EInt 1)) :: nil) (SAssign "r" (EInt 0)))
+    (ONormal (update st "r" (VInt 0))).
+Proof.
+  eapply exec_desugar_match_single_miss with (n := 99).
+  - simpl. unfold update, lookup. simpl. reflexivity.
+  - apply ExecAssign.
+  - lia.
+Qed.

@@ -35,3 +35,29 @@ def desugar : Stmt → Stmt
   | .ite c s1 s2      => .ite c (desugar s1) (desugar s2)
   | .while_ i v c b   => .while_ i v c (desugar b)
   | s                  => s
+
+-- =====================================================================
+-- Phase 1a — Category B desugaring functions
+-- Features: 28 (tuple unpacking), 29 (walrus :=), 30 (match statement)
+-- =====================================================================
+
+-- Feature 29 — Walrus operator :=
+-- In statement position, (x := e) is identical to plain assignment.
+def walrusAssign (x : Ident) (e : Expr) : Stmt := .assign x e
+
+-- Feature 28 — Tuple unpacking (2-element case)
+-- Unpack arr[0] into x and arr[1] into y.
+def tupleUnpack2 (arr x y : Ident) : Stmt :=
+  .seq (.assign x (.subscript arr (.int 0)))
+       (.assign y (.subscript arr (.int 1)))
+
+-- Feature 30 — Match statement
+-- Desugar integer-pattern match arms into a nested if/else chain.
+-- Condition (scrutinee - n) is falsy (0) exactly when scrutinee = n,
+-- so the matching body goes in the *else* branch.
+def desugarMatch (scrutinee : Expr) : List (Int × Stmt) → Stmt → Stmt
+  | [],            default => default
+  | (n, body) :: rest, default =>
+      .ite (.binop .sub scrutinee (.int n))
+           (desugarMatch scrutinee rest default)
+           body
