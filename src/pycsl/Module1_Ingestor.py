@@ -29,7 +29,7 @@ class PyCSLVisitor(cst.CSTVisitor):
     # We require PositionProvider to grab line numbers for our frontend errors
     METADATA_DEPENDENCIES = (PositionProvider,)
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.extracted_nodes: List[PyCSLContract] = []
         self._current_class: Optional[str] = None
@@ -41,14 +41,31 @@ class PyCSLVisitor(cst.CSTVisitor):
 
         LibCST stores comments that precede the very first statement in
         ``Module.header`` rather than in the first statement's
-        ``leading_lines``.  Without this hook those contracts are silently
-        lost.
+        ``leading_lines``.  All header contracts are kept in
+        ``_module_header_contracts`` for the existing prepend-to-first-node
+        behavior.  Additionally, module-level annotations (shared,
+        mutex_invariant, lock_order) are emitted as a separate PyCSLContract
+        at line_number=0 so the Weaver can attach them to the ast.Module node.
         """
+        _MODULE_PREFIXES = ('shared ', 'mutex_invariant ', 'lock_order ')
+        module_contracts = []
         for line in node.header:
             if isinstance(line, cst.EmptyLine) and line.comment:
                 comment_str = line.comment.value
                 if comment_str.startswith("#@"):
-                    self._module_header_contracts.append(comment_str[2:].strip())
+                    clean = comment_str[2:].strip()
+                    self._module_header_contracts.append(clean)
+                    if any(clean.startswith(p) for p in _MODULE_PREFIXES):
+                        module_contracts.append(clean)
+        if module_contracts:
+            self.extracted_nodes.append(
+                PyCSLContract(
+                    node_type="Module",
+                    node_name="<module>",
+                    line_number=0,
+                    contracts=module_contracts,
+                )
+            )
 
     def _extract_contracts_from_node(self, node: cst.CSTNode) -> List[str]:
         """Helper to extract #@ comments from a node's leading lines."""
@@ -131,6 +148,20 @@ class PyCSLVisitor(cst.CSTVisitor):
                 )
             )
 
+    def visit_With(self, node: cst.With) -> None:
+        """Hook for with statements — captures #@ acquires / releases / critical."""
+        contracts = self._extract_contracts_from_node(node)
+        if contracts:
+            pos = self.get_metadata(PositionProvider, node).start
+            self.extracted_nodes.append(
+                PyCSLContract(
+                    node_type="With",
+                    node_name="<with>",
+                    line_number=pos.line,
+                    contracts=contracts,
+                )
+            )
+
     def visit_SimpleStatementLine(self, node: cst.SimpleStatementLine) -> None:
         """Detect #@ annotations before simple statements (label, ghost, etc.)."""
         contracts = []
@@ -159,7 +190,7 @@ class Module1_Ingestor:
     The main entry point for Module 1. 
     Ingests source code, generates the CST, and extracts annotations.
     """
-    def __init__(self, source_code: str):
+    def __init__(self, source_code: str) -> None:
         self.source_code = source_code
 
     def process(self) -> List[PyCSLContract]:

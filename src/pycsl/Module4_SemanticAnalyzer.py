@@ -1,74 +1,86 @@
+from __future__ import annotations
+
 import ast
-from typing import Dict, Set, Any
+from typing import Dict, List, Optional, Set, Any
 from Module2_Parser import (
-    CSLNode, Requires, Ensures, Assigns, LoopInvariant, LoopVariant,
+    CSLNode, ContractWrapper, QuantifierNode, SingleExprNode,
+    Requires, Ensures, Assigns, LoopInvariant, LoopVariant,
     Var, Result, Old, BinOp, UnaryOp, Nothing, Number, FieldAccess,
     ClassInvariant, Forall, Exists, ArrayLength, SubscriptAccess,
-    AssignsRegion, Valid, Separated, FunctionVariant
+    AssignsRegion, Valid, Separated, FunctionVariant,
+    SharedDecl, MutexInvariant, LockOrder,
 )
+from errors import PyCSLSemanticError
 
 # ---------------------------------------------------------
-# 1. Custom Exceptions
+# 2. Generic CSL Tree Utilities
 # ---------------------------------------------------------
 
-class PyCSLSemanticError(Exception):
-    """Raised when a contract is semantically invalid (e.g., undefined variable)."""
-    pass
+def _iter_csl_children(node: CSLNode) -> List[CSLNode]:
+    """Return the direct CSL sub-expressions of *node* for structural recursion."""
+    if isinstance(node, BinOp):
+        return [node.left, node.right]
+    if isinstance(node, SingleExprNode):        # UnaryOp, Old
+        return [node.expr]
+    if isinstance(node, ContractWrapper):        # Requires, Ensures, LoopInvariant, LoopVariant
+        return [node.expr]
+    if isinstance(node, FunctionVariant):
+        return [node.expr]
+    if isinstance(node, QuantifierNode):         # Forall, Exists
+        return [node.body]
+    if isinstance(node, Assigns):
+        return list(node.targets)
+    if isinstance(node, SubscriptAccess):
+        return [node.index]
+    if isinstance(node, AssignsRegion):
+        return [node.low, node.high]
+    if isinstance(node, Valid):
+        return [node.length]
+    if isinstance(node, Separated):
+        return [node.length1, node.length2]
+    return []
 
 # ---------------------------------------------------------
-# 2. Contract Variable Extractor
+# 3. Contract Variable Extractor
 # ---------------------------------------------------------
 
 def extract_variables(node: CSLNode) -> Set[str]:
     """
-    Recursively walks a Contract AST node and returns a set of all 
+    Recursively walks a Contract AST node and returns a set of all
     variable names referenced within it.
     FieldAccess nodes (self.field) are excluded — validated separately.
     """
     if isinstance(node, Var):
         return {node.name}
-    elif isinstance(node, FieldAccess):
+    if isinstance(node, FieldAccess):
         return set()
-    elif isinstance(node, BinOp):
-        return extract_variables(node.left) | extract_variables(node.right)
-    elif isinstance(node, UnaryOp) or isinstance(node, Old):
-        return extract_variables(node.expr)
-    elif isinstance(node, (Requires, Ensures, LoopInvariant, LoopVariant)):
-        return extract_variables(node.expr)
-    elif isinstance(node, FunctionVariant):
-        return extract_variables(node.expr)
-    elif isinstance(node, Assigns):
-        vars_set = set()
-        for target in node.targets:
-            vars_set |= extract_variables(target)
-        return vars_set
-    elif isinstance(node, (Forall, Exists)):
-        # Bound variable is not free — exclude it from the returned set
-        return extract_variables(node.body) - {node.var}
-    elif isinstance(node, ArrayLength):
+    if isinstance(node, ArrayLength):
         return {node.var}
-    elif isinstance(node, SubscriptAccess):
+    if isinstance(node, SubscriptAccess):
         base = set() if node.array == "\\result" else {node.array}
         return base | extract_variables(node.index)
-    elif isinstance(node, AssignsRegion):
+    if isinstance(node, AssignsRegion):
         return {node.base} | extract_variables(node.low) | extract_variables(node.high)
-    elif isinstance(node, Valid):
+    if isinstance(node, Valid):
         return {node.base} | extract_variables(node.length)
-    elif isinstance(node, Separated):
+    if isinstance(node, Separated):
         return ({node.base1} | extract_variables(node.length1) |
                 {node.base2} | extract_variables(node.length2))
-    return set()
+    if isinstance(node, QuantifierNode):
+        return extract_variables(node.body) - {node.var}
+    # Generic structural recursion
+    result: Set[str] = set()
+    for child in _iter_csl_children(node):
+        result |= extract_variables(child)
+    return result
 
 def contains_result(node: CSLNode) -> bool:
     """Checks if \\result is used anywhere in the expression."""
-    if isinstance(node, Result): return True
-    if isinstance(node, SubscriptAccess) and node.array == "\\result": return True
-    if isinstance(node, BinOp): return contains_result(node.left) or contains_result(node.right)
-    if isinstance(node, UnaryOp) or isinstance(node, Old): return contains_result(node.expr)
-    if isinstance(node, SubscriptAccess): return contains_result(node.index)
-    if isinstance(node, (Requires, Ensures, LoopInvariant, LoopVariant)): return contains_result(node.expr)
-    if isinstance(node, FunctionVariant): return contains_result(node.expr)
-    return False
+    if isinstance(node, Result):
+        return True
+    if isinstance(node, SubscriptAccess) and node.array == "\\result":
+        return True
+    return any(contains_result(c) for c in _iter_csl_children(node))
 
 # ---------------------------------------------------------
 # 3. The Semantic Analyzer (AST Pass)
@@ -79,12 +91,14 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
     Walks the Annotated AST (AAST), resolves variable scopes, 
     extracts type hints, and validates contracts against them.
     """
-    def __init__(self):
-        # Keeps track of variables and their type hints in the current function
+    def __init__(self) -> None:
         self.current_scope: Dict[str, str] = {}
         self.current_function_name: str = ""
-        # Fields collected from the current class's __init__ (name → type)
         self._class_fields: Dict[str, str] = {}
+        # Module-level concurrency state
+        self._shared_vars: Dict[str, Optional[str]] = {}   # var_name → mutex (or None)
+        self._mutex_invariants: Dict[str, CSLNode] = {}    # mutex_name → invariant expr
+        self._lock_order: Optional[List[str]] = None       # ordered list of mutex names
 
     def _get_type_name(self, annotation: ast.expr) -> str:
         """Extracts the type hint as a string (e.g., 'int', 'bool')."""
@@ -92,7 +106,7 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
             return annotation.id
         return "Any"
 
-    def _validate_contract(self, contract: CSLNode, context_name: str, is_postcondition: bool = False):
+    def _validate_contract(self, contract: CSLNode, context_name: str, is_postcondition: bool = False) -> None:
         """Validates that a contract's variables exist and keywords are used correctly."""
         # 1. Check \result usage
         if contains_result(contract) and not is_postcondition:
@@ -112,7 +126,7 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         # 3. Check \valid and \separated base types
         self._validate_predicate_bases(contract, context_name)
 
-    def _validate_predicate_bases(self, node: CSLNode, context_name: str):
+    def _validate_predicate_bases(self, node: CSLNode, context_name: str) -> None:
         """Recursively check that \\valid and \\separated reference list-typed parameters."""
         if isinstance(node, Valid):
             arr_type = self.current_scope.get(node.base)
@@ -129,20 +143,161 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
                         f"\\separated base '{base}' is not a list parameter "
                         f"in {context_name} (got type '{arr_type}')."
                     )
-        elif isinstance(node, BinOp):
-            self._validate_predicate_bases(node.left, context_name)
-            self._validate_predicate_bases(node.right, context_name)
-        elif isinstance(node, (UnaryOp, Old)):
-            self._validate_predicate_bases(node.expr, context_name)
-        elif isinstance(node, (Requires, Ensures, LoopInvariant, LoopVariant)):
-            self._validate_predicate_bases(node.expr, context_name)
-        elif isinstance(node, FunctionVariant):
-            self._validate_predicate_bases(node.expr, context_name)
-        elif isinstance(node, (Forall, Exists)):
-            self._validate_predicate_bases(node.body, context_name)
+        for child in _iter_csl_children(node):
+            self._validate_predicate_bases(child, context_name)
+
+    # ── Concurrency helpers ────────────────────────────────────────────────
+
+    def _extract_held_mutexes(self, stmts: list) -> Set[str]:
+        """Return the set of mutexes acquired via #@ acquires or #@ critical in stmts."""
+        held = set()
+        for stmt in stmts:
+            if isinstance(stmt, ast.With):
+                m = getattr(stmt, 'csl_critical_mutex', None) or getattr(stmt, 'csl_acquires', None)
+                if m:
+                    held.add(m)
+        return held
+
+    def _check_protected_in_stmts(self, stmts: list, held: Set[str], func_name: str) -> None:
+        """Walk stmts, tracking held mutexes, and raise if a shared var is accessed unprotected."""
+        for stmt in stmts:
+            self._check_protected_in_stmt(stmt, held, func_name)
+
+    _PROTECTED_HANDLERS: Dict[type, str] = {
+        ast.With:       "_protected_with",
+        ast.If:         "_protected_if",
+        ast.While:      "_protected_loop",
+        ast.For:        "_protected_loop",
+        ast.Assign:     "_protected_assign",
+        ast.AugAssign:  "_protected_aug_assign",
+        ast.Return:     "_protected_return",
+        ast.Expr:       "_protected_expr",
+    }
+
+    def _check_protected_in_stmt(self, node: ast.AST, held: Set[str], func_name: str) -> None:
+        handler_name = self._PROTECTED_HANDLERS.get(type(node))
+        if handler_name:
+            getattr(self, handler_name)(node, held, func_name)
+
+    def _protected_with(self, node: ast.With, held: Set[str], func_name: str) -> None:
+        mutex = getattr(node, 'csl_critical_mutex', None) or getattr(node, 'csl_acquires', None)
+        inner_held = held | {mutex} if mutex else held
+        if mutex and held and self._lock_order is None:
+            raise PyCSLSemanticError(
+                f"Function '{func_name}': nested mutex acquisition of '{mutex}' while holding "
+                f"{sorted(held)} requires a module-level '#@ lock_order' declaration."
+            )
+        if mutex and held and self._lock_order is not None:
+            order = self._lock_order
+            for already_held in held:
+                ah_idx = order.index(already_held) if already_held in order else -1
+                new_idx = order.index(mutex) if mutex in order else -1
+                if ah_idx >= 0 and new_idx >= 0 and new_idx <= ah_idx:
+                    raise PyCSLSemanticError(
+                        f"Function '{func_name}': lock_order violation — acquiring '{mutex}' "
+                        f"while holding '{already_held}' violates declared order {order}."
+                    )
+        self._check_protected_in_stmts(node.body, inner_held, func_name)
+
+    def _protected_if(self, node: ast.If, held: Set[str], func_name: str) -> None:
+        self._check_protected_in_stmts(node.body, held, func_name)
+        self._check_protected_in_stmts(node.orelse, held, func_name)
+
+    def _protected_loop(self, node: ast.AST, held: Set[str], func_name: str) -> None:
+        self._check_protected_in_stmts(node.body, held, func_name)
+
+    def _protected_assign(self, node: ast.Assign, held: Set[str], func_name: str) -> None:
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                self._check_shared_access(target.id, held, func_name, write=True)
+        self._check_expr_for_shared(node.value, held, func_name)
+
+    def _protected_aug_assign(self, node: ast.AugAssign, held: Set[str], func_name: str) -> None:
+        if isinstance(node.target, ast.Name):
+            self._check_shared_access(node.target.id, held, func_name, write=True)
+
+    def _protected_return(self, node: ast.Return, held: Set[str], func_name: str) -> None:
+        if node.value:
+            self._check_expr_for_shared(node.value, held, func_name)
+
+    def _protected_expr(self, node: ast.Expr, held: Set[str], func_name: str) -> None:
+        self._check_expr_for_shared(node.value, held, func_name)
+
+    def _check_shared_access(self, var_name: str, held: Set[str], func_name: str, write: bool = False) -> None:
+        if var_name not in self._shared_vars:
+            return
+        req_mutex = self._shared_vars[var_name]
+        if req_mutex is None:
+            return  # unprotected shared — ConcurrencyChecker will warn; SemanticAnalyzer is lenient
+        if req_mutex not in held:
+            action = "write to" if write else "read of"
+            raise PyCSLSemanticError(
+                f"Function '{func_name}': unprotected {action} shared variable '{var_name}' "
+                f"(protected_by '{req_mutex}', but held mutexes are {sorted(held) or 'none'})."
+            )
+
+    def _check_expr_for_shared(self, node: ast.AST, held: Set[str], func_name: str) -> None:
+        if isinstance(node, ast.Name):
+            self._check_shared_access(node.id, held, func_name, write=False)
+        for child in ast.iter_child_nodes(node):
+            self._check_expr_for_shared(child, held, func_name)
+
+    def _validate_mutex_invariant_scope(self, mutex: str, invariant: CSLNode, func_name: str) -> None:
+        """Check that the invariant for 'mutex' only references variables protected by that mutex."""
+        protected = {v for v, m in self._shared_vars.items() if m == mutex or
+                     (m is not None and m.split('[')[0] == mutex.split('[')[0])}
+        referenced = extract_variables(invariant)
+        # Allow quantifier-bound variables (Forall/Exists) and numeric variables — be lenient
+        for var in referenced:
+            if var in self.current_scope or var in protected:
+                continue
+            # Allow single-letter loop variables common in invariants
+            if len(var) <= 2:
+                continue
+            raise PyCSLSemanticError(
+                f"Mutex invariant for '{mutex}': variable '{var}' is not a shared variable "
+                f"protected by '{mutex}'. Protected variables: {sorted(protected)}."
+            )
+
+    def visit_Module(self, node: ast.Module) -> Any:
+        """Collect module-level concurrency declarations."""
+        self._shared_vars = {}
+        self._mutex_invariants = {}
+        self._lock_order = None
+
+        for decl in getattr(node, 'csl_shared_decls', []):
+            self._shared_vars[decl.variable] = decl.mutex
+
+        for mutex, inv_expr in getattr(node, 'csl_mutex_invariants', {}).items():
+            self._mutex_invariants[mutex] = inv_expr
+            self._validate_mutex_invariant_scope(mutex, inv_expr, "<module>")
+
+        lock_order_node = getattr(node, 'csl_lock_order', None)
+        if lock_order_node is not None:
+            self._lock_order = lock_order_node.order
+
+        self.generic_visit(node)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         """Collect field types from __init__, validate class invariants, then validate methods."""
+        self._class_fields = self._collect_class_field_types(node)
+
+        for inv in getattr(node, 'csl_class_invariants', []):
+            context = f"class invariant for '{node.name}'"
+            referenced = extract_variables(inv.expr)
+            for var_name in referenced:
+                if var_name not in self._class_fields:
+                    raise PyCSLSemanticError(
+                        f"Undefined variable '{var_name}' in {context}. "
+                        f"Class invariants should only reference self.field or constants. "
+                        f"Available fields: {list(self._class_fields.keys())}"
+                    )
+
+        self.generic_visit(node)
+        self._class_fields = {}
+
+    def _collect_class_field_types(self, node: ast.ClassDef) -> Dict[str, str]:
+        """Scan __init__ for self.x assignments and return {field_name: type_name}."""
         fields: Dict[str, str] = {}
         for child in node.body:
             if isinstance(child, ast.FunctionDef) and child.name == '__init__':
@@ -161,66 +316,72 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
                                 self._get_type_name(stmt.annotation)
                                 if stmt.annotation else 'Any'
                             )
-        self._class_fields = fields
-
-        # Validate class invariants — only FieldAccess (self.field) and constants allowed
-        for inv in getattr(node, 'csl_class_invariants', []):
-            context = f"class invariant for '{node.name}'"
-            referenced = extract_variables(inv.expr)
-            for var_name in referenced:
-                if var_name not in fields:
-                    raise PyCSLSemanticError(
-                        f"Undefined variable '{var_name}' in {context}. "
-                        f"Class invariants should only reference self.field or constants. "
-                        f"Available fields: {list(fields.keys())}"
-                    )
-
-        self.generic_visit(node)
-        self._class_fields = {}
+        return fields
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        saved_scope = self.current_scope
+        saved_function_name = self.current_function_name
         self.current_function_name = f"function '{node.name}'"
         self.current_scope = {}
 
-        # 1. Populate scope with function arguments (skip 'self' for methods)
+        self._build_function_scope(node)
+        self._validate_function_contracts(node)
+        self._validate_assigns_regions(node)
+        self._validate_subscript_assignments(node)
+
+        node.csl_symbol_table = self.current_scope.copy()
+
+        if self._shared_vars:
+            self._check_protected_in_stmts(node.body, set(), node.name)
+
+        self.generic_visit(node)
+
+        self.current_scope = saved_scope
+        self.current_function_name = saved_function_name
+
+    def _build_function_scope(self, node: ast.FunctionDef) -> None:
+        """Populate current_scope from function args, local assignments, and ghost variables."""
+        # Function arguments (skip 'self' for methods)
         for arg in node.args.args:
             if arg.arg == 'self':
                 continue
             arg_type = self._get_type_name(arg.annotation) if arg.annotation else "Any"
             self.current_scope[arg.arg] = arg_type
 
-        # 2. Populate scope with local variables assigned in the function body
+        # Local variables (skip shared module-level variables)
         for child in ast.walk(node):
             if isinstance(child, ast.Assign):
                 for target in child.targets:
-                    if isinstance(target, ast.Name):
+                    if isinstance(target, ast.Name) and target.id not in self._shared_vars:
                         self.current_scope[target.id] = "Any"
             elif isinstance(child, ast.AnnAssign):
-                if isinstance(child.target, ast.Name):
+                if isinstance(child.target, ast.Name) and child.target.id not in self._shared_vars:
                     self.current_scope[child.target.id] = (
                         self._get_type_name(child.annotation)
                         if child.annotation else "Any"
                     )
 
-        # 3. Add ghost variables to scope
+        # Ghost variables
         for child in ast.walk(node):
             for ga in getattr(child, 'csl_ghost_assigns', []):
                 self.current_scope[ga.target] = "int"
 
-        # 4. Validate Function Contracts
+    def _validate_function_contracts(self, node: ast.FunctionDef) -> None:
+        """Validate requires, ensures, assigns, and function variant contracts."""
         for req in getattr(node, 'csl_requires', []):
             self._validate_contract(req, self.current_function_name, is_postcondition=False)
-            
+
         for ens in getattr(node, 'csl_ensures', []):
             self._validate_contract(ens, self.current_function_name, is_postcondition=True)
-            
+
         for ass in getattr(node, 'csl_assigns', []):
             self._validate_contract(ass, self.current_function_name, is_postcondition=False)
 
         for fv in getattr(node, 'csl_function_variants', []):
             self._validate_contract(fv, self.current_function_name, is_postcondition=False)
 
-        # Validate assigns regions: base must be a list-typed parameter
+    def _validate_assigns_regions(self, node: ast.FunctionDef) -> None:
+        """Check that assigns region bases are list-typed parameters."""
         for ass in getattr(node, 'csl_assigns', []):
             for target in ass.targets:
                 if isinstance(target, AssignsRegion):
@@ -236,7 +397,8 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
                             f"(type '{arr_type}') in {self.current_function_name}."
                         )
 
-        # 5. Validate subscript assignments: arr[i] = v requires arr to be list-typed
+    def _validate_subscript_assignments(self, node: ast.FunctionDef) -> None:
+        """Check that arr[i] = v targets are list-typed variables."""
         for child in ast.walk(node):
             if isinstance(child, ast.Assign):
                 for target in child.targets:
@@ -253,11 +415,6 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
                                 f"Subscript assignment to non-list variable '{arr_name}' "
                                 f"(type '{arr_type}') in {self.current_function_name}."
                             )
-
-        # Attach the resolved symbol table to the node so the Backend can use it for SMT sorts!
-        node.csl_symbol_table = self.current_scope.copy()
-
-        self.generic_visit(node)
 
     def visit_While(self, node: ast.While) -> Any:
         context_name = f"while loop at line {node.lineno} inside {self.current_function_name}"

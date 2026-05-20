@@ -44,20 +44,35 @@ from typing import Any, Union
 
 
 def _load_ollama_url() -> str:
-    """Read Ollama URL from env var, falling back to agents-config.json."""
+    """Read Ollama URL from env var, then agents-config.json. Raises if neither provides it."""
     env = os.environ.get("OLLAMA_URL")
     if env:
         return env
-    config_path = os.path.join(
+    config_path = os.path.normpath(os.path.join(
         os.path.dirname(__file__), os.pardir, os.pardir, os.pardir,
         "config", "agents-config.json"
-    )
+    ))
     try:
-        with open(os.path.normpath(config_path)) as f:
+        with open(config_path) as f:
             cfg = json.load(f)
-        return cfg.get("llm-ollama-url", "http://192.168.1.111:11434")
-    except (FileNotFoundError, json.JSONDecodeError):
-        return "http://192.168.1.111:11434"
+    except FileNotFoundError:
+        raise RuntimeError(
+            f"agents-config.json not found at {config_path}. "
+            "Set the OLLAMA_URL environment variable or add "
+            '"llm-ollama-url" to config/agents-config.json.'
+        )
+    except json.JSONDecodeError as e:
+        raise RuntimeError(
+            f"Failed to parse agents-config.json: {e}. "
+            "Fix the JSON or set the OLLAMA_URL environment variable."
+        )
+    url = cfg.get("llm-ollama-url")
+    if not url:
+        raise RuntimeError(
+            'Key "llm-ollama-url" is missing from config/agents-config.json. '
+            "Add it or set the OLLAMA_URL environment variable."
+        )
+    return url
 
 
 MODEL_NAME = os.environ.get("MODEL_NAME", "gemma4:31b")
@@ -107,26 +122,7 @@ def write_next_sequential_file(dirname: str, prefix: str, data: str) -> str:
         
     return new_filepath
 
-def log(path: Union[str, Path], name: str, message: str) -> str:
-    """Append a message to <path>/log/<name>.log, creating directories/files as needed.
-
-    Args:
-        path: Base directory where the "log" folder lives.
-        name: Log filename stem.
-        message: Message content to append.
-
-    Returns:
-        The full path of the log file written to.
-    """
-    log_dir = Path(path) / "log"
-    log_dir.mkdir(parents=True, exist_ok=True)
-
-    log_file = log_dir / f"{name}.log"
-    timestamp = datetime.datetime.now().isoformat(timespec="seconds")
-    with open(log_file, "a", encoding="utf-8") as f:
-        f.write(f"[{timestamp}] {message}")
-
-    return str(log_file)
+from common import log  # noqa: E402 — re-exported for backward compat
 
 def ollama_generate(prompt: str, system: str, temperature: float, agent_id: str) -> str:
     """Send a prompt to the Ollama LLM and return the raw text response.

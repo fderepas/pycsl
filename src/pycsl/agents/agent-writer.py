@@ -28,6 +28,7 @@ import sys
 from pathlib import Path
 
 from llm_client import llm_generate, log
+from common import retrieve_skill_chunks, extract_code_block
 
 AGENT_NAME = "agent-writer"
 
@@ -37,65 +38,6 @@ _ESSENTIAL_QUERIES = [
     "Forbidden in contract expressions NEVER use operators quantifiers",
     "Class support method annotation rules class invariant Level 2 Level 3",
 ]
-
-
-def _retrieve_skill_chunks(
-    index_path: Path,
-    input_code: str,
-    top_k: int = 10,
-    project_root: Path | None = None,
-) -> str | None:
-    """Retrieve relevant skill chunks via RAG instead of loading the full skill file."""
-    if not index_path.exists():
-        return None
-
-    try:
-        if project_root:
-            skill2rag_path = str(project_root / "src")
-            if skill2rag_path not in sys.path:
-                sys.path.insert(0, skill2rag_path)
-        from skill2rag.retriever import retrieve  # noqa: E402
-
-        seen_ids: set = set()
-        chunks: list = []
-
-        for query in _ESSENTIAL_QUERIES:
-            for chunk in retrieve(query=query, index_path=str(index_path), top_k=3):
-                if chunk.chunk_id not in seen_ids:
-                    seen_ids.add(chunk.chunk_id)
-                    chunks.append(chunk)
-
-        code_query = input_code[:800]
-        func_sigs = re.findall(r'^[ \t]*(?:class|def)\s+[^\n]+', input_code, re.MULTILINE)
-        if func_sigs:
-            code_query += "\n" + "\n".join(func_sigs[:5])
-
-        for chunk in retrieve(query=code_query, index_path=str(index_path), top_k=top_k):
-            if chunk.chunk_id not in seen_ids:
-                seen_ids.add(chunk.chunk_id)
-                chunks.append(chunk)
-
-        if not chunks:
-            return None
-
-        return "\n\n---\n\n".join(c.content for c in chunks)
-    except Exception:
-        return None
-
-
-def extract_code_block(text: str, language: str = "python") -> str:
-    """Extract code from markdown fences."""
-    pattern = rf"```{language}\n(.*?)\n```"
-    match = re.search(pattern, text, re.DOTALL)
-    if match:
-        return match.group(1)
-
-    pattern = r"```\n(.*?)\n```"
-    match = re.search(pattern, text, re.DOTALL)
-    if match:
-        return match.group(1)
-
-    return text
 
 
 def _build_monolithic_prompt(
@@ -302,11 +244,16 @@ def main():
         rag_index_path = Path(rag_index_name)
         if not rag_index_path.is_absolute():
             rag_index_path = project_root / rag_index_path
-        skill_content = _retrieve_skill_chunks(
+        _code_query = function_source[:800]
+        _func_sigs = re.findall(r'^[ \t]*(?:class|def)\s+[^\n]+', function_source, re.MULTILINE)
+        if _func_sigs:
+            _code_query += "\n" + "\n".join(_func_sigs[:5])
+        skill_content = retrieve_skill_chunks(
             index_path=rag_index_path,
-            input_code=function_source,
+            main_query=_code_query,
             top_k=rag_top_k,
             project_root=project_root,
+            essential_queries=_ESSENTIAL_QUERIES,
         )
         if skill_content:
             log(project_directory, AGENT_NAME, "Using RAG-retrieved skill chunks\n")

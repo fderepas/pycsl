@@ -15,11 +15,12 @@ from pathlib import Path
 
 AGENT_NAME = "agent-meta-reviewer"
 
-from llm_client import llm_generate, log as _llm_log  # noqa: E402
+from llm_client import llm_generate  # noqa: E402
+from common import log as _log
 
 
 def log(msg: str, out_dir: Path) -> None:
-    _llm_log(out_dir, AGENT_NAME, f"[{AGENT_NAME}] {msg}\n")
+    _log(out_dir, AGENT_NAME, f"[{AGENT_NAME}] {msg}\n")
 
 
 def load_json(path: Path, out_dir: Path) -> dict:

@@ -20,7 +20,8 @@ _SYSTEM_PROMPT = """\
 You are a formal verification engineer specializing in Design-by-Contract. \
 Your job is to write function-level contracts (preconditions, postconditions, \
 frame conditions) for Python functions. You write ONLY contracts, not loop \
-invariants."""
+invariants. In concurrent mode (--memory-model concurrent) shared variables are \
+governed by mutex invariants, not by function requires/ensures."""
 
 
 def generate(
@@ -38,7 +39,7 @@ def generate(
         function_source: The raw source code of the function.
         english_description: Plain-English description from agent-english-writer.
         class_context: Optional class header + __init__ for method context.
-        memory_model: One of 'hoare', 'typed', 'store'.
+        memory_model: One of 'hoare', 'typed', 'store', 'concurrent'.
         skill_content: Loaded skill file content with syntax reference and guidelines.
         model: LLM model name.
         project_directory: Base directory for logging.
@@ -56,6 +57,18 @@ def generate(
     parts.append(
         f"\n## Active Memory Model: {memory_model.upper()}\n"
     )
+
+    if memory_model == "concurrent":
+        parts.append(
+            "\n## Concurrent Model — Contract Rules\n\n"
+            "- Thread entry functions (`#@ thread_entry`): write `#@ requires 1 == 1`, "
+            "`#@ ensures 1 == 1`, `#@ assigns \\nothing`. "
+            "Add `#@ \\diverges` if the function contains an outer `while True:` loop.\n"
+            "- Do NOT write `requires`/`ensures` that directly name shared variables "
+            "(declared `#@ shared`). Their invariant is managed by `#@ mutex_invariant`.\n"
+            "- Do NOT add `#@ assigns <shared_var>` for mutations inside a `#@ critical` block.\n"
+            "- Helper functions that only touch local variables: write normal contracts.\n"
+        )
 
     parts.append(
         "\n## English Description of the Function\n\n"

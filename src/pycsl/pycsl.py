@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 import argparse
 import ast as _ast
 import hashlib
@@ -7,6 +9,7 @@ import os
 import re as _re
 import sys
 import subprocess
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 # Ensure sibling modules are importable regardless of cwd
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -15,14 +18,17 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from Module1_Ingestor import Module1_Ingestor
 from Module2_Parser import Module2_Parser
 from Module3_Weaver import Module3_Weaver
-from Module4_SemanticAnalyzer import Module4_SemanticAnalyzer, PyCSLSemanticError
+from Module4_SemanticAnalyzer import Module4_SemanticAnalyzer
+from errors import PyCSLError, PyCSLParseError
 from Module5_IREmitter import Module5_IREmitter
 from Module6_WhyMLTranspiler import Module6_WhyMLTranspiler
+from ir_schema import validate_ir
+from ConcurrencyChecker import ConcurrencyChecker
 
 
 # ── Multi-file import helpers ──────────────────────────────────
 
-def _collect_calls(obj):
+def _collect_calls(obj: Any) -> Set[str]:
     """Recursively collect function names from Call nodes in IR."""
     calls = set()
     if isinstance(obj, dict):
@@ -36,7 +42,7 @@ def _collect_calls(obj):
     return calls
 
 
-def _extract_imports(tree):
+def _extract_imports(tree: _ast.AST) -> List[Tuple[str, str, str, int, bool]]:
     """Walk AST for import statements, return list of
     (local_name, original_name, module_path, level, is_module) tuples.
     is_module is True for 'import mod' / 'import mod as alias'.
@@ -57,7 +63,7 @@ def _extract_imports(tree):
     return imports
 
 
-def _rewrite_ir_calls(obj, old_name, new_name):
+def _rewrite_ir_calls(obj: Any, old_name: str, new_name: str) -> None:
     """Recursively rewrite Call nodes: func old_name → new_name."""
     if isinstance(obj, dict):
         if obj.get("type") == "Call" and obj.get("func") == old_name:
@@ -69,7 +75,7 @@ def _rewrite_ir_calls(obj, old_name, new_name):
             _rewrite_ir_calls(item, old_name, new_name)
 
 
-def _resolve_module_path(module_dotted, level, main_file):
+def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Optional[str]:
     """Convert dotted module path to filesystem .py path.
     Returns the resolved path or None if file not found.
     Searches: main file's directory first, then CWD."""
@@ -101,7 +107,7 @@ def _resolve_module_path(module_dotted, level, main_file):
     return None
 
 
-def _get_module_exports(filepath):
+def _get_module_exports(filepath: str) -> Optional[Set[str]]:
     """Return the set of public names exported by a module.
     Uses __all__ if defined, otherwise all non-underscore function names."""
     with open(filepath) as f:
@@ -118,8 +124,8 @@ def _get_module_exports(filepath):
     return None  # caller should use all non-underscore functions
 
 
-def _process_dependency(filepath, needed_names, cache,
-                        deep=False, processing_set=None):
+def _process_dependency(filepath: str, needed_names: Set[str], cache: Dict[str, Any],
+                        deep: bool = False, processing_set: Optional[Set[str]] = None) -> List[Dict[str, Any]]:
     """Run Modules 1→5 on filepath, return list of func_ir dicts for
     the requested names (plus their transitive in-file callees),
     all marked trusted.  Results are cached by filepath.
@@ -186,16 +192,121 @@ def _process_dependency(filepath, needed_names, cache,
     return result
 
 
-def _resolve_imports(validated_ast, main_file, ir_data,
-                     deep=False, cache=None, processing_set=None):
+def _resolve_direct_imports(direct_imports: List[Any], all_calls: Set[str], main_file: str,
+                             ir_data: Dict[str, Any], deep: bool, cache: Dict[str, Any],
+                             processing_set: Set[str]) -> Set[str]:
+    """Inject trusted stubs for `from mod import name` imports. Returns added names."""
+    from collections import defaultdict
+    imported_names = set()
+    by_module = defaultdict(list)
+    for local, original, module_path, level in direct_imports:
+        by_module[(module_path, level)].append((local, original))
+
+    for (module_path, level), names in by_module.items():
+        needed = [(local, orig) for local, orig in names if local in all_calls]
+        if not needed:
+            continue
+        resolved = _resolve_module_path(module_path, level, main_file)
+        if resolved is None:
+            for local, orig in needed:
+                print(f"[*] Import '{module_path}.{orig}': external module, "
+                      f"no local source found — skipping (add \\trusted stub "
+                      f"if verification of callers needs its contract)")
+            continue
+        orig_names = [orig for _, orig in needed]
+        dep_funcs = _process_dependency(resolved, orig_names, cache,
+                                        deep=deep, processing_set=processing_set)
+        for func_ir in dep_funcs:
+            for local, orig in needed:
+                if func_ir["name"] == orig and local != orig:
+                    func_ir["name"] = local
+            existing = {f["name"] for f in ir_data["functions"]}
+            if func_ir["name"] not in existing:
+                ir_data["functions"].insert(0, func_ir)
+                imported_names.add(func_ir["name"])
+        resolved_locals = [local for local, _ in needed]
+        print(f"[*] Imported from '{module_path}': {resolved_locals} (trusted stubs)")
+
+    return imported_names
+
+
+def _resolve_wildcard_imports(wildcard_imports: List[Any], all_calls: Set[str], main_file: str,
+                               ir_data: Dict[str, Any], deep: bool, cache: Dict[str, Any],
+                               processing_set: Set[str]) -> Set[str]:
+    """Inject trusted stubs for `from mod import *` imports. Returns added names."""
+    imported_names = set()
+    for module_path, level in wildcard_imports:
+        resolved = _resolve_module_path(module_path, level, main_file)
+        if resolved is None:
+            print(f"[*] Import '{module_path}.*': external module, "
+                  f"no local source found — skipping")
+            continue
+        _process_dependency(resolved, [], cache, deep=deep, processing_set=processing_set)
+        abs_resolved = os.path.abspath(resolved)
+        dep_ir = cache.get(abs_resolved)
+        if dep_ir is None:
+            continue
+        explicit_all = _get_module_exports(resolved)
+        exported = explicit_all if explicit_all is not None else {
+            f["name"] for f in dep_ir["functions"] if not f["name"].startswith("_")
+        }
+        needed_names = sorted(exported & all_calls)
+        if not needed_names:
+            continue
+        dep_funcs = _process_dependency(resolved, needed_names, cache,
+                                        deep=deep, processing_set=processing_set)
+        for func_ir in dep_funcs:
+            existing = {f["name"] for f in ir_data["functions"]}
+            if func_ir["name"] not in existing:
+                ir_data["functions"].insert(0, func_ir)
+                imported_names.add(func_ir["name"])
+        print(f"[*] Imported from '{module_path}.*': {needed_names} (wildcard, trusted stubs)")
+
+    return imported_names
+
+
+def _resolve_module_imports(module_imports: List[Any], all_calls: Set[str], main_file: str,
+                             ir_data: Dict[str, Any], deep: bool, cache: Dict[str, Any],
+                             processing_set: Set[str]) -> Set[str]:
+    """Inject trusted stubs for `import mod` / `import mod as alias` imports. Returns added names."""
+    imported_names = set()
+    for local_name, original_name, module_path, level in module_imports:
+        prefix = local_name + "."
+        matching_calls = [c for c in all_calls if c.startswith(prefix)]
+        if not matching_calls:
+            continue
+        resolved = _resolve_module_path(module_path, level, main_file)
+        if resolved is None:
+            for call in matching_calls:
+                print(f"[*] Import '{module_path}.{call[len(prefix):]}': external module, "
+                      f"no local source found — skipping")
+            continue
+        func_names = [call[len(prefix):] for call in matching_calls]
+        dep_funcs = _process_dependency(resolved, func_names, cache,
+                                        deep=deep, processing_set=processing_set)
+        for func_ir in dep_funcs:
+            existing = {f["name"] for f in ir_data["functions"]}
+            if func_ir["name"] not in existing:
+                ir_data["functions"].insert(0, func_ir)
+                imported_names.add(func_ir["name"])
+        for call in matching_calls:
+            bare_name = call[len(prefix):]
+            for f in ir_data["functions"]:
+                _rewrite_ir_calls(f, call, bare_name)
+        print(f"[*] Imported from '{module_path}': {func_names} (trusted stubs, module-qualified)")
+
+    return imported_names
+
+
+def _resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, Any],
+                     deep: bool = False, cache: Optional[Dict[str, Any]] = None,
+                     processing_set: Optional[Set[str]] = None) -> Set[str]:
     """Detect imports, resolve source files, inject trusted stubs into ir_data.
-    Returns set of imported function local names.
-    With deep=True, recursively resolve dependencies' own imports."""
+    Returns set of imported function local names."""
     imports = _extract_imports(validated_ast)
     if not imports:
         return set()
 
-    # Determine which functions are actually called in the main file's IR
     all_calls = set()
     for f in ir_data["functions"]:
         all_calls |= _collect_calls(f["body"])
@@ -204,10 +315,7 @@ def _resolve_imports(validated_ast, main_file, ir_data,
         cache = {}
     if processing_set is None:
         processing_set = set()
-    imported_names = set()
-    from collections import defaultdict
 
-    # Separate direct name imports, wildcard imports, and module imports
     direct_imports = [(l, o, m, lv)
                       for l, o, m, lv, is_mod in imports
                       if not is_mod and l != '*']
@@ -217,126 +325,17 @@ def _resolve_imports(validated_ast, main_file, ir_data,
     module_imports = [(l, o, m, lv)
                       for l, o, m, lv, is_mod in imports if is_mod]
 
-    # --- Handle direct name imports (from mod import name) ---
-    by_module = defaultdict(list)
-    for local, original, module_path, level in direct_imports:
-        by_module[(module_path, level)].append((local, original))
-
-    for (module_path, level), names in by_module.items():
-        needed = [(local, orig) for local, orig in names
-                  if local in all_calls]
-        if not needed:
-            continue
-
-        resolved = _resolve_module_path(module_path, level, main_file)
-        if resolved is None:
-            for local, orig in needed:
-                print(f"[*] Import '{module_path}.{orig}': external module, "
-                      f"no local source found — skipping (add \\trusted stub "
-                      f"if verification of callers needs its contract)")
-            continue
-
-        orig_names = [orig for _, orig in needed]
-        dep_funcs = _process_dependency(resolved, orig_names, cache,
-                                        deep=deep,
-                                        processing_set=processing_set)
-
-        for func_ir in dep_funcs:
-            for local, orig in needed:
-                if func_ir["name"] == orig and local != orig:
-                    func_ir["name"] = local
-            existing = {f["name"] for f in ir_data["functions"]}
-            if func_ir["name"] not in existing:
-                ir_data["functions"].insert(0, func_ir)
-                imported_names.add(func_ir["name"])
-
-        resolved_locals = [local for local, _ in needed]
-        print(f"[*] Imported from '{module_path}': "
-              f"{resolved_locals} (trusted stubs)")
-
-    # --- Handle wildcard imports (from mod import *) ---
-    for module_path, level in wildcard_imports:
-        resolved = _resolve_module_path(module_path, level, main_file)
-        if resolved is None:
-            print(f"[*] Import '{module_path}.*': external module, "
-                  f"no local source found — skipping")
-            continue
-
-        # Process the module to cache its IR
-        _process_dependency(resolved, [], cache,
-                            deep=deep, processing_set=processing_set)
-        abs_resolved = os.path.abspath(resolved)
-        dep_ir = cache.get(abs_resolved)
-        if dep_ir is None:
-            continue
-
-        # Determine exported names (respect __all__ if present)
-        explicit_all = _get_module_exports(resolved)
-        if explicit_all is not None:
-            exported = explicit_all
-        else:
-            exported = {f["name"] for f in dep_ir["functions"]
-                        if not f["name"].startswith("_")}
-
-        # Filter to names actually called in the main file
-        needed_names = sorted(exported & all_calls)
-        if not needed_names:
-            continue
-
-        dep_funcs = _process_dependency(resolved, needed_names, cache,
-                                        deep=deep,
-                                        processing_set=processing_set)
-        for func_ir in dep_funcs:
-            existing = {f["name"] for f in ir_data["functions"]}
-            if func_ir["name"] not in existing:
-                ir_data["functions"].insert(0, func_ir)
-                imported_names.add(func_ir["name"])
-
-        print(f"[*] Imported from '{module_path}.*': "
-              f"{needed_names} (wildcard, trusted stubs)")
-
-    # --- Handle module imports (import mod / import mod as alias) ---
-    # Calls appear as dotted names: "alias.func" or "mod.sub.func"
-    for local_name, original_name, module_path, level in module_imports:
-        prefix = local_name + "."
-        # Find all calls matching this module prefix
-        matching_calls = [c for c in all_calls if c.startswith(prefix)]
-        if not matching_calls:
-            continue
-
-        resolved = _resolve_module_path(module_path, level, main_file)
-        if resolved is None:
-            for call in matching_calls:
-                func_name = call[len(prefix):]
-                print(f"[*] Import '{module_path}.{func_name}': external module, "
-                      f"no local source found — skipping")
-            continue
-
-        # Extract bare function names from dotted calls
-        func_names = [call[len(prefix):] for call in matching_calls]
-        dep_funcs = _process_dependency(resolved, func_names, cache,
-                                        deep=deep,
-                                        processing_set=processing_set)
-
-        for func_ir in dep_funcs:
-            existing = {f["name"] for f in ir_data["functions"]}
-            if func_ir["name"] not in existing:
-                ir_data["functions"].insert(0, func_ir)
-                imported_names.add(func_ir["name"])
-
-        # Rewrite dotted calls in IR to bare function names
-        for call in matching_calls:
-            bare_name = call[len(prefix):]
-            for f in ir_data["functions"]:
-                _rewrite_ir_calls(f, call, bare_name)
-
-        print(f"[*] Imported from '{module_path}': "
-              f"{func_names} (trusted stubs, module-qualified)")
-
+    imported_names = set()
+    imported_names |= _resolve_direct_imports(
+        direct_imports, all_calls, main_file, ir_data, deep, cache, processing_set)
+    imported_names |= _resolve_wildcard_imports(
+        wildcard_imports, all_calls, main_file, ir_data, deep, cache, processing_set)
+    imported_names |= _resolve_module_imports(
+        module_imports, all_calls, main_file, ir_data, deep, cache, processing_set)
     return imported_names
 
 
-def _generate_rocq_obligations(mlw_path, output_dir, unproven_count):
+def _generate_rocq_obligations(mlw_path: str, output_dir: str, unproven_count: int) -> None:
     """Generate Rocq proof obligations for goals that SMT provers could not discharge."""
     os.makedirs(output_dir, exist_ok=True)
 
@@ -381,7 +380,7 @@ def _generate_rocq_obligations(mlw_path, output_dir, unproven_count):
         print(f"    The WhyML source is saved at: {mlw_dest}")
 
 
-def _sha256_file(path):
+def _sha256_file(path: str) -> str:
     """Compute SHA-256 hex digest of a file."""
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -390,7 +389,7 @@ def _sha256_file(path):
     return h.hexdigest()
 
 
-def _find_coqc():
+def _find_coqc() -> Optional[str]:
     """Locate the coqc binary, checking opam default first."""
     opam_coqc = os.path.expanduser("~/.opam/default/bin/coqc")
     if os.path.isfile(opam_coqc) and os.access(opam_coqc, os.X_OK):
@@ -399,7 +398,7 @@ def _find_coqc():
     return _sh.which("coqc")
 
 
-def _find_why3_coq_lib():
+def _find_why3_coq_lib() -> Optional[str]:
     """Locate the Why3 Coq library directory."""
     opam_lib = os.path.expanduser("~/.opam/default/lib/why3/coq")
     if os.path.isdir(opam_lib):
@@ -407,7 +406,7 @@ def _find_why3_coq_lib():
     return None
 
 
-def _check_rocq_proofs(proof_dir, mlw_path, unproven_goal_names):
+def _check_rocq_proofs(proof_dir: str, mlw_path: str, unproven_goal_names: List[str]) -> int:
     """Check for pre-existing Rocq proofs and replay them with coqc.
 
     Returns the number of goals successfully proved by Rocq.
@@ -472,8 +471,8 @@ def _check_rocq_proofs(proof_dir, mlw_path, unproven_goal_names):
     return proved_count
 
 
-def main():
-    # Set up command line arguments
+def _parse_args() -> argparse.Namespace:
+    """Build and return the parsed CLI argument namespace."""
     parser = argparse.ArgumentParser(description="PyCSL: Python Contract Specification Language Verifier")
     parser.add_argument("file", help="The Python file to verify")
     parser.add_argument("-p", "--prover", default=None,
@@ -486,10 +485,11 @@ def main():
                              "Overrides agents-config.json. "
                              "Default: Alt-Ergo then Z3.")
     parser.add_argument("--memory-model", default=None,
-                        choices=["hoare", "typed", "store"],
+                        choices=["hoare", "typed", "store", "concurrent"],
                         help="Memory model for WhyML emission (default: hoare). "
-                             "'typed' and 'store' use a global heap (map loc int).")
-    parser.add_argument("--keep-mlw", action="store_true", 
+                             "'typed'/'store' use a global heap (map loc int). "
+                             "'concurrent' enables mutex-discipline verification.")
+    parser.add_argument("--keep-mlw", action="store_true",
                         help="Keep the generated WhyML (.mlw) file for debugging")
     parser.add_argument("--fun", action="append", default=None, metavar="NAME",
                         help="Only verify the named function and its transitive "
@@ -514,130 +514,81 @@ def main():
                              "provers fail. Each .v file is replayed with coqc "
                              "for full verification. If DIR is omitted, "
                              "auto-detects <file>.proofs/ next to the input.")
-    
-    args = parser.parse_args()
+    return parser.parse_args()
 
-    if not os.path.exists(args.file):
-        print(f"[!] Error: File '{args.file}' not found.")
-        sys.exit(1)
 
-    # Load agents-config.json once for all config resolution
-    _config = {}
-    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               "agents", "agents-config.json")
-    if os.path.exists(config_path):
-        with open(config_path) as _cf:
-            _config = _json.load(_cf)
-
-    # Resolve memory model: CLI flag > agents-config.json > default "hoare"
-    memory_model = args.memory_model
-    if memory_model is None:
-        memory_model = _config.get("memory-model", "hoare")
-
-    # Resolve prover list: --prover (single) > --provers (list) > agents-config.json > default
-    _DEFAULT_PROVERS = ["Alt-Ergo,2.6.2,", "Z3,4.13.3,"]
-    if args.prover is not None:
-        # --prover overrides everything: single prover, no fallback
-        provers = [args.prover]
-    elif args.provers is not None:
-        # --provers: caller-supplied ordered list (separator is the Why3 prover ID separator)
-        # Each prover ID contains commas so we split on ",," (double-comma = ID boundary)
-        # Support both "P1,,P2" and "P1,P2" (the latter for simple names like "z3")
-        provers = [p.strip() for p in args.provers.split(",,") if p.strip()]
-    else:
-        cfg_provers = _config.get("provers", _DEFAULT_PROVERS)
-        if isinstance(cfg_provers, str):
-            provers = [p.strip() for p in cfg_provers.split(",,") if p.strip()]
-        else:
-            provers = cfg_provers
-
-    with open(args.file, "r") as f:
-        source_code = f.read()
-
+def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace) -> str:
+    """Run Modules 1–6 on *source_code*. Returns WhyML code string."""
     print(f"[*] Parsing and Semantic Analysis for '{args.file}'...")
     print(f"[*] Memory model: {memory_model}")
 
-    try:
-        # [Modules 1-3] Ingest, Parse, and Weave
-        ingestor = Module1_Ingestor(source_code)
-        extracted_data = ingestor.process()
+    # [Modules 1-3] Ingest, Parse, and Weave
+    ingestor = Module1_Ingestor(source_code)
+    extracted_data = ingestor.process()
 
-        parser_mod = Module2_Parser()
-        weaver = Module3_Weaver(source_code, extracted_data, parser_mod)
-        unified_ast = weaver.process()
+    parser_mod = Module2_Parser()
+    weaver = Module3_Weaver(source_code, extracted_data, parser_mod)
+    unified_ast = weaver.process()
 
-        # [Module 4] Semantic Analysis
-        analyzer = Module4_SemanticAnalyzer()
-        validated_ast = analyzer.process(unified_ast)
+    # [Module 4] Semantic Analysis
+    analyzer = Module4_SemanticAnalyzer()
+    validated_ast = analyzer.process(unified_ast)
 
-        # [Module 5] IR Generation
-        emitter = Module5_IREmitter(validated_ast)
-        json_ir = emitter.generate_json()
+    # [ConcurrencyChecker] Static concurrency analysis (warnings only)
+    cc = ConcurrencyChecker(validated_ast)
+    cc_warnings = cc.check()
+    if cc_warnings:
+        print(cc.summary())
 
-        # Multi-file import resolution: detect imports, resolve source files,
-        # inject imported functions as trusted stubs into the IR.
+    # [Module 5] IR Generation
+    emitter = Module5_IREmitter(validated_ast)
+    json_ir = emitter.generate_json()
+
+    # Validate IR structure before handing off to Module 6
+    ir_data = _json.loads(json_ir)
+    validate_ir(ir_data)
+
+    # Multi-file import resolution
+    imported_names = _resolve_imports(validated_ast, args.file, ir_data, deep=args.deep)
+    if imported_names:
+        json_ir = _json.dumps(ir_data)
+
+    # --fun filter: mark non-selected functions as trusted
+    if args.fun:
         ir_data = _json.loads(json_ir)
-        imported_names = _resolve_imports(validated_ast, args.file, ir_data,
-                                          deep=args.deep)
-        if imported_names:
-            json_ir = _json.dumps(ir_data)
+        all_func_names = {f["name"] for f in ir_data["functions"]}
+        fun_names = set(args.fun)
+        missing = fun_names - all_func_names
+        if missing:
+            print(f"[!] Error: Function(s) not found: {', '.join(sorted(missing))}")
+            print(f"    Available: {', '.join(sorted(all_func_names))}")
+            sys.exit(1)
+        call_graph = {f["name"]: _collect_calls(f["body"]) & all_func_names
+                      for f in ir_data["functions"]}
+        reachable = set(fun_names)
+        worklist = list(fun_names)
+        while worklist:
+            fname = worklist.pop()
+            for callee in call_graph.get(fname, set()):
+                if callee not in reachable:
+                    reachable.add(callee)
+                    worklist.append(callee)
+        for f in ir_data["functions"]:
+            if f["name"] not in reachable:
+                f["trusted"] = True
+        json_ir = _json.dumps(ir_data)
+        verified_names = sorted(reachable & all_func_names)
+        trusted_names = sorted(all_func_names - reachable)
+        if trusted_names:
+            print(f"[*] --fun filter: verifying {verified_names}, trusting {trusted_names}")
 
-        # --fun filter: mark non-selected (and non-dependency) functions as trusted
-        if args.fun:
-            ir_data = _json.loads(json_ir)
-            all_func_names = {f["name"] for f in ir_data["functions"]}
+    # [Module 6] WhyML Transpilation
+    transpiler = Module6_WhyMLTranspiler(json_ir, memory_model=memory_model)
+    return transpiler.transpile()
 
-            # Validate that every --fun name exists
-            fun_names = set(args.fun)
-            missing = fun_names - all_func_names
-            if missing:
-                print(f"[!] Error: Function(s) not found: {', '.join(sorted(missing))}")
-                print(f"    Available: {', '.join(sorted(all_func_names))}")
-                sys.exit(1)
 
-            call_graph = {}
-            for f in ir_data["functions"]:
-                call_graph[f["name"]] = _collect_calls(f["body"]) & all_func_names
-
-            # Transitive closure via BFS
-            reachable = set(fun_names)
-            worklist = list(fun_names)
-            while worklist:
-                fname = worklist.pop()
-                for callee in call_graph.get(fname, set()):
-                    if callee not in reachable:
-                        reachable.add(callee)
-                        worklist.append(callee)
-
-            # Mark non-reachable functions as trusted
-            for f in ir_data["functions"]:
-                if f["name"] not in reachable:
-                    f["trusted"] = True
-            json_ir = _json.dumps(ir_data)
-
-            verified_names = sorted(reachable & all_func_names)
-            trusted_names = sorted(all_func_names - reachable)
-            if trusted_names:
-                print(f"[*] --fun filter: verifying {verified_names}, trusting {trusted_names}")
-
-        # [Module 6] WhyML Transpilation
-        transpiler = Module6_WhyMLTranspiler(json_ir, memory_model=memory_model)
-        mlw_code = transpiler.transpile()
-
-    except SyntaxError as e:
-        print(f"\n[!] SYNTAX ERROR:\n{e}")
-        sys.exit(1)
-    except PyCSLSemanticError as e:
-        print(f"\n[!] SEMANTIC ERROR:\n{e}")
-        sys.exit(1)
-    except Exception as e:
-        print(f"\n[!] UNEXPECTED PIPELINE ERROR:\n{e}")
-        sys.exit(1)
-
-    # File handling for the WhyML intermediate file
-    base_name = os.path.splitext(args.file)[0]
-    mlw_filename = f"{base_name}.mlw" if args.keep_mlw else ".pycsl_temp.mlw"
-    
+def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argparse.Namespace) -> None:
+    """Write *mlw_code* to *mlw_filename*, invoke Why3, handle Rocq proofs and cleanup."""
     with open(mlw_filename, "w") as f:
         f.write(mlw_code)
 
@@ -659,7 +610,6 @@ def main():
         cmd += ["--timelimit", "30", mlw_filename]
 
         result = subprocess.run(cmd, capture_output=True, text=True)
-
         output = result.stdout.strip()
 
         print("\n--- Verification Results ---")
@@ -669,39 +619,28 @@ def main():
             print("\nWarnings/Errors from Why3:")
             print(result.stderr.strip())
 
-        # Determine which goals (if any) remain unproven
         unknown_goals = [line for line in output.splitlines()
                          if "Unknown" in line or "Timeout" in line]
         invalid_goals = [line for line in output.splitlines() if "Invalid" in line]
-
-        # Count goals proved by SMT
-        valid_goals = [line for line in output.splitlines() if "Valid" in line]
-        smt_proved = len(valid_goals)
+        smt_proved = len([line for line in output.splitlines() if "Valid" in line])
 
         if result.returncode == 0 and not unknown_goals and not invalid_goals and ("Valid" in output or not output):
             print(f"\n[+] Verification SUCCESS! All contracts formally proven.")
         else:
             unproven_count = len(unknown_goals) + len(invalid_goals)
-
-            # Try Rocq proofs if available
             rocq_proved = 0
             proof_dir = None
 
             if args.rocq_proofs is not None:
-                if args.rocq_proofs == "__auto__":
-                    # Auto-detect: look for <file>.proofs/ next to input
-                    proof_dir = os.path.splitext(args.file)[0] + ".proofs"
-                else:
-                    proof_dir = args.rocq_proofs
+                proof_dir = (os.path.splitext(args.file)[0] + ".proofs"
+                             if args.rocq_proofs == "__auto__" else args.rocq_proofs)
             else:
-                # Always auto-detect if .proofs/ directory exists
                 auto_dir = os.path.splitext(args.file)[0] + ".proofs"
                 if os.path.isdir(auto_dir):
                     proof_dir = auto_dir
 
             if proof_dir and os.path.isdir(proof_dir):
-                rocq_proved = _check_rocq_proofs(
-                    proof_dir, mlw_filename, unknown_goals)
+                rocq_proved = _check_rocq_proofs(proof_dir, mlw_filename, unknown_goals)
 
             remaining = unproven_count - rocq_proved
             if remaining <= 0 and rocq_proved > 0:
@@ -721,9 +660,7 @@ def main():
                           f"but {remaining} goal(s) still unproven.")
                 print("\n[-] Verification FAILED or INCOMPLETE. Check the solver output.")
                 if args.rocq:
-                    _generate_rocq_obligations(
-                        mlw_filename, args.rocq,
-                        unproven_count)
+                    _generate_rocq_obligations(mlw_filename, args.rocq, unproven_count)
                     sys.exit(2)
                 sys.exit(1)
 
@@ -731,9 +668,53 @@ def main():
         print("\n[!] ERROR: 'why3' command not found. Please ensure Why3 is installed and in your PATH.")
         sys.exit(1)
     finally:
-        # Clean up the temporary file unless the user asked to keep it
         if not args.keep_mlw and os.path.exists(mlw_filename):
             os.remove(mlw_filename)
+
+
+def main():
+    args = _parse_args()
+
+    if not os.path.exists(args.file):
+        print(f"[!] Error: File '{args.file}' not found.")
+        sys.exit(1)
+
+    # Load agents-config.json
+    _config = {}
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               "agents", "agents-config.json")
+    if os.path.exists(config_path):
+        with open(config_path) as _cf:
+            _config = _json.load(_cf)
+
+    memory_model = args.memory_model or _config.get("memory-model", "hoare")
+
+    _DEFAULT_PROVERS = ["Alt-Ergo,2.6.2,", "Z3,4.13.3,"]
+    if args.prover is not None:
+        provers = [args.prover]
+    elif args.provers is not None:
+        provers = [p.strip() for p in args.provers.split(",,") if p.strip()]
+    else:
+        cfg_provers = _config.get("provers", _DEFAULT_PROVERS)
+        provers = ([p.strip() for p in cfg_provers.split(",,") if p.strip()]
+                   if isinstance(cfg_provers, str) else cfg_provers)
+
+    with open(args.file, "r") as f:
+        source_code = f.read()
+
+    try:
+        mlw_code = _run_pipeline(source_code, memory_model, args)
+    except PyCSLError as e:
+        print(f"\n[!] PIPELINE ERROR:\n{e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\n[!] UNEXPECTED PIPELINE ERROR:\n{e}")
+        sys.exit(1)
+
+    base_name = os.path.splitext(args.file)[0]
+    mlw_filename = f"{base_name}.mlw" if args.keep_mlw else ".pycsl_temp.mlw"
+    _run_proofs(mlw_code, mlw_filename, provers, args)
+
 
 if __name__ == "__main__":
     main()

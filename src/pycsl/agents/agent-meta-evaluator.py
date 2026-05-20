@@ -17,14 +17,11 @@ from typing import Optional
 
 AGENT_NAME = "agent-meta-evaluator"
 
-try:
-    from llm_client import log as _llm_log
+from common import log as _log
 
-    def log(msg: str, out_dir: Path) -> None:
-        _llm_log(out_dir, AGENT_NAME, f"[{AGENT_NAME}] {msg}\n")
-except ImportError:
-    def log(msg: str, out_dir: Path) -> None:  # type: ignore[misc]
-        print(f"[{AGENT_NAME}] {msg}")
+
+def log(msg: str, out_dir: Path) -> None:
+    _log(out_dir, AGENT_NAME, f"[{AGENT_NAME}] {msg}\n")
 
 
 def check_syntax(modified_file: Path, out_dir: Path) -> bool:

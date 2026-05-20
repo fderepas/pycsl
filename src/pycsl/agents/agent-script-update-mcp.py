@@ -12,10 +12,24 @@ mcp = FastMCP(SERVER_NAME)
 
 
 ANNOTATED_DIR = (PROJECT_ROOT / "tests" / "annotated").resolve()
-ALLOWED_TARGETS = {
-    (PROJECT_ROOT / "src" / "pycsl" / "agents" / "agent-annotate.py").resolve(),
-    (PROJECT_ROOT / "config" / "skills" / "pycsl-annotate" / "SKILL.md").resolve(),
-}
+
+
+def _load_allowed_targets() -> set[Path]:
+    default = {
+        (PROJECT_ROOT / "src" / "pycsl" / "agents" / "agent-annotate.py").resolve(),
+        (PROJECT_ROOT / "config" / "skills" / "pycsl-annotate" / "SKILL.md").resolve(),
+    }
+    config_path = PROJECT_ROOT / "config" / "agents-config.json"
+    try:
+        with open(config_path) as f:
+            cfg = json.load(f)
+        extra = cfg.get("script-update-allowed-targets", [])
+        return default | {(PROJECT_ROOT / p).resolve() for p in extra}
+    except (FileNotFoundError, json.JSONDecodeError):
+        return default
+
+
+ALLOWED_TARGETS = _load_allowed_targets()
 
 
 def _safe_path(path: str | Path) -> Path:

@@ -20,11 +20,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-try:
-    from llm_client import log
-except ImportError:
-    def log(project_directory, agent_name, msg):
-        print(f"[{agent_name}] {msg}")
+from common import log
 
 AGENT_NAME = "agent-splitter"
 
@@ -350,6 +346,39 @@ def _generate_class_invariants(
     return class_invariants
 
 
+def _fix_annotation_indentation(annotated_source: str) -> str:
+    """Ensure #@ annotation lines have the same indentation as the def they precede.
+
+    LLMs sometimes emit contracts at column 0 even when the function is indented
+    inside a class. This fixes that by aligning all contiguous #@ blocks to the
+    indent of the next non-annotation line (usually `def`).
+    """
+    lines = annotated_source.splitlines(keepends=True)
+    result = []
+    i = 0
+    while i < len(lines):
+        if lines[i].strip().startswith("#@"):
+            # Collect contiguous #@ block
+            block_start = i
+            while i < len(lines) and lines[i].strip().startswith("#@"):
+                i += 1
+            # Find target indentation from next non-blank line
+            target_indent = ""
+            j = i
+            while j < len(lines) and not lines[j].strip():
+                j += 1
+            if j < len(lines):
+                target_indent = re.match(r'^(\s*)', lines[j]).group(1)
+            # Re-indent the #@ block
+            for k in range(block_start, i):
+                stripped = lines[k].strip()
+                result.append(f"{target_indent}{stripped}\n")
+        else:
+            result.append(lines[i])
+            i += 1
+    return "".join(result)
+
+
 def _reassemble_file(
     original_source: str,
     functions: list[FunctionInfo],
@@ -383,8 +412,10 @@ def _reassemble_file(
     for info in sorted_funcs:
         if info.annotated_source is None:
             continue
+        # Fix indentation of #@ lines to match the def line indentation
+        annotated_fixed = _fix_annotation_indentation(info.annotated_source)
         # Replace lines [start_line-1 : end_line] with annotated source
-        annotated_lines = info.annotated_source.splitlines(keepends=True)
+        annotated_lines = annotated_fixed.splitlines(keepends=True)
         # Ensure trailing newline
         if annotated_lines and not annotated_lines[-1].endswith("\n"):
             annotated_lines[-1] += "\n"
@@ -477,7 +508,45 @@ def _safe_fallback_annotation(info: FunctionInfo) -> str:
     return "".join(lines)
 
 
-# ---------------------------------------------------------------------------
+def _body_preserved(original_source: str, annotated_source: str) -> bool:
+    """Check that the annotated source still contains the original function body.
+
+    Rejects output where:
+    - The body was replaced with `pass`
+    - Total non-annotation lines shrunk to less than 60% of original
+    """
+    orig_code_lines = [
+        l for l in original_source.splitlines()
+        if l.strip() and not l.strip().startswith("#@")
+    ]
+    ann_code_lines = [
+        l for l in annotated_source.splitlines()
+        if l.strip() and not l.strip().startswith("#@")
+    ]
+
+    if not orig_code_lines:
+        return True
+
+    # Check for body replaced with `pass`
+    # Count non-def, non-decorator code lines in annotated output
+    ann_body_lines = [
+        l for l in ann_code_lines
+        if not re.match(r'^\s*(def\s|@)', l)
+    ]
+    if len(ann_body_lines) == 1 and ann_body_lines[0].strip() == 'pass':
+        orig_body_lines = [
+            l for l in orig_code_lines
+            if not re.match(r'^\s*(def\s|@)', l)
+        ]
+        if len(orig_body_lines) > 1:
+            return False  # body was stripped
+
+    # Check line count ratio
+    ratio = len(ann_code_lines) / len(orig_code_lines)
+    if ratio < 0.6:
+        return False
+
+    return True
 # Main orchestration
 # ---------------------------------------------------------------------------
 
@@ -578,12 +647,15 @@ def run_splitter(
                     writer_script=writer_script,
                 )
                 annotated = annotated.strip()
-                if annotated:
-                    info.annotated_source = annotated
-                    info.contracts = _extract_contracts_text(annotated)
-                    annotated_contracts[info.name] = info.contracts
-                else:
+                if not annotated:
                     raise RuntimeError("Empty response from writer")
+                if not _body_preserved(info.source, annotated):
+                    log(project_directory, AGENT_NAME,
+                        f"Body stripped for {info.name}, using safe fallback")
+                    raise RuntimeError("Body was stripped by LLM")
+                info.annotated_source = annotated
+                info.contracts = _extract_contracts_text(annotated)
+                annotated_contracts[info.name] = info.contracts
             except Exception as e:
                 log(project_directory, AGENT_NAME,
                     f"Writer failed for {info.name}: {e}, using safe fallback")
@@ -630,7 +702,13 @@ def run_splitter(
                 annotated_funcs = _split_annotated_functions(annotated, scc_funcs)
                 for info in scc_funcs:
                     if info.name in annotated_funcs:
-                        info.annotated_source = annotated_funcs[info.name]
+                        func_annotated = annotated_funcs[info.name]
+                        if not _body_preserved(info.source, func_annotated):
+                            log(project_directory, AGENT_NAME,
+                                f"Body stripped for {info.name} in SCC, using fallback")
+                            info.annotated_source = _safe_fallback_annotation(info)
+                        else:
+                            info.annotated_source = func_annotated
                         info.contracts = _extract_contracts_text(info.annotated_source)
                         annotated_contracts[info.name] = info.contracts
                     else:

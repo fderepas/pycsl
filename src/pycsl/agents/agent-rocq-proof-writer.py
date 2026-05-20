@@ -20,6 +20,7 @@ import tempfile
 from pathlib import Path
 
 from llm_client import llm_generate, log
+from common import retrieve_skill_chunks, load_config
 
 AGENT_NAME = "agent-rocq-proof-writer"
 
@@ -51,12 +52,6 @@ def _find_why3_coq_lib() -> str:
     return str(WHY3_COQ_LIB_PATHS[0])
 
 
-def _load_config(config_path: Path) -> dict:
-    """Load agents-config.json."""
-    with open(config_path, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-
 def _load_skill(config: dict, script_dir: Path) -> str:
     """Load the rocq-prover skill content."""
     skill_path = config.get("skill-rocq-prover", "")
@@ -70,35 +65,10 @@ def _load_skill(config: dict, script_dir: Path) -> str:
     return ""
 
 
-def _retrieve_skill_chunks(
-    index_path: Path, input_code: str, top_k: int, project_root: Path
-) -> str | None:
-    """Retrieve relevant skill chunks via RAG."""
-    if not index_path.exists():
-        return None
-    try:
-        skill2rag_path = str(project_root / "src")
-        if skill2rag_path not in sys.path:
-            sys.path.insert(0, skill2rag_path)
-        from skill2rag.retriever import retrieve
-
-        chunks = []
-        seen_ids = set()
-        queries = [
-            "Rocq Coq proof tactics lia split generalize",
-            "Why3 proof obligation Theorem Proof Qed",
-            input_code[:600],
-        ]
-        for query in queries:
-            for chunk in retrieve(query=query, index_path=str(index_path), top_k=top_k):
-                if chunk.chunk_id not in seen_ids:
-                    seen_ids.add(chunk.chunk_id)
-                    chunks.append(chunk)
-        if not chunks:
-            return None
-        return "\n\n---\n\n".join(c.text for c in chunks[:top_k * 2])
-    except Exception:
-        return None
+_ROCQ_ESSENTIAL_QUERIES = [
+    "Rocq Coq proof tactics lia split generalize",
+    "Why3 proof obligation Theorem Proof Qed",
+]
 
 
 def _build_prompt(skill_content: str, v_content: str, mlw_content: str | None) -> str:
@@ -177,33 +147,22 @@ def _extract_coq_code(response: str) -> str | None:
 
 def _validate_with_coqc(v_content: str, why3_coq_lib: str) -> tuple[bool, str]:
     """Validate a .v file by compiling with coqc. Returns (success, error_output)."""
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".v", delete=False, encoding="utf-8"
-    ) as f:
-        f.write(v_content)
-        temp_path = f.name
-    try:
-        result = subprocess.run(
-            ["coqc", "-R", why3_coq_lib, "Why3", temp_path],
-            capture_output=True, text=True, timeout=60,
-        )
-        if result.returncode == 0:
-            return True, ""
-        return False, (result.stderr or result.stdout or "Unknown error")
-    except subprocess.TimeoutExpired:
-        return False, "coqc timed out after 60 seconds"
-    except FileNotFoundError:
-        return False, "coqc not found — ensure Coq is installed and on PATH"
-    finally:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        temp_path = os.path.join(tmpdir, "proof.v")
+        with open(temp_path, "w", encoding="utf-8") as f:
+            f.write(v_content)
         try:
-            os.unlink(temp_path)
-            # Clean up .vo and .glob files
-            for ext in [".vo", ".glob", ".vok", ".vos"]:
-                p = temp_path.replace(".v", ext)
-                if os.path.exists(p):
-                    os.unlink(p)
-        except OSError:
-            pass
+            result = subprocess.run(
+                ["coqc", "-R", why3_coq_lib, "Why3", temp_path],
+                capture_output=True, text=True, timeout=60,
+            )
+            if result.returncode == 0:
+                return True, ""
+            return False, (result.stderr or result.stdout or "Unknown error")
+        except subprocess.TimeoutExpired:
+            return False, "coqc timed out after 60 seconds"
+        except FileNotFoundError:
+            return False, "coqc not found — ensure Coq is installed and on PATH"
 
 
 def _has_abort(content: str) -> bool:
@@ -228,7 +187,7 @@ def main():
     config_path = script_dir / "agents-config.json"
     if not config_path.exists():
         config_path = project_root / "config" / "agents-config.json"
-    config = _load_config(config_path)
+    config = load_config(config_path)
 
     model = config.get("model", "claude-sonnet-4.6")
     log_dir = str(project_root / "project")
@@ -243,7 +202,13 @@ def main():
         rag_path = Path(rag_index)
         if not rag_path.is_absolute():
             rag_path = project_root / rag_path
-        skill_content = _retrieve_skill_chunks(rag_path, v_content, rag_top_k, project_root)
+        skill_content = retrieve_skill_chunks(
+            rag_path,
+            main_query=v_content[:600],
+            top_k=rag_top_k,
+            project_root=project_root,
+            essential_queries=_ROCQ_ESSENTIAL_QUERIES,
+        )
 
     if not skill_content:
         skill_content = _load_skill(config, project_root)

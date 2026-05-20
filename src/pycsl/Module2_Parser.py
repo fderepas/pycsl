@@ -1,7 +1,8 @@
 from dataclasses import dataclass
-from typing import List, Union, Any
+from typing import List, Union, Any, Optional
 from lark import Lark, Transformer, v_args
 from lark.exceptions import LarkError
+from errors import PyCSLParseError
 
 # ---------------------------------------------------------
 # 1. Contract AST Nodes (The Internal Representation)
@@ -11,12 +12,16 @@ from lark.exceptions import LarkError
 class CSLNode:
     pass
 
+class ContractWrapper(CSLNode): pass   # Requires, Ensures, LoopInvariant, LoopVariant
+class QuantifierNode(CSLNode): pass    # Forall, Exists
+class SingleExprNode(CSLNode): pass    # UnaryOp, Old
+
 @dataclass
-class Requires(CSLNode):
+class Requires(ContractWrapper):
     expr: CSLNode
 
 @dataclass
-class Ensures(CSLNode):
+class Ensures(ContractWrapper):
     expr: CSLNode
 
 @dataclass
@@ -24,11 +29,11 @@ class Assigns(CSLNode):
     targets: List[CSLNode]
 
 @dataclass
-class LoopInvariant(CSLNode):
+class LoopInvariant(ContractWrapper):
     expr: CSLNode
 
 @dataclass
-class LoopVariant(CSLNode):
+class LoopVariant(ContractWrapper):
     expr: CSLNode
 
 @dataclass
@@ -38,7 +43,7 @@ class BinOp(CSLNode):
     right: CSLNode
 
 @dataclass
-class UnaryOp(CSLNode):
+class UnaryOp(SingleExprNode):
     op: str
     expr: CSLNode
 
@@ -59,7 +64,7 @@ class Result(CSLNode):
     pass
 
 @dataclass
-class Old(CSLNode):
+class Old(SingleExprNode):
     expr: CSLNode
 
 @dataclass
@@ -81,12 +86,12 @@ class SubscriptAccess(CSLNode):
     index: CSLNode
 
 @dataclass
-class Forall(CSLNode):
+class Forall(QuantifierNode):
     var: str
     body: CSLNode
 
 @dataclass
-class Exists(CSLNode):
+class Exists(QuantifierNode):
     var: str
     body: CSLNode
 
@@ -144,7 +149,7 @@ class Valid2D(CSLNode):
 class FunctionVariant(CSLNode):
     """Represents `#@ \\variant <expr>` or `#@ \\variant (<expr>, <ordering>)`."""
     expr: CSLNode
-    ordering: str = None   # None → integer, str → named well-founded relation
+    ordering: Optional[str] = None   # None → integer, str → named well-founded relation
 
 @dataclass
 class Diverges(CSLNode):
@@ -189,7 +194,7 @@ class CSLSlice(CSLNode):
 class CallExpr(CSLNode):
     """Represents a function call in a contract expression."""
     func: str
-    args: list
+    args: List[CSLNode]
 
 @dataclass
 class IsSorted(CSLNode):
@@ -223,6 +228,45 @@ class BoundedIntDecl(CSLNode):
     """Represents `assumes bounded_int(N)` in contracts."""
     size: int
 
+# --- Concurrency annotation nodes ---
+
+@dataclass
+class SharedDecl(CSLNode):
+    """Represents `shared VAR protected_by MUTEX` or `shared VAR` (unprotected)."""
+    variable: str
+    mutex: Optional[str] = None
+
+@dataclass
+class ThreadEntry(CSLNode):
+    """Represents `thread_entry` — marks a function as a concurrent thread entry point."""
+    pass
+
+@dataclass
+class Acquires(CSLNode):
+    """Represents `acquires MUTEX` — marks a mutex acquire point."""
+    mutex: str
+
+@dataclass
+class Releases(CSLNode):
+    """Represents `releases MUTEX` — marks a mutex release point."""
+    mutex: str
+
+@dataclass
+class CriticalSection(CSLNode):
+    """Represents `critical MUTEX` — marks a `with` block as a critical section."""
+    mutex: str
+
+@dataclass
+class MutexInvariant(CSLNode):
+    """Represents `mutex_invariant MUTEX: EXPR` — invariant held when mutex is unlocked."""
+    mutex: str
+    expr: CSLNode
+
+@dataclass
+class LockOrder(CSLNode):
+    """Represents `lock_order M1, M2, ...` — total order on mutex acquisition to prevent deadlock."""
+    order: List[str]
+
 # ---------------------------------------------------------
 # 2. The EBNF Grammar
 # ---------------------------------------------------------
@@ -245,6 +289,13 @@ PYCSL_GRAMMAR = r"""
              | ghost_aug_assign
              | raises_decl
              | bounded_int_decl
+             | shared_decl
+             | thread_entry_decl
+             | acquires_decl
+             | releases_decl
+             | critical_decl
+             | mutex_invariant_decl
+             | lock_order_decl
 
     precondition: "requires" expr
     postcondition: "ensures" expr
@@ -332,6 +383,19 @@ PYCSL_GRAMMAR = r"""
 
     expr_list: expr ("," expr)*
 
+    // Concurrency annotations
+    mutex_expr: CNAME "[" expr "]" -> mutex_subscript
+              | CNAME -> mutex_name
+
+    shared_decl: "shared" CNAME "protected_by" mutex_expr -> shared_protected
+               | "shared" CNAME -> shared_unprotected
+    thread_entry_decl: "thread_entry"
+    acquires_decl: "acquires" mutex_expr
+    releases_decl: "releases" mutex_expr
+    critical_decl: "critical" mutex_expr
+    mutex_invariant_decl: "mutex_invariant" mutex_expr ":" expr
+    lock_order_decl: "lock_order" mutex_expr ("," mutex_expr)*
+
     // Explicit tokens so Lark doesn't drop the operators
     IMPL_OP: "==>" | "<==>"
     OR_OP: "or"
@@ -351,6 +415,17 @@ PYCSL_GRAMMAR = r"""
     %ignore WS
 """
 
+def _csl_to_str(node) -> str:
+    """Convert a simple CSL node to string — used for mutex subscript indices."""
+    if isinstance(node, Var):
+        return node.name
+    if isinstance(node, Number):
+        return str(int(node.value))
+    if isinstance(node, BinOp):
+        return f"{_csl_to_str(node.left)}{node.op}{_csl_to_str(node.right)}"
+    return "?"
+
+
 # ---------------------------------------------------------
 # 3. The Tree Transformer
 # ---------------------------------------------------------
@@ -359,79 +434,92 @@ PYCSL_GRAMMAR = r"""
 class PyCSLTransformer(Transformer):
     """Converts Lark's ParseTree into our Contract AST Nodes."""
     
-    def precondition(self, expr): return Requires(expr)
-    def postcondition(self, expr): return Ensures(expr)
-    
-    def assigns(self, target): 
+    def precondition(self, expr) -> Requires: return Requires(expr)
+    def postcondition(self, expr) -> Ensures: return Ensures(expr)
+
+    def assigns(self, target) -> Assigns:
         if isinstance(target, Nothing):
             return Assigns([target])
         elif isinstance(target, list):
             return Assigns(target)
         else:
             return Assigns([target])
-            
-    def loop_invariant(self, expr): return LoopInvariant(expr)
-    def loop_variant(self, expr): return LoopVariant(expr)
-    def class_invariant(self, expr): return ClassInvariant(expr)
-    def function_variant(self, expr): return FunctionVariant(expr)
-    def function_variant_structural(self, expr, ordering): return FunctionVariant(expr, str(ordering))
-    def diverges_decl(self): return Diverges()
-    def trusted_decl(self): return Trusted()
-    def ghost_assign(self, name, expr): return GhostAssignDecl(str(name), expr, "=")
-    def ghost_aug_assign(self, name, op, expr): return GhostAssignDecl(str(name), expr, str(op))
-    def raises_decl(self, exc_type, condition): return RaisesDecl(str(exc_type), condition)
-    def bounded_int_decl(self, size): return BoundedIntDecl(int(size))
+
+    def loop_invariant(self, expr) -> LoopInvariant: return LoopInvariant(expr)
+    def loop_variant(self, expr) -> LoopVariant: return LoopVariant(expr)
+    def class_invariant(self, expr) -> ClassInvariant: return ClassInvariant(expr)
+    def function_variant(self, expr) -> FunctionVariant: return FunctionVariant(expr)
+    def function_variant_structural(self, expr, ordering) -> FunctionVariant: return FunctionVariant(expr, str(ordering))
+    def diverges_decl(self) -> Diverges: return Diverges()
+    def trusted_decl(self) -> Trusted: return Trusted()
+    def ghost_assign(self, name, expr) -> GhostAssignDecl: return GhostAssignDecl(str(name), expr, "=")
+    def ghost_aug_assign(self, name, op, expr) -> GhostAssignDecl: return GhostAssignDecl(str(name), expr, str(op))
+    def raises_decl(self, exc_type, condition) -> RaisesDecl: return RaisesDecl(str(exc_type), condition)
+    def bounded_int_decl(self, size) -> BoundedIntDecl: return BoundedIntDecl(int(size))
+
+    # Concurrency annotations
+    def mutex_name(self, name) -> str: return str(name)
+    def mutex_subscript(self, name, index) -> str:
+        return f"{name}[{_csl_to_str(index)}]"
+    def shared_protected(self, name, mutex) -> SharedDecl: return SharedDecl(str(name), str(mutex))
+    def shared_unprotected(self, name) -> SharedDecl: return SharedDecl(str(name), None)
+    def thread_entry_decl(self) -> ThreadEntry: return ThreadEntry()
+    def acquires_decl(self, mutex) -> Acquires: return Acquires(str(mutex))
+    def releases_decl(self, mutex) -> Releases: return Releases(str(mutex))
+    def critical_decl(self, mutex) -> CriticalSection: return CriticalSection(str(mutex))
+    def mutex_invariant_decl(self, mutex, expr) -> MutexInvariant: return MutexInvariant(str(mutex), expr)
+    def lock_order_decl(self, *mutexes) -> LockOrder: return LockOrder([str(m) for m in mutexes])
 
     # Quantifiers
-    def forall_expr(self, var, body): return Forall(str(var), body)
-    def exists_expr(self, var, body): return Exists(str(var), body)
-    def array_length(self, var): return ArrayLength(str(var))
-    def subscript_access(self, name, index): return SubscriptAccess(str(name), index)
-    def slice_access(self, name, low, high): return CSLSlice(str(name), low, high)
-    def result_subscript(self, index): return SubscriptAccess("\\result", index)
-    def assigns_region(self, name, low, _op, high): return AssignsRegion(str(name), low, high)
-    def assigns_region_list(self, *regions): return list(regions)
-    def valid_pred(self, name, length): return Valid(str(name), length)
-    def separated_pred(self, name1, len1, name2, len2): return Separated(str(name1), len1, str(name2), len2)
-    def label_decl(self, name): return Label(str(name))
-    def at_expr(self, expr, label): return At(expr, str(label))
-    def length2d_pred(self, name, rows, cols): return Length2D(str(name), rows, cols)
-    def valid2d_pred(self, name, row, col): return Valid2D(str(name), row, col)
+    def forall_expr(self, var, body) -> Forall: return Forall(str(var), body)
+    def exists_expr(self, var, body) -> Exists: return Exists(str(var), body)
+    def array_length(self, var) -> ArrayLength: return ArrayLength(str(var))
+    def subscript_access(self, name, index) -> SubscriptAccess: return SubscriptAccess(str(name), index)
+    def slice_access(self, name, low, high) -> CSLSlice: return CSLSlice(str(name), low, high)
+    def result_subscript(self, index) -> SubscriptAccess: return SubscriptAccess("\\result", index)
+    def assigns_region(self, name, low, _op, high) -> AssignsRegion: return AssignsRegion(str(name), low, high)
+    def assigns_region_list(self, *regions) -> List[AssignsRegion]: return list(regions)
+    def valid_pred(self, name, length) -> Valid: return Valid(str(name), length)
+    def separated_pred(self, name1, len1, name2, len2) -> Separated: return Separated(str(name1), len1, str(name2), len2)
+    def label_decl(self, name) -> Label: return Label(str(name))
+    def at_expr(self, expr, label) -> At: return At(expr, str(label))
+    def length2d_pred(self, name, rows, cols) -> Length2D: return Length2D(str(name), rows, cols)
+    def valid2d_pred(self, name, row, col) -> Valid2D: return Valid2D(str(name), row, col)
 
     # Operations
-    def implication(self, left, op, right): return BinOp(left, str(op), right)
-    def logical_or(self, left, op, right): return BinOp(left, str(op), right)
-    def logical_and(self, left, op, right): return BinOp(left, str(op), right)
-    def equality(self, left, op, right): return BinOp(left, str(op), right)
-    def comparison(self, left, op, right): return BinOp(left, str(op), right)
-    def term(self, left, op, right): return BinOp(left, str(op), right)
-    def factor(self, left, op, right): return BinOp(left, str(op), right)
-    
-    def unary_op(self, op, expr): return UnaryOp(str(op), expr)
+    def implication(self, left, op, right) -> BinOp: return BinOp(left, str(op), right)
+    def logical_or(self, left, op, right) -> BinOp: return BinOp(left, str(op), right)
+    def logical_and(self, left, op, right) -> BinOp: return BinOp(left, str(op), right)
+    def equality(self, left, op, right) -> BinOp: return BinOp(left, str(op), right)
+    def comparison(self, left, op, right) -> BinOp: return BinOp(left, str(op), right)
+    def term(self, left, op, right) -> BinOp: return BinOp(left, str(op), right)
+    def factor(self, left, op, right) -> BinOp: return BinOp(left, str(op), right)
+
+    def unary_op(self, op, expr) -> UnaryOp: return UnaryOp(str(op), expr)
 
     # Atoms
-    def number(self, n): return Number(float(n))
-    def string_literal(self, s): return StringLiteral(str(s)[1:-1])  # strip quotes
-    def true_lit(self): return CSLBool(True)
-    def false_lit(self): return CSLBool(False)
-    def none_lit(self): return CSLNone()
-    def var(self, name): return Var(str(name))
-    def field_access(self, field_name): return FieldAccess("self", str(field_name))
-    def result(self): return Result()
-    def old_var(self, expr): return Old(expr)
-    def nothing(self): return Nothing()
-    
+    def number(self, n) -> Number: return Number(float(n))
+    def string_literal(self, s) -> StringLiteral: return StringLiteral(str(s)[1:-1])  # strip quotes
+    def true_lit(self) -> CSLBool: return CSLBool(True)
+    def false_lit(self) -> CSLBool: return CSLBool(False)
+    def none_lit(self) -> CSLNone: return CSLNone()
+    def var(self, name) -> Var: return Var(str(name))
+    def field_access(self, field_name) -> FieldAccess: return FieldAccess("self", str(field_name))
+    def result(self) -> Result: return Result()
+    def old_var(self, expr) -> Old: return Old(expr)
+    def nothing(self) -> Nothing: return Nothing()
+
     # Membership
-    def in_expr(self, element, collection): return CSLIn(element, collection)
-    def not_in_expr(self, element, collection): return CSLNotIn(element, collection)
-    
+    def in_expr(self, element, collection) -> CSLIn: return CSLIn(element, collection)
+    def not_in_expr(self, element, collection) -> CSLNotIn: return CSLNotIn(element, collection)
+
     # Function calls and built-in predicates
-    def call_expr(self, name, args): return CallExpr(str(name), args if isinstance(args, list) else [args])
-    def call_expr_noargs(self, name): return CallExpr(str(name), [])
-    def is_sorted_expr(self, base, lo, hi): return IsSorted(str(base), lo, hi)
-    def sum_expr(self, base, lo, hi): return Sum(str(base), lo, hi)
-    
-    def expr_list(self, *exprs): return list(exprs)
+    def call_expr(self, name, args) -> CallExpr: return CallExpr(str(name), args if isinstance(args, list) else [args])
+    def call_expr_noargs(self, name) -> CallExpr: return CallExpr(str(name), [])
+    def is_sorted_expr(self, base, lo, hi) -> IsSorted: return IsSorted(str(base), lo, hi)
+    def sum_expr(self, base, lo, hi) -> Sum: return Sum(str(base), lo, hi)
+
+    def expr_list(self, *exprs) -> List[CSLNode]: return list(exprs)
 
 # ---------------------------------------------------------
 # 4. The Parser Interface
@@ -439,14 +527,17 @@ class PyCSLTransformer(Transformer):
 
 class Module2_Parser:
     """Parses raw PyCSL string contracts into Contract AST objects."""
-    def __init__(self):
+    def __init__(self) -> None:
         self.parser = Lark(PYCSL_GRAMMAR, parser='lalr', transformer=PyCSLTransformer())
 
     def parse_contract(self, contract_str: str, line_number: int) -> CSLNode:
         try:
             return self.parser.parse(contract_str)
         except LarkError as e:
-            raise SyntaxError(f"PyCSL Syntax Error around line {line_number}:\n{contract_str}\n{str(e)}")
+            raise PyCSLParseError(
+                f"PyCSL Syntax Error around line {line_number}:\n{contract_str}\n{str(e)}",
+                line=line_number, stage="parse"
+            ) from e
 
     def parse_node_contracts(self, raw_contracts: List[str], line_number: int) -> List[CSLNode]:
         parsed_nodes = []

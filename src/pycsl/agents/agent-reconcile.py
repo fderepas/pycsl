@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from llm_client import llm_generate, log
+from common import retrieve_skill_chunks, extract_code_block
 
 AGENT_NAME = "agent-reconcile"
 
@@ -16,77 +17,6 @@ _ESSENTIAL_QUERIES = [
     "Forbidden in contract expressions NEVER use operators",
     "Required on every function requires ensures assigns",
 ]
-
-
-def _retrieve_skill_chunks_for_reconcile(
-    index_path: Path,
-    error_context: str,
-    top_k: int = 10,
-    project_root: Path | None = None,
-) -> str | None:
-    """Retrieve relevant skill chunks via RAG for the reconciliation context.
-
-    Returns concatenated chunk content, or None if the index is unavailable.
-    """
-    if not index_path.exists():
-        return None
-
-    try:
-        if project_root:
-            skill2rag_path = str(project_root / "src")
-            if skill2rag_path not in sys.path:
-                sys.path.insert(0, skill2rag_path)
-        from skill2rag.retriever import retrieve  # noqa: E402
-
-        seen_ids: set = set()
-        chunks: list = []
-
-        # Always retrieve essential sections
-        for query in _ESSENTIAL_QUERIES:
-            for chunk in retrieve(query=query, index_path=str(index_path), top_k=3):
-                if chunk.chunk_id not in seen_ids:
-                    seen_ids.add(chunk.chunk_id)
-                    chunks.append(chunk)
-
-        # Retrieve chunks relevant to the error context
-        for chunk in retrieve(query=error_context[:1500], index_path=str(index_path), top_k=top_k):
-            if chunk.chunk_id not in seen_ids:
-                seen_ids.add(chunk.chunk_id)
-                chunks.append(chunk)
-
-        if not chunks:
-            return None
-
-        return "\n\n---\n\n".join(c.content for c in chunks)
-    except Exception:
-        return None
-
-
-def extract_code_block(text: str, language: str = "python") -> str:
-    """
-    Extract code from markdown fences.
-    
-    Args:
-        text: Text potentially containing markdown code fences
-        language: Language of the code fence (python, json, etc.)
-    
-    Returns:
-        Extracted code, or original text if no fences found
-    """
-    # Try to match ```language...``` pattern
-    pattern = rf"```{language}\n(.*?)\n```"
-    match = re.search(pattern, text, re.DOTALL)
-    if match:
-        return match.group(1)
-    
-    # Fall back to generic ``` ``` pattern
-    pattern = r"```\n(.*?)\n```"
-    match = re.search(pattern, text, re.DOTALL)
-    if match:
-        return match.group(1)
-    
-    # If no fences found, return original text
-    return text
 
 
 def read_text(path: Path, project_directory: Path, label: str) -> str:
@@ -163,7 +93,7 @@ def extract_json_object(text: str) -> dict[str, Any]:
 
 def build_prompt(
     *,
-    skill_anotator: str,
+    skill_annotator: str,
     skill_agents: str,
     skill_module5: str,
     skill_module6: str,
@@ -226,7 +156,7 @@ def build_prompt(
     else:
         sections.extend([
             "--- SKILL ANNOTATOR ---",
-            skill_anotator,
+            skill_annotator,
             "",
             "--- SKILL AGENTS ---",
             skill_agents,
@@ -303,7 +233,7 @@ def main() -> None:
     rag_index_name = config.get("rag-index")
     rag_top_k = config.get("rag-top-k", 10)
     log(project_directory, AGENT_NAME, f"Memory model: {memory_model}")
-    skill_anotator_name = str(require_config_key(config, "skill-annotate", project_root, config_path))
+    skill_annotator_name = str(require_config_key(config, "skill-annotate", project_root, config_path))
     skill_agents_name = str(require_config_key(config, "skill-agents", project_root, config_path))
     skill_module5_name = str(require_config_key(config, "skill-module5", project_root, config_path))
     skill_module6_name = str(require_config_key(config, "skill-module6", project_root, config_path))
@@ -325,11 +255,12 @@ def main() -> None:
     if rag_index_name:
         rag_index_path = resolve_relative(rag_index_name)
         error_query = f"{stderr_content}\n\n{script_content[:500]}"
-        rag_context = _retrieve_skill_chunks_for_reconcile(
+        rag_context = retrieve_skill_chunks(
             index_path=rag_index_path,
-            error_context=error_query,
+            main_query=error_query[:1500],
             top_k=rag_top_k,
             project_root=project_root,
+            essential_queries=_ESSENTIAL_QUERIES,
         )
         if rag_context:
             log(project_directory, AGENT_NAME, "Using RAG-retrieved skill chunks")
@@ -337,7 +268,7 @@ def main() -> None:
     # Load full skill files as fallback (or when RAG not available)
     if rag_context is None:
         log(project_directory, AGENT_NAME, "Using full skill files (RAG index unavailable)")
-    skill_anotator = read_text(resolve_relative(skill_anotator_name), project_directory, "skill-annotate")
+    skill_annotator = read_text(resolve_relative(skill_annotator_name), project_directory, "skill-annotate")
     skill_agents = read_text(resolve_relative(skill_agents_name), project_directory, "skill-agents")
     skill_module5 = read_text(resolve_relative(skill_module5_name), project_directory, "skill-module5")
     skill_module6 = read_text(resolve_relative(skill_module6_name), project_directory, "skill-module6")
@@ -346,7 +277,7 @@ def main() -> None:
     whyml_content = read_optional_file(whyml_path)
 
     prompt = build_prompt(
-        skill_anotator=skill_anotator,
+        skill_annotator=skill_annotator,
         skill_agents=skill_agents,
         skill_module5=skill_module5,
         skill_module6=skill_module6,

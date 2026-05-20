@@ -21,7 +21,8 @@ _SYSTEM_PROMPT = """\
 You are a formal verification engineer. Your job is to take a Python function \
 that already has function-level contracts (#@ requires, #@ ensures, #@ assigns) \
 and add loop invariants and loop variants so the function can be proved correct \
-by SMT solvers via WhyML."""
+by SMT solvers via WhyML. In concurrent mode outer while-True loops need no \
+invariant or variant; loops inside critical sections annotate only local variables."""
 
 
 def _build_prompt(
@@ -49,6 +50,20 @@ def _build_prompt(
             f"\n\n# ACTIVE MEMORY MODEL: {memory_model.upper()}\n"
             "Add loop invariants and loop variants to every loop. "
             "Include counter bounds, accumulator properties, and a decreasing variant."
+        )
+
+    if memory_model == "concurrent":
+        parts.append(
+            "\n\n## Concurrent Model — Loop Annotation Rules\n\n"
+            "- Outer `while True:` loop in a `#@ thread_entry` function: "
+            "write NO `#@ loop invariant` and NO `#@ loop variant`. "
+            "The `#@ \\diverges` annotation already handles the non-termination claim.\n"
+            "- Loops INSIDE a `#@ critical <mutex>` block: do NOT add loop invariants "
+            "that reference shared variables protected by `<mutex>`. "
+            "The critical section boundary (havoc + assume + assert) manages those. "
+            "DO add normal loop invariants/variants for loops over local variables.\n"
+            "- Helper functions (not `#@ thread_entry`) called inside a critical section: "
+            "apply standard loop invariant rules — they operate on local parameters only.\n"
         )
 
     parts.append(
@@ -93,7 +108,7 @@ def generate(
         contracts: Contract lines from agent-contract-writer (each starting with #@).
         callee_contracts: Contracts of already-annotated callees for context.
         class_context: Optional class header + __init__ for method context.
-        memory_model: One of 'hoare', 'typed', 'store'.
+        memory_model: One of 'hoare', 'typed', 'store', 'concurrent'.
         skill_content: Full PyCSL skill content for transpiler/solver guidance.
         task_skill_content: Task-specific skill (loop invariant guidelines).
         model: LLM model name.
