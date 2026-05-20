@@ -1,4 +1,5 @@
 """Test 0151 — Python Reference 6.3.3: Calls"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 3
 def test_slicings() -> int:

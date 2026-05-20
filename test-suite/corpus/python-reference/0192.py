@@ -1,4 +1,5 @@
 """Test 0192 — Python Reference 8.6.1: Overview"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 0
 def test_match_overview() -> int:

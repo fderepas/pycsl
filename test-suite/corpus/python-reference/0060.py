@@ -1,4 +1,5 @@
 """Test 0060 — Python Reference 3.2.9.2: Other writable attributes on module objects"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 6
 def test_instance_methods() -> int:

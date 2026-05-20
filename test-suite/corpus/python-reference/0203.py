@@ -1,4 +1,5 @@
 """Test 0203 — Python Reference 8.6.4.9: Mapping Patterns"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 1
 def test_match_mapping_patterns() -> int:

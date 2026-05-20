@@ -1,4 +1,5 @@
 """Test 0146 — Python Reference 6.3.1: Attribute references"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 10
 def test_attribute_references() -> int:

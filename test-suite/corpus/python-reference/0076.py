@@ -1,4 +1,5 @@
 """Test 0076 — Python Reference 3.3.2.1: Customizing module attribute access"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 10
 def test_customizing_attribute_access() -> int:

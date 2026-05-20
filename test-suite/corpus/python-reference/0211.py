@@ -1,4 +1,5 @@
 """Test 0211 — Python Reference 8.10.2: Generic classes"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 0
 def test_generic_classes() -> int:

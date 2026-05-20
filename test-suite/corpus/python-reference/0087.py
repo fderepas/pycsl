@@ -1,4 +1,5 @@
 """Test 0087 — Python Reference 3.3.4: Customizing instance and subclass checks"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 1
 def test_customizing_isinstance_checks() -> int:

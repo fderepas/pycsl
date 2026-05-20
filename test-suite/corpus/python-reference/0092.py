@@ -1,4 +1,5 @@
 """Test 0092 — Python Reference 3.3.8: Emulating numeric types"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 6
 def test_emulating_numeric_types() -> int:

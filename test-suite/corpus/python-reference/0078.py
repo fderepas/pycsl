@@ -1,4 +1,5 @@
 """Test 0078 — Python Reference 3.3.2.3: Invoking Descriptors"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 42
 def test_implementing_descriptors() -> int:

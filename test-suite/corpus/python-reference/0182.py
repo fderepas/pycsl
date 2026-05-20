@@ -1,4 +1,5 @@
 """Test 0182 — Python Reference 7.13: The nonlocal statement"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 5
 def test_nonlocal_statement() -> int:

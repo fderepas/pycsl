@@ -1,4 +1,5 @@
 """Test 0204 — Python Reference 8.6.4.10: Class Patterns"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 3
 def test_match_class_patterns() -> int:

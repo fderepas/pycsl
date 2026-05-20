@@ -90,3 +90,12 @@ The **Ref** column uses the format `section.subsection.row`.
 | 7.2 | Tuple unpacking \| `a, b = expr` \| Destructuring assignment | 0238, 0239 | PASS |
 | 7.4 | Match statement \| `match/case` \| Lowered to if/elif chain | 0240, 0241 | PASS |
 | 7.5 | Lambda expression \| `lambda params: body` \| Anonymous function | 0242, 0243 | PASS |
+| 2.1.10 | Thread entry \| `#@ thread_entry` \| Marks function as concurrent thread entry point | 0250, 0251, 0252, 0253, 0277 | PASS |
+| 2.4.4 | Critical section \| `#@ critical <mutex>` \| with-block is a critical section (havoc+assume+assert) | 0250, 0251, 0252, 0253, 0278; XFAIL: 0254 (unprotected write) | PASS |
+| 2.4.5 | Acquires \| `#@ acquires <mutex>` \| Explicit mutex acquire annotation | 0262, 0263, 0264, 0265, 0266; XFAIL: 0255 (missing lock_order) | PASS |
+| 2.4.6 | Releases \| `#@ releases <mutex>` \| Explicit mutex release annotation | 0267, 0268, 0269, 0270, 0271 | PASS |
+| 5.4 | Concurrent memory model \| `--memory-model concurrent` \| Monitor-invariant sequential reduction | 0250, 0251, 0252, 0253, 0277 | PASS |
+| 10.1.1 | Protected shared variable \| `#@ shared <var> protected_by <mutex>` \| Shared global with mutex | 0250, 0251, 0252, 0253, 0280 | PASS |
+| 10.1.2 | Unprotected shared variable \| `#@ shared <var>` \| Shared global without mutex (lenient) | 0272, 0273, 0274, 0275, 0276 | PASS |
+| 10.1.3 | Mutex invariant \| `#@ mutex_invariant <mutex>: <expr>` \| Invariant held when mutex free | 0250, 0251, 0252, 0253, 0279; XFAIL: 0256 (violated invariant) | PASS |
+| 10.1.4 | Lock order \| `#@ lock_order <m1>, <m2>, ...` \| Total order on mutex acquisition | 0257, 0258, 0259, 0260, 0261; XFAIL: 0255 (missing lock_order) | PASS |

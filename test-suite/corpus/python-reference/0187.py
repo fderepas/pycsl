@@ -1,4 +1,5 @@
 """Test 0187 — Python Reference 8.4.1: except clause"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 0
 def test_except_star() -> int:

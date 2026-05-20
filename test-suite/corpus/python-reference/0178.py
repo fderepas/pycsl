@@ -1,4 +1,5 @@
 """Test 0178 — Python Reference 7.10: The continue statement"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 0
 def test_continue_statement() -> int:

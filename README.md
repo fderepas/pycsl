@@ -1,9 +1,8 @@
-# PyCSL — Self-Healing Formal Verification Pipeline
+# PyCSL 
 
-PyCSL is an agentic pipeline that takes Python scripts, annotates them with
-Hoare-logic contracts using an LLM, verifies the annotations with the
-[Why3](https://why3.lri.fr/) / Alt-Ergo proof engine, and automatically
-repairs failures through a reconcile → update agent loop.
+PyCSL is an annotation language for Python. It enables to formally verify Python code using [Hoare Logic](https://en.wikipedia.org/wiki/Hoare_logic). An associated tool, `pycsl`, verifies the annotations using [Why3](https://why3.lri.fr/). Why3 is a front end to Alt-Ergo or Z3. When automatic prover fail, manual theorem provers can be used.
+
+The semantics of PyCSL is [formally defined](src/formal-semantics) with [Rocq](src/formal-semantics/rocq) and [LEAN](src/formal-semantics/lean).
 
 ---
 
@@ -100,6 +99,46 @@ coordinator.
 
 All inter-agent JSON files are validated against schemas in `config/schemas/`
 before being written.
+
+### Annotation agent architecture
+
+When `agent-annotate.py` processes a file, it uses a multi-agent pipeline to
+produce high-quality contracts:
+
+```
+agent-annotate.py
+├── (single-function path) — direct LLM call using pycsl-annotate skill
+└── (multi-function path) — delegates to:
+    └── agent-splitter.py — call-graph analysis, topological sort
+        └── agent-writer.py — per-function annotation (3-agent pipeline)
+            ├── agent-english-writer.py  — English spec of the function
+            ├── agent-contract-writer.py — requires/ensures/assigns
+            └── agent-invariant-writer.py — loop invariants & variants
+```
+
+**Single-function files** are annotated in one LLM call using the full
+`pycsl-annotate` skill as context.
+
+**Multi-function files** go through a deterministic decomposition:
+
+1. **`agent-splitter.py`** parses the file with `ast`, builds the call graph,
+   detects mutual recursion via Tarjan's SCC algorithm, and topological-sorts
+   functions from leaf to root. This ensures each function is annotated only
+   after its callees already have contracts.
+
+2. For each function (or SCC group), **`agent-writer.py`** orchestrates a
+   3-step LLM pipeline:
+   - **`agent-english-writer.py`** — produces a precise mathematical English
+     description of the function (what it computes, return-value properties,
+     preconditions, mutations, loop behaviour).
+   - **`agent-contract-writer.py`** — uses the English spec + callee contracts
+     to generate `#@ requires`, `#@ ensures`, and `#@ assigns` annotations.
+   - **`agent-invariant-writer.py`** — adds `#@ loop invariant` and
+     `#@ loop variant` to every loop, assembles the final annotated function.
+
+3. `agent-annotate.py` reassembles all annotated functions into the output file
+   and applies ~40 post-processing guards (reserved keyword renaming, blank-line
+   collapse, memory-model normalization, recursion detection, etc.).
 
 ### Loop detection
 

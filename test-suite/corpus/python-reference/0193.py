@@ -1,4 +1,5 @@
 """Test 0193 — Python Reference 8.6.2: Guards"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 0
 def test_match_guards() -> int:

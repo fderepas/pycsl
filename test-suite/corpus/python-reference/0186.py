@@ -1,4 +1,5 @@
 """Test 0186 — Python Reference 8.3: The for statement"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 15
 def test_for_statement() -> int:

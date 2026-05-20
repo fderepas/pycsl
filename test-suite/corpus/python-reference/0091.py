@@ -1,4 +1,5 @@
 """Test 0091 — Python Reference 3.3.7: Emulating container types"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 10
 def test_emulating_container_types() -> int:

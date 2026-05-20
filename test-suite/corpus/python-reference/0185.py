@@ -5,7 +5,10 @@ def test_while_statement() -> int:
     """while loop."""
     s = 0
     i = 0
-    #@ loop invariant s == i * (i - 1) / 2
+    #@ loop invariant 2 * s == i * (i - 1)
+    #@ loop invariant 0 <= i
+    #@ loop invariant i <= 5
+    #@ loop variant 5 - i
     while i < 5:
         s += i
         i += 1

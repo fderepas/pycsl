@@ -34,6 +34,7 @@ Python construct they annotate (function, class, loop, or statement).
 | 7 | Trusted | `#@ \trusted` | Function/method | Body is not verified; contracts are assumed (axiom) |
 | 8 | Bounded integers | `#@ assumes bounded_int(N)` | Function/method | Use `mach.int.IntN` types; auto-generates overflow VCs on `+`, `-`, `*` |
 | 9 | Raises | `#@ raises ExcType when <cond>` | Function/method | Exceptional postcondition: exception raised only when `cond` holds |
+| 10 | Thread entry | `#@ thread_entry` | Function/method | Marks function as a concurrent thread entry point; used with `--memory-model concurrent` |
 
 Multiple `requires`/`ensures` lines are conjuncted (all must hold).
 
@@ -59,6 +60,9 @@ Placed on leading lines **before** the `class` keyword.
 | 1 | Label | `#@ label <NAME>` | Statement | Marks a program point for `\at` references |
 | 2 | Ghost assign | `#@ ghost <name> = <expr>` | Statement | Declare or assign a ghost variable (first occurrence declares) |
 | 3 | Ghost augmented assign | `#@ ghost <name> += <expr>` | Statement | Augmented assignment to ghost variable (`+=`, `-=`, `*=`) |
+| 4 | Critical section | `#@ critical <mutex>` | `with` statement | Declares the `with lock:` block as a critical section for `<mutex>`; triggers havoc+assume+assert in WhyML |
+| 5 | Acquires | `#@ acquires <mutex>` | `with` statement | Explicit mutex acquire annotation (equivalent to `critical`; use when naming the acquire point explicitly) |
+| 6 | Releases | `#@ releases <mutex>` | `with` statement | Explicit mutex release annotation (marks the release point; informational in current WhyML output) |
 
 Ghost variables exist only in the verification model (erased at extraction).
 They can be referenced in `loop invariant`, `requires`, `ensures`, and `\variant` expressions.
@@ -224,6 +228,7 @@ PyCSL supports three memory models, selected via `--memory-model`:
 | 1 | Hoare (default) | `--memory-model hoare` | Value-typed (`array int`) | Not modeled (independent) |
 | 2 | Typed | `--memory-model typed` | Heap-based (`map loc int`) | `\separated` needed |
 | 3 | Store | `--memory-model store` | Single untyped heap | `\separated` needed |
+| 4 | Concurrent | `--memory-model concurrent` | Value-typed shared vars + mutex invariants | Reduces to sequential WP via monitor-invariant pattern; shared vars declared with `#@ shared` |
 
 ### Hoare model
 Arrays are independent value-typed entities. `arr[i] <- v` mutates only `arr`.
@@ -237,6 +242,21 @@ Arrays are references (locations) into a global typed heap `int_mem : ref (map l
 ### Store model
 Single global untyped heap `store : ref (map loc int)`.
 Same predicates as typed model but with a unified store.
+
+### Concurrent model
+Multithreaded programs using `threading.Lock` / `threading.RLock`. The
+monitor-invariant pattern reduces concurrent verification to sequential WP proofs:
+
+- Shared variables are emitted as module-level `val x : ref int` in WhyML.
+- Critical section **entry**: havoc the shared variable, then `assume { mutex_inv }`.
+- Critical section **exit**: `assert { mutex_inv }`.
+- Thread entry functions containing `while True:` receive `diverges` in the WhyML spec.
+- `lock_order` is required whenever any function acquires multiple mutexes simultaneously
+  (nested `with` blocks holding two or more locks). It prevents deadlock by enforcing a
+  total acquisition order.
+
+Module-level declarations (`#@ shared`, `#@ mutex_invariant`, `#@ lock_order`) must be
+placed before any function definition and attached to an anchor statement (`_ = 0  # anchor`).
 
 ---
 
@@ -466,6 +486,17 @@ ADD_OP:   "+" | "-"
 MUL_OP:   "*" | "/"
 UNARY_OP: "not" | "-" | "+"
 RANGE_OP: ".."
+
+# Concurrent model annotations (--memory-model concurrent)
+# These extend the ?contract rule:
+shared_decl:          "shared" CNAME "protected_by" CNAME
+                    | "shared" CNAME
+mutex_invariant_decl: "mutex_invariant" CNAME ":" expr
+lock_order_decl:      "lock_order" CNAME ("," CNAME)+
+thread_entry_decl:    "thread_entry"
+acquires_decl:        "acquires" CNAME
+releases_decl:        "releases" CNAME
+critical_decl:        "critical" CNAME
 ```
 
 ---
@@ -618,4 +649,59 @@ Transpiles to an anonymous function:
 
 ```whyml
 fun (x: int) (y: int) -> (x + y)
+```
+
+---
+
+## 10. Concurrent Model Annotations
+
+Used with `--memory-model concurrent`. Placed on **leading lines** before the
+module body (module-level declarations) or before `with` statements (critical
+section annotations).
+
+### 10.1 Module-Level Declarations
+
+| # | Directive | Syntax | Semantics |
+|---|---|---|---|
+| 1 | Protected shared variable | `#@ shared <var> protected_by <mutex>` | `<var>` is a shared global; every read/write must be inside a `#@ critical <mutex>` block (Module4 enforces this) |
+| 2 | Unprotected shared variable | `#@ shared <var>` | `<var>` is shared but unprotected; ConcurrencyChecker warns, Module4 is lenient |
+| 3 | Mutex invariant | `#@ mutex_invariant <mutex>: <expr>` | `<expr>` must hold whenever `<mutex>` is free; checked at critical section exit (`assert { mutex_inv }`) |
+| 4 | Lock order | `#@ lock_order <m1>, <m2>, ...` | Total order on mutex acquisition; required when any function holds one mutex while acquiring another |
+
+Module-level `#@ shared` and `#@ mutex_invariant` declarations must be placed
+before any function definition. Use `_ = 0  # anchor` as the target Python
+statement for leading-line module annotations.
+
+### 10.2 Placement and Rules
+
+- Unprotected writes/reads of a `#@ shared protected_by` variable outside a critical
+  section raise `PyCSLSemanticError` (Module4).
+- Nested acquisition of multiple mutexes requires `#@ lock_order` to prevent deadlock.
+- `queue.Queue`, `threading.Lock`, `threading.RLock` are trusted thread-safe types and
+  need no `#@ shared` annotation.
+- A `#@ mutex_invariant` expression may only reference variables protected by that mutex.
+- `#@ critical <mutex>` and `#@ acquires <mutex>` are equivalent in Module5/Module6:
+  both generate a `CriticalSection` IR node that wraps the `with` body with
+  havoc+assume/assert invariant pairs.
+- `#@ releases <mutex>` is stored on the `with` node but does not currently generate
+  extra WhyML. It is informational (documents the release point for manual protocols).
+
+### 10.3 Minimal Example
+
+```python
+# pycsl-flags: --memory-model concurrent --no-proof
+#@ shared counter protected_by lock_counter
+#@ mutex_invariant lock_counter: counter >= 0
+_ = 0  # anchor
+import threading
+lock_counter = threading.Lock()
+counter = 0
+
+#@ thread_entry
+#@ \diverges
+def worker() -> int:
+    #@ critical lock_counter
+    with lock_counter:
+        counter += 1
+    return 0
 ```

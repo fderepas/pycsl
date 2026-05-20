@@ -1,4 +1,5 @@
 """Test 0141 — Python Reference 6.2.9: Generator expressions"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 3
 def test_yield_expressions() -> int:

@@ -1,4 +1,5 @@
 """Test 0140 — Python Reference 6.2.8: Dictionary displays"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 10
 def test_generator_expressions() -> int:

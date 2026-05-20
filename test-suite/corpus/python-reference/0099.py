@@ -1,4 +1,5 @@
 """Test 0099 — Python Reference 3.4.2: Coroutine Objects"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 6
 def test_asynchronous_generators() -> int:

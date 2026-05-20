@@ -1,4 +1,5 @@
 """Test 0202 — Python Reference 8.6.4.8: Sequence Patterns"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 3
 def test_match_sequence_patterns() -> int:

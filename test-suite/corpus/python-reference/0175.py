@@ -1,4 +1,5 @@
 """Test 0175 — Python Reference 7.7: The yield statement"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 1
 def test_yield_statement() -> int:

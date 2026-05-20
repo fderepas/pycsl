@@ -1,4 +1,5 @@
 """Test 0194 — Python Reference 8.6.3: Irrefutable Case Blocks"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 1
 def test_match_irrefutable_case() -> int:

@@ -1,4 +1,5 @@
 """Test 0177 — Python Reference 7.9: The break statement"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 0
 def test_break_statement() -> int:

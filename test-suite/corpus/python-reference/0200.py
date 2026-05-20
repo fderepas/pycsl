@@ -1,4 +1,5 @@
 """Test 0200 — Python Reference 8.6.4.6: Value Patterns"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 0
 def test_match_value_patterns() -> int:

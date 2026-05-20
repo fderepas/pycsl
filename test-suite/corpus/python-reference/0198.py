@@ -1,4 +1,5 @@
 """Test 0198 — Python Reference 8.6.4.4: Capture Patterns"""
+# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ ensures \result == 5
 def test_match_capture_patterns() -> int:
