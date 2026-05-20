@@ -364,6 +364,14 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
                         self._get_type_name(child.annotation)
                         if child.annotation else "Any"
                     )
+            elif isinstance(child, ast.For):
+                # For-loop iteration variables are in scope throughout the loop body
+                if isinstance(child.target, ast.Name) and child.target.id not in self._shared_vars:
+                    self.current_scope[child.target.id] = "Any"
+                elif isinstance(child.target, ast.Tuple):
+                    for elt in child.target.elts:
+                        if isinstance(elt, ast.Name) and elt.id not in self._shared_vars:
+                            self.current_scope[elt.id] = "Any"
 
         # Ghost variables
         for child in ast.walk(node):
@@ -402,7 +410,15 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
                         )
 
     def _validate_subscript_assignments(self, node: ast.FunctionDef) -> None:
-        """Check that arr[i] = v targets are list-typed variables."""
+        """Check that arr[i] = v targets are list-typed variables (annotated functions only)."""
+        has_annotations = (
+            getattr(node, 'csl_requires', []) or
+            getattr(node, 'csl_ensures', []) or
+            getattr(node, 'csl_assigns', []) or
+            getattr(node, 'csl_invariants', [])
+        )
+        if not has_annotations:
+            return
         for child in ast.walk(node):
             if isinstance(child, ast.Assign):
                 for target in child.targets:
