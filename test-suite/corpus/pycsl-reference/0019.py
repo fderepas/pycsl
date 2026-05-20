@@ -1,5 +1,4 @@
 """Test 0019 — PyCSL Annotation Reference 3.1.12"""
-# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ requires \length2d(mat, 3, 3)
 #@ requires \valid2d(mat, i, j)

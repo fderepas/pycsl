@@ -8,7 +8,7 @@ from Module2_Parser import (
     Var, Result, Old, BinOp, UnaryOp, Nothing, Number, FieldAccess,
     ClassInvariant, Forall, Exists, ArrayLength, SubscriptAccess,
     AssignsRegion, Valid, Separated, FunctionVariant,
-    SharedDecl, MutexInvariant, LockOrder,
+    SharedDecl, MutexInvariant, LockOrder, ChainedSubscript,
 )
 from errors import PyCSLSemanticError
 
@@ -32,6 +32,8 @@ def _iter_csl_children(node: CSLNode) -> List[CSLNode]:
         return list(node.targets)
     if isinstance(node, SubscriptAccess):
         return [node.index]
+    if isinstance(node, ChainedSubscript):
+        return [node.index1, node.index2]
     if isinstance(node, AssignsRegion):
         return [node.low, node.high]
     if isinstance(node, Valid):
@@ -59,6 +61,8 @@ def extract_variables(node: CSLNode) -> Set[str]:
     if isinstance(node, SubscriptAccess):
         base = set() if node.array == "\\result" else {node.array}
         return base | extract_variables(node.index)
+    if isinstance(node, ChainedSubscript):
+        return {node.array} | extract_variables(node.index1) | extract_variables(node.index2)
     if isinstance(node, AssignsRegion):
         return {node.base} | extract_variables(node.low) | extract_variables(node.high)
     if isinstance(node, Valid):

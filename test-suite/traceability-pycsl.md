@@ -99,3 +99,6 @@ The **Ref** column uses the format `section.subsection.row`.
 | 10.1.2 | Unprotected shared variable \| `#@ shared <var>` \| Shared global without mutex (lenient) | 0272, 0273, 0274, 0275, 0276 | PASS |
 | 10.1.3 | Mutex invariant \| `#@ mutex_invariant <mutex>: <expr>` \| Invariant held when mutex free | 0250, 0251, 0252, 0253, 0279; XFAIL: 0256 (violated invariant) | PASS |
 | 10.1.4 | Lock order \| `#@ lock_order <m1>, <m2>, ...` \| Total order on mutex acquisition | 0257, 0258, 0259, 0260, 0261; XFAIL: 0255 (missing lock_order) | PASS |
+| E1 | Negative: `\result` in non-ensures context \| Must be rejected by Module4 | XFAIL: 0281 (requires), 0282 (loop invariant) | PASS |
+| E2 | Negative: undefined variable in contract \| Must be rejected by Module4 | XFAIL: 0283 (ensures) | PASS |
+| E5 | Negative: bare variable in class invariant \| Must be rejected by Module4 | XFAIL: 0284 (undeclared), 0285 (not a field) | PASS |

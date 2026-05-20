@@ -1,173 +1,302 @@
 # PyCSL 
 
-PyCSL is an annotation language for Python. It enables to formally verify Python code using [Hoare Logic](https://en.wikipedia.org/wiki/Hoare_logic). An associated tool, `pycsl`, verifies the annotations using [Why3](https://why3.lri.fr/). Why3 is a front end to Alt-Ergo or Z3. When automatic prover fail, manual theorem provers can be used.
+PyCSL is an annotation language for Python. It enables to formally verify Python code using [Hoare Logic](https://en.wikipedia.org/wiki/Hoare_logic). An associated tool, `pycsl`, verifies the annotations using [Why3](https://why3.lri.fr/). Why3 is a front end to Alt-Ergo or Z3. When automatic provers fail, manual theorem provers can be used.
 
-The semantics of PyCSL is [formally defined](src/formal-semantics) with [Rocq](src/formal-semantics/rocq) and [LEAN](src/formal-semantics/lean).
+Documents define PyCSL [syntax](docs/pycsl-concrete-syntax-reference.md), [semantic](docs/pycsl-static-semantics-reference.md) and [translation to Why3](docs/pycsl-translational-reference.md).
 
 ---
 
-## Directory layout
+## Directory Layout
 
 ```
 PyCSL/
-├── pycsl                   # Proof runner (calls Why3/Alt-Ergo)
-├── run.sh                  # Main entry point (see Usage below)
+├── src/
+│   ├── pycsl/                          # Core pipeline (Python package)
+│   │   ├── pycsl.py                    # CLI entry point
+│   │   ├── Module1_Ingestor.py         # Reads .py, strips #@ annotation lines
+│   │   ├── Module2_Parser.py           # EBNF grammar → contract AST
+│   │   ├── Module3_Weaver.py           # Attaches contracts to Python AST nodes
+│   │   ├── Module4_SemanticAnalyzer.py # Type/scope checking, variable resolution
+│   │   ├── ConcurrencyChecker.py       # Static concurrency analysis (warnings)
+│   │   ├── Module5_IREmitter.py        # Emits intermediate representation (JSON)
+│   │   ├── Module6_WhyMLTranspiler.py  # Generates .mlw (WhyML) for Why3
+│   │   └── agents/                     # LLM agent scripts (see Agent Architecture)
+│   │       ├── coordinator.py          # Orchestrator — owns the full retry loop
+│   │       ├── agent-annotate.py       # Adds contracts to a Python file
+│   │       ├── agent-splitter.py       # Call-graph analysis, topological sort
+│   │       ├── agent-writer.py         # 3-agent writer coordinator
+│   │       ├── agent-english-writer.py # English specification of a function
+│   │       ├── agent-contract-writer.py# requires/ensures/assigns generation
+│   │       ├── agent-invariant-writer.py # Loop invariants & variants
+│   │       ├── agent-reconcile.py      # Diagnoses proof failures → JSON
+│   │       ├── agent-script-update.py  # Applies reconciliation recommendations
+│   │       ├── agent-script-update-mcp.py # MCP server enforcing write safety
+│   │       ├── agent-rocq-proof-writer.py # Generates Rocq proofs for failed goals
+│   │       ├── agent-infer-invariants.py  # Infers loop invariants from contracts
+│   │       ├── agent-meta-evaluator.py # QA judge per attempt
+│   │       ├── agent-meta-monitor.py   # Operational health watchdog
+│   │       ├── agent-meta-reviewer.py  # Human-readable report generator
+│   │       ├── llm_client.py           # LLM abstraction (Ollama, API)
+│   │       └── schema_validator.py     # Validates agent I/O against schemas
+│   ├── formal-semantics/               # Mechanized proofs of WP calculus soundness
+│   │   ├── rocq/                       # Rocq (Coq) proofs: AST, SOS, WP, soundness
+│   │   └── lean/                       # Lean 4 proofs (parallel development)
+│   └── skill2rag/                      # Skill → RAG compiler (chunk, embed, index)
+├── bin/                                # Launcher scripts and utilities
+│   ├── run.sh                          # Full pipeline: annotate → prove → repair
+│   ├── run-reference-tests.sh          # Run test suite (279+ reference tests)
+│   ├── annotate.sh                     # Annotate a single file
+│   ├── run-annotated.sh                # Run pycsl on tests/annotated/
+│   ├── run-rocq-proofs.sh              # Replay Rocq proofs
+│   ├── generate-rocq-proofs.sh         # Generate Rocq proof skeletons
+│   ├── infer-invariants-from-contract.sh # Infer invariants from contracts
+│   ├── update-rag.sh                   # Rebuild RAG index from skills
+│   └── get-meta-info.sh               # Query meta-agent outputs
+├── config/
+│   ├── agents-config.json              # Model name, project-directory, tools
+│   ├── agents/                         # Per-agent LLM prompt templates
+│   ├── schemas/                        # JSON schemas for agent I/O validation
+│   └── skills/                         # Skill files consumed by agents (RAG source)
+│       ├── pycsl-annotate/             # Master annotation skill
+│       ├── contract-writer/            # Contract-writing skill
+│       ├── english-writer/             # English description skill
+│       ├── invariant-writer/           # Loop/class invariant skill
+│       ├── polish-skill/               # Post-processing rules
+│       ├── rocq-prover/                # Rocq proof generation skill
+│       └── pycsl-how-to-develop/       # Developer guide skill
+├── data/
+│   ├── embeddings/                     # Generated RAG index (skills_index.json)
+│   └── lib_stubs/                      # Library stubs with trusted contracts
+├── test-suite/
+│   ├── annotations.md                  # Authoritative annotation reference
+│   ├── traceability-pycsl.md           # Annotation ref → test ID mapping
+│   ├── corpus/
+│   │   ├── pycsl-reference/            # Reference tests (0001–0510+)
+│   │   ├── negative/                   # Expected-failure tests
+│   │   └── python-reference/           # Python semantics tests
+│   ├── runner/                         # Static/dynamic oracle, evaluator
+│   ├── instrumenter/                   # CSL-to-Python contract instrumenter
+│   └── run_suite.py                    # Dual-oracle test runner
 ├── tests/
-│   ├── to_annotate/        # Input Python scripts (unannotated)
-│   └── annotated/          # Auto-generated annotated scripts
-├── metrics/                # Meta-agent outputs (created at runtime)
-│   ├── logs/               # Captured stdout/stderr per attempt
-│   ├── evaluator/          # Per-attempt QA evaluation JSON
-│   ├── monitor/            # Per-file operational health JSON
-│   └── reviewer/           # Human-readable report (JSON + Markdown)
-└── agents/
-    ├── coordinator.py          # Orchestrator — owns the full retry loop
-    ├── agent-annotate.py       # Adds Hoare-logic contracts to a Python file
-    ├── agent-reconcile.py      # Diagnoses pycsl failures → recommendation JSON
-    ├── agent-script-update.py  # Applies recommendations to agent-annotate.py
-    │                           #   or skill-annotate.md (never tests/annotated/)
-    ├── agent-script-update-mcp.py  # MCP server enforcing write restrictions
-    ├── agent-meta-evaluator.py # QA judge: syntax + pycsl re-check after each fix
-    ├── agent-meta-monitor.py   # Operational watchdog: JSON failures, MCP rejections
-    ├── agent-meta-reviewer.py  # LLM-generated PR description + system recommendation
-    ├── skill-annotate.md       # Annotator skill/prompt (editable by update agent)
-    └── agents-config.json      # Shared config (model, project-directory, …)
+│   ├── to_annotate/                    # Input Python scripts (unannotated)
+│   └── annotated/                      # Auto-generated annotated scripts
+├── metrics/                            # Runtime logs and meta-agent outputs
+│   ├── logs/                           # Captured stdout/stderr per attempt
+│   ├── evaluator/                      # Per-attempt QA evaluation JSON
+│   ├── monitor/                        # Per-file operational health JSON
+│   └── reviewer/                       # Human-readable reports
+├── docs/                               # Reference documents
+│   ├── pycsl-concrete-syntax-reference.md  # Normative EBNF grammar
+│   ├── pycsl-static-semantics-reference.md # Well-formedness rules
+│   └── pycsl-translational-reference.md    # Translation T: Python → WhyML
+└── pyproject.toml                      # Python project metadata
 ```
 
 ---
 
-## How it works
+## Pipeline
 
 ```
-For each .py file in tests/to_annotate/:
-
-  ┌─────────────┐
-  │ agent-      │  adds @requires / @ensures / @invariant / @variant
-  │ annotate.py │  contracts to the Python script
-  └──────┬──────┘
-         │ annotated file → tests/annotated/
-         ▼
-  ┌─────────────┐
-  │   pycsl     │  compiles to WhyML and runs Alt-Ergo
-  └──────┬──────┘
-         │ pass → next file
-         │ fail ──────────────────────────────────────────────┐
-         ▼                                                    │
-  ┌──────────────────┐                                        │
-  │ agent-reconcile  │  reads pycsl output + annotated file   │
-  │ .py              │  → recommendation JSON                 │
-  └──────┬───────────┘                                        │
-         │                                                    │
-         ▼                                                    │
-  ┌──────────────────────┐                                    │
-  │ agent-script-update  │  edits agent-annotate.py or        │
-  │ .py                  │  skill-annotate.md via MCP         │
-  └──────┬───────────────┘                                    │
-         │                                                    │
-         ▼                                                    │
-  ┌──────────────────────┐                                    │
-  │ agent-meta-evaluator │  syntax check + pycsl re-run       │
-  └──────────────────────┘                                    │
-         │                                                    │
-         └────────────────── retry (max 10) ─────────────────┘
-
-  After all retries for a file:
-  ┌──────────────────────┐
-  │ agent-meta-monitor   │  parse all attempt logs → health JSON
-  └──────────────────────┘
-
-  On halt (exit 72 or 73):
-  ┌──────────────────────┐
-  │ agent-meta-reviewer  │  LLM-generated PR body + recommendation
-  └──────────────────────┘
+Python file (.py)
+    │
+    ▼
+Module1_Ingestor    ← reads file, separates code from #@ annotations
+    │
+    ▼
+Module2_Parser      ← parses #@ lines using EBNF grammar → contract AST
+    │
+    ▼
+Module3_Weaver      ← attaches contract AST nodes to Python AST nodes
+    │
+    ▼
+Module4_SemanticAnalyzer  ← type/scope checking, variable resolution
+    │
+    ▼
+ConcurrencyChecker  ← (warnings only) static concurrency analysis
+    │
+    ▼
+Module5_IREmitter   ← emits intermediate representation (JSON)
+    │
+    ▼
+Module6_WhyMLTranspiler   ← generates .mlw (WhyML) file
+    │
+    ▼
+Why3 / Alt-Ergo / Z3      ← SMT solver proves or rejects the goals
+    │
+    ▼ (on SMT failure, optional)
+Rocq proof obligations     ← manual interactive proofs via --rocq
 ```
 
-### Inter-agent data flow
+---
 
-All agents communicate via **files on disk**, invoked as subprocesses by the
-coordinator.
+## Usage
 
-| Step | Writer | File(s) | Reader |
-|------|--------|---------|--------|
-| Annotate | `agent-annotate` | `tests/annotated/*.py` | `pycsl` |
-| Prove | `pycsl` | `out.std`, `out.err` | `agent-reconcile` |
-| Reconcile | `agent-reconcile` | `reconcile_<file>.json` | `agent-script-update` |
-| Update | `agent-script-update` | modified `agent-annotate.py` or `SKILL.md`; `update_*_history.json` | coordinator (re-annotate) |
-| Evaluate | `agent-meta-evaluator` | `metrics/evaluator/<stem>_<N>.json` | `agent-meta-reviewer` |
-| Monitor | `agent-meta-monitor` | `metrics/monitor/<stem>.json` | `agent-meta-reviewer` |
-| Review | `agent-meta-reviewer` | `metrics/reviewer/<stem>.json` + `<stem>.md` | human / CI |
+### Verify a single file
 
-All inter-agent JSON files are validated against schemas in `config/schemas/`
-before being written.
-
-### Annotation agent architecture
-
-When `agent-annotate.py` processes a file, it uses a multi-agent pipeline to
-produce high-quality contracts:
-
-```
-agent-annotate.py
-├── (single-function path) — direct LLM call using pycsl-annotate skill
-└── (multi-function path) — delegates to:
-    └── agent-splitter.py — call-graph analysis, topological sort
-        └── agent-writer.py — per-function annotation (3-agent pipeline)
-            ├── agent-english-writer.py  — English spec of the function
-            ├── agent-contract-writer.py — requires/ensures/assigns
-            └── agent-invariant-writer.py — loop invariants & variants
+```bash
+pycsl myfile.py
 ```
 
-**Single-function files** are annotated in one LLM call using the full
-`pycsl-annotate` skill as context.
+### CLI options
 
-**Multi-function files** go through a deterministic decomposition:
+| Flag | Effect |
+|------|--------|
+| `--no-proof` | Skip prover — only check that valid WhyML is generated |
+| `--keep-mlw` | Keep the `.mlw` file next to the input for inspection |
+| `--fun NAME` | Only verify the named function (and call-deps). Repeatable |
+| `--deep` | Recursively resolve transitive imports |
+| `-p PROVER` | Use a specific prover (e.g. `Alt-Ergo,2.6.2,`) |
+| `--provers LIST` | Comma-separated prover fallback chain |
+| `--memory-model M` | `hoare` (default), `typed`, `store`, or `concurrent` |
+| `--rocq DIR` | On SMT failure, generate Rocq proof skeletons in DIR |
+| `--rocq-proofs [DIR]` | Replay pre-existing Rocq proofs from DIR |
 
-1. **`agent-splitter.py`** parses the file with `ast`, builds the call graph,
-   detects mutual recursion via Tarjan's SCC algorithm, and topological-sorts
-   functions from leaf to root. This ensures each function is annotated only
-   after its callees already have contracts.
+### Selective function verification
 
-2. For each function (or SCC group), **`agent-writer.py`** orchestrates a
-   3-step LLM pipeline:
-   - **`agent-english-writer.py`** — produces a precise mathematical English
-     description of the function (what it computes, return-value properties,
-     preconditions, mutations, loop behaviour).
-   - **`agent-contract-writer.py`** — uses the English spec + callee contracts
-     to generate `#@ requires`, `#@ ensures`, and `#@ assigns` annotations.
-   - **`agent-invariant-writer.py`** — adds `#@ loop invariant` and
-     `#@ loop variant` to every loop, assembles the final annotated function.
+```bash
+# Only verify foobar and its transitive call-dependencies
+pycsl --fun foobar myfile.py
 
-3. `agent-annotate.py` reassembles all annotated functions into the output file
-   and applies ~40 post-processing guards (reserved keyword renaming, blank-line
-   collapse, memory-model normalization, recursion detection, etc.).
+# Verify multiple specific functions
+pycsl --fun foobar --fun helper myfile.py
+```
 
-### Loop detection
+Functions not selected become trusted stubs: their contracts are assumed
+as axioms, but their bodies are not checked.
 
-If `agent-reconcile` produces the **same recommendation 3 times in a row**
-the coordinator halts with **exit code 73** so a human can intervene.
-A report is automatically written to `metrics/reviewer/`.
+### Multi-file verification
 
-### Exit codes
+PyCSL automatically resolves `from ... import ...` and `import ...` statements
+to local source files. Imported functions are injected as trusted stubs
+(contracts assumed, bodies not re-verified).
 
-| Code | Meaning |
+```bash
+pycsl dir2/file2.py         # auto-imports from local files
+pycsl --deep file.py        # recursive transitive resolution (A→B→C)
+```
+
+External modules (stdlib, third-party) are skipped — add `\trusted` stubs
+in `data/lib_stubs/` if callers need their contracts.
+
+### Full annotation pipeline (annotate → prove → repair loop)
+
+```bash
+./bin/run.sh
+```
+
+### Run reference tests
+
+```bash
+./bin/run-reference-tests.sh                        # all tests
+./bin/run-reference-tests.sh --start-at 200         # skip 0001–0199
+./bin/run-reference-tests.sh --start-at 194 --stop-at 195  # range
+```
+
+Tests support `# pycsl-flags: ...` (extra CLI flags) and
+`# pycsl-expected: FAIL` (expected-failure) directives in file headers.
+
+### Rocq interactive proofs
+
+When SMT provers fail on a goal, Rocq (Coq) proof skeletons can be
+generated and completed manually:
+
+```bash
+pycsl --rocq proofs/ myfile.py    # generates .v files in proofs/
+# ... complete proofs in .v files ...
+pycsl --rocq-proofs proofs/ myfile.py   # replays completed proofs
+```
+
+---
+
+## Memory Models
+
+PyCSL supports four memory models, selected via `--memory-model`:
+
+| Model | Description | Use case |
+|-------|-------------|----------|
+| `hoare` | WhyML `ref` cells + `array` types (default) | Simple imperative code |
+| `typed` | Flat memory map with `\valid`/`\separated` | Pointer-like reasoning |
+| `store` | Same as typed, different heap name | Alternative flat memory |
+| `concurrent` | Hoare + shared state + mutex invariants | Multi-threaded code |
+
+### Concurrent model
+
+```python
+#@ shared counter
+#@ mutex_invariant lock_counter: counter >= 0
+#@ \diverges
+#@ thread_entry
+def worker() -> int:
+    #@ critical lock_counter
+    counter += 1
+    return 0
+```
+
+Critical sections use havoc+assume/assert to model mutex semantics:
+shared variables are havoced, the mutex invariant is assumed on entry
+and asserted on exit.
+
+---
+
+## PyCSL Contract Language (Quick Reference)
+
+| Annotation | Scope | Purpose |
+|---|---|---|
+| `#@ requires <expr>` | Function / method | Precondition |
+| `#@ ensures <expr>` | Function / method | Postcondition; `\result` is the return value |
+| `#@ assigns <targets> \| \nothing` | Function / method | Frame condition |
+| `#@ variant <expr>` | Function / method | Termination measure (recursive functions) |
+| `#@ \diverges` | Function / method | Function may not terminate |
+| `#@ \trusted` | Function / method | Body not verified; contracts assumed as axioms |
+| `#@ raises E when cond` | Function / method | Exceptional postcondition |
+| `#@ loop invariant <expr>` | `while` / `for` | Inductive property |
+| `#@ loop variant <expr>` | `while` / `for` | Termination measure |
+| `#@ class invariant <expr>` | `class` | Type-level invariant |
+| `#@ ghost x = e` | Statement | Ghost variable (spec-only) |
+| `#@ ghost x += e` | Statement | Ghost variable update |
+| `#@ label L` | Statement | Program point for `\at(e, L)` |
+| `#@ shared x` | Module | Shared variable (concurrent model) |
+| `#@ mutex_invariant name: expr` | Module | Mutex invariant (concurrent model) |
+| `#@ critical name` | Statement | Critical section (concurrent model) |
+
+### Special atoms
+
+| Atom | Meaning |
 |------|---------|
-| `0`  | All files passed |
-| `1`  | Generic error |
-| `72` | Max retries (10) exhausted for at least one file |
-| `73` | Loop detected — identical recommendation 3× in a row |
+| `\result` | Return value (in `ensures` only) |
+| `\old(e)` | Value of `e` at function entry |
+| `\at(e, L)` | Value of `e` at label `L` |
+| `\length(arr)` | Array/list length |
+| `\valid(arr, n)` | Array bounds validity |
+| `\separated(a, na, b, nb)` | Non-overlapping memory regions |
+| `\is_sorted(arr, lo, hi)` | Array sortedness |
+| `\sum(arr, lo, hi)` | Array element sum |
+| `\nothing` | Empty assigns frame |
+| `\forall x; body` | Universal quantifier |
+| `\exists x; body` | Existential quantifier |
+
+### Operators in contracts
+
+`==`, `!=`, `<`, `>`, `<=`, `>=`, `+`, `-`, `*`, `//`, `%`,
+`and`, `or`, `not`, `==>` (implies), `<==>` (iff)
+
+### Quantifiers
+
+```python
+#@ requires \forall i; 0 <= i and i < n ==> arr[i] >= 0
+#@ ensures \exists j; 0 <= j and j < n and arr[j] == target
+```
+
+Bound variable separated from body by `;`, always typed as `int`.
 
 ---
 
-## Class support
+## Class Support
 
-PyCSL supports Python classes at three levels of depth, each building on the
-previous. All three are verified end-to-end by Why3/Alt-Ergo.
-
-### Level 2 — Mutable record types
+### Classes as mutable records
 
 Every Python class becomes a WhyML mutable record type.  Methods receive
-`(self: classname)` as their first parameter; field reads and writes lower to
-plain record-field access (`self.field`) and record-update (`self.field <-
-val`).
+`(self: classname)` as their first parameter.
 
 ```python
 class Counter:
@@ -176,13 +305,12 @@ class Counter:
 
     #@ requires amount >= 0
     #@ ensures self._value == \old(self._value) + amount
-    #@ assigns self._value
     def increment(self, amount: int) -> int:
         self._value += amount
         return self._value
 ```
 
-Generated WhyML:
+→ WhyML:
 
 ```whyml
 type counter = { mutable _value: int }
@@ -195,20 +323,10 @@ let counter__increment (self: counter) (amount: int) : int
   self._value
 ```
 
-**Contract syntax for methods:**
+### Class invariants
 
-| Annotation | Meaning |
-|---|---|
-| `#@ requires self._field >= 0` | Precondition on a field |
-| `#@ ensures self._field == \old(self._field) + n` | Post-state relates to pre-state |
-| `#@ assigns self._field` | Only this field is mutated |
-| `#@ assigns \nothing` | Pure read-only method |
-
-### Level 3 — Class invariants
-
-A `#@ class invariant <expr>` annotation placed **before** the `class` keyword
-declares a property that Why3 automatically checks at every method boundary —
-no extra per-method contract is needed.
+A `#@ class invariant` annotation placed before the `class` keyword
+declares a property checked at every method boundary:
 
 ```python
 ""  # pycsl
@@ -216,16 +334,9 @@ no extra per-method contract is needed.
 class Counter:
     def __init__(self):
         self._value = 0
-
-    #@ requires amount >= 0
-    #@ ensures self._value == \old(self._value) + amount
-    #@ assigns self._value
-    def increment(self, amount: int) -> int:
-        self._value += amount
-        return self._value
 ```
 
-Generated WhyML:
+→ WhyML:
 
 ```whyml
 type counter = { mutable _value: int }
@@ -233,178 +344,132 @@ type counter = { mutable _value: int }
   by { _value = 0 }
 ```
 
-**Invariant rules:**
-
-| Feature | Syntax / note |
-|---|---|
-| Single-field | `#@ class invariant self._n >= 0` |
-| Cross-field | `#@ class invariant self._lo <= self._hi` |
-| Compound | `#@ class invariant self._v >= 0 and self._v <= 100` |
-| Stacked | Multiple `#@ class invariant` lines — one clause per line |
-| Two classes | Each class gets its own `#@ class invariant` before its `class` |
-| Witness | Auto-generated from `__init__` initial values — no manual work needed |
-
-The `by { ... }` witness proves the type is inhabited (i.e., the invariant is
-satisfiable). It is derived automatically from the literal assignments in
-`__init__` (e.g., `self._value = 0` → `_value = 0` in the witness).
+The `by { ... }` witness is derived automatically from `__init__` assignments.
 
 ---
 
-## PyCSL contract language (quick reference)
+## Agent Architecture
 
-| Annotation | Scope | Purpose |
-|---|---|---|
-| `#@ requires <expr>` | Function / method | Precondition |
-| `#@ ensures <expr>` | Function / method | Postcondition; `\result` is the return value |
-| `#@ assigns <targets> \| \nothing` | Function / method | Frame condition |
-| `#@ \variant <expr>` | Function / method | Termination measure (recursive functions) |
-| `#@ \variant (<expr>, <ordering>)` | Function / method | Termination via well-founded ordering |
-| `#@ \diverges` | Function / method | Function may not terminate |
-| `#@ \trusted` | Function / method | Body not verified; contracts assumed as axioms |
-| `#@ loop invariant <expr>` | `while` / `for` | Inductive property |
-| `#@ loop variant <expr>` | `while` / `for` | Termination measure |
-| `#@ class invariant <expr>` | `class` | Type-level invariant (Level 3) |
+### Annotation pipeline (per file)
 
-**Operators supported in contract expressions:**
-`==`, `!=`, `<`, `>`, `<=`, `>=`, `+`, `-`, `*`, `and`, `or`, `not`,
-`==>` (implies), `<==>` (iff), `\result`, `\old(expr)`, `self.field`,
-`\forall var; expr` (universal quantifier),
-`\exists var; expr` (existential quantifier)
-
-### Quantifiers
-
-`\forall` and `\exists` let you write quantified properties over integer
-ranges — typically array index bounds.  The bound variable is separated from
-the body by a semicolon.  The variable is always typed as `int` in the
-generated WhyML.
-
-```python
-# every element in [0, n) is non-negative
-#@ requires \forall i; 0 <= i and i < n ==> arr[i] >= 0
-
-# there is at least one element equal to the target
-#@ ensures \exists j; 0 <= j and j < n and arr[j] == target
+```
+agent-annotate.py
+├── (single-function path) — direct LLM call using pycsl-annotate skill
+└── (multi-function path) — delegates to:
+    └── agent-splitter.py — call-graph analysis, topological sort
+        └── agent-writer.py — per-function annotation (3-agent pipeline)
+            ├── agent-english-writer.py  — English spec of the function
+            ├── agent-contract-writer.py — requires/ensures/assigns
+            └── agent-invariant-writer.py — loop invariants & variants
 ```
 
-Generated WhyML:
+### Coordinator loop (per file, up to 10 retries)
 
-```whyml
-requires { (forall i : int. (0 <= i && i < n) -> arr[i] >= 0) }
-ensures  { (exists j : int. (0 <= j && j < n) && arr[j] = target) }
+```
+coordinator.py
+├── agent-annotate.py       → produces annotated .py in tests/annotated/
+├── pycsl (proof)           → exit 0 = pass, exit 1 = fail
+│   (if fail)
+├── agent-reconcile.py      → diagnosis + recommendation JSON
+├── agent-script-update.py  → applies fix via MCP
+├── agent-meta-evaluator.py → QA re-check
+└── (retry)
 ```
 
-Quantifiers may appear inside any contract expression (`requires`, `ensures`,
-`loop invariant`) and can be nested.  The bound variable is excluded from
-scope checking — only the free variables in the body must be in scope.
+### Inter-agent data flow
 
-**Not supported in contracts:** `len(...)` (use `\length`), list comprehensions,
-`if`/`else` ternary.
+All agents communicate via **files on disk**, invoked as subprocesses by the
+coordinator.
 
-### String Literals
+| Step | Writer | File(s) | Reader |
+|------|--------|---------|--------|
+| Annotate | `agent-annotate` | `tests/annotated/*.py` | `pycsl` |
+| Prove | `pycsl` | `out.std`, `out.err` | `agent-reconcile` |
+| Reconcile | `agent-reconcile` | `reconcile_<file>.json` | `agent-script-update` |
+| Update | `agent-script-update` | modified agent or skill file | coordinator |
+| Evaluate | `agent-meta-evaluator` | `metrics/evaluator/<stem>_<N>.json` | `agent-meta-reviewer` |
+| Monitor | `agent-meta-monitor` | `metrics/monitor/<stem>.json` | `agent-meta-reviewer` |
+| Review | `agent-meta-reviewer` | `metrics/reviewer/<stem>.json` + `.md` | human / CI |
 
-String literals (`"hello"`) are supported in contracts and function bodies.
-Functions with `str` parameters or return types are mapped to WhyML's `string` type.
+All inter-agent JSON files are validated against schemas in `config/schemas/`.
 
-```python
-#@ ensures \result == "hello"
-def greet() -> str:
-    return "hello"
-```
+### Exit codes
+
+| Code | Meaning |
+|------|---------|
+| `0`  | All files passed |
+| `1`  | Generic error |
+| `72` | Max retries (10) exhausted for at least one file |
+| `73` | Loop detected — identical recommendation 3× in a row |
 
 ---
 
-## Usage
+## Library Stubs
 
-### Full pipeline (annotate → prove → repair loop)
+`data/lib_stubs/` contains Python files with `#@ \trusted` contracts for
+standard library and third-party modules (math, os, sys, json, collections,
+threading, numpy, etc.).  These provide specifications so the prover can
+reason about external calls without verifying their implementations.
 
-```bash
-./run.sh
-```
+Additionally, PyCSL's own pipeline modules (Module1–Module6) have self-referential
+stubs for self-verification experiments.
 
-### Selective function verification
+---
 
-```bash
-# Only verify foobar and its transitive call-dependencies (e.g. double_int)
-./pycsl --fun foobar myfile.py
+## Skills and RAG
 
-# Verify multiple specific functions
-./pycsl --fun foobar --fun helper myfile.py
-```
+Agent LLM prompts are driven by **skills** in `config/skills/`.  Each skill
+is a Markdown file (`SKILL.md`) with YAML frontmatter containing rules,
+examples, and constraints.
 
-Functions not selected (and not called by selected functions) become trusted
-stubs: their contracts are assumed as axioms, but their bodies are not checked.
-
-### Multi-file verification
-
-PyCSL automatically resolves `from ... import ...` and `import ...` statements
-to local source files. Imported functions are injected as trusted stubs
-(contracts assumed, bodies not re-verified).
+Skills are compiled into a vector index by `src/skill2rag/`:
 
 ```bash
-# file2.py contains: from dir1.file1 import double_int
-./pycsl dir2/file2.py   # auto-imports double_int's contract from dir1/file1.py
-
-# Also works with module imports:
-# file3.py contains: import dir1.file1 as lib; lib.double_int(x)
-./pycsl dir3/file3.py   # resolves dir1.file1, imports double_int
-
-# Wildcard imports: from mod import *
-./pycsl file_with_wildcard.py   # imports only functions actually called
-
-# Recursive transitive resolution (A→B→C):
-./pycsl --deep file.py   # resolves dependencies' own imports too
+./bin/update-rag.sh    # must be run after any skill change
 ```
 
-External modules (stdlib, third-party) are skipped — add `\trusted` stubs
-manually if callers need their contracts.
+This produces `data/embeddings/skills_index.json`, queried by agents at runtime.
 
-### Re-run a meta-agent on existing metrics (without re-annotating)
+---
 
-```bash
-# Re-generate the reviewer report for a file
-./run.sh --review 001-basic-control-flow
+## Formal Semantics
 
-# Re-run the operational health monitor for a file
-./run.sh --monitor 001-basic-control-flow
+Mechanized proofs in `src/formal-semantics/` establish the soundness of the
+WP calculus for PyCSL's core language subset:
 
-# Re-run the QA evaluator for a specific annotated/modified file pair
-./run.sh --evaluate 001-basic-control-flow \
-    tests/annotated/001-basic-control-flow.py \
-    agents/skill-annotate.md
+| Prover | Directory | Phases |
+|--------|-----------|--------|
+| Rocq (Coq) | `src/formal-semantics/rocq/` | AST → State → SOS → Desugar → WP → Soundness |
+| Lean 4 | `src/formal-semantics/lean/` | Parallel development |
+
+These proofs cover arithmetic, assignment, sequencing, if/else, and while
+loops.  Constructs beyond the core (classes, exceptions, arrays) are modeled
+using Why3's built-in theories.
+
+---
+
+## Test Suite
+
+The reference test suite contains **279+ test files** in
+`test-suite/corpus/pycsl-reference/` covering all annotation features.
+
+- **`test-suite/annotations.md`** — Authoritative annotation reference (never
+  renumber existing sections)
+- **`test-suite/traceability-pycsl.md`** — Maps annotation refs to test IDs
+- **`test-suite/run_suite.py`** — Dual-oracle runner (static + dynamic)
+- **`test-suite/instrumenter/`** — Instruments contracts as Python assertions
+
+Test files support directives:
+```python
+# pycsl-flags: --memory-model typed --no-proof
+# pycsl-expected: FAIL
 ```
-
-The `<file-stem>` argument is the filename without extension, matching what
-is stored under `metrics/`.
-
-### Run reference tests
-
-```bash
-# Run all reference tests in test-suite/corpus/pycsl-reference/
-./bin/run-reference-tests.sh
-
-# Start at test 200 (skip 0001–0199)
-./bin/run-reference-tests.sh --start-at 200
-
-# Run only tests 194 to 195 inclusive
-./bin/run-reference-tests.sh --start-at 194 --stop-at 195
-```
-
-Tests support `# pycsl-flags: ...` (extra CLI flags) and
-`# pycsl-expected: FAIL` (expected-failure) directives in file headers.
-
-### Output locations
-
-| Meta-agent | Output |
-|------------|--------|
-| `agent-meta-evaluator` | `metrics/evaluator/<stem>_<attempt>.json` |
-| `agent-meta-monitor`   | `metrics/monitor/<stem>.json` |
-| `agent-meta-reviewer`  | `metrics/reviewer/<stem>.json` + `<stem>.md` |
 
 ---
 
 ## Configuration
 
-Edit `agents/agents-config.json` to change the LLM model or project directory:
+Edit `config/agents-config.json` to change the LLM model or project directory:
 
 ```json
 {
@@ -414,7 +479,6 @@ Edit `agents/agents-config.json` to change the LLM model or project directory:
 }
 ```
 
-The update agent may only modify `agents/agent-annotate.py` or
-`agents/skill-annotate.md` — writing to `tests/annotated/` is blocked by the
-MCP server.
+The update agent may only modify agent scripts or skill files — writing to
+`tests/annotated/` is blocked by the MCP server.
 

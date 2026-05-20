@@ -1,5 +1,4 @@
 """Test 0018 — PyCSL Annotation Reference 3.1.11"""
-# pycsl-expected: FAIL
 _ = 0  # anchor
 #@ requires \length2d(mat, m, n)
 #@ requires m >= 1 and n >= 1

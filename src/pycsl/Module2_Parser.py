@@ -191,6 +191,13 @@ class CSLSlice(CSLNode):
     high: CSLNode
 
 @dataclass
+class ChainedSubscript(CSLNode):
+    """Represents `arr[i][j]` chained subscript access (2D array element)."""
+    array: str
+    index1: CSLNode
+    index2: CSLNode
+
+@dataclass
 class CallExpr(CSLNode):
     """Represents a function call in a contract expression."""
     func: str
@@ -369,6 +376,7 @@ PYCSL_GRAMMAR = r"""
          | CNAME "(" expr_list ")" -> call_expr
          | CNAME "(" ")" -> call_expr_noargs
          | CNAME "[" expr ":" expr "]" -> slice_access
+         | CNAME "[" expr "]" "[" expr "]" -> chained_subscript
          | CNAME "[" expr "]" -> subscript_access
          | CNAME -> var
          | "\\result" -> result
@@ -475,6 +483,7 @@ class PyCSLTransformer(Transformer):
     def exists_expr(self, var, body) -> Exists: return Exists(str(var), body)
     def array_length(self, var) -> ArrayLength: return ArrayLength(str(var))
     def subscript_access(self, name, index) -> SubscriptAccess: return SubscriptAccess(str(name), index)
+    def chained_subscript(self, name, index1, index2) -> ChainedSubscript: return ChainedSubscript(str(name), index1, index2)
     def slice_access(self, name, low, high) -> CSLSlice: return CSLSlice(str(name), low, high)
     def result_subscript(self, index) -> SubscriptAccess: return SubscriptAccess("\\result", index)
     def assigns_region(self, name, low, _op, high) -> AssignsRegion: return AssignsRegion(str(name), low, high)

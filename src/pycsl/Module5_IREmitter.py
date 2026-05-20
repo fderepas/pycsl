@@ -12,7 +12,8 @@ from Module2_Parser import (
     FieldAccess as CSLFieldAccess, Forall, Exists, ArrayLength, SubscriptAccess,
     AssignsRegion, Valid, Separated, At as CSLAt,
     Length2D, Valid2D, FunctionVariant, StringLiteral as CSLStringLiteral,
-    CallExpr, IsSorted, Sum, CSLBool, CSLNone, CSLIn, CSLNotIn, CSLSlice
+    CallExpr, IsSorted, Sum, CSLBool, CSLNone, CSLIn, CSLNotIn, CSLSlice,
+    ChainedSubscript
 )
 
 class PyCSLToJSONEmitter(ast.NodeVisitor):
@@ -97,6 +98,7 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
         CSLIn:            "_csl_in",
         CSLNotIn:         "_csl_not_in",
         CSLSlice:         "_csl_slice",
+        ChainedSubscript: "_csl_chained_subscript",
     }
 
     def _csl_to_ir(self, node: CSLNode) -> Dict[str, Any]:
@@ -160,6 +162,14 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
         return {"type": "Subscript",
                 "value": {"type": "Var", "name": node.array},
                 "index": self._csl_to_ir(node.index)}
+
+    def _csl_chained_subscript(self, node: ChainedSubscript) -> Dict[str, Any]:
+        inner = {"type": "Subscript",
+                 "value": {"type": "Var", "name": node.array},
+                 "index": self._csl_to_ir(node.index1)}
+        return {"type": "Subscript",
+                "value": inner,
+                "index": self._csl_to_ir(node.index2)}
 
     def _csl_assigns_region(self, node: AssignsRegion) -> Dict[str, Any]:
         return {"type": "AssignsRegion", "base": node.base,

@@ -124,6 +124,8 @@ Ghost variables emit `let ghost <name> = ref <val> in` (declaration) or `ghost <
 
 ## Section 4 — Forbidden in contract expressions
 
+**Three-level validation**: every `#@` expression must clear syntax (Level 1), static-semantics (Level 2), and WhyML-generation (Level 3) checks. `pycsl --no-proof` succeeding only guarantees Levels 1 and 2; Level 3 is verified by Why3. The most dangerous trap: contracts that pass Module4 yet fail Why3 (e.g., `"key" in d` when `d` is unannotated → `int` in WhyML, `in` on `int` is invalid). See `references/validation-stack.md` for the IS/SR/TR rule tables and the practical decision checklist.
+
 > **Full list:** See `references/forbidden-expressions.md` for the complete set of NEVER rules (50+ entries).
 
 Key rules (most common mistakes):
