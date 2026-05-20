@@ -6,6 +6,35 @@ Documents define PyCSL [syntax](docs/pycsl-concrete-syntax-reference.md), [seman
 
 ---
 
+## Trust Chain
+
+```
+Layer 0 — Rocq / Lean type-checkers
+   Machine-checked soundness theorem: pycsl_soundness
+         ↓
+Layer 1 — PyCSL #@ contracts on the Python implementation
+   Structural faithfulness: frame conditions, loop termination,
+   exhaustive dispatch over all 10 WP rule arms
+         ↓
+Layer 2 — Why3 + SMT solvers
+   Output verification: the generated .mlw file is accepted by Why3
+
+Layer 3 — Why3 val spec module  (self-annotate-layer3/pycsl-wp-spec.mlw)
+   Semantic equivalence: one val per WP arm, ensures clause mirrors
+   the Rocq fixpoint arm exactly.
+   Machine-checked: Why3 clone/refinement proves generated code satisfies spec.
+   Human-audited:   val spec written by inspection of Phase4_WP.v (line-by-line).
+   See self-annotate-layer3/audit-guide.md for the full audit procedure.
+```
+
+Each layer covers what the others cannot:
+- Layer 0 proves the WP calculus is mathematically sound.
+- Layer 1 proves the Python code doesn't silently drop statements,
+  corrupt state, or diverge from the formal structure.
+- Layer 2 proves the actual generated WhyML satisfies the VCs.
+
+---
+
 ## Directory Layout
 
 ```
