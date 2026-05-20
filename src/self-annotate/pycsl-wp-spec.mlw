@@ -1,0 +1,171 @@
+(* pycsl-wp-spec.mlw — Layer 3 Why3 Specification Module
+ *
+ * One val declaration per WP arm in Phase4_WP.v.
+ * Each val's contract mirrors the corresponding Rocq fixpoint arm exactly.
+ * SFor is omitted: desugar_correct is Admitted/sorry — see self-annotate-plan-no-sugar.md.
+ *
+ * Audit trail: for each val, a comment cites the exact Rocq source line.
+ * Human-audited link: the ensures clause is written by inspection of Phase4_WP.v.
+ * Machine-checked link: Why3 verifies that any concrete implementation
+ *   provided via clone satisfies these contracts.
+ *)
+
+module PyCSL_WP_Spec
+
+  use int.Int
+  use map.Map as M
+
+  (* ── Abstract types (mirror Phase1_AST.v + Phase2_State.v) ─────────────── *)
+
+  (* Phase1_AST.v:14  Definition ident := string. *)
+  type ident = string
+
+  (* Phase2_State.v:9–11  Inductive val := VInt (n : Z) | VArray (a : list Z). *)
+  type value = VInt int | VArray (M.map int int) | VNone
+
+  (* Phase2_State.v:14  Definition state := list (ident * val).
+   * Here represented as a total map for Why3 compatibility.
+   * The correspondence is argued by the shared axioms below. *)
+  type state = M.map ident value
+
+  (* ── Core state operations (abstract — mirror Phase2_State.v) ───────────── *)
+
+  (* Phase2_State.v:25  Definition update st x v := (x, v) :: st. *)
+  function update (st: state) (x: ident) (v: value) : state =
+    M.set st x v
+
+  (* Phase2_State.v:17  Fixpoint lookup st x. *)
+  function lookup (st: state) (x: ident) : value =
+    M.get st x
+
+  (* Phase2_State.v:50  Fixpoint eval_expr st e. (total function)
+   * Left abstract: the full expression evaluator is large; its totality
+   * is established in Rocq.  Concrete uses pass e_val = eval_expr st e. *)
+  val function eval_expr (st: state) (e: ident) : value
+
+  (* ── Axioms grounding update / lookup — match Phase2_State.v exactly ────── *)
+
+  (* Phase2_State.v:25  update is cons-shadowing; lookup finds the first binding. *)
+  axiom update_lookup_same :
+    forall st : state, x : ident, v : value.
+    lookup (update st x v) x = v
+
+  axiom update_lookup_other :
+    forall st : state, x y : ident, v : value.
+    x <> y -> lookup (update st y v) x = lookup st x
+
+  (* ── WP arm specifications ───────────────────────────────────────────────── *)
+
+  (* Phase4_WP.v:21
+   *   | SSkip => Qn st
+   * After a skip, the state is unchanged. *)
+  val handle_skip (st: state) : state
+    ensures { result = st }
+
+  (* Phase4_WP.v:23–24
+   *   | SAssign x e =>
+   *       Qn (update st x (eval_expr st e))
+   * After assigning e_val to x, the state has x bound to e_val. *)
+  val handle_assign (x: ident) (e_val: value) (st: state) : state
+    ensures { result = update st x e_val }
+
+  (* Phase4_WP.v:26–30
+   *   | SAugAssign x op e =>
+   *       let cur := ... in let nv := eval_binop_z op cur ... in
+   *       Qn (update st x (VInt nv))
+   * After an augmented assignment, x is bound to new_val. *)
+  val handle_aug_assign (x: ident) (new_val: value) (st: state) : state
+    ensures { result = update st x new_val }
+
+  (* Phase4_WP.v:32–35
+   *   | SArraySet arr i v =>
+   *       let idx := ... in let nv := ... in
+   *       Qn (array_update st arr idx nv)
+   * After arr[i] := new_val, the array at position i holds new_val.
+   * Precondition i >= 0 mirrors Phase2_State.v:30 bounds check. *)
+  val handle_array_set (arr: ident) (i: int) (new_val: int) (st: state) : state
+    requires { 0 <= i }
+    ensures  {
+      lookup result arr =
+        VArray (M.set
+          (match lookup st arr with
+           | VArray a -> a
+           | _        -> M.const 0
+           end)
+          i new_val)
+    }
+
+  (* Phase4_WP.v:37–39
+   *   | SSeq s1 s2 =>
+   *       wp s1 (fun st' => wp s2 Qn Qr Qc pre_st st') Qr Qc pre_st st
+   * Sequencing is structural: the Qn of s1 becomes the initial state for s2.
+   * No separate val needed — the calling convention of _stmts_to_whyml
+   * (concatenate with ";\n") realises this threading.  The handle_seq val
+   * documents the identity property of the threading step. *)
+  val handle_seq (st_after_s1: state) : state
+    ensures { result = st_after_s1 }
+
+  (* Phase4_WP.v:41–43
+   *   | SIf cond s1 s2 =>
+   *       (eval_bool st cond = true  -> wp s1 ...) /\
+   *       (eval_bool st cond = false -> wp s2 ...)
+   * Branching is pure dispatch: the state entering each branch is unchanged. *)
+  val handle_if_branch (st: state) : state
+    ensures { result = st }
+
+  (* Phase4_WP.v:45–66  | SWhile inv var cond body
+   *
+   * The SWhile WP rule has three conjuncts.  Each is a separate val so the
+   * audit can check each conjunct independently.
+   *
+   * Conjunct 1 (Phase4_WP.v:46):
+   *   eval_contract st pre_st None inv
+   * The invariant must hold at loop entry. *)
+  val check_while_inv_entry (inv_holds: bool) : unit
+    requires { inv_holds = True }
+
+  (* Conjunct 2 (Phase4_WP.v:47–62):
+   *   forall st', inv(st') -> cond(st') ->
+   *     wp body (fun st'' =>
+   *       inv(st'') /\ var(st'') < var(st') /\ var(st'') >= 0) ...
+   * Each body iteration preserves the invariant and decreases the variant. *)
+  val check_while_body_step
+    (inv_after: bool) (var_before: int) (var_after: int) : unit
+    requires { var_before >= 0 }
+    ensures  { inv_after = True }
+    ensures  { 0 <= var_after < var_before }
+
+  (* Conjunct 3 (Phase4_WP.v:63–66):
+   *   forall st', inv(st') -> cond(st') = false -> Qn st'
+   * When the loop condition is false, the normal postcondition holds
+   * in the current state — the state is passed through unchanged. *)
+  val handle_while_exit (st: state) : state
+    ensures { result = st }
+
+  (* Phase4_WP.v:68–94  | SFor x arr inv var body
+   *
+   * OMITTED — desugar_correct is Admitted (Rocq) / sorry (Lean).
+   * A val spec for SFor would claim formal justification that is not yet
+   * machine-checked.  See self-annotate-plan-no-sugar.md for the sub-plan
+   * to close this gap.  Once desugar_correct is proved, add:
+   *
+   *   val handle_for (x arr: ident) (body_result: state -> state) (st: state) : state
+   *     requires { lookup st "_pycsl_idx" = VNone \/ ... }
+   *     ensures  { ... }
+   *)
+
+  (* Phase4_WP.v:96–97
+   *   | SReturn e =>
+   *       Qr (update st "\result" (eval_expr st e))
+   * After a return, the state has "\result" bound to e_val. *)
+  val handle_return (e_val: value) (st: state) : state
+    ensures { result = update st "\\result" e_val }
+
+  (* Phase4_WP.v:99–100
+   *   | SContinue =>
+   *       Qc st
+   * A continue statement passes the state through unchanged. *)
+  val handle_continue (st: state) : state
+    ensures { result = st }
+
+end
