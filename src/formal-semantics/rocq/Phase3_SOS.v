@@ -3,6 +3,7 @@
 Require Import ZArith String List Bool.
 Require Import Phase1_AST.
 Require Import Phase2_State.
+Require Import Phase3b_DesugarDef.
 Open Scope Z_scope.
 
 (* Execution outcomes: normal completion, return, or continue *)
@@ -87,7 +88,14 @@ Inductive exec : state -> stmt -> outcome -> Prop :=
       forall st e,
       exec st (SReturn e)
         (OReturned (update st "\result" (eval_expr st e))
-                   (eval_expr st e)).
+                   (eval_expr st e))
+
+  (* SFor desugars to an index-variable SWhile; ExecFor delegates execution
+     to the desugared form so desugar_correct holds definitionally. *)
+  | ExecFor :
+      forall st x arr inv var body out,
+      exec st (desugar (SFor x arr inv var body)) out ->
+      exec st (SFor x arr inv var body) out.
 
 (* Determinism: induction on the first execution derivation *)
 Lemma exec_deterministic :

@@ -59,6 +59,11 @@ Fixpoint eval_expr (st : state) (e : expr) : val :=
       else VInt 0
     | _, _ => VInt 0
     end
+  | ELen arr =>
+    match lookup st arr with
+    | Some (VArray a) => VInt (Z.of_nat (List.length a))
+    | _ => VInt 0
+    end
   | EBinOp op e1 e2 =>
     match eval_expr st e1, eval_expr st e2 with
     | VInt n1, VInt n2 => VInt (eval_binop_z op n1 n2)

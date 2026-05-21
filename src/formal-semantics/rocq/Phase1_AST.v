@@ -21,6 +21,7 @@ Inductive expr : Type :=
   | EInt       (n : Z)
   | EVar       (x : ident)
   | ESubscript (arr : ident) (i : expr)
+  | ELen       (arr : ident)
   | EBinOp     (op : binop) (e1 e2 : expr)
   | ENeg       (e : expr).
 

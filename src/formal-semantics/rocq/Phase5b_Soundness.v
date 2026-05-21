@@ -56,4 +56,13 @@ Proof.
     destruct Hwp as [Hinv [_ Hpost]]. apply Hpost; assumption.
   - exact Hwp.
   - exact Hwp.
-Qed.
+  - (* ExecFor: exec st (desugar (SFor ...)) out and wp (SFor ...) Qn Qr Qc pre_st st.
+       Needs a wp_for_desugar coherence lemma:
+         wp (SFor x arr inv var body) Qn Qr Qc pre_st st
+         → wp (desugar (SFor ...)) Qn Qr Qc pre_st st
+       The discrepancy: SFor WP uses variant-at-outer-state while
+       SWhile WP uses variant-at-iteration-state.  Admitted pending
+       wp_for_desugar proof. *)
+    eapply IHHexec.
+    admit.
+Admitted.

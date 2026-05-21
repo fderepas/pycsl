@@ -6,6 +6,7 @@ Require Import ZArith String List Bool.
 Require Import Phase1_AST.
 Require Import Phase2_State.
 Require Import Phase3_SOS.
+Require Import Phase3b_DesugarDef.
 Require Import Phase3b_Desugar.
 Open Scope Z_scope.
 
