@@ -158,7 +158,7 @@ Both are necessary. Neither is sufficient alone.
 | `SSeq` | :37–39 | `handle_seq` (structural) | `_stmts_to_whyml` (2098) | `requires \length(stmts) >= 0` |
 | `SIf` | :41–43 | `handle_if_branch` | inline ~1485 | assigns clause |
 | `SWhile` | :45–66 | `check_while_inv_entry`, `check_while_body_step`, `handle_while_exit` | `_handle_while_stmt` (1446) | loop invariant + loop variant |
-| `SFor` | :68–94 | **omitted** (desugar_correct Admitted) | `_handle_for_stmt` (1543) | `requires stmt["iter_var"] != "_pycsl_idx"` |
+| `SFor` | :68–94 | **proved** (desugar_correct plan-formal-03) | `_handle_for_stmt` (1543) | `requires stmt["iter_var"] != "_pycsl_idx"` |
 | `SReturn` | :96–97 | `handle_return` | inline ~1468 | assigns clause |
 | `SContinue` | :99–100 | `handle_continue` | inline ~1478 | assigns clause |
 
