@@ -44,9 +44,13 @@ def ollama_embed(texts: List[str], model: str | None = None) -> List[List[float]
         List of embedding vectors (one per input text).
     """
     model = model or EMBEDDING_MODEL
+    # nomic-embed-text has an 8192-token context window (~24k chars).
+    # Truncate oversized inputs to avoid Ollama 400 errors.
+    max_chars = 20_000
+    safe_texts = [t[:max_chars] if len(t) > max_chars else t for t in texts]
     body = {
         "model": model,
-        "input": texts,
+        "input": safe_texts,
     }
     req = urllib.request.Request(
         f"{OLLAMA_URL}/api/embed",
