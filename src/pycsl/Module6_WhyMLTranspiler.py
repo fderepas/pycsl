@@ -1498,6 +1498,9 @@ class Module6_WhyMLTranspiler:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
+    #@ requires 1 == 1
+    #@ ensures \result[2] == 0 or \result[2] == 1
+    #@ assigns self._abstract_ops
     def _classify_iterable(self, iter_ir: Dict[str, Any],
                             local_refs: Set[str], idx: str) -> Tuple[str, str, bool]:
         """Classify a For loop's iterable. Returns (len_expr, elem_expr, is_range)."""
