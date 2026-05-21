@@ -28,7 +28,7 @@ Usage Example:
 
 Environment:
     OLLAMA_URL        Ollama base URL (config key: llm-ollama-url)
-    MODEL_NAME        Model tag (default: gemma4:31b)
+    model             Model tag passed by the caller (from agents-config.json)
     PROJECT_ROOT      Path to project workspace (default: ./project)
 """
 
@@ -75,7 +75,6 @@ def _load_ollama_url() -> str:
     return url
 
 
-MODEL_NAME = os.environ.get("MODEL_NAME", "gemma4:31b")
 OLLAMA_URL = _load_ollama_url()
 PROJECT_ROOT = Path(os.environ.get("PROJECT_ROOT", "./project")).resolve()
 
@@ -124,7 +123,7 @@ def write_next_sequential_file(dirname: str, prefix: str, data: str) -> str:
 
 from common import log  # noqa: E402 — re-exported for backward compat
 
-def ollama_generate(prompt: str, system: str, temperature: float, agent_id: str) -> str:
+def ollama_generate(prompt: str, system: str, temperature: float, agent_id: str, model: str = "gemma4:31b") -> str:
     """Send a prompt to the Ollama LLM and return the raw text response.
 
     Logs the request and response to sequentially-numbered files under
@@ -139,6 +138,7 @@ def ollama_generate(prompt: str, system: str, temperature: float, agent_id: str)
         temperature: Sampling temperature (higher = more creative).
         agent_id:    Identifier used as the log-file prefix
                      (e.g. 'planner', 'coder').
+        model:       Ollama model tag (e.g. 'qwen3.6:35b-a3b-mlx-bf16').
 
     Returns:
         The model's response as a plain string.  Callers that expect
@@ -160,7 +160,7 @@ def ollama_generate(prompt: str, system: str, temperature: float, agent_id: str)
     print(f"----------------------{RESET}", file=sys.stderr)
 
     body: dict[str, Any] = {
-        "model": MODEL_NAME,
+        "model": model,
         "prompt": prompt,
         "system": system,
         "stream": False,
@@ -262,32 +262,22 @@ def githubcopilot_generate(prompt: str, system: str, agent_id: str, model: str) 
 def llm_generate(prompt: str, system: str, agent_id: str, model: str) -> str:
     """Dispatch a prompt to the appropriate LLM backend based on the model name.
 
-    Open-weight models are served locally via Ollama; proprietary models are
-    reached through the GitHub Copilot CLI.  If the model name is not found in
-    either list, a ValueError is raised so callers get an explicit error rather
-    than a silent no-op.
+    Proprietary models (claude-*, gpt-*) are routed to the GitHub Copilot CLI.
+    Everything else is assumed to be an Ollama model tag and sent to the local
+    Ollama server — no whitelist maintenance needed for new model variants.
 
     Args:
         prompt:   The user-facing prompt text.
         system:   The system prompt that sets the model's behaviour.
         agent_id: Identifier used as the log-file prefix (e.g. 'planner').
-        model:    Model name, e.g. 'gemma4:31b' or 'claude-opus-4.6'.
+        model:    Model name, e.g. 'qwen3.6:35b-a3b-mlx-bf16' or 'claude-opus-4.6'.
 
     Returns:
         The model's response as a plain string.
-
-    Raises:
-        ValueError: If model is not present in either known model list.
     """
-    open_weight_model_list = ["gemma4:31b", "qwen3.6:35b"]
-    proprietary_model_list = ["claude-opus-4.6", "claude-sonnet-4.6"]
+    proprietary_prefixes = ("claude-", "gpt-")
 
-    if model in open_weight_model_list:
-        return ollama_generate(prompt, system, temperature=0.7, agent_id=agent_id)
-    elif model in proprietary_model_list:
+    if model.startswith(proprietary_prefixes):
         return githubcopilot_generate(prompt, system, agent_id, model)
     else:
-        raise ValueError(
-            f"Unknown model '{model}'. "
-            f"Add it to open_weight_model_list or proprietary_model_list in llm_generate()."
-        )
+        return ollama_generate(prompt, system, temperature=0.7, agent_id=agent_id, model=model)
