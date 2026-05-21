@@ -23,7 +23,12 @@ that already has function-level contracts (#@ requires, #@ ensures, #@ assigns) 
 and add loop invariants and loop variants so the function can be proved correct \
 by SMT solvers via WhyML. In concurrent mode outer while-True loops need no \
 invariant or variant; loops inside critical sections annotate only local variables. \
-NEVER emit #@ \\trusted — it is forbidden."""
+NEVER emit #@ \\trusted — it is forbidden.
+
+CRITICAL: Do NOT modify, rewrite, simplify, or omit any line of the function body. \
+The body must remain EXACTLY as given — character for character. You may ONLY add \
+#@ annotation lines (invariants, variants, ghost assignments). Output the complete \
+function with contracts and invariants between ```python and ```."""
 
 
 def _build_prompt(

@@ -95,7 +95,11 @@ def _build_monolithic_prompt(
         "You are annotating a SINGLE function (not a whole file). "
         "Output ONLY the annotated function with `#@` contract comments. "
         "Do NOT add imports, class definitions, or any code outside this function. "
-        "Output the code between ```python and ```."
+        "Output the code between ```python and ```.\n\n"
+        "CRITICAL: Do NOT modify, rewrite, simplify, or omit any line of the "
+        "function body. The body must remain EXACTLY as given — character for "
+        "character. You may ONLY add `#@` annotation lines before `def` and "
+        "inside loops. Everything else must be unchanged."
     )
 
     if callee_contracts:

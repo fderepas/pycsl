@@ -607,6 +607,51 @@ def _body_preserved(original: str, annotated: str) -> bool:
     return matched >= len(orig_body) * 0.8
 
 
+def _graft_contracts(original: str, annotated: str) -> str:
+    """Extract #@ contract lines from LLM output and graft onto the original body.
+
+    When the LLM modifies the function body (failing _body_preserved), we can
+    still salvage its contract work by extracting the #@ lines and prepending
+    them to the original, untouched function source.
+
+    Returns the original function with LLM-generated contracts prepended before
+    the def line, or empty string if no contracts were found.
+    """
+    # Extract #@ lines from the annotated output (only those before the def line)
+    contract_lines = []
+    for line in annotated.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("#@"):
+            contract_lines.append(stripped)
+        elif re.match(r'\s*def\s+', line):
+            break
+
+    if not contract_lines:
+        return ""
+
+    # Find the def line in the original to get the correct indentation
+    orig_lines = original.splitlines(keepends=True)
+    indent = ""
+    def_idx = -1
+    for i, line in enumerate(orig_lines):
+        m = re.match(r'^(\s*)def\s+', line)
+        if m:
+            indent = m.group(1)
+            def_idx = i
+            break
+
+    if def_idx < 0:
+        return ""
+
+    # Build the contract block with correct indentation
+    contract_block = "".join(f"{indent}{cl}\n" for cl in contract_lines)
+
+    # Insert before the def line
+    result_lines = list(orig_lines)
+    result_lines.insert(def_idx, contract_block)
+    return "".join(result_lines)
+
+
 def _safe_fallback_annotation(info: FunctionInfo) -> str:
     """Return the function with trivially-true contracts as a safe fallback."""
     lines = info.source.splitlines(keepends=True)
@@ -1225,9 +1270,18 @@ def run_splitter(
                 if not annotated:
                     raise RuntimeError("Empty response from writer")
                 if not _body_preserved(info.source, annotated):
-                    log(project_directory, AGENT_NAME,
-                        f"Body stripped for {info.name}, using safe fallback")
-                    raise RuntimeError("Body was stripped by LLM")
+                    # Try grafting: extract #@ lines and attach to original body
+                    grafted = _graft_contracts(info.source, annotated)
+                    if grafted:
+                        log(project_directory, AGENT_NAME,
+                            f"Body modified for {info.name}, trying contract graft")
+                        print(f"    Body modified, grafting contracts...",
+                              file=sys.stderr)
+                        annotated = grafted
+                    else:
+                        log(project_directory, AGENT_NAME,
+                            f"Body stripped for {info.name}, no contracts to graft")
+                        raise RuntimeError("Body was stripped by LLM")
                 valid = _validate_pycsl_syntax(
                     annotated, project_root, project_directory,
                     class_name=info.class_name,
@@ -1261,8 +1315,14 @@ def run_splitter(
                         formal_model_hint=fm_hint,
                         writer_timeout=writer_timeout,
                     ).strip()
-                    if not annotated or not _body_preserved(info.source, annotated):
-                        raise RuntimeError("Repair attempt failed: empty or body stripped")
+                    if not annotated:
+                        raise RuntimeError("Repair attempt failed: empty response")
+                    if not _body_preserved(info.source, annotated):
+                        grafted = _graft_contracts(info.source, annotated)
+                        if grafted:
+                            annotated = grafted
+                        else:
+                            raise RuntimeError("Repair attempt failed: body stripped, no contracts")
                     if not _validate_pycsl_syntax(
                         annotated, project_root, project_directory,
                         class_name=info.class_name,
@@ -1354,10 +1414,21 @@ def run_splitter(
                     if info.name in annotated_funcs:
                         func_annotated = annotated_funcs[info.name]
                         if not _body_preserved(info.source, func_annotated):
-                            log(project_directory, AGENT_NAME,
-                                f"Body stripped for {info.name} in SCC, using fallback")
-                            info.annotated_source = _safe_fallback_annotation(info)
-                        elif not _validate_pycsl_syntax(
+                            grafted = _graft_contracts(info.source, func_annotated)
+                            if grafted:
+                                log(project_directory, AGENT_NAME,
+                                    f"Body modified for {info.name} in SCC, grafting contracts")
+                                func_annotated = grafted
+                            else:
+                                log(project_directory, AGENT_NAME,
+                                    f"Body stripped for {info.name} in SCC, using fallback")
+                                info.annotated_source = _safe_fallback_annotation(info)
+                                info.contracts = _extract_contracts_text(info.annotated_source)
+                                annotated_contracts[info.name] = info.contracts
+                                _checkpoint_save(cache_dir, info.name,
+                                                 info.annotated_source, info.contracts)
+                                continue
+                        if not _validate_pycsl_syntax(
                             func_annotated, project_root, project_directory,
                             class_name=info.class_name,
                             class_invariants_list=class_invariants.get(
@@ -1469,9 +1540,17 @@ def run_splitter(
                     if not annotated:
                         raise RuntimeError("Empty response from writer")
                     if not _body_preserved(info.source, annotated):
-                        log(project_directory, AGENT_NAME,
-                            f"Body stripped for {info.name} in SCC, using safe fallback")
-                        raise RuntimeError("Body was stripped by LLM")
+                        grafted = _graft_contracts(info.source, annotated)
+                        if grafted:
+                            log(project_directory, AGENT_NAME,
+                                f"Body modified for {info.name} in SCC, grafting contracts")
+                            print(f"    Body modified, grafting contracts...",
+                                  file=sys.stderr)
+                            annotated = grafted
+                        else:
+                            log(project_directory, AGENT_NAME,
+                                f"Body stripped for {info.name} in SCC, no contracts to graft")
+                            raise RuntimeError("Body was stripped by LLM")
                     if not _validate_pycsl_syntax(
                         annotated, project_root, project_directory,
                         class_name=info.class_name,
@@ -1501,8 +1580,14 @@ def run_splitter(
                             formal_model_hint=fm_hint,
                             writer_timeout=writer_timeout,
                         ).strip()
-                        if not annotated or not _body_preserved(info.source, annotated):
-                            raise RuntimeError("Repair attempt failed in SCC")
+                        if not annotated:
+                            raise RuntimeError("Repair attempt failed in SCC: empty")
+                        if not _body_preserved(info.source, annotated):
+                            grafted = _graft_contracts(info.source, annotated)
+                            if grafted:
+                                annotated = grafted
+                            else:
+                                raise RuntimeError("Repair attempt failed in SCC: no contracts")
                         if not _validate_pycsl_syntax(
                             annotated, project_root, project_directory,
                             class_name=info.class_name,
