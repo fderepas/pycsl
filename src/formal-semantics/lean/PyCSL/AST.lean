@@ -13,6 +13,7 @@ inductive Expr where
   | int       (n : Int)
   | var       (x : Ident)
   | subscript (arr : Ident) (i : Expr)
+  | len       (arr : Ident)
   | binop     (op : Binop) (e1 e2 : Expr)
   | neg       (e : Expr)
   deriving Repr

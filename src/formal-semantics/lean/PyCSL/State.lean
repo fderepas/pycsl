@@ -44,6 +44,10 @@ def evalExpr (st : State) : Expr → Val
       if 0 ≤ n ∧ n < a.length then .int (a.getD n.toNat 0)
       else .int 0
     | _, _ => .int 0
+  | .len arr =>
+    match lookup st arr with
+    | some (.array a) => .int a.length
+    | _ => .int 0
   | .binop op e1 e2 =>
     match evalExpr st e1, evalExpr st e2 with
     | .int n1, .int n2 => .int (evalBinopZ op n1 n2)

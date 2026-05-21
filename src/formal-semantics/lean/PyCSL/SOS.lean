@@ -8,6 +8,7 @@
 -/
 import PyCSL.AST
 import PyCSL.State
+import PyCSL.DesugarDef
 
 inductive Outcome where
   | normal    (st : State)
@@ -83,6 +84,10 @@ inductive Exec : State → Stmt → Outcome → Prop where
     Exec st (.ret e)
       (.returned (update st "\result" (evalExpr st e)) (evalExpr st e))
 
+  | execFor (st : State) (x arr : Ident) (inv var : ContractExpr) (body : Stmt) (out : Outcome) :
+    Exec st (desugar (.for_ x arr inv var body)) out →
+    Exec st (.for_ x arr inv var body) out
+
 theorem exec_deterministic {st : State} {s : Stmt} {out1 out2 : Outcome}
     (h1 : Exec st s out1) (h2 : Exec st s out2) : out1 = out2 := by
   induction h1 generalizing out2 with
@@ -135,3 +140,6 @@ theorem exec_deterministic {st : State} {s : Stmt} {out1 out2 : Outcome}
     | execWhileFalse => rfl
   | execContinue => cases h2; rfl
   | execReturn => cases h2; rfl
+  | execFor _ _ _ _ _ _ _ hprem ih =>
+    cases h2 with
+    | execFor _ _ _ _ _ _ _ hprem2 => exact ih hprem2

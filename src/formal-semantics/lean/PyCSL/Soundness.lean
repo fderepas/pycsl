@@ -67,3 +67,9 @@ theorem pycsl_soundness
     exact hWp.2.2 st hWp.1 hc
   | execContinue => intro _ _ _ _ hWp; exact hWp
   | execReturn => intro _ _ _ _ hWp; exact hWp
+  | execFor _ _ _ _ _ _ _ hprem ih =>
+    -- Needs wp_for_desugar: wp (.for_ ...) → wp (desugar (.for_ ...))
+    -- The SFor WP uses variant-at-outer-state while SWhile WP uses
+    -- variant-at-iteration-state; a coherence lemma bridges the gap.
+    intro Qn Qr Qc preSt hWp
+    exact ih Qn Qr Qc preSt (by sorry)
