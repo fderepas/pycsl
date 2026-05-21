@@ -15,5 +15,6 @@
   "skill-invariant-writer": "config/skills/invariant-writer/SKILL.md",
   "skill-rocq-prover": "config/skills/rocq-prover/SKILL.md",
   "nomic-embed-text-ollama-url": "http://127.0.0.1:11434",
-  "llm-ollama-url": "http://192.168.1.111:11434"
+  "llm-ollama-url": "http://192.168.1.111:11434",
+  "writer-timeout": 3000
 }

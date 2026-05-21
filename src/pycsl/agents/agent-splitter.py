@@ -253,6 +253,7 @@ def _generate_class_invariants(
     project_root: Path,
     writer_script: Path,
     project_directory: str,
+    writer_timeout: int = 3000,
 ) -> dict[str, list[str]]:
     """Generate class invariant annotations for each class with an __init__.
 
@@ -321,6 +322,7 @@ def _generate_class_invariants(
                 config_path=config_path,
                 project_root=project_root,
                 writer_script=writer_script,
+                    writer_timeout=writer_timeout,
             )
 
             # Parse the result for #@ class invariant lines
@@ -530,6 +532,7 @@ def _invoke_writer(
     catalog_seed: str = "",
     assigns_hint: str = "",
     formal_model_hint: str = "",
+    writer_timeout: int = 3000,
 ) -> str:
     """Call agent-writer.py as a subprocess to annotate a single function."""
     cmd = [
@@ -564,7 +567,7 @@ def _invoke_writer(
         capture_output=True,
         text=True,
         cwd=str(project_root),
-        timeout=300,
+        timeout=writer_timeout,
     )
 
     if result.returncode != 0:
@@ -938,6 +941,7 @@ def run_splitter(
     filter_func: Optional[str] = None,
     resume: bool = False,
     verbose: bool = False,
+    writer_timeout: int = 3000,
 ) -> str:
     """Run the full split-annotate pipeline and return the annotated source.
 
@@ -1050,7 +1054,7 @@ def run_splitter(
         class_invariants = _generate_class_invariants(
             source, target_class_funcs, {},
             memory_model, config_path, project_root, writer_script,
-            project_directory,
+            project_directory, writer_timeout=writer_timeout,
         )
     elif filter_func and not filter_class:
         # --fun only: skip class invariant generation entirely (expensive LLM call)
@@ -1059,7 +1063,7 @@ def run_splitter(
         class_invariants = _generate_class_invariants(
             source, functions, {},
             memory_model, config_path, project_root, writer_script,
-            project_directory,
+            project_directory, writer_timeout=writer_timeout,
         )
 
     # Step 3: Detect SCCs and topological order
@@ -1090,6 +1094,7 @@ def run_splitter(
               file=sys.stderr)
     print(f"  Est. time: ~{int(est_minutes)} min ({est_minutes/60:.1f} hrs)",
           file=sys.stderr)
+    print(f"  Timeout:   {writer_timeout}s per function", file=sys.stderr)
     print(f"{'─'*60}\n", file=sys.stderr)
 
     # Load checkpointed results when --resume is active
@@ -1214,6 +1219,7 @@ def run_splitter(
                     catalog_seed=seed,
                     assigns_hint=hint,
                     formal_model_hint=fm_hint,
+                    writer_timeout=writer_timeout,
                 )
                 annotated = annotated.strip()
                 if not annotated:
@@ -1253,6 +1259,7 @@ def run_splitter(
                         catalog_seed=seed,
                         assigns_hint=hint,
                         formal_model_hint=fm_hint,
+                        writer_timeout=writer_timeout,
                     ).strip()
                     if not annotated or not _body_preserved(info.source, annotated):
                         raise RuntimeError("Repair attempt failed: empty or body stripped")
@@ -1335,6 +1342,7 @@ def run_splitter(
                     module_brief=module_brief,
                     callee_sources=callee_sources,
                     catalog_seed=combined_seed,
+                    writer_timeout=writer_timeout,
                 )
                 annotated = annotated.strip()
                 if not annotated:
@@ -1455,6 +1463,7 @@ def run_splitter(
                         catalog_seed=seed,
                         assigns_hint=hint,
                         formal_model_hint=fm_hint,
+                        writer_timeout=writer_timeout,
                     )
                     annotated = annotated.strip()
                     if not annotated:
@@ -1490,6 +1499,7 @@ def run_splitter(
                             catalog_seed=seed,
                             assigns_hint=hint,
                             formal_model_hint=fm_hint,
+                            writer_timeout=writer_timeout,
                         ).strip()
                         if not annotated or not _body_preserved(info.source, annotated):
                             raise RuntimeError("Repair attempt failed in SCC")
@@ -1645,6 +1655,7 @@ def main():
     config = json.loads(config_path.read_text(encoding="utf-8"))
     project_directory = config.get("project-directory", str(project_root))
     memory_model = config.get("memory-model", "hoare")
+    writer_timeout = int(config.get("writer-timeout", 3000))
 
     input_path = Path(args.in_file)
     output_path = Path(args.out_file)
@@ -1665,6 +1676,7 @@ def main():
             filter_func=args.filter_func,
             resume=args.resume,
             verbose=args.verbose,
+            writer_timeout=writer_timeout,
         )
     except Exception as e:
         log(project_directory, AGENT_NAME, f"Error: {e}")
