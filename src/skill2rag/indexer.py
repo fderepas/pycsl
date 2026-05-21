@@ -62,5 +62,7 @@ def build_index(
         "embeddings": all_embeddings,
     }
 
-    Path(index_path).write_text(json.dumps(index_data), encoding="utf-8")
+    out = Path(index_path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(index_data), encoding="utf-8")
     print(f"Index written to {index_path} ({len(chunks)} chunks, {len(all_embeddings[0])}d vectors)")
