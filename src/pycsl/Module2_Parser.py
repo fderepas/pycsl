@@ -222,7 +222,188 @@ class GhostAssignDecl(CSLNode):
     """Represents `ghost var = expr` or `ghost var += expr` in contracts."""
     target: str
     value: CSLNode
-    op: str  # "=" or "+=" or "-=" or "*="
+    op: str           # "=" or "+=" or "-=" or "*="
+    declared_type: str = "int"   # "int" | "string" | "array" | "list" |
+                                  # "tuple2" | "tuple3" | "tuple4" |
+                                  # "dict" | "set"
+
+# --- Ghost tuple nodes ---
+
+@dataclass
+class MkTupleExpr(CSLNode):
+    """\\mktuple(a, b[, c[, d]]) — construct a ghost tuple."""
+    elts: List[CSLNode]
+
+@dataclass
+class FstExpr(CSLNode):
+    """\\fst(t) — first component of a ghost tuple."""
+    tuple_expr: CSLNode
+
+@dataclass
+class SndExpr(CSLNode):
+    """\\snd(t) — second component of a ghost tuple."""
+    tuple_expr: CSLNode
+
+@dataclass
+class ProjExpr(CSLNode):
+    """\\proj(t, i) — ith component of a ghost tuple (i must be a literal)."""
+    tuple_expr: CSLNode
+    index: CSLNode
+
+# --- Ghost string nodes ---
+
+@dataclass
+class StrConcatExpr(CSLNode):
+    """s ^ t — string concatenation in ghost / contract context."""
+    left: CSLNode
+    right: CSLNode
+
+# --- Ghost array nodes ---
+
+@dataclass
+class GhostCopyExpr(CSLNode):
+    """\\copy(arr) — snapshot of an array into a ghost array."""
+    arr: str   # CNAME of the source array
+
+@dataclass
+class GhostMakeExpr(CSLNode):
+    """\\make(n, v) — create a ghost array of length n filled with v."""
+    size: CSLNode
+    default: CSLNode
+
+# --- Ghost dict nodes ---
+
+@dataclass
+class MapEmptyExpr(CSLNode):
+    """\\empty_map — an empty ghost dictionary (total map defaulting to 0)."""
+    pass
+
+@dataclass
+class MapGetExpr(CSLNode):
+    """\\map_get(d, k) — look up key k in ghost dict d."""
+    dict_expr: CSLNode
+    key: CSLNode
+
+@dataclass
+class MapSetExpr(CSLNode):
+    """\\map_set(d, k, v) — return ghost dict d with d[k] := v."""
+    dict_expr: CSLNode
+    key: CSLNode
+    value: CSLNode
+
+@dataclass
+class MapEqExpr(CSLNode):
+    """\\map_eq(d1, d2) — extensional equality of two ghost dicts."""
+    left: CSLNode
+    right: CSLNode
+
+# --- Ghost set nodes ---
+
+@dataclass
+class SetEmptyExpr(CSLNode):
+    """\\set_empty — the empty ghost set."""
+    pass
+
+@dataclass
+class SetAddExpr(CSLNode):
+    """\\set_add(s, x) — ghost set with x added."""
+    set_expr: CSLNode
+    elem: CSLNode
+
+@dataclass
+class SetRemoveExpr(CSLNode):
+    """\\set_remove(s, x) — ghost set with x removed."""
+    set_expr: CSLNode
+    elem: CSLNode
+
+@dataclass
+class SetMemExpr(CSLNode):
+    """\\set_mem(x, s) — x is a member of ghost set s."""
+    elem: CSLNode
+    set_expr: CSLNode
+
+@dataclass
+class SetUnionExpr(CSLNode):
+    """\\set_union(s1, s2) — union of two ghost sets."""
+    left: CSLNode
+    right: CSLNode
+
+@dataclass
+class SetInterExpr(CSLNode):
+    """\\set_inter(s1, s2) — intersection of two ghost sets."""
+    left: CSLNode
+    right: CSLNode
+
+@dataclass
+class SetDiffExpr(CSLNode):
+    """\\set_diff(s1, s2) — set difference s1 \\ s2."""
+    left: CSLNode
+    right: CSLNode
+
+@dataclass
+class SetCardExpr(CSLNode):
+    """\\set_card(s, lo, hi) — cardinality of s restricted to [lo, hi)."""
+    set_expr: CSLNode
+    lo: CSLNode
+    hi: CSLNode
+
+@dataclass
+class SetSubsetExpr(CSLNode):
+    """\\set_subset(s1, s2) — s1 is a subset of s2."""
+    left: CSLNode
+    right: CSLNode
+
+@dataclass
+class SetEqExpr(CSLNode):
+    """\\set_eq(s1, s2) — extensional equality of two ghost sets."""
+    left: CSLNode
+    right: CSLNode
+
+# --- Ghost list nodes ---
+
+@dataclass
+class NilExpr(CSLNode):
+    """\\nil — the empty ghost list."""
+    pass
+
+@dataclass
+class ConsExpr(CSLNode):
+    """\\cons(x, l) — prepend x to ghost list l."""
+    head: CSLNode
+    tail: CSLNode
+
+@dataclass
+class HdExpr(CSLNode):
+    """\\hd(l) — head of ghost list l (requires l non-empty)."""
+    list_expr: CSLNode
+
+@dataclass
+class TlExpr(CSLNode):
+    """\\tl(l) — tail of ghost list l (requires l non-empty)."""
+    list_expr: CSLNode
+
+@dataclass
+class ListLengthExpr(CSLNode):
+    """\\list_length(l) — length of ghost list l."""
+    list_expr: CSLNode
+
+@dataclass
+class NthExpr(CSLNode):
+    """\\nth(l, i) — ith element of ghost list l (requires 0 <= i < length)."""
+    list_expr: CSLNode
+    index: CSLNode
+
+@dataclass
+class MemExpr(CSLNode):
+    """\\mem(x, l) — x appears in ghost list l."""
+    elem: CSLNode
+    list_expr: CSLNode
+
+@dataclass
+class AppendExpr(CSLNode):
+    """\\append(l1, l2) — concatenation of two ghost lists."""
+    left: CSLNode
+    right: CSLNode
 
 @dataclass
 class RaisesDecl(CSLNode):

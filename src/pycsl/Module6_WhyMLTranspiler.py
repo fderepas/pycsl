@@ -1534,6 +1534,9 @@ class Module6_WhyMLTranspiler:
         self._add_abstract_op("val iter_get (x: int) (i: int) : int")
         return f"(iter_length {iter_expr})", f"(iter_get {iter_expr} !{idx})", False
 
+    #@ requires 1 == 1
+    #@ ensures self._havoc_counter >= \old(self._havoc_counter)
+    #@ assigns self._in_spec, self._abstract_ops, self._havoc_counter
     def _handle_for_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
                           local_refs: Set[str], declared_refs: Set[str],
                           indent: str, in_loop: bool) -> str:
@@ -1562,6 +1565,9 @@ class Module6_WhyMLTranspiler:
         invariants_f = stmt.get("invariants", [])
         n_inv_f = len(invariants_f)
         i_inv_f = 0
+        #@ loop invariant 0 <= i_inv_f and i_inv_f <= n_inv_f
+        #@ loop invariant self._havoc_counter >= \old(self._havoc_counter)
+        #@ loop variant n_inv_f - i_inv_f
         while i_inv_f < n_inv_f:
             inv = invariants_f[i_inv_f]
             inv_str = self._expr_to_whyml(inv, inv_refs, subst=inv_subst)
@@ -1570,6 +1576,9 @@ class Module6_WhyMLTranspiler:
         variants_f = stmt.get("variants", [])
         n_var_f = len(variants_f)
         i_var_f = 0
+        #@ loop invariant 0 <= i_var_f and i_var_f <= n_var_f
+        #@ loop invariant self._havoc_counter >= \old(self._havoc_counter)
+        #@ loop variant n_var_f - i_var_f
         while i_var_f < n_var_f:
             var_ir = variants_f[i_var_f]
             var_str = self._expr_to_whyml(var_ir, inv_refs, subst=inv_subst)
