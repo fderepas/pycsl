@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Annotate a Python file with formal verification contracts using the PyCSL
-# multi-agent LLM pipeline + progressive prove-and-strip.
+# multi-agent LLM pipeline.
 #
 # Usage:
 #   ./bin/annotate.sh <input.py>                  # annotate in-place
@@ -22,21 +22,16 @@ Usage: $(basename "$0") [OPTIONS] <input.py>
 Annotate a Python file with formal verification contracts (requires, ensures,
 assigns, loop invariants, loop variants) using the PyCSL multi-agent pipeline.
 
-By default, uses --trusted mode: generates real contracts via LLM, marks all
-functions #@ \\trusted, then progressively proves bottom-up and removes
-\\trusted from functions that pass verification.
-
 Arguments:
   <input.py>          Python source file to annotate
 
 Options:
   --out <file>        Write annotated output to <file> (default: overwrite input)
-  --no-trusted        Skip the --trusted progressive verification (plain annotation)
   -h, --help          Show this help message
 
 Log files for troubleshooting (appended on each run):
   $LOG_DIR/agent-annotate.log
-      Main annotation agent — pipeline decisions, guard warnings, prove-and-strip results
+      Main annotation agent — pipeline decisions, guard warnings
 
   $LOG_DIR/agent-splitter.log
       Call-graph analysis, topological ordering, per-function orchestration
@@ -59,14 +54,13 @@ Tip: To watch progress in real-time:
 Examples:
   $(basename "$0") self/Module1_Ingestor.py
   $(basename "$0") src/pycsl/pycsl.py --out annotated_pycsl.py
-  $(basename "$0") --no-trusted tests/to_annotate/001-basic-control-flow.py
+  $(basename "$0") tests/to_annotate/001-basic-control-flow.py
 EOF
 }
 
 # Parse arguments
 INPUT_FILE=""
 OUTPUT_FILE=""
-TRUSTED_FLAG="--trusted"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -81,10 +75,6 @@ while [[ $# -gt 0 ]]; do
             fi
             OUTPUT_FILE="$2"
             shift 2
-            ;;
-        --no-trusted)
-            TRUSTED_FLAG=""
-            shift
             ;;
         -*)
             echo "Error: unknown option '$1'" >&2
@@ -135,11 +125,6 @@ echo "║  PyCSL Annotation Pipeline                                  ║"
 echo "╠══════════════════════════════════════════════════════════════╣"
 echo "║  Input:  $INPUT_FILE"
 echo "║  Output: $OUTPUT_FILE"
-if [[ -n "$TRUSTED_FLAG" ]]; then
-    echo "║  Mode:   --trusted (progressive verification)"
-else
-    echo "║  Mode:   plain annotation (no prove-and-strip)"
-fi
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -147,7 +132,6 @@ echo ""
 AGENT_STDOUT_LOG="$LOG_DIR/agent-annotate-stdout.log"
 set +e
 python src/pycsl/agents/agent-annotate.py \
-    $TRUSTED_FLAG \
     --in "$INPUT_FILE" \
     --out "$OUTPUT_FILE" \
     > "$AGENT_STDOUT_LOG" 2>&1

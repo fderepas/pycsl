@@ -15,6 +15,8 @@ Input (JSON on stdin):
   - function_source: str    — the raw function source code to annotate
   - callee_contracts: str   — #@ contract lines of already-annotated callees
   - class_context: str      — optional class header + __init__ for method context
+  - module_brief: str       — optional module-level architectural brief
+  - callee_sources: str     — optional source snippets of key callees
 
 CLI args:
   --memory-model {hoare|typed|store}
@@ -46,6 +48,7 @@ def _build_monolithic_prompt(
     callee_contracts: str,
     class_context: str,
     memory_model: str,
+    module_brief: str = "",
 ) -> str:
     """Build the legacy single-LLM-call prompt (used as fallback)."""
     _model_notes = {
@@ -78,6 +81,14 @@ def _build_monolithic_prompt(
     )
 
     parts = [skill_content, memory_ctx]
+
+    if module_brief:
+        parts.append(
+            "\n\n# MODULE CONTEXT\n"
+            "This function belongs to the following module. Use this to understand "
+            "the architectural role and naming conventions.\n\n"
+            + module_brief
+        )
 
     parts.append(
         "\n\n# TASK\n"
@@ -118,6 +129,11 @@ def _run_3agent_pipeline(
     invariant_writer_skill: str,
     model: str,
     project_directory: str,
+    module_brief: str = "",
+    callee_sources: str = "",
+    catalog_seed: str = "",
+    assigns_hint: str = "",
+    formal_model_hint: str = "",
 ) -> str:
     """Run the 3-agent pipeline: english → contracts → invariants.
 
@@ -148,6 +164,11 @@ def _run_3agent_pipeline(
         skill_content=english_writer_skill,
         model=model,
         project_directory=project_directory,
+        module_brief=module_brief,
+        callee_contracts=callee_contracts,
+        callee_sources=callee_sources,
+        catalog_seed=catalog_seed,
+        formal_model_hint=formal_model_hint,
     )
     if not english_desc.strip():
         raise RuntimeError("English writer returned empty description")
@@ -162,6 +183,10 @@ def _run_3agent_pipeline(
         skill_content=contract_writer_skill,
         model=model,
         project_directory=project_directory,
+        module_brief=module_brief,
+        callee_contracts=callee_contracts,
+        catalog_seed=catalog_seed,
+        assigns_hint=assigns_hint,
     )
     if not contracts.strip():
         raise RuntimeError("Contract writer returned empty contracts")
@@ -178,6 +203,7 @@ def _run_3agent_pipeline(
         task_skill_content=invariant_writer_skill,
         model=model,
         project_directory=project_directory,
+        module_brief=module_brief,
     )
     if not annotated.strip():
         raise RuntimeError("Invariant writer returned empty output")
@@ -233,6 +259,11 @@ def main():
     function_source = input_data.get("function_source", "")
     callee_contracts = input_data.get("callee_contracts", "")
     class_context = input_data.get("class_context", "")
+    module_brief = input_data.get("module_brief", "")
+    callee_sources = input_data.get("callee_sources", "")
+    catalog_seed = input_data.get("catalog_seed", "")
+    assigns_hint = input_data.get("assigns_hint", "")
+    formal_model_hint = input_data.get("formal_model_hint", "")
 
     if not function_source.strip():
         log(project_directory, AGENT_NAME, "Error: empty function_source")
@@ -299,6 +330,11 @@ def main():
             invariant_writer_skill=invariant_writer_skill,
             model=model,
             project_directory=project_directory,
+            module_brief=module_brief,
+            callee_sources=callee_sources,
+            catalog_seed=catalog_seed,
+            assigns_hint=assigns_hint,
+            formal_model_hint=formal_model_hint,
         )
         log(project_directory, AGENT_NAME, "3-agent pipeline succeeded\n")
     except Exception as e:
@@ -310,6 +346,7 @@ def main():
             callee_contracts=callee_contracts,
             class_context=class_context,
             memory_model=args.memory_model,
+            module_brief=module_brief,
         )
         try:
             generated_code = llm_generate(

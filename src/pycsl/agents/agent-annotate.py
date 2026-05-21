@@ -24,7 +24,7 @@ _ESSENTIAL_QUERIES = [
 
 # Any #@ annotation line (with optional leading whitespace)
 _RE_ANN = re.compile(r'^\s*#@')
-# \trusted annotation
+# \trusted annotation (used by targeted guards for dict-subscript and external-type functions)
 _RE_TRUSTED = re.compile(r'^\s*#@\s*\\trusted\b')
 # Function definition: captures (indent, func_name)
 _RE_DEF = re.compile(r'^([ \t]*)def\s+(\w+)\s*\(')
@@ -49,172 +49,6 @@ class GuardPipeline:
         self.code = transform(self.code)
 
 
-def _annotate_trusted(source: str, project_directory: str) -> str:
-    """Insert #@ \\trusted before every annotated non-dunder function/method.
-
-    This assumes the source already has real contracts (#@ requires, ensures, etc.)
-    from the LLM pipeline. We add \\trusted as temporary scaffolding so the file
-    compiles before individual proofs are verified. The prove-and-strip phase will
-    progressively remove \\trusted as functions pass verification.
-    """
-    lines = source.splitlines(keepends=True)
-    result: list[str] = []
-    i = 0
-    while i < len(lines):
-        line = lines[i]
-        # Detect a def line (possibly preceded by #@ annotations)
-        def_m = _RE_DEF.match(line)
-        if def_m:
-            indent = def_m.group(1)
-            func_name = def_m.group(2)
-            # Skip dunders
-            is_dunder = func_name.startswith('__') and func_name.endswith('__')
-            if not is_dunder:
-                # Check if \trusted is already present in the preceding annotation block
-                has_trusted = False
-                k = len(result) - 1
-                while k >= 0:
-                    prev = result[k].strip()
-                    if prev.startswith('#@'):
-                        if _RE_TRUSTED.match(prev):
-                            has_trusted = True
-                            break
-                        k -= 1
-                    else:
-                        break
-                if not has_trusted:
-                    # Insert \trusted right before the def (after any existing #@ lines)
-                    # Find where to insert: just before this def line
-                    result.append(f"{indent}#@ \\trusted\n")
-        result.append(line)
-        i += 1
-
-    count = sum(1 for l in result if _RE_TRUSTED.match(l))
-    log(project_directory, AGENT_NAME,
-        f"[trusted] Inserted \\trusted on {count} functions")
-    return ''.join(result)
-
-
-def _prove_and_strip(
-    annotated_code: str,
-    input_path: Path,
-    project_root: Path,
-    project_directory: str,
-) -> str:
-    """Bottom-up prove-and-strip: try verifying each function, remove \\trusted if it passes.
-
-    Processes functions in topological order (leaves first) using the call graph.
-    For each function:
-      1. Create temp file with \\trusted removed from ONLY this function
-      2. Run pycsl --no-proof on it (checks WhyML generation)
-      3. If passes: permanently remove \\trusted
-      4. If fails: keep \\trusted
-
-    Returns the code with some \\trusted removed.
-    """
-    import subprocess
-    import tempfile
-
-    # Parse to find functions and their topological order
-    try:
-        tree = _ast_module.parse(annotated_code)
-    except SyntaxError:
-        log(project_directory, AGENT_NAME,
-            "[prove-strip] Cannot parse annotated code, skipping prove-and-strip")
-        return annotated_code
-
-    # Build list of function names and their \trusted line positions
-    lines = annotated_code.splitlines(keepends=True)
-
-    # Find all (func_name, trusted_line_idx) pairs
-    trusted_funcs: list[tuple[str, int]] = []
-    for i, line in enumerate(lines):
-        if _RE_TRUSTED.match(line):
-            # Find the next def line after this
-            for j in range(i + 1, min(i + 20, len(lines))):
-                def_m = re.match(r'\s*def\s+(\w+)\s*\(', lines[j])
-                if def_m:
-                    trusted_funcs.append((def_m.group(1), i))
-                    break
-                # Stop if we hit non-#@ non-blank line that isn't a def
-                stripped = lines[j].strip()
-                if stripped and not stripped.startswith('#@') and not stripped.startswith('def'):
-                    break
-
-    if not trusted_funcs:
-        log(project_directory, AGENT_NAME, "[prove-strip] No \\trusted functions found")
-        return annotated_code
-
-    log(project_directory, AGENT_NAME,
-        f"[prove-strip] Attempting verification of {len(trusted_funcs)} functions")
-
-    # Try to build call-graph ordering for bottom-up
-    # Simple heuristic: try each function, process in order of success (leaves tend to pass first)
-    pycsl_script = project_root / "src" / "pycsl" / "pycsl.py"
-    removed_indices: set[int] = set()
-    proved = 0
-    failed = 0
-
-    for func_name, trusted_idx in trusted_funcs:
-        # Find the def line for this function
-        def_line_text = ''
-        for k in range(trusted_idx + 1, min(trusted_idx + 20, len(lines))):
-            if re.match(r'\s*def\s+\w+\s*\(', lines[k]):
-                def_line_text = lines[k]
-                break
-        # Skip functions with external-type params — they can never pass pycsl
-        if re.search(r':\s*(?:cst|libcst)\.\w+', def_line_text):
-            log(project_directory, AGENT_NAME,
-                f"[prove-strip] ⊘ {func_name} — external types, skipping")
-            continue
-
-        # Create temp version with this function's \trusted removed
-        test_lines = list(lines)
-        test_lines[trusted_idx] = ''  # Remove the \trusted line
-
-        # Write to temp file
-        try:
-            with tempfile.NamedTemporaryFile(
-                mode='w', suffix='.py', dir=str(project_root / 'tmp'),
-                delete=False, encoding='utf-8'
-            ) as tf:
-                tf.write(''.join(test_lines))
-                tmp_path = tf.name
-
-            # Run pycsl --no-proof
-            result = subprocess.run(
-                [sys.executable, str(pycsl_script), '--no-proof', tmp_path],
-                capture_output=True, text=True,
-                cwd=str(project_root),
-                timeout=60,
-            )
-
-            if result.returncode == 0 and 'SUCCESS' in result.stdout:
-                # Proof passed — permanently remove \trusted
-                removed_indices.add(trusted_idx)
-                proved += 1
-                log(project_directory, AGENT_NAME,
-                    f"[prove-strip] ✓ {func_name} — proved, \\trusted removed")
-                # Update lines for subsequent attempts (so they see the removal)
-                lines[trusted_idx] = ''
-            else:
-                failed += 1
-                log(project_directory, AGENT_NAME,
-                    f"[prove-strip] ✗ {func_name} — failed, \\trusted kept")
-        except Exception as e:
-            failed += 1
-            log(project_directory, AGENT_NAME,
-                f"[prove-strip] ✗ {func_name} — error: {e}")
-        finally:
-            try:
-                Path(tmp_path).unlink(missing_ok=True)
-            except Exception:
-                pass
-
-    log(project_directory, AGENT_NAME,
-        f"[prove-strip] Summary: {proved} proved, {failed} remaining \\trusted")
-
-    return ''.join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -2022,10 +1856,6 @@ def main():
     parser = argparse.ArgumentParser(description="Annotate Python programs with logical pre and post conditions.")
     parser.add_argument('--in', dest='in_file_name', required=True, help="Path to the input program to annotate.")
     parser.add_argument('--out', dest='out_file_name', required=True, help="Path to the generated annotated program.")
-    parser.add_argument('--trusted', action='store_true',
-                        help="Progressive verification: annotate with real contracts via LLM, "
-                             "mark all functions #@ \\trusted, then prove bottom-up and "
-                             "remove \\trusted from functions that pass verification.")
     args = parser.parse_args()
 
     script_dir = Path(__file__).parent.resolve()
@@ -2081,11 +1911,6 @@ def main():
     except Exception as e:
         log(project_directory, AGENT_NAME, f"Error reading input file {in_file_path}: {e}")
         sys.exit(1)
-
-    # --trusted: Run the normal LLM annotation pipeline first, then add \trusted
-    # to all functions as scaffolding. The prove-and-strip phase (below) will
-    # progressively remove \trusted from functions that pass verification.
-    # (The flag changes post-processing only, not the LLM call itself.)
 
     # Count annotatable functions to decide: splitter path vs direct LLM path.
     # Multi-function files benefit from bottom-up per-function annotation via the
@@ -2312,14 +2137,6 @@ def main():
     pipeline.apply("body-preservation", _guard_body_preservation(input_code))
 
     generated_code = pipeline.code
-
-    # --trusted: inject #@ \trusted before every non-dunder function, then
-    # run prove-and-strip to progressively remove \trusted from provable functions.
-    if args.trusted:
-        generated_code = _annotate_trusted(generated_code, project_directory)
-        generated_code = _prove_and_strip(
-            generated_code, in_file_path, project_root, project_directory
-        )
 
     # Guard: libcst (Module1_Ingestor) assigns all comment/blank lines at the
     # very top of a file to Module.header rather than to the first statement's

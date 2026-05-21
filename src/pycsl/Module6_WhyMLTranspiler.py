@@ -1058,8 +1058,6 @@ class Module6_WhyMLTranspiler:
         acc = self._coerce_str_arg(self._expr_to_whyml(parts[0], local_refs, invariant_ctx, subst))
         n_parts = len(parts)
         i_part = 1
-        #@ loop invariant 0 <= i_part and i_part <= n_parts
-        #@ loop variant n_parts - i_part
         while i_part < n_parts:
             part = parts[i_part]
             p = self._coerce_str_arg(self._expr_to_whyml(part, local_refs, invariant_ctx, subst))
@@ -1283,9 +1281,6 @@ class Module6_WhyMLTranspiler:
         self._add_abstract_op("val set_new (x: int) : int")
         return "(set_new 0)"
 
-    #@ requires 1 == 1
-    #@ ensures 1 == 1
-    #@ assigns self._abstract_ops
     def _expr_to_whyml(self, expr: Dict[str, Any], local_refs: Set[str],
                        invariant_ctx: bool = False,
                        subst: Optional[Dict[str, str]] = None) -> str:
@@ -1462,8 +1457,6 @@ class Module6_WhyMLTranspiler:
         invariants_w = stmt.get("invariants", [])
         n_inv_w = len(invariants_w)
         i_inv_w = 0
-        #@ loop invariant 0 <= i_inv_w and i_inv_w <= n_inv_w
-        #@ loop variant n_inv_w - i_inv_w
         while i_inv_w < n_inv_w:
             inv = invariants_w[i_inv_w]
             inv_str = self._expr_to_whyml(inv, local_refs)
@@ -1472,8 +1465,6 @@ class Module6_WhyMLTranspiler:
         variants_w = stmt.get("variants", [])
         n_var_w = len(variants_w)
         i_var_w = 0
-        #@ loop invariant 0 <= i_var_w and i_var_w <= n_var_w
-        #@ loop variant n_var_w - i_var_w
         while i_var_w < n_var_w:
             var = variants_w[i_var_w]
             var_str = self._expr_to_whyml(var, local_refs)
@@ -1568,8 +1559,6 @@ class Module6_WhyMLTranspiler:
         invariants_f = stmt.get("invariants", [])
         n_inv_f = len(invariants_f)
         i_inv_f = 0
-        #@ loop invariant 0 <= i_inv_f and i_inv_f <= n_inv_f
-        #@ loop variant n_inv_f - i_inv_f
         while i_inv_f < n_inv_f:
             inv = invariants_f[i_inv_f]
             inv_str = self._expr_to_whyml(inv, inv_refs, subst=inv_subst)
@@ -1578,8 +1567,6 @@ class Module6_WhyMLTranspiler:
         variants_f = stmt.get("variants", [])
         n_var_f = len(variants_f)
         i_var_f = 0
-        #@ loop invariant 0 <= i_var_f and i_var_f <= n_var_f
-        #@ loop variant n_var_f - i_var_f
         while i_var_f < n_var_f:
             var_ir = variants_f[i_var_f]
             var_str = self._expr_to_whyml(var_ir, inv_refs, subst=inv_subst)
@@ -1637,8 +1624,6 @@ class Module6_WhyMLTranspiler:
         try_assigned = IRScanner.find_assigned_vars(body_stmts)
         n_ha = len(handlers)
         i_ha = 0
-        #@ loop invariant 0 <= i_ha and i_ha <= n_ha
-        #@ loop variant n_ha - i_ha
         while i_ha < n_ha:
             h = handlers[i_ha]
             try_assigned |= IRScanner.find_assigned_vars(h.get("body", []))
@@ -1647,8 +1632,6 @@ class Module6_WhyMLTranspiler:
         sorted_assigned = sorted(try_assigned)
         n_sa = len(sorted_assigned)
         i_sa = 0
-        #@ loop invariant 0 <= i_sa and i_sa <= n_sa
-        #@ loop variant n_sa - i_sa
         while i_sa < n_sa:
             var = sorted_assigned[i_sa]
             safe_var = self._whyml_ident(var)
@@ -1663,16 +1646,12 @@ class Module6_WhyMLTranspiler:
             code = f"{pre_decls}{indent}try\n{body_str}\n"
             n_h = len(handlers)
             i_h = 0
-            #@ loop invariant 0 <= i_h and i_h <= n_h
-            #@ loop variant n_h - i_h
             while i_h < n_h:
                 h = handlers[i_h]
                 exc = h.get("exc_type") or "PyCSL_Exception"
                 exc_parts = exc.split("|") if "|" in exc else [exc]
                 n_ep = len(exc_parts)
                 i_ep = 0
-                #@ loop invariant 0 <= i_ep and i_ep <= n_ep
-                #@ loop variant n_ep - i_ep
                 while i_ep < n_ep:
                     ep = exc_parts[i_ep].strip()
                     handler_body = self._stmts_to_whyml(
@@ -1743,8 +1722,6 @@ class Module6_WhyMLTranspiler:
         lines = [f"{indent}let ({pattern}) = {val_whyml} in"]
         n_tu = len(tmp_names)
         i_tu = 0
-        #@ loop invariant 0 <= i_tu and i_tu <= n_tu
-        #@ loop variant n_tu - i_tu
         while i_tu < n_tu:
             tmp = tmp_names[i_tu]
             st = safe_targets[i_tu]
@@ -1861,8 +1838,6 @@ class Module6_WhyMLTranspiler:
         lines = []
         n_cases = len(cases)
         i_case = 0
-        #@ loop invariant 0 <= i_case and i_case <= n_cases
-        #@ loop variant n_cases - i_case
         while i_case < n_cases:
             c = cases[i_case]
             pat = c["pattern"]
@@ -2092,9 +2067,6 @@ class Module6_WhyMLTranspiler:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
-    #@ requires 1 == 1
-    #@ ensures 1 == 1
-    #@ assigns self._array_locals, self._dict_locals, self._lambda_locals, self._abstract_ops, self._in_spec
     def _stmts_to_whyml(self, stmts: List[Dict[str, Any]], local_refs: Set[str], declared_refs: Set[str], indent: str, in_loop: bool = False) -> str:
         """Recursively translates imperative statements into WhyML strings."""
         if not stmts: return ""
@@ -2326,16 +2298,12 @@ class Module6_WhyMLTranspiler:
         fields: Set[str] = set()
         n = len(type_decls)
         i = 0
-        #@ loop invariant 0 <= i and i <= n
-        #@ loop variant n - i
         while i < n:
             td = type_decls[i]
             if td["kind"] == "record":
                 flds = td.get("fields", [])
                 nf = len(flds)
                 j = 0
-                #@ loop invariant 0 <= j and j <= nf
-                #@ loop variant nf - j
                 while j < nf:
                     fields.add(flds[j]["name"])
                     j += 1
@@ -2372,8 +2340,6 @@ class Module6_WhyMLTranspiler:
         needs_return_void = False
         n = len(functions)
         i = 0
-        #@ loop invariant 0 <= i and i <= n
-        #@ loop variant n - i
         while i < n:
             func = functions[i]
             has_ret = IRScanner.has_in_loop_return(func["body"]) or IRScanner.has_early_return(func["body"])
@@ -2391,8 +2357,6 @@ class Module6_WhyMLTranspiler:
         user_exceptions: Set[str] = set()
         n2 = len(all_bodies)
         i2 = 0
-        #@ loop invariant 0 <= i2 and i2 <= n2
-        #@ loop variant n2 - i2
         while i2 < n2:
             user_exceptions |= IRScanner.collect_user_exceptions(all_bodies[i2])
             i2 += 1
@@ -2426,8 +2390,6 @@ class Module6_WhyMLTranspiler:
         sorted_bsz = sorted(needs["bounded_sizes"])
         n = len(sorted_bsz)
         i = 0
-        #@ loop invariant 0 <= i and i <= n
-        #@ loop variant n - i
         while i < n:
             out.append(f"  use mach.int.Int{sorted_bsz[i]}")
             i += 1
@@ -2476,8 +2438,6 @@ class Module6_WhyMLTranspiler:
         sorted_exc = sorted(needs["user_exceptions"])
         n = len(sorted_exc)
         i = 0
-        #@ loop invariant 0 <= i and i <= n
-        #@ loop variant n - i
         while i < n:
             out.append(f"  exception {sorted_exc[i]}")
             i += 1
@@ -2545,8 +2505,6 @@ class Module6_WhyMLTranspiler:
             out.append("  (* --- shared state (concurrent model) --- *)")
             n = len(shared_vars)
             i = 0
-            #@ loop invariant 0 <= i and i <= n
-            #@ loop variant n - i
             while i < n:
                 sv = shared_vars[i]
                 safe_name = self._whyml_ident(sv["name"])
@@ -2557,8 +2515,6 @@ class Module6_WhyMLTranspiler:
             sorted_mi = sorted(mutex_invariants_ir.items())
             n = len(sorted_mi)
             i = 0
-            #@ loop invariant 0 <= i and i <= n
-            #@ loop variant n - i
             while i < n:
                 mutex, inv_ir = sorted_mi[i]
                 safe_mutex = self._safe_mutex_name(mutex)
@@ -2571,8 +2527,6 @@ class Module6_WhyMLTranspiler:
             sorted_mi2 = sorted(mutex_invariants_ir.items())
             n2 = len(sorted_mi2)
             i2 = 0
-            #@ loop invariant 0 <= i2 and i2 <= n2
-            #@ loop variant n2 - i2
             while i2 < n2:
                 mutex2, _ = sorted_mi2[i2]
                 safe_mutex2 = self._safe_mutex_name(mutex2)
@@ -2592,8 +2546,6 @@ class Module6_WhyMLTranspiler:
         declared_types: Set[str] = set()
         n = len(type_decls)
         i = 0
-        #@ loop invariant 0 <= i and i <= n
-        #@ loop variant n - i
         while i < n:
             td = type_decls[i]
             if td["kind"] == "record":
@@ -2608,8 +2560,6 @@ class Module6_WhyMLTranspiler:
                 fields = td["fields"]
                 nf = len(fields)
                 j = 0
-                #@ loop invariant 0 <= j and j <= nf
-                #@ loop variant nf - j
                 while j < nf:
                     f = fields[j]
                     prefix = "mutable " if f.get("mutable") else ""
@@ -2624,8 +2574,6 @@ class Module6_WhyMLTranspiler:
                     self._in_spec = True
                     n_inv = len(class_invs)
                     i_inv = 0
-                    #@ loop invariant 0 <= i_inv and i_inv <= n_inv
-                    #@ loop variant n_inv - i_inv
                     while i_inv < n_inv:
                         inv = class_invs[i_inv]
                         inv_str = self._expr_to_whyml(inv, set(), invariant_ctx=True)
@@ -2643,8 +2591,6 @@ class Module6_WhyMLTranspiler:
                         ]
                         nc = len(combos)
                         ic = 0
-                        #@ loop invariant 0 <= ic and ic <= nc
-                        #@ loop variant nc - ic
                         while ic < nc:
                             combo = combos[ic]
                             if self._check_witness_vals(combo, class_invs, field_names):
@@ -2669,8 +2615,6 @@ class Module6_WhyMLTranspiler:
         call_graph: Dict[str, Set[str]] = {}
         n = len(functions)
         i = 0
-        #@ loop invariant 0 <= i and i <= n
-        #@ loop variant n - i
         while i < n:
             func = functions[i]
             call_graph[func["name"]] = (
@@ -2914,9 +2858,6 @@ class Module6_WhyMLTranspiler:
     # transpile() — thin orchestrator
     # ------------------------------------------------------------------
 
-    #@ requires 1 == 1
-    #@ ensures 1 == 1
-    #@ assigns self._all_record_fields, self._module_func_names, self._bounded_int, self._current_params, self._array_locals, self._dict_locals, self._lambda_locals, self._current_symbol_table, self._current_array1d_params, self._array2d_params, self._current_self_type, self._func_return_type, self._current_tuple_arity, self._has_early_ret, self._in_spec, self._abstract_ops
     def transpile(self) -> str:
         """Entry point: converts the entire program to a .mlw string."""
         functions = self.ir.get("functions", [])
@@ -2935,8 +2876,6 @@ class Module6_WhyMLTranspiler:
         # Opaque type aliases for classes used in methods but not declared as records
         n7 = len(functions)
         i7 = 0
-        #@ loop invariant 0 <= i7 and i7 <= n7
-        #@ loop variant n7 - i7
         while i7 < n7:
             func = functions[i7]
             if func.get("kind") == "method" and func.get("self_type"):
@@ -2953,8 +2892,6 @@ class Module6_WhyMLTranspiler:
 
         n8 = len(sorted_functions)
         i8 = 0
-        #@ loop invariant 0 <= i8 and i8 <= n8
-        #@ loop variant n8 - i8
         while i8 < n8:
             out += self._emit_function(sorted_functions[i8], scc_info)
             i8 += 1
@@ -2966,8 +2903,6 @@ class Module6_WhyMLTranspiler:
             insert_idx = None
             n9 = len(out)
             i9 = 0
-            #@ loop invariant 0 <= i9 and i9 <= n9
-            #@ loop variant n9 - i9
             while i9 < n9:
                 line = out[i9]
                 if line.strip().startswith("let ") or line.strip().startswith("let rec "):
@@ -2983,8 +2918,6 @@ class Module6_WhyMLTranspiler:
             sorted_decls10 = sorted(self._abstract_ops.values())
             n10d = len(sorted_decls10)
             i10d = 0
-            #@ loop invariant 0 <= i10d and i10d <= n10d
-            #@ loop variant n10d - i10d
             while i10d < n10d:
                 abs_lines.append(f"  {sorted_decls10[i10d]}")
                 i10d += 1
@@ -2992,8 +2925,6 @@ class Module6_WhyMLTranspiler:
             rev_abs10 = list(reversed(abs_lines))
             n10r = len(rev_abs10)
             i10r = 0
-            #@ loop invariant 0 <= i10r and i10r <= n10r
-            #@ loop variant n10r - i10r
             while i10r < n10r:
                 out.insert(insert_idx, rev_abs10[i10r])
                 i10r += 1

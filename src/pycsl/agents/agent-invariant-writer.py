@@ -22,7 +22,8 @@ You are a formal verification engineer. Your job is to take a Python function \
 that already has function-level contracts (#@ requires, #@ ensures, #@ assigns) \
 and add loop invariants and loop variants so the function can be proved correct \
 by SMT solvers via WhyML. In concurrent mode outer while-True loops need no \
-invariant or variant; loops inside critical sections annotate only local variables."""
+invariant or variant; loops inside critical sections annotate only local variables. \
+NEVER emit #@ \\trusted — it is forbidden."""
 
 
 def _build_prompt(
@@ -33,6 +34,7 @@ def _build_prompt(
     memory_model: str,
     skill_content: str,
     task_skill_content: str,
+    module_brief: str = "",
 ) -> str:
     """Build the prompt for the invariant-writer agent."""
     parts = []
@@ -50,6 +52,13 @@ def _build_prompt(
             f"\n\n# ACTIVE MEMORY MODEL: {memory_model.upper()}\n"
             "Add loop invariants and loop variants to every loop. "
             "Include counter bounds, accumulator properties, and a decreasing variant."
+        )
+
+    if module_brief:
+        parts.append(
+            "\n\n# MODULE CONTEXT\n"
+            "This function belongs to the following module:\n\n"
+            + module_brief
         )
 
     if memory_model == "concurrent":
@@ -100,6 +109,7 @@ def generate(
     task_skill_content: str,
     model: str,
     project_directory: str,
+    module_brief: str = "",
 ) -> str:
     """Generate a fully annotated function with contracts + loop invariants.
 
@@ -113,6 +123,7 @@ def generate(
         task_skill_content: Task-specific skill (loop invariant guidelines).
         model: LLM model name.
         project_directory: Base directory for logging.
+        module_brief: Optional module-level architectural brief.
 
     Returns:
         The complete annotated function source code.
@@ -125,6 +136,7 @@ def generate(
         memory_model=memory_model,
         skill_content=skill_content,
         task_skill_content=task_skill_content,
+        module_brief=module_brief,
     )
 
     log(project_directory, AGENT_NAME, "Generating loop invariants and final annotation\n")

@@ -134,7 +134,6 @@ Why3 / Alt-Ergo     ← SMT solver proves or rejects the goals
 |------|--------|
 | `--in FILE` | Input Python source file to annotate. |
 | `--out FILE` | Output path for annotated file. |
-| `--trusted` | Progressive verification: run full LLM pipeline for real contracts, mark all functions `#@ \trusted`, then prove bottom-up (leaves first) and remove `\trusted` from each function that passes `pycsl --no-proof`. Functions that cannot be verified keep `\trusted` as temporary scaffolding. |
 
 ## 4. Agent Architecture
 
@@ -221,7 +220,7 @@ Convention:
 - One file per module (e.g., `math_stub.py`, `random_stub.py`)
 - Each function has `#@ \trusted` and a full contract
 - `#@ \trusted` in stub files is permanent (these are axioms about external code)
-- `#@ \trusted` in user code is temporary scaffolding (see `--trusted` flag below)
+- `#@ \trusted` in user code marks genuinely unmodelable code (dict subscript assignment, external library types) — not for normal functions
 
 ## 7. Test Suite Structure
 

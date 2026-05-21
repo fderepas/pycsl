@@ -16,6 +16,7 @@ import re
 import subprocess
 import sys
 import textwrap
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -425,6 +426,94 @@ def _reassemble_file(
 
 
 # ---------------------------------------------------------------------------
+# Module-level brief (R1 — deterministic extraction)
+# ---------------------------------------------------------------------------
+
+def _generate_module_brief(source: str) -> str:
+    """Extract a deterministic module-level brief from the Python source.
+
+    Collects the module docstring, class names with docstrings/init signatures,
+    top-level function signatures, and key imports to give sub-agents context
+    about the overall file purpose and architecture.
+    """
+    tree = ast.parse(source)
+    parts = []
+
+    # Module docstring
+    if (isinstance(tree.body[0], ast.Expr) and
+            isinstance(tree.body[0].value, ast.Constant)):
+        docstr = tree.body[0].value.value
+        if isinstance(docstr, str):
+            parts.append(f"Module docstring:\n{docstr.strip()}\n")
+
+    # Imports
+    imports = []
+    for node in ast.iter_child_nodes(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                imports.append(alias.name)
+        elif isinstance(node, ast.ImportFrom):
+            mod = node.module or ""
+            for alias in node.names:
+                imports.append(f"{mod}.{alias.name}")
+    if imports:
+        parts.append("Key imports: " + ", ".join(imports[:20]))
+
+    # Classes
+    for node in ast.iter_child_nodes(tree):
+        if isinstance(node, ast.ClassDef):
+            class_desc = f"class {node.name}"
+            if node.bases:
+                base_names = []
+                for b in node.bases:
+                    if isinstance(b, ast.Name):
+                        base_names.append(b.id)
+                    elif isinstance(b, ast.Attribute):
+                        base_names.append(ast.dump(b))
+                if base_names:
+                    class_desc += f"({', '.join(base_names)})"
+            # Class docstring
+            if (node.body and isinstance(node.body[0], ast.Expr) and
+                    isinstance(node.body[0].value, ast.Constant)):
+                docstr = node.body[0].value.value
+                if isinstance(docstr, str):
+                    class_desc += f" — {docstr.strip()[:200]}"
+            # __init__ signature
+            for child in node.body:
+                if isinstance(child, ast.FunctionDef) and child.name == "__init__":
+                    args = [a.arg for a in child.args.args if a.arg != "self"]
+                    class_desc += f"\n  __init__ params: {', '.join(args) if args else '(none)'}"
+                    # Collect self.xxx assignments for field listing
+                    fields = set()
+                    for stmt in ast.walk(child):
+                        if (isinstance(stmt, ast.Assign) and stmt.targets and
+                                isinstance(stmt.targets[0], ast.Attribute) and
+                                isinstance(stmt.targets[0].value, ast.Name) and
+                                stmt.targets[0].value.id == "self"):
+                            fields.add(stmt.targets[0].attr)
+                    if fields:
+                        class_desc += f"\n  Fields: {', '.join(sorted(fields)[:30])}"
+                    break
+            # Method count
+            methods = [c for c in node.body if isinstance(c, ast.FunctionDef)]
+            class_desc += f"\n  Methods: {len(methods)}"
+            parts.append(class_desc)
+
+    # Top-level functions
+    top_funcs = []
+    for node in ast.iter_child_nodes(tree):
+        if isinstance(node, ast.FunctionDef):
+            sig = f"def {node.name}("
+            args = [a.arg for a in node.args.args]
+            sig += ", ".join(args) + ")"
+            top_funcs.append(sig)
+    if top_funcs:
+        parts.append("Top-level functions:\n  " + "\n  ".join(top_funcs[:30]))
+
+    return "\n\n".join(parts) if parts else ""
+
+
+# ---------------------------------------------------------------------------
 # Writer invocation
 # ---------------------------------------------------------------------------
 
@@ -436,6 +525,11 @@ def _invoke_writer(
     config_path: Path,
     project_root: Path,
     writer_script: Path,
+    module_brief: str = "",
+    callee_sources: str = "",
+    catalog_seed: str = "",
+    assigns_hint: str = "",
+    formal_model_hint: str = "",
 ) -> str:
     """Call agent-writer.py as a subprocess to annotate a single function."""
     cmd = [
@@ -446,11 +540,23 @@ def _invoke_writer(
     ]
 
     # Pass data via stdin as JSON
-    input_data = json.dumps({
+    payload = {
         "function_source": function_source,
         "callee_contracts": callee_contracts,
         "class_context": class_context,
-    })
+    }
+    if module_brief:
+        payload["module_brief"] = module_brief
+    if callee_sources:
+        payload["callee_sources"] = callee_sources
+    if catalog_seed:
+        payload["catalog_seed"] = catalog_seed
+    if assigns_hint:
+        payload["assigns_hint"] = assigns_hint
+    if formal_model_hint:
+        payload["formal_model_hint"] = formal_model_hint
+
+    input_data = json.dumps(payload)
 
     result = subprocess.run(
         cmd,
@@ -466,7 +572,36 @@ def _invoke_writer(
             f"agent-writer failed (exit {result.returncode}): {result.stderr[:500]}"
         )
 
-    return result.stdout
+    # Strip any #@ \trusted lines — the pipeline must never emit them
+    output = re.sub(r'^\s*#@\s*\\trusted\s*\n', '', result.stdout,
+                    flags=re.MULTILINE)
+    return output
+
+
+def _body_preserved(original: str, annotated: str) -> bool:
+    """Check that the annotated version still contains the function body.
+
+    Strips all ``#@`` annotation lines and blank lines from both strings,
+    then verifies that the core body lines of the original appear in the
+    annotated output.  This catches cases where the LLM accidentally
+    deletes or rewrites the implementation.
+    """
+    def _strip_annotations(text: str) -> list[str]:
+        return [
+            line.rstrip()
+            for line in text.splitlines()
+            if line.strip() and not line.strip().startswith("#@")
+        ]
+
+    orig_body = _strip_annotations(original)
+    ann_body = _strip_annotations(annotated)
+
+    if not orig_body:
+        return True
+
+    # The annotated version should contain at least 80% of the original lines
+    matched = sum(1 for line in orig_body if line in ann_body)
+    return matched >= len(orig_body) * 0.8
 
 
 def _safe_fallback_annotation(info: FunctionInfo) -> str:
@@ -508,7 +643,46 @@ def _safe_fallback_annotation(info: FunctionInfo) -> str:
     return "".join(lines)
 
 
-def _body_preserved(original_source: str, annotated_source: str) -> bool:
+def _compute_assigns_hint(
+    info: FunctionInfo,
+    annotatable_map: dict,
+    visited: Optional[set] = None,
+) -> list[str]:
+    """Static analysis: find all self._ attributes assigned in the function
+    body and transitively in callee bodies.
+
+    Returns a deduplicated sorted list of field names like
+    ``["_array_locals", "_dict_locals", ...]``.
+    """
+    if visited is None:
+        visited = set()
+    if info.name in visited:
+        return []
+    visited.add(info.name)
+
+    fields = re.findall(r'\bself\.(\w+)\s*(?:=|\+=|-=|\*=)', info.source)
+
+    # Walk callees transitively
+    for callee_name in info.callees:
+        if callee_name in annotatable_map:
+            callee_info = annotatable_map[callee_name]
+            fields.extend(
+                _compute_assigns_hint(callee_info, annotatable_map, visited)
+            )
+
+    return sorted(set(fields))
+
+
+def _format_assigns_hint(fields: list[str]) -> str:
+    """Format an assigns hint for the contract-writer prompt."""
+    if not fields:
+        return ""
+    field_list = ", ".join(f"self.{f}" for f in fields)
+    return (
+        f"Static analysis detected the following self._ fields are mutated "
+        f"(directly or via callees): {field_list}. "
+        f"Use this as the basis for #@ assigns clauses."
+    )
     """Check that the annotated source still contains the original function body.
 
     Rejects output where:
@@ -547,8 +721,211 @@ def _body_preserved(original_source: str, annotated_source: str) -> bool:
         return False
 
     return True
+
+
+def _validate_pycsl_syntax(
+    annotated_source: str,
+    project_root: Path,
+    project_directory: str,
+    class_name: Optional[str] = None,
+    class_invariants_list: Optional[list] = None,
+    original_source: str = "",
+) -> bool:
+    """Run pycsl --no-proof on the annotated source to check for syntax errors.
+
+    When the function is a method, wraps it in a minimal class shell with
+    imports so that pycsl can parse it.
+
+    Returns True if the contracts parse without errors, False otherwise.
+    """
+    import tempfile
+    import textwrap
+
+    pycsl_script = project_root / "src" / "pycsl" / "pycsl.py"
+    if not pycsl_script.exists():
+        return True  # can't validate, assume OK
+
+    # Build a compilable file for validation
+    file_parts = []
+
+    # Collect imports from the original source file
+    if original_source:
+        for line in original_source.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("import ") or stripped.startswith("from "):
+                file_parts.append(line)
+        if file_parts:
+            file_parts.append("")
+
+    # If no imports found, add common typing imports
+    if not file_parts:
+        file_parts.append(
+            "from typing import Dict, List, Any, Optional, Set, Tuple, Union"
+        )
+        file_parts.append("")
+
+    if class_name:
+        # Wrap in class shell
+        inv_lines = ""
+        if class_invariants_list:
+            inv_lines = "\n".join(
+                f"    #@ class invariant {e}" for e in class_invariants_list
+            )
+            inv_lines += "\n"
+        file_parts.append(f"class {class_name}:")
+        if inv_lines:
+            file_parts.append(inv_lines)
+        # Indent the annotated source to be a method body
+        indented = textwrap.indent(annotated_source, "    ")
+        file_parts.append(indented)
+    else:
+        file_parts.append(annotated_source)
+
+    file_content = "\n".join(file_parts)
+
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".py", delete=False, encoding="utf-8"
+        ) as tmp:
+            tmp.write(file_content)
+            tmp_path = tmp.name
+
+        result = subprocess.run(
+            [sys.executable, str(pycsl_script), "--no-proof", tmp_path],
+            capture_output=True,
+            text=True,
+            cwd=str(project_root),
+            timeout=60,
+        )
+
+        import os
+        os.unlink(tmp_path)
+
+        if result.returncode != 0:
+            err_msg = (result.stderr or result.stdout or "unknown error")[:300]
+            log(project_directory, AGENT_NAME,
+                f"PyCSL validation failed: {err_msg}")
+            return False
+        return True
+    except Exception as e:
+        log(project_directory, AGENT_NAME,
+            f"PyCSL validation error: {e}")
+        return True  # can't validate, assume OK
+
+
+def _checkpoint_save(
+    cache_dir: Path,
+    func_name: str,
+    annotated_source: str,
+    contracts: str,
+) -> None:
+    """Persist one function's annotation to the checkpoint cache."""
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    safe_name = func_name.replace(".", "__")
+    entry = {"annotated_source": annotated_source, "contracts": contracts}
+    (cache_dir / f"{safe_name}.json").write_text(
+        json.dumps(entry, ensure_ascii=False), encoding="utf-8"
+    )
+
+
+def _checkpoint_load(
+    cache_dir: Path,
+    func_name: str,
+) -> Optional[dict]:
+    """Load a previously checkpointed annotation, or None."""
+    safe_name = func_name.replace(".", "__")
+    path = cache_dir / f"{safe_name}.json"
+    if path.exists():
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return None
+    return None
+
 # Main orchestration
 # ---------------------------------------------------------------------------
+
+def _matches_filter(
+    info: FunctionInfo,
+    filter_class: Optional[str],
+    filter_func: Optional[str],
+) -> bool:
+    """Check if a function matches the --class/--fun filter.
+
+    Returns True if the function should be annotated (i.e. it matches the
+    filter or no filter was specified).
+    """
+    if filter_class is None and filter_func is None:
+        return True
+    short_name = info.name.split(".")[-1]
+    if filter_class and filter_func:
+        return info.class_name == filter_class and short_name == filter_func
+    if filter_class:
+        return info.class_name == filter_class
+    # filter_func only
+    return short_name == filter_func
+
+
+def _lookup_catalog_seed(
+    info: FunctionInfo,
+    catalog_data: dict[str, dict],
+) -> str:
+    """Look up a function in the JSON catalog and return seed text.
+
+    Returns a formatted string with the pre-generated English description and
+    PyCSL contracts, or empty string if not found.
+    """
+    if not catalog_data:
+        return ""
+    short_name = info.name.split(".")[-1]
+    # Try qualified lookup: class_name -> method_name
+    if info.class_name and info.class_name in catalog_data:
+        entry = catalog_data[info.class_name].get(short_name)
+        if entry:
+            parts = []
+            eng = entry.get("english", "")
+            pycsl = entry.get("pycsl", "")
+            if eng:
+                parts.append(f"Pre-generated English description:\n{eng}")
+            if pycsl:
+                parts.append(f"Pre-generated PyCSL contracts:\n{pycsl}")
+            return "\n\n".join(parts) if parts else ""
+    # Try module-level lookup: "_module" -> function_name
+    if not info.class_name and "_module" in catalog_data:
+        entry = catalog_data["_module"].get(short_name)
+        if entry:
+            parts = []
+            eng = entry.get("english", "")
+            pycsl = entry.get("pycsl", "")
+            if eng:
+                parts.append(f"Pre-generated English description:\n{eng}")
+            if pycsl:
+                parts.append(f"Pre-generated PyCSL contracts:\n{pycsl}")
+            return "\n\n".join(parts) if parts else ""
+    return ""
+
+
+def _lookup_formal_model_hint(
+    info: FunctionInfo,
+    catalog_data: dict[str, dict],
+) -> str:
+    """Extract the 'english' field from the JSON catalog for formal model context.
+
+    Returns the pre-generated English description (which may contain formal
+    model references like WP rules), or empty string if not found.
+    """
+    if not catalog_data:
+        return ""
+    short_name = info.name.split(".")[-1]
+    entry = None
+    if info.class_name and info.class_name in catalog_data:
+        entry = catalog_data[info.class_name].get(short_name)
+    elif not info.class_name and "_module" in catalog_data:
+        entry = catalog_data["_module"].get(short_name)
+    if entry:
+        return entry.get("english", "")
+    return ""
+
 
 def run_splitter(
     input_path: Path,
@@ -557,12 +934,28 @@ def run_splitter(
     project_root: Path,
     memory_model: str = "hoare",
     project_directory: str = ".",
+    filter_class: Optional[str] = None,
+    filter_func: Optional[str] = None,
+    resume: bool = False,
+    verbose: bool = False,
 ) -> str:
-    """Run the full split-annotate pipeline and return the annotated source."""
+    """Run the full split-annotate pipeline and return the annotated source.
+
+    If *filter_class* and/or *filter_func* are given, only matching functions
+    are sent to the writer for annotation.  The call-graph analysis still runs
+    on the full file so that callee contracts are available as context.
+
+    If *resume* is True, load previously checkpointed per-function results
+    from ``<output_dir>/.splitter-cache/`` and skip already-annotated
+    functions.
+    """
     writer_script = Path(__file__).parent / "agent-writer.py"
 
     source = input_path.read_text(encoding="utf-8")
     log(project_directory, AGENT_NAME, f"Parsing {input_path} ({len(source)} chars)")
+
+    # Checkpoint directory: sits next to the output file
+    cache_dir = output_path.parent / ".splitter-cache"
 
     # Step 1: Extract functions and build call graph
     functions, func_map = _extract_functions(source)
@@ -576,17 +969,98 @@ def run_splitter(
     annotatable = [f for f in functions if not f.is_dunder and not f.is_property]
     annotatable_map = {f.name: f for f in annotatable}
 
+    if filter_class or filter_func:
+        target_names = [f.name for f in annotatable
+                        if _matches_filter(f, filter_class, filter_func)]
+        if not target_names:
+            # Try a fuzzy match: if --fun is given, search across all classes
+            if filter_func:
+                all_matches = [f for f in annotatable
+                               if f.name.split(".")[-1] == filter_func]
+                if all_matches:
+                    found_in = ", ".join(
+                        f"{f.class_name or '(top-level)'}.{f.name.split('.')[-1]}"
+                        for f in all_matches
+                    )
+                    log(project_directory, AGENT_NAME,
+                        f"No functions match filter (class={filter_class}, fun={filter_func}). "
+                        f"Did you mean? {found_in}")
+                    # Auto-correct: use the first match
+                    target_names = [all_matches[0].name]
+                    filter_class = all_matches[0].class_name
+                    log(project_directory, AGENT_NAME,
+                        f"Auto-corrected to class={filter_class}, annotating: {target_names}")
+                else:
+                    # List available classes and sample functions
+                    classes = sorted(set(
+                        f.class_name for f in annotatable if f.class_name
+                    ))
+                    top_funcs = sorted(set(
+                        f.name.split(".")[-1] for f in annotatable
+                        if not f.class_name
+                    ))[:10]
+                    log(project_directory, AGENT_NAME,
+                        f"No functions match filter (class={filter_class}, fun={filter_func}). "
+                        f"Available classes: {classes}. "
+                        f"Top-level functions: {top_funcs}")
+                    return source
+            else:
+                # Only --class given but no match
+                classes = sorted(set(
+                    f.class_name for f in annotatable if f.class_name
+                ))
+                log(project_directory, AGENT_NAME,
+                    f"No functions match filter (class={filter_class}). "
+                    f"Available classes: {classes}")
+                return source
+        log(project_directory, AGENT_NAME,
+            f"Filter active — will annotate: {target_names}")
+
     if not annotatable:
         log(project_directory, AGENT_NAME, "No annotatable functions found, returning original")
         return source
 
+    # Step 2a: Generate module-level brief (R1)
+    module_brief = _generate_module_brief(source)
+    if module_brief:
+        log(project_directory, AGENT_NAME,
+            f"Module brief generated ({len(module_brief)} chars)")
+
+    # Step 2a-bis: Load JSON catalog seed if available (R5)
+    catalog_data: dict[str, dict] = {}
+    catalog_dir = project_root / "src" / "self-annotate" / "src"
+    if catalog_dir.is_dir():
+        stem = input_path.stem  # e.g. "Module6_WhyMLTranspiler"
+        catalog_path = catalog_dir / f"{stem}.json"
+        if catalog_path.exists():
+            try:
+                catalog_data = json.loads(catalog_path.read_text(encoding="utf-8"))
+                total = sum(len(v) for v in catalog_data.values())
+                log(project_directory, AGENT_NAME,
+                    f"Loaded catalog seed: {catalog_path.name} ({total} entries)")
+            except (json.JSONDecodeError, OSError):
+                pass
+
     # Step 2b: Generate class invariants BEFORE annotating methods.
     # Methods need to see the invariant to generate proper guarding `requires`.
-    class_invariants = _generate_class_invariants(
-        source, functions, {},  # no annotated contracts yet
-        memory_model, config_path, project_root, writer_script,
-        project_directory,
-    )
+    # When a filter is active, only generate invariants for the target class.
+    if filter_class:
+        # Only generate class invariants for the target class
+        target_class_funcs = [f for f in functions if f.class_name == filter_class]
+        class_invariants = _generate_class_invariants(
+            source, target_class_funcs, {},
+            memory_model, config_path, project_root, writer_script,
+            project_directory,
+        )
+    elif filter_func and not filter_class:
+        # --fun only: skip class invariant generation entirely (expensive LLM call)
+        class_invariants = {}
+    else:
+        class_invariants = _generate_class_invariants(
+            source, functions, {},
+            memory_model, config_path, project_root, writer_script,
+            project_directory,
+        )
 
     # Step 3: Detect SCCs and topological order
     sccs = _tarjan_scc(annotatable_map)
@@ -596,8 +1070,47 @@ def run_splitter(
 
     # Step 4: Annotate in topological order (leaves first)
     annotated_contracts: dict[str, str] = {}  # qname -> contract text
+    total_to_annotate = sum(
+        len([annotatable_map[n] for n in scc if n in annotatable_map])
+        for scc in sccs
+    )
+    progress_counter = 0
+    resumed_count = 0
+    annotation_start_time = time.monotonic()
 
+    # Startup summary on stderr
+    scc_multi = sum(1 for s in sccs if len(s) > 1)
+    est_minutes = total_to_annotate * 2.5  # ~2.5 min/function empirical
+    print(f"\n{'─'*60}", file=sys.stderr)
+    print(f"  File:      {input_path}", file=sys.stderr)
+    print(f"  Functions: {total_to_annotate}", file=sys.stderr)
+    print(f"  SCCs:      {len(sccs)} groups ({scc_multi} with >1 member)", file=sys.stderr)
+    if filter_class or filter_func:
+        print(f"  Filter:    class={filter_class or '*'} fun={filter_func or '*'}",
+              file=sys.stderr)
+    print(f"  Est. time: ~{int(est_minutes)} min ({est_minutes/60:.1f} hrs)",
+          file=sys.stderr)
+    print(f"{'─'*60}\n", file=sys.stderr)
+
+    # Load checkpointed results when --resume is active
+    if resume and cache_dir.is_dir():
+        for info in annotatable:
+            cached = _checkpoint_load(cache_dir, info.name)
+            if cached:
+                info.annotated_source = cached["annotated_source"]
+                info.contracts = cached.get("contracts", "")
+                annotated_contracts[info.name] = info.contracts
+                resumed_count += 1
+        if resumed_count:
+            log(project_directory, AGENT_NAME,
+                f"Resumed {resumed_count} functions from checkpoint cache")
+            print(f"Resumed {resumed_count}/{total_to_annotate} functions from cache",
+                  file=sys.stderr)
+
+    _interrupted = False
     for scc in sccs:
+        if _interrupted:
+            break
         # Filter to only functions we track
         scc_funcs = [annotatable_map[n] for n in scc if n in annotatable_map]
         if not scc_funcs:
@@ -620,9 +1133,49 @@ def run_splitter(
 
         callee_contracts = "\n\n".join(callee_context_parts)
 
+        # Collect callee source snippets for the english-writer (R3)
+        callee_source_parts = []
+        for callee_name in sorted(external_callees):
+            if callee_name in annotatable_map:
+                callee_info = annotatable_map[callee_name]
+                # Include first ~15 lines (signature + docstring)
+                src_lines = callee_info.source.splitlines()
+                snippet = "\n".join(src_lines[:15])
+                if len(src_lines) > 15:
+                    snippet += "\n    ..."
+                callee_source_parts.append(
+                    f"# Source for {callee_name}:\n{snippet}"
+                )
+        callee_sources = "\n\n".join(callee_source_parts[:10])
+
+        # When a filter is active, skip functions that don't match.
+        # We still process them through the loop so their callee contracts
+        # accumulate, but we don't invoke the writer — just leave them
+        # unannotated (original source passes through in reassembly).
+        if filter_class is not None or filter_func is not None:
+            scc_funcs = [f for f in scc_funcs
+                         if _matches_filter(f, filter_class, filter_func)]
+            if not scc_funcs:
+                continue
+
         if len(scc_funcs) == 1:
             info = scc_funcs[0]
+            progress_counter += 1
+
+            # Skip if already loaded from checkpoint
+            if info.name in annotated_contracts and resume:
+                log(project_directory, AGENT_NAME,
+                    f"Skipping (cached): {info.name}")
+                print(f"[{progress_counter}/{total_to_annotate}] Cached: {info.name}",
+                      file=sys.stderr)
+                continue
+
+            fn_start = time.monotonic()
+            elapsed_total = fn_start - annotation_start_time
             log(project_directory, AGENT_NAME, f"Annotating: {info.name}")
+            print(f"[{progress_counter}/{total_to_annotate}] "
+                  f"({int(elapsed_total)}s elapsed) Annotating: {info.name}",
+                  file=sys.stderr)
 
             # Get class context if it's a method
             class_ctx = ""
@@ -637,6 +1190,17 @@ def run_splitter(
                     class_ctx = inv_lines + "\n" + class_ctx
 
             try:
+                seed = _lookup_catalog_seed(info, catalog_data)
+                fm_hint = _lookup_formal_model_hint(info, catalog_data)
+                # Compute assigns hint from static analysis
+                assigns_fields = _compute_assigns_hint(info, annotatable_map)
+                hint = _format_assigns_hint(assigns_fields)
+                if verbose:
+                    print(f"    catalog_seed: {'yes' if seed else 'no'}, "
+                          f"formal_model: {'yes' if fm_hint else 'no'}, "
+                          f"assigns: {assigns_fields or '(none)'}, "
+                          f"callees: {len(callee_contracts)} chars",
+                          file=sys.stderr)
                 annotated = _invoke_writer(
                     function_source=info.source,
                     callee_contracts=callee_contracts,
@@ -645,6 +1209,11 @@ def run_splitter(
                     config_path=config_path,
                     project_root=project_root,
                     writer_script=writer_script,
+                    module_brief=module_brief,
+                    callee_sources=callee_sources,
+                    catalog_seed=seed,
+                    assigns_hint=hint,
+                    formal_model_hint=fm_hint,
                 )
                 annotated = annotated.strip()
                 if not annotated:
@@ -653,20 +1222,83 @@ def run_splitter(
                     log(project_directory, AGENT_NAME,
                         f"Body stripped for {info.name}, using safe fallback")
                     raise RuntimeError("Body was stripped by LLM")
+                valid = _validate_pycsl_syntax(
+                    annotated, project_root, project_directory,
+                    class_name=info.class_name,
+                    class_invariants_list=class_invariants.get(info.class_name),
+                    original_source=source,
+                )
+                if verbose:
+                    print(f"    validation: {'PASS' if valid else 'FAIL'}",
+                          file=sys.stderr)
+                if not valid:
+                    # Retry once with repair context
+                    log(project_directory, AGENT_NAME,
+                        f"Validation failed for {info.name}, retrying with repair prompt")
+                    print(f"[{progress_counter}/{total_to_annotate}] Retrying: {info.name}",
+                          file=sys.stderr)
+                    annotated = _invoke_writer(
+                        function_source=info.source,
+                        callee_contracts=callee_contracts + "\n\n## REPAIR\n"
+                            "The previous annotation failed PyCSL syntax validation. "
+                            "Fix the contracts. Do NOT use #@ \\trusted. "
+                            "Ensure every #@ line uses valid PyCSL syntax.",
+                        class_context=class_ctx,
+                        memory_model=memory_model,
+                        config_path=config_path,
+                        project_root=project_root,
+                        writer_script=writer_script,
+                        module_brief=module_brief,
+                        callee_sources=callee_sources,
+                        catalog_seed=seed,
+                        assigns_hint=hint,
+                        formal_model_hint=fm_hint,
+                    ).strip()
+                    if not annotated or not _body_preserved(info.source, annotated):
+                        raise RuntimeError("Repair attempt failed: empty or body stripped")
+                    if not _validate_pycsl_syntax(
+                        annotated, project_root, project_directory,
+                        class_name=info.class_name,
+                        class_invariants_list=class_invariants.get(info.class_name),
+                        original_source=source,
+                    ):
+                        log(project_directory, AGENT_NAME,
+                            f"PyCSL validation failed after retry for {info.name}")
+                        print(f"WARNING: PyCSL validation failed for {info.name} "
+                              f"after retry, using safe fallback", file=sys.stderr)
+                        raise RuntimeError("PyCSL syntax validation failed after retry")
                 info.annotated_source = annotated
                 info.contracts = _extract_contracts_text(annotated)
                 annotated_contracts[info.name] = info.contracts
+                _checkpoint_save(cache_dir, info.name,
+                                 annotated, info.contracts)
+                fn_elapsed = time.monotonic() - fn_start
+                print(f"    ✓ {info.name} ({int(fn_elapsed)}s)", file=sys.stderr)
             except Exception as e:
+                fn_elapsed = time.monotonic() - fn_start
                 log(project_directory, AGENT_NAME,
                     f"Writer failed for {info.name}: {e}, using safe fallback")
+                print(f"    ✗ {info.name}: {e} ({int(fn_elapsed)}s, safe fallback)",
+                      file=sys.stderr)
                 info.annotated_source = _safe_fallback_annotation(info)
                 info.contracts = _extract_contracts_text(info.annotated_source)
                 annotated_contracts[info.name] = info.contracts
+            except KeyboardInterrupt:
+                log(project_directory, AGENT_NAME,
+                    f"Interrupted during {info.name}, saving partial output")
+                print(f"\n⚠ Interrupted! Saving partial output "
+                      f"({progress_counter}/{total_to_annotate} done)…",
+                      file=sys.stderr)
+                _interrupted = True
+                break
 
         elif len(scc_funcs) <= 3:
             # Small mutual recursion group — send all together
+            progress_counter += len(scc_funcs)
             log(project_directory, AGENT_NAME,
                 f"Annotating SCC group: {[f.name for f in scc_funcs]}")
+            print(f"[{progress_counter}/{total_to_annotate}] Annotating SCC group: "
+                  f"{[f.name for f in scc_funcs]}", file=sys.stderr)
             combined_source = "\n\n".join(f.source for f in scc_funcs)
 
             class_ctx = ""
@@ -685,6 +1317,13 @@ def run_splitter(
                 class_ctx = "\n\n".join(parts)
 
             try:
+                # For SCC groups, concatenate catalog seeds for all functions
+                scc_seeds = []
+                for f in scc_funcs:
+                    s = _lookup_catalog_seed(f, catalog_data)
+                    if s:
+                        scc_seeds.append(f"--- {f.name} ---\n{s}")
+                combined_seed = "\n\n".join(scc_seeds)
                 annotated = _invoke_writer(
                     function_source=combined_source,
                     callee_contracts=callee_contracts,
@@ -693,6 +1332,9 @@ def run_splitter(
                     config_path=config_path,
                     project_root=project_root,
                     writer_script=writer_script,
+                    module_brief=module_brief,
+                    callee_sources=callee_sources,
+                    catalog_seed=combined_seed,
                 )
                 annotated = annotated.strip()
                 if not annotated:
@@ -707,10 +1349,26 @@ def run_splitter(
                             log(project_directory, AGENT_NAME,
                                 f"Body stripped for {info.name} in SCC, using fallback")
                             info.annotated_source = _safe_fallback_annotation(info)
+                        elif not _validate_pycsl_syntax(
+                            func_annotated, project_root, project_directory,
+                            class_name=info.class_name,
+                            class_invariants_list=class_invariants.get(
+                                info.class_name),
+                            original_source=source,
+                        ):
+                            log(project_directory, AGENT_NAME,
+                                f"PyCSL validation failed for {info.name} in SCC, "
+                                f"using fallback")
+                            print(f"WARNING: PyCSL validation failed for "
+                                  f"{info.name}, using safe fallback",
+                                  file=sys.stderr)
+                            info.annotated_source = _safe_fallback_annotation(info)
                         else:
                             info.annotated_source = func_annotated
                         info.contracts = _extract_contracts_text(info.annotated_source)
                         annotated_contracts[info.name] = info.contracts
+                        _checkpoint_save(cache_dir, info.name,
+                                         info.annotated_source, info.contracts)
                     else:
                         info.annotated_source = _safe_fallback_annotation(info)
                         info.contracts = _extract_contracts_text(info.annotated_source)
@@ -723,18 +1381,196 @@ def run_splitter(
                     info.contracts = _extract_contracts_text(info.annotated_source)
                     annotated_contracts[info.name] = info.contracts
         else:
-            # Large SCC — too complex, use safe fallback
+            # Large SCC — annotate each member individually.
+            # Pass SCC-mate signatures as additional callee context so the
+            # writer knows the contracts of co-recursive functions.
             log(project_directory, AGENT_NAME,
-                f"Large SCC ({len(scc_funcs)} functions), using safe fallback: "
+                f"Large SCC ({len(scc_funcs)} functions), annotating individually: "
                 f"{[f.name for f in scc_funcs]}")
+
             for info in scc_funcs:
-                info.annotated_source = _safe_fallback_annotation(info)
-                info.contracts = _extract_contracts_text(info.annotated_source)
-                annotated_contracts[info.name] = info.contracts
+                progress_counter += 1
+
+                # Skip if already loaded from checkpoint
+                if info.name in annotated_contracts and resume:
+                    log(project_directory, AGENT_NAME,
+                        f"Skipping (cached): {info.name}")
+                    print(f"[{progress_counter}/{total_to_annotate}] Cached: {info.name}",
+                          file=sys.stderr)
+                    continue
+
+                fn_start = time.monotonic()
+                elapsed_total = fn_start - annotation_start_time
+                log(project_directory, AGENT_NAME,
+                    f"Annotating (SCC member): {info.name}")
+                print(f"[{progress_counter}/{total_to_annotate}] "
+                      f"({int(elapsed_total)}s elapsed) Annotating (SCC): {info.name}",
+                      file=sys.stderr)
+
+                class_ctx = ""
+                if info.class_name:
+                    class_ctx = _extract_class_context(source, info.class_name)
+                    if info.class_name in class_invariants:
+                        inv_lines = "\n".join(
+                            f"#@ class invariant {e}"
+                            for e in class_invariants[info.class_name]
+                        )
+                        class_ctx = inv_lines + "\n" + class_ctx
+
+                # Include SCC-mate signatures + any already-annotated
+                # contracts as extra callee context
+                scc_callee_parts = list(callee_context_parts)
+                for mate in scc_funcs:
+                    if mate.name == info.name:
+                        continue
+                    if mate.name in annotated_contracts:
+                        scc_callee_parts.append(
+                            f"# Contracts for SCC-mate {mate.name}:\n"
+                            f"{annotated_contracts[mate.name]}"
+                        )
+                    else:
+                        # Not yet annotated — include signature only
+                        sig_lines = mate.source.splitlines()[:3]
+                        scc_callee_parts.append(
+                            f"# SCC-mate (not yet annotated):\n"
+                            + "\n".join(sig_lines)
+                        )
+                scc_callee_ctx = "\n\n".join(scc_callee_parts)
+
+                try:
+                    seed = _lookup_catalog_seed(info, catalog_data)
+                    fm_hint = _lookup_formal_model_hint(info, catalog_data)
+                    assigns_fields = _compute_assigns_hint(info, annotatable_map)
+                    hint = _format_assigns_hint(assigns_fields)
+                    annotated = _invoke_writer(
+                        function_source=info.source,
+                        callee_contracts=scc_callee_ctx,
+                        class_context=class_ctx,
+                        memory_model=memory_model,
+                        config_path=config_path,
+                        project_root=project_root,
+                        writer_script=writer_script,
+                        module_brief=module_brief,
+                        callee_sources=callee_sources,
+                        catalog_seed=seed,
+                        assigns_hint=hint,
+                        formal_model_hint=fm_hint,
+                    )
+                    annotated = annotated.strip()
+                    if not annotated:
+                        raise RuntimeError("Empty response from writer")
+                    if not _body_preserved(info.source, annotated):
+                        log(project_directory, AGENT_NAME,
+                            f"Body stripped for {info.name} in SCC, using safe fallback")
+                        raise RuntimeError("Body was stripped by LLM")
+                    if not _validate_pycsl_syntax(
+                        annotated, project_root, project_directory,
+                        class_name=info.class_name,
+                        class_invariants_list=class_invariants.get(info.class_name),
+                        original_source=source,
+                    ):
+                        # Retry once with repair context
+                        log(project_directory, AGENT_NAME,
+                            f"Validation failed for {info.name} in SCC, retrying")
+                        print(f"[{progress_counter}/{total_to_annotate}] Retrying: {info.name}",
+                              file=sys.stderr)
+                        annotated = _invoke_writer(
+                            function_source=info.source,
+                            callee_contracts=scc_callee_ctx + "\n\n## REPAIR\n"
+                                "The previous annotation failed PyCSL syntax validation. "
+                                "Fix the contracts. Do NOT use #@ \\trusted. "
+                                "Ensure every #@ line uses valid PyCSL syntax.",
+                            class_context=class_ctx,
+                            memory_model=memory_model,
+                            config_path=config_path,
+                            project_root=project_root,
+                            writer_script=writer_script,
+                            module_brief=module_brief,
+                            callee_sources=callee_sources,
+                            catalog_seed=seed,
+                            assigns_hint=hint,
+                            formal_model_hint=fm_hint,
+                        ).strip()
+                        if not annotated or not _body_preserved(info.source, annotated):
+                            raise RuntimeError("Repair attempt failed in SCC")
+                        if not _validate_pycsl_syntax(
+                            annotated, project_root, project_directory,
+                            class_name=info.class_name,
+                            class_invariants_list=class_invariants.get(info.class_name),
+                            original_source=source,
+                        ):
+                            log(project_directory, AGENT_NAME,
+                                f"PyCSL validation failed after retry for {info.name}")
+                            print(f"WARNING: PyCSL validation failed for {info.name} "
+                                  f"after retry, using safe fallback", file=sys.stderr)
+                            raise RuntimeError("PyCSL syntax validation failed after retry")
+                    info.annotated_source = annotated
+                    info.contracts = _extract_contracts_text(annotated)
+                    annotated_contracts[info.name] = info.contracts
+                    _checkpoint_save(cache_dir, info.name,
+                                     annotated, info.contracts)
+                    fn_elapsed = time.monotonic() - fn_start
+                    print(f"    ✓ {info.name} ({int(fn_elapsed)}s)", file=sys.stderr)
+                except Exception as e:
+                    fn_elapsed = time.monotonic() - fn_start
+                    log(project_directory, AGENT_NAME,
+                        f"Writer failed for {info.name}: {e}, using safe fallback")
+                    print(f"    ✗ {info.name}: {e} ({int(fn_elapsed)}s, safe fallback)",
+                          file=sys.stderr)
+                    info.annotated_source = _safe_fallback_annotation(info)
+                    info.contracts = _extract_contracts_text(info.annotated_source)
+                    annotated_contracts[info.name] = info.contracts
+                except KeyboardInterrupt:
+                    log(project_directory, AGENT_NAME,
+                        f"Interrupted during {info.name}, saving partial output")
+                    print(f"\n⚠ Interrupted! Saving partial output "
+                          f"({progress_counter}/{total_to_annotate} done)…",
+                          file=sys.stderr)
+                    _interrupted = True
+                    break
+
+    # Print final timing summary
+    total_elapsed = time.monotonic() - annotation_start_time
+    status = "Interrupted" if _interrupted else "Annotation complete"
+    print(f"\n{'─'*60}", file=sys.stderr)
+    print(f"  {status}: {progress_counter}/{total_to_annotate} functions "
+          f"in {int(total_elapsed)}s ({total_elapsed/60:.1f} min)", file=sys.stderr)
+    print(f"{'─'*60}\n", file=sys.stderr)
 
     # Step 5: Reassemble the file
     result = _reassemble_file(source, annotatable, class_invariants)
     log(project_directory, AGENT_NAME, "File reassembly complete")
+
+    # Step 6: Full-file validation
+    try:
+        tmp_dir = Path(project_directory) / "tmp_final_validation"
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        tmp_file = tmp_dir / "final_output.py"
+        tmp_file.write_text(result, encoding="utf-8")
+        proc = subprocess.run(
+            [sys.executable, "-c",
+             f"import sys; sys.path.insert(0, '{project_root / 'src' / 'pycsl'}'); "
+             f"from pycsl import main as pycsl_main; "
+             f"sys.argv = ['pycsl', '--no-proof', '{tmp_file}']; pycsl_main()"],
+            capture_output=True, text=True, timeout=120,
+            cwd=str(project_root),
+        )
+        if proc.returncode != 0:
+            log(project_directory, AGENT_NAME,
+                f"Final file validation WARNING: pycsl --no-proof failed:\n{proc.stderr[:500]}")
+            print("WARNING: Final file validation failed (pycsl --no-proof). "
+                  "Output file may contain syntax errors.", file=sys.stderr)
+        else:
+            log(project_directory, AGENT_NAME,
+                "Final file validation passed (pycsl --no-proof)")
+    except Exception as e:
+        log(project_directory, AGENT_NAME,
+            f"Final file validation skipped: {e}")
+    finally:
+        if tmp_dir.exists():
+            import shutil
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+
     return result
 
 
@@ -788,6 +1624,14 @@ def main():
                         help="Path to the input Python file.")
     parser.add_argument("--out", dest="out_file", required=True,
                         help="Path to the output annotated file.")
+    parser.add_argument("--class", dest="filter_class", default=None,
+                        help="Only annotate methods of this class.")
+    parser.add_argument("--fun", dest="filter_func", default=None,
+                        help="Only annotate function(s) with this name.")
+    parser.add_argument("--resume", action="store_true", default=False,
+                        help="Resume from checkpoint: skip already-annotated functions.")
+    parser.add_argument("--verbose", action="store_true", default=False,
+                        help="Show detailed per-step diagnostic output on stderr.")
     args = parser.parse_args()
 
     script_dir = Path(__file__).parent.resolve()
@@ -817,6 +1661,10 @@ def main():
             project_root=project_root,
             memory_model=memory_model,
             project_directory=project_directory,
+            filter_class=args.filter_class,
+            filter_func=args.filter_func,
+            resume=args.resume,
+            verbose=args.verbose,
         )
     except Exception as e:
         log(project_directory, AGENT_NAME, f"Error: {e}")

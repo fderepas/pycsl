@@ -27,6 +27,11 @@ def generate(
     skill_content: str,
     model: str,
     project_directory: str,
+    module_brief: str = "",
+    callee_contracts: str = "",
+    callee_sources: str = "",
+    catalog_seed: str = "",
+    formal_model_hint: str = "",
 ) -> str:
     """Generate a plain-English description of a Python function.
 
@@ -36,6 +41,11 @@ def generate(
         skill_content: Loaded skill file content with rules and output format.
         model: LLM model name to use.
         project_directory: Base directory for logging.
+        module_brief: Optional module-level architectural brief.
+        callee_contracts: Optional contracts of called functions.
+        callee_sources: Optional source snippets of called functions.
+        catalog_seed: Optional pre-generated description to refine.
+        formal_model_hint: Optional formal model context from catalog.
 
     Returns:
         A structured English description of the function's semantics.
@@ -50,11 +60,50 @@ def generate(
         "English description following the rules and format above."
     )
 
+    if module_brief:
+        parts.append(
+            "\n## Module Context\n"
+            "This function belongs to the following module:\n\n"
+            f"{module_brief}"
+        )
+
     if class_context:
         parts.append(
             "\n## Class Context\n"
             "This function is a method of the following class:\n\n"
             f"```python\n{class_context}\n```"
+        )
+
+    if callee_contracts:
+        parts.append(
+            "\n## Callee Contracts\n"
+            "The following functions are called by this function and have "
+            "already been annotated with formal contracts:\n\n"
+            f"{callee_contracts}"
+        )
+
+    if callee_sources:
+        parts.append(
+            "\n## Callee Source Code\n"
+            "Source snippets of key called functions:\n\n"
+            f"{callee_sources}"
+        )
+
+    if catalog_seed:
+        parts.append(
+            "\n## Pre-generated Description (seed)\n"
+            "A previous analysis generated the following description. "
+            "Refine and improve it based on the actual source code.\n\n"
+            f"{catalog_seed}"
+        )
+
+    if formal_model_hint:
+        parts.append(
+            "\n## Formal Model Context\n"
+            "A previous analysis identified the following formal model "
+            "correspondence. Incorporate this into your description if "
+            "applicable:\n\n"
+            f"{formal_model_hint}"
         )
 
     parts.append(f"\n## Function\n\n```python\n{function_source}\n```")

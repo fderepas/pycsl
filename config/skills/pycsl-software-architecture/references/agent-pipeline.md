@@ -64,8 +64,6 @@ Transforms are applied as a chain: each is `str → str` and must be idempotent.
 **Post-LLM guards** (fix the LLM output):
 | Guard | What it fixes |
 |-------|--------------|
-| `_annotate_trusted` | Wraps functions with unsupported constructs in `#@ \trusted` |
-| `_prove_and_strip` | Runs pycsl and strips contracts that cause Why3 failures |
 | `_inject_recursive_variants` | Adds missing loop/recursive variants |
 | `_fix_list_return_type` | Fixes `list` return type annotations to `array int` |
 | `_guard_list_params` | Rewrites `list` parameter types to `array int` |
@@ -80,7 +78,7 @@ Transforms are applied as a chain: each is `str → str` and must be idempotent.
 
 **Compiled regex constants** (module-level, `_RE_` prefix):
 - `_RE_ANN` — matches any `#@` annotation line (with optional leading whitespace)
-- `_RE_TRUSTED` — matches `#@ \trusted` lines
+- `_RE_TRUSTED` — matches `#@ \trusted` lines (used by targeted guards: `_inject_trusted_for_dict_subscript_assignment`, `_strip_external_type_bodies`)
 - `_RE_DEF` — captures `(indent, func_name)` from `def` lines
 - `_RE_DEF_PARAMS` — captures `(indent, params)` from `def` lines
 - `_RE_LIST_PARAM` — finds `param: list` parameter type hints

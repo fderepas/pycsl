@@ -21,7 +21,8 @@ You are a formal verification engineer specializing in Design-by-Contract. \
 Your job is to write function-level contracts (preconditions, postconditions, \
 frame conditions) for Python functions. You write ONLY contracts, not loop \
 invariants. In concurrent mode (--memory-model concurrent) shared variables are \
-governed by mutex invariants, not by function requires/ensures."""
+governed by mutex invariants, not by function requires/ensures. \
+NEVER emit #@ \\trusted — it is forbidden."""
 
 
 def generate(
@@ -32,6 +33,10 @@ def generate(
     skill_content: str,
     model: str,
     project_directory: str,
+    module_brief: str = "",
+    callee_contracts: str = "",
+    catalog_seed: str = "",
+    assigns_hint: str = "",
 ) -> str:
     """Generate PyCSL function-level contracts for a Python function.
 
@@ -43,6 +48,9 @@ def generate(
         skill_content: Loaded skill file content with syntax reference and guidelines.
         model: LLM model name.
         project_directory: Base directory for logging.
+        module_brief: Optional module-level architectural brief.
+        callee_contracts: Optional contracts of called functions.
+        assigns_hint: Optional pre-computed assigns analysis from static analysis.
 
     Returns:
         Contract lines (each starting with #@), newline-separated.
@@ -53,6 +61,13 @@ def generate(
 
     if skill_content:
         parts.append(skill_content)
+
+    if module_brief:
+        parts.append(
+            f"\n## Module Context\n"
+            "This function belongs to the following module:\n\n"
+            f"{module_brief}\n"
+        )
 
     parts.append(
         f"\n## Active Memory Model: {memory_model.upper()}\n"
@@ -83,6 +98,28 @@ def generate(
         parts.append(
             "\n## Class Context\n"
             f"```python\n{class_context}\n```\n"
+        )
+
+    if callee_contracts:
+        parts.append(
+            "\n## Callee Contracts (already verified)\n"
+            "These functions are called by the function being annotated. "
+            "If a callee requires a precondition, the caller must guarantee it.\n\n"
+            f"{callee_contracts}\n"
+        )
+
+    if catalog_seed:
+        parts.append(
+            "\n## Pre-generated Contracts (seed)\n"
+            "A previous analysis generated these contracts as a starting point. "
+            "Refine them based on the English description and source code.\n\n"
+            f"{catalog_seed}\n"
+        )
+
+    if assigns_hint:
+        parts.append(
+            "\n## Pre-computed Assigns Analysis\n"
+            f"{assigns_hint}\n"
         )
 
     prompt = "\n".join(parts)

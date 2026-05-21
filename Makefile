@@ -23,6 +23,32 @@ rag-query: .venv
 rag-chunks: .venv
 	$(PYTHON) -m skill2rag chunks
 
+self-annotate-generate: .venv
+	./bin/self-annotate-generate.sh
+
+self-annotate-verify: .venv
+	@echo "=== Self-annotation verification (rocq path) ==="
+	@for f in src/self-annotate/rocq/*.py; do \
+	    result=$$($(PYTHON) src/pycsl/pycsl.py --no-proof $$f 2>&1 | tail -1); \
+	    if echo "$$result" | grep -q 'SUCCESS'; then \
+	        echo "  ✓ $$f"; \
+	    else \
+	        echo "  ✗ $$f: $$result"; exit 1; \
+	    fi; \
+	done
+	@echo "=== Self-annotation verification (lean path) ==="
+	@for f in src/self-annotate/lean/*.py; do \
+	    result=$$($(PYTHON) src/pycsl/pycsl.py --no-proof $$f 2>&1 | tail -1); \
+	    if echo "$$result" | grep -q 'SUCCESS'; then \
+	        echo "  ✓ $$f"; \
+	    else \
+	        echo "  ✗ $$f: $$result"; exit 1; \
+	    fi; \
+	done
+	@echo "=== All self-annotation files pass pycsl --no-proof ==="
+
+self-annotate: self-annotate-verify
+
 clean:
 	rm -rf *~ .venv __pycache__ pycsl_ir.json pycsl_out.mlw
 	rm -rf `find . -name __pycache__`
