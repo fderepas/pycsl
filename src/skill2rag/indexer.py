@@ -28,7 +28,7 @@ def build_index(
     skill_dir: str,
     index_path: str,
     model: str = "nomic-embed-text",
-    batch_size: int = 32,
+    batch_size: int = 16,
 ) -> None:
     """Build (or rebuild) the vector index from skill markdown files.
 
