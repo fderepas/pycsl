@@ -12,7 +12,7 @@ too expensive for the available solver budget.
 
 PyCSL annotations are not judged only by mathematical correctness. They are also
 judged by whether the generated verification conditions are cheap enough for the
-automatic provers to discharge.
+SMT solvers to discharge.
 
 This is why proof engineering in PyCSL often prefers:
 
@@ -25,6 +25,20 @@ over:
 - broad quantified invariants
 - global list membership reasoning
 - whole-structure reconstruction
+
+---
+
+## Solver heuristics in practice
+
+A **solver heuristic** is the practical annotation or proof-pattern choice you
+make to stay within the solver budget. The goal does not change; the encoding
+does.
+
+Typical heuristics in PyCSL include:
+
+- replacing wide quantified claims with local witness facts
+- using direct ghost lookups instead of reconstructed whole-structure facts
+- splitting one expensive invariant into a few cheaper ones
 
 ---
 

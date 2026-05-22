@@ -32,6 +32,20 @@ fail even when the source annotation looks mathematically right.
 
 ---
 
+## Transpiler limits in practice
+
+A **transpiler limit** is a lowering or code-generation boundary that the source
+program must model around. The issue is not the intended proof idea itself, but
+that some Python-level shapes do not lower cleanly to the WhyML the prover sees.
+
+Typical responses to a transpiler limit are:
+
+- rewriting a compound guard into simpler control flow
+- choosing constructs with a direct, predictable WhyML lowering
+- avoiding shorthand that would emit unsupported or ambiguous code
+
+---
+
 ## Concrete examples
 
 ### Example 1 — shorthand lowering
