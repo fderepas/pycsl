@@ -1,0 +1,11 @@
+[input]
+lean    = "spec.lean"
+python  = "impl.py"
+output  = "actual.py"
+
+[pycsl]
+extra_flags = ["--memory-model", "hoare"]
+
+[functions.double]
+python_name      = "double"
+divides_style    = "operational"

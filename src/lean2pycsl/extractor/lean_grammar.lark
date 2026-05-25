@@ -1,0 +1,62 @@
+// Lark grammar for the supported Lean 4 expression subset.
+//
+// The parser sees ASCII-normalized input: the upstream lexer rewrites
+// Unicode operators to ASCII before parsing (∀→forall, ∧→/\, ∣→|, etc.)
+// so the grammar stays small. Both the original and normalized forms
+// must mean the same thing to the user.
+//
+// Operator precedence follows Lean 4 conventions:
+//   ∀/∃ body            (lowest)
+//   ↔ / <->             (right assoc)
+//   → / ->              (right assoc)
+//   ∨ / \/              (right assoc)
+//   ∧ / /\              (right assoc)
+//   ¬ / Not / ~         (prefix)
+//   = ≠ ≤ < ≥ > ∣       (non-assoc cmp / divides at this level)
+//   + -                 (left assoc)
+//   * / %               (left assoc)
+//   - (unary)           (prefix)
+//   application         (left assoc)
+//   atom
+
+start: expr
+
+?expr: forall_expr | exists_expr | iff_expr
+
+forall_expr: "forall" binders "," expr
+exists_expr: "exists" binders "," expr
+
+binders: binder+
+?binder: typed_group_binder | bare_binder
+typed_group_binder: "(" IDENT+ ":" type_expr ")"
+bare_binder: IDENT+
+
+type_expr: qident
+
+?iff_expr: impl_expr ("<->" iff_expr)?         -> iff
+?impl_expr: or_expr ("->" impl_expr)?          -> impl
+?or_expr:   and_expr ("\\/" or_expr)?          -> orexp
+?and_expr:  not_expr ("/\\" and_expr)?         -> andexp
+?not_expr:  "~" not_expr                       -> negation
+         |  cmp_expr
+?cmp_expr:  add_expr (CMP_OP add_expr)?        -> cmp
+         |  add_expr "|" add_expr              -> dvd
+?add_expr:  mul_expr (ADD_OP mul_expr)*        -> add_chain
+?mul_expr:  uminus_expr (MUL_OP uminus_expr)*  -> mul_chain
+?uminus_expr: "-" uminus_expr                  -> neg
+            | app_expr
+?app_expr: atom (atom)*                        -> app_chain
+?atom: "(" expr ")"
+     | qident                                   -> var
+     | NUMBER                                   -> number
+
+qident: IDENT ("." IDENT)*
+
+CMP_OP: "<=" | ">=" | "<>" | "<" | ">" | "="
+ADD_OP: "+" | "-"
+MUL_OP.2: "*" | "%"
+
+IDENT: /[a-zA-Z_][a-zA-Z_0-9']*/
+NUMBER: /[0-9]+/
+
+%ignore /\s+/
