@@ -1,0 +1,12 @@
+[input]
+rocq    = "spec.v"
+python  = "impl.py"
+output  = "actual.py"
+
+[pycsl]
+extra_flags = ["--memory-model", "hoare"]
+
+[functions.double]
+python_name      = "double"
+spec_theorems    = ["double_value", "double_is_even"]
+divides_style    = "operational"

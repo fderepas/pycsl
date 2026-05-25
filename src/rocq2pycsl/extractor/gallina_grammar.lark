@@ -1,0 +1,67 @@
+// Lark grammar for the supported Gallina expression subset.
+//
+// This grammar parses a *single* Coq expression — typically the
+// statement of a Theorem/Lemma or the type / measure of a Definition.
+// Top-level vernac splitting and comment stripping happen upstream in
+// `lex.py`.
+//
+// Operator precedence follows the Coq reference manual for the relevant
+// subset (see rocq2pycsl-plan §5.1). Levels (low to high):
+//   forall/exists body  (level 200, lowest)
+//   <->                 (level 95, right assoc)
+//   ->                  (level 99, right assoc)
+//   \/                  (level 85, right assoc)
+//   /\                  (level 80, right assoc)
+//   ~                   (prefix, level 75)
+//   =, <>, <=, <, >=, > (level 70, non-assoc)
+//   +, -                (level 50, left)
+//   *, mod, div         (level 40, left)
+//   - (unary)           (prefix, level 35)
+//   application         (left assoc, level 10)
+//   atom                (level 0)
+
+start: expr
+
+?expr: forall_expr | exists_expr | impl_expr
+
+forall_expr: "forall" binders "," expr
+exists_expr: "exists" binders "," expr
+
+binders: binder+
+?binder: typed_group_binder | typed_loose_binder | bare_binder
+typed_group_binder: "(" IDENT+ ":" type_expr ")"
+typed_loose_binder: IDENT+ ":" type_expr
+bare_binder:        IDENT+
+
+type_expr: qident
+
+?impl_expr: iff_expr ("->" impl_expr)?         -> impl
+?iff_expr:  or_expr  ("<->" iff_expr)?         -> iff
+?or_expr:   and_expr ("\\/" or_expr)?          -> orexp
+?and_expr:  not_expr ("/\\" and_expr)?         -> andexp
+?not_expr:  "~" not_expr                       -> negation
+         |  cmp_expr
+?cmp_expr:  add_expr (CMP_OP add_expr)?        -> cmp
+?add_expr:  mul_expr (ADD_OP mul_expr)*        -> add_chain
+?mul_expr:  uminus_expr (MUL_OP uminus_expr)*  -> mul_chain
+?uminus_expr: "-" uminus_expr                  -> neg
+            | app_expr
+?app_expr: atom (atom)*                        -> app_chain
+?atom: paren_or_divides
+     | qident                                   -> var
+     | NUMBER                                   -> number
+
+paren_or_divides: "(" expr (DIVIDES_PIPE expr)? ")"
+qident: IDENT ("." IDENT)*
+
+// Operator terminals. `MOD_KW` and `DIV_KW` must out-rank IDENT so
+// `n mod m` doesn't parse as `n` applied to `mod` etc.
+CMP_OP: "<=" | ">=" | "<>" | "<" | ">" | "="
+ADD_OP: "+" | "-"
+MUL_OP.2: "*" | "mod" | "div"
+DIVIDES_PIPE: "|"
+
+IDENT: /[a-zA-Z_][a-zA-Z_0-9']*/
+NUMBER: /[0-9]+/
+
+%ignore /\s+/
