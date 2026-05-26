@@ -1,6 +1,6 @@
 ---
 name: lean
-description: "Use when editing .lean files, debugging Lean 4 builds (type mismatch, sorry, failed to synthesize instance, axiom warnings, lake build errors), searching mathlib for lemmas, formalizing mathematics in Lean, or learning Lean 4 concepts. Also trigger when the user asks for help with Lean 4, mathlib, or lakefile. Do NOT trigger for Coq/Rocq, Agda, Isabelle, HOL4, Mizar, Idris, Megalodon, or other non-Lean theorem provers."
+description: "Guide Lean 4 theorem-proving work when editing .lean files, debugging Lean 4 builds (type mismatch, sorry, failed to synthesize instance, axiom warnings, lake build errors), searching mathlib for lemmas, formalizing mathematics in Lean, or learning Lean 4 concepts. Also trigger when the user asks for help with Lean 4, mathlib, or lakefile. Do NOT trigger for Coq/Rocq, Agda, Isabelle, HOL4, Mizar, Idris, Megalodon, or other non-Lean theorem provers."
 ---
 
 # Lean 4 Theorem Proving
@@ -17,7 +17,7 @@ Use this skill whenever you're editing Lean 4 proofs, debugging Lean builds, for
 
 **Use 100-character line width for Lean files.** Do not wrap lines at 80 characters — Lean and mathlib convention is 100. If a line fits within 100 characters, keep it on one line. See [mathlib-style](references/mathlib-style.md) for breaking strategies when lines exceed 100.
 
-**Never change statements or add axioms without explicit permission.** Theorem/lemma statements, type signatures, and docstrings are off-limits unless the user requests changes. Inline comments may be adjusted; docstrings may not (they're part of the API). Custom axioms require explicit approval—if a proof seems to need one, stop and discuss. Exception: within synthesis wrappers (`/lean4:formalize`, `/lean4:autoformalize`), session-generated declarations may be redrafted under the outer-loop statement-safety rules; see cycle-engine.md.
+**Never change statements or add axioms without explicit permission.** Theorem/lemma statements, type signatures, and docstrings are off-limits unless the user requests changes. Inline comments may be adjusted; docstrings may not (they're part of the API). Custom axioms require explicit approval—if a proof seems to need one, stop and discuss. Exception: within synthesis wrappers (`/lean4:formalize`, `/lean4:autoformalize`), session-generated declarations may be redrafted under the outer-loop statement-safety rules; see [cycle-engine](references/cycle-engine.md).
 
 ## Commands
 
@@ -47,7 +47,7 @@ before the model sees a `/lean4:*` prompt matching one of the six covered
 commands, injects a `validated-invocation` block into context, and rejects
 invalid invocations at the hook level; invocations of the other commands pass
 through unchanged. Hosts without the hook fall back to model-parsed startup
-via the shared [command-invocation.md](references/command-invocation.md)
+via the shared [command-invocation](references/command-invocation.md)
 contract.
 Commands always announce resolved inputs, reject invalid startup configs before
 doing work, and treat wall-clock budgets like `--max-total-runtime` as
@@ -89,7 +89,7 @@ best-effort.
 
 - At most once per session. Do not repeat if the user declined, ignored it, or moved on.
 - Never mid-proof or during an active debugging loop.
-- One short line, not a pitch: "If you want, install the `lean4-contribute` plugin and I can draft that report for you here." See the [lean4-contribute README](../../../../plugins/lean4-contribute/README.md#installation) for setup.
+- One short line, not a pitch: "If you want, install the `lean4-contribute` plugin and I can draft that report for you here." See the lean4-contribute README for setup.
 
 ## Typical Workflow
 
@@ -159,7 +159,7 @@ The skill adapts to what's available. Determine your profile by checking capabil
 
 ### full (all capabilities)
 
-MCP + subagents + commands. Full workflow with live goal inspection, tactic testing, and parallel subagent dispatch (requires disjoint owned-file sets per agent, or separate worktrees). Subagents get pre-collected MCP context per [cycle-engine.md § Pre-flight Context](references/cycle-engine.md#pre-flight-context-for-subagent-dispatch). If `lean_run_code` is unavailable, use `/tmp` scratch files with `lake env lean` for isolated experiments.
+MCP + subagents + commands. Full workflow with live goal inspection, tactic testing, and parallel subagent dispatch (requires disjoint owned-file sets per agent, or separate worktrees). Subagents get pre-collected MCP context per [cycle-engine § Pre-flight Context](references/cycle-engine.md#pre-flight-context-for-subagent-dispatch). If `lean_run_code` is unavailable, use `/tmp` scratch files with `lake env lean` for isolated experiments.
 
 ### mcp_main_only (MCP available, no subagent dispatch)
 
@@ -191,7 +191,7 @@ Read proof state and assess quality. No edits, no commits, no subagent dispatch.
 
 **Staging:** Stage only files touched during the current session. Never use `git add -A` or broad glob patterns. Print the exact staged set before committing.
 
-See [sorry-filling.md](references/sorry-filling.md) for the full scratch-work preference order.
+See [sorry-filling](references/sorry-filling.md) for the full scratch-work preference order.
 
 ## Core Primitives
 
@@ -230,8 +230,8 @@ When editing `.lean` files without invoking a command, the skill runs **one boun
 - Validate with `lean_diagnostic_messages` (no project-gate `lake build` in this mode)
 - No looping, no deep escalation, no multi-cycle behavior, no commits
 - End with suggestions:
-  > Use `/lean4:prove` for guided cycle-by-cycle help.
-  > Use `/lean4:autoprove` for autonomous cycles with stop safeguards.
+    > Use `/lean4:prove` for guided cycle-by-cycle help.
+    > Use `/lean4:autoprove` for autonomous cycles with stop safeguards.
 
 ## Quality Gate
 
@@ -241,7 +241,7 @@ A proof is complete when:
 - Only standard axioms (`propext`, `Classical.choice`, `Quot.sound`)
 - No statement changes without permission
 
-Verification ladder: `lean_diagnostic_messages(file)` per-edit → `lake env lean <path/to/File.lean>` file gate (run from project root) → `lake build` project gate only. See [cycle-engine: Build Target Policy](references/cycle-engine.md#build-target-policy).
+Verification ladder: `lean_diagnostic_messages(file)` per-edit → `lake env lean <path/to/File.lean>` file gate (run from project root) → `lake build` project gate only. See [cycle-engine § Build Target Policy](references/cycle-engine.md#build-target-policy).
 
 ## Common Fixes
 
@@ -286,10 +286,10 @@ ${LEAN4_PYTHON_BIN:-python3} "$LEAN4_SCRIPTS/sorry_analyzer.py" . --report-only
 - Use the project's cache command: `lake cache get` on newer Lake, or `lake exe cache get` where the project still uses the mathlib cache executable.
 - If Lean LSP is cold or timing out on first use, run one `lake build` to bootstrap the workspace.
 - After bootstrap, return to the normal verification ladder:
-  `lean_diagnostic_messages(file)` → `lake env lean <path/to/File.lean>` (from project root) → `lake build` only at checkpoint/final gate.
+    `lean_diagnostic_messages(file)` → `lake env lean <path/to/File.lean>` (from project root) → `lake build` only at checkpoint/final gate.
 - Do **not** symlink another worktree's `.lake/build`; use Lake cache/artifact mechanisms instead.
 
-## References
+## Reference Files
 
 **Cycle Engine:** [cycle-engine](references/cycle-engine.md) — shared prove/autoprove logic (stuck, deep mode, falsification, safety)
 
@@ -313,6 +313,6 @@ ${LEAN4_PYTHON_BIN:-python3} "$LEAN4_SCRIPTS/sorry_analyzer.py" . --report-only
 
 **Quality:** [linter-authoring](references/linter-authoring.md) (project-specific linter rules), [ffi-interop](references/ffi-interop.md) (FFI, `@&`, init, symbol linkage)
 
-**Workflows:** [agent-workflows](references/agent-workflows.md), [subagent-workflows](references/subagent-workflows.md), [command-examples](references/command-examples.md), [learn-pathways](references/learn-pathways.md) (intent taxonomy, game tracks, source handling)
+**Workflows:** [agent-workflows](references/agent-workflows.md), [subagent-workflows](references/subagent-workflows.md), [command-examples](references/command-examples.md), [command-invocation](references/command-invocation.md), [learn-pathways](references/learn-pathways.md) (intent taxonomy, game tracks, source handling)
 
 **Internals:** [review-hook-schema](references/review-hook-schema.md), [compiler-internals](references/compiler-internals.md) (attributes, specialization, pipeline)

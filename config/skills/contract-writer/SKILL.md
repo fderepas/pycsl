@@ -1,6 +1,6 @@
 ---
 name: contract-writer
-description: Writes function-level PyCSL contracts (requires, ensures, assigns) for Python functions. Generates preconditions, postconditions, and frame conditions that compile to WhyML and are discharged by SMT solvers. Use when the user asks to write contracts for a function, add preconditions/postconditions, specify frame conditions, or when agent-writer.py delegates contract generation.
+description: Writes function-level PyCSL contracts (requires, ensures, assigns) for Python functions. Generates preconditions, postconditions, and frame conditions that compile to WhyML and are discharged by SMT solvers. Use when the user asks to write function-level contracts for a Python function, add preconditions/postconditions, specify frame conditions, or when `agent-writer.py` delegates contract generation.
 ---
 
 # PyCSL Contract Writing — Skill Reference
@@ -43,7 +43,7 @@ broader global claims.
 - Array sum: `\sum(arr, lo, hi)` — sum of elements `arr[lo..hi)` (auto-generates a recursive logic function with snoc lemma)
 - Pure function calls: `f(x, y)` — call a pure function (one with `#@ assigns \nothing`) inside `requires`/`ensures` expressions
 
-### FORBIDDEN in expressions
+### Forbidden in expressions
 
 - NO `**` (exponentiation)
 - NO float literals
@@ -52,7 +52,7 @@ broader global claims.
 - NO bare Python booleans (`True`, `False`, `None`) — use `1 == 1`, `0 == 1`, `0`
 - String literals are supported: `"hello"` maps to WhyML `string` type
 
-### ALLOWED in expressions (commonly mistaken as forbidden)
+### Allowed in expressions (commonly mistaken as forbidden)
 
 - `//` (floor-division) and `%` (modulo) **ARE** allowed in contracts — they map to WhyML `div` and `mod` respectively (confirmed by test 0334).
 - `in`, `not in` **ARE** allowed — they desugar to existential quantifiers.
@@ -181,7 +181,7 @@ Output ONLY the contract lines (each starting with `#@`), one per line. Do NOT o
 
 **NEVER emit `#@ proof rocq: …` / `#@ proof lean: …` lines.** Those are
 provenance trace directives produced *only* by `pycsl-bridge`
-(annotations.md §2.1.11), not by the contract-writer.
+(`annotations.md` §2.1.11), not by the contract-writer.
 
 Example output:
 ```python

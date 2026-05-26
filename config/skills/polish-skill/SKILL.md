@@ -1,6 +1,6 @@
 ---
 name: polish-skill
-description: Polishes an existing SKILL.md file so it triggers reliably, scans well, splits cleanly into a SKILL.md plus reference files when oversized, and preserves every technical claim verbatim from the original. Use whenever the user says "polish this skill", "clean up my skill", "make this skill better", "this SKILL.md is too long", uploads a `SKILL.md` file, or asks for help reorganizing skill content under a `references/` folder. Also use when the user wants their skill checked for the common authoring failure modes: undertriggering descriptions, mis-numbered headings, mis-indented bullets, forward references, dead file paths, mixed cautionary-vs-canonical examples, run-on prose bullets, or a single `SKILL.md` past ~500 lines that should be broken up.
+description: Polishes an existing SKILL.md file so it triggers reliably, scans well, and preserves every technical claim verbatim from the original; when a deep polish is warranted, it also splits cleanly into a SKILL.md plus reference files. Use whenever the user says "polish this skill", "clean up my skill", "make this skill better", "this SKILL.md is too long", uploads a `SKILL.md` file for polish, or asks for help reorganizing skill content under a `references/` folder. Also use when the user wants their skill checked for the common authoring failure modes: undertriggering descriptions, mis-numbered headings, mis-indented bullets, forward references, dead file paths, mixed cautionary-vs-canonical examples, run-on prose bullets, or a single `SKILL.md` past ~500 lines that should be broken up.
 ---
 
 # Polish Skill
@@ -31,7 +31,7 @@ If companion files exist in `references/`, `scripts/`, or `assets/`, list them b
 
 Walk this list out loud (literally — write the findings to the user) before producing any output. Each item is a real failure mode that hurts skill reliability in practice:
 
-**Frontmatter audit:**
+#### Frontmatter audit
 
 1. Is `name` lowercase-with-hyphens, no spaces? Does it match the folder name?
 2. Does `description` start by saying *what the skill does* (verb phrase), then *when to use it* (trigger conditions)?
@@ -39,26 +39,26 @@ Walk this list out loud (literally — write the findings to the user) before pr
 4. Does the description overtrigger? Vague triggers like "for any Python task" cause the skill to load for irrelevant requests and waste context.
 5. Does the description make false claims about contents ("11+ examples" when there are exactly 11, "complete reference" when sections are missing)? Adjust to match reality.
 
-**Structural audit:**
+#### Structural audit
 
 6. Is the numbering consistent? Watch for sequences like `1, 2, 3, 3b, 4` — these are signs that a section was retrofitted as a sub-item when it should be a top-level heading.
 7. Are headings semantically grouped? A section titled "Code Generation Constraints" that contains both NEVERs and supported-feature notes is doing two jobs and confuses retrieval.
 8. Are forward references resolved? If Example 9 says "see §7" and §7 appears *after* Example 9, the model has to re-read the file to find it. Move §7 above, or restructure.
 9. Are cautionary examples mixed with canonical examples? If Examples 1–8 are templates to imitate but Examples 9–10 carry "ASPIRATIONAL / DO NOT IMITATE" warnings, separate them into clearly-labeled sections. Mixing them is actively misleading — the model copies whichever it pattern-matches first.
 
-**Formatting audit:**
+#### Formatting audit
 
 10. Are bullets indented consistently? Bullets at 5–7 spaces instead of 4 render as nested sub-items and break the visual hierarchy.
 11. Are bullets concise enough to scan? A "NEVER" rule that runs 200 words loses its emphasis. Long rules belong as their own subsection with prose paragraphs, not as a bullet.
 12. Is code fenced with language tags (` ```python `)? Untagged blocks render without syntax highlighting and are harder to scan.
 13. Are inline references (`§7`, `Section 4`, `Example 6`) consistent throughout? Mixing `§3`, `section 3`, and `Sec. 3` makes search harder.
 
-**Path and link audit:**
+#### Path and link audit
 
 14. Do all internal file references point to files that exist *and* live in the standard layout? `references/foo.md` is conventional; `test-suite/foo.md` is not.
 15. Are external URLs still valid?
 
-**Size audit:**
+#### Size audit
 
 16. Is the file under ~500 lines? Beyond that, the model's attention starts to degrade and rules get missed. If over, plan a split into `SKILL.md` plus `references/*.md`.
 17. Is content that *could* be a reference still inline? Examples: detailed transpiler limits, edge-case tables, cautionary worked examples, low-frequency lookup tables. These belong in `references/`.
@@ -84,7 +84,7 @@ Name reference files by what they contain, not by section number: `transpiler-li
 
 Use `create_file` to write each output file to `/mnt/user-data/outputs/<skill-name>/`. Maintain the standard layout:
 
-```
+```text
 <skill-name>/
 ├── SKILL.md
 ├── references/
@@ -125,7 +125,7 @@ These are absolute. Violating them turns a polish into a rewrite, which is not w
 - **Preserve cautionary warnings verbatim** ("ASPIRATIONAL ONLY", "CONTAINS FALSE INVARIANTS"). These are load-bearing; the user added them after the original failed in some specific way.
 - **Preserve technical terminology verbatim** even if it looks idiosyncratic. Domain-specific terms ("frame condition", "Hoare logic", "discharge a proof obligation") are not jargon to simplify away — they signal precision and the user's audience expects them.
 
-What you *may* change:
+### What you may change
 
 - Heading numbering, heading levels, and section ordering (when fixing forward references or moving cautionary examples out of the imitate-these block).
 - Bullet indentation, list markers, line wrapping.

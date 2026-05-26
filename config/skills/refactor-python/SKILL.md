@@ -1,6 +1,6 @@
 ---
 name: refactor-python
-description: Best practices for refactoring Python codebases. Covers identifying and splitting god methods, deduplicating shared utilities, adding type hints, building structured error hierarchies, unifying logging, extracting compiled regex constants, removing hardcoded configuration, fixing tempfile and module-level-global hazards, and verifying every change with tests. Use when asked to clean up, restructure, or improve existing Python code quality — including when the user says "this is messy", "too long", "hard to test", or "needs type hints".
+description: Refactor Python codebases using best practices for identifying and splitting god methods, deduplicating shared utilities, adding type hints, building structured error hierarchies, unifying logging, extracting compiled regex constants, removing hardcoded configuration, fixing tempfile and module-level-global hazards, and verifying every change with tests. Use when asked to clean up, restructure, or improve existing Python code quality — including when the user says "this is messy", "too long", "hard to test", or "needs type hints".
 ---
 
 # Python Refactoring Skill
@@ -109,10 +109,10 @@ See `references/god-method-patterns.md` for worked examples.
 3. Add `from __future__ import annotations` and full type hints to the new module.
 4. Migrate all call sites in one commit — never leave dead copies.
 5. For backward compatibility, re-export from the original location:
-   ```python
-   # llm_client.py — kept for backward compat
-   from common import log  # noqa: E402
-   ```
+    ```python
+    # llm_client.py — kept for backward compat
+    from common import log  # noqa: E402
+    ```
 
 **Avoid circular imports:** the shared module must not import from the modules it serves.
 
@@ -371,14 +371,14 @@ Follow this sequence for every refactoring session:
 
 1. **Baseline** — run the full test suite before any change; record the pass count.
 2. **One change at a time** — make one logical change (one section above), then:
-   a. `python3 -m py_compile <modified_file>` — syntax OK?
-   b. Run the test suite — count ≥ baseline?
+    a. `python3 -m py_compile <modified_file>` — syntax OK?
+    b. Run the test suite — count ≥ baseline?
 3. **Mechanical replacements** — for `replace_all=True`:
-   a. `grep -c "old_pattern" file` before the edit.
-   b. Confirm the edit reports the same number of replacements.
-   c. `grep -c "old_pattern" file` after — must be 0.
+    a. `grep -c "old_pattern" file` before the edit.
+    b. Confirm the edit reports the same number of replacements.
+    c. `grep -c "old_pattern" file` after — must be 0.
 4. **Deduplication confirmation** — after extracting to `common.py`:
-   - `grep -rn "def old_function_name"` — must appear only in `common.py`, not in the callers.
+    - `grep -rn "def old_function_name"` — must appear only in `common.py`, not in the callers.
 5. **Final** — run the full test suite; result must be ≥ baseline.
 
 **If tests regress after a change, revert that change before continuing.** Never stack refactors on top of a broken baseline.

@@ -174,7 +174,7 @@ When using a ghost integer counter (default type), `\old` is not needed — just
 ## Important Rules
 
 - **NEVER place blank lines between a `#@` block and the `def` or `while` keyword it annotates.** Blank lines cause line-number mismatch and silently drop annotations.
-- **NEVER emit `#@ proof rocq: …` / `#@ proof lean: …` lines.** Those are provenance trace directives produced *only* by `pycsl-bridge` (annotations.md §2.1.11), not by the invariant-writer. If the input already contains them above a function, preserve them — never delete them.
+- **NEVER emit `#@ proof rocq: …` / `#@ proof lean: …` lines.** Those are provenance trace directives produced *only* by `pycsl-bridge` (`test-suite/annotations.md` §2.1.11), not by the invariant-writer. If the input already contains them above a function, preserve them — never delete them.
 - **Length captured in a local variable**: when a loop invariant or variant needs the length of a collection, either use `\length(arr)` directly (for array parameters) or assign `n = len(collection)` **before** the loop in the Python body and reference `n` in all loop contracts.
 - **For `continue` statements**: PyCSL supports `continue` via exception-based control flow. All loop invariants must hold at the `continue` point.
 - **Nested loops**: each loop needs its own invariants. Inner loop invariants can reference outer loop variables.
@@ -234,8 +234,8 @@ self._count >= 0` to the loop. The solver will discharge the precondition
 
 ## Glossary
 
-[loop invariant](../../docs/glossary/loop-invariant.md) ·
-[loop variant](../../docs/glossary/loop-variant.md) ·
-[solver budget](../../docs/glossary/solver-budget.md) ·
-[ghost code](../../docs/glossary/ghost-code.md) ·
-[witness](../../docs/glossary/witness.md)
+[loop invariant](../../../docs/glossary/loop-invariant.md) ·
+[loop variant](../../../docs/glossary/loop-variant.md) ·
+[solver budget](../../../docs/glossary/solver-budget.md) ·
+[ghost code](../../../docs/glossary/ghost-code.md) ·
+[witness](../../../docs/glossary/witness.md)

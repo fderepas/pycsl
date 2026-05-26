@@ -1,6 +1,6 @@
 ---
 name: pycsl-software-architecture
-description: Reference architecture for the PyCSL codebase. Covers the 6-module compiler pipeline (Ingestor → Parser → Weaver → SemanticAnalyzer → IREmitter → WhyMLTranspiler), the data formats between modules, the agent orchestration layer, the error hierarchy, the three memory models (hoare/typed/store), and the infrastructure scripts. Use when maintaining, extending, or debugging any part of the PyCSL repository.
+description: Describe the reference architecture for the PyCSL codebase. Covers the 6-module compiler pipeline (Ingestor → Parser → Weaver → SemanticAnalyzer → IREmitter → WhyMLTranspiler), the data formats between modules, the agent orchestration layer, the error hierarchy, the three memory models (hoare/typed/store), and the infrastructure scripts. Use when maintaining, extending, or debugging the compiler pipeline, agents, memory models, error handling, or infrastructure in the PyCSL repository.
 ---
 
 # PyCSL Software Architecture
@@ -103,7 +103,7 @@ For the full agent orchestration description, see `references/agent-pipeline.md`
 
 ---
 
-## Section 6 — How to extend the pipeline
+## Section 6 — How to extend the compiler and agents
 
 **Adding a new CSL keyword (e.g., a new contract type):**
 1. `Module2_Parser.py` — add grammar rule to `csl.lark` and a new `CSLNode` dataclass.

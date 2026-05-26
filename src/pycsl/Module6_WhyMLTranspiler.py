@@ -2978,6 +2978,9 @@ class Module6_WhyMLTranspiler:
             "forall a : int. a >= 0 -> gcd a 0 = a",
         "Pycsl.Reference.Gcd.gcd_step":
             "forall a b : int. b > 0 -> gcd a b = gcd b (mod a b)",
+        "Pycsl.Reference.Gcd.gcd_greatest":
+            "forall a b k : int. a >= 0 -> b >= 0 -> (a > 0 \\/ b > 0) -> "
+            "k > 0 -> mod a k = 0 -> mod b k = 0 -> k <= gcd a b",
     }
 
     # Functions that an axiom block needs declared. Looked up by qualname

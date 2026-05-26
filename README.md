@@ -39,9 +39,16 @@ the contract can refer back to the originals, then reduce `(x, y) →
 
 What we want to prove about `gcd(a, b)`:
 
-- the inputs are non-negative (`a >= 0`, `b >= 0`), and
+- the inputs are non-negative (`a >= 0`, `b >= 0`),
 - the result is non-negative, strictly positive when at least one
-  input is, and divides both inputs.
+  input is, and divides both inputs, **and**
+- the result is the *greatest* such common divisor — no larger
+  positive integer also divides both inputs.
+
+The last clause is what turns "result is a common divisor" into "result
+is the *greatest* common divisor". Without it, a wrong implementation
+returning `1` for positive inputs would satisfy the spec, because `1`
+divides everything.
 
 In PyCSL contract syntax — placed *before* the `def` line, each prefixed
 by `#@`:
@@ -53,6 +60,9 @@ by `#@`:
 #@ ensures (a > 0 or b > 0) ==> \result > 0
 #@ ensures (a > 0 or b > 0) ==> a % \result == 0
 #@ ensures (a > 0 or b > 0) ==> b % \result == 0
+#@ ensures \result == gcd(a, b)
+#@ ensures (a > 0 or b > 0) ==>
+#@   (\forall k; (k > 0 and a % k == 0 and b % k == 0) ==> k <= \result)
 #@ assigns \nothing
 ```
 
@@ -64,6 +74,8 @@ Reading the tokens:
 | `ensures P` | Function's guarantee: `P` holds at every return. `\result` denotes the return value. |
 | `==>` | Logical implication. Use parentheses around the antecedent. |
 | `a % b` | Python `mod` — `a % \result == 0` means "result divides a". |
+| `\forall k; P ==> Q` | Universal quantifier (semicolon after binder). Here: for every `k`, if `k` is a positive common divisor then `k <= \result`. |
+| `gcd(a, b)` | A call to the imported Why3 `gcd` function (introduced in Step 4) — *not* a recursive call to the Python function. Used here as a bridge so the SMT solver can substitute directly. |
 | `assigns \nothing` | Frame condition: no observable state is mutated (local variables don't count). |
 
 Multiple `requires` / `ensures` lines are conjuncted.
@@ -99,15 +111,18 @@ The variant `y` strictly decreases because `x mod y < y` whenever `y > 0`.
 
 ### Step 4 — Hand the math to Rocq + Lean
 
-The proof in Step 3 needs three mathematical facts SMT solvers cannot
+The proof in Step 3 needs four mathematical facts SMT solvers cannot
 discover on their own:
 
 - `gcd a 0 = a` (loop-exit collapse),
 - `gcd a b = gcd b (a mod b)` (Euclidean step, the invariant preservation),
-- `a mod gcd(a, b) = 0` and `b mod gcd(a, b) = 0` (divisibility).
+- `a mod gcd(a, b) = 0` and `b mod gcd(a, b) = 0` (divisibility),
+- `k > 0 ∧ k | a ∧ k | b → k ≤ gcd(a, b)` (**maximality** — the load-bearing
+  fact for the "greatest" property; without it the spec would allow a
+  buggy implementation that returns `1` for positive inputs).
 
 These come from `test-suite/corpus/pycsl-reference/0342.proofs/`, where
-the same six lemmas are **independently proved in both Rocq and Lean**.
+the seven lemmas are **independently proved in both Rocq and Lean**.
 PyCSL imports them as Why3 axioms via the `#@ axiom_from` directive.
 When the *same* `pycsl_target` is named for both provers, the
 `proof2why3 cross-check` tool verifies that the two formalizations
@@ -121,13 +136,22 @@ Lean as Cross-Validated Spec Sources"** pattern.
 #@ axiom_from rocq Pycsl.Reference.Gcd.gcd_divides_b
 #@ axiom_from rocq Pycsl.Reference.Gcd.gcd_0
 #@ axiom_from rocq Pycsl.Reference.Gcd.gcd_step
+#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_greatest
 #@ axiom_from lean Pycsl.Reference.Gcd.gcd_result_nonneg
 #@ axiom_from lean Pycsl.Reference.Gcd.gcd_result_positive
 #@ axiom_from lean Pycsl.Reference.Gcd.gcd_divides_a
 #@ axiom_from lean Pycsl.Reference.Gcd.gcd_divides_b
 #@ axiom_from lean Pycsl.Reference.Gcd.gcd_0
 #@ axiom_from lean Pycsl.Reference.Gcd.gcd_step
+#@ axiom_from lean Pycsl.Reference.Gcd.gcd_greatest
 ```
+
+Why `gcd_greatest` *and* the divisibility axioms separately: the six
+"common-divisor" axioms (`gcd_*_nonneg`, `gcd_*_positive`, `gcd_divides_*`,
+`gcd_0`, `gcd_step`) pin down `gcd a b` by the Euclidean recurrence,
+but none of them state — in a quantified form SMT can use — that
+`gcd a b` is the *maximum* of all common divisors. `gcd_greatest`
+fills that gap.
 
 Why both Rocq *and* Lean: a typo in a Rocq theorem statement that
 matches what the WhyML axiom needs is still a wrong axiom. With two
@@ -156,7 +180,7 @@ Prover result is: Valid (27.83s, 737520 steps).
 
 Every loop-invariant initialisation, every preservation step, the
 variant decrease, the modulo guard, and all four postconditions are
-discharged by Alt-Ergo using the six imported axioms. No `\trusted`,
+discharged by Alt-Ergo using the seven imported axioms. No `\trusted`,
 no `--no-proof`.
 
 ---

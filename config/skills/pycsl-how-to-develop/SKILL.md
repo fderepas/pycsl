@@ -1,6 +1,6 @@
 ---
 name: pycsl-how-to-develop
-description: Developer guide for the PyCSL formal verification pipeline. Covers the project directory layout, the role of every utility in bin/, the Module1–Module6 pipeline, the agent architecture, the skills and RAG system, the test suite structure, and a step-by-step checklist for adding a new feature. Use this skill whenever scaffolding, extending, or debugging the PyCSL project.
+description: Guide developers through the PyCSL formal verification pipeline. Covers the project directory layout, the role of every utility in bin/, the Module1–Module6 pipeline, the agent architecture, the skills and RAG system, the test suite structure, and a step-by-step checklist for adding a new feature. Use this skill whenever scaffolding, extending, or debugging the PyCSL project.
 ---
 
 # PyCSL — Developer How-To Guide
@@ -120,7 +120,7 @@ Module6_WhyMLTranspiler   ← generates .mlw (WhyML) file
 Why3 / Alt-Ergo     ← SMT solver proves or rejects the goals
 ```
 
-### CLI Flags (`pycsl.py`)
+### `pycsl.py` CLI Flags
 
 | Flag | Effect |
 |------|--------|
@@ -133,7 +133,7 @@ Why3 / Alt-Ergo     ← SMT solver proves or rejects the goals
 | `-p PROVER` | Use a specific prover (e.g., `Alt-Ergo,2.6.2,`). |
 | `--memory-model M` | Memory model: `hoare` (default), `typed`, `store`, or `concurrent`. |
 
-### CLI Flags (`agent-annotate.py`)
+### `agent-annotate.py` CLI Flags
 
 | Flag | Effect |
 |------|--------|
@@ -191,7 +191,7 @@ description: Master annotation skill for the PyCSL agent pipeline...
 
 The body contains rules, examples, and NEVER constraints that the LLM agents follow.
 
-### Terminology glossary
+### Terminology Glossary
 
 Human-facing verification vocabulary lives in `docs/glossary/`.
 
@@ -200,11 +200,11 @@ Use the glossary to normalize recurring terms across docs and skills:
 - prefer one primary term per concept
 - record aliases in the glossary page rather than scattering competing names
 - examples:
-  - **witness** as the primary term, with *proof certificate* and *local
-    certificate* as aliases
-  - **ghost code** / **ghost state** / **ghost lowering** as distinct concepts
-  - **local reasoning** and **global reasoning** as the preferred contrast when
-    discussing solver behavior
+    - **witness** as the primary term, with *proof certificate* and *local
+        certificate* as aliases
+    - **ghost code** / **ghost state** / **ghost lowering** as distinct concepts
+    - **local reasoning** and **global reasoning** as the preferred contrast when
+        discussing solver behavior
 
 ### RAG Compilation
 
@@ -374,19 +374,19 @@ Follow this checklist in order:
 - **WhyML**: Update `Module6_WhyMLTranspiler.py` to generate the WhyML output
 - **bin/ scripts**: If the feature adds or changes a script in `bin/`, update `README.md` (Usage section) — `bin/` scripts are user-facing tools and the README is the primary human documentation
 - **glossary terms**: If the feature introduces recurring verification
-  vocabulary, add or update the relevant page under `docs/glossary/` and then
-  prefer that terminology consistently across docs and skills
+    vocabulary, add or update the relevant page under `docs/glossary/` and then
+    prefer that terminology consistently across docs and skills
 - **normative references**: Update all three reference documents in `docs/`
-  following conventions in `config/skills/pycsl-docs/SKILL.md`:
-  - `docs/pycsl-concrete-syntax-reference.md` — add grammar productions (new atom
-    rows in §3.1 Atom Catalogue, new productions in §9 Complete Grammar, update §10.3 gap table)
-  - `docs/pycsl-static-semantics-reference.md` — add typing/scope rules (new §3.1.x
-    subsection with inference rules, ghost type mapping if applicable)
-  - `docs/pycsl-translational-reference.md` — add emission table entries in §T.8 or
-    the relevant section; update §T.11 gap codes; update §T.12 method index
-  - Bump **Version** in the preamble of each updated document
-  - Add `_Corresponds to annotations.md §N._` on each new section
-  - Add a gap code (G prefix) if any part of the feature is only partially translated
+    following conventions in `config/skills/pycsl-docs/SKILL.md`:
+    - `docs/pycsl-concrete-syntax-reference.md` — add grammar productions (new atom
+        rows in §3.1 Atom Catalogue, new productions in §9 Complete Grammar, update §10.3 gap table)
+    - `docs/pycsl-static-semantics-reference.md` — add typing/scope rules (new §3.1.x
+        subsection with inference rules, ghost type mapping if applicable)
+    - `docs/pycsl-translational-reference.md` — add emission table entries in §T.8 or
+        the relevant section; update §T.11 gap codes; update §T.12 method index
+    - Bump **Version** in the preamble of each updated document
+    - Add `_Corresponds to annotations.md §N._` on each new section
+    - Add a gap code (G prefix) if any part of the feature is only partially translated
 
 ### Step 5: Update skill files
 
@@ -483,15 +483,15 @@ JSON schemas validating agent input/output formats (reconciliation recommendatio
 - `pycsl` binary must be on PATH
 - Ollama must be running locally for RAG embedding generation
 
-## Glossary
+## 12. Glossary
 
 The `docs/glossary/` directory defines all recurring verification terms:
-[ghost code](../../docs/glossary/ghost-code.md) ·
-[ghost state](../../docs/glossary/ghost-state.md) ·
-[ghost lowering](../../docs/glossary/ghost-lowering.md) ·
-[witness](../../docs/glossary/witness.md) ·
-[verification condition](../../docs/glossary/verification-condition.md) ·
-[proof companion](../../docs/glossary/proof-companion.md) ·
-[reference test](../../docs/glossary/reference-test.md) ·
-[trusted stub](../../docs/glossary/trusted-stub.md) ·
-[memory model](../../docs/glossary/memory-model.md)
+[ghost code](../../../docs/glossary/ghost-code.md) ·
+[ghost state](../../../docs/glossary/ghost-state.md) ·
+[ghost lowering](../../../docs/glossary/ghost-lowering.md) ·
+[witness](../../../docs/glossary/witness.md) ·
+[verification condition](../../../docs/glossary/verification-condition.md) ·
+[proof companion](../../../docs/glossary/proof-companion.md) ·
+[reference test](../../../docs/glossary/reference-test.md) ·
+[trusted stub](../../../docs/glossary/trusted-stub.md) ·
+[memory model](../../../docs/glossary/memory-model.md)

@@ -1,6 +1,6 @@
 ---
 name: pycsl-annotate
-description: Annotates Python code with PyCSL Hoare-logic contracts (requires, ensures, assigns, loop invariants, loop variants) that compile to WhyML and are discharged by SMT solvers like Z3 and Alt-Ergo. Covers the full PyCSL syntax, memory-model extensions, quantifiers, class invariants, transpiler-specific limits, and solver-friendly invariant patterns. Use this skill whenever the user asks to annotate Python with formal contracts, add invariants to loops, verify Python code with Why3 or an SMT solver, work with PyCSL, or convert imperative code into a verifiable specification — even when they describe the task informally as "add contracts," "make this provable," or "prove this function correct."
+description: Annotates Python code with PyCSL Hoare-logic contracts (requires, ensures, assigns, loop invariants, loop variants) that compile to WhyML and are discharged by SMT solvers like Z3 and Alt-Ergo. Covers PyCSL syntax, memory-model extensions, quantifiers, class invariants, transpiler-specific limits, and solver-friendly invariant patterns. Use this skill whenever the user asks to annotate Python with formal contracts, add invariants to loops, verify PyCSL-annotated Python code with Why3 or an SMT solver, work with PyCSL, or convert imperative code into a verifiable specification — even when they describe the task informally as "add contracts," "make this provable," or "prove this function correct."
 ---
 
 # PyCSL Annotator
@@ -44,8 +44,8 @@ Add PEP 484 type hints to **all** function parameters and return types, even if 
 - `#@ \trusted` — Body is not verified; contracts are assumed as axioms. Emits `val` (spec-only) instead of `let` + body. Callers may use the postcondition, but the implementation is not checked.
 - `#@ assumes bounded_int(N)` — Bounded integer pragma (N = 32 or 64). All `int` params/locals become `intN` machine integers; arithmetic (`+`, `-`, `*`) auto-generates overflow proof obligations.
 - `#@ raises ExcType when <cond>` — Exceptional postcondition. Declares that the function may raise `ExcType` when `cond` holds. Emits `raises { ExcType -> cond }` in WhyML.
-- `#@ proof <rocq|lean>: <qualname>` — **Informational provenance** (annotations.md §2.1.11). Records that the function's contract was derived from theorem `<qualname>` in the named formalism. PyCSL parses it, the IR carries it, but `Module6_WhyMLTranspiler` emits no WhyML for it. **The annotator agent MUST NOT generate `#@ proof` lines** — they are emitted only by `pycsl-bridge` when reconciling rocq + lean IR dumps, **or** under the proof-pair convention below. If present in input, preserve them above the rest of the `#@` block.
-- `#@ axiom_from <rocq|lean> <qualname>` — **Axiom import** (annotations.md §2.1.12). Imports a Rocq or Lean theorem as a Why3 axiom in the WhyML preamble. This is the **"Rocq + Lean as Cross-Validated Spec Sources"** pattern: when both `#@ axiom_from rocq <q>` and `#@ axiom_from lean <q>` appear for the same `pycsl_target`, the `proof2why3 cross-check` tool verifies their canonical forms agree before emission. **Module-level** (placed before any function definition). Unlike `#@ proof`, this directive has real semantic effect — Alt-Ergo/Z3 may use the imported axiom to discharge obligations. **The annotator agent MUST NOT generate `#@ axiom_from` lines** unless `proof2why3` has been run and the cross-check manifest shows `reconciled` status for the target.
+- `#@ proof <rocq|lean>: <qualname>` — **Informational provenance** (`test-suite/annotations.md` §2.1.11). Records that the function's contract was derived from theorem `<qualname>` in the named formalism. PyCSL parses it, the IR carries it, but `Module6_WhyMLTranspiler` emits no WhyML for it. **The annotator agent MUST NOT generate `#@ proof` lines** — they are emitted only by `pycsl-bridge` when reconciling rocq + lean IR dumps, **or** under the proof-pair convention below. If present in input, preserve them above the rest of the `#@` block.
+- `#@ axiom_from <rocq|lean> <qualname>` — **Axiom import** (`test-suite/annotations.md` §2.1.12). Imports a Rocq or Lean theorem as a Why3 axiom in the WhyML preamble. This is the **"Rocq + Lean as Cross-Validated Spec Sources"** pattern: when both `#@ axiom_from rocq <q>` and `#@ axiom_from lean <q>` appear for the same `pycsl_target`, the `proof2why3 cross-check` tool verifies their canonical forms agree before emission. **Module-level** (placed before any function definition). Unlike `#@ proof`, this directive has real semantic effect — Alt-Ergo/Z3 may use the imported axiom to discharge obligations. **The annotator agent MUST NOT generate `#@ axiom_from` lines** unless `proof2why3` has been run and the cross-check manifest shows `reconciled` status for the target.
 
 **Proof-pair convention** (since 2026-05-26). When a reference test `NNNN.py` is committed together with companion proof files in `test-suite/corpus/pycsl-reference/NNNN.proofs/rocq/<file>.v` and/or `.../lean/<file>.lean`, it MAY carry `#@ proof rocq: <qualname>` / `#@ proof lean: <qualname>` lines whose argument matches a `Theorem`/`theorem` statement in those files. PyCSL does not resolve the qualname; the convention is purely for human and future-tooling audit. **Worked example: `test-suite/corpus/pycsl-reference/0342.py`** (Euclidean GCD, with proofs under `0342.proofs/{rocq,lean}/`).
 - `#@ ghost <name> = <expr>` — Ghost variable declaration/assignment. Place before any statement. First occurrence → `let ghost <name> = ref <val> in`; subsequent → `ghost <name> := <val>`.
@@ -88,7 +88,7 @@ Quantifiers may appear at the top level of an expression **or** as the right-han
 
 ## Section 3 — Memory model extensions
 
-The memory model is selected globally and affects all functions in a file. Default is `"hoare"`. Set in `agents/agents-config.json` (`"memory-model": "hoare" | "typed" | "store"`) or override with `pycsl --memory-model typed input.py`.
+The memory model is selected globally and affects all functions in a file. Default is `"hoare"`. Set in `config/agents-config.json` (`"memory-model": "hoare" | "typed" | "store"`) or override with `pycsl --memory-model typed input.py`.
 
 **Choosing a model:**
 
@@ -349,6 +349,8 @@ For anything not covered above, consult these files in order of relevance to the
 
 - **`references/forbidden-expressions.md`** — Complete list of NEVER rules for contract expressions: forbidden function calls, reserved names, type restrictions, pattern pitfalls, and WhyML type mismatches. Consult whenever writing any `#@` expression.
 
+- **`references/validation-stack.md`** — Three-level validation-stack guide: IS/SR/TR rule tables and the practical decision checklist for syntax, static-semantics, and WhyML-generation failures.
+
 - **`references/class-support.md`** — Class annotation rules: method contracts, `\old` usage, class invariants, multi-field records, multi-class files, and two complete class examples.
 
 - **`references/worked-examples-core.md`** — Worked examples for core patterns: `for` loop conversion (Examples 3–5), factorial iterative/recursive (Example 7), list summation with weakened contracts (Examples 8, 8b, 8c).
@@ -386,9 +388,9 @@ The output must include:
 either (a) `pycsl-bridge` invoked you with reconciled cross-prover
 contracts, or (b) you are *also* committing companion proof files
 under the proof-pair convention (`NNNN.proofs/{rocq,lean}/<file>.{v,lean}`
-— see `0342.py` for the worked example). The directives are provenance
+— see `test-suite/corpus/pycsl-reference/0342.py` for the worked example). The directives are provenance
 trace metadata accepted by PyCSL and silently dropped by
-`Module6_WhyMLTranspiler` (annotations.md §2.1.11). If the input
+`Module6_WhyMLTranspiler` (`test-suite/annotations.md` §2.1.11). If the input
 Python already contains `#@ proof` lines, preserve them verbatim above
 your generated `#@ requires`/`ensures`/`assigns` block.
 
@@ -444,9 +446,9 @@ See `references/transpiler-limits.md` §12 for confirmed transpiler bugs:
 
 ## Glossary
 
-Core terms used in this skill have canonical definitions in `docs/glossary/`:
-[ghost code](../../docs/glossary/ghost-code.md) · [witness](../../docs/glossary/witness.md) ·
-[local reasoning](../../docs/glossary/local-reasoning.md) ·
-[solver budget](../../docs/glossary/solver-budget.md) ·
-[memory model](../../docs/glossary/memory-model.md) ·
-[loop invariant](../../docs/glossary/loop-invariant.md)
+Core terms used in this skill have canonical definitions in `../../../docs/glossary/`:
+[ghost code](../../../docs/glossary/ghost-code.md) · [witness](../../../docs/glossary/witness.md) ·
+[local reasoning](../../../docs/glossary/local-reasoning.md) ·
+[solver budget](../../../docs/glossary/solver-budget.md) ·
+[memory model](../../../docs/glossary/memory-model.md) ·
+[loop invariant](../../../docs/glossary/loop-invariant.md)

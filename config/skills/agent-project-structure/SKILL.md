@@ -1,6 +1,6 @@
 ---
 name: agent-project-structure
-description: Provides the recommended harness-agnostic directory layout for a Python agent project that contains multiple agents, reusable skills, reference examples, test suites, local embeddings storage, and configuration files. Covers where RAG indexes derived from skills and other corpora should live, and the source-vs-derived split that keeps skills portable. Use this skill whenever the user is scaffolding a new agent project, restructuring an existing one, asking where to put agents, skills, tests, embeddings, vector indexes, or config, asking where a RAG version of a skill belongs, or wants a portable layout that works across any LLM runtime or agent harness.
+description: Provides the recommended harness-agnostic directory layout for a Python agent project that contains multiple agents, reusable skills, runnable examples, test suites, local embeddings storage, and configuration files. Covers where RAG indexes derived from skills and other corpora should live, and the source-vs-derived split that keeps skills portable. Use this skill whenever the user is scaffolding a new agent project, restructuring an existing one, asking where to put agents, skills, tests, embeddings, vector indexes, or config in a Python agent project, asking where a RAG version of a skill belongs, or wants a portable layout that works across any LLM runtime or agent harness.
 ---
 
 # Agent Project Structure
@@ -70,7 +70,7 @@ my_project/
 │   ├── integration/               ← end-to-end multi-agent runs
 │   └── evals/                     ← agent and skill evaluations
 │
-├── examples/                      ← runnable reference examples
+├── examples/                      ← runnable examples
 │   ├── run_researcher.py          ← runs the Researcher agent alone
 │   ├── run_writer.py              ← runs the Writer agent alone
 │   └── researcher_to_writer.py    ← chains both agents in a pipeline
@@ -111,7 +111,7 @@ agents and capabilities. Each subfolder has a single responsibility:
   should be respected even when the rest of the harness is custom.
   **Skills here are source-only — never store pre-built embeddings, vector
   indexes, or other derived artifacts inside a skill folder.** See
-  "Skills as RAG sources" below for the full rationale.
+  [Skills as RAG sources](#skills-as-rag-sources) for the full rationale.
 - `hooks/`, `commands/` — optional, but reserved here so projects do not
   reinvent these locations later.
 
@@ -302,7 +302,8 @@ The skeleton ships with two cooperating agents to make the layout concrete:
 `main.py` wires the two together for production use; the three scripts
 under `examples/` demonstrate the pieces in isolation and as a pipeline.
 Before either agent can run, `src/my_project/indexing/index_skills.py` and
-`index_corpus.py` must be invoked at least once to populate
+`src/my_project/indexing/index_corpus.py` must be invoked at least once to
+populate
 `data/embeddings/` — typically wired as a `make index` target or as a
 first-run check in `main.py`.
 

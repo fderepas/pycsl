@@ -1,6 +1,6 @@
 ---
 name: rocq
-description: "Use when editing .v files, debugging Rocq/Coq builds (type mismatch, Admitted, failed to unify, axiom warnings, coqc errors), searching for lemmas in stdlib or MathComp, formalizing mathematics in Rocq, or learning Rocq concepts. Also trigger when the user asks for help with Rocq, Coq, MathComp, or _CoqProject. Do NOT trigger for Lean 4, Agda, Isabelle, HOL4, Mizar, Idris, Megalodon, or other non-Rocq theorem provers."
+description: "Guide Rocq/Coq theorem proving, proof debugging, library search, and formalization. Use when editing .v files, debugging Rocq/Coq builds (type mismatch, Admitted, failed to unify, axiom warnings, coqc errors), searching for lemmas in stdlib or MathComp, formalizing mathematics in Rocq, or learning Rocq concepts. Also trigger when the user asks for help with Rocq, Coq, MathComp, or _CoqProject. Do NOT trigger for Lean 4, Agda, Isabelle, HOL4, Mizar, Idris, Megalodon, or other non-Rocq theorem provers."
 ---
 
 # Rocq Theorem Proving
@@ -17,7 +17,7 @@ Use this skill whenever you're editing Rocq proofs, debugging Rocq builds, forma
 
 **Use 80-character line width for Rocq files.** Follow the standard Coq/Rocq convention of 80-character lines.
 
-**Never change statements or add axioms without explicit permission.** Theorem/lemma statements, type signatures, and doc comments are off-limits unless the user requests changes. Custom axioms require explicit approval — if a proof seems to need one, stop and discuss. Exception: within synthesis wrappers (`/rocq:formalize`, `/rocq:autoformalize`), session-generated declarations may be redrafted under the outer-loop statement-safety rules; see cycle-engine.md.
+**Never change statements or add axioms without explicit permission.** Theorem/lemma statements, type signatures, and doc comments are off-limits unless the user requests changes. Custom axioms require explicit approval — if a proof seems to need one, stop and discuss. Exception: within synthesis wrappers (`/rocq:formalize`, `/rocq:autoformalize`), session-generated declarations may be redrafted under the outer-loop statement-safety rules; see [cycle-engine](references/cycle-engine.md).
 
 ## Commands
 
@@ -61,7 +61,7 @@ Use this skill whenever you're editing Rocq proofs, debugging Rocq builds, forma
 │ /rocq:autoformalize      Autonomous: draft + autonomous proving                    │
 └────────────────────────────────────────────────────────────────────────────────────┘
         ↓ (if Admitted remain)
-/rocq:prove / autoprove    Proof engines (Admitted filling, no header edits)
+/rocq:prove or /rocq:autoprove   Proof engines (Admitted filling, no header edits)
         ↓
 /rocq:refactor             Leverage stdlib/MathComp, extract helpers (optional)
         ↓
@@ -129,7 +129,7 @@ The skill adapts to what's available. Determine your profile by checking capabil
 
 ### full (all capabilities)
 
-MCP + subagents + commands. Full workflow with interactive proof sessions, parallel tactic testing, and subagent dispatch. Subagents get pre-collected MCP context per [cycle-engine.md § Pre-flight Context](references/cycle-engine.md#pre-flight-context-for-subagent-dispatch).
+MCP + subagents + commands. Full workflow with interactive proof sessions, parallel tactic testing, and subagent dispatch. Subagents get pre-collected MCP context per [cycle-engine § Pre-flight Context](references/cycle-engine.md#pre-flight-context-for-subagent-dispatch).
 
 ### mcp_main_only (MCP available, no subagent dispatch)
 
@@ -161,7 +161,7 @@ Read proof state and assess quality. No edits, no commits, no subagent dispatch.
 
 **Staging:** Stage only files touched during the current session. Never use `git add -A` or broad glob patterns. Print the exact staged set before committing.
 
-See [admitted-filling.md](references/admitted-filling.md) for the full scratch-work preference order.
+See [admitted-filling](references/admitted-filling.md) for the full scratch-work preference order.
 
 ## Core Primitives
 
@@ -173,7 +173,7 @@ See [admitted-filling.md](references/admitted-filling.md) for the full scratch-w
 | `find_golfable.py` | Detect optimization patterns | JSON |
 | `find_usages.sh` | Find declaration usages | text |
 
-**Usage:** Invoked by commands automatically. See [references/](references/) for details.
+**Usage:** Invoked by commands automatically. See [References](#references) for details.
 
 **Invocation contract:** Never run bare script names. Always use:
 - Python: `${ROCQ_PYTHON_BIN:-python3} "$ROCQ_SCRIPTS/script.py" ...`
@@ -212,7 +212,7 @@ A proof is complete when:
 - `rocq_verify` confirms proof correctness (sandboxed verification)
 - No statement changes without permission
 
-Verification ladder: `rocq_check(body)` per-tactic → `rocq_compile(source)` file gate → project build (`make` or `coq_makefile`) project gate only. See [cycle-engine: Build Target Policy](references/cycle-engine.md#build-target-policy).
+Verification ladder: `rocq_check(body)` per-tactic → `rocq_compile(source)` file gate → project build (`make` or `coq_makefile`) project gate only. See [cycle-engine § Build Target Policy](references/cycle-engine.md#build-target-policy).
 
 **Standard axioms** (not flagged): `Coq.Logic.Classical_Prop` axioms (`classic`, `NNPP`), `Coq.Logic.FunctionalExtensionality` (`functional_extensionality`), `Coq.Logic.PropExtensionality` (`propositional_extensionality`), `Coq.Logic.ProofIrrelevance` (`proof_irrelevance`). All others reported as non-standard.
 
