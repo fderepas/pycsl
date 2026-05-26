@@ -10,7 +10,7 @@ provides:
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Dict, List, Optional, TypedDict
 
 from errors import PyCSLIRError
 
@@ -19,30 +19,51 @@ from errors import PyCSLIRError
 # TypedDict schema (documentation + static type-checker support)
 # ---------------------------------------------------------------------------
 
-# We use plain TypedDict rather than Required/NotRequired for 3.10 compat.
+# total=False because TypedDict with Required/NotRequired requires Python 3.11;
+# runtime validation is handled by validate_ir() below.
 
-class ContractsIR(dict):
+class ContractsIR(TypedDict, total=False):
     """contracts sub-dict inside a FunctionIR."""
-    # keys: requires, ensures, assigns, raises — all lists of IR dicts
+    requires: List[Dict[str, Any]]
+    ensures: List[Dict[str, Any]]
+    assigns: List[Dict[str, Any]]
+    raises: List[Dict[str, Any]]
 
 
-class FunctionIR(dict):
+class FunctionIR(TypedDict, total=False):
     """One entry in program_ir["functions"]."""
-    # Required keys: name, symbol_table, return_annotation, contracts,
-    #                body, function_variants, diverges, trusted, bounded_int
-    # Optional keys: pure, array2d_params, array1d_params, kind, self_type
+    # Required at runtime (validated by validate_ir):
+    name: str
+    symbol_table: Dict[str, str]
+    return_annotation: str
+    contracts: ContractsIR
+    body: List[Dict[str, Any]]
+    function_variants: List[Dict[str, Any]]
+    diverges: bool
+    trusted: bool
+    bounded_int: Optional[int]
+    # §2.1.11 — informational provenance entries. Always emitted by Module5
+    # (possibly empty). Module6 reads it not for translation but only to
+    # round-trip metadata that pycsl_bridge depends on.
+    proof_attributions: List[Dict[str, str]]
+    # Optional:
+    pure: bool
+    array2d_params: List[str]
+    array1d_params: List[str]
+    kind: str
+    self_type: str
 
 
-class ProgramIR(dict):
-    """Top-level JSON IR produced by Module5 and consumed by Module6.
-
-    Required keys: type_decls (list), functions (list[FunctionIR])
-    Optional concurrency keys (present when --memory-model concurrent):
-      shared_vars     : list[{"name": str, "mutex": str|None}]
-      mutex_invariants: dict[str, ir_dict]  — mutex name → invariant IR
-      thread_entries  : list[str]           — function names that are thread entries
-      lock_order      : list[str]           — ordered mutex names for deadlock prevention
-    """
+class ProgramIR(TypedDict, total=False):
+    """Top-level JSON IR produced by Module5 and consumed by Module6."""
+    # Required at runtime (validated by validate_ir):
+    type_decls: List[Dict[str, Any]]
+    functions: List[FunctionIR]
+    # Optional concurrency keys (present when --memory-model concurrent):
+    shared_vars: List[Dict[str, Any]]
+    mutex_invariants: Dict[str, Dict[str, Any]]
+    thread_entries: List[str]
+    lock_order: List[str]
 
 
 # ---------------------------------------------------------------------------
@@ -61,6 +82,7 @@ _REQUIRED_FUNCTION = {
     "diverges",
     "trusted",
     "bounded_int",
+    "proof_attributions",
 }
 
 _REQUIRED_CONTRACTS = {"requires", "ensures", "assigns", "raises"}

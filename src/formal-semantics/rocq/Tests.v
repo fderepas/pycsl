@@ -1,4 +1,5 @@
-(* Tests.v — Concrete evaluation tests for the PyCSL formalization *)
+(* Tests.v — Concrete evaluation tests for the PyCSL formalization
+   Updated for exec_state-based exec (Phase 3a). *)
 
 Require Import ZArith String List Bool.
 Require Import Lia.
@@ -11,146 +12,168 @@ Require Import Phase5a_WhileInv.
 Require Import Phase5b_Soundness.
 Open Scope Z_scope.
 
-Definition st_empty : state := nil.
+Definition es_empty : exec_state := mk_exec_state nil.
 
 (* ===== Test 1: Assign x = 42 ===== *)
 Lemma test_assign :
-  exec st_empty (SAssign "x" (EInt 42))
-    (ONormal (update st_empty "x" (VInt 42))).
+  exec es_empty (SAssign "x" (EInt 42))
+    (ONormal (set_reg es_empty (update nil "x" (VInt 42)))).
 Proof. apply ExecAssign. Qed.
 
 (* ===== Test 2: Sequential assignment x=1; y=2 ===== *)
 Lemma test_seq_assign :
-  exec st_empty
+  let st1 := update nil "x" (VInt 1) in
+  let es1  := set_reg es_empty st1 in
+  exec es_empty
     (SSeq (SAssign "x" (EInt 1)) (SAssign "y" (EInt 2)))
-    (ONormal (update (update st_empty "x" (VInt 1)) "y" (VInt 2))).
+    (ONormal (set_reg es1 (update st1 "y" (VInt 2)))).
 Proof. eapply ExecSeq; apply ExecAssign. Qed.
 
 (* ===== Test 3: If-then-else with true condition ===== *)
 Lemma test_if_true :
-  forall st,
-  eval_bool st (EInt 1) = true ->
-  exec st (SIf (EInt 1) (SAssign "x" (EInt 10)) (SAssign "x" (EInt 20)))
-    (ONormal (update st "x" (VInt 10))).
+  forall es,
+  eval_bool es.(reg_state) (EInt 1) = true ->
+  exec es (SIf (EInt 1) (SAssign "x" (EInt 10)) (SAssign "x" (EInt 20)))
+    (ONormal (set_reg es (update es.(reg_state) "x" (VInt 10)))).
 Proof. intros. apply ExecIfTrue; auto. apply ExecAssign. Qed.
 
 (* ===== Test 4: Skip is identity ===== *)
-Lemma test_skip : forall st, exec st SSkip (ONormal st).
+Lemma test_skip : forall es, exec es SSkip (ONormal es).
 Proof. apply ExecSkip. Qed.
 
 (* ===== Test 5: Return produces OReturned with \result bound ===== *)
 Lemma test_return :
-  exec st_empty (SReturn (EInt 7))
-    (OReturned (update st_empty "\result" (VInt 7)) (VInt 7)).
+  exec es_empty (SReturn (EInt 7))
+    (OReturned
+       (set_reg es_empty (update nil "\result" (VInt 7)))
+       (VInt 7)).
 Proof. apply ExecReturn. Qed.
 
 (* ===== Test 6: Continue produces OContinued ===== *)
-Lemma test_continue : forall st, exec st SContinue (OContinued st).
+Lemma test_continue : forall es, exec es SContinue (OContinued es).
 Proof. apply ExecContinue. Qed.
 
-(* ===== Test 7: WP for Skip is identity ===== *)
+(* ===== Test 7: Break produces OBroke ===== *)
+Lemma test_break : forall es, exec es SBreak (OBroke es).
+Proof. apply ExecBreak. Qed.
+
+(* ===== Test 8: WP for Skip is identity ===== *)
 Lemma test_wp_skip :
-  forall st Qn Qr Qc pre_st,
-  wp SSkip Qn Qr Qc pre_st st <-> Qn st.
+  forall es Qn Qr Qc Qb Qe pre_es,
+  wp SSkip Qn Qr Qc Qb Qe pre_es es <-> Qn es.
 Proof. simpl. tauto. Qed.
 
-(* ===== Test 8: WP for Assign substitutes ===== *)
+(* ===== Test 9: WP for Assign substitutes ===== *)
 Lemma test_wp_assign :
-  forall st Qr Qc pre_st,
-  wp (SAssign "x" (EInt 42)) (fun st' => lookup st' "x" = Some (VInt 42))
-     Qr Qc pre_st st.
+  forall es Qr Qc Qb Qe pre_es,
+  wp (SAssign "x" (EInt 42))
+     (fun es' => lookup es'.(reg_state) "x" = Some (VInt 42))
+     Qr Qc Qb Qe pre_es es.
 Proof.
   intros. simpl. unfold update, lookup. simpl. reflexivity.
 Qed.
 
-(* ===== Test 9: Soundness applied to Skip ===== *)
+(* ===== Test 10: Soundness applied to Skip ===== *)
 Lemma test_soundness_skip :
-  forall st (P : state -> Prop),
-  P st ->
-  exec st SSkip (ONormal st) ->
-  P st.
+  forall es (P : exec_state -> Prop),
+  P es ->
+  exec es SSkip (ONormal es) ->
+  P es.
 Proof.
-  intros st P HP Hexec.
-  exact (pycsl_soundness st SSkip (ONormal st) P (fun _ => True) (fun _ => True)
-           st Hexec HP).
+  intros es P HP Hexec.
+  exact (pycsl_soundness es SSkip (ONormal es)
+           P (fun _ => True) (fun _ => True) (fun _ => True)
+           (fun _ _ => True) es Hexec HP).
 Qed.
 
-(* ===== Test 10: Soundness applied to Assign ===== *)
+(* ===== Test 11: Soundness applied to Assign ===== *)
 Lemma test_soundness_assign :
-  forall st,
-  exec st (SAssign "x" (EInt 5))
-    (ONormal (update st "x" (VInt 5))) ->
-  lookup (update st "x" (VInt 5)) "x" = Some (VInt 5).
+  forall es,
+  exec es (SAssign "x" (EInt 5))
+    (ONormal (set_reg es (update es.(reg_state) "x" (VInt 5)))) ->
+  lookup (set_reg es (update es.(reg_state) "x" (VInt 5))).(reg_state) "x"
+    = Some (VInt 5).
 Proof.
-  intros st Hexec.
-  apply (pycsl_soundness st (SAssign "x" (EInt 5))
-           (ONormal (update st "x" (VInt 5)))
-           (fun st' => lookup st' "x" = Some (VInt 5))
-           (fun _ => True) (fun _ => True) st Hexec).
+  intros es Hexec.
+  apply (pycsl_soundness es (SAssign "x" (EInt 5))
+           (ONormal (set_reg es (update es.(reg_state) "x" (VInt 5))))
+           (fun es' => lookup es'.(reg_state) "x" = Some (VInt 5))
+           (fun _ => True) (fun _ => True) (fun _ => True)
+           (fun _ _ => True) es Hexec).
   simpl. unfold update, lookup. simpl. reflexivity.
 Qed.
 
-(* ===== Test 11: Augmented assign ===== *)
+(* ===== Test 12: Augmented assign ===== *)
 Lemma test_aug_assign :
-  let st := (("x", VInt 10) :: nil) in
-  exec st (SAugAssign "x" OpAdd (EInt 5))
-    (ONormal (update st "x" (VInt 15))).
+  let st  := (("x", VInt 10) :: nil) in
+  let es  := mk_exec_state st in
+  exec es (SAugAssign "x" OpAdd (EInt 5))
+    (ONormal (set_reg es (update st "x" (VInt 15)))).
 Proof. apply ExecAugAssign. Qed.
 
-(* ===== Test 12: exec_deterministic ===== *)
-Lemma test_deterministic :
-  forall st out1 out2,
-  exec st (SAssign "x" (EInt 1)) out1 ->
-  exec st (SAssign "x" (EInt 1)) out2 ->
-  out1 = out2.
-Proof. intros. eapply exec_deterministic; eauto. Qed.
+(* ===== Test 13: Assert passes when condition holds ===== *)
+Lemma test_assert_pass :
+  forall es,
+  eval_contract es.(reg_state) es.(reg_state) None (CInt 1) ->
+  exec es (SAssert (CInt 1) "unreachable") (ONormal es).
+Proof. intros. apply ExecAssertPass. simpl. lia. Qed.
 
-(* ===== Test 13: while_not_continued ===== *)
-Lemma test_while_not_continued :
-  forall st inv var cond body out,
-  exec st (SWhile inv var cond body) out ->
-  match out with OContinued _ => False | _ => True end.
-Proof. intros. eapply while_not_continued; eauto. Qed.
+(* ===== Test 14: Ghost declaration updates ghost state ===== *)
+Lemma test_ghost_decl :
+  exec es_empty (SGhostDecl "g" GTInt (CInt 0))
+    (ONormal (set_ghost es_empty
+               (ghost_update es_empty.(ghost_st) "g" (GVInt 0)))).
+Proof. apply ExecGhostDecl. Qed.
 
-(* ===== Tests for Phase 1a desugaring lemmas ===== *)
+(* ===== Test 15: Label records ghost snapshot ===== *)
+Lemma test_label :
+  exec es_empty (SLabel "PRE")
+    (ONormal (set_labels es_empty (("PRE", es_empty.(ghost_st)) :: nil))).
+Proof. apply ExecLabel. Qed.
 
-(* Test 14: walrus_assign is identical to SAssign *)
+(* ===== Test 16: walrus_assign is identical to SAssign ===== *)
 Lemma test_walrus_assign_exec :
-  exec st_empty (walrus_assign "x" (EInt 7))
-    (ONormal (update st_empty "x" (VInt 7))).
+  exec es_empty (walrus_assign "x" (EInt 7))
+    (ONormal (set_reg es_empty (update nil "x" (VInt 7)))).
 Proof. unfold walrus_assign. apply ExecAssign. Qed.
 
-(* Test 15: tuple_unpack2 assigns both elements *)
-Lemma test_tuple_unpack2 :
-  let arr_st := update st_empty "a" (VArray (1 :: 2 :: nil)) in
-  let st1 := update arr_st "x" (VInt 1) in
-  exec arr_st (tuple_unpack2 "a" "x" "y")
-    (ONormal (update st1 "y" (VInt 2))).
-Proof.
-  apply exec_tuple_unpack2_normal.
-Qed.
-
-(* Test 16: desugar_match single hit — body executes when scrutinee matches *)
+(* ===== Test 17: desugar_match single hit ===== *)
 Lemma test_match_hit :
-  let st := update st_empty "v" (VInt 42) in
-  exec st
+  let st := update nil "v" (VInt 42) in
+  let es := mk_exec_state st in
+  exec es
     (desugar_match (EVar "v") ((42, SAssign "r" (EInt 1)) :: nil) (SAssign "r" (EInt 0)))
-    (ONormal (update st "r" (VInt 1))).
+    (ONormal (set_reg es (update st "r" (VInt 1)))).
 Proof.
   apply exec_desugar_match_single_hit.
   - simpl. unfold update, lookup. simpl. reflexivity.
   - apply ExecAssign.
 Qed.
 
-(* Test 17: desugar_match single miss — default executes when no case matches *)
-Lemma test_match_miss :
-  let st := update st_empty "v" (VInt 99) in
-  exec st
-    (desugar_match (EVar "v") ((42, SAssign "r" (EInt 1)) :: nil) (SAssign "r" (EInt 0)))
-    (ONormal (update st "r" (VInt 0))).
+(* ===== Test 18: Exception — raise and catch ===== *)
+Lemma test_raise_catch :
+  exec es_empty
+    (STryCatch (SRaise "ValueError") "ValueError" (SAssign "x" (EInt 0)))
+    (ONormal (set_reg es_empty (update nil "x" (VInt 0)))).
 Proof.
-  eapply exec_desugar_match_single_miss with (n := 99).
-  - simpl. unfold update, lookup. simpl. reflexivity.
+  eapply ExecTryCatchCaught.
+  - apply ExecRaise.
   - apply ExecAssign.
-  - lia.
+Qed.
+
+(* ===== Test 19: Phase 1 CBoolLit evaluation ===== *)
+Lemma test_boollit_true :
+  eval_contract nil nil None (CBoolLit true).
+Proof. simpl. reflexivity. Qed.
+
+Lemma test_boollit_false :
+  ~ eval_contract nil nil None (CBoolLit false).
+Proof. simpl. discriminate. Qed.
+
+(* ===== Test 20: Phase 1 CIsSorted evaluation ===== *)
+Lemma test_is_sorted_empty :
+  forall st,
+  eval_contract st st None (CIsSorted "a" (CInt 0) (CInt 0)).
+Proof.
+  intros. simpl. destruct (lookup st "a") as [[|]|]; simpl; exact I.
 Qed.

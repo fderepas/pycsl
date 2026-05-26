@@ -22,8 +22,11 @@ rag = [
 
 [project.scripts]
 pycsl = "pycsl.pycsl:main"
+rocq2pycsl = "rocq2pycsl.cli:main"
+lean2pycsl = "lean2pycsl.cli:main"
+pycsl-bridge = "pycsl_bridge.cli:main"
 skill2rag = "skill2rag.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["pycsl*", "skill2rag*"]
+include = ["pycsl*", "pycsl_emit*", "pycsl_bridge*", "rocq2pycsl*", "lean2pycsl*", "skill2rag*"]

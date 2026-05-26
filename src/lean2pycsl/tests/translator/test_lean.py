@@ -296,3 +296,82 @@ def test_unsupported_node_raises_strict():
     )
     with pytest.raises(TranslationError):
         translate_function(func, [thm], strict=True)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Phase 4 — new operator lowering + bool auto-precondition
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_bool_params_get_zero_or_one_precondition():
+    func = LeanDef(
+        name="bool_xor",
+        params=(
+            Binder(name="a", ty="Bool", shape=BinderShape.EXPLICIT),
+            Binder(name="b", ty="Bool", shape=BinderShape.EXPLICIT),
+        ),
+        return_ty="Bool",
+    )
+    c = translate_function(func, [])
+    assert len(c.requires) == 2
+    for req in c.requires:
+        assert isinstance(req, BinOp) and req.op == "or"
+
+
+def test_polymorphic_types_no_longer_rejected():
+    """`List Nat`, `Array Nat`, `Option Nat`, `Nat -> Bool`, `Nat * Nat`
+    must all pass the type-class quantification gate."""
+    func = LeanDef(name="f", params=(), return_ty="Nat")
+    for ty in (
+        "List Nat",
+        "Array Nat",
+        "Option Nat",
+        "Nat -> Bool",
+        "Nat * Nat",
+        "Nat -> Option Nat",
+    ):
+        thm = LTheorem(
+            name="t",
+            binders=(Binder(name="x", ty=ty, shape=BinderShape.EXPLICIT),),
+            statement=LBinOp(op="=", lhs=LVar("x"), rhs=LVar("x")),
+        )
+        # Should NOT raise.
+        translate_function(func, [thm], strict=True)
+
+
+def test_dot_syntax_length_lowers_to_Length():
+    from pycsl_emit.ir import Length
+    from lean2pycsl.translator.lean import _lower
+
+    # `l.length` → Length(arr=Var("l"))
+    func = LeanDef(name="f", params=(), return_ty="Nat")
+    out = _lower(LVar("l.length"), func, [])
+    assert isinstance(out, Length) and out.arr == Var("l")
+
+
+def test_dot_syntax_fst_and_snd_lower_to_Proj():
+    from pycsl_emit.ir import Proj
+    from lean2pycsl.translator.lean import _lower
+
+    func = LeanDef(name="f", params=(), return_ty="Nat")
+    assert _lower(LVar("t.fst"), func, []) == Proj(t=Var("t"), i=0)
+    assert _lower(LVar("t.snd"), func, []) == Proj(t=Var("t"), i=1)
+
+
+def test_dot_syntax_generic_field_lowers_to_FieldGet():
+    from pycsl_emit.ir import FieldGet
+    from lean2pycsl.translator.lean import _lower
+
+    func = LeanDef(name="f", params=(), return_ty="Nat")
+    out = _lower(LVar("self._balance"), func, [])
+    assert out == FieldGet(obj=Var("self"), name="_balance")
+
+
+def test_qualified_constants_are_not_treated_as_dot_syntax():
+    """`List.nil` is a constant, not a field access."""
+    from lean2pycsl.translator.lean import _lower
+
+    func = LeanDef(name="f", params=(), return_ty="Nat")
+    # Capital-L means it's a module reference, not a variable.
+    out = _lower(LVar("List.nil"), func, [])
+    assert out == Var("List.nil")

@@ -9,6 +9,7 @@ import os
 import re as _re
 import sys
 import subprocess
+import tempfile
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 # Ensure sibling modules are importable regardless of cwd
@@ -335,7 +336,20 @@ def _resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str,
     return imported_names
 
 
-def _generate_rocq_obligations(mlw_path: str, output_dir: str, unproven_count: int) -> None:
+def _proof_reference_mlw_name(source_file: str) -> str:
+    """Return the stable <source>.mlw filename stored in a proof directory."""
+    return os.path.splitext(os.path.basename(source_file))[0] + ".mlw"
+
+
+def _make_temp_mlw_path() -> str:
+    """Allocate a per-invocation temporary WhyML file path."""
+    fd, path = tempfile.mkstemp(prefix=".pycsl_", suffix=".mlw")
+    os.close(fd)
+    return path
+
+
+def _generate_rocq_obligations(mlw_path: str, output_dir: str, unproven_count: int,
+                               source_file: Optional[str] = None) -> None:
     """Generate Rocq proof obligations for goals that SMT provers could not discharge."""
     os.makedirs(output_dir, exist_ok=True)
 
@@ -347,7 +361,9 @@ def _generate_rocq_obligations(mlw_path: str, output_dir: str, unproven_count: i
             mf.write("\trm -rf *.glob *.vo *.vok *.vos *~ \n")
 
     # Copy the WhyML source as reference
-    mlw_dest = os.path.join(output_dir, os.path.basename(mlw_path))
+    mlw_basename = (os.path.basename(mlw_path) if source_file is None
+                    else _proof_reference_mlw_name(source_file))
+    mlw_dest = os.path.join(output_dir, mlw_basename)
     import shutil
     shutil.copy2(mlw_path, mlw_dest)
 
@@ -660,7 +676,7 @@ def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argp
                           f"but {remaining} goal(s) still unproven.")
                 print("\n[-] Verification FAILED or INCOMPLETE. Check the solver output.")
                 if args.rocq:
-                    _generate_rocq_obligations(mlw_filename, args.rocq, unproven_count)
+                    _generate_rocq_obligations(mlw_filename, args.rocq, unproven_count, args.file)
                     sys.exit(2)
                 sys.exit(1)
 
@@ -672,7 +688,7 @@ def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argp
             os.remove(mlw_filename)
 
 
-def main():
+def main() -> None:
     args = _parse_args()
 
     if not os.path.exists(args.file):
@@ -712,7 +728,7 @@ def main():
         sys.exit(1)
 
     base_name = os.path.splitext(args.file)[0]
-    mlw_filename = f"{base_name}.mlw" if args.keep_mlw else ".pycsl_temp.mlw"
+    mlw_filename = f"{base_name}.mlw" if args.keep_mlw else _make_temp_mlw_path()
     _run_proofs(mlw_code, mlw_filename, provers, args)
 
 

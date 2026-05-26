@@ -32,6 +32,33 @@ from ..ir.nodes import (
     UnaryOp,
     Unsupported,
     Var,
+    Length,
+    Nth,
+    Tuple,
+    Proj,
+    MapGet,
+    MapSet,
+    MapEmpty,
+    HasKey,
+    StrConcat,
+    StrLength,
+    StrSub,
+    StrLit,
+    FieldGet,
+    ListNil,
+    ListCons,
+    ListLen,
+    ListAppend,
+    ListNthAt,
+    SetEmpty,
+    SetAdd,
+    SetRemove,
+    SetMem,
+    SetUnion,
+    SetInter,
+    SetDiff,
+    SetSubset,
+    SetEq,
 )
 from .divides import DividesStyle, render_divides
 from .names import NameMap
@@ -126,6 +153,83 @@ def _render(node: Node, st: _State, *, paren: bool) -> str:
         out = render_divides(d_str, n_str, st.style, k_var=k)
         # Divides expansions are always composite — parenthesize when nested.
         return f"({out})" if paren else out
+
+    # ── Lists / arrays / tuples / dicts / strings ────────────────────
+    # These render as atom-like expressions (function-call shape), so no
+    # outer parens needed even in inner positions.
+    if isinstance(node, Length):
+        return f"\\length({_render_top(node.arr, st)})"
+    if isinstance(node, Nth):
+        # `arr[i]` is atom-like (postfix indexing); no surrounding parens.
+        return f"{_render_inner(node.arr, st)}[{_render_top(node.i, st)}]"
+    if isinstance(node, Tuple):
+        # `\mktuple(...)` is atom-like (function call shape).
+        args = ", ".join(_render_top(a, st) for a in node.args)
+        return f"\\mktuple({args})"
+    if isinstance(node, Proj):
+        # `t[i]` is atom-like.
+        return f"{_render_inner(node.t, st)}[{node.i}]"
+    if isinstance(node, MapGet):
+        return f"\\map_get({_render_top(node.d, st)}, {_render_top(node.k, st)})"
+    if isinstance(node, MapSet):
+        return (
+            f"\\map_set({_render_top(node.d, st)}, "
+            f"{_render_top(node.k, st)}, {_render_top(node.v, st)})"
+        )
+    if isinstance(node, MapEmpty):
+        return "\\empty_map"
+    if isinstance(node, HasKey):
+        return f"\\has_key({_render_top(node.d, st)}, {_render_top(node.k, st)})"
+    if isinstance(node, StrConcat):
+        out = f"{_render_inner(node.a, st)} ^ {_render_inner(node.b, st)}"
+        return f"({out})" if paren else out
+    if isinstance(node, StrLength):
+        return f"\\str_length({_render_top(node.s, st)})"
+    if isinstance(node, StrSub):
+        return (
+            f"\\str_sub({_render_top(node.s, st)}, "
+            f"{_render_top(node.lo, st)}, {_render_top(node.hi, st)})"
+        )
+    if isinstance(node, StrLit):
+        # Use repr() to get a properly-escaped string literal.
+        return f'"{node.value}"'
+
+    # ── Class instances ─────────────────────────────────────────────
+    if isinstance(node, FieldGet):
+        # `obj.field` is atom-like (member access).
+        return f"{_render_inner(node.obj, st)}.{node.name}"
+
+    # ── ghost_list ───────────────────────────────────────────────────
+    if isinstance(node, ListNil):
+        return "\\nil"
+    if isinstance(node, ListCons):
+        return f"\\cons({_render_top(node.head, st)}, {_render_top(node.tail, st)})"
+    if isinstance(node, ListLen):
+        return f"\\list_length({_render_top(node.l, st)})"
+    if isinstance(node, ListAppend):
+        return f"\\append({_render_top(node.l1, st)}, {_render_top(node.l2, st)})"
+    if isinstance(node, ListNthAt):
+        return f"\\nth({_render_top(node.l, st)}, {_render_top(node.i, st)})"
+
+    # ── ghost_set ────────────────────────────────────────────────────
+    if isinstance(node, SetEmpty):
+        return "\\set_empty"
+    if isinstance(node, SetAdd):
+        return f"\\set_add({_render_top(node.s, st)}, {_render_top(node.x, st)})"
+    if isinstance(node, SetRemove):
+        return f"\\set_remove({_render_top(node.s, st)}, {_render_top(node.x, st)})"
+    if isinstance(node, SetMem):
+        return f"\\set_mem({_render_top(node.x, st)}, {_render_top(node.s, st)})"
+    if isinstance(node, SetUnion):
+        return f"\\set_union({_render_top(node.a, st)}, {_render_top(node.b, st)})"
+    if isinstance(node, SetInter):
+        return f"\\set_inter({_render_top(node.a, st)}, {_render_top(node.b, st)})"
+    if isinstance(node, SetDiff):
+        return f"\\set_diff({_render_top(node.a, st)}, {_render_top(node.b, st)})"
+    if isinstance(node, SetSubset):
+        return f"\\set_subset({_render_top(node.a, st)}, {_render_top(node.b, st)})"
+    if isinstance(node, SetEq):
+        return f"\\set_eq({_render_top(node.a, st)}, {_render_top(node.b, st)})"
 
     raise TypeError(f"render: unknown IR node {type(node).__name__}")
 

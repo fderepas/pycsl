@@ -13,7 +13,17 @@ from Module2_Parser import (
     AssignsRegion, Valid, Separated, At as CSLAt,
     Length2D, Valid2D, FunctionVariant, StringLiteral as CSLStringLiteral,
     CallExpr, IsSorted, Sum, CSLBool, CSLNone, CSLIn, CSLNotIn, CSLSlice,
-    ChainedSubscript
+    ChainedSubscript,
+    GhostAssignDecl, GhostArraySetDecl,
+    MkTupleExpr, FstExpr, SndExpr, ProjExpr,
+    StrConcatExpr, StrLengthExpr, StrSubExpr,
+    GhostCopyExpr, GhostCopyRangeExpr, GhostMakeExpr,
+    MapEmptyExpr, MapGetExpr, MapSetExpr, MapEqExpr, HasKeyExpr, MapRemoveExpr,
+    SetEmptyExpr, SetAddExpr, SetRemoveExpr, SetMemExpr,
+    SetUnionExpr, SetInterExpr, SetDiffExpr, SetCardExpr,
+    SetSubsetExpr, SetEqExpr,
+    NilExpr, ConsExpr, HdExpr, TlExpr, ListLengthExpr,
+    NthExpr, MemExpr, AppendExpr,
 )
 
 class PyCSLToJSONEmitter(ast.NodeVisitor):
@@ -99,6 +109,41 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
         CSLNotIn:         "_csl_not_in",
         CSLSlice:         "_csl_slice",
         ChainedSubscript: "_csl_chained_subscript",
+        # Ghost expression nodes
+        MkTupleExpr:      "_csl_mktuple",
+        FstExpr:          "_csl_fst",
+        SndExpr:          "_csl_snd",
+        ProjExpr:         "_csl_proj",
+        StrConcatExpr:    "_csl_strconcat",
+        StrLengthExpr:    "_csl_str_length",
+        StrSubExpr:       "_csl_str_sub",
+        GhostCopyExpr:      "_csl_ghost_copy",
+        GhostCopyRangeExpr: "_csl_ghost_copy_range",
+        GhostMakeExpr:      "_csl_ghost_make",
+        MapEmptyExpr:     "_csl_map_empty",
+        MapGetExpr:       "_csl_map_get",
+        MapSetExpr:       "_csl_map_set",
+        MapEqExpr:        "_csl_map_eq",
+        HasKeyExpr:       "_csl_has_key",
+        MapRemoveExpr:    "_csl_map_remove",
+        SetEmptyExpr:     "_csl_set_empty",
+        SetAddExpr:       "_csl_set_add",
+        SetRemoveExpr:    "_csl_set_remove",
+        SetMemExpr:       "_csl_set_mem",
+        SetUnionExpr:     "_csl_set_union",
+        SetInterExpr:     "_csl_set_inter",
+        SetDiffExpr:      "_csl_set_diff",
+        SetCardExpr:      "_csl_set_card",
+        SetSubsetExpr:    "_csl_set_subset",
+        SetEqExpr:        "_csl_set_eq",
+        NilExpr:          "_csl_nil",
+        ConsExpr:         "_csl_cons",
+        HdExpr:           "_csl_hd",
+        TlExpr:           "_csl_tl",
+        ListLengthExpr:   "_csl_list_length",
+        NthExpr:          "_csl_nth",
+        MemExpr:          "_csl_mem",
+        AppendExpr:       "_csl_append",
     }
 
     def _csl_to_ir(self, node: CSLNode) -> Dict[str, Any]:
@@ -250,6 +295,133 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
                           "lower": self._csl_to_ir(node.low),
                           "upper": self._csl_to_ir(node.high),
                           "step": None}}
+
+    # --- Ghost expression IR handlers ---
+
+    def _csl_mktuple(self, node: MkTupleExpr) -> Dict[str, Any]:
+        return {"type": "MkTuple", "elts": [self._csl_to_ir(e) for e in node.elts]}
+
+    def _csl_fst(self, node: FstExpr) -> Dict[str, Any]:
+        return {"type": "FstExpr", "tuple": self._csl_to_ir(node.tuple_expr)}
+
+    def _csl_snd(self, node: SndExpr) -> Dict[str, Any]:
+        return {"type": "SndExpr", "tuple": self._csl_to_ir(node.tuple_expr)}
+
+    def _csl_proj(self, node: ProjExpr) -> Dict[str, Any]:
+        return {"type": "ProjExpr", "tuple": self._csl_to_ir(node.tuple_expr),
+                "index": int(node.index.value)}
+
+    def _csl_strconcat(self, node: StrConcatExpr) -> Dict[str, Any]:
+        return {"type": "StrConcat", "left": self._csl_to_ir(node.left),
+                "right": self._csl_to_ir(node.right)}
+
+    def _csl_str_length(self, node: StrLengthExpr) -> Dict[str, Any]:
+        return {"type": "StrLength", "string": self._csl_to_ir(node.string)}
+
+    def _csl_str_sub(self, node: StrSubExpr) -> Dict[str, Any]:
+        return {"type": "StrSub", "string": self._csl_to_ir(node.string),
+                "lo": self._csl_to_ir(node.lo), "hi": self._csl_to_ir(node.hi)}
+
+    def _csl_ghost_copy(self, node: GhostCopyExpr) -> Dict[str, Any]:
+        return {"type": "GhostCopy", "arr": node.arr}
+
+    def _csl_ghost_copy_range(self, node: GhostCopyRangeExpr) -> Dict[str, Any]:
+        return {"type": "GhostCopyRange", "arr": node.arr,
+                "lo": self._csl_to_ir(node.lo), "hi": self._csl_to_ir(node.hi)}
+
+    def _csl_ghost_make(self, node: GhostMakeExpr) -> Dict[str, Any]:
+        return {"type": "GhostMake", "size": self._csl_to_ir(node.size),
+                "default": self._csl_to_ir(node.default)}
+
+    def _csl_map_empty(self, node: MapEmptyExpr) -> Dict[str, Any]:
+        return {"type": "MapEmpty"}
+
+    def _csl_map_get(self, node: MapGetExpr) -> Dict[str, Any]:
+        return {"type": "MapGet", "dict": self._csl_to_ir(node.dict_expr),
+                "key": self._csl_to_ir(node.key)}
+
+    def _csl_map_set(self, node: MapSetExpr) -> Dict[str, Any]:
+        return {"type": "MapSet", "dict": self._csl_to_ir(node.dict_expr),
+                "key": self._csl_to_ir(node.key), "value": self._csl_to_ir(node.value)}
+
+    def _csl_map_eq(self, node: MapEqExpr) -> Dict[str, Any]:
+        return {"type": "MapEq", "left": self._csl_to_ir(node.left),
+                "right": self._csl_to_ir(node.right)}
+
+    def _csl_has_key(self, node: HasKeyExpr) -> Dict[str, Any]:
+        return {"type": "HasKey", "dict": self._csl_to_ir(node.dict_expr),
+                "key": self._csl_to_ir(node.key)}
+
+    def _csl_map_remove(self, node: MapRemoveExpr) -> Dict[str, Any]:
+        return {"type": "MapRemove", "dict": self._csl_to_ir(node.dict_expr),
+                "key": self._csl_to_ir(node.key)}
+
+    def _csl_set_empty(self, node: SetEmptyExpr) -> Dict[str, Any]:
+        return {"type": "SetEmpty"}
+
+    def _csl_set_add(self, node: SetAddExpr) -> Dict[str, Any]:
+        return {"type": "SetAdd", "set": self._csl_to_ir(node.set_expr),
+                "elem": self._csl_to_ir(node.elem)}
+
+    def _csl_set_remove(self, node: SetRemoveExpr) -> Dict[str, Any]:
+        return {"type": "SetRemove", "set": self._csl_to_ir(node.set_expr),
+                "elem": self._csl_to_ir(node.elem)}
+
+    def _csl_set_mem(self, node: SetMemExpr) -> Dict[str, Any]:
+        return {"type": "SetMem", "elem": self._csl_to_ir(node.elem),
+                "set": self._csl_to_ir(node.set_expr)}
+
+    def _csl_set_union(self, node: SetUnionExpr) -> Dict[str, Any]:
+        return {"type": "SetUnion", "left": self._csl_to_ir(node.left),
+                "right": self._csl_to_ir(node.right)}
+
+    def _csl_set_inter(self, node: SetInterExpr) -> Dict[str, Any]:
+        return {"type": "SetInter", "left": self._csl_to_ir(node.left),
+                "right": self._csl_to_ir(node.right)}
+
+    def _csl_set_diff(self, node: SetDiffExpr) -> Dict[str, Any]:
+        return {"type": "SetDiff", "left": self._csl_to_ir(node.left),
+                "right": self._csl_to_ir(node.right)}
+
+    def _csl_set_card(self, node: SetCardExpr) -> Dict[str, Any]:
+        return {"type": "SetCard", "set": self._csl_to_ir(node.set_expr),
+                "lo": self._csl_to_ir(node.lo), "hi": self._csl_to_ir(node.hi)}
+
+    def _csl_set_subset(self, node: SetSubsetExpr) -> Dict[str, Any]:
+        return {"type": "SetSubset", "left": self._csl_to_ir(node.left),
+                "right": self._csl_to_ir(node.right)}
+
+    def _csl_set_eq(self, node: SetEqExpr) -> Dict[str, Any]:
+        return {"type": "SetEq", "left": self._csl_to_ir(node.left),
+                "right": self._csl_to_ir(node.right)}
+
+    def _csl_nil(self, node: NilExpr) -> Dict[str, Any]:
+        return {"type": "Nil"}
+
+    def _csl_cons(self, node: ConsExpr) -> Dict[str, Any]:
+        return {"type": "Cons", "head": self._csl_to_ir(node.head),
+                "tail": self._csl_to_ir(node.tail)}
+
+    def _csl_hd(self, node: HdExpr) -> Dict[str, Any]:
+        return {"type": "Hd", "list": self._csl_to_ir(node.list_expr)}
+
+    def _csl_tl(self, node: TlExpr) -> Dict[str, Any]:
+        return {"type": "Tl", "list": self._csl_to_ir(node.list_expr)}
+
+    def _csl_list_length(self, node: ListLengthExpr) -> Dict[str, Any]:
+        return {"type": "ListLength", "list": self._csl_to_ir(node.list_expr)}
+
+    def _csl_nth(self, node: NthExpr) -> Dict[str, Any]:
+        return {"type": "Nth", "list": self._csl_to_ir(node.list_expr),
+                "index": self._csl_to_ir(node.index)}
+
+    def _csl_mem(self, node: MemExpr) -> Dict[str, Any]:
+        return {"type": "Mem", "elem": self._csl_to_ir(node.elem),
+                "list": self._csl_to_ir(node.list_expr)}
+
+    def _csl_append(self, node: AppendExpr) -> Dict[str, Any]:
+        return {"type": "Append", "left": self._csl_to_ir(node.left),
+                "right": self._csl_to_ir(node.right)}
 
     def _csl_list_to_ir(self, csl_list: List[CSLNode]) -> List[Dict[str, Any]]:
         return [self._csl_to_ir(c) for c in csl_list]
@@ -482,15 +654,36 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
             for lname in getattr(stmt, 'csl_labels', []):
                 ir_stmts.append({"stmt": "Label", "name": lname})
             for ga in getattr(stmt, 'csl_ghost_assigns', []):
-                ir_stmts.append({
-                    "stmt": "GhostAssign", "target": ga.target,
-                    "value": self._csl_to_ir(ga.value), "op": ga.op
-                })
+                if isinstance(ga, GhostArraySetDecl):
+                    ir_stmts.append({
+                        "stmt": "GhostArraySet", "target": ga.target,
+                        "index": self._csl_to_ir(ga.index),
+                        "value": self._csl_to_ir(ga.value),
+                    })
+                else:
+                    ir_stmts.append({
+                        "stmt": "GhostAssign", "target": ga.target,
+                        "value": self._csl_to_ir(ga.value), "op": ga.op,
+                        "ghost_type": getattr(ga, 'declared_type', 'int'),
+                    })
             handler_name = self._PY_STMT_HANDLERS.get(type(stmt))
             if handler_name is not None:
                 result = getattr(self, handler_name)(stmt, ir_stmts)
             elif hasattr(ast, 'Match') and isinstance(stmt, ast.Match):
                 self._py_stmt_match(stmt, ir_stmts)
+            for ga in getattr(stmt, 'csl_trailing_ghost_assigns', []):
+                if isinstance(ga, GhostArraySetDecl):
+                    ir_stmts.append({
+                        "stmt": "GhostArraySet", "target": ga.target,
+                        "index": self._csl_to_ir(ga.index),
+                        "value": self._csl_to_ir(ga.value),
+                    })
+                else:
+                    ir_stmts.append({
+                        "stmt": "GhostAssign", "target": ga.target,
+                        "value": self._csl_to_ir(ga.value), "op": ga.op,
+                        "ghost_type": getattr(ga, 'declared_type', 'int'),
+                    })
         return ir_stmts
 
     def _py_stmt_assign(self, stmt: ast.Assign, ir_stmts: List[Dict[str, Any]]) -> None:
@@ -832,7 +1025,21 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
             "function_variants": self._csl_list_to_ir(getattr(node, 'csl_function_variants', [])),
             "diverges": getattr(node, 'csl_diverges', False),
             "trusted": getattr(node, 'csl_trusted', False),
-            "bounded_int": getattr(node, 'csl_bounded_int', None)
+            "reviewer": getattr(node, 'csl_reviewer', ""),
+            "bounded_int": getattr(node, 'csl_bounded_int', None),
+            # §2.1.11 — informational trace from contract to source theorem.
+            # Downstream (Module6) MUST NOT emit WhyML for these entries.
+            "proof_attributions": [
+                {"prover": p.prover, "qualname": p.qualname}
+                for p in getattr(node, 'csl_proof_attributions', [])
+            ],
+            # §2.1.12 — axiom imports from cross-validated Rocq+Lean
+            # proofs. Module6 emits a Why3 `axiom` block in the
+            # preamble for each entry; see simple3.md.
+            "axiom_from": [
+                {"prover": a.prover, "qualname": a.qualname}
+                for a in getattr(node, 'csl_axiom_from', [])
+            ],
         }
 
     def _detect_purity(self, func_ir: Dict[str, Any]) -> None:

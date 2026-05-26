@@ -31,6 +31,14 @@ from pycsl_emit.ir import (
     Result,
     UnaryOp,
     Var,
+    Length,
+    Nth,
+    Tuple as IRTuple,
+    Proj,
+    MapGet,
+    StrConcat,
+    StrLength,
+    StrSub,
 )
 
 from ..extractor.gallina import (
@@ -143,10 +151,21 @@ def translate_function(
         contract.ensures.extend(ensures_nodes)
 
     # nat-typed params → requires p >= 0 preconditions.
+    # bool-typed params → requires (p == 0) or (p == 1) (0/1 encoding).
+    # list/array-typed params → no auto-precondition (the user's theorem
+    # carries any explicit `n <= length arr` clauses).
     for name, ty in func.params:
         if ty == "nat":
             contract.requires.append(
                 BinOp(">=", Var(name), Lit(0))
+            )
+        elif ty == "bool":
+            contract.requires.append(
+                BinOp(
+                    "or",
+                    BinOp("==", Var(name), Lit(0)),
+                    BinOp("==", Var(name), Lit(1)),
+                )
             )
 
     # Variant from {measure …}.
@@ -307,18 +326,92 @@ def _lower_app(
     """Lower a Gallina application, substituting `\\result` where appropriate.
 
     `func.name applied to the absorbed parameters in declaration order`
-    becomes a `Result()` placeholder. Any other application becomes a
-    regular IR.App — the caller is responsible for ensuring such pure
-    functions exist on the Python side with `#@ assigns \\nothing`.
+    becomes a `Result()` placeholder. Recognized Coq idioms (`length`,
+    `nth`, `fst`, `snd`, `andb`, `orb`, `negb`, `String.length`, etc.)
+    map to the corresponding IR nodes from Phase 1. Any other application
+    becomes a regular IR.App.
     """
     if node.fn == func.name and _matches_absorbed_args(node.args, func_param_names, absorbed):
         return Result()
+
+    # Helper to lower each argument once.
+    def lo(a):
+        return _lower(a, func, func_param_names, absorbed=absorbed)
+
+    fn = node.fn
+    args = node.args
+
+    # ── List / array operations ──────────────────────────────────────
+    # Coq's `length l` and `List.length l` and `Datatypes.length l`.
+    if fn in ("length", "List.length", "Datatypes.length") and len(args) == 1:
+        return Length(arr=lo(args[0]))
+    # `nth i l default` — drop the default; PyCSL preconditions enforce bounds.
+    if fn in ("nth", "List.nth") and len(args) == 3:
+        return Nth(arr=lo(args[1]), i=lo(args[0]))
+    # `app l1 l2`, `List.app l1 l2` — list append.
+    if fn in ("app", "List.app") and len(args) == 2:
+        from pycsl_emit.ir import ListAppend
+        return ListAppend(l1=lo(args[0]), l2=lo(args[1]))
+    # `cons h t`, `List.cons h t`.
+    if fn in ("cons", "List.cons") and len(args) == 2:
+        from pycsl_emit.ir import ListCons
+        return ListCons(head=lo(args[0]), tail=lo(args[1]))
+
+    # ── Tuple / pair operations ──────────────────────────────────────
+    if fn in ("fst", "Datatypes.fst") and len(args) == 1:
+        return Proj(t=lo(args[0]), i=0)
+    if fn in ("snd", "Datatypes.snd") and len(args) == 1:
+        return Proj(t=lo(args[0]), i=1)
+    if fn in ("pair", "Datatypes.pair") and len(args) == 2:
+        return IRTuple(args=(lo(args[0]), lo(args[1])))
+
+    # ── String operations ────────────────────────────────────────────
+    if fn in ("String.length",) and len(args) == 1:
+        return StrLength(s=lo(args[0]))
+    if fn in ("String.append", "append") and len(args) == 2:
+        # `append` is ambiguous (list vs string). String-typed lowering
+        # is decided here based on theorem context elsewhere; we default
+        # to StrConcat for `String.append`. Bare `append` is treated as
+        # list append above; the String.* qualified form lowers here.
+        if fn == "String.append":
+            return StrConcat(a=lo(args[0]), b=lo(args[1]))
+    if fn in ("substring", "String.substring") and len(args) == 3:
+        return StrSub(s=lo(args[0]), lo=lo(args[1]), hi=lo(args[2]))
+
+    # ── Boolean operations ───────────────────────────────────────────
+    if fn in ("andb", "Bool.andb") and len(args) == 2:
+        return BinOp(op="*", lhs=lo(args[0]), rhs=lo(args[1]))
+    if fn in ("orb", "Bool.orb") and len(args) == 2:
+        # a || b  ≡  a + b - a*b  in the 0/1 encoding.
+        a_ir = lo(args[0])
+        b_ir = lo(args[1])
+        return BinOp(
+            op="-",
+            lhs=BinOp(op="+", lhs=a_ir, rhs=b_ir),
+            rhs=BinOp(op="*", lhs=a_ir, rhs=b_ir),
+        )
+    if fn in ("negb", "Bool.negb") and len(args) == 1:
+        return BinOp(op="-", lhs=Lit(1), rhs=lo(args[0]))
+    if fn in ("eqb", "Bool.eqb", "Nat.eqb") and len(args) == 2:
+        return BinOp(op="==", lhs=lo(args[0]), rhs=lo(args[1]))
+    if fn in ("xorb", "Bool.xorb") and len(args) == 2:
+        # a XOR b in 0/1 encoding: a + b - 2*a*b.
+        a_ir = lo(args[0])
+        b_ir = lo(args[1])
+        return BinOp(
+            op="-",
+            lhs=BinOp(op="+", lhs=a_ir, rhs=b_ir),
+            rhs=BinOp(
+                op="*",
+                lhs=Lit(2),
+                rhs=BinOp(op="*", lhs=a_ir, rhs=b_ir),
+            ),
+        )
+
+    # Fallback: generic application.
     return App(
-        fn=node.fn,
-        args=tuple(
-            _lower(a, func, func_param_names, absorbed=absorbed)
-            for a in node.args
-        ),
+        fn=fn,
+        args=tuple(lo(a) for a in args),
     )
 
 

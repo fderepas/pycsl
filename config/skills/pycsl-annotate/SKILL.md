@@ -44,8 +44,14 @@ Add PEP 484 type hints to **all** function parameters and return types, even if 
 - `#@ \trusted` — Body is not verified; contracts are assumed as axioms. Emits `val` (spec-only) instead of `let` + body. Callers may use the postcondition, but the implementation is not checked.
 - `#@ assumes bounded_int(N)` — Bounded integer pragma (N = 32 or 64). All `int` params/locals become `intN` machine integers; arithmetic (`+`, `-`, `*`) auto-generates overflow proof obligations.
 - `#@ raises ExcType when <cond>` — Exceptional postcondition. Declares that the function may raise `ExcType` when `cond` holds. Emits `raises { ExcType -> cond }` in WhyML.
+- `#@ proof <rocq|lean>: <qualname>` — **Informational provenance** (annotations.md §2.1.11). Records that the function's contract was derived from theorem `<qualname>` in the named formalism. PyCSL parses it, the IR carries it, but `Module6_WhyMLTranspiler` emits no WhyML for it. **The annotator agent MUST NOT generate `#@ proof` lines** — they are emitted only by `pycsl-bridge` when reconciling rocq + lean IR dumps, **or** under the proof-pair convention below. If present in input, preserve them above the rest of the `#@` block.
+- `#@ axiom_from <rocq|lean> <qualname>` — **Axiom import** (annotations.md §2.1.12). Imports a Rocq or Lean theorem as a Why3 axiom in the WhyML preamble. This is the **"Rocq + Lean as Cross-Validated Spec Sources"** pattern: when both `#@ axiom_from rocq <q>` and `#@ axiom_from lean <q>` appear for the same `pycsl_target`, the `proof2why3 cross-check` tool verifies their canonical forms agree before emission. **Module-level** (placed before any function definition). Unlike `#@ proof`, this directive has real semantic effect — Alt-Ergo/Z3 may use the imported axiom to discharge obligations. **The annotator agent MUST NOT generate `#@ axiom_from` lines** unless `proof2why3` has been run and the cross-check manifest shows `reconciled` status for the target.
+
+**Proof-pair convention** (since 2026-05-26). When a reference test `NNNN.py` is committed together with companion proof files in `test-suite/corpus/pycsl-reference/NNNN.proofs/rocq/<file>.v` and/or `.../lean/<file>.lean`, it MAY carry `#@ proof rocq: <qualname>` / `#@ proof lean: <qualname>` lines whose argument matches a `Theorem`/`theorem` statement in those files. PyCSL does not resolve the qualname; the convention is purely for human and future-tooling audit. **Worked example: `test-suite/corpus/pycsl-reference/0342.py`** (Euclidean GCD, with proofs under `0342.proofs/{rocq,lean}/`).
 - `#@ ghost <name> = <expr>` — Ghost variable declaration/assignment. Place before any statement. First occurrence → `let ghost <name> = ref <val> in`; subsequent → `ghost <name> := <val>`.
+- `#@ ghost <name> : <type> = <expr>` — Typed ghost variable declaration. `<type>` is one of: `int` (default), `string`, `array`, `ghost_dict`, `ghost_list`, `ghost_set`, `tuple2`, `tuple3`, `tuple4`.
 - `#@ ghost <name> += <expr>` — Ghost augmented assignment (`+=`, `-=`, `*=`). Ghost variables are erased at extraction but usable in contracts and loop invariants.
+- `#@ ghost <arr>[i] = <expr>` — Ghost array element assignment (in-place mutation, for `array`-typed ghosts only).
 
 **Loop contracts** are placed immediately before the `while` or `for` keyword:
 
@@ -119,6 +125,35 @@ while i < n:
 ```
 
 Ghost variables emit `let ghost <name> = ref <val> in` (declaration) or `ghost <name> := <val>` (update) in WhyML. They are erased during Why3 extraction.
+
+**Terminology note:** `#@ ghost ...` statements are **ghost code**; the
+verification-only values they maintain form **ghost state**; their translation
+through the IR and WhyML pipeline is **ghost lowering**. When several ghost
+encodings are possible, prefer witness carriers that support **local reasoning**
+(explicit array/dict/tuple lookups) over **global reasoning** that spends solver
+budget on wide quantifiers or list membership.
+
+**Typed ghost variables** use a type annotation: `#@ ghost s : string = "hello"`. Available types:
+
+| Type | WhyML type | Initial value | Usage |
+|---|---|---|---|
+| `int` (default) | `ref int` | any int expr | `ghost x += 1` |
+| `string` | `ref string` | `"literal"` | `ghost s = s ^ "chunk"` |
+| `array` | `array int` | `\copy(arr)` or `\make(n, v)` | `ghost snap[i] = e` |
+| `ghost_dict` | `ref (map int (option int))` | `\empty_map` | `ghost d = \map_set(d, k, v)` |
+| `ghost_list` | `ref (list int)` | `\nil` | `ghost l = \cons(x, l)` |
+| `ghost_set` | `ref (map int bool)` | `\set_empty` | `ghost s = \set_add(s, x)` |
+| `tuple2` | `ref (int, int)` | `\mktuple(a, b)` | `ghost p = \mktuple(a, b)` |
+| `tuple3` | `ref (int, int, int)` | `\mktuple(a, b, c)` | `ghost t = \mktuple(a, b, c)` |
+| `tuple4` | `ref (int, int, int, int)` | `\mktuple(a, b, c, d)` | `ghost q = \mktuple(a, b, c, d)` |
+
+Ghost expression atoms for typed ghosts (use in contracts and loop invariants):
+- **Tuples:** `\mktuple(e1, e2, ...)`, `\fst(t)`, `\snd(t)`, `\proj(t, i)` (i must be an integer literal)
+- **Strings:** `s ^ t` (concatenation), `"literal"`, `\str_length(s)`, `\str_sub(s, lo, hi)`
+- **Ghost arrays:** `\copy(arr)`, `\copy_range(arr, lo, hi)` (bounded snapshot → `Array.sub arr lo (hi-lo)`), `\make(n, v)` (hoare model only); `snap[i]` for element read in contracts/invariants; `#@ ghost snap[i] = expr` for element write. Provide bounds (`lo >= 0`, `lo <= hi`, `hi <= \length(arr)`) as preconditions or loop invariants before the declaration point.
+- **Ghost dicts:** `\empty_map`, `\map_get(d, k)` (returns 0 if absent), `\map_set(d, k, v)`, `\map_eq(d1, d2)`, `\has_key(d, k)` (true iff key is present, option-type: safe even when 0 is a valid stored value), `\map_remove(d, k)` (removes key k); shorthand: `#@ ghost d += \mktuple(k, v)` for map-set
+- **Ghost lists:** `\nil`, `\cons(x, l)`, `\hd(l)`, `\tl(l)`, `\list_length(l)`, `\nth(l, i)`, `\mem(x, l)`, `\append(l1, l2)`; shorthand: `#@ ghost l += x` for prepend. **CRITICAL**: use `\nth(log, 0)` for head tracking in provable invariants — `\mem` causes prover OOM; `\hd` is invalid in spec context.
+- **Ghost sets:** `\set_empty`, `\set_add(s, x)`, `\set_remove(s, x)`, `\set_mem(x, s)`, `\set_card(s, lo, hi)`, `\set_union(s1, s2)`, `\set_inter(s1, s2)`, `\set_diff(s1, s2)`, `\set_subset(s1, s2)`, `\set_eq(s1, s2)`; shorthand: `#@ ghost s += x` for add
 
 ---
 
@@ -346,4 +381,23 @@ The output must include:
 4. Loop-level contracts (`#@ loop invariant`, `#@ loop variant`) on every `for` and `while` loop, immediately before the loop keyword.
 5. Class-invariant annotations (`#@ class invariant`) immediately before the `class` keyword when class-wide properties exist.
 
+**Do NOT emit `#@ proof rocq: …` / `#@ proof lean: …` lines** unless
+either (a) `pycsl-bridge` invoked you with reconciled cross-prover
+contracts, or (b) you are *also* committing companion proof files
+under the proof-pair convention (`NNNN.proofs/{rocq,lean}/<file>.{v,lean}`
+— see `0342.py` for the worked example). The directives are provenance
+trace metadata accepted by PyCSL and silently dropped by
+`Module6_WhyMLTranspiler` (annotations.md §2.1.11). If the input
+Python already contains `#@ proof` lines, preserve them verbatim above
+your generated `#@ requires`/`ensures`/`assigns` block.
+
 To verify only specific functions: `./pycsl --fun <name> file.py` — transitive call dependencies are included automatically.
+
+## Glossary
+
+Core terms used in this skill have canonical definitions in `docs/glossary/`:
+[ghost code](../../docs/glossary/ghost-code.md) · [witness](../../docs/glossary/witness.md) ·
+[local reasoning](../../docs/glossary/local-reasoning.md) ·
+[solver budget](../../docs/glossary/solver-budget.md) ·
+[memory model](../../docs/glossary/memory-model.md) ·
+[loop invariant](../../docs/glossary/loop-invariant.md)

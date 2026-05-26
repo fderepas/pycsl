@@ -1,5 +1,4 @@
 """Test 0297 — PyCSL Annotation Reference 7.6 — Ghost tuple variables"""
-# pycsl-flags: --no-proof
 _ = 0  # anchor
 
 #@ requires a >= 0 and b >= 0

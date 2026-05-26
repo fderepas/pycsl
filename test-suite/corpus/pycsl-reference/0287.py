@@ -1,5 +1,4 @@
 """Test 0287 — Local left rotation kernel"""
-# pycsl-flags: --no-proof
 _ = 0  # anchor
 
 

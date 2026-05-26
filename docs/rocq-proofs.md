@@ -1,6 +1,6 @@
 # Rocq Proof Companions
 
-When pycsl's SMT provers (Alt-Ergo, Z3) cannot discharge a verification
+When pycsl's SMT solvers (Alt-Ergo, Z3) cannot discharge a verification
 condition, a **Rocq proof companion** can provide a machine-checked proof
 that pycsl replays automatically on every run.
 
@@ -13,6 +13,27 @@ bin/generate-rocq-proofs.sh myfile.py
 # Verify — pycsl auto-detects myfile.proofs/ and replays with coqc
 pycsl myfile.py
 ```
+
+## Automatic helper
+
+If you want one command that first tries normal SMT verification and only
+falls back to Rocq + the LLM proof writer when needed:
+
+```bash
+bin/pycsl-prove-with-llm.sh myfile.py
+```
+
+This helper:
+
+1. runs `pycsl myfile.py`
+2. exits immediately on success
+3. on failure, creates `myfile.proofs/`
+4. generates Rocq `.v` skeletons with `--rocq`
+5. runs `agent-rocq-proof-writer.py` on the generated obligations
+6. replays the resulting proofs with `--rocq-proofs`
+
+The `.proofs/` directory is kept even on partial failure so you can continue
+manually with `make llm`, `make coq`, and `make replay`.
 
 ## How it works
 
@@ -32,7 +53,7 @@ foo.proofs/
 ```
 pycsl foo.py
   1. Generate .mlw from .py (fresh, from current source)
-  2. Run SMT provers (Alt-Ergo, Z3) on all split VCs
+  2. Run SMT solvers (Alt-Ergo, Z3) on all split VCs
   3. For each UNPROVEN sub-goal:
      a. Check if foo.proofs/ exists
      b. Compare current .mlw hash against stored .mlw (staleness check)

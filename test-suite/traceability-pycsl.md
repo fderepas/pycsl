@@ -91,6 +91,7 @@ The **Ref** column uses the format `section.subsection.row`.
 | 7.4 | Match statement \| `match/case` \| Lowered to if/elif chain | 0240, 0241 | PASS |
 | 7.5 | Lambda expression \| `lambda params: body` \| Anonymous function | 0242, 0243 | PASS |
 | 2.1.10 | Thread entry \| `#@ thread_entry` \| Marks function as concurrent thread entry point | 0250, 0251, 0252, 0253, 0277 | PASS |
+| 2.1.11 | Proof attribution \| `#@ proof <prover>: <qualname>` \| Informational trace from contract to source theorem (emitted by `pycsl-bridge`, no semantic effect) | 0331, 0332 | PASS |
 | 2.4.4 | Critical section \| `#@ critical <mutex>` \| with-block is a critical section (havoc+assume+assert) | 0250, 0251, 0252, 0253, 0278; XFAIL: 0254 (unprotected write) | PASS |
 | 2.4.5 | Acquires \| `#@ acquires <mutex>` \| Explicit mutex acquire annotation | 0262, 0263, 0264, 0265, 0266; XFAIL: 0255 (missing lock_order) | PASS |
 | 2.4.6 | Releases \| `#@ releases <mutex>` \| Explicit mutex release annotation | 0267, 0268, 0269, 0270, 0271 | PASS |
@@ -102,3 +103,43 @@ The **Ref** column uses the format `section.subsection.row`.
 | E1 | Negative: `\result` in non-ensures context \| Must be rejected by Module4 | XFAIL: 0281 (requires), 0282 (loop invariant) | PASS |
 | E2 | Negative: undefined variable in contract \| Must be rejected by Module4 | XFAIL: 0283 (ensures) | PASS |
 | E5 | Negative: bare variable in class invariant \| Must be rejected by Module4 | XFAIL: 0284 (undeclared), 0285 (not a field) | PASS |
+| 11.1.2 | Ghost string variable \| `#@ ghost s : string = "..."` \| `ref string` in WhyML, `^` for concat | 0292 | PASS |
+| 11.1.3 | Ghost array variable \| `#@ ghost snap : array = \copy(arr)` \| `array int` snapshot | 0293 | PASS |
+| 11.1.4 | Ghost dict variable \| `#@ ghost d : ghost_dict = \empty_map` \| `ref (map int (option int))` | 0294 | PASS |
+| 11.1.5 | Ghost list variable \| `#@ ghost l : ghost_list = \nil` \| `ref (list int)` | 0295 | PASS |
+| 11.1.6 | Ghost set variable \| `#@ ghost s : ghost_set = \set_empty` \| `ref (map int bool)` | 0296 | PASS |
+| 11.1.7 | Ghost tuple variables \| `#@ ghost p : tuple2 = \mktuple(a, b)` \| `ref (int, int)` | 0297 | PASS |
+| 11.2.3 | Ghost string `\str_length`/`\str_sub` \| `\str_length(s)`, `\str_sub(s, lo, hi)` \| `String.length`, `String.sub` | 0298 | PASS |
+| 11.2.9 | Ghost list `+=` shorthand \| `#@ ghost l += x` \| prepend via `Cons x !l` | 0300 | PASS |
+| 11.2.5 | Ghost dict `+=` shorthand \| `#@ ghost d += \mktuple(k, v)` \| `Map.set !d k v` | 0300 | PASS |
+| 11.2.6 | Ghost set union/inter/diff \| `\set_union`, `\set_inter`, `\set_diff` \| functional set ops | 0299 | PASS |
+| 11.2.11 | Ghost set `+=` shorthand \| `#@ ghost s += x` \| `Map.set !s x true` | 0301 | PASS |
+| 11.4.1 | Negative: `\proj` dynamic index \| `\proj(t, n)` where `n` is not a literal | 0302 | XFAIL |
+| 11.4.2 | Negative: `\proj` arity mismatch \| `\proj(p, 2)` on `tuple2` (Why3 error) | 0303 | XFAIL |
+| 11.4.3 | Negative: ghost string `+=` \| `#@ ghost s += expr` rejected at Module4 | 0304 | XFAIL |
+| 11.1.1 | Ghost tuple2 end-to-end proof \| `\fst`/`\snd` in loop invariant, proven by Alt-Ergo | 0305 | PASS |
+| 11.3.1 | Ghost list length proof \| `\list_length(l) == i` loop invariant, proven by Alt-Ergo | 0306 | PASS |
+| 11.2.6b | Ghost dict `\map_eq` in loop invariant \| two synchronized dicts | 0307 | PASS |
+| 11.2.7 | Ghost set `\set_union` with `\set_mem` \| `\set_mem(k, \set_union(s1, s2))` | 0308 | PASS |
+| 11.1.2b | Ghost tuple3 proof \| `\proj(t, i)` in loop invariant, proven by Alt-Ergo | 0309 | PASS |
+| 11.2.4b | Ghost dict `Map.get`/`Map.set` proof \| `\map_get(d, 0) == i` loop invariant | 0310 | PASS |
+| 11.2.6c | Ghost dict `\map_eq` full proof \| `\map_eq(d1, d2)` with synchronized updates | 0311 | PASS |
+| 11.3.2 | Ghost list `\nth` proof \| `\nth(log, 0) == i - 1` head tracking, `list.NthNoOpt` | 0312 | PASS |
+| 7.2.1 | Ghost array `\make` + `ghost snap[i] = e` proof \| element update with bounds check | 0313 | PASS |
+| 11.3.3 | Ghost list `\mem` proof via `axiom mem_head` \| `\mem(i-1, log)` with soundness axiom | 0314 | PASS |
+| 7.2.2 | Ghost array `\copy` element preservation \| `snap[i-1] == arr[i-1]` after `\copy(arr)` | 0315 | PASS |
+| 11.5 | Multi-ghost-type: dict + list + set \| three ghost types in same function, proven by Alt-Ergo | 0316 | PASS |
+| 11.4.1b | Negative: `\proj` dynamic index rejected (XFAIL) \| `\proj(t, i)` where `i` is a loop variable | 0317 | XFAIL |
+| 11.3.4 | Ghost list `\list_length` proof \| `\list_length(log) == i` loop invariant | 0318 | PASS |
+| 11.1.4 | Ghost tuple4 proof \| `\proj(t, 0..3)` all four components, proven by Alt-Ergo | 0319 | PASS |
+| 11.2.4c | Ghost dict `\has_key` proof \| `\has_key(d, 0)` option-type: key present | 0320 | PASS |
+| 11.4.3b | Ghost string `^` concat proof \| `\str_length(s) == i` with `s ^ "x"` update | 0321 | PASS |
+| 11.3.5 | Ghost list `\append` + `\list_length` proof \| `\list_length(\append(a, b)) == i` | 0322 | PASS |
+| 11.2.8 | Ghost set `\set_eq` proof \| `\set_eq(s1, s2)` synchronized updates, proven by Alt-Ergo | 0323 | PASS |
+| 11.2.4d | Ghost dict `\has_key` with key=1 \| `\has_key(d, 1)` implication invariant | 0324 | PASS |
+| 11.2.3b | Ghost set `\set_card` bounded range proof \| `\set_card(s, 0, i) == i` loop invariant | 0325 | PASS |
+| 11.5.1 | Ghost trailing-block position \| ghost update as last line in loop body, emitted after last statement | 0326 | PASS |
+| 11.6.1 | Ghost array \\copy_range bounded snapshot \| \\copy_range(arr, 0, n) with forall invariant, proven by Alt-Ergo | 0327 | PASS |
+| 11.7.1 | Memory-model parity for \\copy_range \| ghost array snapshot in hoare model with explicit --memory-model hoare flag | 0328 | PASS |
+| 11.8.1 | Ghost string \\str_sub prefix length proof \| `\str_length(\str_sub(s, 0, i)) == i` loop invariant, proven by Alt-Ergo (all 8 sub-goals) | 0329 | PASS |
+| 11.9.1 | Ghost dict \\map_remove + option-type proof \| `\has_key(d, 1)` true when stored value is 0 (option-type fix), \\map_remove verified | 0330 | PASS |

@@ -1,5 +1,4 @@
 """Test 0301 — PyCSL Annotation Reference 11.2 — Ghost set += shorthand"""
-# pycsl-flags: --no-proof
 _ = 0  # anchor
 
 #@ requires n >= 0

@@ -47,6 +47,7 @@ relevant page when needed.
 - [SMT solver](smt-solver.md)
 - [SAT solver](sat-solver.md)
 - [theorem prover](theorem-prover.md)
+- [trusted computing base](trusted-computing-base.md)
 
 ## Maintenance note
 
@@ -56,3 +57,7 @@ outcomes:
 1. add a new page here
 2. merge it into an existing glossary page
 3. queue it in `more-vocabulary-*.md` until the next glossary wave
+
+Conversely, when adding a new term to `test-suite/annotations.md` or a skill file,
+check whether it has a canonical glossary page before defining it inline. If one
+exists, add a short link rather than re-explaining the concept.

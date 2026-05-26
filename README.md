@@ -1,8 +1,65 @@
 # PyCSL 
 
-PyCSL is an annotation language for Python. It enables to formally verify Python code using [Hoare Logic](https://en.wikipedia.org/wiki/Hoare_logic). An associated tool, `pycsl`, verifies the annotations using [Why3](https://why3.lri.fr/). Why3 is a front end to Alt-Ergo or Z3. When automatic provers fail, manual theorem provers can be used.
+PyCSL is an annotation language for Python. It enables to formally verify Python code using [Hoare Logic](https://en.wikipedia.org/wiki/Hoare_logic). An associated tool, `pycsl`, verifies the PyCSL annotations using [Why3](https://why3.lri.fr/). Why3 is a front end to SMT solvers such as Alt-Ergo and Z3. When those SMT solvers fail, Rocq can be used as the interactive theorem prover.
 
 Documents define PyCSL [syntax](docs/pycsl-concrete-syntax-reference.md), [semantic](docs/pycsl-static-semantics-reference.md) and [translation to Why3](docs/pycsl-translational-reference.md).
+
+For human-facing definitions of recurring verification terms such as
+*witness*, *ghost code*, *ghost state*, *memory model*, and *solver budget*,
+see [`docs/glossary/`](docs/glossary/).
+
+---
+
+## Example
+
+Let's consider a python function computing a Greatest Common Divisor (GCD) computation:
+```python
+def gcd(a: int, b: int) -> int:
+    x = a
+    y = b
+    while y != 0:
+        r = x % y
+        x = y
+        y = r
+    return x
+```
+We would like to make sure that the result of the function `\result` is the GCD of arguments a and b.
+
+```python
+#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_result_nonneg
+#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_result_positive
+#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_divides_a
+#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_divides_b
+#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_0
+#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_step
+#@ axiom_from lean Pycsl.Reference.Gcd.gcd_result_nonneg
+#@ axiom_from lean Pycsl.Reference.Gcd.gcd_result_positive
+#@ axiom_from lean Pycsl.Reference.Gcd.gcd_divides_a
+#@ axiom_from lean Pycsl.Reference.Gcd.gcd_divides_b
+#@ axiom_from lean Pycsl.Reference.Gcd.gcd_0
+#@ axiom_from lean Pycsl.Reference.Gcd.gcd_step
+#@ requires a >= 0
+#@ requires b >= 0
+#@ ensures \result >= 0
+#@ ensures (a > 0 or b > 0) ==> \result > 0
+#@ ensures (a > 0 or b > 0) ==> a % \result == 0
+#@ ensures (a > 0 or b > 0) ==> b % \result == 0
+#@ assigns \nothing
+def gcd(a: int, b: int) -> int:
+    x = a
+    y = b
+    #@ loop invariant x >= 0
+    #@ loop invariant y >= 0
+    #@ loop invariant gcd(x, y) == gcd(a, b)
+    #@ loop invariant (a > 0 or b > 0) ==> (x > 0 or y > 0)
+    #@ loop variant y
+    while y != 0:
+        r = x % y
+        x = y
+        y = r
+    return x
+```
+
 
 ---
 
@@ -35,6 +92,75 @@ Each layer covers what the others cannot:
 
 ---
 
+## Cross-Prover Verification (`rocq2pycsl`, `lean2pycsl`, `pycsl-bridge`)
+
+PyCSL ships three companion tools that mechanize the self-annotation
+loop sketched above:
+
+- **`rocq2pycsl`** — extract PyCSL contracts from a Rocq `.v` file
+  (the formal-semantics proofs in `src/formal-semantics/rocq/`).
+  Default backend is a hand-rolled Lark parser; a SerAPI subprocess
+  backend is stubbed for later.
+
+- **`lean2pycsl`** — extract PyCSL contracts from a Lean 4 `.lean`
+  file (`src/formal-semantics/lean/`). Same architecture; default
+  Lark backend; lean-script (lake env lean) backend stubbed.
+
+- **`pycsl-bridge`** — read the JSON IR dumps from both converters,
+  canonicalize each side, and confirm they agree before emitting
+  annotated Python. Disagreements surface as structured diffs; the
+  bridge halts by default rather than shipping mismatched contracts.
+
+The bridge emits `#@ proof rocq: <theorem-qualname>` /
+`#@ proof lean: <theorem-qualname>` lines (`annotations.md §2.1.11`)
+above the regular `#@ requires`/`ensures`/`assigns` block. PyCSL's
+parser accepts these directives and Why3 emits no VCs for them — they
+are pure traceability from the Python source back to the source
+theorem(s) that produced its contract.
+
+Example invocation:
+
+```bash
+pycsl-bridge \
+    --rocq-config proofs/rocq.toml \
+    --lean-config proofs/lean.toml \
+    --python-src   src/pycsl/parser.py \
+    --output       src/pycsl/parser.annotated.py \
+    --manifest     pycsl-bridge.manifest.toml
+```
+
+Result: an annotated Python source that PyCSL re-verifies via Why3
+SMT, plus a `pycsl-bridge.manifest.toml` recording which Rocq and
+Lean theorems contracted which Python function. See
+`pycsl-bridge-plan.md §4` for the full workflow diagram.
+
+### Rocq + Lean as Cross-Validated Spec Sources (`proof2why3`)
+
+Beyond provenance documentation, PyCSL supports a stronger integration
+mode: **Rocq + Lean as Cross-Validated Spec Sources**. In this mode,
+proof-assistant theorems are imported as Why3 axioms via the
+`#@ axiom_from` directive (`annotations.md §2.1.12`), and a cross-check
+pipeline ensures that the Rocq and Lean formalizations agree before any
+axiom enters the verification.
+
+- **`proof2why3`** — the cross-validation tool. Extracts theorem
+  statements from Rocq (`.v`) and Lean (`.lean`) sources tagged with
+  `pycsl_target` attributes, converts both to a canonical intermediate
+  representation (alpha-normalized, AC-flattened, `nat`/`Nat` → `int`),
+  and verifies semantic equality. On success, emits Why3 `axiom` blocks;
+  on disagreement, halts with a structured diff.
+
+This architecture provides **two-party verification** of the specification:
+both Rocq and Lean kernels must independently confirm the theorem before
+Alt-Ergo/Z3 can use it. The pattern is the foundation for PyCSL
+self-hosting — annotating `pycsl`'s own source code with contracts derived
+from the mechanized WP soundness proofs in `src/formal-semantics/`.
+
+See `simple3.md` for the full architecture plan and `0342.py` for the
+worked example (Euclidean GCD with cross-validated spec axioms).
+
+---
+
 ## Directory Layout
 
 ```
@@ -50,6 +176,15 @@ PyCSL/
 │   │   ├── Module5_IREmitter.py        # Emits intermediate representation (JSON)
 │   │   ├── Module6_WhyMLTranspiler.py  # Generates .mlw (WhyML) for Why3
 │   │   └── agents/                     # LLM agent scripts (see Agent Architecture)
+│   ├── pycsl_emit/                     # Shared backend for the three tools below
+│   │   ├── ir/                         #   IR + JSON round-trip (pycsl-ir-dump v1)
+│   │   ├── translator/                 #   IR → PyCSL surface (with divides styles)
+│   │   ├── emitter/                    #   libcst annotation inserter
+│   │   ├── checker/                    #   subprocess wrapper for pycsl + verdict parser
+│   │   └── config/                     #   shared TOML schema
+│   ├── rocq2pycsl/                     # Rocq .v   → PyCSL annotations (Lark; SerAPI stub)
+│   ├── lean2pycsl/                     # Lean .lean → PyCSL annotations (Lark; lean-script stub)
+│   ├── pycsl_bridge/                   # Reconcile rocq + lean dumps; emit dual-attributed Python
 │   │       ├── coordinator.py          # Orchestrator — owns the full retry loop
 │   │       ├── agent-annotate.py       # Adds contracts to a Python file
 │   │       ├── agent-splitter.py       # Call-graph analysis, topological sort
@@ -115,6 +250,7 @@ PyCSL/
 │   ├── monitor/                        # Per-file operational health JSON
 │   └── reviewer/                       # Human-readable reports
 ├── docs/                               # Reference documents
+│   ├── glossary/                       # Human-facing glossary (witness, ghost code, memory model, ...)
 │   ├── pycsl-concrete-syntax-reference.md  # Normative EBNF grammar
 │   ├── pycsl-static-semantics-reference.md # Well-formedness rules
 │   └── pycsl-translational-reference.md    # Translation T: Python → WhyML
@@ -153,7 +289,7 @@ Module6_WhyMLTranspiler   ← generates .mlw (WhyML) file
 Why3 / Alt-Ergo / Z3      ← SMT solver proves or rejects the goals
     │
     ▼ (on SMT failure, optional)
-Rocq proof obligations     ← manual interactive proofs via --rocq
+Rocq proof companion      ← manual interactive proofs via --rocq
 ```
 
 ---
@@ -226,7 +362,8 @@ Tests support `# pycsl-flags: ...` (extra CLI flags) and
 
 ### Rocq interactive proofs
 
-When SMT provers fail on a goal, Rocq (Coq) proof skeletons can be
+When SMT solvers fail on a verification condition (VC), Rocq (Coq) proof
+skeletons can be
 generated and completed manually:
 
 ```bash
@@ -234,6 +371,22 @@ pycsl --rocq proofs/ myfile.py    # generates .v files in proofs/
 # ... complete proofs in .v files ...
 pycsl --rocq-proofs proofs/ myfile.py   # replays completed proofs
 ```
+
+### Rocq + LLM helper
+
+To keep the fast path clean, but automatically fall back to Rocq proof
+generation plus the LLM Rocq proof writer on failure, use:
+
+```bash
+./bin/pycsl-prove-with-llm.sh myfile.py
+```
+
+Behavior:
+
+1. Run normal `pycsl myfile.py`
+2. If it succeeds, exit with no extra proof artifacts
+3. If it fails, create `myfile.proofs/`, generate `.v` skeletons, run
+   `agent-rocq-proof-writer.py`, then replay with `--rocq-proofs`
 
 ---
 
@@ -247,6 +400,10 @@ PyCSL supports four memory models, selected via `--memory-model`:
 | `typed` | Flat memory map with `\valid`/`\separated` | Pointer-like reasoning |
 | `store` | Same as typed, different heap name | Alternative flat memory |
 | `concurrent` | Hoare + shared state + mutex invariants | Multi-threaded code |
+
+For the human-facing terminology, see
+[`docs/glossary/memory-model.md`](docs/glossary/memory-model.md). For the deeper
+technical design discussion, see [`docs/memory_model.md`](docs/memory_model.md).
 
 ### Concurrent model
 
@@ -373,7 +530,8 @@ type counter = { mutable _value: int }
   by { _value = 0 }
 ```
 
-The `by { ... }` witness is derived automatically from `__init__` assignments.
+The `by { ... }` initializer witness is derived automatically from `__init__`
+assignments.
 
 ---
 
@@ -510,4 +668,3 @@ Edit `config/agents-config.json` to change the LLM model or project directory:
 
 The update agent may only modify agent scripts or skill files — writing to
 `tests/annotated/` is blocked by the MCP server.
-

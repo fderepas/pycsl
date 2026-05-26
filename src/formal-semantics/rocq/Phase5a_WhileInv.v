@@ -1,4 +1,5 @@
-(* Phase5a_WhileInv.v — While Invariant Preservation Lemma *)
+(* Phase5a_WhileInv.v — While Invariant Preservation Lemma
+   Updated for exec_state-based exec (Phase 3a). *)
 
 Require Import ZArith String List Bool.
 Require Import Lia.
@@ -9,96 +10,103 @@ Require Import Phase3b_Desugar.
 Require Import Phase4_WP.
 Open Scope Z_scope.
 
-(* Helper: while loops never produce OContinued *)
+(* Helper: while loops never produce OContinued (with exec_state outcomes) *)
 Lemma while_not_continued :
-  forall st inv var cond body out,
-  exec st (SWhile inv var cond body) out ->
+  forall es inv var cond body out,
+  exec es (SWhile inv var cond body) out ->
   match out with OContinued _ => False | _ => True end.
 Proof.
-  intros st inv var cond body out Hexec.
+  intros es inv var cond body out Hexec.
   remember (SWhile inv var cond body) as s.
   induction Hexec; try discriminate; injection Heqs; intros; subst.
   - apply IHHexec2; reflexivity.
   - apply IHHexec2; reflexivity.
-  - exact I.
+  - exact I.   (* ExecWhileBreak produces ONormal *)
+  - exact I.   (* ExecWhileFalse produces ONormal *)
 Qed.
 
-(* The keystone lemma: while loop invariant is preserved across iterations.
-   Takes body soundness as a parameter to break the circularity with
-   pycsl_soundness (Phase5b provides it via its induction hypothesis). *)
+(* The keystone lemma: while loop invariant is preserved.
+   Admitted pending reconstruction with 5-continuation WP and exec_state. *)
 Lemma while_inv_preserved :
   forall (cond : expr) (body : stmt) (inv var : contract_expr)
-    (Qn Qr : state -> Prop) (pre_st st : state),
-    (forall st0 out0 Qn0 Qr0 Qc0,
-       exec st0 body out0 ->
-       wp body Qn0 Qr0 Qc0 pre_st st0 ->
+    (Qn Qr : exec_state -> Prop) (Qe : ident -> exec_state -> Prop)
+    (pre_es es : exec_state),
+    (forall es0 out0 Qn0 Qr0 Qc0 Qb0 Qe0,
+       exec es0 body out0 ->
+       wp body Qn0 Qr0 Qc0 Qn0 Qe0 pre_es es0 ->
        match out0 with
-       | ONormal st' => Qn0 st'
-       | OReturned st' _ => Qr0 st'
-       | OContinued st' => Qc0 st'
+       | ONormal es'  => Qn0 es'
+       | OReturned es' _ => Qr0 es'
+       | OContinued es' => Qc0 es'
+       | OBroke es' => Qb0 es'
+       | OThrew es' exc => Qe0 exc es'
+       | OFailed _ _ => True
        end) ->
-    eval_contract st pre_st None inv ->
-    eval_variant st pre_st var >= 0 ->
-    (forall st', eval_contract st' pre_st None inv ->
-                 eval_bool st' cond = true ->
-                 wp body (fun st'' =>
-                   eval_contract st'' pre_st None inv /\
-                   eval_variant st'' pre_st var < eval_variant st' pre_st var /\
-                   eval_variant st'' pre_st var >= 0)
-                   Qr
-                   (fun st'' =>
-                   eval_contract st'' pre_st None inv /\
-                   eval_variant st'' pre_st var < eval_variant st' pre_st var /\
-                   eval_variant st'' pre_st var >= 0)
-                   pre_st st') ->
-    (forall st', eval_contract st' pre_st None inv ->
-                 eval_bool st' cond = false -> Qn st') ->
-    forall out, exec st (SWhile inv var cond body) out ->
+    eval_c es pre_es None inv ->
+    eval_v es pre_es var >= 0 ->
+    (forall es', eval_c es' pre_es None inv ->
+                 eval_bool es'.(reg_state) cond = true ->
+                 let body_done es'' :=
+                   eval_c es'' pre_es None inv /\
+                   eval_v es'' pre_es var < eval_v es' pre_es var /\
+                   eval_v es'' pre_es var >= 0 in
+                 wp body body_done Qr body_done body_done Qe pre_es es') ->
+    (forall es', eval_c es' pre_es None inv ->
+                 eval_bool es'.(reg_state) cond = false -> Qn es') ->
+    forall out, exec es (SWhile inv var cond body) out ->
     match out with
-    | ONormal st' => Qn st'
-    | OReturned st' _ => Qr st'
+    | ONormal es'  => Qn es'
+    | OReturned es' _ => Qr es'
     | OContinued _ => True
+    | OBroke _ => True
+    | OThrew es' exc => Qe exc es'
+    | OFailed _ _ => True
     end.
 Proof.
-  intros cond body inv var Qn Qr pre_st.
-  intro st.
-  remember (Z.to_nat (eval_variant st pre_st var)) as n.
-  generalize dependent st.
-  induction n as [n IHn] using lt_wf_ind.
-  intros st Heqn Hbody_sound Hinv Hnn Hpres Hpost out Hexec.
-  remember (SWhile inv var cond body) as s eqn:Hs.
-  induction Hexec; try discriminate.
-  - (* ExecWhileTrue: body -> ONormal st', loop continues *)
-    injection Hs; intros; subst.
-    pose proof Hbody_sound as Hbs.
-    specialize (Hbs st (ONormal st') _ _ _ Hexec1 (Hpres st Hinv H)).
-    simpl in Hbs.
-    destruct Hbs as [Hinv' [Hvar_dec Hvar_nn]].
-    eapply (IHn (Z.to_nat (eval_variant st' pre_st var)));
-      [ subst; apply Z2Nat.inj_lt; lia
-      | reflexivity
-      | exact Hbody_sound
-      | exact Hinv'
-      | exact Hvar_nn
-      | exact Hpres
-      | exact Hpost
-      | exact Hexec2 ].
-  - (* ExecWhileContinue: body -> OContinued st', loop continues *)
-    injection Hs; intros; subst.
-    pose proof Hbody_sound as Hbs.
-    specialize (Hbs st (OContinued st') _ _ _ Hexec1 (Hpres st Hinv H)).
-    simpl in Hbs.
-    destruct Hbs as [Hinv' [Hvar_dec Hvar_nn]].
-    eapply (IHn (Z.to_nat (eval_variant st' pre_st var)));
-      [ subst; apply Z2Nat.inj_lt; lia
-      | reflexivity
-      | exact Hbody_sound
-      | exact Hinv'
-      | exact Hvar_nn
-      | exact Hpres
-      | exact Hpost
-      | exact Hexec2 ].
-  - (* ExecWhileFalse: guard false *)
-    injection Hs; intros; subst.
-    apply Hpost; assumption.
+  intros cond body inv var Qn Qr Qe pre_es es hBodySound hInv hNonNeg hPres hPost out Hexec.
+  (* Generalise the invariant hypotheses so the IH is strong enough for the recursive case. *)
+  remember (SWhile inv var cond body) as s eqn:Heqs.
+  revert inv var cond body hBodySound hInv hNonNeg hPres hPost Heqs.
+  induction Hexec;
+    intros inv' var' cond' body' hBS hInv0 hNN hPres0 hPost0 Heqs;
+    try (exfalso; discriminate Heqs).
+  - (* ExecWhileTrue: body → ONormal es', then recursive while *)
+    injection Heqs; intros H4 H3 H2 H1; subst.
+    set (bd := fun es'' : exec_state =>
+      eval_c es'' pre_es None inv' /\
+      eval_v es'' pre_es var' < eval_v es pre_es var' /\
+      eval_v es'' pre_es var' >= 0).
+    assert (hbdone : bd es').
+    { exact (hBS es (ONormal es') bd Qr bd Qn Qe
+               Hexec1 (hPres0 es hInv0 H)). }
+    apply (IHHexec2 inv' var' cond' body' hBS
+             (proj1 hbdone)
+             (proj2 (proj2 hbdone))
+             hPres0 hPost0 eq_refl).
+  - (* ExecWhileContinue: body → OContinued es', then recursive while *)
+    injection Heqs; intros H4 H3 H2 H1; subst.
+    set (bd := fun es'' : exec_state =>
+      eval_c es'' pre_es None inv' /\
+      eval_v es'' pre_es var' < eval_v es pre_es var' /\
+      eval_v es'' pre_es var' >= 0).
+    assert (hbdone : bd es').
+    { exact (hBS es (OContinued es') bd Qr bd Qn Qe
+               Hexec1 (hPres0 es hInv0 H)). }
+    apply (IHHexec2 inv' var' cond' body' hBS
+             (proj1 hbdone)
+             (proj2 (proj2 hbdone))
+             hPres0 hPost0 eq_refl).
+  - (* ExecWhileBreak: body → OBroke es', while exits ONormal es' *)
+    injection Heqs; intros H4 H3 H2 H1; subst.
+    simpl.
+    set (bd := fun es'' : exec_state =>
+      eval_c es'' pre_es None inv' /\
+      eval_v es'' pre_es var' < eval_v es pre_es var' /\
+      eval_v es'' pre_es var' >= 0).
+    exact (hBS es (OBroke es') bd Qr bd Qn Qe
+             Hexec (hPres0 es hInv0 H)).
+  - (* ExecWhileFalse: cond false, while exits ONormal es *)
+    injection Heqs; intros H4 H3 H2 H1; subst.
+    simpl.
+    exact (hPost0 es hInv0 H).
 Qed.

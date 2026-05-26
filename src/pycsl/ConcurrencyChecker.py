@@ -14,6 +14,12 @@ import ast
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set
 
+_ERR_UNPROTECTED_DECL = (
+    "declared shared but has no protected_by mutex. "
+    "All accesses are potential data races."
+)
+_ERR_UNPROTECTED_WRITE = "Unprotected %s shared variable '%s' (requires '%s')"
+
 # Thread-safe types that do not require mutex protection
 _TRUSTED_CONCURRENT_TYPES = {
     "queue.Queue", "Queue",
@@ -59,8 +65,7 @@ class ConcurrencyChecker:
             if decl.mutex is None:
                 self.warnings.append(ConcurrencyWarning(
                     kind="unprotected_shared",
-                    message=f"Variable '{decl.variable}' declared shared but has no protected_by mutex. "
-                            "All accesses are potential data races.",
+                    message=f"Variable '{decl.variable}' {_ERR_UNPROTECTED_DECL}",
                 ))
 
         lo = getattr(module, 'csl_lock_order', None)
@@ -121,7 +126,7 @@ class ConcurrencyChecker:
             action = "write to" if write else "read of"
             self.warnings.append(ConcurrencyWarning(
                 kind="unprotected_shared",
-                message=f"Unprotected {action} shared variable '{var}' (requires '{req_mutex}')",
+                message=_ERR_UNPROTECTED_WRITE % (action, var, req_mutex),
                 function=func_name,
                 line=line,
             ))

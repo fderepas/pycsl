@@ -3,6 +3,8 @@ from libcst.metadata import PositionProvider
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+_MODULE_PREFIXES: tuple = ('shared ', 'mutex_invariant ', 'lock_order ')
+
 # ---------------------------------------------------------
 # 1. Data Structures
 # ---------------------------------------------------------
@@ -47,7 +49,6 @@ class PyCSLVisitor(cst.CSTVisitor):
         mutex_invariant, lock_order) are emitted as a separate PyCSLContract
         at line_number=0 so the Weaver can attach them to the ast.Module node.
         """
-        _MODULE_PREFIXES = ('shared ', 'mutex_invariant ', 'lock_order ')
         module_contracts = []
         for line in node.header:
             if isinstance(line, cst.EmptyLine) and line.comment:
@@ -176,6 +177,32 @@ class PyCSLVisitor(cst.CSTVisitor):
                 PyCSLContract(
                     node_type="SimpleStatement",
                     node_name="<statement>",
+                    line_number=pos.line,
+                    contracts=contracts
+                )
+            )
+
+    def visit_IndentedBlock(self, node: cst.IndentedBlock) -> None:
+        """Detect #@ annotations in the footer of an indented block.
+
+        A ghost annotation that is the last line in a loop or if body lives in
+        IndentedBlock.footer rather than any statement's leading_lines.  These
+        trailing ghosts must be emitted after the last statement in the block,
+        not before the first statement of the outer scope.
+        """
+        contracts = []
+        for line in node.footer:
+            if isinstance(line, cst.EmptyLine) and line.comment:
+                comment_str = line.comment.value
+                if comment_str.startswith("#@"):
+                    contracts.append(comment_str[2:].strip())
+        if contracts and node.body:
+            last_stmt = node.body[-1]
+            pos = self.get_metadata(PositionProvider, last_stmt).start
+            self.extracted_nodes.append(
+                PyCSLContract(
+                    node_type="TrailingSimpleStatement",
+                    node_name="<trailing>",
                     line_number=pos.line,
                     contracts=contracts
                 )

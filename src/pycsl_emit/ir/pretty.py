@@ -23,6 +23,33 @@ from .nodes import (
     UnaryOp,
     Unsupported,
     Var,
+    Length,
+    Nth,
+    Tuple,
+    Proj,
+    MapGet,
+    MapSet,
+    MapEmpty,
+    HasKey,
+    StrConcat,
+    StrLength,
+    StrSub,
+    StrLit,
+    FieldGet,
+    ListNil,
+    ListCons,
+    ListLen,
+    ListAppend,
+    ListNthAt,
+    SetEmpty,
+    SetAdd,
+    SetRemove,
+    SetMem,
+    SetUnion,
+    SetInter,
+    SetDiff,
+    SetSubset,
+    SetEq,
 )
 
 _INDENT = "  "
@@ -71,6 +98,135 @@ def _lines(item, depth: int) -> list[str]:
         out.extend(_lines(item.d, depth + 1))
         out.extend(_lines(item.n, depth + 1))
         return out
+
+    # Lists / arrays / tuples / dicts / strings
+    if isinstance(item, Length):
+        out = [f"{pad}Length"]
+        out.extend(_lines(item.arr, depth + 1))
+        return out
+    if isinstance(item, Nth):
+        out = [f"{pad}Nth"]
+        out.extend(_lines(item.arr, depth + 1))
+        out.extend(_lines(item.i, depth + 1))
+        return out
+    if isinstance(item, Tuple):
+        out = [f"{pad}Tuple"]
+        for a in item.args:
+            out.extend(_lines(a, depth + 1))
+        return out
+    if isinstance(item, Proj):
+        out = [f"{pad}Proj({item.i})"]
+        out.extend(_lines(item.t, depth + 1))
+        return out
+    if isinstance(item, MapGet):
+        out = [f"{pad}MapGet"]
+        out.extend(_lines(item.d, depth + 1))
+        out.extend(_lines(item.k, depth + 1))
+        return out
+    if isinstance(item, MapSet):
+        out = [f"{pad}MapSet"]
+        out.extend(_lines(item.d, depth + 1))
+        out.extend(_lines(item.k, depth + 1))
+        out.extend(_lines(item.v, depth + 1))
+        return out
+    if isinstance(item, MapEmpty):
+        return [f"{pad}MapEmpty"]
+    if isinstance(item, HasKey):
+        out = [f"{pad}HasKey"]
+        out.extend(_lines(item.d, depth + 1))
+        out.extend(_lines(item.k, depth + 1))
+        return out
+    if isinstance(item, StrConcat):
+        out = [f"{pad}StrConcat"]
+        out.extend(_lines(item.a, depth + 1))
+        out.extend(_lines(item.b, depth + 1))
+        return out
+    if isinstance(item, StrLength):
+        out = [f"{pad}StrLength"]
+        out.extend(_lines(item.s, depth + 1))
+        return out
+    if isinstance(item, StrSub):
+        out = [f"{pad}StrSub"]
+        out.extend(_lines(item.s, depth + 1))
+        out.extend(_lines(item.lo, depth + 1))
+        out.extend(_lines(item.hi, depth + 1))
+        return out
+    if isinstance(item, StrLit):
+        return [f"{pad}StrLit({item.value!r})"]
+
+    # Class instances
+    if isinstance(item, FieldGet):
+        out = [f"{pad}FieldGet({item.name})"]
+        out.extend(_lines(item.obj, depth + 1))
+        return out
+
+    # ghost_list
+    if isinstance(item, ListNil):
+        return [f"{pad}ListNil"]
+    if isinstance(item, ListCons):
+        out = [f"{pad}ListCons"]
+        out.extend(_lines(item.head, depth + 1))
+        out.extend(_lines(item.tail, depth + 1))
+        return out
+    if isinstance(item, ListLen):
+        out = [f"{pad}ListLen"]
+        out.extend(_lines(item.l, depth + 1))
+        return out
+    if isinstance(item, ListAppend):
+        out = [f"{pad}ListAppend"]
+        out.extend(_lines(item.l1, depth + 1))
+        out.extend(_lines(item.l2, depth + 1))
+        return out
+    if isinstance(item, ListNthAt):
+        out = [f"{pad}ListNthAt"]
+        out.extend(_lines(item.l, depth + 1))
+        out.extend(_lines(item.i, depth + 1))
+        return out
+
+    # ghost_set
+    if isinstance(item, SetEmpty):
+        return [f"{pad}SetEmpty"]
+    if isinstance(item, SetAdd):
+        out = [f"{pad}SetAdd"]
+        out.extend(_lines(item.s, depth + 1))
+        out.extend(_lines(item.x, depth + 1))
+        return out
+    if isinstance(item, SetRemove):
+        out = [f"{pad}SetRemove"]
+        out.extend(_lines(item.s, depth + 1))
+        out.extend(_lines(item.x, depth + 1))
+        return out
+    if isinstance(item, SetMem):
+        out = [f"{pad}SetMem"]
+        out.extend(_lines(item.x, depth + 1))
+        out.extend(_lines(item.s, depth + 1))
+        return out
+    if isinstance(item, SetUnion):
+        out = [f"{pad}SetUnion"]
+        out.extend(_lines(item.a, depth + 1))
+        out.extend(_lines(item.b, depth + 1))
+        return out
+    if isinstance(item, SetInter):
+        out = [f"{pad}SetInter"]
+        out.extend(_lines(item.a, depth + 1))
+        out.extend(_lines(item.b, depth + 1))
+        return out
+    if isinstance(item, SetDiff):
+        out = [f"{pad}SetDiff"]
+        out.extend(_lines(item.a, depth + 1))
+        out.extend(_lines(item.b, depth + 1))
+        return out
+    if isinstance(item, SetSubset):
+        out = [f"{pad}SetSubset"]
+        out.extend(_lines(item.a, depth + 1))
+        out.extend(_lines(item.b, depth + 1))
+        return out
+    if isinstance(item, SetEq):
+        out = [f"{pad}SetEq"]
+        out.extend(_lines(item.a, depth + 1))
+        out.extend(_lines(item.b, depth + 1))
+        return out
+
     if isinstance(item, Theorem):
         binder_str = ", ".join(f"{v}: {t}" for v, t in item.binders)
         out = [f"{pad}Theorem({item.name}, binders=[{binder_str}])"]

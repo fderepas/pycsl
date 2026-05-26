@@ -34,14 +34,16 @@ The TOML schema (lean2pycsl-plan §6):
 from __future__ import annotations
 
 import argparse
+import json as _json
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
 
 from pycsl_emit.checker import Verdict, run_pycsl
 from pycsl_emit.config import Config, load_config
 from pycsl_emit.emitter import annotate_source
+from pycsl_emit.ir_dump import build_envelope, encode_contract
 from pycsl_emit.translator import render
 
 from .extractor import Backend, extract
@@ -59,11 +61,32 @@ class RunOutcome:
     annotated_source: str
     functions: dict[str, FunctionContract]
     verdict: Verdict | None
+    theorems_by_qualname: dict[str, list[str]] = field(default_factory=dict)
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
+
+    if args.ir_dump:
+        try:
+            envelope = dump_ir(
+                config_path=Path(args.config),
+                backend=Backend(args.backend),
+                strict=args.strict,
+                verbose=args.verbose,
+            )
+        except (FileNotFoundError, KeyError, ValueError) as e:
+            print(f"[!] lean2pycsl: {e}", file=sys.stderr)
+            return 2
+        out_text = _json.dumps(envelope, indent=2)
+        if args.ir_dump == "-":
+            print(out_text)
+        else:
+            Path(args.ir_dump).write_text(out_text)
+            if args.verbose:
+                print(f"[+] wrote {args.ir_dump}")
+        return 0
 
     try:
         outcome = run(
@@ -86,6 +109,42 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
+def dump_ir(
+    *,
+    config_path: Path,
+    backend: Backend = Backend.LARK,
+    strict: bool = False,
+    verbose: bool = False,
+) -> dict:
+    """Run extraction + selection + translation; return the IR-dump envelope."""
+    cfg, contracts, theorems_by_q, lean_path = _build_contracts(
+        config_path=config_path,
+        backend=backend,
+        strict=strict,
+        verbose=verbose,
+    )
+    functions = {
+        qualname: encode_contract(
+            python_name=cfg.functions[qualname].python_name,
+            theorems=theorems_by_q[qualname],
+            divides_style=cfg.functions[qualname].divides_style.value,
+            requires=c.requires,
+            ensures=c.ensures,
+            assigns=c.assigns,
+            variant=c.variant,
+            diverges=c.diverges,
+            unsupported=c.unsupported,
+            arg_map=dict(cfg.functions[qualname].arg_map.mapping),
+        )
+        for qualname, c in contracts.items()
+    }
+    return build_envelope(
+        provenance="lean2pycsl",
+        source=str(lean_path),
+        functions=functions,
+    )
+
+
 def run(
     *,
     config_path: Path,
@@ -96,10 +155,71 @@ def run(
     verbose: bool = False,
 ) -> RunOutcome:
     """Programmatic API mirroring the CLI."""
+    cfg, contracts, theorems_by_q, _lean_path = _build_contracts(
+        config_path=config_path,
+        backend=backend,
+        strict=strict,
+        verbose=verbose,
+    )
+
+    python_path = _resolve(cfg.python, config_path)
+    output_path = _resolve(cfg.output, config_path)
+    annotated = _emit_all(python_path.read_text(), cfg, contracts)
+
+    if dry_run:
+        if verbose:
+            print(f"[*] --dry-run: not writing {output_path}")
+        return RunOutcome(
+            annotated_path=output_path,
+            annotated_source=annotated,
+            functions=contracts,
+            verdict=None,
+            theorems_by_qualname=theorems_by_q,
+        )
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(annotated)
+    if verbose:
+        print(f"[+] wrote {output_path}")
+
+    if no_check:
+        return RunOutcome(
+            annotated_path=output_path,
+            annotated_source=annotated,
+            functions=contracts,
+            verdict=None,
+            theorems_by_qualname=theorems_by_q,
+        )
+
+    verdict = run_pycsl(
+        output_path,
+        extra_args=cfg.pycsl.cli_args(),
+        timeout=cfg.pycsl.timeout,
+    )
+    if verbose:
+        print(f"[*] pycsl: {verdict.summary()}")
+
+    return RunOutcome(
+        annotated_path=output_path,
+        annotated_source=annotated,
+        functions=contracts,
+        verdict=verdict,
+        theorems_by_qualname=theorems_by_q,
+    )
+
+
+def _build_contracts(
+    *,
+    config_path: Path,
+    backend: Backend,
+    strict: bool,
+    verbose: bool,
+) -> tuple[Config, dict[str, FunctionContract], dict[str, list[str]], Path]:
+    """Shared pipeline up through translation. Used by both `run()`
+    and `dump_ir()`."""
     cfg = load_config(config_path)
     lean_path = _resolve_lean_path(cfg, config_path)
 
-    # Phase 1: extract.
     mod = extract(lean_path, backend=backend)
     if verbose:
         print(
@@ -107,25 +227,33 @@ def run(
             f"{len(mod.defs)} def(s) from {lean_path}"
         )
 
-    # Phase 2: translate each configured function.
     contracts: dict[str, FunctionContract] = {}
+    theorems_by_q: dict[str, list[str]] = {}
     for qualname, spec in cfg.functions.items():
-        func = mod.def_(spec.python_name)
+        raw = spec.raw
+        # Look up the Lean def by `lean_name` override → last qualname
+        # segment → python_name (legacy). This lets class-method
+        # qualnames like `BankAccount.deposit` find a Lean def named
+        # simply `deposit`.
+        lean_name = raw.get("lean_name") or _last_segment(qualname) or spec.python_name
+        func = mod.def_(lean_name)
+        if func is None:
+            func = mod.def_(spec.python_name)
         if func is None:
             raise KeyError(
-                f"def {spec.python_name!r} not found in {lean_path}; "
-                f"available: {[f.name for f in mod.defs]}"
+                f"def {lean_name!r} (from qualname {qualname!r}) not found "
+                f"in {lean_path}; available: {[f.name for f in mod.defs]}"
             )
-        # `extra_specs` lives under the function's raw TOML section as
-        # `extra_specs = [...]` (or `[functions.X.extra_specs].include`
-        # per the plan, but we accept the flatter form too).
-        raw = spec.raw
         extras = _extract_extra_specs(raw)
+        # The `@[pycsl_spec "<qualname>"]` attribute used by the Lean
+        # selector should match the section key (i.e., the Python
+        # qualname like `BankAccount.deposit`).
+        target_qn = raw.get("target_qualname") or qualname
         sel = select(
             mod,
             func,
             extra_specs=extras,
-            target_qualname=raw.get("target_qualname"),
+            target_qualname=target_qn,
         )
         if not sel.theorems:
             raise KeyError(
@@ -144,50 +272,9 @@ def run(
             for thm, reason, _ in contract.unsupported:
                 print(f"    skipped {thm}: {reason}")
         contracts[qualname] = contract
+        theorems_by_q[qualname] = [t.name for t in sel.theorems]
 
-    # Phase 3: emit annotated Python.
-    python_path = _resolve(cfg.python, config_path)
-    output_path = _resolve(cfg.output, config_path)
-    annotated = _emit_all(python_path.read_text(), cfg, contracts)
-
-    if dry_run:
-        if verbose:
-            print(f"[*] --dry-run: not writing {output_path}")
-        return RunOutcome(
-            annotated_path=output_path,
-            annotated_source=annotated,
-            functions=contracts,
-            verdict=None,
-        )
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(annotated)
-    if verbose:
-        print(f"[+] wrote {output_path}")
-
-    # Phase 4: verification round-trip.
-    if no_check:
-        return RunOutcome(
-            annotated_path=output_path,
-            annotated_source=annotated,
-            functions=contracts,
-            verdict=None,
-        )
-
-    verdict = run_pycsl(
-        output_path,
-        extra_args=cfg.pycsl.cli_args(),
-        timeout=cfg.pycsl.timeout,
-    )
-    if verbose:
-        print(f"[*] pycsl: {verdict.summary()}")
-
-    return RunOutcome(
-        annotated_path=output_path,
-        annotated_source=annotated,
-        functions=contracts,
-        verdict=verdict,
-    )
+    return cfg, contracts, theorems_by_q, lean_path
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -208,8 +295,21 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--no-check", action="store_true")
     p.add_argument("--strict", action="store_true")
+    p.add_argument(
+        "--ir-dump", metavar="PATH",
+        help='Emit the contract IR as JSON to PATH (use "-" for stdout). '
+             "Skips Python emission and pycsl verification; consumed by "
+             "pycsl-bridge.",
+    )
     p.add_argument("-v", "--verbose", action="store_true")
     return p
+
+
+def _last_segment(qualname: str) -> str:
+    """`BankAccount.deposit` → `deposit`. Used to resolve a Lean def
+    name from a Python class-method qualname when the config doesn't
+    supply an explicit `lean_name` override."""
+    return qualname.rsplit(".", 1)[-1]
 
 
 def _resolve(path_str: str, config_path: Path) -> Path:

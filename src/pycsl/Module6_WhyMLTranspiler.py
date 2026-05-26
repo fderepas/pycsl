@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import unicodedata
 from typing import Dict, Any, Optional, Set, List, Tuple
@@ -83,6 +85,17 @@ class IRScanner:
             elif stmt["stmt"] == "For":
                 ghosts.update(IRScanner.find_ghost_vars(stmt.get("body", [])))
         return ghosts
+
+    @staticmethod
+    def uses_ghost_type(stmts: List[Dict[str, Any]], types: Set[str]) -> bool:
+        """Return True if any GhostAssign in stmts (recursively) has ghost_type in types."""
+        for stmt in stmts:
+            if stmt.get("stmt") == "GhostAssign" and stmt.get("ghost_type") in types:
+                return True
+            for key in ("body", "orelse"):
+                if key in stmt and IRScanner.uses_ghost_type(stmt[key], types):
+                    return True
+        return False
 
     @staticmethod
     def find_array_and_dict_vars(stmts: List[Dict[str, Any]]) -> Tuple[Set[str], Set[str]]:
@@ -377,8 +390,18 @@ class IRScanner:
         return False
 
     @staticmethod
+    def uses_set_card(obj: Any) -> bool:
+        if isinstance(obj, dict):
+            if obj.get("type") == "SetCard":
+                return True
+            return any(IRScanner.uses_set_card(v) for v in obj.values())
+        if isinstance(obj, list):
+            return any(IRScanner.uses_set_card(item) for item in obj)
+        return False
+
+    @staticmethod
     def uses_divmod(stmts: Any) -> bool:
-        def _check(obj):
+        def _check(obj: Any) -> bool:
             if isinstance(obj, dict):
                 if obj.get("type") == "BinOp" and obj.get("op") in ("div", "/", "%"):
                     return True
@@ -406,7 +429,7 @@ class IRScanner:
 
     @staticmethod
     def find_return_type(stmts: List[Dict[str, Any]]) -> str:
-        def _has_return(stmts):
+        def _has_return(stmts: List[Dict[str, Any]]) -> bool:
             for stmt in stmts:
                 if stmt["stmt"] == "Return":
                     return True
@@ -419,7 +442,7 @@ class IRScanner:
                             return True
             return False
 
-        def _has_return_with_value(stmts):
+        def _has_return_with_value(stmts: List[Dict[str, Any]]) -> bool:
             for stmt in stmts:
                 if stmt["stmt"] == "Return" and stmt.get("value"):
                     return True
@@ -524,6 +547,41 @@ class Module6_WhyMLTranspiler:
         "Sum":          "_handle_sum_node_expr",
         "Lambda":       "_handle_lambda_expr",
         "SetLit":       "_handle_setlit_expr",
+        # Ghost expression types
+        "MkTuple":      "_handle_mktuple_expr",
+        "FstExpr":      "_handle_fst_expr",
+        "SndExpr":      "_handle_snd_expr",
+        "ProjExpr":     "_handle_proj_expr",
+        "StrConcat":    "_handle_strconcat_expr",
+        "StrLength":    "_handle_str_length_expr",
+        "StrSub":       "_handle_str_sub_expr",
+        "GhostCopy":      "_handle_ghost_copy_expr",
+        "GhostCopyRange": "_handle_ghost_copy_range_expr",
+        "GhostMake":      "_handle_ghost_make_expr",
+        "MapEmpty":     "_handle_map_empty_expr",
+        "MapGet":       "_handle_map_get_expr",
+        "MapSet":       "_handle_map_set_expr",
+        "MapEq":        "_handle_map_eq_expr",
+        "HasKey":       "_handle_has_key_expr",
+        "MapRemove":    "_handle_map_remove_expr",
+        "SetEmpty":     "_handle_set_empty_expr",
+        "SetAdd":       "_handle_set_add_expr",
+        "SetRemove":    "_handle_set_remove_expr",
+        "SetMem":       "_handle_set_mem_expr",
+        "SetUnion":     "_handle_set_union_expr",
+        "SetInter":     "_handle_set_inter_expr",
+        "SetDiff":      "_handle_set_diff_expr",
+        "SetCard":      "_handle_set_card_expr",
+        "SetSubset":    "_handle_set_subset_expr",
+        "SetEq":        "_handle_set_eq_expr",
+        "Nil":          "_handle_nil_expr",
+        "Cons":         "_handle_cons_expr",
+        "Hd":           "_handle_hd_expr",
+        "Tl":           "_handle_tl_expr",
+        "ListLength":   "_handle_list_length_expr",
+        "Nth":          "_handle_nth_expr",
+        "Mem":          "_handle_mem_expr",
+        "Append":       "_handle_append_expr",
     }
 
     # WhyML reserved keywords that cannot be used as identifiers
@@ -630,6 +688,9 @@ class Module6_WhyMLTranspiler:
         if t == "Call" and ir_expr.get("func", "") in ("isinstance", "hasattr"):
             return whyml_str
         if t in ("Exists", "Forall", "Compare"):
+            return whyml_str
+        # Ghost set/map predicates already return bool — no <> 0 needed
+        if t in ("SetMem", "SetSubset", "SetEq", "MapEq", "HasKey"):
             return whyml_str
         # Array locals can't be compared with <> 0; emit true (always allocated)
         if t == "Var":
@@ -798,7 +859,7 @@ class Module6_WhyMLTranspiler:
                 if getattr(self, "_current_symbol_table", {}).get(var_name) in ("list", "dict"):
                     is_array = True
             if is_array:
-                return f"(length {args[0]})"
+                return f"(Array.length {args[0]})"
             self._add_abstract_op("val iter_length (x: int) : int")
             return f"(iter_length {args[0]})"
         return f"{args[0].lstrip('!')}_len"
@@ -1168,7 +1229,7 @@ class Module6_WhyMLTranspiler:
         if self.memory_model in ("hoare", "concurrent"):
             var = expr['var']
             deref = "!" if var in local_refs else ""
-            return f"(length {deref}{var})"
+            return f"(Array.length {deref}{var})"
         return f"{expr['var']}_len"
 
     def _handle_valid_expr(
@@ -1181,7 +1242,7 @@ class Module6_WhyMLTranspiler:
         base = expr["base"]
         length = self._expr_to_whyml(expr["length"], local_refs, invariant_ctx, subst)
         if self.memory_model in ("hoare", "concurrent"):
-            return f"({length} >= 0 && {length} <= length {base})"
+            return f"({length} >= 0 && {length} <= Array.length {base})"
         return f"(valid !{self._heap_var} {base} {length})"
 
     def _handle_separated_expr(
@@ -1280,6 +1341,230 @@ class Module6_WhyMLTranspiler:
             return "(set_empty ())"
         self._add_abstract_op("val set_new (x: int) : int")
         return "(set_new 0)"
+
+    # --- Ghost expression handlers ---
+
+    def _e(self, ir: Dict, lr: Set[str]) -> str:
+        """Shorthand for _expr_to_whyml within ghost handlers."""
+        return self._expr_to_whyml(ir, lr)
+
+    def _handle_mktuple_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        parts = ", ".join(self._e(e, lr) for e in expr.get("elts", []))
+        return f"({parts})"
+
+    def _handle_fst_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        t = self._e(expr["tuple"], lr)
+        safe_t = t.lstrip("!")
+        return f"(let (x_, _) = !{safe_t} in x_)" if t.startswith("!") else f"(let (x_, _) = {t} in x_)"
+
+    def _handle_snd_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        t = self._e(expr["tuple"], lr)
+        safe_t = t.lstrip("!")
+        return f"(let (_, y_) = !{safe_t} in y_)" if t.startswith("!") else f"(let (_, y_) = {t} in y_)"
+
+    def _handle_proj_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        t = self._e(expr["tuple"], lr)
+        idx = int(expr.get("index", 0))
+        # Infer arity from ghost_tuple_vars; fall back to idx+1 (minimum valid)
+        var_name = expr.get("tuple", {}).get("name", "") if isinstance(expr.get("tuple"), dict) else ""
+        arity = self._ghost_tuple_vars.get(var_name, max(2, idx + 1))
+        slots = ["_"] * arity
+        if idx < arity:
+            slots[idx] = "z_"
+        pattern = ", ".join(slots)
+        t_deref = f"!{t.lstrip('!')}" if t.startswith("!") else t
+        return f"(let ({pattern}) = {t_deref} in z_)"
+
+    def _handle_strconcat_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        l = self._expr_to_whyml_string_ctx(expr["left"], lr)
+        r = self._expr_to_whyml_string_ctx(expr["right"], lr)
+        # Why3 string.String exports 'concat' (not '^' or 'String.(^)')
+        return f"(concat {l} {r})"
+
+    def _handle_str_length_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        s = self._expr_to_whyml_string_ctx(expr["string"], lr)
+        return f"(String.length {s})"
+
+    def _handle_str_sub_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        s = self._expr_to_whyml_string_ctx(expr["string"], lr)
+        lo = self._e(expr["lo"], lr)
+        hi = self._e(expr["hi"], lr)
+        return f"(String.substring {s} {lo} ({hi} - {lo}))"
+
+    def _handle_ghost_copy_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        return f"(Array.copy {expr['arr']})"
+
+    def _handle_ghost_copy_range_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        lo = self._e(expr["lo"], lr)
+        hi = self._e(expr["hi"], lr)
+        return f"(Array.sub {expr['arr']} {lo} ({hi} - {lo}))"
+
+    def _handle_ghost_make_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        n = self._e(expr["size"], lr)
+        v = self._e(expr["default"], lr)
+        return f"(Array.make {n} {v})"
+
+    def _handle_map_empty_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        # option-type design: absent keys map to None
+        return "(const (None: option int))"
+
+    def _handle_map_get_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        d = self._e(expr["dict"], lr)
+        k = self._e(expr["key"], lr)
+        d_r = f"!{d.lstrip('!')}" if d.startswith("!") else d
+        return f"(match Map.get {d_r} {k} with | Some v_ -> v_ | None -> 0 end)"
+
+    def _handle_map_set_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        d = self._e(expr["dict"], lr)
+        k = self._e(expr["key"], lr)
+        v = self._e(expr["value"], lr)
+        d_r = f"!{d.lstrip('!')}" if d.startswith("!") else d
+        return f"(Map.set {d_r} {k} (Some {v}))"
+
+    def _handle_map_eq_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        l = self._e(expr["left"], lr)
+        r = self._e(expr["right"], lr)
+        l_r = f"!{l.lstrip('!')}" if l.startswith("!") else l
+        r_r = f"!{r.lstrip('!')}" if r.startswith("!") else r
+        # Why3 forall uses '.' as body separator, not ','
+        return f"(forall k_: int. Map.get {l_r} k_ = Map.get {r_r} k_)"
+
+    def _handle_has_key_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        # option-type design: key is present iff its value is Some (not None)
+        d = self._e(expr["dict"], lr)
+        k = self._e(expr["key"], lr)
+        d_r = f"!{d.lstrip('!')}" if d.startswith("!") else d
+        return f"(Map.get {d_r} {k} <> None)"
+
+    def _handle_map_remove_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        d = self._e(expr["dict"], lr)
+        k = self._e(expr["key"], lr)
+        d_r = f"!{d.lstrip('!')}" if d.startswith("!") else d
+        return f"(Map.set {d_r} {k} None)"
+
+    def _handle_set_empty_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        # Why3: map.Const exports 'const', not 'Map.const'
+        return "(const false)"
+
+    def _handle_set_add_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        s = self._e(expr["set"], lr)
+        e = self._e(expr["elem"], lr)
+        s_r = f"!{s.lstrip('!')}" if s.startswith("!") else s
+        return f"(Map.set {s_r} {e} true)"
+
+    def _handle_set_remove_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        s = self._e(expr["set"], lr)
+        e = self._e(expr["elem"], lr)
+        s_r = f"!{s.lstrip('!')}" if s.startswith("!") else s
+        return f"(Map.set {s_r} {e} false)"
+
+    def _handle_set_mem_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        e = self._e(expr["elem"], lr)
+        s_ir = expr["set"]
+        s_t = s_ir.get("type", "") if isinstance(s_ir, dict) else ""
+        if s_t in ("SetUnion", "SetInter", "SetDiff"):
+            # Functional set (lambda int -> bool) — use direct application, not Map.get
+            s = self._e(s_ir, lr)
+            return f"({s} {e})"
+        s = self._e(s_ir, lr)
+        s_r = f"!{s.lstrip('!')}" if s.startswith("!") else s
+        return f"(Map.get {s_r} {e})"
+
+    def _handle_set_union_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        l = self._e(expr["left"], lr)
+        r = self._e(expr["right"], lr)
+        l_r = f"!{l.lstrip('!')}" if l.startswith("!") else l
+        r_r = f"!{r.lstrip('!')}" if r.startswith("!") else r
+        v = "_k_su"
+        # Use parenthesised parameter for validity in both program and spec contexts
+        return f"(fun ({v}: int) -> (Map.get {l_r} {v}) || (Map.get {r_r} {v}))"
+
+    def _handle_set_inter_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        l = self._e(expr["left"], lr)
+        r = self._e(expr["right"], lr)
+        l_r = f"!{l.lstrip('!')}" if l.startswith("!") else l
+        r_r = f"!{r.lstrip('!')}" if r.startswith("!") else r
+        v = "_k_si"
+        return f"(fun ({v}: int) -> (Map.get {l_r} {v}) && (Map.get {r_r} {v}))"
+
+    def _handle_set_diff_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        l = self._e(expr["left"], lr)
+        r = self._e(expr["right"], lr)
+        l_r = f"!{l.lstrip('!')}" if l.startswith("!") else l
+        r_r = f"!{r.lstrip('!')}" if r.startswith("!") else r
+        v = "_k_sd"
+        return f"(fun ({v}: int) -> (Map.get {l_r} {v}) && not (Map.get {r_r} {v}))"
+
+    def _handle_set_card_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        s = self._e(expr["set"], lr)
+        lo = self._e(expr["lo"], lr)
+        hi = self._e(expr["hi"], lr)
+        s_r = f"!{s.lstrip('!')}" if s.startswith("!") else s
+        return f"(set_card {s_r} {lo} {hi})"
+
+    def _handle_set_subset_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        l = self._e(expr["left"], lr)
+        r = self._e(expr["right"], lr)
+        l_r = f"!{l.lstrip('!')}" if l.startswith("!") else l
+        r_r = f"!{r.lstrip('!')}" if r.startswith("!") else r
+        v = "_k_ss"
+        return f"(forall {v}: int, Map.get {l_r} {v} -> Map.get {r_r} {v})"
+
+    def _handle_set_eq_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        l = self._e(expr["left"], lr)
+        r = self._e(expr["right"], lr)
+        l_r = f"!{l.lstrip('!')}" if l.startswith("!") else l
+        r_r = f"!{r.lstrip('!')}" if r.startswith("!") else r
+        v = "_k_se"
+        # Why3 forall uses '.' as body separator, not ','
+        return f"(forall {v}: int. Map.get {l_r} {v} = Map.get {r_r} {v})"
+
+    def _handle_nil_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        return "Nil"
+
+    def _handle_cons_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        h = self._e(expr["head"], lr)
+        t = self._e(expr["tail"], lr)
+        t_r = f"!{t.lstrip('!')}" if t.startswith("!") else t
+        return f"(Cons {h} {t_r})"
+
+    def _handle_hd_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        l = self._e(expr["list"], lr)
+        l_r = f"!{l.lstrip('!')}" if l.startswith("!") else l
+        return f"(match {l_r} with | Cons h_ _ -> h_ | Nil -> absurd end)"
+
+    def _handle_tl_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        l = self._e(expr["list"], lr)
+        l_r = f"!{l.lstrip('!')}" if l.startswith("!") else l
+        return f"(match {l_r} with | Cons _ t_ -> t_ | Nil -> absurd end)"
+
+    def _handle_list_length_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        l = self._e(expr["list"], lr)
+        l_r = f"!{l.lstrip('!')}" if l.startswith("!") else l
+        # Why3 list.Length theory exports 'length', not 'List.length'
+        return f"(length {l_r})"
+
+    def _handle_nth_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        l = self._e(expr["list"], lr)
+        i = self._e(expr["index"], lr)
+        l_r = f"!{l.lstrip('!')}" if l.startswith("!") else l
+        # Why3 list.NthNoOpt exports 'nth: int -> list 'a -> 'a' (partial, axioms nth_cons_0/nth_cons_n)
+        return f"(nth {i} {l_r})"
+
+    def _handle_mem_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        e = self._e(expr["elem"], lr)
+        l = self._e(expr["list"], lr)
+        l_r = f"!{l.lstrip('!')}" if l.startswith("!") else l
+        # Why3 list.Mem exports 'mem', not 'List.mem'
+        return f"(mem {e} {l_r})"
+
+    def _handle_append_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        l = self._e(expr["left"], lr)
+        r = self._e(expr["right"], lr)
+        l_r = f"!{l.lstrip('!')}" if l.startswith("!") else l
+        r_r = f"!{r.lstrip('!')}" if r.startswith("!") else r
+        # Why3 list.Append exports '(++)', not 'List.(++)'
+        return f"({l_r} ++ {r_r})"
 
     def _expr_to_whyml(self, expr: Dict[str, Any], local_refs: Set[str],
                        invariant_ctx: bool = False,
@@ -1522,7 +1807,7 @@ class Module6_WhyMLTranspiler:
                 if getattr(self, "_current_symbol_table", {}).get(var_name) in ("list", "dict"):
                     is_array = True
             if is_array:
-                return f"length {iter_expr}", f"{iter_expr}[!{idx}]", False
+                return f"Array.length {iter_expr}", f"{iter_expr}[!{idx}]", False
             self._add_abstract_op("val iter_length (x: int) : int")
             self._add_abstract_op("val iter_get (x: int) (i: int) : int")
             return f"(iter_length {iter_expr})", f"(iter_get {iter_expr} !{idx})", False
@@ -1680,35 +1965,164 @@ class Module6_WhyMLTranspiler:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
+    def _resolve_effective_ghost_type(self, target: str, op: str, ghost_type: str) -> str:
+        """Infer ghost type for augmented-assign from tracked declaration sets.
+
+        Augmented-assign IR nodes carry ghost_type='int' (the grammar default)
+        because the transformer does not propagate declared_type.  Override from
+        the sets that are populated when the declaration was first seen.
+        """
+        if ghost_type == "int" and op != "=":
+            if target in self._ghost_list_vars:
+                return "ghost_list"
+            if target in self._ghost_set_vars:
+                return "ghost_set"
+            if target in self._ghost_dict_vars:
+                return "ghost_dict"
+            if target in self._ghost_tuple_vars:
+                return f"tuple{self._ghost_tuple_vars[target]}"
+            if target in self._ghost_string_vars:
+                return "string"
+        return ghost_type
+
+    def _emit_new_ghost_ref(self, safe_target: str, target: str, binding: str,
+                             rest: List[Dict[str, Any]], local_refs: Set[str],
+                             declared_refs: Set[str], indent: str, in_loop: bool) -> str:
+        """Emit `let ghost safe_target {binding} in rest` for a new ghost declaration."""
+        declared_refs.add(target)
+        local_refs.add(target)
+        rest_code = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+        if not rest_code:
+            rest_code = f"{indent}()"
+        return f"{indent}let ghost {safe_target} {binding} in\n{rest_code}"
+
     def _handle_ghost_assign_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
                                    local_refs: Set[str], declared_refs: Set[str],
                                    indent: str, in_loop: bool) -> str:
         target = stmt["target"]
         safe_target = self._whyml_ident(target)
         op = stmt.get("op", "=")
-        val = self._expr_to_whyml(stmt["value"], local_refs | {target})
-        if target not in declared_refs:
-            declared_refs.add(target)
-            local_refs.add(target)
-            rest_code = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
-            if not rest_code:
-                rest_code = f"{indent}()"
-            if self._bounded_int:
-                return f"{indent}let ghost {safe_target} = ref ({val} : int{self._bounded_int}) in\n{rest_code}"
-            return f"{indent}let ghost {safe_target} = ref {val} in\n{rest_code}"
-        if op == "=":
+        ghost_type = self._resolve_effective_ghost_type(target, op, stmt.get("ghost_type", "int"))
+        is_new = target not in declared_refs
+
+        if ghost_type == "string":
+            self._ghost_string_vars.add(target)
+            val = self._expr_to_whyml_string_ctx(stmt["value"], local_refs | {target})
+            if is_new:
+                return self._emit_new_ghost_ref(safe_target, target, f"= ref ({val})",
+                                                rest, local_refs, declared_refs, indent, in_loop)
             code = f"{indent}ghost {safe_target} := {val}"
-        elif op == "+=":
-            code = f"{indent}ghost {safe_target} := !{safe_target} + {val}"
-        elif op == "-=":
-            code = f"{indent}ghost {safe_target} := !{safe_target} - {val}"
-        elif op == "*=":
-            code = f"{indent}ghost {safe_target} := !{safe_target} * {val}"
+        elif ghost_type in ("tuple2", "tuple3", "tuple4"):
+            self._ghost_tuple_vars[target] = int(ghost_type[-1])
+            val = self._expr_to_whyml(stmt["value"], local_refs | {target})
+            if is_new:
+                return self._emit_new_ghost_ref(safe_target, target, f"= ref {val}",
+                                                rest, local_refs, declared_refs, indent, in_loop)
+            code = f"{indent}ghost {safe_target} := {val}"
+        elif ghost_type == "array":
+            self._ghost_array_vars.add(target)
+            # Ghost arrays are direct array values (not refs); add to _array_locals
+            # so subscript access in invariants emits arr[i] not subscript_get arr i
+            self._array_locals.add(target)
+            val = self._expr_to_whyml(stmt["value"], local_refs | {target})
+            if is_new:
+                return self._emit_new_ghost_ref(safe_target, target, f"= {val}",
+                                                rest, local_refs, declared_refs, indent, in_loop)
+            code = f"{indent}ghost {safe_target} <- {val}"
+        elif ghost_type == "ghost_dict":
+            self._ghost_dict_vars.add(target)
+            if op == "+=" and not is_new:
+                val_ir = stmt["value"]
+                if val_ir.get("type") == "MkTuple" and len(val_ir.get("elts", [])) == 2:
+                    k = self._e(val_ir["elts"][0], local_refs)
+                    v = self._e(val_ir["elts"][1], local_refs)
+                    code = f"{indent}ghost {safe_target} := (Map.set !{safe_target} {k} (Some {v}))"
+                else:
+                    val = self._expr_to_whyml(stmt["value"], local_refs | {target})
+                    code = f"{indent}ghost {safe_target} := {val}"
+            else:
+                val = self._expr_to_whyml(stmt["value"], local_refs | {target})
+                if is_new:
+                    return self._emit_new_ghost_ref(safe_target, target, f"= ref {val}",
+                                                    rest, local_refs, declared_refs, indent, in_loop)
+                code = f"{indent}ghost {safe_target} := {val}"
+        elif ghost_type == "ghost_list":
+            self._ghost_list_vars.add(target)
+            val = self._expr_to_whyml(stmt["value"], local_refs | {target})
+            if is_new:
+                # Annotate Nil with type to allow Why3 to infer list int for unused vars
+                init_val = f"({val}: list int)" if val == "Nil" else val
+                return self._emit_new_ghost_ref(safe_target, target, f"= ref {init_val}",
+                                                rest, local_refs, declared_refs, indent, in_loop)
+            if op == "+=":
+                code = f"{indent}ghost {safe_target} := (Cons {val} !{safe_target})"
+            else:
+                code = f"{indent}ghost {safe_target} := {val}"
+        elif ghost_type == "ghost_set":
+            self._ghost_set_vars.add(target)
+            val = self._expr_to_whyml(stmt["value"], local_refs | {target})
+            if is_new:
+                return self._emit_new_ghost_ref(safe_target, target, f"= ref {val}",
+                                                rest, local_refs, declared_refs, indent, in_loop)
+            if op == "+=":
+                code = f"{indent}ghost {safe_target} := (Map.set !{safe_target} {val} true)"
+            else:
+                code = f"{indent}ghost {safe_target} := {val}"
         else:
-            code = f"{indent}ghost {safe_target} := {val}"
+            # Default: int ghost (existing behaviour)
+            val = self._expr_to_whyml(stmt["value"], local_refs | {target})
+            if is_new:
+                if self._bounded_int:
+                    binding = f"= ref ({val} : int{self._bounded_int})"
+                else:
+                    binding = f"= ref {val}"
+                return self._emit_new_ghost_ref(safe_target, target, binding,
+                                                rest, local_refs, declared_refs, indent, in_loop)
+            if op == "=":
+                code = f"{indent}ghost {safe_target} := {val}"
+            elif op == "+=":
+                code = f"{indent}ghost {safe_target} := !{safe_target} + {val}"
+            elif op == "-=":
+                code = f"{indent}ghost {safe_target} := !{safe_target} - {val}"
+            elif op == "*=":
+                code = f"{indent}ghost {safe_target} := !{safe_target} * {val}"
+            else:
+                code = f"{indent}ghost {safe_target} := {val}"
+
         if rest:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
+
+    def _handle_ghost_array_set_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
+                                      local_refs: Set[str], declared_refs: Set[str],
+                                      indent: str, in_loop: bool) -> str:
+        arr = self._whyml_ident(stmt["target"])
+        idx = self._expr_to_whyml(stmt["index"], local_refs)
+        val = self._expr_to_whyml(stmt["value"], local_refs)
+        # Why3 array element assignment: a[i] <- v
+        code = f"{indent}{arr}[{idx}] <- {val}"
+        if rest:
+            code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+        return code
+
+    def _expr_to_whyml_string_ctx(self, ir: Dict[str, Any], local_refs: Set[str]) -> str:
+        """Emit a ghost string expression in string context (handles StrConcat, StringLiteral, ghost string vars)."""
+        t = ir.get("type")
+        if t == "StrConcat":
+            l = self._expr_to_whyml_string_ctx(ir["left"], local_refs)
+            r = self._expr_to_whyml_string_ctx(ir["right"], local_refs)
+            return f"(String.(^) {l} {r})"
+        if t == "String":
+            raw = ir.get("value", "")
+            return f'"{raw}"'
+        if t == "Var":
+            name = ir.get("name", "")
+            safe = self._whyml_ident(name)
+            if name in self._ghost_string_vars:
+                return f"!{safe}"
+            return safe
+        # Fall back to generic emit for any other expression
+        return self._expr_to_whyml(ir, local_refs)
 
     def _handle_tuple_unpack_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
                                    local_refs: Set[str], declared_refs: Set[str],
@@ -2098,6 +2512,9 @@ class Module6_WhyMLTranspiler:
         elif s_type == "GhostAssign":
             return self._handle_ghost_assign_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
 
+        elif s_type == "GhostArraySet":
+            return self._handle_ghost_array_set_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
+
         elif s_type == "Assign":
             return self._handle_assign_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
 
@@ -2342,6 +2759,7 @@ class Module6_WhyMLTranspiler:
                 or any(IRScanner.uses_subscript(body) for body in all_bodies)
                 or any(IRScanner.uses_arrayset(body) for body in all_bodies)
                 or any(IRScanner.uses_array_lit(body) for body in all_bodies)
+                or any(IRScanner.uses_ghost_type(body, {"array"}) for body in all_bodies)
             )
         else:
             needs_array = False
@@ -2362,8 +2780,12 @@ class Module6_WhyMLTranspiler:
                 else:
                     needs_return_exc = True
             i += 1
-        needs_string = False
+        needs_string = any(IRScanner.uses_ghost_type(body, {"string"}) for body in all_bodies)
+        needs_map_ghost = any(IRScanner.uses_ghost_type(body, {"ghost_dict", "ghost_set"}) for body in all_bodies)
+        needs_ghost_dict = any(IRScanner.uses_ghost_type(body, {"ghost_dict"}) for body in all_bodies)
+        needs_list_ghost = any(IRScanner.uses_ghost_type(body, {"ghost_list"}) for body in all_bodies)
         needs_sum = any(IRScanner.uses_sum(func) for func in functions)
+        needs_set_card = any(IRScanner.uses_set_card(func) for func in functions)
         needs_divmod = any(IRScanner.uses_divmod(body) for body in all_bodies)
         bounded_sizes = {func["bounded_int"] for func in functions if func.get("bounded_int")}
         user_exceptions: Set[str] = set()
@@ -2381,7 +2803,11 @@ class Module6_WhyMLTranspiler:
             "needs_return_exc": needs_return_exc,
             "needs_return_void": needs_return_void,
             "needs_string": needs_string,
+            "needs_map_ghost": needs_map_ghost,
+            "needs_ghost_dict": needs_ghost_dict,
+            "needs_list_ghost": needs_list_ghost,
             "needs_sum": needs_sum,
+            "needs_set_card": needs_set_card,
             "needs_divmod": needs_divmod,
             "bounded_sizes": bounded_sizes,
             "user_exceptions": user_exceptions,
@@ -2414,8 +2840,25 @@ class Module6_WhyMLTranspiler:
                 out.append("  use matrix.Matrix")
             if needs["needs_minmax"]:
                 out.append("  use int.MinMax")
+            if needs["needs_map_ghost"]:
+                out.append("  use map.Map")
+                out.append("  use map.Const")
+            if needs["needs_ghost_dict"]:
+                out.append("  use option.Option")
+            if needs["needs_list_ghost"]:
+                out.append("  use list.List")
+                out.append("  use list.Length")
+                out.append("  use list.NthNoOpt")
+                out.append("  use list.Mem")
+                out.append("  use list.Append")
         else:
             out.append("  use map.Map")
+            if needs["needs_list_ghost"]:
+                out.append("  use list.List")
+                out.append("  use list.Length")
+                out.append("  use list.NthNoOpt")
+                out.append("  use list.Mem")
+                out.append("  use list.Append")
             if needs["needs_minmax"]:
                 out.append("  use int.MinMax")
             out.append("")
@@ -2456,21 +2899,40 @@ class Module6_WhyMLTranspiler:
         return out
 
     def _emit_preamble_helpers(self, needs: Dict[str, Any]) -> List[str]:
-        """Phase C: emit pycsl_sum, pycsl_div, pycsl_mod helper function bodies."""
+        """Phase C: emit helper lemmas, pycsl_sum, pycsl_div, pycsl_mod function bodies."""
         out: List[str] = []
+        if needs.get("needs_list_ghost"):
+            # axiom mem_head: base case of mem — makes \mem(x, \cons(x, l)) proofs tractable
+            # without recursive unfolding. This is the head-match case of mem's definition,
+            # so it is mathematically sound to assume it as an axiom.
+            out.append("")
+            out.append("  axiom mem_head : forall x: int, l: list int. mem x (Cons x l)")
         if needs["needs_sum"]:
             out.append("")
             out.append("  let rec function pycsl_sum (a: array int) (lo hi: int) : int")
             out.append("    requires { 0 <= lo }")
-            out.append("    requires { hi <= length a }")
+            out.append("    requires { hi <= Array.length a }")
             out.append("    variant { hi - lo }")
             out.append("  = if lo >= hi then 0 else a[lo] + pycsl_sum a (lo + 1) hi")
             out.append("")
             out.append("  let rec lemma pycsl_sum_snoc (a: array int) (lo hi: int) : unit")
-            out.append("    requires { 0 <= lo <= hi <= length a }")
+            out.append("    requires { 0 <= lo <= hi <= Array.length a }")
             out.append("    variant { hi - lo }")
             out.append("    ensures { hi > lo -> pycsl_sum a lo hi = pycsl_sum a lo (hi - 1) + a[hi - 1] }")
             out.append("  = if lo < hi - 1 then pycsl_sum_snoc a (lo + 1) hi")
+        if needs["needs_set_card"]:
+            out.append("")
+            out.append("  let rec function set_card (s: map int bool) (lo hi: int) : int")
+            out.append("    requires { lo <= hi }")
+            out.append("    variant { hi - lo }")
+            out.append("  = if lo >= hi then 0")
+            out.append("    else (if Map.get s lo then 1 else 0) + set_card s (lo + 1) hi")
+            out.append("")
+            out.append("  let rec lemma set_card_add_hi (s: map int bool) (lo hi: int) : unit")
+            out.append("    requires { lo <= hi }")
+            out.append("    variant { hi - lo }")
+            out.append("    ensures { set_card (Map.set s hi true) lo (hi + 1) = set_card s lo hi + 1 }")
+            out.append("  = if lo < hi then set_card_add_hi s (lo + 1) hi")
         if needs["needs_divmod"]:
             out.append("")
             if "ZeroDivisionError" in needs["user_exceptions"]:
@@ -2495,11 +2957,88 @@ class Module6_WhyMLTranspiler:
                 out.append("  = mod x y")
         return out
 
+    # §2.1.12 — registry of hand-curated axiom bodies for `#@ axiom_from`
+    # qualnames. MVP step before `proof2why3` extraction lands (see
+    # simple3.md). Each entry's body is the canonical statement that
+    # the paired Rocq + Lean theorems establish — cross-checked
+    # manually for the MVP, automatically via the cross-check
+    # pipeline in v1.
+    _AXIOM_REGISTRY: Dict[str, str] = {
+        # Pycsl.Reference.Gcd — Euclidean GCD properties.
+        # Cross-validated by 0342.proofs/rocq/gcd.v + 0342.proofs/lean/Gcd.lean.
+        "Pycsl.Reference.Gcd.gcd_result_nonneg":
+            "forall a b : int. 0 <= gcd a b",
+        "Pycsl.Reference.Gcd.gcd_result_positive":
+            "forall a b : int. a >= 0 -> b >= 0 -> (a > 0 \\/ b > 0) -> gcd a b > 0",
+        "Pycsl.Reference.Gcd.gcd_divides_a":
+            "forall a b : int. a >= 0 -> b >= 0 -> (a > 0 \\/ b > 0) -> mod a (gcd a b) = 0",
+        "Pycsl.Reference.Gcd.gcd_divides_b":
+            "forall a b : int. a >= 0 -> b >= 0 -> (a > 0 \\/ b > 0) -> mod b (gcd a b) = 0",
+        "Pycsl.Reference.Gcd.gcd_0":
+            "forall a : int. a >= 0 -> gcd a 0 = a",
+        "Pycsl.Reference.Gcd.gcd_step":
+            "forall a b : int. b > 0 -> gcd a b = gcd b (mod a b)",
+    }
+
+    # Functions that an axiom block needs declared. Looked up by qualname
+    # prefix; declarations emitted once each when any matching axiom fires.
+    _AXIOM_FUNCTIONS: Dict[str, str] = {
+        "Pycsl.Reference.Gcd.": "function gcd (a : int) (b : int) : int",
+    }
+
+    def _emit_preamble_axioms(self, ir: Dict[str, Any]) -> List[str]:
+        """Emit Why3 function decls + axioms for `#@ axiom_from` cites.
+
+        Scans every function in the program IR for axiom_from entries.
+        Dedups by qualname (Rocq + Lean cite the same target). Emits
+        each axiom under a sanitized name `pycsl_axiom_<...>` and
+        records the prover provenance in a Why3 comment.
+        """
+        seen_qualnames: Set[str] = set()
+        for func in ir.get("functions", []):
+            for entry in func.get("axiom_from", []):
+                seen_qualnames.add(entry["qualname"])
+        if not seen_qualnames:
+            return []
+
+        # Pair each qualname with the registry entry; halt if any
+        # unknown — Module4 can't audit this (qualname is opaque
+        # like #@ proof), so the failure is at transpile time.
+        out: List[str] = []
+        # Declare backing functions once each (e.g. `function gcd`).
+        declared_fns: Set[str] = set()
+        for qn in sorted(seen_qualnames):
+            for prefix, fn_decl in self._AXIOM_FUNCTIONS.items():
+                if qn.startswith(prefix) and fn_decl not in declared_fns:
+                    out.append(f"  {fn_decl}")
+                    declared_fns.add(fn_decl)
+        if declared_fns:
+            out.append("")
+
+        # Emit each axiom. Comment records the prover pairing.
+        for qn in sorted(seen_qualnames):
+            if qn not in self._AXIOM_REGISTRY:
+                raise PyCSLIRError(
+                    f"#@ axiom_from {qn}: not in Module6 axiom registry. "
+                    f"Either add the axiom body to _AXIOM_REGISTRY or run "
+                    f"`proof2why3 emit` (when available — see simple3.md)."
+                )
+            axiom_name = "pycsl_axiom_" + qn.replace(".", "_")
+            body = self._AXIOM_REGISTRY[qn]
+            # Provers cite this qualname — for the MVP we record both
+            # under one cite. v1 emits the canonical-hash status from
+            # the cross-check manifest.
+            out.append(f"  (* {qn} — cross-validated Rocq + Lean *)")
+            out.append(f"  axiom {axiom_name} : {body}")
+        out.append("")
+        return out
+
     def _emit_preamble(self, needs: Dict[str, Any]) -> List[str]:
         """Emit the WhyML module header: use declarations, exception types, helper functions."""
         out = self._emit_preamble_uses(needs)
         out += self._emit_preamble_exceptions(needs)
         out += self._emit_preamble_helpers(needs)
+        out += self._emit_preamble_axioms(self.ir)
         out.append("")
         return out
 
@@ -2665,6 +3204,12 @@ class Module6_WhyMLTranspiler:
         self._dict_locals = set()
         self._lambda_locals = set()
         self._record_locals = set()
+        self._ghost_string_vars: Set[str] = set()
+        self._ghost_array_vars: Set[str] = set()
+        self._ghost_dict_vars: Set[str] = set()
+        self._ghost_list_vars: Set[str] = set()
+        self._ghost_set_vars: Set[str] = set()
+        self._ghost_tuple_vars: Dict[str, int] = {}  # name → arity (2, 3, or 4)
         self._known_collection_sizes = {}
         self._known_collection_elements = {}
         self._current_symbol_table = symbol_table
@@ -2713,6 +3258,96 @@ class Module6_WhyMLTranspiler:
             )
             return ref_params, args_str
 
+    # ------------------------------------------------------------------
+    # VC classification — Task 7b
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _is_linear_expr(expr: Any) -> bool:
+        """Return True iff *expr* is a linear-arithmetic IR expression.
+
+        An expression is linear if it contains only:
+          - Integer/boolean constants
+          - Variable references
+          - Arithmetic: +, - (binary and unary)
+          - Comparisons: <, <=, >, >=, ==, !=
+          - Logical: and, or, not
+          - Multiplication by a constant (one operand is Num/Constant)
+          - \\result, \\old(v) references
+
+        An expression is NOT linear if it contains:
+          - Function calls (Call nodes)
+          - Division, modulo (/, //, %)
+          - Multiplication of two non-constant sub-expressions
+          - Float literals, string literals
+          - Subscript, attribute access
+        """
+        def _check(e: Any) -> bool:
+            if e is None:
+                return True
+            if not isinstance(e, dict):
+                return True
+            t = e.get("type", "")
+
+            # Constants
+            # Integer/boolean constants — "Number" is the IR type from Module5.
+            # Values may be int, bool, or float (e.g. 0.0); accept all numeric types.
+            if t in ("Num", "Number", "Constant", "Int"):
+                val = e.get("value", e.get("n", 0))
+                return isinstance(val, (int, float, bool))
+
+            # Variable references (including \result, \old)
+            if t in ("Name", "Var", "Result", "OldVar", "OldName"):
+                return True
+
+            if t == "BinOp":
+                op = e.get("op", "")
+                left = e.get("left")
+                right = e.get("right")
+                if op in ("+", "-", "<", "<=", ">", ">=", "==", "!=",
+                          "and", "or", "==>", "<==>"):
+                    return _check(left) and _check(right)
+                if op == "*":
+                    _CONST = ("Num", "Number", "Constant", "Int")
+                    left_const = isinstance(left, dict) and left.get("type") in _CONST
+                    right_const = isinstance(right, dict) and right.get("type") in _CONST
+                    if left_const:
+                        return _check(right)
+                    if right_const:
+                        return _check(left)
+                    return False   # non-constant * non-constant
+                return False       # /, //, % — not linear
+
+            if t == "UnaryOp":
+                op = e.get("op", "")
+                # Module5 uses "expr" key for UnaryOp child (not "operand")
+                if op in ("-", "not", "~"):
+                    return _check(e.get("expr") or e.get("operand"))
+                return False
+
+            # \old(x) ghost references — treat as linear
+            if t in ("Old", "OldExpr"):
+                return _check(e.get("expr"))
+
+            # Anything else (Call, Subscript, Attribute, Lambda, …)
+            return False
+
+        return _check(expr)
+
+    @staticmethod
+    def _is_linear_vc(ensures_exprs: List[Any],
+                      requires_exprs: Optional[List[Any]] = None) -> bool:
+        """Return True iff this VC (ensures + requires) is linear-arithmetic.
+
+        A VC is linear if every ensures clause and every requires clause
+        is a linear-arithmetic expression (see _is_linear_expr).
+
+        Linear VCs are candidates for direct omega proofs in Lean 4
+        (via `LinearArithVC.prf`) without routing through Why3/Alt-Ergo.
+        """
+        exprs = list(ensures_exprs or []) + list(requires_exprs or [])
+        return all(Module6_WhyMLTranspiler._is_linear_expr(e) for e in exprs)
+
     def _emit_contracts(self, contracts: Dict[str, Any], spec_refs: Set[str],
                          func_variants: List[Any], func_diverges: bool,
                          func_exceptions: Set[str]) -> List[str]:
@@ -2721,10 +3356,16 @@ class Module6_WhyMLTranspiler:
         lines: List[str] = []
         self._in_spec = True
 
-        for req in contracts.get("requires", []):
+        requires_exprs = contracts.get("requires", [])
+        ensures_exprs  = contracts.get("ensures", [])
+
+        for req in requires_exprs:
             lines.append(f"    requires {{ {self._expr_to_whyml(req, spec_refs)} }}")
-        for ens in contracts.get("ensures", []):
-            lines.append(f"    ensures  {{ {self._expr_to_whyml(ens, spec_refs)} }}")
+        for ens in ensures_exprs:
+            # Tag linear ensures with a comment so the runner can classify VCs.
+            # Linear VCs are candidates for omega proofs in Lean 4 (Task 7).
+            lin_tag = " (* linear *)" if self._is_linear_vc([ens], requires_exprs) else ""
+            lines.append(f"    ensures  {{ {self._expr_to_whyml(ens, spec_refs)} }}{lin_tag}")
         for fl in self._emit_frame_condition(contracts.get("assigns", []), spec_refs):
             lines.append(fl)
         for fv in func_variants:
@@ -2942,4 +3583,3 @@ class Module6_WhyMLTranspiler:
                 i10r += 1
 
         return "\n".join(out)
-

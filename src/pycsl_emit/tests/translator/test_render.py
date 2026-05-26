@@ -240,3 +240,114 @@ def test_render_lines_one_per_node():
     ]
     out = render_lines(nodes)
     assert out == ["a % \\result == 0", "b % \\result == 0"]
+
+
+# ──────────────────────────────────────────────────────────────────────
+# New IR-node surface forms (Phase 1 of tuesday-01 corpus growth)
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_length_and_nth():
+    from pycsl_emit.ir import Length, Nth
+
+    assert render(Length(arr=Var("arr"))) == "\\length(arr)"
+    assert render(Nth(arr=Var("arr"), i=Var("i"))) == "arr[i]"
+    # `arr[i]` is atom-like: no surrounding parens inside a comparison.
+    expr = BinOp(">=", Nth(arr=Var("arr"), i=Var("i")), Lit(0))
+    assert render(expr) == "arr[i] >= 0"
+
+
+def test_tuple_and_proj():
+    from pycsl_emit.ir import Proj, Tuple
+
+    assert render(Tuple(args=(Var("a"), Var("b")))) == "\\mktuple(a, b)"
+    assert render(Proj(t=Result(), i=0)) == "\\result[0]"
+    assert render(Proj(t=Result(), i=1)) == "\\result[1]"
+
+
+def test_map_ops():
+    from pycsl_emit.ir import HasKey, MapEmpty, MapGet, MapSet
+
+    assert render(MapGet(d=Var("d"), k=Var("k"))) == "\\map_get(d, k)"
+    assert (
+        render(MapSet(d=Var("d"), k=Var("k"), v=Lit(42)))
+        == "\\map_set(d, k, 42)"
+    )
+    assert render(MapEmpty()) == "\\empty_map"
+    assert render(HasKey(d=Var("d"), k=Var("k"))) == "\\has_key(d, k)"
+
+
+def test_string_ops():
+    from pycsl_emit.ir import StrConcat, StrLength, StrLit, StrSub
+
+    assert render(StrLit("hello")) == '"hello"'
+    assert render(StrConcat(a=Var("s"), b=Var("t"))) == "s ^ t"
+    # Nested concat parenthesizes inner concat.
+    expr = StrConcat(
+        a=StrConcat(a=Var("a"), b=Var("b")), b=Var("c")
+    )
+    assert render(expr) == "(a ^ b) ^ c"
+    assert render(StrLength(s=Var("s"))) == "\\str_length(s)"
+    assert (
+        render(StrSub(s=Var("s"), lo=Lit(0), hi=Lit(3)))
+        == "\\str_sub(s, 0, 3)"
+    )
+
+
+def test_field_get_renders_as_dotted():
+    from pycsl_emit.ir import FieldGet
+
+    assert (
+        render(FieldGet(obj=Var("self"), name="_balance"))
+        == "self._balance"
+    )
+    # Field access is atom-like: no surrounding parens in a comparison.
+    expr = BinOp(">=", FieldGet(obj=Var("self"), name="_balance"), Lit(0))
+    assert render(expr) == "self._balance >= 0"
+
+
+def test_ghost_list_ops():
+    from pycsl_emit.ir import ListAppend, ListCons, ListLen, ListNil, ListNthAt
+
+    assert render(ListNil()) == "\\nil"
+    assert (
+        render(ListCons(head=Var("x"), tail=ListNil()))
+        == "\\cons(x, \\nil)"
+    )
+    assert render(ListLen(l=Var("l"))) == "\\list_length(l)"
+    assert (
+        render(ListAppend(l1=Var("a"), l2=Var("b")))
+        == "\\append(a, b)"
+    )
+    assert (
+        render(ListNthAt(l=Var("l"), i=Lit(0)))
+        == "\\nth(l, 0)"
+    )
+
+
+def test_ghost_set_ops():
+    from pycsl_emit.ir import (
+        SetAdd,
+        SetDiff,
+        SetEmpty,
+        SetEq,
+        SetInter,
+        SetMem,
+        SetRemove,
+        SetSubset,
+        SetUnion,
+    )
+
+    assert render(SetEmpty()) == "\\set_empty"
+    assert render(SetAdd(s=Var("s"), x=Var("x"))) == "\\set_add(s, x)"
+    assert (
+        render(SetRemove(s=Var("s"), x=Var("x"))) == "\\set_remove(s, x)"
+    )
+    assert render(SetMem(x=Var("x"), s=Var("s"))) == "\\set_mem(x, s)"
+    assert render(SetUnion(a=Var("a"), b=Var("b"))) == "\\set_union(a, b)"
+    assert render(SetInter(a=Var("a"), b=Var("b"))) == "\\set_inter(a, b)"
+    assert render(SetDiff(a=Var("a"), b=Var("b"))) == "\\set_diff(a, b)"
+    assert (
+        render(SetSubset(a=Var("a"), b=Var("b"))) == "\\set_subset(a, b)"
+    )
+    assert render(SetEq(a=Var("a"), b=Var("b"))) == "\\set_eq(a, b)"

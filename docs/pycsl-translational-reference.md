@@ -1,7 +1,7 @@
 # PyCSL Translational Semantics Reference
 
-**Version:** 1.0  
-**Date:** 2025-07-11  
+**Version:** 1.3  
+**Date:** 2026-05-26  
 **Status:** Normative  
 **Source of truth:** `Module5_IREmitter.py`, `Module6_WhyMLTranspiler.py`,
 `test-suite/annotations.md`
@@ -403,6 +403,91 @@ def checked_abs(n: int) -> int:
 
 **Implementation:** `_emit_contracts` (L2760–2795), `_emit_function`
 (L2853–2911).
+
+### §T.2.9  Proof Attribution (`proof`) — no-op translation
+
+$$\mathcal{T}_f\llbracket \texttt{\#@ proof prover : qualname} \rrbracket = \varepsilon$$
+
+The `proof` directive carries no semantic content. `Module5_IREmitter`
+records it in each function's `proof_attributions` list (a list of
+`{prover, qualname}` dicts); `Module6_WhyMLTranspiler` reads the list
+purely to round-trip it for `pycsl_bridge` and emits **no WhyML** for
+it. The directive is informational provenance — it links the Python
+function to the Rocq or Lean theorem that produced its contract.
+
+**Verified examples:** test 0331 (single `#@ proof rocq:` line) and
+test 0332 (multiple rocq + lean attributions above real contract
+clauses). Both discharge under Alt-Ergo with the proof attribution
+visible in the source but absent from the generated `.mlw`.
+
+**Implementation:** Module5 emits the field; Module6 ignores it.
+There is no $\mathcal{T}_e$ or $\mathcal{T}_s$ rule for it.
+
+**Companion-proof discharge** (project convention). When Alt-Ergo
+cannot discharge an obligation that the contract author believes
+holds, the obligation may be delegated to an external Rocq or Lean
+proof under the *proof-pair* convention: place the proof at
+`test-suite/corpus/pycsl-reference/NNNN.proofs/{rocq,lean}/<file>.{v,lean}`
+and add a matching `#@ proof rocq: <qualname>` or
+`#@ proof lean: <qualname>` line. The reference test then runs under
+`# pycsl-flags: --no-proof` (used by tests 0335–0341 and 0342),
+exercising parsing + static semantics only — the external prover
+transcripts are the trust anchor. PyCSL itself does not verify the
+linkage; the discipline is for human and future-tooling audit.
+**Worked example:** test 0342 (Euclidean GCD) with proofs under
+`test-suite/corpus/pycsl-reference/0342.proofs/rocq/gcd.v` and
+`0342.proofs/lean/Gcd.lean`, both verified clean under Coq 8.20.1
+and Lean 4.29.1 respectively.
+
+_Corresponds to `annotations.md` §2.1.11._
+
+### §T.2.10  Axiom from Proof (`axiom_from`) — Rocq + Lean as Cross-Validated Spec Sources
+
+$$\mathcal{T}_m\llbracket \texttt{\#@ axiom\_from prover qualname} \rrbracket = \texttt{axiom pycsl\_axiom\_<target> : <Why3\_formula>}$$
+
+Unlike `proof` (§T.2.9, no-op), `axiom_from` produces WhyML output.
+`Module6_WhyMLTranspiler` invokes `proof2why3 emit` for each declared
+`axiom_from`, which:
+
+1. **Extracts** the theorem statement tagged with
+   `pycsl_target="<qualname>"` from the Rocq or Lean source.
+2. **Canonicalizes** the statement (alpha-normalize variable names,
+   AC-flatten commutative operators, rewrite `nat`/`Nat` to
+   `int + ≥ 0` precondition).
+3. **Cross-checks** — when both a `rocq` and a `lean` directive reference
+   the same target, verifies their canonical forms are equal. This is the
+   **"Rocq + Lean as Cross-Validated Spec Sources"** pattern.
+4. **Emits** a Why3 `axiom` block in the preamble:
+
+```why3
+(* axiom from rocq:Pycsl.Reference.Gcd.gcd_divides_a
+   = lean:Pycsl.Reference.Gcd.gcd_divides_a
+   (canonical forms verified equal) *)
+axiom pycsl_axiom_gcd_divides_a :
+  forall a b : int.
+    a >= 0 -> b >= 0 -> (a > 0 \/ b > 0) ->
+    mod a (gcd a b) = 0
+```
+
+**Trust model.** The emitted axiom is trusted because:
+- The Rocq kernel and Lean kernel independently verified the theorem.
+- The cross-check verified that both formalizations state the same
+  property (in canonical form).
+- Why3's own type-checker rejects malformed axiom syntax.
+
+**Cross-check statuses** (recorded in the TOML manifest):
+
+| Status | Axiom emitted? | Notes |
+|---|---|---|
+| `reconciled` | Yes | Both provers agree |
+| `rocq-only` | Yes (with warning) | Only Rocq statement found |
+| `lean-only` | Yes (with warning) | Only Lean statement found |
+| `disagreement` | **No** (pipeline halts) | Canonical forms differ |
+
+**Worked example:** test 0342 (Euclidean GCD) with 5 cross-validated
+axioms (gcd_result_nonneg, gcd_divides_a, gcd_divides_b, gcd_0, gcd_step).
+
+_Corresponds to `annotations.md` §2.1.12._
 
 ---
 
@@ -1403,6 +1488,73 @@ def test_at_expr(arr: list) -> None:
 
 **Implementation:** `_stmts_to_whyml` (L2107–2112).
 
+### §T.8.4  Typed Ghost Variable Declaration
+
+$$\mathcal{T}_s\llbracket \texttt{\#@ ghost x : T = e} \rrbracket
+= \texttt{let ghost x = ref (} \mathcal{T}_e\llbracket e \rrbracket \texttt{) in}$$
+
+The declared ghost type `T` determines the WhyML type of `x`. For `ghost_dict`,
+the initial expression `\empty_map` lowers to `(const (None: option int))`, which
+allows Why3 to infer `x : ref (map int (option int))`.
+
+_Corresponds to `annotations.md` §11.1._
+
+### §T.8.5  Ghost Dict Expression Translation
+
+Ghost dicts use `map int (option int)` in WhyML. Present values are wrapped in
+`Some`; absent keys hold `None`.
+
+**Preamble** (auto-emitted by `_scan_preamble_needs` when `needs_ghost_dict` is set):
+```whyml
+use map.Map
+use map.Const
+use option.Option
+```
+
+**Emission table** — _Corresponds to `annotations.md` §11.2 and §11.9._
+
+| Operation | PyCSL | Emitted WhyML |
+|-----------|-------|---------------|
+| Empty map | `\empty_map` | `(const (None: option int))` |
+| Get | `\map_get(d, k)` | `(match Map.get !d k with \| Some v_ -> v_ \| None -> 0 end)` |
+| Set | `\map_set(d, k, v)` | `(Map.set !d k (Some v))` |
+| Remove | `\map_remove(d, k)` | `(Map.set !d k None)` |
+| Has key | `\has_key(d, k)` | `(Map.get !d k <> None)` |
+| Equality | `\map_eq(d1, d2)` | `(forall k: int. Map.get !d1 k = Map.get !d2 k)` |
+
+**Design note:** The option-type representation ensures that `\has_key` is
+correct even when the stored value is 0. Under the old sentinel-0 design,
+`Map.get !d k <> 0` treated a stored 0 as "absent". With `map int (option int)`,
+`Some 0` is unambiguously present, and `None` is unambiguously absent.
+
+**Verified example (tests 0294, 0330):**
+```python
+#@ ghost d : ghost_dict = \empty_map
+#@ loop invariant i > 0 ==> \has_key(d, 1)
+#@ loop invariant i > 0 ==> \map_get(d, 1) == 0
+while i < n:
+    #@ ghost d = \map_set(d, 0, i + 1)
+    #@ ghost d = \map_remove(d, 0)
+    #@ ghost d = \map_set(d, 1, 0)
+    i = i + 1
+```
+
+**Implementation:** `_handle_map_empty_expr`, `_handle_map_get_expr`,
+`_handle_map_set_expr`, `_handle_map_remove_expr`, `_handle_has_key_expr`,
+`_handle_map_eq_expr` in `Module6_WhyMLTranspiler.py`. Preamble detection:
+`_scan_preamble_needs` → `needs_ghost_dict`.
+
+### §T.8.6  Ghost Dict Augmented Assign
+
+$$\mathcal{T}_s\llbracket \texttt{\#@ ghost d += \textbackslash mktuple(k, v)} \rrbracket
+= \texttt{ghost d := Map.set } \texttt{!d } k \texttt{ (Some } v \texttt{)}$$
+
+The `\mktuple(k, v)` shorthand is a ghost-dict-specific form of augmented assign
+(§2.4.3 in the concrete and static semantics references). It inserts or updates
+key `k` with value `v`, wrapping `v` in `Some` per the option-type design.
+
+_Corresponds to `annotations.md` §11.2 row 5._
+
 ---
 
 ## §T.9  Assigns Frame Translation
@@ -1565,11 +1717,12 @@ by the Why3 project itself.
 | G1 | Python floored division vs WhyML Euclidean division | For negative operands, `(-7) // 2` is `-4` in Python but `div (-7) 2 = -3` in WhyML | Add a `pycsl_floordiv` helper that matches Python semantics |
 | G2 | String hashing is lossy | Two different strings may hash to the same integer | Document limitation; add `string.String` theory support |
 | G3 | Boolean/int duality | `True + 1 = 2` in Python; in spec `true + 1` is a type error | The spec/body distinction handles this, but mixed use is fragile |
-| G4 | `None` mapped to `0` | `None` and `0` are indistinguishable in WhyML | Use `option` type for nullable values |
+| G4 | `None` mapped to `0` in non-ghost context | `None` and `0` are indistinguishable in WhyML for regular Python values | **Partially resolved:** ghost dicts use `map int (option int)` (§T.8.5), so `\has_key` distinguishes absent keys from keys with value 0. Raw Python `None` in non-ghost context still maps to 0. |
 | G5 | Array literals use fixed size 1024 | `[]` becomes `Array.make 1024 0` regardless of actual size | Use dynamic allocation or parametric size |
 | G6 | Dict/Set/ListComp are abstract | `{}`, `[x for x in ...]`, `{k:v for ...}` use uninterpreted functions | Implement concrete dict/set theories |
 | G7 | `isinstance` / `hasattr` always `true` | Single type system limitation | Support union types or tagged variants |
 | G8 | For-each over non-array iterables | Uses abstract `iter_length` / `iter_get` | Provide concrete implementations per type |
+| G9 | `\map_eq` generates a `forall` quantifier | Wide `\map_eq` in deep loop invariants may exceed solver budget | Restrict `\map_eq` to shallow comparisons; prefer explicit key tracking in loop invariants |
 
 ### §T.11.2  Undocumented Features
 
@@ -1632,12 +1785,19 @@ The following constructs appear in Python but have no translation:
 | `_csl_valid2d` | `Valid2D` | `Valid2D` |
 | `_csl_contract_wrapper` | Requires/Ensures/LoopInvariant/LoopVariant | (wrapper) |
 | `_csl_function_variant` | `FunctionVariant` | `FunctionVariant` |
+| (no handler; collected by `_build_function_ir`) | `ProofAttribution` | `proof_attributions` field (informational; §T.2.9) |
 | `_csl_call_expr` | `CallExpr` | `Call` |
 | `_csl_is_sorted` | `IsSorted` | `IsSorted` |
 | `_csl_sum` | `Sum` | `Sum` |
 | `_csl_in` | `CSLIn` | `In` |
 | `_csl_not_in` | `CSLNotIn` | `NotIn` |
 | `_csl_slice` | `CSLSlice` | `Slice` |
+| `_csl_map_empty` | `MapEmptyExpr` | `MapEmpty` |
+| `_csl_map_get` | `MapGetExpr` | `MapGet` |
+| `_csl_map_set` | `MapSetExpr` | `MapSet` |
+| `_csl_map_remove` | `MapRemoveExpr` | `MapRemove` |
+| `_csl_has_key` | `HasKeyExpr` | `HasKey` |
+| `_csl_map_eq` | `MapEqExpr` | `MapEq` |
 
 ### Module5 Python Statement Handlers
 
@@ -1709,6 +1869,12 @@ The following constructs appear in Python but have no translation:
 | `_handle_sum_node_expr` | 1246–1258 | `Sum` → `(pycsl_sum arr lo hi)` |
 | `_handle_lambda_expr` | 1260–1270 | `Lambda` → `(fun x -> e)` |
 | `_handle_setlit_expr` | 1272–1284 | `SetLit` → `(set_empty ())` |
+| `_handle_map_empty_expr` | — | `MapEmpty` → `(const (None: option int))` |
+| `_handle_map_get_expr` | — | `MapGet` → `match Map.get !d k with \| Some v_ -> v_ \| None -> 0 end` |
+| `_handle_map_set_expr` | — | `MapSet` → `(Map.set !d k (Some v))` |
+| `_handle_map_remove_expr` | — | `MapRemove` → `(Map.set !d k None)` |
+| `_handle_has_key_expr` | — | `HasKey` → `(Map.get !d k <> None)` |
+| `_handle_map_eq_expr` | — | `MapEq` → `(forall k: int. Map.get !d1 k = Map.get !d2 k)` |
 | `_expr_to_whyml` | 1289–1341 | Main dispatcher for all expression types |
 
 ### Module6 Emission Functions

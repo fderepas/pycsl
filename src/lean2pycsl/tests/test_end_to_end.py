@@ -44,6 +44,142 @@ def test_double_golden_matches_expected(tmp_path: Path):
     )
 
 
+def test_bank_account_golden_matches_expected(tmp_path: Path):
+    """Phase 6 — Lean class fixture mirroring the Rocq bank_account."""
+    fx = _GOLDEN / "bank_account"
+    _stage_fixture(fx, tmp_path)
+    outcome = run(config_path=tmp_path / "config.toml", backend=Backend.LARK, no_check=True)
+    assert outcome.annotated_source == (fx / "expected.py").read_text()
+
+
+def test_array_fill_zero_golden_matches_expected(tmp_path: Path):
+    fx = _GOLDEN / "array_fill_zero"
+    _stage_fixture(fx, tmp_path)
+    outcome = run(config_path=tmp_path / "config.toml", backend=Backend.LARK, no_check=True)
+    assert outcome.annotated_source == (fx / "expected.py").read_text()
+
+
+def test_list_length_after_append_golden_matches_expected(tmp_path: Path):
+    fx = _GOLDEN / "list_length_after_append"
+    _stage_fixture(fx, tmp_path)
+    outcome = run(config_path=tmp_path / "config.toml", backend=Backend.LARK, no_check=True)
+    assert outcome.annotated_source == (fx / "expected.py").read_text()
+
+
+def test_set_union_eq_golden_matches_expected(tmp_path: Path):
+    fx = _GOLDEN / "set_union_eq"
+    _stage_fixture(fx, tmp_path)
+    outcome = run(config_path=tmp_path / "config.toml", backend=Backend.LARK, no_check=True)
+    assert outcome.annotated_source == (fx / "expected.py").read_text()
+
+
+def test_dict_insert_lookup_golden_matches_expected(tmp_path: Path):
+    """Lean dict-as-function fixture, mirroring the Rocq dict_insert_lookup."""
+    fx = _GOLDEN / "dict_insert_lookup"
+    _stage_fixture(fx, tmp_path)
+
+    outcome = run(
+        config_path=tmp_path / "config.toml",
+        backend=Backend.LARK,
+        no_check=True,
+    )
+    actual = outcome.annotated_source
+    expected = (fx / "expected.py").read_text()
+    assert actual == expected
+
+
+def test_array_sum_nonneg_golden_matches_expected(tmp_path: Path):
+    """Lean List parameters: `List.length arr` → `Length`. Mirrors the
+    Rocq array_sum_nonneg fixture."""
+    fx = _GOLDEN / "array_sum_nonneg"
+    _stage_fixture(fx, tmp_path)
+
+    outcome = run(
+        config_path=tmp_path / "config.toml",
+        backend=Backend.LARK,
+        no_check=True,
+    )
+    actual = outcome.annotated_source
+    expected = (fx / "expected.py").read_text()
+    assert actual == expected
+
+
+def test_concat_length_golden_matches_expected(tmp_path: Path):
+    """String fixture: `s.length` dot syntax + `String.length` both
+    lower to `StrLength`."""
+    fx = _GOLDEN / "concat_length"
+    _stage_fixture(fx, tmp_path)
+
+    outcome = run(
+        config_path=tmp_path / "config.toml",
+        backend=Backend.LARK,
+        no_check=True,
+    )
+    actual = outcome.annotated_source
+    expected = (fx / "expected.py").read_text()
+    assert actual == expected
+
+
+def test_divmod_pair_golden_matches_expected(tmp_path: Path):
+    """Tuple-returning fixture mirroring the Rocq divmod_pair. Lean's
+    `(divmod_pair a b).fst` dot-syntax exercises the postfix_atom
+    grammar production and `_METHOD_TO_FUNCTION` rewrite."""
+    fx = _GOLDEN / "divmod_pair"
+    _stage_fixture(fx, tmp_path)
+
+    outcome = run(
+        config_path=tmp_path / "config.toml",
+        backend=Backend.LARK,
+        no_check=True,
+        verbose=False,
+    )
+
+    actual = outcome.annotated_source
+    expected = (fx / "expected.py").read_text()
+    assert actual == expected, (
+        "annotated output drift:\n"
+        f"--- expected ---\n{expected}\n"
+        f"--- actual ---\n{actual}\n"
+    )
+
+
+def test_bool_xor_golden_matches_expected(tmp_path: Path):
+    """Lean Bool XOR fixture — paired with the Rocq bool_xor fixture to
+    demonstrate cross-prover convergence on the same PyCSL contract."""
+    fx = _GOLDEN / "bool_xor"
+    _stage_fixture(fx, tmp_path)
+
+    outcome = run(
+        config_path=tmp_path / "config.toml",
+        backend=Backend.LARK,
+        no_check=True,
+        verbose=False,
+    )
+
+    actual = outcome.annotated_source
+    expected = (fx / "expected.py").read_text()
+    assert actual == expected, (
+        "annotated output drift:\n"
+        f"--- expected ---\n{expected}\n"
+        f"--- actual ---\n{actual}\n"
+    )
+
+
+def test_bool_xor_lean_and_rocq_produce_identical_output(tmp_path: Path):
+    """Lean and Rocq versions of bool_xor must produce byte-identical
+    annotated Python — the cross-prover convergence guarantee."""
+    fx = _GOLDEN / "bool_xor"
+    _stage_fixture(fx, tmp_path)
+
+    outcome = run(
+        config_path=tmp_path / "config.toml",
+        backend=Backend.LARK,
+        no_check=True,
+    )
+    rocq_expected = (_ROCQ_GOLDEN / "bool_xor" / "expected.py").read_text()
+    assert outcome.annotated_source == rocq_expected
+
+
 def test_double_produces_same_output_as_rocq2pycsl_pipeline(tmp_path: Path):
     """The whole point of the parallel architecture: the same logical
     spec, formalized in Rocq AND in Lean, should produce the same
@@ -119,7 +255,7 @@ def test_missing_function_in_lean_raises(tmp_path: Path):
         '[functions.ghost]\n'
         'python_name = "ghost"\n'
     )
-    with pytest.raises(KeyError, match="def 'ghost' not found"):
+    with pytest.raises(KeyError, match=r"def 'ghost'.* not found"):
         run(config_path=cfg, no_check=True)
 
 

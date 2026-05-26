@@ -1,5 +1,5 @@
 """Test 0272 — Concurrent: unprotected shared variable, read-only access"""
-# pycsl-flags: --no-proof --memory-model concurrent
+# pycsl-flags:  --memory-model concurrent
 #@ shared log_level
 _ = 0  # anchor
 

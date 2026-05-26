@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import List, Union, Any, Optional
 from lark import Lark, Transformer, v_args
@@ -158,8 +160,9 @@ class Diverges(CSLNode):
 
 @dataclass
 class Trusted(CSLNode):
-    """Represents `#@ \\trusted` — function body is not verified."""
-    pass
+    """Represents `#@ \\trusted` — function body is not verified.
+    Optional `reviewer` identifies who is accountable for the trust assumption."""
+    reviewer: str = ""
 
 @dataclass
 class CSLBool(CSLNode):
@@ -258,12 +261,31 @@ class StrConcatExpr(CSLNode):
     left: CSLNode
     right: CSLNode
 
+@dataclass
+class StrLengthExpr(CSLNode):
+    r"""\str_length(s) — length of a ghost string variable."""
+    string: CSLNode
+
+@dataclass
+class StrSubExpr(CSLNode):
+    r"""\str_sub(s, lo, hi) — substring of ghost string s from lo to hi."""
+    string: CSLNode
+    lo: CSLNode
+    hi: CSLNode
+
 # --- Ghost array nodes ---
 
 @dataclass
 class GhostCopyExpr(CSLNode):
     """\\copy(arr) — snapshot of an array into a ghost array."""
     arr: str   # CNAME of the source array
+
+@dataclass
+class GhostCopyRangeExpr(CSLNode):
+    """\\copy_range(arr, lo, hi) — bounded snapshot: arr[lo..hi-1] into a new ghost array."""
+    arr: str       # CNAME of the source array
+    lo: CSLNode    # lower bound (inclusive)
+    hi: CSLNode    # upper bound (exclusive)
 
 @dataclass
 class GhostMakeExpr(CSLNode):
@@ -296,6 +318,18 @@ class MapEqExpr(CSLNode):
     """\\map_eq(d1, d2) — extensional equality of two ghost dicts."""
     left: CSLNode
     right: CSLNode
+
+@dataclass
+class HasKeyExpr(CSLNode):
+    """\\has_key(d, k) — true iff ghost dict d has a present (non-None) value at key k."""
+    dict_expr: CSLNode
+    key: CSLNode
+
+@dataclass
+class MapRemoveExpr(CSLNode):
+    """\\map_remove(d, k) — return ghost dict d with key k removed (set to None/absent)."""
+    dict_expr: CSLNode
+    key: CSLNode
 
 # --- Ghost set nodes ---
 
@@ -406,6 +440,13 @@ class AppendExpr(CSLNode):
     right: CSLNode
 
 @dataclass
+class GhostArraySetDecl(CSLNode):
+    """ghost arr[i] = expr — in-place assignment to a ghost array element."""
+    target: str
+    index: CSLNode
+    value: CSLNode
+
+@dataclass
 class RaisesDecl(CSLNode):
     """Represents `raises ExcType when condition` in contracts."""
     exc_type: str
@@ -415,6 +456,37 @@ class RaisesDecl(CSLNode):
 class BoundedIntDecl(CSLNode):
     """Represents `assumes bounded_int(N)` in contracts."""
     size: int
+
+@dataclass
+class ProofAttribution(CSLNode):
+    """Represents `#@ proof <prover>: <qualname>` — informational trace
+    from a Python function back to the theorem (in Rocq or Lean) that
+    produced its contract.
+
+    Emitted by `pycsl-bridge`. Recorded in the IR and propagated through
+    the pipeline, but `Module6_WhyMLTranspiler` produces NO WhyML output
+    for it — it is documentation only.
+
+    Corresponds to `annotations.md` §2.1.11.
+    """
+    prover: str    # "rocq" | "lean" (enforced by the grammar terminal)
+    qualname: str  # e.g. "Pycsl.Parser.parse_expression_sound"
+
+
+@dataclass
+class AxiomFromDecl(CSLNode):
+    """Represents `#@ axiom_from <prover> <qualname>` — imports the
+    named Rocq or Lean theorem as a Why3 axiom in the WhyML preamble.
+
+    Unlike `ProofAttribution` (which is purely documentary), this
+    directive WILL emit a `axiom <name> : <body>` line in the
+    transpiled WhyML. The body is looked up from a per-test manifest
+    or hand-curated mapping during the MVP phase, and from
+    `proof2why3` extraction once that pipeline exists (see simple3.md).
+    """
+    prover: str    # "rocq" | "lean"
+    qualname: str  # the pycsl_target string
+
 
 # --- Concurrency annotation nodes ---
 
@@ -475,8 +547,11 @@ PYCSL_GRAMMAR = r"""
              | trusted_decl
              | ghost_assign
              | ghost_aug_assign
+             | ghost_array_set
              | raises_decl
              | bounded_int_decl
+             | proof_attribution
+             | axiom_from_decl
              | shared_decl
              | thread_entry_decl
              | acquires_decl
@@ -504,11 +579,25 @@ PYCSL_GRAMMAR = r"""
     function_variant: "\\variant" expr
     function_variant_structural: "\\variant" "(" expr "," CNAME ")"
     diverges_decl: "\\diverges"
-    trusted_decl: "\\trusted"
-    ghost_assign: "ghost" CNAME "=" expr
+    trusted_decl: "\\trusted" ("reviewer" ":" REVIEWER_ID)?
+    REVIEWER_ID: /[A-Za-z0-9._@-]+/
+    ghost_assign: "ghost" CNAME ":" GHOST_TYPE "=" expr -> ghost_assign_typed
+              | "ghost" CNAME "=" expr -> ghost_assign_untyped
     ghost_aug_assign: "ghost" CNAME GHOST_AUG_OP expr
+    ghost_array_set: "ghost" CNAME "[" expr "]" "=" expr
     raises_decl: "raises" CNAME "when" expr
     bounded_int_decl: "assumes" "bounded_int" "(" NUMBER ")"
+    // §2.1.11 Proof attribution — informational, no WhyML emission.
+    // `prover_id` is restricted to {rocq, lean} by the terminal.
+    // `qualname` is a dotted identifier path (e.g. Pycsl.Parser.parse_sound).
+    proof_attribution: "proof" PROVER_ID ":" QUALNAME
+    PROVER_ID: "rocq" | "lean"
+    QUALNAME: CNAME ("." CNAME)*
+
+    // §2.1.12 Axiom import — emits a Why3 axiom in the WhyML preamble
+    // whose body is provided by the cross-checked Rocq+Lean proofs at
+    // <test>.proofs/{rocq,lean}/. See simple3.md.
+    axiom_from_decl: "axiom_from" PROVER_ID QUALNAME
 
     // Expression hierarchy (handles operator precedence and left-recursion)
     // Quantifiers can appear at top level or as the RHS of ==>, and, or.
@@ -568,6 +657,40 @@ PYCSL_GRAMMAR = r"""
          | "\\at" "(" expr "," CNAME ")" -> at_expr
          | "\\length2d" "(" CNAME "," expr "," expr ")" -> length2d_pred
          | "\\valid2d" "(" CNAME "," expr "," expr ")" -> valid2d_pred
+         | atom "^" atom -> str_concat
+         | "\\str_length" "(" expr ")" -> str_length_expr
+         | "\\str_sub" "(" expr "," expr "," expr ")" -> str_sub_expr
+         | "\\mktuple" "(" expr_list ")" -> mktuple_expr
+         | "\\fst" "(" expr ")" -> fst_expr
+         | "\\snd" "(" expr ")" -> snd_expr
+         | "\\proj" "(" expr "," expr ")" -> proj_expr
+         | "\\empty_map" -> empty_map_expr
+         | "\\map_get" "(" expr "," expr ")" -> map_get_expr
+         | "\\map_set" "(" expr "," expr "," expr ")" -> map_set_expr
+         | "\\map_eq" "(" expr "," expr ")" -> map_eq_expr
+         | "\\has_key" "(" expr "," expr ")" -> has_key_expr
+         | "\\map_remove" "(" expr "," expr ")" -> map_remove_expr
+         | "\\set_empty" -> set_empty_expr
+         | "\\set_add" "(" expr "," expr ")" -> set_add_expr
+         | "\\set_remove" "(" expr "," expr ")" -> set_remove_expr
+         | "\\set_mem" "(" expr "," expr ")" -> set_mem_expr
+         | "\\set_union" "(" expr "," expr ")" -> set_union_expr
+         | "\\set_inter" "(" expr "," expr ")" -> set_inter_expr
+         | "\\set_diff" "(" expr "," expr ")" -> set_diff_expr
+         | "\\set_card" "(" expr "," expr "," expr ")" -> set_card_expr
+         | "\\set_subset" "(" expr "," expr ")" -> set_subset_expr
+         | "\\set_eq" "(" expr "," expr ")" -> set_eq_expr
+         | "\\nil" -> nil_expr
+         | "\\cons" "(" expr "," expr ")" -> cons_expr
+         | "\\hd" "(" expr ")" -> hd_expr
+         | "\\tl" "(" expr ")" -> tl_expr
+         | "\\list_length" "(" expr ")" -> list_length_expr
+         | "\\nth" "(" expr "," expr ")" -> nth_expr
+         | "\\mem" "(" expr "," expr ")" -> mem_expr
+         | "\\append" "(" expr "," expr ")" -> append_expr
+         | "\\copy" "(" CNAME ")" -> copy_expr
+         | "\\copy_range" "(" CNAME "," expr "," expr ")" -> copy_range_expr
+         | "\\make" "(" expr "," expr ")" -> make_expr
          | "(" expr ")"
 
     expr_list: expr ("," expr)*
@@ -596,6 +719,7 @@ PYCSL_GRAMMAR = r"""
     UNARY_OP: "not" | "-" | "+"
     RANGE_OP: ".."
     GHOST_AUG_OP: "+=" | "-=" | "*="
+    GHOST_TYPE: "string" | "array" | "ghost_dict" | "ghost_list" | "ghost_set" | "tuple2" | "tuple3" | "tuple4"
 
     %import common.CNAME
     %import common.INT -> NUMBER
@@ -604,7 +728,7 @@ PYCSL_GRAMMAR = r"""
     %ignore WS
 """
 
-def _csl_to_str(node) -> str:
+def _csl_to_str(node: CSLNode) -> str:
     """Convert a simple CSL node to string — used for mutex subscript indices."""
     if isinstance(node, Var):
         return node.name
@@ -640,11 +764,21 @@ class PyCSLTransformer(Transformer):
     def function_variant(self, expr) -> FunctionVariant: return FunctionVariant(expr)
     def function_variant_structural(self, expr, ordering) -> FunctionVariant: return FunctionVariant(expr, str(ordering))
     def diverges_decl(self) -> Diverges: return Diverges()
-    def trusted_decl(self) -> Trusted: return Trusted()
-    def ghost_assign(self, name, expr) -> GhostAssignDecl: return GhostAssignDecl(str(name), expr, "=")
+    def trusted_decl(self, *args) -> Trusted:
+        return Trusted(reviewer=str(args[0]) if args else "")
+    def ghost_assign_typed(self, name, ghost_type, expr) -> GhostAssignDecl:
+        return GhostAssignDecl(str(name), expr, "=", declared_type=str(ghost_type))
+    def ghost_assign_untyped(self, name, expr) -> GhostAssignDecl:
+        return GhostAssignDecl(str(name), expr, "=")
     def ghost_aug_assign(self, name, op, expr) -> GhostAssignDecl: return GhostAssignDecl(str(name), expr, str(op))
+    def ghost_array_set(self, name, index, value) -> GhostArraySetDecl:
+        return GhostArraySetDecl(str(name), index, value)
     def raises_decl(self, exc_type, condition) -> RaisesDecl: return RaisesDecl(str(exc_type), condition)
     def bounded_int_decl(self, size) -> BoundedIntDecl: return BoundedIntDecl(int(size))
+    def proof_attribution(self, prover, qualname) -> ProofAttribution:
+        return ProofAttribution(prover=str(prover), qualname=str(qualname))
+    def axiom_from_decl(self, prover, qualname) -> AxiomFromDecl:
+        return AxiomFromDecl(prover=str(prover), qualname=str(qualname))
 
     # Concurrency annotations
     def mutex_name(self, name) -> str: return str(name)
@@ -708,6 +842,42 @@ class PyCSLTransformer(Transformer):
     def call_expr_noargs(self, name) -> CallExpr: return CallExpr(str(name), [])
     def is_sorted_expr(self, base, lo, hi) -> IsSorted: return IsSorted(str(base), lo, hi)
     def sum_expr(self, base, lo, hi) -> Sum: return Sum(str(base), lo, hi)
+
+    # Ghost expression transformers
+    def str_concat(self, left, right) -> StrConcatExpr: return StrConcatExpr(left, right)
+    def str_length_expr(self, string) -> StrLengthExpr: return StrLengthExpr(string)
+    def str_sub_expr(self, string, lo, hi) -> StrSubExpr: return StrSubExpr(string, lo, hi)
+    def mktuple_expr(self, elts) -> MkTupleExpr: return MkTupleExpr(elts if isinstance(elts, list) else [elts])
+    def fst_expr(self, expr) -> FstExpr: return FstExpr(expr)
+    def snd_expr(self, expr) -> SndExpr: return SndExpr(expr)
+    def proj_expr(self, expr, index) -> ProjExpr: return ProjExpr(expr, index)
+    def empty_map_expr(self) -> MapEmptyExpr: return MapEmptyExpr()
+    def map_get_expr(self, dict_expr, key) -> MapGetExpr: return MapGetExpr(dict_expr, key)
+    def map_set_expr(self, dict_expr, key, value) -> MapSetExpr: return MapSetExpr(dict_expr, key, value)
+    def map_eq_expr(self, left, right) -> MapEqExpr: return MapEqExpr(left, right)
+    def has_key_expr(self, dict_expr, key) -> HasKeyExpr: return HasKeyExpr(dict_expr, key)
+    def map_remove_expr(self, dict_expr, key) -> MapRemoveExpr: return MapRemoveExpr(dict_expr, key)
+    def set_empty_expr(self) -> SetEmptyExpr: return SetEmptyExpr()
+    def set_add_expr(self, set_expr, elem) -> SetAddExpr: return SetAddExpr(set_expr, elem)
+    def set_remove_expr(self, set_expr, elem) -> SetRemoveExpr: return SetRemoveExpr(set_expr, elem)
+    def set_mem_expr(self, elem, set_expr) -> SetMemExpr: return SetMemExpr(elem, set_expr)
+    def set_union_expr(self, left, right) -> SetUnionExpr: return SetUnionExpr(left, right)
+    def set_inter_expr(self, left, right) -> SetInterExpr: return SetInterExpr(left, right)
+    def set_diff_expr(self, left, right) -> SetDiffExpr: return SetDiffExpr(left, right)
+    def set_card_expr(self, set_expr, lo, hi) -> SetCardExpr: return SetCardExpr(set_expr, lo, hi)
+    def set_subset_expr(self, left, right) -> SetSubsetExpr: return SetSubsetExpr(left, right)
+    def set_eq_expr(self, left, right) -> SetEqExpr: return SetEqExpr(left, right)
+    def nil_expr(self) -> NilExpr: return NilExpr()
+    def cons_expr(self, head, tail) -> ConsExpr: return ConsExpr(head, tail)
+    def hd_expr(self, list_expr) -> HdExpr: return HdExpr(list_expr)
+    def tl_expr(self, list_expr) -> TlExpr: return TlExpr(list_expr)
+    def list_length_expr(self, list_expr) -> ListLengthExpr: return ListLengthExpr(list_expr)
+    def nth_expr(self, list_expr, index) -> NthExpr: return NthExpr(list_expr, index)
+    def mem_expr(self, elem, list_expr) -> MemExpr: return MemExpr(elem, list_expr)
+    def append_expr(self, left, right) -> AppendExpr: return AppendExpr(left, right)
+    def copy_expr(self, name) -> GhostCopyExpr: return GhostCopyExpr(str(name))
+    def copy_range_expr(self, name, lo, hi) -> GhostCopyRangeExpr: return GhostCopyRangeExpr(str(name), lo, hi)
+    def make_expr(self, size, default) -> GhostMakeExpr: return GhostMakeExpr(size, default)
 
     def expr_list(self, *exprs) -> List[CSLNode]: return list(exprs)
 

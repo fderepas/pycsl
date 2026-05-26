@@ -321,8 +321,31 @@ class _AstBuilder(Transformer):
     def qident(self, *parts: Token) -> str:
         return ".".join(str(p) for p in parts)
 
-    def type_expr(self, name: str) -> str:
+    def type_expr(self, ty: str) -> str:
+        return ty
+
+    def ty_arrow(self, *parts: str) -> str:
+        # `parts` is either (lhs,) or (lhs, rhs) — Lark elides the literal arrow.
+        return " -> ".join(p for p in parts)
+
+    def ty_prod(self, *parts) -> str:
+        # parts is interleaved: type_app, MUL_OP, type_app, MUL_OP, ...
+        # Filter to just the type fragments.
+        return " * ".join(p for p in parts if not isinstance(p, Token))
+
+    def type_app(self, head: str, *args: str) -> str:
+        if not args:
+            return head
+        return head + " " + " ".join(args)
+
+    def ty_arg_qident(self, name: str) -> str:
         return name
+
+    def ty_arg_number(self, tok: Token) -> str:
+        return str(tok)
+
+    def ty_arg_paren(self, inner: str) -> str:
+        return f"({inner})"
 
     # ── binders ────────────────────────────────────────────────────────
 

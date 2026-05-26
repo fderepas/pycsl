@@ -1,5 +1,4 @@
 """Test 0241 — PyCSL Annotation Reference 7.4 (match with assignment)"""
-# pycsl-flags: --no-proof
 _ = 0  # anchor
 #@ requires code >= 0
 #@ ensures \result >= 0

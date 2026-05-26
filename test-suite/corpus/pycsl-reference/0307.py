@@ -1,5 +1,4 @@
-"""Test 0307 — PyCSL Annotation Reference 11.2.6 — Ghost dict \\map_eq in loop invariant"""
-# pycsl-flags: --no-proof
+"""Test 0307 — PyCSL Annotation Reference 11.2.6 — Ghost dict \\map_eq in loop invariant (proof)"""
 _ = 0  # anchor
 
 #@ requires n >= 0

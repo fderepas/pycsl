@@ -47,19 +47,99 @@ Inductive contract_expr : Type :=
   | CImplies   (e1 e2 : contract_expr)
   | CIff       (e1 e2 : contract_expr)
   | CForall    (x : ident) (body : contract_expr)
-  | CExists    (x : ident) (body : contract_expr).
+  | CExists    (x : ident) (body : contract_expr)
+  (* Phase 1 — expression language completeness *)
+  | CChainedSubscript (arr : ident) (i j : contract_expr)
+  | CBoolLit          (b : bool)
+  | CNoneLit
+  | CStringLit        (s : string)
+  | CIsSorted         (arr : ident) (lo hi : contract_expr)
+  | CSum              (arr : ident) (lo hi : contract_expr)
+  | CSlice            (arr : ident) (lo hi : contract_expr)
+  | CIn               (elem container : contract_expr)
+  | CNotIn            (elem container : contract_expr)
+  (* Phase 2 — function/statement completeness *)
+  | CResultSubscript  (i : contract_expr)
+  | CCall             (fname : ident) (args : list contract_expr)
+  (* Phase 3 — ghost/label expressions *)
+  | CAt               (e : contract_expr) (label : ident)
+  (* Phase 3b — ghost dict atoms *)
+  | CGMapEmpty
+  | CGMapGet    (d k : contract_expr)
+  | CGMapSet    (d k v : contract_expr)
+  | CGMapRemove (d k : contract_expr)
+  | CGHasKey    (d k : contract_expr)
+  | CGMapEq     (d1 d2 : contract_expr)
+  (* Phase 3b — ghost list atoms *)
+  | CGNil
+  | CGCons      (h t : contract_expr)
+  | CGHd        (l : contract_expr)
+  | CGTl        (l : contract_expr)
+  | CGListLen   (l : contract_expr)
+  | CGNth       (l i : contract_expr)
+  | CGListMem   (x l : contract_expr)
+  | CGAppend    (l1 l2 : contract_expr)
+  (* Phase 3b — ghost set atoms *)
+  | CGSetEmpty
+  | CGSetAdd    (x s : contract_expr)
+  | CGSetRemove (x s : contract_expr)
+  | CGSetMem    (x s : contract_expr)
+  | CGSetCard   (s : contract_expr)
+  | CGSetUnion  (s1 s2 : contract_expr)
+  | CGSetInter  (s1 s2 : contract_expr)
+  | CGSetDiff   (s1 s2 : contract_expr)
+  | CGSetSubset (s1 s2 : contract_expr)
+  | CGSetEq     (s1 s2 : contract_expr)
+  (* Phase 3b — ghost tuple atoms *)
+  | CGMkTuple2  (a b : contract_expr)
+  | CGMkTuple3  (a b c : contract_expr)
+  | CGMkTuple4  (a b c d : contract_expr)
+  | CGFst       (t : contract_expr)
+  | CGSnd       (t : contract_expr)
+  | CGTrd       (t : contract_expr)
+  | CGFth       (t : contract_expr)
+  (* Phase 3b — ghost string atoms *)
+  | CGStrConcat (s1 s2 : contract_expr)
+  | CGStrLen    (s : contract_expr)
+  | CGStrNth    (s i : contract_expr)
+  (* Phase 3b — ghost array atoms *)
+  | CGMake      (n v : contract_expr)
+  | CGCopy      (arr : ident)
+  | CGCopyRange (arr : ident) (lo hi : contract_expr).
 
 (* Frame conditions *)
 Inductive frame_cond : Type :=
   | FNothing
   | FVars (xs : list ident).
 
-(* Function specifications *)
+(* Bounded integer model *)
+Inductive int_model : Type :=
+  | IMUnbounded
+  | IMBounded (bits : nat).
+
+(* Function specifications — extended for Phase 2+ *)
 Record func_spec : Type := mkSpec {
-  spec_pre   : contract_expr;
-  spec_post  : contract_expr;
-  spec_frame : frame_cond
+  spec_pre      : contract_expr;
+  spec_post     : contract_expr;
+  spec_frame    : frame_cond;
+  spec_variant  : option contract_expr;   (* \variant *)
+  spec_diverges : bool;                   (* \diverges *)
+  spec_trusted  : bool;                   (* \trusted *)
+  spec_raises   : list (ident * contract_expr); (* raises ExcType when cond *)
+  spec_int_model: int_model               (* assumes bounded_int(N) *)
 }.
+
+(* Augmented assignment operators *)
+Inductive aug_op : Type :=
+  | AugAdd | AugSub | AugMul.
+
+(* Ghost types — one per supported WhyML type *)
+Inductive ghost_type : Type :=
+  | GTInt | GTString | GTArray | GTDict | GTList | GTSet
+  | GTTuple2 | GTTuple3 | GTTuple4.
+
+(* Ghost expressions: same grammar as contract_expr for now *)
+Definition ghost_expr := contract_expr.
 
 (* Statements — SWhile carries mandatory inv and var annotations *)
 Inductive stmt : Type :=
@@ -74,4 +154,21 @@ Inductive stmt : Type :=
   | SFor       (x : ident) (arr : ident)
                (inv : contract_expr) (var : contract_expr) (body : stmt)
   | SReturn    (e : expr)
-  | SContinue.
+  | SContinue
+  (* Phase 2 additions *)
+  | SBreak
+  | SAssert    (cond : contract_expr) (msg : string)
+  | STupleUnpack (xs : list ident) (e : expr)
+  (* Phase 3a ghost/label additions *)
+  | SGhostDecl   (x : ident) (t : ghost_type) (init : ghost_expr)
+  | SGhostAssign (x : ident) (t : ghost_type) (op : aug_op) (rhs : ghost_expr)
+  | SLabel       (name : ident)
+  (* Phase 5 exception additions *)
+  | SRaise       (exc : ident)
+  | STryCatch    (body : stmt) (exc : ident) (handler : stmt)
+  (* Phase 6 class field additions *)
+  | SFieldAssign    (self_id f : ident) (e : expr)
+  | SFieldAugAssign (self_id f : ident) (op : binop) (e : expr)
+  (* Phase 8 concurrent additions *)
+  | SCritical    (mutex : ident) (body : stmt)
+  | SThreadEntry (body : stmt).

@@ -1,5 +1,5 @@
 ---
-name: lean4
+name: lean
 description: "Use when editing .lean files, debugging Lean 4 builds (type mismatch, sorry, failed to synthesize instance, axiom warnings, lake build errors), searching mathlib for lemmas, formalizing mathematics in Lean, or learning Lean 4 concepts. Also trigger when the user asks for help with Lean 4, mathlib, or lakefile. Do NOT trigger for Coq/Rocq, Agda, Isabelle, HOL4, Mizar, Idris, Megalodon, or other non-Lean theorem provers."
 ---
 
@@ -93,7 +93,7 @@ best-effort.
 
 ## Typical Workflow
 
-```
+```text
 ┌─ Entry points (pick one) ──────────────────────────────────────────────────────────┐
 │ /lean4:draft              Skeleton by default (--mode=attempt for shallow proof)   │
 │ /lean4:formalize          Interactive: draft + guided proving                      │
@@ -124,7 +124,7 @@ Use `/lean4:learn` at any point to explore repo structure or navigate mathlib. T
 
 Sub-second feedback and search tools (LeanSearch, Loogle, LeanFinder) via Lean LSP MCP:
 
-```
+```text
 lean_goal(file, line)                           # See exact goal
 lean_hover_info(file, line, col)                # Understand types
 lean_local_search("keyword")                    # Fast local + mathlib (unlimited)

@@ -120,6 +120,221 @@ class Unsupported:
     raw: str
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Lists / arrays / tuples / dicts / strings
+# ──────────────────────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class Length:
+    """`\\length(arr)` — length of a `list` or `array` parameter."""
+    arr: "Node"
+
+
+@dataclass(frozen=True)
+class Nth:
+    """`arr[i]` — indexed access on a `list`/`array` parameter."""
+    arr: "Node"
+    i: "Node"
+
+
+@dataclass(frozen=True)
+class Tuple:
+    """Tuple literal `(a, b, ...)`."""
+    args: tuple["Node", ...]
+
+
+@dataclass(frozen=True)
+class Proj:
+    """i-th projection of a tuple. `i` is an int index (0-based)."""
+    t: "Node"
+    i: int
+
+
+@dataclass(frozen=True)
+class MapGet:
+    """Dict lookup: `\\map_get(d, k)`."""
+    d: "Node"
+    k: "Node"
+
+
+@dataclass(frozen=True)
+class MapSet:
+    """Dict insert/update: `\\map_set(d, k, v)`."""
+    d: "Node"
+    k: "Node"
+    v: "Node"
+
+
+@dataclass(frozen=True)
+class MapEmpty:
+    """`\\empty_map`."""
+    pass
+
+
+@dataclass(frozen=True)
+class HasKey:
+    """`\\has_key(d, k)`."""
+    d: "Node"
+    k: "Node"
+
+
+@dataclass(frozen=True)
+class StrConcat:
+    """`a ^ b`."""
+    a: "Node"
+    b: "Node"
+
+
+@dataclass(frozen=True)
+class StrLength:
+    """`\\str_length(s)`."""
+    s: "Node"
+
+
+@dataclass(frozen=True)
+class StrSub:
+    """`\\str_sub(s, lo, hi)` — substring `[lo, hi)`."""
+    s: "Node"
+    lo: "Node"
+    hi: "Node"
+
+
+@dataclass(frozen=True)
+class StrLit:
+    """String literal `"<value>"`."""
+    value: str
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Class instances
+# ──────────────────────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class FieldGet:
+    """Object field access: `<obj>.<name>`."""
+    obj: "Node"
+    name: str
+
+
+@dataclass(frozen=True)
+class ClassInstance:
+    """Marker on a Var indicating it is an instance of class `cls`.
+
+    Used as a type tag the translator consults to decide whether to emit
+    field-access vs name-lookup. Has no direct surface form.
+    """
+    cls: str
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Ghost list (PyCSL `ghost_list`)
+# ──────────────────────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class ListNil:
+    """Empty ghost list: `\\nil`."""
+    pass
+
+
+@dataclass(frozen=True)
+class ListCons:
+    """Prepend to a ghost list: `\\cons(head, tail)`."""
+    head: "Node"
+    tail: "Node"
+
+
+@dataclass(frozen=True)
+class ListLen:
+    """`\\list_length(l)` — distinct from `Length` (which is for `list`
+    parameters/arrays). Uses Why3's `list.Length` axioms downstream."""
+    l: "Node"
+
+
+@dataclass(frozen=True)
+class ListAppend:
+    """`\\append(l1, l2)`."""
+    l1: "Node"
+    l2: "Node"
+
+
+@dataclass(frozen=True)
+class ListNthAt:
+    """`\\nth(l, i)` — head-tracking only; do NOT pair with `\\mem`/`\\hd`
+    in invariants (per invariant-writer/SKILL.md)."""
+    l: "Node"
+    i: "Node"
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Ghost set (PyCSL `ghost_set` — Sets and ghost_set are the same type)
+# ──────────────────────────────────────────────────────────────────────
+
+
+@dataclass(frozen=True)
+class SetEmpty:
+    """`\\set_empty`."""
+    pass
+
+
+@dataclass(frozen=True)
+class SetAdd:
+    """`\\set_add(s, x)`."""
+    s: "Node"
+    x: "Node"
+
+
+@dataclass(frozen=True)
+class SetRemove:
+    """`\\set_remove(s, x)`."""
+    s: "Node"
+    x: "Node"
+
+
+@dataclass(frozen=True)
+class SetMem:
+    """`\\set_mem(x, s)`."""
+    x: "Node"
+    s: "Node"
+
+
+@dataclass(frozen=True)
+class SetUnion:
+    """`\\set_union(a, b)`. AC — canonicalizer flattens + sorts."""
+    a: "Node"
+    b: "Node"
+
+
+@dataclass(frozen=True)
+class SetInter:
+    """`\\set_inter(a, b)`. AC — canonicalizer flattens + sorts."""
+    a: "Node"
+    b: "Node"
+
+
+@dataclass(frozen=True)
+class SetDiff:
+    """`\\set_diff(a, b)`."""
+    a: "Node"
+    b: "Node"
+
+
+@dataclass(frozen=True)
+class SetSubset:
+    """`\\set_subset(a, b)`."""
+    a: "Node"
+    b: "Node"
+
+
+@dataclass(frozen=True)
+class SetEq:
+    """`\\set_eq(a, b)`. Symmetric — canonicalizer normalizes operand order."""
+    a: "Node"
+    b: "Node"
+
+
 Node = Union[
     Var,
     Lit,
@@ -131,6 +346,33 @@ Node = Union[
     Exists,
     Divides,
     Unsupported,
+    Length,
+    Nth,
+    Tuple,
+    Proj,
+    MapGet,
+    MapSet,
+    MapEmpty,
+    HasKey,
+    StrConcat,
+    StrLength,
+    StrSub,
+    StrLit,
+    FieldGet,
+    ListNil,
+    ListCons,
+    ListLen,
+    ListAppend,
+    ListNthAt,
+    SetEmpty,
+    SetAdd,
+    SetRemove,
+    SetMem,
+    SetUnion,
+    SetInter,
+    SetDiff,
+    SetSubset,
+    SetEq,
 ]
 
 

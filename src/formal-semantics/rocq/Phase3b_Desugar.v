@@ -1,4 +1,5 @@
-(* Phase3b_Desugar.v — Desugaring correctness theorem + Phase 1a lemmas *)
+(* Phase3b_Desugar.v — Desugaring correctness + Phase 1a helpers
+   Updated for exec_state-based exec (Phase 3a). *)
 
 Require Import ZArith String List Bool.
 Require Import Lia.
@@ -10,106 +11,156 @@ Open Scope Z_scope.
 Open Scope string_scope.
 
 (* ===================================================================== *)
-(* Key design: ExecFor (Phase3_SOS.v) is defined as                      *)
-(*   exec st (desugar (SFor x arr inv var body)) out →                   *)
-(*   exec st (SFor x arr inv var body) out.                              *)
-(* So the SFor case of desugar_correct is definitionally trivial.        *)
-(* SWhile needs inner induction on the exec derivation depth.            *)
+(* Desugar correctness: exec es s out ↔ exec es (desugar s) out          *)
 (* ===================================================================== *)
 
-(* SWhile backward helper: given IH for body, prove SWhile(desugar body) → SWhile body.
-   Strategy: remember the concrete while stmt as a free variable s, then use
-   induction on the exec derivation with s as a free index. Non-while cases are
-   closed by discriminate; while cases use injection to recover the components. *)
-Lemma while_bwd_desugar :
-  forall body inv var cond,
-  (forall st out, fresh_in_stmt for_idx body ->
-   exec st (desugar body) out -> exec st body out) ->
-  forall st out,
-  fresh_in_stmt for_idx body ->
-  exec st (SWhile inv var cond (desugar body)) out ->
-  exec st (SWhile inv var cond body) out.
+(* Helper: backward direction for while loops.
+   Remember trick: fix inv/var/cond as outer params; induction on exec derivation. *)
+Local Lemma bwd_while_aux :
+  forall (b : stmt) (es : exec_state) (inv var : contract_expr)
+    (cond : expr) (out : outcome),
+    (forall es0 out0, exec es0 (desugar b) out0 -> exec es0 b out0) ->
+    exec es (SWhile inv var cond (desugar b)) out ->
+    exec es (SWhile inv var cond b) out.
 Proof.
-  intros body inv var cond IHbody st out Hfresh Hw.
-  remember (SWhile inv var cond (desugar body)) as s eqn:Hs.
-  revert inv var cond body IHbody Hfresh Hs.
-  induction Hw; intros inv' var' cond' body' IHbody' Hfresh' Hs;
-    try discriminate Hs.
+  intros b es inv var cond out ih_b Hd.
+  remember (SWhile inv var cond (desugar b)) as sw eqn:Heqs.
+  revert inv var cond Heqs.
+  induction Hd; intros inv' var' cond' Heqs;
+    try (exfalso; discriminate Heqs).
   - (* ExecWhileTrue *)
-    injection Hs as Hinv Hvar Hcond Hbody. subst.
-    eapply ExecWhileTrue; [eassumption| |].
-    + apply IHbody'; eassumption.
-    + eapply IHHw2; eassumption || reflexivity.
+    injection Heqs; intros; subst.
+    eapply ExecWhileTrue; [exact H | apply ih_b; eassumption | apply IHHd2; reflexivity].
   - (* ExecWhileContinue *)
-    injection Hs as Hinv Hvar Hcond Hbody. subst.
-    eapply ExecWhileContinue; [eassumption| |].
-    + apply IHbody'; eassumption.
-    + eapply IHHw2; eassumption || reflexivity.
+    injection Heqs; intros; subst.
+    eapply ExecWhileContinue; [exact H | apply ih_b; eassumption | apply IHHd2; reflexivity].
+  - (* ExecWhileBreak *)
+    injection Heqs; intros; subst.
+    apply ExecWhileBreak; [exact H | apply ih_b; eassumption].
   - (* ExecWhileFalse *)
-    injection Hs as Hinv Hvar Hcond Hbody. subst.
-    apply ExecWhileFalse; assumption.
+    injection Heqs; intros; subst.
+    apply ExecWhileFalse; exact H.
 Qed.
 
-(* Forward: exec st s out → exec st (desugar s) out.
-   By induction on the exec derivation. *)
-Lemma desugar_correct_fwd : forall st s out,
+Lemma desugar_correct_fwd : forall es s out,
   fresh_in_stmt for_idx s ->
-  exec st s out -> exec st (desugar s) out.
+  exec es s out -> exec es (desugar s) out.
 Proof.
-  intros st s out Hfresh H.
+  intros es s out Hfresh Hexec.
   revert Hfresh.
-  induction H; intro Hfresh.
-  - constructor.  (* ExecSkip *)
-  - constructor.  (* ExecAssign *)
-  - constructor.  (* ExecAugAssign *)
-  - constructor.  (* ExecArraySet *)
-  - simpl. destruct Hfresh as [Hf1 Hf2]. eapply ExecSeq; eauto.  (* ExecSeq *)
-  - simpl. destruct Hfresh as [Hf1 Hf2]. apply ExecSeqReturn; eauto.  (* ExecSeqReturn *)
-  - simpl. destruct Hfresh as [Hf1 Hf2]. apply ExecSeqContinue; eauto.  (* ExecSeqContinue *)
-  - simpl. destruct Hfresh as [Hf1 Hf2]. apply ExecIfTrue; eauto.  (* ExecIfTrue *)
-  - simpl. destruct Hfresh as [Hf1 Hf2]. apply ExecIfFalse; eauto.  (* ExecIfFalse *)
-  - simpl. eapply ExecWhileTrue; eauto.  (* ExecWhileTrue *)
-  - simpl. eapply ExecWhileContinue; eauto.  (* ExecWhileContinue *)
-  - simpl. apply ExecWhileFalse; assumption.  (* ExecWhileFalse *)
-  - simpl; constructor.  (* ExecContinue *)
-  - simpl; constructor.  (* ExecReturn *)
-  - assumption.  (* ExecFor: premise IS exec st (desugar (SFor ...)) out *)
+  induction Hexec; intro Hfresh; simpl in Hfresh |- *.
+  - apply ExecSkip.
+  - apply ExecAssign.
+  - apply ExecAugAssign.
+  - apply ExecArraySet.
+  - (* ExecSeq *)
+    destruct Hfresh as [Hf1 Hf2].
+    eapply ExecSeq; [apply IHHexec1, Hf1 | apply IHHexec2, Hf2].
+  - (* ExecSeqReturn *)
+    destruct Hfresh as [Hf1 _].
+    apply ExecSeqReturn; apply IHHexec, Hf1.
+  - (* ExecSeqContinue *)
+    destruct Hfresh as [Hf1 _].
+    apply ExecSeqContinue; apply IHHexec, Hf1.
+  - (* ExecSeqBreak *)
+    destruct Hfresh as [Hf1 _].
+    apply ExecSeqBreak; apply IHHexec, Hf1.
+  - (* ExecSeqThrow *)
+    destruct Hfresh as [Hf1 _].
+    apply ExecSeqThrow; apply IHHexec, Hf1.
+  - (* ExecIfTrue *)
+    destruct Hfresh as [Hf1 _].
+    apply ExecIfTrue; [exact H | apply IHHexec, Hf1].
+  - (* ExecIfFalse *)
+    destruct Hfresh as [_ Hf2].
+    apply ExecIfFalse; [exact H | apply IHHexec, Hf2].
+  - (* ExecWhileTrue *)
+    eapply ExecWhileTrue; [exact H | apply IHHexec1, Hfresh | apply IHHexec2, Hfresh].
+  - (* ExecWhileContinue *)
+    eapply ExecWhileContinue; [exact H | apply IHHexec1, Hfresh | apply IHHexec2, Hfresh].
+  - (* ExecWhileBreak *)
+    apply ExecWhileBreak; [exact H | apply IHHexec, Hfresh].
+  - (* ExecWhileFalse *)
+    apply ExecWhileFalse; exact H.
+  - apply ExecContinue.
+  - apply ExecBreak.
+  - apply ExecReturn.
+  - (* ExecAssertPass *)
+    apply ExecAssertPass; exact H.
+  - (* ExecAssertFail *)
+    apply ExecAssertFail; exact H.
+  - apply ExecTupleUnpack.
+  - apply ExecGhostDecl.
+  - apply ExecGhostAssign.
+  - apply ExecLabel.
+  - apply ExecRaise.
+  - (* ExecTryCatchCaught *)
+    destruct Hfresh as [Hf1 Hf2].
+    eapply ExecTryCatchCaught; [apply IHHexec1, Hf1 | apply IHHexec2, Hf2].
+  - (* ExecTryCatchMiss: exec first, then neq *)
+    destruct Hfresh as [Hf1 _].
+    apply ExecTryCatchMiss; [apply IHHexec, Hf1 | exact H].
+  - (* ExecTryCatchNormal: single exec premise *)
+    destruct Hfresh as [Hf1 _].
+    apply ExecTryCatchNormal; apply IHHexec, Hf1.
+  - apply ExecFieldAssign.
+  - apply ExecFieldAugAssign.
+  - (* ExecCritical *)
+    apply ExecCritical; apply IHHexec, Hfresh.
+  - (* ExecThreadEntry *)
+    apply ExecThreadEntry; apply IHHexec, Hfresh.
+  - (* ExecFor: premise is already exec es (desugar (SFor ...)) out *)
+    exact Hexec.
 Qed.
 
-(* Backward: exec st (desugar s) out → exec st s out. *)
-Lemma desugar_correct_bwd : forall s st out,
+Lemma desugar_correct_bwd : forall s es out,
   fresh_in_stmt for_idx s ->
-  exec st (desugar s) out -> exec st s out.
+  exec es (desugar s) out -> exec es s out.
 Proof.
-  induction s; intros st out Hfresh Hd; simpl in Hd.
-  - exact Hd.  (* SSkip *)
-  - exact Hd.  (* SAssign *)
-  - exact Hd.  (* SAugAssign *)
-  - exact Hd.  (* SArraySet *)
-  - destruct Hfresh as [Hf1 Hf2].  (* SSeq *)
-    inversion Hd; subst; [econstructor|apply ExecSeqReturn|apply ExecSeqContinue];
-    [apply IHs1|apply IHs2|apply IHs1|apply IHs1]; eassumption.
-  - destruct Hfresh as [Hf1 Hf2].  (* SIf *)
-    inversion Hd; subst;
-    [apply ExecIfTrue; [assumption|apply IHs1;eassumption] |
-     apply ExecIfFalse; [assumption|apply IHs2;eassumption]].
-  - apply (while_bwd_desugar s inv var cond (IHs) st out Hfresh Hd).  (* SWhile *)
-  - apply ExecFor; exact Hd.  (* SFor *)
-  - exact Hd.  (* SReturn *)
-  - exact Hd.  (* SContinue *)
+  (* Bullets follow stmt inductive order: SSeq SIf SWhile SFor STryCatch SCritical SThreadEntry *)
+  induction s; intros es out Hfresh hd; simpl in hd, Hfresh; try exact hd.
+  - (* SSeq s1 s2 *)
+    destruct Hfresh as [Hf1 Hf2].
+    inversion hd; subst; clear hd.
+    + eapply ExecSeq; [apply IHs1 | apply IHs2]; eassumption.
+    + apply ExecSeqReturn; apply IHs1; eassumption.
+    + apply ExecSeqContinue; apply IHs1; eassumption.
+    + apply ExecSeqBreak; apply IHs1; eassumption.
+    + apply ExecSeqThrow; apply IHs1; eassumption.
+  - (* SIf cond s_then s_else *)
+    destruct Hfresh as [Hf1 Hf2].
+    inversion hd; subst; clear hd.
+    + apply ExecIfTrue; [eassumption | apply IHs1; eassumption].
+    + apply ExecIfFalse; [eassumption | apply IHs2; eassumption].
+  - (* SWhile inv var cond body *)
+    apply (bwd_while_aux s); [intros es0 out0 H0; apply IHs; eassumption | exact hd].
+  - (* SFor: ExecFor constructor wraps the desugared exec *)
+    apply ExecFor; exact hd.
+  - (* STryCatch body exc handler *)
+    destruct Hfresh as [Hf1 Hf2].
+    inversion hd; subst; clear hd.
+    + eapply ExecTryCatchCaught; [apply IHs1 | apply IHs2]; eassumption.
+    + apply ExecTryCatchMiss; [apply IHs1; eassumption | eassumption].
+    + apply ExecTryCatchNormal; apply IHs1; eassumption.
+  - (* SCritical mutex body *)
+    inversion hd; subst; clear hd.
+    apply ExecCritical; apply IHs; eassumption.
+  - (* SThreadEntry body *)
+    inversion hd; subst; clear hd.
+    apply ExecThreadEntry; apply IHs; eassumption.
 Qed.
 
-Theorem desugar_correct : forall st s out,
+Theorem desugar_correct : forall es s out,
   fresh_in_stmt for_idx s ->
-  exec st s out <-> exec st (desugar s) out.
+  exec es s out <-> exec es (desugar s) out.
 Proof.
-  intros st s out Hfresh. split.
-  - exact (desugar_correct_fwd st s out Hfresh).
-  - exact (desugar_correct_bwd s st out Hfresh).
+  intros es s out Hfresh. split.
+  - exact (desugar_correct_fwd es s out Hfresh).
+  - exact (desugar_correct_bwd s es out Hfresh).
 Qed.
 
 (* ===================================================================== *)
-(* Phase 1a — Category B desugaring functions and correctness lemmas     *)
+(* Phase 1a helpers — unchanged *)
 (* ===================================================================== *)
 
 Definition walrus_assign (x : ident) (e : expr) : stmt := SAssign x e.
@@ -117,26 +168,19 @@ Definition walrus_assign (x : ident) (e : expr) : stmt := SAssign x e.
 Lemma walrus_assign_eq : forall x e, walrus_assign x e = SAssign x e.
 Proof. reflexivity. Qed.
 
-Lemma exec_walrus_assign : forall st x e out,
-  exec st (walrus_assign x e) out <-> exec st (SAssign x e) out.
-Proof. intros. unfold walrus_assign. tauto. Qed.
-
 Definition tuple_unpack2 (arr x y : ident) : stmt :=
   SSeq (SAssign x (ESubscript arr (EInt 0)))
        (SAssign y (ESubscript arr (EInt 1))).
 
-Lemma tuple_unpack2_eq : forall arr x y,
-  tuple_unpack2 arr x y =
-  SSeq (SAssign x (ESubscript arr (EInt 0)))
-       (SAssign y (ESubscript arr (EInt 1))).
-Proof. reflexivity. Qed.
-
-Lemma exec_tuple_unpack2_normal : forall st arr x y,
-  let st1 := update st x (eval_expr st (ESubscript arr (EInt 0))) in
-  exec st (tuple_unpack2 arr x y)
-    (ONormal (update st1 y (eval_expr st1 (ESubscript arr (EInt 1))))).
+Lemma exec_tuple_unpack2_normal : forall es arr x y,
+  let st1 := update es.(reg_state) x
+               (eval_expr es.(reg_state) (ESubscript arr (EInt 0))) in
+  exec es (tuple_unpack2 arr x y)
+    (ONormal (set_reg (set_reg es st1)
+                (update st1 y (eval_expr st1 (ESubscript arr (EInt 1)))))).
 Proof.
-  intros. unfold tuple_unpack2. eapply ExecSeq; apply ExecAssign.
+  intros. unfold tuple_unpack2.
+  eapply ExecSeq; apply ExecAssign.
 Qed.
 
 Fixpoint desugar_match (scrutinee : expr) (cases : list (Z * stmt))
@@ -153,21 +197,21 @@ Lemma desugar_match_nil : forall scrutinee default,
   desugar_match scrutinee nil default = default.
 Proof. reflexivity. Qed.
 
-Lemma exec_desugar_match_single_hit : forall st scrutinee n body default out,
-  eval_expr st scrutinee = VInt n ->
-  exec st body out ->
-  exec st (desugar_match scrutinee ((n, body) :: nil) default) out.
+Lemma exec_desugar_match_single_hit : forall es scrutinee n body default out,
+  eval_expr es.(reg_state) scrutinee = VInt n ->
+  exec es body out ->
+  exec es (desugar_match scrutinee ((n, body) :: nil) default) out.
 Proof.
   intros. simpl. apply ExecIfFalse.
   - unfold eval_bool. simpl. rewrite H. simpl. rewrite Z.sub_diag. reflexivity.
   - exact H0.
 Qed.
 
-Lemma exec_desugar_match_single_miss : forall st scrutinee n body default out,
-  eval_expr st scrutinee = VInt n ->
-  exec st default out ->
+Lemma exec_desugar_match_single_miss : forall es scrutinee n body default out,
+  eval_expr es.(reg_state) scrutinee = VInt n ->
+  exec es default out ->
   forall m, m <> n ->
-  exec st (desugar_match scrutinee ((m, body) :: nil) default) out.
+  exec es (desugar_match scrutinee ((m, body) :: nil) default) out.
 Proof.
   intros. simpl. apply ExecIfTrue.
   - unfold eval_bool. simpl. rewrite H. simpl.

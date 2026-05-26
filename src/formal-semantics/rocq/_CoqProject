@@ -1,9 +1,35 @@
 -R . PyCSL
+-R ../../../why3-semantics/_build/default/proofs Proofs
 Phase1_AST.v
 Phase2_State.v
 Phase3_SOS.v
+Phase3b_DesugarDef.v
 Phase3b_Desugar.v
 Phase4_WP.v
 Phase5a_WhileInv.v
 Phase5b_Soundness.v
+Phase6_WhyML.v
+Phase6b_WPW.v
+Phase6c_ExprTrans.v
+Phase6d_StmtGen.v
+Phase6e_Corr_Simple.v
+Phase6e_HandleAssignEnglish.v
+Phase6e_HandleAugAssignEnglish.v
+Phase6e_HandleReturnEnglish.v
+Phase6e_HandleArraySetEnglish.v
+Phase6e_HandleIfEnglish.v
+Phase6e_HandleTryEnglish.v
+Phase6e_HandleWhileEnglish.v
+Phase6e_HandleForEnglish.v
+Phase6e_HandleCriticalSectionEnglish.v
+Phase6e_HandleTupleUnpackEnglish.v
+Phase6e_HandleGhostAssignEnglish.v
+Phase1_M234EnglishRefinements.v
+Phase6f_Corr_Loops.v
+Phase6g_Corr_Exc.v
+Phase6h_CorrMain.v
+Phase6j_Why3Trust.v
+Phase6k_VcgSound.v
+Phase6m_VcgSemBridge.v
+Phase6i_Soundness.v
 Tests.v

@@ -1,5 +1,4 @@
 """Test 0300 — PyCSL Annotation Reference 11.2 — Ghost list += shorthand and ghost dict += mktuple"""
-# pycsl-flags: --no-proof
 _ = 0  # anchor
 
 #@ requires n >= 0

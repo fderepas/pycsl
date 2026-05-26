@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import ast
-from typing import Dict, List, Optional, Set, Any
+from typing import Callable, Dict, List, Optional, Set, Any
 from Module2_Parser import (
     CSLNode, ContractWrapper, QuantifierNode, SingleExprNode,
     Requires, Ensures, Assigns, LoopInvariant, LoopVariant,
@@ -9,15 +9,15 @@ from Module2_Parser import (
     ClassInvariant, Forall, Exists, ArrayLength, SubscriptAccess,
     AssignsRegion, Valid, Separated, FunctionVariant,
     SharedDecl, MutexInvariant, LockOrder, ChainedSubscript,
-    GhostAssignDecl,
+    GhostAssignDecl, GhostArraySetDecl,
     # ghost-tuple nodes
     MkTupleExpr, FstExpr, SndExpr, ProjExpr,
     # ghost-string nodes
-    StrConcatExpr,
+    StrConcatExpr, StrLengthExpr, StrSubExpr,
     # ghost-array nodes
-    GhostCopyExpr, GhostMakeExpr,
+    GhostCopyExpr, GhostCopyRangeExpr, GhostMakeExpr,
     # ghost-dict nodes
-    MapEmptyExpr, MapGetExpr, MapSetExpr, MapEqExpr,
+    MapEmptyExpr, MapGetExpr, MapSetExpr, MapEqExpr, HasKeyExpr, MapRemoveExpr,
     # ghost-set nodes
     SetEmptyExpr, SetAddExpr, SetRemoveExpr, SetMemExpr,
     SetUnionExpr, SetInterExpr, SetDiffExpr, SetCardExpr,
@@ -32,78 +32,67 @@ from errors import PyCSLSemanticError
 # 2. Generic CSL Tree Utilities
 # ---------------------------------------------------------
 
+_CSL_CHILDREN_MAP: Dict[type, Callable[[CSLNode], List[CSLNode]]] = {
+    BinOp:          lambda n: [n.left, n.right],
+    UnaryOp:        lambda n: [n.expr],
+    Old:            lambda n: [n.expr],
+    Requires:       lambda n: [n.expr],
+    Ensures:        lambda n: [n.expr],
+    LoopInvariant:  lambda n: [n.expr],
+    LoopVariant:    lambda n: [n.expr],
+    ClassInvariant: lambda n: [n.expr],
+    FunctionVariant: lambda n: [n.expr],
+    Forall:         lambda n: [n.body],
+    Exists:         lambda n: [n.body],
+    Assigns:        lambda n: list(n.targets),
+    SubscriptAccess: lambda n: [n.index],
+    ChainedSubscript: lambda n: [n.index1, n.index2],
+    AssignsRegion:  lambda n: [n.low, n.high],
+    Valid:          lambda n: [n.length],
+    Separated:      lambda n: [n.length1, n.length2],
+    GhostAssignDecl:    lambda n: [n.value],
+    GhostArraySetDecl:  lambda n: [n.index, n.value],
+    MkTupleExpr:    lambda n: list(n.elts),
+    FstExpr:        lambda n: [n.tuple_expr],
+    SndExpr:        lambda n: [n.tuple_expr],
+    ProjExpr:       lambda n: [n.tuple_expr, n.index],
+    StrConcatExpr:  lambda n: [n.left, n.right],
+    StrLengthExpr:  lambda n: [n.string],
+    StrSubExpr:     lambda n: [n.string, n.lo, n.hi],
+    GhostCopyRangeExpr: lambda n: [n.lo, n.hi],
+    GhostMakeExpr:  lambda n: [n.size, n.default],
+    MapEmptyExpr:   lambda n: [],
+    SetEmptyExpr:   lambda n: [],
+    NilExpr:        lambda n: [],
+    MapGetExpr:     lambda n: [n.dict_expr, n.key],
+    MapSetExpr:     lambda n: [n.dict_expr, n.key, n.value],
+    MapEqExpr:      lambda n: [n.left, n.right],
+    HasKeyExpr:     lambda n: [n.dict_expr, n.key],
+    MapRemoveExpr:  lambda n: [n.dict_expr, n.key],
+    SetAddExpr:     lambda n: [n.set_expr, n.elem],
+    SetRemoveExpr:  lambda n: [n.set_expr, n.elem],
+    SetMemExpr:     lambda n: [n.elem, n.set_expr],
+    SetUnionExpr:   lambda n: [n.left, n.right],
+    SetInterExpr:   lambda n: [n.left, n.right],
+    SetDiffExpr:    lambda n: [n.left, n.right],
+    SetSubsetExpr:  lambda n: [n.left, n.right],
+    SetEqExpr:      lambda n: [n.left, n.right],
+    SetCardExpr:    lambda n: [n.set_expr, n.lo, n.hi],
+    ConsExpr:       lambda n: [n.head, n.tail],
+    HdExpr:         lambda n: [n.list_expr],
+    TlExpr:         lambda n: [n.list_expr],
+    ListLengthExpr: lambda n: [n.list_expr],
+    NthExpr:        lambda n: [n.list_expr, n.index],
+    MemExpr:        lambda n: [n.elem, n.list_expr],
+    AppendExpr:     lambda n: [n.left, n.right],
+}
+
+
 def _iter_csl_children(node: CSLNode) -> List[CSLNode]:
     """Return the direct CSL sub-expressions of *node* for structural recursion."""
-    if isinstance(node, BinOp):
-        return [node.left, node.right]
-    if isinstance(node, SingleExprNode):        # UnaryOp, Old
-        return [node.expr]
-    if isinstance(node, ContractWrapper):        # Requires, Ensures, LoopInvariant, LoopVariant
-        return [node.expr]
-    if isinstance(node, FunctionVariant):
-        return [node.expr]
-    if isinstance(node, QuantifierNode):         # Forall, Exists
-        return [node.body]
-    if isinstance(node, Assigns):
-        return list(node.targets)
-    if isinstance(node, SubscriptAccess):
-        return [node.index]
-    if isinstance(node, ChainedSubscript):
-        return [node.index1, node.index2]
-    if isinstance(node, AssignsRegion):
-        return [node.low, node.high]
-    if isinstance(node, Valid):
-        return [node.length]
-    if isinstance(node, Separated):
-        return [node.length1, node.length2]
-    # ── Ghost assignment value ─────────────────────────────────────────────
-    if isinstance(node, GhostAssignDecl):
-        return [node.value]
-    # ── Ghost tuple expressions ────────────────────────────────────────────
-    if isinstance(node, MkTupleExpr):
-        return list(node.elts)
-    if isinstance(node, FstExpr):
-        return [node.tuple_expr]
-    if isinstance(node, SndExpr):
-        return [node.tuple_expr]
-    if isinstance(node, ProjExpr):
-        return [node.tuple_expr, node.index]
-    # ── Ghost string expressions ───────────────────────────────────────────
-    if isinstance(node, StrConcatExpr):
-        return [node.left, node.right]
-    # ── Ghost array expressions ────────────────────────────────────────────
-    if isinstance(node, GhostMakeExpr):
-        return [node.size, node.default]
-    if isinstance(node, (MapEmptyExpr, SetEmptyExpr, NilExpr)):
-        return []
-    # ── Ghost dict expressions ─────────────────────────────────────────────
-    if isinstance(node, MapGetExpr):
-        return [node.dict_expr, node.key]
-    if isinstance(node, MapSetExpr):
-        return [node.dict_expr, node.key, node.value]
-    if isinstance(node, MapEqExpr):
-        return [node.left, node.right]
-    # ── Ghost set expressions ──────────────────────────────────────────────
-    if isinstance(node, (SetAddExpr, SetRemoveExpr)):
-        return [node.set_expr, node.elem]
-    if isinstance(node, SetMemExpr):
-        return [node.elem, node.set_expr]
-    if isinstance(node, (SetUnionExpr, SetInterExpr, SetDiffExpr,
-                          SetSubsetExpr, SetEqExpr)):
-        return [node.left, node.right]
-    if isinstance(node, SetCardExpr):
-        return [node.set_expr, node.lo, node.hi]
-    # ── Ghost list expressions ─────────────────────────────────────────────
-    if isinstance(node, ConsExpr):
-        return [node.head, node.tail]
-    if isinstance(node, (HdExpr, TlExpr, ListLengthExpr)):
-        return [node.list_expr]
-    if isinstance(node, NthExpr):
-        return [node.list_expr, node.index]
-    if isinstance(node, MemExpr):
-        return [node.elem, node.list_expr]
-    if isinstance(node, AppendExpr):
-        return [node.left, node.right]
+    handler = _CSL_CHILDREN_MAP.get(type(node))
+    if handler:
+        return handler(node)
     return []
 
 # ---------------------------------------------------------
@@ -124,6 +113,8 @@ def extract_variables(node: CSLNode) -> Set[str]:
         return {node.var}
     if isinstance(node, GhostCopyExpr):
         return {node.arr}
+    if isinstance(node, GhostCopyRangeExpr):
+        return {node.arr} | extract_variables(node.lo) | extract_variables(node.hi)
     if isinstance(node, SubscriptAccess):
         base = set() if node.array == "\\result" else {node.array}
         return base | extract_variables(node.index)
@@ -195,6 +186,20 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
 
         # 3. Check \valid and \separated base types
         self._validate_predicate_bases(contract, context_name)
+
+        # 4. Check \proj index is always a literal
+        self._validate_proj_indices(contract, context_name)
+
+    def _validate_proj_indices(self, node: CSLNode, context_name: str) -> None:
+        """Recursively check that all \\proj index arguments are integer literals."""
+        if isinstance(node, ProjExpr):
+            if not isinstance(node.index, Number):
+                raise PyCSLSemanticError(
+                    f"\\proj index must be an integer literal in {context_name}. "
+                    "Dynamic projection is not supported."
+                )
+        for child in _iter_csl_children(node):
+            self._validate_proj_indices(child, context_name)
 
     def _validate_predicate_bases(self, node: CSLNode, context_name: str) -> None:
         """Recursively check that \\valid and \\separated reference list-typed parameters."""
@@ -439,12 +444,32 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
                         if isinstance(elt, ast.Name) and elt.id not in self._shared_vars:
                             self.current_scope[elt.id] = "Any"
 
-        # Ghost variables — register all targets first, then validate values
+        # Ghost variables — register all targets first, then validate values.
+        # Only declarations (op == "=") carry a meaningful declared_type; augmented
+        # assignments must not overwrite a type that was already registered.
         for child in ast.walk(node):
             for ga in getattr(child, 'csl_ghost_assigns', []):
-                self.current_scope[ga.target] = getattr(ga, 'declared_type', 'int')
+                if isinstance(ga, GhostArraySetDecl):
+                    continue  # element-set has no declared_type; array var already registered
+                dtype = getattr(ga, 'declared_type', 'int')
+                if ga.target not in self.current_scope or ga.op == "=":
+                    self.current_scope[ga.target] = dtype
         for child in ast.walk(node):
             for ga in getattr(child, 'csl_ghost_assigns', []):
+                if isinstance(ga, GhostArraySetDecl):
+                    # Validate index and value expressions
+                    ctx = f"{self.current_function_name} (ghost '{ga.target}[...]')"
+                    self._validate_contract(ga.index, ctx, is_postcondition=False)
+                    self._validate_contract(ga.value, ctx, is_postcondition=False)
+                    continue
+                # String ghosts do not support +=/-=/*= shorthands; use ^ operator.
+                if ga.op != "=" and self.current_scope.get(ga.target) == "string":
+                    raise PyCSLSemanticError(
+                        f"Ghost string variable '{ga.target}' does not support '{ga.op}' "
+                        f"in {self.current_function_name}. "
+                        "Use the ^ operator for string concatenation: "
+                        f"#@ ghost {ga.target} = {ga.target} ^ expr"
+                    )
                 if ga.value is not None:
                     self._validate_contract(
                         ga.value,

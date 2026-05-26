@@ -11,7 +11,7 @@ PyCSL is a Python-to-WhyML compiler. It reads a Python source file annotated wit
 
 ## Section 1 — Repository layout
 
-```
+```text
 src/pycsl/
   Module1_Ingestor.py         ← LibCST CST walk → List[PyCSLContract]
   Module2_Parser.py           ← Lark LALR → CSLNode AST
@@ -52,7 +52,7 @@ For the data formats produced at each stage, see `references/data-formats.md`.
 
 ## Section 3 — Error hierarchy (`src/pycsl/errors.py`)
 
-```
+```text
 PyCSLError(Exception)       base — fields: message, filename, line, stage
   ├── PyCSLParseError        Module2: CSL grammar parse failure
   ├── PyCSLSemanticError     Module4: semantic validation failure

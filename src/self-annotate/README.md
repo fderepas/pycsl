@@ -8,15 +8,19 @@ does the *Python implementation* faithfully realize those mathematics?
 
 This directory closes that gap by annotating the PyCSL implementation
 (`src/pycsl/*.py`) with its own `#@` contract syntax, then verifying the
-annotations with Why3. The annotated copies live in:
+annotations with Why3. The canonical annotated copies live in:
 
 ```
-src/self-annotate/rocq/    ← contracts derived from Rocq proofs
-src/self-annotate/lean/    ← contracts derived from Lean proofs
+src/self-annotate/src/     ← 469 #@ annotations, all pass pycsl --no-proof  ✓
+src/self-annotate/attic/   ← historical derivation references
+  lean/                    ← contracts derived from Lean proofs  (superseded)
+  rocq/                    ← contracts derived from Rocq proofs  (superseded)
 ```
 
-Both paths annotate the same source files. If their contracts agree, confidence
-in both the proofs and the implementation is higher.
+The `lean/` and `rocq/` directories served as cross-validation during initial
+annotation. Their contracts are identical (confirmed by parity checks).
+They are archived in `attic/` for reference. The single canonical work product
+is `src/`.
 
 ---
 
@@ -59,6 +63,35 @@ Each layer covers what the others cannot:
 - Layer 1 proves the Python code doesn't silently drop statements,
   corrupt state, or diverge from the formal structure.
 - Layer 2 proves the actual generated WhyML satisfies the VCs.
+
+---
+
+## Layer 4 — Proof-attribution traceability  *(since 2026-05-26)*
+
+The canonical `src/` annotations now carry `#@ proof rocq:` /
+`#@ proof lean:` directives whose qualnames match theorems in
+`src/formal-semantics/{rocq,lean}/`. The convention follows
+`docs/pycsl-concrete-syntax-reference.md §2.1.11` (v1.3) — PyCSL
+parses and records the directive but never resolves the qualname; the
+cited theorem is the trust anchor.
+
+**Naming**: directives use `Pycsl.Reference.Module<N>.<lemma>` as the
+qualname; the bare suffix (`wp_gen_assign` for Rocq, `wpGen_assign`
+for Lean) matches the actual file casing.
+
+**Worked pilot**: `src/self-annotate/src/Module5_IREmitter.py` — every
+statement-emission method (`_py_stmt_assign`, `_py_stmt_while`, …) and
+the expression umbrella (`_py_expr_to_ir`) cites the matching
+`wp_gen_<construct>` / `wpGen_<construct>` lemma in
+`src/formal-semantics/rocq/Phase6*.v` and
+`src/formal-semantics/lean/PyCSL/Corr*.lean`. The full mapping table
+is in `src/self-annotate/module5-mapping.md`.
+
+**Rollout status (2026-05-26)**: ✅ Complete across all six modules.
+Module1 carries zero proof attributions (documented coverage gap —
+pure libCST extraction); Modules 2–6 carry 35 Rocq + 35 Lean directives
+in total. Per-module mapping tables: `module<N>-mapping.md`. Rollout
+plan and outcome details: `plan-formal-05.md`.
 
 ---
 
@@ -284,39 +317,25 @@ def transpile(self):
 
 ---
 
-## Six-Step Annotation Process
+## Annotation Workflow (post-consolidation)
 
-For each file in `src/pycsl/`:
+Annotations are ported automatically from the `attic/rocq/` reference using
+`port_annotations.py`, then verified with `pycsl --no-proof`. Use the
+Makefile targets:
 
-1. **Copy** the unannotated source:
-   ```bash
-   cp src/pycsl/<file>.py src/self-annotate/rocq/<file>.py
-   cp src/pycsl/<file>.py src/self-annotate/lean/<file>.py
-   ```
+```bash
+# Refresh src/ from master src/pycsl/ (re-apply annotations after master changes)
+make sync-annotate-src
 
-2. **Read `Phase4_WP.v`** (or `WP.lean`) — identify the WP arm for each
-   statement handler. Write the `assigns` and `ensures` contracts.
+# Verify all annotated files pass pycsl --no-proof
+make verify-annotated
+```
 
-3. **Read `Phase5a_WhileInv.v`** (or `WhileInv.lean`) — add
-   `#@ loop invariant` / `#@ loop variant` to every `while` loop inside
-   statement handlers.
-
-4. **Read `Phase5b_Soundness.v`** (or `Soundness.lean`) — write the
-   top-level `transpile()` frame condition.
-
-5. **Read `Phase3b_Desugar.v`** (or `DesugarDef.lean` / `Desugar.lean`) —
-   add `#@ requires stmt["iter_var"] != "_pycsl_idx"` to `_handle_for_stmt`
-   and flag the Admitted gap.
-
-6. **Verify:**
-   ```bash
-   source .venv/bin/activate
-   python3 src/pycsl/pycsl.py --no-proof src/self-annotate/rocq/<file>.py
-   python3 src/pycsl/pycsl.py --no-proof src/self-annotate/lean/<file>.py
-   ```
-
-For Modules 1–5 (Layer A only), skip steps 2–5 and write structural
-contracts directly: `assigns`, `ensures \length(...) >= 0`, loop invariants.
+When adding annotations for a new method:
+1. Read the relevant formal-semantics file (see the table in `coverage-report.md`).
+2. Add the `#@` block directly to `src/self-annotate/src/<file>.py`.
+3. Also add it to `attic/rocq/<file>.py` and `attic/lean/<file>.py` for historical record.
+4. Run `make verify-annotated` to confirm.
 
 ---
 

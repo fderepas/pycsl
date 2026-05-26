@@ -15,6 +15,8 @@ When in doubt, prefer the simplest form that the transpiler can handle. Many lim
 7. [Recursion and termination](#7-recursion-and-termination)
 8. [Type and signature constraints](#8-type-and-signature-constraints)
 9. [Reserved keywords](#9-reserved-keywords)
+10. [Ghost variable types — Why3 `use` dependencies](#10-ghost-variable-types--why3-use-dependencies)
+11. [Escape hatch: facts SMT cannot discharge alone](#11-escape-hatch-facts-smt-cannot-discharge-alone)
 
 ---
 
@@ -169,3 +171,95 @@ Fix: always declare the return type as `-> int`, drop any `return <list_param>` 
 **NEVER use `goal` as a function parameter name.** In WhyML, `goal` is a reserved keyword used to declare proof obligations. Using it as a parameter name in the generated function signature causes a Why3 syntax error. Rename any function parameter named `goal` to a non-reserved alternative such as `target`, `dest`, or `end_node`, and update all references in `#@ requires`, `#@ ensures`, loop invariants, and the function body accordingly.
 
 **NEVER use `val` as a function parameter name.** In WhyML, `val` is a reserved keyword used to declare program functions. Using it as a parameter name (e.g., `(val: int)`) produces a Why3 syntax error at the function signature. Rename any function parameter named `val` to a non-reserved alternative such as `v`. For example, `counter_value(val: int) -> int` must be written as `counter_value(v: int) -> int` with `#@ ensures \result == v`, and `counter_increment(val: int, amount: int) -> int` as `counter_increment(v: int, amount: int) -> int` with `#@ ensures \result == v + amount`.
+
+---
+
+## 10. Ghost variable types — Why3 `use` dependencies
+
+Ghost variables declared with `#@ ghost name : TYPE = expr` require specific Why3 library modules to be loaded in the module preamble. The transpiler adds these automatically when it detects the corresponding ghost type. The table below documents which libraries are required and any SMT-performance notes:
+
+| Ghost type | Declared as | Required `use` directives | Notes |
+|---|---|---|---|
+| (default) | `#@ ghost x = 0` | none | Emits `let ghost x = ref 0 in` — pure integer, no extra library |
+| `string` | `#@ ghost s : string = "..."` | `use string.String` | Supports `^` (concat), `\str_length`, `\str_sub`. Strings are native in Why3. |
+| `array` | `#@ ghost arr : array = \make(n, v)` | `use array.Array` | Hoare/concurrent memory models only; emits `Array.make n v`. Typed/store models use `int_mem` heap — do not use ghost array type with those models. `\copy(arr)` and `\copy_range(arr, lo, hi)` have the same restriction (emit `Array.copy`/`Array.sub` which expect `array int`, not `loc`). |
+| `ghost_dict` | `#@ ghost d : ghost_dict = \empty_map` | `use map.Map`, `use map.Const`, `use option.Option` | Emits `Map.const (None: option int)`. `\map_get(d, k)` emits `match Map.get !d k with \| Some v -> v \| None -> 0 end`. `\has_key(d, k)` emits `Map.get !d k <> None`. `\map_remove(d, k)` emits `Map.set !d k None`. `\map_eq(d1, d2)` emits a `forall` quantifier — restrict to shallow comparisons in loop invariants. |
+| `ghost_list` | `#@ ghost l : ghost_list = \nil` | `use list.List`, `use list.Length`, `use list.Nth`, `use list.Mem`, `use list.Append` | Emits `Nil`. `\hd`/`\tl` on empty list produce `absurd` — ensure preconditions guard emptiness. |
+| `ghost_set` | `#@ ghost s : ghost_set = \set_empty` | `use map.Map`, `use map.Const` | Emits `Map.const false`. `\set_union`/`\set_inter`/`\set_diff` are represented as functional lambdas (`fun k -> ...`); restrict operands to **bounded integer ranges** for best SMT performance. `\set_card` requires a custom Why3 preamble — avoid in proof contexts. |
+| `tuple2` | `#@ ghost p : tuple2 = \mktuple(a, b)` | none | Native Why3 tuple `(int, int)`; `\fst`, `\snd`, `\proj(p, 0)`, `\proj(p, 1)` are destructuring patterns. |
+| `tuple3` | `#@ ghost t : tuple3 = \mktuple(a, b, c)` | none | Native Why3 tuple `(int, int, int)`; `\proj(t, 0..2)`. |
+| `tuple4` | `#@ ghost t : tuple4 = \mktuple(a, b, c, d)` | none | Native Why3 tuple `(int, int, int, int)`; `\proj(t, 0..3)`. |
+
+---
+
+## 11. Escape hatch: facts SMT cannot discharge alone
+
+Some specifications hinge on mathematical facts Alt-Ergo and Z3 cannot
+discover unaided — Euclidean identities, divisibility lemmas, transcendental
+relations, group-theoretic properties. When this happens, the historical
+options were poor: either weaken the contract until SMT could handle it, or
+mark the function `#@ \trusted` and lose the proof entirely.
+
+The supported way out is the **`#@ axiom_from`** directive
+(`annotations.md §2.1.12`), which imports a Rocq or Lean theorem as a
+Why3 axiom in the generated preamble. Used in pairs, it implements the
+**"Rocq + Lean as Cross-Validated Spec Sources"** pattern: when both
+`#@ axiom_from rocq <q>` and `#@ axiom_from lean <q>` cite the same
+`pycsl_target`, the `proof2why3 cross-check` tool extracts both theorem
+statements, canonicalizes them (alpha-normalize, AC-flatten, `nat`/`Nat`
+→ `int + ≥ 0`), and refuses to emit the axiom unless the two formalisms
+agree. The Why3 axiom is then trusted because **two independent proof
+kernels** independently verified the same statement.
+
+**When to reach for this:**
+
+- A divisibility / modular-arithmetic postcondition that no SMT prover
+  closes within a minute (e.g., GCD, CRT, Bezout).
+- A property whose proof requires structural induction that `intros; lia`
+  cannot replay.
+- Any fact for which a stdlib lemma exists in Rocq/Lean but no equivalent
+  in Why3's `int.*` theories.
+
+**When NOT to reach for this:**
+
+- The contract is just stated wrong (missing precondition, wrong sign).
+  Strengthen the contract first.
+- The fact is linear arithmetic — `\result == \old(...) + amount` should
+  go through directly; if it doesn't, the bug is upstream.
+- You haven't actually written and machine-checked the cited theorem yet.
+  `#@ axiom_from` referencing a non-existent qualname is no safer than
+  `#@ \trusted`, just more verbose. The `bin/check-proof-attributions.sh`
+  audit fails when the cited theorem is missing.
+
+**Worked example:** `test-suite/corpus/pycsl-reference/0342.py` (Euclidean
+GCD) with six cross-validated axioms (`gcd_result_nonneg`,
+`gcd_result_positive`, `gcd_divides_a`, `gcd_divides_b`, `gcd_0`,
+`gcd_step`). Both `0342.proofs/rocq/gcd.v` and `0342.proofs/lean/Gcd.lean`
+machine-check the same six statements; the WhyML preamble then carries
+the axioms unconditionally, and Alt-Ergo discharges all four
+divisibility postconditions in single-digit seconds.
+
+**Annotator agents MUST NOT generate `#@ axiom_from` directives**
+unless the cited theorems already exist and `proof2why3 cross-check`
+reports `reconciled` status. Adding the directive without the matching
+proof artifacts breaks the trust chain silently.
+
+### `\proj` index constraints
+
+- `\proj(t, idx)` — `idx` **must be an integer literal** (0, 1, 2, or 3). A variable index is rejected by Module4 with a semantic error ("dynamic projection is not supported").
+- The index must be within the arity of the declared tuple type. Using `\proj(p, 2)` on a `tuple2` variable silently generates incorrect WhyML (a three-element destructuring pattern where only two exist); Module4 does not currently enforce arity bounds.
+
+### Ghost string augmented assignment
+
+**NEVER use `#@ ghost s += expr` when `s` is a ghost string variable.** The `+=` shorthand is defined only for numeric (`int`) ghost variables. For string concatenation, use the `^` operator: `#@ ghost s = s ^ "suffix"`. Using `+=` on a string ghost is rejected at Module4 with a semantic error.
+
+### Augmented assignment shorthands
+
+The following `+=` shorthands are supported and emit idiomatic Why3 operations:
+
+| Pattern | Ghost type | Emitted Why3 |
+|---|---|---|
+| `#@ ghost x += n` | `int` (default) | `ghost x := !x + n` |
+| `#@ ghost l += v` | `ghost_list` | `ghost l := Cons v !l` (prepend) |
+| `#@ ghost s += v` | `ghost_set` | `ghost s := Map.set !s v true` (insert) |
+| `#@ ghost d += \mktuple(k, v)` | `ghost_dict` | `ghost d := Map.set !d k (Some v)` (insert/update) |

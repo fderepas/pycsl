@@ -33,7 +33,20 @@ typed_group_binder: "(" IDENT+ ":" type_expr ")"
 typed_loose_binder: IDENT+ ":" type_expr
 bare_binder:        IDENT+
 
-type_expr: qident
+// Type expressions support type-constructor application (`list nat`),
+// product types (`nat * nat`), and arrow types (`nat -> bool`). Arrow
+// associates right, product binds tighter than arrow.
+//
+// `MUL_OP` is reused for the `*` separator in product types; the
+// builder filters out any `mod` / `div` literals that wouldn't make
+// sense in a type position.
+type_expr: type_arrow
+?type_arrow: type_prod ("->" type_arrow)?       -> ty_arrow
+?type_prod:  type_app  (MUL_OP type_app)*        -> ty_prod
+type_app:   qident type_arg*
+?type_arg:  qident                               -> ty_arg_qident
+         |  NUMBER                               -> ty_arg_number
+         |  "(" type_arrow ")"                   -> ty_arg_paren
 
 ?impl_expr: iff_expr ("->" impl_expr)?         -> impl
 ?iff_expr:  or_expr  ("<->" iff_expr)?         -> iff

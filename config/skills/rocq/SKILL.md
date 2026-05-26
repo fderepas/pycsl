@@ -54,7 +54,7 @@ Use this skill whenever you're editing Rocq proofs, debugging Rocq builds, forma
 
 ## Typical Workflow
 
-```
+```text
 ┌─ Entry points (pick one) ──────────────────────────────────────────────────────────┐
 │ /rocq:draft              Skeleton by default (--mode=attempt for shallow proof)    │
 │ /rocq:formalize          Interactive: draft + guided proving                       │
@@ -85,7 +85,7 @@ Use `/rocq:learn` at any point to explore repo structure or navigate libraries. 
 
 Interactive proof sessions and search via Rocq MCP:
 
-```
+```text
 rocq_start(file, theorem)                       # Start proof session, see goals
 rocq_check(body)                                # Execute tactics, see updated goals
 rocq_step_multi(tactics=[...])                  # Test multiple tactics in parallel (max 20)
@@ -104,7 +104,7 @@ rocq_verify(proof, problem_name, problem_statement)  # Sandboxed proof verificat
 5. `rocq_verify(...)` — sandboxed correctness verification
 
 **Search workflow:** Use `rocq_query` for all search needs:
-```
+```text
 rocq_query("Search (_ + _ = _ + _).")           # Pattern search
 rocq_query("Check Nat.add_comm.")               # Type check
 rocq_query("Print Nat.add.")                    # See definition

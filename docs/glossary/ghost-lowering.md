@@ -64,7 +64,19 @@ This lowers to the ghost-list prepend operation in WhyML, not to numeric `+=`.
 
 This lowers to direct mutation of the ghost array value in WhyML.
 
-### Example 3 — why lowering details matter
+### Example 3 — ghost dict update (option-type)
+
+```python
+#@ ghost d = \map_set(d, k, v)
+```
+
+This lowers to `Map.set !d k (Some v)` in WhyML, not the bare `Map.set !d k v`.
+Ghost dicts use `map int (option int)` — present values are wrapped in `Some`,
+absent keys are `None`. `\map_remove(d, k)` lowers to `Map.set !d k None`.
+
+See `test-suite/annotations.md §11.9` for the full emission table.
+
+### Example 4 — why lowering details matter
 
 Recent witness experiments exposed two real lowering-sensitive issues:
 

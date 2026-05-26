@@ -1,145 +1,304 @@
 /-
   SOS.lean — Structural Operational Semantics
-  Port of Phase3_SOS.v
+  Mirror of Phase3_SOS.v (all phases)
 
-  Exec is an inductive Prop with 14 constructors.
-  ExecReturn binds "\result" in the state to match the WP.
-  Uses 3-continuation model: Normal, Returned, Continued.
+  Exec is an inductive Prop over ExecState.
+  Outcome carries exec_state in all branches.
+  Five outcome kinds: Normal, Returned, Continued, Broke, Failed, Threw.
 -/
 import PyCSL.AST
 import PyCSL.State
 import PyCSL.DesugarDef
 
 inductive Outcome where
-  | normal    (st : State)
-  | returned  (st : State) (v : Val)
-  | continued (st : State)
+  | normal    (es : ExecState)
+  | returned  (es : ExecState) (v : Val)
+  | continued (es : ExecState)
+  | broke     (es : ExecState)
+  | failed    (es : ExecState) (msg : String) (cond : ContractExpr)
+  | threw     (es : ExecState) (exc : Ident)
+  deriving Repr
 
-inductive Exec : State → Stmt → Outcome → Prop where
-  | execSkip (st : State) :
-    Exec st .skip (.normal st)
+inductive Exec : ExecState → Stmt → Outcome → Prop where
 
-  | execAssign (st : State) (x : Ident) (e : Expr) :
-    Exec st (.assign x e) (.normal (update st x (evalExpr st e)))
+  | execSkip (es : ExecState) :
+    Exec es .skip (.normal es)
 
-  | execAugAssign (st : State) (x : Ident) (op : Binop) (e : Expr) :
-    Exec st (.augAssign x op e)
-      (.normal (update st x (.int
+  | execAssign (es : ExecState) (x : Ident) (e : Expr) :
+    Exec es (.assign x e)
+      (.normal (setReg es (update es.regState x (evalExpr es.regState e))))
+
+  | execAugAssign (es : ExecState) (x : Ident) (op : Binop) (e : Expr) :
+    Exec es (.augAssign x op e)
+      (.normal (setReg es (update es.regState x (.int
         (evalBinopZ op
-          (match lookup st x with | some (.int n) => n | _ => 0)
-          (match evalExpr st e with | .int n => n | _ => 0)))))
+          (match lookup es.regState x with | some (.int n) => n | _ => 0)
+          (match evalExpr es.regState e with | .int n => n | _ => 0))))))
 
-  | execArraySet (st : State) (arr : Ident) (i v : Expr) :
-    Exec st (.arraySet arr i v)
-      (.normal (arrayUpdate st arr
-        (match evalExpr st i with | .int n => n | _ => 0)
-        (match evalExpr st v with | .int n => n | _ => 0)))
+  | execArraySet (es : ExecState) (arr : Ident) (i v : Expr) :
+    Exec es (.arraySet arr i v)
+      (.normal (setReg es (arrayUpdate es.regState arr
+        (match evalExpr es.regState i with | .int n => n | _ => 0)
+        (match evalExpr es.regState v with | .int n => n | _ => 0))))
 
-  | execSeq (st : State) (s1 s2 : Stmt) (st' : State) (out : Outcome) :
-    Exec st s1 (.normal st') →
-    Exec st' s2 out →
-    Exec st (.seq s1 s2) out
+  | execSeq (es : ExecState) (s1 s2 : Stmt) (es' : ExecState) (out : Outcome) :
+    Exec es s1 (.normal es') →
+    Exec es' s2 out →
+    Exec es (.seq s1 s2) out
 
-  | execSeqReturn (st : State) (s1 s2 : Stmt) (st' : State) (v : Val) :
-    Exec st s1 (.returned st' v) →
-    Exec st (.seq s1 s2) (.returned st' v)
+  | execSeqReturn (es : ExecState) (s1 s2 : Stmt) (es' : ExecState) (v : Val) :
+    Exec es s1 (.returned es' v) →
+    Exec es (.seq s1 s2) (.returned es' v)
 
-  | execSeqContinue (st : State) (s1 s2 : Stmt) (st' : State) :
-    Exec st s1 (.continued st') →
-    Exec st (.seq s1 s2) (.continued st')
+  | execSeqContinue (es : ExecState) (s1 s2 : Stmt) (es' : ExecState) :
+    Exec es s1 (.continued es') →
+    Exec es (.seq s1 s2) (.continued es')
 
-  | execIfTrue (st : State) (cond : Expr) (s1 s2 : Stmt) (out : Outcome) :
-    evalBool st cond = true →
-    Exec st s1 out →
-    Exec st (.ite cond s1 s2) out
+  | execSeqBreak (es : ExecState) (s1 s2 : Stmt) (es' : ExecState) :
+    Exec es s1 (.broke es') →
+    Exec es (.seq s1 s2) (.broke es')
 
-  | execIfFalse (st : State) (cond : Expr) (s1 s2 : Stmt) (out : Outcome) :
-    evalBool st cond = false →
-    Exec st s2 out →
-    Exec st (.ite cond s1 s2) out
+  | execSeqThrow (es : ExecState) (s1 s2 : Stmt) (es' : ExecState) (exc : Ident) :
+    Exec es s1 (.threw es' exc) →
+    Exec es (.seq s1 s2) (.threw es' exc)
 
-  | execWhileTrue (st : State) (inv var : ContractExpr) (cond : Expr)
-      (body : Stmt) (st' : State) (out : Outcome) :
-    evalBool st cond = true →
-    Exec st body (.normal st') →
-    Exec st' (.while_ inv var cond body) out →
-    Exec st (.while_ inv var cond body) out
+  | execIfTrue (es : ExecState) (cond : Expr) (s1 s2 : Stmt) (out : Outcome) :
+    evalBool es.regState cond = true →
+    Exec es s1 out →
+    Exec es (.ite cond s1 s2) out
 
-  | execWhileContinue (st : State) (inv var : ContractExpr) (cond : Expr)
-      (body : Stmt) (st' : State) (out : Outcome) :
-    evalBool st cond = true →
-    Exec st body (.continued st') →
-    Exec st' (.while_ inv var cond body) out →
-    Exec st (.while_ inv var cond body) out
+  | execIfFalse (es : ExecState) (cond : Expr) (s1 s2 : Stmt) (out : Outcome) :
+    evalBool es.regState cond = false →
+    Exec es s2 out →
+    Exec es (.ite cond s1 s2) out
 
-  | execWhileFalse (st : State) (inv var : ContractExpr) (cond : Expr)
+  | execWhileTrue (es : ExecState) (inv var : ContractExpr) (cond : Expr)
+      (body : Stmt) (es' : ExecState) (out : Outcome) :
+    evalBool es.regState cond = true →
+    Exec es body (.normal es') →
+    Exec es' (.while_ inv var cond body) out →
+    Exec es (.while_ inv var cond body) out
+
+  | execWhileContinue (es : ExecState) (inv var : ContractExpr) (cond : Expr)
+      (body : Stmt) (es' : ExecState) (out : Outcome) :
+    evalBool es.regState cond = true →
+    Exec es body (.continued es') →
+    Exec es' (.while_ inv var cond body) out →
+    Exec es (.while_ inv var cond body) out
+
+  | execWhileBreak (es : ExecState) (inv var : ContractExpr) (cond : Expr)
+      (body : Stmt) (es' : ExecState) :
+    evalBool es.regState cond = true →
+    Exec es body (.broke es') →
+    Exec es (.while_ inv var cond body) (.normal es')
+
+  | execWhileFalse (es : ExecState) (inv var : ContractExpr) (cond : Expr)
       (body : Stmt) :
-    evalBool st cond = false →
-    Exec st (.while_ inv var cond body) (.normal st)
+    evalBool es.regState cond = false →
+    Exec es (.while_ inv var cond body) (.normal es)
 
-  | execContinue (st : State) :
-    Exec st .continue_ (.continued st)
+  | execContinue (es : ExecState) :
+    Exec es .continue_ (.continued es)
 
-  | execReturn (st : State) (e : Expr) :
-    Exec st (.ret e)
-      (.returned (update st "\result" (evalExpr st e)) (evalExpr st e))
+  | execBreak (es : ExecState) :
+    Exec es .break_ (.broke es)
 
-  | execFor (st : State) (x arr : Ident) (inv var : ContractExpr) (body : Stmt) (out : Outcome) :
-    Exec st (desugar (.for_ x arr inv var body)) out →
-    Exec st (.for_ x arr inv var body) out
+  | execReturn (es : ExecState) (e : Expr) :
+    Exec es (.ret e)
+      (.returned
+        (setReg es (update es.regState "\\result" (evalExpr es.regState e)))
+        (evalExpr es.regState e))
 
-theorem exec_deterministic {st : State} {s : Stmt} {out1 out2 : Outcome}
-    (h1 : Exec st s out1) (h2 : Exec st s out2) : out1 = out2 := by
+  | execAssertPass (es : ExecState) (cond : ContractExpr) (msg : String) :
+    evalContract es.regState es.regState none cond →
+    Exec es (.assert_ cond msg) (.normal es)
+
+  | execAssertFail (es : ExecState) (cond : ContractExpr) (msg : String) :
+    ¬ evalContract es.regState es.regState none cond →
+    Exec es (.assert_ cond msg) (.failed es msg cond)
+
+  | execTupleUnpack (es : ExecState) (xs : List Ident) (e : Expr) :
+    Exec es (.tupleUnpack xs e) (.normal es)
+
+  | execGhostDecl (es : ExecState) (x : Ident) (t : GhostType) (e : GhostExpr) :
+    Exec es (.ghostDecl x t e)
+      (.normal (setGhost es (ghostUpdate es.ghostSt x (evalGhostVal t es e))))
+
+  | execGhostAssign (es : ExecState) (x : Ident) (t : GhostType) (op : AugOp) (e : GhostExpr) :
+    Exec es (.ghostAssign x t op e)
+      (.normal (setGhost es (ghostUpdate es.ghostSt x
+        (applyGhostAug op (ghostLookup es.ghostSt x) es e))))
+
+  | execLabel (es : ExecState) (L : Ident) :
+    Exec es (.label_ L)
+      (.normal (setLabels es ((L, es.ghostSt) :: es.labelSnaps)))
+
+  | execRaise (es : ExecState) (exc : Ident) :
+    Exec es (.raise_ exc) (.threw es exc)
+
+  | execTryCatchCaught (es : ExecState) (body : Stmt) (exc : Ident) (handler : Stmt)
+      (es' : ExecState) (out : Outcome) :
+    Exec es body (.threw es' exc) →
+    Exec es' handler out →
+    Exec es (.tryCatch body exc handler) out
+
+  | execTryCatchMiss (es : ExecState) (body : Stmt) (exc exc' : Ident) (handler : Stmt)
+      (es' : ExecState) :
+    exc' ≠ exc →
+    Exec es body (.threw es' exc') →
+    Exec es (.tryCatch body exc handler) (.threw es' exc')
+
+  | execTryCatchNormal (es : ExecState) (body : Stmt) (exc : Ident) (handler : Stmt)
+      (out : Outcome) :
+    (∀ es' e, out ≠ .threw es' e) →
+    Exec es body out →
+    Exec es (.tryCatch body exc handler) out
+
+  | execFieldAssign (es : ExecState) (selfId f : Ident) (e : Expr) :
+    Exec es (.fieldAssign selfId f e) (.normal es)
+
+  | execFieldAugAssign (es : ExecState) (selfId f : Ident) (op : Binop) (e : Expr) :
+    Exec es (.fieldAugAssign selfId f op e) (.normal es)
+
+  | execCritical (es : ExecState) (mutex : Ident) (body : Stmt) (out : Outcome) :
+    Exec es body out →
+    Exec es (.critical mutex body) out
+
+  | execThreadEntry (es : ExecState) (body : Stmt) (out : Outcome) :
+    Exec es body out →
+    Exec es (.threadEntry body) out
+
+  | execFor (es : ExecState) (x arr : Ident) (inv var : ContractExpr)
+      (body : Stmt) (out : Outcome) :
+    Exec es (desugar (.for_ x arr inv var body)) out →
+    Exec es (.for_ x arr inv var body) out
+
+theorem exec_deterministic {es : ExecState} {s : Stmt} {out1 out2 : Outcome}
+    (h1 : Exec es s out1) (h2 : Exec es s out2) : out1 = out2 := by
   induction h1 generalizing out2 with
-  | execSkip => cases h2; rfl
-  | execAssign => cases h2; rfl
-  | execAugAssign => cases h2; rfl
-  | execArraySet => cases h2; rfl
-  | execSeq _ _ _ _ _ h1a h1b ih1a ih1b =>
+  | execSkip _ => cases h2; rfl
+  | execAssign _ _ _ => cases h2; rfl
+  | execAugAssign _ _ _ _ => cases h2; rfl
+  | execArraySet _ _ _ _ => cases h2; rfl
+  | execContinue _ => cases h2; rfl
+  | execBreak _ => cases h2; rfl
+  | execReturn _ _ => cases h2; rfl
+  | execTupleUnpack _ _ _ => cases h2; rfl
+  | execGhostDecl _ _ _ _ => cases h2; rfl
+  | execGhostAssign _ _ _ _ _ => cases h2; rfl
+  | execLabel _ _ => cases h2; rfl
+  | execRaise _ _ => cases h2; rfl
+  | execFieldAssign _ _ _ _ => cases h2; rfl
+  | execFieldAugAssign _ _ _ _ _ => cases h2; rfl
+  | execAssertPass _ _ _ hcond =>
     cases h2 with
-    | execSeq _ _ _ _ _ h2a h2b =>
-      have := ih1a h2a; injection this with heq; subst heq; exact ih1b h2b
-    | execSeqReturn _ _ _ _ _ h2a => have := ih1a h2a; injection this
-    | execSeqContinue _ _ _ _ h2a => have := ih1a h2a; injection this
-  | execSeqReturn _ _ _ _ _ h1a ih1 =>
+    | execAssertPass => rfl
+    | execAssertFail _ _ _ hneg => exact absurd hcond hneg
+  | execAssertFail _ _ _ hneg =>
     cases h2 with
-    | execSeq _ _ _ _ _ h2a _ => have := ih1 h2a; injection this
-    | execSeqReturn _ _ _ _ _ h2a => exact ih1 h2a
-    | execSeqContinue _ _ _ _ h2a => have := ih1 h2a; injection this
-  | execSeqContinue _ _ _ _ h1a ih1 =>
+    | execAssertPass _ _ _ hcond => exact absurd hcond hneg
+    | execAssertFail => rfl
+  | execSeq _ _ _ _ _ _ _ ih1 ih2 =>
     cases h2 with
-    | execSeq _ _ _ _ _ h2a _ => have := ih1 h2a; injection this
-    | execSeqReturn _ _ _ _ _ h2a => have := ih1 h2a; injection this
-    | execSeqContinue _ _ _ _ h2a => exact ih1 h2a
-  | execIfTrue _ _ _ _ _ hc _ ih =>
+    | execSeq _ _ _ _ _ hs1' hs2' =>
+      have heq := ih1 hs1'; injection heq with hes; subst hes; exact ih2 hs2'
+    | execSeqReturn _ _ _ _ _ hs1' => exact absurd (ih1 hs1') (by simp)
+    | execSeqContinue _ _ _ _ hs1' => exact absurd (ih1 hs1') (by simp)
+    | execSeqBreak _ _ _ _ hs1' => exact absurd (ih1 hs1') (by simp)
+    | execSeqThrow _ _ _ _ _ hs1' => exact absurd (ih1 hs1') (by simp)
+  | execSeqReturn _ _ _ _ _ _ ih =>
     cases h2 with
-    | execIfTrue _ _ _ _ _ hc2 h2b => exact ih h2b
-    | execIfFalse _ _ _ _ _ hc2 _ => simp [hc] at hc2
-  | execIfFalse _ _ _ _ _ hc _ ih =>
+    | execSeq _ _ _ _ _ hs1' _ => exact absurd (ih hs1') (by simp)
+    | execSeqReturn _ _ _ _ _ hs1' =>
+      have heq := ih hs1'; injection heq with hes hv; subst hes; subst hv; rfl
+    | execSeqContinue _ _ _ _ hs1' => exact absurd (ih hs1') (by simp)
+    | execSeqBreak _ _ _ _ hs1' => exact absurd (ih hs1') (by simp)
+    | execSeqThrow _ _ _ _ _ hs1' => exact absurd (ih hs1') (by simp)
+  | execSeqContinue _ _ _ _ _ ih =>
     cases h2 with
-    | execIfTrue _ _ _ _ _ hc2 _ => simp [hc] at hc2
-    | execIfFalse _ _ _ _ _ hc2 h2b => exact ih h2b
-  | execWhileTrue _ _ _ _ _ _ _ hc h1a h1b ih1a ih1b =>
+    | execSeq _ _ _ _ _ hs1' _ => exact absurd (ih hs1') (by simp)
+    | execSeqReturn _ _ _ _ _ hs1' => exact absurd (ih hs1') (by simp)
+    | execSeqContinue _ _ _ _ hs1' =>
+      have heq := ih hs1'; injection heq with hes; subst hes; rfl
+    | execSeqBreak _ _ _ _ hs1' => exact absurd (ih hs1') (by simp)
+    | execSeqThrow _ _ _ _ _ hs1' => exact absurd (ih hs1') (by simp)
+  | execSeqBreak _ _ _ _ _ ih =>
     cases h2 with
-    | execWhileTrue _ _ _ _ _ _ _ hc2 h2a h2b =>
-      have := ih1a h2a; injection this with heq; subst heq; exact ih1b h2b
-    | execWhileContinue _ _ _ _ _ _ _ hc2 h2a _ =>
-      have := ih1a h2a; injection this
-    | execWhileFalse _ _ _ _ _ hc2 => simp [hc] at hc2
-  | execWhileContinue _ _ _ _ _ _ _ hc h1a h1b ih1a ih1b =>
+    | execSeq _ _ _ _ _ hs1' _ => exact absurd (ih hs1') (by simp)
+    | execSeqReturn _ _ _ _ _ hs1' => exact absurd (ih hs1') (by simp)
+    | execSeqContinue _ _ _ _ hs1' => exact absurd (ih hs1') (by simp)
+    | execSeqBreak _ _ _ _ hs1' =>
+      have heq := ih hs1'; injection heq with hes; subst hes; rfl
+    | execSeqThrow _ _ _ _ _ hs1' => exact absurd (ih hs1') (by simp)
+  | execSeqThrow _ _ _ _ _ _ ih =>
     cases h2 with
-    | execWhileTrue _ _ _ _ _ _ _ hc2 h2a _ =>
-      have := ih1a h2a; injection this
-    | execWhileContinue _ _ _ _ _ _ _ hc2 h2a h2b =>
-      have := ih1a h2a; injection this with heq; subst heq; exact ih1b h2b
-    | execWhileFalse _ _ _ _ _ hc2 => simp [hc] at hc2
-  | execWhileFalse _ _ _ _ _ hc =>
+    | execSeq _ _ _ _ _ hs1' _ => exact absurd (ih hs1') (by simp)
+    | execSeqReturn _ _ _ _ _ hs1' => exact absurd (ih hs1') (by simp)
+    | execSeqContinue _ _ _ _ hs1' => exact absurd (ih hs1') (by simp)
+    | execSeqBreak _ _ _ _ hs1' => exact absurd (ih hs1') (by simp)
+    | execSeqThrow _ _ _ _ _ hs1' =>
+      have heq := ih hs1'; injection heq with hes hexc; subst hes; subst hexc; rfl
+  | execIfTrue _ _ _ _ _ hcond _ ih =>
     cases h2 with
-    | execWhileTrue _ _ _ _ _ _ _ hc2 _ _ => simp [hc] at hc2
-    | execWhileContinue _ _ _ _ _ _ _ hc2 _ _ => simp [hc] at hc2
-    | execWhileFalse => rfl
-  | execContinue => cases h2; rfl
-  | execReturn => cases h2; rfl
-  | execFor _ _ _ _ _ _ _ hprem ih =>
+    | execIfTrue _ _ _ _ _ _ h' => exact ih h'
+    | execIfFalse _ _ _ _ _ hc' _ => simp [hcond] at hc'
+  | execIfFalse _ _ _ _ _ hcond _ ih =>
     cases h2 with
-    | execFor _ _ _ _ _ _ _ hprem2 => exact ih hprem2
+    | execIfTrue _ _ _ _ _ hc' _ => simp [hcond] at hc'
+    | execIfFalse _ _ _ _ _ _ h' => exact ih h'
+  | execWhileTrue _ _ _ _ _ _ _ hcond _ _ ih1 ih2 =>
+    cases h2 with
+    | execWhileTrue _ _ _ _ _ _ _ _ hb' hr' =>
+      have heq := ih1 hb'; injection heq with hes; subst hes; exact ih2 hr'
+    | execWhileContinue _ _ _ _ _ _ _ _ hb' _ => exact absurd (ih1 hb') (by simp)
+    | execWhileBreak _ _ _ _ _ _ _ hb' => exact absurd (ih1 hb') (by simp)
+    | execWhileFalse _ _ _ _ _ hc' => simp [hcond] at hc'
+  | execWhileContinue _ _ _ _ _ _ _ hcond _ _ ih1 ih2 =>
+    cases h2 with
+    | execWhileTrue _ _ _ _ _ _ _ _ hb' _ => exact absurd (ih1 hb') (by simp)
+    | execWhileContinue _ _ _ _ _ _ _ _ hb' hr' =>
+      have heq := ih1 hb'; injection heq with hes; subst hes; exact ih2 hr'
+    | execWhileBreak _ _ _ _ _ _ _ hb' => exact absurd (ih1 hb') (by simp)
+    | execWhileFalse _ _ _ _ _ hc' => simp [hcond] at hc'
+  | execWhileBreak _ _ _ _ _ _ hcond _ ih =>
+    cases h2 with
+    | execWhileTrue _ _ _ _ _ _ _ _ hb' _ => exact absurd (ih hb') (by simp)
+    | execWhileContinue _ _ _ _ _ _ _ _ hb' _ => exact absurd (ih hb') (by simp)
+    | execWhileBreak _ _ _ _ _ _ _ hb' =>
+      have heq := ih hb'; injection heq with hes; subst hes; rfl
+    | execWhileFalse _ _ _ _ _ hc' => simp [hcond] at hc'
+  | execWhileFalse _ _ _ _ _ hcond =>
+    cases h2 with
+    | execWhileTrue _ _ _ _ _ _ _ hc' _ _ => simp [hcond] at hc'
+    | execWhileContinue _ _ _ _ _ _ _ hc' _ _ => simp [hcond] at hc'
+    | execWhileBreak _ _ _ _ _ _ hc' _ => simp [hcond] at hc'
+    | execWhileFalse _ _ _ _ _ _ => rfl
+  | execTryCatchCaught _ _ exc _ es' _ ht _ ih1 ih2 =>
+    cases h2 with
+    | execTryCatchCaught _ _ _ _ _ _ ht' hh' =>
+      have heq := ih1 ht'; injection heq with hes _; subst hes; exact ih2 hh'
+    | execTryCatchMiss _ _ _ exc' _ _ hne ht' =>
+      have heq := ih1 ht'; injection heq with _ hexc; exact absurd hexc.symm hne
+    | execTryCatchNormal _ _ _ _ _ hnot hb' =>
+      exact absurd (ih1 hb').symm (hnot es' exc)
+  | execTryCatchMiss _ _ _ exc' _ es' hne _ ih =>
+    cases h2 with
+    | execTryCatchCaught _ _ _ _ _ _ ht' _ =>
+      have heq := ih ht'; injection heq with _ hexc; exact absurd hexc hne
+    | execTryCatchMiss _ _ _ _ _ _ _ ht' =>
+      have heq := ih ht'; injection heq with hes hexc; subst hes; subst hexc; rfl
+    | execTryCatchNormal _ _ _ _ _ hnot hb' =>
+      exact absurd (ih hb').symm (hnot es' exc')
+  | execTryCatchNormal _ _ _ _ _ hnot _ ih =>
+    cases h2 with
+    | execTryCatchCaught _ _ _ _ es'' _ ht' _ =>
+      exact absurd (ih ht') (hnot es'' _)
+    | execTryCatchMiss _ _ _ exc' _ es'' _ ht' =>
+      exact absurd (ih ht') (hnot es'' exc')
+    | execTryCatchNormal _ _ _ _ _ _ hb' => exact ih hb'
+  | execCritical _ _ _ _ hb ih =>
+    cases h2 with | execCritical _ _ _ _ hb' => exact ih hb'
+  | execThreadEntry _ _ _ hb ih =>
+    cases h2 with | execThreadEntry _ _ _ hb' => exact ih hb'
+  | execFor _ _ _ _ _ _ _ hd ih =>
+    cases h2 with | execFor _ _ _ _ _ _ _ hd' => exact ih hd'

@@ -1,5 +1,4 @@
 """Test 0294 — PyCSL Annotation Reference 7.3 — Ghost dict variable"""
-# pycsl-flags: --no-proof
 _ = 0  # anchor
 
 #@ requires n >= 0

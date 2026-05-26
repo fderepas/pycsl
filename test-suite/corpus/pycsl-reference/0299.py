@@ -1,5 +1,4 @@
 """Test 0299 — PyCSL Annotation Reference 11.2 — Ghost set union/inter/diff"""
-# pycsl-flags: --no-proof
 _ = 0  # anchor
 
 #@ requires n >= 0

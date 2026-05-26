@@ -70,6 +70,11 @@ PyCSL/
 │   ├── evaluator/              ← QA evaluation JSON per attempt
 │   ├── monitor/                ← Operational health JSON per file
 │   └── reviewer/               ← Human-readable reports
+├── docs/                       ← Reference docs and glossary
+│   ├── glossary/               ← Human-facing vocabulary (witness, ghost code, memory model, ...)
+│   ├── pycsl-concrete-syntax-reference.md
+│   ├── pycsl-static-semantics-reference.md
+│   └── pycsl-translational-reference.md
 └── pyproject.toml              ← Python project metadata
 ```
 
@@ -186,6 +191,21 @@ description: Master annotation skill for the PyCSL agent pipeline...
 
 The body contains rules, examples, and NEVER constraints that the LLM agents follow.
 
+### Terminology glossary
+
+Human-facing verification vocabulary lives in `docs/glossary/`.
+
+Use the glossary to normalize recurring terms across docs and skills:
+
+- prefer one primary term per concept
+- record aliases in the glossary page rather than scattering competing names
+- examples:
+  - **witness** as the primary term, with *proof certificate* and *local
+    certificate* as aliases
+  - **ghost code** / **ghost state** / **ghost lowering** as distinct concepts
+  - **local reasoning** and **global reasoning** as the preferred contrast when
+    discussing solver behavior
+
 ### RAG Compilation
 
 Skills are compiled into a vector index by `src/skill2rag/`:
@@ -212,7 +232,78 @@ This produces `data/embeddings/skills_index.json` (chunked text + 768-dimensiona
 | `agent-project-structure` | project scaffolding | Directory layout conventions |
 | `pycsl-how-to-develop` | developer reference | This skill |
 
-## 6. Library Stubs
+## 6. Self-Annotation Infrastructure
+
+PyCSL is its own verification target. To annotate `src/pycsl/` with
+contracts derived from the formal-semantics proofs under
+`src/formal-semantics/{rocq,lean}/`, four companion packages live
+alongside the core pipeline:
+
+```text
+src/
+├── pycsl/              ← core pipeline (Module1–Module6 + agents)
+├── pycsl_emit/         ← shared backend used by the three tools below
+│   ├── ir/             ← language-agnostic IR (Var, BinOp, Forall, Divides, …)
+│   │   └── json_io.py  ← --ir-dump JSON schema (pycsl-ir-dump v1)
+│   ├── translator/     ← IR → PyCSL surface (operational/existential/guarded divides)
+│   ├── emitter/        ← libcst-based annotation inserter
+│   ├── checker/        ← subprocess wrapper for pycsl + verdict parser
+│   └── config/         ← shared TOML schema (Config / FunctionSpec / PycslSettings)
+├── rocq2pycsl/         ← Rocq .v   → PyCSL annotations (Lark default; SerAPI stub)
+├── lean2pycsl/         ← Lean .lean → PyCSL annotations (Lark default; lean-script stub)
+└── pycsl_bridge/       ← reconcile rocq + lean dumps; emit dual-attributed Python
+    ├── canonicalizer/  ← IR → canonical IR (AC-flatten, alpha-rename, divides normal form)
+    ├── reconciler/     ← canonical multiset diff + status (reconciled/rocq-only/lean-only/disagreement)
+    └── linker/         ← pycsl-bridge.manifest.toml writer + drift checker
+```
+
+**Trust chain** (`pycsl-bridge-plan.md §5`):
+
+```text
+formal proof (Rocq or Lean)
+       ↓ extract
+shared pycsl_emit IR
+       ↓ canonicalize + reconcile (pycsl_bridge)
+PyCSL annotated Python  (with #@ proof rocq:/lean: provenance per §2.1.11)
+       ↓ run pycsl
+Why3 + SMT
+       ↓
+machine-checked verdict
+```
+
+The bridge closes the loop when *both* Rocq and Lean prove the same
+contract: their canonical IRs must agree before annotated Python is
+emitted. Disagreements surface as structured diffs in
+`format_disagreement`, halting the pipeline by default.
+
+### CLIs
+
+| Tool | Entry | Use |
+|------|-------|-----|
+| `rocq2pycsl` | `rocq2pycsl --config CFG [--backend lark\|serapi] [--ir-dump PATH]` | Rocq → PyCSL pipeline; `--ir-dump` produces JSON consumed by the bridge |
+| `lean2pycsl` | `lean2pycsl --config CFG [--backend lark\|lean-script] [--ir-dump PATH]` | Lean → PyCSL pipeline; same shape as above |
+| `pycsl-bridge` | `pycsl-bridge --rocq-config R --lean-config L --python-src P [--manifest M] [--on-disagreement halt\|warn\|force]` | Reconciles both sides; emits annotated Python + manifest |
+
+All three share `pycsl_emit` as their backend, so the IR is a single
+shared contract — modifications to it must be coordinated across all
+four packages (and reflected in `pycsl_emit/ir/json_io.py`'s schema
+version).
+
+### Tests
+
+Each package has its own `tests/` tree:
+
+- `src/pycsl_emit/tests/`         — IR round-trip, emitter goldens, checker
+- `src/rocq2pycsl/tests/`         — extractor + translator + golden (double)
+- `src/lean2pycsl/tests/`         — extractor + translator + golden (double)
+- `src/pycsl_bridge/tests/`       — canonicalizer + reconciler + manifest + end-to-end golden
+
+Run all four with:
+```bash
+PYTHONPATH=src python -m pytest src/pycsl_emit src/rocq2pycsl src/lean2pycsl src/pycsl_bridge
+```
+
+## 7. Library Stubs
 
 `data/lib_stubs/` contains Python files with `#@ \trusted` contracts for standard library modules. These provide specifications for functions like `math.sqrt`, `random.randint`, etc., so the prover can reason about external calls without verifying their implementations.
 
@@ -222,7 +313,7 @@ Convention:
 - `#@ \trusted` in stub files is permanent (these are axioms about external code)
 - `#@ \trusted` in user code marks genuinely unmodelable code (dict subscript assignment, external library types) — not for normal functions
 
-## 7. Test Suite Structure
+## 8. Test Suite Structure
 
 ### Reference Tests (`test-suite/corpus/pycsl-reference/`)
 
@@ -257,7 +348,7 @@ Runs tests through:
 1. **Static oracle** — compiles to WhyML and runs Why3/Alt-Ergo
 2. **Dynamic oracle** — instruments contracts as Python assertions and runs
 
-## 8. How to Add a New Feature to PyCSL
+## 9. How to Add a New Feature to PyCSL
 
 Follow this checklist in order:
 
@@ -282,6 +373,20 @@ Follow this checklist in order:
 - **IR**: Update `Module5_IREmitter.py` to emit the new construct
 - **WhyML**: Update `Module6_WhyMLTranspiler.py` to generate the WhyML output
 - **bin/ scripts**: If the feature adds or changes a script in `bin/`, update `README.md` (Usage section) — `bin/` scripts are user-facing tools and the README is the primary human documentation
+- **glossary terms**: If the feature introduces recurring verification
+  vocabulary, add or update the relevant page under `docs/glossary/` and then
+  prefer that terminology consistently across docs and skills
+- **normative references**: Update all three reference documents in `docs/`
+  following conventions in `config/skills/pycsl-docs/SKILL.md`:
+  - `docs/pycsl-concrete-syntax-reference.md` — add grammar productions (new atom
+    rows in §3.1 Atom Catalogue, new productions in §9 Complete Grammar, update §10.3 gap table)
+  - `docs/pycsl-static-semantics-reference.md` — add typing/scope rules (new §3.1.x
+    subsection with inference rules, ghost type mapping if applicable)
+  - `docs/pycsl-translational-reference.md` — add emission table entries in §T.8 or
+    the relevant section; update §T.11 gap codes; update §T.12 method index
+  - Bump **Version** in the preamble of each updated document
+  - Add `_Corresponds to annotations.md §N._` on each new section
+  - Add a gap code (G prefix) if any part of the feature is only partially translated
 
 ### Step 5: Update skill files
 
@@ -299,7 +404,7 @@ silently produce wrong output that fails at proof time.
 
 **Checklist — do not close a feature branch until all five rows are checked:**
 
-```
+```text
 [ ] pycsl-annotate/SKILL.md  — master skill updated
 [ ] contract-writer/SKILL.md — new memory-model section or new atoms added
 [ ] invariant-writer/SKILL.md — new memory-model loop rules added
@@ -336,7 +441,36 @@ Module4 rejects), and `agent-invariant-writer` to add loop variants to outer
 - Verify proof passes (exit code 0 from pycsl)
 - Review meta-agent outputs in `metrics/`
 
-## 9. Configuration
+**Worked example.** The `#@ proof <prover>: <qualname>` directive
+(annotations.md §2.1.11) was added end-to-end via this checklist
+together with the self-annotation infrastructure (§6 above). It
+ships as the first feature that exercises every step: Module2 grammar
+production, Module3 weaver field, Module5 IR emission, Module6 no-op
+translation, two reference tests (0331/0332), annotations.md row,
+traceability-pycsl.md row, three reference doc updates (concrete-
+syntax §2.1.11 + EBNF, static-semantics §2.1.11, translational
+§T.2.9), five skill reviews (this one + pycsl-annotate + contract-
+writer + invariant-writer + english-writer), and a RAG rebuild. Use
+that change as the canonical template for future feature additions.
+
+## 10. Known Why3 Library Quirks
+
+These are non-obvious Why3 facts that affect how PyCSL generates WhyML. Keep them in mind when modifying Module6 or debugging prover failures.
+
+| Fact | Notes |
+|---|---|
+| `map.Const` exports `const`, not `Map.const` | Use `(const 0)` for empty dict, `(const false)` for empty set |
+| `list.Nth` returns `option 'a` | Use `list.NthNoOpt` instead — exports `nth: int -> list 'a -> 'a` with direct axioms `nth_cons_0`/`nth_cons_n` that Alt-Ergo can instantiate |
+| `list.Mem` predicate is recursive | `\mem(x, l)` in loop invariants OOMs on both Alt-Ergo and Z3. Use `\nth(log, 0)` for head-tracking. When `\mem` is needed, PyCSL emits `axiom mem_head` to give the prover the head-match instantiation |
+| `fun (x: T) ->` in spec context | Why3 requires parenthesised parameter in lambda expressions used in invariants/specs |
+| `forall x: T. body` separator | Use `.` not `,` as the body separator in Why3 quantifiers |
+| Array mutation: `a[i] <- v` | NOT `a.(i) <- v`. In program context: `a[i] <- v`. In spec context: `a[i]` for read |
+| Ghost arrays are not refs | `let ghost snap = Array.make n 0` (no `ref`). Access: `snap[i]` (no `!`) |
+| `string.String` has no `^` operator | Use `concat s1 s2` (not `String.(^) s1 s2`). `String.length` is still the correct length function |
+| `Nil : list 'a` is polymorphic | When a `ghost_list` var is initialized with `\nil` and never used with integer ops, Why3 can't infer `list int`. PyCSL emits `(Nil: list int)` to fix this |
+| `\has_key(d, k)` is option-type | Emits `Map.get !d k <> None`. Ghost dicts use `map int (option int)` — a stored value of 0 is **present** (`Some 0`), not absent. Use `\map_remove(d, k)` to remove a key. |
+
+## 11. Configuration
 
 ### `config/agents-config.json`
 Contains model name, project directory path, and allowed tools for agent execution.
@@ -348,3 +482,16 @@ JSON schemas validating agent input/output formats (reconciliation recommendatio
 - Python virtual environment expected at `.venv/`
 - `pycsl` binary must be on PATH
 - Ollama must be running locally for RAG embedding generation
+
+## Glossary
+
+The `docs/glossary/` directory defines all recurring verification terms:
+[ghost code](../../docs/glossary/ghost-code.md) ·
+[ghost state](../../docs/glossary/ghost-state.md) ·
+[ghost lowering](../../docs/glossary/ghost-lowering.md) ·
+[witness](../../docs/glossary/witness.md) ·
+[verification condition](../../docs/glossary/verification-condition.md) ·
+[proof companion](../../docs/glossary/proof-companion.md) ·
+[reference test](../../docs/glossary/reference-test.md) ·
+[trusted stub](../../docs/glossary/trusted-stub.md) ·
+[memory model](../../docs/glossary/memory-model.md)

@@ -34,13 +34,14 @@ from __future__ import annotations
 
 import argparse
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
 
 from pycsl_emit.checker import Verdict, run_pycsl
 from pycsl_emit.config import Config, load_config
 from pycsl_emit.emitter import annotate_source
+from pycsl_emit.ir_dump import build_envelope, encode_contract
 from pycsl_emit.translator import render
 
 from .extractor import Backend, extract
@@ -58,11 +59,37 @@ class RunOutcome:
     annotated_source: str
     functions: dict[str, FunctionContract]
     verdict: Verdict | None  # None when --no-check or extraction failed
+    # Per-function metadata: which spec theorems became contracts.
+    # Used by --ir-dump and by the bridge to emit traceability.
+    theorems_by_qualname: dict[str, list[str]] = field(default_factory=dict)
 
 
 def main(argv: list[str] | None = None) -> int:
+    import json as _json
+
     parser = _build_parser()
     args = parser.parse_args(argv)
+
+    # --ir-dump short-circuits the annotated-Python emission path.
+    if args.ir_dump:
+        try:
+            envelope = dump_ir(
+                config_path=Path(args.config),
+                backend=Backend(args.backend),
+                strict=args.strict,
+                verbose=args.verbose,
+            )
+        except (FileNotFoundError, KeyError, ValueError) as e:
+            print(f"[!] rocq2pycsl: {e}", file=sys.stderr)
+            return 2
+        out_text = _json.dumps(envelope, indent=2)
+        if args.ir_dump == "-":
+            print(out_text)
+        else:
+            Path(args.ir_dump).write_text(out_text)
+            if args.verbose:
+                print(f"[+] wrote {args.ir_dump}")
+        return 0
 
     try:
         outcome = run(
@@ -86,6 +113,47 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
+def dump_ir(
+    *,
+    config_path: Path,
+    backend: Backend = Backend.LARK,
+    strict: bool = False,
+    verbose: bool = False,
+) -> dict:
+    """Run extraction + selection + translation; return the IR-dump envelope.
+
+    Stops before Python emission and pycsl verification — purely the
+    source-side contract pipeline. Used by `pycsl_bridge` to read
+    contracts without committing them to the Python tree.
+    """
+    cfg, contracts, theorems_by_q, source_path = _build_contracts(
+        config_path=config_path,
+        backend=backend,
+        strict=strict,
+        verbose=verbose,
+    )
+    functions = {
+        qualname: encode_contract(
+            python_name=cfg.functions[qualname].python_name,
+            theorems=theorems_by_q[qualname],
+            divides_style=cfg.functions[qualname].divides_style.value,
+            requires=c.requires,
+            ensures=c.ensures,
+            assigns=c.assigns,
+            variant=c.variant,
+            diverges=c.diverges,
+            unsupported=c.unsupported,
+            arg_map=dict(cfg.functions[qualname].arg_map.mapping),
+        )
+        for qualname, c in contracts.items()
+    }
+    return build_envelope(
+        provenance="rocq2pycsl",
+        source=str(source_path),
+        functions=functions,
+    )
+
+
 def run(
     *,
     config_path: Path,
@@ -97,26 +165,101 @@ def run(
 ) -> RunOutcome:
     """Programmatic API mirroring the CLI. Used by tests and by callers
     that want to consume the structured outcome."""
+    cfg, contracts, theorems_by_q, _rocq_path = _build_contracts(
+        config_path=config_path,
+        backend=backend,
+        strict=strict,
+        verbose=verbose,
+    )
+
+    # Phase 3: emit annotated Python.
+    python_path = _resolve(cfg.python, config_path)
+    output_path = _resolve(cfg.output, config_path)
+    annotated = _emit_all(python_path.read_text(), cfg, contracts)
+
+    if dry_run:
+        if verbose:
+            print(f"[*] --dry-run: not writing {output_path}")
+        return RunOutcome(
+            annotated_path=output_path,
+            annotated_source=annotated,
+            functions=contracts,
+            verdict=None,
+            theorems_by_qualname=theorems_by_q,
+        )
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(annotated)
+    if verbose:
+        print(f"[+] wrote {output_path}")
+
+    # Phase 4: verification round-trip.
+    if no_check:
+        return RunOutcome(
+            annotated_path=output_path,
+            annotated_source=annotated,
+            functions=contracts,
+            verdict=None,
+            theorems_by_qualname=theorems_by_q,
+        )
+
+    verdict = run_pycsl(
+        output_path,
+        extra_args=cfg.pycsl.cli_args(),
+        timeout=cfg.pycsl.timeout,
+    )
+    if verbose:
+        print(f"[*] pycsl: {verdict.summary()}")
+
+    return RunOutcome(
+        annotated_path=output_path,
+        annotated_source=annotated,
+        functions=contracts,
+        verdict=verdict,
+        theorems_by_qualname=theorems_by_q,
+    )
+
+
+def _build_contracts(
+    *,
+    config_path: Path,
+    backend: Backend,
+    strict: bool,
+    verbose: bool,
+) -> tuple[Config, dict[str, FunctionContract], dict[str, list[str]], Path]:
+    """Shared pipeline up through translation.
+
+    Returns the loaded config, the per-function contracts, the spec-
+    theorem names per qualname (for --ir-dump traceability), and the
+    resolved .v path. Both `run()` and `dump_ir()` build on this.
+    """
     cfg = load_config(config_path)
     rocq_path = _resolve_rocq_path(cfg, config_path)
 
-    # Phase 1: extract.
     mod = extract(rocq_path, backend=backend)
-    raw_source = Path(rocq_path).read_text()
+    raw_source = rocq_path.read_text()
     if verbose:
         print(
             f"[*] extracted {len(mod.theorems)} theorem(s) and "
             f"{len(mod.functions)} definition(s) from {rocq_path}"
         )
 
-    # Phase 2: translate each configured function.
     contracts: dict[str, FunctionContract] = {}
+    theorems_by_q: dict[str, list[str]] = {}
     for qualname, spec in cfg.functions.items():
-        func = mod.function(spec.python_name)
+        # The proof-side identifier comes from the section key first
+        # (so `[functions."BankAccount.deposit"]` with a `rocq_name`
+        # override works), falling back to python_name for backward
+        # compat with simple top-level definitions.
+        rocq_name = spec.raw.get("rocq_name") or _last_segment(qualname) or spec.python_name
+        func = mod.function(rocq_name)
+        if func is None:
+            # Fall back to python_name lookup for legacy fixtures.
+            func = mod.function(spec.python_name)
         if func is None:
             raise KeyError(
-                f"function {spec.python_name!r} not found in {rocq_path}; "
-                f"available: {[f.name for f in mod.functions]}"
+                f"function {rocq_name!r} (from qualname {qualname!r}) not found "
+                f"in {rocq_path}; available: {[f.name for f in mod.functions]}"
             )
         explicit = spec.raw.get("spec_theorems")
         sel = select(
@@ -144,50 +287,9 @@ def run(
             for thm, reason, _ in contract.unsupported:
                 print(f"    skipped {thm}: {reason}")
         contracts[qualname] = contract
+        theorems_by_q[qualname] = [t.name for t in sel.theorems]
 
-    # Phase 3: emit annotated Python.
-    python_path = _resolve(cfg.python, config_path)
-    output_path = _resolve(cfg.output, config_path)
-    annotated = _emit_all(python_path.read_text(), cfg, contracts)
-
-    if dry_run:
-        if verbose:
-            print(f"[*] --dry-run: not writing {output_path}")
-        return RunOutcome(
-            annotated_path=output_path,
-            annotated_source=annotated,
-            functions=contracts,
-            verdict=None,
-        )
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(annotated)
-    if verbose:
-        print(f"[+] wrote {output_path}")
-
-    # Phase 4: verification round-trip.
-    if no_check:
-        return RunOutcome(
-            annotated_path=output_path,
-            annotated_source=annotated,
-            functions=contracts,
-            verdict=None,
-        )
-
-    verdict = run_pycsl(
-        output_path,
-        extra_args=cfg.pycsl.cli_args(),
-        timeout=cfg.pycsl.timeout,
-    )
-    if verbose:
-        print(f"[*] pycsl: {verdict.summary()}")
-
-    return RunOutcome(
-        annotated_path=output_path,
-        annotated_source=annotated,
-        functions=contracts,
-        verdict=verdict,
-    )
+    return cfg, contracts, theorems_by_q, rocq_path
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -211,6 +313,12 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="Skip the pycsl round-trip after emission")
     p.add_argument("--strict", action="store_true",
                    help="Fail on any unsupported Gallina fragment")
+    p.add_argument(
+        "--ir-dump", metavar="PATH",
+        help='Emit the contract IR as JSON to PATH (use "-" for stdout). '
+             "Skips Python emission and pycsl verification; consumed by "
+             "pycsl-bridge.",
+    )
     p.add_argument("-v", "--verbose", action="store_true")
     return p
 
@@ -221,6 +329,13 @@ def _resolve(path_str: str, config_path: Path) -> Path:
     if p.is_absolute():
         return p
     return (config_path.parent / p).resolve()
+
+
+def _last_segment(qualname: str) -> str:
+    """`BankAccount.deposit` → `deposit`. Used to resolve a Coq function
+    name from a Python qualname when the config doesn't supply an
+    explicit `rocq_name` override."""
+    return qualname.rsplit(".", 1)[-1]
 
 
 def _resolve_rocq_path(cfg: Config, config_path: Path) -> Path:

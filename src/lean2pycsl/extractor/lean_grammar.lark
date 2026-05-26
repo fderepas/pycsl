@@ -31,12 +31,21 @@ binders: binder+
 typed_group_binder: "(" IDENT+ ":" type_expr ")"
 bare_binder: IDENT+
 
-type_expr: qident
+// Type expressions support type-constructor application (`List Nat`),
+// product types (`Nat × Nat` → `Nat * Nat` after normalization), and
+// arrow types (`Nat -> Bool`).
+type_expr: type_arrow
+?type_arrow: type_prod ("->" type_arrow)?       -> ty_arrow
+?type_prod:  type_app  (MUL_OP type_app)*        -> ty_prod
+type_app:   qident type_arg*
+?type_arg:  qident                               -> ty_arg_qident
+         |  NUMBER                               -> ty_arg_number
+         |  "(" type_arrow ")"                   -> ty_arg_paren
 
 ?iff_expr: impl_expr ("<->" iff_expr)?         -> iff
 ?impl_expr: or_expr ("->" impl_expr)?          -> impl
-?or_expr:   and_expr ("\\/" or_expr)?          -> orexp
-?and_expr:  not_expr ("/\\" and_expr)?         -> andexp
+?or_expr:   and_expr (OR_OP or_expr)?          -> orexp
+?and_expr:  not_expr (AND_OP and_expr)?        -> andexp
 ?not_expr:  "~" not_expr                       -> negation
          |  cmp_expr
 ?cmp_expr:  add_expr (CMP_OP add_expr)?        -> cmp
@@ -46,15 +55,28 @@ type_expr: qident
 ?uminus_expr: "-" uminus_expr                  -> neg
             | app_expr
 ?app_expr: atom (atom)*                        -> app_chain
-?atom: "(" expr ")"
-     | qident                                   -> var
-     | NUMBER                                   -> number
+?atom: postfix_atom
+
+// Lean method syntax: `(expr).fst`, `(expr).snd`, `l.length`. We accept
+// a chain of `.IDENT` suffixes after any base atom — these become
+// LApp("base.<IDENT>", (...)) in the AST, then the translator lowers
+// known suffixes (`fst`, `snd`, `length`) to Proj/Length.
+?postfix_atom: base_atom dot_suffix*
+?dot_suffix: "." IDENT                          -> dot_field
+?base_atom: "(" expr ")"
+          | qident                              -> var
+          | NUMBER                              -> number
 
 qident: IDENT ("." IDENT)*
 
+// `AND_OP`/`OR_OP` take priority 3 so they beat `MUL_OP` (`/`) lexically
+// when seeing `/\` or `\/` — otherwise the lexer would tokenize the
+// leading `/` as MUL_OP and fail on the rest.
+AND_OP.3: "/\\"
+OR_OP.3:  "\\/"
 CMP_OP: "<=" | ">=" | "<>" | "<" | ">" | "="
 ADD_OP: "+" | "-"
-MUL_OP.2: "*" | "%"
+MUL_OP.2: "*" | "/" | "%"
 
 IDENT: /[a-zA-Z_][a-zA-Z_0-9']*/
 NUMBER: /[0-9]+/

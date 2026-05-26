@@ -17,7 +17,18 @@ Place contracts as `#@` comments immediately before the `def` keyword, with NO b
 - `#@ assumes bounded_int(N)` — Bounded integer pragma (N = 32 or 64). All `int` params/locals become machine integers; arithmetic auto-generates overflow proof obligations.
 - `#@ raises ExcType when <cond>` — Exceptional postcondition. Declares that the function may raise `ExcType` when `cond` holds.
 - `#@ ghost <name> = <expr>` — Ghost variable declaration/assignment. Place before any statement. First occurrence declares; subsequent reassign.
-- `#@ ghost <name> += <expr>` — Ghost augmented assignment (`+=`, `-=`, `*=`). Ghost variables exist only in verification; erased at extraction. Usable in contracts and loop invariants.
+- `#@ ghost <name> : <type> = <expr>` — Typed ghost variable. Types: `int` (default), `string`, `array`, `ghost_dict`, `ghost_list`, `ghost_set`, `tuple2`, `tuple3`, `tuple4`.
+- `#@ ghost <name> += <expr>` — Ghost augmented assignment. For `int`/`ghost_list`/`ghost_set`/`ghost_dict`. Shorthands: `ghost l += x` prepends to list; `ghost d += \mktuple(k, v)` map-sets dict. Ghost variables exist only in verification; erased at extraction. Usable in contracts and loop invariants.
+- Ghost string atoms: `s ^ t` (concat — emits Why3 `concat s t`), `\str_length(s)`, `\str_sub(s, lo, hi)`.
+- Ghost set atoms: `\set_union(s1, s2)`, `\set_inter(s1, s2)`, `\set_diff(s1, s2)`, `\set_subset(s1, s2)`, `\set_eq(s1, s2)`.
+- Ghost array atoms: `snap[i]` (read element at index `i` — valid in contracts and invariants), `\make(n, v)` (create), `\copy(arr)` (full snapshot), `\copy_range(arr, lo, hi)` (bounded snapshot: `arr[lo..hi-1]`; requires `0 <= lo <= hi <= \length(arr)`). Element write: `#@ ghost snap[i] = expr`.
+- Ghost dict atoms: `\has_key(d, k)` — true iff key k is present (option-type design: safe even when 0 is a valid stored value). `\map_remove(d, k)` — remove key k (set to absent). `\map_get(d, k)` returns 0 for absent keys. Useful in `requires`/`ensures` to reason about key presence.
+- Ghost list atoms (in invariants): `\nth(log, 0)` tracks head (provable); `\list_length(log)` tracks count; `\append(l1, l2)` concatenates two lists; `\list_length(\append(a, b))` is provable. AVOID `\mem(x, l)` — causes prover OOM.
+
+**Terminology note:** ghost arrays created with `\copy(arr)` are typically used
+as **snapshots / views** of the original runtime state. When a contract benefits
+from explicit ghost evidence, prefer that local snapshot-style reasoning to
+broader global claims.
 
 ### Allowed in expressions
 
@@ -163,6 +174,10 @@ def next_value(n: int) -> int:
 ## Output Format
 
 Output ONLY the contract lines (each starting with `#@`), one per line. Do NOT output the function body, do NOT output ```python fences, do NOT add commentary.
+
+**NEVER emit `#@ proof rocq: …` / `#@ proof lean: …` lines.** Those are
+provenance trace directives produced *only* by `pycsl-bridge`
+(annotations.md §2.1.11), not by the contract-writer.
 
 Example output:
 ```python

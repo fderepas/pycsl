@@ -1,7 +1,7 @@
 # PyCSL Concrete Syntax Reference
 
 **Status:** Normative  
-**Version:** 1.0  
+**Version:** 1.3  
 **Source of truth:** This document is the canonical specification of PyCSL's
 concrete syntax. It is derived from the implemented grammar in
 `src/pycsl/Module2_Parser.py` and cross-referenced against
@@ -98,10 +98,71 @@ _Corresponds to `annotations.md` §2.1._
 | 2.1.8 | Bounded integers | `bounded_int_decl ::= "assumes" "bounded_int" "(" NUMBER ")" ;` |
 | 2.1.9 | Raises | `raises_decl ::= "raises" CNAME "when" expr ;` |
 | 2.1.10| Thread entry | `thread_entry_decl ::= "thread_entry" ;` |
+| 2.1.11| Proof attribution | `proof_attribution ::= "proof" prover_id ":" qualname ;` where `prover_id ::= "rocq" \| "lean"` and `qualname ::= CNAME ("." CNAME)*` |
+| 2.1.12| Axiom from proof | `axiom_from_decl ::= "axiom_from" prover_id qualname ;` where `prover_id ::= "rocq" \| "lean"` and `qualname ::= CNAME ("." CNAME)*` |
 
 **Conjunction rule:** Multiple `requires` lines are logically conjoined
 (all must hold at entry). Multiple `ensures` lines are logically conjoined
-(all must hold at exit).
+(all must hold at exit). Multiple `proof_attribution` lines accumulate
+(one per source theorem; informational).
+
+_Corresponds to `annotations.md` §2.1.11._
+
+**Proof-attribution note:** The `proof` directive is informational —
+the parser accepts it, the IR records it, but `Module6_WhyMLTranspiler`
+emits no WhyML for it. The intended emitter is `pycsl-bridge`; hand
+authoring is permitted but unusual. See
+`pycsl-translational-reference.md §T.2` for the empty translation rule
+and `pycsl-static-semantics-reference.md §2.1.11` for the (trivial)
+well-formedness rule.
+
+**Companion-proof file layout** (project convention, not a grammar
+rule). When a reference test `NNNN.py` ships hand-written external
+proofs, they live under `test-suite/corpus/pycsl-reference/NNNN.proofs/`
+in the following layout:
+
+```
+NNNN.py
+NNNN.proofs/
+  rocq/<file>.v       — Coq theorems; `Theorem <name> : …` per directive
+  lean/<file>.lean    — Lean theorems; `theorem <name> : …` per directive
+  README.md           — (optional) directory documentation
+```
+
+A `#@ proof rocq: <qualname>` line is expected to match a theorem of
+the same `<qualname>` inside `NNNN.proofs/rocq/`; likewise for Lean.
+PyCSL does not enforce this — the qualname stays opaque to the
+parser and to `Module2_Parser`. **Worked example:**
+`test-suite/corpus/pycsl-reference/0342.py` (Euclidean GCD) with
+proofs under `0342.proofs/rocq/gcd.v` and `0342.proofs/lean/Gcd.lean`.
+
+#### §2.1.12 Axiom from Proof (`axiom_from`) — Rocq + Lean as Cross-Validated Spec Sources
+
+```ebnf
+axiom_from_decl ::= "axiom_from" prover_id qualname ;
+prover_id       ::= "rocq" | "lean" ;
+qualname        ::= CNAME ("." CNAME)* ;
+```
+
+Imports a theorem proved in Rocq or Lean as a **Why3 axiom** in the
+generated WhyML preamble. Unlike `proof` (§2.1.11, informational only),
+`axiom_from` has semantic effect: the `proof2why3` tool extracts the
+theorem statement, canonicalizes it, and emits it as `axiom pycsl_axiom_<target>`.
+
+**Cross-validation.** When both `#@ axiom_from rocq <q>` and
+`#@ axiom_from lean <q>` appear for the same `pycsl_target` name, the
+`proof2why3 cross-check` step verifies that both theorem statements have
+equal canonical forms (alpha-normalized, AC-flattened, `nat`/`Nat` →
+`int + ≥ 0`). This is the **"Rocq + Lean as Cross-Validated Spec
+Sources"** pattern: two independent proof-assistant kernels must agree on
+the specification before it enters the Why3 verification.
+
+**Scope:** Module-level (placed before any function definition).
+
+**Note:** No colon separator between `prover_id` and `qualname` (unlike
+`proof` which uses `proof rocq: name`).
+
+_Corresponds to `annotations.md` §2.1.12._
 
 #### Examples
 
@@ -181,6 +242,7 @@ _Corresponds to `annotations.md` §2.4._
 |-------|-----------|-----------|
 | 2.4.1 | Label | `label_decl ::= "label" CNAME ;` |
 | 2.4.2 | Ghost assign | `ghost_assign ::= "ghost" CNAME "=" expr ;` |
+| 2.4.2b | Typed ghost declaration | `ghost_typed_assign ::= "ghost" CNAME ":" ghost_type "=" expr ;` where `ghost_type ::= "int" \| "string" \| "array" \| "ghost_dict" \| "ghost_list" \| "ghost_set" \| "tuple2" \| "tuple3" \| "tuple4" ;` |
 | 2.4.3 | Ghost augmented assign | `ghost_aug_assign ::= "ghost" CNAME GHOST_AUG_OP expr ;` |
 | 2.4.4 | Critical section | `critical_decl ::= "critical" mutex_expr ;` |
 | 2.4.5 | Acquires | `acquires_decl ::= "acquires" mutex_expr ;` |
@@ -284,6 +346,14 @@ top-to-bottom. Longer prefixes must appear before shorter ones:
 | 3.1.18 | `True`, `False` | `CSLBool` | Boolean literals. |
 | 3.1.19 | `None` | `CSLNone` | None literal. Maps to `0` in WhyML. |
 | 3.1.20 | `arr[lo:hi]` | `CSLSlice` | Array slice. The array name is a `CNAME`; both bounds are `expr`. |
+| 3.1.21 | `\empty_map` | `MapEmptyExpr` | Empty ghost dict literal. Returns a map where all keys are absent. No arguments. |
+| 3.1.22 | `\map_get(d, k)` | `MapGetExpr` | Ghost dict get. Returns the value stored at key `k` in dict `d`, or 0 if absent. Both arguments are `expr`. |
+| 3.1.23 | `\map_set(d, k, v)` | `MapSetExpr` | Ghost dict set. Returns a new dict with key `k` mapped to value `v`. All three arguments are `expr`. |
+| 3.1.24 | `\map_remove(d, k)` | `MapRemoveExpr` | Ghost dict remove. Returns a new dict with key `k` set to absent. Both arguments are `expr`. |
+| 3.1.25 | `\has_key(d, k)` | `HasKeyExpr` | Ghost dict membership. True iff key `k` is present in dict `d`. Both arguments are `expr`. |
+| 3.1.26 | `\map_eq(d1, d2)` | `MapEqExpr` | Ghost dict extensional equality. True iff `d1` and `d2` agree on every key. Both arguments are `expr`. |
+
+_Corresponds to `annotations.md` §11.2._
 
 ### 3.2 Operators (by precedence, lowest first)
 
@@ -702,6 +772,7 @@ contract ::= precondition
            | ghost_aug_assign
            | raises_decl
            | bounded_int_decl
+           | proof_attribution
            | shared_decl
            | thread_entry_decl
            | acquires_decl
@@ -721,6 +792,9 @@ diverges_decl               ::= "\diverges" ;
 trusted_decl                ::= "\trusted" ;
 raises_decl                 ::= "raises" CNAME "when" expr ;
 bounded_int_decl            ::= "assumes" "bounded_int" "(" NUMBER ")" ;
+proof_attribution           ::= "proof" prover_id ":" qualname ;
+prover_id                   ::= "rocq" | "lean" ;
+qualname                    ::= CNAME ( "." CNAME )* ;
 
 (* --- §2.2  Loop Contracts --------------------------------- *)
 
@@ -733,9 +807,14 @@ class_invariant ::= "class" "invariant" expr ;
 
 (* --- §2.4  Program Point Annotations ---------------------- *)
 
-label_decl      ::= "label" CNAME ;
-ghost_assign    ::= "ghost" CNAME "=" expr ;
-ghost_aug_assign::= "ghost" CNAME GHOST_AUG_OP expr ;
+label_decl         ::= "label" CNAME ;
+ghost_assign       ::= "ghost" CNAME "=" expr ;
+ghost_typed_assign ::= "ghost" CNAME ":" ghost_type "=" expr ;
+ghost_aug_assign   ::= "ghost" CNAME GHOST_AUG_OP expr ;
+
+ghost_type ::= "int" | "string" | "array" | "ghost_dict"
+             | "ghost_list" | "ghost_set"
+             | "tuple2" | "tuple3" | "tuple4" ;
 
 (* --- §3.4  Assigns Targets -------------------------------- *)
 
@@ -817,6 +896,12 @@ atom ::= NUMBER
        | "\at" "(" expr "," CNAME ")"
        | "\length2d" "(" CNAME "," expr "," expr ")"
        | "\valid2d" "(" CNAME "," expr "," expr ")"
+       | "\empty_map"
+       | "\map_get"    "(" expr "," expr ")"
+       | "\map_set"    "(" expr "," expr "," expr ")"
+       | "\map_remove" "(" expr "," expr ")"
+       | "\has_key"    "(" expr "," expr ")"
+       | "\map_eq"     "(" expr "," expr ")"
        | "(" expr ")" ;
 
 expr_list ::= expr ( "," expr )* ;
@@ -888,6 +973,8 @@ unary operator.
 | Feature | annotations.md | Status |
 |---------|---------------|--------|
 | Chained subscript `arr[i][j]` | §3.1 only shows `arr[i]` (row 4) | **Now implemented.** Added as §3.1.4b in this reference. `annotations.md` should be updated. |
+| Typed ghost declaration (`ghost x : T = e`) | §11.1 | **Added as §2.4.2b in v1.1.** Productions: `ghost_typed_assign`, `ghost_type`. |
+| Ghost dict atoms (`\empty_map`, `\map_get`, `\map_set`, `\map_remove`, `\has_key`, `\map_eq`) | §11.2 | **Added as §3.1.21–3.1.26 in v1.1.** Corresponds to `MapEmptyExpr`…`MapEqExpr` in `Module2_Parser.py`. |
 
 ### 10.4 Normalization Notes (Lark → EBNF)
 

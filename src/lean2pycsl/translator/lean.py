@@ -33,6 +33,15 @@ from pycsl_emit.ir import (
     Result,
     UnaryOp,
     Var,
+    Length,
+    Nth,
+    Tuple as IRTuple,
+    Proj,
+    MapGet,
+    StrConcat,
+    StrLength,
+    StrSub,
+    FieldGet,
 )
 
 from ..extractor.lean_ast import (
@@ -104,8 +113,13 @@ _NONNEG_TYPES = frozenset({"Nat"})
 # the §5.7 "type-class quantification" rejection.
 _SUPPORTED_TYPES = frozenset({
     "Nat", "Int", "Bool", "Prop", "Z",   # Z is a Lean alias users sometimes write
+    "String",                             # Lean's native String type
     "_",                                  # unknown from bare binders — let it through
 })
+
+# Polymorphic type constructors we recognize as supported (their argument
+# can be any supported type — we don't recursively check it in v1).
+_POLYMORPHIC_HEADS = frozenset({"List", "Array", "Option"})
 
 
 class TranslationError(ValueError):
@@ -149,9 +163,18 @@ def translate_function(
         contract.ensures.extend(ensures_nodes)
 
     # Nat-typed explicit params → requires p >= 0.
+    # Bool-typed explicit params → requires (p == 0) or (p == 1).
     for name, ty in explicit_params:
         if ty in _NONNEG_TYPES:
             contract.requires.append(BinOp(">=", Var(name), Lit(0)))
+        elif ty == "Bool":
+            contract.requires.append(
+                BinOp(
+                    "or",
+                    BinOp("==", Var(name), Lit(0)),
+                    BinOp("==", Var(name), Lit(1)),
+                )
+            )
 
     if func.is_partial:
         contract.diverges = True
@@ -245,17 +268,31 @@ def _looks_like_type_class(ty: str) -> bool:
     """Heuristic: anything with uppercase-letter head that isn't in
     the supported list is treated as a type-class quantification.
 
-    Conservative: `Nat → Bool` or `Nat × Nat` would also fail here, but
-    those aren't in the v1 supported subset anyway.
+    Accepts polymorphic types (`List Nat`, `Array Nat`, `Option Nat`),
+    arrow types (`Nat -> Bool`, `Nat -> Option Nat`), and product types
+    (`Nat * Nat`) — these are all needed for the corpus' compound data
+    types and aren't real type classes.
     """
     ty = ty.strip()
     if ty in _SUPPORTED_TYPES:
         return False
     if not ty:
         return False
+    # Arrow and product types: split on the top-level operator and
+    # accept if both sides are themselves supported.
+    if "->" in ty:
+        # Conservative: any arrow type is allowed (Lean would have
+        # caught a real type-class error upstream during elaboration).
+        return False
+    if " * " in ty:
+        return False
+    # Polymorphic-constructor application: `List Nat`, `Array Nat`,
+    # `Option Nat`, `Vector Nat 3`, etc.
+    head = ty.split()[0]
+    if head in _POLYMORPHIC_HEADS:
+        return False
     # If the type *starts* with an uppercase letter and isn't on the
     # whitelist, assume it's a type class / structure / inductive.
-    head = ty.split()[0]
     return head[0].isupper()
 
 
@@ -276,6 +313,23 @@ def _lower(
             return Lit(True)
         if node.name == "False":
             return Lit(False)
+        # Lean dot syntax: `t.fst`, `t.snd`, `l.length`, `r.field_name`.
+        # The parser emits these as qident LVars; recognize and lower.
+        if "." in node.name:
+            base, _, suffix = node.name.rpartition(".")
+            # Don't intercept fully-qualified names like `List.nil` —
+            # those are not field access. We use a simple heuristic:
+            # the base must be a bare identifier (no dots) AND start
+            # with a lowercase letter (likely a variable, not a module).
+            if base and "." not in base and base[0].islower():
+                if suffix == "length":
+                    return Length(arr=Var(base))
+                if suffix == "fst":
+                    return Proj(t=Var(base), i=0)
+                if suffix == "snd":
+                    return Proj(t=Var(base), i=1)
+                # Generic field access (works for class instances).
+                return FieldGet(obj=Var(base), name=suffix)
         return Var(node.name)
     if isinstance(node, LLit):
         return Lit(node.value)
@@ -331,16 +385,84 @@ def _lower_app(
     """Lower a Lean application, substituting `\\result` where appropriate.
 
     `func.name applied to absorbed params in declaration order` becomes
-    a `Result()` placeholder. Other applications become regular IR.App.
+    a `Result()` placeholder. Recognized Lean operators map to the IR
+    nodes from Phase 1. Anything else becomes a generic IR.App.
     """
     if node.fn == func.name and _matches_absorbed_args(node.args, func_param_names, absorbed):
         return Result()
+
+    def lo(a):
+        return _lower(a, func, func_param_names, absorbed=absorbed)
+
+    fn = node.fn
+    args = node.args
+
+    # ── List / array operations ──────────────────────────────────────
+    if fn in ("List.length", "Array.size") and len(args) == 1:
+        return Length(arr=lo(args[0]))
+    # `List.nth l i` or `Array.get arr i` — Lean signature.
+    if fn in ("List.nth", "List.get", "Array.get") and len(args) == 2:
+        return Nth(arr=lo(args[0]), i=lo(args[1]))
+    # Lean's `l.get! i` style → after dot-syntax lowering this arrives
+    # as `LApp("l.get", (i,))` — we recognize by checking the fn suffix.
+    if "." in fn and len(args) == 1:
+        base, _, suffix = fn.rpartition(".")
+        if suffix in ("get", "get!", "getD") and base and base[0].islower():
+            return Nth(arr=Var(base), i=lo(args[0]))
+    if fn in ("List.append", "Array.append") and len(args) == 2:
+        from pycsl_emit.ir import ListAppend
+        return ListAppend(l1=lo(args[0]), l2=lo(args[1]))
+    if fn in ("List.cons",) and len(args) == 2:
+        from pycsl_emit.ir import ListCons
+        return ListCons(head=lo(args[0]), tail=lo(args[1]))
+
+    # ── Tuple / pair operations ──────────────────────────────────────
+    if fn in ("Prod.fst", "Prod.mk.fst") and len(args) == 1:
+        return Proj(t=lo(args[0]), i=0)
+    if fn in ("Prod.snd",) and len(args) == 1:
+        return Proj(t=lo(args[0]), i=1)
+    if fn in ("Prod.mk",) and len(args) == 2:
+        return IRTuple(args=(lo(args[0]), lo(args[1])))
+
+    # ── String operations ────────────────────────────────────────────
+    if fn in ("String.length",) and len(args) == 1:
+        return StrLength(s=lo(args[0]))
+    if fn in ("String.append",) and len(args) == 2:
+        return StrConcat(a=lo(args[0]), b=lo(args[1]))
+    if fn in ("String.extract",) and len(args) == 3:
+        return StrSub(s=lo(args[0]), lo=lo(args[1]), hi=lo(args[2]))
+
+    # ── Boolean operations ───────────────────────────────────────────
+    # Lean's Bool operators in the 0/1 encoding.
+    if fn in ("Bool.and", "and") and len(args) == 2:
+        return BinOp(op="*", lhs=lo(args[0]), rhs=lo(args[1]))
+    if fn in ("Bool.or", "or") and len(args) == 2:
+        a_ir = lo(args[0])
+        b_ir = lo(args[1])
+        return BinOp(
+            op="-",
+            lhs=BinOp(op="+", lhs=a_ir, rhs=b_ir),
+            rhs=BinOp(op="*", lhs=a_ir, rhs=b_ir),
+        )
+    if fn in ("Bool.not", "not") and len(args) == 1:
+        return BinOp(op="-", lhs=Lit(1), rhs=lo(args[0]))
+    if fn in ("Bool.xor", "Bool.bne") and len(args) == 2:
+        a_ir = lo(args[0])
+        b_ir = lo(args[1])
+        return BinOp(
+            op="-",
+            lhs=BinOp(op="+", lhs=a_ir, rhs=b_ir),
+            rhs=BinOp(
+                op="*",
+                lhs=Lit(2),
+                rhs=BinOp(op="*", lhs=a_ir, rhs=b_ir),
+            ),
+        )
+
+    # Fallback: generic application.
     return App(
-        fn=node.fn,
-        args=tuple(
-            _lower(a, func, func_param_names, absorbed=absorbed)
-            for a in node.args
-        ),
+        fn=fn,
+        args=tuple(lo(a) for a in args),
     )
 
 

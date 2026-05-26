@@ -68,7 +68,7 @@ Do quick wins first — they build confidence, reduce noise, and don't conflict 
 A god method mixes concerns. The fix is to identify the natural **phases** in the body and extract each as a private helper.
 
 **Step 1 — name the phases.** Read the function and write a comment outline:
-```
+```python
 # Phase 1: parse and validate arguments
 # Phase 2: run the pipeline (returns result)
 # Phase 3: write outputs and run proofs

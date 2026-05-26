@@ -64,6 +64,7 @@ _UNICODE_OPS: list[tuple[str, str]] = [
     ("≤",   " <= "),
     ("≥",   " >= "),
     ("∣",   " | "),    # divides
+    ("×",   " * "),    # product type
 ]
 
 
@@ -71,6 +72,18 @@ def normalize_unicode(s: str) -> str:
     for u, ascii_ in _UNICODE_OPS:
         s = s.replace(u, ascii_)
     return s
+
+
+# Lean method syntax mapping: when a method name follows a compound
+# expression (e.g. `(divmod_pair a b).fst`), rewrite to the canonical
+# function form so the translator's `_lower_app` arms catch it.
+_METHOD_TO_FUNCTION: dict[str, str] = {
+    "fst":    "Prod.fst",
+    "snd":    "Prod.snd",
+    "length": "List.length",
+    "size":   "Array.size",
+    "append": "List.append",
+}
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -395,8 +408,28 @@ class _AstBuilder(Transformer):
     def qident(self, *parts: Token) -> str:
         return ".".join(str(p) for p in parts)
 
-    def type_expr(self, name: str) -> str:
+    def type_expr(self, ty: str) -> str:
+        return ty
+
+    def ty_arrow(self, *parts: str) -> str:
+        return " -> ".join(p for p in parts)
+
+    def ty_prod(self, *parts) -> str:
+        return " * ".join(p for p in parts if not isinstance(p, Token))
+
+    def type_app(self, head: str, *args: str) -> str:
+        if not args:
+            return head
+        return head + " " + " ".join(args)
+
+    def ty_arg_qident(self, name: str) -> str:
         return name
+
+    def ty_arg_number(self, tok: Token) -> str:
+        return str(tok)
+
+    def ty_arg_paren(self, inner: str) -> str:
+        return f"({inner})"
 
     # ── binders inside expressions ─────────────────────────────────────
 
@@ -424,6 +457,33 @@ class _AstBuilder(Transformer):
             reason="higher-order application",
             raw=str(head),
         )
+
+    # ── method syntax: `(expr).fst` / `l.length` ─────────────────────
+
+    def dot_field(self, name: Token) -> str:
+        """Lark callback for a `.IDENT` suffix — return just the field name."""
+        return str(name)
+
+    def postfix_atom(self, base: LeanNode, *fields: str) -> LeanNode:
+        """Apply chained `.field` suffixes to a base atom.
+
+        - `t.fst`  on `LVar("t")` → `LVar("t.fst")` (qident-style; the
+          translator's dot-syntax recognizer handles it downstream).
+        - `(expr).fst` on a compound base → `LApp("Prod.fst", (base,))`
+          so the translator's `_lower_app` path catches it.
+        """
+        cur = base
+        for field in fields:
+            if isinstance(cur, LVar):
+                # Append to the qident so the dot-syntax path in the
+                # translator recognizes it as a single dotted name.
+                cur = LVar(name=f"{cur.name}.{field}")
+            else:
+                # Compound base — map field name to the canonical Lean
+                # `Prod.fst` / `Prod.snd` / etc. and apply as a function.
+                fn_name = _METHOD_TO_FUNCTION.get(field, f"_field.{field}")
+                cur = LApp(fn=fn_name, args=(cur,))
+        return cur
 
     # ── arithmetic chains ─────────────────────────────────────────────
 
@@ -453,15 +513,24 @@ class _AstBuilder(Transformer):
         return LUnaryOp(op="~", arg=operand)
 
     def andexp(self, lhs: LeanNode, *rest) -> LeanNode:
+        # rest is either () or (AND_OP_token, rhs).
         if not rest:
             return lhs
-        (rhs,) = rest
+        # Strip any literal-operator token (priority-3 named terminals
+        # appear here when the grammar rule references them by name).
+        operands = [x for x in rest if not isinstance(x, Token)]
+        if not operands:
+            return lhs
+        (rhs,) = operands
         return LBinOp(op="/\\", lhs=lhs, rhs=rhs)
 
     def orexp(self, lhs: LeanNode, *rest) -> LeanNode:
         if not rest:
             return lhs
-        (rhs,) = rest
+        operands = [x for x in rest if not isinstance(x, Token)]
+        if not operands:
+            return lhs
+        (rhs,) = operands
         return LBinOp(op="\\/", lhs=lhs, rhs=rhs)
 
     def impl(self, lhs: LeanNode, *rest) -> LeanNode:

@@ -1,5 +1,5 @@
 """Test 0273 — Concurrent: multiple unprotected shared variables"""
-# pycsl-flags: --no-proof --memory-model concurrent
+# pycsl-flags:  --memory-model concurrent
 #@ shared debug_mode
 #@ shared trace_mode
 _ = 0  # anchor

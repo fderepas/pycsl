@@ -1,7 +1,7 @@
 # PyCSL Static Semantics Reference
 
 **Status:** Normative  
-**Version:** 1.0  
+**Version:** 1.3  
 **Source of truth:** This document specifies the well-formedness rules that
 determine which syntactically valid PyCSL annotations are accepted or
 rejected. It is derived from the implemented checks in
@@ -277,6 +277,83 @@ scope. `\result` is NOT allowed in the condition (checked via
 when `--memory-model concurrent` is active. No static check is performed
 on the memory model at Module4 level.
 
+#### §2.1.11 Proof Attribution (`proof`)
+
+```
+   ──────────────────────────────────────────────
+    Γ_f ⊢ proof(prover, qualname) : ok
+```
+
+**Rule:** Always well-formed. `prover` is restricted to `{rocq, lean}`
+by the grammar terminal (a parse error rejects any other identifier),
+so the static analyzer has no additional check to perform. The
+`qualname` is opaque: PyCSL never resolves it; only the originating
+formalism (Rocq or Lean) and the bridge (`pycsl-bridge`) interpret it.
+
+**Implementation:** `Module3_Weaver` attaches each `ProofAttribution`
+to `ast.FunctionDef.csl_proof_attributions: list[ProofAttribution]`
+(mirroring the `csl_assigns`/`csl_raises` pattern).
+`Module4_SemanticAnalyzer` performs no additional check.
+`Module5_IREmitter` round-trips the entries into a `proof_attributions`
+list inside the function IR. `Module6_WhyMLTranspiler` reads the field
+solely to round-trip it for `pycsl_bridge`; it emits no WhyML.
+
+**No new error codes** — the grammar terminal already filters bad
+prover names, and `qualname` accepts any dotted identifier path.
+
+**Companion-proof file layout** (project convention). The static
+semantics give no meaning to `qualname`. As a project-level
+discipline (introduced 2026-05-26, documented in
+`pycsl-concrete-syntax-reference.md §2.1.11`), reference tests that
+ship hand-written external proofs place them under
+`test-suite/corpus/pycsl-reference/NNNN.proofs/{rocq,lean}/<file>.{v,lean}`
+with theorem names matching each directive's `qualname`. The typing
+rule above remains unchanged — this convention is for human and
+future-tooling audit, not for the type-checker. **Worked example:**
+`test-suite/corpus/pycsl-reference/0342.py` with proofs under
+`0342.proofs/`.
+
+_Corresponds to `annotations.md` §2.1.11._
+
+#### §2.1.12 Axiom from Proof (`axiom_from`) — Rocq + Lean as Cross-Validated Spec Sources
+
+```
+    prover ∈ {rocq, lean}      qualname: dotted identifier
+   ──────────────────────────────────────────────────────────
+    Γ_module ⊢ axiom_from(prover, qualname) : ok
+```
+
+**Rule:** Always well-formed syntactically. `prover` is restricted to
+`{rocq, lean}` by the grammar terminal. The `qualname` is opaque to PyCSL
+— resolution is delegated to the `proof2why3` tool which extracts the
+named theorem from the companion proof sources.
+
+**Scope:** Module-level. Unlike function-level directives (§2.1.1–2.1.11),
+`axiom_from` is not attached to a function — it declares a theory-level
+axiom available to the entire module.
+
+**Implementation:** `Module2_Parser` records each `axiom_from` as an
+`AxiomFromDecl(prover, qualname)` AST node. `Module3_Weaver` collects
+them into the module-level IR. `Module5_IREmitter` serializes them.
+`Module6_WhyMLTranspiler` invokes `proof2why3 emit` for each entry,
+producing `axiom pycsl_axiom_<target> : …` in the WhyML preamble.
+
+**Cross-validation semantics ("Rocq + Lean as Cross-Validated Spec
+Sources").** When both a `rocq` and a `lean` directive reference the same
+`pycsl_target` name, the `proof2why3 cross-check` tool extracts both
+theorem statements, canonicalizes them (alpha-normalize, AC-flatten,
+`nat`/`Nat` → `int + ≥ 0`), and verifies equality. If the canonical
+forms differ, the cross-check exits with a `disagreement` status and a
+structured diff — the pipeline halts rather than emit a potentially
+unsound axiom.
+
+**No new error codes** at the PyCSL static-analysis level — validation
+is deferred to `proof2why3`. If the proof source cannot be found or
+the `pycsl_target` attribute is missing, `proof2why3` raises an error
+during Module6's preamble emission phase.
+
+_Corresponds to `annotations.md` §2.1.12._
+
 ### 2.2 Loop Contracts
 
 _Corresponds to `annotations.md` §2.2._
@@ -366,6 +443,37 @@ checks).
 **Implementation note:** Ghost variables are collected during
 `_build_function_scope`. The first `ghost x = expr` declares the variable;
 subsequent `ghost x += expr` modify it.
+
+#### §2.4.2b Typed Ghost Declaration (`ghost x : T = expr`)
+
+```
+    ghost_type T ∈ {int, string, array, ghost_dict, ghost_list,
+                    ghost_set, tuple2, tuple3, tuple4}
+    Γ_f ⊢ expr : ok
+   ───────────────────────────────────────────────────────────
+    Γ_f ⊢ ghost_typed_assign(x, T, expr) : ok
+    with Γ_ghost[x ↦ T]
+```
+
+**Ghost type to WhyML type mapping (τ_ghost):**
+
+| Ghost type | WhyML type |
+|---|---|
+| `int` | `ref int` |
+| `string` | `ref string` |
+| `array` | `array int` (not a ref) |
+| `ghost_dict` | `ref (map int (option int))` |
+| `ghost_list` | `ref (list int)` |
+| `ghost_set` | `ref (map int bool)` |
+| `tuple2` | `ref (int, int)` |
+| `tuple3` | `ref (int, int, int)` |
+| `tuple4` | `ref (int, int, int, int)` |
+
+**Rule:** The declared ghost type must be one of the nine supported type
+keywords. The initial expression must be well-formed. Subsequent `ghost x = e`
+and `ghost x += e` treat `x` as having the declared type.
+
+_Corresponds to `annotations.md` §11.1._
 
 #### §2.4.3 Ghost Augmented Assign (`ghost x += expr`)
 
@@ -657,6 +765,70 @@ Always well-formed.
 ```
 
 The array name and both bounds are checked via variable extraction.
+
+#### §3.1.21 Empty Map (`\empty_map`)
+
+```
+   ──────────────────────
+    Γ_f ⊢ \empty_map : ok
+```
+
+Unconditionally well-formed. Lowers to `const (None: option int)` in WhyML.
+
+#### §3.1.22 Map Get (`\map_get(d, k)`)
+
+```
+    Γ_f ⊢ d : ok       Γ_f ⊢ k : ok
+   ────────────────────────────────────
+    Γ_f ⊢ \map_get(d, k) : ok
+```
+
+Both the dict expression and key must be well-formed. No type constraint
+is enforced at Module4 — `d` is expected to be a `ghost_dict`-typed variable.
+
+#### §3.1.23 Map Set (`\map_set(d, k, v)`)
+
+```
+    Γ_f ⊢ d : ok       Γ_f ⊢ k : ok       Γ_f ⊢ v : ok
+   ────────────────────────────────────────────────────────
+    Γ_f ⊢ \map_set(d, k, v) : ok
+```
+
+All three arguments must be well-formed.
+
+#### §3.1.24 Map Remove (`\map_remove(d, k)`)
+
+```
+    Γ_f ⊢ d : ok       Γ_f ⊢ k : ok
+   ────────────────────────────────────
+    Γ_f ⊢ \map_remove(d, k) : ok
+```
+
+Both arguments must be well-formed. Returns the dict with key `k` set to absent.
+
+#### §3.1.25 Has Key (`\has_key(d, k)`)
+
+```
+    Γ_f ⊢ d : ok       Γ_f ⊢ k : ok
+   ────────────────────────────────────
+    Γ_f ⊢ \has_key(d, k) : ok
+```
+
+Both arguments must be well-formed. Lowers to `Map.get !d k <> None`.
+
+#### §3.1.26 Map Eq (`\map_eq(d1, d2)`)
+
+```
+    Γ_f ⊢ d1 : ok       Γ_f ⊢ d2 : ok
+   ─────────────────────────────────────
+    Γ_f ⊢ \map_eq(d1, d2) : ok
+```
+
+Both dict arguments must be well-formed. Lowers to a universally
+quantified equality in WhyML — may be expensive for SMT solvers in
+deep loop invariants; restrict to shallow comparisons.
+
+_Corresponds to `annotations.md` §11.2._
 
 ### 3.2 Operators
 
@@ -1000,6 +1172,8 @@ The Weaver attaches contracts to AST nodes based on line numbers:
 | `RaisesDecl` | `ast.FunctionDef` | `csl_raises` |
 | `BoundedIntDecl` | `ast.FunctionDef` | `csl_bounded_int` (int) |
 | `ThreadEntry` | `ast.FunctionDef` | `csl_thread_entry` (bool) |
+| `ProofAttribution` | `ast.FunctionDef` | `csl_proof_attributions` (list, §2.1.11) |
+| `AxiomFromDecl` | `ast.Module` | `csl_axiom_from` (list, §2.1.12) |
 | `LoopInvariant` | `ast.While` / `ast.For` | `csl_invariants` |
 | `LoopVariant` | `ast.While` / `ast.For` | `csl_variants` |
 | `GhostAssignDecl` | Any `ast.stmt` | `csl_ghost_assigns` |

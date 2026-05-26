@@ -288,3 +288,106 @@ def test_nat_params_each_get_their_own_guard():
         BinOp(">=", Var("x"), Lit(0)),
         BinOp(">=", Var("y"), Lit(0)),
     ]
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Phase 3 — new operator lowering rules + bool auto-precondition
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_bool_params_get_zero_or_one_precondition():
+    func = GFunctionDef(
+        name="bool_xor",
+        params=(("a", "bool"), ("b", "bool")),
+        return_ty="bool",
+    )
+    c = translate_function(func, [])
+    # Two `requires (x == 0) or (x == 1)` clauses, one per param.
+    assert len(c.requires) == 2
+    for req, name in zip(c.requires, ("a", "b")):
+        assert isinstance(req, BinOp) and req.op == "or"
+
+
+def _lower_only(stmt: str, func_name: str, params: tuple) -> object:
+    """Helper: parse a forall'd theorem and return its lowered statement."""
+    from rocq2pycsl.extractor.lark_backend import _parse_expr, _split_outer_binders
+    from rocq2pycsl.translator.gallina import _lower
+
+    binders, body = _split_outer_binders(stmt)
+    body_node = _parse_expr(body, 0)
+    func = GFunctionDef(name=func_name, params=params, return_ty="_")
+    return _lower(body_node, func, [p[0] for p in params])
+
+
+def test_length_lowers_to_Length():
+    from pycsl_emit.ir import Length
+
+    out = _lower_only(
+        "forall (arr : list nat), length arr >= 0",
+        "f",
+        (("arr", "list nat"),),
+    )
+    # `length arr >= 0` → BinOp(>=, Length(arr), Lit(0))
+    assert isinstance(out, BinOp) and out.op == ">="
+    assert isinstance(out.lhs, Length)
+    assert out.lhs.arr == Var("arr")
+
+
+def test_nth_lowers_to_Nth():
+    from pycsl_emit.ir import Nth
+
+    out = _lower_only(
+        "forall (arr : list nat) (i : nat), nth i arr 0 >= 0",
+        "f",
+        (("arr", "list nat"), ("i", "nat")),
+    )
+    assert isinstance(out, BinOp) and out.op == ">="
+    assert isinstance(out.lhs, Nth)
+    assert out.lhs.arr == Var("arr")
+    assert out.lhs.i == Var("i")
+
+
+def test_fst_and_snd_lower_to_Proj():
+    from pycsl_emit.ir import Proj
+
+    out = _lower_only(
+        "forall (t : nat * nat), fst t >= 0",
+        "f",
+        (("t", "nat * nat"),),
+    )
+    assert isinstance(out.lhs, Proj)
+    assert out.lhs.i == 0
+
+
+def test_andb_orb_negb_lower_to_arithmetic():
+    out = _lower_only(
+        "forall (a b : bool), andb a b = a",
+        "f",
+        (("a", "bool"), ("b", "bool")),
+    )
+    # andb a b → a * b
+    assert isinstance(out, BinOp) and out.op == "=="
+    assert isinstance(out.lhs, BinOp) and out.lhs.op == "*"
+
+    out = _lower_only(
+        "forall (a : bool), negb a = a",
+        "f",
+        (("a", "bool"),),
+    )
+    # negb a → 1 - a
+    assert isinstance(out, BinOp) and out.op == "=="
+    assert isinstance(out.lhs, BinOp) and out.lhs.op == "-"
+    assert out.lhs.lhs == Lit(1)
+
+
+def test_xorb_lowers_to_arithmetic_xor_formula():
+    out = _lower_only(
+        "forall (a b : bool), xorb a b = a",
+        "f",
+        (("a", "bool"), ("b", "bool")),
+    )
+    # xorb a b → (a + b) - (2 * (a * b))
+    assert isinstance(out, BinOp) and out.op == "=="
+    minus = out.lhs
+    assert isinstance(minus, BinOp) and minus.op == "-"
+    assert isinstance(minus.lhs, BinOp) and minus.lhs.op == "+"

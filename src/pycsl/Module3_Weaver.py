@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import ast
+import warnings
 from typing import List, Dict, Any
 from dataclasses import dataclass
 
@@ -6,9 +9,10 @@ from dataclasses import dataclass
 from Module2_Parser import (
     CSLNode, Requires, Ensures, Assigns, LoopInvariant, LoopVariant,
     ClassInvariant, Label as CSLLabel, FunctionVariant, Diverges, Trusted,
-    GhostAssignDecl, RaisesDecl, BoundedIntDecl,
+    GhostAssignDecl, GhostArraySetDecl, RaisesDecl, BoundedIntDecl,
+    ProofAttribution, AxiomFromDecl,
     SharedDecl, ThreadEntry, Acquires, Releases, CriticalSection,
-    MutexInvariant, LockOrder,
+    MutexInvariant, LockOrder, BinOp, Number,
 )
 from Module1_Ingestor import PyCSLContract
 
@@ -33,9 +37,16 @@ class PyCSLWeaver(ast.NodeVisitor):
         node.csl_function_variants = []
         node.csl_diverges = False
         node.csl_trusted = False
+        node.csl_reviewer = ""
         node.csl_raises = []
         node.csl_bounded_int = None
         node.csl_thread_entry = False
+        # §2.1.11 proof attributions — informational; bridge-emitted only,
+        # no semantic effect, no WhyML output. See annotations.md §2.1.11.
+        node.csl_proof_attributions = []
+        # §2.1.12 axiom-from directives — emit Why3 axioms in the
+        # preamble. See simple3.md.
+        node.csl_axiom_from = []
 
         # In standard `ast`, node.lineno points to the 'def' keyword.
         # We check if we have any parsed contracts for this line.
@@ -54,12 +65,41 @@ class PyCSLWeaver(ast.NodeVisitor):
                     node.csl_diverges = True
                 elif isinstance(c, Trusted):
                     node.csl_trusted = True
+                    node.csl_reviewer = c.reviewer
+                    if not c.reviewer:
+                        warnings.warn(
+                            f"Function '{node.name}' (line {node.lineno}): "
+                            f"\\trusted has no reviewer — add `reviewer: <name>` "
+                            f"to document who is accountable for this trust assumption.",
+                            stacklevel=2,
+                        )
                 elif isinstance(c, RaisesDecl):
                     node.csl_raises.append(c)
                 elif isinstance(c, BoundedIntDecl):
                     node.csl_bounded_int = c.size
+                elif isinstance(c, ProofAttribution):
+                    node.csl_proof_attributions.append(c)
+                elif isinstance(c, AxiomFromDecl):
+                    node.csl_axiom_from.append(c)
                 elif isinstance(c, ThreadEntry):
                     node.csl_thread_entry = True
+
+        # Warn when a \trusted function has a vacuous postcondition.
+        # A wrong \trusted spec is only unsound for callers that establish the
+        # precondition; a vacuous ensures 1 == 1 provides no useful bound on that risk.
+        if node.csl_trusted:
+            for ens in node.csl_ensures:
+                if (isinstance(ens.expr, BinOp) and ens.expr.op == '=='
+                        and isinstance(ens.expr.left, Number)
+                        and int(ens.expr.left.value) == 1
+                        and isinstance(ens.expr.right, Number)
+                        and int(ens.expr.right.value) == 1):
+                    warnings.warn(
+                        f"Function '{node.name}' (line {node.lineno}): "
+                        f"\\trusted with vacuous 'ensures 1 == 1' — strengthen "
+                        f"the contract or document why no property is verifiable.",
+                        stacklevel=2,
+                    )
 
         if node.csl_function_variants and node.csl_diverges:
             raise ValueError(
@@ -129,7 +169,7 @@ class PyCSLWeaver(ast.NodeVisitor):
                     node.csl_invariants.append(c)
                 elif isinstance(c, LoopVariant):
                     node.csl_variants.append(c)
-                elif isinstance(c, GhostAssignDecl):
+                elif isinstance(c, (GhostAssignDecl, GhostArraySetDecl)):
                     node.csl_ghost_assigns.append(c)
 
         self.generic_visit(node)
@@ -147,7 +187,7 @@ class PyCSLWeaver(ast.NodeVisitor):
                     node.csl_invariants.append(c)
                 elif isinstance(c, LoopVariant):
                     node.csl_variants.append(c)
-                elif isinstance(c, GhostAssignDecl):
+                elif isinstance(c, (GhostAssignDecl, GhostArraySetDecl)):
                     node.csl_ghost_assigns.append(c)
 
         self.generic_visit(node)
@@ -166,16 +206,22 @@ class Module3_Weaver:
         self.parser_module = parser_module
 
     def process(self) -> ast.AST:
-        # Step 1: Parse all extracted strings into Contract AST nodes
-        # We create a mapping: line_number -> List[CSLNode]
+        # Step 1: Parse all extracted strings into Contract AST nodes.
+        # TrailingSimpleStatement contracts (ghost as last line in a block) are
+        # kept separate so Module5 can emit them AFTER their anchor statement.
         contracts_map: Dict[int, List[CSLNode]] = {}
-        
+        trailing_contracts_map: Dict[int, List[CSLNode]] = {}
+
         for extraction in self.extracted_data:
             parsed_nodes = self.parser_module.parse_node_contracts(
-                extraction.contracts, 
+                extraction.contracts,
                 extraction.line_number
             )
-            contracts_map[extraction.line_number] = parsed_nodes
+            if extraction.node_type == "TrailingSimpleStatement":
+                existing = trailing_contracts_map.get(extraction.line_number, [])
+                trailing_contracts_map[extraction.line_number] = existing + parsed_nodes
+            else:
+                contracts_map[extraction.line_number] = parsed_nodes
 
         # Step 2: Generate the standard Python AST
         python_ast = ast.parse(self.source_code)
@@ -212,11 +258,17 @@ class Module3_Weaver:
             names = [n.name for n in nodes if isinstance(n, CSLLabel)]
             if names:
                 labels_by_line[line] = names
-            ghosts = [n for n in nodes if isinstance(n, GhostAssignDecl)]
+            ghosts = [n for n in nodes if isinstance(n, (GhostAssignDecl, GhostArraySetDecl))]
             if ghosts:
                 ghost_assigns_by_line[line] = ghosts
 
-        if labels_by_line or ghost_assigns_by_line:
+        trailing_ghost_assigns_by_line: Dict[int, List] = {}
+        for line, nodes in trailing_contracts_map.items():
+            ghosts = [n for n in nodes if isinstance(n, (GhostAssignDecl, GhostArraySetDecl))]
+            if ghosts:
+                trailing_ghost_assigns_by_line[line] = ghosts
+
+        if labels_by_line or ghost_assigns_by_line or trailing_ghost_assigns_by_line:
             for ast_node in ast.walk(python_ast):
                 if isinstance(ast_node, ast.stmt) and hasattr(ast_node, 'lineno'):
                     labels = labels_by_line.get(ast_node.lineno)
@@ -226,5 +278,9 @@ class Module3_Weaver:
                     if ghosts:
                         existing = getattr(ast_node, 'csl_ghost_assigns', [])
                         ast_node.csl_ghost_assigns = existing + ghosts
+                    trailing = trailing_ghost_assigns_by_line.get(ast_node.lineno)
+                    if trailing:
+                        existing = getattr(ast_node, 'csl_trailing_ghost_assigns', [])
+                        ast_node.csl_trailing_ghost_assigns = existing + trailing
 
         return python_ast

@@ -35,8 +35,48 @@ Python construct they annotate (function, class, loop, or statement).
 | 8 | Bounded integers | `#@ assumes bounded_int(N)` | Function/method | Use `mach.int.IntN` types; auto-generates overflow VCs on `+`, `-`, `*` |
 | 9 | Raises | `#@ raises ExcType when <cond>` | Function/method | Exceptional postcondition: exception raised only when `cond` holds |
 | 10 | Thread entry | `#@ thread_entry` | Function/method | Marks function as a concurrent thread entry point; used with `--memory-model concurrent` |
+| 11 | Proof attribution | `#@ proof <rocq\|lean>: <qualname>` | Function/method | Informational. Records that the function's contract was derived from theorem `<qualname>` in the named formalism. Accepted and ignored by Why3 — emitted by `pycsl-bridge`, not by humans. May appear multiple times (one per source theorem). |
+| 12 | Axiom from proof | `#@ axiom_from <rocq\|lean> <qualname>` | Module-level | Imports a Rocq or Lean theorem as a Why3 axiom in the preamble. When both `rocq` and `lean` directives name the same `pycsl_target`, the `proof2why3 cross-check` tool verifies their canonical forms agree before emission ("Rocq + Lean as Cross-Validated Spec Sources"). See §2.1.12 below. |
 
 Multiple `requires`/`ensures` lines are conjuncted (all must hold).
+
+#### §2.1.12 Axiom from Proof (`axiom_from`) — Rocq + Lean as Cross-Validated Spec Sources
+
+```python
+#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_divides_a
+#@ axiom_from lean Pycsl.Reference.Gcd.gcd_divides_a
+```
+
+Imports a Rocq or Lean theorem as a **Why3 axiom** in the generated WhyML
+preamble. Unlike `#@ proof` (§2.1.11, informational only), `#@ axiom_from`
+has real semantic effect: Alt-Ergo/Z3 may use the imported axiom to
+discharge obligations that SMT alone cannot handle.
+
+**Cross-validation.** When both a `rocq` and a `lean` directive reference
+the same `pycsl_target` name, the `proof2why3 cross-check` tool
+extracts both theorem statements, converts them to a canonical IR form
+(alpha-normalized, AC-flattened, `nat`/`Nat` → `int + ≥ 0`), and verifies
+equality. This is the **"Rocq + Lean as Cross-Validated Spec Sources"**
+pattern: two independent proof assistants must agree on the specification
+before it enters the Why3 verification.
+
+**Scope:** Module-level (placed before any function definition).
+
+**WhyML emission:** `Module6_WhyMLTranspiler` calls `proof2why3 emit` for
+each `axiom_from` directive, producing an `axiom pycsl_axiom_<target> : …`
+block in the preamble.
+
+**Cross-check statuses:**
+
+| Status | Meaning |
+|---|---|
+| `reconciled` | Both Rocq and Lean present, canonical forms equal |
+| `rocq-only` | Only Rocq statement found (warning emitted) |
+| `lean-only` | Only Lean statement found (warning emitted) |
+| `disagreement` | Both present but canonical forms differ (**pipeline halts**) |
+
+**Worked example:** `test-suite/corpus/pycsl-reference/0342.py` (Euclidean
+GCD) with proofs under `0342.proofs/{rocq,lean}/`.
 
 ### 2.2 Loop Contracts
 
@@ -705,3 +745,265 @@ def worker() -> int:
         counter += 1
     return 0
 ```
+
+---
+
+## 11. Ghost Variable Types
+
+Ghost variables are erased at extraction and live only in the verification model.
+Use typed declarations to control the WhyML type of a ghost variable:
+
+```python
+#@ ghost <name> : <type> = <expr>
+```
+
+Untyped ghost declarations (`#@ ghost <name> = <expr>`) default to `int`.
+
+> **Terminology**: For definitions of *ghost code*, *ghost state*, *witness*, *ghost lowering*,
+> and related concepts, see [`docs/glossary/`](../docs/glossary/README.md).
+
+### 11.1 Typed Ghost Declarations
+
+| # | Type keyword | WhyML type | Initial value | Update syntax |
+|---|---|---|---|---|
+| 1 | `int` (default) | `ref int` | any int expr | `ghost x = e`, `ghost x += e` |
+| 2 | `string` | `ref string` | `"..."` or `s ^ "..."` | `ghost s = s ^ "chunk"` |
+| 3 | `array` | `array int` (not a ref) | `\copy(arr)` or `\make(n, v)` | `ghost snap[i] = e` |
+| 4 | `ghost_dict` | `ref (map int (option int))` | `\empty_map` | `ghost d = \map_set(d, k, v)` |
+| 5 | `ghost_list` | `ref (list int)` | `\nil` | `ghost l = \cons(x, l)` |
+| 6 | `ghost_set` | `ref (map int bool)` | `\set_empty` | `ghost s = \set_add(s, e)` |
+| 7 | `tuple2` | `ref (int, int)` | `\mktuple(a, b)` | `ghost p = \mktuple(a, b)` |
+| 8 | `tuple3` | `ref (int, int, int)` | `\mktuple(a, b, c)` | `ghost t = \mktuple(a, b, c)` |
+| 9 | `tuple4` | `ref (int, int, int, int)` | `\mktuple(a, b, c, d)` | `ghost q = \mktuple(a, b, c, d)` |
+
+### 11.2 Ghost Expression Atoms
+
+**Tuples:**
+| # | Syntax | Meaning |
+|---|---|---|
+| 1 | `\mktuple(e1, e2, ...)` | Construct a tuple (2–4 elements) |
+| 2 | `\fst(t)` | First component of a tuple2 |
+| 3 | `\snd(t)` | Second component of a tuple2 |
+| 4 | `\proj(t, i)` | i-th component (i must be an integer literal) |
+
+**Strings:**
+| # | Syntax | Meaning |
+|---|---|---|
+| 1 | `s ^ t` | String concatenation (Why3 `concat s t` — not `String.(^)`) |
+| 2 | `"literal"` | String literal |
+| 3 | `\str_length(s)` | String length (`String.length !s`) |
+| 4 | `\str_sub(s, lo, hi)` | Substring from `lo` to `hi` (`String.substring !s lo (hi-lo)`) |
+
+**Ghost arrays** (hoare model only):
+| # | Syntax | Meaning |
+|---|---|---|
+| 1 | `\copy(arr)` | Snapshot of an existing array |
+| 2 | `\make(n, v)` | Fresh array of length `n` filled with `v` |
+| 3 | `ghost snap[i] = e` | In-place element update (`ghost_array_set`) |
+
+**Ghost dicts** (backed by `map int (option int)`):
+| # | Syntax | Meaning |
+|---|---|---|
+| 1 | `\empty_map` | Empty map (all keys absent: `const (None: option int)`) |
+| 2 | `\map_get(d, k)` | Get value for key k; returns 0 if absent (`match Map.get !d k with \| Some v -> v \| None -> 0 end`) |
+| 3 | `\map_set(d, k, v)` | `Map.set !d k (Some v)` |
+| 4 | `\map_eq(d1, d2)` | Extensional equality |
+| 5 | `#@ ghost d += \mktuple(k, v)` | Shorthand for `Map.set !d k (Some v)` (augmented assign) |
+| 6 | `\has_key(d, k)` | True iff key k is present (`Map.get !d k <> None`). Safe even when 0 is a valid stored value |
+| 7 | `\map_remove(d, k)` | Remove key k (set to absent: `Map.set !d k None`) |
+
+**Ghost lists** (backed by Why3 `list int`):
+| # | Syntax | Meaning |
+|---|---|---|
+| 1 | `\nil` | Empty list |
+| 2 | `\cons(x, l)` | Prepend element |
+| 3 | `\hd(l)` | Head element |
+| 4 | `\tl(l)` | Tail |
+| 5 | `\list_length(l)` | Length |
+| 6 | `\nth(l, i)` | i-th element |
+| 7 | `\mem(x, l)` | Membership test |
+| 8 | `\append(l1, l2)` | Concatenation |
+| 9 | `#@ ghost l += x` | Prepend shorthand: `ghost l := Cons x !l` |
+
+**Ghost sets** (backed by `map int bool`):
+| # | Syntax | Meaning |
+|---|---|---|
+| 1 | `\set_empty` | Empty set |
+| 2 | `\set_add(s, x)` | Add element |
+| 3 | `\set_remove(s, x)` | Remove element |
+| 4 | `\set_mem(x, s)` | Membership test |
+| 5 | `\set_card(s, lo, hi)` | Cardinality over integer range `[lo, hi)` |
+| 6 | `\set_union(s1, s2)` | Functional union (λ k → s1[k] ∨ s2[k]) |
+| 7 | `\set_inter(s1, s2)` | Functional intersection |
+| 8 | `\set_diff(s1, s2)` | Functional set difference |
+| 9 | `\set_subset(s1, s2)` | s1 ⊆ s2 (predicate) |
+| 10 | `\set_eq(s1, s2)` | s1 = s2 extensionally |
+| 11 | `#@ ghost s += x` | Add shorthand: `Map.set !s x true` |
+
+### 11.3 Required Why3 `use` Declarations
+
+The PyCSL preamble scanner auto-detects which ghost types are in use and emits the
+appropriate `use` declarations. No manual configuration is needed.
+
+| Ghost type | Why3 library added |
+|---|---|
+| `string` | `use string.String` |
+| `array` | `use array.Array` (hoare/concurrent only) |
+| `ghost_dict` | `use map.Map`, `use map.Const`, `use option.Option` |
+| `ghost_set` | `use map.Map`, `use map.Const` |
+| `ghost_list` | `use list.List`, `use list.Length`, `use list.NthNoOpt`, `use list.Mem`, `use list.Append` |
+
+### 11.4 Validation Rules (Negative Constraints)
+
+Module4 enforces the following semantic constraints on ghost variable usage:
+
+| # | Constraint | Error class |
+|---|---|---|
+| 1 | `\proj(t, expr)` — index must be an integer literal, not a variable | Module4 semantic error |
+| 2 | `\proj(t, i)` — index `i` must be within the arity of the declared tuple type (no Module4 check; Why3 rejects at type checking) | Why3 type error |
+| 3 | `#@ ghost s += expr` where `s` is a `string` ghost — augmented assignment not supported on strings; use `ghost s = s ^ expr` instead | Module4 semantic error |
+| 4 | Augmented-assign ops (`+=`, `-=`, `*=`) on ghost string variables: always rejected regardless of the value expression | Module4 semantic error |
+
+### 11.5 Ghost Position: Trailing-Block Ghosts
+
+A `#@ ghost` annotation may appear as the **last line in a loop or if body** (no following
+Python statement in that scope). The annotation lives in the `IndentedBlock.footer` of the
+libcst CST. Module1 detects it there and records it as a `TrailingSimpleStatement` contract.
+Module3 attaches it to the last statement in the block as `csl_trailing_ghost_assigns`.
+Module5 emits the ghost IR **after** that last statement, so it appears at the end of the
+loop body in the generated WhyML.
+
+```python
+#@ ghost count = 0
+#@ loop invariant count == i
+while i < n:
+    i += 1
+    #@ ghost count = i    ← trailing ghost: emitted as last statement in loop body
+```
+
+Generated WhyML (inside the while body):
+```whyml
+i := !i + 1;
+ghost count := !i
+```
+
+**Constraint:** A trailing ghost that is a *first declaration* (variable not yet declared
+before the block) generates `let ghost x = ref val in ()`, which is valid WhyML but gives
+`x` an empty scope. Declare ghost variables before the loop to ensure they are in scope
+for loop invariants.
+
+### 11.6 Ghost Array `\copy_range`
+
+`\copy_range(arr, lo, hi)` creates a new ghost array containing `arr[lo..hi-1]`.
+Lowers to `(Array.sub arr lo (hi - lo))` in Why3.
+
+```python
+#@ ghost snap : array = \copy_range(arr, 0, n)
+#@ loop invariant \forall j; 0 <= j and j < i ==> snap[j] == arr[j]
+```
+
+| Syntax | Why3 emission | Why3 `use` |
+|---|---|---|
+| `\copy_range(arr, lo, hi)` | `(Array.sub arr lo (hi - lo))` | `use array.Array` (auto) |
+
+**Preconditions** (enforced by Why3's `Array.sub`):
+- `0 <= lo`
+- `0 <= hi - lo` (i.e., `lo <= hi`)
+- `lo + (hi - lo) <= Array.length arr` (i.e., `hi <= Array.length arr`)
+
+These appear as Why3 sub-goals when the ghost is declared. Provide a `requires` or
+`loop invariant` that establishes the bounds before the declaration point.
+
+### 11.7 Memory-Model Parity for Ghost Array Snapshots
+
+Ghost arrays (`array` type) and the operators `\copy`, `\copy_range`, and `\make`
+are available **only under `hoare` and `concurrent` memory models**.
+
+Under `typed` and `store` models, array parameters are lowered to `loc` (integer
+pointer) in the generated WhyML. `Array.copy` and `Array.sub` expect `array int`, not
+`loc`, so any ghost array declaration emitted under these models would be type-incorrect
+in Why3.
+
+**Restriction summary:**
+
+| Ghost operation | `hoare` | `concurrent` | `typed` | `store` |
+|---|---|---|---|---|
+| `\copy(arr)` | ✓ | ✓ | ✗ | ✗ |
+| `\copy_range(arr, lo, hi)` | ✓ | ✓ | ✗ | ✗ |
+| `\make(n, v)` | ✓ | ✓ | ✗ | ✗ |
+
+For snapshot-style reasoning under `typed`/`store`, use `\old(arr[i])` or quantify
+over `\old` values in postconditions instead of ghost arrays.
+
+The `--memory-model hoare` flag is the default; it can also be specified explicitly
+via `# pycsl-flags: --memory-model hoare` in the source file.
+
+### 11.8 Ghost String `\str_sub` Proof Pattern
+
+`\str_sub(s, lo, hi)` lowers to `String.substring !s lo (hi - lo)` in Why3 (function
+`substring` from `string.String`).
+
+**Key axiom** (from Why3 `string.String`):
+```
+axiom substring_length: forall s i x.
+  x >= 0 && 0 <= i < length s ->
+    if i + x > length s then length(substring s i x) = length s - i
+    else length(substring s i x) = x
+```
+
+**Provable loop invariant pattern** — prefix length:
+```python
+#@ ghost s : string = ""
+#@ loop invariant \str_length(s) == i
+#@ loop invariant i > 0 ==> \str_length(\str_sub(s, 0, i)) == i
+#@ loop variant n - i
+while i < n:
+    #@ ghost s = s ^ "x"
+    i = i + 1
+```
+
+The invariant `i > 0 ==> \str_length(\str_sub(s, 0, i)) == i` is discharged by
+Alt-Ergo directly from `substring_length` and the `\str_length(s) == i` invariant.
+
+**Constraints:**
+- `\str_sub` is valid in loop invariants and `ensures` when the string is in scope.
+- `lo >= 0`, `hi >= lo`, `hi <= \str_length(s)` must be guaranteed (either by a
+  prior `requires` clause or by combining with another loop invariant).
+- Ghost string variables declared inside the function body are **not** in scope for
+  `ensures` clauses. Use `\str_sub` directly inside loop invariants instead.
+
+| # | 11.8.1 | `\str_sub` prefix length proof | Test 0329 |
+
+### 11.9 Ghost Dict `\map_remove` and Option-Type Design
+
+Ghost dicts use `map int (option int)` internally. A stored value of 0 is **present** (Some 0),
+not absent. `\has_key(d, k)` returns true if and only if `Map.get !d k <> None`.
+
+`\map_remove(d, k)` sets key k to `None` (absent). After remove, `\has_key(d, k)` is false and
+`\map_get(d, k)` returns 0 (the default for absent keys).
+
+**Provable loop invariant pattern** — add-then-remove key 0, store 0 at key 1:
+```python
+#@ ghost d : ghost_dict = \empty_map
+#@ loop invariant i > 0 ==> \has_key(d, 1)
+#@ loop invariant i > 0 ==> \map_get(d, 1) == 0
+#@ loop variant n - i
+while i < n:
+    #@ ghost d = \map_set(d, 0, i + 1)
+    #@ ghost d = \map_remove(d, 0)
+    #@ ghost d = \map_set(d, 1, 0)
+    i = i + 1
+```
+
+The invariant `i > 0 ==> \has_key(d, 1)` is provable because `\map_set(d, 1, 0)` stores
+`Some 0`, and `Some 0 <> None`. This was impossible under the old sentinel-0 design where
+storing 0 was indistinguishable from "absent".
+
+**WhyML emission for `\map_remove`:**
+`\map_remove(d, k)` → `(Map.set {d_ref} {k} None)`
+
+| # | Syntax | Why3 emission |
+|---|---|---|
+| 11.9.1 | `\map_remove(d, k)` | `Map.set !d k None` |
+
+| # | 11.9.1 | Ghost dict `\map_remove` + option-type proof | Test 0330 |

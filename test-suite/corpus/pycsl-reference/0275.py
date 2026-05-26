@@ -1,5 +1,5 @@
 """Test 0275 — Concurrent: unprotected shared variable read in regular function"""
-# pycsl-flags: --no-proof --memory-model concurrent
+# pycsl-flags:  --memory-model concurrent
 #@ shared uptime
 _ = 0  # anchor
 

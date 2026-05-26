@@ -43,6 +43,128 @@ def test_double_golden_matches_expected(tmp_path: Path):
     )
 
 
+def test_bank_account_golden_matches_expected(tmp_path: Path):
+    """Phase 6 — class fixture with two methods and arg_map rewriting
+    `balance` → `self._balance`. The class invariant in the impl.py is
+    preserved through annotation."""
+    fx = _GOLDEN / "bank_account"
+    _stage_fixture(fx, tmp_path)
+    outcome = run(config_path=tmp_path / "config.toml", backend=Backend.LARK, no_check=True)
+    assert outcome.annotated_source == (fx / "expected.py").read_text()
+
+
+def test_array_fill_zero_golden_matches_expected(tmp_path: Path):
+    fx = _GOLDEN / "array_fill_zero"
+    _stage_fixture(fx, tmp_path)
+    outcome = run(config_path=tmp_path / "config.toml", backend=Backend.LARK, no_check=True)
+    assert outcome.annotated_source == (fx / "expected.py").read_text()
+
+
+def test_list_length_after_append_golden_matches_expected(tmp_path: Path):
+    fx = _GOLDEN / "list_length_after_append"
+    _stage_fixture(fx, tmp_path)
+    outcome = run(config_path=tmp_path / "config.toml", backend=Backend.LARK, no_check=True)
+    assert outcome.annotated_source == (fx / "expected.py").read_text()
+
+
+def test_set_union_eq_golden_matches_expected(tmp_path: Path):
+    fx = _GOLDEN / "set_union_eq"
+    _stage_fixture(fx, tmp_path)
+    outcome = run(config_path=tmp_path / "config.toml", backend=Backend.LARK, no_check=True)
+    assert outcome.annotated_source == (fx / "expected.py").read_text()
+
+
+def test_dict_insert_lookup_golden_matches_expected(tmp_path: Path):
+    """Dict-as-function-type fixture: `nat -> option nat` passes
+    through the arrow-type grammar production."""
+    fx = _GOLDEN / "dict_insert_lookup"
+    _stage_fixture(fx, tmp_path)
+
+    outcome = run(
+        config_path=tmp_path / "config.toml",
+        backend=Backend.LARK,
+        no_check=True,
+    )
+    actual = outcome.annotated_source
+    expected = (fx / "expected.py").read_text()
+    assert actual == expected
+
+
+def test_array_sum_nonneg_golden_matches_expected(tmp_path: Path):
+    """List parameters: `length arr` → `Length`, `arr[i]` indexing."""
+    fx = _GOLDEN / "array_sum_nonneg"
+    _stage_fixture(fx, tmp_path)
+
+    outcome = run(
+        config_path=tmp_path / "config.toml",
+        backend=Backend.LARK,
+        no_check=True,
+    )
+    actual = outcome.annotated_source
+    expected = (fx / "expected.py").read_text()
+    assert actual == expected
+
+
+def test_concat_length_golden_matches_expected(tmp_path: Path):
+    """String-typed parameters and `\\str_length` postcondition."""
+    fx = _GOLDEN / "concat_length"
+    _stage_fixture(fx, tmp_path)
+
+    outcome = run(
+        config_path=tmp_path / "config.toml",
+        backend=Backend.LARK,
+        no_check=True,
+    )
+    actual = outcome.annotated_source
+    expected = (fx / "expected.py").read_text()
+    assert actual == expected
+
+
+def test_divmod_pair_golden_matches_expected(tmp_path: Path):
+    """Tuple-returning fixture — exercises `fst`/`snd` → `\\result[i]`
+    lowering for Coq's `Z * Z` return type."""
+    fx = _GOLDEN / "divmod_pair"
+    _stage_fixture(fx, tmp_path)
+
+    outcome = run(
+        config_path=tmp_path / "config.toml",
+        backend=Backend.LARK,
+        no_check=True,
+        verbose=False,
+    )
+
+    actual = outcome.annotated_source
+    expected = (fx / "expected.py").read_text()
+    assert actual == expected, (
+        "annotated output drift:\n"
+        f"--- expected ---\n{expected}\n"
+        f"--- actual ---\n{actual}\n"
+    )
+
+
+def test_bool_xor_golden_matches_expected(tmp_path: Path):
+    """Boolean XOR fixture — exercises the 0/1 encoding of bool params
+    and the `xorb a b → (a + b) - 2 * (a * b)` lowering rule added in
+    Phase 3 of tuesday-01."""
+    fx = _GOLDEN / "bool_xor"
+    _stage_fixture(fx, tmp_path)
+
+    outcome = run(
+        config_path=tmp_path / "config.toml",
+        backend=Backend.LARK,
+        no_check=True,
+        verbose=False,
+    )
+
+    actual = outcome.annotated_source
+    expected = (fx / "expected.py").read_text()
+    assert actual == expected, (
+        "annotated output drift:\n"
+        f"--- expected ---\n{expected}\n"
+        f"--- actual ---\n{actual}\n"
+    )
+
+
 def test_double_round_trips_through_pycsl(tmp_path: Path):
     fx = _GOLDEN / "double"
     _stage_fixture(fx, tmp_path)

@@ -31,11 +31,19 @@ def annotate_function(
     module: cst.Module,
     qualname: str,
     annotations: Sequence[str],
+    *,
+    prefix_comments: Sequence[str] = (),
 ) -> cst.Module:
     """Return a new module with `annotations` attached to `qualname`.
 
     `annotations` is a list of strings *without* the leading `#@`; the
     annotator prepends that token plus a single space.
+
+    `prefix_comments` is an optional list of regular Python comments
+    (the leading `#` is added if missing) that go *above* the `#@`
+    block. Used by `pycsl_bridge` to emit `# proof rocq: <thm>` /
+    `# proof lean: <thm>` traceability lines without invoking the
+    contract grammar.
 
     Raises `KeyError` if the qualname doesn't resolve.
     """
@@ -55,14 +63,16 @@ def annotate_function(
 
     if is_first_in_module:
         combined = tuple(module.header) + tuple(match.node.leading_lines)
-        new_leading = _rebuild_leading_lines(combined, annotations)
+        new_leading = _rebuild_leading_lines(combined, annotations, prefix_comments)
         new_func = match.node.with_changes(leading_lines=new_leading)
         new_body = list(module.body)
         new_body[0] = new_func
         return module.with_changes(header=(), body=tuple(new_body))
 
     new_func = match.node.with_changes(
-        leading_lines=_rebuild_leading_lines(match.node.leading_lines, annotations)
+        leading_lines=_rebuild_leading_lines(
+            match.node.leading_lines, annotations, prefix_comments
+        )
     )
 
     new_body = list(match.parent_body.body)
@@ -80,10 +90,14 @@ def annotate_source(
     source: str,
     qualname: str,
     annotations: Sequence[str],
+    *,
+    prefix_comments: Sequence[str] = (),
 ) -> str:
     """Convenience: parse `source`, annotate, return the new source string."""
     module = cst.parse_module(source)
-    return annotate_function(module, qualname, annotations).code
+    return annotate_function(
+        module, qualname, annotations, prefix_comments=prefix_comments
+    ).code
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -92,29 +106,42 @@ def annotate_source(
 def _rebuild_leading_lines(
     existing: Sequence[cst.EmptyLine],
     annotations: Sequence[str],
+    prefix_comments: Sequence[str] = (),
 ) -> tuple[cst.EmptyLine, ...]:
-    """Produce `(preserved_user_lines, annotation_block)` as one tuple.
+    """Produce `(preserved_user_lines, prefix_comments, annotation_block)`
+    as one tuple.
 
     Strategy:
-      1. Strip any *trailing* `#@` lines from `existing` (those were
-         emitted by a previous run; they're being replaced).
-      2. Strip any *trailing* blank lines from what remains (we want no
-         gap between the user's comments and our annotation block).
-      3. Build the annotation block: one `#@ <line>` per annotation, no
-         blank line at the end.
+      1. Strip any *trailing* `#` proof-attribution comments from
+         `existing` (output of a previous bridge run; they're being
+         replaced).
+      2. Strip any *trailing* `#@` lines from what remains (output of a
+         previous converter run).
+      3. Strip any *trailing* blank lines so the new content sits flush
+         against the def.
+      4. Append `prefix_comments` as regular `#` lines.
+      5. Append the `#@` annotation block.
     """
     preserved: list[cst.EmptyLine] = list(existing)
 
-    # Strip trailing `#@` lines (output of a previous run).
+    # Strip trailing proof-attribution lines (output of a previous bridge run).
+    while preserved and _is_proof_attribution(preserved[-1]):
+        preserved.pop()
+
+    # Strip trailing `#@` lines (output of a previous converter run).
     while preserved and _is_hash_at(preserved[-1]):
         preserved.pop()
 
-    # Strip trailing blank lines so the `#@` block sits flush against the def.
+    # Strip trailing blank lines so the new content sits flush against the def.
     while preserved and _is_blank(preserved[-1]):
         preserved.pop()
 
+    new_prefix = [_make_plain_comment(text) for text in prefix_comments]
     new_block = [_make_hash_at_line(text) for text in annotations]
-    return tuple(preserved) + tuple(new_block)
+    return tuple(preserved) + tuple(new_prefix) + tuple(new_block)
+
+
+_PROOF_ATTRIBUTION_PREFIX = "# proof "
 
 
 def _is_hash_at(line: cst.EmptyLine) -> bool:
@@ -123,6 +150,15 @@ def _is_hash_at(line: cst.EmptyLine) -> bool:
 
 def _is_blank(line: cst.EmptyLine) -> bool:
     return line.comment is None
+
+
+def _is_proof_attribution(line: cst.EmptyLine) -> bool:
+    """`# proof rocq: <thm>` / `# proof lean: <thm>` line — emitted by
+    pycsl_bridge and stripped on re-emission so re-runs don't accumulate."""
+    return (
+        line.comment is not None
+        and line.comment.value.startswith(_PROOF_ATTRIBUTION_PREFIX)
+    )
 
 
 def _make_hash_at_line(text: str) -> cst.EmptyLine:
@@ -137,6 +173,18 @@ def _make_hash_at_line(text: str) -> cst.EmptyLine:
     if stripped.startswith(_HASH_AT):
         stripped = stripped[len(_HASH_AT):].lstrip()
     return cst.EmptyLine(comment=cst.Comment(f"{_HASH_AT} {stripped}"))
+
+
+def _make_plain_comment(text: str) -> cst.EmptyLine:
+    """Build an `EmptyLine` carrying a regular `# <text>` comment.
+
+    Used for proof-attribution lines (pycsl_bridge). The caller's
+    `text` may or may not include the leading `#`; we normalize to one.
+    """
+    stripped = text.lstrip()
+    if stripped.startswith("#"):
+        return cst.EmptyLine(comment=cst.Comment(stripped))
+    return cst.EmptyLine(comment=cst.Comment(f"# {stripped}"))
 
 
 class _BodyReplacer(cst.CSTTransformer):
