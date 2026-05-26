@@ -33,7 +33,7 @@ Apply Tarjan's strongly-connected-components algorithm:
 
 * SCC with 1 function → no mutual recursion (the common case).
 * SCC with 2–3 functions → mutual recursion group, annotated together in one writer call.
-* SCC with > 3 functions → too complex; use safe fallback contracts (`#@ requires 1 == 1`, `#@ ensures 1 == 1`).
+* SCC with > 3 functions → too complex; use safe fallback contracts (`#@ requires True`, `#@ ensures True`).
 
 ### Step 4: Topological sort
 
@@ -57,8 +57,8 @@ Replace original function text with annotated versions. Non-function code (impor
 If the writer fails for any function, a safe fallback annotation is generated:
 
 ```
-#@ requires 1 == 1
-#@ ensures 1 == 1
+#@ requires True
+#@ ensures True
 #@ assigns \nothing
 ```
 

@@ -49,7 +49,7 @@ broader global claims.
 - NO float literals
 - NO impure function calls (only pure functions with `#@ assigns \nothing` may be called in contracts)
 - NO list comprehensions, NO ternary expressions
-- NO bare Python booleans (`True`, `False`, `None`) — use `1 == 1`, `0 == 1`, `0`
+- `True`, `False`, `None` **ARE** supported as first-class atoms (annotations.md §3.1.18, §3.1.19). `True` is the recommended form for vacuous preconditions/postconditions — prefer it over the older `1 == 1` idiom. `False` may be used for intentionally-unprovable postconditions during incremental annotation. `None` maps to `0` in WhyML.
 - String literals are supported: `"hello"` maps to WhyML `string` type
 
 ### Allowed in expressions (commonly mistaken as forbidden)
@@ -60,8 +60,8 @@ broader global claims.
 ## Guidelines for Strong Contracts
 
 - **Capture the function's purpose.** If it counts items, ensure `\result >= 0` and `\result <= len(input)`. If it returns a tuple of counters that partition an input, ensure they sum to the input length.
-- **Use `1 == 1` ONLY as last resort** when no provable property exists (e.g., sum of arbitrary signed integers).
-- **Preconditions**: state what the caller must guarantee. If any input works, use `#@ requires 1 == 1`.
+- **Use `True` ONLY as last resort** when no provable property exists (e.g., sum of arbitrary signed integers). The older `1 == 1` form is still accepted but `True` is preferred.
+- **Preconditions**: state what the caller must guarantee. If any input works, use `#@ requires True`.
 - **`assigns`**: list `self.<field>` for methods that modify instance state. Use `\nothing` for pure functions.
 - A function that returns `len(collection)` should have `#@ ensures \result >= 0` — `len()` always returns non-negative.
 - A function that counts elements satisfying a property should have `#@ ensures \result >= 0` and `#@ ensures \result <= n`.
@@ -91,7 +91,7 @@ When the CLASS CONTEXT includes `#@ class invariant <expr>`, every method must p
 #@ assigns self._balance
 
 # get_balance: read-only, no guard needed
-#@ requires 1 == 1
+#@ requires True
 #@ ensures \result == self._balance
 #@ assigns \nothing
 ```
@@ -128,8 +128,8 @@ Multithreaded programs using `threading.Lock` / `threading.RLock`. The mutex-inv
 
 1. **Thread entry functions** (marked `#@ thread_entry`): write trivial function-level contracts:
    ```python
-   #@ requires 1 == 1
-   #@ ensures 1 == 1
+   #@ requires True
+   #@ ensures True
    #@ assigns \nothing
    ```
    The shared-state obligations are handled by the mutex invariant at critical section boundaries, not by the function postcondition.
@@ -138,8 +138,8 @@ Multithreaded programs using `threading.Lock` / `threading.RLock`. The mutex-inv
    ```python
    #@ thread_entry
    #@ \diverges
-   #@ requires 1 == 1
-   #@ ensures 1 == 1
+   #@ requires True
+   #@ ensures True
    #@ assigns \nothing
    ```
 
@@ -156,8 +156,8 @@ Multithreaded programs using `threading.Lock` / `threading.RLock`. The mutex-inv
 
 #@ thread_entry
 #@ \diverges
-#@ requires 1 == 1
-#@ ensures 1 == 1
+#@ requires True
+#@ ensures True
 #@ assigns \nothing
 def worker() -> int:
     #@ critical lock_counter

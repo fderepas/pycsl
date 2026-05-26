@@ -34,7 +34,7 @@ class Counter:
         self._value += amount
         return self._value
 
-    #@ requires 1 == 1
+    #@ requires True
     #@ ensures \result == 0
     #@ assigns self._value
     def reset(self) -> int:
@@ -66,7 +66,7 @@ Declare a property that must hold at all times with `#@ class invariant <expr>`.
 - **Multiple invariants** — one `#@ class invariant` line per clause, stacked in the WhyML record.
 - **Cross-field invariants** (e.g., `self._lo <= self._hi`) are fully supported.
 - **Compound invariants with `and`** (e.g., `self._val >= 0 and self._val <= 100`) emit as a single Why3 `invariant` clause.
-- **Each method's preconditions must be strong enough to maintain the invariant.** For methods that **add** a parameter to an invariant-guarded field (e.g., `self._n += amount` where `#@ class invariant self._n >= 0`), you MUST write `#@ requires amount >= 0` — **never** `#@ requires 1 == 1`. For methods that **subtract** (e.g., `self._balance -= amount` where `_balance >= 0`), you MUST write `#@ requires amount <= self._balance`. See also the critical rule in Section 4.
+- **Each method's preconditions must be strong enough to maintain the invariant.** For methods that **add** a parameter to an invariant-guarded field (e.g., `self._n += amount` where `#@ class invariant self._n >= 0`), you MUST write `#@ requires amount >= 0` — **never** `#@ requires True`. For methods that **subtract** (e.g., `self._balance -= amount` where `_balance >= 0`), you MUST write `#@ requires amount <= self._balance`. See also the critical rule in Section 4.
 - **`by` witness** is auto-generated from `__init__` assignments. No manual work required.
 - **Do NOT use `//`, `%`, or `len(...)`** in `#@ class invariant` (same restrictions as `requires`/`ensures`).
 - **Two classes in one file** each get their own independent `#@ class invariant`.
@@ -107,7 +107,7 @@ class Up:
         self._x += n
         return self._x
 
-    #@ requires 1 == 1
+    #@ requires True
     #@ ensures \result == self._x
     #@ assigns \nothing
     def get(self) -> int:
@@ -127,7 +127,7 @@ class Down:
         self._y -= n
         return self._y
 
-    #@ requires 1 == 1
+    #@ requires True
     #@ ensures \result == self._y
     #@ assigns \nothing
     def get(self) -> int:

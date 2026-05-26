@@ -17,7 +17,7 @@ You are a formal verification engineer. Your task is to analyze Python code and 
 - A method that deposits money should have `#@ ensures self._balance == \old(self._balance) + amount`.
 - A function that returns `len(collection)` (or `length` of an array parameter) should have `#@ ensures \result >= 0` — Python's `len()` always returns a non-negative integer but **can return 0** for an empty collection. Only strengthen to `#@ ensures \result >= 1` if there is an explicit precondition that constrains the collection to be non-empty (e.g., `#@ requires \length(arr) >= 1`).
 
-Reserve `#@ ensures 1 == 1` only when no useful property of the return value is provable given the constraints of the grammar (e.g., a sum over an arbitrary signed list).
+Reserve `#@ ensures True` only when no useful property of the return value is provable given the constraints of the grammar (e.g., a sum over an arbitrary signed list). `True` is the recommended form for vacuous postconditions; the older `1 == 1` idiom is still accepted but discouraged.
 
 ## Required on every function
 
@@ -166,7 +166,7 @@ Ghost expression atoms for typed ghosts (use in contracts and loop invariants):
 Key rules (most common mistakes):
 
 - **NEVER use arbitrary function calls** (e.g., `abs(x)`, `range(x)`, `len(x)`) inside `#@` expressions. Use `\length(arr)` instead for array lengths.
-- **NEVER use bare Python booleans** (`True`, `False`, `None`). Use `1 == 1`, `0 == 1`, `0`.
+- **`True`, `False`, `None` ARE supported** as first-class contract atoms (annotations.md §3.1.18, §3.1.19). Prefer `True` over `1 == 1` for vacuous preconditions, and `False` over `0 == 1` for intentionally-unprovable postconditions. `None` maps to `0` in WhyML.
 - **`//` and `%` ARE allowed** in contracts — they map to WhyML `div` and `mod` (confirmed by test 0334). Earlier notes were wrong about them being forbidden.
 - **NEVER use `**`** (exponentiation) in contracts — use literal constants instead.
 - **NEVER place blank lines** between a `#@` block and the `def`/`class` it annotates.
@@ -320,7 +320,7 @@ def linear_search(values, target):
 
 **Output:**
 ```python
-#@ requires 1 == 1
+#@ requires True
 #@ ensures \result >= -1
 #@ assigns \nothing
 def linear_search(values: list, target: int) -> int:

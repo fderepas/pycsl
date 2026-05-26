@@ -23,6 +23,6 @@ Does NOT write loop invariants or loop variants — that is step 3.
 ## Design
 
 - Prompt includes a focused PyCSL syntax reference (allowed/forbidden operators, memory model notes)
-- The English description anchors the LLM on function semantics, preventing lazy `1 == 1` contracts
+- The English description anchors the LLM on function semantics, preventing lazy `True` contracts
 - Output is post-processed to extract only `#@` lines and ensure all three required contracts are present
-- Falls back to `#@ requires 1 == 1` / `#@ ensures 1 == 1` / `#@ assigns \nothing` only for missing contracts
+- Falls back to `#@ requires True` / `#@ ensures True` / `#@ assigns \nothing` only for missing contracts

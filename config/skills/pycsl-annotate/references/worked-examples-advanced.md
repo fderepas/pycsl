@@ -12,7 +12,7 @@ Always capture the length as `n = len(sorted_values)` before the loop, then add 
 
 **Output:**
 ```python
-#@ requires 1 == 1
+#@ requires True
 #@ ensures \result >= -1
 #@ assigns \nothing
 def binary_search(sorted_values: list, target: int) -> int:
@@ -59,7 +59,7 @@ def is_sorted_non_decreasing(values):
 
 **Output:**
 ```python
-#@ requires 1 == 1
+#@ requires True
 #@ ensures \result == 0 or \result == 1
 #@ assigns \nothing
 def is_sorted_non_decreasing(values: list) -> int:
@@ -129,13 +129,13 @@ def any_negative(arr: list, n: int) -> bool:
 
 ## Example 12 — Boolean-flag accumulator starting at 1 (`all_positive` / `none_zero` pattern)
 
-When a function starts `acc = 1` (assumes "true" by default and sets `acc = 0` on an early-exit condition), the postcondition MUST still be `#@ ensures \result == 0 or \result == 1` — **not** `#@ ensures 1 == 1` and not the reversed `#@ ensures \result == 1 or \result == 0`.
+When a function starts `acc = 1` (assumes "true" by default and sets `acc = 0` on an early-exit condition), the postcondition MUST still be `#@ ensures \result == 0 or \result == 1` — **not** `#@ ensures True` and not the reversed `#@ ensures \result == 1 or \result == 0`.
 
 **Critical rules:**
 - The contract order is always **requires → ensures → assigns**. Never place a `#@ requires` after `#@ assigns`.
 - The `ensures` disjunction must be `\result == 0 or \result == 1` (0 first).
 - The **loop invariant** disjunction must lead with the initial value of `acc`: use `acc == 1 or acc == 0` when `acc` starts at `1`, and `acc == 0 or acc == 1` when `acc` starts at `0`. Putting the wrong value first makes Why3 attempt an unsatisfiable equality as its first subgoal and times out after 30 s.
-- `#@ ensures 1 == 1` is **wrong** for a boolean-flag function — it forces the prover to abandon the `acc` invariant context and leaves the VC unproven.
+- `#@ ensures True` is **wrong** for a boolean-flag function — it forces the prover to abandon the `acc` invariant context and leaves the VC unproven.
 
 **Input (`all_positive`):**
 ```python
@@ -209,7 +209,7 @@ KMP-style algorithms use two index variables (`i` over text, `k` over pattern) i
 2. `kmp_build_failure` outer loop needs `#@ loop invariant k < m` (bounds for `pattern[k]`); do NOT include `#@ loop invariant k < i` — `k` can equal `i` after `k += 1` before `i += 1`, so this invariant is Unknown on preservation. The inner loop needs both `k < m` and `#@ loop invariant i < m` (so the solver can bound `k` after `k = failure[k-1]` using the fact that `pattern[i]` is still in-bounds).
 3. `kmp_search` outer loop invariant must use `found <= n` (NOT `found <= n - m`): at initialisation `found = -1` so `found <= n - m` requires `n >= m - 1`, which no precondition establishes, causing a Timeout. Use `#@ loop invariant found <= n` and `#@ loop invariant i <= n` (text length), never `i <= m` (pattern length).
 4. `kmp_search` inner loop (`while k > 0`) must also carry `#@ loop invariant i < n` so the solver can discharge the `text[i]` array-bounds check after the inner loop exits.
-5. `kmp_search` postcondition is `#@ ensures 1 == 1` — never write `1 == 1 - \length(pattern)`.
+5. `kmp_search` postcondition is `#@ ensures True` — never write `1 == 1 - \length(pattern)`.
 6. `kmp_search` is NOT self-recursive — omit any `#@ \variant` clause.
 
 **Output (`count_occurrences`):**
@@ -248,8 +248,8 @@ def count_occurrences(text: list, pattern: list) -> int:
 
 **Output (`kmp_build_failure`):**
 ```python
-#@ requires 1 == 1
-#@ ensures 1 == 1
+#@ requires True
+#@ ensures True
 #@ assigns \nothing
 def kmp_build_failure(pattern: list) -> list:
     m = len(pattern)
@@ -277,9 +277,9 @@ def kmp_build_failure(pattern: list) -> list:
 
 **Output (`kmp_search`):**
 ```python
-#@ requires 1 == 1
+#@ requires True
 #@ ensures \result >= -1
-#@ ensures 1 == 1
+#@ ensures True
 #@ assigns \nothing
 def kmp_search(text: list, pattern: list) -> int:
     n = len(text)

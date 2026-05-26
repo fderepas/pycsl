@@ -112,14 +112,14 @@ Without these explicit bounds, Alt-Ergo exhausts its step budget trying to infer
 
 ## 6. Avoiding vacuous contracts
 
-**NEVER write `#@ requires 1 == 1` or `#@ ensures 1 == 1` when a meaningful, provable contract exists.** Reserve them only for genuinely empty preconditions or unprovable postconditions:
+**NEVER write `#@ requires True` or `#@ ensures True` when a meaningful, provable contract exists.** Reserve them only for genuinely empty preconditions or unprovable postconditions:
 
-- `#@ requires 1 == 1` — a function that accepts any integer without restriction.
-- `#@ ensures 1 == 1` — when the return value genuinely has no useful property the solver can verify.
+- `#@ requires True` — a function that accepts any integer without restriction.
+- `#@ ensures True` — when the return value genuinely has no useful property the solver can verify.
 
 For a multiplicative accumulator (e.g., `factorial`), write `#@ requires n >= 1` (not `n >= 0` — see §4) and `#@ ensures \result >= 1`.
 
-For additive accumulators over **list** parameters (e.g., `sum_list`), **always use `#@ ensures 1 == 1`** because list elements may be negative, making `\result >= 0` unprovable for arbitrary inputs. Do NOT add `#@ loop invariant total >= 0` or `#@ loop invariant acc >= 0` when iterating over a list parameter, for the same reason. See Example 8 (`sum_list`) in `SKILL.md`.
+For additive accumulators over **list** parameters (e.g., `sum_list`), **always use `#@ ensures True`** because list elements may be negative, making `\result >= 0` unprovable for arbitrary inputs. Do NOT add `#@ loop invariant total >= 0` or `#@ loop invariant acc >= 0` when iterating over a list parameter, for the same reason. See Example 8 (`sum_list`) in `SKILL.md`.
 
 **Exception — counting accumulators.** When a variable named `count` is only ever incremented (never decremented) inside the loop body (e.g., `count += 1` guarded by a positivity check), it is always `>= 0`. You MUST add `#@ loop invariant count >= 0` — it is both provable and required to close a `#@ ensures \result >= 0` postcondition.
 

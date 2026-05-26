@@ -58,8 +58,8 @@ def count_categories(items):
 
 **Output:**
 ```python
-#@ requires 1 == 1
-#@ ensures 1 == 1
+#@ requires True
+#@ ensures True
 #@ assigns \nothing
 def count_categories(items: list) -> tuple:
     negatives = 0
@@ -185,11 +185,11 @@ def factorial(n: int) -> int:
 
 ## Example 8 — List summation (weakened contracts for signed integers)
 
-When a function sums list elements, use `#@ requires 1 == 1` and `#@ ensures 1 == 1` for both precondition and postcondition. Specifically:
+When a function sums list elements, use `#@ requires True` and `#@ ensures True` for both precondition and postcondition. Specifically:
 
 - **NOT** `#@ ensures \result >= 0` — list elements may be negative, making this unprovable.
-- **NOT** `#@ requires \length(values) >= 0` — array length is trivially non-negative and adds no useful constraint; use `#@ requires 1 == 1` instead.
-- **NOT** any implication-based postcondition — whether it uses `\length` (e.g. `#@ ensures \length(values) == 0 ==> \result == 0`) or a local variable (e.g. `#@ ensures n == 0 ==> \result == 0`). After the loop, the solver knows `!i = !n` but cannot chain back through the accumulator to discharge the implication, and the goal times out in 30 s / 42 M steps. Use `#@ ensures 1 == 1` instead. The `==>` operator is effectively banned in function-level `ensures` clauses for all index-loop traversals.
+- **NOT** `#@ requires \length(values) >= 0` — array length is trivially non-negative and adds no useful constraint; use `#@ requires True` instead.
+- **NOT** any implication-based postcondition — whether it uses `\length` (e.g. `#@ ensures \length(values) == 0 ==> \result == 0`) or a local variable (e.g. `#@ ensures n == 0 ==> \result == 0`). After the loop, the solver knows `!i = !n` but cannot chain back through the accumulator to discharge the implication, and the goal times out in 30 s / 42 M steps. Use `#@ ensures True` instead. The `==>` operator is effectively banned in function-level `ensures` clauses for all index-loop traversals.
 - **NOT** `#@ loop invariant total >= 0` — **unless** the loop uses `continue` to skip negative elements (see Example 8c). When elements may be negative, this invariant is unprovable; omit it.
 
 Capture `n = len(values)` before the loop.
@@ -205,8 +205,8 @@ def sum_list(values):
 
 **Output:**
 ```python
-#@ requires 1 == 1
-#@ ensures 1 == 1
+#@ requires True
+#@ ensures True
 #@ assigns \nothing
 def sum_list(values: list) -> int:
     n = len(values)
@@ -226,7 +226,7 @@ When a function receives both a `list` parameter `arr` **and** an explicit `int`
 - the loop-invariant initialization sub-goal `0 <= n` (requires `n >= 0`)
 - the array-bounds sub-goal `arr[!i]` (requires `n <= length arr`)
 
-The postcondition is still `#@ ensures 1 == 1` because the elements may be negative.
+The postcondition is still `#@ ensures True` because the elements may be negative.
 
 **Input:**
 ```python
@@ -241,7 +241,7 @@ def for_sum(arr: list, n: int) -> int:
 ```python
 #@ requires n >= 0
 #@ requires n <= \length(arr)
-#@ ensures 1 == 1
+#@ ensures True
 #@ assigns \nothing
 def for_sum(arr: list, n: int) -> int:
     total = 0

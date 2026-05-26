@@ -48,8 +48,8 @@ Multithreaded programs using `threading.Lock` / `threading.RLock`.
 ```python
 #@ thread_entry
 #@ \diverges
-#@ requires 1 == 1
-#@ ensures 1 == 1
+#@ requires True
+#@ ensures True
 #@ assigns \nothing
 def worker() -> int:
     while True:             # <-- NO loop invariant / variant here
