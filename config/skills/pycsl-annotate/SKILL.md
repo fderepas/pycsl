@@ -167,7 +167,8 @@ Key rules (most common mistakes):
 
 - **NEVER use arbitrary function calls** (e.g., `abs(x)`, `range(x)`, `len(x)`) inside `#@` expressions. Use `\length(arr)` instead for array lengths.
 - **NEVER use bare Python booleans** (`True`, `False`, `None`). Use `1 == 1`, `0 == 1`, `0`.
-- **NEVER use `%`** (modulo) or **`//`** (floor-division) inside contracts.
+- **`//` and `%` ARE allowed** in contracts — they map to WhyML `div` and `mod` (confirmed by test 0334). Earlier notes were wrong about them being forbidden.
+- **NEVER use `**`** (exponentiation) in contracts — use literal constants instead.
 - **NEVER place blank lines** between a `#@` block and the `def`/`class` it annotates.
 - **NEVER name variables `val` or `match`** — reserved WhyML keywords.
 - **NEVER use `return <value>` inside `if` in a `while` loop** — use flag+sentinel pattern (see Example 6).
@@ -392,6 +393,54 @@ Python already contains `#@ proof` lines, preserve them verbatim above
 your generated `#@ requires`/`ensures`/`assigns` block.
 
 To verify only specific functions: `./pycsl --fun <name> file.py` — transitive call dependencies are included automatically.
+
+## Real-World Modeling Patterns (from rclpy verification)
+
+The following patterns were discovered during formal verification of the
+ROS 2 `rclpy` library (97 goals, 6 files, 100% proof rate). They address
+common challenges when verifying real-world Python code.
+
+### File-level anchors
+
+Every annotated file needs a sentinel line near the top so pycsl can
+detect the annotation style:
+
+- **`_ = 0  # anchor`** — for files without classes (standalone functions)
+- **`""  # pycsl`** — for files with classes (class-centric models)
+
+### Modeling complex classes as simplified models
+
+Real-world classes often have 20+ methods and deep inheritance. PyCSL
+verification targets a *model* of the class, not the full implementation:
+
+1. Identify the **state fields** that carry safety-critical invariants
+   (e.g., `_active`, `_count`, `_nanoseconds`)
+2. Write a **class invariant** over those fields
+3. Model only the **methods that mutate** invariant fields + key query
+   methods
+4. Use `#@ \trusted` for methods that call C extensions or external code
+
+### Enum-as-integer modeling
+
+Python `IntEnum` values should be modeled as plain `int` parameters with
+range preconditions:
+
+```python
+#@ requires policy == 0 or policy == 1   # KEEP_ALL=0, KEEP_LAST=1
+```
+
+This keeps contracts in the integer domain that SMT solvers handle
+efficiently.
+
+### Transpiler workarounds (must know)
+
+See `references/transpiler-limits.md` §12 for confirmed transpiler bugs:
+
+- **TR-BUG-1 (float precision):** Large constants (>2^53) lose precision.
+  Use `< 2^63` instead of `<= 2^63-1`.
+- **TR-BUG-2 (purity bug):** Functions with `#@ raises` but no local
+  variables are emitted as pure. Add a local variable to force mutable
+  emission.
 
 ## Glossary
 

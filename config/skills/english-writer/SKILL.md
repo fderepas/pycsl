@@ -29,3 +29,46 @@ PRECONDITIONS: <what must be true before calling, or "None">
 MUTATIONS: <what state is modified, or "None">
 LOOP PROPERTIES: <for each loop: what changes, what is preserved, why it terminates — or "No loops">
 ```
+
+## Real-World Examples (from rclpy verification)
+
+These examples show the level of precision expected for specifications of
+real-world code.
+
+### Example: Duration arithmetic (overflow boundary)
+
+```text
+DESCRIPTION: Creates a Duration from a nanosecond count, rejecting values
+outside the signed 64-bit range. The valid range is
+-9223372036854775808 ≤ nanoseconds < 9223372036854775808.
+RETURN VALUE: The nanosecond count (integer), unchanged from the input.
+PRECONDITIONS: nanoseconds must be an integer in [-2^63, 2^63).
+MUTATIONS: None.
+LOOP PROPERTIES: No loops.
+```
+
+### Example: Mutex acquire (test-and-set protocol)
+
+```text
+DESCRIPTION: Attempts to acquire the mutex. If the mutex is idle
+(active == 0), sets it to active (1) and returns 1 (success). If the
+mutex is already held (active == 1), leaves it unchanged and returns 0
+(failure). The class invariant active ∈ {0, 1} is preserved.
+RETURN VALUE: Integer, 1 if the mutex was acquired, 0 if it was already held.
+PRECONDITIONS: None (the method handles both idle and active states).
+MUTATIONS: self._active is set to 1 if it was 0; unchanged otherwise.
+LOOP PROPERTIES: No loops.
+```
+
+### Example: QoS validation (enum + depth cross-check)
+
+```text
+DESCRIPTION: Validates a QoS history/depth combination. History policy is
+modeled as an integer (0 = KEEP_ALL, 1 = KEEP_LAST). KEEP_LAST with
+depth 0 is invalid and raises ValueError. All other combinations of
+valid history and non-negative depth are accepted.
+RETURN VALUE: A tuple (history, depth), both integers, unchanged from input.
+PRECONDITIONS: history must be 0 or 1. depth must be ≥ 0.
+MUTATIONS: None.
+LOOP PROPERTIES: No loops.
+```

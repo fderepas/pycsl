@@ -10,8 +10,7 @@ These rules apply only inside `#@` expressions (`requires`, `ensures`, `loop inv
 - **Exception — `arr[i]`**: array subscript reads are supported inside contract expressions (e.g., inside `\forall` bodies).
 - **`dict`-typed parameters** are modeled as `array int` (same as `list`). Use `\length(d)`, `d[k]`, `\is_sorted`, `\sum` on `dict` parameters the same way as on `list` parameters.
 - **NEVER use bare Python booleans** (`True`, `False`, `None`) inside `#@` expressions. Use `1 == 1` instead of `True`, `0 == 1` instead of `False`, and `0` instead of `None`.
-- **NEVER use `%`** (modulo). Replace with weaker but parseable forms (e.g., `#@ loop invariant divisor >= 3` instead of `#@ loop invariant divisor % 2 == 1`).
-- **NEVER use `//`** (floor-division) inside contracts. The grammar does not support it. Integer-division properties are hard to express — fall back to `#@ ensures 1 == 1` if no weaker form works.
+- **`%` (modulo) and `//` (floor-division) ARE allowed** in contracts. They map to WhyML `mod` and `div` respectively. `//` is emitted as prefix `(div l r)` via `int.EuclideanDivision`. Confirmed by test 0334 and `references/transpiler-limits.md` §7.
 - **NEVER place blank lines between a `#@` block and the `def` or `class` keyword it annotates.** Blank lines cause libcst line-number mismatch and silently drop all contracts.
 - **String literals are supported.** Double-quoted strings map to WhyML's `string` type. Example: `#@ ensures \result == "hello"`.
 - **Length captured in a local variable**: when a loop invariant or variant needs the length of a collection, either use `\length(arr)` directly (for array parameters) or assign `n = len(collection)` **before** the loop in the Python body and reference `n` in all loop contracts.

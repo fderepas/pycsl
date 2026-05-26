@@ -10,9 +10,16 @@ see [`docs/glossary/`](docs/glossary/).
 
 ---
 
-## Example
+## Example — Verifying Euclidean GCD
 
-Let's consider a python function computing a Greatest Common Divisor (GCD) computation:
+This walk-through introduces every concept that drives PyCSL by
+incrementally annotating a single function. The finished file is shipped
+as `test-suite/corpus/pycsl-reference/0342.py` and verifies end-to-end
+under Why3 + Alt-Ergo with no `--no-proof`, no `\trusted`, and no human
+proof scripting.
+
+### Step 1 — The unannotated Python
+
 ```python
 def gcd(a: int, b: int) -> int:
     x = a
@@ -23,21 +30,23 @@ def gcd(a: int, b: int) -> int:
         y = r
     return x
 ```
-We would like to make sure that the result of the function `\result` is the GCD of arguments a and b.
+
+Standard Euclidean algorithm: copy the parameters to mutable locals so
+the contract can refer back to the originals, then reduce `(x, y) →
+(y, x mod y)` until `y` reaches zero.
+
+### Step 2 — State the specification
+
+What we want to prove about `gcd(a, b)`:
+
+- the inputs are non-negative (`a >= 0`, `b >= 0`), and
+- the result is non-negative, strictly positive when at least one
+  input is, and divides both inputs.
+
+In PyCSL contract syntax — placed *before* the `def` line, each prefixed
+by `#@`:
 
 ```python
-#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_result_nonneg
-#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_result_positive
-#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_divides_a
-#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_divides_b
-#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_0
-#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_step
-#@ axiom_from lean Pycsl.Reference.Gcd.gcd_result_nonneg
-#@ axiom_from lean Pycsl.Reference.Gcd.gcd_result_positive
-#@ axiom_from lean Pycsl.Reference.Gcd.gcd_divides_a
-#@ axiom_from lean Pycsl.Reference.Gcd.gcd_divides_b
-#@ axiom_from lean Pycsl.Reference.Gcd.gcd_0
-#@ axiom_from lean Pycsl.Reference.Gcd.gcd_step
 #@ requires a >= 0
 #@ requires b >= 0
 #@ ensures \result >= 0
@@ -45,6 +54,28 @@ We would like to make sure that the result of the function `\result` is the GCD 
 #@ ensures (a > 0 or b > 0) ==> a % \result == 0
 #@ ensures (a > 0 or b > 0) ==> b % \result == 0
 #@ assigns \nothing
+```
+
+Reading the tokens:
+
+| Directive | Meaning |
+|---|---|
+| `requires P` | Caller's obligation: `P` must hold at function entry. Falsifying it is a *caller* bug. |
+| `ensures P` | Function's guarantee: `P` holds at every return. `\result` denotes the return value. |
+| `==>` | Logical implication. Use parentheses around the antecedent. |
+| `a % b` | Python `mod` — `a % \result == 0` means "result divides a". |
+| `assigns \nothing` | Frame condition: no observable state is mutated (local variables don't count). |
+
+Multiple `requires` / `ensures` lines are conjuncted.
+
+### Step 3 — Annotate the loop
+
+Hoare logic verifies a `while` by induction: pick an **invariant** that
+holds before the loop, is preserved by every iteration, and combined
+with the loop-exit condition implies the postcondition. Termination
+needs a **variant** — a strictly-decreasing non-negative measure.
+
+```python
 def gcd(a: int, b: int) -> int:
     x = a
     y = b
@@ -60,6 +91,73 @@ def gcd(a: int, b: int) -> int:
     return x
 ```
 
+The load-bearing line is `gcd(x, y) == gcd(a, b)`: the Euclidean
+identity that whatever `(x, y)` becomes, its gcd matches the original
+pair. At loop exit (`y = 0`), this collapses to `gcd(x, 0) == gcd(a, b)`,
+and the postconditions reduce to divisibility facts about `gcd(a, b)`.
+The variant `y` strictly decreases because `x mod y < y` whenever `y > 0`.
+
+### Step 4 — Hand the math to Rocq + Lean
+
+The proof in Step 3 needs three mathematical facts SMT solvers cannot
+discover on their own:
+
+- `gcd a 0 = a` (loop-exit collapse),
+- `gcd a b = gcd b (a mod b)` (Euclidean step, the invariant preservation),
+- `a mod gcd(a, b) = 0` and `b mod gcd(a, b) = 0` (divisibility).
+
+These come from `test-suite/corpus/pycsl-reference/0342.proofs/`, where
+the same six lemmas are **independently proved in both Rocq and Lean**.
+PyCSL imports them as Why3 axioms via the `#@ axiom_from` directive.
+When the *same* `pycsl_target` is named for both provers, the
+`proof2why3 cross-check` tool verifies that the two formalizations
+state the same theorem (after canonicalization) — this is the **"Rocq +
+Lean as Cross-Validated Spec Sources"** pattern.
+
+```python
+#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_result_nonneg
+#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_result_positive
+#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_divides_a
+#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_divides_b
+#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_0
+#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_step
+#@ axiom_from lean Pycsl.Reference.Gcd.gcd_result_nonneg
+#@ axiom_from lean Pycsl.Reference.Gcd.gcd_result_positive
+#@ axiom_from lean Pycsl.Reference.Gcd.gcd_divides_a
+#@ axiom_from lean Pycsl.Reference.Gcd.gcd_divides_b
+#@ axiom_from lean Pycsl.Reference.Gcd.gcd_0
+#@ axiom_from lean Pycsl.Reference.Gcd.gcd_step
+```
+
+Why both Rocq *and* Lean: a typo in a Rocq theorem statement that
+matches what the WhyML axiom needs is still a wrong axiom. With two
+independent proof kernels stating the same fact, the chance of a
+correlated mistake drops sharply. See `simple3.md` for the full
+architecture and `docs/pycsl-translational-reference.md §T.2.10` for
+the WhyML emission rule.
+
+### Step 5 — Run the verifier
+
+```bash
+PYTHONPATH=src .venv/bin/python -m pycsl.pycsl \
+    test-suite/corpus/pycsl-reference/0342.py
+```
+
+Expected output (abridged):
+
+```text
+[*] Parsing and Semantic Analysis for '…/0342.py'...
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.2 → Z3,4.13.3)...
+…
+Sub-goal Postcondition of goal gcd'vc.
+Prover result is: Valid (27.83s, 737520 steps).
+[+] Verification SUCCESS! All contracts formally proven.
+```
+
+Every loop-invariant initialisation, every preservation step, the
+variant decrease, the modulo guard, and all four postconditions are
+discharged by Alt-Ergo using the six imported axioms. No `\trusted`,
+no `--no-proof`.
 
 ---
 

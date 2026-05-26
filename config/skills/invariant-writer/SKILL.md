@@ -187,6 +187,51 @@ When the CLASS CONTEXT includes `#@ class invariant <expr>`, and a loop inside a
 - This ensures the invariant is preserved at every loop iteration, not just at method exit.
 - For read-only loops (that don't modify the invariant fields), this is not needed.
 
+## Lessons from Real-World Verification (rclpy)
+
+These patterns were discovered during verification of the ROS 2 `rclpy`
+library and are directly applicable to invariant writing.
+
+### Pattern: Class invariant as the primary proof anchor
+
+When verifying a class with a state machine (mutex, counter, flag), the
+class invariant is often the only loop-free invariant needed. The methods
+that mutate the state field carry preconditions that prevent the invariant
+from being violated:
+
+```python
+#@ class invariant self._active == 0 or self._active == 1
+class MutexGroup:
+    # beginning_execution: transitions 0→1 (or stays 1)
+    # ending_execution: requires _active == 1, transitions 1→0
+    # can_execute: pure query, no mutation
+```
+
+In this pattern, there are **no loops** — the class invariant is proven
+entirely via method contracts. The invariant writer's job is to ensure that
+any method body containing a loop **carries the class invariant as a loop
+invariant** if the loop modifies the invariant field.
+
+### Pattern: Counter monotonicity for enter/exit protocols
+
+When a class tracks active work with a counter, the invariant `count >= 0`
+is preserved by requiring `count >= 1` before decrement:
+
+```python
+#@ class invariant self._count >= 0
+
+#@ requires self._count >= 1
+#@ ensures self._count == \old(self._count) - 1
+#@ assigns self._count
+def exit_work(self) -> None:
+    self._count = self._count - 1
+```
+
+If a loop calls `exit_work` in its body, add `#@ loop invariant
+self._count >= 0` to the loop. The solver will discharge the precondition
+`self._count >= 1` from the loop guard (if the loop only calls
+`exit_work` when the counter is positive) and preserve the invariant.
+
 ## Glossary
 
 [loop invariant](../../docs/glossary/loop-invariant.md) ·

@@ -167,8 +167,8 @@ Set Typeclasses Depth 5.
 coqc -Q . ProjectName File.v
 
 # Using _CoqProject
-coq_makefile -f _CoqProject -o CoqMakefile
-make -f CoqMakefile
+coq_makefile -f _CoqProject -o Makefile
+make
 
 # Via MCP
 rocq_compile(source="full file content")

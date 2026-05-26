@@ -263,3 +263,70 @@ The following `+=` shorthands are supported and emit idiomatic Why3 operations:
 | `#@ ghost l += v` | `ghost_list` | `ghost l := Cons v !l` (prepend) |
 | `#@ ghost s += v` | `ghost_set` | `ghost s := Map.set !s v true` (insert) |
 | `#@ ghost d += \mktuple(k, v)` | `ghost_dict` | `ghost d := Map.set !d k (Some v)` (insert/update) |
+
+---
+
+## 12. Known transpiler bugs (with workarounds)
+
+These are confirmed bugs discovered during formal verification of the
+ROS 2 `rclpy` library. Until they are fixed, use the workarounds below.
+
+### TR-BUG-1: Float precision loss in large integer constants
+
+The transpiler converts contract constants through `float` internally.
+Integer constants larger than 2^53 lose precision:
+
+```
+int(float(9223372036854775807))  →  9223372036854775808   # 2^63 - 1 → 2^63
+```
+
+**Impact:** A contract `#@ requires n <= 9223372036854775807` (2^63-1) is
+compiled to `n <= 9223372036854775808` (2^63) in WhyML — the boundary
+shifts by one.
+
+**Workaround:** Use constants that survive float round-trip. Replace
+`>` / `<=` with `>=` / `<` against the next representable value:
+
+```python
+# WRONG: 2^63-1 loses precision → becomes 2^63 in WhyML
+#@ requires nanoseconds <= 9223372036854775807
+
+# CORRECT: 2^63 survives float round-trip, use < instead of <=
+#@ requires nanoseconds < 9223372036854775808
+```
+
+Both express the same mathematical constraint (`ns ≤ 2^63 - 1` ≡
+`ns < 2^63`), but only the second compiles correctly.
+
+### TR-BUG-2: Pure-function emission for functions with `raises`
+
+When a function has `#@ raises ExcType when <cond>` but contains no local
+variable assignments in its body, the transpiler emits it as
+`let function` (pure) in WhyML. The `raises` clause is effectful and
+requires `let` (not `let function`). Why3 rejects the result.
+
+**Impact:** A simple validator like:
+
+```python
+#@ raises ValueError when x < 0
+#@ assigns \nothing
+def check_positive(x: int) -> int:
+    if x < 0:
+        raise ValueError
+    return x
+```
+
+fails at the Why3 level because the function is emitted as pure but
+declares an exception.
+
+**Workaround:** Add a local variable assignment to force mutable mode:
+
+```python
+#@ raises ValueError when x < 0
+#@ assigns \nothing
+def check_positive(x: int) -> int:
+    v = x                  # forces `let` (mutable) emission
+    if v < 0:
+        raise ValueError
+    return v
+```

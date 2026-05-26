@@ -313,3 +313,112 @@ def kmp_search(text: list, pattern: list) -> int:
             i += 1
     return found
 ```
+
+---
+
+## Example 12 — Mutex state machine (class invariant, no loops)
+
+This pattern models a mutually-exclusive lock as a class with an integer
+field `_active ∈ {0, 1}`. The class invariant is the sole proof anchor —
+there are no loops, so no loop invariants are needed.
+
+Key lessons:
+- `beginning_execution` is a test-and-set: if idle (0), set to active (1)
+  and return 1 (success); if already active, return 0 (failure).
+- `ending_execution` requires `_active == 1` — this precondition is the
+  proof obligation that prevents double-release.
+- `can_execute` is a pure query (assigns nothing).
+
+```python
+""  # pycsl
+
+#@ class invariant self._active == 0 or self._active == 1
+class MutexGroup:
+    def __init__(self) -> None:
+        self._active: int = 0
+
+    #@ ensures (\old(self._active) == 0) ==> (\result == 1 and self._active == 1)
+    #@ ensures (\old(self._active) == 1) ==> (\result == 0 and self._active == 1)
+    #@ assigns self._active
+    def beginning_execution(self) -> int:
+        was_idle = self._active
+        self._active = 1
+        if was_idle == 0:
+            return 1
+        return 0
+
+    #@ requires self._active == 1
+    #@ ensures self._active == 0
+    #@ assigns self._active
+    def ending_execution(self) -> None:
+        self._active = 0
+
+    #@ ensures (self._active == 0) ==> (\result == 1)
+    #@ ensures (self._active == 1) ==> (\result == 0)
+    #@ assigns \nothing
+    def can_execute(self) -> int:
+        if self._active == 0:
+            return 1
+        return 0
+```
+
+---
+
+## Example 13 — Counter protocol (balanced enter/exit)
+
+This pattern models a reference counter with class invariant `_count >= 0`.
+The key insight is the precondition `_count >= 1` on the decrement method,
+which is the proof obligation that prevents the counter from going negative.
+
+```python
+""  # pycsl
+
+#@ class invariant self._count >= 0
+class WorkTracker:
+    def __init__(self) -> None:
+        self._count: int = 0
+
+    #@ ensures self._count == \old(self._count) + 1
+    #@ assigns self._count
+    def enter_work(self) -> None:
+        self._count = self._count + 1
+
+    #@ requires self._count >= 1
+    #@ ensures self._count == \old(self._count) - 1
+    #@ assigns self._count
+    def exit_work(self) -> None:
+        self._count = self._count - 1
+
+    #@ ensures (\old(self._count) == 0) ==> (\result == 1)
+    #@ ensures (\old(self._count) >= 1) ==> (\result == 0)
+    #@ assigns \nothing
+    def is_idle(self) -> int:
+        if self._count == 0:
+            return 1
+        return 0
+```
+
+---
+
+## Example 14 — Exceptional postconditions for validation
+
+This pattern models a function that raises an exception on invalid input.
+Note the workaround for TR-BUG-2: a local variable assignment is required
+to prevent the transpiler from emitting the function as pure.
+
+```python
+_ = 0  # anchor
+
+#@ requires depth >= 0
+#@ requires history == 0 or history == 1
+#@ ensures history == 0 ==> (\result[0] == 0 and \result[1] == depth)
+#@ ensures (history == 1 and depth >= 1) ==> (\result[0] == 1 and \result[1] == depth)
+#@ raises ValueError when history == 1 and depth == 0
+#@ assigns \nothing
+def qos_validate(history: int, depth: int) -> tuple:
+    h = history    # local var forces mutable emission (TR-BUG-2 workaround)
+    d = depth
+    if h == 1 and d == 0:
+        raise ValueError
+    return (h, d)
+```

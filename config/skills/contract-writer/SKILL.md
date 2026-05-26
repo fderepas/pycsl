@@ -45,13 +45,17 @@ broader global claims.
 
 ### FORBIDDEN in expressions
 
-- NO `//` (floor-division not supported in contracts), NO `%` (modulo not supported), NO `**`
+- NO `**` (exponentiation)
 - NO float literals
 - NO impure function calls (only pure functions with `#@ assigns \nothing` may be called in contracts)
 - NO list comprehensions, NO ternary expressions
-- NO `in`, `not in` operators
 - NO bare Python booleans (`True`, `False`, `None`) — use `1 == 1`, `0 == 1`, `0`
 - String literals are supported: `"hello"` maps to WhyML `string` type
+
+### ALLOWED in expressions (commonly mistaken as forbidden)
+
+- `//` (floor-division) and `%` (modulo) **ARE** allowed in contracts — they map to WhyML `div` and `mod` respectively (confirmed by test 0334).
+- `in`, `not in` **ARE** allowed — they desugar to existential quantifiers.
 
 ## Guidelines for Strong Contracts
 
@@ -186,3 +190,80 @@ Example output:
 #@ ensures \result <= n
 #@ assigns \nothing
 ```
+
+## Lessons from Real-World Verification (rclpy)
+
+These patterns were discovered during formal verification of the ROS 2
+`rclpy` library (97 goals, 6 files, 100% proof rate).
+
+### Pattern: Modeling enums as bounded integers
+
+When the source code uses `IntEnum` or integer type tags, model them as
+plain integers with range preconditions:
+
+```python
+# ROS 2 HistoryPolicy: SYSTEM_DEFAULT=0, KEEP_LAST=1, KEEP_ALL=2, UNKNOWN=3
+#@ requires history == 0 or history == 1
+#@ requires depth >= 0
+#@ ensures (history == 1 and depth >= 1) ==> (\result[0] == 1 and \result[1] == depth)
+#@ raises ValueError when history == 1 and depth == 0
+#@ assigns \nothing
+def qos_validate(history: int, depth: int) -> tuple:
+```
+
+### Pattern: Mutex protocol (enter/exit symmetry)
+
+For acquire/release patterns (locks, reference counts, work trackers),
+the key contract is that `exit` requires the resource to be held:
+
+```python
+#@ class invariant self._active == 0 or self._active == 1
+
+# enter: idempotent test-and-set
+#@ ensures (\old(self._active) == 0) ==> (self._active == 1 and \result == 1)
+#@ ensures (\old(self._active) == 1) ==> (self._active == 1 and \result == 0)
+#@ assigns self._active
+def beginning_execution(self) -> int:
+
+# exit: requires resource held
+#@ requires self._active == 1
+#@ ensures self._active == 0
+#@ assigns self._active
+def ending_execution(self) -> None:
+```
+
+### Pattern: Counter with balanced increment/decrement
+
+```python
+#@ class invariant self._count >= 0
+
+#@ ensures self._count == \old(self._count) + 1
+#@ assigns self._count
+def enter_work(self) -> None:
+
+#@ requires self._count >= 1
+#@ ensures self._count == \old(self._count) - 1
+#@ assigns self._count
+def exit_work(self) -> None:
+```
+
+The `requires self._count >= 1` on the decrement method is essential — it
+is the proof obligation that prevents the counter from going negative. The
+class invariant `self._count >= 0` holds precisely because this
+precondition is enforced.
+
+### Pitfall: Large integer constants lose precision through float
+
+The transpiler converts contract constants through `float` internally.
+`9223372036854775807` (2^63-1) becomes `9223372036854775808` because
+`int(float(9223372036854775807)) == 9223372036854775808`. **Workaround:**
+use `9223372036854775808` (2^63, which survives the float round-trip) with
+`>=` / `<` operators instead of `>` / `<=` with 2^63-1.
+
+### Pitfall: Functions with `raises` but no local variable
+
+Functions that have `#@ raises` but no local variable assignments are
+emitted as `let function` (pure) in WhyML, which conflicts with the
+`raises` (effectful). **Workaround:** add a local variable assignment
+(e.g., `ns = nanoseconds`) to force the transpiler to emit `let` instead
+of `let function`.

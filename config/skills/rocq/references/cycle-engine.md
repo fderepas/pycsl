@@ -72,7 +72,7 @@ Three-tier verification ladder:
 |------|------|-------|------|
 | Per-tactic | `rocq_check(body)` | Sub-second | After each tactic |
 | File compile | `rocq_compile(source)` | Seconds | File-level gate |
-| Project gate | `make -f CoqMakefile` | Minutes | Checkpoint/final verification |
+| Project gate | `make` | Minutes | Checkpoint/final verification |
 
 ## Stuck Definition
 
