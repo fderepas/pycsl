@@ -25,6 +25,7 @@ src/pycsl/
     scc.py                    ← Tarjan SCC + call-graph helpers for function emission order
     auto_trust.py             ← AutoTrustMixin: auto-trust decisions + linear-VC classification
     abstract_ops.py           ← AbstractOpsMixin: abstract-val registry + late insertion
+    types.py                  ← TypeInferenceMixin: RHS classification + field-type + collection metadata
   pycsl.py                    ← CLI entry point
   errors.py                   ← PyCSLError hierarchy
   ir_schema.py                ← validate_ir() — JSON IR structural contract
