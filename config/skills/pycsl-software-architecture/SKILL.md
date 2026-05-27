@@ -27,6 +27,7 @@ src/pycsl/
     abstract_ops.py           ← AbstractOpsMixin: abstract-val registry + late insertion
     types.py                  ← TypeInferenceMixin: RHS classification + field-type + collection metadata
     expressions.py            ← ExpressionEmissionMixin: _EXPR_DISPATCH targets + expr-emission helpers
+    statements.py             ← StatementEmissionMixin: _handle_*_stmt + body wrapping + frame condition
   pycsl.py                    ← CLI entry point
   errors.py                   ← PyCSLError hierarchy
   ir_schema.py                ← validate_ir() — JSON IR structural contract
@@ -119,7 +120,7 @@ For the full agent orchestration description, see `references/agent-pipeline.md`
 3. `Module4_SemanticAnalyzer.py` — add validation logic.
 4. `Module5_IREmitter.py` — emit the new field into the JSON IR dict.
 5. `ir_schema.py` — extend `validate_ir()` if the field is required.
-6. `Module6_WhyMLTranspiler.py` — transpile it to the corresponding WhyML syntax.
+6. `module6_whyml/expressions.py` or `module6_whyml/statements.py` — add the handler function and register it in `_EXPR_DISPATCH` (on the facade) for new expression shapes, or wire it into `_stmts_to_whyml`'s dispatch for new statement shapes.
 7. Add a reference test in `test-suite/corpus/pycsl-reference/`.
 
 **Adding a new guard to agent-annotate:**
