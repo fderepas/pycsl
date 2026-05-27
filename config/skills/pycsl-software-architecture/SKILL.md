@@ -18,7 +18,9 @@ src/pycsl/
   Module3_Weaver.py           ← weaves CSLNode into ast.AST (in-place csl_* fields)
   Module4_SemanticAnalyzer.py ← validates annotated ast.AST
   Module5_IREmitter.py        ← annotated ast.AST → JSON IR string
-  Module6_WhyMLTranspiler.py  ← JSON IR string → WhyML text
+  Module6_WhyMLTranspiler.py  ← facade; JSON IR string → WhyML text
+  module6_whyml/
+    ir_scanner.py             ← stateless IR-tree analysis
   pycsl.py                    ← CLI entry point
   errors.py                   ← PyCSLError hierarchy
   ir_schema.py                ← validate_ir() — JSON IR structural contract
