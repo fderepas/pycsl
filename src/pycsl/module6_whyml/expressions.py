@@ -15,6 +15,19 @@ class ExpressionEmissionMixin:
     attribute — moving it would force a circular import.
     """
 
+    _BITWISE_FOLD_OPS = {
+        "&": lambda a, b: a & b, "|": lambda a, b: a | b, "^": lambda a, b: a ^ b,
+        "<<": lambda a, b: a << b, ">>": lambda a, b: a >> b, "**": lambda a, b: a ** b,
+    }
+    _BITWISE_FN_NAMES = {
+        "&": "bit_and", "|": "bit_or", "^": "bit_xor",
+        "<<": "bit_lshift", ">>": "bit_rshift", "**": "py_pow",
+    }
+
+    def _e(self, ir: Dict, lr: Set[str]) -> str:
+        """Shorthand for _expr_to_whyml within ghost handlers."""
+        return self._expr_to_whyml(ir, lr)
+
     def _to_bool(self, whyml_str: str, ir_expr: Dict[str, Any]) -> str:
         """Coerce a WhyML expression to bool if it might be int.
         Comparison operators and bool literals are already bool.

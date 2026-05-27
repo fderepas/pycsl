@@ -28,6 +28,8 @@ src/pycsl/
     types.py                  ← TypeInferenceMixin: RHS classification + field-type + collection metadata
     expressions.py            ← ExpressionEmissionMixin: _EXPR_DISPATCH targets + expr-emission helpers
     statements.py             ← StatementEmissionMixin: _handle_*_stmt + body wrapping + frame condition
+    preamble.py               ← PreambleEmissionMixin: use/exceptions/helpers/axioms + shared state + type decls
+    functions.py              ← FunctionEmissionMixin: per-function emission + param typing + contracts + cross-method maps
   pycsl.py                    ← CLI entry point
   errors.py                   ← PyCSLError hierarchy
   ir_schema.py                ← validate_ir() — JSON IR structural contract

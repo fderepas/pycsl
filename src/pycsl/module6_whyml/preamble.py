@@ -1,0 +1,478 @@
+from __future__ import annotations
+
+from typing import Any, Dict, List, Optional, Set, Tuple
+
+from module6_whyml.identifiers import whyml_ident, safe_mutex_name
+from module6_whyml.ir_scanner import IRScanner
+
+
+class PreambleEmissionMixin:
+    """Preamble emission: top-of-file `use` clauses, exception type declarations, helper let-bindings, axiom blocks, shared state for the concurrent memory model, record/sum type declarations, and opaque class aliases. Mixed into Module6_WhyMLTranspiler."""
+
+    # §2.1.12 — registry of hand-curated axiom bodies for `#@ proof`
+    # qualnames. MVP step before `proof2why3` extraction lands (see
+    # docs/cross-validated-spec-sources.md). Each entry's body is the canonical statement that
+    # the paired Rocq + Lean theorems establish — cross-checked
+    # manually for the MVP, automatically via the cross-check
+    # pipeline in v1.
+    _AXIOM_REGISTRY: Dict[str, str] = {
+        # Pycsl.Reference.Gcd — Euclidean GCD properties.
+        # Cross-validated by 0342.proofs/rocq/gcd.v + 0342.proofs/lean/Gcd.lean.
+        "Pycsl.Reference.Gcd.gcd_result_nonneg":
+            "forall a b : int. 0 <= gcd a b",
+        "Pycsl.Reference.Gcd.gcd_result_positive":
+            "forall a b : int. a >= 0 -> b >= 0 -> (a > 0 \\/ b > 0) -> gcd a b > 0",
+        "Pycsl.Reference.Gcd.gcd_divides_a":
+            "forall a b : int. a >= 0 -> b >= 0 -> (a > 0 \\/ b > 0) -> mod a (gcd a b) = 0",
+        "Pycsl.Reference.Gcd.gcd_divides_b":
+            "forall a b : int. a >= 0 -> b >= 0 -> (a > 0 \\/ b > 0) -> mod b (gcd a b) = 0",
+        "Pycsl.Reference.Gcd.gcd_0":
+            "forall a : int. a >= 0 -> gcd a 0 = a",
+        "Pycsl.Reference.Gcd.gcd_step":
+            "forall a b : int. b > 0 -> gcd a b = gcd b (mod a b)",
+        "Pycsl.Reference.Gcd.gcd_greatest":
+            "forall a b k : int. a >= 0 -> b >= 0 -> (a > 0 \\/ b > 0) -> "
+            "k > 0 -> mod a k = 0 -> mod b k = 0 -> k <= gcd a b",
+    }
+
+    # Functions that an axiom block needs declared. Looked up by qualname
+    # prefix; declarations emitted once each when any matching axiom fires.
+    _AXIOM_FUNCTIONS: Dict[str, str] = {
+        "Pycsl.Reference.Gcd.": "function gcd (a : int) (b : int) : int",
+    }
+
+    def _scan_preamble_needs(self, functions: List[Dict[str, Any]],
+                             all_bodies: List[Any]) -> Dict[str, Any]:
+        """Scan all function bodies once to collect feature flags for preamble emission."""
+        has_list_param = any(
+            v in ("list", "dict")
+            for func in functions
+            for v in func.get("symbol_table", {}).values()
+        )
+        needs_matrix = any(func.get("array2d_params") for func in functions)
+        if self.memory_model in ("hoare", "concurrent"):
+            needs_array = (
+                has_list_param
+                or any(IRScanner.uses_for(body) for body in all_bodies)
+                or any(IRScanner.uses_subscript(body) for body in all_bodies)
+                or any(IRScanner.uses_arrayset(body) for body in all_bodies)
+                or any(IRScanner.uses_array_lit(body) for body in all_bodies)
+                or any(IRScanner.uses_ghost_type(body, {"array"}) for body in all_bodies)
+            )
+        else:
+            needs_array = False
+        needs_minmax = any(IRScanner.uses_minmax(body) for body in all_bodies)
+        needs_continue = any(IRScanner.uses_continue(body) for body in all_bodies)
+        needs_break = any(IRScanner.uses_break(body) for body in all_bodies)
+        needs_return_exc = False
+        needs_return_void = False
+        tuple_return_arities: Set[int] = set()
+        n = len(functions)
+        i = 0
+        while i < n:
+            func = functions[i]
+            has_ret = IRScanner.has_in_loop_return(func["body"]) or IRScanner.has_early_return(func["body"])
+            if has_ret:
+                ret_type = IRScanner.find_return_type(func["body"])
+                if ret_type == "unit":
+                    needs_return_void = True
+                elif ret_type.startswith("(") and "," in ret_type:
+                    # Tuple return — needs a dedicated Return_<arity> exception
+                    # so the value carries through; the plain `exception Return int`
+                    # would force `_coerce_to_int` to hash the whole tuple.
+                    tuple_return_arities.add(ret_type.count(",") + 1)
+                else:
+                    needs_return_exc = True
+            i += 1
+        needs_string = any(IRScanner.uses_ghost_type(body, {"string"}) for body in all_bodies)
+        needs_map_ghost = any(IRScanner.uses_ghost_type(body, {"ghost_dict", "ghost_set"}) for body in all_bodies)
+        needs_ghost_dict = any(IRScanner.uses_ghost_type(body, {"ghost_dict"}) for body in all_bodies)
+        # Body-level Python dicts are modelled as `ref (map int (option int))`
+        # (parallel to ghost dicts). Triggered by:
+        #   - `find_array_and_dict_vars` detecting any `d = {}` / `d = dict()`
+        #     / `d = {k: v}` / `s = set()` / `s = {a, b}` in the body.
+        #   - inline set/dict literals (e.g. `held | {mutex}`) or
+        #     `.add()`/`.discard()`/`.remove()` method calls anywhere in
+        #     the IR — these emit `map_update_some` / `map_update_none`
+        #     into the abstract-val block, which requires `use map.Map`
+        #     and `use option.Option` in the preamble.
+        needs_body_dict = False
+        for body in all_bodies:
+            _arr, body_dicts = IRScanner.find_array_and_dict_vars(body)
+            if body_dicts or IRScanner.uses_inline_set_or_dict_ops(body):
+                needs_body_dict = True
+                break
+        needs_list_ghost = any(IRScanner.uses_ghost_type(body, {"ghost_list"}) for body in all_bodies)
+        needs_sum = any(IRScanner.uses_sum(func) for func in functions)
+        needs_set_card = any(IRScanner.uses_set_card(func) for func in functions)
+        needs_divmod = any(IRScanner.uses_divmod(body) for body in all_bodies)
+        bounded_sizes = {func["bounded_int"] for func in functions if func.get("bounded_int")}
+        user_exceptions: Set[str] = set()
+        n2 = len(all_bodies)
+        i2 = 0
+        while i2 < n2:
+            user_exceptions |= IRScanner.collect_user_exceptions(all_bodies[i2])
+            i2 += 1
+        return {
+            "needs_array": needs_array,
+            "needs_matrix": needs_matrix,
+            "needs_minmax": needs_minmax,
+            "needs_continue": needs_continue,
+            "needs_break": needs_break,
+            "needs_return_exc": needs_return_exc,
+            "needs_return_void": needs_return_void,
+            "needs_body_dict": needs_body_dict,
+            "tuple_return_arities": tuple_return_arities,
+            "needs_string": needs_string,
+            "needs_map_ghost": needs_map_ghost,
+            "needs_ghost_dict": needs_ghost_dict,
+            "needs_list_ghost": needs_list_ghost,
+            "needs_sum": needs_sum,
+            "needs_set_card": needs_set_card,
+            "needs_divmod": needs_divmod,
+            "bounded_sizes": bounded_sizes,
+            "user_exceptions": user_exceptions,
+        }
+
+    def _emit_preamble_uses(self, needs: Dict[str, Any]) -> List[str]:
+        """Phase A: emit module header and `use` declarations for libraries."""
+        out = [
+            "module PyCSL_Program",
+            "  use int.Int",
+            "  use int.EuclideanDivision",
+            "  use ref.Ref",
+        ]
+        sorted_bsz = sorted(needs["bounded_sizes"])
+        n = len(sorted_bsz)
+        i = 0
+        while i < n:
+            out.append(f"  use mach.int.Int{sorted_bsz[i]}")
+            i += 1
+        if needs["needs_string"]:
+            out.append("  use string.String")
+        if self.memory_model in ("hoare", "concurrent"):
+            if needs["needs_matrix"]:
+                out.append("  use matrix.Matrix")
+            if needs["needs_minmax"]:
+                out.append("  use int.MinMax")
+            if needs["needs_map_ghost"] or needs.get("needs_body_dict"):
+                out.append("  use map.Map")
+                out.append("  use map.Const")
+            if needs["needs_ghost_dict"] or needs.get("needs_body_dict"):
+                # Body-level Python dicts are modelled as
+                # `ref (map int (option int))` (parallel to ghost dicts);
+                # `None` marks absent keys.
+                out.append("  use option.Option")
+            # `array.Array` MUST be imported AFTER `map.Map` — both
+            # provide a `([])` operator, and when both are in scope the
+            # later import wins. With map.Map imported last, `arr[i]` on
+            # an `array int` is mis-resolved to `Map.get`, producing
+            # "expected 'mu -> 'mu1, got array int @rho" type errors.
+            # See ConcurrencyChecker (which combines body-set ops with
+            # array-typed function parameters).
+            if needs["needs_array"]:
+                out.append("  use array.Array")
+            if needs["needs_list_ghost"]:
+                out.append("  use list.List")
+                out.append("  use list.Length")
+                out.append("  use list.NthNoOpt")
+                out.append("  use list.Mem")
+                out.append("  use list.Append")
+        else:
+            out.append("  use map.Map")
+            if needs["needs_list_ghost"]:
+                out.append("  use list.List")
+                out.append("  use list.Length")
+                out.append("  use list.NthNoOpt")
+                out.append("  use list.Mem")
+                out.append("  use list.Append")
+            if needs["needs_minmax"]:
+                out.append("  use int.MinMax")
+            out.append("")
+            out.append("  type loc = int")
+            out.append("  constant max_addr : int = 1073741824")
+            hv = self._heap_var
+            out.append(f"  val ghost {hv} : ref (map loc int)")
+            out.append("")
+            out.append(f"  predicate valid (m: map loc int) (base: loc) (n: int) =")
+            out.append(f"    n >= 0 /\\ base >= 0 /\\ base + n <= max_addr")
+            out.append("")
+            out.append(f"  predicate separated (a: loc) (na: int) (b: loc) (nb: int) =")
+            out.append(f"    a + na <= b \\/ b + nb <= a")
+            out.append("")
+        return out
+
+    def _emit_preamble_exceptions(self, needs: Dict[str, Any]) -> List[str]:
+        """Phase B: emit exception type declarations."""
+        out: List[str] = []
+        if needs["needs_continue"]:
+            out.append("")
+            out.append("  exception PyCSL_Continue")
+        if needs["needs_break"]:
+            out.append("")
+            out.append("  exception PyCSL_Break")
+        if needs["needs_return_exc"]:
+            out.append("")
+            out.append("  exception Return int")
+        if needs["needs_return_void"]:
+            out.append("")
+            out.append("  exception Return_void")
+        for arity in sorted(needs.get("tuple_return_arities", set())):
+            # Tuple returns: each arity gets its own exception carrying the
+            # full tuple, avoiding the int-hash collapse the plain `Return int`
+            # would force via `_coerce_to_int`.
+            parts = ", ".join(["int"] * arity)
+            out.append("")
+            out.append(f"  exception Return_{arity} ({parts})")
+        sorted_exc = sorted(needs["user_exceptions"])
+        n = len(sorted_exc)
+        i = 0
+        while i < n:
+            out.append(f"  exception {sorted_exc[i]}")
+            i += 1
+        return out
+
+    def _emit_preamble_helpers(self, needs: Dict[str, Any]) -> List[str]:
+        """Phase C: emit helper lemmas, pycsl_sum, pycsl_div, pycsl_mod function bodies."""
+        out: List[str] = []
+        if needs.get("needs_list_ghost"):
+            # axiom mem_head: base case of mem — makes \mem(x, \cons(x, l)) proofs tractable
+            # without recursive unfolding. This is the head-match case of mem's definition,
+            # so it is mathematically sound to assume it as an axiom.
+            out.append("")
+            out.append("  axiom mem_head : forall x: int, l: list int. mem x (Cons x l)")
+        if needs["needs_sum"]:
+            out.append("")
+            out.append("  let rec function pycsl_sum (a: array int) (lo hi: int) : int")
+            out.append("    requires { 0 <= lo }")
+            out.append("    requires { hi <= Array.length a }")
+            out.append("    variant { hi - lo }")
+            out.append("  = if lo >= hi then 0 else a[lo] + pycsl_sum a (lo + 1) hi")
+            out.append("")
+            out.append("  let rec lemma pycsl_sum_snoc (a: array int) (lo hi: int) : unit")
+            out.append("    requires { 0 <= lo <= hi <= Array.length a }")
+            out.append("    variant { hi - lo }")
+            out.append("    ensures { hi > lo -> pycsl_sum a lo hi = pycsl_sum a lo (hi - 1) + a[hi - 1] }")
+            out.append("  = if lo < hi - 1 then pycsl_sum_snoc a (lo + 1) hi")
+        if needs["needs_set_card"]:
+            out.append("")
+            out.append("  let rec function set_card (s: map int bool) (lo hi: int) : int")
+            out.append("    requires { lo <= hi }")
+            out.append("    variant { hi - lo }")
+            out.append("  = if lo >= hi then 0")
+            out.append("    else (if Map.get s lo then 1 else 0) + set_card s (lo + 1) hi")
+            out.append("")
+            out.append("  let rec lemma set_card_add_hi (s: map int bool) (lo hi: int) : unit")
+            out.append("    requires { lo <= hi }")
+            out.append("    variant { hi - lo }")
+            out.append("    ensures { set_card (Map.set s hi true) lo (hi + 1) = set_card s lo hi + 1 }")
+            out.append("  = if lo < hi then set_card_add_hi s (lo + 1) hi")
+        if needs["needs_divmod"]:
+            out.append("")
+            if "ZeroDivisionError" in needs["user_exceptions"]:
+                out.append("  let pycsl_div (x: int) (y: int) : int")
+                out.append("    raises { ZeroDivisionError -> y = 0 }")
+                out.append("    ensures { y <> 0 /\\ result = div x y }")
+                out.append("  = if y = 0 then raise ZeroDivisionError else div x y")
+                out.append("")
+                out.append("  let pycsl_mod (x: int) (y: int) : int")
+                out.append("    raises { ZeroDivisionError -> y = 0 }")
+                out.append("    ensures { y <> 0 /\\ result = mod x y }")
+                out.append("  = if y = 0 then raise ZeroDivisionError else mod x y")
+            else:
+                out.append("  let pycsl_div (x: int) (y: int) : int")
+                out.append("    requires { [@expl:division by zero] y <> 0 }")
+                out.append("    ensures { result = div x y }")
+                out.append("  = div x y")
+                out.append("")
+                out.append("  let pycsl_mod (x: int) (y: int) : int")
+                out.append("    requires { [@expl:modulo by zero] y <> 0 }")
+                out.append("    ensures { result = mod x y }")
+                out.append("  = mod x y")
+        return out
+
+    def _emit_preamble_axioms(self, ir: Dict[str, Any]) -> List[str]:
+        """Emit Why3 function decls + axioms for `#@ proof` cites.
+
+        Scans every function in the program IR for `proof` entries.
+        Dedups by qualname (Rocq + Lean cite the same target). Emits
+        each axiom under a sanitized name `pycsl_axiom_<...>` and
+        records the prover provenance in a Why3 comment.
+        """
+        seen_qualnames: Set[str] = set()
+        for func in ir.get("functions", []):
+            for entry in func.get("proof", []):
+                seen_qualnames.add(entry["qualname"])
+        if not seen_qualnames:
+            return []
+
+        # Pair each qualname with the registry entry; halt if any
+        # unknown — failure is at transpile time.
+        out: List[str] = []
+        # Declare backing functions once each (e.g. `function gcd`).
+        declared_fns: Set[str] = set()
+        for qn in sorted(seen_qualnames):
+            for prefix, fn_decl in self._AXIOM_FUNCTIONS.items():
+                if qn.startswith(prefix) and fn_decl not in declared_fns:
+                    out.append(f"  {fn_decl}")
+                    declared_fns.add(fn_decl)
+        if declared_fns:
+            out.append("")
+
+        # Emit each axiom. Comment records the prover pairing.
+        for qn in sorted(seen_qualnames):
+            if qn not in self._AXIOM_REGISTRY:
+                raise PyCSLIRError(
+                    f"#@ proof {qn}: not in Module6 axiom registry. "
+                    f"Either add the axiom body to _AXIOM_REGISTRY or run "
+                    f"`proof2why3 emit` (when available — see "
+                    f"docs/cross-validated-spec-sources.md)."
+                )
+            axiom_name = "pycsl_axiom_" + qn.replace(".", "_")
+            body = self._AXIOM_REGISTRY[qn]
+            # Provers cite this qualname — for the MVP we record both
+            # under one cite. v1 emits the canonical-hash status from
+            # the cross-check manifest.
+            out.append(f"  (* {qn} — cross-validated Rocq + Lean *)")
+            out.append(f"  axiom {axiom_name} : {body}")
+        out.append("")
+        return out
+
+    def _emit_preamble(self, needs: Dict[str, Any]) -> List[str]:
+        """Emit the WhyML module header: use declarations, exception types, helper functions."""
+        out = self._emit_preamble_uses(needs)
+        out += self._emit_preamble_exceptions(needs)
+        out += self._emit_preamble_helpers(needs)
+        out += self._emit_preamble_axioms(self.ir)
+        out.append("")
+        return out
+
+    def _emit_shared_state(self) -> List[str]:
+        """Emit shared variable declarations and mutex invariant predicates (concurrent model)."""
+        out: List[str] = []
+        shared_vars = self.ir.get("shared_vars", [])
+        mutex_invariants_ir = self.ir.get("mutex_invariants", {})
+        if shared_vars:
+            self._shared_var_names = {sv["name"] for sv in shared_vars}
+            out.append("  (* --- shared state (concurrent model) --- *)")
+            n = len(shared_vars)
+            i = 0
+            while i < n:
+                sv = shared_vars[i]
+                safe_name = whyml_ident(sv["name"])
+                out.append(f"  val {safe_name} : ref int")
+                i += 1
+            out.append("")
+        if mutex_invariants_ir:
+            sorted_mi = sorted(mutex_invariants_ir.items())
+            n = len(sorted_mi)
+            i = 0
+            while i < n:
+                mutex, inv_ir = sorted_mi[i]
+                safe_mutex = safe_mutex_name(mutex)
+                self._in_spec = True
+                inv_str = self._expr_to_whyml(inv_ir, set())
+                self._in_spec = False
+                out.append(f"  predicate {safe_mutex}_inv = {inv_str}")
+                i += 1
+            out.append("")
+            sorted_mi2 = sorted(mutex_invariants_ir.items())
+            n2 = len(sorted_mi2)
+            i2 = 0
+            while i2 < n2:
+                mutex2, _ = sorted_mi2[i2]
+                safe_mutex2 = safe_mutex_name(mutex2)
+                out.append(f"  let _check_initial_{safe_mutex2} () : unit =")
+                out.append(f"    assert {{ {safe_mutex2}_inv }}")
+                out.append("")
+                i2 += 1
+        return out
+
+    def _emit_type_decls(self, type_decls: List[Dict[str, Any]]) -> Tuple[List[str], Set[str]]:
+        """Emit record type declarations. Returns (lines, declared_types)."""
+        out: List[str] = []
+        declared_types: Set[str] = set()
+        n = len(type_decls)
+        i = 0
+        while i < n:
+            td = type_decls[i]
+            if td["kind"] == "record":
+                type_name = td["name"].lower()
+                declared_types.add(type_name)
+                self._record_types[td["name"]] = {
+                    "whyml_name": type_name,
+                    "fields": [f["name"] for f in td["fields"]],
+                    "field_types": {f["name"]: f.get("type", "int") for f in td["fields"]},
+                    "defaults": td.get("field_defaults", {}),
+                }
+                field_strs = []
+                fields = td["fields"]
+                nf = len(fields)
+                j = 0
+                while j < nf:
+                    f = fields[j]
+                    prefix = "mutable " if f.get("mutable") else ""
+                    ftype = f['type']
+                    # Map Python-level type tags to WhyML types.
+                    # `set`/`dict`/`frozenset` → `map int (option int)`
+                    # (body-set/body-dict model). `list`/`tuple` →
+                    # `array int`. Everything else collapses to `int`.
+                    if ftype in ("set", "dict", "frozenset"):
+                        ftype = "map int (option int)"
+                    elif ftype in ("list", "tuple"):
+                        ftype = "array int"
+                    elif ftype == "string":
+                        ftype = "int"
+                    elif ftype != "int" and not ftype.startswith(("array ", "map ", "ref ")):
+                        # Unrecognised tag (user-defined class etc.) —
+                        # fall back to int rather than emitting an
+                        # unbound type symbol.
+                        ftype = "int"
+                    field_strs.append(f"{prefix}{f['name']}: {ftype}")
+                    j += 1
+                out.append(f"  type {type_name} = {{ {'; '.join(field_strs)} }}")
+                class_invs = td.get("class_invariants", [])
+                if class_invs:
+                    self._in_spec = True
+                    n_inv = len(class_invs)
+                    i_inv = 0
+                    while i_inv < n_inv:
+                        inv = class_invs[i_inv]
+                        inv_str = self._expr_to_whyml(inv, set(), invariant_ctx=True)
+                        out.append(f"    invariant {{ {inv_str} }}")
+                        i_inv += 1
+                    self._in_spec = False
+                    defaults = td.get("field_defaults", {})
+                    field_names = [f["name"] for f in td["fields"]]
+                    witness_vals = {fn: defaults.get(fn, 0) for fn in field_names}
+                    if not self._check_witness_vals(witness_vals, class_invs, field_names):
+                        combos = [
+                            {fn: 0 for fn in field_names},
+                            {fn: 1 for fn in field_names},
+                            {fn: 10 for fn in field_names},
+                        ]
+                        nc = len(combos)
+                        ic = 0
+                        while ic < nc:
+                            combo = combos[ic]
+                            if self._check_witness_vals(combo, class_invs, field_names):
+                                witness_vals = combo
+                                break
+                            ic += 1
+                    out.append(f"    by {{ {self._build_witness_str(field_names, witness_vals)} }}")
+                out.append("")
+            i += 1
+        return out, declared_types
+
+    def _emit_opaque_class_aliases(self, functions: List[Dict[str, Any]],
+                                    out: List[str], declared_types: Set[str]) -> None:
+        """Emit `type <cls> = int` aliases for classes used as `self_type`
+        in methods but not declared as records."""
+        for func in functions:
+            if func.get("kind") == "method" and func.get("self_type"):
+                st = func["self_type"].lower()
+                if st not in declared_types:
+                    declared_types.add(st)
+                    out.append(f"  type {st} = int")
+                    out.append("")
+
