@@ -328,14 +328,201 @@ The following are real but deliberately deferred:
 
 ---
 
-## 14. Summary
+## 14. Documentation and corpus expansion
 
-Two features, one workplan, three workstreams running in coordination.
+This section spells out what each implementation PR must include *beyond code* — the documentation, skill, and corpus updates that the rest of the plan has been referencing but not enumerating. The governing rule is that documentation lands in the same PR as the code it documents; this is not optional, and not a follow-up. A feature whose semantics are not in the reference manuals is, for users and for future agents, a feature that doesn't exist.
+
+### 14.1 Skill files under `config/skills/`
+
+#### `pycsl-software-architecture.skill` (existing — Configuration Item, CCB-tracked)
+
+Three sections receive updates across this work:
+
+- **Section 1 (Repository layout)** — when Phase 1.2 creates `src/pycsl/exception_model.py`, add it with a one-line role description ("trigger-condition table for implicit-exception VC injection"). If UB-7.4 introduces a new import-resolver pass, add that too.
+- **Section 4 (Contracts vocabulary)** — full annotation additions. From Part I: `no_exception E1, E2, ...` and `no_exception \all`. From Part II: `@trusted`, `@allow_finalizer`, `@allow_iteration_mutation`, `@guarded_by L`. Each entry: syntax, placement, semantics in one paragraph, with a one-line example.
+- **Section 6 ("Adding a new CSL keyword")** — the `no_exception` implementation is the realistic worked example you can give of the full pipeline. Replace the current placeholder example with a walkthrough that names the actual files touched.
+
+Each of these changes goes through CCB per the existing baseline; bundle them with the corresponding implementation PR.
+
+#### `pycsl-exception-model.skill` (new — Configuration Item, CCB-tracked)
+
+Created in Phase 1.2. Frontmatter (`document_id`, `baseline_id`, `version`) follows the existing skill schema. Contents:
+
+- **Purpose and scope** — what this skill governs ("the mapping from PyCSL IR operations to the implicit Python exceptions they may raise, and the WhyML trigger conditions that prevent them").
+- **The Phase 1 table** — reproduced from §3 of this plan. This is the central artefact and the single source of truth.
+- **Rules for extending the table** — what makes an operation a candidate (clean mathematical trigger, present in the PyCSL IR, no semantic dependence on string content or unbounded heap), and what disqualifies it (Phase 2 candidates).
+- **WhyML predicate vocabulary** — `no_div_zero`, `in_bounds`, `has_key`, etc., with their definitions.
+- **Test-corpus cross-references** — for each table entry, the path to the corpus directory that exercises it.
+
+#### `pycsl-ub-catalog.skill` (new — Configuration Item, CCB-tracked)
+
+Created alongside Part II's first sub-feature. One section per UB category (7.1–7.5):
+
+- The Python source pattern that triggers it
+- The detection mechanism
+- The verification stance (hard error / requires escape annotation / warning)
+- The escape annotation that suppresses it, if any
+- Corpus cross-references
+
+This skill becomes the canonical reference for "what does PyCSL guarantee about Python UB" — useful for both users and agents.
+
+### 14.2 Reference manuals under `docs/`
+
+These three documents are tightly coupled: the same `no_exception ZeroDivisionError` shows up in each from a different angle. Update them together in each feature PR, not in three separate PRs, or they will drift.
+
+#### `docs/pycsl-concrete-syntax-reference.md` — surface syntax
+
+For each new annotation, add an entry with:
+
+- BNF or grammar fragment. For `no_exception`: `no_exception_decl ::= "no_exception" ( "\all" | IDENT ("," IDENT)* )`.
+- Placement rules (which contract block, which line ordering relative to `requires`/`ensures`/`raises`).
+- Valid examples and at least one invalid example with the parser error it produces (e.g., `no_exception ZeroDivisionError` together with `raises { ZeroDivisionError -> _ }`).
+
+#### `docs/pycsl-static-semantics-reference.md` — formal semantics
+
+A new subsection per feature, stating the proof obligation formally:
+
+- **`no_exception`** — the obligation as an inference rule: under `Γ ⊢ P` (precondition) and the operation's exception trigger `T_E`, the obligation is `Γ, P ⊢ ¬T_E`. The inter-procedural propagation rule (Phase 1.4) stated explicitly. The `\all` semantics as the union plus the empty-`raises`-set requirement.
+- **UB categories** — each one stated as a well-formedness condition on PyCSL programs. E.g., for 7.1: "A program is well-formed only if, for every `for x in C` loop, no statement in the loop body (transitively, accounting for declared `writes` clauses) modifies `C`."
+
+This is the document that the verification literature would cite. Keep it precise; cross-reference to the translational document for the WhyML encoding.
+
+#### `docs/pycsl-translational-reference.md` — Python → WhyML translation
+
+For Part I, this is where the translational meat lives:
+
+- The Phase 1 trigger table from §3, with each row showing the WhyML assertion that gets emitted in the function body, plus a worked example showing source → IR → WhyML for `divide_256(n)` both with and without `no_exception ZeroDivisionError`.
+- The predicate library with definitions in WhyML syntax.
+- The inter-procedural translation: how a callee's `no_exception` proof discharges the caller's obligation at the call site.
+
+For Part II, this document gets a shorter section since most UB detectors are pre-translation (they reject or annotate the IR before transpilation). Document which UB detectors run at which pipeline stage.
+
+### 14.3 Test-suite documentation
+
+#### `test-suite/annotations.md`
+
+A catalog with one entry per new annotation. Each entry:
+
+- Name, syntax (cross-reference to the concrete-syntax reference, do not duplicate the grammar).
+- One-paragraph semantics summary.
+- *When to use* — the intended scenario.
+- *When NOT to use* — common misuses. For `@trusted`: "Do not use to bypass a `no_exception` proof failure; strengthen the precondition instead."
+- Path to the corpus directory that exercises it.
+
+### 14.4 Project `README.md`
+
+The README is the surface, not the spec. Keep changes small:
+
+- One bullet under "What PyCSL verifies": "Absence of declared exceptions (`no_exception`) and a catalog of Python undefined behaviors."
+- One short worked example (≤15 lines): `divide_256(n)` with `no_exception ZeroDivisionError` and `requires n != 0`.
+- Updated link list pointing to the new skill files and the updated reference docs.
+
+If the README starts to grow into a spec, move the spec content out to `docs/` and link.
+
+### 14.5 Test corpus under `test-suite/corpus/python-reference/`
+
+The user-facing requirement is "numerous tests". The concrete structure:
+
+```
+test-suite/corpus/python-reference/
+  no_exception/
+    zero_division/
+      baseline_proves.py             # no annotation, proves (current behavior preserved)
+      annotated_fails.py             # no_exception ZDE, no precondition, fails
+      annotated_with_precond.py      # no_exception ZDE + requires n != 0, proves
+      annotated_floor_div.py         # // case
+      annotated_mod.py               # % case
+      annotated_divmod.py            # divmod() builtin
+      branching_precondition.py      # n > 0 \/ n < 0
+      via_helper_function.py         # division through a called function
+      via_recursive_call.py          # division in a recursive call
+    index_error/
+      array_get_proves.py
+      array_get_fails.py
+      array_get_bounded.py
+      array_set_*.py                 # 3 files (proves/fails/bounded)
+      array_2d_*.py                  # 3 files for 2D indexing
+      negative_index_*.py            # Python negative-index semantics
+    key_error/
+      dict_get_*.py                  # 3 files
+      dict_pop_*.py                  # 3 files
+      contains_first.py              # `if k in d: d[k]` proves
+    value_error/
+      negative_shift_*.py            # << / >> with negative RHS
+      list_index_*.py                # .index() on missing element
+    composite/
+      multiple_exceptions.py         # no_exception ZDE, IndexError together
+      all_form_proves.py             # no_exception \all with strong precondition
+      all_form_fails.py              # no_exception \all without precondition
+      raises_no_exception_conflict.py # parser must reject (negative test on parser)
+    interprocedural/
+      callee_proves.py               # callee has no_exception; caller benefits
+      callee_unannotated.py          # backward-compat: ambient mode
+      callee_raises_clause.py        # caller no_exception E vs callee raises { E }
+      transitive_chain.py            # f → g → h, three-level propagation
+  ub/
+    iteration_mutation/
+      append_during_for.py           # negative
+      pop_during_for.py              # negative
+      mutate_other_container.py      # positive (different list)
+      snapshot_pattern.py            # `for k in list(d):` — positive
+      transitive_mutation.py         # mutation via called function
+      with_escape_annotation.py      # @allow_iteration_mutation, proves
+    hash_eq_consistency/
+      consistent_hash.py             # proves
+      inconsistent_hash.py           # fails
+      eq_without_hash.py             # unhashable detection
+      hash_without_eq.py             # uses identity, proves
+    c_extension/
+      ctypes_call_no_trusted.py      # fails
+      ctypes_call_with_trusted.py    # proves under @trusted
+      numpy_ndarray_method.py
+      cffi_import.py
+    finalizer/
+      class_with_del.py              # rejected
+      class_with_del_allowed.py      # @allow_finalizer, accepted
+    concurrent_race/                 # gated on II.5 audit; populate after
+      unprotected_read.py
+      unprotected_write.py
+      protected_with_lock.py
+      double_locking.py
+```
+
+Roughly **40 files for `no_exception`**, **20 files for UB** at the start, growing as Phase 2 of the exception model and the concurrent-race audit land. File count is not the goal — *coverage* is, with one positive and one negative example per discriminating proof rule.
+
+Conventions:
+
+- Three-level hierarchy `<feature>/<category>/<scenario>.py`. Flat layouts become unreadable past ~20 files.
+- Each `.py` file opens with a docstring of the form `"""expected: proves"""` or `"""expected: fails (reason)"""`. Test harness parses this for the expected outcome.
+- A `MANIFEST.toml` per leaf directory enumerates files and expected outcomes redundantly — defends against typos in the docstring marker.
+- Negative tests (expected: fails) are first-class. A corpus that only contains positive tests cannot demonstrate that a check actually fires.
+
+### 14.6 Sequencing of documentation work
+
+Per-PR rule: each implementation PR includes the corresponding doc/skill/corpus diffs. Specifically:
+
+- Phase 1.1 (parser) — `pycsl-concrete-syntax-reference.md` + `annotations.md` entries for `no_exception`. Parser-rejection corpus tests.
+- Phase 1.2 (exception model module) — `pycsl-exception-model.skill` created. `pycsl-translational-reference.md` gets the Phase 1 table.
+- Phase 1.3 (VC injection) — `pycsl-static-semantics-reference.md` gets the proof-obligation formal statement. `no_exception/zero_division/`, `index_error/`, `key_error/` corpus directories populated.
+- Phase 1.4 (interprocedural) — `pycsl-static-semantics-reference.md` propagation rule. `no_exception/interprocedural/` corpus populated.
+- Phase 1.5 (`\all`) — composite corpus directory populated. README updated with the worked example.
+- Part II step II.1 (C boundary) — `pycsl-ub-catalog.skill` created with the 7.4 entry. `annotations.md` for `@trusted`. `ub/c_extension/` corpus.
+- Part II step II.2 (finalizer) — `pycsl-ub-catalog.skill` 7.5 entry. `ub/finalizer/` corpus.
+- Part II step II.3 (iteration mutation) — `pycsl-ub-catalog.skill` 7.1 entry. `ub/iteration_mutation/` corpus.
+- Part II steps II.4 and II.5 — entries 7.2 and 7.3 added when the corresponding code lands.
+
+The rule of thumb to enforce in review: **if a PR touches user-visible semantics and doesn't touch any of the four `docs/` files or the README, that's a review blocker, not a nit.**
+
+---
+
+## 15. Summary
+
+Two features, one workplan, three workstreams running in coordination, plus a fourth stream that runs alongside all of them: documentation and corpus.
 
 `no_exception` is mechanically the bigger feature but conceptually the simpler: extend the contract vocabulary, build an exception-trigger model, inject WhyML assertions at the corresponding IR operations, and propagate the obligation through call sites. The Phase 1 table from §3 is the single source of truth and the central artefact.
 
 UB detection is conceptually the bigger feature but mechanically a bundle of five small ones. The cheap-and-cheerful items (7.4, 7.5) should land first as low-effort soundness wins. The dataflow item (7.1) is medium effort and high value. The class-level item (7.2) and the concurrent item (7.3) follow once the class-modeling and concurrent-model coverage are audited.
 
-The interaction with the Module 6 refactor is real but manageable: refactor steps 1–7 first, then Part I, with Part II's cheap items interleaved. The corpus is the gate at every step. The architecture skill is updated in lockstep with each PR.
+The interaction with the Module 6 refactor is real but manageable: refactor steps 1–7 first, then Part I, with Part II's cheap items interleaved. The corpus is the gate at every step. The architecture skill is updated in lockstep with each PR — and so are the three `docs/` reference manuals, `test-suite/annotations.md`, the README, and the corpus under `test-suite/corpus/python-reference/`. Documentation is not a follow-up; it is the deliverable.
 
-The governing principle, same as the refactor plan: ship the cheap wins first, gate every step on the corpus, do not combine mechanical work with design work in a single PR.
+The governing principle, same as the refactor plan: ship the cheap wins first, gate every step on the corpus, do not combine mechanical work with design work in a single PR — and do not ship semantics changes without the matching doc diff.
