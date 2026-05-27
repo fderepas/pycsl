@@ -24,6 +24,7 @@ src/pycsl/
     identifiers.py            ← whyml_ident / safe_mutex_name / op_translate + OP_MAP, WHYML_RESERVED
     scc.py                    ← Tarjan SCC + call-graph helpers for function emission order
     auto_trust.py             ← AutoTrustMixin: auto-trust decisions + linear-VC classification
+    abstract_ops.py           ← AbstractOpsMixin: abstract-val registry + late insertion
   pycsl.py                    ← CLI entry point
   errors.py                   ← PyCSLError hierarchy
   ir_schema.py                ← validate_ir() — JSON IR structural contract
