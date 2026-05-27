@@ -42,10 +42,6 @@ class FunctionIR(TypedDict, total=False):
     diverges: bool
     trusted: bool
     bounded_int: Optional[int]
-    # §2.1.11 — informational provenance entries. Always emitted by Module5
-    # (possibly empty). Module6 reads it not for translation but only to
-    # round-trip metadata that pycsl_bridge depends on.
-    proof_attributions: List[Dict[str, str]]
     # Optional:
     pure: bool
     array2d_params: List[str]
@@ -82,7 +78,6 @@ _REQUIRED_FUNCTION = {
     "diverges",
     "trusted",
     "bounded_int",
-    "proof_attributions",
 }
 
 _REQUIRED_CONTRACTS = {"requires", "ensures", "assigns", "raises"}

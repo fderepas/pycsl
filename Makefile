@@ -27,25 +27,7 @@ self-annotate-generate: .venv
 	./bin/self-annotate-generate.sh
 
 self-annotate-verify: .venv
-	@echo "=== Self-annotation verification (rocq path) ==="
-	@for f in src/self-annotate/attic/rocq/*.py; do \
-	    result=$$($(PYTHON) src/pycsl/pycsl.py --no-proof $$f 2>&1 | tail -1); \
-	    if echo "$$result" | grep -q 'SUCCESS'; then \
-	        echo "  ✓ $$f"; \
-	    else \
-	        echo "  ✗ $$f: $$result"; exit 1; \
-	    fi; \
-	done
-	@echo "=== Self-annotation verification (lean path) ==="
-	@for f in src/self-annotate/attic/lean/*.py; do \
-	    result=$$($(PYTHON) src/pycsl/pycsl.py --no-proof $$f 2>&1 | tail -1); \
-	    if echo "$$result" | grep -q 'SUCCESS'; then \
-	        echo "  ✓ $$f"; \
-	    else \
-	        echo "  ✗ $$f: $$result"; exit 1; \
-	    fi; \
-	done
-	@echo "=== Self-annotation verification (canonical src/ — Layer 4 attributed) ==="
+	@echo "=== Self-annotation verification (canonical src/) ==="
 	@for f in src/self-annotate/src/*.py; do \
 	    result=$$($(PYTHON) src/pycsl/pycsl.py --no-proof $$f 2>&1 | tail -1); \
 	    if echo "$$result" | grep -q 'SUCCESS'; then \
@@ -58,13 +40,33 @@ self-annotate-verify: .venv
 	@echo ""
 	@$(MAKE) check-proof-attributions
 
-# Audit every `#@ proof rocq:` / `#@ proof lean:` directive in the annotated
-# corpus resolves to an actual theorem/lemma/inductive/record in the
-# corresponding proof file. See bin/check-proof-attributions.sh for the
-# namespace registry.
+# Audit every `#@ proof rocq` / `#@ proof lean` directive in the
+# annotated corpus. The audit invokes `pycsl --audit-proof <file>` per file
+# and parses Rocq / Lean proof files namespace-aware (see
+# src/pycsl/audit_proof.py). Each file's default proof dir is
+# `<file>.proofs/{rocq,lean}/` next to it.
 .PHONY: check-proof-attributions
 check-proof-attributions:
-	@bash bin/check-proof-attributions.sh
+	@total_pass=0; total_skip=0; total_fail=0; \
+	for f in src/self-annotate/src/*.py test-suite/corpus/pycsl-reference/*.py; do \
+	    [ -f "$$f" ] || continue; \
+	    output=$$($(PYTHON) src/pycsl/pycsl.py --audit-proof "$$f" 2>&1); \
+	    p=$$(echo "$$output" | sed -n 's/.*Passed:  *\([0-9][0-9]*\).*/\1/p'); \
+	    s=$$(echo "$$output" | sed -n 's/.*Skipped: *\([0-9][0-9]*\).*/\1/p'); \
+	    fl=$$(echo "$$output" | sed -n 's/.*Failed:  *\([0-9][0-9]*\).*/\1/p'); \
+	    if [ -z "$$p" ]; then p=0; fi; if [ -z "$$s" ]; then s=0; fi; if [ -z "$$fl" ]; then fl=0; fi; \
+	    total_pass=$$((total_pass + p)); \
+	    total_skip=$$((total_skip + s)); \
+	    total_fail=$$((total_fail + fl)); \
+	    if [ "$$fl" != "0" ]; then \
+	        echo "$$output"; \
+	    fi; \
+	done; \
+	echo "=== Proof-attribution audit summary ==="; \
+	echo "  Passed:  $$total_pass"; \
+	echo "  Skipped: $$total_skip"; \
+	echo "  Failed:  $$total_fail"; \
+	test "$$total_fail" = "0"
 
 # sync-annotate-src: copy fresh master files into src/self-annotate/src/
 # WARNING: overwrites unannotated content — diff and re-apply any new-method
@@ -78,7 +80,7 @@ sync-annotate-src: .venv
 	           ConcurrencyChecker ir_schema errors pycsl __init__; do \
 	    cp src/pycsl/$$f.py src/self-annotate/src/$$f.py; \
 	done
-	@echo "Done. Run: python3 /tmp/port_annotations.py attic/rocq/<file>.py src/<file>.py  for each changed file"
+	@echo "Done."
 
 # verify-annotated: verify all files in the canonical src/ directory
 .PHONY: verify-annotated

@@ -5,21 +5,21 @@ philosophy in concrete form. When in doubt about a design choice, ask
 "does it make 0342 read more or less coherently?"
 
 The example consists of three files in three languages, connected by
-qualified names and `axiom_from` directives.
+qualified names and `proof` directives.
 
 ## File 1 — the Python source (PyCSL annotations)
 
 ```python
 """Test 0342 — PyCSL Euclidean GCD (cross-validated Rocq + Lean axioms)."""
 
-#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_result_nonneg
-#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_result_positive
-#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_divides_a
-#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_divides_b
-#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_0
-#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_step
-#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_greatest
-#@ axiom_from lean Pycsl.Reference.Gcd.gcd_result_nonneg
+#@ proof rocq Pycsl.Reference.Gcd.gcd_result_nonneg
+#@ proof rocq Pycsl.Reference.Gcd.gcd_result_positive
+#@ proof rocq Pycsl.Reference.Gcd.gcd_divides_a
+#@ proof rocq Pycsl.Reference.Gcd.gcd_divides_b
+#@ proof rocq Pycsl.Reference.Gcd.gcd_0
+#@ proof rocq Pycsl.Reference.Gcd.gcd_step
+#@ proof rocq Pycsl.Reference.Gcd.gcd_greatest
+#@ proof lean Pycsl.Reference.Gcd.gcd_result_nonneg
 # ... (paired Lean directives for each)
 #@ requires a >= 0
 #@ requires b >= 0
@@ -97,11 +97,11 @@ No translation table.
 - A verification engineer reads the contracts, sees the loop invariant
   `gcd(x, y) == gcd(a, b)`, and recognizes the textbook Hoare-logic
   proof of GCD correctness.
-- A formal methods researcher reads the `axiom_from` directives and
+- A formal methods researcher reads the `proof` directives and
   knows there are real kernel-checked proofs in `0342.proofs/`.
 
 **The contracts state the algebra cleanly.** Read top-to-bottom: "we
-will use these GCD facts (axiom_from cluster), here is what we promise
+will use these GCD facts (proof cluster), here is what we promise
 (requires/ensures), here is the invariant that makes the loop work,
 here is why it terminates." Nothing is ceremonial.
 
@@ -110,7 +110,7 @@ embedded DSL, no PyCSL plugin. Uses stdlib `Nat.gcd` and `lia`. Ends
 each proof with `Qed`. The only sign it serves a larger system is a
 brief comment noting which WhyML axiom each theorem corresponds to.
 
-**The `axiom_from` cluster is a proof outline, not a checklist.** The
+**The `proof` cluster is a proof outline, not a checklist.** The
 seven theorems form a coherent algebraic theory of GCD: identity at
 zero (`gcd_0`), Euclidean step (`gcd_step`), divisibility
 (`gcd_divides_a/b`), positivity (`gcd_result_*`), and maximality
@@ -120,7 +120,7 @@ two ways.
 
 **The line `ensures \result == gcd(a, b)` shows the symbol overload.**
 In contract context, `gcd(a, b)` is the mathematical function imported
-via `axiom_from`. In executable context, `gcd` is the Python function
+via `proof`. In executable context, `gcd` is the Python function
 being defined. Same name, two distinct objects, distinguished by
 context. The contract asserts that the Python implementation computes
 the same value as the mathematical specification — the deepest kind of

@@ -55,7 +55,7 @@ where:
 | Component | Implementation | Role |
 |-----------|----------------|------|
 | $\mathcal{I}$ | `Module5_IREmitter.py` (881 lines) | AnnotatedPython → IR (JSON) |
-| $\mathcal{W}$ | `Module6_WhyMLTranspiler.py` (3002 lines) | IR → WhyML text |
+| $\mathcal{W}$ | `Module6_WhyMLTranspiler.py` (facade, 159 lines) + `module6_whyml/` (10 mixin/helper modules, ~4,600 lines) | IR → WhyML text |
 
 The **IR** is a JSON-like intermediate representation with typed nodes:
 `Function`, `Class`, `While`, `For`, `Assign`, `Return`, `Assert`,
@@ -99,8 +99,8 @@ in order:
 3. **Type declarations** — Record types for classes
 4. **Functions** — All translated functions
 
-**Implementation:** `_emit_preamble` (L2526), `_emit_type_decls` (L2589),
-`_emit_function` (L2853).
+**Implementation:** `_emit_preamble`, `_emit_type_decls`,
+`_emit_function`.
 
 ### §T.1.2  Prelude (Theory Imports)
 
@@ -125,7 +125,7 @@ module PyCSL_Program
 | Bounded integers declared | `use mach.int.Int{N}` |
 | Typed/Store memory model | `use map.Map` + type/predicate decls |
 
-**Implementation:** `_emit_preamble_uses` (L2418–2459).
+**Implementation:** `_emit_preamble_uses`.
 
 ### §T.1.3  Memory Model Prelude
 
@@ -211,7 +211,7 @@ use `raises` instead of `requires`:
 **Note:** In specification contexts (requires/ensures), `//` and `%`
 translate directly to `div` and `mod` without the wrapper.
 
-**Implementation:** `_emit_preamble_helpers` (L2486–2524).
+**Implementation:** `_emit_preamble_helpers`.
 
 #### Exception Declarations
 
@@ -225,7 +225,7 @@ When the function body contains early returns or the function declares
   exception ZeroDivisionError (* division-by-zero exception *)
 ```
 
-**Implementation:** `_emit_preamble_exceptions` (L2461–2484).
+**Implementation:** `_emit_preamble_exceptions`.
 
 ---
 
@@ -401,53 +401,31 @@ def checked_abs(n: int) -> int:
     n
 ```
 
-**Implementation:** `_emit_contracts` (L2760–2795), `_emit_function`
-(L2853–2911).
+**Implementation:** `_emit_contracts`, `_emit_function`.
 
-### §T.2.9  Proof Attribution (`proof`) — no-op translation
+### §T.2.9  _(reserved — colon-separated provenance `proof` directive removed 2026-05-27)_
 
-$$\mathcal{T}_f\llbracket \texttt{\#@ proof prover : qualname} \rrbracket = \varepsilon$$
+The provenance-only `#@ proof rocq:` / `#@ proof lean:` (colon-
+separated) directive was removed from the language on 2026-05-27.
+The companion-proof discipline it documented lives under the
+load-bearing `#@ proof rocq <q>` / `#@ proof lean <q>` rule
+(§T.2.10, space-separated). The section number is reserved to keep
+cross-references stable.
 
-The `proof` directive carries no semantic content. `Module5_IREmitter`
-records it in each function's `proof_attributions` list (a list of
-`{prover, qualname}` dicts); `Module6_WhyMLTranspiler` reads the list
-purely to round-trip it for `pycsl_bridge` and emits **no WhyML** for
-it. The directive is informational provenance — it links the Python
-function to the Rocq or Lean theorem that produced its contract.
-
-**Verified examples:** test 0331 (single `#@ proof rocq:` line) and
-test 0332 (multiple rocq + lean attributions above real contract
-clauses). Both discharge under Alt-Ergo with the proof attribution
-visible in the source but absent from the generated `.mlw`.
-
-**Implementation:** Module5 emits the field; Module6 ignores it.
-There is no $\mathcal{T}_e$ or $\mathcal{T}_s$ rule for it.
-
-**Companion-proof discharge** (project convention). When Alt-Ergo
-cannot discharge an obligation that the contract author believes
-holds, the obligation may be delegated to an external Rocq or Lean
-proof under the *proof-pair* convention: place the proof at
-`test-suite/corpus/pycsl-reference/NNNN.proofs/{rocq,lean}/<file>.{v,lean}`
-and add a matching `#@ proof rocq: <qualname>` or
-`#@ proof lean: <qualname>` line. The reference test then runs under
-`# pycsl-flags: --no-proof` (used by tests 0335–0341 and 0342),
-exercising parsing + static semantics only — the external prover
-transcripts are the trust anchor. PyCSL itself does not verify the
-linkage; the discipline is for human and future-tooling audit.
-**Worked example:** test 0342 (Euclidean GCD) with proofs under
-`test-suite/corpus/pycsl-reference/0342.proofs/rocq/gcd.v` and
-`0342.proofs/lean/Gcd.lean`, both verified clean under Coq 8.20.1
-and Lean 4.29.1 respectively.
-
-_Corresponds to `annotations.md` §2.1.11._
-
-### §T.2.10  Axiom from Proof (`axiom_from`) — Rocq + Lean as Cross-Validated Spec Sources
+### §T.2.10  Proof Citation (`proof`) — Rocq + Lean as Cross-Validated Spec Sources
 
 $$\mathcal{T}_m\llbracket \texttt{\#@ axiom\_from prover qualname} \rrbracket = \texttt{axiom pycsl\_axiom\_<target> : <Why3\_formula>}$$
 
-Unlike `proof` (§T.2.9, no-op), `axiom_from` produces WhyML output.
+**Audit independence.** The namespace-aware audit (`pycsl --audit-proof`,
+see static-semantics reference §2.1.12) is independent of WhyML
+emission. It runs as a short-circuit at the CLI level — `--audit-proof`
+parses the cited proof files, reports PASS/FAIL, and exits without
+invoking the rest of the pipeline. The translation rule below applies
+only when the regular verify path runs.
+
+`proof` produces WhyML output:
 `Module6_WhyMLTranspiler` invokes `proof2why3 emit` for each declared
-`axiom_from`, which:
+`proof`, which:
 
 1. **Extracts** the theorem statement tagged with
    `pycsl_target="<qualname>"` from the Rocq or Lean source.
@@ -575,8 +553,8 @@ The desugaring automatically injects:
 
 User-supplied invariants are merged with the implicit bounds invariant.
 
-**Implementation:** `_handle_for_stmt` (L1543–1630),
-`_classify_iterable` (L1510–1541).
+**Implementation:** `_handle_for_stmt`,
+`_classify_iterable`.
 
 ### §T.3.3  For-Each over Array
 
@@ -745,7 +723,7 @@ record type:
   let classname__method (self: classname) (arg: int) : int = ...
 ```
 
-**Implementation:** `_emit_type_decls` (L2589–2657).
+**Implementation:** `_emit_type_decls`.
 
 ---
 
@@ -783,7 +761,7 @@ def test_assigns_variable(x: int) -> int:
     !y
 ```
 
-**Implementation:** `_handle_assign_stmt` (L1372–1444).
+**Implementation:** `_handle_assign_stmt`.
 
 ### §T.5.2  Augmented Assignment
 
@@ -792,21 +770,21 @@ $$\mathcal{T}_s\llbracket x \mathrel{+}= e \rrbracket
 
 Similarly for `-=`, `*=`, `//=`, `%=`.
 
-**Implementation:** `_handle_augassign_stmt` (L1939–1963).
+**Implementation:** `_handle_augassign_stmt`.
 
 ### §T.5.3  Field Assignment
 
 $$\mathcal{T}_s\llbracket \texttt{self.f = e} \rrbracket
 = \texttt{self.f <- } \mathcal{T}_e\llbracket e \rrbracket$$
 
-**Implementation:** `_handle_fieldassign_stmt` (L1965–1996).
+**Implementation:** `_handle_fieldassign_stmt`.
 
 ### §T.5.4  Field Augmented Assignment
 
 $$\mathcal{T}_s\llbracket \texttt{self.f += e} \rrbracket
 = \texttt{self.f <- self.f + } \mathcal{T}_e\llbracket e \rrbracket$$
 
-**Implementation:** `_handle_fieldaugassign_stmt` (L1998–2031).
+**Implementation:** `_handle_fieldaugassign_stmt`.
 
 ### §T.5.5  Array Element Assignment
 
@@ -839,7 +817,7 @@ def test_assigns_elem(arr: list) -> None:
     arr[0] <- 0
 ```
 
-**Implementation:** `_handle_array_set_stmt` (L1762–1811).
+**Implementation:** `_handle_array_set_stmt`.
 
 ### §T.5.6  If-Else Statement
 
@@ -854,7 +832,7 @@ contexts, Python boolean operators map directly to WhyML logical
 connectives.  In body contexts, comparison results are wrapped in
 `(if ... then 1 else 0)` when used as integer values.
 
-**Implementation:** `_handle_if_stmt` (L1813–1854).
+**Implementation:** `_handle_if_stmt`.
 
 ### §T.5.7  Return Statement
 
@@ -902,7 +880,7 @@ def test_abs_impl(x: int) -> int:
     with Return r -> r end
 ```
 
-**Implementation:** `_handle_return_stmt` (L2033–2064).
+**Implementation:** `_handle_return_stmt`.
 
 ### §T.5.8  Assert Statement
 
@@ -911,7 +889,7 @@ they are **skipped** (emitted as `()`), since PyCSL contracts are the
 formal specification — Python asserts are not part of the verification
 condition.
 
-**Implementation:** `_stmts_to_whyml` (L2146–2150).
+**Implementation:** `_stmts_to_whyml`.
 
 ### §T.5.9  Raise Statement
 
@@ -930,7 +908,7 @@ $$\mathcal{T}_s\llbracket \texttt{try: S1 except E: S2} \rrbracket
 Variables assigned in the try body are pre-declared as refs before the
 `try` block to ensure they are in scope in the handler.
 
-**Implementation:** `_handle_try_stmt` (L1632–1690).
+**Implementation:** `_handle_try_stmt`.
 
 ### §T.5.11  Tuple Unpacking
 
@@ -938,7 +916,7 @@ $$\mathcal{T}_s\llbracket \texttt{a, b = f(x)} \rrbracket
 = \texttt{let (\_t0, \_t1) = f x in} \;
   \texttt{a := \_t0; b := \_t1}$$
 
-**Implementation:** `_handle_tuple_unpack_stmt` (L1722–1760).
+**Implementation:** `_handle_tuple_unpack_stmt`.
 
 ### §T.5.12  Match/Case Statement
 
@@ -951,7 +929,7 @@ $$= \texttt{if } \text{cond}(p_1) \texttt{ then begin } \mathcal{T}_s\llbracket 
 
 Guards are combined with `&&`.
 
-**Implementation:** `_handle_match_stmt` (L1856–1892).
+**Implementation:** `_handle_match_stmt`.
 
 ---
 
@@ -973,7 +951,7 @@ _Corresponds to `annotations.md` §3._
 | `[]` / Array literal | `(Array.make 1024 0)` | Body | Fixed-size default |
 | `{}` / Dict literal | `(dict_new ())` | Body | Abstract operation |
 
-**Implementation:** `_expr_to_whyml` (L1289–1341).
+**Implementation:** `_expr_to_whyml`.
 
 ### §T.6.2  Variables
 
@@ -989,7 +967,7 @@ $$\mathcal{T}_e\llbracket x \rrbracket_{\text{body}}
 
 Parameters (non-ref) are used directly without `!`.
 
-**Implementation:** `_handle_var_expr` (L1012–1031).
+**Implementation:** `_handle_var_expr`.
 
 ### §T.6.3  Field Access
 
@@ -999,7 +977,7 @@ $$\mathcal{T}_e\llbracket \texttt{self.f} \rrbracket
 Record field access is direct — no dereference needed since `self` is
 passed by reference in WhyML's record semantics.
 
-**Implementation:** `_handle_field_get_expr` (L1033–1052).
+**Implementation:** `_handle_field_get_expr`.
 
 ### §T.6.4  Array/List Subscript Access
 
@@ -1014,7 +992,7 @@ $$\mathcal{T}_e\llbracket \texttt{arr[i]} \rrbracket
 = \texttt{(Map.get !int\_mem (arr + }
   \mathcal{T}_e\llbracket i \rrbracket\texttt{))}$$
 
-**Implementation:** `_handle_subscript` (L943–996).
+**Implementation:** `_handle_subscript`.
 
 ### §T.6.5  Special Atoms
 
@@ -1051,7 +1029,7 @@ def test_old_expr(arr: list) -> None:
   = ...
 ```
 
-**Implementation:** `_handle_old_expr` (L1086–1099).
+**Implementation:** `_handle_old_expr`.
 
 #### `\at(e, L)`
 
@@ -1067,7 +1045,7 @@ $$\mathcal{T}_e\llbracket \texttt{\\at(arr[i], L)} \rrbracket
 = \texttt{(Map.get (int\_mem at L) (arr + }
   \mathcal{T}_e\llbracket i \rrbracket\texttt{))}$$
 
-**Implementation:** `_handle_at_expr` (L1101–1118).
+**Implementation:** `_handle_at_expr`.
 
 #### `\length(arr)`
 
@@ -1083,7 +1061,7 @@ $$\mathcal{T}_e\llbracket \texttt{\\length(arr)} \rrbracket
 
 A sidecar variable holds the array length.
 
-**Implementation:** `_handle_arraylen_expr` (L1163–1174).
+**Implementation:** `_handle_arraylen_expr`.
 
 #### `\valid(arr, n)`
 
@@ -1099,7 +1077,7 @@ $$\mathcal{T}_e\llbracket \texttt{\\valid(arr, n)} \rrbracket
 
 Uses the predicate declared in the typed model prelude.
 
-**Implementation:** `_handle_valid_expr` (L1176–1187).
+**Implementation:** `_handle_valid_expr`.
 
 #### `\separated(a, na, b, nb)`
 
@@ -1118,14 +1096,14 @@ $$\mathcal{T}_e\llbracket \texttt{\\separated(a, na, b, nb)} \rrbracket
 
 Uses the predicate declared in the typed model prelude.
 
-**Implementation:** `_handle_separated_expr` (L1189–1202).
+**Implementation:** `_handle_separated_expr`.
 
 #### `\is_sorted(arr, lo, hi)`
 
 $$\mathcal{T}_e\llbracket \texttt{\\is\_sorted(arr, lo, hi)} \rrbracket
 = \texttt{(forall \_si : int. lo <= \_si /\textbackslash{} \_si < hi - 1 -> arr[\_si] <= arr[\_si + 1])}$$
 
-**Implementation:** `_handle_issorted_expr` (L1232–1244).
+**Implementation:** `_handle_issorted_expr`.
 
 #### `\sum(arr, lo, hi)`
 
@@ -1134,7 +1112,7 @@ $$\mathcal{T}_e\llbracket \texttt{\\sum(arr, lo, hi)} \rrbracket
 
 A recursive sum function is defined in the prelude when needed.
 
-**Implementation:** `_handle_sum_node_expr` (L1246–1258).
+**Implementation:** `_handle_sum_node_expr`.
 
 #### `\nothing`
 
@@ -1169,7 +1147,7 @@ wrapped in `(if ... then 1 else 0)` to produce integer results.
 
 **Array repeat:** `[0] * n` → `(Array.make n 0)`
 
-**Implementation:** `_handle_binop` (L686–771).
+**Implementation:** `_handle_binop`.
 
 ### §T.6.7  Quantifiers
 
@@ -1191,7 +1169,7 @@ def test_quantifiers(arr: list, n: int) -> None:
 
 **Note:** Quantified variables are always typed as `int`.
 
-**Implementation:** `_expr_to_whyml` (L1289–1341, Forall/Exists cases).
+**Implementation:** `_expr_to_whyml` (Forall/Exists cases) in `module6_whyml/expressions.py`.
 
 ### §T.6.8  Function Calls
 
@@ -1213,7 +1191,7 @@ $$\mathcal{T}_e\llbracket f(e_1, \ldots, e_n) \rrbracket
 | `hasattr(x, a)` | `true` |
 | `sum(arr)` | `(pycsl_sum arr 0 (length arr))` |
 
-**Implementation:** `_handle_call_expr` (L863–941).
+**Implementation:** `_handle_call_expr`.
 
 ### §T.6.9  Conditional Expression
 
@@ -1222,7 +1200,7 @@ $$\mathcal{T}_e\llbracket \texttt{a if C else b} \rrbracket
   \texttt{ then } \mathcal{T}_e\llbracket a \rrbracket
   \texttt{ else } \mathcal{T}_e\llbracket b \rrbracket \texttt{)}$$
 
-**Implementation:** `_handle_ifexpr_expr` (L1120–1133).
+**Implementation:** `_handle_ifexpr_expr`.
 
 ### §T.6.10  Named Expression (Walrus Operator)
 
@@ -1236,14 +1214,14 @@ If `x` is new:
 $$= \texttt{(let x = ref } \mathcal{T}_e\llbracket e \rrbracket
   \texttt{ in !x)}$$
 
-**Implementation:** `_handle_named_expr_expr` (L1135–1147).
+**Implementation:** `_handle_named_expr_expr`.
 
 ### §T.6.11  Lambda Expression
 
 $$\mathcal{T}_e\llbracket \texttt{lambda x: e} \rrbracket
 = \texttt{(fun x -> } \mathcal{T}_e\llbracket e \rrbracket \texttt{)}$$
 
-**Implementation:** `_handle_lambda_expr` (L1260–1270).
+**Implementation:** `_handle_lambda_expr`.
 
 ### §T.6.12  Slice Access
 
@@ -1252,7 +1230,7 @@ $$\mathcal{T}_e\llbracket \texttt{arr[lo:hi]} \rrbracket
 
 Where `array_slice` is an abstract trusted operation.
 
-**Implementation:** `_handle_slice_access_expr` (L1149–1161).
+**Implementation:** `_handle_slice_access_expr`.
 
 ### §T.6.13  2D Array Operations
 
@@ -1265,8 +1243,8 @@ $$\mathcal{T}_e\llbracket \texttt{\\valid2d(m, r, c)} \rrbracket
 $$\mathcal{T}_s\llbracket \texttt{m[r][c] = e} \rrbracket
 = \texttt{set m r c } \mathcal{T}_e\llbracket e \rrbracket$$
 
-**Implementation:** `_handle_length2d_expr` (L1204–1216),
-`_handle_valid2d_expr` (L1218–1230).
+**Implementation:** `_handle_length2d_expr`,
+`_handle_valid2d_expr`.
 
 ### §T.6.14  F-Strings
 
@@ -1275,7 +1253,7 @@ represented as integers:
 
 $$\mathcal{T}_e\llbracket \texttt{f"..."} \rrbracket = \text{hash}(\ldots)$$
 
-**Implementation:** `_handle_fstring_expr` (L1053–1069).
+**Implementation:** `_handle_fstring_expr`.
 
 ---
 
@@ -1393,8 +1371,8 @@ may have modified shared state arbitrarily, subject to the mutex
 invariant.  The assert at exit proves that the critical section
 maintains the invariant.
 
-**Implementation:** `_emit_shared_state` (L2538–2583),
-`_handle_critical_section_stmt` (L1894–1937).
+**Implementation:** `_emit_shared_state`,
+`_handle_critical_section_stmt`.
 
 ---
 
@@ -1458,7 +1436,7 @@ def count_to_n(n: int) -> int:
    Why3 the update has no computational effect.
 3. Ghost variables can appear in loop invariants and ensures clauses.
 
-**Implementation:** `_handle_ghost_assign_stmt` (L1692–1720).
+**Implementation:** `_handle_ghost_assign_stmt`.
 
 ### §T.8.3  Labels
 
@@ -1486,7 +1464,7 @@ def test_at_expr(arr: list) -> None:
     arr[0] <- (arr[0] + 1)
 ```
 
-**Implementation:** `_stmts_to_whyml` (L2107–2112).
+**Implementation:** `_stmts_to_whyml`.
 
 ### §T.8.4  Typed Ghost Variable Declaration
 
@@ -1541,8 +1519,8 @@ while i < n:
 
 **Implementation:** `_handle_map_empty_expr`, `_handle_map_get_expr`,
 `_handle_map_set_expr`, `_handle_map_remove_expr`, `_handle_has_key_expr`,
-`_handle_map_eq_expr` in `Module6_WhyMLTranspiler.py`. Preamble detection:
-`_scan_preamble_needs` → `needs_ghost_dict`.
+`_handle_map_eq_expr` in `module6_whyml/expressions.py`. Preamble detection:
+`_scan_preamble_needs` (in `module6_whyml/preamble.py`) → `needs_ghost_dict`.
 
 ### §T.8.6  Ghost Dict Augmented Assign
 
@@ -1599,7 +1577,7 @@ $$\forall l.\;\lnot\bigl(\text{in\_region}_1(l) \lor \text{in\_region}_2(l)
   \lor \ldots\bigr) \Rightarrow
   \text{Map.get}(!h, l) = \text{Map.get}(\text{old}\;!h, l)$$
 
-**Implementation:** `_emit_frame_condition` (L2186–2220).
+**Implementation:** `_emit_frame_condition`.
 
 ---
 
@@ -1755,6 +1733,98 @@ The following constructs appear in Python but have no translation:
 
 ---
 
+## §T.14  Body-level data structures (dict, set, multi-arg range, builtins)
+
+Beyond the `#@ ghost ...` ghost variables (§T.7–§T.8), Python function
+bodies may declare ordinary mutable dicts, sets, lists, and use a
+restricted set of builtins. Module6 lowers each to specific WhyML.
+Tests: 0345–0351.
+
+### §T.14.1  Body `dict`
+
+| Form | Why3 emission |
+|------|---------------|
+| `d = {}` / `d = dict()` | `let d = ref (const (None: option int)) in` |
+| `d[k] = v` | `d := map_update_some !d k v` |
+| `d[k]` (read) | `(match Map.get !d k with \| Some v_ -> v_ \| None -> 0 end)` |
+| `k in d` | `(match Map.get !d k with \| Some _ -> true \| None -> false end)` |
+| `k not in d` | `(match Map.get !d k with \| Some _ -> false \| None -> true end)` |
+
+`map_update_some` is a program-level `val` whose `ensures` clause is
+`result = Map.set m k (Some v)`. The wrapper is needed because
+`Map.set` itself is a logic-only function — Why3 rejects assigning its
+result back to a non-ghost ref with "ghost modification in non-ghost
+variable".
+
+The body-dict path is triggered when `IRScanner.find_array_and_dict_vars`
+adds the variable to `dict_vars` (Call to `dict`, DictLit, SetLit, etc.)
+or when `_handle_assign_stmt`'s `is_dict_val` detection fires.
+
+**Preamble uses**: `map.Map`, `map.Const`, `option.Option` are imported
+when `_scan_preamble_needs` finds any body dict (`needs_body_dict`).
+
+### §T.14.2  Body `set`
+
+Sets share the dict's `map int (option int)` model. Present keys
+map to `Some 0`, absent keys to `None`.
+
+| Form | Why3 emission |
+|------|---------------|
+| `set()` / `frozenset()` | `(const (None: option int))` |
+| `{a, b, c}` (SetLit) | chained `(map_update_some … 0)` on a `const None` base |
+| `s.add(x)` (ExprStmt) | `s := map_update_some !s x 0` |
+| `s.discard(x)` / `s.remove(x)` | `s := map_update_none !s x` |
+| `x in s` / `x not in s` | same `match Map.get` as dict |
+
+`map_update_none` is parallel to `map_update_some` with `ensures
+{ result = Map.set m k None }`.
+
+### §T.14.3  Multi-argument `range(start, stop)`
+
+`_classify_iterable` recognises 2-arg `range`:
+
+```
+T[[for i in range(start, stop): body]]
+  =  let _idx_i = ref start in
+     while !_idx_i < stop do
+       <invariants> <variants>
+       T[[body]];
+       _idx_i := !_idx_i + 1
+     done
+```
+
+For 1-arg `range(n)`, `start` defaults to `0` (existing behaviour).
+
+### §T.14.4  `Optional[T]` and `Union[T1, T2]` return annotations
+
+Module5's `_build_function_ir` handles `ast.Subscript` return
+annotations:
+
+- `-> Optional[T]` ⇒ `return_annotation = <T>.lower()`. Since PyCSL
+  models `None` as `0`, the optional-ness adds no type-level info
+  Module6 could use; the inner type stands.
+- `-> Union[T, None]` ⇒ same as Optional (heuristic picks first
+  non-`None` component).
+- `-> Union[T1, T2, …]` ⇒ heuristic: first non-`None` component (rare
+  case; document loudly).
+
+### §T.14.5  `sorted` / `any` / `all` builtins
+
+| Form | Why3 emission |
+|------|---------------|
+| `sorted(arr)` | abstract `val sorted_1 (a: array int) : array int` |
+| `any(arr)` | abstract `val any_1 (a: array int) : bool` |
+| `all(arr)` | abstract `val all_1 (a: array int) : bool` |
+
+The abstract vals have no axioms about their results. Contracts cannot
+meaningfully assert order or element identity through `sorted_1` etc.
+
+The target of `s = sorted(arr)` is tracked as array-typed (via
+`is_array_val` recognising the `(sorted_1 ` prefix), so the pre-decl
+path emits `let s = (sorted_1 arr) in` instead of `let s = ref 0 in`.
+
+---
+
 ## §T.12  Complete Method Index
 
 ### Module5 CSL Node Handlers
@@ -1785,7 +1855,6 @@ The following constructs appear in Python but have no translation:
 | `_csl_valid2d` | `Valid2D` | `Valid2D` |
 | `_csl_contract_wrapper` | Requires/Ensures/LoopInvariant/LoopVariant | (wrapper) |
 | `_csl_function_variant` | `FunctionVariant` | `FunctionVariant` |
-| (no handler; collected by `_build_function_ir`) | `ProofAttribution` | `proof_attributions` field (informational; §T.2.9) |
 | `_csl_call_expr` | `CallExpr` | `Call` |
 | `_csl_is_sorted` | `IsSorted` | `IsSorted` |
 | `_csl_sum` | `Sum` | `Sum` |

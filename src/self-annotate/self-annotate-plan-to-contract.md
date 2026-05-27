@@ -1,15 +1,15 @@
-# From Formal Proofs to PyCSL Contracts — Sub-Plan
+# From Formal Proofs to PyCSL Contracts — Methodology
 
-> Companion to `self-annotate-plan.md`.  
 > Details the methodology for transforming the mechanized soundness proofs
 > in `src/formal-semantics/rocq/` and `src/formal-semantics/lean/` into
-> concrete `#@` annotations on the PyCSL implementation.
+> concrete `#@` annotations on the PyCSL implementation. The original
+> parent plan has been folded into `self-annotate-global-plan.md`.
 
 ---
 
 ## 0. The Problem: What Does "Proof → Contract" Actually Mean?
 
-The parent plan (`self-annotate-plan.md` §3) says:
+The annotation strategy:
 
 > "Each WP rule in Phase4_WP.v / WP.lean maps to one function in Module6."
 

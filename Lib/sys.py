@@ -1,6 +1,13 @@
 """PyCSL mock for Python's sys module — Access system-specific parameters and functions."""
 _ = 0  # anchor
 
+# Module-level attributes used by src/
+executable = 0
+path = 0
+stderr = 0
+stdin = 0
+stdout = 0
+
 #@ \trusted
 #@ ensures \result == 0
 def addaudithook(hook: int) -> int:

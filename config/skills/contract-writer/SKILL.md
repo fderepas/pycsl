@@ -179,10 +179,6 @@ def next_value(n: int) -> int:
 
 Output ONLY the contract lines (each starting with `#@`), one per line. Do NOT output the function body, do NOT output ```python fences, do NOT add commentary.
 
-**NEVER emit `#@ proof rocq: …` / `#@ proof lean: …` lines.** Those are
-provenance trace directives produced *only* by `pycsl-bridge`
-(`annotations.md` §2.1.11), not by the contract-writer.
-
 Example output:
 ```python
 #@ requires n >= 0

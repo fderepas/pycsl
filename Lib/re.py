@@ -1,6 +1,11 @@
 """PyCSL mock for Python's re module — Regular expression operations."""
 _ = 0  # anchor
 
+# Module-level constants used by src/
+DOTALL = 0
+IGNORECASE = 0
+MULTILINE = 0
+
 #@ \trusted
 #@ ensures \result >= 0
 def compile(pattern: int, flags: int) -> int:

@@ -76,6 +76,7 @@ Reading the tokens:
 | `a % b` | Python `mod` — `a % \result == 0` means "result divides a". |
 | `\forall k; P ==> Q` | Universal quantifier (semicolon after binder). Here: for every `k`, if `k` is a positive common divisor then `k <= \result`. |
 | `gcd(a, b)` | A call to the imported Why3 `gcd` function (introduced in Step 4) — *not* a recursive call to the Python function. Used here as a bridge so the SMT solver can substitute directly. |
+| `True`, `False` | First-class boolean atoms in contracts (annotations.md §3.1.18). `#@ requires True` is the recommended form for "no precondition"; `#@ ensures False` is useful as a placeholder marking an intentionally-unprovable postcondition during incremental annotation. |
 | `assigns \nothing` | Frame condition: no observable state is mutated (local variables don't count). |
 
 Multiple `requires` / `ensures` lines are conjuncted.
@@ -123,27 +124,27 @@ discover on their own:
 
 These come from `test-suite/corpus/pycsl-reference/0342.proofs/`, where
 the seven lemmas are **independently proved in both Rocq and Lean**.
-PyCSL imports them as Why3 axioms via the `#@ axiom_from` directive.
+PyCSL imports them as Why3 axioms via the `#@ proof` directive.
 When the *same* `pycsl_target` is named for both provers, the
 `proof2why3 cross-check` tool verifies that the two formalizations
 state the same theorem (after canonicalization) — this is the **"Rocq +
 Lean as Cross-Validated Spec Sources"** pattern.
 
 ```python
-#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_result_nonneg
-#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_result_positive
-#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_divides_a
-#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_divides_b
-#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_0
-#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_step
-#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_greatest
-#@ axiom_from lean Pycsl.Reference.Gcd.gcd_result_nonneg
-#@ axiom_from lean Pycsl.Reference.Gcd.gcd_result_positive
-#@ axiom_from lean Pycsl.Reference.Gcd.gcd_divides_a
-#@ axiom_from lean Pycsl.Reference.Gcd.gcd_divides_b
-#@ axiom_from lean Pycsl.Reference.Gcd.gcd_0
-#@ axiom_from lean Pycsl.Reference.Gcd.gcd_step
-#@ axiom_from lean Pycsl.Reference.Gcd.gcd_greatest
+#@ proof rocq Pycsl.Reference.Gcd.gcd_result_nonneg
+#@ proof rocq Pycsl.Reference.Gcd.gcd_result_positive
+#@ proof rocq Pycsl.Reference.Gcd.gcd_divides_a
+#@ proof rocq Pycsl.Reference.Gcd.gcd_divides_b
+#@ proof rocq Pycsl.Reference.Gcd.gcd_0
+#@ proof rocq Pycsl.Reference.Gcd.gcd_step
+#@ proof rocq Pycsl.Reference.Gcd.gcd_greatest
+#@ proof lean Pycsl.Reference.Gcd.gcd_result_nonneg
+#@ proof lean Pycsl.Reference.Gcd.gcd_result_positive
+#@ proof lean Pycsl.Reference.Gcd.gcd_divides_a
+#@ proof lean Pycsl.Reference.Gcd.gcd_divides_b
+#@ proof lean Pycsl.Reference.Gcd.gcd_0
+#@ proof lean Pycsl.Reference.Gcd.gcd_step
+#@ proof lean Pycsl.Reference.Gcd.gcd_greatest
 ```
 
 Why `gcd_greatest` *and* the divisibility axioms separately: the six
@@ -156,9 +157,11 @@ fills that gap.
 Why both Rocq *and* Lean: a typo in a Rocq theorem statement that
 matches what the WhyML axiom needs is still a wrong axiom. With two
 independent proof kernels stating the same fact, the chance of a
-correlated mistake drops sharply. See `simple3.md` for the full
-architecture and `docs/pycsl-translational-reference.md §T.2.10` for
-the WhyML emission rule.
+correlated mistake drops sharply. See
+[`docs/cross-validated-spec-sources.md`](docs/cross-validated-spec-sources.md)
+for the full architecture and
+[`docs/pycsl-translational-reference.md`](docs/pycsl-translational-reference.md)
+§T.2.10 for the WhyML emission rule.
 
 ### Step 5 — Run the verifier
 
@@ -233,12 +236,33 @@ loop sketched above:
   annotated Python. Disagreements surface as structured diffs; the
   bridge halts by default rather than shipping mismatched contracts.
 
-The bridge emits `#@ proof rocq: <theorem-qualname>` /
-`#@ proof lean: <theorem-qualname>` lines (`annotations.md §2.1.11`)
-above the regular `#@ requires`/`ensures`/`assigns` block. PyCSL's
-parser accepts these directives and Why3 emits no VCs for them — they
-are pure traceability from the Python source back to the source
-theorem(s) that produced its contract.
+When a theorem must serve as a load-bearing Why3 axiom on the Python
+side, the bridge emits an `#@ proof rocq <qualname>` /
+`#@ proof lean <qualname>` line (`annotations.md §2.1.12`). The
+former provenance-only `#@ proof rocq:` / `#@ proof lean:` directive
+was removed from the language on 2026-05-27.
+
+### Auditing `#@ proof` directives
+
+`pycsl --audit-proof <file>` confirms each cited theorem actually
+exists inside the matching `Module` / `namespace` nesting in the
+proof files. The audit parses Rocq `.v` and Lean `.lean` files with
+a namespace-aware state machine — the qualname `Pycsl.Reference.Gcd.gcd_step`
+requires `Module Pycsl. Module Reference. Module Gcd.` (Rocq) or
+`namespace Pycsl.Reference.Gcd` (Lean) to enclose the cited theorem.
+
+Default proof dirs: `<file>.proofs/rocq/` and `<file>.proofs/lean/`
+next to the Python file. Override with `--rocq-proofs-path DIR` and/or
+`--lean-proofs-path DIR`. Use `--audit-proof-rocq` /
+`--audit-proof-lean` to audit only one prover side.
+
+```bash
+pycsl --audit-proof test-suite/corpus/pycsl-reference/0342.py
+# === Axiom-attribution audit (0342.py) ===
+#   ✓ 0342.py:21  rocq: Pycsl.Reference.Gcd.gcd_result_nonneg
+#   ...
+#   Passed: 14 / Skipped: 0 / Failed: 0
+```
 
 Example invocation:
 
@@ -261,7 +285,7 @@ Lean theorems contracted which Python function. See
 Beyond provenance documentation, PyCSL supports a stronger integration
 mode: **Rocq + Lean as Cross-Validated Spec Sources**. In this mode,
 proof-assistant theorems are imported as Why3 axioms via the
-`#@ axiom_from` directive (`annotations.md §2.1.12`), and a cross-check
+`#@ proof` directive (`annotations.md §2.1.12`), and a cross-check
 pipeline ensures that the Rocq and Lean formalizations agree before any
 axiom enters the verification.
 
@@ -278,8 +302,10 @@ Alt-Ergo/Z3 can use it. The pattern is the foundation for PyCSL
 self-hosting — annotating `pycsl`'s own source code with contracts derived
 from the mechanized WP soundness proofs in `src/formal-semantics/`.
 
-See `simple3.md` for the full architecture plan and `0342.py` for the
-worked example (Euclidean GCD with cross-validated spec axioms).
+See [`docs/cross-validated-spec-sources.md`](docs/cross-validated-spec-sources.md)
+for the full architecture plan and
+[`test-suite/corpus/pycsl-reference/0342.py`](test-suite/corpus/pycsl-reference/0342.py)
+for the worked example (Euclidean GCD with cross-validated spec axioms).
 
 ---
 
@@ -296,7 +322,10 @@ PyCSL/
 │   │   ├── Module4_SemanticAnalyzer.py # Type/scope checking, variable resolution
 │   │   ├── ConcurrencyChecker.py       # Static concurrency analysis (warnings)
 │   │   ├── Module5_IREmitter.py        # Emits intermediate representation (JSON)
-│   │   ├── Module6_WhyMLTranspiler.py  # Generates .mlw (WhyML) for Why3
+│   │   ├── Module6_WhyMLTranspiler.py  # Facade; JSON IR → .mlw (WhyML) for Why3
+│   │   ├── module6_whyml/              # Module 6 split: stateless IR walks, identifiers,
+│   │   │                               # SCC + auto-trust + abstract-ops + types +
+│   │   │                               # expression / statement / preamble / function mixins
 │   │   └── agents/                     # LLM agent scripts (see Agent Architecture)
 │   ├── pycsl_emit/                     # Shared backend for the three tools below
 │   │   ├── ir/                         #   IR + JSON round-trip (pycsl-ir-dump v1)

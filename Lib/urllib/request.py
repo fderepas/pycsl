@@ -48,3 +48,9 @@ def urlretrieve(url: int, filename: int, reporthook: int, data: int) -> int:
 def urlcleanup() -> int:
     """Mock: Cleans up temporary files that may have been left behind by previous calls to :func:`urlretrieve`."""
     return 0
+
+#@ \trusted
+#@ ensures True
+def Request(url: int, data: int, headers: int, origin_req_host: int, unverifiable: int, method: int) -> int:
+    """Mock: Abstraction of a URL request. url is a string containing a valid URL. data may be a bytes object or an iterable of bytes objects. headers is a dict. method is a string for the HTTP method."""
+    return 0

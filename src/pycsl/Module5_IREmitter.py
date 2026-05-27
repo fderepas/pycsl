@@ -935,12 +935,49 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
 
     # --- 3. Main Traversal Hooks ---
 
+    @staticmethod
+    def _field_type_from_annotation(annotation: Optional[ast.expr]) -> str:
+        """Lower a Python type annotation to the IR field-type tag.
+
+        Bare names like `int`/`bool`/`str` are passed through (lowercased
+        where appropriate). Parametric annotations recognise `List`/
+        `Set`/`Dict`/`FrozenSet`/`Tuple` (head identifier, lowercased).
+        `Optional[T]` and `Union[T, None]` unwrap to T. Everything else
+        falls back to `int` (the legacy default)."""
+        if annotation is None:
+            return "int"
+        if isinstance(annotation, ast.Name):
+            name = annotation.id
+            if name in ("int", "bool", "str", "float"):
+                return "int"
+            # Unrecognised plain name — treat as int (e.g. user types).
+            return "int"
+        if isinstance(annotation, ast.Subscript) and isinstance(annotation.value, ast.Name):
+            head = annotation.value.id
+            if head == "Optional":
+                inner = annotation.slice
+                if isinstance(inner, ast.Subscript) and isinstance(inner.value, ast.Name):
+                    return inner.value.id.lower()
+                return "int"
+            if head == "Union":
+                inner = annotation.slice
+                if isinstance(inner, ast.Tuple):
+                    for elt in inner.elts:
+                        if isinstance(elt, ast.Subscript) and isinstance(elt.value, ast.Name):
+                            return elt.value.id.lower()
+                return "int"
+            return head.lower()
+        return "int"
+
     def _collect_class_fields(self, node: ast.ClassDef) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
         """Extract mutable fields and default values from __init__.
 
         Returns (fields, field_defaults) where fields is a list of
         {"name", "type", "mutable"} dicts and field_defaults maps
-        field names to their initial int values.
+        field names to their initial int values. Type annotations on
+        `self.x: T = ...` declarations (AnnAssign) are extracted via
+        `_field_type_from_annotation`; plain assignments default to
+        `int`.
         """
         fields: List[Dict[str, Any]] = []
         field_names_seen: Set[str] = set()
@@ -954,16 +991,30 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
                                     isinstance(target.value, ast.Name) and
                                     target.value.id == 'self' and
                                     target.attr not in field_names_seen):
-                                fields.append({"name": target.attr, "type": "int", "mutable": True})
+                                # Infer type from RHS shape when no
+                                # explicit annotation is present.
+                                rhs = stmt.value
+                                ftype = "int"
+                                if isinstance(rhs, ast.Dict):
+                                    ftype = "dict"
+                                elif isinstance(rhs, ast.Set):
+                                    ftype = "set"
+                                elif isinstance(rhs, ast.List):
+                                    ftype = "list"
+                                elif isinstance(rhs, ast.Call) and isinstance(rhs.func, ast.Name):
+                                    if rhs.func.id in ("set", "frozenset", "dict", "list"):
+                                        ftype = rhs.func.id
+                                fields.append({"name": target.attr, "type": ftype, "mutable": True})
                                 field_names_seen.add(target.attr)
-                                if isinstance(stmt.value, ast.Constant) and isinstance(stmt.value.value, (int, float)):
-                                    field_defaults[target.attr] = int(stmt.value.value)
+                                if isinstance(rhs, ast.Constant) and isinstance(rhs.value, (int, float)):
+                                    field_defaults[target.attr] = int(rhs.value)
                     elif isinstance(stmt, ast.AnnAssign):
                         if (isinstance(stmt.target, ast.Attribute) and
                                 isinstance(stmt.target.value, ast.Name) and
                                 stmt.target.value.id == 'self' and
                                 stmt.target.attr not in field_names_seen):
-                            fields.append({"name": stmt.target.attr, "type": "int", "mutable": True})
+                            ftype = self._field_type_from_annotation(stmt.annotation)
+                            fields.append({"name": stmt.target.attr, "type": ftype, "mutable": True})
                             field_names_seen.add(stmt.target.attr)
                             if (stmt.value and isinstance(stmt.value, ast.Constant) and
                                     isinstance(stmt.value.value, (int, float))):
@@ -1010,9 +1061,57 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
                 return_annotation = node.returns.id
             elif isinstance(node.returns, ast.Constant):
                 return_annotation = str(node.returns.value)
+            elif isinstance(node.returns, ast.Subscript):
+                # Parametric annotations like `List[str]`, `Tuple[int, int]`,
+                # `Dict[str, Any]`, `Optional[int]`. Capture the head identifier
+                # (lower-cased so `List` → `list` matches Module6's existing
+                # case-sensitive checks against the bare `list` annotation).
+                if isinstance(node.returns.value, ast.Name):
+                    head = node.returns.value.id
+                    # `Optional[T]` reduces to T (we model `None` as `0`, so
+                    # the optional-ness adds no type-level info Module6
+                    # could use). Recurse into the inner type so
+                    # `Optional[List[str]]` → `"list"`.
+                    if head == "Optional":
+                        inner = node.returns.slice
+                        if isinstance(inner, ast.Name):
+                            return_annotation = inner.id.lower()
+                        elif isinstance(inner, ast.Subscript) and isinstance(inner.value, ast.Name):
+                            return_annotation = inner.value.id.lower()
+                        else:
+                            return_annotation = "int"
+                    elif head == "Union":
+                        # `Union[T, None]` is equivalent to `Optional[T]`.
+                        # General Union[T1, T2, …] collapses to int since
+                        # Module6 has no sum-type model. Heuristic: pick
+                        # the first non-None component.
+                        inner = node.returns.slice
+                        chosen = "int"
+                        if isinstance(inner, ast.Tuple):
+                            for elt in inner.elts:
+                                if isinstance(elt, ast.Constant) and elt.value is None:
+                                    continue
+                                if isinstance(elt, ast.Name) and elt.id != "None":
+                                    chosen = elt.id.lower()
+                                    break
+                                if isinstance(elt, ast.Subscript) and isinstance(elt.value, ast.Name):
+                                    chosen = elt.value.id.lower()
+                                    break
+                        return_annotation = chosen
+                    else:
+                        return_annotation = head.lower()
+        # Formal parameter names ONLY (excluding `self`). Distinct from
+        # `symbol_table`, which Module4 also populates with local
+        # variables, for-loop targets, and ghost vars. Module6's
+        # parameter-mutation handling needs the unpolluted list to
+        # decide which pre_decl_vars should be shadowed via
+        # `let X = ref X in` (formal params) vs `let X = ref 0 in`
+        # (other locals).
+        formal_params = [a.arg for a in node.args.args if a.arg != 'self']
         return {
             "name": func_name,
             "symbol_table": symbol_table,
+            "formal_params": formal_params,
             "return_annotation": return_annotation,
             "contracts": {
                 "requires": self._csl_list_to_ir(getattr(node, 'csl_requires', [])),
@@ -1027,18 +1126,12 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
             "trusted": getattr(node, 'csl_trusted', False),
             "reviewer": getattr(node, 'csl_reviewer', ""),
             "bounded_int": getattr(node, 'csl_bounded_int', None),
-            # §2.1.11 — informational trace from contract to source theorem.
-            # Downstream (Module6) MUST NOT emit WhyML for these entries.
-            "proof_attributions": [
-                {"prover": p.prover, "qualname": p.qualname}
-                for p in getattr(node, 'csl_proof_attributions', [])
-            ],
-            # §2.1.12 — axiom imports from cross-validated Rocq+Lean
-            # proofs. Module6 emits a Why3 `axiom` block in the
-            # preamble for each entry; see simple3.md.
-            "axiom_from": [
+            # §2.1.12 — proof citations from cross-validated Rocq+Lean
+            # theorems. Module6 emits a Why3 `axiom` block in the
+            # preamble for each entry; see docs/cross-validated-spec-sources.md.
+            "proof": [
                 {"prover": a.prover, "qualname": a.qualname}
-                for a in getattr(node, 'csl_axiom_from', [])
+                for a in getattr(node, 'csl_proof', [])
             ],
         }
 

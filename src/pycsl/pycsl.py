@@ -6,7 +6,6 @@ import ast as _ast
 import hashlib
 import json as _json
 import os
-import re as _re
 import sys
 import subprocess
 import tempfile
@@ -530,6 +529,22 @@ def _parse_args() -> argparse.Namespace:
                              "provers fail. Each .v file is replayed with coqc "
                              "for full verification. If DIR is omitted, "
                              "auto-detects <file>.proofs/ next to the input.")
+    parser.add_argument("--audit-proof", action="store_true",
+                        help="Audit every #@ proof rocq / lean directive "
+                             "in the file. Confirms each cited theorem is "
+                             "declared inside the matching nested namespace "
+                             "in the proof file. Audit-only: skips transpile "
+                             "and verify. Exit 0 PASS / 1 FAIL.")
+    parser.add_argument("--audit-proof-rocq", action="store_true",
+                        help="Like --audit-proof but only Rocq directives.")
+    parser.add_argument("--audit-proof-lean", action="store_true",
+                        help="Like --audit-proof but only Lean directives.")
+    parser.add_argument("--rocq-proofs-path", metavar="DIR", default=None,
+                        help="Override default Rocq proof dir for --audit-proof "
+                             "(default: <file>.proofs/rocq/).")
+    parser.add_argument("--lean-proofs-path", metavar="DIR", default=None,
+                        help="Override default Lean proof dir for --audit-proof "
+                             "(default: <file>.proofs/lean/).")
     return parser.parse_args()
 
 
@@ -688,12 +703,34 @@ def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argp
             os.remove(mlw_filename)
 
 
+def _run_audit_mode(args: argparse.Namespace) -> int:
+    """Handle --audit-proof / --audit-proof-rocq / --audit-proof-lean.
+
+    Short-circuits the rest of the pipeline. Returns the exit code."""
+    from pathlib import Path
+    from audit_proof import audit_rocq, audit_lean, AuditReport, print_report
+    py = Path(args.file)
+    rocq_dir = Path(args.rocq_proofs_path) if args.rocq_proofs_path else None
+    lean_dir = Path(args.lean_proofs_path) if args.lean_proofs_path else None
+    report = AuditReport()
+    if args.audit_proof or args.audit_proof_rocq:
+        report.extend(audit_rocq(py, rocq_dir))
+    if args.audit_proof or args.audit_proof_lean:
+        report.extend(audit_lean(py, lean_dir))
+    print_report(report, f"Axiom-attribution audit ({py.name})")
+    return report.exit_code
+
+
 def main() -> None:
     args = _parse_args()
 
     if not os.path.exists(args.file):
         print(f"[!] Error: File '{args.file}' not found.")
         sys.exit(1)
+
+    # Audit-only mode short-circuits the pipeline.
+    if args.audit_proof or args.audit_proof_rocq or args.audit_proof_lean:
+        sys.exit(_run_audit_mode(args))
 
     # Load agents-config.json
     _config = {}

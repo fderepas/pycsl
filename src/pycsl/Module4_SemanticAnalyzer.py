@@ -162,9 +162,36 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         self._lock_order: Optional[List[str]] = None       # ordered list of mutex names
 
     def _get_type_name(self, annotation: ast.expr) -> str:
-        """Extracts the type hint as a string (e.g., 'int', 'bool')."""
+        """Extracts the type hint as a string.
+
+        Bare names: returned as-is (`int`, `bool`, `str`, ...).
+        Subscript: head identifier lowercased (`List[int]` → `list`,
+        `Set[Mutex]` → `set`, `Dict[str, Any]` → `dict`, `Tuple[int, int]`
+        → `tuple`, `FrozenSet[T]` → `frozenset`). `Optional[T]` and
+        `Union[T, None]` unwrap to the inner type. Anything else: `Any`."""
         if isinstance(annotation, ast.Name):
             return annotation.id
+        if isinstance(annotation, ast.Subscript) and isinstance(annotation.value, ast.Name):
+            head = annotation.value.id
+            if head == "Optional":
+                inner = annotation.slice
+                if isinstance(inner, ast.Name):
+                    return inner.id
+                if isinstance(inner, ast.Subscript) and isinstance(inner.value, ast.Name):
+                    return inner.value.id.lower()
+                return "Any"
+            if head == "Union":
+                inner = annotation.slice
+                if isinstance(inner, ast.Tuple):
+                    for elt in inner.elts:
+                        if isinstance(elt, ast.Constant) and elt.value is None:
+                            continue
+                        if isinstance(elt, ast.Name) and elt.id != "None":
+                            return elt.id
+                        if isinstance(elt, ast.Subscript) and isinstance(elt.value, ast.Name):
+                            return elt.value.id.lower()
+                return "Any"
+            return head.lower()
         return "Any"
 
     def _validate_contract(self, contract: CSLNode, context_name: str, is_postcondition: bool = False) -> None:
@@ -529,9 +556,10 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
                                 f"Subscript assignment to undefined variable '{arr_name}' "
                                 f"in {self.current_function_name}."
                             )
-                        if arr_type not in ("list", "List", "Any"):
+                        if arr_type not in ("list", "List", "dict", "Dict",
+                                             "Any"):
                             raise PyCSLSemanticError(
-                                f"Subscript assignment to non-list variable '{arr_name}' "
+                                f"Subscript assignment to non-list/dict variable '{arr_name}' "
                                 f"(type '{arr_type}') in {self.current_function_name}."
                             )
 

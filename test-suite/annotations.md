@@ -35,22 +35,21 @@ Python construct they annotate (function, class, loop, or statement).
 | 8 | Bounded integers | `#@ assumes bounded_int(N)` | Function/method | Use `mach.int.IntN` types; auto-generates overflow VCs on `+`, `-`, `*` |
 | 9 | Raises | `#@ raises ExcType when <cond>` | Function/method | Exceptional postcondition: exception raised only when `cond` holds |
 | 10 | Thread entry | `#@ thread_entry` | Function/method | Marks function as a concurrent thread entry point; used with `--memory-model concurrent` |
-| 11 | Proof attribution | `#@ proof <rocq\|lean>: <qualname>` | Function/method | Informational. Records that the function's contract was derived from theorem `<qualname>` in the named formalism. Accepted and ignored by Why3 — emitted by `pycsl-bridge`, not by humans. May appear multiple times (one per source theorem). |
-| 12 | Axiom from proof | `#@ axiom_from <rocq\|lean> <qualname>` | Module-level | Imports a Rocq or Lean theorem as a Why3 axiom in the preamble. When both `rocq` and `lean` directives name the same `pycsl_target`, the `proof2why3 cross-check` tool verifies their canonical forms agree before emission ("Rocq + Lean as Cross-Validated Spec Sources"). See §2.1.12 below. |
+| 11 | _(reserved — `proof` directive removed 2026-05-27)_ | | | |
+| 12 | Axiom from proof | `#@ proof <rocq\|lean> <qualname>` | Module-level | Imports a Rocq or Lean theorem as a Why3 axiom in the preamble. When both `rocq` and `lean` directives name the same `pycsl_target`, the `proof2why3 cross-check` tool verifies their canonical forms agree before emission ("Rocq + Lean as Cross-Validated Spec Sources"). See §2.1.12 below. |
 
 Multiple `requires`/`ensures` lines are conjuncted (all must hold).
 
-#### §2.1.12 Axiom from Proof (`axiom_from`) — Rocq + Lean as Cross-Validated Spec Sources
+#### §2.1.12 Proof Citation (`proof`) — Rocq + Lean as Cross-Validated Spec Sources
 
 ```python
-#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_divides_a
-#@ axiom_from lean Pycsl.Reference.Gcd.gcd_divides_a
+#@ proof rocq Pycsl.Reference.Gcd.gcd_divides_a
+#@ proof lean Pycsl.Reference.Gcd.gcd_divides_a
 ```
 
 Imports a Rocq or Lean theorem as a **Why3 axiom** in the generated WhyML
-preamble. Unlike `#@ proof` (§2.1.11, informational only), `#@ axiom_from`
-has real semantic effect: Alt-Ergo/Z3 may use the imported axiom to
-discharge obligations that SMT alone cannot handle.
+preamble. `#@ proof` has real semantic effect: Alt-Ergo/Z3 may use
+the imported axiom to discharge obligations that SMT alone cannot handle.
 
 **Cross-validation.** When both a `rocq` and a `lean` directive reference
 the same `pycsl_target` name, the `proof2why3 cross-check` tool
@@ -62,8 +61,22 @@ before it enters the Why3 verification.
 
 **Scope:** Module-level (placed before any function definition).
 
+**Audit (`pycsl --audit-proof`).** The dotted `qualname` is enforced
+as a namespace path: the cited theorem must be declared inside the
+matching `Module`/`namespace` nesting in the proof file. Default proof
+dirs are `<file>.proofs/{rocq,lean}/`; override with
+`--rocq-proofs-path` / `--lean-proofs-path`. The audit can target only
+one prover via `--audit-proof-rocq` / `--audit-proof-lean`. Exit 0 on
+all PASS, 1 on any FAIL.
+
+```bash
+pycsl --audit-proof  myfile.py
+pycsl --audit-proof-rocq myfile.py
+pycsl --audit-proof-lean --lean-proofs-path /tmp/alt-lean myfile.py
+```
+
 **WhyML emission:** `Module6_WhyMLTranspiler` calls `proof2why3 emit` for
-each `axiom_from` directive, producing an `axiom pycsl_axiom_<target> : …`
+each `proof` directive, producing an `axiom pycsl_axiom_<target> : …`
 block in the preamble.
 
 **Cross-check statuses:**
@@ -133,7 +146,7 @@ The `#@ ghost` directive must appear on a leading line before a Python statement
 | 15 | `\is_sorted(arr, lo, hi)` | `IsSorted` | `arr[lo..hi)` is sorted ascending (pairwise adjacent) |
 | 16 | `\sum(arr, lo, hi)` | `Sum` | Sum of `arr[lo..hi)` elements |
 | 17 | `f(x, y)` | `CallExpr` | Pure function call in contract (see 4.1) |
-| 18 | `True`, `False` | `CSLBool` | Boolean literal (`true` / `false` in WhyML) |
+| 18 | `True`, `False` | `CSLBool` | Boolean literal (`true` / `false` in WhyML). **Recommended** form for vacuous preconditions / postconditions (use `True` instead of the older `1 == 1` idiom). `False` is useful as a placeholder for intentionally-unprovable postconditions during incremental annotation. |
 | 19 | `None` | `CSLNone` | None literal (maps to `0` in WhyML) |
 | 20 | `arr[lo:hi]` | `CSLSlice` | Array slice (abstract `array_slice` function in WhyML) |
 
@@ -1007,3 +1020,80 @@ storing 0 was indistinguishable from "absent".
 | 11.9.1 | `\map_remove(d, k)` | `Map.set !d k None` |
 
 | # | 11.9.1 | Ghost dict `\map_remove` + option-type proof | Test 0330 |
+
+---
+
+## 12. Body-Level Data Structures
+
+Beyond `#@ ghost ...` ghost variables, Python function bodies may declare
+ordinary mutable dicts, sets, lists, and use builtins like `sorted`,
+`range(start, stop)`, `Optional[T]`. The transpiler models these so the
+body type-checks under Why3 and SMT can discharge non-trivial properties.
+
+### §12.1 Body `dict`
+
+| Form | Why3 emission | Notes |
+|------|---------------|-------|
+| `d = {}` (Assign) | `let d = ref (const (None: option int)) in` | Empty body dict initialised to total-None map |
+| `d = dict()` (Call) | same | Same as above |
+| `d[k] = v` (ArraySet) | `d := map_update_some !d k v` | Wrapper `val` whose `ensures` clause equals `Map.set m k (Some v)` — program-level so the result can be assigned to a non-ghost ref |
+| `d[k]` (Subscript) | `(match Map.get !d k with \| Some v_ -> v_ \| None -> 0 end)` | Absent keys read as `0` (matching the ghost-dict convention) |
+| `k in d` (BinOp) | `(match Map.get !d k with \| Some _ -> true \| None -> false end)` | Why3 program code lacks decidable `=` on `option int`, so match is used |
+| `k not in d` | same with arms swapped | |
+
+**Forbidden** (still): `d.items()`, `d.keys()`, `d.values()`, `d.get(k, default)`,
+`del d[k]` as statement (use `s.discard(k)` on sets), iteration over `for k in d:`.
+
+**Tests**: 0345 (round-trip), 0346 (in / not in).
+
+### §12.2 Body `set`
+
+Sets share the dict's `map int (option int)` model. Present keys map to
+`Some 0`, absent keys to `None`. The body distinguishes them via the
+literal type at assignment time.
+
+| Form | Why3 emission | Notes |
+|------|---------------|-------|
+| `s = set()` / `s = frozenset()` | `let s = ref (const (None: option int)) in` | Empty body set |
+| `s = {a, b, c}` (SetLit) | `let s = ref (map_update_some (map_update_some (const None) a 0) ...) in` | Chained inserts |
+| `s.add(x)` | `s := map_update_some !s x 0` | Same wrapper as `d[k] = 0` |
+| `s.discard(x)` | `s := map_update_none !s x` | Wrapper for `Map.set m k None` |
+| `s.remove(x)` | same as `.discard` | (no KeyError semantics) |
+| `x in s`, `x not in s` | match-based, same as dict | |
+
+**Forbidden**: `s.union()`, `s.intersection()`, `s.difference()`, `len(s)`.
+
+**Tests**: 0347.
+
+### §12.3 Multi-argument `range(start, stop)`
+
+`for i in range(start, stop):` lowers to a while-loop with `_idx_i`
+initialised at `start`, bounded by `< stop`. Both arguments are
+expressions (no constraint to literals).
+
+**Tests**: 0327, 0328 (parse-level), 0348 (full proof with loop
+invariants + variant).
+
+### §12.4 `Optional[T]` and `Union[T1, T2]` return annotations
+
+Module5 extracts parametric return annotations recursively:
+
+- `-> Optional[T]` ⇒ `return_annotation = "<T_head>"` (e.g. `Optional[int]` → `"int"`, `Optional[List[str]]` → `"list"`)
+- `-> Union[T, None]` ⇒ same as Optional (picks first non-`None` component)
+- `-> Union[T1, T2, …]` ⇒ heuristic: first non-`None` component
+
+PyCSL models `None` as `0`, so Optional adds no type-level info Module6
+could use; the unwrap collapses to the inner type.
+
+**Tests**: 0349 (Optional[int]), 0350 (Union[int, None]).
+
+### §12.5 `sorted` builtin
+
+`sorted(arr)` emits an abstract `val sorted_1 (a: array int) : array int`.
+The abstract val has no axioms about the result's contents — Why3
+knows only that it returns an array. Contracts cannot meaningfully
+assert order or element identity through `sorted_1`.
+
+`any(arr)` and `all(arr)` emit similar abstract vals returning `bool`.
+
+**Tests**: 0351.

@@ -44,10 +44,7 @@ Add PEP 484 type hints to **all** function parameters and return types, even if 
 - `#@ \trusted` — Body is not verified; contracts are assumed as axioms. Emits `val` (spec-only) instead of `let` + body. Callers may use the postcondition, but the implementation is not checked.
 - `#@ assumes bounded_int(N)` — Bounded integer pragma (N = 32 or 64). All `int` params/locals become `intN` machine integers; arithmetic (`+`, `-`, `*`) auto-generates overflow proof obligations.
 - `#@ raises ExcType when <cond>` — Exceptional postcondition. Declares that the function may raise `ExcType` when `cond` holds. Emits `raises { ExcType -> cond }` in WhyML.
-- `#@ proof <rocq|lean>: <qualname>` — **Informational provenance** (`test-suite/annotations.md` §2.1.11). Records that the function's contract was derived from theorem `<qualname>` in the named formalism. PyCSL parses it, the IR carries it, but `Module6_WhyMLTranspiler` emits no WhyML for it. **The annotator agent MUST NOT generate `#@ proof` lines** — they are emitted only by `pycsl-bridge` when reconciling rocq + lean IR dumps, **or** under the proof-pair convention below. If present in input, preserve them above the rest of the `#@` block.
-- `#@ axiom_from <rocq|lean> <qualname>` — **Axiom import** (`test-suite/annotations.md` §2.1.12). Imports a Rocq or Lean theorem as a Why3 axiom in the WhyML preamble. This is the **"Rocq + Lean as Cross-Validated Spec Sources"** pattern: when both `#@ axiom_from rocq <q>` and `#@ axiom_from lean <q>` appear for the same `pycsl_target`, the `proof2why3 cross-check` tool verifies their canonical forms agree before emission. **Module-level** (placed before any function definition). Unlike `#@ proof`, this directive has real semantic effect — Alt-Ergo/Z3 may use the imported axiom to discharge obligations. **The annotator agent MUST NOT generate `#@ axiom_from` lines** unless `proof2why3` has been run and the cross-check manifest shows `reconciled` status for the target.
-
-**Proof-pair convention** (since 2026-05-26). When a reference test `NNNN.py` is committed together with companion proof files in `test-suite/corpus/pycsl-reference/NNNN.proofs/rocq/<file>.v` and/or `.../lean/<file>.lean`, it MAY carry `#@ proof rocq: <qualname>` / `#@ proof lean: <qualname>` lines whose argument matches a `Theorem`/`theorem` statement in those files. PyCSL does not resolve the qualname; the convention is purely for human and future-tooling audit. **Worked example: `test-suite/corpus/pycsl-reference/0342.py`** (Euclidean GCD, with proofs under `0342.proofs/{rocq,lean}/`).
+- `#@ proof <rocq|lean> <qualname>` — **Axiom import** (`test-suite/annotations.md` §2.1.12). Imports a Rocq or Lean theorem as a Why3 axiom in the WhyML preamble. **Module-level** (placed before any function definition). The directive has real semantic effect — Alt-Ergo/Z3 may use the imported axiom to discharge obligations. **The annotator agent MUST NOT generate `#@ proof` lines** unless `proof2why3` has been run and the cross-check manifest shows `reconciled` status for the target. **Namespace-aware audit:** the cited `<qualname>` is enforced as a real namespace path — for `Pycsl.Reference.Gcd.gcd_step`, the theorem must live inside `Module Pycsl. Module Reference. Module Gcd.` (Rocq) or `namespace Pycsl.Reference.Gcd` (Lean) in `<file>.proofs/{rocq,lean}/<file>.{v,lean}`. Run `pycsl --audit-proof <file>` to verify. **Worked example: `test-suite/corpus/pycsl-reference/0342.py`** (Euclidean GCD, with proofs under `0342.proofs/{rocq,lean}/`).
 - `#@ ghost <name> = <expr>` — Ghost variable declaration/assignment. Place before any statement. First occurrence → `let ghost <name> = ref <val> in`; subsequent → `ghost <name> := <val>`.
 - `#@ ghost <name> : <type> = <expr>` — Typed ghost variable declaration. `<type>` is one of: `int` (default), `string`, `array`, `ghost_dict`, `ghost_list`, `ghost_set`, `tuple2`, `tuple3`, `tuple4`.
 - `#@ ghost <name> += <expr>` — Ghost augmented assignment (`+=`, `-=`, `*=`). Ghost variables are erased at extraction but usable in contracts and loop invariants.
@@ -125,6 +122,21 @@ while i < n:
 ```
 
 Ghost variables emit `let ghost <name> = ref <val> in` (declaration) or `ghost <name> := <val>` (update) in WhyML. They are erased during Why3 extraction.
+
+**Pattern: snapshot parameter entry values when the body mutates parameters.** When a function reassigns its own parameters (e.g., `a, b = b, a % b` in a Euclidean loop), `\old(a)` inside the loop invariant emits `old !a` (an `old` over a shadowed-ref deref) which Alt-Ergo can struggle to discharge. Capture the entry values as ghost variables at function entry and use those names instead. The ensures clause can still reference `a, b` directly — at the contract scope, parameters refer to their entry values regardless of body mutation:
+
+```python
+def gcd(a: int, b: int) -> int:
+    #@ ghost a0 = a
+    #@ ghost b0 = b
+    #@ loop invariant gcd(a, b) == gcd(a0, b0)
+    #@ loop variant b
+    while b != 0:
+        a, b = b, a % b
+    return a
+```
+
+Worked example: `test-suite/corpus/pycsl-reference/0352.py` (compare with 0342.py which uses sequential local vars and doesn't need the snapshot). See `references/transpiler-limits.md` §4 for the full discussion.
 
 **Terminology note:** `#@ ghost ...` statements are **ghost code**; the
 verification-only values they maintain form **ghost state**; their translation
@@ -383,16 +395,6 @@ The output must include:
 3. `#@ \variant <expr>` on recursive functions; `#@ \diverges` when the function intentionally may not terminate; `#@ \trusted` when the body should be assumed correct without verification.
 4. Loop-level contracts (`#@ loop invariant`, `#@ loop variant`) on every `for` and `while` loop, immediately before the loop keyword.
 5. Class-invariant annotations (`#@ class invariant`) immediately before the `class` keyword when class-wide properties exist.
-
-**Do NOT emit `#@ proof rocq: …` / `#@ proof lean: …` lines** unless
-either (a) `pycsl-bridge` invoked you with reconciled cross-prover
-contracts, or (b) you are *also* committing companion proof files
-under the proof-pair convention (`NNNN.proofs/{rocq,lean}/<file>.{v,lean}`
-— see `test-suite/corpus/pycsl-reference/0342.py` for the worked example). The directives are provenance
-trace metadata accepted by PyCSL and silently dropped by
-`Module6_WhyMLTranspiler` (`test-suite/annotations.md` §2.1.11). If the input
-Python already contains `#@ proof` lines, preserve them verbatim above
-your generated `#@ requires`/`ensures`/`assigns` block.
 
 To verify only specific functions: `./pycsl --fun <name> file.py` — transitive call dependencies are included automatically.
 

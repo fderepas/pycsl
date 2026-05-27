@@ -8,19 +8,9 @@ does the *Python implementation* faithfully realize those mathematics?
 
 This directory closes that gap by annotating the PyCSL implementation
 (`src/pycsl/*.py`) with its own `#@` contract syntax, then verifying the
-annotations with Why3. The canonical annotated copies live in:
-
-```
-src/self-annotate/src/     ← 469 #@ annotations, all pass pycsl --no-proof  ✓
-src/self-annotate/attic/   ← historical derivation references
-  lean/                    ← contracts derived from Lean proofs  (superseded)
-  rocq/                    ← contracts derived from Rocq proofs  (superseded)
-```
-
-The `lean/` and `rocq/` directories served as cross-validation during initial
-annotation. Their contracts are identical (confirmed by parity checks).
-They are archived in `attic/` for reference. The single canonical work product
-is `src/`.
+annotations with Why3. The canonical annotated copies live in
+`src/self-annotate/src/` and pass `pycsl --no-proof` (run
+`make self-annotate-verify`).
 
 ---
 
@@ -28,12 +18,9 @@ is `src/`.
 
 | Document | Purpose |
 |---|---|
-| `self-annotate-plan.md` | Main execution plan: phases, tooling, success criteria |
 | `self-annotate-plan-to-contract.md` | Translation methodology: how proofs become `#@` annotations |
-| `self-annotate-plan-no-sugar.md` | Sub-plan: closing the `desugar_correct` Admitted/sorry |
-| `self-annotate-comments-from-Claude.md` | Review: 17 issues across the three plan documents |
-| `self-annotate-layer3/README.md` | Layer 3: Why3 `val` spec module — machine-checked WP equivalence |
-| `self-annotate-layer3/audit-guide.md` | Global audit guide: Rocq theorem → PyCSL `#@` annotation |
+| `self-annotate-global-plan.md` | Consolidated execution-plan history |
+| `audit-guide.md` | Global audit guide: Rocq theorem → PyCSL `#@` annotation |
 
 ---
 
@@ -50,12 +37,10 @@ Layer 1 — PyCSL #@ contracts on the Python implementation
 Layer 2 — Why3 + SMT solvers
    Output verification: the generated .mlw file is accepted by Why3
 
-Layer 3 — Why3 val spec module  (self-annotate-layer3/pycsl-wp-spec.mlw)
+Layer 3 — Why3 val spec module
    Semantic equivalence: one val per WP arm, ensures clause mirrors
    the Rocq fixpoint arm exactly.
-   Machine-checked: Why3 clone/refinement proves generated code satisfies spec.
-   Human-audited:   val spec written by inspection of Phase4_WP.v (line-by-line).
-   See self-annotate-layer3/audit-guide.md for the full audit procedure.
+   See audit-guide.md for the audit procedure.
 ```
 
 Each layer covers what the others cannot:
@@ -66,32 +51,20 @@ Each layer covers what the others cannot:
 
 ---
 
-## Layer 4 — Proof-attribution traceability  *(since 2026-05-26)*
+## Layer 4 — Proof-attribution traceability  *(history)*
 
-The canonical `src/` annotations now carry `#@ proof rocq:` /
-`#@ proof lean:` directives whose qualnames match theorems in
-`src/formal-semantics/{rocq,lean}/`. The convention follows
-`docs/pycsl-concrete-syntax-reference.md §2.1.11` (v1.3) — PyCSL
-parses and records the directive but never resolves the qualname; the
-cited theorem is the trust anchor.
+Originally (2026-05-26), the canonical `src/` annotations carried
+colon-separated `#@ proof rocq:` / `#@ proof lean:` directives whose
+qualnames matched theorems in `src/formal-semantics/{rocq,lean}/`.
+That provenance-only directive was removed from the language on
+2026-05-27 (see `proof-to-axiom-from.md`) — all 156 directives in the
+self-annotated source were swept, and the keyword was later reclaimed
+for a load-bearing space-separated `#@ proof <prover> <qualname>`
+form (see `docs/pycsl-concrete-syntax-reference.md` §2.1.12).
 
-**Naming**: directives use `Pycsl.Reference.Module<N>.<lemma>` as the
-qualname; the bare suffix (`wp_gen_assign` for Rocq, `wpGen_assign`
-for Lean) matches the actual file casing.
-
-**Worked pilot**: `src/self-annotate/src/Module5_IREmitter.py` — every
-statement-emission method (`_py_stmt_assign`, `_py_stmt_while`, …) and
-the expression umbrella (`_py_expr_to_ir`) cites the matching
-`wp_gen_<construct>` / `wpGen_<construct>` lemma in
-`src/formal-semantics/rocq/Phase6*.v` and
-`src/formal-semantics/lean/PyCSL/Corr*.lean`. The full mapping table
-is in `src/self-annotate/module5-mapping.md`.
-
-**Rollout status (2026-05-26)**: ✅ Complete across all six modules.
-Module1 carries zero proof attributions (documented coverage gap —
-pure libCST extraction); Modules 2–6 carry 35 Rocq + 35 Lean directives
-in total. Per-module mapping tables: `module<N>-mapping.md`. Rollout
-plan and outcome details: `plan-formal-05.md`.
+The per-module mapping tables (`module<N>-mapping.md`) and rollout
+plan (`plan-formal-05.md`) describe the original Layer 4 work and
+are now historical.
 
 ---
 
@@ -241,8 +214,7 @@ def _stmts_to_whyml(self, stmts, local_refs, declared_refs, indent, in_loop):
 
 Defines `desugar`, which transforms `SFor x arr inv var body` into an
 equivalent `SWhile` using index variable `_pycsl_idx`. The correctness
-lemma `desugar_correct` is currently `Admitted` (Rocq) / `sorry` (Lean) —
-see `self-annotate-plan-no-sugar.md` for the sub-plan to close this.
+lemma `desugar_correct` is currently `Admitted` (Rocq) / `sorry` (Lean).
 
 The contract for `_handle_for_stmt` captures the freshness precondition:
 
@@ -317,11 +289,10 @@ def transpile(self):
 
 ---
 
-## Annotation Workflow (post-consolidation)
+## Annotation Workflow
 
-Annotations are ported automatically from the `attic/rocq/` reference using
-`port_annotations.py`, then verified with `pycsl --no-proof`. Use the
-Makefile targets:
+Annotations live in `src/self-annotate/src/*.py` and are verified with
+`pycsl --no-proof`. Use the Makefile targets:
 
 ```bash
 # Refresh src/ from master src/pycsl/ (re-apply annotations after master changes)
@@ -334,8 +305,7 @@ make verify-annotated
 When adding annotations for a new method:
 1. Read the relevant formal-semantics file (see the table in `coverage-report.md`).
 2. Add the `#@` block directly to `src/self-annotate/src/<file>.py`.
-3. Also add it to `attic/rocq/<file>.py` and `attic/lean/<file>.py` for historical record.
-4. Run `make verify-annotated` to confirm.
+3. Run `make verify-annotated` to confirm.
 
 ---
 
@@ -359,7 +329,7 @@ library stubs in `data/lib_stubs/`.
 
 | Gap | Status |
 |---|---|
-| `desugar_correct` (Admitted/sorry) | Blocked — see `self-annotate-plan-no-sugar.md` |
+| `desugar_correct` (Admitted/sorry) | Blocked — Rocq + Lean side proof not closed |
 | Semantic equivalence of generated WhyML | Out of scope for Layer 1; covered by Layer 2 (Why3) |
 | String predicate contracts (`"Return" in \result`) | Not expressible in current PyCSL contract language |
 | CI integration for annotated files | Recommended but not yet implemented |

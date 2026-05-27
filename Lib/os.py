@@ -1,6 +1,11 @@
 """PyCSL mock for Python's os module — Miscellaneous operating system interfaces."""
 _ = 0  # anchor
 
+# Module-level constants and attributes used by src/
+environ = 0
+pardir = 0
+X_OK = 0
+
 #@ \trusted
 #@ ensures \result >= 0
 def ctermid() -> int:

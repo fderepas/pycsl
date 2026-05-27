@@ -1,6 +1,6 @@
 ---
 name: csl-philosophy
-description: Internalize the design philosophy of the *CSL family (PyCSL, ccsl, gocsl, jscsl, rustcsl, cppcsl) — deductive verifiers built around proof-assistant-sourced specifications, Why3 as a shared backend, and Rocq+Lean cross-validation. Use this skill whenever the user is designing, extending, contributing to, or making architectural decisions about any tool in this family, including discussions about `axiom_from` directives, `proof2why3`, spec bridges between proof assistants and source-language contracts, ACSL/Pearlite/PyCSL-style annotation languages, or how to integrate proof-assistant theorems into deductive verifiers. Trigger generously — questions about WhyML emission, how to formalize a function's contract, whether to verify in Rocq vs annotate in source, where to put a new spec, or how to make a verifier "feel right" all need this philosophical grounding before tactical answers will land correctly.
+description: Internalize the design philosophy of the *CSL family (PyCSL, ccsl, gocsl, jscsl, rustcsl, cppcsl) — deductive verifiers built around proof-assistant-sourced specifications, Why3 as a shared backend, and Rocq+Lean cross-validation. Use this skill whenever the user is designing, extending, contributing to, or making architectural decisions about any tool in this family, including discussions about `proof` directives, `proof2why3`, spec bridges between proof assistants and source-language contracts, ACSL/Pearlite/PyCSL-style annotation languages, or how to integrate proof-assistant theorems into deductive verifiers. Trigger generously — questions about WhyML emission, how to formalize a function's contract, whether to verify in Rocq vs annotate in source, where to put a new spec, or how to make a verifier "feel right" all need this philosophical grounding before tactical answers will land correctly.
 ---
 
 # *CSL philosophy
@@ -38,7 +38,7 @@ by a shared namespacing convention and a small extraction tool.
 
 A Rocq theorem `Pycsl.Reference.Gcd.gcd_step` is the same fact as a
 Lean theorem `Pycsl.Reference.Gcd.gcd_step` cited from Python as
-`#@ axiom_from rocq Pycsl.Reference.Gcd.gcd_step`. The qualified name is
+`#@ proof rocq Pycsl.Reference.Gcd.gcd_step`. The qualified name is
 the actual identifier in each system. No translation table. No central
 registry. The directory structure of the proofs *is* the index.
 
@@ -91,7 +91,7 @@ statement that canonicalizes to the same proposition in both has crossed
 two audits, and that is a stronger guarantee than anything a single
 prover offers.
 
-If you're tempted to make `axiom_from` work with only one prover by
+If you're tempted to make `proof` work with only one prover by
 default, resist. The cross-check is not a feature; it is the trust
 model. Single-prover mode exists as an escape hatch, not the
 intended path.
@@ -100,7 +100,7 @@ intended path.
 
 The family targets Why3 specifically because Why3 already serves as the
 common backend for Frama-C/WP, Creusot, Cameleer, GNATprove, and others.
-The *CSL contribution rides on this existing ecosystem. Adopting `axiom_from`
+The *CSL contribution rides on this existing ecosystem. Adopting `proof`
 in any of these tools requires only a small directive in the source
 language and a small preamble hook in the Why3 emitter. Everything else
 the verifier already does continues to work unchanged.
@@ -117,7 +117,7 @@ A *CSL source file must read coherently to three audiences:
   English-ish English. They don't need to know what Rocq is.
 - **A verification engineer** reads the loop invariants and variants
   and sees a Hoare-logic proof. They don't need to know what Lean is.
-- **A formal methods researcher** reads the `axiom_from` directives
+- **A formal methods researcher** reads the `proof` directives
   and knows there are real, kernel-checked proofs behind each one.
 
 All three readings must be available in the same file. If a design
@@ -158,7 +158,7 @@ All members share:
 
 - The `proof2why3` extraction and cross-check pipeline.
 - The shared first-order IR for spec statements.
-- The `axiom_from rocq <qualname>` / `axiom_from lean <qualname>`
+- The `proof rocq <qualname>` / `proof lean <qualname>`
   directive surface (with language-appropriate syntax — `#@`, `//@`,
   `/*@ @*/`, `#[...]`).
 - The Rocq+Lean proof directory convention (`<source>.proofs/{rocq,lean}/`).
@@ -173,7 +173,7 @@ and the proof-side conventions are universal.
 
 **"Where should I put this new specification?"**
 In Rocq and Lean, as paired theorems under a qualified name. Cite from
-the source file with `axiom_from rocq` and `axiom_from lean`. Avoid
+the source file with `proof rocq` and `proof lean`. Avoid
 hand-written Why3 axioms unless the property is something Why3 stdlib
 already provides (in which case use the language's `uses`/`requires`
 mechanism for stdlib import).
@@ -199,7 +199,7 @@ story.
 **"Should I build a verifier for language X from scratch?"**
 Almost always no. Check first whether a Why3-targeting verifier
 already exists for the language. If yes (Creusot for Rust, TrustInSoft
-or Frama-Clang for C++), contribute `axiom_from` support to that
+or Frama-Clang for C++), contribute `proof` support to that
 verifier rather than building a parallel tool. The contribution is
 small, additive, and uses the host verifier's mature machinery for
 everything else.
@@ -207,7 +207,7 @@ everything else.
 **"What about [non-Why3 verifier]?"**
 The architecture targets Why3 specifically because the ecosystem
 matters. Viper-based tools (Nagini, Gobra, Prusti) could in principle
-implement `axiom_from` against Viper instead, but that's a separate
+implement `proof` against Viper instead, but that's a separate
 project and not part of the family.
 
 ## What this skill is NOT

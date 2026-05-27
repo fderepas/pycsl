@@ -174,10 +174,22 @@ When using a ghost integer counter (default type), `\old` is not needed — just
 ## Important Rules
 
 - **NEVER place blank lines between a `#@` block and the `def` or `while` keyword it annotates.** Blank lines cause line-number mismatch and silently drop annotations.
-- **NEVER emit `#@ proof rocq: …` / `#@ proof lean: …` lines.** Those are provenance trace directives produced *only* by `pycsl-bridge` (`test-suite/annotations.md` §2.1.11), not by the invariant-writer. If the input already contains them above a function, preserve them — never delete them.
 - **Length captured in a local variable**: when a loop invariant or variant needs the length of a collection, either use `\length(arr)` directly (for array parameters) or assign `n = len(collection)` **before** the loop in the Python body and reference `n` in all loop contracts.
 - **For `continue` statements**: PyCSL supports `continue` via exception-based control flow. All loop invariants must hold at the `continue` point.
 - **Nested loops**: each loop needs its own invariants. Inner loop invariants can reference outer loop variables.
+- **Snapshot entry values via ghosts when a parameter is MUTATED in the loop body.** If the function reassigns its own parameters (e.g., tuple-unpack `a, b = b, a % b` in a Euclidean GCD loop), do NOT use `\old(a)` / `\old(b)` in the loop invariant — the resulting `old !a` Why3 expression dereferences a shadowed ref, which Alt-Ergo struggles to discharge (postconditions can time out at 30s). Capture the entry values via ghost variables instead, and use those names everywhere the original parameter value is needed:
+  ```python
+  def gcd(a: int, b: int) -> int:
+      #@ ghost a0 = a
+      #@ ghost b0 = b
+      #@ loop invariant gcd(a, b) == gcd(a0, b0)
+      #@ loop invariant (a0 > 0 or b0 > 0) ==> (a > 0 or b > 0)
+      #@ loop variant b
+      while b != 0:
+          a, b = b, a % b
+      return a
+  ```
+  Ensures clauses can still use `a, b` directly — at the contract scope, parameters refer to their entry values regardless of body mutation. (Worked example: `test-suite/corpus/pycsl-reference/0352.py`. Compare with 0342.py which uses local `x, y` and doesn't need the ghost snapshot.)
 
 ## Class Invariant Consistency
 

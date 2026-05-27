@@ -119,18 +119,34 @@ The type mapping function converts Python type annotations to the
 specification logic's type universe:
 
 ```
-τ(int)   = int
-τ(bool)  = int       (* booleans are modeled as integers *)
-τ(list)  = list
-τ(List)  = list      (* typing.List alias *)
-τ(_)     = Any       (* all other types, including no annotation *)
+τ(int)            = int
+τ(bool)           = int       (* booleans are modeled as integers *)
+τ(list)           = list
+τ(List)           = list      (* typing.List alias *)
+τ(List[T])        = list      (* parametric list — element type opaque *)
+τ(dict)           = dict
+τ(Dict[K, V])     = dict      (* parametric dict — key/value types opaque *)
+τ(set)            = dict      (* sets share the dict model; see translational §T.14.2 *)
+τ(Set[T])         = dict
+τ(Tuple[T1, ...]) = tuple
+τ(Optional[T])    = τ(T)      (* None maps to 0; the optional-ness adds no type info *)
+τ(Union[T, None]) = τ(T)      (* equivalent to Optional[T] *)
+τ(Union[T1, T2])  = τ(T1)     (* heuristic: first non-None component *)
+τ(_)              = Any       (* all other types, including no annotation *)
 ```
+
+Module5's `_build_function_ir` realises this map by recursively
+unwrapping `ast.Subscript` annotations (`Optional`, `Union`, `List`,
+`Dict`, etc.) and lower-casing the head identifier.
 
 The type universe is intentionally coarse: PyCSL does not perform
 full type inference. The type mapping is used only for:
 - Determining whether `\valid` / `\separated` bases are list-typed
 - Determining whether subscript assignment targets are list-typed
 - Determining whether `assigns` region bases are list-typed
+- Selecting the WhyML return type in `module6_whyml/functions.py`'s
+  `_emit_function` (`τ(...) = list` flips the return type from `int` to
+  `array int`).
 
 ---
 
@@ -277,63 +293,48 @@ scope. `\result` is NOT allowed in the condition (checked via
 when `--memory-model concurrent` is active. No static check is performed
 on the memory model at Module4 level.
 
-#### §2.1.11 Proof Attribution (`proof`)
+#### §2.1.11 _(reserved — colon-separated provenance `proof` directive removed 2026-05-27)_
 
-```
-   ──────────────────────────────────────────────
-    Γ_f ⊢ proof(prover, qualname) : ok
-```
+The provenance-only `#@ proof rocq: <qualname>` / `#@ proof lean:
+<qualname>` directive (colon-separated) was removed from the
+language on 2026-05-27. The companion-proof file layout it described
+still applies; the linkage is now via the load-bearing
+`#@ proof rocq <q>` / `#@ proof lean <q>` directive at §2.1.12
+(space-separated, no colon). The section number is reserved to keep
+cross-references stable.
 
-**Rule:** Always well-formed. `prover` is restricted to `{rocq, lean}`
-by the grammar terminal (a parse error rejects any other identifier),
-so the static analyzer has no additional check to perform. The
-`qualname` is opaque: PyCSL never resolves it; only the originating
-formalism (Rocq or Lean) and the bridge (`pycsl-bridge`) interpret it.
-
-**Implementation:** `Module3_Weaver` attaches each `ProofAttribution`
-to `ast.FunctionDef.csl_proof_attributions: list[ProofAttribution]`
-(mirroring the `csl_assigns`/`csl_raises` pattern).
-`Module4_SemanticAnalyzer` performs no additional check.
-`Module5_IREmitter` round-trips the entries into a `proof_attributions`
-list inside the function IR. `Module6_WhyMLTranspiler` reads the field
-solely to round-trip it for `pycsl_bridge`; it emits no WhyML.
-
-**No new error codes** — the grammar terminal already filters bad
-prover names, and `qualname` accepts any dotted identifier path.
-
-**Companion-proof file layout** (project convention). The static
-semantics give no meaning to `qualname`. As a project-level
-discipline (introduced 2026-05-26, documented in
-`pycsl-concrete-syntax-reference.md §2.1.11`), reference tests that
-ship hand-written external proofs place them under
-`test-suite/corpus/pycsl-reference/NNNN.proofs/{rocq,lean}/<file>.{v,lean}`
-with theorem names matching each directive's `qualname`. The typing
-rule above remains unchanged — this convention is for human and
-future-tooling audit, not for the type-checker. **Worked example:**
-`test-suite/corpus/pycsl-reference/0342.py` with proofs under
-`0342.proofs/`.
-
-_Corresponds to `annotations.md` §2.1.11._
-
-#### §2.1.12 Axiom from Proof (`axiom_from`) — Rocq + Lean as Cross-Validated Spec Sources
+#### §2.1.12 Proof Citation (`proof`) — Rocq + Lean as Cross-Validated Spec Sources
 
 ```
     prover ∈ {rocq, lean}      qualname: dotted identifier
    ──────────────────────────────────────────────────────────
-    Γ_module ⊢ axiom_from(prover, qualname) : ok
+    Γ_module ⊢ proof(prover, qualname) : ok
 ```
 
 **Rule:** Always well-formed syntactically. `prover` is restricted to
 `{rocq, lean}` by the grammar terminal. The `qualname` is opaque to PyCSL
-— resolution is delegated to the `proof2why3` tool which extracts the
-named theorem from the companion proof sources.
+at parse time — resolution is delegated to the `proof2why3` tool (for
+extracting the theorem statement into the WhyML preamble) and to
+`pycsl --audit-proof` (for verifying that the cited theorem actually
+exists in the companion proof sources).
+
+**Namespace-aware audit semantics.** The qualname `A.B.C.thm` is
+well-formed under `--audit-proof` iff parsing of some `.v` / `.lean`
+file in the proof directory yields a theorem named `thm` declared
+inside the nested module/namespace path `A.B.C`. The audit reads the
+proof files with a state machine that tracks `Module`/`End` (Rocq)
+or `namespace`/`end` (Lean) and records every top-level declaration
+keyword (`Theorem`, `Lemma`, `Definition`, `Fixpoint`, ... for Rocq;
+`theorem`, `lemma`, `def`, `inductive`, ... for Lean). Default proof
+dirs: `<file>.proofs/{rocq,lean}/`. See `src/pycsl/audit_proof.py`
+for the supported subset.
 
 **Scope:** Module-level. Unlike function-level directives (§2.1.1–2.1.11),
-`axiom_from` is not attached to a function — it declares a theory-level
+`proof` is not attached to a function — it declares a theory-level
 axiom available to the entire module.
 
-**Implementation:** `Module2_Parser` records each `axiom_from` as an
-`AxiomFromDecl(prover, qualname)` AST node. `Module3_Weaver` collects
+**Implementation:** `Module2_Parser` records each `proof` as an
+`ProofDecl(prover, qualname)` AST node. `Module3_Weaver` collects
 them into the module-level IR. `Module5_IREmitter` serializes them.
 `Module6_WhyMLTranspiler` invokes `proof2why3 emit` for each entry,
 producing `axiom pycsl_axiom_<target> : …` in the WhyML preamble.
@@ -1172,8 +1173,7 @@ The Weaver attaches contracts to AST nodes based on line numbers:
 | `RaisesDecl` | `ast.FunctionDef` | `csl_raises` |
 | `BoundedIntDecl` | `ast.FunctionDef` | `csl_bounded_int` (int) |
 | `ThreadEntry` | `ast.FunctionDef` | `csl_thread_entry` (bool) |
-| `ProofAttribution` | `ast.FunctionDef` | `csl_proof_attributions` (list, §2.1.11) |
-| `AxiomFromDecl` | `ast.Module` | `csl_axiom_from` (list, §2.1.12) |
+| `ProofDecl` | `ast.Module` | `csl_proof` (list, §2.1.12) |
 | `LoopInvariant` | `ast.While` / `ast.For` | `csl_invariants` |
 | `LoopVariant` | `ast.While` / `ast.For` | `csl_variants` |
 | `GhostAssignDecl` | Any `ast.stmt` | `csl_ghost_assigns` |

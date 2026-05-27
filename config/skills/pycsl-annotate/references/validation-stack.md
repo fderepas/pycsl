@@ -64,7 +64,7 @@ Consult `docs/pycsl-translational-reference.md` for the full T : AnnotatedPython
 | TR-4 | `assigns` in Hoare model (default) produces NO explicit `writes`/frame clause in WhyML (§T.9.1) | `#@ assigns self._*` is accepted, weaved, passes Module4 — but generates no proof obligation |
 | TR-5 | `\result` → `result` identifier in WhyML `ensures` clause (§T.6.5) | Valid only in `ensures`; translates cleanly |
 | TR-6 | `\trusted` → Why3 `val` declaration (§T.10) — no proof obligation | Use for external/stdlib functions; body not checked |
-| TR-7 | `#@ axiom_from <rocq\|lean> <q>` → Why3 `axiom pycsl_axiom_<target>` in module preamble (§T.2.10) — imports a Rocq or Lean theorem as a Why3 axiom that Alt-Ergo/Z3 may use. When both `rocq` and `lean` directives cite the same `pycsl_target`, the **"Rocq + Lean as Cross-Validated Spec Sources"** pattern applies: `proof2why3 cross-check` verifies the canonical forms agree before emission. | The supported escape hatch when SMT cannot discharge a fact unaided (Euclidean identities, divisibility, etc.). Strictly stronger than `\trusted`: two independent proof kernels must agree on the statement. Worked example: `0342.py` (GCD). |
+| TR-7 | `#@ proof <rocq\|lean> <q>` → Why3 `axiom pycsl_axiom_<target>` in module preamble (§T.2.10) — imports a Rocq or Lean theorem as a Why3 axiom that Alt-Ergo/Z3 may use. When both `rocq` and `lean` directives cite the same `pycsl_target`, the **"Rocq + Lean as Cross-Validated Spec Sources"** pattern applies: `proof2why3 cross-check` verifies the canonical forms agree before emission. | The supported escape hatch when SMT cannot discharge a fact unaided (Euclidean identities, divisibility, etc.). Strictly stronger than `\trusted`: two independent proof kernels must agree on the statement. Worked example: `0342.py` (GCD). |
 
 ---
 
@@ -101,4 +101,4 @@ Before writing any `#@` expression, answer these questions in order:
 | `\result != ""` (str-returning) | — valid | Keep; → `(result <> 0)` in WhyML |
 | `in` on unannotated param | L3 / TR-3 | `param != 0` or `True` |
 | `assigns self._*` (Hoare model) | — valid (no WhyML output) | Keep; TR-4 expected behaviour |
-| SMT times out on lemma needed by spec | — | `#@ axiom_from rocq <q>` + `#@ axiom_from lean <q>` (TR-7, "Rocq + Lean as Cross-Validated Spec Sources") — but only if the cited theorem actually exists in `*.proofs/{rocq,lean}/` and `proof2why3 cross-check` reconciles |
+| SMT times out on lemma needed by spec | — | `#@ proof rocq <q>` + `#@ proof lean <q>` (TR-7, "Rocq + Lean as Cross-Validated Spec Sources") — but only if the cited theorem actually exists in `*.proofs/{rocq,lean}/` and `proof2why3 cross-check` reconciles |

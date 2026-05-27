@@ -81,17 +81,16 @@ The **Ref** column uses the format `section.subsection.row`.
 | 2.1.9b | Raises contract \| `#@ raises ExcType when <cond>` \| Exceptional postcondition | 0206 | PASS |
 | 7.1 | Assert statement \| `assert cond, "msg"` \| Emits `check { [@expl:msg] cond }` in WhyML | 0221, 0222, 0223 | PASS |
 | 3.2.8 | Floor div and modulo in contracts \| `//`, `%` in `requires`/`ensures` \| Maps to `div`/`mod` | 0224, 0225, 0226 | PASS |
-| 3.1.18 | Boolean literals in contracts \| `True`, `False` \| `CSLBool` atom | 0227, 0228 | PASS |
+| 3.1.18 | Boolean literals in contracts \| `True`, `False` \| `CSLBool` atom | 0227, 0228, 0343, 0344 | PASS |
 | 3.1.19 | None literal in contracts \| `None` \| `CSLNone` atom (maps to 0) | 0229 | PASS |
 | 3.2.6b | Membership operators in contracts \| `in`, `not in` \| Desugared to `∃` quantifier | 0230, 0231, 0232 | PASS |
 | — | Library stubs \| `functools`, `itertools` trusted stubs | 0233 | PASS |
 | 7.3 | Walrus operator \| `(x := expr)` in body \| Named expression with side-effect | 0234, 0235 | PASS |
 | 3.1.20 | Slice notation \| `arr[lo:hi]` in contracts and body \| Abstract `array_slice` | 0236, 0237 | PASS |
-| 7.2 | Tuple unpacking \| `a, b = expr` \| Destructuring assignment | 0238, 0239 | PASS |
+| 7.2 | Tuple unpacking \| `a, b = expr` \| Destructuring assignment | 0238, 0239, 0352 (Euclidean GCD loop body) | PASS |
 | 7.4 | Match statement \| `match/case` \| Lowered to if/elif chain | 0240, 0241 | PASS |
 | 7.5 | Lambda expression \| `lambda params: body` \| Anonymous function | 0242, 0243 | PASS |
 | 2.1.10 | Thread entry \| `#@ thread_entry` \| Marks function as concurrent thread entry point | 0250, 0251, 0252, 0253, 0277 | PASS |
-| 2.1.11 | Proof attribution \| `#@ proof <prover>: <qualname>` \| Informational trace from contract to source theorem (emitted by `pycsl-bridge`, no semantic effect) | 0331, 0332 | PASS |
 | 2.4.4 | Critical section \| `#@ critical <mutex>` \| with-block is a critical section (havoc+assume+assert) | 0250, 0251, 0252, 0253, 0278; XFAIL: 0254 (unprotected write) | PASS |
 | 2.4.5 | Acquires \| `#@ acquires <mutex>` \| Explicit mutex acquire annotation | 0262, 0263, 0264, 0265, 0266; XFAIL: 0255 (missing lock_order) | PASS |
 | 2.4.6 | Releases \| `#@ releases <mutex>` \| Explicit mutex release annotation | 0267, 0268, 0269, 0270, 0271 | PASS |
@@ -143,3 +142,10 @@ The **Ref** column uses the format `section.subsection.row`.
 | 11.7.1 | Memory-model parity for \\copy_range \| ghost array snapshot in hoare model with explicit --memory-model hoare flag | 0328 | PASS |
 | 11.8.1 | Ghost string \\str_sub prefix length proof \| `\str_length(\str_sub(s, 0, i)) == i` loop invariant, proven by Alt-Ergo (all 8 sub-goals) | 0329 | PASS |
 | 11.9.1 | Ghost dict \\map_remove + option-type proof \| `\has_key(d, 1)` true when stored value is 0 (option-type fix), \\map_remove verified | 0330 | PASS |
+| 12.1.1 | Body dict modelling — round-trip read \| `d = {}; d[k] = v; return d[k]` lowers to `ref (const (None: option int))` + `map_update_some` + `Map.get` | 0345 | PASS |
+| 12.1.2 | Body dict membership \| `k in d` / `k not in d` lowers to `match Map.get` (option `Some`/`None`) | 0346 | PASS |
+| 12.2.1 | Body set modelling \| `set()` + `s.add(x)` + `x in s` shares the dict's `map int (option int)` model; `.add`/`.discard` use `map_update_some`/`map_update_none` wrappers | 0347 | PASS |
+| 12.3.1 | Multi-argument `range(start, stop)` under full proof \| Loop with `for i in range(s, e)`, sum accumulator + invariants | 0348 | PASS |
+| 12.4.1 | `Optional[T]` return annotation \| Module5 unwraps `Optional[T]` to T (since `None` maps to `0`) | 0349 | PASS |
+| 12.4.2 | `Union[T, None]` return annotation \| Module5 heuristic picks the first non-`None` component | 0350 | PASS |
+| 12.5.1 | `sorted` builtin on array \| Emits abstract `val sorted_1 (a: array int) : array int`; target tracked as array-typed | 0351 | PASS |

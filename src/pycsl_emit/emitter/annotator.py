@@ -124,10 +124,6 @@ def _rebuild_leading_lines(
     """
     preserved: list[cst.EmptyLine] = list(existing)
 
-    # Strip trailing proof-attribution lines (output of a previous bridge run).
-    while preserved and _is_proof_attribution(preserved[-1]):
-        preserved.pop()
-
     # Strip trailing `#@` lines (output of a previous converter run).
     while preserved and _is_hash_at(preserved[-1]):
         preserved.pop()
@@ -141,24 +137,12 @@ def _rebuild_leading_lines(
     return tuple(preserved) + tuple(new_prefix) + tuple(new_block)
 
 
-_PROOF_ATTRIBUTION_PREFIX = "# proof "
-
-
 def _is_hash_at(line: cst.EmptyLine) -> bool:
     return line.comment is not None and line.comment.value.startswith(_HASH_AT)
 
 
 def _is_blank(line: cst.EmptyLine) -> bool:
     return line.comment is None
-
-
-def _is_proof_attribution(line: cst.EmptyLine) -> bool:
-    """`# proof rocq: <thm>` / `# proof lean: <thm>` line — emitted by
-    pycsl_bridge and stripped on re-emission so re-runs don't accumulate."""
-    return (
-        line.comment is not None
-        and line.comment.value.startswith(_PROOF_ATTRIBUTION_PREFIX)
-    )
 
 
 def _make_hash_at_line(text: str) -> cst.EmptyLine:

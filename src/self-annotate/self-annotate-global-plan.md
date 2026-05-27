@@ -1,11 +1,11 @@
 # PyCSL Self-Annotation: Global Plan
 
-*Merged from: `self-annotate-plan.md`, `self-annotate-plan-no-sugar.md`,
-`self-annotate-plan-to-contract.md`, `self-annotate-comments-from-Claude.md`,
-`self-annotate-layer3.md`.*
+*Consolidated history. The per-phase plans this was merged from
+(`self-annotate-plan.md`, `self-annotate-plan-no-sugar.md`,
+`self-annotate-comments-from-Claude.md`, `self-annotate-layer3.md`) have
+since been removed from the tree; their content lives here.*
 
-*Companion files (not merged, kept as standalone): `pycsl-wp-spec.mlw`,
-`audit-guide.md`.*
+*Companion file: `audit-guide.md`.*
 
 ---
 

@@ -26,9 +26,9 @@ def sha224(data: int, usedforsecurity: int) -> int:
     return 0
 
 #@ \trusted
-#@ ensures \result >= 0
+#@ ensures True
 def sha256(data: int, usedforsecurity: int) -> int:
-    """Mock: Mock: sha256"""
+    """Mock: Return a SHA-256 hash object for computing a cryptographic digest of data."""
     return 0
 
 #@ \trusted

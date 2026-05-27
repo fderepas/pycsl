@@ -28,7 +28,18 @@ PyCSL/
 │   │   ├── Module3_Weaver.py         ← Attaches contracts to Python AST nodes
 │   │   ├── Module4_SemanticAnalyzer.py  ← Type checking, scope analysis
 │   │   ├── Module5_IREmitter.py      ← Emits intermediate representation
-│   │   ├── Module6_WhyMLTranspiler.py   ← Generates WhyML for Why3/Alt-Ergo
+│   │   ├── Module6_WhyMLTranspiler.py   ← Facade; JSON IR → WhyML
+│   │   ├── module6_whyml/            ← Module 6 subpackage:
+│   │   │   ├── ir_scanner.py         ←   Stateless IR-tree analysis
+│   │   │   ├── identifiers.py        ←   whyml_ident / safe_mutex_name / OP_MAP / WHYML_RESERVED
+│   │   │   ├── scc.py                ←   Tarjan SCC + call-graph for emission order
+│   │   │   ├── auto_trust.py         ←   AutoTrustMixin: auto-trust + linear-VC classification
+│   │   │   ├── abstract_ops.py       ←   AbstractOpsMixin: abstract-val registry
+│   │   │   ├── types.py              ←   TypeInferenceMixin: RHS classification + field types
+│   │   │   ├── expressions.py        ←   ExpressionEmissionMixin: _EXPR_DISPATCH targets
+│   │   │   ├── statements.py         ←   StatementEmissionMixin: _handle_*_stmt + body wrap
+│   │   │   ├── preamble.py           ←   PreambleEmissionMixin: use / exceptions / helpers / axioms
+│   │   │   └── functions.py          ←   FunctionEmissionMixin: signature + contracts + state reset
 │   │   ├── pycsl.py                  ← CLI entry point
 │   │   └── agents/                   ← All agent scripts
 │   │       ├── coordinator.py              ← Orchestrator (retry loop)
@@ -264,7 +275,7 @@ formal proof (Rocq or Lean)
        ↓ extract
 shared pycsl_emit IR
        ↓ canonicalize + reconcile (pycsl_bridge)
-PyCSL annotated Python  (with #@ proof rocq:/lean: provenance per §2.1.11)
+PyCSL annotated Python  (with #@ proof rocq/lean per §2.1.12 where load-bearing)
        ↓ run pycsl
 Why3 + SMT
        ↓
@@ -371,7 +382,7 @@ Follow this checklist in order:
 - **Parser**: Update EBNF grammar in `Module2_Parser.py`
 - **Weaver**: Update `Module3_Weaver.py` to attach new AST nodes
 - **IR**: Update `Module5_IREmitter.py` to emit the new construct
-- **WhyML**: Update `Module6_WhyMLTranspiler.py` to generate the WhyML output
+- **WhyML**: For a new expression shape, add a `_handle_*_expr` handler in `module6_whyml/expressions.py` and register it in `_EXPR_DISPATCH` (still on the `Module6_WhyMLTranspiler` facade). For a new statement shape, add a `_handle_*_stmt` handler in `module6_whyml/statements.py` and wire it into `_stmts_to_whyml`. New `use` / preamble flags go in `module6_whyml/preamble.py`. Per-function emission concerns (signatures, contracts, return-type inference) live in `module6_whyml/functions.py`.
 - **bin/ scripts**: If the feature adds or changes a script in `bin/`, update `README.md` (Usage section) — `bin/` scripts are user-facing tools and the README is the primary human documentation
 - **glossary terms**: If the feature introduces recurring verification
     vocabulary, add or update the relevant page under `docs/glossary/` and then
@@ -441,17 +452,15 @@ Module4 rejects), and `agent-invariant-writer` to add loop variants to outer
 - Verify proof passes (exit code 0 from pycsl)
 - Review meta-agent outputs in `metrics/`
 
-**Worked example.** The `#@ proof <prover>: <qualname>` directive
-(annotations.md §2.1.11) was added end-to-end via this checklist
-together with the self-annotation infrastructure (§6 above). It
-ships as the first feature that exercises every step: Module2 grammar
-production, Module3 weaver field, Module5 IR emission, Module6 no-op
-translation, two reference tests (0331/0332), annotations.md row,
-traceability-pycsl.md row, three reference doc updates (concrete-
-syntax §2.1.11 + EBNF, static-semantics §2.1.11, translational
-§T.2.9), five skill reviews (this one + pycsl-annotate + contract-
-writer + invariant-writer + english-writer), and a RAG rebuild. Use
-that change as the canonical template for future feature additions.
+**Worked example.** The `#@ proof <prover> <qualname>` directive
+(annotations.md §2.1.12) is the canonical template for cross-prover
+proof attribution. It exercises every step of the pipeline: Module2
+grammar production, Module5 IR emission, Module6 axiom-block emission
+in the WhyML preamble, the `_AXIOM_REGISTRY` extension, and the
+audit-script qualname resolution. The provenance-only `#@ proof rocq`
+/ `#@ proof lean` directive originally added alongside it was removed
+on 2026-05-27 (it carried no semantic weight and had no remaining
+users after the delete-heavy triage).
 
 ## 10. Known Why3 Library Quirks
 

@@ -21,7 +21,7 @@ one is human-audited; two are generated.
         │  human-audited: ensures clause written by inspection of the Rocq arm
         ▼
 [2] Why3 val spec
-    src/self-annotate/self-annotate-layer3/pycsl-wp-spec.mlw
+    src/self-annotate/pycsl-wp-spec.mlw  (removed; layer historical reference)
         │
         │  machine-checked: Why3 clone/refinement verifies the binding below
         ▼
@@ -163,7 +163,6 @@ Both are necessary. Neither is sufficient alone.
 | `SContinue` | :99–100 | `handle_continue` | inline ~1478 | assigns clause |
 
 `SFor` will be added to `pycsl-wp-spec.mlw` once `desugar_correct` is proved.
-See `../self-annotate-plan-no-sugar.md`.
 
 ---
 
@@ -214,7 +213,7 @@ have shifted.
 ### Check D — Why3 spec parses and type-checks `[machine]`
 
 ```bash
-why3 prove src/self-annotate/self-annotate-layer3/pycsl-wp-spec.mlw \
+why3 prove src/self-annotate/pycsl-wp-spec.mlw  (removed; layer historical reference) \
      -P Alt-Ergo 2>&1 | grep -E "Valid|Unknown|Timeout|Error"
 ```
 
@@ -304,7 +303,7 @@ In `_handle_while_stmt` (Module6, line 1446), look for:
 
 ```bash
 # 1. Check Why3 spec module
-why3 prove src/self-annotate/self-annotate-layer3/pycsl-wp-spec.mlw \
+why3 prove src/self-annotate/pycsl-wp-spec.mlw  (removed; layer historical reference) \
      -P Alt-Ergo
 
 # 2. Check Layer 1 annotations on Module6 (annotated copy must exist)

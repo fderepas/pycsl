@@ -2,9 +2,9 @@
 _ = 0  # anchor
 
 #@ \trusted
-#@ ensures \result >= 0
-def field(default: int, default_factory: int, init: int, repr: int, hash: int, compare: int, metadata: int) -> int:
-    """Mock: For common and simple use cases, no other functionality is required.  There are, however, some dataclass features that r..."""
+#@ ensures True
+def field(default: int, default_factory: int, init: int, repr: int, hash: int, compare: int, metadata: int, kw_only: int, doc: int) -> int:
+    """Mock: Specify per-field metadata such as default values, default factories, or repr inclusion for a dataclass."""
     return 0
 
 #@ \trusted
@@ -44,7 +44,13 @@ def is_dataclass(obj: int) -> int:
     return 0
 
 #@ \trusted
-#@ ensures \result == 0
+#@ ensures \result >= 0
 def __post_init__() -> int:
     """Mock: When defined on the class, it will be called by the generated :meth:`~object.__init__`, normally as :meth:`!self.__post_..."""
+    return 0
+
+#@ \trusted
+#@ ensures True
+def dataclass(cls: int, init: int, repr_: int, eq: int, order: int, unsafe_hash: int, frozen: int, match_args: int, kw_only: int, slots: int) -> int:
+    """Mock: Decorator that auto-generates __init__, __repr__, __eq__, and other special methods from annotated fields."""
     return 0

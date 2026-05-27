@@ -458,31 +458,15 @@ class BoundedIntDecl(CSLNode):
     size: int
 
 @dataclass
-class ProofAttribution(CSLNode):
-    """Represents `#@ proof <prover>: <qualname>` — informational trace
-    from a Python function back to the theorem (in Rocq or Lean) that
-    produced its contract.
+class ProofDecl(CSLNode):
+    """Represents `#@ proof <prover> <qualname>` — cites a Rocq or
+    Lean theorem as the justification for a Why3 axiom in the WhyML
+    preamble.
 
-    Emitted by `pycsl-bridge`. Recorded in the IR and propagated through
-    the pipeline, but `Module6_WhyMLTranspiler` produces NO WhyML output
-    for it — it is documentation only.
-
-    Corresponds to `annotations.md` §2.1.11.
-    """
-    prover: str    # "rocq" | "lean" (enforced by the grammar terminal)
-    qualname: str  # e.g. "Pycsl.Parser.parse_expression_sound"
-
-
-@dataclass
-class AxiomFromDecl(CSLNode):
-    """Represents `#@ axiom_from <prover> <qualname>` — imports the
-    named Rocq or Lean theorem as a Why3 axiom in the WhyML preamble.
-
-    Unlike `ProofAttribution` (which is purely documentary), this
-    directive WILL emit a `axiom <name> : <body>` line in the
-    transpiled WhyML. The body is looked up from a per-test manifest
-    or hand-curated mapping during the MVP phase, and from
-    `proof2why3` extraction once that pipeline exists (see simple3.md).
+    Emits an `axiom <name> : <body>` line in the transpiled WhyML.
+    The body is looked up from a per-test manifest or hand-curated
+    mapping during the MVP phase, and from `proof2why3` extraction
+    once that pipeline exists (see docs/cross-validated-spec-sources.md).
     """
     prover: str    # "rocq" | "lean"
     qualname: str  # the pycsl_target string
@@ -550,8 +534,7 @@ PYCSL_GRAMMAR = r"""
              | ghost_array_set
              | raises_decl
              | bounded_int_decl
-             | proof_attribution
-             | axiom_from_decl
+             | proof_decl
              | shared_decl
              | thread_entry_decl
              | acquires_decl
@@ -587,17 +570,15 @@ PYCSL_GRAMMAR = r"""
     ghost_array_set: "ghost" CNAME "[" expr "]" "=" expr
     raises_decl: "raises" CNAME "when" expr
     bounded_int_decl: "assumes" "bounded_int" "(" NUMBER ")"
-    // §2.1.11 Proof attribution — informational, no WhyML emission.
-    // `prover_id` is restricted to {rocq, lean} by the terminal.
-    // `qualname` is a dotted identifier path (e.g. Pycsl.Parser.parse_sound).
-    proof_attribution: "proof" PROVER_ID ":" QUALNAME
+
+    // §2.1.12 Proof citation — emits a Why3 axiom in the WhyML preamble
+    // whose body is provided by the cited Rocq or Lean theorem under
+    // <test>.proofs/{rocq,lean}/. See docs/cross-validated-spec-sources.md.
+    // `PROVER_ID` is restricted to {rocq, lean} by the terminal.
+    // `QUALNAME` is a dotted identifier path (e.g. Pycsl.Reference.Gcd.gcd_step).
+    proof_decl: "proof" PROVER_ID QUALNAME
     PROVER_ID: "rocq" | "lean"
     QUALNAME: CNAME ("." CNAME)*
-
-    // §2.1.12 Axiom import — emits a Why3 axiom in the WhyML preamble
-    // whose body is provided by the cross-checked Rocq+Lean proofs at
-    // <test>.proofs/{rocq,lean}/. See simple3.md.
-    axiom_from_decl: "axiom_from" PROVER_ID QUALNAME
 
     // Expression hierarchy (handles operator precedence and left-recursion)
     // Quantifiers can appear at top level or as the RHS of ==>, and, or.
@@ -775,10 +756,8 @@ class PyCSLTransformer(Transformer):
         return GhostArraySetDecl(str(name), index, value)
     def raises_decl(self, exc_type, condition) -> RaisesDecl: return RaisesDecl(str(exc_type), condition)
     def bounded_int_decl(self, size) -> BoundedIntDecl: return BoundedIntDecl(int(size))
-    def proof_attribution(self, prover, qualname) -> ProofAttribution:
-        return ProofAttribution(prover=str(prover), qualname=str(qualname))
-    def axiom_from_decl(self, prover, qualname) -> AxiomFromDecl:
-        return AxiomFromDecl(prover=str(prover), qualname=str(qualname))
+    def proof_decl(self, prover, qualname) -> ProofDecl:
+        return ProofDecl(prover=str(prover), qualname=str(qualname))
 
     # Concurrency annotations
     def mutex_name(self, name) -> str: return str(name)

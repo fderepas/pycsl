@@ -9,8 +9,8 @@ def TemporaryFile(mode: int, buffering: int, encoding: int, newline: int, suffix
 
 #@ \trusted
 #@ ensures \result == 0
-def NamedTemporaryFile(mode: int, buffering: int, encoding: int, newline: int, suffix: int, prefix: int, dir: int) -> int:
-    """Mock: This function operates exactly as :func:`TemporaryFile` does, except the following differences: * This function returns ..."""
+def NamedTemporaryFile(mode: int, buffering: int, encoding: int, newline: int, suffix: int, prefix: int, dir: int, delete: int, errors: int, delete_on_close: int) -> int:
+    """Mock: Like TemporaryFile, but guarantees a visible name in the file system."""
     return 0
 
 #@ \trusted
@@ -53,4 +53,10 @@ def gettempprefixb() -> int:
 #@ ensures \result >= 0
 def mktemp(suffix: int, prefix: int, dir: int) -> int:
     """Mock: .. deprecated:: 2.3 Use :func:`mkstemp` instead. Return an absolute pathname of a file that did not exist at the time th..."""
+    return 0
+
+#@ \trusted
+#@ ensures True
+def TemporaryDirectory(suffix: int, prefix: int, dir: int, ignore_cleanup_errors: int, delete: int) -> int:
+    """Mock: Securely create a temporary directory. Can be used as a context manager; cleaned up on exit."""
     return 0

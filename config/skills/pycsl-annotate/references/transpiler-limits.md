@@ -67,9 +67,28 @@ For `factorial`, this means writing `if n <= 1: return 1` followed by `else: ret
 
 ## 4. Parameter mutation
 
-**NEVER mutate a function parameter directly** — neither inside a loop nor via any conditional assignment before the loop (e.g., `n -= 1` where `n` is a function parameter, or `if a < 0: a = -a` before a while-loop). Module6's mutability analyzer marks **any** parameter that is assigned **anywhere** in the function body as a `ref` and omits it from the WhyML function signature, making the function unverifiable.
+**As of 2026-05-27, parameter mutation is supported.** Module6 now promotes a mutated parameter to a ref via `let a = ref a in` shadowing inside `_emit_body_code`, keeping the parameter in the WhyML function signature (see `_build_param_list`). Tuple-unpack on parameters works: `def gcd(a, b): while b != 0: a, b = b, a % b; return a` transpiles correctly. The function-level `assigns \nothing` clause is also respected (parameter mutation does not violate frame conditions because the parameters are local copies semantically).
 
-Instead, introduce a separate local variable before the loop, use that variable for all mutations and loop operations, and keep the original parameter read-only. For `factorial`, annotate as:
+**Loop-invariant pragmatics: use ghost snapshots, not `\old(...)`.** When the loop invariant needs to refer to the parameter's entry value, do NOT write `\old(a)` — the emitted Why3 expression is `old !a` (`old` over a deref of the shadowed ref), which Alt-Ergo can struggle to discharge (postconditions in the Euclidean GCD case time out at 30s). Capture the entry values via ghost variables at function entry and use those names in the invariant:
+
+```python
+def gcd(a: int, b: int) -> int:
+    #@ ghost a0 = a
+    #@ ghost b0 = b
+    #@ loop invariant gcd(a, b) == gcd(a0, b0)
+    #@ loop variant b
+    while b != 0:
+        a, b = b, a % b
+    return a
+```
+
+Ensures clauses can still reference `a, b` directly (at the contract scope, parameters refer to their entry values regardless of body mutation). Worked example: `test-suite/corpus/pycsl-reference/0352.py`.
+
+**When you should still avoid parameter mutation:** if the parameter is typed `List[T]` / `Set[T]` / `Dict[K, V]` (i.e., not a plain `int` / `bool`), the `let a = ref a in` shadow would wrap an `array int` or `map int (option int)` in a Why3 ref — Why3 rejects mutable arrays in refs due to region/linearity rules. For collection-typed parameters, still use the local-variable pattern below.
+
+### Fallback pattern (for non-int params, or when ghost snapshots aren't worth it)
+
+Introduce a separate local variable before the loop, use that variable for all mutations and loop operations, and keep the original parameter read-only. For `factorial`, annotate as:
 
 ```python
 k = n
@@ -93,7 +112,9 @@ while y > 0:
 return x
 ```
 
-Use `x` and `y` for all mutations, loop invariants (e.g., `#@ loop invariant x >= 0`), and the return statement — never reassign `a` or `b` anywhere.
+Use `x` and `y` for all mutations, loop invariants (e.g., `#@ loop invariant x >= 0`), and the return statement.
+
+(Note: as of 2026-05-27 you CAN reassign `a` or `b` directly — see the ghost-snapshot pattern above. The fallback above remains useful for collection-typed parameters or when you want the simplest possible loop-invariant prover obligations.)
 
 ---
 
@@ -200,11 +221,11 @@ relations, group-theoretic properties. When this happens, the historical
 options were poor: either weaken the contract until SMT could handle it, or
 mark the function `#@ \trusted` and lose the proof entirely.
 
-The supported way out is the **`#@ axiom_from`** directive
+The supported way out is the **`#@ proof`** directive
 (`annotations.md §2.1.12`), which imports a Rocq or Lean theorem as a
 Why3 axiom in the generated preamble. Used in pairs, it implements the
 **"Rocq + Lean as Cross-Validated Spec Sources"** pattern: when both
-`#@ axiom_from rocq <q>` and `#@ axiom_from lean <q>` cite the same
+`#@ proof rocq <q>` and `#@ proof lean <q>` cite the same
 `pycsl_target`, the `proof2why3 cross-check` tool extracts both theorem
 statements, canonicalizes them (alpha-normalize, AC-flatten, `nat`/`Nat`
 → `int + ≥ 0`), and refuses to emit the axiom unless the two formalisms
@@ -227,9 +248,10 @@ kernels** independently verified the same statement.
 - The fact is linear arithmetic — `\result == \old(...) + amount` should
   go through directly; if it doesn't, the bug is upstream.
 - You haven't actually written and machine-checked the cited theorem yet.
-  `#@ axiom_from` referencing a non-existent qualname is no safer than
-  `#@ \trusted`, just more verbose. The `bin/check-proof-attributions.sh`
-  audit fails when the cited theorem is missing.
+  `#@ proof` referencing a non-existent qualname is no safer than
+  `#@ \trusted`, just more verbose. Run `pycsl --audit-proof <file>` to
+  fail when the cited theorem is missing or outside the declared
+  namespace.
 
 **Worked example:** `test-suite/corpus/pycsl-reference/0342.py` (Euclidean
 GCD) with six cross-validated axioms (`gcd_result_nonneg`,
@@ -239,7 +261,7 @@ machine-check the same six statements; the WhyML preamble then carries
 the axioms unconditionally, and Alt-Ergo discharges all four
 divisibility postconditions in single-digit seconds.
 
-**Annotator agents MUST NOT generate `#@ axiom_from` directives**
+**Annotator agents MUST NOT generate `#@ proof` directives**
 unless the cited theorems already exist and `proof2why3 cross-check`
 reports `reconciled` status. Adding the directive without the matching
 proof artifacts breaks the trust chain silently.

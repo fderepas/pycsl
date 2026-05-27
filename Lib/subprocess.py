@@ -2,9 +2,9 @@
 _ = 0  # anchor
 
 #@ \trusted
-#@ ensures \result >= 0
-def run(args: int, stdin: int, input: int, stdout: int, stderr: int, __capture_output: int, shell: int) -> int:
-    """Mock: Run the command described by *args*.  Wait for command to complete, then return a :class:`CompletedProcess` instance. Th..."""
+#@ ensures True
+def run(args: int, stdin: int, input: int, stdout: int, stderr: int, capture_output: int, shell: int, cwd: int, timeout: int, check: int, encoding: int, errors: int, text: int, env: int) -> int:
+    """Mock: Run the command described by args. Wait for command to complete, then return a CompletedProcess instance."""
     return 0
 
 #@ \trusted
@@ -35,4 +35,10 @@ def getstatusoutput(cmd: int, encoding: int, errors: int) -> int:
 #@ ensures \result >= 0
 def getoutput(cmd: int, encoding: int, errors: int) -> int:
     """Mock: Return output (stdout and stderr) of executing *cmd* in a shell. Like :func:`getstatusoutput`, except the exit code is i..."""
+    return 0
+
+#@ \trusted
+#@ ensures True
+def CompletedProcess(args: int, returncode: int, stdout: int, stderr: int) -> int:
+    """Mock: The return value from run(), representing a process that has finished. Attributes: args, returncode, stdout, stderr."""
     return 0

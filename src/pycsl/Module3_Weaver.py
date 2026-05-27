@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import ast
 import warnings
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 from dataclasses import dataclass
 
 # Import the AST nodes from Module 2
@@ -10,7 +10,7 @@ from Module2_Parser import (
     CSLNode, Requires, Ensures, Assigns, LoopInvariant, LoopVariant,
     ClassInvariant, Label as CSLLabel, FunctionVariant, Diverges, Trusted,
     GhostAssignDecl, GhostArraySetDecl, RaisesDecl, BoundedIntDecl,
-    ProofAttribution, AxiomFromDecl,
+    ProofDecl,
     SharedDecl, ThreadEntry, Acquires, Releases, CriticalSection,
     MutexInvariant, LockOrder, BinOp, Number,
 )
@@ -29,8 +29,12 @@ class PyCSLWeaver(ast.NodeVisitor):
         # We index the parsed contracts by the line number of the target node
         self.contracts_map = contracts_map
 
-    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        # Initialize the custom PyCSL fields on the Python AST node
+    @staticmethod
+    def _init_function_csl_fields(node: ast.FunctionDef) -> None:
+        """Initialize the custom PyCSL fields on a function-def AST node.
+        Proof attributions (§2.1.11) are informational/bridge-emitted only
+        with no semantic effect. Axiom-from directives (§2.1.12) emit Why3
+        axioms in the preamble; see docs/cross-validated-spec-sources.md."""
         node.csl_requires = []
         node.csl_ensures = []
         node.csl_assigns = []
@@ -41,52 +45,46 @@ class PyCSLWeaver(ast.NodeVisitor):
         node.csl_raises = []
         node.csl_bounded_int = None
         node.csl_thread_entry = False
-        # §2.1.11 proof attributions — informational; bridge-emitted only,
-        # no semantic effect, no WhyML output. See annotations.md §2.1.11.
-        node.csl_proof_attributions = []
-        # §2.1.12 axiom-from directives — emit Why3 axioms in the
-        # preamble. See simple3.md.
-        node.csl_axiom_from = []
+        node.csl_proof = []
 
-        # In standard `ast`, node.lineno points to the 'def' keyword.
-        # We check if we have any parsed contracts for this line.
-        if node.lineno in self.contracts_map:
-            contracts = self.contracts_map[node.lineno]
-            for c in contracts:
-                if isinstance(c, Requires):
-                    node.csl_requires.append(c)
-                elif isinstance(c, Ensures):
-                    node.csl_ensures.append(c)
-                elif isinstance(c, Assigns):
-                    node.csl_assigns.append(c)
-                elif isinstance(c, FunctionVariant):
-                    node.csl_function_variants.append(c)
-                elif isinstance(c, Diverges):
-                    node.csl_diverges = True
-                elif isinstance(c, Trusted):
-                    node.csl_trusted = True
-                    node.csl_reviewer = c.reviewer
-                    if not c.reviewer:
-                        warnings.warn(
-                            f"Function '{node.name}' (line {node.lineno}): "
-                            f"\\trusted has no reviewer — add `reviewer: <name>` "
-                            f"to document who is accountable for this trust assumption.",
-                            stacklevel=2,
-                        )
-                elif isinstance(c, RaisesDecl):
-                    node.csl_raises.append(c)
-                elif isinstance(c, BoundedIntDecl):
-                    node.csl_bounded_int = c.size
-                elif isinstance(c, ProofAttribution):
-                    node.csl_proof_attributions.append(c)
-                elif isinstance(c, AxiomFromDecl):
-                    node.csl_axiom_from.append(c)
-                elif isinstance(c, ThreadEntry):
-                    node.csl_thread_entry = True
+    @staticmethod
+    def _dispatch_function_contracts(node: ast.FunctionDef, contracts: List[Any]) -> None:
+        """Attach each parsed contract node to the matching `csl_*` field
+        on the function-def AST node."""
+        for c in contracts:
+            if isinstance(c, Requires):
+                node.csl_requires.append(c)
+            elif isinstance(c, Ensures):
+                node.csl_ensures.append(c)
+            elif isinstance(c, Assigns):
+                node.csl_assigns.append(c)
+            elif isinstance(c, FunctionVariant):
+                node.csl_function_variants.append(c)
+            elif isinstance(c, Diverges):
+                node.csl_diverges = True
+            elif isinstance(c, Trusted):
+                node.csl_trusted = True
+                node.csl_reviewer = c.reviewer
+                if not c.reviewer:
+                    warnings.warn(
+                        f"Function '{node.name}' (line {node.lineno}): "
+                        f"\\trusted has no reviewer — add `reviewer: <name>` "
+                        f"to document who is accountable for this trust assumption.",
+                        stacklevel=2,
+                    )
+            elif isinstance(c, RaisesDecl):
+                node.csl_raises.append(c)
+            elif isinstance(c, BoundedIntDecl):
+                node.csl_bounded_int = c.size
+            elif isinstance(c, ProofDecl):
+                node.csl_proof.append(c)
+            elif isinstance(c, ThreadEntry):
+                node.csl_thread_entry = True
 
-        # Warn when a \trusted function has a vacuous postcondition.
-        # A wrong \trusted spec is only unsound for callers that establish the
-        # precondition; a vacuous ensures 1 == 1 provides no useful bound on that risk.
+    @staticmethod
+    def _validate_function_contracts(node: ast.FunctionDef) -> None:
+        """Post-attachment sanity checks: vacuous \\trusted ensures clauses
+        get a warning; \\variant+\\diverges combination is a hard error."""
         if node.csl_trusted:
             for ens in node.csl_ensures:
                 if (isinstance(ens.expr, BinOp) and ens.expr.op == '=='
@@ -100,7 +98,6 @@ class PyCSLWeaver(ast.NodeVisitor):
                         f"the contract or document why no property is verifiable.",
                         stacklevel=2,
                     )
-
         if node.csl_function_variants and node.csl_diverges:
             raise ValueError(
                 f"Function '{node.name}' (line {node.lineno}): "
@@ -108,7 +105,12 @@ class PyCSLWeaver(ast.NodeVisitor):
                 f"one asserts termination, the other denies it."
             )
 
-        # Continue traversing down the tree (in case of nested functions or loops)
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
+        self._init_function_csl_fields(node)
+        # In standard `ast`, node.lineno points to the 'def' keyword.
+        if node.lineno in self.contracts_map:
+            self._dispatch_function_contracts(node, self.contracts_map[node.lineno])
+        self._validate_function_contracts(node)
         self.generic_visit(node)
 
     def visit_Module(self, node: ast.Module) -> Any:
@@ -205,34 +207,29 @@ class Module3_Weaver:
         self.extracted_data = extracted_data
         self.parser_module = parser_module
 
-    def process(self) -> ast.AST:
-        # Step 1: Parse all extracted strings into Contract AST nodes.
-        # TrailingSimpleStatement contracts (ghost as last line in a block) are
-        # kept separate so Module5 can emit them AFTER their anchor statement.
+    def _parse_extracted_contracts(self) -> Tuple[Dict[int, List[CSLNode]], Dict[int, List[CSLNode]]]:
+        """Parse all extracted contract strings into Contract AST nodes.
+        TrailingSimpleStatement contracts (ghost as last line in a block)
+        are kept separate so Module5 can emit them AFTER their anchor
+        statement."""
         contracts_map: Dict[int, List[CSLNode]] = {}
         trailing_contracts_map: Dict[int, List[CSLNode]] = {}
-
         for extraction in self.extracted_data:
             parsed_nodes = self.parser_module.parse_node_contracts(
-                extraction.contracts,
-                extraction.line_number
-            )
+                extraction.contracts, extraction.line_number)
             if extraction.node_type == "TrailingSimpleStatement":
-                existing = trailing_contracts_map.get(extraction.line_number, [])
-                trailing_contracts_map[extraction.line_number] = existing + parsed_nodes
+                trailing_contracts_map.setdefault(extraction.line_number, []).extend(parsed_nodes)
             else:
                 contracts_map[extraction.line_number] = parsed_nodes
+        return contracts_map, trailing_contracts_map
 
-        # Step 2: Generate the standard Python AST
-        python_ast = ast.parse(self.source_code)
-
-        # Step 3: Weave the Contract AST nodes into the Python AST
-        weaver = PyCSLWeaver(contracts_map)
-        weaver.visit(python_ast)
-
-        # Step 3b: Consolidate module-level concurrency annotations from all contracts.
-        # SharedDecl, MutexInvariant, LockOrder may appear anywhere in the file
-        # (module header or as leading_lines of any statement), so we scan globally.
+    @staticmethod
+    def _consolidate_module_concurrency(python_ast: ast.AST,
+                                         contracts_map: Dict[int, List[CSLNode]]) -> None:
+        """Consolidate module-level concurrency annotations from all
+        contracts. SharedDecl, MutexInvariant, LockOrder may appear
+        anywhere in the file (module header or as leading_lines of any
+        statement), so we scan globally."""
         if not hasattr(python_ast, 'csl_shared_decls'):
             python_ast.csl_shared_decls = []
         if not hasattr(python_ast, 'csl_mutex_invariants'):
@@ -250,8 +247,14 @@ class Module3_Weaver:
                 elif isinstance(n, LockOrder) and python_ast.csl_lock_order is None:
                     python_ast.csl_lock_order = n
 
-        # Step 4: Attach label nodes to their target statement nodes.
-        # Labels appear in contracts_map keyed by the line of the labeled statement.
+    @staticmethod
+    def _attach_labels_and_ghost_assigns(
+            python_ast: ast.AST,
+            contracts_map: Dict[int, List[CSLNode]],
+            trailing_contracts_map: Dict[int, List[CSLNode]]) -> None:
+        """Attach label and ghost-assign nodes to their target statement
+        nodes. Labels appear in contracts_map keyed by the line of the
+        labeled statement."""
         labels_by_line: Dict[int, List[str]] = {}
         ghost_assigns_by_line: Dict[int, List] = {}
         for line, nodes in contracts_map.items():
@@ -261,26 +264,32 @@ class Module3_Weaver:
             ghosts = [n for n in nodes if isinstance(n, (GhostAssignDecl, GhostArraySetDecl))]
             if ghosts:
                 ghost_assigns_by_line[line] = ghosts
-
         trailing_ghost_assigns_by_line: Dict[int, List] = {}
         for line, nodes in trailing_contracts_map.items():
             ghosts = [n for n in nodes if isinstance(n, (GhostAssignDecl, GhostArraySetDecl))]
             if ghosts:
                 trailing_ghost_assigns_by_line[line] = ghosts
+        if not (labels_by_line or ghost_assigns_by_line or trailing_ghost_assigns_by_line):
+            return
+        for ast_node in ast.walk(python_ast):
+            if not (isinstance(ast_node, ast.stmt) and hasattr(ast_node, 'lineno')):
+                continue
+            labels = labels_by_line.get(ast_node.lineno)
+            if labels:
+                ast_node.csl_labels = labels
+            ghosts = ghost_assigns_by_line.get(ast_node.lineno)
+            if ghosts:
+                existing = getattr(ast_node, 'csl_ghost_assigns', [])
+                ast_node.csl_ghost_assigns = existing + ghosts
+            trailing = trailing_ghost_assigns_by_line.get(ast_node.lineno)
+            if trailing:
+                existing = getattr(ast_node, 'csl_trailing_ghost_assigns', [])
+                ast_node.csl_trailing_ghost_assigns = existing + trailing
 
-        if labels_by_line or ghost_assigns_by_line or trailing_ghost_assigns_by_line:
-            for ast_node in ast.walk(python_ast):
-                if isinstance(ast_node, ast.stmt) and hasattr(ast_node, 'lineno'):
-                    labels = labels_by_line.get(ast_node.lineno)
-                    if labels:
-                        ast_node.csl_labels = labels
-                    ghosts = ghost_assigns_by_line.get(ast_node.lineno)
-                    if ghosts:
-                        existing = getattr(ast_node, 'csl_ghost_assigns', [])
-                        ast_node.csl_ghost_assigns = existing + ghosts
-                    trailing = trailing_ghost_assigns_by_line.get(ast_node.lineno)
-                    if trailing:
-                        existing = getattr(ast_node, 'csl_trailing_ghost_assigns', [])
-                        ast_node.csl_trailing_ghost_assigns = existing + trailing
-
+    def process(self) -> ast.AST:
+        contracts_map, trailing_contracts_map = self._parse_extracted_contracts()
+        python_ast = ast.parse(self.source_code)
+        PyCSLWeaver(contracts_map).visit(python_ast)
+        self._consolidate_module_concurrency(python_ast, contracts_map)
+        self._attach_labels_and_ghost_assigns(python_ast, contracts_map, trailing_contracts_map)
         return python_ast
