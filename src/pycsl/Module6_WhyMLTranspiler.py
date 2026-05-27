@@ -107,7 +107,10 @@ class IRScanner:
                 target = stmt.get("target", "")
                 if isinstance(val, dict):
                     vt = val.get("type", "")
-                    if vt == "Call" and val.get("func") in ("list",):
+                    if vt == "Call" and val.get("func") in ("list", "sorted"):
+                        # `sorted` is emitted as an abstract val returning
+                        # `array int`; track its target as array-typed so
+                        # the pre-decl path skips the `ref 0` declaration.
                         array_vars.add(target)
                     elif vt in ("ListLit", "ArrayLit"):
                         array_vars.add(target)
@@ -120,6 +123,13 @@ class IRScanner:
                     elif vt == "SetLit" or (vt == "Call" and val.get("func") in ("set", "frozenset")):
                         dict_vars.add(target)
                     elif vt == "SliceAccess":
+                        array_vars.add(target)
+                    elif (vt == "BinOp" and val.get("op") == "*"
+                          and isinstance(val.get("left"), dict)
+                          and val["left"].get("type") == "ArrayLit"):
+                        # Python `[default] * N` allocates an N-element
+                        # array via Module6's `_handle_binop` BinOp(`*`)
+                        # arm — track the target as an array local.
                         array_vars.add(target)
             for key in ("body", "orelse"):
                 if key in stmt:
@@ -143,6 +153,35 @@ class IRScanner:
                     array_vars |= a
                     dict_vars |= d
         return array_vars, dict_vars
+
+    @staticmethod
+    def uses_inline_set_or_dict_ops(obj: Any) -> bool:
+        """True iff anywhere in `obj` (a stmt list or arbitrary IR object)
+        there is a SetLit / DictLit, a set/dict/frozenset constructor call,
+        or a `.add()`/`.discard()`/`.remove()` method-call ExprStmt. These
+        all emit `map_update_some` / `map_update_none` into the WhyML,
+        which requires `use map.Map` + `use option.Option` in the preamble
+        — even if no body-local variable is bound to a set or dict."""
+        if isinstance(obj, dict):
+            t = obj.get("type", "")
+            if t in ("SetLit", "DictLit"):
+                return True
+            if t == "Call":
+                fn = obj.get("func", "")
+                if fn in ("set", "dict", "frozenset"):
+                    return True
+                # `<obj>.add(x)` / `.discard(x)` / `.remove(x)` patterns
+                if (fn.endswith(".add") or fn.endswith(".discard")
+                        or fn.endswith(".remove")):
+                    return True
+            for v in obj.values():
+                if IRScanner.uses_inline_set_or_dict_ops(v):
+                    return True
+        elif isinstance(obj, list):
+            for item in obj:
+                if IRScanner.uses_inline_set_or_dict_ops(item):
+                    return True
+        return False
 
     @staticmethod
     def find_lambda_vars(stmts: List[Dict[str, Any]]) -> Set[str]:
@@ -270,6 +309,14 @@ class IRScanner:
                 if (IRScanner.has_direct_return(stmt.get("body", [])) or
                         IRScanner.has_direct_return(stmt.get("orelse", []))):
                     return True
+            if stype == "Try":
+                # User Try blocks never catch the internal Return exception,
+                # so any Return inside a Try propagates to the function body.
+                if IRScanner.has_direct_return(stmt.get("body", [])):
+                    return True
+                for h in stmt.get("handlers", []):
+                    if IRScanner.has_direct_return(h.get("body", [])):
+                        return True
         return False
 
     @staticmethod
@@ -283,6 +330,14 @@ class IRScanner:
             elif stype == "If":
                 for key in ("body", "orelse"):
                     if key in stmt and IRScanner.has_in_loop_return(stmt[key]):
+                        return True
+            elif stype == "Try":
+                # See has_direct_return: Returns inside Try escape to the
+                # enclosing function body, including any enclosing loop.
+                if IRScanner.has_in_loop_return(stmt.get("body", [])):
+                    return True
+                for h in stmt.get("handlers", []):
+                    if IRScanner.has_in_loop_return(h.get("body", [])):
                         return True
         return False
 
@@ -487,17 +542,39 @@ class Module6_WhyMLTranspiler:
     def __init__(self, json_ir: str, memory_model: str = "hoare") -> None:
         self.ir = json.loads(json_ir)
         self.memory_model = memory_model   # "hoare" | "typed" | "store"
-        self._array2d_params: set = set()  # set during per-function transpilation
-        self._in_spec = False              # True when emitting contracts (no div-by-zero VCs)
-        self._bounded_int = None           # Current function's bounded_int size (or None)
-        self._abstract_ops: dict = {}      # Abstract val declarations: name → full decl string
-        self._current_params: set = set()  # Parameters of current function being transpiled
-        self._array_locals: set = set()    # Local array variables (no ! deref needed)
-        self._dict_locals: set = set()     # Local dict variables (not real arrays)
-        self._record_types: dict = {}      # class_name_lower → {fields: [...], defaults: {...}}
-        self._record_locals: set = set()   # Local variables holding record instances
-        self._shared_var_names: set = set()  # Module-level shared variable names (concurrent model)
-        self._havoc_counter: int = 0         # Counter for unique havoc variable names
+        self._abstract_ops: Dict[str, str] = {}  # Abstract val declarations: name → full decl string
+        self._record_types: Dict[str, Any] = {}  # class_name_lower → {fields: [...], defaults: {...}}
+        self._shared_var_names: Set[str] = set()  # Module-level shared variable names (concurrent model)
+        self._havoc_counter: int = 0             # Counter for unique havoc variable names
+        self._in_spec: bool = False              # True when emitting contracts (no div-by-zero VCs)
+        # Per-function state — reset per function via `_reset_function_state`;
+        # initialised here so they're always defined and accessing them
+        # before the first reset is safe.
+        self._bounded_int: Optional[int] = None
+        self._array2d_params: Set[str] = set()
+        self._current_array1d_params: Set[str] = set()
+        self._current_params: Set[str] = set()
+        self._current_symbol_table: Dict[str, Any] = {}
+        self._array_locals: Set[str] = set()
+        self._dict_locals: Set[str] = set()
+        self._record_locals: Set[str] = set()
+        self._lambda_locals: Set[str] = set()
+        self._current_self_type: Optional[str] = None
+        self._func_return_type: str = "int"
+        self._current_tuple_arity: int = 0
+        self._has_early_ret: bool = False
+        self._for_idx_init: str = "0"
+        # Whole-module state — populated by `transpile()` before any
+        # function emission; initialised empty so type-check passes and
+        # accidental early access yields a clean empty default.
+        self._all_record_fields: Set[str] = set()
+        self._module_func_names: Set[str] = set()
+        self._module_method_return_types: Dict[str, str] = {}
+        self._module_method_param_types: Dict[str, List[str]] = {}
+        self._auto_trusted_array_returns: List[str] = []
+        self._auto_trusted_tuple_returns: List[str] = []
+        self._auto_trusted_map_returns: List[str] = []
+        self._auto_trusted_set_op: List[str] = []
 
     @property
     def _heap_var(self) -> str:
@@ -673,7 +750,7 @@ class Module6_WhyMLTranspiler:
         # Already boolean: comparisons, not, bool literals, isinstance
         if t == "BinOp" and op in ("==", "!=", "<", ">", "<=", ">=", "in", "not in"):
             return whyml_str
-        if t == "BinOp" and op in ("and", "or") and getattr(self, '_in_spec', False):
+        if t == "BinOp" and op in ("and", "or") and self._in_spec:
             # In spec context, and/or use && / || which are already bool
             return whyml_str
         if t == "UnaryOp" and op == "not":
@@ -695,7 +772,7 @@ class Module6_WhyMLTranspiler:
         # Array locals can't be compared with <> 0; emit true (always allocated)
         if t == "Var":
             name = ir_expr.get("name", "")
-            if name in getattr(self, '_array_locals', set()):
+            if name in self._array_locals:
                 return "true"
         # Coerce int → bool
         return f"({whyml_str} <> 0)"
@@ -707,19 +784,64 @@ class Module6_WhyMLTranspiler:
             return str(hash(whyml_str) % 2147483647)
         return whyml_str
 
+    @staticmethod
+    def _array_coerce_arg(whyml_str: str) -> str:
+        """Coerce an arbitrary WhyML expression to an `array int`. Used
+        when abstract vals (`any_1`, `all_1`, `sorted_1`, `list_new`)
+        expect an array but the actual arg is an int — typically because
+        the IR dropped an unsupported iterable shape (generator
+        expression, comprehension, variadic *args) to a scalar. A
+        length-1 placeholder array works because the abstract vals have
+        no axioms about their input contents.
+
+        Recognises explicit array-shaped expressions and leaves them
+        alone: `Array.make ...`, `Array.get ...`, `sorted_1 ...`, bare
+        identifiers we can't disambiguate (passed through; callers must
+        ensure their type). For everything else, returns the placeholder."""
+        stripped = whyml_str.strip()
+        if stripped == "0":
+            return "(Array.make 1 0)"
+        # Already array-shaped — leave alone.
+        if (stripped.startswith("(Array.make")
+                or stripped.startswith("(Array.get")
+                or stripped.startswith("(sorted_1 ")
+                or stripped.startswith("(list_new ")
+                or stripped.startswith("(any_1 ")
+                or stripped.startswith("(all_1 ")):
+            return whyml_str
+        # Bare identifier — could be array-typed (callee's
+        # responsibility); pass through.
+        if stripped.replace("_", "").replace("!", "").isalnum():
+            return whyml_str
+        # Anything else (BinOp result, parenthesised int expression) —
+        # coerce to placeholder since we can't recover the array.
+        return "(Array.make 1 0)"
+
     def _coerce_to_int(self, whyml_str: str) -> str:
         """Coerce any non-int WhyML expression to int for abstract val arguments."""
         # String literals → int hash
         if whyml_str.startswith('"') and whyml_str.endswith('"'):
             return str(hash(whyml_str) % 2147483647)
-        # Array literals can't be passed where int is expected
-        if whyml_str.startswith("(Array.make"):
-            return "0"
+        # Array-shaped expressions can't be passed where int is expected.
+        # The array's contents have no axioms; coerce to 0 placeholder.
+        stripped = whyml_str.strip()
+        array_prefixes = ("(Array.make", "(array_slice ", "(sorted_1 ",
+                          "(list_new_arr ", "(any_1 ", "(all_1 ")
+        for prefix in array_prefixes:
+            if stripped.startswith(prefix):
+                return "0"
+        # Map-shaped expressions (body-set / body-dict updates) can't be
+        # passed where int is expected — same placeholder.
+        map_prefixes = ("(map_update_some ", "(map_update_none ",
+                        "(const (None: option int)")
+        for prefix in map_prefixes:
+            if stripped.startswith(prefix):
+                return "0"
         # Tuple literals (a, b, c) → hash to int
         if "," in whyml_str and whyml_str.startswith("(") and whyml_str.endswith(")"):
             return str(hash(whyml_str) % 2147483647)
         # Record self → convert to int via abstract op
-        self_type = getattr(self, '_current_self_type', None)
+        self_type = self._current_self_type
         if whyml_str == "self" and self_type:
             conv_name = f"self_to_int_{self_type}"
             self._add_abstract_op(f"val {conv_name} (x: {self_type}) : int")
@@ -744,89 +866,110 @@ class Module6_WhyMLTranspiler:
             return " || ".join(alts) if alts else "true"
         return "true"
 
+    _BITWISE_FOLD_OPS = {
+        "&": lambda a, b: a & b, "|": lambda a, b: a | b, "^": lambda a, b: a ^ b,
+        "<<": lambda a, b: a << b, ">>": lambda a, b: a >> b, "**": lambda a, b: a ** b,
+    }
+    _BITWISE_FN_NAMES = {
+        "&": "bit_and", "|": "bit_or", "^": "bit_xor",
+        "<<": "bit_lshift", ">>": "bit_rshift", "**": "py_pow",
+    }
+
+    def _emit_membership(self, op: str, expr: Dict[str, Any], left: str, right: str,
+                          local_refs: Set[str], invariant_ctx: bool,
+                          subst: Optional[Dict[str, str]]) -> str:
+        """Emit `in` / `not in` against either an inline collection literal
+        (Tuple/ArrayLit/SetLit), a body-level dict (match-based, since
+        Why3 program code lacks decidable equality on `option int`), or a
+        generic abstract `contains_check`."""
+        negate = op == "not in"
+        rhs = expr.get("right", {})
+        if rhs.get("type") in ("Tuple", "ArrayLit", "SetLit"):
+            elts = rhs.get("elts", [])
+            if elts:
+                left_c = self._coerce_str_arg(left)
+                checks = []
+                for elt in elts:
+                    elt_w = self._expr_to_whyml(elt, local_refs, invariant_ctx, subst)
+                    checks.append(f"({left_c} = {self._coerce_str_arg(elt_w)})")
+                joined = f"({' || '.join(checks)})"
+                return f"(not {joined})" if negate else joined
+        # Body-local dict OR set/dict-typed parameter OR self.<dict-field>
+        rhs_is_map = False
+        if rhs.get("type") == "Var":
+            rname = rhs.get("name", "")
+            if rname in self._dict_locals:
+                rhs_is_map = True
+            elif self._current_symbol_table.get(rname) in ("set", "dict", "frozenset"):
+                rhs_is_map = True
+        if not rhs_is_map and rhs.get("type") in ("Attribute", "FieldGet"):
+            ft = self._field_type_of(rhs)
+            if ft in ("set", "dict", "frozenset"):
+                rhs_is_map = True
+        if rhs_is_map:
+            left_c = self._coerce_to_int(left)
+            arms = ("| Some _ -> false | None -> true" if negate
+                    else "| Some _ -> true | None -> false")
+            return f"(match Map.get ({right}) ({left_c}) with {arms} end)"
+        self._add_abstract_op("val contains_check (x: int) (c: int) : bool")
+        call = f"(contains_check {self._coerce_str_arg(left)} {self._coerce_str_arg(right)})"
+        return f"(not {call})" if negate else call
+
+    def _emit_bitwise_or_power(self, op_char: str, expr: Dict[str, Any],
+                                left: str, right: str) -> str:
+        """Emit `&`/`|`/`^`/`<<`/`>>`/`**`. Constant-fold when both
+        operands are literal ints; otherwise emit an abstract val call.
+        Coerce array- or map-shaped operands to int (the abstract val is
+        `int -> int -> int`) — Python `set | set` (treated by Module6 as
+        bitwise on int) and similar shape-confused cases land here."""
+        left_ir = expr.get("left", {})
+        right_ir = expr.get("right", {})
+        if (left_ir.get("type") == "Number" and right_ir.get("type") == "Number"
+                and isinstance(left_ir.get("value"), int)
+                and isinstance(right_ir.get("value"), int)):
+            try:
+                return str(self._BITWISE_FOLD_OPS[op_char](left_ir["value"], right_ir["value"]))
+            except (ValueError, OverflowError):
+                pass
+        op_fn = self._BITWISE_FN_NAMES[op_char]
+        self._add_abstract_op(f"val {op_fn} (x: int) (y: int) : int")
+        return f"({op_fn} {self._coerce_to_int(left)} {self._coerce_to_int(right)})"
+
     def _handle_binop(self, expr: Dict[str, Any], local_refs: Set[str],
                       invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
+        raw_op = expr["op"]
         # [default] * size → Array.make size default
-        if expr["op"] == "*" and expr["left"].get("type") == "ArrayLit":
+        if raw_op == "*" and expr["left"].get("type") == "ArrayLit":
             elts = expr["left"].get("elts", [])
             default_val = self._expr_to_whyml(elts[0], local_refs, invariant_ctx, subst) if elts else "0"
             size = self._expr_to_whyml(expr["right"], local_refs, invariant_ctx, subst)
             return f"(Array.make {size} {default_val})"
         left = self._expr_to_whyml(expr["left"], local_refs, invariant_ctx, subst)
         right = self._expr_to_whyml(expr["right"], local_refs, invariant_ctx, subst)
-        op = self._op(expr["op"])
+        op = self._op(raw_op)
         # In body context, coerce string literals in comparisons to int
         if not self._in_spec and op in ("=", "<>"):
             left = self._coerce_str_arg(left)
             right = self._coerce_str_arg(right)
         if op == "div":
-            if self._in_spec:
-                return f"(div {left} {right})"
-            return f"(pycsl_div {left} {right})"
-        elif op == "mod":
-            if self._in_spec:
-                return f"(mod {left} {right})"
-            return f"(pycsl_mod {left} {right})"
-        elif op in ("&&", "||"):
+            return f"(div {left} {right})" if self._in_spec else f"(pycsl_div {left} {right})"
+        if op == "mod":
+            return f"(mod {left} {right})" if self._in_spec else f"(pycsl_mod {left} {right})"
+        if op in ("&&", "||"):
             left_b = self._to_bool(left, expr["left"])
             right_b = self._to_bool(right, expr["right"])
-            if getattr(self, '_in_spec', False):
+            if self._in_spec:
                 return f"({left_b} {op} {right_b})"
-            else:
-                # In body context, Python's and/or return int.
-                # Use if-then-else to convert bool result back to int,
-                # avoiding abstract vals that can't handle mixed bool/int args.
-                return f"(if {left_b} {op} {right_b} then 1 else 0)"
-        elif expr["op"] == "in":
-            rhs = expr.get("right", {})
-            if rhs.get("type") in ("Tuple", "ArrayLit", "SetLit"):
-                elts = rhs.get("elts", [])
-                if elts:
-                    checks = []
-                    for elt in elts:
-                        elt_w = self._expr_to_whyml(elt, local_refs, invariant_ctx, subst)
-                        checks.append(f"({self._coerce_str_arg(left)} = {self._coerce_str_arg(elt_w)})")
-                    return f"({' || '.join(checks)})"
-            self._add_abstract_op("val contains_check (x: int) (c: int) : bool")
-            return f"(contains_check {self._coerce_str_arg(left)} {self._coerce_str_arg(right)})"
-        elif expr["op"] == "not in":
-            rhs = expr.get("right", {})
-            if rhs.get("type") in ("Tuple", "ArrayLit", "SetLit"):
-                elts = rhs.get("elts", [])
-                if elts:
-                    checks = []
-                    for elt in elts:
-                        elt_w = self._expr_to_whyml(elt, local_refs, invariant_ctx, subst)
-                        checks.append(f"({self._coerce_str_arg(left)} = {self._coerce_str_arg(elt_w)})")
-                    return f"(not ({' || '.join(checks)}))"
-            self._add_abstract_op("val contains_check (x: int) (c: int) : bool")
-            return f"(not (contains_check {self._coerce_str_arg(left)} {self._coerce_str_arg(right)}))"
-        elif expr["op"] in ("&", "|", "^", "<<", ">>", "**"):
-            # Bitwise/power ops: evaluate at compile time if both operands are literals
-            left_ir = expr.get("left", {})
-            right_ir = expr.get("right", {})
-            if (left_ir.get("type") == "Number" and right_ir.get("type") == "Number"
-                    and isinstance(left_ir.get("value"), int) and isinstance(right_ir.get("value"), int)):
-                lv, rv = left_ir["value"], right_ir["value"]
-                op_char = expr["op"]
-                try:
-                    if op_char == "&": result = lv & rv
-                    elif op_char == "|": result = lv | rv
-                    elif op_char == "^": result = lv ^ rv
-                    elif op_char == "<<": result = lv << rv
-                    elif op_char == ">>": result = lv >> rv
-                    elif op_char == "**": result = lv ** rv
-                    else: result = None
-                    if result is not None:
-                        return str(result)
-                except (ValueError, OverflowError):
-                    pass
-            op_names = {"&": "bit_and", "|": "bit_or", "^": "bit_xor",
-                        "<<": "bit_lshift", ">>": "bit_rshift", "**": "py_pow"}
-            op_fn = op_names[expr["op"]]
-            self._add_abstract_op(f"val {op_fn} (x: int) (y: int) : int")
-            return f"({op_fn} {left} {right})"
-        elif expr["op"] == "?":
+            # In body context, Python's and/or return int. Use if-then-else
+            # to convert bool result back to int, avoiding abstract vals
+            # that can't handle mixed bool/int args.
+            return f"(if {left_b} {op} {right_b} then 1 else 0)"
+        if raw_op in ("in", "not in"):
+            return self._emit_membership(raw_op, expr, left, right, local_refs,
+                                          invariant_ctx, subst)
+        if raw_op in self._BITWISE_FN_NAMES:
+            return self._emit_bitwise_or_power(raw_op, expr, left, right)
+        if raw_op == "?":
             self._add_abstract_op("val unknown_op (x: int) (y: int) : int")
             return f"(unknown_op {left} {right})"
         return f"({left} {op} {right})"
@@ -911,14 +1054,64 @@ class Module6_WhyMLTranspiler:
     def _handle_dotted_call(self, func_name: str, args: List[str]) -> str:
         """Handle dotted method calls (x.method(...)): emit abstract val declaration."""
         safe_name = self._whyml_ident(func_name.replace(".", "_"))
-        coerced = [self._coerce_to_int(a) for a in args]
-        n = len(coerced)
+        n = len(args)
         arity_name = f"{safe_name}_{n}"
+        # When the call is `self.<method>(...)` on a method defined in the
+        # same module, look up the real declared return type AND parameter
+        # types so the abstract val matches the actual signature. Without
+        # this, every `self.foo(...)` is abstracted as `val ... (xi: int)
+        # ... : int`, mismatching downstream consumers when `<method>`
+        # actually takes/returns array or map types.
+        ret_type = "int"
+        param_types: List[str] = []
+        if func_name.startswith("self."):
+            # Method IR names are stored as "<class_lower>__<method>"
+            # (Module5._build_function_ir), so a `self._emit_contracts` call
+            # site has to be prefixed with the current class's lowercased
+            # name to hit the lookup.
+            method_tail = func_name[len("self."):]
+            cls = self._current_self_type
+            lookup_key = f"{cls}__{method_tail}" if cls else method_tail
+            ret_type = self._module_method_return_types.get(lookup_key, "int")
+            param_types = self._module_method_param_types.get(lookup_key, [])
+        # Pad / truncate param_types to match n (the abstract val arity
+        # only sees the caller's actual arg count, not the IR's symbol
+        # table size).
+        while len(param_types) < n:
+            param_types.append("int")
+        param_types = param_types[:n]
+        # Coerce each arg based on its declared param type. The caller's
+        # arg may be int while the param expects array or map (e.g. when
+        # the int came from an abstract `get_*` accessor returning int
+        # but the receiver method declares the slot as `Set[T]`).
+        coerced: List[str] = []
+        for arg, ptype in zip(args, param_types):
+            if ptype == "int":
+                coerced.append(self._coerce_to_int(arg))
+            elif ptype == "array int":
+                coerced.append(self._array_coerce_arg(arg))
+            elif ptype == "map int (option int)":
+                # No known int→map coercion. Use `const None` as a
+                # placeholder empty map; the abstract val has no axioms
+                # about its contents anyway.
+                stripped = arg.strip()
+                map_prefixes = ("(map_update_some ", "(map_update_none ",
+                                "(const (None: option int)", "(Map.get ")
+                if any(stripped.startswith(p) for p in map_prefixes):
+                    coerced.append(arg)
+                elif stripped.replace("_", "").replace("!", "").isalnum():
+                    # Bare identifier — pass through; caller-side type
+                    # must already match.
+                    coerced.append(arg)
+                else:
+                    coerced.append("(const (None: option int))")
+            else:
+                coerced.append(arg)
         if n == 0:
-            self._add_abstract_op(f"val {arity_name} () : int")
+            self._add_abstract_op(f"val {arity_name} () : {ret_type}")
             return f"({arity_name} ())"
-        params = " ".join(f"(x{i}: int)" for i in range(n))
-        self._add_abstract_op(f"val {arity_name} {params} : int")
+        params = " ".join(f"(x{i}: {ptype})" for i, ptype in enumerate(param_types))
+        self._add_abstract_op(f"val {arity_name} {params} : {ret_type}")
         return f"({arity_name} {' '.join(coerced)})"
 
     def _handle_call_expr(self, expr: Dict[str, Any], local_refs: Set[str],
@@ -933,7 +1126,7 @@ class Module6_WhyMLTranspiler:
             return f"({fn} {args[0]} {args[1]})"
         if func_name == "isinstance" and len(args) == 2:
             type_arg = self._coerce_to_int(args[1])
-            self_type = getattr(self, '_current_self_type', None)
+            self_type = self._current_self_type
             if args[0] == "self" and self_type:
                 op = f"isinstance_check_{self_type}"
                 self._add_abstract_op(f"val {op} (x: {self_type}) (t: int) : bool")
@@ -942,12 +1135,38 @@ class Module6_WhyMLTranspiler:
                 self._add_abstract_op("val isinstance_check (x: int) (t: int) : bool")
             return f"({op} {args[0]} {type_arg})"
         if func_name in ("set", "frozenset") and len(args) == 0:
-            self._add_abstract_op("val set_empty () : int")
-            return "(set_empty ())"
+            # Body set: same `map int (option int)` model as body dicts.
+            # Sets store `Some 0` for "present" keys, `None` for absent.
+            return "(const (None: option int))"
+        if func_name == "sorted" and len(args) == 1:
+            # Abstract `sorted` over an array — returns a permuted array.
+            # We don't model the sortedness invariant here; callers that
+            # need it should use `\is_sorted` in contracts.
+            self._add_abstract_op(
+                "val sorted_1 (a: array int) : array int")
+            return f"(sorted_1 {self._array_coerce_arg(args[0])})"
+        if func_name in ("any", "all") and len(args) == 1:
+            # `any(iterable)` / `all(iterable)` over an array — abstract.
+            # Unsupported iterable shapes (generator expressions etc.) get
+            # dropped to `0` at the IR level; coerce that to an array
+            # placeholder so the abstract val type-checks.
+            self._add_abstract_op(
+                f"val {func_name}_1 (a: array int) : bool")
+            return f"({func_name}_1 {self._array_coerce_arg(args[0])})"
         if func_name == "dict" and len(args) == 0:
-            self._add_abstract_op("val dict_new () : int")
-            return "(dict_new ())"
+            # Body dict: empty `map int (option int)`. Parallel to
+            # `\empty_map` (`_handle_map_empty_expr`).
+            return "(const (None: option int))"
         if func_name == "list" and len(args) <= 1:
+            # `list(iterable)` semantics depend on the surrounding return
+            # type. In a `List[T] -> array int` context, emit an abstract
+            # array-returning val so the result type-checks at the
+            # function boundary. Otherwise keep the legacy `int -> int`
+            # shape (used as a counter/length hash in body-int contexts —
+            # eg. `list(A) + list(B)` for Python list concatenation).
+            if self._func_return_type == "array int":
+                self._add_abstract_op("val list_new_arr (x: int) : array int")
+                return f"(list_new_arr {args[0] if args else '0'})"
             self._add_abstract_op("val list_new (x: int) : int")
             return f"(list_new {args[0] if args else '0'})"
         if func_name == "join" and len(args) == 1:
@@ -970,7 +1189,7 @@ class Module6_WhyMLTranspiler:
         if func_name == "hasattr":
             a0 = args[0] if args else "0"
             a1 = self._coerce_str_arg(args[1] if len(args) > 1 else "0")
-            self_type = getattr(self, '_current_self_type', None)
+            self_type = self._current_self_type
             if a0 == "self" and self_type:
                 op = f"hasattr_check_{self_type}"
                 self._add_abstract_op(f"val {op} (x: {self_type}) (a: int) : bool")
@@ -989,8 +1208,8 @@ class Module6_WhyMLTranspiler:
         coerced_args = [self._coerce_to_int(a) for a in args]
         safe_fn = self._whyml_ident(func_name)
         if (func_name not in local_refs
-                and func_name not in getattr(self, '_current_params', set())
-                and safe_fn not in getattr(self, '_module_func_names', set())):
+                and func_name not in self._current_params
+                and safe_fn not in self._module_func_names):
             n = len(coerced_args)
             arity_fn = f"{safe_fn}_{n}"
             if n == 0:
@@ -1045,10 +1264,26 @@ class Module6_WhyMLTranspiler:
                 var_name in getattr(self, "_current_array1d_params", set()))
             if not is_array and not is_dict and var_name:
                 st = getattr(self, "_current_symbol_table", {})
-                if st.get(var_name) in ("list", "dict"):
+                if st.get(var_name) == "list":
                     is_array = True
+                elif st.get(var_name) in ("dict", "set", "frozenset"):
+                    is_dict = True
+            # `self.<field>[k]` where the field is set/dict-typed.
+            if not is_array and not is_dict and value.get("type") in ("Attribute", "FieldGet"):
+                ft = self._field_type_of(value)
+                if ft in ("set", "dict", "frozenset"):
+                    is_dict = True
             if is_array:
                 return f"{value_str}[{index}]"
+            elif is_dict:
+                # Body dict subscript read: `d[k]` →
+                # `match Map.get !d k with Some v -> v | None -> 0 end`.
+                # For body-local dicts, `value_str` already includes the
+                # `!` deref because `_handle_var_expr` treats them as
+                # refs. For `self.<dict-field>` accesses, no deref is
+                # needed (record-field access is direct).
+                k = self._coerce_to_int(index)
+                return f"(match Map.get {value_str} {k} with | Some v_ -> v_ | None -> 0 end)"
             else:
                 self._add_abstract_op("val subscript_get (x: int) (i: int) : int")
                 return f"(subscript_get {self._coerce_to_int(value_str)} {self._coerce_to_int(index)})"
@@ -1075,11 +1310,11 @@ class Module6_WhyMLTranspiler:
         name = expr["name"]
         if subst and name in subst:
             name = subst[name]
-        if name in getattr(self, '_array_locals', set()):
+        if name in self._array_locals:
             return self._whyml_ident(name)
-        if name in getattr(self, '_lambda_locals', set()):
+        if name in self._lambda_locals:
             return self._whyml_ident(name)
-        if name in getattr(self, '_record_locals', set()):
+        if name in self._record_locals:
             return self._whyml_ident(name)
         if name in local_refs:
             return f"!{self._whyml_ident(name)}"
@@ -1097,11 +1332,11 @@ class Module6_WhyMLTranspiler:
         obj = expr['object']
         field = expr['field']
         safe_field = self._whyml_ident(field)
-        decl_fields = getattr(self, '_all_record_fields', set())
+        decl_fields = self._all_record_fields
         if field in decl_fields:
             return f"{obj}.{safe_field}"
         hash_field = hash(field) % 2147483647
-        self_type = getattr(self, '_current_self_type', None)
+        self_type = self._current_self_type
         if obj == "self" and self_type:
             name = f"getattr_{self_type}"
             self._add_abstract_op(f"val {name} (x: {self_type}) (f: int) : int")
@@ -1217,6 +1452,11 @@ class Module6_WhyMLTranspiler:
         lo = self._expr_to_whyml(sl["lower"], local_refs, invariant_ctx, subst) if sl.get("lower") else "0"
         hi = self._expr_to_whyml(sl["upper"], local_refs, invariant_ctx, subst) if sl.get("upper") else f"(Array.length {arr})"
         self._add_abstract_op("val array_slice (a: array int) (lo: int) (hi: int) : array int")
+        # If `arr` is an int expression (e.g. `str_conv s` for a string
+        # parameter being sliced), coerce to a placeholder array so the
+        # abstract val type-checks. Module6 has no model for string
+        # slicing through `array_slice`; the slice is treated as opaque.
+        arr = self._array_coerce_arg(arr)
         return f"(array_slice {arr} {lo} {hi})"
 
     def _handle_arraylen_expr(
@@ -1336,11 +1576,23 @@ class Module6_WhyMLTranspiler:
         subst: Optional[Dict[str, str]],
     ) -> str:
         elts = expr.get("elts", [])
+        # Empty set literal: `map int (option int)` initialised to None.
         if not elts:
-            self._add_abstract_op("val set_empty () : int")
-            return "(set_empty ())"
-        self._add_abstract_op("val set_new (x: int) : int")
-        return "(set_new 0)"
+            return "(const (None: option int))"
+        # Non-empty set literal `{a, b, c}`: chain map_update_some on an
+        # empty base. Each element is marked present with value 0.
+        # `Map.set` directly would be a logic-function call rejected as
+        # ghost; the program-val wrapper sidesteps that.
+        self._add_abstract_op(
+            "val map_update_some (m: map int (option int)) (k: int) (v: int) "
+            ": map int (option int)\n"
+            "    ensures { result = Map.set m k (Some v) }")
+        result = "(const (None: option int))"
+        for elt in elts:
+            elt_w = self._coerce_to_int(self._expr_to_whyml(
+                elt, local_refs, invariant_ctx, subst))
+            result = f"(map_update_some {result} {elt_w} 0)"
+        return result
 
     # --- Ghost expression handlers ---
 
@@ -1588,7 +1840,7 @@ class Module6_WhyMLTranspiler:
         if t == "OldField": return f"(old {expr['object']}.{expr['field']})"
         if t == "Starred":  return self._expr_to_whyml(expr.get("value", {}), local_refs, invariant_ctx, subst)
         if t == "Bool":
-            if getattr(self, '_in_spec', False): return "true" if expr.get("value") else "false"
+            if self._in_spec: return "true" if expr.get("value") else "false"
             return "1" if expr.get("value") else "0"
         if t == "Tuple":
             elts = [self._expr_to_whyml(e, local_refs, invariant_ctx, subst) for e in expr.get("elts", [])]
@@ -1598,8 +1850,11 @@ class Module6_WhyMLTranspiler:
         if t == "Exists":
             return f"(exists {expr['var']} : int. {self._expr_to_whyml(expr['body'], local_refs, invariant_ctx, subst)})"
         if t == "DictLit":
-            self._add_abstract_op("val dict_new () : int")
-            return "(dict_new ())"
+            # Body dict literal: empty `map int (option int)`. Non-empty
+            # dict literals would need element-by-element `Map.set` but
+            # are currently uncommon enough to fall through to empty.
+            # TODO: handle `{k1: v1, k2: v2}` by chaining Map.set.
+            return "(const (None: option int))"
         if t == "ListComp":
             self._add_abstract_op("val list_comp (x: int) : int")
             return "(list_comp 0)"
@@ -1649,14 +1904,180 @@ class Module6_WhyMLTranspiler:
                            for e in elts}
             self._known_collection_sizes[target] = len(unique_vals)
 
+    _BOOL_BINOPS = frozenset({
+        "==", "!=", "<", "<=", ">", ">=", "is", "is not", "in", "not in",
+    })
+
+    @staticmethod
+    def _val_is_bool(val_ir: Dict[str, Any]) -> bool:
+        """RHS expression is bool-typed in Python — needs `if … then 1 else 0`
+        when stored into a WhyML `int` slot."""
+        vt = val_ir.get("type", "")
+        if vt in ("Compare", "BoolOp"):
+            return True
+        if vt == "UnaryOp" and val_ir.get("op") == "not":
+            return True
+        if vt == "BinOp" and val_ir.get("op") in Module6_WhyMLTranspiler._BOOL_BINOPS:
+            return True
+        return False
+
+    def _first_assign_kind(self, val: str, val_ir: Dict[str, Any]) -> str:
+        """Classify a first-declaration RHS into one of: record, lambda,
+        array, slice, dict, bounded_int, default. Drives the `let X = …`
+        shape selection in `_handle_assign_stmt`."""
+        vt = val_ir.get("type", "")
+        if vt == "Call" and val_ir.get("func", "") in self._record_types:
+            return "record"
+        if vt == "Lambda":
+            return "lambda"
+        if vt == "SliceAccess":
+            return "slice"
+        if (val.startswith("(Array.make") or val == "(Array.make 1024 0)"
+                or val.startswith("(sorted_1 ")):
+            return "array"
+        if vt == "Call" and val_ir.get("func", "").startswith("self."):
+            method_tail = val_ir["func"][len("self."):]
+            cls = self._current_self_type
+            lookup = f"{cls}__{method_tail}" if cls else method_tail
+            if self._module_method_return_types.get(lookup) == "array int":
+                return "array"
+        # Body dict/set: recognise both legacy abstract-val emission and
+        # the new `map.Map (option int)` form, plus IR-level signals so
+        # detection doesn't depend on val-string shape.
+        if (val.startswith("(dict_new")
+                or val.startswith("(const (None: option int)")
+                or val.startswith("(map_update_some ")
+                or val.startswith("(map_update_none ")
+                or vt in ("DictLit", "SetLit")
+                or (vt == "Call" and val_ir.get("func") in ("dict", "set", "frozenset"))):
+            return "dict"
+        # RHS is (or contains) a Var bound to a set/dict-typed parameter.
+        # Detect the bare Var case and the IfExpr/BinOp wrappers whose
+        # leaves yield map-typed values (e.g. `inner_held = held | {x}
+        # if mutex else held`).
+        if self._rhs_yields_map(val_ir):
+            return "dict"
+        if self._bounded_int:
+            return "bounded_int"
+        return "default"
+
+    def _rhs_yields_array(self, val_ir: Dict[str, Any]) -> bool:
+        """Parallel of `_rhs_yields_map` for `array int`-typed RHS.
+        True for list/tuple-typed param Vars, list-typed self-fields,
+        and Calls to functions known to return `array int`."""
+        if not isinstance(val_ir, dict):
+            return False
+        t = val_ir.get("type", "")
+        if t == "Var":
+            name = val_ir.get("name", "")
+            if name in self._array_locals or name in self._current_array1d_params:
+                return True
+            if self._current_symbol_table.get(name) in ("list", "tuple"):
+                return True
+            return False
+        if t in ("Attribute", "FieldGet"):
+            return self._field_type_of(val_ir) in ("list", "tuple")
+        if t == "Call":
+            fn = val_ir.get("func", "")
+            if fn.startswith("self."):
+                tail = fn[len("self."):]
+                cls = self._current_self_type
+                key = f"{cls}__{tail}" if cls else tail
+            else:
+                key = fn
+            return self._module_method_return_types.get(key) == "array int"
+        return False
+
+    def _rhs_yields_map(self, val_ir: Dict[str, Any]) -> bool:
+        """Heuristic: does this RHS IR yield a `map int (option int)`
+        value? True for set/dict-typed param Vars, IfExpr branches that
+        do, BinOp `|`/`&` between map-typed sides (Python set ops),
+        Subscript-read on a dict-typed self-field, or a Call to a
+        function declared `-> Set[T]` / `-> Dict[K, V]` (looked up via
+        the module-level return-type map)."""
+        if not isinstance(val_ir, dict):
+            return False
+        t = val_ir.get("type", "")
+        if t == "Var":
+            name = val_ir.get("name", "")
+            if name in self._dict_locals:
+                return True
+            if self._current_symbol_table.get(name) in ("set", "dict", "frozenset"):
+                return True
+            return False
+        if t in ("Attribute", "FieldGet"):
+            return self._field_type_of(val_ir) in ("set", "dict", "frozenset")
+        if t == "Call":
+            fn = val_ir.get("func", "")
+            # `self.<method>(...)` — apply class-prefix mangling.
+            if fn.startswith("self."):
+                tail = fn[len("self."):]
+                cls = self._current_self_type
+                key = f"{cls}__{tail}" if cls else tail
+            else:
+                key = fn
+            return self._module_method_return_types.get(key) == "map int (option int)"
+        if t == "IfExpr":
+            return (self._rhs_yields_map(val_ir.get("body", {}))
+                    or self._rhs_yields_map(val_ir.get("orelse", {})))
+        if t == "BinOp" and val_ir.get("op") in ("|", "&", "^", "-"):
+            # Python set union/intersection/xor/difference syntax. If
+            # either operand is map-typed, the result is too.
+            return (self._rhs_yields_map(val_ir.get("left", {}))
+                    or self._rhs_yields_map(val_ir.get("right", {})))
+        return False
+
+    def _emit_first_assign(self, kind: str, indent: str, safe_target: str, target: str,
+                           val: str, val_ir: Dict[str, Any]) -> str:
+        """Emit the `let X = …` line for a first declaration of `target`,
+        updating the locals-tracking sets as a side effect."""
+        if kind == "record":
+            self._record_locals.add(target)
+            return f"{indent}let {safe_target} = {val} in\n"
+        if kind == "lambda":
+            self._lambda_locals.add(target)
+            return f"{indent}let {safe_target} = {val} in\n"
+        if kind in ("array", "slice"):
+            self._array_locals.add(target)
+            return f"{indent}let {safe_target} = {val} in\n"
+        if kind == "dict":
+            self._dict_locals.add(target)
+            return f"{indent}let {safe_target} = ref {val} in\n"
+        if kind == "bounded_int":
+            return f"{indent}let {safe_target} = ref ({val} : int{self._bounded_int}) in\n"
+        if self._val_is_bool(val_ir):
+            val = f"(if {val} then 1 else 0)"
+        return f"{indent}let {safe_target} = ref {val} in\n"
+
+    def _emit_array_local_reassign(self, target: str, safe_target: str, indent: str,
+                                    val_ir: Dict[str, Any], local_refs: Set[str]) -> str:
+        """Reassigning an array-local (declared via `let arr = (Array.make
+        1024 0) in`, NOT a ref) — emitting `arr := val` is invalid because
+        `arr` isn't a `ref`. Model the reassignment as "reset the length
+        counter, then append each new element" so subsequent appends fill
+        from index 0. Only handles literal RHS shapes; other shapes
+        (method calls etc.) fall through to a no-op (soundness depends on
+        the caller treating the array as opaque after this point —
+        typically handled by `\\trusted` upstream)."""
+        len_name = f"{safe_target}_len"
+        if val_ir.get("type") != "ArrayLit":
+            return f"{indent}()"
+        parts: List[str] = [f"{indent}{len_name} := 0"]
+        for elt in val_ir.get("elts", []):
+            elt_str = self._expr_to_whyml(elt, local_refs)
+            parts.append(
+                f"{indent}{safe_target}[!{len_name}] <- {self._coerce_to_int(elt_str)}")
+            parts.append(f"{indent}{len_name} := !{len_name} + 1")
+        return ";\n".join(parts)
+
     def _handle_assign_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
                              local_refs: Set[str], declared_refs: Set[str],
                              indent: str, in_loop: bool) -> str:
         target = stmt["target"]
         safe_target = self._whyml_ident(target)
-        val_ir_raw = stmt.get("value", {})
-        vt = val_ir_raw.get("type", "")
-        self._track_collection_metadata(target, val_ir_raw)
+        val_ir = stmt.get("value", {})
+        vt = val_ir.get("type", "")
+        self._track_collection_metadata(target, val_ir)
 
         val = self._expr_to_whyml(stmt["value"], local_refs)
         # Tuple/Set literals can't be stored in int refs; use 0 as placeholder
@@ -1672,56 +2093,26 @@ class Module6_WhyMLTranspiler:
 
         if target not in declared_refs:
             declared_refs.add(target)
-            is_array_val = val.startswith("(Array.make") or val == "(Array.make 1024 0)"
-            is_dict_val = val.startswith("(dict_new")
-            is_lambda_val = (stmt.get("value", {}).get("type") == "Lambda")
-            is_slice_val = (stmt.get("value", {}).get("type") == "SliceAccess")
-            is_record_val = (stmt.get("value", {}).get("type") == "Call" and
-                             stmt.get("value", {}).get("func", "") in self._record_types)
-            if is_record_val:
-                code = f"{indent}let {safe_target} = {val} in\n"
-                self._record_locals.add(target)
-            elif is_lambda_val:
-                code = f"{indent}let {safe_target} = {val} in\n"
-                self._lambda_locals.add(target)
-            elif is_array_val or is_slice_val:
-                code = f"{indent}let {safe_target} = {val} in\n"
-                self._array_locals.add(target)
-            elif is_dict_val:
-                code = f"{indent}let {safe_target} = ref {val} in\n"
-                self._dict_locals.add(target)
-            elif self._bounded_int:
-                code = f"{indent}let {safe_target} = ref ({val} : int{self._bounded_int}) in\n"
-            else:
-                val_ir = stmt.get("value", {})
-                val_type = val_ir.get("type", "")
-                is_bool_val = val_type in ("Compare", "BoolOp") or (
-                    val_type == "UnaryOp" and val_ir.get("op") == "not") or (
-                    val_type == "BinOp" and val_ir.get("op") in (
-                        "==", "!=", "<", "<=", ">", ">=",
-                        "is", "is not", "in", "not in"))
-                if is_bool_val:
-                    val = f"(if {val} then 1 else 0)"
-                code = f"{indent}let {safe_target} = ref {val} in\n"
+            kind = self._first_assign_kind(val, val_ir)
+            code = self._emit_first_assign(kind, indent, safe_target, target, val, val_ir)
             rest_code = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
             if not rest_code:
                 rest_code = f"{indent}()"
             return code + rest_code
-        else:
-            val_ir = stmt.get("value", {})
-            val_type = val_ir.get("type", "")
-            is_compare = val_type == "Compare"
-            is_bool_op = val_type == "BoolOp"
-            is_unary_not = val_type == "UnaryOp" and val_ir.get("op") == "not"
-            is_cmp_binop = (val_type == "BinOp" and
-                            val_ir.get("op") in ("==", "!=", "<", "<=", ">", ">=",
-                                                  "is", "is not", "in", "not in"))
-            if is_compare or is_bool_op or is_unary_not or is_cmp_binop:
-                val = f"(if {val} then 1 else 0)"
-            code = f"{indent}{safe_target} := {val}"
+
+        if target in self._array_locals:
+            code = self._emit_array_local_reassign(
+                target, safe_target, indent, val_ir, local_refs)
             if rest:
-                code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+                code += ";\n" + self._stmts_to_whyml(
+                    rest, local_refs, declared_refs, indent, in_loop)
             return code
+        if self._val_is_bool(val_ir):
+            val = f"(if {val} then 1 else 0)"
+        code = f"{indent}{safe_target} := {val}"
+        if rest:
+            code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+        return code
 
     def _handle_while_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
                             local_refs: Set[str], declared_refs: Set[str],
@@ -1788,13 +2179,23 @@ class Module6_WhyMLTranspiler:
     #@ assigns self._abstract_ops
     def _classify_iterable(self, iter_ir: Dict[str, Any],
                             local_refs: Set[str], idx: str) -> Tuple[str, str, bool]:
-        """Classify a For loop's iterable. Returns (len_expr, elem_expr, is_range)."""
+        """Classify a For loop's iterable. Returns (len_expr, elem_expr, is_range).
+        Side-effect: sets self._for_idx_init to the initial counter value
+        (default "0"; for `range(start, stop)`, the `start` expression).
+        """
+        self._for_idx_init = "0"
         is_range = (iter_ir.get("type") == "Call" and
-                    iter_ir.get("func") == "range" and
-                    len(iter_ir.get("args", [])) == 1)
-        if is_range:
+                    iter_ir.get("func") == "range")
+        if is_range and len(iter_ir.get("args", [])) == 1:
             bound = self._expr_to_whyml(iter_ir["args"][0], local_refs)
             return bound, f"!{idx}", True
+        if is_range and len(iter_ir.get("args", [])) == 2:
+            # `range(start, stop)` — initialise the idx at `start` and loop
+            # while `!idx < stop`. The loop variable IS the idx.
+            start = self._expr_to_whyml(iter_ir["args"][0], local_refs)
+            stop = self._expr_to_whyml(iter_ir["args"][1], local_refs)
+            self._for_idx_init = start
+            return stop, f"!{idx}", True
         if iter_ir.get("type") == "Var" and self.memory_model in ("hoare", "concurrent"):
             var_name = iter_ir.get("name", "")
             iter_expr = self._expr_to_whyml(iter_ir, local_refs)
@@ -1811,6 +2212,28 @@ class Module6_WhyMLTranspiler:
             self._add_abstract_op("val iter_length (x: int) : int")
             self._add_abstract_op("val iter_get (x: int) (i: int) : int")
             return f"(iter_length {iter_expr})", f"(iter_get {iter_expr} !{idx})", False
+        # `for x in self.<method>(...)` / `for x in <fn>(...)` where the
+        # callee returns `array int`. Without this branch the iter
+        # expression is `array int` but `iter_length`/`iter_get` are
+        # declared `(x: int) : ...`, producing an `array int` vs `int`
+        # type mismatch at the for-loop expansion.
+        if (iter_ir.get("type") == "Call"
+                and self.memory_model in ("hoare", "concurrent")):
+            fn = iter_ir.get("func", "")
+            ret_type = "int"
+            if fn.startswith("self."):
+                method_tail = fn[len("self."):]
+                cls = self._current_self_type
+                lookup_key = f"{cls}__{method_tail}" if cls else method_tail
+                ret_type = self._module_method_return_types.get(lookup_key, "int")
+            else:
+                # Bare-name function call — check the module-level map
+                # directly. Covers both class-prefixed names (when called
+                # without `self.`) and free functions.
+                ret_type = self._module_method_return_types.get(fn, "int")
+            if ret_type == "array int":
+                iter_expr = self._expr_to_whyml(iter_ir, local_refs)
+                return f"Array.length {iter_expr}", f"{iter_expr}[!{idx}]", False
         if self.memory_model not in ("hoare", "concurrent"):
             iter_expr = self._expr_to_whyml(iter_ir, local_refs)
             return f"{iter_expr}_len", f"Map.get !{self._heap_var} ({iter_expr} + !{idx})", False
@@ -1889,18 +2312,19 @@ class Module6_WhyMLTranspiler:
             while_code = (f"{loop_indent}try\n{while_code}\n"
                           f"{loop_indent}with PyCSL_Break -> () end")
 
+        idx_init = self._for_idx_init
         if self._bounded_int:
-            idx_decl = f"{loop_indent}let {idx} = ref (0 : int{self._bounded_int}) in\n{while_code}"
+            idx_decl = f"{loop_indent}let {idx} = ref ({idx_init} : int{self._bounded_int}) in\n{while_code}"
         else:
-            idx_decl = f"{loop_indent}let {idx} = ref 0 in\n{while_code}"
+            idx_decl = f"{loop_indent}let {idx} = ref {idx_init} in\n{while_code}"
 
-        if has_direct_ret and not getattr(self, '_has_early_ret', False) and not in_loop:
+        if has_direct_ret and not self._has_early_ret and not in_loop:
             rest_code = self._stmts_to_whyml(
                 rest, local_refs, declared_refs, indent + "  ", in_loop)
             inner = idx_decl
             if rest_code:
                 inner += ";\n" + rest_code
-            func_ret = getattr(self, '_func_return_type', 'int')
+            func_ret = self._func_return_type
             if func_ret == "unit":
                 return (f"{indent}try\n{inner}\n"
                         f"{indent}with Return_void -> () end")
@@ -1943,6 +2367,12 @@ class Module6_WhyMLTranspiler:
             code = f"{pre_decls}{indent}try\n{body_str}\n"
             n_h = len(handlers)
             i_h = 0
+            first_handler = True
+            # Why3 requires `try BODY with Exc1 -> h1 | Exc2 -> h2 end` —
+            # only the first handler uses `with`, subsequent handlers
+            # (and additional alternatives within a `|`-separated
+            # exc_type) use `|`. Emitting separate `with` clauses for
+            # each handler produces a syntax error.
             while i_h < n_h:
                 h = handlers[i_h]
                 exc = h.get("exc_type") or "PyCSL_Exception"
@@ -1955,7 +2385,9 @@ class Module6_WhyMLTranspiler:
                         h.get("body", []), local_refs, declared_refs.copy(), indent + "  ", in_loop)
                     if not handler_body:
                         handler_body = f"{indent}  ()"
-                    code += f"{indent}with {ep} -> \n{handler_body}\n"
+                    connector = "with" if first_handler else "|"
+                    code += f"{indent}{connector} {ep} -> \n{handler_body}\n"
+                    first_handler = False
                     i_ep += 1
                 i_h += 1
             code += f"{indent}end"
@@ -2143,6 +2575,19 @@ class Module6_WhyMLTranspiler:
                 else:
                     params = " ".join(f"(x{i}: int)" for i in range(nargs))
                     self._abstract_ops[arity_fn] = f"val {arity_fn} {params} : {tuple_ret}"
+        elif val_ir.get("type") == "Subscript":
+            # `a, b = arr[i]` — the default `subscript_get` returns `int`,
+            # which doesn't match the tuple pattern on the LHS. Emit a
+            # dedicated `subscript_get_t<arity>` returning an N-tuple of
+            # ints, and override the `val_whyml` to use it.
+            n_targets = len(targets)
+            sg_fn = f"subscript_get_t{n_targets}"
+            tuple_ret = "(" + ", ".join(["int"] * n_targets) + ")"
+            self._add_abstract_op(
+                f"val {sg_fn} (x: int) (i: int) : {tuple_ret}")
+            inner = self._expr_to_whyml(val_ir.get("value", {}), local_refs)
+            idx = self._expr_to_whyml(val_ir.get("index", {}), local_refs)
+            val_whyml = f"({sg_fn} {self._coerce_to_int(inner)} {self._coerce_to_int(idx)})"
         tmp_names = [f"_tu_{t}" for t in safe_targets]
         pattern = ", ".join(tmp_names)
         lines = [f"{indent}let ({pattern}) = {val_whyml} in"]
@@ -2159,8 +2604,59 @@ class Module6_WhyMLTranspiler:
             i_tu += 1
         code = "\n".join(lines)
         if rest:
-            code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+            rest_code = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+            stripped = code.rstrip()
+            # If the last line is `let ... in`, the rest is that `let`'s
+            # body — no `;` separator (Why3 syntax). If the last line
+            # already ends with `;` (e.g. `x := tmp;`), no additional `;`
+            # is needed either — would produce a `;;` artifact. Only
+            # statements ending in something else (rare here) need `;`.
+            if stripped.endswith(" in") or stripped.endswith(";"):
+                code += "\n" + rest_code
+            else:
+                code += ";\n" + rest_code
         return code
+
+    def _field_type_for(self, obj: str, field: str) -> Optional[str]:
+        """Resolve `<obj>.<field>` (both as raw strings, the IR shape
+        used by `_handle_fieldset_stmt`) to the field's declared type
+        tag, or None if the obj/field doesn't match a known record."""
+        if obj != "self":
+            return None
+        cls = self._current_self_type
+        if not cls:
+            return None
+        for info in self._record_types.values():
+            if info.get("whyml_name") == cls:
+                return info.get("field_types", {}).get(field)
+        return None
+
+    def _field_type_of(self, attr_ir: Dict[str, Any]) -> Optional[str]:
+        """Resolve `self.<field>` to its declared IR type tag, or None if
+        the target is not a self-field access. Accepts both shapes:
+        `Attribute(value=Var(self), attr=F)` and `FieldGet(object='self',
+        field=F)` (Module5 uses both for different contexts).
+
+        Lookup goes through `_record_types`, keyed by class name; the
+        whyml_name matches `_current_self_type` (lowercased)."""
+        if attr_ir.get("type") == "Attribute":
+            receiver = attr_ir.get("value", {})
+            if not (receiver.get("type") == "Var" and receiver.get("name") == "self"):
+                return None
+            field_name = attr_ir.get("attr")
+        elif attr_ir.get("type") == "FieldGet":
+            if attr_ir.get("object") != "self":
+                return None
+            field_name = attr_ir.get("field")
+        else:
+            return None
+        cls = self._current_self_type
+        if not cls or not field_name:
+            return None
+        for info in self._record_types.values():
+            if info.get("whyml_name") == cls:
+                return info.get("field_types", {}).get(field_name)
+        return None
 
     def _handle_array_set_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
                                 local_refs: Set[str], declared_refs: Set[str],
@@ -2196,11 +2692,48 @@ class Module6_WhyMLTranspiler:
                     var_name in getattr(self, "_current_array1d_params", set()))
                 if not is_array and not is_dict and var_name:
                     st = getattr(self, "_current_symbol_table", {})
-                    if st.get(var_name) in ("list", "dict"):
+                    if st.get(var_name) == "list":
                         is_array = True
+                    elif st.get(var_name) in ("dict", "set", "frozenset"):
+                        is_dict = True
+                # `self.<field>[k] = v` where <field> is set/dict-typed.
+                # Resolve via the record-type table; treat as a body-dict
+                # write on the field reference. Module5 emits self-field
+                # access as `FieldGet` in body context (alongside the
+                # `Attribute` shape used elsewhere); accept both.
+                self_field_name: Optional[str] = None
+                arr_type = arr.get("type")
+                if not is_array and not is_dict and arr_type in ("Attribute", "FieldGet"):
+                    ft = self._field_type_of(arr)
+                    if ft in ("set", "dict", "frozenset"):
+                        is_dict = True
+                        self_field_name = (arr.get("attr") if arr_type == "Attribute"
+                                            else arr.get("field"))
                 if is_array:
                     val_expr = self._coerce_to_int(val_expr)
                     code = f"{indent}{array_expr}[{index_expr}] <- {val_expr}"
+                elif is_dict:
+                    # Body dict subscript write: `d[k] = v`. `Map.set` is a
+                    # pure logic function and Why3 refuses to assign its
+                    # result back to a non-ghost ref ("ghost modification
+                    # in non-ghost variable"). Wrap it in a program-level
+                    # abstract val `map_update_some` whose contract is
+                    # the equivalent `Map.set` semantics.
+                    self._add_abstract_op(
+                        "val map_update_some (m: map int (option int)) (k: int) (v: int) "
+                        ": map int (option int)\n"
+                        "    ensures { result = Map.set m k (Some v) }")
+                    k = self._coerce_to_int(index_expr)
+                    v = self._coerce_to_int(val_expr)
+                    if self_field_name is not None:
+                        # `self.<field>[k] = v` — record-field assignment.
+                        # Why3 syntax: `self.field <- new_value`.
+                        safe_field = self._whyml_ident(self_field_name)
+                        code = (f"{indent}self.{safe_field} <- "
+                                f"map_update_some self.{safe_field} {k} {v}")
+                    else:
+                        safe_name = self._whyml_ident(var_name) if var_name else array_expr.lstrip("!")
+                        code = f"{indent}{safe_name} := map_update_some !{safe_name} {k} {v}"
                 else:
                     self._add_abstract_op("val subscript_set (x: int) (i: int) (v: int) : unit")
                     code = (f"{indent}subscript_set {self._coerce_to_int(array_expr)} "
@@ -2353,10 +2886,30 @@ class Module6_WhyMLTranspiler:
         op = self._op(raw_op)
         bitwise_ops = {"&": "bit_and", "|": "bit_or", "^": "bit_xor",
                        "<<": "bit_lshift", ">>": "bit_rshift", "**": "py_pow"}
+        # Detect array-typed targets so `+=` on a list lowers to array-concat,
+        # not integer add. Python `lines += [...]` extends the list; emitting
+        # `lines := !lines + rhs` produces a `array int` vs `int` type error
+        # at Why3.
+        array_target = (
+            target in self._array_locals
+            or target in self._array2d_params
+            or target in self._current_array1d_params
+        )
         if raw_op in bitwise_ops:
             op_fn = bitwise_ops[raw_op]
             self._add_abstract_op(f"val {op_fn} (x: int) (y: int) : int")
             code = f"{indent}{safe_target} := ({op_fn} !{safe_target} {val})"
+        elif raw_op == "+" and array_target:
+            # Python `lines += other` extends the list in place. Module6
+            # declares array locals as non-ref (`let lines = Array.make ... in`)
+            # and uses `lines[i] <- v` for element writes, so `:= !lines + rhs`
+            # is doubly wrong (no `:=`/deref on non-ref arrays, and integer
+            # add on arrays). Emit an abstract `array_extend` with unit
+            # return type — the side effect on `dst` is opaque to Why3 but
+            # the call type-checks.
+            self._add_abstract_op(
+                "val array_extend (dst: array int) (src: array int) : unit")
+            code = f"{indent}array_extend {safe_target} {val}"
         else:
             code = f"{indent}{safe_target} := !{safe_target} {op} {val}"
         if rest:
@@ -2380,12 +2933,30 @@ class Module6_WhyMLTranspiler:
         elif val == "false":
             val = "0"
         safe_field = self._whyml_ident(field)
-        decl_fields = getattr(self, '_all_record_fields', set())
+        decl_fields = self._all_record_fields
         if field in decl_fields:
+            # Coerce RHS to the field's declared WhyML type. Without
+            # this, `self.<list-field> <- <int-returning-call>` (e.g.
+            # `self._lock_order <- get_order(...)` where get_order is
+            # abstract `int -> int` but the field is `array int`)
+            # type-mismatches. Apply the matching coercion helper per
+            # field type.
+            ftype = self._field_type_for(obj, field)
+            if ftype in ("list", "tuple"):
+                val = self._array_coerce_arg(val)
+            elif ftype in ("set", "dict", "frozenset"):
+                # Map-typed field: keep map-shaped values, otherwise
+                # use empty map. (Same pragma as `_handle_dotted_call`.)
+                stripped = val.strip()
+                map_prefixes = ("(map_update_some ", "(map_update_none ",
+                                "(const (None: option int)", "(Map.get ")
+                if not any(stripped.startswith(p) for p in map_prefixes):
+                    if not stripped.replace("_", "").replace("!", "").isalnum():
+                        val = "(const (None: option int))"
             code = f"{indent}{obj}.{safe_field} <- {val}"
         else:
             hash_field = hash(field) % 2147483647
-            self_type = getattr(self, '_current_self_type', None)
+            self_type = self._current_self_type
             if obj == "self" and self_type:
                 self._add_abstract_op(f"val setattr_{self_type} (x: {self_type}) (f: int) (v: int) : unit")
                 code = f"{indent}setattr_{self_type} {obj} {hash_field} {self._coerce_to_int(val)}"
@@ -2410,12 +2981,12 @@ class Module6_WhyMLTranspiler:
         val = self._expr_to_whyml(stmt["value"], local_refs)
         op = self._op(stmt["op"])
         safe_field = self._whyml_ident(field)
-        decl_fields = getattr(self, '_all_record_fields', set())
+        decl_fields = self._all_record_fields
         if field in decl_fields:
             code = f"{indent}{obj}.{safe_field} <- {obj}.{safe_field} {op} {val}"
         else:
             hash_field = hash(field) % 2147483647
-            self_type = getattr(self, '_current_self_type', None)
+            self_type = self._current_self_type
             if obj == "self" and self_type:
                 getter = f"getattr_{self_type}"
                 setter = f"setattr_{self_type}"
@@ -2431,6 +3002,32 @@ class Module6_WhyMLTranspiler:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
+    def _bool_ir_to_int_wrap(self, val: str, val_ir: Optional[Dict[str, Any]]) -> str:
+        """If val_ir denotes a bool-typed IR expression, wrap val with
+        an int coercion `(if X then 1 else 0)`. Mirrors the bool-source
+        detection in _to_bool() so a `return isinstance(x, T)` style
+        statement doesn't raise a bool inside `exception Return int`.
+
+        Literal Bool atoms are handled by the caller's `val == "true"/"false"`
+        branches and intentionally not detected here."""
+        if val_ir is None:
+            return val
+        t = val_ir.get("type", "")
+        op = val_ir.get("op", "")
+        is_bool_source = (
+            (t == "Compare")
+            or (t == "BoolOp" and op in ("and", "or"))
+            or (t == "UnaryOp" and op == "not")
+            or (t == "BinOp" and op in ("==", "!=", "<", ">", "<=", ">=", "in", "not in"))
+            or (t == "Call" and val_ir.get("func", "") in (
+                "isinstance", "hasattr", "any", "all"))
+            or (t in ("Exists", "Forall", "SetMem", "SetSubset", "SetEq",
+                      "MapEq", "HasKey"))
+        )
+        if is_bool_source:
+            return f"(if {val} then 1 else 0)"
+        return val
+
     def _handle_return_stmt(
         self,
         stmt: Dict[str, Any],
@@ -2442,24 +3039,59 @@ class Module6_WhyMLTranspiler:
     ) -> str:
         """Reads self._has_early_ret, self._func_return_type, self._array_locals (no writes)."""
         val_ir = stmt.get("value")
+        use_raise = in_loop or self._has_early_ret
+        func_ret_peek = self._func_return_type
         if val_ir is None:
             val = "()"
         else:
             if val_ir.get("type") == "Var" and val_ir.get("name") in self._array_locals:
-                val = "0"
+                # `exception Return int` can't carry an array, so on the
+                # raise-Return int path we collapse the value to 0
+                # (lossy but at least type-correct). When the function
+                # actually returns `array int` (slot+signal path) or at
+                # function level (no raise), the array variable IS the
+                # value — keep its name.
+                if use_raise and func_ret_peek != "array int":
+                    val = "0"
+                else:
+                    val = self._whyml_ident(val_ir["name"])
             else:
                 val = self._expr_to_whyml(val_ir, local_refs)
-        use_raise = in_loop or getattr(self, '_has_early_ret', False)
         if use_raise:
-            func_ret = getattr(self, '_func_return_type', 'int')
+            func_ret = self._func_return_type
             if func_ret == "unit":
                 return f"{indent}raise Return_void"
-            if val == "()":
+            arity = self._current_tuple_arity
+            if arity > 0:
+                # Tuple return: use the dedicated Return_<arity> exception
+                # so the whole tuple value carries through. Do NOT call
+                # _coerce_to_int — for tuple-shaped strings that would hash
+                # the whole tuple to a single int.
+                return f"{indent}raise (Return_{arity} {val})"
+            # Array-returning functions with early returns CANNOT use the
+            # straightforward `raise (Return arr)` shape — Why3 forbids
+            # `array int` in exception payloads (mutable types), and the
+            # `ref (array int)` + signal workaround triggers Why3's
+            # region/linearity tracking (`Array.make` in the body becomes
+            # "prohibits further usage of _ret_array_slot"). Workaround
+            # at the source level: `\trusted` the affected functions so
+            # Module6 emits `val` (spec-only) instead of `let` + body.
+            # See docs/self-annotate-layer2-queue.md class M for the
+            # design analysis.
+            # int return path: an array-typed val here is structurally
+            # incompatible — `Return int` can't carry it. Collapse to 0
+            # (matches the pre-existing lossy behaviour).
+            if (val_ir and val_ir.get("type") == "Var"
+                    and val_ir.get("name") in self._array_locals):
+                val = "0"
+            elif val == "()":
                 val = "0"
             elif val == "true":
                 val = "1"
             elif val == "false":
                 val = "0"
+            else:
+                val = self._bool_ir_to_int_wrap(val, val_ir)
             val = self._coerce_to_int(val)
             return f"{indent}raise (Return {val})"
         return f"{indent}{val}"
@@ -2483,6 +3115,36 @@ class Module6_WhyMLTranspiler:
                 arg = self._coerce_to_int(arg)
                 len_ref = f"{safe_arr}_len"
                 code = f"{indent}{safe_arr}[!{len_ref}] <- {arg};\n{indent}{len_ref} := !{len_ref} + 1"
+            elif (func.endswith((".add", ".discard", ".remove"))
+                  and self.memory_model in ("hoare", "concurrent")):
+                # Body-level set/dict method calls. Sets and dicts share
+                # the `_dict_locals` tracking and `map int (option int)`
+                # model. Use program-level wrappers (see comment on
+                # `map_update_some`) — `Map.set` is logic-only and Why3
+                # rejects direct `:= Map.set ...` on non-ghost refs.
+                method = func.rsplit(".", 1)[1]
+                obj_name = func.rsplit(".", 1)[0]
+                if obj_name in getattr(self, "_dict_locals", set()):
+                    safe_obj = self._whyml_ident(obj_name)
+                    arg_ir = (val.get("args") or [{}])[0]
+                    arg = self._coerce_to_int(self._expr_to_whyml(arg_ir, local_refs))
+                    if method == "add":
+                        # set.add(x) — mark key present with Some 0.
+                        self._add_abstract_op(
+                            "val map_update_some (m: map int (option int)) (k: int) (v: int) "
+                            ": map int (option int)\n"
+                            "    ensures { result = Map.set m k (Some v) }")
+                        code = f"{indent}{safe_obj} := map_update_some !{safe_obj} {arg} 0"
+                    else:
+                        # set.discard(x) / set.remove(x) / del d[k] — clear the key.
+                        self._add_abstract_op(
+                            "val map_update_none (m: map int (option int)) (k: int) "
+                            ": map int (option int)\n"
+                            "    ensures { result = Map.set m k None }")
+                        code = f"{indent}{safe_obj} := map_update_none !{safe_obj} {arg}"
+                else:
+                    expr_str = self._expr_to_whyml(val, local_refs)
+                    code = f"{indent}let _ = {expr_str} in ()"
             else:
                 expr_str = self._expr_to_whyml(val, local_refs)
                 code = f"{indent}let _ = {expr_str} in ()"
@@ -2697,7 +3359,7 @@ class Module6_WhyMLTranspiler:
                              .replace(">==", ">="))
                 if not eval(test_expr):  # noqa: S307
                     return False
-            except Exception:
+            except (NameError, SyntaxError, TypeError, ValueError, ZeroDivisionError):
                 pass
         return True
 
@@ -2710,11 +3372,18 @@ class Module6_WhyMLTranspiler:
             return f"({safe}: ref {int_type})"
         if arg in array2d_params:
             return f"({safe}: matrix {int_type})"
-        if arg in array1d_params or symbol_table.get(arg) in ("list", "dict"):
+        symtype = symbol_table.get(arg)
+        # `Set[T]` / `Dict[K, V]` / `FrozenSet[T]` parameters are
+        # modelled as `map int (option int)` (parallel to body-level
+        # dicts). Must come before the `list` branch since dict/set
+        # share the map model, not the array model.
+        if symtype in ("set", "dict", "frozenset"):
+            return f"({safe}: map int (option int))"
+        if arg in array1d_params or symtype == "list":
             if self.memory_model in ("hoare", "concurrent"):
                 return f"({safe}: array {int_type})"
             return f"({safe}: loc) ({safe}_len: int)"
-        if symbol_table.get(arg) == "str":
+        if symtype == "str":
             return f"({safe}: {int_type})"
         return f"({safe}: {int_type})"
 
@@ -2768,6 +3437,7 @@ class Module6_WhyMLTranspiler:
         needs_break = any(IRScanner.uses_break(body) for body in all_bodies)
         needs_return_exc = False
         needs_return_void = False
+        tuple_return_arities: Set[int] = set()
         n = len(functions)
         i = 0
         while i < n:
@@ -2777,12 +3447,32 @@ class Module6_WhyMLTranspiler:
                 ret_type = IRScanner.find_return_type(func["body"])
                 if ret_type == "unit":
                     needs_return_void = True
+                elif ret_type.startswith("(") and "," in ret_type:
+                    # Tuple return — needs a dedicated Return_<arity> exception
+                    # so the value carries through; the plain `exception Return int`
+                    # would force `_coerce_to_int` to hash the whole tuple.
+                    tuple_return_arities.add(ret_type.count(",") + 1)
                 else:
                     needs_return_exc = True
             i += 1
         needs_string = any(IRScanner.uses_ghost_type(body, {"string"}) for body in all_bodies)
         needs_map_ghost = any(IRScanner.uses_ghost_type(body, {"ghost_dict", "ghost_set"}) for body in all_bodies)
         needs_ghost_dict = any(IRScanner.uses_ghost_type(body, {"ghost_dict"}) for body in all_bodies)
+        # Body-level Python dicts are modelled as `ref (map int (option int))`
+        # (parallel to ghost dicts). Triggered by:
+        #   - `find_array_and_dict_vars` detecting any `d = {}` / `d = dict()`
+        #     / `d = {k: v}` / `s = set()` / `s = {a, b}` in the body.
+        #   - inline set/dict literals (e.g. `held | {mutex}`) or
+        #     `.add()`/`.discard()`/`.remove()` method calls anywhere in
+        #     the IR — these emit `map_update_some` / `map_update_none`
+        #     into the abstract-val block, which requires `use map.Map`
+        #     and `use option.Option` in the preamble.
+        needs_body_dict = False
+        for body in all_bodies:
+            _arr, body_dicts = IRScanner.find_array_and_dict_vars(body)
+            if body_dicts or IRScanner.uses_inline_set_or_dict_ops(body):
+                needs_body_dict = True
+                break
         needs_list_ghost = any(IRScanner.uses_ghost_type(body, {"ghost_list"}) for body in all_bodies)
         needs_sum = any(IRScanner.uses_sum(func) for func in functions)
         needs_set_card = any(IRScanner.uses_set_card(func) for func in functions)
@@ -2802,6 +3492,8 @@ class Module6_WhyMLTranspiler:
             "needs_break": needs_break,
             "needs_return_exc": needs_return_exc,
             "needs_return_void": needs_return_void,
+            "needs_body_dict": needs_body_dict,
+            "tuple_return_arities": tuple_return_arities,
             "needs_string": needs_string,
             "needs_map_ghost": needs_map_ghost,
             "needs_ghost_dict": needs_ghost_dict,
@@ -2834,17 +3526,27 @@ class Module6_WhyMLTranspiler:
         if needs["needs_string"]:
             out.append("  use string.String")
         if self.memory_model in ("hoare", "concurrent"):
-            if needs["needs_array"]:
-                out.append("  use array.Array")
             if needs["needs_matrix"]:
                 out.append("  use matrix.Matrix")
             if needs["needs_minmax"]:
                 out.append("  use int.MinMax")
-            if needs["needs_map_ghost"]:
+            if needs["needs_map_ghost"] or needs.get("needs_body_dict"):
                 out.append("  use map.Map")
                 out.append("  use map.Const")
-            if needs["needs_ghost_dict"]:
+            if needs["needs_ghost_dict"] or needs.get("needs_body_dict"):
+                # Body-level Python dicts are modelled as
+                # `ref (map int (option int))` (parallel to ghost dicts);
+                # `None` marks absent keys.
                 out.append("  use option.Option")
+            # `array.Array` MUST be imported AFTER `map.Map` — both
+            # provide a `([])` operator, and when both are in scope the
+            # later import wins. With map.Map imported last, `arr[i]` on
+            # an `array int` is mis-resolved to `Map.get`, producing
+            # "expected 'mu -> 'mu1, got array int @rho" type errors.
+            # See ConcurrencyChecker (which combines body-set ops with
+            # array-typed function parameters).
+            if needs["needs_array"]:
+                out.append("  use array.Array")
             if needs["needs_list_ghost"]:
                 out.append("  use list.List")
                 out.append("  use list.Length")
@@ -2890,6 +3592,13 @@ class Module6_WhyMLTranspiler:
         if needs["needs_return_void"]:
             out.append("")
             out.append("  exception Return_void")
+        for arity in sorted(needs.get("tuple_return_arities", set())):
+            # Tuple returns: each arity gets its own exception carrying the
+            # full tuple, avoiding the int-hash collapse the plain `Return int`
+            # would force via `_coerce_to_int`.
+            parts = ", ".join(["int"] * arity)
+            out.append("")
+            out.append(f"  exception Return_{arity} ({parts})")
         sorted_exc = sorted(needs["user_exceptions"])
         n = len(sorted_exc)
         i = 0
@@ -2957,9 +3666,9 @@ class Module6_WhyMLTranspiler:
                 out.append("  = mod x y")
         return out
 
-    # §2.1.12 — registry of hand-curated axiom bodies for `#@ axiom_from`
+    # §2.1.12 — registry of hand-curated axiom bodies for `#@ proof`
     # qualnames. MVP step before `proof2why3` extraction lands (see
-    # simple3.md). Each entry's body is the canonical statement that
+    # docs/cross-validated-spec-sources.md). Each entry's body is the canonical statement that
     # the paired Rocq + Lean theorems establish — cross-checked
     # manually for the MVP, automatically via the cross-check
     # pipeline in v1.
@@ -2990,23 +3699,22 @@ class Module6_WhyMLTranspiler:
     }
 
     def _emit_preamble_axioms(self, ir: Dict[str, Any]) -> List[str]:
-        """Emit Why3 function decls + axioms for `#@ axiom_from` cites.
+        """Emit Why3 function decls + axioms for `#@ proof` cites.
 
-        Scans every function in the program IR for axiom_from entries.
+        Scans every function in the program IR for `proof` entries.
         Dedups by qualname (Rocq + Lean cite the same target). Emits
         each axiom under a sanitized name `pycsl_axiom_<...>` and
         records the prover provenance in a Why3 comment.
         """
         seen_qualnames: Set[str] = set()
         for func in ir.get("functions", []):
-            for entry in func.get("axiom_from", []):
+            for entry in func.get("proof", []):
                 seen_qualnames.add(entry["qualname"])
         if not seen_qualnames:
             return []
 
         # Pair each qualname with the registry entry; halt if any
-        # unknown — Module4 can't audit this (qualname is opaque
-        # like #@ proof), so the failure is at transpile time.
+        # unknown — failure is at transpile time.
         out: List[str] = []
         # Declare backing functions once each (e.g. `function gcd`).
         declared_fns: Set[str] = set()
@@ -3022,9 +3730,10 @@ class Module6_WhyMLTranspiler:
         for qn in sorted(seen_qualnames):
             if qn not in self._AXIOM_REGISTRY:
                 raise PyCSLIRError(
-                    f"#@ axiom_from {qn}: not in Module6 axiom registry. "
+                    f"#@ proof {qn}: not in Module6 axiom registry. "
                     f"Either add the axiom body to _AXIOM_REGISTRY or run "
-                    f"`proof2why3 emit` (when available — see simple3.md)."
+                    f"`proof2why3 emit` (when available — see "
+                    f"docs/cross-validated-spec-sources.md)."
                 )
             axiom_name = "pycsl_axiom_" + qn.replace(".", "_")
             body = self._AXIOM_REGISTRY[qn]
@@ -3108,6 +3817,7 @@ class Module6_WhyMLTranspiler:
                 self._record_types[td["name"]] = {
                     "whyml_name": type_name,
                     "fields": [f["name"] for f in td["fields"]],
+                    "field_types": {f["name"]: f.get("type", "int") for f in td["fields"]},
                     "defaults": td.get("field_defaults", {}),
                 }
                 field_strs = []
@@ -3118,7 +3828,20 @@ class Module6_WhyMLTranspiler:
                     f = fields[j]
                     prefix = "mutable " if f.get("mutable") else ""
                     ftype = f['type']
-                    if ftype == "string":
+                    # Map Python-level type tags to WhyML types.
+                    # `set`/`dict`/`frozenset` → `map int (option int)`
+                    # (body-set/body-dict model). `list`/`tuple` →
+                    # `array int`. Everything else collapses to `int`.
+                    if ftype in ("set", "dict", "frozenset"):
+                        ftype = "map int (option int)"
+                    elif ftype in ("list", "tuple"):
+                        ftype = "array int"
+                    elif ftype == "string":
+                        ftype = "int"
+                    elif ftype != "int" and not ftype.startswith(("array ", "map ", "ref ")):
+                        # Unrecognised tag (user-defined class etc.) —
+                        # fall back to int rather than emitting an
+                        # unbound type symbol.
                         ftype = "int"
                     field_strs.append(f"{prefix}{f['name']}: {ftype}")
                     j += 1
@@ -3216,6 +3939,10 @@ class Module6_WhyMLTranspiler:
         self._known_collection_sizes = {}
         self._known_collection_elements = {}
         self._current_symbol_table = symbol_table
+        # Formal-parameter names ONLY — Module5 exposes this as a
+        # distinct field because `symbol_table` is polluted with loop
+        # targets and locals.
+        self._formal_params: Set[str] = set(func.get("formal_params", []))
         self._current_array1d_params = set(func.get("array1d_params", []))
         self._array2d_params = set(func.get("array2d_params", []))
         return local_refs, ghost_vars
@@ -3241,7 +3968,9 @@ class Module6_WhyMLTranspiler:
                 safe = self._whyml_ident(arg)
                 if arg in array2d_params:
                     param_parts.append(f"({safe}: matrix {int_type})")
-                elif arg in array1d_params or symbol_table.get(arg) in ("list", "dict"):
+                elif symbol_table.get(arg) in ("set", "dict", "frozenset"):
+                    param_parts.append(f"({safe}: map int (option int))")
+                elif arg in array1d_params or symbol_table.get(arg) == "list":
                     if self.memory_model in ("hoare", "concurrent"):
                         param_parts.append(f"({safe}: array {int_type})")
                     else:
@@ -3252,8 +3981,17 @@ class Module6_WhyMLTranspiler:
         else:
             self._current_self_type = None
             ref_params = {v for v in symbol_table if v in local_refs and v.startswith("obj_")}
-            args = [v for v in symbol_table
-                    if (v not in local_refs or v in ref_params) and v not in ghost_vars]
+            # Formal parameters stay in `args` even if mutated in the
+            # body — they get promoted to refs inside _emit_body_code
+            # via shadowing (`let a = ref a in`). Without this, params
+            # that are tuple-unpack targets (e.g., `a, b = b, a % b`)
+            # silently disappear from the WhyML signature.
+            #
+            # Use `_formal_params` (unpolluted) not `symbol_table`
+            # (which Module4 also fills with for-loop targets and
+            # AnnAssign locals — those must NOT appear in the
+            # function signature).
+            args = [v for v in self._formal_params if v not in ghost_vars]
             args_str = " ".join(
                 self._param_type_str(arg, ref_params, array2d_params, array1d_params,
                                      symbol_table, int_type)
@@ -3394,6 +4132,72 @@ class Module6_WhyMLTranspiler:
         self._in_spec = False
         return lines
 
+    def _collect_array_var_assigns(self, stmts: List[Dict[str, Any]]) -> Set[str]:
+        """Post-pass to `IRScanner.find_array_and_dict_vars`: variables
+        assigned to `self.<method>(...)` calls where <method> returns
+        `array int` should also be tracked as arrays. The static
+        IRScanner can't see this without the cross-method return-type
+        map (built in `transpile()`)."""
+        found: Set[str] = set()
+        for s in stmts:
+            if s.get("stmt") == "Assign":
+                val = s.get("value", {})
+                if isinstance(val, dict) and val.get("type") == "Call":
+                    fn = val.get("func", "")
+                    if fn.startswith("self."):
+                        tail = fn[len("self."):]
+                        cls = self._current_self_type
+                        key = f"{cls}__{tail}" if cls else tail
+                        ret = self._module_method_return_types.get(key)
+                        if ret == "array int":
+                            tgt = s.get("target", "")
+                            if tgt:
+                                found.add(tgt)
+            for k in ("body", "orelse"):
+                if k in s:
+                    found |= self._collect_array_var_assigns(s[k])
+            if s.get("stmt") == "Try":
+                for h in s.get("handlers", []):
+                    found |= self._collect_array_var_assigns(h.get("body", []))
+        return found
+
+    def _collect_dict_var_assigns(self, stmts: List[Dict[str, Any]]) -> Set[str]:
+        """Post-pass for body-dict / body-set local detection: variables
+        whose RHS yields a `map int (option int)` value (via map-typed
+        param Var, IfExpr branches, BinOp `|`/`&`/`-` between map-typed
+        sides, etc.). Used to exclude them from the integer `ref 0`
+        pre-declaration path."""
+        found: Set[str] = set()
+        for s in stmts:
+            if s.get("stmt") == "Assign":
+                val = s.get("value", {})
+                if isinstance(val, dict) and self._rhs_yields_map(val):
+                    tgt = s.get("target", "")
+                    if tgt:
+                        found.add(tgt)
+            for k in ("body", "orelse"):
+                if k in s:
+                    found |= self._collect_dict_var_assigns(s[k])
+            if s.get("stmt") == "Try":
+                for h in s.get("handlers", []):
+                    found |= self._collect_dict_var_assigns(h.get("body", []))
+        return found
+
+    def _wrap_body_with_return_catch(self, body_code: str, return_type: str) -> str:
+        """Wrap a function body with the `try ... with Return r -> r end`
+        catch when early-returns can fire. Picks the right Return arm
+        based on return type (unit / tuple_N / int). Array returns are
+        intentionally not wrappable here — see `_handle_return_stmt` and
+        the Class M auto-trust path."""
+        arity = self._current_tuple_arity
+        if return_type == "unit":
+            return f"    try\n{body_code}\n    with Return_void -> () end"
+        if arity > 0:
+            return f"    try\n{body_code}\n    with Return_{arity} r -> r end"
+        if return_type == "array int":
+            return body_code
+        return f"    try\n{body_code}\n    with Return r -> r end"
+
     def _emit_body_code(self, func: Dict[str, Any], body_stmts: List[Dict[str, Any]],
                          local_refs: Set[str], ghost_vars: Set[str], ref_params: Set[str],
                          is_method: bool, return_type: str) -> str:
@@ -3401,8 +4205,20 @@ class Module6_WhyMLTranspiler:
         Mutates self._array_locals, self._has_early_ret."""
         bounded_int = func.get("bounded_int")
         append_targets = IRScanner.find_append_targets(body_stmts)
-        self._has_early_ret = IRScanner.has_early_return(body_stmts)
+        # `_has_early_ret` gates the `try ... with Return r -> r end` wrap.
+        # Module6 emits `raise (Return ...)` whenever `in_loop` is true at a
+        # Return site, not only when `has_early_return` would catch it (an
+        # Early-return that lives strictly inside a Try-body for instance
+        # is missed by has_early_return because has_direct_return doesn't
+        # recurse into Try). Unify the flag so the wrap is always present
+        # when any raise-Return path is reachable.
+        self._has_early_ret = (
+            IRScanner.has_early_return(body_stmts)
+            or IRScanner.has_in_loop_return(body_stmts)
+        )
         body_array_vars, body_dict_vars = IRScanner.find_array_and_dict_vars(body_stmts)
+        body_array_vars |= self._collect_array_var_assigns(body_stmts)
+        body_dict_vars |= self._collect_dict_var_assigns(body_stmts)
         body_lambda_vars = IRScanner.find_lambda_vars(body_stmts)
         body_record_vars = IRScanner.find_record_vars(body_stmts, self._record_types)
 
@@ -3428,14 +4244,22 @@ class Module6_WhyMLTranspiler:
             "    ",
         )
 
+        pfx = f"(0 : int{bounded_int})" if bounded_int else "0"
+        # Formal parameters that are mutated in the body need their
+        # entry value preserved when we promote them to refs. Shadow
+        # with `let a = ref a in`; otherwise `let a = ref 0 in` would
+        # silently zero out the parameter at function entry. Use the
+        # unpolluted `_formal_params` set (not `_current_symbol_table`,
+        # which also contains for-loop targets and ghost vars — those
+        # are NOT bound at function entry and shadowing them with
+        # `let X = ref X in` produces unbound-symbol errors).
         for var in sorted(pre_decl_vars):
             safe_var = self._whyml_ident(var)
-            pfx = f"(0 : int{bounded_int})" if bounded_int else "0"
-            body_code = f"    let {safe_var} = ref {pfx} in\n{body_code}"
+            init = safe_var if var in self._formal_params else pfx
+            body_code = f"    let {safe_var} = ref {init} in\n{body_code}"
 
         for tgt in sorted(append_targets):
             safe_tgt = self._whyml_ident(tgt)
-            pfx = f"(0 : int{bounded_int})" if bounded_int else "0"
             body_code = f"    let {safe_tgt}_len = ref {pfx} in\n{body_code}"
             if tgt not in local_refs and tgt not in ref_params:
                 body_code = f"    let {safe_tgt} = Array.make 1024 0 in\n{body_code}"
@@ -3444,11 +4268,199 @@ class Module6_WhyMLTranspiler:
         if not body_code.strip():
             body_code = "    ()"
         if self._has_early_ret:
-            if return_type == "unit":
-                body_code = f"    try\n{body_code}\n    with Return_void -> () end"
-            else:
-                body_code = f"    try\n{body_code}\n    with Return r -> r end"
+            body_code = self._wrap_body_with_return_catch(body_code, return_type)
         return body_code
+
+    def _compute_return_type(self, func: Dict[str, Any], body_stmts: List[Dict[str, Any]]) -> str:
+        """Compute the WhyML return type for one function, applying the
+        `List[T] → array int`, `Set[T]`/`Dict[K, V]` → `map int (option int)`,
+        and bounded-int overrides."""
+        bounded_int = func.get("bounded_int")
+        return_type = IRScanner.find_return_type(body_stmts)
+        ann = func.get("return_annotation")
+        if ann == "list" and return_type == "int":
+            return_type = "array int"
+        elif ann in ("set", "dict", "frozenset") and return_type == "int":
+            return_type = "map int (option int)"
+        if bounded_int and return_type == "int":
+            return_type = f"int{bounded_int}"
+        return return_type
+
+    def _should_auto_trust_map_return(
+            self, func: Dict[str, Any], func_trusted: bool) -> bool:
+        """Class M sub-case for set/dict-typed returns. Functions declared
+        `-> Set[T]` / `-> Dict[K, V]` with early returns inside `if`
+        branches emit `raise (Return (map_update_some ...))` which Why3
+        rejects because `Return int` can't carry a `map int (option int)`
+        payload. Auto-trust so the body is skipped and the contract alone
+        is emitted. Tracked in `self._auto_trusted_map_returns`."""
+        if func_trusted:
+            return False
+        return func.get("return_annotation") in ("set", "dict", "frozenset")
+
+    def _collect_map_typed_locals(self, stmts: List[Dict[str, Any]]) -> Set[str]:
+        """Single static pre-pass: find every body-local variable
+        whose first assignment yields a map. Used by
+        `_should_auto_trust_set_op` because the body-emission-time
+        `_dict_locals` tracker isn't populated yet."""
+        result: Set[str] = set()
+        def walk(items: List[Dict[str, Any]]) -> None:
+            for s in items:
+                if s.get("stmt") == "Assign":
+                    tgt = s.get("target", "")
+                    if tgt and self._rhs_yields_map(s.get("value", {})):
+                        result.add(tgt)
+                for k in ("body", "orelse"):
+                    if k in s:
+                        walk(s[k])
+                if s.get("stmt") == "While":
+                    walk(s.get("body", []))
+                if s.get("stmt") == "For":
+                    walk(s.get("body", []))
+                if s.get("stmt") == "Try":
+                    walk(s.get("body", []))
+                    for h in s.get("handlers", []):
+                        walk(h.get("body", []))
+        walk(stmts)
+        return result
+
+    def _test_contains_map(self, expr: Any, map_locals: Set[str]) -> bool:
+        """Recursively check whether `expr` (an If/while test) contains
+        a map-typed OR array-typed subexpression. Walks through
+        UnaryOp(not, ...), BoolOp(and/or, ...), Compare wrappers —
+        anywhere a collection could be used as a bool would trigger
+        the `(X <> 0)` problem."""
+        if not isinstance(expr, dict):
+            return False
+        if (expr.get("type") == "Var" and expr.get("name") in map_locals):
+            return True
+        if self._rhs_yields_map(expr) or self._rhs_yields_array(expr):
+            return True
+        for v in expr.values():
+            if isinstance(v, dict):
+                if self._test_contains_map(v, map_locals):
+                    return True
+            elif isinstance(v, list):
+                for item in v:
+                    if self._test_contains_map(item, map_locals):
+                        return True
+        return False
+
+    def _has_set_op_on_map(self, obj: Any, map_locals: Optional[Set[str]] = None) -> bool:
+        """Detect any IR shape that combines a map-typed value with an
+        int-typed operation, anywhere in the subtree. Triggers when:
+
+        - **Set operator**: `BinOp(|/&/^/-)` with a map operand. Python
+          set union/intersect/xor/diff lower to `bit_or`/... typed
+          `int -> int -> int`, mismatched against the map.
+        - **For-iteration**: `For` whose iter expression yields a map.
+          WhyML maps don't have a natural iteration model (they're
+          functions, not collections); `iter_length`/`iter_get` are
+          typed `int -> int`.
+        - **Truthiness**: `If` whose test is a map-typed Var / field
+          / call. Python `if d:` lowers to `(X <> 0)` which can't
+          compare a map to int.
+
+        There is no clean reduction to int because the map semantics
+        are lost in any of these shapes; the only sound option is to
+        auto-trust the enclosing function."""
+        if map_locals is None:
+            map_locals = set()
+        def yields_map(node: Any) -> bool:
+            if (isinstance(node, dict) and node.get("type") == "Var"
+                    and node.get("name") in map_locals):
+                return True
+            return self._rhs_yields_map(node)
+        if isinstance(obj, dict):
+            t = obj.get("type", "")
+            # Set operator on a map operand.
+            if t == "BinOp" and obj.get("op") in ("|", "&", "^", "-"):
+                if yields_map(obj.get("left", {})) or yields_map(obj.get("right", {})):
+                    return True
+            # `for x in map_val:` — iter expression is a map.
+            if obj.get("stmt") == "For":
+                if yields_map(obj.get("iter", {})):
+                    return True
+            # `if map_val:` / `if not map_val:` / `if X and map_val:` —
+            # any map-typed subexpression appearing in an If test needs
+            # auto-trust because Python truthiness on a map lowers to
+            # `(M <> 0)` which Why3 rejects.
+            if obj.get("stmt") == "If":
+                if self._test_contains_map(obj.get("test", {}), map_locals):
+                    return True
+            for v in obj.values():
+                if self._has_set_op_on_map(v, map_locals):
+                    return True
+        elif isinstance(obj, list):
+            for item in obj:
+                if self._has_set_op_on_map(item, map_locals):
+                    return True
+        return False
+
+    def _should_auto_trust_set_op(
+            self, body_stmts: List[Dict[str, Any]], func_trusted: bool) -> bool:
+        """Auto-trust functions whose body uses a map-typed value in
+        an int-typed context (set operators, for-loop iteration, or
+        truthiness check). PyCSL lowers these to abstract vals typed
+        in int, which type-mismatch against the `map int (option int)`
+        operand. The semantics are unrecoverable from this lowering;
+        auto-trust skips the body and emits a contract-only `val`.
+        Tracked in `self._auto_trusted_set_op`."""
+        if func_trusted:
+            return False
+        # Pre-scan: identify body-locals first-assigned from a
+        # map-yielding RHS, so the recursive check can recognise
+        # iter/test/operand vars beyond just self-fields and params.
+        map_locals = self._collect_map_typed_locals(body_stmts)
+        return self._has_set_op_on_map(body_stmts, map_locals)
+
+    def _should_auto_trust_array_return(
+            self, func: Dict[str, Any], body_stmts: List[Dict[str, Any]],
+            return_type: str, func_trusted: bool) -> bool:
+        """Class M workaround: array-returning functions with early returns
+        cannot be cleanly wrapped — Why3 forbids carrying `array int` in
+        exception payloads, and the `ref (option (array int))` slot pattern
+        is rejected by Why3's region/linearity tracking when the function
+        body uses `Array.make`. Force-trust such functions so the body is
+        skipped and only the contract is emitted. See
+        `docs/self-annotate-layer2-queue.md` class M for the full design."""
+        if func_trusted or return_type != "array int":
+            return False
+        return (IRScanner.has_early_return(body_stmts)
+                or IRScanner.has_in_loop_return(body_stmts))
+
+    def _should_auto_trust_tuple_return(
+            self, body_stmts: List[Dict[str, Any]], return_type: str,
+            func_trusted: bool) -> bool:
+        """Class O workaround: tuple-returning functions whose return Tuple
+        has at least one array-typed slot. Module6 emits the function
+        signature as homogeneous `(int, int, ...)` even when one element is
+        `List[T]` (→ `array int`) and others are int. Auto-trust until
+        per-slot type inference lands."""
+        if func_trusted or not (return_type.startswith("(") and "," in return_type):
+            return False
+        array_vars, _dict_vars = IRScanner.find_array_and_dict_vars(body_stmts)
+        array_vars |= self._collect_array_var_assigns(body_stmts)
+
+        def _tuple_return_has_array_slot(stmts: List[Dict[str, Any]]) -> bool:
+            for s in stmts:
+                if s.get("stmt") == "Return":
+                    val = s.get("value", {})
+                    if isinstance(val, dict) and val.get("type") == "Tuple":
+                        for elt in val.get("elts", []):
+                            if (isinstance(elt, dict)
+                                    and elt.get("type") == "Var"
+                                    and elt.get("name") in array_vars):
+                                return True
+                for k in ("body", "orelse"):
+                    if k in s and _tuple_return_has_array_slot(s[k]):
+                        return True
+                if s.get("stmt") == "Try":
+                    for h in s.get("handlers", []):
+                        if _tuple_return_has_array_slot(h.get("body", [])):
+                            return True
+            return False
+        return _tuple_return_has_array_slot(body_stmts)
 
     def _emit_function(self, func: Dict[str, Any], scc_info: Dict[str, tuple]) -> List[str]:
         """Emit one WhyML let/val function block. Returns the list of output lines."""
@@ -3459,14 +4471,12 @@ class Module6_WhyMLTranspiler:
         local_refs, ghost_vars = self._reset_function_state(func, body_stmts)
         ref_params, args_str = self._build_param_list(func, local_refs, ghost_vars)
 
-        bounded_int = func.get("bounded_int")
-        int_type = f"int{bounded_int}" if bounded_int else "int"
-        return_type = IRScanner.find_return_type(body_stmts)
+        return_type = self._compute_return_type(func, body_stmts)
+        # `_func_return_type` is read by `_handle_return_stmt` to pick
+        # the right Return exception (int / array / tuple); set it AFTER
+        # the `List[T] → array int` override so the array-Return slot
+        # path fires.
         self._func_return_type = return_type
-        if func.get("return_annotation") == "list" and return_type == "int":
-            return_type = "array int"
-        if bounded_int and return_type == "int":
-            return_type = int_type
         self._current_tuple_arity = (
             return_type.count(",") + 1 if return_type.startswith("(") else 0
         )
@@ -3474,6 +4484,23 @@ class Module6_WhyMLTranspiler:
         func_variants = func.get("function_variants", [])
         func_diverges = func.get("diverges", False)
         func_trusted = func.get("trusted", False)
+        if self._should_auto_trust_map_return(func, func_trusted):
+            func_trusted = True
+            self._auto_trusted_map_returns = (
+                self._auto_trusted_map_returns + [func["name"]])
+        if self._should_auto_trust_array_return(func, body_stmts, return_type, func_trusted):
+            func_trusted = True
+            self._auto_trusted_array_returns = (
+                self._auto_trusted_array_returns + [func["name"]])
+        if self._should_auto_trust_tuple_return(body_stmts, return_type, func_trusted):
+            func_trusted = True
+            self._auto_trusted_tuple_returns = (
+                self._auto_trusted_tuple_returns + [func["name"]])
+        if self._should_auto_trust_set_op(body_stmts, func_trusted):
+            func_trusted = True
+            self._auto_trusted_set_op = (
+                self._auto_trusted_set_op + [func["name"]])
+
         func_pure = func.get("pure", False)
         is_recursive = IRScanner.is_recursive(name, body_stmts)
         use_rec = bool(func_variants) or is_recursive
@@ -3514,6 +4541,113 @@ class Module6_WhyMLTranspiler:
     # transpile() — thin orchestrator
     # ------------------------------------------------------------------
 
+    def _emit_opaque_class_aliases(self, functions: List[Dict[str, Any]],
+                                    out: List[str], declared_types: Set[str]) -> None:
+        """Emit `type <cls> = int` aliases for classes used as `self_type`
+        in methods but not declared as records."""
+        for func in functions:
+            if func.get("kind") == "method" and func.get("self_type"):
+                st = func["self_type"].lower()
+                if st not in declared_types:
+                    declared_types.add(st)
+                    out.append(f"  type {st} = int")
+                    out.append("")
+
+    def _build_method_return_type_map(self, functions: List[Dict[str, Any]]) -> Dict[str, str]:
+        """Map method name (un-prefixed, e.g. `_emit_contracts`) → declared
+        WhyML return type, used by `_handle_dotted_call` to pick the right
+        return-type for `self.<method>(...)` abstract vals. Without this,
+        every `self.foo(...)` is abstracted as `val self__foo_<n> ... :
+        int`, even when `foo` returns a list (→ `array int`) or a tuple,
+        producing downstream type mismatches at the call site."""
+        result: Dict[str, str] = {}
+        for func in functions:
+            ret = IRScanner.find_return_type(func["body"])
+            ann = func.get("return_annotation")
+            if ann == "list" and ret == "int":
+                ret = "array int"
+            elif ann in ("set", "dict", "frozenset") and ret == "int":
+                # Functions annotated `-> Set[T]` / `-> Dict[K, V]` are
+                # auto-trusted via `_should_auto_trust_map_return`; their
+                # abstract `val` must announce the map return so callers
+                # don't pre-decl a `ref 0` (int) target and then `:=` a
+                # map.
+                ret = "map int (option int)"
+            result[func["name"]] = ret
+        return result
+
+    @staticmethod
+    def _symtype_to_whyml(symtype: Optional[str]) -> str:
+        """Convert a Module5 symbol-table type tag to the WhyML type used
+        in abstract val parameter declarations. Defaults to `int`."""
+        if symtype in ("set", "dict", "frozenset"):
+            return "map int (option int)"
+        if symtype in ("list", "tuple"):
+            return "array int"
+        return "int"
+
+    def _build_method_param_types_map(self, functions: List[Dict[str, Any]]) -> Dict[str, List[str]]:
+        """Map function name → list of WhyML parameter types (excluding
+        self). Used by `_handle_dotted_call` to emit abstract `val` decls
+        with matching parameter types so cross-method calls type-check
+        when params are set/dict/list-typed."""
+        result: Dict[str, List[str]] = {}
+        for func in functions:
+            symtable = func.get("symbol_table", {})
+            body = func.get("body", [])
+            local_assignees = IRScanner.find_assigned_vars(body)
+            param_types: List[str] = []
+            for name, symtype in symtable.items():
+                # Locals (assigned inside the body) are NOT params.
+                if name in local_assignees:
+                    continue
+                param_types.append(self._symtype_to_whyml(symtype))
+            result[func["name"]] = param_types
+        return result
+
+    def _find_abstract_val_insert_idx(self, out: List[str]) -> int:
+        """Pick the insertion point for the abstract-val block. Abstract
+        vals may reference class record types (e.g. `val getattr_FooClass
+        (x: fooclass) (f: int) : int`); those types are emitted by
+        `_emit_type_decls` AFTER `_emit_preamble_helpers'` `let pycsl_div`
+        / `let pycsl_mod`. Inserting at the first `let` would place the
+        vals BEFORE their referenced types and Why3 would reject the file
+        with "unbound type symbol".
+
+        Strategy: if any `type ...` line exists in `out`, insert
+        immediately after the LAST such line (skipping a trailing blank).
+        Otherwise, fall back to the historical "insert before first `let`
+        / non-ghost `val`" behaviour."""
+        last_type_idx = -1
+        for i, line in enumerate(out):
+            if line.strip().startswith("type "):
+                last_type_idx = i
+        if last_type_idx >= 0:
+            insert_idx = last_type_idx + 1
+            if insert_idx < len(out) and out[insert_idx].strip() == "":
+                insert_idx += 1
+            return insert_idx
+        for i, line in enumerate(out):
+            stripped = line.strip()
+            if stripped.startswith("let ") or stripped.startswith("let rec "):
+                return i
+            if stripped.startswith("val ") and "ghost" not in line:
+                return i
+        return len(out) - 1
+
+    def _insert_abstract_val_block(self, out: List[str]) -> None:
+        """Insert the abstract-val block (collected during transpilation)
+        at the position selected by `_find_abstract_val_insert_idx`."""
+        if not self._abstract_ops:
+            return
+        insert_idx = self._find_abstract_val_insert_idx(out)
+        abs_lines = ["", "  (* Abstract operations for unsupported Python patterns *)"]
+        for decl in sorted(self._abstract_ops.values()):
+            abs_lines.append(f"  {decl}")
+        abs_lines.append("")
+        for line in reversed(abs_lines):
+            out.insert(insert_idx, line)
+
     def transpile(self) -> str:
         """Entry point: converts the entire program to a .mlw string."""
         functions = self.ir.get("functions", [])
@@ -3529,60 +4663,16 @@ class Module6_WhyMLTranspiler:
         type_lines, declared_types = self._emit_type_decls(type_decls)
         out += type_lines
 
-        # Opaque type aliases for classes used in methods but not declared as records
-        n7 = len(functions)
-        i7 = 0
-        while i7 < n7:
-            func = functions[i7]
-            if func.get("kind") == "method" and func.get("self_type"):
-                st = func["self_type"].lower()
-                if st not in declared_types:
-                    declared_types.add(st)
-                    out.append(f"  type {st} = int")
-                    out.append("")
-            i7 += 1
+        self._emit_opaque_class_aliases(functions, out, declared_types)
 
         self._module_func_names = {self._whyml_ident(func["name"]) for func in functions}
+        self._module_method_return_types = self._build_method_return_type_map(functions)
+        self._module_method_param_types = self._build_method_param_types_map(functions)
 
         sorted_functions, scc_info = self._sort_functions_by_scc(functions)
-
-        n8 = len(sorted_functions)
-        i8 = 0
-        while i8 < n8:
-            out += self._emit_function(sorted_functions[i8], scc_info)
-            i8 += 1
+        for func in sorted_functions:
+            out += self._emit_function(func, scc_info)
 
         out.append("end")
-
-        # Insert abstract val declarations (collected during transpilation)
-        if self._abstract_ops:
-            insert_idx = None
-            n9 = len(out)
-            i9 = 0
-            while i9 < n9:
-                line = out[i9]
-                if line.strip().startswith("let ") or line.strip().startswith("let rec "):
-                    insert_idx = i9
-                    break
-                if line.strip().startswith("val ") and "ghost" not in line:
-                    insert_idx = i9
-                    break
-                i9 += 1
-            if insert_idx is None:
-                insert_idx = len(out) - 1
-            abs_lines = ["", "  (* Abstract operations for unsupported Python patterns *)"]
-            sorted_decls10 = sorted(self._abstract_ops.values())
-            n10d = len(sorted_decls10)
-            i10d = 0
-            while i10d < n10d:
-                abs_lines.append(f"  {sorted_decls10[i10d]}")
-                i10d += 1
-            abs_lines.append("")
-            rev_abs10 = list(reversed(abs_lines))
-            n10r = len(rev_abs10)
-            i10r = 0
-            while i10r < n10r:
-                out.insert(insert_idx, rev_abs10[i10r])
-                i10r += 1
-
+        self._insert_abstract_val_block(out)
         return "\n".join(out)
