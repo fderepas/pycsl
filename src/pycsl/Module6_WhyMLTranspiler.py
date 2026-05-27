@@ -1,10 +1,21 @@
 from __future__ import annotations
 
 import json
-import unicodedata
 from typing import Dict, Any, Optional, Set, List, Tuple
 
 from module6_whyml.ir_scanner import IRScanner
+from module6_whyml.identifiers import (
+    OP_MAP,
+    WHYML_RESERVED,
+    whyml_ident,
+    safe_mutex_name,
+    op_translate,
+)
+from module6_whyml.scc import (
+    compute_sccs,
+    find_calls_in_ir,
+    sort_functions_by_scc,
+)
 
 
 class Module6_WhyMLTranspiler:
@@ -55,21 +66,6 @@ class Module6_WhyMLTranspiler:
         elif self.memory_model == "store":
             return "store"
         raise ValueError(f"No heap variable in Hoare model")
-
-    # Maps Python/IR operators to WhyML operators
-    _OP_MAP: Dict[str, str] = {
-        "==": "=",    # WhyML equality is single =
-        "!=": "<>",   # WhyML inequality is <>
-        "==>": "->",  # WhyML implication
-        "<==>": "<->",  # WhyML equivalence
-        "and": "&&",
-        "or": "||",
-        "not": "not",
-        "div": "div",
-        "//": "div",  # contract floor-division maps to WhyML div
-        "/": "div",   # contract `/` maps to WhyML `div` (Euclidean integer division)
-        "%": "mod",   # WhyML modulo from int.EuclideanDivision
-    }
 
     # Dispatch table for _expr_to_whyml: maps IR type string → method name.
     # All dispatched methods use the uniform quad signature (expr, local_refs, invariant_ctx, subst).
@@ -131,54 +127,6 @@ class Module6_WhyMLTranspiler:
         "Mem":          "_handle_mem_expr",
         "Append":       "_handle_append_expr",
     }
-
-    # WhyML reserved keywords that cannot be used as identifiers
-    _WHYML_RESERVED = {
-        "at", "any", "diverges", "val", "let", "in", "if", "then", "else",
-        "while", "do", "done", "for", "to", "begin", "end", "match", "with",
-        "try", "raise", "exception", "type", "use", "module", "theory",
-        "import", "export", "clone", "goal", "lemma", "axiom", "predicate",
-        "function", "constant", "mutable", "ghost", "invariant", "variant",
-        "requires", "ensures", "returns", "raises", "reads", "writes",
-        "assert", "assume", "check", "absurd", "true", "false", "not",
-        "old", "ref", "abstract", "private", "model", "range",
-        "float", "by", "so", "pure", "alias", "label", "epsilon",
-        "exists", "forall", "rec", "and", "or", "mod", "div", "result",
-    }
-
-    @staticmethod
-    def _whyml_ident(name: str) -> str:
-        """WhyML identifiers must start with a lowercase letter, contain no dots, 
-        and not be reserved keywords."""
-        # Underscore alone is a wildcard in WhyML — rename it
-        if name == "_":
-            return "py_underscore"
-        # Replace dots with underscores for valid WhyML identifiers
-        name = name.replace(".", "_")
-        # Sanitize non-ASCII characters to ASCII equivalents
-        sanitized = []
-        for ch in name:
-            if ord(ch) > 127:
-                decomp = unicodedata.normalize('NFD', ch)
-                ascii_ch = ''.join(c for c in decomp if ord(c) < 128)
-                sanitized.append(ascii_ch if ascii_ch else f"u{ord(ch)}")
-            else:
-                sanitized.append(ch)
-        name = ''.join(sanitized)
-        if name and name[0].isupper():
-            name = name[0].lower() + name[1:]
-        # Prefix reserved words to avoid conflicts
-        if name in Module6_WhyMLTranspiler._WHYML_RESERVED:
-            name = f"py_{name}"
-        return name
-
-    def _safe_mutex_name(self, mutex: str) -> str:
-        """Convert a mutex expression (possibly 'locks[0]') to a valid WhyML identifier."""
-        return self._whyml_ident(mutex.replace("[", "_").replace("]", "").replace(".", "_"))
-
-    def _op(self, op: str) -> str:
-        """Translates operators; defaults to the same string (e.g., +, -, >, <)."""
-        return self._OP_MAP.get(op, op)
 
     def _add_abstract_op(self, decl: str) -> None:
         """Register an abstract val declaration, deduplicating by name+arity.
@@ -417,7 +365,7 @@ class Module6_WhyMLTranspiler:
             return f"(Array.make {size} {default_val})"
         left = self._expr_to_whyml(expr["left"], local_refs, invariant_ctx, subst)
         right = self._expr_to_whyml(expr["right"], local_refs, invariant_ctx, subst)
-        op = self._op(raw_op)
+        op = op_translate(raw_op)
         # In body context, coerce string literals in comparisons to int
         if not self._in_spec and op in ("=", "<>"):
             left = self._coerce_str_arg(left)
@@ -524,7 +472,7 @@ class Module6_WhyMLTranspiler:
 
     def _handle_dotted_call(self, func_name: str, args: List[str]) -> str:
         """Handle dotted method calls (x.method(...)): emit abstract val declaration."""
-        safe_name = self._whyml_ident(func_name.replace(".", "_"))
+        safe_name = whyml_ident(func_name.replace(".", "_"))
         n = len(args)
         arity_name = f"{safe_name}_{n}"
         # When the call is `self.<method>(...)` on a method defined in the
@@ -650,7 +598,7 @@ class Module6_WhyMLTranspiler:
                     return str(int(val) if func_name == "int" else abs(int(val)))
             if func_name == "int":
                 return args[0]
-            wf = self._whyml_ident(func_name)
+            wf = whyml_ident(func_name)
             self._add_abstract_op(f"val {wf}_conv (x: int) : int")
             return f"({wf}_conv {args[0]})"
         if func_name == "sum" and len(args) == 1:
@@ -677,7 +625,7 @@ class Module6_WhyMLTranspiler:
             )
             return f"{{ {field_inits} }}"
         coerced_args = [self._coerce_to_int(a) for a in args]
-        safe_fn = self._whyml_ident(func_name)
+        safe_fn = whyml_ident(func_name)
         if (func_name not in local_refs
                 and func_name not in self._current_params
                 and safe_fn not in self._module_func_names):
@@ -771,7 +719,7 @@ class Module6_WhyMLTranspiler:
         if obj_ir.get("type") == "Var":
             var_name = obj_ir.get("name", "")
             if var_name in self._record_locals:
-                return f"{self._whyml_ident(var_name)}.{attr}"
+                return f"{whyml_ident(var_name)}.{attr}"
         obj_str = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
         self._add_abstract_op(f"val get_{attr} (x: int) : int")
         return f"(get_{attr} {obj_str})"
@@ -782,18 +730,18 @@ class Module6_WhyMLTranspiler:
         if subst and name in subst:
             name = subst[name]
         if name in self._array_locals:
-            return self._whyml_ident(name)
+            return whyml_ident(name)
         if name in self._lambda_locals:
-            return self._whyml_ident(name)
+            return whyml_ident(name)
         if name in self._record_locals:
-            return self._whyml_ident(name)
+            return whyml_ident(name)
         if name in local_refs:
-            return f"!{self._whyml_ident(name)}"
+            return f"!{whyml_ident(name)}"
         if name in self._current_params or name == "self":
-            return self._whyml_ident(name) if name != "self" else name
+            return whyml_ident(name) if name != "self" else name
         if name in self._shared_var_names:
-            return f"!{self._whyml_ident(name)}"
-        safe = self._whyml_ident(name)
+            return f"!{whyml_ident(name)}"
+        safe = whyml_ident(name)
         self._add_abstract_op(f"val constant {safe} : int")
         return safe
 
@@ -802,7 +750,7 @@ class Module6_WhyMLTranspiler:
             return expr['field']
         obj = expr['object']
         field = expr['field']
-        safe_field = self._whyml_ident(field)
+        safe_field = whyml_ident(field)
         decl_fields = self._all_record_fields
         if field in decl_fields:
             return f"{obj}.{safe_field}"
@@ -841,7 +789,7 @@ class Module6_WhyMLTranspiler:
         subst: Optional[Dict[str, str]],
     ) -> str:
         e = self._expr_to_whyml(expr["expr"], local_refs, invariant_ctx, subst)
-        op = self._op(expr["op"])
+        op = op_translate(expr["op"])
         if op == "+":
             return e
         if op == "not":
@@ -904,7 +852,7 @@ class Module6_WhyMLTranspiler:
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
     ) -> str:
-        target = self._whyml_ident(expr["target"])
+        target = whyml_ident(expr["target"])
         v = self._expr_to_whyml(expr["value"], local_refs, invariant_ctx, subst)
         if target in local_refs:
             return f"(begin {target} := {v}; !{target} end)"
@@ -1036,7 +984,7 @@ class Module6_WhyMLTranspiler:
     ) -> str:
         params = expr.get("params", [])
         body = self._expr_to_whyml(expr["body"], local_refs, invariant_ctx, subst)
-        param_str = " ".join(f"({self._whyml_ident(p)}: int)" for p in params) if params else "()"
+        param_str = " ".join(f"({whyml_ident(p)}: int)" for p in params) if params else "()"
         return f"(fun {param_str} -> {body})"
 
     def _handle_setlit_expr(
@@ -1545,7 +1493,7 @@ class Module6_WhyMLTranspiler:
                              local_refs: Set[str], declared_refs: Set[str],
                              indent: str, in_loop: bool) -> str:
         target = stmt["target"]
-        safe_target = self._whyml_ident(target)
+        safe_target = whyml_ident(target)
         val_ir = stmt.get("value", {})
         vt = val_ir.get("type", "")
         self._track_collection_metadata(target, val_ir)
@@ -1557,7 +1505,7 @@ class Module6_WhyMLTranspiler:
 
         # Assignment to a module-level shared variable (always a ref, never re-declared)
         if target in self._shared_var_names:
-            code = f"{indent}{self._whyml_ident(target)} := {val}"
+            code = f"{indent}{whyml_ident(target)} := {val}"
             if rest:
                 code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
             return code
@@ -1720,7 +1668,7 @@ class Module6_WhyMLTranspiler:
                           local_refs: Set[str], declared_refs: Set[str],
                           indent: str, in_loop: bool) -> str:
         target = stmt["target"]
-        safe_target = self._whyml_ident(target)
+        safe_target = whyml_ident(target)
         iter_ir = stmt["iter"]
         idx = f"_idx_{safe_target}"
         has_direct_ret = IRScanner.has_direct_return(stmt.get("body", []))
@@ -1826,7 +1774,7 @@ class Module6_WhyMLTranspiler:
         i_sa = 0
         while i_sa < n_sa:
             var = sorted_assigned[i_sa]
-            safe_var = self._whyml_ident(var)
+            safe_var = whyml_ident(var)
             if safe_var not in declared_refs:
                 pre_decls += f"{indent}let {safe_var} = ref 0 in\n"
                 declared_refs.add(safe_var)
@@ -1903,7 +1851,7 @@ class Module6_WhyMLTranspiler:
                                    local_refs: Set[str], declared_refs: Set[str],
                                    indent: str, in_loop: bool) -> str:
         target = stmt["target"]
-        safe_target = self._whyml_ident(target)
+        safe_target = whyml_ident(target)
         op = stmt.get("op", "=")
         ghost_type = self._resolve_effective_ghost_type(target, op, stmt.get("ghost_type", "int"))
         is_new = target not in declared_refs
@@ -1999,7 +1947,7 @@ class Module6_WhyMLTranspiler:
     def _handle_ghost_array_set_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
                                       local_refs: Set[str], declared_refs: Set[str],
                                       indent: str, in_loop: bool) -> str:
-        arr = self._whyml_ident(stmt["target"])
+        arr = whyml_ident(stmt["target"])
         idx = self._expr_to_whyml(stmt["index"], local_refs)
         val = self._expr_to_whyml(stmt["value"], local_refs)
         # Why3 array element assignment: a[i] <- v
@@ -2020,7 +1968,7 @@ class Module6_WhyMLTranspiler:
             return f'"{raw}"'
         if t == "Var":
             name = ir.get("name", "")
-            safe = self._whyml_ident(name)
+            safe = whyml_ident(name)
             if name in self._ghost_string_vars:
                 return f"!{safe}"
             return safe
@@ -2032,12 +1980,12 @@ class Module6_WhyMLTranspiler:
                                    indent: str, in_loop: bool) -> str:
         targets = stmt["targets"]
         val_whyml = self._expr_to_whyml(stmt["value"], local_refs)
-        safe_targets = [self._whyml_ident(t) for t in targets]
+        safe_targets = [whyml_ident(t) for t in targets]
         val_ir = stmt.get("value", {})
         if val_ir.get("type") == "Call":
             func_name = val_ir.get("func", "")
             nargs = len(val_ir.get("args", []))
-            safe_fn = self._whyml_ident(func_name)
+            safe_fn = whyml_ident(func_name)
             arity_fn = f"{safe_fn}_{nargs}"
             if arity_fn in self._abstract_ops:
                 tuple_ret = "(" + ", ".join(["int"] * len(targets)) + ")"
@@ -2199,11 +2147,11 @@ class Module6_WhyMLTranspiler:
                     if self_field_name is not None:
                         # `self.<field>[k] = v` — record-field assignment.
                         # Why3 syntax: `self.field <- new_value`.
-                        safe_field = self._whyml_ident(self_field_name)
+                        safe_field = whyml_ident(self_field_name)
                         code = (f"{indent}self.{safe_field} <- "
                                 f"map_update_some self.{safe_field} {k} {v}")
                     else:
-                        safe_name = self._whyml_ident(var_name) if var_name else array_expr.lstrip("!")
+                        safe_name = whyml_ident(var_name) if var_name else array_expr.lstrip("!")
                         code = f"{indent}{safe_name} := map_update_some !{safe_name} {k} {v}"
                 else:
                     self._add_abstract_op("val subscript_set (x: int) (i: int) (v: int) : unit")
@@ -2303,7 +2251,7 @@ class Module6_WhyMLTranspiler:
         body_stmts = stmt["body"]
         assume_inv = stmt.get("assume_invariant")
         prove_inv = stmt.get("prove_invariant")
-        safe_mutex = self._safe_mutex_name(mutex)
+        safe_mutex = safe_mutex_name(mutex)
         shared_for_mutex = [
             sv["name"] for sv in self.ir.get("shared_vars", [])
             if sv.get("mutex") == mutex
@@ -2312,7 +2260,7 @@ class Module6_WhyMLTranspiler:
         seq_parts: List[str] = []
         if assume_inv and shared_for_mutex:
             for var in shared_for_mutex:
-                safe_var = self._whyml_ident(var)
+                safe_var = whyml_ident(var)
                 tmp = f"_any_{safe_var}_{self._havoc_counter}"
                 self._havoc_counter += 1
                 let_bindings.append(f"{indent}let {tmp} = any int in")
@@ -2351,10 +2299,10 @@ class Module6_WhyMLTranspiler:
         in_loop: bool,
     ) -> str:
         target = stmt["target"]
-        safe_target = self._whyml_ident(target)
+        safe_target = whyml_ident(target)
         val = self._expr_to_whyml(stmt["value"], local_refs)
         raw_op = stmt["op"]
-        op = self._op(raw_op)
+        op = op_translate(raw_op)
         bitwise_ops = {"&": "bit_and", "|": "bit_or", "^": "bit_xor",
                        "<<": "bit_lshift", ">>": "bit_rshift", "**": "py_pow"}
         # Detect array-typed targets so `+=` on a list lowers to array-concat,
@@ -2403,7 +2351,7 @@ class Module6_WhyMLTranspiler:
             val = "1"
         elif val == "false":
             val = "0"
-        safe_field = self._whyml_ident(field)
+        safe_field = whyml_ident(field)
         decl_fields = self._all_record_fields
         if field in decl_fields:
             # Coerce RHS to the field's declared WhyML type. Without
@@ -2450,8 +2398,8 @@ class Module6_WhyMLTranspiler:
         obj = stmt["object"]
         field = stmt["field"]
         val = self._expr_to_whyml(stmt["value"], local_refs)
-        op = self._op(stmt["op"])
-        safe_field = self._whyml_ident(field)
+        op = op_translate(stmt["op"])
+        safe_field = whyml_ident(field)
         decl_fields = self._all_record_fields
         if field in decl_fields:
             code = f"{indent}{obj}.{safe_field} <- {obj}.{safe_field} {op} {val}"
@@ -2525,7 +2473,7 @@ class Module6_WhyMLTranspiler:
                 if use_raise and func_ret_peek != "array int":
                     val = "0"
                 else:
-                    val = self._whyml_ident(val_ir["name"])
+                    val = whyml_ident(val_ir["name"])
             else:
                 val = self._expr_to_whyml(val_ir, local_refs)
         if use_raise:
@@ -2581,7 +2529,7 @@ class Module6_WhyMLTranspiler:
             func = val.get("func", "")
             if func.endswith(".append") and self.memory_model in ("hoare", "concurrent"):
                 arr_name = func.rsplit(".", 1)[0].replace(".", "_")
-                safe_arr = self._whyml_ident(arr_name)
+                safe_arr = whyml_ident(arr_name)
                 arg = self._expr_to_whyml(val["args"][0], local_refs)
                 arg = self._coerce_to_int(arg)
                 len_ref = f"{safe_arr}_len"
@@ -2596,7 +2544,7 @@ class Module6_WhyMLTranspiler:
                 method = func.rsplit(".", 1)[1]
                 obj_name = func.rsplit(".", 1)[0]
                 if obj_name in getattr(self, "_dict_locals", set()):
-                    safe_obj = self._whyml_ident(obj_name)
+                    safe_obj = whyml_ident(obj_name)
                     arg_ir = (val.get("args") or [{}])[0]
                     arg = self._coerce_to_int(self._expr_to_whyml(arg_ir, local_refs))
                     if method == "add":
@@ -2753,64 +2701,6 @@ class Module6_WhyMLTranspiler:
         )
         return lines
 
-    def _compute_sccs(self, names: Set[str], call_graph: Dict[str, Set[str]]) -> List[List[str]]:
-        """Compute SCCs via Tarjan's algorithm. Returns SCCs in topological order
-        (callees before callers). Each SCC is a list of function names."""
-        index_counter = [0]
-        stack: List[str] = []
-        lowlink: Dict[str, int] = {}
-        index: Dict[str, int] = {}
-        on_stack: Dict[str, bool] = {}
-        sccs: List[List[str]] = []
-
-        def strongconnect(v: str) -> None:
-            index[v] = index_counter[0]
-            lowlink[v] = index_counter[0]
-            index_counter[0] += 1
-            stack.append(v)
-            on_stack[v] = True
-            for w in call_graph.get(v, set()):
-                if w not in names:
-                    continue
-                if w not in index:
-                    strongconnect(w)
-                    lowlink[v] = min(lowlink[v], lowlink[w])
-                elif on_stack.get(w):
-                    lowlink[v] = min(lowlink[v], index[w])
-            if lowlink[v] == index[v]:
-                scc: List[str] = []
-                while True:
-                    w = stack.pop()
-                    on_stack[w] = False
-                    scc.append(w)
-                    if w == v:
-                        break
-                sccs.append(scc)
-
-        for v in sorted(names):  # sorted for determinism
-            if v not in index:
-                strongconnect(v)
-
-        # Tarjan's outputs callees before callers — already the order we want
-        return sccs
-
-    # ------------------------------------------------------------------
-    # Helpers hoisted from transpile() nested function definitions
-    # ------------------------------------------------------------------
-
-    def _find_calls_in_ir(self, obj: Any, func_names_set: Set[str]) -> Set[str]:
-        """Find all function names called within an IR object."""
-        calls: Set[str] = set()
-        if isinstance(obj, dict):
-            if obj.get("type") == "Call" and obj.get("func") in func_names_set:
-                calls.add(obj["func"])
-            for v in obj.values():
-                calls |= self._find_calls_in_ir(v, func_names_set)
-        elif isinstance(obj, list):
-            for item in obj:
-                calls |= self._find_calls_in_ir(item, func_names_set)
-        return calls
-
     @staticmethod
     def _build_witness_str(field_names: List[str], vals: Dict[str, Any]) -> str:
         """Build a WhyML record literal witness string."""
@@ -2838,7 +2728,7 @@ class Module6_WhyMLTranspiler:
                         array1d_params: Set[str], symbol_table: Dict[str, Any],
                         int_type: str) -> str:
         """Return the WhyML parameter type string for a standalone function argument."""
-        safe = self._whyml_ident(arg)
+        safe = whyml_ident(arg)
         if arg in ref_params:
             return f"({safe}: ref {int_type})"
         if arg in array2d_params:
@@ -3241,7 +3131,7 @@ class Module6_WhyMLTranspiler:
             i = 0
             while i < n:
                 sv = shared_vars[i]
-                safe_name = self._whyml_ident(sv["name"])
+                safe_name = whyml_ident(sv["name"])
                 out.append(f"  val {safe_name} : ref int")
                 i += 1
             out.append("")
@@ -3251,7 +3141,7 @@ class Module6_WhyMLTranspiler:
             i = 0
             while i < n:
                 mutex, inv_ir = sorted_mi[i]
-                safe_mutex = self._safe_mutex_name(mutex)
+                safe_mutex = safe_mutex_name(mutex)
                 self._in_spec = True
                 inv_str = self._expr_to_whyml(inv_ir, set())
                 self._in_spec = False
@@ -3263,7 +3153,7 @@ class Module6_WhyMLTranspiler:
             i2 = 0
             while i2 < n2:
                 mutex2, _ = sorted_mi2[i2]
-                safe_mutex2 = self._safe_mutex_name(mutex2)
+                safe_mutex2 = safe_mutex_name(mutex2)
                 out.append(f"  let _check_initial_{safe_mutex2} () : unit =")
                 out.append(f"    assert {{ {safe_mutex2}_inv }}")
                 out.append("")
@@ -3354,34 +3244,6 @@ class Module6_WhyMLTranspiler:
     # transpile() Phase G — topological sort via SCC
     # ------------------------------------------------------------------
 
-    def _sort_functions_by_scc(
-        self, functions: List[Dict[str, Any]]
-    ) -> Tuple[List[Dict[str, Any]], Dict[str, tuple]]:
-        """Return functions in SCC-topological order and a scc_info dict."""
-        func_names_set = {func["name"] for func in functions}
-        func_by_name = {func["name"]: func for func in functions}
-        call_graph: Dict[str, Set[str]] = {}
-        n = len(functions)
-        i = 0
-        while i < n:
-            func = functions[i]
-            call_graph[func["name"]] = (
-                self._find_calls_in_ir(func["body"], func_names_set) & func_names_set
-            )
-            i += 1
-        ordered_sccs = self._compute_sccs(func_names_set, call_graph)
-        sorted_names = [name for scc in ordered_sccs for name in scc]
-        scc_info: Dict[str, tuple] = {}
-        for scc_idx, scc in enumerate(ordered_sccs):
-            scc_size = len(scc)
-            for pos, name in enumerate(scc):
-                scc_info[name] = (scc_idx, pos, scc_size)
-        for func in functions:
-            if func["name"] not in sorted_names:
-                sorted_names.append(func["name"])
-                scc_info[func["name"]] = (len(ordered_sccs), 0, 1)
-        return [func_by_name[name] for name in sorted_names], scc_info
-
     # ------------------------------------------------------------------
     # transpile() Phase H — emit one function block (and helpers)
     # ------------------------------------------------------------------
@@ -3436,7 +3298,7 @@ class Module6_WhyMLTranspiler:
             for arg in symbol_table:
                 if arg in local_refs or arg in ghost_vars:
                     continue
-                safe = self._whyml_ident(arg)
+                safe = whyml_ident(arg)
                 if arg in array2d_params:
                     param_parts.append(f"({safe}: matrix {int_type})")
                 elif symbol_table.get(arg) in ("set", "dict", "frozenset"):
@@ -3704,9 +3566,9 @@ class Module6_WhyMLTranspiler:
         }
 
         if is_method:
-            initial_declared = {self._whyml_ident(v) for v in pre_decl_vars}
+            initial_declared = {whyml_ident(v) for v in pre_decl_vars}
         else:
-            initial_declared = set(ref_params) | {self._whyml_ident(v) for v in pre_decl_vars}
+            initial_declared = set(ref_params) | {whyml_ident(v) for v in pre_decl_vars}
 
         body_code = self._stmts_to_whyml(
             body_stmts,
@@ -3725,12 +3587,12 @@ class Module6_WhyMLTranspiler:
         # are NOT bound at function entry and shadowing them with
         # `let X = ref X in` produces unbound-symbol errors).
         for var in sorted(pre_decl_vars):
-            safe_var = self._whyml_ident(var)
+            safe_var = whyml_ident(var)
             init = safe_var if var in self._formal_params else pfx
             body_code = f"    let {safe_var} = ref {init} in\n{body_code}"
 
         for tgt in sorted(append_targets):
-            safe_tgt = self._whyml_ident(tgt)
+            safe_tgt = whyml_ident(tgt)
             body_code = f"    let {safe_tgt}_len = ref {pfx} in\n{body_code}"
             if tgt not in local_refs and tgt not in ref_params:
                 body_code = f"    let {safe_tgt} = Array.make 1024 0 in\n{body_code}"
@@ -3935,7 +3797,7 @@ class Module6_WhyMLTranspiler:
 
     def _emit_function(self, func: Dict[str, Any], scc_info: Dict[str, tuple]) -> List[str]:
         """Emit one WhyML let/val function block. Returns the list of output lines."""
-        name = self._whyml_ident(func["name"])
+        name = whyml_ident(func["name"])
         body_stmts = func["body"]
         is_method = func.get("kind") == "method"
 
@@ -4136,11 +3998,11 @@ class Module6_WhyMLTranspiler:
 
         self._emit_opaque_class_aliases(functions, out, declared_types)
 
-        self._module_func_names = {self._whyml_ident(func["name"]) for func in functions}
+        self._module_func_names = {whyml_ident(func["name"]) for func in functions}
         self._module_method_return_types = self._build_method_return_type_map(functions)
         self._module_method_param_types = self._build_method_param_types_map(functions)
 
-        sorted_functions, scc_info = self._sort_functions_by_scc(functions)
+        sorted_functions, scc_info = sort_functions_by_scc(functions)
         for func in sorted_functions:
             out += self._emit_function(func, scc_info)
 

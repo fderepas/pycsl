@@ -21,6 +21,8 @@ src/pycsl/
   Module6_WhyMLTranspiler.py  ← facade; JSON IR string → WhyML text
   module6_whyml/
     ir_scanner.py             ← stateless IR-tree analysis
+    identifiers.py            ← whyml_ident / safe_mutex_name / op_translate + OP_MAP, WHYML_RESERVED
+    scc.py                    ← Tarjan SCC + call-graph helpers for function emission order
   pycsl.py                    ← CLI entry point
   errors.py                   ← PyCSLError hierarchy
   ir_schema.py                ← validate_ir() — JSON IR structural contract
