@@ -453,6 +453,35 @@ class RaisesDecl(CSLNode):
     condition: CSLNode
 
 @dataclass
+class NoExceptionDecl(CSLNode):
+    """Represents `no_exception E1, E2, ...` or `no_exception \\all`.
+
+    Turns implicit Python exceptions into proof obligations: every IR
+    operation that could raise one of `exceptions` must be preceded by an
+    assertion discharging its trigger condition (see exception_model.py).
+
+    `all_form=True` is the wildcard form; `exceptions` is empty in that case
+    and the function context expands to the full Phase 1 exception set at
+    transpilation time.
+    """
+    exceptions: List[str]
+    all_form: bool = False
+
+@dataclass
+class AllowFinalizerDecl(CSLNode):
+    """Represents `#@ allow_finalizer` — opts a class with `__del__` out
+    of UB-7.5's hard rejection. Place on the `class` line.
+    """
+    pass
+
+@dataclass
+class AllowIterationMutationDecl(CSLNode):
+    """Represents `#@ allow_iteration_mutation` — opts a `for` loop out
+    of UB-7.1's hard rejection. Place on the `for` line.
+    """
+    pass
+
+@dataclass
 class BoundedIntDecl(CSLNode):
     """Represents `assumes bounded_int(N)` in contracts."""
     size: int
@@ -533,6 +562,9 @@ PYCSL_GRAMMAR = r"""
              | ghost_aug_assign
              | ghost_array_set
              | raises_decl
+             | no_exception_decl
+             | allow_finalizer_decl
+             | allow_iteration_mutation_decl
              | bounded_int_decl
              | proof_decl
              | shared_decl
@@ -569,6 +601,20 @@ PYCSL_GRAMMAR = r"""
     ghost_aug_assign: "ghost" CNAME GHOST_AUG_OP expr
     ghost_array_set: "ghost" CNAME "[" expr "]" "=" expr
     raises_decl: "raises" CNAME "when" expr
+
+    // no_exception — implicit exceptions become proof obligations
+    // (see config/skills/pycsl-exception-model). The bare-name form lists
+    // specific exceptions; the `\all` form expands at transpilation to the
+    // full Phase 1 set and requires the function's raises set to be empty.
+    no_exception_decl: "no_exception" "\\all" -> no_exception_all_decl
+                     | "no_exception" exception_name_list -> no_exception_list_decl
+    exception_name_list: CNAME ("," CNAME)*
+
+    // UB-7.5 — opt-in to `__del__` despite the default rejection
+    allow_finalizer_decl: "allow_finalizer"
+    // UB-7.1 — opt-in to mutating the iterated container inside a for loop
+    allow_iteration_mutation_decl: "allow_iteration_mutation"
+
     bounded_int_decl: "assumes" "bounded_int" "(" NUMBER ")"
 
     // §2.1.12 Proof citation — emits a Why3 axiom in the WhyML preamble
@@ -755,6 +801,22 @@ class PyCSLTransformer(Transformer):
     def ghost_array_set(self, name, index, value) -> GhostArraySetDecl:
         return GhostArraySetDecl(str(name), index, value)
     def raises_decl(self, exc_type, condition) -> RaisesDecl: return RaisesDecl(str(exc_type), condition)
+
+    def exception_name_list(self, *names) -> List[str]:
+        return [str(n) for n in names]
+
+    def no_exception_all_decl(self) -> NoExceptionDecl:
+        return NoExceptionDecl(exceptions=[], all_form=True)
+
+    def no_exception_list_decl(self, names) -> NoExceptionDecl:
+        return NoExceptionDecl(exceptions=list(names), all_form=False)
+
+    def allow_finalizer_decl(self) -> AllowFinalizerDecl:
+        return AllowFinalizerDecl()
+
+    def allow_iteration_mutation_decl(self) -> AllowIterationMutationDecl:
+        return AllowIterationMutationDecl()
+
     def bounded_int_decl(self, size) -> BoundedIntDecl: return BoundedIntDecl(int(size))
     def proof_decl(self, prover, qualname) -> ProofDecl:
         return ProofDecl(prover=str(prover), qualname=str(qualname))

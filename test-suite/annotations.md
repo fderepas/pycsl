@@ -37,6 +37,7 @@ Python construct they annotate (function, class, loop, or statement).
 | 10 | Thread entry | `#@ thread_entry` | Function/method | Marks function as a concurrent thread entry point; used with `--memory-model concurrent` |
 | 11 | _(reserved — `proof` directive removed 2026-05-27)_ | | | |
 | 12 | Axiom from proof | `#@ proof <rocq\|lean> <qualname>` | Module-level | Imports a Rocq or Lean theorem as a Why3 axiom in the preamble. When both `rocq` and `lean` directives name the same `pycsl_target`, the `proof2why3 cross-check` tool verifies their canonical forms agree before emission ("Rocq + Lean as Cross-Validated Spec Sources"). See §2.1.12 below. |
+| 13 | No-exception | `#@ no_exception E1, E2, ...` or `#@ no_exception \all` | Function/method | Implicit Python exceptions become proof obligations. For each IR operation in the body that could raise a listed exception, Module 6 emits a WhyML `assert { trigger }`. The `\all` form expands to the full Phase 1 set in `exception_model.KNOWN_EXCEPTIONS` and requires `raises { }` to be empty. See §2.1.13. |
 
 Multiple `requires`/`ensures` lines are conjuncted (all must hold).
 
@@ -91,20 +92,135 @@ block in the preamble.
 **Worked example:** `test-suite/corpus/pycsl-reference/0342.py` (Euclidean
 GCD) with proofs under `0342.proofs/{rocq,lean}/`.
 
+#### §2.1.13 No-exception (`no_exception`)
+
+```python
+#@ no_exception ZeroDivisionError
+#@ no_exception ZeroDivisionError, IndexError
+#@ no_exception \all
+```
+
+A function-level directive turning **implicit** Python exceptions into
+proof obligations. For each IR operation in the body whose shape could
+raise a listed exception, Module 6 emits a WhyML `assert { trigger }`
+immediately before the operation; the trigger predicate is looked up in
+`src/pycsl/exception_model.py`.
+
+**When to use.** Whenever the function must provably not escape via the
+listed exception(s) — e.g. division helpers that must reject zero
+divisors, array helpers that must respect bounds. The default behaviour
+of an unannotated function is unchanged: implicit exceptions are not
+proof-blocking.
+
+**When NOT to use.** To bypass a `no_exception` proof failure with
+`\trusted` — strengthen the precondition instead. The whole value of
+`no_exception` is that a failed VC tells the user exactly which
+precondition would discharge it.
+
+**Conflicts.** `no_exception E` and `raises { E -> _ }` for the same `E`
+on the same function are mutually contradictory and rejected by Module 4.
+The `\all` form additionally requires `raises { }` to be empty.
+
+**Known exceptions (Phase 1):** `ZeroDivisionError`, `IndexError`,
+`KeyError`, `ValueError`, `StopIteration`. The authoritative set lives
+in `exception_model.KNOWN_EXCEPTIONS`. Adding a new exception requires
+extending both that set and the trigger table in the same module, plus
+adding corpus tests under `test-suite/corpus/pycsl-reference/`.
+
+**Test-corpus cross-reference:** parser tests are `0353`–`0357`; VC
+injection tests are `0359`–`0395` (broken out by exception category in
+the corpus numbering reservation under `traceability-pycsl.md`).
+
 ### 2.2 Loop Contracts
 
 | # | Directive | Syntax | Scope | Semantics |
 |---|---|---|---|---|
 | 1 | Loop invariant | `#@ loop invariant <expr>` | `while`/`for` | Inductive property preserved each iteration |
 | 2 | Loop variant | `#@ loop variant <expr>` | `while`/`for` | Termination measure (must decrease, stay ≥ 0) |
+| 3 | Allow iteration mutation | `#@ allow_iteration_mutation` | `for` loop | Opts the loop out of UB-7.1 (mutation during iteration). See §2.2.3. |
+
+#### §2.2.3 Allow iteration mutation (`allow_iteration_mutation`)
+
+```python
+#@ allow_iteration_mutation
+for x in arr:
+    arr.append(x + 1)
+    return
+```
+
+Placed immediately before a `for` statement (alongside `loop
+invariant` / `loop variant`). Disables the UB-7.1 check
+(`IRScanner.find_iteration_mutations`) for that one loop, so the
+body may mutate the iterated collection via `arr.append(...)`,
+`arr.pop(...)`, `arr[i] = v`, `del arr[i]`, and the rest of the
+mutating-method set (`clear`, `add`, `remove`, `discard`, `update`,
+`extend`, `insert`, `setdefault`).
+
+**Scope:** per-loop, not per-function. Nested loops inside a blessed
+loop are still checked.
+
+**When to use.** The canonical case is the snapshot pattern
+(`for k in list(d): del d[k]`) — the iterator is over a freshly
+materialized list, not the dict being mutated. Use the annotation
+when you cannot or will not rewrite to the snapshot form. The
+annotation documents the assumption; it does not make the mutation
+safer.
+
+**When NOT to use.** As a blanket suppression of the check. The hard
+reject exists because iterator-state corruption is genuine UB in
+CPython, not a verification quirk.
+
+**Test-corpus cross-reference:** `0404` (append fails without the
+annotation), `0405` (pop fails), `0406` (mutating a different
+container — no annotation needed), `0407` (`allow_iteration_mutation`
+opt-in proves).
 
 ### 2.3 Class Contracts
 
 | # | Directive | Syntax | Scope | Semantics |
 |---|---|---|---|---|
 | 1 | Class invariant | `#@ class invariant <expr>` | `class` | Must hold at every method boundary |
+| 2 | Allow finalizer | `#@ allow_finalizer` | `class` | Opts the class out of UB-7.5 (`__del__` rejection). See §2.3.2. |
 
 Placed on leading lines **before** the `class` keyword.
+
+#### §2.3.2 Allow finalizer (`allow_finalizer`)
+
+```python
+""  # pycsl
+#@ class invariant self._n >= 0
+#@ allow_finalizer
+class WithFinalizer:
+    def __init__(self) -> None:
+        self._n: int = 0
+
+    def __del__(self) -> None:
+        self._n = 0
+```
+
+Placed immediately before the `class` keyword (in any order
+relative to `class invariant` lines). Disables the UB-7.5 check in
+`Module3_Weaver.visit_ClassDef`, which otherwise rejects any class
+body containing a `def __del__` with `PyCSLSemanticError`.
+
+**Scope:** per-class. The annotation does not propagate to other
+classes in the same file.
+
+**When to use.** When the class genuinely needs a finalizer (rare in
+verification-grade code). The rest of the class can still be
+verified — the annotation just documents that lifetime-dependent
+contracts are not modelled in WhyML.
+
+**When NOT to use.** As a workaround for not knowing whether a
+finalizer is needed. CPython's GC may invoke `__del__` at any time
+between unreachability and interpreter shutdown — and may skip it
+entirely under shutdown. Any contract that references when the
+finalizer runs is at risk regardless of this annotation.
+
+**Test-corpus cross-reference:** `0401` (class with `__del__` is
+rejected without the annotation), `0402` (`allow_finalizer` opt-in
+accepts the class), `0403` (baseline: class without `__del__`
+unaffected by the check).
 
 ### 2.4 Program Point Annotations
 

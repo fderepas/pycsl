@@ -481,6 +481,100 @@ class IRScanner:
                     result |= IRScanner.find_append_targets(stmt[key])
         return result
 
+    # ---- UB-7.1 — mutation during iteration ------------------------
+    # Mutating method names (dotted-call receivers that imply mutation
+    # of the receiver collection). Reads do not appear here; only writes.
+    _MUTATING_METHODS: Set[str] = {
+        "append", "pop", "clear", "add", "remove", "discard",
+        "update", "extend", "insert", "setdefault",
+    }
+
+    @staticmethod
+    def _collect_mutations(stmts: List[Dict[str, Any]],
+                            target_name: str,
+                            out: List[Dict[str, Any]]) -> None:
+        """Walk ``stmts`` and append entries to ``out`` for every
+        statement that mutates the collection ``target_name``. Reaches
+        into ``body`` / ``orelse`` recursively. Used by
+        ``find_iteration_mutations``."""
+        for stmt in stmts:
+            stype = stmt.get("stmt")
+            # `target[i] = v` — array/dict element write.
+            if stype == "ArraySet":
+                arr = stmt.get("array", {})
+                if arr.get("type") == "Var" and arr.get("name") == target_name:
+                    out.append(stmt)
+            # `t.append(x)` / `t.pop()` / ... — dotted call as a statement.
+            elif stype == "Expr":
+                val = stmt.get("value", {})
+                if val.get("type") == "Call":
+                    func = val.get("func", "")
+                    if "." in func:
+                        recv, method = func.rsplit(".", 1)
+                        if recv == target_name and method in IRScanner._MUTATING_METHODS:
+                            out.append(stmt)
+            # `del t[i]` — Python-AST `Delete`. Module 5 may emit this
+            # as either a "Delete" stmt or via a synthesized helper;
+            # cover both shapes conservatively.
+            elif stype in ("Delete", "DelSubscript"):
+                arr = stmt.get("array", {}) or stmt.get("target", {})
+                if isinstance(arr, dict) and arr.get("type") == "Var" and arr.get("name") == target_name:
+                    out.append(stmt)
+            # Recurse into nested blocks. Skip nested `For` over the
+            # same target — the inner loop has its own check.
+            for key in ("body", "orelse", "finalbody"):
+                if key in stmt and isinstance(stmt[key], list):
+                    IRScanner._collect_mutations(stmt[key], target_name, out)
+            if stype == "Match":
+                for c in stmt.get("cases", []):
+                    IRScanner._collect_mutations(c.get("body", []), target_name, out)
+
+    @staticmethod
+    def find_iteration_mutations(stmts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Return a list of ``{loop_target, iterable_name, mutating_stmt}``
+        records for every UB-7.1 violation found in ``stmts``.
+
+        A violation is: a ``For`` loop whose ``iter`` is a `Var(name=C)`,
+        and somewhere in its ``body`` a statement mutates ``C`` (via
+        `C[i] = v`, `C.append(...)`, `C.pop(...)`, `del C[i]`, etc.).
+
+        The detector respects the per-loop opt-in marker
+        ``ir.get("allow_iteration_mutation", False)`` (set by Module 5
+        from the ``#@ allow_iteration_mutation`` parser directive).
+        """
+        out: List[Dict[str, Any]] = []
+        for stmt in stmts:
+            if stmt.get("stmt") == "For":
+                if stmt.get("allow_iteration_mutation"):
+                    # Recurse into body for nested loops, but skip the
+                    # check on this one.
+                    out.extend(IRScanner.find_iteration_mutations(stmt.get("body", [])))
+                    continue
+                iter_expr = stmt.get("iter", {})
+                iterable_name: str = ""
+                if iter_expr.get("type") == "Var":
+                    iterable_name = iter_expr.get("name", "")
+                if iterable_name:
+                    mutations: List[Dict[str, Any]] = []
+                    IRScanner._collect_mutations(stmt.get("body", []), iterable_name, mutations)
+                    for m in mutations:
+                        out.append({
+                            "loop_target": stmt.get("target", ""),
+                            "iterable_name": iterable_name,
+                            "mutating_stmt": m,
+                            "loop_line": stmt.get("lineno", 0),
+                        })
+                # Recurse into the body (handles nested for-loops).
+                out.extend(IRScanner.find_iteration_mutations(stmt.get("body", [])))
+            else:
+                for key in ("body", "orelse", "finalbody"):
+                    if key in stmt and isinstance(stmt[key], list):
+                        out.extend(IRScanner.find_iteration_mutations(stmt[key]))
+                if stmt.get("stmt") == "Match":
+                    for c in stmt.get("cases", []):
+                        out.extend(IRScanner.find_iteration_mutations(c.get("body", [])))
+        return out
+
     @staticmethod
     def find_return_type(stmts: List[Dict[str, Any]]) -> str:
         def _has_return(stmts: List[Dict[str, Any]]) -> bool:

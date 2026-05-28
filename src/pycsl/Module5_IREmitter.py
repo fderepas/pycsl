@@ -831,7 +831,11 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
             "iter": self._py_expr_to_ir(node.iter),
             "invariants": self._csl_list_to_ir(getattr(node, 'csl_invariants', [])),
             "variants": self._csl_list_to_ir(getattr(node, 'csl_variants', [])),
-            "body": self._py_stmts_to_ir(node.body)
+            "body": self._py_stmts_to_ir(node.body),
+            # UB-7.1 opt-in (#@ allow_iteration_mutation). Module 4
+            # consults this when running `find_iteration_mutations`.
+            "allow_iteration_mutation": bool(getattr(node, 'csl_allow_iteration_mutation', False)),
+            "lineno": getattr(node, "lineno", 0),
         }
 
     def _process_if(self, node: ast.If) -> Dict[str, Any]:
@@ -1025,13 +1029,22 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
         """Collect fields from __init__, extract class invariants, and emit a type_decl record."""
         self._current_class = node.name
         fields, field_defaults = self._collect_class_fields(node)
+        # UB-7.2 — track presence of __hash__ / __eq__ so Module 6 can
+        # emit the consistency goal in the preamble.
+        method_names = {
+            s.name for s in node.body if isinstance(s, ast.FunctionDef)
+        }
+        has_hash = "__hash__" in method_names
+        has_eq = "__eq__" in method_names
         if fields:
             class_invariants_ir = [self._csl_to_ir(inv.expr)
                                    for inv in getattr(node, 'csl_class_invariants', [])]
             field_witness = {f["name"]: field_defaults.get(f["name"], 0) for f in fields}
             self.program_ir["type_decls"].append({
                 "kind": "record", "name": node.name, "fields": fields,
-                "class_invariants": class_invariants_ir, "field_defaults": field_witness
+                "class_invariants": class_invariants_ir, "field_defaults": field_witness,
+                "has_hash": has_hash, "has_eq": has_eq,
+                "is_unhashable": has_eq and not has_hash,
             })
         self.generic_visit(node)
         self._current_class = None
@@ -1118,7 +1131,13 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
                 "ensures": self._csl_list_to_ir(getattr(node, 'csl_ensures', [])),
                 "assigns": [self._csl_to_ir(t) for a in getattr(node, 'csl_assigns', []) for t in a.targets],
                 "raises": [{"exc_type": r.exc_type, "condition": self._csl_to_ir(r.condition)}
-                           for r in getattr(node, 'csl_raises', [])]
+                           for r in getattr(node, 'csl_raises', [])],
+                # `no_exception E1, E2, ...` — list of exception names the
+                # function commits to not raising. Phase 1 of the
+                # NoException workplan; see exception_model.py for the
+                # trigger table.
+                "no_exception": list(getattr(node, 'csl_no_exception', []) or []),
+                "no_exception_all": bool(getattr(node, 'csl_no_exception_all', False)),
             },
             "body": self._py_stmts_to_ir(node.body),
             "function_variants": self._csl_list_to_ir(getattr(node, 'csl_function_variants', [])),

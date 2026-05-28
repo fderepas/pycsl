@@ -106,6 +106,14 @@ class PreambleEmissionMixin:
         needs_sum = any(IRScanner.uses_sum(func) for func in functions)
         needs_set_card = any(IRScanner.uses_set_card(func) for func in functions)
         needs_divmod = any(IRScanner.uses_divmod(body) for body in all_bodies)
+        # `no_exception` predicate vocabulary is emitted if any function in
+        # the file declares a no_exception clause (Phase 1 NoException
+        # workplan). See src/pycsl/exception_model.py for the predicates.
+        needs_no_exception = any(
+            func.get("contracts", {}).get("no_exception") or
+            func.get("contracts", {}).get("no_exception_all")
+            for func in functions
+        )
         bounded_sizes = {func["bounded_int"] for func in functions if func.get("bounded_int")}
         user_exceptions: Set[str] = set()
         n2 = len(all_bodies)
@@ -130,6 +138,7 @@ class PreambleEmissionMixin:
             "needs_sum": needs_sum,
             "needs_set_card": needs_set_card,
             "needs_divmod": needs_divmod,
+            "needs_no_exception": needs_no_exception,
             "bounded_sizes": bounded_sizes,
             "user_exceptions": user_exceptions,
         }
@@ -338,11 +347,27 @@ class PreambleEmissionMixin:
         out.append("")
         return out
 
+    def _emit_preamble_no_exception_predicates(self, needs: Dict[str, Any]) -> List[str]:
+        """Phase D: emit the WhyML predicate library for `no_exception`.
+
+        Only emitted when at least one function declares `no_exception`
+        (per `needs_no_exception`). The predicate definitions come from
+        `exception_model.PREDICATE_LIBRARY` — the single source of truth.
+        """
+        if not needs.get("needs_no_exception"):
+            return []
+        from exception_model import predicate_definitions
+        out: List[str] = [""]
+        for line in predicate_definitions():
+            out.append(f"  {line}")
+        return out
+
     def _emit_preamble(self, needs: Dict[str, Any]) -> List[str]:
         """Emit the WhyML module header: use declarations, exception types, helper functions."""
         out = self._emit_preamble_uses(needs)
         out += self._emit_preamble_exceptions(needs)
         out += self._emit_preamble_helpers(needs)
+        out += self._emit_preamble_no_exception_predicates(needs)
         out += self._emit_preamble_axioms(self.ir)
         out.append("")
         return out
@@ -461,6 +486,38 @@ class PreambleEmissionMixin:
                             ic += 1
                     out.append(f"    by {{ {self._build_witness_str(field_names, witness_vals)} }}")
                 out.append("")
+                # UB-7.2 — hash/eq consistency. Module 5 marks classes
+                # whose `__hash__` and `__eq__` are both defined.
+                # `__hash__` and `__eq__` are dunders and Module 5
+                # skips dunders for body emission, so we declare them
+                # as abstract `val` functions here and emit the
+                # consistency relationship.
+                #
+                # Default mode emits an *axiom* — the user is on the
+                # hook to keep hash and eq consistent; the axiom
+                # documents the assumption. Strict mode (CLI flag
+                # `--strict-hash-eq-consistency`) emits a *goal* that
+                # Why3 must discharge (typically via an external
+                # `#@ proof rocq` citation).
+                if td.get("has_hash") and td.get("has_eq"):
+                    cls = td["name"].lower()
+                    out.append(f"  (* UB-7.2 — hash/eq for {td['name']} *)")
+                    out.append(f"  val function {cls}_hash_ (x: {cls}) : int")
+                    out.append(f"  val function {cls}_eq_ (a: {cls}) (b: {cls}) : bool")
+                    if getattr(self, "strict_hash_eq_consistency", False):
+                        out.append(
+                            f"  goal hash_eq_consistent_{cls}: forall a b: {cls}. "
+                            f"{cls}_eq_ a b = True -> {cls}_hash_ a = {cls}_hash_ b")
+                    else:
+                        out.append(
+                            f"  axiom hash_eq_consistent_{cls}: forall a b: {cls}. "
+                            f"{cls}_eq_ a b = True -> {cls}_hash_ a = {cls}_hash_ b")
+                    out.append("")
+                elif td.get("is_unhashable"):
+                    cls = td["name"].lower()
+                    out.append(f"  (* UB-7.2 — class {td['name']} defines __eq__ "
+                               f"without __hash__: unhashable, do not use as dict/set key *)")
+                    out.append("")
             i += 1
         return out, declared_types
 

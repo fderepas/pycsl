@@ -523,6 +523,28 @@ def _parse_args() -> argparse.Namespace:
                              "proof obligations in DIR. Why3 emits .v files "
                              "with proof skeletons that you complete manually "
                              "and compile with coqc.")
+    parser.add_argument("--strict-concurrent-checks", action="store_true",
+                        help="Escalate ConcurrencyChecker warnings (unprotected "
+                             "shared access, nested locking without lock_order) to "
+                             "hard errors. Off by default to preserve backward "
+                             "compatibility for existing concurrent-model corpora. "
+                             "See config/skills/pycsl-ub-catalog/SKILL.md §7.3.")
+    parser.add_argument("--allow-unverified-imports", action="store_true",
+                        help="Permit imports on the C-extension deny-list "
+                             "(ctypes, cffi, numpy.ctypeslib, cython) without "
+                             "a #@ \\trusted opt-in on the importing function. "
+                             "Off by default. See config/skills/pycsl-ub-catalog/SKILL.md §7.4.")
+    parser.add_argument("--strict-hash-eq-consistency", action="store_true",
+                        help="Emit the UB-7.2 hash/eq consistency property as a "
+                             "Why3 goal that must be discharged (typically via "
+                             "an external proof citation). Off by default — emits "
+                             "as an axiom and trusts the user.")
+    parser.add_argument("--strict-no-exception-propagation", action="store_true",
+                        help="(Experimental, off by default.) Under `no_exception` "
+                             "treat unannotated callees pessimistically: any call "
+                             "from a `no_exception`-enabled function to an abstract "
+                             "callee becomes an unsatisfiable VC. See the NoException "
+                             "workplan §1.4 / docs/pycsl-static-semantics-reference §2.1.13.")
     parser.add_argument("--rocq-proofs", metavar="DIR", default=None, nargs="?",
                         const="__auto__",
                         help="Check DIR for pre-existing Rocq proofs when SMT "
@@ -566,7 +588,22 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     validated_ast = analyzer.process(unified_ast)
 
     # [ConcurrencyChecker] Static concurrency analysis (warnings only)
-    cc = ConcurrencyChecker(validated_ast)
+    # [Import classifier] UB-7.4 — C-extension boundary
+    from import_classifier import check_imports
+    from pathlib import Path as _Path
+    _project_root = _Path(__file__).resolve().parents[2]  # …/pycsl/
+    check_imports(
+        validated_ast,
+        stub_dir=_project_root / "src" / "pycsl_lib",
+        allow_unverified=getattr(args, "allow_unverified_imports", False),
+        filename=getattr(args, "file", "<input>"),
+    )
+
+    cc = ConcurrencyChecker(
+        validated_ast,
+        strict_mode=getattr(args, "strict_concurrent_checks", False),
+        filename=getattr(args, "file", "<input>"),
+    )
     cc_warnings = cc.check()
     if cc_warnings:
         print(cc.summary())
@@ -578,6 +615,28 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # Validate IR structure before handing off to Module 6
     ir_data = _json.loads(json_ir)
     validate_ir(ir_data)
+
+    # [UB-7.1] Mutation-during-iteration check. Walks function bodies for
+    # `for x in C: ...` whose body mutates C (and the loop isn't opted
+    # out via `#@ allow_iteration_mutation`). Raises PyCSLSemanticError
+    # on the first violation. See ub-catalog §7.1.
+    from module6_whyml.ir_scanner import IRScanner as _IRScanner
+    from errors import PyCSLSemanticError as _PyCSLSemanticError
+    for _func in ir_data.get("functions", []):
+        _viols = _IRScanner.find_iteration_mutations(_func.get("body", []))
+        if _viols:
+            v = _viols[0]
+            raise _PyCSLSemanticError(
+                f"{args.file} (function '{_func.get('name')}', for-loop near "
+                f"line {v.get('loop_line', '?')}): UB-7.1 — the loop body "
+                f"mutates the iterated collection '{v.get('iterable_name')}'. "
+                f"This is undefined behaviour in CPython "
+                f"(iterator state corruption). Either rewrite to iterate "
+                f"over a snapshot (`for k in list({v.get('iterable_name')}):`) "
+                f"or annotate the loop with `#@ allow_iteration_mutation` "
+                f"to acknowledge the boundary. "
+                f"See config/skills/pycsl-ub-catalog/SKILL.md §7.1."
+            )
 
     # Multi-file import resolution
     imported_names = _resolve_imports(validated_ast, args.file, ir_data, deep=args.deep)
@@ -614,7 +673,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             print(f"[*] --fun filter: verifying {verified_names}, trusting {trusted_names}")
 
     # [Module 6] WhyML Transpilation
-    transpiler = Module6_WhyMLTranspiler(json_ir, memory_model=memory_model)
+    transpiler = Module6_WhyMLTranspiler(
+        json_ir, memory_model=memory_model,
+        strict_no_exception_propagation=getattr(args, "strict_no_exception_propagation", False),
+        strict_hash_eq_consistency=getattr(args, "strict_hash_eq_consistency", False),
+    )
     return transpiler.transpile()
 
 

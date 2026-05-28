@@ -100,6 +100,51 @@ _Corresponds to `annotations.md` §2.1._
 | 2.1.10| Thread entry | `thread_entry_decl ::= "thread_entry" ;` |
 | 2.1.11| _(reserved — the colon-separated `#@ proof rocq: <q>` provenance directive was removed 2026-05-27; the current `proof` directive at §2.1.12 is load-bearing and space-separated)_ |
 | 2.1.12| Axiom from proof | `proof_decl ::= "proof" prover_id qualname ;` where `prover_id ::= "rocq" \| "lean"` and `qualname ::= CNAME ("." CNAME)*` |
+| 2.1.13| No-exception | `no_exception_decl ::= "no_exception" ( "\all" \| CNAME ("," CNAME)* ) ;` |
+
+### 2.1.13 No-exception (`no_exception E1, E2, …` / `no_exception \all`)
+
+A function-level contract directive that turns implicit Python exceptions
+into proof obligations. For each operation in the function body whose IR
+shape can raise one of the named exceptions (see
+`config/skills/pycsl-exception-model/SKILL.md` for the trigger table),
+Module 6 emits a WhyML `assert { … }` immediately before the operation.
+
+**Forms:**
+
+- `#@ no_exception ZeroDivisionError` — a single exception.
+- `#@ no_exception ZeroDivisionError, IndexError` — multiple, comma-separated.
+- `#@ no_exception \all` — wildcard, expanding to the full Phase 1 set
+  defined in `exception_model.KNOWN_EXCEPTIONS`. Requires the function's
+  `raises { ... }` set to be empty.
+
+Multiple `no_exception` lines on the same function union together.
+
+**Placement.** Inside a `#@`-prefixed contract block, immediately before
+the `def` line, intermixed freely with `requires`, `ensures`, `assigns`,
+`raises`, `\variant`, `\diverges`, `\trusted`.
+
+**Valid example:**
+
+```python
+#@ requires n != 0
+#@ ensures \result == 256 // n
+#@ assigns \nothing
+#@ no_exception ZeroDivisionError
+def divide_256(n: int) -> int:
+    return 256 // n
+```
+
+**Invalid example (parser/semantic rejection):**
+
+```python
+#@ raises ZeroDivisionError when n == 0
+#@ no_exception ZeroDivisionError    # contradicts the line above
+def conflicted(n: int) -> int: ...
+```
+
+The exception name must be in `exception_model.KNOWN_EXCEPTIONS`;
+unknown names are rejected with a clear error listing the known set.
 
 **Conjunction rule:** Multiple `requires` lines are logically conjoined
 (all must hold at entry). Multiple `ensures` lines are logically conjoined
@@ -206,6 +251,7 @@ _Corresponds to `annotations.md` §2.2._
 |-------|-----------|-----------|
 | 2.2.1 | Loop invariant | `loop_invariant ::= "loop" "invariant" expr ;` |
 | 2.2.2 | Loop variant | `loop_variant ::= "loop" "variant" expr ;` |
+| 2.2.3 | Allow iteration mutation | `allow_iteration_mutation_decl ::= "allow_iteration_mutation" ;` |
 
 #### Examples
 
@@ -216,6 +262,13 @@ while i < n:
     i = i + 1
 ```
 
+```python
+#@ allow_iteration_mutation
+for x in arr:
+    arr.append(x + 1)
+    return
+```
+
 ### 2.3 Class Contracts
 
 _Corresponds to `annotations.md` §2.3._
@@ -223,6 +276,7 @@ _Corresponds to `annotations.md` §2.3._
 | §     | Directive | Production |
 |-------|-----------|-----------|
 | 2.3.1 | Class invariant | `class_invariant ::= "class" "invariant" expr ;` |
+| 2.3.2 | Allow finalizer | `allow_finalizer_decl ::= "allow_finalizer" ;` |
 
 Must be preceded by the anchor `""  # pycsl` (see §1.3).
 
@@ -233,6 +287,17 @@ Must be preceded by the anchor `""  # pycsl` (see §1.3).
 #@ class invariant self._balance >= 0
 class Account:
     ...
+```
+
+```python
+""  # pycsl
+#@ class invariant self._n >= 0
+#@ allow_finalizer
+class WithFinalizer:
+    def __init__(self) -> None:
+        self._n: int = 0
+    def __del__(self) -> None:
+        self._n = 0
 ```
 
 ### 2.4 Program Point Annotations
@@ -774,6 +839,9 @@ contract ::= precondition
            | raises_decl
            | bounded_int_decl
            | proof_decl
+           | no_exception_decl
+           | allow_finalizer_decl
+           | allow_iteration_mutation_decl
            | shared_decl
            | thread_entry_decl
            | acquires_decl
@@ -799,12 +867,17 @@ qualname                    ::= CNAME ( "." CNAME )* ;
 
 (* --- §2.2  Loop Contracts --------------------------------- *)
 
-loop_invariant ::= "loop" "invariant" expr ;
-loop_variant   ::= "loop" "variant" expr ;
+loop_invariant                 ::= "loop" "invariant" expr ;
+loop_variant                   ::= "loop" "variant" expr ;
+allow_iteration_mutation_decl  ::= "allow_iteration_mutation" ;
 
 (* --- §2.3  Class Contracts -------------------------------- *)
 
-class_invariant ::= "class" "invariant" expr ;
+class_invariant      ::= "class" "invariant" expr ;
+allow_finalizer_decl ::= "allow_finalizer" ;
+
+(* --- §2.1.13  No-exception (re-listed here for grammar completeness) *)
+no_exception_decl ::= "no_exception" ( "\all" | CNAME ( "," CNAME )* ) ;
 
 (* --- §2.4  Program Point Annotations ---------------------- *)
 

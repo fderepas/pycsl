@@ -355,6 +355,67 @@ during Module6's preamble emission phase.
 
 _Corresponds to `annotations.md` §2.1.12._
 
+#### §2.1.13 No-exception (`no_exception E1, E2, …` / `no_exception \all`)
+
+```
+    {E_1, …, E_n} ⊆ KNOWN_EXCEPTIONS        ∀i: E_i ∉ raised(f)
+   ───────────────────────────────────────────────────────────────
+              Γ_f ⊢ no_exception(E_1, …, E_n) : ok
+```
+
+```
+              raised(f) = ∅
+   ──────────────────────────────────
+    Γ_f ⊢ no_exception(\all) : ok
+```
+
+where `raised(f) = { E | raises(E, _) ∈ Γ_f }` is the set of exception
+names declared in the function's `raises` clauses, and
+`KNOWN_EXCEPTIONS = {ZeroDivisionError, IndexError, KeyError,
+ValueError, StopIteration}` (Phase 1 — see
+`src/pycsl/exception_model.py`).
+
+**Proof obligation.** Under the function's precondition `P`, every IR
+operation `op` in the body satisfying `(kind(op), subkind(op)) ∈
+dom(TRIGGERS)` must discharge each `trigger(op, E)` for which
+`E ∈ no_exception_set(f) ∨ no_exception_all(f)`:
+
+```
+    Γ, P ⊢ trigger(op, E)        for every op such that E ∈ active(f)
+```
+
+where `active(f) = no_exception_set(f) ∪ (no_exception_all(f) ?
+KNOWN_EXCEPTIONS : ∅)` and `TRIGGERS` is the table in
+`exception_model.py`.
+
+**Rule (conflict rejection).** `no_exception(E) ∧ raises(E, _) ∈ Γ_f`
+is rejected by `Module4_SemanticAnalyzer._validate_no_exception` with a
+`PyCSLSemanticError`. The `\all` form additionally requires
+`raised(f) = ∅`; otherwise rejected.
+
+**Rule (unknown name).** Any name in the directive that is not in
+`KNOWN_EXCEPTIONS` is rejected as a `PyCSLSemanticError` listing the
+known set.
+
+**Inter-procedural propagation (workplan §1.4).** At a call site
+`g(args)` inside a function `f`, the obligation imposed on `f` for each
+`E ∈ active(f)`:
+
+- If `g` declares `no_exception E` (proved): no obligation at the call
+  site for `E`.
+- If `g` declares `raises(E, P_g)`: the call site must discharge `¬P_g`
+  in the local context.
+- Otherwise (`g` is unannotated for `E`): no obligation by default
+  (ambient mode, preserving backward compatibility); pessimistic under
+  `--strict-no-exception-propagation`, in which case the call site must
+  discharge `false` (i.e. the call cannot be proved without strengthening
+  `g`'s annotations).
+
+The CLI flag is off by default and treated as opt-in; ambient mode is
+the default per workplan §11.3.
+
+_Corresponds to `annotations.md` §2.1.13._
+
 ### 2.2 Loop Contracts
 
 _Corresponds to `annotations.md` §2.2._
@@ -384,6 +445,35 @@ scope.
 
 **Rule:** Same as loop invariant.
 
+#### §2.2.3 Allow iteration mutation (`allow_iteration_mutation`)
+
+```
+   ──────────────────────────────────────────────
+    Γ_f ⊢ allow_iteration_mutation : ok
+```
+
+**Rule:** Always well-formed syntactically (no operands). Semantically
+significant only when attached to a `for` statement — it sets the
+per-loop flag that suppresses the UB-7.1 check performed by
+`IRScanner.find_iteration_mutations`. Module 5 propagates the flag as
+`allow_iteration_mutation: true` on the IR for-loop node; Module 4
+consults it via `pycsl.py:_run_pipeline` immediately after IR
+validation.
+
+**Verification stance.** UB-7.1 is a *hard error* by default —
+mutating the iterated collection corrupts CPython's iterator state.
+The annotation opts a single `for` loop out of the check; nested
+loops inside it are still checked. Prefer rewriting (`for k in
+list(d):`) to the annotation when feasible.
+
+**Error (UB-7.1 without the annotation):** `"UB-7.1 — the loop body
+mutates the iterated collection '<C>'. ... Either rewrite to iterate
+over a snapshot ... or annotate the loop with
+`#@ allow_iteration_mutation`."`
+
+**Cross-reference:** `config/skills/pycsl-ub-catalog/SKILL.md` §7.1
+and `annotations.md` §2.2.3.
+
 ### 2.3 Class Contracts
 
 _Corresponds to `annotations.md` §2.3._
@@ -409,6 +499,33 @@ the invariant expression. `FieldAccess` nodes are excluded from variable
 extraction (they are validated separately via the field table). Variables
 that appear as bare names (e.g., numeric constants used in comparisons)
 ARE checked against Γ_c.
+
+#### §2.3.2 Allow finalizer (`allow_finalizer`)
+
+```
+   ─────────────────────────────────
+    Γ_c ⊢ allow_finalizer : ok
+```
+
+**Rule:** Always well-formed syntactically (no operands). Sets the
+per-class `csl_allow_finalizer` flag consulted by
+`Module3_Weaver.visit_ClassDef`, which otherwise rejects any class
+body containing a `def __del__` with `PyCSLSemanticError`.
+
+**Verification stance.** UB-7.5 is a *hard error* by default —
+CPython's finalizer protocol is non-deterministic (timing depends
+on the garbage collector and may be skipped at interpreter
+shutdown). The annotation documents the boundary so the rest of
+the class can still be verified; contracts that reference lifetime
+(e.g. "the finalizer releases X") remain at risk.
+
+**Error (UB-7.5 without the annotation):** `"Class '<name>' (line
+<lno>): `__del__` finalizer is rejected under UB-7.5. ... Either
+remove `__del__` or annotate the class with `#@ allow_finalizer` to
+acknowledge that any lifetime-dependent contracts are at risk."`
+
+**Cross-reference:** `config/skills/pycsl-ub-catalog/SKILL.md` §7.5
+and `annotations.md` §2.3.2.
 
 ### 2.4 Program Point Annotations
 
@@ -1292,3 +1409,16 @@ is adequate (XFAIL tests 0254, 0255, 0256).
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2026-05-20 | Initial release. All 14 error sites in Module3/Module4 documented. Inference rules formalized for all directives and expressions. Gap analysis identifies 5 missing checks and 2 extra checks. |
+
+## Appendix C. Trusted Computing Base
+
+The PyCSL stdlib stub library at `src/pycsl_lib/` is part of the
+**trusted computing base**: a wrong contract there silently makes
+proofs unsound, exactly as a wrong axiom does. The stub contracts are
+not derived from the actual CPython implementations — they are
+hand-curated models, anchored to `cpython/Doc/library/*.rst` via
+`calls-english.md` and `calls-pycsl.md`.
+
+The three artefacts are kept in lockstep by
+`bin/stdlib-coverage.py --check`. See
+`config/skills/pycsl-stdlib-coverage/SKILL.md` for the discipline.

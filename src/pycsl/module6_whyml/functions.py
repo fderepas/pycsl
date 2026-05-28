@@ -54,6 +54,15 @@ class FunctionEmissionMixin:
                                body_stmts: List[Dict[str, Any]]) -> Tuple[Set[str], Set[str]]:
         """Reset all per-function instance variables. Returns (local_refs, ghost_vars)."""
         self._bounded_int = func.get("bounded_int")
+        # `no_exception` context for VC injection. `_current_no_exception`
+        # is the set of exception names whose triggers must produce an
+        # `assert { ... }` before the matching IR operation; the `_all`
+        # flag (Phase 1.5) expands to the full Phase 1 set when consulted
+        # at injection time. Populated from contracts.no_exception /
+        # contracts.no_exception_all per the IR schema (PR 1).
+        contracts = func.get("contracts", {})
+        self._current_no_exception: Set[str] = set(contracts.get("no_exception", []) or [])
+        self._current_no_exception_all: bool = bool(contracts.get("no_exception_all", False))
         symbol_table = func.get("symbol_table", {})
         local_refs = IRScanner.find_assigned_vars(body_stmts)
         local_refs -= self._shared_var_names

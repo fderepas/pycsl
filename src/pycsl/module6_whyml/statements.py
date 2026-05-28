@@ -613,7 +613,15 @@ class StatementEmissionMixin:
                                             else arr.get("field"))
                 if is_array:
                     val_expr = self._coerce_to_int(val_expr)
-                    code = f"{indent}{array_expr}[{index_expr}] <- {val_expr}"
+                    body = f"{array_expr}[{index_expr}] <- {val_expr}"
+                    # no_exception IndexError → prepend assert in_bounds.
+                    length_expr = f"(Array.length {array_expr})"
+                    pred = self._maybe_emit_no_exception_assert(
+                        ("subscript", "write"), [length_expr, index_expr])
+                    if pred:
+                        code = f"{indent}{pred} {body}"
+                    else:
+                        code = f"{indent}{body}"
                 elif is_dict:
                     # Body dict subscript write: `d[k] = v`. `Map.set` is a
                     # pure logic function and Why3 refuses to assign its

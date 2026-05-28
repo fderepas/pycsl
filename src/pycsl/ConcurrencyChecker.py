@@ -6,13 +6,19 @@ Builds a shared-access map and emits ConcurrencyWarning objects for:
   - Shared variables accessed outside a critical section (informational, Module4 already errors on these)
   - queue.Queue, threading.Lock etc. are trusted thread-safe types (no warnings)
 
-This pass does NOT raise exceptions — Module4 already enforces hard errors.
+Default mode: warnings only — Module4 already enforces a subset of these
+as hard errors. **Strict mode** (UB-7.3 / workplan PR 10) escalates the
+warnings to ``PyCSLSemanticError`` so that any concurrent-model code
+with unprotected shared access or missing lock order fails verification
+rather than ships silently.
 """
 from __future__ import annotations
 
 import ast
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Set
+
+from errors import PyCSLSemanticError
 
 _ERR_UNPROTECTED_DECL = (
     "declared shared but has no protected_by mutex. "
@@ -47,9 +53,12 @@ class ConcurrencyWarning:
 class ConcurrencyChecker:
     """Walk the annotated AST and emit ConcurrencyWarning objects."""
 
-    def __init__(self, tree: ast.AST) -> None:
+    def __init__(self, tree: ast.AST, *, strict_mode: bool = False,
+                 filename: str = "<input>") -> None:
         self.tree = tree
         self.warnings: List[ConcurrencyWarning] = []
+        self.strict_mode = bool(strict_mode)
+        self.filename = filename
         # Populated from module-level csl_* fields
         self._shared_vars: Dict[str, Optional[str]] = {}    # var → mutex (None = unprotected)
         self._lock_order: Optional[List[str]] = None
@@ -82,6 +91,21 @@ class ConcurrencyChecker:
         for node in ast.walk(module):
             if isinstance(node, ast.FunctionDef):
                 self._check_function(node)
+
+        # Strict mode (UB-7.3): escalate the first warning to a hard
+        # error. The warnings list is still returned for callers that
+        # want to inspect non-fatal cases when strict_mode is False.
+        if self.strict_mode and self.warnings:
+            w = self.warnings[0]
+            loc = f" [{w.function}:{w.line}]" if w.function else ""
+            raise PyCSLSemanticError(
+                f"{self.filename}{loc}: UB-7.3 — concurrent race detected: "
+                f"{w.message}. Run without "
+                f"--strict-concurrent-checks to downgrade to a warning, or "
+                f"protect the access with `#@ critical <mutex>` / "
+                f"`#@ shared <var> protected_by <mutex>`. "
+                f"See config/skills/pycsl-ub-catalog/SKILL.md §7.3."
+            )
 
         return self.warnings
 

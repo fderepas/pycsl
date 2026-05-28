@@ -230,9 +230,15 @@ class ExpressionEmissionMixin:
             left = self._coerce_str_arg(left)
             right = self._coerce_str_arg(right)
         if op == "div":
-            return f"(div {left} {right})" if self._in_spec else f"(pycsl_div {left} {right})"
+            if self._in_spec:
+                return f"(div {left} {right})"
+            inner = f"(pycsl_div {left} {right})"
+            return self._wrap_with_no_exception_assert(("binop", raw_op), [left, right], inner)
         if op == "mod":
-            return f"(mod {left} {right})" if self._in_spec else f"(pycsl_mod {left} {right})"
+            if self._in_spec:
+                return f"(mod {left} {right})"
+            inner = f"(pycsl_mod {left} {right})"
+            return self._wrap_with_no_exception_assert(("binop", raw_op), [left, right], inner)
         if op in ("&&", "||"):
             left_b = self._to_bool(left, expr["left"])
             right_b = self._to_bool(right, expr["right"])
@@ -495,8 +501,18 @@ class ExpressionEmissionMixin:
             else:
                 self._add_abstract_op(
                     f"val {arity_fn} {' '.join(f'(x{i}: int)' for i in range(n))} : int")
-            return f"({arity_fn} {' '.join(coerced_args) if coerced_args else '()'})"
-        return f"({safe_fn} {' '.join(coerced_args) if coerced_args else '()'})"
+            # Strict-propagation mode (workplan §1.4): an unannotated
+            # callee called from a function with `no_exception` is
+            # treated pessimistically. Default mode preserves backward
+            # compat — ambient.
+            inner = f"({arity_fn} {' '.join(coerced_args) if coerced_args else '()'})"
+            return self._wrap_unannotated_call_with_strict_assert(inner)
+        # User-function call site. Look up the callee's raises summary;
+        # if any clause names an exception the caller has committed to
+        # avoid, prepend an assertion that the raises condition cannot
+        # hold under the actual args.
+        inner = f"({safe_fn} {' '.join(coerced_args) if coerced_args else '()'})"
+        return self._wrap_call_with_callee_raises_assert(func_name, inner, args)
 
     def _handle_subscript(self, expr: Dict[str, Any], local_refs: Set[str],
                           invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
@@ -552,7 +568,11 @@ class ExpressionEmissionMixin:
                 if ft in ("set", "dict", "frozenset"):
                     is_dict = True
             if is_array:
-                return f"{value_str}[{index}]"
+                inner = f"{value_str}[{index}]"
+                # no_exception IndexError → assert in_bounds before the read.
+                length_expr = f"(Array.length {value_str})"
+                return self._wrap_with_no_exception_assert(
+                    ("subscript", "read"), [length_expr, index], inner)
             elif is_dict:
                 # Body dict subscript read: `d[k]` →
                 # `match Map.get !d k with Some v -> v | None -> 0 end`.
@@ -561,7 +581,10 @@ class ExpressionEmissionMixin:
                 # refs. For `self.<dict-field>` accesses, no deref is
                 # needed (record-field access is direct).
                 k = self._coerce_to_int(index)
-                return f"(match Map.get {value_str} {k} with | Some v_ -> v_ | None -> 0 end)"
+                inner = f"(match Map.get {value_str} {k} with | Some v_ -> v_ | None -> 0 end)"
+                # no_exception KeyError → assert has_key before the read.
+                return self._wrap_with_no_exception_assert(
+                    ("map_get", None), [value_str, k], inner)
             else:
                 self._add_abstract_op("val subscript_get (x: int) (i: int) : int")
                 return f"(subscript_get {self._coerce_to_int(value_str)} {self._coerce_to_int(index)})"

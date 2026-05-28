@@ -68,6 +68,19 @@ if [ -f "$PROJECT_ROOT/.venv/bin/activate" ]; then
     source "$PROJECT_ROOT/.venv/bin/activate"
 fi
 
+# Stdlib-coverage CI gate (workplan PR 7). Runs before any corpus test
+# so a coverage drift fails fast. Skip with PYCSL_SKIP_STDLIB_CHECK=1.
+if [ "${PYCSL_SKIP_STDLIB_CHECK:-0}" != "1" ]; then
+    if ! python3 "$PROJECT_ROOT/bin/stdlib-coverage.py" --check all; then
+        echo ""
+        echo "[!] stdlib-coverage --check failed. Either:"
+        echo "    1. Update calls-english.md / calls-pycsl.md / src/pycsl_lib/ to match the report, OR"
+        echo "    2. Regenerate the report with --discover after intentional code changes."
+        echo "    Skip this gate temporarily with PYCSL_SKIP_STDLIB_CHECK=1."
+        exit 1
+    fi
+fi
+
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[0;33m'
@@ -80,7 +93,20 @@ errors=()
 for dir in "${TEST_DIRS[@]}"; do
     suite_name="$(basename "$dir")"
     echo "--- $suite_name ---"
-    for py_file in "$dir"/0*.py; do
+    # Walk top-level numbered tests plus stdlib/ subdirectory tests
+    # (stdlib coverage corpus, workplan §10.6). Other subdirs are
+    # intentionally left out so existing top-level test discovery is
+    # unchanged.
+    py_files=()
+    for f in "$dir"/0*.py; do
+        [ -f "$f" ] && py_files+=("$f")
+    done
+    if [ -d "$dir/stdlib" ]; then
+        while IFS= read -r f; do
+            py_files+=("$f")
+        done < <(find "$dir/stdlib" -name "*.py" -type f | sort)
+    fi
+    for py_file in "${py_files[@]}"; do
         [ -f "$py_file" ] || continue
         name="$(basename "$py_file" .py)"
 

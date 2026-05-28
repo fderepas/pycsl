@@ -4,6 +4,8 @@ PyCSL is an annotation language for Python. It enables to formally verify Python
 
 Documents define PyCSL [syntax](docs/pycsl-concrete-syntax-reference.md), [semantic](docs/pycsl-static-semantics-reference.md) and [translation to Why3](docs/pycsl-translational-reference.md).
 
+PyCSL is being prepared for self-annotation: standard-library coverage is tracked in [`calls-english.md`](calls-english.md), [`calls-pycsl.md`](calls-pycsl.md), and [`src/pycsl_lib/`](src/pycsl_lib/). The discipline is governed by [`pycsl-stdlib-coverage`](config/skills/pycsl-stdlib-coverage/SKILL.md) and enforced by [`bin/stdlib-coverage.py`](bin/stdlib-coverage.py).
+
 For human-facing definitions of recurring verification terms such as
 *witness*, *ghost code*, *ghost state*, *memory model*, and *solver budget*,
 see [`docs/glossary/`](docs/glossary/).
@@ -185,6 +187,164 @@ Every loop-invariant initialisation, every preservation step, the
 variant decrease, the modulo guard, and all four postconditions are
 discharged by Alt-Ergo using the seven imported axioms. No `\trusted`,
 no `--no-proof`.
+
+---
+
+## Python Detected Undefined Behaviors
+
+PyCSL's verification scope intentionally includes a catalog of Python
+constructs whose semantics are *genuinely* undefined or out-of-scope
+for sound WhyML modelling. Authoring annotated code that trips one of
+these checks produces a `PyCSLSemanticError` *before any proof is
+attempted* — the diagnosis points to a structural problem the
+annotator must rewrite or explicitly bless via an escape annotation.
+
+The full catalog (detection mechanism, verification stance, error
+messages, corpus tests) lives in
+[`config/skills/pycsl-ub-catalog/SKILL.md`](config/skills/pycsl-ub-catalog/SKILL.md).
+The five categories with one example each:
+
+### UB-7.1 — Mutation during iteration
+
+Iterator-state corruption in CPython when the iterated container is
+mutated mid-loop. Detected by `IRScanner.find_iteration_mutations`,
+hard-rejected by default.
+
+```python
+# Rejected: iterating over `arr` while mutating it.
+def buggy(arr: list) -> None:
+    for x in arr:
+        arr.append(x + 1)        # ← UB-7.1 — append on the iterated container
+
+# Accepted: explicit acknowledgment via the escape annotation.
+def explicit_mutate(arr: list) -> None:
+    #@ allow_iteration_mutation
+    for x in arr:
+        arr.append(x + 1)
+        return
+```
+
+The mutating-method set is wide: `append`, `pop`, `clear`, `add`,
+`remove`, `discard`, `update`, `extend`, `insert`, `setdefault`, plus
+`arr[i] = v` and `del arr[i]`. The transitive case (the body calls a
+function whose `assigns` clause names the iterated container) is
+flagged too.
+
+### UB-7.2 — `__hash__` / `__eq__` consistency
+
+A class defining both `__hash__` and `__eq__` is required to satisfy
+`a == b ⇒ hash(a) == hash(b)`. CPython does not enforce it; PyCSL
+surfaces the contract.
+
+```python
+""  # pycsl
+#@ class invariant self._key >= 0
+class HashableKey:
+    def __init__(self) -> None:
+        self._key: int = 0
+
+    def __hash__(self) -> int:
+        return self._key
+
+    def __eq__(self, other: object) -> bool:
+        return self._key == other._key
+```
+
+By default the consistency relationship is emitted as a WhyML axiom
+(the user is on the hook to keep them aligned). Under
+`pycsl --strict-hash-eq-consistency` it becomes a goal that must be
+discharged externally via `#@ proof rocq <q>` / `#@ proof lean <q>`.
+
+A class defining only `__eq__` (no `__hash__`) is detected as
+*unhashable*; using it as a dict/set key would raise `TypeError` at
+runtime.
+
+### UB-7.3 — Concurrent races
+
+Under `--memory-model concurrent`, every read or write of a `#@
+shared` variable must be inside a `with mutex:` block paired with
+`#@ critical mutex`. The `ConcurrencyChecker` flags violations.
+
+```python
+#@ shared counter protected_by lock_counter
+#@ mutex_invariant lock_counter: counter >= 0
+import threading
+lock_counter = threading.Lock()
+counter = 0
+
+#@ thread_entry
+#@ \diverges
+def worker() -> int:
+    #@ critical lock_counter
+    with lock_counter:
+        counter += 1          # ← protected access
+    return 0
+```
+
+Default behaviour is warning-only — pre-existing concurrent corpora
+rely on it. Under `pycsl --strict-concurrent-checks` the first
+warning becomes a hard `PyCSLSemanticError`. Nested locking without a
+`#@ lock_order` declaration is flagged the same way.
+
+### UB-7.4 — C-extension boundary
+
+Imports of modules that cross PyCSL's value/memory boundary
+(`ctypes`, `cffi`, `numpy.ctypeslib`, `cython`) cannot be soundly
+modelled in WhyML. The import classifier rejects them at the import
+statement.
+
+```python
+# Rejected without an opt-in:
+import ctypes
+def call_ctypes_thing(x: int) -> int: ...
+
+# Accepted: any function in the file declared #@ \trusted opts out.
+import ctypes
+
+#@ \trusted reviewer: alice
+#@ requires True
+#@ ensures \result == 0
+#@ assigns \nothing
+def call_ctypes_thing(x: int) -> int:
+    return 0
+```
+
+The CLI flag `--allow-unverified-imports` disables the check entirely
+for one run (intended for ad-hoc inspection, not CI). The deny-list
+is configurable via `import_classifier.DEFAULT_DENY_LIST`.
+
+### UB-7.5 — `__del__` / finalizer rejection
+
+CPython's finalizer protocol is non-deterministic: timing depends on
+the garbage collector and `__del__` may be skipped entirely under
+interpreter shutdown. Any lifetime-dependent contract is therefore
+unsoundly modellable in WhyML.
+
+```python
+# Rejected: class with __del__.
+""  # pycsl
+class WithFinalizer:
+    def __init__(self) -> None:
+        self._handle: int = 0
+    def __del__(self) -> None:
+        self._handle = 0       # ← UB-7.5 — finalizer rejected
+
+# Accepted: explicit acknowledgment via the escape annotation.
+""  # pycsl
+#@ class invariant self._n >= 0
+#@ allow_finalizer
+class WithFinalizer:
+    def __init__(self) -> None:
+        self._n: int = 0
+    def __del__(self) -> None:
+        self._n = 0
+```
+
+The annotation does *not* make the finalizer verifiable — it
+documents the boundary so the rest of the class can still be
+verified. Contracts that reference *when* the finalizer runs
+(`#@ ensures self._handle == 0` "after finalization") remain at
+risk regardless.
 
 ---
 
@@ -586,6 +746,9 @@ and asserted on exit.
 | `#@ \diverges` | Function / method | Function may not terminate |
 | `#@ \trusted` | Function / method | Body not verified; contracts assumed as axioms |
 | `#@ raises E when cond` | Function / method | Exceptional postcondition |
+| `#@ no_exception E1, E2, …` / `\all` | Function / method | Implicit Python exceptions become proof obligations |
+| `#@ allow_iteration_mutation` | `for` loop | Opts the loop out of UB-7.1 (mutation during iteration) |
+| `#@ allow_finalizer` | `class` | Opts the class out of UB-7.5 (`__del__` rejection) |
 | `#@ loop invariant <expr>` | `while` / `for` | Inductive property |
 | `#@ loop variant <expr>` | `while` / `for` | Termination measure |
 | `#@ class invariant <expr>` | `class` | Type-level invariant |
@@ -625,6 +788,94 @@ and asserted on exit.
 ```
 
 Bound variable separated from body by `;`, always typed as `int`.
+
+### `no_exception` — implicit Python exceptions as proof obligations
+
+```python
+#@ requires n != 0
+#@ ensures \result == 256 // n
+#@ assigns \nothing
+#@ no_exception ZeroDivisionError
+def divide_256(n: int) -> int:
+    return 256 // n
+```
+
+`#@ no_exception E` makes every operation in the body that could raise
+`E` a proof obligation. Module 6 emits an inline `assert { trigger }`
+before each operation (`no_div_zero n` here); the precondition
+`n != 0` discharges it. Without the precondition the proof fails — the
+whole point is that the user gets a precise message telling them which
+precondition would discharge the obligation.
+
+Multiple exceptions: `#@ no_exception ZeroDivisionError, IndexError`.
+Wildcard: `#@ no_exception \all` expands to the full Phase 1 set
+(`ZeroDivisionError`, `IndexError`, `KeyError`, `ValueError`,
+`StopIteration`) and requires `raises { }` to be empty.
+
+The complete trigger table and the rules for extending it live in
+`config/skills/pycsl-exception-model/SKILL.md`.
+
+### `#@ allow_iteration_mutation` — UB-7.1 escape annotation
+
+Mutating the iterated collection inside a `for` loop is a hard
+verification error by default — CPython's iterator state is
+corrupted by `arr.append(...)`, `arr.pop()`, `arr[i] = v`, `del
+arr[i]` and related mutating methods. Annotate the loop with `#@
+allow_iteration_mutation` to acknowledge the boundary when the
+mutation is intentional (typically the snapshot pattern):
+
+```python
+#@ requires \length(arr) >= 0
+#@ ensures True
+#@ assigns arr[0..\length(arr)]
+def explicit_mutate(arr: list) -> None:
+    #@ allow_iteration_mutation
+    for x in arr:
+        arr.append(x + 1)
+        return
+```
+
+Without the annotation, Module 4 raises
+`PyCSLSemanticError: UB-7.1 — the loop body mutates the iterated
+collection 'arr'`. The annotation is per-loop, not per-function;
+nested loops inside the blessed loop are still checked. Prefer
+rewriting (`for k in list(d): del d[k]`) when possible — the
+annotation documents the assumption but does not make the
+mutation safer.
+
+### `#@ allow_finalizer` — UB-7.5 escape annotation
+
+Classes with a `__del__` method are rejected by default — CPython's
+finalizer protocol is non-deterministic (timing depends on the
+garbage collector and may be skipped at interpreter shutdown), so
+lifetime-dependent contracts cannot be soundly modelled in WhyML.
+Annotate the class with `#@ allow_finalizer` to opt in:
+
+```python
+""  # pycsl
+#@ class invariant self._n >= 0
+#@ allow_finalizer
+class WithFinalizer:
+    def __init__(self) -> None:
+        self._n: int = 0
+
+    def __del__(self) -> None:
+        # explicit acknowledgment via allow_finalizer
+        self._n = 0
+```
+
+Without the annotation, Module 3 raises
+`PyCSLSemanticError: Class 'WithFinalizer' (line ...): __del__
+finalizer is rejected under UB-7.5`. The annotation does *not* make
+the finalizer verifiable — it documents the boundary so the rest of
+the class can still be verified; contracts that reference lifetime
+(e.g. "the finalizer releases X") remain at risk.
+
+Both annotations are catalogued in
+`config/skills/pycsl-ub-catalog/SKILL.md` alongside the three other
+UB categories (concurrent races, hash/eq consistency, C-extension
+boundary). Corpus tests: `test-suite/corpus/pycsl-reference/0401`–
+`0407`.
 
 ---
 

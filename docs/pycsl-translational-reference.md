@@ -414,7 +414,7 @@ cross-references stable.
 
 ### §T.2.10  Proof Citation (`proof`) — Rocq + Lean as Cross-Validated Spec Sources
 
-$$\mathcal{T}_m\llbracket \texttt{\#@ axiom\_from prover qualname} \rrbracket = \texttt{axiom pycsl\_axiom\_<target> : <Why3\_formula>}$$
+$$\mathcal{T}_m\llbracket \texttt{\#@ proof prover qualname} \rrbracket = \texttt{axiom pycsl\_axiom\_<target> : <Why3\_formula>}$$
 
 **Audit independence.** The namespace-aware audit (`pycsl --audit-proof`,
 see static-semantics reference §2.1.12) is independent of WhyML
@@ -438,8 +438,8 @@ only when the regular verify path runs.
 4. **Emits** a Why3 `axiom` block in the preamble:
 
 ```why3
-(* axiom from rocq:Pycsl.Reference.Gcd.gcd_divides_a
-   = lean:Pycsl.Reference.Gcd.gcd_divides_a
+(* proof rocq:Pycsl.Reference.Gcd.gcd_divides_a
+   = proof lean:Pycsl.Reference.Gcd.gcd_divides_a
    (canonical forms verified equal) *)
 axiom pycsl_axiom_gcd_divides_a :
   forall a b : int.
@@ -650,6 +650,26 @@ in a try/with block:
   end
 ```
 
+### §T.3.6  Allow iteration mutation (`allow_iteration_mutation`)
+
+$$\mathcal{T}_s\llbracket \texttt{\#@ allow\_iteration\_mutation; for x in C: body} \rrbracket
+= \mathcal{T}_s\llbracket \texttt{for x in C: body} \rrbracket$$
+
+The annotation has **no WhyML output**. It is consumed entirely at the
+pre-transpilation stage: Module 5 propagates the `csl_allow_iteration_mutation`
+flag as `allow_iteration_mutation: true` on the IR for-loop node;
+Module 4's UB-7.1 check
+(`IRScanner.find_iteration_mutations` invoked from
+`pycsl.py:_run_pipeline`) honours the flag by skipping the loop. Once
+the loop reaches Module 6, the annotation has already been satisfied
+and translation proceeds as for an ordinary `for` loop (§T.3.2–§T.3.4).
+
+The boundary is documentary, not verifying — the WhyML emission does
+not include any assertion about iterator-state preservation. Treat the
+annotation as a static-analysis opt-out, not as a contract.
+
+_Corresponds to `annotations.md` §2.2.3._
+
 ---
 
 ## §T.4  Class Translation
@@ -724,6 +744,34 @@ record type:
 ```
 
 **Implementation:** `_emit_type_decls`.
+
+### §T.4.4  Allow finalizer (`allow_finalizer`)
+
+$$\mathcal{T}\llbracket \texttt{\#@ allow\_finalizer; class C: ...} \rrbracket
+= \mathcal{T}\llbracket \texttt{class C: ...} \rrbracket$$
+
+The annotation has **no WhyML output**. It is consumed entirely at
+weave time: `Module3_Weaver.visit_ClassDef` records the
+`csl_allow_finalizer` flag and uses it to suppress the UB-7.5 hard
+reject for classes containing a `def __del__`. Once the class
+reaches Module 6, translation proceeds exactly as for any other
+class (§T.4.1–§T.4.3).
+
+The `__del__` method itself is **not** translated. PyCSL's WhyML
+model has no concept of object lifetime or garbage collection;
+modelling the finalizer would either require an unsound
+"finalizer runs eventually" axiom or an unprovably-strong
+"finalizer runs at well-defined points" axiom. The annotation
+documents this gap rather than closing it.
+
+Contracts in the class that reference the finalizer's effect (e.g.
+`#@ ensures self._handle == 0` "after finalization") cannot be
+verified — Module 4 does not flag such contracts, but Module 6 will
+not produce VCs that involve `__del__` either. Annotators should
+treat `allow_finalizer` as a class-level boundary marker, not as a
+mechanism for proving lifetime-dependent properties.
+
+_Corresponds to `annotations.md` §2.3.2._
 
 ---
 
@@ -1533,6 +1581,68 @@ key `k` with value `v`, wrapping `v` in `Some` per the option-type design.
 
 _Corresponds to `annotations.md` §11.2 row 5._
 
+### §T.8.7  No-exception Predicate Library
+
+When any function in the file declares a `no_exception` clause
+(`csl_no_exception` non-empty or `csl_no_exception_all` true), the
+preamble emitter `PreambleEmissionMixin._emit_preamble_no_exception_predicates`
+lifts the Phase 1 predicate vocabulary from
+`src/pycsl/exception_model.py` (`PREDICATE_LIBRARY`) into the WhyML
+module:
+
+```why3
+predicate no_div_zero (b: int) = b <> 0
+predicate in_bounds (n: int) (i: int) = 0 <= i /\ i < n
+predicate non_neg_shift (n: int) = n >= 0
+```
+
+The predicates are referenced by the per-operation `assert { … }`
+injected by §T.8.8 (added by PR 3 of the NoException workplan).
+
+### §T.8.8  No-exception VC Injection (Phase 1 trigger table)
+
+For each IR operation in a function body, Module 6 looks up the
+operation key in `exception_model.TRIGGERS`. If the key matches and the
+function context's `no_exception_all` or `no_exception_set` covers the
+associated exception name, the emitter prepends an `assert { trigger }`
+line. The translation rules are:
+
+| Source operation | IR key | Emitted line (when annotated) |
+|---|---|---|
+| `a / b`, `a // b`, `a % b` | `("binop", "/")`, `("binop", "//")`, `("binop", "%")` | `assert { no_div_zero (T_e[[b]]) };` |
+| `divmod(a, b)` | `("call", "divmod")` | `assert { no_div_zero (T_e[[b]]) };` |
+| `a << n`, `a >> n` | `("binop", "<<")`, `("binop", ">>")` | `assert { non_neg_shift (T_e[[n]]) };` |
+| `arr[i]` (read) | `("subscript", "read")` | `assert { in_bounds (Array.length arr) (T_e[[i]]) };` |
+| `arr[i] = v` (write) | `("subscript", "write")` | `assert { in_bounds (Array.length arr) (T_e[[i]]) };` |
+| `d[k]` | `("map_get", None)` | `assert { has_key (!d) (T_e[[k]]) };` |
+| `d.pop(k)` | `("attr_call", "pop")` | `assert { has_key (!d) (T_e[[k]]) };` |
+
+The injection is gated by the function's `no_exception` context: the
+unannotated case emits the operation without an assertion (preserves
+backward compatibility — see workplan §11.3). Worked example for
+`divide_256(n)`:
+
+```python
+#@ requires n != 0
+#@ ensures \result == 256 // n
+#@ assigns \nothing
+#@ no_exception ZeroDivisionError
+def divide_256(n: int) -> int:
+    return 256 // n
+```
+
+translates to:
+
+```why3
+let divide_256 (n: int) : int
+  requires { n <> 0 }
+  ensures { result = div 256 n }
+= assert { no_div_zero n };
+  pycsl_div 256 n
+```
+
+_Corresponds to `annotations.md` §2.1.13._
+
 ---
 
 ## §T.9  Assigns Frame Translation
@@ -1593,7 +1703,7 @@ of the translation:
 | Why3's WP calculus is sound | Filliâtre & Paskevich, ESOP 2013 | Low (mechanized in Coq) |
 | Alt-Ergo / Z3 / CVC5 are correct | SMT solver implementations | Low (extensively tested) |
 | `\trusted` function contracts | User-supplied axioms | **High** — not verified |
-| Library stubs (`data/lib_stubs/`) | Hand-written contracts | **Medium** — not verified |
+| Library stubs (`src/pycsl_lib/`) | Hand-written contracts | **Medium** — not verified |
 | Abstract operations (`val iter_length`, etc.) | Transpiler-generated | **Medium** — uninterpreted |
 | Integer arithmetic is unbounded | Python semantics | Low (CPython uses bigints) |
 | Python's `//` matches Euclidean `div` | Language semantics | **Note**: Python uses floored division, which differs from Euclidean for negative operands |

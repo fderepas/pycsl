@@ -149,3 +149,18 @@ The **Ref** column uses the format `section.subsection.row`.
 | 12.4.1 | `Optional[T]` return annotation \| Module5 unwraps `Optional[T]` to T (since `None` maps to `0`) | 0349 | PASS |
 | 12.4.2 | `Union[T, None]` return annotation \| Module5 heuristic picks the first non-`None` component | 0350 | PASS |
 | 12.5.1 | `sorted` builtin on array \| Emits abstract `val sorted_1 (a: array int) : array int`; target tracked as array-typed | 0351 | PASS |
+
+## NoException + UB Detection (workplan PRs 1–10, 2026)
+
+| Block | Tests | Coverage | Status |
+|---|---|---|---|
+| no_exception.parser       | 0353–0357 | Parser support + rejection cases | PASS |
+| no_exception.preamble     | 0358      | WhyML predicate vocabulary | PASS |
+| no_exception.vc-injection | 0359–0380 | VC injection for div/mod/index/key | PASS |
+| no_exception.interproc    | 0381–0386 | Inter-procedural propagation | PASS |
+| no_exception.all-form     | 0391–0393 | `\all` wildcard form | PASS |
+| ub.c-extension            | 0396–0400 | ctypes/cffi deny-list | PASS |
+| ub.finalizer              | 0401–0403 | `__del__` rejection | PASS |
+| ub.iteration-mutation     | 0404–0407 | Mutating iterated container | PASS |
+| ub.hash-eq                | 0411–0414 | Hash/eq consistency | PASS |
+| ub.concurrent-strict      | 0415–0417 | `--strict-concurrent-checks` | PASS |

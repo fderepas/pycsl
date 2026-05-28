@@ -28,6 +28,11 @@ class ContractsIR(TypedDict, total=False):
     ensures: List[Dict[str, Any]]
     assigns: List[Dict[str, Any]]
     raises: List[Dict[str, Any]]
+    # `no_exception` (Phase 1 NoException workplan). Both fields are
+    # optional; absence is semantically equivalent to no_exception: []
+    # plus no_exception_all: False (ambient mode, today's default).
+    no_exception: List[str]
+    no_exception_all: bool
 
 
 class FunctionIR(TypedDict, total=False):

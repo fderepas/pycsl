@@ -3,7 +3,7 @@ behavior is assumed rather than proved.
 
 In PyCSL, trusted stubs usually appear in one of two places:
 
-- library stubs under `data/lib_stubs/`
+- library stubs under `src/pycsl_lib/`
 - sliced or imported functions that are modeled by contract in the current
   verification run
 
@@ -23,7 +23,7 @@ on the contract being accurate.
 
 ### Library stubs
 
-A file in `data/lib_stubs/` can mark a function as `#@ \trusted` and supply
+A file in `src/pycsl_lib/` can mark a function as `#@ \trusted` and supply
 only its contract.
 
 ### Selective verification

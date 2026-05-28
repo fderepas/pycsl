@@ -9,11 +9,13 @@ from dataclasses import dataclass
 from Module2_Parser import (
     CSLNode, Requires, Ensures, Assigns, LoopInvariant, LoopVariant,
     ClassInvariant, Label as CSLLabel, FunctionVariant, Diverges, Trusted,
-    GhostAssignDecl, GhostArraySetDecl, RaisesDecl, BoundedIntDecl,
-    ProofDecl,
+    GhostAssignDecl, GhostArraySetDecl, RaisesDecl, NoExceptionDecl,
+    AllowFinalizerDecl, AllowIterationMutationDecl,
+    BoundedIntDecl, ProofDecl,
     SharedDecl, ThreadEntry, Acquires, Releases, CriticalSection,
     MutexInvariant, LockOrder, BinOp, Number,
 )
+from errors import PyCSLSemanticError
 from Module1_Ingestor import PyCSLContract
 
 # ---------------------------------------------------------
@@ -43,6 +45,8 @@ class PyCSLWeaver(ast.NodeVisitor):
         node.csl_trusted = False
         node.csl_reviewer = ""
         node.csl_raises = []
+        node.csl_no_exception = []        # list of exception-name strings
+        node.csl_no_exception_all = False # set by `no_exception \all` form
         node.csl_bounded_int = None
         node.csl_thread_entry = False
         node.csl_proof = []
@@ -74,6 +78,13 @@ class PyCSLWeaver(ast.NodeVisitor):
                     )
             elif isinstance(c, RaisesDecl):
                 node.csl_raises.append(c)
+            elif isinstance(c, NoExceptionDecl):
+                if c.all_form:
+                    node.csl_no_exception_all = True
+                else:
+                    for exc in c.exceptions:
+                        if exc not in node.csl_no_exception:
+                            node.csl_no_exception.append(exc)
             elif isinstance(c, BoundedIntDecl):
                 node.csl_bounded_int = c.size
             elif isinstance(c, ProofDecl):
@@ -149,12 +160,32 @@ class PyCSLWeaver(ast.NodeVisitor):
 
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         node.csl_class_invariants = []
+        node.csl_allow_finalizer = False   # UB-7.5 opt-in
 
         if node.lineno in self.contracts_map:
             contracts = self.contracts_map[node.lineno]
             for c in contracts:
                 if isinstance(c, ClassInvariant):
                     node.csl_class_invariants.append(c)
+                elif isinstance(c, AllowFinalizerDecl):
+                    node.csl_allow_finalizer = True
+
+        # UB-7.5: reject classes with `__del__` unless explicitly opted
+        # in via #@ allow_finalizer. The finalizer protocol is
+        # non-deterministic in CPython and cannot be soundly modelled.
+        if not node.csl_allow_finalizer:
+            for stmt in node.body:
+                if isinstance(stmt, ast.FunctionDef) and stmt.name == "__del__":
+                    raise PyCSLSemanticError(
+                        f"Class '{node.name}' (line {node.lineno}): "
+                        f"`__del__` finalizer is rejected under UB-7.5. "
+                        f"Finalizer timing is non-deterministic in CPython "
+                        f"and cannot be soundly modelled in WhyML. "
+                        f"Either remove `__del__` or annotate the class "
+                        f"with `#@ allow_finalizer` to acknowledge that "
+                        f"any lifetime-dependent contracts are at risk. "
+                        f"See config/skills/pycsl-ub-catalog/SKILL.md §7.5."
+                    )
 
         self.generic_visit(node)
 
@@ -181,6 +212,7 @@ class PyCSLWeaver(ast.NodeVisitor):
         node.csl_invariants = []
         node.csl_variants = []
         node.csl_ghost_assigns = []
+        node.csl_allow_iteration_mutation = False   # UB-7.1 opt-in
 
         if node.lineno in self.contracts_map:
             contracts = self.contracts_map[node.lineno]
@@ -191,6 +223,8 @@ class PyCSLWeaver(ast.NodeVisitor):
                     node.csl_variants.append(c)
                 elif isinstance(c, (GhostAssignDecl, GhostArraySetDecl)):
                     node.csl_ghost_assigns.append(c)
+                elif isinstance(c, AllowIterationMutationDecl):
+                    node.csl_allow_iteration_mutation = True
 
         self.generic_visit(node)
 
