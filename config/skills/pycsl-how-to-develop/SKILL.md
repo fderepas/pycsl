@@ -316,7 +316,7 @@ PYTHONPATH=src python -m pytest src/pycsl_emit src/rocq2pycsl src/lean2pycsl src
 
 ## 7. Library Stubs
 
-`data/lib_stubs/` contains Python files with `#@ \trusted` contracts for standard library modules. These provide specifications for functions like `math.sqrt`, `random.randint`, etc., so the prover can reason about external calls without verifying their implementations.
+`src/pycsl_lib/` contains Python files with `#@ \trusted` contracts for standard library modules. These provide specifications for functions like `math.sqrt`, `random.randint`, etc., so the prover can reason about external calls without verifying their implementations.
 
 Convention:
 - One file per module (e.g., `math_stub.py`, `random_stub.py`)

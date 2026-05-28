@@ -44,6 +44,9 @@ Add PEP 484 type hints to **all** function parameters and return types, even if 
 - `#@ \trusted` — Body is not verified; contracts are assumed as axioms. Emits `val` (spec-only) instead of `let` + body. Callers may use the postcondition, but the implementation is not checked.
 - `#@ assumes bounded_int(N)` — Bounded integer pragma (N = 32 or 64). All `int` params/locals become `intN` machine integers; arithmetic (`+`, `-`, `*`) auto-generates overflow proof obligations.
 - `#@ raises ExcType when <cond>` — Exceptional postcondition. Declares that the function may raise `ExcType` when `cond` holds. Emits `raises { ExcType -> cond }` in WhyML.
+- `#@ no_exception E1, E2, ...` or `#@ no_exception \all` — Turns **implicit** Python exceptions into proof obligations. For each IR operation in the body that could raise a listed exception, Module 6 emits a WhyML `assert { trigger }` immediately before the operation; trigger conditions are looked up in `src/pycsl/exception_model.py`. Phase 1 exceptions: `ZeroDivisionError`, `IndexError`, `KeyError`, `ValueError`, `StopIteration`. Cannot be combined with `raises { E -> _ }` for the same `E`. The `\all` form additionally requires the `raises { }` set to be empty.
+- `#@ allow_finalizer` — Class-level escape annotation. Place immediately before the `class` keyword to opt a class with a `__del__` method out of UB-7.5's hard rejection. Use *only* when the class genuinely needs a finalizer (rare in verification-grade code); the annotation documents the boundary but does not make the finalizer verifiable.
+- `#@ allow_iteration_mutation` — Loop-level escape annotation. Place immediately before a `for` statement to opt out of UB-7.1's mutation-during-iteration check. Use *only* when the loop intentionally mutates the iterated container (the `for k in list(d):` snapshot pattern is the canonical case).
 - `#@ proof <rocq|lean> <qualname>` — **Axiom import** (`test-suite/annotations.md` §2.1.12). Imports a Rocq or Lean theorem as a Why3 axiom in the WhyML preamble. **Module-level** (placed before any function definition). The directive has real semantic effect — Alt-Ergo/Z3 may use the imported axiom to discharge obligations. **The annotator agent MUST NOT generate `#@ proof` lines** unless `proof2why3` has been run and the cross-check manifest shows `reconciled` status for the target. **Namespace-aware audit:** the cited `<qualname>` is enforced as a real namespace path — for `Pycsl.Reference.Gcd.gcd_step`, the theorem must live inside `Module Pycsl. Module Reference. Module Gcd.` (Rocq) or `namespace Pycsl.Reference.Gcd` (Lean) in `<file>.proofs/{rocq,lean}/<file>.{v,lean}`. Run `pycsl --audit-proof <file>` to verify. **Worked example: `test-suite/corpus/pycsl-reference/0342.py`** (Euclidean GCD, with proofs under `0342.proofs/{rocq,lean}/`).
 - `#@ ghost <name> = <expr>` — Ghost variable declaration/assignment. Place before any statement. First occurrence → `let ghost <name> = ref <val> in`; subsequent → `ghost <name> := <val>`.
 - `#@ ghost <name> : <type> = <expr>` — Typed ghost variable declaration. `<type>` is one of: `int` (default), `string`, `array`, `ghost_dict`, `ghost_list`, `ghost_set`, `tuple2`, `tuple3`, `tuple4`.
@@ -186,6 +189,7 @@ Key rules (most common mistakes):
 - **NEVER use `return <value>` inside `if` in a `while` loop** — use flag+sentinel pattern (see Example 6).
 - **NEVER use `==>` in `ensures`** for index-loop functions — always times out.
 - **NEVER emit duplicate contract clauses** for the same function.
+- **`\old(arr)` is NOT supported** — only `\old(scalar)` and `\old(arr[i])` work. If you need to compare the whole array's entry value to its exit value, use a ghost snapshot via `\copy(arr)` or `\copy_range(arr, lo, hi)` immediately on entry, and reference `snap[i]` in the postcondition. The parser will reject `\old(arr)` with "Unexpected token `\\old`" near the `(`.
 
 ---
 
@@ -258,6 +262,122 @@ def worker() -> int:
         counter += 1
     return 0
 ```
+
+---
+
+## Section 7 — Undefined-behaviour patterns (hard-reject)
+
+> **Rulebook:** `config/skills/pycsl-ub-catalog/SKILL.md` is the
+> normative reference for the five UB categories — detection
+> mechanism, verification stance, error messages, corpus tests.
+> Consult it before adding any escape annotation. This section is the
+> annotator-workflow summary only.
+
+Five Python patterns are hard-rejected before the proof obligation
+is even generated. Authoring annotated code that trips one of these
+checks produces a `PyCSLSemanticError`, not a proof failure — the
+diagnosis points to a *structural* problem to rewrite or explicitly
+bless.
+
+| UB | Trigger | Escape annotation |
+|---|---|---|
+| 7.1 | Mutation of the iterated container inside `for x in C:` | `#@ allow_iteration_mutation` (per loop) |
+| 7.2 | Class with both `__hash__` and `__eq__` | none — axiom mode by default; strict mode requires `#@ proof <prover>` |
+| 7.3 | Shared-variable access outside `#@ critical` (concurrent model) | none — strict mode is opt-in (`--strict-concurrent-checks`) |
+| 7.4 | `import ctypes` / `cffi` / `numpy.ctypeslib` / `cython` | `#@ \trusted` on at least one function in the file |
+| 7.5 | Class with `__del__` | `#@ allow_finalizer` (per class) |
+
+**Default for the annotator:** rewrite, don't bless. The reject
+exists because the construct cannot be soundly modelled — the
+escape annotation documents the assumption but does not make the
+proof more meaningful. Reach for the catalog rulebook when you need
+to decide between rewrite and bless.
+
+---
+
+## Section 8 — `no_exception` annotation patterns
+
+> **Rulebook:** `config/skills/pycsl-exception-model/SKILL.md` is the
+> normative reference for the trigger table, WhyML predicate
+> vocabulary, inter-procedural propagation rules, and rules for
+> extending the model. This section is the annotator-workflow
+> summary only.
+
+The `no_exception` directive turns implicit Python exceptions into
+proof obligations (see Section 1 for syntax and forbidden
+combinations). The annotator's job is to write a precondition strong
+enough to discharge each operation's trigger:
+
+```python
+#@ requires n != 0
+#@ ensures \result == 256 / n
+#@ assigns \nothing
+#@ no_exception ZeroDivisionError
+def divide_256(n: int) -> int:
+    return 256 // n
+```
+
+Two patterns the corpus has validated:
+
+- **Direct precondition** — `requires n != 0` discharges
+  `no_div_zero (n)` for `256 // n`. The whole value of `no_exception`
+  is that a failed VC tells the caller exactly which precondition
+  would discharge it.
+- **Branching precondition (SMT-friendly)** — `requires n > 0 or n < 0`
+  also discharges the zero-divisor obligation; Alt-Ergo splits and
+  proves both branches.
+
+**Inter-procedural call sites.** When a callee declares
+`raises { E -> P }` and the caller declares `no_exception E`,
+Module 6 wraps the call automatically (rulebook details in the
+exception-model skill). The annotator's only responsibilities:
+
+- Provide a caller precondition strong enough that `not P` holds at
+  the call site.
+- Avoid TR-BUG-2 in the callee — a `raises` callee with no
+  local-variable mutation is emitted as `let function` (pure) which
+  Why3 rejects as effectful. Add at least one local assignment in
+  the callee body. (See "Transpiler workarounds" below for the
+  worked example.)
+
+---
+
+## Section 9 — Stdlib stub awareness
+
+> **Rulebook:** `config/skills/pycsl-stdlib-coverage/SKILL.md` is the
+> normative reference for the three-artefact discipline
+> (`calls-english.md`, `calls-pycsl.md`, `src/pycsl_lib/`), the
+> discovery tool, the check loop, and the CPython version-bump
+> workflow. This section is the annotator-workflow summary only.
+
+Calls to standard-library APIs resolve through PyCSL's import
+resolver to **curated stubs** under `src/pycsl_lib/` — each stub
+declares `#@ \trusted` and provides the contract PyCSL trusts
+without verifying the body. Practical implications for annotating a
+function that calls stdlib:
+
+- **Stub returns are `int`-valued in the model.** `os.path.exists(p)`
+  returns 0 or 1; `re.compile(p)` returns an opaque non-negative
+  integer; `len(x)` returns array length or `iter_length`.
+- **The stub's postcondition propagates automatically** — claim
+  `#@ ensures \result >= 0` after `return json.dumps(obj)` because
+  the stub's postcondition already guarantees it. Don't re-prove
+  what the stub already states.
+- **Bare imports are fine.** `import os.path` resolves against the
+  stub set; the pipeline never executes or fully parses CPython.
+
+When a function uses an API with no existing stub, the annotator
+has two options:
+
+1. Add `#@ \trusted` to the using function (defer the obligation).
+   Right for one-off utility callers.
+2. Add the entry to the three-artefact set
+   (`calls-english.md` + `calls-pycsl.md` + a stub under
+   `src/pycsl_lib/`). Required when the call appears frequently or
+   when the surrounding module is a self-annotation target.
+
+Consult the stdlib-coverage skill before option 2 — it governs the
+check loop and the `raises` integration with `no_exception`.
 
 ---
 
@@ -375,6 +495,22 @@ For anything not covered above, consult these files in order of relevance to the
 
 - **`references/matrix-patterns.md`** — Matrix and 2D-array verification: the nonlinear-arithmetic problem, the linear-rewrite strategy, native 2D array support via `\length2d` / `\valid2d`, and five provable linear flat-matrix operations.
 
+### Sibling skills (consult, do not duplicate)
+
+- **`config/skills/pycsl-exception-model/SKILL.md`** — Phase 1 trigger
+  table for `no_exception`. The authoritative source of truth for
+  *which IR operation raises which Python exception, and which WhyML
+  predicate discharges it*. Read before extending `no_exception`
+  coverage.
+- **`config/skills/pycsl-ub-catalog/SKILL.md`** — The five UB
+  categories with detection mechanisms and escape annotations.
+  Section 7 of this skill summarizes the patterns; the catalog has
+  the full story.
+- **`config/skills/pycsl-stdlib-coverage/SKILL.md`** — Governs the
+  three-artefact discipline (`calls-english.md`, `calls-pycsl.md`,
+  `src/pycsl_lib/`) and the discovery tool. Read before annotating
+  code that calls a stdlib API for which no stub exists yet.
+
 ---
 
 ## Output requirements
@@ -443,8 +579,67 @@ See `references/transpiler-limits.md` §12 for confirmed transpiler bugs:
 - **TR-BUG-1 (float precision):** Large constants (>2^53) lose precision.
   Use `< 2^63` instead of `<= 2^63-1`.
 - **TR-BUG-2 (purity bug):** Functions with `#@ raises` but no local
-  variables are emitted as pure. Add a local variable to force mutable
-  emission.
+  variables are emitted as pure (`let function`) and Why3 rejects them
+  as effectful. Add at least one local-variable assignment to force
+  `let` (mutable) emission. *Especially important for `no_exception`
+  interprocedural propagation* — when a callee with
+  `raises { E -> P }` is invoked from a `no_exception E` caller,
+  Module 6 wraps the call in `try ... with E -> absurd end`, which
+  requires the callee to be effectful. Worked example:
+  `test-suite/corpus/pycsl-reference/0383.py` (the local `m = n` is
+  the TR-BUG-2 dodge).
+
+### `no_exception` interprocedural-call patterns
+
+When a function callable from `no_exception` contexts has any
+`#@ raises` clause, follow this template:
+
+```python
+#@ requires True
+#@ ensures \result == 256 / n
+#@ raises ZeroDivisionError when n == 0
+#@ assigns \nothing
+def maybe_raise(n: int) -> int:
+    m = n               # ← TR-BUG-2 dodge: force mutable emission
+    if m == 0:
+        raise ZeroDivisionError
+    return 256 // m
+```
+
+The caller can then claim `no_exception ZeroDivisionError` and
+discharge the propagated assertion via its own precondition:
+
+```python
+#@ requires n != 0
+#@ ensures \result == 256 / n
+#@ assigns \nothing
+#@ no_exception ZeroDivisionError
+def safe_caller(n: int) -> int:
+    return maybe_raise(n)   # ← Module 6 wraps with try/with E -> absurd
+```
+
+### Simple class invariants (the trivial-prove pattern)
+
+For pure data-carrier classes whose fields are non-negative integers,
+the simplest provable invariant is `self.<field> >= 0`. This is the
+seed pattern for self-annotation:
+
+```python
+#@ class invariant self.line >= 0
+class PyCSLError(Exception):
+    def __init__(self, message: str, *, filename: str = "",
+                 line: int = 0, stage: str = "") -> None:
+        super().__init__(message)
+        self.filename = filename
+        self.line = line
+        self.stage = stage
+```
+
+PyCSL emits the invariant as a WhyML type invariant on the record;
+the proof obligation is trivially valid because `line` only receives
+a `: int = 0` default-or-caller-supplied value. Worked example:
+`src/pycsl/errors.py` (the self-annotation suite seed —
+`bin/run-self-annotation-suite.sh` proves it end-to-end).
 
 ## Glossary
 

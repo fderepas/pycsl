@@ -39,7 +39,14 @@ config/skills/                ← skill markdown files consumed by agents via RA
 test-suite/corpus/            ← reference tests (pycsl-reference/), negative tests
 bin/                          ← shell scripts (run-reference-tests.sh, annotate.sh, …)
 src/skill2rag/                ← indexes config/skills/ into a Chroma vector store
-data/                         ← Why3 stdlib stubs, lib_stubs/ Python stubs
+data/                         ← Why3 stdlib stubs and other data
+src/pycsl_lib/                ← PyCSL stdlib stubs (renamed from data/lib_stubs/)
+src/pycsl/exception_model.py  ← Phase 1 trigger-condition table for the
+                                `no_exception` contract directive; consumed
+                                by Module 4 (validation) and Module 6
+                                (`module6_whyml/expressions.py`,
+                                `statements.py`, `preamble.py` — VC
+                                injection and predicate library).
 ```
 
 ---

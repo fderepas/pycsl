@@ -101,7 +101,7 @@ skill_context = "\n\n".join(chunks)
 
 Why3 standard library theory files (`.mlw`) used by Module6 via `use` declarations. Module6 generates the appropriate `use` lines based on which operations appear in the IR.
 
-### `data/lib_stubs/`
+### `src/pycsl_lib/`
 
 Lightweight Python stub files for common library modules (`argparse`, `ast`, `json`, `numpy`, `pytest`, etc.). These are provided alongside user code when the IR pipeline needs to resolve imports from standard library modules that are not part of the user's annotated file.
 
