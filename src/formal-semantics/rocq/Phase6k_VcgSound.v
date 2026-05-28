@@ -5,8 +5,15 @@
    Defines:
      vc_prop             — formally-specified VCG, mirroring wp_w case-by-case
      vcg_sound           — vc_prop ws Q pre_es es <-> wp_w ws Q pre_es es
-     module6_encodes_mlw — Phase 6C axiom: Module6 .mlw encodes vc_prop
-                           (replaces the Admitted from Phase 6B)
+     module6_encodes_mlw — Phase 6C axiom: Module 6 .mlw encodes vc_prop
+                           (replaces the Admitted from Phase 6B). Module 6
+                           here refers to the post-refactor subsystem rooted
+                           at `src/pycsl/Module6_WhyMLTranspiler.py` (facade)
+                           plus `src/pycsl/module6_whyml/` (10 emission
+                           mixins). The axiom is about Module 6's I/O
+                           behaviour, not its file structure, so the
+                           refactor preserves it as long as the .mlw output
+                           is unchanged on the reference corpus.
      vcg_bridge          — proved from module6_encodes_mlw (no Admitted)
 
    The vcg_sound lemma proves VCG correctness from first principles
@@ -39,7 +46,9 @@ Open Scope Z_scope.
    - WRaise: continuation dispatch identical to wp_w.
 
    vcg_sound (below) proves vc_prop = wp_w propositionally for all cases.
-   Phase 6C will connect this to the actual .mlw output by Module6. *)
+   Phase 6C will connect this to the actual .mlw output by Module 6
+   (post-refactor: `src/pycsl/Module6_WhyMLTranspiler.py` facade +
+   `src/pycsl/module6_whyml/` mixin subpackage). *)
 Fixpoint vc_prop (ws : whyml_stmt)
                  (Q : wp_conts)
                  (pre_es es : exec_state) : Prop :=

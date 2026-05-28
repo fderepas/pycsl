@@ -353,7 +353,7 @@ def test_nothing(x: int, y: int) -> int:
     (x + y)
 ```
 
-### §T.2.6  Trusted Functions (`\trusted`)
+### §T.2.6  Trusted Functions (`\trusted [reviewer: <name>]`)
 
 $$\mathcal{T}_f\llbracket \texttt{def f(...): \#@ \\trusted ...} \rrbracket
 = \texttt{val f (...) : R requires \{...\} ensures \{...\}}$$
@@ -361,6 +361,29 @@ $$\mathcal{T}_f\llbracket \texttt{def f(...): \#@ \\trusted ...} \rrbracket
 The keyword `val` declares the function signature with contracts but
 **no body**.  The contracts are assumed as axioms — the function is
 trusted, not verified.
+
+**Reviewer field has no emission effect.** The optional
+`reviewer: <REVIEWER_ID>` clause (§2.1.7 of the concrete-syntax
+reference) is consumed at parse time, stored as
+`csl_reviewer: str` on the AST node, propagated through Module 5
+into the IR's `reviewer` field, but **does not influence the WhyML
+output**. The translation produces the same `val` declaration
+whether the reviewer field is present or absent.
+
+The field exists for accountability, not for verification:
+
+- `Module5_IREmitter.py:1146` includes `"reviewer": <value>` in the
+  function IR so downstream tools (audit scripts, the
+  self-annotation mirror-check, future LLM judges) can inspect who
+  attested the trust.
+- `Module6_WhyMLTranspiler` reads the field but never emits it into
+  the `.mlw` file.
+
+A future "trust-chain audit" tool may use the reviewer field to
+verify that every `val f` in a compiled `.mlw` traces back to a
+known reviewer; that audit lives outside the translation rule.
+
+_Corresponds to `annotations.md` §2.1.7._
 
 ### §T.2.7  Diverging Functions (`\diverges`)
 
@@ -466,6 +489,31 @@ axiom pycsl_axiom_gcd_divides_a :
 axioms (gcd_result_nonneg, gcd_divides_a, gcd_divides_b, gcd_0, gcd_step).
 
 _Corresponds to `annotations.md` §2.1.12._
+
+### §T.2.11  Bounded Integers (`assumes bounded_int(N)`)
+
+$$\mathcal{T}_f\llbracket \texttt{def f(...): \#@ assumes bounded\_int(N) ...} \rrbracket
+= \texttt{use mach.int.IntN}\;+\;\mathcal{T}_f\llbracket \texttt{def f with } \tau(\texttt{int}) := \texttt{intN} \rrbracket$$
+
+`#@ assumes bounded_int(N)` directs Module 6 to import
+`mach.int.IntN` in the preamble and rewrite every `int`-typed
+parameter, local, and return type of the annotated function to
+`intN`. The directive is consumed at function-emission time
+(`assumes` is a PyCSL contract keyword, not a Why3 one); the only
+artefacts at the WhyML level are the `use mach.int.IntN` line and
+the per-binding `intN` type tag.
+
+**Effect on arithmetic.** Inside the annotated function, `+`, `-`,
+`*` over `intN` auto-generate overflow proof obligations from the
+`mach.int.IntN` theory's `requires { Int.in_bounds (a + b) }`. The
+annotator does not write these — they ride on the type rewrite.
+
+**Supported N.** Module 6 accepts `N` ∈ {8, 16, 32, 64} (per the
+Why3 `mach.int` module set). Other values pass the parser
+(§2.1.8 of the static-semantics reference) but produce a `use`
+error at Why3 compilation time.
+
+_Corresponds to `annotations.md` §2.1 row 8._
 
 ---
 
@@ -1421,6 +1469,80 @@ maintains the invariant.
 
 **Implementation:** `_emit_shared_state`,
 `_handle_critical_section_stmt`.
+
+#### `protected_by` clause
+
+$$\mathcal{T}\llbracket \texttt{\#@ shared X protected\_by L} \rrbracket
+= \mathcal{T}\llbracket \texttt{\#@ shared X} \rrbracket$$
+
+The `protected_by L` clause does **not** change the WhyML emission
+for the variable declaration — `shared X` and
+`shared X protected_by L` both emit `val X : ref int`. The clause is
+consumed by:
+
+1. **`ConcurrencyChecker`** — which checks that every read/write of
+   `X` lies inside a `with` block paired with `#@ critical L` (the
+   same `L` named by `protected_by`). Violations produce
+   `ConcurrencyWarning` records; warnings become hard errors under
+   `--strict-concurrent-checks` (UB-7.3).
+2. **The mutex-invariant predicate name** — a `#@ mutex_invariant L: P`
+   on the same `L` produces `predicate L_inv = P`. The
+   `protected_by L` link is what tells Module 6 to havoc `X` (and
+   any other variable protected by `L`) at critical-section entry.
+
+A `#@ shared X` without `protected_by` is flagged by the checker as
+"unprotected shared state" but the WhyML emission is identical —
+the runtime risk is the user's to accept or annotate.
+
+#### `acquires` ≡ `critical` (alias)
+
+$$\mathcal{T}_s\llbracket \texttt{\#@ acquires L; with L: body} \rrbracket
+\equiv \mathcal{T}_s\llbracket \texttt{\#@ critical L; with L: body} \rrbracket$$
+
+`#@ acquires L` is an alias for `#@ critical L`: Module 3 weaves both
+into the same `csl_critical_mutex` field on the `with` node, and
+Module 5 emits the same `CriticalSection` IR node. The two
+directives are interchangeable. The alias exists for protocol-style
+annotation where the acquire point is named explicitly (e.g. when
+the same `with` block is conceptually paired with a later `releases`
+line); the WhyML output is identical to the `critical` form
+documented above.
+
+_Corresponds to `annotations.md` §10 (line 852)._
+
+#### `releases` — informational, no emission
+
+$$\mathcal{T}_s\llbracket \texttt{\#@ releases L; ...} \rrbracket = \texttt{()}$$
+
+`#@ releases L` is stored on the `with` node (`csl_releases` field)
+but produces **no WhyML output**. The release point is implicit at
+the end of the `with` block; the explicit `releases` line is
+documentation for human readers and for tools that pair acquire/
+release points in protocol-style traces. Treat the directive as a
+comment with structured shape — Module 6 reads it but emits nothing.
+
+_Corresponds to `annotations.md` §10 (line 855)._
+
+#### `lock_order` — deadlock check, no emission
+
+$$\mathcal{T}_m\llbracket \texttt{\#@ lock\_order m\_1, m\_2, ..., m\_n} \rrbracket = \texttt{()}$$
+
+`#@ lock_order` is a **module-level static check**, not a translation
+rule. It produces no WhyML output. The directive declares a total
+order on mutex acquisition, and `ConcurrencyChecker._check_function`
+flags any function that holds two locks `m_i`, `m_j` simultaneously
+with `i > j` (nested `with` blocks in violation of the declared
+order).
+
+When `--strict-concurrent-checks` is set, violations become hard
+`PyCSLSemanticError`s; otherwise they are warnings (UB-7.3). The
+absence of WhyML emission is by design — the proof obligation that
+deadlocks cannot occur is *out of scope* for PyCSL's per-function
+verification model (deadlock is a global property of concurrent
+execution traces). The static order check is the affordable
+approximation.
+
+_Corresponds to `annotations.md` §10 (lines 422–425)._
 
 ---
 

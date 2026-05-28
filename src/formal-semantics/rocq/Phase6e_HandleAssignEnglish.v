@@ -1,8 +1,9 @@
 (* Phase6e_HandleAssignEnglish.v — Rocq refinement of english-01.md
  *
  * The English specification (`english-01.md` at the repo root)
- * describes `Module6._handle_assign_stmt`'s three Python-side
- * branches:
+ * describes `Module 6`'s `_handle_assign_stmt` (post-refactor
+ * location: `src/pycsl/module6_whyml/statements.py:_handle_assign_stmt`,
+ * around line 61). The handler has three Python-side branches:
  *
  *   1. Shared module-level variable — emit `target := val` (no `let`).
  *   2. Fresh local — emit `let target = ... in` with sub-cases for
@@ -41,7 +42,8 @@ Open Scope Z_scope.
 
 (* ===== The Python branch tag ===== *)
 
-(* Mirrors `_handle_assign_stmt`'s three top-level if/elif arms. *)
+(* Mirrors `_handle_assign_stmt`'s three top-level if/elif arms.
+   Python correspondent: `src/pycsl/module6_whyml/statements.py:61`. *)
 Inductive assign_branch : Type :=
   | BrShared       (* target ∈ self._shared_var_names                *)
   | BrFresh        (* target ∉ declared_refs                         *)
@@ -105,8 +107,9 @@ Qed.
  * is the explicit statement of that claim for any of the three
  * Python branches.
  *
- * Concretely: the Python `_handle_assign_stmt` is sound for any
- * branch choice made by its type-driven dispatch logic. *)
+ * Concretely: the Python `_handle_assign_stmt` (in
+ * `src/pycsl/module6_whyml/statements.py:61` post-refactor) is sound
+ * for any branch choice made by its type-driven dispatch logic. *)
 
 Theorem handle_assign_branches_correct :
   forall b x e Qn Qr Qc Qb Qe pre_es es,

@@ -107,6 +107,17 @@ def evalBinopZ (op : Binop) (n1 n2 : Int) : Int :=
   | .mul => n1 * n2
   | .div => if n2 == 0 then 0 else n1 / n2
 
+/-- Comparison evaluator: returns 0 (false) or 1 (true). -/
+def evalCmpOpZ (op : CmpOp) (n1 n2 : Int) : Int :=
+  let b := match op with
+    | .eq => n1 == n2
+    | .ne => n1 != n2
+    | .lt => n1 < n2
+    | .le => n1 ≤ n2
+    | .gt => n1 > n2
+    | .ge => n1 ≥ n2
+  if b then 1 else 0
+
 def evalExpr (st : State) : Expr → Val
   | .int n => .int n
   | .var x => (lookup st x).getD (.int 0)
@@ -128,6 +139,10 @@ def evalExpr (st : State) : Expr → Val
     match evalExpr st e with
     | .int n => .int (-n)
     | v => v
+  | .cmp op e1 e2 =>
+    match evalExpr st e1, evalExpr st e2 with
+    | .int n1, .int n2 => .int (evalCmpOpZ op n1 n2)
+    | _, _ => .int 0
 
 def evalBool (st : State) (e : Expr) : Bool :=
   match evalExpr st e with

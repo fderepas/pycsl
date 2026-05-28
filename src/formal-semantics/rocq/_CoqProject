@@ -30,6 +30,17 @@ Phase6g_Corr_Exc.v
 Phase6h_CorrMain.v
 Phase6j_Why3Trust.v
 Phase6k_VcgSound.v
+Phase6L_EmitStmt.v
+Phase6L_EmitAssign.v
+Phase6L_EmitAugAssign.v
+Phase6L_EmitArraySet.v
+Phase6L_EmitSeq.v
+Phase6L_EmitSimple.v
+Phase6L_EmitBlocks.v
+Phase6L_EmitComposition.v
+Phase6L_EmitStateAware.v
+Phase6L_EmitStateAwareCorr.v
+Phase6L_EmitExtract.v
 Phase6m_VcgSemBridge.v
 Phase6i_Soundness.v
 Tests.v

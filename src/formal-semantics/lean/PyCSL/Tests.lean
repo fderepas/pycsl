@@ -10,6 +10,13 @@ import PyCSL.WhileInv
 import PyCSL.Soundness
 import PyCSL.SoundnessVerified
 import PyCSL.Desugar
+import PyCSL.EmitStmtSurface
+import PyCSL.EmitAssign
+import PyCSL.EmitAugAssign
+import PyCSL.EmitArraySet
+import PyCSL.EmitSeq
+import PyCSL.EmitBlocks
+import PyCSL.EmitComposition
 
 def esEmpty : ExecState := mkExecState []
 
@@ -185,3 +192,59 @@ theorem test_is_sorted_empty (st : List (Ident × Val)) :
 -- Expected: [why3ValidatesEmitted, propext, Classical.choice, Quot.sound]
 -- (same as vcgBridge — why3ValidatesEmitted is the sole prover-trust axiom after B-3)
 #print axioms why3ImplementsWpW_derived
+
+-- emitSkipCorrect: Sub-α pilot (Q2 of closer-to-code.md).
+-- Per-construct emission correctness for wSkip. Expected: [] (pure rfl).
+-- When all 15 Sub-α constructs land, the module6EncodesMlw axiom can be
+-- discharged as a composition of these per-construct lemmas.
+#print axioms PyCSL.emitSkipCorrect
+
+-- emitAssignCorrect: Sub-α.2 (full state coverage for wAssign).
+-- For every state s, x, e: emitAssign s x e is in acceptableAssignEmissions.
+-- Covers shared/declared/bounded_int/default branches on formal Expr type.
+#print axioms PyCSL.emitAssignCorrect
+#print axioms PyCSL.emitStmtStringStateAssignCorrect
+
+-- emitAugAssignCorrect: Sub-α.3 (wAugAssign).
+-- For every x, op, e: emitAugAssign x op e ∈ acceptableAugAssignEmissions.
+-- Singleton acceptable set (bitwise/array-extend branches unreachable on formal Binop).
+#print axioms PyCSL.emitAugAssignCorrect
+
+-- emitArraySetCorrect: Sub-α.4 (wArraySet).
+-- is_array form + subscript_set fallback both accepted.
+#print axioms PyCSL.emitArraySetCorrect
+
+-- emitSeqCorrect: Sub-α.5 (wSeq recursive composition).
+-- The recursive concatenation `emit w1 ++ ";\n" ++ emit w2`.
+#print axioms PyCSL.emitSeqCorrect
+
+-- emitRaiseCorrect / emitLabelCorrect / emitAssertCorrect: Sub-α.8/.12/.13.
+-- Single-line constructs, singleton acceptable sets.
+#print axioms PyCSL.emitRaiseCorrect
+#print axioms PyCSL.emitLabelCorrect
+#print axioms PyCSL.emitAssertCorrect
+
+-- emitIfCorrect / emitWhileCorrect / emitTryCatchCorrect: Sub-α.6/.7/.9.
+-- Multi-line block constructs. wIf has 3 acceptable forms (with/without else
+-- and body_returns_value); wWhile and wTryCatch each have a single canonical form.
+#print axioms PyCSL.emitIfCorrect
+#print axioms PyCSL.emitWhileCorrect
+#print axioms PyCSL.emitTryCatchCorrect
+
+-- emitGhostDeclCorrect / emitGhostAssignCorrect: Sub-α.10/.11.
+-- Per-ghost-type emission for ghost variable declarations and assignments.
+#print axioms PyCSL.emitGhostDeclCorrect
+#print axioms PyCSL.emitGhostAssignCorrect
+
+-- emitStmtFullCompleteSound: Sub-α.14 (aggregate composition lemma).
+-- For every Stmt s, the formal emission lies in the per-construct
+-- acceptable set. Discharges all 22 Stmt constructors via the per-
+-- construct Sub-α theorems plus structural unfolding.
+#print axioms PyCSL.emitStmtFullCompleteSound
+
+-- Note: the parallel state-aware refinement correspondence
+-- (`emit_stmt_state_aware_sound` in Phase6L_EmitStateAwareCorr.v)
+-- is Rocq-only — the state-aware printer is exposed only via Rocq
+-- extraction for the CC.5 byte-diff tooling. The Lean side keeps
+-- the structural composition lemma as its canonical correctness
+-- theorem.

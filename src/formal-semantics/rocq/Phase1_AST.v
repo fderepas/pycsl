@@ -16,14 +16,19 @@ Proof. apply String.string_dec. Defined.
 Inductive binop : Type :=
   | OpAdd | OpSub | OpMul | OpDiv.
 
-(* Runtime expressions — Python subset, no logical connectives *)
+(* Comparison operators — return 0/1 in the runtime int domain. *)
+Inductive cmpop : Type :=
+  | OpEq | OpNe | OpLt | OpLe | OpGt | OpGe.
+
+(* Runtime expressions — Python subset; comparisons return 0/1. *)
 Inductive expr : Type :=
   | EInt       (n : Z)
   | EVar       (x : ident)
   | ESubscript (arr : ident) (i : expr)
   | ELen       (arr : ident)
   | EBinOp     (op : binop) (e1 e2 : expr)
-  | ENeg       (e : expr).
+  | ENeg       (e : expr)
+  | ECmp       (op : cmpop) (e1 e2 : expr).
 
 (* Contract expressions — full logical language with \result, \old, quantifiers *)
 Inductive contract_expr : Type :=
@@ -119,14 +124,16 @@ Inductive int_model : Type :=
 
 (* Function specifications — extended for Phase 2+ *)
 Record func_spec : Type := mkSpec {
-  spec_pre      : contract_expr;
-  spec_post     : contract_expr;
-  spec_frame    : frame_cond;
-  spec_variant  : option contract_expr;   (* \variant *)
-  spec_diverges : bool;                   (* \diverges *)
-  spec_trusted  : bool;                   (* \trusted *)
-  spec_raises   : list (ident * contract_expr); (* raises ExcType when cond *)
-  spec_int_model: int_model               (* assumes bounded_int(N) *)
+  spec_pre          : contract_expr;
+  spec_post         : contract_expr;
+  spec_frame        : frame_cond;
+  spec_variant      : option contract_expr;   (* \variant *)
+  spec_diverges     : bool;                   (* \diverges *)
+  spec_trusted      : bool;                   (* \trusted *)
+  spec_reviewer     : option string;          (* Q1.L.4: \trusted reviewer: <id> *)
+  spec_raises       : list (ident * contract_expr); (* raises ExcType when cond *)
+  spec_int_model    : int_model;              (* assumes bounded_int(N) *)
+  spec_no_exception : list ident              (* Q1.L.1: no_exception E1, E2, ... *)
 }.
 
 (* Augmented assignment operators *)

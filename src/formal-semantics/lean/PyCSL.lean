@@ -19,6 +19,13 @@ import PyCSL.VcFormula      -- Phase 6C-β: VcFormula + evalVcFormula + vcFormul
 import PyCSL.EmitVcList     -- Stage B-3: emitVcList + emitStmt_correct
 import PyCSL.VcgSemBridge   -- Stage B-3: why3ValidatesEmitted + why3ValidatesVcFormula (proved)
 import PyCSL.VcgEmission    -- Phase 6C-β: vcgBridge (proved via why3ValidatesVcFormula)
+import PyCSL.EmitStmtSurface -- Sub-α pilot: emitStmtString + emitSkipCorrect (Q2 of closer-to-code)
+import PyCSL.EmitAssign      -- Sub-α.2: full state coverage for wAssign
+import PyCSL.EmitAugAssign   -- Sub-α.3: wAugAssign (single reachable branch on formal binop)
+import PyCSL.EmitArraySet    -- Sub-α.4: wArraySet (is_array + subscript_set fallback)
+import PyCSL.EmitSeq          -- Sub-α.5/.8/.12/.13: wSeq recursive composition + wRaise/wLabel/wAssert
+import PyCSL.EmitBlocks       -- Sub-α.6/.7/.9/.10/.11: wIf/wWhile/wTryCatch/wGhostDecl/wGhostAssign + emitStmtFullComplete
+import PyCSL.EmitComposition  -- Sub-α.14: aggregate composition lemma covering all 22 Stmt constructors
 import PyCSL.SoundnessVerified
 import PyCSL.Tests
 -- import PyCSL.Macros  -- Phase L5 bonus

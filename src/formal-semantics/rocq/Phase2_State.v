@@ -130,6 +130,18 @@ Definition eval_binop_z (op : binop) (n1 n2 : Z) : Z :=
   | OpDiv => if Z.eqb n2 0 then 0 else Z.div n1 n2
   end.
 
+(* Comparison evaluator: returns 0 (false) or 1 (true) — Python semantics. *)
+Definition eval_cmpop_z (op : cmpop) (n1 n2 : Z) : Z :=
+  if (match op with
+      | OpEq => Z.eqb n1 n2
+      | OpNe => negb (Z.eqb n1 n2)
+      | OpLt => Z.ltb n1 n2
+      | OpLe => Z.leb n1 n2
+      | OpGt => Z.gtb n1 n2
+      | OpGe => Z.geb n1 n2
+      end)
+  then 1 else 0.
+
 (* Runtime expression evaluator — total function *)
 Fixpoint eval_expr (st : state) (e : expr) : val :=
   match e with
@@ -157,6 +169,11 @@ Fixpoint eval_expr (st : state) (e : expr) : val :=
     match eval_expr st e with
     | VInt n => VInt (- n)
     | v => v
+    end
+  | ECmp op e1 e2 =>
+    match eval_expr st e1, eval_expr st e2 with
+    | VInt n1, VInt n2 => VInt (eval_cmpop_z op n1 n2)
+    | _, _ => VInt 0
     end
   end.
 

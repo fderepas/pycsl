@@ -94,7 +94,7 @@ _Corresponds to `annotations.md` §2.1._
 | 2.1.4 | Function variant | `function_variant ::= "\variant" expr ;` |
 | 2.1.5 | Structural variant | `function_variant_structural ::= "\variant" "(" expr "," CNAME ")" ;` |
 | 2.1.6 | Diverges | `diverges_decl ::= "\diverges" ;` |
-| 2.1.7 | Trusted | `trusted_decl ::= "\trusted" ;` |
+| 2.1.7 | Trusted | `trusted_decl ::= "\trusted" ( "reviewer" ":" REVIEWER_ID )? ;` where `REVIEWER_ID ::= /[A-Za-z0-9._@-]+/` |
 | 2.1.8 | Bounded integers | `bounded_int_decl ::= "assumes" "bounded_int" "(" NUMBER ")" ;` |
 | 2.1.9 | Raises | `raises_decl ::= "raises" CNAME "when" expr ;` |
 | 2.1.10| Thread entry | `thread_entry_decl ::= "thread_entry" ;` |
@@ -858,7 +858,8 @@ assigns                     ::= "assigns" assigns_target ;
 function_variant            ::= "\variant" expr ;
 function_variant_structural ::= "\variant" "(" expr "," CNAME ")" ;
 diverges_decl               ::= "\diverges" ;
-trusted_decl                ::= "\trusted" ;
+trusted_decl                ::= "\trusted" ( "reviewer" ":" REVIEWER_ID )? ;
+REVIEWER_ID                 ::= /[A-Za-z0-9._@-]+/ ;
 raises_decl                 ::= "raises" CNAME "when" expr ;
 bounded_int_decl            ::= "assumes" "bounded_int" "(" NUMBER ")" ;
 proof_decl             ::= "proof" prover_id qualname ;

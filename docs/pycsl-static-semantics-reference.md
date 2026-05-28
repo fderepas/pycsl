@@ -248,15 +248,48 @@ as a flag on the function AST node (`csl_diverges = True`).
 on the same function, the Weaver raises a `ValueError`:
 `"\\variant and \\diverges are contradictory"`.
 
-#### §2.1.7 Trusted (`\trusted`)
+#### §2.1.7 Trusted (`\trusted [reviewer: <REVIEWER_ID>]`)
 
 ```
-   ─────────────────────────
-    Γ_f ⊢ trusted : ok
+   ────────────────────────────────────────
+    Γ_f ⊢ trusted(reviewer?) : ok
 ```
 
 **Rule:** Always well-formed. Presence is noted as a flag
-(`csl_trusted = True`).
+(`csl_trusted = True`) on the function-def AST node; the optional
+`reviewer:` clause is captured separately as `csl_reviewer: str`
+(empty string when absent).
+
+**Reviewer field semantics.** The reviewer name is **not** checked
+at the static-semantics layer. `Module3_Weaver._dispatch_function_contracts`
+emits a warning (not an error) when `csl_trusted = True` but
+`csl_reviewer = ""`:
+
+> *"`\trusted` has no reviewer — add `reviewer: <name>` to document
+> who is accountable for this trust assumption."*
+
+The reviewer name is therefore an **accountability attribution**:
+it documents *who* (a human, a team, or a generator process)
+stands behind the assumption that the function's contracts hold of
+its body, since PyCSL itself does not verify the body. The tag
+value follows the convention in `annotations.md` §2.1.7 ("Reviewer
+tag convention"):
+
+- A **human identifier** (`alice`, `charlie-mhe@example.org`) when
+  a person reviewed the function and attests.
+- A **process identifier** (`pycsl-self-annotate`,
+  `auto-trust-rule-array-return`) when an automated tool emitted
+  the `\trusted` directive and the trust delegates to that tool's
+  documented rules.
+
+An anonymous `\trusted` (no reviewer field) is permitted by the
+grammar but flagged by the warning above. Project convention
+treats anonymous `\trusted` as a review blocker.
+
+**No new error codes** — the existing `E*` catalogue does not gain
+an entry for reviewer-related violations.
+
+_Corresponds to `annotations.md` §2.1.7._
 
 #### §2.1.8 Bounded Integers (`assumes bounded_int(N)`)
 
@@ -623,11 +656,27 @@ checker walks the function body.
 
 #### §2.4.5 Acquires (`acquires mutex`)
 
-Same rule as `critical`. The annotation marks a mutex acquisition point.
+Same rule as `critical`.
+
+**Translational alias.** `#@ acquires L` is operationally **equivalent
+to `#@ critical L`** — Module 3 weaves both into the same
+`csl_critical_mutex` field on the `with` node, Module 5 emits the
+same `CriticalSection` IR node, and Module 6 emits the same
+havoc+assume/assert pattern (translational reference §T.7.4). The
+alias exists for protocol-style annotation when the acquire point
+is named explicitly alongside a later `releases` line; the two
+directives are interchangeable. See `annotations.md` §10 (line 852).
 
 #### §2.4.6 Releases (`releases mutex`)
 
-Same rule as `critical`. The annotation marks a mutex release point.
+Same rule as `critical`.
+
+**Informational only.** Unlike `acquires`, `#@ releases L` produces
+**no WhyML emission** (translational reference §T.7.4). The release
+point is implicit at the end of the `with` block; the explicit
+directive documents the release for human readers and protocol
+traces. Module 3 stores it on `csl_releases`; Module 6 reads it but
+emits nothing. See `annotations.md` §10 (line 855).
 
 ---
 

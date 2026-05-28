@@ -744,7 +744,8 @@ and asserted on exit.
 | `#@ assigns <targets> \| \nothing` | Function / method | Frame condition |
 | `#@ variant <expr>` | Function / method | Termination measure (recursive functions) |
 | `#@ \diverges` | Function / method | Function may not terminate |
-| `#@ \trusted` | Function / method | Body not verified; contracts assumed as axioms |
+| `#@ \trusted` / `#@ \trusted reviewer: <name>` | Function / method | Body not verified; contracts assumed as axioms. Optional `reviewer:` clause names a human or process accountable for the trust (e.g., `reviewer: alice`, `reviewer: pycsl-self-annotate`); see `test-suite/annotations.md` §2.1.7 |
+| `#@ assumes bounded_int(N)` | Function / method | Bounded-integer pragma: `int` parameters/locals become `intN` (N ∈ {8, 16, 32, 64}); arithmetic auto-generates overflow VCs |
 | `#@ raises E when cond` | Function / method | Exceptional postcondition |
 | `#@ no_exception E1, E2, …` / `\all` | Function / method | Implicit Python exceptions become proof obligations |
 | `#@ allow_iteration_mutation` | `for` loop | Opts the loop out of UB-7.1 (mutation during iteration) |
@@ -755,9 +756,13 @@ and asserted on exit.
 | `#@ ghost x = e` | Statement | Ghost variable (spec-only) |
 | `#@ ghost x += e` | Statement | Ghost variable update |
 | `#@ label L` | Statement | Program point for `\at(e, L)` |
-| `#@ shared x` | Module | Shared variable (concurrent model) |
+| `#@ shared x` / `#@ shared x protected_by L` | Module | Shared variable, optionally bound to a mutex (concurrent model) |
 | `#@ mutex_invariant name: expr` | Module | Mutex invariant (concurrent model) |
-| `#@ critical name` | Statement | Critical section (concurrent model) |
+| `#@ lock_order m1, m2, …` | Module | Total order on mutex acquisition (deadlock check) |
+| `#@ thread_entry` | Function / method | Marks the function as a thread entry point |
+| `#@ critical name` | `with` statement | Critical section (concurrent model) — havoc + assume/assert in WhyML |
+| `#@ acquires name` | `with` statement | Alias for `#@ critical` — name the acquire point explicitly |
+| `#@ releases name` | `with` statement | Informational release-point marker (no WhyML emission) |
 
 ### Special atoms
 
@@ -1070,3 +1075,132 @@ Edit `config/agents-config.json` to change the LLM model or project directory:
 
 The update agent may only modify agent scripts or skill files — writing to
 `tests/annotated/` is blocked by the MCP server.
+
+---
+
+## Documentation Coherency
+
+PyCSL's `#@` directive surface is described in five normative places
+that serve different audiences:
+
+| Surface | Audience | What it carries |
+|---|---|---|
+| `README.md` | new users | Quick-reference table + worked examples |
+| `test-suite/annotations.md` | test authors | Canonical directive list + per-directive detail subsections |
+| `docs/pycsl-concrete-syntax-reference.md` | language implementers | EBNF grammar productions |
+| `docs/pycsl-static-semantics-reference.md` | verification engineers | Well-formedness inference rules |
+| `docs/pycsl-translational-reference.md` | Module 6 maintainers | Python → WhyML translation rules |
+
+Each surface is independently `Status: Normative` (see the preamble
+of every reference doc), but parity between them is a *systems*
+property. Without enforcement, a directive added to the parser drifts
+out of sync with the reference docs, and humans / LLM agents see
+inconsistent rules.
+
+### The coherency invariant
+
+> For every `#@` directive defined in `test-suite/annotations.md`
+> (the canonical source), the directive must appear in `README.md`
+> and in all three `docs/pycsl-*reference*.md` files.
+
+This invariant is enforced mechanically by `bin/doc-coherency.py`,
+wired into `bin/run-reference-tests.sh` as a leading CI gate
+(immediately after the stdlib-coverage gate, before any corpus test).
+A drift in documentation parity fails fast, before any proof is
+attempted.
+
+### The tool
+
+```bash
+./bin/doc-coherency.py --list-directives   # print the canonical directive set
+./bin/doc-coherency.py --check             # reconcile all directives × 5 surfaces
+./bin/doc-coherency.py --check <directive> # check a single directive
+```
+
+`--check` emits a per-directive × per-surface grid. Each cell is
+`✓` (documented) or `MISSING`. Exit codes follow the established
+CI convention: 0 = pass, 1 = drift, 2 = tool error.
+
+Pattern matching is two-tier: strong signals (`#@ name`,
+`name_decl` EBNF production, `NameDecl` AST node class,
+backtick-prefixed phrase, TeX-formatted translation rule) plus a
+boundary form for distinctive identifiers. Single-syllable names that
+overlap with English prose (`class`, `loop`, `label`, `ghost`) only
+accept strong signals.
+
+### Per-PR workflow
+
+`config/skills/pycsl-how-to-develop/SKILL.md` §9 has the 9-step
+checklist for adding a new feature; step 9 is the documentation
+coherency audit. Run before opening the PR:
+
+```bash
+./bin/doc-coherency.py --check
+```
+
+To skip the gate temporarily during local development:
+
+```bash
+PYCSL_SKIP_DOC_COHERENCY_CHECK=1 bash bin/run-reference-tests.sh
+```
+
+CI must not set this env var. Skipping the gate in CI defeats the
+invariant.
+
+### The rulebook
+
+`config/skills/pycsl-doc-coherency/SKILL.md` is the CCB-tracked
+configuration item that governs the invariant. It documents the
+five-surface contract, the tool's two-tier pattern strategy, and the
+update rules for when a new surface is added or a new directive
+shape emerges. The skill is the parallel of
+`pycsl-stdlib-coverage` (which enforces the same kind of invariant
+for stdlib API coverage) and `pycsl-exception-model` (which holds the
+trigger table that `no_exception` relies on).
+
+### Three operational gates, same shape
+
+PyCSL now has three mechanical gates running before every corpus
+test, each enforcing a *systems* invariant rather than a per-file
+property:
+
+| Gate | Canonical source | Tool | Skill |
+|---|---|---|---|
+| Stdlib API coverage | `stdlib-coverage-report.toml` | `bin/stdlib-coverage.py --check` | `pycsl-stdlib-coverage` |
+| Directive doc coherency | `test-suite/annotations.md` | `bin/doc-coherency.py --check` | `pycsl-doc-coherency` |
+| Self-annotation suite | `bin/run-self-annotation-suite.sh` (suite list) | the script itself | `pycsl-stdlib-coverage` §step 5 |
+| Self-annotation mirror | `src/pycsl/*.py` (canonical sources) | `bin/self-annotate-mirror-check.sh` | `pycsl-stdlib-coverage` §step 5 |
+
+When the project grows another surface that needs parity (e.g. a
+fourth reference doc, a new doc category), extend the relevant tool
+along the same shape — never let coherency become a manual chore.
+
+### Self-Annotation
+
+PyCSL's own source code under `src/pycsl/` (excluding `agents/`) is
+mirrored at `src/self-annotate/src/`, with each mirror passing
+`pycsl <file>` end-to-end. 26 modules cover the full pipeline:
+
+| Bucket | Strategy | Modules |
+|---|---|---|
+| A | Full Why3 proof; `\trusted reviewer:` stubs preserve signatures | `errors.py`, `ir_schema.py`, `exception_model.py`, the six `module6_whyml/` data/logic mixins, `__init__.py` files |
+| B | `\trusted reviewer:` with stub bodies | `import_classifier.py`, `ConcurrencyChecker.py` |
+| C | `\trusted reviewer:` with stub bodies; future PRs cite `src/formal-semantics/` theorems via `#@ proof rocq/lean` | `Module1`–`Module6`, `audit_proof.py`, `pycsl.py` CLI, the four heavy `module6_whyml/` emission mixins |
+
+Run the suite and the anti-drift gate:
+
+```bash
+./bin/run-self-annotation-suite.sh       # 26/26 proved
+./bin/self-annotate-mirror-check.sh      # signatures match src/pycsl/
+```
+
+When `src/pycsl/<file>.py` changes, regenerate its mirror:
+
+```bash
+./bin/self-annotate-stub-gen.py src/pycsl/<file>.py \
+                                 src/self-annotate/src/<file>.py
+```
+
+Historical first-pass annotations (pre-Module6-refactor) are
+preserved under `src/self-annotate/attic/` for audit reference; the
+canonical current state lives under `src/self-annotate/src/`.

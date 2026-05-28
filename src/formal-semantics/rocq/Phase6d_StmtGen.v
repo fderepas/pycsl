@@ -1,5 +1,11 @@
 (* Phase6d_StmtGen.v — Statement Generator
-   Defines gen : stmt → whyml_stmt, the formal model of Module6's translation.
+   Defines gen : stmt → whyml_stmt, the formal model of Module 6's
+   translation. Module 6 = the `src/pycsl/module6_whyml/` subpackage
+   plus the `src/pycsl/Module6_WhyMLTranspiler.py` facade (post-refactor
+   layout since commits 196aaf2/5e10f38/e381ddf/7546238). The concrete
+   Python implementation of `gen` lives in
+   `src/pycsl/module6_whyml/statements.py` (statement dispatchers) and
+   `src/pycsl/module6_whyml/expressions.py` (expression dispatchers).
 
    Design notes:
    - Every stmt constructor maps to the whyml_stmt it generates.
@@ -31,7 +37,10 @@ Fixpoint gen_lift_continue (inc w : whyml_stmt) : whyml_stmt :=
   | other                    => other
   end.
 
-(* ===== gen: formal model of Module6's WhyML generator ===== *)
+(* ===== gen: formal model of Module 6's WhyML generator =====
+   Python correspondent: dispatch in
+   `src/pycsl/module6_whyml/statements.py:_stmts_to_whyml` (line ~1034)
+   which routes to per-stmt `_handle_*_stmt` handlers in the same file. *)
 
 Fixpoint gen (s : stmt) : whyml_stmt :=
   match s with

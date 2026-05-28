@@ -31,7 +31,7 @@ Python construct they annotate (function, class, loop, or statement).
 | 4 | Function variant | `#@ \variant <expr>` | Function/method | Termination measure for recursive functions (must decrease, stay ≥ 0) |
 | 5 | Structural variant | `#@ \variant (<expr>, <ordering>)` | Function/method | Termination via well-founded ordering |
 | 6 | Diverges | `#@ \diverges` | Function/method | Function may not terminate (no termination proof required) |
-| 7 | Trusted | `#@ \trusted` | Function/method | Body is not verified; contracts are assumed (axiom) |
+| 7 | Trusted | `#@ \trusted` or `#@ \trusted reviewer: <REVIEWER_ID>` | Function/method | Body is not verified; contracts are assumed (axiom). The optional `reviewer:` clause names a human or process accountable for the trust assumption. See §2.1.7 below. |
 | 8 | Bounded integers | `#@ assumes bounded_int(N)` | Function/method | Use `mach.int.IntN` types; auto-generates overflow VCs on `+`, `-`, `*` |
 | 9 | Raises | `#@ raises ExcType when <cond>` | Function/method | Exceptional postcondition: exception raised only when `cond` holds |
 | 10 | Thread entry | `#@ thread_entry` | Function/method | Marks function as a concurrent thread entry point; used with `--memory-model concurrent` |
@@ -40,6 +40,83 @@ Python construct they annotate (function, class, loop, or statement).
 | 13 | No-exception | `#@ no_exception E1, E2, ...` or `#@ no_exception \all` | Function/method | Implicit Python exceptions become proof obligations. For each IR operation in the body that could raise a listed exception, Module 6 emits a WhyML `assert { trigger }`. The `\all` form expands to the full Phase 1 set in `exception_model.KNOWN_EXCEPTIONS` and requires `raises { }` to be empty. See §2.1.13. |
 
 Multiple `requires`/`ensures` lines are conjuncted (all must hold).
+
+#### §2.1.7 Trusted (`\trusted [reviewer: <REVIEWER_ID>]`)
+
+```python
+#@ \trusted
+def opaque_helper(x: int) -> int: ...
+
+#@ \trusted reviewer: alice
+def reviewed_helper(x: int) -> int: ...
+
+#@ \trusted reviewer: pycsl-self-annotate
+def auto_stubbed_helper(x: int) -> int: ...
+```
+
+Marks the function's **body as not verified** by PyCSL. Module 6
+emits `val f (...) : R requires {...} ensures {...}` (signature +
+contract only, no body); the contracts become axioms that callers
+may freely assume.
+
+**Optional `reviewer:` clause.** Grammar (§2.1.7 of the
+concrete-syntax reference):
+
+```
+trusted_decl ::= "\trusted" ( "reviewer" ":" REVIEWER_ID )? ;
+REVIEWER_ID  ::= /[A-Za-z0-9._@-]+/
+```
+
+The reviewer field is **accountability metadata**, not a
+verification primitive. It documents *who* (or *what*) stands
+behind the trust assumption since PyCSL itself does not verify the
+body. The translational layer ignores it (§T.2.6 of the
+translational reference): the WhyML output is identical whether
+the clause is present or absent.
+
+**Behaviour without `reviewer:`.** Parsing succeeds.
+`Module3_Weaver._dispatch_function_contracts` emits a warning at
+weave time:
+
+> *"`\trusted` has no reviewer — add `reviewer: <name>` to document
+> who is accountable for this trust assumption."*
+
+The warning is informational; the file still compiles and proves.
+Project convention treats an anonymous `\trusted` as a review
+blocker — CI and PR review pipelines may promote the warning to an
+error in stricter modes.
+
+**Reviewer tag convention.** Two well-known categories:
+
+- **Human identifier** — name, handle, or scoped identifier
+  (`alice`, `charlie-mhe@example.org`). Use when a person reviewed
+  the function and attests that the contract holds of the body.
+- **Process identifier** — name of an automated tool or rule that
+  emitted the directive. Use when a generator produces the
+  `\trusted` and the trust delegates to that tool's documented
+  rules. Known process tags:
+  - `pycsl-self-annotate` — emitted by `bin/self-annotate-stub-gen.py`
+    for mirror files under `src/self-annotate/src/`. See
+    `src/self-annotate/coverage-report.md` and the
+    `pycsl-stdlib-coverage` skill's growth criteria.
+  - `auto-trust-<rule>` — reserved for future auto-trust rule
+    families (e.g., `auto-trust-array-return` per
+    `module6_whyml/auto_trust.py`'s `_should_auto_trust_*`
+    predicates).
+
+A directive whose reviewer tag matches no known pattern is still
+syntactically valid; tooling reading the field should treat unknown
+tags as opaque human-or-process identifiers.
+
+**No new error codes.** The reviewer field has no semantic check at
+Module 4 and no WhyML emission at Module 6. The static-semantics
+reference §2.1.7 records the warning behaviour; the translational
+reference §T.2.6 records the no-emission rule.
+
+**Test-corpus cross-reference:** `0052`, `0160`, `0161` exercise
+the bare `\trusted` form;
+`test-suite/corpus/pycsl-reference/0397.py` exercises the
+`reviewer:` clause via the UB-7.4 escape-annotation flow.
 
 #### §2.1.12 Proof Citation (`proof`) — Rocq + Lean as Cross-Validated Spec Sources
 

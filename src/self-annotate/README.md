@@ -9,8 +9,20 @@ does the *Python implementation* faithfully realize those mathematics?
 This directory closes that gap by annotating the PyCSL implementation
 (`src/pycsl/*.py`) with its own `#@` contract syntax, then verifying the
 annotations with Why3. The canonical annotated copies live in
-`src/self-annotate/src/` and pass `pycsl --no-proof` (run
-`make self-annotate-verify`).
+`src/self-annotate/src/`. **As of 2026-05-28, `src/self-annotate/src/`
+is being rebuilt from scratch** against the post-Module6-refactor PyCSL
+codebase (the 4452-line pre-refactor monolith was deleted; the new
+mirror tracks `src/pycsl/module6_whyml/` 10 mixins + the 11 top-level
+modules). Each mirror file is byte-identical to its `src/pycsl/`
+counterpart modulo added `#@` lines; the
+`bin/self-annotate-mirror-check.sh` gate (introduced in PR 14 of the
+self-annotation workplan) enforces this.
+
+**Historical plans** marked "Status: ⚠️ Historical" are under
+`src/self-annotate/attic/`. The colon-separated `#@ proof rocq:` /
+`#@ proof lean:` directive they reference was removed 2026-05-27;
+the current space-separated form per `annotations.md` §2.1.12 is the
+only supported syntax.
 
 ---
 

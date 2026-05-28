@@ -9,6 +9,10 @@ inductive Binop where
   | add | sub | mul | div
   deriving DecidableEq, Repr
 
+inductive CmpOp where
+  | eq | ne | lt | le | gt | ge
+  deriving DecidableEq, Repr
+
 inductive Expr where
   | int       (n : Int)
   | var       (x : Ident)
@@ -16,6 +20,7 @@ inductive Expr where
   | len       (arr : Ident)
   | binop     (op : Binop) (e1 e2 : Expr)
   | neg       (e : Expr)
+  | cmp       (op : CmpOp) (e1 e2 : Expr)
   deriving Repr
 
 inductive ContractExpr where
@@ -112,14 +117,16 @@ inductive IntModel where
   deriving Repr
 
 structure FuncSpec where
-  pre       : ContractExpr
-  post      : ContractExpr
-  frame     : FrameCond
-  variant   : Option ContractExpr
-  diverges  : Bool
-  trusted   : Bool
-  raises    : List (Ident × ContractExpr)
-  intModel  : IntModel
+  pre          : ContractExpr
+  post         : ContractExpr
+  frame        : FrameCond
+  variant      : Option ContractExpr
+  diverges     : Bool
+  trusted      : Bool
+  reviewer     : Option String           -- Q1.L.4: \trusted reviewer: <id>
+  raises       : List (Ident × ContractExpr)
+  intModel     : IntModel
+  noException  : List Ident               -- Q1.L.1: no_exception E1, E2, ...
   deriving Repr
 
 inductive AugOp where

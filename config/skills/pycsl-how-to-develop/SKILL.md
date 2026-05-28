@@ -452,6 +452,52 @@ Module4 rejects), and `agent-invariant-writer` to add loop variants to outer
 - Verify proof passes (exit code 0 from pycsl)
 - Review meta-agent outputs in `metrics/`
 
+### Step 9: Cross-surface documentation coherency
+
+Every new `#@` directive must appear in **all five** normative
+surfaces before the PR is review-ready:
+
+1. **`README.md`** — at minimum, a row in the contract-language
+   quick-reference table at §"PyCSL Contract Language (Quick
+   Reference)" (currently around line 580); a worked example
+   section follows when the directive is non-trivial.
+2. **`test-suite/annotations.md`** — table row in the appropriate
+   subsection (§2.1 function-level, §2.2 loop-level, §2.3
+   class-level, §2.4 program-point, §10 concurrent) **plus** a
+   detail subsection (`#### §X.Y.Z Directive (...)`) mirroring the
+   existing §2.1.13 / §2.2.3 / §2.3.2 format. Never renumber
+   existing entries — append at the end of the subsection table.
+3. **`docs/pycsl-concrete-syntax-reference.md`** — table row in the
+   subsection plus an EBNF production in the grammar block at the
+   bottom of the file. Add the directive name to the top-level
+   `?contract:` alternative list.
+4. **`docs/pycsl-static-semantics-reference.md`** — well-formedness
+   inference rule under `#### §X.Y.Z`. State the rule in the form
+   used by sibling subsections. If the directive is operationally
+   identical to another directive (an alias), state the equivalence
+   explicitly with a "Translational alias" or "Informational only"
+   paragraph.
+5. **`docs/pycsl-translational-reference.md`** — translation rule
+   under `### §T.X.Y`. If the directive has no WhyML emission,
+   state that explicitly with `T[[#@ ...]] = ()` and the rationale,
+   rather than omitting the directive entirely.
+
+Run the audit before opening the PR:
+
+```bash
+./bin/doc-coherency.py --check                     # all directives
+./bin/doc-coherency.py --check <directive_name>    # one directive
+./bin/doc-coherency.py --list-directives           # canonical set
+```
+
+The tool walks all five surfaces, extracts directive names from
+`test-suite/annotations.md` (the canonical source), and reports
+missing entries in each surface. Exits 1 on any gap. Wired into
+`bin/run-reference-tests.sh` as a leading gate; skip with
+`PYCSL_SKIP_DOC_COHERENCY_CHECK=1`.
+
+Governed by `config/skills/pycsl-doc-coherency/SKILL.md`.
+
 **Worked example.** The `#@ proof <prover> <qualname>` directive
 (annotations.md §2.1.12) is the canonical template for cross-prover
 proof attribution. It exercises every step of the pipeline: Module2

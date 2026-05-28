@@ -164,3 +164,23 @@ The **Ref** column uses the format `section.subsection.row`.
 | ub.iteration-mutation     | 0404–0407 | Mutating iterated container | PASS |
 | ub.hash-eq                | 0411–0414 | Hash/eq consistency | PASS |
 | ub.concurrent-strict      | 0415–0417 | `--strict-concurrent-checks` | PASS |
+
+## Self-annotation suite (2026-05-28)
+
+Modules from `src/pycsl/` mirrored under `src/self-annotate/src/` with
+`#@` contracts; each mirror passes `pycsl <file>` with full Why3 proof.
+26 modules total (see `bin/run-self-annotation-suite.sh` for the
+canonical list).
+
+| Bucket | Modules | Annotation kind |
+|---|---|---|
+| A — full proof tractable | errors, ir_schema, exception_model, 6× module6_whyml data+logic mixins, 2× __init__ | `\trusted reviewer:` stubs (interface contracts; bodies stubbed) |
+| B — needs richer stubs | import_classifier, ConcurrencyChecker | `\trusted reviewer:` stubs |
+| C — research-grade | Module{1–6}, audit_proof, pycsl.py CLI, 4× module6_whyml heavy mixins | `\trusted reviewer:` stubs; future PRs cite formal-semantics theorems |
+
+**Anti-drift gate:** `bin/self-annotate-mirror-check.sh` verifies every
+mirror's function and class signatures match its `src/pycsl/`
+counterpart. Drift triggers a hard fail with the actionable diff.
+
+**Re-generation:** `bin/self-annotate-stub-gen.py src/pycsl/<file>
+src/self-annotate/src/<file>` rebuilds a mirror from current source.

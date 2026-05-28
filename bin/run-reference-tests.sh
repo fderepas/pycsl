@@ -81,6 +81,24 @@ if [ "${PYCSL_SKIP_STDLIB_CHECK:-0}" != "1" ]; then
     fi
 fi
 
+# Doc-coherency CI gate. Verifies every #@ directive defined in
+# test-suite/annotations.md is documented in README.md, the three
+# docs/pycsl-*reference*.md files, and the skill set. Governed by
+# config/skills/pycsl-doc-coherency/SKILL.md. Skip temporarily with
+# PYCSL_SKIP_DOC_COHERENCY_CHECK=1.
+if [ "${PYCSL_SKIP_DOC_COHERENCY_CHECK:-0}" != "1" ]; then
+    if ! python3 "$PROJECT_ROOT/bin/doc-coherency.py" --check >/dev/null; then
+        echo ""
+        echo "[!] doc-coherency --check failed. A #@ directive is missing"
+        echo "    from at least one normative surface (README, annotations.md,"
+        echo "    docs/pycsl-*reference*.md). Run"
+        echo "        ./bin/doc-coherency.py --check"
+        echo "    for the per-directive grid. Skip with"
+        echo "    PYCSL_SKIP_DOC_COHERENCY_CHECK=1."
+        exit 1
+    fi
+fi
+
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[0;33m'
