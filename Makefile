@@ -39,6 +39,19 @@ self-annotate-verify: .venv
 	@echo "=== All self-annotation files pass pycsl --no-proof ==="
 	@echo ""
 	@$(MAKE) check-proof-attributions
+	@echo ""
+	@$(MAKE) check-proof-crosscheck
+
+# Mechanical 3-way cross-check: for every cited `#@ proof rocq/lean`
+# qualname, extract the theorem statement from both prover proof
+# files (via coqc Check / lake env lean #check), parse to a shared
+# first-order IR, canonicalize, and verify it structurally equals the
+# Module 6 `_AXIOM_REGISTRY` body. Closes Goal A of sticky-01.md /
+# sticky-02.md — the three manual trust assumptions in
+# 0342_explanation.md §4.3 collapse to one mechanical predicate.
+.PHONY: check-proof-crosscheck
+check-proof-crosscheck: .venv
+	@bash bin/check-proof-crosscheck.sh
 
 # Audit every `#@ proof rocq` / `#@ proof lean` directive in the
 # annotated corpus. The audit invokes `pycsl --audit-proof <file>` per file

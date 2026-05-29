@@ -18,8 +18,13 @@ class PreambleEmissionMixin:
     _AXIOM_REGISTRY: Dict[str, str] = {
         # Pycsl.Reference.Gcd — Euclidean GCD properties.
         # Cross-validated by 0342.proofs/rocq/gcd.v + 0342.proofs/lean/Gcd.lean.
+        # The `a >= 0 -> b >= 0 ->` side conditions on each entry mirror
+        # the `nat`-lift: Rocq+Lean prove these theorems over `nat`, and
+        # the WhyML `int` axioms add the non-negativity side conditions
+        # explicitly. Identified as missing from gcd_step + gcd_result_nonneg
+        # by `python -m pycsl.proof2why3.crosscheck` (sticky-01.md Phase 1+2+3 v0).
         "Pycsl.Reference.Gcd.gcd_result_nonneg":
-            "forall a b : int. 0 <= gcd a b",
+            "forall a b : int. a >= 0 -> b >= 0 -> 0 <= gcd a b",
         "Pycsl.Reference.Gcd.gcd_result_positive":
             "forall a b : int. a >= 0 -> b >= 0 -> (a > 0 \\/ b > 0) -> gcd a b > 0",
         "Pycsl.Reference.Gcd.gcd_divides_a":
@@ -29,9 +34,11 @@ class PreambleEmissionMixin:
         "Pycsl.Reference.Gcd.gcd_0":
             "forall a : int. a >= 0 -> gcd a 0 = a",
         "Pycsl.Reference.Gcd.gcd_step":
-            "forall a b : int. b > 0 -> gcd a b = gcd b (mod a b)",
+            "forall a b : int. a >= 0 -> b >= 0 -> b > 0 -> "
+            "gcd a b = gcd b (mod a b)",
         "Pycsl.Reference.Gcd.gcd_greatest":
-            "forall a b k : int. a >= 0 -> b >= 0 -> (a > 0 \\/ b > 0) -> "
+            "forall a b k : int. a >= 0 -> b >= 0 -> k >= 0 -> "
+            "(a > 0 \\/ b > 0) -> "
             "k > 0 -> mod a k = 0 -> mod b k = 0 -> k <= gcd a b",
     }
 
