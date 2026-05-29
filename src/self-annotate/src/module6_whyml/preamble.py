@@ -1,4 +1,6 @@
 from __future__ import annotations
+#@ proof rocq Phase6i_Soundness.why3_implements_wp_w_derived
+#@ proof lean PyCSL.Why3Vcg.vcgSound
 from typing import Any, Dict, List, Optional, Set, Tuple
 from module6_whyml.identifiers import whyml_ident, safe_mutex_name
 from module6_whyml.ir_scanner import IRScanner

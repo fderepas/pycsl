@@ -67,7 +67,7 @@ private theorem bwd_while_aux {b : Stmt}
   | execFieldAugAssign _ _ _ _ _ => simp at heq
   | execCritical _ _ _ _ _ _ => simp at heq
   | execThreadEntry _ _ _ _ _ => simp at heq
-  | execFor _ _ _ _ _ _ _ _ _ => simp at heq
+  | execFor _ _ _ _ _ _ _ _ _ _ => simp at heq
 
 -- =====================================================================
 -- Forward direction: Exec es s out → Exec es (desugar s) out
@@ -148,7 +148,7 @@ theorem desugar_correct_fwd (es : ExecState) (s : Stmt) (out : Outcome)
     simp only [freshInStmt] at hfresh
     exact .execThreadEntry _ _ _ (ih1 hfresh)
   -- For: execFor provides Exec es (desugar .for_...) out directly
-  | execFor _ _ _ _ _ _ _ h _ => exact h
+  | execFor _ _ _ _ _ _ _ _ h _ => exact h
 
 -- =====================================================================
 -- Backward direction: Exec es (desugar s) out → Exec es s out
@@ -175,7 +175,7 @@ theorem desugar_correct_bwd (s : Stmt) (es : ExecState) (out : Outcome)
   | .fieldAssign _ _ _ => exact hd
   | .fieldAugAssign _ _ _ _ => exact hd
   -- For: use execFor rule
-  | .for_ _ _ _ _ _ => exact .execFor _ _ _ _ _ _ _ hd
+  | .for_ _ _ _ _ _ _ => exact .execFor _ _ _ _ _ _ _ _ hd
   -- Seq: case-split on hd to recover sub-execs on desugared s1, s2
   | .seq s1 s2 =>
     simp only [desugar] at hd

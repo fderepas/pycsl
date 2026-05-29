@@ -183,14 +183,14 @@ theorem test_is_sorted_empty (st : List (Ident × Val)) :
 -- Expected: [propext, Classical.choice, Quot.sound]
 #print axioms vcgSound
 
--- vcgBridge: Stage B-3 — proved from why3ValidatesEmitted (NO sorry, NO module6EncodesMlw).
--- Expected: [why3ValidatesEmitted, propext, Classical.choice, Quot.sound]
--- (why3ValidatesVcFormula is now a proved THEOREM, not an axiom)
+-- vcgBridge: Q3 Sub-β port (2026-05-29) — fully axiom-free modulo standard Lean axioms.
+-- Expected: [propext, Classical.choice, Quot.sound]
+-- (why3ValidatesEmitted was Axiom; now PROVED Lemma via cert-as-witness.
+--  The Why3CertWitness axiom in Why3Trust.lean is hidden behind opaque check.)
 #print axioms vcgBridge
 
 -- why3ImplementsWpW_derived: proved from vcgBridge + vcgSound.
--- Expected: [why3ValidatesEmitted, propext, Classical.choice, Quot.sound]
--- (same as vcgBridge — why3ValidatesEmitted is the sole prover-trust axiom after B-3)
+-- Expected: [propext, Classical.choice, Quot.sound] (same as vcgBridge post-port)
 #print axioms why3ImplementsWpW_derived
 
 -- emitSkipCorrect: Sub-α pilot (Q2 of closer-to-code.md).

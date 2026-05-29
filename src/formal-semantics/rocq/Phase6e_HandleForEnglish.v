@@ -22,19 +22,20 @@ Inductive for_branch : Type :=
   | BrForOnly.
 
 Definition gen_for_by_branch
-    (b : for_branch) (x arr inv var body : _ )  : whyml_stmt :=
+    (b : for_branch) (x arr : _) (inv var : _) (body : _) (aim : bool)  : whyml_stmt :=
   match b with
-  | BrForOnly => gen (SFor x arr inv var body)
+  | BrForOnly => gen (SFor x arr inv var body aim)
   end.
 
 Lemma gen_for_by_branch_eq_gen :
-  forall b x arr inv var body, gen_for_by_branch b x arr inv var body = gen (SFor x arr inv var body).
-Proof. intros b x arr inv var body; destruct b; reflexivity. Qed.
+  forall b x arr inv var body aim,
+  gen_for_by_branch b x arr inv var body aim = gen (SFor x arr inv var body aim).
+Proof. intros b x arr inv var body aim; destruct b; reflexivity. Qed.
 
 (* Equality theorem: the dispatcher collapses to gen for any branch.
    Anyone needing the deeper WP equivalence applies wp_gen_for
    to this equality. The proof is by reflexivity per arm. *)
 Theorem handle_for_branches_correct :
-  forall b x arr inv var body,
-  gen_for_by_branch b x arr inv var body = gen (SFor x arr inv var body).
-Proof. intros b x arr inv var body; destruct b; reflexivity. Qed.
+  forall b x arr inv var body aim,
+  gen_for_by_branch b x arr inv var body aim = gen (SFor x arr inv var body aim).
+Proof. intros b x arr inv var body aim; destruct b; reflexivity. Qed.

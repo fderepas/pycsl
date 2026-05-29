@@ -57,7 +57,7 @@ def wp : Stmt
     (∀ es', evalC es' preEs none inv →
             evalBool es'.regState cond = false → Qn es')
 
-  | .for_ x arr inv var body, Qn, Qr, _, _, Qe, preEs, es =>
+  | .for_ x arr inv var body _, Qn, Qr, _, _, Qe, preEs, es =>
     let es0 := setReg es (update es.regState forIdx (.int 0))
     -- guard: len(arr) - forIdx ≠ 0 (matches the desugared while_ condition exactly)
     let guard := Expr.binop .sub (.len arr) (.var forIdx)

@@ -76,7 +76,7 @@ Fixpoint wp (s : stmt)
       eval_bool es'.(reg_state) cond = false ->
       Qn es')
 
-  | SFor x arr inv var body =>
+  | SFor x arr inv var body _ =>
     let es0 := set_reg es (update es.(reg_state) for_idx (VInt 0)) in
     (* guard matches the desugared while condition exactly *)
     let guard := EBinOp OpSub (ELen arr) (EVar for_idx) in

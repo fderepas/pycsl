@@ -68,7 +68,9 @@ Fixpoint wp_w (ws : whyml_stmt)
       (eval_bool es.(reg_state) cond = true  -> wp_w w1 Q pre_es es) /\
       (eval_bool es.(reg_state) cond = false -> wp_w w2 Q pre_es es)
 
-  | WWhile inv var cond body =>
+  | WWhile invs vars cond body =>
+      let inv := c_conj invs in
+      let var := c_first vars in
       eval_c es pre_es None inv /\
       (forall es',
         eval_c es' pre_es None inv ->
@@ -114,6 +116,8 @@ Fixpoint wp_w (ws : whyml_stmt)
 
   | WAssert cond _ =>
       eval_c es pre_es None cond /\ Q.(wc_n) es
+  | WAssume cond =>
+      eval_c es pre_es None cond -> Q.(wc_n) es
   end.
 
 (* ===== Monotonicity of wp_w ===== *)
@@ -150,6 +154,10 @@ Proof.
     + intro Hcond. exact (IHws1 Q Q' pre_es es hn hr hc hb he (Ht Hcond)).
     + intro Hcond. exact (IHws2 Q Q' pre_es es hn hr hc hb he (Hf Hcond)).
   - (* WWhile: name the body continuations explicitly. *)
+    (* The WWhile arm uses `let inv := c_conj invs in let var := c_first vars in ...`;
+       introduce these as definitional bindings for the proof. *)
+    set (inv := c_conj invs) in *.
+    set (var := c_first vars) in *.
     destruct Hwp as [Hinv [Hbody Hexit]].
     split; [exact Hinv | split].
     + intros es' Hinv' Hcond.
@@ -213,6 +221,8 @@ Proof.
   - (* WLabel *)      exact (hn _ Hwp).
   - (* WAssert *)
     destruct Hwp as [Hcond Hn]. split. exact Hcond. exact (hn _ Hn).
+  - (* WAssume *)
+    intro Hcond. exact (hn _ (Hwp Hcond)).
 Qed.
 
 (* ===== Congruence of wp_w w.r.t. extensionally equal continuations ===== *)

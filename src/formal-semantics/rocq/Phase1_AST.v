@@ -14,7 +14,7 @@ Proof. apply String.string_dec. Defined.
 
 (* Arithmetic binary operators *)
 Inductive binop : Type :=
-  | OpAdd | OpSub | OpMul | OpDiv.
+  | OpAdd | OpSub | OpMul | OpDiv | OpMod.
 
 (* Comparison operators — return 0/1 in the runtime int domain. *)
 Inductive cmpop : Type :=
@@ -28,7 +28,50 @@ Inductive expr : Type :=
   | ELen       (arr : ident)
   | EBinOp     (op : binop) (e1 e2 : expr)
   | ENeg       (e : expr)
-  | ECmp       (op : cmpop) (e1 e2 : expr).
+  | ECmp       (op : cmpop) (e1 e2 : expr)
+  (* Q4 U.4 expansion (2026-05-29): class field read.
+     `EFieldGet obj f` represents `obj.f` at the expression level.
+     Evaluation flattens to a synthesized variable name (obj ++ "." ++ f)
+     looked up in the runtime state; downstream code that maintains an
+     explicit object-field state can intercept this constructor. *)
+  | EFieldGet  (obj : ident) (f : ident)
+  (* Q4 U.4 expansion (2026-05-29): generic function/method call.
+     `ECall func args` represents calling an arbitrary function.
+     Evaluation defaults to VInt 0 — no function semantics; the
+     constructor is a structural placeholder that downstream code
+     with function-interpretation infrastructure can intercept. *)
+  | ECall      (func : ident) (args : list expr).
+
+(* ===== Decidable equality on operators and runtime expressions =====
+   Added 2026-05-29 for CC.4 Module 4 citation. These structural-
+   decidability lemmas anchor Module4_SemanticAnalyzer's well-
+   formedness analysis: any algorithm that compares two `expr`
+   values for structural equality can rely on `expr_eq_dec` being
+   total. The semantic analyzer's `isinstance` dispatch over
+   CSLNode subtypes (Python `==` on AST nodes) is the
+   programmer-side analogue of this kernel-checked totality. *)
+
+Lemma binop_eq_dec : forall (a b : binop), {a = b} + {a <> b}.
+Proof. decide equality. Defined.
+
+Lemma cmpop_eq_dec : forall (a b : cmpop), {a = b} + {a <> b}.
+Proof. decide equality. Defined.
+
+Lemma expr_eq_dec : forall (a b : expr), {a = b} + {a <> b}.
+Proof.
+  fix expr_eq_dec 1.
+  decide equality.
+  - apply Z.eq_dec.
+  - apply ident_eq_dec.
+  - apply ident_eq_dec.
+  - apply ident_eq_dec.
+  - apply binop_eq_dec.
+  - apply cmpop_eq_dec.
+  - apply ident_eq_dec.
+  - apply ident_eq_dec.
+  - apply (list_eq_dec expr_eq_dec).
+  - apply ident_eq_dec.
+Defined.
 
 (* Contract expressions — full logical language with \result, \old, quantifiers *)
 Inductive contract_expr : Type :=
@@ -129,11 +172,12 @@ Record func_spec : Type := mkSpec {
   spec_frame        : frame_cond;
   spec_variant      : option contract_expr;   (* \variant *)
   spec_diverges     : bool;                   (* \diverges *)
-  spec_trusted      : bool;                   (* \trusted *)
-  spec_reviewer     : option string;          (* Q1.L.4: \trusted reviewer: <id> *)
-  spec_raises       : list (ident * contract_expr); (* raises ExcType when cond *)
-  spec_int_model    : int_model;              (* assumes bounded_int(N) *)
-  spec_no_exception : list ident              (* Q1.L.1: no_exception E1, E2, ... *)
+  spec_trusted        : bool;                   (* \trusted *)
+  spec_reviewer       : option string;          (* Q1.L.4: \trusted reviewer: <id> *)
+  spec_raises         : list (ident * contract_expr); (* raises ExcType when cond *)
+  spec_int_model      : int_model;              (* assumes bounded_int(N) *)
+  spec_no_exception   : list ident;             (* Q1.L.1: no_exception E1, E2, ... *)
+  spec_allow_finalizer : bool                   (* Q1.L.3: \allow_finalizer (transpiler-gating only) *)
 }.
 
 (* Augmented assignment operators *)
@@ -160,6 +204,7 @@ Inductive stmt : Type :=
                (cond : expr) (body : stmt)
   | SFor       (x : ident) (arr : ident)
                (inv : contract_expr) (var : contract_expr) (body : stmt)
+               (allow_iter_mut : bool)  (* Q1.L.2: \allow_iteration_mutation (transpiler-gating only) *)
   | SReturn    (e : expr)
   | SContinue
   (* Phase 2 additions *)

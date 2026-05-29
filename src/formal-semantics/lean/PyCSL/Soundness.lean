@@ -59,7 +59,7 @@ theorem wp_mono {s : Stmt}
     refine ⟨hInv, fun es' hInv' hCond => ?_, fun es' hInv' hCond => hn _ (hExit es' hInv' hCond)⟩
     -- break continuation of body = outer Qn; change Qb via hn, leave bodyDone fixed
     exact ih (fun _ h => h) hr (fun _ h => h) hn he (hBody es' hInv' hCond)
-  | for_ _ _ _ _ _ ih =>
+  | for_ _ _ _ _ _ _ ih =>
     simp only [wp] at h ⊢
     obtain ⟨hInv, hBody, hExit⟩ := h
     refine ⟨hInv, fun es' hInv' hCond => ?_, fun es' hInv' hCond => hn _ (hExit es' hInv' hCond)⟩
@@ -190,7 +190,7 @@ theorem wp_desugar_fwd (s : Stmt)
     -- desugar (.while_ i v c b) = .while_ i v c (desugar b): body IH suffices
     exact ⟨hInv, fun es' hInv' hCond =>
       ih_body _ Qr _ Qn Qe preEs es' (hBody es' hInv' hCond), hExit⟩
-  | for_ x arr inv var body ih_body =>
+  | for_ x arr inv var body _aim ih_body =>
     simp only [desugar, wp] at h ⊢
     -- h : evalC es0 inv ∧ (∀ es' inv guard → wp body bodyDone ...) ∧ (∀ es' inv ¬guard → Qn)
     obtain ⟨hInv, hBody, hExit⟩ := h
@@ -340,8 +340,8 @@ theorem pycsl_soundness
   | execThreadEntry _ body _ _ ih =>
     simp only [wp] at hWp; exact ih Qn Qr Qc Qb Qe preEs hWp
   -- For: ExecFor gives Exec es0 (desugar (.for_ ...)) out; wp_desugar_fwd bridges the WPs
-  | execFor es0 x arr inv var body _ _ ih =>
-    exact ih Qn Qr Qc Qb Qe preEs (wp_desugar_fwd (.for_ x arr inv var body) Qn Qr Qc Qb Qe preEs es0 hWp)
+  | execFor es0 x arr inv var body aim _ _ ih =>
+    exact ih Qn Qr Qc Qb Qe preEs (wp_desugar_fwd (.for_ x arr inv var body aim) Qn Qr Qc Qb Qe preEs es0 hWp)
 
 -- ===== Phase 3c: \at label scoping theorems =====
 

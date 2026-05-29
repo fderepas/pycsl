@@ -128,6 +128,7 @@ Definition eval_binop_z (op : binop) (n1 n2 : Z) : Z :=
   | OpSub => n1 - n2
   | OpMul => n1 * n2
   | OpDiv => if Z.eqb n2 0 then 0 else Z.div n1 n2
+  | OpMod => if Z.eqb n2 0 then 0 else Z.modulo n1 n2
   end.
 
 (* Comparison evaluator: returns 0 (false) or 1 (true) — Python semantics. *)
@@ -175,6 +176,19 @@ Fixpoint eval_expr (st : state) (e : expr) : val :=
     | VInt n1, VInt n2 => VInt (eval_cmpop_z op n1 n2)
     | _, _ => VInt 0
     end
+  | EFieldGet obj f =>
+    (* Q4 U.4 (2026-05-29): name-flatten obj.f into a synthetic
+       variable "obj.f" and look up in the runtime state. Module 6
+       emits flat names matching this convention. *)
+    match lookup st (obj ++ "." ++ f) with
+    | Some v => v
+    | None   => VInt 0
+    end
+  | ECall _ _ =>
+    (* Q4 U.4 (2026-05-29): generic call defaults to VInt 0.
+       No function semantics at this layer; downstream code with
+       a function-interpretation table can intercept. *)
+    VInt 0
   end.
 
 (* Boolean test for conditional/loop guards *)

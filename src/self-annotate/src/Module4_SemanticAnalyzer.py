@@ -1,4 +1,6 @@
 from __future__ import annotations
+#@ proof rocq Phase1_AST.expr_eq_dec
+#@ proof lean PyCSL.AST.Expr
 import ast
 from typing import Callable, Dict, List, Optional, Set, Any
 from Module2_Parser import CSLNode, ContractWrapper, QuantifierNode, SingleExprNode, Requires, Ensures, Assigns, LoopInvariant, LoopVariant, Var, Result, Old, BinOp, UnaryOp, Nothing, Number, FieldAccess, ClassInvariant, Forall, Exists, ArrayLength, SubscriptAccess, AssignsRegion, Valid, Separated, FunctionVariant, SharedDecl, MutexInvariant, LockOrder, ChainedSubscript, GhostAssignDecl, GhostArraySetDecl, MkTupleExpr, FstExpr, SndExpr, ProjExpr, StrConcatExpr, StrLengthExpr, StrSubExpr, GhostCopyExpr, GhostCopyRangeExpr, GhostMakeExpr, MapEmptyExpr, MapGetExpr, MapSetExpr, MapEqExpr, HasKeyExpr, MapRemoveExpr, SetEmptyExpr, SetAddExpr, SetRemoveExpr, SetMemExpr, SetUnionExpr, SetInterExpr, SetDiffExpr, SetCardExpr, SetSubsetExpr, SetEqExpr, NilExpr, ConsExpr, HdExpr, TlExpr, ListLengthExpr, NthExpr, MemExpr, AppendExpr

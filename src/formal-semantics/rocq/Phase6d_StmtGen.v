@@ -50,7 +50,7 @@ Fixpoint gen (s : stmt) : whyml_stmt :=
   | SArraySet arr i v         => WArraySet arr i v
   | SSeq s1 s2                => WSeq (gen s1) (gen s2)
   | SIf cond t f              => WIf cond (gen t) (gen f)
-  | SWhile inv var cond body  => WWhile inv var cond (gen body)
+  | SWhile inv var cond body  => WWhile (inv :: nil) (var :: nil) cond (gen body)
 
   (* SFor is inlined: SFor x arr inv var body →
        WSeq (WAssign for_idx 0)
@@ -59,10 +59,10 @@ Fixpoint gen (s : stmt) : whyml_stmt :=
                           (WSeq (gen_lift_continue inc (gen body)) inc)))
      where inc = WAugAssign for_idx OpAdd 1.
      This exactly mirrors desugar's output passed through gen. *)
-  | SFor x arr inv var body =>
+  | SFor x arr inv var body _ =>
       let inc := WAugAssign for_idx OpAdd (EInt 1) in
       WSeq (WAssign for_idx (EInt 0))
-           (WWhile inv var
+           (WWhile (inv :: nil) (var :: nil)
                    (EBinOp OpSub (ELen arr) (EVar for_idx))
                    (WSeq (WAssign x (ESubscript arr (EVar for_idx)))
                          (WSeq (gen_lift_continue inc (gen body)) inc)))

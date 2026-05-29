@@ -434,7 +434,7 @@ Proof.
   - eapply IHHexec. exact Hwp.
   (* ExecFor: SOS uses desugar(SFor), so forward desugaring coherence closes the case *)
   - eapply IHHexec.
-    exact (wp_desugar_fwd (SFor x arr inv var body) Qn Qr Qc Qb Qe pre_es es Hwp).
+    exact (wp_desugar_fwd (SFor x arr inv var body aim) Qn Qr Qc Qb Qe pre_es es Hwp).
 Qed.
 
 (* ===== Phase 3c: \at label scoping theorems ===== *)

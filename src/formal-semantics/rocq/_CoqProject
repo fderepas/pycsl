@@ -1,6 +1,11 @@
 -R . PyCSL
 -R ../../../why3-semantics/_build/default/proofs Proofs
+Phase0_IrJson.v
 Phase1_AST.v
+Phase1b_IrToStmt.v
+Phase1c_ValidateIr.v
+Phase1d_StmtToIr.v
+Phase1b_IrToStmtExtract.v
 Phase2_State.v
 Phase3_SOS.v
 Phase3b_DesugarDef.v
@@ -28,8 +33,9 @@ Phase1_M234EnglishRefinements.v
 Phase6f_Corr_Loops.v
 Phase6g_Corr_Exc.v
 Phase6h_CorrMain.v
-Phase6j_Why3Trust.v
 Phase6k_VcgSound.v
+Phase6c_VcFormula.v
+Phase6j_Why3Trust.v
 Phase6L_EmitStmt.v
 Phase6L_EmitAssign.v
 Phase6L_EmitAugAssign.v

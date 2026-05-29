@@ -53,7 +53,7 @@ private theorem while_nc_aux
   | execFieldAugAssign _ _ _ _ _ => exact absurd heq (by simp)
   | execCritical _ _ _ _ _ _ => exact absurd heq (by simp)
   | execThreadEntry _ _ _ _ _ => exact absurd heq (by simp)
-  | execFor _ _ _ _ _ _ _ _ _ => exact absurd heq (by simp)
+  | execFor _ _ _ _ _ _ _ _ _ _ => exact absurd heq (by simp)
 
 -- While loops exit via ONormal, OReturned, OThrew, or OFailed — never OContinued or OBroke.
 theorem while_not_continued
@@ -192,7 +192,7 @@ private theorem while_inv_key
   | execFieldAugAssign _ _ _ _ _ => intro heq; simp at heq
   | execCritical _ _ _ _ _ _ => intro heq; simp at heq
   | execThreadEntry _ _ _ _ _ => intro heq; simp at heq
-  | execFor _ _ _ _ _ _ _ _ _ => intro heq; simp at heq
+  | execFor _ _ _ _ _ _ _ _ _ _ => intro heq; simp at heq
 
 theorem while_inv_preserved
     (cond : Expr) (body : Stmt) (inv var : ContractExpr)

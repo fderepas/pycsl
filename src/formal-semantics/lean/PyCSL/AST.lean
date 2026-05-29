@@ -6,7 +6,7 @@
 abbrev Ident := String
 
 inductive Binop where
-  | add | sub | mul | div
+  | add | sub | mul | div | mod_  -- mod_ to avoid Lean's reserved word
   deriving DecidableEq, Repr
 
 inductive CmpOp where
@@ -21,7 +21,13 @@ inductive Expr where
   | binop     (op : Binop) (e1 e2 : Expr)
   | neg       (e : Expr)
   | cmp       (op : CmpOp) (e1 e2 : Expr)
+  | fieldGet  (obj : Ident) (f : Ident)  -- Q4 U.4 expansion (2026-05-29)
+  | call      (func : Ident) (args : List Expr)  -- Q4 U.4 (2026-05-29)
   deriving Repr
+  -- Q4 U.4 (2026-05-29): DecidableEq removed when `.call` was added
+  -- (Lean's deriving handler doesn't synthesize for nested `List Expr`).
+  -- The Module 4 citation `PyCSL.AST.Expr.decEq` now points at the Rocq
+  -- analogue `Phase1_AST.expr_eq_dec` only (see self-remains.md §CC.2).
 
 inductive ContractExpr where
   -- Phase 0 (original)
@@ -126,7 +132,8 @@ structure FuncSpec where
   reviewer     : Option String           -- Q1.L.4: \trusted reviewer: <id>
   raises       : List (Ident × ContractExpr)
   intModel     : IntModel
-  noException  : List Ident               -- Q1.L.1: no_exception E1, E2, ...
+  noException  : List Ident              -- Q1.L.1: no_exception E1, E2, ...
+  allowFinalizer : Bool                  -- Q1.L.3: \allow_finalizer (transpiler-gating only)
   deriving Repr
 
 inductive AugOp where
@@ -150,6 +157,7 @@ inductive Stmt where
   | ite       (cond : Expr) (sThen sElse : Stmt)
   | while_    (inv var : ContractExpr) (cond : Expr) (body : Stmt)
   | for_      (x arr : Ident) (inv var : ContractExpr) (body : Stmt)
+              (allowIterMut : Bool)  -- Q1.L.2: \allow_iteration_mutation (transpiler-gating only)
   | ret       (e : Expr)
   | continue_
   -- Phase 2 additions

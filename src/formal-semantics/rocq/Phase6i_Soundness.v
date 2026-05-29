@@ -35,7 +35,8 @@ Require Import Phase6b_WPW.
 Require Import Phase6d_StmtGen.
 Require Import Phase6h_CorrMain.
 Require Import Phase6j_Why3Trust.
-Require Import Phase6k_VcgSound.   (* vc_prop, vcg_sound, vcg_bridge *)
+Require Import Phase6k_VcgSound.    (* vc_prop, vcg_sound *)
+Require Import Phase6m_VcgSemBridge. (* vcg_bridge — Q3 Sub-β port (2026-05-28) *)
 Open Scope Z_scope.
 
 (* ===== Phase 6C: derived theorem using vcg_bridge (proved) + vcg_sound (proved) ===== *)

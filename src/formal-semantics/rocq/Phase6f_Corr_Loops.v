@@ -204,6 +204,7 @@ Proof.
   (* WGhostAssign *) - simpl. tauto.
   (* WLabel *)       - simpl. tauto.
   (* WAssert *)      - simpl. tauto.
+  (* WAssume *)      - simpl. tauto.
 Qed.
 
 (* ===== SFor ===== *)
@@ -219,14 +220,14 @@ Qed.
       body_done exactly).
    4. IHbody closes the gap between wp body and wp_w (gen body). *)
 Lemma wp_gen_for :
-  forall x arr inv var body Qn Qr Qc Qb Qe pre_es es,
+  forall x arr inv var body aim Qn Qr Qc Qb Qe pre_es es,
   (forall Qn' Qr' Qc' Qb' Qe' pre_es' es',
    wp body Qn' Qr' Qc' Qb' Qe' pre_es' es' <->
    wp_w (gen body) (enc Qn' Qr' Qc' Qb' Qe') pre_es' es') ->
-  wp (SFor x arr inv var body) Qn Qr Qc Qb Qe pre_es es <->
-  wp_w (gen (SFor x arr inv var body)) (enc Qn Qr Qc Qb Qe) pre_es es.
+  wp (SFor x arr inv var body aim) Qn Qr Qc Qb Qe pre_es es <->
+  wp_w (gen (SFor x arr inv var body aim)) (enc Qn Qr Qc Qb Qe) pre_es es.
 Proof.
-  intros x arr inv var body Qn Qr Qc Qb Qe pre_es es IHbody.
+  intros x arr inv var body aim Qn Qr Qc Qb Qe pre_es es IHbody.
   simpl gen. simpl wp. simpl wp_w.
   (* Hinc: WAugAssign for_idx fires only wc_n regardless of other continuations *)
   assert (Hinc : forall Q1 Q2 pe e1,

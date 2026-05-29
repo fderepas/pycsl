@@ -21,7 +21,7 @@ Fixpoint fresh_in_stmt (id : ident) (s : stmt) : Prop :=
   | SSeq s1 s2 => fresh_in_stmt id s1 /\ fresh_in_stmt id s2
   | SIf _ s1 s2 => fresh_in_stmt id s1 /\ fresh_in_stmt id s2
   | SWhile _ _ _ body => fresh_in_stmt id body
-  | SFor x arr _ _ body => x <> id /\ arr <> id /\ fresh_in_stmt id body
+  | SFor x arr _ _ body _ => x <> id /\ arr <> id /\ fresh_in_stmt id body
   | SReturn _ => True
   | SContinue => True
   (* Phase 2+ additions: fresh by default *)
@@ -49,7 +49,7 @@ Fixpoint fresh_in_stmt_b (id : ident) (s : stmt) : bool :=
   | SSeq s1 s2 => fresh_in_stmt_b id s1 && fresh_in_stmt_b id s2
   | SIf _ s1 s2 => fresh_in_stmt_b id s1 && fresh_in_stmt_b id s2
   | SWhile _ _ _ body => fresh_in_stmt_b id body
-  | SFor x arr _ _ body =>
+  | SFor x arr _ _ body _ =>
     negb (String.eqb x id) && negb (String.eqb arr id) &&
     fresh_in_stmt_b id body
   | SReturn _ => true
@@ -97,7 +97,7 @@ Fixpoint lift_continue (inc_stmt : stmt) (s : stmt) : stmt :=
   | SFieldAssign f x v     => SFieldAssign f x v
   | SFieldAugAssign f x op v => SFieldAugAssign f x op v
   | SWhile i v c b         => SWhile i v c b
-  | SFor x arr i v b       => SFor x arr i v b
+  | SFor x arr i v b aim   => SFor x arr i v b aim
   end.
 
 (* Desugaring: replace SFor with an index-variable SWhile.
@@ -107,7 +107,7 @@ Fixpoint lift_continue (inc_stmt : stmt) (s : stmt) : stmt :=
    lift_continue ensures continue in body increments for_idx before looping back. *)
 Fixpoint desugar (s : stmt) : stmt :=
   match s with
-  | SFor x arr inv var body =>
+  | SFor x arr inv var body _ =>
     let inc_idx := SAugAssign for_idx OpAdd (EInt 1) in
     SSeq (SAssign for_idx (EInt 0))
          (SWhile inv var

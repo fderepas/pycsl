@@ -106,6 +106,7 @@ def evalBinopZ (op : Binop) (n1 n2 : Int) : Int :=
   | .sub => n1 - n2
   | .mul => n1 * n2
   | .div => if n2 == 0 then 0 else n1 / n2
+  | .mod_ => if n2 == 0 then 0 else n1 % n2
 
 /-- Comparison evaluator: returns 0 (false) or 1 (true). -/
 def evalCmpOpZ (op : CmpOp) (n1 n2 : Int) : Int :=
@@ -143,6 +144,12 @@ def evalExpr (st : State) : Expr → Val
     match evalExpr st e1, evalExpr st e2 with
     | .int n1, .int n2 => .int (evalCmpOpZ op n1 n2)
     | _, _ => .int 0
+  | .fieldGet obj f =>
+    -- Q4 U.4 (2026-05-29): name-flatten obj.f → "obj.f" lookup.
+    (lookup st (obj ++ "." ++ f)).getD (.int 0)
+  | .call _ _ =>
+    -- Q4 U.4 (2026-05-29): generic call defaults to int 0.
+    .int 0
 
 def evalBool (st : State) (e : Expr) : Bool :=
   match evalExpr st e with

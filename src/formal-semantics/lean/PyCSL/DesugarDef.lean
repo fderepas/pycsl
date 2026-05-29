@@ -17,7 +17,7 @@ def freshInStmt (x : Ident) : Stmt → Bool
   | .seq s1 s2          => freshInStmt x s1 && freshInStmt x s2
   | .ite _ s1 s2        => freshInStmt x s1 && freshInStmt x s2
   | .while_ _ _ _ b     => freshInStmt x b
-  | .for_ y arr _ _ b   => x != y && x != arr && freshInStmt x b
+  | .for_ y arr _ _ b _ => x != y && x != arr && freshInStmt x b
   | .ret _              => true
   | .continue_          => true
   | .break_             => true
@@ -61,10 +61,10 @@ def freshInStmt (x : Ident) : Stmt → Bool
   | .fieldAssign f x v      => .fieldAssign f x v
   | .fieldAugAssign f x op v => .fieldAugAssign f x op v
   | .while_ inv var c body  => .while_ inv var c body
-  | .for_ x arr inv var b   => .for_ x arr inv var b
+  | .for_ x arr inv var b aim => .for_ x arr inv var b aim
 
 def desugar : Stmt → Stmt
-  | .for_ x arr inv var body =>
+  | .for_ x arr inv var body _ =>
     let init := Stmt.assign forIdx (.int 0)
     let guard := Expr.binop .sub (.len arr) (.var forIdx)
     let bindElem := Stmt.assign x (.subscript arr (.var forIdx))

@@ -50,7 +50,7 @@ Proof.
     exact (wp_gen_while inv var cond s Qn Qr Qc Qb Qe pre_es es
              (fun Qn' Qr' Qc' Qb' Qe' pre_es' es' => IHs Qn' Qr' Qc' Qb' Qe' pre_es' es')).
   - (* SFor: same naming convention *)
-    exact (wp_gen_for x arr inv var s Qn Qr Qc Qb Qe pre_es es
+    exact (wp_gen_for x arr inv var s allow_iter_mut Qn Qr Qc Qb Qe pre_es es
              (fun Qn' Qr' Qc' Qb' Qe' pre_es' es' => IHs Qn' Qr' Qc' Qb' Qe' pre_es' es')).
   - (* SReturn *)     exact (wp_gen_return e Qn Qr Qc Qb Qe pre_es es).
   - (* SContinue *)   exact (wp_gen_continue Qn Qr Qc Qb Qe pre_es es).

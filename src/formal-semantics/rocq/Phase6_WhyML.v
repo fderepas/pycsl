@@ -8,8 +8,9 @@
    makes `gen` (Phase6d_StmtGen) a near-identity function requiring no
    expression translation. *)
 
-Require Import ZArith String.
+Require Import ZArith String List.
 Require Import Phase1_AST.
+Import ListNotations.
 Open Scope string_scope.
 
 (* Exception name type: the four exception flavours Module6 generates *)
@@ -31,7 +32,11 @@ Inductive whyml_stmt : Type :=
   (* control flow *)
   | WSeq       (w1 w2 : whyml_stmt)
   | WIf        (cond : expr) (w_then w_else : whyml_stmt)
-  | WWhile     (inv : contract_expr) (var : contract_expr)
+  (* invs/vars are lists to mirror Module 6's emission of one
+     `invariant {...}` line per source invariant (statements.py:121-136).
+     Semantically, the WP rule treats multiple invariants as their
+     conjunction (`c_conj` below) and uses the first variant. *)
+  | WWhile     (invs : list contract_expr) (vars : list contract_expr)
                (cond : expr)  (body : whyml_stmt)
   (* exception-encoded control flow *)
   | WRaise     (exc : whyml_exc)
@@ -41,4 +46,32 @@ Inductive whyml_stmt : Type :=
   | WGhostAssign (x : ident) (t : ghost_type) (op : aug_op) (e : ghost_expr)
   | WLabel     (L : ident)
   (* assertion — spec-level condition *)
-  | WAssert    (cond : contract_expr) (msg : string).
+  | WAssert    (cond : contract_expr) (msg : string)
+  (* assumption — spec-level condition Why3 takes as hypothesis.
+     Used in concurrent model for critical-section pre-conditions
+     (Module 6 emits `assume { ... }` before the body). *)
+  | WAssume    (cond : contract_expr).
+
+(* ===== Helpers for list-shaped invariants/variants =====
+
+   `c_conj` collapses a list of contract_exprs into a single one via
+   right-leaning CAnd (CBoolLit true for empty list). Used in WP
+   rules that semantically treat multi-invariant whiles as
+   conjoined-invariant whiles.
+
+   `c_first` extracts the first variant for the WP termination
+   measure (multi-variant lexicographic ordering is a separate
+   extension out of scope for this iteration). *)
+
+Fixpoint c_conj (cs : list contract_expr) : contract_expr :=
+  match cs with
+  | nil => CBoolLit true
+  | c :: nil => c
+  | c :: rest => CAnd c (c_conj rest)
+  end.
+
+Definition c_first (cs : list contract_expr) : contract_expr :=
+  match cs with
+  | nil => CInt 0
+  | c :: _ => c
+  end.

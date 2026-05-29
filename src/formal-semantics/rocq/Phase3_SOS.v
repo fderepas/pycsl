@@ -358,9 +358,9 @@ Inductive exec : exec_state -> stmt -> outcome -> Prop :=
 
   (* SFor desugars to index-variable SWhile *)
   | ExecFor :
-      forall es x arr inv var body out,
-      exec es (desugar (SFor x arr inv var body)) out ->
-      exec es (SFor x arr inv var body) out.
+      forall es x arr inv var body aim out,
+      exec es (desugar (SFor x arr inv var body aim)) out ->
+      exec es (SFor x arr inv var body aim) out.
 
 (* ===== Determinism ===== *)
 Lemma exec_deterministic :
