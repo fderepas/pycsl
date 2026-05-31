@@ -35,3 +35,13 @@ my_project/
 project/
 site-packages/
 metrics/
+
+# CMMI Profile-P operational artefacts (Follow-up #2 Item 3.1):
+# bridge-mirrored agent inboxes — runtime queue, not tracked
+projects/pycsl/message-queues/*/
+!projects/pycsl/message-queues/.gitkeep
+# bridge cursor state (regenerated on each run)
+projects/pycsl/message-queues/.bridge-cursor.json
+# metrics cron logs and lock files
+metrics/cron.log
+metrics/.cmmi-*.lock

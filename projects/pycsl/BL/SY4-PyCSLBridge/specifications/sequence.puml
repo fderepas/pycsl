@@ -1,0 +1,23 @@
+@startuml SY4-PyCSLBridge-sequence
+title SY4-PyCSLBridge — Message Sequence Chart (stub)
+
+' This stub is intentionally minimal. Replace with concrete
+' inter-System message flows for SY4-PyCSLBridge.
+' Per cmmi-tailoring-plan.md §"5-level binding", PlantUML MSCs
+' are the canonical System-level diagram.
+
+actor Developer
+participant "SY4-PyCSLBridge\n(src/pycsl_bridge)" as System
+participant "Verifier\n(smoke)" as Verifier
+participant "Reconciliator\n(developer)" as Reconciliator
+
+Developer -> System : edit / build
+System -> Verifier : run test plan
+alt tests pass
+    Verifier --> Developer : PASS
+else tests fail
+    Verifier -> Reconciliator : escalate (Workflow 3)
+    Reconciliator -> Developer : route fault (Specifier|Verifier|sub-actor)
+end
+
+@enduml

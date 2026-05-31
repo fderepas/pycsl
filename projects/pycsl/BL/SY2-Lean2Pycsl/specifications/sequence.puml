@@ -1,0 +1,23 @@
+@startuml SY2-Lean2Pycsl-sequence
+title SY2-Lean2Pycsl — Message Sequence Chart (stub)
+
+' This stub is intentionally minimal. Replace with concrete
+' inter-System message flows for SY2-Lean2Pycsl.
+' Per cmmi-tailoring-plan.md §"5-level binding", PlantUML MSCs
+' are the canonical System-level diagram.
+
+actor Developer
+participant "SY2-Lean2Pycsl\n(src/lean2pycsl)" as System
+participant "Verifier\n(bin/check-proof-crosscheck.sh)" as Verifier
+participant "Reconciliator\n(developer)" as Reconciliator
+
+Developer -> System : edit / build
+System -> Verifier : run test plan
+alt tests pass
+    Verifier --> Developer : PASS
+else tests fail
+    Verifier -> Reconciliator : escalate (Workflow 3)
+    Reconciliator -> Developer : route fault (Specifier|Verifier|sub-actor)
+end
+
+@enduml
