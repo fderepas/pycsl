@@ -143,6 +143,7 @@ class NamespaceObj:
 
 #@ \trusted reviewer: python-stdlib
 # cite: https://docs.python.org/3/library/argparse.html#argparse.FileType
+#@ requires bufsize >= -1
 #@ ensures \result >= 0
 def FileType(mode: int, bufsize: int, encoding: int, errors: int) -> int:
     return 0
@@ -167,7 +168,7 @@ def RawTextHelpFormatter(prog: int) -> int:
 
 #@ \trusted reviewer: python-stdlib
 # cite: https://docs.python.org/3/library/argparse.html#argparse.ArgumentDefaultsHelpFormatter
-#@ ensures \result >= 0
+#@ ensures True
 def ArgumentDefaultsHelpFormatter(prog: int) -> int:
     return 0
 
