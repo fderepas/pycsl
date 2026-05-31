@@ -1,0 +1,433 @@
+---
+name: csl-from-scratch
+description: Operational playbook for building a fresh *CSL deductive verifier
+  for any host language, from first prototype through formal semantics and
+  TCB reduction. Use when bootstrapping ccsl/gocsl/jscsl/rustcsl/cppcsl or any
+  new family member; complements csl-philosophy (the thesis) and pycsl-how-to-develop
+  (the Python-specific tactical guide). Covers Phase 0 prior-art study, the
+  6-module compiler pattern, dual-prover anchoring via Rocq + Lean,
+  self-annotation, memory models, the auto-trust safety valve, and the
+  long-term trust-reduction discipline. Python and PyCSL are referenced as
+  illustrative examples; the methodology is language-agnostic.
+---
+
+# Building a *CSL from scratch
+
+Operational playbook for constructing a new *CSL deductive verifier
+(`<lang>csl`) for any host language. Reads as a sequenced
+playbook — phases run in roughly the listed order, though several
+overlap once the prototype is alive.
+
+`*CSL` is the family name: PyCSL for Python, ccsl for C, gocsl for
+Go, jscsl for TypeScript, rustcsl for Rust, cppcsl for C++. The
+philosophy of the family is in
+[`config/skills/csl-philosophy/SKILL.md`](../csl-philosophy/SKILL.md);
+this skill is the *operational counterpart*. It assumes you've
+read csl-philosophy and now want to ship code.
+
+Python and PyCSL appear throughout as worked examples. Treat them
+as the reference *implementation* of the playbook; substitute
+your host language wherever this skill says "Python".
+
+---
+
+## 0. The methodology in one paragraph
+
+Start by prototyping the slice of the host language you already
+know how to verify, with a minimal `#@`-style contract surface
+borrowed from prior art. Then iterate: capture host-language
+shape via a traceability matrix that drives the reference test
+corpus; capture *CSL annotation-language shape via a written
+reference guide that drives more tests; refactor between phases
+into a stable 6-module pipeline; eventually formalize the IR and
+WP calculus in a proof assistant; then reduce the TCB by
+replacing trust assumptions with mechanical checks — a multi-year
+arc that's never "done" but reaches well-defined stable
+intermediate states (zero PyCSL-specific axioms; mechanical
+cross-prover diff; self-annotation under full proof).
+
+Every phase applies the same meta-principle — the **Squeeze
+Strategy** (§0.5): stack constraint layers with mechanical
+gates so that only correct implementations survive all checks.
+
+---
+
+## 0.5 The Squeeze Strategy
+
+Every phase of this playbook applies the same meta-principle:
+**squeeze the implementation space until only correct code
+survives**. A *squeeze* is a constraint layer with a
+mechanical gate — a check that a machine can run, whose
+failure means the implementation violates the constraint.
+
+The power of the *CSL methodology is not any single technique
+but the *stacking* of squeezes. Each layer eliminates a
+different class of defect. Together they leave very little room
+for a bug to hide.
+
+### Squeeze layers
+
+| # | Layer | What it constrains | Mechanical gate |
+|---|---|---|---|
+| S1 | **CSL contracts** (`requires`/`ensures`) | The developer (or agent) must write code that satisfies the spec | SMT solver via Why3 |
+| S2 | **Formal semantics** (Rocq + Lean) | The WP calculus and operational semantics must agree | Proof assistant (`Qed`, `theorem`) |
+| S3 | **Reference tests + traceability matrix** | Every grammar production has a passing test; verdicts never regress | CI gate (`make test`; verdict-drift = hard fail) |
+| S4 | **Self-annotation** | The verifier's own implementation must satisfy its own contracts | The verifier verifying itself |
+| S5 | **Dual-prover anchoring** | Two independent proof kernels must accept the same theorem statements | Cross-check script (`bin/cross-check-provers.sh`) |
+| S6 | **IR schema validation** | The Module 5 → Module 6 boundary has a machine-checkable contract | Schema validator (`ValidateIR` / `validate_ir`) |
+| S7 | **TCB tier inventory** | Every trust assumption is named, tiered, and tracked | `Print Assumptions` audit |
+| S8 | **Real-world test cases** | Contracts must be expressible for actual programs, not just toy examples | Self-annotation + stdlib stubs + production code |
+| S9 | **Auto-trust tracking** | Every "escape hatch" is a tracked bug, not permanent policy | Auto-trust count reported in CI |
+
+### How the squeezes compose
+
+```
+┌─────────────────────────────────────────────────────┐
+│ S9  Auto-trust count ≤ N                           │
+│ ┌─────────────────────────────────────────────────┐ │
+│ │ S8  Real-world code verifies                    │ │
+│ │ ┌─────────────────────────────────────────────┐ │ │
+│ │ │ S7  Print Assumptions = ∅ (zero axioms)     │ │ │
+│ │ │ ┌─────────────────────────────────────────┐ │ │ │
+│ │ │ │ S5+S6  Dual provers agree + IR schema   │ │ │ │
+│ │ │ │ ┌─────────────────────────────────────┐ │ │ │ │
+│ │ │ │ │ S4  Self-annotation passes          │ │ │ │ │
+│ │ │ │ │ ┌─────────────────────────────────┐ │ │ │ │ │
+│ │ │ │ │ │ S2  Soundness theorem Qed        │ │ │ │ │ │
+│ │ │ │ │ │ ┌─────────────────────────────┐ │ │ │ │ │ │
+│ │ │ │ │ │ │ S3  127/127 tests pass      │ │ │ │ │ │ │
+│ │ │ │ │ │ │ ┌─────────────────────────┐ │ │ │ │ │ │ │
+│ │ │ │ │ │ │ │ S1  SMT proves the VCs  │ │ │ │ │ │ │ │
+│ │ │ │ │ │ │ └─────────────────────────┘ │ │ │ │ │ │ │
+│ │ │ │ │ │ └─────────────────────────────┘ │ │ │ │ │ │
+│ │ │ │ │ └─────────────────────────────────┘ │ │ │ │ │
+│ │ │ │ └─────────────────────────────────────┘ │ │ │ │
+│ │ │ └─────────────────────────────────────────┘ │ │ │
+│ │ └─────────────────────────────────────────────┘ │ │
+│ └─────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────┘
+```
+
+Each ring eliminates defects that could pass through all
+inner rings. S1 alone stops logic bugs; but an incorrect WP
+calculus could make S1 vacuously true — S2 squeezes that out.
+S2 could be correct yet the implementation could drift from the
+formalization — S3 and S6 squeeze that out. And so on.
+
+### The AI-agent implication
+
+When an AI agent works inside a *CSL codebase, each squeeze
+layer is a **strict perimeter** the agent cannot cross without
+being caught:
+
+- An agent writing Go code is squeezed by `//@` contracts —
+  Why3 rejects wrong implementations.
+- An agent writing annotations is squeezed by the SMT solver —
+  invalid specs fail proof.
+- An agent modifying formal semantics is squeezed by `coqc` /
+  `lake build` — type errors and proof failures stop drift.
+- An agent refactoring Module 6 is squeezed by the reference
+  corpus — verdict regression fails CI.
+
+**The more squeezes you stack, the less room an agent has to
+produce incorrect output that passes all gates.** This is what
+makes *CSL codebases unusually safe for AI-assisted
+development: the perimeter is mechanically enforced, not
+review-dependent.
+
+---
+
+## 1. Premise and success criteria
+
+A *CSL is built when:
+
+1. **Annotation surface**: the host language admits `#@` (or
+   `//@`, `/// @`, `@verify`, …) annotation comments carrying a
+   contract language with `requires`, `ensures`, frame
+   conditions (`assigns`), loop invariants + variants, and
+   `\result` / `\old` operators.
+2. **Verification pipeline**: a CLI `<lang>csl <file>` parses
+   the annotated file, emits Why3 (`.mlw`), dispatches to Why3,
+   prints a verdict. Exit code 0 on full proof; non-zero on any
+   unproven VC.
+3. **Proof-assistant anchoring**: directives like
+   `#@ proof rocq <qualname>` import Why3 axioms whose
+   evidence lives in companion `.v` / `.lean` files;
+   mechanical cross-check binds the registry to the cited
+   theorems (no manual review trust seam).
+4. **Self-annotation**: the verifier annotates its own
+   implementation; the suite runs under full proof on every CI.
+5. **TCB story**: explicit per-tier inventory of trust
+   assumptions, with each non-Tier-0 entry mapped to a planned
+   replacement step.
+
+Pick a worked example function and verify it end-to-end at
+**Phase 1** (Euclidean GCD is the canonical choice — see
+[`0342_explanation.md`](../../../0342_explanation.md) for the
+PyCSL execution).
+
+---
+
+## Phase reference files
+
+The detailed playbook for each phase lives in `references/`.
+Load the file that matches what you're about to do:
+
+- **[`references/phases-bootstrap.md`](references/phases-bootstrap.md)**
+  — Phases 0-3: prior-art study, MVP prototype, host-grammar
+  traceability matrix, the 6-module refactor. Load when
+  scaffolding a fresh family member or revisiting an
+  early-stage architectural decision.
+
+- **[`references/phases-language-and-ir.md`](references/phases-language-and-ir.md)**
+  — Phases 4-5: *CSL annotation-language reference + the
+  second IR-tightening refactor. Load when designing the
+  contract surface or hardening the Module 5↔6 boundary.
+
+- **[`references/phase-formal-semantics.md`](references/phase-formal-semantics.md)**
+  — Phase 6: Rocq+Lean formalization, soundness proof order,
+  forward-vs-backward reasoning, bug-discovery examples,
+  abstraction gaps, Lean DecidableEq workaround, instance
+  citation gotchas. Load when starting the proof-assistant
+  work or when stuck on a soundness/correspondence proof.
+
+- **[`references/phases-trust-discipline.md`](references/phases-trust-discipline.md)**
+  — Phases 7-10: TCB reduction loop, self-annotation,
+  stdlib + memory models + third-party stubs + real-world
+  application verification, continuous-trust-reduction CI
+  gates, auto-emit + drift-aware registry merge. Load when
+  doing quarterly TCB work or wiring CI for the long-term
+  trust gate.
+
+- **[`references/cross-cutting-concerns.md`](references/cross-cutting-concerns.md)**
+  — Annotation-vs-proof gap, auto-trust safety valve, reference
+  test discipline (numbering, never-renumber), skills+RAG, the
+  Layer terminology, TCB tier glossary. Load when navigating
+  a boundary question that spans multiple phases.
+
+---
+
+## 14. Anti-patterns to avoid
+
+- **Starting with the formal semantics before the annotation
+  surface exists.** Formal semantics anchors to a *stable*
+  surface. Build the surface first.
+- **Skipping the traceability matrix.** Without it, the
+  reference corpus drifts from the language. With it, drift is
+  a build-time error.
+- **Letting the registry drift from cited theorems.** The
+  mechanical cross-check (Phase 10) makes this impossible to
+  ignore. Wire it into CI on day one of Phase 7.
+- **Trying to verify the *runtime* library.** It's trusted; only
+  the stub contracts matter. The stub layer is intentionally
+  Tier-2.
+- **Per-language one-off naming** (`pyCSL`, `c-csl`, `Go.csl`).
+  Pick the uniform `<lang>csl` convention early. PyCSL,
+  ccsl, gocsl, jscsl, rustcsl, cppcsl. No exceptions.
+- **Premature LLM agent automation.** The agents work on the
+  mature surface, not the under-construction one. Build Phases
+  1-9 by hand.
+- **Inventing your own SMT-bridge.** Use Why3. Anything else is
+  a different (much larger) project.
+- **Verifying Module 6 by hand.** Phase 6's `wp_gen_correct` +
+  the `proof2why3` cross-check are how you verify Module 6 at
+  scale. Don't reinvent.
+- **Letting auto-trust become permanent.** Every auto-trust
+  rule is a tracked TODO, not a long-term policy.
+- **Using `apply IH` in soundness proofs with record-type
+  postconditions.** `outcome_satisfies` is a `Definition`; Coq
+  unifies structurally before reducing. Use forward reasoning
+  (`exact (IH pre_es _ _ _ _ _ Hwp)`) — see
+  [`references/phase-formal-semantics.md`](references/phase-formal-semantics.md).
+- **Ignoring eval_expr / eval_int consistency.** When `eval_expr`
+  and helper evaluators extract values from different patterns
+  (e.g., `VBool true → 1` in one but not the other), desugaring
+  proofs silently break. Always ensure pattern coverage matches.
+- **Treating Admitted as "done".** Every `Admitted` is technical
+  debt with compound interest. Track them in the Makefile output
+  and the trust-chain diagram. Report admitted count on every
+  build.
+- **Proving `exec_deterministic` or `desugar_correct` before
+  `soundness`.** These are verbose, low-payoff proofs. Soundness
+  catches real bugs; determinism is mostly mechanical. Prioritize
+  the theorem that provides the most trust value first.
+- **Adding a phase without a mechanical gate.** Every phase
+  should introduce at least one machine-checkable constraint
+  (a squeeze). If a phase produces only documentation or
+  refactoring with no new CI gate, the squeeze is missing and
+  regressions are invisible. Ask: "what command fails if this
+  phase's invariant is violated?"
+- **Delegating to an agent without a squeeze perimeter.** If an
+  agent's output can't be mechanically validated (by SMT, proof
+  assistant, test suite, or schema checker), the agent operates
+  outside any squeeze and its output requires full manual review.
+  Prefer tasks where at least one squeeze gate exists.
+- **Treating extracted OCaml output as fresh after a Rocq source
+  change.** The byte-diff driver (and any other binary built
+  from extracted ML) is gated on `[ -x "$DRIVER" ]` — an
+  existence check, not a freshness check. After touching
+  `Phase1b_IrToStmt.v` or any extracted module, the driver
+  binary must be force-rebuilt or tests run against the OLD
+  extraction. The failure mode is insidious: a corpus case that
+  *should* now pass still reports the pre-fix blocker, looking
+  like the source change didn't take effect. Always
+  `rm -f extracted/<driver> && ocamlfind ocamlc … -o <driver>`
+  after editing extracted-module sources, or wire the rebuild
+  into the driver script.
+- **Following a deferred plan without re-running the empirical
+  step.** Plans (`todo-saturday.md`, `closer-to-code.md`) carry
+  decisions based on the state when written. Before executing a
+  deferred item, re-run the relevant empirical check —
+  byte-diff blocker breakdown, `Print Assumptions` audit,
+  cross-check FAIL list, `extraction-byte-diff-upward.sh`
+  tally. Categories the plan listed may have shifted as other
+  work landed. A PyCSL example: a deferred item estimated 3-arg
+  `range` would unblock corpus tests; the live blocker
+  breakdown showed zero existing corpus tests use 3-arg range,
+  and the "1 blocker:For" was actually `arr.append` inside a
+  for body. The plan was directionally right (the feature was
+  worth adding) but the verification expectation needed
+  updating.
+
+---
+
+## 15. Suggested first-week deliverables
+
+For a fresh `<lang>csl` clone:
+
+| Day | Deliverable |
+|---|---|
+| 1-2 | Prior-art notes (`docs/prior-art.md`) + minimal prototype (Phase 1). |
+| 3   | 5-10 reference tests with traceability matrix. |
+| 4-5 | Module 1-3 split + Module 4 stub. |
+| EOW | `<lang>csl gcd.<ext>` verifies under SMT, end-to-end. |
+
+That's the spike. Real coverage takes quarters; this is just
+the proof that the architecture flies.
+
+After Week 1: Phase 2 (host-language traceability fill-in), then
+Phase 3 (Module 6 build-out), then language reference (Phase 4)
+— each runs ~4-8 weeks. Phase 6 (formal semantics) and beyond
+are multi-quarter.
+
+---
+
+## 16. The discipline summary
+
+If you remember nothing else from this skill:
+
+0. **The Squeeze Strategy is the meta-principle.** Every phase
+   adds a constraint layer with a mechanical gate. Stack enough
+   squeezes and only correct implementations survive all checks.
+   When delegating to agents, each squeeze defines a strict
+   perimeter the agent cannot cross without being caught.
+1. **Single sentence per phase**: do the smallest end-to-end
+   thing that flies; then expand by traceability.
+2. **Mechanical checks beat manual review.** Every trust seam
+   that can be mechanically checked, should be.
+3. **Two provers beat one.** Cross-prover disagreement is the
+   cheapest soundness signal available.
+4. **Self-annotation is a hard requirement.** A *CSL that can't
+   verify itself is incomplete.
+5. **TCB reduction is the long game.** Plan for quarters, not
+   sprints.
+6. **Proof attempts find bugs.** Expect 2-5 semantic bugs to
+   surface during the soundness proof that no testing catches.
+   These are *relationships between functions* (eval↔wp, wp↔gen)
+   that only break when you try to prove they agree. This is
+   the highest-value activity in the formal semantics phase.
+7. **Forward reasoning for soundness.** Use
+   `exact (IH pre_es _ _ _ _ _ Hwp)`, not
+   `apply IH. exact Hwp.` Coq can't infer record-state
+   parameters when `outcome_satisfies` is a `Definition`.
+8. **Track Admitted count per build.** Report it automatically
+   (`grep Admitted | wc -l`). The count should monotonically
+   decrease. Any increase must be justified.
+
+---
+
+## 17. References
+
+### Within this family
+
+- [`config/skills/csl-philosophy/SKILL.md`](../csl-philosophy/SKILL.md)
+  — the family thesis this skill operationalizes.
+- [`config/skills/pycsl-software-architecture/SKILL.md`](../pycsl-software-architecture/SKILL.md)
+  — concrete PyCSL architecture (cite as the worked example).
+- [`config/skills/pycsl-how-to-develop/SKILL.md`](../pycsl-how-to-develop/SKILL.md)
+  — PyCSL-specific tactical guide.
+
+### Formal semantics worked examples
+
+- `src/formal-semantics-go/rocq/` — GoCSL Rocq formalization
+  (Phase1–Phase8b). `gocsl_soundness` proved (Qed);
+  `go_vcg_sound` proved (Qed). 6 Admitted across helper lemmas.
+- `src/formal-semantics-go/lean/GoCSL/` — GoCSL Lean 4 mirror.
+  All files compile with `lake build`.
+- `go-self-annot.md` — GoCSL formal semantics plan (G1-G8
+  phases with rationale, scope decisions, effort estimates).
+
+### Architectural docs
+
+- [`docs/cross-validated-spec-sources.md`](../../../docs/cross-validated-spec-sources.md)
+  — dual-prover architecture sketch.
+- [`docs/pycsl-concrete-syntax-reference.md`](../../../docs/pycsl-concrete-syntax-reference.md)
+  — concrete syntax reference template.
+- [`docs/pycsl-static-semantics-reference.md`](../../../docs/pycsl-static-semantics-reference.md)
+  — static semantics reference template.
+- [`docs/glossary/trusted-computing-base.md`](../../../docs/glossary/trusted-computing-base.md)
+  — TCB tier glossary.
+
+### Operational references
+
+- [`working-with-two-sources-of-truth.md`](../../../working-with-two-sources-of-truth.md)
+  — operational reference for the cross-check pipeline.
+- [`0342_explanation.md`](../../../0342_explanation.md)
+  — GCD worked example end-to-end.
+- [`self-annot-2.md`](../../../self-annot-2.md) — self-annotation
+  working invariants.
+- [`closer-to-code-execution-status.md`](../../../closer-to-code-execution-status.md)
+  — public ledger of TCB-reduction steps.
+- [`bin/proof2why3-emit.py`](../../../bin/proof2why3-emit.py)
+  — IR → WhyML axiom-body emitter with `--check` round-trip
+  mode.
+- [`bin/proof2why3-merge-registry.py`](../../../bin/proof2why3-merge-registry.py)
+  — drift-aware registry merge tool; dry-run by default,
+  `--write` to apply.
+- Makefile targets: `check-axiom-registry-emittable` (round-trip
+  verification), `check-axiom-registry-drift` (kept/added/
+  replaced/orphan report), `sync-axiom-registry` (apply rewrite).
+
+### Reference test corpus
+
+- [`test-suite/annotations.md`](../../../test-suite/annotations.md)
+  — authoritative annotation reference (numbered, never
+  renumbered).
+- [`test-suite/corpus/pycsl-reference/`](../../../test-suite/corpus/pycsl-reference/)
+  — the reference test corpus shape.
+
+### External prior art
+
+- Frama-C / ACSL — <https://frama-c.com/>.
+- Creusot / Pearlite — <https://github.com/xldenis/creusot>.
+- Dafny — <https://github.com/dafny-lang/dafny>.
+- Why3 — <https://why3.lri.fr/>.
+- F* — <https://www.fstar-lang.org/>.
+
+### End-to-end trust chain (gocsl reference)
+
+The proven trust chain for a *CSL follows this shape:
+
+```
+why3_certificate
+  →(module6_encodes_mlw, Axiom)→  vc_prop
+  →(vcg_sound, Qed)→             wp_w
+  →(wp_gen_correct, Admitted*)→   wp
+  →(<lang>csl_soundness, Qed)→   outcome_satisfies
+```
+
+\* `wp_gen_correct` may have irreducible Admitted cases for
+constructs with abstraction gaps. The two Axioms
+(`why3_certificate` and `module6_encodes_mlw`) are the
+irreducible trust assumptions: one trusts Why3, the other
+trusts the emitter.
