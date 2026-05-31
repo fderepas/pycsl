@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# agent-stdlib-annotate — thin wrapper.
+#
+# Autonomous Python stdlib stub annotator. Promotes stubs in
+# src/pycsl_lib/ from L2 (trusted only) to L4/L5 (full contract +
+# reference tests) by deriving requires/ensures from CPython
+# docstrings. Stages all changes in the working tree; never
+# commits. See:
+#   - config/agents/agent-stdlib-annotate.md  (spec)
+#   - src/pycsl/agents/agent-stdlib-annotate.py  (implementation)
+#   - docs/stdlib-annotation-conventions.md  (skill / prompt content)
+#   - .claude/plans/parsed-booping-ember.md  (strategy)
+#
+# Usage:
+#   bin/agent-stdlib-annotate --module math
+#   bin/agent-stdlib-annotate --all
+#   bin/agent-stdlib-annotate --all --dry-run
+#   bin/agent-stdlib-annotate --module re --max-fns 5
+#
+# Exit codes: 0 success, 2 arg/config error, 130 interrupted.
+
+set -u
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$PROJECT_ROOT"
+
+PYTHON="${PROJECT_ROOT}/.venv/bin/python"
+if [ ! -x "$PYTHON" ]; then
+    echo "[!] .venv/bin/python not found; run 'make .venv' first." >&2
+    exit 2
+fi
+
+exec "$PYTHON" "$PROJECT_ROOT/src/pycsl/agents/agent-stdlib-annotate.py" "$@"
