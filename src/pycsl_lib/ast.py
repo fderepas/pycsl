@@ -71,6 +71,7 @@ def unparse(ast_obj: int) -> int:
 # cite: https://docs.python.org/3/library/ast.html#ast.literal_eval
 # cite:_note: real return type is Any (str|bytes|int|float|complex|tuple|list|dict|set|bool|None);
 # cite:_note: the int->int stub cannot express the polymorphic return contract — L3 ceiling.
+# cite:_note: input constraint (must be a valid literal expression) is also inexpressible on the int stub.
 #@ ensures True
 def literal_eval(node_or_string: int) -> int:
     return 0
