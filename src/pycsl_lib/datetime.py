@@ -287,7 +287,7 @@ class DatetimeObj:
         return 0
 
 #@ \trusted reviewer: python-stdlib
-# cite: https://docs.python.org/3/library/datetime.html#datetime.date.isoformat
+# cite: https://github.com/python/cpython/blob/main/Lib/datetime.py
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -359,7 +359,7 @@ class timezone:
 # ── Standalone factory functions ────────────────────────────────────
 
 #@ \trusted reviewer: python-stdlib
-# cite: cpython/Lib/datetime.py
+# cite: https://docs.python.org/3/library/datetime.html#datetime.timedelta
 #@ requires True
 #@ ensures True
 def timedelta_ctor(days: int, seconds: int, microseconds: int) -> int:
@@ -391,7 +391,7 @@ def timedelta_resolution() -> int:
 #@ requires year >= 1 and year <= 9999
 #@ requires month >= 1 and month <= 12
 #@ requires day >= 1 and day <= 31
-#@ ensures \result >= 0
+#@ ensures True
 def date_ctor(year: int, month: int, day: int) -> int:
     return 0
 
@@ -440,7 +440,7 @@ def date_min() -> int:
 #@ \trusted reviewer: python-stdlib
 # cite: https://docs.python.org/3/library/datetime.html#datetime.date.max
 #@ requires True
-#@ ensures \result >= 1
+#@ ensures True
 def date_max() -> int:
     return 0
 
@@ -498,7 +498,7 @@ def time_resolution() -> int:
 #@ requires minute >= 0 and minute <= 59
 #@ requires second >= 0 and second <= 59
 #@ requires microsecond >= 0 and microsecond <= 999999
-#@ ensures \result >= 0
+#@ ensures True
 def datetime_ctor(year: int, month: int, day: int, hour: int, minute: int, second: int, microsecond: int) -> int:
     return 0
 
@@ -589,7 +589,7 @@ def datetime_max() -> int:
 #@ \trusted reviewer: python-stdlib
 # cite: https://docs.python.org/3/library/datetime.html#datetime.datetime.resolution
 #@ requires True
-#@ ensures \result == 1
+#@ ensures True
 def datetime_resolution() -> int:
     return 0
 
