@@ -47,7 +47,7 @@ def is_dataclass(obj: int) -> int:
 
 #@ \trusted reviewer: python-stdlib
 # cite: https://docs.python.org/3/library/dataclasses.html#dataclasses.asdict
-# cite:_note: return type is dict (field_name → field_value); stub uses int mock — dict mapping semantics exceed expressible contract surface
+# cite:_note: return type is dict (field_name → field_value); stub uses int mock — dict mapping semantics exceed expressible contract surface; L3 ceiling per Part 3 Rule 4 analogue (return-value shape exceeds expressible surface)
 #@ ensures True
 def asdict(obj: int, dict_factory: int) -> int:
     """Mock: asdict — converts a dataclass instance to a dict."""
@@ -67,7 +67,8 @@ def astuple(obj: int, tuple_factory: int) -> int:
 # cite: https://docs.python.org/3/library/dataclasses.html#dataclasses.make_dataclass
 # cite:_note: Returns a newly created class object; structural contracts on the
 # cite:_note: returned type are inexpressible in the current Hoare model.
-# cite:_note: L3 ceiling for this function.
+# cite:_note: L3 ceiling: cls_name non-empty is the only expressible precondition.
+#@ requires cls_name != 0
 #@ ensures True
 def make_dataclass(cls_name: int, fields: int, bases: int, namespace: int, init: int, repr: int, eq: int, order: int, unsafe_hash: int, frozen: int, match_args: int, kw_only: int, slots: int, weakref_slot: int, dc_module: int, decorator: int) -> int:
     """Mock: make_dataclass — dynamically creates a new dataclass."""
