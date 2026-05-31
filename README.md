@@ -1,8 +1,8 @@
 # PyCSL 
 
-PyCSL is an annotation language for Python. It enables to formally verify Python code using [Hoare Logic](https://en.wikipedia.org/wiki/Hoare_logic). An associated tool, `pycsl`, verifies the PyCSL annotations using [Why3](https://why3.lri.fr/). Why3 is a front end to SMT solvers such as Alt-Ergo and Z3. When those SMT solvers fail, Rocq can be used as the interactive theorem prover.
+PyCSL is an annotation language for Python. It enables to formally verify Python code using [Hoare Logic](https://en.wikipedia.org/wiki/Hoare_logic). An associated tool, `pycsl`, verifies the PyCSL annotations using [Why3](https://why3.lri.fr/). Why3 is a front end to SMT solvers such as Alt-Ergo and Z3. When those SMT solvers fail, Rocq can be used as the interactive theorem prover. Project is under [CMMI](docs/cmmi-for-humans.md).
 
-Documents define PyCSL [syntax](docs/pycsl-concrete-syntax-reference.md), [semantic](docs/pycsl-static-semantics-reference.md) and [translation to Why3](docs/pycsl-translational-reference.md).
+Documents define PyCSL [syntax](docs/pycsl-concrete-syntax-reference.md), [semantic](docs/pycsl-static-semantics-reference.md) and [translation to Why3](docs/pycsl-translational-reference.md). The semantics of PyCSL has formally defined twice: once using [Rocq](src/formal-semantics/rocq) once using [LEAN](src/formal-semantics/lean). A [detaied status](docs/self-annotation-status.md) is available.
 
 PyCSL is being prepared for self-annotation: standard-library coverage is tracked in [`calls-english.md`](calls-english.md), [`calls-pycsl.md`](calls-pycsl.md), and [`src/pycsl_lib/`](src/pycsl_lib/). The discipline is governed by [`pycsl-stdlib-coverage`](config/skills/pycsl-stdlib-coverage/SKILL.md) and enforced by [`bin/stdlib-coverage.py`](bin/stdlib-coverage.py).
 
