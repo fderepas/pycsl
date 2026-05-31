@@ -20,7 +20,7 @@ def partial(func: int, *args: int, **kwargs: int) -> int:
 
 #@ \trusted reviewer: python-stdlib
 # cite: https://docs.python.org/3/library/functools.html#functools.wraps
-# cite:_note: decorator-factory semantics (callable → callable) exceed the int-stub contract surface; no meaningful numeric postcondition is expressible
+# cite:_note: decorator-factory semantics (callable → callable) exceed the int-stub contract surface; no meaningful numeric pre/postcondition is expressible; L3 ceiling per Part 3 §"When to stop at L3"
 #@ ensures True
 def wraps(wrapped: int) -> int:
     """Mock: update wrapper function to look like the wrapped function."""
