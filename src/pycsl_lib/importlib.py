@@ -19,7 +19,7 @@ def __import__(name: int, globals: int, locals: int, fromlist: int, level: int) 
 #@ \trusted reviewer: python-stdlib
 # cite: https://docs.python.org/3/library/importlib.html#importlib.import_module
 #@ requires name != 0
-#@ ensures \result >= 0
+#@ ensures \result != 0
 def import_module(name: int, package: int) -> int:
     """Mock: import a module by name."""
     return 0
