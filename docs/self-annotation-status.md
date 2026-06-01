@@ -1,26 +1,44 @@
-# Self-annotation status (Squeeze S4)
+# Self-annotation status
 
-**Last regenerated:** 2026-05-31
-**Squeeze:** S4 (Self-annotation) per `csl-from-scratch` §0.5
-**Owning System:** SY8-SelfAnnotate (`src/self-annotate/`), per
-[`projects/pycsl/PROJECT.md`](../projects/pycsl/PROJECT.md)
-**Live suite:** `bin/run-self-annotation-suite.sh`
-**Verifier mirror:** `src/self-annotate/src/` (file-for-file mirror of `src/pycsl/`)
+PyCSL is a source-to-proof compiler: it reads Python and emits
+formally verifiable WhyML. **Self-annotation** means turning PyCSL on
+its own source code — the compiler proves properties of itself.  This
+is the project's strongest correctness signal because it closes the
+trust loop: the tool that checks everyone else is itself checked.
+
+This document tracks how far that self-proof has progressed.
+
+| | |
+|---|---|
+| **Last regenerated** | 2026-05-31 |
+| **Milestone** | Squeeze S4 — the fourth "squeeze" (tightening pass) defined in `csl-from-scratch` §0.5. Each squeeze raises the bar for what must be proven before code ships. |
+| **Owning system** | SY8-SelfAnnotate (`src/self-annotate/`), per [`projects/pycsl/PROJECT.md`](../projects/pycsl/PROJECT.md) |
+| **Live suite** | `bin/run-self-annotation-suite.sh` |
+| **Verifier mirror** | `src/self-annotate/src/` — a file-for-file copy of `src/pycsl/` with `#@` proof annotations layered on top |
 
 ---
 
 ## Headline
 
-**26/26 modules prove. Coverage is broad, depth is thin.**
+**All 26 modules pass the prover, but only 1 is fully proven.**
 
-All proves are mechanical PASSes from `pycsl <file>.py`, but only
-**1 module is body-verified** (`src/pycsl/errors.py`); the other
-**22 ship as `\trusted reviewer: pycsl-self-annotate`** with
-contract surface only; 2 are empty `__init__.py`.
+Every module in the mirror passes `pycsl <file>.py` (the suite's
+mechanical gate), so the S4 milestone is **satisfied**. However, the
+proofs vary in depth:
 
-The Squeeze S4 mechanical gate is **satisfied** — the verifier
-verifies its own implementation, end-to-end. The *strength* of the
-verification is what's incomplete.
+- **Body-verified (1 module — `errors.py`):** the prover sees the
+  real implementation and checks it against its contracts
+  (`requires`/`ensures`). This is a genuine proof.
+- **Contract-surface only (23 modules):** the prover checks that
+  contracts are consistent, but the function bodies are replaced by
+  trusted stubs (`\trusted reviewer: pycsl-self-annotate`). This
+  verifies the *interface* without proving the *implementation*.
+- **Empty `__init__.py` (2 modules):** trivially pass; nothing to
+  prove.
+
+In short: the gate is green, but most of the proof strength is still
+ahead — moving modules from "contract-surface" to "body-verified" is
+the work remaining for subsequent squeezes.
 
 ---
 
