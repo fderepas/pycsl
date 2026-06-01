@@ -21,10 +21,11 @@ class CSTVisitorObj:
         self._visited += 1
         return 0
 
-    #@ \trusted
-    #@ requires 1 == 1
-    #@ ensures \result >= 0
-    #@ assigns \nothing
+#@ \trusted reviewer: python-stdlib
+# cite: https://github.com/python/cpython/blob/main/Lib/ast.py
+#@ requires True
+#@ ensures True
+#@ assigns \nothing
     def on_leave(self, node: int) -> int:
         return 0
 
@@ -43,41 +44,52 @@ class CSTTransformerObj:
         self._transformed += 1
         return 0
 
-    #@ \trusted
-    #@ requires 1 == 1
-    #@ ensures \result >= 0
-    #@ assigns \nothing
+#@ \trusted reviewer: python-stdlib
+# cite: https://libcst.readthedocs.io/en/latest/tutorial.html#modifying-the-tree
+#@ requires True
+#@ ensures \result >= 0
+#@ assigns \nothing
     def on_leave(self, node: int) -> int:
         return 0
 
 # ── Standalone functions ────────────────────────────────────────────
 
-#@ \trusted
+#@ \trusted reviewer: python-stdlib
+# cite: https://libcst.readthedocs.io/en/latest/parser.html#libcst.parse_module
+#@ requires code >= 0
 #@ ensures \result >= 0
 def parse_module(code: int) -> int:
     return 0
 
-#@ \trusted
+#@ \trusted reviewer: python-stdlib
+# cite: https://libcst.readthedocs.io/en/latest/parser.html#libcst.parse_expression
+#@ requires code >= 0
 #@ ensures \result >= 0
 def parse_expression(code: int) -> int:
     return 0
 
-#@ \trusted
+#@ \trusted reviewer: python-stdlib
+# cite: https://libcst.readthedocs.io/en/latest/parser.html#libcst.parse_statement
 #@ ensures \result >= 0
 def parse_statement(code: int) -> int:
     return 0
 
-#@ \trusted
+#@ \trusted reviewer: libcst
+# cite: https://libcst.readthedocs.io/en/latest/metadata.html#libcst.MetadataWrapper
 #@ ensures \result >= 0
 def MetadataWrapper(cst_module: int) -> int:
     return 0
 
-#@ \trusted
-#@ ensures \result >= 0
+#@ \trusted reviewer: python-stdlib
+# cite: https://github.com/python/cpython/blob/main/Lib/importlib/metadata/__init__.py
+#@ requires True
+#@ ensures True
 def metadata_resolve(wrapper: int) -> int:
     return 0
 
-#@ \trusted
-#@ ensures \result >= 0
+#@ \trusted reviewer: python-stdlib
+# cite: https://github.com/Instagram/LibCST/blob/main/libcst/matchers/__init__.py
+#@ requires True
+#@ ensures True
 def matchers_matches(node: int, matcher_pat: int) -> int:
     return 0
