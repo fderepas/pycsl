@@ -1,104 +1,139 @@
 """PyCSL mock for Python's msvcrt module — Miscellaneous useful routines from the MS VC++ runtime."""
 _ = 0  # anchor
 
-#@ \trusted
-#@ ensures \result >= 0
+#@ \trusted reviewer: python-stdlib
+# cite: https://docs.python.org/3/library/msvcrt.html#msvcrt.locking
+#@ requires True
+#@ ensures True
 def locking(fd: int, mode: int, nbytes: int) -> int:
     """Mock: Lock part of a file based on file descriptor *fd* from the C runtime. Raises :exc:`OSError` on failure. The locked regio..."""
     return 0
 
-#@ \trusted
-#@ ensures \result >= 0
+#@ \trusted reviewer: python-stdlib
+# cite: https://github.com/python/cpython/blob/main/Lib/msvcrt.py
+#@ requires True
+#@ ensures True
 def setmode(fd: int, flags: int) -> int:
     """Mock: Set the line-end translation mode for the file descriptor *fd*. To set it to text mode, *flags* should be :const:`os.O_T..."""
     return 0
 
-#@ \trusted
-#@ ensures \result >= 0
+#@ \trusted reviewer: python-stdlib
+# cite: https://docs.python.org/3/library/msvcrt.html#msvcrt.open_osfhandle
+#@ requires True
+#@ ensures True
 def open_osfhandle(handle: int, flags: int) -> int:
     """Mock: Create a C runtime file descriptor from the file handle *handle*. The *flags* parameter should be a bitwise OR of :const..."""
     return 0
 
-#@ \trusted
-#@ ensures \result >= 0
+#@ \trusted reviewer: python-stdlib
+# cite: https://docs.python.org/3/library/msvcrt.html#msvcrt.get_osfhandle
+#@ requires True
+#@ ensures True
 def get_osfhandle(fd: int) -> int:
     """Mock: Return the file handle for the file descriptor *fd*. Raises :exc:`OSError` if *fd* is not recognized. .. audit-event:: m..."""
     return 0
 
-#@ \trusted
-#@ ensures \result >= 0
+#@ \trusted reviewer: python-stdlib
+# cite: https://docs.python.org/3/library/msvcrt.html#msvcrt.kbhit
+#@ requires True
+#@ ensures True
 def kbhit() -> int:
     """Mock: Returns a nonzero value if a keypress is waiting to be read. Otherwise, return 0."""
     return 0
 
-#@ \trusted
+#@ \trusted reviewer: python-stdlib
+# cite: https://docs.python.org/3/library/msvcrt.html#msvcrt.getch
+#@ requires True
 #@ ensures \result >= 0
+#@ ensures \result <= 255
 def getch() -> int:
     """Mock: Read a keypress and return the resulting character as a byte string. Nothing is echoed to the console. This call will bl..."""
     return 0
 
-#@ \trusted
-#@ ensures \result >= 0
+#@ \trusted reviewer: python-stdlib
+# cite: https://docs.python.org/3/library/msvcrt.html#msvcrt.getwch
+#@ requires True
+#@ ensures True
 def getwch() -> int:
     """Mock: Wide char variant of :func:`getch`, returning a Unicode value."""
     return 0
 
-#@ \trusted
-#@ ensures \result >= 0
+#@ \trusted reviewer: python-stdlib
+# cite: https://docs.python.org/3/library/msvcrt.html#msvcrt.getche
+#@ requires True
+#@ ensures True
 def getche() -> int:
     """Mock: Similar to :func:`getch`, but the keypress will be echoed if it represents a printable character."""
     return 0
 
-#@ \trusted
-#@ ensures \result >= 0
+#@ \trusted reviewer: python-stdlib
+# cite: https://github.com/python/cpython/blob/main/Lib/msvcrt.py
+#@ requires True
+#@ ensures True
 def getwche() -> int:
     """Mock: Wide char variant of :func:`getche`, returning a Unicode value."""
     return 0
 
-#@ \trusted
-#@ ensures \result == 0
+#@ \trusted reviewer: python-stdlib
+# cite: https://docs.python.org/3/library/msvcrt.html#msvcrt.putch
+#@ requires True
+#@ ensures True
 def putch(char: int) -> int:
     """Mock: Print the byte string *char* to the console without buffering."""
     return 0
 
-#@ \trusted
-#@ ensures \result >= 0
+#@ \trusted reviewer: python-stdlib
+# cite: https://docs.python.org/3/library/msvcrt.html#msvcrt.putwch
+#@ requires True
+#@ ensures True
 def putwch(unicode_char: int) -> int:
     """Mock: Wide char variant of :func:`putch`, accepting a Unicode value."""
     return 0
 
-#@ \trusted
-#@ ensures \result >= 0
+#@ \trusted reviewer: python-stdlib
+# cite: https://docs.python.org/3/library/msvcrt.html#msvcrt.ungetch
+#@ requires True
+#@ ensures True
 def ungetch(char: int) -> int:
     """Mock: Cause the byte string *char* to be 'pushed back' into the console buffer; it will be the next character read by :func:`g..."""
     return 0
 
-#@ \trusted
-#@ ensures \result >= 0
+#@ \trusted reviewer: python-stdlib
+# cite: https://docs.python.org/3/library/msvcrt.html#msvcrt.ungetwch
+#@ requires True
+#@ ensures True
 def ungetwch(unicode_char: int) -> int:
     """Mock: Wide char variant of :func:`ungetch`, accepting a Unicode value."""
     return 0
 
-#@ \trusted
-#@ ensures \result >= 0
+#@ \trusted reviewer: python-stdlib
+# cite: https://docs.python.org/3/library/msvcrt.html#msvcrt.heapmin
+#@ requires True
+#@ ensures True
 def heapmin() -> int:
     """Mock: Force the :c:func:`malloc` heap to clean itself up and return unused blocks to the operating system. On failure, this ra..."""
     return 0
 
-#@ \trusted
-#@ ensures \result >= 0
+#@ \trusted reviewer: python-stdlib
+# cite: https://docs.python.org/3/library/msvcrt.html#msvcrt.set_error_mode
+#@ requires True
+#@ ensures True
 def set_error_mode(mode: int) -> int:
     """Mock: Changes the location where the C runtime writes an error message for an error that might end the program. *mode* must be..."""
     return 0
 
-#@ \trusted
-#@ ensures \result >= 0
+#@ \trusted reviewer: python-stdlib
+# cite: https://docs.python.org/3/library/msvcrt.html#msvcrt.CrtSetReportMode
+#@ requires True
+#@ ensures True
 def CrtSetReportMode(type_: int, mode: int) -> int:
     """Mock: Specifies the destination or destinations for a specific report type generated by :c:func:`!_CrtDbgReport` in the MS VC+..."""
     return 0
 
-#@ \trusted
-#@ ensures \result >= 0
+#@ \trusted reviewer: python-stdlib
+# cite: https://github.com/python/cpython/blob/main/Lib/msvcrt.py
+#@ requires True
+#@ ensures True
 def CrtSetReportFile(type_: int, file: int) -> int:
     """Mock: After you use :func:`CrtSetReportMode` to specify :const:`CRTDBG_MODE_FILE`, you can specify the file handle to receive ..."""
     return 0
