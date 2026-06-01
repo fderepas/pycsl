@@ -489,7 +489,17 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
         if isinstance(expr.value, str):
             return {"type": "String", "value": expr.value}
         if isinstance(expr.value, bytes):
-            return {"type": "String", "value": expr.value.decode('utf-8', errors='replace')}
+            # Per missing-bytes-struct-feature.md Phase 1: bytes
+            # literals lower to ArrayLit of int (one element per
+            # byte, 0..255). This lets the existing array-int
+            # emission path absorb them, and b'\x00' * N composes
+            # cleanly with the BinOp [default] * size → Array.make
+            # handler in expressions.py.
+            return {
+                "type": "ArrayLit",
+                "elts": [{"type": "Number", "value": b}
+                         for b in expr.value],
+            }
         if expr.value is ...:
             return {"type": "Number", "value": 0}
         if isinstance(expr.value, complex):

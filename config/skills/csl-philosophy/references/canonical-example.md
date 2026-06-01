@@ -133,3 +133,22 @@ that feature included. If the file still reads coherently to all three
 audiences, the feature is probably aligned with the philosophy. If the
 file starts to feel like it's serving the tool rather than the reader,
 reconsider.
+
+## A second example — the extreme-rigor bar
+
+0342 (GCD) is the *minimal* example — one function, seven theorems,
+two languages. The *extreme-rigor* example is
+`unix-filesystem/UnixInodeFileSystem.py` (666 lines, a Unix-like
+inode filesystem). It demonstrates what stdlib-grade annotation looks
+like: Coq-anchored bitwise lemmas (the
+`#@ proof rocq UnixFs.Bitmap.bit_and_one_in_zero_one` pattern that
+turns a 3.4B-step Z3 timeout into a zero-step axiom dispatch),
+round-trip axioms for `struct.pack`/`unpack`, loop invariants and
+variants on every loop, and each `\trusted reviewer:` paired with a
+named feature-plan gap.
+
+When the question is "is THIS philosophical instinct already named?",
+read 0342. When the question is "what bar does the stdlib pass have
+to clear?", read UnixInodeFileSystem.py. The full case study lives
+in
+[`csl-from-scratch/references/stdlib-extreme-rigor.md`](../../csl-from-scratch/references/stdlib-extreme-rigor.md).

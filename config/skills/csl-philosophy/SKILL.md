@@ -42,7 +42,7 @@ Lean theorem `Pycsl.Reference.Gcd.gcd_step` cited from Python as
 the actual identifier in each system. No translation table. No central
 registry. The directory structure of the proofs *is* the index.
 
-## The seven design instincts
+## The eight design instincts
 
 Internalize these. They generate the right answer to most tactical
 questions in this project.
@@ -142,6 +142,50 @@ This is non-negotiable. Silent or soft-failure modes erode the trust
 model that justifies the whole architecture. If a user wants to proceed
 despite disagreement, they pass an explicit flag and accept manifest
 status `disagreement` in their build.
+
+### 8. Extreme rigor is the bar where it matters
+
+Baseline annotation lets the bar sit wherever it lands.
+**Extreme rigor (ER)** is the standard for code where wrong contracts
+cost trust: the formal-semantics layer, load-bearing framework files,
+and the standard-library annotation pass. ER is "body-verify what you
+can; axiom-anchor what you cannot; pair every remaining `\trusted`
+with a named feature-plan gap."
+
+Why baseline isn't enough for these areas: proxy-claims and `\trusted`
+markers accumulate silently. A method labelled `\trusted reviewer:` is
+indistinguishable from a method that was never attempted — the audit
+can't tell whether the trust is intentional or a placeholder.
+Cumulative `\trusted` debt is what lets the toolchain claim
+"verified" while resting on Tier-2 surface area the size of the
+stdlib.
+
+The five habits that mark ER work (full version lives in
+[`csl-from-scratch/SKILL.md` §1.5](../csl-from-scratch/SKILL.md)
+and [`csl-from-scratch/references/stdlib-extreme-rigor.md`](../csl-from-scratch/references/stdlib-extreme-rigor.md)):
+
+1. Loop invariants AND variants on every loop
+2. Body verification first; `\trusted` only with a cited blocker
+3. Coq/Lean axioms for facts SMT cannot discharge
+4. Round-trip axioms for inverse operation pairs
+5. Each `\trusted` carries an actionable `cite:_note:` and feature-plan pointer
+
+Case study — Phase 4 of `missing-bytes-struct-feature.md`: the
+implementer (me, on 2026-06-01) declared the phase complete after
+adding proof-rocq directives and a new audit step. The
+`bin/agent-feature-supervisor` gate passed because it only checked
+deny-lists and CI steps, not phase deliverables. When the user asked
+**"what was not done?"**, seven gaps surfaced, including the central
+claim of Phase 4 (promote four `\trusted` methods to body-verified —
+none had). ER closes that loop: phases carry `**Acceptance:**` blocks
+the supervisor executes; "done" is machine-checked, not
+self-declared.
+
+Supervisor enforcement of ER is specified in
+[`feature-supervisor-extreme-rigor.md`](../../../feature-supervisor-extreme-rigor.md)
+at repo root. The principle: a phase is DONE when its acceptance
+claims pass — not when its target files were touched, not when the
+gate is green, not when the implementer feels satisfied.
 
 ## What family members exist, and what they share
 

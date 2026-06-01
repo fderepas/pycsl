@@ -1,7 +1,7 @@
 # PyCSL Translational Semantics Reference
 
-**Version:** 1.3  
-**Date:** 2026-05-26  
+**Version:** 1.4  
+**Date:** 2026-06-01  
 **Status:** Normative  
 **Source of truth:** `Module5_IREmitter.py`, `Module6_WhyMLTranspiler.py`,
 `test-suite/annotations.md`
@@ -2054,6 +2054,81 @@ meaningfully assert order or element identity through `sorted_1` etc.
 The target of `s = sorted(arr)` is tracked as array-typed (via
 `is_array_val` recognising the `(sorted_1 ` prefix), so the pre-decl
 path emits `let s = (sorted_1 arr) in` instead of `let s = ref 0 in`.
+
+---
+
+## §T.15  Bytes / Bytearray Type Unification
+
+_Corresponds to annotations.md §12.6._
+
+Python `bytes` and `bytearray` lower to WhyML `array int`. The
+translation is structural, not directive-driven — no `#@` syntax
+is involved.
+
+### §T.15.1  Parameter typing
+
+For a parameter `p: bytes` or `p: bytearray`, the function
+emission (`functions.py`) declares the parameter as
+`(p: array int)` in the Hoare memory model (or
+`(p: loc) (p_len: int)` in typed/store models, matching the
+existing list/array convention).
+
+`T_param(p: bytes) = (p: array int)`
+`T_param(p: bytearray) = (p: array int)`
+
+### §T.15.2  Byte-string literal translation
+
+Bytes literals lower to `ArrayLit` of byte-valued `Number` IR
+nodes at Module5 emission time:
+
+`T_lit(b'\x00\x01\x02') = {"type": "ArrayLit", "elts":
+[{"type": "Number", "value": 0}, {"type": "Number", "value": 1},
+{"type": "Number", "value": 2}]}`
+
+The `b'\x00' * N` idiom (single-byte literal × int) composes
+naturally with the existing `[default] * size → Array.make`
+BinOp handler:
+
+`T_e(b'\x00' * 512) = (Array.make 512 0) : array int`
+
+### §T.15.3  Call-site argument-type inference
+
+`_handle_dotted_call` in `expressions.py` inspects each
+argument's emitted WhyML expression. When the expression's prefix
+matches one of `(Array.make `, `(array_slice `, `(Array.make_init
+`, `(array_copy `, `(array_concat `, OR when the argument is a
+bare identifier referring to an `array int`-typed local/param,
+the corresponding abstract-val parameter slot is declared as
+`array int` (overriding the default `int`).
+
+Before this rule: `struct.unpack(fmt, entry_bytes)` where
+`entry_bytes` came from `(array_slice self.disk ...)` produced
+the abstract declaration `val struct_unpack_2 (x0: int) (x1: int)
+: (int, int)` and the call typechecked against the wrong arity
+— Why3 rejected with `array int @rho but is expected to have type
+int`.
+
+After this rule: the same call produces `val struct_unpack_2 (x0:
+int) (x1: array int) : (int, int)` and the body typechecks
+cleanly.
+
+### §T.15.4  Soundness
+
+The change is purely in PyCSL's emission of abstract symbols. No
+new axioms about `bytes`-or-`array int` semantics are added —
+just type coherence so the WhyML compiles. Soundness is
+preserved by Why3: any axiom-free abstract symbol has the same
+soundness floor as a `\trusted` declaration (no logical claim,
+no commitment beyond typing).
+
+### §T.15.5  Gap
+
+`bytes` semantics — `.encode`, `.decode`, `.ljust`, `.split`, the
+byte-range constraint 0..255, `struct.pack` / `struct.unpack`
+round-trip — are out of scope of §T.15. Those are
+`missing-bytes-struct-feature.md` Phases 2-5 (format-string-aware
+emission + Rocq round-trip axioms + per-method bytes-method
+modeling).
 
 ---
 

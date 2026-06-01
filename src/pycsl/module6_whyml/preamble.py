@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from module6_whyml.identifiers import whyml_ident, safe_mutex_name
+from module6_whyml.identifiers import whyml_ident, safe_mutex_name, safe_exc_name
 from module6_whyml.ir_scanner import IRScanner
 
 
@@ -40,12 +40,81 @@ class PreambleEmissionMixin:
             "forall a b k : int. a >= 0 -> b >= 0 -> k >= 0 -> "
             "(a > 0 \\/ b > 0) -> "
             "k > 0 -> mod a k = 0 -> mod b k = 0 -> k <= gcd a b",
+
+        # UnixFs.Bitmap — bitwise properties needed by inode/block
+        # bitmap allocators. Cross-validated by
+        # unix-filesystem/UnixInodeFileSystem.proofs/rocq/UnixInodeFileSystem.v.
+        # Discharges Z3 timeout on `(x >> y) & 1 ∈ {0, 1}` in
+        # _get_bitmap (3.4B-step Z3 blowup → 0-step axiom citation).
+        "UnixFs.Bitmap.bit_and_one_in_zero_one":
+            "forall n : int. 0 <= bit_and n 1 /\\ bit_and n 1 < 2",
+
+        # UnixFs.Struct — struct.pack / struct.unpack round-trip per
+        # format slot_id. Cross-validated by the witness Coq model
+        # in unix-filesystem/UnixInodeFileSystem.proofs/rocq/
+        # UnixInodeFileSystem.v (Module UnixFs.Struct.Fmt_<id>).
+        # Witness closes round-trip by `reflexivity`; the WhyML axiom
+        # constrains the abstract `val function struct_pack_<id>` /
+        # `val function struct_unpack_<id>` symbols emitted by
+        # Module6's `_handle_struct_call` dispatch.
+        #
+        # Note: array equality in Why3 is by Array.= (extensional).
+        # The tuple-result equality decomposes per-component, which
+        # the SMT solver dispatches by structural matching.
+        "UnixFs.Struct.i1a1.round_trip":
+            "forall fmt : int. forall x0 : int. forall x1 : array int. "
+            "struct_unpack_i1a1 fmt (struct_pack_i1a1 fmt x0 x1) = (x0, x1)",
+
+        "UnixFs.Struct.i2.round_trip":
+            "forall fmt x0 x1 : int. "
+            "struct_unpack_i2 fmt (struct_pack_i2 fmt x0 x1) = (x0, x1)",
+
+        "UnixFs.Struct.i18.round_trip":
+            "forall fmt x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 "
+            "x10 x11 x12 x13 x14 x15 x16 x17 : int. "
+            "struct_unpack_i18 fmt "
+            "(struct_pack_i18 fmt x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 "
+            "x10 x11 x12 x13 x14 x15 x16 x17) "
+            "= (x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, "
+            "x10, x11, x12, x13, x14, x15, x16, x17)",
     }
 
     # Functions that an axiom block needs declared. Looked up by qualname
     # prefix; declarations emitted once each when any matching axiom fires.
-    _AXIOM_FUNCTIONS: Dict[str, str] = {
-        "Pycsl.Reference.Gcd.": "function gcd (a : int) (b : int) : int",
+    # Values are List[str] so a single prefix can carry several function
+    # declarations — required for `UnixFs.Struct.<slot_id>.round_trip`
+    # axioms that mention both `struct_pack_<id>` and `struct_unpack_<id>`.
+    _AXIOM_FUNCTIONS: Dict[str, List[str]] = {
+        "Pycsl.Reference.Gcd.": ["function gcd (a : int) (b : int) : int"],
+        # Declare bit_and here (before the axiom block) so the axiom
+        # `forall n. 0 <= bit_and n 1 < 2` typechecks. Uses Why3's
+        # `val function` idiom — both program and logic symbol — so
+        # the body of _get_bitmap can call it AND the axiom can
+        # constrain it. Abstract-ops dedupes against this declaration.
+        "UnixFs.Bitmap.": ["val function bit_and (x : int) (y : int) : int"],
+        # UnixFs.Struct: round-trip axioms per format slot_id.
+        # Each format gets its own pack/unpack `val function` symbol
+        # so the axiom (forall fmt args, unpack (pack args) = args)
+        # typechecks against the same symbols emitted by Module6's
+        # `_handle_struct_call` dispatch.
+        "UnixFs.Struct.i1a1.": [
+            "val function struct_pack_i1a1 (fmt: int) (x0: int) (x1: array int) : array int",
+            "val function struct_unpack_i1a1 (fmt: int) (data: array int) : (int, array int)",
+        ],
+        "UnixFs.Struct.i2.": [
+            "val function struct_pack_i2 (fmt: int) (x0: int) (x1: int) : array int",
+            "val function struct_unpack_i2 (fmt: int) (data: array int) : (int, int)",
+        ],
+        "UnixFs.Struct.i18.": [
+            "val function struct_pack_i18 (fmt: int) "
+            "(x0: int) (x1: int) (x2: int) (x3: int) (x4: int) (x5: int) "
+            "(x6: int) (x7: int) (x8: int) (x9: int) (x10: int) (x11: int) "
+            "(x12: int) (x13: int) (x14: int) (x15: int) (x16: int) (x17: int) "
+            ": array int",
+            "val function struct_unpack_i18 (fmt: int) (data: array int) : "
+            "(int, int, int, int, int, int, int, int, int, "
+            "int, int, int, int, int, int, int, int, int)",
+        ],
     }
 
     def _scan_preamble_needs(self, functions: List[Dict[str, Any]],
@@ -57,6 +126,21 @@ class PreambleEmissionMixin:
             for v in func.get("symbol_table", {}).values()
         )
         needs_matrix = any(func.get("array2d_params") for func in functions)
+        # Phase 3 of missing-bytes-struct-feature.md: axioms in
+        # _AXIOM_REGISTRY may mention `array int` (e.g. round_trip on
+        # struct_pack_i1a1). If any cited axiom contains that token,
+        # force `use array.Array` even when the body is \trusted and
+        # the IR scanner finds no array usage.
+        axiom_needs_array = False
+        for func in functions:
+            for entry in func.get("proof", []):
+                qn = entry.get("qualname", "")
+                body = self._AXIOM_REGISTRY.get(qn, "")
+                if "array int" in body or "array " in body:
+                    axiom_needs_array = True
+                    break
+            if axiom_needs_array:
+                break
         if self.memory_model in ("hoare", "concurrent"):
             needs_array = (
                 has_list_param
@@ -65,6 +149,7 @@ class PreambleEmissionMixin:
                 or any(IRScanner.uses_arrayset(body) for body in all_bodies)
                 or any(IRScanner.uses_array_lit(body) for body in all_bodies)
                 or any(IRScanner.uses_ghost_type(body, {"array"}) for body in all_bodies)
+                or axiom_needs_array
             )
         else:
             needs_array = False
@@ -109,6 +194,19 @@ class PreambleEmissionMixin:
             if body_dicts or IRScanner.uses_inline_set_or_dict_ops(body):
                 needs_body_dict = True
                 break
+        # Map types can also appear ONLY in function signatures (set/dict/
+        # frozenset parameters lowered by `_param_type_str` to
+        # `map int (option int)`), without any body-level map usage.
+        # Without this check the preamble omits `use map.Map` and the
+        # signature's `map` type symbol is unbound — see
+        # `src/self-annotate/src/exception_model.py:predicate_definitions`
+        # which takes a `set` parameter but has no body-level dict ops.
+        if not needs_body_dict:
+            for func in functions:
+                if any(v in ("set", "dict", "frozenset")
+                       for v in func.get("symbol_table", {}).values()):
+                    needs_body_dict = True
+                    break
         needs_list_ghost = any(IRScanner.uses_ghost_type(body, {"ghost_list"}) for body in all_bodies)
         needs_sum = any(IRScanner.uses_sum(func) for func in functions)
         needs_set_card = any(IRScanner.uses_set_card(func) for func in functions)
@@ -240,12 +338,12 @@ class PreambleEmissionMixin:
             parts = ", ".join(["int"] * arity)
             out.append("")
             out.append(f"  exception Return_{arity} ({parts})")
-        sorted_exc = sorted(needs["user_exceptions"])
-        n = len(sorted_exc)
-        i = 0
-        while i < n:
-            out.append(f"  exception {sorted_exc[i]}")
-            i += 1
+        # Sanitize each user-exception name; collapse Python local-alias
+        # imports (`from X import Y as _Y`) by deduping via set after
+        # leading-underscore strip. See `safe_exc_name` in identifiers.py.
+        sanitized_exc = sorted({safe_exc_name(n) for n in needs["user_exceptions"]})
+        for exc in sanitized_exc:
+            out.append(f"  exception {exc}")
         return out
 
     def _emit_preamble_helpers(self, needs: Dict[str, Any]) -> List[str]:
@@ -328,10 +426,12 @@ class PreambleEmissionMixin:
         # Declare backing functions once each (e.g. `function gcd`).
         declared_fns: Set[str] = set()
         for qn in sorted(seen_qualnames):
-            for prefix, fn_decl in self._AXIOM_FUNCTIONS.items():
-                if qn.startswith(prefix) and fn_decl not in declared_fns:
-                    out.append(f"  {fn_decl}")
-                    declared_fns.add(fn_decl)
+            for prefix, fn_decls in self._AXIOM_FUNCTIONS.items():
+                if qn.startswith(prefix):
+                    for fn_decl in fn_decls:
+                        if fn_decl not in declared_fns:
+                            out.append(f"  {fn_decl}")
+                            declared_fns.add(fn_decl)
         if declared_fns:
             out.append("")
 

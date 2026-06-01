@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from module6_whyml.identifiers import whyml_ident, safe_mutex_name
+from module6_whyml.identifiers import whyml_ident, safe_mutex_name, safe_exc_name
 from module6_whyml.ir_scanner import IRScanner
 
 
@@ -114,7 +114,13 @@ class FunctionEmissionMixin:
                     param_parts.append(f"({safe}: matrix {int_type})")
                 elif symbol_table.get(arg) in ("set", "dict", "frozenset"):
                     param_parts.append(f"({safe}: map int (option int))")
-                elif arg in array1d_params or symbol_table.get(arg) == "list":
+                elif (arg in array1d_params
+                      or symbol_table.get(arg) in ("list", "bytes", "bytearray")):
+                    # bytes/bytearray are modeled as `array int` per
+                    # missing-bytes-struct-feature.md Phase 1: each
+                    # cell is a byte value (0..255). Lifts the
+                    # transpiler limit that previously auto-trusted
+                    # struct.unpack call sites with array-int args.
                     if self.memory_model in ("hoare", "concurrent"):
                         param_parts.append(f"({safe}: array {int_type})")
                     else:
@@ -176,12 +182,17 @@ class FunctionEmissionMixin:
         if raises_contracts:
             for rc in raises_contracts:
                 cond_str = self._expr_to_whyml(rc["condition"], spec_refs)
-                lines.append(f"    raises {{ {rc['exc_type']} -> {cond_str} }}")
-            declared_exc = {rc["exc_type"] for rc in raises_contracts}
-            for exc in sorted(func_exceptions - declared_exc):
+                lines.append(
+                    f"    raises {{ {safe_exc_name(rc['exc_type'])} -> {cond_str} }}"
+                )
+            declared_exc = {safe_exc_name(rc["exc_type"])
+                             for rc in raises_contracts}
+            sanitized_func_exc = {safe_exc_name(e) for e in func_exceptions}
+            for exc in sorted(sanitized_func_exc - declared_exc):
                 lines.append(f"    raises {{ {exc} }}")
         elif func_exceptions:
-            lines.append(f"    raises {{ {', '.join(sorted(func_exceptions))} }}")
+            sanitized = sorted({safe_exc_name(e) for e in func_exceptions})
+            lines.append(f"    raises {{ {', '.join(sanitized)} }}")
 
         self._in_spec = False
         return lines

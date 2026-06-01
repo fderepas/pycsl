@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional, Set
 
 from module6_whyml.identifiers import op_translate, whyml_ident
 from module6_whyml.ir_scanner import IRScanner
+from module6_whyml.struct_format import parse_format
 
 
 class ExpressionEmissionMixin:
@@ -210,7 +211,13 @@ class ExpressionEmissionMixin:
             except (ValueError, OverflowError):
                 pass
         op_fn = self._BITWISE_FN_NAMES[op_char]
-        self._add_abstract_op(f"val {op_fn} (x: int) (y: int) : int")
+        # `val function` (Why3 idiom for "pure program + logic symbol"):
+        # bit_and / bit_or / bit_xor / bit_lshift / bit_rshift / py_pow
+        # are pure mathematical operations on int. `val function`
+        # declares both a program-callable and a logical symbol, so
+        # the body can call them AND `#@ proof rocq` axioms can
+        # constrain them (axioms can only reference logical symbols).
+        self._add_abstract_op(f"val function {op_fn} (x: int) (y: int) : int")
         return f"({op_fn} {self._coerce_to_int(left)} {self._coerce_to_int(right)})"
 
     def _handle_binop(self, expr: Dict[str, Any], local_refs: Set[str],
@@ -273,8 +280,16 @@ class ExpressionEmissionMixin:
         if atype == "Var":
             vname = arg_ir.get("name", "")
             known = getattr(self, "_known_collection_sizes", {})
-            if vname in known:
+            # Don't constant-fold against the INITIAL size if the
+            # variable is an append-target — its length grows at
+            # runtime, so the static fold is unsound in invariants
+            # (`len(entries) <= i` collapses to `0 <= i`).
+            append_targets = getattr(self, "_current_append_targets", set())
+            if vname in known and vname not in append_targets:
                 return str(known[vname])
+            if vname in append_targets:
+                # Append-target len is tracked in a sidecar ref `X_len`.
+                return f"!{vname}_len"
         if self.memory_model in ("hoare", "concurrent"):
             var_name = arg_ir.get("name", "") if atype == "Var" else ""
             is_dict = var_name in getattr(self, "_dict_locals", set())
@@ -364,6 +379,41 @@ class ExpressionEmissionMixin:
         while len(param_types) < n:
             param_types.append("int")
         param_types = param_types[:n]
+        # Per missing-bytes-struct-feature.md Phase 1: infer
+        # array-int args from the emitted WhyML expression's shape
+        # for non-self calls (where module_method_param_types
+        # lookup didn't supply types). Without this, calls like
+        # `struct.unpack(fmt, entry_bytes)` where `entry_bytes`
+        # comes from `(array_slice self.disk ...)` were declared
+        # with all-int param types, mismatching the array-int call
+        # site and causing Why3 to reject the file with
+        # `array.Array.array int @rho but is expected to have
+        # type int`.
+        ARRAY_INT_PREFIXES = (
+            "(Array.make ", "(array_slice ", "(Array.make_init ",
+            "(array_copy ", "(array_concat ",
+        )
+        import sys
+        for i, arg in enumerate(args):
+            if param_types[i] != "int":
+                continue   # Already typed (from self-method lookup)
+            stripped = arg.strip()
+            if any(stripped.startswith(p) for p in ARRAY_INT_PREFIXES):
+                param_types[i] = "array int"
+                continue
+            # Bare identifier referring to a known array-int local
+            # / param. Check the symbol table.
+            if stripped.startswith("!"):
+                ident = stripped[1:]
+            else:
+                ident = stripped
+            if not ident.replace("_", "").isalnum():
+                continue
+            st = getattr(self, "_current_symbol_table", {})
+            if (ident in getattr(self, "_current_array1d_params", set())
+                    or st.get(ident) in ("list", "tuple", "bytes", "bytearray")
+                    or ident in getattr(self, "_array_locals", set())):
+                param_types[i] = "array int"
         # Coerce each arg based on its declared param type. The caller's
         # arg may be int while the param expects array or map (e.g. when
         # the int came from an abstract `get_*` accessor returning int
@@ -391,6 +441,7 @@ class ExpressionEmissionMixin:
                     coerced.append("(const (None: option int))")
             else:
                 coerced.append(arg)
+        import sys
         if n == 0:
             self._add_abstract_op(f"val {arity_name} () : {ret_type}")
             return f"({arity_name} ())"
@@ -398,10 +449,89 @@ class ExpressionEmissionMixin:
         self._add_abstract_op(f"val {arity_name} {params} : {ret_type}")
         return f"({arity_name} {' '.join(coerced)})"
 
+    def _handle_struct_call(
+            self, expr: Dict[str, Any], args: List[str],
+            func_name: str) -> Optional[str]:
+        """Format-string-aware emission for `struct.pack` / `struct.unpack`.
+
+        Per missing-bytes-struct-feature.md Phase 2. Returns the
+        emitted WhyML expression, or None if the format string is
+        dynamic / contains unsupported chars (caller falls back to
+        the generic auto-trust path).
+        """
+        ir_args = expr.get("args", [])
+        if not ir_args:
+            return None
+        fmt_ir = ir_args[0]
+        if fmt_ir.get("type") != "String":
+            return None   # Dynamic format string
+        fmt = fmt_ir.get("value", "")
+        parsed = parse_format(fmt)
+        if parsed is None:
+            return None   # Unsupported char in format
+
+        slot_id = parsed.slot_id()
+        if func_name == "struct.unpack":
+            # struct.unpack(fmt, data) → (t1, ..., tN)
+            # Abstract: val struct_unpack_<slot_id> (fmt: int) (data: array int) : (t1, ..., tN)
+            if parsed.arity == 0:
+                ret_type = "unit"
+            elif parsed.arity == 1:
+                ret_type = parsed.slots[0]
+            else:
+                ret_type = "(" + ", ".join(parsed.slots) + ")"
+            sym = f"struct_unpack_{slot_id}"
+            # `val function` — both program-callable and a logical
+            # symbol the round-trip axiom can name.
+            self._add_abstract_op(
+                f"val function {sym} (fmt: int) (data: array int) : {ret_type}")
+            # The fmt arg is a String literal → coerce to int hash;
+            # the data arg should already be `array int`-shaped.
+            fmt_arg = self._coerce_str_arg(args[0]) if args else "0"
+            data_arg = args[1] if len(args) > 1 else "(Array.make 0 0)"
+            return f"({sym} {fmt_arg} {data_arg})"
+
+        if func_name == "struct.pack":
+            # struct.pack(fmt, x1, ..., xN) → array int
+            # Abstract: val struct_pack_<slot_id> (fmt: int) (x1: t1) ... (xN: tN) : array int
+            # `*list` spread: PyCSL's IR may not expose individual
+            # elements when the arg is Starred. If the actual arg
+            # count after fmt doesn't match the format arity, we
+            # bail out and let the dotted-call path auto-trust.
+            value_args = args[1:]
+            if len(value_args) != parsed.arity:
+                return None
+            sym = f"struct_pack_{slot_id}"
+            params = ["(fmt: int)"] + [
+                f"(x{i}: {t})" for i, t in enumerate(parsed.slots)]
+            self._add_abstract_op(
+                f"val function {sym} {' '.join(params)} : array int")
+            fmt_arg = self._coerce_str_arg(args[0]) if args else "0"
+            # Coerce each value arg based on its slot type.
+            coerced = []
+            for arg, slot_t in zip(value_args, parsed.slots):
+                if slot_t == "int":
+                    coerced.append(self._coerce_to_int(arg))
+                else:
+                    coerced.append(arg)   # array int passed through
+            return f"({sym} {fmt_arg} {' '.join(coerced)})"
+
+        return None
+
     def _handle_call_expr(self, expr: Dict[str, Any], local_refs: Set[str],
                           invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
         func_name = expr["func"]
         args = [self._expr_to_whyml(a, local_refs, invariant_ctx, subst) for a in expr["args"]]
+
+        # missing-bytes-struct-feature.md Phase 2 — struct.pack /
+        # struct.unpack get a format-string-aware abstract emission
+        # before falling through to the generic dotted-call path.
+        if func_name in ("struct.pack", "struct.unpack"):
+            handled = self._handle_struct_call(expr, args, func_name)
+            if handled is not None:
+                return handled
+            # fmt is dynamic / unsupported chars → fall through to
+            # generic _handle_dotted_call (which auto-trusts).
 
         if func_name == "len" and len(args) == 1:
             return self._handle_len_call(expr, args)

@@ -93,11 +93,11 @@ for a bug to hide.
 │ │ │ │ ┌─────────────────────────────────────┐ │ │ │ │
 │ │ │ │ │ S4  Self-annotation passes          │ │ │ │ │
 │ │ │ │ │ ┌─────────────────────────────────┐ │ │ │ │ │
-│ │ │ │ │ │ S2  Soundness theorem Qed        │ │ │ │ │ │
+│ │ │ │ │ │ S3  127/127 tests pass          │ │ │ │ │ │
 │ │ │ │ │ │ ┌─────────────────────────────┐ │ │ │ │ │ │
-│ │ │ │ │ │ │ S3  127/127 tests pass      │ │ │ │ │ │ │
+│ │ │ │ │ │ │ S1  SMT proves the VCs      │ │ │ │ │ │ │
 │ │ │ │ │ │ │ ┌─────────────────────────┐ │ │ │ │ │ │ │
-│ │ │ │ │ │ │ │ S1  SMT proves the VCs  │ │ │ │ │ │ │ │
+│ │ │ │ │ │ │ │ S2  Soundness Qed       │ │ │ │ │ │ │ │
 │ │ │ │ │ │ │ └─────────────────────────┘ │ │ │ │ │ │ │
 │ │ │ │ │ │ └─────────────────────────────┘ │ │ │ │ │ │
 │ │ │ │ │ └─────────────────────────────────┘ │ │ │ │ │
@@ -108,11 +108,32 @@ for a bug to hide.
 └─────────────────────────────────────────────────────┘
 ```
 
-Each ring eliminates defects that could pass through all
-inner rings. S1 alone stops logic bugs; but an incorrect WP
-calculus could make S1 vacuously true — S2 squeezes that out.
-S2 could be correct yet the implementation could drift from the
-formalization — S3 and S6 squeeze that out. And so on.
+Read the diagram inside-out: the soundness theorem is the
+bedrock; everything else is layered atop it. SMT discharges
+VCs *because* the WP calculus is proven sound, not the other
+way around — without S2, S1 is operating on unjustified rules.
+Tests (S3) confirm the implementation matches the model that
+S1 reasons about; self-annotation (S4) confirms the verifier
+verifies itself; dual provers (S5+S6) confirm two independent
+kernels agree; zero-axiom (S7) confirms no hidden trust;
+real-world code (S8) confirms it scales; auto-trust (S9)
+confirms escape hatches stay bounded.
+
+Each ring eliminates defects that could pass through all inner
+rings. S1 alone stops logic bugs in a single program; but an
+incorrect WP calculus could make S1 vacuously true — S2
+squeezes that out. S3 and S6 catch drift between the
+formalization and the implementation. S4–S9 then add
+progressively rarer audit perimeters.
+
+A note on S1 ↔ S2 ordering. S1 (SMT solver) and S2 (theorem
+prover) check *different* properties: S1 asks "does the
+developer's spec hold for this program?"; S2 asks "are the
+proof rules sound at all?". The nesting captures **trust depth**
+(S2 is the foundation S1 stands on), not strict execution
+precedence. In practice S1 runs in seconds per file while S2
+is a one-time, kernel-checked theorem — they live at different
+cadences but the trust chain runs S2 → S1, not the reverse.
 
 ### The AI-agent implication
 
@@ -165,6 +186,71 @@ Pick a worked example function and verify it end-to-end at
 **Phase 1** (Euclidean GCD is the canonical choice — see
 [`0342_explanation.md`](../../../0342_explanation.md) for the
 PyCSL execution).
+
+---
+
+## 1.5 Extreme rigor — the bar for high-touch work
+
+Baseline annotation lets the bar sit wherever it lands.
+**Extreme rigor (ER)** is the standard for code where wrong
+contracts cost trust: the formal-semantics layer, load-bearing
+framework files, and — most visibly — the standard library
+annotation pass.
+
+The canonical worked example is `unix-filesystem/UnixInodeFileSystem.py`
+in this repository: 666 lines modelling a Unix-like inode
+filesystem, with Coq-anchored bitwise lemmas, loop invariants
+*and* variants on every loop, round-trip axioms for inverse
+operation pairs, and each remaining `\trusted` paired with a
+named feature-plan gap. Read it before you touch the stdlib.
+
+The five habits that distinguish ER from baseline annotation:
+
+1. **Loop invariants AND variants on every loop.** Either alone
+   leaves the prover guessing. Variant proves termination;
+   invariant proves the loop's contribution to the
+   postcondition.
+2. **Body verification first; `\trusted` only with a cited
+   blocker.** The default annotation effort targets a
+   body-verified function. `\trusted reviewer:` is acceptable
+   *only* when you can name what blocks promotion — typically a
+   missing IR feature, tracked in a `missing-*-feature.md` plan.
+3. **Coq/Lean axioms for facts SMT cannot discharge.** When Z3
+   times out on a bitwise property (the `_get_bitmap`
+   `(x >> y) & 1 ∈ {0, 1}` pattern blew up at ~3.4B steps), the
+   move is `#@ proof rocq <qualname>` importing a kernel-checked
+   theorem as a Why3 preamble axiom. Z3 then dispatches it in
+   zero steps. The Coq theorem lives in the companion
+   `.proofs/rocq/` directory.
+4. **Round-trip axioms for inverse operation pairs.** Pack/unpack,
+   encode/decode, serialize/deserialize — when the inverse is
+   semantically guaranteed but operationally abstract, declare a
+   round-trip axiom (`unpack(pack(...)) = ...`) anchored in a
+   witness Coq module that proves it by `reflexivity` on a
+   concrete model. See `unix-filesystem/UnixInodeFileSystem.proofs/rocq/UnixInodeFileSystem.v`,
+   `Module UnixFs.Struct.Fmt_i1a1`.
+5. **Each `\trusted` carries an actionable `cite:_note:`.** Not
+   "Module 6 limitation" — name the precise IR-emission gap
+   (e.g., "dict-literal in return value", "tuple-subscript on
+   struct_unpack returns") *and* the feature plan that tracks
+   the gap. Without that, `\trusted` becomes permanent.
+
+ER work is supposed to expose IR-feature gaps. The
+UnixInodeFileSystem pass surfaced six, catalogued in
+`missing-pycsl-ir-features.md`. That's a feature, not a bug —
+ER drives the language forward by refusing to silently absorb
+limitations.
+
+This is the standard the standard-library annotation pass must
+meet. See [`references/stdlib-extreme-rigor.md`](references/stdlib-extreme-rigor.md)
+for the case study, the acceptance checklist, and the
+escalation ladder for when body verification fails.
+
+The supervisor-side enforcement of ER lives in
+[`feature-supervisor-extreme-rigor.md`](../../../feature-supervisor-extreme-rigor.md)
+at repo root — phases carry `**Acceptance:**` blocks that the
+supervisor executes and reports on; "done" is no longer
+self-declared.
 
 ---
 

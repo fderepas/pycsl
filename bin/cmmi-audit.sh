@@ -187,6 +187,116 @@ else
 fi
 echo
 
+# ----- Phase 4 of missing-bytes-struct-feature.md: STRUCT step -----
+# Informational: counts methods using struct.pack / struct.unpack and
+# reports which have promoted from `\trusted` to body-verified
+# (via `#@ proof rocq UnixFs.Struct.<slot_id>.round_trip` citation).
+echo "[STRUCT] struct.pack/unpack — trusted vs body-verified promotion"
+python3 - <<'PY' 2>&1
+import re, sys, subprocess
+from pathlib import Path
+root = Path.cwd()
+SCAN_ROOTS = [
+    root / "unix-filesystem",
+    root / "test-suite" / "corpus" / "pycsl-reference",
+]
+
+# Build a (file -> mlw text) map by running PyCSL once per .py with
+# --keep-mlw --no-proof. The mlw distinguishes `let funcname` (body
+# emitted = body-verified-capable) from `val funcname` (trusted, auto
+# or explicit). Reading the actual mlw is the only honest signal —
+# source-only classification can't see PyCSL's auto-trust.
+def emit_mlw(py_file: Path) -> str:
+    pycsl = root / ".venv" / "bin" / "python3"
+    if not pycsl.is_file():
+        pycsl = "python3"
+    r = subprocess.run(
+        [str(pycsl), str(root / "src" / "pycsl" / "pycsl.py"),
+         "--no-proof", "--keep-mlw", str(py_file)],
+        capture_output=True, text=True, timeout=60,
+    )
+    mlw_path = py_file.with_suffix(".mlw")
+    if mlw_path.is_file():
+        return mlw_path.read_text(errors="replace")
+    return ""
+
+struct_users: list[tuple[str, str]] = []
+for sr in SCAN_ROOTS:
+    if not sr.is_dir():
+        continue
+    for f in sr.rglob("*.py"):
+        text = f.read_text(errors="replace")
+        # Find struct.pack/unpack-using functions via source scan.
+        # The mlw lookup below confirms emitted shape.
+        functions_using_struct = []
+        for m in re.finditer(
+                r"(?:^|\n)("
+                r"(?:\s*#[^\n]*\n)*"
+                r"\s*#@[^\n]*\n"
+                r"(?:\s*#[^\n]*\n)*"
+                r"\s*def\s+(\w+)\s*\([^)]*\)\s*[^\n]*\n)",
+                text):
+            block, name = m.group(1), m.group(2)
+            def_pos = m.end()
+            stop = re.search(r"\n(?:    )?(?:def |#@)", text[def_pos:])
+            body = text[def_pos:def_pos + (stop.start() if stop else 99999)]
+            if "struct.pack" not in body and "struct.unpack" not in body:
+                continue
+            cites_axiom = "UnixFs.Struct." in block
+            functions_using_struct.append((name, cites_axiom))
+        if not functions_using_struct:
+            continue
+
+        mlw_text = emit_mlw(f)
+        for name, cites_axiom in functions_using_struct:
+            # Module6 mangles names: class methods become
+            # <classname>__<methname>. Look for both forms with
+            # `let <name>` (body-emitted) or `val <name>` (trusted).
+            patterns = [
+                rf"\blet\s+\S*?{re.escape(name.lower())}\b",
+                rf"\bval\s+\S*?{re.escape(name.lower())}\b",
+            ]
+            emitted_let = re.search(patterns[0], mlw_text) is not None
+            emitted_val = re.search(patterns[1], mlw_text) is not None
+            if emitted_let:
+                mode = "body-verified"
+            elif emitted_val and cites_axiom:
+                mode = "trusted+axiom"
+            elif emitted_val:
+                mode = "trusted-only"
+            else:
+                # No mlw evidence either way — likely the function
+                # wasn't picked up by the transpile (parse error or
+                # standalone). Mark as unknown.
+                mode = "unknown"
+            struct_users.append((f"{f.relative_to(root)}:{name}", mode))
+
+if not struct_users:
+    print("  [OK] no struct.pack/unpack consumers found in scan roots")
+    sys.exit(0)
+
+trusted_only = [n for n, m in struct_users if m == "trusted-only"]
+trusted_axiom = [n for n, m in struct_users if m == "trusted+axiom"]
+body_verified = [n for n, m in struct_users if m == "body-verified"]
+unknown = [n for n, m in struct_users if m == "unknown"]
+print(f"  body-verified: {len(body_verified)}  "
+      f"trusted+axiom: {len(trusted_axiom)}  "
+      f"trusted-only: {len(trusted_only)}  "
+      f"unknown: {len(unknown)}")
+for n in body_verified:
+    print(f"    [VERIFIED] {n}")
+for n in trusted_axiom:
+    print(f"    [TRUSTED+AXIOM] {n}")
+for n in trusted_only:
+    print(f"    [TRUSTED-only] {n}")
+for n in unknown:
+    print(f"    [UNKNOWN] {n}")
+# Informational — never fails the audit.
+sys.exit(0)
+PY
+PASS+=("STRUCT informational")
+echo
+
 # ----- language-surface coherency (delegated) -----
 echo "[lang] Language-surface doc coherency (pycsl-* skills, docs/, README)"
 if [[ -x bin/doc-coherency.py ]]; then

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Set
 
-from module6_whyml.identifiers import op_translate, whyml_ident, safe_mutex_name
+from module6_whyml.identifiers import op_translate, whyml_ident, safe_mutex_name, safe_exc_name
 from module6_whyml.ir_scanner import IRScanner
 
 
@@ -358,7 +358,11 @@ class StatementEmissionMixin:
             while i_h < n_h:
                 h = handlers[i_h]
                 exc = h.get("exc_type") or "PyCSL_Exception"
-                exc_parts = exc.split("|") if "|" in exc else [exc]
+                # Sanitize each piece of a `|`-separated exc_type union;
+                # leading-underscore local aliases like `_FooError` must
+                # match the sanitized declaration emitted by the preamble.
+                exc_parts = [safe_exc_name(p) for p in
+                              (exc.split("|") if "|" in exc else [exc])]
                 n_ep = len(exc_parts)
                 i_ep = 0
                 while i_ep < n_ep:
@@ -516,7 +520,25 @@ class StatementEmissionMixin:
                 if nargs == 0:
                     self._abstract_ops[arity_fn] = f"val {arity_fn} () : {tuple_ret}"
                 else:
-                    params = " ".join(f"(x{i}: int)" for i in range(nargs))
+                    # Per missing-bytes-struct-feature.md Phase 1:
+                    # preserve the param types from the existing
+                    # declaration (which `_handle_dotted_call` may
+                    # have set to `array int` based on call-site
+                    # arg-type inference) rather than blindly
+                    # overwriting with `int`. Without this,
+                    # `(a, b) = struct.unpack(fmt, array_int_data)`
+                    # forced a (int, int) → (int, int) declaration
+                    # that mismatched the call site.
+                    import re as _re
+                    existing = self._abstract_ops[arity_fn]
+                    types_in_existing = _re.findall(
+                        r"\(x\d+:\s*([a-z][a-z_ ]*?)\)", existing)
+                    if len(types_in_existing) == nargs:
+                        params = " ".join(
+                            f"(x{i}: {types_in_existing[i]})"
+                            for i in range(nargs))
+                    else:
+                        params = " ".join(f"(x{i}: int)" for i in range(nargs))
                     self._abstract_ops[arity_fn] = f"val {arity_fn} {params} : {tuple_ret}"
         elif val_ir.get("type") == "Subscript":
             # `a, b = arr[i]` — the default `subscript_get` returns `int`,
@@ -1096,7 +1118,7 @@ class StatementEmissionMixin:
             code = f'{indent}()'
 
         elif s_type == "Raise":
-            exc_type = stmt.get("exc_type", "PyCSL_Exception")
+            exc_type = safe_exc_name(stmt.get("exc_type", "PyCSL_Exception"))
             return f"{indent}raise {exc_type}"
 
         elif s_type == "If":
@@ -1188,6 +1210,10 @@ class StatementEmissionMixin:
         Mutates self._array_locals, self._has_early_ret."""
         bounded_int = func.get("bounded_int")
         append_targets = IRScanner.find_append_targets(body_stmts)
+        # Expose append-targets to `_handle_len_call` so `len(X)` in
+        # invariants/specs resolves to `!X_len` (the dynamic counter)
+        # instead of constant-folding to the initial-list size.
+        self._current_append_targets = append_targets
         # `_has_early_ret` gates the `try ... with Return r -> r end` wrap.
         # Module6 emits `raise (Return ...)` whenever `in_loop` is true at a
         # Return site, not only when `has_early_return` would catch it (an
@@ -1204,6 +1230,16 @@ class StatementEmissionMixin:
         body_dict_vars |= self._collect_dict_var_assigns(body_stmts)
         body_lambda_vars = IRScanner.find_lambda_vars(body_stmts)
         body_record_vars = IRScanner.find_record_vars(body_stmts, self._record_types)
+        # Phase 2.3 / 2.3b: variables receiving `array int` values
+        # from compile-time struct calls get array-typed pre-decls
+        # instead of `ref 0 : ref int`. Two flavours with different
+        # scoping:
+        #   - tuple-unpack array slots: NOT hoisted; let-bound
+        #     inside the loop (region-fresh per iteration)
+        #   - plain struct.pack assigns: HOISTED with
+        #     `ref (Array.make 0 0)` (single-shot, used later)
+        struct_array_targets = self._collect_struct_unpack_array_targets(body_stmts)
+        struct_pack_targets = self._collect_struct_pack_assign_targets(body_stmts)
 
         pre_decl_vars: Set[str] = {
             v for v in local_refs
@@ -1213,6 +1249,8 @@ class StatementEmissionMixin:
             and v not in body_dict_vars
             and v not in body_lambda_vars
             and v not in body_record_vars
+            and v not in struct_array_targets
+            and v not in struct_pack_targets
         }
 
         if is_method:
@@ -1220,10 +1258,22 @@ class StatementEmissionMixin:
         else:
             initial_declared = set(ref_params) | {whyml_ident(v) for v in pre_decl_vars}
 
+        # Phase 2.3b of missing-bytes-struct-feature.md: do NOT hoist
+        # struct-unpack array-typed targets to a function-top ref —
+        # Why3's region inference cannot prove the hoisted
+        # `ref (array int)` disjoint from the fresh-region array a
+        # `val function struct_unpack_<id>` returns each loop
+        # iteration. Excluding them from local_refs causes
+        # `_handle_tuple_unpack_stmt` to emit `let X = ref tmp in`
+        # scoped to the loop body — fresh region each iteration,
+        # no cross-iteration alias.
         body_code = self._stmts_to_whyml(
             body_stmts,
-            local_refs | {f"{t}_len" for t in append_targets},
-            initial_declared,
+            (local_refs | {f"{t}_len" for t in append_targets})
+                - struct_array_targets - struct_pack_targets,
+            initial_declared
+                - {whyml_ident(v) for v in struct_array_targets}
+                - {whyml_ident(v) for v in struct_pack_targets},
             "    ",
         )
 
@@ -1240,6 +1290,18 @@ class StatementEmissionMixin:
             safe_var = whyml_ident(var)
             init = safe_var if var in self._formal_params else pfx
             body_code = f"    let {safe_var} = ref {init} in\n{body_code}"
+
+        # Phase 2.3b: struct-unpack array-int targets are NO LONGER
+        # pre-declared as `ref (Array.make 0 0)` at function-top.
+        # Instead they fall through to `_handle_tuple_unpack_stmt`'s
+        # `let X = ref tmp in` path, which scopes the ref to the
+        # loop iteration where Why3's region inference is happy.
+
+        # Plain struct.pack assign targets are NOT hoisted — the
+        # Assign emitter sees them absent from local_refs and emits
+        # `let X = struct_pack_... in <rest>`, which avoids the
+        # `ref (array int)` → struct_pack region collapse Why3 would
+        # otherwise reject.
 
         for tgt in sorted(append_targets):
             safe_tgt = whyml_ident(tgt)

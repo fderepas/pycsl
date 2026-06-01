@@ -89,7 +89,11 @@ class TypeInferenceMixin:
         if vt == "SliceAccess":
             return "slice"
         if (val.startswith("(Array.make") or val == "(Array.make 1024 0)"
-                or val.startswith("(sorted_1 ")):
+                or val.startswith("(sorted_1 ")
+                or val.startswith("(struct_pack_")):
+            # struct_pack returns `array int` (a pure value). Emit it
+            # as `let X = (struct_pack_...) in` (NOT wrapped in ref)
+            # to avoid Why3's `ref (array int)` region-collapse error.
             return "array"
         if vt == "Call" and val_ir.get("func", "").startswith("self."):
             method_tail = val_ir["func"][len("self."):]
@@ -128,11 +132,15 @@ class TypeInferenceMixin:
             name = val_ir.get("name", "")
             if name in self._array_locals or name in self._current_array1d_params:
                 return True
-            if self._current_symbol_table.get(name) in ("list", "tuple"):
+            # bytes/bytearray are array-int-typed per
+            # missing-bytes-struct-feature.md Phase 1.
+            if self._current_symbol_table.get(name) in (
+                    "list", "tuple", "bytes", "bytearray"):
                 return True
             return False
         if t in ("Attribute", "FieldGet"):
-            return self._field_type_of(val_ir) in ("list", "tuple")
+            return self._field_type_of(val_ir) in (
+                "list", "tuple", "bytes", "bytearray")
         if t == "Call":
             fn = val_ir.get("func", "")
             if fn.startswith("self."):
@@ -298,6 +306,76 @@ class TypeInferenceMixin:
                 for h in s.get("handlers", []):
                     found |= self._collect_array_var_assigns(h.get("body", []))
         return found
+
+    def _collect_struct_unpack_array_targets(
+            self, stmts: List[Dict[str, Any]]) -> Set[str]:
+        """Phase 2.3b: tuple-unpack LHS slots from
+        `(a, b) = struct.unpack(fmt, data)` whose parsed slot type is
+        `array int`. These are NOT hoisted — they get let-bound
+        inside the loop iteration so Why3's region inference doesn't
+        collapse fresh-region arrays across iterations.
+        """
+        from module6_whyml.struct_format import parse_format
+
+        def _scan(stmts: List[Dict[str, Any]]) -> Set[str]:
+            found: Set[str] = set()
+            for s in stmts:
+                if s.get("stmt") == "TupleUnpack":
+                    val = s.get("value", {})
+                    if (isinstance(val, dict)
+                            and val.get("type") == "Call"
+                            and val.get("func", "") == "struct.unpack"):
+                        fmt_arg = (val.get("args") or [{}])[0]
+                        if fmt_arg.get("type") == "String":
+                            parsed = parse_format(fmt_arg.get("value", ""))
+                            if parsed is not None:
+                                targets = s.get("targets", [])
+                                for tgt, slot_t in zip(targets, parsed.slots):
+                                    if slot_t == "array int":
+                                        found.add(tgt)
+                for k in ("body", "orelse"):
+                    if k in s:
+                        found |= _scan(s[k])
+                if s.get("stmt") == "Try":
+                    for h in s.get("handlers", []):
+                        found |= _scan(h.get("body", []))
+            return found
+
+        return _scan(stmts)
+
+    def _collect_struct_pack_assign_targets(
+            self, stmts: List[Dict[str, Any]]) -> Set[str]:
+        """Plain `X = struct.pack(fmt, ...)` assign targets — receive
+        an `array int` from struct.pack and must be pre-declared as
+        `ref (Array.make 0 0)`. Unlike the tuple-unpack-target case
+        these ARE hoisted (single-shot bindings used later in the
+        function body, typically outside any loop).
+        """
+        from module6_whyml.struct_format import parse_format
+
+        def _scan(stmts: List[Dict[str, Any]]) -> Set[str]:
+            found: Set[str] = set()
+            for s in stmts:
+                if s.get("stmt") == "Assign":
+                    val = s.get("value", {})
+                    if (isinstance(val, dict)
+                            and val.get("type") == "Call"
+                            and val.get("func", "") == "struct.pack"):
+                        fmt_arg = (val.get("args") or [{}])[0]
+                        if (fmt_arg.get("type") == "String"
+                                and parse_format(fmt_arg.get("value", "")) is not None):
+                            tgt = s.get("target", "")
+                            if tgt:
+                                found.add(tgt)
+                for k in ("body", "orelse"):
+                    if k in s:
+                        found |= _scan(s[k])
+                if s.get("stmt") == "Try":
+                    for h in s.get("handlers", []):
+                        found |= _scan(h.get("body", []))
+            return found
+
+        return _scan(stmts)
 
     def _collect_dict_var_assigns(self, stmts: List[Dict[str, Any]]) -> Set[str]:
         """Post-pass for body-dict / body-set local detection: variables

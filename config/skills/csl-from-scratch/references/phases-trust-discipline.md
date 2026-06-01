@@ -222,6 +222,53 @@ verified vs trusted vs unsupported, with explicit allow-lists.
 Calling an unsupported stdlib function is a hard error, not a
 silent skip.
 
+### 9.1b Extreme-rigor pass
+
+The §9.1 methodology above is the **baseline**: machine-checked
+stubs derived from official docs, sufficient to keep real
+programs compiling and to pin coverage. It is **not** the goal
+state for stdlib modules whose semantics are mathematically
+nontrivial — filesystem operations, math, crypto, format
+serialization, anything with invariants worth proving.
+
+For those modules, the goal state is **extreme rigor (ER)**:
+body-verification where feasible, axiom-anchored otherwise, with
+each remaining `\trusted` carrying a feature-plan citation that
+names what blocks promotion. See
+[`stdlib-extreme-rigor.md`](stdlib-extreme-rigor.md) for the
+full discipline, the canonical case study
+(`unix-filesystem/UnixInodeFileSystem.py`), the acceptance
+checklist, and the escalation ladder.
+
+Three load-bearing properties of an ER pass:
+
+1. **Body-first.** A method that could be body-verified must not
+   be `\trusted` for convenience. `\trusted reviewer:` is a
+   tool, not a default.
+2. **Coq lemmas for SMT timeouts.** When Z3 hangs on a
+   mathematically-provable obligation, the move is
+   `#@ proof rocq <qualname>` importing a kernel-checked theorem
+   from the module's companion `.proofs/rocq/` directory — not
+   `\trusted`.
+3. **Each `\trusted` is actionable.** It carries a `cite:_note:`
+   naming the precise IR-feature gap blocking promotion *and*
+   the feature plan tracking that gap. Without that, the
+   `\trusted` becomes permanent dark matter.
+
+An ER pass is also a *forcing function for IR work*: it surfaces
+the gaps that baseline stub work hides. The
+UnixInodeFileSystem pass surfaced six IR-feature gaps catalogued
+in `missing-pycsl-ir-features.md`. Treat the output of an ER
+pass as having two deliverables: the annotated module *and* the
+missing-feature plan it produced.
+
+When ER is in scope, the feature plan driving the pass must
+carry `**Acceptance:**` blocks per phase, enforced by
+`bin/agent-feature-supervisor` (see
+[`feature-supervisor-extreme-rigor.md`](../../../../feature-supervisor-extreme-rigor.md)
+at repo root). Without supervisor-enforced acceptance, "done" is
+self-declared — exactly the failure mode ER exists to prevent.
+
 ### 9.2 Memory models
 
 Pick depending on the host language's mutation discipline:

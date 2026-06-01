@@ -1290,3 +1290,25 @@ assert order or element identity through `sorted_1`.
 `any(arr)` and `all(arr)` emit similar abstract vals returning `bool`.
 
 **Tests**: 0351.
+
+### §12.6 `bytes` and `bytearray` type unification
+
+Python `bytes` and `bytearray` parameter types lower to WhyML
+`array int` (each element conceptually a byte value 0..255; the
+bound is not enforced by the abstract emission). Byte-string
+literals (`b'...'`) lower to `ArrayLit` of byte values in the IR,
+composing naturally with the existing `[default] * size →
+Array.make` BinOp handler — so `b'\x00' * N` becomes
+`(Array.make N 0)`.
+
+This is **not** a new contract directive — it's a Module 5 / Module 6
+emission rule. No `#@` syntax is involved. The effect is structural:
+calls to `struct.unpack(fmt, data)` where `data` has a bytes-shape
+(emitted as `array int`) get type-correct abstract-val signatures
+from `_emit_dotted_call`, instead of the previous all-int default
+that caused `array int @rho` vs `int` type clashes.
+
+Per `missing-bytes-struct-feature.md` Phase 1. Lifts the
+transpiler limit that previously forced `\trusted reviewer:` on
+the 4 struct-heavy internals of
+`unix-filesystem/UnixInodeFileSystem.py`.
