@@ -1,0 +1,15 @@
+"""Test Module5_IREmitter.scan_2d_in_expr L5 — positive: caller exploits ensures."""
+# pycsl-flags: --no-proof
+# pycsl-expected: PASS
+_ = 0  # anchor
+import Module5_IREmitter  # noqa: F401
+
+
+#@ requires True
+#@ ensures True
+def use_scan_2d_in_expr(x: int) -> int:
+    return Module5_IREmitter.scan_2d_in_expr(x)
+
+
+if __name__ == "__main__":
+    pass
