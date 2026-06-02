@@ -129,8 +129,10 @@ def isreserved(path: int) -> int:
 
 #@ \trusted
 #@ ensures \result >= 0
-def join(path: int) -> int:
-    """Mock: Join one or more path segments intelligently.  The return value is the concatenation of *path* and all members of *\*pat..."""
+def join(a: int, b: int) -> int:
+    """Mock: Join two path segments. `os.path.join` is variadic; this stub
+    models the common two-argument case so demos can exercise it (a unary
+    signature caused `int -> int applied to 2 arguments` in path_demo.py)."""
     return 0
 
 #@ \trusted

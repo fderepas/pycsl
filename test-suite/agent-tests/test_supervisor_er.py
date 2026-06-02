@@ -230,3 +230,21 @@ def test_every_fixture_has_acceptance_or_status():
             f"{fixture.name}: fixture lacks both Acceptance and Status — "
             f"ER applies recursively to its own test fixtures"
         )
+
+
+def test_exits_failure_surfaces_stdout():
+    """An `exits N` acceptance failure must include STDOUT in the reason.
+
+    pycsl (and most tools) print the real failure to stdout while stderr
+    carries only warnings; surfacing stderr alone hid the true cause of
+    `exits` failures (e.g. the os.path `join` arity error in path_demo.py)."""
+    afs = _load_supervisor_module()
+    claim = afs.AcceptanceClaim(
+        command="python3 -c \"print('PYCSL_STDOUT_MARKER') or exit(1)\"",
+        predicate=afs.ExitsN(kind="exits", n=0),
+        raw_line="- `python3 -c ...` exits 0",
+    )
+    res = afs._check_acceptance(claim, afs._PROJECT_ROOT, 30)
+    assert res.passed is False
+    assert "PYCSL_STDOUT_MARKER" in res.reason_if_failed, res.reason_if_failed
+    assert "stdout" in res.reason_if_failed.lower()

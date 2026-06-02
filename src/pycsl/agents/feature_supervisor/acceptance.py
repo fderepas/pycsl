@@ -286,6 +286,11 @@ def _check_acceptance(
             claim=claim, passed=False, stdout_excerpt=excerpt,
             reason_if_failed=(
                 f"expected exit {p.n}, got {r.returncode}\n"
+                # Surface STDOUT, not just stderr: tools like pycsl print the
+                # real failure (verification errors, type errors) to stdout,
+                # while stderr often carries only warnings — showing stderr
+                # alone hid the true cause of `exits N` failures.
+                f"stdout (last 500 chars): {stdout[-500:]}\n"
                 f"stderr (last 200 chars): {(r.stderr or '')[-200:]}"
             ),
         )
