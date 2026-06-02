@@ -235,18 +235,50 @@ def githubcopilot_generate(prompt: str, system: str, agent_id: str, model: str) 
     print(f"Model: {model}", file=sys.stderr)
     print(f"--------------------------------------------------{RESET}", file=sys.stderr)
 
-    cmd = [
-        "copilot",
-        "--prompt", full_prompt,
-        "--allow-tool", "write",
-        "--model", model,
-    ]
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    # The copilot CLI only accepts the prompt as a single `--prompt` argv
+    # element. The OS per-argument limit (MAX_ARG_STRLEN, ~128 KB) is far below
+    # the total ARG_MAX, so a large prompt fails execve with E2BIG ("Argument
+    # list too long") before the model runs. When the prompt is big, spill it
+    # to a temp file and have the agentic CLI read it, keeping `--prompt` tiny.
+    _ARG_SAFE = 96_000  # bytes; safely under MAX_ARG_STRLEN
+    _prompt_file = None
+    if len(full_prompt.encode("utf-8", "replace")) > _ARG_SAFE:
+        import tempfile
+        fd, _prompt_file = tempfile.mkstemp(prefix="copilot_prompt_", suffix=".md")
+        with os.fdopen(fd, "w") as _pf:
+            _pf.write(full_prompt)
+        cmd = [
+            "copilot",
+            "--prompt",
+            (f"Read the file `{_prompt_file}` in full — it contains your complete "
+             f"instructions and context — then carry them out. Follow the "
+             f"'Output format (REQUIRED)' section in that file exactly "
+             f"(complete file contents between *** BEGIN FILE: … *** / "
+             f"*** END FILE *** markers; not a diff)."),
+            "--allow-tool", "write",
+            "--add-dir", os.path.dirname(_prompt_file),
+            "--model", model,
+        ]
+    else:
+        cmd = [
+            "copilot",
+            "--prompt", full_prompt,
+            "--allow-tool", "write",
+            "--model", model,
+        ]
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    finally:
+        if _prompt_file:
+            try:
+                os.remove(_prompt_file)
+            except OSError:
+                pass
     answer = result.stdout
 
     current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")

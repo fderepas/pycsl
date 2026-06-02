@@ -15,7 +15,7 @@ description: >-
   determining which role should run which level, deciding what to do next in
   a project, or auditing whether a project followed the prescribed lifecycle.
 document_id: SKILL-CMMI-LIFE-001
-version: "2.1"
+version: "2.2"
 status: Approved
 effective_date: "2026-05-22"
 baseline_id: BL-LIFE-001
@@ -35,7 +35,7 @@ practice_areas:
 | Field | Value |
 |---|---|
 | Document ID | SKILL-CMMI-LIFE-001 |
-| Version | 2.1 |
+| Version | 2.2 |
 | Status | Approved |
 | Effective Date | 2026-05-22 |
 | Baseline ID | BL-LIFE-001 |
@@ -49,6 +49,7 @@ practice_areas:
 | 1.0 | 2026-05-22 | Agent (EPG) | First approved release: full §1–§6, recursive level-based execution |
 | 2.0 | 2026-06-01 | Agent (EPG) | Expand 4→5 levels (Component, Module, Unit); add coordination spec; add cross-cutting obligations; add Phase 10 |
 | 2.1 | 2026-06-02 | Agent (EPG) | Add T7.1 feature-plan submission via `agent-feature-supervisor`; new `references/feature-plan-submission.md` |
+| 2.2 | 2026-06-02 | Agent (EPG) | Add `references/competency-matrix.md` (skill-to-role); supervisor auto-injects per-phase skills from `**Level:**` tags and logs §5.1 |
 
 ### Approvals
 
@@ -149,6 +150,7 @@ This document satisfies CMMI v2.0 practice areas:
 | Directory hierarchy and naming | `references/directory-hierarchy.md` |
 | Tailoring profiles | `references/tailoring-profiles.md` |
 | Submitting a feature plan to the verification gate | `references/feature-plan-submission.md` |
+| Competency matrix (which skills each level/role needs) | `references/competency-matrix.md` |
 | Artifact checklist per level | `config/skills/cmmi-process-level/references/artifact-checklist.md` |
 | Governance workflows | `config/skills/cmmi-glue/references/workflow-catalog.md` |
 | Project structure convention | `config/skills/agent-project-structure/SKILL.md` |

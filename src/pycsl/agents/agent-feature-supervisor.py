@@ -106,6 +106,14 @@ _AGENT_DESCRIPTION = (
     / "agent-feature-supervisor.md"
 )
 
+# Competency matrix (skill-to-role) — which skills each level needs, read by
+# the resolver to inject role-appropriate skills into delegate prompts and to
+# log the resolution in the harness-structure record's `## 5` section.
+_SKILLS_ROOT = _PROJECT_ROOT / "config" / "skills"
+_COMPETENCY_FILE = (
+    _SKILLS_ROOT / "project-lifecycle" / "references" / "competency-matrix.md"
+)
+
 
 # ---------------------------------------------------------------------------
 # Load-bearing deny-list
@@ -675,6 +683,91 @@ def _phase_tag(slug: str, phase_number: int) -> str:
     return f"feature-{slug}-phase-{phase_number}-start"
 
 
+def _load_competency_matrix() -> Dict[str, List[str]]:
+    """Parse the competency matrix's fenced block → {level_key: [skill names]}.
+
+    Keys are `*` (all levels) or `L1`–`L5`; values are `config/skills/<name>`
+    directory names. Returns {} if the file/block is absent.
+    """
+    matrix: Dict[str, List[str]] = {}
+    if not _COMPETENCY_FILE.is_file():
+        return matrix
+    text = _COMPETENCY_FILE.read_text()
+    # The machine block is the fenced ``` … ``` containing `key: a, b` lines.
+    # Keys are `*`, `L<n>`, or `L<n>-<Role>` (e.g. `L5-Validator`).
+    _key = r"(\*|L\d(?:-[A-Za-z][A-Za-z-]*)?)"
+    for block in re.findall(r"```\n(.*?)\n```", text, re.S):
+        if not re.search(rf"^\s*{_key}\s*:", block, re.M):
+            continue
+        for line in block.splitlines():
+            m = re.match(rf"^\s*{_key}\s*:\s*(.+?)\s*$", line)
+            if m:
+                skills = [s.strip() for s in m.group(2).split(",") if s.strip()]
+                matrix[m.group(1)] = skills
+    return matrix
+
+
+def _phase_level(phase: "Phase") -> str:
+    """The phase's `**Level:** L<n>` tag (line-leading), or '' if none."""
+    m = re.search(r"^\*\*Level:\*\*\s*(L\d)\b", phase.raw_body, re.M)
+    return m.group(1) if m else ""
+
+
+def _phase_role(phase: "Phase") -> str:
+    """The phase's `**Role:** <Role>` tag (e.g. Validator), or '' if none."""
+    m = re.search(r"^\*\*Role:\*\*\s*([A-Za-z][A-Za-z-]*)", phase.raw_body, re.M)
+    return m.group(1) if m else ""
+
+
+def _phase_competency_skills(phase: "Phase",
+                             matrix: Dict[str, List[str]]) -> List[str]:
+    """Skill names this phase needs: union of the `*` row, the phase's level
+    row, and (if a role is tagged) the `L<n>-<Role>` row. Deduped, stable
+    order. The role combination is how proof skills (`rocq`/`lean`) reach the
+    low-level Validator only."""
+    level = _phase_level(phase)
+    role = _phase_role(phase)
+    keys = ["*"]
+    if level:
+        keys.append(level)
+        if role:
+            keys.append(f"{level}-{role}")
+    out: List[str] = []
+    for key in keys:
+        for s in matrix.get(key, []):
+            if s not in out:
+                out.append(s)
+    return out
+
+
+def _append_resolved_competencies(phases: List["Phase"]) -> None:
+    """Append `### 5.1 Resolved per-phase competencies` to the harness-structure
+    log (path in $PYCSL_HARNESS_LOG) so a human can review which skills each
+    phase's delegate will receive. No-op if the env var / log is absent."""
+    log_path = os.environ.get("PYCSL_HARNESS_LOG")
+    if not log_path:
+        return
+    matrix = _load_competency_matrix()
+    lines = [
+        "", "### 5.1 Resolved per-phase competencies",
+        "", "From `config/skills/project-lifecycle/references/competency-matrix.md` "
+        "(`**Level:**` tag → skills injected into that phase's delegate prompt):", "",
+    ]
+    for p in phases:
+        lvl = _phase_level(p) or "—"
+        role = _phase_role(p)
+        tag = f"level {lvl}" + (f", role {role}" if role else "")
+        skills = _phase_competency_skills(p, matrix)
+        skills_str = ", ".join(f"`{s}`" for s in skills) if skills else "(none)"
+        lines.append(f"- **Phase {p.number}** ({tag}): {skills_str}")
+    lines.append("")
+    try:
+        with open(log_path, "a") as f:
+            f.write("\n".join(lines))
+    except OSError:
+        pass
+
+
 def _build_phase_prompt(phase: "Phase", plan_text: str) -> str:
     """Wrap the coding-LLM scaffold around the phase body + target file contents."""
     if not _CODING_LLM_PROMPT.is_file():
@@ -692,12 +785,28 @@ def _build_phase_prompt(phase: "Phase", plan_text: str) -> str:
             + "\n\n---\n\n"
         )
 
+    # Inject the skills this phase's role needs (competency matrix), as direct
+    # text — the role-appropriate knowledge for the delegate.
+    skills_block = ""
+    level = _phase_level(phase)
+    role = _phase_role(phase)
+    role_tag = (level or "—") + (f"/{role}" if role else "")
+    skill_names = _phase_competency_skills(phase, _load_competency_matrix())
+    if skill_names:
+        chunks = [f"## Skills for your role ({role_tag})\n"]
+        for name in skill_names:
+            sk = _SKILLS_ROOT / name / "SKILL.md"
+            if sk.is_file():
+                chunks.append(f"### Skill: {name}\n\n{sk.read_text()}\n\n---\n")
+        skills_block = "\n".join(chunks) + "\n"
+
     parts = [
         persona,
         scaffold,
         "",
         "---",
         "",
+        skills_block,
         f"## This phase: Phase {phase.number} — {phase.title}",
         "",
         "### Phase body (from the feature plan)",
@@ -724,6 +833,9 @@ def _build_phase_prompt(phase: "Phase", plan_text: str) -> str:
         parts.append(content)
         parts.append("```")
         parts.append("")
+    parts.append("---")
+    parts.append("")
+    parts.append(FILE_OUTPUT_INSTRUCTION)
     return "\n".join(parts)
 
 
@@ -746,6 +858,11 @@ def _extract_diff(llm_output: str) -> Optional[str]:
 
 def _apply_diff(diff_text: str) -> tuple[bool, str]:
     """Validate + apply a unified diff. Returns (success, stderr-text)."""
+    # The fenced-block extractor drops the trailing newline before the closing
+    # ``` — git then reports "corrupt patch" on the unterminated last line.
+    # Normalise to a single terminating newline before applying.
+    if diff_text and not diff_text.endswith("\n"):
+        diff_text += "\n"
     # First validate with --check so we don't mutate the tree on garbage
     r = subprocess.run(
         ["git", "apply", "--check", "--whitespace=nowarn", "--recount", "-"],
@@ -769,6 +886,63 @@ def _apply_diff(diff_text: str) -> tuple[bool, str]:
     return True, ""
 
 
+# Full-file output contract — far more robust than a unified diff for an
+# LLM, which cannot reliably reproduce exact hunk context / line counts. The
+# delegate emits the COMPLETE contents of each created/modified file between
+# these markers; the supervisor writes the files directly (no patch parsing).
+_FILE_BLOCK_RE = re.compile(
+    r"^[ \t]*\*\*\* BEGIN FILE:[ \t]*(?P<path>.+?)[ \t]*\*\*\*[ \t]*\n"
+    r"(?P<body>.*?)\n[ \t]*\*\*\* END FILE \*\*\*",
+    re.S | re.M,
+)
+_FENCE_RE = re.compile(r"^```[A-Za-z0-9_-]*\n(.*)\n```\s*$", re.S)
+
+FILE_OUTPUT_INSTRUCTION = (
+    "## Output format (REQUIRED)\n\n"
+    "Output the COMPLETE final contents of every file you create or modify — "
+    "NOT a diff. Wrap each file EXACTLY like this, one block per file:\n\n"
+    "*** BEGIN FILE: <repo-relative/path.py> ***\n"
+    "<the entire file content, verbatim, with no surrounding code fence>\n"
+    "*** END FILE ***\n\n"
+    "Emit the full content even for a one-line change. Do not abbreviate, do "
+    "not use `...`, do not emit a unified diff."
+)
+
+
+def _extract_files(llm_output: str) -> List[Tuple[str, str]]:
+    """Extract (path, full-content) pairs from BEGIN/END FILE markers."""
+    out: List[Tuple[str, str]] = []
+    for m in _FILE_BLOCK_RE.finditer(llm_output):
+        body = m.group("body")
+        fence = _FENCE_RE.match(body.strip())
+        if fence:  # tolerate an accidental code fence around the content
+            body = fence.group(1)
+        out.append((m.group("path").strip(), body))
+    return out
+
+
+def _write_files(pairs: List[Tuple[str, str]]) -> Tuple[bool, str, List[str]]:
+    """Write each (repo-relative path, content). Returns (ok, err, written)."""
+    written: List[str] = []
+    repo = _PROJECT_ROOT.resolve()
+    for rel, content in pairs:
+        rel = rel.strip().lstrip("./").lstrip("/")
+        target = (_PROJECT_ROOT / rel).resolve()
+        try:
+            target.relative_to(repo)  # refuse `..`/absolute escapes
+        except ValueError:
+            return False, f"refusing to write outside repo: {rel!r}", written
+        if content and not content.endswith("\n"):
+            content += "\n"
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content)
+        except OSError as e:
+            return False, f"write failed for {rel!r}: {e}", written
+        written.append(rel)
+    return True, "", written
+
+
 def _rollback_phase(slug: str, phase_number: int,
                     target_files: list[str]) -> bool:
     """Revert per-phase targets to the per-phase start tag. Returns success."""
@@ -777,13 +951,28 @@ def _rollback_phase(slug: str, phase_number: int,
     r = _git("rev-parse", "--verify", tag, check=False)
     if r.returncode != 0:
         return False
-    # Restore each target (--worktree + --staged)
+    # Restore each target. Files that existed at the tag are restored; files
+    # the delegate newly CREATED (absent at the tag — common with full-file
+    # output) are deleted, since `git restore` can't revert a non-existent
+    # path.
     for target in target_files:
-        try:
-            _git("restore", f"--source={tag}", "--worktree", "--staged",
-                 "--", target)
-        except RuntimeError:
-            return False
+        existed = _git("cat-file", "-e", f"{tag}:{target}",
+                       check=False).returncode == 0
+        if existed:
+            try:
+                _git("restore", f"--source={tag}", "--worktree", "--staged",
+                     "--", target)
+            except RuntimeError:
+                return False
+        else:
+            p = _PROJECT_ROOT / target.lstrip("./").lstrip("/")
+            try:
+                if p.is_file():
+                    p.unlink()
+            except OSError:
+                return False
+            _git("rm", "-f", "--cached", "--ignore-unmatch", "--", target,
+                 check=False)
     # Delete the tag (rollback complete)
     _git("tag", "-d", tag, check=False)
     return True
@@ -843,27 +1032,35 @@ def _delegate_phase(phase: "Phase", plan_text: str,
     try:
         llm_output = llm_generate(
             prompt=prompt,
-            system="You are a coding assistant. Follow the rules in "
-                   "the coding-llm-prompt scaffold above. Output a "
-                   "unified diff in a fenced ```diff block.",
+            system="You are a coding assistant. Follow the rules in the "
+                   "coding-llm-prompt scaffold above. " + FILE_OUTPUT_INSTRUCTION,
             agent_id=AGENT_NAME,
             model=_delegate_model(),
         )
     except Exception as e:
         return False, f"llm_generate raised: {e}"
 
-    diff = _extract_diff(llm_output)
-    if not diff:
-        return False, "llm refused or output had no diff block"
-
-    ok, err = _apply_diff(diff)
-    if not ok:
-        return False, err
+    # Prefer full-file blocks (robust); fall back to a unified diff.
+    files = _extract_files(llm_output)
+    if files:
+        ok, err, written = _write_files(files)
+        if not ok:
+            _rollback_phase(slug, phase.number, phase.target_files)
+            return False, err
+        rollback_targets = sorted(set(phase.target_files) | set(written))
+    else:
+        diff = _extract_diff(llm_output)
+        if not diff:
+            return False, "llm output had neither FILE blocks nor a diff block"
+        ok, err = _apply_diff(diff)
+        if not ok:
+            return False, err
+        rollback_targets = list(phase.target_files)
 
     # Re-run the gate (subset — just the cheap steps)
     quick_results = run_gate()
     if not all(r.passed for r in quick_results):
-        _rollback_phase(slug, phase.number, phase.target_files)
+        _rollback_phase(slug, phase.number, rollback_targets)
         return False, "gate-fail (rolled back)"
 
     # ER gap 6: also evaluate the phase's acceptance claims after the
@@ -876,7 +1073,7 @@ def _delegate_phase(phase: "Phase", plan_text: str,
             res = _check_acceptance(
                 claim, _PROJECT_ROOT, _DEFAULT_TIMEOUT_SEC)
             if not res.passed:
-                _rollback_phase(slug, phase.number, phase.target_files)
+                _rollback_phase(slug, phase.number, rollback_targets)
                 return False, (
                     f"acceptance-fail (rolled back): {claim.raw_line!r} → "
                     f"{res.reason_if_failed}"
@@ -1157,6 +1354,10 @@ def supervise(feature_file: Path, skip_gate: bool,
               f"{len(p.target_files)} target file(s){tag_str}")
     print(f"[{AGENT_NAME}] deny-list entries: {len(deny_list)}; "
           f"load-bearing hits: {len(deny_hits)}")
+
+    # Record the competency-matrix resolution into the harness log (§5.1) so a
+    # human can review which skills each phase's delegate receives.
+    _append_resolved_competencies(phases)
 
     # ---- ER: plan-completeness guard (MISSING_ACCEPTANCE) ----
     # An open phase (not DONE) lacking an Acceptance block AND lacking

@@ -49,6 +49,27 @@ if [ "$SKIP_GATE" = "yes" ]; then
     MODE_STR="$MODE_STR; --skip-gate: gate skipped (parse + classify + acceptance only)"
 fi
 
+# --- Skill / reference files the plan wires into delegate prompts ---------
+# Delegation injects context as DIRECT TEXT (no RAG): per phase, every target
+# file's contents are inlined. We surface the skill/reference files the plan
+# names so a human can review that each phase carries the skills it needs.
+_FF=""
+if [ -n "$FEATURE_FILE" ]; then
+    if [ -f "$FEATURE_FILE" ]; then _FF="$FEATURE_FILE"
+    elif [ -f "$REPO_ROOT/$FEATURE_FILE" ]; then _FF="$REPO_ROOT/$FEATURE_FILE"; fi
+fi
+SKILLS_RAW=""
+if [ -n "$_FF" ]; then
+    SKILLS_RAW="$(grep -oE '`[^`]+`' "$_FF" 2>/dev/null | tr -d '`' \
+        | grep -E 'config/skills/|unix-filesystem/|test-suite/library_reference/' \
+        | sort -u)"
+fi
+if [ -n "$SKILLS_RAW" ]; then
+    SKILLS_MD="$(printf '%s\n' "$SKILLS_RAW" | sed 's/^/- `/; s/$/`/')"
+else
+    SKILLS_MD="- (none referenced in the plan beyond the always-injected context above)"
+fi
+
 # --- Write the harness-structure record (first thing) --------------------
 TS="$(date +"%Y-%m-%d-%H-%M")"
 LOG_DIR="$REPO_ROOT/logs"
@@ -174,13 +195,30 @@ L1 Business
   contract (under Profile-P the Coder step is a no-op — code exists; the
   Validator step is `pycsl --proof` + `bin/run-reference-tests.sh`).
 
----
-*Reference: `config/skills/project-lifecycle/references/feature-plan-submission.md`
-(submission workflow) and `config/agents/skill-agents.md` (agent catalog).*
 EOF
+    # Section 5 — skills/context provided to delegates (dynamic; printf so
+    # literal backticks survive). Lets a human review which skills reach agents.
+    printf '\n## 5. Skills & reference context (for human review)\n\n'
+    printf 'Delegated phases receive context as DIRECT TEXT — no RAG retrieval. Each\n'
+    printf 'delegate prompt is the persona + coding scaffold + the phase body + the\n'
+    printf 'verbatim contents of that phase'\''s target files. Always injected:\n\n'
+    printf -- '- `config/agents/agent-feature-supervisor.md` — supervisor ER persona\n'
+    printf -- '- `config/skills/agent-stdlib-annotate/references/coding-llm-prompt.md` — coding scaffold\n\n'
+    printf 'Skill / reference files this plan wires in (inlined only into the phases that\n'
+    printf 'list them as targets — review that each phase carries the skills it needs):\n\n'
+    printf '%s\n' "$SKILLS_MD"
+    printf '\n> To give an agent a skill, list the skill/reference file as a (read-only)\n'
+    printf '> target in the phase. See `config/skills/project-lifecycle/references/feature-plan-submission.md`\n'
+    printf '> \xC2\xA7"Giving an agent its skills (context, not RAG)".\n'
+    printf '\n---\n'
+    printf '*Reference: `config/skills/project-lifecycle/references/feature-plan-submission.md`\n'
+    printf '(submission workflow) and `config/agents/skill-agents.md` (agent catalog).*\n'
 } >"$STRUCT_FILE" 2>/dev/null || echo "[agent-feature-supervisor] WARNING: could not write $STRUCT_FILE" >&2
 
 echo "[agent-feature-supervisor] harness structure -> ${STRUCT_FILE#"$REPO_ROOT"/}"
 
 # --- Launch the supervisor ----------------------------------------------
+# Hand the log path to the Python side so it can append the resolved
+# competency matrix (§5.1) once phases + their **Level:** tags are parsed.
+export PYCSL_HARNESS_LOG="$STRUCT_FILE"
 exec python3 "$REPO_ROOT/src/pycsl/agents/agent-feature-supervisor.py" "$@"
