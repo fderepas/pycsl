@@ -239,8 +239,10 @@ def fsum(iterable: int) -> int:
 
 #@ \trusted
 #@ ensures \result >= 0
-def hypot(coordinates: int) -> int:
-    """Mock: return the Euclidean norm of an iterable of coordinates."""
+def hypot(x: int, y: int) -> int:
+    """Mock: Euclidean norm. `math.hypot` is variadic; this stub models the
+    common two-argument case so demos can call `hypot(x, y)` (a unary signature
+    caused `int -> int applied to 2 arguments`)."""
     return 0
 
 #@ \trusted
@@ -372,19 +374,12 @@ def factorial(n: int) -> int:
 
 #@ \trusted reviewer: python-stdlib
 # cite: https://docs.python.org/3/library/math.html#math.gcd
-#@ requires integers >= 0
+#@ requires a >= 0 and b >= 0
 #@ ensures \result >= 0
-#@ ensures \result <= integers
-def gcd(integers: int) -> int:
-    """Mock: return the greatest common divisor of the integer arguments.
-
-    Real Python's math.gcd takes *integers (variadic). The
-    PyCSL stub signature uses a single int parameter
-    (`integers: int`) as a placeholder; the contract here
-    captures the single-argument case: gcd(n) == n for n >= 0
-    (per CPython source: gcd() with one arg returns the arg's
-    absolute value). The `requires integers >= 0` matches
-    Python's behavior on non-negative inputs.
+def gcd(a: int, b: int) -> int:
+    """Mock: greatest common divisor. `math.gcd` is variadic; this stub models
+    the common two-argument case so demos can call `gcd(a, b)` (a unary
+    signature caused `int -> int applied to 2 arguments`). gcd is non-negative.
     """
     return 0
 
@@ -396,8 +391,10 @@ def isqrt(n: int) -> int:
 
 #@ \trusted
 #@ ensures \result >= 0
-def lcm(integers: int) -> int:
-    """Mock: return the least common multiple of the integer arguments."""
+def lcm(a: int, b: int) -> int:
+    """Mock: least common multiple. `math.lcm` is variadic; this stub models the
+    common two-argument case so demos can call `lcm(a, b)` (a unary signature
+    caused `int -> int applied to 2 arguments`)."""
     return 0
 
 #@ \trusted
