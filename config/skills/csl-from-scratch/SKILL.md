@@ -374,6 +374,28 @@ Load the file that matches what you're about to do:
   for body. The plan was directionally right (the feature was
   worth adding) but the verification expectation needed
   updating.
+- **Reasoning over an opaque value when a concrete lowering
+  exists.** If a Python expression is concrete (a class constant,
+  a slice, a packed-int field) but lowers to an uninterpreted
+  `val` (`getattr_<cls>`, `array_slice`, an unwatched
+  `struct.unpack`), every functional goal over it is unprovable —
+  or vacuously "true" if the spec itself degenerated (e.g.
+  `\array_eq` outside the `hoare` model). Lower to the literal /
+  `Array.sub` / `Array.blit` / arithmetic form instead. See
+  [`references/cross-cutting-concerns.md`](references/cross-cutting-concerns.md)
+  §"Keep values prover-known".
+- **Gaming an acceptance claim.** An `**Acceptance:**` claim is the
+  phase's definition of done; the change that closes it must be the
+  feature it stands for, not a shortcut that flips the bit. A claim
+  `pycsl.py NNNN.py exits 0` is satisfiable by *any* verifying file
+  — so the fixture must genuinely exercise the new capability, and
+  you should confirm the mechanism in the emitted artifact (e.g.
+  Phase-0 class constants: `0440.py` references `self.CAP` and the
+  `.mlw` shows it lowered to `(64)`, not a `getattr`). The honest
+  signal that a claim is real: it FAILS before the feature and
+  PASSES *because* of it. A claim that already passes against an
+  existing artifact (a regression guard) and one that fails until
+  built do different jobs — keep both, don't conflate.
 
 ---
 

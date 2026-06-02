@@ -287,6 +287,67 @@ class FunctionEmissionMixin:
             lines.append("")
         return lines
 
+    def _emit_subtyping_goals(self, functions: List[Dict[str, Any]]) -> List[str]:
+        """Layer D — emit a Liskov refinement goal per overriding method.
+
+        For `Sub.m` overriding `Base.m`, prove
+        `(pre_base -> pre_sub) /\\ (post_sub -> post_base)`: the override may
+        only WEAKEN the precondition and STRENGTHEN the postcondition. An
+        override that strengthens a precondition (or weakens a postcondition)
+        leaves an unprovable goal, so verification fails — the substitutability
+        contract is enforced mechanically.
+        """
+        overrides = self.ir.get("overrides", [])
+        if not overrides:
+            return []
+        by_name = {f["name"]: f for f in functions}
+        out: List[str] = []
+        for ov in overrides:
+            sub_fn = by_name.get(ov["sub_method"])
+            base_fn = by_name.get(ov["base_method"])
+            if sub_fn and base_fn:
+                out += self._render_refinement_goal(ov, sub_fn, base_fn)
+        return out
+
+    def _render_refinement_goal(self, ov: Dict[str, Any], sub_fn: Dict[str, Any],
+                                base_fn: Dict[str, Any]) -> List[str]:
+        # Reuse the normal method setup so `self.field`, params, and `\result`
+        # render exactly as in the method's own contract.
+        local_refs, ghost_vars = self._reset_function_state(sub_fn, sub_fn["body"])
+        _ref_params, args_str = self._build_param_list(sub_fn, local_refs, ghost_vars)
+        ret = self._compute_return_type(sub_fn, sub_fn["body"])
+        self._in_spec = True
+
+        def conj(exprs: List[Any]) -> str:
+            parts = [self._expr_to_whyml(e, set()) for e in (exprs or [])]
+            parts = [p for p in parts if p and p != "true"]
+            return " /\\ ".join(f"({p})" for p in parts) if parts else "true"
+
+        sub_c = sub_fn.get("contracts", {})
+        base_c = base_fn.get("contracts", {})
+        base_pre = conj(base_c.get("requires", []))
+        sub_pre = conj(sub_c.get("requires", []))
+        sub_post = conj(sub_c.get("ensures", []))
+        base_post = conj(base_c.get("ensures", []))
+        self._in_spec = False
+
+        # Convert function-style binders "(self: sub) (x: int)" into Why3
+        # quantifier form "self: sub, x: int" (only the top-level parens are
+        # stripped, so a nested `map int (option int)` type survives intact).
+        core = args_str.strip()
+        if core.startswith("(") and core.endswith(")"):
+            core = core[1:-1]
+        binders = core.replace(") (", ", ")
+        if ret not in ("()", "unit", ""):
+            binders += f", result: {ret}"
+        gname = whyml_ident(f"{ov['sub_method']}_refines_{ov['base_type']}")
+        return [
+            f"  goal {gname} :",
+            f"    forall {binders}.",
+            f"    (({base_pre}) -> ({sub_pre})) /\\ (({sub_post}) -> ({base_post}))",
+            "",
+        ]
+
     def _build_method_return_type_map(self, functions: List[Dict[str, Any]]) -> Dict[str, str]:
         """Map method name (un-prefixed, e.g. `_emit_contracts`) → declared
         WhyML return type, used by `_handle_dotted_call` to pick the right

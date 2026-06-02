@@ -27,9 +27,13 @@ class Module6_WhyMLTranspiler(
 
     def __init__(self, json_ir: str, memory_model: str = "hoare",
                  strict_no_exception_propagation: bool = False,
-                 strict_hash_eq_consistency: bool = False) -> None:
+                 strict_hash_eq_consistency: bool = False,
+                 check_behavioral_subtyping: bool = False) -> None:
         self.ir = json.loads(json_ir)
         self.memory_model = memory_model   # "hoare" | "typed" | "store"
+        # Layer D — emit Liskov refinement goals for overriding methods
+        # (pre_base ⇒ pre_sub, post_sub ⇒ post_base). Default off.
+        self.check_behavioral_subtyping = bool(check_behavioral_subtyping)
         # Workplan PR 4 — strict mode flips the ambient default at
         # call sites: unannotated callees produce a hard VC under any
         # caller that has `no_exception` set. Default off.
@@ -42,6 +46,8 @@ class Module6_WhyMLTranspiler(
         self._abstract_ops: Dict[str, str] = {}  # Abstract val declarations: name → full decl string
         self._record_types: Dict[str, Any] = {}  # class_name_lower → {fields: [...], defaults: {...}}
         self._class_constants: Dict[str, Dict[str, int]] = {}  # class_name_lower → {CONST: int literal}
+        self._ambiguous_fields: Set[str] = set()  # field names shared by >1 record → qualified labels
+        self._emit_record_ctx: Optional[str] = None  # record name (lower) during invariant/witness emission
         self._shared_var_names: Set[str] = set()  # Module-level shared variable names (concurrent model)
         self._havoc_counter: int = 0             # Counter for unique havoc variable names
         self._in_spec: bool = False              # True when emitting contracts (no div-by-zero VCs)
@@ -348,6 +354,9 @@ class Module6_WhyMLTranspiler(
         sorted_functions, scc_info = sort_functions_by_scc(functions)
         for func in sorted_functions:
             out += self._emit_function(func, scc_info)
+
+        if self.check_behavioral_subtyping:
+            out += self._emit_subtyping_goals(functions)
 
         out.append("end")
         self._insert_abstract_val_block(out)

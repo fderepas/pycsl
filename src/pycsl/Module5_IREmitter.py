@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import copy
 import json
 from typing import Any, Dict, List, Optional, Set, Tuple
 from errors import PyCSLIRError
@@ -1062,10 +1063,58 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
                                 field_defaults[stmt.target.attr] = int(stmt.value.value)
         return fields, field_defaults
 
+    @staticmethod
+    def _const_int_value(value: ast.expr) -> Optional[int]:
+        """Return the int value of a constant expr (incl. unary -N), else None."""
+        if isinstance(value, ast.Constant) and isinstance(value.value, int) \
+                and not isinstance(value.value, bool):
+            return int(value.value)
+        if (isinstance(value, ast.UnaryOp) and isinstance(value.op, ast.USub)
+                and isinstance(value.operand, ast.Constant)
+                and isinstance(value.operand.value, int)
+                and not isinstance(value.operand.value, bool)):
+            return -int(value.operand.value)
+        return None
+
+    def _collect_class_constants(self, node: ast.ClassDef,
+                                 field_names: Set[str]) -> Dict[str, int]:
+        """Collect class-body integer constants (`CAP = 64`, `O_EXCL = 128`).
+
+        Only top-level `Name = <int literal>` / `Name: T = <int literal>`
+        assignments in the class body are taken; names already used as
+        instance fields (from __init__) are skipped. These let `self.CONST`
+        lower to its literal in Module 6 instead of an opaque getattr.
+        """
+        constants: Dict[str, int] = {}
+        for child in node.body:
+            target: Optional[str] = None
+            value: Optional[ast.expr] = None
+            if (isinstance(child, ast.Assign) and len(child.targets) == 1
+                    and isinstance(child.targets[0], ast.Name)):
+                target = child.targets[0].id
+                value = child.value
+            elif isinstance(child, ast.AnnAssign) and isinstance(child.target, ast.Name):
+                target = child.target.id
+                value = child.value
+            if target is None or value is None or target in field_names:
+                continue
+            iv = self._const_int_value(value)
+            if iv is not None:
+                constants[target] = iv
+        return constants
+
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
-        """Collect fields from __init__, extract class invariants, and emit a type_decl record."""
+        """Collect fields from __init__, extract class invariants, record base
+        classes, and emit a type_decl record.
+
+        Inheritance (Layer B+C) is applied as a separate IR→IR pass
+        (`_apply_inheritance` in pycsl.py) AFTER cross-module import resolution,
+        so a base class defined in another module is available before the merge.
+        Here we only record the base names in the type_decl.
+        """
         self._current_class = node.name
         fields, field_defaults = self._collect_class_fields(node)
+        bases = [b.id for b in node.bases if isinstance(b, ast.Name)]
         # UB-7.2 — track presence of __hash__ / __eq__ so Module 6 can
         # emit the consistency goal in the preamble.
         method_names = {
@@ -1073,15 +1122,17 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
         }
         has_hash = "__hash__" in method_names
         has_eq = "__eq__" in method_names
-        if fields:
+        if fields or bases:
             class_invariants_ir = [self._csl_to_ir(inv.expr)
                                    for inv in getattr(node, 'csl_class_invariants', [])]
             field_witness = {f["name"]: field_defaults.get(f["name"], 0) for f in fields}
+            constants = self._collect_class_constants(node, {f["name"] for f in fields})
             self.program_ir["type_decls"].append({
                 "kind": "record", "name": node.name, "fields": fields,
                 "class_invariants": class_invariants_ir, "field_defaults": field_witness,
                 "has_hash": has_hash, "has_eq": has_eq,
                 "is_unhashable": has_eq and not has_hash,
+                "constants": constants, "bases": bases,
             })
         self.generic_visit(node)
         self._current_class = None

@@ -637,8 +637,10 @@ class ExpressionEmissionMixin:
             return self._handle_dotted_call(func_name, args)
         if func_name in self._record_types and len(args) == 0:
             rec_info = self._record_types[func_name]
+            rec_lower = func_name.lower()
             field_inits = "; ".join(
-                f"{fn} = {rec_info['defaults'].get(fn, 0)}" for fn in rec_info["fields"]
+                f"{self._field_label(rec_lower, fn)} = {rec_info['defaults'].get(fn, 0)}"
+                for fn in rec_info["fields"]
             )
             return f"{{ {field_inits} }}"
         # Bytes-producing methods (`b.encode()`, `b.ljust()`, ...) reach
@@ -809,15 +811,28 @@ class ExpressionEmissionMixin:
         self._add_abstract_op(f"val constant {safe} : int")
         return safe
 
+    def _field_label(self, record_lower: Optional[str], field: str) -> str:
+        """WhyML label for a record field. Ambiguous names (shared by >1
+        record, e.g. an inherited field) are qualified `<record>_<field>` to
+        avoid Why3's global field-label collision; unique names stay bare."""
+        base = whyml_ident(field)
+        if field in getattr(self, "_ambiguous_fields", set()) and record_lower:
+            return f"{whyml_ident(record_lower)}_{base}"
+        return base
+
     def _handle_field_get_expr(self, expr: Dict[str, Any], invariant_ctx: bool) -> str:
         if invariant_ctx:
-            return expr['field']
+            return self._field_label(self._emit_record_ctx, expr['field'])
         obj = expr['object']
         field = expr['field']
-        safe_field = whyml_ident(field)
+        # Class-body integer constant referenced as `self.CONST` → its literal.
+        self_type = self._current_self_type
+        if (obj == "self" and self_type
+                and field in self._class_constants.get(self_type, {})):
+            return f"({self._class_constants[self_type][field]})"
         decl_fields = self._all_record_fields
         if field in decl_fields:
-            return f"{obj}.{safe_field}"
+            return f"{obj}.{self._field_label(self_type, field)}"
         hash_field = hash(field) % 2147483647
         self_type = self._current_self_type
         if obj == "self" and self_type:

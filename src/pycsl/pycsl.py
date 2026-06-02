@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import ast as _ast
+import copy
 import hashlib
 import json as _json
 import os
@@ -298,6 +299,145 @@ def _resolve_module_imports(module_imports: List[Any], all_calls: Set[str], main
     return imported_names
 
 
+def _resolve_imported_classes(direct_imports: List[Any], main_file: str,
+                              ir_data: Dict[str, Any], deep: bool,
+                              cache: Dict[str, Any],
+                              processing_set: Set[str]) -> Set[str]:
+    """Layer A — cross-module class resolution.
+
+    For each `from mod import ClassName`, if `ClassName` is a class in the
+    dependency (it has a `type_decl` record there), inject that record —
+    its fields, defaults, and class invariants — into the importing module's
+    IR, plus the class's `<class>__*` methods as trusted stubs. This lets the
+    importer construct the class (record construction with the imported
+    defaults) and read its fields concretely, rather than via opaque ops.
+    Returns the set of class names injected.
+    """
+    from collections import defaultdict
+    added: Set[str] = set()
+    by_module = defaultdict(list)
+    for local, original, module_path, level in direct_imports:
+        by_module[(module_path, level)].append((local, original))
+
+    existing_types = {td.get("name") for td in ir_data.get("type_decls", [])}
+    existing_funcs = {f["name"] for f in ir_data["functions"]}
+
+    for (module_path, level), names in by_module.items():
+        resolved = _resolve_module_path(module_path, level, main_file)
+        if resolved is None:
+            continue
+        # Process + cache the dependency (no specific functions requested —
+        # we read its type_decls directly from the cached IR).
+        _process_dependency(resolved, [], cache, deep=deep,
+                            processing_set=processing_set)
+        dep_ir = cache.get(os.path.abspath(resolved))
+        if not dep_ir:
+            continue
+        dep_types = {td.get("name"): td for td in dep_ir.get("type_decls", [])}
+        dep_funcs = {f["name"]: f for f in dep_ir.get("functions", [])}
+        for local, orig in names:
+            if orig not in dep_types or local in existing_types:
+                continue
+            td = dict(dep_types[orig])
+            td["name"] = local  # honour `import Cls as Alias`
+            ir_data.setdefault("type_decls", []).append(td)
+            existing_types.add(local)
+            added.add(local)
+            # Methods are mangled `<class_lower>__<method>`. Inject them as
+            # trusted stubs in the un-aliased case (the mangling still matches
+            # the record name); an alias would need re-mangling (deferred).
+            injected_methods = 0
+            if local == orig:
+                prefix = f"{orig.lower()}__"
+                for fname, f in dep_funcs.items():
+                    if fname.startswith(prefix) and fname not in existing_funcs:
+                        mf = dict(f)
+                        mf["trusted"] = True
+                        ir_data["functions"].insert(0, mf)
+                        existing_funcs.add(fname)
+                        injected_methods += 1
+            print(f"[*] Imported class from '{module_path}': {local} "
+                  f"(record + {injected_methods} method stub(s))")
+    return added
+
+
+def _apply_inheritance(ir_data: Dict[str, Any]) -> None:
+    """Layers B+C — merge each subclass's base(s) into it at the IR level.
+
+    Runs AFTER import resolution, so same-file AND imported bases are present.
+    For each record `type_decl` carrying `bases`, merge the base's fields
+    (union; subclass wins on name collision), class invariants (conjunction),
+    field defaults and constants (union), and monomorphize the base's methods
+    onto the subclass (clone the method IR, rename `<sub>__m`, re-type `self`).
+    A method body refers to its own state via the self-relative `self.x` /
+    `self.m(...)` forms, so re-typing the clone is enough — they re-resolve
+    against the subclass record. Idempotent (a merged `bases` list is cleared);
+    base classes are merged before the subclasses that extend them.
+    """
+    type_decls = ir_data.get("type_decls", [])
+    records = {td["name"]: td for td in type_decls if td.get("kind") == "record"}
+    funcs = ir_data.setdefault("functions", [])
+
+    def merge_one(td: Dict[str, Any]) -> None:
+        if not td.get("bases"):
+            return
+        sub = td["name"]
+        own_field_names = {f["name"] for f in td["fields"]}
+        existing_func_names = {f.get("name") for f in funcs}
+        prefix_sub = f"{sub.lower()}__"
+        own_tails = {f["name"][len(prefix_sub):] for f in funcs
+                     if f.get("name", "").startswith(prefix_sub)}
+        merged_fields: List[Dict[str, Any]] = []
+        seen: Set[str] = set()
+        merged_invs: List[Dict[str, Any]] = []
+        merged_defaults: Dict[str, Any] = {}
+        merged_consts: Dict[str, Any] = {}
+        for bname in td["bases"]:
+            base = records.get(bname)
+            if base is None:
+                continue
+            if base.get("bases"):
+                merge_one(base)  # resolve the chain first
+            for f in base["fields"]:
+                if f["name"] not in seen and f["name"] not in own_field_names:
+                    merged_fields.append(f)
+                    seen.add(f["name"])
+            merged_invs += base.get("class_invariants", [])
+            merged_defaults.update(base.get("field_defaults", {}))
+            merged_consts.update(base.get("constants", {}))
+            prefix_base = f"{bname.lower()}__"
+            for fn in list(funcs):
+                name = fn.get("name", "")
+                if not name.startswith(prefix_base):
+                    continue
+                tail = name[len(prefix_base):]
+                new_name = f"{sub.lower()}__{tail}"
+                if tail in own_tails:
+                    # Subclass overrides this base method — record the pair so
+                    # `--check-behavioral-subtyping` can emit a Liskov goal.
+                    ir_data.setdefault("overrides", []).append({
+                        "sub_method": new_name, "base_method": name,
+                        "sub_type": sub.lower(), "base_type": bname.lower(),
+                    })
+                    continue
+                if new_name in existing_func_names:
+                    continue
+                clone = copy.deepcopy(fn)
+                clone["name"] = new_name
+                clone["self_type"] = sub
+                funcs.append(clone)
+                existing_func_names.add(new_name)
+                own_tails.add(tail)
+        td["fields"] = merged_fields + td["fields"]
+        td["class_invariants"] = merged_invs + td.get("class_invariants", [])
+        td["field_defaults"] = {**merged_defaults, **td.get("field_defaults", {})}
+        td["constants"] = {**merged_consts, **td.get("constants", {})}
+        td["bases"] = []  # mark merged
+
+    for td in list(records.values()):
+        merge_one(td)
+
+
 def _resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, Any],
                      deep: bool = False, cache: Optional[Dict[str, Any]] = None,
                      processing_set: Optional[Set[str]] = None) -> Set[str]:
@@ -326,6 +466,10 @@ def _resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str,
                       for l, o, m, lv, is_mod in imports if is_mod]
 
     imported_names = set()
+    # Layer A: imported CLASSES (records + method stubs) — run first so a
+    # later function-stub pass doesn't mis-handle a class name as a function.
+    imported_names |= _resolve_imported_classes(
+        direct_imports, main_file, ir_data, deep, cache, processing_set)
     imported_names |= _resolve_direct_imports(
         direct_imports, all_calls, main_file, ir_data, deep, cache, processing_set)
     imported_names |= _resolve_wildcard_imports(
@@ -539,6 +683,12 @@ def _parse_args() -> argparse.Namespace:
                              "Why3 goal that must be discharged (typically via "
                              "an external proof citation). Off by default — emits "
                              "as an axiom and trusts the user.")
+    parser.add_argument("--check-behavioral-subtyping", action="store_true",
+                        help="Layer D: emit Liskov refinement goals for "
+                             "overriding methods (pre_base ⇒ pre_sub, "
+                             "post_sub ⇒ post_base). Fails if an override "
+                             "strengthens a precondition or weakens a "
+                             "postcondition.")
     parser.add_argument("--strict-no-exception-propagation", action="store_true",
                         help="(Experimental, off by default.) Under `no_exception` "
                              "treat unannotated callees pessimistically: any call "
@@ -649,8 +799,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
 
     # Multi-file import resolution
     imported_names = _resolve_imports(validated_ast, args.file, ir_data, deep=args.deep)
-    if imported_names:
-        json_ir = _json.dumps(ir_data)
+    # Layers B+C — apply class inheritance (same-file + imported) as an IR pass,
+    # then re-sync json_ir (Module 6 is built from it).
+    _apply_inheritance(ir_data)
+    json_ir = _json.dumps(ir_data)
 
     # --fun filter: mark non-selected functions as trusted
     if args.fun:
@@ -686,6 +838,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         json_ir, memory_model=memory_model,
         strict_no_exception_propagation=getattr(args, "strict_no_exception_propagation", False),
         strict_hash_eq_consistency=getattr(args, "strict_hash_eq_consistency", False),
+        check_behavioral_subtyping=getattr(args, "check_behavioral_subtyping", False),
     )
     return transpiler.transpile()
 

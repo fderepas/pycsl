@@ -526,6 +526,17 @@ class PreambleEmissionMixin:
         """Emit record type declarations. Returns (lines, declared_types)."""
         out: List[str] = []
         declared_types: Set[str] = set()
+        # WhyML record field labels are global within a scope, so a field name
+        # used by more than one record (e.g. an inherited field present in both
+        # `base` and `sub`) collides. Qualify only those ambiguous names as
+        # `<record>_<field>`; unique field names stay bare so existing
+        # single-record files emit byte-identically (zero regression).
+        _field_counts: Dict[str, int] = {}
+        for _td in type_decls:
+            if _td.get("kind") == "record":
+                for _f in _td["fields"]:
+                    _field_counts[_f["name"]] = _field_counts.get(_f["name"], 0) + 1
+        self._ambiguous_fields = {fn for fn, c in _field_counts.items() if c > 1}
         n = len(type_decls)
         i = 0
         while i < n:
@@ -539,6 +550,11 @@ class PreambleEmissionMixin:
                     "field_types": {f["name"]: f.get("type", "int") for f in td["fields"]},
                     "defaults": td.get("field_defaults", {}),
                 }
+                # Class-body integer constants (e.g. `CAP = 64`) — resolved to
+                # literals when referenced as `self.CONST` in a method/contract.
+                consts = td.get("constants", {})
+                if consts:
+                    self._class_constants[type_name] = dict(consts)
                 field_strs = []
                 fields = td["fields"]
                 nf = len(fields)
@@ -562,12 +578,14 @@ class PreambleEmissionMixin:
                         # fall back to int rather than emitting an
                         # unbound type symbol.
                         ftype = "int"
-                    field_strs.append(f"{prefix}{f['name']}: {ftype}")
+                    field_strs.append(
+                        f"{prefix}{self._field_label(type_name, f['name'])}: {ftype}")
                     j += 1
                 out.append(f"  type {type_name} = {{ {'; '.join(field_strs)} }}")
                 class_invs = td.get("class_invariants", [])
                 if class_invs:
                     self._in_spec = True
+                    self._emit_record_ctx = type_name
                     n_inv = len(class_invs)
                     i_inv = 0
                     while i_inv < n_inv:
@@ -575,6 +593,7 @@ class PreambleEmissionMixin:
                         inv_str = self._expr_to_whyml(inv, set(), invariant_ctx=True)
                         out.append(f"    invariant {{ {inv_str} }}")
                         i_inv += 1
+                    self._emit_record_ctx = None
                     self._in_spec = False
                     defaults = td.get("field_defaults", {})
                     field_names = [f["name"] for f in td["fields"]]
@@ -598,7 +617,9 @@ class PreambleEmissionMixin:
                                 witness_vals = combo
                                 break
                             ic += 1
-                    out.append(f"    by {{ {self._build_witness_str(field_names, witness_vals, field_types, array_lengths)} }}")
+                    # Qualify ambiguous field names in the witness too.
+                    _q = lambda fn: self._field_label(type_name, fn)
+                    out.append(f"    by {{ {self._build_witness_str([_q(fn) for fn in field_names], {_q(fn): v for fn, v in witness_vals.items()}, {_q(fn): t for fn, t in field_types.items()}, {_q(fn): l for fn, l in array_lengths.items()})} }}")
                 out.append("")
                 # UB-7.2 — hash/eq consistency. Module 5 marks classes
                 # whose `__hash__` and `__eq__` are both defined.

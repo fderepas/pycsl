@@ -91,3 +91,59 @@ Cite [`docs/glossary/trusted-computing-base.md`](../../../../docs/glossary/trust
 
 Every assumption in the verifier maps to exactly one tier. The
 tier inventory is the README of the trust chain.
+
+## Keep values prover-known (the opacity squeeze)
+
+A functional proof can only constrain values the SMT prover can
+*see*. The recurring failure mode is an expression that lowers to
+an **opaque** symbol — an uninterpreted `val` whose value is
+unconstrained — so any goal that bounds or relates it is
+unprovable (or worse, *vacuously* discharged when the spec itself
+degenerated). Most "why won't this discharge?" debugging in PyCSL
+reduces to: something that is concrete in the Python is opaque in
+the WhyML. Prefer the concrete lowering at every step:
+
+- **Class-level constants → literals.** `self.CAP` for a class-body
+  `CAP = 64` lowers to the literal `(64)` (Module 5
+  `_collect_class_constants` → `type_decls[...]["constants"]`;
+  Module 6 `_handle_field_get_expr` resolves it via
+  `_class_constants`). Before this, a class constant was an opaque
+  `getattr_<cls>` and every bound against it failed — which is why
+  the de-trusted `UnixInodeFileSystem` had to hand-inline `512`
+  for `BLOCK_SIZE`. Now `self.CONST` is usable directly in
+  `requires`/`ensures`/bodies.
+- **Slice-read → `Array.sub`, slice-write → `Array.blit`.** Both
+  carry content postconditions (`result[i] = a[ofs+i]` /
+  `dst[dofs+i] = src[sofs+i]`), so a round-trip `sub(blit(x)) = x`
+  closes in pure Why3. An opaque `array_slice` val does not.
+- **Read packed integers arithmetically, not via `struct.unpack`
+  of unknown bytes.** `disk[o]*256 + disk[o+1]` keeps the value
+  concrete; `struct.unpack` of bytes the prover didn't watch a
+  matching `pack` write yields an opaque head.
+- **`\array_eq` (and any spec emitting a `forall`) is vacuous
+  outside the `hoare` memory model** — it lowers to `true` under
+  other models. Corpus tests that assert array equality MUST carry
+  `# pycsl-flags: --memory-model hoare`, or they pass while proving
+  nothing.
+- **A free function over a module-global object verifies only
+  *vacuously*.** Reads/calls on an undeclared global (`_fs.method()`,
+  `_fs.field[i]`) emit abstract `val` ops and pass with no real
+  obligation. The proven pattern for "self == a modeled object" is
+  a **self-contained class** that re-declares its fields + class
+  invariants (cf. corpus `0427`/`0428`); cross-file inheritance is
+  *not* modeled (`visit_ClassDef` ignores `node.bases`).
+
+Two contract idioms that exploit this:
+
+- **`raises X when C` does not validate `X`** against
+  `KNOWN_EXCEPTIONS` (only `no_exception` does). A plain
+  `raise X` in the body declares the WhyML exception via
+  `collect_user_exceptions`, so domain exceptions
+  (`FileNotFoundError`, …) work with no exception-model change.
+- **`assigns \nothing` buys referential transparency.** If a
+  pure helper `h(...)` is `assigns \nothing`, re-invoking it inside
+  a `raises … when h(...) …` clause equals the body's local binding
+  of the same call, so a raise guarded by exactly its `when`
+  condition discharges as a trivial `C → C`. The strong functional
+  spec of `h` is then needed only for *meaning*, not for the
+  raise-site VC.

@@ -1099,7 +1099,8 @@ def _print_halt(out: Path, exit_reason: str, exit_code: int,
 # ---------------------------------------------------------------------------
 
 def supervise(feature_file: Path, skip_gate: bool,
-              allow_llm_delegation: bool = False) -> int:
+              allow_llm_delegation: bool = False,
+              allow_load_bearing: bool = False) -> int:
     if not feature_file.is_file():
         print(f"[{AGENT_NAME}] error: feature file does not exist: "
               f"{feature_file}", file=sys.stderr)
@@ -1214,7 +1215,12 @@ def supervise(feature_file: Path, skip_gate: bool,
               "PASS" if all_pass else "FAIL")
         print(f"  [{tag}] Phase {p.number} — {len(p.acceptance)} claim(s)")
 
-    if acceptance_failures:
+    # In delegation mode the failing claims are exactly the work to be done,
+    # so don't halt here — fall through to delegation (its per-phase gate +
+    # rollback is the arbiter). CLAIM_REJECTED (an unsafe acceptance command)
+    # still halts: that is a malformed plan, not work to delegate.
+    _will_delegate = allow_llm_delegation and (not deny_hits or allow_load_bearing)
+    if acceptance_failures and (not _will_delegate or any_rejection):
         if any_rejection:
             reason_code = REASON_CLAIM_REJECTED
         elif any(p.status_done for (p, _) in acceptance_failures):
@@ -1288,15 +1294,20 @@ def supervise(feature_file: Path, skip_gate: bool,
     # flag is set AND there are no deny-list hits AND there are
     # phases that have target files.
     delegation_results: list[tuple[int, bool, str]] = []
-    if allow_llm_delegation and not deny_hits:
+    if allow_llm_delegation and (not deny_hits or allow_load_bearing):
         slug = _slug(feature_file.stem)
-        delegate_phases = [p for p in phases if p.target_files]
+        delegate_phases = [p for p in phases if p.target_files and not p.status_done]
+        if deny_hits and allow_load_bearing:
+            print(f"[{AGENT_NAME}] *** --allow-load-bearing: delegating "
+                  f"LOAD-BEARING phases to the coding LLM. Each edit must pass "
+                  f"the full gate or it is ROLLED BACK; surviving diffs STILL "
+                  f"REQUIRE human review before merge. ***")
         if not delegate_phases:
-            print(f"[{AGENT_NAME}] --allow-llm-delegation: no phases "
+            print(f"[{AGENT_NAME}] --allow-llm-delegation: no open phases "
                   f"with target files to delegate.")
         else:
             print(f"[{AGENT_NAME}] --allow-llm-delegation: delegating "
-                  f"{len(delegate_phases)} phases (LLM-driven; per-phase "
+                  f"{len(delegate_phases)} phase(s) (LLM-driven; per-phase "
                   f"git-tag rollback on gate failure).")
             for p in delegate_phases:
                 ok, msg = _delegate_phase(p, text, slug)
@@ -1313,7 +1324,7 @@ def supervise(feature_file: Path, skip_gate: bool,
             print(f"  [{mark}] {r.step}")
 
     # Decide exit
-    if deny_hits:
+    if deny_hits and not (allow_llm_delegation and allow_load_bearing):
         n = len(deny_hits)
         hit_phases = sorted({ph for ph, _, _ in deny_hits})
         reason = (
@@ -1409,9 +1420,20 @@ def main() -> int:
                         "to a coding LLM. Per-phase git-tag rollback on "
                         "gate failure. Default OFF (preserves gate-only "
                         "v1 behaviour).")
+    parser.add_argument("--allow-load-bearing", action="store_true",
+                        help="DANGER: with --allow-llm-delegation, also "
+                        "delegate phases that touch load-bearing files (the "
+                        "parser/IR/emitter). Each delegated edit must still "
+                        "pass the full gate or it is rolled back, and the "
+                        "surviving diff REQUIRES human review before merge. "
+                        "Relaxes the soundness perimeter — use deliberately.")
     args = parser.parse_args()
+    if args.allow_load_bearing and not args.allow_llm_delegation:
+        print(f"[{AGENT_NAME}] --allow-load-bearing has no effect without "
+              f"--allow-llm-delegation; nothing will be delegated.")
     return supervise(args.feature_file, args.skip_gate,
-                     allow_llm_delegation=args.allow_llm_delegation)
+                     allow_llm_delegation=args.allow_llm_delegation,
+                     allow_load_bearing=args.allow_load_bearing)
 
 
 if __name__ == "__main__":
