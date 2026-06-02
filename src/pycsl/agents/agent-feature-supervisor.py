@@ -239,6 +239,20 @@ def supervise(feature_file: Path, skip_gate: bool,
             if matched:
                 deny_hits.append((p.number, t, matched))
 
+    # L4 feature-rollout metrics: per-phase outcomes accumulated as the run
+    # proceeds; the run-summary is emitted on EVERY return path below.
+    phase_outcomes: Dict[int, str] = {}
+    accept_counts: Dict[int, Dict[str, int]] = {}
+    gate_results: List[GateResult] = []
+    delegation_results: list[tuple[int, bool, str]] = []
+
+    def _emit_summary(code: int, label: str) -> None:
+        write_feature_run_summary(
+            feature_file, phases, exit_code=code, outcome=label,
+            phase_outcomes=phase_outcomes, accept_counts=accept_counts,
+            gate_results=gate_results, delegation_results=delegation_results,
+            deny_hits=deny_hits)
+
     print(f"[{AGENT_NAME}] parsed {len(phases)} phases from {feature_file.name}")
     for p in phases:
         tags = []
@@ -290,12 +304,15 @@ def supervise(feature_file: Path, skip_gate: bool,
             missing_acceptance_phases=missing_acceptance,
             explanation=explanation,
         )
+        for mp in missing_acceptance:
+            phase_outcomes[mp.number] = "MISSING_ACCEPTANCE"
         _print_halt(out, reason, EXIT_HUMAN_NEEDED, explanation,
                     review=[("feature file", feature_file)])
         log(str(_PROJECT_ROOT), AGENT_NAME,
             f"HALT exit=75 feature={feature_file.name} "
             f"reason={REASON_MISSING_ACCEPTANCE} "
             f"missing={len(missing_acceptance)}")
+        _emit_summary(EXIT_HUMAN_NEEDED, "halted-missing-acceptance")
         return EXIT_HUMAN_NEEDED
 
     # ---- ER: acceptance evaluation ----
@@ -313,11 +330,13 @@ def supervise(feature_file: Path, skip_gate: bool,
     for p in phases:
         if p.optout_reason is not None:
             optout_count += 1
+            phase_outcomes[p.number] = "OPTOUT"
             print(f"  [OPTOUT] Phase {p.number} — "
                   f"reason: {p.optout_reason or '(unspecified)'}")
             continue
         if p.status_done and not p.acceptance:
             legacy_count += 1
+            phase_outcomes[p.number] = "LEGACY_ACCEPTED"
             print(f"  [LEGACY_ACCEPTED] Phase {p.number} — "
                   f"DONE without Acceptance block (grandfathered)")
             continue
@@ -325,17 +344,27 @@ def supervise(feature_file: Path, skip_gate: bool,
             # Shouldn't reach here: completeness guard caught it.
             continue
         all_pass = True
+        p_failed = 0
+        p_rejected = False
         for claim in p.acceptance:
             claims_evaluated += 1
             res = _check_acceptance(
                 claim, _PROJECT_ROOT, _DEFAULT_TIMEOUT_SEC)
             if not res.passed:
                 all_pass = False
+                p_failed += 1
                 acceptance_failures.append((p, res))
                 if res.reason_if_failed.startswith("CLAIM_REJECTED"):
                     any_rejection = True
+                    p_rejected = True
+        accept_counts[p.number] = {
+            "total": len(p.acceptance),
+            "passed": len(p.acceptance) - p_failed,
+            "failed": p_failed,
+        }
         tag = "STATUS_VERIFIED" if (p.status_done and all_pass) else (
-              "PASS" if all_pass else "FAIL")
+              "PASS" if all_pass else ("CLAIM_REJECTED" if p_rejected else "FAIL"))
+        phase_outcomes[p.number] = tag
         print(f"  [{tag}] Phase {p.number} — {len(p.acceptance)} claim(s)")
 
     # In delegation mode the failing claims are exactly the work to be done,
@@ -403,6 +432,7 @@ def supervise(feature_file: Path, skip_gate: bool,
             f"HALT exit=75 feature={feature_file.name} "
             f"reason={reason_code} "
             f"failures={n_fail}")
+        _emit_summary(EXIT_HUMAN_NEEDED, f"halted-{reason_code}")
         return EXIT_HUMAN_NEEDED
 
     if legacy_count:
@@ -435,6 +465,7 @@ def supervise(feature_file: Path, skip_gate: bool,
             for p in delegate_phases:
                 ok, msg = _delegate_phase(p, text, slug)
                 delegation_results.append((p.number, ok, msg))
+                phase_outcomes[p.number] = "PASS" if ok else "DELEGATION_FAIL"
                 status = "OK" if ok else "FAIL"
                 print(f"  Phase {p.number} {status}: {msg or 'delegated diff applied + gate green'}")
                 if not ok:
@@ -472,9 +503,12 @@ def supervise(feature_file: Path, skip_gate: bool,
         _print_halt(out, reason, EXIT_HUMAN_NEEDED, explanation,
                     review=[("deny-list", _LOAD_BEARING_FILE),
                             ("feature file", feature_file)])
+        for ph in hit_phases:
+            phase_outcomes.setdefault(ph, "LOAD_BEARING_HALT")
         log(str(_PROJECT_ROOT), AGENT_NAME,
             f"HALT exit=75 feature={feature_file.name} "
             f"deny_hits={n}")
+        _emit_summary(EXIT_HUMAN_NEEDED, "halted-load-bearing")
         return EXIT_HUMAN_NEEDED
 
     if gate_results and not all(r.passed for r in gate_results):
@@ -495,6 +529,7 @@ def supervise(feature_file: Path, skip_gate: bool,
                     review=[("feature file", feature_file)])
         log(str(_PROJECT_ROOT), AGENT_NAME,
             f"HALT exit=74 feature={feature_file.name} gate_fail")
+        _emit_summary(EXIT_GATE_FAIL, "halted-gate-fail")
         return EXIT_GATE_FAIL
 
     # 1.4a delegation result handling
@@ -517,6 +552,7 @@ def supervise(feature_file: Path, skip_gate: bool,
                     review=[("feature file", feature_file)])
         log(str(_PROJECT_ROOT), AGENT_NAME,
             f"HALT exit=74 feature={feature_file.name} delegation_fail")
+        _emit_summary(EXIT_GATE_FAIL, "halted-delegation-fail")
         return EXIT_GATE_FAIL
 
     # v1 success: no deny-list hits AND (gate skipped OR gate green).
@@ -528,6 +564,7 @@ def supervise(feature_file: Path, skip_gate: bool,
           f"Human implements phases manually; supervisor verifies after.")
     log(str(_PROJECT_ROOT), AGENT_NAME,
         f"OK feature={feature_file.name} phases={len(phases)}")
+    _emit_summary(EXIT_OK, "green")
     return EXIT_OK
 
 

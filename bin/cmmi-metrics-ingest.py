@@ -201,6 +201,134 @@ def _count_doc_coherency_events(window_days: float = 7.0) -> dict:
     }
 
 
+def _mean_max(xs: list) -> dict:
+    xs = [x for x in xs if x is not None]
+    if not xs:
+        return {"avg": None, "max": None, "samples": 0}
+    return {"avg": round(sum(xs) / len(xs), 3), "max": max(xs), "samples": len(xs)}
+
+
+def _rate(num: int, den: int):
+    return round(num / den, 4) if den else None
+
+
+def collect_agent_loop_kpis() -> dict:
+    """CMMI L4 agent-ecosystem KPIs, aggregated from the per-run summaries the
+    coordinator (metrics/run-summary/) and feature-supervisor
+    (metrics/feature-supervisor/<slug>/run-summary.json) emit.
+
+    Record-only: no control limits here — `cmmi-quantitative-mgmt` derives μ±3σ
+    once >=8 weekly snapshots accumulate. See
+    config/skills/cmmi-metrics-collection/references/agent-loop-kpis.md.
+    """
+    rs_dir = METRICS_SRC / "run-summary"
+    fs_dir = METRICS_SRC / "feature-supervisor"
+
+    # ---- Annotation-loop axis (coordinator) ----
+    attempts_used, halts = [], {"max-retries": 0, "loop-detected": 0, "ping-pong": 0}
+    redecompose_total = files = needing_reconcile = first_fix = 0
+    fc_by_class: dict = {}
+    fc_overall = {"correct": 0, "total": 0}
+    rocq = {"generated": 0, "completed": 0, "aborted": 0, "incomplete": 0}
+    rocq_retries: list = []
+    if rs_dir.is_dir():
+        for f in sorted(rs_dir.glob("*.json")):
+            try:
+                s = json.loads(f.read_text())
+            except Exception:
+                continue
+            files += 1
+            attempts_used.append(s.get("attempts_used"))
+            if s.get("outcome") in halts:
+                halts[s["outcome"]] += 1
+            loop = s.get("loop") or {}
+            redecompose_total += loop.get("redecompose_count", 0) or 0
+            if (s.get("attempts_used") or 0) >= 2:
+                needing_reconcile += 1
+                if s.get("outcome") == "passed" and s.get("attempts_used") == 2:
+                    first_fix += 1
+            fc = (s.get("fault_correctness") or {})
+            for cls, d in (fc.get("by_class") or {}).items():
+                slot = fc_by_class.setdefault(cls, {"correct": 0, "total": 0})
+                slot["correct"] += d.get("correct", 0)
+                slot["total"] += d.get("total", 0)
+            ov = fc.get("overall") or {}
+            fc_overall["correct"] += ov.get("correct", 0)
+            fc_overall["total"] += ov.get("total", 0)
+            rq = s.get("rocq") or {}
+            for k in ("generated", "completed", "aborted", "incomplete"):
+                rocq[k] += rq.get(k, 0) or 0
+            for ob in (rq.get("obligations") or []):
+                if ob.get("retries") is not None:
+                    rocq_retries.append(ob["retries"])
+    for cls, d in fc_by_class.items():
+        d["rate"] = _rate(d["correct"], d["total"])
+
+    # ---- Feature-rollout axis (supervisor) ----
+    runs = acc_passed = acc_total = delegated = rolled_back = lb_halts = 0
+    status_forged = 0
+    gate_pass = gate_fail = 0
+    rocq_citations = 0
+    if fs_dir.is_dir():
+        for f in sorted(fs_dir.glob("*/run-summary.json")):
+            try:
+                s = json.loads(f.read_text())
+            except Exception:
+                continue
+            runs += 1
+            if str(s.get("outcome", "")).startswith("halted-STATUS_FORGED"):
+                status_forged += 1
+            if s.get("outcome") == "halted-load-bearing":
+                lb_halts += 1
+            for ph in s.get("phases", []):
+                ac = ph.get("acceptance") or {}
+                acc_passed += ac.get("passed", 0) or 0
+                acc_total += ac.get("total", 0) or 0
+                if ph.get("rocq_citations"):
+                    rocq_citations += ph["rocq_citations"]
+            t = s.get("totals") or {}
+            delegated += t.get("delegated", 0) or 0
+            rolled_back += t.get("rolled_back", 0) or 0
+            for g in s.get("gate", []):
+                if g.get("skipped"):
+                    continue
+                if g.get("passed"):
+                    gate_pass += 1
+                else:
+                    gate_fail += 1
+
+    return {
+        "annotation_loop": {
+            "files": files,
+            "convergence_attempts": _mean_max(attempts_used),
+            "loop_detect_rate": _rate(halts["loop-detected"] + halts["ping-pong"], files),
+            "redecompose_rate": _rate(redecompose_total, files),
+            "first_fix_yield": _rate(first_fix, needing_reconcile),
+            "fault_correctness": {
+                "by_class": fc_by_class,
+                "overall": {**fc_overall, "rate": _rate(fc_overall["correct"], fc_overall["total"])},
+            },
+            "rocq": {
+                **rocq,
+                "completion_rate": _rate(rocq["completed"], rocq["generated"]),
+                "abort_rate": _rate(rocq["aborted"], rocq["generated"]),
+                "retries": _mean_max(rocq_retries),
+            },
+            "source_uri": str(rs_dir.relative_to(REPO_ROOT)) if rs_dir.is_dir() else None,
+        },
+        "feature_rollout": {
+            "runs": runs,
+            "acceptance_passrate": _rate(acc_passed, acc_total),
+            "gate_passrate": _rate(gate_pass, gate_pass + gate_fail),
+            "delegation_rollback_rate": _rate(rolled_back, delegated),
+            "loadbearing_halt_rate": _rate(lb_halts, runs),
+            "status_forged_rate": _rate(status_forged, runs),
+            "rocq_citations": rocq_citations,
+            "source_uri": str(fs_dir.relative_to(REPO_ROOT)) if fs_dir.is_dir() else None,
+        },
+    }
+
+
 def collect_global() -> dict:
     """KPIs that aren't per-system."""
     logs = METRICS_SRC / "logs"
@@ -239,6 +367,8 @@ def collect_global() -> dict:
     # 4.1B prep: new KPIs sourced from log content
     out["coordinator_retries_week"] = _collect_coordinator_retries(7.0)
     out["doc_coherency_events_week"] = _count_doc_coherency_events(7.0)
+    # L4 agent-ecosystem KPIs from the per-run summaries.
+    out["agent_loop_kpis"] = collect_agent_loop_kpis()
     return out
 
 

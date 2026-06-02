@@ -345,13 +345,31 @@ class CoordinatorAgent:
 
     # ------------------------------------------------------------------ Rocq fallback
 
-    def attempt_rocq_proof(self, annotated_file: Path) -> bool:
+    @staticmethod
+    def _parse_rocq_marker(stdout: str, returncode: int) -> tuple[Optional[int], str]:
+        """Parse the ROCQ-SUMMARY marker emitted by agent-rocq-proof-writer.
+
+        Returns (retries_used, status) where status is completed|aborted|incomplete.
+        Falls back to the exit code when the marker is absent."""
+        for line in (stdout or "").splitlines():
+            line = line.strip()
+            if line.startswith("ROCQ-SUMMARY "):
+                try:
+                    obj = json.loads(line[len("ROCQ-SUMMARY "):])
+                    return obj.get("retries"), obj.get("status", "incomplete")
+                except Exception:
+                    break
+        return None, ("completed" if returncode == 0 else "incomplete")
+
+    def attempt_rocq_proof(self, annotated_file: Path) -> tuple[bool, Optional[dict]]:
         """Generate Rocq proof obligations and attempt to complete them.
 
         Called when SMT provers exhaust all retries. Uses pycsl --rocq to
         generate .v skeletons, then calls agent-rocq-proof-writer on each.
 
-        Returns True if all .v files are successfully completed.
+        Returns (all_ok, rocq_summary) where rocq_summary is the L4 accounting
+        {generated, completed, aborted, incomplete, obligations:[{name,retries,status}]}
+        or None if Rocq generation could not run.
         """
         rocq_dir = self.pycsl_dir / "to_be_proven" / annotated_file.stem
         rocq_dir.mkdir(parents=True, exist_ok=True)
@@ -366,13 +384,14 @@ class CoordinatorAgent:
             self.log(f"  ERROR: pycsl --rocq failed (exit {result.returncode})")
             if result.stderr:
                 self.log(f"  stderr: {result.stderr}")
-            return False
+            return False, None
 
         # Find generated .v files
         v_files = sorted(rocq_dir.glob("*.v"))
         if not v_files:
             self.log("  WARNING: No .v files generated")
-            return False
+            return False, {"generated": 0, "completed": 0, "aborted": 0,
+                           "incomplete": 0, "obligations": []}
 
         self.log(f"  Generated {len(v_files)} .v file(s)")
 
@@ -382,6 +401,8 @@ class CoordinatorAgent:
 
         # Attempt to complete each .v file via agent-rocq-proof-writer
         all_ok = True
+        obligations: list[dict] = []
+        tally = {"completed": 0, "aborted": 0, "incomplete": 0}
         for v_file in v_files:
             self.log(f"  Completing proof: {v_file.name}...")
             out_file = v_file  # overwrite in place
@@ -400,15 +421,27 @@ class CoordinatorAgent:
                 cmd, cwd=self.pycsl_dir, check=False, capture=True, log_file=log_path
             )
 
+            retries, status = self._parse_rocq_marker(
+                agent_result.stdout, agent_result.returncode)
+            tally[status] = tally.get(status, 0) + 1
+            obligations.append({"name": v_file.name, "retries": retries, "status": status})
+
             if agent_result.returncode == 0:
-                self.log(f"  ✓ {v_file.name} — proof completed")
+                self.log(f"  ✓ {v_file.name} — proof completed (retries={retries})")
             else:
-                self.log(f"  ✗ {v_file.name} — proof incomplete (saved for manual completion)")
+                self.log(f"  ✗ {v_file.name} — proof {status} (retries={retries})")
                 all_ok = False
 
-        status = "all completed" if all_ok else "some incomplete"
-        self.log(f"  Rocq proofs: {status}. Files in {rocq_dir}/")
-        return all_ok
+        status_msg = "all completed" if all_ok else "some incomplete"
+        self.log(f"  Rocq proofs: {status_msg}. Files in {rocq_dir}/")
+        rocq_summary = {
+            "generated": len(v_files),
+            "completed": tally["completed"],
+            "aborted": tally["aborted"],
+            "incomplete": tally["incomplete"],
+            "obligations": obligations,
+        }
+        return all_ok, rocq_summary
 
     # ------------------------------------------------------------------ meta agents
 
@@ -655,6 +688,88 @@ class CoordinatorAgent:
         self.log(f"  L4 ESCALATION: {test_file.name} re-decomposed -> {annotated_file.name}")
         return True
 
+    # ------------------------------------------------------------------ L4 run summary
+
+    def write_run_summary(
+        self,
+        *,
+        test_file: Path,
+        attempts: list[dict],
+        outcome: str,
+        exit_code: Optional[int] = None,
+        rocq_summary: Optional[dict] = None,
+        ncr_emitted: bool = False,
+    ) -> Optional[Path]:
+        """Emit the per-file CMMI Level-4 run summary to metrics/run-summary/.
+
+        Computes inter-agent loop counters, the reconciliation diagnostic-accuracy
+        DOWNSTREAM PROXY (a recommendation+action at attempt i is "right" iff the
+        next attempt's proof passes), and folds in the Rocq accounting. Deterministic;
+        validated against run-summary.schema.json.
+        """
+        # Downstream proxy: link each attempt's reconcile/action to the next
+        # attempt's pycsl outcome.
+        by_class: dict[str, dict] = {}
+        overall = {"correct": 0, "total": 0}
+        rec_keys: list[str] = []
+        for i, att in enumerate(attempts):
+            rec = att.get("reconcile") or {}
+            if rec.get("rec_key"):
+                rec_keys.append(rec["rec_key"])
+            has_action = att.get("action") is not None
+            if rec and has_action and i + 1 < len(attempts):
+                converged = bool(attempts[i + 1].get("pycsl_pass"))
+                att["right_cause"] = converged
+                fc = rec.get("fault_class") or "unknown"
+                slot = by_class.setdefault(fc, {"correct": 0, "total": 0})
+                slot["total"] += 1
+                overall["total"] += 1
+                if converged:
+                    slot["correct"] += 1
+                    overall["correct"] += 1
+            else:
+                att.setdefault("right_cause", None)
+
+        # max consecutive identical rec_keys
+        max_streak = streak = 0
+        prev = None
+        for k in rec_keys:
+            streak = streak + 1 if k == prev else 1
+            max_streak = max(max_streak, streak)
+            prev = k
+
+        summary = {
+            "file": test_file.name,
+            "outcome": outcome,
+            "exit_code": exit_code,
+            "attempts_used": len(attempts),
+            "attempts": attempts,
+            "loop": {
+                "distinct_recommendations": len(set(rec_keys)),
+                "max_consecutive_similar": max_streak,
+                "redecompose_count": self._redecompose_count.get(test_file.name, 0),
+            },
+            "fault_correctness": {"by_class": by_class, "overall": overall},
+            "rocq": rocq_summary,
+            "ncr_emitted": ncr_emitted,
+        }
+        try:
+            from schema_validator import validate_or_warn
+            validate_or_warn(summary, "run-summary", logger=self.log)
+        except Exception:
+            pass
+
+        out_dir = self.metrics_dir / "run-summary"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / f"{test_file.stem}.json"
+        try:
+            out_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+            self.log(f"  L4: run-summary written -> {out_path}")
+        except Exception as e:
+            self.log(f"  WARNING: Could not write run-summary {out_path}: {e}")
+            return None
+        return out_path
+
     # ------------------------------------------------------------------ main loop
 
     def run(self, start_at: int = 1) -> int:
@@ -728,9 +843,14 @@ class CoordinatorAgent:
             last_reconcile_out: Optional[Path] = None
             last_eval_json: Optional[Path] = None
             annotated_file = self.annotated_dir / test_file.name
+            # L4 run-summary accumulator (per-attempt records for the metrics framework).
+            attempts: list[dict] = []
 
             for attempt in range(MAX_RETRIES + 1):
                 label = f"attempt {attempt + 1}/{MAX_RETRIES + 1}"
+                att: dict = {"attempt": attempt, "pycsl_pass": False,
+                             "reconcile": None, "action": None}
+                attempts.append(att)
 
                 # Annotate the file fresh on every attempt — UNLESS the previous
                 # attempt escalated to L4 and re-decomposed (agent-splitter wrote
@@ -741,12 +861,18 @@ class CoordinatorAgent:
                     self.log(f"  Skipping re-annotate on {label}: proving re-decomposed {test_file.name}")
                 elif not self.annotate_file(test_file):
                     self.log(f"  ERROR: Annotation failed on {label} for {test_file.name}")
+                    self.write_run_summary(test_file=test_file, attempts=attempts,
+                                           outcome="annotate-failed")
                     return 1
 
                 # Verify with pycsl
-                if self.run_pycsl_file(annotated_file):
+                proof_ok = self.run_pycsl_file(annotated_file)
+                att["pycsl_pass"] = proof_ok
+                if proof_ok:
                     self.log(f"  {test_file.name} passed on {label}")
                     passed = True
+                    self.write_run_summary(test_file=test_file, attempts=attempts,
+                                           outcome="passed")
                     break
 
                 if attempt == MAX_RETRIES:
@@ -762,7 +888,12 @@ class CoordinatorAgent:
                         log_paths=reconcile_log_paths + update_log_paths,
                     )
                     # Attempt Rocq proof as last resort
-                    self.attempt_rocq_proof(annotated_file)
+                    _, rocq_summary = self.attempt_rocq_proof(annotated_file)
+                    self.write_run_summary(
+                        test_file=test_file, attempts=attempts, outcome="max-retries",
+                        exit_code=EXIT_MAX_RETRIES, rocq_summary=rocq_summary,
+                        ncr_emitted=True,
+                    )
                     monitor_json = self.run_meta_monitor(
                         test_file.stem, reconcile_log_paths, update_log_paths
                     )
@@ -791,6 +922,12 @@ class CoordinatorAgent:
                     )
                     continue
 
+                att["reconcile"] = {
+                    "target": recommendation.get("target"),
+                    "fault_class": recommendation.get("fault_class", "sub-actor"),
+                    "rec_key": " | ".join(loop_detect.rec_key(recommendation)),
+                }
+
                 # Loop detection
                 consecutive = self._consecutive_similar(recommendation, recommendation_history)
                 if consecutive >= 2:
@@ -809,7 +946,12 @@ class CoordinatorAgent:
                         log_paths=reconcile_log_paths + update_log_paths,
                     )
                     # Attempt Rocq proof as last resort
-                    self.attempt_rocq_proof(annotated_file)
+                    _, rocq_summary = self.attempt_rocq_proof(annotated_file)
+                    self.write_run_summary(
+                        test_file=test_file, attempts=attempts, outcome="loop-detected",
+                        exit_code=EXIT_LOOP_DETECTED, rocq_summary=rocq_summary,
+                        ncr_emitted=True,
+                    )
                     monitor_json = self.run_meta_monitor(
                         test_file.stem, reconcile_log_paths, update_log_paths
                     )
@@ -854,7 +996,12 @@ class CoordinatorAgent:
                                 f"exceeded {MAX_REDECOMPOSE} escalations without convergence."
                             ),
                         )
-                        self.attempt_rocq_proof(annotated_file)
+                        _, rocq_summary = self.attempt_rocq_proof(annotated_file)
+                        self.write_run_summary(
+                            test_file=test_file, attempts=attempts, outcome="ping-pong",
+                            exit_code=EXIT_LOOP_DETECTED, rocq_summary=rocq_summary,
+                            ncr_emitted=True,
+                        )
                         monitor_json = self.run_meta_monitor(
                             test_file.stem, reconcile_log_paths, update_log_paths
                         )
@@ -862,7 +1009,9 @@ class CoordinatorAgent:
                             annotated_file, reconcile_out, last_eval_json, monitor_json
                         )
                         return EXIT_LOOP_DETECTED
-                    if self.redecompose_at_l4(test_file, annotated_file, attempt):
+                    redecomposed = self.redecompose_at_l4(test_file, annotated_file, attempt)
+                    att["action"] = {"kind": "redecompose", "success": redecomposed}
+                    if redecomposed:
                         # Prove the re-decomposed artifact next iteration (skip the
                         # fresh re-annotate that would otherwise overwrite it).
                         self._skip_reannotate.add(test_file.name)
@@ -874,6 +1023,7 @@ class CoordinatorAgent:
                     is_similar=is_similar,
                     history_file=history_file,
                 )
+                att["action"] = {"kind": "script-update", "success": success}
 
                 # Collect the update log written by apply_recommendations
                 upd_log = self.metrics_dir / "logs" / f"update_{annotated_file.stem}_{attempt}.log"

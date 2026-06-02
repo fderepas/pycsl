@@ -261,6 +261,8 @@ def main():
             log(log_dir, AGENT_NAME, "Proof uses Abort — goal may be unprovable\n")
             Path(args.out).parent.mkdir(parents=True, exist_ok=True)
             Path(args.out).write_text(coq_code, encoding="utf-8")
+            # L4 metric marker (parsed by coordinator.attempt_rocq_proof).
+            print(f'ROCQ-SUMMARY {{"retries": {attempt}, "status": "aborted"}}')
             print(f"Proof aborted (unprovable): {args.out}", file=sys.stderr)
             sys.exit(1)
 
@@ -270,6 +272,7 @@ def main():
             log(log_dir, AGENT_NAME, f"Proof validated by coqc ✓\n")
             Path(args.out).parent.mkdir(parents=True, exist_ok=True)
             Path(args.out).write_text(coq_code, encoding="utf-8")
+            print(f'ROCQ-SUMMARY {{"retries": {attempt}, "status": "completed"}}')
             print(f"Proof completed: {args.out}")
             sys.exit(0)
 
@@ -284,6 +287,7 @@ def main():
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(best_attempt, encoding="utf-8")
+    print(f'ROCQ-SUMMARY {{"retries": {MAX_RETRIES}, "status": "incomplete"}}')
     print(f"Proof incomplete (all retries failed): {args.out}", file=sys.stderr)
     sys.exit(1)
 

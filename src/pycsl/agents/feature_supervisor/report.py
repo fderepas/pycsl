@@ -7,8 +7,128 @@ from ._common import *
 
 __all__ = [
     'write_halt_report',
+    'write_feature_run_summary',
     '_print_halt',
 ]
+
+_LEVEL_RE = re.compile(r'^\*\*Level:\*\*\s*(L\d)', re.M)
+_ROLE_RE = re.compile(r'^\*\*Role:\*\*\s*(\w+)', re.M)
+_ROCQ_CITE_RE = re.compile(r'#@\s*proof\s+(?:rocq|lean)\b')
+
+
+def write_feature_run_summary(
+    feature_file: Path,
+    phases: List[Phase],
+    *,
+    exit_code: Optional[int],
+    outcome: str,
+    phase_outcomes: Dict[int, str],
+    accept_counts: Dict[int, Dict[str, int]],
+    gate_results: List[GateResult],
+    delegation_results: List[Tuple[int, bool, str]],
+    deny_hits: List[Tuple[int, str, str]],
+) -> Optional[Path]:
+    """Emit the per-invocation CMMI Level-4 feature-rollout summary.
+
+    Deterministic governance/metrics artifact written to
+    metrics/feature-supervisor/<slug>/run-summary.json on every invocation, built
+    from the same per-phase outcomes that feed the halt report. Validated against
+    feature-run-summary.schema.json.
+    """
+    slug = _slug(feature_file.stem)
+    ts = (
+        datetime.datetime.now(datetime.UTC)
+        .replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    )
+    deny_by_phase: Dict[int, int] = {}
+    for (num, _t, _e) in deny_hits:
+        deny_by_phase[num] = deny_by_phase.get(num, 0) + 1
+    deleg_by_phase = {num: (ok, msg) for (num, ok, msg) in delegation_results}
+
+    def _rocq_and_trusted(p: Phase) -> Tuple[Optional[int], Optional[bool]]:
+        cites = 0
+        trusted_seen = False
+        any_file = False
+        for t in p.target_files:
+            fp = _PROJECT_ROOT / t.lstrip("./").lstrip("/")
+            if not fp.is_file():
+                continue
+            any_file = True
+            try:
+                body = fp.read_text(errors="replace")
+            except OSError:
+                continue
+            cites += len(_ROCQ_CITE_RE.findall(body))
+            if "\\trusted" in body:
+                trusted_seen = True
+        if not any_file:
+            return None, None
+        return cites, (not trusted_seen)
+
+    phase_entries: List[dict] = []
+    totals = {"phases": len(phases), "verified": 0, "passed": 0, "failed": 0,
+              "delegated": 0, "rolled_back": 0, "loadbearing_hits": len(deny_hits)}
+    for p in phases:
+        lvl = _LEVEL_RE.search(p.raw_body or "")
+        role = _ROLE_RE.search(p.raw_body or "")
+        outcome_p = phase_outcomes.get(p.number, "NOT_REACHED")
+        ac = accept_counts.get(
+            p.number, {"total": len(p.acceptance), "passed": 0, "failed": 0})
+        deleg = None
+        if p.number in deleg_by_phase:
+            ok, _msg = deleg_by_phase[p.number]
+            deleg = {"attempted": True, "succeeded": ok,
+                     "rolled_back": (not ok), "iterations": None}
+            totals["delegated"] += 1
+            if not ok:
+                totals["rolled_back"] += 1
+        rocq_cites, zero_trusted = _rocq_and_trusted(p)
+        if outcome_p == "STATUS_VERIFIED":
+            totals["verified"] += 1
+        elif outcome_p == "PASS":
+            totals["passed"] += 1
+        elif outcome_p in ("FAIL", "CLAIM_REJECTED", "DELEGATION_FAIL"):
+            totals["failed"] += 1
+        phase_entries.append({
+            "number": p.number,
+            "title": p.title,
+            "level": lvl.group(1) if lvl else None,
+            "role": role.group(1) if role else None,
+            "outcome": outcome_p,
+            "acceptance": ac,
+            "delegation": deleg,
+            "loadbearing_hits": deny_by_phase.get(p.number, 0),
+            "rocq_citations": rocq_cites,
+            "zero_trusted": zero_trusted,
+        })
+
+    summary = {
+        "feature_file": str(feature_file),
+        "slug": slug,
+        "generated": ts,
+        "exit_code": exit_code,
+        "outcome": outcome,
+        "phases": phase_entries,
+        "gate": [{"step": r.step, "passed": r.passed, "skipped": r.skipped}
+                 for r in gate_results],
+        "totals": totals,
+    }
+    try:
+        from schema_validator import validate_or_warn
+        validate_or_warn(summary, "feature-run-summary",
+                         logger=lambda m: log(str(_PROJECT_ROOT), AGENT_NAME, m))
+    except Exception:
+        pass
+
+    out_dir = _HALT_REPORT_ROOT / slug
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out = out_dir / "run-summary.json"
+    try:
+        out.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
+    except OSError as e:
+        log(str(_PROJECT_ROOT), AGENT_NAME, f"could not write run-summary: {e}")
+        return None
+    return out
 
 def write_halt_report(
     feature_file: Path,

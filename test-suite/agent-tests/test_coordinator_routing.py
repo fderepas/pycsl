@@ -47,7 +47,7 @@ def _common_mocks(ag, monkeypatch, calls, *, fault_class, target):
         calls["redecompose"] += 1
         return True
     monkeypatch.setattr(ag, "redecompose_at_l4", fake_redecompose)
-    monkeypatch.setattr(ag, "attempt_rocq_proof", lambda *a, **k: False)
+    monkeypatch.setattr(ag, "attempt_rocq_proof", lambda *a, **k: (False, None))
     monkeypatch.setattr(ag, "run_meta_monitor", lambda *a, **k: None)
     monkeypatch.setattr(ag, "run_meta_reviewer", lambda *a, **k: None)
     monkeypatch.setattr(ag, "run_meta_evaluator", lambda *a, **k: None)
