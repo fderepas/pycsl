@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Non-Conformance Report",
+  "description": "Governance artifact emitted by coordinator.py when the annotate->prove->reconcile loop cannot converge (exit 72/73). Conforms to cmmi-glue Workflow 3 (SQA Audit & Non-Compliance Escalation); the Workflow-3 escalation chain is bound in config/skills/cmmi-glue/SKILL.md (coordinator exit 72/73 -> agent-meta-monitor -> agent-feature-supervisor -> human).",
+  "type": "object",
+  "required": [
+    "ncr_id",
+    "date_issued",
+    "issued_by",
+    "responsible_role",
+    "checkpoint",
+    "finding",
+    "gate_failed",
+    "evidence",
+    "severity",
+    "response_timeframe",
+    "escalation_path",
+    "status"
+  ],
+  "properties": {
+    "ncr_id": {
+      "type": "string",
+      "description": "Unique id, e.g. NCR-<UTC-timestamp>-<file_stem>."
+    },
+    "date_issued": {
+      "type": "string",
+      "description": "ISO-8601 UTC timestamp the NCR was issued."
+    },
+    "issued_by": {
+      "type": "string",
+      "description": "The SQA-Auditor role that detected the non-conformance (here: coordinator)."
+    },
+    "responsible_role": {
+      "type": "string",
+      "description": "Engineering role bound to remediate, derived from the reconcile target (Specifier=agent-writer/agent-splitter; sub-actor=agent-script-update)."
+    },
+    "checkpoint": {
+      "type": "string",
+      "description": "What was being audited, e.g. 'PyCSL annotate->prove->reconcile loop for <file>'."
+    },
+    "finding": {
+      "type": "string",
+      "description": "The non-conformance: what process expectation was violated."
+    },
+    "gate_failed": {
+      "type": "string",
+      "description": "Which Workflow-3 decision gate failed.",
+      "enum": ["Gate 1", "Gate 2"]
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["exit_code", "retry_count"],
+      "properties": {
+        "exit_code": {
+          "type": "integer",
+          "description": "Coordinator exit code (72 = max retries, 73 = loop/ping-pong)."
+        },
+        "retry_count": {
+          "type": "integer",
+          "description": "Number of attempts made before halting."
+        },
+        "consecutive_identical": {
+          "type": ["integer", "null"],
+          "description": "How many times the same recommendation recurred (exit 73), or null (exit 72)."
+        },
+        "recurring_recommendation": {
+          "type": ["string", "null"],
+          "description": "The recommendation text that could not be resolved."
+        },
+        "target": {
+          "type": ["string", "null"],
+          "description": "The reconcile target the recommendation routed to."
+        },
+        "fault_class": {
+          "type": ["string", "null"],
+          "description": "The reconcile fault classification, if present."
+        },
+        "log_paths": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Paths to the reconcile/update logs that are the audit trail."
+        }
+      },
+      "additionalProperties": false
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "description": "Impact of the non-conformance."
+    },
+    "response_timeframe": {
+      "type": "string",
+      "description": "When a Corrective Action Plan is due (Workflow-3 default: 5 business days)."
+    },
+    "escalation_path": {
+      "type": "string",
+      "description": "The cmmi-glue Workflow-3 escalation chain this NCR feeds."
+    },
+    "cap_placeholder": {
+      "type": "string",
+      "description": "Empty Corrective Action Plan slot for the responsible role to fill."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["OPEN", "CLOSED"],
+      "description": "NCR lifecycle status; emitted OPEN."
+    }
+  },
+  "additionalProperties": false
+}

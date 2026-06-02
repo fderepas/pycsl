@@ -13,9 +13,20 @@ Orchestrates the full workflow:
 Loop-detection: if agent-reconcile produces the same recommendation 3 times in a row
 the coordinator halts with exit code 73 so a human can intervene.
 
+Cross-level (L5->L4) reconciliation: agent-reconcile classifies each failure's
+fault_class. A "specifier" fault (the file's decomposition / callee-contract
+ordering is wrong, not this unit's body) escalates to L4 — the coordinator
+re-decomposes the file via agent-splitter instead of re-patching the unit. A
+per-file MAX_REDECOMPOSE cap bounds L5<->L4 ping-pong, halting via exit 73.
+
+Workflow-3 escalation: on halt (72 or 73) the coordinator emits a Non-Conformance
+Report (NCR) conforming to cmmi-glue Workflow 3 (the escalation chain
+`coordinator exit 72/73 -> agent-meta-monitor -> agent-feature-supervisor -> human`
+is bound in config/skills/cmmi-glue/SKILL.md), then agent-meta-reviewer produces a
+human-readable report.
+
 Meta-observability: after each fix attempt agent-meta-evaluator assesses the change.
 After each file's retry loop agent-meta-monitor checks operational health.
-On halt (72 or 73) agent-meta-reviewer produces a human-readable report.
 """
 
 import argparse
@@ -24,6 +35,7 @@ import re
 import shutil
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -32,6 +44,7 @@ import coordinator_loopdetect as loop_detect
 AGENT_NAME = "coordinator"
 EXIT_MAX_RETRIES = 72    # pycsl still failing after MAX_RETRIES attempts
 EXIT_LOOP_DETECTED = 73  # same recommendation 3× in a row — human needed
+MAX_REDECOMPOSE = 2      # per-file cap on L5->L4 re-decomposition (ping-pong guard)
 
 
 class CoordinatorAgent:
@@ -61,7 +74,7 @@ class CoordinatorAgent:
 
     def init_metrics(self) -> None:
         """Create the metrics/ directory tree at startup."""
-        for subdir in ("logs", "evaluator", "monitor", "reviewer"):
+        for subdir in ("logs", "evaluator", "monitor", "reviewer", "ncr"):
             (self.metrics_dir / subdir).mkdir(parents=True, exist_ok=True)
         self.log(f"Metrics directory initialized at {self.metrics_dir}")
 
@@ -503,6 +516,145 @@ class CoordinatorAgent:
         else:
             self.log(f"  META: Reviewer wrote {out_json} and {out_md}")
 
+    # ------------------------------------------------------------------ Workflow-3 NCR
+
+    # The Workflow-3 escalation chain this NCR feeds (see cmmi-glue/SKILL.md
+    # Profile-P binding: coordinator exit 72/73 -> meta-monitor -> supervisor -> human).
+    ESCALATION_PATH = (
+        "coordinator exit {code} -> agent-meta-monitor -> agent-feature-supervisor "
+        "-> human review (cmmi-glue Workflow 3)"
+    )
+
+    @staticmethod
+    def _responsible_role(recommendation: Optional[dict]) -> str:
+        """Map the reconcile target to the CMMI engineering role bound to remediate."""
+        target = (recommendation or {}).get("target")
+        if target == "error-in-annotations":
+            return "Specifier (agent-writer / agent-splitter)"
+        if target == "update-pycsl-scripts":
+            return "Sub-actor (agent-script-update)"
+        return "Unknown"
+
+    def write_ncr(
+        self,
+        *,
+        exit_code: int,
+        annotated_file: Path,
+        recommendation: Optional[dict],
+        attempt: int,
+        consecutive: Optional[int] = None,
+        log_paths: Optional[list[Path]] = None,
+        finding: Optional[str] = None,
+    ) -> Optional[Path]:
+        """Emit a Workflow-3 Non-Conformance Report when the loop cannot converge.
+
+        Deterministic governance artifact (NOT the LLM meta-reviewer): always written,
+        schema-validated, so the escalation chain has a concrete record even if the
+        reviewer LLM call later fails. Returns the NCR path (or None on write error).
+        """
+        try:
+            from schema_validator import validate_or_warn
+        except Exception:  # pragma: no cover — validator is optional
+            validate_or_warn = None
+
+        now = datetime.now(timezone.utc)
+        ts = now.strftime("%Y%m%dT%H%M%SZ")
+        stem = annotated_file.stem
+        ncr_id = f"NCR-{ts}-{stem}"
+
+        if finding is None:
+            if exit_code == EXIT_MAX_RETRIES:
+                finding = (
+                    f"Automated reconciliation could not produce a passing artifact "
+                    f"for {annotated_file.name} after {attempt + 1} attempts (max retries)."
+                )
+            else:
+                finding = (
+                    f"Reconciliation loop detected for {annotated_file.name}: the same "
+                    f"recommendation recurred {(consecutive or 0) + 1} times without resolution."
+                )
+
+        ncr = {
+            "ncr_id": ncr_id,
+            "date_issued": now.isoformat(),
+            "issued_by": AGENT_NAME,
+            "responsible_role": self._responsible_role(recommendation),
+            "checkpoint": f"PyCSL annotate->prove->reconcile loop for {annotated_file.name}",
+            "finding": finding,
+            "gate_failed": "Gate 1",
+            "evidence": {
+                "exit_code": exit_code,
+                "retry_count": attempt + 1,
+                "consecutive_identical": consecutive,
+                "recurring_recommendation": (recommendation or {}).get("recommendation"),
+                "target": (recommendation or {}).get("target"),
+                "fault_class": (recommendation or {}).get("fault_class"),
+                "log_paths": [str(p) for p in (log_paths or [])],
+            },
+            "severity": "high",
+            "response_timeframe": "5 business days",
+            "escalation_path": self.ESCALATION_PATH.format(code=exit_code),
+            "cap_placeholder": "",
+            "status": "OPEN",
+        }
+
+        if validate_or_warn is not None:
+            validate_or_warn(ncr, "ncr", logger=self.log)
+
+        out_dir = self.metrics_dir / "ncr"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / f"{ncr_id}.md"
+        body = (
+            f"# Non-Conformance Report — {ncr_id}\n\n"
+            f"- **Issued by:** {ncr['issued_by']} (SQA Auditor role)\n"
+            f"- **Date:** {ncr['date_issued']}\n"
+            f"- **Responsible role:** {ncr['responsible_role']}\n"
+            f"- **Checkpoint:** {ncr['checkpoint']}\n"
+            f"- **Gate failed:** {ncr['gate_failed']}\n"
+            f"- **Severity:** {ncr['severity']}\n"
+            f"- **Response timeframe:** {ncr['response_timeframe']}\n"
+            f"- **Status:** {ncr['status']}\n\n"
+            f"## Finding\n\n{ncr['finding']}\n\n"
+            f"## Escalation path\n\n{ncr['escalation_path']}\n\n"
+            f"## Corrective Action Plan\n\n_(to be completed by the responsible role)_\n\n"
+            f"## Machine record\n\n```json\n{json.dumps(ncr, indent=2)}\n```\n"
+        )
+        try:
+            out_path.write_text(body, encoding="utf-8")
+        except Exception as e:
+            self.log(f"  ERROR: Could not write NCR {out_path}: {e}")
+            return None
+        self.log(f"  NCR {ncr_id} emitted per cmmi-glue Workflow 3 -> {out_path}")
+        return out_path
+
+    # ------------------------------------------------------------------ L4 re-decomposition
+
+    def redecompose_at_l4(self, test_file: Path, annotated_file: Path, attempt: int) -> bool:
+        """Cross-level escalation: re-decompose the file at L4 via agent-splitter.
+
+        Invoked when agent-reconcile classifies the fault as "specifier" — the
+        file's decomposition / callee-contract ordering is wrong, so re-patching the
+        unit (L5) cannot fix it. agent-splitter is the L4 actor that revises the
+        call-graph decomposition. Writes directly into annotated/; the caller must
+        skip the next iteration's fresh re-annotate so this artifact is the one proved.
+        """
+        self.log(f"  L4 ESCALATION: re-decomposing {test_file.name} via agent-splitter...")
+        log_path = self.metrics_dir / "logs" / f"redecompose_{test_file.stem}_{attempt}.log"
+        cmd = [
+            "python",
+            str(self.agents_dir / "agent-splitter.py"),
+            "--in", str(test_file),
+            "--out", str(annotated_file),
+        ]
+        result = self.run_command(
+            cmd, cwd=self.pycsl_dir, check=False, capture=True, log_file=log_path
+        )
+        if result.returncode != 0:
+            self.log(f"  ERROR: agent-splitter re-decomposition failed for {test_file.name}")
+            return False
+        self.log(f"  L4 ESCALATION: {test_file.name} re-decomposed -> {annotated_file.name}")
+        return True
+
     # ------------------------------------------------------------------ main loop
 
     def run(self, start_at: int = 1) -> int:
@@ -554,6 +706,13 @@ class CoordinatorAgent:
 
         overall_success = True
 
+        # Cross-level (L5->L4) escalation state, keyed by file name:
+        #  - _skip_reannotate: files whose next attempt must prove the re-decomposed
+        #    artifact instead of re-running agent-annotate (which would overwrite it).
+        #  - _redecompose_count: per-file L4 escalation count (ping-pong guard).
+        self._skip_reannotate: set[str] = set()
+        self._redecompose_count: dict[str, int] = {}
+
         for test_file in test_files:
             self.log(f"=== Processing {test_file.name} ===")
             passed = False
@@ -573,8 +732,14 @@ class CoordinatorAgent:
             for attempt in range(MAX_RETRIES + 1):
                 label = f"attempt {attempt + 1}/{MAX_RETRIES + 1}"
 
-                # Annotate the file fresh on every attempt
-                if not self.annotate_file(test_file):
+                # Annotate the file fresh on every attempt — UNLESS the previous
+                # attempt escalated to L4 and re-decomposed (agent-splitter wrote
+                # annotated_file directly); in that case prove that artifact so the
+                # escalation is observable, not masked by a fresh re-annotate.
+                if test_file.name in self._skip_reannotate:
+                    self._skip_reannotate.discard(test_file.name)
+                    self.log(f"  Skipping re-annotate on {label}: proving re-decomposed {test_file.name}")
+                elif not self.annotate_file(test_file):
                     self.log(f"  ERROR: Annotation failed on {label} for {test_file.name}")
                     return 1
 
@@ -587,6 +752,14 @@ class CoordinatorAgent:
                 if attempt == MAX_RETRIES:
                     self.log(
                         f"ERROR: {test_file.name} still failing after {MAX_RETRIES} retries. Halting."
+                    )
+                    # Emit the Workflow-3 NCR first (deterministic governance artifact)
+                    self.write_ncr(
+                        exit_code=EXIT_MAX_RETRIES,
+                        annotated_file=annotated_file,
+                        recommendation=recommendation_history[-1] if recommendation_history else None,
+                        attempt=attempt,
+                        log_paths=reconcile_log_paths + update_log_paths,
                     )
                     # Attempt Rocq proof as last resort
                     self.attempt_rocq_proof(annotated_file)
@@ -626,6 +799,15 @@ class CoordinatorAgent:
                         f"{consecutive + 1} times in a row for {test_file.name}. "
                         f"Halting — human review required."
                     )
+                    # Emit the Workflow-3 NCR first (deterministic governance artifact)
+                    self.write_ncr(
+                        exit_code=EXIT_LOOP_DETECTED,
+                        annotated_file=annotated_file,
+                        recommendation=recommendation,
+                        attempt=attempt,
+                        consecutive=consecutive,
+                        log_paths=reconcile_log_paths + update_log_paths,
+                    )
                     # Attempt Rocq proof as last resort
                     self.attempt_rocq_proof(annotated_file)
                     monitor_json = self.run_meta_monitor(
@@ -644,6 +826,47 @@ class CoordinatorAgent:
                     )
 
                 recommendation_history.append(recommendation)
+
+                # Cross-level (L5->L4) reconciliation routing. A "specifier" fault
+                # means the file's decomposition is wrong, not this unit's body —
+                # re-decompose at L4 rather than re-patch the unit. Default
+                # "sub-actor" preserves the existing per-unit fix path (and keeps
+                # older reconcile outputs that lack fault_class behaving as before).
+                fault_class = recommendation.get("fault_class", "sub-actor")
+                if fault_class == "specifier":
+                    self._redecompose_count[test_file.name] = (
+                        self._redecompose_count.get(test_file.name, 0) + 1
+                    )
+                    if self._redecompose_count[test_file.name] > MAX_REDECOMPOSE:
+                        self.log(
+                            f"ERROR: L5<->L4 re-decomposition exceeded {MAX_REDECOMPOSE} "
+                            f"escalations for {test_file.name} without convergence. Halting."
+                        )
+                        self.write_ncr(
+                            exit_code=EXIT_LOOP_DETECTED,
+                            annotated_file=annotated_file,
+                            recommendation=recommendation,
+                            attempt=attempt,
+                            consecutive=consecutive,
+                            log_paths=reconcile_log_paths + update_log_paths,
+                            finding=(
+                                f"L5<->L4 ping-pong: re-decomposition of {test_file.name} "
+                                f"exceeded {MAX_REDECOMPOSE} escalations without convergence."
+                            ),
+                        )
+                        self.attempt_rocq_proof(annotated_file)
+                        monitor_json = self.run_meta_monitor(
+                            test_file.stem, reconcile_log_paths, update_log_paths
+                        )
+                        self.run_meta_reviewer(
+                            annotated_file, reconcile_out, last_eval_json, monitor_json
+                        )
+                        return EXIT_LOOP_DETECTED
+                    if self.redecompose_at_l4(test_file, annotated_file, attempt):
+                        # Prove the re-decomposed artifact next iteration (skip the
+                        # fresh re-annotate that would otherwise overwrite it).
+                        self._skip_reannotate.add(test_file.name)
+                    continue
 
                 success, files_changed = self.apply_recommendations(
                     recommendation, reconcile_out, annotated_file,

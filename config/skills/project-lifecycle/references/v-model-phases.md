@@ -104,6 +104,14 @@ Specifier-Verifier-Reconciliator triplet:
 > **Termination:** If the same level fails reconciliation 3 consecutive
 > times without resolution, escalate to SQA / EPG governance.
 
+> **Reference impl (Profile-P, L5).** The annotation `coordinator.py` runs this
+> exact routing: a reconcile **Specifier fault** (`fault_class: specifier`) →
+> re-decompose the file via `agent-splitter` (L4) instead of re-patching the unit;
+> a **Sub-actor fault** → `agent-script-update`. Termination is mechanized: exit 73
+> on a 3× recurring recommendation (or an L5↔L4 re-decompose cap), exit 72 on max
+> retries — each emits a Workflow-3 **NCR** (`metrics/ncr/`) into the escalation
+> chain bound in `cmmi-glue/SKILL.md`.
+
 ## The Specifier's Coordination Responsibility
 
 The Specifier at level N writes two distinct kinds of specification:

@@ -330,3 +330,12 @@ Level N−1: sub-actor investigates → "Specifier fault at N−1"
               → escalates back to Level N (coordination spec was wrong)
 Level N:  Specifier revises coordination spec → cycle resumes
 ```
+
+**Reference impl (Profile-P, L5→L4).** This routing is mechanized in the annotation
+`coordinator.py`. The Unit (L5) is a function; the Module (L4) is the file. When
+`agent-reconcile` classifies a unit failure as `fault_class: specifier` (the file's
+decomposition / callee-contract ordering is wrong, not this unit's body), the
+coordinator re-decomposes the file via `agent-splitter` (the L4 actor) rather than
+re-patching the unit — the concrete "escalate to N−1, revise the coordination spec"
+step. A per-file `MAX_REDECOMPOSE` cap bounds L5↔L4 ping-pong, halting via exit 73
+with a Workflow-3 NCR. See [`competency-matrix.md`](competency-matrix.md).

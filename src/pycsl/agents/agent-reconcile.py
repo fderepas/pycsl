@@ -140,6 +140,15 @@ def build_prompt(
         '- "author": the author or creator of the program.',
         '- "recommendation": a concise recommendation for the action to perform.',
         '- "target": one of "update-pycsl-scripts", "error-in-annotations", or "unknown".',
+        '- "fault_class": one of "sub-actor", "specifier", or "verifier" — the CMMI',
+        "  cross-level routing class:",
+        '    * "sub-actor": the failure is in THIS function\'s body or its own annotations',
+        "      (a per-unit fix); this is the default for most annotation errors.",
+        '    * "specifier": the failure is caused by how the FILE was decomposed — wrong',
+        "      callee-contract assumptions, missing/incorrect interface contracts between",
+        "      functions, or an ordering that makes this unit unprovable in isolation. It",
+        "      cannot be fixed in this unit alone; the file must be re-decomposed.",
+        '    * "verifier": the proof obligations themselves are mis-scoped (rare).',
         "",
         "Use the following context and skills:",
         f"--- ACTIVE MEMORY MODEL: {memory_model.upper()} ---",
@@ -314,6 +323,12 @@ def main() -> None:
     if missing:
         log(project_directory, AGENT_NAME, f"Error: LLM response is missing required keys: {', '.join(missing)}")
         sys.exit(1)
+
+    # Cross-level routing class (consumed by coordinator.route): default to
+    # "sub-actor" (the per-unit fix path) when the model omits or mis-fills it,
+    # preserving prior behavior and satisfying the reconcile schema.
+    if result.get("fault_class") not in ("sub-actor", "specifier", "verifier"):
+        result["fault_class"] = "sub-actor"
 
     out_path = Path(args.out_file_name)
     try:

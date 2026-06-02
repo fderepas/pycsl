@@ -231,3 +231,12 @@ Reconciliator.
      Unit Test Engineer corrects the test plan.
    - **Sub-actor fault:** the code implementation does not satisfy the
      contract. Re-delegate to Phase 10 (T7).
+
+> **Reference impl (Profile-P).** The Coder-Validator consensus loop and this
+> three-way reconcile routing are executed by `coordinator.py` over `src/pycsl/agents/`:
+> Coder/Specifier = `agent-writer` (authors the `#@` contract — the deliverable IS the
+> spec), Validator/Verifier = `pycsl --proof` (+ `agent-meta-evaluator` QA re-check),
+> Reconciliator = `agent-reconcile` (emits `fault_class`). Routing: **sub-actor** →
+> `agent-script-update` re-works the unit; **specifier** → re-decompose the file via
+> `agent-splitter` (L4 escalation); **verifier** → the Rocq/Lean fallback or human.
+> Role→agent map: [`competency-matrix.md`](competency-matrix.md).

@@ -3,7 +3,7 @@
   "title": "Reconcile Output",
   "description": "JSON produced by agent-reconcile.py after diagnosing a pycsl proof failure.",
   "type": "object",
-  "required": ["language", "author", "recommendation", "target"],
+  "required": ["language", "author", "recommendation", "target", "fault_class"],
   "properties": {
     "language": {
       "type": "string",
@@ -21,6 +21,11 @@
       "type": "string",
       "enum": ["update-pycsl-scripts", "error-in-annotations", "unknown"],
       "description": "Where the fix should be applied."
+    },
+    "fault_class": {
+      "type": "string",
+      "enum": ["sub-actor", "specifier", "verifier"],
+      "description": "CMMI cross-level reconciliation routing (level-definitions.md): 'sub-actor' = this unit's body/annotation detail is wrong (re-patch at L5); 'specifier' = the file's decomposition / callee-contract ordering is wrong (escalate to L4 — re-decompose); 'verifier' = the proof obligations are mis-scoped (Rocq fallback or human)."
     }
   },
   "additionalProperties": false

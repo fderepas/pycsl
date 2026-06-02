@@ -87,6 +87,17 @@ At the Unit level there is no further decomposition — delegation goes to
 **Phase 10 actors** (Coder + Validator) under contracts written by the
 Unit-level Specifier.
 
+**Reference implementation (Profile-P).** In this project the Unit-level (L5)
+cycle is not aspirational — it runs. `coordinator.py` is the level-execution
+driver, binding the abstract roles to concrete agents: **Specify** =
+`agent-annotate`→`agent-splitter`→`agent-writer` (authoring the `#@` contracts),
+**Test** = `pycsl --proof`, **Reconcile** = `agent-reconcile` (diagnoses + routes
+via `fault_class`) → `agent-script-update` (re-work) or, for a Specifier-class
+fault, an L4 re-decomposition via `agent-splitter`. The full role→agent map is in
+[`references/competency-matrix.md`](references/competency-matrix.md) ("Role →
+reference-implementation agent"). Other profiles (S/M/L) substitute their own
+actors for the same roles.
+
 The lifecycle is the **orchestrator** — it does not generate documents or
 run audits itself. Instead, it tells the agent which skill to invoke,
 which role to assume, and what the entry/exit criteria are at each level.
@@ -124,12 +135,12 @@ This document satisfies CMMI v2.0 practice areas:
 | Term | Definition |
 |---|---|
 | Level Execution Task | A complete cycle at one specification level: Synchronize → Delegate → Sub-actors Work → Run Tests → Reconcile |
-| Specifier | Defines what a level must produce: per-sub-actor specs and the coordination spec |
-| Verifier | Defines the test plan that proves the spec is met, and executes it |
-| Reconciliator | On test failure, diagnoses cause and routes fault to Specifier, Verifier, or sub-actor; does not repair |
-| Coordination Spec | How sub-actors interact: interfaces, protocols, message orderings, shared invariants |
+| Specifier | Defines what a level must produce: per-sub-actor specs and the coordination spec. *Reference impl (L5): `agent-writer`; orchestrated by `agent-annotate`/`agent-splitter`.* |
+| Verifier | Defines the test plan that proves the spec is met, and executes it. *Reference impl (L5): `pycsl --proof`.* |
+| Reconciliator | On test failure, diagnoses cause and routes fault to Specifier, Verifier, or sub-actor; does not repair. *Reference impl (L5): `agent-reconcile` (emits `fault_class`); re-work by `agent-script-update`.* |
+| Coordination Spec | How sub-actors interact: interfaces, protocols, message orderings, shared invariants. *Reference impl (L4): the call-graph order + callee contracts `agent-splitter` produces.* |
 | Delegation | Handing work to actors at the level below; each delegation can fan out to multiple sub-actors |
-| Phase 10 | Leaf delegation at Unit level: Coder implements, Validator verifies, under the Unit Specifier's contract |
+| Phase 10 | Leaf delegation at Unit level: Coder implements, Validator verifies, under the Unit Specifier's contract. *Reference impl: Coder=`agent-writer`, Validator=`pycsl --proof` + `agent-meta-evaluator`.* |
 | Re-work Loop | A cycle triggered by Reconciliation: the responsible party corrects their output and the level re-executes |
 | System | A bounded collection of interacting elements achieving a specific role within the project. Identified at Business Level |
 | Component | A modular, replaceable building block of a System (library, crate, package, service). Identified at System Level |
@@ -362,6 +373,12 @@ in `UN<N>-<Name>/tests/main.md` (unit tests or proofs). Delegation goes
 to Phase 10 (T7): Coder implements in `UN<N>-<Name>/src/`; Validator
 verifies.
 
+**Reference impl (Profile-P):** the L5 cycle runs autonomously under
+`coordinator.py` — Specify = `agent-annotate`→`agent-splitter`→`agent-writer`
+(the `#@` contracts ARE the Unit spec), Test = `pycsl --proof`, Reconcile =
+`agent-reconcile`→`agent-script-update`. See
+[`references/competency-matrix.md`](references/competency-matrix.md).
+
 See `references/task-details.md` §T6 for the full activity description.
 
 #### T7 — Phase 10: Code + Validate (Leaf) ⟳ per unit
@@ -373,6 +390,12 @@ Validator confirms the implementation satisfies the contract.
 S/M) per the project's tailoring profile. When Profiles S or M skip
 intermediate levels, the delegation path from the active lowest level satisfies
 T7 entry without requiring T6 completion.
+
+**Reference impl (Profile-P):** for *existing* code the Coder step is a no-op and
+the Validator is `pycsl --proof` + `bin/run-reference-tests.sh` (see §6). For
+*annotation* work the deliverable is the contract itself, so the Coder is real:
+Coder = `agent-writer`, Validator = `pycsl --proof` + `agent-meta-evaluator`. Other
+profiles substitute their own Coder/Validator actors.
 
 See `references/task-details.md` §T7 for the full activity description.
 
@@ -406,9 +429,9 @@ grammar, safety rules, deny-list behavior, and exit codes.
 | Recursive delegation | Each level delegates to the level below; the lowest level (T6 — Unit) delegates to Phase 10 (T7) |
 | Fan-out | Delegation can produce multiple sub-actors: several systems from business, several components from a system, several modules from a component, several units from a module |
 | Coordination spec | The Specifier at each level must produce both per-sub-actor specs and a coordination spec (interfaces, protocols, shared invariants) |
-| Independence constraint | The Specifier, Verifier, and Reconciliator at each level must be different agents/personas |
-| Reconciliation loop limit | If the same level fails reconciliation 3 consecutive times without resolution, escalate to SQA / EPG via `cmmi-glue` Workflow 3 (SQA Audit & Non-Compliance Escalation) |
-| Cross-level reconciliation | A sub-actor fault at level N triggers reconciliation at level N−1; if N−1 concludes "Specifier fault", it escalates back to level N |
+| Independence constraint | The Specifier, Verifier, and Reconciliator at each level must be different agents/personas. *Reference impl (L5): `agent-writer` / `pycsl` / `agent-reconcile` are three distinct programs — the constraint holds even though Profile-P relaxes governance to a single-developer CCB.* |
+| Reconciliation loop limit | If the same level fails reconciliation 3 consecutive times without resolution, escalate to SQA / EPG via `cmmi-glue` Workflow 3 (SQA Audit & Non-Compliance Escalation). *Reference impl (L5): `coordinator.py` exit 73 (same reconcile recommendation 3× — `coordinator_loopdetect`) emits a Workflow-3 NCR (`config/schemas/ncr.schema.json` → `metrics/ncr/`), feeding the chain bound in `cmmi-glue/SKILL.md`. Exit 72 (max retries) escalates the same way.* |
+| Cross-level reconciliation | A sub-actor fault at level N triggers reconciliation at level N−1; if N−1 concludes "Specifier fault", it escalates back to level N. *Reference impl (L5→L4): `agent-reconcile` emits `fault_class`; a `specifier` fault makes `coordinator` re-decompose the file via `agent-splitter` (L4) instead of re-patching the unit, bounded by `MAX_REDECOMPOSE` to stop L5↔L4 ping-pong.* |
 | Tailoring | Levels may be skipped only per the project's tailoring profile or with EPG approval documented in PROJECT.md |
 | Phase 2 parallel allowance | Phase 2 (Process Docs) may run in parallel with the start of T2 (Business Level) |
 | Level completion | A level is complete when its test plan passes and all delegated sub-level work is accepted |
@@ -533,7 +556,11 @@ Validator step is `pycsl --proof` + `bin/run-reference-tests.sh`.
 Source dirs at CO/MO/UN are never materialised under `BL/`; they live
 at `<src_root>` from `PROJECT.md`. L4 Module specs are auto-generated
 indices via `bin/cmmi-mod-index.py`; L5 Unit specs are the in-source
-`#@` contracts (no separate files).
+`#@` contracts (no separate files). The L5 Specify→Test→Reconcile loop is
+executed autonomously by `coordinator.py` over the agents bound in
+[`references/competency-matrix.md`](references/competency-matrix.md) ("Role →
+reference-implementation agent"); its exit-72/73 halts emit Workflow-3 NCRs to
+`metrics/ncr/`.
 
 All tailoring deviations must be recorded in the project's `PROJECT.md` under a "Tailoring Deviations" section, with reference to this skill (SKILL-CMMI-LIFE-001) and the approving authority's sign-off.
 
