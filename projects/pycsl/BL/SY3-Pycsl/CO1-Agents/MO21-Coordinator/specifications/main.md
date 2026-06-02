@@ -10,7 +10,7 @@ bin/cmmi-mod-index.py --file src/pycsl/agents/coordinator.py
 
 ---
 
-## Public functions / methods (18)
+## Public functions / methods (19)
 
 - `CoordinatorAgent.__init__` — `src/pycsl/agents/coordinator.py:51`
 - `CoordinatorAgent.init_metrics` — `src/pycsl/agents/coordinator.py:75`
@@ -22,23 +22,25 @@ bin/cmmi-mod-index.py --file src/pycsl/agents/coordinator.py
 - `CoordinatorAgent.apply_recommendations` — `src/pycsl/agents/coordinator.py:228`
 - `CoordinatorAgent.run_pycsl_file` — `src/pycsl/agents/coordinator.py:299`
 - `CoordinatorAgent.rebuild_rag_index` — `src/pycsl/agents/coordinator.py:326`
-- `CoordinatorAgent.attempt_rocq_proof` — `src/pycsl/agents/coordinator.py:348`
-- `CoordinatorAgent.run_meta_evaluator` — `src/pycsl/agents/coordinator.py:415`
-- `CoordinatorAgent.run_meta_monitor` — `src/pycsl/agents/coordinator.py:452`
-- `CoordinatorAgent.run_meta_reviewer` — `src/pycsl/agents/coordinator.py:490`
-- `CoordinatorAgent.write_ncr` — `src/pycsl/agents/coordinator.py:538`
-- `CoordinatorAgent.redecompose_at_l4` — `src/pycsl/agents/coordinator.py:632`
-- `CoordinatorAgent.run` — `src/pycsl/agents/coordinator.py:660`
-- `main` — `src/pycsl/agents/coordinator.py:903`
+- `CoordinatorAgent.attempt_rocq_proof` — `src/pycsl/agents/coordinator.py:364`
+- `CoordinatorAgent.run_meta_evaluator` — `src/pycsl/agents/coordinator.py:448`
+- `CoordinatorAgent.run_meta_monitor` — `src/pycsl/agents/coordinator.py:485`
+- `CoordinatorAgent.run_meta_reviewer` — `src/pycsl/agents/coordinator.py:523`
+- `CoordinatorAgent.write_ncr` — `src/pycsl/agents/coordinator.py:571`
+- `CoordinatorAgent.redecompose_at_l4` — `src/pycsl/agents/coordinator.py:665`
+- `CoordinatorAgent.write_run_summary` — `src/pycsl/agents/coordinator.py:693`
+- `CoordinatorAgent.run` — `src/pycsl/agents/coordinator.py:775`
+- `main` — `src/pycsl/agents/coordinator.py:1053`
 
-## Private (leading-`_`) defs (6)
+## Private (leading-`_`) defs (7)
 
 - `CoordinatorAgent._find_pycsl_bin` — `src/pycsl/agents/coordinator.py:62`
 - `CoordinatorAgent._rec_key` — `src/pycsl/agents/coordinator.py:87`
 - `CoordinatorAgent._are_similar` — `src/pycsl/agents/coordinator.py:91`
 - `CoordinatorAgent._consecutive_similar` — `src/pycsl/agents/coordinator.py:94`
-- `CoordinatorAgent._responsible_role` — `src/pycsl/agents/coordinator.py:529`
-- `CoordinatorAgent.run._file_number` — `src/pycsl/agents/coordinator.py:695`
+- `CoordinatorAgent._parse_rocq_marker` — `src/pycsl/agents/coordinator.py:349`
+- `CoordinatorAgent._responsible_role` — `src/pycsl/agents/coordinator.py:562`
+- `CoordinatorAgent.run._file_number` — `src/pycsl/agents/coordinator.py:810`
 
 ---
 
@@ -46,4 +48,4 @@ bin/cmmi-mod-index.py --file src/pycsl/agents/coordinator.py
 
 The `#@` contract block immediately preceding each `def` in `src/pycsl/agents/coordinator.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **24** (public: 18, private: 6).
+Total defs: **26** (public: 19, private: 7).

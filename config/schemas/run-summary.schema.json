@@ -1,0 +1,88 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Coordinator Run Summary",
+  "description": "Per-file machine-readable summary emitted by coordinator.py for CMMI Level-4 metrics: inter-agent loop efficiency, reconciliation diagnostic accuracy (downstream proxy), and Rocq proof difficulty. One file per processed source file under metrics/run-summary/.",
+  "type": "object",
+  "required": ["file", "outcome", "attempts_used", "attempts"],
+  "properties": {
+    "file": {"type": "string", "description": "Source file name processed."},
+    "outcome": {
+      "type": "string",
+      "enum": ["passed", "max-retries", "loop-detected", "ping-pong", "annotate-failed"],
+      "description": "Terminal outcome of the per-file retry loop."
+    },
+    "exit_code": {"type": ["integer", "null"], "description": "Coordinator exit code if the loop halted (72/73), else null."},
+    "attempts_used": {"type": "integer", "description": "Number of attempts made."},
+    "attempts": {
+      "type": "array",
+      "description": "Per-attempt record.",
+      "items": {
+        "type": "object",
+        "required": ["attempt", "pycsl_pass"],
+        "properties": {
+          "attempt": {"type": "integer"},
+          "pycsl_pass": {"type": "boolean"},
+          "reconcile": {
+            "type": ["object", "null"],
+            "properties": {
+              "target": {"type": ["string", "null"]},
+              "fault_class": {"type": ["string", "null"]},
+              "rec_key": {"type": ["string", "null"]}
+            }
+          },
+          "action": {
+            "type": ["object", "null"],
+            "properties": {
+              "kind": {"type": "string", "enum": ["script-update", "redecompose", "none"]},
+              "success": {"type": ["boolean", "null"]}
+            }
+          },
+          "right_cause": {
+            "type": ["boolean", "null"],
+            "description": "Downstream proxy: did the NEXT attempt's proof pass after this attempt's routed action? null if no next attempt."
+          }
+        }
+      }
+    },
+    "loop": {
+      "type": "object",
+      "description": "Inter-agent loop efficiency counters.",
+      "properties": {
+        "distinct_recommendations": {"type": "integer"},
+        "max_consecutive_similar": {"type": "integer"},
+        "redecompose_count": {"type": "integer"}
+      }
+    },
+    "fault_correctness": {
+      "type": "object",
+      "description": "Reconciliation diagnostic accuracy (downstream proxy), per fault_class and overall.",
+      "properties": {
+        "by_class": {"type": "object", "description": "fault_class -> {correct, total}"},
+        "overall": {"type": "object", "properties": {"correct": {"type": "integer"}, "total": {"type": "integer"}}}
+      }
+    },
+    "rocq": {
+      "type": ["object", "null"],
+      "description": "Rocq fallback accounting (null if not attempted).",
+      "properties": {
+        "generated": {"type": "integer"},
+        "completed": {"type": "integer"},
+        "aborted": {"type": "integer"},
+        "incomplete": {"type": "integer"},
+        "obligations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string"},
+              "retries": {"type": ["integer", "null"]},
+              "status": {"type": "string", "enum": ["completed", "aborted", "incomplete"]}
+            }
+          }
+        }
+      }
+    },
+    "ncr_emitted": {"type": "boolean"}
+  },
+  "additionalProperties": false
+}

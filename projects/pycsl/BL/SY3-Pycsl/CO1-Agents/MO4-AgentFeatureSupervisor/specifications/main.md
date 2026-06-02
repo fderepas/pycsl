@@ -13,12 +13,13 @@ bin/cmmi-mod-index.py --file src/pycsl/agents/agent-feature-supervisor.py
 ## Public functions / methods (2)
 
 - `supervise` — `src/pycsl/agents/agent-feature-supervisor.py:220`
-- `main` — `src/pycsl/agents/agent-feature-supervisor.py:534`
+- `main` — `src/pycsl/agents/agent-feature-supervisor.py:571`
 
-## Private (leading-`_`) defs (2)
+## Private (leading-`_`) defs (3)
 
 - `_delegate_phase` — `src/pycsl/agents/agent-feature-supervisor.py:68`
 - `_read_agent_log_context` — `src/pycsl/agents/agent-feature-supervisor.py:172`
+- `supervise._emit_summary` — `src/pycsl/agents/agent-feature-supervisor.py:249`
 
 ---
 
@@ -26,4 +27,4 @@ bin/cmmi-mod-index.py --file src/pycsl/agents/agent-feature-supervisor.py
 
 The `#@` contract block immediately preceding each `def` in `src/pycsl/agents/agent-feature-supervisor.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **4** (public: 2, private: 2).
+Total defs: **5** (public: 2, private: 3).

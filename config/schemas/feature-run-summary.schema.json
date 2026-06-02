@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Feature-Supervisor Run Summary",
+  "description": "Per-invocation machine-readable summary emitted by agent-feature-supervisor for CMMI Level-4 feature-rollout metrics: per-phase acceptance/gate pass-rates, delegation iterations/rollback, load-bearing halts, and Rocq-citation difficulty. Written to metrics/feature-supervisor/<slug>/run-summary.json on every invocation.",
+  "type": "object",
+  "required": ["feature_file", "slug", "outcome", "phases"],
+  "properties": {
+    "feature_file": {"type": "string"},
+    "slug": {"type": "string"},
+    "generated": {"type": "string", "description": "ISO-8601 UTC timestamp."},
+    "exit_code": {"type": ["integer", "null"]},
+    "outcome": {"type": "string", "description": "Overall run outcome (e.g. green, halted-<reason>)."},
+    "phases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["number", "outcome"],
+        "properties": {
+          "number": {"type": "integer"},
+          "title": {"type": ["string", "null"]},
+          "level": {"type": ["string", "null"]},
+          "role": {"type": ["string", "null"]},
+          "outcome": {
+            "type": "string",
+            "enum": ["STATUS_VERIFIED", "PASS", "FAIL", "CLAIM_REJECTED",
+                     "MISSING_ACCEPTANCE", "LOAD_BEARING_HALT", "GATE_FAIL",
+                     "DELEGATION_FAIL", "OPTOUT", "LEGACY_ACCEPTED", "NOT_REACHED"]
+          },
+          "acceptance": {
+            "type": "object",
+            "properties": {"total": {"type": "integer"}, "passed": {"type": "integer"}, "failed": {"type": "integer"}}
+          },
+          "delegation": {
+            "type": ["object", "null"],
+            "properties": {
+              "attempted": {"type": "boolean"},
+              "succeeded": {"type": ["boolean", "null"]},
+              "rolled_back": {"type": ["boolean", "null"]},
+              "iterations": {"type": ["integer", "null"]}
+            }
+          },
+          "loadbearing_hits": {"type": "integer"},
+          "rocq_citations": {"type": ["integer", "null"], "description": "Count of #@ proof rocq/lean citations in the phase's target stubs."},
+          "zero_trusted": {"type": ["boolean", "null"], "description": "Whether the phase's stubs carry 0 \\trusted markers."}
+        }
+      }
+    },
+    "gate": {
+      "type": "array",
+      "description": "Run-level verification gate results (when the global gate ran).",
+      "items": {
+        "type": "object",
+        "properties": {"step": {"type": "string"}, "passed": {"type": "boolean"}, "skipped": {"type": "boolean"}}
+      }
+    },
+    "totals": {
+      "type": "object",
+      "properties": {
+        "phases": {"type": "integer"},
+        "verified": {"type": "integer"},
+        "passed": {"type": "integer"},
+        "failed": {"type": "integer"},
+        "delegated": {"type": "integer"},
+        "rolled_back": {"type": "integer"},
+        "loadbearing_hits": {"type": "integer"}
+      }
+    }
+  },
+  "additionalProperties": false
+}

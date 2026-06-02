@@ -10,13 +10,15 @@ bin/cmmi-mod-index.py --file src/pycsl/agents/feature_supervisor/report.py
 
 ---
 
-## Public functions / methods (1)
+## Public functions / methods (2)
 
-- `write_halt_report` — `src/pycsl/agents/feature_supervisor/report.py:13`
+- `write_feature_run_summary` — `src/pycsl/agents/feature_supervisor/report.py:19`
+- `write_halt_report` — `src/pycsl/agents/feature_supervisor/report.py:133`
 
-## Private (leading-`_`) defs (1)
+## Private (leading-`_`) defs (2)
 
-- `_print_halt` — `src/pycsl/agents/feature_supervisor/report.py:150`
+- `write_feature_run_summary._rocq_and_trusted` — `src/pycsl/agents/feature_supervisor/report.py:48`
+- `_print_halt` — `src/pycsl/agents/feature_supervisor/report.py:270`
 
 ---
 
@@ -24,4 +26,4 @@ bin/cmmi-mod-index.py --file src/pycsl/agents/feature_supervisor/report.py
 
 The `#@` contract block immediately preceding each `def` in `src/pycsl/agents/feature_supervisor/report.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **2** (public: 1, private: 1).
+Total defs: **4** (public: 2, private: 2).
