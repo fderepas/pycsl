@@ -493,6 +493,108 @@ def _lookup_formal_model_hint(
 
 
 
+@dataclass
+class _AnnotateCtx:
+    """Invariant inputs shared across every per-function annotation in a run."""
+    source: str
+    catalog_data: dict
+    annotatable_map: dict
+    class_invariants: dict
+    module_brief: str
+    memory_model: str
+    config_path: Path
+    project_root: Path
+    writer_script: Path
+    project_directory: str
+    writer_timeout: int
+
+
+_REPAIR_NOTE = (
+    "\n\n## REPAIR\n"
+    "The previous annotation failed PyCSL syntax validation. "
+    "Fix the contracts. Do NOT use #@ \\trusted. "
+    "Ensure every #@ line uses valid PyCSL syntax."
+)
+
+
+def _class_ctx_for(info, source: str, class_invariants: dict) -> str:
+    """Class context for a method (with generated invariants prepended), or ''."""
+    if not info.class_name:
+        return ""
+    ctx = _extract_class_context(source, info.class_name)
+    if info.class_name in class_invariants:
+        inv_lines = "\n".join(
+            f"#@ class invariant {e}" for e in class_invariants[info.class_name])
+        ctx = inv_lines + "\n" + ctx
+    return ctx
+
+
+def _ensure_body_or_graft(info, annotated: str, project_directory: str) -> str:
+    """Return `annotated` if it preserves the original body; else graft its
+    `#@` contracts onto the original body. Raise if the body was stripped and
+    nothing can be grafted."""
+    if _body_preserved(info.source, annotated):
+        return annotated
+    grafted = _graft_contracts(info.source, annotated)
+    if grafted:
+        log(project_directory, AGENT_NAME,
+            f"Body modified for {info.name}, grafting contracts")
+        return grafted
+    raise RuntimeError("Body was stripped by LLM")
+
+
+def _annotate_one(info, callee_contracts: str, callee_sources: str,
+                  class_ctx: str, ctx: "_AnnotateCtx") -> tuple[str, bool]:
+    """Annotate one function: writer -> body-preserve/graft -> validate, with one
+    repair retry, falling back to a safe stub on any failure. Returns
+    (annotated_source, used_fallback). KeyboardInterrupt propagates."""
+    def _call(extra_note: str = "") -> str:
+        seed = _lookup_catalog_seed(info, ctx.catalog_data)
+        fm_hint = _lookup_formal_model_hint(info, ctx.catalog_data)
+        hint = _format_assigns_hint(_compute_assigns_hint(info, ctx.annotatable_map))
+        out = _invoke_writer(
+            function_source=info.source,
+            callee_contracts=callee_contracts + extra_note,
+            class_context=class_ctx,
+            memory_model=ctx.memory_model,
+            config_path=ctx.config_path,
+            project_root=ctx.project_root,
+            writer_script=ctx.writer_script,
+            module_brief=ctx.module_brief,
+            callee_sources=callee_sources,
+            catalog_seed=seed,
+            assigns_hint=hint,
+            formal_model_hint=fm_hint,
+            writer_timeout=ctx.writer_timeout,
+        ).strip()
+        if not out:
+            raise RuntimeError("Empty response from writer")
+        return _ensure_body_or_graft(info, out, ctx.project_directory)
+
+    def _valid(annotated: str) -> bool:
+        return _validate_pycsl_syntax(
+            annotated, ctx.project_root, ctx.project_directory,
+            class_name=info.class_name,
+            class_invariants_list=ctx.class_invariants.get(info.class_name),
+            original_source=ctx.source)
+
+    try:
+        annotated = _call()
+        if not _valid(annotated):
+            log(ctx.project_directory, AGENT_NAME,
+                f"Validation failed for {info.name}, retrying with repair prompt")
+            annotated = _call(_REPAIR_NOTE)
+            if not _valid(annotated):
+                raise RuntimeError("PyCSL syntax validation failed after retry")
+        return annotated, False
+    except KeyboardInterrupt:
+        raise
+    except Exception as e:
+        log(ctx.project_directory, AGENT_NAME,
+            f"Writer failed for {info.name}: {e}, using safe fallback")
+        return _safe_fallback_annotation(info), True
+
+
 def run_splitter(
     input_path: Path,
     output_path: Path,
@@ -629,6 +731,15 @@ def run_splitter(
             project_directory, writer_timeout=writer_timeout,
         )
 
+    # Shared per-function annotation context (invariant across the run).
+    ctx = _AnnotateCtx(
+        source=source, catalog_data=catalog_data, annotatable_map=annotatable_map,
+        class_invariants=class_invariants, module_brief=module_brief,
+        memory_model=memory_model, config_path=config_path,
+        project_root=project_root, writer_script=writer_script,
+        project_directory=project_directory, writer_timeout=writer_timeout,
+    )
+
     # Step 3: Detect SCCs and topological order
     sccs = _tarjan_scc(annotatable_map)
     log(project_directory, AGENT_NAME,
@@ -745,129 +856,10 @@ def run_splitter(
                   f"({int(elapsed_total)}s elapsed) Annotating: {info.name}",
                   file=sys.stderr)
 
-            # Get class context if it's a method
-            class_ctx = ""
-            if info.class_name:
-                class_ctx = _extract_class_context(source, info.class_name)
-                # Inject generated class invariants so the writer sees them
-                if info.class_name in class_invariants:
-                    inv_lines = "\n".join(
-                        f"#@ class invariant {e}"
-                        for e in class_invariants[info.class_name]
-                    )
-                    class_ctx = inv_lines + "\n" + class_ctx
-
+            class_ctx = _class_ctx_for(info, source, class_invariants)
             try:
-                seed = _lookup_catalog_seed(info, catalog_data)
-                fm_hint = _lookup_formal_model_hint(info, catalog_data)
-                # Compute assigns hint from static analysis
-                assigns_fields = _compute_assigns_hint(info, annotatable_map)
-                hint = _format_assigns_hint(assigns_fields)
-                if verbose:
-                    print(f"    catalog_seed: {'yes' if seed else 'no'}, "
-                          f"formal_model: {'yes' if fm_hint else 'no'}, "
-                          f"assigns: {assigns_fields or '(none)'}, "
-                          f"callees: {len(callee_contracts)} chars",
-                          file=sys.stderr)
-                annotated = _invoke_writer(
-                    function_source=info.source,
-                    callee_contracts=callee_contracts,
-                    class_context=class_ctx,
-                    memory_model=memory_model,
-                    config_path=config_path,
-                    project_root=project_root,
-                    writer_script=writer_script,
-                    module_brief=module_brief,
-                    callee_sources=callee_sources,
-                    catalog_seed=seed,
-                    assigns_hint=hint,
-                    formal_model_hint=fm_hint,
-                    writer_timeout=writer_timeout,
-                )
-                annotated = annotated.strip()
-                if not annotated:
-                    raise RuntimeError("Empty response from writer")
-                if not _body_preserved(info.source, annotated):
-                    # Try grafting: extract #@ lines and attach to original body
-                    grafted = _graft_contracts(info.source, annotated)
-                    if grafted:
-                        log(project_directory, AGENT_NAME,
-                            f"Body modified for {info.name}, trying contract graft")
-                        print(f"    Body modified, grafting contracts...",
-                              file=sys.stderr)
-                        annotated = grafted
-                    else:
-                        log(project_directory, AGENT_NAME,
-                            f"Body stripped for {info.name}, no contracts to graft")
-                        raise RuntimeError("Body was stripped by LLM")
-                valid = _validate_pycsl_syntax(
-                    annotated, project_root, project_directory,
-                    class_name=info.class_name,
-                    class_invariants_list=class_invariants.get(info.class_name),
-                    original_source=source,
-                )
-                if verbose:
-                    print(f"    validation: {'PASS' if valid else 'FAIL'}",
-                          file=sys.stderr)
-                if not valid:
-                    # Retry once with repair context
-                    log(project_directory, AGENT_NAME,
-                        f"Validation failed for {info.name}, retrying with repair prompt")
-                    print(f"[{progress_counter}/{total_to_annotate}] Retrying: {info.name}",
-                          file=sys.stderr)
-                    annotated = _invoke_writer(
-                        function_source=info.source,
-                        callee_contracts=callee_contracts + "\n\n## REPAIR\n"
-                            "The previous annotation failed PyCSL syntax validation. "
-                            "Fix the contracts. Do NOT use #@ \\trusted. "
-                            "Ensure every #@ line uses valid PyCSL syntax.",
-                        class_context=class_ctx,
-                        memory_model=memory_model,
-                        config_path=config_path,
-                        project_root=project_root,
-                        writer_script=writer_script,
-                        module_brief=module_brief,
-                        callee_sources=callee_sources,
-                        catalog_seed=seed,
-                        assigns_hint=hint,
-                        formal_model_hint=fm_hint,
-                        writer_timeout=writer_timeout,
-                    ).strip()
-                    if not annotated:
-                        raise RuntimeError("Repair attempt failed: empty response")
-                    if not _body_preserved(info.source, annotated):
-                        grafted = _graft_contracts(info.source, annotated)
-                        if grafted:
-                            annotated = grafted
-                        else:
-                            raise RuntimeError("Repair attempt failed: body stripped, no contracts")
-                    if not _validate_pycsl_syntax(
-                        annotated, project_root, project_directory,
-                        class_name=info.class_name,
-                        class_invariants_list=class_invariants.get(info.class_name),
-                        original_source=source,
-                    ):
-                        log(project_directory, AGENT_NAME,
-                            f"PyCSL validation failed after retry for {info.name}")
-                        print(f"WARNING: PyCSL validation failed for {info.name} "
-                              f"after retry, using safe fallback", file=sys.stderr)
-                        raise RuntimeError("PyCSL syntax validation failed after retry")
-                info.annotated_source = annotated
-                info.contracts = _extract_contracts_text(annotated)
-                annotated_contracts[info.name] = info.contracts
-                _checkpoint_save(cache_dir, info.name,
-                                 annotated, info.contracts)
-                fn_elapsed = time.monotonic() - fn_start
-                print(f"    ✓ {info.name} ({int(fn_elapsed)}s)", file=sys.stderr)
-            except Exception as e:
-                fn_elapsed = time.monotonic() - fn_start
-                log(project_directory, AGENT_NAME,
-                    f"Writer failed for {info.name}: {e}, using safe fallback")
-                print(f"    ✗ {info.name}: {e} ({int(fn_elapsed)}s, safe fallback)",
-                      file=sys.stderr)
-                info.annotated_source = _safe_fallback_annotation(info)
-                info.contracts = _extract_contracts_text(info.annotated_source)
-                annotated_contracts[info.name] = info.contracts
+                annotated, used_fallback = _annotate_one(
+                    info, callee_contracts, callee_sources, class_ctx, ctx)
             except KeyboardInterrupt:
                 log(project_directory, AGENT_NAME,
                     f"Interrupted during {info.name}, saving partial output")
@@ -876,6 +868,16 @@ def run_splitter(
                       file=sys.stderr)
                 _interrupted = True
                 break
+            info.annotated_source = annotated
+            info.contracts = _extract_contracts_text(annotated)
+            annotated_contracts[info.name] = info.contracts
+            fn_elapsed = time.monotonic() - fn_start
+            if used_fallback:
+                print(f"    ✗ {info.name} ({int(fn_elapsed)}s, safe fallback)",
+                      file=sys.stderr)
+            else:
+                _checkpoint_save(cache_dir, info.name, annotated, info.contracts)
+                print(f"    ✓ {info.name} ({int(fn_elapsed)}s)", file=sys.stderr)
 
         elif len(scc_funcs) <= 3:
             # Small mutual recursion group — send all together
@@ -1004,15 +1006,7 @@ def run_splitter(
                       f"({int(elapsed_total)}s elapsed) Annotating (SCC): {info.name}",
                       file=sys.stderr)
 
-                class_ctx = ""
-                if info.class_name:
-                    class_ctx = _extract_class_context(source, info.class_name)
-                    if info.class_name in class_invariants:
-                        inv_lines = "\n".join(
-                            f"#@ class invariant {e}"
-                            for e in class_invariants[info.class_name]
-                        )
-                        class_ctx = inv_lines + "\n" + class_ctx
+                class_ctx = _class_ctx_for(info, source, class_invariants)
 
                 # Include SCC-mate signatures + any already-annotated
                 # contracts as extra callee context
@@ -1035,104 +1029,8 @@ def run_splitter(
                 scc_callee_ctx = "\n\n".join(scc_callee_parts)
 
                 try:
-                    seed = _lookup_catalog_seed(info, catalog_data)
-                    fm_hint = _lookup_formal_model_hint(info, catalog_data)
-                    assigns_fields = _compute_assigns_hint(info, annotatable_map)
-                    hint = _format_assigns_hint(assigns_fields)
-                    annotated = _invoke_writer(
-                        function_source=info.source,
-                        callee_contracts=scc_callee_ctx,
-                        class_context=class_ctx,
-                        memory_model=memory_model,
-                        config_path=config_path,
-                        project_root=project_root,
-                        writer_script=writer_script,
-                        module_brief=module_brief,
-                        callee_sources=callee_sources,
-                        catalog_seed=seed,
-                        assigns_hint=hint,
-                        formal_model_hint=fm_hint,
-                        writer_timeout=writer_timeout,
-                    )
-                    annotated = annotated.strip()
-                    if not annotated:
-                        raise RuntimeError("Empty response from writer")
-                    if not _body_preserved(info.source, annotated):
-                        grafted = _graft_contracts(info.source, annotated)
-                        if grafted:
-                            log(project_directory, AGENT_NAME,
-                                f"Body modified for {info.name} in SCC, grafting contracts")
-                            print(f"    Body modified, grafting contracts...",
-                                  file=sys.stderr)
-                            annotated = grafted
-                        else:
-                            log(project_directory, AGENT_NAME,
-                                f"Body stripped for {info.name} in SCC, no contracts to graft")
-                            raise RuntimeError("Body was stripped by LLM")
-                    if not _validate_pycsl_syntax(
-                        annotated, project_root, project_directory,
-                        class_name=info.class_name,
-                        class_invariants_list=class_invariants.get(info.class_name),
-                        original_source=source,
-                    ):
-                        # Retry once with repair context
-                        log(project_directory, AGENT_NAME,
-                            f"Validation failed for {info.name} in SCC, retrying")
-                        print(f"[{progress_counter}/{total_to_annotate}] Retrying: {info.name}",
-                              file=sys.stderr)
-                        annotated = _invoke_writer(
-                            function_source=info.source,
-                            callee_contracts=scc_callee_ctx + "\n\n## REPAIR\n"
-                                "The previous annotation failed PyCSL syntax validation. "
-                                "Fix the contracts. Do NOT use #@ \\trusted. "
-                                "Ensure every #@ line uses valid PyCSL syntax.",
-                            class_context=class_ctx,
-                            memory_model=memory_model,
-                            config_path=config_path,
-                            project_root=project_root,
-                            writer_script=writer_script,
-                            module_brief=module_brief,
-                            callee_sources=callee_sources,
-                            catalog_seed=seed,
-                            assigns_hint=hint,
-                            formal_model_hint=fm_hint,
-                            writer_timeout=writer_timeout,
-                        ).strip()
-                        if not annotated:
-                            raise RuntimeError("Repair attempt failed in SCC: empty")
-                        if not _body_preserved(info.source, annotated):
-                            grafted = _graft_contracts(info.source, annotated)
-                            if grafted:
-                                annotated = grafted
-                            else:
-                                raise RuntimeError("Repair attempt failed in SCC: no contracts")
-                        if not _validate_pycsl_syntax(
-                            annotated, project_root, project_directory,
-                            class_name=info.class_name,
-                            class_invariants_list=class_invariants.get(info.class_name),
-                            original_source=source,
-                        ):
-                            log(project_directory, AGENT_NAME,
-                                f"PyCSL validation failed after retry for {info.name}")
-                            print(f"WARNING: PyCSL validation failed for {info.name} "
-                                  f"after retry, using safe fallback", file=sys.stderr)
-                            raise RuntimeError("PyCSL syntax validation failed after retry")
-                    info.annotated_source = annotated
-                    info.contracts = _extract_contracts_text(annotated)
-                    annotated_contracts[info.name] = info.contracts
-                    _checkpoint_save(cache_dir, info.name,
-                                     annotated, info.contracts)
-                    fn_elapsed = time.monotonic() - fn_start
-                    print(f"    ✓ {info.name} ({int(fn_elapsed)}s)", file=sys.stderr)
-                except Exception as e:
-                    fn_elapsed = time.monotonic() - fn_start
-                    log(project_directory, AGENT_NAME,
-                        f"Writer failed for {info.name}: {e}, using safe fallback")
-                    print(f"    ✗ {info.name}: {e} ({int(fn_elapsed)}s, safe fallback)",
-                          file=sys.stderr)
-                    info.annotated_source = _safe_fallback_annotation(info)
-                    info.contracts = _extract_contracts_text(info.annotated_source)
-                    annotated_contracts[info.name] = info.contracts
+                    annotated, used_fallback = _annotate_one(
+                        info, scc_callee_ctx, callee_sources, class_ctx, ctx)
                 except KeyboardInterrupt:
                     log(project_directory, AGENT_NAME,
                         f"Interrupted during {info.name}, saving partial output")
@@ -1141,6 +1039,16 @@ def run_splitter(
                           file=sys.stderr)
                     _interrupted = True
                     break
+                info.annotated_source = annotated
+                info.contracts = _extract_contracts_text(annotated)
+                annotated_contracts[info.name] = info.contracts
+                fn_elapsed = time.monotonic() - fn_start
+                if used_fallback:
+                    print(f"    ✗ {info.name} ({int(fn_elapsed)}s, safe fallback)",
+                          file=sys.stderr)
+                else:
+                    _checkpoint_save(cache_dir, info.name, annotated, info.contracts)
+                    print(f"    ✓ {info.name} ({int(fn_elapsed)}s)", file=sys.stderr)
 
     # Print final timing summary
     total_elapsed = time.monotonic() - annotation_start_time
