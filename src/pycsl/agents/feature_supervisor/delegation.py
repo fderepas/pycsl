@@ -1,5 +1,5 @@
 from __future__ import annotations
-import argparse, datetime, json, os, re, subprocess, sys
+import argparse, datetime, json, os, re, shutil, subprocess, sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -16,6 +16,7 @@ __all__ = [
     'FILE_OUTPUT_INSTRUCTION',
     '_extract_files',
     '_write_files',
+    '_snapshot_untracked_targets',
     '_rollback_phase',
     '_delegate_model',
 ]
@@ -195,19 +196,51 @@ def _write_files(pairs: List[Tuple[str, str]]) -> Tuple[bool, str, List[str]]:
     return True, "", written
 
 
+def _phase_snapshot_dir(slug: str, phase_number: int) -> Path:
+    return _HALT_REPORT_ROOT / slug / ".rollback-snapshot" / f"phase-{phase_number}"
+
+
+def _snapshot_untracked_targets(slug: str, phase_number: int,
+                                target_files: list[str]) -> None:
+    """Before a phase's delegate edits its targets, copy aside any target that
+    EXISTS on disk but is NOT in HEAD (untracked / never committed).
+
+    The per-phase rollback tag only captures *tracked* state, so without this
+    `_rollback_phase` cannot tell a pre-existing untracked file from a
+    delegate-created one and would delete it (data loss). Snapshotting lets the
+    rollback restore such files instead. Tracked targets are already protected
+    by the tag and are skipped."""
+    snap_dir = _phase_snapshot_dir(slug, phase_number)
+    shutil.rmtree(snap_dir, ignore_errors=True)
+    for target in target_files:
+        rel = target.lstrip("./").lstrip("/")
+        in_head = _git("cat-file", "-e", f"HEAD:{rel}",
+                       check=False).returncode == 0
+        if in_head:
+            continue
+        src = _PROJECT_ROOT / rel
+        if src.is_file():
+            dst = snap_dir / rel
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dst)
+
+
 def _rollback_phase(slug: str, phase_number: int,
                     target_files: list[str]) -> bool:
-    """Revert per-phase targets to the per-phase start tag. Returns success."""
+    """Revert per-phase targets to the per-phase start state. Returns success.
+
+    Tracked targets are restored from the start tag. Targets absent from the tag
+    are either pre-existing untracked files (restored from the phase-start
+    snapshot — see `_snapshot_untracked_targets`) or genuinely delegate-created
+    (deleted)."""
     tag = _phase_tag(slug, phase_number)
     # Check tag exists
     r = _git("rev-parse", "--verify", tag, check=False)
     if r.returncode != 0:
         return False
-    # Restore each target. Files that existed at the tag are restored; files
-    # the delegate newly CREATED (absent at the tag — common with full-file
-    # output) are deleted, since `git restore` can't revert a non-existent
-    # path.
+    snap_dir = _phase_snapshot_dir(slug, phase_number)
     for target in target_files:
+        rel = target.lstrip("./").lstrip("/")
         existed = _git("cat-file", "-e", f"{tag}:{target}",
                        check=False).returncode == 0
         if existed:
@@ -217,16 +250,27 @@ def _rollback_phase(slug: str, phase_number: int,
             except RuntimeError:
                 return False
         else:
-            p = _PROJECT_ROOT / target.lstrip("./").lstrip("/")
-            try:
-                if p.is_file():
-                    p.unlink()
-            except OSError:
-                return False
-            _git("rm", "-f", "--cached", "--ignore-unmatch", "--", target,
-                 check=False)
-    # Delete the tag (rollback complete)
+            p = _PROJECT_ROOT / rel
+            snap = snap_dir / rel
+            if snap.is_file():
+                # Pre-existing untracked file → restore it, never delete.
+                try:
+                    p.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(snap, p)
+                except OSError:
+                    return False
+            else:
+                # Genuinely created by the delegate → remove.
+                try:
+                    if p.is_file():
+                        p.unlink()
+                except OSError:
+                    return False
+                _git("rm", "-f", "--cached", "--ignore-unmatch", "--", target,
+                     check=False)
+    # Delete the tag + drop the snapshot (rollback complete)
     _git("tag", "-d", tag, check=False)
+    shutil.rmtree(snap_dir, ignore_errors=True)
     return True
 
 

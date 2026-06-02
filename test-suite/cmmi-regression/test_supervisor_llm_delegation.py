@@ -292,3 +292,56 @@ def test_git_helper_refuses_forbidden_args():
         sup._git("commit", "-m", "foo")
     with pytest.raises(RuntimeError, match="forbidden"):
         sup._git("clean", "-fd")
+
+
+# ---------------------------------------------------------------------------
+# Rollback safety — pre-existing untracked targets must survive (data-loss fix)
+# ---------------------------------------------------------------------------
+
+def _cleanup_phase(slug, tag, paths):
+    for p in paths:
+        if p.exists():
+            p.unlink()
+    subprocess.run(["git", "tag", "-d", tag], cwd=str(REPO_ROOT), capture_output=True)
+    shutil.rmtree(REPO_ROOT / "metrics" / "feature-supervisor" / slug, ignore_errors=True)
+
+
+def test_rollback_restores_preexisting_untracked_target():
+    """A pre-existing UNTRACKED phase target must survive a rollback.
+
+    Regression: the per-phase tag only snapshots tracked state, so rollback used
+    to delete untracked targets it couldn't find in the tag."""
+    slug, phase_no = "test-untracked-rollback", 99
+    rel = "proposed-features/.cmmi-untracked-rollback-fixture.py"
+    p = REPO_ROOT / rel
+    original = "# pre-existing untracked Phase target — must survive rollback\n"
+    tag = sup._phase_tag(slug, phase_no)
+    try:
+        p.write_text(original)
+        # phase start: tag HEAD, then snapshot untracked targets
+        subprocess.run(["git", "tag", "-f", tag], cwd=str(REPO_ROOT), capture_output=True)
+        sup._snapshot_untracked_targets(slug, phase_no, [rel])
+        # delegate clobbers it
+        p.write_text("# delegate clobbered this\n")
+        assert sup._rollback_phase(slug, phase_no, [rel])
+        assert p.exists(), "untracked target was deleted by rollback (regression)"
+        assert p.read_text() == original, "untracked target not restored to original content"
+    finally:
+        _cleanup_phase(slug, tag, [p])
+
+
+def test_rollback_still_deletes_delegate_created_file():
+    """A target with no phase-start snapshot (genuinely delegate-created) is still removed."""
+    slug, phase_no = "test-created-rollback", 98
+    rel = "proposed-features/.cmmi-created-rollback-fixture.py"
+    p = REPO_ROOT / rel
+    tag = sup._phase_tag(slug, phase_no)
+    try:
+        subprocess.run(["git", "tag", "-f", tag], cwd=str(REPO_ROOT), capture_output=True)
+        # snapshot runs while the file does NOT yet exist → nothing snapshotted
+        sup._snapshot_untracked_targets(slug, phase_no, [rel])
+        p.write_text("# created by the delegate\n")  # delegate creates it afterwards
+        assert sup._rollback_phase(slug, phase_no, [rel])
+        assert not p.exists(), "delegate-created file should be removed on rollback"
+    finally:
+        _cleanup_phase(slug, tag, [p])

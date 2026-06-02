@@ -12,13 +12,13 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/os_demo.py
 
 ## Public functions / methods (7)
 
-- `demo_getpid` — `src/pycsl_lib/os_demo.py:15`
-- `demo_open` — `src/pycsl_lib/os_demo.py:23`
-- `demo_close` — `src/pycsl_lib/os_demo.py:31`
-- `demo_mkdir` — `src/pycsl_lib/os_demo.py:39`
-- `demo_getuid` — `src/pycsl_lib/os_demo.py:47`
-- `demo_read` — `src/pycsl_lib/os_demo.py:55`
-- `demo_write` — `src/pycsl_lib/os_demo.py:63`
+- `demo_open` — `src/pycsl_lib/os_demo.py:16`
+- `demo_write` — `src/pycsl_lib/os_demo.py:24`
+- `demo_read` — `src/pycsl_lib/os_demo.py:32`
+- `demo_close` — `src/pycsl_lib/os_demo.py:40`
+- `demo_dup` — `src/pycsl_lib/os_demo.py:48`
+- `demo_lseek` — `src/pycsl_lib/os_demo.py:56`
+- `demo_roundtrip` — `src/pycsl_lib/os_demo.py:64`
 
 ## Private (leading-`_`) defs (0)
 

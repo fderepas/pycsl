@@ -14,15 +14,17 @@ bin/cmmi-mod-index.py --file src/pycsl/agents/feature_supervisor/delegation.py
 
 _(none)_
 
-## Private (leading-`_`) defs (7)
+## Private (leading-`_`) defs (9)
 
-- `_build_phase_prompt` — `src/pycsl/agents/feature_supervisor/delegation.py:23`
-- `_extract_diff` — `src/pycsl/agents/feature_supervisor/delegation.py:99`
-- `_apply_diff` — `src/pycsl/agents/feature_supervisor/delegation.py:111`
-- `_extract_files` — `src/pycsl/agents/feature_supervisor/delegation.py:164`
-- `_write_files` — `src/pycsl/agents/feature_supervisor/delegation.py:176`
-- `_rollback_phase` — `src/pycsl/agents/feature_supervisor/delegation.py:198`
-- `_delegate_model` — `src/pycsl/agents/feature_supervisor/delegation.py:233`
+- `_build_phase_prompt` — `src/pycsl/agents/feature_supervisor/delegation.py:24`
+- `_extract_diff` — `src/pycsl/agents/feature_supervisor/delegation.py:100`
+- `_apply_diff` — `src/pycsl/agents/feature_supervisor/delegation.py:112`
+- `_extract_files` — `src/pycsl/agents/feature_supervisor/delegation.py:165`
+- `_write_files` — `src/pycsl/agents/feature_supervisor/delegation.py:177`
+- `_phase_snapshot_dir` — `src/pycsl/agents/feature_supervisor/delegation.py:199`
+- `_snapshot_untracked_targets` — `src/pycsl/agents/feature_supervisor/delegation.py:203`
+- `_rollback_phase` — `src/pycsl/agents/feature_supervisor/delegation.py:228`
+- `_delegate_model` — `src/pycsl/agents/feature_supervisor/delegation.py:277`
 
 ---
 
@@ -30,4 +32,4 @@ _(none)_
 
 The `#@` contract block immediately preceding each `def` in `src/pycsl/agents/feature_supervisor/delegation.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **7** (public: 0, private: 7).
+Total defs: **9** (public: 0, private: 9).

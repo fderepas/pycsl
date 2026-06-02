@@ -91,6 +91,9 @@ def _delegate_phase(phase: "Phase", plan_text: str,
     subprocess.run(["git", "tag", "-f", tag],
                    cwd=str(_PROJECT_ROOT),
                    capture_output=True)
+    # The tag only snapshots TRACKED state; also snapshot any pre-existing
+    # untracked targets so a rollback restores (never deletes) them.
+    _snapshot_untracked_targets(slug, phase.number, phase.target_files)
 
     prompt = _build_phase_prompt(phase, plan_text)
     try:
