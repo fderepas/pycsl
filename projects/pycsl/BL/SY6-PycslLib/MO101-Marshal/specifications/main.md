@@ -12,10 +12,10 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/marshal.py
 
 ## Public functions / methods (4)
 
-- `dump` — `src/pycsl_lib/marshal.py:6`
-- `load` — `src/pycsl_lib/marshal.py:12`
-- `dumps` — `src/pycsl_lib/marshal.py:18`
-- `loads` — `src/pycsl_lib/marshal.py:24`
+- `dump` — `src/pycsl_lib/marshal.py:8`
+- `load` — `src/pycsl_lib/marshal.py:16`
+- `dumps` — `src/pycsl_lib/marshal.py:23`
+- `loads` — `src/pycsl_lib/marshal.py:30`
 
 ## Private (leading-`_`) defs (0)
 

@@ -12,8 +12,8 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/ensurepip.py
 
 ## Public functions / methods (2)
 
-- `version` — `src/pycsl_lib/ensurepip.py:6`
-- `bootstrap` — `src/pycsl_lib/ensurepip.py:12`
+- `version` — `src/pycsl_lib/ensurepip.py:7`
+- `bootstrap` — `src/pycsl_lib/ensurepip.py:15`
 
 ## Private (leading-`_`) defs (0)
 

@@ -12,10 +12,10 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/linecache.py
 
 ## Public functions / methods (4)
 
-- `getline` — `src/pycsl_lib/linecache.py:6`
-- `clearcache` — `src/pycsl_lib/linecache.py:12`
-- `checkcache` — `src/pycsl_lib/linecache.py:18`
-- `lazycache` — `src/pycsl_lib/linecache.py:24`
+- `getline` — `src/pycsl_lib/linecache.py:8`
+- `clearcache` — `src/pycsl_lib/linecache.py:15`
+- `checkcache` — `src/pycsl_lib/linecache.py:22`
+- `lazycache` — `src/pycsl_lib/linecache.py:29`
 
 ## Private (leading-`_`) defs (0)
 

@@ -12,17 +12,17 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/fileinput.py
 
 ## Public functions / methods (11)
 
-- `input` — `src/pycsl_lib/fileinput.py:6`
-- `filename` — `src/pycsl_lib/fileinput.py:12`
-- `fileno` — `src/pycsl_lib/fileinput.py:18`
-- `lineno` — `src/pycsl_lib/fileinput.py:24`
-- `filelineno` — `src/pycsl_lib/fileinput.py:30`
-- `isfirstline` — `src/pycsl_lib/fileinput.py:36`
-- `isstdin` — `src/pycsl_lib/fileinput.py:42`
-- `nextfile` — `src/pycsl_lib/fileinput.py:48`
-- `close` — `src/pycsl_lib/fileinput.py:54`
-- `hook_compressed` — `src/pycsl_lib/fileinput.py:60`
-- `hook_encoded` — `src/pycsl_lib/fileinput.py:66`
+- `input` — `src/pycsl_lib/fileinput.py:8`
+- `filename` — `src/pycsl_lib/fileinput.py:15`
+- `fileno` — `src/pycsl_lib/fileinput.py:22`
+- `lineno` — `src/pycsl_lib/fileinput.py:29`
+- `filelineno` — `src/pycsl_lib/fileinput.py:36`
+- `isfirstline` — `src/pycsl_lib/fileinput.py:43`
+- `isstdin` — `src/pycsl_lib/fileinput.py:50`
+- `nextfile` — `src/pycsl_lib/fileinput.py:57`
+- `close` — `src/pycsl_lib/fileinput.py:65`
+- `hook_compressed` — `src/pycsl_lib/fileinput.py:73`
+- `hook_encoded` — `src/pycsl_lib/fileinput.py:81`
 
 ## Private (leading-`_`) defs (0)
 

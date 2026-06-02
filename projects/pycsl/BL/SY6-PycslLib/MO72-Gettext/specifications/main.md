@@ -12,19 +12,19 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/gettext.py
 
 ## Public functions / methods (13)
 
-- `bindtextdomain` — `src/pycsl_lib/gettext.py:6`
-- `textdomain` — `src/pycsl_lib/gettext.py:12`
-- `gettext` — `src/pycsl_lib/gettext.py:18`
-- `dgettext` — `src/pycsl_lib/gettext.py:24`
-- `ngettext` — `src/pycsl_lib/gettext.py:30`
-- `dngettext` — `src/pycsl_lib/gettext.py:36`
-- `pgettext` — `src/pycsl_lib/gettext.py:42`
-- `dpgettext` — `src/pycsl_lib/gettext.py:48`
-- `npgettext` — `src/pycsl_lib/gettext.py:54`
-- `dnpgettext` — `src/pycsl_lib/gettext.py:60`
-- `find` — `src/pycsl_lib/gettext.py:66`
-- `translation` — `src/pycsl_lib/gettext.py:72`
-- `install` — `src/pycsl_lib/gettext.py:78`
+- `bindtextdomain` — `src/pycsl_lib/gettext.py:8`
+- `textdomain` — `src/pycsl_lib/gettext.py:16`
+- `gettext` — `src/pycsl_lib/gettext.py:24`
+- `dgettext` — `src/pycsl_lib/gettext.py:32`
+- `ngettext` — `src/pycsl_lib/gettext.py:40`
+- `dngettext` — `src/pycsl_lib/gettext.py:48`
+- `pgettext` — `src/pycsl_lib/gettext.py:56`
+- `dpgettext` — `src/pycsl_lib/gettext.py:64`
+- `npgettext` — `src/pycsl_lib/gettext.py:72`
+- `dnpgettext` — `src/pycsl_lib/gettext.py:80`
+- `find` — `src/pycsl_lib/gettext.py:88`
+- `translation` — `src/pycsl_lib/gettext.py:96`
+- `install` — `src/pycsl_lib/gettext.py:104`
 
 ## Private (leading-`_`) defs (0)
 

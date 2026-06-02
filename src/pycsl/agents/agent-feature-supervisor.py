@@ -115,7 +115,8 @@ def _delegate_phase(phase: "Phase", plan_text: str,
     else:
         diff = _extract_diff(llm_output)
         if not diff:
-            return False, "llm output had neither FILE blocks nor a diff block"
+            return False, ("llm refused or produced no diff "
+                           "(output had neither FILE blocks nor a diff block)")
         ok, err = _apply_diff(diff)
         if not ok:
             return False, err

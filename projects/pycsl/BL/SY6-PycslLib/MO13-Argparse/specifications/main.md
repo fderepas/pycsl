@@ -29,14 +29,14 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/argparse.py
 - `NamespaceObj.__init__` — `src/pycsl_lib/argparse.py:123`
 - `NamespaceObj.get_attr` — `src/pycsl_lib/argparse.py:131`
 - `NamespaceObj.set_attr` — `src/pycsl_lib/argparse.py:138`
-- `FileType` — `src/pycsl_lib/argparse.py:147`
-- `HelpFormatter` — `src/pycsl_lib/argparse.py:153`
-- `RawDescriptionHelpFormatter` — `src/pycsl_lib/argparse.py:159`
-- `RawTextHelpFormatter` — `src/pycsl_lib/argparse.py:165`
-- `ArgumentDefaultsHelpFormatter` — `src/pycsl_lib/argparse.py:171`
-- `ArgumentError` — `src/pycsl_lib/argparse.py:177`
-- `ArgumentTypeError` — `src/pycsl_lib/argparse.py:183`
-- `BooleanOptionalAction` — `src/pycsl_lib/argparse.py:190`
+- `FileType` — `src/pycsl_lib/argparse.py:148`
+- `HelpFormatter` — `src/pycsl_lib/argparse.py:154`
+- `RawDescriptionHelpFormatter` — `src/pycsl_lib/argparse.py:160`
+- `RawTextHelpFormatter` — `src/pycsl_lib/argparse.py:166`
+- `ArgumentDefaultsHelpFormatter` — `src/pycsl_lib/argparse.py:172`
+- `ArgumentError` — `src/pycsl_lib/argparse.py:178`
+- `ArgumentTypeError` — `src/pycsl_lib/argparse.py:184`
+- `BooleanOptionalAction` — `src/pycsl_lib/argparse.py:191`
 
 ## Private (leading-`_`) defs (0)
 

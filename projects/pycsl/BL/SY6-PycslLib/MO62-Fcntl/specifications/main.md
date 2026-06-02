@@ -12,10 +12,10 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/fcntl.py
 
 ## Public functions / methods (4)
 
-- `fcntl` — `src/pycsl_lib/fcntl.py:6`
-- `ioctl` — `src/pycsl_lib/fcntl.py:12`
-- `flock` — `src/pycsl_lib/fcntl.py:18`
-- `lockf` — `src/pycsl_lib/fcntl.py:24`
+- `fcntl` — `src/pycsl_lib/fcntl.py:8`
+- `ioctl` — `src/pycsl_lib/fcntl.py:17`
+- `flock` — `src/pycsl_lib/fcntl.py:26`
+- `lockf` — `src/pycsl_lib/fcntl.py:36`
 
 ## Private (leading-`_`) defs (0)
 

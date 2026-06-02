@@ -12,19 +12,19 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/calendar.py
 
 ## Public functions / methods (13)
 
-- `setfirstweekday` — `src/pycsl_lib/calendar.py:6`
-- `firstweekday` — `src/pycsl_lib/calendar.py:12`
-- `isleap` — `src/pycsl_lib/calendar.py:18`
-- `leapdays` — `src/pycsl_lib/calendar.py:24`
-- `weekday` — `src/pycsl_lib/calendar.py:30`
-- `weekheader` — `src/pycsl_lib/calendar.py:36`
-- `monthrange` — `src/pycsl_lib/calendar.py:42`
-- `monthcalendar` — `src/pycsl_lib/calendar.py:48`
-- `prmonth` — `src/pycsl_lib/calendar.py:54`
-- `month` — `src/pycsl_lib/calendar.py:60`
-- `prcal` — `src/pycsl_lib/calendar.py:66`
-- `calendar` — `src/pycsl_lib/calendar.py:72`
-- `timegm` — `src/pycsl_lib/calendar.py:78`
+- `setfirstweekday` — `src/pycsl_lib/calendar.py:8`
+- `firstweekday` — `src/pycsl_lib/calendar.py:16`
+- `isleap` — `src/pycsl_lib/calendar.py:27`
+- `leapdays` — `src/pycsl_lib/calendar.py:36`
+- `weekday` — `src/pycsl_lib/calendar.py:45`
+- `weekheader` — `src/pycsl_lib/calendar.py:53`
+- `monthrange` — `src/pycsl_lib/calendar.py:62`
+- `monthcalendar` — `src/pycsl_lib/calendar.py:72`
+- `prmonth` — `src/pycsl_lib/calendar.py:82`
+- `month` — `src/pycsl_lib/calendar.py:94`
+- `prcal` — `src/pycsl_lib/calendar.py:102`
+- `calendar` — `src/pycsl_lib/calendar.py:109`
+- `timegm` — `src/pycsl_lib/calendar.py:117`
 
 ## Private (leading-`_`) defs (0)
 

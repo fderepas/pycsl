@@ -12,24 +12,24 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/gc.py
 
 ## Public functions / methods (18)
 
-- `enable` — `src/pycsl_lib/gc.py:6`
-- `disable` — `src/pycsl_lib/gc.py:12`
-- `isenabled` — `src/pycsl_lib/gc.py:18`
-- `collect` — `src/pycsl_lib/gc.py:24`
-- `set_debug` — `src/pycsl_lib/gc.py:30`
-- `get_debug` — `src/pycsl_lib/gc.py:36`
-- `get_objects` — `src/pycsl_lib/gc.py:42`
-- `get_stats` — `src/pycsl_lib/gc.py:48`
-- `set_threshold` — `src/pycsl_lib/gc.py:54`
-- `get_count` — `src/pycsl_lib/gc.py:60`
-- `get_threshold` — `src/pycsl_lib/gc.py:66`
-- `get_referrers` — `src/pycsl_lib/gc.py:72`
-- `get_referents` — `src/pycsl_lib/gc.py:78`
-- `is_tracked` — `src/pycsl_lib/gc.py:84`
-- `is_finalized` — `src/pycsl_lib/gc.py:90`
-- `freeze` — `src/pycsl_lib/gc.py:96`
-- `unfreeze` — `src/pycsl_lib/gc.py:102`
-- `get_freeze_count` — `src/pycsl_lib/gc.py:108`
+- `enable` — `src/pycsl_lib/gc.py:7`
+- `disable` — `src/pycsl_lib/gc.py:14`
+- `isenabled` — `src/pycsl_lib/gc.py:21`
+- `collect` — `src/pycsl_lib/gc.py:29`
+- `set_debug` — `src/pycsl_lib/gc.py:36`
+- `get_debug` — `src/pycsl_lib/gc.py:43`
+- `get_objects` — `src/pycsl_lib/gc.py:52`
+- `get_stats` — `src/pycsl_lib/gc.py:59`
+- `set_threshold` — `src/pycsl_lib/gc.py:69`
+- `get_count` — `src/pycsl_lib/gc.py:76`
+- `get_threshold` — `src/pycsl_lib/gc.py:83`
+- `get_referrers` — `src/pycsl_lib/gc.py:90`
+- `get_referents` — `src/pycsl_lib/gc.py:97`
+- `is_tracked` — `src/pycsl_lib/gc.py:104`
+- `is_finalized` — `src/pycsl_lib/gc.py:111`
+- `freeze` — `src/pycsl_lib/gc.py:119`
+- `unfreeze` — `src/pycsl_lib/gc.py:126`
+- `get_freeze_count` — `src/pycsl_lib/gc.py:133`
 
 ## Private (leading-`_`) defs (0)
 

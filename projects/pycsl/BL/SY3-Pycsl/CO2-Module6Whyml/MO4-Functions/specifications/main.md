@@ -10,22 +10,26 @@ bin/cmmi-mod-index.py --file src/pycsl/module6_whyml/functions.py
 
 ---
 
-## Public functions / methods (0)
+## Public functions / methods (2)
 
-_(none)_
+- `FunctionEmissionMixin._render_refinement_goal.conj` — `src/pycsl/module6_whyml/functions.py:321`
+- `FunctionEmissionMixin._build_method_result_ensures_map.result_only` — `src/pycsl/module6_whyml/functions.py:385`
 
-## Private (leading-`_`) defs (10)
+## Private (leading-`_`) defs (13)
 
 - `FunctionEmissionMixin._param_type_str` — `src/pycsl/module6_whyml/functions.py:12`
 - `FunctionEmissionMixin._collect_record_fields` — `src/pycsl/module6_whyml/functions.py:36`
 - `FunctionEmissionMixin._reset_function_state` — `src/pycsl/module6_whyml/functions.py:53`
 - `FunctionEmissionMixin._build_param_list` — `src/pycsl/module6_whyml/functions.py:94`
-- `FunctionEmissionMixin._emit_contracts` — `src/pycsl/module6_whyml/functions.py:146`
-- `FunctionEmissionMixin._compute_return_type` — `src/pycsl/module6_whyml/functions.py:194`
-- `FunctionEmissionMixin._emit_function` — `src/pycsl/module6_whyml/functions.py:209`
-- `FunctionEmissionMixin._build_method_return_type_map` — `src/pycsl/module6_whyml/functions.py:284`
-- `FunctionEmissionMixin._symtype_to_whyml` — `src/pycsl/module6_whyml/functions.py:308`
-- `FunctionEmissionMixin._build_method_param_types_map` — `src/pycsl/module6_whyml/functions.py:317`
+- `FunctionEmissionMixin._emit_contracts` — `src/pycsl/module6_whyml/functions.py:152`
+- `FunctionEmissionMixin._compute_return_type` — `src/pycsl/module6_whyml/functions.py:200`
+- `FunctionEmissionMixin._emit_function` — `src/pycsl/module6_whyml/functions.py:215`
+- `FunctionEmissionMixin._emit_subtyping_goals` — `src/pycsl/module6_whyml/functions.py:290`
+- `FunctionEmissionMixin._render_refinement_goal` — `src/pycsl/module6_whyml/functions.py:312`
+- `FunctionEmissionMixin._build_method_return_type_map` — `src/pycsl/module6_whyml/functions.py:351`
+- `FunctionEmissionMixin._build_method_result_ensures_map` — `src/pycsl/module6_whyml/functions.py:374`
+- `FunctionEmissionMixin._symtype_to_whyml` — `src/pycsl/module6_whyml/functions.py:418`
+- `FunctionEmissionMixin._build_method_param_types_map` — `src/pycsl/module6_whyml/functions.py:427`
 
 ---
 
@@ -33,4 +37,4 @@ _(none)_
 
 The `#@` contract block immediately preceding each `def` in `src/pycsl/module6_whyml/functions.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **10** (public: 0, private: 10).
+Total defs: **15** (public: 2, private: 13).

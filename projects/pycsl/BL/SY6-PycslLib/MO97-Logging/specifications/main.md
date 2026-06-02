@@ -12,28 +12,28 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/logging.py
 
 ## Public functions / methods (22)
 
-- `getLogger` — `src/pycsl_lib/logging.py:6`
-- `getLoggerClass` — `src/pycsl_lib/logging.py:12`
-- `getLogRecordFactory` — `src/pycsl_lib/logging.py:18`
-- `debug` — `src/pycsl_lib/logging.py:24`
-- `info` — `src/pycsl_lib/logging.py:30`
-- `warning` — `src/pycsl_lib/logging.py:36`
-- `error` — `src/pycsl_lib/logging.py:42`
-- `critical` — `src/pycsl_lib/logging.py:48`
-- `exception` — `src/pycsl_lib/logging.py:54`
-- `log` — `src/pycsl_lib/logging.py:61`
-- `disable` — `src/pycsl_lib/logging.py:67`
-- `addLevelName` — `src/pycsl_lib/logging.py:73`
-- `getLevelNamesMapping` — `src/pycsl_lib/logging.py:79`
-- `getLevelName` — `src/pycsl_lib/logging.py:85`
-- `getHandlerByName` — `src/pycsl_lib/logging.py:91`
-- `getHandlerNames` — `src/pycsl_lib/logging.py:97`
-- `makeLogRecord` — `src/pycsl_lib/logging.py:103`
-- `basicConfig` — `src/pycsl_lib/logging.py:109`
-- `shutdown` — `src/pycsl_lib/logging.py:115`
-- `setLoggerClass` — `src/pycsl_lib/logging.py:121`
-- `setLogRecordFactory` — `src/pycsl_lib/logging.py:127`
-- `captureWarnings` — `src/pycsl_lib/logging.py:133`
+- `getLogger` — `src/pycsl_lib/logging.py:7`
+- `getLoggerClass` — `src/pycsl_lib/logging.py:14`
+- `getLogRecordFactory` — `src/pycsl_lib/logging.py:21`
+- `debug` — `src/pycsl_lib/logging.py:28`
+- `info` — `src/pycsl_lib/logging.py:35`
+- `warning` — `src/pycsl_lib/logging.py:42`
+- `error` — `src/pycsl_lib/logging.py:49`
+- `critical` — `src/pycsl_lib/logging.py:56`
+- `exception` — `src/pycsl_lib/logging.py:64`
+- `log` — `src/pycsl_lib/logging.py:72`
+- `disable` — `src/pycsl_lib/logging.py:80`
+- `addLevelName` — `src/pycsl_lib/logging.py:88`
+- `getLevelNamesMapping` — `src/pycsl_lib/logging.py:96`
+- `getLevelName` — `src/pycsl_lib/logging.py:103`
+- `getHandlerByName` — `src/pycsl_lib/logging.py:110`
+- `getHandlerNames` — `src/pycsl_lib/logging.py:117`
+- `makeLogRecord` — `src/pycsl_lib/logging.py:124`
+- `basicConfig` — `src/pycsl_lib/logging.py:131`
+- `shutdown` — `src/pycsl_lib/logging.py:139`
+- `setLoggerClass` — `src/pycsl_lib/logging.py:146`
+- `setLogRecordFactory` — `src/pycsl_lib/logging.py:154`
+- `captureWarnings` — `src/pycsl_lib/logging.py:161`
 
 ## Private (leading-`_`) defs (0)
 

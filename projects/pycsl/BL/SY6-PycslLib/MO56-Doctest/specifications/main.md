@@ -12,17 +12,17 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/doctest.py
 
 ## Public functions / methods (11)
 
-- `register_optionflag` — `src/pycsl_lib/doctest.py:6`
-- `testfile` — `src/pycsl_lib/doctest.py:12`
-- `testmod` — `src/pycsl_lib/doctest.py:18`
-- `run_docstring_examples` — `src/pycsl_lib/doctest.py:24`
-- `DocFileSuite` — `src/pycsl_lib/doctest.py:30`
-- `DocTestSuite` — `src/pycsl_lib/doctest.py:36`
-- `set_unittest_reportflags` — `src/pycsl_lib/doctest.py:42`
-- `script_from_examples` — `src/pycsl_lib/doctest.py:48`
-- `testsource` — `src/pycsl_lib/doctest.py:54`
-- `debug` — `src/pycsl_lib/doctest.py:60`
-- `debug_src` — `src/pycsl_lib/doctest.py:66`
+- `register_optionflag` — `src/pycsl_lib/doctest.py:8`
+- `testfile` — `src/pycsl_lib/doctest.py:15`
+- `testmod` — `src/pycsl_lib/doctest.py:22`
+- `run_docstring_examples` — `src/pycsl_lib/doctest.py:29`
+- `DocFileSuite` — `src/pycsl_lib/doctest.py:38`
+- `DocTestSuite` — `src/pycsl_lib/doctest.py:45`
+- `set_unittest_reportflags` — `src/pycsl_lib/doctest.py:53`
+- `script_from_examples` — `src/pycsl_lib/doctest.py:60`
+- `testsource` — `src/pycsl_lib/doctest.py:68`
+- `debug` — `src/pycsl_lib/doctest.py:75`
+- `debug_src` — `src/pycsl_lib/doctest.py:82`
 
 ## Private (leading-`_`) defs (0)
 

@@ -12,11 +12,11 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/fnmatch.py
 
 ## Public functions / methods (5)
 
-- `fnmatch` — `src/pycsl_lib/fnmatch.py:6`
-- `fnmatchcase` — `src/pycsl_lib/fnmatch.py:12`
-- `filter` — `src/pycsl_lib/fnmatch.py:18`
-- `filterfalse` — `src/pycsl_lib/fnmatch.py:24`
-- `translate` — `src/pycsl_lib/fnmatch.py:30`
+- `fnmatch` — `src/pycsl_lib/fnmatch.py:7`
+- `fnmatchcase` — `src/pycsl_lib/fnmatch.py:14`
+- `filter` — `src/pycsl_lib/fnmatch.py:23`
+- `filterfalse` — `src/pycsl_lib/fnmatch.py:31`
+- `translate` — `src/pycsl_lib/fnmatch.py:39`
 
 ## Private (leading-`_`) defs (0)
 

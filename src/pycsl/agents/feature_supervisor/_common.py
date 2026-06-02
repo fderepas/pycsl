@@ -112,14 +112,22 @@ _DEEP_MODE = os.environ.get("PYCSL_SUPERVISOR_DEEP", "0") == "1"
 
 def _git(*args: str, check: bool = True) -> subprocess.CompletedProcess:
     """Run git with strict args (never inject user-controlled paths
-    without `--` separator). NEVER use --hard, -f, force-push, etc."""
-    forbidden = {"--hard", "-f", "--force", "push", "commit",
-                 "rebase", "clean"}
+    without `--` separator). NEVER use --hard, --force, force-push, clean,
+    or a working-tree `-f`. `-f` is permitted ONLY alongside `--cached`
+    (an index-only `git rm` used by rollback — it never touches the working
+    tree, so it cannot destroy work)."""
+    forbidden = {"--hard", "--force", "push", "commit", "rebase", "clean"}
+    index_only = "--cached" in args
     for a in args:
         if a in forbidden:
             raise RuntimeError(
                 f"_git: refusing forbidden arg {a!r} — supervisor "
                 f"safety perimeter (1.4b)"
+            )
+        if a == "-f" and not index_only:
+            raise RuntimeError(
+                f"_git: refusing forbidden arg {a!r} without --cached — "
+                f"supervisor safety perimeter (1.4b)"
             )
     r = subprocess.run(
         ["git", *args],

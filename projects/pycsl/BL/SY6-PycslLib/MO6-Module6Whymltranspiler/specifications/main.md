@@ -13,23 +13,23 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/Module6_WhyMLTranspiler.py
 ## Public functions / methods (18)
 
 - `Module6TranspilerObj.__init__` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:9`
-- `Module6TranspilerObj.transpile` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:16`
-- `Module6TranspilerObj.whyml_ident` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:23`
-- `Module6TranspilerObj.op_translate` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:30`
-- `Module6TranspilerObj.uses_arrayset` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:37`
-- `Module6TranspilerObj.ends_with_return` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:44`
-- `Module6TranspilerObj.find_assigned_vars` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:51`
-- `Module6TranspilerObj.has_continue` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:58`
-- `Module6TranspilerObj.uses_continue` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:65`
-- `Module6TranspilerObj.uses_for` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:72`
-- `Module6TranspilerObj.uses_subscript` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:79`
-- `Module6TranspilerObj.uses_minmax` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:86`
-- `Module6TranspilerObj.is_recursive` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:93`
-- `Module6TranspilerObj.uses_string` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:100`
-- `Module6TranspilerObj.find_return_type` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:107`
-- `Module6TranspilerObj.expr_to_whyml` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:114`
-- `Module6TranspilerObj.stmts_to_whyml` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:121`
-- `Module6TranspilerObj.emit_frame_condition` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:128`
+- `Module6TranspilerObj.transpile` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:17`
+- `Module6TranspilerObj.whyml_ident` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:25`
+- `Module6TranspilerObj.op_translate` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:33`
+- `Module6TranspilerObj.uses_arrayset` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:41`
+- `Module6TranspilerObj.ends_with_return` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:49`
+- `Module6TranspilerObj.find_assigned_vars` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:57`
+- `Module6TranspilerObj.has_continue` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:65`
+- `Module6TranspilerObj.uses_continue` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:73`
+- `Module6TranspilerObj.uses_for` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:81`
+- `Module6TranspilerObj.uses_subscript` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:89`
+- `Module6TranspilerObj.uses_minmax` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:97`
+- `Module6TranspilerObj.is_recursive` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:105`
+- `Module6TranspilerObj.uses_string` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:113`
+- `Module6TranspilerObj.find_return_type` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:121`
+- `Module6TranspilerObj.expr_to_whyml` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:129`
+- `Module6TranspilerObj.stmts_to_whyml` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:137`
+- `Module6TranspilerObj.emit_frame_condition` — `src/pycsl_lib/Module6_WhyMLTranspiler.py:144`
 
 ## Private (leading-`_`) defs (0)
 

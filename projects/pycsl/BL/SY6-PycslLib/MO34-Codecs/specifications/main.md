@@ -12,37 +12,37 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/codecs.py
 
 ## Public functions / methods (31)
 
-- `encode` — `src/pycsl_lib/codecs.py:6`
-- `decode` — `src/pycsl_lib/codecs.py:12`
-- `charmap_build` — `src/pycsl_lib/codecs.py:18`
-- `lookup` — `src/pycsl_lib/codecs.py:24`
-- `getencoder` — `src/pycsl_lib/codecs.py:30`
-- `getdecoder` — `src/pycsl_lib/codecs.py:36`
-- `getincrementalencoder` — `src/pycsl_lib/codecs.py:42`
-- `getincrementaldecoder` — `src/pycsl_lib/codecs.py:48`
-- `getreader` — `src/pycsl_lib/codecs.py:54`
-- `getwriter` — `src/pycsl_lib/codecs.py:60`
-- `register` — `src/pycsl_lib/codecs.py:66`
-- `unregister` — `src/pycsl_lib/codecs.py:72`
-- `open` — `src/pycsl_lib/codecs.py:78`
-- `EncodedFile` — `src/pycsl_lib/codecs.py:84`
-- `iterencode` — `src/pycsl_lib/codecs.py:90`
-- `iterdecode` — `src/pycsl_lib/codecs.py:96`
-- `readbuffer_encode` — `src/pycsl_lib/codecs.py:102`
-- `register_error` — `src/pycsl_lib/codecs.py:108`
-- `lookup_error` — `src/pycsl_lib/codecs.py:114`
-- `strict_errors` — `src/pycsl_lib/codecs.py:120`
-- `ignore_errors` — `src/pycsl_lib/codecs.py:126`
-- `replace_errors` — `src/pycsl_lib/codecs.py:132`
-- `backslashreplace_errors` — `src/pycsl_lib/codecs.py:138`
-- `xmlcharrefreplace_errors` — `src/pycsl_lib/codecs.py:144`
-- `namereplace_errors` — `src/pycsl_lib/codecs.py:150`
-- `normalize_encoding` — `src/pycsl_lib/codecs.py:156`
-- `search_function` — `src/pycsl_lib/codecs.py:162`
-- `win32_code_page_search_function` — `src/pycsl_lib/codecs.py:168`
-- `nameprep` — `src/pycsl_lib/codecs.py:174`
-- `ToASCII` — `src/pycsl_lib/codecs.py:180`
-- `ToUnicode` — `src/pycsl_lib/codecs.py:186`
+- `encode` — `src/pycsl_lib/codecs.py:8`
+- `decode` — `src/pycsl_lib/codecs.py:16`
+- `charmap_build` — `src/pycsl_lib/codecs.py:24`
+- `lookup` — `src/pycsl_lib/codecs.py:31`
+- `getencoder` — `src/pycsl_lib/codecs.py:39`
+- `getdecoder` — `src/pycsl_lib/codecs.py:46`
+- `getincrementalencoder` — `src/pycsl_lib/codecs.py:54`
+- `getincrementaldecoder` — `src/pycsl_lib/codecs.py:62`
+- `getreader` — `src/pycsl_lib/codecs.py:69`
+- `getwriter` — `src/pycsl_lib/codecs.py:76`
+- `register` — `src/pycsl_lib/codecs.py:83`
+- `unregister` — `src/pycsl_lib/codecs.py:91`
+- `open` — `src/pycsl_lib/codecs.py:99`
+- `EncodedFile` — `src/pycsl_lib/codecs.py:108`
+- `iterencode` — `src/pycsl_lib/codecs.py:115`
+- `iterdecode` — `src/pycsl_lib/codecs.py:123`
+- `readbuffer_encode` — `src/pycsl_lib/codecs.py:131`
+- `register_error` — `src/pycsl_lib/codecs.py:140`
+- `lookup_error` — `src/pycsl_lib/codecs.py:147`
+- `strict_errors` — `src/pycsl_lib/codecs.py:154`
+- `ignore_errors` — `src/pycsl_lib/codecs.py:161`
+- `replace_errors` — `src/pycsl_lib/codecs.py:168`
+- `backslashreplace_errors` — `src/pycsl_lib/codecs.py:175`
+- `xmlcharrefreplace_errors` — `src/pycsl_lib/codecs.py:182`
+- `namereplace_errors` — `src/pycsl_lib/codecs.py:190`
+- `normalize_encoding` — `src/pycsl_lib/codecs.py:198`
+- `search_function` — `src/pycsl_lib/codecs.py:206`
+- `win32_code_page_search_function` — `src/pycsl_lib/codecs.py:214`
+- `nameprep` — `src/pycsl_lib/codecs.py:222`
+- `ToASCII` — `src/pycsl_lib/codecs.py:230`
+- `ToUnicode` — `src/pycsl_lib/codecs.py:238`
 
 ## Private (leading-`_`) defs (0)
 

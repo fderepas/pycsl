@@ -12,15 +12,15 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/dis.py
 
 ## Public functions / methods (9)
 
-- `code_info` — `src/pycsl_lib/dis.py:6`
-- `show_code` — `src/pycsl_lib/dis.py:12`
-- `dis` — `src/pycsl_lib/dis.py:18`
-- `distb` — `src/pycsl_lib/dis.py:24`
-- `disassemble` — `src/pycsl_lib/dis.py:30`
-- `get_instructions` — `src/pycsl_lib/dis.py:36`
-- `findlinestarts` — `src/pycsl_lib/dis.py:42`
-- `findlabels` — `src/pycsl_lib/dis.py:48`
-- `stack_effect` — `src/pycsl_lib/dis.py:54`
+- `code_info` — `src/pycsl_lib/dis.py:7`
+- `show_code` — `src/pycsl_lib/dis.py:15`
+- `dis` — `src/pycsl_lib/dis.py:23`
+- `distb` — `src/pycsl_lib/dis.py:30`
+- `disassemble` — `src/pycsl_lib/dis.py:37`
+- `get_instructions` — `src/pycsl_lib/dis.py:44`
+- `findlinestarts` — `src/pycsl_lib/dis.py:51`
+- `findlabels` — `src/pycsl_lib/dis.py:58`
+- `stack_effect` — `src/pycsl_lib/dis.py:65`
 
 ## Private (leading-`_`) defs (0)
 

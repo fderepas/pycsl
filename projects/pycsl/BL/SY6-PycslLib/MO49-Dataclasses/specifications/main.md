@@ -18,9 +18,9 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/dataclasses.py
 - `is_dataclass` — `src/pycsl_lib/dataclasses.py:42`
 - `asdict` — `src/pycsl_lib/dataclasses.py:52`
 - `astuple` — `src/pycsl_lib/dataclasses.py:60`
-- `make_dataclass` — `src/pycsl_lib/dataclasses.py:72`
-- `replace` — `src/pycsl_lib/dataclasses.py:80`
-- `__post_init__` — `src/pycsl_lib/dataclasses.py:88`
+- `make_dataclass` — `src/pycsl_lib/dataclasses.py:73`
+- `replace` — `src/pycsl_lib/dataclasses.py:81`
+- `__post_init__` — `src/pycsl_lib/dataclasses.py:89`
 
 ## Private (leading-`_`) defs (0)
 

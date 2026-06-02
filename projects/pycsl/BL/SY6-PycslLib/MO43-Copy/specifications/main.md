@@ -12,9 +12,9 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/copy.py
 
 ## Public functions / methods (3)
 
-- `copy` — `src/pycsl_lib/copy.py:6`
-- `deepcopy` — `src/pycsl_lib/copy.py:12`
-- `replace` — `src/pycsl_lib/copy.py:18`
+- `copy` — `src/pycsl_lib/copy.py:7`
+- `deepcopy` — `src/pycsl_lib/copy.py:14`
+- `replace` — `src/pycsl_lib/copy.py:22`
 
 ## Private (leading-`_`) defs (0)
 

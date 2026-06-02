@@ -12,22 +12,22 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/binascii.py
 
 ## Public functions / methods (16)
 
-- `a2b_uu` — `src/pycsl_lib/binascii.py:6`
-- `b2a_uu` — `src/pycsl_lib/binascii.py:12`
-- `a2b_base64` — `src/pycsl_lib/binascii.py:18`
-- `b2a_base64` — `src/pycsl_lib/binascii.py:24`
-- `a2b_ascii85` — `src/pycsl_lib/binascii.py:30`
-- `b2a_ascii85` — `src/pycsl_lib/binascii.py:36`
-- `a2b_base85` — `src/pycsl_lib/binascii.py:42`
-- `b2a_base85` — `src/pycsl_lib/binascii.py:48`
-- `a2b_base32` — `src/pycsl_lib/binascii.py:54`
-- `b2a_base32` — `src/pycsl_lib/binascii.py:60`
-- `a2b_qp` — `src/pycsl_lib/binascii.py:66`
-- `b2a_qp` — `src/pycsl_lib/binascii.py:72`
-- `crc_hqx` — `src/pycsl_lib/binascii.py:78`
-- `crc32` — `src/pycsl_lib/binascii.py:84`
-- `b2a_hex` — `src/pycsl_lib/binascii.py:90`
-- `a2b_hex` — `src/pycsl_lib/binascii.py:96`
+- `a2b_uu` — `src/pycsl_lib/binascii.py:7`
+- `b2a_uu` — `src/pycsl_lib/binascii.py:14`
+- `a2b_base64` — `src/pycsl_lib/binascii.py:22`
+- `b2a_base64` — `src/pycsl_lib/binascii.py:30`
+- `a2b_ascii85` — `src/pycsl_lib/binascii.py:38`
+- `b2a_ascii85` — `src/pycsl_lib/binascii.py:46`
+- `a2b_base85` — `src/pycsl_lib/binascii.py:54`
+- `b2a_base85` — `src/pycsl_lib/binascii.py:62`
+- `a2b_base32` — `src/pycsl_lib/binascii.py:70`
+- `b2a_base32` — `src/pycsl_lib/binascii.py:78`
+- `a2b_qp` — `src/pycsl_lib/binascii.py:85`
+- `b2a_qp` — `src/pycsl_lib/binascii.py:93`
+- `crc_hqx` — `src/pycsl_lib/binascii.py:103`
+- `crc32` — `src/pycsl_lib/binascii.py:111`
+- `b2a_hex` — `src/pycsl_lib/binascii.py:119`
+- `a2b_hex` — `src/pycsl_lib/binascii.py:127`
 
 ## Private (leading-`_`) defs (0)
 

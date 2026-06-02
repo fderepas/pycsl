@@ -12,8 +12,8 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/abc.py
 
 ## Public functions / methods (2)
 
-- `get_cache_token` — `src/pycsl_lib/abc.py:6`
-- `update_abstractmethods` — `src/pycsl_lib/abc.py:12`
+- `get_cache_token` — `src/pycsl_lib/abc.py:7`
+- `update_abstractmethods` — `src/pycsl_lib/abc.py:14`
 
 ## Private (leading-`_`) defs (0)
 

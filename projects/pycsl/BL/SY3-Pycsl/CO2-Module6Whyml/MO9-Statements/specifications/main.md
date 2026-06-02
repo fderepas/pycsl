@@ -14,7 +14,7 @@ bin/cmmi-mod-index.py --file src/pycsl/module6_whyml/statements.py
 
 _(none)_
 
-## Private (leading-`_`) defs (24)
+## Private (leading-`_`) defs (25)
 
 - `StatementEmissionMixin._emit_first_assign` — `src/pycsl/module6_whyml/statements.py:18`
 - `StatementEmissionMixin._emit_array_local_reassign` — `src/pycsl/module6_whyml/statements.py:40`
@@ -27,19 +27,20 @@ _(none)_
 - `StatementEmissionMixin._handle_ghost_assign_stmt` — `src/pycsl/module6_whyml/statements.py:397`
 - `StatementEmissionMixin._handle_ghost_array_set_stmt` — `src/pycsl/module6_whyml/statements.py:494`
 - `StatementEmissionMixin._handle_tuple_unpack_stmt` — `src/pycsl/module6_whyml/statements.py:506`
-- `StatementEmissionMixin._handle_array_set_stmt` — `src/pycsl/module6_whyml/statements.py:567`
-- `StatementEmissionMixin._handle_if_stmt` — `src/pycsl/module6_whyml/statements.py:663`
-- `StatementEmissionMixin._handle_match_stmt` — `src/pycsl/module6_whyml/statements.py:706`
-- `StatementEmissionMixin._handle_critical_section_stmt` — `src/pycsl/module6_whyml/statements.py:742`
-- `StatementEmissionMixin._handle_augassign_stmt` — `src/pycsl/module6_whyml/statements.py:787`
-- `StatementEmissionMixin._handle_fieldassign_stmt` — `src/pycsl/module6_whyml/statements.py:833`
-- `StatementEmissionMixin._handle_fieldaugassign_stmt` — `src/pycsl/module6_whyml/statements.py:884`
-- `StatementEmissionMixin._handle_return_stmt` — `src/pycsl/module6_whyml/statements.py:919`
-- `StatementEmissionMixin._handle_expr_stmt` — `src/pycsl/module6_whyml/statements.py:987`
-- `StatementEmissionMixin._stmts_to_whyml` — `src/pycsl/module6_whyml/statements.py:1046`
-- `StatementEmissionMixin._emit_frame_condition` — `src/pycsl/module6_whyml/statements.py:1137`
-- `StatementEmissionMixin._wrap_body_with_return_catch` — `src/pycsl/module6_whyml/statements.py:1173`
-- `StatementEmissionMixin._emit_body_code` — `src/pycsl/module6_whyml/statements.py:1188`
+- `StatementEmissionMixin._handle_array_slice_set_stmt` — `src/pycsl/module6_whyml/statements.py:585`
+- `StatementEmissionMixin._handle_array_set_stmt` — `src/pycsl/module6_whyml/statements.py:610`
+- `StatementEmissionMixin._handle_if_stmt` — `src/pycsl/module6_whyml/statements.py:708`
+- `StatementEmissionMixin._handle_match_stmt` — `src/pycsl/module6_whyml/statements.py:751`
+- `StatementEmissionMixin._handle_critical_section_stmt` — `src/pycsl/module6_whyml/statements.py:787`
+- `StatementEmissionMixin._handle_augassign_stmt` — `src/pycsl/module6_whyml/statements.py:832`
+- `StatementEmissionMixin._handle_fieldassign_stmt` — `src/pycsl/module6_whyml/statements.py:878`
+- `StatementEmissionMixin._handle_fieldaugassign_stmt` — `src/pycsl/module6_whyml/statements.py:929`
+- `StatementEmissionMixin._handle_return_stmt` — `src/pycsl/module6_whyml/statements.py:964`
+- `StatementEmissionMixin._handle_expr_stmt` — `src/pycsl/module6_whyml/statements.py:1032`
+- `StatementEmissionMixin._stmts_to_whyml` — `src/pycsl/module6_whyml/statements.py:1091`
+- `StatementEmissionMixin._emit_frame_condition` — `src/pycsl/module6_whyml/statements.py:1185`
+- `StatementEmissionMixin._wrap_body_with_return_catch` — `src/pycsl/module6_whyml/statements.py:1221`
+- `StatementEmissionMixin._emit_body_code` — `src/pycsl/module6_whyml/statements.py:1236`
 
 ---
 
@@ -47,4 +48,4 @@ _(none)_
 
 The `#@` contract block immediately preceding each `def` in `src/pycsl/module6_whyml/statements.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **24** (public: 0, private: 24).
+Total defs: **25** (public: 0, private: 25).

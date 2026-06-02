@@ -12,9 +12,9 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/grp.py
 
 ## Public functions / methods (3)
 
-- `getgrgid` — `src/pycsl_lib/grp.py:6`
-- `getgrnam` — `src/pycsl_lib/grp.py:12`
-- `getgrall` — `src/pycsl_lib/grp.py:18`
+- `getgrgid` — `src/pycsl_lib/grp.py:8`
+- `getgrnam` — `src/pycsl_lib/grp.py:16`
+- `getgrall` — `src/pycsl_lib/grp.py:23`
 
 ## Private (leading-`_`) defs (0)
 

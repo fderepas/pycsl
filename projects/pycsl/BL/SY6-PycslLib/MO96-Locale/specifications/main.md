@@ -12,29 +12,29 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/locale.py
 
 ## Public functions / methods (23)
 
-- `setlocale` — `src/pycsl_lib/locale.py:5`
-- `localeconv` — `src/pycsl_lib/locale.py:11`
-- `nl_langinfo` — `src/pycsl_lib/locale.py:16`
-- `getdefaultlocale` — `src/pycsl_lib/locale.py:22`
-- `getlocale` — `src/pycsl_lib/locale.py:28`
-- `getpreferredencoding` — `src/pycsl_lib/locale.py:33`
-- `getencoding` — `src/pycsl_lib/locale.py:38`
-- `normalize` — `src/pycsl_lib/locale.py:43`
-- `strcoll` — `src/pycsl_lib/locale.py:49`
-- `strxfrm` — `src/pycsl_lib/locale.py:54`
-- `format_string` — `src/pycsl_lib/locale.py:59`
-- `currency` — `src/pycsl_lib/locale.py:64`
-- `str` — `src/pycsl_lib/locale.py:69`
-- `delocalize` — `src/pycsl_lib/locale.py:74`
-- `localize` — `src/pycsl_lib/locale.py:81`
-- `atof` — `src/pycsl_lib/locale.py:89`
-- `atoi` — `src/pycsl_lib/locale.py:98`
-- `gettext` — `src/pycsl_lib/locale.py:105`
-- `dgettext` — `src/pycsl_lib/locale.py:112`
-- `dcgettext` — `src/pycsl_lib/locale.py:119`
-- `textdomain` — `src/pycsl_lib/locale.py:126`
-- `bindtextdomain` — `src/pycsl_lib/locale.py:133`
-- `bind_textdomain_codeset` — `src/pycsl_lib/locale.py:141`
+- `setlocale` — `src/pycsl_lib/locale.py:7`
+- `localeconv` — `src/pycsl_lib/locale.py:14`
+- `nl_langinfo` — `src/pycsl_lib/locale.py:21`
+- `getdefaultlocale` — `src/pycsl_lib/locale.py:28`
+- `getlocale` — `src/pycsl_lib/locale.py:35`
+- `getpreferredencoding` — `src/pycsl_lib/locale.py:42`
+- `getencoding` — `src/pycsl_lib/locale.py:49`
+- `normalize` — `src/pycsl_lib/locale.py:56`
+- `strcoll` — `src/pycsl_lib/locale.py:63`
+- `strxfrm` — `src/pycsl_lib/locale.py:71`
+- `format_string` — `src/pycsl_lib/locale.py:78`
+- `currency` — `src/pycsl_lib/locale.py:85`
+- `str` — `src/pycsl_lib/locale.py:92`
+- `delocalize` — `src/pycsl_lib/locale.py:99`
+- `localize` — `src/pycsl_lib/locale.py:106`
+- `atof` — `src/pycsl_lib/locale.py:114`
+- `atoi` — `src/pycsl_lib/locale.py:123`
+- `gettext` — `src/pycsl_lib/locale.py:130`
+- `dgettext` — `src/pycsl_lib/locale.py:137`
+- `dcgettext` — `src/pycsl_lib/locale.py:144`
+- `textdomain` — `src/pycsl_lib/locale.py:151`
+- `bindtextdomain` — `src/pycsl_lib/locale.py:158`
+- `bind_textdomain_codeset` — `src/pycsl_lib/locale.py:166`
 
 ## Private (leading-`_`) defs (0)
 

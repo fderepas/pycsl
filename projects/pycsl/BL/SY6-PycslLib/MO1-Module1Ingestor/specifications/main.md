@@ -13,16 +13,16 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/Module1_Ingestor.py
 ## Public functions / methods (11)
 
 - `PyCSLVisitorObj.__init__` — `src/pycsl_lib/Module1_Ingestor.py:9`
-- `PyCSLVisitorObj.visit_module` — `src/pycsl_lib/Module1_Ingestor.py:16`
-- `PyCSLVisitorObj.visit_classdef` — `src/pycsl_lib/Module1_Ingestor.py:23`
-- `PyCSLVisitorObj.leave_classdef` — `src/pycsl_lib/Module1_Ingestor.py:30`
-- `PyCSLVisitorObj.visit_functiondef` — `src/pycsl_lib/Module1_Ingestor.py:37`
-- `PyCSLVisitorObj.visit_while` — `src/pycsl_lib/Module1_Ingestor.py:44`
-- `PyCSLVisitorObj.visit_for` — `src/pycsl_lib/Module1_Ingestor.py:51`
-- `PyCSLVisitorObj.visit_simple_statement` — `src/pycsl_lib/Module1_Ingestor.py:58`
-- `Module1IngestorObj.__init__` — `src/pycsl_lib/Module1_Ingestor.py:65`
-- `Module1IngestorObj.process` — `src/pycsl_lib/Module1_Ingestor.py:72`
-- `PyCSLContract` — `src/pycsl_lib/Module1_Ingestor.py:80`
+- `PyCSLVisitorObj.visit_module` — `src/pycsl_lib/Module1_Ingestor.py:17`
+- `PyCSLVisitorObj.visit_classdef` — `src/pycsl_lib/Module1_Ingestor.py:25`
+- `PyCSLVisitorObj.leave_classdef` — `src/pycsl_lib/Module1_Ingestor.py:33`
+- `PyCSLVisitorObj.visit_functiondef` — `src/pycsl_lib/Module1_Ingestor.py:41`
+- `PyCSLVisitorObj.visit_while` — `src/pycsl_lib/Module1_Ingestor.py:49`
+- `PyCSLVisitorObj.visit_for` — `src/pycsl_lib/Module1_Ingestor.py:56`
+- `PyCSLVisitorObj.visit_simple_statement` — `src/pycsl_lib/Module1_Ingestor.py:64`
+- `Module1IngestorObj.__init__` — `src/pycsl_lib/Module1_Ingestor.py:71`
+- `Module1IngestorObj.process` — `src/pycsl_lib/Module1_Ingestor.py:78`
+- `PyCSLContract` — `src/pycsl_lib/Module1_Ingestor.py:88`
 
 ## Private (leading-`_`) defs (0)
 

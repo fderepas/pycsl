@@ -12,10 +12,10 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/bisect.py
 
 ## Public functions / methods (4)
 
-- `bisect_left` — `src/pycsl_lib/bisect.py:6`
-- `bisect_right` — `src/pycsl_lib/bisect.py:12`
-- `insort_left` — `src/pycsl_lib/bisect.py:18`
-- `insort_right` — `src/pycsl_lib/bisect.py:24`
+- `bisect_left` — `src/pycsl_lib/bisect.py:10`
+- `bisect_right` — `src/pycsl_lib/bisect.py:20`
+- `insort_left` — `src/pycsl_lib/bisect.py:29`
+- `insort_right` — `src/pycsl_lib/bisect.py:38`
 
 ## Private (leading-`_`) defs (0)
 

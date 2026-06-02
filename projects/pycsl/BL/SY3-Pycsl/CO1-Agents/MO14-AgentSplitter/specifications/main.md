@@ -10,39 +10,27 @@ bin/cmmi-mod-index.py --file src/pycsl/agents/agent-splitter.py
 
 ---
 
-## Public functions / methods (3)
+## Public functions / methods (2)
 
-- `_tarjan_scc.strongconnect` — `src/pycsl/agents/agent-splitter.py:164`
-- `run_splitter` — `src/pycsl/agents/agent-splitter.py:978`
-- `main` — `src/pycsl/agents/agent-splitter.py:1714`
+- `run_splitter` — `src/pycsl/agents/agent-splitter.py:598`
+- `main` — `src/pycsl/agents/agent-splitter.py:1099`
 
-## Private (leading-`_`) defs (25)
+## Private (leading-`_`) defs (14)
 
-- `_qualified_name` — `src/pycsl/agents/agent-splitter.py:53`
-- `_extract_functions` — `src/pycsl/agents/agent-splitter.py:59`
-- `_make_func_info` — `src/pycsl/agents/agent-splitter.py:81`
-- `_build_call_graph` — `src/pycsl/agents/agent-splitter.py:106`
-- `_tarjan_scc` — `src/pycsl/agents/agent-splitter.py:155`
-- `_extract_contracts_text` — `src/pycsl/agents/agent-splitter.py:204`
-- `_extract_class_context` — `src/pycsl/agents/agent-splitter.py:214`
-- `_generate_class_invariants` — `src/pycsl/agents/agent-splitter.py:247`
-- `_fix_annotation_indentation` — `src/pycsl/agents/agent-splitter.py:352`
-- `_reassemble_file` — `src/pycsl/agents/agent-splitter.py:385`
-- `_generate_module_brief` — `src/pycsl/agents/agent-splitter.py:434`
-- `_invoke_writer` — `src/pycsl/agents/agent-splitter.py:522`
-- `_body_preserved` — `src/pycsl/agents/agent-splitter.py:584`
-- `_body_preserved._strip_annotations` — `src/pycsl/agents/agent-splitter.py:592`
-- `_graft_contracts` — `src/pycsl/agents/agent-splitter.py:610`
-- `_safe_fallback_annotation` — `src/pycsl/agents/agent-splitter.py:655`
-- `_compute_assigns_hint` — `src/pycsl/agents/agent-splitter.py:694`
-- `_format_assigns_hint` — `src/pycsl/agents/agent-splitter.py:724`
-- `_validate_pycsl_syntax` — `src/pycsl/agents/agent-splitter.py:774`
-- `_checkpoint_save` — `src/pycsl/agents/agent-splitter.py:864`
-- `_checkpoint_load` — `src/pycsl/agents/agent-splitter.py:879`
-- `_matches_filter` — `src/pycsl/agents/agent-splitter.py:896`
-- `_lookup_catalog_seed` — `src/pycsl/agents/agent-splitter.py:917`
-- `_lookup_formal_model_hint` — `src/pycsl/agents/agent-splitter.py:956`
-- `_split_annotated_functions` — `src/pycsl/agents/agent-splitter.py:1672`
+- `_generate_class_invariants` — `src/pycsl/agents/agent-splitter.py:34`
+- `_generate_module_brief` — `src/pycsl/agents/agent-splitter.py:140`
+- `_invoke_writer` — `src/pycsl/agents/agent-splitter.py:228`
+- `_validate_pycsl_syntax` — `src/pycsl/agents/agent-splitter.py:291`
+- `_checkpoint_save` — `src/pycsl/agents/agent-splitter.py:381`
+- `_checkpoint_load` — `src/pycsl/agents/agent-splitter.py:396`
+- `_matches_filter` — `src/pycsl/agents/agent-splitter.py:413`
+- `_lookup_catalog_seed` — `src/pycsl/agents/agent-splitter.py:434`
+- `_lookup_formal_model_hint` — `src/pycsl/agents/agent-splitter.py:473`
+- `_class_ctx_for` — `src/pycsl/agents/agent-splitter.py:520`
+- `_ensure_body_or_graft` — `src/pycsl/agents/agent-splitter.py:532`
+- `_annotate_one` — `src/pycsl/agents/agent-splitter.py:546`
+- `_annotate_one._call` — `src/pycsl/agents/agent-splitter.py:551`
+- `_annotate_one._valid` — `src/pycsl/agents/agent-splitter.py:574`
 
 ---
 
@@ -50,4 +38,4 @@ bin/cmmi-mod-index.py --file src/pycsl/agents/agent-splitter.py
 
 The `#@` contract block immediately preceding each `def` in `src/pycsl/agents/agent-splitter.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **28** (public: 3, private: 25).
+Total defs: **16** (public: 2, private: 14).

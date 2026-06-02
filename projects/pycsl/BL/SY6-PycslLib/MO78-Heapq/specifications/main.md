@@ -12,19 +12,19 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/heapq.py
 
 ## Public functions / methods (13)
 
-- `heapify` — `src/pycsl_lib/heapq.py:6`
-- `heappush` — `src/pycsl_lib/heapq.py:12`
-- `heappop` — `src/pycsl_lib/heapq.py:18`
-- `heappushpop` — `src/pycsl_lib/heapq.py:24`
-- `heapreplace` — `src/pycsl_lib/heapq.py:30`
-- `heapify_max` — `src/pycsl_lib/heapq.py:36`
-- `heappush_max` — `src/pycsl_lib/heapq.py:42`
-- `heappop_max` — `src/pycsl_lib/heapq.py:48`
-- `heappushpop_max` — `src/pycsl_lib/heapq.py:54`
-- `heapreplace_max` — `src/pycsl_lib/heapq.py:60`
-- `merge` — `src/pycsl_lib/heapq.py:66`
-- `nlargest` — `src/pycsl_lib/heapq.py:72`
-- `nsmallest` — `src/pycsl_lib/heapq.py:78`
+- `heapify` — `src/pycsl_lib/heapq.py:8`
+- `heappush` — `src/pycsl_lib/heapq.py:16`
+- `heappop` — `src/pycsl_lib/heapq.py:24`
+- `heappushpop` — `src/pycsl_lib/heapq.py:31`
+- `heapreplace` — `src/pycsl_lib/heapq.py:39`
+- `heapify_max` — `src/pycsl_lib/heapq.py:47`
+- `heappush_max` — `src/pycsl_lib/heapq.py:54`
+- `heappop_max` — `src/pycsl_lib/heapq.py:61`
+- `heappushpop_max` — `src/pycsl_lib/heapq.py:69`
+- `heapreplace_max` — `src/pycsl_lib/heapq.py:77`
+- `merge` — `src/pycsl_lib/heapq.py:85`
+- `nlargest` — `src/pycsl_lib/heapq.py:93`
+- `nsmallest` — `src/pycsl_lib/heapq.py:101`
 
 ## Private (leading-`_`) defs (0)
 

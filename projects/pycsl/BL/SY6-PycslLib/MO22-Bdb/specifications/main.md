@@ -12,9 +12,9 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/bdb.py
 
 ## Public functions / methods (3)
 
-- `checkfuncname` — `src/pycsl_lib/bdb.py:6`
-- `effective` — `src/pycsl_lib/bdb.py:12`
-- `set_trace` — `src/pycsl_lib/bdb.py:18`
+- `checkfuncname` — `src/pycsl_lib/bdb.py:7`
+- `effective` — `src/pycsl_lib/bdb.py:15`
+- `set_trace` — `src/pycsl_lib/bdb.py:22`
 
 ## Private (leading-`_`) defs (0)
 

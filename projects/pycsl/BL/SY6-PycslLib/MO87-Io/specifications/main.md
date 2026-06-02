@@ -12,9 +12,9 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/io.py
 
 ## Public functions / methods (3)
 
-- `open` — `src/pycsl_lib/io.py:6`
-- `open_code` — `src/pycsl_lib/io.py:12`
-- `text_encoding` — `src/pycsl_lib/io.py:18`
+- `open` — `src/pycsl_lib/io.py:8`
+- `open_code` — `src/pycsl_lib/io.py:16`
+- `text_encoding` — `src/pycsl_lib/io.py:24`
 
 ## Private (leading-`_`) defs (0)
 

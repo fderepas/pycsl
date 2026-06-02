@@ -10,27 +10,15 @@ bin/cmmi-mod-index.py --file src/pycsl/agents/agent-feature-supervisor.py
 
 ---
 
-## Public functions / methods (7)
+## Public functions / methods (2)
 
-- `load_deny_list` — `src/pycsl/agents/agent-feature-supervisor.py:89`
-- `is_load_bearing` — `src/pycsl/agents/agent-feature-supervisor.py:105`
-- `parse_feature_plan` — `src/pycsl/agents/agent-feature-supervisor.py:149`
-- `run_gate` — `src/pycsl/agents/agent-feature-supervisor.py:220`
-- `write_halt_report` — `src/pycsl/agents/agent-feature-supervisor.py:522`
-- `supervise` — `src/pycsl/agents/agent-feature-supervisor.py:610`
-- `main` — `src/pycsl/agents/agent-feature-supervisor.py:714`
+- `supervise` — `src/pycsl/agents/agent-feature-supervisor.py:220`
+- `main` — `src/pycsl/agents/agent-feature-supervisor.py:534`
 
-## Private (leading-`_`) defs (9)
+## Private (leading-`_`) defs (2)
 
-- `_git` — `src/pycsl/agents/agent-feature-supervisor.py:259`
-- `_phase_tag` — `src/pycsl/agents/agent-feature-supervisor.py:285`
-- `_build_phase_prompt` — `src/pycsl/agents/agent-feature-supervisor.py:289`
-- `_extract_diff` — `src/pycsl/agents/agent-feature-supervisor.py:335`
-- `_apply_diff` — `src/pycsl/agents/agent-feature-supervisor.py:347`
-- `_rollback_phase` — `src/pycsl/agents/agent-feature-supervisor.py:372`
-- `_delegate_phase` — `src/pycsl/agents/agent-feature-supervisor.py:392`
-- `_read_agent_log_context` — `src/pycsl/agents/agent-feature-supervisor.py:471`
-- `_slug` — `src/pycsl/agents/agent-feature-supervisor.py:518`
+- `_delegate_phase` — `src/pycsl/agents/agent-feature-supervisor.py:68`
+- `_read_agent_log_context` — `src/pycsl/agents/agent-feature-supervisor.py:172`
 
 ---
 
@@ -38,4 +26,4 @@ bin/cmmi-mod-index.py --file src/pycsl/agents/agent-feature-supervisor.py
 
 The `#@` contract block immediately preceding each `def` in `src/pycsl/agents/agent-feature-supervisor.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **16** (public: 7, private: 9).
+Total defs: **4** (public: 2, private: 2).

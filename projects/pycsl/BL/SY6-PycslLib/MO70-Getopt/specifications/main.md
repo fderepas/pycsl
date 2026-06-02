@@ -12,8 +12,8 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/getopt.py
 
 ## Public functions / methods (2)
 
-- `getopt` — `src/pycsl_lib/getopt.py:6`
-- `gnu_getopt` — `src/pycsl_lib/getopt.py:12`
+- `getopt` — `src/pycsl_lib/getopt.py:8`
+- `gnu_getopt` — `src/pycsl_lib/getopt.py:16`
 
 ## Private (leading-`_`) defs (0)
 

@@ -15,7 +15,7 @@ bin/cmmi-mod-index.py --file src/pycsl/proof2why3/canonical.py
 - `substitute` — `src/pycsl/proof2why3/canonical.py:52`
 - `alpha_normalize` — `src/pycsl/proof2why3/canonical.py:148`
 - `_ac_normalize.collect` — `src/pycsl/proof2why3/canonical.py:231`
-- `canonicalize` — `src/pycsl/proof2why3/canonical.py:460`
+- `canonicalize` — `src/pycsl/proof2why3/canonical.py:472`
 
 ## Private (leading-`_`) defs (11)
 
@@ -29,7 +29,7 @@ bin/cmmi-mod-index.py --file src/pycsl/proof2why3/canonical.py
 - `_camel_to_snake` — `src/pycsl/proof2why3/canonical.py:371`
 - `_normalize_names` — `src/pycsl/proof2why3/canonical.py:386`
 - `_normalize_type_string` — `src/pycsl/proof2why3/canonical.py:419`
-- `_iff_app_to_binop` — `src/pycsl/proof2why3/canonical.py:436`
+- `_iff_app_to_binop` — `src/pycsl/proof2why3/canonical.py:448`
 
 ---
 

@@ -10,9 +10,18 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/builtins.py
 
 ---
 
-## Public functions / methods (0)
+## Public functions / methods (10)
 
-_(none)_
+- `isinstance` — `src/pycsl_lib/builtins.py:8`
+- `open` — `src/pycsl_lib/builtins.py:16`
+- `set_union` — `src/pycsl_lib/builtins.py:24`
+- `set_intersection` — `src/pycsl_lib/builtins.py:30`
+- `set_difference` — `src/pycsl_lib/builtins.py:36`
+- `set_symmetric_difference` — `src/pycsl_lib/builtins.py:42`
+- `set_contains` — `src/pycsl_lib/builtins.py:48`
+- `set_issubset` — `src/pycsl_lib/builtins.py:54`
+- `dict_contains` — `src/pycsl_lib/builtins.py:62`
+- `dict_get` — `src/pycsl_lib/builtins.py:68`
 
 ## Private (leading-`_`) defs (0)
 
@@ -24,4 +33,4 @@ _(none)_
 
 The `#@` contract block immediately preceding each `def` in `src/pycsl_lib/builtins.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **0** (public: 0, private: 0).
+Total defs: **10** (public: 10, private: 0).

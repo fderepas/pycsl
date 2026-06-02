@@ -12,8 +12,8 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/dbm.py
 
 ## Public functions / methods (2)
 
-- `whichdb` — `src/pycsl_lib/dbm.py:6`
-- `open` — `src/pycsl_lib/dbm.py:12`
+- `whichdb` — `src/pycsl_lib/dbm.py:8`
+- `open` — `src/pycsl_lib/dbm.py:16`
 
 ## Private (leading-`_`) defs (0)
 

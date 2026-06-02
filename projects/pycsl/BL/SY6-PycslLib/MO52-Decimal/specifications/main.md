@@ -12,10 +12,10 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/decimal.py
 
 ## Public functions / methods (4)
 
-- `getcontext` — `src/pycsl_lib/decimal.py:6`
-- `setcontext` — `src/pycsl_lib/decimal.py:12`
-- `localcontext` — `src/pycsl_lib/decimal.py:18`
-- `IEEEContext` — `src/pycsl_lib/decimal.py:24`
+- `getcontext` — `src/pycsl_lib/decimal.py:7`
+- `setcontext` — `src/pycsl_lib/decimal.py:14`
+- `localcontext` — `src/pycsl_lib/decimal.py:21`
+- `IEEEContext` — `src/pycsl_lib/decimal.py:31`
 
 ## Private (leading-`_`) defs (0)
 

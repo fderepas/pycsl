@@ -12,38 +12,38 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/ctypes.py
 
 ## Public functions / methods (32)
 
-- `find_library` — `src/pycsl_lib/ctypes.py:6`
-- `find_msvcrt` — `src/pycsl_lib/ctypes.py:12`
-- `CFUNCTYPE` — `src/pycsl_lib/ctypes.py:18`
-- `WINFUNCTYPE` — `src/pycsl_lib/ctypes.py:24`
-- `PYFUNCTYPE` — `src/pycsl_lib/ctypes.py:30`
-- `addressof` — `src/pycsl_lib/ctypes.py:36`
-- `alignment` — `src/pycsl_lib/ctypes.py:42`
-- `byref` — `src/pycsl_lib/ctypes.py:48`
-- `CopyComPointer` — `src/pycsl_lib/ctypes.py:54`
-- `cast` — `src/pycsl_lib/ctypes.py:60`
-- `create_string_buffer` — `src/pycsl_lib/ctypes.py:66`
-- `create_unicode_buffer` — `src/pycsl_lib/ctypes.py:72`
-- `DllCanUnloadNow` — `src/pycsl_lib/ctypes.py:78`
-- `DllGetClassObject` — `src/pycsl_lib/ctypes.py:84`
-- `dllist` — `src/pycsl_lib/ctypes.py:90`
-- `FormatError` — `src/pycsl_lib/ctypes.py:96`
-- `GetLastError` — `src/pycsl_lib/ctypes.py:102`
-- `get_errno` — `src/pycsl_lib/ctypes.py:108`
-- `get_last_error` — `src/pycsl_lib/ctypes.py:114`
-- `memmove` — `src/pycsl_lib/ctypes.py:120`
-- `memset` — `src/pycsl_lib/ctypes.py:126`
-- `POINTER` — `src/pycsl_lib/ctypes.py:132`
-- `pointer` — `src/pycsl_lib/ctypes.py:138`
-- `resize` — `src/pycsl_lib/ctypes.py:144`
-- `set_errno` — `src/pycsl_lib/ctypes.py:150`
-- `set_last_error` — `src/pycsl_lib/ctypes.py:156`
-- `sizeof` — `src/pycsl_lib/ctypes.py:162`
-- `string_at` — `src/pycsl_lib/ctypes.py:168`
-- `WinError` — `src/pycsl_lib/ctypes.py:174`
-- `wstring_at` — `src/pycsl_lib/ctypes.py:180`
-- `memoryview_at` — `src/pycsl_lib/ctypes.py:186`
-- `ARRAY` — `src/pycsl_lib/ctypes.py:192`
+- `find_library` — `src/pycsl_lib/ctypes.py:8`
+- `find_msvcrt` — `src/pycsl_lib/ctypes.py:16`
+- `CFUNCTYPE` — `src/pycsl_lib/ctypes.py:22`
+- `WINFUNCTYPE` — `src/pycsl_lib/ctypes.py:30`
+- `PYFUNCTYPE` — `src/pycsl_lib/ctypes.py:38`
+- `addressof` — `src/pycsl_lib/ctypes.py:45`
+- `alignment` — `src/pycsl_lib/ctypes.py:52`
+- `byref` — `src/pycsl_lib/ctypes.py:59`
+- `CopyComPointer` — `src/pycsl_lib/ctypes.py:67`
+- `cast` — `src/pycsl_lib/ctypes.py:75`
+- `create_string_buffer` — `src/pycsl_lib/ctypes.py:84`
+- `create_unicode_buffer` — `src/pycsl_lib/ctypes.py:92`
+- `DllCanUnloadNow` — `src/pycsl_lib/ctypes.py:100`
+- `DllGetClassObject` — `src/pycsl_lib/ctypes.py:108`
+- `dllist` — `src/pycsl_lib/ctypes.py:116`
+- `FormatError` — `src/pycsl_lib/ctypes.py:124`
+- `GetLastError` — `src/pycsl_lib/ctypes.py:132`
+- `get_errno` — `src/pycsl_lib/ctypes.py:140`
+- `get_last_error` — `src/pycsl_lib/ctypes.py:148`
+- `memmove` — `src/pycsl_lib/ctypes.py:156`
+- `memset` — `src/pycsl_lib/ctypes.py:166`
+- `POINTER` — `src/pycsl_lib/ctypes.py:173`
+- `pointer` — `src/pycsl_lib/ctypes.py:180`
+- `resize` — `src/pycsl_lib/ctypes.py:188`
+- `set_errno` — `src/pycsl_lib/ctypes.py:196`
+- `set_last_error` — `src/pycsl_lib/ctypes.py:204`
+- `sizeof` — `src/pycsl_lib/ctypes.py:211`
+- `string_at` — `src/pycsl_lib/ctypes.py:220`
+- `WinError` — `src/pycsl_lib/ctypes.py:228`
+- `wstring_at` — `src/pycsl_lib/ctypes.py:236`
+- `memoryview_at` — `src/pycsl_lib/ctypes.py:246`
+- `ARRAY` — `src/pycsl_lib/ctypes.py:254`
 
 ## Private (leading-`_`) defs (0)
 

@@ -12,8 +12,8 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/modulefinder.py
 
 ## Public functions / methods (2)
 
-- `AddPackagePath` — `src/pycsl_lib/modulefinder.py:6`
-- `ReplacePackage` — `src/pycsl_lib/modulefinder.py:12`
+- `AddPackagePath` — `src/pycsl_lib/modulefinder.py:8`
+- `ReplacePackage` — `src/pycsl_lib/modulefinder.py:16`
 
 ## Private (leading-`_`) defs (0)
 

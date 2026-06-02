@@ -13,20 +13,20 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/lark.py
 ## Public functions / methods (15)
 
 - `LarkParserObj.__init__` — `src/pycsl_lib/lark.py:13`
-- `LarkParserObj.lark_parse` — `src/pycsl_lib/lark.py:20`
-- `TokenObj.__init__` — `src/pycsl_lib/lark.py:27`
-- `TokenObj.token_type` — `src/pycsl_lib/lark.py:34`
-- `TokenObj.token_value` — `src/pycsl_lib/lark.py:41`
-- `TreeObj.__init__` — `src/pycsl_lib/lark.py:48`
-- `TreeObj.data` — `src/pycsl_lib/lark.py:55`
-- `TreeObj.children_count` — `src/pycsl_lib/lark.py:62`
-- `TransformerObj.__init__` — `src/pycsl_lib/lark.py:69`
-- `TransformerObj.transform` — `src/pycsl_lib/lark.py:76`
-- `v_args` — `src/pycsl_lib/lark.py:84`
-- `LarkError` — `src/pycsl_lib/lark.py:89`
-- `UnexpectedInput` — `src/pycsl_lib/lark.py:94`
-- `UnexpectedToken` — `src/pycsl_lib/lark.py:99`
-- `UnexpectedCharacters` — `src/pycsl_lib/lark.py:104`
+- `LarkParserObj.lark_parse` — `src/pycsl_lib/lark.py:21`
+- `TokenObj.__init__` — `src/pycsl_lib/lark.py:28`
+- `TokenObj.token_type` — `src/pycsl_lib/lark.py:35`
+- `TokenObj.token_value` — `src/pycsl_lib/lark.py:43`
+- `TreeObj.__init__` — `src/pycsl_lib/lark.py:50`
+- `TreeObj.data` — `src/pycsl_lib/lark.py:58`
+- `TreeObj.children_count` — `src/pycsl_lib/lark.py:65`
+- `TransformerObj.__init__` — `src/pycsl_lib/lark.py:72`
+- `TransformerObj.transform` — `src/pycsl_lib/lark.py:79`
+- `v_args` — `src/pycsl_lib/lark.py:88`
+- `LarkError` — `src/pycsl_lib/lark.py:95`
+- `UnexpectedInput` — `src/pycsl_lib/lark.py:101`
+- `UnexpectedToken` — `src/pycsl_lib/lark.py:107`
+- `UnexpectedCharacters` — `src/pycsl_lib/lark.py:113`
 
 ## Private (leading-`_`) defs (0)
 

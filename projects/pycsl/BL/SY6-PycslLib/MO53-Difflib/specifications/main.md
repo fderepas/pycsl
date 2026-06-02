@@ -12,14 +12,14 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/difflib.py
 
 ## Public functions / methods (8)
 
-- `context_diff` — `src/pycsl_lib/difflib.py:6`
-- `get_close_matches` — `src/pycsl_lib/difflib.py:12`
-- `ndiff` — `src/pycsl_lib/difflib.py:18`
-- `restore` — `src/pycsl_lib/difflib.py:24`
-- `unified_diff` — `src/pycsl_lib/difflib.py:30`
-- `diff_bytes` — `src/pycsl_lib/difflib.py:36`
-- `IS_LINE_JUNK` — `src/pycsl_lib/difflib.py:42`
-- `IS_CHARACTER_JUNK` — `src/pycsl_lib/difflib.py:48`
+- `context_diff` — `src/pycsl_lib/difflib.py:7`
+- `get_close_matches` — `src/pycsl_lib/difflib.py:18`
+- `ndiff` — `src/pycsl_lib/difflib.py:25`
+- `restore` — `src/pycsl_lib/difflib.py:34`
+- `unified_diff` — `src/pycsl_lib/difflib.py:42`
+- `diff_bytes` — `src/pycsl_lib/difflib.py:49`
+- `IS_LINE_JUNK` — `src/pycsl_lib/difflib.py:56`
+- `IS_CHARACTER_JUNK` — `src/pycsl_lib/difflib.py:64`
 
 ## Private (leading-`_`) defs (0)
 

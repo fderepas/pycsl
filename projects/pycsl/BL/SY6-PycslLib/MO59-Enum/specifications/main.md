@@ -12,8 +12,8 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/enum.py
 
 ## Public functions / methods (2)
 
-- `show_flag_values` — `src/pycsl_lib/enum.py:6`
-- `bin` — `src/pycsl_lib/enum.py:12`
+- `show_flag_values` — `src/pycsl_lib/enum.py:8`
+- `bin` — `src/pycsl_lib/enum.py:16`
 
 ## Private (leading-`_`) defs (0)
 

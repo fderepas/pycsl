@@ -12,13 +12,13 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/contextlib.py
 
 ## Public functions / methods (7)
 
-- `closing` — `src/pycsl_lib/contextlib.py:6`
-- `aclosing` — `src/pycsl_lib/contextlib.py:12`
-- `nullcontext` — `src/pycsl_lib/contextlib.py:18`
-- `suppress` — `src/pycsl_lib/contextlib.py:24`
-- `redirect_stdout` — `src/pycsl_lib/contextlib.py:30`
-- `redirect_stderr` — `src/pycsl_lib/contextlib.py:36`
-- `chdir` — `src/pycsl_lib/contextlib.py:42`
+- `closing` — `src/pycsl_lib/contextlib.py:7`
+- `aclosing` — `src/pycsl_lib/contextlib.py:14`
+- `nullcontext` — `src/pycsl_lib/contextlib.py:21`
+- `suppress` — `src/pycsl_lib/contextlib.py:28`
+- `redirect_stdout` — `src/pycsl_lib/contextlib.py:36`
+- `redirect_stderr` — `src/pycsl_lib/contextlib.py:44`
+- `chdir` — `src/pycsl_lib/contextlib.py:52`
 
 ## Private (leading-`_`) defs (0)
 

@@ -12,9 +12,9 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/compileall.py
 
 ## Public functions / methods (3)
 
-- `compile_dir` — `src/pycsl_lib/compileall.py:6`
-- `compile_file` — `src/pycsl_lib/compileall.py:12`
-- `compile_path` — `src/pycsl_lib/compileall.py:18`
+- `compile_dir` — `src/pycsl_lib/compileall.py:7`
+- `compile_file` — `src/pycsl_lib/compileall.py:16`
+- `compile_path` — `src/pycsl_lib/compileall.py:24`
 
 ## Private (leading-`_`) defs (0)
 

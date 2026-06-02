@@ -18,8 +18,8 @@ bin/cmmi-mod-index.py --file src/pycsl/agents/agent-reconcile.py
 - `read_optional_file` — `src/pycsl/agents/agent-reconcile.py:54`
 - `extract_json_object` — `src/pycsl/agents/agent-reconcile.py:60`
 - `build_prompt` — `src/pycsl/agents/agent-reconcile.py:94`
-- `main` — `src/pycsl/agents/agent-reconcile.py:214`
-- `main.resolve_relative` — `src/pycsl/agents/agent-reconcile.py:241`
+- `main` — `src/pycsl/agents/agent-reconcile.py:223`
+- `main.resolve_relative` — `src/pycsl/agents/agent-reconcile.py:250`
 
 ## Private (leading-`_`) defs (0)
 

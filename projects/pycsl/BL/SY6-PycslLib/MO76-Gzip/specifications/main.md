@@ -12,9 +12,9 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/gzip.py
 
 ## Public functions / methods (3)
 
-- `open` — `src/pycsl_lib/gzip.py:6`
-- `compress` — `src/pycsl_lib/gzip.py:12`
-- `decompress` — `src/pycsl_lib/gzip.py:18`
+- `open` — `src/pycsl_lib/gzip.py:8`
+- `compress` — `src/pycsl_lib/gzip.py:16`
+- `decompress` — `src/pycsl_lib/gzip.py:24`
 
 ## Private (leading-`_`) defs (0)
 

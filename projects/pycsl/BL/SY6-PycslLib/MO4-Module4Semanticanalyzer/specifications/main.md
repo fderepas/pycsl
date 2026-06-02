@@ -13,13 +13,13 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/Module4_SemanticAnalyzer.py
 ## Public functions / methods (8)
 
 - `Module4AnalyzerObj.__init__` — `src/pycsl_lib/Module4_SemanticAnalyzer.py:9`
-- `Module4AnalyzerObj.visit_classdef` — `src/pycsl_lib/Module4_SemanticAnalyzer.py:16`
-- `Module4AnalyzerObj.visit_functiondef` — `src/pycsl_lib/Module4_SemanticAnalyzer.py:23`
-- `Module4AnalyzerObj.visit_while` — `src/pycsl_lib/Module4_SemanticAnalyzer.py:30`
-- `Module4AnalyzerObj.process` — `src/pycsl_lib/Module4_SemanticAnalyzer.py:37`
-- `PyCSLSemanticError` — `src/pycsl_lib/Module4_SemanticAnalyzer.py:44`
-- `extract_variables` — `src/pycsl_lib/Module4_SemanticAnalyzer.py:49`
-- `contains_result` — `src/pycsl_lib/Module4_SemanticAnalyzer.py:54`
+- `Module4AnalyzerObj.visit_classdef` — `src/pycsl_lib/Module4_SemanticAnalyzer.py:17`
+- `Module4AnalyzerObj.visit_functiondef` — `src/pycsl_lib/Module4_SemanticAnalyzer.py:25`
+- `Module4AnalyzerObj.visit_while` — `src/pycsl_lib/Module4_SemanticAnalyzer.py:33`
+- `Module4AnalyzerObj.process` — `src/pycsl_lib/Module4_SemanticAnalyzer.py:41`
+- `PyCSLSemanticError` — `src/pycsl_lib/Module4_SemanticAnalyzer.py:50`
+- `extract_variables` — `src/pycsl_lib/Module4_SemanticAnalyzer.py:57`
+- `contains_result` — `src/pycsl_lib/Module4_SemanticAnalyzer.py:64`
 
 ## Private (leading-`_`) defs (0)
 

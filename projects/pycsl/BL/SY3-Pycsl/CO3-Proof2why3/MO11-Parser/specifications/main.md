@@ -13,23 +13,23 @@ bin/cmmi-mod-index.py --file src/pycsl/proof2why3/parser.py
 ## Public functions / methods (18)
 
 - `normalize_surface` — `src/pycsl/proof2why3/parser.py:95`
-- `Token.__repr__` — `src/pycsl/proof2why3/parser.py:146`
-- `lex` — `src/pycsl/proof2why3/parser.py:157`
-- `_Parser.__init__` — `src/pycsl/proof2why3/parser.py:239`
-- `_Parser.peek` — `src/pycsl/proof2why3/parser.py:243`
-- `_Parser.take` — `src/pycsl/proof2why3/parser.py:249`
-- `_Parser.expect` — `src/pycsl/proof2why3/parser.py:254`
-- `_Parser.parse_expr` — `src/pycsl/proof2why3/parser.py:263`
-- `_Parser.parse_quant` — `src/pycsl/proof2why3/parser.py:269`
-- `_Parser.parse_implication` — `src/pycsl/proof2why3/parser.py:292`
-- `_Parser.parse_disjunction` — `src/pycsl/proof2why3/parser.py:301`
-- `_Parser.parse_conjunction` — `src/pycsl/proof2why3/parser.py:312`
-- `_Parser.parse_comparison` — `src/pycsl/proof2why3/parser.py:323`
-- `_Parser.parse_arith_add` — `src/pycsl/proof2why3/parser.py:332`
-- `_Parser.parse_arith_mul` — `src/pycsl/proof2why3/parser.py:343`
-- `_Parser.parse_atom_application` — `src/pycsl/proof2why3/parser.py:365`
-- `_Parser.parse_atom` — `src/pycsl/proof2why3/parser.py:391`
-- `parse_type_expr` — `src/pycsl/proof2why3/parser.py:420`
+- `Token.__repr__` — `src/pycsl/proof2why3/parser.py:150`
+- `lex` — `src/pycsl/proof2why3/parser.py:161`
+- `_Parser.__init__` — `src/pycsl/proof2why3/parser.py:250`
+- `_Parser.peek` — `src/pycsl/proof2why3/parser.py:254`
+- `_Parser.take` — `src/pycsl/proof2why3/parser.py:260`
+- `_Parser.expect` — `src/pycsl/proof2why3/parser.py:265`
+- `_Parser.parse_expr` — `src/pycsl/proof2why3/parser.py:274`
+- `_Parser.parse_quant` — `src/pycsl/proof2why3/parser.py:280`
+- `_Parser.parse_implication` — `src/pycsl/proof2why3/parser.py:315`
+- `_Parser.parse_disjunction` — `src/pycsl/proof2why3/parser.py:324`
+- `_Parser.parse_conjunction` — `src/pycsl/proof2why3/parser.py:335`
+- `_Parser.parse_comparison` — `src/pycsl/proof2why3/parser.py:346`
+- `_Parser.parse_arith_add` — `src/pycsl/proof2why3/parser.py:363`
+- `_Parser.parse_arith_mul` — `src/pycsl/proof2why3/parser.py:374`
+- `_Parser.parse_atom_application` — `src/pycsl/proof2why3/parser.py:396`
+- `_Parser.parse_atom` — `src/pycsl/proof2why3/parser.py:422`
+- `parse_type_expr` — `src/pycsl/proof2why3/parser.py:459`
 
 ## Private (leading-`_`) defs (0)
 

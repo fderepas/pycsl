@@ -12,7 +12,7 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/contextvars.py
 
 ## Public functions / methods (1)
 
-- `copy_context` — `src/pycsl_lib/contextvars.py:6`
+- `copy_context` — `src/pycsl_lib/contextvars.py:8`
 
 ## Private (leading-`_`) defs (0)
 

@@ -12,8 +12,8 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/html.py
 
 ## Public functions / methods (2)
 
-- `escape` — `src/pycsl_lib/html.py:6`
-- `unescape` — `src/pycsl_lib/html.py:12`
+- `escape` — `src/pycsl_lib/html.py:7`
+- `unescape` — `src/pycsl_lib/html.py:14`
 
 ## Private (leading-`_`) defs (0)
 

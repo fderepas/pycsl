@@ -12,10 +12,10 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/glob.py
 
 ## Public functions / methods (4)
 
-- `glob` — `src/pycsl_lib/glob.py:6`
-- `iglob` — `src/pycsl_lib/glob.py:12`
-- `escape` — `src/pycsl_lib/glob.py:18`
-- `translate` — `src/pycsl_lib/glob.py:24`
+- `glob` — `src/pycsl_lib/glob.py:8`
+- `iglob` — `src/pycsl_lib/glob.py:16`
+- `escape` — `src/pycsl_lib/glob.py:23`
+- `translate` — `src/pycsl_lib/glob.py:32`
 
 ## Private (leading-`_`) defs (0)
 

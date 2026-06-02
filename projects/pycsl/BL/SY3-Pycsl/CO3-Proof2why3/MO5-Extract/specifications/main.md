@@ -15,9 +15,10 @@ bin/cmmi-mod-index.py --file src/pycsl/proof2why3/extract.py
 - `extract_rocq_statements` — `src/pycsl/proof2why3/extract.py:23`
 - `extract_lean_statements` — `src/pycsl/proof2why3/extract.py:117`
 
-## Private (leading-`_`) defs (1)
+## Private (leading-`_`) defs (2)
 
 - `_split_rocq_check_output` — `src/pycsl/proof2why3/extract.py:72`
+- `extract_lean_statements._starts_new_check` — `src/pycsl/proof2why3/extract.py:154`
 
 ---
 
@@ -25,4 +26,4 @@ bin/cmmi-mod-index.py --file src/pycsl/proof2why3/extract.py
 
 The `#@` contract block immediately preceding each `def` in `src/pycsl/proof2why3/extract.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **3** (public: 2, private: 1).
+Total defs: **4** (public: 2, private: 2).

@@ -19,8 +19,8 @@ bin/cmmi-mod-index.py --file src/pycsl/proof2why3/crosscheck_ir.py
 - `IRCrossCheckResult.registry_skipped` — `src/pycsl/proof2why3/crosscheck_ir.py:100`
 - `IRCrossCheckResult.provers_agree` — `src/pycsl/proof2why3/crosscheck_ir.py:111`
 - `IRCrossCheckResult.diagnostic` — `src/pycsl/proof2why3/crosscheck_ir.py:120`
-- `crosscheck_file_ir` — `src/pycsl/proof2why3/crosscheck_ir.py:164`
-- `main` — `src/pycsl/proof2why3/crosscheck_ir.py:247`
+- `crosscheck_file_ir` — `src/pycsl/proof2why3/crosscheck_ir.py:179`
+- `main` — `src/pycsl/proof2why3/crosscheck_ir.py:262`
 
 ## Private (leading-`_`) defs (2)
 

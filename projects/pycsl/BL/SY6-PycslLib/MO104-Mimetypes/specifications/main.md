@@ -12,13 +12,13 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/mimetypes.py
 
 ## Public functions / methods (7)
 
-- `guess_type` — `src/pycsl_lib/mimetypes.py:6`
-- `guess_file_type` — `src/pycsl_lib/mimetypes.py:12`
-- `guess_all_extensions` — `src/pycsl_lib/mimetypes.py:18`
-- `guess_extension` — `src/pycsl_lib/mimetypes.py:24`
-- `init` — `src/pycsl_lib/mimetypes.py:30`
-- `read_mime_types` — `src/pycsl_lib/mimetypes.py:36`
-- `add_type` — `src/pycsl_lib/mimetypes.py:42`
+- `guess_type` — `src/pycsl_lib/mimetypes.py:8`
+- `guess_file_type` — `src/pycsl_lib/mimetypes.py:16`
+- `guess_all_extensions` — `src/pycsl_lib/mimetypes.py:24`
+- `guess_extension` — `src/pycsl_lib/mimetypes.py:32`
+- `init` — `src/pycsl_lib/mimetypes.py:40`
+- `read_mime_types` — `src/pycsl_lib/mimetypes.py:48`
+- `add_type` — `src/pycsl_lib/mimetypes.py:55`
 
 ## Private (leading-`_`) defs (0)
 

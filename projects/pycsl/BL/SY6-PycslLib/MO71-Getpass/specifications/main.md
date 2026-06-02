@@ -12,8 +12,8 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/getpass.py
 
 ## Public functions / methods (2)
 
-- `getpass` — `src/pycsl_lib/getpass.py:6`
-- `getuser` — `src/pycsl_lib/getpass.py:12`
+- `getpass` — `src/pycsl_lib/getpass.py:7`
+- `getuser` — `src/pycsl_lib/getpass.py:14`
 
 ## Private (leading-`_`) defs (0)
 

@@ -14,16 +14,16 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/libcst.py
 
 - `CSTVisitorObj.__init__` — `src/pycsl_lib/libcst.py:13`
 - `CSTVisitorObj.on_visit` — `src/pycsl_lib/libcst.py:20`
-- `CSTVisitorObj.on_leave` — `src/pycsl_lib/libcst.py:28`
-- `CSTTransformerObj.__init__` — `src/pycsl_lib/libcst.py:35`
-- `CSTTransformerObj.on_visit` — `src/pycsl_lib/libcst.py:42`
-- `CSTTransformerObj.on_leave` — `src/pycsl_lib/libcst.py:50`
-- `parse_module` — `src/pycsl_lib/libcst.py:57`
-- `parse_expression` — `src/pycsl_lib/libcst.py:62`
-- `parse_statement` — `src/pycsl_lib/libcst.py:67`
-- `MetadataWrapper` — `src/pycsl_lib/libcst.py:72`
-- `metadata_resolve` — `src/pycsl_lib/libcst.py:77`
-- `matchers_matches` — `src/pycsl_lib/libcst.py:82`
+- `CSTVisitorObj.on_leave` — `src/pycsl_lib/libcst.py:29`
+- `CSTTransformerObj.__init__` — `src/pycsl_lib/libcst.py:36`
+- `CSTTransformerObj.on_visit` — `src/pycsl_lib/libcst.py:43`
+- `CSTTransformerObj.on_leave` — `src/pycsl_lib/libcst.py:52`
+- `parse_module` — `src/pycsl_lib/libcst.py:61`
+- `parse_expression` — `src/pycsl_lib/libcst.py:68`
+- `parse_statement` — `src/pycsl_lib/libcst.py:74`
+- `MetadataWrapper` — `src/pycsl_lib/libcst.py:80`
+- `metadata_resolve` — `src/pycsl_lib/libcst.py:87`
+- `matchers_matches` — `src/pycsl_lib/libcst.py:94`
 
 ## Private (leading-`_`) defs (0)
 

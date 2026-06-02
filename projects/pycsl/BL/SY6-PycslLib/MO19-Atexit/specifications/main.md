@@ -12,8 +12,8 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/atexit.py
 
 ## Public functions / methods (2)
 
-- `register` — `src/pycsl_lib/atexit.py:6`
-- `unregister` — `src/pycsl_lib/atexit.py:12`
+- `register` — `src/pycsl_lib/atexit.py:7`
+- `unregister` — `src/pycsl_lib/atexit.py:14`
 
 ## Private (leading-`_`) defs (0)
 

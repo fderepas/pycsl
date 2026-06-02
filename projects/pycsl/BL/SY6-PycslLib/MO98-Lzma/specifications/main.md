@@ -12,10 +12,10 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/lzma.py
 
 ## Public functions / methods (4)
 
-- `open` — `src/pycsl_lib/lzma.py:6`
-- `compress` — `src/pycsl_lib/lzma.py:12`
-- `decompress` — `src/pycsl_lib/lzma.py:18`
-- `is_check_supported` — `src/pycsl_lib/lzma.py:24`
+- `open` — `src/pycsl_lib/lzma.py:8`
+- `compress` — `src/pycsl_lib/lzma.py:16`
+- `decompress` — `src/pycsl_lib/lzma.py:24`
+- `is_check_supported` — `src/pycsl_lib/lzma.py:31`
 
 ## Private (leading-`_`) defs (0)
 

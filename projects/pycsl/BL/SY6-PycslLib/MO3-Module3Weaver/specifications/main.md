@@ -13,12 +13,12 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/Module3_Weaver.py
 ## Public functions / methods (7)
 
 - `PyCSLWeaverObj.__init__` — `src/pycsl_lib/Module3_Weaver.py:9`
-- `PyCSLWeaverObj.visit_functiondef` — `src/pycsl_lib/Module3_Weaver.py:16`
-- `PyCSLWeaverObj.visit_classdef` — `src/pycsl_lib/Module3_Weaver.py:23`
-- `PyCSLWeaverObj.visit_while` — `src/pycsl_lib/Module3_Weaver.py:30`
-- `PyCSLWeaverObj.visit_for` — `src/pycsl_lib/Module3_Weaver.py:37`
-- `Module3WeaverObj.__init__` — `src/pycsl_lib/Module3_Weaver.py:44`
-- `Module3WeaverObj.process` — `src/pycsl_lib/Module3_Weaver.py:51`
+- `PyCSLWeaverObj.visit_functiondef` — `src/pycsl_lib/Module3_Weaver.py:17`
+- `PyCSLWeaverObj.visit_classdef` — `src/pycsl_lib/Module3_Weaver.py:25`
+- `PyCSLWeaverObj.visit_while` — `src/pycsl_lib/Module3_Weaver.py:33`
+- `PyCSLWeaverObj.visit_for` — `src/pycsl_lib/Module3_Weaver.py:41`
+- `Module3WeaverObj.__init__` — `src/pycsl_lib/Module3_Weaver.py:48`
+- `Module3WeaverObj.process` — `src/pycsl_lib/Module3_Weaver.py:55`
 
 ## Private (leading-`_`) defs (0)
 

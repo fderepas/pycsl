@@ -12,8 +12,8 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/code.py
 
 ## Public functions / methods (2)
 
-- `interact` — `src/pycsl_lib/code.py:6`
-- `compile_command` — `src/pycsl_lib/code.py:12`
+- `interact` — `src/pycsl_lib/code.py:7`
+- `compile_command` — `src/pycsl_lib/code.py:14`
 
 ## Private (leading-`_`) defs (0)
 

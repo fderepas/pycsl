@@ -13,21 +13,21 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/Module5_IREmitter.py
 ## Public functions / methods (16)
 
 - `PyCSLToJSONEmitterObj.__init__` — `src/pycsl_lib/Module5_IREmitter.py:9`
-- `PyCSLToJSONEmitterObj.visit_classdef` — `src/pycsl_lib/Module5_IREmitter.py:16`
-- `PyCSLToJSONEmitterObj.visit_functiondef` — `src/pycsl_lib/Module5_IREmitter.py:23`
-- `PyCSLToJSONEmitterObj.csl_to_ir` — `src/pycsl_lib/Module5_IREmitter.py:30`
-- `PyCSLToJSONEmitterObj.csl_list_to_ir` — `src/pycsl_lib/Module5_IREmitter.py:37`
-- `PyCSLToJSONEmitterObj.py_op_to_str` — `src/pycsl_lib/Module5_IREmitter.py:44`
-- `PyCSLToJSONEmitterObj.py_expr_to_ir` — `src/pycsl_lib/Module5_IREmitter.py:51`
-- `PyCSLToJSONEmitterObj.py_stmts_to_ir` — `src/pycsl_lib/Module5_IREmitter.py:58`
-- `PyCSLToJSONEmitterObj.process_while` — `src/pycsl_lib/Module5_IREmitter.py:65`
-- `PyCSLToJSONEmitterObj.process_for` — `src/pycsl_lib/Module5_IREmitter.py:72`
-- `PyCSLToJSONEmitterObj.process_if` — `src/pycsl_lib/Module5_IREmitter.py:79`
-- `PyCSLToJSONEmitterObj.scan_2d_in_expr` — `src/pycsl_lib/Module5_IREmitter.py:86`
-- `PyCSLToJSONEmitterObj.scan_2d_in_stmt` — `src/pycsl_lib/Module5_IREmitter.py:93`
-- `PyCSLToJSONEmitterObj.collect_2d_params` — `src/pycsl_lib/Module5_IREmitter.py:100`
-- `Module5EmitterObj.__init__` — `src/pycsl_lib/Module5_IREmitter.py:107`
-- `Module5EmitterObj.generate_json` — `src/pycsl_lib/Module5_IREmitter.py:114`
+- `PyCSLToJSONEmitterObj.visit_classdef` — `src/pycsl_lib/Module5_IREmitter.py:17`
+- `PyCSLToJSONEmitterObj.visit_functiondef` — `src/pycsl_lib/Module5_IREmitter.py:25`
+- `PyCSLToJSONEmitterObj.csl_to_ir` — `src/pycsl_lib/Module5_IREmitter.py:33`
+- `PyCSLToJSONEmitterObj.csl_list_to_ir` — `src/pycsl_lib/Module5_IREmitter.py:41`
+- `PyCSLToJSONEmitterObj.py_op_to_str` — `src/pycsl_lib/Module5_IREmitter.py:49`
+- `PyCSLToJSONEmitterObj.py_expr_to_ir` — `src/pycsl_lib/Module5_IREmitter.py:57`
+- `PyCSLToJSONEmitterObj.py_stmts_to_ir` — `src/pycsl_lib/Module5_IREmitter.py:65`
+- `PyCSLToJSONEmitterObj.process_while` — `src/pycsl_lib/Module5_IREmitter.py:73`
+- `PyCSLToJSONEmitterObj.process_for` — `src/pycsl_lib/Module5_IREmitter.py:81`
+- `PyCSLToJSONEmitterObj.process_if` — `src/pycsl_lib/Module5_IREmitter.py:89`
+- `PyCSLToJSONEmitterObj.scan_2d_in_expr` — `src/pycsl_lib/Module5_IREmitter.py:97`
+- `PyCSLToJSONEmitterObj.scan_2d_in_stmt` — `src/pycsl_lib/Module5_IREmitter.py:105`
+- `PyCSLToJSONEmitterObj.collect_2d_params` — `src/pycsl_lib/Module5_IREmitter.py:113`
+- `Module5EmitterObj.__init__` — `src/pycsl_lib/Module5_IREmitter.py:120`
+- `Module5EmitterObj.generate_json` — `src/pycsl_lib/Module5_IREmitter.py:127`
 
 ## Private (leading-`_`) defs (0)
 

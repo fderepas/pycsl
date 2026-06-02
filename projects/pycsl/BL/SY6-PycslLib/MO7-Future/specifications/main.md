@@ -12,9 +12,9 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/__future__.py
 
 ## Public functions / methods (3)
 
-- `Feature_getOptionalRelease` — `src/pycsl_lib/__future__.py:24`
-- `Feature_getMandatoryRelease` — `src/pycsl_lib/__future__.py:30`
-- `Feature_compiler_flag` — `src/pycsl_lib/__future__.py:38`
+- `Feature_getOptionalRelease` — `src/pycsl_lib/__future__.py:26`
+- `Feature_getMandatoryRelease` — `src/pycsl_lib/__future__.py:34`
+- `Feature_compiler_flag` — `src/pycsl_lib/__future__.py:44`
 
 ## Private (leading-`_`) defs (0)
 

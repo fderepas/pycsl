@@ -12,8 +12,8 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/copyreg.py
 
 ## Public functions / methods (2)
 
-- `constructor` — `src/pycsl_lib/copyreg.py:6`
-- `pickle` — `src/pycsl_lib/copyreg.py:12`
+- `constructor` — `src/pycsl_lib/copyreg.py:8`
+- `pickle` — `src/pycsl_lib/copyreg.py:16`
 
 ## Private (leading-`_`) defs (0)
 

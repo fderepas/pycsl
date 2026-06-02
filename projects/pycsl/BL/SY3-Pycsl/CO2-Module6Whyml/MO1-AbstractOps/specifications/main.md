@@ -17,8 +17,8 @@ _(none)_
 ## Private (leading-`_`) defs (3)
 
 - `AbstractOpsMixin._add_abstract_op` — `src/pycsl/module6_whyml/abstract_ops.py:18`
-- `AbstractOpsMixin._find_abstract_val_insert_idx` — `src/pycsl/module6_whyml/abstract_ops.py:49`
-- `AbstractOpsMixin._insert_abstract_val_block` — `src/pycsl/module6_whyml/abstract_ops.py:79`
+- `AbstractOpsMixin._find_abstract_val_insert_idx` — `src/pycsl/module6_whyml/abstract_ops.py:54`
+- `AbstractOpsMixin._insert_abstract_val_block` — `src/pycsl/module6_whyml/abstract_ops.py:92`
 
 ---
 

@@ -12,13 +12,13 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/jsonschema.py
 
 ## Public functions / methods (7)
 
-- `validate` — `src/pycsl_lib/jsonschema.py:9`
-- `Draft4Validator` — `src/pycsl_lib/jsonschema.py:15`
-- `Draft7Validator` — `src/pycsl_lib/jsonschema.py:21`
-- `Draft202012Validator` — `src/pycsl_lib/jsonschema.py:27`
-- `ValidationError` — `src/pycsl_lib/jsonschema.py:33`
-- `SchemaError` — `src/pycsl_lib/jsonschema.py:39`
-- `RefResolver` — `src/pycsl_lib/jsonschema.py:45`
+- `validate` — `src/pycsl_lib/jsonschema.py:11`
+- `Draft4Validator` — `src/pycsl_lib/jsonschema.py:19`
+- `Draft7Validator` — `src/pycsl_lib/jsonschema.py:27`
+- `Draft202012Validator` — `src/pycsl_lib/jsonschema.py:35`
+- `ValidationError` — `src/pycsl_lib/jsonschema.py:43`
+- `SchemaError` — `src/pycsl_lib/jsonschema.py:51`
+- `RefResolver` — `src/pycsl_lib/jsonschema.py:59`
 
 ## Private (leading-`_`) defs (0)
 

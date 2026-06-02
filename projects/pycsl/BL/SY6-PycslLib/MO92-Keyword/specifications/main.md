@@ -12,8 +12,8 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/keyword.py
 
 ## Public functions / methods (2)
 
-- `iskeyword` — `src/pycsl_lib/keyword.py:6`
-- `issoftkeyword` — `src/pycsl_lib/keyword.py:12`
+- `iskeyword` — `src/pycsl_lib/keyword.py:7`
+- `issoftkeyword` — `src/pycsl_lib/keyword.py:14`
 
 ## Private (leading-`_`) defs (0)
 

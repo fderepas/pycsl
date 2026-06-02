@@ -12,10 +12,10 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/imaplib.py
 
 ## Public functions / methods (4)
 
-- `Internaldate2tuple` — `src/pycsl_lib/imaplib.py:6`
-- `Int2AP` — `src/pycsl_lib/imaplib.py:12`
-- `ParseFlags` — `src/pycsl_lib/imaplib.py:18`
-- `Time2Internaldate` — `src/pycsl_lib/imaplib.py:24`
+- `Internaldate2tuple` — `src/pycsl_lib/imaplib.py:7`
+- `Int2AP` — `src/pycsl_lib/imaplib.py:15`
+- `ParseFlags` — `src/pycsl_lib/imaplib.py:22`
+- `Time2Internaldate` — `src/pycsl_lib/imaplib.py:29`
 
 ## Private (leading-`_`) defs (0)
 

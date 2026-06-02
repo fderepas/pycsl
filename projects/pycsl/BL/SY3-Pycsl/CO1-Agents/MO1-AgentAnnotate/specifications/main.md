@@ -12,64 +12,13 @@ bin/cmmi-mod-index.py --file src/pycsl/agents/agent-annotate.py
 
 ## Public functions / methods (3)
 
-- `GuardPipeline.__init__` — `src/pycsl/agents/agent-annotate.py:45`
-- `GuardPipeline.apply` — `src/pycsl/agents/agent-annotate.py:48`
-- `main` — `src/pycsl/agents/agent-annotate.py:1855`
+- `GuardPipeline.__init__` — `src/pycsl/agents/agent-annotate.py:32`
+- `GuardPipeline.apply` — `src/pycsl/agents/agent-annotate.py:35`
+- `main` — `src/pycsl/agents/agent-annotate.py:46`
 
-## Private (leading-`_`) defs (52)
+## Private (leading-`_`) defs (0)
 
-- `_is_recursive` — `src/pycsl/agents/agent-annotate.py:58`
-- `_inject_recursive_variants` — `src/pycsl/agents/agent-annotate.py:71`
-- `_ensure_function_contracts` — `src/pycsl/agents/agent-annotate.py:129`
-- `_inject_trusted_for_dict_subscript_assignment` — `src/pycsl/agents/agent-annotate.py:212`
-- `_strengthen_ensures` — `src/pycsl/agents/agent-annotate.py:264`
-- `_strip_nonlinear_conservation_invariant` — `src/pycsl/agents/agent-annotate.py:290`
-- `_weaken_offset_start_loop_invariant` — `src/pycsl/agents/agent-annotate.py:300`
-- `_strengthen_loop_counter_invariant` — `src/pycsl/agents/agent-annotate.py:313`
-- `_inject_offset_lower_bound_invariant` — `src/pycsl/agents/agent-annotate.py:361`
-- `_tighten_lower_bound_for_pred_access` — `src/pycsl/agents/agent-annotate.py:463`
-- `_strip_unprovable_additive_invariants` — `src/pycsl/agents/agent-annotate.py:523`
-- `_strengthen_binary_search_invariants` — `src/pycsl/agents/agent-annotate.py:555`
-- `_split_two_pointer_compound_invariant` — `src/pycsl/agents/agent-annotate.py:620`
-- `_fix_list_return_type` — `src/pycsl/agents/agent-annotate.py:689`
-- `_remove_spurious_old_length_plus1` — `src/pycsl/agents/agent-annotate.py:793`
-- `_downgrade_result_ge1_for_len_return` — `src/pycsl/agents/agent-annotate.py:826`
-- `_downgrade_result_ge1_for_sum` — `src/pycsl/agents/agent-annotate.py:884`
-- `_strip_default_args` — `src/pycsl/agents/agent-annotate.py:929`
-- `_strip_default_args._clean_args` — `src/pycsl/agents/agent-annotate.py:930`
-- `_check_class_invariant_guards` — `src/pycsl/agents/agent-annotate.py:939`
-- `_fix_annotation_indentation` — `src/pycsl/agents/agent-annotate.py:976`
-- `_guard_body_preservation` — `src/pycsl/agents/agent-annotate.py:1007`
-- `_guard_body_preservation._guard` — `src/pycsl/agents/agent-annotate.py:1034`
-- `_fix_empty_conditional_bodies` — `src/pycsl/agents/agent-annotate.py:1073`
-- `_preceding_has_trusted` — `src/pycsl/agents/agent-annotate.py:1091`
-- `_strip_external_type_bodies` — `src/pycsl/agents/agent-annotate.py:1105`
-- `_inject_n_bound_requires` — `src/pycsl/agents/agent-annotate.py:1152`
-- `_remove_array_typed_variant` — `src/pycsl/agents/agent-annotate.py:1221`
-- `_fix_mismatched_loop_bound_invariant` — `src/pycsl/agents/agent-annotate.py:1250`
-- `_dedup_contract_blocks` — `src/pycsl/agents/agent-annotate.py:1292`
-- `_rewrite_return_in_if_inside_while` — `src/pycsl/agents/agent-annotate.py:1317`
-- `_rewrite_return_in_if_inside_while._normalize_bool_int` — `src/pycsl/agents/agent-annotate.py:1318`
-- `_fix_bare_len_sentinel` — `src/pycsl/agents/agent-annotate.py:1448`
-- `_fix_const_return_after_flag_loop` — `src/pycsl/agents/agent-annotate.py:1468`
-- `_fix_bool_flag_conditions` — `src/pycsl/agents/agent-annotate.py:1506`
-- `_guard_strip_math_pi` — `src/pycsl/agents/agent-annotate.py:1555`
-- `_guard_str_params_rewrite` — `src/pycsl/agents/agent-annotate.py:1562`
-- `_guard_bool_constants_in_contracts` — `src/pycsl/agents/agent-annotate.py:1594`
-- `_guard_floordiv_in_contracts` — `src/pycsl/agents/agent-annotate.py:1615`
-- `_guard_str_length_neutralize` — `src/pycsl/agents/agent-annotate.py:1623`
-- `_guard_list_params` — `src/pycsl/agents/agent-annotate.py:1653`
-- `_guard_rename_val` — `src/pycsl/agents/agent-annotate.py:1677`
-- `_guard_rename_goal` — `src/pycsl/agents/agent-annotate.py:1699`
-- `_guard_rename_match` — `src/pycsl/agents/agent-annotate.py:1706`
-- `_guard_rename_result` — `src/pycsl/agents/agent-annotate.py:1726`
-- `_guard_strip_class_invariant_unsupported` — `src/pycsl/agents/agent-annotate.py:1748`
-- `_guard_normalize_valid_separated` — `src/pycsl/agents/agent-annotate.py:1755`
-- `_guard_string_literal_comparisons` — `src/pycsl/agents/agent-annotate.py:1769`
-- `_guard_length_self_attr` — `src/pycsl/agents/agent-annotate.py:1781`
-- `_guard_truncated_contracts` — `src/pycsl/agents/agent-annotate.py:1797`
-- `_guard_ensures_invalid` — `src/pycsl/agents/agent-annotate.py:1814`
-- `_guard_ensures_length_arithmetic` — `src/pycsl/agents/agent-annotate.py:1843`
+_(none)_
 
 ---
 
@@ -77,4 +26,4 @@ bin/cmmi-mod-index.py --file src/pycsl/agents/agent-annotate.py
 
 The `#@` contract block immediately preceding each `def` in `src/pycsl/agents/agent-annotate.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **55** (public: 3, private: 52).
+Total defs: **3** (public: 3, private: 0).

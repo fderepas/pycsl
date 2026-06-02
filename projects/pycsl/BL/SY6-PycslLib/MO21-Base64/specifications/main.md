@@ -12,28 +12,28 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/base64.py
 
 ## Public functions / methods (22)
 
-- `b64encode` — `src/pycsl_lib/base64.py:6`
-- `b64decode` — `src/pycsl_lib/base64.py:12`
-- `standard_b64encode` — `src/pycsl_lib/base64.py:18`
-- `standard_b64decode` — `src/pycsl_lib/base64.py:24`
-- `urlsafe_b64encode` — `src/pycsl_lib/base64.py:30`
-- `urlsafe_b64decode` — `src/pycsl_lib/base64.py:36`
-- `b32encode` — `src/pycsl_lib/base64.py:42`
-- `b32decode` — `src/pycsl_lib/base64.py:48`
-- `b32hexencode` — `src/pycsl_lib/base64.py:54`
-- `b32hexdecode` — `src/pycsl_lib/base64.py:60`
-- `b16encode` — `src/pycsl_lib/base64.py:66`
-- `b16decode` — `src/pycsl_lib/base64.py:72`
-- `a85encode` — `src/pycsl_lib/base64.py:78`
-- `a85decode` — `src/pycsl_lib/base64.py:84`
-- `b85encode` — `src/pycsl_lib/base64.py:90`
-- `b85decode` — `src/pycsl_lib/base64.py:96`
-- `z85encode` — `src/pycsl_lib/base64.py:102`
-- `z85decode` — `src/pycsl_lib/base64.py:108`
-- `decode` — `src/pycsl_lib/base64.py:114`
-- `decodebytes` — `src/pycsl_lib/base64.py:120`
-- `encode` — `src/pycsl_lib/base64.py:126`
-- `encodebytes` — `src/pycsl_lib/base64.py:132`
+- `b64encode` — `src/pycsl_lib/base64.py:8`
+- `b64decode` — `src/pycsl_lib/base64.py:15`
+- `standard_b64encode` — `src/pycsl_lib/base64.py:23`
+- `standard_b64decode` — `src/pycsl_lib/base64.py:32`
+- `urlsafe_b64encode` — `src/pycsl_lib/base64.py:40`
+- `urlsafe_b64decode` — `src/pycsl_lib/base64.py:48`
+- `b32encode` — `src/pycsl_lib/base64.py:56`
+- `b32decode` — `src/pycsl_lib/base64.py:64`
+- `b32hexencode` — `src/pycsl_lib/base64.py:71`
+- `b32hexdecode` — `src/pycsl_lib/base64.py:78`
+- `b16encode` — `src/pycsl_lib/base64.py:86`
+- `b16decode` — `src/pycsl_lib/base64.py:94`
+- `a85encode` — `src/pycsl_lib/base64.py:102`
+- `a85decode` — `src/pycsl_lib/base64.py:110`
+- `b85encode` — `src/pycsl_lib/base64.py:116`
+- `b85decode` — `src/pycsl_lib/base64.py:123`
+- `z85encode` — `src/pycsl_lib/base64.py:129`
+- `z85decode` — `src/pycsl_lib/base64.py:137`
+- `decode` — `src/pycsl_lib/base64.py:145`
+- `decodebytes` — `src/pycsl_lib/base64.py:153`
+- `encode` — `src/pycsl_lib/base64.py:161`
+- `encodebytes` — `src/pycsl_lib/base64.py:170`
 
 ## Private (leading-`_`) defs (0)
 

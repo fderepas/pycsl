@@ -12,7 +12,7 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/codeop.py
 
 ## Public functions / methods (1)
 
-- `compile_command` — `src/pycsl_lib/codeop.py:6`
+- `compile_command` — `src/pycsl_lib/codeop.py:7`
 
 ## Private (leading-`_`) defs (0)
 

@@ -12,12 +12,12 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/annotationlib.py
 
 ## Public functions / methods (6)
 
-- `annotations_to_string` — `src/pycsl_lib/annotationlib.py:6`
-- `call_annotate_function` — `src/pycsl_lib/annotationlib.py:12`
-- `call_evaluate_function` — `src/pycsl_lib/annotationlib.py:18`
-- `get_annotate_from_class_namespace` — `src/pycsl_lib/annotationlib.py:24`
-- `get_annotations` — `src/pycsl_lib/annotationlib.py:30`
-- `type_repr` — `src/pycsl_lib/annotationlib.py:36`
+- `annotations_to_string` — `src/pycsl_lib/annotationlib.py:7`
+- `call_annotate_function` — `src/pycsl_lib/annotationlib.py:17`
+- `call_evaluate_function` — `src/pycsl_lib/annotationlib.py:24`
+- `get_annotate_from_class_namespace` — `src/pycsl_lib/annotationlib.py:31`
+- `get_annotations` — `src/pycsl_lib/annotationlib.py:40`
+- `type_repr` — `src/pycsl_lib/annotationlib.py:47`
 
 ## Private (leading-`_`) defs (0)
 

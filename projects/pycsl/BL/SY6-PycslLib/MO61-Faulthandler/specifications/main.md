@@ -12,15 +12,15 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/faulthandler.py
 
 ## Public functions / methods (9)
 
-- `dump_traceback` — `src/pycsl_lib/faulthandler.py:6`
-- `dump_c_stack` — `src/pycsl_lib/faulthandler.py:12`
-- `enable` — `src/pycsl_lib/faulthandler.py:18`
-- `disable` — `src/pycsl_lib/faulthandler.py:24`
-- `is_enabled` — `src/pycsl_lib/faulthandler.py:30`
-- `dump_traceback_later` — `src/pycsl_lib/faulthandler.py:36`
-- `cancel_dump_traceback_later` — `src/pycsl_lib/faulthandler.py:42`
-- `register` — `src/pycsl_lib/faulthandler.py:48`
-- `unregister` — `src/pycsl_lib/faulthandler.py:54`
+- `dump_traceback` — `src/pycsl_lib/faulthandler.py:7`
+- `dump_c_stack` — `src/pycsl_lib/faulthandler.py:15`
+- `enable` — `src/pycsl_lib/faulthandler.py:22`
+- `disable` — `src/pycsl_lib/faulthandler.py:29`
+- `is_enabled` — `src/pycsl_lib/faulthandler.py:36`
+- `dump_traceback_later` — `src/pycsl_lib/faulthandler.py:44`
+- `cancel_dump_traceback_later` — `src/pycsl_lib/faulthandler.py:52`
+- `register` — `src/pycsl_lib/faulthandler.py:60`
+- `unregister` — `src/pycsl_lib/faulthandler.py:68`
 
 ## Private (leading-`_`) defs (0)
 

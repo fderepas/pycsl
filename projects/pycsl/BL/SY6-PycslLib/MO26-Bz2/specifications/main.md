@@ -12,9 +12,9 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/bz2.py
 
 ## Public functions / methods (3)
 
-- `open` — `src/pycsl_lib/bz2.py:6`
-- `compress` — `src/pycsl_lib/bz2.py:12`
-- `decompress` — `src/pycsl_lib/bz2.py:18`
+- `open` — `src/pycsl_lib/bz2.py:9`
+- `compress` — `src/pycsl_lib/bz2.py:17`
+- `decompress` — `src/pycsl_lib/bz2.py:24`
 
 ## Private (leading-`_`) defs (0)
 

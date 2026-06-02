@@ -12,11 +12,11 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/mcp.py
 
 ## Public functions / methods (5)
 
-- `FastMCP` — `src/pycsl_lib/mcp.py:9`
-- `FastMCP_run` — `src/pycsl_lib/mcp.py:15`
-- `FastMCP_tool` — `src/pycsl_lib/mcp.py:21`
-- `FastMCP_resource` — `src/pycsl_lib/mcp.py:27`
-- `FastMCP_prompt` — `src/pycsl_lib/mcp.py:33`
+- `FastMCP` — `src/pycsl_lib/mcp.py:11`
+- `FastMCP_run` — `src/pycsl_lib/mcp.py:19`
+- `FastMCP_tool` — `src/pycsl_lib/mcp.py:27`
+- `FastMCP_resource` — `src/pycsl_lib/mcp.py:35`
+- `FastMCP_prompt` — `src/pycsl_lib/mcp.py:43`
 
 ## Private (leading-`_`) defs (0)
 

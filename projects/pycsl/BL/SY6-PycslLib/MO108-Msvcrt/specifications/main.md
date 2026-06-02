@@ -12,23 +12,23 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/msvcrt.py
 
 ## Public functions / methods (17)
 
-- `locking` — `src/pycsl_lib/msvcrt.py:6`
-- `setmode` — `src/pycsl_lib/msvcrt.py:12`
-- `open_osfhandle` — `src/pycsl_lib/msvcrt.py:18`
-- `get_osfhandle` — `src/pycsl_lib/msvcrt.py:24`
-- `kbhit` — `src/pycsl_lib/msvcrt.py:30`
-- `getch` — `src/pycsl_lib/msvcrt.py:36`
-- `getwch` — `src/pycsl_lib/msvcrt.py:42`
-- `getche` — `src/pycsl_lib/msvcrt.py:48`
-- `getwche` — `src/pycsl_lib/msvcrt.py:54`
-- `putch` — `src/pycsl_lib/msvcrt.py:60`
-- `putwch` — `src/pycsl_lib/msvcrt.py:66`
-- `ungetch` — `src/pycsl_lib/msvcrt.py:72`
-- `ungetwch` — `src/pycsl_lib/msvcrt.py:78`
-- `heapmin` — `src/pycsl_lib/msvcrt.py:84`
-- `set_error_mode` — `src/pycsl_lib/msvcrt.py:90`
-- `CrtSetReportMode` — `src/pycsl_lib/msvcrt.py:96`
-- `CrtSetReportFile` — `src/pycsl_lib/msvcrt.py:102`
+- `locking` — `src/pycsl_lib/msvcrt.py:8`
+- `setmode` — `src/pycsl_lib/msvcrt.py:16`
+- `open_osfhandle` — `src/pycsl_lib/msvcrt.py:24`
+- `get_osfhandle` — `src/pycsl_lib/msvcrt.py:32`
+- `kbhit` — `src/pycsl_lib/msvcrt.py:40`
+- `getch` — `src/pycsl_lib/msvcrt.py:49`
+- `getwch` — `src/pycsl_lib/msvcrt.py:57`
+- `getche` — `src/pycsl_lib/msvcrt.py:65`
+- `getwche` — `src/pycsl_lib/msvcrt.py:73`
+- `putch` — `src/pycsl_lib/msvcrt.py:81`
+- `putwch` — `src/pycsl_lib/msvcrt.py:89`
+- `ungetch` — `src/pycsl_lib/msvcrt.py:97`
+- `ungetwch` — `src/pycsl_lib/msvcrt.py:105`
+- `heapmin` — `src/pycsl_lib/msvcrt.py:113`
+- `set_error_mode` — `src/pycsl_lib/msvcrt.py:121`
+- `CrtSetReportMode` — `src/pycsl_lib/msvcrt.py:129`
+- `CrtSetReportFile` — `src/pycsl_lib/msvcrt.py:137`
 
 ## Private (leading-`_`) defs (0)
 

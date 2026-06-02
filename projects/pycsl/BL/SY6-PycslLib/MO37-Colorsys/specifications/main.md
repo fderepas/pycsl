@@ -12,12 +12,12 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/colorsys.py
 
 ## Public functions / methods (6)
 
-- `rgb_to_yiq` — `src/pycsl_lib/colorsys.py:6`
-- `yiq_to_rgb` — `src/pycsl_lib/colorsys.py:12`
-- `rgb_to_hls` — `src/pycsl_lib/colorsys.py:18`
-- `hls_to_rgb` — `src/pycsl_lib/colorsys.py:24`
-- `rgb_to_hsv` — `src/pycsl_lib/colorsys.py:30`
-- `hsv_to_rgb` — `src/pycsl_lib/colorsys.py:36`
+- `rgb_to_yiq` — `src/pycsl_lib/colorsys.py:8`
+- `yiq_to_rgb` — `src/pycsl_lib/colorsys.py:16`
+- `rgb_to_hls` — `src/pycsl_lib/colorsys.py:24`
+- `hls_to_rgb` — `src/pycsl_lib/colorsys.py:32`
+- `rgb_to_hsv` — `src/pycsl_lib/colorsys.py:40`
+- `hsv_to_rgb` — `src/pycsl_lib/colorsys.py:48`
 
 ## Private (leading-`_`) defs (0)
 

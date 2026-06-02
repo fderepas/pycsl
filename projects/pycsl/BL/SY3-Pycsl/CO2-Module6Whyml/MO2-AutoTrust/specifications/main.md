@@ -12,24 +12,27 @@ bin/cmmi-mod-index.py --file src/pycsl/module6_whyml/auto_trust.py
 
 ## Public functions / methods (2)
 
-- `AutoTrustMixin._collect_map_typed_locals.walk` — `src/pycsl/module6_whyml/auto_trust.py:149`
-- `AutoTrustMixin._has_set_op_on_map.yields_map` — `src/pycsl/module6_whyml/auto_trust.py:211`
+- `AutoTrustMixin._collect_map_typed_locals.walk` — `src/pycsl/module6_whyml/auto_trust.py:213`
+- `AutoTrustMixin._has_set_op_on_map.yields_map` — `src/pycsl/module6_whyml/auto_trust.py:286`
 
-## Private (leading-`_`) defs (13)
+## Private (leading-`_`) defs (16)
 
 - `AutoTrustMixin._build_witness_str` — `src/pycsl/module6_whyml/auto_trust.py:23`
-- `AutoTrustMixin._check_witness_vals` — `src/pycsl/module6_whyml/auto_trust.py:27`
-- `AutoTrustMixin._is_linear_expr` — `src/pycsl/module6_whyml/auto_trust.py:46`
-- `AutoTrustMixin._is_linear_expr._check` — `src/pycsl/module6_whyml/auto_trust.py:65`
-- `AutoTrustMixin._is_linear_vc` — `src/pycsl/module6_whyml/auto_trust.py:118`
-- `AutoTrustMixin._should_auto_trust_map_return` — `src/pycsl/module6_whyml/auto_trust.py:131`
-- `AutoTrustMixin._collect_map_typed_locals` — `src/pycsl/module6_whyml/auto_trust.py:143`
-- `AutoTrustMixin._test_contains_map` — `src/pycsl/module6_whyml/auto_trust.py:169`
-- `AutoTrustMixin._has_set_op_on_map` — `src/pycsl/module6_whyml/auto_trust.py:191`
-- `AutoTrustMixin._should_auto_trust_set_op` — `src/pycsl/module6_whyml/auto_trust.py:242`
-- `AutoTrustMixin._should_auto_trust_array_return` — `src/pycsl/module6_whyml/auto_trust.py:259`
-- `AutoTrustMixin._should_auto_trust_tuple_return` — `src/pycsl/module6_whyml/auto_trust.py:274`
-- `AutoTrustMixin._should_auto_trust_tuple_return._tuple_return_has_array_slot` — `src/pycsl/module6_whyml/auto_trust.py:287`
+- `AutoTrustMixin._extract_array_lengths` — `src/pycsl/module6_whyml/auto_trust.py:49`
+- `AutoTrustMixin._extract_array_lengths._field_of` — `src/pycsl/module6_whyml/auto_trust.py:58`
+- `AutoTrustMixin._extract_array_lengths._int_of` — `src/pycsl/module6_whyml/auto_trust.py:64`
+- `AutoTrustMixin._check_witness_vals` — `src/pycsl/module6_whyml/auto_trust.py:91`
+- `AutoTrustMixin._is_linear_expr` — `src/pycsl/module6_whyml/auto_trust.py:110`
+- `AutoTrustMixin._is_linear_expr._check` — `src/pycsl/module6_whyml/auto_trust.py:129`
+- `AutoTrustMixin._is_linear_vc` — `src/pycsl/module6_whyml/auto_trust.py:182`
+- `AutoTrustMixin._should_auto_trust_map_return` — `src/pycsl/module6_whyml/auto_trust.py:195`
+- `AutoTrustMixin._collect_map_typed_locals` — `src/pycsl/module6_whyml/auto_trust.py:207`
+- `AutoTrustMixin._test_contains_map` — `src/pycsl/module6_whyml/auto_trust.py:233`
+- `AutoTrustMixin._has_set_op_on_map` — `src/pycsl/module6_whyml/auto_trust.py:266`
+- `AutoTrustMixin._should_auto_trust_set_op` — `src/pycsl/module6_whyml/auto_trust.py:317`
+- `AutoTrustMixin._should_auto_trust_array_return` — `src/pycsl/module6_whyml/auto_trust.py:334`
+- `AutoTrustMixin._should_auto_trust_tuple_return` — `src/pycsl/module6_whyml/auto_trust.py:349`
+- `AutoTrustMixin._should_auto_trust_tuple_return._tuple_return_has_array_slot` — `src/pycsl/module6_whyml/auto_trust.py:362`
 
 ---
 
@@ -37,4 +40,4 @@ bin/cmmi-mod-index.py --file src/pycsl/module6_whyml/auto_trust.py
 
 The `#@` contract block immediately preceding each `def` in `src/pycsl/module6_whyml/auto_trust.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **15** (public: 2, private: 13).
+Total defs: **18** (public: 2, private: 16).
