@@ -15,7 +15,7 @@ description: >-
   determining which role should run which level, deciding what to do next in
   a project, or auditing whether a project followed the prescribed lifecycle.
 document_id: SKILL-CMMI-LIFE-001
-version: "2.0"
+version: "2.1"
 status: Approved
 effective_date: "2026-05-22"
 baseline_id: BL-LIFE-001
@@ -35,7 +35,7 @@ practice_areas:
 | Field | Value |
 |---|---|
 | Document ID | SKILL-CMMI-LIFE-001 |
-| Version | 2.0 |
+| Version | 2.1 |
 | Status | Approved |
 | Effective Date | 2026-05-22 |
 | Baseline ID | BL-LIFE-001 |
@@ -48,6 +48,7 @@ practice_areas:
 | 0.1 | 2026-05-22 | Agent (EPG) | Initial draft — codified from bootstrap-cmmi-project-02.txt |
 | 1.0 | 2026-05-22 | Agent (EPG) | First approved release: full §1–§6, recursive level-based execution |
 | 2.0 | 2026-06-01 | Agent (EPG) | Expand 4→5 levels (Component, Module, Unit); add coordination spec; add cross-cutting obligations; add Phase 10 |
+| 2.1 | 2026-06-02 | Agent (EPG) | Add T7.1 feature-plan submission via `agent-feature-supervisor`; new `references/feature-plan-submission.md` |
 
 ### Approvals
 
@@ -147,6 +148,7 @@ This document satisfies CMMI v2.0 practice areas:
 | Level-to-unit-of-work mapping | `references/level-definitions.md` |
 | Directory hierarchy and naming | `references/directory-hierarchy.md` |
 | Tailoring profiles | `references/tailoring-profiles.md` |
+| Submitting a feature plan to the verification gate | `references/feature-plan-submission.md` |
 | Artifact checklist per level | `config/skills/cmmi-process-level/references/artifact-checklist.md` |
 | Governance workflows | `config/skills/cmmi-glue/references/workflow-catalog.md` |
 | Project structure convention | `config/skills/agent-project-structure/SKILL.md` |
@@ -371,6 +373,29 @@ intermediate levels, the delegation path from the active lowest level satisfies
 T7 entry without requiring T6 completion.
 
 See `references/task-details.md` §T7 for the full activity description.
+
+#### T7.1 — Submitting a feature plan to the verification gate
+
+A planned feature or change is submitted for autonomous classification and
+acceptance checking through the **`agent-feature-supervisor`**:
+
+```
+./bin/agent-feature-supervisor --feature-file my-great-feature.md
+```
+
+The plan document must carry its phases under a `## Implementation surface`
+section as `### Phase N — Title` headers, each with a machine-checkable
+`**Acceptance:**` block (command + predicate) that is the phase's definition of
+done. The supervisor is **gate-only**: it parses, runs the read-only acceptance
+claims, and halts `human-needed` rather than editing load-bearing files
+(`Module2`–`Module6`, `module6_whyml/*`, `csl.lark`, `formal-semantics/`, the
+normative `docs/pycsl-*-reference.md`). This is the lifecycle's bridge from an
+approved plan to verified delivery: acceptance claims are re-run on every
+invocation, closing the loop ER catches that the gate alone does not (a plan can
+pass the gate while shipping nothing).
+
+See `references/feature-plan-submission.md` for the full document shape, bullet
+grammar, safety rules, deny-list behavior, and exit codes.
 
 #### T8 — Level Transition and Delegation Rules
 

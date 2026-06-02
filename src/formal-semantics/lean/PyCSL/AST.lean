@@ -24,10 +24,119 @@ inductive Expr where
   | fieldGet  (obj : Ident) (f : Ident)  -- Q4 U.4 expansion (2026-05-29)
   | call      (func : Ident) (args : List Expr)  -- Q4 U.4 (2026-05-29)
   deriving Repr
-  -- Q4 U.4 (2026-05-29): DecidableEq removed when `.call` was added
-  -- (Lean's deriving handler doesn't synthesize for nested `List Expr`).
-  -- The Module 4 citation `PyCSL.AST.Expr.decEq` now points at the Rocq
-  -- analogue `Phase1_AST.expr_eq_dec` only (see self-remains.md §CC.2).
+  -- Q4 U.4 (2026-05-29): `deriving DecidableEq` doesn't synthesize for
+  -- nested `List Expr` (the .call args). 2026-05-30: manual
+  -- DecidableEq + DecidableEqList instances written via mutual recursion
+  -- below; Module 4 Lean citation upgraded from the `PyCSL.AST.Expr`
+  -- anchor to the real `instDecidableEqExpr`. Parity with Rocq's
+  -- `expr_eq_dec` (which uses `list_eq_dec expr_eq_dec` for the .call
+  -- args case).
+
+namespace Expr
+
+mutual
+
+protected def decEq : (e1 e2 : Expr) → Decidable (e1 = e2) := fun e1 e2 =>
+  match e1, e2 with
+  | .int n, .int m =>
+      if h : n = m then Decidable.isTrue (h ▸ rfl)
+      else Decidable.isFalse (fun heq => by cases heq; exact h rfl)
+  | .var x, .var y =>
+      if h : x = y then Decidable.isTrue (h ▸ rfl)
+      else Decidable.isFalse (fun heq => by cases heq; exact h rfl)
+  | .subscript a i, .subscript b j =>
+      if hab : a = b then
+        match Expr.decEq i j with
+        | Decidable.isTrue hij => Decidable.isTrue (hab ▸ hij ▸ rfl)
+        | Decidable.isFalse hij => Decidable.isFalse (fun heq => by cases heq; exact hij rfl)
+      else Decidable.isFalse (fun heq => by cases heq; exact hab rfl)
+  | .len a, .len b =>
+      if h : a = b then Decidable.isTrue (h ▸ rfl)
+      else Decidable.isFalse (fun heq => by cases heq; exact h rfl)
+  | .binop op a b, .binop op' a' b' =>
+      if hop : op = op' then
+        match Expr.decEq a a', Expr.decEq b b' with
+        | Decidable.isTrue ha, Decidable.isTrue hb =>
+            Decidable.isTrue (hop ▸ ha ▸ hb ▸ rfl)
+        | Decidable.isTrue _, Decidable.isFalse hb =>
+            Decidable.isFalse (fun heq => by cases heq; exact hb rfl)
+        | Decidable.isFalse ha, _ =>
+            Decidable.isFalse (fun heq => by cases heq; exact ha rfl)
+      else Decidable.isFalse (fun heq => by cases heq; exact hop rfl)
+  | .neg e, .neg e' =>
+      match Expr.decEq e e' with
+      | Decidable.isTrue h => Decidable.isTrue (h ▸ rfl)
+      | Decidable.isFalse h => Decidable.isFalse (fun heq => by cases heq; exact h rfl)
+  | .cmp op a b, .cmp op' a' b' =>
+      if hop : op = op' then
+        match Expr.decEq a a', Expr.decEq b b' with
+        | Decidable.isTrue ha, Decidable.isTrue hb =>
+            Decidable.isTrue (hop ▸ ha ▸ hb ▸ rfl)
+        | Decidable.isTrue _, Decidable.isFalse hb =>
+            Decidable.isFalse (fun heq => by cases heq; exact hb rfl)
+        | Decidable.isFalse ha, _ =>
+            Decidable.isFalse (fun heq => by cases heq; exact ha rfl)
+      else Decidable.isFalse (fun heq => by cases heq; exact hop rfl)
+  | .fieldGet o f, .fieldGet o' f' =>
+      if ho : o = o' then
+        if hf : f = f' then Decidable.isTrue (ho ▸ hf ▸ rfl)
+        else Decidable.isFalse (fun heq => by cases heq; exact hf rfl)
+      else Decidable.isFalse (fun heq => by cases heq; exact ho rfl)
+  | .call f args, .call f' args' =>
+      if hf : f = f' then
+        match Expr.decEqList args args' with
+        | Decidable.isTrue ha => Decidable.isTrue (hf ▸ ha ▸ rfl)
+        | Decidable.isFalse ha => Decidable.isFalse (fun heq => by cases heq; exact ha rfl)
+      else Decidable.isFalse (fun heq => by cases heq; exact hf rfl)
+  -- Cross-constructor cases. Every entry: heads differ → `nomatch heq`.
+  | .int _, .var _ | .int _, .subscript _ _ | .int _, .len _
+  | .int _, .binop _ _ _ | .int _, .neg _ | .int _, .cmp _ _ _
+  | .int _, .fieldGet _ _ | .int _, .call _ _
+  | .var _, .int _ | .var _, .subscript _ _ | .var _, .len _
+  | .var _, .binop _ _ _ | .var _, .neg _ | .var _, .cmp _ _ _
+  | .var _, .fieldGet _ _ | .var _, .call _ _
+  | .subscript _ _, .int _ | .subscript _ _, .var _ | .subscript _ _, .len _
+  | .subscript _ _, .binop _ _ _ | .subscript _ _, .neg _
+  | .subscript _ _, .cmp _ _ _ | .subscript _ _, .fieldGet _ _
+  | .subscript _ _, .call _ _
+  | .len _, .int _ | .len _, .var _ | .len _, .subscript _ _
+  | .len _, .binop _ _ _ | .len _, .neg _ | .len _, .cmp _ _ _
+  | .len _, .fieldGet _ _ | .len _, .call _ _
+  | .binop _ _ _, .int _ | .binop _ _ _, .var _ | .binop _ _ _, .subscript _ _
+  | .binop _ _ _, .len _ | .binop _ _ _, .neg _ | .binop _ _ _, .cmp _ _ _
+  | .binop _ _ _, .fieldGet _ _ | .binop _ _ _, .call _ _
+  | .neg _, .int _ | .neg _, .var _ | .neg _, .subscript _ _
+  | .neg _, .len _ | .neg _, .binop _ _ _ | .neg _, .cmp _ _ _
+  | .neg _, .fieldGet _ _ | .neg _, .call _ _
+  | .cmp _ _ _, .int _ | .cmp _ _ _, .var _ | .cmp _ _ _, .subscript _ _
+  | .cmp _ _ _, .len _ | .cmp _ _ _, .binop _ _ _ | .cmp _ _ _, .neg _
+  | .cmp _ _ _, .fieldGet _ _ | .cmp _ _ _, .call _ _
+  | .fieldGet _ _, .int _ | .fieldGet _ _, .var _ | .fieldGet _ _, .subscript _ _
+  | .fieldGet _ _, .len _ | .fieldGet _ _, .binop _ _ _ | .fieldGet _ _, .neg _
+  | .fieldGet _ _, .cmp _ _ _ | .fieldGet _ _, .call _ _
+  | .call _ _, .int _ | .call _ _, .var _ | .call _ _, .subscript _ _
+  | .call _ _, .len _ | .call _ _, .binop _ _ _ | .call _ _, .neg _
+  | .call _ _, .cmp _ _ _ | .call _ _, .fieldGet _ _ =>
+      Decidable.isFalse (fun heq => by cases heq)
+
+protected def decEqList : (xs ys : List Expr) → Decidable (xs = ys) := fun xs ys =>
+  match xs, ys with
+  | [], [] => Decidable.isTrue rfl
+  | _ :: _, [] => Decidable.isFalse (fun h => by cases h)
+  | [], _ :: _ => Decidable.isFalse (fun h => by cases h)
+  | a :: as, b :: bs =>
+      match Expr.decEq a b, Expr.decEqList as bs with
+      | Decidable.isTrue h1, Decidable.isTrue h2 => Decidable.isTrue (h1 ▸ h2 ▸ rfl)
+      | Decidable.isTrue _, Decidable.isFalse h2 =>
+          Decidable.isFalse (fun heq => by cases heq; exact h2 rfl)
+      | Decidable.isFalse h1, _ =>
+          Decidable.isFalse (fun heq => by cases heq; exact h1 rfl)
+
+end
+
+instance : DecidableEq Expr := Expr.decEq
+
+end Expr
 
 inductive ContractExpr where
   -- Phase 0 (original)

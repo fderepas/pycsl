@@ -878,6 +878,65 @@ Example desugar_for_range_assign :
                        (SAugAssign "j" OpAdd (EInt 1))))).
 Proof. reflexivity. Qed.
 
+(* --- 3-arg range desugar: range(start, stop, step). ---
+
+   Phase1b_IrToStmt.v case (b) handles three arities of `range`:
+   1-arg `range(N)`, 2-arg `range(start, stop)`, and 3-arg
+   `range(start, stop, step)`. The 3-arg form replaces the
+   constant `EInt 1` increment of the 1- and 2-arg forms with the
+   user-supplied `step` expression. The structural loop shape
+   (`while i < stop`) is unchanged; the formal model covers
+   positive-step ranges, matching the structural `i < stop`
+   condition. Negative-step ranges (where the condition would
+   flip to `i > stop`) are out of scope and the decoder returns
+   `None` for them at the JSON level — `step` is just an expr,
+   the decoder doesn't inspect its sign. *)
+
+Definition for_range_3arg_ir (target_name : string)
+                             (start_n stop_n step_n : Z)
+                             (body_json : json_value) : json_value :=
+  JsonObject
+    (("stmt",   JsonString "For") ::
+     ("target", JsonString target_name) ::
+     ("iter",
+      JsonObject (("type", JsonString "Call") ::
+                  ("func", JsonString "range") ::
+                  ("args",
+                   JsonList
+                     (JsonObject (("type",  JsonString "Number") ::
+                                  ("value", JsonInt start_n) :: nil)
+                      :: JsonObject (("type",  JsonString "Number") ::
+                                     ("value", JsonInt stop_n) :: nil)
+                      :: JsonObject (("type",  JsonString "Number") ::
+                                     ("value", JsonInt step_n) :: nil)
+                      :: nil)) :: nil)) ::
+     ("body", JsonList (body_json :: nil)) :: nil).
+
+Example desugar_for_range_3arg_skip :
+  ir_to_stmt (for_range_3arg_ir "i" 0 10 2
+                (JsonObject (("stmt", JsonString "Pass") :: nil))) =
+    Some (SSeq (SAssign "i" (EInt 0))
+               (SWhile (CBoolLit true) (CInt 0)
+                       (ECmp OpLt (EVar "i") (EInt 10))
+                       (SSeq SSkip
+                             (SAugAssign "i" OpAdd (EInt 2))))).
+Proof. reflexivity. Qed.
+
+Example desugar_for_range_3arg_assign :
+  ir_to_stmt
+    (for_range_3arg_ir "j" 1 100 5
+      (stmt_to_ir_simple
+        (SAssign "total" (EBinOp OpAdd (EVar "total") (EVar "j"))))) =
+    Some (SSeq
+            (SAssign "j" (EInt 1))
+            (SWhile (CBoolLit true) (CInt 0)
+                    (ECmp OpLt (EVar "j") (EInt 100))
+                    (SSeq
+                       (SAssign "total"
+                                (EBinOp OpAdd (EVar "total") (EVar "j")))
+                       (SAugAssign "j" OpAdd (EInt 5))))).
+Proof. reflexivity. Qed.
+
 (* The desugar Examples above are NOT round-trips (formal SFor with
    range has no representative in the encoder; the closest formal
    stmt is the SSeq+SWhile target above). They formalize the

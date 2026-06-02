@@ -20,9 +20,73 @@ class AutoTrustMixin:
     """
 
     @staticmethod
-    def _build_witness_str(field_names: List[str], vals: Dict[str, Any]) -> str:
-        """Build a WhyML record literal witness string."""
-        return "; ".join(f"{fn} = {vals.get(fn, 0)}" for fn in field_names)
+    def _build_witness_str(field_names: List[str], vals: Dict[str, Any],
+                           field_types: Optional[Dict[str, str]] = None,
+                           array_lengths: Optional[Dict[str, int]] = None) -> str:
+        """Build a WhyML record literal witness string.
+
+        Array-typed fields (`array int`) cannot take an int witness; they
+        get `Array.make N 0`, where N is the length pinned by a class
+        invariant `\\length(self.f) == N` (defaulting to 0 — an empty
+        array — when no length invariant constrains the field)."""
+        field_types = field_types or {}
+        array_lengths = array_lengths or {}
+        parts: List[str] = []
+        for fn in field_names:
+            ft = field_types.get(fn, "int")
+            if ft in ("list", "tuple", "bytes", "bytearray") or ft.startswith("array "):
+                n = array_lengths.get(fn, 0)
+                parts.append(f"{fn} = (Array.make {n} 0)")
+            elif ft in ("dict", "set", "frozenset") or ft.startswith("map "):
+                # Empty map witness (all keys → None); `const` is from
+                # map.Const, matching the empty-dict idiom in expressions.py.
+                parts.append(f"{fn} = (const (None: option int))")
+            else:
+                parts.append(f"{fn} = {vals.get(fn, 0)}")
+        return "; ".join(parts)
+
+    @staticmethod
+    def _extract_array_lengths(invs: List[Any]) -> Dict[str, int]:
+        """Scan class invariants for a length constraint on an array field
+        and return {field: N}, the length to give that field's witness in
+        the record `by` clause. Handles `\\length(self.f) == N`,
+        `\\length(self.f) >= N`, and the reversed `N <= \\length(self.f)`:
+        an `Array.make N 0` witness (length exactly N) satisfies all three
+        (N == N, N >= N, N <= N). Tolerates the constant on either side."""
+        out: Dict[str, int] = {}
+
+        def _field_of(node: Any) -> Optional[str]:
+            if isinstance(node, dict) and node.get("type") == "ArrayLen":
+                var = str(node.get("var", ""))
+                return var[len("self."):] if var.startswith("self.") else var
+            return None
+
+        def _int_of(node: Any) -> Optional[int]:
+            if isinstance(node, dict) and node.get("type") in ("Number", "Num", "Constant"):
+                v = node.get("value", node.get("n"))
+                if isinstance(v, (int, float)):
+                    return int(v)
+            return None
+
+        for inv in invs:
+            if not isinstance(inv, dict) or inv.get("type") != "BinOp":
+                continue
+            op = inv.get("op")
+            if op not in ("==", "=", ">=", "<="):
+                continue
+            left, right = inv.get("left"), inv.get("right")
+            f_left, f_right = _field_of(left), _field_of(right)
+            # field-on-left forms: `len(f) == N`, `len(f) >= N`.
+            if f_left is not None and op in ("==", "=", ">="):
+                n = _int_of(right)
+                if n is not None:
+                    out.setdefault(f_left, n)
+            # field-on-right forms: `N == len(f)`, `N <= len(f)`.
+            elif f_right is not None and op in ("==", "=", "<="):
+                n = _int_of(left)
+                if n is not None:
+                    out.setdefault(f_right, n)
+        return out
 
     def _check_witness_vals(self, vals: Dict[str, Any], invs: List[Any], field_names: List[str]) -> bool:
         """Quick sanity check: evaluate invariant with witness values."""
@@ -173,6 +237,17 @@ class AutoTrustMixin:
         anywhere a collection could be used as a bool would trigger
         the `(X <> 0)` problem."""
         if not isinstance(expr, dict):
+            return False
+        # A subscript/slice yields an element (int), not the collection —
+        # `if arr[i] == 1:` / `if d[k]:` does NOT use the collection as a
+        # truthiness operand. Consume it: check only the index, never
+        # recurse into the collection base (which would mis-flag the
+        # enclosing function for auto-trust).
+        if expr.get("type") in ("Subscript", "SliceAccess", "ChainedSubscript"):
+            for key in ("index", "index1", "index2"):
+                idx = expr.get(key)
+                if isinstance(idx, dict) and self._test_contains_map(idx, map_locals):
+                    return True
             return False
         if (expr.get("type") == "Var" and expr.get("name") in map_locals):
             return True

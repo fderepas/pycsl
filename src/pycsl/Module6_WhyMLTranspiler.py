@@ -41,6 +41,7 @@ class Module6_WhyMLTranspiler(
         self.strict_hash_eq_consistency = bool(strict_hash_eq_consistency)
         self._abstract_ops: Dict[str, str] = {}  # Abstract val declarations: name → full decl string
         self._record_types: Dict[str, Any] = {}  # class_name_lower → {fields: [...], defaults: {...}}
+        self._class_constants: Dict[str, Dict[str, int]] = {}  # class_name_lower → {CONST: int literal}
         self._shared_var_names: Set[str] = set()  # Module-level shared variable names (concurrent model)
         self._havoc_counter: int = 0             # Counter for unique havoc variable names
         self._in_spec: bool = False              # True when emitting contracts (no div-by-zero VCs)
@@ -68,6 +69,7 @@ class Module6_WhyMLTranspiler(
         self._module_func_names: Set[str] = set()
         self._module_method_return_types: Dict[str, str] = {}
         self._module_method_param_types: Dict[str, List[str]] = {}
+        self._module_method_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
         self._auto_trusted_array_returns: List[str] = []
         self._auto_trusted_tuple_returns: List[str] = []
         self._auto_trusted_map_returns: List[str] = []
@@ -279,6 +281,7 @@ class Module6_WhyMLTranspiler(
         "Length2D":     "_handle_length2d_expr",
         "Valid2D":      "_handle_valid2d_expr",
         "IsSorted":     "_handle_issorted_expr",
+        "ArrayEq":      "_handle_arrayeq_expr",
         "Sum":          "_handle_sum_node_expr",
         "Lambda":       "_handle_lambda_expr",
         "SetLit":       "_handle_setlit_expr",
@@ -339,6 +342,7 @@ class Module6_WhyMLTranspiler(
         self._module_func_names = {whyml_ident(func["name"]) for func in functions}
         self._module_method_return_types = self._build_method_return_type_map(functions)
         self._module_method_param_types = self._build_method_param_types_map(functions)
+        self._module_method_result_ensures = self._build_method_result_ensures_map(functions)
         self._build_callee_no_exception_summary(functions)
 
         sorted_functions, scc_info = sort_functions_by_scc(functions)

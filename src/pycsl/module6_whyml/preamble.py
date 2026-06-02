@@ -98,7 +98,8 @@ class PreambleEmissionMixin:
         # typechecks against the same symbols emitted by Module6's
         # `_handle_struct_call` dispatch.
         "UnixFs.Struct.i1a1.": [
-            "val function struct_pack_i1a1 (fmt: int) (x0: int) (x1: array int) : array int",
+            "val function struct_pack_i1a1 (fmt: int) (x0: int) (x1: array int) : array int\n"
+            "    ensures { Array.length result = 32 }",
             "val function struct_unpack_i1a1 (fmt: int) (data: array int) : (int, array int)",
         ],
         "UnixFs.Struct.i2.": [
@@ -110,7 +111,8 @@ class PreambleEmissionMixin:
             "(x0: int) (x1: int) (x2: int) (x3: int) (x4: int) (x5: int) "
             "(x6: int) (x7: int) (x8: int) (x9: int) (x10: int) (x11: int) "
             "(x12: int) (x13: int) (x14: int) (x15: int) (x16: int) (x17: int) "
-            ": array int",
+            ": array int\n"
+            "    ensures { Array.length result = 64 }",
             "val function struct_unpack_i18 (fmt: int) (data: array int) : "
             "(int, int, int, int, int, int, int, int, int, "
             "int, int, int, int, int, int, int, int, int)",
@@ -576,6 +578,11 @@ class PreambleEmissionMixin:
                     self._in_spec = False
                     defaults = td.get("field_defaults", {})
                     field_names = [f["name"] for f in td["fields"]]
+                    field_types = {f["name"]: f.get("type", "int") for f in td["fields"]}
+                    # Pin array-field lengths from `\length(self.f) == N`
+                    # invariants so the `by` witness builds an array of the
+                    # right size.
+                    array_lengths = self._extract_array_lengths(class_invs)
                     witness_vals = {fn: defaults.get(fn, 0) for fn in field_names}
                     if not self._check_witness_vals(witness_vals, class_invs, field_names):
                         combos = [
@@ -591,7 +598,7 @@ class PreambleEmissionMixin:
                                 witness_vals = combo
                                 break
                             ic += 1
-                    out.append(f"    by {{ {self._build_witness_str(field_names, witness_vals)} }}")
+                    out.append(f"    by {{ {self._build_witness_str(field_names, witness_vals, field_types, array_lengths)} }}")
                 out.append("")
                 # UB-7.2 — hash/eq consistency. Module 5 marks classes
                 # whose `__hash__` and `__eq__` are both defined.

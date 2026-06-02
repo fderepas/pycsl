@@ -582,6 +582,31 @@ class StatementEmissionMixin:
                 code += ";\n" + rest_code
         return code
 
+    def _handle_array_slice_set_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
+                                      local_refs: Set[str], declared_refs: Set[str],
+                                      indent: str, in_loop: bool) -> str:
+        """`dst[lo:hi] = src` (src array-typed) → bounded `Array.blit`.
+
+        Emits `Array.blit src 0 dst lo (hi - lo)`. Why3's `blit` carries the
+        bounds preconditions (`0 <= ofs`, `ofs+len <= length`), so the
+        caller's `requires` + the record length invariant must make
+        `hi <= length dst` and `(hi - lo) <= length src` provable. This is
+        gap 4 of missing-pycsl-ir-features.md — the array-valued RHS forms
+        `dst[a:b] = struct.pack(...)` and `dst[a:b] = b'\\x00' * N`.
+        """
+        arr = stmt["array"]
+        dst = self._expr_to_whyml(arr, local_refs)
+        lo = self._expr_to_whyml(stmt["lower"], local_refs)
+        if stmt.get("upper") is not None:
+            hi = self._expr_to_whyml(stmt["upper"], local_refs)
+        else:
+            hi = f"(Array.length {dst})"
+        src = self._expr_to_whyml(stmt["value"], local_refs)
+        code = f"{indent}Array.blit {src} 0 {dst} ({lo}) (({hi}) - ({lo}))"
+        if rest:
+            code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+        return code
+
     def _handle_array_set_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
                                 local_refs: Set[str], declared_refs: Set[str],
                                 indent: str, in_loop: bool) -> str:
@@ -633,6 +658,8 @@ class StatementEmissionMixin:
                         is_dict = True
                         self_field_name = (arr.get("attr") if arr_type == "Attribute"
                                             else arr.get("field"))
+                    elif ft in ("list", "tuple", "bytes", "bytearray"):
+                        is_array = True
                 if is_array:
                     val_expr = self._coerce_to_int(val_expr)
                     body = f"{array_expr}[{index_expr}] <- {val_expr}"
@@ -1100,6 +1127,9 @@ class StatementEmissionMixin:
 
         elif s_type == "ArraySet":
             return self._handle_array_set_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
+
+        elif s_type == "ArraySliceSet":
+            return self._handle_array_slice_set_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
 
 
         elif s_type == "While":

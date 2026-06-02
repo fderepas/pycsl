@@ -28,49 +28,139 @@ class ConcurrencyChecker:
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def __init__(self, tree: ast.AST, *, strict_mode: bool=False, filename: str='<input>') -> None:
-        pass
+    def __init__(self, tree: ast.AST, *, strict_mode: bool = False,
+                 filename: str = "<input>") -> None:
+        self.tree = tree
+        self.warnings: List[ConcurrencyWarning] = []
+        self.strict_mode = bool(strict_mode)
+        self.filename = filename
+        # Populated from module-level csl_* fields
+        self._shared_vars: Dict[str, Optional[str]] = {}    # var → mutex (None = unprotected)
+        self._lock_order: Optional[List[str]] = None
+        self._thread_entries: Set[str] = set()
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def check(self) -> List[ConcurrencyWarning]:
-        return []
+        self.warnings = []
+        module = self.tree
+
+        # Read module-level concurrency declarations
+        for decl in getattr(module, 'csl_shared_decls', []):
+            self._shared_vars[decl.variable] = decl.mutex
+            if decl.mutex is None:
+                self.warnings.append(ConcurrencyWarning(
+                    kind="unprotected_shared",
+                    message=f"Variable '{decl.variable}' {_ERR_UNPROTECTED_DECL}",
+                ))
+
+        lo = getattr(module, 'csl_lock_order', None)
+        if lo is not None:
+            self._lock_order = lo.order
+
+        # Collect thread entry functions
+        for node in ast.walk(module):
+            if isinstance(node, ast.FunctionDef):
+                if getattr(node, 'csl_thread_entry', False):
+                    self._thread_entries.add(node.name)
+
+        # Walk functions
+        for node in ast.walk(module):
+            if isinstance(node, ast.FunctionDef):
+                self._check_function(node)
+
+        # Strict mode (UB-7.3): escalate the first warning to a hard
+        # error. The warnings list is still returned for callers that
+        # want to inspect non-fatal cases when strict_mode is False.
+        if self.strict_mode and self.warnings:
+            w = self.warnings[0]
+            loc = f" [{w.function}:{w.line}]" if w.function else ""
+            raise PyCSLSemanticError(
+                f"{self.filename}{loc}: UB-7.3 — concurrent race detected: "
+                f"{w.message}. Run without "
+                f"--strict-concurrent-checks to downgrade to a warning, or "
+                f"protect the access with `#@ critical <mutex>` / "
+                f"`#@ shared <var> protected_by <mutex>`. "
+                f"See config/skills/pycsl-ub-catalog/SKILL.md §7.3."
+            )
+
+        return self.warnings
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _check_function(self, func: ast.FunctionDef) -> None:
-        pass
+        if not self._shared_vars:
+            return
+        self._walk_body(func.body, held=set(), func_name=func.name)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _walk_body(self, stmts: list, held: int, func_name: str) -> None:
-        pass
+    def _walk_body(self, stmts: list, held: Set[str], func_name: str) -> None:
+        for stmt in stmts:
+            self._walk_stmt(stmt, held, func_name)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _walk_stmt(self, node: ast.AST, held: int, func_name: str) -> None:
-        pass
+    def _walk_stmt(self, node: ast.AST, held: Set[str], func_name: str) -> None:
+        if isinstance(node, ast.With):
+            mutex = (getattr(node, 'csl_critical_mutex', None) or
+                     getattr(node, 'csl_acquires', None))
+            inner_held = held | {mutex} if mutex else held
+            self._walk_body(node.body, inner_held, func_name)
+        elif isinstance(node, ast.If):
+            self._walk_body(node.body, held, func_name)
+            self._walk_body(node.orelse, held, func_name)
+        elif isinstance(node, (ast.While, ast.For)):
+            self._walk_body(node.body, held, func_name)
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    self._warn_if_unprotected(target.id, held, func_name,
+                                              line=getattr(node, 'lineno', 0), write=True)
+        elif isinstance(node, ast.AugAssign):
+            if isinstance(node.target, ast.Name):
+                self._warn_if_unprotected(node.target.id, held, func_name,
+                                          line=getattr(node, 'lineno', 0), write=True)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _warn_if_unprotected(self, var: str, held: int, func_name: str, line: int, write: bool) -> None:
-        pass
+    def _warn_if_unprotected(self, var: str, held: Set[str], func_name: str,
+                              line: int, write: bool) -> None:
+        if var not in self._shared_vars:
+            return
+        req_mutex = self._shared_vars[var]
+        if req_mutex is None:
+            return  # already warned at declaration level
+        if req_mutex not in held:
+            action = "write to" if write else "read of"
+            self.warnings.append(ConcurrencyWarning(
+                kind="unprotected_shared",
+                message=_ERR_UNPROTECTED_WRITE % (action, var, req_mutex),
+                function=func_name,
+                line=line,
+            ))
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def summary(self) -> str:
-        return ""
+        if not self.warnings:
+            return ""
+        lines = ["[*] ConcurrencyChecker warnings:"]
+        for w in self.warnings:
+            loc = f" [{w.function}:{w.line}]" if w.function else ""
+            lines.append(f"    [{w.kind}]{loc} {w.message}")
+        return "\n".join(lines)
 
 

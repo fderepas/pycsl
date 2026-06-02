@@ -310,6 +310,49 @@ class FunctionEmissionMixin:
             result[func["name"]] = ret
         return result
 
+    def _build_method_result_ensures_map(self, functions: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+        """Map method name → the subset of its `ensures` clauses that
+        reference ONLY `\\result` and constants (no params, locals, or
+        self-fields). `_handle_dotted_call` converts these to WhyML and
+        attaches them to the abstract self-call stub, so a caller can
+        discharge bounds/length VCs on the returned value (e.g.
+        `\\length(\\result) == 18` for inode reads, or
+        `\\result >= -1 and \\result < 16` for slot finders). The stub
+        would otherwise lose the contract entirely. Param-referencing
+        ensures are excluded — the stub renames params to x0,x1,… so they
+        would emit unbound symbols."""
+        def result_only(node: Any) -> Optional[bool]:
+            # Returns True if the subtree references \result and contains
+            # no Var/FieldGet/param leaf; False if it references a
+            # disallowed leaf; None if it references neither (pure const).
+            if not isinstance(node, dict):
+                return None
+            t = node.get("type")
+            if t in ("Var", "FieldGet", "Attribute", "OldVar", "OldField"):
+                return False
+            if t == "Result":
+                return True
+            if t == "ArrayLen":
+                return True if node.get("var") == "\\result" else False
+            saw_result = False
+            for v in node.values():
+                children = v if isinstance(v, list) else [v]
+                for c in children:
+                    r = result_only(c)
+                    if r is False:
+                        return False
+                    if r is True:
+                        saw_result = True
+            return True if saw_result else None
+
+        out: Dict[str, List[Dict[str, Any]]] = {}
+        for func in functions:
+            kept = [e for e in (func.get("contracts", {}).get("ensures", []) or [])
+                    if result_only(e) is True]
+            if kept:
+                out[func["name"]] = kept
+        return out
+
     @staticmethod
     def _symtype_to_whyml(symtype: Optional[str]) -> str:
         """Convert a Module5 symbol-table type tag to the WhyML type used

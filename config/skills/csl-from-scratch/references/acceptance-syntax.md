@@ -88,7 +88,7 @@ command contains:
 - Mutation tokens: `rm`, `mv`, `dd`, `chmod`, `chown`
 - Destructive git: `push`, `commit`, `rebase`, `clean`, `--hard`,
   `--force`
-- Network egress: `curl`, `wget`, `gh api/pr/issue`
+- Network egress: `curl`, `wget`, `gh api`, `gh pr`, `gh issue`
 - Multi-statement separators: `;`, `&&`, `||`
 - Output redirect: `> file`, `>> file`
 - Command substitution: `` `cmd` ``, `$(cmd)`

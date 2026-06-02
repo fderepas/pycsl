@@ -499,7 +499,14 @@ PYCSL_GRAMMAR = '\n    ?start: contract\n\n    ?contract: precondition\n        
 #@ ensures True
 #@ assigns \nothing
 def _csl_to_str(node: CSLNode) -> str:
-    return ""
+    """Convert a simple CSL node to string — used for mutex subscript indices."""
+    if isinstance(node, Var):
+        return node.name
+    if isinstance(node, Number):
+        return str(int(node.value))
+    if isinstance(node, BinOp):
+        return f"{_csl_to_str(node.left)}{node.op}{_csl_to_str(node.right)}"
+    return "?"
 
 @v_args(inline=True)
 class PyCSLTransformer(Transformer):
@@ -508,743 +515,654 @@ class PyCSLTransformer(Transformer):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def precondition(self, expr) -> Requires:
-        return None
+    def precondition(self, expr) -> Requires: return Requires(expr)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def postcondition(self, expr) -> Ensures:
-        return None
+    def postcondition(self, expr) -> Ensures: return Ensures(expr)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def assigns(self, target) -> Assigns:
-        return None
+        if isinstance(target, Nothing):
+            return Assigns([target])
+        elif isinstance(target, list):
+            return Assigns(target)
+        else:
+            return Assigns([target])
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def loop_invariant(self, expr) -> LoopInvariant:
-        return None
+    def loop_invariant(self, expr) -> LoopInvariant: return LoopInvariant(expr)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def loop_variant(self, expr) -> LoopVariant:
-        return None
+    def loop_variant(self, expr) -> LoopVariant: return LoopVariant(expr)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def class_invariant(self, expr) -> ClassInvariant:
-        return None
+    def class_invariant(self, expr) -> ClassInvariant: return ClassInvariant(expr)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def function_variant(self, expr) -> FunctionVariant:
-        return None
+    def function_variant(self, expr) -> FunctionVariant: return FunctionVariant(expr)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def function_variant_structural(self, expr, ordering) -> FunctionVariant:
-        return None
+    def function_variant_structural(self, expr, ordering) -> FunctionVariant: return FunctionVariant(expr, str(ordering))
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def diverges_decl(self) -> Diverges:
-        return None
+    def diverges_decl(self) -> Diverges: return Diverges()
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def trusted_decl(self, *args) -> Trusted:
-        return None
+        return Trusted(reviewer=str(args[0]) if args else "")
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def ghost_assign_typed(self, name, ghost_type, expr) -> GhostAssignDecl:
-        return None
+        return GhostAssignDecl(str(name), expr, "=", declared_type=str(ghost_type))
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def ghost_assign_untyped(self, name, expr) -> GhostAssignDecl:
-        return None
+        return GhostAssignDecl(str(name), expr, "=")
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def ghost_aug_assign(self, name, op, expr) -> GhostAssignDecl:
-        return None
+    def ghost_aug_assign(self, name, op, expr) -> GhostAssignDecl: return GhostAssignDecl(str(name), expr, str(op))
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def ghost_array_set(self, name, index, value) -> GhostArraySetDecl:
-        return None
+        return GhostArraySetDecl(str(name), index, value)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def raises_decl(self, exc_type, condition) -> RaisesDecl:
-        return None
+    def raises_decl(self, exc_type, condition) -> RaisesDecl: return RaisesDecl(str(exc_type), condition)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def exception_name_list(self, *names) -> List[str]:
-        return []
+        return [str(n) for n in names]
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def no_exception_all_decl(self) -> NoExceptionDecl:
-        return None
+        return NoExceptionDecl(exceptions=[], all_form=True)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def no_exception_list_decl(self, names) -> NoExceptionDecl:
-        return None
+        return NoExceptionDecl(exceptions=list(names), all_form=False)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def allow_finalizer_decl(self) -> AllowFinalizerDecl:
-        return None
+        return AllowFinalizerDecl()
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def allow_iteration_mutation_decl(self) -> AllowIterationMutationDecl:
-        return None
+        return AllowIterationMutationDecl()
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def bounded_int_decl(self, size) -> BoundedIntDecl:
-        return None
+    def bounded_int_decl(self, size) -> BoundedIntDecl: return BoundedIntDecl(int(size))
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def proof_decl(self, prover, qualname) -> ProofDecl:
-        return None
+        return ProofDecl(prover=str(prover), qualname=str(qualname))
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def mutex_name(self, name) -> str:
-        return ""
+    def mutex_name(self, name) -> str: return str(name)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def mutex_subscript(self, name, index) -> str:
-        return ""
+        return f"{name}[{_csl_to_str(index)}]"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def shared_protected(self, name, mutex) -> SharedDecl:
-        return None
+    def shared_protected(self, name, mutex) -> SharedDecl: return SharedDecl(str(name), str(mutex))
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def shared_unprotected(self, name) -> SharedDecl:
-        return None
+    def shared_unprotected(self, name) -> SharedDecl: return SharedDecl(str(name), None)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def thread_entry_decl(self) -> ThreadEntry:
-        return None
+    def thread_entry_decl(self) -> ThreadEntry: return ThreadEntry()
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def acquires_decl(self, mutex) -> Acquires:
-        return None
+    def acquires_decl(self, mutex) -> Acquires: return Acquires(str(mutex))
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def releases_decl(self, mutex) -> Releases:
-        return None
+    def releases_decl(self, mutex) -> Releases: return Releases(str(mutex))
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def critical_decl(self, mutex) -> CriticalSection:
-        return None
+    def critical_decl(self, mutex) -> CriticalSection: return CriticalSection(str(mutex))
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def mutex_invariant_decl(self, mutex, expr) -> MutexInvariant:
-        return None
+    def mutex_invariant_decl(self, mutex, expr) -> MutexInvariant: return MutexInvariant(str(mutex), expr)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def lock_order_decl(self, *mutexes) -> LockOrder:
-        return None
+    def lock_order_decl(self, *mutexes) -> LockOrder: return LockOrder([str(m) for m in mutexes])
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def forall_expr(self, var, body) -> Forall:
-        return None
+    def forall_expr(self, var, body) -> Forall: return Forall(str(var), body)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def exists_expr(self, var, body) -> Exists:
-        return None
+    def exists_expr(self, var, body) -> Exists: return Exists(str(var), body)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def array_length(self, var) -> ArrayLength:
-        return None
+    def array_length(self, var) -> ArrayLength: return ArrayLength(str(var))
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def subscript_access(self, name, index) -> SubscriptAccess:
-        return None
+    def subscript_access(self, name, index) -> SubscriptAccess: return SubscriptAccess(str(name), index)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def chained_subscript(self, name, index1, index2) -> ChainedSubscript:
-        return None
+    def chained_subscript(self, name, index1, index2) -> ChainedSubscript: return ChainedSubscript(str(name), index1, index2)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def slice_access(self, name, low, high) -> CSLSlice:
-        return None
+    def slice_access(self, name, low, high) -> CSLSlice: return CSLSlice(str(name), low, high)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def result_subscript(self, index) -> SubscriptAccess:
-        return None
+    def result_subscript(self, index) -> SubscriptAccess: return SubscriptAccess("\\result", index)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def assigns_region(self, name, low, _op, high) -> AssignsRegion:
-        return None
+    def assigns_region(self, name, low, _op, high) -> AssignsRegion: return AssignsRegion(str(name), low, high)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def assigns_region_list(self, *regions) -> List[AssignsRegion]:
-        return []
+    def assigns_region_list(self, *regions) -> List[AssignsRegion]: return list(regions)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def valid_pred(self, name, length) -> Valid:
-        return None
+    def valid_pred(self, name, length) -> Valid: return Valid(str(name), length)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def separated_pred(self, name1, len1, name2, len2) -> Separated:
-        return None
+    def separated_pred(self, name1, len1, name2, len2) -> Separated: return Separated(str(name1), len1, str(name2), len2)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def label_decl(self, name) -> Label:
-        return None
+    def label_decl(self, name) -> Label: return Label(str(name))
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def at_expr(self, expr, label) -> At:
-        return None
+    def at_expr(self, expr, label) -> At: return At(expr, str(label))
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def length2d_pred(self, name, rows, cols) -> Length2D:
-        return None
+    def length2d_pred(self, name, rows, cols) -> Length2D: return Length2D(str(name), rows, cols)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def valid2d_pred(self, name, row, col) -> Valid2D:
-        return None
+    def valid2d_pred(self, name, row, col) -> Valid2D: return Valid2D(str(name), row, col)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def implication(self, left, op, right) -> BinOp:
-        return None
+    def implication(self, left, op, right) -> BinOp: return BinOp(left, str(op), right)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def logical_or(self, left, op, right) -> BinOp:
-        return None
+    def logical_or(self, left, op, right) -> BinOp: return BinOp(left, str(op), right)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def logical_and(self, left, op, right) -> BinOp:
-        return None
+    def logical_and(self, left, op, right) -> BinOp: return BinOp(left, str(op), right)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def equality(self, left, op, right) -> BinOp:
-        return None
+    def equality(self, left, op, right) -> BinOp: return BinOp(left, str(op), right)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def comparison(self, left, op, right) -> BinOp:
-        return None
+    def comparison(self, left, op, right) -> BinOp: return BinOp(left, str(op), right)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def term(self, left, op, right) -> BinOp:
-        return None
+    def term(self, left, op, right) -> BinOp: return BinOp(left, str(op), right)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def factor(self, left, op, right) -> BinOp:
-        return None
+    def factor(self, left, op, right) -> BinOp: return BinOp(left, str(op), right)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def unary_op(self, op, expr) -> UnaryOp:
-        return None
+    def unary_op(self, op, expr) -> UnaryOp: return UnaryOp(str(op), expr)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def number(self, n) -> Number:
-        return None
+    def number(self, n) -> Number: return Number(float(n))
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def string_literal(self, s) -> StringLiteral:
-        return None
+    def string_literal(self, s) -> StringLiteral: return StringLiteral(str(s)[1:-1])  # strip quotes
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def true_lit(self) -> CSLBool:
-        return None
+    def true_lit(self) -> CSLBool: return CSLBool(True)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def false_lit(self) -> CSLBool:
-        return None
+    def false_lit(self) -> CSLBool: return CSLBool(False)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def none_lit(self) -> CSLNone:
-        return None
+    def none_lit(self) -> CSLNone: return CSLNone()
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def var(self, name) -> Var:
-        return None
+    def var(self, name) -> Var: return Var(str(name))
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def field_access(self, field_name) -> FieldAccess:
-        return None
+    def field_access(self, field_name) -> FieldAccess: return FieldAccess("self", str(field_name))
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def result(self) -> Result:
-        return None
+    def result(self) -> Result: return Result()
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def old_var(self, expr) -> Old:
-        return None
+    def old_var(self, expr) -> Old: return Old(expr)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def nothing(self) -> Nothing:
-        return None
+    def nothing(self) -> Nothing: return Nothing()
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def in_expr(self, element, collection) -> CSLIn:
-        return None
+    def in_expr(self, element, collection) -> CSLIn: return CSLIn(element, collection)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def not_in_expr(self, element, collection) -> CSLNotIn:
-        return None
+    def not_in_expr(self, element, collection) -> CSLNotIn: return CSLNotIn(element, collection)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def call_expr(self, name, args) -> CallExpr:
-        return None
+    def call_expr(self, name, args) -> CallExpr: return CallExpr(str(name), args if isinstance(args, list) else [args])
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def call_expr_noargs(self, name) -> CallExpr:
-        return None
+    def call_expr_noargs(self, name) -> CallExpr: return CallExpr(str(name), [])
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def is_sorted_expr(self, base, lo, hi) -> IsSorted:
-        return None
+    def is_sorted_expr(self, base, lo, hi) -> IsSorted: return IsSorted(str(base), lo, hi)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def sum_expr(self, base, lo, hi) -> Sum:
-        return None
+    def sum_expr(self, base, lo, hi) -> Sum: return Sum(str(base), lo, hi)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def str_concat(self, left, right) -> StrConcatExpr:
-        return None
+    def str_concat(self, left, right) -> StrConcatExpr: return StrConcatExpr(left, right)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def str_length_expr(self, string) -> StrLengthExpr:
-        return None
+    def str_length_expr(self, string) -> StrLengthExpr: return StrLengthExpr(string)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def str_sub_expr(self, string, lo, hi) -> StrSubExpr:
-        return None
+    def str_sub_expr(self, string, lo, hi) -> StrSubExpr: return StrSubExpr(string, lo, hi)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def mktuple_expr(self, elts) -> MkTupleExpr:
-        return None
+    def mktuple_expr(self, elts) -> MkTupleExpr: return MkTupleExpr(elts if isinstance(elts, list) else [elts])
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def fst_expr(self, expr) -> FstExpr:
-        return None
+    def fst_expr(self, expr) -> FstExpr: return FstExpr(expr)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def snd_expr(self, expr) -> SndExpr:
-        return None
+    def snd_expr(self, expr) -> SndExpr: return SndExpr(expr)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def proj_expr(self, expr, index) -> ProjExpr:
-        return None
+    def proj_expr(self, expr, index) -> ProjExpr: return ProjExpr(expr, index)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def empty_map_expr(self) -> MapEmptyExpr:
-        return None
+    def empty_map_expr(self) -> MapEmptyExpr: return MapEmptyExpr()
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def map_get_expr(self, dict_expr, key) -> MapGetExpr:
-        return None
+    def map_get_expr(self, dict_expr, key) -> MapGetExpr: return MapGetExpr(dict_expr, key)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def map_set_expr(self, dict_expr, key, value) -> MapSetExpr:
-        return None
+    def map_set_expr(self, dict_expr, key, value) -> MapSetExpr: return MapSetExpr(dict_expr, key, value)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def map_eq_expr(self, left, right) -> MapEqExpr:
-        return None
+    def map_eq_expr(self, left, right) -> MapEqExpr: return MapEqExpr(left, right)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def has_key_expr(self, dict_expr, key) -> HasKeyExpr:
-        return None
+    def has_key_expr(self, dict_expr, key) -> HasKeyExpr: return HasKeyExpr(dict_expr, key)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def map_remove_expr(self, dict_expr, key) -> MapRemoveExpr:
-        return None
+    def map_remove_expr(self, dict_expr, key) -> MapRemoveExpr: return MapRemoveExpr(dict_expr, key)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def set_empty_expr(self) -> SetEmptyExpr:
-        return set()
+    def set_empty_expr(self) -> SetEmptyExpr: return SetEmptyExpr()
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def set_add_expr(self, set_expr, elem) -> SetAddExpr:
-        return set()
+    def set_add_expr(self, set_expr, elem) -> SetAddExpr: return SetAddExpr(set_expr, elem)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def set_remove_expr(self, set_expr, elem) -> SetRemoveExpr:
-        return set()
+    def set_remove_expr(self, set_expr, elem) -> SetRemoveExpr: return SetRemoveExpr(set_expr, elem)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def set_mem_expr(self, elem, set_expr) -> SetMemExpr:
-        return set()
+    def set_mem_expr(self, elem, set_expr) -> SetMemExpr: return SetMemExpr(elem, set_expr)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def set_union_expr(self, left, right) -> SetUnionExpr:
-        return set()
+    def set_union_expr(self, left, right) -> SetUnionExpr: return SetUnionExpr(left, right)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def set_inter_expr(self, left, right) -> SetInterExpr:
-        return set()
+    def set_inter_expr(self, left, right) -> SetInterExpr: return SetInterExpr(left, right)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def set_diff_expr(self, left, right) -> SetDiffExpr:
-        return set()
+    def set_diff_expr(self, left, right) -> SetDiffExpr: return SetDiffExpr(left, right)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def set_card_expr(self, set_expr, lo, hi) -> SetCardExpr:
-        return set()
+    def set_card_expr(self, set_expr, lo, hi) -> SetCardExpr: return SetCardExpr(set_expr, lo, hi)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def set_subset_expr(self, left, right) -> SetSubsetExpr:
-        return set()
+    def set_subset_expr(self, left, right) -> SetSubsetExpr: return SetSubsetExpr(left, right)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def set_eq_expr(self, left, right) -> SetEqExpr:
-        return set()
+    def set_eq_expr(self, left, right) -> SetEqExpr: return SetEqExpr(left, right)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def nil_expr(self) -> NilExpr:
-        return None
+    def nil_expr(self) -> NilExpr: return NilExpr()
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def cons_expr(self, head, tail) -> ConsExpr:
-        return None
+    def cons_expr(self, head, tail) -> ConsExpr: return ConsExpr(head, tail)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def hd_expr(self, list_expr) -> HdExpr:
-        return None
+    def hd_expr(self, list_expr) -> HdExpr: return HdExpr(list_expr)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def tl_expr(self, list_expr) -> TlExpr:
-        return None
+    def tl_expr(self, list_expr) -> TlExpr: return TlExpr(list_expr)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def list_length_expr(self, list_expr) -> ListLengthExpr:
-        return []
+    def list_length_expr(self, list_expr) -> ListLengthExpr: return ListLengthExpr(list_expr)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def nth_expr(self, list_expr, index) -> NthExpr:
-        return None
+    def nth_expr(self, list_expr, index) -> NthExpr: return NthExpr(list_expr, index)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def mem_expr(self, elem, list_expr) -> MemExpr:
-        return None
+    def mem_expr(self, elem, list_expr) -> MemExpr: return MemExpr(elem, list_expr)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def append_expr(self, left, right) -> AppendExpr:
-        return None
+    def append_expr(self, left, right) -> AppendExpr: return AppendExpr(left, right)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def copy_expr(self, name) -> GhostCopyExpr:
-        return None
+    def copy_expr(self, name) -> GhostCopyExpr: return GhostCopyExpr(str(name))
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def copy_range_expr(self, name, lo, hi) -> GhostCopyRangeExpr:
-        return None
+    def copy_range_expr(self, name, lo, hi) -> GhostCopyRangeExpr: return GhostCopyRangeExpr(str(name), lo, hi)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def make_expr(self, size, default) -> GhostMakeExpr:
-        return None
+    def make_expr(self, size, default) -> GhostMakeExpr: return GhostMakeExpr(size, default)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def expr_list(self, *exprs) -> List[CSLNode]:
-        return []
+    def expr_list(self, *exprs) -> List[CSLNode]: return list(exprs)
 
 
 class Module2_Parser:
@@ -1254,20 +1172,29 @@ class Module2_Parser:
     #@ ensures True
     #@ assigns \nothing
     def __init__(self) -> None:
-        pass
+        self.parser = Lark(PYCSL_GRAMMAR, parser='lalr', transformer=PyCSLTransformer())
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def parse_contract(self, contract_str: str, line_number: int) -> CSLNode:
-        return None
+        try:
+            return self.parser.parse(contract_str)
+        except LarkError as e:
+            raise PyCSLParseError(
+                f"PyCSL Syntax Error around line {line_number}:\n{contract_str}\n{str(e)}",
+                line=line_number, stage="parse"
+            ) from e
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def parse_node_contracts(self, raw_contracts: List[str], line_number: int) -> List[CSLNode]:
-        return []
+        parsed_nodes = []
+        for contract_str in raw_contracts:
+            parsed_nodes.append(self.parse_contract(contract_str, line_number))
+        return parsed_nodes
 
 

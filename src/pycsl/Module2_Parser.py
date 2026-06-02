@@ -214,6 +214,13 @@ class IsSorted(CSLNode):
     hi: CSLNode
 
 @dataclass
+class ArrayEq(CSLNode):
+    """Represents `\\array_eq(a, b)` — two arrays have equal length and
+    equal elements at every index (extensional content equality)."""
+    left: CSLNode
+    right: CSLNode
+
+@dataclass
 class Sum(CSLNode):
     """Represents `\\sum(a, lo, hi)` — sum of array elements in range."""
     base: str
@@ -669,6 +676,7 @@ PYCSL_GRAMMAR = r"""
          | "self" "." CNAME -> field_access
          | "\\result" "[" expr "]" -> result_subscript
          | "\\is_sorted" "(" CNAME "," expr "," expr ")" -> is_sorted_expr
+         | "\\array_eq" "(" expr "," expr ")" -> array_eq_expr
          | "\\sum" "(" CNAME "," expr "," expr ")" -> sum_expr
          | CNAME "(" expr_list ")" -> call_expr
          | CNAME "(" ")" -> call_expr_noargs
@@ -679,6 +687,8 @@ PYCSL_GRAMMAR = r"""
          | "\\result" -> result
          | "\\old" "(" expr ")" -> old_var
          | "\\length" "(" CNAME ")" -> array_length
+         | "\\length" "(" "self" "." CNAME ")" -> array_length_field
+         | "\\length" "(" "\\result" ")" -> array_length_result
          | "\\valid" "(" CNAME "," expr ")" -> valid_pred
          | "\\separated" "(" CNAME "," expr "," CNAME "," expr ")" -> separated_pred
          | "\\at" "(" expr "," CNAME ")" -> at_expr
@@ -838,6 +848,14 @@ class PyCSLTransformer(Transformer):
     def forall_expr(self, var, body) -> Forall: return Forall(str(var), body)
     def exists_expr(self, var, body) -> Exists: return Exists(str(var), body)
     def array_length(self, var) -> ArrayLength: return ArrayLength(str(var))
+    def array_length_field(self, field_name) -> ArrayLength:
+        # `\length(self.f)` — length of an `array int` record field.
+        # Emitted by Module6 as `Array.length self.f`.
+        return ArrayLength("self." + str(field_name))
+    def array_length_result(self) -> ArrayLength:
+        # `\length(\result)` — length of an `array int` return value.
+        # Emitted by Module6 as `Array.length result`.
+        return ArrayLength("\\result")
     def subscript_access(self, name, index) -> SubscriptAccess: return SubscriptAccess(str(name), index)
     def chained_subscript(self, name, index1, index2) -> ChainedSubscript: return ChainedSubscript(str(name), index1, index2)
     def slice_access(self, name, low, high) -> CSLSlice: return CSLSlice(str(name), low, high)
@@ -882,6 +900,7 @@ class PyCSLTransformer(Transformer):
     def call_expr(self, name, args) -> CallExpr: return CallExpr(str(name), args if isinstance(args, list) else [args])
     def call_expr_noargs(self, name) -> CallExpr: return CallExpr(str(name), [])
     def is_sorted_expr(self, base, lo, hi) -> IsSorted: return IsSorted(str(base), lo, hi)
+    def array_eq_expr(self, left, right) -> ArrayEq: return ArrayEq(left, right)
     def sum_expr(self, base, lo, hi) -> Sum: return Sum(str(base), lo, hi)
 
     # Ghost expression transformers

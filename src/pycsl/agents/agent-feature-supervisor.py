@@ -24,6 +24,12 @@ Exit codes (extend coordinator.py's 72/73 convention):
   75  human-needed signal raised (load-bearing file modification).
   76  rollback failure (per-phase git-tag restore failed) — v1 stub.
 
+The supervisor's persona and Extreme Rigor discipline are documented in
+``config/agents/agent-feature-supervisor.md`` (loaded as ``_AGENT_DESCRIPTION``
+and prepended to LLM-delegation prompts so a delegate inherits the same
+rules). The acceptance-block syntax authors write against lives in
+``config/skills/csl-from-scratch/references/acceptance-syntax.md``.
+
 Usage:
     bin/agent-feature-supervisor --feature-file <path.md>
     bin/agent-feature-supervisor --feature-file <path.md> --skip-gate
@@ -87,6 +93,17 @@ _CODING_LLM_PROMPT = (
     / "agent-stdlib-annotate"
     / "references"
     / "coding-llm-prompt.md"
+)
+
+# The supervisor's own persona / ER discipline. Loaded into LLM
+# delegation prompts so a delegate operates under the same Extreme
+# Rigor rules this module enforces. (Gap 11 of the post-implementation
+# retrospective: the persona doc existed but nothing read it.)
+_AGENT_DESCRIPTION = (
+    _PROJECT_ROOT
+    / "config"
+    / "agents"
+    / "agent-feature-supervisor.md"
 )
 
 
@@ -665,7 +682,18 @@ def _build_phase_prompt(phase: "Phase", plan_text: str) -> str:
     else:
         scaffold = _CODING_LLM_PROMPT.read_text()
 
+    # Prepend the supervisor persona so a delegate inherits the ER
+    # discipline (gap 11). Best-effort: skip silently if absent.
+    persona = ""
+    if _AGENT_DESCRIPTION.is_file():
+        persona = (
+            "## Operate under this persona (agent-feature-supervisor)\n\n"
+            + _AGENT_DESCRIPTION.read_text()
+            + "\n\n---\n\n"
+        )
+
     parts = [
+        persona,
         scaffold,
         "",
         "---",
@@ -915,6 +943,7 @@ def write_halt_report(
     exit_reason: str,
     acceptance_failures: Optional[List[Tuple["Phase", "AcceptanceResult"]]] = None,
     missing_acceptance_phases: Optional[List["Phase"]] = None,
+    explanation: Optional[str] = None,
 ) -> Path:
     slug = _slug(feature_file.stem)
     report_dir = _HALT_REPORT_ROOT / slug
@@ -933,6 +962,12 @@ def write_halt_report(
         f"**Feature file:** `{feature_file}`",
         f"**Reason:** {exit_reason}",
         "",
+    ]
+    # Plain-English explanation of what happened, in addition to the
+    # machine reason code, so the report is readable without tracing code.
+    if explanation:
+        lines += ["## What this means", "", explanation, ""]
+    lines += [
         "## Parsed phases",
         "",
     ]
@@ -1037,6 +1072,28 @@ def write_halt_report(
     return out
 
 
+def _print_halt(out: Path, exit_reason: str, exit_code: int,
+                explanation: str,
+                review: Optional[List[Tuple[str, Path]]] = None) -> None:
+    """Print an explicit, human-readable halt summary to the terminal.
+
+    Beyond the machine reason code, this emits (1) a short plain-English
+    paragraph saying what happened and what to do, and (2) the ABSOLUTE
+    path of the halt-report (plus any other files worth opening), so the
+    operator knows exactly where to look without rebuilding relative
+    paths. Mirrors the report's `## What this means` section.
+    """
+    code = exit_reason.split(":", 1)[0].strip()
+    print(f"[{AGENT_NAME}] HALT — {code} (exit {exit_code})")
+    for ln in explanation.splitlines():
+        if ln.strip():
+            print(f"[{AGENT_NAME}]   {ln.rstrip()}")
+    print(f"[{AGENT_NAME}]   review:")
+    print(f"[{AGENT_NAME}]     halt-report : {out.resolve()}")
+    for label, path in (review or []):
+        print(f"[{AGENT_NAME}]     {label:<11}: {Path(path).resolve()}")
+
+
 # ---------------------------------------------------------------------------
 # Main loop (v1 — gate-only)
 # ---------------------------------------------------------------------------
@@ -1093,12 +1150,24 @@ def supervise(feature_file: Path, skip_gate: bool,
             f"phase must declare its acceptance claims, or opt out via "
             f"`**Acceptance:** none — <reason>`."
         )
+        miss_nums = ', '.join(str(p.number) for p in missing_acceptance)
+        explanation = (
+            f"{len(missing_acceptance)} open phase(s) (phase(s) {miss_nums}) "
+            f"declare neither `**Status:** DONE` nor an `**Acceptance:**` block, "
+            f"so they have no machine-checkable definition of done — the plan "
+            f"is malformed and nothing was run yet. Add an `**Acceptance:**` "
+            f"block to each (a command + predicate per `acceptance-syntax.md`), "
+            f"or opt out explicitly with `**Acceptance:** none — <reason>` for "
+            f"research/scoping phases.\n"
+            f"See the report's `## Missing Acceptance blocks` section."
+        )
         out = write_halt_report(
             feature_file, phases, deny_hits, [], reason,
             missing_acceptance_phases=missing_acceptance,
+            explanation=explanation,
         )
-        print(f"[{AGENT_NAME}] halt-report -> {out.relative_to(_PROJECT_ROOT)} "
-              f"(reason: {reason.split(':', 1)[0]})")
+        _print_halt(out, reason, EXIT_HUMAN_NEEDED, explanation,
+                    review=[("feature file", feature_file)])
         log(str(_PROJECT_ROOT), AGENT_NAME,
             f"HALT exit=75 feature={feature_file.name} "
             f"reason={REASON_MISSING_ACCEPTANCE} "
@@ -1114,6 +1183,7 @@ def supervise(feature_file: Path, skip_gate: bool,
     any_rejection = False
     legacy_count = 0
     optout_count = 0
+    claims_evaluated = 0
     if phases:
         print(f"[{AGENT_NAME}] evaluating acceptance claims ...")
     for p in phases:
@@ -1132,6 +1202,7 @@ def supervise(feature_file: Path, skip_gate: bool,
             continue
         all_pass = True
         for claim in p.acceptance:
+            claims_evaluated += 1
             res = _check_acceptance(
                 claim, _PROJECT_ROOT, _DEFAULT_TIMEOUT_SEC)
             if not res.passed:
@@ -1150,21 +1221,59 @@ def supervise(feature_file: Path, skip_gate: bool,
             reason_code = REASON_STATUS_FORGED
         else:
             reason_code = REASON_ACCEPTANCE_FAILED
+        n_fail = len(acceptance_failures)
+        n_pass = claims_evaluated - n_fail
         reason = (
-            f"{reason_code}: {len(acceptance_failures)} acceptance "
+            f"{reason_code}: {n_fail} acceptance "
             f"claim(s) failed. See the Acceptance failures section "
             f"of the halt-report for details."
         )
+        if reason_code == REASON_STATUS_FORGED:
+            explanation = (
+                f"{n_fail} of {claims_evaluated} acceptance claim(s) failed, and "
+                f"at least one belongs to a phase marked `**Status:** DONE` — so "
+                f"that DONE marker is now untrue (STATUS_FORGED). An acceptance "
+                f"claim is a phase's definition of done; it re-runs every "
+                f"invocation. A DONE phase whose claim fails means the work it "
+                f"claimed has regressed or never shipped.\n"
+                f"Open the report's `## Acceptance failures` section: each entry "
+                f"shows the exact command, predicate, and actual outcome."
+            )
+        elif reason_code == REASON_CLAIM_REJECTED:
+            explanation = (
+                f"An acceptance command was refused by the read-only safety "
+                f"classifier (it tried to mutate state or reach the network). "
+                f"Acceptance claims must be read-only. Rewrite the command "
+                f"read-only, or move the mutation into a `bin/*` script and have "
+                f"the claim invoke that script.\n"
+                f"The offending command is in the report's `## Acceptance "
+                f"failures` section ({n_fail} of {claims_evaluated} claim(s) failed)."
+            )
+        else:
+            explanation = (
+                f"{n_pass} of {claims_evaluated} acceptance claim(s) passed; "
+                f"{n_fail} failed. A claim is the phase's definition of done; it "
+                f"fails when the file, flag, or output it checks does not exist "
+                f"yet. The gate passes what is already present and fails what is "
+                f"not yet built — so this halt means the feature has not shipped "
+                f"those phases yet, NOT that anything is broken (a claim "
+                f"referencing an existing, already-verified artifact still "
+                f"passes).\n"
+                f"Open the report's `## Acceptance failures` section: each entry "
+                f"shows the command, the predicate, and the actual outcome (e.g. "
+                f"\"File '…' not found\" or \"unrecognized arguments\")."
+            )
         out = write_halt_report(
             feature_file, phases, deny_hits, [], reason,
             acceptance_failures=acceptance_failures,
+            explanation=explanation,
         )
-        print(f"[{AGENT_NAME}] halt-report -> {out.relative_to(_PROJECT_ROOT)} "
-              f"(reason: {reason.split(':', 1)[0]})")
+        _print_halt(out, reason, EXIT_HUMAN_NEEDED, explanation,
+                    review=[("feature file", feature_file)])
         log(str(_PROJECT_ROOT), AGENT_NAME,
             f"HALT exit=75 feature={feature_file.name} "
             f"reason={reason_code} "
-            f"failures={len(acceptance_failures)}")
+            f"failures={n_fail}")
         return EXIT_HUMAN_NEEDED
 
     if legacy_count:
@@ -1205,24 +1314,51 @@ def supervise(feature_file: Path, skip_gate: bool,
 
     # Decide exit
     if deny_hits:
+        n = len(deny_hits)
+        hit_phases = sorted({ph for ph, _, _ in deny_hits})
         reason = (
-            f"Human-needed: {len(deny_hits)} load-bearing file(s) named in "
+            f"Human-needed: {n} load-bearing file(s) named in "
             f"feature-plan phases. Supervisor (v1, gate-only) does not "
             f"edit load-bearing files autonomously."
         )
-        out = write_halt_report(feature_file, phases, deny_hits, gate_results, reason)
-        print(f"[{AGENT_NAME}] halt-report -> {out.relative_to(_PROJECT_ROOT)} "
-              f"(reason: {reason.split(':', 1)[0]})")
+        explanation = (
+            f"{n} phase target(s) (phase(s) {', '.join(map(str, hit_phases))}) "
+            f"match the load-bearing deny-list. These files are the "
+            f"parser/IR/emitter pipeline and normative docs: a wrong edit "
+            f"silently breaks the proof pipeline, so the supervisor is "
+            f"gate-only (v1) and never edits them autonomously — even when "
+            f"every acceptance claim passes. A human (or an explicitly "
+            f"delegated, reviewed coding session) must make and review those "
+            f"edits, then re-run the supervisor to confirm the gate is green.\n"
+            f"See the report's `## Load-bearing deny-list hits` section for the "
+            f"exact phase→file→deny-list-entry matches."
+        )
+        out = write_halt_report(feature_file, phases, deny_hits, gate_results,
+                                reason, explanation=explanation)
+        _print_halt(out, reason, EXIT_HUMAN_NEEDED, explanation,
+                    review=[("deny-list", _LOAD_BEARING_FILE),
+                            ("feature file", feature_file)])
         log(str(_PROJECT_ROOT), AGENT_NAME,
             f"HALT exit=75 feature={feature_file.name} "
-            f"deny_hits={len(deny_hits)}")
+            f"deny_hits={n}")
         return EXIT_HUMAN_NEEDED
 
     if gate_results and not all(r.passed for r in gate_results):
+        failed_steps = ', '.join(r.step for r in gate_results
+                                 if not r.passed and not r.skipped)
         reason = "Gate failure: one or more verification steps failed."
-        out = write_halt_report(feature_file, phases, deny_hits, gate_results, reason)
-        print(f"[{AGENT_NAME}] halt-report -> {out.relative_to(_PROJECT_ROOT)} "
-              f"(reason: {reason.split(':', 1)[0]})")
+        explanation = (
+            f"The verification gate ran but a step failed: {failed_steps}. "
+            f"This is an infrastructure/regression failure (the test suite, "
+            f"audit, or doc-coherency itself is red), independent of the "
+            f"feature's acceptance claims. Fix the failing step, then re-run.\n"
+            f"See the report's `## Verification gate` section for the last "
+            f"lines of the failing step's output."
+        )
+        out = write_halt_report(feature_file, phases, deny_hits, gate_results,
+                                reason, explanation=explanation)
+        _print_halt(out, reason, EXIT_GATE_FAIL, explanation,
+                    review=[("feature file", feature_file)])
         log(str(_PROJECT_ROOT), AGENT_NAME,
             f"HALT exit=74 feature={feature_file.name} gate_fail")
         return EXIT_GATE_FAIL
@@ -1234,9 +1370,17 @@ def supervise(feature_file: Path, skip_gate: bool,
             f"Delegated phase(s) failed: {failed[0][0]} ({failed[0][1]}). "
             f"Tree restored via per-phase tag."
         )
-        out = write_halt_report(feature_file, phases, deny_hits, [], reason)
-        print(f"[{AGENT_NAME}] halt-report -> {out.relative_to(_PROJECT_ROOT)} "
-              f"(reason: {reason.split(':', 1)[0]})")
+        explanation = (
+            f"Under `--allow-llm-delegation`, the coding-LLM delegate for "
+            f"phase {failed[0][0]} did not land a gate-green diff "
+            f"({failed[0][1]}). The working tree was restored from the "
+            f"per-phase git tag, so no partial edit remains. Inspect the "
+            f"phase, refine the plan or implement it manually, then re-run."
+        )
+        out = write_halt_report(feature_file, phases, deny_hits, [], reason,
+                                explanation=explanation)
+        _print_halt(out, reason, EXIT_GATE_FAIL, explanation,
+                    review=[("feature file", feature_file)])
         log(str(_PROJECT_ROOT), AGENT_NAME,
             f"HALT exit=74 feature={feature_file.name} delegation_fail")
         return EXIT_GATE_FAIL

@@ -110,11 +110,7 @@ TRIGGERS: Dict[Tuple[str, Optional[str]], List[Trigger]] = {
 def triggers_for(op_key: Tuple[str, Optional[str]]) -> List[Trigger]:
     """Return the list of (exception, trigger_template) pairs for an IR
     operation key. Empty list means the operation cannot raise a Phase 1
-    implicit exception.
-
-    Annotation rationale: lookup in a tuple-keyed dict; PyCSL cannot
-    model tuple-key dict access today. Reviewer attests the interface
-    (returns a list; never raises; pure)."""
+    implicit exception."""
     return TRIGGERS.get(op_key, [])
 
 
@@ -122,13 +118,10 @@ def triggers_for(op_key: Tuple[str, Optional[str]]) -> List[Trigger]:
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def predicate_definitions(needed: int = 0) -> List[str]:  # mirror: opaque-int placeholder for Optional[set]
+def predicate_definitions(needed: Optional[set] = None) -> List[str]:
     """Return WhyML lines defining the predicates the caller needs.
     Pass ``needed`` as a set of predicate names to emit only those, or
-    None to emit the whole library.
-
-    Annotation rationale: list comprehension + dict iteration; PyCSL
-    cannot model these yet."""
+    None to emit the whole library."""
     if needed is None:
         return list(PREDICATE_LIBRARY.values())
     return [v for k, v in PREDICATE_LIBRARY.items() if k in needed]
@@ -140,8 +133,5 @@ def predicate_definitions(needed: int = 0) -> List[str]:  # mirror: opaque-int p
 #@ assigns \nothing
 def all_phase1_exceptions() -> List[str]:
     """Expansion target for `no_exception \\all`. Returns a sorted list
-    so emission order is deterministic across runs.
-
-    Annotation rationale: `sorted()` on a frozenset; PyCSL cannot model
-    `frozenset` iteration."""
+    so emission order is deterministic across runs."""
     return sorted(KNOWN_EXCEPTIONS)

@@ -1,7 +1,13 @@
 # feature-supervisor-extreme-rigor.md
 
-**Status:** DRAFT — proposed 2026-06-01 after the Phase 4 retrospective
-of `missing-bytes-struct-feature.md`.
+**Status:** COMPLETE — proposed 2026-06-01 after the Phase 4 retrospective
+of `missing-bytes-struct-feature.md`; all eight implementation phases
+landed and machine-verified the same day (each phase carries
+`**Status:** DONE` with a passing `**Acceptance:**` block — run
+`bin/agent-feature-supervisor --feature-file feature-supervisor-extreme-rigor.md --skip-gate`
+to re-confirm, exit 0). The thirteen post-implementation retrospective
+gaps were closed in a follow-up session (see the *Post-implementation
+retrospective* section below).
 
 ## Why this exists
 
@@ -131,6 +137,8 @@ A phase WITHOUT an `**Acceptance:**` block triggers
 
 ### Phase 1 — Parser
 
+**Status:** DONE
+
 | File | Change |
 |---|---|
 | `src/pycsl/agents/agent-feature-supervisor.py` | Add `_parse_acceptance(phase_body: str) -> List[AcceptanceClaim]`. Each `AcceptanceClaim` is a `(command: str, predicate: Predicate, raw_line: str)` tuple where `Predicate` is one of `ExitsN(int)`, `StdoutEq(str)`, `StdoutGe(int)`, `StdoutMatches(str)`. |
@@ -144,6 +152,8 @@ A phase WITHOUT an `**Acceptance:**` block triggers
 
 ### Phase 2 — Executor
 
+**Status:** DONE
+
 | File | Change |
 |---|---|
 | `src/pycsl/agents/agent-feature-supervisor.py` | Add `_check_acceptance(claim: AcceptanceClaim) -> AcceptanceResult` running the command via subprocess (cwd = repo root, timeout = `PYCSL_SUPERVISOR_STEP_TIMEOUT`, no shell-injection through user-controlled paths). Return `AcceptanceResult(claim, passed: bool, stdout_excerpt: str, reason_if_failed: str)`. |
@@ -155,6 +165,8 @@ A phase WITHOUT an `**Acceptance:**` block triggers
 - `bin/agent-feature-supervisor --feature-file test-suite/agent-tests/er-fixtures/forbidden-rm.md --skip-gate 2>&1` stdout matches `CLAIM_REJECTED`
 
 ### Phase 3 — Halt-report integration
+
+**Status:** DONE
 
 | File | Change |
 |---|---|
@@ -168,6 +180,8 @@ A phase WITHOUT an `**Acceptance:**` block triggers
 
 ### Phase 4 — Status guard
 
+**Status:** DONE
+
 | File | Change |
 |---|---|
 | `src/pycsl/agents/agent-feature-supervisor.py` | When a phase carries `**Status:** DONE` AND has an `**Acceptance:**` block, run the block. Pass → emit `STATUS_VERIFIED` to the run log; Fail → emit `STATUS_FORGED` and halt. When `Status: DONE` is present but acceptance is absent → `LEGACY_ACCEPTED` (informational only, no halt). |
@@ -180,6 +194,8 @@ A phase WITHOUT an `**Acceptance:**` block triggers
 
 ### Phase 5 — Plan-completeness guard
 
+**Status:** DONE
+
 | File | Change |
 |---|---|
 | `src/pycsl/agents/agent-feature-supervisor.py` | After parsing phases, before running gate: any non-DONE phase lacking `**Acceptance:**` triggers `MISSING_ACCEPTANCE` halt. Accept `**Acceptance:** none — <reason>` as an explicit opt-out. |
@@ -191,6 +207,8 @@ A phase WITHOUT an `**Acceptance:**` block triggers
 
 ### Phase 6 — Test fixtures + harness
 
+**Status:** DONE
+
 | File | Change |
 |---|---|
 | `test-suite/agent-tests/er-fixtures/minimal-pass.md` | One phase, one trivially-passing acceptance claim (`true` exits 0). |
@@ -200,6 +218,10 @@ A phase WITHOUT an `**Acceptance:**` block triggers
 | `test-suite/agent-tests/er-fixtures/missing-acceptance.md` | Phase with no Status, no Acceptance — triggers MISSING_ACCEPTANCE. |
 | `test-suite/agent-tests/er-fixtures/explicit-none.md` | Phase with `**Acceptance:** none — research-only`. |
 | `test-suite/agent-tests/er-fixtures/forbidden-rm.md` | Phase with `rm -rf …` in an acceptance claim. |
+| `test-suite/agent-tests/er-fixtures/forbidden-redirect.md` | Phase with `>` output redirect — added in post-implementation gap sweep to cover the extended safety classifier. |
+| `test-suite/agent-tests/er-fixtures/status-in-prose.md` | Phase whose body contains `**Status:** DONE` only inside backticked prose / table cells; regression test for the start-of-line anchor in the status regex. |
+| `test-suite/agent-tests/er-fixtures/delegation-acceptance-pass.md` | Single-phase fixture for the LLM-delegation acceptance unit test (acceptance passes). |
+| `test-suite/agent-tests/er-fixtures/delegation-acceptance-fail.md` | Same shape, acceptance fails → rollback. |
 | `test-suite/agent-tests/test_supervisor_er.py` | pytest harness running each fixture and asserting exit code + halt-report contents. |
 
 **Acceptance:**
@@ -208,6 +230,8 @@ A phase WITHOUT an `**Acceptance:**` block triggers
 - `.venv/bin/python3 -m pytest test-suite/agent-tests/test_supervisor_er.py::test_every_fixture_has_acceptance_or_status -q` exits 0 *(dogfood check — fixtures themselves either have Acceptance or Status; the deliberate negative-test fixture is allowlisted in the test)*
 
 ### Phase 7 — Migrate existing plans
+
+**Status:** DONE
 
 | File | Change |
 |---|---|
@@ -222,6 +246,8 @@ A phase WITHOUT an `**Acceptance:**` block triggers
 - `bin/agent-feature-supervisor --feature-file missing-pycsl-ir-features.md --skip-gate` exits 75 *(correctly halts because its open phases have unmet acceptance — that's the supervisor working, not failing)*
 
 ### Phase 8 — Retrospective check (proves the mechanism)
+
+**Status:** DONE
 
 | File | Change |
 |---|---|
@@ -239,10 +265,9 @@ If Phase 4 had carried this `**Acceptance:**` block (which it didn't):
 ```markdown
 **Acceptance:**
 - `.venv/bin/python3 src/pycsl/pycsl.py unix-filesystem/UnixInodeFileSystem.py` exits 0
-- `bin/cmmi-audit.sh --quick 2>&1 | grep -A99 "^\\[STRUCT\\]" | grep -c "body-verified:" ` stdout >= `1`
-- `bin/cmmi-audit.sh --quick 2>&1 | grep -A1 "^\\[STRUCT\\]" | grep -E "body-verified: ([4-9]|\\d{2,})"` exits 0 *(at least 4 promoted)*
-- `grep -cE "\\\\trusted reviewer:.*pycsl-self-annotate" unix-filesystem/UnixInodeFileSystem.py | grep -E "^([0-9]|1[0-5])$"` exits 0 *(fewer than 16 trusted markers — sanity bound)*
-- `! grep -E "(_read_inode|_write_inode|_read_directory|_write_directory).*\\\\trusted" unix-filesystem/UnixInodeFileSystem.py` exits 0 *(none of the four target methods carry \\trusted)*
+- `bin/cmmi-audit.sh --quick 2>&1 | grep -A1 "^\\[STRUCT\\]" | grep -c "body-verified:"` stdout >= `1`
+- `bin/cmmi-audit.sh --quick 2>&1 | grep -A1 "^\\[STRUCT\\]" | grep -cE "body-verified: ([4-9]\\b|[1-9][0-9])"` stdout >= `1` *(at least 4 promoted)*
+- `grep -cE "(_read_inode|_write_inode|_read_directory|_write_directory).*\\\\trusted" unix-filesystem/UnixInodeFileSystem.py` stdout == `0` *(none of the four target methods carry \\trusted — checked via stdout count, not shell negation, since the parser doesn't support `!`)*
 ```
 
 The first iteration of my Phase 4 work would have failed the last
@@ -298,12 +323,87 @@ pass for `OK`.
 - `bin/agent-feature-supervisor --feature-file missing-bytes-struct-feature.md --skip-gate` exits 0
 - `bin/er-retrospective-check.sh` exits 0
 
+## Post-implementation retrospective
+
+After the eight phases landed, ER was applied to the ER work itself.
+That sweep enumerated **thirteen gaps** — concrete inconsistencies
+between this plan and the code it describes. All thirteen are now
+closed:
+
+| # | Class | Gap | Resolution |
+|---|---|---|---|
+| 1 | strong | "Out of scope" still said LLM delegation was OOS after it became in-scope | Rewrote the bullet (see *Out of scope* below). |
+| 2 | strong | Phase 6 fixture table listed 7 fixtures; tree had 8 (`forbidden-redirect.md`) | Added the row to the Phase 6 table. |
+| 3 | strong | "What ER would have caught" example used `! grep …`, which `_parse_acceptance` doesn't support | Rewrote as a `stdout == \`0\`` count check (no shell negation). |
+| 4 | strong | `_delegate_phase` post-gate acceptance had zero tests | Added `test_delegation_runs_acceptance_post_gate` (pass / fail-rollback / no-acceptance cases) + two delegation fixtures. |
+| 5 | strong | Status-line anchor regex fix had no regression test | Added `status-in-prose.md` fixture + `test_status_in_prose_is_not_done`. |
+| 6 | strong | Phases passed acceptance but carried no `**Status:** DONE` | All eight phases now marked `**Status:** DONE` → `STATUS_VERIFIED`. |
+| 7 | weak | Full gate never exercised under `PYCSL_SUPERVISOR_DEEP=1` | Exercised; outcome recorded in the *Deep-gate outcome* note below. |
+| 8 | weak | No CI / `make` entry point for ER | Added `make er-check` (runs the supervisor on every `missing-*.md` + the retrospective). |
+| 9 | weak | `er-retrospective-check.sh` not wired into `cmmi-audit.sh` | Added a guarded `[ER]` step. The naive wiring caused an exponential recursion (`cmmi-audit → retrospective → supervisor → acceptance claim → cmmi-audit`); fixed with a `CMMI_AUDIT_NESTED` re-entrancy guard. Full write-up in `infinite-rec.md`. |
+| 10 | weak | `acceptance-syntax.md` not validated by `doc-coherency.py` | Added it to the doc-coherency input set. |
+| 11 | weak | Supervisor never references `config/agents/agent-feature-supervisor.md` | Added a cross-reference comment in `agent-feature-supervisor.py`. |
+| 12 | meta | No document-level `**Status:**` after all acceptance passed | Top-of-file status promoted DRAFT → COMPLETE (this document). |
+| 13 | meta | No pre-commit enforcement of plan acceptance | Added `bin/pre-commit-er.sh` + `.githooks/pre-commit`. |
+
+### CI integration (gap 8)
+
+ER is wired to a single entry point: **`make er-check`**. It runs the
+supervisor over the ER plan and the parent `missing-bytes-struct-feature.md`
+(both must exit 0), the ER fixture tests, and the load-bearing
+`er-retrospective-check.sh`; then it reports — informationally — the
+exit status of every other `missing-*.md` plan (a `75` halt on an
+open plan is expected, not a failure). The target exports
+`CMMI_AUDIT_NESTED=1` and wraps each supervisor run in `timeout` so it
+can never re-enter the recursion described in `infinite-rec.md`.
+
+CI runs `make er-check` on every change that touches a `missing-*.md`
+plan or `bin/agent-feature-supervisor`. Locally, the same guarantee is
+enforced at commit time by `.githooks/pre-commit` → `bin/pre-commit-er.sh`
+(gap 13).
+
+### Deep-gate outcome (gap 7)
+
+The open question was whether the full verification gate
+(`PYCSL_SUPERVISOR_DEEP=1`, which enables `bin/run-reference-tests.sh`)
+passes, fails, or times out. All prior acceptance verification used
+`--skip-gate`, so this was genuinely unknown. Measured 2026-06-01:
+
+- **`bin/run-reference-tests.sh` → TIMEOUT.** The corpus is 388
+  `pycsl-reference` + 2207 `python-reference` = **2595 files**, each run
+  through full `pycsl.py`. A timed 15-file sample ran at ~1.3 s/file on
+  the early (small) tests; proof-heavy later tests are slower. Even at
+  the optimistic early rate the full corpus needs ~55 min — well past
+  the step's hardcoded **1800 s (30 min)** budget. Deep mode therefore
+  halts the gate with `TIMEOUT (>1800s)` → supervisor exit 74. This is
+  the same long pole flagged in `missing-bytes-struct-feature.md` and is
+  a corpus-scale property, not an ER regression.
+- **`pytest tests/` → RED, pre-existing.** Independent of deep mode, the
+  non-deep `pytest tests/` gate step currently fails at HEAD: a
+  collection error in `tests/integration/test_123456.py`
+  (`NameError: name 'json_ir' is not defined`). Untouched by the ER
+  work; flagged here so it is not mistaken for an ER side effect. Needs
+  a separate fix.
+- **ER-relevant fast steps → GREEN.** `bin/doc-coherency.py --check`
+  (exit 0), `bin/cmmi-audit.sh --quick` (8 passed / 0 failed / 2
+  skipped, run with the `CMMI_AUDIT_NESTED` guard), and
+  `bin/stdlib-coverage-report.py` (exit 0) all pass.
+
+**Conclusion.** The deep gate is not interactively runnable at the
+current corpus size; it belongs in CI with a budget ≥ ~1 h (or sharded
+via `run-reference-tests.sh --start-at/--stop-at`). ER acceptance
+verification correctly stays on the `--skip-gate` path, which checks the
+*deliverable* claims; the deep gate is a *regression* check and is
+gated separately. The plan's acceptance never claimed deep-mode success,
+so nothing here was overstated — the question is now answered rather
+than open.
+
 ## Out of scope
 
-- LLM delegation under ER. The existing `--allow-llm-delegation`
-  path already runs the gate after each delegated phase; adding
-  acceptance to that path is a natural extension but a separate
-  plan.
+- ~~LLM delegation under ER~~ — **NOW IN SCOPE.** Closed during
+  the post-implementation gap sweep. `_delegate_phase` now
+  evaluates acceptance after the gate passes; a failing
+  acceptance triggers rollback via the per-phase git tag.
 - Cross-plan acceptance dependencies (e.g., Phase 4 of
   `missing-bytes-struct-feature.md` depending on gaps in
   `missing-pycsl-ir-features.md`). The user can express this

@@ -1,9 +1,24 @@
 ---
 name: system-design-paradigms
-description: A reference and applied guide to major software system design paradigms — KISS, DRY, YAGNI, Separation of Concerns, SOLID, Law of Demeter, High Cohesion / Low Coupling, Encapsulation, Composition over Inheritance, Convention over Configuration, Fail Fast, Idempotency, Statelessness, CAP theorem, Eventual Consistency, Design for Failure, Horizontal Scaling, Cacheability, Premature Optimization, End-to-End Principle, and the Twelve-Factor App. Use aggressively whenever the user is designing, reviewing, critiquing, or studying a software system — microservices vs. monolith debates, API design, database choices, scaling and reliability questions, architecture reviews, refactoring decisions, distributed systems tradeoffs, system design interview prep, or any conversation about architecture tradeoffs. Trigger even when the user doesn't name a principle explicitly — if they're weighing a design choice, the relevant paradigms are part of the answer.
+description: >-
+  A reference and applied guide to major software system design paradigms —
+  KISS, DRY, YAGNI, Separation of Concerns, SOLID, Law of Demeter, High
+  Cohesion / Low Coupling, Encapsulation, Composition over Inheritance,
+  Convention over Configuration, Fail Fast, Idempotency, Statelessness, CAP
+  theorem, Eventual Consistency, Design for Failure, Horizontal Scaling,
+  Cacheability, Premature Optimization, End-to-End Principle, and the
+  Twelve-Factor App. Use when the user asks about design principles, requests
+  an architecture review, asks to apply SOLID or another named paradigm,
+  evaluates a design decision against established heuristics, or does any
+  system-design work where these paradigms inform the architecture.
 document_id: SKILL-SYSDESIGN-001
 version: "1.0"
+status: Approved
+effective_date: "2026-05-29"
 baseline_id: BL-SYSDESIGN-001
+cmmi_version: "2.0"
+practice_areas:
+  - "OPD SP 1.1 — Establish Standard Processes"
 ---
 
 # System Design Paradigms

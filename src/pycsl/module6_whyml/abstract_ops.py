@@ -70,6 +70,14 @@ class AbstractOpsMixin:
                 last_type_idx = i
         if last_type_idx >= 0:
             insert_idx = last_type_idx + 1
+            # A record type may carry trailing `invariant {…}` / `by {…}`
+            # clauses on the following lines. They are part of the type
+            # declaration — skip past them so the abstract-val block isn't
+            # spliced into the middle of the record decl (which is a Why3
+            # syntax error).
+            while (insert_idx < len(out) and
+                   out[insert_idx].strip().startswith(("invariant", "by "))):
+                insert_idx += 1
             if insert_idx < len(out) and out[insert_idx].strip() == "":
                 insert_idx += 1
             return insert_idx

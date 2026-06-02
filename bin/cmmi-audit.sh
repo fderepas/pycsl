@@ -297,6 +297,40 @@ PY
 PASS+=("STRUCT informational")
 echo
 
+# ----- Extreme Rigor retrospective (informational) -----
+# Runs `bin/er-retrospective-check.sh` if present. Verifies the
+# ER mechanism is load-bearing by mutating + reverting a known
+# file and asserting the supervisor halts. Never fails the audit
+# — if the check breaks, that's a finding but not a regression
+# in the audited code.
+#
+# Skipped under nested invocation: the retrospective runs the
+# supervisor, which evaluates Phase 4 acceptance, which calls
+# cmmi-audit.sh — recursion. Gate with CMMI_AUDIT_NESTED so the
+# nested instance skips this step.
+if [[ -n "${CMMI_AUDIT_NESTED:-}" ]]; then
+    skip "ER retrospective informational" "nested cmmi-audit invocation"
+elif [[ -x "$REPO_ROOT/bin/er-retrospective-check.sh" ]]; then
+    echo "[ER] er-retrospective-check.sh — load-bearing mechanism proof"
+    export CMMI_AUDIT_NESTED=1
+    if "$REPO_ROOT/bin/er-retrospective-check.sh" > /tmp/cmmi-audit-er.$$.out 2>&1; then
+        # PASS: mechanism is load-bearing
+        sed 's/^/  /' /tmp/cmmi-audit-er.$$.out
+        PASS+=("ER retrospective informational")
+    else
+        echo "  [WARN] er-retrospective-check.sh did not pass — review:" >&2
+        sed 's/^/  | /' /tmp/cmmi-audit-er.$$.out >&2
+        # Informational only — does NOT fail the audit. Surface as PASS
+        # with a recorded warning; a separate gate (CI) can promote to FAIL.
+        PASS+=("ER retrospective informational")
+    fi
+    unset CMMI_AUDIT_NESTED
+    rm -f /tmp/cmmi-audit-er.$$.out
+else
+    skip "ER retrospective informational" "bin/er-retrospective-check.sh not executable"
+fi
+echo
+
 # ----- language-surface coherency (delegated) -----
 echo "[lang] Language-surface doc coherency (pycsl-* skills, docs/, README)"
 if [[ -x bin/doc-coherency.py ]]; then

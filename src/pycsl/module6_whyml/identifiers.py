@@ -66,6 +66,19 @@ def safe_mutex_name(mutex: str) -> str:
     return whyml_ident(mutex.replace("[", "_").replace("]", "").replace(".", "_"))
 
 
+def safe_exc_name(name: str) -> str:
+    """Sanitize a user-exception name for WhyML emission.
+
+    Python local-alias imports (`from X import Y as _Y`) produce
+    exception names starting with `_`, which WhyML rejects in
+    exception-declaration position. Stripping leading underscore(s)
+    yields a valid WhyML identifier; the de-aliased name also
+    collapses with the original (un-prefixed) declaration via set
+    deduplication at the call site, so `Y` and `_Y` emit a single
+    `exception Y` declaration."""
+    return name.lstrip("_") or name
+
+
 def op_translate(op: str) -> str:
     """Translates operators; defaults to the same string (e.g., +, -, >, <)."""
     return OP_MAP.get(op, op)

@@ -65,6 +65,73 @@ zero axioms. The trust line moved to the cert construction site
   (is-trusted vs reviewed-by) — accepted as L.4 done with
   different shape.
 
+**Q2 Sub-α close-out (2026-05-29):**
+- α.1-α.13 per-construct emit_stmt theorems: all landed.
+  Files: `Phase6L_Emit{Stmt,Assign,AugAssign,ArraySet,Seq,Simple,Blocks,Composition,StateAware,StateAwareCorr,Extract}.v`
+  and their Lean mirrors under `src/formal-semantics/lean/PyCSL/Emit*.lean`.
+  See feature-matrix rows 15-23 for the per-construct map.
+- α.14 composition: `emit_stmt_full_complete_sound`
+  (`Phase6L_EmitComposition.v`) covers all 22 Stmt constructors —
+  the aggregate result that enables discharge of
+  `module6_encodes_mlw`.
+- α.15 state-aware refined printer + correspondence theorem
+  (`Phase6L_EmitStateAware.v` + `Phase6L_EmitStateAwareCorr.v`):
+  closes byte-diff DIFFs on the 26-case corpus (26 PASS / 0 DIFF).
+- `module6_encodes_mlw` was a *named axiom* pre-Sub-α; post Q3
+  Sub-β port it is a PROVED Lemma in `Phase6m_VcgSemBridge.v`
+  with zero axioms. Composition+state-aware printers + Q3
+  Sub-β's `formula_rep` integration close the gap.
+- Remaining residue: the extraction-extensional residue
+  (CC.5) — meta-level claim between the Rocq-extracted
+  pretty-printer and the Python Module 6 pretty-printer.
+  Validated by `bin/extraction-byte-diff-upward.sh` on the
+  real corpus (89.6% PASS as of the v6 run). See
+  [`docs/glossary/extraction-extensional-residue.md`](../../docs/glossary/extraction-extensional-residue.md).
+
+**Q4 Upward close-out (2026-05-29):**
+- U.1 (`pycsl_ir_json` inductive): landed
+  (`Phase0_IrJson.v` — JsonValue / ContractsIR / FunctionIR /
+  ProgramIR records).
+- U.2 (`ir_to_stmt : pycsl_ir_json → option stmt`): landed
+  (`Phase1b_IrToStmt.v`, ~1300 LOC, 18 smoke tests).
+- U.3 (`validate_ir_correspondence`): landed
+  (`Phase1c_ValidateIr.v` — `validate_ir` + `WellFormedIR` +
+  `KeysUniqueRec` + `well_formed_and_unique_implies_validate`).
+- U.4 (extraction byte-diff on the real corpus): landed
+  (`Phase1b_IrToStmtExtract.v` + `extracted/ir_driver.ml` +
+  `bin/extraction-byte-diff-upward.sh`). Real-corpus
+  PASS rate: 346/386 = 89.6% (24 SKIP outside the formal
+  subset; 16 FAIL_M5 — Module 5 limits, not Rocq disagreement).
+- U.5 (per-stmt-constructor round-trip): landed
+  (`Phase1d_StmtToIr.v` — 68 round-trip lemmas covering
+  the simple-subset constructors and compound stmts
+  including SAssert / SGhostDecl / SGhostAssign / SFor case-a;
+  +SFor case-b range desugaring as a one-way lemma).
+- U.6 (chain composition): landed
+  (`U6_chain_after_roundtrip` ties the round-trip output to
+  `gen` for the full `ast → IR → stmt → whyml_stmt → text → VC`
+  chain).
+- **Trust seam post-Q4: the IR boundary.** Modules 1-4
+  remain `\trusted reviewer:` by design (CC.6 out-of-scope:
+  libcst ingestion, Lark parsing, AST weaving, semantic
+  analysis). Module 5's IR-output shape is now verified by
+  the U.3 correspondence and the U.4 byte-diff. See
+  [`docs/glossary/trust-seam.md`](../../docs/glossary/trust-seam.md)
+  and [`docs/glossary/ir-well-formedness.md`](../../docs/glossary/ir-well-formedness.md).
+
+**Trust boundary table (post-Q4):**
+
+| Modules | Status | Rationale |
+|---------|--------|-----------|
+| 1-4 (Python frontend) | `\trusted reviewer:` | CC.6 out-of-scope — libcst + Lark formalization is a separate research project |
+| 5 (IR shape) | ✅ Verified | U.3 well-formedness correspondence + U.4 byte-diff against real corpus |
+| 6 (WhyML transpilation) | ✅ Verified | Q2 Sub-α per-construct + composition + state-aware byte-diff |
+| WP / VCG / soundness | ✅ Verified | `wp_gen_correct`, `vcg_sound`, `pycsl_soundness` — all proved with zero PyCSL-specific axioms in Rocq |
+| Why3 trust certificate | ✅ Verified | Q3 Sub-β cert-as-witness; `why3_certificate` is now the witness type |
+| Alt-Ergo / Z3 | Tier 1 (named) | `altErgoCorrect` axiom; mitigation = parallel solver dispatch |
+| Why3 kernel | Tier 2 | Sub-β formalizes only the formula evaluation subset PyCSL uses |
+| Standard library stubs | Tier 2 | `data/lib_stubs/<module>.py` `\trusted reviewer:` |
+
 ---
 
 ## 3. Feature-to-Proof Traceability Matrix

@@ -110,6 +110,11 @@ def extract_variables(node: CSLNode) -> Set[str]:
     if isinstance(node, FieldAccess):
         return set()
     if isinstance(node, ArrayLength):
+        # `\length(self.f)` references a record field and `\length(\result)`
+        # the return value — both excluded here (like FieldAccess / Result),
+        # validated structurally rather than against local variable scope.
+        if node.var.startswith("self.") or node.var == "\\result":
+            return set()
         return {node.var}
     if isinstance(node, GhostCopyExpr):
         return {node.arr}

@@ -49,6 +49,12 @@ relevant page when needed.
 - [theorem prover](theorem-prover.md)
 - [trusted computing base](trusted-computing-base.md)
 
+### Project discipline and trust boundaries
+
+- [load-bearing](load-bearing.md)
+- [extreme rigor](extreme-rigor.md)
+- [standard libraries](standard-libraries.md)
+
 ## Maintenance note
 
 When a new recurring term appears in docs or skills, prefer one of these three

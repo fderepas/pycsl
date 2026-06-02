@@ -1106,8 +1106,17 @@ Fixpoint ir_to_stmt_n (fuel : nat) (j : json_value) : option stmt :=
                               end
                           | Some "Call" =>
                               (* Case (b): `for i in range(...)` desugar.
-                                 Handles 1-arg range(N) and 2-arg
-                                 range(start, stop). *)
+                                 Handles 1-arg range(N), 2-arg
+                                 range(start, stop), and 3-arg
+                                 range(start, stop, step). The 3-arg
+                                 form mirrors the 2-arg desugar with
+                                 the constant increment +1 replaced by
+                                 the user-supplied step; semantically
+                                 well-defined only for positive step
+                                 (negative step changes the loop
+                                 condition direction — out of scope
+                                 for the formal model's structural
+                                 `i < stop` shape). *)
                               match json_field_get "func" iterv,
                                     json_field_get "args" iterv with
                               | Some fnv, Some argsv =>
@@ -1142,6 +1151,26 @@ Fixpoint ir_to_stmt_n (fuel : nat) (j : json_value) : option stmt :=
                                                     (SSeq body
                                                           (SAugAssign x OpAdd (EInt 1)))))
                                       | _, _, _ => None
+                                      end
+                                  | Some "range", Some (start :: stop :: step :: nil) =>
+                                      (* range(start, stop, step):
+                                           i = start;
+                                           while i < stop do
+                                             body; i += step *)
+                                      match ir_to_expr default_expr_fuel start,
+                                            ir_to_expr default_expr_fuel stop,
+                                            ir_to_expr default_expr_fuel step,
+                                            ir_to_stmt_n n bodyv with
+                                      | Some s, Some e, Some k, Some body =>
+                                          let inv := CBoolLit true in
+                                          let var := CInt 0 in
+                                          Some (SSeq
+                                                  (SAssign x s)
+                                                  (SWhile inv var
+                                                    (ECmp OpLt (EVar x) e)
+                                                    (SSeq body
+                                                          (SAugAssign x OpAdd k))))
+                                      | _, _, _, _ => None
                                       end
                                   | _, _ => None
                                   end

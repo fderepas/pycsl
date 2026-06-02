@@ -12,7 +12,7 @@ from Module2_Parser import (
     FieldAccess as CSLFieldAccess, Forall, Exists, ArrayLength, SubscriptAccess,
     AssignsRegion, Valid, Separated, At as CSLAt,
     Length2D, Valid2D, FunctionVariant, StringLiteral as CSLStringLiteral,
-    CallExpr, IsSorted, Sum, CSLBool, CSLNone, CSLIn, CSLNotIn, CSLSlice,
+    CallExpr, IsSorted, ArrayEq, Sum, CSLBool, CSLNone, CSLIn, CSLNotIn, CSLSlice,
     ChainedSubscript,
     GhostAssignDecl, GhostArraySetDecl,
     MkTupleExpr, FstExpr, SndExpr, ProjExpr,
@@ -104,6 +104,7 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
         FunctionVariant:  "_csl_function_variant",
         CallExpr:         "_csl_call_expr",
         IsSorted:         "_csl_is_sorted",
+        ArrayEq:          "_csl_array_eq",
         Sum:              "_csl_sum",
         CSLIn:            "_csl_in",
         CSLNotIn:         "_csl_not_in",
@@ -255,6 +256,11 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
     def _csl_is_sorted(self, node: IsSorted) -> Dict[str, Any]:
         return {"type": "IsSorted", "base": node.base,
                 "lo": self._csl_to_ir(node.lo), "hi": self._csl_to_ir(node.hi)}
+
+    def _csl_array_eq(self, node: ArrayEq) -> Dict[str, Any]:
+        return {"type": "ArrayEq",
+                "left": self._csl_to_ir(node.left),
+                "right": self._csl_to_ir(node.right)}
 
     def _csl_sum(self, node: Sum) -> Dict[str, Any]:
         return {"type": "Sum", "base": node.base,
@@ -710,9 +716,20 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
             slice_node = target.slice
             if isinstance(slice_node, ast.Index):
                 slice_node = slice_node.value
-            index_ir = self._py_expr_to_ir(slice_node)
-            ir_stmts.append({"stmt": "ArraySet", "array": array_ir,
-                             "index": index_ir, "value": self._py_expr_to_ir(stmt.value)})
+            if isinstance(slice_node, ast.Slice):
+                # `arr[lo:hi] = rhs` — slice (range) assignment. Lowered by
+                # Module6 to a bounded `Array.blit` when rhs is array-typed.
+                lower_ir = (self._py_expr_to_ir(slice_node.lower)
+                            if slice_node.lower else {"type": "Number", "value": 0})
+                upper_ir = (self._py_expr_to_ir(slice_node.upper)
+                            if slice_node.upper else None)
+                ir_stmts.append({"stmt": "ArraySliceSet", "array": array_ir,
+                                 "lower": lower_ir, "upper": upper_ir,
+                                 "value": self._py_expr_to_ir(stmt.value)})
+            else:
+                index_ir = self._py_expr_to_ir(slice_node)
+                ir_stmts.append({"stmt": "ArraySet", "array": array_ir,
+                                 "index": index_ir, "value": self._py_expr_to_ir(stmt.value)})
         elif isinstance(target, ast.Tuple):
             targets = [elt.id for elt in target.elts if isinstance(elt, ast.Name)]
             ir_stmts.append({"stmt": "TupleUnpack", "targets": targets,
@@ -962,6 +979,16 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
             return "int"
         if isinstance(annotation, ast.Name):
             name = annotation.id
+            # Bare collection annotations on a field (`self.x: list`).
+            # Mirrors the RHS-shape inference for plain assignments so an
+            # annotated `array int` field resolves to "list" (→ `array int`
+            # in the WhyML record), not the int default.
+            if name in ("list", "tuple", "bytearray", "bytes"):
+                return "list"
+            if name == "dict":
+                return "dict"
+            if name in ("set", "frozenset"):
+                return "set"
             if name in ("int", "bool", "str", "float"):
                 return "int"
             # Unrecognised plain name — treat as int (e.g. user types).

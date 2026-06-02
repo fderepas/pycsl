@@ -21,6 +21,14 @@ def safe_mutex_name(mutex: str) -> str:
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
+def safe_exc_name(name: str) -> str:
+    """Sanitize a user-exception name for WhyML emission."""
+    return name.lstrip("_") or name
+
+#@ \trusted reviewer: pycsl-self-annotate
+#@ requires True
+#@ ensures True
+#@ assigns \nothing
 def op_translate(op: str) -> str:
     return ""
 

@@ -114,7 +114,7 @@ class ExpressionEmissionMixin:
         # Array-shaped expressions can't be passed where int is expected.
         # The array's contents have no axioms; coerce to 0 placeholder.
         stripped = whyml_str.strip()
-        array_prefixes = ("(Array.make", "(array_slice ", "(sorted_1 ",
+        array_prefixes = ("(Array.make", "(Array.sub ", "(array_slice ", "(sorted_1 ",
                           "(list_new_arr ", "(any_1 ", "(all_1 ")
         for prefix in array_prefixes:
             if stripped.startswith(prefix):
@@ -363,6 +363,7 @@ class ExpressionEmissionMixin:
         # actually takes/returns array or map types.
         ret_type = "int"
         param_types: List[str] = []
+        result_ensures: List[Dict[str, Any]] = []
         if func_name.startswith("self."):
             # Method IR names are stored as "<class_lower>__<method>"
             # (Module5._build_function_ir), so a `self._emit_contracts` call
@@ -373,6 +374,19 @@ class ExpressionEmissionMixin:
             lookup_key = f"{cls}__{method_tail}" if cls else method_tail
             ret_type = self._module_method_return_types.get(lookup_key, "int")
             param_types = self._module_method_param_types.get(lookup_key, [])
+            # Propagate the callee's result-only postconditions onto the
+            # stub (array length, slot bounds, …) so the caller can
+            # discharge VCs on the returned value.
+            result_ensures = getattr(self, "_module_method_result_ensures", {}).get(lookup_key, [])
+        else:
+            # Bytes-producing methods return `array int` (a byte buffer),
+            # not the default `int` — so a chain like
+            # `name.encode('utf-8')[:30].ljust(30, b'\x00')` can flow into a
+            # `struct.pack('>...30s', ...)` name field. (Gap 5 of
+            # missing-pycsl-ir-features.md, handled by typing the opaque op.)
+            method_tail_name = func_name.rsplit(".", 1)[-1]
+            if method_tail_name in ("encode", "ljust", "rjust", "zfill"):
+                ret_type = "array int"
         # Pad / truncate param_types to match n (the abstract val arity
         # only sees the caller's actual arg count, not the IR's symbol
         # table size).
@@ -390,7 +404,7 @@ class ExpressionEmissionMixin:
         # `array.Array.array int @rho but is expected to have
         # type int`.
         ARRAY_INT_PREFIXES = (
-            "(Array.make ", "(array_slice ", "(Array.make_init ",
+            "(Array.make ", "(Array.sub ", "(array_slice ", "(Array.make_init ",
             "(array_copy ", "(array_concat ",
         )
         import sys
@@ -442,11 +456,19 @@ class ExpressionEmissionMixin:
             else:
                 coerced.append(arg)
         import sys
+        ensures_suffix = ""
+        if result_ensures:
+            _prev_spec = self._in_spec
+            self._in_spec = True   # emit boolean formulas, not int-coerced
+            for e in result_ensures:
+                w = self._expr_to_whyml(e, set(), invariant_ctx=True)
+                ensures_suffix += f"\n    ensures {{ {w} }}"
+            self._in_spec = _prev_spec
         if n == 0:
-            self._add_abstract_op(f"val {arity_name} () : {ret_type}")
+            self._add_abstract_op(f"val {arity_name} () : {ret_type}{ensures_suffix}")
             return f"({arity_name} ())"
         params = " ".join(f"(x{i}: {ptype})" for i, ptype in enumerate(param_types))
-        self._add_abstract_op(f"val {arity_name} {params} : {ret_type}")
+        self._add_abstract_op(f"val {arity_name} {params} : {ret_type}{ensures_suffix}")
         return f"({arity_name} {' '.join(coerced)})"
 
     def _handle_struct_call(
@@ -619,6 +641,34 @@ class ExpressionEmissionMixin:
                 f"{fn} = {rec_info['defaults'].get(fn, 0)}" for fn in rec_info["fields"]
             )
             return f"{{ {field_inits} }}"
+        # Bytes-producing methods (`b.encode()`, `b.ljust()`, ...) reach
+        # the generic path with no receiver dot in the IR func name. They
+        # return a byte buffer (`array int`), and any array-shaped operand
+        # (the receiver byte string, a slice) must stay `array int` so the
+        # result can flow into a `struct.pack('>...30s', ...)` name field.
+        # Opaque — the byte content is not modeled. (Gap 5.)
+        if func_name in ("encode", "ljust", "rjust", "zfill"):
+            n = len(args)
+            arity_fn = f"{whyml_ident(func_name)}_{n}"
+            _ARR = ("(Array.make", "(Array.sub ", "(array_slice ", "(sorted_1 ",
+                    "(struct_pack", "(encode_", "(ljust_", "(rjust_", "(zfill_")
+            ptypes: List[str] = []
+            cargs: List[str] = []
+            for a in args:
+                st = a.strip()
+                is_arr = (any(st.startswith(p) for p in _ARR) or
+                          st.lstrip("!").replace("_", "").isalnum() and
+                          st.lstrip("!") in getattr(self, "_array_locals", set()))
+                if is_arr:
+                    ptypes.append("array int")
+                    cargs.append(self._array_coerce_arg(a))
+                else:
+                    ptypes.append("int")
+                    cargs.append(self._coerce_to_int(a))
+            params = (" ".join(f"(x{i}: {t})" for i, t in enumerate(ptypes))
+                      if n else "()")
+            self._add_abstract_op(f"val {arity_fn} {params} : array int")
+            return f"({arity_fn} {' '.join(cargs) if cargs else '()'})"
         coerced_args = [self._coerce_to_int(a) for a in args]
         safe_fn = whyml_ident(func_name)
         if (func_name not in local_refs
@@ -692,11 +742,13 @@ class ExpressionEmissionMixin:
                     is_array = True
                 elif st.get(var_name) in ("dict", "set", "frozenset"):
                     is_dict = True
-            # `self.<field>[k]` where the field is set/dict-typed.
+            # `self.<field>[k]` where the field is set/dict/array-typed.
             if not is_array and not is_dict and value.get("type") in ("Attribute", "FieldGet"):
                 ft = self._field_type_of(value)
                 if ft in ("set", "dict", "frozenset"):
                     is_dict = True
+                elif ft in ("list", "tuple", "bytes", "bytearray"):
+                    is_array = True
             if is_array:
                 inner = f"{value_str}[{index}]"
                 # no_exception IndexError → assert in_bounds before the read.
@@ -882,11 +934,29 @@ class ExpressionEmissionMixin:
         sl = expr["slice"]
         lo = self._expr_to_whyml(sl["lower"], local_refs, invariant_ctx, subst) if sl.get("lower") else "0"
         hi = self._expr_to_whyml(sl["upper"], local_refs, invariant_ctx, subst) if sl.get("upper") else f"(Array.length {arr})"
+        # A known-array source (record array-field like `self.disk`, or an
+        # array local/param) gets real `Array.sub` semantics: the result has
+        # known length `hi-lo` and content `result[i] = arr[lo+i]`, so the
+        # prover can reason about read-back content (needed for round-trip
+        # proofs). Why3's `Array.sub` carries the bounds preconditions
+        # (`0<=lo`, `0<=len`, `lo+len <= length arr`), discharged from the
+        # caller's `requires`/invariants. Only genuinely-int sources (e.g.
+        # `str_conv s` for a sliced string param) fall back to the opaque
+        # `array_slice` placeholder.
+        val = expr["value"]
+        is_array_src = False
+        if val.get("type") in ("Attribute", "FieldGet"):
+            if self._field_type_of(val) in ("list", "tuple", "bytes", "bytearray"):
+                is_array_src = True
+        elif val.get("type") == "Var":
+            vn = val.get("name", "")
+            if (vn in getattr(self, "_array_locals", set()) or
+                    vn in getattr(self, "_current_array1d_params", set()) or
+                    self._current_symbol_table.get(vn) == "list"):
+                is_array_src = True
+        if is_array_src:
+            return f"(Array.sub {arr} ({lo}) (({hi}) - ({lo})))"
         self._add_abstract_op("val array_slice (a: array int) (lo: int) (hi: int) : array int")
-        # If `arr` is an int expression (e.g. `str_conv s` for a string
-        # parameter being sliced), coerce to a placeholder array so the
-        # abstract val type-checks. Module6 has no model for string
-        # slicing through `array_slice`; the slice is treated as opaque.
         arr = self._array_coerce_arg(arr)
         return f"(array_slice {arr} {lo} {hi})"
 
@@ -899,6 +969,15 @@ class ExpressionEmissionMixin:
     ) -> str:
         if self.memory_model in ("hoare", "concurrent"):
             var = expr['var']
+            if var == "\\result":
+                return "(Array.length result)"
+            if var.startswith("self."):
+                field = var[len("self."):]
+                # Mirror `_handle_field_get_expr`: in a type/class invariant
+                # the record fields are bare; in a method contract `self`
+                # is an in-scope parameter.
+                ref = field if invariant_ctx else f"self.{field}"
+                return f"(Array.length {ref})"
             deref = "!" if var in local_refs else ""
             return f"(Array.length {deref}{var})"
         return f"{expr['var']}_len"
@@ -971,6 +1050,27 @@ class ExpressionEmissionMixin:
         hi = self._expr_to_whyml(expr["hi"], local_refs, invariant_ctx, subst)
         if self.memory_model in ("hoare", "concurrent"):
             return f"(forall _si : int. {lo} <= _si /\\ _si < {hi} - 1 -> {base}[_si] <= {base}[_si + 1])"
+        return "true"
+
+    def _handle_arrayeq_expr(
+        self,
+        expr: Dict[str, Any],
+        local_refs: Set[str],
+        invariant_ctx: bool,
+        subst: Optional[Dict[str, str]],
+    ) -> str:
+        """`\\array_eq(a, b)` — extensional array content equality:
+        same length and equal element at every index. Emitted as an
+        explicit quantified formula (rather than the `array_eq`
+        predicate) so the SMT solver sees the per-index goal directly and
+        can E-match it against `Array.blit`/`Array.sub` content
+        postconditions (the predicate layer did not auto-unfold)."""
+        a = self._expr_to_whyml(expr["left"], local_refs, invariant_ctx, subst)
+        b = self._expr_to_whyml(expr["right"], local_refs, invariant_ctx, subst)
+        if self.memory_model in ("hoare", "concurrent"):
+            return (f"((Array.length {a} = Array.length {b}) /\\ "
+                    f"(forall _ae : int. 0 <= _ae /\\ _ae < Array.length {a} "
+                    f"-> {a}[_ae] = {b}[_ae]))")
         return "true"
 
     def _handle_sum_node_expr(
@@ -1259,7 +1359,22 @@ class ExpressionEmissionMixin:
             return str(hash(f'"{escaped}"') % 2147483647)
         if t == "Result":   return "result"
         if t == "None":     return "0"
-        if t == "ArrayLit": return "(Array.make 1024 0)"
+        if t == "ArrayLit":
+            elts = expr.get("elts", [])
+            if elts:
+                # Build a concrete `array int` of the literal's elements:
+                # `(let _alit = Array.make N e0 in _alit[1] <- e1; …; _alit)`.
+                n = len(elts)
+                e0 = self._coerce_to_int(
+                    self._expr_to_whyml(elts[0], local_refs, invariant_ctx, subst))
+                sets = "; ".join(
+                    f"_alit[{i}] <- {self._coerce_to_int(self._expr_to_whyml(e, local_refs, invariant_ctx, subst))}"
+                    for i, e in enumerate(elts) if i > 0)
+                inner = f"let _alit = Array.make {n} ({e0}) in"
+                if sets:
+                    inner += f" {sets};"
+                return f"({inner} _alit)"
+            return "(Array.make 1024 0)"
         if t == "UnknownPyExpr": return "0"
         if t == "Slice":    return "0"
         if t == "OldField": return f"(old {expr['object']}.{expr['field']})"

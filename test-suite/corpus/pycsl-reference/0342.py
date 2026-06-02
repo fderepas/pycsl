@@ -4,7 +4,8 @@ The classic Hoare-logic worked example, verified end-to-end under
 full proof mode (no `--no-proof`, no `\\trusted`).
 
 The GCD-related axioms (`gcd_0`, `gcd_step`, `gcd_divides_a`, etc.)
-are imported via `#@ proof rocq` / `#@ proof lean` directives. Module6 emits each as a Why3 `axiom` block in the
+are imported via `#@ proof rocq` / `#@ proof lean` directives.
+Module6 emits each as a Why3 `axiom` block in the
 preamble, sourcing the body from a hand-curated registry. The
 registry's content is justified by the paired Rocq + Lean proofs in
 `0342.proofs/{rocq,lean}/` — cross-validated manually for this MVP,
