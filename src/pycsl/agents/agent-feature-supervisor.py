@@ -789,6 +789,29 @@ def _rollback_phase(slug: str, phase_number: int,
     return True
 
 
+def _delegate_model() -> str:
+    """Model used for LLM delegation.
+
+    Resolution order: `PYCSL_LLM_MODEL` env var → `model` key of
+    `config/agents-config.json` → a safe Copilot default. A `claude-*`/`gpt-*`
+    name routes to the GitHub Copilot CLI; any other name is treated as an
+    Ollama tag (HTTP). Previously the delegate read only the env var and
+    defaulted to "" — which mis-routed to the (possibly down) Ollama host.
+    """
+    env = os.environ.get("PYCSL_LLM_MODEL")
+    if env:
+        return env
+    try:
+        import json as _json
+        cfg = _json.loads(
+            (_PROJECT_ROOT / "config" / "agents-config.json").read_text())
+        if cfg.get("model"):
+            return cfg["model"]
+    except Exception:
+        pass
+    return "claude-sonnet-4.6"
+
+
 def _delegate_phase(phase: "Phase", plan_text: str,
                     slug: str) -> tuple[bool, str]:
     """Run coding-LLM delegation for one phase. Returns (success, message).
@@ -824,7 +847,7 @@ def _delegate_phase(phase: "Phase", plan_text: str,
                    "the coding-llm-prompt scaffold above. Output a "
                    "unified diff in a fenced ```diff block.",
             agent_id=AGENT_NAME,
-            model=os.environ.get("PYCSL_LLM_MODEL", ""),
+            model=_delegate_model(),
         )
     except Exception as e:
         return False, f"llm_generate raised: {e}"
@@ -1429,8 +1452,9 @@ def main() -> int:
                         "Relaxes the soundness perimeter — use deliberately.")
     args = parser.parse_args()
     if args.allow_load_bearing and not args.allow_llm_delegation:
-        print(f"[{AGENT_NAME}] --allow-load-bearing has no effect without "
-              f"--allow-llm-delegation; nothing will be delegated.")
+        print(f"[{AGENT_NAME}] --allow-load-bearing implies --allow-llm-delegation "
+              f"— enabling LLM delegation.")
+        args.allow_llm_delegation = True
     return supervise(args.feature_file, args.skip_gate,
                      allow_llm_delegation=args.allow_llm_delegation,
                      allow_load_bearing=args.allow_load_bearing)
