@@ -27,6 +27,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+import coordinator_loopdetect as loop_detect
+
 AGENT_NAME = "coordinator"
 EXIT_MAX_RETRIES = 72    # pycsl still failing after MAX_RETRIES attempts
 EXIT_LOOP_DETECTED = 73  # same recommendation 3× in a row — human needed
@@ -66,27 +68,18 @@ class CoordinatorAgent:
     def log(self, message: str) -> None:
         print(f"[{AGENT_NAME}] {message}")
 
+    # Loop-detection (exit-73 trigger) lives in `coordinator_loopdetect`; these
+    # delegators keep the class API stable for callers/tests.
     @staticmethod
     def _rec_key(rec: dict) -> tuple[str, str]:
-        """Normalised (target, recommendation-text) pair for similarity checks."""
-        return (
-            rec.get("target", "").strip().lower(),
-            rec.get("recommendation", "").strip().lower(),
-        )
+        return loop_detect.rec_key(rec)
 
     @staticmethod
     def _are_similar(rec1: dict, rec2: dict) -> bool:
-        return CoordinatorAgent._rec_key(rec1) == CoordinatorAgent._rec_key(rec2)
+        return loop_detect.are_similar(rec1, rec2)
 
     def _consecutive_similar(self, new_rec: dict, history: list[dict]) -> int:
-        """Count how many tail entries of history are similar to new_rec."""
-        count = 0
-        for past in reversed(history):
-            if self._are_similar(new_rec, past):
-                count += 1
-            else:
-                break
-        return count
+        return loop_detect.consecutive_similar(new_rec, history)
 
     def run_command(
         self,
