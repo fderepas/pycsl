@@ -17,18 +17,18 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/ast.py
 - `NodeVisitorObj.generic_visit` — `src/pycsl_lib/ast.py:29`
 - `NodeTransformerObj.__init__` — `src/pycsl_lib/ast.py:36`
 - `NodeTransformerObj.visit` — `src/pycsl_lib/ast.py:43`
-- `NodeTransformerObj.generic_visit` — `src/pycsl_lib/ast.py:51`
-- `parse` — `src/pycsl_lib/ast.py:60`
-- `unparse` — `src/pycsl_lib/ast.py:67`
-- `literal_eval` — `src/pycsl_lib/ast.py:76`
-- `get_docstring` — `src/pycsl_lib/ast.py:83`
-- `dump` — `src/pycsl_lib/ast.py:89`
-- `fix_missing_locations` — `src/pycsl_lib/ast.py:95`
-- `increment_lineno` — `src/pycsl_lib/ast.py:101`
-- `copy_location` — `src/pycsl_lib/ast.py:107`
-- `iter_fields` — `src/pycsl_lib/ast.py:113`
-- `iter_child_nodes` — `src/pycsl_lib/ast.py:119`
-- `walk` — `src/pycsl_lib/ast.py:125`
+- `NodeTransformerObj.generic_visit` — `src/pycsl_lib/ast.py:52`
+- `parse` — `src/pycsl_lib/ast.py:61`
+- `unparse` — `src/pycsl_lib/ast.py:68`
+- `literal_eval` — `src/pycsl_lib/ast.py:78`
+- `get_docstring` — `src/pycsl_lib/ast.py:85`
+- `dump` — `src/pycsl_lib/ast.py:92`
+- `fix_missing_locations` — `src/pycsl_lib/ast.py:99`
+- `increment_lineno` — `src/pycsl_lib/ast.py:106`
+- `copy_location` — `src/pycsl_lib/ast.py:113`
+- `iter_fields` — `src/pycsl_lib/ast.py:120`
+- `iter_child_nodes` — `src/pycsl_lib/ast.py:127`
+- `walk` — `src/pycsl_lib/ast.py:134`
 
 ## Private (leading-`_`) defs (0)
 

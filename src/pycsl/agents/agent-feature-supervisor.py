@@ -86,68 +86,96 @@ def _delegate_phase(phase: "Phase", plan_text: str,
         return False, f"llm_client unavailable: {e}"
 
     tag = _phase_tag(slug, phase.number)
-    # Create the start tag at HEAD; allow overwrite via -f (the only
-    # -f we allow, scoped to tags only; bypass _git's check).
-    subprocess.run(["git", "tag", "-f", tag],
-                   cwd=str(_PROJECT_ROOT),
-                   capture_output=True)
-    # The tag only snapshots TRACKED state; also snapshot any pre-existing
-    # untracked targets so a rollback restores (never deletes) them.
-    _snapshot_untracked_targets(slug, phase.number, phase.target_files)
+    # Repair loop: up to _DELEGATE_MAX_ATTEMPTS tries, feeding each verifier
+    # rejection back into the prompt so the delegate self-corrects (a one-shot
+    # delegate failed on trivially-fixable errors like `assigns self`). Each
+    # attempt re-tags HEAD + re-snapshots untracked targets; a failed attempt
+    # rolls the tree back so the next starts clean.
+    prior_error = ""
+    last_msg = "delegation produced no result"
+    for attempt in range(1, _DELEGATE_MAX_ATTEMPTS + 1):
+        # (Re)create the per-phase start tag at HEAD; `-f` is the only force we
+        # allow, scoped to tags, bypassing _git's check. Then snapshot any
+        # pre-existing untracked targets (the tag only captures tracked state).
+        subprocess.run(["git", "tag", "-f", tag],
+                       cwd=str(_PROJECT_ROOT), capture_output=True)
+        _snapshot_untracked_targets(slug, phase.number, phase.target_files)
 
-    prompt = _build_phase_prompt(phase, plan_text)
-    try:
-        llm_output = llm_generate(
-            prompt=prompt,
-            system="You are a coding assistant. Follow the rules in the "
-                   "coding-llm-prompt scaffold above. " + FILE_OUTPUT_INSTRUCTION,
-            agent_id=AGENT_NAME,
-            model=_delegate_model(),
-        )
-    except Exception as e:
-        return False, f"llm_generate raised: {e}"
-
-    # Prefer full-file blocks (robust); fall back to a unified diff.
-    files = _extract_files(llm_output)
-    if files:
-        ok, err, written = _write_files(files)
-        if not ok:
+        prompt = _build_phase_prompt(phase, plan_text, prior_error=prior_error)
+        try:
+            llm_output = llm_generate(
+                prompt=prompt,
+                system="You are a coding assistant. Follow the rules in the "
+                       "coding-llm-prompt scaffold above. " + FILE_OUTPUT_INSTRUCTION,
+                agent_id=AGENT_NAME,
+                model=_delegate_model(),
+            )
+        except Exception as e:
             _rollback_phase(slug, phase.number, phase.target_files)
-            return False, err
-        rollback_targets = sorted(set(phase.target_files) | set(written))
-    else:
-        diff = _extract_diff(llm_output)
-        if not diff:
-            return False, ("llm refused or produced no diff "
-                           "(output had neither FILE blocks nor a diff block)")
-        ok, err = _apply_diff(diff)
-        if not ok:
-            return False, err
-        rollback_targets = list(phase.target_files)
+            return False, f"llm_generate raised: {e}"
 
-    # Re-run the gate (subset — just the cheap steps)
-    quick_results = run_gate()
-    if not all(r.passed for r in quick_results):
-        _rollback_phase(slug, phase.number, rollback_targets)
-        return False, "gate-fail (rolled back)"
+        # Prefer full-file blocks (robust); fall back to a unified diff.
+        files = _extract_files(llm_output)
+        if files:
+            ok, err, written = _write_files(files)
+            if not ok:
+                last_msg = err
+                prior_error = err
+                _rollback_phase(slug, phase.number, phase.target_files)
+                continue
+            rollback_targets = sorted(set(phase.target_files) | set(written))
+        else:
+            diff = _extract_diff(llm_output)
+            if not diff:
+                last_msg = ("llm refused or produced no diff "
+                            "(output had neither FILE blocks nor a diff block)")
+                prior_error = last_msg
+                _rollback_phase(slug, phase.number, phase.target_files)
+                continue
+            ok, err = _apply_diff(diff)
+            if not ok:
+                last_msg = err
+                prior_error = f"the diff did not apply: {err}"
+                _rollback_phase(slug, phase.number, phase.target_files)
+                continue
+            rollback_targets = list(phase.target_files)
 
-    # ER gap 6: also evaluate the phase's acceptance claims after the
-    # LLM diff applies. Without this, delegation succeeds based on
-    # gate alone — exactly the proxy-claim pattern ER exists to
-    # prevent. Empty acceptance list means the phase opted out or
-    # was caught upstream by the completeness guard.
-    if phase.acceptance:
-        for claim in phase.acceptance:
-            res = _check_acceptance(
-                claim, _PROJECT_ROOT, _DEFAULT_TIMEOUT_SEC)
+        # Re-run the gate (subset — just the cheap steps)
+        quick_results = run_gate()
+        if not all(r.passed for r in quick_results):
+            failing = "; ".join(
+                f"{r.step}: {(r.output or '')[-300:]}"
+                for r in quick_results if not r.passed and not r.skipped
+            )
+            last_msg = "gate-fail (rolled back)"
+            prior_error = f"the verification gate failed — {failing}"
+            _rollback_phase(slug, phase.number, rollback_targets)
+            continue
+
+        # ER gap 6: also evaluate the phase's acceptance claims after the
+        # diff applies (the gate alone is the proxy-claim pattern ER prevents).
+        # A failure here carries the tool's real stdout error (verification /
+        # parse / type), which we feed back verbatim so the delegate fixes it.
+        accept_fail = None
+        for claim in (phase.acceptance or []):
+            res = _check_acceptance(claim, _PROJECT_ROOT, _DEFAULT_TIMEOUT_SEC)
             if not res.passed:
-                _rollback_phase(slug, phase.number, rollback_targets)
-                return False, (
-                    f"acceptance-fail (rolled back): {claim.raw_line!r} → "
-                    f"{res.reason_if_failed}"
-                )
+                accept_fail = (claim, res)
+                break
+        if accept_fail is not None:
+            claim, res = accept_fail
+            last_msg = (f"acceptance-fail (rolled back): {claim.raw_line!r} → "
+                        f"{res.reason_if_failed}")
+            prior_error = (f"an acceptance check failed: {claim.raw_line}\n"
+                           f"{res.reason_if_failed}")
+            _rollback_phase(slug, phase.number, rollback_targets)
+            continue
 
-    return True, ""
+        # Success — keep the start tag (audit trail), drop the transient snapshot.
+        _cleanup_phase_snapshot(slug, phase.number)
+        return True, ""
+
+    return False, f"{last_msg} [after {_DELEGATE_MAX_ATTEMPTS} attempt(s)]"
 
 
 # ---------------------------------------------------------------------------

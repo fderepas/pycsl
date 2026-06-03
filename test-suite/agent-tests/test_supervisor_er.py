@@ -127,6 +127,9 @@ def test_delegation_runs_acceptance_post_gate(monkeypatch):
     invocations). The acceptance executor itself runs against real
     `true` / `false` claims (no mocking needed there)."""
     afs = _load_supervisor_module()
+    # This test exercises the post-gate acceptance check + single rollback, not
+    # the retry loop — pin to one attempt so the rollback count is deterministic.
+    monkeypatch.setattr(afs, "_DELEGATE_MAX_ATTEMPTS", 1)
 
     # Stub the llm_client import _delegate_phase performs at runtime.
     import sys
@@ -248,3 +251,77 @@ def test_exits_failure_surfaces_stdout():
     assert res.passed is False
     assert "PYCSL_STDOUT_MARKER" in res.reason_if_failed, res.reason_if_failed
     assert "stdout" in res.reason_if_failed.lower()
+
+
+# ---------------------------------------------------------------------------
+# Delegate repair loop — retry with the verifier error fed back
+# ---------------------------------------------------------------------------
+
+def test_delegate_prompt_feeds_prior_error_and_syntax_cheat():
+    """On a retry, the prompt leads with the previous verifier error and always
+    carries the PyCSL contract-syntax rules (so e.g. `assigns self` gets fixed)."""
+    afs = _load_supervisor_module()
+    ph = afs.Phase(number=4, title="collections", target_files=[],
+                   raw_body="**Level:** L5")
+    p = afs._build_phase_prompt(
+        ph, "(plan)", prior_error="PyCSL Syntax Error: assigns self  Expected DOT")
+    assert "PREVIOUS ATTEMPT FAILED" in p
+    assert "assigns self" in p                 # the exact error echoed back
+    assert "\\nothing" in p                     # the contract-syntax cheat is present
+
+
+def test_delegate_phase_retries_then_succeeds(monkeypatch):
+    """First attempt yields no usable diff; the loop retries and the second
+    attempt lands → overall success (the one-shot delegate would have failed)."""
+    afs = _load_supervisor_module()
+    monkeypatch.setattr(afs, "_DELEGATE_MAX_ATTEMPTS", 3)
+    import sys
+    calls = {"n": 0}
+
+    def gen(**kw):
+        calls["n"] += 1
+        return "I won't" if calls["n"] == 1 else "```diff\n# a real diff\n```"
+    fake = type(sys)("llm_client")
+    fake.llm_generate = gen
+    monkeypatch.setitem(sys.modules, "llm_client", fake)
+    monkeypatch.setattr(afs, "_apply_diff", lambda d: (True, ""))
+    monkeypatch.setattr(afs, "run_gate", lambda: [])
+    monkeypatch.setattr(afs, "_rollback_phase", lambda *a, **k: True)
+    monkeypatch.setattr(afs, "_snapshot_untracked_targets", lambda *a, **k: None)
+    monkeypatch.setattr(afs, "_cleanup_phase_snapshot", lambda *a, **k: None)
+    import subprocess
+    monkeypatch.setattr(
+        subprocess, "run",
+        lambda *a, **k: subprocess.CompletedProcess(a[0] if a else [], 0, "", ""))
+
+    phase = afs.Phase(number=5, title="retry", target_files=[], acceptance=[])
+    ok, msg = afs._delegate_phase(phase, "(plan)", "retry-slug")
+    assert ok is True, msg
+    assert calls["n"] == 2, f"expected 2 LLM calls (fail then succeed), got {calls['n']}"
+
+
+def test_delegate_phase_gives_up_after_max_attempts(monkeypatch):
+    """Every attempt fails → halt after _DELEGATE_MAX_ATTEMPTS, message says so."""
+    afs = _load_supervisor_module()
+    monkeypatch.setattr(afs, "_DELEGATE_MAX_ATTEMPTS", 2)
+    import sys
+    calls = {"n": 0}
+
+    def gen(**kw):
+        calls["n"] += 1
+        return "no diff here"
+    fake = type(sys)("llm_client")
+    fake.llm_generate = gen
+    monkeypatch.setitem(sys.modules, "llm_client", fake)
+    monkeypatch.setattr(afs, "_rollback_phase", lambda *a, **k: True)
+    monkeypatch.setattr(afs, "_snapshot_untracked_targets", lambda *a, **k: None)
+    import subprocess
+    monkeypatch.setattr(
+        subprocess, "run",
+        lambda *a, **k: subprocess.CompletedProcess(a[0] if a else [], 0, "", ""))
+
+    phase = afs.Phase(number=6, title="hopeless", target_files=[], acceptance=[])
+    ok, msg = afs._delegate_phase(phase, "(plan)", "giveup-slug")
+    assert ok is False
+    assert calls["n"] == 2
+    assert "2 attempt" in msg

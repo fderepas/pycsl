@@ -12,14 +12,14 @@ bin/cmmi-mod-index.py --file src/pycsl/agents/agent-feature-supervisor.py
 
 ## Public functions / methods (2)
 
-- `supervise` — `src/pycsl/agents/agent-feature-supervisor.py:223`
-- `main` — `src/pycsl/agents/agent-feature-supervisor.py:574`
+- `supervise` — `src/pycsl/agents/agent-feature-supervisor.py:251`
+- `main` — `src/pycsl/agents/agent-feature-supervisor.py:602`
 
 ## Private (leading-`_`) defs (3)
 
 - `_delegate_phase` — `src/pycsl/agents/agent-feature-supervisor.py:68`
-- `_read_agent_log_context` — `src/pycsl/agents/agent-feature-supervisor.py:175`
-- `supervise._emit_summary` — `src/pycsl/agents/agent-feature-supervisor.py:252`
+- `_read_agent_log_context` — `src/pycsl/agents/agent-feature-supervisor.py:203`
+- `supervise._emit_summary` — `src/pycsl/agents/agent-feature-supervisor.py:280`
 
 ---
 

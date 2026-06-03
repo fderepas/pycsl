@@ -18,15 +18,56 @@ __all__ = [
     '_write_files',
     '_snapshot_untracked_targets',
     '_rollback_phase',
+    '_cleanup_phase_snapshot',
     '_delegate_model',
+    '_DELEGATE_MAX_ATTEMPTS',
+    '_PYCSL_SYNTAX_CHEAT',
 ]
 
-def _build_phase_prompt(phase: "Phase", plan_text: str) -> str:
-    """Wrap the coding-LLM scaffold around the phase body + target file contents."""
+# How many times the delegate may retry a phase, feeding the verifier's error
+# back into the prompt each time (env-overridable; 1 disables retry).
+_DELEGATE_MAX_ATTEMPTS = int(os.environ.get("PYCSL_SUPERVISOR_DELEGATE_ATTEMPTS", "3"))
+
+# Concrete PyCSL contract-syntax rules injected into every delegate prompt.
+# These encode the failure classes seen in practice (assigns-self syntax error,
+# trusted-stripping leaving an unprovable body, callee arity mismatch) so the
+# delegate avoids them up front and can recognise them in retry feedback.
+_PYCSL_SYNTAX_CHEAT = r"""## PyCSL contract syntax — avoid these rejections
+- `#@ assigns` takes LVALUES, never a bare object. Use `assigns \nothing` for a
+  pure function, or name the mutated fields: `assigns self.count, self.items`.
+  Writing `assigns self` is a SYNTAX ERROR (the parser expects `self.<field>`).
+- If you drop a `\trusted` line, the body must PROVABLY satisfy every `ensures`:
+  `return 0` cannot prove `ensures \result == x`. Either give the function a body
+  that matches its contract (e.g. `return x`), or keep a plain `#@ \trusted` with
+  NO `reviewer:` suffix — plain `\trusted` passes the `trusted reviewer:` check
+  while leaving the body unverified.
+- Call stub functions with EXACTLY the parameters they declare; an arity mismatch
+  yields `int -> int, but is applied to N arguments`.
+- The memory model is `hoare`: ints and `array int` are value-semantic (no heap).
+"""
+
+def _build_phase_prompt(phase: "Phase", plan_text: str,
+                        prior_error: str = "") -> str:
+    """Wrap the coding-LLM scaffold around the phase body + target file contents.
+
+    `prior_error` (set on a retry) is shown prominently so the delegate corrects
+    the exact verifier rejection from its previous attempt."""
     if not _CODING_LLM_PROMPT.is_file():
         scaffold = "(coding-llm-prompt.md missing; falling back to bare instructions)"
     else:
         scaffold = _CODING_LLM_PROMPT.read_text()
+
+    # On a retry, lead with the previous failure so the model fixes exactly that.
+    feedback = ""
+    if prior_error:
+        feedback = (
+            "## YOUR PREVIOUS ATTEMPT FAILED — fix exactly this\n\n"
+            "The verifier rejected your last output with:\n\n```\n"
+            + prior_error.strip()
+            + "\n```\n\n"
+            "Produce a corrected full file (or diff) that resolves the above. "
+            "Re-read the PyCSL contract-syntax rules below.\n\n---\n"
+        )
 
     # Prepend the supervisor persona so a delegate inherits the ER
     # discipline (gap 11). Best-effort: skip silently if absent.
@@ -55,8 +96,10 @@ def _build_phase_prompt(phase: "Phase", plan_text: str) -> str:
 
     parts = [
         persona,
+        feedback,
         scaffold,
         "",
+        _PYCSL_SYNTAX_CHEAT,
         "---",
         "",
         skills_block,
@@ -223,6 +266,12 @@ def _snapshot_untracked_targets(slug: str, phase_number: int,
             dst = snap_dir / rel
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dst)
+
+
+def _cleanup_phase_snapshot(slug: str, phase_number: int) -> None:
+    """Drop the per-phase untracked-target snapshot (transient, under metrics/).
+    Called on delegation SUCCESS — the start tag is kept as an audit trail."""
+    shutil.rmtree(_phase_snapshot_dir(slug, phase_number), ignore_errors=True)
 
 
 def _rollback_phase(slug: str, phase_number: int,

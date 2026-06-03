@@ -14,17 +14,18 @@ bin/cmmi-mod-index.py --file src/pycsl/agents/feature_supervisor/delegation.py
 
 _(none)_
 
-## Private (leading-`_`) defs (9)
+## Private (leading-`_`) defs (10)
 
-- `_build_phase_prompt` — `src/pycsl/agents/feature_supervisor/delegation.py:24`
-- `_extract_diff` — `src/pycsl/agents/feature_supervisor/delegation.py:100`
-- `_apply_diff` — `src/pycsl/agents/feature_supervisor/delegation.py:112`
-- `_extract_files` — `src/pycsl/agents/feature_supervisor/delegation.py:165`
-- `_write_files` — `src/pycsl/agents/feature_supervisor/delegation.py:177`
-- `_phase_snapshot_dir` — `src/pycsl/agents/feature_supervisor/delegation.py:199`
-- `_snapshot_untracked_targets` — `src/pycsl/agents/feature_supervisor/delegation.py:203`
-- `_rollback_phase` — `src/pycsl/agents/feature_supervisor/delegation.py:228`
-- `_delegate_model` — `src/pycsl/agents/feature_supervisor/delegation.py:277`
+- `_build_phase_prompt` — `src/pycsl/agents/feature_supervisor/delegation.py:49`
+- `_extract_diff` — `src/pycsl/agents/feature_supervisor/delegation.py:143`
+- `_apply_diff` — `src/pycsl/agents/feature_supervisor/delegation.py:155`
+- `_extract_files` — `src/pycsl/agents/feature_supervisor/delegation.py:208`
+- `_write_files` — `src/pycsl/agents/feature_supervisor/delegation.py:220`
+- `_phase_snapshot_dir` — `src/pycsl/agents/feature_supervisor/delegation.py:242`
+- `_snapshot_untracked_targets` — `src/pycsl/agents/feature_supervisor/delegation.py:246`
+- `_cleanup_phase_snapshot` — `src/pycsl/agents/feature_supervisor/delegation.py:271`
+- `_rollback_phase` — `src/pycsl/agents/feature_supervisor/delegation.py:277`
+- `_delegate_model` — `src/pycsl/agents/feature_supervisor/delegation.py:326`
 
 ---
 
@@ -32,4 +33,4 @@ _(none)_
 
 The `#@` contract block immediately preceding each `def` in `src/pycsl/agents/feature_supervisor/delegation.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **9** (public: 0, private: 9).
+Total defs: **10** (public: 0, private: 10).
