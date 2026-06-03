@@ -361,6 +361,63 @@ def _resolve_imported_classes(direct_imports: List[Any], main_file: str,
     return added
 
 
+def _resolve_imported_base_classes(module_imports: List[Any], main_file: str,
+                                   ir_data: Dict[str, Any], deep: bool,
+                                   cache: Dict[str, Any],
+                                   processing_set: Set[str]) -> Set[str]:
+    """Layer A′ — resolve a subclass's base that lives behind a *module* import.
+
+    For `import ast` + `class X(ast.NodeVisitor)`, Module5 records the base as
+    the bare attribute tail `NodeVisitor`; the `from`-import path never sees it
+    because the import is a module import. Here we look up each still-unresolved
+    base name among the module-imported dependencies and inject its record +
+    `<class>__*` method stubs, so `_apply_inheritance` can monomorphize the
+    base's methods onto the subclass (giving an inherited-method call its
+    postcondition at the call site).
+    """
+    added: Set[str] = set()
+    type_decls = ir_data.get("type_decls", [])
+    existing_types = {td.get("name") for td in type_decls}
+    existing_funcs = {f["name"] for f in ir_data["functions"]}
+    needed = {b for td in type_decls for b in td.get("bases", [])
+              if b not in existing_types}
+    if not needed:
+        return added
+
+    for local, orig, module_path, level in module_imports:
+        if not needed:
+            break
+        resolved = _resolve_module_path(module_path, level, main_file)
+        if resolved is None:
+            continue
+        _process_dependency(resolved, [], cache, deep=deep,
+                            processing_set=processing_set)
+        dep_ir = cache.get(os.path.abspath(resolved))
+        if not dep_ir:
+            continue
+        dep_types = {td.get("name"): td for td in dep_ir.get("type_decls", [])}
+        dep_funcs = {f["name"]: f for f in dep_ir.get("functions", [])}
+        for bname in list(needed):
+            if bname not in dep_types:
+                continue
+            ir_data.setdefault("type_decls", []).append(dict(dep_types[bname]))
+            existing_types.add(bname)
+            needed.discard(bname)
+            added.add(bname)
+            prefix = f"{bname.lower()}__"
+            injected = 0
+            for fname, f in dep_funcs.items():
+                if fname.startswith(prefix) and fname not in existing_funcs:
+                    mf = dict(f)
+                    mf["trusted"] = True
+                    ir_data["functions"].insert(0, mf)
+                    existing_funcs.add(fname)
+                    injected += 1
+            print(f"[*] Imported base class from '{module_path}': {bname} "
+                  f"(record + {injected} method stub(s))")
+    return added
+
+
 def _apply_inheritance(ir_data: Dict[str, Any]) -> None:
     """Layers B+C — merge each subclass's base(s) into it at the IR level.
 
@@ -476,6 +533,11 @@ def _resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str,
         wildcard_imports, all_calls, main_file, ir_data, deep, cache, processing_set)
     imported_names |= _resolve_module_imports(
         module_imports, all_calls, main_file, ir_data, deep, cache, processing_set)
+    # Layer A′: subclass bases referenced via a module import (`import ast` +
+    # `class X(ast.NodeVisitor)`) — inject the base record + methods so the
+    # later `_apply_inheritance` pass can monomorphize them onto the subclass.
+    imported_names |= _resolve_imported_base_classes(
+        module_imports, main_file, ir_data, deep, cache, processing_set)
     return imported_names
 
 

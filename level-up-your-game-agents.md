@@ -260,3 +260,20 @@ except ValueError:
     print("Blocked malicious input!")  # This will trigger, keeping your system safe.
 ```
 
+
+---
+
+## Execution status & re-sequencing (live)
+
+**Merged to `main`:**
+- **Part A** (`41d261f`) — 0-`\trusted` policy + enforcement (generator, SKILL.md, skill-doc reversals, `check-no-trusted-stubs.py` + gate wiring, delegate cheat).
+- **Method-call contract fix** (`ca80087`) — a driver that constructs an object and calls its **own** method now gets the method's `ensures` (corpus 0446). The prerequisite for all class-based demos.
+- **B2** (`171842e`) — string predicates `islower/startswith/endswith/…` → `0|1`-constrained op (corpus 0447).
+
+**Four diagnosed sub-gaps (each its own milestone):**
+- **B1 — cross-module inherited-method merge. ✅ DONE.** `class FunctionAnalyzer(ast.NodeVisitor)` with the base in `src/pycsl_lib/ast.py` + a driver calling the inherited `a.visit(n)` now verifies (corpus **0448**), 0 `\trusted`. The real blocker was *not* the merge logic: **a field-less class is modeled as `type X = int`, not a record**, so it could never be a base in `_apply_inheritance`'s `records` dict and its `self.method()` wouldn't resolve. Three edits: (1) gave `NodeVisitor` a concrete `_depth` field + invariant (makes it a record; mirrored in corpus `multi_file_lib/visitor_base.py`); (2) widened Module5 base-capture (~line 1117) to take dotted `ast.Attribute` bases (`b.attr`); (3) new `pycsl._resolve_imported_base_classes` (Layer A′) injects a base referenced via a *module* import (`import ast; class X(ast.NodeVisitor)`) — the `from`-import path already handled `from ast import NodeVisitor`. `_apply_inheritance` was already correct once the base was a record. Same-file inheritance (0443/0444) unchanged; full corpus regression = 0 new failures (the 29 reds are all pre-existing: missing `multi_file_lib.arith`/`rel_helper` + annotation-reference tests).
+- **B3 — `ast.literal_eval` + map + cited parse-safety axiom** (unchanged from above).
+- **B4 — `super().__init__()`, `SyntaxError` + tuple-handlers, `print`/f-strings/`type`** (unchanged).
+- **C1 string-content** — the int-model `Buffer` StringIO is verifiable now (method-call fix), but the *literal* `write("Line 1\n")` form needs string-content modeling (writing string literals) — a separate extension beyond B2's predicates.
+
+**Re-sequenced remainder:** ~~B1~~ → **B3** (next) → B4 → string-content → C1 (literal StringIO) → C2 (`ast.py` → 0 `\trusted`) → C3 (`ast_demo` check_code + literal_eval). C2/C3 depend on B3+B4; C1's literal form depends on string-content.

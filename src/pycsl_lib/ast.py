@@ -5,6 +5,28 @@ NodeVisitor and NodeTransformer modelled as classes.
 """
 _ = 0  # anchor
 
+# ── NodeVisitor base (body-verified, 0 \trusted) ────────────────────
+# Body-verified base so subclasses inherit visit / generic_visit. Carries a
+# concrete `_depth` field (a class with no fields is modeled as `int`, not a
+# record, and so cannot be a base in the IR-level monomorphizer) and a class
+# invariant pinning it non-negative. Reflective `getattr(self,'visit_'+name)`
+# dispatch is not modeled — the base returns a non-negative visit result;
+# subclasses override `visit_<Node>` statically.
+#@ class invariant self._depth >= 0
+class NodeVisitor:
+    def __init__(self):
+        self._depth = 0
+
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def generic_visit(self, node: int) -> int:
+        return 0
+
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def visit(self, node: int) -> int:
+        return self.generic_visit(node)
+
 # ── NodeVisitorObj class ────────────────────────────────────────────
 
 ""  # pycsl

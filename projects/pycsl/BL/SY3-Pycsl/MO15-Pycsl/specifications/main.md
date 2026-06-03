@@ -12,10 +12,10 @@ bin/cmmi-mod-index.py --file src/pycsl/pycsl.py
 
 ## Public functions / methods (2)
 
-- `_apply_inheritance.merge_one` — `src/pycsl/pycsl.py:381`
-- `main` — `src/pycsl/pycsl.py:959`
+- `_apply_inheritance.merge_one` — `src/pycsl/pycsl.py:438`
+- `main` — `src/pycsl/pycsl.py:1021`
 
-## Private (leading-`_`) defs (23)
+## Private (leading-`_`) defs (24)
 
 - `_collect_calls` — `src/pycsl/pycsl.py:32`
 - `_extract_imports` — `src/pycsl/pycsl.py:46`
@@ -27,19 +27,20 @@ bin/cmmi-mod-index.py --file src/pycsl/pycsl.py
 - `_resolve_wildcard_imports` — `src/pycsl/pycsl.py:234`
 - `_resolve_module_imports` — `src/pycsl/pycsl.py:269`
 - `_resolve_imported_classes` — `src/pycsl/pycsl.py:302`
-- `_apply_inheritance` — `src/pycsl/pycsl.py:364`
-- `_resolve_imports` — `src/pycsl/pycsl.py:441`
-- `_proof_reference_mlw_name` — `src/pycsl/pycsl.py:482`
-- `_make_temp_mlw_path` — `src/pycsl/pycsl.py:487`
-- `_generate_rocq_obligations` — `src/pycsl/pycsl.py:494`
-- `_sha256_file` — `src/pycsl/pycsl.py:542`
-- `_find_coqc` — `src/pycsl/pycsl.py:551`
-- `_find_why3_coq_lib` — `src/pycsl/pycsl.py:560`
-- `_check_rocq_proofs` — `src/pycsl/pycsl.py:568`
-- `_parse_args` — `src/pycsl/pycsl.py:633`
-- `_run_pipeline` — `src/pycsl/pycsl.py:732`
-- `_run_proofs` — `src/pycsl/pycsl.py:846`
-- `_run_audit_mode` — `src/pycsl/pycsl.py:931`
+- `_resolve_imported_base_classes` — `src/pycsl/pycsl.py:364`
+- `_apply_inheritance` — `src/pycsl/pycsl.py:421`
+- `_resolve_imports` — `src/pycsl/pycsl.py:498`
+- `_proof_reference_mlw_name` — `src/pycsl/pycsl.py:544`
+- `_make_temp_mlw_path` — `src/pycsl/pycsl.py:549`
+- `_generate_rocq_obligations` — `src/pycsl/pycsl.py:556`
+- `_sha256_file` — `src/pycsl/pycsl.py:604`
+- `_find_coqc` — `src/pycsl/pycsl.py:613`
+- `_find_why3_coq_lib` — `src/pycsl/pycsl.py:622`
+- `_check_rocq_proofs` — `src/pycsl/pycsl.py:630`
+- `_parse_args` — `src/pycsl/pycsl.py:695`
+- `_run_pipeline` — `src/pycsl/pycsl.py:794`
+- `_run_proofs` — `src/pycsl/pycsl.py:908`
+- `_run_audit_mode` — `src/pycsl/pycsl.py:993`
 
 ---
 
@@ -47,4 +48,4 @@ bin/cmmi-mod-index.py --file src/pycsl/pycsl.py
 
 The `#@` contract block immediately preceding each `def` in `src/pycsl/pycsl.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **25** (public: 2, private: 23).
+Total defs: **26** (public: 2, private: 24).

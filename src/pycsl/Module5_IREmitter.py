@@ -1114,7 +1114,16 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
         """
         self._current_class = node.name
         fields, field_defaults = self._collect_class_fields(node)
-        bases = [b.id for b in node.bases if isinstance(b, ast.Name)]
+        # Capture both `class X(Base)` (ast.Name) and `class X(mod.Base)`
+        # (ast.Attribute, e.g. `ast.NodeVisitor`) — for the dotted form we
+        # record the attribute tail (`NodeVisitor`); cross-module resolution
+        # (pycsl._resolve_imports) injects the named class from a module import.
+        bases = []
+        for b in node.bases:
+            if isinstance(b, ast.Name):
+                bases.append(b.id)
+            elif isinstance(b, ast.Attribute):
+                bases.append(b.attr)
         # UB-7.2 — track presence of __hash__ / __eq__ so Module 6 can
         # emit the consistency goal in the preamble.
         method_names = {
