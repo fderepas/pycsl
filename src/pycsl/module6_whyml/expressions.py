@@ -580,6 +580,24 @@ class ExpressionEmissionMixin:
         if func_name in ("min", "max") and len(args) == 2:
             fn = "MinMax.min" if func_name == "min" else "MinMax.max"
             return f"({fn} {args[0]} {args[1]})"
+        # String predicate methods (`s.islower()`, `s.startswith(p)`, …) — model
+        # as uninterpreted 0/1-valued ops, so a function that RETURNS the
+        # predicate can prove `\result == 0 or \result == 1`. The value is not
+        # related to the receiver (uninterpreted): design VCs on the predicate's
+        # 0/1-ness or its control-flow consequence, not its concrete truth.
+        if "." in func_name and func_name.rsplit(".", 1)[-1] in (
+                "islower", "isupper", "isalpha", "isdigit", "isspace",
+                "istitle", "isalnum", "isnumeric", "isdecimal",
+                "isidentifier", "startswith", "endswith"):
+            pname = whyml_ident(func_name.replace(".", "_")) + f"_{len(args)}"
+            ens = "ensures { ((result = 0) || (result = 1)) }"
+            if args:
+                coerced = [self._coerce_to_int(a) for a in args]
+                params = " ".join(f"(x{i}: int)" for i in range(len(args)))
+                self._add_abstract_op(f"val {pname} {params} : int {ens}")
+                return f"({pname} {' '.join(coerced)})"
+            self._add_abstract_op(f"val {pname} () : int {ens}")
+            return f"({pname} ())"
         if func_name == "isinstance" and len(args) == 2:
             type_arg = self._coerce_to_int(args[1])
             self_type = self._current_self_type
