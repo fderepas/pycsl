@@ -34,17 +34,17 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/os/path.py
 - `isdevdrive` — `src/pycsl_lib/os/path.py:120`
 - `isreserved` — `src/pycsl_lib/os/path.py:126`
 - `join` — `src/pycsl_lib/os/path.py:132`
-- `normcase` — `src/pycsl_lib/os/path.py:138`
-- `normpath` — `src/pycsl_lib/os/path.py:144`
-- `realpath` — `src/pycsl_lib/os/path.py:150`
-- `relpath` — `src/pycsl_lib/os/path.py:156`
-- `samefile` — `src/pycsl_lib/os/path.py:162`
-- `sameopenfile` — `src/pycsl_lib/os/path.py:168`
-- `samestat` — `src/pycsl_lib/os/path.py:174`
-- `split` — `src/pycsl_lib/os/path.py:180`
-- `splitdrive` — `src/pycsl_lib/os/path.py:186`
-- `splitroot` — `src/pycsl_lib/os/path.py:192`
-- `splitext` — `src/pycsl_lib/os/path.py:198`
+- `normcase` — `src/pycsl_lib/os/path.py:140`
+- `normpath` — `src/pycsl_lib/os/path.py:146`
+- `realpath` — `src/pycsl_lib/os/path.py:152`
+- `relpath` — `src/pycsl_lib/os/path.py:158`
+- `samefile` — `src/pycsl_lib/os/path.py:164`
+- `sameopenfile` — `src/pycsl_lib/os/path.py:170`
+- `samestat` — `src/pycsl_lib/os/path.py:176`
+- `split` — `src/pycsl_lib/os/path.py:182`
+- `splitdrive` — `src/pycsl_lib/os/path.py:188`
+- `splitroot` — `src/pycsl_lib/os/path.py:194`
+- `splitext` — `src/pycsl_lib/os/path.py:200`
 
 ## Private (leading-`_`) defs (0)
 
