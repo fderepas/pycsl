@@ -51,8 +51,42 @@ That is the whole point: replace blanket trust with a citation a reviewer can ch
 
 ## When you hit a wall
 
-If a stub body won't prove: **do not** add `\trusted`. Either (a) strengthen the
-model (more concrete state / a loop invariant), or (b) isolate the opaque step
-behind an abstract `val` + a cited `#@ proof rocq/lean` lemma. See
+If a stub body won't prove: **do not** add `\trusted`. In order of preference:
+
+1. **Strengthen the model** — more concrete state, a loop invariant, a richer field.
+2. **`#@ \abstract`** (annotations.md §2.1.14) — for an *irreducibly-opaque* op, mark
+   the function `#@ \abstract`: it emits a bodyless `val` defined solely by its
+   contract (sound, uninterpreted). Unlike `\trusted` it is NOT a trusted, present-but-
+   unchecked body — there is no body; the contract IS the definition. It passes
+   `check-no-trusted-stubs`. This is the canonical 0-`\trusted` model for a parser,
+   an external format, a hardware primitive. Example — `ast.literal_eval` (which IS
+   Python's parser): an `#@ \abstract` `val` with a bounded raises set
+   (`ValueError`/`SyntaxError`), so a `try/except` wrapper around it is provably total
+   (corpus `0449`), even though its parsed value is uninterpreted.
+3. **Pin a real fact with `#@ proof rocq/lean`** — if there is a genuine, non-trivial
+   property of the opaque op (a round-trip, an algebraic law), cite a cross-validated
+   lemma in `_AXIOM_REGISTRY` and consume it. `unix-filesystem` does this for
+   `struct.unpack` / bitwise ops. **Do not** invent a tautological or value-specific
+   "axiom" just to have one — a rubber stamp is worse than an honest `#@ \abstract`
+   spec. If the only true fact *is* the contract (as for `literal_eval`'s value),
+   stop at step 2.
+
+## Runtime decoration is tolerated, never verified
+
+`print(...)`, f-strings (`f"…"`), and `type(x)` carry **no** proof obligation and no
+observable `assigns` effect: a verified function that uses them proves exactly as if
+they were absent (their results are discarded or bound to unused locals). They are
+**tolerated decoration** so a literal demo parses — but their results must **never**
+feed proven content (a `type(x)` value used in a contract would be an opaque, unsound
+spot). Keep them out of the verified surface. Corpus `0450` locks this.
+
+`SyntaxError` is a first-class **explicit** exception — `#@ raises SyntaxError`,
+`raise SyntaxError`, and `except (ValueError, SyntaxError)` all work (the preamble
+declares any exception named in a `raises` contract or handler). It is deliberately
+**not** in `exception_model.KNOWN_EXCEPTIONS`, which is reserved for exceptions with a
+mathematical *implicit trigger* (ZeroDivision/Index/Key/Value/StopIteration); a
+parse-time error has no such trigger.
+
+See
 [`pycsl-annotate/references/forbidden-expressions.md`](../pycsl-annotate/references/forbidden-expressions.md)
 and [`stdlib-stub-awareness.md`](../pycsl-annotate/references/stdlib-stub-awareness.md).
