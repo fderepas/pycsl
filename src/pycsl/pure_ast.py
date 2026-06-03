@@ -83,18 +83,13 @@ PyCF_ALLOW_TOP_LEVEL_AWAIT = 0x2000
 #   - type comments (# type: ...)  -> parse(type_comments=True) raises
 #   - class / mapping match patterns                 (PEP 634, see above)
 #
-# COLUMN OFFSETS
-#   - ``col_offset`` / ``end_col_offset`` are reported as UTF-8 *byte* offsets,
-#     matching CPython's ``ast`` (``_lex`` converts ``tokenize``'s codepoint
-#     columns to byte columns per line).
-#
-# KNOWN FIDELITY GAP
-#   - ``end_lineno`` / ``end_col_offset`` of COMPOUND statements (def/class/if/
-#     while/for/with/try/match) point at the trailing NEWLINE/DEDENT
-#     (next line, col 0) rather than the end of the last body element as
-#     CPython reports.  Structure and start positions are unaffected; the
-#     verify pipeline does not depend on end positions. Closing this means
-#     setting each compound node's end from its last (deepest) body child.
+# POSITIONS (match CPython's ``ast``)
+#   - ``col_offset`` / ``end_col_offset`` are UTF-8 *byte* offsets (``_lex``
+#     converts ``tokenize``'s codepoint columns to byte columns per line).
+#   - Compound statements (def/class/if/while/for/with/try/match) end at their
+#     last (deepest) body element, not the trailing NEWLINE/DEDENT
+#     (``_Parser._fin_block``). No known position-fidelity gaps remain on the
+#     supported grammar.
 #
 # The stdlib differential is the acceptance gate; run
 # ``python pure_ast.py --self-test`` under CPython 3.12 (the targeted schema;
@@ -610,6 +605,40 @@ class _Parser:
         n = _N(name)(**kw)
         return self._fin(n, start_tok)
 
+    @staticmethod
+    def _max_end(obj, cur):
+        """Fold the maximum (end_lineno, end_col_offset) over `obj` into `cur`.
+        A located node's own end already covers its whole subtree, so we stop
+        there; an UNLOCATED node (e.g. `match_case`, which CPython gives no
+        position) is descended into so its located children still count."""
+        if isinstance(obj, list):
+            for x in obj:
+                cur = _Parser._max_end(x, cur)
+            return cur
+        el = getattr(obj, "end_lineno", None)
+        if el is not None:
+            ec = getattr(obj, "end_col_offset", 0) or 0
+            if el > cur[0] or (el == cur[0] and ec > cur[1]):
+                cur = (el, ec)
+            return cur
+        if hasattr(obj, "_fields"):
+            for f in obj._fields:
+                cur = _Parser._max_end(getattr(obj, f, None), cur)
+        return cur
+
+    def _fin_block(self, node, start_tok):
+        """Position a COMPOUND statement: start from `start_tok`, end at the
+        last (deepest) body element — matching CPython, which ends a
+        def/class/if/while/for/with/try/match at its last body node, not at the
+        trailing NEWLINE/DEDENT that `_fin`'s last-consumed-token would pick."""
+        node.lineno = start_tok.start[0]
+        node.col_offset = start_tok.start[1]
+        cur = (node.lineno, start_tok.end[1])
+        for fname in node._fields:
+            cur = self._max_end(getattr(node, fname, None), cur)
+        node.end_lineno, node.end_col_offset = cur
+        return node
+
     # -- entry points -------------------------------------------------------
     def parse_module(self):
         body = []
@@ -954,7 +983,7 @@ class _Parser:
         self.expect_op(":")
         body = self.block()
         orelse = self._if_tail()
-        return self._fin(_N("If")(test=test, body=body, orelse=orelse), t)
+        return self._fin_block(_N("If")(test=test, body=body, orelse=orelse), t)
 
     def _if_tail(self):
         if self.at_kw("elif"):
@@ -963,7 +992,7 @@ class _Parser:
             self.expect_op(":")
             body = self.block()
             orelse = self._if_tail()
-            return [self._fin(_N("If")(test=test, body=body, orelse=orelse), t)]
+            return [self._fin_block(_N("If")(test=test, body=body, orelse=orelse), t)]
         if self.at_kw("else"):
             self.advance(); self.expect_op(":")
             return self.block()
@@ -975,7 +1004,7 @@ class _Parser:
         self.expect_op(":")
         body = self.block()
         orelse = self._else_block()
-        return self._fin(_N("While")(test=test, body=body, orelse=orelse), t)
+        return self._fin_block(_N("While")(test=test, body=body, orelse=orelse), t)
 
     def _else_block(self):
         if self.at_kw("else"):
@@ -1006,7 +1035,7 @@ class _Parser:
             self.advance()
         if not cases:
             self.error("'match' statement requires at least one 'case' clause")
-        return self._fin(_N("Match")(subject=subject, cases=cases), t)
+        return self._fin_block(_N("Match")(subject=subject, cases=cases), t)
 
     def _match_subject(self):
         t = self.cur()
@@ -1152,8 +1181,8 @@ class _Parser:
         body = self.block()
         orelse = self._else_block()
         cls = "AsyncFor" if async_ else "For"
-        return self._fin(_N(cls)(target=target, iter=it, body=body,
-                                 orelse=orelse, type_comment=None), t)
+        return self._fin_block(_N(cls)(target=target, iter=it, body=body,
+                                       orelse=orelse, type_comment=None), t)
 
     def _for_target(self):
         elts = [self.expr_or_star()]
@@ -1189,7 +1218,7 @@ class _Parser:
         self.expect_op(":")
         body = self.block()
         cls = "AsyncWith" if async_ else "With"
-        return self._fin(_N(cls)(items=items, body=body, type_comment=None), t)
+        return self._fin_block(_N(cls)(items=items, body=body, type_comment=None), t)
 
     def _with_parenthesized(self):
         # lookahead: a parenthesized with-items list (heuristic: '(' then items
@@ -1243,7 +1272,7 @@ class _Parser:
                     name = self._name_str()
             self.expect_op(":")
             hbody = self.block()
-            handlers.append(self._fin(_N("ExceptHandler")(type=typ, name=name, body=hbody), ht))
+            handlers.append(self._fin_block(_N("ExceptHandler")(type=typ, name=name, body=hbody), ht))
         if self.at_kw("else"):
             self.advance(); self.expect_op(":")
             orelse = self.block()
@@ -1251,8 +1280,8 @@ class _Parser:
             self.advance(); self.expect_op(":")
             finalbody = self.block()
         cls = "TryStar" if is_star else "Try"
-        return self._fin(_N(cls)(body=body, handlers=handlers,
-                                 orelse=orelse, finalbody=finalbody), t)
+        return self._fin_block(_N(cls)(body=body, handlers=handlers,
+                                       orelse=orelse, finalbody=finalbody), t)
 
     def decorated(self):
         decorators = []
@@ -1299,7 +1328,7 @@ class _Parser:
         cls = "AsyncFunctionDef" if async_ else "FunctionDef"
         n = _N(cls)(name=name, args=args, body=body, decorator_list=decorators,
                     returns=returns, type_comment=None, type_params=[])
-        return self._fin(n, t)
+        return self._fin_block(n, t)
 
     def classdef(self, decorators):
         t = self.cur()
@@ -1315,7 +1344,7 @@ class _Parser:
         body = self.block()
         n = _N("ClassDef")(name=name, bases=bases, keywords=keywords,
                            body=body, decorator_list=decorators, type_params=[])
-        return self._fin(n, t)
+        return self._fin_block(n, t)
 
     # -- parameters ---------------------------------------------------------
     def parse_parameters(self, close):

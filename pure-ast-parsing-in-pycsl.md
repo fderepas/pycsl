@@ -177,12 +177,14 @@ bounded raises set (`SyntaxError`) — 0 `\trusted`; the contract is the auditab
 boundary. The runtime `pure_ast` parser is recursive-descent (not a memoizing PEG),
 so a future static-subset rewrite for full body verification is tractable (Phase 3).
 
-**Remaining Change-B fidelity gap (newly found):** `end_lineno`/`end_col_offset` of
-*compound* statements (def/class/if/while/for/with/try/match) point at the trailing
-NEWLINE/DEDENT rather than the last body element's end, as CPython reports. Start
-positions and structure are correct, and the verify pipeline does not use end
-positions — so this only matters for a full `include_attributes` differential. Fix
-by setting each compound node's end from its deepest last body child.
+**Compound-statement end positions. ✅ DONE.** `end_lineno`/`end_col_offset` of
+*compound* statements (def/class/if/while/for/with/try/match + ExceptHandler) now
+end at the last (deepest) body element, matching CPython — via `_Parser._fin_block`,
+which folds the max end over a node's children and descends through unlocated nodes
+(`match_case`). Verified node-by-node against stdlib across def/class/if-elif-else/
+while-else/for-else/with/try-except-else-finally/try-star/match/nested/decorated/
+async — all identical. No known position-fidelity gaps remain on the supported
+grammar.
 
 **Note on the self-test in this repo:** the venv runs Python 3.14, but `pure_ast`
 targets the 3.12 `ast` schema, so `python pure_ast.py --self-test` reports all-DIFF
