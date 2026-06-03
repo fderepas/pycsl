@@ -137,6 +137,20 @@ Sequence 1 → 2 → 3 → 4 (2 establishes the typed-abstract-op-with-`ensures`
     (B4) are tolerated runtime decoration.
   `pycsl ast_demo.py exits 0`.
 
+  **✅ DONE.** `ast_demo.py` verifies end-to-end (0 `\trusted`): `check_code` over a
+  `FunctionAnalyzer(ast.NodeVisitor)` with `super().__init__()`, `node.name.islower()/
+  .startswith()/.endswith()`, the inherited `visit`, `ast.parse` (`\abstract`), and
+  `try/except SyntaxError` — proven `\result ∈ {0,1}` and TOTAL (the honest claim; the
+  concrete string outcome rests on the unmodeled parser + reflective dispatch). Plus
+  `safe_literal_eval` (the B3 total-wrapper safety claim). Corpus **0453** locks it.
+  Two honest deltas from the literal spec: the `everything_fine ⟺ …` biconditional is
+  NOT proven (reflective `visit_<Node>` dispatch is unmodeled — only the analyzer's
+  control-flow/totality is); and `FunctionAnalyzer` carries **no own class invariant** —
+  a subclass invariant stacked on an inherited base invariant currently gives an Unknown
+  *construction* VC in a driver (KNOWN GAP — the merged record's two `invariant` clauses;
+  base-only or sub-only is fine). The `\result ∈ {0,1}` bound comes from the ternary, so
+  the demo needs no FunctionAnalyzer invariant.
+
 ## Critical files
 - `config/skills/agent-stdlib-annotate/SKILL.md` (NEW), `…/references/coding-llm-prompt.md`
 - `config/skills/pycsl-annotate/references/{forbidden-expressions,stdlib-stub-awareness}.md`
@@ -278,4 +292,11 @@ except ValueError:
 
 - **String-content / C1 (byte form). ✅ DONE.** str literals lower to an opaque hash (no content); **bytes literals lower to char-code arrays** (full content), so the content model is byte-based. Delivered a body-verified `io.BytesIO` (0 `\trusted`) whose `roundtrip` proves the write→read-back round trip `\array_eq(\result, data)`, and `io_demo.py`'s `demo_bytesio_roundtrip` discharges it from a **driver** (cross-module, `from io import BytesIO`). Corpus **0452** (self-contained). Two reusable emitter fixes: **(#2)** record construction from a driver now builds type-correct field defaults — a `list`/array field → `Array.make <len> 0` (len captured by `Module5._array_init_size` from a literal `bytearray(N)`/`[v]*N`/list), a dict/set field → empty map — not the int `0` fallback that broke `\length` invariants; **(#3)** a method's array/param-referencing result-ensures (`\array_eq(\result, data)`) now propagates to the call site (`_build_method_param_result_ensures_map`, params renamed to the stub's `x_i`), extending B1's int-only propagation. *Honest limits:* the literal **str** `write("...")` form is NOT delivered — str content would need a global str→array change (blast radius on str-as-opaque-hash); contracts can't name a `b"..."` literal (byte literals aren't in the contract grammar) so the proof is the universal `\array_eq(\result, payload)` (stronger than one literal); a module-qualified `io.BytesIO()` isn't resolved to the record (use the `from`-import form); cross-call `write(...)`/`getvalue()` content-chaining (field state across calls) is unsupported — the single-call `roundtrip` carries the proof. The `_array_init_size` size capture handles literal sizes only (a module-constant `bytearray(CAP)` is not resolved — use a literal).
 
-**Re-sequenced remainder:** ~~B1~~ → ~~B3~~ → ~~B4~~ → ~~try-body local typing~~ → ~~string-content / C1 (byte form)~~ → ~~C2 (`ast.py` → 0 `\trusted`)~~ → **C3** (next — `ast_demo` check_code + literal_eval; remaining: `node.name` string-attribute access, `d[k]=v` subscript assignment, `literal_eval` returning a dict). New reusable primitives now available: the `#@ \abstract` directive (B3), type-correct try-body locals, type-correct record-field defaults from a driver (#2), and array/param result-ensures propagation (#3).
+**Re-sequenced remainder — ALL DONE:** ~~B1~~ → ~~B3~~ → ~~B4~~ → ~~try-body local typing~~ → ~~string-content / C1 (byte form)~~ → ~~C2 (`ast.py` → 0 `\trusted`)~~ → ~~C3 (`ast_demo` check_code + literal_eval)~~. New reusable primitives delivered: the `#@ \abstract` directive (B3), type-correct try-body locals, type-correct record-field defaults from a driver (#2), and array/param result-ensures propagation (#3).
+
+**Known gaps deferred (each a separate, scoped follow-up — none block the demos as delivered):**
+- **Merged-invariant subclass construction.** A subclass that adds a class invariant *on top of* an inherited base invariant can't be constructed in a driver (the merged record's two `invariant` clauses → Unknown construction VC). Base-only or sub-only invariant works. Worked around in C3 (FunctionAnalyzer has no own invariant).
+- **Dict read-back (B3 tail).** `data_dict['threshold'] == 42` needs `d[k]=v` subscript assignment (corpus 0338) + a dict-returning `literal_eval` + the `(int, map)` tuple-return plumbing.
+- **Literal-str content.** `write("Line 1\n")` (str, not bytes) would need a global str-literal→char-array change (blast radius on str-as-opaque-hash).
+- **Module-qualified class construction.** `io.BytesIO()` (vs `from io import BytesIO`) isn't resolved to the record; cross-call `write`/`getvalue` field-state chaining unsupported.
+- **`_array_init_size`** resolves literal array sizes only (a module-constant `bytearray(CAP)` is not).
