@@ -35,10 +35,10 @@ resolver inlines that skill's `SKILL.md`).
 ```
 *:  project-lifecycle
 L1: csl-philosophy
-L2: csl-philosophy, pycsl-annotate
-L3: pycsl-annotate
-L4: pycsl-annotate, contract-writer, invariant-writer
-L5: pycsl-annotate, contract-writer, invariant-writer, english-writer, pycsl-exception-model
+L2: csl-philosophy, pycsl-annotate, agent-stdlib-annotate
+L3: pycsl-annotate, agent-stdlib-annotate
+L4: pycsl-annotate, contract-writer, invariant-writer, agent-stdlib-annotate
+L5: pycsl-annotate, contract-writer, invariant-writer, english-writer, pycsl-exception-model, agent-stdlib-annotate
 L5-Validator: rocq, rocq-prover, lean
 ```
 

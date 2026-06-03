@@ -39,6 +39,12 @@ GATE_STEPS: List[GateStep] = [
     GateStep("bin/stdlib-coverage-report.py",
              [str(_PROJECT_ROOT / "bin" / "stdlib-coverage-report.py")],
              skip_if_missing=True),
+    # `\trusted`-in-stubs census (informational; exits 0). Per-phase strict
+    # enforcement (`--strict <target stub>`) is applied where a phase migrates a
+    # stub — see config/skills/agent-stdlib-annotate/SKILL.md.
+    GateStep("bin/check-no-trusted-stubs.py",
+             [str(_PROJECT_ROOT / "bin" / "check-no-trusted-stubs.py")],
+             skip_if_missing=True),
 ]
 
 

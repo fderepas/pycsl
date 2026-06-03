@@ -36,11 +36,14 @@ _PYCSL_SYNTAX_CHEAT = r"""## PyCSL contract syntax — avoid these rejections
 - `#@ assigns` takes LVALUES, never a bare object. Use `assigns \nothing` for a
   pure function, or name the mutated fields: `assigns self.count, self.items`.
   Writing `assigns self` is a SYNTAX ERROR (the parser expects `self.<field>`).
-- If you drop a `\trusted` line, the body must PROVABLY satisfy every `ensures`:
-  `return 0` cannot prove `ensures \result == x`. Either give the function a body
-  that matches its contract (e.g. `return x`), or keep a plain `#@ \trusted` with
-  NO `reviewer:` suffix — plain `\trusted` passes the `trusted reviewer:` check
-  while leaving the body unverified.
+- STDLIB STUBS ARE BODY-VERIFIED — do NOT use `#@ \trusted`. The body must
+  PROVABLY satisfy every `ensures`: `return 0` already proves `\result >= 0` /
+  `== 0` / boolean `0|1`, so just omit `\trusted`. If `return 0` can't satisfy the
+  contract (e.g. `ensures \result == x`), give a body that matches it (e.g.
+  `return x`). For an irreducibly-opaque kernel (parsing, byte marshaling) call an
+  abstract op and pin its `ensures` with a named `#@ proof rocq <Lemma>` /
+  `#@ proof lean <Lemma>` citation — never `\trusted`. (Policy:
+  config/skills/agent-stdlib-annotate/SKILL.md; lint: bin/check-no-trusted-stubs.py.)
 - Call stub functions with EXACTLY the parameters they declare; an arity mismatch
   yields `int -> int, but is applied to N arguments`.
 - The memory model is `hoare`: ints and `array int` are value-semantic (no heap).

@@ -207,6 +207,22 @@ def _strip_rst(text: str) -> str:
     return text
 
 
+def _zero_proves(ensures: str) -> bool:
+    """True if a `return 0` body provably satisfies `ensures` (so the stub needs
+    no `\\trusted` and no TODO marker). Conservative: unknown shapes → False."""
+    e = (ensures or "").strip()
+    if not e or e in ("True", "1 == 1"):
+        return True
+    if re.search(r"\\result\s*>=\s*0", e):
+        return True
+    if re.search(r"\\result\s*==\s*0(\b|\s|$)", e):
+        return True
+    # boolean predicate `\result == 0 or \result == 1` — 0 satisfies it
+    if re.search(r"\\result\s*==\s*0\s+or\s+\\result\s*==\s*1", e):
+        return True
+    return False
+
+
 def _infer_annotation(name: str, desc: str, params: list) -> tuple:
     """Infer (requires_list, ensures_str) from function name and description.
     
@@ -320,8 +336,16 @@ def _generate_stub(module_name: str, rst_path: str) -> str:
         param_strs = [f"{p}: int" for p in params]
         param_sig = ", ".join(param_strs)
 
-        # Build contract annotations
-        lines.append("#@ \\trusted")
+        # Build contract annotations. Stubs are body-verified — NO `\trusted`
+        # (policy: config/skills/agent-stdlib-annotate/SKILL.md). The `return 0`
+        # body below already proves the common inferred postconditions
+        # (`\result >= 0`, `== 0`, boolean `0|1`, `True`). Only when `return 0`
+        # cannot satisfy the ensures do we flag it for body-verification or an
+        # axiom citation — never silent trust.
+        if not _zero_proves(ensures):
+            lines.append("# TODO: body-verify or cite a #@ proof rocq/lean lemma "
+                         "— `return 0` does not satisfy this ensures (see "
+                         "agent-stdlib-annotate skill); do NOT add `\\trusted`.")
         for req in requires_list:
             lines.append(f"#@ requires {req}")
         if ensures:
