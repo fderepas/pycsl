@@ -319,6 +319,37 @@ class StatementEmissionMixin:
                 return full_code + ";\n" + rest_code
             return full_code
 
+    def _first_assign_value_ir(self, var: str,
+                                stmts: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """First `Assign` RHS IR for `var` anywhere in `stmts` (recursing into
+        nested blocks/handlers), or `{}` if none. Used to type the pre-declared
+        ref of a try-body local."""
+        for stmt in stmts:
+            if stmt.get("stmt") == "Assign" and stmt.get("target") == var:
+                return stmt.get("value", {}) or {}
+            for key in ("body", "orelse", "finalbody"):
+                if isinstance(stmt.get(key), list):
+                    r = self._first_assign_value_ir(var, stmt[key])
+                    if r:
+                        return r
+            for h in stmt.get("handlers", []):
+                r = self._first_assign_value_ir(var, h.get("body", []))
+                if r:
+                    return r
+        return {}
+
+    def _try_local_decl_kind(self, val_ir: Dict[str, Any]) -> str:
+        """Reduced `_first_assign_kind` (IR-only, no val-string side effects)
+        for a try-body local's pre-declaration: `record` | `dict` | `default`."""
+        vt = val_ir.get("type", "")
+        if vt == "Call" and val_ir.get("func", "") in self._record_types:
+            return "record"
+        if (vt in ("DictLit", "SetLit")
+                or (vt == "Call" and val_ir.get("func") in ("dict", "set", "frozenset"))
+                or self._rhs_yields_map(val_ir)):
+            return "dict"
+        return "default"
+
     def _handle_try_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
                           local_refs: Set[str], declared_refs: Set[str],
                           indent: str, in_loop: bool) -> str:
@@ -335,12 +366,34 @@ class StatementEmissionMixin:
         sorted_assigned = sorted(try_assigned)
         n_sa = len(sorted_assigned)
         i_sa = 0
+        # Pre-declare each try-body local as an outer ref so it stays in scope
+        # across `try … with … end`. The ref's initial value must MATCH the
+        # local's eventual type, else Why3 rejects the `:=`. A bare `ref 0`
+        # (int) breaks a record/dict local constructed inside the `try`:
+        #   - record / array locals are immutable `let X = {…}` bindings, not
+        #     refs — skip the pre-decl and let the body bind them (works when
+        #     the local is used within the try body, as the `check_code`
+        #     analyzer is; a record local that escapes into a handler/after the
+        #     try is unsupported — but that was already a type error).
+        #   - dict locals are `map int (option int)` — pre-declare the empty map
+        #     so `data = literal_eval(…)` / `d = {}` inside a try type-check.
         while i_sa < n_sa:
             var = sorted_assigned[i_sa]
             safe_var = whyml_ident(var)
             if safe_var not in declared_refs:
-                pre_decls += f"{indent}let {safe_var} = ref 0 in\n"
-                declared_refs.add(safe_var)
+                kind = self._try_local_decl_kind(
+                    self._first_assign_value_ir(var, body_stmts)
+                    or self._first_assign_value_ir(
+                        var, [s for h in handlers for s in h.get("body", [])]))
+                if kind == "record":
+                    pass  # let-bound inside the body; no outer ref
+                elif kind == "dict":
+                    pre_decls += (f"{indent}let {safe_var} = "
+                                  f"ref (const (None: option int)) in\n")
+                    declared_refs.add(safe_var)
+                else:
+                    pre_decls += f"{indent}let {safe_var} = ref 0 in\n"
+                    declared_refs.add(safe_var)
             i_sa += 1
         body_str = self._stmts_to_whyml(body_stmts, local_refs, declared_refs.copy(), indent + "  ", in_loop)
         if not body_str:

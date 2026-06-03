@@ -14,7 +14,7 @@ bin/cmmi-mod-index.py --file src/pycsl/module6_whyml/statements.py
 
 _(none)_
 
-## Private (leading-`_`) defs (25)
+## Private (leading-`_`) defs (27)
 
 - `StatementEmissionMixin._emit_first_assign` — `src/pycsl/module6_whyml/statements.py:18`
 - `StatementEmissionMixin._emit_array_local_reassign` — `src/pycsl/module6_whyml/statements.py:40`
@@ -22,25 +22,27 @@ _(none)_
 - `StatementEmissionMixin._handle_while_stmt` — `src/pycsl/module6_whyml/statements.py:105`
 - `StatementEmissionMixin._classify_iterable` — `src/pycsl/module6_whyml/statements.py:165`
 - `StatementEmissionMixin._handle_for_stmt` — `src/pycsl/module6_whyml/statements.py:230`
-- `StatementEmissionMixin._handle_try_stmt` — `src/pycsl/module6_whyml/statements.py:322`
-- `StatementEmissionMixin._emit_new_ghost_ref` — `src/pycsl/module6_whyml/statements.py:386`
-- `StatementEmissionMixin._handle_ghost_assign_stmt` — `src/pycsl/module6_whyml/statements.py:397`
-- `StatementEmissionMixin._handle_ghost_array_set_stmt` — `src/pycsl/module6_whyml/statements.py:494`
-- `StatementEmissionMixin._handle_tuple_unpack_stmt` — `src/pycsl/module6_whyml/statements.py:506`
-- `StatementEmissionMixin._handle_array_slice_set_stmt` — `src/pycsl/module6_whyml/statements.py:585`
-- `StatementEmissionMixin._handle_array_set_stmt` — `src/pycsl/module6_whyml/statements.py:610`
-- `StatementEmissionMixin._handle_if_stmt` — `src/pycsl/module6_whyml/statements.py:708`
-- `StatementEmissionMixin._handle_match_stmt` — `src/pycsl/module6_whyml/statements.py:751`
-- `StatementEmissionMixin._handle_critical_section_stmt` — `src/pycsl/module6_whyml/statements.py:787`
-- `StatementEmissionMixin._handle_augassign_stmt` — `src/pycsl/module6_whyml/statements.py:832`
-- `StatementEmissionMixin._handle_fieldassign_stmt` — `src/pycsl/module6_whyml/statements.py:878`
-- `StatementEmissionMixin._handle_fieldaugassign_stmt` — `src/pycsl/module6_whyml/statements.py:929`
-- `StatementEmissionMixin._handle_return_stmt` — `src/pycsl/module6_whyml/statements.py:964`
-- `StatementEmissionMixin._handle_expr_stmt` — `src/pycsl/module6_whyml/statements.py:1032`
-- `StatementEmissionMixin._stmts_to_whyml` — `src/pycsl/module6_whyml/statements.py:1091`
-- `StatementEmissionMixin._emit_frame_condition` — `src/pycsl/module6_whyml/statements.py:1185`
-- `StatementEmissionMixin._wrap_body_with_return_catch` — `src/pycsl/module6_whyml/statements.py:1221`
-- `StatementEmissionMixin._emit_body_code` — `src/pycsl/module6_whyml/statements.py:1236`
+- `StatementEmissionMixin._first_assign_value_ir` — `src/pycsl/module6_whyml/statements.py:322`
+- `StatementEmissionMixin._try_local_decl_kind` — `src/pycsl/module6_whyml/statements.py:341`
+- `StatementEmissionMixin._handle_try_stmt` — `src/pycsl/module6_whyml/statements.py:353`
+- `StatementEmissionMixin._emit_new_ghost_ref` — `src/pycsl/module6_whyml/statements.py:439`
+- `StatementEmissionMixin._handle_ghost_assign_stmt` — `src/pycsl/module6_whyml/statements.py:450`
+- `StatementEmissionMixin._handle_ghost_array_set_stmt` — `src/pycsl/module6_whyml/statements.py:547`
+- `StatementEmissionMixin._handle_tuple_unpack_stmt` — `src/pycsl/module6_whyml/statements.py:559`
+- `StatementEmissionMixin._handle_array_slice_set_stmt` — `src/pycsl/module6_whyml/statements.py:638`
+- `StatementEmissionMixin._handle_array_set_stmt` — `src/pycsl/module6_whyml/statements.py:663`
+- `StatementEmissionMixin._handle_if_stmt` — `src/pycsl/module6_whyml/statements.py:761`
+- `StatementEmissionMixin._handle_match_stmt` — `src/pycsl/module6_whyml/statements.py:804`
+- `StatementEmissionMixin._handle_critical_section_stmt` — `src/pycsl/module6_whyml/statements.py:840`
+- `StatementEmissionMixin._handle_augassign_stmt` — `src/pycsl/module6_whyml/statements.py:885`
+- `StatementEmissionMixin._handle_fieldassign_stmt` — `src/pycsl/module6_whyml/statements.py:931`
+- `StatementEmissionMixin._handle_fieldaugassign_stmt` — `src/pycsl/module6_whyml/statements.py:982`
+- `StatementEmissionMixin._handle_return_stmt` — `src/pycsl/module6_whyml/statements.py:1017`
+- `StatementEmissionMixin._handle_expr_stmt` — `src/pycsl/module6_whyml/statements.py:1085`
+- `StatementEmissionMixin._stmts_to_whyml` — `src/pycsl/module6_whyml/statements.py:1144`
+- `StatementEmissionMixin._emit_frame_condition` — `src/pycsl/module6_whyml/statements.py:1238`
+- `StatementEmissionMixin._wrap_body_with_return_catch` — `src/pycsl/module6_whyml/statements.py:1274`
+- `StatementEmissionMixin._emit_body_code` — `src/pycsl/module6_whyml/statements.py:1289`
 
 ---
 
@@ -48,4 +50,4 @@ _(none)_
 
 The `#@` contract block immediately preceding each `def` in `src/pycsl/module6_whyml/statements.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **25** (public: 0, private: 25).
+Total defs: **27** (public: 0, private: 27).
