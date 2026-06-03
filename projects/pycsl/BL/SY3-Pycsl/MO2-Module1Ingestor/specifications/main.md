@@ -10,24 +10,23 @@ bin/cmmi-mod-index.py --file src/pycsl/Module1_Ingestor.py
 
 ---
 
-## Public functions / methods (12)
+## Public functions / methods (5)
 
-- `PyCSLVisitor.__init__` — `src/pycsl/Module1_Ingestor.py:34`
-- `PyCSLVisitor.visit_Module` — `src/pycsl/Module1_Ingestor.py:41`
-- `PyCSLVisitor.visit_ClassDef` — `src/pycsl/Module1_Ingestor.py:89`
-- `PyCSLVisitor.leave_ClassDef` — `src/pycsl/Module1_Ingestor.py:104`
-- `PyCSLVisitor.visit_FunctionDef` — `src/pycsl/Module1_Ingestor.py:107`
-- `PyCSLVisitor.visit_While` — `src/pycsl/Module1_Ingestor.py:124`
-- `PyCSLVisitor.visit_For` — `src/pycsl/Module1_Ingestor.py:138`
-- `PyCSLVisitor.visit_With` — `src/pycsl/Module1_Ingestor.py:152`
-- `PyCSLVisitor.visit_SimpleStatementLine` — `src/pycsl/Module1_Ingestor.py:166`
-- `PyCSLVisitor.visit_IndentedBlock` — `src/pycsl/Module1_Ingestor.py:185`
-- `Module1_Ingestor.__init__` — `src/pycsl/Module1_Ingestor.py:220`
-- `Module1_Ingestor.process` — `src/pycsl/Module1_Ingestor.py:223`
+- `_Target.__init__` — `src/pycsl/Module1_Ingestor.py:43`
+- `Module1_Ingestor.__init__` — `src/pycsl/Module1_Ingestor.py:63`
+- `Module1_Ingestor.process` — `src/pycsl/Module1_Ingestor.py:66`
+- `_Harvester.__init__` — `src/pycsl/Module1_Ingestor.py:74`
+- `_Harvester.run` — `src/pycsl/Module1_Ingestor.py:134`
 
-## Private (leading-`_`) defs (1)
+## Private (leading-`_`) defs (7)
 
-- `PyCSLVisitor._extract_contracts_from_node` — `src/pycsl/Module1_Ingestor.py:71`
+- `_clean` — `src/pycsl/Module1_Ingestor.py:56`
+- `_Harvester._make` — `src/pycsl/Module1_Ingestor.py:87`
+- `_Harvester._build` — `src/pycsl/Module1_Ingestor.py:120`
+- `_Harvester._assign` — `src/pycsl/Module1_Ingestor.py:144`
+- `_Harvester._emit_suite` — `src/pycsl/Module1_Ingestor.py:172`
+- `_Harvester._emit_target` — `src/pycsl/Module1_Ingestor.py:180`
+- `_Harvester._emit_block_footer` — `src/pycsl/Module1_Ingestor.py:193`
 
 ---
 
@@ -35,4 +34,4 @@ bin/cmmi-mod-index.py --file src/pycsl/Module1_Ingestor.py
 
 The `#@` contract block immediately preceding each `def` in `src/pycsl/Module1_Ingestor.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **13** (public: 12, private: 1).
+Total defs: **12** (public: 5, private: 7).

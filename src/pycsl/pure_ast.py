@@ -33,6 +33,8 @@ __all__ = [
     'increment_lineno', 'iter_fields', 'iter_child_nodes', 'get_docstring',
     'get_source_segment', 'walk', 'NodeVisitor', 'NodeTransformer',
     'literal_eval', 'unparse', 'PyCSLSyntaxError',
+    # standalone-comment harvesting (used by Module1 contract ingestion)
+    'comments', 'Comment',
     # compile flags
     'PyCF_ONLY_AST', 'PyCF_TYPE_COMMENTS', 'PyCF_ALLOW_TOP_LEVEL_AWAIT',
 ]
@@ -477,6 +479,45 @@ def _lex(source):
         tk.end = to_byte(tk.end)
         toks.append(tk)
     return toks
+
+
+class Comment:
+    """A source comment with position (see ``comments``)."""
+    __slots__ = ("lineno", "col_offset", "text", "own_line", "indent")
+
+    def __init__(self, lineno, col_offset, text, own_line, indent):
+        self.lineno = lineno          # 1-based, matches node.lineno
+        self.col_offset = col_offset  # UTF-8 byte offset, matches node.col_offset
+        self.text = text              # raw, e.g. "#@ requires x > 0"
+        self.own_line = own_line      # True iff only whitespace precedes it on the line
+        self.indent = indent          # leading-whitespace width (own-line) / start col
+
+    def __repr__(self):
+        return (f"Comment(line={self.lineno}, own_line={self.own_line}, "
+                f"indent={self.indent}, text={self.text!r})")
+
+
+def comments(source):
+    """Every comment in `source`, with positions — a separate, read-only token
+    scan (``_lex`` discards ``COMMENT`` via ``_SKIP``). `own_line` is True iff
+    only whitespace precedes the comment on its physical line (the libcst
+    ``EmptyLine.comment`` standalone case); a trailing/inline comment after code
+    is `own_line=False`. `col_offset` is a UTF-8 byte offset (matching
+    ``node.col_offset``); `indent` is the line's leading-whitespace width for an
+    own-line comment, else the comment's start column."""
+    if isinstance(source, bytes):
+        source = source.decode("utf-8")
+    out = []
+    g = _tokenize.generate_tokens(_io.StringIO(source).readline)
+    for t in g:
+        if t.type != _tokenize.COMMENT:
+            continue
+        before = t.line[:t.start[1]]
+        own = (before.strip() == "")
+        indent = (len(before) - len(before.lstrip())) if own else t.start[1]
+        out.append(Comment(t.start[0], len(before.encode("utf-8")),
+                           t.string, own, indent))
+    return out
 
 
 # ----------------------------------------------------------------------------
