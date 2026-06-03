@@ -14,7 +14,7 @@ import textwrap
 import pytest
 
 from pycsl_emit.emitter import annotate_source, find_function
-import libcst as cst
+from pycsl import pure_ast as _past   # installed-package path (works without src/pycsl on sys.path)
 
 
 def _strip(s: str) -> str:
@@ -165,7 +165,7 @@ def test_locator_finds_nested_function():
                 return y + 1
             return inner(x)
     """)
-    module = cst.parse_module(src)
+    module = _past.parse(src)
     match = find_function(module, "outer.inner")
     assert match is not None
-    assert match.node.name.value == "inner"
+    assert match.node.name == "inner"
