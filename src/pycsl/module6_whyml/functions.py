@@ -86,7 +86,11 @@ class FunctionEmissionMixin:
         # Formal-parameter names ONLY — Module5 exposes this as a
         # distinct field because `symbol_table` is polluted with loop
         # targets and locals.
-        self._formal_params: Set[str] = set(func.get("formal_params", []))
+        # Ordered list, NOT a set: the WhyML signature iterates this for the
+        # parameter order (see `_build_param_list`), so a set would make the
+        # emitted param order hash-seed-dependent (a source of proof flakiness,
+        # e.g. `gcd (a) (b)` vs `(b) (a)`). Source order is deterministic.
+        self._formal_params: List[str] = list(func.get("formal_params", []))
         self._current_array1d_params = set(func.get("array1d_params", []))
         self._array2d_params = set(func.get("array2d_params", []))
         return local_refs, ghost_vars
