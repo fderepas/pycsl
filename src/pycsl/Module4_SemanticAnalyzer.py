@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import ast
+import pure_ast as ast  # consume the same pure-Python tree Module3 builds
 from typing import Callable, Dict, List, Optional, Set, Any
 from Module2_Parser import (
     CSLNode, ContractWrapper, QuantifierNode, SingleExprNode,

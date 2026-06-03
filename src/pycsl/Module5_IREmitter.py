@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import ast
+import pure_ast as ast  # consume the same pure-Python tree Module3 builds
 import copy
 import json
 from typing import Any, Dict, List, Optional, Set, Tuple

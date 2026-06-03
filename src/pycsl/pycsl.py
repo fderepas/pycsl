@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import argparse
-import ast as _ast
+import pure_ast as _ast  # dependency import-discovery parses via the pure-Python front-end
 import copy
 import hashlib
 import json as _json

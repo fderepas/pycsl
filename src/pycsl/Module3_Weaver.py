@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-import ast
+import pure_ast as ast  # PyCSL toolchain parses Python via its own pure-Python
+                        # front-end (no stdlib `ast` / CPython `compile`).
 import warnings
 from typing import List, Dict, Any, Tuple
 from dataclasses import dataclass

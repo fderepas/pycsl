@@ -621,7 +621,7 @@ class _Parser:
             return [self.decorated()]
         # match (soft keyword): `match` NAME ... ':' — detect cautiously
         if self.at_name("match") and self._looks_like_match():
-            self.unsupported("match statement")
+            return [self.match_stmt()]
         if self.at_name("type") and self._looks_like_type_alias():
             self.unsupported("PEP 695 type alias statement")
         return self.simple_stmt()
@@ -952,6 +952,166 @@ class _Parser:
             self.advance(); self.expect_op(":")
             return self.block()
         return []
+
+    # -- match statement (PEP 634; literal/capture/wildcard/value/OR/as/
+    #    sequence subset — class & mapping patterns raise PyCSLSyntaxError) --
+    def match_stmt(self):
+        t = self.advance()                       # 'match' (soft keyword)
+        subject = self._match_subject()
+        self.expect_op(":")
+        if self.cur().type != _tokenize.NEWLINE:
+            self.error("expected a newline after 'match' subject")
+        self.advance()
+        if self.cur().type != _tokenize.INDENT:
+            self.error("expected an indented block of 'case' clauses")
+        self.advance()
+        cases = []
+        while self.cur().type != _tokenize.DEDENT:
+            if self.cur().type == _tokenize.NEWLINE:
+                self.advance(); continue
+            if self.cur().type == _tokenize.ENDMARKER:
+                break
+            cases.append(self.case_block())
+        if self.cur().type == _tokenize.DEDENT:
+            self.advance()
+        if not cases:
+            self.error("'match' statement requires at least one 'case' clause")
+        return self._fin(_N("Match")(subject=subject, cases=cases), t)
+
+    def _match_subject(self):
+        t = self.cur()
+        first = self.namedexpr_test()
+        if self.at_op(","):
+            elts = [first]
+            while self.accept_op(","):
+                if self.at_op(":"):
+                    break
+                elts.append(self.namedexpr_test())
+            return self._fin(_N("Tuple")(elts=elts, ctx=_N("Load")()), t)
+        return first
+
+    def case_block(self):
+        if not self.at_name("case"):
+            self.error("expected a 'case' clause inside 'match'")
+        self.advance()                           # 'case' (soft keyword)
+        pat = self.pattern()
+        guard = None
+        if self.at_kw("if"):
+            self.advance()
+            guard = self.namedexpr_test()
+        self.expect_op(":")
+        body = self.block()
+        return _N("match_case")(pattern=pat, guard=guard, body=body)
+
+    def pattern(self):                            # as_pattern | or_pattern
+        t = self.cur()
+        p = self.or_pattern()
+        if self.at_kw("as"):
+            self.advance()
+            return self._fin(_N("MatchAs")(pattern=p, name=self._capture_name("as")), t)
+        return p
+
+    def or_pattern(self):
+        t = self.cur()
+        first = self.closed_pattern()
+        if self.at_op("|"):
+            pats = [first]
+            while self.accept_op("|"):
+                pats.append(self.closed_pattern())
+            return self._fin(_N("MatchOr")(patterns=pats), t)
+        return first
+
+    def _capture_name(self, ctx):
+        tk = self.cur()
+        if (tk.type != _tokenize.NAME or tk.string in _keyword.kwlist
+                or tk.string == "_"):
+            self.error(f"expected a capture name after {ctx!r} in pattern")
+        self.advance()
+        return tk.string
+
+    def closed_pattern(self):
+        t = self.cur()
+        ty = t.type
+        if ty == _tokenize.NUMBER or self.at_op("-", "+"):
+            return self._fin(_N("MatchValue")(value=self._pattern_number()), t)
+        if ty in (_tokenize.STRING, _tokenize.FSTRING_START):
+            return self._fin(_N("MatchValue")(value=self.strings()), t)
+        if ty == _tokenize.NAME:
+            s = t.string
+            if s in ("None", "True", "False"):
+                self.advance()
+                return self._fin(_N("MatchSingleton")(
+                    value={"None": None, "True": True, "False": False}[s]), t)
+            if s in _keyword.kwlist:
+                self.error(f"unexpected keyword {s!r} in pattern")
+            nxt = self.peek(1)
+            if nxt.type == _tokenize.OP and nxt.string == ".":
+                return self._fin(_N("MatchValue")(value=self._dotted_value()), t)
+            if nxt.type == _tokenize.OP and nxt.string in ("(", "{"):
+                self.unsupported("class/mapping match pattern")
+            self.advance()                        # capture target / wildcard
+            if s == "_":
+                return self._fin(_N("MatchAs")(pattern=None, name=None), t)
+            return self._fin(_N("MatchAs")(pattern=None, name=s), t)
+        if self.at_op("("):
+            return self._sequence_pattern("(", ")", t)
+        if self.at_op("["):
+            return self._sequence_pattern("[", "]", t)
+        if self.at_op("{"):
+            self.unsupported("mapping match pattern")
+        self.error("invalid pattern")
+
+    def _pattern_number(self):
+        t = self.cur()
+        sign = self.advance().string if self.at_op("-", "+") else None
+        if self.cur().type != _tokenize.NUMBER:
+            self.error("expected a number literal in pattern")
+        ntok = self.advance()
+        val = self._fin(_N("Constant")(value=_parse_number(ntok.string), kind=None), ntok)
+        if sign == "-":
+            return self._fin(_N("UnaryOp")(op=_N("USub")(), operand=val), t)
+        if sign == "+":
+            return self._fin(_N("UnaryOp")(op=_N("UAdd")(), operand=val), t)
+        return val
+
+    def _dotted_value(self):
+        t = self.cur()
+        nm = self.advance()                       # NAME
+        node = self._fin(_N("Name")(id=nm.string, ctx=_N("Load")()), nm)
+        while self.accept_op("."):
+            attr = self.cur()
+            if attr.type != _tokenize.NAME:
+                self.error("expected an attribute name after '.' in value pattern")
+            self.advance()
+            node = self._fin(
+                _N("Attribute")(value=node, attr=attr.string, ctx=_N("Load")()), t)
+        return node
+
+    def _sequence_pattern(self, openp, closep, t):
+        self.advance()                            # consume opener
+        elts = []
+        saw_comma = False
+        while not self.at_op(closep):
+            if self.at_op("*"):
+                star_t = self.advance()
+                nm = self.cur()
+                if nm.type == _tokenize.NAME and nm.string not in _keyword.kwlist:
+                    self.advance()
+                    name = None if nm.string == "_" else nm.string
+                else:
+                    self.error("expected a name after '*' in sequence pattern")
+                elts.append(self._fin(_N("MatchStar")(name=name), star_t))
+            else:
+                elts.append(self.pattern())
+            if self.accept_op(","):
+                saw_comma = True
+                continue
+            break
+        end = self.expect_op(closep)
+        # '(' with a single, comma-less pattern is a group: the inner pattern.
+        if openp == "(" and not saw_comma and len(elts) == 1:
+            return elts[0]
+        return self._fin_pos(_N("MatchSequence")(patterns=elts), t, end)
 
     def for_stmt(self, async_):
         t = self.advance()

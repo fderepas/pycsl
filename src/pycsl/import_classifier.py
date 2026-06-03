@@ -26,7 +26,7 @@ verifier silently treat extension modules as ambient int.
 
 from __future__ import annotations
 
-import ast
+import pure_ast as ast  # consume the same pure-Python tree Module3 builds
 import os
 from pathlib import Path
 from typing import Dict, List, Set, Tuple
