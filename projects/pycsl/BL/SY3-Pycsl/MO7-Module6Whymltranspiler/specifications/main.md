@@ -13,18 +13,18 @@ bin/cmmi-mod-index.py --file src/pycsl/Module6_WhyMLTranspiler.py
 ## Public functions / methods (2)
 
 - `Module6_WhyMLTranspiler.__init__` — `src/pycsl/Module6_WhyMLTranspiler.py:28`
-- `Module6_WhyMLTranspiler.transpile` — `src/pycsl/Module6_WhyMLTranspiler.py:331`
+- `Module6_WhyMLTranspiler.transpile` — `src/pycsl/Module6_WhyMLTranspiler.py:332`
 
 ## Private (leading-`_`) defs (8)
 
-- `Module6_WhyMLTranspiler._heap_var` — `src/pycsl/Module6_WhyMLTranspiler.py:95`
-- `Module6_WhyMLTranspiler._build_callee_no_exception_summary` — `src/pycsl/Module6_WhyMLTranspiler.py:103`
-- `Module6_WhyMLTranspiler._callee_implicit_exceptions` — `src/pycsl/Module6_WhyMLTranspiler.py:117`
-- `Module6_WhyMLTranspiler._wrap_unannotated_call_with_strict_assert` — `src/pycsl/Module6_WhyMLTranspiler.py:133`
-- `Module6_WhyMLTranspiler._wrap_call_with_callee_raises_assert` — `src/pycsl/Module6_WhyMLTranspiler.py:147`
-- `Module6_WhyMLTranspiler._render_callee_condition` — `src/pycsl/Module6_WhyMLTranspiler.py:190`
-- `Module6_WhyMLTranspiler._wrap_with_no_exception_assert` — `src/pycsl/Module6_WhyMLTranspiler.py:207`
-- `Module6_WhyMLTranspiler._maybe_emit_no_exception_assert` — `src/pycsl/Module6_WhyMLTranspiler.py:228`
+- `Module6_WhyMLTranspiler._heap_var` — `src/pycsl/Module6_WhyMLTranspiler.py:96`
+- `Module6_WhyMLTranspiler._build_callee_no_exception_summary` — `src/pycsl/Module6_WhyMLTranspiler.py:104`
+- `Module6_WhyMLTranspiler._callee_implicit_exceptions` — `src/pycsl/Module6_WhyMLTranspiler.py:118`
+- `Module6_WhyMLTranspiler._wrap_unannotated_call_with_strict_assert` — `src/pycsl/Module6_WhyMLTranspiler.py:134`
+- `Module6_WhyMLTranspiler._wrap_call_with_callee_raises_assert` — `src/pycsl/Module6_WhyMLTranspiler.py:148`
+- `Module6_WhyMLTranspiler._render_callee_condition` — `src/pycsl/Module6_WhyMLTranspiler.py:191`
+- `Module6_WhyMLTranspiler._wrap_with_no_exception_assert` — `src/pycsl/Module6_WhyMLTranspiler.py:208`
+- `Module6_WhyMLTranspiler._maybe_emit_no_exception_assert` — `src/pycsl/Module6_WhyMLTranspiler.py:229`
 
 ---
 

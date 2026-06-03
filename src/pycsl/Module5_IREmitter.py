@@ -1050,6 +1050,10 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
                                 field_names_seen.add(target.attr)
                                 if isinstance(rhs, ast.Constant) and isinstance(rhs.value, (int, float)):
                                     field_defaults[target.attr] = int(rhs.value)
+                                else:
+                                    sz = self._array_init_size(rhs)
+                                    if sz is not None:
+                                        field_defaults[target.attr] = sz
                     elif isinstance(stmt, ast.AnnAssign):
                         if (isinstance(stmt.target, ast.Attribute) and
                                 isinstance(stmt.target.value, ast.Name) and
@@ -1061,7 +1065,37 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
                             if (stmt.value and isinstance(stmt.value, ast.Constant) and
                                     isinstance(stmt.value.value, (int, float))):
                                 field_defaults[stmt.target.attr] = int(stmt.value.value)
+                            elif stmt.value is not None:
+                                sz = self._array_init_size(stmt.value)
+                                if sz is not None:
+                                    field_defaults[stmt.target.attr] = sz
         return fields, field_defaults
+
+    @staticmethod
+    def _array_init_size(rhs: ast.expr) -> Optional[int]:
+        """Literal initial LENGTH of an array/list-valued RHS, else None.
+        Recognises `bytearray(N)` / `list([0]*N)`-style calls, `[v] * N` /
+        `N * [v]`, and a list/bytes literal. For a list/array FIELD this length
+        is stored in `field_defaults` so record construction (`C()`) emits
+        `Array.make <len> 0` (matching the field's `\\length` class invariant),
+        rather than the int fallback `0`."""
+        # bytearray(N) / bytes(N)
+        if (isinstance(rhs, ast.Call) and isinstance(rhs.func, ast.Name)
+                and rhs.func.id in ("bytearray", "bytes") and len(rhs.args) == 1):
+            return PyCSLToJSONEmitter._const_int_value(rhs.args[0])
+        # [v] * N  or  N * [v]
+        if isinstance(rhs, ast.BinOp) and isinstance(rhs.op, ast.Mult):
+            for a, b in ((rhs.left, rhs.right), (rhs.right, rhs.left)):
+                if isinstance(a, ast.List):
+                    n = PyCSLToJSONEmitter._const_int_value(b)
+                    if n is not None:
+                        return max(len(a.elts), 1) * n if a.elts else n
+        # [e1, e2, ...]  /  b"..."
+        if isinstance(rhs, ast.List):
+            return len(rhs.elts)
+        if isinstance(rhs, ast.Constant) and isinstance(rhs.value, bytes):
+            return len(rhs.value)
+        return None
 
     @staticmethod
     def _const_int_value(value: ast.expr) -> Optional[int]:

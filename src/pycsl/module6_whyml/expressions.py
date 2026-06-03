@@ -376,8 +376,12 @@ class ExpressionEmissionMixin:
             param_types = self._module_method_param_types.get(lookup_key, [])
             # Propagate the callee's result-only postconditions onto the
             # stub (array length, slot bounds, …) so the caller can
-            # discharge VCs on the returned value.
-            result_ensures = getattr(self, "_module_method_result_ensures", {}).get(lookup_key, [])
+            # discharge VCs on the returned value. Param-referencing clauses
+            # (already renamed to the stub's x_i) propagate too — e.g.
+            # `\array_eq(\result, data)`.
+            result_ensures = (
+                getattr(self, "_module_method_result_ensures", {}).get(lookup_key, [])
+                + getattr(self, "_module_method_param_result_ensures", {}).get(lookup_key, []))
         else:
             # `<recordvar>.method(...)` — resolve the receiver's class so the
             # callee's result-only `ensures` propagates to this call site,
@@ -392,11 +396,12 @@ class ExpressionEmissionMixin:
                 cls = rv_classes[parts[0]].lower()
                 lookup_key = f"{cls}__{parts[1]}"
                 rens = getattr(self, "_module_method_result_ensures", {})
+                prens = getattr(self, "_module_method_param_result_ensures", {})
                 if (lookup_key in self._module_method_return_types
-                        or lookup_key in rens):
+                        or lookup_key in rens or lookup_key in prens):
                     ret_type = self._module_method_return_types.get(lookup_key, "int")
                     param_types = self._module_method_param_types.get(lookup_key, [])
-                    result_ensures = rens.get(lookup_key, [])
+                    result_ensures = rens.get(lookup_key, []) + prens.get(lookup_key, [])
                     matched_instance = True
             if not matched_instance:
                 # Bytes-producing methods return `array int` (a byte buffer),
@@ -479,10 +484,19 @@ class ExpressionEmissionMixin:
         ensures_suffix = ""
         if result_ensures:
             _prev_spec = self._in_spec
+            _prev_params = self._current_params
             self._in_spec = True   # emit boolean formulas, not int-coerced
+            # The stub's positional params are x0..x{n-1}; a propagated
+            # param-referencing ensures (e.g. `\array_eq(result, x0)`) names
+            # them, so register them as in-scope params — otherwise
+            # `_handle_var_expr` would mistake `x_i` for an undeclared global
+            # and emit a spurious `val constant x_i : int`.
+            self._current_params = set(_prev_params) | {
+                f"x{i}" for i in range(max(n, len(param_types)))}
             for e in result_ensures:
                 w = self._expr_to_whyml(e, set(), invariant_ctx=True)
                 ensures_suffix += f"\n    ensures {{ {w} }}"
+            self._current_params = _prev_params
             self._in_spec = _prev_spec
         if n == 0:
             self._add_abstract_op(f"val {arity_name} () : {ret_type}{ensures_suffix}")
@@ -676,8 +690,24 @@ class ExpressionEmissionMixin:
         if func_name in self._record_types and len(args) == 0:
             rec_info = self._record_types[func_name]
             rec_lower = func_name.lower()
+            field_types = rec_info.get("field_types", {})
+
+            def _field_default(fn: str) -> str:
+                # Per-type default so a driver constructing `C()` builds a
+                # type-correct record. A list/array field defaults to an
+                # `Array.make <len> 0` (len from field_defaults, captured by
+                # Module5._array_init_size) so its `\length` invariant holds;
+                # a dict/set field to the empty map; everything else to its
+                # captured int (fallback 0).
+                ft = field_types.get(fn, "int")
+                if ft in ("list", "array"):
+                    return f"(Array.make {rec_info['defaults'].get(fn, 0)} 0)"
+                if ft in ("dict", "set", "frozenset"):
+                    return "(const (None: option int))"
+                return f"{rec_info['defaults'].get(fn, 0)}"
+
             field_inits = "; ".join(
-                f"{self._field_label(rec_lower, fn)} = {rec_info['defaults'].get(fn, 0)}"
+                f"{self._field_label(rec_lower, fn)} = {_field_default(fn)}"
                 for fn in rec_info["fields"]
             )
             return f"{{ {field_inits} }}"

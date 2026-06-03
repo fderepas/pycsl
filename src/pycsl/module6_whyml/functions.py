@@ -420,6 +420,92 @@ class FunctionEmissionMixin:
                 out[func["name"]] = kept
         return out
 
+    def _build_method_param_result_ensures_map(
+            self, functions: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+        """Map method name → its `ensures` clauses that reference `\\result`
+        and/or the method's own PARAMS (plus constants) — but NO self-fields,
+        `\\old`, or locals — with each formal-param Var renamed to `x0,x1,…`
+        (the abstract self/record-call stub's positional param names).
+
+        Complements `_build_method_result_ensures_map` (which keeps only
+        `\\result`-and-constant clauses and excludes anything param-referencing).
+        Those param-referencing clauses ARE expressible at a call site once the
+        params are renamed to the stub's `x_i`, letting a driver discharge e.g.
+        `\\array_eq(\\result, data)` on a record-instance method call —
+        `b.roundtrip(data)` → the stub gets `ensures { \\array_eq(result, x0) }`.
+        Self-field / `\\old` clauses stay excluded (heap state the caller can't
+        see through an uninterpreted stub)."""
+        def classify(node: Any, params: Set[str]) -> Optional[bool]:
+            # True if the subtree references \result; False if it references a
+            # disallowed leaf (self-field/old/non-param var); None otherwise.
+            if not isinstance(node, dict):
+                return None
+            t = node.get("type")
+            if t in ("FieldGet", "Attribute", "OldVar", "OldField"):
+                return False
+            if t == "Var":
+                return None if node.get("name") in params else False
+            if t == "Result":
+                return True
+            if t == "ArrayLen":
+                v = node.get("var")
+                if v == "\\result":
+                    return True
+                return None if v in params else False
+            saw_result = False
+            for val in node.values():
+                for c in (val if isinstance(val, list) else [val]):
+                    r = classify(c, params)
+                    if r is False:
+                        return False
+                    if r is True:
+                        saw_result = True
+            return True if saw_result else None
+
+        def refs_param(node: Any, params: Set[str]) -> bool:
+            if not isinstance(node, dict):
+                return False
+            if node.get("type") == "Var" and node.get("name") in params:
+                return True
+            if node.get("type") == "ArrayLen" and node.get("var") in params:
+                return True
+            for val in node.values():
+                for c in (val if isinstance(val, list) else [val]):
+                    if refs_param(c, params):
+                        return True
+            return False
+
+        def rename(node: Any, pmap: Dict[str, str]) -> Any:
+            if not isinstance(node, dict):
+                return node
+            if node.get("type") == "Var" and node.get("name") in pmap:
+                return {"type": "Var", "name": pmap[node["name"]]}
+            new: Dict[str, Any] = {}
+            for k, v in node.items():
+                if k == "var" and node.get("type") == "ArrayLen" and v in pmap:
+                    new[k] = pmap[v]
+                elif isinstance(v, list):
+                    new[k] = [rename(c, pmap) if isinstance(c, dict) else c for c in v]
+                elif isinstance(v, dict):
+                    new[k] = rename(v, pmap)
+                else:
+                    new[k] = v
+            return new
+
+        out: Dict[str, List[Dict[str, Any]]] = {}
+        for func in functions:
+            params = func.get("formal_params", []) or []
+            if not params:
+                continue
+            pset = set(params)
+            pmap = {p: f"x{i}" for i, p in enumerate(params)}
+            kept = [rename(e, pmap)
+                    for e in (func.get("contracts", {}).get("ensures", []) or [])
+                    if classify(e, pset) is True and refs_param(e, pset)]
+            if kept:
+                out[func["name"]] = kept
+        return out
+
     @staticmethod
     def _symtype_to_whyml(symtype: Optional[str]) -> str:
         """Convert a Module5 symbol-table type tag to the WhyML type used

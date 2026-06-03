@@ -14,7 +14,7 @@ bin/cmmi-mod-index.py --file src/pycsl/module6_whyml/expressions.py
 
 _(none)_
 
-## Private (leading-`_`) defs (73)
+## Private (leading-`_`) defs (74)
 
 - `ExpressionEmissionMixin._e` — `src/pycsl/module6_whyml/expressions.py:28`
 - `ExpressionEmissionMixin._to_bool` — `src/pycsl/module6_whyml/expressions.py:32`
@@ -29,66 +29,67 @@ _(none)_
 - `ExpressionEmissionMixin._handle_join_call` — `src/pycsl/module6_whyml/expressions.py:309`
 - `ExpressionEmissionMixin._handle_sum_call` — `src/pycsl/module6_whyml/expressions.py:334`
 - `ExpressionEmissionMixin._handle_dotted_call` — `src/pycsl/module6_whyml/expressions.py:353`
-- `ExpressionEmissionMixin._handle_struct_call` — `src/pycsl/module6_whyml/expressions.py:494`
-- `ExpressionEmissionMixin._handle_call_expr` — `src/pycsl/module6_whyml/expressions.py:563`
-- `ExpressionEmissionMixin._handle_subscript` — `src/pycsl/module6_whyml/expressions.py:737`
-- `ExpressionEmissionMixin._handle_attribute_expr` — `src/pycsl/module6_whyml/expressions.py:816`
-- `ExpressionEmissionMixin._handle_var_expr` — `src/pycsl/module6_whyml/expressions.py:831`
-- `ExpressionEmissionMixin._field_label` — `src/pycsl/module6_whyml/expressions.py:852`
-- `ExpressionEmissionMixin._handle_field_get_expr` — `src/pycsl/module6_whyml/expressions.py:861`
-- `ExpressionEmissionMixin._handle_fstring_expr` — `src/pycsl/module6_whyml/expressions.py:885`
-- `ExpressionEmissionMixin._handle_unaryop_expr` — `src/pycsl/module6_whyml/expressions.py:901`
-- `ExpressionEmissionMixin._handle_old_expr` — `src/pycsl/module6_whyml/expressions.py:916`
-- `ExpressionEmissionMixin._handle_at_expr` — `src/pycsl/module6_whyml/expressions.py:931`
-- `ExpressionEmissionMixin._handle_ifexpr_expr` — `src/pycsl/module6_whyml/expressions.py:950`
-- `ExpressionEmissionMixin._handle_named_expr_expr` — `src/pycsl/module6_whyml/expressions.py:965`
-- `ExpressionEmissionMixin._handle_slice_access_expr` — `src/pycsl/module6_whyml/expressions.py:979`
-- `ExpressionEmissionMixin._handle_arraylen_expr` — `src/pycsl/module6_whyml/expressions.py:1016`
-- `ExpressionEmissionMixin._handle_valid_expr` — `src/pycsl/module6_whyml/expressions.py:1038`
-- `ExpressionEmissionMixin._handle_separated_expr` — `src/pycsl/module6_whyml/expressions.py:1051`
-- `ExpressionEmissionMixin._handle_length2d_expr` — `src/pycsl/module6_whyml/expressions.py:1066`
-- `ExpressionEmissionMixin._handle_valid2d_expr` — `src/pycsl/module6_whyml/expressions.py:1080`
-- `ExpressionEmissionMixin._handle_issorted_expr` — `src/pycsl/module6_whyml/expressions.py:1094`
-- `ExpressionEmissionMixin._handle_arrayeq_expr` — `src/pycsl/module6_whyml/expressions.py:1108`
-- `ExpressionEmissionMixin._handle_sum_node_expr` — `src/pycsl/module6_whyml/expressions.py:1129`
-- `ExpressionEmissionMixin._handle_lambda_expr` — `src/pycsl/module6_whyml/expressions.py:1143`
-- `ExpressionEmissionMixin._handle_setlit_expr` — `src/pycsl/module6_whyml/expressions.py:1155`
-- `ExpressionEmissionMixin._handle_mktuple_expr` — `src/pycsl/module6_whyml/expressions.py:1181`
-- `ExpressionEmissionMixin._handle_fst_expr` — `src/pycsl/module6_whyml/expressions.py:1185`
-- `ExpressionEmissionMixin._handle_snd_expr` — `src/pycsl/module6_whyml/expressions.py:1190`
-- `ExpressionEmissionMixin._handle_proj_expr` — `src/pycsl/module6_whyml/expressions.py:1195`
-- `ExpressionEmissionMixin._handle_strconcat_expr` — `src/pycsl/module6_whyml/expressions.py:1208`
-- `ExpressionEmissionMixin._handle_str_length_expr` — `src/pycsl/module6_whyml/expressions.py:1214`
-- `ExpressionEmissionMixin._handle_str_sub_expr` — `src/pycsl/module6_whyml/expressions.py:1218`
-- `ExpressionEmissionMixin._handle_ghost_copy_expr` — `src/pycsl/module6_whyml/expressions.py:1224`
-- `ExpressionEmissionMixin._handle_ghost_copy_range_expr` — `src/pycsl/module6_whyml/expressions.py:1227`
-- `ExpressionEmissionMixin._handle_ghost_make_expr` — `src/pycsl/module6_whyml/expressions.py:1232`
-- `ExpressionEmissionMixin._handle_map_empty_expr` — `src/pycsl/module6_whyml/expressions.py:1237`
-- `ExpressionEmissionMixin._handle_map_get_expr` — `src/pycsl/module6_whyml/expressions.py:1241`
-- `ExpressionEmissionMixin._handle_map_set_expr` — `src/pycsl/module6_whyml/expressions.py:1247`
-- `ExpressionEmissionMixin._handle_map_eq_expr` — `src/pycsl/module6_whyml/expressions.py:1254`
-- `ExpressionEmissionMixin._handle_has_key_expr` — `src/pycsl/module6_whyml/expressions.py:1262`
-- `ExpressionEmissionMixin._handle_map_remove_expr` — `src/pycsl/module6_whyml/expressions.py:1269`
-- `ExpressionEmissionMixin._handle_set_empty_expr` — `src/pycsl/module6_whyml/expressions.py:1275`
-- `ExpressionEmissionMixin._handle_set_add_expr` — `src/pycsl/module6_whyml/expressions.py:1279`
-- `ExpressionEmissionMixin._handle_set_remove_expr` — `src/pycsl/module6_whyml/expressions.py:1285`
-- `ExpressionEmissionMixin._handle_set_mem_expr` — `src/pycsl/module6_whyml/expressions.py:1291`
-- `ExpressionEmissionMixin._handle_set_union_expr` — `src/pycsl/module6_whyml/expressions.py:1303`
-- `ExpressionEmissionMixin._handle_set_inter_expr` — `src/pycsl/module6_whyml/expressions.py:1312`
-- `ExpressionEmissionMixin._handle_set_diff_expr` — `src/pycsl/module6_whyml/expressions.py:1320`
-- `ExpressionEmissionMixin._handle_set_card_expr` — `src/pycsl/module6_whyml/expressions.py:1328`
-- `ExpressionEmissionMixin._handle_set_subset_expr` — `src/pycsl/module6_whyml/expressions.py:1335`
-- `ExpressionEmissionMixin._handle_set_eq_expr` — `src/pycsl/module6_whyml/expressions.py:1343`
-- `ExpressionEmissionMixin._handle_nil_expr` — `src/pycsl/module6_whyml/expressions.py:1352`
-- `ExpressionEmissionMixin._handle_cons_expr` — `src/pycsl/module6_whyml/expressions.py:1355`
-- `ExpressionEmissionMixin._handle_hd_expr` — `src/pycsl/module6_whyml/expressions.py:1361`
-- `ExpressionEmissionMixin._handle_tl_expr` — `src/pycsl/module6_whyml/expressions.py:1366`
-- `ExpressionEmissionMixin._handle_list_length_expr` — `src/pycsl/module6_whyml/expressions.py:1371`
-- `ExpressionEmissionMixin._handle_nth_expr` — `src/pycsl/module6_whyml/expressions.py:1377`
-- `ExpressionEmissionMixin._handle_mem_expr` — `src/pycsl/module6_whyml/expressions.py:1384`
-- `ExpressionEmissionMixin._handle_append_expr` — `src/pycsl/module6_whyml/expressions.py:1391`
-- `ExpressionEmissionMixin._expr_to_whyml` — `src/pycsl/module6_whyml/expressions.py:1399`
-- `ExpressionEmissionMixin._expr_to_whyml_string_ctx` — `src/pycsl/module6_whyml/expressions.py:1471`
+- `ExpressionEmissionMixin._handle_struct_call` — `src/pycsl/module6_whyml/expressions.py:508`
+- `ExpressionEmissionMixin._handle_call_expr` — `src/pycsl/module6_whyml/expressions.py:577`
+- `ExpressionEmissionMixin._handle_call_expr._field_default` — `src/pycsl/module6_whyml/expressions.py:695`
+- `ExpressionEmissionMixin._handle_subscript` — `src/pycsl/module6_whyml/expressions.py:767`
+- `ExpressionEmissionMixin._handle_attribute_expr` — `src/pycsl/module6_whyml/expressions.py:846`
+- `ExpressionEmissionMixin._handle_var_expr` — `src/pycsl/module6_whyml/expressions.py:861`
+- `ExpressionEmissionMixin._field_label` — `src/pycsl/module6_whyml/expressions.py:882`
+- `ExpressionEmissionMixin._handle_field_get_expr` — `src/pycsl/module6_whyml/expressions.py:891`
+- `ExpressionEmissionMixin._handle_fstring_expr` — `src/pycsl/module6_whyml/expressions.py:915`
+- `ExpressionEmissionMixin._handle_unaryop_expr` — `src/pycsl/module6_whyml/expressions.py:931`
+- `ExpressionEmissionMixin._handle_old_expr` — `src/pycsl/module6_whyml/expressions.py:946`
+- `ExpressionEmissionMixin._handle_at_expr` — `src/pycsl/module6_whyml/expressions.py:961`
+- `ExpressionEmissionMixin._handle_ifexpr_expr` — `src/pycsl/module6_whyml/expressions.py:980`
+- `ExpressionEmissionMixin._handle_named_expr_expr` — `src/pycsl/module6_whyml/expressions.py:995`
+- `ExpressionEmissionMixin._handle_slice_access_expr` — `src/pycsl/module6_whyml/expressions.py:1009`
+- `ExpressionEmissionMixin._handle_arraylen_expr` — `src/pycsl/module6_whyml/expressions.py:1046`
+- `ExpressionEmissionMixin._handle_valid_expr` — `src/pycsl/module6_whyml/expressions.py:1068`
+- `ExpressionEmissionMixin._handle_separated_expr` — `src/pycsl/module6_whyml/expressions.py:1081`
+- `ExpressionEmissionMixin._handle_length2d_expr` — `src/pycsl/module6_whyml/expressions.py:1096`
+- `ExpressionEmissionMixin._handle_valid2d_expr` — `src/pycsl/module6_whyml/expressions.py:1110`
+- `ExpressionEmissionMixin._handle_issorted_expr` — `src/pycsl/module6_whyml/expressions.py:1124`
+- `ExpressionEmissionMixin._handle_arrayeq_expr` — `src/pycsl/module6_whyml/expressions.py:1138`
+- `ExpressionEmissionMixin._handle_sum_node_expr` — `src/pycsl/module6_whyml/expressions.py:1159`
+- `ExpressionEmissionMixin._handle_lambda_expr` — `src/pycsl/module6_whyml/expressions.py:1173`
+- `ExpressionEmissionMixin._handle_setlit_expr` — `src/pycsl/module6_whyml/expressions.py:1185`
+- `ExpressionEmissionMixin._handle_mktuple_expr` — `src/pycsl/module6_whyml/expressions.py:1211`
+- `ExpressionEmissionMixin._handle_fst_expr` — `src/pycsl/module6_whyml/expressions.py:1215`
+- `ExpressionEmissionMixin._handle_snd_expr` — `src/pycsl/module6_whyml/expressions.py:1220`
+- `ExpressionEmissionMixin._handle_proj_expr` — `src/pycsl/module6_whyml/expressions.py:1225`
+- `ExpressionEmissionMixin._handle_strconcat_expr` — `src/pycsl/module6_whyml/expressions.py:1238`
+- `ExpressionEmissionMixin._handle_str_length_expr` — `src/pycsl/module6_whyml/expressions.py:1244`
+- `ExpressionEmissionMixin._handle_str_sub_expr` — `src/pycsl/module6_whyml/expressions.py:1248`
+- `ExpressionEmissionMixin._handle_ghost_copy_expr` — `src/pycsl/module6_whyml/expressions.py:1254`
+- `ExpressionEmissionMixin._handle_ghost_copy_range_expr` — `src/pycsl/module6_whyml/expressions.py:1257`
+- `ExpressionEmissionMixin._handle_ghost_make_expr` — `src/pycsl/module6_whyml/expressions.py:1262`
+- `ExpressionEmissionMixin._handle_map_empty_expr` — `src/pycsl/module6_whyml/expressions.py:1267`
+- `ExpressionEmissionMixin._handle_map_get_expr` — `src/pycsl/module6_whyml/expressions.py:1271`
+- `ExpressionEmissionMixin._handle_map_set_expr` — `src/pycsl/module6_whyml/expressions.py:1277`
+- `ExpressionEmissionMixin._handle_map_eq_expr` — `src/pycsl/module6_whyml/expressions.py:1284`
+- `ExpressionEmissionMixin._handle_has_key_expr` — `src/pycsl/module6_whyml/expressions.py:1292`
+- `ExpressionEmissionMixin._handle_map_remove_expr` — `src/pycsl/module6_whyml/expressions.py:1299`
+- `ExpressionEmissionMixin._handle_set_empty_expr` — `src/pycsl/module6_whyml/expressions.py:1305`
+- `ExpressionEmissionMixin._handle_set_add_expr` — `src/pycsl/module6_whyml/expressions.py:1309`
+- `ExpressionEmissionMixin._handle_set_remove_expr` — `src/pycsl/module6_whyml/expressions.py:1315`
+- `ExpressionEmissionMixin._handle_set_mem_expr` — `src/pycsl/module6_whyml/expressions.py:1321`
+- `ExpressionEmissionMixin._handle_set_union_expr` — `src/pycsl/module6_whyml/expressions.py:1333`
+- `ExpressionEmissionMixin._handle_set_inter_expr` — `src/pycsl/module6_whyml/expressions.py:1342`
+- `ExpressionEmissionMixin._handle_set_diff_expr` — `src/pycsl/module6_whyml/expressions.py:1350`
+- `ExpressionEmissionMixin._handle_set_card_expr` — `src/pycsl/module6_whyml/expressions.py:1358`
+- `ExpressionEmissionMixin._handle_set_subset_expr` — `src/pycsl/module6_whyml/expressions.py:1365`
+- `ExpressionEmissionMixin._handle_set_eq_expr` — `src/pycsl/module6_whyml/expressions.py:1373`
+- `ExpressionEmissionMixin._handle_nil_expr` — `src/pycsl/module6_whyml/expressions.py:1382`
+- `ExpressionEmissionMixin._handle_cons_expr` — `src/pycsl/module6_whyml/expressions.py:1385`
+- `ExpressionEmissionMixin._handle_hd_expr` — `src/pycsl/module6_whyml/expressions.py:1391`
+- `ExpressionEmissionMixin._handle_tl_expr` — `src/pycsl/module6_whyml/expressions.py:1396`
+- `ExpressionEmissionMixin._handle_list_length_expr` — `src/pycsl/module6_whyml/expressions.py:1401`
+- `ExpressionEmissionMixin._handle_nth_expr` — `src/pycsl/module6_whyml/expressions.py:1407`
+- `ExpressionEmissionMixin._handle_mem_expr` — `src/pycsl/module6_whyml/expressions.py:1414`
+- `ExpressionEmissionMixin._handle_append_expr` — `src/pycsl/module6_whyml/expressions.py:1421`
+- `ExpressionEmissionMixin._expr_to_whyml` — `src/pycsl/module6_whyml/expressions.py:1429`
+- `ExpressionEmissionMixin._expr_to_whyml_string_ctx` — `src/pycsl/module6_whyml/expressions.py:1501`
 
 ---
 
@@ -96,4 +97,4 @@ _(none)_
 
 The `#@` contract block immediately preceding each `def` in `src/pycsl/module6_whyml/expressions.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **73** (public: 0, private: 73).
+Total defs: **74** (public: 0, private: 74).

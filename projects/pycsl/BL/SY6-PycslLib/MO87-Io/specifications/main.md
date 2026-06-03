@@ -10,11 +10,14 @@ bin/cmmi-mod-index.py --file src/pycsl_lib/io.py
 
 ---
 
-## Public functions / methods (3)
+## Public functions / methods (6)
 
 - `open` — `src/pycsl_lib/io.py:11`
 - `open_code` — `src/pycsl_lib/io.py:18`
 - `text_encoding` — `src/pycsl_lib/io.py:26`
+- `BytesIO.__init__` — `src/pycsl_lib/io.py:51`
+- `BytesIO.roundtrip` — `src/pycsl_lib/io.py:61`
+- `BytesIO.close` — `src/pycsl_lib/io.py:71`
 
 ## Private (leading-`_`) defs (0)
 
@@ -26,4 +29,4 @@ _(none)_
 
 The `#@` contract block immediately preceding each `def` in `src/pycsl_lib/io.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **3** (public: 3, private: 0).
+Total defs: **6** (public: 6, private: 0).

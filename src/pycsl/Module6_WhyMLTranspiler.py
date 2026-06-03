@@ -76,6 +76,7 @@ class Module6_WhyMLTranspiler(
         self._module_method_return_types: Dict[str, str] = {}
         self._module_method_param_types: Dict[str, List[str]] = {}
         self._module_method_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
+        self._module_method_param_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
         self._auto_trusted_array_returns: List[str] = []
         self._auto_trusted_tuple_returns: List[str] = []
         self._auto_trusted_map_returns: List[str] = []
@@ -349,6 +350,7 @@ class Module6_WhyMLTranspiler(
         self._module_method_return_types = self._build_method_return_type_map(functions)
         self._module_method_param_types = self._build_method_param_types_map(functions)
         self._module_method_result_ensures = self._build_method_result_ensures_map(functions)
+        self._module_method_param_result_ensures = self._build_method_param_result_ensures_map(functions)
         self._build_callee_no_exception_summary(functions)
 
         sorted_functions, scc_info = sort_functions_by_scc(functions)

@@ -10,12 +10,15 @@ bin/cmmi-mod-index.py --file src/pycsl/module6_whyml/functions.py
 
 ---
 
-## Public functions / methods (2)
+## Public functions / methods (5)
 
 - `FunctionEmissionMixin._render_refinement_goal.conj` — `src/pycsl/module6_whyml/functions.py:327`
 - `FunctionEmissionMixin._build_method_result_ensures_map.result_only` — `src/pycsl/module6_whyml/functions.py:391`
+- `FunctionEmissionMixin._build_method_param_result_ensures_map.classify` — `src/pycsl/module6_whyml/functions.py:438`
+- `FunctionEmissionMixin._build_method_param_result_ensures_map.refs_param` — `src/pycsl/module6_whyml/functions.py:465`
+- `FunctionEmissionMixin._build_method_param_result_ensures_map.rename` — `src/pycsl/module6_whyml/functions.py:478`
 
-## Private (leading-`_`) defs (13)
+## Private (leading-`_`) defs (14)
 
 - `FunctionEmissionMixin._param_type_str` — `src/pycsl/module6_whyml/functions.py:12`
 - `FunctionEmissionMixin._collect_record_fields` — `src/pycsl/module6_whyml/functions.py:36`
@@ -28,8 +31,9 @@ bin/cmmi-mod-index.py --file src/pycsl/module6_whyml/functions.py
 - `FunctionEmissionMixin._render_refinement_goal` — `src/pycsl/module6_whyml/functions.py:318`
 - `FunctionEmissionMixin._build_method_return_type_map` — `src/pycsl/module6_whyml/functions.py:357`
 - `FunctionEmissionMixin._build_method_result_ensures_map` — `src/pycsl/module6_whyml/functions.py:380`
-- `FunctionEmissionMixin._symtype_to_whyml` — `src/pycsl/module6_whyml/functions.py:424`
-- `FunctionEmissionMixin._build_method_param_types_map` — `src/pycsl/module6_whyml/functions.py:433`
+- `FunctionEmissionMixin._build_method_param_result_ensures_map` — `src/pycsl/module6_whyml/functions.py:423`
+- `FunctionEmissionMixin._symtype_to_whyml` — `src/pycsl/module6_whyml/functions.py:510`
+- `FunctionEmissionMixin._build_method_param_types_map` — `src/pycsl/module6_whyml/functions.py:519`
 
 ---
 
@@ -37,4 +41,4 @@ bin/cmmi-mod-index.py --file src/pycsl/module6_whyml/functions.py
 
 The `#@` contract block immediately preceding each `def` in `src/pycsl/module6_whyml/functions.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **15** (public: 2, private: 13).
+Total defs: **19** (public: 5, private: 14).
