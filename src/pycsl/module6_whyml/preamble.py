@@ -228,6 +228,15 @@ class PreambleEmissionMixin:
         while i2 < n2:
             user_exceptions |= IRScanner.collect_user_exceptions(all_bodies[i2])
             i2 += 1
+        # Also surface exceptions named only in a `raises` CONTRACT clause
+        # (e.g. an `\abstract` val with `raises SyntaxError when ...` and no
+        # body raise) — collect_user_exceptions scans bodies, not specs, so
+        # such an exception would otherwise be an unbound symbol in WhyML.
+        for func in functions:
+            for rc in func.get("contracts", {}).get("raises", []):
+                exc = rc.get("exc_type")
+                if exc:
+                    user_exceptions.add(exc)
         return {
             "needs_array": needs_array,
             "needs_matrix": needs_matrix,

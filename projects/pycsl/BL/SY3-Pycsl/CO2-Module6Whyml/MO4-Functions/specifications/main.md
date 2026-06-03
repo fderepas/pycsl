@@ -12,8 +12,8 @@ bin/cmmi-mod-index.py --file src/pycsl/module6_whyml/functions.py
 
 ## Public functions / methods (2)
 
-- `FunctionEmissionMixin._render_refinement_goal.conj` — `src/pycsl/module6_whyml/functions.py:321`
-- `FunctionEmissionMixin._build_method_result_ensures_map.result_only` — `src/pycsl/module6_whyml/functions.py:385`
+- `FunctionEmissionMixin._render_refinement_goal.conj` — `src/pycsl/module6_whyml/functions.py:327`
+- `FunctionEmissionMixin._build_method_result_ensures_map.result_only` — `src/pycsl/module6_whyml/functions.py:391`
 
 ## Private (leading-`_`) defs (13)
 
@@ -24,12 +24,12 @@ bin/cmmi-mod-index.py --file src/pycsl/module6_whyml/functions.py
 - `FunctionEmissionMixin._emit_contracts` — `src/pycsl/module6_whyml/functions.py:152`
 - `FunctionEmissionMixin._compute_return_type` — `src/pycsl/module6_whyml/functions.py:200`
 - `FunctionEmissionMixin._emit_function` — `src/pycsl/module6_whyml/functions.py:215`
-- `FunctionEmissionMixin._emit_subtyping_goals` — `src/pycsl/module6_whyml/functions.py:290`
-- `FunctionEmissionMixin._render_refinement_goal` — `src/pycsl/module6_whyml/functions.py:312`
-- `FunctionEmissionMixin._build_method_return_type_map` — `src/pycsl/module6_whyml/functions.py:351`
-- `FunctionEmissionMixin._build_method_result_ensures_map` — `src/pycsl/module6_whyml/functions.py:374`
-- `FunctionEmissionMixin._symtype_to_whyml` — `src/pycsl/module6_whyml/functions.py:418`
-- `FunctionEmissionMixin._build_method_param_types_map` — `src/pycsl/module6_whyml/functions.py:427`
+- `FunctionEmissionMixin._emit_subtyping_goals` — `src/pycsl/module6_whyml/functions.py:296`
+- `FunctionEmissionMixin._render_refinement_goal` — `src/pycsl/module6_whyml/functions.py:318`
+- `FunctionEmissionMixin._build_method_return_type_map` — `src/pycsl/module6_whyml/functions.py:357`
+- `FunctionEmissionMixin._build_method_result_ensures_map` — `src/pycsl/module6_whyml/functions.py:380`
+- `FunctionEmissionMixin._symtype_to_whyml` — `src/pycsl/module6_whyml/functions.py:424`
+- `FunctionEmissionMixin._build_method_param_types_map` — `src/pycsl/module6_whyml/functions.py:433`
 
 ---
 

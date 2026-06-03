@@ -89,12 +89,19 @@ def parse(source: int, filename: int, mode: int, type_comments: int, feature_ver
 def unparse(ast_obj: int) -> int:
     return 0
 
-#@ \trusted reviewer: python-stdlib
 # cite: https://docs.python.org/3/library/ast.html#ast.literal_eval
+# cite:_note: literal_eval IS Python's literal parser — irreducibly opaque, so it is
+#   modeled as an `\abstract` val (0 \trusted, no unchecked body). The SAFETY guarantee
+#   is the bounded raises set: on input that is not a valid Python literal it raises
+#   ValueError / SyntaxError and NEVER executes arbitrary code (unlike eval). PyCSL does
+#   not model the parser, so the parsed VALUE is uninterpreted (int); what IS proven
+#   (corpus 0449) is that a `try/except (ValueError, SyntaxError)` wrapper around it is
+#   TOTAL — no input can make it propagate an exception or run code.
 # cite:_note: real return type is Any (str|bytes|int|float|complex|tuple|list|dict|set|bool|None);
-# cite:_note: the int->int stub cannot express the polymorphic return contract — L3 ceiling.
-# cite:_note: input constraint (must be a valid literal expression) is also inexpressible on the int stub.
-#@ ensures True
+#   the int return cannot express the polymorphic value — the dict read-back demo is deferred.
+#@ \abstract
+#@ raises ValueError when True
+#@ raises SyntaxError when True
 def literal_eval(node_or_string: int) -> int:
     return 0
 

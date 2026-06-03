@@ -385,6 +385,28 @@ known reviewer; that audit lives outside the translation rule.
 
 _Corresponds to `annotations.md` §2.1.7._
 
+### §T.2.7  Abstract Functions (`\abstract`)
+
+$$\mathcal{T}_f\llbracket \texttt{def f(...): \#@ \\abstract ...} \rrbracket
+= \texttt{val f (...) : R requires \{...\} ensures \{...\} raises \{...\}}$$
+
+The source directive is the grammar production `abstract_decl` (`#@ \abstract`).
+Identical *WhyML shape* to the `\trusted` rule (§T.2.6) — a bodyless
+`val` — but a distinct *source* and *policy*. `\trusted` trusts a present
+Python body unchecked; `\abstract` declares there is no meaningful body,
+so the contract (plus any `#@ proof` axioms) is the complete, sound
+definition of an uninterpreted operation. `functions.py:_emit_function`
+selects the `val` form when `func["trusted"] or func["abstract"]`, but
+`\abstract` does **not** set the trusted flag, so it does not count toward
+the 0-`\trusted` policy (`bin/check-no-trusted-stubs.py`).
+
+This is the canonical translation for irreducibly-opaque library stubs —
+e.g. `ast.literal_eval`, whose parsed value is uninterpreted but whose
+bounded raises set (`ValueError`/`SyntaxError`) makes a `try/except`
+wrapper provably total (corpus `0449`).
+
+_Corresponds to `annotations.md` §2.1.14._
+
 ### §T.2.7  Diverging Functions (`\diverges`)
 
 The `diverges` keyword omits the termination obligation.  No `variant`

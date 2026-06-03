@@ -15,9 +15,9 @@ bin/cmmi-mod-index.py --file src/pycsl/Module5_IREmitter.py
 - `PyCSLToJSONEmitter.__init__` — `src/pycsl/Module5_IREmitter.py:33`
 - `PyCSLToJSONEmitter.visit_Module` — `src/pycsl/Module5_IREmitter.py:39`
 - `PyCSLToJSONEmitter.visit_ClassDef` — `src/pycsl/Module5_IREmitter.py:1106`
-- `PyCSLToJSONEmitter.visit_FunctionDef` — `src/pycsl/Module5_IREmitter.py:1287`
-- `Module5_IREmitter.__init__` — `src/pycsl/Module5_IREmitter.py:1306`
-- `Module5_IREmitter.generate_json` — `src/pycsl/Module5_IREmitter.py:1309`
+- `PyCSLToJSONEmitter.visit_FunctionDef` — `src/pycsl/Module5_IREmitter.py:1288`
+- `Module5_IREmitter.__init__` — `src/pycsl/Module5_IREmitter.py:1307`
+- `Module5_IREmitter.generate_json` — `src/pycsl/Module5_IREmitter.py:1310`
 
 ## Private (leading-`_`) defs (127)
 
@@ -146,8 +146,8 @@ bin/cmmi-mod-index.py --file src/pycsl/Module5_IREmitter.py
 - `PyCSLToJSONEmitter._collect_class_constants` — `src/pycsl/Module5_IREmitter.py:1079`
 - `PyCSLToJSONEmitter._should_skip_method` — `src/pycsl/Module5_IREmitter.py:1149`
 - `PyCSLToJSONEmitter._build_function_ir` — `src/pycsl/Module5_IREmitter.py:1160`
-- `PyCSLToJSONEmitter._detect_purity` — `src/pycsl/Module5_IREmitter.py:1254`
-- `PyCSLToJSONEmitter._detect_array_dimensions` — `src/pycsl/Module5_IREmitter.py:1264`
+- `PyCSLToJSONEmitter._detect_purity` — `src/pycsl/Module5_IREmitter.py:1255`
+- `PyCSLToJSONEmitter._detect_array_dimensions` — `src/pycsl/Module5_IREmitter.py:1265`
 
 ---
 

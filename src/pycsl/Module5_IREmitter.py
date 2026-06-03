@@ -1240,6 +1240,7 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
             "function_variants": self._csl_list_to_ir(getattr(node, 'csl_function_variants', [])),
             "diverges": getattr(node, 'csl_diverges', False),
             "trusted": getattr(node, 'csl_trusted', False),
+            "abstract": getattr(node, 'csl_abstract', False),
             "reviewer": getattr(node, 'csl_reviewer', ""),
             "bounded_int": getattr(node, 'csl_bounded_int', None),
             # §2.1.12 — proof citations from cross-validated Rocq+Lean

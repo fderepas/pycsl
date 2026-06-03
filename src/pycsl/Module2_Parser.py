@@ -165,6 +165,17 @@ class Trusted(CSLNode):
     reviewer: str = ""
 
 @dataclass
+class Abstract(CSLNode):
+    """Represents `#@ \\abstract` — the function is emitted as a bodyless WhyML
+    `val` defined SOLELY by its contract (+ any cited `#@ proof` axioms). Unlike
+    `\\trusted` (a Python body that is present but unchecked), an `\\abstract`
+    declaration asserts there is no meaningful body to check — the contract IS
+    the definition. Sound: an uninterpreted `val` constrains callers only by its
+    spec. Used for irreducibly-opaque operations (e.g. `ast.literal_eval`, which
+    IS Python's parser) where the honest model is `val + ensures/raises + cited
+    axiom`, not an unverified body. Does NOT count as `\\trusted`."""
+
+@dataclass
 class CSLBool(CSLNode):
     """Represents True/False literals in contract expressions."""
     value: bool
@@ -565,6 +576,7 @@ PYCSL_GRAMMAR = r"""
              | function_variant_structural
              | diverges_decl
              | trusted_decl
+             | abstract_decl
              | ghost_assign
              | ghost_aug_assign
              | ghost_array_set
@@ -602,6 +614,7 @@ PYCSL_GRAMMAR = r"""
     function_variant_structural: "\\variant" "(" expr "," CNAME ")"
     diverges_decl: "\\diverges"
     trusted_decl: "\\trusted" ("reviewer" ":" REVIEWER_ID)?
+    abstract_decl: "\\abstract"
     REVIEWER_ID: /[A-Za-z0-9._@-]+/
     ghost_assign: "ghost" CNAME ":" GHOST_TYPE "=" expr -> ghost_assign_typed
               | "ghost" CNAME "=" expr -> ghost_assign_untyped
@@ -803,6 +816,8 @@ class PyCSLTransformer(Transformer):
     def diverges_decl(self) -> Diverges: return Diverges()
     def trusted_decl(self, *args) -> Trusted:
         return Trusted(reviewer=str(args[0]) if args else "")
+    def abstract_decl(self) -> Abstract:
+        return Abstract()
     def ghost_assign_typed(self, name, ghost_type, expr) -> GhostAssignDecl:
         return GhostAssignDecl(str(name), expr, "=", declared_type=str(ghost_type))
     def ghost_assign_untyped(self, name, expr) -> GhostAssignDecl:

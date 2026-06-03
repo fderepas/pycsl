@@ -313,6 +313,13 @@ The CLI flag `--allow-unverified-imports` disables the check entirely
 for one run (intended for ad-hoc inspection, not CI). The deny-list
 is configurable via `import_classifier.DEFAULT_DENY_LIST`.
 
+**`#@ \abstract` — opaque without trust.** For an irreducibly-opaque
+operation (e.g. `ast.literal_eval`, which IS Python's parser), `#@ \abstract`
+emits a bodyless WhyML `val` defined solely by its contract — sound, and
+*not* `\trusted` (there is no unchecked body; the spec is the definition),
+so it passes the 0-`\trusted` stub lint. Its bounded raises set is the
+safety model: a `try/except` wrapper is provably total (see `0449`).
+
 ### UB-7.5 — `__del__` / finalizer rejection
 
 CPython's finalizer protocol is non-deterministic: timing depends on

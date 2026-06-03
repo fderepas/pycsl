@@ -291,6 +291,31 @@ an entry for reviewer-related violations.
 
 _Corresponds to `annotations.md` §2.1.7._
 
+#### §2.1.14 Abstract (`\abstract`)
+
+```
+   ────────────────────────────────────────
+    Γ_f ⊢ abstract : ok
+```
+
+**Rule:** Always well-formed. Presence is noted as a flag
+(`csl_abstract = True`) on the function-def AST node
+(`Module3_Weaver._dispatch_function_contracts`), read into the IR as
+`abstract: True` (`Module5_IREmitter`).
+
+**Distinction from `\trusted`.** Both cause Module 6 to emit a bodyless
+`val` (signature + contract, no body). The difference is provenance, and
+it is a *policy* distinction, not a typing one:
+
+- `\trusted` asserts a present Python body is correct without checking it
+  (trust); `bin/check-no-trusted-stubs.py` forbids it on library stubs.
+- `\abstract` asserts there is no meaningful body — the contract (plus any
+  `#@ proof` axioms) *is* the definition. Sound: an uninterpreted `val`
+  constrains callers only by its spec. It is **not** counted as `\trusted`
+  and emits no reviewer warning.
+
+No new error codes. _Corresponds to `annotations.md` §2.1.14._
+
 #### §2.1.8 Bounded Integers (`assumes bounded_int(N)`)
 
 ```

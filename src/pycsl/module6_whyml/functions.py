@@ -234,6 +234,12 @@ class FunctionEmissionMixin:
         func_variants = func.get("function_variants", [])
         func_diverges = func.get("diverges", False)
         func_trusted = func.get("trusted", False)
+        # `#@ \abstract` — emit a bodyless `val` defined by its contract alone
+        # (an uninterpreted op, sound; see Module2_Parser.Abstract). Same WhyML
+        # shape as a trusted stub (`val` + spec, no body) but distinct
+        # provenance: it does NOT count as \trusted for the 0-trusted policy.
+        func_abstract = func.get("abstract", False)
+        emit_as_val = func_trusted or func_abstract
         if self._should_auto_trust_map_return(func, func_trusted):
             func_trusted = True
             self._auto_trusted_map_returns = (
@@ -257,10 +263,10 @@ class FunctionEmissionMixin:
         can_emit_as_logic = func_pure and not local_refs and not is_method
 
         _scc_idx, _pos_in_scc, _scc_size = scc_info.get(func["name"], (0, 0, 1))
-        is_and_clause = _pos_in_scc > 0 and not func_trusted and not can_emit_as_logic
+        is_and_clause = _pos_in_scc > 0 and not emit_as_val and not can_emit_as_logic
 
         lines: List[str] = []
-        if func_trusted:
+        if emit_as_val:
             kw = f"val {name}"
         elif can_emit_as_logic:
             kw = f"{'let rec function' if use_rec else 'let function'} {name}"
@@ -276,7 +282,7 @@ class FunctionEmissionMixin:
         lines += self._emit_contracts(func.get("contracts", {}), spec_refs,
                                       func_variants, func_diverges, func_exceptions)
 
-        if func_trusted:
+        if emit_as_val:
             lines.append("")
             return lines
 

@@ -95,6 +95,7 @@ _Corresponds to `annotations.md` §2.1._
 | 2.1.5 | Structural variant | `function_variant_structural ::= "\variant" "(" expr "," CNAME ")" ;` |
 | 2.1.6 | Diverges | `diverges_decl ::= "\diverges" ;` |
 | 2.1.7 | Trusted | `trusted_decl ::= "\trusted" ( "reviewer" ":" REVIEWER_ID )? ;` where `REVIEWER_ID ::= /[A-Za-z0-9._@-]+/` |
+| 2.1.14 | Abstract | `abstract_decl ::= "\abstract" ;` — bodyless `val` defined by its contract; sound, not `\trusted` |
 | 2.1.8 | Bounded integers | `bounded_int_decl ::= "assumes" "bounded_int" "(" NUMBER ")" ;` |
 | 2.1.9 | Raises | `raises_decl ::= "raises" CNAME "when" expr ;` |
 | 2.1.10| Thread entry | `thread_entry_decl ::= "thread_entry" ;` |
@@ -834,6 +835,7 @@ contract ::= precondition
            | function_variant_structural
            | diverges_decl
            | trusted_decl
+           | abstract_decl
            | ghost_assign
            | ghost_aug_assign
            | raises_decl
@@ -859,6 +861,7 @@ function_variant            ::= "\variant" expr ;
 function_variant_structural ::= "\variant" "(" expr "," CNAME ")" ;
 diverges_decl               ::= "\diverges" ;
 trusted_decl                ::= "\trusted" ( "reviewer" ":" REVIEWER_ID )? ;
+abstract_decl               ::= "\abstract" ;
 REVIEWER_ID                 ::= /[A-Za-z0-9._@-]+/ ;
 raises_decl                 ::= "raises" CNAME "when" expr ;
 bounded_int_decl            ::= "assumes" "bounded_int" "(" NUMBER ")" ;

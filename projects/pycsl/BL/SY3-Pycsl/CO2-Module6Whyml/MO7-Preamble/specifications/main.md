@@ -17,15 +17,15 @@ _(none)_
 ## Private (leading-`_`) defs (10)
 
 - `PreambleEmissionMixin._scan_preamble_needs` — `src/pycsl/module6_whyml/preamble.py:122`
-- `PreambleEmissionMixin._emit_preamble_uses` — `src/pycsl/module6_whyml/preamble.py:253`
-- `PreambleEmissionMixin._emit_preamble_exceptions` — `src/pycsl/module6_whyml/preamble.py:321`
-- `PreambleEmissionMixin._emit_preamble_helpers` — `src/pycsl/module6_whyml/preamble.py:351`
-- `PreambleEmissionMixin._emit_preamble_axioms` — `src/pycsl/module6_whyml/preamble.py:410`
-- `PreambleEmissionMixin._emit_preamble_no_exception_predicates` — `src/pycsl/module6_whyml/preamble.py:459`
-- `PreambleEmissionMixin._emit_preamble` — `src/pycsl/module6_whyml/preamble.py:474`
-- `PreambleEmissionMixin._emit_shared_state` — `src/pycsl/module6_whyml/preamble.py:484`
-- `PreambleEmissionMixin._emit_type_decls` — `src/pycsl/module6_whyml/preamble.py:525`
-- `PreambleEmissionMixin._emit_opaque_class_aliases` — `src/pycsl/module6_whyml/preamble.py:659`
+- `PreambleEmissionMixin._emit_preamble_uses` — `src/pycsl/module6_whyml/preamble.py:262`
+- `PreambleEmissionMixin._emit_preamble_exceptions` — `src/pycsl/module6_whyml/preamble.py:330`
+- `PreambleEmissionMixin._emit_preamble_helpers` — `src/pycsl/module6_whyml/preamble.py:360`
+- `PreambleEmissionMixin._emit_preamble_axioms` — `src/pycsl/module6_whyml/preamble.py:419`
+- `PreambleEmissionMixin._emit_preamble_no_exception_predicates` — `src/pycsl/module6_whyml/preamble.py:468`
+- `PreambleEmissionMixin._emit_preamble` — `src/pycsl/module6_whyml/preamble.py:483`
+- `PreambleEmissionMixin._emit_shared_state` — `src/pycsl/module6_whyml/preamble.py:493`
+- `PreambleEmissionMixin._emit_type_decls` — `src/pycsl/module6_whyml/preamble.py:534`
+- `PreambleEmissionMixin._emit_opaque_class_aliases` — `src/pycsl/module6_whyml/preamble.py:668`
 
 ---
 

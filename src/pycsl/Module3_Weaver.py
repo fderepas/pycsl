@@ -8,7 +8,7 @@ from dataclasses import dataclass
 # Import the AST nodes from Module 2
 from Module2_Parser import (
     CSLNode, Requires, Ensures, Assigns, LoopInvariant, LoopVariant,
-    ClassInvariant, Label as CSLLabel, FunctionVariant, Diverges, Trusted,
+    ClassInvariant, Label as CSLLabel, FunctionVariant, Diverges, Trusted, Abstract,
     GhostAssignDecl, GhostArraySetDecl, RaisesDecl, NoExceptionDecl,
     AllowFinalizerDecl, AllowIterationMutationDecl,
     BoundedIntDecl, ProofDecl,
@@ -43,6 +43,7 @@ class PyCSLWeaver(ast.NodeVisitor):
         node.csl_function_variants = []
         node.csl_diverges = False
         node.csl_trusted = False
+        node.csl_abstract = False
         node.csl_reviewer = ""
         node.csl_raises = []
         node.csl_no_exception = []        # list of exception-name strings
@@ -76,6 +77,8 @@ class PyCSLWeaver(ast.NodeVisitor):
                         f"to document who is accountable for this trust assumption.",
                         stacklevel=2,
                     )
+            elif isinstance(c, Abstract):
+                node.csl_abstract = True
             elif isinstance(c, RaisesDecl):
                 node.csl_raises.append(c)
             elif isinstance(c, NoExceptionDecl):

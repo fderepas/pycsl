@@ -38,6 +38,7 @@ Python construct they annotate (function, class, loop, or statement).
 | 11 | _(reserved — `proof` directive removed 2026-05-27)_ | | | |
 | 12 | Axiom from proof | `#@ proof <rocq\|lean> <qualname>` | Module-level | Imports a Rocq or Lean theorem as a Why3 axiom in the preamble. When both `rocq` and `lean` directives name the same `pycsl_target`, the `proof2why3 cross-check` tool verifies their canonical forms agree before emission ("Rocq + Lean as Cross-Validated Spec Sources"). See §2.1.12 below. |
 | 13 | No-exception | `#@ no_exception E1, E2, ...` or `#@ no_exception \all` | Function/method | Implicit Python exceptions become proof obligations. For each IR operation in the body that could raise a listed exception, Module 6 emits a WhyML `assert { trigger }`. The `\all` form expands to the full Phase 1 set in `exception_model.KNOWN_EXCEPTIONS` and requires `raises { }` to be empty. See §2.1.13. |
+| 14 | Abstract | `#@ \abstract` | Function/method | Function is emitted as a **bodyless** WhyML `val` defined SOLELY by its contract (+ any `#@ proof` axioms). Unlike `\trusted` (a present-but-unchecked body), `\abstract` asserts there is no meaningful body — the contract IS the definition. Sound (uninterpreted `val`). Does **not** count as `\trusted`; the canonical 0-`\trusted` model for irreducibly-opaque ops (e.g. `ast.literal_eval`). See §2.1.14 below. |
 
 Multiple `requires`/`ensures` lines are conjuncted (all must hold).
 
@@ -207,6 +208,44 @@ adding corpus tests under `test-suite/corpus/pycsl-reference/`.
 **Test-corpus cross-reference:** parser tests are `0353`–`0357`; VC
 injection tests are `0359`–`0395` (broken out by exception category in
 the corpus numbering reservation under `traceability-pycsl.md`).
+
+#### §2.1.14 Abstract (`\abstract`)
+
+```python
+#@ \abstract
+#@ raises ValueError when True
+#@ raises SyntaxError when True
+def literal_eval(node_or_string: int) -> int: ...
+```
+
+Marks the function as **defined by its contract alone**. Module 6 emits
+`val f (...) : R requires {...} ensures {...} raises {...}` — a signature
+and spec with **no body** — exactly the WhyML shape of a `\trusted` stub.
+
+Grammar (§2.1.14 of the concrete-syntax reference):
+
+```
+abstract_decl ::= "\abstract" ;
+```
+
+**`\abstract` vs `\trusted`.** Both emit a bodyless `val`, but the
+provenance differs and the distinction is enforced by policy:
+
+- `\trusted` — there *is* a Python body, and PyCSL is *trusting it
+  unchecked*. Counts as trust; `bin/check-no-trusted-stubs.py` forbids it
+  on `src/pycsl_lib/**` stubs.
+- `\abstract` — there is *no meaningful body to check*; the contract (and
+  any `#@ proof` axioms) IS the definition. Sound: an uninterpreted `val`
+  constrains callers only through its spec. Does **not** count as
+  `\trusted` and passes the stub lint.
+
+Use `\abstract` for irreducibly-opaque operations — e.g. `ast.literal_eval`
+(which IS Python's parser): its parsed value is uninterpreted, but its
+bounded raises set (`ValueError`/`SyntaxError`, never code execution) is
+the spec, so a `try/except` wrapper around it is provably total (corpus
+`0449`). This is the 0-`\trusted` idiom: *"0 trusted ≠ 0 abstraction"* —
+the opaque boundary is an explicit, auditable `val` spec rather than an
+invisible unchecked body.
 
 ### 2.2 Loop Contracts
 
