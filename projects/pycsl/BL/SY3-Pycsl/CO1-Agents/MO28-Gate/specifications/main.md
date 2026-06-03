@@ -12,7 +12,7 @@ bin/cmmi-mod-index.py --file src/pycsl/agents/feature_supervisor/gate.py
 
 ## Public functions / methods (1)
 
-- `run_gate` — `src/pycsl/agents/feature_supervisor/gate.py:53`
+- `run_gate` — `src/pycsl/agents/feature_supervisor/gate.py:59`
 
 ## Private (leading-`_`) defs (0)
 

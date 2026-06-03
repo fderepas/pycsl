@@ -379,14 +379,34 @@ class ExpressionEmissionMixin:
             # discharge VCs on the returned value.
             result_ensures = getattr(self, "_module_method_result_ensures", {}).get(lookup_key, [])
         else:
-            # Bytes-producing methods return `array int` (a byte buffer),
-            # not the default `int` — so a chain like
-            # `name.encode('utf-8')[:30].ljust(30, b'\x00')` can flow into a
-            # `struct.pack('>...30s', ...)` name field. (Gap 5 of
-            # missing-pycsl-ir-features.md, handled by typing the opaque op.)
-            method_tail_name = func_name.rsplit(".", 1)[-1]
-            if method_tail_name in ("encode", "ljust", "rjust", "zfill"):
-                ret_type = "array int"
+            # `<recordvar>.method(...)` — resolve the receiver's class so the
+            # callee's result-only `ensures` propagates to this call site,
+            # exactly like `self.method(...)`. Without this the call lowered to a
+            # bare abstract op with no `ensures`, so a driver function that
+            # constructs an instance and calls a method could prove nothing
+            # about the result.
+            matched_instance = False
+            rv_classes = getattr(self, "_current_record_var_classes", {})
+            parts = func_name.split(".")
+            if len(parts) == 2 and parts[0] in rv_classes:
+                cls = rv_classes[parts[0]].lower()
+                lookup_key = f"{cls}__{parts[1]}"
+                rens = getattr(self, "_module_method_result_ensures", {})
+                if (lookup_key in self._module_method_return_types
+                        or lookup_key in rens):
+                    ret_type = self._module_method_return_types.get(lookup_key, "int")
+                    param_types = self._module_method_param_types.get(lookup_key, [])
+                    result_ensures = rens.get(lookup_key, [])
+                    matched_instance = True
+            if not matched_instance:
+                # Bytes-producing methods return `array int` (a byte buffer),
+                # not the default `int` — so a chain like
+                # `name.encode('utf-8')[:30].ljust(30, b'\x00')` can flow into a
+                # `struct.pack('>...30s', ...)` name field. (Gap 5 of
+                # missing-pycsl-ir-features.md, handled by typing the opaque op.)
+                method_tail_name = func_name.rsplit(".", 1)[-1]
+                if method_tail_name in ("encode", "ljust", "rjust", "zfill"):
+                    ret_type = "array int"
         # Pad / truncate param_types to match n (the abstract val arity
         # only sees the caller's actual arg count, not the IR's symbol
         # table size).

@@ -16,16 +16,16 @@ _(none)_
 
 ## Private (leading-`_`) defs (10)
 
-- `_build_phase_prompt` — `src/pycsl/agents/feature_supervisor/delegation.py:49`
-- `_extract_diff` — `src/pycsl/agents/feature_supervisor/delegation.py:143`
-- `_apply_diff` — `src/pycsl/agents/feature_supervisor/delegation.py:155`
-- `_extract_files` — `src/pycsl/agents/feature_supervisor/delegation.py:208`
-- `_write_files` — `src/pycsl/agents/feature_supervisor/delegation.py:220`
-- `_phase_snapshot_dir` — `src/pycsl/agents/feature_supervisor/delegation.py:242`
-- `_snapshot_untracked_targets` — `src/pycsl/agents/feature_supervisor/delegation.py:246`
-- `_cleanup_phase_snapshot` — `src/pycsl/agents/feature_supervisor/delegation.py:271`
-- `_rollback_phase` — `src/pycsl/agents/feature_supervisor/delegation.py:277`
-- `_delegate_model` — `src/pycsl/agents/feature_supervisor/delegation.py:326`
+- `_build_phase_prompt` — `src/pycsl/agents/feature_supervisor/delegation.py:52`
+- `_extract_diff` — `src/pycsl/agents/feature_supervisor/delegation.py:146`
+- `_apply_diff` — `src/pycsl/agents/feature_supervisor/delegation.py:158`
+- `_extract_files` — `src/pycsl/agents/feature_supervisor/delegation.py:211`
+- `_write_files` — `src/pycsl/agents/feature_supervisor/delegation.py:223`
+- `_phase_snapshot_dir` — `src/pycsl/agents/feature_supervisor/delegation.py:245`
+- `_snapshot_untracked_targets` — `src/pycsl/agents/feature_supervisor/delegation.py:249`
+- `_cleanup_phase_snapshot` — `src/pycsl/agents/feature_supervisor/delegation.py:274`
+- `_rollback_phase` — `src/pycsl/agents/feature_supervisor/delegation.py:280`
+- `_delegate_model` — `src/pycsl/agents/feature_supervisor/delegation.py:329`
 
 ---
 

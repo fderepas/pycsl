@@ -1260,6 +1260,10 @@ class StatementEmissionMixin:
         body_dict_vars |= self._collect_dict_var_assigns(body_stmts)
         body_lambda_vars = IRScanner.find_lambda_vars(body_stmts)
         body_record_vars = IRScanner.find_record_vars(body_stmts, self._record_types)
+        # var -> class name for record-instance locals (`c = C()`), so method
+        # calls `c.method(...)` can resolve the callee contract like `self.`.
+        self._current_record_var_classes = IRScanner.find_record_var_classes(
+            body_stmts, self._record_types)
         # Phase 2.3 / 2.3b: variables receiving `array int` values
         # from compile-time struct calls get array-typed pre-decls
         # instead of `ref 0 : ref int`. Two flavours with different

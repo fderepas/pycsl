@@ -10,7 +10,7 @@ bin/cmmi-mod-index.py --file src/pycsl/module6_whyml/ir_scanner.py
 
 ---
 
-## Public functions / methods (30)
+## Public functions / methods (31)
 
 - `IRScanner.uses_arrayset` — `src/pycsl/module6_whyml/ir_scanner.py:10`
 - `IRScanner.ends_with_return` — `src/pycsl/module6_whyml/ir_scanner.py:20`
@@ -22,33 +22,34 @@ bin/cmmi-mod-index.py --file src/pycsl/module6_whyml/ir_scanner.py
 - `IRScanner.uses_inline_set_or_dict_ops` — `src/pycsl/module6_whyml/ir_scanner.py:157`
 - `IRScanner.find_lambda_vars` — `src/pycsl/module6_whyml/ir_scanner.py:186`
 - `IRScanner.find_record_vars` — `src/pycsl/module6_whyml/ir_scanner.py:206`
-- `IRScanner.has_continue` — `src/pycsl/module6_whyml/ir_scanner.py:227`
-- `IRScanner.uses_continue` — `src/pycsl/module6_whyml/ir_scanner.py:238`
-- `IRScanner.uses_break` — `src/pycsl/module6_whyml/ir_scanner.py:248`
-- `IRScanner.collect_user_exceptions` — `src/pycsl/module6_whyml/ir_scanner.py:258`
-- `IRScanner.collect_escaping_exceptions` — `src/pycsl/module6_whyml/ir_scanner.py:278`
-- `IRScanner.has_direct_return` — `src/pycsl/module6_whyml/ir_scanner.py:302`
-- `IRScanner.has_in_loop_return` — `src/pycsl/module6_whyml/ir_scanner.py:322`
-- `IRScanner.has_early_return` — `src/pycsl/module6_whyml/ir_scanner.py:344`
-- `IRScanner.uses_for` — `src/pycsl/module6_whyml/ir_scanner.py:372`
-- `IRScanner.uses_subscript` — `src/pycsl/module6_whyml/ir_scanner.py:382`
-- `IRScanner.uses_array_lit` — `src/pycsl/module6_whyml/ir_scanner.py:392`
-- `IRScanner.uses_minmax` — `src/pycsl/module6_whyml/ir_scanner.py:405`
-- `IRScanner.is_recursive` — `src/pycsl/module6_whyml/ir_scanner.py:417`
-- `IRScanner.uses_string` — `src/pycsl/module6_whyml/ir_scanner.py:427`
-- `IRScanner.uses_sum` — `src/pycsl/module6_whyml/ir_scanner.py:437`
-- `IRScanner.uses_set_card` — `src/pycsl/module6_whyml/ir_scanner.py:447`
-- `IRScanner.uses_divmod` — `src/pycsl/module6_whyml/ir_scanner.py:457`
-- `IRScanner.find_append_targets` — `src/pycsl/module6_whyml/ir_scanner.py:469`
-- `IRScanner.find_iteration_mutations` — `src/pycsl/module6_whyml/ir_scanner.py:533`
-- `IRScanner.find_return_type` — `src/pycsl/module6_whyml/ir_scanner.py:579`
+- `IRScanner.find_record_var_classes` — `src/pycsl/module6_whyml/ir_scanner.py:227`
+- `IRScanner.has_continue` — `src/pycsl/module6_whyml/ir_scanner.py:252`
+- `IRScanner.uses_continue` — `src/pycsl/module6_whyml/ir_scanner.py:263`
+- `IRScanner.uses_break` — `src/pycsl/module6_whyml/ir_scanner.py:273`
+- `IRScanner.collect_user_exceptions` — `src/pycsl/module6_whyml/ir_scanner.py:283`
+- `IRScanner.collect_escaping_exceptions` — `src/pycsl/module6_whyml/ir_scanner.py:303`
+- `IRScanner.has_direct_return` — `src/pycsl/module6_whyml/ir_scanner.py:327`
+- `IRScanner.has_in_loop_return` — `src/pycsl/module6_whyml/ir_scanner.py:347`
+- `IRScanner.has_early_return` — `src/pycsl/module6_whyml/ir_scanner.py:369`
+- `IRScanner.uses_for` — `src/pycsl/module6_whyml/ir_scanner.py:397`
+- `IRScanner.uses_subscript` — `src/pycsl/module6_whyml/ir_scanner.py:407`
+- `IRScanner.uses_array_lit` — `src/pycsl/module6_whyml/ir_scanner.py:417`
+- `IRScanner.uses_minmax` — `src/pycsl/module6_whyml/ir_scanner.py:430`
+- `IRScanner.is_recursive` — `src/pycsl/module6_whyml/ir_scanner.py:442`
+- `IRScanner.uses_string` — `src/pycsl/module6_whyml/ir_scanner.py:452`
+- `IRScanner.uses_sum` — `src/pycsl/module6_whyml/ir_scanner.py:462`
+- `IRScanner.uses_set_card` — `src/pycsl/module6_whyml/ir_scanner.py:472`
+- `IRScanner.uses_divmod` — `src/pycsl/module6_whyml/ir_scanner.py:482`
+- `IRScanner.find_append_targets` — `src/pycsl/module6_whyml/ir_scanner.py:494`
+- `IRScanner.find_iteration_mutations` — `src/pycsl/module6_whyml/ir_scanner.py:558`
+- `IRScanner.find_return_type` — `src/pycsl/module6_whyml/ir_scanner.py:604`
 
 ## Private (leading-`_`) defs (4)
 
-- `IRScanner.uses_divmod._check` — `src/pycsl/module6_whyml/ir_scanner.py:458`
-- `IRScanner._collect_mutations` — `src/pycsl/module6_whyml/ir_scanner.py:493`
-- `IRScanner.find_return_type._has_return` — `src/pycsl/module6_whyml/ir_scanner.py:580`
-- `IRScanner.find_return_type._has_return_with_value` — `src/pycsl/module6_whyml/ir_scanner.py:593`
+- `IRScanner.uses_divmod._check` — `src/pycsl/module6_whyml/ir_scanner.py:483`
+- `IRScanner._collect_mutations` — `src/pycsl/module6_whyml/ir_scanner.py:518`
+- `IRScanner.find_return_type._has_return` — `src/pycsl/module6_whyml/ir_scanner.py:605`
+- `IRScanner.find_return_type._has_return_with_value` — `src/pycsl/module6_whyml/ir_scanner.py:618`
 
 ---
 
@@ -56,4 +57,4 @@ bin/cmmi-mod-index.py --file src/pycsl/module6_whyml/ir_scanner.py
 
 The `#@` contract block immediately preceding each `def` in `src/pycsl/module6_whyml/ir_scanner.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **34** (public: 30, private: 4).
+Total defs: **35** (public: 31, private: 4).
