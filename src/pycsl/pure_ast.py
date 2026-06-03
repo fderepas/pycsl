@@ -71,22 +71,34 @@ PyCF_ALLOW_TOP_LEVEL_AWAIT = 0x2000
 #   - class def (bases, keywords, decorators)
 #   - correct expression context (Load/Store/Del) on all targets
 #
+# IMPLEMENTED
+#   - match / case statements                        (PEP 634): literal,
+#     singleton, capture, wildcard, value (dotted), OR (`|`), as-binding, and
+#     sequence patterns (`[...]`/`(...)` with `*`-star). Class `C(...)` and
+#     mapping `{...}` patterns raise PyCSLSyntaxError (loud-fail).
+#
 # NOT YET IMPLEMENTED  (each raises PyCSLSyntaxError with a clear message)
-#   - match / case statements                        (PEP 634)
 #   - type-parameter syntax  def f[T] / class C[T]   (PEP 695)
 #   - the `type X = ...` alias statement             (PEP 695)
 #   - type comments (# type: ...)  -> parse(type_comments=True) raises
+#   - class / mapping match patterns                 (PEP 634, see above)
+#
+# COLUMN OFFSETS
+#   - ``col_offset`` / ``end_col_offset`` are reported as UTF-8 *byte* offsets,
+#     matching CPython's ``ast`` (``_lex`` converts ``tokenize``'s codepoint
+#     columns to byte columns per line).
 #
 # KNOWN FIDELITY GAP
-#   - ``col_offset`` / ``end_col_offset`` are codepoint offsets (from
-#     ``tokenize``), whereas CPython's ``ast`` reports UTF-8 *byte* offsets.
-#     They agree on ASCII source but differ on lines containing non-ASCII
-#     characters.  Structure is unaffected; only attribute-level position
-#     fidelity on non-ASCII lines differs.  Closing this requires mapping
-#     codepoint columns to byte columns per line.
+#   - ``end_lineno`` / ``end_col_offset`` of COMPOUND statements (def/class/if/
+#     while/for/with/try/match) point at the trailing NEWLINE/DEDENT
+#     (next line, col 0) rather than the end of the last body element as
+#     CPython reports.  Structure and start positions are unaffected; the
+#     verify pipeline does not depend on end positions. Closing this means
+#     setting each compound node's end from its last (deepest) body child.
 #
-# The 517-file differential is the acceptance gate for closing the gaps above;
-# run ``python pure_ast.py --self-test`` (needs the stdlib ``ast`` to compare).
+# The stdlib differential is the acceptance gate; run
+# ``python pure_ast.py --self-test`` under CPython 3.12 (the targeted schema;
+# a different interpreter's ``ast`` will report spurious diffs).
 # ===========================================================================
 
 
@@ -445,12 +457,30 @@ def _lex(source):
         source = source.decode("utf-8")
     if not source.endswith("\n"):
         source = source + "\n"
+    # `tokenize` reports columns as CODEPOINT indices into each line, but
+    # CPython's `ast` reports `col_offset`/`end_col_offset` as UTF-8 BYTE
+    # offsets. Convert token coordinates once here so every node position
+    # derived from them (via `_Parser._fin`/`_fin_pos`) is byte-based and
+    # matches stdlib `ast` on non-ASCII source. ASCII lines (the common case)
+    # have byte == codepoint, so they hit a no-op fast-path.
+    lines = source.split("\n")
+    ascii_line = [ln.isascii() for ln in lines]
+
+    def to_byte(pos):
+        row, ccol = pos
+        if ccol == 0 or row < 1 or row > len(lines) or ascii_line[row - 1]:
+            return pos
+        return (row, len(lines[row - 1][:ccol].encode("utf-8")))
+
     toks = []
     g = _tokenize.generate_tokens(_io.StringIO(source).readline)
     for t in g:
         if t.type in _SKIP:
             continue
-        toks.append(_Tok(t))
+        tk = _Tok(t)
+        tk.start = to_byte(tk.start)
+        tk.end = to_byte(tk.end)
+        toks.append(tk)
     return toks
 
 

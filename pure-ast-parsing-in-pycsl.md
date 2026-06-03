@@ -151,35 +151,44 @@ Risk: low. The behavioral surface is enumerated and satisfied in §5.
 The parser exists; this is fidelity + verifiability work, each piece independently
 testable against the Phase 0 differential.
 
-**2a. Close (or formally defer) the 5 unsupported constructs.** `pure_ast.py:74–86`
-enumerates the deferred constructs that raise `PyCSLSyntaxError`. Either implement
-them in `_Parser`, or document them as permanent unsupported with a clear message
-(loud failure, never a wrong tree — the current discipline).
+**2a. Deferred constructs. ✅ (match done; PEP 695 + type-comments deferred).**
+`match`/`case` (PEP 634) is now implemented in `_Parser` — literal, singleton,
+capture, wildcard, value (dotted), OR, as-binding, and sequence (`*`-star) patterns;
+class/mapping patterns loud-fail. (This was the only deferred construct the corpus
+used — 0240/0241.) The remaining deferred items — PEP 695 type-parameter syntax
+(`def f[T]`), the `type X = ...` alias, and type comments — are unused in the corpus
+and stay documented loud-failures.
 
-**2b. Fix `col_offset` codepoint-vs-byte semantics.** `pure_ast` already documents
-this as a live bug (`pure_ast.py:81–86`): `tokenize` yields *codepoint* column
-offsets, whereas CPython's `ast` reports UTF-8 *byte* offsets. This is the
-**highest-value fidelity fix** — `include_attributes=True` differentials and any
-downstream line/col reporting diverge on non-ASCII source today. Convert codepoint
-columns → byte columns per line in the node-construction path.
+**2b. `col_offset` byte semantics. ✅ DONE.** `_lex` now converts `tokenize`'s
+codepoint column offsets to UTF-8 byte offsets per line (ASCII lines are a no-op
+fast-path), so `col_offset`/`end_col_offset` match CPython's `ast` on non-ASCII
+source. Verified node-by-node against stdlib (café/emoji/multibyte cases identical);
+WhyML byte-identical with/without the change under a fixed seed; zero regressions
+across the 387 non-ASCII corpus files (only the pre-existing baseline still fails).
 
-**2c. Settle the `tokenize` dependency (decision, not open question).** `pure_ast`
-took the "reuse stdlib `tokenize`" route. State this explicitly and assess its
-divergences from the C tokenizer (notably PEP 701 f-strings and error recovery);
-decide whether to keep it (pure-Python, so not a UB-7.4 native boundary) or write a
-self-hosted tokenizer later (only needed for a fully self-contained, verifiable
-front-end). Not a blocker for A.
+**2c. `tokenize` dependency — DECIDED: keep stdlib `tokenize`.** It is pure-Python
+(not a UB-7.4 native boundary) and `compile`-free. A self-hosted tokenizer is only
+needed for a fully self-contained, verifiable front-end (Phase 3); not a blocker.
+Known divergences to watch: PEP 701 f-string tokenization and error recovery.
 
-**2d. Model `parse` for verification — `#@ \abstract`, not `\trusted`.** The shipped
-parser is **recursive-descent**, not a memoizing PEG engine, so it is a far more
-tractable verification target than v1 feared. Until/unless its body is written in
-PyCSL's static subset and proven, model `pure_ast.parse` as an `#@ \abstract` val
-with a bounded raises set (`raises SyntaxError`) — exactly the form
-`src/pycsl_lib/ast.py:parse` already uses. This is the 0-`\trusted` boundary: the
-contract is the auditable assumption, not an unchecked body.
+**2d. Model `parse` as `#@ \abstract`. ✅ Already in place.** `src/pycsl_lib/ast.py`
+(the verification stub) already models `parse` as an `#@ \abstract` val with a
+bounded raises set (`SyntaxError`) — 0 `\trusted`; the contract is the auditable
+boundary. The runtime `pure_ast` parser is recursive-descent (not a memoizing PEG),
+so a future static-subset rewrite for full body verification is tractable (Phase 3).
 
-Acceptance: the Phase 0 differential (now including `include_attributes` + the
-round-trip) and CPython grammar tests pass on the corpus.
+**Remaining Change-B fidelity gap (newly found):** `end_lineno`/`end_col_offset` of
+*compound* statements (def/class/if/while/for/with/try/match) point at the trailing
+NEWLINE/DEDENT rather than the last body element's end, as CPython reports. Start
+positions and structure are correct, and the verify pipeline does not use end
+positions — so this only matters for a full `include_attributes` differential. Fix
+by setting each compound node's end from its deepest last body child.
+
+**Note on the self-test in this repo:** the venv runs Python 3.14, but `pure_ast`
+targets the 3.12 `ast` schema, so `python pure_ast.py --self-test` reports all-DIFF
+here (a version artifact, not a parser regression). Run the self-test under CPython
+3.12, or rely on the pipeline differential (Phase 0) which compares pure_ast against
+*the same* running interpreter's `ast`.
 
 ### Phase 3 — North star (optional): unify and verify
 
