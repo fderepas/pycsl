@@ -118,10 +118,10 @@ its case, the completeness disjunction, and each disjointness pair. See
    the original case — the prover only ever sees the desugared form.
 
 **Whole-program sugar is the same move.** Cross-cutting meta-properties
-(MetAcsl-style HILAREs) *expand* one high-level requirement into many ordinary
-per-site obligations — surface → existing primitives → 0-`\trusted`, just at
-program scope instead of function scope. See
-[`metacsl-roadmap.md`](../../../../metacsl-roadmap.md).
+(PyCSL's **HAPPY** — the equivalent of MetAcsl's HILAREs) *expand* one
+high-level requirement into many ordinary per-site obligations — surface →
+existing primitives → 0-`\trusted`, just at program scope instead of function
+scope. See [`meta.md`](../../../../meta.md).
 
 ---
 
