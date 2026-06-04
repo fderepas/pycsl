@@ -281,6 +281,43 @@ users after the delete-heavy triage).
 
 ---
 
+## 10. How to Refactor PyCSL Safely (the emission-identical gate)
+
+Refactoring the compiler is different from adding a feature: the goal is **zero behaviour
+change**, and "the tests still pass" is too weak a bar. PyCSL is an output-deterministic
+transpiler, so a refactor is correct iff the **emitted WhyML is byte-identical** before and
+after, across the whole corpus and *every* memory model. Use this as the gate:
+
+1. **Branch + clean baseline from a worktree.** `git worktree add /tmp/pb HEAD`; generate the
+   corpus WhyML from `/tmp/pb` (clean) into a baseline dir. The worktree is a separate checkout,
+   so you can edit the main tree in parallel while the baseline runs.
+2. **Generate WhyML deterministically.** For each `test-suite/corpus/pycsl-reference/*.py`, run
+   `PYTHONHASHSEED=0 python3 src/pycsl/pycsl.py <f> --no-proof --keep-mlw <per-file pycsl-flags>`
+   and collect the `.mlw`. `PYTHONHASHSEED=0` is mandatory — string-literal ids are `hash()`-based
+   and vary per run otherwise (this once produced 11 spurious "diffs" that were pure hash noise).
+   Honour each file's `# pycsl-flags:` so model-specific files emit under their model.
+3. **Diff.** `diff -rq base after` → **0 diffs, 0 "Only in base"**. Anything else is a regression
+   (or a baseline that wasn't clean).
+4. **Cover all four memory models.** The differential only validates the branches the corpus
+   exercises. Coverage today: `hoare` (default, bulk), `concurrent` (31 files), and `typed`/`store`
+   (`0463`–`0470`, added explicitly because the gate honours `# pycsl-flags:`, not the docstring
+   `5.2`/`5.3` convention). A refactor that touches the value-semantic-vs-heap split (anything on
+   `self._value_semantic`) **must** be diffed with that typed/store coverage present.
+5. **Small, individually-diffed commits.** One logical refactor per commit, each gated; if a diff
+   ever appears you bisect one change, not a pile.
+
+**CLI / orchestration changes** (`pycsl.py` `main()` / argparse) change control flow, not WhyML,
+so the emission differential can't see them. Gate those with `test-suite/cli-behavior-test.sh`
+(`PYTHON=.venv/bin/python test-suite/cli-behavior-test.sh`) — exit codes + key output markers
+across representative invocations.
+
+For the general (non-PyCSL) refactoring methodology — right-sizing abstractions, treating
+recommendations as hypotheses, building coverage before reorganising untested code — see the
+`refactor-python` skill (§10–§11). The campaign that hardened both skills lives in
+`refactor-recommendations.md`.
+
+---
+
 ## 12. Glossary
 
 The `docs/glossary/` directory defines all recurring verification terms:

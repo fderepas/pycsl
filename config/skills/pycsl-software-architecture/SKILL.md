@@ -91,10 +91,32 @@ The `memory_model` constructor parameter controls how Python arrays are represen
 | Model | Value | Array semantics | Heap variable |
 |-------|-------|-----------------|---------------|
 | Hoare | `"hoare"` | Value-semantic `array int` — no heap aliasing | None |
+| Concurrent | `"concurrent"` | Value-semantic (as hoare) + mutex-discipline checks | None |
 | Typed | `"typed"` | Heap-based `loc` reference type | `int_mem` |
 | Store | `"store"` | Heap-based `store` record | `store` |
 
 Default is `"hoare"`. Controlled by `--memory-model` on the `pycsl` CLI, or by a `--memory-model` line in a test's `header` file.
+
+**One axis, named once.** Despite four model names, every emission site in `module6_whyml/`
+makes a single binary distinction: **value-semantic arrays** (`hoare`/`concurrent` — arrays are
+values, no aliasing) vs a **global heap** (`typed`/`store` — arrays are locations into
+`int_mem`/`store`). That predicate is computed once on the facade as `self._value_semantic`
+(`memory_model in ("hoare", "concurrent")`) and the ~24 branch sites test it — *not* the raw
+model name. `typed`-vs-`store` differ only in the heap *variable name* (`Module6_WhyMLTranspiler`
+constructor); nothing else distinguishes the four models pairwise. (So a strategy/visitor object
+would be over-engineering — the code only ever makes this one split. See the `refactor-python`
+skill §11 and `refactor-recommendations.md`.)
+
+**Heap-is-ghost constraint (typed/store).** The heap (`int_mem`/`store`) is emitted as a Why3
+*ghost* `ref`. So a non-ghost function may **write** the heap (a ghost effect) but must **not
+return a heap-derived value** — that would make its result ghost-tainted (`Function … must be
+explicitly marked ghost`). Typed/store functions therefore return a non-heap value (a scalar
+param/computation) and express their heap effects in the postconditions via `\old(arr[i])` /
+`\valid` / `\separated` / `\at`. Corpus templates: `0149`, and `0463`–`0470` (the model-feature
+coverage; the latter carry explicit `# pycsl-flags: --memory-model typed|store`).
+
+The statement and expression emitters dispatch via `_STMT_HANDLERS` / `_EXPR_DISPATCH` tables
+(IR-type → handler method), not long `if/elif` chains — the same table idiom when extending them.
 
 ---
 

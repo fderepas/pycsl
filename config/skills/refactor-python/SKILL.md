@@ -382,3 +382,56 @@ Follow this sequence for every refactoring session:
 5. **Final** — run the full test suite; result must be ≥ baseline.
 
 **If tests regress after a change, revert that change before continuing.** Never stack refactors on top of a broken baseline.
+
+### The strongest gate: a byte-identical *output* differential
+
+A green test count proves nothing *new* broke that a test happened to cover; it does **not**
+prove behaviour is unchanged. When the code is an **output-deterministic transformer** (a
+compiler, transpiler, code generator, formatter, serializer), you can do far better: assert the
+**output is byte-identical** before and after, over a corpus of inputs. For a pure refactor this
+must hold exactly — any diff is a regression, full stop.
+
+Recipe:
+1. **Determinism first.** Pin every nondeterministic input (`PYTHONHASHSEED=0`, sorted
+   iteration, fixed timestamps). Otherwise the differential is noise — e.g. a `hash()`-derived
+   string id will differ run-to-run and mask or fake a diff.
+2. **Clean baseline from a worktree.** `git worktree add /tmp/base HEAD`, generate outputs from
+   it into `/tmp/out_base`. The worktree is a *separate* checkout, so you can edit the main tree
+   in parallel while the baseline generates.
+3. **Generate the after-set** from the working tree into `/tmp/out_after`, then
+   `diff -rq /tmp/out_base /tmp/out_after` — **0 diffs and 0 "Only in base"** is the pass bar.
+4. **Cover every mode.** If behaviour branches on a mode/flag, the corpus must exercise *every*
+   branch, or the differential silently validates only the covered ones. (If a mode has no
+   coverage, **build it first** — see §11.)
+
+This output-identity gate is what makes large mechanical refactors (dispatch-table conversions,
+god-method splits, predicate extraction) *safe* to attempt: a transcription slip either crashes
+(caught) or changes output (caught), so the worst case is wasted time, not a shipped regression.
+
+**Control-flow changes are the exception.** A refactor of CLI parsing / argument handling /
+process orchestration changes *control flow, not transformer output*, so the output differential
+can't see it. Gate those with a small **behaviour harness** instead — assert exit codes + key
+stdout/stderr markers across representative invocations (and commit it as a reusable test).
+
+## Section 11 — Right-sizing and judging a refactor
+
+The campaign that produced this skill's patterns also produced its hardest lessons — about
+*which* refactors to do, not how:
+
+- **A recommendation is a hypothesis; verify it against the actual code first.** A refactor
+  proposed from a high-level read often doesn't survive close reading: the smell may already be
+  mitigated (e.g. a "verbose threaded-param" complaint where the code already uses terse names +
+  a shorthand helper, so the "fix" is net-neutral churn), or the "duplication" may be three
+  genuinely *different* operations that only look alike. Read the sites before committing; be
+  willing to **report "not worth it"** with evidence instead of executing a wash.
+- **Right-size the abstraction to what the code actually does.** Count the distinct behaviours at
+  the call sites. If N sites all make the *same binary distinction*, the fix is a **named
+  predicate** (`self._value_semantic`), not an N-method strategy/visitor object — a strategy is
+  justified only by genuine per-case polymorphism. Picking the heavyweight pattern for a binary
+  split is over-engineering: more surface, more risk, no extra value.
+- **Build test coverage before refactoring untested code.** If a branch/mode has no tests, a
+  reorg there is unvalidatable and risks an undetectable regression. Writing the missing
+  coverage first is both the safe prerequisite *and* often the higher-value deliverable (tests
+  catch drift directly; a reorg only makes drift more visible to a reader).
+- **Prefer many small validated commits over one big diff.** Each independently output-diffed and
+  committed; if the differential ever shows a diff, you bisect one change, not a megacommit.
