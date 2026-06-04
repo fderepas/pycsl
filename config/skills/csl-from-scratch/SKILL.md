@@ -313,6 +313,10 @@ Load the file that matches what you're about to do:
 - **Premature LLM agent automation.** The agents work on the
   mature surface, not the under-construction one. Build Phases
   1-9 by hand.
+- **Adding a new IR node / backend case for a form that is sugar
+  over existing primitives.** It grows the TCB and the
+  Module 5/6/formal-mirror surface for *zero* proving power.
+  Desugar it in the front-end instead (Phase 4b).
 - **Inventing your own SMT-bridge.** Use Why3. Anything else is
   a different (much larger) project.
 - **Verifying Module 6 by hand.** Phase 6's `wp_gen_correct` +
@@ -451,6 +455,16 @@ If you remember nothing else from this skill:
 8. **Track Admitted count per build.** Report it automatically
    (`grep Admitted | wc -l`). The count should monotonically
    decrease. Any increase must be justified.
+9. **Grow the surface by desugaring, not by growing the TCB.** A new
+   annotation form that is expressible over existing primitives is added
+   as *sugar* — a parser rule + a weaver desugaring pass that lowers it to
+   those primitives — with **zero** new IR/backend/trusted surface. Verify
+   what each target primitive actually *proves / assumes / drops* before
+   lowering onto it; contain the front-end change so non-sugar inputs stay
+   byte-identical; and give the sugar a negative test so it has teeth. Sugar
+   buys ergonomics, not proving power — so spend it only where the
+   ergonomic gain (e.g. DRY) is real. See Phase 4b in
+   `references/phases-language-and-ir.md`.
 
 ---
 

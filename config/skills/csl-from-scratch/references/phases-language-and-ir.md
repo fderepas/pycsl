@@ -62,6 +62,69 @@ test in the corpus traces to a form" as a hard discipline.
 
 ---
 
+## Phase 4b — Sugar: grow the surface by desugaring (not the TCB)
+
+> **Squeeze → S3 still holds.** A sugar form is *not* exempt from traceability:
+> it gets a test and a normative-surface entry like any directive. Its IR-node
+> column simply reads `(desugars to …)` instead of naming a new node.
+
+Not every new `#@` form needs its own IR node + backend case. A form that is
+expressible in terms of forms you already have should be added as **sugar**: a
+parser rule plus a **desugaring pass in the weaver** that lowers it to existing
+primitives, leaving Module 5/6, the IR schema, and the formal-semantics mirrors
+**untouched** — **0 `\trusted` preserved**.
+
+Sugar adds **zero proving power** (by construction — it lowers to things you can
+already prove), so it earns its place only through **ergonomics**: readability,
+or a single source of truth that the hand-written expansion would duplicate. If
+a host-language idiom is rare, *document the raw idiom instead of adding sugar* —
+TCB-minimalism is the default.
+
+**Worked example — `act` (guarded contract cases; PyCSL's ACSL-"behavior").**
+The surface is a Pythonic block; the weaver desugars it:
+
+```
+#@ act b: given A ; ensures E   →   ensures \old(A) ==> E
+#@ act b: given A ; requires R  →   requires A ==> R
+#@ complete b1, b2              →   ensures \old(g1) || \old(g2)
+#@ disjoint b1, b2              →   ensures not (\old(gi) && \old(gj))   (per pair)
+```
+
+Each guard `A` is written **once** (its `given`) — the DRY win that justifies the
+construct, since the raw `ensures \old(g) ==> …` idiom repeats every guard across
+its case, the completeness disjunction, and each disjointness pair. See
+[`act.md`](../../../../act.md) and `annotations.md` §2.1.15.
+
+**The discipline (each item is a real trap we hit):**
+
+1. **Verify the target primitive's *actual* semantics before lowering onto it.**
+   A statement `assert` may be a **prover no-op** (emitted and dropped) — it
+   cannot discharge a goal. A "these cases are complete" claim is a **proof
+   obligation** (an `ensures`/`assert`), *not* a `requires` (which is *assumed*,
+   never proved — lowering completeness to it makes an incomplete set pass).
+   Ask of every primitive: *proved, assumed, or dropped?*
+2. **Contain the front-end change.** Gate the new parsing/folding on the sugar
+   actually appearing, so non-sugar inputs are **byte-identical** — prove it with
+   the corpus differential (this is the S-layer squeeze applied to the ingestor).
+3. **Negative test — the sugar must have teeth.** A malformed or false instance
+   (e.g. a case set with a gap) must *fail* verification; otherwise the sugar is
+   cosmetic-and-wrong.
+4. **Document on every normative surface.** A sugar form is still a directive:
+   concrete-syntax, static-semantics, translational, README, and the canonical
+   reference — its translational rule shows the desugaring, its traceability row
+   names no new IR node.
+5. **Determinism + attribution.** Desugar in source order (never via a `set`);
+   carry the source construct's name through to emission so a proof failure names
+   the original case — the prover only ever sees the desugared form.
+
+**Whole-program sugar is the same move.** Cross-cutting meta-properties
+(MetAcsl-style HILAREs) *expand* one high-level requirement into many ordinary
+per-site obligations — surface → existing primitives → 0-`\trusted`, just at
+program scope instead of function scope. See
+[`metacsl-roadmap.md`](../../../../metacsl-roadmap.md).
+
+---
+
 ## Phase 5 — Second refactor: tighten semantic analyzer + IR
 
 > **Squeeze → S6 (IR schema, tightened).** The JSON schema
