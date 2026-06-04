@@ -1503,6 +1503,32 @@ all code-point / lexicographic reasoning.
 `functions.py` (`_param_type_str` + method-param loop → `string`), `preamble.py`
 (`use string.String`).
 
+### §T.6.16  `collections` constructors (real models)
+
+The `collections` constructors are recognised by name (the bare form after
+`from collections import X`) and **reduce to existing primitive models** — they are *not* opaque
+stub calls — so realistic programs verify with content (`collections-plan.md`):
+
+| Python | WhyML model | Reuses | Boundary |
+|---|---|---|---|
+| `defaultdict(int)` | `map int (option int)` (empty) | dict read/write; missing key → 0 | factory arg dropped; non-`int` factory out (default is hard-wired 0) |
+| `Counter()` | same dict model | dict read/write; `c[k]+=1` desugars to `c[k]=c[k]+1` | `most_common`/ranking out |
+| `OrderedDict()` | same dict model | dict alias | insertion order NOT modelled |
+| `deque()` | empty `ArrayLit` → growable list (`Array.make 1024 0` + `_len`) | append/index/len | `appendleft`/`popleft`/`pop` out; seeded iterable modelled as empty |
+| `namedtuple('P',[…])` | synthetic record `{f:int;…}` | Tier-A parametrized construction (§T.4.2) | literal fields only; dynamic fields → opaque |
+| `ChainMap`/`User*` | opaque int handle | — | composition / subclass hooks out (Tier 3) |
+
+Two supporting changes: `Module5._py_stmt_augassign` gained a `Subscript` arm so `c[k] += 1`
+(and plain `arr[i] += v`) desugars to a store of `(c[k]) op v` instead of being silently
+dropped; `Module5._synthesize_namedtuple_records` turns a module-level `Name = namedtuple(…)`
+into a record `type_decl` with an implicit `__init__`. Seeded iterables / unmodelled members are
+**sound under-approximations** — content that depends on them fails to prove, never proves falsely.
+
+**Implementation:** `ir_scanner.py` (`find_array_and_dict_vars`, `uses_inline_set_or_dict_ops`),
+`expressions.py::_handle_call_expr` (empty-ctor lowering), `Module5_IREmitter.py`
+(`_py_expr_call` deque→ArrayLit, `_py_stmt_augassign` subscript arm,
+`_synthesize_namedtuple_records`).
+
 ---
 
 ## §T.7  Memory Models

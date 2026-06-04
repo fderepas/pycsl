@@ -871,6 +871,15 @@ class ExpressionEmissionMixin:
             # Body dict: empty `map int (option int)`. Parallel to
             # `\empty_map` (`_handle_map_empty_expr`).
             return "(const (None: option int))"
+        if func_name in ("defaultdict", "Counter", "OrderedDict"):
+            # collections-plan: the dict-family reduces to the empty
+            # `map int (option int)`. The factory (`defaultdict(int)`) or
+            # iterable (`Counter([...])`) arg is dropped — the missing-key
+            # default IS the model's None→0, and a seeded iterable is modelled
+            # as empty (a sound under-approximation: content that depends on
+            # the seed fails to prove, never proves falsely). `OrderedDict`
+            # insertion order is not modelled.
+            return "(const (None: option int))"
         if func_name == "list" and len(args) <= 1:
             # `list(iterable)` semantics depend on the surrounding return
             # type. In a `List[T] -> array int` context, emit an abstract

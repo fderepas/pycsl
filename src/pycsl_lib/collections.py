@@ -110,7 +110,7 @@ class DequeObj:
 # cite: https://docs.python.org/3/library/collections.html#collections.deque.rotate
 #@ requires True
 #@ ensures True
-#@ assigns self
+#@ assigns \nothing
     def rotate(self, n: int) -> int:
         return 0
 
@@ -248,7 +248,7 @@ class OrderedDictObj:
 # cite: https://docs.python.org/3/library/collections.html#collections.OrderedDict.move_to_end
 #@ requires True
 #@ ensures True
-#@ assigns self
+#@ assigns \nothing
     def move_to_end(self, key: int, last: int) -> int:
         return 0
 

@@ -59,7 +59,62 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
         if lock_order is not None:
             self.program_ir["lock_order"] = lock_order.order
 
+        # collections-plan: synthesise record type_decls for module-level
+        # `Name = namedtuple(...)` BEFORE visiting functions, so a `Name(...)`
+        # construction resolves against `_record_types`.
+        self._synthesize_namedtuple_records(node)
+
         self.generic_visit(node)
+
+    @staticmethod
+    def _namedtuple_fields(arg: ast.expr) -> List[str]:
+        """Parse a `namedtuple` fields arg into a list of field names, or [] if it is
+        not a compile-time literal (a list/tuple of str constants, or a space/comma
+        separated `"x y"` / `"x, y"` string). A non-literal fields arg → [] (no record
+        synthesised; the factory stays opaque)."""
+        if isinstance(arg, (ast.List, ast.Tuple)):
+            names: List[str] = []
+            for e in arg.elts:
+                if isinstance(e, ast.Constant) and isinstance(e.value, str):
+                    names.append(e.value)
+                else:
+                    return []
+            return names
+        if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+            return arg.value.replace(",", " ").split()
+        return []
+
+    def _synthesize_namedtuple_records(self, node: ast.Module) -> None:
+        """collections-plan: a module-level `Name = namedtuple('Name', <fields>)` becomes
+        a record type_decl (all fields `int`) with an implicit `__init__(self, f1, …)`
+        that sets `self.fi = fi`. So `Name(a, b)` reuses the Tier-A parametrized record
+        construction (`{f1 = a; f2 = b}`) and `p.fi` is a record-field read. Only literal
+        fields are recognised; a dynamic fields arg synthesises nothing."""
+        for stmt in node.body:
+            if not (isinstance(stmt, ast.Assign) and len(stmt.targets) == 1
+                    and isinstance(stmt.targets[0], ast.Name)
+                    and isinstance(stmt.value, ast.Call)):
+                continue
+            call = stmt.value
+            fn = call.func
+            is_nt = ((isinstance(fn, ast.Name) and fn.id == "namedtuple")
+                     or (isinstance(fn, ast.Attribute) and fn.attr == "namedtuple"))
+            if not is_nt or len(call.args) < 2:
+                continue
+            fields = self._namedtuple_fields(call.args[1])
+            if not fields:
+                continue
+            name = stmt.targets[0].id
+            self.program_ir["type_decls"].append({
+                "kind": "record", "name": name,
+                "fields": [{"name": f, "type": "int", "mutable": True} for f in fields],
+                "class_invariants": [], "field_defaults": {f: 0 for f in fields},
+                "has_hash": False, "has_eq": False, "is_unhashable": False,
+                "constants": {}, "bases": [],
+                "init_params": list(fields),
+                "init_body": [{"field": f, "value": {"type": "Var", "name": f}}
+                              for f in fields],
+            })
 
     def _get_mutex_invariant_ir(self, mutex: str) -> Optional[Dict[str, Any]]:
         """Return the IR form of the mutex invariant, or None if not declared."""
@@ -552,6 +607,13 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
 
     def _py_expr_call(self, expr: ast.Call) -> Dict[str, Any]:
         if isinstance(expr.func, ast.Name):
+            if expr.func.id == "deque":
+                # collections-plan: `deque(...)` reduces to the list/array model. Lower
+                # it to an empty array literal so it reuses the append/index/len
+                # machinery verbatim (identical to `dq = []`). A seeded iterable is
+                # modelled as empty (sound under-approximation); left-end ops
+                # (appendleft/popleft) and pop are out of scope.
+                return {"type": "ArrayLit", "elts": []}
             return {"type": "Call", "func": expr.func.id,
                     "args": [self._py_expr_to_ir(arg) for arg in expr.args]}
         elif isinstance(expr.func, ast.Attribute):
@@ -762,6 +824,22 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
               stmt.target.value.id == 'self'):
             ir_stmts.append({"stmt": "FieldAugAssign", "object": "self", "field": stmt.target.attr,
                              "op": self._py_op_to_str(stmt.op), "value": self._py_expr_to_ir(stmt.value)})
+        elif isinstance(stmt.target, ast.Subscript):
+            # collections-plan: `c[k] op= v` (subscript augmented assignment) was
+            # silently dropped (no arm here). Desugar to a plain subscript store of
+            # `(c[k]) op v` — reusing the proven ArraySet path (→ map_update_some for
+            # a dict / Counter, Array.set for a list). Also fixes `arr[i] += v`.
+            slice_node = stmt.target.slice
+            if isinstance(slice_node, ast.Index):  # <3.9 compatibility
+                slice_node = slice_node.value
+            if not isinstance(slice_node, ast.Slice):
+                read_ir = self._py_expr_to_ir(stmt.target)  # c[k] (read)
+                ir_stmts.append({
+                    "stmt": "ArraySet",
+                    "array": self._py_expr_to_ir(stmt.target.value),
+                    "index": self._py_expr_to_ir(slice_node),
+                    "value": {"type": "BinOp", "op": self._py_op_to_str(stmt.op),
+                              "left": read_ir, "right": self._py_expr_to_ir(stmt.value)}})
 
     def _py_stmt_return(self, stmt: ast.Return, ir_stmts: List[Dict[str, Any]]) -> None:
         ir_stmts.append({"stmt": "Return", "value": self._py_expr_to_ir(stmt.value) if stmt.value else None})

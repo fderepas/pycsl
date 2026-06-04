@@ -110,6 +110,8 @@ class IRScanner:
                         # `sorted` is emitted as an abstract val returning
                         # `array int`; track its target as array-typed so
                         # the pre-decl path skips the `ref 0` declaration.
+                        # (collections-plan: `deque()` lowers to an empty ArrayLit
+                        # in Module5, so it is caught by the ArrayLit arm below.)
                         array_vars.add(target)
                     elif vt in ("ListLit", "ArrayLit"):
                         array_vars.add(target)
@@ -117,7 +119,13 @@ class IRScanner:
                         array_vars.add(target)
                     elif vt == "DictLit":
                         dict_vars.add(target)
-                    elif vt == "Call" and val.get("func") in ("dict",):
+                    elif vt == "Call" and val.get("func") in (
+                            "dict", "defaultdict", "Counter", "OrderedDict"):
+                        # collections-plan: the dict-family collections reduce to
+                        # the `map int (option int)` model. `defaultdict(int)`'s
+                        # missing-key default IS the model's missing→0; `Counter`
+                        # is a count map; `OrderedDict` is a plain dict (order not
+                        # modelled). The factory/iterable arg is dropped (empty).
                         dict_vars.add(target)
                     elif vt == "SetLit" or (vt == "Call" and val.get("func") in ("set", "frozenset")):
                         dict_vars.add(target)
@@ -167,7 +175,8 @@ class IRScanner:
                 return True
             if t == "Call":
                 fn = obj.get("func", "")
-                if fn in ("set", "dict", "frozenset"):
+                if fn in ("set", "dict", "frozenset",
+                          "defaultdict", "Counter", "OrderedDict"):
                     return True
                 # `<obj>.add(x)` / `.discard(x)` / `.remove(x)` patterns
                 if (fn.endswith(".add") or fn.endswith(".discard")
