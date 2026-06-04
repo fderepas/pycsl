@@ -283,16 +283,22 @@ def test_precondition(x: int) -> int:
 When the call graph contains a cycle, `let rec` replaces `let`.
 A `variant` clause is required for termination:
 
-$$\mathcal{T}_f\llbracket \texttt{def f(...): \#@ variant V ...} \rrbracket
+$$\mathcal{T}_f\llbracket \texttt{def f(...): \#@ \textbackslash variant V ...} \rrbracket
 = \texttt{let rec f (...) : R} \;
-  \texttt{variant \{} \mathcal{T}_e\llbracket V \rrbracket \texttt{\} with subterm} \;
+  \texttt{variant \{} \mathcal{T}_e\llbracket V \rrbracket \texttt{\}} \;
   \texttt{= ...}$$
 
-**Verified example (test 0050):**
+The plain form `#@ \variant V` emits `variant { V }` with **no** `with` clause. The
+**structural** form `#@ \variant (V, ord)` (a named well-founded ordering) additionally
+emits `with ord` — this is the only way `with subterm` appears (cf. real test `0050`,
+`#@ \variant (n, subterm)`). (Note: bare `variant` without the backslash is the *loop*
+variant `#@ loop variant`; the function-level directive is `\variant`.)
+
+**Example (plain recursion variant):**
 ```python
 #@ requires n >= 0
 #@ ensures \result >= 0
-#@ variant n
+#@ \variant n
 def count_down(n: int) -> int:
     if n <= 0:
         return 0
@@ -303,7 +309,7 @@ def count_down(n: int) -> int:
   let rec count_down (n: int) : int
     requires { (n >= 0) }
     ensures  { (result >= 0) }
-    variant  { n } with subterm
+    variant  { n }
   =
     try
     if (n <= 0) then begin
@@ -364,16 +370,22 @@ $$\mathcal{T}\llbracket \texttt{\#@ act b: given A; ensures E} \rrbracket
 $$\mathcal{T}\llbracket \texttt{\#@ act b: given A; requires R} \rrbracket
 = \texttt{requires \{ A -> R \}}$$
 
+`complete`/`disjoint` desugar to **function-entry `#@ assert` checkpoints** (not
+`ensures`): `Module3_Weaver._desugar_acts` collects them into `entry_cps` and attaches
+them to the first body statement, so they are discharged **on all paths** (at entry the
+state *is* the pre-state, so the guards need **no `\old`**):
+
 $$\mathcal{T}\llbracket \texttt{\#@ complete b1,b2} \rrbracket
-= \texttt{ensures \{ (old A1) || (old A2) \}}$$
+= \texttt{assert \{ A1 || A2 \}} \quad\text{(at function entry)}$$
 
 $$\mathcal{T}\llbracket \texttt{\#@ disjoint b1,b2} \rrbracket
-= \texttt{ensures \{ not ((old A1) \&\& (old A2)) \}}$$
+= \texttt{assert \{ not (Ai \&\& Aj) \}} \quad\text{(per unordered pair, at entry)}$$
 
 A per-act `ensures` is tagged `(* act b *)` for traceability. `\old` of a
 boolean guard is emitted without `<> 0` coercion (`_to_bool` treats `\old(e)` as
-boolean iff `e` is). The `complete`/`disjoint` obligations are checked on normal
-return only.
+boolean iff `e` is). Because the `complete`/`disjoint` obligations are entry asserts,
+they hold on **every** path (not just normal return) — this is the Phase-2 migration that
+removed `act`'s earlier normal-return-only caveat.
 
 ### §T.2.5b  Statement checkpoints (`#@ assert` / `#@ check`)
 
@@ -1123,9 +1135,10 @@ _Corresponds to `annotations.md` §3._
 | `False` | `false` | Spec | Boolean literal |
 | `False` | `0` | Body | Integer encoding |
 | `None` | `0` | Both | Unit/zero encoding |
-| String `"s"` | `hash("s") % 2^31` | Both | Hashed to integer |
-| `[]` / Array literal | `(Array.make 1024 0)` | Body | Fixed-size default |
-| `{}` / Dict literal | `(dict_new ())` | Body | Abstract operation |
+| String `"s"` | `hash("s") % 2147483647` (`2^31 − 1`) | Both | Hashed to integer |
+| `[]` (empty) | `(Array.make 1024 0)` | Body | Fixed-size default |
+| `[e0, e1, …]` (non-empty) | `(let _alit = Array.make N e0 in _alit[1] <- e1; …; _alit)` | Body | Concrete array literal |
+| `{}` / Dict literal | `(const (None: option int))` | Body | Empty `map int (option int)` (cf. §T.14.1) |
 
 **Implementation:** `_expr_to_whyml`.
 
@@ -1312,8 +1325,8 @@ heap state.  See §T.9 for how this affects frame conditions.
 | `a <= b` | `(a <= b)` | ... | ... |
 | `a > b` | `(a > b)` | ... | ... |
 | `a >= b` | `(a >= b)` | ... | ... |
-| `a and b` | `(a /\ b)` | `a and b` | `(if a /\ b then 1 else 0)` |
-| `a or b` | `(a \/ b)` | `a or b` | `(if a \/ b then 1 else 0)` |
+| `a and b` | `(a && b)` | `a and b` | `(a && b)` |
+| `a or b` | `(a \|\| b)` | `a or b` | `(a \|\| b)` |
 | `not a` | `(not a)` | `not a` | `(if not a then 1 else 0)` |
 | `a ==> b` | `(a -> b)` | — | — |
 
@@ -1358,14 +1371,14 @@ $$\mathcal{T}_e\llbracket f(e_1, \ldots, e_n) \rrbracket
 | Python | WhyML |
 |--------|-------|
 | `len(arr)` | `(length arr)` |
-| `min(a, b)` | `(min a b)` |
-| `max(a, b)` | `(max a b)` |
-| `abs(x)` | `(if x >= 0 then x else -x)` |
+| `min(a, b)` | `(MinMax.min a b)` |
+| `max(a, b)` | `(MinMax.max a b)` |
+| `abs(x)` | literal: folded; else `(abs_conv x)` (uninterpreted `val abs_conv (x:int):int`) |
 | `int(x)` | `x` (identity) |
-| `bool(x)` | `(if x <> 0 then 1 else 0)` |
-| `isinstance(x, T)` | `true` (always true, single type) |
-| `hasattr(x, a)` | `true` |
-| `sum(arr)` | `(pycsl_sum arr 0 (length arr))` |
+| `bool(x)` | `(bool_conv x)` (uninterpreted `val bool_conv (x:int):int`) |
+| `isinstance(x, T)` | `(isinstance_check x t)` — uninterpreted `val isinstance_check (x:int)(t:int):bool` (or `isinstance_check_<T>` when `x` is `self`); **not** `true` |
+| `hasattr(x, a)` | `(hasattr_check x a)` — uninterpreted `val hasattr_check (x:int)(a:int):bool`; **not** `true` |
+| `sum(arr)` | all-literal: folded; else abstract `(sum_1 arr)`. (The contract atom `\sum(arr,lo,hi)` is the one that emits `pycsl_sum` — see §T.6.5.) |
 
 **Implementation:** `_handle_call_expr`.
 
@@ -1873,7 +1886,7 @@ This states that the heap is unchanged.
 $$\mathcal{T}\llbracket \texttt{\#@ assigns arr[lo..hi]} \rrbracket$$
 
 $$= \texttt{writes   \{ int\_mem \}} \\
-  \texttt{ensures  \{ forall l: int. not (arr + lo <= l < arr + hi)} \\
+  \texttt{ensures  \{ forall l: int. (not (arr + lo <= l \&\& l < arr + hi))} \\
   \quad\texttt{-> Map.get !int\_mem l = Map.get (old !int\_mem) l \}}$$
 
 This emits both a `writes` clause (declaring that the heap may change)
@@ -1925,9 +1938,9 @@ is faithful:
   floored division for negative operands — see §T.10.1).
 - **Comparisons:** `==`, `!=`, `<`, `<=`, `>`, `>=` map to `=`, `<>`,
   `<`, `<=`, `>`, `>=` respectively.
-- **Boolean operators:** `and`/`or`/`not` map to `/\`/`\/`/`not` in
-  spec; to `(if ... then 1 else 0)` in body, preserving Python's
-  int-bool duality.
+- **Boolean operators:** `and`/`or` map to `&&`/`||` (`identifiers.py`) in
+  **both** spec and body context; `not` maps to `not`. (`not` still takes the
+  `(if not a then 1 else 0)` form in body context.)
 - **Array access:** `arr[i]` maps to WhyML array indexing (Hoare) or
   `Map.get` (Typed/Store), both of which model random-access reads.
 
@@ -2010,7 +2023,7 @@ by the Why3 project itself.
 | G4 | `None` mapped to `0` in non-ghost context | `None` and `0` are indistinguishable in WhyML for regular Python values | **Partially resolved:** ghost dicts use `map int (option int)` (§T.8.5), so `\has_key` distinguishes absent keys from keys with value 0. Raw Python `None` in non-ghost context still maps to 0. |
 | G5 | Array literals use fixed size 1024 | `[]` becomes `Array.make 1024 0` regardless of actual size | Use dynamic allocation or parametric size |
 | G6 | Dict/Set/ListComp are abstract | `{}`, `[x for x in ...]`, `{k:v for ...}` use uninterpreted functions | Implement concrete dict/set theories |
-| G7 | `isinstance` / `hasattr` always `true` | Single type system limitation | Support union types or tagged variants |
+| G7 | `isinstance` / `hasattr` are **uninterpreted** `bool` ops (`isinstance_check` / `hasattr_check`), not concrete | Single type system limitation | Support union types or tagged variants |
 | G8 | For-each over non-array iterables | Uses abstract `iter_length` / `iter_get` | Provide concrete implementations per type |
 | G9 | `\map_eq` generates a `forall` quantifier | Wide `\map_eq` in deep loop invariants may exceed solver budget | Restrict `\map_eq` to shallow comparisons; prefer explicit key tracking in loop invariants |
 

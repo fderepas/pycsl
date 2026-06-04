@@ -322,8 +322,9 @@ _Corresponds to `annotations.md` §2.4._
 |-------|-----------|-----------|
 | 2.4.1 | Label | `label_decl ::= "label" CNAME ;` |
 | 2.4.2 | Ghost assign | `ghost_assign ::= "ghost" CNAME "=" expr ;` |
-| 2.4.2b | Typed ghost declaration | `ghost_typed_assign ::= "ghost" CNAME ":" ghost_type "=" expr ;` where `ghost_type ::= "int" \| "string" \| "array" \| "ghost_dict" \| "ghost_list" \| "ghost_set" \| "tuple2" \| "tuple3" \| "tuple4" ;` |
+| 2.4.2b | Typed ghost declaration | `ghost_typed_assign ::= "ghost" CNAME ":" ghost_type "=" expr ;` where `ghost_type ::= "string" \| "array" \| "ghost_dict" \| "ghost_list" \| "ghost_set" \| "tuple2" \| "tuple3" \| "tuple4" ;` (no `int` — the `GHOST_TYPE` terminal has 8 keywords; `int` is the default tag of the *untyped* `ghost x = e` form) |
 | 2.4.3 | Ghost augmented assign | `ghost_aug_assign ::= "ghost" CNAME GHOST_AUG_OP expr ;` |
+| 2.4.3b | Ghost array set | `ghost_array_set ::= "ghost" CNAME "[" expr "]" "=" expr ;` — set a ghost array element |
 | 2.4.4 | Critical section | `critical_decl ::= "critical" mutex_expr ;` |
 | 2.4.5 | Acquires | `acquires_decl ::= "acquires" mutex_expr ;` |
 | 2.4.6 | Releases | `releases_decl ::= "releases" mutex_expr ;` |
@@ -360,6 +361,17 @@ _Corresponds to `annotations.md` §3._
 ### 3.1 Atoms
 
 _Corresponds to `annotations.md` §3.1._
+
+> **Non-exhaustive.** The list below covers the common atoms; the **ground truth** is the
+> `?atom` rule in `src/pycsl/Module2_Parser.py`. Atoms the parser also accepts but not all
+> enumerated here include: the field-subscript `self.<field>[expr]` (`field_subscript`, used
+> by `\preserves` region-preservation — §2.1.13), `\array_eq(a, b)`, the extra `\length`
+> forms `\length(self.<field>)` and `\length(\result)`, string-ghost ops (`^` concat,
+> `\str_length`, `\str_sub`), tuple-ghost ops (`\mktuple`, `\fst`, `\snd`, `\proj`),
+> the full **set**-ghost family (`\set_empty`, `\set_add`, `\set_remove`, `\set_mem`,
+> `\set_union`, `\set_inter`, `\set_diff`, `\set_card`, `\set_subset`, `\set_eq`), the
+> **list**-ghost family (`\nil`, `\cons`, `\hd`, `\tl`, `\list_length`, `\nth`, `\mem`,
+> `\append`), and the array-ghost ops (`\copy`, `\copy_range`, `\make`).
 
 The `atom` production defines the terminal and built-in expressions:
 
@@ -627,7 +639,7 @@ shared_decl          ::= "shared" CNAME "protected_by" mutex_expr
 
 mutex_invariant_decl ::= "mutex_invariant" mutex_expr ":" expr ;
 
-lock_order_decl      ::= "lock_order" mutex_expr ( "," mutex_expr )+ ;
+lock_order_decl      ::= "lock_order" mutex_expr ( "," mutex_expr )* ;
 
 mutex_expr           ::= CNAME "[" expr "]"   (* Subscripted mutex *)
                        | CNAME ;              (* Named mutex       *)
@@ -863,7 +875,28 @@ contract ::= precondition
            | releases_decl
            | critical_decl
            | mutex_invariant_decl
-           | lock_order_decl ;
+           | lock_order_decl
+           | assert_decl
+           | check_decl
+           | preserves_decl
+           | ghost_array_set
+           | act_block
+           | complete_decl
+           | disjoint_decl
+           | happy_decl ;
+
+assert_decl    ::= "assert" expr ;                      (* §2.4.7, statement-position *)
+check_decl     ::= "check" expr ;                       (* §2.4.8, statement-position *)
+preserves_decl ::= "\preserves" ;                       (* §2.5.2, HAPPY trust boundary *)
+ghost_array_set ::= "ghost" CNAME "[" expr "]" "=" expr ;   (* §2.4, ghost array element set *)
+act_block      ::= "act" CNAME ":" act_clause+ ;        (* §2.1.15, Module1 folds the block *)
+act_clause     ::= given_clause | precondition | postcondition | assigns ;
+given_clause   ::= "given" expr ;
+complete_decl  ::= "complete" CNAME ( "," CNAME )* ;     (* §2.1.17 *)
+disjoint_decl  ::= "disjoint" CNAME ( "," CNAME )* ;     (* §2.1.18 *)
+happy_decl     ::= "happy" CNAME ":" "region" expr ".." expr
+                   "writes" "self" "." CNAME "outside" "region"
+                   ( "except" CNAME ( "," CNAME )* )? ;  (* §2.5.1, module-level HAPPY *)
 
 (* --- §2.1  Function/Method Contracts ---------------------- *)
 
@@ -903,9 +936,9 @@ ghost_assign       ::= "ghost" CNAME "=" expr ;
 ghost_typed_assign ::= "ghost" CNAME ":" ghost_type "=" expr ;
 ghost_aug_assign   ::= "ghost" CNAME GHOST_AUG_OP expr ;
 
-ghost_type ::= "int" | "string" | "array" | "ghost_dict"
+ghost_type ::= "string" | "array" | "ghost_dict"
              | "ghost_list" | "ghost_set"
-             | "tuple2" | "tuple3" | "tuple4" ;
+             | "tuple2" | "tuple3" | "tuple4" ;   (* GHOST_TYPE terminal — no "int" *)
 
 (* --- §3.4  Assigns Targets -------------------------------- *)
 
@@ -1006,7 +1039,7 @@ acquires_decl        ::= "acquires" mutex_expr ;
 releases_decl        ::= "releases" mutex_expr ;
 critical_decl        ::= "critical" mutex_expr ;
 mutex_invariant_decl ::= "mutex_invariant" mutex_expr ":" expr ;
-lock_order_decl      ::= "lock_order" mutex_expr ( "," mutex_expr )+ ;
+lock_order_decl      ::= "lock_order" mutex_expr ( "," mutex_expr )* ;
 
 mutex_expr ::= CNAME "[" expr "]"
              | CNAME ;

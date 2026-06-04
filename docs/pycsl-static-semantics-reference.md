@@ -70,6 +70,9 @@ The function body is walked (via `ast.walk`) for:
 
 1. **`ast.Assign`**: For each `ast.Name` target `x`, add `x : Any`.
 2. **`ast.AnnAssign`**: For target `x: T`, add `x : τ(T)`.
+3. **`ast.For`**: the loop target is added as `Any` — a bare `Name` target `x`, or each
+   `Name` element of a tuple target `for x, y in …` (so loop variables are in scope for the
+   loop's `#@ loop invariant` clauses). (`Module4_SemanticAnalyzer._build_function_scope`.)
 
 Variables that match a module-level `shared` declaration are **excluded**
 from local scope (they are handled by the concurrency checker).
@@ -148,13 +151,19 @@ specification logic's type universe:
 τ(_)              = Any       (* all other types, including no annotation *)
 ```
 
-Module5's `_build_function_ir` realises this map by recursively
-unwrapping `ast.Subscript` annotations (`Optional`, `Union`, `List`,
-`Dict`, etc.) and lower-casing the head identifier.
+**Where the collapse happens.** The τ universe is *not* materialized as a single function in
+Module5. Module4's `_get_type_name` stores the **raw** type tag in the symbol table (bare names
+verbatim — `str`, `bytes`, `MyClass`; subscript heads lowercased), and `_build_function_ir` only
+separately computes the lowercased *return* head (a `str` return stays `"str"`, not `int`). The
+collapse to the WhyML universe (`int` / `array int` / `map int (option int)`) happens **at
+emission** in `module6_whyml/functions.py` (`_param_type_str`, `_symtype_to_whyml`,
+`_return_type`). So a reader inspecting `_build_function_ir` will *not* find `str`/`float`/`bytes`
+mapped to `int` there — that is the emitter's doing. τ above describes the net result.
 
 **† Context-dependent (parameter vs field).** The τ above gives the *parameter / return*
-realization (`_build_function_ir`), where `bytes` / `bytearray` / bare `tuple` coarsen to
-`int`. As an instance **field** the realization differs: `_field_type_from_annotation` maps
+realization (`_param_type_str`/`_return_type`), where `bytes` / `bytearray` / bare `tuple`
+coarsen to `int`. As an instance **field** the realization differs: `_field_type_from_annotation`
+maps
 these (and `list`/`Tuple[...]`) to `list` → `array int` in the WhyML record, because a byte
 buffer / tuple field is array-backed (e.g. the `self.disk: bytearray` virtual disk). So the
 same annotation can be `int` as a parameter but `array int` as a field.
@@ -206,15 +215,16 @@ rejected. (Enforced by `Module4._validate_acts`.)
 #### §2.4.7 Statement checkpoints (`#@ assert` / `#@ check`)
 
 ```
-   Γ_f ⊢ e : ok        \result ∉ FV(e)
+   \result ∉ FV(e)
    ─────────────────────────────────────────
         `#@ assert e` / `#@ check e` ok
 ```
 
-**Rule:** the expression must be well-formed in the enclosing function scope; `\result`
-is **not** in scope (a checkpoint is a mid-body obligation, bound before any return).
-Mid-body local bindings are left to the back-end prover (not checked here). Enforced by
-`Module4._validate_checkpoints`.
+**Rule:** the **only** static check is that `\result` does not occur (a checkpoint is a
+mid-body obligation, bound before any return). `Module4._validate_checkpoints` does **not**
+perform a scope check on `e` — mid-body local bindings (and thus whether each name is in
+scope) are deliberately left to the back-end prover. (So, unlike `requires`/`ensures`, an
+unknown identifier in a checkpoint is not a Module4 error.)
 
 #### §2.5 Module-level HAPPY meta-property (`happy` / `\preserves`)
 
@@ -708,7 +718,7 @@ subsequent `ghost x += expr` modify it.
 #### §2.4.2b Typed Ghost Declaration (`ghost x : T = expr`)
 
 ```
-    ghost_type T ∈ {int, string, array, ghost_dict, ghost_list,
+    ghost_type T ∈ {string, array, ghost_dict, ghost_list,
                     ghost_set, tuple2, tuple3, tuple4}
     Γ_f ⊢ expr : ok
    ───────────────────────────────────────────────────────────
@@ -720,7 +730,6 @@ subsequent `ghost x += expr` modify it.
 
 | Ghost type | WhyML type |
 |---|---|
-| `int` | `ref int` |
 | `string` | `ref string` |
 | `array` | `array int` (not a ref) |
 | `ghost_dict` | `ref (map int (option int))` |
@@ -730,9 +739,12 @@ subsequent `ghost x += expr` modify it.
 | `tuple3` | `ref (int, int, int)` |
 | `tuple4` | `ref (int, int, int, int)` |
 
-**Rule:** The declared ghost type must be one of the nine supported type
-keywords. The initial expression must be well-formed. Subsequent `ghost x = e`
-and `ghost x += e` treat `x` as having the declared type.
+**Rule:** The declared ghost type must be one of the **eight** `GHOST_TYPE` keywords above
+(grammar terminal `GHOST_TYPE`, `Module2_Parser.py`). `int` is **not** a `GHOST_TYPE` keyword
+— it is the *default* tag for the untyped form `#@ ghost x = e` (`GhostAssignDecl.declared_type`
+defaults to `"int"`), so `#@ ghost x : int = e` is not accepted by the typed-declaration rule.
+The initial expression must be well-formed. Subsequent `ghost x = e` and `ghost x += e` treat
+`x` as having the declared type.
 
 _Corresponds to `annotations.md` §11.1._
 
@@ -1496,7 +1508,7 @@ Complete catalogue of errors raised during static analysis.
 | E10 | Lock order violation | `PyCSLSemanticError` | `"Function '<f>': lock_order violation — acquiring '<m2>' while holding '<m1>'."` |
 | E11 | Mutex invariant references unprotected variable | `PyCSLSemanticError` | `"Mutex invariant for '<mutex>': variable '<var>' is not protected."` |
 | E12 | Subscript assignment to undefined variable | `PyCSLSemanticError` | `"Subscript assignment to undefined variable '<arr>' in <context>."` |
-| E13 | Subscript assignment to non-list variable | `PyCSLSemanticError` | `"Subscript assignment to non-list variable '<arr>' (type '<type>') in <context>."` |
+| E13 | Subscript assignment to non-list/dict variable | `PyCSLSemanticError` | `"Subscript assignment to non-list/dict variable '<arr>' (type '<type>') in <context>."` (accepted target types: `list`, `List`, `dict`, `Dict`, `Any`) |
 
 **Total:** 14 error sites (1 in Module3, 13 in Module4).
 
@@ -1521,7 +1533,7 @@ well-formedness rules.
 
 | Feature | Check | annotations.md |
 |---------|-------|----------------|
-| Subscript assignment type checking (E12, E13) | `arr[i] = v` requires `arr` to be list-typed | Not documented. This is a Python-level semantic check, not a contract-level check. |
+| Subscript assignment type checking (E12, E13) | `arr[i] = v` requires `arr` to be `list`/`dict`-typed (or `Any`); **only checked when the enclosing function carries ≥1 contract/loop annotation** (the `has_annotations` guard) | Not documented. This is a Python-level semantic check, not a contract-level check. |
 | Mutex invariant scope (E11) | Invariant may only reference protected variables | Implied by §5.4 but not explicitly stated in annotations.md §10.1.3. |
 
 ### 10.3 Test Coverage for Error Conditions
