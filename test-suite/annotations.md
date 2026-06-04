@@ -39,6 +39,10 @@ Python construct they annotate (function, class, loop, or statement).
 | 12 | Axiom from proof | `#@ proof <rocq\|lean> <qualname>` | Module-level | Imports a Rocq or Lean theorem as a Why3 axiom in the preamble. When both `rocq` and `lean` directives name the same `pycsl_target`, the `proof2why3 cross-check` tool verifies their canonical forms agree before emission ("Rocq + Lean as Cross-Validated Spec Sources"). See §2.1.12 below. |
 | 13 | No-exception | `#@ no_exception E1, E2, ...` or `#@ no_exception \all` | Function/method | Implicit Python exceptions become proof obligations. For each IR operation in the body that could raise a listed exception, Module 6 emits a WhyML `assert { trigger }`. The `\all` form expands to the full Phase 1 set in `exception_model.KNOWN_EXCEPTIONS` and requires `raises { }` to be empty. See §2.1.13. |
 | 14 | Abstract | `#@ \abstract` | Function/method | Function is emitted as a **bodyless** WhyML `val` defined SOLELY by its contract (+ any `#@ proof` axioms). Unlike `\trusted` (a present-but-unchecked body), `\abstract` asserts there is no meaningful body — the contract IS the definition. Sound (uninterpreted `val`). Does **not** count as `\trusted`; the canonical 0-`\trusted` model for irreducibly-opaque ops (e.g. `ast.literal_eval`). See §2.1.14 below. |
+| 15 | Guarded case | `#@ act <name>:` (with a 4-space-indented body of `#@ given` / `#@ requires` / `#@ ensures`) | Function/method | A named case guarded by its `given`. Desugars to ordinary `ensures \old(<given>) ==> <post>` / `requires <given> ==> <pre>` (no new IR node, 0 `\trusted`). See §2.1.15 below. |
+| 16 | Case guard | `#@ given <expr>` | Inside an `act` | The case's pre-state guard (ACSL's `assumes`); only valid inside an `act` block. `\result` is not allowed here. |
+| 17 | Complete cases | `#@ complete <name>, ...` | Function/method | Proof obligation that the named acts' guards cover every input — `ensures \old(g1) \|\| ... \|\| \old(gn)`. |
+| 18 | Disjoint cases | `#@ disjoint <name>, ...` | Function/method | Proof obligation that at most one guard holds — per pair `ensures not(\old(gi) && \old(gj))`. |
 
 Multiple `requires`/`ensures` lines are conjuncted (all must hold).
 
@@ -246,6 +250,42 @@ the spec, so a `try/except` wrapper around it is provably total (corpus
 `0449`). This is the 0-`\trusted` idiom: *"0 trusted ≠ 0 abstraction"* —
 the opaque boundary is an explicit, auditable `val` spec rather than an
 invisible unchecked body.
+
+#### §2.1.15 Guarded cases (`act` / `given` / `complete` / `disjoint`)
+
+A named, guarded contract case (ACSL "behavior"). Written as a Python-style
+block: `#@ act <name>:` followed by a **4-space-indented** body of
+`#@ given` / `#@ requires` / `#@ ensures` lines (strict — a misindented or
+tab-indented body line is a hard error).
+
+```python
+#@ act neg:
+#@     given x < 0
+#@     ensures \result == 0 - x
+#@ act pos:
+#@     given x >= 0
+#@     ensures \result == x
+#@ complete neg, pos
+#@ disjoint neg, pos
+def myabs(x: int) -> int:
+    if x < 0:
+        return 0 - x
+    return x
+```
+
+**Desugaring** (Module 3 — no new IR node, 0 `\trusted`): for an act with guard
+`A` (the conjunction of its `#@ given` clauses), each `#@ ensures E` becomes
+`ensures \old(A) ==> E` and each `#@ requires R` becomes `requires A ==> R`.
+The guard is read in the **pre-state** (hence `\old`); `\result` is therefore
+not allowed in a `given`. `#@ complete c1, ...` becomes
+`ensures \old(g1) || ...` and `#@ disjoint c1, ...` a per-pair
+`ensures not(\old(gi) && \old(gj))` — both real proof obligations that fail on a
+gap/overlap. A failed case-postcondition is tagged `(* act <name> *)` in the
+emitted WhyML for traceability.
+
+**Limitation (v1):** `complete`/`disjoint` are checked on **normal return** only
+(a WhyML `ensures`), so for inputs that always `raise` they are vacuously true —
+weaker than ACSL's pre-state obligation.
 
 ### 2.2 Loop Contracts
 

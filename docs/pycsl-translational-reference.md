@@ -353,6 +353,28 @@ def test_nothing(x: int, y: int) -> int:
     (x + y)
 ```
 
+### §T.2.5a  Guarded cases (`act` / `given` / `complete` / `disjoint`)
+
+Acts are desugared (Module 3) to ordinary requires/ensures — there is **no** new
+WhyML construct. For an act with guard `A` (the conjunction of its `#@ given`):
+
+$$\mathcal{T}\llbracket \texttt{\#@ act b: given A; ensures E} \rrbracket
+= \texttt{ensures \{ (old A) -> E \}}$$
+
+$$\mathcal{T}\llbracket \texttt{\#@ act b: given A; requires R} \rrbracket
+= \texttt{requires \{ A -> R \}}$$
+
+$$\mathcal{T}\llbracket \texttt{\#@ complete b1,b2} \rrbracket
+= \texttt{ensures \{ (old A1) || (old A2) \}}$$
+
+$$\mathcal{T}\llbracket \texttt{\#@ disjoint b1,b2} \rrbracket
+= \texttt{ensures \{ not ((old A1) \&\& (old A2)) \}}$$
+
+A per-act `ensures` is tagged `(* act b *)` for traceability. `\old` of a
+boolean guard is emitted without `<> 0` coercion (`_to_bool` treats `\old(e)` as
+boolean iff `e` is). The `complete`/`disjoint` obligations are checked on normal
+return only.
+
 ### §T.2.6  Trusted Functions (`\trusted [reviewer: <name>]`)
 
 $$\mathcal{T}_f\llbracket \texttt{def f(...): \#@ \\trusted ...} \rrbracket

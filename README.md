@@ -80,6 +80,8 @@ Reading the tokens:
 | `gcd(a, b)` | A call to the imported Why3 `gcd` function (introduced in Step 4) — *not* a recursive call to the Python function. Used here as a bridge so the SMT solver can substitute directly. |
 | `True`, `False` | First-class boolean atoms in contracts (annotations.md §3.1.18). `#@ requires True` is the recommended form for "no precondition"; `#@ ensures False` is useful as a placeholder marking an intentionally-unprovable postcondition during incremental annotation. |
 | `assigns \nothing` | Frame condition: no observable state is mutated (local variables don't count). |
+| `act <name>:` (+ `given`) | A guarded case: `#@ act <name>:` with a 4-space-indented body of `#@ given <guard>` / `#@ ensures <post>`. Desugars to `ensures \old(<guard>) ==> <post>`. |
+| `complete` / `disjoint` | `#@ complete c1, c2` proves the acts' guards cover every input; `#@ disjoint c1, c2` proves at most one holds. |
 
 Multiple `requires` / `ensures` lines are conjuncted.
 
