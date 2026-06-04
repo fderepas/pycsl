@@ -699,90 +699,102 @@ def _parse_args() -> argparse.Namespace:
     """Build and return the parsed CLI argument namespace."""
     parser = argparse.ArgumentParser(description="PyCSL: Python Contract Specification Language Verifier")
     parser.add_argument("file", help="The Python file to verify")
-    parser.add_argument("-p", "--prover", default=None,
+
+    # Flags are grouped by concern for readable `--help`; grouping affects only the
+    # help layout, not the parsed namespace.
+    g_prover = parser.add_argument_group("prover selection")
+    g_prover.add_argument("-p", "--prover", default=None,
                         help="Single prover to use (e.g. 'Alt-Ergo,2.6.2,' or 'Z3,4.13.3,'). "
                              "Overrides --provers and agents-config.json.")
-    parser.add_argument("--provers", default=None,
+    g_prover.add_argument("--provers", default=None,
                         help="Comma-separated list of Why3 prover IDs to try in order "
                              "(e.g. 'Alt-Ergo,2.6.2,,Z3,4.13.3,'). "
                              "Why3 tries each prover per goal and accepts the first Valid. "
                              "Overrides agents-config.json. "
                              "Default: Alt-Ergo then Z3.")
-    parser.add_argument("--memory-model", default=None,
+    g_prover.add_argument("--memory-model", default=None,
                         choices=["hoare", "typed", "store", "concurrent"],
                         help="Memory model for WhyML emission (default: hoare). "
                              "'typed'/'store' use a global heap (map loc int). "
                              "'concurrent' enables mutex-discipline verification.")
-    parser.add_argument("--keep-mlw", action="store_true",
+
+    g_scope = parser.add_argument_group("scope / output")
+    g_scope.add_argument("--keep-mlw", action="store_true",
                         help="Keep the generated WhyML (.mlw) file for debugging")
-    parser.add_argument("--fun", action="append", default=None, metavar="NAME",
+    g_scope.add_argument("--fun", action="append", default=None, metavar="NAME",
                         help="Only verify the named function and its transitive "
                              "call-dependencies (may be repeated). "
                              "Other functions become trusted stubs.")
-    parser.add_argument("--deep", action="store_true",
+    g_scope.add_argument("--deep", action="store_true",
                         help="Recursively resolve transitive imports in "
                              "dependency files (default: only direct imports "
                              "of the main file are resolved).")
-    parser.add_argument("--no-proof", action="store_true",
+
+    g_proof = parser.add_argument_group("proof modes")
+    g_proof.add_argument("--no-proof", action="store_true",
                         help="Skip the proof step. Only run the pipeline "
                              "(parse, typecheck, transpile) and report success "
                              "if valid WhyML is generated.")
-    parser.add_argument("--rocq", metavar="DIR", default=None,
+    g_proof.add_argument("--rocq", metavar="DIR", default=None,
                         help="On SMT prover failure, generate Rocq (Coq) "
                              "proof obligations in DIR. Why3 emits .v files "
                              "with proof skeletons that you complete manually "
                              "and compile with coqc.")
-    parser.add_argument("--strict-concurrent-checks", action="store_true",
-                        help="Escalate ConcurrencyChecker warnings (unprotected "
-                             "shared access, nested locking without lock_order) to "
-                             "hard errors. Off by default to preserve backward "
-                             "compatibility for existing concurrent-model corpora. "
-                             "See config/skills/pycsl-ub-catalog/SKILL.md §7.3.")
-    parser.add_argument("--allow-unverified-imports", action="store_true",
-                        help="Permit imports on the C-extension deny-list "
-                             "(ctypes, cffi, numpy.ctypeslib, cython) without "
-                             "a #@ \\trusted opt-in on the importing function. "
-                             "Off by default. See config/skills/pycsl-ub-catalog/SKILL.md §7.4.")
-    parser.add_argument("--strict-hash-eq-consistency", action="store_true",
-                        help="Emit the UB-7.2 hash/eq consistency property as a "
-                             "Why3 goal that must be discharged (typically via "
-                             "an external proof citation). Off by default — emits "
-                             "as an axiom and trusts the user.")
-    parser.add_argument("--check-behavioral-subtyping", action="store_true",
-                        help="Layer D: emit Liskov refinement goals for "
-                             "overriding methods (pre_base ⇒ pre_sub, "
-                             "post_sub ⇒ post_base). Fails if an override "
-                             "strengthens a precondition or weakens a "
-                             "postcondition.")
-    parser.add_argument("--strict-no-exception-propagation", action="store_true",
-                        help="(Experimental, off by default.) Under `no_exception` "
-                             "treat unannotated callees pessimistically: any call "
-                             "from a `no_exception`-enabled function to an abstract "
-                             "callee becomes an unsatisfiable VC. See the NoException "
-                             "workplan §1.4 / docs/pycsl-static-semantics-reference §2.1.13.")
-    parser.add_argument("--rocq-proofs", metavar="DIR", default=None, nargs="?",
+    g_proof.add_argument("--rocq-proofs", metavar="DIR", default=None, nargs="?",
                         const="__auto__",
                         help="Check DIR for pre-existing Rocq proofs when SMT "
                              "provers fail. Each .v file is replayed with coqc "
                              "for full verification. If DIR is omitted, "
                              "auto-detects <file>.proofs/ next to the input.")
-    parser.add_argument("--audit-proof", action="store_true",
+
+    g_strict = parser.add_argument_group("strictness / extra checks")
+    g_strict.add_argument("--strict-concurrent-checks", action="store_true",
+                        help="Escalate ConcurrencyChecker warnings (unprotected "
+                             "shared access, nested locking without lock_order) to "
+                             "hard errors. Off by default to preserve backward "
+                             "compatibility for existing concurrent-model corpora. "
+                             "See config/skills/pycsl-ub-catalog/SKILL.md §7.3.")
+    g_strict.add_argument("--allow-unverified-imports", action="store_true",
+                        help="Permit imports on the C-extension deny-list "
+                             "(ctypes, cffi, numpy.ctypeslib, cython) without "
+                             "a #@ \\trusted opt-in on the importing function. "
+                             "Off by default. See config/skills/pycsl-ub-catalog/SKILL.md §7.4.")
+    g_strict.add_argument("--strict-hash-eq-consistency", action="store_true",
+                        help="Emit the UB-7.2 hash/eq consistency property as a "
+                             "Why3 goal that must be discharged (typically via "
+                             "an external proof citation). Off by default — emits "
+                             "as an axiom and trusts the user.")
+    g_strict.add_argument("--check-behavioral-subtyping", action="store_true",
+                        help="Layer D: emit Liskov refinement goals for "
+                             "overriding methods (pre_base ⇒ pre_sub, "
+                             "post_sub ⇒ post_base). Fails if an override "
+                             "strengthens a precondition or weakens a "
+                             "postcondition.")
+    g_strict.add_argument("--strict-no-exception-propagation", action="store_true",
+                        help="(Experimental, off by default.) Under `no_exception` "
+                             "treat unannotated callees pessimistically: any call "
+                             "from a `no_exception`-enabled function to an abstract "
+                             "callee becomes an unsatisfiable VC. See the NoException "
+                             "workplan §1.4 / docs/pycsl-static-semantics-reference §2.1.13.")
+
+    g_audit = parser.add_argument_group("proof auditing")
+    g_audit.add_argument("--audit-proof", action="store_true",
                         help="Audit every #@ proof rocq / lean directive "
                              "in the file. Confirms each cited theorem is "
                              "declared inside the matching nested namespace "
                              "in the proof file. Audit-only: skips transpile "
                              "and verify. Exit 0 PASS / 1 FAIL.")
-    parser.add_argument("--audit-proof-rocq", action="store_true",
+    g_audit.add_argument("--audit-proof-rocq", action="store_true",
                         help="Like --audit-proof but only Rocq directives.")
-    parser.add_argument("--audit-proof-lean", action="store_true",
+    g_audit.add_argument("--audit-proof-lean", action="store_true",
                         help="Like --audit-proof but only Lean directives.")
-    parser.add_argument("--rocq-proofs-path", metavar="DIR", default=None,
+    g_audit.add_argument("--rocq-proofs-path", metavar="DIR", default=None,
                         help="Override default Rocq proof dir for --audit-proof "
                              "(default: <file>.proofs/rocq/).")
-    parser.add_argument("--lean-proofs-path", metavar="DIR", default=None,
+    g_audit.add_argument("--lean-proofs-path", metavar="DIR", default=None,
                         help="Override default Lean proof dir for --audit-proof "
                              "(default: <file>.proofs/lean/).")
-    parser.add_argument("--reverify-proofs", action="store_true",
+    g_audit.add_argument("--reverify-proofs", action="store_true",
                         help="With --audit-proof: actually invoke coqc / "
                              "lake env lean on the cited proof files and check "
                              "that each cited theorem's assumption set is in "
@@ -1021,18 +1033,10 @@ def _run_audit_mode(args: argparse.Namespace) -> int:
     return report.exit_code
 
 
-def main() -> None:
-    args = _parse_args()
-
-    if not os.path.exists(args.file):
-        print(f"[!] Error: File '{args.file}' not found.")
-        sys.exit(1)
-
-    # Audit-only mode short-circuits the pipeline.
-    if args.audit_proof or args.audit_proof_rocq or args.audit_proof_lean:
-        sys.exit(_run_audit_mode(args))
-
-    # Load agents-config.json
+def _resolve_runtime_config(args: argparse.Namespace) -> Tuple[str, List[str]]:
+    """Resolve `(memory_model, provers)` from CLI flags and agents-config.json. The CLI
+    `--memory-model`/`--prover`/`--provers` flags override the config; the config overrides
+    the built-in defaults (hoare; Alt-Ergo then Z3). (Extracted from `main`.)"""
     _config = {}
     config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "agents", "agents-config.json")
@@ -1051,6 +1055,21 @@ def main() -> None:
         cfg_provers = _config.get("provers", _DEFAULT_PROVERS)
         provers = ([p.strip() for p in cfg_provers.split(",,") if p.strip()]
                    if isinstance(cfg_provers, str) else cfg_provers)
+    return memory_model, provers
+
+
+def main() -> None:
+    args = _parse_args()
+
+    if not os.path.exists(args.file):
+        print(f"[!] Error: File '{args.file}' not found.")
+        sys.exit(1)
+
+    # Audit-only mode short-circuits the pipeline.
+    if args.audit_proof or args.audit_proof_rocq or args.audit_proof_lean:
+        sys.exit(_run_audit_mode(args))
+
+    memory_model, provers = _resolve_runtime_config(args)
 
     with open(args.file, "r") as f:
         source_code = f.read()
