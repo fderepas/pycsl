@@ -390,7 +390,7 @@ These are NEW IR emission gaps, distinct from the bytes/struct gaps Phases 1–3
 
 **Acceptance:**
 - `.venv/bin/python3 src/pycsl/pycsl.py unix-filesystem/UnixInodeFileSystem.py` exits 0
-- `bin/cmmi-audit.sh --quick 2>&1 | grep -c "\[VERIFIED\]"` stdout >= `2`
+- `bin/cmmi-audit.sh --quick 2>&1 | grep -c "\[VERIFIED\]"` stdout >= `15`
 - `bin/cmmi-audit.sh --quick 2>&1 | grep -c "\[UNKNOWN\]"` stdout == `0`
 - `grep -q "proof rocq UnixFs.Struct" unix-filesystem/UnixInodeFileSystem.py` exits 0 *(at least one struct round-trip axiom is cited)*
 - `test -f bin/cmmi-audit.sh` exits 0 *(the audit step exists)*

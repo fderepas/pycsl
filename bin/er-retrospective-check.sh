@@ -10,7 +10,10 @@
 #   3. Run `bin/agent-feature-supervisor --feature-file
 #      missing-bytes-struct-feature.md --skip-gate` — must exit 75
 #      (ACCEPTANCE_FAILED, because Phase 4's claim of
-#      `grep -c "[VERIFIED]" >= 2` would break)
+#      `grep -c "[VERIFIED]" >= 15` breaks: mutating one struct method
+#      to `\trusted` drops the body-verified count 15 -> 14, below the
+#      floor. The floor must equal the real verified count, else a
+#      single-method regression slips under a loose threshold.)
 #   4. Restore the snapshot
 #   5. Re-run the supervisor — must exit 0 again
 #
