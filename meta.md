@@ -173,6 +173,32 @@ obligation applies), and not expressible today without duplicating a region-disj
 **YAGNI exit:** if step 1 or 2 fails (cheaply hand-encodable, or won't prove by hand), **do
 not build Stage B** — document the manual `assigns`-disjointness idiom instead.
 
+> **GATE EXECUTED — VERDICT: PASS (hoare framing).** Ran on
+> `unix-filesystem/UnixInodeFileSystem.py` (inode region = bytes `[512, 2560)`,
+> `offset = 512 + inode_num*64`). Findings:
+> - **Feasibility/proof:** with Stage A's `#@ check start >= 2560` injected at
+>   `_block_roundtrip`'s write (`start = block*512`, `block >= 6`), the file proves
+>   in full Why3 (~42 s). The index-level integrity obligation is expressible *and*
+>   provable.
+> - **Teeth:** the disjoint-from-inode-region check injected into `_write_inode`
+>   (which writes *into* `[512,2560)`) **fails** — the obligation correctly catches an
+>   inode-region write at its own site.
+> - **DRY:** **14 `self.disk[...]` write sites across ~7 methods** (`_set_bitmap`,
+>   `_write_inode`, `_block_roundtrip`, `_write_directory`, `_write_entry`, unlink,
+>   rename) — far above the ≥3-functions/≥10-sites threshold; hand-injecting + re-checking
+>   on every edit is impractical.
+> - **B0 soundness (hoare):** all 14 mutations are syntactic `self.disk[...]` sites
+>   (sole path); value-semantic arrays prevent a local-alias escape; the predicate is
+>   plain integer arithmetic on the index.
+>
+> **Amendment to this plan's premise:** the gate ran **hoare-first** and *worked* — a
+> **shared instance field** (`self.disk`) is shared mutable state in `hoare` too, with
+> the obligation stated at the **index** level (not heap `Map.set`), and value-semantics
+> *removes* the aliasing worry. So "typed/store-first" is **not** required for the
+> flagship integrity property; `hoare` over a shared field is the simpler first target.
+> ⇒ **The HAPPY meta-pass (B1–B5) is justified** — build it next (a separate pass) to
+> auto-inject the per-site `#@ check` the spike hand-wrote.
+
 ### B0 — Soundness spike (the analysis half of the gate; before any surface work)
 
 A read-only analysis producing a written soundness argument (or a hole list). Establish,
@@ -310,14 +336,20 @@ mod-index, `doc-coherency --check`, `audit-pycsl-language`, `rag-build`/`verify`
 
 ## Open decisions
 
-Resolved: model order (**typed/store first**); composition (**theorem: universal coverage +
-address-level obligations + trusted-boundary effect declaration**); the `\caller` mismodel
+Resolved: model order (**hoare-first for a shared instance field** — the gate proved this
+works and is simpler than typed/store; heap `Map.set` only when the property spans a true
+heap); composition (**theorem: universal coverage + per-site obligations + trusted-boundary
+effect declaration**); the `\caller` mismodel
 (**per-function property**; option space A–F in §B1a; flagship = A + C); `check`-vs-`assert`
 (**context-determined per §B3a**; flagship `\writing` = `check`; invariant contexts deferred);
 the **use-case gate** (concrete `UnixInodeFileSystem` integrity HAPPY + hand-proof spike + N→1
 ROI, with a YAGNI exit).
 
-Still open: the concrete HAPPY `#@` syntax (a `happy`/`act`-style block vs a flat directive);
-the exact effect-declaration form for trusted writers (extend `assigns`, or a new
-`writes_outside` clause); and B0's empirical answer to clause-(1) (is `Map.set` truly the sole
-mutation path?).
+Resolved by the executed gate: the sole-write-path question — for the `hoare`/shared-field
+framing, `self.disk[...]` is the sole mutation path (14 sites, grep-confirmed); the index-level
+obligation is expressible and provable; the gate PASSED.
+
+Still open (for the meta-pass build): the concrete HAPPY `#@` syntax (a `happy`/`act`-style
+block vs a flat directive); the exact effect-declaration form for trusted writers (extend
+`assigns`, or a new `writes_outside` clause); and — *if* a future property spans a true heap —
+the typed/store `Map.set` sole-path check (the hoare gate above does not settle that case).
