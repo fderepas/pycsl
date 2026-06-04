@@ -102,40 +102,46 @@ assert).
 A HAPPY expands into per-site obligations. The tempting "enumerate write/read sites and inject
 a check at each" hides the two facts that decide soundness — **indirect writes through
 callees** and **aliasing** — and PyCSL has **no alias/effect/points-to analysis** (only the
-SCC call graph in `module6_whyml/scc.py`, used for emission ordering). It also can't live in
-the `hoare` model: `hoare` arrays are value-semantic with **no shared mutable memory**, so a
-cross-cutting memory-integrity property is not even *statable* there.
+SCC call graph in `module6_whyml/scc.py`, used for emission ordering).
 
-Both problems dissolve once the obligation is stated at the **address level** in the
-**heap (`typed`/`store`) model** — which is why this plan is **typed/store-first** and why
-composition becomes *provable*, not asserted.
+Both dissolve once the obligation is stated at **the location actually written** rather than a
+syntactic name — and that location exists in **either** model: an **address** in `typed`/
+`store` (a true cross-object heap, `int_mem := Map.set !int_mem a v`), **or** an **index** into
+a **shared instance field** in `hoare` (e.g. `self.disk[i] = v` — value-semantic but shared
+through `self`). The executed gate (below) **proved** the `hoare`/shared-field framing, so the
+flagship integrity property is **hoare-first**; reach for `typed`/`store` only when the
+property spans a genuinely global heap, not a single object's field. Either way, composition
+is *provable*, not asserted.
 
 ### The composition theorem (proven, not asserted)
 
-Take a `\writing` HAPPY as a predicate `φ(a)` over the **mutated address** `a` — e.g.
-*integrity:* `φ(a) ≜ ¬ in_region(a, secret) ∨ current_fn = encrypt`. In `typed`/`store`,
-every heap mutation is one emitted form `int_mem := Map.set !int_mem a v`, so "a write" has a
-single shape and a concrete address.
+Take a `\writing` HAPPY as a predicate `φ(ℓ)` over **the location written** `ℓ` — e.g.
+*integrity:* `φ(ℓ) ≜ ¬ in_region(ℓ, secret) ∨ current_fn = encrypt`. Each memory model has a
+**single write-shape** with a concrete `ℓ`: in `typed`/`store` it is the address `a` in
+`int_mem := Map.set !int_mem a v`; in `hoare` over a shared instance field it is the index `i`
+in `self.field[i] = v`.
 
 > **Theorem (modular soundness of a `\writing` HAPPY).** If
-> (1) **every body-verified function** carries, at **each** emitted `Map.set` site, a proven
->     `#@ check { φ(a) }`, and
-> (2) **every function that can mutate the heap** is either body-verified (covered by (1)) or
->     **trusted/abstract carrying an effect declaration** bounding its writes to
->     `φ`-addresses (checked/assumed at the trust boundary),
-> then **no execution performs a heap write violating `φ`.**
+> (1) **every body-verified function** carries, at **each** write-shape site, a proven
+>     `#@ check { φ(ℓ) }`, and
+> (2) **every function that can mutate the shared state** is either body-verified (covered by
+>     (1)) or **trusted/abstract carrying an effect declaration** bounding its writes to
+>     `φ`-locations (checked/assumed at the trust boundary),
+> then **no execution performs a write violating `φ`.**
 >
-> *Proof.* Every heap mutation occurs at some `Map.set` site inside some function `f`. If `f`
-> is body-verified, that site discharged `check { φ(a) }`. If `f` is trusted, its effect
-> declaration bounds its writes to `φ`-addresses. There is no third source of mutation. Hence
+> *Proof.* Every mutation occurs at some write-shape site inside some function `f`. If `f` is
+> body-verified, that site discharged `check { φ(ℓ) }`. If `f` is trusted, its effect
+> declaration bounds its writes to `φ`-locations. There is no third source of mutation. Hence
 > every mutation satisfies `φ`. ∎
 
 **Why this needs neither alias analysis nor caller-side reasoning:**
-- **Aliasing is irrelevant** — the obligation constrains the *actual address written* (`a` in
-  `Map.set … a v`), not a syntactic name; `in_region`/disjointness is stated with the `typed`
-  model's address arithmetic + `\valid`/`\separated`.
+- **Aliasing is irrelevant** — the obligation constrains the *actual location written* (`a` in
+  `Map.set … a v`, or `i` in `self.field[i] = v`), not a syntactic name; in `hoare`,
+  value-semantics additionally bars a local alias from mutating the shared field at all.
+  `in_region`/disjointness is plain index arithmetic (`hoare`) or address arithmetic +
+  `\valid`/`\separated` (`typed`).
 - **Indirect (callee) writes are caught at the callee's own site** — if `f` calls `g` and `g`
-  writes the secret, the violating `Map.set` is **inside `g`**, where `g`'s injected `check`
+  writes the secret, the violating write-shape is **inside `g`**, where `g`'s injected `check`
   fails. The call graph is **not** load-bearing for soundness; **universal coverage** is.
 
 So cross-function composition reduces to two *checkable* obligations — universal coverage of
@@ -152,18 +158,19 @@ machinery.
 > *"No function except `_write_inode` / `_write_directory` writes the inode/directory block
 > region"* (variant: *"the free-block bitmap is mutated only by the allocator"*).
 
-It qualifies: genuinely cross-cutting (spans most methods), heap-model (the address-level
-obligation applies), and not expressible today without duplicating a region-disjoint
-`assigns` obligation into every method by hand.
+It qualifies: genuinely cross-cutting (spans most methods), a shared-state property (the
+location-level obligation applies — **index** into `self.disk` in `hoare`, not a heap address),
+and not expressible today without duplicating a region-disjoint `assigns` obligation into every
+method by hand.
 
 **The gate passes only when, in order:**
 1. **Necessity / DRY threshold** — the obligation would land in **≥ 3 functions / ≥ ~10 write
    sites**; hand-annotation is clearly impractical (the measured driver, as DRY-on-guards was
    for `act`).
 2. **Hand-proof spike (= B0 on real code)** — with **Stage A only**, manually inject
-   `#@ check { ¬in_region(a, inode_blocks) }` at the relevant sites and **prove the property**
-   on the clean file, empirically validating the theorem + address predicate + the
-   single-`Map.set`-path assumption.
+   `#@ check { ¬in_region(i, inode_region) }` at the relevant sites and **prove the property**
+   on the clean file, empirically validating the theorem + the location predicate (index, in
+   `hoare`) + the single-write-shape (`self.disk[...]`) assumption.
 3. **Teeth (= the B4 negative)** — plant a stray writer; confirm it **fails at that function's
    own site**, and that per-function contracts alone miss it.
 4. **Automation payoff** — only now build B1–B5 to auto-inject what the spike hand-wrote;
@@ -203,12 +210,13 @@ not build Stage B** — document the manual `assigns`-disjointness idiom instead
 
 A read-only analysis producing a written soundness argument (or a hole list). Establish,
 against the real pipeline:
-1. **Single mutation path** — confirm `int_mem := Map.set …` is the **sole** way a body
-   mutates shared state (audit Module5/6 emission of `ArraySet`, `FieldAssign`,
-   `FieldAugAssign`, ghost/heap writes). A hidden path is the unsoundness to close first
-   (theorem clause 1's linchpin).
-2. **Address-level statability** — `φ(a)` (region membership / disjointness) is expressible
-   via the `typed` model's `\valid`/`\separated`/address machinery.
+1. **Single write-shape** — confirm the model's write-shape is the **sole** way a body mutates
+   the shared state: `int_mem := Map.set …` (typed/store) or `self.field[i] = …` (hoare shared
+   field). Audit Module5/6 emission (`ArraySet`, `FieldAssign`, `FieldAugAssign`, ghost/heap
+   writes). A hidden path is the unsoundness to close first (theorem clause 1's linchpin).
+   *(Gate result on `UnixInodeFileSystem.py`: `self.disk[...]` is the sole path — 14 sites.)*
+2. **Statability of `φ(ℓ)`** — region membership / disjointness is expressible: plain **index
+   arithmetic** in `hoare`, or **address arithmetic** + `\valid`/`\separated` in `typed`.
 3. **Trust boundary is the only gap** — enumerate bodyless functions (`\trusted`/`\abstract`/
    external); decide their effect-declaration form (theorem clause 2); confirm it's bounded to
    the already-trusted stub surface.
@@ -217,9 +225,10 @@ against the real pipeline:
 If 1–4 hold, Stage B is sound by the theorem; otherwise scope B1 to a stated, **loudly-
 diagnosed** boundary rather than claiming whole-program soundness.
 
-### B1 — Surface + parse (typed/store; per-function; no `\caller`)
+### B1 — Surface + parse (hoare-first / shared field; per-function; no `\caller`)
 
-A module-level HAPPY over a context (`\writing`/`\reading`) and an address predicate. The
+A module-level HAPPY over a context (`\writing`/`\reading`) and a location predicate `φ(ℓ)`
+(index for a shared field, address for a heap). The
 property is **per-function** (a function-modular verifier proves each function not knowing its
 callers — so there is **no `\caller`**; "only `encrypt` writes secret" = "in every function
 other than `encrypt`, every write is outside `secret`"). Working directive name `#@ happy …`
