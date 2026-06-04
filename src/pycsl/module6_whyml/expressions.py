@@ -1560,7 +1560,10 @@ class ExpressionEmissionMixin:
         if t == "StrConcat":
             l = self._expr_to_whyml_string_ctx(ir["left"], local_refs)
             r = self._expr_to_whyml_string_ctx(ir["right"], local_refs)
-            return f"(String.(^) {l} {r})"
+            # Why3 string.String exports 'concat' (not '^' / 'String.(^)', which is unbound) —
+            # mirror _handle_strconcat_expr; `String.(^)` here made any `^` in a spec context
+            # (check/ensures comparison) emit an unbound symbol.
+            return f"(concat {l} {r})"
         if t == "String":
             raw = ir.get("value", "")
             return f'"{raw}"'
