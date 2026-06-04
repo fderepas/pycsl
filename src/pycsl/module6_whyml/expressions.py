@@ -360,17 +360,12 @@ class ExpressionEmissionMixin:
                     return str(sum(int(elems[i]) for i in range(size)))
         return ""
 
-    def _handle_dotted_call(self, func_name: str, args: List[str]) -> str:
-        """Handle dotted method calls (x.method(...)): emit abstract val declaration."""
-        safe_name = whyml_ident(func_name.replace(".", "_"))
-        n = len(args)
-        arity_name = f"{safe_name}_{n}"
-        # When the call is `self.<method>(...)` on a method defined in the
-        # same module, look up the real declared return type AND parameter
-        # types so the abstract val matches the actual signature. Without
-        # this, every `self.foo(...)` is abstracted as `val ... (xi: int)
-        # ... : int`, mismatching downstream consumers when `<method>`
-        # actually takes/returns array or map types.
+    def _resolve_dotted_signature(self, func_name: str):
+        """Resolve a dotted call's `(ret_type, param_types, result_ensures)` from the
+        module method tables: `self.<m>(...)` and `<recordvar>.<m>(...)` look up the real
+        declared signature + propagated result-only postconditions; a bare bytes-producing
+        method (`encode`/`ljust`/…) returns `array int`. Default is `int` / no types / no
+        ensures. (Extracted from `_handle_dotted_call`.)"""
         ret_type = "int"
         param_types: List[str] = []
         result_ensures: List[Dict[str, Any]] = []
@@ -422,6 +417,20 @@ class ExpressionEmissionMixin:
                 method_tail_name = func_name.rsplit(".", 1)[-1]
                 if method_tail_name in ("encode", "ljust", "rjust", "zfill"):
                     ret_type = "array int"
+        return ret_type, param_types, result_ensures
+
+    def _handle_dotted_call(self, func_name: str, args: List[str]) -> str:
+        """Handle dotted method calls (x.method(...)): emit abstract val declaration."""
+        safe_name = whyml_ident(func_name.replace(".", "_"))
+        n = len(args)
+        arity_name = f"{safe_name}_{n}"
+        # When the call is `self.<method>(...)` on a method defined in the
+        # same module, look up the real declared return type AND parameter
+        # types so the abstract val matches the actual signature. Without
+        # this, every `self.foo(...)` is abstracted as `val ... (xi: int)
+        # ... : int`, mismatching downstream consumers when `<method>`
+        # actually takes/returns array or map types.
+        ret_type, param_types, result_ensures = self._resolve_dotted_signature(func_name)
         # Pad / truncate param_types to match n (the abstract val arity
         # only sees the caller's actual arg count, not the IR's symbol
         # table size).
@@ -442,7 +451,6 @@ class ExpressionEmissionMixin:
             "(Array.make ", "(Array.sub ", "(array_slice ", "(Array.make_init ",
             "(array_copy ", "(array_concat ",
         )
-        import sys
         for i, arg in enumerate(args):
             if param_types[i] != "int":
                 continue   # Already typed (from self-method lookup)
@@ -463,10 +471,19 @@ class ExpressionEmissionMixin:
                     or st.get(ident) in ("list", "tuple", "bytes", "bytearray")
                     or ident in getattr(self, "_array_locals", set())):
                 param_types[i] = "array int"
-        # Coerce each arg based on its declared param type. The caller's
-        # arg may be int while the param expects array or map (e.g. when
-        # the int came from an abstract `get_*` accessor returning int
-        # but the receiver method declares the slot as `Set[T]`).
+        coerced = self._coerce_dotted_args(args, param_types)
+        ensures_suffix = self._dotted_ensures_suffix(result_ensures, n, param_types)
+        if n == 0:
+            self._add_abstract_op(f"val {arity_name} () : {ret_type}{ensures_suffix}")
+            return f"({arity_name} ())"
+        params = " ".join(f"(x{i}: {ptype})" for i, ptype in enumerate(param_types))
+        self._add_abstract_op(f"val {arity_name} {params} : {ret_type}{ensures_suffix}")
+        return f"({arity_name} {' '.join(coerced)})"
+
+    def _coerce_dotted_args(self, args: List[str], param_types: List[str]) -> List[str]:
+        """Coerce each dotted-call arg to its declared param type. The caller's arg may be
+        int while the param expects array or map (e.g. an int from an abstract `get_*`
+        accessor flowing into a `Set[T]` slot). (Extracted from `_handle_dotted_call`.)"""
         coerced: List[str] = []
         for arg, ptype in zip(args, param_types):
             if ptype == "int":
@@ -490,30 +507,33 @@ class ExpressionEmissionMixin:
                     coerced.append("(const (None: option int))")
             else:
                 coerced.append(arg)
-        import sys
+        return coerced
+
+    def _dotted_ensures_suffix(self, result_ensures: List[Dict[str, Any]], n: int,
+                               param_types: List[str]) -> str:
+        """Render the propagated result-only postconditions of a dotted callee as
+        `\\n    ensures { … }` lines appended to its abstract `val`. Emitted in spec
+        (boolean) context with the stub's positional params x0..x{n-1} registered as
+        in-scope. (Extracted from `_handle_dotted_call`.)"""
+        if not result_ensures:
+            return ""
+        _prev_spec = self._in_spec
+        _prev_params = self._current_params
+        self._in_spec = True   # emit boolean formulas, not int-coerced
+        # The stub's positional params are x0..x{n-1}; a propagated
+        # param-referencing ensures (e.g. `\array_eq(result, x0)`) names
+        # them, so register them as in-scope params — otherwise
+        # `_handle_var_expr` would mistake `x_i` for an undeclared global
+        # and emit a spurious `val constant x_i : int`.
+        self._current_params = set(_prev_params) | {
+            f"x{i}" for i in range(max(n, len(param_types)))}
         ensures_suffix = ""
-        if result_ensures:
-            _prev_spec = self._in_spec
-            _prev_params = self._current_params
-            self._in_spec = True   # emit boolean formulas, not int-coerced
-            # The stub's positional params are x0..x{n-1}; a propagated
-            # param-referencing ensures (e.g. `\array_eq(result, x0)`) names
-            # them, so register them as in-scope params — otherwise
-            # `_handle_var_expr` would mistake `x_i` for an undeclared global
-            # and emit a spurious `val constant x_i : int`.
-            self._current_params = set(_prev_params) | {
-                f"x{i}" for i in range(max(n, len(param_types)))}
-            for e in result_ensures:
-                w = self._expr_to_whyml(e, set(), invariant_ctx=True)
-                ensures_suffix += f"\n    ensures {{ {w} }}"
-            self._current_params = _prev_params
-            self._in_spec = _prev_spec
-        if n == 0:
-            self._add_abstract_op(f"val {arity_name} () : {ret_type}{ensures_suffix}")
-            return f"({arity_name} ())"
-        params = " ".join(f"(x{i}: {ptype})" for i, ptype in enumerate(param_types))
-        self._add_abstract_op(f"val {arity_name} {params} : {ret_type}{ensures_suffix}")
-        return f"({arity_name} {' '.join(coerced)})"
+        for e in result_ensures:
+            w = self._expr_to_whyml(e, set(), invariant_ctx=True)
+            ensures_suffix += f"\n    ensures {{ {w} }}"
+        self._current_params = _prev_params
+        self._in_spec = _prev_spec
+        return ensures_suffix
 
     def _handle_struct_call(
             self, expr: Dict[str, Any], args: List[str],
