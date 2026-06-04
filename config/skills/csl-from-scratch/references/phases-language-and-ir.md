@@ -117,11 +117,67 @@ its case, the completeness disjunction, and each disjointness pair. See
    carry the source construct's name through to emission so a proof failure names
    the original case — the prover only ever sees the desugared form.
 
-**Whole-program sugar is the same move.** Cross-cutting meta-properties
-(PyCSL's **HAPPY** — the equivalent of MetAcsl's HILAREs) *expand* one
-high-level requirement into many ordinary per-site obligations — surface →
-existing primitives → 0-`\trusted`, just at program scope instead of function
-scope. See [`meta.md`](../../../../meta.md).
+---
+
+## Phase 4c — Whole-program sugar: meta-properties that expand to per-site obligations
+
+The same move scales to **program scope**. A cross-cutting meta-property (PyCSL's
+**HAPPY** — the equivalent of MetAcsl's HILAREs) is one module-level declaration that
+*expands* into many ordinary per-site obligations: surface → existing primitives →
+0-`\trusted`, only now the expansion pass walks the **whole program** instead of one
+function. The worked instance is region integrity over a shared array field
+([`meta.md`](../../../../meta.md)):
+
+```
+#@ happy R: region LO .. HI writes self.f outside region except m1, m2
+   →  at every write self.f[i]=… (point/slice/augmented) in every method ∉ {m1,m2}:
+      inject  #@ check  i < LO || i >= HI    (slice [a:b]:  b <= LO || a >= HI)
+```
+
+It reuses the **statement-level `#@ check`** primitive (Phase 4b's first customer): the
+meta-pass *synthesizes* `CheckPoint` nodes and attaches them exactly as a hand-written
+`#@ check` would — **zero new IR/backend**, the obligation is parsed through the same
+grammar so it is byte-identical to a hand-written one.
+
+**The non-obvious part is soundness, and it is a *theorem*, not a hope.** The naïve
+reading — "enumerate the syntactic writes to the protected name and check them" — is
+**unsound**: it misses *indirect* writes (a callee mutates the field) and *aliasing* (a
+local pointer to the field), and a CSL with no alias/effect/points-to analysis cannot
+close either gap by inspection. Two design choices dissolve both:
+
+1. **State the obligation at the location *actually written*** (the index/address in the
+   write-shape `self.f[i]=…`), never at a syntactic name. Aliasing then cannot matter —
+   the check constrains the concrete cell that is written, whatever name reached it; in a
+   value-semantic model a local alias cannot mutate the shared field at all.
+2. **Universal coverage replaces the call graph.** Inject the check into *every*
+   body-verified function's own write sites. An indirect write through a callee is caught
+   at **the callee's own site** — so cross-function reasoning, and the call graph, are not
+   load-bearing. The only residual gap is **bodyless functions** (trusted/abstract): they
+   carry an *effect declaration* (a region-preservation `ensures`) assumed at the trust
+   boundary. Coverage of bodies + a declaration on the trusted surface ⟹ no execution
+   violates the property. Write this proof down before building the pass.
+
+**Traps we actually hit (all instances of Phase 4b's discipline, recurring at scale):**
+
+- **The sub-feature may need a primitive you don't have.** The trusted-boundary
+  declaration wanted `self.f[i]` and `\old(self.f[i])` *inside a contract* — but the only
+  self-field-array form was `\length(self.f)`, and an `assigns` frame had **no teeth in the
+  value-semantic model** (it is meaningful only in a heap model). "Verify the target
+  primitive" (Phase 4b item 1) applies recursively: a meta-feature can bottom out on a
+  missing real primitive. **Surface the gap and decide** (build the primitive, narrow
+  scope, or defer) — do **not** silently emit a declaration with no semantic content.
+- **Synthesize the trusted declaration; don't pattern-match a hand-written one.** Recognizing
+  "did the author write an adequate preservation `ensures`?" is brittle *and* unsound (a too-
+  weak guard slips through). Instead take a minimal opt-in marker (`#@ \preserves`) and have
+  the tool **generate the canonical declaration**, so the guard always covers the full region.
+  Absent the marker on a non-exempt bodyless mutator → hard error (the boundary has teeth).
+- **A meta-property surfaces missing contracts — report honestly, don't fake the proof.** On
+  the real worked target the one declaration injected its checks correctly, but several did
+  not discharge: the property was *true* yet the underlying methods never stated the bounds
+  it needs (a bitmap writer bounded only `< capacity`, not `< region_start`). That is the
+  meta-property doing its job — exposing under-specified methods — but **closing those is
+  separate verification work**. Demonstrate the expansion (the N→1 ergonomic win) without
+  claiming an end-to-end proof you don't have; leave the target green.
 
 ---
 

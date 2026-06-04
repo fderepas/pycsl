@@ -317,6 +317,14 @@ Load the file that matches what you're about to do:
   over existing primitives.** It grows the TCB and the
   Module 5/6/formal-mirror surface for *zero* proving power.
   Desugar it in the front-end instead (Phase 4b).
+- **Enumerating syntactic writes to "the protected name" for a
+  whole-program meta-property.** It silently misses indirect
+  (callee) writes and aliases, and a CSL has no points-to analysis
+  to recover them. State each obligation at the **location written**
+  and inject at **every** body's own sites (universal coverage); close
+  the bodyless gap with a *synthesized* trust-boundary declaration, not
+  a pattern-matched one. Write the soundness theorem before the pass
+  (Phase 4c).
 - **Inventing your own SMT-bridge.** Use Why3. Anything else is
   a different (much larger) project.
 - **Verifying Module 6 by hand.** Phase 6's `wp_gen_correct` +
@@ -465,6 +473,20 @@ If you remember nothing else from this skill:
    buys ergonomics, not proving power — so spend it only where the
    ergonomic gain (e.g. DRY) is real. See Phase 4b in
    `references/phases-language-and-ir.md`.
+10. **Whole-program meta-properties expand to per-site obligations — and their
+    soundness is a theorem you write down first.** One module-level requirement
+    (PyCSL's HAPPY) synthesizes many ordinary per-site `#@ check`s — desugaring
+    at *program* scope, reusing a statement-level primitive with zero new TCB.
+    What makes per-site expansion sound *without* alias/effect analysis: state
+    each obligation at the **location actually written** (not a syntactic name),
+    and inject at **every** body's own write sites so indirect/callee writes are
+    caught at the callee — **universal coverage replaces the call graph**; the
+    only residual gap is bodyless functions, closed by a *synthesized* effect
+    declaration at the trust boundary (never a pattern-matched hand-written one).
+    Naïve "enumerate writes to the name" is the unsound trap. A meta-feature can
+    bottom out on a missing real primitive (Phase 4b item 1, recursively) — and
+    it surfaces under-specified methods, which you report honestly rather than
+    fake a proof for. See Phase 4c in `references/phases-language-and-ir.md`.
 
 ---
 
