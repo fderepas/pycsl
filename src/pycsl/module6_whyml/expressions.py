@@ -230,6 +230,16 @@ class ExpressionEmissionMixin:
         self._add_abstract_op(f"val function {op_fn} (x: int) (y: int) : int")
         return f"({op_fn} {self._coerce_to_int(left)} {self._coerce_to_int(right)})"
 
+    def _is_string_expr(self, ir: Dict[str, Any]) -> bool:
+        """True if an IR expression is string-typed: a literal, a string-producing op, or a
+        `str`-typed variable. (strings-plan Stage 2 — used to route `+` to `concat`.)"""
+        t = ir.get("type")
+        if t == "String" or t in ("StrConcat", "StrSub"):
+            return True
+        if t == "Var":
+            return getattr(self, "_current_symbol_table", {}).get(ir.get("name", "")) == "str"
+        return False
+
     def _handle_binop(self, expr: Dict[str, Any], local_refs: Set[str],
                       invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
         raw_op = expr["op"]
@@ -242,6 +252,29 @@ class ExpressionEmissionMixin:
         left = self._expr_to_whyml(expr["left"], local_refs, invariant_ctx, subst)
         right = self._expr_to_whyml(expr["right"], local_refs, invariant_ctx, subst)
         op = op_translate(raw_op)
+        # strings-plan Stage 2: `s + t` on strings is concatenation, not int addition. The
+        # logic symbol `concat` is fine in a spec; in a program (body) context it is bridged
+        # through an abstract `val` whose `ensures` ties the result to `concat` (same pattern
+        # as `len`/`str_length_op`).
+        if raw_op == "+" and (self._is_string_expr(expr["left"])
+                              or self._is_string_expr(expr["right"])):
+            if self._in_spec:
+                return f"(concat {left} {right})"
+            self._add_abstract_op(
+                "val str_concat_op (a: string) (b: string) : string\n"
+                "    ensures { result = (concat a b) }")
+            return f"(str_concat_op {left} {right})"
+        # strings-plan Stage 2: string `==`/`!=` content equality. In a spec, polymorphic `=`
+        # is fine (falls through below); in a program (body) context `=` on strings is not
+        # usable, so bridge through `val str_eq_op : bool` (tied by `ensures` to `=`). Must
+        # precede the int-coercion of `=`/`<>` below, which is only for the int-hash model.
+        if raw_op in ("==", "!=") and not self._in_spec and (
+                self._is_string_expr(expr["left"]) or self._is_string_expr(expr["right"])):
+            self._add_abstract_op(
+                "val str_eq_op (a: string) (b: string) : bool\n"
+                "    ensures { result <-> (a = b) }")
+            eq = f"(str_eq_op {left} {right})"
+            return eq if raw_op == "==" else f"(not {eq})"
         # In body context, coerce string literals in comparisons to int
         if not self._in_spec and op in ("=", "<>"):
             left = self._coerce_str_arg(left)
