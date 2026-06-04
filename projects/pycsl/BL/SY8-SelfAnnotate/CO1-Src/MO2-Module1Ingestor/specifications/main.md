@@ -10,24 +10,23 @@ bin/cmmi-mod-index.py --file src/self-annotate/src/Module1_Ingestor.py
 
 ---
 
-## Public functions / methods (12)
+## Public functions / methods (5)
 
-- `PyCSLVisitor.__init__` — `src/self-annotate/src/Module1_Ingestor.py:22`
-- `PyCSLVisitor.visit_Module` — `src/self-annotate/src/Module1_Ingestor.py:33`
-- `PyCSLVisitor.visit_ClassDef` — `src/self-annotate/src/Module1_Ingestor.py:89`
-- `PyCSLVisitor.leave_ClassDef` — `src/self-annotate/src/Module1_Ingestor.py:108`
-- `PyCSLVisitor.visit_FunctionDef` — `src/self-annotate/src/Module1_Ingestor.py:115`
-- `PyCSLVisitor.visit_While` — `src/self-annotate/src/Module1_Ingestor.py:136`
-- `PyCSLVisitor.visit_For` — `src/self-annotate/src/Module1_Ingestor.py:154`
-- `PyCSLVisitor.visit_With` — `src/self-annotate/src/Module1_Ingestor.py:172`
-- `PyCSLVisitor.visit_SimpleStatementLine` — `src/self-annotate/src/Module1_Ingestor.py:190`
-- `PyCSLVisitor.visit_IndentedBlock` — `src/self-annotate/src/Module1_Ingestor.py:213`
-- `Module1_Ingestor.__init__` — `src/self-annotate/src/Module1_Ingestor.py:246`
-- `Module1_Ingestor.process` — `src/self-annotate/src/Module1_Ingestor.py:253`
+- `_Target.__init__` — `src/self-annotate/src/Module1_Ingestor.py:43`
+- `Module1_Ingestor.__init__` — `src/self-annotate/src/Module1_Ingestor.py:63`
+- `Module1_Ingestor.process` — `src/self-annotate/src/Module1_Ingestor.py:66`
+- `_Harvester.__init__` — `src/self-annotate/src/Module1_Ingestor.py:74`
+- `_Harvester.run` — `src/self-annotate/src/Module1_Ingestor.py:134`
 
-## Private (leading-`_`) defs (1)
+## Private (leading-`_`) defs (7)
 
-- `PyCSLVisitor._extract_contracts_from_node` — `src/self-annotate/src/Module1_Ingestor.py:67`
+- `_clean` — `src/self-annotate/src/Module1_Ingestor.py:56`
+- `_Harvester._make` — `src/self-annotate/src/Module1_Ingestor.py:87`
+- `_Harvester._build` — `src/self-annotate/src/Module1_Ingestor.py:120`
+- `_Harvester._assign` — `src/self-annotate/src/Module1_Ingestor.py:144`
+- `_Harvester._emit_suite` — `src/self-annotate/src/Module1_Ingestor.py:172`
+- `_Harvester._emit_target` — `src/self-annotate/src/Module1_Ingestor.py:180`
+- `_Harvester._emit_block_footer` — `src/self-annotate/src/Module1_Ingestor.py:193`
 
 ---
 
@@ -35,4 +34,4 @@ bin/cmmi-mod-index.py --file src/self-annotate/src/Module1_Ingestor.py
 
 The `#@` contract block immediately preceding each `def` in `src/self-annotate/src/Module1_Ingestor.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **13** (public: 12, private: 1).
+Total defs: **12** (public: 5, private: 7).

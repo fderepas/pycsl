@@ -10,20 +10,15 @@ bin/cmmi-mod-index.py --file src/pycsl_emit/emitter/annotator.py
 
 ---
 
-## Public functions / methods (4)
+## Public functions / methods (1)
 
-- `annotate_function` — `src/pycsl_emit/emitter/annotator.py:30`
-- `annotate_source` — `src/pycsl_emit/emitter/annotator.py:89`
-- `_BodyReplacer.__init__` — `src/pycsl_emit/emitter/annotator.py:182`
-- `_BodyReplacer.on_leave` — `src/pycsl_emit/emitter/annotator.py:191`
+- `annotate_source` — `src/pycsl_emit/emitter/annotator.py:29`
 
-## Private (leading-`_`) defs (5)
+## Private (leading-`_`) defs (3)
 
-- `_rebuild_leading_lines` — `src/pycsl_emit/emitter/annotator.py:106`
-- `_is_hash_at` — `src/pycsl_emit/emitter/annotator.py:140`
-- `_is_blank` — `src/pycsl_emit/emitter/annotator.py:144`
-- `_make_hash_at_line` — `src/pycsl_emit/emitter/annotator.py:148`
-- `_make_plain_comment` — `src/pycsl_emit/emitter/annotator.py:162`
+- `_is_hash_at` — `src/pycsl_emit/emitter/annotator.py:75`
+- `_norm` — `src/pycsl_emit/emitter/annotator.py:79`
+- `_plain` — `src/pycsl_emit/emitter/annotator.py:87`
 
 ---
 
@@ -31,4 +26,4 @@ bin/cmmi-mod-index.py --file src/pycsl_emit/emitter/annotator.py
 
 The `#@` contract block immediately preceding each `def` in `src/pycsl_emit/emitter/annotator.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **9** (public: 4, private: 5).
+Total defs: **4** (public: 1, private: 3).

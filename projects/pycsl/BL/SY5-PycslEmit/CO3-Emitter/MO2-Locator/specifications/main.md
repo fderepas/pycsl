@@ -12,11 +12,11 @@ bin/cmmi-mod-index.py --file src/pycsl_emit/emitter/locator.py
 
 ## Public functions / methods (1)
 
-- `find_function` — `src/pycsl_emit/emitter/locator.py:37`
+- `find_function` — `src/pycsl_emit/emitter/locator.py:34`
 
 ## Private (leading-`_`) defs (1)
 
-- `_descend` — `src/pycsl_emit/emitter/locator.py:51`
+- `_descend` — `src/pycsl_emit/emitter/locator.py:45`
 
 ---
 
