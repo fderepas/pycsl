@@ -31,6 +31,28 @@ class Assigns(CSLNode):
     targets: List[CSLNode]
 
 @dataclass
+class Given(CSLNode):
+    """An `act`'s guard clause (`given <expr>`). ACSL `assumes`, pre-state."""
+    expr: CSLNode
+
+@dataclass
+class Act(CSLNode):
+    """A named guarded case: `act NAME:` with body clauses (Given/Requires/
+    Ensures/Assigns). Desugared in Module3 to ordinary requires/ensures."""
+    name: str
+    clauses: List[CSLNode]
+
+@dataclass
+class Complete(CSLNode):
+    """`complete b1, b2, …` — the acts' guards cover every input."""
+    names: List[str]
+
+@dataclass
+class Disjoint(CSLNode):
+    """`disjoint b1, b2, …` — at most one act's guard holds at a time."""
+    names: List[str]
+
+@dataclass
 class LoopInvariant(ContractWrapper):
     expr: CSLNode
 
@@ -593,9 +615,21 @@ PYCSL_GRAMMAR = r"""
              | critical_decl
              | mutex_invariant_decl
              | lock_order_decl
+             | act_block
+             | complete_decl
+             | disjoint_decl
 
     precondition: "requires" expr
     postcondition: "ensures" expr
+
+    // Guarded contract cases (Module1 folds each `act NAME:` block into one
+    // contract string; clauses are keyword-delimited so no indentation here).
+    act_block: "act" CNAME ":" act_clause+
+    ?act_clause: given_clause | precondition | postcondition | assigns
+    given_clause: "given" expr
+    complete_decl: "complete" act_names
+    disjoint_decl: "disjoint" act_names
+    act_names: CNAME ("," CNAME)*
     
     // Extracted alias from group to prevent Lark GrammarError
     assigns: "assigns" assigns_target
@@ -799,6 +833,12 @@ class PyCSLTransformer(Transformer):
     
     def precondition(self, expr) -> Requires: return Requires(expr)
     def postcondition(self, expr) -> Ensures: return Ensures(expr)
+
+    def given_clause(self, expr) -> Given: return Given(expr)
+    def act_block(self, name, *clauses) -> Act: return Act(str(name), list(clauses))
+    def act_names(self, *names) -> list: return [str(n) for n in names]
+    def complete_decl(self, names) -> Complete: return Complete(names)
+    def disjoint_decl(self, names) -> Disjoint: return Disjoint(names)
 
     def assigns(self, target) -> Assigns:
         if isinstance(target, Nothing):

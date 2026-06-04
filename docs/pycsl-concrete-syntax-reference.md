@@ -102,6 +102,14 @@ _Corresponds to `annotations.md` §2.1._
 | 2.1.11| _(reserved — the colon-separated `#@ proof rocq: <q>` provenance directive was removed 2026-05-27; the current `proof` directive at §2.1.12 is load-bearing and space-separated)_ |
 | 2.1.12| Axiom from proof | `proof_decl ::= "proof" prover_id qualname ;` where `prover_id ::= "rocq" \| "lean"` and `qualname ::= CNAME ("." CNAME)*` |
 | 2.1.13| No-exception | `no_exception_decl ::= "no_exception" ( "\all" \| CNAME ("," CNAME)* ) ;` |
+| 2.1.15| Guarded case | `act_block ::= "act" CNAME ":" act_clause+ ;` with `act_clause ::= given_clause \| precondition \| postcondition \| assigns ;` — surface `#@ act <name>:` + a 4-space-indented body |
+| 2.1.16| Case guard | `given_clause ::= "given" expr ;` — `#@ given <expr>` (only inside an `act`) |
+| 2.1.17| Complete | `complete_decl ::= "complete" CNAME ("," CNAME)* ;` — `#@ complete <names>` |
+| 2.1.18| Disjoint | `disjoint_decl ::= "disjoint" CNAME ("," CNAME)* ;` — `#@ disjoint <names>` |
+
+`act` blocks are line-folded in Module 1 (indentation is significant in the surface
+but consumed there); the grammar above sees a flat keyword-delimited clause sequence.
+See `annotations.md` §2.1.15.
 
 ### 2.1.13 No-exception (`no_exception E1, E2, …` / `no_exception \all`)
 

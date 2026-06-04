@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 import pure_ast as ast  # consume the same pure-Python tree Module3 builds
 from typing import Callable, Dict, List, Optional, Set, Any
 from Module2_Parser import (
@@ -524,6 +525,49 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
             self._validate_contract(fv, self.current_function_name, is_postcondition=False)
 
         self._validate_no_exception(node)
+        self._validate_acts(node)
+
+    def _validate_acts(self, node: ast.FunctionDef) -> None:
+        """Validate `act`/`complete`/`disjoint` (run on the pre-desugar nodes
+        stashed by Module3 on `node.csl_acts`). The desugared requires/ensures are
+        already validated by `_validate_function_contracts`; here we check the
+        act-specific well-formedness."""
+        acts = getattr(node, 'csl_acts', []) or []
+        if not acts:
+            return
+        from Module2_Parser import Act, Given, Complete, Disjoint
+        where = self.current_function_name
+        defined: Dict[str, Any] = {}
+        for a in acts:
+            if not isinstance(a, Act):
+                continue
+            if a.name in defined:
+                raise PyCSLSemanticError(f"duplicate act name '{a.name}' in {where}.")
+            defined[a.name] = a
+            for cl in a.clauses:
+                if isinstance(cl, Given) and contains_result(cl.expr):
+                    raise PyCSLSemanticError(
+                        f"act '{a.name}' in {where}: '\\result' is not allowed in a "
+                        f"'given' guard (guards are evaluated in the pre-state).")
+        meta = [a for a in acts if isinstance(a, (Complete, Disjoint))]
+        referenced: Set[str] = set()
+        for m in meta:
+            kind = "complete" if isinstance(m, Complete) else "disjoint"
+            for nm in m.names:
+                referenced.add(nm)
+                if nm not in defined:
+                    raise PyCSLSemanticError(
+                        f"`{kind}` in {where} references undefined act '{nm}'.")
+        # Mistyped-name / omission guard: if the author uses complete/disjoint at
+        # all, an act left out of them is likely a typo — warn (not an error,
+        # since declaring cases without claiming coverage is legitimate).
+        if meta:
+            for nm in defined:
+                if nm not in referenced:
+                    warnings.warn(
+                        f"act '{nm}' in {where} is not referenced by any "
+                        f"`complete`/`disjoint` — possible typo or omission.",
+                        stacklevel=2)
 
     def _validate_no_exception(self, node: ast.FunctionDef) -> None:
         """Validate `no_exception` directives:

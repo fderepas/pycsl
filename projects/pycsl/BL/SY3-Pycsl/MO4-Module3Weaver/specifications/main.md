@@ -12,24 +12,26 @@ bin/cmmi-mod-index.py --file src/pycsl/Module3_Weaver.py
 
 ## Public functions / methods (9)
 
-- `PyCSLWeaver.__init__` — `src/pycsl/Module3_Weaver.py:31`
-- `PyCSLWeaver.visit_FunctionDef` — `src/pycsl/Module3_Weaver.py:123`
-- `PyCSLWeaver.visit_Module` — `src/pycsl/Module3_Weaver.py:131`
-- `PyCSLWeaver.visit_With` — `src/pycsl/Module3_Weaver.py:148`
-- `PyCSLWeaver.visit_ClassDef` — `src/pycsl/Module3_Weaver.py:165`
-- `PyCSLWeaver.visit_While` — `src/pycsl/Module3_Weaver.py:196`
-- `PyCSLWeaver.visit_For` — `src/pycsl/Module3_Weaver.py:214`
-- `Module3_Weaver.__init__` — `src/pycsl/Module3_Weaver.py:243`
-- `Module3_Weaver.process` — `src/pycsl/Module3_Weaver.py:327`
+- `PyCSLWeaver.__init__` — `src/pycsl/Module3_Weaver.py:32`
+- `PyCSLWeaver.visit_FunctionDef` — `src/pycsl/Module3_Weaver.py:182`
+- `PyCSLWeaver.visit_Module` — `src/pycsl/Module3_Weaver.py:190`
+- `PyCSLWeaver.visit_With` — `src/pycsl/Module3_Weaver.py:207`
+- `PyCSLWeaver.visit_ClassDef` — `src/pycsl/Module3_Weaver.py:224`
+- `PyCSLWeaver.visit_While` — `src/pycsl/Module3_Weaver.py:255`
+- `PyCSLWeaver.visit_For` — `src/pycsl/Module3_Weaver.py:273`
+- `Module3_Weaver.__init__` — `src/pycsl/Module3_Weaver.py:302`
+- `Module3_Weaver.process` — `src/pycsl/Module3_Weaver.py:386`
 
-## Private (leading-`_`) defs (6)
+## Private (leading-`_`) defs (8)
 
-- `PyCSLWeaver._init_function_csl_fields` — `src/pycsl/Module3_Weaver.py:36`
-- `PyCSLWeaver._dispatch_function_contracts` — `src/pycsl/Module3_Weaver.py:57`
-- `PyCSLWeaver._validate_function_contracts` — `src/pycsl/Module3_Weaver.py:100`
-- `Module3_Weaver._parse_extracted_contracts` — `src/pycsl/Module3_Weaver.py:248`
-- `Module3_Weaver._consolidate_module_concurrency` — `src/pycsl/Module3_Weaver.py:265`
-- `Module3_Weaver._attach_labels_and_ghost_assigns` — `src/pycsl/Module3_Weaver.py:289`
+- `PyCSLWeaver._init_function_csl_fields` — `src/pycsl/Module3_Weaver.py:37`
+- `PyCSLWeaver._act_guard` — `src/pycsl/Module3_Weaver.py:59`
+- `PyCSLWeaver._desugar_acts` — `src/pycsl/Module3_Weaver.py:70`
+- `PyCSLWeaver._dispatch_function_contracts` — `src/pycsl/Module3_Weaver.py:115`
+- `PyCSLWeaver._validate_function_contracts` — `src/pycsl/Module3_Weaver.py:159`
+- `Module3_Weaver._parse_extracted_contracts` — `src/pycsl/Module3_Weaver.py:307`
+- `Module3_Weaver._consolidate_module_concurrency` — `src/pycsl/Module3_Weaver.py:324`
+- `Module3_Weaver._attach_labels_and_ghost_assigns` — `src/pycsl/Module3_Weaver.py:348`
 
 ---
 
@@ -37,4 +39,4 @@ bin/cmmi-mod-index.py --file src/pycsl/Module3_Weaver.py
 
 The `#@` contract block immediately preceding each `def` in `src/pycsl/Module3_Weaver.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **15** (public: 9, private: 6).
+Total defs: **17** (public: 9, private: 8).

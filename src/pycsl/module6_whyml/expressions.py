@@ -44,6 +44,10 @@ class ExpressionEmissionMixin:
             return whyml_str
         if t == "UnaryOp" and op == "not":
             return whyml_str
+        # `\old(e)` / `e @label` is boolean iff its inner expression is — recurse so
+        # `\old(x < 0)` is not int-coerced (it underlies `complete`/`disjoint`).
+        if t in ("Old", "At"):
+            return self._to_bool(whyml_str, ir_expr.get("expr", {}))
         if t == "Bool":
             # In body context, Bool emits 1/0 but we need true/false for formulas
             if whyml_str == "1":

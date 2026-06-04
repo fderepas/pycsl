@@ -12,41 +12,42 @@ bin/cmmi-mod-index.py --file src/pycsl/Module4_SemanticAnalyzer.py
 
 ## Public functions / methods (8)
 
-- `extract_variables` — `src/pycsl/Module4_SemanticAnalyzer.py:102`
-- `contains_result` — `src/pycsl/Module4_SemanticAnalyzer.py:143`
-- `Module4_SemanticAnalyzer.__init__` — `src/pycsl/Module4_SemanticAnalyzer.py:160`
-- `Module4_SemanticAnalyzer.visit_Module` — `src/pycsl/Module4_SemanticAnalyzer.py:369`
-- `Module4_SemanticAnalyzer.visit_ClassDef` — `src/pycsl/Module4_SemanticAnalyzer.py:388`
-- `Module4_SemanticAnalyzer.visit_FunctionDef` — `src/pycsl/Module4_SemanticAnalyzer.py:428`
-- `Module4_SemanticAnalyzer.visit_While` — `src/pycsl/Module4_SemanticAnalyzer.py:607`
-- `Module4_SemanticAnalyzer.process` — `src/pycsl/Module4_SemanticAnalyzer.py:619`
+- `extract_variables` — `src/pycsl/Module4_SemanticAnalyzer.py:103`
+- `contains_result` — `src/pycsl/Module4_SemanticAnalyzer.py:144`
+- `Module4_SemanticAnalyzer.__init__` — `src/pycsl/Module4_SemanticAnalyzer.py:161`
+- `Module4_SemanticAnalyzer.visit_Module` — `src/pycsl/Module4_SemanticAnalyzer.py:370`
+- `Module4_SemanticAnalyzer.visit_ClassDef` — `src/pycsl/Module4_SemanticAnalyzer.py:389`
+- `Module4_SemanticAnalyzer.visit_FunctionDef` — `src/pycsl/Module4_SemanticAnalyzer.py:429`
+- `Module4_SemanticAnalyzer.visit_While` — `src/pycsl/Module4_SemanticAnalyzer.py:651`
+- `Module4_SemanticAnalyzer.process` — `src/pycsl/Module4_SemanticAnalyzer.py:663`
 
-## Private (leading-`_`) defs (24)
+## Private (leading-`_`) defs (25)
 
-- `_iter_csl_children` — `src/pycsl/Module4_SemanticAnalyzer.py:91`
-- `Module4_SemanticAnalyzer._get_type_name` — `src/pycsl/Module4_SemanticAnalyzer.py:169`
-- `Module4_SemanticAnalyzer._validate_contract` — `src/pycsl/Module4_SemanticAnalyzer.py:202`
-- `Module4_SemanticAnalyzer._validate_proj_indices` — `src/pycsl/Module4_SemanticAnalyzer.py:225`
-- `Module4_SemanticAnalyzer._validate_predicate_bases` — `src/pycsl/Module4_SemanticAnalyzer.py:236`
-- `Module4_SemanticAnalyzer._extract_held_mutexes` — `src/pycsl/Module4_SemanticAnalyzer.py:258`
-- `Module4_SemanticAnalyzer._check_protected_in_stmts` — `src/pycsl/Module4_SemanticAnalyzer.py:268`
-- `Module4_SemanticAnalyzer._check_protected_in_stmt` — `src/pycsl/Module4_SemanticAnalyzer.py:284`
-- `Module4_SemanticAnalyzer._protected_with` — `src/pycsl/Module4_SemanticAnalyzer.py:289`
-- `Module4_SemanticAnalyzer._protected_if` — `src/pycsl/Module4_SemanticAnalyzer.py:309`
-- `Module4_SemanticAnalyzer._protected_loop` — `src/pycsl/Module4_SemanticAnalyzer.py:313`
-- `Module4_SemanticAnalyzer._protected_assign` — `src/pycsl/Module4_SemanticAnalyzer.py:316`
-- `Module4_SemanticAnalyzer._protected_aug_assign` — `src/pycsl/Module4_SemanticAnalyzer.py:322`
-- `Module4_SemanticAnalyzer._protected_return` — `src/pycsl/Module4_SemanticAnalyzer.py:326`
-- `Module4_SemanticAnalyzer._protected_expr` — `src/pycsl/Module4_SemanticAnalyzer.py:330`
-- `Module4_SemanticAnalyzer._check_shared_access` — `src/pycsl/Module4_SemanticAnalyzer.py:333`
-- `Module4_SemanticAnalyzer._check_expr_for_shared` — `src/pycsl/Module4_SemanticAnalyzer.py:346`
-- `Module4_SemanticAnalyzer._validate_mutex_invariant_scope` — `src/pycsl/Module4_SemanticAnalyzer.py:352`
-- `Module4_SemanticAnalyzer._collect_class_field_types` — `src/pycsl/Module4_SemanticAnalyzer.py:406`
-- `Module4_SemanticAnalyzer._build_function_scope` — `src/pycsl/Module4_SemanticAnalyzer.py:449`
-- `Module4_SemanticAnalyzer._validate_function_contracts` — `src/pycsl/Module4_SemanticAnalyzer.py:512`
-- `Module4_SemanticAnalyzer._validate_no_exception` — `src/pycsl/Module4_SemanticAnalyzer.py:528`
-- `Module4_SemanticAnalyzer._validate_assigns_regions` — `src/pycsl/Module4_SemanticAnalyzer.py:562`
-- `Module4_SemanticAnalyzer._validate_subscript_assignments` — `src/pycsl/Module4_SemanticAnalyzer.py:579`
+- `_iter_csl_children` — `src/pycsl/Module4_SemanticAnalyzer.py:92`
+- `Module4_SemanticAnalyzer._get_type_name` — `src/pycsl/Module4_SemanticAnalyzer.py:170`
+- `Module4_SemanticAnalyzer._validate_contract` — `src/pycsl/Module4_SemanticAnalyzer.py:203`
+- `Module4_SemanticAnalyzer._validate_proj_indices` — `src/pycsl/Module4_SemanticAnalyzer.py:226`
+- `Module4_SemanticAnalyzer._validate_predicate_bases` — `src/pycsl/Module4_SemanticAnalyzer.py:237`
+- `Module4_SemanticAnalyzer._extract_held_mutexes` — `src/pycsl/Module4_SemanticAnalyzer.py:259`
+- `Module4_SemanticAnalyzer._check_protected_in_stmts` — `src/pycsl/Module4_SemanticAnalyzer.py:269`
+- `Module4_SemanticAnalyzer._check_protected_in_stmt` — `src/pycsl/Module4_SemanticAnalyzer.py:285`
+- `Module4_SemanticAnalyzer._protected_with` — `src/pycsl/Module4_SemanticAnalyzer.py:290`
+- `Module4_SemanticAnalyzer._protected_if` — `src/pycsl/Module4_SemanticAnalyzer.py:310`
+- `Module4_SemanticAnalyzer._protected_loop` — `src/pycsl/Module4_SemanticAnalyzer.py:314`
+- `Module4_SemanticAnalyzer._protected_assign` — `src/pycsl/Module4_SemanticAnalyzer.py:317`
+- `Module4_SemanticAnalyzer._protected_aug_assign` — `src/pycsl/Module4_SemanticAnalyzer.py:323`
+- `Module4_SemanticAnalyzer._protected_return` — `src/pycsl/Module4_SemanticAnalyzer.py:327`
+- `Module4_SemanticAnalyzer._protected_expr` — `src/pycsl/Module4_SemanticAnalyzer.py:331`
+- `Module4_SemanticAnalyzer._check_shared_access` — `src/pycsl/Module4_SemanticAnalyzer.py:334`
+- `Module4_SemanticAnalyzer._check_expr_for_shared` — `src/pycsl/Module4_SemanticAnalyzer.py:347`
+- `Module4_SemanticAnalyzer._validate_mutex_invariant_scope` — `src/pycsl/Module4_SemanticAnalyzer.py:353`
+- `Module4_SemanticAnalyzer._collect_class_field_types` — `src/pycsl/Module4_SemanticAnalyzer.py:407`
+- `Module4_SemanticAnalyzer._build_function_scope` — `src/pycsl/Module4_SemanticAnalyzer.py:450`
+- `Module4_SemanticAnalyzer._validate_function_contracts` — `src/pycsl/Module4_SemanticAnalyzer.py:513`
+- `Module4_SemanticAnalyzer._validate_acts` — `src/pycsl/Module4_SemanticAnalyzer.py:530`
+- `Module4_SemanticAnalyzer._validate_no_exception` — `src/pycsl/Module4_SemanticAnalyzer.py:572`
+- `Module4_SemanticAnalyzer._validate_assigns_regions` — `src/pycsl/Module4_SemanticAnalyzer.py:606`
+- `Module4_SemanticAnalyzer._validate_subscript_assignments` — `src/pycsl/Module4_SemanticAnalyzer.py:623`
 
 ---
 
@@ -54,4 +55,4 @@ bin/cmmi-mod-index.py --file src/pycsl/Module4_SemanticAnalyzer.py
 
 The `#@` contract block immediately preceding each `def` in `src/pycsl/Module4_SemanticAnalyzer.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **32** (public: 8, private: 24).
+Total defs: **33** (public: 8, private: 25).

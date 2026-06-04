@@ -12,28 +12,28 @@ bin/cmmi-mod-index.py --file src/pycsl/module6_whyml/functions.py
 
 ## Public functions / methods (5)
 
-- `FunctionEmissionMixin._render_refinement_goal.conj` — `src/pycsl/module6_whyml/functions.py:327`
-- `FunctionEmissionMixin._build_method_result_ensures_map.result_only` — `src/pycsl/module6_whyml/functions.py:391`
-- `FunctionEmissionMixin._build_method_param_result_ensures_map.classify` — `src/pycsl/module6_whyml/functions.py:438`
-- `FunctionEmissionMixin._build_method_param_result_ensures_map.refs_param` — `src/pycsl/module6_whyml/functions.py:465`
-- `FunctionEmissionMixin._build_method_param_result_ensures_map.rename` — `src/pycsl/module6_whyml/functions.py:478`
+- `FunctionEmissionMixin._render_refinement_goal.conj` — `src/pycsl/module6_whyml/functions.py:335`
+- `FunctionEmissionMixin._build_method_result_ensures_map.result_only` — `src/pycsl/module6_whyml/functions.py:399`
+- `FunctionEmissionMixin._build_method_param_result_ensures_map.classify` — `src/pycsl/module6_whyml/functions.py:446`
+- `FunctionEmissionMixin._build_method_param_result_ensures_map.refs_param` — `src/pycsl/module6_whyml/functions.py:473`
+- `FunctionEmissionMixin._build_method_param_result_ensures_map.rename` — `src/pycsl/module6_whyml/functions.py:486`
 
 ## Private (leading-`_`) defs (14)
 
 - `FunctionEmissionMixin._param_type_str` — `src/pycsl/module6_whyml/functions.py:12`
 - `FunctionEmissionMixin._collect_record_fields` — `src/pycsl/module6_whyml/functions.py:36`
 - `FunctionEmissionMixin._reset_function_state` — `src/pycsl/module6_whyml/functions.py:53`
-- `FunctionEmissionMixin._build_param_list` — `src/pycsl/module6_whyml/functions.py:94`
-- `FunctionEmissionMixin._emit_contracts` — `src/pycsl/module6_whyml/functions.py:152`
-- `FunctionEmissionMixin._compute_return_type` — `src/pycsl/module6_whyml/functions.py:200`
-- `FunctionEmissionMixin._emit_function` — `src/pycsl/module6_whyml/functions.py:215`
-- `FunctionEmissionMixin._emit_subtyping_goals` — `src/pycsl/module6_whyml/functions.py:296`
-- `FunctionEmissionMixin._render_refinement_goal` — `src/pycsl/module6_whyml/functions.py:318`
-- `FunctionEmissionMixin._build_method_return_type_map` — `src/pycsl/module6_whyml/functions.py:357`
-- `FunctionEmissionMixin._build_method_result_ensures_map` — `src/pycsl/module6_whyml/functions.py:380`
-- `FunctionEmissionMixin._build_method_param_result_ensures_map` — `src/pycsl/module6_whyml/functions.py:423`
-- `FunctionEmissionMixin._symtype_to_whyml` — `src/pycsl/module6_whyml/functions.py:510`
-- `FunctionEmissionMixin._build_method_param_types_map` — `src/pycsl/module6_whyml/functions.py:519`
+- `FunctionEmissionMixin._build_param_list` — `src/pycsl/module6_whyml/functions.py:98`
+- `FunctionEmissionMixin._emit_contracts` — `src/pycsl/module6_whyml/functions.py:156`
+- `FunctionEmissionMixin._compute_return_type` — `src/pycsl/module6_whyml/functions.py:208`
+- `FunctionEmissionMixin._emit_function` — `src/pycsl/module6_whyml/functions.py:223`
+- `FunctionEmissionMixin._emit_subtyping_goals` — `src/pycsl/module6_whyml/functions.py:304`
+- `FunctionEmissionMixin._render_refinement_goal` — `src/pycsl/module6_whyml/functions.py:326`
+- `FunctionEmissionMixin._build_method_return_type_map` — `src/pycsl/module6_whyml/functions.py:365`
+- `FunctionEmissionMixin._build_method_result_ensures_map` — `src/pycsl/module6_whyml/functions.py:388`
+- `FunctionEmissionMixin._build_method_param_result_ensures_map` — `src/pycsl/module6_whyml/functions.py:431`
+- `FunctionEmissionMixin._symtype_to_whyml` — `src/pycsl/module6_whyml/functions.py:518`
+- `FunctionEmissionMixin._build_method_param_types_map` — `src/pycsl/module6_whyml/functions.py:527`
 
 ---
 

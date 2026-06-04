@@ -158,6 +158,21 @@ _Corresponds to `annotations.md` §2._
 
 _Corresponds to `annotations.md` §2.1._
 
+#### §2.1.15 Guarded cases (`act` / `given` / `complete` / `disjoint`)
+
+```
+   act b: every `#@ given e` and `#@ ensures e` is well-formed in Γ_f
+   \result ∉ FV(e) for every `#@ given e`        names(complete/disjoint) ⊆ acts
+   ───────────────────────────────────────────────────────────────────────────
+                       act/complete/disjoint well-formed in Γ_f
+```
+
+**Rule:** Each clause inside `#@ act b:` is well-formed under the same Γ_f as a
+top-level clause. `\result` may **not** appear in a `#@ given` guard (it is a
+pre-state predicate). Every name listed by `#@ complete …` / `#@ disjoint …`
+must resolve to an `act` defined on the same function; duplicate act names are
+rejected. (Enforced by `Module4._validate_acts`.)
+
 #### §2.1.1 Precondition (`requires`)
 
 ```

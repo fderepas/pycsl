@@ -62,6 +62,41 @@ Add PEP 484 type hints to **all** function parameters and return types, even if 
 
 ---
 
+## Section 3b — Guarded cases (`act` blocks)
+
+For functions whose postcondition splits by case, use a Pythonic `act` block (ACSL
+"behaviour"). `#@ act <name>:` is followed by a **4-space-indented** body of
+`#@ given` / `#@ requires` / `#@ ensures` (strict — a misindented or tab-indented
+body line is a hard error):
+
+```python
+#@ act neg:
+#@     given x < 0
+#@     ensures \result == 0 - x
+#@ act pos:
+#@     given x >= 0
+#@     ensures \result == x
+#@ complete neg, pos
+#@ disjoint neg, pos
+def myabs(x: int) -> int:
+    if x < 0:
+        return 0 - x
+    return x
+```
+
+- `#@ given <expr>` is the case guard (ACSL `assumes`), read in the **pre-state**;
+  `\result` is not allowed in a `given`. Each guard is written **once** here — the
+  single source of truth that makes the case analysis DRY.
+- Desugars to `ensures \old(<given>) ==> <post>` / `requires <given> ==> <pre>`
+  (no new construct, 0 `\trusted`).
+- `#@ complete c1, c2, …` proves the guards cover every input; `#@ disjoint …`
+  proves at most one holds. Both are real proof obligations (they fail on a
+  gap/overlap), **checked on normal return only** (vacuous on `raise` paths in v1).
+- See `annotations.md` §2.1.15. Reference demos: corpus `0454`/`0455` (prove),
+  `0456` (incomplete set — completeness VC fails).
+
+---
+
 ## Section 4 — Forbidden in contract expressions
 
 **Three-level validation**: every `#@` expression must clear syntax (Level 1), static-semantics (Level 2), and WhyML-generation (Level 3) checks. `pycsl --no-proof` succeeding only guarantees Levels 1 and 2; Level 3 is verified by Why3. The most dangerous trap: contracts that pass Module4 yet fail Why3 (e.g., `"key" in d` when `d` is unannotated → `int` in WhyML, `in` on `int` is invalid). See `references/validation-stack.md` for the IS/SR/TR rule tables and the practical decision checklist.
