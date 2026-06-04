@@ -30,7 +30,9 @@ class FunctionEmissionMixin:
                 return f"({safe}: array {int_type})"
             return f"({safe}: loc) ({safe}_len: int)"
         if symtype == "str":
-            return f"({safe}: {int_type})"
+            # strings-plan Stage 1: runtime `str` is a value-semantic Why3 string
+            # (string.String), unifying with the ghost-string model.
+            return f"({safe}: string)"
         return f"({safe}: {int_type})"
 
     def _collect_record_fields(self, type_decls: List[Dict[str, Any]]) -> Set[str]:
@@ -216,6 +218,8 @@ class FunctionEmissionMixin:
             return_type = "array int"
         elif ann in ("set", "dict", "frozenset") and return_type == "int":
             return_type = "map int (option int)"
+        elif ann == "str" and return_type == "int":
+            return_type = "string"
         if bounded_int and return_type == "int":
             return_type = f"int{bounded_int}"
         return return_type
@@ -522,6 +526,8 @@ class FunctionEmissionMixin:
             return "map int (option int)"
         if symtype in ("list", "tuple"):
             return "array int"
+        if symtype == "str":
+            return "string"
         return "int"
 
     def _build_method_param_types_map(self, functions: List[Dict[str, Any]]) -> Dict[str, List[str]]:

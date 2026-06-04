@@ -300,6 +300,18 @@ class ExpressionEmissionMixin:
             if vname in append_targets:
                 # Append-target len is tracked in a sidecar ref `X_len`.
                 return f"!{vname}_len"
+        if atype == "Var" and getattr(self, "_current_symbol_table", {}).get(
+                arg_ir.get("name", "")) == "str":
+            # strings-plan Stage 1: len(s) on a runtime str is the Why3 string length.
+            # In a spec, the logic symbol `String.length` is used directly; in a program
+            # (body) context that logic symbol is not allowed, so bridge it through an
+            # abstract `val` whose `ensures` ties the program result to `String.length`.
+            if self._in_spec:
+                return f"(String.length {args[0]})"
+            self._add_abstract_op(
+                "val str_length_op (s: string) : int\n"
+                "    ensures { result = (String.length s) }")
+            return f"(str_length_op {args[0]})"
         if self._value_semantic:
             var_name = arg_ir.get("name", "") if atype == "Var" else ""
             is_dict = var_name in getattr(self, "_dict_locals", set())
@@ -1494,8 +1506,11 @@ class ExpressionEmissionMixin:
         # Simple literals and trivial 1-3-line branches — kept inline
         if t == "Number": return str(int(expr["value"]))
         if t == "String":
+            # strings-plan Stage 1: a string literal is a real Why3 string. Where an int is
+            # required (an abstract-op arg, a dict key), `_coerce_to_int` hashes it back, so
+            # int-contexts keep working; string-typed contexts now get a real `"..."`.
             escaped = expr["value"].replace('\\', '\\\\').replace('"', '\\"')
-            return str(hash(f'"{escaped}"') % 2147483647)
+            return f'"{escaped}"'
         if t == "Result":   return "result"
         if t == "None":     return "0"
         if t == "ArrayLit":

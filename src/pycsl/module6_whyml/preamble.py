@@ -178,7 +178,12 @@ class PreambleEmissionMixin:
                 else:
                     needs_return_exc = True
             i += 1
-        needs_string = any(IRScanner.uses_ghost_type(body, {"string"}) for body in all_bodies)
+        needs_string = (
+            any(IRScanner.uses_ghost_type(body, {"string"}) for body in all_bodies)
+            # strings-plan Stage 1: a runtime `str` param/local/return also needs string.String
+            or any("str" in f.get("symbol_table", {}).values() for f in functions)
+            or any(f.get("return_annotation") == "str" for f in functions)
+        )
         needs_map_ghost = any(IRScanner.uses_ghost_type(body, {"ghost_dict", "ghost_set"}) for body in all_bodies)
         needs_ghost_dict = any(IRScanner.uses_ghost_type(body, {"ghost_dict"}) for body in all_bodies)
         # Body-level Python dicts are modelled as `ref (map int (option int))`
