@@ -23,6 +23,11 @@ rag-query: .venv
 rag-chunks: .venv
 	$(PYTHON) -m skill2rag chunks
 
+# Check the index is complete + fresh vs config/skills (no embedding; CI-safe).
+# Exit 0 in sync, 1 drift (run rag-build), 2 index absent.
+rag-verify: .venv
+	$(PYTHON) -m skill2rag verify
+
 self-annotate-generate: .venv
 	./bin/self-annotate-generate.sh
 

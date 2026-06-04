@@ -14,8 +14,9 @@
 #      transformer method (advisory).
 #   2. Doc coherency           — bin/doc-coherency.py --check (5-surface directive parity)
 #   3. Module index            — bin/cmmi-mod-index.py --verify --all (def-count drift)
-#   4. Reference corpus        — bin/run-reference-tests.sh (skipped with --quick)
-#   5. Self-annotate mirrors   — make self-annotate-verify    (skipped with --quick)
+#   4. Skill RAG index         — skill2rag verify (complete+fresh; soft-skip if not built)
+#   5. Reference corpus        — bin/run-reference-tests.sh (skipped with --quick)
+#   6. Self-annotate mirrors   — make self-annotate-verify    (skipped with --quick)
 #
 # Usage:
 #   bin/audit-pycsl-language.sh           # full audit
@@ -79,12 +80,27 @@ run "doc coherency (5-surface directive parity)" "$REPO_ROOT/bin/doc-coherency.p
 run "module index --verify --all" "$PY" "$REPO_ROOT/bin/cmmi-mod-index.py" --verify --all
 
 if [ "$QUICK" -eq 0 ]; then
-    # 4. The corpus still verifies (the real proof the language works).
+    # 4. The skill RAG index is complete + fresh vs config/skills (no embedding).
+    #    The index is gitignored/local, so a missing index (exit 2) is a SOFT skip,
+    #    not a failure; only genuine drift (exit 1) fails the audit.
+    printf '[..] %s\n' "skill RAG index up to date"
+    "$PY" -m skill2rag verify > /tmp/audit-pycsl-rag.$$.out 2>&1
+    rag_rc=$?
+    if   [ "$rag_rc" -eq 0 ]; then printf '[OK] %s\n' "skill RAG index up to date"
+    elif [ "$rag_rc" -eq 2 ]; then printf '[skip] RAG index not built (make rag-build)\n'
+    else
+        printf '[FAIL] %s (exit %d)\n' "skill RAG index up to date" "$rag_rc"
+        sed 's/^/    | /' /tmp/audit-pycsl-rag.$$.out | tail -25
+        FAILED=1
+    fi
+    rm -f /tmp/audit-pycsl-rag.$$.out
+
+    # 5. The corpus still verifies (the real proof the language works).
     run "reference corpus" "$REPO_ROOT/bin/run-reference-tests.sh"
-    # 5. PyCSL still proves its own modules under --no-proof.
+    # 6. PyCSL still proves its own modules under --no-proof.
     run "self-annotate mirrors verify" make self-annotate-verify
 else
-    echo "[skip] reference corpus + self-annotate mirrors (--quick)"
+    echo "[skip] RAG verify + reference corpus + self-annotate mirrors (--quick)"
 fi
 
 echo "========================================="

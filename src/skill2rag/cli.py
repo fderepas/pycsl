@@ -50,6 +50,43 @@ def cmd_chunks(args):
         print(f"  [{c.source_file}] L{c.level} {c.title} ({len(c.content)} chars)")
 
 
+def cmd_verify(args):
+    """Check the index is complete + fresh vs the live skill tree.
+
+    Exit codes: 0 in sync · 1 drift (missing skills / unindexed / stale) ·
+    2 index file absent.
+    """
+    from skill2rag.verify import verify_index
+    ok, r = verify_index(skill_dir=args.skill_dir, index_path=args.index)
+
+    if r.get("index_missing"):
+        print(f"[!] RAG index not found at {r['index_path']} — run `make rag-build` first.")
+        sys.exit(2)
+
+    print(f"=== RAG index verify ({r['index_path']}) ===")
+    print(f"skills: {r['skills_total']}  |  current chunks: {r['current_chunks']}  "
+          f"|  indexed chunks: {r['index_chunks']}")
+
+    def _section(label, items, limit=15):
+        print(f"  {label}: {len(items)}")
+        for x in items[:limit]:
+            print(f"      - {x}")
+        if len(items) > limit:
+            print(f"      … and {len(items) - limit} more")
+
+    _section("missing skills (no chunk in index)", r["missing_skills"])
+    _section("unindexed (new content, never built)", r["unindexed"])
+    _section("stale (source edited since build)", r["stale"])
+    _section("orphan (in index, gone from tree) [warn]", r["orphan"])
+
+    if ok:
+        warn = " (orphans present — rebuild to prune)" if r["orphan"] else ""
+        print(f"[+] RAG index is complete and fresh{warn}.")
+        sys.exit(0)
+    print("[!] RAG index is stale — run `make rag-build`.")
+    sys.exit(1)
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="skill2rag",
@@ -75,6 +112,11 @@ def main():
     p_chunks = sub.add_parser("chunks", help="List chunks without building an index")
     p_chunks.add_argument("--skill-dir", default="./config/skills", help="Directory with .md skill files")
 
+    # verify
+    p_verify = sub.add_parser("verify", help="Check the index is complete + fresh (no embedding)")
+    p_verify.add_argument("--skill-dir", default="./config/skills", help="Directory with .md skill files")
+    p_verify.add_argument("--index", default="./data/embeddings/skills_index.json", help="Index JSON path")
+
     args = parser.parse_args()
     if args.command == "build":
         cmd_build(args)
@@ -82,6 +124,8 @@ def main():
         cmd_query(args)
     elif args.command == "chunks":
         cmd_chunks(args)
+    elif args.command == "verify":
+        cmd_verify(args)
 
 
 if __name__ == "__main__":

@@ -10,16 +10,17 @@ bin/cmmi-mod-index.py --file src/skill2rag/cli.py
 
 ---
 
-## Public functions / methods (4)
+## Public functions / methods (5)
 
 - `cmd_build` — `src/skill2rag/cli.py:14`
 - `cmd_query` — `src/skill2rag/cli.py:23`
 - `cmd_chunks` — `src/skill2rag/cli.py:45`
-- `main` — `src/skill2rag/cli.py:53`
+- `cmd_verify` — `src/skill2rag/cli.py:53`
+- `main` — `src/skill2rag/cli.py:90`
 
-## Private (leading-`_`) defs (0)
+## Private (leading-`_`) defs (1)
 
-_(none)_
+- `cmd_verify._section` — `src/skill2rag/cli.py:70`
 
 ---
 
@@ -27,4 +28,4 @@ _(none)_
 
 The `#@` contract block immediately preceding each `def` in `src/skill2rag/cli.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **4** (public: 4, private: 0).
+Total defs: **6** (public: 5, private: 1).

@@ -102,6 +102,12 @@ proofs/goldens flap otherwise.
    bin/check-proof-crosscheck.sh
    ```
 
+6. **Skill RAG index is complete + fresh** (so a changed/added skill stays
+   discoverable — embedding-free, fast, CI-safe):
+   ```bash
+   make rag-verify     # 0 = in sync · 1 = drift (run `make rag-build`) · 2 = index not built
+   ```
+
 If a clause is genuinely WhyML-no-op (like the Python `assert` statement — see below), the
 corpus and gate still pass; the *no-op must be documented* in the translational reference
 (`T[[#@ ...]] = ()`), which `doc-coherency.py` checks for.
@@ -181,6 +187,11 @@ it has no teeth, and the audit has failed even though every box is green.
   directives there first, then propagate to the other four surfaces.
 - A WhyML **no-op is legitimate** but must be declared as `T[[…]] = ()` in the translational
   reference, or `doc-coherency.py` flags it.
+- The **skill RAG index** (`data/embeddings/skills_index.json`) is a **local, gitignored**
+  artifact built against **localhost** ollama (`nomic-embed-text`), not the remote LLM
+  endpoint. After adding or editing any skill, run `make rag-build` to re-index (a full
+  rebuild — there is no incremental build) and `make rag-verify` to confirm it is complete
+  and fresh. A skill absent from the index cannot auto-surface to agents.
 
 ## Related skills & references
 
