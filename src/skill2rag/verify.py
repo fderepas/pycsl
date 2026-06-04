@@ -57,18 +57,25 @@ def verify_index(skill_dir: str, index_path: str):
         return False, {"index_missing": True, "index_path": str(idx)}
 
     index_chunks = json.loads(idx.read_text(encoding="utf-8")).get("chunks", [])
-    index_hash = {c["chunk_id"]: c["content_hash"] for c in index_chunks}
-    index_ids = set(index_hash)
+    # chunk_id (= source::heading_path) is NOT unique — a file that repeats a
+    # heading yields colliding ids — so freshness is compared on the SET of
+    # (chunk_id, content_hash) PAIRS, not a {id: hash} map (which would collapse
+    # duplicates and report false "stale").
+    index_pairs = {(c["chunk_id"], c["content_hash"]) for c in index_chunks}
+    index_ids = {c["chunk_id"] for c in index_chunks}
     index_sources = _index_source_files(index_chunks)
 
     current = chunk_directory(skill_dir)
     current_ids = {c.chunk_id for c in current}
 
-    unindexed = sorted(c.chunk_id for c in current if c.chunk_id not in index_hash)
-    stale = sorted(
+    # unindexed: a chunk_id absent from the index entirely (new / never built).
+    unindexed = sorted({c.chunk_id for c in current if c.chunk_id not in index_ids})
+    # stale: chunk_id is in the index, but no indexed pair has this content_hash
+    # (the source changed since the build). Deduped by chunk_id for reporting.
+    stale = sorted({
         c.chunk_id for c in current
-        if c.chunk_id in index_hash and index_hash[c.chunk_id] != c.content_hash
-    )
+        if c.chunk_id in index_ids and (c.chunk_id, c.content_hash) not in index_pairs
+    })
     orphan = sorted(cid for cid in index_ids if cid not in current_ids)
     missing_skills = _skill_coverage(Path(skill_dir), index_sources)
 
