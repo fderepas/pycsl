@@ -10,17 +10,26 @@ PyCSL translates dynamically typed Python code heavily annotated with Hoare logi
 The pipeline is strictly sequential and divided into six modules:
 
 ## 1. Module 1: Ingestor (`Module1_Ingestor.py`)
-* **Purpose:** Read the source code and extract annotations without losing positional context.
-* **Mechanism:** Uses `libcst` (Concrete Syntax Tree) because standard Python `ast` drops comments. It traverses the tree, looks for leading comments starting with `#@`, strips the marker, and stores the raw string alongside the target node's line number. It also supports class-based code:
-  - `visit_ClassDef` / `leave_ClassDef` track the current class so that method names are prefixed with `<classname>__` (lowercased, e.g., `counter__increment`).
-  - `visit_ClassDef` **also extracts class-level `#@` contracts** (e.g., `#@ class invariant self._n >= 0`) using the same `_extract_contracts_from_node` helper. These are emitted as `PyCSLContract(node_type="ClassDef", ...)` rather than `"FunctionDef"`, preserving the class's line number for Module 3 to match.
-  - Contract strings for methods are passed through **as-is** — `self.field` is no longer rewritten; Module 2's grammar now parses `self.field` natively as a `FieldAccess` node.
-  - **Phase 5 — Labels:** `visit_SimpleStatementLine` detects `#@ label L` annotations placed before any simple statement and emits `PyCSLContract(node_type="Label", ...)`. These are matched by Module 3 to attach label names to the immediately following statement node.
+* **Purpose:** Read the source code and extract `#@` annotations without losing positional context.
+* **Mechanism:** Uses the pure-Python front-end **`pure_ast`** (NOT `libcst` — that dependency was removed from the pipeline) because standard Python `ast` drops comments. `pure_ast.parse` gives structure/names/positions and `pure_ast.comments` gives the standalone `#@` comment trivia. A `_Harvester` builds a flat, source-ordered list of `_Target` nodes and associates each own-line `#@` comment with the construct it annotates by position + indentation (bisect on the previous/next target). This association policy is soundness-relevant, so it lives in PyCSL's auditable code; it is pinned **byte-for-byte** to the former libcst behaviour by the differential `bin/_libcst_diff.py`. It supports class-based code:
+  - A stateful `_cur_class` (set on entering a `ClassDef`, reset to `None` on leaving — deliberately mirroring libcst's `_current_class` quirk) prefixes method names with `<classname>__` (lowercased, e.g., `counter__increment`).
+  - Class-level `#@` contracts (e.g., `#@ class invariant self._n >= 0`) are emitted as `PyCSLContract(node_type="ClassDef", ...)` rather than `"FunctionDef"`, preserving the class's line number for Module 3 to match.
+  - Contract strings pass through **as-is** — `self.field` is not rewritten; Module 2's grammar parses `self.field` natively as a `FieldAccess` node.
+  - **Labels:** a `#@ label L` annotation before a simple statement is emitted as `PyCSLContract(node_type="Label", ...)`, which Module 3 attaches to the immediately following statement node.
 * **Output:** A list of `PyCSLContract` objects (one per annotated function, loop, class, or labelled statement) each pairing raw contract strings with the node's logical line number and `node_type`.
 
 ## 2. Module 2: Parser (`Module2_Parser.py`)
 * **Purpose:** Parse the raw PyCSL strings into a formal Contract AST.
-* **Mechanism:** Uses `lark` with a custom EBNF grammar to parse Hoare logic primitives. The grammar supports the following top-level contract kinds: `requires`, `ensures`, `assigns`, `loop invariant`, `loop variant`, `class invariant`, and `label`. It handles operator precedence and outputs the following custom Python `dataclass` nodes:
+* **Mechanism:** Uses `lark` with a custom EBNF grammar to parse Hoare logic primitives. The grammar's `?contract:` alternation supports these top-level contract kinds:
+  - **core:** `requires`, `ensures`, `assigns`
+  - **function-level:** `\variant` (scalar + structural), `\diverges`, `\trusted` (opt. `reviewer:`), `\abstract`, `raises`, `no_exception` (`\all` or list), `proof <rocq|lean> <qualname>`, `assumes bounded_int`
+  - **loop:** `loop invariant`, `loop variant`
+  - **class:** `class invariant`
+  - **program-point:** `label`, `ghost` (assign / aug-assign / array-set)
+  - **exception-model:** `allow_finalizer`, `allow_iteration_mutation`
+  - **concurrency (concurrent model):** `shared` (opt. `protected_by`), `thread_entry`, `acquires`, `releases`, `critical`, `mutex_invariant`, `lock_order`
+
+  (Whenever this list changes, `bin/doc-coherency.py --check` enforces that the new directive is documented across all five normative surfaces — see the `pycsl-audit-pycsl-language` skill.) It handles operator precedence and outputs custom Python `dataclass` nodes (one per clause kind), including:
   - **Contract nodes:** `Requires`, `Ensures`, `Assigns`, `LoopInvariant`, `LoopVariant`, `ClassInvariant`, `Label(name)`
   - **Expression nodes:** `BinOp`, `UnaryOp`, `Var`, `Number`, `Result`, `Old`, `FieldAccess`, `Nothing`
   - **Phase 0 — Assigns region:** `AssignsRegion(base, low, high)` is produced for `#@ assigns arr[lo..hi]`. In typed/store memory models this emits a frame condition.
@@ -218,7 +227,7 @@ When asked to extend or change the memory model, changes are required in:
 
 # CLASS SUPPORT (LEVEL 2 — RECORD TYPES & LEVEL 3 — CLASS INVARIANTS)
 PyCSL supports class-based code via Level 2 WhyML record types and Level 3 class invariants:
-* **Module 1** tracks the current class and prefixes method names with `<classname>__` (lowercased). `visit_ClassDef` also extracts class-level `#@ class invariant` contracts and emits them as `PyCSLContract(node_type="ClassDef", ...)`. Contract strings pass through unchanged — `self.field` is no longer rewritten.
+* **Module 1** (`pure_ast`-based `_Harvester`) tracks the current class via `_cur_class` and prefixes method names with `<classname>__` (lowercased). The harvester also extracts class-level `#@ class invariant` contracts and emits them as `PyCSLContract(node_type="ClassDef", ...)`. Contract strings pass through unchanged — `self.field` is no longer rewritten.
 * **Module 2** parses `self.field` natively as a `FieldAccess(object='self', field='...')` CSL node. `\old(self.field)` in `ensures` is also supported. `class invariant <expr>` is parsed as `ClassInvariant(expr)`.
 * **Module 3** attaches `csl_class_invariants` (list of `ClassInvariant` objects) to `ast.ClassDef` nodes, in addition to attaching function-level contracts to `ast.FunctionDef` nodes.
 * **Module 4** collects instance fields from `__init__` and validates `FieldAccess` nodes against `_class_fields`. Also validates class invariants: only `FieldAccess` (self.field) and constants are permitted; unknown fields raise `PyCSLSemanticError`.

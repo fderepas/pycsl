@@ -37,8 +37,8 @@ resolver inlines that skill's `SKILL.md`).
 L1: csl-philosophy
 L2: csl-philosophy, pycsl-annotate, agent-stdlib-annotate
 L3: pycsl-annotate, agent-stdlib-annotate
-L4: pycsl-annotate, contract-writer, invariant-writer, agent-stdlib-annotate
-L5: pycsl-annotate, contract-writer, invariant-writer, english-writer, pycsl-exception-model, agent-stdlib-annotate
+L4: pycsl-annotate, contract-writer, invariant-writer, agent-stdlib-annotate, acsl
+L5: pycsl-annotate, contract-writer, invariant-writer, english-writer, pycsl-exception-model, agent-stdlib-annotate, acsl, pycsl-audit-pycsl-language
 L5-Validator: rocq, rocq-prover, lean
 ```
 
@@ -87,6 +87,20 @@ formally relaxes governance to a single-developer CCB.
   at the Unit level, where `requires`/`ensures`/`raises`/`loop invariant` are
   authored. L2 also gets `pycsl-annotate` because System-level phases in this
   project still author stub contracts.
+- **ACSL reference (`acsl`) → L4 + L5 specifiers.** PyCSL's `#@` contract
+  surface is an ACSL-family language; `acsl` is the upstream reference for the
+  semantics of `requires`/`ensures`/`assigns`, loop invariants/variants,
+  quantifiers, and `behavior`/`assumes`/`complete`/`disjoint`. Agents authoring
+  module- (L4) and unit-level (L5) contracts benefit from the authoritative
+  behavioral-spec semantics. (It is a C/Frama-C reference, not PyCSL syntax — use
+  it for *meaning*, not literal `#@` form.)
+- **`pycsl-audit-pycsl-language` → L5.** This audits that a *change to the PyCSL
+  language itself* (grammar → validate → IR → WhyML, plus docs + corpus) is
+  consistent end-to-end. It is a toolchain-development skill, not a
+  contract-authoring one, so it does not fit the level model cleanly; it is keyed
+  at L5 because Module2–6 / grammar change-phases land at the deepest
+  implementation level. Phases that only author contracts will carry it as
+  inert context.
 - **Proof skills are role-scoped, not level-scoped.** `rocq` / `rocq-prover` /
   `lean` go to **`L5-Validator`** only — the low-level (Unit / Phase-10)
   **Validator**, who discharges proof obligations and writes `#@ proof rocq` /
