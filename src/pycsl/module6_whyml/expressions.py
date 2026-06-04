@@ -599,6 +599,48 @@ class ExpressionEmissionMixin:
             # fmt is dynamic / unsupported chars → fall through to
             # generic _handle_dotted_call (which auto-trusts).
 
+        named = self._call_named_builtins(expr, args, func_name)
+        if named is not None:
+            return named
+        if "." in func_name:
+            return self._handle_dotted_call(func_name, args)
+        rec = self._call_record_constructor(args, func_name)
+        if rec is not None:
+            return rec
+        bytes_call = self._call_bytes_methods(args, func_name)
+        if bytes_call is not None:
+            return bytes_call
+        coerced_args = [self._coerce_to_int(a) for a in args]
+        safe_fn = whyml_ident(func_name)
+        if (func_name not in local_refs
+                and func_name not in self._current_params
+                and safe_fn not in self._module_func_names):
+            n = len(coerced_args)
+            arity_fn = f"{safe_fn}_{n}"
+            if n == 0:
+                self._add_abstract_op(f"val {arity_fn} () : int")
+            else:
+                self._add_abstract_op(
+                    f"val {arity_fn} {' '.join(f'(x{i}: int)' for i in range(n))} : int")
+            # Strict-propagation mode (workplan §1.4): an unannotated
+            # callee called from a function with `no_exception` is
+            # treated pessimistically. Default mode preserves backward
+            # compat — ambient.
+            inner = f"({arity_fn} {' '.join(coerced_args) if coerced_args else '()'})"
+            return self._wrap_unannotated_call_with_strict_assert(inner)
+        # User-function call site. Look up the callee's raises summary;
+        # if any clause names an exception the caller has committed to
+        # avoid, prepend an assertion that the raises condition cannot
+        # hold under the actual args.
+        inner = f"({safe_fn} {' '.join(coerced_args) if coerced_args else '()'})"
+        return self._wrap_call_with_callee_raises_assert(func_name, inner, args)
+
+    def _call_named_builtins(self, expr: Dict[str, Any], args: List[str],
+                             func_name: str) -> Optional[str]:
+        """Named builtins and built-in-method idioms: len / min / max / string-predicate
+        methods / isinstance / set / sorted / any / all / dict / list / join /
+        str|repr|int|bool|abs / sum / hasattr. Returns the WhyML string, or None to fall
+        through to the generic call path. (Extracted verbatim from `_handle_call_expr`.)"""
         if func_name == "len" and len(args) == 1:
             return self._handle_len_call(expr, args)
         if func_name in ("min", "max") and len(args) == 2:
@@ -695,84 +737,68 @@ class ExpressionEmissionMixin:
                 op = "hasattr_check"
                 self._add_abstract_op("val hasattr_check (x: int) (a: int) : bool")
             return f"({op} {a0} {a1})"
-        if "." in func_name:
-            return self._handle_dotted_call(func_name, args)
-        if func_name in self._record_types and len(args) == 0:
-            rec_info = self._record_types[func_name]
-            rec_lower = func_name.lower()
-            field_types = rec_info.get("field_types", {})
+        return None
 
-            def _field_default(fn: str) -> str:
-                # Per-type default so a driver constructing `C()` builds a
-                # type-correct record. A list/array field defaults to an
-                # `Array.make <len> 0` (len from field_defaults, captured by
-                # Module5._array_init_size) so its `\length` invariant holds;
-                # a dict/set field to the empty map; everything else to its
-                # captured int (fallback 0).
-                ft = field_types.get(fn, "int")
-                if ft in ("list", "array"):
-                    return f"(Array.make {rec_info['defaults'].get(fn, 0)} 0)"
-                if ft in ("dict", "set", "frozenset"):
-                    return "(const (None: option int))"
-                return f"{rec_info['defaults'].get(fn, 0)}"
+    def _call_record_constructor(self, args: List[str], func_name: str) -> Optional[str]:
+        """`C()` for a known record type → a WhyML record literal with per-field,
+        type-correct defaults. Returns None if `func_name` is not a 0-arg record
+        constructor. (Extracted from `_handle_call_expr`.)"""
+        if not (func_name in self._record_types and len(args) == 0):
+            return None
+        rec_info = self._record_types[func_name]
+        rec_lower = func_name.lower()
+        field_types = rec_info.get("field_types", {})
 
-            field_inits = "; ".join(
-                f"{self._field_label(rec_lower, fn)} = {_field_default(fn)}"
-                for fn in rec_info["fields"]
-            )
-            return f"{{ {field_inits} }}"
-        # Bytes-producing methods (`b.encode()`, `b.ljust()`, ...) reach
-        # the generic path with no receiver dot in the IR func name. They
-        # return a byte buffer (`array int`), and any array-shaped operand
-        # (the receiver byte string, a slice) must stay `array int` so the
-        # result can flow into a `struct.pack('>...30s', ...)` name field.
-        # Opaque — the byte content is not modeled. (Gap 5.)
-        if func_name in ("encode", "ljust", "rjust", "zfill"):
-            n = len(args)
-            arity_fn = f"{whyml_ident(func_name)}_{n}"
-            _ARR = ("(Array.make", "(Array.sub ", "(array_slice ", "(sorted_1 ",
-                    "(struct_pack", "(encode_", "(ljust_", "(rjust_", "(zfill_")
-            ptypes: List[str] = []
-            cargs: List[str] = []
-            for a in args:
-                st = a.strip()
-                is_arr = (any(st.startswith(p) for p in _ARR) or
-                          st.lstrip("!").replace("_", "").isalnum() and
-                          st.lstrip("!") in getattr(self, "_array_locals", set()))
-                if is_arr:
-                    ptypes.append("array int")
-                    cargs.append(self._array_coerce_arg(a))
-                else:
-                    ptypes.append("int")
-                    cargs.append(self._coerce_to_int(a))
-            params = (" ".join(f"(x{i}: {t})" for i, t in enumerate(ptypes))
-                      if n else "()")
-            self._add_abstract_op(f"val {arity_fn} {params} : array int")
-            return f"({arity_fn} {' '.join(cargs) if cargs else '()'})"
-        coerced_args = [self._coerce_to_int(a) for a in args]
-        safe_fn = whyml_ident(func_name)
-        if (func_name not in local_refs
-                and func_name not in self._current_params
-                and safe_fn not in self._module_func_names):
-            n = len(coerced_args)
-            arity_fn = f"{safe_fn}_{n}"
-            if n == 0:
-                self._add_abstract_op(f"val {arity_fn} () : int")
+        def _field_default(fn: str) -> str:
+            # Per-type default so a driver constructing `C()` builds a
+            # type-correct record. A list/array field defaults to an
+            # `Array.make <len> 0` (len from field_defaults, captured by
+            # Module5._array_init_size) so its `\length` invariant holds;
+            # a dict/set field to the empty map; everything else to its
+            # captured int (fallback 0).
+            ft = field_types.get(fn, "int")
+            if ft in ("list", "array"):
+                return f"(Array.make {rec_info['defaults'].get(fn, 0)} 0)"
+            if ft in ("dict", "set", "frozenset"):
+                return "(const (None: option int))"
+            return f"{rec_info['defaults'].get(fn, 0)}"
+
+        field_inits = "; ".join(
+            f"{self._field_label(rec_lower, fn)} = {_field_default(fn)}"
+            for fn in rec_info["fields"]
+        )
+        return f"{{ {field_inits} }}"
+
+    def _call_bytes_methods(self, args: List[str], func_name: str) -> Optional[str]:
+        """Bytes-producing methods (`b.encode()`, `b.ljust()`, …) reach the generic path
+        with no receiver dot in the IR func name. They return a byte buffer (`array int`),
+        and any array-shaped operand (the receiver byte string, a slice) must stay
+        `array int` so the result can flow into a `struct.pack('>...30s', …)` name field.
+        Opaque — the byte content is not modeled. (Gap 5.) Returns None if not a bytes
+        method. (Extracted from `_handle_call_expr`.)"""
+        if func_name not in ("encode", "ljust", "rjust", "zfill"):
+            return None
+        n = len(args)
+        arity_fn = f"{whyml_ident(func_name)}_{n}"
+        _ARR = ("(Array.make", "(Array.sub ", "(array_slice ", "(sorted_1 ",
+                "(struct_pack", "(encode_", "(ljust_", "(rjust_", "(zfill_")
+        ptypes: List[str] = []
+        cargs: List[str] = []
+        for a in args:
+            st = a.strip()
+            is_arr = (any(st.startswith(p) for p in _ARR) or
+                      st.lstrip("!").replace("_", "").isalnum() and
+                      st.lstrip("!") in getattr(self, "_array_locals", set()))
+            if is_arr:
+                ptypes.append("array int")
+                cargs.append(self._array_coerce_arg(a))
             else:
-                self._add_abstract_op(
-                    f"val {arity_fn} {' '.join(f'(x{i}: int)' for i in range(n))} : int")
-            # Strict-propagation mode (workplan §1.4): an unannotated
-            # callee called from a function with `no_exception` is
-            # treated pessimistically. Default mode preserves backward
-            # compat — ambient.
-            inner = f"({arity_fn} {' '.join(coerced_args) if coerced_args else '()'})"
-            return self._wrap_unannotated_call_with_strict_assert(inner)
-        # User-function call site. Look up the callee's raises summary;
-        # if any clause names an exception the caller has committed to
-        # avoid, prepend an assertion that the raises condition cannot
-        # hold under the actual args.
-        inner = f"({safe_fn} {' '.join(coerced_args) if coerced_args else '()'})"
-        return self._wrap_call_with_callee_raises_assert(func_name, inner, args)
+                ptypes.append("int")
+                cargs.append(self._coerce_to_int(a))
+        params = (" ".join(f"(x{i}: {t})" for i, t in enumerate(ptypes))
+                  if n else "()")
+        self._add_abstract_op(f"val {arity_fn} {params} : array int")
+        return f"({arity_fn} {' '.join(cargs) if cargs else '()'})"
 
     def _handle_subscript(self, expr: Dict[str, Any], local_refs: Set[str],
                           invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
