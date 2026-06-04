@@ -267,6 +267,19 @@ class PyCSLWeaver(ast.NodeVisitor):
 
         self.generic_visit(node)
 
+    @staticmethod
+    def _attach_loop_contracts(node, contracts) -> None:
+        """Attach loop-invariant / loop-variant / ghost-assign contracts to a While or
+        For node (the part common to both visitors). `node.csl_invariants`,
+        `csl_variants`, and `csl_ghost_assigns` must already be initialized."""
+        for c in contracts:
+            if isinstance(c, LoopInvariant):
+                node.csl_invariants.append(c)
+            elif isinstance(c, LoopVariant):
+                node.csl_variants.append(c)
+            elif isinstance(c, (GhostAssignDecl, GhostArraySetDecl)):
+                node.csl_ghost_assigns.append(c)
+
     def visit_While(self, node: ast.While) -> Any:
         # Initialize the custom PyCSL fields
         node.csl_invariants = []
@@ -274,14 +287,7 @@ class PyCSLWeaver(ast.NodeVisitor):
         node.csl_ghost_assigns = []
 
         if node.lineno in self.contracts_map:
-            contracts = self.contracts_map[node.lineno]
-            for c in contracts:
-                if isinstance(c, LoopInvariant):
-                    node.csl_invariants.append(c)
-                elif isinstance(c, LoopVariant):
-                    node.csl_variants.append(c)
-                elif isinstance(c, (GhostAssignDecl, GhostArraySetDecl)):
-                    node.csl_ghost_assigns.append(c)
+            self._attach_loop_contracts(node, self.contracts_map[node.lineno])
 
         self.generic_visit(node)
 
@@ -294,14 +300,9 @@ class PyCSLWeaver(ast.NodeVisitor):
 
         if node.lineno in self.contracts_map:
             contracts = self.contracts_map[node.lineno]
-            for c in contracts:
-                if isinstance(c, LoopInvariant):
-                    node.csl_invariants.append(c)
-                elif isinstance(c, LoopVariant):
-                    node.csl_variants.append(c)
-                elif isinstance(c, (GhostAssignDecl, GhostArraySetDecl)):
-                    node.csl_ghost_assigns.append(c)
-                elif isinstance(c, AllowIterationMutationDecl):
+            self._attach_loop_contracts(node, contracts)
+            for c in contracts:   # UB-7.1: for-only opt-in (not shared with While)
+                if isinstance(c, AllowIterationMutationDecl):
                     node.csl_allow_iteration_mutation = True
 
         self.generic_visit(node)

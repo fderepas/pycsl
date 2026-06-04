@@ -991,13 +991,11 @@ class PyCSLTransformer(Transformer):
     def valid2d_pred(self, name, row, col) -> Valid2D: return Valid2D(str(name), row, col)
 
     # Operations
-    def implication(self, left, op, right) -> BinOp: return BinOp(left, str(op), right)
-    def logical_or(self, left, op, right) -> BinOp: return BinOp(left, str(op), right)
-    def logical_and(self, left, op, right) -> BinOp: return BinOp(left, str(op), right)
-    def equality(self, left, op, right) -> BinOp: return BinOp(left, str(op), right)
-    def comparison(self, left, op, right) -> BinOp: return BinOp(left, str(op), right)
-    def term(self, left, op, right) -> BinOp: return BinOp(left, str(op), right)
-    def factor(self, left, op, right) -> BinOp: return BinOp(left, str(op), right)
+    # All binary-operator rules build the same `BinOp(left, op, right)`; one handler,
+    # aliased to each rule name (Lark resolves rule → method by name, and the class-level
+    # @v_args(inline=True) spreads children as positional args for every alias too).
+    def _binop(self, left, op, right) -> BinOp: return BinOp(left, str(op), right)
+    implication = logical_or = logical_and = equality = comparison = term = factor = _binop
 
     def unary_op(self, op, expr) -> UnaryOp: return UnaryOp(str(op), expr)
 

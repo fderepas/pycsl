@@ -698,37 +698,27 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
                     pa["origin"] = origin
                 ir_stmts.append(pa)
             for ga in getattr(stmt, 'csl_ghost_assigns', []):
-                if isinstance(ga, GhostArraySetDecl):
-                    ir_stmts.append({
-                        "stmt": "GhostArraySet", "target": ga.target,
-                        "index": self._csl_to_ir(ga.index),
-                        "value": self._csl_to_ir(ga.value),
-                    })
-                else:
-                    ir_stmts.append({
-                        "stmt": "GhostAssign", "target": ga.target,
-                        "value": self._csl_to_ir(ga.value), "op": ga.op,
-                        "ghost_type": getattr(ga, 'declared_type', 'int'),
-                    })
+                ir_stmts.append(self._emit_ghost_assign(ga))
             handler_name = self._PY_STMT_HANDLERS.get(type(stmt))
             if handler_name is not None:
                 result = getattr(self, handler_name)(stmt, ir_stmts)
             elif hasattr(ast, 'Match') and isinstance(stmt, ast.Match):
                 self._py_stmt_match(stmt, ir_stmts)
             for ga in getattr(stmt, 'csl_trailing_ghost_assigns', []):
-                if isinstance(ga, GhostArraySetDecl):
-                    ir_stmts.append({
-                        "stmt": "GhostArraySet", "target": ga.target,
-                        "index": self._csl_to_ir(ga.index),
-                        "value": self._csl_to_ir(ga.value),
-                    })
-                else:
-                    ir_stmts.append({
-                        "stmt": "GhostAssign", "target": ga.target,
-                        "value": self._csl_to_ir(ga.value), "op": ga.op,
-                        "ghost_type": getattr(ga, 'declared_type', 'int'),
-                    })
+                ir_stmts.append(self._emit_ghost_assign(ga))
         return ir_stmts
+
+    def _emit_ghost_assign(self, ga) -> Dict[str, Any]:
+        """Build the IR dict for a ghost assignment (declaration or update). Shared by
+        the leading (`csl_ghost_assigns`) and trailing (`csl_trailing_ghost_assigns`)
+        emission loops."""
+        if isinstance(ga, GhostArraySetDecl):
+            return {"stmt": "GhostArraySet", "target": ga.target,
+                    "index": self._csl_to_ir(ga.index),
+                    "value": self._csl_to_ir(ga.value)}
+        return {"stmt": "GhostAssign", "target": ga.target,
+                "value": self._csl_to_ir(ga.value), "op": ga.op,
+                "ghost_type": getattr(ga, 'declared_type', 'int')}
 
     def _py_stmt_assign(self, stmt: ast.Assign, ir_stmts: List[Dict[str, Any]]) -> None:
         target = stmt.targets[0]

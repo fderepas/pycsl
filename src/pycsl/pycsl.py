@@ -193,6 +193,20 @@ def _process_dependency(filepath: str, needed_names: Set[str], cache: Dict[str, 
     return result
 
 
+def _inject_functions(dep_funcs: List[Dict[str, Any]], ir_data: Dict[str, Any]) -> Set[str]:
+    """Insert each dependency stub at the front of `ir_data['functions']` if no function
+    of that name is present yet; return the set of names added. Shared by the three import
+    resolvers (direct / wildcard / module-qualified)."""
+    imported = set()
+    existing = {f["name"] for f in ir_data["functions"]}
+    for func_ir in dep_funcs:
+        if func_ir["name"] not in existing:
+            ir_data["functions"].insert(0, func_ir)
+            imported.add(func_ir["name"])
+            existing.add(func_ir["name"])
+    return imported
+
+
 def _resolve_direct_imports(direct_imports: List[Any], all_calls: Set[str], main_file: str,
                              ir_data: Dict[str, Any], deep: bool, cache: Dict[str, Any],
                              processing_set: Set[str]) -> Set[str]:
@@ -221,10 +235,7 @@ def _resolve_direct_imports(direct_imports: List[Any], all_calls: Set[str], main
             for local, orig in needed:
                 if func_ir["name"] == orig and local != orig:
                     func_ir["name"] = local
-            existing = {f["name"] for f in ir_data["functions"]}
-            if func_ir["name"] not in existing:
-                ir_data["functions"].insert(0, func_ir)
-                imported_names.add(func_ir["name"])
+        imported_names |= _inject_functions(dep_funcs, ir_data)
         resolved_locals = [local for local, _ in needed]
         print(f"[*] Imported from '{module_path}': {resolved_locals} (trusted stubs)")
 
@@ -256,11 +267,7 @@ def _resolve_wildcard_imports(wildcard_imports: List[Any], all_calls: Set[str], 
             continue
         dep_funcs = _process_dependency(resolved, needed_names, cache,
                                         deep=deep, processing_set=processing_set)
-        for func_ir in dep_funcs:
-            existing = {f["name"] for f in ir_data["functions"]}
-            if func_ir["name"] not in existing:
-                ir_data["functions"].insert(0, func_ir)
-                imported_names.add(func_ir["name"])
+        imported_names |= _inject_functions(dep_funcs, ir_data)
         print(f"[*] Imported from '{module_path}.*': {needed_names} (wildcard, trusted stubs)")
 
     return imported_names
@@ -285,11 +292,7 @@ def _resolve_module_imports(module_imports: List[Any], all_calls: Set[str], main
         func_names = [call[len(prefix):] for call in matching_calls]
         dep_funcs = _process_dependency(resolved, func_names, cache,
                                         deep=deep, processing_set=processing_set)
-        for func_ir in dep_funcs:
-            existing = {f["name"] for f in ir_data["functions"]}
-            if func_ir["name"] not in existing:
-                ir_data["functions"].insert(0, func_ir)
-                imported_names.add(func_ir["name"])
+        imported_names |= _inject_functions(dep_funcs, ir_data)
         for call in matching_calls:
             bare_name = call[len(prefix):]
             for f in ir_data["functions"]:
