@@ -16,6 +16,7 @@ from Module2_Parser import (
     SharedDecl, ThreadEntry, Acquires, Releases, CriticalSection,
     MutexInvariant, LockOrder, BinOp, Number,
     Act, Given, Complete, Disjoint, Old, UnaryOp, CSLBool,
+    CheckPoint,
 )
 from errors import PyCSLSemanticError
 from Module1_Ingestor import PyCSLContract
@@ -354,6 +355,7 @@ class Module3_Weaver:
         labeled statement."""
         labels_by_line: Dict[int, List[str]] = {}
         ghost_assigns_by_line: Dict[int, List] = {}
+        checkpoints_by_line: Dict[int, List] = {}
         for line, nodes in contracts_map.items():
             names = [n.name for n in nodes if isinstance(n, CSLLabel)]
             if names:
@@ -361,12 +363,16 @@ class Module3_Weaver:
             ghosts = [n for n in nodes if isinstance(n, (GhostAssignDecl, GhostArraySetDecl))]
             if ghosts:
                 ghost_assigns_by_line[line] = ghosts
+            cps = [n for n in nodes if isinstance(n, CheckPoint)]
+            if cps:
+                checkpoints_by_line[line] = cps
         trailing_ghost_assigns_by_line: Dict[int, List] = {}
         for line, nodes in trailing_contracts_map.items():
             ghosts = [n for n in nodes if isinstance(n, (GhostAssignDecl, GhostArraySetDecl))]
             if ghosts:
                 trailing_ghost_assigns_by_line[line] = ghosts
-        if not (labels_by_line or ghost_assigns_by_line or trailing_ghost_assigns_by_line):
+        if not (labels_by_line or ghost_assigns_by_line or trailing_ghost_assigns_by_line
+                or checkpoints_by_line):
             return
         for ast_node in ast.walk(python_ast):
             if not (isinstance(ast_node, ast.stmt) and hasattr(ast_node, 'lineno')):
@@ -374,6 +380,10 @@ class Module3_Weaver:
             labels = labels_by_line.get(ast_node.lineno)
             if labels:
                 ast_node.csl_labels = labels
+            cps = checkpoints_by_line.get(ast_node.lineno)
+            if cps:
+                existing = getattr(ast_node, 'csl_checkpoints', [])
+                ast_node.csl_checkpoints = existing + cps
             ghosts = ghost_assigns_by_line.get(ast_node.lineno)
             if ghosts:
                 existing = getattr(ast_node, 'csl_ghost_assigns', [])

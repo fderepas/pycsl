@@ -106,6 +106,8 @@ _Corresponds to `annotations.md` §2.1._
 | 2.1.16| Case guard | `given_clause ::= "given" expr ;` — `#@ given <expr>` (only inside an `act`) |
 | 2.1.17| Complete | `complete_decl ::= "complete" CNAME ("," CNAME)* ;` — `#@ complete <names>` |
 | 2.1.18| Disjoint | `disjoint_decl ::= "disjoint" CNAME ("," CNAME)* ;` — `#@ disjoint <names>` |
+| 2.4.7 | Assert | `assert_decl ::= "assert" expr ;` — `#@ assert <expr>` (statement-position; prove-and-assume) |
+| 2.4.8 | Check  | `check_decl ::= "check" expr ;` — `#@ check <expr>` (statement-position; prove-and-discard) |
 
 `act` blocks are line-folded in Module 1 (indentation is significant in the surface
 but consumed there); the grammar above sees a flat keyword-delimited clause sequence.

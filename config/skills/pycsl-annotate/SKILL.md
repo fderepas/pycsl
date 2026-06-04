@@ -97,6 +97,31 @@ def myabs(x: int) -> int:
 
 ---
 
+## Section 3c — Statement checkpoints (`#@ assert` / `#@ check`)
+
+A mid-body proof obligation attached to the following statement (like `#@ label`):
+
+- `#@ assert P` — prove `P` here **and assume it** for the rest of the block
+  (prove-and-assume); use to give the prover a needed intermediate fact.
+- `#@ check P` — prove `P` here but **don't** assume it downstream (prove-and-discard).
+
+Both are **real obligations** — *not* the Python `assert` statement, which the prover
+ignores (emitted as `()`). `\result` is not allowed (it's bound only at return — use
+`ensures`). Example:
+
+```python
+#@ requires x > 0
+#@ ensures \result == x + 1
+def stepper(x: int) -> int:
+    #@ assert x > 0
+    #@ check x >= 1
+    y = x + 1
+    return y
+```
+See `annotations.md` §2.4 (rows 7–8). Demos: corpus `0457` (proves), `0458` (false assert fails).
+
+---
+
 ## Section 4 — Forbidden in contract expressions
 
 **Three-level validation**: every `#@` expression must clear syntax (Level 1), static-semantics (Level 2), and WhyML-generation (Level 3) checks. `pycsl --no-proof` succeeding only guarantees Levels 1 and 2; Level 3 is verified by Why3. The most dangerous trap: contracts that pass Module4 yet fail Why3 (e.g., `"key" in d` when `d` is unannotated → `int` in WhyML, `in` on `int` is invalid). See `references/validation-stack.md` for the IS/SR/TR rule tables and the practical decision checklist.

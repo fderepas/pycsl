@@ -679,6 +679,11 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
         for stmt in stmts:
             for lname in getattr(stmt, 'csl_labels', []):
                 ir_stmts.append({"stmt": "Label", "name": lname})
+            for cp in getattr(stmt, 'csl_checkpoints', []):
+                # `#@ assert P` / `#@ check P` — a real proof obligation before the
+                # statement (distinct from the Python `assert` stmt, which is a no-op).
+                ir_stmts.append({"stmt": "ProofAssert", "kind": cp.kind,
+                                 "test": self._csl_to_ir(cp.expr)})
             for ga in getattr(stmt, 'csl_ghost_assigns', []):
                 if isinstance(ga, GhostArraySetDecl):
                     ir_stmts.append({

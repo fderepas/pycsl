@@ -14,10 +14,10 @@ bin/cmmi-mod-index.py --file src/pycsl/Module5_IREmitter.py
 
 - `PyCSLToJSONEmitter.__init__` — `src/pycsl/Module5_IREmitter.py:33`
 - `PyCSLToJSONEmitter.visit_Module` — `src/pycsl/Module5_IREmitter.py:39`
-- `PyCSLToJSONEmitter.visit_ClassDef` — `src/pycsl/Module5_IREmitter.py:1149`
-- `PyCSLToJSONEmitter.visit_FunctionDef` — `src/pycsl/Module5_IREmitter.py:1331`
-- `Module5_IREmitter.__init__` — `src/pycsl/Module5_IREmitter.py:1350`
-- `Module5_IREmitter.generate_json` — `src/pycsl/Module5_IREmitter.py:1353`
+- `PyCSLToJSONEmitter.visit_ClassDef` — `src/pycsl/Module5_IREmitter.py:1154`
+- `PyCSLToJSONEmitter.visit_FunctionDef` — `src/pycsl/Module5_IREmitter.py:1336`
+- `Module5_IREmitter.__init__` — `src/pycsl/Module5_IREmitter.py:1355`
+- `Module5_IREmitter.generate_json` — `src/pycsl/Module5_IREmitter.py:1358`
 
 ## Private (leading-`_`) defs (128)
 
@@ -116,39 +116,39 @@ bin/cmmi-mod-index.py --file src/pycsl/Module5_IREmitter.py
 - `PyCSLToJSONEmitter._py_expr_lambda` — `src/pycsl/Module5_IREmitter.py:634`
 - `PyCSLToJSONEmitter._py_expr_slice` — `src/pycsl/Module5_IREmitter.py:639`
 - `PyCSLToJSONEmitter._py_stmts_to_ir` — `src/pycsl/Module5_IREmitter.py:677`
-- `PyCSLToJSONEmitter._py_stmt_assign` — `src/pycsl/Module5_IREmitter.py:715`
-- `PyCSLToJSONEmitter._py_stmt_augassign` — `src/pycsl/Module5_IREmitter.py:748`
-- `PyCSLToJSONEmitter._py_stmt_return` — `src/pycsl/Module5_IREmitter.py:758`
-- `PyCSLToJSONEmitter._py_stmt_while` — `src/pycsl/Module5_IREmitter.py:761`
-- `PyCSLToJSONEmitter._py_stmt_for` — `src/pycsl/Module5_IREmitter.py:764`
-- `PyCSLToJSONEmitter._py_stmt_if` — `src/pycsl/Module5_IREmitter.py:767`
-- `PyCSLToJSONEmitter._py_stmt_continue` — `src/pycsl/Module5_IREmitter.py:770`
-- `PyCSLToJSONEmitter._py_stmt_assert` — `src/pycsl/Module5_IREmitter.py:773`
-- `PyCSLToJSONEmitter._py_stmt_raise` — `src/pycsl/Module5_IREmitter.py:779`
-- `PyCSLToJSONEmitter._py_stmt_annassign` — `src/pycsl/Module5_IREmitter.py:790`
-- `PyCSLToJSONEmitter._py_stmt_expr` — `src/pycsl/Module5_IREmitter.py:795`
-- `PyCSLToJSONEmitter._py_stmt_try` — `src/pycsl/Module5_IREmitter.py:801`
-- `PyCSLToJSONEmitter._py_stmt_with` — `src/pycsl/Module5_IREmitter.py:822`
-- `PyCSLToJSONEmitter._py_stmt_pass` — `src/pycsl/Module5_IREmitter.py:835`
-- `PyCSLToJSONEmitter._py_stmt_break` — `src/pycsl/Module5_IREmitter.py:838`
-- `PyCSLToJSONEmitter._py_stmt_delete` — `src/pycsl/Module5_IREmitter.py:841`
-- `PyCSLToJSONEmitter._py_stmt_match` — `src/pycsl/Module5_IREmitter.py:844`
-- `PyCSLToJSONEmitter._process_while` — `src/pycsl/Module5_IREmitter.py:854`
-- `PyCSLToJSONEmitter._process_for` — `src/pycsl/Module5_IREmitter.py:863`
-- `PyCSLToJSONEmitter._process_if` — `src/pycsl/Module5_IREmitter.py:878`
-- `PyCSLToJSONEmitter._match_pattern_to_ir` — `src/pycsl/Module5_IREmitter.py:886`
-- `PyCSLToJSONEmitter._scan_2d_in_expr` — `src/pycsl/Module5_IREmitter.py:914`
-- `PyCSLToJSONEmitter._scan_2d_in_stmt` — `src/pycsl/Module5_IREmitter.py:940`
-- `PyCSLToJSONEmitter._collect_2d_params` — `src/pycsl/Module5_IREmitter.py:969`
-- `PyCSLToJSONEmitter._field_type_from_annotation` — `src/pycsl/Module5_IREmitter.py:980`
-- `PyCSLToJSONEmitter._collect_class_fields` — `src/pycsl/Module5_IREmitter.py:1023`
-- `PyCSLToJSONEmitter._array_init_size` — `src/pycsl/Module5_IREmitter.py:1084`
-- `PyCSLToJSONEmitter._const_int_value` — `src/pycsl/Module5_IREmitter.py:1110`
-- `PyCSLToJSONEmitter._collect_class_constants` — `src/pycsl/Module5_IREmitter.py:1122`
-- `PyCSLToJSONEmitter._should_skip_method` — `src/pycsl/Module5_IREmitter.py:1192`
-- `PyCSLToJSONEmitter._build_function_ir` — `src/pycsl/Module5_IREmitter.py:1203`
-- `PyCSLToJSONEmitter._detect_purity` — `src/pycsl/Module5_IREmitter.py:1298`
-- `PyCSLToJSONEmitter._detect_array_dimensions` — `src/pycsl/Module5_IREmitter.py:1308`
+- `PyCSLToJSONEmitter._py_stmt_assign` — `src/pycsl/Module5_IREmitter.py:720`
+- `PyCSLToJSONEmitter._py_stmt_augassign` — `src/pycsl/Module5_IREmitter.py:753`
+- `PyCSLToJSONEmitter._py_stmt_return` — `src/pycsl/Module5_IREmitter.py:763`
+- `PyCSLToJSONEmitter._py_stmt_while` — `src/pycsl/Module5_IREmitter.py:766`
+- `PyCSLToJSONEmitter._py_stmt_for` — `src/pycsl/Module5_IREmitter.py:769`
+- `PyCSLToJSONEmitter._py_stmt_if` — `src/pycsl/Module5_IREmitter.py:772`
+- `PyCSLToJSONEmitter._py_stmt_continue` — `src/pycsl/Module5_IREmitter.py:775`
+- `PyCSLToJSONEmitter._py_stmt_assert` — `src/pycsl/Module5_IREmitter.py:778`
+- `PyCSLToJSONEmitter._py_stmt_raise` — `src/pycsl/Module5_IREmitter.py:784`
+- `PyCSLToJSONEmitter._py_stmt_annassign` — `src/pycsl/Module5_IREmitter.py:795`
+- `PyCSLToJSONEmitter._py_stmt_expr` — `src/pycsl/Module5_IREmitter.py:800`
+- `PyCSLToJSONEmitter._py_stmt_try` — `src/pycsl/Module5_IREmitter.py:806`
+- `PyCSLToJSONEmitter._py_stmt_with` — `src/pycsl/Module5_IREmitter.py:827`
+- `PyCSLToJSONEmitter._py_stmt_pass` — `src/pycsl/Module5_IREmitter.py:840`
+- `PyCSLToJSONEmitter._py_stmt_break` — `src/pycsl/Module5_IREmitter.py:843`
+- `PyCSLToJSONEmitter._py_stmt_delete` — `src/pycsl/Module5_IREmitter.py:846`
+- `PyCSLToJSONEmitter._py_stmt_match` — `src/pycsl/Module5_IREmitter.py:849`
+- `PyCSLToJSONEmitter._process_while` — `src/pycsl/Module5_IREmitter.py:859`
+- `PyCSLToJSONEmitter._process_for` — `src/pycsl/Module5_IREmitter.py:868`
+- `PyCSLToJSONEmitter._process_if` — `src/pycsl/Module5_IREmitter.py:883`
+- `PyCSLToJSONEmitter._match_pattern_to_ir` — `src/pycsl/Module5_IREmitter.py:891`
+- `PyCSLToJSONEmitter._scan_2d_in_expr` — `src/pycsl/Module5_IREmitter.py:919`
+- `PyCSLToJSONEmitter._scan_2d_in_stmt` — `src/pycsl/Module5_IREmitter.py:945`
+- `PyCSLToJSONEmitter._collect_2d_params` — `src/pycsl/Module5_IREmitter.py:974`
+- `PyCSLToJSONEmitter._field_type_from_annotation` — `src/pycsl/Module5_IREmitter.py:985`
+- `PyCSLToJSONEmitter._collect_class_fields` — `src/pycsl/Module5_IREmitter.py:1028`
+- `PyCSLToJSONEmitter._array_init_size` — `src/pycsl/Module5_IREmitter.py:1089`
+- `PyCSLToJSONEmitter._const_int_value` — `src/pycsl/Module5_IREmitter.py:1115`
+- `PyCSLToJSONEmitter._collect_class_constants` — `src/pycsl/Module5_IREmitter.py:1127`
+- `PyCSLToJSONEmitter._should_skip_method` — `src/pycsl/Module5_IREmitter.py:1197`
+- `PyCSLToJSONEmitter._build_function_ir` — `src/pycsl/Module5_IREmitter.py:1208`
+- `PyCSLToJSONEmitter._detect_purity` — `src/pycsl/Module5_IREmitter.py:1303`
+- `PyCSLToJSONEmitter._detect_array_dimensions` — `src/pycsl/Module5_IREmitter.py:1313`
 
 ---
 

@@ -12,26 +12,26 @@ bin/cmmi-mod-index.py --file src/pycsl/Module3_Weaver.py
 
 ## Public functions / methods (9)
 
-- `PyCSLWeaver.__init__` — `src/pycsl/Module3_Weaver.py:32`
-- `PyCSLWeaver.visit_FunctionDef` — `src/pycsl/Module3_Weaver.py:182`
-- `PyCSLWeaver.visit_Module` — `src/pycsl/Module3_Weaver.py:190`
-- `PyCSLWeaver.visit_With` — `src/pycsl/Module3_Weaver.py:207`
-- `PyCSLWeaver.visit_ClassDef` — `src/pycsl/Module3_Weaver.py:224`
-- `PyCSLWeaver.visit_While` — `src/pycsl/Module3_Weaver.py:255`
-- `PyCSLWeaver.visit_For` — `src/pycsl/Module3_Weaver.py:273`
-- `Module3_Weaver.__init__` — `src/pycsl/Module3_Weaver.py:302`
-- `Module3_Weaver.process` — `src/pycsl/Module3_Weaver.py:386`
+- `PyCSLWeaver.__init__` — `src/pycsl/Module3_Weaver.py:33`
+- `PyCSLWeaver.visit_FunctionDef` — `src/pycsl/Module3_Weaver.py:183`
+- `PyCSLWeaver.visit_Module` — `src/pycsl/Module3_Weaver.py:191`
+- `PyCSLWeaver.visit_With` — `src/pycsl/Module3_Weaver.py:208`
+- `PyCSLWeaver.visit_ClassDef` — `src/pycsl/Module3_Weaver.py:225`
+- `PyCSLWeaver.visit_While` — `src/pycsl/Module3_Weaver.py:256`
+- `PyCSLWeaver.visit_For` — `src/pycsl/Module3_Weaver.py:274`
+- `Module3_Weaver.__init__` — `src/pycsl/Module3_Weaver.py:303`
+- `Module3_Weaver.process` — `src/pycsl/Module3_Weaver.py:396`
 
 ## Private (leading-`_`) defs (8)
 
-- `PyCSLWeaver._init_function_csl_fields` — `src/pycsl/Module3_Weaver.py:37`
-- `PyCSLWeaver._act_guard` — `src/pycsl/Module3_Weaver.py:59`
-- `PyCSLWeaver._desugar_acts` — `src/pycsl/Module3_Weaver.py:70`
-- `PyCSLWeaver._dispatch_function_contracts` — `src/pycsl/Module3_Weaver.py:115`
-- `PyCSLWeaver._validate_function_contracts` — `src/pycsl/Module3_Weaver.py:159`
-- `Module3_Weaver._parse_extracted_contracts` — `src/pycsl/Module3_Weaver.py:307`
-- `Module3_Weaver._consolidate_module_concurrency` — `src/pycsl/Module3_Weaver.py:324`
-- `Module3_Weaver._attach_labels_and_ghost_assigns` — `src/pycsl/Module3_Weaver.py:348`
+- `PyCSLWeaver._init_function_csl_fields` — `src/pycsl/Module3_Weaver.py:38`
+- `PyCSLWeaver._act_guard` — `src/pycsl/Module3_Weaver.py:60`
+- `PyCSLWeaver._desugar_acts` — `src/pycsl/Module3_Weaver.py:71`
+- `PyCSLWeaver._dispatch_function_contracts` — `src/pycsl/Module3_Weaver.py:116`
+- `PyCSLWeaver._validate_function_contracts` — `src/pycsl/Module3_Weaver.py:160`
+- `Module3_Weaver._parse_extracted_contracts` — `src/pycsl/Module3_Weaver.py:308`
+- `Module3_Weaver._consolidate_module_concurrency` — `src/pycsl/Module3_Weaver.py:325`
+- `Module3_Weaver._attach_labels_and_ghost_assigns` — `src/pycsl/Module3_Weaver.py:349`
 
 ---
 
