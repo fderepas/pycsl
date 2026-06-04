@@ -203,7 +203,17 @@ class ExpressionEmissionMixin:
         # strings-plan Stage 2: `needle in haystack` for strings is substring containment, an
         # uninterpreted bool op over string operands (content witness deferred — see plan).
         if self._is_string_expr(rhs):
-            self._add_abstract_op("val str_contains_op (haystack: string) (needle: string) : bool")
+            # strings-plan Stage 4: the containment witness. `needle in haystack` holds iff
+            # `needle` occurs as a contiguous substring at some position — the existential
+            # content goal Gate B flagged as the hard one. As an abstract `val` the `ensures`
+            # is assumed (axiomatic), so callers get the witness in both directions: a known
+            # occurrence proves membership true, and membership true yields a matching index.
+            self._add_abstract_op(
+                "val str_contains_op (haystack: string) (needle: string) : bool\n"
+                "    ensures { result <->\n"
+                "      (exists i: int. 0 <= i /\\\n"
+                "        i + String.length needle <= String.length haystack /\\\n"
+                "        String.substring haystack i (String.length needle) = needle) }")
             scall = f"(str_contains_op {right} {left})"
             return f"(not {scall})" if negate else scall
         self._add_abstract_op("val contains_check (x: int) (c: int) : bool")
@@ -244,6 +254,12 @@ class ExpressionEmissionMixin:
             return True
         if t == "Var":
             return getattr(self, "_current_symbol_table", {}).get(ir.get("name", "")) == "str"
+        # Indexing/slicing a string yields a string (s[i] is a 1-char string, s[a:b] a
+        # substring) — both reuse str_sub_op in their handlers, so the *result* of such a
+        # node is string-typed exactly when its base is. Required so `s[a:b] == t` routes to
+        # the real string-equality bridge rather than the mixed int-hash fallback (0471).
+        if t in ("Subscript", "SliceAccess"):
+            return self._is_string_expr(ir.get("value", {}))
         return False
 
     def _str_operand_to_int(self, whyml_str: str) -> str:
@@ -694,7 +710,8 @@ class ExpressionEmissionMixin:
             # fmt is dynamic / unsupported chars → fall through to
             # generic _handle_dotted_call (which auto-trusts).
 
-        named = self._call_named_builtins(expr, args, func_name)
+        named = self._call_named_builtins(expr, args, func_name, local_refs,
+                                          invariant_ctx, subst)
         if named is not None:
             return named
         if "." in func_name:
@@ -730,8 +747,62 @@ class ExpressionEmissionMixin:
         inner = f"({safe_fn} {' '.join(coerced_args) if coerced_args else '()'})"
         return self._wrap_call_with_callee_raises_assert(func_name, inner, args)
 
+    def _content_string_method(self, expr: Dict[str, Any], args: List[str],
+                               func_name: str, local_refs: Set[str],
+                               invariant_ctx: bool,
+                               subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """strings-plan Stage 3: content-aware `str` methods with a substring-based witness.
+
+        `s.startswith(p)` / `s.endswith(p)` / `s.find(sub)` are lowered to abstract ops whose
+        `ensures` relate the (int) result to `String.substring` over the *receiver as an
+        operand*. Applies ONLY to a simple, `str`-typed receiver with a single string
+        argument; a chained receiver (`node.name.startswith(…)`) or a non-`str` receiver
+        falls through to the opaque baked-into-the-name predicate path. startswith/endswith
+        keep the 0/1 int result (so control-flow / `\result ∈ {0,1}` uses are unaffected) and
+        gain a `(result = 1) <-> <substring condition>` clause; find returns an index ≥ -1
+        with a found-index witness."""
+        if "." not in func_name:
+            return None
+        recv, method = func_name.rsplit(".", 1)
+        if method not in ("startswith", "endswith", "find"):
+            return None
+        if "." in recv or self._current_symbol_table.get(recv) != "str":
+            return None
+        if len(args) != 1 or not self._is_string_expr(expr["args"][0]):
+            return None
+        r = self._expr_to_whyml({"type": "Var", "name": recv}, local_refs,
+                                invariant_ctx, subst)
+        p = args[0]
+        if method == "startswith":
+            self._add_abstract_op(
+                "val str_startswith_op (s: string) (prefix: string) : int\n"
+                "    ensures { (result = 0) || (result = 1) }\n"
+                "    ensures { (result = 1) <->\n"
+                "      (String.length prefix <= String.length s /\\\n"
+                "       String.substring s 0 (String.length prefix) = prefix) }")
+            return f"(str_startswith_op {r} {p})"
+        if method == "endswith":
+            self._add_abstract_op(
+                "val str_endswith_op (s: string) (suffix: string) : int\n"
+                "    ensures { (result = 0) || (result = 1) }\n"
+                "    ensures { (result = 1) <->\n"
+                "      (String.length suffix <= String.length s /\\\n"
+                "       String.substring s (String.length s - String.length suffix)\n"
+                "         (String.length suffix) = suffix) }")
+            return f"(str_endswith_op {r} {p})"
+        # find — first-occurrence index, or -1
+        self._add_abstract_op(
+            "val str_find_op (s: string) (sub: string) : int\n"
+            "    ensures { result >= -1 }\n"
+            "    ensures { (result >= 0) ->\n"
+            "      (result + String.length sub <= String.length s /\\\n"
+            "       String.substring s result (String.length sub) = sub) }")
+        return f"(str_find_op {r} {p})"
+
     def _call_named_builtins(self, expr: Dict[str, Any], args: List[str],
-                             func_name: str) -> Optional[str]:
+                             func_name: str, local_refs: Optional[Set[str]] = None,
+                             invariant_ctx: bool = False,
+                             subst: Optional[Dict[str, str]] = None) -> Optional[str]:
         """Named builtins and built-in-method idioms: len / min / max / string-predicate
         methods / isinstance / set / sorted / any / all / dict / list / join /
         str|repr|int|bool|abs / sum / hasattr. Returns the WhyML string, or None to fall
@@ -741,6 +812,14 @@ class ExpressionEmissionMixin:
         if func_name in ("min", "max") and len(args) == 2:
             fn = "MinMax.min" if func_name == "min" else "MinMax.max"
             return f"({fn} {args[0]} {args[1]})"
+        # strings-plan Stage 3: content-aware string methods on a simple `str`-typed
+        # receiver. `s.startswith(p)`/`s.endswith(p)`/`s.find(sub)` get a substring-based
+        # witness ensures (the receiver is lifted to an operand, unlike the opaque
+        # baked-into-the-name predicates below, which apply to chained/non-str receivers).
+        strm = self._content_string_method(expr, args, func_name, local_refs or set(),
+                                           invariant_ctx, subst)
+        if strm is not None:
+            return strm
         # String predicate methods (`s.islower()`, `s.startswith(p)`, …) — model
         # as uninterpreted 0/1-valued ops, so a function that RETURNS the
         # predicate can prove `\result == 0 or \result == 1`. The value is not

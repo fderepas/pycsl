@@ -151,6 +151,30 @@ preservation `ensures`). See `annotations.md` §2.5. Demos: corpus `0459` (prove
 
 ---
 
+## Section 3e — Strings (real `string.String` model)
+
+Runtime `str` is the Why3 `string.String` value type (τ(str) = string) — it carries **real
+content**, not an opaque hash. So these are verifiable on `str` params/locals/returns, and the
+matching `\str_*` spec operators relate result to content:
+
+- `len(s)` ↔ `\str_length(s)`; `s + t` (concat) ↔ `s ^ t`; `s[a:b]` ↔ `\str_sub(s, a, b)`;
+  `s[i]` (a **length-1 string** — no char type); content `s == t` / `s != t`;
+  `needle in haystack` (substring containment — carries an occurrence witness);
+- methods with a content witness on a **simple `str` receiver**: `s.startswith(p)` /
+  `s.endswith(q)` (0/1, with a `result=1 <-> substring …` clause) and `s.find(sub)` (index, with
+  a found-index witness). A *chained* receiver (`node.name.startswith(…)`) stays opaque.
+
+Spec operators (`\str_length`, `\str_sub`, `^`) work in `requires`/`ensures`/loop invariants and
+now apply to runtime `str`, not only ghost strings (the old dual model is unified). Drivers:
+corpus `0471` (substring search — the flagship), `0472`–`0476`/`0481`/`0490`–`0494`.
+
+**Out of reach (keep contracts off these):** no code points — `ord`, character ordering
+(`s[i] < "b"`), and codepoint parsing are unavailable; `upper`/`lower`/`strip`/`replace` and
+`split` are opaque (no content spec); `.decode`/`.encode` are the opaque bytes↔str boundary
+(`decode` yields an opaque `int`); f-strings hash; `str`-keyed dicts still key on the hash.
+
+---
+
 ## Section 4 — Forbidden in contract expressions
 
 **Three-level validation**: every `#@` expression must clear syntax (Level 1), static-semantics (Level 2), and WhyML-generation (Level 3) checks. `pycsl --no-proof` succeeding only guarantees Levels 1 and 2; Level 3 is verified by Why3. The most dangerous trap: contracts that pass Module4 yet fail Why3 (e.g., `"key" in d` when `d` is unannotated → `int` in WhyML, `in` on `int` is invalid). See `references/validation-stack.md` for the IS/SR/TR rule tables and the practical decision checklist.

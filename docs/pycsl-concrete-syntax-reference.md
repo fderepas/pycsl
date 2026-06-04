@@ -431,7 +431,7 @@ top-to-bottom. Longer prefixes must appear before shorter ones:
 | 3.1.11 | `\length2d(a, m, n)` | `Length2D` | Array `a` has `m` rows, each of length `n`. |
 | 3.1.12 | `\valid2d(a, i, j)` | `Valid2D` | Index `(i, j)` is valid for 2D array `a`. |
 | 3.1.13 | `\nothing` | `Nothing` | Empty assigns target. Only valid as an `assigns_target` (see §3.4), not as a general expression. |
-| 3.1.14 | `"hello"` | `StringLiteral` | String literal. Parsed by Lark's `ESCAPED_STRING` terminal (double-quoted, with standard escapes). |
+| 3.1.14 | `"hello"` | `StringLiteral` | String literal. Parsed by Lark's `ESCAPED_STRING` terminal (double-quoted, with standard escapes). Lowers to a real Why3 `string.String` value (τ(str) = string), not an int hash — see static-semantics §1.4 and translational §T.6.15 for the string-operation lowerings (`len`/`+`/`[]`/`==`/`in`/`startswith`/`endswith`/`find` and the `\str_length`/`\str_sub`/`^` spec operators, which apply to runtime `str`, not only ghost strings). |
 | 3.1.15 | `\is_sorted(a, lo, hi)` | `IsSorted` | Array `a[lo..hi)` is sorted in ascending order. |
 | 3.1.16 | `\sum(a, lo, hi)` | `Sum` | Sum of array elements `a[lo..hi)`. |
 | 3.1.17 | `f(x, y)` | `CallExpr` | Pure function call. The function name is a `CNAME`; arguments are a comma-separated `expr_list` (or empty for no-argument calls). |

@@ -1131,6 +1131,16 @@ Untyped ghost declarations (`#@ ghost <name> = <expr>`) default to `int`.
 | 3 | `\str_length(s)` | String length (`String.length !s`) |
 | 4 | `\str_sub(s, lo, hi)` | Substring from `lo` to `hi` (`String.substring !s lo (hi-lo)`) |
 
+> **Runtime `str` uses the same `string.String` model** (τ(str) = string; the old int-hash
+> dual model is unified — see static-semantics §1.4 and translational §T.6.15). These operators
+> apply to a runtime `str` parameter/local, not only to a `#@ ghost s : string`: in a body,
+> `len(s)` / `s + t` / `s[a:b]` / `s[i]` / `s == t` / `needle in haystack` /
+> `s.startswith`/`.endswith`/`.find` lower through abstract `val …_op` bridges to the same
+> `String.length`/`concat`/`String.substring`/`=` symbols, and the `\str_*` spec operators above
+> relate the result to content. Drivers: corpus `0471` (substring search) and `0472`–`0494`.
+> **Out of scope:** code points (`ord`, char ordering), `upper`/`lower`/`strip`/`replace`/`split`
+> (opaque), `.decode`/`.encode` (opaque bytes↔str boundary), f-strings, `str`-keyed dicts (hash).
+
 **Ghost arrays** (hoare model only):
 | # | Syntax | Meaning |
 |---|---|---|

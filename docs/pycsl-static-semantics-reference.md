@@ -124,10 +124,14 @@ specification logic's type universe:
 ```
 τ(int)            = int
 τ(bool)           = int       (* booleans are modeled as integers *)
-τ(str)            = int       (* no string-typed variables; str values are int. String
-                                 *literals* and the \str_length / \str_sub / ^ operators
-                                 use Why3 string.String at the expression level — see the
-                                 translational reference, not the variable's type *)
+τ(str)            = string    (* real Why3 string.String — runtime str values carry content.
+                                 A str parameter/local/return is a `string`; literals are
+                                 `"..."`; len / + / [i] / [a:b] / == lower to String.length /
+                                 concat / substring / structural = (see translational §T.6).
+                                 Unifies the old dual model: the \str_length / \str_sub / ^
+                                 operators now apply to runtime str, not only ghost strings.
+                                 NB no char type: s[i] is a length-1 string, so no ord / code
+                                 points / lexicographic char ordering — see the limitations *)
 τ(float)          = int       (* no native floats — modeled as integers *)
 τ(list)           = list
 τ(List)           = list      (* typing.List alias *)
@@ -174,9 +178,26 @@ registry; field defaults per `τ`). PyCSL does not reconstruct an arbitrary `C`-
 into a record — such a parameter coarsens to `int` — so `record` appears for `self`/constructed
 instances, not for opaque class-typed inputs.
 
-The `str` / `float` / `bytes` / `bytearray` / `frozenset` / bare-`tuple` / class rows were
+The `float` / `bytes` / `bytearray` / `frozenset` / bare-`tuple` / class rows were
 previously absorbed by the `τ(_) = Any` catch-all; they are listed explicitly here because they
 are *modeled* (mapped to a concrete universe member), not treated as opaque `Any`.
+
+**String model (τ(str) = string).** Runtime `str` is the Why3 `string.String` value type — the
+same model the ghost-string layer (`#@ ghost s : string`) already used, now unified so the dual
+int-hash/real-string split is gone. Because Python strings are immutable values and Why3
+`string` is a value type (no heap, no aliasing), `str` handling is identical across all memory
+models (hoare/concurrent/typed/store) — one code path, not four. The emitter
+(`functions.py::_param_type_str` and the method-parameter loop) types a `str` parameter as
+`string`; `Module6_whyml/expressions.py` lowers the operations through abstract `val …_op`
+bridges (`str_length_op`, `str_concat_op`, `str_eq_op`, `str_sub_op`, `str_contains_op`,
+`str_startswith_op` / `str_endswith_op` / `str_find_op`), each tying its result to the
+corresponding `String.*` logic symbol via an `ensures` (the logic symbols cannot appear in a
+program/value context directly). **Limitations:** no character/code-point type (`s[i]` is the
+length-1 substring `String.substring s i 1`), so `ord`, character ordering, and codepoint-level
+parsing stay out of reach; string→string transforms (`upper`/`lower`/`strip`/`replace`) and
+`split` remain opaque abstract ops; `bytes`↔`str` codecs (`.decode`/`.encode`) stay opaque
+(decode is an opaque `int`, the bytes↔str boundary). `str`-keyed dicts still key on the int
+hash (the dict model is `map int (option int)`).
 
 The type universe is intentionally coarse: PyCSL does not perform
 full type inference. The type mapping is used only for:

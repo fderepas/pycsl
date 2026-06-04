@@ -8,15 +8,14 @@ string reasoning the feature must enable:
   - body: `len(s)`, slicing `s[i:j]`, and content equality `==` on runtime `str` params;
   - spec: `\str_length` / `\str_sub` and string `==` relating the result to the match.
 
-STATUS — currently **UNSUPPORTED** (hence `# pycsl-expected: FAIL`). Runtime `str` is
-modeled as an opaque int hash (`τ(str) = int`), so `len`, slicing, and `==` on a `str`
-parameter carry no real string semantics and the postcondition cannot be discharged. This
-file is the **target** the strings feature must make verifiable, and the **Stage-0
-content-reasoning probe**: the "found ⇒ the substring at that index equals `needle`"
-postcondition is substring-equality, the make-or-break SMT goal. It flips to expected-PASS
-when (and only when) the feature lands and that goal proves.
+STATUS — **PROVES** as of strings-plan Stage 2 (runtime `str` is now Why3`string`). `len`,
+slicing, and content `==` on `str` params carry real string semantics: the loop body's
+`haystack[i:i+m] == needle` lowers to `str_eq_op (str_sub_op haystack i m) needle`, and on a
+match the postcondition `\str_sub(haystack, r, r+\str_length(needle)) == needle` discharges by
+rewriting through the `str_sub_op`/`str_eq_op` bridges to `String.substring haystack i m =
+needle`. This was the make-or-break content-reasoning probe (Gate B) — it being provable is
+what justified the feature.
 """
-# pycsl-expected: FAIL
 # pycsl-flags: --memory-model hoare
 _ = 0  # anchor
 #@ requires \str_length(needle) >= 1

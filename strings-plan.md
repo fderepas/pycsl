@@ -169,7 +169,18 @@ Operand-type detection (str vs int) for `+`, `==`, `len`, subscript reuses the s
 tags (`str` now flows through Module5's type tracking). Bounds side-conditions for
 `substring`/index follow the `\valid`/no_exception pattern (a guarded obligation).
 
-## Stage 3 — String methods (scoped, demand-driven)
+## Stage 3 — String methods (scoped, demand-driven) — ✅ DONE
+
+**Status (implemented):** content-aware methods on a *simple `str` receiver* — `s.startswith(p)`
+/ `s.endswith(q)` (kept as 0/1 ints with a `result=1 <-> substring …` witness) and `s.find(sub)`
+(index ≥ -1 with a found-index witness) — via `_content_string_method` (`str_startswith_op` /
+`str_endswith_op` / `str_find_op`). A chained/non-`str` receiver keeps the opaque
+predicate-as-`0/1`-op path (0453 unaffected). `upper`/`lower`/`strip`/`replace` and `split`
+(list-of-strings — needs a list-of-string model the hoare loc list infra can't express yet) stay
+opaque; `.decode`/`.encode` remain the opaque bytes↔str boundary (decode is an opaque `int`).
+Drivers: `0491` (startswith), `0492` (endswith), `0493` (find).
+
+
 
 - **Keep uninterpreted-bool** (already correct): `s.startswith`/`endswith`/`islower`/… stay
   `*_check : bool` abstract ops — unless a corpus case needs a *content* spec, in which case
@@ -177,7 +188,20 @@ tags (`str` now flows through Module5's type tracking). Bounds side-conditions f
 - **Defer** `upper`/`lower`/`find`/`replace`/`split`/`strip` to abstract ops until demanded;
   document them as opaque. Do not block the core feature on the full method surface.
 
-## Stage 4 — Proof / axiom layer (only if Stage 0 found gaps)
+## Stage 4 — Proof / axiom layer (only if Stage 0 found gaps) — ✅ DONE (witness ensures; no Rocq/Lean lemma needed)
+
+**Status (implemented):** the make-or-break content goals discharge **directly under SMT** with
+the right `ensures` baked into the abstract `val` bridges — no external Rocq/Lean string theory
+was required. (1) `str_sub_op` carries the bounds-guarded length lemma `… -> String.length
+result = len` (slice/index length; the general substring-length algebra OOMs otherwise). (2)
+`str_contains_op` carries the **existential occurrence witness** `result <-> (∃ i. 0≤i ∧ i+len n
+≤ len h ∧ substring h i (len n) = n)` — so a known occurrence proves membership (driver `0494`)
+and membership yields a matching index. (3) `startswith`/`endswith`/`find` witnesses (Stage 3).
+Because these `ensures` sit on abstract `val`s they are *assumed* (axiomatic, sound by the
+intended `String.*` semantics), 0-`\trusted` preserved. If a future goal needs algebra SMT can't
+assume safely, the `#@ proof rocq|lean` route (gcd template `0342`) remains the backstop.
+
+
 
 For any string property the SMT backend cannot discharge directly (e.g. nontrivial
 `substring`/`concat` algebra), add a cited lemma via `#@ proof rocq|lean <qualname>` against
@@ -185,7 +209,18 @@ For any string property the SMT backend cannot discharge directly (e.g. nontrivi
 (annotations.md §2.1.12; the gcd template `0342`). The string lemmas live in a small reusable
 theory. 0-`\trusted` preserved.
 
-## Stage 5 — Docs, corpus, gates
+## Stage 5 — Docs, corpus, gates — ✅ DONE
+
+**Status (implemented):** τ(str) reversed from `int` to `string` across the normative surfaces —
+static-semantics §1.4 (the τ row + a new "String model" paragraph), translational §T.2.2 τ-table
++ §T.6.1 literal lowering + **new §T.6.15 "String Operations"** (full lowering table) + gap G2
+marked RESOLVED; `test-suite/annotations.md` §11.2 (runtime-`str` note); concrete-syntax §3.1.14;
+`config/skills/pycsl-annotate/SKILL.md` (**new Section 3e — Strings**). `bin/doc-coherency.py
+--check` green (exit 0, all directives present). Corpus: `0471` flagship flipped to passing;
+`0472`–`0476`, `0481`, `0490`–`0494` proving; ghost-string tests (`0292` …) still prove under
+the unified model. Full proof-sweep gate run before commit.
+
+
 
 - **Type-mapping reversal:** update `τ(str)` from `int` to `string` across the normative
   surfaces — `docs/pycsl-static-semantics-reference.md` §1.4 (the row we just added) and the

@@ -270,7 +270,7 @@ def test_precondition(x: int) -> int:
 |-------------|-----------|-------|
 | `int` | `int` | Arbitrary precision |
 | `bool` | `int` | `True` → `1`, `False` → `0` in body; `true`/`false` in spec |
-| `str` | `int` | Strings hashed to integer |
+| `str` | `string` | Why3 `string.String` value type — real content (see §T.6 string ops); memory-model-independent |
 | `float` | `int` | **Unsound** — no float theory |
 | `list` | `array int` | Hoare/Concurrent model |
 | `list` | `loc` + `_len` | Typed/Store model |
@@ -1135,7 +1135,7 @@ _Corresponds to `annotations.md` §3._
 | `False` | `false` | Spec | Boolean literal |
 | `False` | `0` | Body | Integer encoding |
 | `None` | `0` | Both | Unit/zero encoding |
-| String `"s"` | `hash("s") % 2147483647` (`2^31 − 1`) | Both | Hashed to integer |
+| String `"s"` | `"s"` (Why3 string literal) | Both | Real `string.String` content (see §T.6 string ops). Only re-hashed to int where an int is required — a dict key, or an abstract-op arg over a non-string operand |
 | `[]` (empty) | `(Array.make 1024 0)` | Body | Fixed-size default |
 | `[e0, e1, …]` (non-empty) | `(let _alit = Array.make N e0 in _alit[1] <- e1; …; _alit)` | Body | Concrete array literal |
 | `{}` / Dict literal | `(const (None: option int))` | Body | Empty `map int (option int)` (cf. §T.14.1) |
@@ -1437,12 +1437,51 @@ $$\mathcal{T}_s\llbracket \texttt{m[r][c] = e} \rrbracket
 
 ### §T.6.14  F-Strings
 
-F-strings are translated as integer hash values since strings are
-represented as integers:
+F-strings are translated as integer hash values (f-string interpolation is out of scope for
+the string-content model — see §T.6.15):
 
 $$\mathcal{T}_e\llbracket \texttt{f"..."} \rrbracket = \text{hash}(\ldots)$$
 
 **Implementation:** `_handle_fstring_expr`.
+
+### §T.6.15  String Operations (runtime `str` → `string.String`)
+
+Runtime `str` is the Why3 `string.String` value type (τ(str) = string; §T.2.2). The logic
+symbols `String.length` / `concat` / `String.substring` / structural `=` are usable directly in
+**spec** context, but **not** as program (body) values ("Logical symbol … used in a non-ghost
+context"). So each body operation is bridged through an abstract `val …_op` whose `ensures` ties
+its program result to the logic symbol; the spec uses the logic symbol directly (gated on
+`self._in_spec`). A string operand is detected by `_is_string_expr` (a `String` literal, a
+`StrConcat`/`StrSub` op, a `str`-typed `Var`, or a `Subscript`/`SliceAccess` whose base is a
+string — so `s[a:b] == t` routes to the string path).
+
+| Python (`s`,`t` : str) | Spec lowering | Body bridge (`ensures`) | Impl |
+|---|---|---|---|
+| `len(s)` | `String.length s` | `str_length_op s` ⊨ `result = String.length s` | `_handle_len_call` |
+| `s + t` | `concat s t` | `str_concat_op a b` ⊨ `result = concat a b` | `_handle_binop` |
+| `s == t` / `s != t` | `s = t` / `not (s = t)` | `str_eq_op a b` ⊨ `result <-> (a = b)` | `_handle_binop` |
+| `s[a:b]` | `String.substring s a (b-a)` | `str_sub_op s lo len` ⊨ `result = String.substring s lo len` **and** in-bounds ⇒ `String.length result = len` | `_handle_slice_access_expr` |
+| `s[i]` | `String.substring s i 1` | `str_sub_op s i 1` (length-1 string; no char type) | `_handle_subscript` |
+| `needle in haystack` | — | `str_contains_op h n` ⊨ `result <-> (∃ i. 0≤i ∧ i+len n ≤ len h ∧ substring h i (len n) = n)` | `_emit_membership` |
+| `s.startswith(p)` | — | `str_startswith_op s p : int`, `result∈{0,1}` and `result=1 <-> substring s 0 (len p) = p` | `_content_string_method` |
+| `s.endswith(q)` | — | `str_endswith_op s q : int`, `result=1 <-> substring s (len s-len q) (len q) = q` | `_content_string_method` |
+| `s.find(sub)` | — | `str_find_op s sub : int`, `result≥-1` and `result≥0 -> substring s result (len sub) = sub` | `_content_string_method` |
+
+The `str_sub_op` length lemma and the `str_contains_op`/find witnesses are baked into the
+bridge `ensures` because the general `String.length (substring …)` / existential-occurrence
+algebra otherwise exhausts the SMT solver (the bridge `ensures` are *assumed*, being on an
+abstract `val`). `startswith`/`endswith`/`find` apply only to a **simple `str`-typed receiver**;
+a chained or non-`str` receiver (`node.name.startswith(…)`) keeps the opaque
+predicate-as-`0/1`-op model. **Mixed string/int** comparison (a `str` vs an opaque int, e.g. a
+`.decode()` result) reverts to the legacy opaque int-equality by hashing the string side
+(`str_hash_op`). **Opaque / deferred:** `upper`/`lower`/`strip`/`replace` (string→string),
+`split` (list-of-strings), `.decode`/`.encode` (codec, the bytes↔str boundary), f-strings, and
+all code-point / lexicographic reasoning.
+
+**Implementation:** `expressions.py` (`_is_string_expr`, `_content_string_method`,
+`_emit_membership`, `_handle_binop`, `_handle_subscript`, `_handle_slice_access_expr`),
+`functions.py` (`_param_type_str` + method-param loop → `string`), `preamble.py`
+(`use string.String`).
 
 ---
 
@@ -2018,7 +2057,7 @@ by the Why3 project itself.
 | ID | Gap | Impact | Recommendation |
 |----|-----|--------|----------------|
 | G1 | Python floored division vs WhyML Euclidean division | For negative operands, `(-7) // 2` is `-4` in Python but `div (-7) 2 = -3` in WhyML | Add a `pycsl_floordiv` helper that matches Python semantics |
-| G2 | String hashing is lossy | Two different strings may hash to the same integer | Document limitation; add `string.String` theory support |
+| G2 | ~~String hashing is lossy~~ **RESOLVED** | Runtime `str` is now Why3 `string.String` with real content (τ(str)=string; §T.6.15) — content `==`/`+`/`len`/slice/index/`in`/`startswith`/`endswith`/`find` are sound. Residual gaps: no code-point/char type; `upper`/`lower`/`strip`/`replace`/`split` and `.decode`/`.encode` stay opaque; f-strings hash; `str`-keyed dicts still hash the key | Code-point model & string→string transforms deferred |
 | G3 | Boolean/int duality | `True + 1 = 2` in Python; in spec `true + 1` is a type error | The spec/body distinction handles this, but mixed use is fragile |
 | G4 | `None` mapped to `0` in non-ghost context | `None` and `0` are indistinguishable in WhyML for regular Python values | **Partially resolved:** ghost dicts use `map int (option int)` (§T.8.5), so `\has_key` distinguishes absent keys from keys with value 0. Raw Python `None` in non-ghost context still maps to 0. |
 | G5 | Array literals use fixed size 1024 | `[]` becomes `Array.make 1024 0` regardless of actual size | Use dynamic allocation or parametric size |
