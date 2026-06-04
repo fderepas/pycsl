@@ -19,10 +19,13 @@ Each landed item is validated **emission-identical** to its baseline (PYTHONHASH
   `_call_named_builtins`/`_call_record_constructor`/`_call_bytes_methods` (`2b0fca0`);
   `_handle_dotted_call` split into `_resolve_dotted_signature`/`_coerce_dotted_args`/
   `_dotted_ensures_suffix` (`781c24f`).
+- ✅ **Tier 3 `pycsl.py` `main()`/argparse** (`3bf589d`) — the 21 flat flags grouped into
+  argparse argument-groups (`--help` now reads as sections; parsed namespace unchanged), and
+  `main()`'s config/provers/memory-model resolution extracted into `_resolve_runtime_config`.
+  Gated by a new self-contained CLI-behavior regression test, `test-suite/cli-behavior-test.sh`
+  (11 checks: exit codes + output markers + `--help` optcount), since the emission differential
+  can't cover CLI control flow.
 - ⏸ **Deferred, with rationale** (kept as roadmap):
-  - *Tier 3 `pycsl.py` `main()`/argparse restructure* — changes CLI control flow, **not**
-    WhyML emission, so the emission-identical oracle does not cover it; it needs a separate
-    CLI-behavior test harness before it can be done safely.
   - *Tier 3 `_handle_for_stmt` split* — only ~90 lines with clear phases, **and** it carries
     PyCSL self-annotation `#@ loop invariant`/`variant` comments (a separate self-
     verification effort); low marginal value, extra risk. Skip.
