@@ -37,7 +37,19 @@ Each landed item is validated **emission-identical** to its baseline (PYTHONHASH
   - *Tier 4 "unify write-site discovery across Module3/4/5"* — on close reading these are
     three **different** operations (per-field write-sites vs written-field-names vs
     field-types); unifying would be a false abstraction. Skip.
-- 🚪 **Tier 5 (architectural bets)** — still gated; unchanged below.
+- 🚫 **Tier 5 (architectural bets) — investigated, not pursued:**
+  - *5a emission-context object* — **not worthwhile.** The premise (handlers "thread 3–6
+    verbose params by hand") does not hold against the actual code: 34 of the 55 expr
+    handlers already use terse `(lr, _ic, _sub)` names (with `_ic`/`_sub` unused), and a
+    short recursion helper `_e(ir, lr)` already exists. An `ExprCtx` would *shorten* call
+    sites but *lengthen* every usage (`lr` → `ctx.local_refs`) across ~300 edited sites on
+    the most proof-critical file — a net wash, for only low-frequency future-proofing. The
+    codebase already solved its threading verbosity.
+  - *5b memory-model strategy* — **blocked on coverage.** The corpus has 31 `concurrent` +
+    7 `hoare` files and **0 `typed`/`store`** files; 5b changes exactly the
+    `hoare/concurrent` vs `typed/store` branching, so the typed/store arm cannot be
+    validated by the emission gate. Doing it would risk an undetectable verifier regression.
+    Prerequisite: build typed/store corpus coverage first (then 5b becomes safely doable).
 
 ## Scope & worst offenders
 
@@ -130,6 +142,13 @@ a `{type-or-str → handler}` table — the established idiom in this codebase
   shape, easing any future non-`self` field-subscript.
 
 ## Tier 5 — Architectural bets (high long-term payoff, real cost — gate behind a decision)
+
+> **VERDICT (investigated): neither pursued.** 5a turned out net-neutral against the actual
+> code (terse `lr/_ic/_sub` names + the `_e` helper already address the threading; an
+> `ExprCtx` lengthens usage sites as much as it shortens call sites, for ~300 edited sites of
+> churn). 5b is unvalidatable today (0 `typed`/`store` corpus files — its changed arm has no
+> coverage) and needs that coverage built first. See the top-of-file status block. The
+> analysis below is retained as the original reasoning.
 
 These are **not** quick wins. Each is a multi-hundred-line change that should be its own
 explicitly-scoped initiative with a **full `run-reference-tests.sh` proof-sweep budget**
