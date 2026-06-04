@@ -30,7 +30,13 @@ class Module6_WhyMLTranspiler(
                  strict_hash_eq_consistency: bool = False,
                  check_behavioral_subtyping: bool = False) -> None:
         self.ir = json.loads(json_ir)
-        self.memory_model = memory_model   # "hoare" | "typed" | "store"
+        self.memory_model = memory_model   # "hoare" | "typed" | "store" | "concurrent"
+        # The one distinction every emission site actually makes: value-semantic arrays
+        # (hoare/concurrent — arrays are values, no aliasing) vs a global heap
+        # (typed/store — arrays are locations into `int_mem`/`store`). Named once here so
+        # the grouping lives in a single place instead of `memory_model in (...)` at ~24
+        # scattered sites. (typed-vs-store, where it matters, is the heap variable name below.)
+        self._value_semantic = memory_model in ("hoare", "concurrent")
         # Layer D — emit Liskov refinement goals for overriding methods
         # (pre_base ⇒ pre_sub, post_sub ⇒ post_base). Default off.
         self.check_behavioral_subtyping = bool(check_behavioral_subtyping)

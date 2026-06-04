@@ -300,7 +300,7 @@ class ExpressionEmissionMixin:
             if vname in append_targets:
                 # Append-target len is tracked in a sidecar ref `X_len`.
                 return f"!{vname}_len"
-        if self.memory_model in ("hoare", "concurrent"):
+        if self._value_semantic:
             var_name = arg_ir.get("name", "") if atype == "Var" else ""
             is_dict = var_name in getattr(self, "_dict_locals", set())
             is_array = not is_dict and (
@@ -848,7 +848,7 @@ class ExpressionEmissionMixin:
             col = index
             return f"(get {base} {row} {col})"
         value_str = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)
-        if self.memory_model in ("hoare", "concurrent"):
+        if self._value_semantic:
             var_name = value.get("name", "") if value.get("type") == "Var" else ""
             index_ir = expr.get("index", {})
             if (var_name and index_ir.get("type") == "Number" and
@@ -1007,7 +1007,7 @@ class ExpressionEmissionMixin:
         subst: Optional[Dict[str, str]],
     ) -> str:
         inner = expr["expr"]
-        if self.memory_model not in ("hoare", "concurrent") and inner.get("type") == "Subscript":
+        if not self._value_semantic and inner.get("type") == "Subscript":
             value = self._expr_to_whyml(inner["value"], local_refs, invariant_ctx, subst)
             index = self._expr_to_whyml(inner["index"], local_refs, invariant_ctx, subst)
             return f"(Map.get (old !{self._heap_var}) ({value} + {index}))"
@@ -1026,7 +1026,7 @@ class ExpressionEmissionMixin:
         if label == "PRE":
             e = self._expr_to_whyml(inner, local_refs, invariant_ctx, subst)
             return f"(old {e})"
-        if inner.get("type") == "Subscript" and self.memory_model not in ("hoare", "concurrent"):
+        if inner.get("type") == "Subscript" and not self._value_semantic:
             value = self._expr_to_whyml(inner["value"], local_refs, invariant_ctx, subst)
             index = self._expr_to_whyml(inner["index"], local_refs, invariant_ctx, subst)
             return f"(Map.get ({self._heap_var} at {label}) ({value} + {index}))"
@@ -1106,7 +1106,7 @@ class ExpressionEmissionMixin:
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
     ) -> str:
-        if self.memory_model in ("hoare", "concurrent"):
+        if self._value_semantic:
             var = expr['var']
             if var == "\\result":
                 return "(Array.length result)"
@@ -1130,7 +1130,7 @@ class ExpressionEmissionMixin:
     ) -> str:
         base = expr["base"]
         length = self._expr_to_whyml(expr["length"], local_refs, invariant_ctx, subst)
-        if self.memory_model in ("hoare", "concurrent"):
+        if self._value_semantic:
             return f"({length} >= 0 && {length} <= Array.length {base})"
         return f"(valid !{self._heap_var} {base} {length})"
 
@@ -1141,7 +1141,7 @@ class ExpressionEmissionMixin:
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
     ) -> str:
-        if self.memory_model in ("hoare", "concurrent"):
+        if self._value_semantic:
             return "true"
         b1 = expr["base1"]
         l1 = self._expr_to_whyml(expr["len1"], local_refs, invariant_ctx, subst)
@@ -1159,7 +1159,7 @@ class ExpressionEmissionMixin:
         base = expr["base"]
         rows = self._expr_to_whyml(expr["rows"], local_refs, invariant_ctx, subst)
         cols = self._expr_to_whyml(expr["cols"], local_refs, invariant_ctx, subst)
-        if self.memory_model in ("hoare", "concurrent"):
+        if self._value_semantic:
             return f"({base}.rows = {rows} && {base}.columns = {cols})"
         return "true"
 
@@ -1173,7 +1173,7 @@ class ExpressionEmissionMixin:
         base = expr["base"]
         row = self._expr_to_whyml(expr["row"], local_refs, invariant_ctx, subst)
         col = self._expr_to_whyml(expr["col"], local_refs, invariant_ctx, subst)
-        if self.memory_model in ("hoare", "concurrent"):
+        if self._value_semantic:
             return f"(valid_index {base} {row} {col})"
         return "true"
 
@@ -1187,7 +1187,7 @@ class ExpressionEmissionMixin:
         base = expr["base"]
         lo = self._expr_to_whyml(expr["lo"], local_refs, invariant_ctx, subst)
         hi = self._expr_to_whyml(expr["hi"], local_refs, invariant_ctx, subst)
-        if self.memory_model in ("hoare", "concurrent"):
+        if self._value_semantic:
             return f"(forall _si : int. {lo} <= _si /\\ _si < {hi} - 1 -> {base}[_si] <= {base}[_si + 1])"
         return "true"
 
@@ -1206,7 +1206,7 @@ class ExpressionEmissionMixin:
         postconditions (the predicate layer did not auto-unfold)."""
         a = self._expr_to_whyml(expr["left"], local_refs, invariant_ctx, subst)
         b = self._expr_to_whyml(expr["right"], local_refs, invariant_ctx, subst)
-        if self.memory_model in ("hoare", "concurrent"):
+        if self._value_semantic:
             return (f"((Array.length {a} = Array.length {b}) /\\ "
                     f"(forall _ae : int. 0 <= _ae /\\ _ae < Array.length {a} "
                     f"-> {a}[_ae] = {b}[_ae]))")
@@ -1222,7 +1222,7 @@ class ExpressionEmissionMixin:
         base = expr["base"]
         lo = self._expr_to_whyml(expr["lo"], local_refs, invariant_ctx, subst)
         hi = self._expr_to_whyml(expr["hi"], local_refs, invariant_ctx, subst)
-        if self.memory_model in ("hoare", "concurrent"):
+        if self._value_semantic:
             return f"(pycsl_sum {base} {lo} {hi})"
         return "0"
 

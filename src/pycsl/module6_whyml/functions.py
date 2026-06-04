@@ -26,7 +26,7 @@ class FunctionEmissionMixin:
         if symtype in ("set", "dict", "frozenset"):
             return f"({safe}: map int (option int))"
         if arg in array1d_params or symtype == "list":
-            if self.memory_model in ("hoare", "concurrent"):
+            if self._value_semantic:
                 return f"({safe}: array {int_type})"
             return f"({safe}: loc) ({safe}_len: int)"
         if symtype == "str":
@@ -125,7 +125,7 @@ class FunctionEmissionMixin:
                     # cell is a byte value (0..255). Lifts the
                     # transpiler limit that previously auto-trusted
                     # struct.unpack call sites with array-int args.
-                    if self.memory_model in ("hoare", "concurrent"):
+                    if self._value_semantic:
                         param_parts.append(f"({safe}: array {int_type})")
                     else:
                         param_parts.append(f"({safe}: loc) ({safe}_len: int)")

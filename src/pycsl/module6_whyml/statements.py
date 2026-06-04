@@ -205,7 +205,7 @@ class StatementEmissionMixin:
             stop = self._expr_to_whyml(iter_ir["args"][1], local_refs)
             self._for_idx_init = start
             return stop, f"!{idx}", True
-        if iter_ir.get("type") == "Var" and self.memory_model in ("hoare", "concurrent"):
+        if iter_ir.get("type") == "Var" and self._value_semantic:
             var_name = iter_ir.get("name", "")
             iter_expr = self._expr_to_whyml(iter_ir, local_refs)
             is_dict = var_name in getattr(self, "_dict_locals", set())
@@ -227,7 +227,7 @@ class StatementEmissionMixin:
         # declared `(x: int) : ...`, producing an `array int` vs `int`
         # type mismatch at the for-loop expansion.
         if (iter_ir.get("type") == "Call"
-                and self.memory_model in ("hoare", "concurrent")):
+                and self._value_semantic):
             fn = iter_ir.get("func", "")
             ret_type = "int"
             if fn.startswith("self."):
@@ -243,7 +243,7 @@ class StatementEmissionMixin:
             if ret_type == "array int":
                 iter_expr = self._expr_to_whyml(iter_ir, local_refs)
                 return f"Array.length {iter_expr}", f"{iter_expr}[!{idx}]", False
-        if self.memory_model not in ("hoare", "concurrent"):
+        if not self._value_semantic:
             iter_expr = self._expr_to_whyml(iter_ir, local_refs)
             return f"{iter_expr}_len", f"Map.get !{self._heap_var} ({iter_expr} + !{idx})", False
         iter_expr = self._coerce_to_int(self._expr_to_whyml(iter_ir, local_refs))
@@ -709,7 +709,7 @@ class StatementEmissionMixin:
             array_expr = self._expr_to_whyml(arr, local_refs)
             index_expr = self._expr_to_whyml(stmt["index"], local_refs)
             val_expr = self._expr_to_whyml(stmt["value"], local_refs)
-            if self.memory_model in ("hoare", "concurrent"):
+            if self._value_semantic:
                 var_name = arr.get("name", "") if arr.get("type") == "Var" else ""
                 is_dict = var_name in getattr(self, "_dict_locals", set())
                 is_array = not is_dict and (
@@ -1118,7 +1118,7 @@ class StatementEmissionMixin:
         val = stmt.get("value", {})
         if val.get("type") == "Call":
             func = val.get("func", "")
-            if func.endswith(".append") and self.memory_model in ("hoare", "concurrent"):
+            if func.endswith(".append") and self._value_semantic:
                 arr_name = func.rsplit(".", 1)[0].replace(".", "_")
                 safe_arr = whyml_ident(arr_name)
                 arg = self._expr_to_whyml(val["args"][0], local_refs)
@@ -1126,7 +1126,7 @@ class StatementEmissionMixin:
                 len_ref = f"{safe_arr}_len"
                 code = f"{indent}{safe_arr}[!{len_ref}] <- {arg};\n{indent}{len_ref} := !{len_ref} + 1"
             elif (func.endswith((".add", ".discard", ".remove"))
-                  and self.memory_model in ("hoare", "concurrent")):
+                  and self._value_semantic):
                 # Body-level set/dict method calls. Sets and dicts share
                 # the `_dict_locals` tracking and `map int (option int)`
                 # model. Use program-level wrappers (see comment on
@@ -1233,7 +1233,7 @@ class StatementEmissionMixin:
         In typed/store models: emits `writes` + quantified `ensures` for unchanged locations.
         Returns a list of WhyML lines to append after the function's `ensures` clauses.
         """
-        if self.memory_model in ("hoare", "concurrent"):
+        if self._value_semantic:
             return []
 
         hv = self._heap_var

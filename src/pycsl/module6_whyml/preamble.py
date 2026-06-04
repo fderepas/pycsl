@@ -143,7 +143,7 @@ class PreambleEmissionMixin:
                     break
             if axiom_needs_array:
                 break
-        if self.memory_model in ("hoare", "concurrent"):
+        if self._value_semantic:
             needs_array = (
                 has_list_param
                 or any(IRScanner.uses_for(body) for body in all_bodies)
@@ -275,7 +275,7 @@ class PreambleEmissionMixin:
             i += 1
         if needs["needs_string"]:
             out.append("  use string.String")
-        if self.memory_model in ("hoare", "concurrent"):
+        if self._value_semantic:
             if needs["needs_matrix"]:
                 out.append("  use matrix.Matrix")
             if needs["needs_minmax"]:
