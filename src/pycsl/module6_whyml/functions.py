@@ -131,6 +131,12 @@ class FunctionEmissionMixin:
                         param_parts.append(f"({safe}: array {int_type})")
                     else:
                         param_parts.append(f"({safe}: loc) ({safe}_len: int)")
+                elif symbol_table.get(arg) == "str":
+                    # strings-plan Stage 1: runtime `str` is a value-semantic Why3 string
+                    # (mirrors _param_type_str for standalone functions — methods were
+                    # missed, leaving str method params typed int while _is_string_expr,
+                    # which reads the symbol table, treated them as string).
+                    param_parts.append(f"({safe}: string)")
                 else:
                     param_parts.append(f"({safe}: {int_type})")
             return set(), " ".join(param_parts)

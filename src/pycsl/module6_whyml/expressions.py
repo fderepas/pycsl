@@ -200,6 +200,12 @@ class ExpressionEmissionMixin:
             arms = ("| Some _ -> false | None -> true" if negate
                     else "| Some _ -> true | None -> false")
             return f"(match Map.get ({right}) ({left_c}) with {arms} end)"
+        # strings-plan Stage 2: `needle in haystack` for strings is substring containment, an
+        # uninterpreted bool op over string operands (content witness deferred — see plan).
+        if self._is_string_expr(rhs):
+            self._add_abstract_op("val str_contains_op (haystack: string) (needle: string) : bool")
+            scall = f"(str_contains_op {right} {left})"
+            return f"(not {scall})" if negate else scall
         self._add_abstract_op("val contains_check (x: int) (c: int) : bool")
         call = f"(contains_check {self._coerce_str_arg(left)} {self._coerce_str_arg(right)})"
         return f"(not {call})" if negate else call
@@ -240,6 +246,18 @@ class ExpressionEmissionMixin:
             return getattr(self, "_current_symbol_table", {}).get(ir.get("name", "")) == "str"
         return False
 
+    def _str_operand_to_int(self, whyml_str: str) -> str:
+        """Map a string operand into the legacy int-hash domain. Used when a string is
+        compared against a genuine int (e.g. an opaque `.decode()` result that PyCSL has no
+        string model for): the comparison reverts to the pre-strings opaque int-equality
+        rather than forcing a type-incorrect `str_eq_op`. A literal hashes directly; a
+        non-literal string goes through an uninterpreted `str_hash_op`."""
+        s = whyml_str.strip()
+        if s.startswith('"') and s.endswith('"'):
+            return str(hash(whyml_str) % 2147483647)
+        self._add_abstract_op("val str_hash_op (s: string) : int")
+        return f"(str_hash_op {whyml_str})"
+
     def _handle_binop(self, expr: Dict[str, Any], local_refs: Set[str],
                       invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
         raw_op = expr["op"]
@@ -256,8 +274,10 @@ class ExpressionEmissionMixin:
         # logic symbol `concat` is fine in a spec; in a program (body) context it is bridged
         # through an abstract `val` whose `ensures` ties the result to `concat` (same pattern
         # as `len`/`str_length_op`).
-        if raw_op == "+" and (self._is_string_expr(expr["left"])
-                              or self._is_string_expr(expr["right"])):
+        # Both operands must be string-typed: `str + int` is not valid Python concatenation, so
+        # a mixed `+` is left as int addition (legacy hash model).
+        if raw_op == "+" and self._is_string_expr(expr["left"]) \
+                and self._is_string_expr(expr["right"]):
             if self._in_spec:
                 return f"(concat {left} {right})"
             self._add_abstract_op(
@@ -268,13 +288,23 @@ class ExpressionEmissionMixin:
         # is fine (falls through below); in a program (body) context `=` on strings is not
         # usable, so bridge through `val str_eq_op : bool` (tied by `ensures` to `=`). Must
         # precede the int-coercion of `=`/`<>` below, which is only for the int-hash model.
-        if raw_op in ("==", "!=") and not self._in_spec and (
-                self._is_string_expr(expr["left"]) or self._is_string_expr(expr["right"])):
-            self._add_abstract_op(
-                "val str_eq_op (a: string) (b: string) : bool\n"
-                "    ensures { result <-> (a = b) }")
-            eq = f"(str_eq_op {left} {right})"
-            return eq if raw_op == "==" else f"(not {eq})"
+        if raw_op in ("==", "!=") and not self._in_spec:
+            ls = self._is_string_expr(expr["left"])
+            rs = self._is_string_expr(expr["right"])
+            if ls and rs:
+                self._add_abstract_op(
+                    "val str_eq_op (a: string) (b: string) : bool\n"
+                    "    ensures { result <-> (a = b) }")
+                eq = f"(str_eq_op {left} {right})"
+                return eq if raw_op == "==" else f"(not {eq})"
+            if ls != rs:
+                # Mixed string/int: a string compared against a genuine int (e.g. an opaque
+                # decode result). Revert to legacy opaque int-equality by hashing the string
+                # side, then fall through to the int `=`/`<>` path below.
+                if ls:
+                    left = self._str_operand_to_int(left)
+                else:
+                    right = self._str_operand_to_int(right)
         # In body context, coerce string literals in comparisons to int
         if not self._in_spec and op in ("=", "<>"):
             left = self._coerce_str_arg(left)
@@ -869,6 +899,19 @@ class ExpressionEmissionMixin:
                           invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
         value = expr["value"]
         index = self._expr_to_whyml(expr["index"], local_refs, invariant_ctx, subst)
+        # strings-plan Stage 2: s[i] on a str is the 1-char substring String.substring s i 1
+        # (Why3 strings have no char type; a character is a length-1 string). Reuses the
+        # str_sub_op bridge whose length lemma gives String.length result = 1 under bounds.
+        if self._is_string_expr(value):
+            vstr = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)
+            if self._in_spec:
+                return f"(String.substring {vstr} {index} 1)"
+            self._add_abstract_op(
+                "val str_sub_op (s: string) (lo len: int) : string\n"
+                "    ensures { result = (String.substring s lo len) }\n"
+                "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
+                " -> String.length result = len }")
+            return f"(str_sub_op {vstr} {index} 1)"
         # \result[i] on a tuple return → let-destructure
         if value.get("type") == "Result" and hasattr(self, "_current_tuple_arity"):
             arity = self._current_tuple_arity
@@ -1116,6 +1159,32 @@ class ExpressionEmissionMixin:
     ) -> str:
         arr = self._expr_to_whyml(expr["value"], local_refs, invariant_ctx, subst)
         sl = expr["slice"]
+        # strings-plan Stage 2: `s[a:b]` on a string is `String.substring s a (b-a)`. Spec
+        # uses the logic symbol; body bridges through `str_sub_op` (and `str_length_op` for an
+        # omitted upper bound), since `String.substring`/`String.length` aren't program values.
+        if self._is_string_expr(expr["value"]):
+            slo = self._expr_to_whyml(sl["lower"], local_refs, invariant_ctx, subst) if sl.get("lower") else "0"
+            if sl.get("upper"):
+                shi = self._expr_to_whyml(sl["upper"], local_refs, invariant_ctx, subst)
+            elif self._in_spec:
+                shi = f"(String.length {arr})"
+            else:
+                self._add_abstract_op("val str_length_op (s: string) : int\n"
+                                      "    ensures { result = (String.length s) }")
+                shi = f"(str_length_op {arr})"
+            slen = f"(({shi}) - ({slo}))"
+            if self._in_spec:
+                return f"(String.substring {arr} {slo} {slen})"
+            # The length lemma is baked into the bridge's `ensures`: deriving
+            # `String.length (substring s lo len) = len` from the substring theory makes the
+            # SMT backend OOM for general (non-literal) args, but the fact is sound (cf. the
+            # Stage-0 literal probe), so we supply it directly under its bounds guard.
+            self._add_abstract_op(
+                "val str_sub_op (s: string) (lo len: int) : string\n"
+                "    ensures { result = (String.substring s lo len) }\n"
+                "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
+                " -> String.length result = len }")
+            return f"(str_sub_op {arr} {slo} {slen})"
         lo = self._expr_to_whyml(sl["lower"], local_refs, invariant_ctx, subst) if sl.get("lower") else "0"
         hi = self._expr_to_whyml(sl["upper"], local_refs, invariant_ctx, subst) if sl.get("upper") else f"(Array.length {arr})"
         # A known-array source (record array-field like `self.disk`, or an
