@@ -1,8 +1,40 @@
 # Refactoring recommendations — `src/pycsl/*.py` + `src/pycsl/module6_whyml/*.py`
 
-> Status: **recommendation only** (no code changed by this document). Derived from a
-> read-only review of the PyCSL pipeline modules and the WhyML backend package.
-> Opportunities are grouped by recurring theme and tiered by payoff-vs-risk.
+> Derived from a read-only review of the PyCSL pipeline modules and the WhyML backend
+> package. Opportunities are grouped by recurring theme and tiered by payoff-vs-risk.
+
+## Implementation status
+
+Each landed item is validated **emission-identical** to its baseline (PYTHONHASHSEED=0,
+`--no-proof` differential over all 382 tracked `pycsl-reference` corpus files, 0 diffs).
+
+- ✅ **Tier 1** — all five quick wins landed (`abfaf0e`): `_deref` (29 sites),
+  `_binop` alias collapse, `_emit_ghost_assign`, `_inject_functions`,
+  `_attach_loop_contracts`.
+- ✅ **Tier 3 (god-functions, partial)** — `_handle_call_expr` split into
+  `_call_named_builtins`/`_call_record_constructor`/`_call_bytes_methods` (`2b0fca0`);
+  `_handle_dotted_call` split into `_resolve_dotted_signature`/`_coerce_dotted_args`/
+  `_dotted_ensures_suffix` (`781c24f`).
+- ⏸ **Deferred, with rationale** (kept as roadmap):
+  - *Tier 2 `statements.py` `s_type` dispatch table* — a 20-branch chain mixing
+    early-return and fall-through; a safe table conversion needs ~20 inline-body
+    extractions, which is high transcription-risk for a readability-only gain. Defer to a
+    focused effort.
+  - *Tier 3 `pycsl.py` `main()`/argparse restructure* — changes CLI control flow, **not**
+    WhyML emission, so the emission-identical oracle does not cover it; it needs a separate
+    CLI-behavior test harness before it can be done safely.
+  - *Tier 3 `_handle_for_stmt` split* — only ~90 lines with clear phases, **and** it carries
+    PyCSL self-annotation `#@ loop invariant`/`variant` comments (a separate self-
+    verification effort); low marginal value, extra risk. Skip.
+  - *Tier 2 `Module5._py_stmt_assign` dispatch dict* — already 4 clear branches; a dict adds
+    indirection for no real gain. Skip.
+  - *Tier 2 `Module3._dispatch_function_contracts` table* — the special cases (Trusted
+    warning, NoException) make a half-table/half-elif hybrid less readable than the current
+    uniform chain. Skip.
+  - *Tier 4 "unify write-site discovery across Module3/4/5"* — on close reading these are
+    three **different** operations (per-field write-sites vs written-field-names vs
+    field-types); unifying would be a false abstraction. Skip.
+- 🚪 **Tier 5 (architectural bets)** — still gated; unchanged below.
 
 ## Scope & worst offenders
 
