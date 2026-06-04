@@ -29,6 +29,53 @@ from Module2_Parser import (
 )
 from errors import PyCSLSemanticError
 
+
+def _module_const_int(value: Any) -> Optional[int]:
+    """Int value of an int-literal expr (incl. unary `-N`), else None. Mirrors
+    `Module5._const_int_value`."""
+    if (isinstance(value, ast.Constant) and isinstance(value.value, int)
+            and not isinstance(value.value, bool)):
+        return int(value.value)
+    if (isinstance(value, ast.UnaryOp) and isinstance(value.op, ast.USub)
+            and isinstance(value.operand, ast.Constant)
+            and isinstance(value.operand.value, int)
+            and not isinstance(value.operand.value, bool)):
+        return -int(value.operand.value)
+    return None
+
+
+def collect_module_constants(node: ast.Module) -> Dict[str, int]:
+    """Module-level integer constants: a top-level `NAME = <int literal>` (or annotated)
+    bound EXACTLY ONCE at module scope, that is not a `#@ shared` global and is never
+    written via `global`. These are safe to inline as literals in contracts and bodies
+    (mirrors class-body constants, `Module5._collect_class_constants`). A reassigned name
+    is mutable global state and is excluded — contracts cannot soundly reference it in the
+    per-function frame model (see module-constants-plan.md Q2). Shared between Module4
+    (contract-scope validation) and Module5 (IR emission)."""
+    counts: Dict[str, int] = {}
+    candidates: Dict[str, int] = {}
+    for child in getattr(node, "body", []):
+        target = None
+        value = None
+        if (isinstance(child, ast.Assign) and len(child.targets) == 1
+                and isinstance(child.targets[0], ast.Name)):
+            target, value = child.targets[0].id, child.value
+        elif isinstance(child, ast.AnnAssign) and isinstance(child.target, ast.Name):
+            target, value = child.target.id, child.value
+        if target is None:
+            continue
+        counts[target] = counts.get(target, 0) + 1
+        iv = _module_const_int(value)
+        if iv is not None:
+            candidates[target] = iv
+    shared = {d.variable for d in getattr(node, "csl_shared_decls", [])}
+    written_via_global = {n for g in ast.walk(node) if isinstance(g, ast.Global)
+                          for n in g.names}
+    return {n: v for n, v in candidates.items()
+            if counts.get(n, 0) == 1 and n not in shared
+            and n not in written_via_global}
+
+
 # ---------------------------------------------------------
 # 2. Generic CSL Tree Utilities
 # ---------------------------------------------------------
@@ -166,6 +213,10 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         self._shared_vars: Dict[str, Optional[str]] = {}   # var_name → mutex (or None)
         self._mutex_invariants: Dict[str, CSLNode] = {}    # mutex_name → invariant expr
         self._lock_order: Optional[List[str]] = None       # ordered list of mutex names
+        # Module-level integer constants (`K_IHDR = 0`) — single-assignment module
+        # names bound to an int literal. Allowed in contracts (resolved to their
+        # literal in Module 6), mirroring class-body constants.
+        self._module_constants: Dict[str, int] = {}
 
     def _get_type_name(self, annotation: ast.expr) -> str:
         """Extracts the type hint as a string.
@@ -211,7 +262,8 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         # 2. Check variable scope
         referenced_vars = extract_variables(contract)
         for var_name in referenced_vars:
-            if var_name not in self.current_scope:
+            if (var_name not in self.current_scope
+                    and var_name not in self._module_constants):
                 raise PyCSLSemanticError(
                     f"Undefined variable '{var_name}' referenced in contract for {context_name}. "
                     f"Available variables in scope: {list(self.current_scope.keys())}"
@@ -372,6 +424,7 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         self._shared_vars = {}
         self._mutex_invariants = {}
         self._lock_order = None
+        self._module_constants = collect_module_constants(node)
 
         for decl in getattr(node, 'csl_shared_decls', []):
             self._shared_vars[decl.variable] = decl.mutex

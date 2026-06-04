@@ -115,6 +115,22 @@ collected:
 | `_shared_vars` | `#@ shared` declarations | `Dict[str, Optional[str]]` — var_name → mutex (or `None` for unprotected) |
 | `_mutex_invariants` | `#@ mutex_invariant` declarations | `Dict[str, CSLNode]` — mutex_name → invariant expression |
 | `_lock_order` | `#@ lock_order` declaration | `Optional[List[str]]` — ordered list of mutex names |
+| `_module_constants` | top-level `NAME = <int literal>` | `Dict[str, int]` — single-assignment module int constants |
+
+**Module-level constants in contracts.** A module-level name bound **exactly once** to an
+integer literal (`K_IHDR = 0`, `LIMIT = 8`; `collect_module_constants`) is a *constant*: it is
+admitted in `requires`/`ensures`/loop invariants and **resolved to its literal** in both body and
+spec emission (`expressions.py::_handle_var_expr`), exactly like a class-body constant
+(`self.CAP` → `(64)`, §1.2). So `#@ ensures kinds[0] == K_IHDR` discharges with `K_IHDR ↦ 0`.
+
+A module-level name that is **reassigned** (more than one module-level binding, or written via a
+`global` statement) is **mutable global state** and is *excluded* — it is neither inlined nor
+admitted in contracts, and a reference raises `Undefined variable`. This is by design: a value
+that varies across calls and is not a parameter, field, or ghost has no well-defined meaning in
+the per-function frame model (the same reason `#@ shared` concurrency globals are excluded from
+contract scope). The sound way to reason about a mutable global is a `#@ ghost` mirror, not a
+direct reference. Drivers: `0506` (constant proves), `0507` (false bound fails), `0508` (mutable
+global rejected); `0290`/`0291` (the original `K_IHDR`/`BASE` failures, now admitted).
 
 ### 1.4 Type Mapping Function τ
 

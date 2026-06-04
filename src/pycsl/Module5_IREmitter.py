@@ -5,6 +5,7 @@ import copy
 import json
 from typing import Any, Dict, List, Optional, Set, Tuple
 from errors import PyCSLIRError
+from Module4_SemanticAnalyzer import collect_module_constants
 from Module2_Parser import (
     CSLNode, ContractWrapper,
     Requires, Ensures, Assigns, LoopInvariant, LoopVariant,
@@ -58,6 +59,12 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
             }
         if lock_order is not None:
             self.program_ir["lock_order"] = lock_order.order
+
+        # module-constants-plan: module-level int constants (`K_IHDR = 0`) →
+        # resolved to their literal in Module 6 (body and contract).
+        module_consts = collect_module_constants(node)
+        if module_consts:
+            self.program_ir["module_constants"] = module_consts
 
         # collections-plan: synthesise record type_decls for module-level
         # `Name = namedtuple(...)` BEFORE visiting functions, so a `Name(...)`

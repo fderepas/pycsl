@@ -52,6 +52,9 @@ class Module6_WhyMLTranspiler(
         self._abstract_ops: Dict[str, str] = {}  # Abstract val declarations: name → full decl string
         self._record_types: Dict[str, Any] = {}  # class_name_lower → {fields: [...], defaults: {...}}
         self._class_constants: Dict[str, Dict[str, int]] = {}  # class_name_lower → {CONST: int literal}
+        # module-constants-plan: module-level int constants (`K_IHDR = 0`) →
+        # resolved to their literal in `_handle_var_expr` (body and contract).
+        self._module_constants: Dict[str, int] = self.ir.get("module_constants", {})
         self._ambiguous_fields: Set[str] = set()  # field names shared by >1 record → qualified labels
         self._emit_record_ctx: Optional[str] = None  # record name (lower) during invariant/witness emission
         self._shared_var_names: Set[str] = set()  # Module-level shared variable names (concurrent model)

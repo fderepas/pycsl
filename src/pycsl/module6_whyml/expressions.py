@@ -1150,6 +1150,12 @@ class ExpressionEmissionMixin:
             return whyml_ident(name) if name != "self" else name
         if name in self._shared_var_names:
             return f"!{whyml_ident(name)}"
+        # module-constants-plan: a module-level int constant resolves to its literal,
+        # in both body and contract (so e.g. `kinds[0] == K_IHDR` discharges). Comes
+        # after the local/param/shared checks, so a same-named local correctly shadows
+        # it. Replaces the opaque `val constant` for these names.
+        if name in self._module_constants:
+            return f"({self._module_constants[name]})"
         safe = whyml_ident(name)
         self._add_abstract_op(f"val constant {safe} : int")
         return safe
