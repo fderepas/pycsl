@@ -53,6 +53,31 @@ class Disjoint(CSLNode):
     names: List[str]
 
 @dataclass
+class Preserves(CSLNode):
+    """`#@ \\preserves` on a `\\trusted`/`\\abstract` method — opts the function into
+    the HAPPY trust boundary (meta.md Stage B, option C). The meta-pass synthesizes
+    and attaches the canonical region-preservation `ensures` for every module HAPPY
+    over a field this function does not legitimately write, so callers may assume the
+    region is untouched. A non-exempt trusted/abstract function WITHOUT this marker is
+    a hard error (theorem clause 2 has teeth)."""
+    pass
+
+@dataclass
+class HappyProperty(CSLNode):
+    """A module-level HAPPY (High-level Assertion-Producing PYthon requirement):
+    `#@ happy NAME: region LO .. HI writes self.FIELD outside region except f, g`.
+    Declares one cross-cutting region-disjointness property; Module3's meta-pass
+    expands it into a per-site `#@ check` (a `CheckPoint`) at every write site of
+    `self.FIELD` in every method other than the exempt set. Desugars entirely to
+    the Stage-A check primitive — no new IR/backend. See `meta.md` Stage B."""
+    name: str
+    field: str            # the shared instance field, e.g. "disk" (target = self.<field>)
+    region_lo: CSLNode    # region lower bound (inclusive)
+    region_hi: CSLNode    # region upper bound (exclusive)
+    except_set: List[str] # method names allowed to write the region (the legitimate writers)
+    context: str = "writing"
+
+@dataclass
 class LoopInvariant(ContractWrapper):
     expr: CSLNode
 
@@ -99,6 +124,15 @@ class Nothing(CSLNode):
 class FieldAccess(CSLNode):
     object: str   # "self"
     field: str
+
+@dataclass
+class FieldSubscript(CSLNode):
+    """Represents `self.<field>[i]` — subscript of an instance ARRAY field in a
+    contract. Enables region-preservation postconditions such as
+    `\\forall i; (lo <= i and i < hi) ==> self.disk[i] == \\old(self.disk[i])`
+    on a `\\trusted`/`\\abstract` writer (meta.md Stage B, option C)."""
+    field: str       # the field name (no "self." prefix), e.g. "disk"
+    index: CSLNode
 
 @dataclass
 class ClassInvariant(CSLNode):
@@ -157,6 +191,7 @@ class CheckPoint(CSLNode):
     which is a runtime check the prover ignores."""
     kind: str        # "assert" | "check"
     expr: CSLNode
+    origin: str = None   # attribution for synthesized obligations (e.g. a HAPPY); None when hand-written
 
 @dataclass
 class At(CSLNode):
@@ -610,6 +645,7 @@ PYCSL_GRAMMAR = r"""
              | diverges_decl
              | trusted_decl
              | abstract_decl
+             | preserves_decl
              | ghost_assign
              | ghost_aug_assign
              | ghost_array_set
@@ -629,6 +665,7 @@ PYCSL_GRAMMAR = r"""
              | act_block
              | complete_decl
              | disjoint_decl
+             | happy_decl
 
     precondition: "requires" expr
     postcondition: "ensures" expr
@@ -641,6 +678,12 @@ PYCSL_GRAMMAR = r"""
     complete_decl: "complete" act_names
     disjoint_decl: "disjoint" act_names
     act_names: CNAME ("," CNAME)*
+
+    // Module-level HAPPY meta-property (Module1 folds the `happy NAME:` block into
+    // one contract string; clauses are keyword-delimited). v1 surface: a region
+    // [LO, HI) that a named shared field must not be written into, except by an
+    // allowlisted set of methods. See `meta.md` Stage B and `Module3._expand_happy_properties`.
+    happy_decl: "happy" CNAME ":" "region" expr RANGE_OP expr "writes" "self" "." CNAME "outside" "region" ("except" act_names)?
     
     // Extracted alias from group to prevent Lark GrammarError
     assigns: "assigns" assigns_target
@@ -662,6 +705,7 @@ PYCSL_GRAMMAR = r"""
     diverges_decl: "\\diverges"
     trusted_decl: "\\trusted" ("reviewer" ":" REVIEWER_ID)?
     abstract_decl: "\\abstract"
+    preserves_decl: "\\preserves"
     REVIEWER_ID: /[A-Za-z0-9._@-]+/
     ghost_assign: "ghost" CNAME ":" GHOST_TYPE "=" expr -> ghost_assign_typed
               | "ghost" CNAME "=" expr -> ghost_assign_untyped
@@ -733,6 +777,7 @@ PYCSL_GRAMMAR = r"""
          | "True" -> true_lit
          | "False" -> false_lit
          | "None" -> none_lit
+         | "self" "." CNAME "[" expr "]" -> field_subscript
          | "self" "." CNAME -> field_access
          | "\\result" "[" expr "]" -> result_subscript
          | "\\is_sorted" "(" CNAME "," expr "," expr ")" -> is_sorted_expr
@@ -852,6 +897,10 @@ class PyCSLTransformer(Transformer):
     def act_names(self, *names) -> list: return [str(n) for n in names]
     def complete_decl(self, names) -> Complete: return Complete(names)
     def disjoint_decl(self, names) -> Disjoint: return Disjoint(names)
+    def happy_decl(self, name, lo, _op, hi, field, *rest) -> HappyProperty:
+        # `rest` is the optional except list (act_names → List[str]) or empty.
+        except_set = list(rest[0]) if rest else []
+        return HappyProperty(str(name), str(field), lo, hi, except_set)
 
     def assigns(self, target) -> Assigns:
         if isinstance(target, Nothing):
@@ -871,6 +920,8 @@ class PyCSLTransformer(Transformer):
         return Trusted(reviewer=str(args[0]) if args else "")
     def abstract_decl(self) -> Abstract:
         return Abstract()
+    def preserves_decl(self) -> Preserves:
+        return Preserves()
     def ghost_assign_typed(self, name, ghost_type, expr) -> GhostAssignDecl:
         return GhostAssignDecl(str(name), expr, "=", declared_type=str(ghost_type))
     def ghost_assign_untyped(self, name, expr) -> GhostAssignDecl:
@@ -958,6 +1009,7 @@ class PyCSLTransformer(Transformer):
     def none_lit(self) -> CSLNone: return CSLNone()
     def var(self, name) -> Var: return Var(str(name))
     def field_access(self, field_name) -> FieldAccess: return FieldAccess("self", str(field_name))
+    def field_subscript(self, field_name, index) -> FieldSubscript: return FieldSubscript(str(field_name), index)
     def result(self) -> Result: return Result()
     def old_var(self, expr) -> Old: return Old(expr)
     def nothing(self) -> Nothing: return Nothing()

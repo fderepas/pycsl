@@ -388,6 +388,29 @@ $$\mathcal{T}\llbracket \texttt{\#@ assert P} \rrbracket = \texttt{assert \{ P \
 `check { P }` proves `P` without adding it. `P` is emitted in spec (boolean) context,
 so `\old`/comparisons are handled as in a contract.
 
+### §T.2.5c  HAPPY meta-property (`happy` / `\preserves`)
+
+A HAPPY introduces **no** new WhyML construct: Module 3's meta-pass expands it (front-end
+only) into the §T.2.5b checkpoints. For a HAPPY `region LO..HI writes self.f outside region
+except E`, at each write of `self.f` in every method `m ∉ E`:
+
+$$\mathcal{T}\llbracket \texttt{self.f[i] = v} \rrbracket_{\text{HAPPY}}
+= \texttt{check \{ i < LO || i >= HI \};}\ \ \mathcal{T}\llbracket \texttt{self.f[i] = v} \rrbracket$$
+
+$$\mathcal{T}\llbracket \texttt{self.f[a:b] = v} \rrbracket_{\text{HAPPY}}
+= \texttt{check \{ b <= LO || a >= HI \};}\ \ \mathcal{T}\llbracket \texttt{self.f[a:b] = v} \rrbracket$$
+
+(an augmented subscript `self.f[i] |= v` is a point write). Each emitted `check` is preceded
+by an attribution comment `(* happy <name> @ self.f L<line> *)`, so a failed obligation names
+the property and the offending site. For a non-exempt `\trusted`/`\abstract` writer carrying
+`#@ \preserves`, the meta-pass synthesizes and attaches the region-preservation postcondition
+
+$$\texttt{ensures \{ forall i. (LO <= i \&\& i < HI) -> self.f[i] = (old self.f[i]) \}}$$
+
+emitted on its `val` (§T.2.6) and thus **assumed** at call sites. The field-subscript term
+`self.f[i]` lowers to a subscript of the record field `f` (hoare: `self.f[i]`); `\old(self.f[i])`
+to `(old self.f[i])`.
+
 ### §T.2.6  Trusted Functions (`\trusted [reviewer: <name>]`)
 
 $$\mathcal{T}_f\llbracket \texttt{def f(...): \#@ \\trusted ...} \rrbracket

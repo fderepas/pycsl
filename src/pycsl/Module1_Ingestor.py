@@ -60,9 +60,22 @@ def _clean(comment_text: str) -> str:
     return comment_text[2:].strip()
 
 
-# `act NAME:` block header (an own-line `#@` body). Indentation is significant:
-# clauses sit exactly 4 spaces deeper than `act`. See `_Harvester._fold_acts`.
+# Block-header `#@` bodies (own-line). Indentation is significant: clauses sit
+# exactly 4 spaces deeper than the header. Both `act NAME:` (guarded cases) and
+# `happy NAME:` (module-level HAPPY meta-property) fold identically. See
+# `_Harvester._fold_blocks`.
 _ACT_HDR = re.compile(r"^\s*act\s+(\w+)\s*:\s*$")
+_HAPPY_HDR = re.compile(r"^\s*happy\s+(\w+)\s*:\s*$")
+_BLOCK_HDRS = (("act", _ACT_HDR), ("happy", _HAPPY_HDR))
+
+
+def _match_block_hdr(line: str):
+    """Return `(keyword, name)` if `line` opens an `act`/`happy` block, else None."""
+    for kw, rx in _BLOCK_HDRS:
+        m = rx.match(line)
+        if m:
+            return kw, m.group(1)
+    return None
 
 
 def _indent_width(body: str) -> int:
@@ -189,46 +202,47 @@ class _Harvester:
             else:
                 nxt.leading.append(raw)   # raw (indent kept); normalized at emit
 
-    # --- act-block folding (engaged ONLY when an `act` header is present) -
+    # --- block folding (engaged ONLY when an `act`/`happy` header is present) -
     def _normalize_leading(self, raw_lines: List[str]) -> List[str]:
         """Turn a target's raw (indent-preserved) leading bodies into contract
-        strings. With no `act` header present this is `[ln.strip() …]` — exactly
-        what the old `_clean` produced, so non-`act` contracts are byte-identical.
-        Only an `act` header engages the folder."""
-        if not any(_ACT_HDR.match(ln) for ln in raw_lines):
+        strings. With no block header present this is `[ln.strip() …]` — exactly
+        what the old `_clean` produced, so non-block contracts are byte-identical.
+        Only an `act`/`happy` header engages the folder."""
+        if not any(_match_block_hdr(ln) for ln in raw_lines):
             return [ln.strip() for ln in raw_lines]
-        return self._fold_acts(raw_lines)
+        return self._fold_blocks(raw_lines)
 
-    def _fold_acts(self, raw_lines: List[str]) -> List[str]:
-        """Fold each `act NAME:` header + its 4-space-indented body lines into one
-        contract string `act NAME: <clause> <clause> …`. Strict and fail-loud: a
-        body line must be indented exactly 4 spaces under `act`; any other indent,
-        a tab, or an empty body is a hard `PyCSLParseError` (never reinterpreted)."""
+    def _fold_blocks(self, raw_lines: List[str]) -> List[str]:
+        """Fold each `act NAME:` / `happy NAME:` header + its 4-space-indented body
+        lines into one contract string `<kw> NAME: <clause> <clause> …`. Strict and
+        fail-loud: a body line must be indented exactly 4 spaces under the header; any
+        other indent, a tab, or an empty body is a hard `PyCSLParseError` (never
+        reinterpreted)."""
         out: List[str] = []
         i, n = 0, len(raw_lines)
         while i < n:
-            m = _ACT_HDR.match(raw_lines[i])
-            if not m:
+            hdr = _match_block_hdr(raw_lines[i])
+            if not hdr:
                 out.append(raw_lines[i].strip())
                 i += 1
                 continue
-            name = m.group(1)
-            act_indent = _indent_width(raw_lines[i])
+            kw, name = hdr
+            blk_indent = _indent_width(raw_lines[i])
             i += 1
             clauses: List[str] = []
             while i < n and raw_lines[i].strip():
                 body_indent = _indent_width(raw_lines[i])
-                if body_indent <= act_indent:
+                if body_indent <= blk_indent:
                     break                       # block ends (next top-level contract)
-                if body_indent != act_indent + 4:
+                if body_indent != blk_indent + 4:
                     raise PyCSLParseError(
-                        f"`act {name}`: body must be indented exactly 4 spaces under "
-                        f"`act` (got {body_indent - act_indent})", stage="Module1")
+                        f"`{kw} {name}`: body must be indented exactly 4 spaces under "
+                        f"`{kw}` (got {body_indent - blk_indent})", stage="Module1")
                 clauses.append(raw_lines[i].strip())
                 i += 1
             if not clauses:
-                raise PyCSLParseError(f"`act {name}`: empty body", stage="Module1")
-            out.append(f"act {name}: " + " ".join(clauses))
+                raise PyCSLParseError(f"`{kw} {name}`: empty body", stage="Module1")
+            out.append(f"{kw} {name}: " + " ".join(clauses))
         return out
 
     # --- emit in libcst pre-order: node, then its block footer, then body --

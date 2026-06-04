@@ -398,6 +398,45 @@ The `#@ ghost` directive must appear on a leading line before a Python statement
 
 ---
 
+### 2.5 Module-level meta-properties (HAPPY)
+
+A **HAPPY** (High-level Assertion-Producing PYthon requirement) is one *module-level*
+declaration of a cross-cutting region-integrity property over a shared instance field;
+the compiler expands it into a per-site `#@ check` (§2.4) at every write of that field in
+every method except an allowlisted set. One declaration replaces a disjoint-region
+obligation otherwise hand-copied into every write site. (PyCSL's analogue of
+MetAcsl/Frama-C HILARE high-level requirements; see `meta.md`.)
+
+Written as a Python-style block (like `act`, §2.1.15): `#@ happy <name>:` followed by a
+**4-space-indented** body:
+
+```
+#@ happy region_integrity:
+#@     region 512 .. 2560
+#@     writes self.disk outside region
+#@     except _write_inode, _write_directory
+```
+
+| # | Directive | Syntax | Scope | Semantics |
+|---|---|---|---|---|
+| 1 | HAPPY | `#@ happy <name>:` block (`region LO .. HI` / `writes self.<field> outside region` / optional `except m1, m2, …`) | Module-level | Every write `self.<field>[i] = …` (point, slice, or augmented) in any method **not** in the `except` set must lie outside `[LO, HI)`. Expands to a per-site `#@ check ({i}) < LO or ({i}) >= HI` (slice `[a:b]`: `b <= LO or a >= HI`). |
+| 2 | Preserves | `#@ \preserves` | Function/method | Opts a `\trusted`/`\abstract` (bodyless) method into the HAPPY trust boundary. The meta-pass synthesizes and attaches `ensures \forall i; (LO <= i and i < HI) ==> self.<field>[i] == \old(self.<field>[i])` (assumed at the boundary). A non-exempt `\trusted`/`\abstract` method **without** `#@ \preserves` is a hard error. |
+
+**Expansion & soundness.** The obligation is injected at the *actual location written*, so it
+needs no alias analysis (value-semantic arrays bar a local alias from mutating the shared
+field) and no caller reasoning (an indirect write through a callee is caught at the callee's
+own site — *universal coverage*, not the call graph, is load-bearing). A `\writing` HAPPY
+emits `#@ check` (a single write's legality is not a reusable downstream fact). Each injected
+check carries an `origin` comment naming the HAPPY and the offending site, so a failure points
+to both. Per-method `requires`/`ensures` are unaffected.
+
+**Validation.** Each `except` name must be a real method (a typo would silently widen coverage
+— hard error); a HAPPY whose field is never written warns (inert). See `meta.md` for the
+composition theorem (universal body coverage + the `\preserves` trust boundary ⟹ no execution
+writes the region).
+
+---
+
 ## 3. Expression Language
 
 ### 3.1 Atoms
@@ -407,6 +446,7 @@ The `#@ ghost` directive must appear on a leading line before a Python statement
 | 1 | `42`, `-1`, `0` | `Number` | Integer literal |
 | 2 | `x`, `n`, `total` | `Var` | Variable reference |
 | 3 | `self.field` | `FieldAccess` | Class field access |
+| 3b | `self.field[i]` | `FieldSubscript` | Element of an instance ARRAY field (e.g. for region-preservation: `self.disk[i] == \old(self.disk[i])`). Lowers to a subscript of the record field in the hoare model. |
 | 4 | `arr[i]` | `SubscriptAccess` | Array element access |
 | 5 | `\result` | `Result` | Return value (only in `ensures`) |
 | 6 | `\old(<expr>)` | `Old` | Value of expression at function entry |
@@ -754,7 +794,16 @@ Extracted from `Module2_Parser.py` — this is the canonical grammar:
 ?contract: precondition | postcondition | assigns
          | loop_invariant | loop_variant | class_invariant | label_decl
          | function_variant | function_variant_structural
-         | diverges_decl | trusted_decl
+         | diverges_decl | trusted_decl | abstract_decl | preserves_decl
+         | assert_decl | check_decl | act_block | complete_decl | disjoint_decl
+         | happy_decl
+
+happy_decl:    "happy" CNAME ":" "region" expr ".." expr
+               "writes" "self" "." CNAME "outside" "region"
+               ("except" CNAME ("," CNAME)*)?
+preserves_decl: "\preserves"
+assert_decl:   "assert" expr
+check_decl:    "check" expr
 
 precondition:    "requires" expr
 postcondition:   "ensures" expr
@@ -794,7 +843,7 @@ assigns_region:      CNAME "[" expr ".." expr "]"
 
 ?unary: UNARY_OP unary | atom
 
-?atom: NUMBER | "self" "." CNAME | CNAME "[" expr "]" | CNAME
+?atom: NUMBER | "self" "." CNAME "[" expr "]" | "self" "." CNAME | CNAME "[" expr "]" | CNAME
      | "\result" | "\old" "(" expr ")" | "\length" "(" CNAME ")"
      | "\valid" "(" CNAME "," expr ")"
      | "\separated" "(" CNAME "," expr "," CNAME "," expr ")"

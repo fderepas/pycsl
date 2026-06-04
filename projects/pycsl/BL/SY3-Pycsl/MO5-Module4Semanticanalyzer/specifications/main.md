@@ -16,12 +16,12 @@ bin/cmmi-mod-index.py --file src/pycsl/Module4_SemanticAnalyzer.py
 - `contains_result` — `src/pycsl/Module4_SemanticAnalyzer.py:144`
 - `Module4_SemanticAnalyzer.__init__` — `src/pycsl/Module4_SemanticAnalyzer.py:161`
 - `Module4_SemanticAnalyzer.visit_Module` — `src/pycsl/Module4_SemanticAnalyzer.py:370`
-- `Module4_SemanticAnalyzer.visit_ClassDef` — `src/pycsl/Module4_SemanticAnalyzer.py:389`
-- `Module4_SemanticAnalyzer.visit_FunctionDef` — `src/pycsl/Module4_SemanticAnalyzer.py:429`
-- `Module4_SemanticAnalyzer.visit_While` — `src/pycsl/Module4_SemanticAnalyzer.py:666`
-- `Module4_SemanticAnalyzer.process` — `src/pycsl/Module4_SemanticAnalyzer.py:678`
+- `Module4_SemanticAnalyzer.visit_ClassDef` — `src/pycsl/Module4_SemanticAnalyzer.py:432`
+- `Module4_SemanticAnalyzer.visit_FunctionDef` — `src/pycsl/Module4_SemanticAnalyzer.py:472`
+- `Module4_SemanticAnalyzer.visit_While` — `src/pycsl/Module4_SemanticAnalyzer.py:709`
+- `Module4_SemanticAnalyzer.process` — `src/pycsl/Module4_SemanticAnalyzer.py:721`
 
-## Private (leading-`_`) defs (26)
+## Private (leading-`_`) defs (27)
 
 - `_iter_csl_children` — `src/pycsl/Module4_SemanticAnalyzer.py:92`
 - `Module4_SemanticAnalyzer._get_type_name` — `src/pycsl/Module4_SemanticAnalyzer.py:170`
@@ -41,14 +41,15 @@ bin/cmmi-mod-index.py --file src/pycsl/Module4_SemanticAnalyzer.py
 - `Module4_SemanticAnalyzer._check_shared_access` — `src/pycsl/Module4_SemanticAnalyzer.py:334`
 - `Module4_SemanticAnalyzer._check_expr_for_shared` — `src/pycsl/Module4_SemanticAnalyzer.py:347`
 - `Module4_SemanticAnalyzer._validate_mutex_invariant_scope` — `src/pycsl/Module4_SemanticAnalyzer.py:353`
-- `Module4_SemanticAnalyzer._collect_class_field_types` — `src/pycsl/Module4_SemanticAnalyzer.py:407`
-- `Module4_SemanticAnalyzer._build_function_scope` — `src/pycsl/Module4_SemanticAnalyzer.py:450`
-- `Module4_SemanticAnalyzer._validate_function_contracts` — `src/pycsl/Module4_SemanticAnalyzer.py:513`
-- `Module4_SemanticAnalyzer._validate_checkpoints` — `src/pycsl/Module4_SemanticAnalyzer.py:531`
-- `Module4_SemanticAnalyzer._validate_acts` — `src/pycsl/Module4_SemanticAnalyzer.py:545`
-- `Module4_SemanticAnalyzer._validate_no_exception` — `src/pycsl/Module4_SemanticAnalyzer.py:587`
-- `Module4_SemanticAnalyzer._validate_assigns_regions` — `src/pycsl/Module4_SemanticAnalyzer.py:621`
-- `Module4_SemanticAnalyzer._validate_subscript_assignments` — `src/pycsl/Module4_SemanticAnalyzer.py:638`
+- `Module4_SemanticAnalyzer._validate_happy` — `src/pycsl/Module4_SemanticAnalyzer.py:391`
+- `Module4_SemanticAnalyzer._collect_class_field_types` — `src/pycsl/Module4_SemanticAnalyzer.py:450`
+- `Module4_SemanticAnalyzer._build_function_scope` — `src/pycsl/Module4_SemanticAnalyzer.py:493`
+- `Module4_SemanticAnalyzer._validate_function_contracts` — `src/pycsl/Module4_SemanticAnalyzer.py:556`
+- `Module4_SemanticAnalyzer._validate_checkpoints` — `src/pycsl/Module4_SemanticAnalyzer.py:574`
+- `Module4_SemanticAnalyzer._validate_acts` — `src/pycsl/Module4_SemanticAnalyzer.py:588`
+- `Module4_SemanticAnalyzer._validate_no_exception` — `src/pycsl/Module4_SemanticAnalyzer.py:630`
+- `Module4_SemanticAnalyzer._validate_assigns_regions` — `src/pycsl/Module4_SemanticAnalyzer.py:664`
+- `Module4_SemanticAnalyzer._validate_subscript_assignments` — `src/pycsl/Module4_SemanticAnalyzer.py:681`
 
 ---
 
@@ -56,4 +57,4 @@ bin/cmmi-mod-index.py --file src/pycsl/Module4_SemanticAnalyzer.py
 
 The `#@` contract block immediately preceding each `def` in `src/pycsl/Module4_SemanticAnalyzer.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **34** (public: 8, private: 26).
+Total defs: **35** (public: 8, private: 27).

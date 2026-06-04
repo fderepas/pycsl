@@ -108,10 +108,13 @@ _Corresponds to `annotations.md` §2.1._
 | 2.1.18| Disjoint | `disjoint_decl ::= "disjoint" CNAME ("," CNAME)* ;` — `#@ disjoint <names>` |
 | 2.4.7 | Assert | `assert_decl ::= "assert" expr ;` — `#@ assert <expr>` (statement-position; prove-and-assume) |
 | 2.4.8 | Check  | `check_decl ::= "check" expr ;` — `#@ check <expr>` (statement-position; prove-and-discard) |
+| 2.5.1 | HAPPY | `happy_decl ::= "happy" CNAME ":" "region" expr ".." expr "writes" "self" "." CNAME "outside" "region" ("except" CNAME ("," CNAME)*)? ;` — module-level; surface is a `#@ happy <name>:` block with a 4-space-indented body |
+| 2.5.2 | Preserves | `preserves_decl ::= "\preserves" ;` — `#@ \preserves` (function/method; HAPPY trust-boundary opt-in) |
+| 3.1.3b | Field subscript | `field_subscript ::= "self" "." CNAME "[" expr "]" ;` — element of an instance array field in a contract expression |
 
-`act` blocks are line-folded in Module 1 (indentation is significant in the surface
-but consumed there); the grammar above sees a flat keyword-delimited clause sequence.
-See `annotations.md` §2.1.15.
+`act` and `happy` blocks are line-folded in Module 1 (indentation is significant in the
+surface but consumed there); the grammar above sees a flat keyword-delimited clause
+sequence. See `annotations.md` §2.1.15 and §2.5.
 
 ### 2.1.13 No-exception (`no_exception E1, E2, …` / `no_exception \all`)
 

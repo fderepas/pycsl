@@ -10,7 +10,8 @@ from Module2_Parser import (
     Requires, Ensures, Assigns, LoopInvariant, LoopVariant,
     BinOp as CSLBinOp, UnaryOp as CSLUnaryOp, Var as CSLVar,
     Number as CSLNumber, Result as CSLResult, Old as CSLOld, Nothing,
-    FieldAccess as CSLFieldAccess, Forall, Exists, ArrayLength, SubscriptAccess,
+    FieldAccess as CSLFieldAccess, FieldSubscript as CSLFieldSubscript,
+    Forall, Exists, ArrayLength, SubscriptAccess,
     AssignsRegion, Valid, Separated, At as CSLAt,
     Length2D, Valid2D, FunctionVariant, StringLiteral as CSLStringLiteral,
     CallExpr, IsSorted, ArrayEq, Sum, CSLBool, CSLNone, CSLIn, CSLNotIn, CSLSlice,
@@ -79,6 +80,7 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
         CSLBinOp:         "_csl_binop",
         CSLUnaryOp:       "_csl_unaryop",
         CSLFieldAccess:   "_csl_field_access",
+        CSLFieldSubscript: "_csl_field_subscript",
         CSLVar:           "_csl_var",
         CSLNumber:        "_csl_number",
         CSLStringLiteral: "_csl_string",
@@ -164,6 +166,13 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
 
     def _csl_field_access(self, node: CSLFieldAccess) -> Dict[str, Any]:
         return {"type": "FieldGet", "object": node.object, "field": node.field}
+
+    def _csl_field_subscript(self, node: CSLFieldSubscript) -> Dict[str, Any]:
+        # `self.<field>[i]` → Subscript of a FieldGet, reusing the existing
+        # hoare subscript-of-field lowering (module6 `_handle_subscript`).
+        return {"type": "Subscript",
+                "value": {"type": "FieldGet", "object": "self", "field": node.field},
+                "index": self._csl_to_ir(node.index)}
 
     def _csl_var(self, node: CSLVar) -> Dict[str, Any]:
         return {"type": "Var", "name": node.name}
@@ -682,8 +691,12 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
             for cp in getattr(stmt, 'csl_checkpoints', []):
                 # `#@ assert P` / `#@ check P` — a real proof obligation before the
                 # statement (distinct from the Python `assert` stmt, which is a no-op).
-                ir_stmts.append({"stmt": "ProofAssert", "kind": cp.kind,
-                                 "test": self._csl_to_ir(cp.expr)})
+                pa = {"stmt": "ProofAssert", "kind": cp.kind,
+                      "test": self._csl_to_ir(cp.expr)}
+                origin = getattr(cp, "origin", None)
+                if origin:                      # attribution for synthesized (e.g. HAPPY) checks
+                    pa["origin"] = origin
+                ir_stmts.append(pa)
             for ga in getattr(stmt, 'csl_ghost_assigns', []):
                 if isinstance(ga, GhostArraySetDecl):
                     ir_stmts.append({

@@ -186,6 +186,33 @@ is **not** in scope (a checkpoint is a mid-body obligation, bound before any ret
 Mid-body local bindings are left to the back-end prover (not checked here). Enforced by
 `Module4._validate_checkpoints`.
 
+#### §2.5 Module-level HAPPY meta-property (`happy` / `\preserves`)
+
+```
+   region bounds LO, HI well-formed in Γ_module     names(except) ⊆ methods(module)
+   every non-exempt `\trusted`/`\abstract` method m carries `#@ \preserves`
+   ─────────────────────────────────────────────────────────────────────────────
+                       `#@ happy N: region LO..HI writes self.f outside region …` ok
+```
+
+**Rule.** Each `except` name must resolve to a method defined in the module — a name
+matching no method is rejected (a typo would silently widen coverage). A HAPPY whose field
+is never written warns (the property is inert). Each non-exempt `\trusted`/`\abstract`
+method has no checkable body, so it must opt into the trust boundary with `#@ \preserves`
+(theorem clause 2); its absence is a hard error. Validation: exempt-name and inert-field
+checks in `Module4._validate_happy`; the trust-boundary requirement in
+`Module3_Weaver._expand_happy_properties`.
+
+**Soundness (composition theorem, `meta.md`).** If every body-verified method discharges a
+`#@ check φ(ℓ)` at each write site of `self.f` (universal coverage, clause 1) and every other
+mutator is exempt or carries the `\preserves` region-preservation `ensures` (clause 2), then
+no execution writes the protected region. No alias analysis is needed (the obligation is at
+the location written; value-semantic arrays bar local-alias escape) and no caller reasoning
+(an indirect write is caught at the callee's own site).
+
+The field-subscript atom `self.f[i]` is well-formed where `self.f` is an instance array field
+in scope (Γ_f), with `i : int`; it is the term used in `\preserves` postconditions.
+
 #### §2.1.1 Precondition (`requires`)
 
 ```

@@ -40,9 +40,9 @@ _(none)_
 - `StatementEmissionMixin._handle_return_stmt` — `src/pycsl/module6_whyml/statements.py:1017`
 - `StatementEmissionMixin._handle_expr_stmt` — `src/pycsl/module6_whyml/statements.py:1085`
 - `StatementEmissionMixin._stmts_to_whyml` — `src/pycsl/module6_whyml/statements.py:1144`
-- `StatementEmissionMixin._emit_frame_condition` — `src/pycsl/module6_whyml/statements.py:1247`
-- `StatementEmissionMixin._wrap_body_with_return_catch` — `src/pycsl/module6_whyml/statements.py:1283`
-- `StatementEmissionMixin._emit_body_code` — `src/pycsl/module6_whyml/statements.py:1298`
+- `StatementEmissionMixin._emit_frame_condition` — `src/pycsl/module6_whyml/statements.py:1249`
+- `StatementEmissionMixin._wrap_body_with_return_catch` — `src/pycsl/module6_whyml/statements.py:1285`
+- `StatementEmissionMixin._emit_body_code` — `src/pycsl/module6_whyml/statements.py:1300`
 
 ---
 

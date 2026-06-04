@@ -120,6 +120,35 @@ def stepper(x: int) -> int:
 ```
 See `annotations.md` §2.4 (rows 7–8). Demos: corpus `0457` (proves), `0458` (false assert fails).
 
+## Section 3d — Region integrity (`#@ happy` meta-property)
+
+When a class has a shared array field with a **reserved region** that only a few methods
+may write (inode tables, headers, a bitmap), don't hand-copy a disjointness obligation into
+every write site — declare ONE module-level **HAPPY** and let the compiler inject the per-site
+`#@ check` everywhere. Written as a block (like `act`), 4-space-indented body:
+
+```python
+#@ happy region_integrity:
+#@     region 512 .. 2560
+#@     writes self.disk outside region
+#@     except _write_inode, _write_directory
+```
+
+- Every write `self.disk[i] = …` / `self.disk[a:b] = …` / `self.disk[i] |= …` in any method
+  **not** listed in `except` must lie outside `[512, 2560)`; the meta-pass injects
+  `#@ check i < 512 or i >= 2560` (slice: `b <= 512 or a >= 2560`) at each. A failure names
+  the HAPPY and the offending site.
+- `except` lists the *legitimate writers*. A typo'd name is a hard error (it would silently
+  widen coverage).
+- A non-exempt `\trusted`/`\abstract` method (no checkable body) must add `#@ \preserves` to
+  promise it leaves the region untouched (the meta-pass attaches the assumed
+  `ensures \forall i; (512 <= i and i < 2560) ==> self.disk[i] == \old(self.disk[i])`);
+  omitting it is a hard error.
+
+The field-subscript term `self.field[i]` is usable in any contract (e.g. a hand-written
+preservation `ensures`). See `annotations.md` §2.5. Demos: corpus `0459` (proves), `0460`
+(in-region write fails at its site), `0461`/`0462` (trusted boundary with/without `\preserves`).
+
 ---
 
 ## Section 4 — Forbidden in contract expressions

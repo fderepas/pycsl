@@ -206,6 +206,38 @@ not build Stage B** — document the manual `assigns`-disjointness idiom instead
 > ⇒ **The HAPPY meta-pass (B1–B5) is justified** — build it next (a separate pass) to
 > auto-inject the per-site `#@ check` the spike hand-wrote.
 
+> **IMPLEMENTED (B1–B5).** The meta-pass ships, hoare-first, exactly as gated:
+> - **Surface** (B1): a module-level `#@ happy NAME:` block (`region LO .. HI` /
+>   `writes self.<field> outside region` / `except …`), folded in Module1 (mirroring
+>   `act`), parsed to `HappyProperty` (Module2), hoisted to the module node (Module3).
+> - **Expansion** (B2/B3): `Module3._expand_happy_properties` injects a per-site
+>   `#@ check` (point: `i < LO || i >= HI`; slice `[a:b]`: `b <= LO || a >= HI`;
+>   augmented subscript = point) as synthesized `CheckPoint`s — reusing the Stage-A
+>   `ProofAssert → check {}` pipeline, **no new IR/backend**. Each check carries an
+>   `origin` comment naming the HAPPY + site.
+> - **Writer identity** = **A** (static per-function specialization via the `except`
+>   set). **Trust boundary** = **C**, realized in **hoare** form: a new field-subscript
+>   contract surface `self.<field>[i]` (Module2/5; the existing hoare subscript-of-record
+>   lowering in module6 needed no change) lets a non-exempt `\trusted`/`\abstract` writer
+>   carry `#@ \preserves`, which synthesizes the assumed region-preservation `ensures`
+>   `\forall i; (LO <= i and i < HI) ==> self.<field>[i] == \old(self.<field>[i])`. Its
+>   absence is a hard error. *(Amends B1a's "option C is typed/store-only": in hoare it is
+>   a region-preservation postcondition, not an `assigns` frame.)*
+> - **Validation** (Module4): bad `except` name → hard error; inert field → warning.
+> - **Corpus**: `0459` (proves), `0460` (in-region write fails at its site), `0461`/`0462`
+>   (trusted boundary with/without `#@ \preserves`). 5-surface doc-coherency green.
+> - **Worked target** (`unix-filesystem/UnixInodeFileSystem.py`): the single
+>   `#@ happy inode_integrity` declaration **auto-injects 10 per-site checks** across the
+>   non-exempt methods (14 sites total incl. the 2 exempt writers) — the N→1 ROI,
+>   confirmed via `--no-proof`. Full multi-site proof is **deferred**: the property is
+>   semantically true but ~4 sites need bounds the methods don't yet state (e.g.
+>   `_set_bitmap` writes `[0,512)` but only requires `byte_offset < 131072`; the bitmap
+>   index also hits the same bitwise-arithmetic hardness `_get_bitmap` already discharges
+>   via a Coq axiom). Strengthening those contracts is fs-verification work tangential to
+>   the meta-pass and is left as a follow-on; the annotation is therefore not committed to
+>   the flagship file (which stays green). The mechanism itself is fully proven by the
+>   corpus above.
+
 ### B0 — Soundness spike (the analysis half of the gate; before any surface work)
 
 A read-only analysis producing a written soundness argument (or a hole list). Establish,

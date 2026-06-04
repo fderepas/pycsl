@@ -16,8 +16,9 @@ from Module2_Parser import (
     SharedDecl, ThreadEntry, Acquires, Releases, CriticalSection,
     MutexInvariant, LockOrder, BinOp, Number,
     Act, Given, Complete, Disjoint, Old, UnaryOp, CSLBool,
-    CheckPoint,
+    CheckPoint, HappyProperty, Preserves, Var, Forall, FieldSubscript,
 )
+import copy
 from errors import PyCSLSemanticError
 from Module1_Ingestor import PyCSLContract
 
@@ -47,6 +48,7 @@ class PyCSLWeaver(ast.NodeVisitor):
         node.csl_diverges = False
         node.csl_trusted = False
         node.csl_abstract = False
+        node.csl_preserves = False        # `#@ \preserves` — HAPPY trust-boundary opt-in
         node.csl_reviewer = ""
         node.csl_raises = []
         node.csl_no_exception = []        # list of exception-name strings
@@ -149,6 +151,8 @@ class PyCSLWeaver(ast.NodeVisitor):
                     )
             elif isinstance(c, Abstract):
                 node.csl_abstract = True
+            elif isinstance(c, Preserves):
+                node.csl_preserves = True
             elif isinstance(c, RaisesDecl):
                 node.csl_raises.append(c)
             elif isinstance(c, NoExceptionDecl):
@@ -202,6 +206,7 @@ class PyCSLWeaver(ast.NodeVisitor):
         node.csl_shared_decls = []
         node.csl_mutex_invariants = {}
         node.csl_lock_order = None
+        node.csl_happy_properties = []   # populated by Module3_Weaver.process (hoisted)
 
         if 0 in self.contracts_map:
             for c in self.contracts_map[0]:
@@ -402,10 +407,172 @@ class Module3_Weaver:
                 existing = getattr(ast_node, 'csl_trailing_ghost_assigns', [])
                 ast_node.csl_trailing_ghost_assigns = existing + trailing
 
+    @staticmethod
+    def _extract_happy_properties(
+            contracts_map: Dict[int, List[CSLNode]]) -> List[HappyProperty]:
+        """Pull every module-level `HappyProperty` out of `contracts_map` (a folded
+        `happy NAME:` block lands on whichever node the module-header prepend attached
+        it to — typically the first class/function). Removing them here means the
+        per-node weaver dispatch never sees a HAPPY; they are re-attached to the module
+        node and consumed by the meta-pass `_expand_happy_properties`. Mirrors the
+        global rescan in `_consolidate_module_concurrency`."""
+        out: List[HappyProperty] = []
+        for line, nodes in contracts_map.items():
+            kept = [n for n in nodes if not isinstance(n, HappyProperty)]
+            out.extend(n for n in nodes if isinstance(n, HappyProperty))
+            contracts_map[line] = kept
+        return out
+
+    # --- HAPPY meta-pass (meta.md Stage B): expand a module-level region-disjointness
+    #     property into a per-site `#@ check` at every write of the shared field, in
+    #     every method other than the exempt (legitimate-writer) set. -------------
+    @staticmethod
+    def _field_write_site(stmt: ast.stmt, field: str):
+        """If `stmt` writes `self.<field>[...]`, return a descriptor of the written
+        location, else None. Descriptor: {"kind": "point", "index": expr} or
+        {"kind": "slice", "lower": expr|None, "upper": expr|None}. Covers `Assign`,
+        `AnnAssign` and `AugAssign` (augmented subscript = point write)."""
+        targets = []
+        if isinstance(stmt, ast.Assign):
+            targets = stmt.targets
+        elif isinstance(stmt, (ast.AnnAssign, ast.AugAssign)):
+            targets = [stmt.target]
+        for tgt in targets:
+            if not isinstance(tgt, ast.Subscript):
+                continue
+            base = tgt.value
+            if not (isinstance(base, ast.Attribute)
+                    and isinstance(base.value, ast.Name)
+                    and base.value.id == "self"
+                    and base.attr == field):
+                continue
+            sl = tgt.slice
+            if isinstance(sl, ast.Index):          # pre-3.9 wrapper (pure_ast mirrors CPython)
+                sl = sl.value
+            if isinstance(sl, ast.Slice):
+                return {"kind": "slice", "lower": sl.lower, "upper": sl.upper}
+            return {"kind": "point", "index": sl}
+        return None
+
+    def _happy_predicate(self, hp: HappyProperty, site: dict, line: int) -> CSLNode:
+        """Build the CSL disjointness predicate for one write site of a HAPPY, as a
+        CSL AST (so it is identical to a hand-written `#@ check`). `lo`/`hi` are the
+        HAPPY's region bounds (reused, deep-copied); each Python index expression is
+        rendered to source and re-parsed via `parse_contract("check …")`."""
+        lo = lambda: copy.deepcopy(hp.region_lo)
+        hi = lambda: copy.deepcopy(hp.region_hi)
+
+        def to_csl(py_expr):
+            src = ast.unparse(py_expr)
+            return self.parser_module.parse_contract("check (" + src + ")", line).expr
+
+        if site["kind"] == "point":
+            return BinOp(BinOp(to_csl(site["index"]), "<", lo()),
+                         "or",
+                         BinOp(to_csl(site["index"]), ">=", hi()))
+        # slice [lower, upper): disjoint from [lo, hi) iff upper <= lo or lower >= hi.
+        lower, upper = site["lower"], site["upper"]
+        below = BinOp(to_csl(upper), "<=", lo()) if upper is not None else None
+        above = BinOp(to_csl(lower), ">=", hi()) if lower is not None else None
+        if below is not None and above is not None:
+            return BinOp(below, "or", above)
+        # An open end can only be certified disjoint from the closed side it clears:
+        # `self.f[:b]` (no lower) ⇒ b <= lo;  `self.f[a:]` (no upper) ⇒ a >= hi.
+        return below if below is not None else above
+
+    def _expand_happy_properties(self, python_ast: ast.AST,
+                                 happy_props: List[HappyProperty]) -> None:
+        """For each HAPPY, walk every function and inject a `#@ check` (a synthesized
+        `CheckPoint`) at every direct write site of the shared field, except in the
+        exempt (legitimate-writer) methods. Soundness is by universal coverage of body
+        write-sites (meta.md composition theorem, clause 1); the trusted boundary
+        (clause 2) is handled separately. Sites are processed in (lineno, col) order
+        for determinism; each injected check is tagged with an `origin` for attribution."""
+        if not happy_props:
+            return
+        funcs = [n for n in ast.walk(python_ast) if isinstance(n, ast.FunctionDef)]
+        for hp in happy_props:
+            except_set = set(hp.except_set)
+            # (A) Body coverage: a per-site `#@ check` at every direct write of the
+            # field in every non-exempt body-verified function (theorem clause 1).
+            sites: List[tuple] = []
+            self._collect_field_sites(python_ast, hp.field, None, sites)
+            sites.sort(key=lambda t: (getattr(t[0], "lineno", 0),
+                                      getattr(t[0], "col_offset", 0)))
+            for stmt, site, func_name in sites:
+                if func_name in except_set:
+                    continue
+                pred = self._happy_predicate(hp, site, getattr(stmt, "lineno", 0))
+                origin = (f"happy {hp.name} @ self.{hp.field} "
+                          f"L{getattr(stmt, 'lineno', 0)}")
+                cp = CheckPoint("check", pred, origin=origin)
+                stmt.csl_checkpoints = getattr(stmt, "csl_checkpoints", []) + [cp]
+            # (C) Trust boundary: a non-exempt trusted/abstract function has no
+            # checkable body, so it could write the protected region. It must opt in
+            # with `#@ \preserves`, which synthesizes the canonical region-preservation
+            # `ensures` (assumed at the boundary, theorem clause 2). Absent the marker
+            # is a hard error — the clause has teeth.
+            for fn in funcs:
+                if fn.name in except_set:
+                    continue
+                if not (getattr(fn, "csl_trusted", False)
+                        or getattr(fn, "csl_abstract", False)):
+                    continue
+                if not getattr(fn, "csl_preserves", False):
+                    lo, hi = (self._region_bound_str(hp.region_lo),
+                              self._region_bound_str(hp.region_hi))
+                    raise PyCSLSemanticError(
+                        f"`happy {hp.name}`: trusted/abstract function '{fn.name}' is "
+                        f"not exempt and has no checkable body, so it could write the "
+                        f"protected region [{lo}, {hi}) of self.{hp.field}. Add "
+                        f"`#@ \\preserves` to promise it preserves the region "
+                        f"(an assumed postcondition), or list it in `except`."
+                    )
+                fn.csl_ensures.append(self._canonical_preservation_ensures(hp))
+
+    @staticmethod
+    def _region_bound_str(node: CSLNode) -> str:
+        """Render a region bound (a CSL expr) for a diagnostic message."""
+        v = getattr(node, "value", None)
+        if v is not None:
+            return str(int(v)) if float(v).is_integer() else str(v)
+        return getattr(node, "name", "<expr>")
+
+    @staticmethod
+    def _canonical_preservation_ensures(hp: HappyProperty) -> Ensures:
+        """Build `ensures \\forall v; (lo <= v and v < hi) ==> self.field[v] ==
+        \\old(self.field[v])` for one HAPPY — the canonical region-preservation
+        postcondition the meta-pass attaches to an opted-in trusted/abstract writer.
+        Synthesized (not pattern-matched) so the guard always covers the full region."""
+        v = "__happy_i"
+        guard = BinOp(BinOp(copy.deepcopy(hp.region_lo), "<=", Var(v)),
+                      "and",
+                      BinOp(Var(v), "<", copy.deepcopy(hp.region_hi)))
+        eq = BinOp(FieldSubscript(hp.field, Var(v)),
+                   "==",
+                   Old(FieldSubscript(hp.field, Var(v))))
+        return Ensures(Forall(v, BinOp(guard, "==>", eq)))
+
+    def _collect_field_sites(self, node: ast.AST, field: str,
+                             cur_func, out: List[tuple]) -> None:
+        """Recursive descent collecting `(stmt, site, enclosing_func_name)` for every
+        write of `self.<field>[...]`. `cur_func` is the name of the nearest enclosing
+        FunctionDef (the writer)."""
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+                site = self._field_write_site(child, field)
+                if site is not None:
+                    out.append((child, site, cur_func))
+            inner_func = child.name if isinstance(child, ast.FunctionDef) else cur_func
+            self._collect_field_sites(child, field, inner_func, out)
+
     def process(self) -> ast.AST:
         contracts_map, trailing_contracts_map = self._parse_extracted_contracts()
+        happy_props = self._extract_happy_properties(contracts_map)
         python_ast = ast.parse(self.source_code)
         PyCSLWeaver(contracts_map).visit(python_ast)
+        python_ast.csl_happy_properties = happy_props
         self._consolidate_module_concurrency(python_ast, contracts_map)
         self._attach_labels_and_ghost_assigns(python_ast, contracts_map, trailing_contracts_map)
+        self._expand_happy_properties(python_ast, happy_props)
         return python_ast

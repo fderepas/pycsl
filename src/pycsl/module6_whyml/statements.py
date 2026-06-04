@@ -1202,7 +1202,9 @@ class StatementEmissionMixin:
             self._in_spec = True
             pred = self._expr_to_whyml(stmt["test"], local_refs)
             self._in_spec = False
-            code = f"{indent}{kw} {{ {pred} }}"
+            origin = stmt.get("origin")
+            comment = f"{indent}(* {origin} *)\n" if origin else ""
+            code = f"{comment}{indent}{kw} {{ {pred} }}"
 
         elif s_type == "Assert":
             # Python assert statements are runtime checks, not proof obligations.

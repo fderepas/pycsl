@@ -384,7 +384,50 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         if lock_order_node is not None:
             self._lock_order = lock_order_node.order
 
+        self._validate_happy(node)
+
         self.generic_visit(node)
+
+    def _validate_happy(self, node: ast.Module) -> None:
+        """Validate module-level HAPPY declarations (meta.md Stage B). Each exempt
+        name must be a real method (a typo would silently widen coverage — a hard
+        error); the target field should be written somewhere (else the HAPPY is inert
+        — a warning)."""
+        happy = getattr(node, 'csl_happy_properties', [])
+        if not happy:
+            return
+        method_names: Set[str] = set()
+        written_fields: Set[str] = set()
+        for n in ast.walk(node):
+            if isinstance(n, ast.FunctionDef):
+                method_names.add(n.name)
+            tgts = []
+            if isinstance(n, ast.Assign):
+                tgts = n.targets
+            elif isinstance(n, (ast.AnnAssign, ast.AugAssign)):
+                tgts = [n.target]
+            for t in tgts:
+                if (isinstance(t, ast.Subscript)
+                        and isinstance(t.value, ast.Attribute)
+                        and isinstance(t.value.value, ast.Name)
+                        and t.value.value.id == "self"):
+                    written_fields.add(t.value.attr)
+        for hp in happy:
+            for name in hp.except_set:
+                if name not in method_names:
+                    raise PyCSLSemanticError(
+                        f"`happy {hp.name}`: exempt function '{name}' is not a method "
+                        f"in this module. Known methods: {sorted(method_names)}. "
+                        f"A typo in the exempt set would silently widen the property's "
+                        f"coverage, so this is rejected."
+                    )
+            if hp.field not in written_fields:
+                warnings.warn(
+                    f"`happy {hp.name}`: no write to `self.{hp.field}[...]` found in "
+                    f"this module — the property expands to zero obligations (inert). "
+                    f"Check the field name.",
+                    stacklevel=2,
+                )
 
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         """Collect field types from __init__, validate class invariants, then validate methods."""

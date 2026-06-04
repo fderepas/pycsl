@@ -83,6 +83,8 @@ Reading the tokens:
 | `act <name>:` (+ `given`) | A guarded case: `#@ act <name>:` with a 4-space-indented body of `#@ given <guard>` / `#@ ensures <post>`. Desugars to `ensures \old(<guard>) ==> <post>`. |
 | `complete` / `disjoint` | `#@ complete c1, c2` proves the acts' guards cover every input; `#@ disjoint c1, c2` proves at most one holds. |
 | `assert` / `check` | `#@ assert P` proves `P` at that statement and assumes it downstream; `#@ check P` proves without assuming. A real obligation — unlike the Python `assert`, which the prover ignores. |
+| `happy <name>:` | A module-level HAPPY region-integrity property: `#@ happy <name>:` with a 4-space-indented body `region LO .. HI` / `writes self.<field> outside region` / optional `except m1, m2`. Expands to a per-site `#@ check` at every write of `self.<field>` in every non-exempt method. |
+| `\preserves` | `#@ \preserves` opts a `\trusted`/`\abstract` method into a HAPPY trust boundary (synthesizes the assumed region-preservation `ensures`); required on any non-exempt bodyless mutator. |
 
 Multiple `requires` / `ensures` lines are conjuncted.
 

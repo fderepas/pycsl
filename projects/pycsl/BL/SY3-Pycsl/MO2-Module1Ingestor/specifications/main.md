@@ -13,23 +13,24 @@ bin/cmmi-mod-index.py --file src/pycsl/Module1_Ingestor.py
 ## Public functions / methods (5)
 
 - `_Target.__init__` — `src/pycsl/Module1_Ingestor.py:46`
-- `Module1_Ingestor.__init__` — `src/pycsl/Module1_Ingestor.py:81`
-- `Module1_Ingestor.process` — `src/pycsl/Module1_Ingestor.py:84`
-- `_Harvester.__init__` — `src/pycsl/Module1_Ingestor.py:92`
-- `_Harvester.run` — `src/pycsl/Module1_Ingestor.py:152`
+- `Module1_Ingestor.__init__` — `src/pycsl/Module1_Ingestor.py:94`
+- `Module1_Ingestor.process` — `src/pycsl/Module1_Ingestor.py:97`
+- `_Harvester.__init__` — `src/pycsl/Module1_Ingestor.py:105`
+- `_Harvester.run` — `src/pycsl/Module1_Ingestor.py:165`
 
-## Private (leading-`_`) defs (10)
+## Private (leading-`_`) defs (11)
 
 - `_clean` — `src/pycsl/Module1_Ingestor.py:59`
-- `_indent_width` — `src/pycsl/Module1_Ingestor.py:68`
-- `_Harvester._make` — `src/pycsl/Module1_Ingestor.py:105`
-- `_Harvester._build` — `src/pycsl/Module1_Ingestor.py:138`
-- `_Harvester._assign` — `src/pycsl/Module1_Ingestor.py:162`
-- `_Harvester._normalize_leading` — `src/pycsl/Module1_Ingestor.py:193`
-- `_Harvester._fold_acts` — `src/pycsl/Module1_Ingestor.py:202`
-- `_Harvester._emit_suite` — `src/pycsl/Module1_Ingestor.py:235`
-- `_Harvester._emit_target` — `src/pycsl/Module1_Ingestor.py:243`
-- `_Harvester._emit_block_footer` — `src/pycsl/Module1_Ingestor.py:256`
+- `_match_block_hdr` — `src/pycsl/Module1_Ingestor.py:72`
+- `_indent_width` — `src/pycsl/Module1_Ingestor.py:81`
+- `_Harvester._make` — `src/pycsl/Module1_Ingestor.py:118`
+- `_Harvester._build` — `src/pycsl/Module1_Ingestor.py:151`
+- `_Harvester._assign` — `src/pycsl/Module1_Ingestor.py:175`
+- `_Harvester._normalize_leading` — `src/pycsl/Module1_Ingestor.py:206`
+- `_Harvester._fold_blocks` — `src/pycsl/Module1_Ingestor.py:215`
+- `_Harvester._emit_suite` — `src/pycsl/Module1_Ingestor.py:249`
+- `_Harvester._emit_target` — `src/pycsl/Module1_Ingestor.py:257`
+- `_Harvester._emit_block_footer` — `src/pycsl/Module1_Ingestor.py:270`
 
 ---
 
@@ -37,4 +38,4 @@ bin/cmmi-mod-index.py --file src/pycsl/Module1_Ingestor.py
 
 The `#@` contract block immediately preceding each `def` in `src/pycsl/Module1_Ingestor.py` is the Unit-level spec. Under Profile-P these contracts are read in-source; no `UN<N>-<Name>/` directories are materialised.
 
-Total defs: **15** (public: 5, private: 10).
+Total defs: **16** (public: 5, private: 11).
