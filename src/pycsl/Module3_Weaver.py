@@ -79,6 +79,7 @@ class PyCSLWeaver(ast.NodeVisitor):
         guards = {c.name: PyCSLWeaver._act_guard(c) for c in contracts if isinstance(c, Act)}
         out: List[Any] = []
         acts_meta: List[Any] = []
+        entry_cps: List[Any] = []   # function-entry `#@ assert` for complete/disjoint
         for c in contracts:
             if isinstance(c, Act):
                 acts_meta.append(c)
@@ -95,28 +96,36 @@ class PyCSLWeaver(ast.NodeVisitor):
                     # Given clauses are folded into the guard above.
             elif isinstance(c, Complete):
                 acts_meta.append(c)
-                gs = [Old(guards[n]) for n in c.names if n in guards]
+                # Function-entry assert: at entry the state IS the pre-state, so the
+                # guards need no `\old`, and the obligation is discharged on ALL paths
+                # (not just normal return) — discharging `Pre ⟹ ⋁ gᵢ`.
+                gs = [guards[n] for n in c.names if n in guards]
                 if gs:
                     disj = gs[0]
-                    for e in gs[1:]:
-                        disj = BinOp(disj, "or", e)
-                    out.append(Ensures(disj))
+                    for g in gs[1:]:
+                        disj = BinOp(disj, "or", g)
+                    entry_cps.append(CheckPoint("assert", disj))
             elif isinstance(c, Disjoint):
                 acts_meta.append(c)
                 present = [n for n in c.names if n in guards]
                 for i in range(len(present)):
                     for j in range(i + 1, len(present)):
-                        pair = BinOp(Old(guards[present[i]]), "and", Old(guards[present[j]]))
-                        out.append(Ensures(UnaryOp("not", pair)))
+                        pair = BinOp(guards[present[i]], "and", guards[present[j]])
+                        entry_cps.append(CheckPoint("assert", UnaryOp("not", pair)))
             else:
                 out.append(c)
-        return out, acts_meta
+        return out, acts_meta, entry_cps
 
     @staticmethod
     def _dispatch_function_contracts(node: ast.FunctionDef, contracts: List[Any]) -> None:
         """Attach each parsed contract node to the matching `csl_*` field
         on the function-def AST node. Acts are desugared to requires/ensures first."""
-        contracts, node.csl_acts = PyCSLWeaver._desugar_acts(contracts)
+        contracts, node.csl_acts, entry_cps = PyCSLWeaver._desugar_acts(contracts)
+        # complete/disjoint become function-entry `#@ assert` checkpoints on the
+        # first body statement (discharged under the preconditions, on all paths).
+        if entry_cps and getattr(node, "body", None):
+            first = node.body[0]
+            first.csl_checkpoints = list(entry_cps) + getattr(first, "csl_checkpoints", [])
         for c in contracts:
             if isinstance(c, Requires):
                 node.csl_requires.append(c)

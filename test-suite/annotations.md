@@ -277,15 +277,16 @@ def myabs(x: int) -> int:
 `A` (the conjunction of its `#@ given` clauses), each `#@ ensures E` becomes
 `ensures \old(A) ==> E` and each `#@ requires R` becomes `requires A ==> R`.
 The guard is read in the **pre-state** (hence `\old`); `\result` is therefore
-not allowed in a `given`. `#@ complete c1, ...` becomes
-`ensures \old(g1) || ...` and `#@ disjoint c1, ...` a per-pair
-`ensures not(\old(gi) && \old(gj))` — both real proof obligations that fail on a
-gap/overlap. A failed case-postcondition is tagged `(* act <name> *)` in the
-emitted WhyML for traceability.
+not allowed in a `given`. `#@ complete c1, ...` and `#@ disjoint c1, ...` become
+**function-entry `#@ assert`** obligations — `assert g1 || ...` and per-pair
+`assert not(gi && gj)`. At entry the state is the pre-state (no `\old` needed) and
+the preconditions are hypotheses, so they discharge `Pre ⟹ ⋁gᵢ` / pairwise
+disjointness **on all paths** (a gap/overlap fails the proof). A failed
+case-postcondition is tagged `(* act <name> *)` in the emitted WhyML for traceability.
 
-**Limitation (v1):** `complete`/`disjoint` are checked on **normal return** only
-(a WhyML `ensures`), so for inputs that always `raise` they are vacuously true —
-weaker than ACSL's pre-state obligation.
+(The earlier draft lowered `complete`/`disjoint` to `ensures \old(…)`, which was
+checked on normal return only — vacuous on `raise` paths. The function-entry assert
+form removes that limitation.)
 
 ### 2.2 Loop Contracts
 
