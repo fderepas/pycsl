@@ -173,6 +173,19 @@ pre-state predicate). Every name listed by `#@ complete …` / `#@ disjoint …`
 must resolve to an `act` defined on the same function; duplicate act names are
 rejected. (Enforced by `Module4._validate_acts`.)
 
+#### §2.4.7 Statement checkpoints (`#@ assert` / `#@ check`)
+
+```
+   Γ_f ⊢ e : ok        \result ∉ FV(e)
+   ─────────────────────────────────────────
+        `#@ assert e` / `#@ check e` ok
+```
+
+**Rule:** the expression must be well-formed in the enclosing function scope; `\result`
+is **not** in scope (a checkpoint is a mid-body obligation, bound before any return).
+Mid-body local bindings are left to the back-end prover (not checked here). Enforced by
+`Module4._validate_checkpoints`.
+
 #### §2.1.1 Precondition (`requires`)
 
 ```

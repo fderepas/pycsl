@@ -375,6 +375,19 @@ boolean guard is emitted without `<> 0` coercion (`_to_bool` treats `\old(e)` as
 boolean iff `e` is). The `complete`/`disjoint` obligations are checked on normal
 return only.
 
+### §T.2.5b  Statement checkpoints (`#@ assert` / `#@ check`)
+
+A statement-position checkpoint emits a real WhyML obligation before the statement
+it precedes (distinct from the Python `assert` statement, which translates to `()`):
+
+$$\mathcal{T}\llbracket \texttt{\#@ assert P} \rrbracket = \texttt{assert \{ P \};}
+\qquad
+\mathcal{T}\llbracket \texttt{\#@ check P} \rrbracket = \texttt{check \{ P \};}$$
+
+`assert { P }` proves `P` and makes it a hypothesis for the rest of the block;
+`check { P }` proves `P` without adding it. `P` is emitted in spec (boolean) context,
+so `\old`/comparisons are handled as in a contract.
+
 ### §T.2.6  Trusted Functions (`\trusted [reviewer: <name>]`)
 
 $$\mathcal{T}_f\llbracket \texttt{def f(...): \#@ \\trusted ...} \rrbracket

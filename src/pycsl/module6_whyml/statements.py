@@ -1195,6 +1195,15 @@ class StatementEmissionMixin:
             # Raise the continue exception caught by the enclosing For loop's try/with
             return f"{indent}raise PyCSL_Continue"
 
+        elif s_type == "ProofAssert":
+            # `#@ assert P` (prove-and-assume) / `#@ check P` (prove-and-discard) —
+            # a REAL proof obligation, unlike the Python `assert` (no-op) below.
+            kw = "check" if stmt.get("kind") == "check" else "assert"
+            self._in_spec = True
+            pred = self._expr_to_whyml(stmt["test"], local_refs)
+            self._in_spec = False
+            code = f"{indent}{kw} {{ {pred} }}"
+
         elif s_type == "Assert":
             # Python assert statements are runtime checks, not proof obligations.
             # Skip them in WhyML — the pycsl annotations define the proof goals.

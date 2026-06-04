@@ -150,6 +150,15 @@ class Label(CSLNode):
     name: str
 
 @dataclass
+class CheckPoint(CSLNode):
+    """A statement-level proof obligation attached to the following statement:
+    `#@ assert P` (prove-and-assume — P becomes a hypothesis afterward) or
+    `#@ check P` (prove-and-discard). Distinct from the Python `assert` statement,
+    which is a runtime check the prover ignores."""
+    kind: str        # "assert" | "check"
+    expr: CSLNode
+
+@dataclass
 class At(CSLNode):
     """Represents `\\at(expr, L)` — value of expr at program point L."""
     expr: CSLNode
@@ -594,6 +603,8 @@ PYCSL_GRAMMAR = r"""
              | loop_variant
              | class_invariant
              | label_decl
+             | assert_decl
+             | check_decl
              | function_variant
              | function_variant_structural
              | diverges_decl
@@ -644,6 +655,8 @@ PYCSL_GRAMMAR = r"""
     loop_variant: "loop" "variant" expr
     class_invariant: "class" "invariant" expr
     label_decl: "label" CNAME
+    assert_decl: "assert" expr
+    check_decl: "check" expr
     function_variant: "\\variant" expr
     function_variant_structural: "\\variant" "(" expr "," CNAME ")"
     diverges_decl: "\\diverges"
@@ -920,6 +933,8 @@ class PyCSLTransformer(Transformer):
     def valid_pred(self, name, length) -> Valid: return Valid(str(name), length)
     def separated_pred(self, name1, len1, name2, len2) -> Separated: return Separated(str(name1), len1, str(name2), len2)
     def label_decl(self, name) -> Label: return Label(str(name))
+    def assert_decl(self, expr) -> CheckPoint: return CheckPoint("assert", expr)
+    def check_decl(self, expr) -> CheckPoint: return CheckPoint("check", expr)
     def at_expr(self, expr, label) -> At: return At(expr, str(label))
     def length2d_pred(self, name, rows, cols) -> Length2D: return Length2D(str(name), rows, cols)
     def valid2d_pred(self, name, row, col) -> Valid2D: return Valid2D(str(name), row, col)

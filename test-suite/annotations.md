@@ -388,6 +388,8 @@ unaffected by the check).
 | 4 | Critical section | `#@ critical <mutex>` | `with` statement | Declares the `with lock:` block as a critical section for `<mutex>`; triggers havoc+assume+assert in WhyML |
 | 5 | Acquires | `#@ acquires <mutex>` | `with` statement | Explicit mutex acquire annotation (equivalent to `critical`; use when naming the acquire point explicitly) |
 | 6 | Releases | `#@ releases <mutex>` | `with` statement | Explicit mutex release annotation (marks the release point; informational in current WhyML output) |
+| 7 | Assert | `#@ assert <expr>` | Statement | Prove `<expr>` at this point **and assume it downstream** (prove-and-assume). A real proof obligation — **distinct from the Python `assert` statement**, which the prover ignores. Attaches to the following statement (like `#@ label`). `\result` is not allowed (it's bound only at return). |
+| 8 | Check | `#@ check <expr>` | Statement | Prove `<expr>` at this point but **do not** assume it downstream (prove-and-discard). Otherwise as `#@ assert`. |
 
 Ghost variables exist only in the verification model (erased at extraction).
 They can be referenced in `loop invariant`, `requires`, `ensures`, and `\variant` expressions.
