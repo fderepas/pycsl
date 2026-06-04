@@ -871,14 +871,17 @@ class ExpressionEmissionMixin:
             # Body dict: empty `map int (option int)`. Parallel to
             # `\empty_map` (`_handle_map_empty_expr`).
             return "(const (None: option int))"
-        if func_name in ("defaultdict", "Counter", "OrderedDict"):
+        if (func_name in ("defaultdict", "Counter", "OrderedDict")
+                and func_name not in self._record_types):
             # collections-plan: the dict-family reduces to the empty
             # `map int (option int)`. The factory (`defaultdict(int)`) or
             # iterable (`Counter([...])`) arg is dropped — the missing-key
             # default IS the model's None→0, and a seeded iterable is modelled
             # as empty (a sound under-approximation: content that depends on
             # the seed fails to prove, never proves falsely). `OrderedDict`
-            # insertion order is not modelled.
+            # insertion order is not modelled. The `not in _record_types` guard
+            # lets a user-defined/imported class of the same name (e.g. corpus
+            # 0441's `Counter`) fall through to `_call_record_constructor`.
             return "(const (None: option int))"
         if func_name == "list" and len(args) <= 1:
             # `list(iterable)` semantics depend on the surrounding return

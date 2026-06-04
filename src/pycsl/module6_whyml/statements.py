@@ -1303,6 +1303,13 @@ class StatementEmissionMixin:
         body_dict_vars |= self._collect_dict_var_assigns(body_stmts)
         body_lambda_vars = IRScanner.find_lambda_vars(body_stmts)
         body_record_vars = IRScanner.find_record_vars(body_stmts, self._record_types)
+        # A user-defined/imported record type may share a name with a collections
+        # constructor (e.g. a class `Counter` vs `collections.Counter`, corpus 0441).
+        # `find_array_and_dict_vars` recognises the collections names by bare func, so
+        # subtract the record locals here — a known record type wins, and `c = Counter()`
+        # stays a record local rather than being mis-typed as a dict/array.
+        body_dict_vars -= body_record_vars
+        body_array_vars -= body_record_vars
         # var -> class name for record-instance locals (`c = C()`), so method
         # calls `c.method(...)` can resolve the callee contract like `self.`.
         self._current_record_var_classes = IRScanner.find_record_var_classes(
