@@ -236,6 +236,30 @@ class PyCSLWeaver(ast.NodeVisitor):
 
         self.generic_visit(node)
 
+    @staticmethod
+    def _is_trivial_new(fn: ast.FunctionDef) -> bool:
+        """True if `__new__` is the default allocation: an optional docstring then a
+        single `return super().__new__(cls...)` or `return object.__new__(cls...)`.
+        Anything else (caching, conditionals, returning a stored/other instance) is
+        non-trivial and rejected under UB-7.6 (see visit_ClassDef)."""
+        body = [s for s in fn.body
+                if not (isinstance(s, ast.Expr) and isinstance(s.value, ast.Constant))]
+        if len(body) != 1 or not isinstance(body[0], ast.Return):
+            return False
+        val = body[0].value
+        if not (isinstance(val, ast.Call) and isinstance(val.func, ast.Attribute)
+                and val.func.attr == "__new__"):
+            return False
+        recv = val.func.value
+        # super().__new__ / super(C, cls).__new__
+        if (isinstance(recv, ast.Call) and isinstance(recv.func, ast.Name)
+                and recv.func.id == "super"):
+            return True
+        # object.__new__
+        if isinstance(recv, ast.Name) and recv.id == "object":
+            return True
+        return False
+
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         node.csl_class_invariants = []
         node.csl_allow_finalizer = False   # UB-7.5 opt-in
@@ -264,6 +288,26 @@ class PyCSLWeaver(ast.NodeVisitor):
                         f"any lifetime-dependent contracts are at risk. "
                         f"See config/skills/pycsl-ub-catalog/SKILL.md §7.5."
                     )
+
+        # UB-7.6 (base_op.md Tier A): a custom `__new__` is accepted only when it is
+        # trivial — `return super().__new__(cls)` / `return object.__new__(cls)`, i.e.
+        # the default allocation that `__init__` then populates. A non-trivial `__new__`
+        # (returning a cached/singleton/other instance, or branching) interposes on
+        # allocation in a way the record-construction model cannot soundly represent —
+        # `C(...)` would no longer be a fresh `{...}` literal. Reject rather than fake it.
+        for stmt in node.body:
+            if (isinstance(stmt, ast.FunctionDef) and stmt.name == "__new__"
+                    and not self._is_trivial_new(stmt)):
+                raise PyCSLSemanticError(
+                    f"Class '{node.name}' (line {stmt.lineno}): non-trivial `__new__` "
+                    f"is rejected under UB-7.6. Allocation interposition (caching, "
+                    f"singletons, returning a different instance, or conditional "
+                    f"allocation) cannot be soundly modelled — construction `C(...)` is "
+                    f"a fresh record literal. Only `return super().__new__(cls)` / "
+                    f"`return object.__new__(cls)` is accepted (it is the default "
+                    f"allocation, populated by `__init__`). "
+                    f"See config/skills/pycsl-ub-catalog/SKILL.md §7.6."
+                )
 
         self.generic_visit(node)
 

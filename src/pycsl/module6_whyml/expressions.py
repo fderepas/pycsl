@@ -913,11 +913,31 @@ class ExpressionEmissionMixin:
             return f"({op} {a0} {a1})"
         return None
 
+    def _subst_params(self, ir: Any, arg_nodes: Dict[str, Any]) -> Any:
+        """Deep-copy a value IR, replacing each `Var(param)` with its pre-lowered arg
+        node (`RawWhyml`) — the IR-level value substitution used by parametrized record
+        construction. Pure structural recursion over dict/list IR; leaves are returned
+        as-is."""
+        if isinstance(ir, dict):
+            if ir.get("type") == "Var" and ir.get("name") in arg_nodes:
+                return arg_nodes[ir["name"]]
+            return {k: self._subst_params(v, arg_nodes) for k, v in ir.items()}
+        if isinstance(ir, list):
+            return [self._subst_params(x, arg_nodes) for x in ir]
+        return ir
+
     def _call_record_constructor(self, args: List[str], func_name: str) -> Optional[str]:
-        """`C()` for a known record type → a WhyML record literal with per-field,
-        type-correct defaults. Returns None if `func_name` is not a 0-arg record
-        constructor. (Extracted from `_handle_call_expr`.)"""
-        if not (func_name in self._record_types and len(args) == 0):
+        """`C(...)` for a known record type → a WhyML record literal with per-field,
+        type-correct values. Returns None only if `func_name` is not a known record
+        type. (Extracted from `_handle_call_expr`.)
+
+        base_op.md Tier A — parametrized construction: when `C(a, b)` is called with
+        args matching `__init__`'s formals, each scalar field whose `__init__` body
+        set it from those params (`init_body`, captured by Module5) is initialised by
+        substituting the actual args for the params; all other fields keep their
+        type-correct default. A 0-arg `C()`, an arity mismatch, or a non-scalar /
+        non-param-dependent field all fall back to the default witness (sound)."""
+        if func_name not in self._record_types:
             return None
         rec_info = self._record_types[func_name]
         rec_lower = func_name.lower()
@@ -937,8 +957,28 @@ class ExpressionEmissionMixin:
                 return "(const (None: option int))"
             return f"{rec_info['defaults'].get(fn, 0)}"
 
+        # Parametrized overrides: map each param-initialised scalar field to its
+        # arg-substituted value. Only when the call arity matches `__init__`. The
+        # already-lowered arg strings are spliced in via `RawWhyml` IR nodes (a value
+        # substitution — `subst` is a variable-RENAME map, not a value-injection one).
+        init_map: Dict[str, str] = {}
+        init_params = rec_info.get("init_params", [])
+        init_body = rec_info.get("init_body", [])
+        if args and init_params and len(args) == len(init_params):
+            arg_nodes = {init_params[i]: {"type": "RawWhyml", "whyml": args[i]}
+                         for i in range(len(init_params))}
+            for ent in init_body:
+                fn = ent["field"]
+                # Only scalar (int-modelled) fields take a substituted value; a
+                # list/dict/set field keeps its typed default (array/map construction
+                # over a param is out of Tier-A scope).
+                if field_types.get(fn, "int") in ("list", "array", "dict", "set", "frozenset"):
+                    continue
+                init_map[fn] = self._expr_to_whyml(
+                    self._subst_params(ent["value"], arg_nodes), set())
+
         field_inits = "; ".join(
-            f"{self._field_label(rec_lower, fn)} = {_field_default(fn)}"
+            f"{self._field_label(rec_lower, fn)} = {init_map.get(fn, _field_default(fn))}"
             for fn in rec_info["fields"]
         )
         return f"{{ {field_inits} }}"
@@ -1686,6 +1726,9 @@ class ExpressionEmissionMixin:
 
         # Simple literals and trivial 1-3-line branches — kept inline
         if t == "Number": return str(int(expr["value"]))
+        # Pre-lowered WhyML passthrough — used to splice an already-emitted argument
+        # string into a value IR (parametrized record construction, base_op.md Tier A).
+        if t == "RawWhyml": return expr["whyml"]
         if t == "String":
             # strings-plan Stage 1: a string literal is a real Why3 string. Where an int is
             # required (an abstract-op arg, a dict key), `_coerce_to_int` hashes it back, so

@@ -866,12 +866,32 @@ class Counter:
 5. **Field mutation:** `self._value += amount` → `self._value <- ...`
 6. **`\old` on fields:** `\old(self._value)` → `(old self._value)`
 
-### §T.4.2  Constructor (`__init__`)
+### §T.4.2  Constructor (`__init__` / `__new__`)
 
-The constructor is translated like any method.  The class invariant
-is implicitly a postcondition of the constructor (enforced by Why3's
-type invariant mechanism — constructing a value of the record type
-must satisfy the invariant).
+`__init__` is **not** emitted as a callable method; it *drives construction*. A
+constructor call `C(...)` lowers to a **fresh WhyML record literal** whose fields are
+the declared instance fields (discovered from `__init__`), and the class invariant is an
+implicit postcondition (Why3's type-invariant mechanism — the literal must satisfy it).
+
+**Field initialisation (parametrized construction, `base_op.md` Tier A).** Each field is
+initialised by, in priority order: (1) a **parametrized override** — if the call arity
+matches `__init__`'s formals and the field's `__init__` initialiser is a flat top-level
+`self.f = <expr over the params>`, the actual args are substituted into that expression
+(`Module5._collect_init_construction` captures the param list + initialiser IR;
+`expressions.py::_call_record_constructor` splices the lowered args via a `RawWhyml` IR
+node and `_subst_params`); (2) otherwise the field's **type-correct default** —
+`Array.make <len> 0` for a list/array field (length from `_array_init_size`), the empty
+`map` for dict/set, or the captured int constant (fallback `0`). So `Point(2,3)` with
+`self.x=a; self.y=a+b` lowers to `{ x = 2; y = (2 + 3) }`. *Scope:* only scalar (int)
+fields take a substituted value; list/dict fields, non-param-dependent inits, and inits
+with control flow / method calls / `*args` keep the default witness (sound, less precise).
+
+**`__new__`.** A trivial `__new__` (`return super().__new__(cls)` / `object.__new__(cls)`)
+is the default allocation and is accepted (construction proceeds via `__init__`). A
+non-trivial `__new__` (caching, singletons, returning another/conditional instance) is
+**rejected** at weave time (UB-7.6) — allocation interposition cannot be soundly
+represented when `C(...)` is a fresh record literal. See `config/skills/pycsl-ub-catalog`
+§7.6; corpus `0495`/`0496`/`0497`.
 
 ### §T.4.3  Method Translation
 

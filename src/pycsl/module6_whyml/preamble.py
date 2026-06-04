@@ -563,6 +563,9 @@ class PreambleEmissionMixin:
                     "fields": [f["name"] for f in td["fields"]],
                     "field_types": {f["name"]: f.get("type", "int") for f in td["fields"]},
                     "defaults": td.get("field_defaults", {}),
+                    # base_op.md Tier A — parametrized construction C(a, b)
+                    "init_params": td.get("init_params", []),
+                    "init_body": td.get("init_body", []),
                 }
                 # Class-body integer constants (e.g. `CAP = 64`) — resolved to
                 # literals when referenced as `self.CONST` in a method/contract.

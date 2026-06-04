@@ -13,8 +13,8 @@ implementation lives across Module 1 (import classifier), Module 3
 (weaver), Module 4 (semantic analyzer), and Module 5 (IR emitter).
 
 The catalog is grouped by the NoException_and_UBDetection workplan
-numbering (§7.1–§7.5). Entries are filled in as the corresponding PR
-lands; expect partial coverage until all five sub-features are merged.
+numbering (§7.1–§7.6). Entries are filled in as the corresponding PR
+lands; expect partial coverage until all sub-features are merged.
 
 ---
 
@@ -90,6 +90,36 @@ finalizer releases X") remain at risk.
 
 **Corpus cross-reference:** `0401` (rejection), `0402`
 (`allow_finalizer` opt-in), `0403` (baseline, no `__del__`).
+
+---
+
+## §7.6 non-trivial `__new__` rejection
+
+**Source pattern that triggers it.** A `class` body whose `__new__`
+does anything other than the default allocation — i.e. *not* a single
+`return super().__new__(cls)` / `return object.__new__(cls)` (after an
+optional docstring). Examples: caching / singletons (`return
+cls._inst`), returning a different or conditionally-chosen instance,
+or any branching/side-effecting body.
+
+**Detection mechanism.** `Module3_Weaver.visit_ClassDef` scans for a
+`FunctionDef` named `__new__` and calls `_is_trivial_new`; a
+non-trivial `__new__` raises `PyCSLSemanticError` (UB-7.6) naming the
+class and line. A trivial `__new__` is accepted and ignored
+(construction proceeds via `__init__`).
+
+**Verification stance.** *Hard error*, no escape annotation. PyCSL
+models construction `C(...)` as a **fresh WhyML record literal**
+(`base_op.md` Tier A — parametrized construction substitutes the call
+args into the `__init__` field initialisers). Allocation interposition
+(`__new__` returning a cached/other instance) breaks that model: the
+result would no longer be a fresh `{...}`, and identity/caching
+semantics cannot be soundly represented. Rejecting is the honest
+boundary — we do not fake it.
+
+**Corpus cross-reference:** `0497` (non-trivial `__new__` rejection),
+`0496` (trivial `__new__` accepted + parametrized `__init__`), `0495`
+(parametrized construction, no `__new__`).
 
 ---
 

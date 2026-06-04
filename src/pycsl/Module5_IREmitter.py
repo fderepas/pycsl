@@ -1088,6 +1088,52 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
                                     field_defaults[stmt.target.attr] = sz
         return fields, field_defaults
 
+    def _collect_init_construction(
+            self, node: ast.ClassDef) -> Tuple[List[str], List[Dict[str, Any]]]:
+        """Capture `__init__`'s formal params and its *param-dependent* field
+        initialisers, for parametrized record construction `C(a, b)` (base_op.md
+        Tier A). Returns (init_params, init_body):
+
+          init_params : the `__init__` formals minus `self`, in order.
+          init_body   : [{"field", "value"}] for each TOP-LEVEL `self.x = <rhs>`
+                        whose `<rhs>` references at least one param and ONLY params
+                        (free names ⊆ init_params). `value` is the lowered IR.
+
+        Soundness: only flat top-level assignments are captured (no control flow —
+        a conditional/looping init can't be reduced to a single record literal), and
+        only RHS over params/literals (an RHS touching a local, a method call, or
+        another field would not be substitutable at the construction site). Anything
+        outside this shape is omitted, and that field falls back to its default
+        witness in `_call_record_constructor` (sound, just less precise). Constant
+        RHS (e.g. `self.start = 7`) is already handled by `field_defaults`, so it is
+        intentionally NOT re-captured here."""
+        init_params: List[str] = []
+        init_body: List[Dict[str, Any]] = []
+        for child in node.body:
+            if not (isinstance(child, ast.FunctionDef) and child.name == '__init__'):
+                continue
+            init_params = [a.arg for a in child.args.args if a.arg != 'self']
+            pset = set(init_params)
+            if not pset:
+                break
+            for stmt in child.body:  # top-level only — no ast.walk
+                tgt = rhs = None
+                if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1:
+                    tgt, rhs = stmt.targets[0], stmt.value
+                elif isinstance(stmt, ast.AnnAssign) and stmt.value is not None:
+                    tgt, rhs = stmt.target, stmt.value
+                if not (isinstance(tgt, ast.Attribute)
+                        and isinstance(tgt.value, ast.Name)
+                        and tgt.value.id == 'self'):
+                    continue
+                names = {n.id for n in ast.walk(rhs) if isinstance(n, ast.Name)}
+                # param-dependent AND only over params (no other free names)
+                if names and (names & pset) and names <= pset:
+                    init_body.append({"field": tgt.attr,
+                                      "value": self._py_expr_to_ir(rhs)})
+            break
+        return init_params, init_body
+
     @staticmethod
     def _array_init_size(rhs: ast.expr) -> Optional[int]:
         """Literal initial LENGTH of an array/list-valued RHS, else None.
@@ -1187,12 +1233,14 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
                                    for inv in getattr(node, 'csl_class_invariants', [])]
             field_witness = {f["name"]: field_defaults.get(f["name"], 0) for f in fields}
             constants = self._collect_class_constants(node, {f["name"] for f in fields})
+            init_params, init_body = self._collect_init_construction(node)
             self.program_ir["type_decls"].append({
                 "kind": "record", "name": node.name, "fields": fields,
                 "class_invariants": class_invariants_ir, "field_defaults": field_witness,
                 "has_hash": has_hash, "has_eq": has_eq,
                 "is_unhashable": has_eq and not has_hash,
                 "constants": constants, "bases": bases,
+                "init_params": init_params, "init_body": init_body,
             })
         self.generic_visit(node)
         self._current_class = None
