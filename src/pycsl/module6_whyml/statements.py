@@ -15,6 +15,30 @@ class StatementEmissionMixin:
     classification. Mixed into Module6_WhyMLTranspiler.
     """
 
+    # IR statement type -> handler method, for the uniform branches whose body is just
+    # `return self._handle_<x>_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)`.
+    # The remaining statement types (Label/Continue/Raise and the code-set-then-chain forms
+    # ProofAssert/Assert/Pass/Break) are handled inline in `_stmts_to_whyml`.
+    _STMT_HANDLERS = {
+        "GhostAssign":     "_handle_ghost_assign_stmt",
+        "GhostArraySet":   "_handle_ghost_array_set_stmt",
+        "Assign":          "_handle_assign_stmt",
+        "TupleUnpack":     "_handle_tuple_unpack_stmt",
+        "AugAssign":       "_handle_augassign_stmt",
+        "FieldAssign":     "_handle_fieldassign_stmt",
+        "FieldAugAssign":  "_handle_fieldaugassign_stmt",
+        "ArraySet":        "_handle_array_set_stmt",
+        "ArraySliceSet":   "_handle_array_slice_set_stmt",
+        "While":           "_handle_while_stmt",
+        "Return":          "_handle_return_stmt",
+        "If":              "_handle_if_stmt",
+        "For":             "_handle_for_stmt",
+        "Expr":            "_handle_expr_stmt",
+        "Try":             "_handle_try_stmt",
+        "Match":           "_handle_match_stmt",
+        "CriticalSection": "_handle_critical_section_stmt",
+    }
+
     def _emit_first_assign(self, kind: str, indent: str, safe_target: str, target: str,
                            val: str, val_ir: Dict[str, Any]) -> str:
         """Emit the `let X = …` line for a first declaration of `target`,
@@ -1150,6 +1174,13 @@ class StatementEmissionMixin:
         code = ""
         s_type = stmt["stmt"]
 
+        # Uniform handlers (table-driven): each returns the fully-formed block.
+        handler = self._STMT_HANDLERS.get(s_type)
+        if handler is not None:
+            return getattr(self, handler)(stmt, rest, local_refs, declared_refs, indent, in_loop)
+
+        # Inline statement types. Label/Continue/Raise return directly; ProofAssert/
+        # Assert/Pass/Break set `code` and fall through to the rest-chaining tail.
         if s_type == "Label":
             # `label L in <rest>` — scopes over the entire remaining block
             rest_code = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
@@ -1157,43 +1188,13 @@ class StatementEmissionMixin:
                 rest_code = f"{indent}()"
             return f"{indent}label {stmt['name']} in\n{rest_code}"
 
-        elif s_type == "GhostAssign":
-            return self._handle_ghost_assign_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
-
-        elif s_type == "GhostArraySet":
-            return self._handle_ghost_array_set_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
-
-        elif s_type == "Assign":
-            return self._handle_assign_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
-
-        elif s_type == "TupleUnpack":
-            return self._handle_tuple_unpack_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
-
-        elif s_type == "AugAssign":
-            return self._handle_augassign_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
-
-        elif s_type == "FieldAssign":
-            return self._handle_fieldassign_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
-
-        elif s_type == "FieldAugAssign":
-            return self._handle_fieldaugassign_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
-
-        elif s_type == "ArraySet":
-            return self._handle_array_set_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
-
-        elif s_type == "ArraySliceSet":
-            return self._handle_array_slice_set_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
-
-
-        elif s_type == "While":
-            return self._handle_while_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
-
-        elif s_type == "Return":
-            return self._handle_return_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
-
         elif s_type == "Continue":
             # Raise the continue exception caught by the enclosing For loop's try/with
             return f"{indent}raise PyCSL_Continue"
+
+        elif s_type == "Raise":
+            exc_type = safe_exc_name(stmt.get("exc_type", "PyCSL_Exception"))
+            return f"{indent}raise {exc_type}"
 
         elif s_type == "ProofAssert":
             # `#@ assert P` (prove-and-assume) / `#@ check P` (prove-and-discard) —
@@ -1211,34 +1212,12 @@ class StatementEmissionMixin:
             # Skip them in WhyML — the pycsl annotations define the proof goals.
             code = f'{indent}()'
 
-        elif s_type == "Raise":
-            exc_type = safe_exc_name(stmt.get("exc_type", "PyCSL_Exception"))
-            return f"{indent}raise {exc_type}"
-
-        elif s_type == "If":
-            return self._handle_if_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
-
-        elif s_type == "For":
-            return self._handle_for_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
-
-        elif s_type == "Expr":
-            return self._handle_expr_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
-
-        elif s_type == "Try":
-            return self._handle_try_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
-
         elif s_type == "Pass":
             code = f"{indent}()"
 
         elif s_type == "Break":
             # WhyML doesn't have break; model as exception
             code = f"{indent}raise PyCSL_Break"
-
-        elif s_type == "Match":
-            return self._handle_match_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
-
-        elif s_type == "CriticalSection":
-            return self._handle_critical_section_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
 
         # Chain sequence of statements with semicolons
         if rest:
