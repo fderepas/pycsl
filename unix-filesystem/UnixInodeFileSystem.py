@@ -261,9 +261,13 @@ class UnixInodeFileSystem:
     #             syscalls. Scans the 16 entries of a directory block,
     #             decodes each name, and returns the inode number whose
     #             name equals `pathname` (or -1). The scan (loop bounds,
-    #             i1a1 unpack, running `found`) is body-verified; the
-    #             name decode + string `==` are opaque ops (PyCSL has no
-    #             string model), exactly as in _read_directory.
+    #             i1a1 unpack, running `found`) is body-verified. `pathname`
+    #             is a real Why3 string, but `name` comes from `.decode()` of
+    #             on-disk bytes — the opaque bytes<->str codec boundary — so
+    #             the `name == pathname` compare reverts to opaque
+    #             hash-identity (str_hash_op), not content equality. (PyCSL
+    #             has a string model now; only the .decode/.encode codec is
+    #             opaque.) Same shape as in _read_directory.
     def _dir_lookup(self, block_num: int, pathname: str) -> int:
         offset = block_num * 512
         found = -1
@@ -334,9 +338,10 @@ class UnixInodeFileSystem:
     #@ proof lean UnixFs.Struct.i1a1.round_trip
     # cite:_note: Writes a single 32-byte directory entry (struct '>H30s')
     #             at `slot` of `block_num`. The name is `name.encode(...)`
-    #             — an opaque byte buffer (gap 5: PyCSL has no string
-    #             model, so the encoded content is not value-modeled, but
-    #             the pack/blit is body-verified).
+    #             — an opaque byte buffer: `name: str` is a real Why3 string,
+    #             but `.encode()` is the opaque str->bytes codec boundary, so
+    #             the encoded content is not value-modeled (the pack/blit is
+    #             still body-verified).
     def _write_entry(self, block_num: int, slot: int, inode_num: int, name: str) -> None:
         entry_offset = block_num * 512 + slot * 32
         self.disk[entry_offset:entry_offset + 32] = struct.pack('>H30s', inode_num, name.encode('utf-8'))
@@ -381,8 +386,9 @@ class UnixInodeFileSystem:
     #             (mode 0o644=420) is allocated + linked; the new fd takes
     #             the next parallel-array slot. The original's 1-level
     #             symlink-follow (recurse on the decoded target string) is
-    #             dropped — no string model. next_fd>=3 invariant gives
-    #             \result >= 3.
+    #             dropped — the target is decoded from bytes through the
+    #             opaque codec boundary, so its content can't be followed.
+    #             next_fd>=3 invariant gives \result >= 3.
     def sys_open(self, pathname: str, flags: int) -> int:
         inode_num = self._dir_lookup(5, pathname)
         if inode_num < 0:
@@ -774,8 +780,9 @@ class UnixInodeFileSystem:
     #@ ensures True
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/readlink.html
     # cite:_note: POSIX readlink() — the original returned the decoded
-    #             UTF-8 target path; PyCSL has no string model, so under
-    #             `ensures True` this de-trusted form returns the symlink
+    #             UTF-8 target path; that decode crosses the opaque
+    #             bytes<->str codec boundary (the target is stored as bytes),
+    #             so under `ensures True` this de-trusted form returns the symlink
     #             inode's first data block (index 8 — where the target
     #             bytes are stored), or -1 on ENOENT / non-symlink
     #             (type at index 2 != 3). Return-shape change, not
