@@ -45,11 +45,14 @@ Each landed item is validated **emission-identical** to its baseline (PYTHONHASH
     sites but *lengthen* every usage (`lr` → `ctx.local_refs`) across ~300 edited sites on
     the most proof-critical file — a net wash, for only low-frequency future-proofing. The
     codebase already solved its threading verbosity.
-  - *5b memory-model strategy* — **blocked on coverage.** The corpus has 31 `concurrent` +
-    7 `hoare` files and **0 `typed`/`store`** files; 5b changes exactly the
-    `hoare/concurrent` vs `typed/store` branching, so the typed/store arm cannot be
-    validated by the emission gate. Doing it would risk an undetectable verifier regression.
-    Prerequisite: build typed/store corpus coverage first (then 5b becomes safely doable).
+  - *5b memory-model strategy* — **prerequisite now met; ready to attempt.** Was blocked on
+    coverage (the corpus had 0 `typed`/`store` files exercised by the gate). That gap is now
+    closed: `0463`–`0470` carry explicit `# pycsl-flags: --memory-model typed|store` and cover
+    the model-distinctive emission paths (`\old(arr[i])`, `\valid`, `\separated`+`\assigns`,
+    `\at`) under both models, all proven and visible to the emission differential. A
+    memory-model-strategy refactor can now be validated emission-identical across hoare /
+    concurrent / typed / store. (The refactor itself remains optional — worth it only if the
+    memory models will be actively evolved, e.g. splitting `concurrent` out of `hoare`.)
 
 ## Scope & worst offenders
 
