@@ -34,11 +34,11 @@ resolver inlines that skill's `SKILL.md`).
 
 ```
 *:  project-lifecycle
-L1: csl-philosophy
-L2: csl-philosophy, pycsl-annotate, agent-stdlib-annotate
-L3: pycsl-annotate, agent-stdlib-annotate
-L4: pycsl-annotate, contract-writer, invariant-writer, agent-stdlib-annotate, acsl
-L5: pycsl-annotate, contract-writer, invariant-writer, english-writer, pycsl-exception-model, agent-stdlib-annotate, acsl, pycsl-audit-pycsl-language
+L1: csl-philosophy, system-design-paradigms
+L2: csl-philosophy, pycsl-annotate, agent-stdlib-annotate, pycsl-stdlib-coverage, system-design-paradigms
+L3: pycsl-annotate, agent-stdlib-annotate, pycsl-stdlib-coverage, system-design-paradigms
+L4: pycsl-annotate, contract-writer, invariant-writer, agent-stdlib-annotate, acsl, pycsl-ub-catalog, system-design-paradigms
+L5: pycsl-annotate, contract-writer, invariant-writer, english-writer, pycsl-exception-model, agent-stdlib-annotate, acsl, pycsl-audit-pycsl-language, pycsl-ub-catalog, pycsl-doc-coherency
 L5-Validator: rocq, rocq-prover, lean
 ```
 
@@ -87,6 +87,22 @@ formally relaxes governance to a single-developer CCB.
   at the Unit level, where `requires`/`ensures`/`raises`/`loop invariant` are
   authored. L2 also gets `pycsl-annotate` because System-level phases in this
   project still author stub contracts.
+- **`system-design-paradigms` → L1–L4 (structural levels).** The major design paradigms
+  (KISS, DRY, YAGNI, SOLID, Separation of Concerns, Law of Demeter, cohesion/coupling,
+  encapsulation) inform the levels that decide *boundaries and responsibilities* — Business
+  (L1), System (L2), Component (L3), Module/LLD (L4). **Not at L5:** the Unit level authors
+  `#@` contracts for one function, where design-paradigm guidance is not load-bearing.
+- **`pycsl-stdlib-coverage` → L2 + L3.** System- and Component-level phases author stdlib
+  stub contracts (the same reason `agent-stdlib-annotate` sits there); this skill is the
+  three-artefact discipline (`calls-english.md` / `calls-pycsl.md` / `src/pycsl_lib/`) that
+  keeps that coverage in lockstep.
+- **`pycsl-ub-catalog` → L4 + L5.** The catalog of Python undefined-behaviour PyCSL detects
+  (and its escape annotations) — a contract author needs to know what the tool flags to write
+  verifiable code. Parallels `pycsl-exception-model`; added at L4 too since module contracts
+  reason about the same Python semantics.
+- **`pycsl-doc-coherency` → L5.** Pairs with `pycsl-audit-pycsl-language`: a phase that
+  changes the `#@` language must keep every directive documented across all five normative
+  surfaces.
 - **ACSL reference (`acsl`) → L4 + L5 specifiers.** PyCSL's `#@` contract
   surface is an ACSL-family language; `acsl` is the upstream reference for the
   semantics of `requires`/`ensures`/`assigns`, loop invariants/variants,
