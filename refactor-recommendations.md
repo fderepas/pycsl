@@ -11,15 +11,15 @@ Each landed item is validated **emission-identical** to its baseline (PYTHONHASH
 - ✅ **Tier 1** — all five quick wins landed (`abfaf0e`): `_deref` (29 sites),
   `_binop` alias collapse, `_emit_ghost_assign`, `_inject_functions`,
   `_attach_loop_contracts`.
+- ✅ **Tier 2 (dispatch table)** — `_stmts_to_whyml`'s 20-branch `s_type` chain converted
+  to a class-level `_STMT_HANDLERS` table + getattr dispatch, with the ~7 inline statement
+  types kept as a compact residual (`1b04f5c`). (Turned out safe, not the feared 20-body
+  extraction: 17 branches were already uniform `return self._handle_<x>_stmt(...)` calls.)
 - ✅ **Tier 3 (god-functions, partial)** — `_handle_call_expr` split into
   `_call_named_builtins`/`_call_record_constructor`/`_call_bytes_methods` (`2b0fca0`);
   `_handle_dotted_call` split into `_resolve_dotted_signature`/`_coerce_dotted_args`/
   `_dotted_ensures_suffix` (`781c24f`).
 - ⏸ **Deferred, with rationale** (kept as roadmap):
-  - *Tier 2 `statements.py` `s_type` dispatch table* — a 20-branch chain mixing
-    early-return and fall-through; a safe table conversion needs ~20 inline-body
-    extractions, which is high transcription-risk for a readability-only gain. Defer to a
-    focused effort.
   - *Tier 3 `pycsl.py` `main()`/argparse restructure* — changes CLI control flow, **not**
     WhyML emission, so the emission-identical oracle does not cover it; it needs a separate
     CLI-behavior test harness before it can be done safely.
