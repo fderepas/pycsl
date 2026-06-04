@@ -170,7 +170,11 @@ class FunctionEmissionMixin:
             # Tag linear ensures with a comment so the runner can classify VCs.
             # Linear VCs are candidates for omega proofs in Lean 4 (Task 7).
             lin_tag = " (* linear *)" if self._is_linear_vc([ens], requires_exprs) else ""
-            lines.append(f"    ensures  {{ {self._expr_to_whyml(ens, spec_refs)} }}{lin_tag}")
+            # Attribution: a desugared `act` ensures carries `act_name` (Module3/5)
+            # so a proof failure points back to its named case.
+            act_tag = (f" (* act {ens['act_name']} *)"
+                       if isinstance(ens, dict) and ens.get("act_name") else "")
+            lines.append(f"    ensures  {{ {self._expr_to_whyml(ens, spec_refs)} }}{act_tag}{lin_tag}")
         for fl in self._emit_frame_condition(contracts.get("assigns", []), spec_refs):
             lines.append(fl)
         for fv in func_variants:

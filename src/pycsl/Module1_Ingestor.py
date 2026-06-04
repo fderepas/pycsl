@@ -13,9 +13,12 @@ libcst implementation by the differential in `bin/_libcst_diff.py`.
 """
 from __future__ import annotations
 
+import re
 import pure_ast as ast
 from dataclasses import dataclass, field
 from typing import List, Optional
+
+from errors import PyCSLParseError
 
 _MODULE_PREFIXES: tuple = ('shared ', 'mutex_invariant ', 'lock_order ')
 
@@ -55,6 +58,21 @@ class _Target:
 
 def _clean(comment_text: str) -> str:
     return comment_text[2:].strip()
+
+
+# `act NAME:` block header (an own-line `#@` body). Indentation is significant:
+# clauses sit exactly 4 spaces deeper than `act`. See `_Harvester._fold_acts`.
+_ACT_HDR = re.compile(r"^\s*act\s+(\w+)\s*:\s*$")
+
+
+def _indent_width(body: str) -> int:
+    """Leading-whitespace width of an `#@` body; tabs are rejected (spaces only)."""
+    lead = body[: len(body) - len(body.lstrip())]
+    if "\t" in lead:
+        raise PyCSLParseError(
+            "tabs are not allowed in `act` block indentation; use 4 spaces",
+            stage="Module1")
+    return len(lead)
 
 
 class Module1_Ingestor:
@@ -150,13 +168,16 @@ class _Harvester:
             if any(lo <= c.lineno < hi for lo, hi in self._dec_ranges):
                 continue
             clean = _clean(c.text)
+            raw = c.text[2:].rstrip()   # body with indentation kept (for `act` folding)
             # nearest target strictly above / below this comment line
             j = bisect.bisect_left(starts, c.lineno)
             prev = self._flat[j - 1] if j > 0 else None
             nxt = self._flat[j] if j < len(self._flat) else None
             if prev is None:
-                # module header (before the first statement)
-                self._module_header.append(clean)
+                # module header (before the first statement) — also the leading
+                # contracts of the first statement, which `_emit_target` prepends.
+                # Stored raw (indent kept) so `act` blocks there fold too.
+                self._module_header.append(raw)
                 if any(clean.startswith(p) for p in _MODULE_PREFIXES):
                     self._module_contracts.append(clean)
             elif (nxt is not None and c.indent > nxt.indent) or \
@@ -166,7 +187,49 @@ class _Harvester:
             elif nxt is None:
                 pass   # module-level trailing comment (indent 0) → ignored, as libcst
             else:
-                nxt.leading.append(clean)
+                nxt.leading.append(raw)   # raw (indent kept); normalized at emit
+
+    # --- act-block folding (engaged ONLY when an `act` header is present) -
+    def _normalize_leading(self, raw_lines: List[str]) -> List[str]:
+        """Turn a target's raw (indent-preserved) leading bodies into contract
+        strings. With no `act` header present this is `[ln.strip() …]` — exactly
+        what the old `_clean` produced, so non-`act` contracts are byte-identical.
+        Only an `act` header engages the folder."""
+        if not any(_ACT_HDR.match(ln) for ln in raw_lines):
+            return [ln.strip() for ln in raw_lines]
+        return self._fold_acts(raw_lines)
+
+    def _fold_acts(self, raw_lines: List[str]) -> List[str]:
+        """Fold each `act NAME:` header + its 4-space-indented body lines into one
+        contract string `act NAME: <clause> <clause> …`. Strict and fail-loud: a
+        body line must be indented exactly 4 spaces under `act`; any other indent,
+        a tab, or an empty body is a hard `PyCSLParseError` (never reinterpreted)."""
+        out: List[str] = []
+        i, n = 0, len(raw_lines)
+        while i < n:
+            m = _ACT_HDR.match(raw_lines[i])
+            if not m:
+                out.append(raw_lines[i].strip())
+                i += 1
+                continue
+            name = m.group(1)
+            act_indent = _indent_width(raw_lines[i])
+            i += 1
+            clauses: List[str] = []
+            while i < n and raw_lines[i].strip():
+                body_indent = _indent_width(raw_lines[i])
+                if body_indent <= act_indent:
+                    break                       # block ends (next top-level contract)
+                if body_indent != act_indent + 4:
+                    raise PyCSLParseError(
+                        f"`act {name}`: body must be indented exactly 4 spaces under "
+                        f"`act` (got {body_indent - act_indent})", stage="Module1")
+                clauses.append(raw_lines[i].strip())
+                i += 1
+            if not clauses:
+                raise PyCSLParseError(f"`act {name}`: empty body", stage="Module1")
+            out.append(f"act {name}: " + " ".join(clauses))
+        return out
 
     # --- emit in libcst pre-order: node, then its block footer, then body --
     def _emit_suite(self, targets: List[_Target]) -> None:
@@ -183,9 +246,9 @@ class _Harvester:
         # and emits even if it had no own contracts.
         if (tgt.node_type in _HEADER_CONSUMERS and not self._header_consumed
                 and self._module_header):
-            contracts.extend(self._module_header)
+            contracts.extend(self._normalize_leading(self._module_header))
             self._header_consumed = True
-        contracts.extend(tgt.leading)
+        contracts.extend(self._normalize_leading(tgt.leading))
         if contracts and tgt.node_type is not None:
             self._out.append(PyCSLContract(tgt.node_type, tgt.node_name,
                                            tgt.report_line, contracts))

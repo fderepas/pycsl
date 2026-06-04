@@ -431,7 +431,16 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
                 "right": self._csl_to_ir(node.right)}
 
     def _csl_list_to_ir(self, csl_list: List[CSLNode]) -> List[Dict[str, Any]]:
-        return [self._csl_to_ir(c) for c in csl_list]
+        out: List[Dict[str, Any]] = []
+        for c in csl_list:
+            d = self._csl_to_ir(c)
+            # Module3 tags act-desugared ensures with `act_name` for attribution;
+            # carry it into the IR so Module6 can emit a `(* act NAME *)` comment.
+            an = getattr(c, "act_name", None)
+            if an is not None and isinstance(d, dict):
+                d["act_name"] = an
+            out.append(d)
+        return out
 
     def _comprehension_generators_to_ir(self, generators: List[ast.comprehension]) -> List[Dict[str, Any]]:
         """Translate Python comprehension generators to IR."""

@@ -15,6 +15,7 @@ from Module2_Parser import (
     BoundedIntDecl, ProofDecl,
     SharedDecl, ThreadEntry, Acquires, Releases, CriticalSection,
     MutexInvariant, LockOrder, BinOp, Number,
+    Act, Given, Complete, Disjoint, Old, UnaryOp, CSLBool,
 )
 from errors import PyCSLSemanticError
 from Module1_Ingestor import PyCSLContract
@@ -52,11 +53,69 @@ class PyCSLWeaver(ast.NodeVisitor):
         node.csl_bounded_int = None
         node.csl_thread_entry = False
         node.csl_proof = []
+        node.csl_acts = []                # pre-desugar Act/Complete/Disjoint (for Module4)
+
+    @staticmethod
+    def _act_guard(act: Act) -> CSLNode:
+        """The act's guard: the conjunction of its `given` clauses (`True` if none)."""
+        givens = [cl.expr for cl in act.clauses if isinstance(cl, Given)]
+        if not givens:
+            return CSLBool(True)
+        g = givens[0]
+        for extra in givens[1:]:
+            g = BinOp(g, "and", extra)
+        return g
+
+    @staticmethod
+    def _desugar_acts(contracts: List[Any]) -> Tuple[List[Any], List[Any]]:
+        """Expand `act`/`complete`/`disjoint` into ordinary requires/ensures using
+        the existing `==>` and `\\old`. A behavior `ensures E` under guard `A`
+        becomes `ensures \\old(A) ==> E`; a `requires R` becomes `requires A ==> R`;
+        `complete` becomes `ensures \\old(A1) || …`; `disjoint` becomes a per-pair
+        `ensures not(\\old(Ai) && \\old(Aj))`. Returns (desugared_contracts,
+        original_act_nodes). Unknown `complete`/`disjoint` names are dropped here and
+        flagged by Module4 (`_validate_acts`)."""
+        guards = {c.name: PyCSLWeaver._act_guard(c) for c in contracts if isinstance(c, Act)}
+        out: List[Any] = []
+        acts_meta: List[Any] = []
+        for c in contracts:
+            if isinstance(c, Act):
+                acts_meta.append(c)
+                A = guards[c.name]
+                for cl in c.clauses:
+                    if isinstance(cl, Requires):
+                        out.append(Requires(BinOp(A, "==>", cl.expr)))
+                    elif isinstance(cl, Ensures):
+                        e = Ensures(BinOp(Old(A), "==>", cl.expr))
+                        e.act_name = c.name                  # attribution (Module6 tag)
+                        out.append(e)
+                    elif isinstance(cl, Assigns):
+                        out.append(cl)                       # §6: hoare no-op; pass through
+                    # Given clauses are folded into the guard above.
+            elif isinstance(c, Complete):
+                acts_meta.append(c)
+                gs = [Old(guards[n]) for n in c.names if n in guards]
+                if gs:
+                    disj = gs[0]
+                    for e in gs[1:]:
+                        disj = BinOp(disj, "or", e)
+                    out.append(Ensures(disj))
+            elif isinstance(c, Disjoint):
+                acts_meta.append(c)
+                present = [n for n in c.names if n in guards]
+                for i in range(len(present)):
+                    for j in range(i + 1, len(present)):
+                        pair = BinOp(Old(guards[present[i]]), "and", Old(guards[present[j]]))
+                        out.append(Ensures(UnaryOp("not", pair)))
+            else:
+                out.append(c)
+        return out, acts_meta
 
     @staticmethod
     def _dispatch_function_contracts(node: ast.FunctionDef, contracts: List[Any]) -> None:
         """Attach each parsed contract node to the matching `csl_*` field
-        on the function-def AST node."""
+        on the function-def AST node. Acts are desugared to requires/ensures first."""
+        contracts, node.csl_acts = PyCSLWeaver._desugar_acts(contracts)
         for c in contracts:
             if isinstance(c, Requires):
                 node.csl_requires.append(c)
