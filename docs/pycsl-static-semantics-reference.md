@@ -121,14 +121,27 @@ specification logic's type universe:
 ```
 τ(int)            = int
 τ(bool)           = int       (* booleans are modeled as integers *)
+τ(str)            = int       (* no string-typed variables; str values are int. String
+                                 *literals* and the \str_length / \str_sub / ^ operators
+                                 use Why3 string.String at the expression level — see the
+                                 translational reference, not the variable's type *)
+τ(float)          = int       (* no native floats — modeled as integers *)
 τ(list)           = list
 τ(List)           = list      (* typing.List alias *)
 τ(List[T])        = list      (* parametric list — element type opaque *)
+τ(bytes)          = int †     (* byte buffer *)
+τ(bytearray)      = int †     (* mutable byte buffer *)
 τ(dict)           = dict
 τ(Dict[K, V])     = dict      (* parametric dict — key/value types opaque *)
 τ(set)            = dict      (* sets share the dict model; see translational §T.14.2 *)
 τ(Set[T])         = dict
+τ(frozenset)      = dict      (* frozensets share the set/dict model *)
+τ(FrozenSet[T])   = dict
 τ(Tuple[T1, ...]) = tuple
+τ(tuple)          = int †     (* bare tuple — unlike the recognized Tuple[T1, ...] above *)
+τ(C)              = record    (* user-defined class C → a WhyML record of its fields, for
+                                 `self` and locally-constructed instances; a bare C-typed
+                                 parameter is not reconstructed and coarsens to int (‡) *)
 τ(Optional[T])    = τ(T)      (* None maps to 0; the optional-ness adds no type info *)
 τ(Union[T, None]) = τ(T)      (* equivalent to Optional[T] *)
 τ(Union[T1, T2])  = τ(T1)     (* heuristic: first non-None component *)
@@ -138,6 +151,23 @@ specification logic's type universe:
 Module5's `_build_function_ir` realises this map by recursively
 unwrapping `ast.Subscript` annotations (`Optional`, `Union`, `List`,
 `Dict`, etc.) and lower-casing the head identifier.
+
+**† Context-dependent (parameter vs field).** The τ above gives the *parameter / return*
+realization (`_build_function_ir`), where `bytes` / `bytearray` / bare `tuple` coarsen to
+`int`. As an instance **field** the realization differs: `_field_type_from_annotation` maps
+these (and `list`/`Tuple[...]`) to `list` → `array int` in the WhyML record, because a byte
+buffer / tuple field is array-backed (e.g. the `self.disk: bytearray` virtual disk). So the
+same annotation can be `int` as a parameter but `array int` as a field.
+
+**‡ Classes / records.** A class introduces a record type in `Γ_c` (§1.2): `self` and the
+result of a constructor call `C()` are typed as the class's WhyML record (the `_record_types`
+registry; field defaults per `τ`). PyCSL does not reconstruct an arbitrary `C`-typed *parameter*
+into a record — such a parameter coarsens to `int` — so `record` appears for `self`/constructed
+instances, not for opaque class-typed inputs.
+
+The `str` / `float` / `bytes` / `bytearray` / `frozenset` / bare-`tuple` / class rows were
+previously absorbed by the `τ(_) = Any` catch-all; they are listed explicitly here because they
+are *modeled* (mapped to a concrete universe member), not treated as opaque `Any`.
 
 The type universe is intentionally coarse: PyCSL does not perform
 full type inference. The type mapping is used only for:
