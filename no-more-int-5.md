@@ -211,8 +211,12 @@ model). *Driver:* `len(chain(a, n, b, m)) == n + m` + a membership contract. Low
   nested constructors (`Wrap (A n)`, 0536) and or-patterns (`Red | Green`, 0535) into the native Why3
   match; the routing now uses Path 1 whenever any arm involves a constructor (directly or inside an
   `Or`). Flat patterns render identically (0520/0521/0527/0528/0531/0533/0534 byte-identical).
-- **A5d** parametric datatypes (`Option[T]`) — composes with A1's parametric machinery; low priority
-  (needs a surface-syntax decision).
+- **A5d** parametric datatypes — ✅ **DONE** (0540). Surface: `#@ datatype Option[T] = Nothing |
+  Just(T)` (Python `[T]` style); a type-parameter payload lowers to a Why3 type variable, so
+  `type option 't = Nothing | Just 't` instantiates per use — `Just(7)` is `option int`, `Just(s)`
+  is `option string` in the SAME program (a monomorphic `Just int` collapse would reject the string
+  use). Grammar gets an optional `[CNAME,…]` clause; `DatatypeDecl.type_params` threads to the IR
+  and `_emit_type_decls`. Monomorphic datatypes (empty `type_params`) emit byte-identically.
 - **A5a-residual** mutually-recursive datatypes — ✅ **DONE** (0533): `_emit_type_decls` now groups
   variants by SCC of the cross-reference graph and emits each multi-member group as one
   `type a = … with b = …` block (`Tree` ↔ `Forest`). Single / self-recursive variants stay a plain

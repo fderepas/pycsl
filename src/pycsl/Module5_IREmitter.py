@@ -77,6 +77,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         for dt in getattr(node, 'csl_datatypes', []):
             self.program_ir["type_decls"].append({
                 "kind": "variant", "name": dt.name,
+                # A5d: type parameters of a parametric datatype (`Option[T]`).
+                "type_params": list(getattr(dt, "type_params", None) or []),
                 "constructors": [{"name": c, "arity": len(tys), "payload": tys}
                                  for (c, tys) in dt.variants],
             })

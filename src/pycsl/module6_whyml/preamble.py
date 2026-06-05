@@ -608,23 +608,30 @@ class PreambleEmissionMixin:
 
         def _fmt_variant(vtd: Dict[str, Any]) -> str:
             """Register a variant's WhyML mapping + constructors and return its
-            `<name> = Ctor pay | …` body (sans the `type`/`with` keyword)."""
+            `<name>['a…] = Ctor pay | …` body (sans the `type`/`with` keyword)."""
             tn = vtd["name"].lower()
             declared_types.add(tn)
+            # A5d: a parametric datatype `Option[T]` → `type option 't = …`. Each
+            # type parameter `T` becomes a Why3 type variable `'t`; a payload
+            # naming a type param resolves to that variable (not the int default).
+            tparams = vtd.get("type_params", []) or []
+            _tpvar = {p: f"'{p.lower()}" for p in tparams}
+            header = tn + ("".join(f" {_tpvar[p]}" for p in tparams) if tparams else "")
             self._variant_types[vtd["name"]] = {
                 "whyml_name": tn,
                 "constructors": {c["name"]: c for c in vtd["constructors"]}}
             cstrs: List[str] = []
             for c in vtd["constructors"]:
                 pay = " ".join(
-                    _VPAY[t] if t in _VPAY
+                    _tpvar[t] if t in _tpvar
+                    else _VPAY[t] if t in _VPAY
                     else (t.lower() if t in _variant_names else "int")
                     for t in c.get("payload", []))
                 self._constructors[c["name"]] = {
                     "type": vtd["name"], "whyml_type": tn,
                     "arity": c["arity"], "payload": c.get("payload", [])}
                 cstrs.append(c["name"] + (f" {pay}" if pay else ""))
-            return f"{tn} = {' | '.join(cstrs)}"
+            return f"{header} = {' | '.join(cstrs)}"
 
         # A5a-residual: mutually-recursive datatypes (e.g. `Tree` ↔ `Forest`)
         # must share one Why3 `type a = … with b = …` block, else the first

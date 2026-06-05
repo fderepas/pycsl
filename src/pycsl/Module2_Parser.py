@@ -605,9 +605,12 @@ class SharedDecl(CSLNode):
 @dataclass
 class DatatypeDecl(CSLNode):
     """Represents `#@ datatype Name = C1 | C2(int) | C3(int, int)` — an algebraic
-    (sum) type. `variants` is a list of (constructor_name, [payload_type_names])."""
+    (sum) type. `variants` is a list of (constructor_name, [payload_type_names]).
+    `type_params` (A5d) holds the declared type parameters of a *parametric*
+    datatype `#@ datatype Option[T] = …`; empty for a monomorphic one."""
     name: str
     variants: list
+    type_params: list = None
 
 @dataclass
 class ThreadEntry(CSLNode):
@@ -861,7 +864,7 @@ PYCSL_GRAMMAR = r"""
     mutex_expr: CNAME "[" expr "]" -> mutex_subscript
               | CNAME -> mutex_name
 
-    datatype_decl: "datatype" CNAME "=" variant_def ("|" variant_def)*
+    datatype_decl: "datatype" CNAME ("[" CNAME ("," CNAME)* "]")? "=" variant_def ("|" variant_def)*
     variant_def: CNAME "(" CNAME ("," CNAME)* ")" -> variant_payload
                | CNAME -> variant_nullary
 
@@ -982,7 +985,12 @@ class PyCSLTransformer(Transformer):
     def shared_protected(self, name, mutex) -> SharedDecl: return SharedDecl(str(name), str(mutex))
     def shared_unprotected(self, name) -> SharedDecl: return SharedDecl(str(name), None)
     # sum-types: `datatype Name = C1 | C2(int) | …`
-    def datatype_decl(self, name, *variants) -> DatatypeDecl: return DatatypeDecl(str(name), list(variants))
+    def datatype_decl(self, name, *args) -> DatatypeDecl:
+        # A5d: type-parameter CNAMEs arrive as bare tokens; variants arrive as
+        # (ctor, [types]) tuples — partition by shape.
+        type_params = [str(a) for a in args if not isinstance(a, tuple)]
+        variants = [a for a in args if isinstance(a, tuple)]
+        return DatatypeDecl(str(name), variants, type_params)
     def variant_payload(self, ctor, *types): return (str(ctor), [str(t) for t in types])
     def variant_nullary(self, ctor): return (str(ctor), [])
     def thread_entry_decl(self) -> ThreadEntry: return ThreadEntry()
