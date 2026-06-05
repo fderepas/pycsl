@@ -274,10 +274,18 @@ def test_precondition(x: int) -> int:
 | `float` | `real` | Why3 `real.RealInfix` (`+.`/`-.`/…); float literals are real constants. Was the unsound `int` (no-more-int Stage D) |
 | `list` | `array int` | Hoare/Concurrent model |
 | `list` | `loc` + `_len` | Typed/Store model |
+| `dict` / `set` / `frozenset` | `map κ (option ν)` | Parametric map (no-more-int A1): κ ∈ {`int`, `string`}, ν ∈ {`int`, `string`, `array int`, nested `map …`}. Default `map int (option int)`. `set`/`frozenset` use the same model (value ignored) |
+| `tuple` | `int` (hash) | **Intentional benign collapse (A7).** A bare tuple value hashes to an `int`; element types are NOT modeled. Rare and benign — a future tuple track would lift this, but no driver demands it. (Ghost tuples `\mk_tuple`/`\fst`/`\snd` in *contracts* are modeled faithfully — §T.6.) |
 | `None` / `-> None` | `unit` | Return type for void functions |
 | Class `C` | Record type `c` | Lowercase name. Covers `self`, `C()` locals, **and** a registered `C`-typed parameter (read-only field access; Track 3 — mutation of a record param out of scope) |
 | `#@ datatype D` | Variant type `d` | Sum type `type d = A \| B int \| …` (§T.4.5); constructed with `B(7)`, consumed by `match` (§T.5.12) |
 | No annotation | `int` | Default |
+
+> **Intentional benign collapses (A7).** Two entries above are deliberate, documented
+> approximations rather than debt: `bool` → `int` (`1`/`0` in body, `true`/`false` in spec) and a
+> bare `tuple` → `int` (hash). Both are rare in practice and sound for the contexts they appear in;
+> no demand-driver should chase lifting them. Everything else in the table is a faithful model of
+> the Python type.
 
 ### §T.2.3  Recursive Functions
 
