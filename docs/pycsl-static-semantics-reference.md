@@ -207,8 +207,13 @@ parameter gives **read-only** field access — `p.field` is a direct record read
 contract (`functions.py::_param_type_str` + the method loop; the old coarsen-to-`int` +
 opaque `getattr_<cls>` path is gone for record params). **Out of scope:** *mutating* a record
 parameter (Why3 records are by-value, so a write does not flow back to the caller — needs the
-frame/`writes` machinery); method calls on a record param are a small follow-on. A class with no
-registered record (e.g. an unresolved import) still coarsens to `int`.
+frame/`writes` machinery). A **method call** on a record param (`p.m(args)`) now resolves the
+callee contract exactly like a record local (no-more-int-3 A2a): `statements.py::_emit_body_code`
+unions the param→record map into `_current_record_var_classes`, so result-only and
+param-referencing `ensures` propagate to the call site. A *field-referencing* callee ensure
+(`\result == self.x`) still does not propagate — a pre-existing method-call gap that fails for
+record locals too, tracked as A2c. A class with no registered record (e.g. an unresolved import)
+still coarsens to `int`.
 
 **§ Sum types / `#@ datatype`.** A module-level `#@ datatype` directive declares a real Why3
 algebraic type emitted by `preamble.py::_emit_type_decls` (the `kind:"variant"` branch, beside the

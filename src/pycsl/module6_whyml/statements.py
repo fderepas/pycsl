@@ -849,6 +849,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # calls `c.method(...)` can resolve the callee contract like `self.`.
         self._current_record_var_classes = IRScanner.find_record_var_classes(
             body_stmts, self._record_types)
+        # no-more-int-3 A2a: a method call on a record-typed PARAM (`p.m(args)`)
+        # resolves the callee contract too. `functions.py::_param_type_str`
+        # populates `_record_param_classes` (param -> lowercased record name);
+        # union it in so a record param behaves like a record local at the
+        # dotted-call resolution site (expressions.py::_resolve_dotted_signature).
+        self._current_record_var_classes.update(
+            getattr(self, "_record_param_classes", {}))
         # Phase 2.3 / 2.3b: variables receiving `array int` values
         # from compile-time struct calls get array-typed pre-decls
         # instead of `ref 0 : ref int`. Two flavours with different
