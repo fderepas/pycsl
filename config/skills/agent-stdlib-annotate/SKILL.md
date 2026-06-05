@@ -1,3 +1,16 @@
+---
+name: agent-stdlib-annotate
+description: >-
+  The policy for body-verified PyCSL standard-library stubs in `src/pycsl_lib/`
+  and their `*_demo.py` formal drivers: every stub function proves its own
+  contract with ZERO `\trusted`, stateful stubs model state concretely (class
+  invariant + `int`/`array int` fields, the `UnixInodeFileSystem.py` shape), and
+  an irreducibly-opaque kernel becomes an abstract `val` pinned by a cited
+  `#@ proof rocq|lean` lemma — never `\trusted`. Use whenever writing, fixing, or
+  reviewing a stdlib stub or its demo, deciding between `\trusted` / `\abstract` /
+  a cited axiom, or diagnosing why a delegate keeps shipping unprovable stubs.
+---
+
 # agent-stdlib-annotate — body-verified stdlib stubs (0 `\trusted`)
 
 The guiding discipline for `src/pycsl_lib/` standard-library stubs and their

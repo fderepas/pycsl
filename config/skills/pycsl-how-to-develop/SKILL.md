@@ -1,6 +1,6 @@
 ---
 name: pycsl-how-to-develop
-description: Guide developers through the PyCSL formal verification pipeline. Covers the project directory layout, the role of every utility in bin/, the Module1–Module6 pipeline, the agent architecture, the skills and RAG system, the test suite structure, and a step-by-step checklist for adding a new feature. Use this skill whenever scaffolding, extending, or debugging the PyCSL project.
+description: Guide developers through the PyCSL formal verification pipeline. Covers the project directory layout, the role of every utility in bin/, the Module1–Module6 pipeline, the agent architecture, the skills and RAG system, the test suite structure, the gating discipline that governs PyCSL development (demand-driven Gate-A drivers, SMT-feasibility Gate-B spikes, the full-corpus sweep, the emission-identical byte-diff, the 16-steps stub acceptance, the desugar/reduce-the-TCB philosophy), and a step-by-step checklist for adding a new feature. Use this skill whenever scaffolding, extending, refactoring, or debugging the PyCSL project, or when planning a feature.
 ---
 
 # PyCSL — Developer How-To Guide
@@ -127,6 +127,144 @@ Load on demand:
   `list.Nth` option-type, `list.Mem` OOM trap, ghost-array
   syntax, …). Load when debugging an unexpected Module 6
   emission or prover failure.
+
+---
+
+## 8. How PyCSL development actually works — the gating discipline
+
+PyCSL is an output-deterministic verifier, so a change is "done" only when it is **gated**, not
+when it "looks right" or "the tests pass." This section is the judgment distilled from the
+project's plan files (`no-more-int*.md`, `strings-plan.md`, `collections-plan.md`,
+`module-constants-plan.md`, `cross-module-plan.md`, `base_op.md`, `meta.md`, `act.md`,
+`missing-bytes-struct-feature.md`, `refactor-recommendations.md`, `remove-libcst-from-pycsl.md`,
+`pure-ast-parsing-in-pycsl*.md`, `16-steps-exec.md`, `level-up-your-game-agents.md`). Read §9
+(add a feature) and §10 (refactor) as the *mechanics*; this section is the *judgment* behind them.
+
+### 8.1 Plan first, in a named repo-root file
+
+- Substantial work starts as a plan in a **named `.md` at the repo root** (e.g. `strings-plan.md`),
+  not in the harness plan dir. The plan doubles as a progress ledger — mark stages `✅ DONE`
+  inline and keep live status (merged commits, deferred gaps) in the file.
+- A plan has a fixed shape: **Context/verdict** (what the system does *today*, with `file:line`
+  citations, before the goal) → **per-stage breakdown** (each stage owns one named driver + a gate)
+  → **Critical files** (file + symbol + ~line range to edit) → **Out-of-scope / soundness**
+  (documented boundaries) → **Verification** (the exact commands).
+- State up front whether the change is a **feature** (alters emitted WhyML) or a **refactor** (must
+  not) — this decides whether the emission differential is a *gate* or a *change-enumerator*.
+
+### 8.2 Demand-driven development (Gate A)
+
+- **Don't build without a demand-driver:** a real verification-grade program that *fails today
+  specifically because of the gap*. If you can't even write that failing program, defer. "Justified
+  by the category" is not justification — demand must be concrete and measurable.
+- **FAIL-first:** commit the driver as a numbered corpus test marked `# pycsl-expected: FAIL`,
+  *then* implement the minimal slice that flips it to PASS. The feature is "done enough to justify
+  itself" exactly when the driver flips. Back the flagship with **one driver per operation** the
+  feature enables — the corpus *is* the acceptance suite.
+- **Always ship a negative driver** (a deliberately-false contract committed `# pycsl-expected:
+  FAIL`, plus a boundary/out-of-range test) — a positive-only test never shows the check *can* fail.
+- **YAGNI exit** is a real off-ramp: if the driver turns out not to need the track, stop.
+
+### 8.3 New theory needs an SMT-feasibility spike (Gate B)
+
+- Before any pipeline work on a recursive/algebraic/lazy capability, **hand-write a `.mlw`** (no
+  PyCSL) and prove a small fixed-depth lemma under Alt-Ergo/Z3. Record **Valid vs timeout, with
+  timing** (a richer model can slow the whole sweep).
+- **Lead the spike with the make-or-break goal** (content equality, the round-trip), not the
+  already-easy one — leading with the easy goal manufactures false confidence.
+- The spike **decides representation** (e.g. `map string json` vs an assoc-list) by what reasons
+  better under SMT, and **defines the shippable surface** — operations that prove directly are the
+  next stage; the rest defer or route to a cited lemma. **Spike fails → YAGNI exit:** keep the
+  construct opaque and document it. (A passing spike can also *de-gate* independently-useful
+  infrastructure while the hard/niche tail stays deferred.)
+
+### 8.4 The design philosophy
+
+- **The int-collapse is ~80% deliberate tractability, ~20% debt.** PyCSL maps most Python types
+  onto `int` because that is *why* SMT goals discharge in ~0.01s. "Remove the int model" is the
+  wrong goal; promote a type to a real Why3 type only where a driver demands it. Fix *unsound*
+  collapses (e.g. `τ(float)=int`) with priority; leave *benign* ones (`bool`=1/0, bare `tuple`)
+  documented in the τ-table.
+- **Recognition + routing, not new theory.** Most features map a new surface construct onto an
+  existing proven model (dict = `map int (option int)`, growable list = array + `_len`, namedtuple
+  = parametrized record). Recognize by **bare surface form** (import-independent); prefer **additive
+  edits** (new names / a new branch / a guarded pre-pass) so non-target emission is provably
+  unchanged. Mirror an existing solved analog's collect→validate→resolve template.
+- **Desugar — never grow the TCB.** A new surface construct should add 0 new IR nodes, 0 backend
+  change, 0 `\trusted`, living entirely in the front-end, and **prove its desugaring** by emitting
+  WhyML byte-identical (modulo an attribution comment) to its hand-written equivalent. A surface
+  that adds no proving power must earn its keep by DRY + readability alone.
+- **Boundaries are sound under-approximations, never faked.** Out-of-scope constructs stay
+  opaque/`\abstract` with a *documented* boundary that can never prove a false claim (e.g. a deque
+  from an iterable models as EMPTY). Enforce a potentially-unsound construct with a **rejection + a
+  new UB-catalog rule** (mirroring UB-7.x), not silent acceptance.
+- **Prefer `\abstract` (bodyless `val` + `ensures`) over `\trusted`.** It is sound, opaque,
+  auditable, and a *different code path* that passes the 0-trusted lint. Relocate trust into a
+  small, auditable boundary rather than letting it vanish.
+- **Val-bridge pattern.** A logic symbol that can't appear in a program/value context is bridged
+  through an abstract `val op (...) : τ` whose `ensures` ties its result to the logic symbol
+  (`str_length_op`, `float_add_op`). Reused for every new theory.
+- **Exploit Why3 guarantees instead of emitting lemmas** (a `let function` is referentially
+  transparent by construction → determinism for free); *infer* a property when the predicate
+  already holds rather than demanding a new annotation.
+- **Cited axioms must be REAL.** A `#@ proof rocq|lean` lemma must close by an honest proof (no
+  `Axiom`/`Admitted`/tautology). "0 trusted" ≠ "0 axioms" — the cited set is the explicit, auditable
+  trusted core. Never fake an axiom to claim 0-trusted; the honest boundary is the abstract val's
+  bounded `raises` + a `cite:` provenance note. Cross-validate via the `0342` gcd template when SMT
+  alone can't close a goal.
+
+### 8.5 The gate battery
+
+Every landed change records its passed gate inline. The standard gates:
+
+- **Full-corpus sweep, zero new regressions** — `PYTHONHASHSEED=0`, honor `# pycsl-flags:` and
+  `# pycsl-expected:`, classify regressions vs now-pass, diff vs the committed baseline. Core-path
+  tracks sweep *per sub-stage*. (~1–2 h with the Rocq tests; **run it alone** — background CPU
+  contention produces spurious timeouts that look like regressions.)
+- **Emission-identical byte-diff** for any refactor (see §10) — byte-identical `.mlw` across the
+  whole corpus and all four memory models.
+- **5-surface doc-coherency** — `bin/doc-coherency.py --check` green across `annotations.md`
+  (canonical) + README + the three `docs/*-reference.md`. Update the τ-table (static-semantics §1.4
+  / translational §T.2.2) + the UB catalog as part of the gate.
+- **The 16-steps acceptance** (stdlib stubs / units): each unit must (1) exist, (2) verify under
+  `pycsl.py`, (3) carry **zero `\trusted reviewer:`** markers (the named form, distinct from
+  anonymous `\trusted`), (4) have a verifying `*_demo.py` **formal driver** — `requires`/`ensures`/
+  `assigns`-bearing functions, *not* a `print` script. All four are machine-checked shell
+  predicates in a plan's `**Acceptance:**` block.
+- **The supervisor loop** — `bin/agent-feature-supervisor --feature-file F` re-runs every phase's
+  Acceptance block. It is **gate-only** and halts (exit 75) rather than edit load-bearing files;
+  opt in with `--allow-load-bearing` / `--allow-llm-delegation`, and every delegated diff still
+  needs human review. Guard recursion with `CMMI_AUDIT_NESTED=1` + foreground + a timeout (it can
+  CPU-explode via extreme-rigor retrospective recursion).
+- Plus the per-feature battery: `audit-pycsl-language`, cmmi mod-index regen (when def counts
+  shift), `rag-build` / `rag-verify`, and `pycsl --audit-proof` if a cross-validation proof was
+  added.
+
+### 8.6 Tier by feasibility; rank by blast radius
+
+- **Tier a feature set by ROI before building** — high-value/low-risk now, narrow-value/high-risk
+  gated behind a driver, near-zero-value recognize-and-document only. Aim for ~80% of the value at
+  ~30% of the surface; don't bundle differing-ROI items into one change.
+- **Rank work by blast radius.** Additive changes are low-risk; core-emitter changes (float, the
+  dict path, the attribute path) touch much of the corpus — sequence them later and budget multiple
+  sweeps. Use the emission differential to *enumerate* the changed-file set when emission changes by
+  design: it should equal exactly the set of files using the feature.
+
+### 8.7 Process hygiene
+
+- Standing conventions: `PYTHONHASHSEED=0`, `.venv/bin/python`, **commit/push only when asked**,
+  plan files at named repo-root paths, contracts placed **above** any decorator to attach, and keep
+  duplicated source in sync (`src/pycsl/` ↔ `src/self-annotate/src/`, `bin/check-self-annotate-sync.sh`).
+- **Re-ground a plan against the committed source before acting** — its load-bearing premise may be
+  stale; cite `file:line`. Treat recommendations as **hypotheses, not orders** (verify the smell
+  exists; reject false unifications; leave faithful upstream ports like `pure_ast.py` alone).
+- **Investigate before assuming a code gap** — a "propagation bug" was once just missing fixture
+  files. **Triage a failing sweep into root-cause buckets**; fix only what this change owns and spin
+  the rest out as named follow-up plans.
+- **Fix the generator, not the unit.** When a delegate repeatedly ships a failing unit, fix it
+  durably across three layers — skills/SKILL.md (+ competency-matrix routing), the code generator's
+  defaults, and a **gate lint** — or it is aspirational, not enforced. When a new policy reverses
+  existing skill docs, edit each contradicting surface explicitly and point to the replacement idiom.
 
 ---
 

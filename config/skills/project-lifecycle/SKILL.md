@@ -162,6 +162,9 @@ This document satisfies CMMI v2.0 practice areas:
 | Tailoring profiles | `references/tailoring-profiles.md` |
 | Submitting a feature plan to the verification gate | `references/feature-plan-submission.md` |
 | Competency matrix (which skills each level/role needs) | `references/competency-matrix.md` |
+| RACI matrix (role-to-level + orchestration-task mapping) | `references/raci-matrix.md` |
+| ETVX verification, exit criteria, and output destinations | `references/etvx-verification.md` |
+| Measurement & metrics (KPIs, collection path) | `references/metrics.md` |
 | Artifact checklist per level | `config/skills/cmmi-process-level/references/artifact-checklist.md` |
 | Governance workflows | `config/skills/cmmi-glue/references/workflow-catalog.md` |
 | Project structure convention | `config/skills/agent-project-structure/SKILL.md` |
@@ -190,43 +193,13 @@ This document satisfies CMMI v2.0 practice areas:
 
 *Practice area: OPD SP 1.1 — role-to-level mapping for the project lifecycle.*
 
-| Level / Phase | Activity | Business Analyst / Product Owner² | EPG Lead | System Architect | Project Manager | EPG Member | Configuration Manager | UAT Test Engineer | Reconciliator | Technical Lead | System Test Engineer | Integration Test Engineer | Software Engineer | Module Test Engineer | Unit Test Engineer | SQA Auditor | Metrics Analyst | All stakeholders¹ |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Phase 1 | Gap Analysis | R | A | C | I | — | — | — | — | — | — | — | — | — | — | — | — | — |
-| Phase 2 | Process Documents | — | A | — | I | R | C | — | — | — | — | — | — | — | — | — | — | — |
-| Business | Specify (BRD, system decomposition, coordination spec) | R, A | I | C | — | I | C | — | — | — | — | — | — | — | — | C | I | — |
-| Business | Define test plan (UAT) | A | — | — | — | — | — | R | — | — | — | — | — | — | — | C | — | — |
-| Business | Reconcile failures | A | I | — | — | — | — | C | R | — | — | — | — | — | — | I | — | — |
-| System | Specify (SRS/SAD/ICD, component decomposition, coordination spec) | — | I | R, A | — | I | C | — | — | C | — | — | — | — | — | C | I | — |
-| System | Define test plan (system + integration tests) | — | — | A | — | — | — | — | — | — | R | C | — | — | — | C | — | — |
-| System | Reconcile failures | — | — | A, C | — | — | — | — | R | — | C | — | — | — | — | I | — | — |
-| Component | Specify (HLD, module decomposition, coordination spec) | — | — | — | — | — | C | — | — | R, A | — | — | C | — | — | C | I | — |
-| Component | Define test plan (component integration tests) | — | — | — | — | — | — | — | — | A | — | R | — | — | C | C | — | — |
-| Component | Reconcile failures | — | — | — | — | — | — | — | R | A, C | — | C | — | — | — | I | — | — |
-| Module | Specify (MLD, unit decomposition, coordination spec) | — | — | — | — | — | C | — | — | A | — | — | R | — | — | C | I | — |
-| Module | Define test plan (module tests) | — | — | — | — | — | — | — | — | A | — | — | C | R | — | C | — | — |
-| Module | Reconcile failures | — | — | — | — | — | — | — | R | A | — | — | C | C | — | I | — | — |
-| Unit | Specify (LLD, formal annotations, pre/post-conditions) | — | — | — | — | — | C | — | — | A | — | — | R | — | — | C | I | — |
-| Unit | Define test plan (unit tests / proofs) | — | — | — | — | — | — | — | — | A | — | — | C | — | R | C | — | — |
-| Unit | Reconcile failures | — | — | — | — | — | — | — | R | A | — | — | C | — | C | I | — | — |
-| Phase 10 | Implement code (Coder + Validator) | — | — | — | — | — | I | — | — | A | — | — | R | — | — | — | — | — |
-| Phase 12 | Final Audit | — | A | — | — | — | — | — | — | — | — | — | — | — | — | R | C | I |
-
-¹ Broadcast notification pattern — not a single persona.
-² Combined persona: `config/agents/business-analyst.md` (role: Business Analyst / Product Owner).
-
-**Orchestration tasks (§4.T mapping):**
-
-| Task | Activity | EPG Member | EPG Lead | Configuration Manager | Project Manager | Business Analyst | UAT Test Engineer | Reconciliator | System Architect | System Test Engineer | Technical Lead | Integration Test Engineer | Software Engineer | Module Test Engineer | Unit Test Engineer | SQA Auditor |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| T1 | Project Initialisation | R | A | C | I | — | — | — | — | — | — | — | — | — | — | — |
-| T2 | Execute Business Level | — | A | — | — | R | R | R | — | — | — | — | — | — | — | — |
-| T3 | Execute System Level | — | — | — | — | — | — | R | R, A | R | — | — | — | — | — | — |
-| T4 | Execute Component Level | — | — | — | — | — | — | R | — | — | R, A | R | — | — | — | — |
-| T5 | Execute Module Level | — | — | — | — | — | — | R | — | — | A | — | R | R | — | — |
-| T6 | Execute Unit Level | — | — | — | — | — | — | R | — | — | A | — | R | — | R | — |
-| T7 | Phase 10 — Code + Validate (leaf) | — | — | I | — | — | — | — | — | — | A | — | R | — | — | — |
-| T8 | Level Transition and Delegation Rules | R | A | — | — | — | — | — | — | — | — | — | — | — | — | C |
+The full RACI matrix (per-level activity rows: Specify / Define
+test plan / Reconcile failures for Business, System, Component,
+Module, Unit, plus Phase 1, 2, 10, 12) and the orchestration-task
+mapping (T1–T8) live in
+[`references/raci-matrix.md`](references/raci-matrix.md). Load it
+when assigning roles to a level or task, or when auditing
+role-to-level compliance.
 
 ---
 
@@ -446,49 +419,14 @@ grammar, safety rules, deny-list behavior, and exit codes.
 | Coordination Spec Required | The Specifier must explicitly define how sub-actors interact, separate from what each sub-actor does individually. |
 | Directory Hierarchy Compliance | All artifacts must be stored in the prescribed directory hierarchy (`BL/SY<N>-<Name>/CO<N>-<Name>/...`) per `references/directory-hierarchy.md`. No artifacts outside the hierarchy. |
 
-### V — Verification & Validation
+### V / X / O — Verification, Exit, Outputs
 
-*Practice area: PQA SP 1.1 — objective evaluation of lifecycle adherence.*
-
-Before marking a project lifecycle as complete, verify:
-
-- [ ] Phase 1 (Gap Analysis) and Phase 2 (Process Documents) have been executed.
-- [ ] All in-scope specification levels have completed their execution cycle (Synchronize → Delegate → Sub-actors Work → Run Tests → Reconcile).
-- [ ] Delegation fan-out was executed for all sub-units at each level (all systems, components, modules, units).
-- [ ] Level entry/exit criteria were checked and recorded at each transition.
-- [ ] The independence constraint was respected (Specifier ≠ Verifier ≠ Reconciliator at each level) (unless tailored per §6).
-- [ ] Coordination specs exist at every level and were validated against test failures.
-- [ ] All reconciliation loops terminated (either tests pass or escalation was triggered).
-- [ ] Cross-level reconciliation routing was correctly applied (sub-actor faults escalated downward; Specifier faults escalated upward when warranted).
-- [ ] The directory hierarchy follows the prescribed naming convention (`BL/SY<N>-<Name>/CO<N>-<Name>/MO<N>-<Name>/UN<N>-<Name>/`) per `references/directory-hierarchy.md`.
-- [ ] Every level directory contains `requirements/`, `specifications/`, and `tests/` subdirectories with populated `main.md` files.
-- [ ] `src/` directories exist at CO, MO, and UN levels (or at the deepest in-scope level per tailoring profile).
-- [ ] A Requirements Traceability Matrix (RTM) links all in-scope levels.
-- [ ] The final gap re-run (Phase 12) shows 0 Critical and 0 Major gaps (unless tailored per §6).
-- [ ] All test suites pass at all in-scope levels.
-- [ ] The SQA audit report is filed with 0 open NCRs (non-conformances are escalated via `cmmi-glue` Workflow 3).
-- [ ] Reconciliation logs exist for each level where re-work occurred.
-
-### X — Exit Criteria
-
-- [ ] All V — Verification & Validation checks pass.
-- [ ] The project's success criteria (from PROJECT.md) are met.
-- [ ] The EPG Lead has approved the lifecycle completion.
-
-### O — Outputs & Destinations
-
-| Output | Format | Destination |
-|---|---|---|
-| Gap analysis report | Markdown | `projects/<project>/docs/reports/` |
-| Process documents (QA plan, CM procedure) | Markdown | `projects/<project>/docs/process/` |
-| Requirements (per-level) | Markdown | `projects/<project>/BL/.../requirements/main.md` |
-| Specifications (per-level) | Markdown | `projects/<project>/BL/.../specifications/main.md` |
-| Test plans and test results (per-level) | Markdown | `projects/<project>/BL/.../tests/main.md` |
-| Source code | Source code | `projects/<project>/BL/.../src/` (CO, MO, UN levels) |
-| Reconciliation logs | Markdown | `projects/<project>/docs/reports/` |
-| RTM | Markdown | `projects/<project>/docs/reports/` |
-| SQA audit report | Markdown | `projects/<project>/docs/audits/` |
-| Metrics report | Markdown | `projects/<project>/docs/reports/` |
+The V (Verification & Validation checklist), X (Exit Criteria),
+and O (Outputs & Destinations map) sections of this ETVX model
+live in
+[`references/etvx-verification.md`](references/etvx-verification.md).
+Load it when closing out a project lifecycle or locating where a
+lifecycle artifact must be written.
 
 ---
 
@@ -496,20 +434,11 @@ Before marking a project lifecycle as complete, verify:
 
 *Practice area: MPM SP 1.1 — quantitative tracking of lifecycle execution.*
 
-| KPI | Formula | Collection Point | Organisational Objective |
-|---|---|---|---|
-| Level completion rate | (levels completed) / (levels in scope) × 100 | Level exit-criteria records | 100% level execution for all projects |
-| Specification-verification pairing rate | (levels with passing tests) / (levels with specifications) × 100 | Level records | 100% pairing — no level left unverified |
-| Gap closure rate | (gaps closed) / (gaps identified in Phase 1) × 100 | Phase 12 re-run vs Phase 1 | 100% Critical + Major gaps closed |
-| Test pass rate per level | (tests passing) / (total tests) × 100 per level | Test execution reports | >95% pass rate at each level |
-| Traceability completeness | (requirements with ≥1 test) / (total requirements) × 100 | RTM | 100% traceability |
-| Independence compliance | (levels with 3 distinct actors) / (total levels) × 100 | Level records | 100% independence |
-| Reconciliation re-work count | Total re-work loops triggered per level per project | Reconciliation logs | Minimize re-work; trend downward over projects |
-| Fault attribution distribution | Percentage of faults classified as Specifier / Verifier / Level-below | Reconciliation logs | Identify systemic weaknesses by fault type |
-
-### Metric Collection Path
-
-All lifecycle metrics are collected in `projects/<project>/docs/reports/metrics-collection-<NNN>.md`. Each level completion appends a row. The EPG Lead reviews at Phase 12; the Metrics Analyst archives the final version alongside the SQA audit report. Findings feed into `cmmi-glue` Workflow 4 (Continuous Improvement Loop) to refine the lifecycle for future projects.
+The lifecycle KPIs (level completion rate, specification-verification
+pairing, gap closure, test pass rate, traceability, independence,
+reconciliation re-work, fault attribution) and the metric collection
+path live in [`references/metrics.md`](references/metrics.md). Load it
+when defining or collecting lifecycle metrics.
 
 ---
 

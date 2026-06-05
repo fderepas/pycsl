@@ -62,7 +62,7 @@ Add PEP 484 type hints to **all** function parameters and return types, even if 
 
 ---
 
-## Section 3b — Guarded cases (`act` blocks)
+## Section 3a — Guarded cases (`act` blocks)
 
 For functions whose postcondition splits by case, use a Pythonic `act` block (ACSL
 "behaviour"). `#@ act <name>:` is followed by a **4-space-indented** body of
@@ -97,7 +97,7 @@ def myabs(x: int) -> int:
 
 ---
 
-## Section 3c — Statement checkpoints (`#@ assert` / `#@ check`)
+## Section 3b — Statement checkpoints (`#@ assert` / `#@ check`)
 
 A mid-body proof obligation attached to the following statement (like `#@ label`):
 
@@ -120,7 +120,7 @@ def stepper(x: int) -> int:
 ```
 See `annotations.md` §2.4 (rows 7–8). Demos: corpus `0457` (proves), `0458` (false assert fails).
 
-## Section 3d — Region integrity (`#@ happy` meta-property)
+## Section 3c — Region integrity (`#@ happy` meta-property)
 
 When a class has a shared array field with a **reserved region** that only a few methods
 may write (inode tables, headers, a bitmap), don't hand-copy a disjointness obligation into
@@ -151,7 +151,7 @@ preservation `ensures`). See `annotations.md` §2.5. Demos: corpus `0459` (prove
 
 ---
 
-## Section 3e — Strings (real `string.String` model)
+## Section 3d — Strings (real `string.String` model)
 
 Runtime `str` is the Why3 `string.String` value type (τ(str) = string) — it carries **real
 content**, not an opaque hash. So these are verifiable on `str` params/locals/returns, and the
@@ -175,7 +175,7 @@ corpus `0471` (substring search — the flagship), `0472`–`0476`/`0481`/`0490`
 
 ---
 
-## Section 3f — Sum types (`#@ datatype`) and pattern matching
+## Section 3e — Sum types (`#@ datatype`) and pattern matching
 
 A module-level `#@ datatype` directive declares a **real Why3 algebraic type** (not an int
 coarsening). Constructors may be nullary or carry typed payloads:

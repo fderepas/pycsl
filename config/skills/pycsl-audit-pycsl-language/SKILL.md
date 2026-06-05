@@ -28,7 +28,7 @@ are a manual audit. This skill is that audit. Run it every time you change the l
 Every `#@` contract clause / directive (and every Python-subset construct) must line up
 across all of these, or the language is in drift:
 
-```
+```text
   surface (one #@ directive)
         │
    ┌────┴─────────────────────────────────────────────────────────────┐

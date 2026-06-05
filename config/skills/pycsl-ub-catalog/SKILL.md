@@ -18,6 +18,120 @@ lands; expect partial coverage until all sub-features are merged.
 
 ---
 
+## §7.1 Mutation during iteration
+
+**Source pattern that triggers it.** Any `for x in C: ...` whose body
+mutates the iterated collection `C`:
+
+```python
+for x in arr:
+    arr.append(...)   # triggers (list.append on the iterated)
+    arr.pop()         # triggers
+    arr[i] = v        # triggers (subscript assignment)
+    del arr[i]        # triggers
+```
+
+The full set of mutating methods is in
+`IRScanner._MUTATING_METHODS`: `append`, `pop`, `clear`, `add`,
+`remove`, `discard`, `update`, `extend`, `insert`, `setdefault`.
+
+**Detection mechanism.** `IRScanner.find_iteration_mutations` is a
+stateless walk of the IR statement list. For each `For` stmt whose
+`iter` is a `Var(name=C)`, it recurses into the body collecting any
+`ArraySet` against `C`, dotted-call `C.method(...)` where `method` is
+in the mutating set, or `Delete`/`DelSubscript` against `C`. The
+check runs from `pycsl.py:_run_pipeline` immediately after the IR is
+validated, raising `PyCSLSemanticError` on the first violation.
+
+**Verification stance.** *Hard error* by default. Mutating an iterated
+list/dict corrupts CPython's iterator state and is genuine UB.
+
+**Escape annotation.** `#@ allow_iteration_mutation` placed
+immediately before the `for` statement (alongside `loop invariant` /
+`loop variant`). Sets the per-loop `csl_allow_iteration_mutation`
+flag, which Module 5 propagates as `allow_iteration_mutation: true`
+on the IR for-loop node. The scanner respects the flag and skips the
+mutation check for that single loop (the body's nested loops are
+still checked).
+
+**Corpus cross-reference:** `0404` (append), `0405` (pop), `0406`
+(positive: mutating a different container), `0407`
+(`allow_iteration_mutation` opt-in).
+
+---
+
+## §7.2 `__hash__` / `__eq__` consistency
+
+**Source pattern that triggers it.** Any class that defines `__hash__`
+and `__eq__` simultaneously. Hash/eq consistency (`a == b ⇒ hash(a)
+== hash(b)`) is required by every container that uses the class as a
+key. CPython does not enforce it; PyCSL surfaces the contract.
+
+**Detection mechanism.** Module 5's `visit_ClassDef` (now at
+`Module5_IREmitter.py:1028`) walks the class body and records
+`has_hash` / `has_eq` / `is_unhashable` (only `__eq__` defined) on
+the IR `type_decl` record. Module 6's `_emit_type_decls`
+(`module6_whyml/preamble.py:416`) consults these flags and emits an
+abstract `val function` pair plus a hash/eq relationship.
+
+**Verification stance.** Default mode emits the relationship as a
+WhyML *axiom* (the user is on the hook for the property; the axiom
+documents the assumption). Strict mode
+(`--strict-hash-eq-consistency`) emits it as a *goal* that Why3 must
+discharge — typically via an external `#@ proof rocq` or
+`#@ proof lean` citation.
+
+Unhashable classes (`__eq__` without `__hash__`) emit a documentation
+comment only; no goal/axiom is generated. Using such a class as a
+dict/set key would raise `TypeError` at runtime, which UB-7.4 / future
+`no_exception TypeError` work can flag separately.
+
+**Escape annotation.** None directly — the strict-mode goal requires
+an external `#@ proof` citation; the default-mode axiom is implicit
+trust. To opt out of the check entirely, omit one of the methods or
+do not derive the class from one that defines either.
+
+**Corpus cross-reference:** `0411` (consistent, axiom mode), `0412`
+(strict-mode unproven goal), `0413` (unhashable), `0414` (hash-only).
+
+---
+
+## §7.3 Concurrent races
+
+**Source pattern that triggers it.** Any code under
+`--memory-model concurrent` that:
+
+- Reads or writes a shared variable outside its declared critical
+  section (the `with mutex:` block named by `#@ shared X protected_by
+  lock`).
+- Declares a shared variable with `#@ shared X` (no `protected_by`) —
+  unconditionally flagged because every access is a potential race.
+- Acquires two locks in an order that conflicts with the declared
+  `#@ lock_order` (potential deadlock).
+
+**Detection mechanism.** `ConcurrencyChecker` already walks the AST
+collecting these as `ConcurrencyWarning` records (see
+`src/pycsl/ConcurrencyChecker.py:47`). UB-7.3 adds a
+`strict_mode` flag: when set, the first warning is escalated to a
+`PyCSLSemanticError`. The checker still runs and populates
+`self.warnings` either way; strict mode just changes the response.
+
+**Verification stance.** Default mode emits warnings to stderr. Under
+`--strict-concurrent-checks` the first warning becomes a hard error.
+Default remains *warning* for backward compatibility — existing
+concurrent corpora (`pycsl-reference/0250`–`0263`) rely on the
+warning-only contract.
+
+**Escape annotation.** None at the access site — the fix is to add the
+appropriate `#@ shared X protected_by L` declaration and wrap the
+access in `with L: ... #@ critical L`. To opt out of the strict check
+for a specific run, omit the `--strict-concurrent-checks` flag.
+
+**Corpus cross-reference:** `0415` (unprotected access under strict),
+`0417` (protected access under strict — passes).
+
+---
+
 ## §7.4 C-extension boundary
 
 **Source pattern that triggers it.** Any `import` or `from ... import`
@@ -147,120 +261,6 @@ Note: contracts must be placed **above** the decorator to attach.
 
 **Corpus cross-reference:** `0515` (pure `@lru_cache` accepted + caller proof),
 `0516` (memoizing a non-RT function rejected).
-
----
-
-## §7.1 Mutation during iteration
-
-**Source pattern that triggers it.** Any `for x in C: ...` whose body
-mutates the iterated collection `C`:
-
-```python
-for x in arr:
-    arr.append(...)   # triggers (list.append on the iterated)
-    arr.pop()         # triggers
-    arr[i] = v        # triggers (subscript assignment)
-    del arr[i]        # triggers
-```
-
-The full set of mutating methods is in
-`IRScanner._MUTATING_METHODS`: `append`, `pop`, `clear`, `add`,
-`remove`, `discard`, `update`, `extend`, `insert`, `setdefault`.
-
-**Detection mechanism.** `IRScanner.find_iteration_mutations` is a
-stateless walk of the IR statement list. For each `For` stmt whose
-`iter` is a `Var(name=C)`, it recurses into the body collecting any
-`ArraySet` against `C`, dotted-call `C.method(...)` where `method` is
-in the mutating set, or `Delete`/`DelSubscript` against `C`. The
-check runs from `pycsl.py:_run_pipeline` immediately after the IR is
-validated, raising `PyCSLSemanticError` on the first violation.
-
-**Verification stance.** *Hard error* by default. Mutating an iterated
-list/dict corrupts CPython's iterator state and is genuine UB.
-
-**Escape annotation.** `#@ allow_iteration_mutation` placed
-immediately before the `for` statement (alongside `loop invariant` /
-`loop variant`). Sets the per-loop `csl_allow_iteration_mutation`
-flag, which Module 5 propagates as `allow_iteration_mutation: true`
-on the IR for-loop node. The scanner respects the flag and skips the
-mutation check for that single loop (the body's nested loops are
-still checked).
-
-**Corpus cross-reference:** `0404` (append), `0405` (pop), `0406`
-(positive: mutating a different container), `0407`
-(`allow_iteration_mutation` opt-in).
-
----
-
-## §7.2 `__hash__` / `__eq__` consistency
-
-**Source pattern that triggers it.** Any class that defines `__hash__`
-and `__eq__` simultaneously. Hash/eq consistency (`a == b ⇒ hash(a)
-== hash(b)`) is required by every container that uses the class as a
-key. CPython does not enforce it; PyCSL surfaces the contract.
-
-**Detection mechanism.** Module 5's `visit_ClassDef` (now at
-`Module5_IREmitter.py:1028`) walks the class body and records
-`has_hash` / `has_eq` / `is_unhashable` (only `__eq__` defined) on
-the IR `type_decl` record. Module 6's `_emit_type_decls`
-(`module6_whyml/preamble.py:416`) consults these flags and emits an
-abstract `val function` pair plus a hash/eq relationship.
-
-**Verification stance.** Default mode emits the relationship as a
-WhyML *axiom* (the user is on the hook for the property; the axiom
-documents the assumption). Strict mode
-(`--strict-hash-eq-consistency`) emits it as a *goal* that Why3 must
-discharge — typically via an external `#@ proof rocq` or
-`#@ proof lean` citation.
-
-Unhashable classes (`__eq__` without `__hash__`) emit a documentation
-comment only; no goal/axiom is generated. Using such a class as a
-dict/set key would raise `TypeError` at runtime, which UB-7.4 / future
-`no_exception TypeError` work can flag separately.
-
-**Escape annotation.** None directly — the strict-mode goal requires
-an external `#@ proof` citation; the default-mode axiom is implicit
-trust. To opt out of the check entirely, omit one of the methods or
-do not derive the class from one that defines either.
-
-**Corpus cross-reference:** `0411` (consistent, axiom mode), `0412`
-(strict-mode unproven goal), `0413` (unhashable), `0414` (hash-only).
-
----
-
-## §7.3 Concurrent races
-
-**Source pattern that triggers it.** Any code under
-`--memory-model concurrent` that:
-
-- Reads or writes a shared variable outside its declared critical
-  section (the `with mutex:` block named by `#@ shared X protected_by
-  lock`).
-- Declares a shared variable with `#@ shared X` (no `protected_by`) —
-  unconditionally flagged because every access is a potential race.
-- Acquires two locks in an order that conflicts with the declared
-  `#@ lock_order` (potential deadlock).
-
-**Detection mechanism.** `ConcurrencyChecker` already walks the AST
-collecting these as `ConcurrencyWarning` records (see
-`src/pycsl/ConcurrencyChecker.py:47`). UB-7.3 adds a
-`strict_mode` flag: when set, the first warning is escalated to a
-`PyCSLSemanticError`. The checker still runs and populates
-`self.warnings` either way; strict mode just changes the response.
-
-**Verification stance.** Default mode emits warnings to stderr. Under
-`--strict-concurrent-checks` the first warning becomes a hard error.
-Default remains *warning* for backward compatibility — existing
-concurrent corpora (`pycsl-reference/0250`–`0263`) rely on the
-warning-only contract.
-
-**Escape annotation.** None at the access site — the fix is to add the
-appropriate `#@ shared X protected_by L` declaration and wrap the
-access in `with L: ... #@ critical L`. To opt out of the strict check
-for a specific run, omit the `--strict-concurrent-checks` flag.
-
-**Corpus cross-reference:** `0415` (unprotected access under strict),
-`0417` (protected access under strict — passes).
 
 ---
 
