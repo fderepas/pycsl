@@ -260,6 +260,12 @@ class ExpressionEmissionMixin:
         # the real string-equality bridge rather than the mixed int-hash fallback (0471).
         if t in ("Subscript", "SliceAccess"):
             return self._is_string_expr(ir.get("value", {}))
+        # `s + t` is a `BinOp(+)` node (string concatenation when both operands are
+        # strings) — so a concat expression is itself string-typed. Required so e.g.
+        # `len(s + t)` routes to str_length_op rather than the opaque iter_length.
+        if t == "BinOp" and ir.get("op") == "+":
+            return (self._is_string_expr(ir.get("left", {}))
+                    and self._is_string_expr(ir.get("right", {})))
         return False
 
     def _str_operand_to_int(self, whyml_str: str) -> str:
@@ -298,7 +304,8 @@ class ExpressionEmissionMixin:
                 return f"(concat {left} {right})"
             self._add_abstract_op(
                 "val str_concat_op (a: string) (b: string) : string\n"
-                "    ensures { result = (concat a b) }")
+                "    ensures { result = (concat a b) }\n"
+                "    ensures { String.length result = String.length a + String.length b }")
             return f"(str_concat_op {left} {right})"
         # strings-plan Stage 2: string `==`/`!=` content equality. In a spec, polymorphic `=`
         # is fine (falls through below); in a program (body) context `=` on strings is not
@@ -379,12 +386,13 @@ class ExpressionEmissionMixin:
             if vname in append_targets:
                 # Append-target len is tracked in a sidecar ref `X_len`.
                 return f"!{vname}_len"
-        if atype == "Var" and getattr(self, "_current_symbol_table", {}).get(
-                arg_ir.get("name", "")) == "str":
-            # strings-plan Stage 1: len(s) on a runtime str is the Why3 string length.
-            # In a spec, the logic symbol `String.length` is used directly; in a program
-            # (body) context that logic symbol is not allowed, so bridge it through an
-            # abstract `val` whose `ensures` ties the program result to `String.length`.
+        if self._is_string_expr(arg_ir):
+            # strings-plan: len() on ANY runtime-str expression (a str var, a concat
+            # `s + t`, a slice `s[a:b]`, an index `s[i]`) is the Why3 string length —
+            # not just a bare str var. In a spec the logic symbol `String.length` is used
+            # directly; in a program (body) context that logic symbol is not allowed, so
+            # bridge it through an abstract `val` whose `ensures` ties the program result
+            # to `String.length` (and `args[0]` is the already-lowered string expression).
             if self._in_spec:
                 return f"(String.length {args[0]})"
             self._add_abstract_op(
