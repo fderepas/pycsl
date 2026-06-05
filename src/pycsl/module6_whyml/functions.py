@@ -36,6 +36,14 @@ class FunctionEmissionMixin:
         if symtype == "float":
             # no-more-int Stage D: `float` is Why3 `real` (was the unsound τ(float)=int).
             return f"({safe}: real)"
+        if symtype in self._record_types:
+            # no-more-int-2 Track 3: a bare class-typed param is reconstructed as its record
+            # type (was coarsened to int with opaque getattr_<cls>), so `p.field` reads
+            # directly. Read-only: mutating a record param is out of scope (value semantics).
+            wn = self._record_types[symtype]["whyml_name"]
+            self._record_locals.add(arg)
+            self._record_param_classes[arg] = wn
+            return f"({safe}: {wn})"
         return f"({safe}: {int_type})"
 
     def _collect_record_fields(self, type_decls: List[Dict[str, Any]]) -> Set[str]:
@@ -79,6 +87,9 @@ class FunctionEmissionMixin:
         self._dict_locals = set()
         self._lambda_locals = set()
         self._record_locals = set()
+        # no-more-int-2 Track 3: a bare class-typed parameter reconstructed as a record
+        # (param name → whyml record type), so `p.field` is a direct read, not opaque getattr.
+        self._record_param_classes: Dict[str, str] = {}
         self._ghost_string_vars: Set[str] = set()
         self._ghost_array_vars: Set[str] = set()
         self._ghost_dict_vars: Set[str] = set()
@@ -142,6 +153,12 @@ class FunctionEmissionMixin:
                     param_parts.append(f"({safe}: string)")
                 elif symbol_table.get(arg) == "float":
                     param_parts.append(f"({safe}: real)")  # no-more-int Stage D
+                elif symbol_table.get(arg) in self._record_types:
+                    # no-more-int-2 Track 3: record-typed method param (read-only).
+                    wn = self._record_types[symbol_table[arg]]["whyml_name"]
+                    self._record_locals.add(arg)
+                    self._record_param_classes[arg] = wn
+                    param_parts.append(f"({safe}: {wn})")
                 else:
                     param_parts.append(f"({safe}: {int_type})")
             return set(), " ".join(param_parts)

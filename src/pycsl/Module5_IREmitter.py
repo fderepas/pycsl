@@ -227,6 +227,11 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
         return {"type": "UnaryOp", "op": node.op, "expr": self._csl_to_ir(node.expr)}
 
     def _csl_field_access(self, node: CSLFieldAccess) -> Dict[str, Any]:
+        # no-more-int-2 Track 3: `self.f` is a FieldGet; `p.f` on a record-typed param is an
+        # Attribute (routed through _handle_attribute_expr, which reads a record param directly).
+        if node.object != "self":
+            return {"type": "Attribute",
+                    "object": {"type": "Var", "name": node.object}, "attr": node.field}
         return {"type": "FieldGet", "object": node.object, "field": node.field}
 
     def _csl_field_subscript(self, node: CSLFieldSubscript) -> Dict[str, Any]:

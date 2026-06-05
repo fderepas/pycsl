@@ -780,6 +780,7 @@ PYCSL_GRAMMAR = r"""
          | "None" -> none_lit
          | "self" "." CNAME "[" expr "]" -> field_subscript
          | "self" "." CNAME -> field_access
+         | CNAME "." CNAME -> param_field_access
          | "\\result" "[" expr "]" -> result_subscript
          | "\\is_sorted" "(" CNAME "," expr "," expr ")" -> is_sorted_expr
          | "\\array_eq" "(" expr "," expr ")" -> array_eq_expr
@@ -1012,6 +1013,9 @@ class PyCSLTransformer(Transformer):
     def none_lit(self) -> CSLNone: return CSLNone()
     def var(self, name) -> Var: return Var(str(name))
     def field_access(self, field_name) -> FieldAccess: return FieldAccess("self", str(field_name))
+    # no-more-int-2 Track 3: `p.field` on a record-typed param in a contract (object != "self").
+    def param_field_access(self, var, field_name) -> FieldAccess:
+        return FieldAccess(str(var), str(field_name))
     def field_subscript(self, field_name, index) -> FieldSubscript: return FieldSubscript(str(field_name), index)
     def result(self) -> Result: return Result()
     def old_var(self, expr) -> Old: return Old(expr)
