@@ -207,6 +207,11 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
     """
     def __init__(self) -> None:
         self.current_scope: Dict[str, str] = {}
+        # no-more-int-3 A1: dict var -> WhyML value type ν, captured only for a
+        # NON-int real value type (currently `string`) from a `Dict[K, V]`
+        # annotation — `_get_type_name` discards V. Int-valued dicts get no entry
+        # and keep the existing `map int (option int)` path (byte-identical).
+        self.current_dict_value_types: Dict[str, str] = {}
         self.current_function_name: str = ""
         self._class_fields: Dict[str, str] = {}
         # Module-level concurrency state
@@ -250,6 +255,24 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
                 return "Any"
             return head.lower()
         return "Any"
+
+    @staticmethod
+    def _get_dict_value_type(annotation: ast.expr) -> Optional[str]:
+        """For a `Dict[K, V]` annotation, return the WhyML value type ν of V when
+        it is a NON-int real type worth threading (currently only `str` →
+        `string`); else None. `_get_type_name` discards V, so this is the
+        parallel capture feeding the parametric-map value type (no-more-int-3 A1).
+        An int value (`Dict[_, int]`) returns None — int-valued dicts keep the
+        default `map int (option int)` path. Key type κ is a separate sub-stage."""
+        if (isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)
+                and annotation.value.id in ("Dict", "dict")
+                and isinstance(annotation.slice, ast.Tuple)
+                and len(annotation.slice.elts) == 2):
+            v = annotation.slice.elts[1]
+            if isinstance(v, ast.Name) and v.id == "str":
+                return "string"
+        return None
 
     def _validate_contract(self, contract: CSLNode, context_name: str, is_postcondition: bool = False) -> None:
         """Validates that a contract's variables exist and keywords are used correctly."""
@@ -535,9 +558,11 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         saved_scope = self.current_scope
+        saved_dict_value_types = self.current_dict_value_types
         saved_function_name = self.current_function_name
         self.current_function_name = f"function '{node.name}'"
         self.current_scope = {}
+        self.current_dict_value_types = {}
 
         self._build_function_scope(node)
         self._validate_function_contracts(node)
@@ -545,6 +570,7 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         self._validate_subscript_assignments(node)
 
         node.csl_symbol_table = self.current_scope.copy()
+        node.csl_dict_value_types = self.current_dict_value_types.copy()
 
         if self._shared_vars:
             self._check_protected_in_stmts(node.body, set(), node.name)
@@ -552,6 +578,7 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         self.generic_visit(node)
 
         self.current_scope = saved_scope
+        self.current_dict_value_types = saved_dict_value_types
         self.current_function_name = saved_function_name
 
     def _build_function_scope(self, node: ast.FunctionDef) -> None:
@@ -562,6 +589,10 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
                 continue
             arg_type = self._get_type_name(arg.annotation) if arg.annotation else "Any"
             self.current_scope[arg.arg] = arg_type
+            if arg.annotation is not None:
+                nu = self._get_dict_value_type(arg.annotation)
+                if nu is not None:
+                    self.current_dict_value_types[arg.arg] = nu
 
         # Local variables (skip shared module-level variables)
         for child in ast.walk(node):
@@ -575,6 +606,10 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
                         self._get_type_name(child.annotation)
                         if child.annotation else "Any"
                     )
+                    if child.annotation is not None:
+                        nu = self._get_dict_value_type(child.annotation)
+                        if nu is not None:
+                            self.current_dict_value_types[child.target.id] = nu
             elif isinstance(child, ast.For):
                 # For-loop iteration variables are in scope throughout the loop body
                 if isinstance(child.target, ast.Name) and child.target.id not in self._shared_vars:

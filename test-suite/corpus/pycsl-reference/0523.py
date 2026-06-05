@@ -11,7 +11,6 @@ Flips to PASS when A1 T1.1 threads the value type ν through the dict path (map 
 typed missing-key default `None -> ""`, MapSet, dict-literal lowering) and stops `_coerce_to_int`
 on a known-string value. Key type (T1.2) and non-int/non-string values are separate sub-stages.
 """
-# pycsl-expected: FAIL
 _ = 0  # anchor
 from typing import Dict
 

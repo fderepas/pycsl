@@ -55,6 +55,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             return f"{indent}let {safe_target} = {val} in\n"
         if kind == "dict":
             self._dict_locals.add(target)
+            # no-more-int-3 A1: a string-valued dict local starts as the empty
+            # `map int (option string)` (not `option int`), so the ref's inferred
+            # type carries ν = string.
+            if self._dict_value_types.get(target) == "string":
+                val = "(const (None: option string))"
             return f"{indent}let {safe_target} = ref {val} in\n"
         if kind == "bounded_int":
             return f"{indent}let {safe_target} = ref ({val} : int{self._bounded_int}) in\n"
@@ -422,21 +427,34 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     # in non-ghost variable"). Wrap it in a program-level
                     # abstract val `map_update_some` whose contract is
                     # the equivalent `Map.set` semantics.
-                    self._add_abstract_op(
-                        "val map_update_some (m: map int (option int)) (k: int) (v: int) "
-                        ": map int (option int)\n"
-                        "    ensures { result = Map.set m k (Some v) }")
+                    # no-more-int-3 A1: a string-valued dict (ν = string, from
+                    # `Dict[K, str]`) uses `map int (option string)` and a
+                    # string-typed update op, and the value is NOT hashed to int.
+                    nu = self._dict_value_types.get(var_name) if var_name else None
+                    if nu == "string":
+                        self._add_abstract_op(
+                            "val map_update_some_str (m: map int (option string)) "
+                            "(k: int) (v: string) : map int (option string)\n"
+                            "    ensures { result = Map.set m k (Some v) }")
+                        op = "map_update_some_str"
+                        v = val_expr
+                    else:
+                        self._add_abstract_op(
+                            "val map_update_some (m: map int (option int)) (k: int) (v: int) "
+                            ": map int (option int)\n"
+                            "    ensures { result = Map.set m k (Some v) }")
+                        op = "map_update_some"
+                        v = self._coerce_to_int(val_expr)
                     k = self._coerce_to_int(index_expr)
-                    v = self._coerce_to_int(val_expr)
                     if self_field_name is not None:
                         # `self.<field>[k] = v` — record-field assignment.
                         # Why3 syntax: `self.field <- new_value`.
                         safe_field = whyml_ident(self_field_name)
                         code = (f"{indent}self.{safe_field} <- "
-                                f"map_update_some self.{safe_field} {k} {v}")
+                                f"{op} self.{safe_field} {k} {v}")
                     else:
                         safe_name = whyml_ident(var_name) if var_name else array_expr.lstrip("!")
-                        code = f"{indent}{safe_name} := map_update_some !{safe_name} {k} {v}"
+                        code = f"{indent}{safe_name} := {op} !{safe_name} {k} {v}"
                 else:
                     self._add_abstract_op("val subscript_set (x: int) (i: int) (v: int) : unit")
                     code = (f"{indent}subscript_set {self._coerce_to_int(array_expr)} "

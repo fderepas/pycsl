@@ -1333,6 +1333,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return {
             "name": func_name,
             "symbol_table": symbol_table,
+            # no-more-int-3 A1: dict var -> WhyML value type ν (string), for
+            # string-valued dicts only (captured in Module4); int-valued dicts
+            # have no entry and keep the `map int (option int)` path.
+            "dict_value_types": dict(getattr(node, 'csl_dict_value_types', {})),
             "formal_params": formal_params,
             "return_annotation": return_annotation,
             "contracts": {

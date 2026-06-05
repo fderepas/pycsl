@@ -1159,7 +1159,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # refs. For `self.<dict-field>` accesses, no deref is
                 # needed (record-field access is direct).
                 k = self._coerce_to_int(index)
-                inner = f"(match Map.get {value_str} {k} with | Some v_ -> v_ | None -> 0 end)"
+                # no-more-int-3 A1: a string-valued dict reads back a `string`;
+                # the `None` arm is a typed placeholder (`""`) — proven dead under
+                # `#@ no_exception KeyError` (faithful read), the ambient default
+                # otherwise.
+                dvar = value.get("name", "") if value.get("type") == "Var" else ""
+                default = ('""' if getattr(self, "_dict_value_types", {}).get(dvar) == "string"
+                           else "0")
+                inner = f"(match Map.get {value_str} {k} with | Some v_ -> v_ | None -> {default} end)"
                 # no_exception KeyError → assert has_key before the read.
                 return self._wrap_with_no_exception_assert(
                     ("map_get", None), [value_str, k], inner)

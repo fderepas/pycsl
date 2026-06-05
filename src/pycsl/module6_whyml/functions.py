@@ -88,6 +88,10 @@ class FunctionEmissionMixin:
         )
         self._array_locals = set()
         self._dict_locals = set()
+        # no-more-int-3 A1: dict var -> WhyML value type ν (string) for
+        # string-valued dicts; consulted by the dict literal / declaration /
+        # MapGet-default / MapSet sites to emit `map int (option string)`.
+        self._dict_value_types: Dict[str, str] = func.get("dict_value_types", {})
         self._lambda_locals = set()
         self._record_locals = set()
         # no-more-int-2 Track 3: a bare class-typed parameter reconstructed as a record
