@@ -537,6 +537,78 @@ class FunctionEmissionMixin:
                 out[func["name"]] = kept
         return out
 
+    def _build_method_field_result_ensures_map(
+            self, functions: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+        """Map method name → its `ensures` clauses that reference `\\result`
+        AND self-fields (`self.x`) only — no params, `\\old`, locals, or
+        non-self objects. Clauses are kept VERBATIM (the `self.x` FieldGet is
+        preserved); the call site lowers them by giving the abstract op an
+        explicit leading receiver parameter `(self: <class>)` and passing the
+        receiver record, so `self.x` binds to the actual instance.
+
+        This is the third and last propagation map (no-more-int-3 A2c). It
+        closes the method-call contract gap that 0522 documented: a getter
+        `def get_x(self): #@ ensures \\result == self.x` whose postcondition
+        relates `\\result` to a self-FIELD. `_build_method_result_ensures_map`
+        (result+constants) and `_build_method_param_result_ensures_map`
+        (result+params) both drop `FieldGet`, so without this map such a
+        clause propagated nowhere and a `b.get_x()` call proved nothing.
+        Param-referencing field clauses (`\\result == self.x + k`) are excluded
+        — mixing a self-field with a param would collide the receiver param
+        with the positional `x_i`; those stay unpropagated (documented gap)."""
+        def classify(node: Any, params: Set[str]) -> Optional[bool]:
+            # Returns False if the subtree references a DISALLOWED leaf
+            # (param/old/local/non-self object); None/True otherwise. The
+            # `saw_*` flags are accumulated by the caller via the recursion.
+            if not isinstance(node, dict):
+                return None
+            t = node.get("type")
+            if t in ("OldVar", "OldField"):
+                return False
+            if t in ("FieldGet", "Attribute"):
+                # Only `self.<field>` is allowed; `other.f` / a chained
+                # `self.a.b` (object is itself a dict) is rejected.
+                if node.get("object") != "self":
+                    return False
+                return None
+            if t == "Var":
+                # Any bare Var (param or local) is disallowed — a pure
+                # field/result clause names neither.
+                return False
+            if t == "ArrayLen":
+                v = node.get("var")
+                return None if v == "\\result" else False
+            for val in node.values():
+                for c in (val if isinstance(val, list) else [val]):
+                    if classify(c, params) is False:
+                        return False
+            return None
+
+        def saw(node: Any, kind: str) -> bool:
+            if not isinstance(node, dict):
+                return False
+            t = node.get("type")
+            if kind == "result" and (t == "Result"
+                                     or (t == "ArrayLen" and node.get("var") == "\\result")):
+                return True
+            if kind == "field" and t in ("FieldGet", "Attribute") and node.get("object") == "self":
+                return True
+            for val in node.values():
+                for c in (val if isinstance(val, list) else [val]):
+                    if saw(c, kind):
+                        return True
+            return False
+
+        out: Dict[str, List[Dict[str, Any]]] = {}
+        for func in functions:
+            params = set(func.get("formal_params", []) or [])
+            kept = [e for e in (func.get("contracts", {}).get("ensures", []) or [])
+                    if classify(e, params) is not False
+                    and saw(e, "result") and saw(e, "field")]
+            if kept:
+                out[func["name"]] = kept
+        return out
+
     @staticmethod
     def _symtype_to_whyml(symtype: Optional[str]) -> str:
         """Convert a Module5 symbol-table type tag to the WhyML type used

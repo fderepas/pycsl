@@ -93,19 +93,27 @@ Track 3 landed read-only record params. Two follow-ons:
   (`a.bump(k)` propagates the callee's `\result == k + 1`) flips FAIL→PASS; byte-identical for all
   non-record-param-method-call corpus files (additive). **Scope:** A2a delivers only the
   propagation record locals already get — **result-only** and **param-referencing** `ensures`. A
-  **field-referencing** callee ensure (`\result == self.x`) still does NOT propagate — but that is
-  a *pre-existing* gap that fails for record **locals** too (the method-call contract gap;
-  `\result == self.x` is in neither `_module_method_result_ensures` nor
-  `_module_method_param_result_ensures` because it references the receiver's field, needing a
-  `self`→receiver substitution). It is **out of A2a's scope** and tracked as its own item below.
+  **field-referencing** callee ensure (`\result == self.x`) did NOT propagate — a *pre-existing* gap
+  that failed for record **locals** too (the method-call contract gap; `\result == self.x` was in
+  neither `_module_method_result_ensures` nor `_module_method_param_result_ensures` because it
+  references the receiver's field, needing a `self`→receiver binding). It was **out of A2a's scope**,
+  tracked as its own item — **now closed by A2c below.**
 
-- **A2c — field-referencing ensure propagation (the method-call contract gap)** — NEW, surfaced by
-  A2a. A callee `ensures` that references `self.<field>` is dropped at every method-call site
-  (locals AND params), so a getter `def get_x(self): #@ ensures \result == self.x` proves nothing
-  at the caller. Fix: extend the result-ensures propagation to capture receiver-field clauses and
-  substitute `self`→the receiver instance/param at the call site. Medium risk (touches the method
-  result-ensures tables in Module5/Module6). Gated on a driver needing a field-returning method
-  (e.g. `StringIO`/getter stubs — cf. the method-call-contract-gap memory).
+- **A2c — field-referencing ensure propagation (the method-call contract gap)** — ✅ **DONE.** A
+  callee `ensures` that references `self.<field>` was dropped at every method-call site (locals AND
+  params), so a getter `def get_x(self): #@ ensures \result == self.x` proved nothing at the caller.
+  Fix: a **third** propagation map `_build_method_field_result_ensures_map` (functions.py) keeps the
+  result-and-self-field-only clauses verbatim; `_resolve_dotted_signature` returns a `field_spec =
+  (receiver_expr, receiver_class, field_ensures)`, and `_handle_dotted_call` gives the abstract op a
+  **leading receiver parameter** `(self: <class>)` and passes the receiver record, so `self.x` binds
+  to the actual instance — `val b_get_x_0 (self: box) : int ensures { result = self.x }` called as
+  `(b_get_x_0 b)`. Driver `0529` (`Box(7).get_x()` discharges `\result == 7`) flips FAIL→PASS.
+  Param-referencing field clauses (`\result == self.x + k`) stay excluded (would collide the
+  receiver param with the positional `x_i`) — documented residual. **Byte-identical** for the entire
+  blast radius (the 6 existing files with a self-field ensure — 0191/0192/0193/0440/0442 unchanged,
+  0284 is a semantic-rejection negative test); inert for all files lacking the pattern (empty map).
+  Unblocks the class-based getter stubs (`StringIO`/`NodeVisitor` — cf. the method-call-contract-gap
+  memory).
 - **A2b — record-param mutation** (`p.f = v` writing back to the caller): **hard** — Why3 records
   are by-value, so this needs `ref`-passing with a `writes p.f` frame obligation (or a documented
   value-semantics boundary). Gated on a driver that mutates a passed object and observes the write

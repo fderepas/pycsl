@@ -364,6 +364,7 @@ class Module6_WhyMLTranspiler(
         self._module_method_param_types = self._build_method_param_types_map(functions)
         self._module_method_result_ensures = self._build_method_result_ensures_map(functions)
         self._module_method_param_result_ensures = self._build_method_param_result_ensures_map(functions)
+        self._module_method_field_result_ensures = self._build_method_field_result_ensures_map(functions)
         self._build_callee_no_exception_summary(functions)
 
         sorted_functions, scc_info = sort_functions_by_scc(functions)

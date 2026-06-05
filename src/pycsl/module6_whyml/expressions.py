@@ -499,14 +499,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return ""
 
     def _resolve_dotted_signature(self, func_name: str):
-        """Resolve a dotted call's `(ret_type, param_types, result_ensures)` from the
-        module method tables: `self.<m>(...)` and `<recordvar>.<m>(...)` look up the real
-        declared signature + propagated result-only postconditions; a bare bytes-producing
-        method (`encode`/`ljust`/…) returns `array int`. Default is `int` / no types / no
-        ensures. (Extracted from `_handle_dotted_call`.)"""
+        """Resolve a dotted call's `(ret_type, param_types, result_ensures, field_spec)`
+        from the module method tables: `self.<m>(...)` and `<recordvar>.<m>(...)` look up
+        the real declared signature + propagated result-only/param-referencing
+        postconditions; a bare bytes-producing method (`encode`/`ljust`/…) returns
+        `array int`. Default is `int` / no types / no ensures / no field_spec.
+
+        `field_spec` is `None`, or `(receiver_expr, receiver_class, field_ensures)` when
+        the callee has self-FIELD-referencing ensures (A2c): the call site then gives the
+        abstract op a leading `(self: receiver_class)` parameter and passes
+        `receiver_expr`, so `self.x` in the propagated clause binds to the receiver
+        record. (Extracted from `_handle_dotted_call`.)"""
         ret_type = "int"
         param_types: List[str] = []
         result_ensures: List[Dict[str, Any]] = []
+        field_spec: Optional[Any] = None
         if func_name.startswith("self."):
             # Method IR names are stored as "<class_lower>__<method>"
             # (Module5._build_function_ir), so a `self._emit_contracts` call
@@ -525,6 +532,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             result_ensures = (
                 getattr(self, "_module_method_result_ensures", {}).get(lookup_key, [])
                 + getattr(self, "_module_method_param_result_ensures", {}).get(lookup_key, []))
+            field_ens = getattr(self, "_module_method_field_result_ensures", {}).get(lookup_key, [])
+            if field_ens and cls:
+                # `self.<m>()` called from a sibling method: the enclosing
+                # method's own `self` is the receiver, typed as the class.
+                field_spec = ("self", cls, field_ens)
         else:
             # `<recordvar>.method(...)` — resolve the receiver's class so the
             # callee's result-only `ensures` propagates to this call site,
@@ -545,6 +557,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     ret_type = self._module_method_return_types.get(lookup_key, "int")
                     param_types = self._module_method_param_types.get(lookup_key, [])
                     result_ensures = rens.get(lookup_key, []) + prens.get(lookup_key, [])
+                    fens = getattr(self, "_module_method_field_result_ensures", {})
+                    field_ens = fens.get(lookup_key, [])
+                    if field_ens:
+                        # `b.<m>()`: the receiver record `b` becomes the
+                        # abstract op's leading `(self: cls)` parameter.
+                        field_spec = (parts[0], cls, field_ens)
                     matched_instance = True
             if not matched_instance:
                 # Bytes-producing methods return `array int` (a byte buffer),
@@ -555,7 +573,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 method_tail_name = func_name.rsplit(".", 1)[-1]
                 if method_tail_name in ("encode", "ljust", "rjust", "zfill"):
                     ret_type = "array int"
-        return ret_type, param_types, result_ensures
+        return ret_type, param_types, result_ensures, field_spec
 
     def _handle_dotted_call(self, func_name: str, args: List[str]) -> str:
         """Handle dotted method calls (x.method(...)): emit abstract val declaration."""
@@ -568,7 +586,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # this, every `self.foo(...)` is abstracted as `val ... (xi: int)
         # ... : int`, mismatching downstream consumers when `<method>`
         # actually takes/returns array or map types.
-        ret_type, param_types, result_ensures = self._resolve_dotted_signature(func_name)
+        ret_type, param_types, result_ensures, field_spec = self._resolve_dotted_signature(func_name)
         # Pad / truncate param_types to match n (the abstract val arity
         # only sees the caller's actual arg count, not the IR's symbol
         # table size).
@@ -610,11 +628,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     or ident in getattr(self, "_array_locals", set())):
                 param_types[i] = "array int"
         coerced = self._coerce_dotted_args(args, param_types)
-        ensures_suffix = self._dotted_ensures_suffix(result_ensures, n, param_types)
-        if n == 0:
+        # A2c: a self-FIELD-referencing callee ensure (`\result == self.x`) is
+        # bound by giving the abstract op a leading receiver parameter
+        # `(self: <class>)` and passing the receiver record, so `self.x` in the
+        # propagated clause resolves to the actual instance's field.
+        receiver_param = ""
+        if field_spec is not None:
+            receiver_expr, receiver_class, _ = field_spec
+            receiver_param = f"(self: {receiver_class}) "
+            coerced = [receiver_expr] + coerced
+        ensures_suffix = self._dotted_ensures_suffix(result_ensures, n, param_types, field_spec)
+        if n == 0 and not receiver_param:
             self._add_abstract_op(f"val {arity_name} () : {ret_type}{ensures_suffix}")
             return f"({arity_name} ())"
         params = " ".join(f"(x{i}: {ptype})" for i, ptype in enumerate(param_types))
+        params = f"{receiver_param}{params}".rstrip()
         self._add_abstract_op(f"val {arity_name} {params} : {ret_type}{ensures_suffix}")
         return f"({arity_name} {' '.join(coerced)})"
 
@@ -648,12 +676,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return coerced
 
     def _dotted_ensures_suffix(self, result_ensures: List[Dict[str, Any]], n: int,
-                               param_types: List[str]) -> str:
-        """Render the propagated result-only postconditions of a dotted callee as
+                               param_types: List[str],
+                               field_spec: Optional[Any] = None) -> str:
+        """Render the propagated postconditions of a dotted callee as
         `\\n    ensures { … }` lines appended to its abstract `val`. Emitted in spec
         (boolean) context with the stub's positional params x0..x{n-1} registered as
-        in-scope. (Extracted from `_handle_dotted_call`.)"""
-        if not result_ensures:
+        in-scope.
+
+        `field_spec` (A2c) carries `(receiver_expr, receiver_class, field_ensures)` of
+        self-FIELD clauses: these are rendered with `_current_self_type` set to the
+        receiver class so the leading `(self: <class>)` op parameter binds `self.x` (and
+        ambiguous field labels qualify correctly). (Extracted from `_handle_dotted_call`.)"""
+        field_ensures = field_spec[2] if field_spec is not None else []
+        if not result_ensures and not field_ensures:
             return ""
         _prev_spec = self._in_spec
         _prev_params = self._current_params
@@ -669,6 +704,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         for e in result_ensures:
             w = self._expr_to_whyml(e, set(), invariant_ctx=True)
             ensures_suffix += f"\n    ensures {{ {w} }}"
+        if field_ensures:
+            _prev_self = self._current_self_type
+            self._current_self_type = field_spec[1]   # receiver class
+            for e in field_ensures:
+                w = self._expr_to_whyml(e, set())
+                ensures_suffix += f"\n    ensures {{ {w} }}"
+            self._current_self_type = _prev_self
         self._current_params = _prev_params
         self._in_spec = _prev_spec
         return ensures_suffix
