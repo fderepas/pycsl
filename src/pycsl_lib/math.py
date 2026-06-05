@@ -17,21 +17,15 @@ nan = 0
 
 # ── Floating point arithmetic ──────────────────────────────────────
 
-#@ \trusted reviewer: python-stdlib
 # cite: https://docs.python.org/3/library/math.html#math.ceil
 #@ requires True
 #@ ensures \result >= x
 #@ ensures \result <= x + 1
 def ceil(x: int) -> int:
-    """Mock: return the ceiling of x, the smallest integer >= x.
-
-    For the int-domain mock, ceil is the identity: ceil(n) == n
-    for any integer n. The contract `x <= \\result <= x + 1`
-    holds in the real float-domain version (where the +1 fires
-    on any non-integral input). The weaker bound is sound for
-    both interpretations and avoids over-committing the mock.
-    """
-    return 0
+    """Return the ceiling of x. In the integer domain ceil is the identity
+    (ceil(n) == n), so `return x` discharges `x <= result <= x + 1`. Body-verified,
+    no \\trusted."""
+    return x
 
 #@ \trusted
 #@ ensures \result >= 0
@@ -39,19 +33,14 @@ def fabs(x: int) -> int:
     """Mock: return the absolute value of x."""
     return 0
 
-#@ \trusted reviewer: python-stdlib
 # cite: https://docs.python.org/3/library/math.html#math.floor
 #@ requires True
 #@ ensures \result <= x
 #@ ensures \result >= x - 1
 def floor(x: int) -> int:
-    """Mock: return the floor of x, the largest integer <= x.
-
-    Symmetric to ceil: the int-domain mock is the identity, the
-    real float-domain version drops the fractional part. The
-    contract `x - 1 <= \\result <= x` is sound for both.
-    """
-    return 0
+    """Return the floor of x. In the integer domain floor is the identity, so
+    `return x` discharges `x - 1 <= result <= x`. Body-verified, no \\trusted."""
+    return x
 
 #@ \trusted
 def fma(x: int, y: int, z: int) -> int:
@@ -207,22 +196,22 @@ def pow(x: int, y: int) -> int:
     """Mock: return x raised to the power y."""
     return 0
 
-#@ \trusted reviewer: python-stdlib
 # cite: https://docs.python.org/3/library/math.html#math.sqrt
 #@ requires x >= 0
 #@ ensures \result >= 0
 #@ ensures \result * \result <= x
 #@ ensures (\result + 1) * (\result + 1) > x
 def sqrt(x: int) -> int:
-    """Mock: return the square root of x.
-
-    Real Python's math.sqrt raises ValueError when x < 0. This
-    stub models the non-negative branch only — callers that
-    can't establish x >= 0 fail to verify, which is the
-    desired behavior. The two `ensures` clauses pin the
-    result to the integer square root: r² ≤ x < (r+1)².
-    """
-    return 0
+    """Integer square root of x >= 0 — real linear-search implementation,
+    body-verified (no \\trusted). The postconditions pin the result to the integer
+    square root: r² <= x < (r+1)². (Models the non-negative branch; x < 0 fails to
+    verify, the desired behaviour.)"""
+    r = 0
+    #@ loop invariant r >= 0 and r * r <= x
+    #@ loop variant x - r * r
+    while (r + 1) * (r + 1) <= x:
+        r = r + 1
+    return r
 
 # ── Summation and product functions ────────────────────────────────
 
@@ -372,16 +361,20 @@ def factorial(n: int) -> int:
     """Mock: return n factorial."""
     return 0
 
-#@ \trusted reviewer: python-stdlib
 # cite: https://docs.python.org/3/library/math.html#math.gcd
 #@ requires a >= 0 and b >= 0
 #@ ensures \result >= 0
 def gcd(a: int, b: int) -> int:
-    """Mock: greatest common divisor. `math.gcd` is variadic; this stub models
-    the common two-argument case so demos can call `gcd(a, b)` (a unary
-    signature caused `int -> int applied to 2 arguments`). gcd is non-negative.
-    """
-    return 0
+    """Greatest common divisor of two non-negative ints — real Euclidean
+    algorithm, body-verified (no \\trusted). `math.gcd` is variadic; this models
+    the two-argument case."""
+    #@ loop invariant a >= 0 and b >= 0
+    #@ loop variant b
+    while b != 0:
+        t = b
+        b = a % b
+        a = t
+    return a
 
 #@ \trusted
 #@ ensures \result >= 0
