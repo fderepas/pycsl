@@ -162,17 +162,31 @@ bridge handles getting it into PyCSL.
   architecture absorbs "known-recipe" problems as routine. Same shape as A2b §3 — both are the bridge
   carrying a proof-assistant lemma across a wall SMT can't climb.
 
-## A1-residual — dict value/key types **beyond `int`/`string`** — partial, highest *feature* value
+## A1-residual — dict value/key types **beyond `int`/`string`** — split by Why3's mutability rule
 T1.1/T1.2 threaded ν, κ ∈ {`int`, `string`}. The full target is ν ∈ {`int`, `string`, `array int`,
-**nested map**}, so **dict-of-lists** (`Dict[str, List[int]]`) and **dict-of-dicts** still collapse
-the value to `int`.
-- **Gate / driver:** `Dict[str, List[int]]` with `d[k] = xs` then `len(d[k]) == len(xs)`; then
-  `Dict[str, Dict[int,int]]` (nested map — the `JObj` enabler for A4).
-- **Risk:** medium — the ν side-map and `None -> <default ν>` arm exist (T1.1); this extends ν's
-  domain to `array int` / `map …` and the default to `(Array.make 0 0)` / `(const None)`. Blast
-  radius is the dict path; **full dict-corpus sweep is the gate** (not byte-diff).
-- **Verdict:** highest practical *feature* value of the residual tracks (composes string+list+dict,
-  precondition for A4's `JObj`); first to take if a nested-container driver appears.
+**nested map**}. **A spike (2026-06-05) found the two remaining cases are NOT symmetric** — they fall
+on opposite sides of Why3's region/alias-control rule, so they are now tracked separately:
+
+- **ν = `array int` (dict-of-lists, `Dict[str, List[int]]`) — BLOCKED by the mutable-aliasing wall.**
+  The 5 threading edits (recognize `List[int]`→`array int`; `option (array int)` empty default;
+  pass the array through `map_update_some`; `(Array.make 0 0)` missing-key default; `len(d[k])`→
+  `Array.length`) all emit *correctly typed* WhyML — but Why3 then rejects it: **"This application
+  instantiates pure type variable 'v with a mutable type array."** `array int` is **mutable**, and
+  Why3 forbids storing a mutable value inside a pure `map` (it would alias the array through the map).
+  This is exactly the wall `docs/handling-aliasing.md` describes. The faithful model is an
+  **immutable `seq int`** value (`map κ (option (seq int))`) with an **array→seq snapshot** at the
+  store site and `Seq.length` at the read — a real sub-project (the value-semantics boundary), not a
+  threading tweak. The spike was reverted (emission restored byte-identical; 0523 still passes).
+  *Gate when taken:* `Dict[str, List[int]]` store-then-`len` over a `seq int` model.
+- **ν = nested `map` (dict-of-dicts, `Dict[str, Dict[int,int]]`) — TRACTABLE, the A4 `JObj` enabler.**
+  Why3's `map` is itself **pure/immutable**, so a `map κ (option (map int (option int)))` value does
+  **not** hit the mutable-type wall. What it needs instead is **double-subscript emission** — `d[k][j]`
+  where the inner base `d[k]` is a Subscript (not a Var), which today falls through to the opaque
+  `subscript_get` instead of a nested `Map.get`. Medium effort, no aliasing wall. **This is the one to
+  take first** if a nested-container driver appears — it is both tractable and the json precondition.
+- **Verdict:** the array-value case is parked behind the `seq`-model design (or the A2b ownership work,
+  which is the same value-semantics question); the nested-map case is the live, tractable target. The
+  spike's value: it proved the two cases are *not* the same problem.
 
 ## A3 — bounded eager `itertools` — NOT STARTED, low value
 Bounded-array under-approximation of the **eager** subset (`chain`/`islice`/`product`/`combinations`);
