@@ -202,14 +202,20 @@ lazy/infinite (`cycle`/`count`/`repeat`, `yield`) stays **out of scope** (no SMT
 model). *Driver:* `len(chain(a, n, b, m)) == n + m` + a membership contract. Low risk, self-contained;
 **build only on a concrete driver.**
 
-## A5b/A5c/A5d / A5a-residual — sum-type extensions — build on demand
+## A5b/A5c/A5d / A5a-residual — sum-type extensions
 - **A5b** captures referenced in contracts (per-arm postconditions / a `\match` spec operator).
-- **A5c** guarded / nested / or-patterns (`case Some(n) if n > 0`, nested ctors, `A | B`) — parser +
-  lowering extension per shape; pattern-match-compilation is settled theory (Maranget), so this is
-  engineering, not research.
-- **A5d** parametric datatypes (`Option[T]`) — composes with A1's parametric machinery; low priority.
-- **A5a-residual** mutually-recursive datatypes (`type a = … with b = …`) — the `with` form in
-  `preamble.py::_emit_type_decls`; gated on a mutually-recursive driver (e.g. AST `Expr`/`Stmt`).
+  Build on demand (needs a surface-syntax decision).
+- **A5c** guarded constructor patterns (`case Ctor(x) if g`) — ✅ **DONE** (0531): a guarded Why3
+  match arm becomes `Ctor x -> if g then <body> else <wildcard fall-through>`. Nested ctors / or-
+  patterns (`A | B`) remain per-shape follow-ons (settled theory, Maranget — engineering, not
+  research).
+- **A5d** parametric datatypes (`Option[T]`) — composes with A1's parametric machinery; low priority
+  (needs a surface-syntax decision).
+- **A5a-residual** mutually-recursive datatypes — ✅ **DONE** (0533): `_emit_type_decls` now groups
+  variants by SCC of the cross-reference graph and emits each multi-member group as one
+  `type a = … with b = …` block (`Tree` ↔ `Forest`). Single / self-recursive variants stay a plain
+  `type … = …` (size-1 SCC), so 0520/0521/0527/0528 emit byte-identically. *Mutually-recursive
+  functions* over such types (`let rec size_tree … with size_forest …`) are a separate follow-on.
 
 ## A6 — retire `_coerce_to_int` categories — **(a) DONE; (b) audited-not-yet-needed**
 `_coerce_to_int` (`expressions.py`, ~line 119) erased real types (string→hash, array→0, map→0,

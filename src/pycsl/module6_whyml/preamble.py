@@ -570,26 +570,85 @@ class PreambleEmissionMixin:
         # (`type tree = Leaf | Node tree tree`); Why3 handles the self-reference.
         _variant_names = {td["name"] for td in type_decls
                           if td.get("kind") == "variant"}
+
+        def _fmt_variant(vtd: Dict[str, Any]) -> str:
+            """Register a variant's WhyML mapping + constructors and return its
+            `<name> = Ctor pay | …` body (sans the `type`/`with` keyword)."""
+            tn = vtd["name"].lower()
+            declared_types.add(tn)
+            self._variant_types[vtd["name"]] = {
+                "whyml_name": tn,
+                "constructors": {c["name"]: c for c in vtd["constructors"]}}
+            cstrs: List[str] = []
+            for c in vtd["constructors"]:
+                pay = " ".join(
+                    _VPAY[t] if t in _VPAY
+                    else (t.lower() if t in _variant_names else "int")
+                    for t in c.get("payload", []))
+                self._constructors[c["name"]] = {
+                    "type": vtd["name"], "whyml_type": tn,
+                    "arity": c["arity"], "payload": c.get("payload", [])}
+                cstrs.append(c["name"] + (f" {pay}" if pay else ""))
+            return f"{tn} = {' | '.join(cstrs)}"
+
+        # A5a-residual: mutually-recursive datatypes (e.g. `Tree` ↔ `Forest`)
+        # must share one Why3 `type a = … with b = …` block, else the first
+        # names the sibling before it is declared. Group variants by SCC of the
+        # cross-reference graph (a payload naming ANOTHER variant is an edge).
+        # A group of size 1 (independent or single self-recursive) is unchanged
+        # — emitted as a plain `type … = …` — so existing files stay
+        # byte-identical.
+        _vrefs: Dict[str, Set[str]] = {}
+        for _td in type_decls:
+            if _td.get("kind") != "variant":
+                continue
+            _r: Set[str] = set()
+            for _c in _td["constructors"]:
+                for _t in _c.get("payload", []):
+                    if _t in _variant_names and _t != _td["name"]:
+                        _r.add(_t)
+            _vrefs[_td["name"]] = _r
+
+        def _reach(start: str) -> Set[str]:
+            seen: Set[str] = set()
+            stack = list(_vrefs.get(start, ()))
+            while stack:
+                x = stack.pop()
+                if x in seen:
+                    continue
+                seen.add(x)
+                stack.extend(_vrefs.get(x, ()))
+            return seen
+
+        _reach_map = {nm: _reach(nm) for nm in _vrefs}
+        _vorder = [td["name"] for td in type_decls if td.get("kind") == "variant"]
+        _td_by_name = {td["name"]: td for td in type_decls if td.get("kind") == "variant"}
+        _variant_groups: Dict[str, List[str]] = {}
+        for nm in _vorder:
+            grp = [m for m in _vorder
+                   if m == nm or (m in _reach_map[nm] and nm in _reach_map.get(m, set()))]
+            _variant_groups[nm] = grp
+        _emitted_variants: Set[str] = set()
+
         while i < n:
             td = type_decls[i]
             if td.get("kind") == "variant":
                 # sum-types: `type color = Red | Green | Blue` / `type shape = Circle int | …`
-                type_name = td["name"].lower()
-                declared_types.add(type_name)
-                self._variant_types[td["name"]] = {
-                    "whyml_name": type_name,
-                    "constructors": {c["name"]: c for c in td["constructors"]}}
-                ctor_strs: List[str] = []
-                for c in td["constructors"]:
-                    pay = " ".join(
-                        _VPAY[t] if t in _VPAY
-                        else (t.lower() if t in _variant_names else "int")
-                        for t in c.get("payload", []))
-                    self._constructors[c["name"]] = {
-                        "type": td["name"], "whyml_type": type_name,
-                        "arity": c["arity"], "payload": c.get("payload", [])}
-                    ctor_strs.append(c["name"] + (f" {pay}" if pay else ""))
-                out.append(f"  type {type_name} = {' | '.join(ctor_strs)}")
+                name = td["name"]
+                group = _variant_groups.get(name, [name])
+                if len(group) > 1:
+                    # mutually-recursive group → one `with`-joined block
+                    if name in _emitted_variants:
+                        i += 1
+                        continue
+                    out.append(f"  type {_fmt_variant(_td_by_name[group[0]])}")
+                    for member in group[1:]:
+                        out.append(f"  with {_fmt_variant(_td_by_name[member])}")
+                    out.append("")
+                    _emitted_variants.update(group)
+                    i += 1
+                    continue
+                out.append(f"  type {_fmt_variant(td)}")
                 out.append("")
                 i += 1
                 continue
