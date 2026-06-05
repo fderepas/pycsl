@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pure_ast as ast  # consume the same pure-Python tree Module3 builds
-import copy
 import json
 from typing import Any, Dict, List, Optional, Set, Tuple
 from errors import PyCSLIRError
@@ -10,7 +9,7 @@ from module5.construction_synth import ConstructionSynthMixin
 from Module4_SemanticAnalyzer import collect_module_constants
 from Module2_Parser import (
     CSLNode, ContractWrapper,
-    Requires, Ensures, Assigns, LoopInvariant, LoopVariant,
+    Requires, Ensures, LoopInvariant, LoopVariant,
     BinOp as CSLBinOp, UnaryOp as CSLUnaryOp, Var as CSLVar,
     Number as CSLNumber, Result as CSLResult, Old as CSLOld, Nothing,
     FieldAccess as CSLFieldAccess, FieldSubscript as CSLFieldSubscript,
@@ -19,7 +18,7 @@ from Module2_Parser import (
     Length2D, Valid2D, FunctionVariant, StringLiteral as CSLStringLiteral,
     CallExpr, IsSorted, ArrayEq, Sum, CSLBool, CSLNone, CSLIn, CSLNotIn, CSLSlice,
     ChainedSubscript,
-    GhostAssignDecl, GhostArraySetDecl,
+    GhostArraySetDecl,
     MkTupleExpr, FstExpr, SndExpr, ProjExpr,
     StrConcatExpr, StrLengthExpr, StrSubExpr,
     GhostCopyExpr, GhostCopyRangeExpr, GhostMakeExpr,

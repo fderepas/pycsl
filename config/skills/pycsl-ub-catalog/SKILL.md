@@ -68,10 +68,10 @@ and `__eq__` simultaneously. Hash/eq consistency (`a == b ⇒ hash(a)
 key. CPython does not enforce it; PyCSL surfaces the contract.
 
 **Detection mechanism.** Module 5's `visit_ClassDef` (now at
-`Module5_IREmitter.py:1028`) walks the class body and records
+`Module5_IREmitter.py:1216`) walks the class body and records
 `has_hash` / `has_eq` / `is_unhashable` (only `__eq__` defined) on
 the IR `type_decl` record. Module 6's `_emit_type_decls`
-(`module6_whyml/preamble.py:416`) consults these flags and emits an
+(`module6_whyml/preamble.py:548`) consults these flags and emits an
 abstract `val function` pair plus a hash/eq relationship.
 
 **Verification stance.** Default mode emits the relationship as a

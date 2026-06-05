@@ -443,7 +443,7 @@ whether the reviewer field is present or absent.
 
 The field exists for accountability, not for verification:
 
-- `Module5_IREmitter.py:1146` includes `"reviewer": <value>` in the
+- `Module5_IREmitter.py:1364` includes `"reviewer": <value>` in the
   function IR so downstream tools (audit scripts, the
   self-annotation mirror-check, future LLM judges) can inspect who
   attested the trust.
