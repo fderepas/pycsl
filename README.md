@@ -1,8 +1,8 @@
 # PyCSL 
 
-PyCSL is an annotation language for Python. It enables to formally verify Python code using [Hoare Logic](https://en.wikipedia.org/wiki/Hoare_logic). An associated tool, `pycsl`, verifies the PyCSL annotations using [Why3](https://why3.lri.fr/). Why3 is a front end to SMT solvers such as Alt-Ergo and Z3. When those SMT solvers fail, Rocq can be used as the interactive theorem prover. Project is under [CMMI](docs/cmmi-for-humans.md).
+PyCSL is an annotation language for Python. It makes it possible to formally verify Python code using [Hoare Logic](https://en.wikipedia.org/wiki/Hoare_logic). An associated tool, `pycsl`, verifies the PyCSL annotations using [Why3](https://why3.lri.fr/). Why3 is a front end to SMT solvers such as Alt-Ergo and Z3. When those SMT solvers fail, Rocq can be used as the interactive theorem prover. The project is under [CMMI](docs/cmmi-for-humans.md).
 
-Documents define PyCSL [syntax](docs/pycsl-concrete-syntax-reference.md), [semantic](docs/pycsl-static-semantics-reference.md) and [translation to Why3](docs/pycsl-translational-reference.md). The semantics of PyCSL has formally defined twice: once using [Rocq](src/formal-semantics/rocq) once using [LEAN](src/formal-semantics/lean). A [detaied status](docs/self-annotation-status.md) is available.
+Documents define PyCSL [syntax](docs/pycsl-concrete-syntax-reference.md), [semantics](docs/pycsl-static-semantics-reference.md) and [translation to Why3](docs/pycsl-translational-reference.md). The semantics of PyCSL has been formally defined twice: once using [Rocq](src/formal-semantics/rocq), once using [LEAN](src/formal-semantics/lean). A [detailed status](docs/self-annotation-status.md) is available.
 
 PyCSL is being prepared for self-annotation: standard-library coverage is tracked in [`calls-english.md`](calls-english.md), [`calls-pycsl.md`](calls-pycsl.md), and [`src/pycsl_lib/`](src/pycsl_lib/). The discipline is governed by [`pycsl-stdlib-coverage`](config/skills/pycsl-stdlib-coverage/SKILL.md) and enforced by [`bin/stdlib-coverage.py`](bin/stdlib-coverage.py).
 
@@ -207,7 +207,7 @@ annotator must rewrite or explicitly bless via an escape annotation.
 The full catalog (detection mechanism, verification stance, error
 messages, corpus tests) lives in
 [`config/skills/pycsl-ub-catalog/SKILL.md`](config/skills/pycsl-ub-catalog/SKILL.md).
-The five categories with one example each:
+The seven categories with one example each:
 
 ### UB-7.1 — Mutation during iteration
 
@@ -555,7 +555,7 @@ PyCSL/
 │   └── skill2rag/                      # Skill → RAG compiler (chunk, embed, index)
 ├── bin/                                # Launcher scripts and utilities
 │   ├── run.sh                          # Full pipeline: annotate → prove → repair
-│   ├── run-reference-tests.sh          # Run test suite (279+ reference tests)
+│   ├── run-reference-tests.sh          # Run test suite (478+ reference tests)
 │   ├── annotate.sh                     # Annotate a single file
 │   ├── run-annotated.sh                # Run pycsl on tests/annotated/
 │   ├── run-rocq-proofs.sh              # Replay Rocq proofs
@@ -582,7 +582,7 @@ PyCSL/
 │   ├── annotations.md                  # Authoritative annotation reference
 │   ├── traceability-pycsl.md           # Annotation ref → test ID mapping
 │   ├── corpus/
-│   │   ├── pycsl-reference/            # Reference tests (0001–0510+)
+│   │   ├── pycsl-reference/            # Reference tests (0001–0521+)
 │   │   ├── negative/                   # Expected-failure tests
 │   │   └── python-reference/           # Python semantics tests
 │   ├── runner/                         # Static/dynamic oracle, evaluator
@@ -778,7 +778,7 @@ and asserted on exit.
 | `#@ requires <expr>` | Function / method | Precondition |
 | `#@ ensures <expr>` | Function / method | Postcondition; `\result` is the return value |
 | `#@ assigns <targets> \| \nothing` | Function / method | Frame condition |
-| `#@ variant <expr>` | Function / method | Termination measure (recursive functions) |
+| `#@ \variant <expr>` | Function / method | Termination measure (recursive functions) |
 | `#@ \diverges` | Function / method | Function may not terminate |
 | `#@ \trusted` / `#@ \trusted reviewer: <name>` | Function / method | Body not verified; contracts assumed as axioms. Optional `reviewer:` clause names a human or process accountable for the trust (e.g., `reviewer: alice`, `reviewer: pycsl-self-annotate`); see `test-suite/annotations.md` §2.1.7 |
 | `#@ assumes bounded_int(N)` | Function / method | Bounded-integer pragma: `int` parameters/locals become `intN` (N ∈ {8, 16, 32, 64}); arithmetic auto-generates overflow VCs |
@@ -933,9 +933,10 @@ the class can still be verified; contracts that reference lifetime
 (e.g. "the finalizer releases X") remain at risk.
 
 Both annotations are catalogued in
-`config/skills/pycsl-ub-catalog/SKILL.md` alongside the three other
-UB categories (concurrent races, hash/eq consistency, C-extension
-boundary). Corpus tests: `test-suite/corpus/pycsl-reference/0401`–
+`config/skills/pycsl-ub-catalog/SKILL.md` alongside the other UB
+categories (mutation during iteration, hash/eq consistency, concurrent
+races, C-extension boundary, non-trivial `__new__`, unsound
+memoization). Corpus tests: `test-suite/corpus/pycsl-reference/0401`–
 `0407`.
 
 ---
@@ -1100,7 +1101,7 @@ using Why3's built-in theories.
 
 ## Test Suite
 
-The reference test suite contains **279+ test files** in
+The reference test suite contains **478+ test files** in
 `test-suite/corpus/pycsl-reference/` covering all annotation features.
 
 - **`test-suite/annotations.md`** — Authoritative annotation reference (never
@@ -1214,11 +1215,13 @@ shape emerges. The skill is the parallel of
 for stdlib API coverage) and `pycsl-exception-model` (which holds the
 trigger table that `no_exception` relies on).
 
-### Three operational gates, same shape
+### Operational gates, same shape
 
-PyCSL now has three mechanical gates running before every corpus
-test, each enforcing a *systems* invariant rather than a per-file
-property:
+PyCSL enforces four mechanical gates, each a *systems* invariant
+rather than a per-file property. Two of them — stdlib API coverage and
+directive doc coherency — run **before every corpus test** (wired into
+`bin/run-reference-tests.sh`, fail-fast); the self-annotation suite and
+mirror-drift checks run separately:
 
 | Gate | Canonical source | Tool | Skill |
 |---|---|---|---|

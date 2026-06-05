@@ -275,7 +275,8 @@ def test_precondition(x: int) -> int:
 | `list` | `array int` | Hoare/Concurrent model |
 | `list` | `loc` + `_len` | Typed/Store model |
 | `None` / `-> None` | `unit` | Return type for void functions |
-| Class `C` | Record type `c` | Lowercase name |
+| Class `C` | Record type `c` | Lowercase name. Covers `self`, `C()` locals, **and** a registered `C`-typed parameter (read-only field access; Track 3 — mutation of a record param out of scope) |
+| `#@ datatype D` | Variant type `d` | Sum type `type d = A \| B int \| …` (§T.4.5); constructed with `B(7)`, consumed by `match` (§T.5.12) |
 | No annotation | `int` | Default |
 
 ### §T.2.3  Recursive Functions
@@ -933,6 +934,29 @@ mechanism for proving lifetime-dependent properties.
 
 _Corresponds to `annotations.md` §2.3.2._
 
+### §T.4.5  Datatype / sum-type emission (`#@ datatype`)
+
+A module-level `#@ datatype D = A | B(int) | …` declares a Why3 **variant type** — the same
+`_emit_type_decls` machinery that emits class records (§T.4.1), via its `kind:"variant"` branch:
+
+$$\mathcal{T}\llbracket \texttt{\#@ datatype Box = Some(int) | Pair(int,int) | Empty} \rrbracket
+= \texttt{type box = Some int | Pair int int | Empty}$$
+
+Payload types map through the same τ (§T.2.2): `int`/`bool` → `int`, `str` → `string`, `float`
+→ `real`. The constructors are registered (`Module5` constructors registry), so:
+
+| PyCSL | WhyML | Notes |
+|-------|-------|-------|
+| `o = Some(7)` (applied ctor) | `let o = ref (Some 7) in` | a typed variant local (not a coarsened `int ref 0`) — `types.py::_collect_variant_var_assigns` excludes it from the int pre-decl path |
+| `o = Red` (nullary ctor) | `Red` | bare constructor name |
+| `match o: case …` | Why3 `match … with … end` | constructor-pattern lowering, §T.5.12(b) |
+
+**Implementation:** `Module1_Ingestor` (the `datatype ` prefix), `Module2_Parser`
+(`DatatypeDecl` + variant grammar), `Module3_Weaver` (collection into the module AST),
+`Module5_IREmitter` (variant `type_decl` + constructors registry), `preamble.py::_emit_type_decls`
+(variant branch), `expressions.py` (constructor lowering). **Out of scope:** recursive /
+parametric datatypes, guarded/nested/or-patterns. _Corresponds to `annotations.md` §2.6._
+
 ---
 
 ## §T.5  Statement Translation ($\mathcal{T}_s$)
@@ -1128,16 +1152,29 @@ $$\mathcal{T}_s\llbracket \texttt{a, b = f(x)} \rrbracket
 
 ### §T.5.12  Match/Case Statement
 
-Match statements are translated to chained if/else:
+There are **two** lowerings, selected by the pattern kind:
 
-$$\mathcal{T}_s\llbracket \texttt{match x: case p1: S1 case p2: S2 ...} \rrbracket$$
-$$= \texttt{if } \text{cond}(p_1) \texttt{ then begin } \mathcal{T}_s\llbracket S_1 \rrbracket
-  \texttt{ end else if } \text{cond}(p_2) \texttt{ then begin } \mathcal{T}_s\llbracket S_2 \rrbracket
+**(a) Value patterns** (literals / wildcard) → chained if/else:
+
+$$\mathcal{T}_s\llbracket \texttt{match x: case v1: S1 case v2: S2 ...} \rrbracket$$
+$$= \texttt{if } \text{cond}(v_1) \texttt{ then begin } \mathcal{T}_s\llbracket S_1 \rrbracket
+  \texttt{ end else if } \text{cond}(v_2) \texttt{ then begin } \mathcal{T}_s\llbracket S_2 \rrbracket
   \texttt{ end ...}$$
 
-Guards are combined with `&&`.
+Guards are combined with `&&`; the wildcard `_` is the final `else`.
 
-**Implementation:** `_handle_match_stmt`.
+**(b) Constructor patterns over a `#@ datatype`** (§T.4.5) → a **real Why3 `match … with`**, so
+exhaustiveness is solver-checked:
+
+$$\mathcal{T}_s\llbracket \texttt{match v: case A(): S1 case B(n): S2 ...} \rrbracket
+= \texttt{match } v \texttt{ with | A -> } \mathcal{T}_s\llbracket S_1 \rrbracket
+  \texttt{ | B n -> } \mathcal{T}_s\llbracket S_2 \rrbracket \texttt{ ... end}$$
+
+Each `case Ctor(c1, …)` binds the payload captures `c1 …` in its arm. A missing or extra
+constructor is a Why3 error (no `_` is synthesized for an exhaustive constructor set).
+
+**Implementation:** `_handle_match_stmt` (the variant branch dispatches on the subject's IR being
+a known variant type; `_match_pattern_to_ir` produces the `Constructor` pattern IR).
 
 ---
 
@@ -2070,9 +2107,9 @@ boundary beyond which PyCSL provides no guarantees:
 | Feature | Status | Reason |
 |---------|--------|--------|
 | Python GC / reference counting | Not modeled | WhyML has no GC theory |
-| Floating-point arithmetic | Not supported | No float theory in translation |
+| Floating-point arithmetic | Modeled as Why3 `real` (§T.2.2) | Real arithmetic/comparison verify; **mixed float/int** arithmetic and **transcendentals** (sin/cos/exp…) stay out of scope (opaque ops over `real`) |
 | Integer overflow | Modeled as unbounded | Matches Python semantics |
-| String operations | Hashed to int | Lossy — collisions possible |
+| String operations | Real `string.String` content (§T.6) | length/concat/substring/structural `==` verify; **no char/code-point type** (`ord`, char ordering), and `upper`/`lower`/`strip`/`replace`/`split` and `.encode`/`.decode` stay opaque |
 | I/O (file, network, print) | Not modeled | Side effects beyond formal model |
 | Dynamic typing / duck typing | Static types assumed | Annotation must provide types |
 | Exceptions not declared in `raises` | Not tracked | Only declared exceptions modeled |

@@ -883,7 +883,8 @@ contract ::= precondition
            | act_block
            | complete_decl
            | disjoint_decl
-           | happy_decl ;
+           | happy_decl
+           | datatype_decl ;
 
 assert_decl    ::= "assert" expr ;                      (* §2.4.7, statement-position *)
 check_decl     ::= "check" expr ;                       (* §2.4.8, statement-position *)
@@ -897,6 +898,9 @@ disjoint_decl  ::= "disjoint" CNAME ( "," CNAME )* ;     (* §2.1.18 *)
 happy_decl     ::= "happy" CNAME ":" "region" expr ".." expr
                    "writes" "self" "." CNAME "outside" "region"
                    ( "except" CNAME ( "," CNAME )* )? ;  (* §2.5.1, module-level HAPPY *)
+datatype_decl  ::= "datatype" CNAME "=" variant_def ( "|" variant_def )* ;  (* §2.6, module-level sum type *)
+variant_def    ::= CNAME "(" CNAME ( "," CNAME )* ")"    (* payload constructor: Some(int), Pair(int,int) *)
+                 | CNAME ;                               (* nullary constructor: Red *)
 
 (* --- §2.1  Function/Method Contracts ---------------------- *)
 
