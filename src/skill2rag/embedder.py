@@ -71,12 +71,20 @@ def _ollama_post(texts: List[str], model: str) -> List[List[float]]:
                 return json.loads(resp.read().decode("utf-8"))["embeddings"]
         except urllib.error.HTTPError:
             raise  # HTTP status (e.g. 400) — handled by the caller's fallback
-        except urllib.error.URLError as e:
-            last_reason = e.reason
+        except OSError as e:
+            # Catch OSError, not just urllib.error.URLError: a connection-phase
+            # failure is wrapped in URLError, but a *read*-phase socket timeout
+            # raises a bare TimeoutError (== socket.timeout, an OSError subclass)
+            # that URLError does NOT wrap — so the narrower except missed it and
+            # the retry never engaged. OSError covers URLError, TimeoutError,
+            # ConnectionError, and DNS failures; HTTPError (re-raised above) is
+            # excluded. `reason` exists only on URLError — fall back to the error.
+            reason = getattr(e, "reason", None) or e
+            last_reason = reason
             if attempt < _MAX_RETRIES:
                 backoff = _BACKOFF_BASE * (2 ** (attempt - 1))
                 print(f"    Ollama embed attempt {attempt}/{_MAX_RETRIES} failed "
-                      f"({e.reason}); retrying in {backoff}s…",
+                      f"({reason}); retrying in {backoff}s…",
                       file=sys.stderr, flush=True)
                 time.sleep(backoff)
     raise RuntimeError(
