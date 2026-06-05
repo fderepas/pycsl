@@ -15,5 +15,9 @@ if [ -f .venv/bin/activate ]; then
 fi
 
 echo "Rebuilding RAG index from config/skills/ ..."
-PYTHONPATH=src python -m skill2rag build --skill-dir config/skills
+# `-u` (unbuffered stdout) so the indexer's per-batch progress streams live —
+# without it Python block-buffers when stdout is piped/redirected, hiding
+# progress until the run ends (a slow Ollama embed then looks like a hang).
+# Do NOT pipe this through `tail`/`head` for the same reason.
+PYTHONPATH=src python -u -m skill2rag build --skill-dir config/skills
 echo "RAG index rebuilt → data/embeddings/skills_index.json"

@@ -10,6 +10,7 @@ Environment variables (override config):
 import json
 import os
 import sys
+import time
 import urllib.request
 import urllib.error
 from typing import List
@@ -38,19 +39,51 @@ EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "nomic-embed-text")
 # Conservative limit: ~3 chars/token for code-heavy content.
 _MAX_CHARS = 6000
 
+# Per-request timeout + retry budget (env-tunable). The old single 300 s timeout
+# with no retry meant a transient Ollama stall (cold model load / busy host)
+# blocked one batch for up to 5 minutes with no recovery — over many batches the
+# build looked like an indefinite hang. A shorter timeout + bounded retry with
+# backoff fails fast and recovers from a momentary stall instead.
+_TIMEOUT = int(os.environ.get("EMBED_TIMEOUT", "60"))     # seconds per request
+_MAX_RETRIES = int(os.environ.get("EMBED_RETRIES", "3"))  # attempts on conn/timeout
+_BACKOFF_BASE = 2                                          # seconds (doubles each retry)
+
 
 def _ollama_post(texts: List[str], model: str) -> List[List[float]]:
-    """Send a single /api/embed request. Raises on HTTP error."""
+    """Send a single /api/embed request, retrying on connection/timeout errors.
+
+    HTTP status errors (e.g. 400) propagate immediately — the caller handles
+    those with its one-by-one fallback. Only transient transport failures
+    (connection refused, socket timeout, DNS) are retried, with exponential
+    backoff; after `_MAX_RETRIES` a clear RuntimeError names the URL/model."""
     body = {"model": model, "input": texts}
-    req = urllib.request.Request(
-        f"{OLLAMA_URL}/api/embed",
-        data=json.dumps(body).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    with urllib.request.urlopen(req, timeout=300) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
-    return data["embeddings"]
+    data = json.dumps(body).encode("utf-8")
+    last_reason = None
+    for attempt in range(1, _MAX_RETRIES + 1):
+        req = urllib.request.Request(
+            f"{OLLAMA_URL}/api/embed",
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=_TIMEOUT) as resp:
+                return json.loads(resp.read().decode("utf-8"))["embeddings"]
+        except urllib.error.HTTPError:
+            raise  # HTTP status (e.g. 400) — handled by the caller's fallback
+        except urllib.error.URLError as e:
+            last_reason = e.reason
+            if attempt < _MAX_RETRIES:
+                backoff = _BACKOFF_BASE * (2 ** (attempt - 1))
+                print(f"    Ollama embed attempt {attempt}/{_MAX_RETRIES} failed "
+                      f"({e.reason}); retrying in {backoff}s…",
+                      file=sys.stderr, flush=True)
+                time.sleep(backoff)
+    raise RuntimeError(
+        f"Ollama embedding at {OLLAMA_URL}/api/embed failed after {_MAX_RETRIES} "
+        f"attempts ({last_reason}). Is Ollama running and the '{EMBEDDING_MODEL}' "
+        f"model pulled? Tune with EMBED_TIMEOUT / EMBED_RETRIES, or point elsewhere "
+        f"with OLLAMA_URL.")
 
 
 def ollama_embed(texts: List[str], model: str | None = None) -> List[List[float]]:
