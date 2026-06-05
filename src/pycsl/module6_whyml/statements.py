@@ -1300,6 +1300,26 @@ class StatementEmissionMixin:
             return body_code
         return f"    try\n{body_code}\n    with Return r -> r end"
 
+    def _typed_local_vars(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """Body locals that carry a NON-int WhyML type — array, dict/set, lambda,
+        record, or variant — and so must be EXCLUDED from the integer `ref 0`
+        pre-declaration in `_emit_body_code`; each is instead let-bound at its
+        first assignment with its real type. One classification pass (Part B move
+        2) replacing the former five hand-maintained `body_<kind>_vars`
+        subtractions — the variant kind was the fifth.
+
+        A user record type may share a name with a collections constructor (a
+        class `Counter` vs `collections.Counter`, corpus 0441); record locals are
+        unioned in regardless, so the result is identical whether or not the
+        dict/array vars are first deduped against records."""
+        array_vars, dict_vars = IRScanner.find_array_and_dict_vars(body_stmts)
+        array_vars |= self._collect_array_var_assigns(body_stmts)
+        dict_vars |= self._collect_dict_var_assigns(body_stmts)
+        lambda_vars = IRScanner.find_lambda_vars(body_stmts)
+        record_vars = IRScanner.find_record_vars(body_stmts, self._record_types)
+        variant_vars = self._collect_variant_var_assigns(body_stmts)
+        return array_vars | dict_vars | lambda_vars | record_vars | variant_vars
+
     def _emit_body_code(self, func: Dict[str, Any], body_stmts: List[Dict[str, Any]],
                          local_refs: Set[str], ghost_vars: Set[str], ref_params: Set[str],
                          is_method: bool, return_type: str) -> str:
@@ -1322,23 +1342,13 @@ class StatementEmissionMixin:
             IRScanner.has_early_return(body_stmts)
             or IRScanner.has_in_loop_return(body_stmts)
         )
-        body_array_vars, body_dict_vars = IRScanner.find_array_and_dict_vars(body_stmts)
-        body_array_vars |= self._collect_array_var_assigns(body_stmts)
-        body_dict_vars |= self._collect_dict_var_assigns(body_stmts)
-        body_lambda_vars = IRScanner.find_lambda_vars(body_stmts)
-        body_record_vars = IRScanner.find_record_vars(body_stmts, self._record_types)
-        # Sum-type constructor locals (`o = Some(7)` / `o = Nothing`) must NOT
-        # be pre-declared as `ref 0` (int) — Why3 then rejects the `:=` of a
-        # variant value. Exclude them so the first-assign binds `let o = ref
-        # (Some 7) in` with the inferred variant type (mirrors record locals).
-        body_variant_vars = self._collect_variant_var_assigns(body_stmts)
-        # A user-defined/imported record type may share a name with a collections
-        # constructor (e.g. a class `Counter` vs `collections.Counter`, corpus 0441).
-        # `find_array_and_dict_vars` recognises the collections names by bare func, so
-        # subtract the record locals here — a known record type wins, and `c = Counter()`
-        # stays a record local rather than being mis-typed as a dict/array.
-        body_dict_vars -= body_record_vars
-        body_array_vars -= body_record_vars
+        # Locals carrying a non-int WhyML type (array/dict/set/lambda/record/
+        # variant) are excluded from the integer `ref 0` pre-declaration below —
+        # each is let-bound at its first assignment with its real type. One
+        # classification pass (Part B move 2) replaces the former five separate
+        # `body_<kind>_vars` subtractions (incl. the record-vs-collections 0441
+        # dedup, now subsumed by the union).
+        typed_local_vars = self._typed_local_vars(body_stmts)
         # var -> class name for record-instance locals (`c = C()`), so method
         # calls `c.method(...)` can resolve the callee contract like `self.`.
         self._current_record_var_classes = IRScanner.find_record_var_classes(
@@ -1358,11 +1368,7 @@ class StatementEmissionMixin:
             v for v in local_refs
             if v not in ghost_vars
             and v not in ref_params
-            and v not in body_array_vars
-            and v not in body_dict_vars
-            and v not in body_lambda_vars
-            and v not in body_record_vars
-            and v not in body_variant_vars
+            and v not in typed_local_vars
             and v not in struct_array_targets
             and v not in struct_pack_targets
         }
