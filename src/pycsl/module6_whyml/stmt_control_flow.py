@@ -403,6 +403,21 @@ class ControlFlowStmtMixin:
         # `match … with` (so Why3 checks exhaustiveness), not the value-pattern if-chain.
         if any(c["pattern"].get("pattern") in ("Constructor", "Wildcard") for c in cases) \
                 and any(c["pattern"].get("pattern") == "Constructor" for c in cases):
+            # A5c: a Why3 `match` arm cannot carry a boolean guard, so a guarded
+            # constructor arm (`case Ctor(x) if g`) becomes
+            # `Ctor x -> if g then <body> else <fall-through>`, where the
+            # fall-through is the catch-all (wildcard) body — the case a
+            # guard failure falls through to. The wildcard body is computed
+            # once. (Guarded arms without a wildcard catch-all fall through to
+            # `()` — documented boundary; Python guarded matches need a
+            # catch-all to be exhaustive anyway.)
+            wildcard_body = None
+            for c in cases:
+                if c["pattern"].get("pattern") != "Constructor":
+                    wb = self._stmts_to_whyml(c.get("body", []), local_refs,
+                                              declared_refs.copy(), indent + "    ", in_loop)
+                    wildcard_body = wb if wb.strip() else f"{indent}    ()"
+                    break
             arms: List[str] = []
             for c in cases:
                 pat = c["pattern"]
@@ -416,6 +431,13 @@ class ControlFlowStmtMixin:
                         caps.append(whyml_ident(cp["name"]) if cp.get("pattern") == "Capture"
                                     else "_")
                     arm = pat["ctor"] + ((" " + " ".join(caps)) if caps else "")
+                    guard = c.get("guard")
+                    if guard:
+                        guard_str = self._to_bool(
+                            self._expr_to_whyml(guard, local_refs), guard)
+                        fb = wildcard_body if wildcard_body is not None else f"{indent}    ()"
+                        body_str = (f"{indent}    if {guard_str} then begin\n{body_str}\n"
+                                    f"{indent}    end else begin\n{fb}\n{indent}    end")
                 else:
                     arm = "_"
                 arms.append(f"{indent}  | {arm} ->\n{body_str}")

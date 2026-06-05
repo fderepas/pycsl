@@ -6,7 +6,6 @@ pattern parser drops the `if`-guard, so `case MSome(n)` matches unconditionally
 and returns 1 — contradicting `ensures \\result == 0`. Flips when match lowering
 threads the guard condition.
 """
-# pycsl-expected: FAIL
 #@ datatype Maybe = MNone | MSome(int)
 _ = 0  # anchor
 
