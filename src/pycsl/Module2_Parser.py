@@ -346,6 +346,20 @@ class ProjExpr(CSLNode):
     tuple_expr: CSLNode
     index: CSLNode
 
+@dataclass
+class CtorTest(CSLNode):
+    """\\is_ctor(x, Ctor) — true iff `x` was built with constructor `Ctor`
+    (A5b: a datatype discriminator usable in a contract)."""
+    var: str
+    ctor: str
+
+@dataclass
+class CtorPayload(CSLNode):
+    """\\payload(x, Ctor) — the sole payload of `x` viewed as constructor `Ctor`
+    (A5b: a datatype projector usable in a contract; arity-1 payload)."""
+    var: str
+    ctor: str
+
 # --- Ghost string nodes ---
 
 @dataclass
@@ -829,6 +843,8 @@ PYCSL_GRAMMAR = r"""
          | "\\fst" "(" expr ")" -> fst_expr
          | "\\snd" "(" expr ")" -> snd_expr
          | "\\proj" "(" expr "," expr ")" -> proj_expr
+         | "\\is_ctor" "(" CNAME "," CNAME ")" -> ctor_test
+         | "\\payload" "(" CNAME "," CNAME ")" -> ctor_payload
          | "\\empty_map" -> empty_map_expr
          | "\\map_get" "(" expr "," expr ")" -> map_get_expr
          | "\\map_set" "(" expr "," expr "," expr ")" -> map_set_expr
@@ -1075,6 +1091,8 @@ class PyCSLTransformer(Transformer):
     def fst_expr(self, expr) -> FstExpr: return FstExpr(expr)
     def snd_expr(self, expr) -> SndExpr: return SndExpr(expr)
     def proj_expr(self, expr, index) -> ProjExpr: return ProjExpr(expr, index)
+    def ctor_test(self, var, ctor) -> CtorTest: return CtorTest(str(var), str(ctor))
+    def ctor_payload(self, var, ctor) -> CtorPayload: return CtorPayload(str(var), str(ctor))
     def empty_map_expr(self) -> MapEmptyExpr: return MapEmptyExpr()
     def map_get_expr(self, dict_expr, key) -> MapGetExpr: return MapGetExpr(dict_expr, key)
     def map_set_expr(self, dict_expr, key, value) -> MapSetExpr: return MapSetExpr(dict_expr, key, value)

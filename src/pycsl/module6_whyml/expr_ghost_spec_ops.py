@@ -44,6 +44,35 @@ class GhostSpecOpsMixin:
         t_deref = self._deref(t)
         return f"(let ({pattern}) = {t_deref} in z_)"
 
+    def _handle_ctor_test_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        """A5b: `\\is_ctor(x, Ctor)` — datatype discriminator, lowered to a Why3
+        match term `match x with Ctor _ … -> true | _ -> false`. Arity comes
+        from the constructor registry."""
+        x = self._e({"type": "Var", "name": expr["var"]}, lr)
+        ctor = expr["ctor"]
+        arity = getattr(self, "_constructors", {}).get(ctor, {}).get("arity", 0)
+        binders = (" " + " ".join(["_"] * arity)) if arity else ""
+        return f"(match {x} with {ctor}{binders} -> true | _ -> false end)"
+
+    def _handle_ctor_payload_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        """A5b: `\\payload(x, Ctor)` — datatype projector for the (first) payload,
+        lowered to `match x with Ctor v … -> v | _ -> <default>`. Scoped to a
+        concrete (int/str) payload type so the fall-through default is well-typed;
+        a type-parameter payload needs an `\\is_ctor` guard (the `_` arm would not
+        typecheck) — documented boundary."""
+        x = self._e({"type": "Var", "name": expr["var"]}, lr)
+        ctor = expr["ctor"]
+        info = getattr(self, "_constructors", {}).get(ctor, {})
+        payload = info.get("payload", [])
+        arity = info.get("arity", len(payload))
+        if arity == 0:
+            return "0"   # nullary constructor — no payload
+        binders = ["_"] * arity
+        binders[0] = "z_"
+        ptype = payload[0] if payload else "int"
+        default = '""' if ptype == "str" else "0"
+        return f"(match {x} with {ctor} {' '.join(binders)} -> z_ | _ -> {default} end)"
+
     def _handle_strconcat_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
         l = self._expr_to_whyml_string_ctx(expr["left"], lr)
         r = self._expr_to_whyml_string_ctx(expr["right"], lr)

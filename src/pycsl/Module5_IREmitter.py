@@ -19,7 +19,7 @@ from Module2_Parser import (
     CallExpr, IsSorted, ArrayEq, Permutation, Sum, CSLBool, CSLNone, CSLIn, CSLNotIn, CSLSlice,
     ChainedSubscript,
     GhostArraySetDecl,
-    MkTupleExpr, FstExpr, SndExpr, ProjExpr,
+    MkTupleExpr, FstExpr, SndExpr, ProjExpr, CtorTest, CtorPayload,
     StrConcatExpr, StrLengthExpr, StrSubExpr,
     GhostCopyExpr, GhostCopyRangeExpr, GhostMakeExpr,
     MapEmptyExpr, MapGetExpr, MapSetExpr, MapEqExpr, HasKeyExpr, MapRemoveExpr,
@@ -146,6 +146,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         FstExpr:          "_csl_fst",
         SndExpr:          "_csl_snd",
         ProjExpr:         "_csl_proj",
+        CtorTest:         "_csl_ctor_test",
+        CtorPayload:      "_csl_ctor_payload",
         StrConcatExpr:    "_csl_strconcat",
         StrLengthExpr:    "_csl_str_length",
         StrSubExpr:       "_csl_str_sub",
@@ -364,6 +366,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_proj(self, node: ProjExpr) -> Dict[str, Any]:
         return {"type": "ProjExpr", "tuple": self._csl_to_ir(node.tuple_expr),
                 "index": int(node.index.value)}
+
+    def _csl_ctor_test(self, node: CtorTest) -> Dict[str, Any]:
+        return {"type": "CtorTest", "var": node.var, "ctor": node.ctor}
+
+    def _csl_ctor_payload(self, node: CtorPayload) -> Dict[str, Any]:
+        return {"type": "CtorPayload", "var": node.var, "ctor": node.ctor}
 
     def _csl_strconcat(self, node: StrConcatExpr) -> Dict[str, Any]:
         return {"type": "StrConcat", "left": self._csl_to_ir(node.left),

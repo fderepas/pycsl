@@ -203,8 +203,14 @@ model). *Driver:* `len(chain(a, n, b, m)) == n + m` + a membership contract. Low
 **build only on a concrete driver.**
 
 ## A5b/A5c/A5d / A5a-residual — sum-type extensions
-- **A5b** captures referenced in contracts (per-arm postconditions / a `\match` spec operator).
-  Build on demand (needs a surface-syntax decision).
+- **A5b** captures referenced in contracts — ✅ **DONE** (0541), via **projectors** (the chosen
+  surface). Two spec operators reference a variant's payload at the function level, with no match:
+  `\is_ctor(x, Ctor)` (discriminator → `match x with Ctor _ … -> true | _ -> false`) and
+  `\payload(x, Ctor)` (projector → `match x with Ctor v -> v | _ -> <default>`). So `unwrap`'s
+  postcondition is `\result == \payload(b, Val)` under `requires \is_ctor(b, Val)`. Wired
+  Module2→5→6. Boundary: `\payload` is scoped to a concrete (int/str) payload — a type-parameter
+  payload needs the `\is_ctor` guard (the fall-through `_` arm would not be well-typed); multi-payload
+  index selection is a follow-on. Additive (new operators only; byte-identical sample).
 - **A5c** guarded constructor patterns (`case Ctor(x) if g`) — ✅ **DONE** (0531): a guarded Why3
   match arm becomes `Ctor x -> if g then <body> else <wildcard fall-through>`.
 - **A5c** nested + or-patterns — ✅ **DONE** (0535/0536): a recursive `_render_match_pattern` emits

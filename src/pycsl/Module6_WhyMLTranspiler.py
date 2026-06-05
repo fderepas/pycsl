@@ -311,6 +311,8 @@ class Module6_WhyMLTranspiler(
         "FstExpr":      "_handle_fst_expr",
         "SndExpr":      "_handle_snd_expr",
         "ProjExpr":     "_handle_proj_expr",
+        "CtorTest":     "_handle_ctor_test_expr",
+        "CtorPayload":  "_handle_ctor_payload_expr",
         "StrConcat":    "_handle_strconcat_expr",
         "StrLength":    "_handle_str_length_expr",
         "StrSub":       "_handle_str_sub_expr",
