@@ -1033,6 +1033,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return f"(list_new_arr {args[0] if args else '0'})"
             self._add_abstract_op("val list_new (x: int) : int")
             return f"(list_new {args[0] if args else '0'})"
+        if func_name == "json_mirror" and len(args) == 1:
+            # no-more-int A4: `json_mirror(x)` over a recursive `#@ datatype Json`
+            # is an abstract `json → json` op (`val function` — program-callable
+            # AND constrainable by a logic axiom). The imported inductive lemma
+            # `mirror_involution : forall x. json_mirror (json_mirror x) = x`
+            # (proved by structural induction in Rocq/Lean) discharges
+            # `mirror(mirror(x)) == x` — testing the bridge on an INDUCTIVE
+            # property over a recursive datatype (vs the flat 0537–0539).
+            self._add_abstract_op("val function json_mirror (x: json) : json")
+            return f"(json_mirror {args[0]})"
         if func_name == "reversed" and len(args) == 1:
             # no-more-int A2b Gap 5: `reversed(xs)` models the reversed sequence
             # as an abstract `array int` op `array_rev` (a `val function` — both

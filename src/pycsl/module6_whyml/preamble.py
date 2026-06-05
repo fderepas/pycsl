@@ -59,6 +59,16 @@ class PreambleEmissionMixin:
         "Pycsl.Reference.Perm.rev_permutation":
             "forall s : array int. permut (array_rev s) s",
 
+        # Pycsl.Reference.Json — an INDUCTIVE property over a recursive
+        # `#@ datatype Json` (no-more-int A4 generalization demo). `json_mirror`
+        # swaps every `JPair`'s children; mirroring twice is the identity.
+        # Cross-validated by 0542.proofs/rocq/Json.v + lean/Json.lean
+        # (`mirror_involution`, proved by structural induction). The axiom
+        # quantifies over the user type `json`, which is why `#@ proof` axioms
+        # are now emitted AFTER the type declarations.
+        "Pycsl.Reference.Json.mirror_involution":
+            "forall x : json. json_mirror (json_mirror x) = x",
+
         # UnixFs.Bitmap — bitwise properties needed by inode/block
         # bitmap allocators. Cross-validated by
         # unix-filesystem/UnixInodeFileSystem.proofs/rocq/UnixInodeFileSystem.v.
@@ -113,6 +123,10 @@ class PreambleEmissionMixin:
         # so `permut_refl` (which doesn't mention it) stays unchanged.
         "Pycsl.Reference.Perm.rev_permutation":
             ["val function array_rev (a: array int) : array int"],
+        # A4: `json_mirror` over the user `json` datatype. The axiom block is
+        # emitted after `_emit_type_decls`, so `json` is in scope here.
+        "Pycsl.Reference.Json.":
+            ["val function json_mirror (x: json) : json"],
         # Declare bit_and here (before the axiom block) so the axiom
         # `forall n. 0 <= bit_and n 1 < 2` typechecks. Uses Why3's
         # `val function` idiom — both program and logic symbol — so
@@ -535,7 +549,11 @@ class PreambleEmissionMixin:
         out += self._emit_preamble_exceptions(needs)
         out += self._emit_preamble_helpers(needs)
         out += self._emit_preamble_no_exception_predicates(needs)
-        out += self._emit_preamble_axioms(self.ir)
+        # NOTE: `#@ proof` axioms are emitted by `transpile()` AFTER the type
+        # declarations (not here) — an axiom may quantify over a user
+        # `#@ datatype` (e.g. `forall x: json. …` for the A4 round-trip), which
+        # must be declared first. Builtin-typed axioms (gcd/permut/…) are
+        # order-insensitive, so this only repositions them, preserving pass/fail.
         out.append("")
         return out
 

@@ -360,6 +360,12 @@ class Module6_WhyMLTranspiler(
         type_lines, declared_types = self._emit_type_decls(type_decls)
         out += type_lines
 
+        # `#@ proof` axioms go AFTER the type declarations so an axiom may
+        # quantify over a user `#@ datatype` (A4 json round-trip). Also sets
+        # `self._axiom_emitted_decls` for the abstract-val dedup (which runs
+        # at the end via `_insert_abstract_val_block`).
+        out += self._emit_preamble_axioms(self.ir)
+
         self._emit_opaque_class_aliases(functions, out, declared_types)
 
         self._module_func_names = {whyml_ident(func["name"]) for func in functions}

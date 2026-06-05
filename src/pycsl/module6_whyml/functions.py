@@ -239,6 +239,12 @@ class FunctionEmissionMixin:
             return_type = "string"
         elif ann == "float" and return_type == "int":
             return_type = "real"  # no-more-int Stage D
+        elif ann in getattr(self, "_variant_types", {}) and return_type == "int":
+            # A4/A5: a `#@ datatype` return annotation (`-> Json`, `-> Option`)
+            # resolves to the variant's Why3 type — params already did (§_param_type_str).
+            return_type = self._variant_types[ann]["whyml_name"]
+        elif ann in getattr(self, "_record_types", {}) and return_type == "int":
+            return_type = self._record_types[ann]["whyml_name"]
         if bounded_int and return_type == "int":
             return_type = f"int{bounded_int}"
         return return_type
