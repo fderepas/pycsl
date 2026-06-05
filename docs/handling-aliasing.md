@@ -102,7 +102,12 @@ IDF/SL as the foundation.**
    literature shows, **this is novel** — nobody has used proof-assistant-imported framing lemmas as
    the mechanism for crossing the first-order reachability wall in an SMT-backed verifier. It is also
    the most natural demonstration that `axiom_from` earns its keep on a hard problem, not just on
-   textbook GCD.
+   textbook GCD. **This is now demonstrated end-to-end in the corpus** — drivers 0537–0539 prove
+   *reversing a list is a permutation of it* (`ensures \permutation(\result, xs)`) discharged ONLY by
+   an imported, Rocq+Lean-cross-validated `permut (rev s) s` axiom. See
+   `docs/framing-lemma-demonstration.md`. (A side finding: the shape is sound over `array int`
+   directly — no immutable-`seq` snapshot is needed, because the no-aliasing rule binds only program
+   values in pure containers, not predicates/axioms over arrays.)
 
 4. **Never adopt IDF/SL as the foundation.** The temptation to "do it properly" and build IDF into
    PyCSL to match Nagini means re-implementing Viper inside Why3 (huge, against the grain, the very
