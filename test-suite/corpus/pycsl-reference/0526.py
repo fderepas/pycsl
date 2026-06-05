@@ -13,7 +13,6 @@ constants, so they already worked — the gap is runtime keys.) Flips to PASS wh
 T1.2 threads the key type κ (map `string` keys, decidable equality) and stops
 hashing string keys.
 """
-# pycsl-expected: FAIL
 _ = 0  # anchor
 from typing import Dict
 

@@ -1337,6 +1337,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # string-valued dicts only (captured in Module4); int-valued dicts
             # have no entry and keep the `map int (option int)` path.
             "dict_value_types": dict(getattr(node, 'csl_dict_value_types', {})),
+            "dict_key_types": dict(getattr(node, 'csl_dict_key_types', {})),
             "formal_params": formal_params,
             "return_annotation": return_annotation,
             "contracts": {

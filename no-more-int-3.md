@@ -31,7 +31,7 @@ So the post-Part-2 surface splits into two halves:
 
 # PART A — remaining real-type tracks (gated)
 
-## A1 — Track 1: parametric maps (dict value + key)  [Backlog A + B] — T1.1 DONE (string values); T1.2 next (string keys)
+## A1 — Track 1: parametric maps (dict value + key)  [Backlog A + B] — T1.1 + T1.2 DONE (string values + string keys)
 
 **Status.** FAIL-driver `0523` committed (`Dict[int, str]`, `\str_length(d[k]) == \str_length(s)`;
 fails today — the WhyML is ill-typed, a `string` fed to `map_update_some … (v: int)`). The

@@ -212,6 +212,9 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         # annotation — `_get_type_name` discards V. Int-valued dicts get no entry
         # and keep the existing `map int (option int)` path (byte-identical).
         self.current_dict_value_types: Dict[str, str] = {}
+        # no-more-int-3 A1 T1.2: dict var -> WhyML key type κ (string), from
+        # `Dict[str, V]`. Int-keyed dicts get no entry (default int key).
+        self.current_dict_key_types: Dict[str, str] = {}
         self.current_function_name: str = ""
         self._class_fields: Dict[str, str] = {}
         # Module-level concurrency state
@@ -271,6 +274,23 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
                 and len(annotation.slice.elts) == 2):
             v = annotation.slice.elts[1]
             if isinstance(v, ast.Name) and v.id == "str":
+                return "string"
+        return None
+
+    @staticmethod
+    def _get_dict_key_type(annotation: ast.expr) -> Optional[str]:
+        """For a `Dict[K, V]` annotation, return the WhyML key type κ of K when it
+        is a non-int real type (currently only `str` → `string`), else None.
+        Parallel to `_get_dict_value_type`; feeds the parametric-map key type
+        (no-more-int-3 A1 T1.2). Why3 `string` has decidable equality, so
+        `Map.get (m: map string ν) (k: string)` is well-formed."""
+        if (isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)
+                and annotation.value.id in ("Dict", "dict")
+                and isinstance(annotation.slice, ast.Tuple)
+                and len(annotation.slice.elts) == 2):
+            k = annotation.slice.elts[0]
+            if isinstance(k, ast.Name) and k.id == "str":
                 return "string"
         return None
 
@@ -559,10 +579,12 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         saved_scope = self.current_scope
         saved_dict_value_types = self.current_dict_value_types
+        saved_dict_key_types = self.current_dict_key_types
         saved_function_name = self.current_function_name
         self.current_function_name = f"function '{node.name}'"
         self.current_scope = {}
         self.current_dict_value_types = {}
+        self.current_dict_key_types = {}
 
         self._build_function_scope(node)
         self._validate_function_contracts(node)
@@ -571,6 +593,7 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
 
         node.csl_symbol_table = self.current_scope.copy()
         node.csl_dict_value_types = self.current_dict_value_types.copy()
+        node.csl_dict_key_types = self.current_dict_key_types.copy()
 
         if self._shared_vars:
             self._check_protected_in_stmts(node.body, set(), node.name)
@@ -579,6 +602,7 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
 
         self.current_scope = saved_scope
         self.current_dict_value_types = saved_dict_value_types
+        self.current_dict_key_types = saved_dict_key_types
         self.current_function_name = saved_function_name
 
     def _build_function_scope(self, node: ast.FunctionDef) -> None:
@@ -593,6 +617,9 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
                 nu = self._get_dict_value_type(arg.annotation)
                 if nu is not None:
                     self.current_dict_value_types[arg.arg] = nu
+                kappa = self._get_dict_key_type(arg.annotation)
+                if kappa is not None:
+                    self.current_dict_key_types[arg.arg] = kappa
 
         # Local variables (skip shared module-level variables)
         for child in ast.walk(node):
@@ -610,6 +637,9 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
                         nu = self._get_dict_value_type(child.annotation)
                         if nu is not None:
                             self.current_dict_value_types[child.target.id] = nu
+                        kappa = self._get_dict_key_type(child.annotation)
+                        if kappa is not None:
+                            self.current_dict_key_types[child.target.id] = kappa
             elif isinstance(child, ast.For):
                 # For-loop iteration variables are in scope throughout the loop body
                 if isinstance(child.target, ast.Name) and child.target.id not in self._shared_vars:

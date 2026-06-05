@@ -427,25 +427,21 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     # in non-ghost variable"). Wrap it in a program-level
                     # abstract val `map_update_some` whose contract is
                     # the equivalent `Map.set` semantics.
-                    # no-more-int-3 A1: a string-valued dict (ν = string, from
-                    # `Dict[K, str]`) uses `map int (option string)` and a
-                    # string-typed update op, and the value is NOT hashed to int.
+                    # no-more-int-3 A1: a POLYMORPHIC update op `map 'k (option 'v)`
+                    # carries any key type κ and value type ν (Why3 infers them
+                    # from the args); int dicts instantiate `'k='v=int`. A
+                    # string-typed key (κ, `Dict[str, _]`) or value (ν,
+                    # `Dict[_, str]`) is passed through unhashed — string has
+                    # decidable equality, so distinct keys do not alias.
+                    self._add_abstract_op(
+                        "val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) "
+                        ": map 'k (option 'v)\n"
+                        "    ensures { result = Map.set m k (Some v) }")
+                    op = "map_update_some"
                     nu = self._dict_value_types.get(var_name) if var_name else None
-                    if nu == "string":
-                        self._add_abstract_op(
-                            "val map_update_some_str (m: map int (option string)) "
-                            "(k: int) (v: string) : map int (option string)\n"
-                            "    ensures { result = Map.set m k (Some v) }")
-                        op = "map_update_some_str"
-                        v = val_expr
-                    else:
-                        self._add_abstract_op(
-                            "val map_update_some (m: map int (option int)) (k: int) (v: int) "
-                            ": map int (option int)\n"
-                            "    ensures { result = Map.set m k (Some v) }")
-                        op = "map_update_some"
-                        v = self._coerce_to_int(val_expr)
-                    k = self._coerce_to_int(index_expr)
+                    kappa = self._dict_key_types.get(var_name) if var_name else None
+                    k = index_expr if kappa == "string" else self._coerce_to_int(index_expr)
+                    v = val_expr if nu == "string" else self._coerce_to_int(val_expr)
                     if self_field_name is not None:
                         # `self.<field>[k] = v` — record-field assignment.
                         # Why3 syntax: `self.field <- new_value`.

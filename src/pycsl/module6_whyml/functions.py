@@ -92,6 +92,8 @@ class FunctionEmissionMixin:
         # string-valued dicts; consulted by the dict literal / declaration /
         # MapGet-default / MapSet sites to emit `map int (option string)`.
         self._dict_value_types: Dict[str, str] = func.get("dict_value_types", {})
+        # no-more-int-3 A1 T1.2: dict var -> WhyML key type κ (string).
+        self._dict_key_types: Dict[str, str] = func.get("dict_key_types", {})
         self._lambda_locals = set()
         self._record_locals = set()
         # no-more-int-2 Track 3: a bare class-typed parameter reconstructed as a record
