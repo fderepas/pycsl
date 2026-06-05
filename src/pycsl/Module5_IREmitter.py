@@ -71,6 +71,18 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
         # construction resolves against `_record_types`.
         self._synthesize_namedtuple_records(node)
 
+        # sum-types: `#@ datatype Name = C1 | C2(int) | …` → a variant type_decl, and a
+        # constructor registry so a `C1` / `C2(x)` value and a `case C1()` pattern resolve.
+        for dt in getattr(node, 'csl_datatypes', []):
+            self.program_ir["type_decls"].append({
+                "kind": "variant", "name": dt.name,
+                "constructors": [{"name": c, "arity": len(tys), "payload": tys}
+                                 for (c, tys) in dt.variants],
+            })
+            for (c, tys) in dt.variants:
+                self.program_ir.setdefault("constructors", {})[c] = {
+                    "type": dt.name, "arity": len(tys)}
+
         self.generic_visit(node)
 
     @staticmethod
@@ -1007,6 +1019,11 @@ class PyCSLToJSONEmitter(ast.NodeVisitor):
         elif hasattr(ast, 'MatchSequence') and isinstance(pattern, ast.MatchSequence):
             return {"pattern": "Sequence",
                     "elts": [self._match_pattern_to_ir(p) for p in pattern.patterns]}
+        elif hasattr(ast, 'MatchClass') and isinstance(pattern, ast.MatchClass):
+            # sum-types: `case Ctor(p1, …):` — a constructor pattern with capture sub-patterns.
+            ctor = pattern.cls.id if isinstance(pattern.cls, ast.Name) else "Unknown"
+            return {"pattern": "Constructor", "ctor": ctor,
+                    "captures": [self._match_pattern_to_ir(p) for p in pattern.patterns]}
         return {"pattern": "Unknown"}
 
     def _scan_2d_in_expr(self, expr: Dict[str, Any], param_names: Set[str], result: Set[str]) -> None:

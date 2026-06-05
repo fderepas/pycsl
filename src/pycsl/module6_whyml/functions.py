@@ -44,6 +44,9 @@ class FunctionEmissionMixin:
             self._record_locals.add(arg)
             self._record_param_classes[arg] = wn
             return f"({safe}: {wn})"
+        if symtype in self._variant_types:
+            # sum-types: a `#@ datatype`-typed param is its Why3 variant type.
+            return f"({safe}: {self._variant_types[symtype]['whyml_name']})"
         return f"({safe}: {int_type})"
 
     def _collect_record_fields(self, type_decls: List[Dict[str, Any]]) -> Set[str]:

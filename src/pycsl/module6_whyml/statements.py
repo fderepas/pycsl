@@ -830,6 +830,30 @@ class StatementEmissionMixin:
                            indent: str, in_loop: bool) -> str:
         subject = self._expr_to_whyml(stmt["subject"], local_refs)
         cases = stmt.get("cases", [])
+        # sum-types: a constructor-pattern match over a `#@ datatype` lowers to a real Why3
+        # `match … with` (so Why3 checks exhaustiveness), not the value-pattern if-chain.
+        if any(c["pattern"].get("pattern") in ("Constructor", "Wildcard") for c in cases) \
+                and any(c["pattern"].get("pattern") == "Constructor" for c in cases):
+            arms: List[str] = []
+            for c in cases:
+                pat = c["pattern"]
+                body_str = self._stmts_to_whyml(c.get("body", []), local_refs,
+                                                declared_refs.copy(), indent + "    ", in_loop)
+                if not body_str.strip():
+                    body_str = f"{indent}    ()"
+                if pat.get("pattern") == "Constructor":
+                    caps = []
+                    for cp in pat.get("captures", []):
+                        caps.append(whyml_ident(cp["name"]) if cp.get("pattern") == "Capture"
+                                    else "_")
+                    arm = pat["ctor"] + ((" " + " ".join(caps)) if caps else "")
+                else:
+                    arm = "_"
+                arms.append(f"{indent}  | {arm} ->\n{body_str}")
+            code = f"{indent}match {subject} with\n" + "\n".join(arms) + f"\n{indent}  end"
+            if rest:
+                code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+            return code
         lines = []
         n_cases = len(cases)
         i_case = 0
@@ -1303,6 +1327,11 @@ class StatementEmissionMixin:
         body_dict_vars |= self._collect_dict_var_assigns(body_stmts)
         body_lambda_vars = IRScanner.find_lambda_vars(body_stmts)
         body_record_vars = IRScanner.find_record_vars(body_stmts, self._record_types)
+        # Sum-type constructor locals (`o = Some(7)` / `o = Nothing`) must NOT
+        # be pre-declared as `ref 0` (int) — Why3 then rejects the `:=` of a
+        # variant value. Exclude them so the first-assign binds `let o = ref
+        # (Some 7) in` with the inferred variant type (mirrors record locals).
+        body_variant_vars = self._collect_variant_var_assigns(body_stmts)
         # A user-defined/imported record type may share a name with a collections
         # constructor (e.g. a class `Counter` vs `collections.Counter`, corpus 0441).
         # `find_array_and_dict_vars` recognises the collections names by bare func, so
@@ -1333,6 +1362,7 @@ class StatementEmissionMixin:
             and v not in body_dict_vars
             and v not in body_lambda_vars
             and v not in body_record_vars
+            and v not in body_variant_vars
             and v not in struct_array_targets
             and v not in struct_pack_targets
         }

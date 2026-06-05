@@ -377,6 +377,36 @@ class TypeInferenceMixin:
 
         return _scan(stmts)
 
+    def _collect_variant_var_assigns(self, stmts: List[Dict[str, Any]]) -> Set[str]:
+        """Locals whose RHS is a sum-type constructor — an applied ctor
+        `o = Some(7)` (`Call` to a name in `self._constructors`) or a
+        nullary ctor `o = Nothing` (`Var` whose name is a nullary ctor).
+        Excluded from the integer `ref 0` pre-declaration path so the
+        first-assign emits `let o = ref (Some 7) in` with the inferred
+        variant type instead of a type-clashing `ref 0` + `:=`."""
+        ctors = getattr(self, "_constructors", {})
+        found: Set[str] = set()
+        if not ctors:
+            return found
+        for s in stmts:
+            if s.get("stmt") == "Assign":
+                val = s.get("value", {})
+                if isinstance(val, dict):
+                    is_ctor = (
+                        (val.get("type") == "Call" and val.get("func") in ctors)
+                        or (val.get("type") == "Var" and val.get("name") in ctors))
+                    if is_ctor:
+                        tgt = s.get("target", "")
+                        if tgt:
+                            found.add(tgt)
+            for k in ("body", "orelse"):
+                if k in s:
+                    found |= self._collect_variant_var_assigns(s[k])
+            if s.get("stmt") == "Try":
+                for h in s.get("handlers", []):
+                    found |= self._collect_variant_var_assigns(h.get("body", []))
+        return found
+
     def _collect_dict_var_assigns(self, stmts: List[Dict[str, Any]]) -> Set[str]:
         """Post-pass for body-dict / body-set local detection: variables
         whose RHS yields a `map int (option int)` value (via map-typed

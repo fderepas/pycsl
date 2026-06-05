@@ -1147,8 +1147,21 @@ class _Parser:
             nxt = self.peek(1)
             if nxt.type == _tokenize.OP and nxt.string == ".":
                 return self._fin(_N("MatchValue")(value=self._dotted_value()), t)
-            if nxt.type == _tokenize.OP and nxt.string in ("(", "{"):
-                self.unsupported("class/mapping match pattern")
+            if nxt.type == _tokenize.OP and nxt.string == "{":
+                self.unsupported("mapping match pattern")
+            if nxt.type == _tokenize.OP and nxt.string == "(":
+                # class pattern `Ctor(p1, …)` — positional capture sub-patterns (sum-types).
+                cls_t = self.advance()                       # consume the constructor NAME
+                cls_node = self._fin(_N("Name")(id=s, ctx=_N("Load")()), cls_t)
+                self.advance()                               # consume "("
+                patterns = []
+                while not self.at_op(")"):
+                    patterns.append(self.pattern())
+                    if not self.accept_op(","):
+                        break
+                end = self.expect_op(")")
+                return self._fin_pos(_N("MatchClass")(
+                    cls=cls_node, patterns=patterns, kwd_attrs=[], kwd_patterns=[]), t, end)
             self.advance()                        # capture target / wildcard
             if s == "_":
                 return self._fin(_N("MatchAs")(pattern=None, name=None), t)

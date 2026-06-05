@@ -13,7 +13,7 @@ from Module2_Parser import (
     GhostAssignDecl, GhostArraySetDecl, RaisesDecl, NoExceptionDecl,
     AllowFinalizerDecl, AllowIterationMutationDecl,
     BoundedIntDecl, ProofDecl,
-    SharedDecl, ThreadEntry, Acquires, Releases, CriticalSection,
+    SharedDecl, DatatypeDecl, ThreadEntry, Acquires, Releases, CriticalSection,
     MutexInvariant, LockOrder, BinOp, Number,
     Act, Given, Complete, Disjoint, Old, UnaryOp, CSLBool,
     CheckPoint, HappyProperty, Preserves, Var, Forall, FieldSubscript,
@@ -206,11 +206,14 @@ class PyCSLWeaver(ast.NodeVisitor):
         node.csl_shared_decls = []
         node.csl_mutex_invariants = {}
         node.csl_lock_order = None
+        node.csl_datatypes = []          # sum-types: #@ datatype decls (consolidated below)
         node.csl_happy_properties = []   # populated by Module3_Weaver.process (hoisted)
 
         if 0 in self.contracts_map:
             for c in self.contracts_map[0]:
-                if isinstance(c, SharedDecl):
+                if isinstance(c, DatatypeDecl):
+                    node.csl_datatypes.append(c)
+                elif isinstance(c, SharedDecl):
                     node.csl_shared_decls.append(c)
                 elif isinstance(c, MutexInvariant):
                     node.csl_mutex_invariants[c.mutex] = c.expr
@@ -393,10 +396,16 @@ class Module3_Weaver:
             python_ast.csl_mutex_invariants = {}
         if not hasattr(python_ast, 'csl_lock_order'):
             python_ast.csl_lock_order = None
+        if not hasattr(python_ast, 'csl_datatypes'):
+            python_ast.csl_datatypes = []
         seen_shared = {d.variable for d in python_ast.csl_shared_decls}
+        seen_dt = {d.name for d in python_ast.csl_datatypes}
         for nodes in contracts_map.values():
             for n in nodes:
-                if isinstance(n, SharedDecl) and n.variable not in seen_shared:
+                if isinstance(n, DatatypeDecl) and n.name not in seen_dt:
+                    python_ast.csl_datatypes.append(n)
+                    seen_dt.add(n.name)
+                elif isinstance(n, SharedDecl) and n.variable not in seen_shared:
                     python_ast.csl_shared_decls.append(n)
                     seen_shared.add(n.variable)
                 elif isinstance(n, MutexInvariant) and n.mutex not in python_ast.csl_mutex_invariants:

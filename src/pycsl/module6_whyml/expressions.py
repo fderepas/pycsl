@@ -745,6 +745,10 @@ class ExpressionEmissionMixin:
         func_name = expr["func"]
         args = [self._expr_to_whyml(a, local_refs, invariant_ctx, subst) for a in expr["args"]]
 
+        # sum-types: an applied `#@ datatype` constructor (`Circle(5)`) builds the variant.
+        if func_name in self._constructors:
+            return f"({func_name} {' '.join(args)})" if args else func_name
+
         # missing-bytes-struct-feature.md Phase 2 — struct.pack /
         # struct.unpack get a format-string-aware abstract emission
         # before falling through to the generic dotted-call path.
@@ -1201,6 +1205,9 @@ class ExpressionEmissionMixin:
         # it. Replaces the opaque `val constant` for these names.
         if name in self._module_constants:
             return f"({self._module_constants[name]})"
+        # sum-types: a nullary `#@ datatype` constructor used as a value (`Red`).
+        if name in self._constructors and self._constructors[name]["arity"] == 0:
+            return name
         safe = whyml_ident(name)
         self._add_abstract_op(f"val constant {safe} : int")
         return safe

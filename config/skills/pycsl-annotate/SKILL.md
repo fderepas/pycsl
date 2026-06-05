@@ -175,6 +175,37 @@ corpus `0471` (substring search — the flagship), `0472`–`0476`/`0481`/`0490`
 
 ---
 
+## Section 3f — Sum types (`#@ datatype`) and pattern matching
+
+A module-level `#@ datatype` directive declares a **real Why3 algebraic type** (not an int
+coarsening). Constructors may be nullary or carry typed payloads:
+
+```python
+#@ datatype Color = Red | Green | Blue
+#@ datatype Box = Some(int) | Pair(int, int) | Empty
+```
+
+lowers to `type color = Red | Green | Blue` and `type box = Some int | Pair int int | Empty`.
+Payload field types map `int→int`, `bool→int`, `str→string`, `float→real`.
+
+- **Construct** with the Python call form — `o = Some(7)` → a typed variant local
+  `let o = ref (Some 7) in`; a nullary `o = Red` → `Red`.
+- **Match** with `match`/`case` over a variant param or local — it lowers to a Why3
+  `match v with | Some n -> … | Pair a b -> … | Empty -> … end`. Capture names in the
+  `case` (`case Pair(a, b):`) bind the payloads, so a postcondition relating `\result` to a
+  captured field discharges. **Exhaustiveness is checked by the solver** — a missing or extra
+  constructor is a hard error, not a silent gap.
+
+Drivers: corpus `0520` (nullary enum + exhaustive match), `0521` (payload constructors,
+construction + capture match).
+
+**Out of reach:** a `requires`/`ensures` cannot reference a `case`-bound capture (captures are
+in scope only inside their arm, not at the contract level); guarded patterns (`case Some(n) if
+n > 0`), nested/`or` patterns, and wildcard `_` payload binds are not modeled; mutating a variant
+field in place is out of scope (Why3 variants are by-value — rebuild and reassign the ref).
+
+---
+
 ## Section 4 — Forbidden in contract expressions
 
 **Three-level validation**: every `#@` expression must clear syntax (Level 1), static-semantics (Level 2), and WhyML-generation (Level 3) checks. `pycsl --no-proof` succeeding only guarantees Levels 1 and 2; Level 3 is verified by Why3. The most dangerous trap: contracts that pass Module4 yet fail Why3 (e.g., `"key" in d` when `d` is unannotated → `int` in WhyML, `in` on `int` is invalid). See `references/validation-stack.md` for the IS/SR/TR rule tables and the practical decision checklist.

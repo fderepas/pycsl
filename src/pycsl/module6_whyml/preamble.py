@@ -562,8 +562,27 @@ class PreambleEmissionMixin:
         self._ambiguous_fields = {fn for fn, c in _field_counts.items() if c > 1}
         n = len(type_decls)
         i = 0
+        _VPAY = {"int": "int", "bool": "int", "str": "string", "float": "real"}
         while i < n:
             td = type_decls[i]
+            if td.get("kind") == "variant":
+                # sum-types: `type color = Red | Green | Blue` / `type shape = Circle int | …`
+                type_name = td["name"].lower()
+                declared_types.add(type_name)
+                self._variant_types[td["name"]] = {
+                    "whyml_name": type_name,
+                    "constructors": {c["name"]: c for c in td["constructors"]}}
+                ctor_strs: List[str] = []
+                for c in td["constructors"]:
+                    pay = " ".join(_VPAY.get(t, "int") for t in c.get("payload", []))
+                    self._constructors[c["name"]] = {
+                        "type": td["name"], "whyml_type": type_name,
+                        "arity": c["arity"], "payload": c.get("payload", [])}
+                    ctor_strs.append(c["name"] + (f" {pay}" if pay else ""))
+                out.append(f"  type {type_name} = {' | '.join(ctor_strs)}")
+                out.append("")
+                i += 1
+                continue
             if td["kind"] == "record":
                 type_name = td["name"].lower()
                 declared_types.add(type_name)

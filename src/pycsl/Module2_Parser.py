@@ -594,6 +594,13 @@ class SharedDecl(CSLNode):
     mutex: Optional[str] = None
 
 @dataclass
+class DatatypeDecl(CSLNode):
+    """Represents `#@ datatype Name = C1 | C2(int) | C3(int, int)` — an algebraic
+    (sum) type. `variants` is a list of (constructor_name, [payload_type_names])."""
+    name: str
+    variants: list
+
+@dataclass
 class ThreadEntry(CSLNode):
     """Represents `thread_entry` — marks a function as a concurrent thread entry point."""
     pass
@@ -655,6 +662,7 @@ PYCSL_GRAMMAR = r"""
              | allow_iteration_mutation_decl
              | bounded_int_decl
              | proof_decl
+             | datatype_decl
              | shared_decl
              | thread_entry_decl
              | acquires_decl
@@ -843,6 +851,10 @@ PYCSL_GRAMMAR = r"""
     mutex_expr: CNAME "[" expr "]" -> mutex_subscript
               | CNAME -> mutex_name
 
+    datatype_decl: "datatype" CNAME "=" variant_def ("|" variant_def)*
+    variant_def: CNAME "(" CNAME ("," CNAME)* ")" -> variant_payload
+               | CNAME -> variant_nullary
+
     shared_decl: "shared" CNAME "protected_by" mutex_expr -> shared_protected
                | "shared" CNAME -> shared_unprotected
     thread_entry_decl: "thread_entry"
@@ -959,6 +971,10 @@ class PyCSLTransformer(Transformer):
         return f"{name}[{_csl_to_str(index)}]"
     def shared_protected(self, name, mutex) -> SharedDecl: return SharedDecl(str(name), str(mutex))
     def shared_unprotected(self, name) -> SharedDecl: return SharedDecl(str(name), None)
+    # sum-types: `datatype Name = C1 | C2(int) | …`
+    def datatype_decl(self, name, *variants) -> DatatypeDecl: return DatatypeDecl(str(name), list(variants))
+    def variant_payload(self, ctor, *types): return (str(ctor), [str(t) for t in types])
+    def variant_nullary(self, ctor): return (str(ctor), [])
     def thread_entry_decl(self) -> ThreadEntry: return ThreadEntry()
     def acquires_decl(self, mutex) -> Acquires: return Acquires(str(mutex))
     def releases_decl(self, mutex) -> Releases: return Releases(str(mutex))

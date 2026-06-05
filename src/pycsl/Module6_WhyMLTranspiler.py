@@ -51,6 +51,10 @@ class Module6_WhyMLTranspiler(
         self.strict_hash_eq_consistency = bool(strict_hash_eq_consistency)
         self._abstract_ops: Dict[str, str] = {}  # Abstract val declarations: name → full decl string
         self._record_types: Dict[str, Any] = {}  # class_name_lower → {fields: [...], defaults: {...}}
+        # sum-types: variant type name → {whyml_name, constructors}; constructor name →
+        # {type, whyml_type, arity, payload}. Drive param typing, construction, and match.
+        self._variant_types: Dict[str, Any] = {}
+        self._constructors: Dict[str, Any] = {}
         self._class_constants: Dict[str, Dict[str, int]] = {}  # class_name_lower → {CONST: int literal}
         # module-constants-plan: module-level int constants (`K_IHDR = 0`) →
         # resolved to their literal in `_handle_var_expr` (body and contract).
