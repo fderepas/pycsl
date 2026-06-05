@@ -772,7 +772,8 @@ PYCSL_GRAMMAR = r"""
     ?unary: UNARY_OP unary -> unary_op
           | atom
 
-    ?atom: NUMBER -> number
+    ?atom: DECIMAL -> decimal
+         | NUMBER -> number
          | ESCAPED_STRING -> string_literal
          | "True" -> true_lit
          | "False" -> false_lit
@@ -865,6 +866,7 @@ PYCSL_GRAMMAR = r"""
 
     %import common.CNAME
     %import common.INT -> NUMBER
+    DECIMAL.2: /\d+\.\d+/
     %import common.ESCAPED_STRING
     %import common.WS
     %ignore WS
@@ -1000,7 +1002,10 @@ class PyCSLTransformer(Transformer):
     def unary_op(self, op, expr) -> UnaryOp: return UnaryOp(str(op), expr)
 
     # Atoms
-    def number(self, n) -> Number: return Number(float(n))
+    def number(self, n) -> Number: return Number(int(n))
+    # no-more-int Stage D: a decimal literal (`0.0`, `1.5`) is a float — kept distinct from
+    # an integer NUMBER so Module6 lowers it to a Why3 `real`, not an int.
+    def decimal(self, n) -> Number: return Number(float(n))
     def string_literal(self, s) -> StringLiteral: return StringLiteral(str(s)[1:-1])  # strip quotes
     def true_lit(self) -> CSLBool: return CSLBool(True)
     def false_lit(self) -> CSLBool: return CSLBool(False)

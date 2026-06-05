@@ -33,6 +33,9 @@ class FunctionEmissionMixin:
             # strings-plan Stage 1: runtime `str` is a value-semantic Why3 string
             # (string.String), unifying with the ghost-string model.
             return f"({safe}: string)"
+        if symtype == "float":
+            # no-more-int Stage D: `float` is Why3 `real` (was the unsound τ(float)=int).
+            return f"({safe}: real)"
         return f"({safe}: {int_type})"
 
     def _collect_record_fields(self, type_decls: List[Dict[str, Any]]) -> Set[str]:
@@ -137,6 +140,8 @@ class FunctionEmissionMixin:
                     # missed, leaving str method params typed int while _is_string_expr,
                     # which reads the symbol table, treated them as string).
                     param_parts.append(f"({safe}: string)")
+                elif symbol_table.get(arg) == "float":
+                    param_parts.append(f"({safe}: real)")  # no-more-int Stage D
                 else:
                     param_parts.append(f"({safe}: {int_type})")
             return set(), " ".join(param_parts)
@@ -226,6 +231,8 @@ class FunctionEmissionMixin:
             return_type = "map int (option int)"
         elif ann == "str" and return_type == "int":
             return_type = "string"
+        elif ann == "float" and return_type == "int":
+            return_type = "real"  # no-more-int Stage D
         if bounded_int and return_type == "int":
             return_type = f"int{bounded_int}"
         return return_type
@@ -534,6 +541,8 @@ class FunctionEmissionMixin:
             return "array int"
         if symtype == "str":
             return "string"
+        if symtype == "float":
+            return "real"  # no-more-int Stage D
         return "int"
 
     def _build_method_param_types_map(self, functions: List[Dict[str, Any]]) -> Dict[str, List[str]]:

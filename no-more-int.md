@@ -35,7 +35,19 @@ Anchors: `functions.py:26-36`/`522-532` (type collapses), `preamble.py:584-595` 
 Two self-contained pieces: a soundness fix and a high-value capability. Each gated by the full
 corpus sweep (zero new regressions) before commit.
 
-## Stage D — `float` → `real.Real` (soundness fix)
+## Stage D — `float` → `real.Real` (soundness fix) — ✅ DONE
+
+**Status (implemented):** `float` params/locals/returns are Why3 `real` (functions.py type
+emission); `use real.RealInfix` triggered by `needs_real` (preamble); float literals lower to real
+constants (a new `DECIMAL` CSL grammar terminal + `Module2.decimal` keeps them distinct from
+integer `NUMBER`, and `Module2.number` now stores `int` so Module6 distinguishes by value type);
+float arithmetic/comparison routes through `_is_float_expr` + a `float_*_op` real bridge / RealInfix
+in `_handle_binop`. Replaces the unsound `τ(float)=int` (literals were truncated to int).
+Zero corpus blast radius (no existing test used float). Drivers `0517` (proves), `0518` (false
+real-arithmetic contract, expected-FAIL). τ-table updated (static-semantics §1.4, translational
+§T.2.2). Mixed float/int arithmetic and transcendentals are out of scope (documented).
+
+
 
 `τ(float)=int` lets int arithmetic stand in for float arithmetic — it can prove false goals. Fix:
 

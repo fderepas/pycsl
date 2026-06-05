@@ -184,6 +184,12 @@ class PreambleEmissionMixin:
             or any("str" in f.get("symbol_table", {}).values() for f in functions)
             or any(f.get("return_annotation") == "str" for f in functions)
         )
+        # no-more-int Stage D: a `float` param/local/return is Why3 `real`; RealInfix
+        # provides the disambiguated `+.`/`-.`/`*.`/`/.`/`<.` operators alongside int.Int.
+        needs_real = (
+            any("float" in f.get("symbol_table", {}).values() for f in functions)
+            or any(f.get("return_annotation") == "float" for f in functions)
+        )
         needs_map_ghost = any(IRScanner.uses_ghost_type(body, {"ghost_dict", "ghost_set"}) for body in all_bodies)
         needs_ghost_dict = any(IRScanner.uses_ghost_type(body, {"ghost_dict"}) for body in all_bodies)
         # Body-level Python dicts are modelled as `ref (map int (option int))`
@@ -253,6 +259,7 @@ class PreambleEmissionMixin:
             "needs_body_dict": needs_body_dict,
             "tuple_return_arities": tuple_return_arities,
             "needs_string": needs_string,
+            "needs_real": needs_real,
             "needs_map_ghost": needs_map_ghost,
             "needs_ghost_dict": needs_ghost_dict,
             "needs_list_ghost": needs_list_ghost,
@@ -280,6 +287,8 @@ class PreambleEmissionMixin:
             i += 1
         if needs["needs_string"]:
             out.append("  use string.String")
+        if needs.get("needs_real"):
+            out.append("  use real.RealInfix")  # no-more-int Stage D — `+.`/`-.`/… on real
         if self._value_semantic:
             if needs["needs_matrix"]:
                 out.append("  use matrix.Matrix")

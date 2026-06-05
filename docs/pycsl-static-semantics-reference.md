@@ -148,7 +148,11 @@ specification logic's type universe:
                                  operators now apply to runtime str, not only ghost strings.
                                  NB no char type: s[i] is a length-1 string, so no ord / code
                                  points / lexicographic char ordering — see the limitations *)
-τ(float)          = int       (* no native floats — modeled as integers *)
+τ(float)          = real      (* Why3 real.RealInfix — was the unsound τ(float)=int. Float
+                                 literals are real constants; +/-/*//​ and </<=/>/>= lower to the
+                                 RealInfix `+.`/`-.`/`*.`/`/.`/`<.`… (arithmetic in a body bridges
+                                 through `val float_*_op : real`). Mixed float/int arithmetic is
+                                 out of scope; transcendentals stay opaque ops over real *)
 τ(list)           = list
 τ(List)           = list      (* typing.List alias *)
 τ(List[T])        = list      (* parametric list — element type opaque *)

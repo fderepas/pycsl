@@ -268,6 +268,19 @@ class ExpressionEmissionMixin:
                     and self._is_string_expr(ir.get("right", {})))
         return False
 
+    def _is_float_expr(self, ir: Dict[str, Any]) -> bool:
+        """True if an IR expression is float-typed (no-more-int Stage D): a float literal,
+        a `float`-typed Var, or float arithmetic. Routes ops to Why3 `real`."""
+        t = ir.get("type")
+        if t == "Number":
+            return isinstance(ir.get("value"), float)
+        if t == "Var":
+            return getattr(self, "_current_symbol_table", {}).get(ir.get("name", "")) == "float"
+        if t == "BinOp" and ir.get("op") in ("+", "-", "*", "/"):
+            return (self._is_float_expr(ir.get("left", {}))
+                    and self._is_float_expr(ir.get("right", {})))
+        return False
+
     def _str_operand_to_int(self, whyml_str: str) -> str:
         """Map a string operand into the legacy int-hash domain. Used when a string is
         compared against a genuine int (e.g. an opaque `.decode()` result that PyCSL has no
@@ -292,6 +305,30 @@ class ExpressionEmissionMixin:
         left = self._expr_to_whyml(expr["left"], local_refs, invariant_ctx, subst)
         right = self._expr_to_whyml(expr["right"], local_refs, invariant_ctx, subst)
         op = op_translate(raw_op)
+        # no-more-int Stage D: float arithmetic/comparison is over Why3 `real` (RealInfix
+        # `+.`/`-.`/`*.`/`/.`/`<.`/…), not int. Both operands must be float; a mixed float/int
+        # binop is out of scope (documented). Arithmetic in a body bridges through an abstract
+        # `val` (the real ops are logic symbols); comparisons return bool and emit directly.
+        _lf = self._is_float_expr(expr["left"])
+        _rf = self._is_float_expr(expr["right"])
+        if _lf or _rf:
+            _FARITH = {"+": ("+.", "add"), "-": ("-.", "sub"),
+                       "*": ("*.", "mul"), "/": ("/.", "div")}
+            if raw_op in _FARITH and _lf and _rf:  # arithmetic: both operands float
+                rop, nm = _FARITH[raw_op]
+                if self._in_spec:
+                    return f"({left} {rop} {right})"
+                self._add_abstract_op(
+                    f"val float_{nm}_op (a b: real) : real\n"
+                    f"    ensures {{ result = (a {rop} b) }}")
+                return f"(float_{nm}_op {left} {right})"
+            # comparison/equality: either operand float (the other is `\result` or a real)
+            _FCMP = {"<": "<.", "<=": "<=.", ">": ">.", ">=": ">=."}
+            if raw_op in _FCMP:
+                return f"({left} {_FCMP[raw_op]} {right})"
+            if raw_op in ("==", "!="):
+                eq = f"({left} = {right})"
+                return eq if raw_op == "==" else f"(not {eq})"
         # strings-plan Stage 2: `s + t` on strings is concatenation, not int addition. The
         # logic symbol `concat` is fine in a spec; in a program (body) context it is bridged
         # through an abstract `val` whose `ensures` ties the result to `concat` (same pattern
@@ -1751,7 +1788,16 @@ class ExpressionEmissionMixin:
         t = expr["type"]
 
         # Simple literals and trivial 1-3-line branches — kept inline
-        if t == "Number": return str(int(expr["value"]))
+        if t == "Number":
+            v = expr["value"]
+            # no-more-int Stage D: a float literal is a Why3 `real` constant (was
+            # truncated to int — the unsound float collapse). Why3 reals need a decimal
+            # point: `1.5`, `2.0`.
+            if isinstance(v, float) and not float(v).is_integer():
+                return repr(v)
+            if isinstance(v, float):
+                return f"{int(v)}.0"
+            return str(int(v))
         # Pre-lowered WhyML passthrough — used to splice an already-emitted argument
         # string into a value IR (parametrized record construction, base_op.md Tier A).
         if t == "RawWhyml": return expr["whyml"]

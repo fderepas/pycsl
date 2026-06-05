@@ -271,7 +271,7 @@ def test_precondition(x: int) -> int:
 | `int` | `int` | Arbitrary precision |
 | `bool` | `int` | `True` → `1`, `False` → `0` in body; `true`/`false` in spec |
 | `str` | `string` | Why3 `string.String` value type — real content (see §T.6 string ops); memory-model-independent |
-| `float` | `int` | **Unsound** — no float theory |
+| `float` | `real` | Why3 `real.RealInfix` (`+.`/`-.`/…); float literals are real constants. Was the unsound `int` (no-more-int Stage D) |
 | `list` | `array int` | Hoare/Concurrent model |
 | `list` | `loc` + `_len` | Typed/Store model |
 | `None` / `-> None` | `unit` | Return type for void functions |
