@@ -51,6 +51,13 @@ class PreambleEmissionMixin:
         # spike verified is sound — no `seq` snapshot needed (Gap 2 obviated).
         "Pycsl.Reference.Perm.permut_refl":
             "forall s : array int. permut s s",
+        # The framing lemma: reversing a list permutes its elements. The SMT
+        # solver cannot derive this (uninterpreted `permut`, no multiset
+        # reasoning) — it is the proof-assistant-imported axiom that does.
+        # Cross-validated by 0539.proofs/rocq/Rev.v (`Permutation_rev`) +
+        # 0539.proofs/lean/Rev.lean (`List.reverse_perm`).
+        "Pycsl.Reference.Perm.rev_permutation":
+            "forall s : array int. permut (array_rev s) s",
 
         # UnixFs.Bitmap — bitwise properties needed by inode/block
         # bitmap allocators. Cross-validated by
@@ -101,6 +108,11 @@ class PreambleEmissionMixin:
         # `_handle_permutation_expr` emits via `_add_abstract_op` — the
         # abstract-val dedup skips it here so it is declared exactly once.
         "Pycsl.Reference.Perm.": ["predicate permut (a: array int) (b: array int)"],
+        # The `rev_permutation` axiom additionally needs `array_rev` (the
+        # `reversed(...)` model) declared before it. Keyed on the longer prefix
+        # so `permut_refl` (which doesn't mention it) stays unchanged.
+        "Pycsl.Reference.Perm.rev_permutation":
+            ["val function array_rev (a: array int) : array int"],
         # Declare bit_and here (before the axiom block) so the axiom
         # `forall n. 0 <= bit_and n 1 < 2` typechecks. Uses Why3's
         # `val function` idiom — both program and logic symbol — so

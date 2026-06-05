@@ -126,10 +126,15 @@ sequence of small, individually-gated steps.
    (`requires \permutation(a,b)` ⊢ `ensures \permutation(a,b)`) flips FAIL→PASS; additive (a
    9-file representative byte-diff is identical). The **reflexivity / reversal axioms** (`#@ proof`)
    are Gaps 3–4, not Gap 1.
-2. **Gap 2** — the `seq` snapshot view of a list parameter in a postcondition.
-3. **Gaps 3–4** — registry entry + paired Rocq/Lean proofs; run `coqc` + `lake build` to confirm
-   both compile clean.
-4. **Gap 5** — the `0531.py` reversal driver; flip FAIL→PASS via the imported axiom; full sweep.
+2. **Gap 2 — ✅ OBVIATED.** A Why3 prototype proved the whole shape sound over `array int`; no
+   `seq` snapshot needed (see §Gap 2 above).
+3. **Gaps 3–4 — ✅ DONE (0538 refl, 0539 rev).** Registry + `_AXIOM_FUNCTIONS` entries for
+   `Pycsl.Reference.Perm.{permut_refl, rev_permutation}`; paired proofs
+   `0538.proofs`/`0539.proofs` (Rocq `Permutation_refl`/`Permutation_rev`, Lean
+   `List.Perm.refl`/`List.reverse_perm`) all compile clean (coqc/lean exit 0).
+4. **Gap 5 — ✅ DONE (0539).** The headline driver: `reverse(xs)` returns `list(reversed(xs))`
+   (modeled `array_rev xs`), and `ensures \permutation(\result, xs)` is discharged ONLY by the
+   imported `rev_permutation` axiom — SMT cannot derive it. Additive; existing files byte-identical.
 5. **Write-up** — this is the paper-worthy artifact (`docs/handling-aliasing.md` §3): the first use
    of proof-assistant-imported framing lemmas to cross the first-order reachability wall in an
    SMT-backed verifier.

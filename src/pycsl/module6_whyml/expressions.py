@@ -1017,6 +1017,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # 0441's `Counter`) fall through to `_call_record_constructor`.
             return "(const (None: option int))"
         if func_name == "list" and len(args) <= 1:
+            # `list(X)` where X already lowered to an `array int` expression
+            # (e.g. `list(reversed(xs))`) is the identity — pass it through.
+            if args and args[0].lstrip("(").startswith(
+                    ("array_rev ", "Array.", "array_slice ", "array_copy ")):
+                return args[0]
             # `list(iterable)` semantics depend on the surrounding return
             # type. In a `List[T] -> array int` context, emit an abstract
             # array-returning val so the result type-checks at the
@@ -1028,6 +1033,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return f"(list_new_arr {args[0] if args else '0'})"
             self._add_abstract_op("val list_new (x: int) : int")
             return f"(list_new {args[0] if args else '0'})"
+        if func_name == "reversed" and len(args) == 1:
+            # no-more-int A2b Gap 5: `reversed(xs)` models the reversed sequence
+            # as an abstract `array int` op `array_rev` (a `val function` — both
+            # program-callable and constrainable by a logic axiom). The
+            # `permut (array_rev s) s` framing lemma (imported via `#@ proof`)
+            # is what proves `\permutation(reversed(xs), xs)`; uncited, it stays
+            # an opaque reversal. `list(reversed(xs))` passes the array through.
+            self._add_abstract_op(
+                "val function array_rev (a: array int) : array int")
+            return f"(array_rev {self._array_coerce_arg(args[0])})"
         if func_name == "join" and len(args) == 1:
             return self._handle_join_call(expr, args)
         if func_name in ("str", "repr", "int", "bool", "abs") and len(args) == 1:
