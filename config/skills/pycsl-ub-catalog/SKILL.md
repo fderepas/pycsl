@@ -13,7 +13,7 @@ implementation lives across Module 1 (import classifier), Module 3
 (weaver), Module 4 (semantic analyzer), and Module 5 (IR emitter).
 
 The catalog is grouped by the NoException_and_UBDetection workplan
-numbering (§7.1–§7.6). Entries are filled in as the corresponding PR
+numbering (§7.1–§7.7). Entries are filled in as the corresponding PR
 lands; expect partial coverage until all sub-features are merged.
 
 ---
@@ -120,6 +120,33 @@ boundary — we do not fake it.
 **Corpus cross-reference:** `0497` (non-trivial `__new__` rejection),
 `0496` (trivial `__new__` accepted + parametrized `__init__`), `0495`
 (parametrized construction, no `__new__`).
+
+---
+
+## §7.7 unsound memoization (`@lru_cache` on a non-RT function)
+
+**Source pattern that triggers it.** A function carrying a memoizing decorator
+(`@lru_cache`, `@lru_cache(maxsize=…)`, `@cache`, `@cached_property`) that is
+**not referentially transparent**.
+
+**Detection mechanism.** `Module5._is_memoized` flags the decorator;
+`_check_memoization_soundness` rejects (`PyCSLIRError`, UB-7.7) unless the
+function is referentially transparent (RT): it must be **pure** (`#@ assigns
+\nothing`, not `\trusted`, not `\diverges` — `_detect_purity`) AND read no
+`#@ shared` mutable global (`_reads_any`). Module-level *constants* are fine.
+
+**Verification stance.** *Hard error*, no escape annotation. PyCSL verifies the
+function's **uncached** body and ignores the decorator. That is sound only when
+caching is observationally transparent — i.e. the function is RT (same inputs →
+same result, no effects). Memoizing an effectful or non-deterministic function
+makes the cache return values inconsistent with the verified body, so the proof
+would not describe the running program. (Why3 `let function` symbols are RT by
+construction, and PyCSL already emits a pure non-method function as one — so for
+an RT function no extra work is needed; this rule only gates the unsound case.)
+Note: contracts must be placed **above** the decorator to attach.
+
+**Corpus cross-reference:** `0515` (pure `@lru_cache` accepted + caller proof),
+`0516` (memoizing a non-RT function rejected).
 
 ---
 
