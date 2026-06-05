@@ -119,7 +119,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return f"!{expr.lstrip('!')}" if expr.startswith("!") else expr
 
     def _coerce_to_int(self, whyml_str: str) -> str:
-        """Coerce any non-int WhyML expression to int for abstract val arguments."""
+        """Coerce any non-int WhyML expression to int for abstract val arguments.
+
+        no-more-int A6: the `self`/record → int category was retired here — a
+        corpus-wide audit found it fires 0 times now that record params/locals
+        are handled by the record-aware dotted-call path (A2a/A2c), so the
+        `self_to_int_<type>` abstract op is dead. The remaining categories are
+        not erasure of a now-typed value: `array`/`map` are defensive
+        placeholders that keep a genuinely-untyped collection flow from emitting
+        an ill-typed operand where `int` is expected; `tuple`→hash and the
+        `string`→hash fallback are the benign documented collapses (A7)."""
         # String literals → int hash
         if whyml_str.startswith('"') and whyml_str.endswith('"'):
             return str(hash(whyml_str) % 2147483647)
@@ -141,12 +150,6 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # Tuple literals (a, b, c) → hash to int
         if "," in whyml_str and whyml_str.startswith("(") and whyml_str.endswith(")"):
             return str(hash(whyml_str) % 2147483647)
-        # Record self → convert to int via abstract op
-        self_type = self._current_self_type
-        if whyml_str == "self" and self_type:
-            conv_name = f"self_to_int_{self_type}"
-            self._add_abstract_op(f"val {conv_name} (x: {self_type}) : int")
-            return f"({conv_name} self)"
         return whyml_str
 
     def _match_pattern_cond(self, pat: Dict[str, Any], subject: str, local_refs: Set[str]) -> str:

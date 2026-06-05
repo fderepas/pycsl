@@ -189,17 +189,29 @@ model). *Driver:* `len(chain(a, n, b, m)) == n + m` + a membership contract. Low
 - **A5a-residual** mutually-recursive datatypes (`type a = … with b = …`) — the `with` form in
   `preamble.py::_emit_type_decls`; gated on a mutually-recursive driver (e.g. AST `Expr`/`Stmt`).
 
-## A6 — retire `_coerce_to_int` categories — **actionable now, no driver needed**
-`_coerce_to_int` (`expressions.py`, ~line 119) erases real types (string→hash, array→0, map→0,
+## A6 — retire `_coerce_to_int` categories — **(a) DONE; (b) audited-not-yet-needed**
+`_coerce_to_int` (`expressions.py`, ~line 119) erased real types (string→hash, array→0, map→0,
 tuple→hash, self→abstract-op). Discipline: as each track lands, **remove that track's coercion
 category**; end state, it fires only for genuinely-untyped (`Any`) operands.
-- **Available today, one category per commit, full-sweep gated:** (a) audit the record/self→int
-  category is actually gone post-A2a/A2c; (b) remove the dict key/value→int erasure now dead for
-  typed dicts post-T1.1/T1.2.
-- **Risk:** medium (`_coerce_to_int` is load-bearing; a removed category can surface a path that
-  relied on the erasure). Never fold into a feature commit.
-- **Verdict:** **cleanest standalone next step** — debt paydown gated only by the sweep, no driver,
-  measurably shrinks the collapse surface.
+
+**Corpus-wide audit (instrument every category, emit all 486 files):** only **`string`→hash fires**
+(3 times: `"__"`, `"utf-8"`). `self`, `tuple`, `array`, `map` all fire **0 times**.
+
+- **(a) `self`/record→int — ✅ DONE.** Audit-proven dead (0 fires) now that record params/locals are
+  handled by the record-aware dotted-call path (A2a/A2c), so the `self_to_int_<type>` abstract op was
+  unreachable. Removed; emission **byte-identical across all 462 emitted `.mlw`** (strictly stronger
+  than a pass/fail sweep). Kept deliberately: `array`/`map`→placeholder are **defensive nets** for a
+  genuinely-untyped collection flowing where `int` is expected (not erasure of a now-typed value);
+  `tuple`/`string`→hash are the benign documented collapses (A7).
+- **(b) dict key/value→int erasure — not a `_coerce_to_int` category.** It lives at the dict-set/get
+  *call sites*, already guarded post-T1.1/T1.2 (`k = index_expr if κ == "string" else
+  _coerce_to_int(...)`); for the remaining int dicts the value/key is already an int expression, so
+  `_coerce_to_int` is a pass-through there (hence `map`/array fire 0 at those sites). Removing the
+  guarded call is byte-identical but only *defensive-net* removal, not dead-value erasure — **defer**
+  until a typed non-int/non-string dict value (A1-residual) actually exercises it.
+- **Verdict:** the actionable A6 increment (a) is **landed**; (b) is audited and parked behind
+  A1-residual. The collapse surface is now `string`-hash + two defensive collection nets + the A7
+  tuple/bool benign pair.
 
 ## A7 — residual benign collapses — DOCUMENT ONLY
 `bool` as `1/0` and bare `tuple → int` (hash) are rare and benign. No driver should chase these; keep
