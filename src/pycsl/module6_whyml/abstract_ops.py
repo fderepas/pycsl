@@ -103,25 +103,22 @@ class AbstractOpsMixin:
         if not self._abstract_ops:
             return
 
-        # Names already declared by _emit_axiom_block. Each entry in
-        # _AXIOM_FUNCTIONS is a list of full WhyML decls; extract the
-        # symbol name (parts[2] after `val function`/`val constant`,
-        # else parts[1] after `val`/`function`).
+        # Names already declared by the axiom block (`_emit_preamble_axioms`),
+        # for the cited qualnames ONLY — recorded in `_axiom_emitted_decls`.
+        # Skipping these avoids a double declaration; using the actually-emitted
+        # set (not every `_AXIOM_FUNCTIONS` entry) is essential for symbols like
+        # `permut` that ARE abstract-ops in files that don't cite their axiom.
         axiom_decl_names: Set[str] = set()
-        if hasattr(self, "_AXIOM_FUNCTIONS"):
-            for decls in self._AXIOM_FUNCTIONS.values():
-                # decls is List[str] (post Phase 3.3). Accept the legacy
-                # single-string shape too in case a subclass overrides.
-                seq = decls if isinstance(decls, (list, tuple)) else [decls]
-                for d in seq:
-                    parts = d.split()
-                    if len(parts) >= 3 and parts[0] in ("val", "function"):
-                        if parts[1] in ("function", "constant"):
-                            axiom_decl_names.add(parts[2])
-                        else:
-                            axiom_decl_names.add(parts[1])
-                    elif len(parts) >= 2 and parts[0] == "function":
-                        axiom_decl_names.add(parts[1])
+        for d in getattr(self, "_axiom_emitted_decls", set()):
+            parts = d.split()
+            if len(parts) >= 3 and parts[0] in ("val", "function"):
+                if parts[1] in ("function", "constant"):
+                    axiom_decl_names.add(parts[2])
+                else:
+                    axiom_decl_names.add(parts[1])
+            elif len(parts) >= 2 and parts[0] in ("function", "predicate"):
+                # `function FOO …` / `predicate FOO …` → name is parts[1]
+                axiom_decl_names.add(parts[1])
 
         insert_idx = self._find_abstract_val_insert_idx(out)
         abs_lines = ["", "  (* Abstract operations for unsupported Python patterns *)"]

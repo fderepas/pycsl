@@ -45,13 +45,25 @@ Options, smallest first:
   `permut`. Cleaner semantics but introduces a new Why3 theory import; defer unless 1a proves
   awkward.
 
-### Gap 2 — model the list as an IMMUTABLE `seq int`, not the mutable `array int`
-This is the lesson from the A1-residual spike (`no-more-int-5.md` §A1-residual): a mutable
-`array int` cannot participate in the pure logic of a permutation axiom the same way (Why3's region
-control). The framing lemma must be stated over Why3's **pure `Seq.seq int`** (or the ghost-list
-`seq`). The Python driver's `list` is `array int` at the program level; the contract speaks about its
-**`seq` snapshot** (`\at`-style or a ghost `seq` view). For a *pure* reversal driver (build a new
-reversed list, don't mutate in place) the snapshot is clean.
+### Gap 2 — ~~model the list as an IMMUTABLE `seq int`~~ — ✅ OBVIATED (verified 2026-06-05)
+The scaffold hypothesised that a mutable `array int` "cannot participate in the pure logic of a
+permutation axiom" and that a `seq int` snapshot was therefore required. **A Why3 prototype disproves
+this** — the full stage-4 shape typechecks and proves Valid over `array int`:
+```whyml
+predicate permut (a: array int) (b: array int)
+val function rev_arr (a: array int) : array int
+axiom rev_is_perm : forall s: array int. permut (rev_arr s) s
+goal g : forall xs: array int. permut (rev_arr xs) xs            (* Valid, alt-ergo 4 steps *)
+let reverse (xs: array int) : array int
+  ensures { permut result xs } = rev_arr xs                     (* Valid *)
+```
+The reason: in a *logic/axiom* context `array int` is just its logical model (a `length` + an
+`elts: map int int`), and quantifying over it is fine. The no-aliasing restriction the A1-residual
+spike hit applies only to **program** values stored in pure containers (a mutable array *inside* a
+`map`), NOT to a predicate/axiom *over* arrays. So **no `seq` snapshot is needed** — Gap 1's
+`\permutation` over `array int` is the right surface, and the framing lemma states directly over it.
+(The one real boundary: a *logic* `function rev_arr` cannot be called in a program body — use
+`val function rev_arr` so it is both program-callable and constrainable by the axiom.)
 
 ### Gap 3 — the registry entry + the WhyML symbols
 Add to `_AXIOM_REGISTRY`:

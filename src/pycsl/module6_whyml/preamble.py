@@ -41,6 +41,17 @@ class PreambleEmissionMixin:
             "(a > 0 \\/ b > 0) -> "
             "k > 0 -> mod a k = 0 -> mod b k = 0 -> k <= gcd a b",
 
+        # Pycsl.Reference.Perm — permutation framing lemmas over the
+        # `\permutation` predicate (`predicate permut`). no-more-int A2b
+        # stage-4: the uninterpreted `permut` is constrained by
+        # proof-assistant-imported axioms. `permut_refl` (reflexivity) is the
+        # first, cross-validated by 0538.proofs/rocq/Perm.v (Permutation_refl)
+        # + 0538.proofs/lean/Perm.lean (List.Perm.refl). The axiom is stated
+        # over `array int` (the logic model of an array), which the stage-4
+        # spike verified is sound — no `seq` snapshot needed (Gap 2 obviated).
+        "Pycsl.Reference.Perm.permut_refl":
+            "forall s : array int. permut s s",
+
         # UnixFs.Bitmap — bitwise properties needed by inode/block
         # bitmap allocators. Cross-validated by
         # unix-filesystem/UnixInodeFileSystem.proofs/rocq/UnixInodeFileSystem.v.
@@ -86,6 +97,10 @@ class PreambleEmissionMixin:
     # axioms that mention both `struct_pack_<id>` and `struct_unpack_<id>`.
     _AXIOM_FUNCTIONS: Dict[str, List[str]] = {
         "Pycsl.Reference.Gcd.": ["function gcd (a : int) (b : int) : int"],
+        # Declare the `\permutation` predicate before its axioms. Same symbol
+        # `_handle_permutation_expr` emits via `_add_abstract_op` — the
+        # abstract-val dedup skips it here so it is declared exactly once.
+        "Pycsl.Reference.Perm.": ["predicate permut (a: array int) (b: array int)"],
         # Declare bit_and here (before the axiom block) so the axiom
         # `forall n. 0 <= bit_and n 1 < 2` typechecks. Uses Why3's
         # `val function` idiom — both program and logic symbol — so
@@ -438,6 +453,13 @@ class PreambleEmissionMixin:
         each axiom under a sanitized name `pycsl_axiom_<...>` and
         records the prover provenance in a Why3 comment.
         """
+        # Record the axiom-block function/predicate decls ACTUALLY emitted for
+        # this module, so the abstract-val dedup
+        # (`_insert_abstract_val_block`) skips exactly those — not every entry
+        # in `_AXIOM_FUNCTIONS`. A symbol like `permut` is declared here only
+        # when its axiom is cited; a file that uses `\permutation` WITHOUT a
+        # `#@ proof` still needs the abstract-ops declaration.
+        self._axiom_emitted_decls: Set[str] = set()
         seen_qualnames: Set[str] = set()
         for func in ir.get("functions", []):
             for entry in func.get("proof", []):
@@ -457,6 +479,7 @@ class PreambleEmissionMixin:
                         if fn_decl not in declared_fns:
                             out.append(f"  {fn_decl}")
                             declared_fns.add(fn_decl)
+        self._axiom_emitted_decls = set(declared_fns)
         if declared_fns:
             out.append("")
 
