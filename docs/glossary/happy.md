@@ -73,9 +73,29 @@ composition theorem then holds across both verified and trusted code.
 ## Related terms
 
 - [class invariant](class-invariant.md)
+- [meta-property](meta-property.md)
 - [verification condition](verification-condition.md)
 - [trusted stub](trusted-stub.md)
 - [load-bearing](load-bearing.md)
+
+## References — the HILARE / MetAcsl origin
+
+HAPPY adapts the meta-property idea from Frama-C's **MetAcsl** plug-in, whose high-level ACSL
+requirements (**HILARE**) are its direct ancestor:
+
+- **MetAcsl: Specification and Verification of High-Level Properties** — V. Robles, N. Kosmatov,
+  V. Prevosto, L. Rilling, P. Le Gall. *TACAS 2019*, LNCS 11427, pp. 358–364 (extended version
+  arXiv:1811.10509). The tool paper: meta-properties, contexts, and the assertion-expansion
+  transformation HAPPY mirrors.
+- **Tame Your Annotations with MetAcsl: Specifying, Testing and Proving High-Level Properties** —
+  same authors. *TAP 2019*, LNCS 11823. The detailed treatment; shows amenability to both proof
+  *and* testing.
+- **High-Level Program Properties in Frama-C: Definition, Verification and Deduction** — V. Robles,
+  N. Kosmatov, V. Prevosto, P. Le Gall. *ISoLA 2024*, LNCS 15221. Recent overview, including the
+  annotation blow-up cost and deduction techniques to manage it.
+
+See `config/skills/acsl/references/metacsl-reference.md` and
+`config/skills/acsl/references/bibliography.md` for the full treatment.
 
 > **In short:** a HAPPY is one whole-program integrity requirement that expands into a per-site
 > proof obligation at every write, so universal coverage — not call-graph reasoning — makes it
