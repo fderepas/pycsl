@@ -39,7 +39,10 @@ relevant page when needed.
 
 - [class invariant](class-invariant.md)
 - [mutex invariant](mutex-invariant.md)
+- [HAPPY](happy.md)
+- [meta-property](meta-property.md)
 - [pure function](pure-function.md)
+- [referential transparency](referential-transparency.md)
 - [memory model](memory-model.md)
 
 ### Solver and prover background
@@ -53,6 +56,9 @@ relevant page when needed.
 
 - [load-bearing](load-bearing.md)
 - [extreme rigor](extreme-rigor.md)
+- [abstract op](abstract-op.md)
+- [demand-driver](demand-driver.md)
+- [emission-identical gate](emission-identical-gate.md)
 - [standard libraries](standard-libraries.md)
 
 ## Maintenance note
