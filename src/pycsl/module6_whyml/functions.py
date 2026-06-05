@@ -129,41 +129,21 @@ class FunctionEmissionMixin:
         if is_method:
             self._current_self_type = func["self_type"].lower()
             param_parts = [f"(self: {self._current_self_type})"]
+            # Part B move 1: route each non-local/non-ghost symbol-table entry
+            # through the single `_param_type_str` resolver. The method and
+            # standalone paths previously carried parallel set/str/float/record/
+            # variant dispatch ladders (the sum-type `variant` branch had to be
+            # added to one but not the other — the duplication this consolidates).
+            # Methods take no positional ref params, so pass an empty ref set;
+            # bytes/bytearray reach `array int` via the `\valid`/array1d_params
+            # path, so the old method-only bytes/bytearray symtype shortcut
+            # (unused across the corpus) folds away.
             for arg in symbol_table:
                 if arg in local_refs or arg in ghost_vars:
                     continue
-                safe = whyml_ident(arg)
-                if arg in array2d_params:
-                    param_parts.append(f"({safe}: matrix {int_type})")
-                elif symbol_table.get(arg) in ("set", "dict", "frozenset"):
-                    param_parts.append(f"({safe}: map int (option int))")
-                elif (arg in array1d_params
-                      or symbol_table.get(arg) in ("list", "bytes", "bytearray")):
-                    # bytes/bytearray are modeled as `array int` per
-                    # missing-bytes-struct-feature.md Phase 1: each
-                    # cell is a byte value (0..255). Lifts the
-                    # transpiler limit that previously auto-trusted
-                    # struct.unpack call sites with array-int args.
-                    if self._value_semantic:
-                        param_parts.append(f"({safe}: array {int_type})")
-                    else:
-                        param_parts.append(f"({safe}: loc) ({safe}_len: int)")
-                elif symbol_table.get(arg) == "str":
-                    # strings-plan Stage 1: runtime `str` is a value-semantic Why3 string
-                    # (mirrors _param_type_str for standalone functions — methods were
-                    # missed, leaving str method params typed int while _is_string_expr,
-                    # which reads the symbol table, treated them as string).
-                    param_parts.append(f"({safe}: string)")
-                elif symbol_table.get(arg) == "float":
-                    param_parts.append(f"({safe}: real)")  # no-more-int Stage D
-                elif symbol_table.get(arg) in self._record_types:
-                    # no-more-int-2 Track 3: record-typed method param (read-only).
-                    wn = self._record_types[symbol_table[arg]]["whyml_name"]
-                    self._record_locals.add(arg)
-                    self._record_param_classes[arg] = wn
-                    param_parts.append(f"({safe}: {wn})")
-                else:
-                    param_parts.append(f"({safe}: {int_type})")
+                param_parts.append(
+                    self._param_type_str(arg, set(), array2d_params,
+                                         array1d_params, symbol_table, int_type))
             return set(), " ".join(param_parts)
         else:
             self._current_self_type = None
