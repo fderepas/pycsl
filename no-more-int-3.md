@@ -31,7 +31,42 @@ So the post-Part-2 surface splits into two halves:
 
 # PART A — remaining real-type tracks (gated)
 
-## A1 — Track 1: parametric maps (dict value + key)  [Backlog A + B] — NOT STARTED
+## A1 — Track 1: parametric maps (dict value + key)  [Backlog A + B] — IN PROGRESS (T1.1)
+
+**Status.** FAIL-driver `0523` committed (`Dict[int, str]`, `\str_length(d[k]) == \str_length(s)`;
+fails today — the WhyML is ill-typed, a `string` fed to `map_update_some … (v: int)`). The
+emission audit found the value type is hardcoded `int` across ~10 sites (statements.py:426/664
+`map_update_some`, the `_coerce_to_int(v)` at the subscript-set, preamble.py:616, expressions.py
+DictLit / set / MapGet, functions.py dict-param type) with **no** value-type tracking.
+
+**Discovered T1.1 design (value type ν):**
+- **ν side-map.** Capture `Dict[K, V]`'s value type for each dict var (param annotation + local
+  `AnnAssign`) — `Module4._get_type_name` loses it (→ bare `dict`). Thread `func_ir["dict_value_types"]`
+  : `{var → ν}` (ν ∈ {`int`, `string`}) to Module6 (`self._dict_value_types`).
+- **Polymorphic `map_update_some`.** Change the inline `val` (statements.py:426, :664) to
+  `val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v) ensures {
+  result = Map.set m k (Some v) }` — the `ensures` is already polymorphic-compatible, and an int
+  dict still instantiates `'v = int` (proofs preserved; preamble line changes → not byte-identical,
+  so the **full dict-corpus sweep is the gate**, not the byte-diff).
+- **Thread ν at:** the dict literal `{}` (`(const (None: option ν))`), the dict-local declaration
+  (`ref (map int (option ν))`), the MapGet **typed default** (`None -> <default ν>`: `0`/`""`), and
+  the value coercion (skip `_coerce_to_int(v)` when ν = `string`). Key coercion stays int (κ is T1.2).
+
+**Blast radius: large** (the `None -> <default>` and map-type changes touch every dict-using file).
+Gate each sub-stage on the full sweep; budget multiple sweeps. T1.2 (key type κ / string keys) is a
+separate sub-stage after T1.1 lands.
+
+**Missing-key decision (resolved): faithful `KeyError`, already implemented.** Python's `dict[k]`
+on a missing key raises `KeyError` — there is one semantics, not a "default". PyCSL already models
+this faithfully, **opt-in** via `#@ no_exception KeyError`: a dict subscript read becomes a proof
+obligation that the key is present (`Map.get d k <> None`; `exception_model.py` trigger
+`("map_get", None)`, asserted at `expressions.py:1163`). Drivers `0524` (provably-present key
+proves) / `0525` (unproven key fails — teeth) codify it. **Implication for T1.1:** under
+`#@ no_exception KeyError` the MapGet `None` arm is a *dead placeholder* (proven unreachable), so the
+typed default there is only for WhyML totality, not a semantic value. **Ambient** mode (no
+`#@ no_exception KeyError`) keeps the existing optimistic default read (backward-compatible) — so the
+typed default still applies there. The earlier "typed default vs option ν" framing was a
+verifier-modeling question, not a Python-semantics one; the faithful read is the existing opt-in.
 
 Unchanged from no-more-int-2 §Track 1. `dict`/`set` stay `map int (option int)`; the parsed
 `Dict[K, V]` element types are still discarded. Lift to `map κ (option ν)`, κ ∈ {int, string},
