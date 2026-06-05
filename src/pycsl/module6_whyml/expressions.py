@@ -1645,6 +1645,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     f"-> {a}[_ae] = {b}[_ae]))")
         return "true"
 
+    def _handle_permutation_expr(
+        self,
+        expr: Dict[str, Any],
+        local_refs: Set[str],
+        invariant_ctx: bool,
+        subst: Optional[Dict[str, str]],
+    ) -> str:
+        """`\\permutation(a, b)` — `a` is a permutation of `b` (same multiset).
+        Lowers to an UNINTERPRETED `predicate permut` (no-more-int A2b Gap 1):
+        unlike `\\array_eq`, permutation is not first-order expressible, so it is
+        NOT unfolded — a proof-assistant-imported axiom (`#@ proof`, stage 4) is
+        what constrains `permut`. Here the operator is just plumbed: a spec-only
+        relation over two `array int` values."""
+        a = self._expr_to_whyml(expr["left"], local_refs, invariant_ctx, subst)
+        b = self._expr_to_whyml(expr["right"], local_refs, invariant_ctx, subst)
+        if self._value_semantic:
+            self._add_abstract_op("predicate permut (a: array int) (b: array int)")
+            return f"(permut {a} {b})"
+        return "true"
+
     def _handle_sum_node_expr(
         self,
         expr: Dict[str, Any],

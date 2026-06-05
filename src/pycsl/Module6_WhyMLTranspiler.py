@@ -302,6 +302,7 @@ class Module6_WhyMLTranspiler(
         "Valid2D":      "_handle_valid2d_expr",
         "IsSorted":     "_handle_issorted_expr",
         "ArrayEq":      "_handle_arrayeq_expr",
+        "Permutation":  "_handle_permutation_expr",
         "Sum":          "_handle_sum_node_expr",
         "Lambda":       "_handle_lambda_expr",
         "SetLit":       "_handle_setlit_expr",

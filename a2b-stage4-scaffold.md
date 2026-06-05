@@ -107,9 +107,13 @@ the registry format, the exact stdlib lemmas, the mutable-vs-seq decision) so th
 sequence of small, individually-gated steps.
 
 ## Recommended execution order (each its own gated commit)
-1. **Gap 1a** — add the `\permutation` ghost-list spec operator (`PermExpr` → uninterpreted
-   `predicate permut`). Driver-gated: a contract that merely *states* `\permutation(a, a)` and
-   proves by reflexivity-style axiom (`permut_refl`), no Rev yet.
+1. **Gap 1 — ✅ DONE (0537).** Added the `\permutation(a, b)` spec operator end-to-end
+   (Module2 grammar+`Permutation` node → Module4/5 IR → Module6 `_handle_permutation_expr`),
+   lowering to an **uninterpreted** `predicate permut (a b: array int)` — mirroring `\array_eq`
+   but *without* unfolding (permutation is not first-order). Plumbing driver 0537
+   (`requires \permutation(a,b)` ⊢ `ensures \permutation(a,b)`) flips FAIL→PASS; additive (a
+   9-file representative byte-diff is identical). The **reflexivity / reversal axioms** (`#@ proof`)
+   are Gaps 3–4, not Gap 1.
 2. **Gap 2** — the `seq` snapshot view of a list parameter in a postcondition.
 3. **Gaps 3–4** — registry entry + paired Rocq/Lean proofs; run `coqc` + `lake build` to confirm
    both compile clean.

@@ -26,8 +26,8 @@ class AbstractOpsMixin:
                 name = parts[2]
             else:
                 name = parts[1]
-        elif len(parts) >= 2 and parts[0] == "function":
-            # `function FOO ...` → name is parts[1]
+        elif len(parts) >= 2 and parts[0] in ("function", "predicate"):
+            # `function FOO ...` / `predicate FOO ...` → name is parts[1]
             name = parts[1]
         else:
             name = decl

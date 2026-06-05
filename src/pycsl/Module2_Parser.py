@@ -298,6 +298,15 @@ class ArrayEq(CSLNode):
     right: CSLNode
 
 @dataclass
+class Permutation(CSLNode):
+    """Represents `\\permutation(a, b)` — `a` is a permutation of `b` (same
+    multiset of elements). Unlike `\\array_eq` it does NOT unfold to a
+    first-order formula; it lowers to an uninterpreted Why3 `predicate permut`
+    that a proof-assistant-imported axiom constrains (no-more-int A2b Gap 1)."""
+    left: CSLNode
+    right: CSLNode
+
+@dataclass
 class Sum(CSLNode):
     """Represents `\\sum(a, lo, hi)` — sum of array elements in range."""
     base: str
@@ -792,6 +801,7 @@ PYCSL_GRAMMAR = r"""
          | "\\result" "[" expr "]" -> result_subscript
          | "\\is_sorted" "(" CNAME "," expr "," expr ")" -> is_sorted_expr
          | "\\array_eq" "(" expr "," expr ")" -> array_eq_expr
+         | "\\permutation" "(" expr "," expr ")" -> permutation_expr
          | "\\sum" "(" CNAME "," expr "," expr ")" -> sum_expr
          | CNAME "(" expr_list ")" -> call_expr
          | CNAME "(" ")" -> call_expr_noargs
@@ -1046,6 +1056,7 @@ class PyCSLTransformer(Transformer):
     def call_expr_noargs(self, name) -> CallExpr: return CallExpr(str(name), [])
     def is_sorted_expr(self, base, lo, hi) -> IsSorted: return IsSorted(str(base), lo, hi)
     def array_eq_expr(self, left, right) -> ArrayEq: return ArrayEq(left, right)
+    def permutation_expr(self, left, right) -> Permutation: return Permutation(left, right)
     def sum_expr(self, base, lo, hi) -> Sum: return Sum(str(base), lo, hi)
 
     # Ghost expression transformers

@@ -16,7 +16,7 @@ from Module2_Parser import (
     Forall, Exists, ArrayLength, SubscriptAccess,
     AssignsRegion, Valid, Separated, At as CSLAt,
     Length2D, Valid2D, FunctionVariant, StringLiteral as CSLStringLiteral,
-    CallExpr, IsSorted, ArrayEq, Sum, CSLBool, CSLNone, CSLIn, CSLNotIn, CSLSlice,
+    CallExpr, IsSorted, ArrayEq, Permutation, Sum, CSLBool, CSLNone, CSLIn, CSLNotIn, CSLSlice,
     ChainedSubscript,
     GhostArraySetDecl,
     MkTupleExpr, FstExpr, SndExpr, ProjExpr,
@@ -133,6 +133,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         CallExpr:         "_csl_call_expr",
         IsSorted:         "_csl_is_sorted",
         ArrayEq:          "_csl_array_eq",
+        Permutation:      "_csl_permutation",
         Sum:              "_csl_sum",
         CSLIn:            "_csl_in",
         CSLNotIn:         "_csl_not_in",
@@ -299,6 +300,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
 
     def _csl_array_eq(self, node: ArrayEq) -> Dict[str, Any]:
         return {"type": "ArrayEq",
+                "left": self._csl_to_ir(node.left),
+                "right": self._csl_to_ir(node.right)}
+
+    def _csl_permutation(self, node: Permutation) -> Dict[str, Any]:
+        return {"type": "Permutation",
                 "left": self._csl_to_ir(node.left),
                 "right": self._csl_to_ir(node.right)}
 
