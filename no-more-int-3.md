@@ -136,11 +136,16 @@ establish. Stays deferred:
 The infrastructure shipped with documented boundaries (annotate SKILL §3f). Each is a gated
 follow-on:
 
-- **A5a — recursive datatypes** (`#@ datatype Tree = Leaf | Node(Tree, Tree)`): the preamble must
-  emit Why3 self-referential / mutually-recursive `type … with …`; payload types currently map a
-  fixed `_VPAY` table (int/bool/str/float) and reject a self-reference. Prereq for json (A4) and
-  any tree/list-of-self structure. *Driver:* a recursive `depth`/`size` proof (the spike's shape).
-  **Medium risk** (recursion + termination `variant` on the recursive function).
+- **A5a — recursive datatypes** (`#@ datatype Tree = Leaf | Node(Tree, Tree)`): ✅ **DONE (single
+  self-recursive).** A one-site fix in `preamble.py::_emit_type_decls` resolves a constructor
+  payload that NAMES a declared datatype to that variant's Why3 type (instead of the `_VPAY` int
+  default), so a single self-recursive `type tree = Leaf | Node tree tree` emits directly (Why3
+  handles the self-reference). Driver `0527` (construct/match `Node(Leaf, Leaf)`) flips FAIL→PASS;
+  `0528` (recursive `size` with `#@ \variant t`) proves — Why3 discharges the variant-decrease
+  because `l`/`r` are structural subterms (the spike's depth/size shape, realized end-to-end).
+  Additive: existing sum types 0520/0521 byte-identical (the fix fires only for datatype-named
+  payloads). **Still TODO:** *mutually*-recursive datatypes need the `type a = … with b = …` form
+  (a follow-on); A4 (json) additionally needs Track-1 string-keyed maps for `JObj`.
 - **A5b — captures referenced in contracts**: today a `case`-bound capture is in scope only inside
   its arm, not at the `requires`/`ensures` level. Surfacing per-arm postconditions (or a
   `\match`-style spec operator) is a real extension. Gated on a driver needing it.

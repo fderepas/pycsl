@@ -12,7 +12,6 @@ Flips to PASS when A5a resolves a datatype-named payload to its variant type
 (self-reference and any already-declared variant). Recursive *functions* over the
 type (depth/size + a termination variant) are the companion driver 0528.
 """
-# pycsl-expected: FAIL
 #@ datatype Tree = Leaf | Node(Tree, Tree)
 _ = 0  # anchor
 

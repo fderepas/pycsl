@@ -563,6 +563,13 @@ class PreambleEmissionMixin:
         n = len(type_decls)
         i = 0
         _VPAY = {"int": "int", "bool": "int", "str": "string", "float": "real"}
+        # no-more-int-3 A5a: declared `#@ datatype` names, so a constructor
+        # payload that NAMES a datatype (a self-reference `Node(Tree, Tree)` or
+        # another variant) resolves to that variant's Why3 type instead of the
+        # `_VPAY` int default. A single self-recursive type emits directly
+        # (`type tree = Leaf | Node tree tree`); Why3 handles the self-reference.
+        _variant_names = {td["name"] for td in type_decls
+                          if td.get("kind") == "variant"}
         while i < n:
             td = type_decls[i]
             if td.get("kind") == "variant":
@@ -574,7 +581,10 @@ class PreambleEmissionMixin:
                     "constructors": {c["name"]: c for c in td["constructors"]}}
                 ctor_strs: List[str] = []
                 for c in td["constructors"]:
-                    pay = " ".join(_VPAY.get(t, "int") for t in c.get("payload", []))
+                    pay = " ".join(
+                        _VPAY[t] if t in _VPAY
+                        else (t.lower() if t in _variant_names else "int")
+                        for t in c.get("payload", []))
                     self._constructors[c["name"]] = {
                         "type": td["name"], "whyml_type": type_name,
                         "arity": c["arity"], "payload": c.get("payload", [])}
