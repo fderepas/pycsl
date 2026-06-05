@@ -1,5 +1,12 @@
 # Plan: no-more-int Part 6 — the residual after Part 5
 
+> **Superseded by `no-more-int-7.md`** (which revises this against the review in `rq.md`). Key
+> changes there: a pre-flight alias audit of pycsl's own source (§0) decides whether A2b-2 is on the
+> critical path at all; A2b is unbundled (A2b-1 do-soon vs A2b-2 contingent); A4 json is promoted to
+> the highest-leverage next demo (the flat→inductive generalization test); A1-residual is reclassified
+> as blocked on A2b-1, not design-blocked; A2b-2 gains a false-reject acceptance gate; the IDF/SL
+> escape valve gets a defined trigger. This file is kept as the pre-review baseline.
+
 Standalone successor to `no-more-int-5.md`. Part 5 cleared almost the entire backlog: the A2b
 framing-lemma *demonstration* (Gaps 1–5), the sum-type extensions (A5a-residual, A5b, A5c, A5d), the
 tractable half of A1-residual (nested-map dict values), A3 chain-length, the A6(a) coercion
