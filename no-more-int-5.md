@@ -196,11 +196,12 @@ on opposite sides of Why3's region/alias-control rule, so they are now tracked s
   which is the same value-semantics question); the nested-map case is the live, tractable target. The
   spike's value: it proved the two cases are *not* the same problem.
 
-## A3 — bounded eager `itertools` — NOT STARTED, low value
-Bounded-array under-approximation of the **eager** subset (`chain`/`islice`/`product`/`combinations`);
-lazy/infinite (`cycle`/`count`/`repeat`, `yield`) stays **out of scope** (no SMT-tractable stream
-model). *Driver:* `len(chain(a, n, b, m)) == n + m` + a membership contract. Low risk, self-contained;
-**build only on a concrete driver.**
+## A3 — bounded eager `itertools` — `chain` length DONE (0530); rest on-demand
+Bounded-array under-approximation of the **eager** subset. **`chain` length is ✅ DONE** (0530):
+`len(list(chain(a, b))) == Array.length a + Array.length b` via `_iter_len_expr`. The rest of the
+eager subset (`islice`/`product`/`combinations`, and chain *membership/content*) is unbuilt —
+low-value, build only on a concrete driver. Lazy/infinite (`cycle`/`count`/`repeat`, `yield`) stays
+**out of scope** (no SMT-tractable stream model).
 
 ## A5b/A5c/A5d / A5a-residual — sum-type extensions
 - **A5b** captures referenced in contracts — ✅ **DONE** (0541), via **projectors** (the chosen
