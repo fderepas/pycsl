@@ -275,6 +275,20 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
             v = annotation.slice.elts[1]
             if isinstance(v, ast.Name) and v.id == "str":
                 return "string"
+            # no-more-int A1-residual: a nested-dict value `Dict[Ki, Vi]` → the
+            # pure Why3 map type `map κi (option νi)`. Why3's `map` is immutable,
+            # so a map-valued map does NOT hit the mutable-aliasing wall an
+            # `array int` value would. (κi/νi ∈ {int, string}; the `JObj`
+            # enabler for json.)
+            if (isinstance(v, ast.Subscript)
+                    and isinstance(v.value, ast.Name)
+                    and v.value.id in ("Dict", "dict")
+                    and isinstance(v.slice, ast.Tuple)
+                    and len(v.slice.elts) == 2):
+                ki, vi = v.slice.elts
+                kw = "string" if (isinstance(ki, ast.Name) and ki.id == "str") else "int"
+                vw = "string" if (isinstance(vi, ast.Name) and vi.id == "str") else "int"
+                return f"map {kw} (option {vw})"
         return None
 
     @staticmethod

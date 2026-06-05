@@ -1163,6 +1163,31 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return f"(get {base} {row} {col})"
         value_str = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)
         if self._value_semantic:
+            # A1-residual nested-map: `d[ko][ki]` — the inner read `d[ko]`
+            # yields a `map κi (option νi)` (the outer dict's nested-map value),
+            # so the outer `[ki]` is itself a `Map.get`, not the opaque
+            # `subscript_get`. `value` here is the inner Subscript `d[ko]`;
+            # `value_str` is its already-lowered map expression.
+            if value.get("type") == "Subscript":
+                _ib = value.get("value", {})
+                _nu = (getattr(self, "_dict_value_types", {}).get(_ib.get("name", ""))
+                       if isinstance(_ib, dict) and _ib.get("type") == "Var" else None)
+                if _nu and _nu.startswith("map "):
+                    _inner_v = (_nu.split("(option ", 1)[1].rsplit(")", 1)[0]
+                                if "(option " in _nu else "int")
+                    _idef = '""' if _inner_v == "string" else "0"
+                    # inner key κi: int keys are hashed, string keys pass through.
+                    _k = index if "map string" in _nu else self._coerce_to_int(index)
+                    # `value_str` (the inner `d[ko]` read) lowers to a program
+                    # `begin assert..; match.. end` block carrying its OWN
+                    # KeyError assert — it cannot sit inside the outer read's
+                    # `assert { … }` logic formula. Hoist it into a `let` so the
+                    # outer assert + `Map.get` reference a plain logic term.
+                    _read = (f"(match Map.get _nmap {_k} "
+                             f"with | Some v_ -> v_ | None -> {_idef} end)")
+                    _wrapped = self._wrap_with_no_exception_assert(
+                        ("map_get", None), ["_nmap", _k], _read)
+                    return f"(let _nmap = {value_str} in {_wrapped})"
             var_name = value.get("name", "") if value.get("type") == "Var" else ""
             index_ir = expr.get("index", {})
             if (var_name and index_ir.get("type") == "Number" and
@@ -1212,8 +1237,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     k = index
                 else:
                     k = self._coerce_to_int(index)
-                default = ('""' if getattr(self, "_dict_value_types", {}).get(dvar) == "string"
-                           else "0")
+                _nu = getattr(self, "_dict_value_types", {}).get(dvar)
+                if _nu == "string":
+                    default = '""'
+                elif _nu and _nu.startswith("map "):
+                    # A1-residual: a nested-map value reads back a map; the
+                    # `None` placeholder is the empty inner map (option-payload
+                    # = the inner value type). Proven dead under no_exception.
+                    inner_v = (_nu.split("(option ", 1)[1].rsplit(")", 1)[0]
+                               if "(option " in _nu else "int")
+                    default = f"(const (None: option {inner_v}))"
+                else:
+                    default = "0"
                 inner = f"(match Map.get {value_str} {k} with | Some v_ -> v_ | None -> {default} end)"
                 # no_exception KeyError → assert has_key before the read.
                 return self._wrap_with_no_exception_assert(

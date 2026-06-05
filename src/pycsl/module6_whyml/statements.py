@@ -57,9 +57,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             self._dict_locals.add(target)
             # no-more-int-3 A1: a string-valued dict local starts as the empty
             # `map int (option string)` (not `option int`), so the ref's inferred
-            # type carries ν = string.
-            if self._dict_value_types.get(target) == "string":
+            # type carries ν = string. A1-residual: a nested-map value ν
+            # (`Dict[_, Dict[..]]` → `map κ (option ν)`) starts `option (ν)`.
+            nu = self._dict_value_types.get(target)
+            if nu == "string":
                 val = "(const (None: option string))"
+            elif nu and nu.startswith("map "):
+                val = f"(const (None: option ({nu})))"
             return f"{indent}let {safe_target} = ref {val} in\n"
         if kind == "bounded_int":
             return f"{indent}let {safe_target} = ref ({val} : int{self._bounded_int}) in\n"
@@ -441,7 +445,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     nu = self._dict_value_types.get(var_name) if var_name else None
                     kappa = self._dict_key_types.get(var_name) if var_name else None
                     k = index_expr if kappa == "string" else self._coerce_to_int(index_expr)
-                    v = val_expr if nu == "string" else self._coerce_to_int(val_expr)
+                    # A1-residual: a nested-map value (ν = `map …`) is passed
+                    # through unhashed (the polymorphic op infers `'v = map …`),
+                    # like a string value.
+                    v = (val_expr if (nu == "string" or (nu and nu.startswith("map ")))
+                         else self._coerce_to_int(val_expr))
                     if self_field_name is not None:
                         # `self.<field>[k] = v` — record-field assignment.
                         # Why3 syntax: `self.field <- new_value`.

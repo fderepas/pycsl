@@ -6,7 +6,6 @@ maps. Fails today: the inner value collapses to int and `d[ko][ki]` falls to the
 opaque `subscript_get`. Flips when ν threads a nested map + double-subscript lowers
 to nested `Map.get`.
 """
-# pycsl-expected: FAIL
 _ = 0  # anchor
 from typing import Dict
 
