@@ -287,7 +287,18 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
             self._validate_proj_indices(child, context_name)
 
     def _validate_predicate_bases(self, node: CSLNode, context_name: str) -> None:
-        """Recursively check that \\valid and \\separated reference list-typed parameters."""
+        """Recursively check that \\valid and \\separated reference list-typed parameters,
+        and that \\length is not applied to a dict/set (which have no cardinality)."""
+        if isinstance(node, ArrayLength) and not node.var.startswith("self.") \
+                and node.var != "\\result":
+            t = self.current_scope.get(node.var)
+            if t in ("dict", "Dict", "set", "Set", "frozenset", "FrozenSet"):
+                raise PyCSLSemanticError(
+                    f"\\length is not supported on the {t}-typed '{node.var}' in "
+                    f"{context_name}: dicts/sets are modelled as total maps "
+                    f"(`map int (option int)`) with no cardinality. Use \\has_key(d, k) "
+                    f"for key presence, or a list/array for a length-bearing collection."
+                )
         if isinstance(node, Valid):
             arr_type = self.current_scope.get(node.base)
             if arr_type not in ("list", "List", "Any", None):
