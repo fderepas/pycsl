@@ -37,9 +37,26 @@ than the more local ghost-array certificate.
 
 ---
 
+## Avoiding global reasoning for whole-program invariants
+
+A *whole-program* invariant — "no method except these two ever writes outside the
+data region", "only `encrypt` reads `self.secret`" — looks like it must be proved
+by global reasoning over every function. It does not have to be. A
+[HAPPY](happy.md) [meta-property](meta-property.md) is precisely the technique for
+getting a **global property out of local reasoning**: one high-level declaration
+expands into a small per-site `#@ check` at *every* write/read site, each a cheap
+local fact the solver discharges, and **universal per-site coverage** — not a
+quantified claim over all functions — is what makes them compose to the
+whole-program guarantee. HAPPY is the answer to "how do you enforce a
+whole-program invariant without paying for global reasoning."
+
+---
+
 ## Related terms
 
 - [local reasoning](local-reasoning.md)
+- [HAPPY](happy.md)
+- [meta-property](meta-property.md)
 - [solver budget](solver-budget.md)
 - [witness](witness.md)
 

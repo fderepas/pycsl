@@ -46,11 +46,22 @@ as:
 
 That is a typical local fact: one node, one successor, one cheap check.
 
+### Whole-program invariants from local checks
+
+A [HAPPY](happy.md) [meta-property](meta-property.md) turns a *global*,
+whole-program guarantee ("no method writes outside the data region") into local
+reasoning: it expands into one small `#@ check` per write site — each a cheap
+local fact — and universal per-site coverage makes those local checks compose to
+the global property, with no [global reasoning](global-reasoning.md) over the call
+graph. It is how PyCSL gets a global property *out of* local reasoning.
+
 ---
 
 ## Related terms
 
 - [witness](witness.md)
+- [HAPPY](happy.md)
+- [meta-property](meta-property.md)
 - [solver budget](solver-budget.md)
 - [global reasoning](global-reasoning.md)
 
