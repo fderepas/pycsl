@@ -402,8 +402,39 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return f"(unknown_op {left} {right})"
         return f"({left} {op} {right})"
 
+    def _iter_len_expr(self, ir: Dict[str, Any], local_refs: Set[str]) -> Optional[str]:
+        """A3 (bounded eager itertools): the WhyML length of an itertools/list
+        expression, or None if not recognized. `len(list(X)) == len(X)` and
+        `len(chain(x0, …, xk)) == Σ len(xi)` — a chain materializes to the
+        concatenation, whose length is the sum of its operands' lengths (a
+        bounded, sound model: lazy/infinite iterables are out of scope). Each
+        operand's length is `Array.length` (or, recursively, another chain/list)."""
+        if not isinstance(ir, dict) or ir.get("type") != "Call":
+            return None
+        fn = ir.get("func", "")
+        fn_short = fn.rsplit(".", 1)[-1] if isinstance(fn, str) else ""
+        args_ir = ir.get("args", [])
+        if fn_short == "list" and len(args_ir) == 1:
+            inner = self._iter_len_expr(args_ir[0], local_refs)
+            if inner is not None:
+                return inner
+            return f"(Array.length {self._expr_to_whyml(args_ir[0], local_refs)})"
+        if fn_short == "chain":
+            if not args_ir:
+                return "0"
+            parts = []
+            for sub in args_ir:
+                p = self._iter_len_expr(sub, local_refs)
+                if p is None:
+                    p = f"(Array.length {self._expr_to_whyml(sub, local_refs)})"
+                parts.append(p)
+            return "(" + " + ".join(parts) + ")"
+        return None
+
     def _handle_len_call(self, expr: Dict[str, Any], args: List[str]) -> str:
-        """Handle len(x): constant fold literals, array length in hoare model, or abstract."""
+        """Handle len(x): constant fold literals, array length in hoare model, or abstract.
+        (The `len(list(chain(…)))` itertools case is resolved earlier in
+        `_handle_call_expr` via `_iter_len_expr`, before the inner args are lowered.)"""
         arg_ir = expr.get("args", [{}])[0] if expr.get("args") else {}
         atype = arg_ir.get("type", "")
         if atype == "String" and isinstance(arg_ir.get("value"), str):
@@ -789,6 +820,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     def _handle_call_expr(self, expr: Dict[str, Any], local_refs: Set[str],
                           invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
         func_name = expr["func"]
+        # A3 (bounded itertools): resolve `len(list(chain(…)))` / `len(chain(…))`
+        # to a sum of `Array.length` BEFORE lowering the inner args, so the
+        # opaque `chain_*`/`list_new` abstract ops are never emitted.
+        if func_name == "len" and len(expr.get("args", [])) == 1:
+            _le = self._iter_len_expr(expr["args"][0], local_refs or set())
+            if _le is not None:
+                return _le
         args = [self._expr_to_whyml(a, local_refs, invariant_ctx, subst) for a in expr["args"]]
 
         # sum-types: an applied `#@ datatype` constructor (`Circle(5)`) builds the variant.

@@ -3,7 +3,6 @@
 `len(chain(a, b)) == len(a) + len(b)` for bounded lists. Fails today: chain has
 no length model. Flips with a bounded-array chain under-approximation.
 """
-# pycsl-expected: FAIL
 _ = 0  # anchor
 from typing import List
 from itertools import chain
