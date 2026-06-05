@@ -214,8 +214,12 @@ model). *Driver:* `len(chain(a, n, b, m)) == n + m` + a membership contract. Low
 - **A5a-residual** mutually-recursive datatypes — ✅ **DONE** (0533): `_emit_type_decls` now groups
   variants by SCC of the cross-reference graph and emits each multi-member group as one
   `type a = … with b = …` block (`Tree` ↔ `Forest`). Single / self-recursive variants stay a plain
-  `type … = …` (size-1 SCC), so 0520/0521/0527/0528 emit byte-identically. *Mutually-recursive
-  functions* over such types (`let rec size_tree … with size_forest …`) are a separate follow-on.
+  `type … = …` (size-1 SCC), so 0520/0521/0527/0528 emit byte-identically.
+- **A5a-residual (functions)** mutually-recursive *functions* over those types — ✅ **DONE** (0534):
+  `size_tree` ↔ `size_forest` chain as `let rec function … with function …` (the SCC emitter now
+  chains logic functions, not just program functions), the abstract-val insert point skips the
+  `with` continuation so the type group stays contiguous, and Why3 discharges the mutual
+  variant-decrease (`f` ⊂ `t`). Additive (only mutual-SCC files change; 0534 is the only one).
 
 ## A6 — retire `_coerce_to_int` categories — **(a) DONE; (b) audited-not-yet-needed**
 `_coerce_to_int` (`expressions.py`, ~line 119) erased real types (string→hash, array→0, map→0,

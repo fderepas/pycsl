@@ -294,13 +294,22 @@ class FunctionEmissionMixin:
         can_emit_as_logic = func_pure and not local_refs and not is_method
 
         _scc_idx, _pos_in_scc, _scc_size = scc_info.get(func["name"], (0, 0, 1))
-        is_and_clause = _pos_in_scc > 0 and not emit_as_val and not can_emit_as_logic
+        # A non-first member of a multi-function SCC is a mutual-recursion
+        # continuation, chained to the group's opening `let rec [function]`.
+        _mutual_cont = _pos_in_scc > 0 and _scc_size > 1 and not emit_as_val
+        is_and_clause = _mutual_cont and not can_emit_as_logic
 
         lines: List[str] = []
         if emit_as_val:
             kw = f"val {name}"
+        elif _mutual_cont and can_emit_as_logic:
+            # A5a-residual (functions): mutually-recursive PURE/logic functions
+            # (`size_tree` ↔ `size_forest`) chain with WhyML's `with function`
+            # continuation, so the forward call resolves within one `let rec`
+            # group (the opening member emits `let rec function …`).
+            kw = f"with function {name}"
         elif can_emit_as_logic:
-            kw = f"{'let rec function' if use_rec else 'let function'} {name}"
+            kw = f"{'let rec function' if (use_rec or _scc_size > 1) else 'let function'} {name}"
         elif is_and_clause:
             kw = f"and {name}"
         else:
