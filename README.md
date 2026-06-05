@@ -358,6 +358,30 @@ verified. Contracts that reference *when* the finalizer runs
 (`#@ ensures self._handle == 0` "after finalization") remain at
 risk regardless.
 
+### UB-7.6 — non-trivial `__new__` rejection
+
+A class whose `__new__` does anything beyond the default allocation
+(a single `return super().__new__(cls)` / `object.__new__(cls)`) —
+caching, singletons (`return cls._inst`), or any conditional /
+side-effecting body — is a **hard error** (no escape annotation).
+PyCSL models construction as a fresh record `{...}` built by
+`__init__`; a `__new__` returning a cached or other instance breaks
+that model (identity / caching cannot be soundly represented), so
+rejecting is the honest boundary. A *trivial* `__new__` is accepted
+and ignored. See the UB catalog §7.6; corpus 0495–0497.
+
+### UB-7.7 — unsound memoization (`@lru_cache` on a non-RT function)
+
+A memoizing decorator (`@lru_cache`, `@cache`, `@cached_property`) is
+sound only on a **referentially transparent** function: pure
+(`assigns \nothing`, no `\trusted` / `\diverges`) and reading no
+mutable `#@ shared` global. Under RT, `lru_cache(f)(x) == f(x)`, so the
+cache is observationally transparent and the function keeps its
+contract; otherwise memoizing a non-deterministic / effectful function
+is **rejected** (a hard error). RT is *inferred* — no extra annotation
+needed; contracts must sit **above** the decorator. See the UB catalog
+§7.7; corpus 0515 (accepted) / 0516 (rejected).
+
 ---
 
 ## Trust Chain
@@ -771,6 +795,7 @@ and asserted on exit.
 | `#@ shared x` / `#@ shared x protected_by L` | Module | Shared variable, optionally bound to a mutex (concurrent model) |
 | `#@ mutex_invariant name: expr` | Module | Mutex invariant (concurrent model) |
 | `#@ lock_order m1, m2, …` | Module | Total order on mutex acquisition (deadlock check) |
+| `#@ datatype D = A \| B(int) \| …` | Module | Declares a sum type as a real Why3 algebraic type; constructed with `B(7)`, consumed by `match`/`case` with solver-checked exhaustiveness. See `test-suite/annotations.md` §2.6 |
 | `#@ thread_entry` | Function / method | Marks the function as a thread entry point |
 | `#@ critical name` | `with` statement | Critical section (concurrent model) — havoc + assume/assert in WhyML |
 | `#@ acquires name` | `with` statement | Alias for `#@ critical` — name the acquire point explicitly |
@@ -789,6 +814,9 @@ and asserted on exit.
 | `\is_sorted(arr, lo, hi)` | Array sortedness |
 | `\sum(arr, lo, hi)` | Array element sum |
 | `\nothing` | Empty assigns frame |
+| `\str_length(s)` | String length (real `string.String` content; on runtime `str` and ghost strings) |
+| `\str_sub(s, a, b)` | Substring `s[a:b]` |
+| `s ^ t` | String concatenation (`s + t`) |
 | `\forall x; body` | Universal quantifier |
 | `\exists x; body` | Existential quantifier |
 
@@ -805,6 +833,22 @@ and asserted on exit.
 ```
 
 Bound variable separated from body by `;`, always typed as `int`.
+
+### Value types beyond `int`
+
+PyCSL deliberately collapses most Python types onto Why3 `int` (that is *why* its SMT goals
+discharge in milliseconds), but several types carry **real, content-aware models** — see the
+type-mapping function τ in `docs/pycsl-static-semantics-reference.md` §1.4 for the full table:
+
+| Python | Model | Carries |
+|---|---|---|
+| `str` | Why3 `string.String` | length / concat / substring / structural `==` (`\str_length`, `\str_sub`, `^`); no char/code-point type |
+| `float` | Why3 `real` | real arithmetic / comparison (fixes the old unsound `τ(float)=int`); mixed float-int & transcendentals out of scope |
+| class `C` | WhyML record | `self`, `C()` locals, **and** a `C`-typed parameter — read-only field access `p.field` (mutation of a record param out of scope) |
+| `#@ datatype` | Why3 algebraic type | constructors + `match`/`case` with solver-checked exhaustiveness |
+| `defaultdict`/`Counter`/`deque`/`namedtuple` | dict / array / record | content-modeled (see `test-suite/annotations.md` §12.7) |
+
+Everything else (`bytes`, bare `tuple`, `set` value/key, etc.) stays `int`-collapsed by design.
 
 ### `no_exception` — implicit Python exceptions as proof obligations
 

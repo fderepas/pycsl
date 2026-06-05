@@ -167,8 +167,16 @@ specification logic's type universe:
 τ(Tuple[T1, ...]) = tuple
 τ(tuple)          = int †     (* bare tuple — unlike the recognized Tuple[T1, ...] above *)
 τ(C)              = record    (* user-defined class C → a WhyML record of its fields, for
-                                 `self` and locally-constructed instances; a bare C-typed
-                                 parameter is not reconstructed and coarsens to int (‡) *)
+                                 `self`, locally-constructed instances, AND a bare C-typed
+                                 parameter whose class is registered — read-only field access
+                                 `p.field`; mutation of a record parameter is out of scope (‡) *)
+τ(D)              = variant   (* a `#@ datatype D = Red | Some(int) | Pair(int,int)` declares a
+                                 REAL Why3 algebraic type `type d = Red | Some int | Pair int int`
+                                 (payloads int/bool→int, str→string, float→real). Constructors
+                                 lower to nullary/applied ctors (`Red`, `(Some 7)`); `match`/`case`
+                                 lowers to a Why3 `match … with | Ctor caps -> … end` with
+                                 solver-checked exhaustiveness. Recursive/parametric datatypes and
+                                 captures-in-contracts are out of scope (§ datatype note) *)
 τ(Optional[T])    = τ(T)      (* None maps to 0; the optional-ness adds no type info *)
 τ(Union[T, None]) = τ(T)      (* equivalent to Optional[T] *)
 τ(Union[T1, T2])  = τ(T1)     (* heuristic: first non-None component *)
@@ -192,13 +200,46 @@ these (and `list`/`Tuple[...]`) to `list` → `array int` in the WhyML record, b
 buffer / tuple field is array-backed (e.g. the `self.disk: bytearray` virtual disk). So the
 same annotation can be `int` as a parameter but `array int` as a field.
 
-**‡ Classes / records.** A class introduces a record type in `Γ_c` (§1.2): `self` and the
-result of a constructor call `C()` are typed as the class's WhyML record (the `_record_types`
-registry; field defaults per `τ`). PyCSL does not reconstruct an arbitrary `C`-typed *parameter*
-into a record — such a parameter coarsens to `int` — so `record` appears for `self`/constructed
-instances, not for opaque class-typed inputs.
+**‡ Classes / records.** A class introduces a record type in `Γ_c` (§1.2): `self`, the
+result of a constructor call `C()`, **and** a bare `C`-typed *parameter* whose class is registered
+in `_record_types` are all typed as the class's WhyML record (field defaults per `τ`). A record
+parameter gives **read-only** field access — `p.field` is a direct record read in both body and
+contract (`functions.py::_param_type_str` + the method loop; the old coarsen-to-`int` +
+opaque `getattr_<cls>` path is gone for record params). **Out of scope:** *mutating* a record
+parameter (Why3 records are by-value, so a write does not flow back to the caller — needs the
+frame/`writes` machinery); method calls on a record param are a small follow-on. A class with no
+registered record (e.g. an unresolved import) still coarsens to `int`.
 
-The `float` / `bytes` / `bytearray` / `frozenset` / bare-`tuple` / class rows were
+**§ Sum types / `#@ datatype`.** A module-level `#@ datatype` directive declares a real Why3
+algebraic type emitted by `preamble.py::_emit_type_decls` (the `kind:"variant"` branch, beside the
+`record` branch). Constructors are registered (`Module5` constructors registry) and lowered as
+nullary names or applied calls; a `match`/`case` over a variant value lowers to a Why3 `match …
+with … end` (`statements.py::_handle_match_stmt`), so **exhaustiveness is solver-checked** (a
+missing or extra constructor is a hard error). A variant local `o = Some(7)` binds
+`let o = ref (Some 7) in` with the inferred variant type (not a coarsened `int`). **Out of scope:**
+recursive datatypes (`Tree = Leaf | Node(Tree, Tree)`), parametric datatypes (`Option[T]`),
+guarded/nested/or-patterns, captures referenced at the contract level, and in-place variant-field
+mutation. See `pycsl-annotate` SKILL §3f for the surface and limitations.
+
+**§ Collections (`collections` module).** A handful of `collections` constructors are recognized
+**by bare name** (import-independent) and routed to an existing modeled universe member rather than
+an opaque `int` stub — so a local built from them carries real content:
+
+| Constructor | τ realization | Model |
+|---|---|---|
+| `defaultdict(int)`, `Counter()`, `OrderedDict()` | `dict` | `map int (option int)`; a missing key reads `0` (which *is* `defaultdict(int)` / `Counter` semantics) |
+| `deque()` | `list` → `array int` | right-end `append` / `dq[i]` / `len` carry content (the growable-list model) |
+| `namedtuple('P', [f…])` | `record` | a synthesized WhyML record of the (literal) fields (Tier-A record construction) |
+
+**Out of scope (sound under-approximations / opaque):** `defaultdict(list/set)` and other non-`int`
+factories (the missing-key default is hard-wired `0`); deque left-end / `pop` (`appendleft` /
+`popleft` / `pop` are unmodeled — only right-end append/index/len); insertion order for
+`OrderedDict`; `Counter.most_common` / ranking; `ChainMap` / `UserDict` / `UserList` (opaque int
+handles); a `deque`/`Counter` built from an iterable is modeled as **empty** (a sound
+under-approximation — never proves a false content claim). See `pycsl-stdlib-coverage` SKILL for the
+per-member tier table.
+
+The `float` / `bytes` / `bytearray` / `frozenset` / bare-`tuple` / class / datatype rows were
 previously absorbed by the `τ(_) = Any` catch-all; they are listed explicitly here because they
 are *modeled* (mapped to a concrete universe member), not treated as opaque `Any`.
 

@@ -435,6 +435,30 @@ to both. Per-method `requires`/`ensures` are unaffected.
 composition theorem (universal body coverage + the `\preserves` trust boundary ⟹ no execution
 writes the region).
 
+### 2.6 Module-level datatype declaration (`#@ datatype`)
+
+Declares a **sum type** (algebraic data type) as a real Why3 `type`, placed at module level
+(before the functions that use it). Constructors are either nullary or carry typed payloads:
+
+```python
+#@ datatype Color = Red | Green | Blue
+#@ datatype Box = Some(int) | Pair(int, int) | Empty
+```
+
+| # | Directive | Syntax | Scope | Semantics |
+|---|---|---|---|---|
+| 1 | Datatype | `#@ datatype <Name> = <Ctor> [\| <Ctor> ...]` where each `<Ctor>` is a bare name (nullary) or `Name(T1, …)` (typed payload) | Module-level | Emits a Why3 `type <name> = Red \| Some int \| Pair int int \| …`. Payload types map `int`/`bool`→`int`, `str`→`string`, `float`→`real`. |
+
+**Use sites.** Construct with the call form — `o = Some(7)` (a typed variant local) or a nullary
+`o = Red`. Consume with a `match`/`case` whose arms are constructor patterns (§7.4) — the lowering
+is a real Why3 `match` with **solver-checked exhaustiveness**, and `case Pair(a, b):` binds the
+payloads. A param or local typed by the datatype is the variant type (`τ(D) = variant`, see the
+static-semantics reference §1.4).
+
+**Out of scope:** recursive datatypes (`Tree = Leaf | Node(Tree, Tree)`), parametric datatypes
+(`Option[T]`), guarded/nested/or-patterns, captures referenced at the `requires`/`ensures` level,
+and in-place mutation of a variant field. See the `pycsl-annotate` SKILL §3f.
+
 ---
 
 ## 3. Expression Language
@@ -1016,6 +1040,28 @@ match status:
 Lowered to an if/elif chain comparing the subject against each pattern value.
 Wildcard (`_`) becomes the final `else` branch.
 
+**Constructor patterns over a `#@ datatype` (§2.6).** When the subject is a sum-type value, the
+`case` arms use constructor patterns and lower to a **real Why3 `match … with … end`** (not an
+if-chain), so the solver checks **exhaustiveness**:
+
+```python
+#@ datatype Box = Some(int) | Pair(int, int) | Empty
+
+#@ ensures \result >= 0
+def tag(b: Box) -> int:
+    match b:
+        case Some(v):      # `v` binds the payload
+            return 0
+        case Pair(a, c):
+            return 1
+        case Empty():
+            return 2
+```
+
+lowers to `match b with | Some v -> … | Pair a c -> … | Empty -> … end`. A missing or extra
+constructor is a hard error. Capture names (`v`, `a`, `c`) bind the payloads; guards
+(`case Some(v) if v > 0`), nested patterns, and or-patterns are out of scope. See §2.6.
+
 ### 7.5 Lambda
 
 ```python
@@ -1453,3 +1499,35 @@ Per `missing-bytes-struct-feature.md` Phase 1. Lifts the
 transpiler limit that previously forced `\trusted reviewer:` on
 the 4 struct-heavy internals of
 `unix-filesystem/UnixInodeFileSystem.py`.
+
+### §12.7 `collections` constructors (content-modeled)
+
+A handful of `collections` constructors are recognized **by bare name** (import-independent) and
+routed to an existing modeled structure, so a local built from them carries real verifiable
+content (no `#@` syntax — a Module 5 / Module 6 emission rule):
+
+| Constructor | Models as | Content carried |
+|---|---|---|
+| `defaultdict(int)`, `Counter()`, `OrderedDict()` | body `dict` (§12.1) — `map int (option int)` | key read/write; a missing key reads `0` (which *is* `defaultdict(int)`/`Counter` semantics) |
+| `deque()` | growable array (`array int` + length) | right-end `append`, `dq[i]`, `len(dq)` |
+| `namedtuple('P', ['x','y'])` | synthesized record (§2 class records) | `Point(a, b).x == a` (literal fields) |
+
+**Out of scope (sound under-approximation / opaque):** `defaultdict(list/set)` and other non-`int`
+factories; deque left-end / `pop` (`appendleft`/`popleft`/`pop` — only right-end is modeled);
+`OrderedDict` ordering; `Counter.most_common` ranking; `ChainMap`/`UserDict`/`UserList` (opaque int
+handles); a `deque`/`Counter` built from an iterable models as **empty** (never proves a false
+content claim). See the `pycsl-stdlib-coverage` SKILL for the per-member tier table. Drivers:
+0498–0505.
+
+### §12.8 Sum-type construction (`#@ datatype`)
+
+A `#@ datatype` value is constructed in the body with the call form and consumed with a `match`:
+
+```python
+#@ datatype Box = Some(int) | Pair(int, int) | Empty
+o = Some(7)          # → a typed variant local `let o = ref (Some 7) in`
+n = Empty            # nullary constructor
+```
+
+This is the body side of §2.6 (the declaration) and §7.4 (constructor-pattern match). Drivers:
+0520 (nullary enum), 0521 (payload construction + capture match).
