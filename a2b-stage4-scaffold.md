@@ -1,0 +1,119 @@
+# A2b stage 4 — imported-framing-lemma prototype: validated scaffold
+
+**Status:** scaffold / ready-to-execute (not yet built). Produced by grounding the plan
+(`no-more-int-5.md` §A2b step 4; `docs/handling-aliasing.md` §3) against the *actual* implemented
+machinery, so the prototype can be executed without re-discovery. **No corpus code committed** —
+stage 4 is a multi-part effort (see "Why this is not a one-sitter"), and the discipline forbids a
+half-working corpus driver.
+
+## The goal (restated)
+Demonstrate the novel move: a property that first-order region logic **cannot** discharge — a
+*permutation / reachability* fact — is proved once in Rocq **and** Lean, cross-checked, imported as
+a black-box WhyML axiom, and used to verify a Python driver. The canonical small instance:
+**reversing a list preserves its multiset of elements** ("this reversal permutes exactly the cells").
+
+## What is already implemented (verified 2026-06-05)
+- **The directive:** `#@ proof rocq <FQN>` / `#@ proof lean <FQN>` (NOT `axiom_from` — that is the
+  conceptual name in the docs). Worked example: `0342.py` (Euclidean GCD).
+- **The registry:** `src/pycsl/module6_whyml/preamble.py::_AXIOM_REGISTRY` — a `Dict[str, str]`
+  mapping each qualname to a **WhyML axiom body string**. Module6 emits each cited entry as an
+  `axiom` block in the preamble. Example entry:
+  ```python
+  "Pycsl.Reference.Gcd.gcd_step":
+      "forall a b : int. a >= 0 -> b >= 0 -> b > 0 -> gcd a b = gcd b (mod a b)",
+  ```
+  `gcd` here is an **uninterpreted logic symbol**; the axiom constrains it, the body uses it, the
+  paired proofs justify it.
+- **The proof pairing:** `NNNN.proofs/{rocq,lean}/` holds the paired theorems (0342 has
+  `rocq/gcd.v` + `lean/Gcd.lean`, each a stdlib-citing proof — `no Admitted` / `no sorry`).
+  Cross-validation is manual for the MVP, automated by the `proof2why3` cross-check pipeline in v1.
+- **Toolchains present:** `coqc` (Coq 8.20/4.14 opam switch) and `lean`/`lake` (elan) are both on
+  PATH — so the cross-check is runnable here.
+
+## What is missing (the stage-4 work, in dependency order)
+
+### Gap 1 — a spec surface for the framing property (PyCSL has NO `\permutation`/multiset operator)
+Verified: `grep -i permut|multiset` over `Module2_Parser.py` + the static-semantics reference is
+**empty**. The driver's `ensures` has no way to *state* "the result is a permutation of the input."
+Options, smallest first:
+- **(1a) Reuse the ghost-list surface.** `Module2_Parser` already has `NilExpr/ConsExpr/HdExpr/
+  TlExpr/NthExpr/MemExpr/AppendExpr/ListLengthExpr` ghost-list nodes. Add a `PermExpr`
+  (`\permutation(a, b)`) node + Module4 validation + Module5 IR + Module6 lowering to an
+  **uninterpreted `predicate permut (s t : seq int)`**. This is the same shape as the existing ghost
+  ops — a few hundred LOC, mechanical, low-risk.
+- **(1b) Model via multiset equality** using Why3's `bag`/`Multiset` stdlib instead of a bespoke
+  `permut`. Cleaner semantics but introduces a new Why3 theory import; defer unless 1a proves
+  awkward.
+
+### Gap 2 — model the list as an IMMUTABLE `seq int`, not the mutable `array int`
+This is the lesson from the A1-residual spike (`no-more-int-5.md` §A1-residual): a mutable
+`array int` cannot participate in the pure logic of a permutation axiom the same way (Why3's region
+control). The framing lemma must be stated over Why3's **pure `Seq.seq int`** (or the ghost-list
+`seq`). The Python driver's `list` is `array int` at the program level; the contract speaks about its
+**`seq` snapshot** (`\at`-style or a ghost `seq` view). For a *pure* reversal driver (build a new
+reversed list, don't mutate in place) the snapshot is clean.
+
+### Gap 3 — the registry entry + the WhyML symbols
+Add to `_AXIOM_REGISTRY`:
+```python
+# Pycsl.Reference.Rev — reversal preserves the element multiset.
+# Cross-validated by 0531.proofs/rocq/Rev.v + 0531.proofs/lean/Rev.lean.
+"Pycsl.Reference.Rev.rev_permutation":
+    "forall s : seq int. permut (rev s) s",
+```
+with `rev` and `permut` declared as the uninterpreted `function rev (seq int) : seq int` /
+`predicate permut (seq int) (seq int)` the Gap-1 lowering introduces (mirroring how `gcd` is
+declared for 0342 — see `_AXIOM_REGISTRY`'s companion "functions an axiom block needs declared"
+table in `preamble.py`).
+
+### Gap 4 — the paired proofs (these are the EASY part — stdlib one-liners)
+- **Rocq** (`0531.proofs/rocq/Rev.v`), modeled on `gcd.v`:
+  ```coq
+  Require Import List Coq.Sorting.Permutation.
+  Module Pycsl. Module Reference. Module Rev.
+  Theorem rev_permutation : forall (l : list Z), Permutation (rev l) l.
+  Proof. intro l. apply Permutation_rev. Qed.
+  End Rev. End Reference. End Pycsl.
+  ```
+- **Lean** (`0531.proofs/lean/Rev.lean`), modeled on `Gcd.lean`:
+  ```lean
+  namespace Pycsl.Reference.Rev
+  theorem rev_permutation (l : List Int) : (l.reverse).Perm l := l.reverse_perm
+  end Pycsl.Reference.Rev
+  ```
+  Both are single stdlib citations (`Permutation_rev` / `List.reverse_perm`) — `no Admitted`,
+  `no sorry`. The cross-check confirms the two statements agree (both: reverse is a permutation).
+
+### Gap 5 — the driver (`0531.py`)
+```python
+"""Test 0531 — imported framing lemma: reversal is a permutation (A2b stage 4)."""
+#@ proof rocq Pycsl.Reference.Rev.rev_permutation
+#@ proof lean Pycsl.Reference.Rev.rev_permutation
+#@ ensures \permutation(\result_seq, xs_seq)   # exact surface = Gap-1 outcome
+#@ assigns \nothing
+def reverse(xs: List[int]) -> List[int]:
+    ...   # pure reversal building a new list
+```
+The driver proves its permutation postcondition **only** via the imported axiom — SMT alone cannot
+derive it (no induction over the reversal). That is the whole demonstration.
+
+## Why this is not a one-sitter (and why no code is committed yet)
+Stage 4 = Gap-1 (a new ghost spec operator: parser node + Module4/5/6 plumbing) + Gap-2 (a `seq`
+view of a list in a contract) + Gaps 3–5 (registry + proofs + driver). Gap 1 alone is a self-
+contained feature (~the size of an existing ghost-op). The plan budgeted "1–2 weeks" for exactly
+this. Attempting it end-to-end in an unattended session would risk a broken corpus driver, violating
+the byte-diff/sweep discipline. The scaffold above removes all the *discovery* risk (the mechanism,
+the registry format, the exact stdlib lemmas, the mutable-vs-seq decision) so the build is now a
+sequence of small, individually-gated steps.
+
+## Recommended execution order (each its own gated commit)
+1. **Gap 1a** — add the `\permutation` ghost-list spec operator (`PermExpr` → uninterpreted
+   `predicate permut`). Driver-gated: a contract that merely *states* `\permutation(a, a)` and
+   proves by reflexivity-style axiom (`permut_refl`), no Rev yet.
+2. **Gap 2** — the `seq` snapshot view of a list parameter in a postcondition.
+3. **Gaps 3–4** — registry entry + paired Rocq/Lean proofs; run `coqc` + `lake build` to confirm
+   both compile clean.
+4. **Gap 5** — the `0531.py` reversal driver; flip FAIL→PASS via the imported axiom; full sweep.
+5. **Write-up** — this is the paper-worthy artifact (`docs/handling-aliasing.md` §3): the first use
+   of proof-assistant-imported framing lemmas to cross the first-order reachability wall in an
+   SMT-backed verifier.
