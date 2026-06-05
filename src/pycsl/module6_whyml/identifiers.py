@@ -32,6 +32,10 @@ WHYML_RESERVED: Set[str] = {
     "old", "ref", "abstract", "private", "model", "range",
     "float", "by", "so", "pure", "alias", "label", "epsilon",
     "exists", "forall", "rec", "and", "or", "mod", "div", "result",
+    # `partial` marks a possibly-diverging function in Why3 (`let partial f …`),
+    # so a Python function/var named `partial` (e.g. functools.partial) must be
+    # mangled or `let partial (…)` is a syntax error.
+    "partial", "fun", "as", "scope", "coinductive", "inductive",
 }
 
 

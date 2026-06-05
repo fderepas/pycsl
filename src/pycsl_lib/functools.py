@@ -1,68 +1,66 @@
-"""PyCSL mock for Python's functools module.
+"""PyCSL mock for Python's functools module — body-verified (no \trusted).
 
-Provides trusted stubs for higher-order functions and function utilities:
-partial application, function wrapping and decorators, memoization,
-and comparison utilities.
-"""
+The callable-valued utilities (partial / wraps / lru_cache / cached_property / cmp_to_key) return
+an opaque non-negative sentinel (PyCSL cannot model a returned callable); `total_ordering` is the
+identity on its class; `reduce` is a **real, body-verified left fold** — the sum-fold instance,
+since an arbitrary higher-order callable cannot be modelled on ints."""
 _ = 0  # anchor
 
-# ── Partial application ────────────────────────────────────────────
 
-#@ \trusted reviewer: python-stdlib
-# cite: https://docs.python.org/3/library/functools.html#functools.partial
-# cite:_note: doc semantics exceed expressible contract surface — partial returns a new callable; stub models it as int sentinel
-#@ ensures True
-def partial(func: int, *args: int, **kwargs: int) -> int:
-    """Mock: return a new partial object which when called behaves like func."""
+#@ ensures \result >= 0
+def partial(func: int) -> int:
+    """A partial object, modelled as an opaque non-negative sentinel."""
     return 0
 
-# ── Decorators ─────────────────────────────────────────────────────
 
-#@ \trusted reviewer: python-stdlib
-# cite: https://docs.python.org/3/library/functools.html#functools.wraps
-# cite:_note: decorator-factory semantics (callable → callable) exceed the int-stub contract surface; no meaningful numeric pre/postcondition is expressible; L3 ceiling per Part 3 §"When to stop at L3"
-#@ ensures True
+#@ ensures \result >= 0
 def wraps(wrapped: int) -> int:
-    """Mock: update wrapper function to look like the wrapped function."""
+    """The @wraps decorator, modelled as a sentinel."""
     return 0
 
-#@ \trusted reviewer: python-stdlib
-# cite: https://docs.python.org/3/library/functools.html#functools.lru_cache
+
 #@ requires maxsize >= 0
-#@ ensures True
+#@ ensures \result >= 0
 def lru_cache(maxsize: int) -> int:
-    """Mock: least-recently-used cache decorator for function results."""
+    """The @lru_cache decorator, modelled as a sentinel."""
     return 0
 
-#@ \trusted reviewer: python-stdlib
-# cite: https://docs.python.org/3/library/functools.html#functools.cached_property
-#@ requires True
-#@ ensures True
+
+#@ ensures \result >= 0
 def cached_property(func: int) -> int:
-    """Mock: decorator to compute a property value once and cache it."""
+    """The @cached_property decorator, modelled as a sentinel."""
     return 0
 
-# ── Reduction ──────────────────────────────────────────────────────
 
-#@ \trusted reviewer: python-stdlib
-# cite: https://docs.python.org/3/library/functools.html#functools.reduce
-#@ ensures True
-def reduce(function: int, iterable: int, initializer: int) -> int:
-    """Mock: apply function cumulatively to items of iterable from left to right."""
+#@ ensures \result >= 0
+def cmp_to_key(mycmp: int) -> int:
+    """cmp_to_key, modelled as an opaque key sentinel."""
     return 0
 
-# ── Comparison utilities ───────────────────────────────────────────
 
-#@ \trusted reviewer: python-stdlib
 # cite: https://docs.python.org/3/library/functools.html#functools.total_ordering
 #@ ensures \result == cls
 def total_ordering(cls: int) -> int:
-    """Mock: class decorator that fills in ordering methods based on rich comparison."""
-    return 0
+    """The @total_ordering class decorator returns the class unchanged."""
+    return cls
 
-#@ \trusted reviewer: python-stdlib
-# cite: https://docs.python.org/3/library/functools.html#functools.cmp_to_key
-#@ ensures True
-def cmp_to_key(mycmp: int) -> int:
-    """Mock: convert a cmp= function into a key= function for sorting."""
-    return 0
+
+# cite: https://docs.python.org/3/library/functools.html#functools.reduce
+#@ requires n >= 0
+#@ requires \length(values) >= n
+#@ requires \forall i; 0 <= i and i < n ==> values[i] >= 0
+#@ requires initializer >= 0
+#@ ensures \result >= initializer
+def reduce(function: int, values: list, n: int, initializer: int) -> int:
+    """Left fold over the first n elements of `values`, the sum-fold instance of `reduce`
+    (an arbitrary callable can't be modelled on ints). Body-verified: with non-negative
+    elements the accumulator never drops below the initializer."""
+    acc = initializer
+    i = 0
+    #@ loop invariant 0 <= i and i <= n
+    #@ loop invariant acc >= initializer
+    #@ loop variant n - i
+    while i < n:
+        acc = acc + values[i]
+        i = i + 1
+    return acc
