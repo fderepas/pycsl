@@ -146,6 +146,14 @@ stages 1–2 are real frontend engineering (an alias/ownership analysis is load-
 crisp diagnostics). Pull stage 4 (the imported-framing-lemma prototype) **first** if the goal is to
 de-risk the novel claim cheaply — it needs no ownership checker and exercises the bridge directly.
 
+**Stage 4 is scaffolded:** `a2b-stage4-scaffold.md` grounds it against the real machinery (the
+`#@ proof rocq/lean` directive + `preamble.py::_AXIOM_REGISTRY` + `NNNN.proofs/{rocq,lean}/`, the
+0342 GCD template; `coqc`/`lean` both on PATH). It found stage 4 is multi-part — the gating
+dependency is **Gap 1: PyCSL has no `\permutation`/multiset spec operator** (needs a `PermExpr`
+ghost-list node + M4/5/6 plumbing), then an immutable-`seq` list view (the A1-residual aliasing-wall
+lesson), then the registry entry + paired stdlib-one-liner proofs (Rocq `Permutation_rev`, Lean
+`List.reverse_perm`) + the 0531 reversal driver. Execute Gap 1 first as its own gated commit.
+
 ## A4 — json round-trip (`loads(dumps(x)) == x`) — **recast: an `axiom_from` application, not a wall**
 Part 4 shelved this as a "string-parsing wall." The reflection corrects that: a round-trip theorem
 `decode ∘ encode = id` is **exactly** the kind of statement proved once in Rocq/Lean and imported via
