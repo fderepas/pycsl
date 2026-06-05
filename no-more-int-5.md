@@ -206,9 +206,11 @@ model). *Driver:* `len(chain(a, n, b, m)) == n + m` + a membership contract. Low
 - **A5b** captures referenced in contracts (per-arm postconditions / a `\match` spec operator).
   Build on demand (needs a surface-syntax decision).
 - **A5c** guarded constructor patterns (`case Ctor(x) if g`) — ✅ **DONE** (0531): a guarded Why3
-  match arm becomes `Ctor x -> if g then <body> else <wildcard fall-through>`. Nested ctors / or-
-  patterns (`A | B`) remain per-shape follow-ons (settled theory, Maranget — engineering, not
-  research).
+  match arm becomes `Ctor x -> if g then <body> else <wildcard fall-through>`.
+- **A5c** nested + or-patterns — ✅ **DONE** (0535/0536): a recursive `_render_match_pattern` emits
+  nested constructors (`Wrap (A n)`, 0536) and or-patterns (`Red | Green`, 0535) into the native Why3
+  match; the routing now uses Path 1 whenever any arm involves a constructor (directly or inside an
+  `Or`). Flat patterns render identically (0520/0521/0527/0528/0531/0533/0534 byte-identical).
 - **A5d** parametric datatypes (`Option[T]`) — composes with A1's parametric machinery; low priority
   (needs a surface-syntax decision).
 - **A5a-residual** mutually-recursive datatypes — ✅ **DONE** (0533): `_emit_type_decls` now groups

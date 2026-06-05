@@ -394,6 +394,42 @@ class ControlFlowStmtMixin:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
+    def _pattern_has_constructor(self, pat: Dict[str, Any]) -> bool:
+        """True if `pat` is a constructor pattern, or an `Or` whose alternatives
+        include one — the signal to use Why3's native `match` (A5c)."""
+        p = pat.get("pattern")
+        if p == "Constructor":
+            return True
+        if p == "Or":
+            return any(self._pattern_has_constructor(a)
+                       for a in pat.get("alternatives", []))
+        return False
+
+    def _render_match_pattern(self, pat: Dict[str, Any], top: bool = False) -> str:
+        """Render a match pattern as a Why3 match-arm pattern, recursively (A5c).
+        Nested constructors parenthesize (`Wrap (A n)`); or-patterns join with `|`
+        (`Red | Green`); captures bind their name, wildcards/`_` stay `_`. `top`
+        suppresses the outer parens on a constructor (an arm head is `Ctor a b`,
+        a nested sub-pattern is `(Ctor a b)`)."""
+        p = pat.get("pattern")
+        if p == "Wildcard":
+            return "_"
+        if p == "Capture":
+            nm = pat.get("name", "_")
+            return "_" if nm == "_" else whyml_ident(nm)
+        if p == "Value":
+            return self._expr_to_whyml(pat["value"], set())
+        if p == "Or":
+            return " | ".join(self._render_match_pattern(a, top)
+                              for a in pat.get("alternatives", []))
+        if p == "Constructor":
+            sub = [self._render_match_pattern(cp) for cp in pat.get("captures", [])]
+            body = pat["ctor"] + ("".join(" " + s for s in sub) if sub else "")
+            if top or not sub:
+                return body
+            return f"({body})"
+        return "_"
+
     def _handle_match_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
                            local_refs: Set[str], declared_refs: Set[str],
                            indent: str, in_loop: bool) -> str:
@@ -401,19 +437,19 @@ class ControlFlowStmtMixin:
         cases = stmt.get("cases", [])
         # sum-types: a constructor-pattern match over a `#@ datatype` lowers to a real Why3
         # `match … with` (so Why3 checks exhaustiveness), not the value-pattern if-chain.
-        if any(c["pattern"].get("pattern") in ("Constructor", "Wildcard") for c in cases) \
-                and any(c["pattern"].get("pattern") == "Constructor" for c in cases):
+        # A5c: route to the native match if ANY arm involves a constructor — directly
+        # or inside an `Or` pattern (`case Red() | Green():`).
+        if any(self._pattern_has_constructor(c["pattern"]) for c in cases):
             # A5c: a Why3 `match` arm cannot carry a boolean guard, so a guarded
-            # constructor arm (`case Ctor(x) if g`) becomes
-            # `Ctor x -> if g then <body> else <fall-through>`, where the
-            # fall-through is the catch-all (wildcard) body — the case a
-            # guard failure falls through to. The wildcard body is computed
-            # once. (Guarded arms without a wildcard catch-all fall through to
-            # `()` — documented boundary; Python guarded matches need a
-            # catch-all to be exhaustive anyway.)
+            # arm (`case Ctor(x) if g`) becomes `<pat> -> if g then <body> else
+            # <fall-through>`, where the fall-through is the catch-all (wildcard)
+            # body — the case a guard failure falls through to. The wildcard
+            # body is computed once. (Guarded arms without a wildcard catch-all
+            # fall through to `()` — documented boundary; Python guarded matches
+            # need a catch-all to be exhaustive anyway.)
             wildcard_body = None
             for c in cases:
-                if c["pattern"].get("pattern") != "Constructor":
+                if c["pattern"].get("pattern") == "Wildcard":
                     wb = self._stmts_to_whyml(c.get("body", []), local_refs,
                                               declared_refs.copy(), indent + "    ", in_loop)
                     wildcard_body = wb if wb.strip() else f"{indent}    ()"
@@ -425,21 +461,16 @@ class ControlFlowStmtMixin:
                                                 declared_refs.copy(), indent + "    ", in_loop)
                 if not body_str.strip():
                     body_str = f"{indent}    ()"
-                if pat.get("pattern") == "Constructor":
-                    caps = []
-                    for cp in pat.get("captures", []):
-                        caps.append(whyml_ident(cp["name"]) if cp.get("pattern") == "Capture"
-                                    else "_")
-                    arm = pat["ctor"] + ((" " + " ".join(caps)) if caps else "")
-                    guard = c.get("guard")
-                    if guard:
-                        guard_str = self._to_bool(
-                            self._expr_to_whyml(guard, local_refs), guard)
-                        fb = wildcard_body if wildcard_body is not None else f"{indent}    ()"
-                        body_str = (f"{indent}    if {guard_str} then begin\n{body_str}\n"
-                                    f"{indent}    end else begin\n{fb}\n{indent}    end")
-                else:
-                    arm = "_"
+                # A5c: render the pattern recursively — nested constructors
+                # (`Wrap (A n)`) and or-patterns (`Red | Green`) included.
+                arm = self._render_match_pattern(pat, top=True)
+                guard = c.get("guard")
+                if guard:
+                    guard_str = self._to_bool(
+                        self._expr_to_whyml(guard, local_refs), guard)
+                    fb = wildcard_body if wildcard_body is not None else f"{indent}    ()"
+                    body_str = (f"{indent}    if {guard_str} then begin\n{body_str}\n"
+                                f"{indent}    end else begin\n{fb}\n{indent}    end")
                 arms.append(f"{indent}  | {arm} ->\n{body_str}")
             code = f"{indent}match {subject} with\n" + "\n".join(arms) + f"\n{indent}  end"
             if rest:
