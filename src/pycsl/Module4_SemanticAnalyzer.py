@@ -649,6 +649,7 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
 
         self._build_function_scope(node)
         self._validate_no_mutable_defaults(node)
+        self._validate_lemma(node)
         self._validate_function_contracts(node)
         self._validate_assigns_regions(node)
         self._validate_subscript_assignments(node)
@@ -666,6 +667,42 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         self.current_dict_value_types = saved_dict_value_types
         self.current_dict_key_types = saved_dict_key_types
         self.current_function_name = saved_function_name
+
+    def _validate_lemma(self, node: ast.FunctionDef) -> None:
+        """lemma.md §3 — soundness checks for a `#@ lemma` function. A lemma is a
+        CHECKED axiom; mis-enforcement lets it prove `False`. Enforced here:
+
+          • **Variant-on-recursion (the lynchpin, §7.2).** A recursive lemma's
+            self-calls are the induction hypotheses; without a strictly-decreasing
+            `#@ \\variant` the recursion is ill-founded — an unsound "proof by
+            assuming the goal". (Why3 then checks the variant strictly decreases.)
+          • **`\\diverges` forbidden (§7.3).** A non-terminating lemma proves nothing.
+          • **Shape (§7.1).** A lemma states something — at least one `#@ ensures`.
+
+        Not yet enforced (documented refinements — see remains.md): assigns-\\nothing
+        / return-None ghost discipline, the proof-body statement whitelist, trust-leakage
+        (`#@ lemma` body calling `\\trusted`), and the contract-call-position ban."""
+        if not getattr(node, 'csl_lemma', False):
+            return
+        name = node.name
+        if getattr(node, 'csl_diverges', False):
+            raise PyCSLSemanticError(
+                f"`#@ lemma` '{name}' is also `#@ \\diverges`: a non-terminating "
+                f"lemma proves nothing and would be unsound as a fact. Remove one.")
+        if not getattr(node, 'csl_ensures', []):
+            raise PyCSLSemanticError(
+                f"`#@ lemma` '{name}' has no `#@ ensures`: a lemma must state the "
+                f"fact it proves (the conclusion). Add at least one `#@ ensures`.")
+        recursive = any(
+            isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == name
+            for n in ast.walk(node))
+        if recursive and not getattr(node, 'csl_function_variants', []):
+            raise PyCSLSemanticError(
+                f"Recursive `#@ lemma` '{name}' has no `#@ \\variant`. A recursive "
+                f"lemma's self-calls are the induction hypotheses; without a "
+                f"strictly-decreasing variant the recursion is ill-founded — an "
+                f"unsound 'proof by assuming the goal'. Add `#@ \\variant <measure>` "
+                f"(e.g. the structurally-decreasing argument).")
 
     def _validate_no_mutable_defaults(self, node: ast.FunctionDef) -> None:
         """Ownership R2 (crude enforcement, `docs/pycsl-ownership-discipline.md`

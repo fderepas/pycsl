@@ -254,6 +254,42 @@ general variance (Tier 3) are gated. See `annotations.md` §2.7 and corpus `0549
 
 ---
 
+## Section 3g — Lemma functions (`#@ lemma`)
+
+A `#@ lemma` is a `-> None` function that is a **proved logical fact** — use it to
+discharge an inductive obligation in-toolchain instead of importing a `#@ proof`. It
+lowers to a Why3 `let [rec] lemma`: the body is the proof, and once verified the
+contract `forall params. requires -> ensures` is usable by later goals.
+
+```python
+#@ lemma                                   # non-recursive: SMT discharges the (empty) body
+#@ requires a >= 0 and b >= 0
+#@ ensures a + b >= 0
+#@ assigns \nothing
+def sum_nonneg(a: int, b: int) -> None:
+    pass
+
+#@ lemma                                   # recursive: induction; \variant MANDATORY
+#@ ensures to_int(n) >= 0
+#@ \variant n
+#@ assigns \nothing
+def to_int_nonneg(n: Nat) -> None:
+    match n:
+        case Z():  pass                    # base case
+        case S(m): to_int_nonneg(m)        # self-call = induction hypothesis
+```
+
+- A recursive lemma **must** carry `#@ \variant` (its self-calls are the IH; an
+  ill-founded recursion is rejected — an unsound "proof by assuming the goal").
+- `#@ lemma` + `#@ \diverges` is rejected; a lemma needs ≥1 `#@ ensures`.
+- Prefer `#@ lemma` over `#@ proof rocq|lean` when Why3 + induction can close the body
+  — it keeps the proof in-repo and machine-checked. Fall back to `#@ proof` only for
+  what genuinely exceeds Why3's automation.
+
+See `annotations.md` §2.1.16 and corpus `0558`–`0561`.
+
+---
+
 ## Section 4 — Forbidden in contract expressions
 
 **Three-level validation**: every `#@` expression must clear syntax (Level 1), static-semantics (Level 2), and WhyML-generation (Level 3) checks. `pycsl --no-proof` succeeding only guarantees Levels 1 and 2; Level 3 is verified by Why3. The most dangerous trap: contracts that pass Module4 yet fail Why3 (e.g., `"key" in d` when `d` is unannotated → `int` in WhyML, `in` on `int` is invalid). See `references/validation-stack.md` for the IS/SR/TR rule tables and the practical decision checklist.

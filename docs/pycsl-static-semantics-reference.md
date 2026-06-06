@@ -510,6 +510,32 @@ it is a *policy* distinction, not a typing one:
 
 No new error codes. _Corresponds to `annotations.md` §2.1.14._
 
+#### §2.1.16 Lemma (`lemma`)
+
+```
+    f carries #@ lemma     f has ≥1 ensures     ¬ f.diverges
+    recursive(f) ⇒ f has a #@ \variant
+   ─────────────────────────────────────────────────────────
+    Γ_f ⊢ lemma : ok
+```
+
+**Rule.** A `#@ lemma` is a checked logical fact — mis-enforcement lets it prove
+`False`, so Module 4 (`_validate_lemma`) enforces:
+
+- **Variant-on-recursion (lynchpin).** If `f`'s body contains a self-call, `f` MUST
+  carry `#@ \variant` — its self-calls are the induction hypotheses and an ill-founded
+  recursion is an unsound "proof by assuming the goal". (Module 4 enforces *presence*;
+  Why3 then discharges the termination VC, enforcing *strict decrease*.)
+- **`\diverges` forbidden.** `lemma` + `\diverges` ⇒ hard error.
+- **Shape.** At least one `#@ ensures` (the conclusion).
+
+**Refinements not yet enforced** (documented in `remains.md`): the assigns-`\nothing` /
+return-`None` ghost discipline, the proof-body statement whitelist, the no-trust-leakage
+rule (a plain `#@ lemma` body calling a `\trusted` function), and the ban on referencing
+a lemma inside a `#@ requires`/`#@ ensures` expression.
+
+_Corresponds to `annotations.md` §2.1.16 and translational §T.2.12._
+
 #### §2.1.8 Bounded Integers (`assumes bounded_int(N)`)
 
 ```

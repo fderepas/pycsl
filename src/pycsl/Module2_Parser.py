@@ -249,6 +249,16 @@ class Abstract(CSLNode):
     axiom`, not an unverified body. Does NOT count as `\\trusted`."""
 
 @dataclass
+class Lemma(CSLNode):
+    """Represents `#@ lemma` (lemma.md) — the function is a PROVED logical fact.
+    It lowers to a WhyML `let [rec] lemma name (params) : unit requires {H}
+    ensures {C} [variant {m}] = <proof body>`: Why3 verifies the body against the
+    contract, then makes `forall params. H -> C` available to later goals. Unlike
+    `\\trusted` (assumed) and `#@ proof` (proved elsewhere, an axiom), a lemma
+    introduces NO axiom that isn't itself checked. A recursive lemma's self-calls
+    are the induction hypotheses; it MUST carry `#@ \\variant` (soundness)."""
+
+@dataclass
 class CSLBool(CSLNode):
     """Represents True/False literals in contract expressions."""
     value: bool
@@ -736,6 +746,7 @@ PYCSL_GRAMMAR = r"""
              | diverges_decl
              | trusted_decl
              | abstract_decl
+             | lemma_decl
              | preserves_decl
              | ghost_assign
              | ghost_aug_assign
@@ -804,6 +815,7 @@ PYCSL_GRAMMAR = r"""
     diverges_decl: "\\diverges"
     trusted_decl: "\\trusted" ("reviewer" ":" REVIEWER_ID)?
     abstract_decl: "\\abstract"
+    lemma_decl: "lemma"
     preserves_decl: "\\preserves"
     REVIEWER_ID: /[A-Za-z0-9._@-]+/
     ghost_assign: "ghost" CNAME ":" GHOST_TYPE "=" expr -> ghost_assign_typed
@@ -1057,6 +1069,8 @@ class PyCSLTransformer(Transformer):
         return Trusted(reviewer=str(args[0]) if args else "")
     def abstract_decl(self) -> Abstract:
         return Abstract()
+    def lemma_decl(self) -> Lemma:
+        return Lemma()
     def preserves_decl(self) -> Preserves:
         return Preserves()
     def ghost_assign_typed(self, name, ghost_type, expr) -> GhostAssignDecl:

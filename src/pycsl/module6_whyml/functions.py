@@ -259,6 +259,10 @@ class FunctionEmissionMixin:
         ref_params, args_str = self._build_param_list(func, local_refs, ghost_vars)
 
         return_type = self._compute_return_type(func, body_stmts)
+        # lemma.md: a `#@ lemma` is a `-> None` proof function — its WhyML result is
+        # `unit` (it computes nothing; the body is the proof).
+        if func.get("lemma"):
+            return_type = "unit"
         # `_func_return_type` is read by `_handle_return_stmt` to pick
         # the right Return exception (int / array / tuple); set it AFTER
         # the `List[T] → array int` override so the array-Return slot
@@ -295,9 +299,13 @@ class FunctionEmissionMixin:
                 self._auto_trusted_set_op + [func["name"]])
 
         func_pure = func.get("pure", False)
+        func_lemma = func.get("lemma", False)
         is_recursive = IRScanner.is_recursive(name, body_stmts)
         use_rec = bool(func_variants) or is_recursive
-        can_emit_as_logic = func_pure and not local_refs and not is_method
+        # A lemma is `assigns \nothing` so the purity heuristic flags it pure, but it
+        # must NOT emit as a `let function` (a term) — it is a `let [rec] lemma` whose
+        # body is a proof. Exclude it from the logic path.
+        can_emit_as_logic = func_pure and not local_refs and not is_method and not func_lemma
 
         _scc_idx, _pos_in_scc, _scc_size = scc_info.get(func["name"], (0, 0, 1))
         # A non-first member of a multi-function SCC is a mutual-recursion
@@ -308,6 +316,11 @@ class FunctionEmissionMixin:
         lines: List[str] = []
         if emit_as_val:
             kw = f"val {name}"
+        elif func_lemma:
+            # lemma.md: `let lemma` (non-recursive) / `let rec lemma` (recursive or
+            # in a mutual SCC). Why3 verifies the body, then exposes the contract as
+            # a usable fact `forall params. requires -> ensures`.
+            kw = f"{'let rec lemma' if (use_rec or _scc_size > 1) else 'let lemma'} {name}"
         elif _mutual_cont and can_emit_as_logic:
             # A5a-residual (functions): mutually-recursive PURE/logic functions
             # (`size_tree` ↔ `size_forest`) chain with WhyML's `with function`

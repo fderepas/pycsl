@@ -40,6 +40,7 @@ Python construct they annotate (function, class, loop, or statement).
 | 13 | No-exception | `#@ no_exception E1, E2, ...` or `#@ no_exception \all` | Function/method | Implicit Python exceptions become proof obligations. For each IR operation in the body that could raise a listed exception, Module 6 emits a WhyML `assert { trigger }`. The `\all` form expands to the full Phase 1 set in `exception_model.KNOWN_EXCEPTIONS` and requires `raises { }` to be empty. See §2.1.13. |
 | 14 | Abstract | `#@ \abstract` | Function/method | Function is emitted as a **bodyless** WhyML `val` defined SOLELY by its contract (+ any `#@ proof` axioms). Unlike `\trusted` (a present-but-unchecked body), `\abstract` asserts there is no meaningful body — the contract IS the definition. Sound (uninterpreted `val`). Does **not** count as `\trusted`; the canonical 0-`\trusted` model for irreducibly-opaque ops (e.g. `ast.literal_eval`). See §2.1.14 below. |
 | 15 | Guarded case | `#@ act <name>:` (with a 4-space-indented body of `#@ given` / `#@ requires` / `#@ ensures`) | Function/method | A named case guarded by its `given`. Desugars to ordinary `ensures \old(<given>) ==> <post>` / `requires <given> ==> <pre>` (no new IR node, 0 `\trusted`). See §2.1.15 below. |
+| 16 | Lemma | `#@ lemma` | Function/method (`-> None`) | The function is a PROVED logical fact. Lowers to `let [rec] lemma name (params) : unit requires {H} ensures {C} [variant {m}] = <proof body>`: Why3 verifies the body, then `forall params. H -> C` is usable by later goals. Recursive lemma self-calls are the induction hypotheses and MUST carry `#@ \variant` (soundness). Introduces NO axiom that isn't itself checked. See §2.1.16 below. |
 | 16 | Case guard | `#@ given <expr>` | Inside an `act` | The case's pre-state guard (ACSL's `assumes`); only valid inside an `act` block. `\result` is not allowed here. |
 | 17 | Complete cases | `#@ complete <name>, ...` | Function/method | Proof obligation that the named acts' guards cover every input — `ensures \old(g1) \|\| ... \|\| \old(gn)`. |
 | 18 | Disjoint cases | `#@ disjoint <name>, ...` | Function/method | Proof obligation that at most one guard holds — per pair `ensures not(\old(gi) && \old(gj))`. |
@@ -287,6 +288,47 @@ case-postcondition is tagged `(* act <name> *)` in the emitted WhyML for traceab
 (The earlier draft lowered `complete`/`disjoint` to `ensures \old(…)`, which was
 checked on normal return only — vacuous on `raise` paths. The function-entry assert
 form removes that limitation.)
+
+#### §2.1.16 Lemma (`lemma`)
+
+A `#@ lemma` marks a `-> None` function as a **proved logical fact**. It lowers to a
+Why3 `let [rec] lemma`: the body is verified against the contract, then the contract
+becomes a usable fact `forall params. requires -> ensures` for later goals.
+
+```python
+#@ lemma                                   # non-recursive — SMT discharges the body
+#@ requires a >= 0 and b >= 0
+#@ ensures a + b >= 0
+#@ assigns \nothing
+def sum_nonneg(a: int, b: int) -> None:
+    pass
+
+#@ lemma                                   # recursive — induction; \variant mandatory
+#@ ensures to_int(n) >= 0
+#@ \variant n
+#@ assigns \nothing
+def to_int_nonneg(n: Nat) -> None:
+    match n:
+        case Z():     pass
+        case S(m):    to_int_nonneg(m)      # self-call = the induction hypothesis
+```
+
+- **Assume-vs-prove.** `#@ \trusted` is *assumed* (a `val`, full trust); `#@ proof
+  rocq|lean` is *proved elsewhere* (an `axiom`, audited); `#@ lemma` is **proved here**
+  — Why3 checks the body and the conclusion is usable only after it verifies. A lemma
+  introduces no axiom that isn't itself checked.
+- **Soundness (Module 4 rejects, hard error).** A recursive lemma MUST carry
+  `#@ \variant` — its self-calls are induction hypotheses, and an ill-founded
+  recursion is an unsound "proof by assuming the goal". `#@ lemma` + `#@ \diverges` is
+  rejected. A lemma must state at least one `#@ ensures`.
+- **Use.** Once verified, a lemma's conclusion is available globally (and an explicit
+  `lemma_name(args)` call in another function's body forces the instantiation at that
+  point). Prefer `#@ lemma` over `#@ proof` when Why3 + induction can discharge it,
+  keeping the proof in-repo and machine-checked.
+
+**Test-corpus cross-reference:** `0558` (non-recursive, SMT), `0559` (recursive,
+induction over `#@ datatype`), `0560` (recursive without `#@ \variant` — rejected),
+`0561` (false `ensures` — body fails).
 
 ### 2.2 Loop Contracts
 

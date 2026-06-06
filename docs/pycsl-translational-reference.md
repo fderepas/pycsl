@@ -486,6 +486,27 @@ wrapper provably total (corpus `0449`).
 
 _Corresponds to `annotations.md` §2.1.14._
 
+### §T.2.12  Lemma Functions (`lemma`)
+
+$$\mathcal{T}_f\llbracket \texttt{def f(p): \#@ lemma … -> None} \rrbracket
+= \texttt{let [rec] lemma f (p) : unit requires \{H\} ensures \{C\} [variant \{m\}] = }\,\mathcal{T}_s\llbracket\text{body}\rrbracket$$
+
+The `lemma` keyword instructs Why3 to (a) verify the body against the contract and
+(b) expose the contract as a logical fact `forall p. H -> C` to subsequent goals.
+`functions.py::_emit_function` selects the `let lemma` / `let rec lemma` keyword when
+`func["lemma"]` (recursion or a multi-member SCC → `let rec lemma`), and forces the
+result type to `unit` (a `-> None` proof function). The proof body lowers like any
+function body ($\mathcal{T}_s$): a recursive self-call lowers to a recursive call, so
+Why3 derives the induction hypothesis from the lemma's own verified, terminating
+contract; `match` over a `#@ datatype` is the proof's case split; `pass` is `()`.
+
+Unlike `#@ proof` (§T.2.10, an `axiom` in the preamble) and `\trusted`/`\abstract`
+(§T.2.6/§T.2.7, a `val`), a lemma is **checked** — it adds no axiom that isn't itself
+verified. Module 4 rejects a recursive lemma without `#@ \variant` and a
+`lemma`+`\diverges` combination (static-semantics §2.1.16) before emission.
+
+_Corresponds to `annotations.md` §2.1.16._
+
 ### §T.2.7  Diverging Functions (`\diverges`)
 
 The `diverges` keyword omits the termination obligation.  No `variant`
