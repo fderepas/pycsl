@@ -59,20 +59,52 @@ def compute_sccs(names: Set[str], call_graph: Dict[str, Set[str]]) -> List[List[
     return sccs
 
 
+def emits_as_logic_symbol(func: Dict[str, Any]) -> bool:
+    """The SINGLE shared "is this a logic symbol" classifier (scc.md). A function
+    whose contract reference forces WhyML declaration order is one that lowers to a
+    real `let [rec] function`, so a `(f args)` term in a contract needs `f` declared
+    first. Both the SCC edge collector (below) and the emitter's `can_emit_as_logic`
+    (`functions.py`) consume this, so "depends on" means the same thing in the graph
+    and at emission — the ordering bug existed because they used different notions.
+
+    The emitter additionally requires `not local_refs` (an emission-time term not
+    available here); a contract reference to a pure-but-local-ref'd function is
+    ill-formed anyway (Why3 rejects a program function in a logic position), so
+    omitting that term here only ever over-approximates harmlessly. Lemmas are
+    excluded — a `let lemma` is not a term usable in a contract."""
+    return (bool(func.get("pure"))
+            and func.get("kind") != "method"
+            and not func.get("lemma"))
+
+
 def sort_functions_by_scc(
     functions: List[Dict[str, Any]]
 ) -> Tuple[List[Dict[str, Any]], Dict[str, tuple]]:
     """Return functions in SCC-topological order and a scc_info dict."""
     func_names_set = {func["name"] for func in functions}
     func_by_name = {func["name"]: func for func in functions}
+    # scc.md: the only targets a contract reference may edge to are logic symbols.
+    logic_symbols = {f["name"] for f in functions if emits_as_logic_symbol(f)}
     call_graph: Dict[str, Set[str]] = {}
     n = len(functions)
     i = 0
     while i < n:
         func = functions[i]
-        call_graph[func["name"]] = (
-            find_calls_in_ir(func["body"], func_names_set) & func_names_set
-        )
+        body_edges = find_calls_in_ir(func["body"], func_names_set) & func_names_set
+        # Contract-reference edges (scc.md): a logic symbol named anywhere in this
+        # function's contract must be declared before it — `let f … ensures { g x }`
+        # is exactly as unbound-symbol-broken as a body call to `g`. Collected with
+        # the same `find_calls_in_ir` (it gathers `Call` nodes only, so quantifier /
+        # match binders — which are `Var`s — never manufacture phantom edges).
+        # Restricted to `logic_symbols`: an impure / method / non-logic reference
+        # lowers to an abstract `val` (no declaration-order dependency), so it gets no
+        # edge — adding one could fabricate a spurious cycle and mis-group emission.
+        # The contract lives under `func["contracts"]` (requires/ensures/assigns/
+        # raises); `function_variants` is a sibling top-level key.
+        contract_refs: Set[str] = set()
+        for _key in ("contracts", "function_variants"):
+            contract_refs |= find_calls_in_ir(func.get(_key), func_names_set)
+        call_graph[func["name"]] = body_edges | (contract_refs & logic_symbols)
         i += 1
     ordered_sccs = compute_sccs(func_names_set, call_graph)
     sorted_names = [name for scc in ordered_sccs for name in scc]

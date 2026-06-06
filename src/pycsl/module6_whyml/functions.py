@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from module6_whyml.identifiers import whyml_ident, safe_exc_name
 from module6_whyml.ir_scanner import IRScanner
+from module6_whyml.scc import emits_as_logic_symbol
 
 
 class FunctionEmissionMixin:
@@ -304,8 +305,11 @@ class FunctionEmissionMixin:
         use_rec = bool(func_variants) or is_recursive
         # A lemma is `assigns \nothing` so the purity heuristic flags it pure, but it
         # must NOT emit as a `let function` (a term) — it is a `let [rec] lemma` whose
-        # body is a proof. Exclude it from the logic path.
-        can_emit_as_logic = func_pure and not local_refs and not is_method and not func_lemma
+        # body is a proof. Exclude it from the logic path. `emits_as_logic_symbol`
+        # (scc.py) is the SHARED classifier the SCC contract-edge collector also uses,
+        # so the dependency graph and the emission agree on "is this a logic symbol";
+        # the emitter alone adds the emission-time `not local_refs` term.
+        can_emit_as_logic = emits_as_logic_symbol(func) and not local_refs
 
         _scc_idx, _pos_in_scc, _scc_size = scc_info.get(func["name"], (0, 0, 1))
         # A non-first member of a multi-function SCC is a mutual-recursion
