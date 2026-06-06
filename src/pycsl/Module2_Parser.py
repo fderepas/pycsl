@@ -644,6 +644,26 @@ class DatatypeDecl(CSLNode):
     variants: list
     type_params: list = None
 
+@dataclass
+class InductiveDecl(CSLNode):
+    """Represents the header of `#@ inductive p(params):` (inductive.md) — a
+    least-fixpoint relation. `signature` is the rendered param string `"(n: int)"`;
+    `rules` is a list of `(rule_name, horn_clause_expr)` filled by Module 3 by
+    grouping the following `#@ rule …` directives under this header. Lowers to a
+    Why3 `inductive p (params) = | Rule : clause … end`."""
+    name: str
+    signature: str
+    rules: list = None
+
+@dataclass
+class RuleDecl(CSLNode):
+    """Represents one `#@ rule <name>: <horn-clause>` line of an inductive block.
+    `body` is an ordinary PyCSL contract expression (so `\\forall m: int; even(m)
+    ==> even(m+2)` reuses the typed-quantifier + implication + predicate-call
+    grammar). Module 3 attaches it to the preceding `#@ inductive` header."""
+    name: str
+    body: CSLNode
+
 # --- Mixin composition nodes (mixin.md / mixin-ready.md, Tier 1) ---
 # S0 surface: these parse and attach to their class/method node; Module3 weaves
 # them onto `csl_*` fields (S0), and the Module4 composition pass (S2) consumes
@@ -758,6 +778,8 @@ PYCSL_GRAMMAR = r"""
              | bounded_int_decl
              | proof_decl
              | datatype_decl
+             | inductive_decl
+             | rule_decl
              | mixin_decl
              | provides_decl
              | shared_state_decl
@@ -971,6 +993,8 @@ PYCSL_GRAMMAR = r"""
               | CNAME -> mutex_name
 
     datatype_decl: "datatype" CNAME ("[" CNAME ("," CNAME)* "]")? "=" variant_def ("|" variant_def)*
+    inductive_decl: "inductive" CNAME "(" mixin_params? ")" ":"
+    rule_decl: "rule" CNAME ":" expr
     variant_def: CNAME "(" CNAME ("," CNAME)* ")" -> variant_payload
                | CNAME -> variant_nullary
 
@@ -1108,6 +1132,11 @@ class PyCSLTransformer(Transformer):
     def shared_protected(self, name, mutex) -> SharedDecl: return SharedDecl(str(name), str(mutex))
     def shared_unprotected(self, name) -> SharedDecl: return SharedDecl(str(name), None)
     # sum-types: `datatype Name = C1 | C2(int) | …`
+    def inductive_decl(self, name, params=None) -> InductiveDecl:
+        sig = f"({params})" if params else "()"
+        return InductiveDecl(str(name), sig, [])
+    def rule_decl(self, name, body) -> RuleDecl:
+        return RuleDecl(str(name), body)
     def datatype_decl(self, name, *args) -> DatatypeDecl:
         # A5d: type-parameter CNAMEs arrive as bare tokens; variants arrive as
         # (ctor, [types]) tuples — partition by shape.

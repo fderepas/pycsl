@@ -238,6 +238,22 @@ variant field (value semantics — rebuild instead), and `\payload` over a *type
 at a use-site annotation `o: Option[int]` (follow-on, no-more-int Part 8 A8-1). See `pycsl-annotate`
 SKILL §3f for the surface and limitations.
 
+**§ Inductive predicates / `#@ inductive` … `#@ rule`.** A module-level `#@ inductive p(params):`
+header plus its 4-space-indented `#@ rule <name>: <horn-clause>` directives declare a **least-fixpoint
+relation** (Module 3 groups the rules under the header in `csl_inductives`; Module 5 → `inductive_decls`
+IR; `preamble.py::_emit_inductive_decls` emits `inductive p t1 … = | Rule : clause …` after the type
+declarations and before functions/axioms — a single predicate takes **no** closing `end`). Each rule
+body is an ordinary contract expression, so `\forall m: int; even(m) ==> even(m + 2)` reuses the
+typed-quantifier/implication/predicate-application grammar; a predicate application `p(args)` lowers to
+`(p args)` (registered in `_inductive_preds`, never an abstract op). A predicate is **logic-only**:
+usable in contracts and lemmas, never in executable position. **Well-formedness:** each rule's
+conclusion must apply the predicate being defined, and the predicate must occur only **strictly
+positively** in premises — **enforced by Why3** at verification (`non strictly positive occurrence`),
+so a non-positive definition cannot verify. A *Module-4 pre-check* for positivity / conclusion-shape /
+arity / executable-position, mutually-inductive `with` groups, and the lemma-discharged
+universally-quantified consequences are **gated follow-ons** (`remains.md`). Cross-references:
+`annotations.md` §2.8, translational §T.4.7; corpus `0562`/`0563`.
+
 **§ Collections (`collections` module).** A handful of `collections` constructors are recognized
 **by bare name** (import-independent) and routed to an existing modeled universe member rather than
 an opaque `int` stub — so a local built from them carries real content:

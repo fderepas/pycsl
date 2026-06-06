@@ -20,7 +20,8 @@ from typing import List, Optional
 
 from errors import PyCSLParseError
 
-_MODULE_PREFIXES: tuple = ('shared ', 'mutex_invariant ', 'lock_order ', 'datatype ')
+_MODULE_PREFIXES: tuple = ('shared ', 'mutex_invariant ', 'lock_order ', 'datatype ',
+                           'inductive ', 'rule ')
 
 
 @dataclass

@@ -86,6 +86,17 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 self.program_ir.setdefault("constructors", {})[c] = {
                     "type": dt.name, "arity": len(tys)}
 
+        # inductive.md: `#@ inductive p(params): rule …` → a logic-level inductive
+        # predicate. Each rule's Horn-clause body is an ordinary contract expr lowered
+        # by Module 6; the IR carries name/signature/[(rule_name, clause_ir)].
+        for ind in getattr(node, 'csl_inductives', []):
+            self.program_ir.setdefault("inductive_decls", []).append({
+                "name": ind.name,
+                "signature": ind.signature,
+                "rules": [(rname, self._csl_to_ir(rbody))
+                          for (rname, rbody) in (ind.rules or [])],
+            })
+
         self.generic_visit(node)
 
     def _get_mutex_invariant_ir(self, mutex: str) -> Optional[Dict[str, Any]]:

@@ -933,6 +933,8 @@ contract ::= precondition
            | disjoint_decl
            | happy_decl
            | datatype_decl
+           | inductive_decl
+           | rule_decl
            | mixin_decl
            | provides_decl
            | shared_state_decl
@@ -962,6 +964,8 @@ happy_decl     ::= "happy" CNAME ":" "region" expr ".." expr
                    "writes" "self" "." CNAME "outside" "region"
                    ( "except" CNAME ( "," CNAME )* )? ;  (* §2.5.1, module-level HAPPY *)
 datatype_decl  ::= "datatype" CNAME "=" variant_def ( "|" variant_def )* ;  (* §2.6, module-level sum type *)
+inductive_decl ::= "inductive" CNAME "(" mixin_params? ")" ":" ;             (* §2.8, predicate header; rules follow *)
+rule_decl      ::= "rule" CNAME ":" expr ;                                   (* §2.8, one Horn clause (a contract expr) *)
 variant_def    ::= CNAME "(" CNAME ( "," CNAME )* ")"    (* payload constructor: Some(int), Pair(int,int) *)
                  | CNAME ;                               (* nullary constructor: Red *)
 

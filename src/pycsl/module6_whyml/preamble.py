@@ -606,6 +606,45 @@ class PreambleEmissionMixin:
                 i2 += 1
         return out
 
+    def _inductive_sig_whyml(self, signature: str) -> str:
+        """inductive.md: a predicate's WhyML arg-type list (Why3 `inductive p t1 t2`
+        takes UNNAMED arg types). From a source signature `"(n: int, x: Json)"`
+        extract the types and map them (scalars stay, a datatype/class lowercases):
+        `int json`."""
+        inner = signature.strip().lstrip("(").rstrip(")").strip()
+        if not inner:
+            return ""
+        scalars = {"int": "int", "bool": "bool", "str": "string", "float": "real"}
+        types = []
+        for part in inner.split(","):
+            ty = part.split(":")[-1].strip() if ":" in part else "int"
+            types.append(scalars.get(ty, whyml_ident(ty.lower())))
+        return " ".join(types)
+
+    def _emit_inductive_decls(self, inductive_decls: List[Dict[str, Any]]) -> List[str]:
+        """inductive.md: emit each `#@ inductive` predicate as a Why3
+        `inductive p t1 … = | Rule : clause … end`. Each rule's clause is the
+        WhyML of its (contract-expression) Horn-clause body, lowered in spec
+        context. Empty list → no output (byte-identical for non-inductive modules)."""
+        if not inductive_decls:
+            return []
+        out: List[str] = []
+        prev_spec = self._in_spec
+        self._in_spec = True
+        for ind in inductive_decls:
+            name = whyml_ident(ind["name"].lower())
+            sig = self._inductive_sig_whyml(ind["signature"])
+            head = f"  inductive {name} {sig} =" if sig else f"  inductive {name} ="
+            out.append(head)
+            for (rname, clause_ir) in ind["rules"]:
+                clause = self._expr_to_whyml(clause_ir, set())
+                out.append(f"    | {whyml_ident(rname).capitalize()} : {clause}")
+            # A single Why3 `inductive` takes NO closing `end` (an `end` would close
+            # the enclosing module). Mutual groups use `inductive … with …` (P2).
+            out.append("")
+        self._in_spec = prev_spec
+        return out
+
     def _emit_type_decls(self, type_decls: List[Dict[str, Any]]) -> Tuple[List[str], Set[str]]:
         """Emit record type declarations. Returns (lines, declared_types)."""
         out: List[str] = []

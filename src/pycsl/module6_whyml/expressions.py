@@ -908,6 +908,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if func_name in self._constructors:
             return f"({func_name} {' '.join(args)})" if args else func_name
 
+        # inductive.md: an applied inductive predicate (`even(0)`, `wf(JArr(h, s))`)
+        # is a logic-level predicate application — emit `(p args)` directly (raw args,
+        # no int-coercion, no abstract op), exactly like a constructor application.
+        if func_name in getattr(self, "_inductive_preds", set()):
+            p = whyml_ident(func_name.lower())
+            return f"({p} {' '.join(args)})" if args else p
+
         # missing-bytes-struct-feature.md Phase 2 — struct.pack /
         # struct.unpack get a format-string-aware abstract emission
         # before falling through to the generic dotted-call path.

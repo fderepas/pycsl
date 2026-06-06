@@ -1037,6 +1037,29 @@ dispatch table is a separate coverage obligation (static-semantics §2.6). **Imp
 (`compositions` + per-method `provides`/`shared_state`/`touches_field`), `pycsl.py::_apply_composition`,
 `functions.py`. _Corresponds to `annotations.md` §2.7._
 
+### §T.4.7  Inductive predicates (`#@ inductive` / `#@ rule`)
+
+$$\mathcal{T}\llbracket \texttt{\#@ inductive p(x: T): \#@ rule R\_i: } c_i \rrbracket
+= \texttt{inductive p }\tau(T)\texttt{ = }\;|\;\texttt{R\_i : }\mathcal{T}_e\llbracket c_i\rrbracket\;\dots$$
+
+`preamble.py::_emit_inductive_decls` emits the predicate **after** the type declarations (its rules
+may reference datatype constructors) and **before** axioms/functions (which may mention it in a
+contract). The arg list is the predicate's *types only* (Why3 `inductive p t1 t2`), mapped through τ
+(`int`/`bool`/`str`→`string`/`float`→`real`, a datatype/class lowercased). Each rule's clause
+$c_i$ is an ordinary contract expression lowered by $\mathcal{T}_e$ in spec context, so
+`\forall m: int; even(m) ==> even(m+2)` → `forall m : int. (even m) -> (even (m + 2))`; a predicate
+application `p(args)` lowers to `(p args)` (registered in `_inductive_preds`). **A single Why3
+`inductive` takes no closing `end`** — an `end` would close the enclosing module; mutual
+`inductive … with …` groups (P2) are a follow-on.
+
+Unlike a `#@ datatype` (a `type`) or a `#@ lemma` (a checked `let lemma`), an inductive predicate is
+an uninterpreted least-fixpoint relation; **Why3 checks strict positivity** when it processes the
+declaration, so a non-positive rule is rejected at the Why3 layer. **Implementation:** `Module1`
+(`inductive`/`rule` module prefixes), `Module2` (`InductiveDecl`/`RuleDecl` + grammar), `Module3`
+(rule grouping in `_consolidate_module_concurrency`), `Module5` (`inductive_decls` IR),
+`preamble.py::_emit_inductive_decls`, `expressions.py` (predicate-application lowering).
+_Corresponds to `annotations.md` §2.8._
+
 ---
 
 ## §T.5  Statement Translation ($\mathcal{T}_s$)

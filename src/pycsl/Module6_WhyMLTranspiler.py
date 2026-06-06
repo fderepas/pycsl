@@ -360,6 +360,14 @@ class Module6_WhyMLTranspiler(
         type_lines, declared_types = self._emit_type_decls(type_decls)
         out += type_lines
 
+        # inductive.md: `#@ inductive` predicates emit AFTER datatypes (their rules
+        # reference constructors) and BEFORE axioms/functions (which may mention the
+        # predicate in contracts). Empty for non-inductive modules → no change.
+        # Register the predicate names FIRST so the rule clauses' own `p(args)`
+        # applications lower to `(p args)` (not an abstract op).
+        self._inductive_preds = {ind["name"] for ind in self.ir.get("inductive_decls", [])}
+        out += self._emit_inductive_decls(self.ir.get("inductive_decls", []))
+
         # `#@ proof` axioms go AFTER the type declarations so an axiom may
         # quantify over a user `#@ datatype` (A4 json round-trip). Also sets
         # `self._axiom_emitted_decls` for the abstract-val dedup (which runs
@@ -375,6 +383,9 @@ class Module6_WhyMLTranspiler(
         # provider's state-mutating contract reaches the composer. Empty for non-mixin
         # modules → self-calls keep their abstract-val lowering → byte-identical.
         self._composed_provider_methods = set(self.ir.get("composed_provider_methods", []))
+        # inductive.md: declared inductive-predicate names, so a `p(args)` application
+        # in a contract / rule lowers to `(p args)` (not an arity-suffixed abstract op).
+        self._inductive_preds = {ind["name"] for ind in self.ir.get("inductive_decls", [])}
         # Mixin verify-once (S1): synthesize a pseudo-function per declared
         # `depends_method`/`requires_method` so the SAME contract-propagation maps
         # that wire `self.<m>(…)` to a sibling's `ensures` also carry the DECLARED

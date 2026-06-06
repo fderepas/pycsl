@@ -587,6 +587,38 @@ provider — rejected), `0551` (undeclared `self.<field>` write — rejected), `
 the same method — rejected), `0553` (verify-once: a mixin method proves against an abstract
 dependency).
 
+### 2.8 Module-level inductive predicate (`#@ inductive` / `#@ rule`)
+
+A `#@ inductive` declares a **least-fixpoint relation** by Horn-clause rules (a property that
+is *not* a terminating boolean function — well-formedness, reachability, typing). It is
+**logic-only** (usable in `requires`/`ensures`/loop invariants/lemmas, never executable). Why3
+derives introduction, inversion, and induction principles.
+
+```python
+#@ inductive even(n: int):
+#@     rule even_zero: even(0)
+#@     rule even_step: \forall m: int; even(m) ==> even(m + 2)
+```
+
+| # | Directive | Syntax | Scope | Semantics |
+|---|---|---|---|---|
+| 1 | Inductive | `#@ inductive <p>(<params>):` (header; rules follow, 4-space indented) | Module-level | Declares predicate `<p>`. Lowers to a Why3 `inductive p t1 … = | Rule : clause …` (no closing `end` for a single predicate). |
+| 2 | Rule | `#@ rule <name>: <horn-clause>` | under an `#@ inductive` header | One Horn clause. The body is an ordinary PyCSL contract expression — `\forall m: int; even(m) ==> even(m + 2)` reuses the typed-quantifier + implication + predicate-application grammar. Conclusion must apply the predicate being defined. |
+
+- **Usage.** `even(k)` is a predicate application usable in any contract (`#@ ensures even(4)`).
+  Introduction discharges `even(4)` (even(0)→even(2)→even(4)); inversion proves `not even(<odd>)`.
+  A **universally-quantified** consequence (`\forall x; even(x) ==> P(x)`) needs the induction
+  principle — supply it with a recursive `#@ lemma` (§2.1.16). The two features are a pair.
+- **Soundness — strict positivity.** The defined predicate may occur in rule premises only
+  *positively* (never under negation or in a nested implication's antecedent), guaranteeing a
+  least fixpoint exists. **Why3 enforces this** ("non strictly positive occurrence …"); a
+  non-positive rule fails. (A cleaner Module-4 pre-check is a documented refinement — `remains.md`.)
+- **Boundaries.** Mutually-inductive groups (`inductive … with …`), the relational form
+  (reachability), and coinductive predicates are gated follow-ons.
+
+**Test-corpus cross-reference:** `0562` (`even` predicate, introduction proves `even(4)`), `0563`
+(non-strictly-positive rule — rejected).
+
 ---
 
 ## 3. Expression Language

@@ -290,6 +290,31 @@ See `annotations.md` §2.1.16 and corpus `0558`–`0561`.
 
 ---
 
+## Section 3h — Inductive predicates (`#@ inductive` / `#@ rule`)
+
+A module-level `#@ inductive` defines a **least-fixpoint relation** by Horn-clause rules — use it for
+a property that is not a terminating boolean function (well-formedness, reachability). It is
+logic-only: usable in contracts and lemmas, never executable.
+
+```python
+#@ inductive even(n: int):
+#@     rule even_zero: even(0)
+#@     rule even_step: \forall m: int; even(m) ==> even(m + 2)
+```
+
+- Each `#@ rule <name>: <clause>` body is an ordinary contract expression (reuse `\forall x: T; …`,
+  `==>`, and predicate applications `even(m)`). The conclusion must apply the predicate being defined.
+- A predicate application `even(4)` is usable in any contract (`#@ ensures even(4)`). Introduction
+  discharges it; inversion proves `not even(<odd>)`.
+- A **universally-quantified** consequence (`\forall x; even(x) ==> P(x)`) is NOT SMT-dischargeable —
+  prove it with a recursive `#@ lemma` (§3g). Inductive predicates + lemma functions are a pair.
+- **Soundness:** the predicate must occur only strictly positively in premises — Why3 rejects a
+  non-positive rule ("non strictly positive occurrence").
+
+See `annotations.md` §2.8 and corpus `0562`–`0563`.
+
+---
+
 ## Section 4 — Forbidden in contract expressions
 
 **Three-level validation**: every `#@` expression must clear syntax (Level 1), static-semantics (Level 2), and WhyML-generation (Level 3) checks. `pycsl --no-proof` succeeding only guarantees Levels 1 and 2; Level 3 is verified by Why3. The most dangerous trap: contracts that pass Module4 yet fail Why3 (e.g., `"key" in d` when `d` is unannotated → `int` in WhyML, `in` on `int` is invalid). See `references/validation-stack.md` for the IS/SR/TR rule tables and the practical decision checklist.
