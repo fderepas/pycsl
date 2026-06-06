@@ -17,6 +17,8 @@ from Module2_Parser import (
     MutexInvariant, LockOrder, BinOp, Number,
     Act, Given, Complete, Disjoint, Old, UnaryOp, CSLBool,
     CheckPoint, HappyProperty, Preserves, Var, Forall, FieldSubscript,
+    MixinDecl, ProvidesDecl, SharedStateDecl, TouchesFieldDecl,
+    MethodDependencyDecl, ComposeFromDecl,
 )
 import copy
 from errors import PyCSLSemanticError
@@ -57,6 +59,11 @@ class PyCSLWeaver(ast.NodeVisitor):
         node.csl_thread_entry = False
         node.csl_proof = []
         node.csl_acts = []                # pre-desugar Act/Complete/Disjoint (for Module4)
+        # Mixin composition (mixin.md / mixin-ready.md, Tier 1) — populated below.
+        node.csl_provides = []            # method names this method is a provider for
+        node.csl_method_deps = []         # MethodDependencyDecl (depends/requires) + their contract
+        node.csl_mixin_shared_state = []  # SharedStateDecl attached at this method
+        node.csl_touches_field = []       # TouchesFieldDecl attached at this method
 
     @staticmethod
     def _act_guard(act: Act) -> CSLNode:
@@ -119,6 +126,55 @@ class PyCSLWeaver(ast.NodeVisitor):
         return out, acts_meta, entry_cps
 
     @staticmethod
+    def _extract_mixin_directives(node: ast.FunctionDef, contracts: List[Any]) -> List[Any]:
+        """Pull mixin directives (and the dependency contracts that follow them) off
+        the contract list, attaching them to the method node, and RETURN the remaining
+        contracts (the method's own requires/ensures/assigns/…) for normal dispatch.
+
+        A `depends_method`/`requires_method` opens a window: subsequent `requires`/
+        `ensures` clauses belong to that DEPENDENCY until the next `provides` or other
+        mixin directive closes it. This is how `#@   ensures \\result >= 0` indented
+        under `#@ depends_method emit: …` becomes emit's declared contract rather than
+        the enclosing method's postcondition."""
+        remaining: List[Any] = []
+        open_dep = None   # the dict currently accumulating a dependency's clauses
+
+        def close_dep() -> None:
+            nonlocal open_dep
+            if open_dep is not None:
+                node.csl_method_deps.append(open_dep)
+                open_dep = None
+
+        for c in contracts:
+            if isinstance(c, MethodDependencyDecl):
+                close_dep()
+                open_dep = {"method": c.method, "sig": c.sig, "kind": c.kind,
+                            "requires": [], "ensures": []}
+            elif isinstance(c, ProvidesDecl):
+                close_dep()
+                node.csl_provides.append(c.method)
+            elif isinstance(c, SharedStateDecl):
+                close_dep()
+                node.csl_mixin_shared_state.append(c)
+            elif isinstance(c, TouchesFieldDecl):
+                close_dep()
+                node.csl_touches_field.append(c)
+            elif isinstance(c, (MixinDecl, ComposeFromDecl)):
+                # Class-level markers that attach to the first method get ignored here;
+                # the class node carries them (see visit_ClassDef).
+                close_dep()
+            elif open_dep is not None and isinstance(c, Requires):
+                open_dep["requires"].append(c)
+            elif open_dep is not None and isinstance(c, Ensures):
+                open_dep["ensures"].append(c)
+            else:
+                # Anything else closes an open dependency window and is the method's own.
+                close_dep()
+                remaining.append(c)
+        close_dep()
+        return remaining
+
+    @staticmethod
     def _dispatch_function_contracts(node: ast.FunctionDef, contracts: List[Any]) -> None:
         """Attach each parsed contract node to the matching `csl_*` field
         on the function-def AST node. Acts are desugared to requires/ensures first."""
@@ -128,6 +184,13 @@ class PyCSLWeaver(ast.NodeVisitor):
         if entry_cps and getattr(node, "body", None):
             first = node.body[0]
             first.csl_checkpoints = list(entry_cps) + getattr(first, "csl_checkpoints", [])
+        # Mixin pre-pass (Tier 1): extract mixin directives, and associate
+        # `requires`/`ensures` clauses that FOLLOW a `depends_method`/`requires_method`
+        # (and precede the next `provides`/structural directive) with that dependency
+        # — mirroring the indentation in the source (`#@   ensures …`). The dependency's
+        # contract becomes the abstract `val` against which the provider is verified
+        # (S1) and refined (S2); it is NOT the method's own postcondition.
+        contracts = PyCSLWeaver._extract_mixin_directives(node, contracts)
         for c in contracts:
             if isinstance(c, Requires):
                 node.csl_requires.append(c)
@@ -266,6 +329,8 @@ class PyCSLWeaver(ast.NodeVisitor):
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         node.csl_class_invariants = []
         node.csl_allow_finalizer = False   # UB-7.5 opt-in
+        node.csl_is_mixin = False          # `#@ mixin` (Tier 1)
+        node.csl_compose_from = []         # `#@ compose_from M1, M2, …` (Tier 1)
 
         if node.lineno in self.contracts_map:
             contracts = self.contracts_map[node.lineno]
@@ -274,6 +339,10 @@ class PyCSLWeaver(ast.NodeVisitor):
                     node.csl_class_invariants.append(c)
                 elif isinstance(c, AllowFinalizerDecl):
                     node.csl_allow_finalizer = True
+                elif isinstance(c, MixinDecl):
+                    node.csl_is_mixin = True
+                elif isinstance(c, ComposeFromDecl):
+                    node.csl_compose_from = list(c.mixins)
 
         # UB-7.5: reject classes with `__del__` unless explicitly opted
         # in via #@ allow_finalizer. The finalizer protocol is

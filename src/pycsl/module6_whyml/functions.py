@@ -638,6 +638,72 @@ class FunctionEmissionMixin:
             return "real"  # no-more-int Stage D
         return "int"
 
+    @staticmethod
+    def _parse_mixin_sig(sig: str):
+        """Parse a declared method signature `(self, x: int, y: str) -> int` into
+        (params, return_type) where params is an ordered list of (name, py_type)
+        excluding `self` and return_type is a Python type name (default 'int')."""
+        params: List[tuple] = []
+        ret = "int"
+        s = (sig or "").strip()
+        if "->" in s:
+            lhs, rhs = s.rsplit("->", 1)
+            ret = rhs.strip() or "int"
+        else:
+            lhs = s
+        lhs = lhs.strip()
+        if lhs.startswith("(") and lhs.endswith(")"):
+            lhs = lhs[1:-1]
+        for part in [p.strip() for p in lhs.split(",") if p.strip()]:
+            if part == "self":
+                continue
+            if ":" in part:
+                nm, ty = part.split(":", 1)
+                params.append((nm.strip(), ty.strip()))
+            else:
+                params.append((part, "int"))
+        return params, ret
+
+    def _mixin_dep_pseudo_functions(self, functions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Synthesize one pseudo-function per declared `depends_method`/
+        `requires_method` (S1, verify-once). Each is keyed `<class>__<dep>` — the
+        same shape `_resolve_dotted_signature` looks up for a `self.<dep>(…)` call —
+        and carries the DECLARED interface's return type, params, and contract, so
+        the existing contract-propagation maps attach the dependency's `ensures` to
+        the abstract call. These never enter the emission list; they only populate
+        the lookup maps. Non-mixin modules yield [] (no behavioural change)."""
+        pseudo: List[Dict[str, Any]] = []
+        for func in functions:
+            deps = func.get("method_deps") or []
+            if not deps:
+                continue
+            name = func.get("name", "")
+            cls = name.split("__")[0] if "__" in name else ""
+            for dep in deps:
+                params, ret = self._parse_mixin_sig(dep.get("sig", ""))
+                key = f"{cls}__{dep['method']}" if cls else dep["method"]
+                # Python-type symbol table (self excluded); `_symtype_to_whyml` and the
+                # return-type map convert these exactly as for a real method.
+                symtable = {nm: ty for nm, ty in params}
+                pseudo.append({
+                    "name": key,
+                    "symbol_table": symtable,
+                    "body": [],
+                    "formal_params": [nm for nm, _ in params],
+                    "return_annotation": ret if ret in ("list", "set", "dict", "frozenset") else None,
+                    # WhyML return type from the declared sig — the empty body would
+                    # otherwise derive `unit`; the transpiler overrides the return-type
+                    # map with this (Module6_WhyMLTranspiler.transpile).
+                    "_mixin_ret_whyml": self._symtype_to_whyml(ret),
+                    "contracts": {
+                        "requires": dep.get("requires", []),
+                        "ensures": dep.get("ensures", []),
+                        "assigns": [], "raises": [],
+                        "no_exception": [], "no_exception_all": False,
+                    },
+                })
+        return pseudo
+
     def _build_method_param_types_map(self, functions: List[Dict[str, Any]]) -> Dict[str, List[str]]:
         """Map function name → list of WhyML parameter types (excluding
         self). Used by `_handle_dotted_call` to emit abstract `val` decls

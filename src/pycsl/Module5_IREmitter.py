@@ -1386,6 +1386,20 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 {"prover": a.prover, "qualname": a.qualname}
                 for a in getattr(node, 'csl_proof', [])
             ],
+            # Mixin composition (Tier 1). `provides` lists the method names this
+            # method is a provider for; `method_deps` are the declared
+            # depends_method/requires_method interfaces (with their own contracts)
+            # this method may call via `self.<m>(…)`. Module6 emits each dep as an
+            # abstract `val` carrying its `ensures` so the provider verifies once
+            # against it (S1); the Module4 composition pass (S2) discharges
+            # provider ⊑ dependency. Empty for non-mixin methods → no effect.
+            "provides": list(getattr(node, 'csl_provides', []) or []),
+            "method_deps": [
+                {"method": d["method"], "sig": d["sig"], "kind": d["kind"],
+                 "requires": self._csl_list_to_ir(d["requires"]),
+                 "ensures": self._csl_list_to_ir(d["ensures"])}
+                for d in getattr(node, 'csl_method_deps', []) or []
+            ],
         }
 
     def _detect_array_dimensions(self, func_ir: Dict[str, Any]) -> None:

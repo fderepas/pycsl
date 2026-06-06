@@ -369,11 +369,24 @@ class Module6_WhyMLTranspiler(
         self._emit_opaque_class_aliases(functions, out, declared_types)
 
         self._module_func_names = {whyml_ident(func["name"]) for func in functions}
-        self._module_method_return_types = self._build_method_return_type_map(functions)
-        self._module_method_param_types = self._build_method_param_types_map(functions)
-        self._module_method_result_ensures = self._build_method_result_ensures_map(functions)
-        self._module_method_param_result_ensures = self._build_method_param_result_ensures_map(functions)
-        self._module_method_field_result_ensures = self._build_method_field_result_ensures_map(functions)
+        # Mixin verify-once (S1): synthesize a pseudo-function per declared
+        # `depends_method`/`requires_method` so the SAME contract-propagation maps
+        # that wire `self.<m>(…)` to a sibling's `ensures` also carry the DECLARED
+        # interface's contract. The pseudo-funcs feed only the lookup maps below —
+        # never the emission list — so the abstract `self.<dep>` val picks up the
+        # dependency's `ensures` (e.g. `result >= 0`) and the provider verifies once
+        # against it. Empty for non-mixin modules → maps unchanged → byte-identical.
+        funcs_for_maps = functions + self._mixin_dep_pseudo_functions(functions)
+        self._module_method_return_types = self._build_method_return_type_map(funcs_for_maps)
+        self._module_method_param_types = self._build_method_param_types_map(funcs_for_maps)
+        self._module_method_result_ensures = self._build_method_result_ensures_map(funcs_for_maps)
+        self._module_method_param_result_ensures = self._build_method_param_result_ensures_map(funcs_for_maps)
+        self._module_method_field_result_ensures = self._build_method_field_result_ensures_map(funcs_for_maps)
+        # The pseudo-funcs have empty bodies, so the return-type map derives `unit`
+        # for a scalar dependency; override with the type from the declared signature
+        # so `self.<dep>(…)` is a `: int` (etc.) call, not `: unit`.
+        for pf in self._mixin_dep_pseudo_functions(functions):
+            self._module_method_return_types[pf["name"]] = pf["_mixin_ret_whyml"]
         self._build_callee_no_exception_summary(functions)
 
         sorted_functions, scc_info = sort_functions_by_scc(functions)
