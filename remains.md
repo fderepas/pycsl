@@ -10,7 +10,8 @@ by the backend; the deferrals below are PyCSL-side scope/risk calls, not Why3 li
 
 ## Commit trail (this run)
 - `37d9a37` quantification P1 — typed quantifier binders
-- `9896cb7` lemma functions — `let [rec] lemma` + variant-on-recursion soundness
+- `9896cb7` lemma functions — `let [rec] lemma` (its commit/docs call the variant check a "soundness
+  lynchpin"; **that wording is wrong** — see review note 1 / decision A below)
 - `6391813` inductive predicates — P1 single least-fixpoint relation
 
 Each landed with: flagship PASS + negative twins XFAIL, **whole-corpus byte-identical** vs its
@@ -24,16 +25,33 @@ baseline (the additive-directive gate), and 5-surface doc-coherency green. Combi
 These are the parts where a subtle bug would let the verifier prove `False`. They are tested
 (anti-soundness drivers stay failing), but a formal-methods review is the right final check.
 
-1. **lemma — `Module4_SemanticAnalyzer._validate_lemma`** (`9896cb7`). Enforces the
-   **variant-on-recursion lynchpin**: a recursive `#@ lemma` without `#@ \variant` is rejected (driver
-   `0560`). It detects self-recursion by an AST walk for a `Call` to the function's own name. *Review
-   angle:* is the self-call detection complete? It will miss **indirect/mutual** recursion (lemma A
-   calls lemma B calls A) — a mutually-recursive lemma group without variants would NOT be caught by
-   this check (Why3's own termination check is the backstop, but PyCSL wouldn't pre-reject it). Single
-   self-recursion is covered. Also: the `\diverges`-forbidden and ≥1-`ensures` checks are there; the
-   **ghost-discipline / body-whitelist / trust-leakage / call-position** checks are NOT (see deferred
-   below) — a lemma can currently `assigns` non-`\nothing` or call a `\trusted` function and still be
-   accepted, which weakens (but per Why3 does not break) the "no unchecked axiom" guarantee.
+1. **lemma — `Module4_SemanticAnalyzer._validate_lemma`** (`9896cb7`).
+   **CORRECTION (was mislabeled a "soundness lynchpin" — it is not).** The variant-on-recursion check
+   (reject a recursive `#@ lemma` lacking `#@ \variant`, driver `0560`) was empirically tested against
+   Why3 1.8.2 and adds **no soundness**:
+   - A structurally-recursive lemma with **no** variant clause **still proves** — Why3 *infers* the
+     structural variant.
+   - The genuinely unsound case — a non-terminating recursion claiming `false` — is **rejected by Why3**
+     ("Cannot prove termination"), so its conclusion is never exported.
+
+   So Why3's termination check is the real enforcer. Worse, the PyCSL check is **over-restrictive**: it
+   rejects the structurally-recursive lemmas Why3 would happily prove, so `0560` is not an *unsound*
+   lemma but a *provable-but-unannotated* one — mislabeled as a soundness negative.
+
+   **DECISION — go with option A (drop the check; trust Why3).** Pending code change (not yet applied):
+   - Remove the variant-on-recursion branch from `_validate_lemma` (keep `\diverges`-forbidden and
+     ≥1-`ensures`). Recursive lemmas then behave exactly like Why3 — structural recursion needs no
+     variant; ill-founded recursion fails the termination VC.
+   - **Retarget driver `0560`** to the *true* boundary: a non-terminating lemma claiming `false`, which
+     stays FAIL because Why3 can't prove termination — a genuine "you cannot prove `False` by
+     ill-founded recursion" demonstration. Update its docstring + the commit/annotations wording that
+     called the variant check a soundness lynchpin.
+
+   *Independent of A:* the `\diverges`-forbidden and ≥1-`ensures` checks remain; the **ghost-discipline
+   / body-whitelist / trust-leakage / call-position** checks are still NOT implemented (see deferred
+   below) — a lemma can currently `assigns` non-`\nothing` or call a `\trusted` function and be
+   accepted, which weakens (but per Why3 does not break) the "no unchecked axiom" guarantee. *These* are
+   the real lemma-soundness refinements to weigh, not the variant check.
 
 2. **inductive — strict positivity is enforced by Why3, NOT by PyCSL** (`6391813`). A
    non-strictly-positive rule is rejected by Why3 at verification ("non strictly positive occurrence",
@@ -51,8 +69,11 @@ These are the parts where a subtle bug would let the verifier prove `False`. The
 
 **Net:** every soundness-critical violation is caught *somewhere* (PyCSL or Why3); the deferred items
 are about making the diagnostic earlier/cleaner and adding defense-in-depth, not about closing a hole
-that currently lets `False` through. The one genuine gap to weigh: **mutually-recursive lemmas without
-variants** rely solely on Why3's termination check, not PyCSL's.
+that currently lets `False` through. **Termination/well-foundedness for recursive lemmas is owned by
+Why3** (it infers structural variants and rejects ill-founded recursion) — including the
+mutually-recursive case — so PyCSL's variant check was redundant *and* over-restrictive (decision A
+above drops it). The real lemma-soundness items to weigh are the deferred ghost-discipline /
+body-whitelist / trust-leakage / call-position checks.
 
 ---
 
@@ -78,8 +99,10 @@ case-split. The plan's finite-expansion fast-path was **unnecessary** (the binde
 ### lemma — P1 + P2/S3 landed; soundness refinements deferred
 **Landed (`9896cb7`):** `#@ lemma` → `let [rec] lemma name (p): unit … = <proof body>`. Non-recursive
 (`0558`, SMT) and **recursive/inductive** (`0559`, `to_int(n)>=0` over a datatype, proved by induction,
-879 steps) both work. Module-4 `_validate_lemma`: variant-on-recursion + `\diverges`-forbidden +
-≥1-`ensures`.
+879 steps) both work. Module-4 `_validate_lemma`: `\diverges`-forbidden + ≥1-`ensures` + (currently)
+variant-on-recursion — **the last is slated for removal under decision A (review note 1):** it adds no
+soundness (Why3 owns termination + infers structural variants) and is over-restrictive; driver `0560`
+is to be retargeted to a non-terminating lemma (the true boundary).
 
 **Deferred — the rest of the §3 soundness pass** (refinements; see review note 1):
 - assigns-`\nothing` / return-`None` **ghost discipline** (a lemma may currently declare a non-empty
