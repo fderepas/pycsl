@@ -455,9 +455,23 @@ is a real Why3 `match` with **solver-checked exhaustiveness**, and `case Pair(a,
 payloads. A param or local typed by the datatype is the variant type (`τ(D) = variant`, see the
 static-semantics reference §1.4).
 
-**Out of scope:** recursive datatypes (`Tree = Leaf | Node(Tree, Tree)`), parametric datatypes
-(`Option[T]`), guarded/nested/or-patterns, captures referenced at the `requires`/`ensures` level,
-and in-place mutation of a variant field. See the `pycsl-annotate` SKILL §3f.
+**Now supported (no-more-int Part 5–7).** Most of the former out-of-scope list is implemented:
+- **Recursive datatypes** — single self-recursive (`Tree = Leaf | Node(Tree, Tree)`) and
+  *mutually*-recursive groups (`Tree`↔`Forest`, emitted as one Why3 `type a = … with b = …` block),
+  with `#@ \variant` termination for recursive functions over them.
+- **Parametric datatypes** — `#@ datatype Option[T] = Nothing | Just(T)`, instantiated per use
+  (`Just(7)` is `option int`, `Just(s)` is `option string` in the same program).
+- **Guarded / nested / or-patterns** — `case Some(n) if n > 0`, `case Wrap(A(n))`,
+  `case Red() | Green()` (incl. a payload bound identically across alternatives,
+  `case Some(n) | Wrapped(n)`).
+- **Captures referenced in contracts** — the constructor projectors `\is_ctor(x, Ctor)` and
+  `\payload(x, Ctor[, i])` (§3 Expression Language) let a function-level `ensures` name a payload
+  without a match.
+
+**Still out of scope:** in-place mutation of a variant field (Why3 records are by-value — the
+value-semantics boundary, `docs/pycsl-ownership-discipline.md`). `\payload` over a *type-parameter*
+payload (e.g. `Option[T]`'s `Just`) needs use-site parametric instantiation — a documented follow-on.
+See the `pycsl-annotate` SKILL §3f.
 
 ---
 
@@ -488,6 +502,9 @@ and in-place mutation of a variant field. See the `pycsl-annotate` SKILL §3f.
 | 18 | `True`, `False` | `CSLBool` | Boolean literal (`true` / `false` in WhyML). **Recommended** form for vacuous preconditions / postconditions (use `True` instead of the older `1 == 1` idiom). `False` is useful as a placeholder for intentionally-unprovable postconditions during incremental annotation. |
 | 19 | `None` | `CSLNone` | None literal (maps to `0` in WhyML) |
 | 20 | `arr[lo:hi]` | `CSLSlice` | Array slice (abstract `array_slice` function in WhyML) |
+| 21 | `\permutation(a, b)` | `Permutation` | `a` is a permutation of `b`. Lowers to an **uninterpreted** `predicate permut` (not unfolded — permutation isn't first-order); constrained by a proof-assistant-imported axiom (`#@ proof`, §2.1.12). See `docs/framing-lemma-demonstration.md`. |
+| 22 | `\is_ctor(x, Ctor)` | `CtorTest` | Datatype discriminator: true iff `x` was built with constructor `Ctor`. Lowers to `match x with Ctor _ … -> true \| _ -> false`. |
+| 23 | `\payload(x, Ctor[, i])` | `CtorPayload` | Datatype projector: the i-th payload of `x` viewed as `Ctor` (`i` defaults to 0). Lowers to `match x with Ctor … z … -> z \| _ -> <typed default>`. Lets a contract name a `match` capture without a match (§2.6). |
 
 ### 3.2 Operators (by precedence, lowest first)
 
@@ -1059,8 +1076,10 @@ def tag(b: Box) -> int:
 ```
 
 lowers to `match b with | Some v -> … | Pair a c -> … | Empty -> … end`. A missing or extra
-constructor is a hard error. Capture names (`v`, `a`, `c`) bind the payloads; guards
-(`case Some(v) if v > 0`), nested patterns, and or-patterns are out of scope. See §2.6.
+constructor is a hard error. Capture names (`v`, `a`, `c`) bind the payloads. **Guards**
+(`case Some(v) if v > 0` → `Some v -> if v>0 then … else <fall-through>`), **nested patterns**
+(`case Wrap(A(n))` → `Wrap (A n) -> …`), and **or-patterns** (`case Red() | Green()`, and a payload
+bound identically across alternatives `case Some(n) | Wrapped(n)`) are all supported (§2.6).
 
 ### 7.5 Lambda
 

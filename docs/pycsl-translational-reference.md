@@ -274,7 +274,7 @@ def test_precondition(x: int) -> int:
 | `float` | `real` | Why3 `real.RealInfix` (`+.`/`-.`/…); float literals are real constants. Was the unsound `int` (no-more-int Stage D) |
 | `list` | `array int` | Hoare/Concurrent model |
 | `list` | `loc` + `_len` | Typed/Store model |
-| `dict` / `set` / `frozenset` | `map κ (option ν)` | Parametric map (no-more-int A1): κ ∈ {`int`, `string`}, ν ∈ {`int`, `string`, `array int`, nested `map …`}. Default `map int (option int)`. `set`/`frozenset` use the same model (value ignored) |
+| `dict` / `set` / `frozenset` | `map κ (option ν)` | Parametric map (no-more-int A1): κ ∈ {`int`, `string`}, and the value type **ν ∈ {`int`, `string`, `seq int`, nested `map …`}**, where — `int` (the default), `string` (str-valued dict), `seq int` (list-valued dict, **immutable seq snapshot** — no mutate-through-alias; A1-residual, driver 0543), and a nested `map …` (dict-of-dict, double subscript). Default `map int (option int)`. `set`/`frozenset` use the same model (value ignored). Implementation: the ν ladder is consolidated into three helpers `_dv_empty_default`/`_dv_missing_default`/`_dv_store_value` in `module6_whyml/expressions.py` (refactor F1) |
 | `tuple` | `int` (hash) | **Intentional benign collapse (A7).** A bare tuple value hashes to an `int`; element types are NOT modeled. Rare and benign — a future tuple track would lift this, but no driver demands it. (Ghost tuples `\mk_tuple`/`\fst`/`\snd` in *contracts* are modeled faithfully — §T.6.) |
 | `None` / `-> None` | `unit` | Return type for void functions |
 | Class `C` | Record type `c` | Lowercase name. Covers `self`, `C()` locals, **and** a registered `C`-typed parameter (read-only field access; Track 3 — mutation of a record param out of scope) |
@@ -588,6 +588,16 @@ axiom pycsl_axiom_gcd_divides_a :
 
 **Worked example:** test 0342 (Euclidean GCD) with 5 cross-validated
 axioms (gcd_result_nonneg, gcd_divides_a, gcd_divides_b, gcd_0, gcd_step).
+
+**Axioms over user datatypes (emission order).** An imported axiom may quantify over a
+`#@ datatype` (§T.4.5) — e.g. `forall x : json. mirror (mirror x) = x` proved by structural
+induction in Rocq+Lean (driver 0542). For the axiom to typecheck, its formula must be emitted
+**after** the type declarations. PyCSL therefore emits preamble axioms (`_emit_preamble_axioms`)
+*after* `_emit_type_decls`, not inside the base `_emit_preamble`. This is what lets the
+`\permutation` framing demo (§T.6.5, 0537–0539) and the inductive `mirror`-involution bridge
+(`docs/framing-lemma-demonstration.md`) generalize the flat→inductive axiom pattern. (For the
+mechanism to fire, the `#@ proof` directives must be **contiguous** with the function's other `#@`
+annotations.)
 
 _Corresponds to `annotations.md` §2.1.12._
 
@@ -1375,6 +1385,48 @@ $$\mathcal{T}_e\llbracket \texttt{\\nothing} \rrbracket$$
 In the context of `assigns`, indicates that the function modifies no
 heap state.  See §T.9 for how this affects frame conditions.
 
+#### `\permutation(a, b)`
+
+$$\mathcal{T}_e\llbracket \texttt{\\permutation(a, b)} \rrbracket
+= \texttt{(permut } \mathcal{T}_e\llbracket a \rrbracket\ \mathcal{T}_e\llbracket b \rrbracket \texttt{)}$$
+
+`permut` is an **uninterpreted** binary predicate emitted into the preamble
+(`predicate permut (a b : …)` with no body) — permutation is not first-order, so
+$\mathcal{T}$ does **not** unfold it. Its meaning is supplied *externally* by a
+proof-assistant-imported axiom: a `#@ proof` directive (§T.2.10) registers a
+Rocq/Lean-proved fact (e.g. `permut_refl`, `rev_permutation`) into `_AXIOM_REGISTRY`,
+emitted as `axiom pycsl_axiom_<target>` **after** the type declarations so it may
+quantify over user datatypes. This is the framing-lemma / "axiom-from-bridge" pattern;
+see `docs/framing-lemma-demonstration.md` and drivers 0537–0539.
+
+**Implementation:** `_handle_permutation_expr`; preamble `_AXIOM_REGISTRY`/`_AXIOM_FUNCTIONS`.
+
+#### `\is_ctor(x, Ctor)`
+
+$$\mathcal{T}_e\llbracket \texttt{\\is\_ctor(x, Ctor)} \rrbracket
+= \texttt{(match } \mathcal{T}_e\llbracket x \rrbracket \texttt{ with Ctor \_ … -> true | \_ -> false end)}$$
+
+The datatype discriminator: true iff `x`'s head constructor is `Ctor`. The arity of
+the wildcard payload is read from the datatype's constructor registry (`_constructors`).
+
+**Implementation:** `_handle_ctor_test_expr`.
+
+#### `\payload(x, Ctor[, i])`
+
+$$\mathcal{T}_e\llbracket \texttt{\\payload(x, Ctor, i)} \rrbracket
+= \texttt{(match } \mathcal{T}_e\llbracket x \rrbracket \texttt{ with Ctor … z\_i … -> z\_i | \_ -> }d\texttt{ end)}$$
+
+The datatype projector: the `i`-th payload (default `i = 0`) of `x` viewed as `Ctor`.
+`z_i` is a fresh binder in the `i`-th payload position; all other positions are
+wildcards. The fall-through default `d` is the type-appropriate zero
+(`0` for `int`, `""` for `string`, an empty map, etc.) for the payload's τ; it is
+dead under an `\is_ctor(x, Ctor)` guard. Together `\is_ctor`/`\payload` let a contract
+name a `match` capture **without** a surrounding `match` (annotations.md §2.6). Type-param
+payloads (`Option[T]` at a use-site annotation) remain a follow-on (no-more-int Part 8, A8-1).
+
+**Implementation:** `_handle_ctor_payload_expr` (uses the payload index and `_constructors`).
+Drivers: 0541 (projectors), 0545 (multi-payload index), 0546 (or-pattern binding).
+
 ### §T.6.6  Binary Operators
 
 | PyCSL (spec) | WhyML (spec) | PyCSL (body) | WhyML (body) |
@@ -1573,6 +1625,26 @@ into a record `type_decl` with an implicit `__init__`. Seeded iterables / unmode
 `expressions.py::_handle_call_expr` (empty-ctor lowering), `Module5_IREmitter.py`
 (`_py_expr_call` deque→ArrayLit, `_py_stmt_augassign` subscript arm,
 `_synthesize_namedtuple_records`).
+
+### §T.6.17  `itertools` length (`chain` / `product` / `islice`)
+
+`len(...)` over an `itertools` combinator with **array operands of known length** lowers to the
+closed-form length arithmetic — the combinator's *length* is first-order even though its element
+stream is not, so $\mathcal{T}$ computes the length symbolically without materialising the iterator:
+
+| Python | `len(...)` lowering | Notes |
+|---|---|---|
+| `chain(a, b, …)` | `\length(a) + \length(b) + …` | concatenation length; membership `x in chain(a,b)` is **out** (A8-2, ill-typed array membership) |
+| `product(a, b, …)` | `\length(a) * \length(b) * …` | Cartesian-product cardinality |
+| `islice(a, stop)` | `min(\length(a), stop)` | bounded prefix; `islice(a, start, stop)` → `max(0, min(\length(a), stop) - start)` |
+
+Only the **length** is modelled (drivers 0530 chain, 0547 product, 0548 islice); the element stream
+itself stays opaque, and `combinations` length (a binomial coefficient — not first-order) is a
+gated imported-axiom follow-on (no-more-int Part 8, A8-4). Lazy/infinite iterators
+(`cycle`/`count`/generators) are out of scope.
+
+**Implementation:** `expressions.py::_iter_len_expr` (the chain/product/islice length builder),
+reached from `_handle_len_call`.
 
 ---
 

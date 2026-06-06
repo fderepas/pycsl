@@ -175,8 +175,11 @@ specification logic's type universe:
                                  (payloads int/bool→int, str→string, float→real). Constructors
                                  lower to nullary/applied ctors (`Red`, `(Some 7)`); `match`/`case`
                                  lowers to a Why3 `match … with | Ctor caps -> … end` with
-                                 solver-checked exhaustiveness. Recursive/parametric datatypes and
-                                 captures-in-contracts are out of scope (§ datatype note) *)
+                                 solver-checked exhaustiveness. Recursive (single + mutual-SCC),
+                                 parametric (`Option[T]`), guarded/nested/or-patterns, and
+                                 captures-in-contracts (`\is_ctor`/`\payload`) are all SUPPORTED
+                                 (§ datatype note); only in-place variant-field mutation and
+                                 use-site type-param `\payload` remain out of scope *)
 τ(Optional[T])    = τ(T)      (* None maps to 0; the optional-ness adds no type info *)
 τ(Union[T, None]) = τ(T)      (* equivalent to Optional[T] *)
 τ(Union[T1, T2])  = τ(T1)     (* heuristic: first non-None component *)
@@ -221,10 +224,16 @@ algebraic type emitted by `preamble.py::_emit_type_decls` (the `kind:"variant"` 
 nullary names or applied calls; a `match`/`case` over a variant value lowers to a Why3 `match …
 with … end` (`statements.py::_handle_match_stmt`), so **exhaustiveness is solver-checked** (a
 missing or extra constructor is a hard error). A variant local `o = Some(7)` binds
-`let o = ref (Some 7) in` with the inferred variant type (not a coarsened `int`). **Out of scope:**
-recursive datatypes (`Tree = Leaf | Node(Tree, Tree)`), parametric datatypes (`Option[T]`),
-guarded/nested/or-patterns, captures referenced at the contract level, and in-place variant-field
-mutation. See `pycsl-annotate` SKILL §3f for the surface and limitations.
+`let o = ref (Some 7) in` with the inferred variant type (not a coarsened `int`). **Now supported
+(no-more-int Part 5–7):** recursive datatypes — single (`Tree = Leaf | Node(int, Tree, Tree)`) and
+mutual-SCC (emitted as `type a = … with b = …`); parametric datatypes (`Option[T]`, instantiated
+per use by construction `Just(7)`); guarded / nested / or-patterns in `match`; and
+captures-referenced-at-the-contract-level via the `\is_ctor(x, Ctor)` discriminator and
+`\payload(x, Ctor[, i])` projector (so a contract can name a `match` capture *without* a `match` —
+concrete-syntax §3.1.27–29, translational §T.6.5). **Still out of scope:** in-place mutation of a
+variant field (value semantics — rebuild instead), and `\payload` over a *type-parameter* payload
+at a use-site annotation `o: Option[int]` (follow-on, no-more-int Part 8 A8-1). See `pycsl-annotate`
+SKILL §3f for the surface and limitations.
 
 **§ Collections (`collections` module).** A handful of `collections` constructors are recognized
 **by bare name** (import-independent) and routed to an existing modeled universe member rather than
@@ -1596,8 +1605,9 @@ Complete catalogue of errors raised during static analysis.
 | E11 | Mutex invariant references unprotected variable | `PyCSLSemanticError` | `"Mutex invariant for '<mutex>': variable '<var>' is not protected."` |
 | E12 | Subscript assignment to undefined variable | `PyCSLSemanticError` | `"Subscript assignment to undefined variable '<arr>' in <context>."` |
 | E13 | Subscript assignment to non-list/dict variable | `PyCSLSemanticError` | `"Subscript assignment to non-list/dict variable '<arr>' (type '<type>') in <context>."` (accepted target types: `list`, `List`, `dict`, `Dict`, `Any`) |
+| E14 | Mutable default argument (ownership R2) | `PyCSLSemanticError` | `"Mutable default argument in <f>: a list/dict/set default is a single object shared across all calls (a shared-aliasing bug) and is outside PyCSL's value-semantics boundary (ownership discipline R2). Use a `None` sentinel and initialise the collection in the body."` Triggered when a `def f(…, x=<default>)` default is an `ast.List`/`Dict`/`Set` literal or a `list(...)`/`dict(...)`/`set(...)` call (positional **or** keyword-only defaults). Enforced by `Module4._validate_no_mutable_defaults`; spec'd in `docs/pycsl-ownership-discipline.md` §2/§5. The order-aware store-then-mutate sibling (R3) is **not** enforced yet (no-more-int Part 8). |
 
-**Total:** 14 error sites (1 in Module3, 13 in Module4).
+**Total:** 15 error sites (1 in Module3, 14 in Module4).
 
 ---
 
@@ -1635,6 +1645,7 @@ well-formedness rules.
 | E9 (missing lock_order) | 0257–0261 | 0255 (XFAIL) |
 | E10 (lock_order violation) | 0257–0261 | No dedicated negative test |
 | E11 (mutex invariant scope) | 0250–0253 | 0256 (XFAIL) |
+| E14 (mutable default arg, R2) | — | 0544 (`# pycsl-expected: FAIL`) |
 | W1 (variant/diverges contradiction) | 0049, 0051 | No dedicated negative test |
 
 **Recommendation:** Add dedicated negative tests for E1, E2, E5, E6/E7,

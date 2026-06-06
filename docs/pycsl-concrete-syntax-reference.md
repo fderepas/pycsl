@@ -385,6 +385,10 @@ atom ::= NUMBER                                          (* §3.1.1  Integer lit
        | "\result" "[" expr "]"                          (* §3.1.5b Result subscript      *)
        | "\is_sorted" "(" CNAME "," expr "," expr ")"   (* §3.1.15 Sorted predicate      *)
        | "\sum" "(" CNAME "," expr "," expr ")"          (* §3.1.16 Sum aggregate         *)
+       | "\permutation" "(" expr "," expr ")"            (* §3.1.27 Permutation predicate *)
+       | "\is_ctor" "(" expr "," CNAME ")"               (* §3.1.28 Ctor discriminator    *)
+       | "\payload" "(" expr "," CNAME ")"               (* §3.1.29 Ctor projector        *)
+       | "\payload" "(" expr "," CNAME "," NUMBER ")"    (* §3.1.29 Multi-payload index   *)
        | CNAME "(" expr_list ")"                         (* §3.1.17 Function call (args)  *)
        | CNAME "(" ")"                                   (* §3.1.17 Function call (no args) *)
        | CNAME "[" expr ":" expr "]"                     (* §3.1.20 Slice notation        *)
@@ -444,6 +448,9 @@ top-to-bottom. Longer prefixes must appear before shorter ones:
 | 3.1.24 | `\map_remove(d, k)` | `MapRemoveExpr` | Ghost dict remove. Returns a new dict with key `k` set to absent. Both arguments are `expr`. |
 | 3.1.25 | `\has_key(d, k)` | `HasKeyExpr` | Ghost dict membership. True iff key `k` is present in dict `d`. Both arguments are `expr`. |
 | 3.1.26 | `\map_eq(d1, d2)` | `MapEqExpr` | Ghost dict extensional equality. True iff `d1` and `d2` agree on every key. Both arguments are `expr`. |
+| 3.1.27 | `\permutation(a, b)` | `Permutation` | `a` is a permutation of `b`. Both arguments are `expr`. Lowers to an **uninterpreted** `predicate permut` (not unfolded — permutation isn't first-order); meaning is supplied by a proof-assistant-imported axiom (`#@ proof`, §2.1.12 / translational §T.6.x). See `docs/framing-lemma-demonstration.md`. |
+| 3.1.28 | `\is_ctor(x, Ctor)` | `CtorTest` | Datatype discriminator: true iff `x` was built with constructor `Ctor` (a `CNAME`). Lowers to `match x with Ctor _ … -> true \| _ -> false`. |
+| 3.1.29 | `\payload(x, Ctor[, i])` | `CtorPayload` | Datatype projector: the `i`-th payload (`NUMBER`, default 0) of `x` viewed as constructor `Ctor`. Lowers to `match x with Ctor … z … -> z \| _ -> <typed default>`. Lets a contract name a `match` capture without a `match` (annotations.md §2.6). |
 
 _Corresponds to `annotations.md` §11.2._
 
@@ -802,7 +809,8 @@ PyCSL uses two naming conventions:
 2. **Backslash-prefixed identifiers:** `\result`, `\old`, `\at`,
    `\length`, `\valid`, `\separated`, `\length2d`, `\valid2d`,
    `\nothing`, `\forall`, `\exists`, `\exist`, `\is_sorted`, `\sum`,
-   `\variant`, `\diverges`, `\trusted`.
+   `\variant`, `\diverges`, `\trusted`, `\permutation`, `\is_ctor`,
+   `\payload`.
 
 The backslash prefix avoids collision with Python identifiers and signals
 that the name belongs to the specification logic.
@@ -1010,6 +1018,10 @@ atom ::= NUMBER
        | "\result" "[" expr "]"
        | "\is_sorted" "(" CNAME "," expr "," expr ")"
        | "\sum" "(" CNAME "," expr "," expr ")"
+       | "\permutation" "(" expr "," expr ")"
+       | "\is_ctor" "(" expr "," CNAME ")"
+       | "\payload" "(" expr "," CNAME ")"
+       | "\payload" "(" expr "," CNAME "," NUMBER ")"
        | CNAME "(" expr_list ")"
        | CNAME "(" ")"
        | CNAME "[" expr ":" expr "]"
@@ -1228,6 +1240,9 @@ Every grammar production must have at least one test in
 | `true_lit` / `false_lit` | §3.1.18 | 0227, 0228 | ✅ PASS |
 | `none_lit` | §3.1.19 | 0229 | ✅ PASS |
 | `slice_access` | §3.1.20 | 0236, 0237 | ✅ PASS |
+| `permutation_expr` | §3.1.27 | 0537–0539 | ✅ PASS |
+| `ctor_test_expr` (`\is_ctor`) | §3.1.28 | 0531, 0545 | ✅ PASS |
+| `ctor_payload_expr` (`\payload`) | §3.1.29 | 0541, 0545, 0546 | ✅ PASS |
 | Quantifiers | §3.2.1 | 0021, 0100, 0101 | ✅ PASS |
 | `IMPL_OP` | §3.2.2 | 0022, 0102, 0103 | ✅ PASS |
 | `OR_OP` | §3.2.3 | 0023, 0104, 0105 | ✅ PASS |
