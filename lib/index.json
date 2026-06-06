@@ -1,0 +1,255 @@
+{
+  "__future__": {
+    "files": 30,
+    "category": "language",
+    "pycsl-functions-used": {
+      "annotations": false
+    }
+  },
+  "argparse": {
+    "files": 2,
+    "category": "cli",
+    "pycsl-functions-used": {
+      "ArgumentParser": false,
+      "Namespace": false
+    }
+  },
+  "ast": {
+    "files": 1,
+    "category": "parsing",
+    "pycsl-functions-used": {
+      "dump": false,
+      "parse": false
+    }
+  },
+  "bisect": {
+    "files": 1,
+    "category": "data",
+    "pycsl-functions-used": {
+      "bisect_left": false
+    }
+  },
+  "collections": {
+    "files": 2,
+    "category": "data",
+    "pycsl-functions-used": {
+      "defaultdict": false,
+      "deque": false
+    }
+  },
+  "contextlib": {
+    "files": 1,
+    "category": "utilities",
+    "pycsl-functions-used": {
+      "contextmanager": false,
+      "nullcontext": false
+    }
+  },
+  "copy": {
+    "files": 2,
+    "category": "data",
+    "pycsl-functions-used": {
+      "deepcopy": false
+    }
+  },
+  "dataclasses": {
+    "files": 7,
+    "category": "language",
+    "pycsl-functions-used": {
+      "dataclass": false,
+      "field": false
+    }
+  },
+  "enum": {
+    "files": 1,
+    "category": "language",
+    "pycsl-functions-used": {
+      "IntEnum": false,
+      "auto": false
+    }
+  },
+  "hashlib": {
+    "files": 2,
+    "category": "crypto",
+    "pycsl-functions-used": {
+      "sha256": false
+    }
+  },
+  "inspect": {
+    "files": 1,
+    "category": "introspection",
+    "pycsl-functions-used": {
+      "cleandoc": false
+    }
+  },
+  "io": {
+    "files": 1,
+    "category": "system",
+    "pycsl-functions-used": {
+      "StringIO": false
+    }
+  },
+  "json": {
+    "files": 4,
+    "category": "data",
+    "pycsl-functions-used": {
+      "JSONDecodeError": false,
+      "dumps": false,
+      "load": false,
+      "loads": false
+    }
+  },
+  "keyword": {
+    "files": 1,
+    "category": "language",
+    "pycsl-functions-used": {
+      "kwlist": false
+    }
+  },
+  "os": {
+    "files": 4,
+    "category": "system",
+    "pycsl-functions-used": {
+      "X_OK": false,
+      "access": false,
+      "close": false,
+      "getcwd": false,
+      "listdir": false,
+      "makedirs": false,
+      "path": false,
+      "path.abspath": false,
+      "path.basename": false,
+      "path.dirname": false,
+      "path.exists": false,
+      "path.expanduser": false,
+      "path.isdir": false,
+      "path.isfile": false,
+      "path.join": false,
+      "path.splitext": false,
+      "remove": false,
+      "sep": false,
+      "walk": false
+    }
+  },
+  "pathlib": {
+    "files": 4,
+    "category": "system",
+    "pycsl-functions-used": {
+      "Path": false
+    }
+  },
+  "re": {
+    "files": 3,
+    "category": "text",
+    "pycsl-functions-used": {
+      "compile": false,
+      "findall": false
+    }
+  },
+  "shutil": {
+    "files": 2,
+    "category": "system",
+    "pycsl-functions-used": {
+      "copy2": false,
+      "which": false
+    }
+  },
+  "subprocess": {
+    "files": 2,
+    "category": "system",
+    "pycsl-functions-used": {
+      "TimeoutExpired": false,
+      "run": false
+    }
+  },
+  "sys": {
+    "files": 3,
+    "category": "system",
+    "pycsl-functions-used": {
+      "argv": false,
+      "exit": false,
+      "float_info": false,
+      "float_info.max_10_exp": false,
+      "path": false,
+      "path.insert": false,
+      "stderr": false,
+      "stdin": false,
+      "stdin.buffer": false,
+      "stdin.buffer.read": false
+    }
+  },
+  "sysconfig": {
+    "files": 1,
+    "category": "system",
+    "pycsl-functions-used": {
+      "get_paths": false
+    }
+  },
+  "tempfile": {
+    "files": 2,
+    "category": "system",
+    "pycsl-functions-used": {
+      "NamedTemporaryFile": false,
+      "mkstemp": false
+    }
+  },
+  "time": {
+    "files": 1,
+    "category": "time",
+    "pycsl-functions-used": {
+      "monotonic": false
+    }
+  },
+  "tokenize": {
+    "files": 1,
+    "category": "parsing",
+    "pycsl-functions-used": {
+      "COMMENT": false,
+      "DEDENT": false,
+      "ENCODING": false,
+      "ENDMARKER": false,
+      "FSTRING_END": false,
+      "FSTRING_MIDDLE": false,
+      "FSTRING_START": false,
+      "INDENT": false,
+      "NAME": false,
+      "NEWLINE": false,
+      "NL": false,
+      "NUMBER": false,
+      "OP": false,
+      "STRING": false,
+      "generate_tokens": false,
+      "tok_name": false
+    }
+  },
+  "typing": {
+    "files": 30,
+    "category": "language",
+    "pycsl-functions-used": {
+      "Any": false,
+      "Callable": false,
+      "Dict": false,
+      "List": false,
+      "Optional": false,
+      "Set": false,
+      "Tuple": false,
+      "TypedDict": false,
+      "Union": false
+    }
+  },
+  "unicodedata": {
+    "files": 2,
+    "category": "unicode",
+    "pycsl-functions-used": {
+      "lookup": false,
+      "normalize": false
+    }
+  },
+  "warnings": {
+    "files": 3,
+    "category": "utilities",
+    "pycsl-functions-used": {
+      "warn": false
+    }
+  }
+}

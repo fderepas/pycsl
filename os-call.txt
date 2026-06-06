@@ -1,0 +1,40 @@
+Now implements the Python `os`library.
+Create a file `pure_lib/os.py` that instanciate a global variable named `_filesystem` which is an instance of type UnixInodeFileSystem.
+This `pure_lib/os.py` should implement the following system calls:
+```
+X_OK
+access
+chflags
+chmod
+close
+confstr
+copy_file_range
+dirs.append
+dup
+entry.is_dir
+entry.is_junction
+entry.is_symlink
+env.get
+environ.get
+filename.decode
+filename.encode
+fsdecode
+fsencode
+fspath
+fstat
+get_exec_path
+getcwd
+getenv
+getpid
+getxattr
+islink
+join
+kill
+link
+listdir
+listxattr
+lseek
+lstat
+makedirs
+```
+Most of these function should call corresponding methods on `_filesystem`.

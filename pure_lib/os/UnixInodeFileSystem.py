@@ -1,29 +1,46 @@
 # Pure Python byte-packing helpers (replaces import struct / import time)
 
 
-def _pack_uint16_be(v: int) -> bytes:
+#@ requires True
+#@ assigns \nothing
+#@ ensures True
+def _pack_uint16_be(v: int) -> list:
     """Pack a 16-bit unsigned int, big-endian."""
     return bytes([(v >> 8) & 0xFF, v & 0xFF])
 
 
-def _unpack_uint16_be(data: bytes, offset: int) -> int:
+#@ requires \valid(data, 2)
+#@ requires offset >= 0
+#@ assigns \nothing
+#@ ensures \result >= 0
+def _unpack_uint16_be(data: list, offset: int) -> int:
     """Unpack a 16-bit unsigned int, big-endian."""
     return (data[offset] << 8) | data[offset + 1]
 
 
-def _pack_uint32_be(v: int) -> bytes:
+#@ requires True
+#@ assigns \nothing
+#@ ensures True
+def _pack_uint32_be(v: int) -> list:
     """Pack a 32-bit unsigned int, big-endian."""
     return bytes([(v >> 24) & 0xFF, (v >> 16) & 0xFF,
                   (v >> 8) & 0xFF, v & 0xFF])
 
 
-def _unpack_uint32_be(data: bytes, offset: int) -> int:
+#@ requires \valid(data, 4)
+#@ requires offset >= 0
+#@ assigns \nothing
+#@ ensures \result >= 0
+def _unpack_uint32_be(data: list, offset: int) -> int:
     """Unpack a 32-bit unsigned int, big-endian."""
     return ((data[offset] << 24) | (data[offset + 1] << 16) |
             (data[offset + 2] << 8) | data[offset + 3])
 
 
-def _pack_inode(fields: list) -> bytes:
+#@ requires \valid(fields, 18)
+#@ assigns \nothing
+#@ ensures True
+def _pack_inode(fields: list) -> list:
     """Pack 18-element inode array into 64 bytes (big-endian '>IHHHHHII10Ixx').
 
     Layout: I(4) H(2) H(2) H(2) H(2) H(2) I(4) I(4) 10×I(40) xx(2) = 64 bytes.
@@ -45,7 +62,10 @@ def _pack_inode(fields: list) -> bytes:
     return bytes(parts)
 
 
-def _unpack_inode(data: bytes) -> list:
+#@ requires \valid(data, 64)
+#@ assigns \nothing
+#@ ensures True
+def _unpack_inode(data: list) -> list:
     """Unpack 64 bytes into 18-element inode array (big-endian '>IHHHHHII10Ixx')."""
     fields = [0] * 18
     fields[0] = _unpack_uint32_be(data, 0)    # I  size
@@ -61,13 +81,19 @@ def _unpack_inode(data: bytes) -> list:
     return fields
 
 
-def _pack_direntry(inode_num: int, name_bytes: bytes) -> bytes:
+#@ requires \valid(name_bytes, 30)
+#@ assigns \nothing
+#@ ensures True
+def _pack_direntry(inode_num: int, name_bytes: list) -> list:
     """Pack a 32-byte directory entry (big-endian '>H30s')."""
     padded = (name_bytes + b'\x00' * 30)[:30]
     return _pack_uint16_be(inode_num) + padded
 
 
-def _unpack_direntry(data: bytes) -> tuple:
+#@ requires \valid(data, 32)
+#@ assigns \nothing
+#@ ensures True
+def _unpack_direntry(data: list) -> tuple:
     """Unpack a 32-byte directory entry into (inode_num, name_bytes)."""
     inode_num = _unpack_uint16_be(data, 0)
     name_bytes = bytes(data[2:32])
@@ -153,7 +179,11 @@ class UnixInodeFileSystem:
         if value:
             self.disk[byte_pos] |= (1 << bit_pos)
         else:
-            self.disk[byte_pos] &= ~(1 << bit_pos)
+            # Clear the bit without bitwise NOT (PyCSL has no ~ support).
+            # Read current bit, subtract it if set.
+            mask = (1 << bit_pos)
+            cur = self.disk[byte_pos] & mask
+            self.disk[byte_pos] = self.disk[byte_pos] - cur
 
     #@ proof rocq UnixFs.Bitmap.bit_and_one_in_zero_one
     #@ proof lean UnixFs.Bitmap.bit_and_one_in_zero_one

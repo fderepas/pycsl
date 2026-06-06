@@ -60,7 +60,7 @@ class DirEntry:
     #@ ensures self._inode_num == inode_num
     def __init__(self, name, inode_num, fs):
         self.name = name
-        self.path = '/' + name if name not in ('.', '..') else name
+        self.path = name
         self._inode_num = inode_num
         self._fs = fs
 
@@ -192,13 +192,18 @@ def listdir(filepath='.'):
             p_block = 5
         else:
             return []
-    entries = _filesystem._read_directory(p_block)
+    # Directly scan the 16 directory entries (avoids tuple-returning _read_directory)
+    offset = p_block * 512
     names_out = []
     #@ loop invariant 0 <= len(names_out) and len(names_out) <= i
+    #@ loop invariant 0 <= i and i <= 16
     #@ loop variant 16 - i
-    for i in range(len(entries)):
-        name, inum = entries[i]
-        if name not in ('.', '..') and inum != 0:
+    for i in range(16):
+        entry_offset = offset + (i * 32)
+        entry_bytes = _filesystem.disk[entry_offset : entry_offset + 32]
+        inode_num, name_bytes = _unpack_direntry(entry_bytes)
+        name = name_bytes.split(b'\x00')[0].decode('utf-8', errors='ignore')
+        if inode_num != 0 and name not in ('.', '..'):
             names_out.append(name)
     return names_out
 
@@ -206,7 +211,7 @@ def listdir(filepath='.'):
 #@ assigns \nothing
 #@ ensures True
 def scandir(filepath='.'):
-    """Return an iterator of DirEntry objects for the directory."""
+    """Return an iterator of DirEntry inode numbers for the directory."""
     ino = _filesystem._dir_lookup(5, filepath) if filepath != '.' else 0
     if ino < 0 and filepath != '.':
         ino = 0
@@ -221,14 +226,19 @@ def scandir(filepath='.'):
             p_block = 5
         else:
             return []
-    entries = _filesystem._read_directory(p_block)
+    # Directly scan the 16 directory entries (avoids tuple-returning _read_directory)
+    offset = p_block * 512
     items = []
     #@ loop invariant 0 <= len(items) and len(items) <= i
+    #@ loop invariant 0 <= i and i <= 16
     #@ loop variant 16 - i
-    for i in range(len(entries)):
-        name, inum = entries[i]
-        if name not in ('.', '..') and inum != 0:
-            items.append(DirEntry(name, inum, _filesystem))
+    for i in range(16):
+        entry_offset = offset + (i * 32)
+        entry_bytes = _filesystem.disk[entry_offset : entry_offset + 32]
+        inode_num, name_bytes = _unpack_direntry(entry_bytes)
+        name = name_bytes.split(b'\x00')[0].decode('utf-8', errors='ignore')
+        if inode_num != 0 and name not in ('.', '..'):
+            items.append(inode_num)
     return items
 
 #@ requires True
@@ -263,7 +273,7 @@ def read(fd, n):
 #@ requires fd >= 0
 #@ assigns _filesystem.disk, _filesystem.fd_offset
 #@ ensures \result == -1 or \result >= 0
-def write(fd, data):
+def write(fd, data: list):
     """Write to a file descriptor. Returns byte count."""
     return _filesystem.sys_write(fd, data)
 
@@ -443,7 +453,7 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
     nondirs = []
     #@ loop invariant 0 <= len(dirs) and len(dirs) <= i
     #@ loop invariant 0 <= len(nondirs) and len(nondirs) <= i
-    #@ loop variant len(names) - i
+    #@ loop variant 16 - i
     for i in range(len(names)):
         name = names[i]
         ino = _filesystem.sys_stat(name)

@@ -1,0 +1,87 @@
+# Glossary page candidates
+#
+# Extracted from all *.md files in the repository.
+# Terms already in docs/glossary/ are excluded.
+# (files) = number of distinct .md files using the term.
+
+## Missing pages (referenced in glossary/README.md index but file does not exist)
+
+trusted computing base
+load-bearing
+extreme rigor
+standard libraries
+trust seam
+
+## High-frequency terms (≥ 20 files)
+
+WhyML                       — the target verification language (Why3 input)
+Why3                        — the verification platform PyCSL targets
+IR                          — intermediate representation between Python AST and WhyML
+contract                    — generic term for requires/ensures/assigns specifications
+postcondition               — ensures clause; the promise a function makes on exit
+precondition                — requires clause; what callers must guarantee
+proof obligation            — a VC the prover must discharge (near-synonym of VC)
+frame condition             — assigns clause; what a function is allowed to modify
+soundness                   — the property that proved code has no false negatives
+guard                       — condition protecting a branch or dispatch path
+preamble                    — the WhyML boilerplate emitted before user code
+reconciliator               — agent role that diagnoses proof failures
+specifier                   — agent role that writes contracts/invariants
+transpiler                  — Module6; translates IR to WhyML
+parser                      — Module2; turns annotated Python into AST
+weaver                      — Module3; attaches annotations to AST nodes
+ingestor                    — Module1; reads source files and extracts annotation lines
+WP / weakest precondition   — the proof calculus Why3 uses to generate VCs
+self-annotation             — PyCSL annotating its own source code
+no_exception                — directive suppressing implicit exception proof obligations
+quantifier                  — ∀/∃ in contracts; forall/exists in PyCSL surface
+stdlib stub                 — annotated stub for a Python standard-library function
+
+## Medium-frequency terms (10–19 files)
+
+ghost variable              — specification-only variable erased at runtime
+shared state                — facade state deliberately accessible to multiple mixins
+datatype                    — algebraic / sum type declared with #@ datatype
+facade                      — the composed class that mixes in multiple handler mixins
+dual-prover                 — anchoring correctness in both Rocq and Lean
+dispatch table              — _EXPR_DISPATCH / _STMT_HANDLERS lookup tables
+concurrent model            — memory model with mutex discipline
+ensures clause              — synonym for postcondition
+sum type                    — variant / union type with pattern matching
+compose_from                — directive composing named mixins into a class
+requires_method             — abstract dependency a composing class must supply
+squeeze strategy            — S1–S9 meta-principle for tightening verification
+bounded int                 — #@ assumes bounded_int(N); machine-integer mode
+
+## Lower-frequency but conceptually distinct (3–9 files)
+
+framing lemma               — lemma that separates modified from preserved state
+ownership discipline        — rules governing who may write which heap locations
+MRO / method resolution order — Python's C3 linearization for method lookup
+assigns clause              — synonym for frame condition
+ghost array                 — specification-only array (erased at runtime)
+ghost dict                  — specification-only dict (erased at runtime)
+ghost list                  — specification-only list (erased at runtime)
+ghost set                   — specification-only set (erased at runtime)
+exception model             — how PyCSL models Python exceptions in WhyML
+full corpus sweep           — running pycsl on all reference tests; the regression gate
+depends_method              — concrete cross-mixin dependency on a sibling method
+touches_field               — owned field declaration in a mixin
+val-bridge                  — abstract val connecting a logic symbol to program code
+RT inference                — referential-transparency inference for @lru_cache soundness
+verify-once                 — each mixin proved once; composition re-checks resolution only
+abstract val                — bodyless WhyML val defined by its contract
+gating discipline           — the set of gates that must pass before merging
+variant type                — synonym for sum type / datatype
+class record                — WhyML record emitted for a Python class's fields
+exception trigger           — IR op that may raise an implicit Python exception
+implicit exception          — exception raised by a Python operation (e.g. IndexError)
+coverage obligation         — proof that dispatch tables exhaust the IR-type domain
+init-hook                   — constructor-chaining obligation on compose_from
+record model                — WhyML record structure representing object state
+behavioral subtyping        — Liskov refinement; provider contract ⊑ dependency contract
+trait                       — the formal-methods concept underlying mixin composition
+leading lines               — annotation lines placed before a def/class keyword
+early return                — return before end of function; needs special WhyML handling
+undefined behavior (UB)     — operations PyCSL rejects or flags (UB catalog §7.1–7.7)
+act block                   — #@ act name: guarded case block (behaviors)
