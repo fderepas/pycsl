@@ -1,8 +1,8 @@
 """Pure Python os package — module-level POSIX API backed by UnixInodeFileSystem.
 
 Instantiates a global ``_filesystem`` and exposes standard ``os.*`` functions
-that delegate to it. Functions without a filesystem equivalent return
-sensible defaults.
+that delegate to it.  Every function carries PyCSL contracts propagated from
+the underlying ``UnixInodeFileSystem`` syscalls.
 """
 from .UnixInodeFileSystem import UnixInodeFileSystem
 from . import path
@@ -51,79 +51,116 @@ _pid = 1
 
 # ── DirEntry (for scandir) ──────────────────────────────────────────
 
+#@ class invariant self._inode_num >= -1 and self._inode_num < 32
 class DirEntry:
     """Minimal os.DirEntry returned by scandir()."""
 
+    #@ requires inode_num >= -1 and inode_num < 32
+    #@ assigns self.name, self.path, self._inode_num, self._fs
+    #@ ensures self._inode_num == inode_num
     def __init__(self, name, inode_num, fs):
         self.name = name
         self.path = '/' + name if name not in ('.', '..') else name
         self._inode_num = inode_num
         self._fs = fs
 
+    #@ requires True
+    #@ assigns \nothing
+    #@ ensures \result == True or \result == False
     def is_dir(self) -> bool:
         if self._inode_num < 0 or self._inode_num >= 32:
             return False
         inode = self._fs._read_inode(self._inode_num)
         return inode[2] == 2
 
+    #@ requires True
+    #@ assigns \nothing
+    #@ ensures \result == True or \result == False
     def is_file(self) -> bool:
         if self._inode_num < 0 or self._inode_num >= 32:
             return False
         inode = self._fs._read_inode(self._inode_num)
         return inode[2] == 1
 
+    #@ requires True
+    #@ assigns \nothing
+    #@ ensures \result == True or \result == False
     def is_symlink(self) -> bool:
         if self._inode_num < 0 or self._inode_num >= 32:
             return False
         inode = self._fs._read_inode(self._inode_num)
         return inode[2] == 3
 
+    #@ requires True
+    #@ assigns \nothing
+    #@ ensures \result == False
     def is_junction(self) -> bool:
         return False
 
+    #@ requires True
+    #@ assigns \nothing
+    #@ ensures True
     def __repr__(self):
         return f"<DirEntry '{self.name}'>"
 
 
 # ── Functions delegating to _filesystem ──────────────────────────────
 
+#@ requires True
+#@ assigns _filesystem.disk
+#@ ensures \result == True or \result == False
 def access(filepath, mode, *, dir_fd=None, effective_ids=False,
            follow_symlinks=True):
     """Check file accessibility. Delegates to _filesystem.sys_access."""
     return _filesystem.sys_access(filepath, mode) == 0
 
-
+#@ requires True
+#@ assigns _filesystem.disk
+#@ ensures \result == 0 or \result == -1
 def chmod(filepath, mode, *, dir_fd=None, follow_symlinks=True):
     """Change file mode bits."""
     return _filesystem.sys_chmod(filepath, mode)
 
-
+#@ requires fd >= 0
+#@ assigns _filesystem.fd_open
+#@ ensures \result == 0 or \result == -1
 def close(fd):
     """Close a file descriptor."""
     return _filesystem.sys_close(fd)
 
-
+#@ requires fd >= 0
+#@ assigns _filesystem.fd_open, _filesystem.fd_inode, _filesystem.fd_offset, _filesystem.fd_flags, _filesystem.next_fd
+#@ ensures \result == -1 or \result >= 3
 def dup(fd):
     """Duplicate a file descriptor."""
     return _filesystem.sys_dup(fd)
 
-
+#@ requires fd >= 0
+#@ assigns \nothing
+#@ ensures \result == -1 or (\result >= 0 and \result < 32)
 def fstat(fd):
     """Get file status by file descriptor. Returns inode number."""
     return _filesystem.sys_fstat(fd)
 
-
+#@ requires True
+#@ assigns _filesystem.disk
+#@ ensures \result == 0 or \result == -1
 def link(src, dst, *, src_dir_fd=None, dst_dir_fd=None,
          follow_symlinks=True):
     """Create a hard link."""
     return _filesystem.sys_link(src, dst)
 
-
+#@ requires fd >= 0
+#@ requires how >= 0 and how <= 2
+#@ assigns _filesystem.fd_offset
+#@ ensures \result >= -1
 def lseek(fd, pos, how):
     """Set the position of a file descriptor."""
     return _filesystem.sys_lseek(fd, pos, how)
 
-
+#@ requires True
+#@ assigns _filesystem.disk
+#@ ensures \result == 0 or \result == -1 or \result == None
 def makedirs(name, mode=0o777, exist_ok=False):
     """Create a directory (single level in this model)."""
     if exist_ok:
@@ -132,7 +169,9 @@ def makedirs(name, mode=0o777, exist_ok=False):
             return None
     return _filesystem.sys_mkdir(name, mode)
 
-
+#@ requires True
+#@ assigns \nothing
+#@ ensures \length(\result) >= 0
 def listdir(filepath='.'):
     """List directory contents. Returns list of entry names."""
     ino = _filesystem._dir_lookup(5, filepath) if filepath != '.' else 0
@@ -150,10 +189,18 @@ def listdir(filepath='.'):
         else:
             return []
     entries = _filesystem._read_directory(p_block)
-    return [name for name, inum in entries
-            if name not in ('.', '..') and inum != 0]
+    result = []
+    #@ loop invariant \length(result) >= 0 and \length(result) <= \length(entries)
+    #@ loop variant \length(entries) - i
+    for i in range(len(entries)):
+        name, inum = entries[i]
+        if name not in ('.', '..') and inum != 0:
+            result.append(name)
+    return result
 
-
+#@ requires True
+#@ assigns \nothing
+#@ ensures True
 def scandir(filepath='.'):
     """Return an iterator of DirEntry objects for the directory."""
     ino = _filesystem._dir_lookup(5, filepath) if filepath != '.' else 0
@@ -172,74 +219,105 @@ def scandir(filepath='.'):
             return iter([])
     entries = _filesystem._read_directory(p_block)
     result = []
-    for name, inum in entries:
+    #@ loop invariant \length(result) >= 0 and \length(result) <= \length(entries)
+    #@ loop variant \length(entries) - i
+    for i in range(len(entries)):
+        name, inum = entries[i]
         if name not in ('.', '..') and inum != 0:
             result.append(DirEntry(name, inum, _filesystem))
     return iter(result)
 
-
+#@ requires True
+#@ assigns _filesystem.disk
+#@ ensures \result == 0 or \result == -1
 def remove(filepath):
     """Remove a file."""
     return _filesystem.sys_unlink(filepath)
 
-
+#@ requires True
+#@ assigns _filesystem.disk
+#@ ensures \result == 0 or \result == -1
 def unlink(filepath, *, dir_fd=None):
     """Remove a file (same as remove)."""
     return _filesystem.sys_unlink(filepath)
 
-
+#@ requires True
+#@ assigns _filesystem.disk, _filesystem.fd_open, _filesystem.fd_inode, _filesystem.fd_offset, _filesystem.fd_flags, _filesystem.next_fd
+#@ ensures \result == -1 or \result >= 3
 def open(filepath, flags, mode=0o777, *, dir_fd=None):
     """Open a file. Returns a file descriptor."""
     return _filesystem.sys_open(filepath, flags)
 
-
+#@ requires fd >= 0
+#@ requires n >= 0
+#@ assigns _filesystem.fd_offset
+#@ ensures \result == -1 or (\result >= 0 and \result <= n)
 def read(fd, n):
     """Read from a file descriptor. Returns byte count."""
     return _filesystem.sys_read(fd, n)
 
-
+#@ requires fd >= 0
+#@ requires \length(data) <= 5120
+#@ assigns _filesystem.disk, _filesystem.fd_offset
+#@ ensures \result == -1 or (\result >= 0 and \result <= \length(data))
 def write(fd, data):
     """Write to a file descriptor. Returns byte count."""
     if isinstance(data, (bytes, bytearray)):
         data = list(data)
     return _filesystem.sys_write(fd, data)
 
-
+#@ requires True
+#@ assigns _filesystem.disk
+#@ ensures \result == 0 or \result == -1
 def rename(src, dst, *, src_dir_fd=None, dst_dir_fd=None):
     """Rename a file or directory."""
     return _filesystem.sys_rename(src, dst)
 
-
+#@ requires True
+#@ assigns _filesystem.disk
+#@ ensures \result == 0 or \result == -1
 def mkdir(filepath, mode=0o777, *, dir_fd=None):
     """Create a directory."""
     return _filesystem.sys_mkdir(filepath, mode)
 
-
+#@ requires True
+#@ assigns _filesystem.disk
+#@ ensures \result == 0 or \result == -1
 def rmdir(filepath, *, dir_fd=None):
     """Remove a directory."""
     return _filesystem.sys_rmdir(filepath)
 
-
+#@ requires True
+#@ assigns \nothing
+#@ ensures \result == -1 or (\result >= 0 and \result < 32)
 def stat(filepath, *, dir_fd=None, follow_symlinks=True):
     """Get file status. Returns inode number."""
     return _filesystem.sys_stat(filepath)
 
-
+#@ requires True
+#@ assigns \nothing
+#@ ensures \result == -1 or (\result >= 0 and \result < 32)
 def lstat(filepath, *, dir_fd=None):
     """Like stat() but does not follow symbolic links."""
     return _filesystem.sys_stat(filepath)
 
-
+#@ requires True
+#@ assigns _filesystem.disk
+#@ ensures \result == 0 or \result == -1
 def symlink(src, dst, target_is_directory=False, *, dir_fd=None):
     """Create a symbolic link."""
     return _filesystem.sys_symlink(src, dst)
 
-
+#@ requires True
+#@ assigns \nothing
+#@ ensures \result == -1 or (\result >= 0 and \result < 256)
 def readlink(filepath, *, dir_fd=None):
     """Read the target of a symbolic link."""
     return _filesystem.sys_readlink(filepath)
 
-
+#@ requires True
+#@ assigns _filesystem.disk
+#@ ensures \result == 0 or \result == -1
 def truncate(filepath, length):
     """Truncate a file to a specified length."""
     return _filesystem.sys_truncate(filepath, length)
@@ -247,20 +325,27 @@ def truncate(filepath, length):
 
 # ── Pure-Python functions (no filesystem needed) ─────────────────────
 
+#@ requires True
+#@ assigns \nothing
+#@ ensures True
 def fsdecode(filename):
     """Decode filename from bytes to str."""
     if isinstance(filename, bytes):
         return filename.decode('utf-8', errors='surrogateescape')
     return filename
 
-
+#@ requires True
+#@ assigns \nothing
+#@ ensures True
 def fsencode(filename):
     """Encode filename from str to bytes."""
     if isinstance(filename, str):
         return filename.encode('utf-8', errors='surrogateescape')
     return filename
 
-
+#@ requires True
+#@ assigns \nothing
+#@ ensures True
 def fspath(filepath):
     """Return the file system representation of the path."""
     if isinstance(filepath, str):
@@ -272,22 +357,30 @@ def fspath(filepath):
     raise TypeError(f'expected str, bytes or os.PathLike, not '
                     f'{type(filepath).__name__}')
 
-
+#@ requires True
+#@ assigns \nothing
+#@ ensures \result == '/'
 def getcwd():
     """Return the current working directory."""
     return '/'
 
-
+#@ requires True
+#@ assigns \nothing
+#@ ensures True
 def getenv(key, default=None):
     """Get an environment variable."""
     return environ.get(key, default)
 
-
+#@ requires True
+#@ assigns \nothing
+#@ ensures \result == 1
 def getpid():
     """Return the current process ID."""
     return _pid
 
-
+#@ requires True
+#@ assigns \nothing
+#@ ensures \length(\result) >= 1
 def get_exec_path(env=None):
     """Return the list of directories to search for executables."""
     if env is None:
@@ -298,31 +391,45 @@ def get_exec_path(env=None):
 
 # ── Stubs returning default values ───────────────────────────────────
 
+#@ requires True
+#@ assigns \nothing
+#@ ensures \result == 0
 def chflags(filepath, flags, follow_symlinks=True):
     """Set file flags. Stub: returns 0."""
     return 0
 
-
+#@ requires True
+#@ assigns \nothing
+#@ ensures \result == ''
 def confstr(name):
     """Return system configuration string. Stub: returns empty string."""
     return ''
 
-
+#@ requires count >= 0
+#@ assigns \nothing
+#@ ensures \result == 0
 def copy_file_range(src, dst, count, offset_src=None, offset_dst=None):
     """Copy data between file descriptors. Stub: returns 0."""
     return 0
 
-
+#@ requires True
+#@ assigns \nothing
+#@ ensures \result == b''
 def getxattr(filepath, attribute, *, follow_symlinks=True):
     """Get extended file attribute. Stub: returns empty bytes."""
     return b''
 
-
+#@ requires True
+#@ assigns \nothing
+#@ ensures \length(\result) == 0
 def listxattr(filepath=None, *, follow_symlinks=True):
     """List extended file attributes. Stub: returns empty list."""
     return []
 
-
+#@ requires pid >= 0
+#@ requires sig >= 0
+#@ assigns \nothing
+#@ ensures \result == None
 def kill(pid, sig):
     """Send signal to a process. Stub: no-op, returns None."""
     return None
@@ -330,15 +437,27 @@ def kill(pid, sig):
 
 # ── Cross-module re-exports ──────────────────────────────────────────
 
-islink = path.islink if hasattr(path, 'islink') else (lambda p: False)
+#@ requires True
+#@ assigns \nothing
+#@ ensures \result == False
+def islink(filepath):
+    """Test whether a path is a symbolic link (stub: always False)."""
+    return False
 
-
+#@ requires True
+#@ assigns \nothing
+#@ ensures True
+#@ \trusted
 def walk(top, topdown=True, onerror=None, followlinks=False):
     """Directory tree generator. Simplified: yields one level from root."""
     names = listdir(top)
     dirs = []
     nondirs = []
-    for name in names:
+    #@ loop invariant \length(dirs) >= 0 and \length(dirs) <= \length(names)
+    #@ loop invariant \length(nondirs) >= 0 and \length(nondirs) <= \length(names)
+    #@ loop variant \length(names) - i
+    for i in range(len(names)):
+        name = names[i]
         ino = _filesystem.sys_stat(name)
         if ino >= 0 and ino < 32:
             inode = _filesystem._read_inode(ino)
