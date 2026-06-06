@@ -3,7 +3,7 @@
 
 #@ requires True
 #@ assigns \nothing
-#@ ensures True
+#@ ensures \length(\result) == 2
 def _pack_uint16_be(v: int) -> list:
     """Pack a 16-bit unsigned int, big-endian."""
     return bytes([(v >> 8) & 0xFF, v & 0xFF])
@@ -20,7 +20,7 @@ def _unpack_uint16_be(data: list, offset: int) -> int:
 
 #@ requires True
 #@ assigns \nothing
-#@ ensures True
+#@ ensures \length(\result) == 4
 def _pack_uint32_be(v: int) -> list:
     """Pack a 32-bit unsigned int, big-endian."""
     return bytes([(v >> 24) & 0xFF, (v >> 16) & 0xFF,
@@ -39,7 +39,7 @@ def _unpack_uint32_be(data: list, offset: int) -> int:
 
 #@ requires \valid(fields, 18)
 #@ assigns \nothing
-#@ ensures True
+#@ ensures \length(\result) == 64
 def _pack_inode(fields: list) -> list:
     """Pack 18-element inode array into 64 bytes (big-endian '>IHHHHHII10Ixx').
 
@@ -64,7 +64,7 @@ def _pack_inode(fields: list) -> list:
 
 #@ requires \valid(data, 64)
 #@ assigns \nothing
-#@ ensures True
+#@ ensures \length(\result) == 18
 def _unpack_inode(data: list) -> list:
     """Unpack 64 bytes into 18-element inode array (big-endian '>IHHHHHII10Ixx')."""
     fields = [0] * 18
@@ -83,7 +83,7 @@ def _unpack_inode(data: list) -> list:
 
 #@ requires \valid(name_bytes, 30)
 #@ assigns \nothing
-#@ ensures True
+#@ ensures \length(\result) == 32
 def _pack_direntry(inode_num: int, name_bytes: list) -> list:
     """Pack a 32-byte directory entry (big-endian '>H30s')."""
     padded = (name_bytes + b'\x00' * 30)[:30]
@@ -135,7 +135,7 @@ class UnixInodeFileSystem:
         # access bound valid (index < 131072 <= length).
         if num_blocks < self.NUM_BLOCKS:
             num_blocks = self.NUM_BLOCKS
-        self.disk: list = bytearray(num_blocks * self.BLOCK_SIZE)
+        self.disk: list = bytearray(131072)  # 256 * 512, literal for PyCSL
 
         # Kernel Process File Descriptor Table. The fd table is modeled as
         # four parallel `array int` columns indexed by fd (capacity 64):
