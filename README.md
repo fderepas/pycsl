@@ -1,6 +1,6 @@
 # PyCSL 
 
-PyCSL is an annotation language for Python. It makes it possible to formally verify Python code using [Hoare Logic](https://en.wikipedia.org/wiki/Hoare_logic). An associated tool, `pycsl`, verifies the PyCSL annotations using [Why3](https://why3.lri.fr/). Why3 is a front end to SMT solvers such as Alt-Ergo and Z3. When those SMT solvers fail, Rocq can be used as the interactive theorem prover. The project is under [CMMI](docs/cmmi-for-humans.md).
+PyCSL is an annotation language for Python. It makes it possible to formally verify Python code using Hoare Logic and theorem provers. An associated tool, `pycsl`, verifies the PyCSL annotations using [Why3](https://why3.lri.fr/). Why3 is a front end to SMT solvers such as Alt-Ergo and Z3. When those SMT solvers fail, Rocq can be used as the interactive theorem prover. The project is under [CMMI](docs/cmmi-for-humans.md).
 
 Documents define PyCSL [syntax](docs/pycsl-concrete-syntax-reference.md), [semantics](docs/pycsl-static-semantics-reference.md) and [translation to Why3](docs/pycsl-translational-reference.md). The semantics of PyCSL has been formally defined twice: once using [Rocq](src/formal-semantics/rocq), once using [LEAN](src/formal-semantics/lean). A [detailed status](docs/self-annotation-status.md) is available.
 
@@ -9,6 +9,8 @@ PyCSL is being prepared for self-annotation: standard-library coverage is tracke
 For human-facing definitions of recurring verification terms such as
 *witness*, *ghost code*, *ghost state*, *memory model*, and *solver budget*,
 see [`docs/glossary/`](docs/glossary/).
+
+Annotations in [`0542.py`](test-suite/corpus/pycsl-reference/0542.py) show an inductive property over a recursive data type. The recursive data type is `Json = JNull | JInt(int) | JPair(Json, Json)`. `json_mirror` swaps the two children of every `JPair`; mirroring twice is the identity. This code proves that `mirror(mirror(x)) == x`  an INVOLUTION proved by structural induction over the recursive structure with both [LEAN](test-suite/corpus/pycsl-reference/0542.proofs/lean) and [Rocq](test-suite/corpus/pycsl-reference/0542.proofs/rocq). 
 
 ---
 
