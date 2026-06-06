@@ -611,6 +611,7 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         self.current_dict_key_types = {}
 
         self._build_function_scope(node)
+        self._validate_no_mutable_defaults(node)
         self._validate_function_contracts(node)
         self._validate_assigns_regions(node)
         self._validate_subscript_assignments(node)
@@ -628,6 +629,31 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         self.current_dict_value_types = saved_dict_value_types
         self.current_dict_key_types = saved_dict_key_types
         self.current_function_name = saved_function_name
+
+    def _validate_no_mutable_defaults(self, node: ast.FunctionDef) -> None:
+        """Ownership R2 (crude enforcement, `docs/pycsl-ownership-discipline.md`
+        §2/§5): a mutable default argument — `def f(x, acc=[])` (or `={}`/`=set()`
+        /`=list(...)`/`=dict(...)`) — binds ONE mutable object shared across every
+        call (the classic aliasing bug), outside the value-semantics boundary.
+        Reject it at semantic analysis with a clear diagnostic rather than
+        verifying it unsoundly or failing confusingly."""
+        args = getattr(node, "args", None)
+        if args is None:
+            return
+        defaults = list(getattr(args, "defaults", []) or [])
+        defaults += [d for d in (getattr(args, "kw_defaults", []) or []) if d is not None]
+        for d in defaults:
+            mutable = isinstance(d, (ast.List, ast.Dict, ast.Set))
+            if (isinstance(d, ast.Call) and isinstance(d.func, ast.Name)
+                    and d.func.id in ("list", "dict", "set")):
+                mutable = True
+            if mutable:
+                raise PyCSLSemanticError(
+                    f"Mutable default argument in {self.current_function_name}: a "
+                    f"list/dict/set default is a single object shared across all "
+                    f"calls (a shared-aliasing bug) and is outside PyCSL's "
+                    f"value-semantics boundary (ownership discipline R2). Use a "
+                    f"`None` sentinel and initialise the collection in the body.")
 
     def _build_function_scope(self, node: ast.FunctionDef) -> None:
         """Populate current_scope from function args, local assignments, and ghost variables."""
