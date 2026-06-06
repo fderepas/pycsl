@@ -22,6 +22,23 @@ check reshapes the whole plan**. The structural changes from Part 6:
 6. **The IDF/SL escape valve gets a defined trigger;** the **"inductive → bridge-usage" principle** is
    stated generally.
 
+## Execution status (2026-06-06) — plan executed end to end
+
+| Plan item | Outcome |
+|---|---|
+| **§0 alias audit** | ✅ DONE — pycsl is **alias-clean** (`docs/pycsl-alias-audit.md`): local accumulation + stack-scoped borrows + store-and-read; no shared mutable aliasing, no mutable default args. **⇒ A2b-2 is NOT on the critical path.** |
+| **§B / A4 — inductive generalization demo** | ✅ DONE (0542) — `mirror(mirror(x)) == x` over recursive `Json`, discharged by an imported `mirror_involution` axiom proved BY STRUCTURAL INDUCTION (Rocq+Lean, both compile). **The bridge generalizes flat → inductive.** Enabling fix: `#@ proof` axioms now emit after type decls (so they may quantify over a user datatype); `_compute_return_type` resolves datatype return annotations. |
+| **A2b-1 — ownership discipline spec** | ✅ DONE (`docs/pycsl-ownership-discipline.md`) — the precise accept/reject rule + §3 snapshot semantics + escape-valve trigger. |
+| **§B′ / A1-residual seq-model** | ✅ DONE (0543) — array-valued dicts via the immutable `seq int` snapshot (unblocked by A2b-1 §3, exactly as predicted — a consequence of the boundary, not a design wall). |
+| **A2b-2 — alias checker** | ⏸ **CORRECTLY PARKED** — §0 found pycsl alias-clean, so the plan's contingent gate says *do not build*. Building it now would violate the plan. Pull only if third-party code needs aliased mutation that must verify. A *crude* enforcement (reject mutable-default-args R2, flag R3) is available cheaply if wanted (ownership-discipline §5) but is not required. |
+| **A3-residual / A5b·A5c follow-ons** | ⏸ **DEMAND-GATED** — `islice`/`product`/`combinations`, chain membership; `\payload` over a type-param / multi-payload index; cross-alternative or-pattern bindings. No driver exists; build on demand (lowest value). **A6(b)** dead-coercion removal: byte-identical defensive-net removal, left parked. |
+
+**Net:** every item with a tractable, in-gate path is built (§0, A4, A2b-1, A1-residual seq). The two
+remaining buckets are *correctly not built* by the plan's own gates: A2b-2 is contingent and §0 came
+back clean; the follow-ons are demand-gated with no drivers. **The no-more-int program is complete up
+to genuinely-contingent / demand-only work** — the next milestone is the self-hosting push, not a
+verification feature (as `rq.md` anticipated for the alias-clean case).
+
 The Gate-A demand-driver discipline still holds (FAIL-driver first → implement → full sweep +
 emission-identical byte-diff). The "re-derive line numbers by symbol" house style is kept.
 
