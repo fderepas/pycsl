@@ -55,18 +55,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             return f"{indent}let {safe_target} = {val} in\n"
         if kind == "dict":
             self._dict_locals.add(target)
-            # no-more-int-3 A1: a string-valued dict local starts as the empty
-            # `map int (option string)` (not `option int`), so the ref's inferred
-            # type carries ν = string. A1-residual: a nested-map value ν
-            # (`Dict[_, Dict[..]]` → `map κ (option ν)`) starts `option (ν)`.
-            nu = self._dict_value_types.get(target)
-            if nu == "string":
-                val = "(const (None: option string))"
-            elif nu == "seq int":
-                # §B′: immutable list-snapshot value (`Dict[_, List[int]]`).
-                val = "(const (None: option (seq int)))"
-            elif nu and nu.startswith("map "):
-                val = f"(const (None: option ({nu})))"
+            # The dict's value type ν drives the empty-map literal (string /
+            # seq-int snapshot / nested-map / int-default). Consolidated in
+            # `_dv_empty_default`; None ⇒ keep the caller's int-default `val`.
+            _empty = self._dv_empty_default(self._dict_value_types.get(target))
+            if _empty is not None:
+                val = _empty
             return f"{indent}let {safe_target} = ref {val} in\n"
         if kind == "bounded_int":
             return f"{indent}let {safe_target} = ref ({val} : int{self._bounded_int}) in\n"
@@ -448,20 +442,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     nu = self._dict_value_types.get(var_name) if var_name else None
                     kappa = self._dict_key_types.get(var_name) if var_name else None
                     k = index_expr if kappa == "string" else self._coerce_to_int(index_expr)
-                    # A1-residual: a nested-map value (ν = `map …`) is passed
-                    # through unhashed (the polymorphic op infers `'v = map …`),
-                    # like a string value.
-                    if nu == "seq int":
-                        # §B′: SNAPSHOT the list (array int) to an immutable
-                        # `seq int` at the store site (ownership-discipline §3).
-                        self._add_abstract_op(
-                            "val function array_to_seq (a: array int) : seq int\n"
-                            "    ensures { Seq.length result = Array.length a }")
-                        v = f"(array_to_seq {self._array_coerce_arg(val_expr)})"
-                    elif nu == "string" or (nu and nu.startswith("map ")):
-                        v = val_expr
-                    else:
-                        v = self._coerce_to_int(val_expr)
+                    # The stored value is coerced per ν (seq-int snapshot /
+                    # string|map pass-through / int-coerce). Consolidated in
+                    # `_dv_store_value`.
+                    v = self._dv_store_value(nu, val_expr)
                     if self_field_name is not None:
                         # `self.<field>[k] = v` — record-field assignment.
                         # Why3 syntax: `self.field <- new_value`.

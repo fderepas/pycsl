@@ -151,6 +151,51 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return str(hash(whyml_str) % 2147483647)
         return whyml_str
 
+    # ----- no-more-int F1: dict value-type (ν) dispatch, consolidated -----
+    # A dict's value type ν ∈ {int (default), "string", "seq int", "map …"}
+    # drives three emission decisions — the empty-map literal (first assignment),
+    # the missing-key placeholder (subscript read), and the stored-value coercion
+    # (subscript write). These were a parallel `if ν == … elif …` ladder
+    # duplicated at each of the three sites; these helpers centralise that ladder.
+    # Output is byte-identical to the former inline branches.
+
+    def _dv_empty_default(self, nu: Optional[str]) -> Optional[str]:
+        """Empty-map literal for a dict local's first assignment; `None` for an
+        int dict (the caller keeps the `(const (None: option int))` it has)."""
+        if nu == "string":
+            return "(const (None: option string))"
+        if nu == "seq int":
+            return "(const (None: option (seq int)))"
+        if nu and nu.startswith("map "):
+            return f"(const (None: option ({nu})))"
+        return None
+
+    def _dv_missing_default(self, nu: Optional[str]) -> str:
+        """`None ->` placeholder for a dict subscript read (typed per ν; proven
+        dead under `#@ no_exception KeyError`, the ambient default otherwise)."""
+        if nu == "string":
+            return '""'
+        if nu == "seq int":
+            return "(Seq.empty: seq int)"
+        if nu and nu.startswith("map "):
+            inner_v = (nu.split("(option ", 1)[1].rsplit(")", 1)[0]
+                       if "(option " in nu else "int")
+            return f"(const (None: option {inner_v}))"
+        return "0"
+
+    def _dv_store_value(self, nu: Optional[str], val_expr: str) -> str:
+        """The value stored at `d[k] = val`: a `seq int` snapshots the array
+        (ownership-discipline §3), a string/nested-map value passes through
+        unhashed, otherwise int-coerce."""
+        if nu == "seq int":
+            self._add_abstract_op(
+                "val function array_to_seq (a: array int) : seq int\n"
+                "    ensures { Seq.length result = Array.length a }")
+            return f"(array_to_seq {self._array_coerce_arg(val_expr)})"
+        if nu == "string" or (nu and nu.startswith("map ")):
+            return val_expr
+        return self._coerce_to_int(val_expr)
+
     def _match_pattern_cond(self, pat: Dict[str, Any], subject: str, local_refs: Set[str]) -> str:
         """Generate a WhyML boolean condition for a match pattern."""
         kind = pat.get("pattern", "Unknown")
@@ -1314,23 +1359,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     k = index
                 else:
                     k = self._coerce_to_int(index)
-                _nu = getattr(self, "_dict_value_types", {}).get(dvar)
-                if _nu == "string":
-                    default = '""'
-                elif _nu == "seq int":
-                    # §B′: a list-snapshot value reads back a `seq int`; the
-                    # `None` placeholder is the empty sequence (dead under
-                    # no_exception KeyError).
-                    default = "(Seq.empty: seq int)"
-                elif _nu and _nu.startswith("map "):
-                    # A1-residual: a nested-map value reads back a map; the
-                    # `None` placeholder is the empty inner map (option-payload
-                    # = the inner value type). Proven dead under no_exception.
-                    inner_v = (_nu.split("(option ", 1)[1].rsplit(")", 1)[0]
-                               if "(option " in _nu else "int")
-                    default = f"(const (None: option {inner_v}))"
-                else:
-                    default = "0"
+                # The missing-key placeholder is typed per ν (consolidated).
+                default = self._dv_missing_default(
+                    getattr(self, "_dict_value_types", {}).get(dvar))
                 inner = f"(match Map.get {value_str} {k} with | Some v_ -> v_ | None -> {default} end)"
                 # no_exception KeyError → assert has_key before the read.
                 return self._wrap_with_no_exception_assert(
