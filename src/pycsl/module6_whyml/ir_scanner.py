@@ -113,6 +113,14 @@ class IRScanner:
                         # (collections-plan: `deque()` lowers to an empty ArrayLit
                         # in Module5, so it is caught by the ArrayLit arm below.)
                         array_vars.add(target)
+                    elif (vt == "Call" and val.get("func", "").rsplit(".", 1)[-1]
+                            in ("encode", "ljust", "rjust", "zfill")):
+                        # 1009.md R2: bytes-producing methods lower to an abstract
+                        # `val …_<n> : array int` (see `_call_bytes_methods`), so a
+                        # local bound to one (`padded = name.encode(...).ljust(30,…)`)
+                        # is array-typed — skip the `ref 0` pre-decl that would make
+                        # `padded := (ljust_… …)` an int/array mismatch.
+                        array_vars.add(target)
                     elif vt in ("ListLit", "ArrayLit"):
                         array_vars.add(target)
                     elif vt == "ListComp":

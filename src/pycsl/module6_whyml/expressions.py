@@ -1270,7 +1270,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 cargs.append(self._coerce_to_int(a))
         params = (" ".join(f"(x{i}: {t})" for i, t in enumerate(ptypes))
                   if n else "()")
-        self._add_abstract_op(f"val {arity_fn} {params} : array int")
+        # 1009.md R2: `s.ljust(w[, fill])` / `rjust` / `zfill(w)` pad to AT LEAST
+        # width `w` — Python returns the original when it is already longer — and `w`
+        # is the first argument `x0`. Emit that length lower bound so a downstream
+        # `\valid(name_bytes, 30)` (`Array.length >= 30`) discharges when fed a
+        # `…ljust(30, b'\x00')`. (`encode`'s output length is genuinely unknown, so it
+        # gets no bound: `>= 0` would be vacuous. Width must be an int operand.)
+        length_ens = ""
+        if func_name in ("ljust", "rjust", "zfill") and n >= 1 and ptypes[0] == "int":
+            length_ens = "\n    ensures { Array.length result >= x0 }"
+        self._add_abstract_op(f"val {arity_fn} {params} : array int{length_ens}")
         return f"({arity_fn} {' '.join(cargs) if cargs else '()'})"
 
     def _handle_subscript(self, expr: Dict[str, Any], local_refs: Set[str],
