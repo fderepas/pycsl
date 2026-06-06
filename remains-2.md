@@ -153,9 +153,13 @@ implemented — see "Open work / poly" for the four concrete obstacles.
   stops requiring it).
 - **P2 mutually-inductive `with` groups** (`inductive wf … with wf_spine …`) — extend the
   single-predicate emitter; needs the `with` keyword and group-wide positivity.
-- **P3 relational form** (reachability) + universally-quantified consequences discharged via `#@ lemma`
-  (now feasible — lemma exists).
-- **P4 reflection** (decision function + agreement lemma); coinductive predicates out of scope.
+- **P3 relational form** (reachability) — ✅ **DONE (free; driver `0572`)**. The existing
+  single-predicate machinery already handles a multi-arg, *non-structural* predicate
+  (`reach(x+1,z) ==> reach(x,z)` — recurses on `x+1`, which a terminating function can't express) with
+  nested typed quantifiers in rule bodies; `reach(0,2)` discharges by introduction. The
+  *universally-quantified-consequence-via-`#@ lemma`* extension (proving `\forall a,b; reach(a,b) -> Q`
+  by the inductive's induction principle) is the remaining, harder piece — still open.
+- **P4 reflection** (decision function + agreement lemma); coinductive predicates out of scope. *(Open.)*
 - *(Not soundness — note 2)* an optional Module-4 `_validate_inductive` pre-check (positivity /
   conclusion-shape / arity / exec-position); Why3 already enforces positivity. If ever built, note that
   PyCSL's `not` doesn't parse inside a rule clause the way the spec's Horn syntax assumes (the
@@ -172,8 +176,9 @@ implemented — see "Open work / poly" for the four concrete obstacles.
 - **P4 ghost-collection mode** (`\forall o: C in registry; …`) — composes P4 (class binder) + P3 (set
   membership over a ghost `set[C]`); needs a decidable-equality story for class-instance set elements.
   Land after a driver.
-- **Multi-binder** sugar (`\forall x: T, y: U; …`) — desugar to nested binders in the transformer;
-  small, independent.
+- **Multi-binder** sugar — ✅ **DONE (driver `0573`)**. `\forall x, y, …; P` desugars in the
+  transformer to nested single binders (all `int`); `\exists` likewise. *Per-binder types in a
+  multi-binder (`\forall x: T, y: U;`) remain unsupported — nest explicitly.*
 - **`#@ by induction on x`** — the lemma-free P2 alternative (drive Why3's `induction_ty_lex` from the
   proof harness); orthogonal, still open.
 - *Explicitly NOT needed:* an `Fset` theory import — the `map int (option int)` set model with

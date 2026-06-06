@@ -737,6 +737,9 @@ are used (logic context, no VC needed).
   `C`; `o.field` is the record field, and `C`'s `#@ class invariant` holds for every
   `o` automatically (it is emitted as a Why3 type invariant) — so the quantifier ranges
   only over invariant-satisfying instances without an explicit guard.
+- A **multi-binder** `\forall x, y, …; P` is sugar for nested single binders
+  `\forall x; \forall y; … P` (all `int`); `\exists` likewise. (Per-binder types —
+  `\forall x: T, y: U;` — are not yet supported; nest explicitly.)
 - Body extends greedily to the end of the expression.
 - Quantifiers can appear at top level or as RHS of `==>`, `and`, `or`.
 - `\exist` (singular) is an accepted alias for `\exists`.

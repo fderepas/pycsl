@@ -889,14 +889,17 @@ PYCSL_GRAMMAR = r"""
              | "\\forall" CNAME ":" CNAME ";" expr -> forall_typed_expr
              | "\\forall" CNAME "in" expr ";" expr -> forall_in_expr
              | "\\forall" CNAME ":" CNAME "in" expr ";" expr -> forall_typed_in_expr
+             | "\\forall" CNAME ("," CNAME)+ ";" expr -> forall_multi_expr
          | "\\exists" CNAME ";" expr -> exists_expr
              | "\\exists" CNAME ":" CNAME ";" expr -> exists_typed_expr
              | "\\exists" CNAME "in" expr ";" expr -> exists_in_expr
              | "\\exists" CNAME ":" CNAME "in" expr ";" expr -> exists_typed_in_expr
+             | "\\exists" CNAME ("," CNAME)+ ";" expr -> exists_multi_expr
          | "\\exist"  CNAME ";" expr -> exists_expr
              | "\\exist"  CNAME ":" CNAME ";" expr -> exists_typed_expr
              | "\\exist"  CNAME "in" expr ";" expr -> exists_in_expr
              | "\\exist"  CNAME ":" CNAME "in" expr ";" expr -> exists_typed_in_expr
+             | "\\exist"  CNAME ("," CNAME)+ ";" expr -> exists_multi_expr
 
     ?implication: logical_or | implication IMPL_OP impl_rhs
     ?impl_rhs: logical_or
@@ -904,14 +907,17 @@ PYCSL_GRAMMAR = r"""
              | "\\forall" CNAME ":" CNAME ";" expr -> forall_typed_expr
              | "\\forall" CNAME "in" expr ";" expr -> forall_in_expr
              | "\\forall" CNAME ":" CNAME "in" expr ";" expr -> forall_typed_in_expr
+             | "\\forall" CNAME ("," CNAME)+ ";" expr -> forall_multi_expr
              | "\\exists" CNAME ";" expr -> exists_expr
              | "\\exists" CNAME ":" CNAME ";" expr -> exists_typed_expr
              | "\\exists" CNAME "in" expr ";" expr -> exists_in_expr
              | "\\exists" CNAME ":" CNAME "in" expr ";" expr -> exists_typed_in_expr
+             | "\\exists" CNAME ("," CNAME)+ ";" expr -> exists_multi_expr
              | "\\exist"  CNAME ";" expr -> exists_expr
              | "\\exist"  CNAME ":" CNAME ";" expr -> exists_typed_expr
              | "\\exist"  CNAME "in" expr ";" expr -> exists_in_expr
              | "\\exist"  CNAME ":" CNAME "in" expr ";" expr -> exists_typed_in_expr
+             | "\\exist"  CNAME ("," CNAME)+ ";" expr -> exists_multi_expr
 
     ?logical_or: logical_and | logical_or OR_OP or_rhs
     ?or_rhs: logical_and
@@ -919,14 +925,17 @@ PYCSL_GRAMMAR = r"""
              | "\\forall" CNAME ":" CNAME ";" expr -> forall_typed_expr
              | "\\forall" CNAME "in" expr ";" expr -> forall_in_expr
              | "\\forall" CNAME ":" CNAME "in" expr ";" expr -> forall_typed_in_expr
+             | "\\forall" CNAME ("," CNAME)+ ";" expr -> forall_multi_expr
            | "\\exists" CNAME ";" expr -> exists_expr
              | "\\exists" CNAME ":" CNAME ";" expr -> exists_typed_expr
              | "\\exists" CNAME "in" expr ";" expr -> exists_in_expr
              | "\\exists" CNAME ":" CNAME "in" expr ";" expr -> exists_typed_in_expr
+             | "\\exists" CNAME ("," CNAME)+ ";" expr -> exists_multi_expr
            | "\\exist"  CNAME ";" expr -> exists_expr
              | "\\exist"  CNAME ":" CNAME ";" expr -> exists_typed_expr
              | "\\exist"  CNAME "in" expr ";" expr -> exists_in_expr
              | "\\exist"  CNAME ":" CNAME "in" expr ";" expr -> exists_typed_in_expr
+             | "\\exist"  CNAME ("," CNAME)+ ";" expr -> exists_multi_expr
 
     ?logical_and: equality | logical_and AND_OP and_rhs
     ?and_rhs: equality
@@ -934,14 +943,17 @@ PYCSL_GRAMMAR = r"""
              | "\\forall" CNAME ":" CNAME ";" expr -> forall_typed_expr
              | "\\forall" CNAME "in" expr ";" expr -> forall_in_expr
              | "\\forall" CNAME ":" CNAME "in" expr ";" expr -> forall_typed_in_expr
+             | "\\forall" CNAME ("," CNAME)+ ";" expr -> forall_multi_expr
             | "\\exists" CNAME ";" expr -> exists_expr
              | "\\exists" CNAME ":" CNAME ";" expr -> exists_typed_expr
              | "\\exists" CNAME "in" expr ";" expr -> exists_in_expr
              | "\\exists" CNAME ":" CNAME "in" expr ";" expr -> exists_typed_in_expr
+             | "\\exists" CNAME ("," CNAME)+ ";" expr -> exists_multi_expr
             | "\\exist"  CNAME ";" expr -> exists_expr
              | "\\exist"  CNAME ":" CNAME ";" expr -> exists_typed_expr
              | "\\exist"  CNAME "in" expr ";" expr -> exists_in_expr
              | "\\exist"  CNAME ":" CNAME "in" expr ";" expr -> exists_typed_in_expr
+             | "\\exist"  CNAME ("," CNAME)+ ";" expr -> exists_multi_expr
     ?equality: comparison | equality EQ_OP comparison
     ?comparison: membership | comparison COMP_OP membership
     ?membership: term
@@ -1240,6 +1252,20 @@ class PyCSLTransformer(Transformer):
     def exists_typed_in_expr(self, var, ty, domain, body) -> Exists:
         return Exists(str(var), BinOp(CSLIn(Var(str(var)), domain), "and", body),
                       binder_type=str(ty))
+    # quantification (remains-2.md C) — multi-binder sugar `\forall x, y, …; P`,
+    # desugared to nested single binders (all `int`): \forall x; \forall y; … P.
+    def forall_multi_expr(self, *items) -> Forall:
+        *names, body = items
+        node = body
+        for nm in reversed(names):
+            node = Forall(str(nm), node)
+        return node
+    def exists_multi_expr(self, *items) -> Exists:
+        *names, body = items
+        node = body
+        for nm in reversed(names):
+            node = Exists(str(nm), node)
+        return node
     def array_length(self, var) -> ArrayLength: return ArrayLength(str(var))
     def array_length_field(self, field_name) -> ArrayLength:
         # `\length(self.f)` — length of an `array int` record field.
