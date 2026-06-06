@@ -419,16 +419,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if inner is not None:
                 return inner
             return f"(Array.length {self._expr_to_whyml(args_ir[0], local_refs)})"
+        def _operand_len(sub):
+            p = self._iter_len_expr(sub, local_refs)
+            return p if p is not None else f"(Array.length {self._expr_to_whyml(sub, local_refs)})"
         if fn_short == "chain":
             if not args_ir:
                 return "0"
-            parts = []
-            for sub in args_ir:
-                p = self._iter_len_expr(sub, local_refs)
-                if p is None:
-                    p = f"(Array.length {self._expr_to_whyml(sub, local_refs)})"
-                parts.append(p)
-            return "(" + " + ".join(parts) + ")"
+            return "(" + " + ".join(_operand_len(s) for s in args_ir) + ")"
+        # A3-residual: `len(product(a, b, …)) == ∏ len`; `len(islice(it, n)) ==
+        # min(len(it), n)` (inline min — no MinMax import). Bounded/eager only.
+        if fn_short == "product":
+            if not args_ir:
+                return "1"   # empty product → the single empty tuple
+            return "(" + " * ".join(_operand_len(s) for s in args_ir) + ")"
+        if fn_short == "islice" and len(args_ir) == 2:
+            it = _operand_len(args_ir[0])
+            stop = self._expr_to_whyml(args_ir[1], local_refs)
+            return f"(if {it} < {stop} then {it} else {stop})"
         return None
 
     def _handle_len_call(self, expr: Dict[str, Any], args: List[str]) -> str:
