@@ -1438,6 +1438,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             "trusted": getattr(node, 'csl_trusted', False),
             "abstract": getattr(node, 'csl_abstract', False),
             "lemma": getattr(node, 'csl_lemma', False),
+            "uses": list(getattr(node, 'csl_uses', []) or []),
             # no-more-int Stage F: a memoizing decorator requires a referentially
             # transparent function (checked in _check_memoization_soundness).
             "memoized": self._is_memoized(node),

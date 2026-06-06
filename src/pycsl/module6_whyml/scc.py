@@ -104,7 +104,13 @@ def sort_functions_by_scc(
         contract_refs: Set[str] = set()
         for _key in ("contracts", "function_variants"):
             contract_refs |= find_calls_in_ir(func.get(_key), func_names_set)
-        call_graph[func["name"]] = body_edges | (contract_refs & logic_symbols)
+        # scc2.md: `#@ uses <lemma>` is an explicit ordering citation — the cited
+        # lemma must be emitted before this function so its general `forall …` fact is
+        # in scope (a goal can rely on a lemma's fact without NAMING it, so no
+        # contract-reference edge would form). Added unconditionally (the target is a
+        # lemma, deliberately not a `logic_symbol`); the citation is declared intent.
+        uses_edges = set(func.get("uses") or []) & func_names_set
+        call_graph[func["name"]] = body_edges | (contract_refs & logic_symbols) | uses_edges
         i += 1
     ordered_sccs = compute_sccs(func_names_set, call_graph)
     sorted_names = [name for scc in ordered_sccs for name in scc]

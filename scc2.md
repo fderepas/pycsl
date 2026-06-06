@@ -65,13 +65,15 @@ Closing (B). Four candidate mechanisms, best-fit first:
    *Work:* recognise the `#@ by induction on <binder>` clause (parse + weave) and, in the proof engine
    where Why3 is invoked, apply the induction transformation to that goal before dispatch.
 
-2. **A `#@ uses <lemma>` citation (fits `scc.md`'s model — turns (B) into a named reference).**
-   Let the wrapper cite the lemma it relies on. A citation is a *named* reference, so it produces an
-   ordering edge through the very machinery `scc.md` just added → the lemma is emitted before the
-   wrapper → its general fact is in scope → the goal discharges. Subtlety: an *explicit lemma call*
-   (`to_int_nonneg(t)`) instantiates the fact at one argument `t`, which does **not** discharge a
-   `forall`-over-all-`x` goal; the citation's job here is purely **ordering** — the lemma's *general*
-   fact (in scope once emitted-before) does the discharging. So the right shape is a clause that
+2. **A `#@ uses <lemma>` citation (fits `scc.md`'s model — turns (B) into a named reference).
+   ✅ IMPLEMENTED — this is the route taken.** Driver `0565` shows the full P2 wrapper discharging via
+   `#@ uses to_int_nonneg` (no body call): the citation adds an ordering edge through the very SCC
+   machinery `scc.md` added → the lemma is emitted before the wrapper → its general fact is in scope →
+   the `\forall` goal discharges. Subtlety borne out in practice: an *explicit lemma call*
+   (`to_int_nonneg(t)`) instantiates the fact at one argument `t`, which does **not** by itself
+   discharge a `forall`-over-all-`x` goal; the citation's job is purely **ordering** — the lemma's
+   *general* fact (in scope once emitted-before) does the discharging. `#@ uses` is exactly that
+   non-instantiating, ordering-only clause (emits no WhyML). The right shape is a clause that
    *forces the order without instantiating*. Small, reviewable, consistent with "ordering follows
    declared intent."
 
@@ -103,12 +105,13 @@ working on the named-reference regression twin (a function whose contract refere
 defined later in source, no body call — the helper now emits first and it proves). Explicitly *not*
 covered:
 
-- **(B) lemma-fact ordering — the implicit proof dependency above.** `scc.md`'s Phase 4 named the P2
-  quantified-wrapper as a PASS driver, but the contract-edge mechanism alone does **not** make it pass:
-  it fixes only the named `to_int` ordering (A), after which the wrapper still times out for lack of
-  the lemma's fact (B). **`scc.md` Phase 4 conflated (A) and (B).** The Phase-4 driver the mechanism
-  *actually* enables is the **named-reference twin** (caller cites a pure helper) — that is what should
-  land with the `scc.md` fix; the quantified-wrapper is a P2 driver that additionally needs §1 above.
+- **(B) lemma-fact ordering — the implicit proof dependency above. ✅ NOW CLOSED (separately, by
+  `#@ uses`).** `scc.md`'s contract-edge mechanism alone does not make the wrapper pass — it fixes only
+  the named `to_int` ordering (A), after which the wrapper still times out for lack of the lemma's fact
+  (B). **`scc.md` Phase 4 conflated (A) and (B).** So the `scc.md` fix landed with the **named-reference
+  twin** (`0564`, caller cites a pure helper) — what its mechanism actually enables — and (B) was closed
+  *afterwards* by the `#@ uses` citation (§1.2 above; driver `0565`). The two are distinct edges through
+  the same SCC machinery: (A) is a contract *reference*, (B) is an explicit *citation*.
 
 - **Source-order tie-break** — `scc.md` Phase 3 deliberately *unbundled* it as a separate,
   byte-diff-gated change. Still not done; the SCC order for independent declarations is whatever the
@@ -131,8 +134,10 @@ covered:
 
 ## Net
 
-`scc.md` closes the **named-reference** ordering gap — necessary for P2, scoped, and (pending its
-byte-diff) done. The **full P2 quantified-wrapper** needs one more, orthogonal piece: making the
-lemma's fact available (B), best via `#@ by induction on` or a `#@ uses` citation — *not* via a
-tie-break or a global lemma-priority heuristic. Until (B) lands, P2's wrapper **compiles but does not
-discharge**.
+`scc.md` closed the **named-reference** ordering gap (A) — `ff11f18`, driver `0564`. The **full P2
+quantified-wrapper** needed one more, orthogonal piece — making the lemma's fact available (B) — and
+that is now done via the **`#@ uses` citation** (driver `0565`), *not* via a tie-break or a global
+lemma-priority heuristic. Both routes go through the same SCC machinery (a reference edge for (A), a
+citation edge for (B)). The full P2 wrapper now **discharges**. (`#@ by induction on` — the
+self-contained, lemma-free alternative of §1.1 — remains an open future ergonomic, not needed for the
+wrapper to pass.)

@@ -97,6 +97,7 @@ _Corresponds to `annotations.md` §2.1._
 | 2.1.7 | Trusted | `trusted_decl ::= "\trusted" ( "reviewer" ":" REVIEWER_ID )? ;` where `REVIEWER_ID ::= /[A-Za-z0-9._@-]+/` |
 | 2.1.14 | Abstract | `abstract_decl ::= "\abstract" ;` — bodyless `val` defined by its contract; sound, not `\trusted` |
 | 2.1.16 | Lemma | `lemma_decl ::= "lemma" ;` — a `-> None` proved fact; lowers to `let [rec] lemma … = <body>` |
+| 2.1.17 | Uses | `uses_decl ::= "uses" CNAME ;` — cite a lemma for ordering (its fact must be in scope); emits no WhyML |
 | 2.1.8 | Bounded integers | `bounded_int_decl ::= "assumes" "bounded_int" "(" NUMBER ")" ;` |
 | 2.1.9 | Raises | `raises_decl ::= "raises" CNAME "when" expr ;` |
 | 2.1.10| Thread entry | `thread_entry_decl ::= "thread_entry" ;` |
@@ -909,6 +910,7 @@ contract ::= precondition
            | trusted_decl
            | abstract_decl
            | lemma_decl
+           | uses_decl
            | ghost_assign
            | ghost_aug_assign
            | raises_decl
@@ -980,6 +982,7 @@ diverges_decl               ::= "\diverges" ;
 trusted_decl                ::= "\trusted" ( "reviewer" ":" REVIEWER_ID )? ;
 abstract_decl               ::= "\abstract" ;
 lemma_decl                  ::= "lemma" ;                      (* §2.1.16, a proved `-> None` fact *)
+uses_decl                   ::= "uses" CNAME ;                 (* §2.1.17, ordering citation of a lemma *)
 REVIEWER_ID                 ::= /[A-Za-z0-9._@-]+/ ;
 raises_decl                 ::= "raises" CNAME "when" expr ;
 bounded_int_decl            ::= "assumes" "bounded_int" "(" NUMBER ")" ;

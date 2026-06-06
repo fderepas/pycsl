@@ -288,6 +288,21 @@ def to_int_nonneg(n: Nat) -> None:
 
 See `annotations.md` §2.1.16 and corpus `0558`–`0561`.
 
+**`#@ uses <lemma>`** cites a lemma a proof relies on but doesn't name — the standard case being a
+universal over a recursive datatype discharged by a recursive lemma:
+
+```python
+#@ ensures \forall x: Nat; to_int(x) >= 0   # needs induction; not SMT-direct
+#@ uses to_int_nonneg                         # the recursive lemma that proves it
+#@ assigns \nothing
+def all_nonneg() -> int:
+    return 0
+```
+
+A lemma's fact is in scope only for goals emitted after it; `#@ uses` forces that ordering (no WhyML,
+no instantiation — cleaner than a throwaway `to_int_nonneg(Z())` body call). See `annotations.md`
+§2.1.17 and corpus `0565`.
+
 ---
 
 ## Section 3h — Inductive predicates (`#@ inductive` / `#@ rule`)

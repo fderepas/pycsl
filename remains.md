@@ -95,21 +95,16 @@ case-split. The plan's finite-expansion fast-path was **unnecessary** (the binde
 demand-driver, confirm it fails for the right reason, implement until it flips, byte-diff + sweep +
 docs). Not yet done in code — what follows is the plan plus what's been *probed so far*.
 
-- **P2 — induction over recursive datatypes.** A `\forall x: Nat; …` binder already *parses and emits*
-  (P1 resolves any datatype binder, recursive or not). The open question was whether the **discharge**
-  composes for free from P1 + the landed `#@ lemma` (a recursive lemma proves the universal, whose
-  exported fact then closes the contract's quantified goal). **Probed — it does NOT compose for free.**
-  A driver with `def all_nonneg() -> int: #@ ensures \forall x: Nat; to_int(x) >= 0` + a recursive
-  lemma `to_int_nonneg` emitted `all_nonneg` (whose contract references `to_int`) **before** `to_int`
-  and the lemma → Why3 `unbound function or predicate symbol 'to_int'`. **Root cause = the cross-cutting
-  SCC contract-ordering issue (below): `all_nonneg`'s body has no calls, so the SCC sort placed it
-  first, ahead of the function/lemma its *contract* depends on.** So **P2 is gated on the SCC fix**
-  (add contract-reference edges to the call graph) — which is byte-diff-risky and must itself be
-  byte-diff-gated. Until then, the only workaround is to force a body edge (the function calling the
-  referenced function/lemma), which is unnatural for a pure quantified-fact wrapper. *Conclusion: P2 is
-  not "free composition"; its first real task is the SCC ordering fix.* The `#@ by induction on` clause
-  (drive Why3's `induction_ty_lex` from the proof harness) remains an optional alternative to the
-  lemma route.
+- **P2 — induction over recursive datatypes. ✅ LANDED** (`ff11f18` + the `#@ uses` commit; drivers
+  `0564`/`0565`). The discharge needed TWO orderings, both now solved through the SCC machinery:
+  (A) the binder's referenced functions (`to_int`, named in the `ensures`) must precede the wrapper —
+  the **scc.md contract-reference edge** (a body-less wrapper has no body calls, so without it the SCC
+  placed the wrapper first → `unbound to_int`); and (B) the recursive lemma that *proves* the universal
+  must precede the wrapper so its general fact is in scope — closed by the **scc2.md `#@ uses` citation
+  edge** (the wrapper doesn't *name* the lemma, so no reference edge would form). `0565`
+  (`\forall x: Nat; to_int(x) >= 0` + `#@ uses to_int_nonneg`) now discharges. The `#@ by induction on`
+  clause (drive Why3's `induction_ty_lex` from the proof harness, lemma-free) is an *open ergonomic
+  alternative*, not needed for P2 to pass. See `scc.md` / `scc2.md`.
 - **P3 — sets & bounded quantification** (`set[T]` binder, `x in S` desugar to `Fset.mem`, trigger
   inference). The node already carries an (unused) `domain` field for the `in S` form. Genuinely new
   code: a `needs_fset` preamble import (`use set.Fset`), the `\forall x: T in S; P` ⇒
@@ -121,9 +116,9 @@ docs). Not yet done in code — what follows is the plan plus what's been *probe
   the new work is the auto-inserted invariant guard. Not started.
 - Multi-binder sugar (`\forall x: T, y: U;`) — single-binder only today; desugar to nested binders.
 
-**Suggested order given the probe:** land the **SCC contract-ordering fix first** (it unblocks P2 and
-smooths P3/P4, and is independently the right fix — see cross-cutting findings), each behind its own
-byte-diff gate; then P2 driver, then P3, then P4.
+**Status update:** the **SCC contract-ordering fix landed** (`ff11f18`, scc.md) and **P2 landed** on
+top of it (`#@ uses`, scc2.md). Remaining: **P3** (sets) then **P4** (objects), each Gate-A-first; the
+SCC fix already smooths both (their contracts reference more logic helpers).
 
 ### lemma — P1 + P2/S3 landed; soundness refinements deferred
 **Landed (`9896cb7`):** `#@ lemma` → `let [rec] lemma name (p): unit … = <proof body>`. Non-recursive
@@ -221,18 +216,17 @@ follow-on, starting with obstacles (1)+(2) which together unblock recursive gene
 ---
 
 ## Cross-cutting findings (affect future work on these features)
-- **SCC ordering ignores contracts. → now a HARD BLOCKER for quantification P2.**
-  `sort_functions_by_scc` builds the call graph from function *bodies* only, so a function whose
+- **SCC ordering ignored contracts. ✅ FIXED (`ff11f18`, scc.md + scc2.md).**
+  `sort_functions_by_scc` built the call graph from function *bodies* only, so a function whose
   **contract** references a pure function (e.g. `ensures rank(c)…`, or `ensures \forall x: Nat;
-  to_int(x) >= 0`) is not ordered after it → `unbound symbol` unless a body call creates the edge or
-  source order happens to work. The landed P1/lemma/inductive drivers sidestep this (their bodies call
-  the referenced function). But the **P2 probe hit it head-on**: a pure quantified-fact wrapper has no
-  body calls, so it is ordered ahead of the `to_int`/lemma its contract depends on and fails to compile
-  — see the P2 entry above. A real fix — add contract-reference edges to the call graph (so a function
-  is ordered after every pure symbol its requires/ensures/variant mention) — is **byte-diff-risky**
-  (could reorder existing files) and was deliberately not attempted in this run. **It is now on the
-  critical path for P2** and should be the first, byte-diff-gated change when P2 development starts; it
-  also smooths P3/P4.
+  to_int(x) >= 0`) was not ordered after it → `unbound symbol` unless a body call created the edge or
+  source order happened to work. The P2 probe hit it head-on (a body-less quantified-fact wrapper).
+  Fixed by unioning **contract-reference edges** (scc.md) and **`#@ uses` citation edges** (scc2.md)
+  into the existing Tarjan/SCC, gated on a whole-corpus emission byte-diff that came back **identical**
+  (490/490 — the edges are redundant for every currently-compiling file, so zero blast radius). A
+  single shared `emits_as_logic_symbol` classifier (scc.py) is now used by both the edge collector and
+  the emitter, so the graph and emission agree on "depends on". Drivers `0564` (reference) / `0565`
+  (citation).
 - **`#@ rule` / `#@ inductive` are now reserved-ish words** at contract-start (added to the grammar +
   `_MODULE_PREFIXES`). The contextual LALR lexer keeps them contextual, and the full byte-diff
   confirmed no existing file regressed — but keep it in mind if a future contract wants them as

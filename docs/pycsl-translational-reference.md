@@ -507,6 +507,20 @@ verified. Module 4 rejects a recursive lemma without `#@ \variant` and a
 
 _Corresponds to `annotations.md` §2.1.16._
 
+### §T.2.13  Uses citations (`uses`)
+
+$$\mathcal{T}_f\llbracket \texttt{def f(): \#@ uses L …} \rrbracket = \varepsilon\quad(\text{no emission})$$
+
+`#@ uses L` produces **no WhyML**. Its sole effect is on *declaration order*: `scc.py` adds a
+call-graph edge `f → L`, so the cited lemma `L` is emitted before `f` and its exported fact
+`forall params. H -> C` is in scope when `f`'s goal is discharged. This closes scc2.md's case (B) — a
+goal (e.g. `\forall x: Nat; to_int(x) >= 0`) that relies on a lemma's general fact without *naming* the
+lemma, so no contract-reference edge (§T contract lowering) would otherwise order it. **Implementation:**
+`Module2` (`Uses` + `uses_decl`), `Module3_Weaver` (`csl_uses`), `Module5_IREmitter` (`uses` on the
+function IR), `scc.py::sort_functions_by_scc` (the ordering edge). Contrast a body call to the lemma,
+which also forces the order but instantiates a throwaway argument. _Corresponds to `annotations.md`
+§2.1.17._
+
 ### §T.2.7  Diverging Functions (`\diverges`)
 
 The `diverges` keyword omits the termination obligation.  No `variant`

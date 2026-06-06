@@ -41,6 +41,7 @@ Python construct they annotate (function, class, loop, or statement).
 | 14 | Abstract | `#@ \abstract` | Function/method | Function is emitted as a **bodyless** WhyML `val` defined SOLELY by its contract (+ any `#@ proof` axioms). Unlike `\trusted` (a present-but-unchecked body), `\abstract` asserts there is no meaningful body — the contract IS the definition. Sound (uninterpreted `val`). Does **not** count as `\trusted`; the canonical 0-`\trusted` model for irreducibly-opaque ops (e.g. `ast.literal_eval`). See §2.1.14 below. |
 | 15 | Guarded case | `#@ act <name>:` (with a 4-space-indented body of `#@ given` / `#@ requires` / `#@ ensures`) | Function/method | A named case guarded by its `given`. Desugars to ordinary `ensures \old(<given>) ==> <post>` / `requires <given> ==> <pre>` (no new IR node, 0 `\trusted`). See §2.1.15 below. |
 | 16 | Lemma | `#@ lemma` | Function/method (`-> None`) | The function is a PROVED logical fact. Lowers to `let [rec] lemma name (params) : unit requires {H} ensures {C} [variant {m}] = <proof body>`: Why3 verifies the body, then `forall params. H -> C` is usable by later goals. Recursive lemma self-calls are the induction hypotheses and MUST carry `#@ \variant` (soundness). Introduces NO axiom that isn't itself checked. See §2.1.16 below. |
+| 17 | Uses | `#@ uses <lemma>` | Function/method | Cites a `#@ lemma` whose general fact this function's proof relies on but does not *name* (e.g. a `\forall`-over-a-recursive-datatype goal discharged by the lemma). Forces the lemma to be emitted before this function so its fact is in scope. Ordering-only — emits no WhyML. See §2.1.17 below. |
 | 16 | Case guard | `#@ given <expr>` | Inside an `act` | The case's pre-state guard (ACSL's `assumes`); only valid inside an `act` block. `\result` is not allowed here. |
 | 17 | Complete cases | `#@ complete <name>, ...` | Function/method | Proof obligation that the named acts' guards cover every input — `ensures \old(g1) \|\| ... \|\| \old(gn)`. |
 | 18 | Disjoint cases | `#@ disjoint <name>, ...` | Function/method | Proof obligation that at most one guard holds — per pair `ensures not(\old(gi) && \old(gj))`. |
@@ -329,6 +330,33 @@ def to_int_nonneg(n: Nat) -> None:
 **Test-corpus cross-reference:** `0558` (non-recursive, SMT), `0559` (recursive,
 induction over `#@ datatype`), `0560` (recursive without `#@ \variant` — rejected),
 `0561` (false `ensures` — body fails).
+
+#### §2.1.17 Uses (`uses`)
+
+`#@ uses <lemma>` cites a `#@ lemma` whose **general fact** a function's proof relies on
+without *naming* it — the canonical case being a universal over a recursive `#@ datatype`:
+
+```python
+#@ ensures \forall x: Nat; to_int(x) >= 0   # not SMT-dischargeable; needs induction
+#@ uses to_int_nonneg                        # the recursive lemma that proves it
+#@ assigns \nothing
+def all_nonneg() -> int:
+    return 0
+```
+
+A `#@ lemma`'s conclusion is exported as `forall params. H -> C` to every goal emitted
+**after** it. The wrapper's goal is discharged by that fact — but since the wrapper never
+mentions `to_int_nonneg` by name, no reference exists to force the lemma to be emitted
+first. `#@ uses` supplies exactly that ordering edge (it is consumed by the SCC sort,
+`scc.py`), so the lemma precedes the function and its fact is in scope.
+
+- **Ordering-only — emits no WhyML.** Unlike an explicit lemma *call* in the body
+  (`to_int_nonneg(Z())`, which also forces the order but instantiates a throwaway
+  argument), `#@ uses` is a pure, non-instantiating citation.
+- The cited name must be a function/lemma in scope. Multiple `#@ uses` lines are allowed.
+
+**Test-corpus cross-reference:** `0565` (a `\forall x: Nat; to_int(x) >= 0` wrapper
+discharged via `#@ uses` of the recursive lemma). Background: `scc.md` / `scc2.md`.
 
 ### 2.2 Loop Contracts
 

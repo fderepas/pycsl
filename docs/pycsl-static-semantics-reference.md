@@ -552,6 +552,22 @@ a lemma inside a `#@ requires`/`#@ ensures` expression.
 
 _Corresponds to `annotations.md` §2.1.16 and translational §T.2.12._
 
+#### §2.1.17 Uses (`uses`)
+
+```
+    name ∈ CNAME      name is a function/lemma in scope
+   ───────────────────────────────────────────────────
+    Γ_f ⊢ uses(name) : ok
+```
+
+**Rule.** `#@ uses <lemma>` cites a lemma whose general fact this function relies on but does not
+*name* (scc2.md). It is **ordering-only**: Module 3 records it on `csl_uses`, Module 5 carries it as
+`uses` on the function IR, and the SCC sort (`scc.py`) adds an edge so the cited lemma is emitted
+before this function (its `forall …` fact then in scope to discharge e.g. a universal over a recursive
+datatype). It produces **no WhyML** and adds no axiom — soundness is unaffected (it only changes
+declaration order; an out-of-scope or misspelled citation surfaces as the underlying proof failing, not
+as new trust). _Corresponds to `annotations.md` §2.1.17 and translational §T.2.13._
+
 #### §2.1.8 Bounded Integers (`assumes bounded_int(N)`)
 
 ```

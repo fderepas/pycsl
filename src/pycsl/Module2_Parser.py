@@ -259,6 +259,16 @@ class Lemma(CSLNode):
     are the induction hypotheses; it MUST carry `#@ \\variant` (soundness)."""
 
 @dataclass
+class Uses(CSLNode):
+    """Represents `#@ uses <lemma>` (scc2.md) — a NON-instantiating citation that the
+    function's verification relies on lemma `<lemma>`'s general fact. Its only effect
+    is an ordering edge (the cited lemma is emitted before this function, so its
+    `forall …` fact is in scope to discharge e.g. a `\\forall`-over-a-recursive-
+    datatype goal). It emits no WhyML of its own; it is consumed by the SCC edge
+    collector (`scc.py`)."""
+    lemma: str
+
+@dataclass
 class CSLBool(CSLNode):
     """Represents True/False literals in contract expressions."""
     value: bool
@@ -767,6 +777,7 @@ PYCSL_GRAMMAR = r"""
              | trusted_decl
              | abstract_decl
              | lemma_decl
+             | uses_decl
              | preserves_decl
              | ghost_assign
              | ghost_aug_assign
@@ -838,6 +849,7 @@ PYCSL_GRAMMAR = r"""
     trusted_decl: "\\trusted" ("reviewer" ":" REVIEWER_ID)?
     abstract_decl: "\\abstract"
     lemma_decl: "lemma"
+    uses_decl: "uses" CNAME
     preserves_decl: "\\preserves"
     REVIEWER_ID: /[A-Za-z0-9._@-]+/
     ghost_assign: "ghost" CNAME ":" GHOST_TYPE "=" expr -> ghost_assign_typed
@@ -1095,6 +1107,8 @@ class PyCSLTransformer(Transformer):
         return Abstract()
     def lemma_decl(self) -> Lemma:
         return Lemma()
+    def uses_decl(self, name) -> Uses:
+        return Uses(str(name))
     def preserves_decl(self) -> Preserves:
         return Preserves()
     def ghost_assign_typed(self, name, ghost_type, expr) -> GhostAssignDecl:
