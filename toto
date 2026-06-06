@@ -1,0 +1,83 @@
+I want you to write a workplan to do the following two tasks
+
+# `no_exception
+
+## Definition
+Add a keywork `no_exception` used with `no_exception \all`​ or `no_exception RuntimeError​`. Here is its semantic:
+    - if a function or method is annotated with `no_exception RuntimeError` then PyCSL checks that the precondition ensuring no exception can occur.
+    - if a function or method is annotated with `no_exception RuntimeError` and it's possible to have an exception, then the prove fails
+
+## Example
+Here is an example which gets proved, `ZeroDivisionError` exception  is possible:
+```
+#@ requires True
+#@ ensures True
+def divide_256(n):
+    return 256 / n
+```
+
+Here is an example which fails to be proven because `ZeroDivisionError` exception  is possible:
+```
+#@ no_exception ZeroDivisionError
+#@ requires True
+#@ ensures True
+def divide_256(n):
+    return 256 / n
+```
+
+Here is an example is proven because `ZeroDivisionError` exception not possible thans to the precondition:
+```
+#@ no_exception ZeroDivisionError
+#@ requires n!=0
+#@ ensures True
+def divide_256(n):
+    return 256 / n
+```
+## To take into account
+This feature requires a lots of modeling of possible exceptions.
+
+
+# Undefined behavior
+
+Detect the following UB:
+
+## Mutation during iteration
+
+The language reference explicitly says behavior is undefined. CPython raises RuntimeError for dict and set, but the language does not guarantee even that. This is genuine UB in the C sense — different implementations can do different things and none is wrong.
+
+## `__hash__` / `__eq__` inconsistency
+
+Violate a == b ⇒ hash(a) == hash(b) and set/dict membership becomes logically undefined — not "raises an exception", but "returns whatever falls out of the bucket layout".
+
+## Concurrent access without synchronization
+
+A race on `list.append` happens to be atomic-under-GIL in current CPython, but the language doesn't promise this, and PEP 703 (free-threaded CPython) is busy removing the de-facto guarantee. Cross-implementation, races are full UB.
+
+## C extension boundary
+
+ctypes, the buffer protocol, raw pointers from numpy — once you cross into C, you inherit all of C's UB.
+
+## `__del__` ordering and finalizer resurrection
+
+When finalizers run, what state they see, and whether they run on interpreter shutdown is implementation-defined to the point of being effectively undefined.
+
+# Documentation update 
+
+Update the skill `/home/fabrice.derepas@canonical.com/git/cmmi/config/skills/creusot` with your learnings from this experience, so that next time you save time..
+
+Propose a list of things to do, enhacements, new features in Creusot so that you save time. Save that plan in `new-things-to-add-in-creusot.md`.
+
+/plan Detail the strategy to execute `NoException_and_UBDetection_Workplan.md`.
+    Key finding: No design errors were found in the original Lace code.
+
+    The 62 theorems across 10 modules confirmed that:
+
+     - Byte conversions are correct bijections (9/9 proved)
+     - UUID v5 masking always produces valid version=5/variant=RFC9562 (8/8)
+     - All 18 CHID bitmasks are distinct, include manufacturer bit, fit in 12 bits (5/5 via native_decide)
+     - EDID 5-bit encoding is a bijection (7/7)
+     - Wrapping arithmetic forms a correct commutative monoid (7/7)
+     - SHA-1 message schedule is deterministic with correct range (4/4)
+
+    The 6 sorry instances are all due to core-Lean-4-only limitations (no Mathlib), not suspected bugs. All Creusot extern_spec! axioms that were validated are confirmed sound.
+

@@ -1,0 +1,38 @@
+=== 2026-05-31T11:51:45.412109+00:00Z  Module: json ===
+  Baseline: L1=0 L2=9 L3=0 L4=0 L5=0
+  Targets: 9 functions to promote
+  CPython source: 7 functions with docstrings
+  ── Promoting: JSONEncoder_iterencode ──
+    spliced 4 line(s) at json.py:67-68
+    wrote 2 reference test(s)
+  ── Promoting: JSONEncoder_encode ──
+    spliced 4 line(s) at json.py:61-62
+    wrote 2 reference test(s)
+  ── Promoting: JSONEncoder_default ──
+    spliced 4 line(s) at json.py:55-56
+    wrote 2 reference test(s)
+  ── Promoting: JSONDecoder_raw_decode ──
+    spliced 4 line(s) at json.py:47-48
+    wrote 2 reference test(s)
+  ── Promoting: JSONDecoder_decode ──
+    spliced 4 line(s) at json.py:41-42
+    wrote 2 reference test(s)
+  ── Promoting: loads ──
+    spliced 3 line(s) at json.py:33-34
+    wrote 2 reference test(s)
+  ── Promoting: load ──
+    spliced 4 line(s) at json.py:27-28
+    wrote 2 reference test(s)
+  ── Promoting: dumps ──
+    spliced 4 line(s) at json.py:19-20
+    wrote 2 reference test(s)
+  ── Promoting: dump ──
+    spliced 4 line(s) at json.py:13-14
+    wrote 2 reference test(s)
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module json ──
+      baseline: L1=0 L2=9 L3=0 L4=0 L5=0
+      final:    L1=0 L2=0 L3=0 L4=0 L5=9   (Δ L4+ = +9)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

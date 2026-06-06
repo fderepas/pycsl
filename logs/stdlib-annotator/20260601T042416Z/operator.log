@@ -1,0 +1,160 @@
+=== 2026-06-01T04:24:16.989140+00:00Z  Module: operator ===
+  Baseline: L1=0 L2=46 L3=5 L4=0 L5=0
+  Targets: 51 functions to promote
+  CPython source: 57 functions with docstrings
+  ── Promoting: ixor ──
+    spliced 3 line(s) at operator.py:304-305
+    wrote 2 reference test(s)
+  ── Promoting: itruediv ──
+    spliced 4 line(s) at operator.py:298-299
+    wrote 2 reference test(s)
+  ── Promoting: isub ──
+    spliced 3 line(s) at operator.py:292-293
+    wrote 2 reference test(s)
+  ── Promoting: irshift ──
+    spliced 5 line(s) at operator.py:286-287
+    wrote 2 reference test(s)
+  ── Promoting: ipow ──
+    spliced 5 line(s) at operator.py:280-281
+    wrote 2 reference test(s)
+  ── Promoting: ior ──
+    spliced 6 line(s) at operator.py:274-275
+    wrote 2 reference test(s)
+  ── Promoting: imatmul ──
+    spliced 3 line(s) at operator.py:268-269
+    wrote 2 reference test(s)
+  ── Promoting: imul ──
+    spliced 3 line(s) at operator.py:262-263
+    wrote 2 reference test(s)
+  ── Promoting: imod ──
+    spliced 5 line(s) at operator.py:256-257
+    wrote 2 reference test(s)
+  ── Promoting: ilshift ──
+    spliced 5 line(s) at operator.py:250-251
+    wrote 2 reference test(s)
+  ── Promoting: ifloordiv ──
+    spliced 5 line(s) at operator.py:244-245
+    wrote 2 reference test(s)
+  ── Promoting: iconcat ──
+    spliced 4 line(s) at operator.py:238-239
+    wrote 2 reference test(s)
+  ── Promoting: iand ──
+    spliced 5 line(s) at operator.py:232-233
+    wrote 2 reference test(s)
+  ── Promoting: iadd ──
+    spliced 3 line(s) at operator.py:226-227
+    wrote 2 reference test(s)
+  ── Promoting: methodcaller ──
+    spliced 3 line(s) at operator.py:220-221
+    wrote 2 reference test(s)
+  ── Promoting: itemgetter ──
+    spliced 4 line(s) at operator.py:214-215
+    wrote 2 reference test(s)
+  ── Promoting: attrgetter ──
+    spliced 3 line(s) at operator.py:208-209
+    wrote 2 reference test(s)
+  ── Promoting: call ──
+    spliced 3 line(s) at operator.py:202-203
+    wrote 2 reference test(s)
+  ── Promoting: length_hint ──
+    spliced 4 line(s) at operator.py:196-197
+    wrote 2 reference test(s)
+  ── Promoting: setitem ──
+    spliced 3 line(s) at operator.py:190-191
+    wrote 2 reference test(s)
+  ── Promoting: indexOf ──
+    spliced 4 line(s) at operator.py:184-185
+    wrote 2 reference test(s)
+  ── Promoting: getitem ──
+    spliced 3 line(s) at operator.py:178-179
+    wrote 2 reference test(s)
+  ── Promoting: delitem ──
+    spliced 3 line(s) at operator.py:172-173
+    wrote 2 reference test(s)
+  ── Promoting: countOf ──
+    spliced 3 line(s) at operator.py:166-167
+    wrote 2 reference test(s)
+  ── Promoting: contains ──
+    spliced 3 line(s) at operator.py:160-161
+    wrote 2 reference test(s)
+  ── Promoting: concat ──
+    spliced 3 line(s) at operator.py:154-155
+    wrote 2 reference test(s)
+  ── Promoting: xor ──
+    spliced 5 line(s) at operator.py:148-149
+    wrote 2 reference test(s)
+  ── Promoting: truediv ──
+    spliced 6 line(s) at operator.py:142-143
+    wrote 2 reference test(s)
+  ── Promoting: sub ──
+    spliced 3 line(s) at operator.py:136-137
+    wrote 2 reference test(s)
+  ── Promoting: rshift ──
+    spliced 5 line(s) at operator.py:130-131
+    wrote 2 reference test(s)
+  ── Promoting: pow ──
+    spliced 6 line(s) at operator.py:124-125
+    wrote 2 reference test(s)
+  ── Promoting: pos ──
+    spliced 3 line(s) at operator.py:118-119
+    wrote 2 reference test(s)
+  ── Promoting: or_ ──
+    spliced 7 line(s) at operator.py:112-113
+    wrote 2 reference test(s)
+  ── Promoting: neg ──
+    spliced 3 line(s) at operator.py:106-107
+    wrote 2 reference test(s)
+  ── Promoting: matmul ──
+    spliced 3 line(s) at operator.py:100-101
+    wrote 2 reference test(s)
+  ── Promoting: mul ──
+    spliced 3 line(s) at operator.py:94-95
+    wrote 2 reference test(s)
+  ── Promoting: mod ──
+    spliced 5 line(s) at operator.py:88-89
+    wrote 2 reference test(s)
+  ── Promoting: lshift ──
+    spliced 4 line(s) at operator.py:82-83
+    wrote 2 reference test(s)
+  ── Promoting: inv ──
+    spliced 3 line(s) at operator.py:76-77
+    wrote 2 reference test(s)
+  ── Promoting: index ──
+    spliced 3 line(s) at operator.py:70-71
+    wrote 2 reference test(s)
+  ── Promoting: floordiv ──
+    spliced 5 line(s) at operator.py:64-65
+    wrote 2 reference test(s)
+  ── Promoting: and_ ──
+    spliced 7 line(s) at operator.py:58-59
+    wrote 2 reference test(s)
+  ── Promoting: add ──
+    spliced 3 line(s) at operator.py:52-53
+    wrote 2 reference test(s)
+  ── Promoting: abs ──
+    spliced 5 line(s) at operator.py:46-47
+    wrote 2 reference test(s)
+  ── Promoting: is_not_none ──
+    spliced 3 line(s) at operator.py:40-41
+    wrote 2 reference test(s)
+  ── Promoting: is_none ──
+    spliced 4 line(s) at operator.py:34-35
+    wrote 2 reference test(s)
+  ── Promoting: is_not ──
+    spliced 3 line(s) at operator.py:28-29
+    wrote 2 reference test(s)
+  ── Promoting: is_ ──
+    spliced 4 line(s) at operator.py:22-23
+    wrote 2 reference test(s)
+  ── Promoting: truth ──
+    spliced 3 line(s) at operator.py:16-17
+    wrote 2 reference test(s)
+  ── Promoting: not_ ──
+    spliced 4 line(s) at operator.py:10-11
+    wrote 2 reference test(s)
+  ── Promoting: lt ──
+    spliced 5 line(s) at operator.py:4-5
+    wrote 2 reference test(s)
+  ── Gate: compile ── FAIL (exit 1)
+  rollback: stub restored; 102 new test files removed
+  Outcome: ROLLED-BACK

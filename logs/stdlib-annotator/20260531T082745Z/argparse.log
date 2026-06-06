@@ -1,0 +1,5 @@
+=== 2026-05-31T08:27:45.010223+00:00Z  Module: argparse ===
+  Baseline: L1=0 L2=8 L3=13 L4=2 L5=0
+  Targets: 21 functions to promote
+  CPython source: 11 functions with docstrings
+  ── Promoting: BooleanOptionalAction ──

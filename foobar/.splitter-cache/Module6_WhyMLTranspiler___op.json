@@ -1,0 +1,1 @@
+{"annotated_source": "#@ requires 1 == 1\n    #@ ensures 1 == 1\n    #@ assigns \\nothing\n    def _op(self, op: str) -> str:\n        \"\"\"Translates operators; defaults to the same string (e.g., +, -, >, <).\"\"\"\n        return self._OP_MAP.get(op, op)", "contracts": "#@ requires 1 == 1\n#@ ensures 1 == 1\n#@ assigns \\nothing"}

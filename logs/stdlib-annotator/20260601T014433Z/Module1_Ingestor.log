@@ -1,0 +1,35 @@
+=== 2026-06-01T01:44:33.094883+00:00Z  Module: Module1_Ingestor ===
+  Baseline: L1=0 L2=1 L3=7 L4=1 L5=0
+  Targets: 8 functions to promote
+  CPython source: 0 functions with docstrings
+  ── Promoting: PyCSLContract ──
+    spliced 4 line(s) at Module1_Ingestor.py:78-79
+    wrote 2 reference test(s)
+  ── Promoting: visit_simple_statement ──
+    spliced 5 line(s) at Module1_Ingestor.py:54-57
+    wrote 2 reference test(s)
+  ── Promoting: visit_for ──
+    spliced 4 line(s) at Module1_Ingestor.py:47-50
+    wrote 2 reference test(s)
+  ── Promoting: visit_while ──
+    spliced 5 line(s) at Module1_Ingestor.py:40-43
+    wrote 2 reference test(s)
+  ── Promoting: visit_functiondef ──
+    spliced 5 line(s) at Module1_Ingestor.py:33-36
+    wrote 2 reference test(s)
+  ── Promoting: leave_classdef ──
+    spliced 5 line(s) at Module1_Ingestor.py:26-29
+    wrote 2 reference test(s)
+  ── Promoting: visit_classdef ──
+    spliced 5 line(s) at Module1_Ingestor.py:19-22
+    wrote 2 reference test(s)
+  ── Promoting: visit_module ──
+    spliced 5 line(s) at Module1_Ingestor.py:12-15
+    wrote 2 reference test(s)
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module Module1_Ingestor ──
+      baseline: L1=0 L2=1 L3=7 L4=1 L5=0
+      final:    L1=0 L2=0 L3=0 L4=1 L5=8   (Δ L4+ = +8)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

@@ -1,0 +1,492 @@
+CMMI_AUDIT_NESTED=1 bin/agent-feature-supervisor --allow-load-bearing --allow-llm-delegation --feature-file 16-steps-exec.md
+
+---
+
+Are documentations: test-suite/annotations.md docs/pycsl-*reference*.md README.md test-suite/traceability-py* config/skills/pycal* in line with the latest changes
+
+---
+Write a specification for "lemma functions" to be supported by PyCSL by relying on Why3 features.
+---
+Write a specification for "Inductive predicates" to be supported by PyCSL by relying on Why3 features.
+---
+Write a specification for "Polymorphic / generic datatypes" to be supported by PyCSL by relying on Why3 features.
+---
+Write a specification for "Bitvectors" to be supported by PyCSL by relying on Why3 features.
+---
+Write a specification for "IEEE-754 floats" to be supported by PyCSL by relying on Why3 features on top of using real.
+---
+
+Using high-level specification `quantification-spec.md` derive the implementation plan `quantification-spec.md`.
+Using high-level specification `lemma-spec.md` derive the implementation plan `lemma.md`.
+Using high-level specification `inductive-spec.md` derive the implementation plan `inductive.md`.
+Using high-level specification `poly-spec.md` derive the implementation plan `poly.md`.
+Using high-level specification `bitvector-spec.md` derive the implementation plan `bitvector.md`.
+Using high-level specification `float-spec.md` derive the implementation plan `float.md`.
+
+---
+
+You wrote in `a2b-stage4-scaffold.md`:  `Demonstrate the novel move: a property that first-order region logic **cannot** discharge — a *permutation / reachability* fact — is proved once in Rocq **and** Lean, cross-checked, imported as a black-box WhyML axiom, and used to verify a Python driver.`. Do we agree that this could be done dynamically while analizing a Python code with PyCSL. Once the proof has been done with AI, they the check can occur without AI?
+
+---
+
+Take A2b stage-4 Gap 1, the permutation operator- 
+`
+
+---
+
+Update `config/skills/csl-from-scratch/` to make sure that the following progress in time is done:
+- interger abstracted stage with Basic PyCSL constraints (No `act` no 
+    - start with a simple minimalistic language
+    - include examples
+- Extend 
+
+---
+A lot of work was done in `no-more-int.md` and `no-more-int-2.md`.
+Detail what remains to be done after `no-more-int-2.md` in an new plan named `no-more-int-3.md`.
+Refactor all the following python files:
+- src/pycsl/*.py
+- src/pycsl/module6_whyml/*.py
+Is it ok while the sweep passes?
+---
+the CSL contract grammar doesn't accept float literals
+
+---
+
+What is the difference between these two types:
+```
+τ(dict)           = dict
+τ(Dict[K, V])     = dict      (* parametric dict — key/value types opaque *)
+```
+
+
+---
+
+Some feature were out of scope (deferred, per `meta.md`):
+ - \reading/confidentiality variant and weak_invariant/strong_invariant contexts (§B3a — v1
+ is check-only \writing).
+ - A general predicate-over-\written surface (this v1 is region-disjointness only).
+ - typed/store heap-address variant (hoare/shared-field is the proven, simpler first target).
+ - Capability tokens / \caller threading (options B/F — unneeded for a fixed-allowlist writer).
+Explain the benefit of adding them.
+
+
+---
+
+# Library stub
+Now rewrite from scratch `src/pycsl_lib/ast.py` by directly calling `pure_ast` functions.
+
+# Formal test driver
+Re-write from scratch `src/pycsl_lib/ast_demo.py`:
+
+## Example 1
+Formally test that `check_code(source_code)` return 1:
+```
+import ast
+
+# The source code we want to analyze
+source_code = """
+def calculate_total(price, tax):
+    return price + (price * tax)
+
+def greet_user(name):
+    print(f"Hello, {name}")
+
+class Invoice:
+    def __init__(self, amount):
+        self.amount = amount
+        
+    def process_payment(self):
+        pass
+"""
+
+# 1. Create the custom Visitor class with a state tracker
+class FunctionAnalyzer(ast.NodeVisitor):
+    def __init__(self):
+        super().__init__()
+        # Assume everything is fine until proven otherwise
+        self.everything_fine = True
+
+    def visit_FunctionDef(self, node):
+        # RULE: Check if the function name contains uppercase letters 
+        # (Excluding standard dunder methods like __init__)
+        if not node.name.islower() and not (node.name.startswith('__') and node.name.endswith('__')):
+            self.everything_fine = False
+        
+        # Continue traversing down into child nodes
+        self.generic_visit(node)
+
+# 2. Wrap the execution in a function so it can return 1 or 0
+#@ requires True
+#@ ensures ( source == source_code ) => \result
+def check_code(source):
+    try:
+        tree = ast.parse(source)
+        analyzer = FunctionAnalyzer()
+        analyzer.visit(tree)
+        
+        # Return 1 if the flag remained True, otherwise 0
+        return 1 if analyzer.everything_fine else 0
+        
+    except SyntaxError:
+        # If the code can't even be parsed, it's not fine
+        return 0
+
+# 3. Run the check
+# check_code(source_code) should return 1
+```
+
+
+Here is another example I want you to add in `pycsl/src/pycsl_lib/ast_demo.py` on JSON parsing:
+```
+import ast
+
+# A string received from an untrusted source
+user_input = "{'status': 'active', 'threshold': 42, 'flags': [True, False]}"
+
+# Safe evaluation
+try:
+    data_dict = ast.literal_eval(user_input)
+    print(type(data_dict))  # Output: <class 'dict'>
+    print(data_dict['threshold'])  # Output: 42
+except (ValueError, SyntaxError):
+    print("Malformed string! Cannot safely evaluate.")
+
+# Why it's safe: If someone tries to inject malicious code...
+malicious_input = "__import__('os').system('rm -rf /')"
+try:
+    ast.literal_eval(malicious_input)
+except ValueError:
+    print("Blocked malicious input!")  # This will trigger, keeping your system safe.
+```
+
+
+---
+
+I just created a pure python file re-implementing AST: `src/pycsl/pure_ast.py`
+here is what I want you to do: the big picture the `ast` is changing dynamically the AST structure.
+Draft a plan named `pure-ast-parsing-in-pycsl.md` which:
+- suppress the use of `ast` from Python Standard Library use `src/pycsl/pure_ast.py` instead.
+- then `pycsl/src/pycsl_lib/ast.py` will call corresponding components in `pycsl`
+
+Let's take an example:
+```
+import ast
+
+# 1. Define a simple line of Python code as a string
+code = "x = 5 + 3"
+
+# 2. Parse the code string into an Abstract Syntax Tree
+tree = ast.parse(code)
+
+# 3. Dump the tree structure with nice indentation so we can read it
+print(ast.dump(tree, indent=4))
+```
+Here is what happens when this function is analyzed by PyCSL:
+- `import ast` means that `pycsl/src/pycsl_lib/ast.py` will be used as implementation of `ast`
+- since `pycsl/src/pycsl_lib/ast.py`  is just a wrapper for `src/pycsl/pure_ast.py` it is actualy the PyCSL implenentation which is called.
+So `ast.parse(code)` works with the same fidelity as PyCSL.
+
+
+---
+
+I found these errors `````` while running `CMMI_AUDIT_NESTED=1 bin/agent-feature-supervisor --allow-load-bearing --allow-llm-delegation --feature-file 16-steps-exec.md`. Fix this issue. Reflect on what happepend, do not hesitate to update agents under `src/pycsl/agents` or suggest changes in the process described in `config/skills/project-lifecycle/` or modify associated skills. Durable fix belongs in the agent, in the skills not in hand-patching each stub, keep this as a guideline to make long term choices.
+
+
+---
+
+Here are all the special (dunder) methods, grouped by their categories:
+
+# Representation
+
+- __repr__
+- __str__
+- __format__
+- __bytes__
+- __fspath__
+
+# Number / conversion
+
+- __bool__
+- __complex__
+- __int__
+- __float__
+- __hash__
+- __index__
+
+# Collections
+
+- __len__
+- __getitem__
+- __setitem__
+- __delitem__
+- __contains__
+
+# Iteration
+
+- __iter__
+- __aiter__
+- __next__
+- __anext__
+- __reversed__
+
+# Callable / coroutine execution
+
+- __call__
+- __await__
+
+# Context management
+
+- __enter__
+- __exit__
+- __aenter__
+- __aexit__
+
+# Creation and destruction
+
+- __new__
+- __init__
+- __del__
+
+- Attribute management
+
+- __getattr__
+- __getattribute__
+- __setattr__
+- __delattr__
+- __dir__
+
+# Descriptors
+
+- __get__
+- __set__
+- __delete__
+- __set_name__
+
+# Class / metaclass machinery
+
+- __instancecheck__
+- __subclasscheck__
+- __prepare__
+- __init_subclass__
+- __subclasshook__
+- __mro_entries__
+- __class_getitem__
+
+# Unary operators / built-ins
+
+- __neg__ (-x)
+- __pos__ (+x)
+- __abs__ (abs())
+- __invert__ (~x)
+- __round__ (round())
+
+# Comparison operators
+
+- __lt__ (<)
+- __le__ (<=)
+- __eq__ (==)
+- __ne__ (!=)
+- __gt__ (>)
+- __ge__ (>=)
+
+# Arithmetic operators (forward)
+
+- __add__ (+)
+- __sub__ (-)
+- __mul__ (*)
+- __truediv__ (/)
+- __floordiv__ (//)
+- __mod__ (%)
+- __divmod__ (divmod())
+- __pow__ (**)
+- __matmul__ (@)
+
+# Bitwise operators (forward)
+
+- __and__ (&)
+- __or__ (|)
+- __xor__ (^)
+- __lshift__ (<<)
+- __rshift__ (>>)
+
+# Reversed / reflected operators (swapped operands)
+
+- __radd__
+- __rsub__
+- __rmul__
+- __rtruediv__
+- __rfloordiv__
+- __rmod__
+- __rdivmod__
+- __rpow__
+- __rmatmul__
+- __rand__
+- __ror__
+- __rxor__
+- __rlshift__
+- __rrshift__
+
+# Augmented / in-place assignment operators
+
+- __iadd__ (+=)
+- __isub__ (-=)
+- __imul__ (*=)
+- __itruediv__ (/=)
+- __ifloordiv__ (//=)
+- __imod__ (%=)
+- __ipow__ (**=)
+- __imatmul__ (@=)
+- __iand__ (&=)
+- __ior__ (|=)
+- __ixor__ (^=)
+- __ilshift__ (<<=)
+- __irshift__ (>>=)
+
+# Tracability 
+
+
+---
+
+/plan In `pycsl/src/pycsl_lib/io_demo.py` add an example similar to:
+```
+import io
+
+# Create an empty text stream
+output_buffer = io.StringIO()
+
+# Write data into it piece by piece
+output_buffer.write("Line 1: Preparing report...\n")
+output_buffer.write("Line 2: Data processing complete.\n")
+
+# Retrieve the full string content at any time using .getvalue()
+full_report = output_buffer.getvalue()
+print(full_report)
+
+output_buffer.close()
+```
+
+How come you still have some `\trusted` in `pycsl/src/pycsl_lib/ast.py`? Do like I did in `unix-filesystem/*.py` tere are no `\trusted` *follow the guidelines*. Remove those. Make sure that spirit stays: durable fix belongs in the agent, in the skills not in hand-patching each stub, keep this as a guideline to make long term choices.
+
+Change `pycsl/src/pycsl_lib/ast_demo.py` to formally test that `check_code(source_code)` return 1:
+```
+import ast
+
+# The source code we want to analyze
+source_code = """
+def calculate_total(price, tax):
+    return price + (price * tax)
+
+def greet_user(name):
+    print(f"Hello, {name}")
+
+class Invoice:
+    def __init__(self, amount):
+        self.amount = amount
+        
+    def process_payment(self):
+        pass
+"""
+
+# 1. Create the custom Visitor class with a state tracker
+class FunctionAnalyzer(ast.NodeVisitor):
+    def __init__(self):
+        super().__init__()
+        # Assume everything is fine until proven otherwise
+        self.everything_fine = True
+
+    def visit_FunctionDef(self, node):
+        # RULE: Check if the function name contains uppercase letters 
+        # (Excluding standard dunder methods like __init__)
+        if not node.name.islower() and not (node.name.startswith('__') and node.name.endswith('__')):
+            self.everything_fine = False
+        
+        # Continue traversing down into child nodes
+        self.generic_visit(node)
+
+# 2. Wrap the execution in a function so it can return 1 or 0
+def check_code(source):
+    try:
+        tree = ast.parse(source)
+        analyzer = FunctionAnalyzer()
+        analyzer.visit(tree)
+        
+        # Return 1 if the flag remained True, otherwise 0
+        return 1 if analyzer.everything_fine else 0
+        
+    except SyntaxError:
+        # If the code can't even be parsed, it's not fine
+        return 0
+
+# 3. Run the check
+# check_code(source_code) should return 1
+```
+
+
+Here is another example I want you to add in `pycsl/src/pycsl_lib/ast_demo.py` on JSON parsing:
+```
+import ast
+
+# A string received from an untrusted source
+user_input = "{'status': 'active', 'threshold': 42, 'flags': [True, False]}"
+
+# Safe evaluation
+try:
+    data_dict = ast.literal_eval(user_input)
+    print(type(data_dict))  # Output: <class 'dict'>
+    print(data_dict['threshold'])  # Output: 42
+except (ValueError, SyntaxError):
+    print("Malformed string! Cannot safely evaluate.")
+
+# Why it's safe: If someone tries to inject malicious code...
+malicious_input = "__import__('os').system('rm -rf /')"
+try:
+    ast.literal_eval(malicious_input)
+except ValueError:
+    print("Blocked malicious input!")  # This will trigger, keeping your system safe.
+```
+Durable fix belongs in the agent, in the skills not in hand-patching each stub, keep this as a guideline to make long term choices.
+
+Create a plan to do that. Save it under `level-up-your-game-agents.md`.
+    
+---
+
+I am going to call
+```
+CMMI_AUDIT_NESTED=1 bin/agent-feature-supervisor --allow-load-bearing --feature-file 16-steps-exec.md
+```
+Which metrics do you think are worth tracking for the CMMI of level 4? The loops between agents for instance? The ability of reconciliation agents to spot the right cause? The ease to write Rocq proofs?
+
+
+Globally when writing demo file ask the question `what would be a typical usage of [io|ast|...]` include that in 
+---
+
+Ok we refactored some useful agents. Great. Here are some herarchies of usage:
+Annotation pipeline (per file):
+```
+agent-annotate.py
+├── (single-function path) — direct LLM call using pycsl-annotate skill
+└── (multi-function path) — delegates to:
+    └── agent-splitter.py — call-graph analysis, topological sort
+        └── agent-writer.py — per-function annotation (3-agent pipeline)
+            ├── agent-english-writer.py  — English spec of the function
+            ├── agent-contract-writer.py — requires/ensures/assigns
+            └── agent-invariant-writer.py — loop invariants & variants
+```
+an coordinator loop (per file, up to 10 retries):
+```
+coordinator.py
+├── agent-annotate.py       → produces annotated .py in tests/annotated/
+├── pycsl (proof)           → exit 0 = pass, exit 1 = fail
+│   (if fail)
+├── agent-reconcile.py      → diagnosis + recommendation JSON
+├── agent-script-update.py  → applies fix via MCP
+├── agent-meta-evaluator.py → QA re-check
+└── (retry)
+```
+How to these agents coordinate with the ones described in `config/skills/project-lifecycle/`. For instance the low-level specifier should be close to agent-annotate.py, and verifier close to `agent-writer.py`.
+Write your analysis in `agent-landscape.md`.
+
+---
+
+CMMI_AUDIT_NESTED=1 bin/agent-feature-supervisor --allow-load-bearing --feature-file 16-steps-exec.md
+

@@ -1,0 +1,106 @@
+DIGEST 442c63aa24a3469919e58ca825fb2580
+FPyCSL.Phase0_IrJson
+R751:756 Coq.ZArith.ZArith <> <> lib
+R758:763 Coq.Strings.String <> <> lib
+R765:768 Coq.Lists.List <> <> lib
+ind 1013:1022 <> json_value
+constr 1038:1045 <> JsonNull
+constr 1051:1058 <> JsonBool
+constr 1077:1083 <> JsonInt
+constr 1100:1109 <> JsonString
+constr 1128:1135 <> JsonList
+constr 1166:1175 <> JsonObject
+R1067:1070 Coq.Init.Datatypes <> bool ind
+binder 1063:1063 <> b:3
+R1093:1093 Coq.Numbers.BinNums <> Z ind
+binder 1089:1089 <> n:4
+R1116:1121 Coq.Strings.String <> string ind
+binder 1112:1112 <> s:5
+R1145:1148 Coq.Init.Datatypes <> list ind
+R1150:1159 PyCSL.Phase0_IrJson <> json_value:1 ind
+binder 1140:1141 <> vs:6
+R1184:1187 Coq.Init.Datatypes <> list ind
+R1196:1198 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R1190:1195 Coq.Strings.String <> string ind
+R1199:1208 PyCSL.Phase0_IrJson <> json_value:1 ind
+binder 1178:1180 <> kvs:7
+scheme 1013:1022 <> json_value_rect
+scheme 1013:1022 <> json_value_ind
+scheme 1013:1022 <> json_value_rec
+scheme 1013:1022 <> json_value_sind
+rec 1289:1300 <> contracts_ir
+proj 1330:1340 <> ci_requires
+proj 1371:1380 <> ci_ensures
+proj 1412:1421 <> ci_assigns
+proj 1453:1461 <> ci_raises
+proj 1494:1508 <> ci_no_exception
+proj 1531:1549 <> ci_no_exception_all
+R1352:1355 Coq.Init.Datatypes <> list ind
+R1357:1366 PyCSL.Phase0_IrJson <> json_value ind
+R1393:1396 Coq.Init.Datatypes <> list ind
+R1398:1407 PyCSL.Phase0_IrJson <> json_value ind
+R1434:1437 Coq.Init.Datatypes <> list ind
+R1439:1448 PyCSL.Phase0_IrJson <> json_value ind
+R1475:1478 Coq.Init.Datatypes <> list ind
+R1480:1489 PyCSL.Phase0_IrJson <> json_value ind
+R1516:1519 Coq.Init.Datatypes <> list ind
+R1521:1526 Coq.Strings.String <> string ind
+R1553:1556 Coq.Init.Datatypes <> bool ind
+rec 1635:1645 <> function_ir
+proj 1674:1680 <> fi_name
+proj 1707:1721 <> fi_symbol_table
+proj 1756:1775 <> fi_return_annotation
+proj 1789:1800 <> fi_contracts
+proj 1828:1834 <> fi_body
+proj 1870:1889 <> fi_function_variants
+proj 1912:1922 <> fi_diverges
+proj 1943:1952 <> fi_trusted
+proj 1974:1987 <> fi_bounded_int
+proj 2009:2015 <> fi_pure
+proj 2040:2056 <> fi_array2d_params
+proj 2078:2094 <> fi_array1d_params
+proj 2116:2122 <> fi_kind
+proj 2149:2160 <> fi_self_type
+R1697:1702 Coq.Strings.String <> string ind
+R1730:1733 Coq.Init.Datatypes <> list ind
+R1742:1744 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R1736:1741 Coq.Strings.String <> string ind
+R1745:1750 Coq.Strings.String <> string ind
+R1779:1784 Coq.Strings.String <> string ind
+R1812:1823 PyCSL.Phase0_IrJson <> contracts_ir rec
+R1851:1854 Coq.Init.Datatypes <> list ind
+R1856:1865 PyCSL.Phase0_IrJson <> json_value ind
+R1893:1896 Coq.Init.Datatypes <> list ind
+R1898:1907 PyCSL.Phase0_IrJson <> json_value ind
+R1935:1938 Coq.Init.Datatypes <> bool ind
+R1966:1969 Coq.Init.Datatypes <> bool ind
+R1997:2002 Coq.Init.Datatypes <> option ind
+R2004:2004 Coq.Numbers.BinNums <> Z ind
+R2032:2035 Coq.Init.Datatypes <> bool ind
+R2063:2066 Coq.Init.Datatypes <> list ind
+R2068:2073 Coq.Strings.String <> string ind
+R2101:2104 Coq.Init.Datatypes <> list ind
+R2106:2111 Coq.Strings.String <> string ind
+R2139:2144 Coq.Strings.String <> string ind
+R2172:2177 Coq.Strings.String <> string ind
+rec 2254:2263 <> program_ir
+proj 2291:2303 <> pi_type_decls
+proj 2332:2343 <> pi_functions
+proj 2374:2387 <> pi_shared_vars
+proj 2415:2433 <> pi_mutex_invariants
+proj 2467:2483 <> pi_thread_entries
+proj 2504:2516 <> pi_lock_order
+R2313:2316 Coq.Init.Datatypes <> list ind
+R2318:2327 PyCSL.Phase0_IrJson <> json_value ind
+R2354:2357 Coq.Init.Datatypes <> list ind
+R2359:2369 PyCSL.Phase0_IrJson <> function_ir rec
+R2396:2399 Coq.Init.Datatypes <> list ind
+R2401:2410 PyCSL.Phase0_IrJson <> json_value ind
+R2437:2440 Coq.Init.Datatypes <> list ind
+R2449:2451 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R2443:2448 Coq.Strings.String <> string ind
+R2452:2461 PyCSL.Phase0_IrJson <> json_value ind
+R2489:2492 Coq.Init.Datatypes <> list ind
+R2494:2499 Coq.Strings.String <> string ind
+R2526:2529 Coq.Init.Datatypes <> list ind
+R2531:2536 Coq.Strings.String <> string ind

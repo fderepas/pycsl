@@ -1,0 +1,32 @@
+{"synthetic": false,
+ "schemaVersion": "2025-09-10",
+ "outputs":
+ {"o": ["c4f5bcc6af085ead.olean"],
+  "m": false,
+  "i": "06cff2d20088bcb5.ilean",
+  "c": "1c87fe3071d04d77.c"},
+ "log":
+ [{"message":
+   ".> LEAN_PATH=/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/pycsl-reference/0342.proofs/lean/.lake/build/lib/lean /home/fabrice.derepas@canonical.com/.elan/toolchains/leanprover--lean4---v4.30.0/bin/lean /home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/pycsl-reference/0342.proofs/lean/Gcd.lean -o /home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/pycsl-reference/0342.proofs/lean/.lake/build/lib/lean/Gcd.olean -i /home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/pycsl-reference/0342.proofs/lean/.lake/build/lib/lean/Gcd.ilean -c /home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/pycsl-reference/0342.proofs/lean/.lake/build/ir/Gcd.c --setup /home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/pycsl-reference/0342.proofs/lean/.lake/build/ir/Gcd.setup.json --json",
+   "level": "trace"}],
+ "inputs":
+ [["Gcd:deps",
+   [["deps",
+     [["PycslReferenceGcd0342/PycslReferenceGcd0342:extraDep",
+       [["@PycslReferenceGcd0342:extraDep", "00000000000006bb"]]],
+      ["imports", "00000000000006bb"]]],
+    ["libs",
+     [["import dynlibs", "00000000000006bb"],
+      ["package external libraries", "00000000000006bb"],
+      ["module dynlibs", "00000000000006bb"],
+      ["module plugins", "00000000000006bb"]]]]],
+  ["Lean 4.30.0, commit d024af099ca4bf2c86f649261ebf59565dc8c622",
+   "2f4703bb19086252"],
+  ["/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/pycsl-reference/0342.proofs/lean/Gcd.lean",
+   "53ca54088c88b850"],
+  ["options", [["-DautoImplicit=false", "4a85acb881fd49d0"]]],
+  ["isModule: false", "feefd2a0d3a1847e"],
+  ["Module.name: Gcd", "6682d5ceafe29aea"],
+  ["Package.id?: (some PycslReferenceGcd0342)", "1b7eec971a5b4831"],
+  ["Module.leanArgs: #[]", "00000000000006bb"]],
+ "depHash": "6f267138a01cba2d"}

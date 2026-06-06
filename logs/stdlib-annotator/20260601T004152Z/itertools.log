@@ -1,0 +1,22 @@
+=== 2026-06-01T00:41:52.647768+00:00Z  Module: itertools ===
+  Baseline: L1=3 L2=0 L3=2 L4=7 L5=0
+  Targets: 5 functions to promote
+  CPython source: 20 functions with docstrings
+  ── Promoting: zip_longest ──
+    spliced 4 line(s) at itertools.py:77-80
+    wrote 2 reference test(s)
+  ── Promoting: islice ──
+    spliced 4 line(s) at itertools.py:69-72
+    wrote 2 reference test(s)
+  ── Promoting: cycle ──
+    spliced 4 line(s) at itertools.py:61-64
+    wrote 2 reference test(s)
+  ── Promoting: permutations ──
+    spliced 6 line(s) at itertools.py:18-23
+    wrote 2 reference test(s)
+  ── Promoting: combinations ──
+    spliced 6 line(s) at itertools.py:10-13
+    wrote 2 reference test(s)
+  ── Gate: compile ── FAIL (exit 1)
+  rollback: stub restored; 10 new test files removed
+  Outcome: ROLLED-BACK

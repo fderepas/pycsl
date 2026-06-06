@@ -1,0 +1,166 @@
+DIGEST 8fb5e305b9bffed8658cf850d0ed59b3
+Fgcd
+R337:348 Coq.Init.Nat <> <> lib
+R366:383 Coq.Arith.PeanoNat <> <> lib
+R401:403 Coq.micromega.Lia <> <> lib
+mod 414:418 <> Pycsl
+mod 428:436 <> Pycsl.Reference
+mod 446:448 <> Pycsl.Reference.Gcd
+prf 542:558 Pycsl.Reference.Gcd gcd_result_nonneg
+R575:577 Coq.Init.Datatypes <> nat ind
+binder 569:569 <> a:1
+binder 571:571 <> b:2
+R591:594 Coq.Init.Peano <> ::nat_scope:x_'>='_x not
+R580:586 Coq.Arith.PeanoNat Nat gcd def
+R588:588 gcd <> a:1 var
+R590:590 gcd <> b:2 var
+prf 674:692 Pycsl.Reference.Gcd gcd_result_positive
+R709:711 Coq.Init.Datatypes <> nat ind
+binder 703:703 <> a:3
+binder 705:705 <> b:4
+R730:733 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R721:724 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
+R717:719 Coq.Init.Peano <> ::nat_scope:x_'>'_x not
+R716:716 gcd <> a:3 var
+R726:728 Coq.Init.Peano <> ::nat_scope:x_'>'_x not
+R725:725 gcd <> b:4 var
+R745:747 Coq.Init.Peano <> ::nat_scope:x_'>'_x not
+R734:740 Coq.Arith.PeanoNat Nat gcd def
+R742:742 gcd <> a:3 var
+R744:744 gcd <> b:4 var
+R786:792 Coq.Arith.PeanoNat Nat gcd def
+R786:792 Coq.Arith.PeanoNat Nat gcd def
+R817:828 Coq.Arith.PeanoNat Nat gcd_eq_0 def
+R817:828 Coq.Arith.PeanoNat Nat gcd_eq_0 def
+prf 913:925 Pycsl.Reference.Gcd gcd_divides_a
+R942:944 Coq.Init.Datatypes <> nat ind
+binder 936:936 <> a:5
+binder 938:938 <> b:6
+R963:966 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R954:957 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
+R950:952 Coq.Init.Peano <> ::nat_scope:x_'>'_x not
+R949:949 gcd <> a:5 var
+R959:961 Coq.Init.Peano <> ::nat_scope:x_'>'_x not
+R958:958 gcd <> b:6 var
+R986:988 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R968:973 Coq.Arith.PeanoNat <> ::nat_scope:x_'mod'_x not
+R985:985 Coq.Arith.PeanoNat <> ::nat_scope:x_'mod'_x not
+R967:967 gcd <> a:5 var
+R974:980 Coq.Arith.PeanoNat Nat gcd def
+R982:982 gcd <> a:5 var
+R984:984 gcd <> b:6 var
+R1023:1041 Coq.Arith.PeanoNat Nat.Lcm0 mod_divide thm
+R1023:1041 Coq.Arith.PeanoNat Nat.Lcm0 mod_divide thm
+R1052:1067 Coq.Arith.PeanoNat Nat gcd_divide_l thm
+R1052:1067 Coq.Arith.PeanoNat Nat gcd_divide_l thm
+prf 1132:1144 Pycsl.Reference.Gcd gcd_divides_b
+R1161:1163 Coq.Init.Datatypes <> nat ind
+binder 1155:1155 <> a:7
+binder 1157:1157 <> b:8
+R1182:1185 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1173:1176 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
+R1169:1171 Coq.Init.Peano <> ::nat_scope:x_'>'_x not
+R1168:1168 gcd <> a:7 var
+R1178:1180 Coq.Init.Peano <> ::nat_scope:x_'>'_x not
+R1177:1177 gcd <> b:8 var
+R1205:1207 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1187:1192 Coq.Arith.PeanoNat <> ::nat_scope:x_'mod'_x not
+R1204:1204 Coq.Arith.PeanoNat <> ::nat_scope:x_'mod'_x not
+R1186:1186 gcd <> b:8 var
+R1193:1199 Coq.Arith.PeanoNat Nat gcd def
+R1201:1201 gcd <> a:7 var
+R1203:1203 gcd <> b:8 var
+R1242:1260 Coq.Arith.PeanoNat Nat.Lcm0 mod_divide thm
+R1242:1260 Coq.Arith.PeanoNat Nat.Lcm0 mod_divide thm
+R1271:1286 Coq.Arith.PeanoNat Nat gcd_divide_r thm
+R1271:1286 Coq.Arith.PeanoNat Nat gcd_divide_r thm
+prf 1486:1490 Pycsl.Reference.Gcd gcd_0
+R1505:1507 Coq.Init.Datatypes <> nat ind
+binder 1501:1501 <> a:9
+R1521:1523 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1510:1516 Coq.Arith.PeanoNat Nat gcd def
+R1518:1518 gcd <> a:9 var
+R1524:1524 gcd <> a:9 var
+R1550:1560 Coq.Arith.PeanoNat Nat gcd_0_r def
+R1550:1560 Coq.Arith.PeanoNat Nat gcd_0_r def
+prf 1758:1765 Pycsl.Reference.Gcd gcd_step
+R1782:1784 Coq.Init.Datatypes <> nat ind
+binder 1776:1776 <> a:10
+binder 1778:1778 <> b:11
+R1794:1797 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1790:1792 Coq.Init.Peano <> ::nat_scope:x_'>'_x not
+R1789:1789 gcd <> b:11 var
+R1809:1811 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1798:1804 Coq.Arith.PeanoNat Nat gcd def
+R1806:1806 gcd <> a:10 var
+R1808:1808 gcd <> b:11 var
+R1812:1818 Coq.Arith.PeanoNat Nat gcd def
+R1820:1820 gcd <> b:11 var
+R1824:1828 Coq.Arith.PeanoNat <> ::nat_scope:x_'mod'_x not
+R1823:1823 gcd <> a:10 var
+R1829:1829 gcd <> b:11 var
+R1868:1879 Coq.Arith.PeanoNat Nat gcd_comm def
+R1868:1879 Coq.Arith.PeanoNat Nat gcd_comm def
+R1868:1879 Coq.Arith.PeanoNat Nat gcd_comm def
+R1955:1957 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1928:1934 Coq.Arith.PeanoNat Nat gcd def
+R1938:1942 Coq.Arith.PeanoNat <> ::nat_scope:x_'mod'_x not
+R1943:1943 Coq.Init.Datatypes <> S constr
+R1950:1950 Coq.Init.Datatypes <> S constr
+R1958:1964 Coq.Arith.PeanoNat Nat gcd def
+R1967:1967 Coq.Init.Datatypes <> S constr
+R1975:1979 Coq.Arith.PeanoNat <> ::nat_scope:x_'mod'_x not
+R1980:1980 Coq.Init.Datatypes <> S constr
+R1955:1957 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1928:1934 Coq.Arith.PeanoNat Nat gcd def
+R1938:1942 Coq.Arith.PeanoNat <> ::nat_scope:x_'mod'_x not
+R1943:1943 Coq.Init.Datatypes <> S constr
+R1950:1950 Coq.Init.Datatypes <> S constr
+R1958:1964 Coq.Arith.PeanoNat Nat gcd def
+R1967:1967 Coq.Init.Datatypes <> S constr
+R1975:1979 Coq.Arith.PeanoNat <> ::nat_scope:x_'mod'_x not
+R1980:1980 Coq.Init.Datatypes <> S constr
+R1996:2007 Coq.Arith.PeanoNat Nat gcd_comm def
+R1996:2007 Coq.Arith.PeanoNat Nat gcd_comm def
+prf 2303:2314 Pycsl.Reference.Gcd gcd_greatest
+R2333:2335 Coq.Init.Datatypes <> nat ind
+binder 2325:2325 <> a:12
+binder 2327:2327 <> b:13
+binder 2329:2329 <> k:14
+R2354:2357 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2345:2348 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
+R2341:2343 Coq.Init.Peano <> ::nat_scope:x_'>'_x not
+R2340:2340 gcd <> a:12 var
+R2350:2352 Coq.Init.Peano <> ::nat_scope:x_'>'_x not
+R2349:2349 gcd <> b:13 var
+R2363:2366 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2359:2361 Coq.Init.Peano <> ::nat_scope:x_'>'_x not
+R2358:2358 gcd <> k:14 var
+R2378:2381 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2374:2376 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R2368:2372 Coq.Arith.PeanoNat <> ::nat_scope:x_'mod'_x not
+R2367:2367 gcd <> a:12 var
+R2373:2373 gcd <> k:14 var
+R2393:2398 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2389:2391 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R2383:2387 Coq.Arith.PeanoNat <> ::nat_scope:x_'mod'_x not
+R2382:2382 gcd <> b:13 var
+R2388:2388 gcd <> k:14 var
+R2400:2403 Coq.Init.Peano <> ::nat_scope:x_'<='_x not
+R2399:2399 gcd <> k:14 var
+R2404:2410 Coq.Arith.PeanoNat Nat gcd def
+R2412:2412 gcd <> a:12 var
+R2414:2414 gcd <> b:13 var
+R2461:2477 Coq.Arith.PeanoNat Nat divide_pos_le def
+R2461:2477 Coq.Arith.PeanoNat Nat divide_pos_le def
+R2490:2508 gcd Pycsl.Reference.Gcd gcd_result_positive thm
+R2490:2508 gcd Pycsl.Reference.Gcd gcd_result_positive thm
+R2532:2547 Coq.Arith.PeanoNat Nat gcd_greatest thm
+R2562:2580 Coq.Arith.PeanoNat Nat.Lcm0 mod_divide thm
+R2604:2622 Coq.Arith.PeanoNat Nat.Lcm0 mod_divide thm
+R2532:2547 Coq.Arith.PeanoNat Nat gcd_greatest thm
+R2562:2580 Coq.Arith.PeanoNat Nat.Lcm0 mod_divide thm
+R2604:2622 Coq.Arith.PeanoNat Nat.Lcm0 mod_divide thm
+R2647:2649 gcd Pycsl.Reference.Gcd <> mod
+R2656:2664 gcd Pycsl.Reference <> mod
+R2671:2675 gcd Pycsl <> mod

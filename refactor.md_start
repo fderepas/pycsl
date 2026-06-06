@@ -1,0 +1,100 @@
+❯ What about doing items 1–3, 6, 9, 11 that are are API-breaking first. I love to do hardest things first. What is your take on that? Will I have enough tokens to do that ?                                                             
+
+● Good instinct, but let me give you an honest engineering assessment before we dive in.
+
+  The 6 items aren't equal in complexity or context cost:
+
+  ┌──────┬─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┬───────────────────────────────────────┬────────────────────────────────────────┐
+  │ Item │                                               What it actually means                                                │             Lines touched             │                  Risk                  │
+  ├──────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼───────────────────────────────────────┼────────────────────────────────────────┤
+  │ 1+2  │ Extract ~15 helper methods from two huge methods in Module6                                                         │ ~1300 lines in one file               │ Low — pure extraction, no logic change │
+  ├──────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼───────────────────────────────────────┼────────────────────────────────────────┤
+  │ 6    │ Fix Kahn's sort to emit let rec … and for cycles                                                                    │ ~40 lines in Module6                  │ Medium — changes generated WhyML       │
+  ├──────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼───────────────────────────────────────┼────────────────────────────────────────┤
+  │ 9    │ Define PyCSLError subclasses + replace raise SyntaxError / sys.exit in ~10 files                                    │ ~25 files, ~5 lines each              │ Low per file, but tedious              │
+  ├──────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼───────────────────────────────────────┼────────────────────────────────────────┤
+  │ 11   │ Replace 80 flat dataclasses with a typed hierarchy in Module2 — and update every isinstance check in M3, M4, M5, M6 │ 5 files, hundreds of isinstance sites │ High — API break cascades              │
+  ├──────┼─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼───────────────────────────────────────┼────────────────────────────────────────┤
+  │ 3    │ Decompose the 2772-line agent-annotate into a guard pipeline with dependency ordering                               │ 2772-line file, near-full rewrite     │ Very high                              │
+  └──────┴─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┴───────────────────────────────────────┴────────────────────────────────────────┘
+
+  On context: reading + rewriting Module6 (~2500 lines), Module2 + 4 downstream files (~3000 lines), all 25 files for item 9, and agent-annotate.py (2772 lines) in one session would almost certainly exhaust the context window before
+  we finish. The conversation compresses, but large file rewrites are expensive.
+
+  My recommendation — do it in this order across two sessions:
+
+  Session 1 (this one):
+  - Items 1, 2, 6 together — they're all Module6, one file, three targeted changes
+  - Item 11 — Module2 hierarchy + downstream cascade (hardest API change, good to validate early)
+
+  Session 2:
+  - Item 9 — PyCSLError across all files (many small edits)
+  - Item 3 — agent-annotate full guard pipeline rewrite (deserves its own session, it's a near-rewrite of 2772 lines)
+
+  This way if something breaks after items 1, 2, 6, 11 you can run the test suite before proceeding.
+
+  Want to start with that session 1 scope (items 1, 2, 6, 11)?
+
+
+/plan The following tests are not passing:
+```
+  - pycsl-reference/0056 
+  - pycsl-reference/0057 
+  - pycsl-reference/0059 
+  - pycsl-reference/0060 
+  - pycsl-reference/0061 
+  - pycsl-reference/0062 
+  - pycsl-reference/0063
+  - pycsl-reference/0064
+  - pycsl-reference/0065
+  - pycsl-reference/0168
+  - pycsl-reference/0169
+  - pycsl-reference/0170
+  - pycsl-reference/0171
+  - pycsl-reference/0174
+  - pycsl-reference/0175
+  - pycsl-reference/0176
+  - pycsl-reference/0177
+  - pycsl-reference/0178
+  - pycsl-reference/0179
+  - pycsl-reference/0180
+  - pycsl-reference/0181
+  - pycsl-reference/0182
+  - pycsl-reference/0183
+  - pycsl-reference/0184
+  - pycsl-reference/0185
+  - pycsl-reference/0186
+  - pycsl-reference/0187
+  - python-reference/0060
+  - python-reference/0061
+  - python-reference/0076
+  - python-reference/0078
+  - python-reference/0087
+  - python-reference/0091
+  - python-reference/0092
+  - python-reference/0099
+  - python-reference/0140
+  - python-reference/0141
+  - python-reference/0146
+  - python-reference/0151
+  - python-reference/0175
+  - python-reference/0177
+  - python-reference/0178
+  - python-reference/0182
+  - python-reference/0185
+  - python-reference/0186
+  - python-reference/0187
+  - python-reference/0192
+  - python-reference/0193
+  - python-reference/0194
+  - python-reference/0196
+  - python-reference/0198
+  - python-reference/0199
+  - python-reference/0200
+  - python-reference/0202
+  - python-reference/0203
+  - python-reference/0204
+  - python-reference/0211
+  - python-reference/0217
+```
+This each of them without changing the code, just by changing `pycsl`. If you think the annotations or the code needs to be change write that in the following file `./reference-tests-shoud-change.md` but do not change the reference tests. I will inspect manually

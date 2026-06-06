@@ -1,0 +1,143 @@
+=== 2026-06-01T06:53:08.651458+00:00Z  Module: pathlib ===
+  Baseline: L1=0 L2=8 L3=83 L4=2 L5=0
+  Targets: 91 functions to promote
+  CPython source: 22 functions with docstrings
+  ── Promoting: Path_home ──
+    spliced 4 line(s) at pathlib.py:657-658
+    wrote 2 reference test(s)
+  ── Promoting: Path_cwd ──
+    spliced 4 line(s) at pathlib.py:652-653
+    wrote 2 reference test(s)
+  ── Promoting: WindowsPath ──
+    spliced 3 line(s) at pathlib.py:647-648
+    wrote 2 reference test(s)
+  ── Promoting: PosixPath ──
+    spliced 3 line(s) at pathlib.py:642-643
+    wrote 2 reference test(s)
+  ── Promoting: PureWindowsPath ──
+    spliced 3 line(s) at pathlib.py:637-638
+    wrote 2 reference test(s)
+  ── Promoting: PurePosixPath ──
+    spliced 3 line(s) at pathlib.py:632-633
+    wrote 2 reference test(s)
+  ── Promoting: Path ──
+    spliced 3 line(s) at pathlib.py:627-628
+    wrote 2 reference test(s)
+  ── Promoting: PurePath ──
+    spliced 3 line(s) at pathlib.py:622-623
+    wrote 2 reference test(s)
+  ── Promoting: chmod ──
+    spliced 5 line(s) at pathlib.py:613-616
+    wrote 2 reference test(s)
+  ── Promoting: group_name ──
+    spliced 5 line(s) at pathlib.py:606-609
+    wrote 2 reference test(s)
+  ── Promoting: owner ──
+    spliced 5 line(s) at pathlib.py:599-602
+    wrote 2 reference test(s)
+  ── Promoting: rmdir ──
+    spliced 5 line(s) at pathlib.py:592-595
+    wrote 2 reference test(s)
+  ── Promoting: unlink ──
+    spliced 5 line(s) at pathlib.py:585-588
+    wrote 2 reference test(s)
+  ── Promoting: move_path ──
+    spliced 5 line(s) at pathlib.py:578-581
+    wrote 2 reference test(s)
+  ── Promoting: replace_path ──
+    spliced 5 line(s) at pathlib.py:571-574
+    wrote 2 reference test(s)
+  ── Promoting: rename_path ──
+    spliced 5 line(s) at pathlib.py:564-567
+    wrote 2 reference test(s)
+  ── Promoting: copy_file ──
+    spliced 5 line(s) at pathlib.py:557-560
+    wrote 2 reference test(s)
+  ── Promoting: hardlink_to ──
+    spliced 5 line(s) at pathlib.py:550-553
+    wrote 2 reference test(s)
+  ── Promoting: symlink_to ──
+    spliced 4 line(s) at pathlib.py:543-546
+    wrote 2 reference test(s)
+  ── Promoting: mkdir ──
+    spliced 5 line(s) at pathlib.py:536-539
+    wrote 2 reference test(s)
+  ── Promoting: touch ──
+    spliced 4 line(s) at pathlib.py:529-532
+    wrote 2 reference test(s)
+  ── Promoting: walk ──
+    spliced 5 line(s) at pathlib.py:522-525
+    wrote 2 reference test(s)
+  ── Promoting: rglob ──
+    spliced 4 line(s) at pathlib.py:515-518
+    wrote 2 reference test(s)
+  ── Promoting: glob_path ──
+    spliced 5 line(s) at pathlib.py:508-511
+    wrote 2 reference test(s)
+  ── Promoting: iterdir ──
+    spliced 5 line(s) at pathlib.py:501-504
+    wrote 2 reference test(s)
+  ── Promoting: write_bytes ──
+    spliced 5 line(s) at pathlib.py:494-497
+    wrote 2 reference test(s)
+  ── Promoting: write_text ──
+    spliced 5 line(s) at pathlib.py:487-490
+    wrote 2 reference test(s)
+  ── Promoting: read_bytes ──
+    spliced 5 line(s) at pathlib.py:480-483
+    wrote 2 reference test(s)
+  ── Promoting: read_text ──
+    spliced 5 line(s) at pathlib.py:473-476
+    wrote 2 reference test(s)
+  ── Promoting: open_file ──
+    spliced 5 line(s) at pathlib.py:466-469
+    wrote 2 reference test(s)
+  ── Promoting: samefile ──
+    spliced 5 line(s) at pathlib.py:459-462
+    wrote 2 reference test(s)
+  ── Promoting: is_char_device ──
+    spliced 5 line(s) at pathlib.py:452-455
+    wrote 2 reference test(s)
+  ── Promoting: is_block_device ──
+    spliced 5 line(s) at pathlib.py:445-448
+    wrote 2 reference test(s)
+  ── Promoting: is_fifo ──
+    spliced 5 line(s) at pathlib.py:438-441
+    wrote 2 reference test(s)
+  ── Promoting: is_socket ──
+    spliced 5 line(s) at pathlib.py:431-434
+    wrote 2 reference test(s)
+  ── Promoting: is_mount ──
+    spliced 5 line(s) at pathlib.py:424-427
+    wrote 2 reference test(s)
+  ── Promoting: is_junction ──
+    spliced 5 line(s) at pathlib.py:417-420
+    wrote 2 reference test(s)
+  ── Promoting: is_symlink ──
+    spliced 5 line(s) at pathlib.py:410-413
+    wrote 2 reference test(s)
+  ── Promoting: is_dir ──
+    spliced 5 line(s) at pathlib.py:403-406
+    wrote 2 reference test(s)
+  ── Promoting: is_file ──
+    spliced 4 line(s) at pathlib.py:396-399
+    wrote 2 reference test(s)
+  ── Promoting: path_exists ──
+    spliced 5 line(s) at pathlib.py:389-392
+    wrote 2 reference test(s)
+  ── Promoting: lstat ──
+    spliced 5 line(s) at pathlib.py:382-385
+    wrote 2 reference test(s)
+  ── Promoting: stat ──
+    spliced 4 line(s) at pathlib.py:375-378
+    wrote 2 reference test(s)
+  ── Promoting: readlink ──
+    spliced 5 line(s) at pathlib.py:368-371
+    wrote 2 reference test(s)
+  ── Promoting: resolve ──
+    spliced 5 line(s) at pathlib.py:361-364
+    wrote 2 reference test(s)
+  ── Promoting: absolute ──
+    spliced 5 line(s) at pathlib.py:354-357
+    wrote 2 reference test(s)
+  ── Promoting: expanduser ──

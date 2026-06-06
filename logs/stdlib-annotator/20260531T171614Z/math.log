@@ -1,0 +1,181 @@
+=== 2026-05-31T17:16:14.527558+00:00Z  Module: math ===
+  Baseline: L1=0 L2=58 L3=0 L4=0 L5=4
+  Targets: 58 functions to promote
+  CPython source: 57 functions with docstrings
+  ── Promoting: perm ──
+    spliced 7 line(s) at math.py:403-404
+    wrote 2 reference test(s)
+  ── Promoting: lcm ──
+    spliced 5 line(s) at math.py:397-398
+    wrote 2 reference test(s)
+  ── Promoting: isqrt ──
+    spliced 6 line(s) at math.py:391-392
+    wrote 2 reference test(s)
+  ── Promoting: factorial ──
+    spliced 5 line(s) at math.py:367-368
+    wrote 2 reference test(s)
+  ── Promoting: comb ──
+    spliced 9 line(s) at math.py:361-362
+    wrote 2 reference test(s)
+  ── Promoting: lgamma ──
+    spliced 4 line(s) at math.py:354-354
+    wrote 2 reference test(s)
+  ── Promoting: gamma ──
+    spliced 4 line(s) at math.py:349-349
+    wrote 2 reference test(s)
+  ── Promoting: erfc ──
+    spliced 4 line(s) at math.py:344-344
+    wrote 2 reference test(s)
+  ── Promoting: erf ──
+    spliced 4 line(s) at math.py:339-339
+    wrote 2 reference test(s)
+  ── Promoting: tanh ──
+    spliced 4 line(s) at math.py:332-332
+    wrote 2 reference test(s)
+  ── Promoting: sinh ──
+    spliced 5 line(s) at math.py:327-327
+    wrote 2 reference test(s)
+  ── Promoting: cosh ──
+    spliced 3 line(s) at math.py:322-322
+    wrote 2 reference test(s)
+  ── Promoting: atanh ──
+    spliced 7 line(s) at math.py:317-317
+    wrote 2 reference test(s)
+  ── Promoting: asinh ──
+    spliced 5 line(s) at math.py:312-312
+    wrote 2 reference test(s)
+  ── Promoting: acosh ──
+    spliced 4 line(s) at math.py:307-307
+    wrote 2 reference test(s)
+  ── Promoting: tan ──
+    spliced 3 line(s) at math.py:300-300
+    wrote 2 reference test(s)
+  ── Promoting: sin ──
+    spliced 4 line(s) at math.py:295-295
+    wrote 2 reference test(s)
+  ── Promoting: cos ──
+    spliced 4 line(s) at math.py:290-290
+    wrote 2 reference test(s)
+  ── Promoting: atan2 ──
+    spliced 5 line(s) at math.py:285-285
+    wrote 2 reference test(s)
+  ── Promoting: atan ──
+    spliced 4 line(s) at math.py:280-280
+    wrote 2 reference test(s)
+  ── Promoting: asin ──
+    spliced 6 line(s) at math.py:275-275
+    wrote 2 reference test(s)
+  ── Promoting: acos ──
+    spliced 6 line(s) at math.py:270-270
+    wrote 2 reference test(s)
+  ── Promoting: radians ──
+    spliced 4 line(s) at math.py:263-263
+    wrote 2 reference test(s)
+  ── Promoting: degrees ──
+    spliced 5 line(s) at math.py:258-258
+    wrote 2 reference test(s)
+  ── Promoting: sumprod ──
+    spliced 3 line(s) at math.py:251-251
+    wrote 2 reference test(s)
+  ── Promoting: prod ──
+    spliced 5 line(s) at math.py:246-246
+    wrote 2 reference test(s)
+  ── Promoting: hypot ──
+    spliced 3 line(s) at math.py:240-241
+    wrote 2 reference test(s)
+  ── Promoting: fsum ──
+    spliced 3 line(s) at math.py:235-235
+    wrote 2 reference test(s)
+  ── Promoting: dist ──
+    spliced 4 line(s) at math.py:229-230
+    wrote 2 reference test(s)
+  ── Promoting: pow ──
+    spliced 6 line(s) at math.py:205-205
+    wrote 2 reference test(s)
+  ── Promoting: log10 ──
+    spliced 5 line(s) at math.py:200-200
+    wrote 2 reference test(s)
+  ── Promoting: log2 ──
+    spliced 4 line(s) at math.py:195-195
+    wrote 2 reference test(s)
+  ── Promoting: log1p ──
+    spliced 5 line(s) at math.py:190-190
+    wrote 2 reference test(s)
+  ── Promoting: log ──
+    spliced 6 line(s) at math.py:185-185
+    wrote 2 reference test(s)
+  ── Promoting: expm1 ──
+    spliced 6 line(s) at math.py:180-180
+    wrote 2 reference test(s)
+  ── Promoting: exp2 ──
+    spliced 3 line(s) at math.py:174-175
+    wrote 2 reference test(s)
+  ── Promoting: exp ──
+    spliced 3 line(s) at math.py:168-169
+    wrote 2 reference test(s)
+  ── Promoting: cbrt ──
+    spliced 7 line(s) at math.py:163-163
+    wrote 2 reference test(s)
+  ── Promoting: ulp ──
+    spliced 3 line(s) at math.py:155-156
+    wrote 2 reference test(s)
+  ── Promoting: signbit ──
+    spliced 4 line(s) at math.py:149-150
+    wrote 2 reference test(s)
+  ── Promoting: nextafter ──
+    spliced 6 line(s) at math.py:144-144
+    wrote 2 reference test(s)
+  ── Promoting: ldexp ──
+    spliced 5 line(s) at math.py:139-139
+    wrote 2 reference test(s)
+  ── Promoting: isnan ──
+    spliced 4 line(s) at math.py:133-134
+    wrote 2 reference test(s)
+  ── Promoting: isinf ──
+    spliced 3 line(s) at math.py:127-128
+    wrote 2 reference test(s)
+  ── Promoting: issubnormal ──
+    spliced 4 line(s) at math.py:121-122
+    wrote 2 reference test(s)
+  ── Promoting: isnormal ──
+    spliced 4 line(s) at math.py:115-116
+    wrote 2 reference test(s)
+  ── Promoting: isfinite ──
+    spliced 3 line(s) at math.py:109-110
+    wrote 2 reference test(s)
+  ── Promoting: isclose ──
+    spliced 6 line(s) at math.py:103-104
+    wrote 2 reference test(s)
+  ── Promoting: frexp ──
+    spliced 6 line(s) at math.py:98-98
+    wrote 2 reference test(s)
+  ── Promoting: copysign ──
+    spliced 5 line(s) at math.py:93-93
+    wrote 2 reference test(s)
+  ── Promoting: trunc ──
+    spliced 3 line(s) at math.py:86-86
+    wrote 2 reference test(s)
+  ── Promoting: remainder ──
+    spliced 4 line(s) at math.py:81-81
+    wrote 2 reference test(s)
+  ── Promoting: modf ──
+    spliced 6 line(s) at math.py:76-76
+    wrote 2 reference test(s)
+  ── Promoting: fmod ──
+    spliced 6 line(s) at math.py:71-71
+    wrote 2 reference test(s)
+  ── Promoting: fmin ──
+    spliced 5 line(s) at math.py:66-66
+    wrote 2 reference test(s)
+  ── Promoting: fmax ──
+    spliced 4 line(s) at math.py:61-61
+    wrote 2 reference test(s)
+  ── Promoting: fma ──
+    spliced 3 line(s) at math.py:56-56
+    wrote 2 reference test(s)
+  ── Promoting: fabs ──
+    spliced 5 line(s) at math.py:36-37
+    wrote 2 reference test(s)
+  ── Gate: compile ── FAIL (exit 1)
+  rollback: stub restored; 116 new test files removed
+  Outcome: ROLLED-BACK

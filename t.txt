@@ -1,0 +1,6 @@
+The catalog of Python undefined-behaviour (UB) categories that PyCSL detects is a great stuff to promote. Add a section in `README.md` before the section:
+```
+## Trust Chain
+```
+
+This `## Python Detected Unedfined Behaviors` section should provide one example per UB kind.

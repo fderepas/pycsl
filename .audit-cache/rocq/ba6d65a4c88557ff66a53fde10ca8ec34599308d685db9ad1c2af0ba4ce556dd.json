@@ -1,0 +1,43 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "",
+  "compile_stderr": "",
+  "elapsed_compile_s": 0.6344479600084014,
+  "qualname_results": [
+    [
+      "Pycsl.Reference.Gcd.gcd_result_nonneg",
+      true,
+      []
+    ],
+    [
+      "Pycsl.Reference.Gcd.gcd_result_positive",
+      true,
+      []
+    ],
+    [
+      "Pycsl.Reference.Gcd.gcd_divides_a",
+      true,
+      []
+    ],
+    [
+      "Pycsl.Reference.Gcd.gcd_divides_b",
+      true,
+      []
+    ],
+    [
+      "Pycsl.Reference.Gcd.gcd_0",
+      true,
+      []
+    ],
+    [
+      "Pycsl.Reference.Gcd.gcd_step",
+      true,
+      []
+    ],
+    [
+      "Pycsl.Reference.Gcd.gcd_greatest",
+      true,
+      []
+    ]
+  ]
+}

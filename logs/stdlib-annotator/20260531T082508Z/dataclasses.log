@@ -1,0 +1,7 @@
+=== 2026-05-31T08:25:08.928621+00:00Z  Module: dataclasses ===
+  Baseline: L1=0 L2=7 L3=1 L4=0 L5=0
+  Targets: 1 functions to promote
+  CPython source: 9 functions with docstrings
+  ── Promoting: dataclass ──
+    [dry-run] prompt prepared, LLM call skipped
+  [dry-run] complete; no edits applied

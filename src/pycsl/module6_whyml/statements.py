@@ -834,7 +834,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         unioned in regardless, so the result is identical whether or not the
         dict/array vars are first deduped against records."""
         array_vars, dict_vars = IRScanner.find_array_and_dict_vars(body_stmts)
-        array_vars |= self._collect_array_var_assigns(body_stmts)
+        array_vars |= self._collect_array_var_assigns(body_stmts, seed=array_vars)
         dict_vars |= self._collect_dict_var_assigns(body_stmts)
         lambda_vars = IRScanner.find_lambda_vars(body_stmts)
         record_vars = IRScanner.find_record_vars(body_stmts, self._record_types)

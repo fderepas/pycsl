@@ -1,0 +1,32 @@
+=== 2026-06-01T00:44:33.804313+00:00Z  Module: jsonschema ===
+  Baseline: L1=0 L2=7 L3=0 L4=0 L5=0
+  Targets: 7 functions to promote
+  CPython source: 0 functions with docstrings
+  ── Promoting: RefResolver ──
+    spliced 4 line(s) at jsonschema.py:43-44
+    wrote 2 reference test(s)
+  ── Promoting: SchemaError ──
+    spliced 4 line(s) at jsonschema.py:37-38
+    wrote 2 reference test(s)
+  ── Promoting: ValidationError ──
+    spliced 4 line(s) at jsonschema.py:31-32
+    wrote 2 reference test(s)
+  ── Promoting: Draft202012Validator ──
+    spliced 4 line(s) at jsonschema.py:25-26
+    wrote 2 reference test(s)
+  ── Promoting: Draft7Validator ──
+    spliced 4 line(s) at jsonschema.py:19-20
+    wrote 2 reference test(s)
+  ── Promoting: Draft4Validator ──
+    spliced 4 line(s) at jsonschema.py:13-14
+    wrote 2 reference test(s)
+  ── Promoting: validate ──
+    spliced 4 line(s) at jsonschema.py:7-8
+    wrote 2 reference test(s)
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module jsonschema ──
+      baseline: L1=0 L2=7 L3=0 L4=0 L5=0
+      final:    L1=0 L2=0 L3=0 L4=0 L5=7   (Δ L4+ = +7)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

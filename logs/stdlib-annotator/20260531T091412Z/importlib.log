@@ -1,0 +1,269 @@
+=== 2026-05-31T11:07:21.539370+00:00Z  Module: importlib ===
+  Baseline: L1=0 L2=86 L3=0 L4=0 L5=0
+  Targets: 86 functions to promote
+  CPython source: 3 functions with docstrings
+  ── Promoting: is_resource ──
+    spliced 4 line(s) at importlib.py:583-584
+    wrote 2 reference test(s)
+  ── Promoting: contents ──
+    spliced 4 line(s) at importlib.py:577-578
+    wrote 2 reference test(s)
+  ── Promoting: path ──
+    spliced 4 line(s) at importlib.py:571-572
+    wrote 2 reference test(s)
+  ── Promoting: read_text ──
+    spliced 4 line(s) at importlib.py:565-566
+    wrote 2 reference test(s)
+  ── Promoting: read_binary ──
+    spliced 4 line(s) at importlib.py:559-560
+    wrote 2 reference test(s)
+  ── Promoting: open_text ──
+    spliced 4 line(s) at importlib.py:553-554
+    wrote 2 reference test(s)
+  ── Promoting: open_binary ──
+    spliced 5 line(s) at importlib.py:547-548
+    wrote 2 reference test(s)
+  ── Promoting: as_file ──
+    spliced 4 line(s) at importlib.py:541-542
+    wrote 2 reference test(s)
+  ── Promoting: files ──
+    spliced 4 line(s) at importlib.py:535-536
+    wrote 2 reference test(s)
+  ── Promoting: LazyLoader_factory ──
+    spliced 4 line(s) at importlib.py:527-528
+    wrote 2 reference test(s)
+  ── Promoting: LazyLoader ──
+    spliced 4 line(s) at importlib.py:521-522
+    wrote 2 reference test(s)
+  ── Promoting: source_hash ──
+    spliced 4 line(s) at importlib.py:507-508
+    wrote 2 reference test(s)
+  ── Promoting: spec_from_file_location ──
+    spliced 4 line(s) at importlib.py:501-502
+    wrote 2 reference test(s)
+  ── Promoting: spec_from_loader ──
+    spliced 4 line(s) at importlib.py:495-496
+    wrote 2 reference test(s)
+  ── Promoting: module_from_spec ──
+    spliced 4 line(s) at importlib.py:489-490
+    wrote 2 reference test(s)
+  ── Promoting: find_spec ──
+    spliced 4 line(s) at importlib.py:483-484
+    wrote 2 reference test(s)
+  ── Promoting: resolve_name ──
+    spliced 4 line(s) at importlib.py:477-478
+    wrote 2 reference test(s)
+  ── Promoting: decode_source ──
+    spliced 4 line(s) at importlib.py:471-472
+    wrote 2 reference test(s)
+  ── Promoting: source_from_cache ──
+    spliced 4 line(s) at importlib.py:465-466
+    wrote 2 reference test(s)
+  ── Promoting: cache_from_source ──
+    spliced 4 line(s) at importlib.py:459-460
+    wrote 2 reference test(s)
+  ── Promoting: AppleFrameworkLoader ──
+    spliced 4 line(s) at importlib.py:451-452
+    wrote 2 reference test(s)
+  ── Promoting: ModuleSpec ──
+    spliced 4 line(s) at importlib.py:443-444
+    wrote 2 reference test(s)
+  ── Promoting: NamespaceLoader ──
+    spliced 4 line(s) at importlib.py:435-436
+    wrote 2 reference test(s)
+  ── Promoting: ExtensionFileLoader_get_filename ──
+    spliced 4 line(s) at importlib.py:427-428
+    wrote 2 reference test(s)
+  ── Promoting: ExtensionFileLoader_get_source ──
+    spliced 4 line(s) at importlib.py:421-422
+    wrote 2 reference test(s)
+  ── Promoting: ExtensionFileLoader_get_code ──
+    spliced 4 line(s) at importlib.py:415-416
+    wrote 2 reference test(s)
+  ── Promoting: ExtensionFileLoader_is_package ──
+    spliced 4 line(s) at importlib.py:409-410
+    wrote 2 reference test(s)
+  ── Promoting: ExtensionFileLoader_exec_module ──
+    spliced 4 line(s) at importlib.py:403-404
+    wrote 2 reference test(s)
+  ── Promoting: ExtensionFileLoader_create_module ──
+    spliced 4 line(s) at importlib.py:397-398
+    wrote 2 reference test(s)
+  ── Promoting: ExtensionFileLoader ──
+    spliced 4 line(s) at importlib.py:391-392
+    wrote 2 reference test(s)
+  ── Promoting: SourcelessFileLoader_get_source ──
+    spliced 4 line(s) at importlib.py:383-384
+    wrote 2 reference test(s)
+  ── Promoting: SourcelessFileLoader_get_code ──
+    spliced 4 line(s) at importlib.py:377-378
+    wrote 2 reference test(s)
+  ── Promoting: SourcelessFileLoader_is_package ──
+    spliced 4 line(s) at importlib.py:371-372
+    wrote 2 reference test(s)
+  ── Promoting: SourcelessFileLoader ──
+    spliced 4 line(s) at importlib.py:365-366
+    wrote 2 reference test(s)
+  ── Promoting: SourceFileLoader_set_data ──
+    spliced 4 line(s) at importlib.py:357-358
+    wrote 2 reference test(s)
+  ── Promoting: SourceFileLoader_path_stats ──
+    spliced 4 line(s) at importlib.py:351-352
+    wrote 2 reference test(s)
+  ── Promoting: SourceFileLoader_is_package ──
+    spliced 4 line(s) at importlib.py:345-346
+    wrote 2 reference test(s)
+  ── Promoting: SourceFileLoader ──
+    spliced 4 line(s) at importlib.py:339-340
+    wrote 2 reference test(s)
+  ── Promoting: NamespacePath ──
+    spliced 4 line(s) at importlib.py:331-332
+    wrote 2 reference test(s)
+  ── Promoting: FileFinder_path_hook ──
+    spliced 4 line(s) at importlib.py:323-324
+    wrote 2 reference test(s)
+  ── Promoting: FileFinder_invalidate_caches ──
+    spliced 5 line(s) at importlib.py:317-318
+    wrote 2 reference test(s)
+  ── Promoting: FileFinder_find_spec ──
+    spliced 4 line(s) at importlib.py:311-312
+    wrote 2 reference test(s)
+  ── Promoting: FileFinder ──
+    spliced 4 line(s) at importlib.py:305-306
+    wrote 2 reference test(s)
+  ── Promoting: PathFinder_invalidate_caches ──
+    spliced 4 line(s) at importlib.py:297-298
+    wrote 2 reference test(s)
+  ── Promoting: PathFinder_find_spec ──
+    spliced 4 line(s) at importlib.py:291-292
+    wrote 2 reference test(s)
+  ── Promoting: PathFinder ──
+    spliced 4 line(s) at importlib.py:285-286
+    wrote 2 reference test(s)
+  ── Promoting: WindowsRegistryFinder ──
+    spliced 4 line(s) at importlib.py:277-278
+    wrote 2 reference test(s)
+  ── Promoting: FrozenImporter ──
+    spliced 4 line(s) at importlib.py:269-270
+    wrote 2 reference test(s)
+  ── Promoting: BuiltinImporter ──
+    spliced 4 line(s) at importlib.py:261-262
+    wrote 2 reference test(s)
+  ── Promoting: all_suffixes ──
+    spliced 4 line(s) at importlib.py:253-254
+    wrote 2 reference test(s)
+  ── Promoting: SourceLoader_is_package ──
+    spliced 4 line(s) at importlib.py:245-246
+    wrote 2 reference test(s)
+  ── Promoting: SourceLoader_get_source ──
+    spliced 4 line(s) at importlib.py:239-240
+    wrote 2 reference test(s)
+  ── Promoting: SourceLoader_exec_module ──
+    spliced 4 line(s) at importlib.py:233-234
+    wrote 2 reference test(s)
+  ── Promoting: SourceLoader_get_code ──
+    spliced 4 line(s) at importlib.py:227-228
+    wrote 2 reference test(s)
+  ── Promoting: SourceLoader_set_data ──
+    spliced 4 line(s) at importlib.py:221-222
+    wrote 2 reference test(s)
+  ── Promoting: SourceLoader_path_mtime ──
+    spliced 4 line(s) at importlib.py:215-216
+    wrote 2 reference test(s)
+  ── Promoting: SourceLoader_path_stats ──
+    spliced 4 line(s) at importlib.py:209-210
+    wrote 2 reference test(s)
+  ── Promoting: SourceLoader ──
+    spliced 4 line(s) at importlib.py:203-204
+    wrote 2 reference test(s)
+  ── Promoting: FileLoader_get_data ──
+    spliced 4 line(s) at importlib.py:195-196
+    wrote 2 reference test(s)
+  ── Promoting: FileLoader_get_filename ──
+    spliced 4 line(s) at importlib.py:189-190
+    wrote 2 reference test(s)
+  ── Promoting: FileLoader ──
+    spliced 4 line(s) at importlib.py:183-184
+    wrote 2 reference test(s)
+  ── Promoting: ExecutionLoader_get_filename ──
+    spliced 4 line(s) at importlib.py:175-176
+    wrote 2 reference test(s)
+  ── Promoting: ExecutionLoader ──
+    spliced 4 line(s) at importlib.py:169-170
+    wrote 2 reference test(s)
+  ── Promoting: InspectLoader_exec_module ──
+    spliced 4 line(s) at importlib.py:161-162
+    wrote 2 reference test(s)
+  ── Promoting: InspectLoader_source_to_code ──
+    spliced 4 line(s) at importlib.py:155-156
+    wrote 2 reference test(s)
+  ── Promoting: InspectLoader_is_package ──
+    spliced 4 line(s) at importlib.py:149-150
+    wrote 2 reference test(s)
+  ── Promoting: InspectLoader_get_source ──
+    spliced 4 line(s) at importlib.py:143-144
+    wrote 2 reference test(s)
+  ── Promoting: InspectLoader_get_code ──
+    spliced 4 line(s) at importlib.py:137-138
+    wrote 2 reference test(s)
+  ── Promoting: InspectLoader ──
+    spliced 4 line(s) at importlib.py:131-132
+    wrote 2 reference test(s)
+  ── Promoting: ResourceLoader_get_data ──
+    spliced 4 line(s) at importlib.py:123-124
+    wrote 2 reference test(s)
+  ── Promoting: ResourceLoader ──
+    spliced 4 line(s) at importlib.py:117-118
+    wrote 2 reference test(s)
+  ── Promoting: Loader_exec_module ──
+    spliced 4 line(s) at importlib.py:109-110
+    wrote 2 reference test(s)
+  ── Promoting: Loader_create_module ──
+    spliced 4 line(s) at importlib.py:103-104
+    wrote 2 reference test(s)
+  ── Promoting: Loader ──
+    spliced 4 line(s) at importlib.py:97-98
+    wrote 2 reference test(s)
+  ── Promoting: PathEntryFinder_discover ──
+    spliced 4 line(s) at importlib.py:89-90
+    wrote 2 reference test(s)
+  ── Promoting: PathEntryFinder_invalidate_caches ──
+    spliced 4 line(s) at importlib.py:83-84
+    wrote 2 reference test(s)
+  ── Promoting: PathEntryFinder_find_spec ──
+    spliced 4 line(s) at importlib.py:77-78
+    wrote 2 reference test(s)
+  ── Promoting: PathEntryFinder ──
+    spliced 4 line(s) at importlib.py:71-72
+    wrote 2 reference test(s)
+  ── Promoting: MetaPathFinder_discover ──
+    spliced 4 line(s) at importlib.py:63-64
+    wrote 2 reference test(s)
+  ── Promoting: MetaPathFinder_invalidate_caches ──
+    spliced 4 line(s) at importlib.py:57-58
+    wrote 2 reference test(s)
+  ── Promoting: MetaPathFinder_find_spec ──
+    spliced 4 line(s) at importlib.py:51-52
+    wrote 2 reference test(s)
+  ── Promoting: MetaPathFinder ──
+    spliced 4 line(s) at importlib.py:45-46
+    wrote 2 reference test(s)
+  ── Promoting: find_loader ──
+    spliced 4 line(s) at importlib.py:37-38
+    wrote 2 reference test(s)
+  ── Promoting: reload ──
+    spliced 4 line(s) at importlib.py:31-32
+    wrote 2 reference test(s)
+  ── Promoting: invalidate_caches ──
+    spliced 4 line(s) at importlib.py:25-26
+    wrote 2 reference test(s)
+  ── Promoting: import_module ──
+    spliced 4 line(s) at importlib.py:19-20
+    wrote 2 reference test(s)
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module importlib ──
+      baseline: L1=0 L2=86 L3=0 L4=0 L5=0
+      final:    L1=0 L2=0 L3=1 L4=0 L5=85   (Δ L4+ = +85)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

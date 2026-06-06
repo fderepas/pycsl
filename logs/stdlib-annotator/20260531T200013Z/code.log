@@ -1,0 +1,17 @@
+=== 2026-05-31T20:00:13.112153+00:00Z  Module: code ===
+  Baseline: L1=0 L2=2 L3=0 L4=0 L5=0
+  Targets: 2 functions to promote
+  CPython source: 14 functions with docstrings
+  ── Promoting: compile_command ──
+    spliced 3 line(s) at code.py:10-11
+    wrote 2 reference test(s)
+  ── Promoting: interact ──
+    spliced 3 line(s) at code.py:4-5
+    wrote 2 reference test(s)
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module code ──
+      baseline: L1=0 L2=2 L3=0 L4=0 L5=0
+      final:    L1=0 L2=0 L3=0 L4=0 L5=2   (Δ L4+ = +2)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

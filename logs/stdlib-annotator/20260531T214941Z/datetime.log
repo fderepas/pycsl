@@ -1,0 +1,33 @@
+=== 2026-05-31T21:49:41.003596+00:00Z  Module: datetime ===
+  Baseline: L1=3 L2=3 L3=3 L4=12 L5=52
+  Targets: 11 functions to promote
+  CPython source: 6 functions with docstrings
+  ── Promoting: timezone_utc ──
+    spliced 4 line(s) at datetime.py:603-606
+  ── Promoting: datetime_resolution ──
+    spliced 4 line(s) at datetime.py:589-592
+  ── Promoting: datetime_ctor ──
+    spliced 10 line(s) at datetime.py:492-501
+  ── Promoting: time_ctor ──
+    spliced 7 line(s) at datetime.py:454-460
+  ── Promoting: date_max ──
+    spliced 4 line(s) at datetime.py:440-443
+  ── Promoting: date_ctor ──
+    spliced 6 line(s) at datetime.py:389-394
+  ── Promoting: timedelta_ctor ──
+    spliced 4 line(s) at datetime.py:361-364
+  ── Promoting: isoformat ──
+    spliced 5 line(s) at datetime.py:289-293
+  ── Promoting: isoformat ──
+    spliced 4 line(s) at datetime.py:167-170
+  ── Promoting: isoformat ──
+    spliced 5 line(s) at datetime.py:102-106
+  ── Promoting: toordinal ──
+    spliced 5 line(s) at datetime.py:86-90
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module datetime ──
+      baseline: L1=3 L2=3 L3=3 L4=12 L5=52
+      final:    L1=2 L2=1 L3=1 L4=12 L5=57   (Δ L4+ = +5)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

@@ -1,0 +1,50 @@
+=== 2026-05-31T23:06:42.240317+00:00Z  Module: gettext ===
+  Baseline: L1=0 L2=13 L3=0 L4=0 L5=0
+  Targets: 13 functions to promote
+  CPython source: 3 functions with docstrings
+  ── Promoting: install ──
+    spliced 4 line(s) at gettext.py:76-77
+    wrote 2 reference test(s)
+  ── Promoting: translation ──
+    spliced 4 line(s) at gettext.py:70-71
+    wrote 2 reference test(s)
+  ── Promoting: find ──
+    spliced 4 line(s) at gettext.py:64-65
+    wrote 2 reference test(s)
+  ── Promoting: dnpgettext ──
+    spliced 4 line(s) at gettext.py:58-59
+    wrote 2 reference test(s)
+  ── Promoting: npgettext ──
+    spliced 4 line(s) at gettext.py:52-53
+    wrote 2 reference test(s)
+  ── Promoting: dpgettext ──
+    spliced 4 line(s) at gettext.py:46-47
+    wrote 2 reference test(s)
+  ── Promoting: pgettext ──
+    spliced 4 line(s) at gettext.py:40-41
+    wrote 2 reference test(s)
+  ── Promoting: dngettext ──
+    spliced 4 line(s) at gettext.py:34-35
+    wrote 2 reference test(s)
+  ── Promoting: ngettext ──
+    spliced 4 line(s) at gettext.py:28-29
+    wrote 2 reference test(s)
+  ── Promoting: dgettext ──
+    spliced 4 line(s) at gettext.py:22-23
+    wrote 2 reference test(s)
+  ── Promoting: gettext ──
+    spliced 4 line(s) at gettext.py:16-17
+    wrote 2 reference test(s)
+  ── Promoting: textdomain ──
+    spliced 4 line(s) at gettext.py:10-11
+    wrote 2 reference test(s)
+  ── Promoting: bindtextdomain ──
+    spliced 4 line(s) at gettext.py:4-5
+    wrote 2 reference test(s)
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module gettext ──
+      baseline: L1=0 L2=13 L3=0 L4=0 L5=0
+      final:    L1=0 L2=0 L3=0 L4=0 L5=13   (Δ L4+ = +13)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

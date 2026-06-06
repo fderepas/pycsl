@@ -1,0 +1,389 @@
+DIGEST c27575cff44f51d4370a1635b670e233
+FUnixInodeFileSystem
+R1147:1163 Coq.ZArith.ZArith <> <> lib
+R1181:1194 Coq.Lists.List <> <> lib
+R1212:1226 Coq.ZArith.Zdiv <> <> lib
+R1244:1246 Coq.micromega.Lia <> <> lib
+R1257:1269 Coq.Lists.List ListNotations <> mod
+def 1389:1395 <> bit_and
+R1404:1404 Coq.Numbers.BinNums <> Z ind
+binder 1398:1398 <> x:1
+binder 1400:1400 <> y:2
+R1409:1409 Coq.Numbers.BinNums <> Z ind
+R1414:1419 Coq.ZArith.BinInt Z land def
+R1421:1421 UnixInodeFileSystem <> x:1 var
+R1423:1423 UnixInodeFileSystem <> y:2 var
+def 1438:1453 <> struct_pack_i1a1
+R1463:1463 Coq.Numbers.BinNums <> Z ind
+binder 1456:1459 <> _fmt:3
+R1472:1472 Coq.Numbers.BinNums <> Z ind
+binder 1467:1468 <> x0:4
+R1481:1484 Coq.Init.Datatypes <> list ind
+R1486:1486 Coq.Numbers.BinNums <> Z ind
+binder 1476:1477 <> x1:5
+R1491:1494 Coq.Init.Datatypes <> list ind
+R1496:1496 Coq.Numbers.BinNums <> Z ind
+R1505:1508 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1503:1504 UnixInodeFileSystem <> x0:4 var
+R1509:1510 UnixInodeFileSystem <> x1:5 var
+def 1524:1541 <> struct_unpack_i1a1
+R1551:1551 Coq.Numbers.BinNums <> Z ind
+binder 1544:1547 <> _fmt:6
+R1562:1565 Coq.Init.Datatypes <> list ind
+R1567:1567 Coq.Numbers.BinNums <> Z ind
+binder 1555:1558 <> data:7
+R1574:1576 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R1573:1573 Coq.Numbers.BinNums <> Z ind
+R1577:1580 Coq.Init.Datatypes <> list ind
+R1582:1582 Coq.Numbers.BinNums <> Z ind
+R1596:1599 UnixInodeFileSystem <> data:7 var
+R1611:1614 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1623:1623 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R1625:1626 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R1631:1631 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R1637:1638 Coq.Lists.List ListNotations ::list_scope:'['_']' not
+R1650:1650 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R1652:1653 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R1656:1656 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R1654:1655 Coq.Lists.List ListNotations ::list_scope:'['_']' not
+def 1677:1690 <> struct_pack_i2
+R1706:1706 Coq.Numbers.BinNums <> Z ind
+binder 1693:1696 <> _fmt:9
+binder 1698:1699 <> x0:10
+binder 1701:1702 <> x1:11
+R1711:1714 Coq.Init.Datatypes <> list ind
+R1716:1716 Coq.Numbers.BinNums <> Z ind
+R1721:1721 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R1724:1725 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R1728:1728 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R1722:1723 UnixInodeFileSystem <> x0:10 var
+R1726:1727 UnixInodeFileSystem <> x1:11 var
+def 1742:1757 <> struct_unpack_i2
+R1767:1767 Coq.Numbers.BinNums <> Z ind
+binder 1760:1763 <> _fmt:12
+R1778:1781 Coq.Init.Datatypes <> list ind
+R1783:1783 Coq.Numbers.BinNums <> Z ind
+binder 1771:1774 <> data:13
+R1790:1792 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R1789:1789 Coq.Numbers.BinNums <> Z ind
+R1793:1793 Coq.Numbers.BinNums <> Z ind
+R1807:1810 UnixInodeFileSystem <> data:13 var
+R1823:1826 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1829:1832 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R1838:1838 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R1841:1842 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R1845:1845 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R1856:1856 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R1858:1859 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R1861:1861 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+def 1882:1896 <> struct_pack_i18
+R2001:2001 Coq.Numbers.BinNums <> Z ind
+binder 1899:1902 <> _fmt:15
+binder 1904:1905 <> x0:16
+binder 1907:1908 <> x1:17
+binder 1910:1911 <> x2:18
+binder 1913:1914 <> x3:19
+binder 1916:1917 <> x4:20
+binder 1919:1920 <> x5:21
+binder 1922:1923 <> x6:22
+binder 1925:1926 <> x7:23
+binder 1928:1929 <> x8:24
+binder 1931:1932 <> x9:25
+binder 1967:1969 <> x10:26
+binder 1971:1973 <> x11:27
+binder 1975:1977 <> x12:28
+binder 1979:1981 <> x13:29
+binder 1983:1985 <> x14:30
+binder 1987:1989 <> x15:31
+binder 1991:1993 <> x16:32
+binder 1995:1997 <> x17:33
+R2006:2009 Coq.Init.Datatypes <> list ind
+R2011:2011 Coq.Numbers.BinNums <> Z ind
+R2018:2018 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R2021:2022 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R2025:2026 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R2029:2030 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R2033:2034 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R2037:2038 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R2041:2042 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R2045:2046 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R2049:2050 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R2053:2057 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R2060:2061 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R2065:2066 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R2070:2071 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R2075:2076 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R2080:2081 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R2085:2086 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R2090:2091 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R2095:2096 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R2100:2100 Coq.Lists.List ListNotations ::list_scope:'['_x_';'_x_';'_'..'_';'_x_']' not
+R2019:2020 UnixInodeFileSystem <> x0:16 var
+R2023:2024 UnixInodeFileSystem <> x1:17 var
+R2027:2028 UnixInodeFileSystem <> x2:18 var
+R2031:2032 UnixInodeFileSystem <> x3:19 var
+R2035:2036 UnixInodeFileSystem <> x4:20 var
+R2039:2040 UnixInodeFileSystem <> x5:21 var
+R2043:2044 UnixInodeFileSystem <> x6:22 var
+R2047:2048 UnixInodeFileSystem <> x7:23 var
+R2051:2052 UnixInodeFileSystem <> x8:24 var
+R2058:2059 UnixInodeFileSystem <> x9:25 var
+R2062:2064 UnixInodeFileSystem <> x10:26 var
+R2067:2069 UnixInodeFileSystem <> x11:27 var
+R2072:2074 UnixInodeFileSystem <> x12:28 var
+R2077:2079 UnixInodeFileSystem <> x13:29 var
+R2082:2084 UnixInodeFileSystem <> x14:30 var
+R2087:2089 UnixInodeFileSystem <> x15:31 var
+R2092:2094 UnixInodeFileSystem <> x16:32 var
+R2097:2099 UnixInodeFileSystem <> x17:33 var
+def 2114:2130 <> struct_unpack_i18
+R2140:2140 Coq.Numbers.BinNums <> Z ind
+binder 2133:2136 <> _fmt:34
+R2151:2154 Coq.Init.Datatypes <> list ind
+R2156:2156 Coq.Numbers.BinNums <> Z ind
+binder 2144:2147 <> data:35
+R2236:2238 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R2232:2234 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R2228:2230 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R2224:2226 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R2220:2222 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R2216:2218 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R2212:2214 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R2208:2210 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R2199:2206 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R2195:2197 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R2191:2193 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R2187:2189 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R2183:2185 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R2179:2181 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R2175:2177 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R2171:2173 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R2167:2169 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R2166:2166 Coq.Numbers.BinNums <> Z ind
+R2170:2170 Coq.Numbers.BinNums <> Z ind
+R2174:2174 Coq.Numbers.BinNums <> Z ind
+R2178:2178 Coq.Numbers.BinNums <> Z ind
+R2182:2182 Coq.Numbers.BinNums <> Z ind
+R2186:2186 Coq.Numbers.BinNums <> Z ind
+R2190:2190 Coq.Numbers.BinNums <> Z ind
+R2194:2194 Coq.Numbers.BinNums <> Z ind
+R2198:2198 Coq.Numbers.BinNums <> Z ind
+R2207:2207 Coq.Numbers.BinNums <> Z ind
+R2211:2211 Coq.Numbers.BinNums <> Z ind
+R2215:2215 Coq.Numbers.BinNums <> Z ind
+R2219:2219 Coq.Numbers.BinNums <> Z ind
+R2223:2223 Coq.Numbers.BinNums <> Z ind
+R2227:2227 Coq.Numbers.BinNums <> Z ind
+R2231:2231 Coq.Numbers.BinNums <> Z ind
+R2235:2235 Coq.Numbers.BinNums <> Z ind
+R2239:2239 Coq.Numbers.BinNums <> Z ind
+R2253:2256 UnixInodeFileSystem <> data:35 var
+R2269:2272 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R2275:2278 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R2281:2284 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R2287:2290 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R2293:2296 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R2299:2302 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R2305:2308 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R2311:2314 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R2317:2324 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R2327:2330 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R2334:2337 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R2341:2344 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R2348:2351 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R2355:2358 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R2362:2365 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R2369:2372 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R2376:2379 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R2383:2386 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R2398:2398 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2401:2402 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2405:2406 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2409:2410 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2413:2414 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2417:2418 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2421:2422 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2425:2426 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2429:2430 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2433:2441 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2444:2445 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2449:2450 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2454:2455 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2459:2460 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2464:2465 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2469:2470 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2474:2475 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2479:2480 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2484:2484 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2495:2495 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2497:2498 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2500:2501 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2503:2504 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2506:2507 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2509:2510 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2512:2513 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2515:2516 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2518:2519 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2521:2532 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2534:2535 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2537:2538 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2540:2541 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2543:2544 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2546:2547 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2549:2550 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2552:2553 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2555:2556 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2558:2558 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+mod 2654:2659 <> UnixFs
+mod 2669:2674 <> UnixFs.Bitmap
+prf 2867:2889 UnixFs.Bitmap bit_and_one_in_zero_one
+R2906:2906 Coq.Numbers.BinNums <> Z ind
+binder 2902:2902 <> n:37
+R2925:2928 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R2910:2913 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R2914:2920 UnixInodeFileSystem <> bit_and def
+R2922:2922 UnixInodeFileSystem <> n:37 var
+R2940:2942 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R2929:2935 UnixInodeFileSystem <> bit_and def
+R2937:2937 UnixInodeFileSystem <> n:37 var
+R2972:2978 UnixInodeFileSystem <> bit_and def
+R3007:3009 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R2999:3004 Coq.ZArith.BinInt Z ones def
+R3007:3009 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R2999:3004 Coq.ZArith.BinInt Z ones def
+R3052:3054 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3048:3050 Coq.ZArith.BinInt <> ::Z_scope:x_'^'_x not
+R3052:3054 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3048:3050 Coq.ZArith.BinInt <> ::Z_scope:x_'^'_x not
+R3088:3098 Coq.ZArith.BinInt Z land_ones thm
+R3088:3098 Coq.ZArith.BinInt Z land_ones thm
+R3204:3218 Coq.ZArith.BinInt Z mod_pos_bound thm
+R3204:3218 Coq.ZArith.BinInt Z mod_pos_bound thm
+R3258:3263 UnixInodeFileSystem UnixFs.Bitmap <> mod
+mod 3274:3279 <> UnixFs.Struct
+mod 3290:3293 <> UnixFs.Struct.i1a1
+prf 3348:3357 UnixFs.Struct.i1a1 round_trip
+binder 3372:3374 <> fmt:38
+binder 3376:3377 <> x0:39
+binder 3379:3380 <> x1:40
+R3440:3442 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3389:3406 UnixInodeFileSystem <> struct_unpack_i1a1 def
+R3408:3410 UnixInodeFileSystem <> fmt:38 var
+R3413:3428 UnixInodeFileSystem <> struct_pack_i1a1 def
+R3430:3432 UnixInodeFileSystem <> fmt:38 var
+R3434:3435 UnixInodeFileSystem <> x0:39 var
+R3437:3438 UnixInodeFileSystem <> x1:40 var
+R3443:3443 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R3446:3447 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R3450:3450 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R3444:3445 UnixInodeFileSystem <> x0:39 var
+R3448:3449 UnixInodeFileSystem <> x1:40 var
+R3491:3506 UnixInodeFileSystem <> struct_pack_i1a1 def
+R3509:3526 UnixInodeFileSystem <> struct_unpack_i1a1 def
+R3557:3560 UnixInodeFileSystem UnixFs.Struct.i1a1 <> mod
+mod 3571:3572 <> UnixFs.Struct.i2
+prf 3611:3620 UnixFs.Struct.i2 round_trip
+binder 3635:3637 <> fmt:41
+binder 3639:3640 <> x0:42
+binder 3642:3643 <> x1:43
+R3699:3701 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3652:3667 UnixInodeFileSystem <> struct_unpack_i2 def
+R3669:3671 UnixInodeFileSystem <> fmt:41 var
+R3674:3687 UnixInodeFileSystem <> struct_pack_i2 def
+R3689:3691 UnixInodeFileSystem <> fmt:41 var
+R3693:3694 UnixInodeFileSystem <> x0:42 var
+R3696:3697 UnixInodeFileSystem <> x1:43 var
+R3702:3702 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R3705:3706 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R3709:3709 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R3703:3704 UnixInodeFileSystem <> x0:42 var
+R3707:3708 UnixInodeFileSystem <> x1:43 var
+R3740:3753 UnixInodeFileSystem <> struct_pack_i2 def
+R3756:3771 UnixInodeFileSystem <> struct_unpack_i2 def
+R3798:3799 UnixInodeFileSystem UnixFs.Struct.i2 <> mod
+mod 3810:3812 <> UnixFs.Struct.i18
+prf 3892:3901 UnixFs.Struct.i18 round_trip
+binder 3916:3918 <> fmt:44
+binder 3920:3921 <> x0:45
+binder 3923:3924 <> x1:46
+binder 3926:3927 <> x2:47
+binder 3929:3930 <> x3:48
+binder 3932:3933 <> x4:49
+binder 3935:3936 <> x5:50
+binder 3938:3939 <> x6:51
+binder 3941:3942 <> x7:52
+binder 3944:3945 <> x8:53
+binder 3947:3948 <> x9:54
+binder 3965:3967 <> x10:55
+binder 3969:3971 <> x11:56
+binder 3973:3975 <> x12:57
+binder 3977:3979 <> x13:58
+binder 3981:3983 <> x14:59
+binder 3985:3987 <> x15:60
+binder 3989:3991 <> x16:61
+binder 3993:3995 <> x17:62
+R4142:4150 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4004:4020 UnixInodeFileSystem <> struct_unpack_i18 def
+R4022:4024 UnixInodeFileSystem <> fmt:44 var
+R4027:4041 UnixInodeFileSystem <> struct_pack_i18 def
+R4043:4045 UnixInodeFileSystem <> fmt:44 var
+R4047:4048 UnixInodeFileSystem <> x0:45 var
+R4050:4051 UnixInodeFileSystem <> x1:46 var
+R4053:4054 UnixInodeFileSystem <> x2:47 var
+R4056:4057 UnixInodeFileSystem <> x3:48 var
+R4059:4060 UnixInodeFileSystem <> x4:49 var
+R4062:4063 UnixInodeFileSystem <> x5:50 var
+R4065:4066 UnixInodeFileSystem <> x6:51 var
+R4068:4069 UnixInodeFileSystem <> x7:52 var
+R4071:4072 UnixInodeFileSystem <> x8:53 var
+R4074:4075 UnixInodeFileSystem <> x9:54 var
+R4110:4112 UnixInodeFileSystem <> x10:55 var
+R4114:4116 UnixInodeFileSystem <> x11:56 var
+R4118:4120 UnixInodeFileSystem <> x12:57 var
+R4122:4124 UnixInodeFileSystem <> x13:58 var
+R4126:4128 UnixInodeFileSystem <> x14:59 var
+R4130:4132 UnixInodeFileSystem <> x15:60 var
+R4134:4136 UnixInodeFileSystem <> x16:61 var
+R4138:4140 UnixInodeFileSystem <> x17:62 var
+R4151:4151 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R4154:4155 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R4158:4159 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R4162:4163 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R4166:4167 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R4170:4171 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R4174:4175 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R4178:4179 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R4182:4183 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R4186:4196 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R4199:4200 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R4204:4205 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R4209:4210 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R4214:4215 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R4219:4220 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R4224:4225 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R4229:4230 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R4234:4235 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R4239:4239 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R4152:4153 UnixInodeFileSystem <> x0:45 var
+R4156:4157 UnixInodeFileSystem <> x1:46 var
+R4160:4161 UnixInodeFileSystem <> x2:47 var
+R4164:4165 UnixInodeFileSystem <> x3:48 var
+R4168:4169 UnixInodeFileSystem <> x4:49 var
+R4172:4173 UnixInodeFileSystem <> x5:50 var
+R4176:4177 UnixInodeFileSystem <> x6:51 var
+R4180:4181 UnixInodeFileSystem <> x7:52 var
+R4184:4185 UnixInodeFileSystem <> x8:53 var
+R4197:4198 UnixInodeFileSystem <> x9:54 var
+R4201:4203 UnixInodeFileSystem <> x10:55 var
+R4206:4208 UnixInodeFileSystem <> x11:56 var
+R4211:4213 UnixInodeFileSystem <> x12:57 var
+R4216:4218 UnixInodeFileSystem <> x13:58 var
+R4221:4223 UnixInodeFileSystem <> x14:59 var
+R4226:4228 UnixInodeFileSystem <> x15:60 var
+R4231:4233 UnixInodeFileSystem <> x16:61 var
+R4236:4238 UnixInodeFileSystem <> x17:62 var
+R4270:4284 UnixInodeFileSystem <> struct_pack_i18 def
+R4287:4303 UnixInodeFileSystem <> struct_unpack_i18 def
+R4330:4332 UnixInodeFileSystem UnixFs.Struct.i18 <> mod
+R4340:4345 UnixInodeFileSystem UnixFs.Struct <> mod
+R4353:4358 UnixInodeFileSystem UnixFs <> mod

@@ -1,0 +1,4 @@
+=== 2026-06-01T00:44:33.623774+00:00Z  Module: json ===
+  Baseline: L1=0 L2=0 L3=0 L4=0 L5=9
+  Targets: 0 functions to promote
+  Nothing to do (all functions already L4+)

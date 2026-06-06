@@ -1,0 +1,74 @@
+=== 2026-05-31T09:14:12.032179+00:00Z  Module: argparse ===
+  Baseline: L1=0 L2=8 L3=13 L4=2 L5=0
+  Targets: 21 functions to promote
+  CPython source: 11 functions with docstrings
+  ── Promoting: BooleanOptionalAction ──
+    spliced 4 line(s) at argparse.py:167-168
+    wrote 2 reference test(s)
+  ── Promoting: ArgumentTypeError ──
+    spliced 3 line(s) at argparse.py:162-163
+    wrote 2 reference test(s)
+  ── Promoting: ArgumentError ──
+    spliced 3 line(s) at argparse.py:157-158
+    wrote 2 reference test(s)
+  ── Promoting: ArgumentDefaultsHelpFormatter ──
+    spliced 3 line(s) at argparse.py:152-153
+    wrote 2 reference test(s)
+  ── Promoting: RawTextHelpFormatter ──
+    spliced 3 line(s) at argparse.py:147-148
+    wrote 2 reference test(s)
+  ── Promoting: RawDescriptionHelpFormatter ──
+    spliced 3 line(s) at argparse.py:142-143
+    wrote 2 reference test(s)
+  ── Promoting: HelpFormatter ──
+    spliced 3 line(s) at argparse.py:137-138
+    wrote 2 reference test(s)
+  ── Promoting: FileType ──
+    spliced 3 line(s) at argparse.py:132-133
+    wrote 2 reference test(s)
+  ── Promoting: get_attr ──
+    spliced 5 line(s) at argparse.py:115-118
+    wrote 2 reference test(s)
+  ── Promoting: error_exit ──
+    spliced 4 line(s) at argparse.py:101-104
+    wrote 2 reference test(s)
+  ── Promoting: format_help ──
+    spliced 5 line(s) at argparse.py:94-97
+    wrote 2 reference test(s)
+  ── Promoting: format_usage ──
+    spliced 5 line(s) at argparse.py:87-90
+    wrote 2 reference test(s)
+  ── Promoting: print_help ──
+    spliced 5 line(s) at argparse.py:80-83
+    wrote 2 reference test(s)
+  ── Promoting: print_usage ──
+    spliced 5 line(s) at argparse.py:73-76
+    wrote 2 reference test(s)
+  ── Promoting: get_default ──
+    spliced 5 line(s) at argparse.py:66-69
+    wrote 2 reference test(s)
+  ── Promoting: set_defaults ──
+    spliced 5 line(s) at argparse.py:59-62
+    wrote 2 reference test(s)
+  ── Promoting: parse_known_args ──
+    spliced 5 line(s) at argparse.py:52-55
+    wrote 2 reference test(s)
+  ── Promoting: parse_args ──
+    spliced 5 line(s) at argparse.py:45-48
+    wrote 2 reference test(s)
+  ── Promoting: add_subparsers ──
+    spliced 5 line(s) at argparse.py:38-41
+    wrote 2 reference test(s)
+  ── Promoting: add_mutually_exclusive_group ──
+    spliced 5 line(s) at argparse.py:31-34
+    wrote 2 reference test(s)
+  ── Promoting: add_argument_group ──
+    spliced 5 line(s) at argparse.py:24-27
+    wrote 2 reference test(s)
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module argparse ──
+      baseline: L1=0 L2=8 L3=13 L4=2 L5=0
+      final:    L1=0 L2=2 L3=0 L4=1 L5=20   (Δ L4+ = +19)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

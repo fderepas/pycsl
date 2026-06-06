@@ -1,0 +1,57 @@
+I noticed this pattern
+```
+    def check(self) -> List[ConcurrencyWarning]:
+        #@ assigns self.warnings
+        #@ ensures 1 == 1
+        self.warnings = []
+```
+
+Instead of:
+```
+    #@ assigns self.warnings
+    #@ ensures 1 == 1
+    def check(self) -> List[ConcurrencyWarning]:
+        self.warnings = []
+```
+
+
+In Module 6 I see:
+```
+    # Formal correspondent: wp SAssign (Phase4_WP.v:23-24)
+    #@ requires 1 == 1
+    #@ ensures \result != ""
+    #@ assigns self._known_collection_sizes, self._known_collection_elements, self._array_locals, self._dict_locals, self._lambda_locals, self._record_locals, self._abstract_ops
+    def _handle_assign_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
+```
+Do you really believe that the work of `_handle_assign_stmt` is described by:
+```
+    #@ requires 1 == 1
+    #@ ensures \result != ""
+```
+No. The contract should reflect:
+```
+    _handle_assign_stmt in Module6_WhyMLTranspiler.py is the code generator for Python assignment statements — it translates one IR assignment node into a WhyML string.
+
+    Formal correspondent: wp SAssign arm in Phase4_WP.v:23–24:
+
+    wp (SAssign x e) Q  :=  [x ↦ eval_expr σ e] Q
+
+    The WP rule says: the precondition needed to guarantee Q after assigning e to x is just Q with every free occurrence of x replaced by the value of e. In WhyML this becomes a let binding or a reference
+    update (x := expr).
+
+    What the method does concretely:
+
+    1. Translates the RHS expression — calls _expr_to_whyml on the IR expression node to produce the WhyML expression string (this may register abstract operation declarations as a side effect, which is why
+    assigns self._abstract_ops).
+    2. Determines the binding form — decides whether the assignment becomes a let x = ... (immutable, first use) or x := ... (mutable reference update, subsequent use), depending on whether x is already in
+    declared_refs.
+    3. Updates collection-tracking state — if the assignment target is a collection (array, dict, lambda, record), it records that fact in the relevant instance variable (_array_locals, _dict_locals, etc.)
+    so that downstream handlers can generate correct typed WhyML for subsequent accesses to that variable. This is why the assigns clause is so wide.
+    4. Returns the WhyML string — a non-empty string like "let x = expr in\n" or "x := expr;\n".
+
+    Why the assigns clause is wide: Unlike the formal model (where state is a pure association list and the assignment is a single substitution), the Python implementation also propagates type information
+    forward through mutable instance variables. The assigns clause makes this explicit — _handle_assign_stmt is not pure; it has tracked side effects that affect how all subsequent statements in the same
+    function are transpiled.
+```
+
+Propose a decent contract for this function.

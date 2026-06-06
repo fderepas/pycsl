@@ -1,0 +1,225 @@
+DIGEST 46ba25f66daf508c76ffc4c08682776c
+FPyCSL.Phase6m_VcgSemBridge_Rocq9
+R1386:1391 Coq.ZArith.ZArith <> <> lib
+R1393:1398 Coq.Strings.String <> <> lib
+R1400:1403 Coq.Lists.List <> <> lib
+R1405:1408 Coq.Bool.Bool <> <> lib
+R1426:1459 Coq.Logic.FunctionalExtensionality <> <> lib
+R1477:1504 Coq.Logic.PropExtensionality <> <> lib
+R1522:1551 Coq.Logic.ClassicalDescription <> <> lib
+R1627:1636 PyCSL.Phase1_AST <> <> lib
+R1654:1665 PyCSL.Phase2_State <> <> lib
+R1683:1692 PyCSL.Phase3_SOS <> <> lib
+R1710:1718 PyCSL.Phase4_WP <> <> lib
+R1736:1747 PyCSL.Phase6_WhyML <> <> lib
+R1765:1775 PyCSL.Phase6b_WPW <> <> lib
+R1793:1809 PyCSL.Phase6j_Why3Trust <> <> lib
+R1827:1842 PyCSL.Phase6k_VcgSound <> <> lib
+R1860:1879 PyCSL.Phase6m_VcgSemBridge <> <> lib
+R1970:1986 Proofs.core.Logic <> <> lib
+R2348:2358 Proofs.core.Denotational <> formula_rep def
+R2586:2605 Proofs.core.Logic <> closed_satisfies_rep thm
+def 4307:4324 <> vc_formula_to_why3
+R4331:4340 PyCSL.Phase6m_VcgSemBridge <> vc_formula ind
+binder 4327:4327 <> f:1
+R4356:4365 PyCSL.Phase2_State <> exec_state rec
+binder 4344:4345 <> es:2
+binder 4347:4352 <> pre_es:3
+R4374:4380 Proofs.core.Syntax <> formula ind
+R4390:4416 Coq.Logic.ClassicalDescription <> excluded_middle_informative thm
+R4419:4433 PyCSL.Phase6m_VcgSemBridge <> eval_vc_formula def
+R4435:4435 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> f:1 var
+R4437:4438 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> es:2 var
+R4440:4445 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> pre_es:3 var
+R4466:4471 Proofs.core.Syntax <> Ffalse constr
+R4455:4459 Proofs.core.Syntax <> Ftrue constr
+prf 4543:4566 <> vc_formula_to_why3_typed
+R4584:4593 PyCSL.Phase6m_VcgSemBridge <> vc_formula ind
+binder 4580:4580 <> f:4
+R4609:4618 PyCSL.Phase2_State <> exec_state rec
+binder 4597:4598 <> es:5
+binder 4600:4605 <> pre_es:6
+R4624:4636 Proofs.core.Typing <> formula_typed ind
+R4638:4640 Coq.Init.Datatypes <> nil constr
+R4643:4660 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> vc_formula_to_why3 def
+R4662:4662 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> f:4 var
+R4664:4665 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> es:5 var
+R4667:4672 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> pre_es:6 var
+R4700:4717 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> vc_formula_to_why3 def
+R4732:4758 Coq.Logic.ClassicalDescription <> excluded_middle_informative thm
+R4732:4758 Coq.Logic.ClassicalDescription <> excluded_middle_informative thm
+prf 4876:4900 <> vc_formula_to_why3_closed
+R4918:4927 PyCSL.Phase6m_VcgSemBridge <> vc_formula ind
+binder 4914:4914 <> f:7
+R4943:4952 PyCSL.Phase2_State <> exec_state rec
+binder 4931:4932 <> es:8
+binder 4934:4939 <> pre_es:9
+R4958:4963 Proofs.core.Logic <> closed rec
+R4965:4967 Coq.Init.Datatypes <> nil constr
+R4970:4987 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> vc_formula_to_why3 def
+R4989:4989 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> f:7 var
+R4991:4992 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> es:8 var
+R4994:4999 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> pre_es:9 var
+R5027:5044 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> vc_formula_to_why3 def
+R5059:5085 Coq.Logic.ClassicalDescription <> excluded_middle_informative thm
+R5101:5109 Proofs.core.Logic <> mk_closed constr
+R5059:5085 Coq.Logic.ClassicalDescription <> excluded_middle_informative thm
+R5101:5109 Proofs.core.Logic <> mk_closed constr
+R5101:5109 Proofs.core.Logic <> mk_closed constr
+prf 6117:6147 <> eval_vc_formula_iff_formula_rep
+R6165:6174 PyCSL.Phase6m_VcgSemBridge <> vc_formula ind
+binder 6161:6161 <> f:10
+R6190:6199 PyCSL.Phase2_State <> exec_state rec
+binder 6178:6179 <> es:11
+binder 6181:6186 <> pre_es:12
+binder 6211:6221 <> gamma_valid:13
+binder 6223:6224 <> pd:14
+binder 6226:6228 <> pdf:15
+binder 6230:6231 <> vt:16
+binder 6233:6234 <> pf:17
+binder 6236:6238 <> pvv:18
+R6256:6268 Proofs.core.Typing <> formula_typed ind
+R6270:6272 Coq.Init.Datatypes <> nil constr
+R6275:6292 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> vc_formula_to_why3 def
+R6294:6294 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> f:10 var
+R6296:6297 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> es:11 var
+R6299:6304 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> pre_es:12 var
+binder 6250:6252 <> Hty:19
+R6338:6344 Coq.Init.Logic <> ::type_scope:x_'<->'_x not
+R6311:6325 PyCSL.Phase6m_VcgSemBridge <> eval_vc_formula def
+R6327:6327 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> f:10 var
+R6329:6330 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> es:11 var
+R6332:6337 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> pre_es:12 var
+R6436:6438 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R6345:6355 Proofs.core.Denotational <> formula_rep def
+R6433:6435 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> Hty:19 var
+R6401:6418 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> vc_formula_to_why3 def
+R6420:6420 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> f:10 var
+R6422:6423 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> es:11 var
+R6425:6430 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> pre_es:12 var
+R6382:6384 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> pvv:18 var
+R6379:6380 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> pf:17 var
+R6376:6377 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> vt:16 var
+R6372:6374 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> pdf:15 var
+R6369:6370 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> pd:14 var
+R6357:6367 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> gamma_valid:13 var
+R6439:6442 Coq.Init.Datatypes <> true constr
+R6516:6533 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> vc_formula_to_why3 def
+R6605:6631 Coq.Logic.ClassicalDescription <> excluded_middle_informative thm
+R6634:6648 PyCSL.Phase6m_VcgSemBridge <> eval_vc_formula def
+R6605:6631 Coq.Logic.ClassicalDescription <> excluded_middle_informative thm
+R6634:6648 PyCSL.Phase6m_VcgSemBridge <> eval_vc_formula def
+R6790:6811 Proofs.core.Denotational <> formula_rep_equation_7 def
+R6790:6811 Proofs.core.Denotational <> formula_rep_equation_7 def
+R6790:6811 Proofs.core.Denotational <> formula_rep_equation_7 def
+R6952:6973 Proofs.core.Denotational <> formula_rep_equation_8 def
+R6952:6973 Proofs.core.Denotational <> formula_rep_equation_8 def
+R6952:6973 Proofs.core.Denotational <> formula_rep_equation_8 def
+rec 9042:9059 <> enriched_why3_cert
+proj 9129:9144 <> enriched_witness
+R9067:9076 PyCSL.Phase6_WhyML <> whyml_stmt ind
+binder 9062:9063 <> ws:20
+R9084:9091 PyCSL.Phase6b_WPW <> wp_conts rec
+binder 9080:9080 <> Q:21
+R9174:9183 PyCSL.Phase2_State <> exec_state rec
+binder 9162:9167 <> pre_es:23
+binder 9169:9170 <> es:24
+R9191:9193 Coq.Init.Datatypes <> nat ind
+binder 9187:9187 <> i:25
+R9201:9210 PyCSL.Phase6m_VcgSemBridge <> vc_formula ind
+binder 9197:9197 <> f:26
+R9261:9272 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R9252:9254 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R9222:9234 PyCSL.Phase6m_VcgSemBridge <> vc_formula_of def
+R9236:9237 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> ws:20 var
+R9239:9239 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> Q:21 var
+R9241:9246 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> pre_es:23 var
+R9248:9249 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> es:24 var
+R9251:9251 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> i:25 var
+R9255:9258 Coq.Init.Datatypes <> Some constr
+R9260:9260 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> f:26 var
+R9273:9287 PyCSL.Phase6m_VcgSemBridge <> eval_vc_formula def
+R9289:9289 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> f:26 var
+R9291:9292 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> es:24 var
+R9294:9299 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> pre_es:23 var
+R9317:9332 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> enriched_witness proj
+R9317:9332 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> enriched_witness proj
+prf 9419:9441 <> enriched_cert_validates
+R9460:9469 PyCSL.Phase6_WhyML <> whyml_stmt ind
+binder 9455:9456 <> ws:28
+R9477:9484 PyCSL.Phase6b_WPW <> wp_conts rec
+binder 9473:9473 <> Q:29
+R9500:9509 PyCSL.Phase2_State <> exec_state rec
+binder 9488:9493 <> pre_es:30
+binder 9495:9496 <> es:31
+R9526:9528 Coq.Init.Datatypes <> nat ind
+binder 9522:9522 <> i:32
+R9536:9545 PyCSL.Phase6m_VcgSemBridge <> vc_formula ind
+binder 9532:9532 <> f:33
+R9574:9579 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R9551:9568 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> enriched_why3_cert rec
+R9570:9571 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> ws:28 var
+R9573:9573 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> Q:29 var
+R9619:9624 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R9610:9612 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R9580:9592 PyCSL.Phase6m_VcgSemBridge <> vc_formula_of def
+R9594:9595 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> ws:28 var
+R9597:9597 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> Q:29 var
+R9599:9604 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> pre_es:30 var
+R9606:9607 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> es:31 var
+R9609:9609 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> i:32 var
+R9613:9616 Coq.Init.Datatypes <> Some constr
+R9618:9618 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> f:33 var
+R9625:9639 PyCSL.Phase6m_VcgSemBridge <> eval_vc_formula def
+R9641:9641 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> f:33 var
+R9643:9644 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> es:31 var
+R9646:9651 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> pre_es:30 var
+R9708:9723 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> enriched_witness proj
+R9708:9723 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> enriched_witness proj
+ax 10513:10528 <> enrich_main_cert
+R10547:10556 PyCSL.Phase6_WhyML <> whyml_stmt ind
+binder 10542:10543 <> ws:34
+R10564:10571 PyCSL.Phase6b_WPW <> wp_conts rec
+binder 10560:10560 <> Q:35
+R10598:10601 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R10577:10592 PyCSL.Phase6j_Why3Trust <> why3_certificate def
+R10594:10595 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> ws:34 var
+R10597:10597 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> Q:35 var
+R10602:10619 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> enriched_why3_cert rec
+R10621:10622 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> ws:34 var
+R10624:10624 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> Q:35 var
+prf 11999:12029 <> why3_validates_vc_formula_rocq9
+R12048:12057 PyCSL.Phase6_WhyML <> whyml_stmt ind
+binder 12043:12044 <> ws:38
+R12065:12072 PyCSL.Phase6b_WPW <> wp_conts rec
+binder 12061:12061 <> Q:39
+R12088:12097 PyCSL.Phase2_State <> exec_state rec
+binder 12076:12081 <> pre_es:40
+binder 12083:12084 <> es:41
+R12114:12116 Coq.Init.Datatypes <> nat ind
+binder 12110:12110 <> i:42
+R12124:12133 PyCSL.Phase6m_VcgSemBridge <> vc_formula ind
+binder 12120:12120 <> f:43
+R12160:12165 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R12139:12154 PyCSL.Phase6j_Why3Trust <> why3_certificate def
+R12156:12157 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> ws:38 var
+R12159:12159 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> Q:39 var
+R12205:12210 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R12196:12198 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R12166:12178 PyCSL.Phase6m_VcgSemBridge <> vc_formula_of def
+R12180:12181 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> ws:38 var
+R12183:12183 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> Q:39 var
+R12185:12190 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> pre_es:40 var
+R12192:12193 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> es:41 var
+R12195:12195 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> i:42 var
+R12199:12202 Coq.Init.Datatypes <> Some constr
+R12204:12204 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> f:43 var
+R12211:12225 PyCSL.Phase6m_VcgSemBridge <> eval_vc_formula def
+R12227:12227 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> f:43 var
+R12229:12230 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> es:41 var
+R12232:12237 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> pre_es:40 var
+R12294:12316 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> enriched_cert_validates thm
+R12372:12387 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> enrich_main_cert prfax
+R12294:12316 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> enriched_cert_validates thm
+R12372:12387 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> enrich_main_cert prfax
+R13383:13413 PyCSL.Phase6m_VcgSemBridge_Rocq9 <> why3_validates_vc_formula_rocq9 thm

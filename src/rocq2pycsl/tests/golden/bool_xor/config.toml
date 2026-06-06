@@ -1,0 +1,8 @@
+[input]
+rocq    = "spec.v"
+python  = "impl.py"
+output  = "actual.py"
+
+[functions.bool_xor]
+python_name      = "bool_xor"
+spec_theorems    = ["bool_xor_correct"]

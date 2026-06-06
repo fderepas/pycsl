@@ -1,0 +1,17 @@
+=== 2026-05-31T23:48:05.314549+00:00Z  Module: html ===
+  Baseline: L1=0 L2=2 L3=0 L4=0 L5=0
+  Targets: 2 functions to promote
+  CPython source: 2 functions with docstrings
+  ── Promoting: unescape ──
+    spliced 3 line(s) at html.py:10-11
+    wrote 2 reference test(s)
+  ── Promoting: escape ──
+    spliced 3 line(s) at html.py:4-5
+    wrote 2 reference test(s)
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module html ──
+      baseline: L1=0 L2=2 L3=0 L4=0 L5=0
+      final:    L1=0 L2=1 L3=0 L4=0 L5=1   (Δ L4+ = +1)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

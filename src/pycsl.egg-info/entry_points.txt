@@ -1,0 +1,3 @@
+[console_scripts]
+pycsl = pycsl.pycsl:main
+skill2rag = skill2rag.cli:main

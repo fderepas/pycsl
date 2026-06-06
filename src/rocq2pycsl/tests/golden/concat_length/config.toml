@@ -1,0 +1,8 @@
+[input]
+rocq    = "spec.v"
+python  = "impl.py"
+output  = "actual.py"
+
+[functions.concat_length]
+python_name      = "concat_length"
+spec_theorems    = ["concat_length_correct"]

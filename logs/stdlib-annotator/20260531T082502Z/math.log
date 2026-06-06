@@ -1,0 +1,11 @@
+=== 2026-05-31T08:25:02.379968+00:00Z  Module: math ===
+  Baseline: L1=0 L2=58 L3=0 L4=0 L5=4
+  Targets: 3 functions to promote
+  CPython source: 57 functions with docstrings
+  ── Promoting: fmax ──
+    [dry-run] prompt prepared, LLM call skipped
+  ── Promoting: fma ──
+    [dry-run] prompt prepared, LLM call skipped
+  ── Promoting: fabs ──
+    [dry-run] prompt prepared, LLM call skipped
+  [dry-run] complete; no edits applied

@@ -1,0 +1,494 @@
+{
+  "timestamp": "2026-05-13T23:36:59.739723",
+  "total": 69,
+  "summary": {
+    "DYNAMIC_PASS": 65,
+    "DYNAMIC_ERROR": 1,
+    "DYNAMIC_FAIL": 3
+  },
+  "verdicts": [
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/001-basic-control-flow.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/002-functions-and-contracts.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/003-data-structures.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/004-recusion.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/005-searching-algorithms.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/006-sorting-algorithms.py",
+      "static": "SKIP",
+      "dynamic": "ERROR",
+      "classification": "DYNAMIC_ERROR",
+      "detail": "Dynamic oracle error: Traceback (most recent call last):\n  File \"/tmp/tmpzj7xua99.py\", line 63, in <module>\n    print('is_sorted:', is_sorted_non_decreasing(ordered))\n                        ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^\n  File \"/tmp/tmpzj7xua99.py\", line 35, in is_sorted_non_decreasing\n    n = len(values)\nTypeError: object of type 'int' has no len()\n"
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/007-two-pointer-sliding-window.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/008-string-processing.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/009-numerical-algorithms.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/010-matrix-nested-loops.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/011-stack-queue-algorithms.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/012-hash-based-problems.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/013-greedy-algorithms.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/014-dynamic-programming.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/015-graph-basics.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/016-file-io-parsing.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/017-stateful-class-based-code.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/018-error-handling-robustness.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/019-concurrency-basics.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/020-mini-end-to-end-scripts.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/056-valid-basic-read.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/057-valid-sum-array.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/058-separated-copy.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/059-valid-find-max.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/060-separated-swap.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/061-typed-fill-zeros.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/062-typed-copy-separated.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/063-typed-sum-valid.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/064-typed-scale-array.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/065-typed-max-element.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/066-typed-swap-old.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/067-typed-rotate-old.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/068-typed-negate-old.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/069-typed-shift-old.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/070-typed-copy-last-to-first-old.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/071-store-fill-value.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/072-store-reverse.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/073-store-prefix-sum.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/074-store-clamp.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/075-store-dot-product.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/076-label-at-increment.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/077-label-at-overwrite.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/078-label-at-two-labels.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/079-label-at-scalar.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/080-label-at-loop.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/081-matrix-2d-fill.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/082-matrix-2d-add.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/083-matrix-2d-row-sum.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/084-matrix-2d-scale.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/085-matrix-2d-zero-diagonal.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/086-forall-all-nonneg.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/087-exists-find-index.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/088-forall-sorted-check.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/089-forall-exists-bounded.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/090-exists-nonneg-element.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/imported/091-forall-after-implies.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/edge_cases/edge_001_integer_division.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/edge_cases/edge_002_old_array.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/edge_cases/edge_003_result_basic.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/edge_cases/edge_004_implication.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/edge_cases/edge_005_quantifier_array.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/edge_cases/edge_006_multi_contracts.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/edge_cases/edge_007_loop_variant.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/edge_cases/edge_008_nested_if.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/edge_cases/edge_009_assigns_nothing.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/edge_cases/edge_010_old_simple.py",
+      "static": "SKIP",
+      "dynamic": "PASS",
+      "classification": "DYNAMIC_PASS",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/negative/neg_001_wrong_postcondition.py",
+      "static": "SKIP",
+      "dynamic": "FAIL",
+      "classification": "DYNAMIC_FAIL",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/negative/neg_002_broken_invariant.py",
+      "static": "SKIP",
+      "dynamic": "FAIL",
+      "classification": "DYNAMIC_FAIL",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/negative/neg_003_precondition_violation.py",
+      "static": "SKIP",
+      "dynamic": "FAIL",
+      "classification": "DYNAMIC_FAIL",
+      "detail": ""
+    }
+  ]
+}

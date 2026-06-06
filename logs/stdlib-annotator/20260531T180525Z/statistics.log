@@ -1,0 +1,71 @@
+=== 2026-05-31T18:05:25.518945+00:00Z  Module: statistics ===
+  Baseline: L1=0 L2=20 L3=0 L4=0 L5=0
+  Targets: 20 functions to promote
+  CPython source: 82 functions with docstrings
+  ── Promoting: linear_regression ──
+    spliced 4 line(s) at statistics.py:118-119
+    wrote 2 reference test(s)
+  ── Promoting: correlation ──
+    spliced 4 line(s) at statistics.py:112-113
+    wrote 2 reference test(s)
+  ── Promoting: covariance ──
+    spliced 3 line(s) at statistics.py:106-107
+    wrote 2 reference test(s)
+  ── Promoting: quantiles ──
+    spliced 4 line(s) at statistics.py:100-101
+    wrote 2 reference test(s)
+  ── Promoting: variance ──
+    spliced 4 line(s) at statistics.py:94-95
+    wrote 2 reference test(s)
+  ── Promoting: stdev ──
+    spliced 3 line(s) at statistics.py:88-89
+    wrote 2 reference test(s)
+  ── Promoting: pvariance ──
+    spliced 3 line(s) at statistics.py:82-83
+    wrote 2 reference test(s)
+  ── Promoting: pstdev ──
+    spliced 3 line(s) at statistics.py:76-77
+    wrote 2 reference test(s)
+  ── Promoting: multimode ──
+    spliced 3 line(s) at statistics.py:70-71
+    wrote 2 reference test(s)
+  ── Promoting: mode ──
+    spliced 3 line(s) at statistics.py:64-65
+    wrote 2 reference test(s)
+  ── Promoting: median_grouped ──
+    spliced 4 line(s) at statistics.py:58-59
+    wrote 2 reference test(s)
+  ── Promoting: median_high ──
+    spliced 4 line(s) at statistics.py:52-53
+    wrote 2 reference test(s)
+  ── Promoting: median_low ──
+    spliced 5 line(s) at statistics.py:46-47
+    wrote 2 reference test(s)
+  ── Promoting: median ──
+    spliced 3 line(s) at statistics.py:40-41
+    wrote 2 reference test(s)
+  ── Promoting: kde_random ──
+    spliced 4 line(s) at statistics.py:34-35
+    wrote 2 reference test(s)
+  ── Promoting: kde ──
+    spliced 5 line(s) at statistics.py:28-29
+    wrote 2 reference test(s)
+  ── Promoting: harmonic_mean ──
+    spliced 4 line(s) at statistics.py:22-23
+    wrote 2 reference test(s)
+  ── Promoting: geometric_mean ──
+    spliced 4 line(s) at statistics.py:16-17
+    wrote 2 reference test(s)
+  ── Promoting: fmean ──
+    spliced 5 line(s) at statistics.py:10-11
+    wrote 2 reference test(s)
+  ── Promoting: mean ──
+    spliced 3 line(s) at statistics.py:4-5
+    wrote 2 reference test(s)
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module statistics ──
+      baseline: L1=0 L2=20 L3=0 L4=0 L5=0
+      final:    L1=2 L2=5 L3=3 L4=0 L5=10   (Δ L4+ = +10)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

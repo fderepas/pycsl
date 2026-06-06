@@ -1,0 +1,7 @@
+[input]
+lean    = "spec.lean"
+python  = "impl.py"
+output  = "actual.py"
+
+[functions.list_length_after_append]
+python_name      = "list_length_after_append"

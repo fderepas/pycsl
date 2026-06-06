@@ -1,0 +1,8 @@
+[input]
+rocq    = "spec.v"
+python  = "impl.py"
+output  = "actual.py"
+
+[functions.divmod_pair]
+python_name      = "divmod_pair"
+spec_theorems    = ["divmod_pair_fst", "divmod_pair_snd"]

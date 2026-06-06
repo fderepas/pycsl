@@ -1,0 +1,50 @@
+=== 2026-05-31T23:34:34.112300+00:00Z  Module: heapq ===
+  Baseline: L1=0 L2=13 L3=0 L4=0 L5=0
+  Targets: 13 functions to promote
+  CPython source: 15 functions with docstrings
+  ── Promoting: nsmallest ──
+    spliced 4 line(s) at heapq.py:76-77
+    wrote 2 reference test(s)
+  ── Promoting: nlargest ──
+    spliced 4 line(s) at heapq.py:70-71
+    wrote 2 reference test(s)
+  ── Promoting: merge ──
+    spliced 4 line(s) at heapq.py:64-65
+    wrote 2 reference test(s)
+  ── Promoting: heapreplace_max ──
+    spliced 4 line(s) at heapq.py:58-59
+    wrote 2 reference test(s)
+  ── Promoting: heappushpop_max ──
+    spliced 4 line(s) at heapq.py:52-53
+    wrote 2 reference test(s)
+  ── Promoting: heappop_max ──
+    spliced 3 line(s) at heapq.py:46-47
+    wrote 2 reference test(s)
+  ── Promoting: heappush_max ──
+    spliced 3 line(s) at heapq.py:40-41
+    wrote 2 reference test(s)
+  ── Promoting: heapify_max ──
+    spliced 4 line(s) at heapq.py:34-35
+    wrote 2 reference test(s)
+  ── Promoting: heapreplace ──
+    spliced 4 line(s) at heapq.py:28-29
+    wrote 2 reference test(s)
+  ── Promoting: heappushpop ──
+    spliced 3 line(s) at heapq.py:22-23
+    wrote 2 reference test(s)
+  ── Promoting: heappop ──
+    spliced 4 line(s) at heapq.py:16-17
+    wrote 2 reference test(s)
+  ── Promoting: heappush ──
+    spliced 4 line(s) at heapq.py:10-11
+    wrote 2 reference test(s)
+  ── Promoting: heapify ──
+    spliced 4 line(s) at heapq.py:4-5
+    wrote 2 reference test(s)
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module heapq ──
+      baseline: L1=0 L2=13 L3=0 L4=0 L5=0
+      final:    L1=1 L2=0 L3=2 L4=0 L5=10   (Δ L4+ = +10)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

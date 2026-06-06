@@ -1,0 +1,20 @@
+=== 2026-05-31T23:20:54.966704+00:00Z  Module: gzip ===
+  Baseline: L1=0 L2=3 L3=0 L4=0 L5=0
+  Targets: 3 functions to promote
+  CPython source: 13 functions with docstrings
+  ── Promoting: decompress ──
+    spliced 4 line(s) at gzip.py:16-17
+    wrote 2 reference test(s)
+  ── Promoting: compress ──
+    spliced 4 line(s) at gzip.py:10-11
+    wrote 2 reference test(s)
+  ── Promoting: open ──
+    spliced 4 line(s) at gzip.py:4-5
+    wrote 2 reference test(s)
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module gzip ──
+      baseline: L1=0 L2=3 L3=0 L4=0 L5=0
+      final:    L1=0 L2=0 L3=2 L4=0 L5=1   (Δ L4+ = +1)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

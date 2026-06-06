@@ -1,0 +1,16 @@
+=== 2026-05-31T20:27:20.279598+00:00Z  Module: collections ===
+  Baseline: L1=0 L2=2 L3=1 L4=45 L5=0
+  Targets: 3 functions to promote
+  CPython source: 7 functions with docstrings
+  ── Promoting: index ──
+    spliced 5 line(s) at collections.py:133-137
+    wrote 2 reference test(s)
+  ── Promoting: count ──
+    spliced 5 line(s) at collections.py:125-129
+    wrote 2 reference test(s)
+  ── Promoting: namedtuple ──
+    spliced 5 line(s) at collections.py:9-12
+    wrote 2 reference test(s)
+  ── Gate: compile ── FAIL (exit 1)
+  rollback: stub restored; 6 new test files removed
+  Outcome: ROLLED-BACK

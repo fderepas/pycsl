@@ -1,0 +1,17 @@
+=== 2026-05-31T22:20:09.027650+00:00Z  Module: ensurepip ===
+  Baseline: L1=0 L2=2 L3=0 L4=0 L5=0
+  Targets: 2 functions to promote
+  CPython source: 7 functions with docstrings
+  ── Promoting: bootstrap ──
+    spliced 4 line(s) at ensurepip.py:10-11
+    wrote 2 reference test(s)
+  ── Promoting: version ──
+    spliced 3 line(s) at ensurepip.py:4-5
+    wrote 2 reference test(s)
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module ensurepip ──
+      baseline: L1=0 L2=2 L3=0 L4=0 L5=0
+      final:    L1=0 L2=1 L3=0 L4=0 L5=1   (Δ L4+ = +1)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

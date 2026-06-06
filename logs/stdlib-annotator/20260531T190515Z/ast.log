@@ -1,0 +1,13 @@
+=== 2026-05-31T19:05:15.316163+00:00Z  Module: ast ===
+  Baseline: L1=1 L2=0 L3=0 L4=0 L5=14
+  Targets: 1 functions to promote
+  CPython source: 146 functions with docstrings
+  ── Promoting: literal_eval ──
+    spliced 6 line(s) at ast.py:70-74
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module ast ──
+      baseline: L1=1 L2=0 L3=0 L4=0 L5=14
+      final:    L1=1 L2=0 L3=0 L4=0 L5=14   (Δ L4+ = +0)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

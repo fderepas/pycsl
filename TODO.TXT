@@ -1,0 +1,7 @@
+add // and % in contracts.
+
+The syntax is `\forall j; ...` this semicol seems strange. Compare with Frama-C and Creusot. Compare the whole syntax diffenrences.
+
+● Test array patterns with correct syntax (shell)
+  │ cd /home/fabrice.derepas@canonical.com/git/pycsl && source .venv/bin/activate
+  │ 

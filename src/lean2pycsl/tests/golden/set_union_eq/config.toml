@@ -1,0 +1,7 @@
+[input]
+lean    = "spec.lean"
+python  = "impl.py"
+output  = "actual.py"
+
+[functions.set_union_eq]
+python_name      = "set_union_eq"

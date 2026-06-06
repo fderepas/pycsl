@@ -1,0 +1,35 @@
+=== 2026-06-01T00:47:50.744530+00:00Z  Module: lark ===
+  Baseline: L1=0 L2=5 L3=3 L4=3 L5=0
+  Targets: 8 functions to promote
+  CPython source: 12 functions with docstrings
+  ── Promoting: UnexpectedCharacters ──
+    spliced 3 line(s) at lark.py:102-103
+    wrote 2 reference test(s)
+  ── Promoting: UnexpectedToken ──
+    spliced 3 line(s) at lark.py:97-98
+    wrote 2 reference test(s)
+  ── Promoting: UnexpectedInput ──
+    spliced 3 line(s) at lark.py:92-93
+    wrote 2 reference test(s)
+  ── Promoting: LarkError ──
+    spliced 4 line(s) at lark.py:87-88
+    wrote 2 reference test(s)
+  ── Promoting: v_args ──
+    spliced 3 line(s) at lark.py:82-83
+    wrote 2 reference test(s)
+  ── Promoting: data ──
+    spliced 5 line(s) at lark.py:51-54
+    wrote 2 reference test(s)
+  ── Promoting: token_value ──
+    spliced 5 line(s) at lark.py:37-40
+    wrote 2 reference test(s)
+  ── Promoting: lark_parse ──
+    spliced 5 line(s) at lark.py:16-19
+    wrote 2 reference test(s)
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module lark ──
+      baseline: L1=0 L2=5 L3=3 L4=3 L5=0
+      final:    L1=0 L2=1 L3=0 L4=3 L5=7   (Δ L4+ = +7)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

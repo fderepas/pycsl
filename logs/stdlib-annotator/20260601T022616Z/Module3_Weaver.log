@@ -1,0 +1,23 @@
+=== 2026-06-01T02:26:16.404205+00:00Z  Module: Module3_Weaver ===
+  Baseline: L1=0 L2=0 L3=4 L4=1 L5=0
+  Targets: 4 functions to promote
+  CPython source: 0 functions with docstrings
+  ── Promoting: visit_for ──
+    spliced 5 line(s) at Module3_Weaver.py:33-36
+    wrote 2 reference test(s)
+  ── Promoting: visit_while ──
+    spliced 5 line(s) at Module3_Weaver.py:26-29
+    wrote 2 reference test(s)
+  ── Promoting: visit_classdef ──
+    spliced 5 line(s) at Module3_Weaver.py:19-22
+    wrote 2 reference test(s)
+  ── Promoting: visit_functiondef ──
+    spliced 5 line(s) at Module3_Weaver.py:12-15
+    wrote 2 reference test(s)
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module Module3_Weaver ──
+      baseline: L1=0 L2=0 L3=4 L4=1 L5=0
+      final:    L1=0 L2=0 L3=0 L4=1 L5=4   (Δ L4+ = +4)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

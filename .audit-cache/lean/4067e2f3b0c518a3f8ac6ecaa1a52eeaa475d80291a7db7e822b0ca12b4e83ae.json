@@ -1,0 +1,13 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "",
+  "compile_stderr": "",
+  "elapsed_compile_s": 0.7342221779981628,
+  "qualname_results": [
+    [
+      "PyCSL.Soundness.pycsl_soundness",
+      true,
+      []
+    ]
+  ]
+}

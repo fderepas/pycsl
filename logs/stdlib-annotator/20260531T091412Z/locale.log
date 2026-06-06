@@ -1,0 +1,32 @@
+=== 2026-05-31T11:57:54.237682+00:00Z  Module: locale ===
+  Baseline: L1=0 L2=23 L3=0 L4=0 L5=0
+  Targets: 23 functions to promote
+  CPython source: 28 functions with docstrings
+  ── Promoting: bind_textdomain_codeset ──
+    spliced 4 line(s) at locale.py:120-120
+    wrote 2 reference test(s)
+  ── Promoting: bindtextdomain ──
+    spliced 3 line(s) at locale.py:115-115
+    wrote 2 reference test(s)
+  ── Promoting: textdomain ──
+    spliced 3 line(s) at locale.py:110-110
+    wrote 2 reference test(s)
+  ── Promoting: dcgettext ──
+    spliced 3 line(s) at locale.py:105-105
+    wrote 2 reference test(s)
+  ── Promoting: dgettext ──
+    spliced 3 line(s) at locale.py:100-100
+    wrote 2 reference test(s)
+  ── Promoting: gettext ──
+    spliced 3 line(s) at locale.py:95-95
+    wrote 2 reference test(s)
+  ── Promoting: atoi ──
+    spliced 5 line(s) at locale.py:89-90
+    wrote 2 reference test(s)
+  ── Promoting: atof ──
+    spliced 4 line(s) at locale.py:83-84
+    wrote 2 reference test(s)
+  ── Promoting: localize ──
+    spliced 3 line(s) at locale.py:78-78
+    wrote 2 reference test(s)
+  ── Promoting: delocalize ──

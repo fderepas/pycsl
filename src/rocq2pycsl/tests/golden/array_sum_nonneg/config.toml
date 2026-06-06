@@ -1,0 +1,8 @@
+[input]
+rocq    = "spec.v"
+python  = "impl.py"
+output  = "actual.py"
+
+[functions.array_sum_nonneg]
+python_name      = "array_sum_nonneg"
+spec_theorems    = ["array_sum_nonneg_nonneg"]

@@ -1,0 +1,114 @@
+=== 2026-05-31T10:42:37.142864+00:00Z  Module: hashlib ===
+  Baseline: L1=0 L2=26 L3=9 L4=2 L5=0
+  Targets: 35 functions to promote
+  CPython source: 20 functions with docstrings
+  ── Promoting: blake2s_MAX_DIGEST_SIZE ──
+    spliced 4 line(s) at hashlib.py:239-240
+    wrote 2 reference test(s)
+  ── Promoting: blake2b_MAX_DIGEST_SIZE ──
+    spliced 3 line(s) at hashlib.py:234-235
+    wrote 2 reference test(s)
+  ── Promoting: blake2s_MAX_KEY_SIZE ──
+    spliced 4 line(s) at hashlib.py:229-230
+    wrote 2 reference test(s)
+  ── Promoting: blake2b_MAX_KEY_SIZE ──
+    spliced 4 line(s) at hashlib.py:224-225
+    wrote 2 reference test(s)
+  ── Promoting: blake2s_PERSON_SIZE ──
+    spliced 4 line(s) at hashlib.py:219-220
+    wrote 2 reference test(s)
+  ── Promoting: blake2b_PERSON_SIZE ──
+    spliced 4 line(s) at hashlib.py:214-215
+    wrote 2 reference test(s)
+  ── Promoting: blake2s_SALT_SIZE ──
+    spliced 4 line(s) at hashlib.py:209-210
+    wrote 2 reference test(s)
+  ── Promoting: blake2b_SALT_SIZE ──
+    spliced 4 line(s) at hashlib.py:204-205
+    wrote 2 reference test(s)
+  ── Promoting: algorithms_available ──
+    spliced 4 line(s) at hashlib.py:197-198
+    wrote 2 reference test(s)
+  ── Promoting: algorithms_guaranteed ──
+    spliced 4 line(s) at hashlib.py:192-193
+    wrote 2 reference test(s)
+  ── Promoting: file_digest ──
+    spliced 3 line(s) at hashlib.py:185-186
+    wrote 2 reference test(s)
+  ── Promoting: scrypt ──
+    spliced 8 line(s) at hashlib.py:175-179
+    wrote 2 reference test(s)
+  ── Promoting: pbkdf2_hmac ──
+    spliced 5 line(s) at hashlib.py:169-171
+    wrote 2 reference test(s)
+  ── Promoting: shake_hexdigest ──
+    spliced 4 line(s) at hashlib.py:161-163
+    wrote 2 reference test(s)
+  ── Promoting: shake_digest ──
+    spliced 4 line(s) at hashlib.py:155-157
+    wrote 2 reference test(s)
+  ── Promoting: blake2s ──
+    spliced 5 line(s) at hashlib.py:148-149
+    wrote 2 reference test(s)
+  ── Promoting: blake2b ──
+    spliced 5 line(s) at hashlib.py:143-144
+    wrote 2 reference test(s)
+  ── Promoting: shake_256 ──
+    spliced 3 line(s) at hashlib.py:136-137
+    wrote 2 reference test(s)
+  ── Promoting: shake_128 ──
+    spliced 3 line(s) at hashlib.py:131-132
+    wrote 2 reference test(s)
+  ── Promoting: sha3_512 ──
+    spliced 3 line(s) at hashlib.py:124-125
+    wrote 2 reference test(s)
+  ── Promoting: sha3_384 ──
+    spliced 4 line(s) at hashlib.py:119-120
+    wrote 2 reference test(s)
+  ── Promoting: sha3_256 ──
+    spliced 4 line(s) at hashlib.py:114-115
+    wrote 2 reference test(s)
+  ── Promoting: sha3_224 ──
+    spliced 4 line(s) at hashlib.py:109-110
+    wrote 2 reference test(s)
+  ── Promoting: sha512 ──
+    spliced 4 line(s) at hashlib.py:102-103
+    wrote 2 reference test(s)
+  ── Promoting: sha384 ──
+    spliced 3 line(s) at hashlib.py:97-98
+    wrote 2 reference test(s)
+  ── Promoting: sha256 ──
+    spliced 4 line(s) at hashlib.py:92-93
+    wrote 2 reference test(s)
+  ── Promoting: sha224 ──
+    spliced 3 line(s) at hashlib.py:87-88
+    wrote 2 reference test(s)
+  ── Promoting: sha1 ──
+    spliced 4 line(s) at hashlib.py:82-83
+    wrote 2 reference test(s)
+  ── Promoting: md5 ──
+    spliced 4 line(s) at hashlib.py:77-78
+    wrote 2 reference test(s)
+  ── Promoting: new ──
+    spliced 4 line(s) at hashlib.py:69-70
+    wrote 2 reference test(s)
+  ── Promoting: copy ──
+    spliced 5 line(s) at hashlib.py:60-63
+    wrote 2 reference test(s)
+  ── Promoting: hexdigest ──
+    spliced 5 line(s) at hashlib.py:53-56
+    wrote 2 reference test(s)
+  ── Promoting: digest ──
+    spliced 5 line(s) at hashlib.py:46-49
+    wrote 2 reference test(s)
+  ── Promoting: update ──
+    spliced 5 line(s) at hashlib.py:39-42
+    wrote 2 reference test(s)
+  ── Promoting: name ──
+    spliced 4 line(s) at hashlib.py:32-35
+    wrote 2 reference test(s)
+  ── Gate: compile ── FAIL (exit 1)
+  rollback: git checkout failed: error: pathspec 'src/pycsl_lib/hashlib.py' did not match any file(s) known to git
+
+  rollback: stub restored; 70 new test files removed
+  Outcome: ROLLED-BACK

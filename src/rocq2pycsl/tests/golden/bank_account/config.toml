@@ -1,0 +1,17 @@
+[input]
+rocq    = "spec.v"
+python  = "impl.py"
+output  = "actual.py"
+
+[functions."BankAccount.deposit"]
+python_name      = "BankAccount.deposit"
+spec_theorems    = ["deposit_post"]
+# The Coq spec models the receiver as a `balance` parameter; on the
+# Python side this is the `self._balance` field. The arg_map rewrites
+# the proof-side identifier to the field access.
+arg_map          = { balance = "self._balance" }
+
+[functions."BankAccount.withdraw"]
+python_name      = "BankAccount.withdraw"
+spec_theorems    = ["withdraw_post"]
+arg_map          = { balance = "self._balance" }

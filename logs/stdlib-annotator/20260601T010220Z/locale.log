@@ -1,0 +1,53 @@
+=== 2026-06-01T01:02:20.321496+00:00Z  Module: locale ===
+  Baseline: L1=0 L2=14 L3=0 L4=0 L5=9
+  Targets: 14 functions to promote
+  CPython source: 28 functions with docstrings
+  ── Promoting: delocalize ──
+    spliced 3 line(s) at locale.py:73-73
+    wrote 2 reference test(s)
+  ── Promoting: str ──
+    spliced 3 line(s) at locale.py:68-68
+    wrote 2 reference test(s)
+  ── Promoting: currency ──
+    spliced 3 line(s) at locale.py:63-63
+    wrote 2 reference test(s)
+  ── Promoting: format_string ──
+    spliced 3 line(s) at locale.py:58-58
+    wrote 2 reference test(s)
+  ── Promoting: strxfrm ──
+    spliced 4 line(s) at locale.py:53-53
+    wrote 2 reference test(s)
+  ── Promoting: strcoll ──
+    spliced 3 line(s) at locale.py:47-48
+    wrote 2 reference test(s)
+  ── Promoting: normalize ──
+    spliced 3 line(s) at locale.py:42-42
+    wrote 2 reference test(s)
+  ── Promoting: getencoding ──
+    spliced 3 line(s) at locale.py:37-37
+    wrote 2 reference test(s)
+  ── Promoting: getpreferredencoding ──
+    spliced 3 line(s) at locale.py:32-32
+    wrote 2 reference test(s)
+  ── Promoting: getlocale ──
+    spliced 3 line(s) at locale.py:26-27
+    wrote 2 reference test(s)
+  ── Promoting: getdefaultlocale ──
+    spliced 3 line(s) at locale.py:20-21
+    wrote 2 reference test(s)
+  ── Promoting: nl_langinfo ──
+    spliced 3 line(s) at locale.py:15-15
+    wrote 2 reference test(s)
+  ── Promoting: localeconv ──
+    spliced 3 line(s) at locale.py:9-10
+    wrote 2 reference test(s)
+  ── Promoting: setlocale ──
+    spliced 3 line(s) at locale.py:4-4
+    wrote 2 reference test(s)
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module locale ──
+      baseline: L1=0 L2=14 L3=0 L4=0 L5=9
+      final:    L1=1 L2=0 L3=1 L4=0 L5=21   (Δ L4+ = +12)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

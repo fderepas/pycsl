@@ -1,0 +1,45 @@
+=== 2026-05-31T11:42:50.290664+00:00Z  Module: itertools ===
+  Baseline: L1=0 L2=12 L3=0 L4=0 L5=0
+  Targets: 12 functions to promote
+  CPython source: 20 functions with docstrings
+  ── Promoting: count ──
+    spliced 3 line(s) at itertools.py:67-67
+    wrote 2 reference test(s)
+  ── Promoting: starmap ──
+    spliced 3 line(s) at itertools.py:62-62
+    wrote 2 reference test(s)
+  ── Promoting: groupby ──
+    spliced 3 line(s) at itertools.py:57-57
+    wrote 2 reference test(s)
+  ── Promoting: zip_longest ──
+    spliced 4 line(s) at itertools.py:52-52
+    wrote 2 reference test(s)
+  ── Promoting: islice ──
+    spliced 4 line(s) at itertools.py:47-47
+    wrote 2 reference test(s)
+  ── Promoting: cycle ──
+    spliced 4 line(s) at itertools.py:42-42
+    wrote 2 reference test(s)
+  ── Promoting: repeat ──
+    spliced 4 line(s) at itertools.py:37-37
+    wrote 2 reference test(s)
+  ── Promoting: accumulate ──
+    spliced 4 line(s) at itertools.py:32-32
+    wrote 2 reference test(s)
+  ── Promoting: chain ──
+    spliced 3 line(s) at itertools.py:27-27
+    wrote 2 reference test(s)
+  ── Promoting: product ──
+    spliced 4 line(s) at itertools.py:20-20
+    wrote 2 reference test(s)
+  ── Promoting: permutations ──
+    spliced 6 line(s) at itertools.py:15-15
+    wrote 2 reference test(s)
+  ── Promoting: combinations ──
+    spliced 4 line(s) at itertools.py:10-10
+    wrote 2 reference test(s)
+  ── Gate: compile ── FAIL (exit 1)
+  rollback: git checkout failed: error: pathspec 'src/pycsl_lib/itertools.py' did not match any file(s) known to git
+
+  rollback: stub restored; 24 new test files removed
+  Outcome: ROLLED-BACK

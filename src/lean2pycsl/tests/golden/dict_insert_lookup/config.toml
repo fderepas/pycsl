@@ -1,0 +1,7 @@
+[input]
+lean    = "spec.lean"
+python  = "impl.py"
+output  = "actual.py"
+
+[functions.dict_insert_lookup]
+python_name      = "dict_insert_lookup"

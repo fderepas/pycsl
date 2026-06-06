@@ -1,0 +1,52 @@
+=== 2026-05-31T23:23:44.736950+00:00Z  Module: hashlib ===
+  Baseline: L1=0 L2=10 L3=5 L4=22 L5=0
+  Targets: 15 functions to promote
+  CPython source: 20 functions with docstrings
+  ── Promoting: blake2b_MAX_DIGEST_SIZE ──
+    spliced 4 line(s) at hashlib.py:289-291
+    wrote 2 reference test(s)
+  ── Promoting: blake2b_MAX_KEY_SIZE ──
+    spliced 4 line(s) at hashlib.py:275-278
+    wrote 2 reference test(s)
+  ── Promoting: blake2s_PERSON_SIZE ──
+    spliced 4 line(s) at hashlib.py:268-271
+    wrote 2 reference test(s)
+  ── Promoting: blake2s_SALT_SIZE ──
+    spliced 4 line(s) at hashlib.py:254-257
+    wrote 2 reference test(s)
+  ── Promoting: scrypt ──
+    spliced 8 line(s) at hashlib.py:210-217
+    wrote 2 reference test(s)
+  ── Promoting: pbkdf2_hmac ──
+    spliced 5 line(s) at hashlib.py:202-206
+    wrote 2 reference test(s)
+  ── Promoting: blake2s ──
+    spliced 11 line(s) at hashlib.py:176-180
+    wrote 2 reference test(s)
+  ── Promoting: blake2b ──
+    spliced 11 line(s) at hashlib.py:168-172
+    wrote 2 reference test(s)
+  ── Promoting: shake_256 ──
+    spliced 3 line(s) at hashlib.py:160-162
+    wrote 2 reference test(s)
+  ── Promoting: shake_128 ──
+    spliced 3 line(s) at hashlib.py:154-156
+    wrote 2 reference test(s)
+  ── Promoting: sha3_512 ──
+    spliced 4 line(s) at hashlib.py:146-148
+    wrote 2 reference test(s)
+  ── Promoting: sha384 ──
+    spliced 4 line(s) at hashlib.py:110-112
+    wrote 2 reference test(s)
+  ── Promoting: sha224 ──
+    spliced 3 line(s) at hashlib.py:97-99
+    wrote 2 reference test(s)
+  ── Promoting: new ──
+    spliced 5 line(s) at hashlib.py:73-76
+    wrote 2 reference test(s)
+  ── Promoting: hexdigest ──
+    spliced 5 line(s) at hashlib.py:55-59
+    wrote 2 reference test(s)
+  ── Gate: compile ── FAIL (exit 1)
+  rollback: stub restored; 30 new test files removed
+  Outcome: ROLLED-BACK

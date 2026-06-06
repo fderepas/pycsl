@@ -1,0 +1,4 @@
+=== 2026-05-31T19:06:24.220751+00:00Z  Module: asyncore ===
+  Baseline: L1=0 L2=0 L3=0 L4=0 L5=0
+  Targets: 0 functions to promote
+  Nothing to do (all functions already L4+)

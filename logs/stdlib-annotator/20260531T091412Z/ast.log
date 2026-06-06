@@ -1,0 +1,49 @@
+=== 2026-05-31T09:25:06.415646+00:00Z  Module: ast ===
+  Baseline: L1=0 L2=11 L3=2 L4=2 L5=0
+  Targets: 13 functions to promote
+  CPython source: 146 functions with docstrings
+  ── Promoting: walk ──
+    spliced 3 line(s) at ast.py:105-106
+    wrote 2 reference test(s)
+  ── Promoting: iter_child_nodes ──
+    spliced 3 line(s) at ast.py:100-101
+    wrote 2 reference test(s)
+  ── Promoting: iter_fields ──
+    spliced 3 line(s) at ast.py:95-96
+    wrote 2 reference test(s)
+  ── Promoting: copy_location ──
+    spliced 3 line(s) at ast.py:90-91
+    wrote 2 reference test(s)
+  ── Promoting: increment_lineno ──
+    spliced 3 line(s) at ast.py:85-86
+    wrote 2 reference test(s)
+  ── Promoting: fix_missing_locations ──
+    spliced 3 line(s) at ast.py:80-81
+    wrote 2 reference test(s)
+  ── Promoting: dump ──
+    spliced 3 line(s) at ast.py:75-76
+    wrote 2 reference test(s)
+  ── Promoting: get_docstring ──
+    spliced 4 line(s) at ast.py:70-71
+    wrote 2 reference test(s)
+  ── Promoting: literal_eval ──
+    spliced 5 line(s) at ast.py:65-66
+    wrote 2 reference test(s)
+  ── Promoting: unparse ──
+    spliced 4 line(s) at ast.py:60-61
+    wrote 2 reference test(s)
+  ── Promoting: parse ──
+    spliced 4 line(s) at ast.py:55-56
+    wrote 2 reference test(s)
+  ── Promoting: generic_visit ──
+    spliced 4 line(s) at ast.py:46-49
+    wrote 2 reference test(s)
+  ── Promoting: generic_visit ──
+    spliced 5 line(s) at ast.py:24-27
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module ast ──
+      baseline: L1=0 L2=11 L3=2 L4=2 L5=0
+      final:    L1=1 L2=0 L3=0 L4=0 L5=14   (Δ L4+ = +12)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

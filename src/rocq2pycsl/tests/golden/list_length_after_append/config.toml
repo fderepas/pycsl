@@ -1,0 +1,8 @@
+[input]
+rocq    = "spec.v"
+python  = "impl.py"
+output  = "actual.py"
+
+[functions.list_length_after_append]
+python_name      = "list_length_after_append"
+spec_theorems    = ["list_length_after_append_eq"]

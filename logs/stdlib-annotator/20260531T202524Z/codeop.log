@@ -1,0 +1,14 @@
+=== 2026-05-31T20:25:24.853074+00:00Z  Module: codeop ===
+  Baseline: L1=0 L2=1 L3=0 L4=0 L5=0
+  Targets: 1 functions to promote
+  CPython source: 4 functions with docstrings
+  ── Promoting: compile_command ──
+    spliced 3 line(s) at codeop.py:4-5
+    wrote 2 reference test(s)
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module codeop ──
+      baseline: L1=0 L2=1 L3=0 L4=0 L5=0
+      final:    L1=0 L2=1 L3=0 L4=0 L5=0   (Δ L4+ = +0)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

@@ -1,0 +1,23 @@
+=== 2026-05-31T18:28:20.594133+00:00Z  Module: decimal ===
+  Baseline: L1=0 L2=4 L3=0 L4=0 L5=0
+  Targets: 4 functions to promote
+  CPython source: 7 functions with docstrings
+  ── Promoting: IEEEContext ──
+    spliced 6 line(s) at decimal.py:22-23
+    wrote 2 reference test(s)
+  ── Promoting: localcontext ──
+    spliced 3 line(s) at decimal.py:16-17
+    wrote 2 reference test(s)
+  ── Promoting: setcontext ──
+    spliced 3 line(s) at decimal.py:10-11
+    wrote 2 reference test(s)
+  ── Promoting: getcontext ──
+    spliced 3 line(s) at decimal.py:4-5
+    wrote 2 reference test(s)
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module decimal ──
+      baseline: L1=0 L2=4 L3=0 L4=0 L5=0
+      final:    L1=0 L2=0 L3=1 L4=0 L5=3   (Δ L4+ = +3)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

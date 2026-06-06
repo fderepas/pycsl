@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: pycsl
+Version: 0.1.0
+Summary: Python Contract Specification Language — compiles PyCSL annotations to WhyML for formal verification
+Requires-Python: >=3.10
+Requires-Dist: libcst
+Requires-Dist: lark
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Provides-Extra: rag
+Requires-Dist: numpy>=1.24; extra == "rag"

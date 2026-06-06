@@ -1,0 +1,15 @@
+=== 2026-05-31T22:44:33.205725+00:00Z  Module: functools ===
+  Baseline: L1=2 L2=0 L3=0 L4=0 L5=5
+  Targets: 2 functions to promote
+  CPython source: 40 functions with docstrings
+  ── Promoting: wraps ──
+    spliced 4 line(s) at functools.py:21-24
+  ── Promoting: partial ──
+    spliced 4 line(s) at functools.py:11-14
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module functools ──
+      baseline: L1=2 L2=0 L3=0 L4=0 L5=5
+      final:    L1=2 L2=0 L3=0 L4=0 L5=5   (Δ L4+ = +0)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

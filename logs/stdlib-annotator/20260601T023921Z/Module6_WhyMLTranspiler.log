@@ -1,0 +1,62 @@
+=== 2026-06-01T02:39:21.649530+00:00Z  Module: Module6_WhyMLTranspiler ===
+  Baseline: L1=0 L2=0 L3=17 L4=0 L5=0
+  Targets: 17 functions to promote
+  CPython source: 0 functions with docstrings
+  ── Promoting: emit_frame_condition ──
+    spliced 4 line(s) at Module6_WhyMLTranspiler.py:124-127
+    wrote 2 reference test(s)
+  ── Promoting: stmts_to_whyml ──
+    spliced 5 line(s) at Module6_WhyMLTranspiler.py:117-120
+    wrote 2 reference test(s)
+  ── Promoting: expr_to_whyml ──
+    spliced 5 line(s) at Module6_WhyMLTranspiler.py:110-113
+    wrote 2 reference test(s)
+  ── Promoting: find_return_type ──
+    spliced 5 line(s) at Module6_WhyMLTranspiler.py:103-106
+    wrote 2 reference test(s)
+  ── Promoting: uses_string ──
+    spliced 5 line(s) at Module6_WhyMLTranspiler.py:96-99
+    wrote 2 reference test(s)
+  ── Promoting: is_recursive ──
+    spliced 5 line(s) at Module6_WhyMLTranspiler.py:89-92
+    wrote 2 reference test(s)
+  ── Promoting: uses_minmax ──
+    spliced 5 line(s) at Module6_WhyMLTranspiler.py:82-85
+    wrote 2 reference test(s)
+  ── Promoting: uses_subscript ──
+    spliced 5 line(s) at Module6_WhyMLTranspiler.py:75-78
+    wrote 2 reference test(s)
+  ── Promoting: uses_for ──
+    spliced 5 line(s) at Module6_WhyMLTranspiler.py:68-71
+    wrote 2 reference test(s)
+  ── Promoting: uses_continue ──
+    spliced 5 line(s) at Module6_WhyMLTranspiler.py:61-64
+    wrote 2 reference test(s)
+  ── Promoting: has_continue ──
+    spliced 5 line(s) at Module6_WhyMLTranspiler.py:54-57
+    wrote 2 reference test(s)
+  ── Promoting: find_assigned_vars ──
+    spliced 5 line(s) at Module6_WhyMLTranspiler.py:47-50
+    wrote 2 reference test(s)
+  ── Promoting: ends_with_return ──
+    spliced 5 line(s) at Module6_WhyMLTranspiler.py:40-43
+    wrote 2 reference test(s)
+  ── Promoting: uses_arrayset ──
+    spliced 5 line(s) at Module6_WhyMLTranspiler.py:33-36
+    wrote 2 reference test(s)
+  ── Promoting: op_translate ──
+    spliced 5 line(s) at Module6_WhyMLTranspiler.py:26-29
+    wrote 2 reference test(s)
+  ── Promoting: whyml_ident ──
+    spliced 5 line(s) at Module6_WhyMLTranspiler.py:19-22
+    wrote 2 reference test(s)
+  ── Promoting: transpile ──
+    spliced 5 line(s) at Module6_WhyMLTranspiler.py:12-15
+    wrote 2 reference test(s)
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module Module6_WhyMLTranspiler ──
+      baseline: L1=0 L2=0 L3=17 L4=0 L5=0
+      final:    L1=4 L2=0 L3=2 L4=0 L5=11   (Δ L4+ = +11)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

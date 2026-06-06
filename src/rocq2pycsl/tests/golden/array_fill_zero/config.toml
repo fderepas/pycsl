@@ -1,0 +1,8 @@
+[input]
+rocq    = "spec.v"
+python  = "impl.py"
+output  = "actual.py"
+
+[functions.array_fill_zero]
+python_name      = "array_fill_zero"
+spec_theorems    = ["array_fill_zero_correct"]

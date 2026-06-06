@@ -1,0 +1,8 @@
+[input]
+rocq    = "spec.v"
+python  = "impl.py"
+output  = "actual.py"
+
+[functions.dict_insert_lookup]
+python_name      = "dict_insert_lookup"
+spec_theorems    = ["dict_insert_lookup_correct"]

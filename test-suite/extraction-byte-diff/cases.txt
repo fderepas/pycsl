@@ -1,0 +1,84 @@
+# cases.txt — CC.5 byte-diff test cases (Rocq-extracted vs Module 6 Python)
+#
+# Each line: <case_id> <description>
+# Adding a case requires synchronizing THREE files:
+#   1. This file (documentation)
+#   2. src/formal-semantics/rocq/extracted/driver.ml   (OCaml side)
+#   3. bin/extraction-byte-diff.py                       (Python side)
+#
+# The Rocq driver produces strings via the extracted
+# emit_stmt_full_complete. The Python side constructs the
+# equivalent Module 6 IR (a JSON dict matching Module 5's output)
+# and runs Module 6's _stmts_to_whyml on it. The shell driver
+# diffs the two outputs case-by-case.
+#
+# RESULT KEY:
+#   PASS    Byte-equivalent — Rocq pretty-printer and Module 6 agree.
+#   DIFF-T  Trailing-rest: Module 6 appends "()" to constructors
+#           that scope over rest when rest is empty (assign-fresh,
+#           label, ghost-decl). Sub-α file headers note this.
+#   DIFF-S  State-dependent dispatch: Module 6 picks a different
+#           acceptable form than the formal pick because state
+#           differs (arrayset → subscript_set fallback).
+#   DIFF-D  Deref gap: variables emitted as bare `x` by formal,
+#           `!x` by Module 6 (Sub-α.2 "presentational gap").
+#   DIFF-A  Abstract-op wrapper: Module 6 wraps subscript/length
+#           in abstract ops (subscript_get, iter_length).
+#   DIFF-B  Bool-coercion: Module 6 wraps boolean expressions
+#           with `(<expr> <> 0)`.
+#
+# Each DIFF is in the acceptable surface set for its constructor
+# per Sub-α; they are NOT bugs.
+
+# ----- 1:1 PASS cases (10) -----
+skip                       Empty statement → "()"
+assign-existing            Existing ref var: x = 1
+augassign-add              Augmented: x += 2
+augassign-sub              Augmented: x -= 3
+augassign-mul              Augmented: x *= 2
+seq-skip-skip              Sequence of two skips
+seq-assign-existing-twice  Sequence of two assigns to existing var
+seq-augassign-twice        Sequence of two augassigns
+raise-break                raise PyCSL_Break
+raise-continue             raise PyCSL_Continue
+raise-named-foo            raise Foo
+assert-true                assert {true} (Module 6 erases to "()")
+try-catch-simple           try () with E -> () end
+ghost-assign-int-add       ghost gx += 1
+ghost-assign-int-sub       ghost gx -= 1
+nested-seq                 Three-element nested sequence
+
+# ----- DIFF-T (trailing-rest gap, expected) -----
+assign-fresh               x = 1 (fresh local; Module 6 appends "()" to let-in)
+label-L                    label L in (Module 6 wraps rest, appends "()")
+ghost-decl-int             let ghost gx = ref 0 in (trailing rest)
+ghost-decl-array           let ghost ga = ... in (trailing rest)
+
+# ----- DIFF-S (state-dependent dispatch, in acceptable set) -----
+arrayset                   a[i] = 7 (Rocq: arr[i] <- v; Module 6: subscript_set fallback)
+
+# ----- DIFF-D (deref gap, in acceptable set) -----
+assign-binop-add           x = y + 1 (Rocq: (y + 1); Module 6: (!y + 1))
+
+# ----- DIFF-A (abstract-op wrapper, in acceptable set) -----
+assign-len                 x = len(arr) (Rocq: (length arr); Module 6: (iter_length arr))
+assign-subscript           x = arr[0] (Rocq: arr[0]; Module 6: (subscript_get arr 0))
+
+# ----- DIFF-B (bool-coercion, in acceptable set) -----
+if-skip-skip               if x then () else () (Module 6: if (x <> 0) then ...)
+while-trivial              while x do invariant {true} variant {0} done (similar)
+
+# Total: 26 cases; 26 PASS (100%), 0 DIFF as of 2026-05-28
+# (state-aware printer in Phase6L_EmitStateAware.v).
+#
+# History:
+#   - Initial structural printer: 16 PASS / 10 DIFF (DIFFs were all
+#     in the documented acceptable surface sets per Sub-α — not bugs).
+#   - State-aware refinement closed all 10 DIFFs by adding:
+#       T/S/D/A/B fixes detailed in Phase6L_EmitStateAware.v header.
+#
+# Future expansions:
+#   - Cases exercising the full 22 stmt constructors (return, for, etc.)
+#   - State-variation cases (with shared_vars populated, with bounded_int)
+#   - Real PyCSL programs from test-suite/corpus/pycsl-reference/
+#   - For-loop desugaring (validates gen's SFor inlining)

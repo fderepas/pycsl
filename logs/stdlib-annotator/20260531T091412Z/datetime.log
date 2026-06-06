@@ -1,0 +1,170 @@
+=== 2026-05-31T10:09:50.716684+00:00Z  Module: datetime ===
+  Baseline: L1=0 L2=30 L3=25 L4=18 L5=0
+  Targets: 55 functions to promote
+  CPython source: 6 functions with docstrings
+  ── Promoting: timezone_utc ──
+    spliced 4 line(s) at datetime.py:521-522
+    wrote 2 reference test(s)
+  ── Promoting: timezone_ctor ──
+    spliced 4 line(s) at datetime.py:516-517
+    wrote 2 reference test(s)
+  ── Promoting: datetime_resolution ──
+    spliced 4 line(s) at datetime.py:511-512
+    wrote 2 reference test(s)
+  ── Promoting: datetime_max ──
+    spliced 4 line(s) at datetime.py:506-507
+    wrote 2 reference test(s)
+  ── Promoting: datetime_min ──
+    spliced 4 line(s) at datetime.py:501-502
+    wrote 2 reference test(s)
+  ── Promoting: datetime_strptime ──
+    spliced 4 line(s) at datetime.py:496-497
+    wrote 2 reference test(s)
+  ── Promoting: datetime_fromisocalendar ──
+    spliced 4 line(s) at datetime.py:491-492
+    wrote 2 reference test(s)
+  ── Promoting: datetime_fromisoformat ──
+    spliced 4 line(s) at datetime.py:486-487
+    wrote 2 reference test(s)
+  ── Promoting: datetime_combine ──
+    spliced 4 line(s) at datetime.py:481-482
+    wrote 2 reference test(s)
+  ── Promoting: datetime_fromordinal ──
+    spliced 4 line(s) at datetime.py:476-477
+    wrote 2 reference test(s)
+  ── Promoting: datetime_utcfromtimestamp ──
+    spliced 4 line(s) at datetime.py:471-472
+    wrote 2 reference test(s)
+  ── Promoting: datetime_fromtimestamp ──
+    spliced 4 line(s) at datetime.py:466-467
+    wrote 2 reference test(s)
+  ── Promoting: datetime_utcnow ──
+    spliced 4 line(s) at datetime.py:461-462
+    wrote 2 reference test(s)
+  ── Promoting: datetime_now ──
+    spliced 4 line(s) at datetime.py:456-457
+    wrote 2 reference test(s)
+  ── Promoting: datetime_today ──
+    spliced 4 line(s) at datetime.py:451-452
+    wrote 2 reference test(s)
+  ── Promoting: datetime_ctor ──
+    spliced 10 line(s) at datetime.py:439-447
+    wrote 2 reference test(s)
+  ── Promoting: time_resolution ──
+    spliced 4 line(s) at datetime.py:434-435
+    wrote 2 reference test(s)
+  ── Promoting: time_max ──
+    spliced 4 line(s) at datetime.py:429-430
+    wrote 2 reference test(s)
+  ── Promoting: time_min ──
+    spliced 4 line(s) at datetime.py:424-425
+    wrote 2 reference test(s)
+  ── Promoting: time_fromisoformat ──
+    spliced 4 line(s) at datetime.py:419-420
+    wrote 2 reference test(s)
+  ── Promoting: time_ctor ──
+    spliced 7 line(s) at datetime.py:410-415
+    wrote 2 reference test(s)
+  ── Promoting: date_resolution ──
+    spliced 4 line(s) at datetime.py:405-406
+    wrote 2 reference test(s)
+  ── Promoting: date_max ──
+    spliced 4 line(s) at datetime.py:400-401
+    wrote 2 reference test(s)
+  ── Promoting: date_min ──
+    spliced 4 line(s) at datetime.py:395-396
+    wrote 2 reference test(s)
+  ── Promoting: date_fromisocalendar ──
+    spliced 4 line(s) at datetime.py:390-391
+    wrote 2 reference test(s)
+  ── Promoting: date_fromisoformat ──
+    spliced 4 line(s) at datetime.py:385-386
+    wrote 2 reference test(s)
+  ── Promoting: date_fromordinal ──
+    spliced 4 line(s) at datetime.py:380-381
+    wrote 2 reference test(s)
+  ── Promoting: date_fromtimestamp ──
+    spliced 4 line(s) at datetime.py:375-376
+    wrote 2 reference test(s)
+  ── Promoting: date_today ──
+    spliced 4 line(s) at datetime.py:370-371
+    wrote 2 reference test(s)
+  ── Promoting: date_ctor ──
+    spliced 6 line(s) at datetime.py:362-366
+    wrote 2 reference test(s)
+  ── Promoting: timedelta_resolution ──
+    spliced 4 line(s) at datetime.py:357-358
+    wrote 2 reference test(s)
+  ── Promoting: timedelta_max ──
+    spliced 4 line(s) at datetime.py:352-353
+    wrote 2 reference test(s)
+  ── Promoting: timedelta_min ──
+    spliced 4 line(s) at datetime.py:347-348
+    wrote 2 reference test(s)
+  ── Promoting: timedelta_ctor ──
+    spliced 4 line(s) at datetime.py:341-343
+    wrote 2 reference test(s)
+  ── Promoting: dst ──
+    spliced 5 line(s) at datetime.py:332-335
+    wrote 2 reference test(s)
+  ── Promoting: tzname ──
+    spliced 5 line(s) at datetime.py:325-328
+    wrote 2 reference test(s)
+  ── Promoting: utcnow ──
+    spliced 5 line(s) at datetime.py:304-307
+    wrote 2 reference test(s)
+  ── Promoting: now ──
+    spliced 5 line(s) at datetime.py:297-300
+    wrote 2 reference test(s)
+  ── Promoting: replace ──
+    spliced 5 line(s) at datetime.py:290-293
+    wrote 2 reference test(s)
+  ── Promoting: strftime ──
+    spliced 5 line(s) at datetime.py:283-286
+    wrote 2 reference test(s)
+  ── Promoting: isoformat ──
+    spliced 5 line(s) at datetime.py:276-279
+    wrote 2 reference test(s)
+  ── Promoting: time_part ──
+    spliced 5 line(s) at datetime.py:262-265
+    wrote 2 reference test(s)
+  ── Promoting: date_part ──
+    spliced 5 line(s) at datetime.py:255-258
+    wrote 2 reference test(s)
+  ── Promoting: timestamp ──
+    spliced 5 line(s) at datetime.py:248-251
+    wrote 2 reference test(s)
+  ── Promoting: replace ──
+    spliced 5 line(s) at datetime.py:173-176
+  ── Promoting: strftime ──
+    spliced 5 line(s) at datetime.py:166-169
+  ── Promoting: isoformat ──
+    spliced 4 line(s) at datetime.py:159-162
+  ── Promoting: replace ──
+    spliced 5 line(s) at datetime.py:111-114
+  ── Promoting: strftime ──
+    spliced 5 line(s) at datetime.py:104-107
+  ── Promoting: isoformat ──
+    spliced 5 line(s) at datetime.py:97-100
+  ── Promoting: timetuple ──
+    spliced 5 line(s) at datetime.py:90-93
+    wrote 2 reference test(s)
+  ── Promoting: toordinal ──
+    spliced 5 line(s) at datetime.py:83-86
+    wrote 2 reference test(s)
+  ── Promoting: microseconds ──
+    spliced 5 line(s) at datetime.py:37-40
+    wrote 2 reference test(s)
+  ── Promoting: seconds ──
+    spliced 5 line(s) at datetime.py:30-33
+    wrote 2 reference test(s)
+  ── Promoting: days ──
+    spliced 5 line(s) at datetime.py:23-26
+    wrote 2 reference test(s)
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module datetime ──
+      baseline: L1=0 L2=30 L3=25 L4=18 L5=0
+      final:    L1=3 L2=3 L3=3 L4=12 L5=52   (Δ L4+ = +46)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

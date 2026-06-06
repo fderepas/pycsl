@@ -1,0 +1,76 @@
+=== 2026-05-31T17:50:21.589389+00:00Z  Module: cmath ===
+  Baseline: L1=0 L2=16 L3=7 L4=0 L5=0
+  Targets: 23 functions to promote
+  CPython source: 23 functions with docstrings
+  ── Promoting: isclose ──
+    spliced 6 line(s) at cmath.py:139-140
+    wrote 2 reference test(s)
+  ── Promoting: isnan ──
+    spliced 3 line(s) at cmath.py:133-134
+    wrote 2 reference test(s)
+  ── Promoting: isinf ──
+    spliced 3 line(s) at cmath.py:127-128
+    wrote 2 reference test(s)
+  ── Promoting: isfinite ──
+    spliced 3 line(s) at cmath.py:121-122
+    wrote 2 reference test(s)
+  ── Promoting: tanh ──
+    spliced 4 line(s) at cmath.py:115-116
+    wrote 2 reference test(s)
+  ── Promoting: sinh ──
+    spliced 5 line(s) at cmath.py:109-110
+    wrote 2 reference test(s)
+  ── Promoting: cosh ──
+    spliced 3 line(s) at cmath.py:103-104
+    wrote 2 reference test(s)
+  ── Promoting: atanh ──
+    spliced 6 line(s) at cmath.py:97-98
+    wrote 2 reference test(s)
+  ── Promoting: asinh ──
+    spliced 5 line(s) at cmath.py:91-92
+    wrote 2 reference test(s)
+  ── Promoting: acosh ──
+    spliced 4 line(s) at cmath.py:85-86
+    wrote 2 reference test(s)
+  ── Promoting: tan ──
+    spliced 3 line(s) at cmath.py:79-80
+    wrote 2 reference test(s)
+  ── Promoting: sin ──
+    spliced 4 line(s) at cmath.py:73-74
+    wrote 2 reference test(s)
+  ── Promoting: cos ──
+    spliced 4 line(s) at cmath.py:67-68
+    wrote 2 reference test(s)
+  ── Promoting: atan ──
+    spliced 3 line(s) at cmath.py:61-62
+    wrote 2 reference test(s)
+  ── Promoting: asin ──
+    spliced 3 line(s) at cmath.py:55-56
+    wrote 2 reference test(s)
+  ── Promoting: acos ──
+    spliced 5 line(s) at cmath.py:49-50
+    wrote 2 reference test(s)
+  ── Promoting: sqrt ──
+    spliced 6 line(s) at cmath.py:42-44
+    wrote 2 reference test(s)
+  ── Promoting: log10 ──
+    spliced 4 line(s) at cmath.py:35-37
+    wrote 2 reference test(s)
+  ── Promoting: log ──
+    spliced 6 line(s) at cmath.py:28-30
+    wrote 2 reference test(s)
+  ── Promoting: exp ──
+    spliced 3 line(s) at cmath.py:22-23
+    wrote 2 reference test(s)
+  ── Promoting: rect ──
+    spliced 4 line(s) at cmath.py:16-17
+    wrote 2 reference test(s)
+  ── Promoting: polar ──
+    spliced 3 line(s) at cmath.py:10-11
+    wrote 2 reference test(s)
+  ── Promoting: phase ──
+    spliced 5 line(s) at cmath.py:4-5
+    wrote 2 reference test(s)
+  ── Gate: compile ── FAIL (exit 1)
+  rollback: stub restored; 46 new test files removed
+  Outcome: ROLLED-BACK

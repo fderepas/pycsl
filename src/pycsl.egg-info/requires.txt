@@ -1,0 +1,8 @@
+libcst
+lark
+
+[dev]
+pytest
+
+[rag]
+numpy>=1.24

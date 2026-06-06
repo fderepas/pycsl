@@ -1,0 +1,8 @@
+[input]
+rocq    = "spec.v"
+python  = "impl.py"
+output  = "actual.py"
+
+[functions.set_union_eq]
+python_name      = "set_union_eq"
+spec_theorems    = ["set_union_eq_correct"]

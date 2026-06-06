@@ -1,0 +1,20 @@
+=== 2026-05-31T20:32:25.857843+00:00Z  Module: compileall ===
+  Baseline: L1=0 L2=3 L3=0 L4=0 L5=0
+  Targets: 3 functions to promote
+  CPython source: 6 functions with docstrings
+  ── Promoting: compile_path ──
+    spliced 4 line(s) at compileall.py:16-17
+    wrote 2 reference test(s)
+  ── Promoting: compile_file ──
+    spliced 5 line(s) at compileall.py:10-11
+    wrote 2 reference test(s)
+  ── Promoting: compile_dir ──
+    spliced 3 line(s) at compileall.py:4-5
+    wrote 2 reference test(s)
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module compileall ──
+      baseline: L1=0 L2=3 L3=0 L4=0 L5=0
+      final:    L1=0 L2=0 L3=0 L4=0 L5=3   (Δ L4+ = +3)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

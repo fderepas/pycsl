@@ -1,0 +1,16 @@
+=== 2026-05-31T23:45:27.160672+00:00Z  Module: hmac ===
+  Baseline: L1=0 L2=3 L3=0 L4=0 L5=0
+  Targets: 3 functions to promote
+  CPython source: 9 functions with docstrings
+  ── Promoting: compare_digest ──
+    spliced 5 line(s) at hmac.py:16-17
+    wrote 2 reference test(s)
+  ── Promoting: digest ──
+    spliced 3 line(s) at hmac.py:10-11
+    wrote 2 reference test(s)
+  ── Promoting: new ──
+    spliced 5 line(s) at hmac.py:4-5
+    wrote 2 reference test(s)
+  ── Gate: compile ── FAIL (exit 1)
+  rollback: stub restored; 6 new test files removed
+  Outcome: ROLLED-BACK

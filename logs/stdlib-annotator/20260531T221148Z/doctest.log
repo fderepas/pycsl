@@ -1,0 +1,44 @@
+=== 2026-05-31T22:11:48.314495+00:00Z  Module: doctest ===
+  Baseline: L1=0 L2=11 L3=0 L4=0 L5=0
+  Targets: 11 functions to promote
+  CPython source: 23 functions with docstrings
+  ── Promoting: debug_src ──
+    spliced 3 line(s) at doctest.py:64-65
+    wrote 2 reference test(s)
+  ── Promoting: debug ──
+    spliced 3 line(s) at doctest.py:58-59
+    wrote 2 reference test(s)
+  ── Promoting: testsource ──
+    spliced 4 line(s) at doctest.py:52-53
+    wrote 2 reference test(s)
+  ── Promoting: script_from_examples ──
+    spliced 3 line(s) at doctest.py:46-47
+    wrote 2 reference test(s)
+  ── Promoting: set_unittest_reportflags ──
+    spliced 4 line(s) at doctest.py:40-41
+    wrote 2 reference test(s)
+  ── Promoting: DocTestSuite ──
+    spliced 3 line(s) at doctest.py:34-35
+    wrote 2 reference test(s)
+  ── Promoting: DocFileSuite ──
+    spliced 5 line(s) at doctest.py:28-29
+    wrote 2 reference test(s)
+  ── Promoting: run_docstring_examples ──
+    spliced 3 line(s) at doctest.py:22-23
+    wrote 2 reference test(s)
+  ── Promoting: testmod ──
+    spliced 3 line(s) at doctest.py:16-17
+    wrote 2 reference test(s)
+  ── Promoting: testfile ──
+    spliced 3 line(s) at doctest.py:10-11
+    wrote 2 reference test(s)
+  ── Promoting: register_optionflag ──
+    spliced 4 line(s) at doctest.py:4-5
+    wrote 2 reference test(s)
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module doctest ──
+      baseline: L1=0 L2=11 L3=0 L4=0 L5=0
+      final:    L1=0 L2=2 L3=2 L4=0 L5=7   (Δ L4+ = +7)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

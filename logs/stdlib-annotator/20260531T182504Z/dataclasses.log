@@ -1,0 +1,19 @@
+=== 2026-05-31T18:25:04.083743+00:00Z  Module: dataclasses ===
+  Baseline: L1=3 L2=1 L3=0 L4=0 L5=4
+  Targets: 4 functions to promote
+  CPython source: 9 functions with docstrings
+  ── Promoting: replace ──
+    spliced 4 line(s) at dataclasses.py:76-79
+  ── Promoting: make_dataclass ──
+    spliced 7 line(s) at dataclasses.py:66-71
+  ── Promoting: asdict ──
+    spliced 4 line(s) at dataclasses.py:48-51
+  ── Promoting: fields ──
+    spliced 3 line(s) at dataclasses.py:32-34
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module dataclasses ──
+      baseline: L1=3 L2=1 L3=0 L4=0 L5=4
+      final:    L1=3 L2=1 L3=0 L4=0 L5=4   (Δ L4+ = +0)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

@@ -1,0 +1,15 @@
+=== 2026-05-31T19:02:21.544452+00:00Z  Module: argparse ===
+  Baseline: L1=0 L2=2 L3=0 L4=1 L5=20
+  Targets: 2 functions to promote
+  CPython source: 11 functions with docstrings
+  ── Promoting: ArgumentDefaultsHelpFormatter ──
+    spliced 3 line(s) at argparse.py:168-170
+  ── Promoting: FileType ──
+    spliced 4 line(s) at argparse.py:144-146
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module argparse ──
+      baseline: L1=0 L2=2 L3=0 L4=1 L5=20
+      final:    L1=0 L2=0 L3=1 L4=1 L5=21   (Δ L4+ = +1)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

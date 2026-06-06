@@ -1,0 +1,7 @@
+=== 2026-05-31T08:25:09.934399+00:00Z  Module: pathlib ===
+  Baseline: L1=0 L2=8 L3=83 L4=2 L5=0
+  Targets: 1 functions to promote
+  CPython source: 22 functions with docstrings
+  ── Promoting: drive ──
+    [dry-run] prompt prepared, LLM call skipped
+  [dry-run] complete; no edits applied

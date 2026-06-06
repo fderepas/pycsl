@@ -1,0 +1,181 @@
+=== 2026-05-31T23:56:44.194603+00:00Z  Module: inspect ===
+  Baseline: L1=0 L2=35 L3=23 L4=0 L5=0
+  Targets: 58 functions to promote
+  CPython source: 80 functions with docstrings
+  ── Promoting: getasyncgenlocals ──
+    spliced 3 line(s) at inspect.py:346-347
+    wrote 2 reference test(s)
+  ── Promoting: getcoroutinelocals ──
+    spliced 3 line(s) at inspect.py:340-341
+    wrote 2 reference test(s)
+  ── Promoting: getgeneratorlocals ──
+    spliced 3 line(s) at inspect.py:334-335
+    wrote 2 reference test(s)
+  ── Promoting: getasyncgenstate ──
+    spliced 3 line(s) at inspect.py:328-329
+    wrote 2 reference test(s)
+  ── Promoting: getcoroutinestate ──
+    spliced 3 line(s) at inspect.py:322-323
+    wrote 2 reference test(s)
+  ── Promoting: getgeneratorstate ──
+    spliced 4 line(s) at inspect.py:316-317
+    wrote 2 reference test(s)
+  ── Promoting: getattr_static ──
+    spliced 5 line(s) at inspect.py:310-311
+    wrote 2 reference test(s)
+  ── Promoting: trace ──
+    spliced 4 line(s) at inspect.py:304-305
+    wrote 2 reference test(s)
+  ── Promoting: stack ──
+    spliced 4 line(s) at inspect.py:298-299
+    wrote 2 reference test(s)
+  ── Promoting: currentframe ──
+    spliced 3 line(s) at inspect.py:292-293
+    wrote 2 reference test(s)
+  ── Promoting: getinnerframes ──
+    spliced 4 line(s) at inspect.py:286-287
+    wrote 2 reference test(s)
+  ── Promoting: getouterframes ──
+    spliced 4 line(s) at inspect.py:280-281
+    wrote 2 reference test(s)
+  ── Promoting: getframeinfo ──
+    spliced 4 line(s) at inspect.py:274-275
+    wrote 2 reference test(s)
+  ── Promoting: get_annotations ──
+    spliced 5 line(s) at inspect.py:268-269
+    wrote 2 reference test(s)
+  ── Promoting: unwrap ──
+    spliced 3 line(s) at inspect.py:262-263
+    wrote 2 reference test(s)
+  ── Promoting: getclosurevars ──
+    spliced 4 line(s) at inspect.py:256-257
+    wrote 2 reference test(s)
+  ── Promoting: getcallargs ──
+    spliced 3 line(s) at inspect.py:250-251
+    wrote 2 reference test(s)
+  ── Promoting: getmro ──
+    spliced 3 line(s) at inspect.py:244-245
+    wrote 2 reference test(s)
+  ── Promoting: formatargvalues ──
+    spliced 3 line(s) at inspect.py:238-239
+    wrote 2 reference test(s)
+  ── Promoting: getargvalues ──
+    spliced 5 line(s) at inspect.py:232-233
+    wrote 2 reference test(s)
+  ── Promoting: getfullargspec ──
+    spliced 4 line(s) at inspect.py:226-227
+    wrote 2 reference test(s)
+  ── Promoting: getclasstree ──
+    spliced 3 line(s) at inspect.py:220-221
+    wrote 2 reference test(s)
+  ── Promoting: signature ──
+    spliced 4 line(s) at inspect.py:214-215
+    wrote 2 reference test(s)
+  ── Promoting: cleandoc ──
+    spliced 4 line(s) at inspect.py:208-209
+    wrote 2 reference test(s)
+  ── Promoting: getsource ──
+    spliced 3 line(s) at inspect.py:202-203
+    wrote 2 reference test(s)
+  ── Promoting: getsourcelines ──
+    spliced 3 line(s) at inspect.py:196-197
+    wrote 2 reference test(s)
+  ── Promoting: getsourcefile ──
+    spliced 4 line(s) at inspect.py:190-191
+    wrote 2 reference test(s)
+  ── Promoting: getmodule ──
+    spliced 3 line(s) at inspect.py:184-185
+    wrote 2 reference test(s)
+  ── Promoting: getfile ──
+    spliced 3 line(s) at inspect.py:178-179
+    wrote 2 reference test(s)
+  ── Promoting: getcomments ──
+    spliced 3 line(s) at inspect.py:172-173
+    wrote 2 reference test(s)
+  ── Promoting: getdoc ──
+    spliced 4 line(s) at inspect.py:166-167
+    wrote 2 reference test(s)
+  ── Promoting: ismemberdescriptor ──
+    spliced 3 line(s) at inspect.py:160-161
+    wrote 2 reference test(s)
+  ── Promoting: isgetsetdescriptor ──
+    spliced 3 line(s) at inspect.py:154-155
+    wrote 2 reference test(s)
+  ── Promoting: isdatadescriptor ──
+    spliced 3 line(s) at inspect.py:148-149
+    wrote 2 reference test(s)
+  ── Promoting: ismethoddescriptor ──
+    spliced 3 line(s) at inspect.py:142-143
+    wrote 2 reference test(s)
+  ── Promoting: isabstract ──
+    spliced 3 line(s) at inspect.py:136-137
+    wrote 2 reference test(s)
+  ── Promoting: isroutine ──
+    spliced 3 line(s) at inspect.py:130-131
+    wrote 2 reference test(s)
+  ── Promoting: ismethodwrapper ──
+    spliced 3 line(s) at inspect.py:124-125
+    wrote 2 reference test(s)
+  ── Promoting: isbuiltin ──
+    spliced 3 line(s) at inspect.py:118-119
+    wrote 2 reference test(s)
+  ── Promoting: iscode ──
+    spliced 3 line(s) at inspect.py:112-113
+    wrote 2 reference test(s)
+  ── Promoting: isframe ──
+    spliced 3 line(s) at inspect.py:106-107
+    wrote 2 reference test(s)
+  ── Promoting: istraceback ──
+    spliced 3 line(s) at inspect.py:100-101
+    wrote 2 reference test(s)
+  ── Promoting: isasyncgen ──
+    spliced 3 line(s) at inspect.py:94-95
+    wrote 2 reference test(s)
+  ── Promoting: isasyncgenfunction ──
+    spliced 3 line(s) at inspect.py:88-89
+    wrote 2 reference test(s)
+  ── Promoting: isawaitable ──
+    spliced 3 line(s) at inspect.py:82-83
+    wrote 2 reference test(s)
+  ── Promoting: iscoroutine ──
+    spliced 3 line(s) at inspect.py:76-77
+    wrote 2 reference test(s)
+  ── Promoting: markcoroutinefunction ──
+    spliced 3 line(s) at inspect.py:70-71
+    wrote 2 reference test(s)
+  ── Promoting: iscoroutinefunction ──
+    spliced 3 line(s) at inspect.py:64-65
+    wrote 2 reference test(s)
+  ── Promoting: isgenerator ──
+    spliced 3 line(s) at inspect.py:58-59
+    wrote 2 reference test(s)
+  ── Promoting: isgeneratorfunction ──
+    spliced 3 line(s) at inspect.py:52-53
+    wrote 2 reference test(s)
+  ── Promoting: isfunction ──
+    spliced 3 line(s) at inspect.py:46-47
+    wrote 2 reference test(s)
+  ── Promoting: ispackage ──
+    spliced 3 line(s) at inspect.py:40-41
+    wrote 2 reference test(s)
+  ── Promoting: ismethod ──
+    spliced 3 line(s) at inspect.py:34-35
+    wrote 2 reference test(s)
+  ── Promoting: isclass ──
+    spliced 3 line(s) at inspect.py:28-29
+    wrote 2 reference test(s)
+  ── Promoting: ismodule ──
+    spliced 3 line(s) at inspect.py:22-23
+    wrote 2 reference test(s)
+  ── Promoting: getmodulename ──
+    spliced 3 line(s) at inspect.py:16-17
+    wrote 2 reference test(s)
+  ── Promoting: getmembers_static ──
+    spliced 4 line(s) at inspect.py:10-11
+    wrote 2 reference test(s)
+  ── Promoting: getmembers ──
+    spliced 3 line(s) at inspect.py:4-5
+    wrote 2 reference test(s)
+  ── Gate: compile ── FAIL (exit 1)
+  rollback: stub restored; 116 new test files removed
+  Outcome: ROLLED-BACK

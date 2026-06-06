@@ -1,0 +1,7 @@
+=== 2026-05-31T08:25:08.820346+00:00Z  Module: argparse ===
+  Baseline: L1=0 L2=8 L3=13 L4=2 L5=0
+  Targets: 1 functions to promote
+  CPython source: 11 functions with docstrings
+  ── Promoting: add_argument_group ──
+    [dry-run] prompt prepared, LLM call skipped
+  [dry-run] complete; no edits applied

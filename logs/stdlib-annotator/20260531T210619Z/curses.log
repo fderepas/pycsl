@@ -1,0 +1,250 @@
+=== 2026-05-31T21:06:19.358277+00:00Z  Module: curses ===
+  Baseline: L1=0 L2=73 L3=8 L4=0 L5=0
+  Targets: 81 functions to promote
+  CPython source: 76 functions with docstrings
+  ── Promoting: rectangle ──
+    spliced 4 line(s) at curses.py:484-485
+    wrote 2 reference test(s)
+  ── Promoting: wrapper ──
+    spliced 3 line(s) at curses.py:478-479
+    wrote 2 reference test(s)
+  ── Promoting: use_default_colors ──
+    spliced 3 line(s) at curses.py:472-473
+    wrote 2 reference test(s)
+  ── Promoting: use_env ──
+    spliced 3 line(s) at curses.py:466-467
+    wrote 2 reference test(s)
+  ── Promoting: ungetmouse ──
+    spliced 3 line(s) at curses.py:460-461
+    wrote 2 reference test(s)
+  ── Promoting: unget_wch ──
+    spliced 3 line(s) at curses.py:454-455
+    wrote 2 reference test(s)
+  ── Promoting: update_lines_cols ──
+    spliced 4 line(s) at curses.py:448-449
+    wrote 2 reference test(s)
+  ── Promoting: ungetch ──
+    spliced 4 line(s) at curses.py:442-443
+    wrote 2 reference test(s)
+  ── Promoting: unctrl ──
+    spliced 3 line(s) at curses.py:436-437
+    wrote 2 reference test(s)
+  ── Promoting: typeahead ──
+    spliced 4 line(s) at curses.py:430-431
+    wrote 2 reference test(s)
+  ── Promoting: tparm ──
+    spliced 3 line(s) at curses.py:424-425
+    wrote 2 reference test(s)
+  ── Promoting: tigetstr ──
+    spliced 3 line(s) at curses.py:418-419
+    wrote 2 reference test(s)
+  ── Promoting: tigetnum ──
+    spliced 3 line(s) at curses.py:412-413
+    wrote 2 reference test(s)
+  ── Promoting: tigetflag ──
+    spliced 4 line(s) at curses.py:406-407
+    wrote 2 reference test(s)
+  ── Promoting: termname ──
+    spliced 3 line(s) at curses.py:400-401
+    wrote 2 reference test(s)
+  ── Promoting: termattrs ──
+    spliced 3 line(s) at curses.py:394-395
+    wrote 2 reference test(s)
+  ── Promoting: start_color ──
+    spliced 4 line(s) at curses.py:388-389
+    wrote 2 reference test(s)
+  ── Promoting: setupterm ──
+    spliced 4 line(s) at curses.py:382-383
+    wrote 2 reference test(s)
+  ── Promoting: setsyx ──
+    spliced 3 line(s) at curses.py:376-377
+    wrote 2 reference test(s)
+  ── Promoting: set_tabsize ──
+    spliced 4 line(s) at curses.py:370-371
+    wrote 2 reference test(s)
+  ── Promoting: get_tabsize ──
+    spliced 3 line(s) at curses.py:364-365
+    wrote 2 reference test(s)
+  ── Promoting: set_escdelay ──
+    spliced 4 line(s) at curses.py:358-359
+    wrote 2 reference test(s)
+  ── Promoting: get_escdelay ──
+    spliced 3 line(s) at curses.py:352-353
+    wrote 2 reference test(s)
+  ── Promoting: savetty ──
+    spliced 3 line(s) at curses.py:346-347
+    wrote 2 reference test(s)
+  ── Promoting: resizeterm ──
+    spliced 5 line(s) at curses.py:340-341
+    wrote 2 reference test(s)
+  ── Promoting: resize_term ──
+    spliced 5 line(s) at curses.py:334-335
+    wrote 2 reference test(s)
+  ── Promoting: resetty ──
+    spliced 3 line(s) at curses.py:328-329
+    wrote 2 reference test(s)
+  ── Promoting: reset_shell_mode ──
+    spliced 3 line(s) at curses.py:322-323
+    wrote 2 reference test(s)
+  ── Promoting: reset_prog_mode ──
+    spliced 4 line(s) at curses.py:316-317
+    wrote 2 reference test(s)
+  ── Promoting: raw ──
+    spliced 4 line(s) at curses.py:310-311
+    wrote 2 reference test(s)
+  ── Promoting: qiflush ──
+    spliced 4 line(s) at curses.py:304-305
+    wrote 2 reference test(s)
+  ── Promoting: putp ──
+    spliced 4 line(s) at curses.py:298-299
+    wrote 2 reference test(s)
+  ── Promoting: pair_number ──
+    spliced 4 line(s) at curses.py:292-293
+    wrote 2 reference test(s)
+  ── Promoting: pair_content ──
+    spliced 4 line(s) at curses.py:286-287
+    wrote 2 reference test(s)
+  ── Promoting: noraw ──
+    spliced 4 line(s) at curses.py:280-281
+    wrote 2 reference test(s)
+  ── Promoting: noqiflush ──
+    spliced 3 line(s) at curses.py:274-275
+    wrote 2 reference test(s)
+  ── Promoting: nonl ──
+    spliced 3 line(s) at curses.py:268-269
+    wrote 2 reference test(s)
+  ── Promoting: noecho ──
+    spliced 3 line(s) at curses.py:262-263
+    wrote 2 reference test(s)
+  ── Promoting: nocbreak ──
+    spliced 3 line(s) at curses.py:256-257
+    wrote 2 reference test(s)
+  ── Promoting: nl ──
+    spliced 3 line(s) at curses.py:250-251
+    wrote 2 reference test(s)
+  ── Promoting: newwin ──
+    spliced 5 line(s) at curses.py:244-245
+    wrote 2 reference test(s)
+  ── Promoting: newpad ──
+    spliced 5 line(s) at curses.py:238-239
+    wrote 2 reference test(s)
+  ── Promoting: napms ──
+    spliced 4 line(s) at curses.py:232-233
+    wrote 2 reference test(s)
+  ── Promoting: mousemask ──
+    spliced 3 line(s) at curses.py:226-227
+    wrote 2 reference test(s)
+  ── Promoting: mouseinterval ──
+    spliced 4 line(s) at curses.py:220-221
+    wrote 2 reference test(s)
+  ── Promoting: meta ──
+    spliced 3 line(s) at curses.py:214-215
+    wrote 2 reference test(s)
+  ── Promoting: longname ──
+    spliced 3 line(s) at curses.py:208-209
+    wrote 2 reference test(s)
+  ── Promoting: killchar ──
+    spliced 4 line(s) at curses.py:202-203
+    wrote 2 reference test(s)
+  ── Promoting: keyname ──
+    spliced 4 line(s) at curses.py:196-197
+    wrote 2 reference test(s)
+  ── Promoting: isendwin ──
+    spliced 3 line(s) at curses.py:190-191
+    wrote 2 reference test(s)
+  ── Promoting: is_term_resized ──
+    spliced 5 line(s) at curses.py:184-185
+    wrote 2 reference test(s)
+  ── Promoting: initscr ──
+    spliced 4 line(s) at curses.py:178-179
+    wrote 2 reference test(s)
+  ── Promoting: init_pair ──
+    spliced 7 line(s) at curses.py:172-173
+    wrote 2 reference test(s)
+  ── Promoting: init_color ──
+    spliced 7 line(s) at curses.py:166-167
+    wrote 2 reference test(s)
+  ── Promoting: halfdelay ──
+    spliced 5 line(s) at curses.py:160-161
+    wrote 2 reference test(s)
+  ── Promoting: has_key ──
+    spliced 3 line(s) at curses.py:154-155
+    wrote 2 reference test(s)
+  ── Promoting: has_il ──
+    spliced 3 line(s) at curses.py:148-149
+    wrote 2 reference test(s)
+  ── Promoting: has_ic ──
+    spliced 3 line(s) at curses.py:142-143
+    wrote 2 reference test(s)
+  ── Promoting: has_extended_color_support ──
+    spliced 3 line(s) at curses.py:136-137
+    wrote 2 reference test(s)
+  ── Promoting: has_colors ──
+    spliced 3 line(s) at curses.py:130-131
+    wrote 2 reference test(s)
+  ── Promoting: getwin ──
+    spliced 3 line(s) at curses.py:124-125
+    wrote 2 reference test(s)
+  ── Promoting: getsyx ──
+    spliced 3 line(s) at curses.py:118-119
+    wrote 2 reference test(s)
+  ── Promoting: getmouse ──
+    spliced 4 line(s) at curses.py:112-113
+    wrote 2 reference test(s)
+  ── Promoting: flushinp ──
+    spliced 3 line(s) at curses.py:106-107
+    wrote 2 reference test(s)
+  ── Promoting: flash ──
+    spliced 3 line(s) at curses.py:100-101
+    wrote 2 reference test(s)
+  ── Promoting: filter ──
+    spliced 4 line(s) at curses.py:94-95
+    wrote 2 reference test(s)
+  ── Promoting: erasechar ──
+    spliced 3 line(s) at curses.py:88-89
+    wrote 2 reference test(s)
+  ── Promoting: endwin ──
+    spliced 3 line(s) at curses.py:82-83
+    wrote 2 reference test(s)
+  ── Promoting: echo ──
+    spliced 3 line(s) at curses.py:76-77
+    wrote 2 reference test(s)
+  ── Promoting: doupdate ──
+    spliced 3 line(s) at curses.py:70-71
+    wrote 2 reference test(s)
+  ── Promoting: delay_output ──
+    spliced 4 line(s) at curses.py:64-65
+    wrote 2 reference test(s)
+  ── Promoting: def_shell_mode ──
+    spliced 4 line(s) at curses.py:58-59
+    wrote 2 reference test(s)
+  ── Promoting: def_prog_mode ──
+    spliced 3 line(s) at curses.py:52-53
+    wrote 2 reference test(s)
+  ── Promoting: curs_set ──
+    spliced 5 line(s) at curses.py:46-47
+    wrote 2 reference test(s)
+  ── Promoting: color_pair ──
+    spliced 4 line(s) at curses.py:40-41
+    wrote 2 reference test(s)
+  ── Promoting: color_content ──
+    spliced 5 line(s) at curses.py:34-35
+    wrote 2 reference test(s)
+  ── Promoting: cbreak ──
+    spliced 3 line(s) at curses.py:28-29
+    wrote 2 reference test(s)
+  ── Promoting: can_change_color ──
+    spliced 3 line(s) at curses.py:22-23
+    wrote 2 reference test(s)
+  ── Promoting: beep ──
+    spliced 3 line(s) at curses.py:16-17
+    wrote 2 reference test(s)
+  ── Promoting: baudrate ──
+    spliced 3 line(s) at curses.py:10-11
+    wrote 2 reference test(s)
+  ── Promoting: assume_default_colors ──
+    spliced 5 line(s) at curses.py:4-5
+    wrote 2 reference test(s)
+  ── Gate: compile ── FAIL (exit 1)
+  rollback: stub restored; 162 new test files removed
+  Outcome: ROLLED-BACK

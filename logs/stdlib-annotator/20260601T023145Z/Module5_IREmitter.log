@@ -1,0 +1,50 @@
+=== 2026-06-01T02:31:45.051861+00:00Z  Module: Module5_IREmitter ===
+  Baseline: L1=0 L2=0 L3=13 L4=1 L5=0
+  Targets: 13 functions to promote
+  CPython source: 0 functions with docstrings
+  ── Promoting: collect_2d_params ──
+    spliced 5 line(s) at Module5_IREmitter.py:96-99
+    wrote 2 reference test(s)
+  ── Promoting: scan_2d_in_stmt ──
+    spliced 5 line(s) at Module5_IREmitter.py:89-92
+    wrote 2 reference test(s)
+  ── Promoting: scan_2d_in_expr ──
+    spliced 5 line(s) at Module5_IREmitter.py:82-85
+    wrote 2 reference test(s)
+  ── Promoting: process_if ──
+    spliced 5 line(s) at Module5_IREmitter.py:75-78
+    wrote 2 reference test(s)
+  ── Promoting: process_for ──
+    spliced 5 line(s) at Module5_IREmitter.py:68-71
+    wrote 2 reference test(s)
+  ── Promoting: process_while ──
+    spliced 5 line(s) at Module5_IREmitter.py:61-64
+    wrote 2 reference test(s)
+  ── Promoting: py_stmts_to_ir ──
+    spliced 5 line(s) at Module5_IREmitter.py:54-57
+    wrote 2 reference test(s)
+  ── Promoting: py_expr_to_ir ──
+    spliced 5 line(s) at Module5_IREmitter.py:47-50
+    wrote 2 reference test(s)
+  ── Promoting: py_op_to_str ──
+    spliced 5 line(s) at Module5_IREmitter.py:40-43
+    wrote 2 reference test(s)
+  ── Promoting: csl_list_to_ir ──
+    spliced 5 line(s) at Module5_IREmitter.py:33-36
+    wrote 2 reference test(s)
+  ── Promoting: csl_to_ir ──
+    spliced 5 line(s) at Module5_IREmitter.py:26-29
+    wrote 2 reference test(s)
+  ── Promoting: visit_functiondef ──
+    spliced 5 line(s) at Module5_IREmitter.py:19-22
+    wrote 2 reference test(s)
+  ── Promoting: visit_classdef ──
+    spliced 5 line(s) at Module5_IREmitter.py:12-15
+    wrote 2 reference test(s)
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module Module5_IREmitter ──
+      baseline: L1=0 L2=0 L3=13 L4=1 L5=0
+      final:    L1=2 L2=0 L3=0 L4=1 L5=11   (Δ L4+ = +11)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

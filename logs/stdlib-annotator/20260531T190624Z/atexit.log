@@ -1,0 +1,17 @@
+=== 2026-05-31T19:06:24.396381+00:00Z  Module: atexit ===
+  Baseline: L1=0 L2=2 L3=0 L4=0 L5=0
+  Targets: 2 functions to promote
+  CPython source: 2 functions with docstrings
+  ── Promoting: unregister ──
+    spliced 3 line(s) at atexit.py:10-11
+    wrote 2 reference test(s)
+  ── Promoting: register ──
+    spliced 3 line(s) at atexit.py:4-5
+    wrote 2 reference test(s)
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module atexit ──
+      baseline: L1=0 L2=2 L3=0 L4=0 L5=0
+      final:    L1=0 L2=1 L3=0 L4=0 L5=1   (Δ L4+ = +1)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

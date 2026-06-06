@@ -1,0 +1,109 @@
+=== 2026-05-31T09:34:59.548836+00:00Z  Module: collections ===
+  Baseline: L1=0 L2=13 L3=21 L4=14 L5=0
+  Targets: 34 functions to promote
+  CPython source: 7 functions with docstrings
+  ── Promoting: UserString_data ──
+    spliced 4 line(s) at collections.py:366-367
+    wrote 2 reference test(s)
+  ── Promoting: UserString ──
+    spliced 4 line(s) at collections.py:361-362
+    wrote 2 reference test(s)
+  ── Promoting: UserList_data ──
+    spliced 4 line(s) at collections.py:354-355
+    wrote 2 reference test(s)
+  ── Promoting: UserList ──
+    spliced 3 line(s) at collections.py:349-350
+    wrote 2 reference test(s)
+  ── Promoting: UserDict_popitem ──
+    spliced 4 line(s) at collections.py:342-343
+    wrote 2 reference test(s)
+  ── Promoting: UserDict_data ──
+    spliced 4 line(s) at collections.py:337-338
+    wrote 2 reference test(s)
+  ── Promoting: UserDict ──
+    spliced 4 line(s) at collections.py:332-333
+    wrote 2 reference test(s)
+  ── Promoting: parents ──
+    spliced 5 line(s) at collections.py:316-319
+    wrote 2 reference test(s)
+  ── Promoting: new_child ──
+    spliced 5 line(s) at collections.py:309-312
+    wrote 2 reference test(s)
+  ── Promoting: set_item ──
+    spliced 5 line(s) at collections.py:288-291
+    wrote 2 reference test(s)
+  ── Promoting: get_item ──
+    spliced 5 line(s) at collections.py:281-284
+    wrote 2 reference test(s)
+  ── Promoting: missing ──
+    spliced 5 line(s) at collections.py:274-277
+    wrote 2 reference test(s)
+  ── Promoting: set_item ──
+    spliced 4 line(s) at collections.py:245-248
+  ── Promoting: get_item ──
+    spliced 5 line(s) at collections.py:238-241
+  ── Promoting: move_to_end ──
+    spliced 5 line(s) at collections.py:223-226
+    wrote 2 reference test(s)
+  ── Promoting: update ──
+    spliced 5 line(s) at collections.py:194-197
+    wrote 2 reference test(s)
+  ── Promoting: subtract ──
+    spliced 5 line(s) at collections.py:187-190
+    wrote 2 reference test(s)
+  ── Promoting: most_common ──
+    spliced 5 line(s) at collections.py:180-183
+    wrote 2 reference test(s)
+  ── Promoting: elements ──
+    spliced 5 line(s) at collections.py:173-176
+    wrote 2 reference test(s)
+  ── Promoting: copy ──
+    spliced 5 line(s) at collections.py:145-148
+    wrote 2 reference test(s)
+  ── Promoting: reverse ──
+    spliced 5 line(s) at collections.py:138-141
+    wrote 2 reference test(s)
+  ── Promoting: remove ──
+    spliced 4 line(s) at collections.py:131-134
+    wrote 2 reference test(s)
+  ── Promoting: insert ──
+    spliced 5 line(s) at collections.py:124-127
+    wrote 2 reference test(s)
+  ── Promoting: index ──
+    spliced 5 line(s) at collections.py:117-120
+    wrote 2 reference test(s)
+  ── Promoting: count ──
+    spliced 5 line(s) at collections.py:110-113
+    wrote 2 reference test(s)
+  ── Promoting: rotate ──
+    spliced 5 line(s) at collections.py:95-98
+    wrote 2 reference test(s)
+  ── Promoting: extendleft ──
+    spliced 5 line(s) at collections.py:88-91
+    wrote 2 reference test(s)
+  ── Promoting: extend ──
+    spliced 5 line(s) at collections.py:81-84
+    wrote 2 reference test(s)
+  ── Promoting: namedtuple__field_defaults ──
+    spliced 4 line(s) at collections.py:34-35
+    wrote 2 reference test(s)
+  ── Promoting: namedtuple__fields ──
+    spliced 4 line(s) at collections.py:29-30
+    wrote 2 reference test(s)
+  ── Promoting: namedtuple__replace ──
+    spliced 4 line(s) at collections.py:24-25
+    wrote 2 reference test(s)
+  ── Promoting: namedtuple__asdict ──
+    spliced 4 line(s) at collections.py:19-20
+    wrote 2 reference test(s)
+  ── Promoting: namedtuple__make ──
+    spliced 4 line(s) at collections.py:14-15
+    wrote 2 reference test(s)
+  ── Promoting: namedtuple ──
+    spliced 4 line(s) at collections.py:9-10
+    wrote 2 reference test(s)
+  ── Gate: compile ── FAIL (exit 1)
+  rollback: git checkout failed: error: pathspec 'src/pycsl_lib/collections.py' did not match any file(s) known to git
+
+  rollback: stub restored; 64 new test files removed
+  Outcome: ROLLED-BACK

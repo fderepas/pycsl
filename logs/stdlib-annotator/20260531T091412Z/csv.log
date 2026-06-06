@@ -1,0 +1,50 @@
+=== 2026-05-31T09:52:01.253111+00:00Z  Module: csv ===
+  Baseline: L1=0 L2=7 L3=6 L4=2 L5=0
+  Targets: 13 functions to promote
+  CPython source: 16 functions with docstrings
+  ── Promoting: field_size_limit ──
+    spliced 4 line(s) at csv.py:129-130
+    wrote 2 reference test(s)
+  ── Promoting: list_dialects ──
+    spliced 4 line(s) at csv.py:124-125
+    wrote 2 reference test(s)
+  ── Promoting: get_dialect ──
+    spliced 3 line(s) at csv.py:119-120
+    wrote 2 reference test(s)
+  ── Promoting: unregister_dialect ──
+    spliced 3 line(s) at csv.py:114-115
+    wrote 2 reference test(s)
+  ── Promoting: register_dialect ──
+    spliced 4 line(s) at csv.py:109-110
+    wrote 2 reference test(s)
+  ── Promoting: writer ──
+    spliced 4 line(s) at csv.py:104-105
+    wrote 2 reference test(s)
+  ── Promoting: reader ──
+    spliced 4 line(s) at csv.py:99-100
+    wrote 2 reference test(s)
+  ── Promoting: has_header ──
+    spliced 5 line(s) at csv.py:90-93
+    wrote 2 reference test(s)
+  ── Promoting: sniff ──
+    spliced 4 line(s) at csv.py:83-86
+    wrote 2 reference test(s)
+  ── Promoting: writeheader ──
+    spliced 4 line(s) at csv.py:69-72
+    wrote 2 reference test(s)
+  ── Promoting: writerows ──
+    spliced 5 line(s) at csv.py:62-65
+    wrote 2 reference test(s)
+  ── Promoting: fieldnames ──
+    spliced 5 line(s) at csv.py:40-43
+    wrote 2 reference test(s)
+  ── Promoting: next_row ──
+    spliced 5 line(s) at csv.py:25-28
+    wrote 2 reference test(s)
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module csv ──
+      baseline: L1=0 L2=7 L3=6 L4=2 L5=0
+      final:    L1=1 L2=0 L3=3 L4=1 L5=10   (Δ L4+ = +9)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

@@ -1,0 +1,619 @@
+=== 2026-06-01T04:54:57.442822+00:00Z  Module: os ===
+  Baseline: L1=0 L2=204 L3=0 L4=0 L5=0
+  Targets: 204 functions to promote
+  CPython source: 213 functions with docstrings
+  ── Promoting: add_dll_directory ──
+    spliced 4 line(s) at os.py:1274-1275
+    wrote 2 reference test(s)
+  ── Promoting: makedev ──
+    spliced 5 line(s) at os.py:1266-1267
+    wrote 2 reference test(s)
+  ── Promoting: minor ──
+    spliced 4 line(s) at os.py:1260-1261
+    wrote 2 reference test(s)
+  ── Promoting: major ──
+    spliced 4 line(s) at os.py:1254-1255
+    wrote 2 reference test(s)
+  ── Promoting: sched_rr_get_interval ──
+    spliced 4 line(s) at os.py:1246-1247
+    wrote 2 reference test(s)
+  ── Promoting: sched_get_priority_max ──
+    spliced 4 line(s) at os.py:1240-1241
+    wrote 2 reference test(s)
+  ── Promoting: sched_get_priority_min ──
+    spliced 4 line(s) at os.py:1234-1235
+    wrote 2 reference test(s)
+  ── Promoting: sched_setparam ──
+    spliced 4 line(s) at os.py:1228-1229
+    wrote 2 reference test(s)
+  ── Promoting: sched_getparam ──
+    spliced 4 line(s) at os.py:1222-1223
+    wrote 2 reference test(s)
+  ── Promoting: sched_setscheduler ──
+    spliced 4 line(s) at os.py:1216-1217
+    wrote 2 reference test(s)
+  ── Promoting: sched_getscheduler ──
+    spliced 5 line(s) at os.py:1210-1211
+    wrote 2 reference test(s)
+  ── Promoting: sched_yield ──
+    spliced 4 line(s) at os.py:1204-1205
+    wrote 2 reference test(s)
+  ── Promoting: sched_setaffinity ──
+    spliced 5 line(s) at os.py:1198-1199
+    wrote 2 reference test(s)
+  ── Promoting: sched_getaffinity ──
+    spliced 4 line(s) at os.py:1192-1193
+    wrote 2 reference test(s)
+  ── Promoting: memfd_create ──
+    spliced 5 line(s) at os.py:1184-1185
+    wrote 2 reference test(s)
+  ── Promoting: copy_file_range ──
+    spliced 6 line(s) at os.py:1178-1179
+    wrote 2 reference test(s)
+  ── Promoting: splice ──
+    spliced 4 line(s) at os.py:1172-1173
+    wrote 2 reference test(s)
+  ── Promoting: eventfd_write ──
+    spliced 5 line(s) at os.py:1164-1165
+    wrote 2 reference test(s)
+  ── Promoting: eventfd_read ──
+    spliced 4 line(s) at os.py:1158-1159
+    wrote 2 reference test(s)
+  ── Promoting: eventfd ──
+    spliced 4 line(s) at os.py:1152-1153
+    wrote 2 reference test(s)
+  ── Promoting: timerfd_gettime_ns ──
+    spliced 4 line(s) at os.py:1144-1145
+    wrote 2 reference test(s)
+  ── Promoting: timerfd_settime_ns ──
+    spliced 6 line(s) at os.py:1138-1139
+    wrote 2 reference test(s)
+  ── Promoting: timerfd_gettime ──
+    spliced 4 line(s) at os.py:1132-1133
+    wrote 2 reference test(s)
+  ── Promoting: timerfd_settime ──
+    spliced 6 line(s) at os.py:1126-1127
+    wrote 2 reference test(s)
+  ── Promoting: timerfd_create ──
+    spliced 4 line(s) at os.py:1120-1121
+    wrote 2 reference test(s)
+  ── Promoting: login_tty ──
+    spliced 5 line(s) at os.py:1112-1113
+    wrote 2 reference test(s)
+  ── Promoting: get_terminal_size ──
+    spliced 5 line(s) at os.py:1106-1107
+    wrote 2 reference test(s)
+  ── Promoting: terminal_size ──
+    spliced 5 line(s) at os.py:1100-1101
+    wrote 2 reference test(s)
+  ── Promoting: device_encoding ──
+    spliced 4 line(s) at os.py:1093-1093
+    wrote 2 reference test(s)
+  ── Promoting: sysconf_names ──
+    spliced 4 line(s) at os.py:1087-1088
+    wrote 2 reference test(s)
+  ── Promoting: confstr_names ──
+    spliced 4 line(s) at os.py:1081-1082
+    wrote 2 reference test(s)
+  ── Promoting: pathconf_names ──
+    spliced 4 line(s) at os.py:1075-1076
+    wrote 2 reference test(s)
+  ── Promoting: sysconf ──
+    spliced 3 line(s) at os.py:1069-1070
+    wrote 2 reference test(s)
+  ── Promoting: confstr ──
+    spliced 4 line(s) at os.py:1064-1064
+    wrote 2 reference test(s)
+  ── Promoting: uname ──
+    spliced 4 line(s) at os.py:1058-1059
+    wrote 2 reference test(s)
+  ── Promoting: umask ──
+    spliced 5 line(s) at os.py:1052-1053
+    wrote 2 reference test(s)
+  ── Promoting: strerror ──
+    spliced 4 line(s) at os.py:1047-1047
+    wrote 2 reference test(s)
+  ── Promoting: getrandom ──
+    spliced 4 line(s) at os.py:1041-1042
+    wrote 2 reference test(s)
+  ── Promoting: urandom ──
+    spliced 4 line(s) at os.py:1035-1036
+    wrote 2 reference test(s)
+  ── Promoting: cpu_count ──
+    spliced 3 line(s) at os.py:1029-1030
+    wrote 2 reference test(s)
+  ── Promoting: supports_follow_symlinks ──
+    spliced 4 line(s) at os.py:1021-1022
+    wrote 2 reference test(s)
+  ── Promoting: supports_fd ──
+    spliced 4 line(s) at os.py:1015-1016
+    wrote 2 reference test(s)
+  ── Promoting: supports_effective_ids ──
+    spliced 4 line(s) at os.py:1009-1010
+    wrote 2 reference test(s)
+  ── Promoting: supports_dir_fd ──
+    spliced 4 line(s) at os.py:1003-1004
+    wrote 2 reference test(s)
+  ── Promoting: unsetenv ──
+    spliced 4 line(s) at os.py:997-998
+    wrote 2 reference test(s)
+  ── Promoting: putenv ──
+    spliced 3 line(s) at os.py:991-992
+    wrote 2 reference test(s)
+  ── Promoting: getenv ──
+    spliced 5 line(s) at os.py:986-986
+    wrote 2 reference test(s)
+  ── Promoting: fsencode ──
+    spliced 4 line(s) at os.py:979-979
+    wrote 2 reference test(s)
+  ── Promoting: fsdecode ──
+    spliced 3 line(s) at os.py:974-974
+    wrote 2 reference test(s)
+  ── Promoting: get_exec_path ──
+    spliced 3 line(s) at os.py:968-969
+    wrote 2 reference test(s)
+  ── Promoting: fspath ──
+    spliced 4 line(s) at os.py:963-963
+    wrote 2 reference test(s)
+  ── Promoting: listxattr ──
+    spliced 4 line(s) at os.py:955-956
+    wrote 2 reference test(s)
+  ── Promoting: removexattr ──
+    spliced 4 line(s) at os.py:949-950
+    wrote 2 reference test(s)
+  ── Promoting: setxattr ──
+    spliced 4 line(s) at os.py:943-944
+    wrote 2 reference test(s)
+  ── Promoting: getxattr ──
+    spliced 4 line(s) at os.py:937-938
+    wrote 2 reference test(s)
+  ── Promoting: fwalk ──
+    spliced 4 line(s) at os.py:929-930
+    wrote 2 reference test(s)
+  ── Promoting: walk ──
+    spliced 4 line(s) at os.py:923-924
+    wrote 2 reference test(s)
+  ── Promoting: utime ──
+    spliced 4 line(s) at os.py:917-918
+    wrote 2 reference test(s)
+  ── Promoting: unlink ──
+    spliced 4 line(s) at os.py:911-912
+    wrote 2 reference test(s)
+  ── Promoting: truncate ──
+    spliced 4 line(s) at os.py:905-906
+    wrote 2 reference test(s)
+  ── Promoting: sync ──
+    spliced 4 line(s) at os.py:899-900
+    wrote 2 reference test(s)
+  ── Promoting: symlink ──
+    spliced 4 line(s) at os.py:893-894
+    wrote 2 reference test(s)
+  ── Promoting: statvfs ──
+    spliced 4 line(s) at os.py:887-888
+    wrote 2 reference test(s)
+  ── Promoting: stat ──
+    spliced 4 line(s) at os.py:881-882
+    wrote 2 reference test(s)
+  ── Promoting: scandir ──
+    spliced 4 line(s) at os.py:875-876
+    wrote 2 reference test(s)
+  ── Promoting: rmdir ──
+    spliced 4 line(s) at os.py:869-870
+    wrote 2 reference test(s)
+  ── Promoting: replace ──
+    spliced 4 line(s) at os.py:863-864
+    wrote 2 reference test(s)
+  ── Promoting: renames ──
+    spliced 4 line(s) at os.py:857-858
+    wrote 2 reference test(s)
+  ── Promoting: rename ──
+    spliced 4 line(s) at os.py:851-852
+    wrote 2 reference test(s)
+  ── Promoting: removedirs ──
+    spliced 4 line(s) at os.py:845-846
+    wrote 2 reference test(s)
+  ── Promoting: remove ──
+    spliced 4 line(s) at os.py:839-840
+    wrote 2 reference test(s)
+  ── Promoting: readlink ──
+    spliced 4 line(s) at os.py:834-834
+    wrote 2 reference test(s)
+  ── Promoting: pathconf ──
+    spliced 3 line(s) at os.py:828-829
+    wrote 2 reference test(s)
+  ── Promoting: mknod ──
+    spliced 4 line(s) at os.py:822-823
+    wrote 2 reference test(s)
+  ── Promoting: mkfifo ──
+    spliced 4 line(s) at os.py:816-817
+    wrote 2 reference test(s)
+  ── Promoting: makedirs ──
+    spliced 4 line(s) at os.py:810-811
+    wrote 2 reference test(s)
+  ── Promoting: mkdir ──
+    spliced 5 line(s) at os.py:804-805
+    wrote 2 reference test(s)
+  ── Promoting: lstat ──
+    spliced 4 line(s) at os.py:798-799
+    wrote 2 reference test(s)
+  ── Promoting: listdir ──
+    spliced 4 line(s) at os.py:792-793
+    wrote 2 reference test(s)
+  ── Promoting: link ──
+    spliced 4 line(s) at os.py:786-787
+    wrote 2 reference test(s)
+  ── Promoting: lchown ──
+    spliced 3 line(s) at os.py:780-781
+    wrote 2 reference test(s)
+  ── Promoting: lchmod ──
+    spliced 5 line(s) at os.py:774-775
+    wrote 2 reference test(s)
+  ── Promoting: lchflags ──
+    spliced 5 line(s) at os.py:768-769
+    wrote 2 reference test(s)
+  ── Promoting: getcwdb ──
+    spliced 3 line(s) at os.py:763-763
+    wrote 2 reference test(s)
+  ── Promoting: getcwd ──
+    spliced 3 line(s) at os.py:758-758
+    wrote 2 reference test(s)
+  ── Promoting: chroot ──
+    spliced 3 line(s) at os.py:752-753
+    wrote 2 reference test(s)
+  ── Promoting: chown ──
+    spliced 4 line(s) at os.py:746-747
+    wrote 2 reference test(s)
+  ── Promoting: chmod ──
+    spliced 4 line(s) at os.py:740-741
+    wrote 2 reference test(s)
+  ── Promoting: chflags ──
+    spliced 5 line(s) at os.py:734-735
+    wrote 2 reference test(s)
+  ── Promoting: chdir ──
+    spliced 4 line(s) at os.py:728-729
+    wrote 2 reference test(s)
+  ── Promoting: access ──
+    spliced 5 line(s) at os.py:722-723
+    wrote 2 reference test(s)
+  ── Promoting: lockf ──
+    spliced 5 line(s) at os.py:714-715
+    wrote 2 reference test(s)
+  ── Promoting: posix_fallocate ──
+    spliced 6 line(s) at os.py:708-709
+    wrote 2 reference test(s)
+  ── Promoting: posix_fadvise ──
+    spliced 6 line(s) at os.py:702-703
+    wrote 2 reference test(s)
+  ── Promoting: pwritev ──
+    spliced 5 line(s) at os.py:694-695
+    wrote 2 reference test(s)
+  ── Promoting: preadv ──
+    spliced 6 line(s) at os.py:688-689
+    wrote 2 reference test(s)
+  ── Promoting: writev ──
+    spliced 4 line(s) at os.py:682-683
+    wrote 2 reference test(s)
+  ── Promoting: readv ──
+    spliced 4 line(s) at os.py:676-677
+    wrote 2 reference test(s)
+  ── Promoting: openpty ──
+    spliced 3 line(s) at os.py:668-669
+    wrote 2 reference test(s)
+  ── Promoting: set_handle_inheritable ──
+    spliced 4 line(s) at os.py:662-663
+    wrote 2 reference test(s)
+  ── Promoting: get_handle_inheritable ──
+    spliced 4 line(s) at os.py:656-657
+    wrote 2 reference test(s)
+  ── Promoting: set_blocking ──
+    spliced 4 line(s) at os.py:650-651
+    wrote 2 reference test(s)
+  ── Promoting: get_blocking ──
+    spliced 4 line(s) at os.py:644-645
+    wrote 2 reference test(s)
+  ── Promoting: set_inheritable ──
+    spliced 4 line(s) at os.py:638-639
+    wrote 2 reference test(s)
+  ── Promoting: get_inheritable ──
+    spliced 4 line(s) at os.py:632-633
+    wrote 2 reference test(s)
+  ── Promoting: pipe2 ──
+    spliced 4 line(s) at os.py:626-627
+    wrote 2 reference test(s)
+  ── Promoting: pipe ──
+    spliced 4 line(s) at os.py:620-621
+    wrote 2 reference test(s)
+  ── Promoting: sendfile ──
+    spliced 6 line(s) at os.py:614-615
+    wrote 2 reference test(s)
+  ── Promoting: pwrite ──
+    spliced 5 line(s) at os.py:608-609
+    wrote 2 reference test(s)
+  ── Promoting: pread ──
+    spliced 7 line(s) at os.py:602-603
+    wrote 2 reference test(s)
+  ── Promoting: write ──
+    spliced 4 line(s) at os.py:596-597
+    wrote 2 reference test(s)
+  ── Promoting: read ──
+    spliced 6 line(s) at os.py:590-591
+    wrote 2 reference test(s)
+  ── Promoting: lseek ──
+    spliced 5 line(s) at os.py:584-585
+    wrote 2 reference test(s)
+  ── Promoting: isatty ──
+    spliced 4 line(s) at os.py:578-579
+    wrote 2 reference test(s)
+  ── Promoting: ftruncate ──
+    spliced 5 line(s) at os.py:572-573
+    wrote 2 reference test(s)
+  ── Promoting: fsync ──
+    spliced 5 line(s) at os.py:566-567
+    wrote 2 reference test(s)
+  ── Promoting: fstatvfs ──
+    spliced 5 line(s) at os.py:560-561
+    wrote 2 reference test(s)
+  ── Promoting: fstat ──
+    spliced 4 line(s) at os.py:554-555
+    wrote 2 reference test(s)
+  ── Promoting: fpathconf ──
+    spliced 4 line(s) at os.py:548-549
+    wrote 2 reference test(s)
+  ── Promoting: fdatasync ──
+    spliced 4 line(s) at os.py:542-543
+    wrote 2 reference test(s)
+  ── Promoting: fchown ──
+    spliced 4 line(s) at os.py:536-537
+    wrote 2 reference test(s)
+  ── Promoting: fchmod ──
+    spliced 4 line(s) at os.py:530-531
+    wrote 2 reference test(s)
+  ── Promoting: dup2 ──
+    spliced 5 line(s) at os.py:524-525
+    wrote 2 reference test(s)
+  ── Promoting: dup ──
+    spliced 4 line(s) at os.py:518-519
+    wrote 2 reference test(s)
+  ── Promoting: closerange ──
+    spliced 6 line(s) at os.py:512-513
+    wrote 2 reference test(s)
+  ── Promoting: close ──
+    spliced 5 line(s) at os.py:506-507
+    wrote 2 reference test(s)
+  ── Promoting: open ──
+    spliced 3 line(s) at os.py:500-501
+    wrote 2 reference test(s)
+  ── Promoting: WTERMSIG ──
+    spliced 3 line(s) at os.py:492-493
+    wrote 2 reference test(s)
+  ── Promoting: WSTOPSIG ──
+    spliced 3 line(s) at os.py:486-487
+    wrote 2 reference test(s)
+  ── Promoting: WIFSTOPPED ──
+    spliced 3 line(s) at os.py:480-481
+    wrote 2 reference test(s)
+  ── Promoting: WIFSIGNALED ──
+    spliced 3 line(s) at os.py:474-475
+    wrote 2 reference test(s)
+  ── Promoting: WIFEXITED ──
+    spliced 3 line(s) at os.py:468-469
+    wrote 2 reference test(s)
+  ── Promoting: WIFCONTINUED ──
+    spliced 3 line(s) at os.py:462-463
+    wrote 2 reference test(s)
+  ── Promoting: WEXITSTATUS ──
+    spliced 4 line(s) at os.py:456-457
+    wrote 2 reference test(s)
+  ── Promoting: WCOREDUMP ──
+    spliced 3 line(s) at os.py:450-451
+    wrote 2 reference test(s)
+  ── Promoting: ctermid ──
+    spliced 4 line(s) at os.py:443-443
+    wrote 2 reference test(s)
+  ── Promoting: tcsetpgrp ──
+    spliced 6 line(s) at os.py:437-438
+    wrote 2 reference test(s)
+  ── Promoting: tcgetpgrp ──
+    spliced 4 line(s) at os.py:431-432
+    wrote 2 reference test(s)
+  ── Promoting: getloadavg ──
+    spliced 3 line(s) at os.py:423-424
+    wrote 2 reference test(s)
+  ── Promoting: setpriority ──
+    spliced 5 line(s) at os.py:417-418
+    wrote 2 reference test(s)
+  ── Promoting: getpriority ──
+    spliced 3 line(s) at os.py:411-412
+    wrote 2 reference test(s)
+  ── Promoting: initgroups ──
+    spliced 4 line(s) at os.py:403-404
+    wrote 2 reference test(s)
+  ── Promoting: setgroups ──
+    spliced 4 line(s) at os.py:397-398
+    wrote 2 reference test(s)
+  ── Promoting: getgroups ──
+    spliced 3 line(s) at os.py:391-392
+    wrote 2 reference test(s)
+  ── Promoting: getlogin ──
+    spliced 3 line(s) at os.py:386-386
+    wrote 2 reference test(s)
+  ── Promoting: setresgid ──
+    spliced 6 line(s) at os.py:380-381
+    wrote 2 reference test(s)
+  ── Promoting: setresuid ──
+    spliced 4 line(s) at os.py:374-375
+    wrote 2 reference test(s)
+  ── Promoting: getresgid ──
+    spliced 3 line(s) at os.py:368-369
+    wrote 2 reference test(s)
+  ── Promoting: getresuid ──
+    spliced 3 line(s) at os.py:362-363
+    wrote 2 reference test(s)
+  ── Promoting: setregid ──
+    spliced 5 line(s) at os.py:356-357
+    wrote 2 reference test(s)
+  ── Promoting: setreuid ──
+    spliced 3 line(s) at os.py:350-351
+    wrote 2 reference test(s)
+  ── Promoting: setegid ──
+    spliced 4 line(s) at os.py:344-345
+    wrote 2 reference test(s)
+  ── Promoting: seteuid ──
+    spliced 4 line(s) at os.py:338-339
+    wrote 2 reference test(s)
+  ── Promoting: setgid ──
+    spliced 4 line(s) at os.py:332-333
+    wrote 2 reference test(s)
+  ── Promoting: setuid ──
+    spliced 4 line(s) at os.py:326-327
+    wrote 2 reference test(s)
+  ── Promoting: getegid ──
+    spliced 3 line(s) at os.py:320-321
+    wrote 2 reference test(s)
+  ── Promoting: geteuid ──
+    spliced 3 line(s) at os.py:314-315
+    wrote 2 reference test(s)
+  ── Promoting: getgid ──
+    spliced 3 line(s) at os.py:308-309
+    wrote 2 reference test(s)
+  ── Promoting: getuid ──
+    spliced 3 line(s) at os.py:302-303
+    wrote 2 reference test(s)
+  ── Promoting: setsid ──
+    spliced 3 line(s) at os.py:294-295
+    wrote 2 reference test(s)
+  ── Promoting: getsid ──
+    spliced 4 line(s) at os.py:288-289
+    wrote 2 reference test(s)
+  ── Promoting: setpgid ──
+    spliced 4 line(s) at os.py:282-283
+    wrote 2 reference test(s)
+  ── Promoting: getpgid ──
+    spliced 4 line(s) at os.py:276-277
+    wrote 2 reference test(s)
+  ── Promoting: setpgrp ──
+    spliced 4 line(s) at os.py:270-271
+    wrote 2 reference test(s)
+  ── Promoting: getpgrp ──
+    spliced 3 line(s) at os.py:264-265
+    wrote 2 reference test(s)
+  ── Promoting: getppid ──
+    spliced 3 line(s) at os.py:258-259
+    wrote 2 reference test(s)
+  ── Promoting: getpid ──
+    spliced 3 line(s) at os.py:252-253
+    wrote 2 reference test(s)
+  ── Promoting: waitstatus_to_exitcode ──
+    spliced 4 line(s) at os.py:244-245
+    wrote 2 reference test(s)
+  ── Promoting: register_at_fork ──
+    spliced 4 line(s) at os.py:238-239
+    wrote 2 reference test(s)
+  ── Promoting: posix_spawnp ──
+    spliced 4 line(s) at os.py:232-233
+    wrote 2 reference test(s)
+  ── Promoting: posix_spawn ──
+    spliced 4 line(s) at os.py:226-227
+    wrote 2 reference test(s)
+  ── Promoting: abort ──
+    spliced 3 line(s) at os.py:218-219
+    wrote 2 reference test(s)
+  ── Promoting: wait4 ──
+    spliced 4 line(s) at os.py:212-213
+    wrote 2 reference test(s)
+  ── Promoting: wait3 ──
+    spliced 3 line(s) at os.py:206-207
+    wrote 2 reference test(s)
+  ── Promoting: waitpid ──
+    spliced 4 line(s) at os.py:200-201
+    wrote 2 reference test(s)
+  ── Promoting: waitid ──
+    spliced 4 line(s) at os.py:194-195
+    wrote 2 reference test(s)
+  ── Promoting: wait ──
+    spliced 3 line(s) at os.py:188-189
+    wrote 2 reference test(s)
+  ── Promoting: times ──
+    spliced 3 line(s) at os.py:182-183
+    wrote 2 reference test(s)
+  ── Promoting: system ──
+    spliced 3 line(s) at os.py:174-175
+    wrote 2 reference test(s)
+  ── Promoting: startfile ──
+    spliced 4 line(s) at os.py:168-169
+    wrote 2 reference test(s)
+  ── Promoting: spawnvpe ──
+    spliced 4 line(s) at os.py:162-163
+    wrote 2 reference test(s)
+  ── Promoting: spawnvp ──
+    spliced 4 line(s) at os.py:156-157
+    wrote 2 reference test(s)
+  ── Promoting: spawnve ──
+    spliced 4 line(s) at os.py:150-151
+    wrote 2 reference test(s)
+  ── Promoting: spawnv ──
+    spliced 4 line(s) at os.py:144-145
+    wrote 2 reference test(s)
+  ── Promoting: spawnlpe ──
+    spliced 4 line(s) at os.py:138-139
+    wrote 2 reference test(s)
+  ── Promoting: spawnlp ──
+    spliced 4 line(s) at os.py:132-133
+    wrote 2 reference test(s)
+  ── Promoting: spawnle ──
+    spliced 4 line(s) at os.py:126-127
+    wrote 2 reference test(s)
+  ── Promoting: spawnl ──
+    spliced 4 line(s) at os.py:120-121
+    wrote 2 reference test(s)
+  ── Promoting: popen ──
+    spliced 4 line(s) at os.py:112-113
+    wrote 2 reference test(s)
+  ── Promoting: plock ──
+    spliced 4 line(s) at os.py:106-107
+    wrote 2 reference test(s)
+  ── Promoting: pidfd_open ──
+    spliced 5 line(s) at os.py:100-101
+    wrote 2 reference test(s)
+  ── Promoting: nice ──
+    spliced 4 line(s) at os.py:94-95
+    wrote 2 reference test(s)
+  ── Promoting: killpg ──
+    spliced 4 line(s) at os.py:88-89
+    wrote 2 reference test(s)
+  ── Promoting: kill ──
+    spliced 6 line(s) at os.py:82-83
+    wrote 2 reference test(s)
+  ── Promoting: forkpty ──
+    spliced 4 line(s) at os.py:76-77
+    wrote 2 reference test(s)
+  ── Promoting: fork ──
+    spliced 3 line(s) at os.py:70-71
+    wrote 2 reference test(s)
+  ── Promoting: execvpe ──
+    spliced 4 line(s) at os.py:56-57
+    wrote 2 reference test(s)
+  ── Promoting: execvp ──
+    spliced 3 line(s) at os.py:50-51
+    wrote 2 reference test(s)
+  ── Promoting: execve ──
+    spliced 5 line(s) at os.py:44-45
+    wrote 2 reference test(s)
+  ── Promoting: execv ──
+    spliced 4 line(s) at os.py:38-39
+    wrote 2 reference test(s)
+  ── Promoting: execlpe ──
+    spliced 4 line(s) at os.py:32-33
+    wrote 2 reference test(s)
+  ── Promoting: execlp ──
+    spliced 4 line(s) at os.py:26-27
+    wrote 2 reference test(s)
+  ── Promoting: execle ──
+    spliced 4 line(s) at os.py:20-21
+    wrote 2 reference test(s)
+  ── Promoting: execl ──
+    spliced 4 line(s) at os.py:14-15
+    wrote 2 reference test(s)
+  ── Gate: compile ── FAIL (exit 1)
+  rollback: stub restored; 408 new test files removed
+  Outcome: ROLLED-BACK

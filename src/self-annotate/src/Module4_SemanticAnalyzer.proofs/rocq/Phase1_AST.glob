@@ -1,0 +1,6 @@
+DIGEST af61fdb7837bf9b3521a8f1f6c69fed9
+FPhase1_AST
+mod 909:918 <> Phase1_AST
+prf 1252:1262 Phase1_AST expr_eq_dec
+R1266:1269 Coq.Init.Logic <> True ind
+R1298:1307 Phase1_AST Phase1_AST <> mod

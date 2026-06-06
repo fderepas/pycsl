@@ -360,8 +360,26 @@ def _resolve_imported_classes(direct_imports: List[Any], main_file: str,
                         ir_data["functions"].insert(0, mf)
                         existing_funcs.add(fname)
                         injected_methods += 1
+            # inline.md: also import module-level helper functions from the
+            # dependency that class methods may call.  After inlining splices
+            # a method body, bare calls to these helpers must resolve to real
+            # function stubs (with correct types), not opaque int-typed vals.
+            injected_helpers = 0
+            if local == orig:
+                prefix = f"{orig.lower()}__"
+                dep_module_funcs = {
+                    fn: ff for fn, ff in dep_funcs.items()
+                    if not fn.startswith(prefix) and fn not in existing_funcs
+                }
+                for fname, f in dep_module_funcs.items():
+                    mf = dict(f)
+                    mf["trusted"] = True
+                    ir_data["functions"].insert(0, mf)
+                    existing_funcs.add(fname)
+                    injected_helpers += 1
             print(f"[*] Imported class from '{module_path}': {local} "
-                  f"(record + {injected_methods} method stub(s))")
+                  f"(record + {injected_methods} method stub(s)"
+                  f" + {injected_helpers} helper(s))")
     return added
 
 

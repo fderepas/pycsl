@@ -1,0 +1,16 @@
+=== 2026-05-31T22:32:08.456686+00:00Z  Module: filecmp ===
+  Baseline: L1=0 L2=3 L3=0 L4=0 L5=0
+  Targets: 3 functions to promote
+  CPython source: 6 functions with docstrings
+  ── Promoting: clear_cache ──
+    spliced 3 line(s) at filecmp.py:16-17
+    wrote 2 reference test(s)
+  ── Promoting: cmpfiles ──
+    spliced 3 line(s) at filecmp.py:10-11
+    wrote 2 reference test(s)
+  ── Promoting: cmp ──
+    spliced 4 line(s) at filecmp.py:4-5
+    wrote 2 reference test(s)
+  ── Gate: compile ── FAIL (exit 1)
+  rollback: stub restored; 6 new test files removed
+  Outcome: ROLLED-BACK

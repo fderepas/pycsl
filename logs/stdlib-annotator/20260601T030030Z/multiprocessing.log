@@ -1,0 +1,130 @@
+=== 2026-06-01T03:00:30.831071+00:00Z  Module: multiprocessing ===
+  Baseline: L1=0 L2=24 L3=17 L4=6 L5=0
+  Targets: 41 functions to promote
+  CPython source: 28 functions with docstrings
+  ── Promoting: log_to_stderr ──
+    spliced 3 line(s) at multiprocessing.py:309-310
+    wrote 2 reference test(s)
+  ── Promoting: get_logger ──
+    spliced 3 line(s) at multiprocessing.py:304-305
+    wrote 2 reference test(s)
+  ── Promoting: mp_client ──
+    spliced 4 line(s) at multiprocessing.py:299-300
+    wrote 2 reference test(s)
+  ── Promoting: mp_listener ──
+    spliced 4 line(s) at multiprocessing.py:294-295
+    wrote 2 reference test(s)
+  ── Promoting: mp_condition ──
+    spliced 4 line(s) at multiprocessing.py:289-290
+    wrote 2 reference test(s)
+  ── Promoting: mp_barrier ──
+    spliced 4 line(s) at multiprocessing.py:284-285
+    wrote 2 reference test(s)
+  ── Promoting: mp_event ──
+    spliced 4 line(s) at multiprocessing.py:279-280
+    wrote 2 reference test(s)
+  ── Promoting: mp_semaphore ──
+    spliced 4 line(s) at multiprocessing.py:274-275
+    wrote 2 reference test(s)
+  ── Promoting: mp_rlock ──
+    spliced 4 line(s) at multiprocessing.py:269-270
+    wrote 2 reference test(s)
+  ── Promoting: mp_lock ──
+    spliced 4 line(s) at multiprocessing.py:264-265
+    wrote 2 reference test(s)
+  ── Promoting: mp_array ──
+    spliced 4 line(s) at multiprocessing.py:259-260
+    wrote 2 reference test(s)
+  ── Promoting: mp_value ──
+    spliced 4 line(s) at multiprocessing.py:254-255
+    wrote 2 reference test(s)
+  ── Promoting: mp_manager ──
+    spliced 4 line(s) at multiprocessing.py:249-250
+    wrote 2 reference test(s)
+  ── Promoting: mp_pipe ──
+    spliced 4 line(s) at multiprocessing.py:244-245
+    wrote 2 reference test(s)
+  ── Promoting: set_start_method ──
+    spliced 5 line(s) at multiprocessing.py:239-240
+    wrote 2 reference test(s)
+  ── Promoting: set_executable ──
+    spliced 4 line(s) at multiprocessing.py:234-235
+    wrote 2 reference test(s)
+  ── Promoting: get_start_method ──
+    spliced 4 line(s) at multiprocessing.py:229-230
+    wrote 2 reference test(s)
+  ── Promoting: get_context ──
+    spliced 4 line(s) at multiprocessing.py:224-225
+    wrote 2 reference test(s)
+  ── Promoting: get_all_start_methods ──
+    spliced 3 line(s) at multiprocessing.py:219-220
+    wrote 2 reference test(s)
+  ── Promoting: freeze_support ──
+    spliced 4 line(s) at multiprocessing.py:214-215
+    wrote 2 reference test(s)
+  ── Promoting: parent_process ──
+    spliced 2 line(s) at multiprocessing.py:209-210
+    wrote 2 reference test(s)
+  ── Promoting: current_process ──
+    spliced 3 line(s) at multiprocessing.py:204-205
+    wrote 2 reference test(s)
+  ── Promoting: cpu_count ──
+    spliced 3 line(s) at multiprocessing.py:199-200
+    wrote 2 reference test(s)
+  ── Promoting: active_children ──
+    spliced 3 line(s) at multiprocessing.py:194-195
+    wrote 2 reference test(s)
+  ── Promoting: join ──
+    spliced 5 line(s) at multiprocessing.py:185-188
+    wrote 2 reference test(s)
+  ── Promoting: terminate ──
+    spliced 5 line(s) at multiprocessing.py:178-181
+    wrote 2 reference test(s)
+  ── Promoting: close ──
+    spliced 4 line(s) at multiprocessing.py:171-174
+    wrote 2 reference test(s)
+  ── Promoting: starmap ──
+    spliced 5 line(s) at multiprocessing.py:164-167
+    wrote 2 reference test(s)
+  ── Promoting: map_async ──
+    spliced 4 line(s) at multiprocessing.py:157-160
+    wrote 2 reference test(s)
+  ── Promoting: map_func ──
+    spliced 5 line(s) at multiprocessing.py:150-153
+    wrote 2 reference test(s)
+  ── Promoting: apply_async ──
+    spliced 5 line(s) at multiprocessing.py:143-146
+    wrote 2 reference test(s)
+  ── Promoting: apply ──
+    spliced 5 line(s) at multiprocessing.py:136-139
+    wrote 2 reference test(s)
+  ── Promoting: join_thread ──
+    spliced 5 line(s) at multiprocessing.py:122-125
+    wrote 2 reference test(s)
+  ── Promoting: close ──
+    spliced 5 line(s) at multiprocessing.py:115-118
+  ── Promoting: full ──
+    spliced 5 line(s) at multiprocessing.py:108-111
+    wrote 2 reference test(s)
+  ── Promoting: empty ──
+    spliced 5 line(s) at multiprocessing.py:101-104
+    wrote 2 reference test(s)
+  ── Promoting: close ──
+    spliced 5 line(s) at multiprocessing.py:64-67
+  ── Promoting: kill ──
+    spliced 5 line(s) at multiprocessing.py:57-60
+    wrote 2 reference test(s)
+  ── Promoting: terminate ──
+    spliced 5 line(s) at multiprocessing.py:50-53
+  ── Promoting: is_alive ──
+    spliced 5 line(s) at multiprocessing.py:29-32
+    wrote 2 reference test(s)
+  ── Promoting: join ──
+    spliced 5 line(s) at multiprocessing.py:22-25
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module multiprocessing ──
+      baseline: L1=0 L2=24 L3=17 L4=6 L5=0
+      final:    L1=1 L2=4 L3=1 L4=4 L5=37   (Δ L4+ = +35)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

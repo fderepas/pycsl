@@ -1,0 +1,6 @@
+[0;32m[XFAIL][0m 0010 (expected failure)
+[0;32m[XFAIL][0m 0018 (expected failure)
+[0;32m[XFAIL][0m 0019 (expected failure)
+[0;32m[XFAIL][0m 0050 (expected failure)
+[0;32m[XFAIL][0m 0208 (expected failure)
+[0;32m[XFAIL][0m 0210 (expected failure)

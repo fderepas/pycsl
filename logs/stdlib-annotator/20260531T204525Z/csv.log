@@ -1,0 +1,19 @@
+=== 2026-05-31T20:45:25.340923+00:00Z  Module: csv ===
+  Baseline: L1=1 L2=0 L3=3 L4=1 L5=10
+  Targets: 4 functions to promote
+  CPython source: 16 functions with docstrings
+  ── Promoting: field_size_limit ──
+    spliced 4 line(s) at csv.py:143-146
+  ── Promoting: writer ──
+    spliced 4 line(s) at csv.py:110-113
+  ── Promoting: reader ──
+    spliced 4 line(s) at csv.py:103-106
+  ── Promoting: fieldnames ──
+    spliced 5 line(s) at csv.py:41-45
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module csv ──
+      baseline: L1=1 L2=0 L3=3 L4=1 L5=10
+      final:    L1=1 L2=0 L3=3 L4=1 L5=10   (Δ L4+ = +0)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

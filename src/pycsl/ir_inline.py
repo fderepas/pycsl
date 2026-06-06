@@ -162,8 +162,16 @@ def _substitute(node: Any, self_name: str, param_map: Dict[str, Any],
         new["object"] = self_name
     if s in ("FieldAssign", "FieldAugAssign") and new.get("object") == "self":
         new["object"] = self_name
-    if t == "Call" and isinstance(new.get("func"), str) and new["func"].startswith("self."):
-        new["func"] = self_name + new["func"][len("self"):]   # self.Y -> <self_name>.Y
+    if t == "Call" and isinstance(new.get("func"), str):
+        fn = new["func"]
+        if fn.startswith("self."):
+            new["func"] = self_name + fn[len("self"):]   # self.Y -> <self_name>.Y
+        elif "." in fn:
+            # Freshen local-variable receiver in dotted calls like
+            # `entries.append(x)` → `entries__inlN.append(x)`.
+            recv_part, _, method_part = fn.partition(".")
+            if recv_part in rename:
+                new["func"] = f"{rename[recv_part]}.{method_part}"
     if s in ("Assign", "AugAssign", "For") and isinstance(new.get("target"), str):
         if new["target"] in rename:
             new["target"] = rename[new["target"]]
@@ -209,7 +217,7 @@ class _Inliner:
         pre: List[Any] = []
         param_map: Dict[str, Any] = {}
         for formal, actual in zip(formals, args):
-            if isinstance(actual, dict) and actual.get("type") in ("Var", "Number", "Constant", "Bool"):
+            if isinstance(actual, dict) and actual.get("type") in ("Var", "Number", "Constant", "Bool", "String"):
                 param_map[formal] = actual
             else:
                 tmp = self._fresh(formal)

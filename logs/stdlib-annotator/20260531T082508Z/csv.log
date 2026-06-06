@@ -1,0 +1,7 @@
+=== 2026-05-31T08:25:08.908344+00:00Z  Module: csv ===
+  Baseline: L1=0 L2=7 L3=6 L4=2 L5=0
+  Targets: 1 functions to promote
+  CPython source: 16 functions with docstrings
+  ── Promoting: next_row ──
+    [dry-run] prompt prepared, LLM call skipped
+  [dry-run] complete; no edits applied

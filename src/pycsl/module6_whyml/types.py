@@ -101,6 +101,10 @@ class TypeInferenceMixin:
             lookup = f"{cls}__{method_tail}" if cls else method_tail
             if self._module_method_return_types.get(lookup) == "array int":
                 return "array"
+        # inline.md: bare function calls (from inlined bodies) returning
+        # array int, and Var references to known array locals.
+        if self._rhs_yields_array(val_ir):
+            return "array"
         # Body dict/set: recognise both legacy abstract-val emission and
         # the new `map.Map (option int)` form, plus IR-level signals so
         # detection doesn't depend on val-string shape.
@@ -226,26 +230,36 @@ class TypeInferenceMixin:
         return None
 
     def _field_type_of(self, attr_ir: Dict[str, Any]) -> Optional[str]:
-        """Resolve `self.<field>` to its declared IR type tag, or None if
-        the target is not a self-field access. Accepts both shapes:
-        `Attribute(value=Var(self), attr=F)` and `FieldGet(object='self',
+        """Resolve `self.<field>` or `global.<field>` to its declared IR type tag,
+        or None if the target is not a known record-field access. Accepts both
+        shapes: `Attribute(value=Var(name), attr=F)` and `FieldGet(object=name,
         field=F)` (Module5 uses both for different contexts).
 
         Lookup goes through `_record_types`, keyed by class name; the
-        whyml_name matches `_current_self_type` (lowercased)."""
+        whyml_name matches `_current_self_type` (lowercased) for `self`, or the
+        module-global class for global instances."""
+        receiver_name = None
+        field_name = None
         if attr_ir.get("type") == "Attribute":
             receiver = attr_ir.get("value", {})
-            if not (receiver.get("type") == "Var" and receiver.get("name") == "self"):
-                return None
+            if receiver.get("type") == "Var":
+                receiver_name = receiver.get("name")
             field_name = attr_ir.get("attr")
         elif attr_ir.get("type") == "FieldGet":
-            if attr_ir.get("object") != "self":
-                return None
+            receiver_name = attr_ir.get("object")
             field_name = attr_ir.get("field")
-        else:
+        if receiver_name is None or field_name is None:
             return None
-        cls = self._current_self_type
-        if not cls or not field_name:
+        # Determine the class name for the receiver
+        cls = None
+        if receiver_name == "self":
+            cls = self._current_self_type
+        else:
+            # Check module-level global instances
+            gcls = getattr(self, "_module_global_classes", {}).get(receiver_name)
+            if gcls is not None and gcls in self._record_types:
+                cls = self._record_types[gcls].get("whyml_name")
+        if not cls:
             return None
         for info in self._record_types.values():
             if info.get("whyml_name") == cls:
@@ -278,16 +292,26 @@ class TypeInferenceMixin:
             return f"(if {val} then 1 else 0)"
         return val
 
-    def _collect_array_var_assigns(self, stmts: List[Dict[str, Any]]) -> Set[str]:
+    def _collect_array_var_assigns(self, stmts: List[Dict[str, Any]],
+                                    seed: Optional[Set[str]] = None) -> Set[str]:
         """Post-pass to `IRScanner.find_array_and_dict_vars`: variables
         assigned to `self.<method>(...)` calls where <method> returns
         `array int` should also be tracked as arrays. The static
         IRScanner can't see this without the cross-method return-type
-        map (built in `transpile()`)."""
-        found: Set[str] = set()
+        map (built in `transpile()`).
+
+        Also propagates array type transitively through var-to-var
+        assignments (`y = x` where `x` is array → `y` is array).
+        An optional `seed` set provides already-known array vars
+        (e.g. from IRScanner) so transitive propagation covers
+        cross-collector chains (inline.md: `_inl_res = arr_local`)."""
+        found: Set[str] = set(seed) if seed else set()
+        # Map target → source var for transitive propagation
+        var_assigns: dict = {}
         for s in stmts:
             if s.get("stmt") == "Assign":
                 val = s.get("value", {})
+                tgt = s.get("target", "")
                 if isinstance(val, dict) and val.get("type") == "Call":
                     fn = val.get("func", "")
                     if fn.startswith("self."):
@@ -295,16 +319,30 @@ class TypeInferenceMixin:
                         cls = self._current_self_type
                         key = f"{cls}__{tail}" if cls else tail
                         ret = self._module_method_return_types.get(key)
-                        if ret == "array int":
-                            tgt = s.get("target", "")
-                            if tgt:
-                                found.add(tgt)
+                        if ret == "array int" and tgt:
+                            found.add(tgt)
+                    else:
+                        # inline.md: bare function calls (from inlined
+                        # method bodies) whose return type is array int.
+                        ret = self._module_method_return_types.get(fn)
+                        if ret == "array int" and tgt:
+                            found.add(tgt)
+                elif isinstance(val, dict) and val.get("type") == "Var" and tgt:
+                    var_assigns[tgt] = val.get("name", "")
             for k in ("body", "orelse"):
                 if k in s:
                     found |= self._collect_array_var_assigns(s[k])
             if s.get("stmt") == "Try":
                 for h in s.get("handlers", []):
                     found |= self._collect_array_var_assigns(h.get("body", []))
+        # Transitive propagation: y = x where x is array → y is array
+        changed = True
+        while changed:
+            changed = False
+            for tgt, src in var_assigns.items():
+                if tgt not in found and src in found:
+                    found.add(tgt)
+                    changed = True
         return found
 
     def _collect_struct_unpack_array_targets(

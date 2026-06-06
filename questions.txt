@@ -1,0 +1,4 @@
+
+I see "98% context used" during previous work. Module 6 is large. Shoyld we break it down?
+
+For each standard library function add one or several tests in `test-suite/corpus/python-library` (a new directory to create). Make sure this directory follows the same structure as `test-suite/corpus/pycsl-reference/` with file with 4 digits `????.py` and maybe a `????.proofs` if need be.

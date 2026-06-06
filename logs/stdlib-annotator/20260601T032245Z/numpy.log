@@ -1,0 +1,331 @@
+=== 2026-06-01T03:22:45.238119+00:00Z  Module: numpy ===
+  Baseline: L1=0 L2=84 L3=24 L4=2 L5=0
+  Targets: 108 functions to promote
+  CPython source: 462 functions with docstrings
+  ── Promoting: savetxt ──
+    spliced 4 line(s) at numpy.py:606-607
+    wrote 2 reference test(s)
+  ── Promoting: loadtxt ──
+    spliced 3 line(s) at numpy.py:601-602
+    wrote 2 reference test(s)
+  ── Promoting: savez ──
+    spliced 4 line(s) at numpy.py:596-597
+    wrote 2 reference test(s)
+  ── Promoting: save ──
+    spliced 4 line(s) at numpy.py:591-592
+    wrote 2 reference test(s)
+  ── Promoting: load ──
+    spliced 4 line(s) at numpy.py:586-587
+    wrote 2 reference test(s)
+  ── Promoting: random_permutation ──
+    spliced 4 line(s) at numpy.py:579-580
+    wrote 2 reference test(s)
+  ── Promoting: random_shuffle ──
+    spliced 4 line(s) at numpy.py:574-575
+    wrote 2 reference test(s)
+  ── Promoting: random_choice ──
+    spliced 5 line(s) at numpy.py:569-570
+    wrote 2 reference test(s)
+  ── Promoting: random_seed ──
+    spliced 4 line(s) at numpy.py:564-565
+    wrote 2 reference test(s)
+  ── Promoting: random_randint ──
+    spliced 4 line(s) at numpy.py:559-560
+    wrote 2 reference test(s)
+  ── Promoting: random_randn ──
+    spliced 4 line(s) at numpy.py:555-555
+    wrote 2 reference test(s)
+  ── Promoting: random_rand ──
+    spliced 4 line(s) at numpy.py:550-551
+    wrote 2 reference test(s)
+  ── Promoting: linalg_matrix_rank ──
+    spliced 4 line(s) at numpy.py:543-544
+    wrote 2 reference test(s)
+  ── Promoting: linalg_svd ──
+    spliced 4 line(s) at numpy.py:538-539
+    wrote 2 reference test(s)
+  ── Promoting: linalg_eig ──
+    spliced 4 line(s) at numpy.py:533-534
+    wrote 2 reference test(s)
+  ── Promoting: linalg_solve ──
+    spliced 4 line(s) at numpy.py:528-529
+    wrote 2 reference test(s)
+  ── Promoting: linalg_inv ──
+    spliced 4 line(s) at numpy.py:523-524
+    wrote 2 reference test(s)
+  ── Promoting: linalg_det ──
+    spliced 4 line(s) at numpy.py:519-519
+    wrote 2 reference test(s)
+  ── Promoting: linalg_norm ──
+    spliced 4 line(s) at numpy.py:515-515
+    wrote 2 reference test(s)
+  ── Promoting: asarray ──
+    spliced 3 line(s) at numpy.py:508-509
+    wrote 2 reference test(s)
+  ── Promoting: astype_array ──
+    spliced 4 line(s) at numpy.py:503-504
+    wrote 2 reference test(s)
+  ── Promoting: dtype_of ──
+    spliced 4 line(s) at numpy.py:498-499
+    wrote 2 reference test(s)
+  ── Promoting: shape_of ──
+    spliced 4 line(s) at numpy.py:493-494
+    wrote 2 reference test(s)
+  ── Promoting: size_of ──
+    spliced 4 line(s) at numpy.py:488-489
+    wrote 2 reference test(s)
+  ── Promoting: ndim_of ──
+    spliced 4 line(s) at numpy.py:483-484
+    wrote 2 reference test(s)
+  ── Promoting: insert ──
+    spliced 4 line(s) at numpy.py:476-477
+    wrote 2 reference test(s)
+  ── Promoting: delete ──
+    spliced 4 line(s) at numpy.py:471-472
+    wrote 2 reference test(s)
+  ── Promoting: append ──
+    spliced 4 line(s) at numpy.py:466-467
+    wrote 2 reference test(s)
+  ── Promoting: searchsorted_array ──
+    spliced 4 line(s) at numpy.py:461-462
+    wrote 2 reference test(s)
+  ── Promoting: unique ──
+    spliced 3 line(s) at numpy.py:456-457
+    wrote 2 reference test(s)
+  ── Promoting: where ──
+    spliced 4 line(s) at numpy.py:451-452
+    wrote 2 reference test(s)
+  ── Promoting: argsort_array ──
+    spliced 4 line(s) at numpy.py:446-447
+    wrote 2 reference test(s)
+  ── Promoting: sort_array ──
+    spliced 4 line(s) at numpy.py:441-442
+    wrote 2 reference test(s)
+  ── Promoting: expand_dims ──
+    spliced 4 line(s) at numpy.py:436-437
+    wrote 2 reference test(s)
+  ── Promoting: squeeze ──
+    spliced 3 line(s) at numpy.py:431-432
+    wrote 2 reference test(s)
+  ── Promoting: split ──
+    spliced 4 line(s) at numpy.py:426-427
+    wrote 2 reference test(s)
+  ── Promoting: hstack ──
+    spliced 3 line(s) at numpy.py:421-422
+    wrote 2 reference test(s)
+  ── Promoting: vstack ──
+    spliced 3 line(s) at numpy.py:416-417
+    wrote 2 reference test(s)
+  ── Promoting: stack ──
+    spliced 4 line(s) at numpy.py:411-412
+    wrote 2 reference test(s)
+  ── Promoting: concatenate ──
+    spliced 3 line(s) at numpy.py:406-407
+    wrote 2 reference test(s)
+  ── Promoting: ravel_array ──
+    spliced 4 line(s) at numpy.py:401-402
+    wrote 2 reference test(s)
+  ── Promoting: flatten_array ──
+    spliced 4 line(s) at numpy.py:396-397
+    wrote 2 reference test(s)
+  ── Promoting: transpose_array ──
+    spliced 4 line(s) at numpy.py:391-392
+    wrote 2 reference test(s)
+  ── Promoting: reshape_array ──
+    spliced 5 line(s) at numpy.py:386-387
+    wrote 2 reference test(s)
+  ── Promoting: cumprod ──
+    spliced 3 line(s) at numpy.py:380-380
+    wrote 2 reference test(s)
+  ── Promoting: cumsum ──
+    spliced 3 line(s) at numpy.py:376-376
+    wrote 2 reference test(s)
+  ── Promoting: argmax ──
+    spliced 5 line(s) at numpy.py:371-372
+    wrote 2 reference test(s)
+  ── Promoting: argmin ──
+    spliced 5 line(s) at numpy.py:366-367
+    wrote 2 reference test(s)
+  ── Promoting: max_all ──
+    spliced 4 line(s) at numpy.py:362-362
+    wrote 2 reference test(s)
+  ── Promoting: min_all ──
+    spliced 4 line(s) at numpy.py:358-358
+    wrote 2 reference test(s)
+  ── Promoting: var_all ──
+    spliced 4 line(s) at numpy.py:354-354
+    wrote 2 reference test(s)
+  ── Promoting: std_all ──
+    spliced 4 line(s) at numpy.py:350-350
+    wrote 2 reference test(s)
+  ── Promoting: mean_all ──
+    spliced 4 line(s) at numpy.py:346-346
+    wrote 2 reference test(s)
+  ── Promoting: prod ──
+    spliced 4 line(s) at numpy.py:342-342
+    wrote 2 reference test(s)
+  ── Promoting: sum_all ──
+    spliced 4 line(s) at numpy.py:338-338
+    wrote 2 reference test(s)
+  ── Promoting: clip_array ──
+    spliced 8 line(s) at numpy.py:332-332
+    wrote 2 reference test(s)
+  ── Promoting: round_ ──
+    spliced 4 line(s) at numpy.py:328-328
+    wrote 2 reference test(s)
+  ── Promoting: ceil ──
+    spliced 5 line(s) at numpy.py:324-324
+    wrote 2 reference test(s)
+  ── Promoting: floor ──
+    spliced 4 line(s) at numpy.py:320-320
+    wrote 2 reference test(s)
+  ── Promoting: power ──
+    spliced 6 line(s) at numpy.py:316-316
+    wrote 2 reference test(s)
+  ── Promoting: tan ──
+    spliced 3 line(s) at numpy.py:312-312
+    wrote 2 reference test(s)
+  ── Promoting: cos ──
+    spliced 4 line(s) at numpy.py:308-308
+    wrote 2 reference test(s)
+  ── Promoting: sin ──
+    spliced 4 line(s) at numpy.py:304-304
+    wrote 2 reference test(s)
+  ── Promoting: log10 ──
+    spliced 4 line(s) at numpy.py:300-300
+    wrote 2 reference test(s)
+  ── Promoting: log2 ──
+    spliced 6 line(s) at numpy.py:296-296
+    wrote 2 reference test(s)
+  ── Promoting: log ──
+    spliced 5 line(s) at numpy.py:292-292
+    wrote 2 reference test(s)
+  ── Promoting: exp ──
+    spliced 3 line(s) at numpy.py:288-288
+    wrote 2 reference test(s)
+  ── Promoting: sqrt ──
+    spliced 6 line(s) at numpy.py:284-284
+    wrote 2 reference test(s)
+  ── Promoting: abs_val ──
+    spliced 6 line(s) at numpy.py:279-280
+    wrote 2 reference test(s)
+  ── Promoting: matmul ──
+    spliced 3 line(s) at numpy.py:274-275
+    wrote 2 reference test(s)
+  ── Promoting: dot_arrays ──
+    spliced 4 line(s) at numpy.py:269-270
+    wrote 2 reference test(s)
+  ── Promoting: copy_array ──
+    spliced 4 line(s) at numpy.py:262-263
+    wrote 2 reference test(s)
+  ── Promoting: empty_like ──
+    spliced 3 line(s) at numpy.py:257-258
+    wrote 2 reference test(s)
+  ── Promoting: ones_like ──
+    spliced 3 line(s) at numpy.py:252-253
+    wrote 2 reference test(s)
+  ── Promoting: zeros_like ──
+    spliced 3 line(s) at numpy.py:247-248
+    wrote 2 reference test(s)
+  ── Promoting: identity ──
+    spliced 4 line(s) at numpy.py:242-243
+    wrote 2 reference test(s)
+  ── Promoting: eye ──
+    spliced 4 line(s) at numpy.py:237-238
+    wrote 2 reference test(s)
+  ── Promoting: linspace ──
+    spliced 5 line(s) at numpy.py:232-233
+    wrote 2 reference test(s)
+  ── Promoting: arange ──
+    spliced 8 line(s) at numpy.py:227-228
+    wrote 2 reference test(s)
+  ── Promoting: full ──
+    spliced 4 line(s) at numpy.py:222-223
+    wrote 2 reference test(s)
+  ── Promoting: empty ──
+    spliced 4 line(s) at numpy.py:217-218
+    wrote 2 reference test(s)
+  ── Promoting: ones ──
+    spliced 4 line(s) at numpy.py:212-213
+    wrote 2 reference test(s)
+  ── Promoting: zeros ──
+    spliced 4 line(s) at numpy.py:207-208
+    wrote 2 reference test(s)
+  ── Promoting: array ──
+    spliced 3 line(s) at numpy.py:202-203
+    wrote 2 reference test(s)
+  ── Promoting: searchsorted ──
+    spliced 5 line(s) at numpy.py:193-196
+    wrote 2 reference test(s)
+  ── Promoting: argsort ──
+    spliced 4 line(s) at numpy.py:186-189
+    wrote 2 reference test(s)
+  ── Promoting: sort ──
+    spliced 4 line(s) at numpy.py:179-182
+    wrote 2 reference test(s)
+  ── Promoting: clip ──
+    spliced 8 line(s) at numpy.py:172-175
+    wrote 2 reference test(s)
+  ── Promoting: dot ──
+    spliced 4 line(s) at numpy.py:165-168
+    wrote 2 reference test(s)
+  ── Promoting: argmax_arr ──
+    spliced 5 line(s) at numpy.py:158-161
+    wrote 2 reference test(s)
+  ── Promoting: argmin_arr ──
+    spliced 5 line(s) at numpy.py:151-154
+    wrote 2 reference test(s)
+  ── Promoting: max_arr ──
+    spliced 5 line(s) at numpy.py:144-147
+    wrote 2 reference test(s)
+  ── Promoting: min_arr ──
+    spliced 5 line(s) at numpy.py:137-140
+    wrote 2 reference test(s)
+  ── Promoting: var_arr ──
+    spliced 5 line(s) at numpy.py:130-133
+    wrote 2 reference test(s)
+  ── Promoting: std_arr ──
+    spliced 5 line(s) at numpy.py:123-126
+    wrote 2 reference test(s)
+  ── Promoting: mean_arr ──
+    spliced 5 line(s) at numpy.py:116-119
+    wrote 2 reference test(s)
+  ── Promoting: sum_arr ──
+    spliced 5 line(s) at numpy.py:109-112
+    wrote 2 reference test(s)
+  ── Promoting: tolist ──
+    spliced 5 line(s) at numpy.py:102-105
+    wrote 2 reference test(s)
+  ── Promoting: item ──
+    spliced 5 line(s) at numpy.py:95-98
+    wrote 2 reference test(s)
+  ── Promoting: fill ──
+    spliced 5 line(s) at numpy.py:88-91
+    wrote 2 reference test(s)
+  ── Promoting: astype ──
+    spliced 5 line(s) at numpy.py:81-84
+    wrote 2 reference test(s)
+  ── Promoting: copy ──
+    spliced 4 line(s) at numpy.py:74-77
+    wrote 2 reference test(s)
+  ── Promoting: ravel ──
+    spliced 4 line(s) at numpy.py:67-70
+    wrote 2 reference test(s)
+  ── Promoting: flatten ──
+    spliced 5 line(s) at numpy.py:60-63
+    wrote 2 reference test(s)
+  ── Promoting: transpose ──
+    spliced 4 line(s) at numpy.py:53-56
+    wrote 2 reference test(s)
+  ── Promoting: reshape ──
+    spliced 5 line(s) at numpy.py:46-49
+    wrote 2 reference test(s)
+  ── Promoting: dtype ──
+    spliced 4 line(s) at numpy.py:39-42
+    wrote 2 reference test(s)
+  ── Promoting: shape ──
+    spliced 4 line(s) at numpy.py:32-35
+    wrote 2 reference test(s)
+  ── Gate: compile ── FAIL (exit 1)
+  rollback: stub restored; 216 new test files removed
+  Outcome: ROLLED-BACK

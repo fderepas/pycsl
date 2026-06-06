@@ -1,0 +1,30 @@
+{
+  "timestamp": "2026-05-20T13:37:31.403071",
+  "total": 3,
+  "summary": {
+    "BOTH_ERROR": 3
+  },
+  "verdicts": [
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/negative/neg_001_wrong_postcondition.py",
+      "static": "ERROR",
+      "dynamic": "ERROR",
+      "classification": "BOTH_ERROR",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/negative/neg_002_broken_invariant.py",
+      "static": "ERROR",
+      "dynamic": "ERROR",
+      "classification": "BOTH_ERROR",
+      "detail": ""
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/negative/neg_003_precondition_violation.py",
+      "static": "ERROR",
+      "dynamic": "ERROR",
+      "classification": "BOTH_ERROR",
+      "detail": ""
+    }
+  ]
+}

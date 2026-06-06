@@ -1,0 +1,13 @@
+=== 2026-05-31T23:55:34.542200+00:00Z  Module: importlib ===
+  Baseline: L1=0 L2=0 L3=1 L4=0 L5=85
+  Targets: 1 functions to promote
+  CPython source: 3 functions with docstrings
+  ── Promoting: import_module ──
+    spliced 4 line(s) at importlib.py:19-22
+  ── Gate: compile ── PASS
+  ── Gate: stdlib-coverage --module importlib ──
+      baseline: L1=0 L2=0 L3=1 L4=0 L5=85
+      final:    L1=0 L2=0 L3=0 L4=0 L5=86   (Δ L4+ = +1)
+      VERDICT: PASS
+  ── Gate: self-annotate-verify ── PASS (26/26)
+  Outcome: COMMIT-READY

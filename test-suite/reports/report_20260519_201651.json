@@ -1,0 +1,16 @@
+{
+  "timestamp": "2026-05-19T20:16:51.128866",
+  "total": 1,
+  "summary": {
+    "STATIC_ERROR": 1
+  },
+  "verdicts": [
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/pycsl-reference/0001.py",
+      "static": "ERROR",
+      "dynamic": "SKIP",
+      "classification": "STATIC_ERROR",
+      "detail": "Static oracle error: No module named 'Module1_Ingestor'"
+    }
+  ]
+}

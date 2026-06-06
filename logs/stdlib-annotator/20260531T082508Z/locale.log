@@ -1,0 +1,7 @@
+=== 2026-05-31T08:25:09.193326+00:00Z  Module: locale ===
+  Baseline: L1=0 L2=23 L3=0 L4=0 L5=0
+  Targets: 1 functions to promote
+  CPython source: 28 functions with docstrings
+  ── Promoting: setlocale ──
+    [dry-run] prompt prepared, LLM call skipped
+  [dry-run] complete; no edits applied

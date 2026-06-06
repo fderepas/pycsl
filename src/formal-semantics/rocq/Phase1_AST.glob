@@ -1,0 +1,618 @@
+DIGEST 5214c0c9c30ac94d271f9de4001d3a58
+FPyCSL.Phase1_AST
+R139:144 Coq.ZArith.ZArith <> <> lib
+R146:151 Coq.Strings.String <> <> lib
+R153:156 Coq.Lists.List <> <> lib
+def 216:220 <> ident
+R225:230 Coq.Strings.String <> string ind
+def 244:251 <> ident_eq
+R256:265 Coq.Strings.String <> eqb def
+prf 316:327 <> ident_eq_dec
+R345:349 PyCSL.Phase1_AST <> ident def
+binder 339:339 <> x:1
+binder 341:341 <> y:2
+R353:353 Coq.Init.Specif <> ::type_scope:'{'_x_'}'_'+'_'{'_x_'}' not
+R359:363 Coq.Init.Specif <> ::type_scope:'{'_x_'}'_'+'_'{'_x_'}' not
+R370:370 Coq.Init.Specif <> ::type_scope:'{'_x_'}'_'+'_'{'_x_'}' not
+R355:357 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R354:354 PyCSL.Phase1_AST <> x:1 var
+R358:358 PyCSL.Phase1_AST <> y:2 var
+R365:368 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R364:364 PyCSL.Phase1_AST <> x:1 var
+R369:369 PyCSL.Phase1_AST <> y:2 var
+R386:402 Coq.Strings.String <> string_dec def
+R386:402 Coq.Strings.String <> string_dec def
+ind 459:463 <> binop
+constr 479:483 <> OpAdd
+constr 487:491 <> OpSub
+constr 495:499 <> OpMul
+constr 503:507 <> OpDiv
+constr 511:515 <> OpMod
+scheme 459:463 <> binop_rect
+scheme 459:463 <> binop_ind
+scheme 459:463 <> binop_rec
+scheme 459:463 <> binop_sind
+ind 598:602 <> cmpop
+constr 618:621 <> OpEq
+constr 625:628 <> OpNe
+constr 632:635 <> OpLt
+constr 639:642 <> OpLe
+constr 646:649 <> OpGt
+constr 653:656 <> OpGe
+scheme 598:602 <> cmpop_rect
+scheme 598:602 <> cmpop_ind
+scheme 598:602 <> cmpop_rec
+scheme 598:602 <> cmpop_sind
+ind 739:742 <> expr
+constr 758:761 <> EInt
+constr 781:784 <> EVar
+constr 808:817 <> ESubscript
+constr 848:851 <> ELen
+constr 877:882 <> EBinOp
+constr 920:923 <> ENeg
+constr 946:949 <> ECmp
+constr 1323:1331 <> EFieldGet
+constr 1694:1698 <> ECall
+R774:774 Coq.Numbers.BinNums <> Z ind
+binder 770:770 <> n:9
+R797:801 PyCSL.Phase1_AST <> ident def
+binder 793:793 <> x:10
+R826:830 PyCSL.Phase1_AST <> ident def
+binder 820:822 <> arr:11
+R838:841 PyCSL.Phase1_AST <> expr:7 ind
+binder 834:834 <> i:12
+R866:870 PyCSL.Phase1_AST <> ident def
+binder 860:862 <> arr:13
+R894:898 PyCSL.Phase1_AST <> binop ind
+binder 889:890 <> op:14
+R910:913 PyCSL.Phase1_AST <> expr:7 ind
+binder 902:903 <> e1:15
+binder 905:906 <> e2:16
+R936:939 PyCSL.Phase1_AST <> expr:7 ind
+binder 932:932 <> e:17
+R963:967 PyCSL.Phase1_AST <> cmpop ind
+binder 958:959 <> op:18
+R979:982 PyCSL.Phase1_AST <> expr:7 ind
+binder 971:972 <> e1:19
+binder 974:975 <> e2:20
+R1341:1345 PyCSL.Phase1_AST <> ident def
+binder 1335:1337 <> obj:21
+R1353:1357 PyCSL.Phase1_AST <> ident def
+binder 1349:1349 <> f:22
+R1713:1717 PyCSL.Phase1_AST <> ident def
+binder 1706:1709 <> func:23
+R1728:1731 Coq.Init.Datatypes <> list ind
+R1733:1736 PyCSL.Phase1_AST <> expr:7 ind
+binder 1721:1724 <> args:24
+scheme 739:742 <> expr_rect
+scheme 739:742 <> expr_ind
+scheme 739:742 <> expr_rec
+scheme 739:742 <> expr_sind
+prf 2256:2267 <> binop_eq_dec
+R2285:2289 PyCSL.Phase1_AST <> binop ind
+binder 2279:2279 <> a:25
+binder 2281:2281 <> b:26
+R2293:2293 Coq.Init.Specif <> ::type_scope:'{'_x_'}'_'+'_'{'_x_'}' not
+R2299:2303 Coq.Init.Specif <> ::type_scope:'{'_x_'}'_'+'_'{'_x_'}' not
+R2310:2310 Coq.Init.Specif <> ::type_scope:'{'_x_'}'_'+'_'{'_x_'}' not
+R2295:2297 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R2294:2294 PyCSL.Phase1_AST <> a:25 var
+R2298:2298 PyCSL.Phase1_AST <> b:26 var
+R2305:2308 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R2304:2304 PyCSL.Phase1_AST <> a:25 var
+R2309:2309 PyCSL.Phase1_AST <> b:26 var
+prf 2353:2364 <> cmpop_eq_dec
+R2382:2386 PyCSL.Phase1_AST <> cmpop ind
+binder 2376:2376 <> a:27
+binder 2378:2378 <> b:28
+R2390:2390 Coq.Init.Specif <> ::type_scope:'{'_x_'}'_'+'_'{'_x_'}' not
+R2396:2400 Coq.Init.Specif <> ::type_scope:'{'_x_'}'_'+'_'{'_x_'}' not
+R2407:2407 Coq.Init.Specif <> ::type_scope:'{'_x_'}'_'+'_'{'_x_'}' not
+R2392:2394 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R2391:2391 PyCSL.Phase1_AST <> a:27 var
+R2395:2395 PyCSL.Phase1_AST <> b:28 var
+R2402:2405 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R2401:2401 PyCSL.Phase1_AST <> a:27 var
+R2406:2406 PyCSL.Phase1_AST <> b:28 var
+prf 2450:2460 <> expr_eq_dec
+R2478:2481 PyCSL.Phase1_AST <> expr ind
+binder 2472:2472 <> a:29
+binder 2474:2474 <> b:30
+R2485:2485 Coq.Init.Specif <> ::type_scope:'{'_x_'}'_'+'_'{'_x_'}' not
+R2491:2495 Coq.Init.Specif <> ::type_scope:'{'_x_'}'_'+'_'{'_x_'}' not
+R2502:2502 Coq.Init.Specif <> ::type_scope:'{'_x_'}'_'+'_'{'_x_'}' not
+R2487:2489 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R2486:2486 PyCSL.Phase1_AST <> a:29 var
+R2490:2490 PyCSL.Phase1_AST <> b:30 var
+R2497:2500 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R2496:2496 PyCSL.Phase1_AST <> a:29 var
+R2501:2501 PyCSL.Phase1_AST <> b:30 var
+R2562:2569 Coq.ZArith.BinInt Z eq_dec def
+R2562:2569 Coq.ZArith.BinInt Z eq_dec def
+R2582:2593 PyCSL.Phase1_AST <> ident_eq_dec thm
+R2582:2593 PyCSL.Phase1_AST <> ident_eq_dec thm
+R2606:2617 PyCSL.Phase1_AST <> ident_eq_dec thm
+R2606:2617 PyCSL.Phase1_AST <> ident_eq_dec thm
+R2630:2641 PyCSL.Phase1_AST <> ident_eq_dec thm
+R2630:2641 PyCSL.Phase1_AST <> ident_eq_dec thm
+R2654:2665 PyCSL.Phase1_AST <> binop_eq_dec thm
+R2654:2665 PyCSL.Phase1_AST <> binop_eq_dec thm
+R2678:2689 PyCSL.Phase1_AST <> cmpop_eq_dec thm
+R2678:2689 PyCSL.Phase1_AST <> cmpop_eq_dec thm
+R2702:2713 PyCSL.Phase1_AST <> ident_eq_dec thm
+R2702:2713 PyCSL.Phase1_AST <> ident_eq_dec thm
+R2726:2737 PyCSL.Phase1_AST <> ident_eq_dec thm
+R2726:2737 PyCSL.Phase1_AST <> ident_eq_dec thm
+R2751:2761 Coq.Lists.List <> list_eq_dec thm
+R2751:2761 Coq.Lists.List <> list_eq_dec thm
+R2787:2798 PyCSL.Phase1_AST <> ident_eq_dec thm
+R2787:2798 PyCSL.Phase1_AST <> ident_eq_dec thm
+ind 2906:2918 <> contract_expr
+constr 2934:2937 <> CInt
+constr 2957:2960 <> CVar
+constr 2984:2990 <> CResult
+constr 2996:3002 <> CLength
+constr 3025:3034 <> CSubscript
+constr 3074:3077 <> COld
+constr 3109:3114 <> CBinOp
+constr 3161:3164 <> CNeg
+constr 3196:3198 <> CEq
+constr 3235:3237 <> CNe
+constr 3274:3276 <> CLt
+constr 3313:3315 <> CLe
+constr 3352:3354 <> CGt
+constr 3391:3393 <> CGe
+constr 3430:3433 <> CAnd
+constr 3469:3471 <> COr
+constr 3508:3511 <> CNot
+constr 3543:3550 <> CImplies
+constr 3582:3585 <> CIff
+constr 3621:3627 <> CForall
+constr 3671:3677 <> CExists
+constr 3774:3790 <> CChainedSubscript
+constr 3832:3839 <> CBoolLit
+constr 3865:3872 <> CNoneLit
+constr 3878:3887 <> CStringLit
+constr 3913:3921 <> CIsSorted
+constr 3973:3976 <> CSum
+constr 4033:4038 <> CSlice
+constr 4093:4095 <> CIn
+constr 4148:4153 <> CNotIn
+constr 4255:4270 <> CResultSubscript
+constr 4297:4301 <> CCall
+constr 4407:4409 <> CAt
+constr 4503:4512 <> CGMapEmpty
+constr 4518:4525 <> CGMapGet
+constr 4556:4563 <> CGMapSet
+constr 4596:4606 <> CGMapRemove
+constr 4634:4641 <> CGHasKey
+constr 4672:4678 <> CGMapEq
+constr 4750:4754 <> CGNil
+constr 4760:4765 <> CGCons
+constr 4798:4801 <> CGHd
+constr 4834:4837 <> CGTl
+constr 4870:4878 <> CGListLen
+constr 4906:4910 <> CGNth
+constr 4944:4952 <> CGListMem
+constr 4982:4989 <> CGAppend
+constr 5059:5068 <> CGSetEmpty
+constr 5074:5081 <> CGSetAdd
+constr 5112:5122 <> CGSetRemove
+constr 5150:5157 <> CGSetMem
+constr 5188:5196 <> CGSetCard
+constr 5224:5233 <> CGSetUnion
+constr 5264:5273 <> CGSetInter
+constr 5304:5312 <> CGSetDiff
+constr 5344:5354 <> CGSetSubset
+constr 5384:5390 <> CGSetEq
+constr 5463:5472 <> CGMkTuple2
+constr 5501:5510 <> CGMkTuple3
+constr 5541:5550 <> CGMkTuple4
+constr 5583:5587 <> CGFst
+constr 5619:5623 <> CGSnd
+constr 5655:5659 <> CGTrd
+constr 5691:5695 <> CGFth
+constr 5767:5777 <> CGStrConcat
+constr 5807:5814 <> CGStrLen
+constr 5843:5850 <> CGStrNth
+constr 5920:5925 <> CGMake
+constr 5958:5963 <> CGCopy
+constr 5988:5998 <> CGCopyRange
+R2950:2950 Coq.Numbers.BinNums <> Z ind
+binder 2946:2946 <> n:33
+R2973:2977 PyCSL.Phase1_AST <> ident def
+binder 2969:2969 <> x:34
+R3014:3018 PyCSL.Phase1_AST <> ident def
+binder 3008:3010 <> arr:35
+R3043:3047 PyCSL.Phase1_AST <> ident def
+binder 3037:3039 <> arr:36
+R3055:3067 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 3051:3051 <> i:37
+R3090:3102 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 3086:3086 <> e:38
+R3126:3130 PyCSL.Phase1_AST <> binop ind
+binder 3121:3122 <> op:39
+R3142:3154 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 3134:3135 <> e1:40
+binder 3137:3138 <> e2:41
+R3177:3189 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 3173:3173 <> e:42
+R3216:3228 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 3208:3209 <> e1:43
+binder 3211:3212 <> e2:44
+R3255:3267 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 3247:3248 <> e1:45
+binder 3250:3251 <> e2:46
+R3294:3306 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 3286:3287 <> e1:47
+binder 3289:3290 <> e2:48
+R3333:3345 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 3325:3326 <> e1:49
+binder 3328:3329 <> e2:50
+R3372:3384 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 3364:3365 <> e1:51
+binder 3367:3368 <> e2:52
+R3411:3423 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 3403:3404 <> e1:53
+binder 3406:3407 <> e2:54
+R3450:3462 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 3442:3443 <> e1:55
+binder 3445:3446 <> e2:56
+R3489:3501 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 3481:3482 <> e1:57
+binder 3484:3485 <> e2:58
+R3524:3536 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 3520:3520 <> e:59
+R3563:3575 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 3555:3556 <> e1:60
+binder 3558:3559 <> e2:61
+R3602:3614 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 3594:3595 <> e1:62
+binder 3597:3598 <> e2:63
+R3637:3641 PyCSL.Phase1_AST <> ident def
+binder 3633:3633 <> x:64
+R3652:3664 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 3645:3648 <> body:65
+R3687:3691 PyCSL.Phase1_AST <> ident def
+binder 3683:3683 <> x:66
+R3702:3714 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 3695:3698 <> body:67
+R3799:3803 PyCSL.Phase1_AST <> ident def
+binder 3793:3795 <> arr:68
+R3813:3825 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 3807:3807 <> i:69
+binder 3809:3809 <> j:70
+R3855:3858 Coq.Init.Datatypes <> bool ind
+binder 3851:3851 <> b:71
+R3901:3906 Coq.Strings.String <> string ind
+binder 3897:3897 <> s:72
+R3938:3942 PyCSL.Phase1_AST <> ident def
+binder 3932:3934 <> arr:73
+R3954:3966 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 3946:3947 <> lo:74
+binder 3949:3950 <> hi:75
+R3998:4002 PyCSL.Phase1_AST <> ident def
+binder 3992:3994 <> arr:76
+R4014:4026 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 4006:4007 <> lo:77
+binder 4009:4010 <> hi:78
+R4058:4062 PyCSL.Phase1_AST <> ident def
+binder 4052:4054 <> arr:79
+R4074:4086 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 4066:4067 <> lo:80
+binder 4069:4070 <> hi:81
+R4129:4141 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 4112:4115 <> elem:82
+binder 4117:4125 <> container:83
+R4184:4196 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 4167:4170 <> elem:84
+binder 4172:4180 <> container:85
+R4278:4290 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 4274:4274 <> i:86
+R4324:4328 PyCSL.Phase1_AST <> ident def
+binder 4316:4320 <> fname:87
+R4339:4342 Coq.Init.Datatypes <> list ind
+R4344:4356 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 4332:4335 <> args:88
+R4430:4442 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 4426:4426 <> e:89
+R4454:4458 PyCSL.Phase1_AST <> ident def
+binder 4446:4450 <> label:90
+R4537:4549 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 4531:4531 <> d:91
+binder 4533:4533 <> k:92
+R4577:4589 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 4569:4569 <> d:93
+binder 4571:4571 <> k:94
+binder 4573:4573 <> v:95
+R4615:4627 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 4609:4609 <> d:96
+binder 4611:4611 <> k:97
+R4653:4665 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 4647:4647 <> d:98
+binder 4649:4649 <> k:99
+R4693:4705 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 4685:4686 <> d1:100
+binder 4688:4689 <> d2:101
+R4779:4791 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 4773:4773 <> h:102
+binder 4775:4775 <> t:103
+R4815:4827 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 4811:4811 <> l:104
+R4851:4863 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 4847:4847 <> l:105
+R4887:4899 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 4883:4883 <> l:106
+R4925:4937 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 4919:4919 <> l:107
+binder 4921:4921 <> i:108
+R4963:4975 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 4957:4957 <> x:109
+binder 4959:4959 <> l:110
+R5003:5015 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 4995:4996 <> l1:111
+binder 4998:4999 <> l2:112
+R5093:5105 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 5087:5087 <> x:113
+binder 5089:5089 <> s:114
+R5131:5143 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 5125:5125 <> x:115
+binder 5127:5127 <> s:116
+R5169:5181 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 5163:5163 <> x:117
+binder 5165:5165 <> s:118
+R5205:5217 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 5201:5201 <> s:119
+R5245:5257 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 5237:5238 <> s1:120
+binder 5240:5241 <> s2:121
+R5285:5297 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 5277:5278 <> s1:122
+binder 5280:5281 <> s2:123
+R5325:5337 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 5317:5318 <> s1:124
+binder 5320:5321 <> s2:125
+R5365:5377 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 5357:5358 <> s1:126
+binder 5360:5361 <> s2:127
+R5405:5417 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 5397:5398 <> s1:128
+binder 5400:5401 <> s2:129
+R5482:5494 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 5476:5476 <> a:130
+binder 5478:5478 <> b:131
+R5522:5534 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 5514:5514 <> a:132
+binder 5516:5516 <> b:133
+binder 5518:5518 <> c:134
+R5564:5576 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 5554:5554 <> a:135
+binder 5556:5556 <> b:136
+binder 5558:5558 <> c:137
+binder 5560:5560 <> d:138
+R5600:5612 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 5596:5596 <> t:139
+R5636:5648 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 5632:5632 <> t:140
+R5672:5684 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 5668:5668 <> t:141
+R5708:5720 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 5704:5704 <> t:142
+R5788:5800 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 5780:5781 <> s1:143
+binder 5783:5784 <> s2:144
+R5824:5836 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 5820:5820 <> s:145
+R5862:5874 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 5856:5856 <> s:146
+binder 5858:5858 <> i:147
+R5939:5951 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 5933:5933 <> n:148
+binder 5935:5935 <> v:149
+R5977:5981 PyCSL.Phase1_AST <> ident def
+binder 5971:5973 <> arr:150
+R6007:6011 PyCSL.Phase1_AST <> ident def
+binder 6001:6003 <> arr:151
+R6023:6035 PyCSL.Phase1_AST <> contract_expr:31 ind
+binder 6015:6016 <> lo:152
+binder 6018:6019 <> hi:153
+scheme 2906:2918 <> contract_expr_rect
+scheme 2906:2918 <> contract_expr_ind
+scheme 2906:2918 <> contract_expr_rec
+scheme 2906:2918 <> contract_expr_sind
+ind 6073:6082 <> frame_cond
+constr 6098:6105 <> FNothing
+constr 6111:6115 <> FVars
+R6123:6126 Coq.Init.Datatypes <> list ind
+R6128:6132 PyCSL.Phase1_AST <> ident def
+binder 6118:6119 <> xs:156
+scheme 6073:6082 <> frame_cond_rect
+scheme 6073:6082 <> frame_cond_ind
+scheme 6073:6082 <> frame_cond_rec
+scheme 6073:6082 <> frame_cond_sind
+ind 6175:6183 <> int_model
+constr 6199:6209 <> IMUnbounded
+constr 6215:6223 <> IMBounded
+R6233:6235 Coq.Init.Datatypes <> nat ind
+binder 6226:6229 <> bits:159
+scheme 6175:6183 <> int_model_rect
+scheme 6175:6183 <> int_model_ind
+scheme 6175:6183 <> int_model_rec
+scheme 6175:6183 <> int_model_sind
+rec 6303:6311 <> func_spec
+proj 6334:6341 <> spec_pre
+proj 6371:6379 <> spec_post
+proj 6408:6417 <> spec_frame
+proj 6442:6453 <> spec_variant
+proj 6503:6515 <> spec_diverges
+proj 6565:6576 <> spec_trusted
+proj 6628:6640 <> spec_reviewer
+proj 6714:6724 <> spec_raises
+proj 6799:6812 <> spec_int_model
+proj 6876:6892 <> spec_no_exception
+proj 6963:6982 <> spec_allow_finalizer
+R6354:6366 PyCSL.Phase1_AST <> contract_expr ind
+R6391:6403 PyCSL.Phase1_AST <> contract_expr ind
+R6428:6437 PyCSL.Phase1_AST <> frame_cond ind
+R6462:6467 Coq.Init.Datatypes <> option ind
+R6469:6481 PyCSL.Phase1_AST <> contract_expr ind
+R6523:6526 Coq.Init.Datatypes <> bool ind
+R6587:6590 Coq.Init.Datatypes <> bool ind
+R6650:6655 Coq.Init.Datatypes <> option ind
+R6657:6662 Coq.Strings.String <> string ind
+R6736:6739 Coq.Init.Datatypes <> list ind
+R6747:6749 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R6742:6746 PyCSL.Phase1_AST <> ident def
+R6750:6762 PyCSL.Phase1_AST <> contract_expr ind
+R6821:6829 PyCSL.Phase1_AST <> int_model ind
+R6898:6901 Coq.Init.Datatypes <> list ind
+R6903:6907 PyCSL.Phase1_AST <> ident def
+R6986:6989 Coq.Init.Datatypes <> bool ind
+ind 7116:7121 <> aug_op
+constr 7137:7142 <> AugAdd
+constr 7146:7151 <> AugSub
+constr 7155:7160 <> AugMul
+scheme 7116:7121 <> aug_op_rect
+scheme 7116:7121 <> aug_op_ind
+scheme 7116:7121 <> aug_op_rec
+scheme 7116:7121 <> aug_op_sind
+ind 7225:7234 <> ghost_type
+constr 7250:7254 <> GTInt
+constr 7258:7265 <> GTString
+constr 7269:7275 <> GTArray
+constr 7279:7284 <> GTDict
+constr 7288:7293 <> GTList
+constr 7297:7301 <> GTSet
+constr 7307:7314 <> GTTuple2
+constr 7318:7325 <> GTTuple3
+constr 7329:7336 <> GTTuple4
+scheme 7225:7234 <> ghost_type_rect
+scheme 7225:7234 <> ghost_type_ind
+scheme 7225:7234 <> ghost_type_rec
+scheme 7225:7234 <> ghost_type_sind
+def 7414:7423 <> ghost_expr
+R7428:7440 PyCSL.Phase1_AST <> contract_expr ind
+ind 7524:7527 <> stmt
+constr 7543:7547 <> SSkip
+constr 7553:7559 <> SAssign
+constr 7593:7602 <> SAugAssign
+constr 7646:7654 <> SArraySet
+constr 7697:7700 <> SSeq
+constr 7727:7729 <> SIf
+constr 7779:7784 <> SWhile
+constr 7881:7884 <> SFor
+constr 8100:8106 <> SReturn
+constr 8126:8134 <> SContinue
+constr 8166:8171 <> SBreak
+constr 8177:8183 <> SAssert
+constr 8230:8241 <> STupleUnpack
+constr 8315:8324 <> SGhostDecl
+constr 8381:8392 <> SGhostAssign
+constr 8460:8465 <> SLabel
+constr 8528:8533 <> SRaise
+constr 8559:8567 <> STryCatch
+constr 8659:8670 <> SFieldAssign
+constr 8710:8724 <> SFieldAugAssign
+constr 8811:8819 <> SCritical
+constr 8858:8869 <> SThreadEntry
+R7569:7573 PyCSL.Phase1_AST <> ident def
+binder 7565:7565 <> x:178
+R7583:7586 PyCSL.Phase1_AST <> expr ind
+binder 7579:7579 <> e:179
+R7609:7613 PyCSL.Phase1_AST <> ident def
+binder 7605:7605 <> x:180
+R7624:7628 PyCSL.Phase1_AST <> binop ind
+binder 7619:7620 <> op:181
+R7636:7639 PyCSL.Phase1_AST <> expr ind
+binder 7632:7632 <> e:182
+R7664:7668 PyCSL.Phase1_AST <> ident def
+binder 7658:7660 <> arr:183
+R7676:7679 PyCSL.Phase1_AST <> expr ind
+binder 7672:7672 <> i:184
+R7687:7690 PyCSL.Phase1_AST <> expr ind
+binder 7683:7683 <> v:185
+R7717:7720 PyCSL.Phase1_AST <> stmt:176 ind
+binder 7709:7710 <> s1:186
+binder 7712:7713 <> s2:187
+R7746:7749 PyCSL.Phase1_AST <> expr ind
+binder 7739:7742 <> cond:188
+R7769:7772 PyCSL.Phase1_AST <> stmt:176 ind
+binder 7753:7758 <> s_then:189
+binder 7760:7765 <> s_else:190
+R7797:7809 PyCSL.Phase1_AST <> contract_expr ind
+binder 7791:7793 <> inv:191
+R7819:7831 PyCSL.Phase1_AST <> contract_expr ind
+binder 7813:7815 <> var:192
+R7857:7860 PyCSL.Phase1_AST <> expr ind
+binder 7850:7853 <> cond:193
+R7871:7874 PyCSL.Phase1_AST <> stmt:176 ind
+binder 7864:7867 <> body:194
+R7897:7901 PyCSL.Phase1_AST <> ident def
+binder 7893:7893 <> x:195
+R7911:7915 PyCSL.Phase1_AST <> ident def
+binder 7905:7907 <> arr:196
+R7940:7952 PyCSL.Phase1_AST <> contract_expr ind
+binder 7934:7936 <> inv:197
+R7962:7974 PyCSL.Phase1_AST <> contract_expr ind
+binder 7956:7958 <> var:198
+R7985:7988 PyCSL.Phase1_AST <> stmt:176 ind
+binder 7978:7981 <> body:199
+R8024:8027 Coq.Init.Datatypes <> bool ind
+binder 8007:8020 <> allow_iter_mut:200
+R8116:8119 PyCSL.Phase1_AST <> expr ind
+binder 8112:8112 <> e:201
+R8196:8208 PyCSL.Phase1_AST <> contract_expr ind
+binder 8189:8192 <> cond:202
+R8218:8223 Coq.Strings.String <> string ind
+binder 8212:8214 <> msg:203
+R8249:8252 Coq.Init.Datatypes <> list ind
+R8254:8258 PyCSL.Phase1_AST <> ident def
+binder 8244:8245 <> xs:204
+R8266:8269 PyCSL.Phase1_AST <> expr ind
+binder 8262:8262 <> e:205
+R8333:8337 PyCSL.Phase1_AST <> ident def
+binder 8329:8329 <> x:206
+R8345:8354 PyCSL.Phase1_AST <> ghost_type ind
+binder 8341:8341 <> t:207
+R8365:8374 PyCSL.Phase1_AST <> ghost_expr def
+binder 8358:8361 <> init:208
+R8399:8403 PyCSL.Phase1_AST <> ident def
+binder 8395:8395 <> x:209
+R8411:8420 PyCSL.Phase1_AST <> ghost_type ind
+binder 8407:8407 <> t:210
+R8429:8434 PyCSL.Phase1_AST <> aug_op ind
+binder 8424:8425 <> op:211
+R8444:8453 PyCSL.Phase1_AST <> ghost_expr def
+binder 8438:8440 <> rhs:212
+R8481:8485 PyCSL.Phase1_AST <> ident def
+binder 8474:8477 <> name:213
+R8548:8552 PyCSL.Phase1_AST <> ident def
+binder 8542:8544 <> exc:214
+R8580:8583 PyCSL.Phase1_AST <> stmt:176 ind
+binder 8573:8576 <> body:215
+R8593:8597 PyCSL.Phase1_AST <> ident def
+binder 8587:8589 <> exc:216
+R8611:8614 PyCSL.Phase1_AST <> stmt:176 ind
+binder 8601:8607 <> handler:217
+R8688:8692 PyCSL.Phase1_AST <> ident def
+binder 8676:8682 <> self_id:218
+binder 8684:8684 <> f:219
+R8700:8703 PyCSL.Phase1_AST <> expr ind
+binder 8696:8696 <> e:220
+R8739:8743 PyCSL.Phase1_AST <> ident def
+binder 8727:8733 <> self_id:221
+binder 8735:8735 <> f:222
+R8752:8756 PyCSL.Phase1_AST <> binop ind
+binder 8747:8748 <> op:223
+R8764:8767 PyCSL.Phase1_AST <> expr ind
+binder 8760:8760 <> e:224
+R8833:8837 PyCSL.Phase1_AST <> ident def
+binder 8825:8829 <> mutex:225
+R8848:8851 PyCSL.Phase1_AST <> stmt:176 ind
+binder 8841:8844 <> body:226
+R8879:8882 PyCSL.Phase1_AST <> stmt:176 ind
+binder 8872:8875 <> body:227
+scheme 7524:7527 <> stmt_rect
+scheme 7524:7527 <> stmt_ind
+scheme 7524:7527 <> stmt_rec
+scheme 7524:7527 <> stmt_sind

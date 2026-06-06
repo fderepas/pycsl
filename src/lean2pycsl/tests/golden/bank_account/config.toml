@@ -1,0 +1,12 @@
+[input]
+lean    = "spec.lean"
+python  = "impl.py"
+output  = "actual.py"
+
+[functions."BankAccount.deposit"]
+python_name      = "BankAccount.deposit"
+arg_map          = { balance = "self._balance" }
+
+[functions."BankAccount.withdraw"]
+python_name      = "BankAccount.withdraw"
+arg_map          = { balance = "self._balance" }

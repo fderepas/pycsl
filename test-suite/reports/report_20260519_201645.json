@@ -1,0 +1,30 @@
+{
+  "timestamp": "2026-05-19T20:16:45.791984",
+  "total": 3,
+  "summary": {
+    "STATIC_ERROR": 3
+  },
+  "verdicts": [
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/pycsl-reference/0001.py",
+      "static": "ERROR",
+      "dynamic": "SKIP",
+      "classification": "STATIC_ERROR",
+      "detail": "Static oracle error: No module named 'Module1_Ingestor'"
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/pycsl-reference/0002.py",
+      "static": "ERROR",
+      "dynamic": "SKIP",
+      "classification": "STATIC_ERROR",
+      "detail": "Static oracle error: No module named 'Module1_Ingestor'"
+    },
+    {
+      "filepath": "/home/fabrice.derepas@canonical.com/git/pycsl/test-suite/corpus/pycsl-reference/0003.py",
+      "static": "ERROR",
+      "dynamic": "SKIP",
+      "classification": "STATIC_ERROR",
+      "detail": "Static oracle error: No module named 'Module1_Ingestor'"
+    }
+  ]
+}
