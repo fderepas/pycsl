@@ -123,13 +123,13 @@ implemented — see "Open work / poly" for the four concrete obstacles.
 ## Open work (the remaining plan, prioritized)
 
 **Implementation pass status.** ✅ Landed: **A** (lemma decision-A + ghost discipline + trust-leakage,
-`ca260ff`), **B-relational** inductive (free, `4b37f18`), **C-multi-binder** (`4b37f18`), **B `#@ rule`
-→indentation** (keyword retired, `5516569`). ⏳ Remaining (each genuinely substantial or brittle — *not*
-quick wins; stop-and-flagged with scope below): inductive reflection and the
-relational-consequence-via-lemma; quantification `#@ by induction on`, Phase-C triggers (brittle), and
+`ca260ff`), **B-relational** inductive (`4b37f18`), **C-multi-binder** (`4b37f18`), **B `#@ rule`
+→indentation** (`5516569`), **B-mutual `with` groups** (`dd482e4`, `0574`/`0575`), **B universally-
+quantified consequence via `#@ lemma`** (`induction_pr`, `0581`), and **inline.md — inlining method
+calls on module-level globals** (`7b1a28b`, `0576`–`0580`). ⏳ Remaining (each genuinely substantial or
+brittle): inductive reflection; quantification `#@ by induction on`, Phase-C triggers (brittle), and
 ghost-collection mode; and all four poly obstacles (the ~3-week function half). Drivers to date:
-**0555–0575** (21 total: 13 PASS, 8 XFAIL). Also done: B `#@ rule`→indentation (`5516569`) and B-mutual
-`with` groups (`0574`/`0575`).
+**0555–0581** (27 total).
 
 ### A. lemma soundness — ✅ DONE (decision A + ghost discipline + trust-leakage)
 - **Decision A applied:** the variant-on-recursion check is removed; `0560` retargeted to a
@@ -169,9 +169,14 @@ ghost-collection mode; and all four poly obstacles (the ~3-week function half). 
 - **P3 relational form** (reachability) — ✅ **DONE (free; driver `0572`)**. The existing
   single-predicate machinery already handles a multi-arg, *non-structural* predicate
   (`reach(x+1,z) ==> reach(x,z)` — recurses on `x+1`, which a terminating function can't express) with
-  nested typed quantifiers in rule bodies; `reach(0,2)` discharges by introduction. The
-  *universally-quantified-consequence-via-`#@ lemma`* extension (proving `\forall a,b; reach(a,b) -> Q`
-  by the inductive's induction principle) is the remaining, harder piece — still open.
+  nested typed quantifiers in rule bodies; `reach(0,2)` discharges by introduction.
+- **Universally-quantified consequence via `#@ lemma`** — ✅ **DONE (driver `0581`)**. A fact true of
+  EVERY value of an inductive predicate (`\forall n; even(n) ==> Q(n)`) is proved by induction on the
+  derivation: stated as a `#@ lemma`, discharged by Why3's **`induction_pr`** transformation, which
+  PyCSL adds (after `split_vc`) for any inductive-declaring module (`pycsl.py::_run_proofs`). The SMT
+  backend alone times out (it cannot invent the induction). Proof-command change only — no emission
+  change; `induction_pr` is a no-op on non-inductive goals and is gated on the module declaring an
+  inductive predicate.
 - **P4 reflection** (decision function + agreement lemma); coinductive predicates out of scope. *(Open.)*
 - *(Not soundness — note 2)* an optional Module-4 `_validate_inductive` pre-check (positivity /
   conclusion-shape / arity / exec-position); Why3 already enforces positivity. If ever built, note that

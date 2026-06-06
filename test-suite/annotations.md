@@ -640,8 +640,12 @@ derives introduction, inversion, and induction principles.
 
 - **Usage.** `even(k)` is a predicate application usable in any contract (`#@ ensures even(4)`).
   Introduction discharges `even(4)` (even(0)→even(2)→even(4)); inversion proves `not even(<odd>)`.
-  A **universally-quantified** consequence (`\forall x; even(x) ==> P(x)`) needs the induction
-  principle — supply it with a recursive `#@ lemma` (§2.1.16). The two features are a pair.
+  A **universally-quantified consequence** — a fact true of EVERY value of the predicate,
+  `\forall n; even(n) ==> P(n)` — is proved by **induction on the derivation**: state it as a
+  `#@ lemma` whose `ensures` is the consequence; PyCSL drives Why3's `induction_pr` transformation
+  (after `split_vc` introduces the `even n` premise) for any module declaring an inductive predicate.
+  The SMT backend alone cannot do this (it would invent the induction and time out). Inductive
+  predicates + `#@ lemma` are a pair (driver `0581`).
 - **Mutually-inductive groups.** A `with <q>(<params>):` continuation block (same indentation as the
   `inductive` header, its rules indented under it) joins `q` into the same least-fixpoint group, so
   rules of `p` and `q` may reference each other. The whole group lowers to one Why3

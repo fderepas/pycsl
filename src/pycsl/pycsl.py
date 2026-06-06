@@ -1059,6 +1059,15 @@ def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argp
         # goals remain, and they benefit from Z3 NIA in isolation (rather than as part of a
         # huge combined query that triggers OOM).
         cmd = ["why3", "prove", "-a", "split_vc"]
+        # inductive.md: a universally-quantified CONSEQUENCE of an inductive predicate
+        # (`#@ lemma … ensures \forall x; p(x) ==> Q`) is proved by induction on the
+        # predicate's derivation, which the SMT backend cannot do alone (it times out).
+        # `induction_pr` — applied AFTER `split_vc` has introduced the `p(x)` premise into
+        # the hypotheses — discharges it. It is a no-op on goals with no inductive-predicate
+        # hypothesis, and is added only when the module declares an inductive predicate, so
+        # non-inductive files are unaffected.
+        if "\n  inductive " in mlw_code:
+            cmd += ["-a", "induction_pr"]
         for p in provers:
             cmd += ["-P", p]
         cmd += ["--timelimit", "30", mlw_filename]
