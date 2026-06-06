@@ -802,6 +802,13 @@ and asserted on exit.
 | `#@ critical name` | `with` statement | Critical section (concurrent model) — havoc + assume/assert in WhyML |
 | `#@ acquires name` | `with` statement | Alias for `#@ critical` — name the acquire point explicitly |
 | `#@ releases name` | `with` statement | Informational release-point marker (no WhyML emission) |
+| `#@ mixin` | `class` | Marks a composable mixin (Tier 1 composition). See `test-suite/annotations.md` §2.7 |
+| `#@ provides <m>` | method | The method is a provider satisfying a sibling mixin's dependency |
+| `#@ shared_state <name>: <type>` | method | Declares deliberately-shared facade state (D1) |
+| `#@ touches_field <name>: <type>` | method | Declares an owned field the method may touch (D1) |
+| `#@ depends_method <m>: <sig>` | method | Concrete dependency on a sibling/core method; provider must refine it (D2) |
+| `#@ requires_method <m>: <sig>` | method | Abstract operation the composing class must supply (D2) |
+| `#@ compose_from <M1>, <M2>, …` | `class` | Composes the named mixins (unique-provider + field-classification check, then flatten) |
 
 ### Special atoms
 

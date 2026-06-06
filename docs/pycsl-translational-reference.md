@@ -975,6 +975,47 @@ Payload types map through the same τ (§T.2.2): `int`/`bool` → `int`, `str` �
 (variant branch), `expressions.py` (constructor lowering). **Out of scope:** recursive /
 parametric datatypes, guarded/nested/or-patterns. _Corresponds to `annotations.md` §2.6._
 
+### §T.4.6  Mixin composition (`#@ mixin` / `#@ compose_from`)
+
+Tier-1 mixin composition lowers in two steps — **verify-once** (each mixin in isolation) then
+**flatten-on-compose** — reusing the class-record (§T.4.1) and method (§T.4.3) machinery; no new proof
+theory.
+
+**(a) Verify-once.** A `#@ mixin`'s declared `depends_method`/`requires_method` interface lowers to an
+abstract `val` (the abstract-op / val-bridge pattern, **`\abstract`, never `\trusted`**), and each
+provided method is verified once against it:
+
+$$\mathcal{T}\llbracket \texttt{\#@ depends\_method emit: (self, x:int)->int; ensures \textbackslash result>=0} \rrbracket
+= \texttt{val self\_emit\_n (x0: int) : int  ensures \{ result >= 0 \}}$$
+
+So `MapOps.handle_get` calling `self.emit(k)` discharges against `self_emit_n`'s contract
+(`module6_whyml/functions.py::_mixin_dep_pseudo_functions`). The mixin proves in isolation (corpus
+`0553`).
+
+**(b) Flatten-on-compose.** `pycsl.py::_apply_composition` (an IR→IR pass after inheritance) **checks**
+the composition (unique provider per dependency; no two-provider collision; every `self.<field>` write
+declared `shared_state`/`touches_field`/`__init__`) then **clones** each provided method
+`<mixin>__m → <composer>__m` (retyping `self` to the composer):
+
+$$\texttt{\#@ compose\_from CoreEmit, MapOps; class Facade} \;\Rightarrow\;
+\texttt{facade\_\_emit, facade\_\_handle\_get}\ \text{(cloned)} \;+\; \texttt{facade\_\_run}$$
+
+so `self.handle_get(k)` in `Facade.run` resolves end-to-end and `\result >= 0` proves (corpus `0549`).
+When a real provider is flattened in, the abstract pseudo-`val` is skipped so it doesn't shadow the
+concrete contract (`functions.py`).
+
+**Additivity.** The directives are purely additive: a file with no `#@ compose_from` produces an empty
+`compositions` list and `_apply_composition` is a no-op, so **non-mixin corpus emission is
+byte-identical** (verified across all 480 emitting non-mixin files, all four memory models — the
+emission-identical gate).
+
+**Out of scope (getattr dispatch).** The real facade's *dynamic* `getattr(self, _EXPR_DISPATCH[t])`
+routing is **not** modelled here — Tier 1 lowers the mixin algebra over statically-named providers; the
+dispatch table is a separate coverage obligation (static-semantics §2.6). **Implementation:** `Module2`
+(the 7 directive decls), `Module3_Weaver` (`csl_is_mixin`/`csl_compose_from`/…), `Module5_IREmitter`
+(`compositions` + per-method `provides`/`shared_state`/`touches_field`), `pycsl.py::_apply_composition`,
+`functions.py`. _Corresponds to `annotations.md` §2.7._
+
 ---
 
 ## §T.5  Statement Translation ($\mathcal{T}_s$)

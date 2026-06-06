@@ -169,7 +169,10 @@ specification logic's type universe:
 τ(C)              = record    (* user-defined class C → a WhyML record of its fields, for
                                  `self`, locally-constructed instances, AND a bare C-typed
                                  parameter whose class is registered — read-only field access
-                                 `p.field`; mutation of a record parameter is out of scope (‡) *)
+                                 `p.field`; mutation of a record parameter is out of scope (‡).
+                                 A `#@ mixin` C with shared/owned fields is the same `record`;
+                                 a `#@ compose_from` class flattens its mixins' provided methods +
+                                 fields into this record (§2.6, Tier 1) *)
 τ(D)              = variant   (* a `#@ datatype D = Red | Some(int) | Pair(int,int)` declares a
                                  REAL Why3 algebraic type `type d = Red | Some int | Pair int int`
                                  (payloads int/bool→int, str→string, float→real). Constructors
@@ -895,6 +898,55 @@ point is implicit at the end of the `with` block; the explicit
 directive documents the release for human readers and protocol
 traces. Module 3 stores it on `csl_releases`; Module 6 reads it but
 emits nothing. See `annotations.md` §10 (line 855).
+
+### 2.6 Mixin Composition (Tier 1)
+
+_Corresponds to `annotations.md` §2.7 and concrete-syntax §2.5._
+
+A `#@ mixin` class declares `provides`/`depends_method`/`requires_method`/`shared_state`/
+`touches_field`; a `#@ compose_from` class composes several mixins. The well-formedness of the
+*composition* is checked by a Module 4 pass (`pycsl.py::_apply_composition`, run after inheritance),
+not by per-directive rules alone.
+
+```
+    M_1, …, M_n are `#@ mixin` classes      every depends/requires_method of each M_i
+    has EXACTLY ONE provider among M_1…M_n   no method has ≥2 providers (no collision)
+    every `self.f` written by an M_i method is shared_state/touches_field/__init__-declared
+   ──────────────────────────────────────────────────────────────────────────────────────
+    Γ ⊢ compose_from(M_1, …, M_n) : ok
+```
+
+**Per-directive rules.**
+- `mixin` / `compose_from` — well-formed before a `class`; `provides`/`shared_state`/`touches_field`/
+  `depends_method`/`requires_method` before a `def`. (`Module3_Weaver`: `csl_is_mixin`,
+  `csl_compose_from`, `csl_provides`, `csl_mixin_shared_state`, `csl_touches_field`, `csl_method_deps`.)
+- `shared_state f: T` (D1) — declares **deliberately shared** facade state; multiple mixins may
+  read/write `f` (not a conflict). A write to `f` must appear in the method's `assigns` (existing
+  check). `touches_field f: T` (D1) — an **owned** field; two owners ⇒ conflict (Tier 2).
+- `depends_method m: σ` (D2, concrete) / `requires_method m: σ` (D2, abstract) — the declared contract
+  is emitted as an abstract `val` and the mixin is verified **once** against it (`\abstract`, never
+  `\trusted`); on `compose_from` the concrete provider is checked to **refine** it.
+
+**Errors (each a distinct `PyCSLSemanticError`, exercised by the negative corpus):** a dependency with
+**no** provider (`0550`); a method with **two** providers — a silent collision needing Tier-2
+`#@ resolve` (`0552`); a mixin method writing an **undeclared** `self.<field>` (`0551`).
+
+**Determinism/purity (D3).** No separate `#@ deterministic`/`#@ pure` directive exists in Tier 1; a
+referentially-transparent dependency is expressed with `#@ assigns \nothing`, which the existing RT
+inference (`module5/memoization_rt.py::_detect_purity`) already treats as pure.
+
+**Out of scope (soundness boundary — getattr dispatch).** PyCSL's real facade routes handlers through
+**dynamic, dict-keyed dispatch** — `getattr(self, _EXPR_DISPATCH[t])` (`module6_whyml/expressions.py`)
+and `_STMT_HANDLERS[s]` (`statements.py`). Tier 1 verifies the mixin **algebra over statically-named
+providers** and scopes that dynamic dispatch **out**: routing correctness is a separate *coverage*
+obligation (the IR-type domain is exhausted by the table's keys — the same shape as "all WP arms
+covered"), **orthogonal** to composition soundness. No `\trusted` is added to the mixin methods; the
+dispatch *table* is the boundary. Recognising `getattr(self, TABLE[t])` and lowering it to a
+`depends_method` over the table's value set (Tier 1.5) is gated on a real self-hosting driver. Tier 2
+(conflict resolution) and Tier 3 (diamonds, general variance) are likewise gated.
+
+**Cross-reference:** `mixin.md` / `mixin-ready.md` (D1–D4, R2), `annotations.md` §2.7,
+`pycsl-annotate` SKILL; corpus `0549`–`0553`.
 
 ---
 

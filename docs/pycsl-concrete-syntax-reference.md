@@ -352,6 +352,44 @@ with lock:
     shared_var += 1
 ```
 
+### 2.5 Mixin Composition (Tier 1)
+
+_Corresponds to `annotations.md` §2.7._
+
+| §     | Directive | Production |
+|-------|-----------|-----------|
+| 2.5.1 | Mixin | `mixin_decl ::= "mixin" ;` |
+| 2.5.2 | Provides | `provides_decl ::= "provides" CNAME ;` |
+| 2.5.3 | Shared state | `shared_state_decl ::= "shared_state" CNAME ":" type ;` |
+| 2.5.4 | Touches field | `touches_field_decl ::= "touches_field" CNAME ":" type ;` |
+| 2.5.5 | Depends method | `depends_method_decl ::= "depends_method" CNAME ":" method_sig ;` |
+| 2.5.6 | Requires method | `requires_method_decl ::= "requires_method" CNAME ":" method_sig ;` |
+| 2.5.7 | Compose from | `compose_from_decl ::= "compose_from" CNAME ("," CNAME)* ;` |
+
+`mixin_decl`/`compose_from_decl` precede the `class` keyword; the method-scoped forms precede a `def`.
+A `depends_method`/`requires_method` opens a window: the immediately-following indented `#@ ensures`
+lines are the **dependency's** declared contract (closed by the next `provides`/structural directive).
+
+#### Example
+
+```python
+#@ mixin
+class CoreEmit:
+    #@ shared_state program_ir: int
+    #@ provides emit
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def emit(self, x: int) -> int:
+        return x if x >= 0 else 0
+
+#@ compose_from CoreEmit, MapOps
+class Facade:
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def run(self, k: int) -> int:
+        return self.handle_get(k)
+```
+
 ---
 
 ## 3. Expression Language
@@ -892,7 +930,22 @@ contract ::= precondition
            | complete_decl
            | disjoint_decl
            | happy_decl
-           | datatype_decl ;
+           | datatype_decl
+           | mixin_decl
+           | provides_decl
+           | shared_state_decl
+           | touches_field_decl
+           | depends_method_decl
+           | requires_method_decl
+           | compose_from_decl ;
+
+mixin_decl          ::= "mixin" ;                                      (* §2.5.1, before `class` *)
+provides_decl       ::= "provides" CNAME ;                             (* §2.5.2, before `def` *)
+shared_state_decl   ::= "shared_state" CNAME ":" type ;               (* §2.5.3, D1 shared facade state *)
+touches_field_decl  ::= "touches_field" CNAME ":" type ;             (* §2.5.4, D1 owned field *)
+depends_method_decl ::= "depends_method" CNAME ":" method_sig ;       (* §2.5.5, D2 concrete dep *)
+requires_method_decl ::= "requires_method" CNAME ":" method_sig ;     (* §2.5.6, D2 abstract dep *)
+compose_from_decl   ::= "compose_from" CNAME ("," CNAME)* ;           (* §2.5.7, before `class` *)
 
 assert_decl    ::= "assert" expr ;                      (* §2.4.7, statement-position *)
 check_decl     ::= "check" expr ;                       (* §2.4.8, statement-position *)

@@ -206,6 +206,54 @@ field in place is out of scope (Why3 variants are by-value — rebuild and reass
 
 ---
 
+## Section 3f — Mixin composition (Tier 1)
+
+Makes Python mixin composition machine-checkable. A `#@ mixin` class declares what it `provides`,
+what sibling methods it `depends_method`/`requires_method` on, and the facade state it
+`shared_state` (deliberately shared — D1) or `touches_field` (owned). A `#@ compose_from` class
+composes the mixins; Module 4 checks every dependency has **exactly one** provider, no method has
+two providers (collision), and every `self.<field>` write is declared — then flattens providers in.
+
+```python
+#@ mixin
+class CoreEmit:
+    #@ shared_state program_ir: int
+    #@ provides emit
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def emit(self, x: int) -> int:
+        return x if x >= 0 else 0
+
+#@ mixin
+class MapOps:
+    #@ depends_method emit: (self, x: int) -> int
+    #@   ensures \result >= 0
+    #@ provides handle_get
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def handle_get(self, k: int) -> int:
+        return self.emit(k)
+
+#@ compose_from CoreEmit, MapOps
+class Facade:
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def run(self, k: int) -> int:
+        return self.handle_get(k)
+```
+
+Each mixin is verified **once** against its dependency interface (an abstract `val` — `\abstract`,
+never `\trusted`); composition then checks the concrete provider refines it. Determinism/purity is
+expressed with `#@ assigns \nothing` (the existing RT inference treats it as pure) — there is no
+separate `deterministic`/`pure` directive in Tier 1.
+
+**Out of reach:** the real facade's dynamic `getattr(self, _EXPR_DISPATCH[t])` dispatch is **not**
+modeled — Tier 1 verifies the mixin algebra over *statically-named* providers (the dispatch table is
+a separate coverage obligation). Two-provider conflict resolution (`resolve`, Tier 2) and diamonds /
+general variance (Tier 3) are gated. See `annotations.md` §2.7 and corpus `0549`–`0553`.
+
+---
+
 ## Section 4 — Forbidden in contract expressions
 
 **Three-level validation**: every `#@` expression must clear syntax (Level 1), static-semantics (Level 2), and WhyML-generation (Level 3) checks. `pycsl --no-proof` succeeding only guarantees Levels 1 and 2; Level 3 is verified by Why3. The most dangerous trap: contracts that pass Module4 yet fail Why3 (e.g., `"key" in d` when `d` is unannotated → `int` in WhyML, `in` on `int` is invalid). See `references/validation-stack.md` for the IS/SR/TR rule tables and the practical decision checklist.

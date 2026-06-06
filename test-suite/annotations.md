@@ -473,6 +473,78 @@ value-semantics boundary, `docs/pycsl-ownership-discipline.md`). `\payload` over
 payload (e.g. `Option[T]`'s `Just`) needs use-site parametric instantiation — a documented follow-on.
 See the `pycsl-annotate` SKILL §3f.
 
+### 2.7 Mixin Composition (Tier 1)
+
+Makes Python mixin composition **machine-checkable**: a `#@ mixin` class declares the methods it
+`provides`, the sibling methods it `depends_method`/`requires_method` on, and the facade state it
+`shared_state`/`touches_field`. A `#@ compose_from` class then composes several mixins, and Module 4
+checks the composition is sound (every dependency has exactly one provider, no silent method
+collision, every `self.<field>` write is declared) before flattening the providers into the
+composer's record.
+
+| # | Directive | Syntax | Scope | Semantics |
+|---|---|---|---|---|
+| 1 | Mixin | `#@ mixin` | `class` | Marks the class as a composable mixin (not instantiated directly). See §2.7.1. |
+| 2 | Provides | `#@ provides <m>` | method | Declares the method `<m>` is a provider satisfying a sibling's dependency. |
+| 3 | Shared state | `#@ shared_state <name>: <type>` | method | Declares `<name>` as **deliberately shared** facade state (multiple mixins may read/write it — not a conflict). D1. |
+| 4 | Touches field | `#@ touches_field <name>: <type>` | method | Declares `<name>` as an **owned** field the method may touch (at most one owner; two owners → conflict, Tier 2). D1. |
+| 5 | Depends method | `#@ depends_method <m>: <sig>` (+ indented `#@ ensures`) | method | A **concrete** dependency on a sibling/core method `<m>`; the provider's contract must refine the declared one. D2. |
+| 6 | Requires method | `#@ requires_method <m>: <sig>` (+ indented `#@ ensures`) | method | An **abstract** operation the composing class must supply (verified once against an abstract `val`). D2. |
+| 7 | Compose from | `#@ compose_from <M1>, <M2>, …` | `class` | Composes the named mixins: unique-provider + field-classification check, then flatten. |
+
+Placed on leading lines before the `class`/`def` keyword, as with the other class/method directives.
+
+#### §2.7.1 Worked example (the flagship)
+
+```python
+#@ mixin
+class CoreEmit:
+    #@ shared_state program_ir: int
+    #@ provides emit
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def emit(self, x: int) -> int:
+        return x if x >= 0 else 0
+
+#@ mixin
+class MapOps:
+    #@ depends_method emit: (self, x: int) -> int
+    #@   ensures \result >= 0
+    #@ provides handle_get
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def handle_get(self, k: int) -> int:
+        return self.emit(k)
+
+#@ compose_from CoreEmit, MapOps
+class Facade:
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def run(self, k: int) -> int:
+        return self.handle_get(k)
+```
+
+Each `#@ mixin` is verified **once** in isolation against its `depends_method`/`requires_method`
+interface (emitted as an abstract `val`); on `#@ compose_from`, Module 4 checks (a) every dependency
+has **exactly one** provider, (b) no method has two providers (a silent collision), and (c) every
+`self.<field>` a mixin method writes is declared `shared_state`/`touches_field` or initialised in
+`__init__`. It then flattens the providers into the composer so `self.<m>(…)` resolves end-to-end.
+
+**Determinism/purity (D3).** A dependency that must be referentially transparent is expressed with the
+existing `#@ assigns \nothing` (which the RT inference in `module5/memoization_rt.py` already treats as
+pure) — there is no separate `deterministic`/`pure` directive in Tier 1.
+
+**Out of scope (boundaries, documented not faked).** The real facade dispatches handlers dynamically
+via `getattr(self, _EXPR_DISPATCH[t])` / `_STMT_HANDLERS[s]`; Tier 1 verifies the mixin **algebra**
+over *statically-named* providers and scopes that dynamic dispatch **out** (a separate coverage
+obligation — see the static-semantics reference). Two-provider conflict resolution (a Tier-2 `resolve`
+directive) and diamonds/general variance (Tier 3) are gated on a real driver.
+
+**Test-corpus cross-reference:** `0549` (flagship composes + proves end-to-end), `0550` (missing
+provider — rejected), `0551` (undeclared `self.<field>` write — rejected), `0552` (two providers of
+the same method — rejected), `0553` (verify-once: a mixin method proves against an abstract
+dependency).
+
 ---
 
 ## 3. Expression Language
