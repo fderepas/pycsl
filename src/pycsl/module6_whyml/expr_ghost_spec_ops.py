@@ -62,14 +62,15 @@ class GhostSpecOpsMixin:
         typecheck) — documented boundary."""
         x = self._e({"type": "Var", "name": expr["var"]}, lr)
         ctor = expr["ctor"]
+        idx = int(expr.get("index", 0))
         info = getattr(self, "_constructors", {}).get(ctor, {})
         payload = info.get("payload", [])
         arity = info.get("arity", len(payload))
-        if arity == 0:
-            return "0"   # nullary constructor — no payload
+        if arity == 0 or idx >= arity:
+            return "0"   # nullary / out-of-range — no payload
         binders = ["_"] * arity
-        binders[0] = "z_"
-        ptype = payload[0] if payload else "int"
+        binders[idx] = "z_"   # bind the i-th payload, others `_`
+        ptype = payload[idx] if idx < len(payload) else "int"
         default = '""' if ptype == "str" else "0"
         return f"(match {x} with {ctor} {' '.join(binders)} -> z_ | _ -> {default} end)"
 

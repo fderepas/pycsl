@@ -371,7 +371,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return {"type": "CtorTest", "var": node.var, "ctor": node.ctor}
 
     def _csl_ctor_payload(self, node: CtorPayload) -> Dict[str, Any]:
-        return {"type": "CtorPayload", "var": node.var, "ctor": node.ctor}
+        return {"type": "CtorPayload", "var": node.var, "ctor": node.ctor,
+                "index": getattr(node, "index", 0)}
 
     def _csl_strconcat(self, node: StrConcatExpr) -> Dict[str, Any]:
         return {"type": "StrConcat", "left": self._csl_to_ir(node.left),
