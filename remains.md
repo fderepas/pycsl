@@ -105,20 +105,48 @@ docs). Not yet done in code — what follows is the plan plus what's been *probe
   (`\forall x: Nat; to_int(x) >= 0` + `#@ uses to_int_nonneg`) now discharges. The `#@ by induction on`
   clause (drive Why3's `induction_ty_lex` from the proof harness, lemma-free) is an *open ergonomic
   alternative*, not needed for P2 to pass. See `scc.md` / `scc2.md`.
-- **P3 — sets & bounded quantification** (`set[T]` binder, `x in S` desugar to `Fset.mem`, trigger
-  inference). The node already carries an (unused) `domain` field for the `in S` form. Genuinely new
-  code: a `needs_fset` preamble import (`use set.Fset`), the `\forall x: T in S; P` ⇒
-  `forall x. Fset.mem x S -> P` desugar from `domain`, Module-4 `S: set[T]` check, and trigger
-  inference (the brittle part — may itself be split out). Not started.
-- **P4 — objects** (value-mode `\forall o: C; inv_C(o) ==> …` with the class invariant
-  auto-inserted as the antecedent so the binder ranges only over invariant-satisfying shapes;
-  ghost-collection mode via P3's `Fset`). The binder `o: C` already resolves (P1 admits class names);
-  the new work is the auto-inserted invariant guard. Not started.
+- **P3 — sets & bounded quantification. STOP-AND-FLAGGED (surface works; discharge blocked).**
+  *Implemented + reverted (kept tree clean):* the bounded form `\forall x [: T] in S; P` is a ~15-line
+  transformer **desugar** to `\forall x [: T]; (x in S) ==> P` (exists → `… and …`), reusing the P1
+  typed binder + the existing `in` membership + implication — **no new emission**. It parses and lowers
+  correctly. *But discharge is blocked by two things, both confirmed by probing:*
+  1. **Set membership mis-types in contract context.** `x in S` for a `set`-typed `S` should hit
+     `_emit_membership`'s clean map encoding (`match Map.get S x with Some _ -> true | None -> false`,
+     expressions.py:247-251), but `_current_symbol_table` did not report `S` as a `set` there, so it
+     fell to the *positional seq* encoding (`exists i. 0<=i<Array.length S /\ Map.get S i = x`) →
+     `Array.length` on a map → unbound/type error. Root cause: param/domain types aren't populated in
+     the symbol table during contract/quantifier emission.
+  2. **No instantiation without a trigger.** Even over a *list* (where membership is correctly
+     array-shaped), the membership-as-nested-`exists` does not e-match, so `forall x. (∃i…) -> P` +
+     hypothesis `k in xs` returns **Unknown** — the brittle trigger problem the plan flagged.
+  *Clean path (future):* (a) populate domain/param types in the contract-emission symbol table so set
+  membership uses the e-matching-friendly `Map.get S x` form (no nested `exists`); that alone may let
+  bounded-over-set discharge via natural instantiation; (b) only then, trigger inference if needed.
+  Both touch existing `in` lowering → byte-diff-gated.
+- **P4 — objects (value mode). STOP-AND-FLAGGED (auto-invariant is FREE; one shared blocker).**
+  *Probed, not committed.* `\forall o: C; o.x >= 0` over a class `C` with `#@ class invariant
+  self.x >= 0` already (P1) lowers the binder to `forall o : c`, and the class invariant is emitted as a
+  **Why3 type invariant** on `type c = {…} invariant { x >= 0 }` — so it holds for *every* `c` value
+  automatically; **no explicit invariant-antecedent insertion is needed** (the plan's main P4 task is
+  free). The *only* blocker: `o.x` (a quantifier-bound record var's field) lowers to an abstract
+  `get_x o` (the getattr fallback) instead of the record field `o.x`, because — **same root cause as
+  P3** — the binder's type (`c`) isn't propagated into the body's attribute lowering. Fix: register the
+  quantifier binder's type during body emission and route `o.field` to the record field qualified by
+  that type (touches the attribute-lowering path; byte-diff-safe for existing files since none quantify
+  over class instances today). Ghost-collection mode reuses P3's sets (blocked on P3).
 - Multi-binder sugar (`\forall x: T, y: U;`) — single-binder only today; desugar to nested binders.
 
-**Status update:** the **SCC contract-ordering fix landed** (`ff11f18`, scc.md) and **P2 landed** on
-top of it (`#@ uses`, scc2.md). Remaining: **P3** (sets) then **P4** (objects), each Gate-A-first; the
-SCC fix already smooths both (their contracts reference more logic helpers).
+**SHARED ROOT CAUSE (the one thing to fix for both P3 and P4 discharge):** a quantifier binder's
+declared type — and a domain/param's type — is **not propagated into the body's member-access /
+membership lowering** during contract emission, so `o.x` → abstract `get_x o` and `x in s` → mis-typed
+seq membership. P1 sets the WhyML binder *sort* (`forall o : c` / `forall x : int`) but the body
+emission doesn't consult it. Closing that (a "current quantifier-binder/domain type" map consulted by
+the FieldGet/Attribute and `_emit_membership` paths) unblocks P4 value-mode outright and P3's set form
+(then P3 may still want triggers). It is the natural next quantification task; byte-diff-gated.
+
+**Status update:** **P1 + P2 landed** (SCC fix `ff11f18` + `#@ uses` `b68373b`). **P3/P4
+stop-and-flagged** — both blocked on the shared binder-type-propagation gap above (P3 also needs
+clean-set-membership/triggers; P4's auto-invariant turned out free via Why3 type invariants).
 
 ### lemma — P1 + P2/S3 landed; soundness refinements deferred
 **Landed (`9896cb7`):** `#@ lemma` → `let [rec] lemma name (p): unit … = <proof body>`. Non-recursive
