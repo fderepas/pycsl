@@ -75,6 +75,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # in Module 6 as a Why3 mutable-record global `let g : c = <ctor>`; the ctor
         # `value` reuses the record-construction lowering (`_call_record_constructor`).
         _class_names = {c.name for c in node.body if isinstance(c, ast.ClassDef)}
+        # inline.md: also include names imported via `from X import Y` — they
+        # may be classes defined in another module whose type_decl will be
+        # injected later by _resolve_imported_classes.  collect_module_globals
+        # filters out non-class uses anyway (must be a Call with that name).
+        for stmt in node.body:
+            if isinstance(stmt, ast.ImportFrom):
+                for alias in stmt.names:
+                    _class_names.add(alias.asname or alias.name)
         module_globals = collect_module_globals(node, _class_names)
         if module_globals:
             self.program_ir["module_globals"] = [
