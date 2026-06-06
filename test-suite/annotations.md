@@ -621,7 +621,7 @@ provider — rejected), `0551` (undeclared `self.<field>` write — rejected), `
 the same method — rejected), `0553` (verify-once: a mixin method proves against an abstract
 dependency).
 
-### 2.8 Module-level inductive predicate (`#@ inductive` / `#@ rule`)
+### 2.8 Module-level inductive predicate (`#@ inductive`)
 
 A `#@ inductive` declares a **least-fixpoint relation** by Horn-clause rules (a property that
 is *not* a terminating boolean function — well-formedness, reachability, typing). It is
@@ -630,14 +630,13 @@ derives introduction, inversion, and induction principles.
 
 ```python
 #@ inductive even(n: int):
-#@     rule even_zero: even(0)
-#@     rule even_step: \forall m: int; even(m) ==> even(m + 2)
+#@     even_zero: even(0)
+#@     even_step: \forall m: int; even(m) ==> even(m + 2)
 ```
 
 | # | Directive | Syntax | Scope | Semantics |
 |---|---|---|---|---|
-| 1 | Inductive | `#@ inductive <p>(<params>):` (header; rules follow, 4-space indented) | Module-level | Declares predicate `<p>`. Lowers to a Why3 `inductive p t1 … = | Rule : clause …` (no closing `end` for a single predicate). |
-| 2 | Rule | `#@ rule <name>: <horn-clause>` | under an `#@ inductive` header | One Horn clause. The body is an ordinary PyCSL contract expression — `\forall m: int; even(m) ==> even(m + 2)` reuses the typed-quantifier + implication + predicate-application grammar. Conclusion must apply the predicate being defined. |
+| 1 | Inductive | `#@ inductive <p>(<params>):` then rules `<name>: <horn-clause>` 4-space-indented under it | Module-level | Declares predicate `<p>` by its Horn-clause rules. Each rule body is an ordinary PyCSL contract expression — `\forall m: int; even(m) ==> even(m + 2)` reuses the typed-quantifier + implication + predicate-application grammar; the conclusion must apply the predicate being defined. The indentation groups the rules (there is **no** `rule` keyword — retired). Lowers to a Why3 `inductive p t1 … = | Rule : clause …` (no closing `end` for a single predicate). |
 
 - **Usage.** `even(k)` is a predicate application usable in any contract (`#@ ensures even(4)`).
   Introduction discharges `even(4)` (even(0)→even(2)→even(4)); inversion proves `not even(<odd>)`.

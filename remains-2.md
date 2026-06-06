@@ -142,23 +142,22 @@ to date: **0555–0573** (19 total: 11 PASS, 8 XFAIL).
   positivity / quantifier binder-use).
 
 ### B. inductive — surface simplification + the deferred phases
-- **DECIDED (surface, pending code): drop the `#@ rule` keyword; use indentation.** Rules become bare
-  `name: clause` lines under the `#@ inductive …:` header (like `#@ act:` / `#@ happy:`, and Why3's
-  `| Name : clause`):
+- **`#@ rule`→indentation — ✅ DONE.** The `rule` keyword is retired; rules are bare `name: clause`
+  lines indented 4 spaces under the `#@ inductive …:` header (like `#@ act:` / `#@ happy:`):
   ```python
   #@ inductive even(n: int):
   #@     even_zero: even(0)
   #@     even_step: \forall m: int; even(m) ==> even(m + 2)
   ```
-  *Not a trivial deletion — a small parsing rework:* `rule` currently doubles as the rule **delimiter**
-  and **recognizer** (`_MODULE_PREFIXES` entry + its own `rule_decl` + Module-3 grouping). Removal
-  switches to the indentation **block-folder** (`Module1` `_BLOCK_HDRS`/`_fold_blocks`) with a new
-  `_INDUCTIVE_HDR` regex capturing the parenthesized signature; grammar becomes `inductive_decl:
-  "inductive" CNAME "(" mixin_params? ")" ":" (CNAME ":" expr)+` (the `CNAME ":"` delimiter needs an
-  LALR-conflict check); `rule_decl` / the `rule` prefix / Module-3 grouping are removed. **Surface
-  only — emitted WhyML identical** (0562/0563 keep PASS/XFAIL byte-identical). Touches Module1/2/3,
-  drivers 0562/0563, and the 5 doc surfaces (remove `#@ rule` from `annotations.md` so doc-coherency
-  stops requiring it).
+  **The LALR delimiter is clean** — `inductive_decl: "inductive" CNAME "(" mixin_params? ")" ":"
+  inductive_rule+` with `inductive_rule: CNAME ":" expr` builds with no conflict (an `expr` can't be
+  followed by a bare `CNAME`, so the next rule's name is unambiguous). Implemented: Module 1
+  `_INDUCTIVE_HDR` block-folder + dropped `inductive`/`rule` from `_MODULE_PREFIXES`; Module 2 inline
+  `inductive_rule+` grammar + transformer (rules parsed into `InductiveDecl.rules`); Module 3 hoists
+  (no grouping); dead `RuleDecl` removed. Drivers 0562/0563/0572 rewritten. **Emission byte-identical**
+  (the 3 inductive files emit identically old-syntax+old-code vs new-syntax+new-code; 482 other files
+  unchanged). `rule` removed from all 5 doc surfaces (doc-coherency green; no longer a tracked
+  directive).
 - **P2 mutually-inductive `with` groups** (`inductive wf … with wf_spine …`) — extend the
   single-predicate emitter; needs the `with` keyword and group-wide positivity.
 - **P3 relational form** (reachability) — ✅ **DONE (free; driver `0572`)**. The existing

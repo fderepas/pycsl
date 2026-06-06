@@ -13,7 +13,7 @@ from Module2_Parser import (
     GhostAssignDecl, GhostArraySetDecl, RaisesDecl, NoExceptionDecl,
     AllowFinalizerDecl, AllowIterationMutationDecl,
     BoundedIntDecl, ProofDecl,
-    SharedDecl, DatatypeDecl, InductiveDecl, RuleDecl, ThreadEntry, Acquires, Releases, CriticalSection,
+    SharedDecl, DatatypeDecl, InductiveDecl, ThreadEntry, Acquires, Releases, CriticalSection,
     MutexInvariant, LockOrder, BinOp, Number,
     Act, Given, Complete, Disjoint, Old, UnaryOp, CSLBool,
     CheckPoint, HappyProperty, Preserves, Var, Forall, FieldSubscript,
@@ -480,27 +480,16 @@ class Module3_Weaver:
         seen_dt = {d.name for d in python_ast.csl_datatypes}
         seen_ind = {i.name for i in python_ast.csl_inductives}
         for nodes in contracts_map.values():
-            # inductive.md: within each leading-contract list, an `#@ inductive p(…):`
-            # header opens a group and the following `#@ rule …` directives attach to
-            # it (source order). Grouped here because the header+rules share one
-            # statement's leading lines (hoisted to module level like datatypes).
-            _cur_ind = None
+            # inductive.md: an `#@ inductive p(…):` header carries its rules INLINE
+            # (the indentation block folds header + `name: clause` lines into one
+            # contract in Module 1; Module 2 parses the rules into `InductiveDecl.rules`).
+            # Hoisted to module level like datatypes; no separate `#@ rule` grouping.
             for n in nodes:
                 if isinstance(n, InductiveDecl):
                     if n.name not in seen_ind:
-                        n.rules = []
                         python_ast.csl_inductives.append(n)
                         seen_ind.add(n.name)
-                    _cur_ind = n
                     continue
-                if isinstance(n, RuleDecl):
-                    if _cur_ind is None:
-                        raise PyCSLSemanticError(
-                            f"`#@ rule {n.name}` appears with no preceding "
-                            f"`#@ inductive …:` header.")
-                    _cur_ind.rules.append((n.name, n.body))
-                    continue
-                _cur_ind = None
                 if isinstance(n, DatatypeDecl) and n.name not in seen_dt:
                     python_ast.csl_datatypes.append(n)
                     seen_dt.add(n.name)

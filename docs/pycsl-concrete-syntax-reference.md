@@ -966,8 +966,8 @@ happy_decl     ::= "happy" CNAME ":" "region" expr ".." expr
                    "writes" "self" "." CNAME "outside" "region"
                    ( "except" CNAME ( "," CNAME )* )? ;  (* §2.5.1, module-level HAPPY *)
 datatype_decl  ::= "datatype" CNAME "=" variant_def ( "|" variant_def )* ;  (* §2.6, module-level sum type *)
-inductive_decl ::= "inductive" CNAME "(" mixin_params? ")" ":" ;             (* §2.8, predicate header; rules follow *)
-rule_decl      ::= "rule" CNAME ":" expr ;                                   (* §2.8, one Horn clause (a contract expr) *)
+inductive_decl ::= "inductive" CNAME "(" mixin_params? ")" ":" inductive_rule+ ;  (* §2.8; rules fold in from the indentation block *)
+inductive_rule ::= CNAME ":" expr ;                                          (* §2.8, one Horn clause (a contract expr); no `rule` keyword *)
 variant_def    ::= CNAME "(" CNAME ( "," CNAME )* ")"    (* payload constructor: Some(int), Pair(int,int) *)
                  | CNAME ;                               (* nullary constructor: Red *)
 

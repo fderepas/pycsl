@@ -665,15 +665,6 @@ class InductiveDecl(CSLNode):
     signature: str
     rules: list = None
 
-@dataclass
-class RuleDecl(CSLNode):
-    """Represents one `#@ rule <name>: <horn-clause>` line of an inductive block.
-    `body` is an ordinary PyCSL contract expression (so `\\forall m: int; even(m)
-    ==> even(m+2)` reuses the typed-quantifier + implication + predicate-call
-    grammar). Module 3 attaches it to the preceding `#@ inductive` header."""
-    name: str
-    body: CSLNode
-
 # --- Mixin composition nodes (mixin.md / mixin-ready.md, Tier 1) ---
 # S0 surface: these parse and attach to their class/method node; Module3 weaves
 # them onto `csl_*` fields (S0), and the Module4 composition pass (S2) consumes
@@ -790,7 +781,6 @@ PYCSL_GRAMMAR = r"""
              | proof_decl
              | datatype_decl
              | inductive_decl
-             | rule_decl
              | mixin_decl
              | provides_decl
              | shared_state_decl
@@ -1041,8 +1031,8 @@ PYCSL_GRAMMAR = r"""
               | CNAME -> mutex_name
 
     datatype_decl: "datatype" CNAME ("[" CNAME ("," CNAME)* "]")? "=" variant_def ("|" variant_def)*
-    inductive_decl: "inductive" CNAME "(" mixin_params? ")" ":"
-    rule_decl: "rule" CNAME ":" expr
+    inductive_decl: "inductive" CNAME "(" mixin_params? ")" ":" inductive_rule+
+    inductive_rule: CNAME ":" expr
     variant_def: CNAME "(" CNAME ("," CNAME)* ")" -> variant_payload
                | CNAME -> variant_nullary
 
@@ -1182,11 +1172,17 @@ class PyCSLTransformer(Transformer):
     def shared_protected(self, name, mutex) -> SharedDecl: return SharedDecl(str(name), str(mutex))
     def shared_unprotected(self, name) -> SharedDecl: return SharedDecl(str(name), None)
     # sum-types: `datatype Name = C1 | C2(int) | …`
-    def inductive_decl(self, name, params=None) -> InductiveDecl:
+    def inductive_decl(self, name, *rest) -> InductiveDecl:
+        # `rest` is an optional `mixin_params` (a str) followed by the
+        # `inductive_rule+` results (each a `(rule_name, clause_expr)` tuple).
+        # The rules are now folded INLINE under the header (indentation block —
+        # the `#@ rule` keyword was retired); Module 3 no longer groups them.
+        params = next((r for r in rest if isinstance(r, str)), None)
+        rules = [r for r in rest if isinstance(r, tuple)]
         sig = f"({params})" if params else "()"
-        return InductiveDecl(str(name), sig, [])
-    def rule_decl(self, name, body) -> RuleDecl:
-        return RuleDecl(str(name), body)
+        return InductiveDecl(str(name), sig, rules)
+    def inductive_rule(self, name, body) -> tuple:
+        return (str(name), body)
     def datatype_decl(self, name, *args) -> DatatypeDecl:
         # A5d: type-parameter CNAMEs arrive as bare tokens; variants arrive as
         # (ctor, [types]) tuples — partition by shape.

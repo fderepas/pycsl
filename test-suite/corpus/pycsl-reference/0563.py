@@ -15,7 +15,7 @@ _ = 0  # anchor
 
 
 #@ inductive bad(n: int):
-#@     rule bad_step: \forall m: int; (bad(m) ==> bad(m)) ==> bad(m + 1)
+#@     bad_step: \forall m: int; (bad(m) ==> bad(m)) ==> bad(m + 1)
 
 
 #@ ensures \result >= 0

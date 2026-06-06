@@ -238,9 +238,10 @@ variant field (value semantics — rebuild instead), and `\payload` over a *type
 at a use-site annotation `o: Option[int]` (follow-on, no-more-int Part 8 A8-1). See `pycsl-annotate`
 SKILL §3f for the surface and limitations.
 
-**§ Inductive predicates / `#@ inductive` … `#@ rule`.** A module-level `#@ inductive p(params):`
-header plus its 4-space-indented `#@ rule <name>: <horn-clause>` directives declare a **least-fixpoint
-relation** (Module 3 groups the rules under the header in `csl_inductives`; Module 5 → `inductive_decls`
+**§ Inductive predicates / `#@ inductive`.** A module-level `#@ inductive p(params):` header plus its
+4-space-indented `<name>: <horn-clause>` rule lines (no `rule` keyword — the indentation block folds
+them in at Module 1, and Module 2 parses them into `InductiveDecl.rules` inline) declare a
+**least-fixpoint relation** (hoisted to `csl_inductives`; Module 5 → `inductive_decls`
 IR; `preamble.py::_emit_inductive_decls` emits `inductive p t1 … = | Rule : clause …` after the type
 declarations and before functions/axioms — a single predicate takes **no** closing `end`). Each rule
 body is an ordinary contract expression, so `\forall m: int; even(m) ==> even(m + 2)` reuses the

@@ -305,19 +305,20 @@ no instantiation — cleaner than a throwaway `to_int_nonneg(Z())` body call). S
 
 ---
 
-## Section 3h — Inductive predicates (`#@ inductive` / `#@ rule`)
+## Section 3h — Inductive predicates (`#@ inductive`)
 
 A module-level `#@ inductive` defines a **least-fixpoint relation** by Horn-clause rules — use it for
 a property that is not a terminating boolean function (well-formedness, reachability). It is
-logic-only: usable in contracts and lemmas, never executable.
+logic-only: usable in contracts and lemmas, never executable. The rules are bare `name: clause` lines
+indented 4 spaces under the header (no `rule` keyword):
 
 ```python
 #@ inductive even(n: int):
-#@     rule even_zero: even(0)
-#@     rule even_step: \forall m: int; even(m) ==> even(m + 2)
+#@     even_zero: even(0)
+#@     even_step: \forall m: int; even(m) ==> even(m + 2)
 ```
 
-- Each `#@ rule <name>: <clause>` body is an ordinary contract expression (reuse `\forall x: T; …`,
+- Each rule's `<clause>` body is an ordinary contract expression (reuse `\forall x: T; …`,
   `==>`, and predicate applications `even(m)`). The conclusion must apply the predicate being defined.
 - A predicate application `even(4)` is usable in any contract (`#@ ensures even(4)`). Introduction
   discharges it; inversion proves `not even(<odd>)`.

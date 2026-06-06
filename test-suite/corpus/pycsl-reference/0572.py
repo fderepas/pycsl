@@ -12,8 +12,8 @@ _ = 0  # anchor
 
 
 #@ inductive reach(a: int, b: int):
-#@ rule reach_refl: \forall x: int; reach(x, x)
-#@ rule reach_step: \forall x: int; \forall z: int; reach(x + 1, z) ==> reach(x, z)
+#@     reach_refl: \forall x: int; reach(x, x)
+#@     reach_step: \forall x: int; \forall z: int; reach(x + 1, z) ==> reach(x, z)
 
 
 #@ ensures reach(0, 2)

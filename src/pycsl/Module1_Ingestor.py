@@ -20,8 +20,7 @@ from typing import List, Optional
 
 from errors import PyCSLParseError
 
-_MODULE_PREFIXES: tuple = ('shared ', 'mutex_invariant ', 'lock_order ', 'datatype ',
-                           'inductive ', 'rule ')
+_MODULE_PREFIXES: tuple = ('shared ', 'mutex_invariant ', 'lock_order ', 'datatype ')
 
 
 @dataclass
@@ -67,7 +66,12 @@ def _clean(comment_text: str) -> str:
 # `_Harvester._fold_blocks`.
 _ACT_HDR = re.compile(r"^\s*act\s+(\w+)\s*:\s*$")
 _HAPPY_HDR = re.compile(r"^\s*happy\s+(\w+)\s*:\s*$")
-_BLOCK_HDRS = (("act", _ACT_HDR), ("happy", _HAPPY_HDR))
+# inductive.md — `#@ inductive NAME(sig):` opens an indentation block whose 4-space
+# bodies are the rules (`name: clause`), folded into `inductive NAME(sig): <rules>`.
+# The captured group is the whole `NAME(sig)` (the signature contains `:` for typed
+# params, so the `\([^)]*\)` stops at the close-paren before the trailing header `:`).
+_INDUCTIVE_HDR = re.compile(r"^\s*inductive\s+(\w+\s*\([^)]*\))\s*:\s*$")
+_BLOCK_HDRS = (("act", _ACT_HDR), ("happy", _HAPPY_HDR), ("inductive", _INDUCTIVE_HDR))
 
 
 def _match_block_hdr(line: str):

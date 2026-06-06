@@ -1051,9 +1051,9 @@ dispatch table is a separate coverage obligation (static-semantics §2.6). **Imp
 (`compositions` + per-method `provides`/`shared_state`/`touches_field`), `pycsl.py::_apply_composition`,
 `functions.py`. _Corresponds to `annotations.md` §2.7._
 
-### §T.4.7  Inductive predicates (`#@ inductive` / `#@ rule`)
+### §T.4.7  Inductive predicates (`#@ inductive`)
 
-$$\mathcal{T}\llbracket \texttt{\#@ inductive p(x: T): \#@ rule R\_i: } c_i \rrbracket
+$$\mathcal{T}\llbracket \texttt{\#@ inductive p(x: T): R\_i: } c_i \rrbracket
 = \texttt{inductive p }\tau(T)\texttt{ = }\;|\;\texttt{R\_i : }\mathcal{T}_e\llbracket c_i\rrbracket\;\dots$$
 
 `preamble.py::_emit_inductive_decls` emits the predicate **after** the type declarations (its rules
@@ -1069,8 +1069,9 @@ application `p(args)` lowers to `(p args)` (registered in `_inductive_preds`). *
 Unlike a `#@ datatype` (a `type`) or a `#@ lemma` (a checked `let lemma`), an inductive predicate is
 an uninterpreted least-fixpoint relation; **Why3 checks strict positivity** when it processes the
 declaration, so a non-positive rule is rejected at the Why3 layer. **Implementation:** `Module1`
-(`inductive`/`rule` module prefixes), `Module2` (`InductiveDecl`/`RuleDecl` + grammar), `Module3`
-(rule grouping in `_consolidate_module_concurrency`), `Module5` (`inductive_decls` IR),
+(`_INDUCTIVE_HDR` indentation block-folder — header + `name: clause` lines fold into one contract),
+`Module2` (`InductiveDecl` + `inductive_rule+` grammar — rules parsed inline; no `rule` keyword),
+`Module3` (hoist to `csl_inductives`), `Module5` (`inductive_decls` IR),
 `preamble.py::_emit_inductive_decls`, `expressions.py` (predicate-application lowering).
 _Corresponds to `annotations.md` §2.8._
 

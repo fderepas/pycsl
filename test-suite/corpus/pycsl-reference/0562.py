@@ -11,8 +11,8 @@ _ = 0  # anchor
 
 
 #@ inductive even(n: int):
-#@     rule even_zero: even(0)
-#@     rule even_step: \forall m: int; even(m) ==> even(m + 2)
+#@     even_zero: even(0)
+#@     even_step: \forall m: int; even(m) ==> even(m + 2)
 
 
 #@ ensures even(4)
