@@ -121,19 +121,17 @@ implemented — see "Open work / poly" for the four concrete obstacles.
 
 ## Open work (the remaining plan, prioritized)
 
-### A. lemma soundness — decision A + the deferred §3 checks
-- **Apply decision A** (note 1): drop the variant-on-recursion branch; retarget `0560` to a
-  non-terminating-lemma FAIL; fix the "lynchpin" wording. *Flips `0560` XFAIL→would-PASS, so retarget in
-  the same change.*
-- **Deferred §3 soundness refinements** (defense-in-depth; a lemma can currently `assigns` non-`\nothing`
-  or call a `\trusted` function and be accepted):
-  - assigns-`\nothing` / return-`None` **ghost discipline**;
-  - **proof-body statement whitelist** (self-call, lemma call, `match`, `#@ assert`/`#@ check`,
-    `#@ ghost`, `if/else`, `pass`);
-  - **no-trust-leakage** — a plain `#@ lemma` body calling a `\trusted` fn should require
-    `#@ lemma \trusted`;
-  - **contract-call-position ban** — a lemma name inside a `#@ requires`/`#@ ensures` *expression*;
-  - `#@ lemma \trusted` shim; cross-module lemma reuse.
+### A. lemma soundness — ✅ DONE (decision A + ghost discipline + trust-leakage)
+- **Decision A applied:** the variant-on-recursion check is removed; `0560` retargeted to a
+  non-terminating lemma (Why3 termination VC rejects it); `0570` added (recursive lemma with NO
+  `#@ \variant` proves — Why3 infers the structural variant); docs ("lynchpin" wording) fixed.
+- **Ghost discipline + trust-leakage enforced** in `_validate_lemma`: return `None`, `assigns \nothing`,
+  no `return <value>`, and no body call to a `\trusted` function (the last is the one Why3 can't catch;
+  driver `0571`).
+- **Still deferred:** the proof-body statement *whitelist* (broad; low value — Why3 type-checks the
+  body anyway); the `#@ lemma \trusted` shim; cross-module lemma reuse. The **contract-call-position
+  ban** is *not* a PyCSL check — Why3 rejects a lemma used as a term (same posture as inductive
+  positivity / quantifier binder-use).
 
 ### B. inductive — surface simplification + the deferred phases
 - **DECIDED (surface, pending code): drop the `#@ rule` keyword; use indentation.** Rules become bare

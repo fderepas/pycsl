@@ -540,6 +540,11 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
             {"int", "bool", "str", "float"}
             | {d.name for d in getattr(node, 'csl_datatypes', [])}
             | {c.name for c in node.body if isinstance(c, ast.ClassDef)})
+        # lemma.md §7.5: names of `#@ \trusted` functions, so `_validate_lemma` can
+        # reject a plain lemma body that rests on an unverified (trusted) fact.
+        self._trusted_funcs = {
+            n.name for n in ast.walk(node)
+            if isinstance(n, ast.FunctionDef) and getattr(n, 'csl_trusted', False)}
 
         for decl in getattr(node, 'csl_shared_decls', []):
             self._shared_vars[decl.variable] = decl.mutex
@@ -669,19 +674,25 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         self.current_function_name = saved_function_name
 
     def _validate_lemma(self, node: ast.FunctionDef) -> None:
-        """lemma.md §3 — soundness checks for a `#@ lemma` function. A lemma is a
-        CHECKED axiom; mis-enforcement lets it prove `False`. Enforced here:
+        """lemma.md §3 — soundness/well-formedness checks for a `#@ lemma`. Enforced:
 
-          • **Variant-on-recursion (the lynchpin, §7.2).** A recursive lemma's
-            self-calls are the induction hypotheses; without a strictly-decreasing
-            `#@ \\variant` the recursion is ill-founded — an unsound "proof by
-            assuming the goal". (Why3 then checks the variant strictly decreases.)
           • **`\\diverges` forbidden (§7.3).** A non-terminating lemma proves nothing.
-          • **Shape (§7.1).** A lemma states something — at least one `#@ ensures`.
+          • **Shape (§7.1).** At least one `#@ ensures` (the conclusion).
+          • **Ghost discipline (§7.4).** Return type `None` (a lemma computes nothing →
+            WhyML `unit`), `assigns \\nothing`, and no `return <value>` in the body.
+          • **No trust-leakage (§7.5).** A plain `#@ lemma` body may not call a
+            `\\trusted` function — that would smuggle an *unverified* fact into a
+            "proved" lemma (Why3 cannot catch this; the trusted `val`'s contract is
+            axiomatic). [`#@ lemma \\trusted` shim — assumed+warned — is unimplemented.]
 
-        Not yet enforced (documented refinements — see remains.md): assigns-\\nothing
-        / return-None ghost discipline, the proof-body statement whitelist, trust-leakage
-        (`#@ lemma` body calling `\\trusted`), and the contract-call-position ban."""
+        NOT a soundness check (Why3 owns it; remains-2.md decision A): the
+        variant-on-recursion requirement is intentionally NOT enforced — Why3 infers
+        structural variants and rejects ill-founded recursion via its termination VC,
+        so requiring `#@ \\variant` was redundant and over-restrictive.
+
+        Deferred (Why3-enforced, like inductive positivity): the contract-call-position
+        ban — using a lemma name as a term in a `#@ requires`/`#@ ensures` is rejected
+        by Why3 (a `let lemma` is not a usable term)."""
         if not getattr(node, 'csl_lemma', False):
             return
         name = node.name
@@ -693,16 +704,33 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
             raise PyCSLSemanticError(
                 f"`#@ lemma` '{name}' has no `#@ ensures`: a lemma must state the "
                 f"fact it proves (the conclusion). Add at least one `#@ ensures`.")
-        recursive = any(
-            isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == name
-            for n in ast.walk(node))
-        if recursive and not getattr(node, 'csl_function_variants', []):
+        # Ghost discipline: a lemma returns unit.
+        ret = node.returns
+        if not (ret is None or (isinstance(ret, ast.Constant) and ret.value is None)):
             raise PyCSLSemanticError(
-                f"Recursive `#@ lemma` '{name}' has no `#@ \\variant`. A recursive "
-                f"lemma's self-calls are the induction hypotheses; without a "
-                f"strictly-decreasing variant the recursion is ill-founded — an "
-                f"unsound 'proof by assuming the goal'. Add `#@ \\variant <measure>` "
-                f"(e.g. the structurally-decreasing argument).")
+                f"`#@ lemma` '{name}' must be annotated `-> None`: a lemma computes "
+                f"nothing (its WhyML result is `unit`); the body is the proof.")
+        for a in getattr(node, 'csl_assigns', []):
+            for t in getattr(a, 'targets', []):
+                if not isinstance(t, Nothing):
+                    raise PyCSLSemanticError(
+                        f"`#@ lemma` '{name}' must be `assigns \\nothing`: a lemma is "
+                        f"erased at extraction and may not mutate non-ghost state.")
+        for n in ast.walk(node):
+            if isinstance(n, ast.Return) and n.value is not None and not (
+                    isinstance(n.value, ast.Constant) and n.value.value is None):
+                raise PyCSLSemanticError(
+                    f"`#@ lemma` '{name}' body must not `return` a value — it is a "
+                    f"proof (returns unit). Use `pass` for an immediate arm.")
+        # No trust-leakage: a plain lemma may not rest on a `\trusted` (unverified) fact.
+        trusted = getattr(self, "_trusted_funcs", set())
+        for n in ast.walk(node):
+            if (isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                    and n.func.id in trusted):
+                raise PyCSLSemanticError(
+                    f"`#@ lemma` '{name}' calls `\\trusted` function '{n.func.id}': a "
+                    f"checked lemma may not rest on an unverified (trusted) fact — that "
+                    f"would smuggle an unchecked axiom into a 'proved' lemma.")
 
     def _validate_no_mutable_defaults(self, node: ast.FunctionDef) -> None:
         """Ownership R2 (crude enforcement, `docs/pycsl-ownership-discipline.md`

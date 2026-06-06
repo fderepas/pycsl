@@ -1,9 +1,12 @@
-"""Test 0560 — negative: a recursive lemma WITHOUT `#@ \variant` is rejected.
+"""Test 0560 — negative: a non-terminating lemma cannot prove False (the true boundary).
 
-The soundness lynchpin (lemma.md §3 / spec §7.2). `bad_lemma` calls itself but
-declares no `#@ \variant`, so the recursion is ill-founded — an unsound "proof by
-assuming the goal" that could derive anything. Module 4 (`_validate_lemma`) rejects
-it BEFORE any proving run. Negative twin of the recursive flagship 0559.
+`bogus` recurses on `n` UNCHANGED (no structurally-decreasing argument, no `#@ \variant`)
+while claiming `ensures 1 == 2`. Why3's termination VC fails ("Cannot prove termination"),
+so the lemma's conclusion is NEVER exported — you cannot prove `False` by ill-founded
+recursion. This is the genuine soundness boundary for recursive lemmas: **Why3 owns
+termination/well-foundedness** (it infers structural variants and rejects ill-founded
+recursion), so PyCSL no longer requires `#@ \variant` (remains-2.md decision A). Contrast
+0570, where a structurally-recursive lemma with no variant PROVES.
 
 Committed `# pycsl-expected: FAIL` and STAYS failing.
 """
@@ -12,25 +15,8 @@ Committed `# pycsl-expected: FAIL` and STAYS failing.
 _ = 0  # anchor
 
 
-#@ datatype Nat = Z | S(Nat)
-
-
-#@ \variant n
-#@ assigns \nothing
-def to_int(n: Nat) -> int:
-    match n:
-        case Z():
-            return 0
-        case S(m):
-            return 1 + to_int(m)
-
-
 #@ lemma
-#@ ensures to_int(n) >= 0
+#@ ensures 1 == 2
 #@ assigns \nothing
-def bad_lemma(n: Nat) -> None:
-    match n:
-        case Z():
-            pass
-        case S(m):
-            bad_lemma(m)
+def bogus(n: int) -> None:
+    bogus(n)

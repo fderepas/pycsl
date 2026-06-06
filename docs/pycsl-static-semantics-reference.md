@@ -530,25 +530,29 @@ No new error codes. _Corresponds to `annotations.md` §2.1.14._
 
 ```
     f carries #@ lemma     f has ≥1 ensures     ¬ f.diverges
-    recursive(f) ⇒ f has a #@ \variant
-   ─────────────────────────────────────────────────────────
+    return(f) = None     assigns(f) = \nothing     no `return <v>` in body
+    no call to a \trusted symbol in body
+   ─────────────────────────────────────────────────────────────────────
     Γ_f ⊢ lemma : ok
 ```
 
-**Rule.** A `#@ lemma` is a checked logical fact — mis-enforcement lets it prove
-`False`, so Module 4 (`_validate_lemma`) enforces:
+**Rule.** Module 4 (`_validate_lemma`) enforces well-formedness + the one soundness
+property Why3 can't see:
 
-- **Variant-on-recursion (lynchpin).** If `f`'s body contains a self-call, `f` MUST
-  carry `#@ \variant` — its self-calls are the induction hypotheses and an ill-founded
-  recursion is an unsound "proof by assuming the goal". (Module 4 enforces *presence*;
-  Why3 then discharges the termination VC, enforcing *strict decrease*.)
-- **`\diverges` forbidden.** `lemma` + `\diverges` ⇒ hard error.
-- **Shape.** At least one `#@ ensures` (the conclusion).
+- **Ghost discipline.** Return type `None` (→ WhyML `unit`), `assigns \nothing`, and no
+  `return <value>` in the body (a lemma computes nothing; the body is the proof).
+- **`\diverges` forbidden**; at least one `#@ ensures` (the conclusion).
+- **No trust-leakage.** A plain `#@ lemma` body may not call a `\trusted` function —
+  Why3 cannot catch this (the trusted `val`'s contract is axiomatic), so it would
+  smuggle an unverified fact into a checked lemma.
 
-**Refinements not yet enforced** (documented in `remains.md`): the assigns-`\nothing` /
-return-`None` ghost discipline, the proof-body statement whitelist, the no-trust-leakage
-rule (a plain `#@ lemma` body calling a `\trusted` function), and the ban on referencing
-a lemma inside a `#@ requires`/`#@ ensures` expression.
+**Termination is Why3's, not Module 4's (decision A).** `#@ \variant` on a recursive
+lemma is *optional*: Why3 infers a structural variant and rejects ill-founded recursion
+via its termination VC, so a non-terminating "lemma" cannot export `False`. (Requiring
+the annotation was redundant *and* over-restrictive — it rejected provable lemmas.)
+Likewise the **contract-call-position ban** (a lemma name used as a term in a
+`#@ requires`/`#@ ensures`) is left to Why3 — a `let lemma` is not a usable term, so
+Why3 rejects it; no PyCSL pre-check.
 
 _Corresponds to `annotations.md` §2.1.16 and translational §T.2.12._
 
