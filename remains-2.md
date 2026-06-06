@@ -113,18 +113,19 @@ implemented — see "Open work / poly" for the four concrete obstacles.
   lowering, so `o.x` → abstract `get_x o` and `x in s` → mis-typed positional membership. Fixed by
   registering bound record vars during body emission and dispatching `_csl_in` on the domain type.
   Byte-identical 492/492.
-- **`rule` / `inductive` are reserved-ish words** at contract-start (grammar + `_MODULE_PREFIXES`); the
-  contextual LALR lexer keeps them contextual and the byte-diff confirmed no regression. `rule` is
-  slated for removal (see "Open work / inductive").
+- **`inductive` is a reserved-ish word** at contract-start (the block-folder `_INDUCTIVE_HDR` +
+  grammar); the contextual LALR lexer keeps it contextual and the byte-diff confirmed no regression.
+  **`rule` is no longer reserved** — the keyword was retired (`5516569`); rules now fold in by
+  indentation, leaving only `inductive` (which mirrors Why3/Rocq/Lean).
 
 ---
 
 ## Open work (the remaining plan, prioritized)
 
-**Implementation pass status.** ✅ Landed this pass: **A** (lemma decision-A + ghost discipline +
-trust-leakage, `ca260ff`), **B-relational** inductive (free, `4b37f18`), **C-multi-binder** (`4b37f18`).
-⏳ Remaining (each genuinely substantial or brittle — *not* quick wins; stop-and-flagged with scope
-below): the `#@ rule`→indentation cosmetic rework, mutual-inductive `with` groups, inductive reflection
+**Implementation pass status.** ✅ Landed: **A** (lemma decision-A + ghost discipline + trust-leakage,
+`ca260ff`), **B-relational** inductive (free, `4b37f18`), **C-multi-binder** (`4b37f18`), **B `#@ rule`
+→indentation** (keyword retired, `5516569`). ⏳ Remaining (each genuinely substantial or brittle — *not*
+quick wins; stop-and-flagged with scope below): mutual-inductive `with` groups, inductive reflection
 and the relational-consequence-via-lemma; quantification `#@ by induction on`, Phase-C triggers
 (brittle), and ghost-collection mode; and all four poly obstacles (the ~3-week function half). Drivers
 to date: **0555–0573** (19 total: 11 PASS, 8 XFAIL).
