@@ -20,10 +20,14 @@ baseline (the additive-directive gate), and 5-surface doc-coherency green. Combi
 
 ---
 
-## ⚠️ Soundness logic to review before trusting (read this first)
+## ⚠️ Soundness logic — review status (read this first)
 
 These are the parts where a subtle bug would let the verifier prove `False`. They are tested
-(anti-soundness drivers stay failing), but a formal-methods review is the right final check.
+(anti-soundness drivers stay failing). **Review outcome:** notes 2 (inductive positivity) and 3
+(quantification binder use) are **agreed/settled** — Why3 is the accepted enforcer, no PyCSL pre-check
+planned. Note 1 (lemma variant check) is **decided** — drop it (decision A), Why3 owns termination.
+The remaining open soundness items are the *deferred lemma checks* called out in note 1
+(ghost-discipline / body-whitelist / trust-leakage / call-position).
 
 1. **lemma — `Module4_SemanticAnalyzer._validate_lemma`** (`9896cb7`).
    **CORRECTION (was mislabeled a "soundness lynchpin" — it is not).** The variant-on-recursion check
@@ -53,19 +57,20 @@ These are the parts where a subtle bug would let the verifier prove `False`. The
    accepted, which weakens (but per Why3 does not break) the "no unchecked axiom" guarantee. *These* are
    the real lemma-soundness refinements to weigh, not the variant check.
 
-2. **inductive — strict positivity is enforced by Why3, NOT by PyCSL** (`6391813`). A
-   non-strictly-positive rule is rejected by Why3 at verification ("non strictly positive occurrence",
-   driver `0563`), so an unsound least fixpoint **cannot verify**. PyCSL emits the `inductive` decl
-   and relies on Why3's check. *Review angle:* this is sound (Why3 is the authority), but there is **no
-   PyCSL pre-check** — the diagnostic comes from Why3, not a clean Module-4 error, and PyCSL does not
-   independently verify conclusion-shape/arity/exec-position. If you want defense-in-depth, the Module-4
-   `_validate_inductive` pass is the deferred item.
+2. **inductive — strict positivity is enforced by Why3, NOT by PyCSL** (`6391813`). **AGREED (user) —
+   settled, no PyCSL pre-check planned.** A non-strictly-positive rule is rejected by Why3 at
+   verification ("non strictly positive occurrence", driver `0563`), so an unsound least fixpoint
+   **cannot verify**. PyCSL emits the `inductive` decl and relies on Why3's check; that is the accepted
+   design (Why3 is the authority), consistent with how the lemma variant check resolves (decision A).
+   A Module-4 `_validate_inductive` pre-check (positivity / conclusion-shape / arity / exec-position) is
+   therefore **not on the soundness path** — only an optional earlier/cleaner-diagnostic nicety if ever
+   wanted, not a gap.
 
-3. **quantification — typed binder resolution** (`37d9a37`).
-   `Module4._validate_quant_binders` rejects an unresolved binder type (driver `0556`). *Review angle:*
-   it does **not** type-check the binder's *use* in the body — e.g. arithmetic on a datatype binder
-   (`\forall c: Color; c + 1`) is caught only by Why3's typechecker (driver `0557`), not by Module 4.
-   Sound (Why3 catches it) but the diagnostic is a Why3 type error, not a PyCSL one.
+3. **quantification — typed binder resolution** (`37d9a37`). **AGREED (user) — settled.**
+   `Module4._validate_quant_binders` rejects an unresolved binder *type* (driver `0556`). It does not
+   type-check the binder's *use* in the body — arithmetic on a datatype binder (`\forall c: Color;
+   c + 1`) is caught by Why3's typechecker (driver `0557`), which is the accepted enforcer. No PyCSL
+   body-type pre-check is planned; the Why3 type error is sufficient.
 
 **Net:** every soundness-critical violation is caught *somewhere* (PyCSL or Why3); the deferred items
 are about making the diagnostic earlier/cleaner and adding defense-in-depth, not about closing a hole
@@ -115,7 +120,7 @@ is to be retargeted to a non-terminating lemma (the true boundary).
 - **mutual lemma groups** without per-member variants (the indirect-recursion gap, review note 1).
 - `#@ lemma \trusted` shim; `#@ by induction on` empty-body form; cross-module lemma reuse.
 
-### inductive — P1 landed; positivity pre-check + P2–P4 deferred
+### inductive — P1 landed; positivity owned by Why3 (agreed); P2–P4 deferred
 **Landed (`6391813`):** module-level `#@ inductive p(params):` + `#@ rule <name>: <horn-clause>`
 (body reuses the contract-expression grammar incl. typed quantifiers). Single predicate emits
 `inductive p t = | Rule : clause` (**no `end`** — verified: an `end` closes the module). Predicate
@@ -123,11 +128,12 @@ applications `p(args)` → `(p args)`. Flagship `0562` (`even`, introduction pro
 (non-positive) rejected by Why3.
 
 **Deferred:**
-- **Module-4 `_validate_inductive`** — a clean PyCSL pre-check for strict positivity (polarity walk),
-  conclusion-shape, arity, binder typing, and executable-position ban. *Note:* PyCSL's `not` does not
-  parse inside a rule clause the way the spec's Horn syntax assumes, so the non-positive negative
-  driver uses a nested-implication form; a polarity walk should handle both. Why3 enforces soundness
-  meanwhile (review note 2).
+- **Module-4 `_validate_inductive`** — **NOT a soundness item (agreed, review note 2):** Why3 owns
+  strict positivity. A PyCSL pre-check (polarity walk, conclusion-shape, arity, binder typing,
+  executable-position ban) is only an optional earlier/cleaner-diagnostic nicety, not planned. *Note
+  if ever built:* PyCSL's `not` does not parse inside a rule clause the way the spec's Horn syntax
+  assumes, so the non-positive negative driver uses a nested-implication form; a polarity walk should
+  handle both.
 - **P2 — mutually-inductive `with` groups** (`inductive wf … with wf_spine …`). The single-predicate
   emitter would extend to a group; needs the `with` keyword and group-wide positivity.
 - **P3 — relational form** (reachability) + universally-quantified consequences via `#@ lemma`
