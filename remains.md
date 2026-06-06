@@ -151,6 +151,31 @@ is to be retargeted to a non-terminating lemma (the true boundary).
 applications `p(args)` → `(p args)`. Flagship `0562` (`even`, introduction proves `even(4)`); `0563`
 (non-positive) rejected by Why3.
 
+**DECIDED (surface simplification, pending code) — drop the `#@ rule` keyword; use indentation.**
+Rules become bare `name: clause` lines indented under the `#@ inductive …:` header, matching the
+existing `#@ act:` / `#@ happy:` block style and Why3's own `| Name : clause` (no `rule`):
+```python
+#@ inductive even(n: int):
+#@     even_zero: even(0)
+#@     even_step: \forall m: int; even(m) ==> even(m + 2)
+```
+*Why:* `rule` is a generic English word that had to be made near-reserved (it sits in
+`_MODULE_PREFIXES` + the grammar — see the reserved-words cross-cutting note); dropping it shrinks the
+keyword footprint and is more Why3-like. The indentation already conveys grouping.
+*Not a trivial deletion — a small parsing rework:* `rule` currently doubles as the rule **delimiter**
+and **recognizer** (a `_MODULE_PREFIXES` entry + its own `rule_decl` grammar rule + Module-3 grouping).
+Removing it means switching to the indentation **block-folder** (`Module1` `_BLOCK_HDRS`/`_fold_blocks`,
+the act/happy mechanism) with a new `_INDUCTIVE_HDR` regex capturing the parenthesized signature
+`inductive NAME(sig):`; the grammar becomes `inductive_decl: "inductive" CNAME "(" mixin_params? ")"
+":" (CNAME ":" expr)+` (the `CNAME ":"` pattern delimits rules — needs an LALR-conflict check), and
+`rule_decl` / the `rule` prefix / the Module-3 rule-grouping are removed.
+*Scope of the change:* surface only — **emitted WhyML is identical** (same `inductive p t = | Rule :
+clause`), so 0562/0563 keep their PASS/XFAIL with byte-identical output. Touches: `Module1`,
+`Module2`, `Module3`, drivers `0562`/`0563` (rewrite to the indented form), and the 5 doc surfaces
+(remove `#@ rule` as a directive — it must come **out** of `annotations.md` so `doc-coherency.py`
+stops requiring it; show the indented syntax in annotations §2.8 / concrete-syntax / static-sem /
+translational / skill). No byte-diff risk for non-inductive files.
+
 **Deferred:**
 - **Module-4 `_validate_inductive`** — **NOT a soundness item (agreed, review note 2):** Why3 owns
   strict positivity. A PyCSL pre-check (polarity walk, conclusion-shape, arity, binder typing,
@@ -210,8 +235,10 @@ follow-on, starting with obstacles (1)+(2) which together unblock recursive gene
   also smooths P3/P4.
 - **`#@ rule` / `#@ inductive` are now reserved-ish words** at contract-start (added to the grammar +
   `_MODULE_PREFIXES`). The contextual LALR lexer keeps them contextual, and the full byte-diff
-  confirmed no existing file regressed — but keep it in mind if a future contract wants `rule` as an
-  identifier.
+  confirmed no existing file regressed — but keep it in mind if a future contract wants them as
+  identifiers. **`rule` is slated for removal** (see the inductive surface-simplification decision
+  above — rules become indented `name: clause` lines), which retires the generic-word `rule` and
+  leaves only `inductive` (which mirrors Why3/Rocq/Lean).
 
 ## How to verify this run
 ```
