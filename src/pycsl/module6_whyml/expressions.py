@@ -1433,6 +1433,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         self._add_abstract_op(f"val constant {safe} : int")
         return safe
 
+    def _quant_binder_whyml(self, binder_type: Optional[str]) -> str:
+        """quantification.md: map a quantifier binder type to its WhyML sort.
+        `None` ⇒ legacy `int` (emitted verbatim → byte-identical for every existing
+        quantifier). Scalars map int→int / bool→bool / str→string / float→real; a
+        declared `#@ datatype` or class name lowers to its Why3 type (lowercased,
+        e.g. `Color`→`color`). Module 4 has already rejected an unresolved name."""
+        if binder_type is None:
+            return "int"
+        scalars = {"int": "int", "bool": "bool", "str": "string", "float": "real"}
+        return scalars.get(binder_type, whyml_ident(str(binder_type).lower()))
+
     def _field_label(self, record_lower: Optional[str], field: str) -> str:
         """WhyML label for a record field. Ambiguous names (shared by >1
         record, e.g. an inherited field) are qualified `<record>_<field>` to
@@ -1869,9 +1880,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             elts = [self._expr_to_whyml(e, local_refs, invariant_ctx, subst) for e in expr.get("elts", [])]
             return f"({', '.join(elts)})"
         if t == "Forall":
-            return f"(forall {expr['var']} : int. {self._expr_to_whyml(expr['body'], local_refs, invariant_ctx, subst)})"
+            bty = self._quant_binder_whyml(expr.get("binder_type"))
+            return f"(forall {expr['var']} : {bty}. {self._expr_to_whyml(expr['body'], local_refs, invariant_ctx, subst)})"
         if t == "Exists":
-            return f"(exists {expr['var']} : int. {self._expr_to_whyml(expr['body'], local_refs, invariant_ctx, subst)})"
+            bty = self._quant_binder_whyml(expr.get("binder_type"))
+            return f"(exists {expr['var']} : {bty}. {self._expr_to_whyml(expr['body'], local_refs, invariant_ctx, subst)})"
         if t == "DictLit":
             # Body dict literal: empty `map int (option int)`. Non-empty
             # dict literals would need element-by-element `Map.set` but
