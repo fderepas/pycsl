@@ -33,6 +33,44 @@ mixin **once** in isolation, then check that the full composition is consistent.
 
 ---
 
+## Design: shared state and concrete dependencies
+
+PyCSL's mixin model differs from textbook trait systems in two deliberate ways,
+both driven by how PyCSL's own facade (`Module6_WhyMLTranspiler`) actually
+composes its handler mixins.
+
+**Shared state vs owned fields (D1).** Textbook traits assume each mixin owns
+disjoint fields; two mixins touching the same field is a conflict. PyCSL's
+emission mixins do the opposite — `ExpressionEmissionMixin`,
+`StatementEmissionMixin`, `PreambleEmissionMixin`, etc. all share facade state
+(`self.program_ir`, `self._in_spec`, …). The `#@ shared_state` directive
+declares a field as **deliberately shared** (not a conflict); `#@ touches_field`
+keeps the owned-field / single-owner semantics for fields that genuinely should
+be disjoint.
+
+**Concrete dependencies vs abstract holes (D2).** Textbook `requires_method` is
+an abstract hole the composing class fills. PyCSL's sub-mixins instead call
+**concrete** helpers that live in a sibling (`self._e`, `self._deref`,
+`self._stmts_to_whyml`). The `#@ depends_method` directive models this: a
+concrete dependency on a sibling's method, where the provider's contract must
+**refine** the declared one. Both relations lower to the same abstract `val` at
+verification time; the distinction is whether the dependency is resolved by the
+composer (abstract) or by a named sibling (concrete).
+
+---
+
+## Verify-once property
+
+Each `#@ mixin` is verified **once** in isolation against its declared
+interface — dependencies become abstract `val`s (reusing the existing
+abstract-op machinery). On `#@ compose_from`, only the resolution moves are
+re-checked: unique-provider, contract refinement, and field classification.
+This incremental property comes from the trait verification literature
+(Damiani et al. 2014) and avoids re-proving every mixin method when the
+composed class changes.
+
+---
+
 ## Concrete example
 
 From the reference corpus (`0549.py`):
@@ -80,6 +118,27 @@ written field is declared.
 - **Tier 3** (shelved): diamonds and full behavioral-subtyping refinement.
 
 ---
+
+## Literature
+
+The mixin discipline is grounded in the trait verification literature:
+
+- N. Schärli, S. Ducasse, O. Nierstrasz, A. Black. *Traits: Composable Units of
+  Behaviour.* ECOOP 2003, LNCS 2743, pp. 248–274.
+  — Introduces traits as composable, conflict-aware units; the `provides` /
+  `requires` / `exclude` / `resolve` vocabulary PyCSL adopts.
+
+- S. Ducasse, O. Nierstrasz, N. Schärli, R. Wuyts, A. Black. *Traits: A
+  Mechanism for Fine-grained Reuse.* ACM TOPLAS 28(2), 2006, pp. 331–388.
+  — The journal-length formalization (flattening property, diamond-free
+  composition algebra).
+
+- F. Damiani, J. Dovland, E. B. Johnsen, I. Schaefer. *Verifying Traits: An
+  Incremental Proof System for Fine-grained Reuse.* Formal Aspects of Computing
+  26(4), 2014, pp. 761–793.
+  — Proves the **verify-once** property: each trait is checked in isolation;
+  composition only re-checks resolution moves. This is the theoretical
+  foundation for PyCSL's incremental mixin verification.
 
 ## Related terms
 
