@@ -58,6 +58,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return whyml_str
         if t == "Call" and ir_expr.get("func", "") in ("isinstance", "hasattr"):
             return whyml_str
+        # inductive.md: a predicate application `p(args)` is already a formula (Why3
+        # `predicate`), not an int — never `<> 0`-coerce it (e.g. inside `and`/`or` in a
+        # reflection inversion lemma `… or (n >= 2 and even(n - 2))`).
+        if t == "Call" and ir_expr.get("func", "") in getattr(self, "_inductive_preds", set()):
+            return whyml_str
         if t in ("Exists", "Forall", "Compare"):
             return whyml_str
         # Ghost set/map predicates already return bool — no <> 0 needed

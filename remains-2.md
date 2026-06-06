@@ -127,9 +127,9 @@ implemented — see "Open work / poly" for the four concrete obstacles.
 →indentation** (`5516569`), **B-mutual `with` groups** (`dd482e4`, `0574`/`0575`), **B universally-
 quantified consequence via `#@ lemma`** (`induction_pr`, `0581`), and **inline.md — inlining method
 calls on module-level globals** (`7b1a28b`, `0576`–`0580`). ⏳ Remaining (each genuinely substantial or
-brittle): inductive reflection; quantification `#@ by induction on`, Phase-C triggers (brittle), and
-ghost-collection mode; and all four poly obstacles (the ~3-week function half). Drivers to date:
-**0555–0581** (27 total).
+brittle): quantification `#@ by induction on`, Phase-C triggers (brittle), and ghost-collection mode;
+and all four poly obstacles (the ~3-week function half). **The inductive arc is now complete** (single,
+mutual, relational, consequence, reflection). Drivers to date: **0555–0582** (28 total).
 
 ### A. lemma soundness — ✅ DONE (decision A + ghost discipline + trust-leakage)
 - **Decision A applied:** the variant-on-recursion check is removed; `0560` retargeted to a
@@ -177,7 +177,12 @@ ghost-collection mode; and all four poly obstacles (the ~3-week function half). 
   backend alone times out (it cannot invent the induction). Proof-command change only — no emission
   change; `induction_pr` is a no-op on non-inductive goals and is gated on the module declaring an
   inductive predicate.
-- **P4 reflection** (decision function + agreement lemma); coinductive predicates out of scope. *(Open.)*
+- **P4 reflection** (decision function + agreement lemma) — ✅ **DONE (driver `0582`)**. The logic-only
+  predicate is connected to an executable recursive `let function` `p_dec` (returns 0/1) by a `#@ lemma`
+  proving `p_dec(n) == 1 <==> p(n)`, composing the consequence + the inversion lemma + the decision
+  function's recursion (all via `induction_pr`). Required one emission fix: `_to_bool` must not
+  `<> 0`-coerce a predicate application (it is already a formula) inside `and`/`or`. Coinductive
+  predicates remain out of scope.
 - *(Not soundness — note 2)* an optional Module-4 `_validate_inductive` pre-check (positivity /
   conclusion-shape / arity / exec-position); Why3 already enforces positivity. If ever built, note that
   PyCSL's `not` doesn't parse inside a rule clause the way the spec's Horn syntax assumes (the

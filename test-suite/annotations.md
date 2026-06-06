@@ -661,12 +661,19 @@ derives introduction, inversion, and induction principles.
   *positively* (never under negation or in a nested implication's antecedent), guaranteeing a
   least fixpoint exists. **Why3 enforces this** ("non strictly positive occurrence …") across the
   whole group; a non-positive rule fails. (A cleaner Module-4 pre-check is a documented refinement.)
+- **Reflection.** Connect the logic-only predicate to an EXECUTABLE decision function via an agreement
+  lemma: a recursive `let function` `p_dec` returning 0/1, and a `#@ lemma` proving
+  `p_dec(n) == 1 <==> p(n)` by induction (composing the consequence `p(n) ==> …`, the inversion
+  `p(n) ==> … or …`, and the decision function's own recursion). Lets you reason with `p` in specs and
+  compute with `p_dec` (driver `0582`).
 - **Boundaries.** The relational form (a non-structural, multi-arg predicate like reachability) works
   on this same machinery (driver `0572`). Coinductive predicates are out of scope.
 
 **Test-corpus cross-reference:** `0562` (`even`, introduction proves `even(4)`), `0563`
 (non-strictly-positive rule — rejected), `0572` (relational/reachability), `0574` (mutual `even`/`odd`
-group), `0575` (non-positive occurrence in a `with`-member — rejected group-wide).
+group), `0575` (non-positive occurrence in a `with`-member — rejected group-wide), `0581`
+(universally-quantified consequence via `#@ lemma` + `induction_pr`), `0582` (reflection: decision
+function + agreement lemma).
 
 ---
 
