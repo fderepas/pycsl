@@ -669,6 +669,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
     def _handle_dotted_call(self, func_name: str, args: List[str]) -> str:
         """Handle dotted method calls (x.method(...)): emit abstract val declaration."""
+        # Stateful composition: when this is `self.<m>(...)` inside a composer and
+        # `<self_type>__<m>` is a flattened provider (`_apply_composition`), call it
+        # CONCRETELY — `(<self_type>__<m> self args)` — so the provider's full
+        # state-mutating contract (`assigns self.f`, `ensures self.f == \old(...)`)
+        # applies. The abstract-val lowering below drops `self` and self-field ensures
+        # (the method-call contract gap), which is sound only for pure providers. A
+        # mixin's own isolation method is NOT in `_composed_provider_methods`, so its
+        # genuine dependency still resolves to the abstract `val`.
+        if func_name.startswith("self.") and self._current_self_type:
+            concrete = f"{self._current_self_type}__{func_name[len('self.'):]}"
+            if concrete in getattr(self, "_composed_provider_methods", set()):
+                _, c_param_types, _, _ = self._resolve_dotted_signature(func_name)
+                while len(c_param_types) < len(args):
+                    c_param_types.append("int")
+                c_coerced = self._coerce_dotted_args(args, c_param_types[:len(args)])
+                return f"({concrete} {' '.join(['self'] + c_coerced)})".rstrip()
         safe_name = whyml_ident(func_name.replace(".", "_"))
         n = len(args)
         arity_name = f"{safe_name}_{n}"
@@ -1841,7 +1857,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return "(Array.make 1024 0)"
         if t == "UnknownPyExpr": return "0"
         if t == "Slice":    return "0"
-        if t == "OldField": return f"(old {expr['object']}.{expr['field']})"
+        if t == "OldField":
+            _of_rec = (self._current_self_type if expr['object'] == "self"
+                       else (getattr(self, "_current_record_var_classes", {}).get(expr['object'], "") or "").lower() or None)
+            return f"(old {expr['object']}.{self._field_label(_of_rec, expr['field'])})"
         if t == "Starred":  return self._expr_to_whyml(expr.get("value", {}), local_refs, invariant_ctx, subst)
         if t == "Bool":
             if self._in_spec: return "true" if expr.get("value") else "false"

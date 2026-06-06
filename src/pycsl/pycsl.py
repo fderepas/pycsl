@@ -607,6 +607,13 @@ def _apply_composition(ir_data: Dict[str, Any]) -> None:
                 funcs.append(clone)
                 existing.add(new_name)
                 own_tails.add(tail)
+                # Record the flattened provider so Module 6 resolves a `self.<tail>()`
+                # call inside the composer to the CONCRETE `<composer>__<tail> self`
+                # (carrying the provider's full state-mutating contract) rather than an
+                # abstract `val` (which drops self + self-field ensures). A sibling
+                # mixin's own isolation method (`<mixin>__<tail>`) is NOT in this set, so
+                # it keeps resolving its genuine dependency to the abstract `val`.
+                ir_data.setdefault("composed_provider_methods", []).append(new_name)
 
 
 def _resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, Any],

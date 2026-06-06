@@ -574,7 +574,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             val = "1"
         elif val == "false":
             val = "0"
-        safe_field = whyml_ident(field)
+        # Qualify the field label for ambiguous names (a field shared by >1 record,
+        # e.g. two mixins/classes each with `count`) so the assignment target matches
+        # the record's declared label — consistent with `_handle_field_get_expr`.
+        # `_field_label` returns the bare name when unambiguous → byte-identical for
+        # non-overlapping corpus.
+        _rec_lower = (self._current_self_type if obj == "self"
+                      else (getattr(self, "_current_record_var_classes", {}).get(obj, "") or "").lower() or None)
+        safe_field = self._field_label(_rec_lower, field)
         decl_fields = self._all_record_fields
         if field in decl_fields:
             # Coerce RHS to the field's declared WhyML type. Without

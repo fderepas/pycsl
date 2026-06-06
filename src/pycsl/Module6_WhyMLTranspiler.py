@@ -369,6 +369,12 @@ class Module6_WhyMLTranspiler(
         self._emit_opaque_class_aliases(functions, out, declared_types)
 
         self._module_func_names = {whyml_ident(func["name"]) for func in functions}
+        # Stateful composition: the set of flattened provider methods (`<composer>__<m>`,
+        # from `_apply_composition`). A `self.<m>()` call inside the composer resolves to
+        # the concrete provider (passing `self`) instead of an abstract `val`, so the
+        # provider's state-mutating contract reaches the composer. Empty for non-mixin
+        # modules → self-calls keep their abstract-val lowering → byte-identical.
+        self._composed_provider_methods = set(self.ir.get("composed_provider_methods", []))
         # Mixin verify-once (S1): synthesize a pseudo-function per declared
         # `depends_method`/`requires_method` so the SAME contract-propagation maps
         # that wire `self.<m>(…)` to a sibling's `ensures` also carry the DECLARED

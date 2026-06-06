@@ -1,4 +1,4 @@
-"""Test 0554 — Gate-A demand-driver: STATEFUL mixin composition (Tier-1 follow-on).
+"""Test 0554 — STATEFUL mixin composition (Tier-1 stateful extension).
 
 A faithful miniature of PyCSL's own facade-with-MUTABLE-shared-state shape (the
 self-hosting target, `src/self-annotate/`). Unlike the pure-method flagship 0549
@@ -6,41 +6,30 @@ self-hosting target, `src/self-annotate/`). Unlike the pure-method flagship 0549
 the shared facade state through the composed record — a real state transition:
 
   - `Counter` is a `#@ mixin` that `provides bump`, declares the shared facade
-    field `count`, and writes it (`self.count = self.count + 1`);
+    field `count`, and WRITES it (`self.count = self.count + 1`);
   - `Service` `#@ compose_from Counter`, owns `count` via `__init__`, carries a
     `#@ class invariant self.count >= 0`, and calls `self.bump()` in `tick`,
-    expecting the post-state `self.count == \\old(self.count) + 1` to flow through
-    the composition to `tick`'s own postcondition.
+    where the post-state `self.count == \\old(self.count) + 1` flows through the
+    composition to `tick`'s own postcondition.
 
-NOT a stays-FAIL negative (cf. 0550/0551/0552, which assert composition *errors*).
-This is a FAIL-until-BUILT Gate-A driver, like 0549 was before S2: it fails today
-only because Tier-1-as-shipped does not yet support *stateful* composition, and it
-must FLIP to PASS when that lands.
-
-WHY IT FAILS TODAY (the demand). Two concrete gaps, both rooted in the verify-once
-abstract-`val` model that suffices for pure methods but not for state:
-  (1) a `#@ shared_state` mixin with no own `__init__` emits as an opaque
-      `type counter = int` (not a record), so the cloned `counter__bump`'s
-      `self.count` mis-types against an `int`-typed `self`;
-  (2) the abstract `val` synthesized for a provided method drops `self` and any
-      self-field-referencing `ensures` (the standing method-call-contract gap),
-      so `self.bump()`'s post-state `self.count == \\old(self.count) + 1` never
-      reaches `Service.tick` — the mutation is invisible to the composer, and
-      `tick`'s postcondition cannot be discharged.
-
-WHAT FLIPS IT TO PASS (the spec for the follow-on):
-  - a stateful `#@ mixin` emits as a WhyML record carrying its shared/owned fields;
-  - on `compose_from`, a provided method composes as a CONCRETE `<composer>__m self`
-    call (not an abstract `val`), so the shared-field post-state propagates;
-  - the composed record conjoins each mixin's `#@ class invariant` over the shared
-    field, and a write to shared state appears in the method's `assigns` (existing
-    check) — recovering soundness the PyCSL way (mixin.md D1).
+PASSES under stateful composition (the extension that flipped this from FAIL).
+Three mechanisms make the mutation provable end-to-end:
+  (1) a stateful `#@ mixin` (one whose methods declare `#@ shared_state` /
+      `#@ touches_field`) emits as a WhyML RECORD carrying those fields — so the
+      cloned `counter__bump`'s `self.count` type-checks (was `type counter = int`);
+  (2) on `compose_from`, a provided method is invoked CONCRETELY —
+      `(service__bump self)`, not an abstract `val` — so the provider's full
+      state-mutating contract (`assigns self.count`,
+      `ensures self.count == \\old(self.count) + 1`) reaches `tick`. This closes,
+      for the composed case, the method-call-contract gap that drops `self` and
+      self-field `ensures` from the abstract-`val` lowering;
+  (3) the composed record conjoins the class invariant `self.count >= 0`, which
+      Why3 then checks every mutating method maintains.
 
 Contrast 0549 (pure methods) — there the abstract-`val` model is sufficient
-*because* nothing mutates shared state; that is exactly the boundary this driver
-pushes past.
+*because* nothing mutates shared state; this driver is the same algebra pushed
+past that boundary into mutable shared state.
 """
-# pycsl-expected: FAIL
 # pycsl-flags: --memory-model hoare
 _ = 0  # anchor
 
@@ -56,10 +45,9 @@ class Counter:
         self.count = self.count + 1
 
 
+#@ class invariant self.count >= 0
 #@ compose_from Counter
 class Service:
-    #@ class invariant self.count >= 0
-
     def __init__(self) -> None:
         self.count = 0
 

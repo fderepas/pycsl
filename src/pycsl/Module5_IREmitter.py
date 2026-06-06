@@ -1103,6 +1103,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             return head.lower()
         return "int"
 
+    @staticmethod
+    def _mixin_field_type(type_str: str) -> str:
+        """Map a `#@ shared_state`/`#@ touches_field` declared type to the record
+        field type the type-decl emitter understands (the same coarsening used for
+        __init__ fields): scalar/bool → `int`, containers keep their name."""
+        t = (type_str or "int").strip()
+        if t in ("list", "dict", "set", "frozenset", "tuple", "array", "string"):
+            return "list" if t == "array" else t
+        return "int"
+
     def _collect_class_fields(self, node: ast.ClassDef) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
         """Extract mutable fields and default values from __init__.
 
@@ -1266,6 +1276,26 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         if compose_from:
             self.program_ir.setdefault("compositions", []).append(
                 {"composer": node.name, "mixins": compose_from})
+        # Stateful mixin (Tier-1 stateful composition): a `#@ mixin` whose methods
+        # declare `#@ shared_state`/`#@ touches_field` fields but has no __init__ of
+        # its own must still emit as a RECORD (not the opaque `type c = int`), so its
+        # provided methods' `self.<field>` accesses type-check in isolation (S1
+        # verify-once) and after they are cloned into the composer. Merge the declared
+        # fields into `fields` (dedup by name; __init__ fields win).
+        if is_mixin:
+            seen = {f["name"] for f in fields}
+            for m in node.body:
+                if not isinstance(m, ast.FunctionDef):
+                    continue
+                for s in (list(getattr(m, 'csl_mixin_shared_state', []) or [])
+                          + list(getattr(m, 'csl_touches_field', []) or [])):
+                    if s.name in seen:
+                        continue
+                    seen.add(s.name)
+                    fields.append({"name": s.name,
+                                   "type": self._mixin_field_type(s.type_str),
+                                   "mutable": True})
+                    field_defaults.setdefault(s.name, 0)
         if fields or bases:
             class_invariants_ir = [self._csl_to_ir(inv.expr)
                                    for inv in getattr(node, 'csl_class_invariants', [])]
