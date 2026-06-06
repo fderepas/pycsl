@@ -44,6 +44,7 @@ relevant page when needed.
 - [pure function](pure-function.md)
 - [referential transparency](referential-transparency.md)
 - [memory model](memory-model.md)
+- [mixin](mixin.md)
 
 ### Solver and prover background
 
