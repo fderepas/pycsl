@@ -121,6 +121,14 @@ implemented — see "Open work / poly" for the four concrete obstacles.
 
 ## Open work (the remaining plan, prioritized)
 
+**Implementation pass status.** ✅ Landed this pass: **A** (lemma decision-A + ghost discipline +
+trust-leakage, `ca260ff`), **B-relational** inductive (free, `4b37f18`), **C-multi-binder** (`4b37f18`).
+⏳ Remaining (each genuinely substantial or brittle — *not* quick wins; stop-and-flagged with scope
+below): the `#@ rule`→indentation cosmetic rework, mutual-inductive `with` groups, inductive reflection
+and the relational-consequence-via-lemma; quantification `#@ by induction on`, Phase-C triggers
+(brittle), and ghost-collection mode; and all four poly obstacles (the ~3-week function half). Drivers
+to date: **0555–0573** (19 total: 11 PASS, 8 XFAIL).
+
 ### A. lemma soundness — ✅ DONE (decision A + ghost discipline + trust-leakage)
 - **Decision A applied:** the variant-on-recursion check is removed; `0560` retargeted to a
   non-terminating lemma (Why3 termination VC rejects it); `0570` added (recursive lemma with NO
@@ -190,10 +198,13 @@ Generic *datatypes* shipped; the function half is a ~3-week multi-stage feature.
 1. **`pure_ast` PEP-695 parse** — `def f[T](…)` (parse `[names]` into `type_params`); ~20 lines at
    `pure_ast.py::funcdef` (replace the `unsupported(...)` at the `[` check); bounds/defaults/variadics
    stay rejected. (Prototyped + reverted to keep the tree clean.)
-2. **Recursive generic datatype payloads** — `#@ datatype List[T] = LCons(T, List[T])` fails because
-   `variant_def` accepts only bare-CNAME payloads; the type-application `List[T]` in a payload is
-   rejected. Extend the variant-payload grammar to accept `Name[args]`. (1)+(2) together unblock
-   recursive generic *datatypes*.
+2. **Recursive generic datatype payloads** — `variant_def: CNAME "(" CNAME ("," CNAME)* ")"` accepts
+   only bare-CNAME payloads, so the type-application `List[T]` in `LCons(T, List[T])` is not a payload
+   type. (Re-probed this pass: the bare decl appears to parse, but the moment a driver *uses* the type
+   — `def f(x: List)` or a `\is_ctor` contract — it parse-errors at the `List` token. So both the
+   payload grammar AND the use-site/annotation path need the `Name[args]` form.) After the grammar,
+   the *emitter* must thread the datatype's type param through the recursive payload
+   (`List[T]` → `list 'a`), i.e. the same τ-threading as (3). Not a grammar-only fix.
 3. **Function τ-threading** — a param `xs: List[T]` (T the function's type var) must lower to
    `list 'a`, head to `let [rec] function f (xs: list 'a)`; reuse `_fmt_variant`'s datatype
    type-param→`'t` mapping in `module6_whyml/types.py` / `functions.py`.
@@ -204,7 +215,7 @@ Generic *datatypes* shipped; the function half is a ~3-week multi-stage feature.
 
 ## How to verify
 ```
-bin/run-reference-tests.sh --pycsl --start-at 555 --stop-at 569   # 15/15 (PASS + XFAIL twins)
+bin/run-reference-tests.sh --pycsl --start-at 555 --stop-at 573   # 19/19 (11 PASS + 8 XFAIL twins)
 bin/doc-coherency.py --check                                       # exit 0
 ```
 Each feature/phase commit was gated on a whole-corpus emission byte-diff vs its parent
