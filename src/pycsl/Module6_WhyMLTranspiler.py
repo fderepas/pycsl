@@ -369,7 +369,10 @@ class Module6_WhyMLTranspiler(
         # predicate in contracts). Empty for non-inductive modules → no change.
         # Register the predicate names FIRST so the rule clauses' own `p(args)`
         # applications lower to `(p args)` (not an abstract op).
-        self._inductive_preds = {ind["name"] for ind in self.ir.get("inductive_decls", [])}
+        self._inductive_preds = (
+            {ind["name"] for ind in self.ir.get("inductive_decls", [])}
+            | {m["name"] for ind in self.ir.get("inductive_decls", [])
+               for m in ind.get("members", [])})   # P2: mutual `with` group members
         out += self._emit_inductive_decls(self.ir.get("inductive_decls", []))
 
         # `#@ proof` axioms go AFTER the type declarations so an axiom may
@@ -389,7 +392,10 @@ class Module6_WhyMLTranspiler(
         self._composed_provider_methods = set(self.ir.get("composed_provider_methods", []))
         # inductive.md: declared inductive-predicate names, so a `p(args)` application
         # in a contract / rule lowers to `(p args)` (not an arity-suffixed abstract op).
-        self._inductive_preds = {ind["name"] for ind in self.ir.get("inductive_decls", [])}
+        self._inductive_preds = (
+            {ind["name"] for ind in self.ir.get("inductive_decls", [])}
+            | {m["name"] for ind in self.ir.get("inductive_decls", [])
+               for m in ind.get("members", [])})   # P2: mutual `with` group members
         # Mixin verify-once (S1): synthesize a pseudo-function per declared
         # `depends_method`/`requires_method` so the SAME contract-propagation maps
         # that wire `self.<m>(…)` to a sibling's `ensures` also carry the DECLARED

@@ -71,6 +71,10 @@ _HAPPY_HDR = re.compile(r"^\s*happy\s+(\w+)\s*:\s*$")
 # The captured group is the whole `NAME(sig)` (the signature contains `:` for typed
 # params, so the `\([^)]*\)` stops at the close-paren before the trailing header `:`).
 _INDUCTIVE_HDR = re.compile(r"^\s*inductive\s+(\w+\s*\([^)]*\))\s*:\s*$")
+# inductive.md P2 — `#@ with NAME(sig):` continues a mutually-inductive group started
+# by the preceding `#@ inductive`. Handled as a continuation inside the inductive fold
+# (NOT a standalone block header), so a stray `with` with no inductive is a parse error.
+_WITH_HDR = re.compile(r"^\s*with\s+(\w+\s*\([^)]*\))\s*:\s*$")
 _BLOCK_HDRS = (("act", _ACT_HDR), ("happy", _HAPPY_HDR), ("inductive", _INDUCTIVE_HDR))
 
 
@@ -217,12 +221,32 @@ class _Harvester:
             return [ln.strip() for ln in raw_lines]
         return self._fold_blocks(raw_lines)
 
+    def _fold_clauses(self, raw_lines: List[str], i: int, n: int, blk_indent: int,
+                      label: str) -> tuple:
+        """Collect the 4-space-indented body lines of the block whose header is at
+        `blk_indent`, starting at `raw_lines[i]`. Returns `(clauses, next_i)`. Strict:
+        each body line must be exactly `blk_indent + 4`."""
+        clauses: List[str] = []
+        while i < n and raw_lines[i].strip():
+            body_indent = _indent_width(raw_lines[i])
+            if body_indent <= blk_indent:
+                break                       # block ends (next top-level contract)
+            if body_indent != blk_indent + 4:
+                raise PyCSLParseError(
+                    f"`{label}`: body must be indented exactly 4 spaces under the "
+                    f"header (got {body_indent - blk_indent})", stage="Module1")
+            clauses.append(raw_lines[i].strip())
+            i += 1
+        return clauses, i
+
     def _fold_blocks(self, raw_lines: List[str]) -> List[str]:
-        """Fold each `act NAME:` / `happy NAME:` header + its 4-space-indented body
-        lines into one contract string `<kw> NAME: <clause> <clause> …`. Strict and
-        fail-loud: a body line must be indented exactly 4 spaces under the header; any
-        other indent, a tab, or an empty body is a hard `PyCSLParseError` (never
-        reinterpreted)."""
+        """Fold each `act NAME:` / `happy NAME:` / `inductive NAME(sig):` header + its
+        4-space-indented body lines into one contract string `<kw> NAME: <clause> …`.
+        For `inductive`, any following `with NAME(sig):` continuation blocks (mutually-
+        inductive group members, inductive.md P2) fold into the SAME string
+        `inductive … : … with … : …`. Strict and fail-loud: a body line must be indented
+        exactly 4 spaces under its header; any other indent, a tab, or an empty body is a
+        hard `PyCSLParseError` (never reinterpreted)."""
         out: List[str] = []
         i, n = 0, len(raw_lines)
         while i < n:
@@ -234,20 +258,25 @@ class _Harvester:
             kw, name = hdr
             blk_indent = _indent_width(raw_lines[i])
             i += 1
-            clauses: List[str] = []
-            while i < n and raw_lines[i].strip():
-                body_indent = _indent_width(raw_lines[i])
-                if body_indent <= blk_indent:
-                    break                       # block ends (next top-level contract)
-                if body_indent != blk_indent + 4:
-                    raise PyCSLParseError(
-                        f"`{kw} {name}`: body must be indented exactly 4 spaces under "
-                        f"`{kw}` (got {body_indent - blk_indent})", stage="Module1")
-                clauses.append(raw_lines[i].strip())
-                i += 1
+            clauses, i = self._fold_clauses(raw_lines, i, n, blk_indent, f"{kw} {name}")
             if not clauses:
                 raise PyCSLParseError(f"`{kw} {name}`: empty body", stage="Module1")
-            out.append(f"{kw} {name}: " + " ".join(clauses))
+            folded = f"{kw} {name}: " + " ".join(clauses)
+            # P2: fold `with NAME(sig):` continuation blocks at the same indent into the
+            # same inductive group string (only for `inductive`).
+            if kw == "inductive":
+                while i < n:
+                    wm = _WITH_HDR.match(raw_lines[i])
+                    if not wm or _indent_width(raw_lines[i]) != blk_indent:
+                        break
+                    wname = wm.group(1)
+                    i += 1
+                    wclauses, i = self._fold_clauses(raw_lines, i, n, blk_indent,
+                                                     f"with {wname}")
+                    if not wclauses:
+                        raise PyCSLParseError(f"`with {wname}`: empty body", stage="Module1")
+                    folded += f" with {wname}: " + " ".join(wclauses)
+            out.append(folded)
         return out
 
     # --- emit in libcst pre-order: node, then its block footer, then body --

@@ -324,10 +324,13 @@ indented 4 spaces under the header (no `rule` keyword):
   discharges it; inversion proves `not even(<odd>)`.
 - A **universally-quantified** consequence (`\forall x; even(x) ==> P(x)`) is NOT SMT-dischargeable —
   prove it with a recursive `#@ lemma` (§3g). Inductive predicates + lemma functions are a pair.
+- **Mutual groups:** a `with q(sig):` continuation block (same indent as `inductive`) joins `q` into
+  the same group, so `p` and `q` may reference each other (e.g. `even`/`odd`). Lowers to one
+  `inductive p … with q …`.
 - **Soundness:** the predicate must occur only strictly positively in premises — Why3 rejects a
-  non-positive rule ("non strictly positive occurrence").
+  non-positive rule ("non strictly positive occurrence"), group-wide.
 
-See `annotations.md` §2.8 and corpus `0562`–`0563`.
+See `annotations.md` §2.8 and corpus `0562`–`0563`, `0572`, `0574`–`0575`.
 
 ---
 

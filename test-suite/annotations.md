@@ -642,15 +642,27 @@ derives introduction, inversion, and induction principles.
   Introduction discharges `even(4)` (even(0)→even(2)→even(4)); inversion proves `not even(<odd>)`.
   A **universally-quantified** consequence (`\forall x; even(x) ==> P(x)`) needs the induction
   principle — supply it with a recursive `#@ lemma` (§2.1.16). The two features are a pair.
+- **Mutually-inductive groups.** A `with <q>(<params>):` continuation block (same indentation as the
+  `inductive` header, its rules indented under it) joins `q` into the same least-fixpoint group, so
+  rules of `p` and `q` may reference each other. The whole group lowers to one Why3
+  `inductive p … = | … with q … = | …` (still no closing `end`):
+  ```python
+  #@ inductive even(n: int):
+  #@     even_zero: even(0)
+  #@     even_succ: \forall m: int; odd(m) ==> even(m + 1)
+  #@ with odd(n: int):
+  #@     odd_succ: \forall m: int; even(m) ==> odd(m + 1)
+  ```
 - **Soundness — strict positivity.** The defined predicate may occur in rule premises only
   *positively* (never under negation or in a nested implication's antecedent), guaranteeing a
-  least fixpoint exists. **Why3 enforces this** ("non strictly positive occurrence …"); a
-  non-positive rule fails. (A cleaner Module-4 pre-check is a documented refinement — `remains.md`.)
-- **Boundaries.** Mutually-inductive groups (`inductive … with …`), the relational form
-  (reachability), and coinductive predicates are gated follow-ons.
+  least fixpoint exists. **Why3 enforces this** ("non strictly positive occurrence …") across the
+  whole group; a non-positive rule fails. (A cleaner Module-4 pre-check is a documented refinement.)
+- **Boundaries.** The relational form (a non-structural, multi-arg predicate like reachability) works
+  on this same machinery (driver `0572`). Coinductive predicates are out of scope.
 
-**Test-corpus cross-reference:** `0562` (`even` predicate, introduction proves `even(4)`), `0563`
-(non-strictly-positive rule — rejected).
+**Test-corpus cross-reference:** `0562` (`even`, introduction proves `even(4)`), `0563`
+(non-strictly-positive rule — rejected), `0572` (relational/reachability), `0574` (mutual `even`/`odd`
+group), `0575` (non-positive occurrence in a `with`-member — rejected group-wide).
 
 ---
 

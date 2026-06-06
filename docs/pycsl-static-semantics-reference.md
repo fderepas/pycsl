@@ -250,10 +250,12 @@ typed-quantifier/implication/predicate-application grammar; a predicate applicat
 usable in contracts and lemmas, never in executable position. **Well-formedness:** each rule's
 conclusion must apply the predicate being defined, and the predicate must occur only **strictly
 positively** in premises — **enforced by Why3** at verification (`non strictly positive occurrence`),
-so a non-positive definition cannot verify. A *Module-4 pre-check* for positivity / conclusion-shape /
-arity / executable-position, mutually-inductive `with` groups, and the lemma-discharged
-universally-quantified consequences are **gated follow-ons** (`remains.md`). Cross-references:
-`annotations.md` §2.8, translational §T.4.7; corpus `0562`/`0563`.
+so a non-positive definition cannot verify. **Mutually-inductive `with` groups (P2)** join multiple
+predicates into one `inductive p … with q …` (positivity checked group-wide; corpus `0574`/`0575`), and
+the **relational form** (non-structural multi-arg predicates) uses the same machinery (`0572`). Still
+follow-ons: a *Module-4 pre-check* for positivity / conclusion-shape / arity / executable-position, and
+the lemma-discharged universally-quantified consequences (`remains-2.md`). Cross-references:
+`annotations.md` §2.8, translational §T.4.7; corpus `0562`/`0563`/`0572`/`0574`/`0575`.
 
 **§ Collections (`collections` module).** A handful of `collections` constructors are recognized
 **by bare name** (import-independent) and routed to an existing modeled universe member rather than

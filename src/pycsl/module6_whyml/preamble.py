@@ -631,16 +631,21 @@ class PreambleEmissionMixin:
         out: List[str] = []
         prev_spec = self._in_spec
         self._in_spec = True
-        for ind in inductive_decls:
-            name = whyml_ident(ind["name"].lower())
-            sig = self._inductive_sig_whyml(ind["signature"])
-            head = f"  inductive {name} {sig} =" if sig else f"  inductive {name} ="
-            out.append(head)
-            for (rname, clause_ir) in ind["rules"]:
+        def _emit_member(kw: str, m: Dict[str, Any]) -> None:
+            mname = whyml_ident(m["name"].lower())
+            msig = self._inductive_sig_whyml(m["signature"])
+            out.append(f"  {kw} {mname} {msig} =" if msig else f"  {kw} {mname} =")
+            for (rname, clause_ir) in m["rules"]:
                 clause = self._expr_to_whyml(clause_ir, set())
                 out.append(f"    | {whyml_ident(rname).capitalize()} : {clause}")
-            # A single Why3 `inductive` takes NO closing `end` (an `end` would close
-            # the enclosing module). Mutual groups use `inductive … with …` (P2).
+        for ind in inductive_decls:
+            # The head predicate uses `inductive`; each P2 mutual member uses `with`,
+            # forming one Why3 group `inductive p … = | … with q … = | …`.
+            _emit_member("inductive", ind)
+            for m in ind.get("members", []):
+                _emit_member("with", m)
+            # A single Why3 `inductive` (or a `with`-joined group) takes NO closing
+            # `end` (an `end` would close the enclosing module).
             out.append("")
         self._in_spec = prev_spec
         return out

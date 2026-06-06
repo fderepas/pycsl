@@ -99,6 +99,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 "signature": ind.signature,
                 "rules": [(rname, self._csl_to_ir(rbody))
                           for (rname, rbody) in (ind.rules or [])],
+                # inductive.md P2: mutually-inductive `with` group members.
+                "members": [
+                    {"name": mname, "signature": msig,
+                     "rules": [(rn, self._csl_to_ir(rb)) for (rn, rb) in mrules]}
+                    for (mname, msig, mrules) in (getattr(ind, 'members', None) or [])
+                ],
             })
 
         self.generic_visit(node)

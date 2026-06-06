@@ -1062,9 +1062,10 @@ contract). The arg list is the predicate's *types only* (Why3 `inductive p t1 t2
 (`int`/`bool`/`str`→`string`/`float`→`real`, a datatype/class lowercased). Each rule's clause
 $c_i$ is an ordinary contract expression lowered by $\mathcal{T}_e$ in spec context, so
 `\forall m: int; even(m) ==> even(m+2)` → `forall m : int. (even m) -> (even (m + 2))`; a predicate
-application `p(args)` lowers to `(p args)` (registered in `_inductive_preds`). **A single Why3
-`inductive` takes no closing `end`** — an `end` would close the enclosing module; mutual
-`inductive … with …` groups (P2) are a follow-on.
+application `p(args)` lowers to `(p args)` (registered in `_inductive_preds`). **A Why3 `inductive`
+takes no closing `end`** — an `end` would close the enclosing module — and that holds for a mutual
+group too: a `#@ with q(sig): …` continuation (P2) joins one Why3 group `inductive p … = | … with q …
+= | …` (all members registered in `_inductive_preds`; Why3 checks positivity group-wide).
 
 Unlike a `#@ datatype` (a `type`) or a `#@ lemma` (a checked `let lemma`), an inductive predicate is
 an uninterpreted least-fixpoint relation; **Why3 checks strict positivity** when it processes the

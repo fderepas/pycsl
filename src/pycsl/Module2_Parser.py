@@ -656,14 +656,16 @@ class DatatypeDecl(CSLNode):
 
 @dataclass
 class InductiveDecl(CSLNode):
-    """Represents the header of `#@ inductive p(params):` (inductive.md) — a
-    least-fixpoint relation. `signature` is the rendered param string `"(n: int)"`;
-    `rules` is a list of `(rule_name, horn_clause_expr)` filled by Module 3 by
-    grouping the following `#@ rule …` directives under this header. Lowers to a
-    Why3 `inductive p (params) = | Rule : clause … end`."""
+    """Represents an `#@ inductive p(params):` least-fixpoint relation (inductive.md).
+    `signature` is the rendered param string `"(n: int)"`; `rules` is a list of
+    `(rule_name, horn_clause_expr)` parsed inline from the indentation block. `members`
+    (inductive.md P2) holds any `with q(params): …` mutually-inductive group members as
+    `(name, signature, rules)` tuples. Lowers to a Why3 `inductive p (params) = | Rule :
+    clause … [with q … = | …]` (no closing `end`)."""
     name: str
     signature: str
     rules: list = None
+    members: list = None
 
 # --- Mixin composition nodes (mixin.md / mixin-ready.md, Tier 1) ---
 # S0 surface: these parse and attach to their class/method node; Module3 weaves
@@ -1031,7 +1033,8 @@ PYCSL_GRAMMAR = r"""
               | CNAME -> mutex_name
 
     datatype_decl: "datatype" CNAME ("[" CNAME ("," CNAME)* "]")? "=" variant_def ("|" variant_def)*
-    inductive_decl: "inductive" CNAME "(" mixin_params? ")" ":" inductive_rule+
+    inductive_decl: "inductive" CNAME "(" mixin_params? ")" ":" inductive_rule+ inductive_with_member*
+    inductive_with_member: "with" CNAME "(" mixin_params? ")" ":" inductive_rule+
     inductive_rule: CNAME ":" expr
     variant_def: CNAME "(" CNAME ("," CNAME)* ")" -> variant_payload
                | CNAME -> variant_nullary
@@ -1173,14 +1176,21 @@ class PyCSLTransformer(Transformer):
     def shared_unprotected(self, name) -> SharedDecl: return SharedDecl(str(name), None)
     # sum-types: `datatype Name = C1 | C2(int) | …`
     def inductive_decl(self, name, *rest) -> InductiveDecl:
-        # `rest` is an optional `mixin_params` (a str) followed by the
-        # `inductive_rule+` results (each a `(rule_name, clause_expr)` tuple).
-        # The rules are now folded INLINE under the header (indentation block —
-        # the `#@ rule` keyword was retired); Module 3 no longer groups them.
+        # `rest` holds, in order: an optional `mixin_params` (a str), the
+        # `inductive_rule+` results (each a 2-tuple `(rule_name, clause_expr)`), and
+        # any `inductive_with_member` results (each a 3-tuple `(name, sig, rules)` —
+        # inductive.md P2 mutual group). Rules are folded INLINE under the header
+        # (indentation block — the `#@ rule` keyword was retired).
         params = next((r for r in rest if isinstance(r, str)), None)
-        rules = [r for r in rest if isinstance(r, tuple)]
+        rules = [r for r in rest if isinstance(r, tuple) and len(r) == 2]
+        members = [r for r in rest if isinstance(r, tuple) and len(r) == 3]
         sig = f"({params})" if params else "()"
-        return InductiveDecl(str(name), sig, rules)
+        return InductiveDecl(str(name), sig, rules, members)
+    def inductive_with_member(self, name, *rest) -> tuple:
+        params = next((r for r in rest if isinstance(r, str)), None)
+        rules = [r for r in rest if isinstance(r, tuple) and len(r) == 2]
+        sig = f"({params})" if params else "()"
+        return (str(name), sig, rules)
     def inductive_rule(self, name, body) -> tuple:
         return (str(name), body)
     def datatype_decl(self, name, *args) -> DatatypeDecl:

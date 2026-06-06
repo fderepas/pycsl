@@ -125,10 +125,11 @@ implemented — see "Open work / poly" for the four concrete obstacles.
 **Implementation pass status.** ✅ Landed: **A** (lemma decision-A + ghost discipline + trust-leakage,
 `ca260ff`), **B-relational** inductive (free, `4b37f18`), **C-multi-binder** (`4b37f18`), **B `#@ rule`
 →indentation** (keyword retired, `5516569`). ⏳ Remaining (each genuinely substantial or brittle — *not*
-quick wins; stop-and-flagged with scope below): mutual-inductive `with` groups, inductive reflection
-and the relational-consequence-via-lemma; quantification `#@ by induction on`, Phase-C triggers
-(brittle), and ghost-collection mode; and all four poly obstacles (the ~3-week function half). Drivers
-to date: **0555–0573** (19 total: 11 PASS, 8 XFAIL).
+quick wins; stop-and-flagged with scope below): inductive reflection and the
+relational-consequence-via-lemma; quantification `#@ by induction on`, Phase-C triggers (brittle), and
+ghost-collection mode; and all four poly obstacles (the ~3-week function half). Drivers to date:
+**0555–0575** (21 total: 13 PASS, 8 XFAIL). Also done: B `#@ rule`→indentation (`5516569`) and B-mutual
+`with` groups (`0574`/`0575`).
 
 ### A. lemma soundness — ✅ DONE (decision A + ghost discipline + trust-leakage)
 - **Decision A applied:** the variant-on-recursion check is removed; `0560` retargeted to a
@@ -159,8 +160,12 @@ to date: **0555–0573** (19 total: 11 PASS, 8 XFAIL).
   (the 3 inductive files emit identically old-syntax+old-code vs new-syntax+new-code; 482 other files
   unchanged). `rule` removed from all 5 doc surfaces (doc-coherency green; no longer a tracked
   directive).
-- **P2 mutually-inductive `with` groups** (`inductive wf … with wf_spine …`) — extend the
-  single-predicate emitter; needs the `with` keyword and group-wide positivity.
+- **P2 mutually-inductive `with` groups** — ✅ **DONE (drivers `0574`/`0575`).** A `#@ with q(sig):`
+  continuation block (folded into the inductive contract by Module 1; parsed into `InductiveDecl.members`
+  by Module 2; all members registered in `_inductive_preds`) emits one Why3 group
+  `inductive p … = | … with q … = | …` (no `end`). `even`/`odd` discharges `even(4)`; group-wide
+  strict positivity is enforced by Why3 (`0575` — a non-positive occurrence in a `with`-member is
+  rejected).
 - **P3 relational form** (reachability) — ✅ **DONE (free; driver `0572`)**. The existing
   single-predicate machinery already handles a multi-arg, *non-structural* predicate
   (`reach(x+1,z) ==> reach(x,z)` — recurses on `x+1`, which a terminating function can't express) with
