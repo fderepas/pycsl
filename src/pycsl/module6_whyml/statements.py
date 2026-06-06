@@ -388,6 +388,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 is_array = not is_dict and (
                     var_name in getattr(self, "_array2d_params", set()) or
                     var_name in getattr(self, "_array_locals", set()) or
+                    var_name in getattr(self, "_inline_array_temps", set()) or
                     var_name in getattr(self, "_current_array1d_params", set()))
                 if not is_array and not is_dict and var_name:
                     st = getattr(self, "_current_symbol_table", {})
@@ -412,9 +413,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         is_array = True
                 if is_array:
                     val_expr = self._coerce_to_int(val_expr)
-                    body = f"{array_expr}[{index_expr}] <- {val_expr}"
+                    # arity2.md (2b): a ref-bound array temp lowers to `!x`;
+                    # `!x[i]` parses as `!(x[i])`, so parenthesise the deref
+                    # before subscripting. Inert for let-bound arrays (`x[i]`).
+                    arr_e = f"({array_expr})" if array_expr.startswith("!") else array_expr
+                    body = f"{arr_e}[{index_expr}] <- {val_expr}"
                     # no_exception IndexError → prepend assert in_bounds.
-                    length_expr = f"(Array.length {array_expr})"
+                    length_expr = f"(Array.length {arr_e})"
                     pred = self._maybe_emit_no_exception_assert(
                         ("subscript", "write"), [length_expr, index_expr])
                     if pred:
@@ -834,11 +839,22 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         unioned in regardless, so the result is identical whether or not the
         dict/array vars are first deduped against records."""
         array_vars, dict_vars = IRScanner.find_array_and_dict_vars(body_stmts)
-        array_vars |= self._collect_array_var_assigns(body_stmts, seed=array_vars)
+        # arity2.md (2b): seed transitive array-type propagation from array
+        # PARAMS too (`_current_array1d_params`), not just syntactic array
+        # locals — an inlined method returning a param (`_inl_res = a; work =
+        # _inl_res`) flows array-ness out of a param. Params themselves are
+        # already recognised at op sites; this just feeds the var-to-var chain.
+        array_param_seed = array_vars | getattr(self, "_current_array1d_params", set())
+        array_vars |= self._collect_array_var_assigns(body_stmts, seed=array_param_seed)
+        array_vars -= getattr(self, "_current_array1d_params", set())
         dict_vars |= self._collect_dict_var_assigns(body_stmts)
         lambda_vars = IRScanner.find_lambda_vars(body_stmts)
         record_vars = IRScanner.find_record_vars(body_stmts, self._record_types)
         variant_vars = self._collect_variant_var_assigns(body_stmts)
+        # arity2.md (2b): expose the array-local set to the per-operation
+        # `is_array` sites WITHOUT touching `_array_locals` (declaration path).
+        # Reset per body — `_typed_local_vars` is called once per `_emit_body_code`.
+        self._inline_array_temps = set(array_vars)
         return array_vars | dict_vars | lambda_vars | record_vars | variant_vars
 
     def _emit_body_code(self, func: Dict[str, Any], body_stmts: List[Dict[str, Any]],

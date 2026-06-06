@@ -88,6 +88,15 @@ class FunctionEmissionMixin:
             (set(symbol_table.keys()) | local_refs | ghost_vars) - self._shared_var_names
         )
         self._array_locals = set()
+        # arity2.md (2b — operation selection): array locals that the
+        # declaration path types correctly (via `_collect_array_var_assigns`'
+        # call/transitive arm) but that the per-operation `is_array` sites must
+        # ALSO recognise — chiefly inliner-introduced `ref (array int)` temps.
+        # Consulted ONLY at operation sites (subscript read/write, `len`); never
+        # at declaration/assign emission, so it cannot perturb the `ref`-vs-`let`
+        # binding of existing array locals (that perturbation is what made the
+        # blunt `_array_locals |= …` approach regress array-return locals).
+        self._inline_array_temps: set = set()
         self._dict_locals = set()
         # no-more-int-3 A1: dict var -> WhyML value type ν (string) for
         # string-valued dicts; consulted by the dict literal / declaration /
