@@ -150,16 +150,18 @@ like `offset >= 0 && offset + 16 * 32 <= Array.length _filesystem.disk`
 may be needed, or the existing `block_num < 256` precondition + disk size
 = 131072 should suffice.
 
-### 4.5  `write` function: deep inlining creates 200+ VCs (Low — 21 VCs)
+### 4.5  `write` function: 21 failures from §4.1 + §4.2 (Low — no additional root cause)
 
-`write` → `sys_write` is the most complex inlined function: it contains
-nested loops (`block write loop` inside `main write loop`), inode updates,
-bitmap operations, and `_write_inode` calls.  The resulting VC is very large
-(the `write` function alone produces 204 VCs).  21 of these time out at 30 s,
-mostly on:
-- **Array bounds** for `Array.blit` on `_filesystem.disk` (blocked by §4.1)
-- **Loop invariant preservation** for the write loop's `fd_offset` tracking
-- **Preconditions** for `_pack_inode` and `Array.blit` length arguments
+`write` delegates to `sys_write` (~40 lines, one loop).  After inlining,
+`_read_inode`, `_alloc_block`, `_write_inode`, and `_set_bitmap` are all
+spliced in, producing 204 VCs total — but the function itself is
+straightforward.  All 21 failures trace back to:
+- **§4.1** — disk size unknown → `disk[disk_start:...]` bounds unprovable
+- **§4.2** — `_unpack_inode` has no `\length` ensures → `inode[8+block_idx]`
+  bounds unprovable
+- **§4.3** — `_pack_inode` has no `\length` ensures → `Array.blit` preconditions fail
+
+No additional invariants or code changes are expected once §4.1–§4.3 are fixed.
 
 ### 4.6  `walk` loop variant: `16 - i` with `iter_length !names` (Low — 3 VCs)
 
