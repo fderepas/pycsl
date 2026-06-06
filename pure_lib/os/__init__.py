@@ -11,22 +11,25 @@ from . import path
 _filesystem = UnixInodeFileSystem()
 
 # ── Constants ────────────────────────────────────────────────────────
+# Defined as literals so PyCSL emits them with their values in WhyML
+# (class attribute references produce abstract val constants with no
+# value axiom — see 1111.md R6).
 
 # Open flags
-O_RDONLY = UnixInodeFileSystem.O_RDONLY
-O_WRONLY = UnixInodeFileSystem.O_WRONLY
-O_RDWR = UnixInodeFileSystem.O_RDWR
-O_CREAT = UnixInodeFileSystem.O_CREAT
+O_RDONLY = 0
+O_WRONLY = 1
+O_RDWR = 2
+O_CREAT = 64
 
 # lseek whence
-SEEK_SET = UnixInodeFileSystem.SEEK_SET
-SEEK_CUR = UnixInodeFileSystem.SEEK_CUR
-SEEK_END = UnixInodeFileSystem.SEEK_END
+SEEK_SET = 0
+SEEK_CUR = 1
+SEEK_END = 2
 
 # Filesystem geometry
-BLOCK_SIZE = UnixInodeFileSystem.BLOCK_SIZE
-NUM_BLOCKS = UnixInodeFileSystem.NUM_BLOCKS
-MAX_INODES = UnixInodeFileSystem.MAX_INODES
+BLOCK_SIZE = 512
+NUM_BLOCKS = 256
+MAX_INODES = 32
 
 # Path separator
 sep = '/'

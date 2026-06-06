@@ -10,6 +10,14 @@ from pure_lib.os import (
     _filesystem, open, write, read, close, lseek,
 )
 
+# Constants defined locally as literals so PyCSL emits them with values.
+# Mirrors pure_lib/os/__init__.py; needed because PyCSL does not yet
+# propagate module_constants across import boundaries (see 1111.md R6).
+O_RDONLY = 0
+O_WRONLY = 1
+O_CREAT = 64
+SEEK_SET = 0
+
 
 #@ requires \length(data) >= 1
 #@ requires \length(data) <= 512
@@ -17,7 +25,7 @@ from pure_lib.os import (
 #@ ensures \result == 0 or \result == 1
 def formal_test_0001(filename, data: list) -> int:
     # ── Step 1: Create file and write ────────────────────────────────
-    fd = open(filename, 65, 0o777)
+    fd = open(filename, O_CREAT | O_WRONLY, 0o777)
     if fd < 3:
         return 1
 
@@ -31,12 +39,12 @@ def formal_test_0001(filename, data: list) -> int:
         return 1
 
     # ── Step 2: Re-open for reading ──────────────────────────────────
-    fd2 = open(filename, 0, 0o777)
+    fd2 = open(filename, O_RDONLY, 0o777)
     if fd2 < 3:
         return 1
 
     # ── Step 3: Verify via sys_read byte count ───────────────────────
-    lseek(fd2, 0, 0)
+    lseek(fd2, 0, SEEK_SET)
     count = read(fd2, len(data))
     if count != len(data):
         close(fd2)
