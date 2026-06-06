@@ -34,6 +34,18 @@ relevant page when needed.
 - [local reasoning](local-reasoning.md)
 - [global reasoning](global-reasoning.md)
 - [solver budget](solver-budget.md)
+- [method-call inlining](method-call-inlining.md)
+- [bounded quantification](bounded-quantification.md)
+
+### Inductive predicates and lemmas
+
+- [inductive predicate](inductive-predicate.md)
+- [introduction & inversion](introduction-and-inversion.md)
+- [strict positivity](strict-positivity.md)
+- [lemma function](lemma-function.md)
+- [relational-consequence-via-lemma](relational-consequence-via-lemma.md)
+- [inductive reflection](inductive-reflection.md)
+- [`#@ uses` ordering citation](uses-ordering-citation.md)
 
 ### State and invariant vocabulary
 
@@ -61,6 +73,7 @@ relevant page when needed.
 - [demand-driver](demand-driver.md)
 - [emission-identical gate](emission-identical-gate.md)
 - [standard libraries](standard-libraries.md)
+- [backend-as-enforcer](backend-as-enforcer.md)
 
 ## Maintenance note
 
