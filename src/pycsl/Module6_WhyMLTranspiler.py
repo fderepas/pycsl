@@ -75,6 +75,10 @@ class Module6_WhyMLTranspiler(
         self._array_locals: Set[str] = set()
         self._dict_locals: Set[str] = set()
         self._record_locals: Set[str] = set()
+        # scc3.md Phase A: quantifier-bound record vars (var → original class name),
+        # registered for the duration of a `\forall o: C; …` body so `o.field` lowers
+        # to the record field instead of an abstract getter. Nesting-safe (save/restore).
+        self._quant_record_binders: Dict[str, str] = {}
         self._lambda_locals: Set[str] = set()
         self._current_self_type: Optional[str] = None
         self._func_return_type: str = "int"

@@ -36,6 +36,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def __init__(self) -> None:
         self.program_ir = {"type_decls": [], "functions": []}
         self._current_class: Optional[str] = None
+        # scc3.md Phase B: the current function's symbol table, set while building its
+        # contracts so `_csl_in` can dispatch `x in S` on the collection's type (a set
+        # → key membership, a list → positional `exists`). Empty outside that window.
+        self._cur_func_symtab: Dict[str, Any] = {}
         self._fresh_var_counter: int = 0
         self._mutex_invariants_csl: Dict[str, Any] = {}  # mutex → CSLNode
 
@@ -340,6 +344,18 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 "lo": self._csl_to_ir(node.lo), "hi": self._csl_to_ir(node.hi)}
 
     def _csl_in(self, node: CSLIn) -> Dict[str, Any]:
+        # scc3.md Phase B: a SET/dict collection has no positional order — `x in S` is
+        # KEY membership, not a sequence search. Emit a raw `in` BinOp so Module 6's
+        # `_emit_membership` lowers it to the clean `Map.get S x` test (e-matching-
+        # friendly, no `Array.length` on a map). The collection name is read straight
+        # off the CSL node (not via `_csl_to_ir`) so the list path below keeps its exact
+        # `_fresh_var` allocation order → byte-identical. Lists/arrays / unknown types
+        # fall through to the positional `exists`.
+        _coll_nm = getattr(node.collection, "name", None)
+        if _coll_nm is not None and self._cur_func_symtab.get(_coll_nm) in ("set", "dict", "frozenset"):
+            return {"type": "BinOp", "op": "in",
+                    "left": self._csl_to_ir(node.element),
+                    "right": self._csl_to_ir(node.collection)}
         # x in arr → ∃ v. 0 ≤ v ∧ v < length(arr) ∧ arr[v] == x
         mem_var = self._fresh_var("_mem")
         elt_ir = self._csl_to_ir(node.element)
@@ -1356,6 +1372,9 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             k: v for k, v in getattr(node, 'csl_symbol_table', {}).items()
             if k != 'self'
         }
+        # scc3.md Phase B: expose this function's symbol table to `_csl_in` (built
+        # below for contracts/body) so `x in S` dispatches on the collection type.
+        self._cur_func_symtab = symbol_table
         return_annotation = None
         if node.returns:
             if isinstance(node.returns, ast.Name):

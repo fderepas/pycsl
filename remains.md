@@ -136,17 +136,24 @@ docs). Not yet done in code — what follows is the plan plus what's been *probe
   over class instances today). Ghost-collection mode reuses P3's sets (blocked on P3).
 - Multi-binder sugar (`\forall x: T, y: U;`) — single-binder only today; desugar to nested binders.
 
-**SHARED ROOT CAUSE (the one thing to fix for both P3 and P4 discharge):** a quantifier binder's
-declared type — and a domain/param's type — is **not propagated into the body's member-access /
-membership lowering** during contract emission, so `o.x` → abstract `get_x o` and `x in s` → mis-typed
-seq membership. P1 sets the WhyML binder *sort* (`forall o : c` / `forall x : int`) but the body
-emission doesn't consult it. Closing that (a "current quantifier-binder/domain type" map consulted by
-the FieldGet/Attribute and `_emit_membership` paths) unblocks P4 value-mode outright and P3's set form
-(then P3 may still want triggers). It is the natural next quantification task; byte-diff-gated.
+**SHARED ROOT CAUSE — ✅ FIXED (scc3.md Phases A+B).** A quantifier binder's declared type (and a
+domain's type) was not propagated into the body's member-access / membership lowering, so `o.x` →
+abstract `get_x o` and `x in s` → mis-typed seq membership. Fixed: a quantifier-bound *record* var is
+registered during body emission so `o.field` lowers to the record field (Phase A, expressions.py),
+and `Module5._csl_in` dispatches a *set* domain to clean key membership `Map.get S x` (Phase B). Whole
+corpus byte-identical (492/492).
 
-**Status update:** **P1 + P2 landed** (SCC fix `ff11f18` + `#@ uses` `b68373b`). **P3/P4
-stop-and-flagged** — both blocked on the shared binder-type-propagation gap above (P3 also needs
-clean-set-membership/triggers; P4's auto-invariant turned out free via Why3 type invariants).
+**Status update:** **P1, P2, P3 (sets), P4 (value mode) all landed.**
+- P1 + P2: SCC fix `ff11f18` + `#@ uses` `b68373b`.
+- **P3 set bounded** `\forall x: int in s; x >= 0` discharges (`0568` PASS / `0569` XFAIL) — set
+  membership e-matches via `Map.get s x`, **no trigger needed**.
+- **P4 value mode** `\forall o: C; o.x >= 0` discharges (`0566` PASS / `0567` XFAIL) — the class
+  invariant is supplied free by the Why3 type invariant.
+- **Still deferred (the brittle/edge tail):** Phase C **triggers** — only `list`-bounded
+  quantification needs them (its positional-`exists` membership doesn't e-match; sets don't); **P4
+  ghost-collection mode** (`\forall o: C in registry; …`, composes Phase A + a `set[C]` with a
+  decidable-equality story); **multi-binder** sugar (`\forall x, y;`); and `#@ by induction on` (the
+  lemma-free P2 alternative).
 
 ### lemma — P1 + P2/S3 landed; soundness refinements deferred
 **Landed (`9896cb7`):** `#@ lemma` → `let [rec] lemma name (p): unit … = <proof body>`. Non-recursive

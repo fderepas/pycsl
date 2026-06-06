@@ -1400,6 +1400,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         """Handle non-self attribute access: record field or abstract getter."""
         obj_ir = expr.get("object", {})
         attr = expr.get("attr", "unknown")
+        # scc3.md Phase A: a quantifier-bound record var `o : C` (registered by
+        # `_push_quant_binder`) — `o.field` is the record field, qualified via
+        # `_field_label`, not an abstract `get_field` stub. (The class invariant is
+        # already a Why3 type invariant on `c`, so the quantifier is sound.)
+        if isinstance(obj_ir, dict) and obj_ir.get("type") == "Var":
+            _qcls = self._quant_record_binders.get(obj_ir.get("name", ""))
+            if _qcls is not None:
+                _cl = self._record_types[_qcls]["whyml_name"]
+                return f"{whyml_ident(obj_ir['name'])}.{self._field_label(_cl, attr)}"
         if isinstance(obj_ir, str):
             return f"(get_{attr} {obj_ir})"
         if obj_ir.get("type") == "Var":
@@ -1450,6 +1459,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return "int"
         scalars = {"int": "int", "bool": "bool", "str": "string", "float": "real"}
         return scalars.get(binder_type, whyml_ident(str(binder_type).lower()))
+
+    def _push_quant_binder(self, var: Optional[str], binder_type: Optional[str]):
+        """scc3.md Phase A: register a quantifier-bound *record* var so `var.field`
+        in the body lowers to the record field. No-op for scalar/datatype/None
+        binders (only declared record classes have field access). Returns a restore
+        token consumed by `_pop_quant_binder` (nesting/shadowing-safe)."""
+        if not var or binder_type not in getattr(self, "_record_types", {}):
+            return ("noop", None)
+        had = var in self._quant_record_binders
+        prev = self._quant_record_binders.get(var)
+        self._quant_record_binders[var] = binder_type
+        return (had, prev)
+
+    def _pop_quant_binder(self, var: Optional[str], token) -> None:
+        kind, prev = token
+        if kind == "noop":
+            return
+        if kind:
+            self._quant_record_binders[var] = prev
+        else:
+            self._quant_record_binders.pop(var, None)
 
     def _field_label(self, record_lower: Optional[str], field: str) -> str:
         """WhyML label for a record field. Ambiguous names (shared by >1
@@ -1888,10 +1918,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return f"({', '.join(elts)})"
         if t == "Forall":
             bty = self._quant_binder_whyml(expr.get("binder_type"))
-            return f"(forall {expr['var']} : {bty}. {self._expr_to_whyml(expr['body'], local_refs, invariant_ctx, subst)})"
+            saved = self._push_quant_binder(expr.get("var"), expr.get("binder_type"))
+            body = self._expr_to_whyml(expr['body'], local_refs, invariant_ctx, subst)
+            self._pop_quant_binder(expr.get("var"), saved)
+            return f"(forall {expr['var']} : {bty}. {body})"
         if t == "Exists":
             bty = self._quant_binder_whyml(expr.get("binder_type"))
-            return f"(exists {expr['var']} : {bty}. {self._expr_to_whyml(expr['body'], local_refs, invariant_ctx, subst)})"
+            saved = self._push_quant_binder(expr.get("var"), expr.get("binder_type"))
+            body = self._expr_to_whyml(expr['body'], local_refs, invariant_ctx, subst)
+            self._pop_quant_binder(expr.get("var"), saved)
+            return f"(exists {expr['var']} : {bty}. {body})"
         if t == "DictLit":
             # Body dict literal: empty `map int (option int)`. Non-empty
             # dict literals would need element-by-element `Map.set` but

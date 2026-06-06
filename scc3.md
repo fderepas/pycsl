@@ -2,11 +2,13 @@
 
 Third in the series (`scc.md` = contract-reference ordering; `scc2.md` = `#@ uses` lemma-fact
 ordering; this = making typed quantifier bodies *discharge*). P1 gave typed binders, P2 made the
-recursive-datatype wrapper prove. P3 (sets) and P4 (objects) are **stop-and-flagged**: their *surfaces*
-work but their bodies don't discharge, because a quantifier's **binder type** (P4) and **domain type**
-(P3) are not carried into the body's member-access / membership lowering. This plan closes that.
+recursive-datatype wrapper prove. P3 (sets) and P4 (objects) bodies did not discharge because a
+quantifier's **binder type** (P4) and **domain type** (P3) were not carried into the body's
+member-access / membership lowering. This plan closed that (Phases A+B); the "Grounding" section below
+records the pre-fix diagnosis.
 
-It is a *plan for review* — no code yet. Everything below is grounded in the current tree.
+**Phases A and B are now implemented (see Status below); Phase C is deferred.** Everything below is
+grounded in the tree.
 
 ## Grounding (verified)
 
@@ -41,7 +43,15 @@ contract is incomplete"), with **distinct fixes**, P4's being the clean win.
 
 ---
 
-## Phase A — P4 value mode: propagate the binder type into field access (the clean win)
+## Status (implemented)
+
+**Phases A and B are landed; both discharge. Phase C is not needed for sets (deferred for lists).**
+Whole-corpus emission byte-identical (492/492) — A only fires for quantifier-bound record vars and B's
+`_csl_in` set-dispatch reroutes only set-typed `in` (no existing corpus file used it). Drivers: `0566`
+PASS / `0567` XFAIL (P4 value mode); `0568` PASS / `0569` XFAIL (P3 set bounded). Deferred: Phase C
+(triggers, list-bounded only), multi-binder, P4 ghost-collection mode.
+
+## Phase A — P4 value mode: propagate the binder type into field access (the clean win) ✅ DONE
 
 **Goal.** `\forall o: C; <P over o.field>` discharges, with the class invariant supplied free by the
 Why3 type invariant.
@@ -71,7 +81,7 @@ quantifier-bound record var). Gate on a whole-corpus byte-diff (expect 0 changed
 
 ---
 
-## Phase B — P3 set membership: dispatch `_csl_in` on the domain type
+## Phase B — P3 set membership: dispatch `_csl_in` on the domain type ✅ DONE
 
 **Goal.** `x in S` for a set `S` lowers to key membership, not positional sequence membership, so it is
 sound, well-typed, and e-matching-friendly.
@@ -102,7 +112,7 @@ e-matching on `Map.get S x` even before Phase C.
 
 ---
 
-## Phase C — P3 triggers (the brittle part; do only if Phase B isn't enough)
+## Phase C — P3 triggers (the brittle part) — DEFERRED (sets discharge without it; list-bounded only)
 
 **Goal.** Robust instantiation of bounded quantifiers when natural e-matching is insufficient (deep
 bodies, list membership's nested `exists`).

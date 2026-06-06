@@ -711,6 +711,8 @@ are used (logic context, no VC needed).
 #@ requires \forall i; 0 <= i and i < n ==> arr[i] >= 0
 #@ ensures \exists j; 0 <= j and j < n and arr[j] == target
 #@ ensures \forall c: Color; rank(c) >= 0          # typed binder (quantification.md P1)
+#@ requires \forall x: int in s; x >= 0            # bounded over a set (P3)
+#@ ensures \forall o: Account; o.balance >= 0      # over class instances (P4)
 ```
 
 - An **untyped** bound variable (`\forall i; …`) is typed `int` in WhyML output (the
@@ -720,6 +722,15 @@ are used (logic context, no VC needed).
   `forall x : t.`. An unresolved binder type is a hard Module-4 error — never a silent
   `int` default. A datatype binder may appear only in equality and pure observers
   (`\is_ctor`/`\payload` and `assigns \nothing` functions), not arithmetic.
+- A **bounded** binder `\forall x [: T] in S; …` (P3) ranges over the members of a set
+  `S`; it desugars to `\forall x [: T]; (x in S) ==> …` (`\exists … in S` → `… and …`).
+  Set membership lowers to key membership (`Map.get S x`), which instantiates by
+  e-matching given an `x in S` hypothesis. (Bounding over a *list* uses positional
+  membership and may need a trigger to instantiate.)
+- A **class binder** `\forall o: C; …` (P4, value mode) ranges over instances of class
+  `C`; `o.field` is the record field, and `C`'s `#@ class invariant` holds for every
+  `o` automatically (it is emitted as a Why3 type invariant) — so the quantifier ranges
+  only over invariant-satisfying instances without an explicit guard.
 - Body extends greedily to the end of the expression.
 - Quantifiers can appear at top level or as RHS of `==>`, `and`, `or`.
 - `\exist` (singular) is an accepted alias for `\exists`.

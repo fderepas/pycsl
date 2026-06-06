@@ -887,37 +887,61 @@ PYCSL_GRAMMAR = r"""
     ?expr: implication
          | "\\forall" CNAME ";" expr -> forall_expr
              | "\\forall" CNAME ":" CNAME ";" expr -> forall_typed_expr
+             | "\\forall" CNAME "in" expr ";" expr -> forall_in_expr
+             | "\\forall" CNAME ":" CNAME "in" expr ";" expr -> forall_typed_in_expr
          | "\\exists" CNAME ";" expr -> exists_expr
              | "\\exists" CNAME ":" CNAME ";" expr -> exists_typed_expr
+             | "\\exists" CNAME "in" expr ";" expr -> exists_in_expr
+             | "\\exists" CNAME ":" CNAME "in" expr ";" expr -> exists_typed_in_expr
          | "\\exist"  CNAME ";" expr -> exists_expr
              | "\\exist"  CNAME ":" CNAME ";" expr -> exists_typed_expr
+             | "\\exist"  CNAME "in" expr ";" expr -> exists_in_expr
+             | "\\exist"  CNAME ":" CNAME "in" expr ";" expr -> exists_typed_in_expr
 
     ?implication: logical_or | implication IMPL_OP impl_rhs
     ?impl_rhs: logical_or
              | "\\forall" CNAME ";" expr -> forall_expr
              | "\\forall" CNAME ":" CNAME ";" expr -> forall_typed_expr
+             | "\\forall" CNAME "in" expr ";" expr -> forall_in_expr
+             | "\\forall" CNAME ":" CNAME "in" expr ";" expr -> forall_typed_in_expr
              | "\\exists" CNAME ";" expr -> exists_expr
              | "\\exists" CNAME ":" CNAME ";" expr -> exists_typed_expr
+             | "\\exists" CNAME "in" expr ";" expr -> exists_in_expr
+             | "\\exists" CNAME ":" CNAME "in" expr ";" expr -> exists_typed_in_expr
              | "\\exist"  CNAME ";" expr -> exists_expr
              | "\\exist"  CNAME ":" CNAME ";" expr -> exists_typed_expr
+             | "\\exist"  CNAME "in" expr ";" expr -> exists_in_expr
+             | "\\exist"  CNAME ":" CNAME "in" expr ";" expr -> exists_typed_in_expr
 
     ?logical_or: logical_and | logical_or OR_OP or_rhs
     ?or_rhs: logical_and
            | "\\forall" CNAME ";" expr -> forall_expr
              | "\\forall" CNAME ":" CNAME ";" expr -> forall_typed_expr
+             | "\\forall" CNAME "in" expr ";" expr -> forall_in_expr
+             | "\\forall" CNAME ":" CNAME "in" expr ";" expr -> forall_typed_in_expr
            | "\\exists" CNAME ";" expr -> exists_expr
              | "\\exists" CNAME ":" CNAME ";" expr -> exists_typed_expr
+             | "\\exists" CNAME "in" expr ";" expr -> exists_in_expr
+             | "\\exists" CNAME ":" CNAME "in" expr ";" expr -> exists_typed_in_expr
            | "\\exist"  CNAME ";" expr -> exists_expr
              | "\\exist"  CNAME ":" CNAME ";" expr -> exists_typed_expr
+             | "\\exist"  CNAME "in" expr ";" expr -> exists_in_expr
+             | "\\exist"  CNAME ":" CNAME "in" expr ";" expr -> exists_typed_in_expr
 
     ?logical_and: equality | logical_and AND_OP and_rhs
     ?and_rhs: equality
             | "\\forall" CNAME ";" expr -> forall_expr
              | "\\forall" CNAME ":" CNAME ";" expr -> forall_typed_expr
+             | "\\forall" CNAME "in" expr ";" expr -> forall_in_expr
+             | "\\forall" CNAME ":" CNAME "in" expr ";" expr -> forall_typed_in_expr
             | "\\exists" CNAME ";" expr -> exists_expr
              | "\\exists" CNAME ":" CNAME ";" expr -> exists_typed_expr
+             | "\\exists" CNAME "in" expr ";" expr -> exists_in_expr
+             | "\\exists" CNAME ":" CNAME "in" expr ";" expr -> exists_typed_in_expr
             | "\\exist"  CNAME ";" expr -> exists_expr
              | "\\exist"  CNAME ":" CNAME ";" expr -> exists_typed_expr
+             | "\\exist"  CNAME "in" expr ";" expr -> exists_in_expr
+             | "\\exist"  CNAME ":" CNAME "in" expr ";" expr -> exists_typed_in_expr
     ?equality: comparison | equality EQ_OP comparison
     ?comparison: membership | comparison COMP_OP membership
     ?membership: term
@@ -1202,6 +1226,20 @@ class PyCSLTransformer(Transformer):
         return Forall(str(var), body, binder_type=str(ty))
     def exists_typed_expr(self, var, ty, body) -> Exists:
         return Exists(str(var), body, binder_type=str(ty))
+    # quantification.md P3 / scc3.md Phase B — bounded quantification `\forall x [: T] in S; P`.
+    # Desugared here, reusing the P1 typed binder + the existing `in` membership +
+    # implication/conjunction:  \forall x in S; P ≡ \forall x; (x in S) ==> P ;
+    # \exists x in S; P ≡ \exists x; (x in S) and P. No new IR/Module 6 emission.
+    def forall_in_expr(self, var, domain, body) -> Forall:
+        return Forall(str(var), BinOp(CSLIn(Var(str(var)), domain), "==>", body))
+    def forall_typed_in_expr(self, var, ty, domain, body) -> Forall:
+        return Forall(str(var), BinOp(CSLIn(Var(str(var)), domain), "==>", body),
+                      binder_type=str(ty))
+    def exists_in_expr(self, var, domain, body) -> Exists:
+        return Exists(str(var), BinOp(CSLIn(Var(str(var)), domain), "and", body))
+    def exists_typed_in_expr(self, var, ty, domain, body) -> Exists:
+        return Exists(str(var), BinOp(CSLIn(Var(str(var)), domain), "and", body),
+                      binder_type=str(ty))
     def array_length(self, var) -> ArrayLength: return ArrayLength(str(var))
     def array_length_field(self, field_name) -> ArrayLength:
         # `\length(self.f)` — length of an `array int` record field.
