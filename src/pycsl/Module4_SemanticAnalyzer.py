@@ -143,6 +143,13 @@ def _iter_csl_children(node: CSLNode) -> List[CSLNode]:
         return handler(node)
     return []
 
+
+def _walk_csl_nodes(node: CSLNode):
+    """Yield *node* and every CSL sub-node reachable via `_iter_csl_children`."""
+    yield node
+    for child in _iter_csl_children(node):
+        yield from _walk_csl_nodes(child)
+
 # ---------------------------------------------------------
 # 3. Contract Variable Extractor
 # ---------------------------------------------------------
@@ -336,11 +343,33 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
                     f"Available variables in scope: {list(self.current_scope.keys())}"
                 )
 
+        # 2b. quantification.md: resolve every typed quantifier binder.
+        self._validate_quant_binders(contract, context_name)
+
         # 3. Check \valid and \separated base types
         self._validate_predicate_bases(contract, context_name)
 
         # 4. Check \proj index is always a literal
         self._validate_proj_indices(contract, context_name)
+
+    def _validate_quant_binders(self, contract: CSLNode, context_name: str) -> None:
+        """quantification.md (P1): a typed quantifier binder `\\forall x: T; …` must
+        resolve `T` to a scalar (int/bool/str/float) or a declared `#@ datatype` /
+        class. An unresolved name is a hard error — never a silent `int` default
+        (the spec §5.1 soundness rule)."""
+        known = getattr(self, "_known_binder_types", None)
+        if known is None:
+            return
+        for n in _walk_csl_nodes(contract):
+            if isinstance(n, QuantifierNode):
+                bt = getattr(n, "binder_type", None)
+                if bt is not None and bt not in known:
+                    raise PyCSLSemanticError(
+                        f"Quantifier binder '{n.var}: {bt}' in {context_name} has an "
+                        f"unresolved type '{bt}'. A typed binder must name a scalar "
+                        f"(int/bool/str/float) or a declared `#@ datatype` / class — "
+                        f"it is never silently defaulted to int. "
+                        f"Known types: {sorted(known)}.")
 
     def _validate_proj_indices(self, node: CSLNode, context_name: str) -> None:
         """Recursively check that all \\proj index arguments are integer literals."""
@@ -503,6 +532,14 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         self._mutex_invariants = {}
         self._lock_order = None
         self._module_constants = collect_module_constants(node)
+
+        # quantification.md: the set a typed quantifier binder may resolve to —
+        # scalars + declared `#@ datatype` names + class names. An unresolved binder
+        # type is a hard error (never a silent `int`); see `_validate_quant_binders`.
+        self._known_binder_types = (
+            {"int", "bool", "str", "float"}
+            | {d.name for d in getattr(node, 'csl_datatypes', [])}
+            | {c.name for c in node.body if isinstance(c, ast.ClassDef)})
 
         for decl in getattr(node, 'csl_shared_decls', []):
             self._shared_vars[decl.variable] = decl.mutex

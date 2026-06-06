@@ -608,9 +608,16 @@ are used (logic context, no VC needed).
 ```python
 #@ requires \forall i; 0 <= i and i < n ==> arr[i] >= 0
 #@ ensures \exists j; 0 <= j and j < n and arr[j] == target
+#@ ensures \forall c: Color; rank(c) >= 0          # typed binder (quantification.md P1)
 ```
 
-- Bound variable is always typed `int` in WhyML output.
+- An **untyped** bound variable (`\forall i; …`) is typed `int` in WhyML output (the
+  legacy form, unchanged).
+- A **typed** binder `\forall x: T; …` (quantification.md P1) ranges over a scalar
+  (`int`/`bool`/`str`/`float`) or a declared `#@ datatype` / class, lowering to
+  `forall x : t.`. An unresolved binder type is a hard Module-4 error — never a silent
+  `int` default. A datatype binder may appear only in equality and pure observers
+  (`\is_ctor`/`\payload` and `assigns \nothing` functions), not arithmetic.
 - Body extends greedily to the end of the expression.
 - Quantifiers can appear at top level or as RHS of `==>`, `and`, `or`.
 - `\exist` (singular) is an accepted alias for `\exists`.

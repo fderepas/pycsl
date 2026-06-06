@@ -237,10 +237,22 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return {"type": "Nothing"}
 
     def _csl_forall(self, node: Forall) -> Dict[str, Any]:
-        return {"type": "Forall", "var": node.var, "body": self._csl_to_ir(node.body)}
+        d: Dict[str, Any] = {"type": "Forall", "var": node.var, "body": self._csl_to_ir(node.body)}
+        # quantification.md: carry the typed/bounded binder only when present, so a
+        # legacy `binder_type=None` quantifier yields a byte-identical IR dict.
+        if getattr(node, "binder_type", None) is not None:
+            d["binder_type"] = node.binder_type
+        if getattr(node, "domain", None) is not None:
+            d["domain"] = self._csl_to_ir(node.domain)
+        return d
 
     def _csl_exists(self, node: Exists) -> Dict[str, Any]:
-        return {"type": "Exists", "var": node.var, "body": self._csl_to_ir(node.body)}
+        d: Dict[str, Any] = {"type": "Exists", "var": node.var, "body": self._csl_to_ir(node.body)}
+        if getattr(node, "binder_type", None) is not None:
+            d["binder_type"] = node.binder_type
+        if getattr(node, "domain", None) is not None:
+            d["domain"] = self._csl_to_ir(node.domain)
+        return d
 
     def _csl_array_length(self, node: ArrayLength) -> Dict[str, Any]:
         return {"type": "ArrayLen", "var": node.var}

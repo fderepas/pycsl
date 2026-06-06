@@ -147,11 +147,18 @@ class SubscriptAccess(CSLNode):
 class Forall(QuantifierNode):
     var: str
     body: CSLNode
+    # quantification.md: typed/bounded binder. `binder_type=None` ⇒ legacy int
+    # path (emits `forall var : int.` verbatim → byte-identical). `domain` is the
+    # `in S` bounded term (P3), else None.
+    binder_type: Optional[str] = None
+    domain: Optional[CSLNode] = None
 
 @dataclass
 class Exists(QuantifierNode):
     var: str
     body: CSLNode
+    binder_type: Optional[str] = None
+    domain: Optional[CSLNode] = None
 
 @dataclass
 class ArrayLength(CSLNode):
@@ -833,26 +840,38 @@ PYCSL_GRAMMAR = r"""
     // Quantifiers can appear at top level or as the RHS of ==>, and, or.
     ?expr: implication
          | "\\forall" CNAME ";" expr -> forall_expr
+             | "\\forall" CNAME ":" CNAME ";" expr -> forall_typed_expr
          | "\\exists" CNAME ";" expr -> exists_expr
+             | "\\exists" CNAME ":" CNAME ";" expr -> exists_typed_expr
          | "\\exist"  CNAME ";" expr -> exists_expr
+             | "\\exist"  CNAME ":" CNAME ";" expr -> exists_typed_expr
 
     ?implication: logical_or | implication IMPL_OP impl_rhs
     ?impl_rhs: logical_or
              | "\\forall" CNAME ";" expr -> forall_expr
+             | "\\forall" CNAME ":" CNAME ";" expr -> forall_typed_expr
              | "\\exists" CNAME ";" expr -> exists_expr
+             | "\\exists" CNAME ":" CNAME ";" expr -> exists_typed_expr
              | "\\exist"  CNAME ";" expr -> exists_expr
+             | "\\exist"  CNAME ":" CNAME ";" expr -> exists_typed_expr
 
     ?logical_or: logical_and | logical_or OR_OP or_rhs
     ?or_rhs: logical_and
            | "\\forall" CNAME ";" expr -> forall_expr
+             | "\\forall" CNAME ":" CNAME ";" expr -> forall_typed_expr
            | "\\exists" CNAME ";" expr -> exists_expr
+             | "\\exists" CNAME ":" CNAME ";" expr -> exists_typed_expr
            | "\\exist"  CNAME ";" expr -> exists_expr
+             | "\\exist"  CNAME ":" CNAME ";" expr -> exists_typed_expr
 
     ?logical_and: equality | logical_and AND_OP and_rhs
     ?and_rhs: equality
             | "\\forall" CNAME ";" expr -> forall_expr
+             | "\\forall" CNAME ":" CNAME ";" expr -> forall_typed_expr
             | "\\exists" CNAME ";" expr -> exists_expr
+             | "\\exists" CNAME ":" CNAME ";" expr -> exists_typed_expr
             | "\\exist"  CNAME ";" expr -> exists_expr
+             | "\\exist"  CNAME ":" CNAME ";" expr -> exists_typed_expr
     ?equality: comparison | equality EQ_OP comparison
     ?comparison: membership | comparison COMP_OP membership
     ?membership: term
@@ -1122,6 +1141,10 @@ class PyCSLTransformer(Transformer):
     # Quantifiers
     def forall_expr(self, var, body) -> Forall: return Forall(str(var), body)
     def exists_expr(self, var, body) -> Exists: return Exists(str(var), body)
+    def forall_typed_expr(self, var, ty, body) -> Forall:
+        return Forall(str(var), body, binder_type=str(ty))
+    def exists_typed_expr(self, var, ty, body) -> Exists:
+        return Exists(str(var), body, binder_type=str(ty))
     def array_length(self, var) -> ArrayLength: return ArrayLength(str(var))
     def array_length_field(self, field_name) -> ArrayLength:
         # `\length(self.f)` — length of an `array int` record field.
