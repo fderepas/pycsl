@@ -96,6 +96,15 @@ principled, not a dodge:
 and their wiring), which is mixin.md's stated goal; it does **not** by itself verify the dynamic
 dispatch. That honest boundary must be stated in mixin.md's out-of-scope list (it currently is not).
 
+**Probe note (R0 step 3, confirmed 2026-06-06).** The facade dispatch is **dict-keyed dynamic**, as
+modelled. Both hot paths resolve a method *name string* out of a dict and invoke it via `getattr`:
+`module6_whyml/expressions.py:1877-1879` — `handler = self._EXPR_DISPATCH.get(t); … getattr(self,
+handler)(expr, …)` (so `MapGet` → the *string* `"_handle_map_get_expr"` → `getattr`), and
+`module6_whyml/statements.py:716-718` — `handler = self._STMT_HANDLERS.get(s_type); … getattr(self,
+handler)(stmt, …)`. Neither is a static `self._handle_map_get_expr(...)` call. This confirms decision
+(c): the dispatch tables are a *coverage* obligation (IR-type domain exhausted by `TABLE` keys),
+orthogonal to the mixin composition algebra — correctly scoped **out** of Tier 1.
+
 ---
 
 ## R3 — Effort sizing (Tier 1)
