@@ -92,7 +92,7 @@ def _pack_direntry(inode_num: int, name_bytes: list) -> list:
 
 #@ requires \valid(data, 32)
 #@ assigns \nothing
-#@ ensures True
+#@ ensures \result[0] >= 0
 def _unpack_direntry(data: list) -> tuple:
     """Unpack a 32-byte directory entry into (inode_num, name_bytes)."""
     inode_num = _unpack_uint16_be(data, 0)
@@ -375,7 +375,7 @@ class UnixInodeFileSystem:
             entry = self.disk[entry_offset:entry_offset + 32]
             inode_num, name_bytes = _unpack_direntry(entry)
             name = name_bytes.split(b'\x00')[0].decode('utf-8', errors='ignore')
-            if name == pathname and inode_num != 0:
+            if name == pathname and inode_num != 0 and inode_num < 32:
                 found = inode_num
         return found
 
