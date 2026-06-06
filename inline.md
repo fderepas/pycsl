@@ -1,5 +1,24 @@
 # inline.md — inlining method calls on module-level global instances
 
+## Status — IMPLEMENTED (Phases 0–3)
+
+Phase 0 spike confirmed Why3 1.8.2 accepts a module-level mutable-record global
+(`let g : account = {…}` with `writes { g.balance }`); no ref-threading fallback needed.
+Phases 1–3 are implemented:
+- **Module 4** `collect_module_globals`; **Module 5** emits the `module_globals` IR;
+  **Module 6** (`preamble.py::_emit_module_globals`) emits `let g : c = <ctor>` and
+  resolves `g.field` (`_handle_attribute_expr` / `_handle_var_expr`, `_module_global_classes`).
+- **`src/pycsl/ir_inline.py`** (`apply_inline_globals`, wired in `pycsl.py` after
+  `_apply_composition`) inlines `g.m(args)` (statement + expression position; self→g,
+  formals→actuals with temp-binding for non-trivial actuals; freshened locals), demotes
+  global-touching functions out of `pure` (so they emit as program `let`), refuses
+  recursive methods + bounds inlining depth, and bans aliasing a global.
+- Drivers **0576/0577** (Phase 1 read), **0578/0579** (Phase 2 — the A2c payoff: a
+  field-referencing post that the contract path can't prove), **0580** (Phase 3 recursion
+  refusal). Whole corpus byte-identical (the pass is a no-op without object globals).
+
+The rest of this file is the original design.
+
 ## Motivation
 
 PyCSL verifies method calls **modularly** today: a call `c.m(args)` on a record-typed local/param
@@ -30,8 +49,6 @@ In scope:
 - Inlining `g.m(args)` used as a **statement** (mutating call) and as an **expression** (a call whose
   `\result` feeds an enclosing expression).
 - Bodies that read/write `self.<field>`, call other methods on `self`/`g`, and return a value.
-
-Out of scope (initially; flag as follow-ons):
 - Inlining method calls on *locals*/*params* (keep the existing contract path; revisit only if the
   contract gap blocks a real driver there).
 - Recursive methods (Phase 3 refuses to inline; require a contract + `#@ \variant` instead).

@@ -59,6 +59,11 @@ class Module6_WhyMLTranspiler(
         # module-constants-plan: module-level int constants (`K_IHDR = 0`) →
         # resolved to their literal in `_handle_var_expr` (body and contract).
         self._module_constants: Dict[str, int] = self.ir.get("module_constants", {})
+        # inline.md Phase 1: module-level global object instances. `name → class` (orig
+        # case), available in EVERY function so `g.field` resolves to the global record's
+        # field (analogous to `_current_record_var_classes`, but module-scoped).
+        self._module_global_classes: Dict[str, str] = {
+            g["name"]: g["class"] for g in self.ir.get("module_globals", [])}
         self._ambiguous_fields: Set[str] = set()  # field names shared by >1 record → qualified labels
         self._emit_record_ctx: Optional[str] = None  # record name (lower) during invariant/witness emission
         self._shared_var_names: Set[str] = set()  # Module-level shared variable names (concurrent model)
@@ -380,6 +385,11 @@ class Module6_WhyMLTranspiler(
         # `self._axiom_emitted_decls` for the abstract-val dedup (which runs
         # at the end via `_insert_abstract_val_block`).
         out += self._emit_preamble_axioms(self.ir)
+
+        # inline.md Phase 1: module-level global object instances. Emitted AFTER the
+        # record type declarations (so `_record_types` is populated and the constructor
+        # literal + type invariant resolve) and BEFORE functions (which reference `g`).
+        out += self._emit_module_globals()
 
         self._emit_opaque_class_aliases(functions, out, declared_types)
 

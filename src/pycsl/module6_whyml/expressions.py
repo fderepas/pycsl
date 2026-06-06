@@ -1405,10 +1405,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `_field_label`, not an abstract `get_field` stub. (The class invariant is
         # already a Why3 type invariant on `c`, so the quantifier is sound.)
         if isinstance(obj_ir, dict) and obj_ir.get("type") == "Var":
-            _qcls = self._quant_record_binders.get(obj_ir.get("name", ""))
+            _vn = obj_ir.get("name", "")
+            _qcls = self._quant_record_binders.get(_vn)
             if _qcls is not None:
                 _cl = self._record_types[_qcls]["whyml_name"]
-                return f"{whyml_ident(obj_ir['name'])}.{self._field_label(_cl, attr)}"
+                return f"{whyml_ident(_vn)}.{self._field_label(_cl, attr)}"
+            # inline.md Phase 1: a module-level global object `g : C` — `g.field` is the
+            # global record's field (qualified via `_field_label`), not a `get_field` stub.
+            _gcls = self._module_global_classes.get(_vn)
+            if _gcls is not None and _gcls in self._record_types:
+                _cl = self._record_types[_gcls]["whyml_name"]
+                return f"{whyml_ident(_vn)}.{self._field_label(_cl, attr)}"
         if isinstance(obj_ir, str):
             return f"(get_{attr} {obj_ir})"
         if obj_ir.get("type") == "Var":
@@ -1442,6 +1449,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # it. Replaces the opaque `val constant` for these names.
         if name in self._module_constants:
             return f"({self._module_constants[name]})"
+        # inline.md Phase 1: a bare reference to a module-level global object resolves to
+        # its binding name (e.g. passing `acc` as an argument). After the local/param
+        # checks so a same-named local shadows it.
+        if name in getattr(self, "_module_global_classes", {}):
+            return whyml_ident(name)
         # sum-types: a nullary `#@ datatype` constructor used as a value (`Red`).
         if name in self._constructors and self._constructors[name]["arity"] == 0:
             return name

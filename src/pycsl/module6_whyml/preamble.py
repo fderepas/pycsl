@@ -650,6 +650,29 @@ class PreambleEmissionMixin:
         self._in_spec = prev_spec
         return out
 
+    def _emit_module_globals(self) -> List[str]:
+        """inline.md Phase 1: emit each module-level global object instance `g = C(...)`
+        as a Why3 mutable-record binding `let g : c = <constructor literal>`. The
+        constructor `value` (a `Call` IR) reuses the record-construction lowering
+        (`_call_record_constructor`); the record type `c` already carries the class
+        invariant + `by` witness, which Why3 checks against the literal. Empty for
+        modules with no object globals → byte-identical."""
+        globals_ir = self.ir.get("module_globals", [])
+        if not globals_ir:
+            return []
+        out: List[str] = []
+        prev_spec = self._in_spec
+        self._in_spec = True
+        for g in globals_ir:
+            rec = self._record_types.get(g["class"])
+            if rec is None:
+                continue   # not a known record class — skip (defensive)
+            lit = self._expr_to_whyml(g["value"], set())
+            out.append(f"  let {whyml_ident(g['name'])} : {rec['whyml_name']} = {lit}")
+        self._in_spec = prev_spec
+        out.append("")
+        return out
+
     def _emit_type_decls(self, type_decls: List[Dict[str, Any]]) -> Tuple[List[str], Set[str]]:
         """Emit record type declarations. Returns (lines, declared_types)."""
         out: List[str] = []

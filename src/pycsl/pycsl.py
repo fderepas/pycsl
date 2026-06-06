@@ -24,6 +24,7 @@ from errors import PyCSLError, PyCSLParseError
 from Module5_IREmitter import Module5_IREmitter
 from Module6_WhyMLTranspiler import Module6_WhyMLTranspiler
 from ir_schema import validate_ir
+from ir_inline import apply_inline_globals as _apply_inline_globals
 from ConcurrencyChecker import ConcurrencyChecker
 
 
@@ -998,6 +999,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # then re-sync json_ir (Module 6 is built from it).
     _apply_inheritance(ir_data)
     _apply_composition(ir_data)   # Tier-1 mixin composition (check + flatten)
+    _apply_inline_globals(ir_data)   # inline.md: inline method calls on module globals
     json_ir = _json.dumps(ir_data)
 
     # --fun filter: mark non-selected functions as trusted

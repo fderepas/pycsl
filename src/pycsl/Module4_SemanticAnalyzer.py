@@ -76,6 +76,38 @@ def collect_module_constants(node: ast.Module) -> Dict[str, int]:
             and n not in written_via_global}
 
 
+def collect_module_globals(node: ast.Module, class_names: set) -> Dict[str, ast.Call]:
+    """inline.md Phase 1 — module-level global OBJECT instances: a top-level
+    `g = C(<args>)` where `C` is a class defined in the module, bound EXACTLY ONCE at
+    module scope, not a `#@ shared` global and never written via `global`. Returns
+    `{name: constructor-Call-ast}`. These are single, named, statically-known objects
+    (the simplest aliasing story), modeled as a Why3 mutable-record global; method calls
+    on them are inlined (`ir_inline.py`). A reassigned name is excluded (a global
+    instance is bound once — see Scope in inline.md). Mirrors `collect_module_constants`."""
+    counts: Dict[str, int] = {}
+    candidates: Dict[str, ast.Call] = {}
+    for child in getattr(node, "body", []):
+        target = None
+        value = None
+        if (isinstance(child, ast.Assign) and len(child.targets) == 1
+                and isinstance(child.targets[0], ast.Name)):
+            target, value = child.targets[0].id, child.value
+        elif isinstance(child, ast.AnnAssign) and isinstance(child.target, ast.Name):
+            target, value = child.target.id, child.value
+        if target is None:
+            continue
+        counts[target] = counts.get(target, 0) + 1
+        if (isinstance(value, ast.Call) and isinstance(value.func, ast.Name)
+                and value.func.id in class_names):
+            candidates[target] = value
+    shared = {d.variable for d in getattr(node, "csl_shared_decls", [])}
+    written_via_global = {n for g in ast.walk(node) if isinstance(g, ast.Global)
+                          for n in g.names}
+    return {n: c for n, c in candidates.items()
+            if counts.get(n, 0) == 1 and n not in shared
+            and n not in written_via_global}
+
+
 # ---------------------------------------------------------
 # 2. Generic CSL Tree Utilities
 # ---------------------------------------------------------

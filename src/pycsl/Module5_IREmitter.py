@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from errors import PyCSLIRError
 from module5.memoization_rt import MemoizationRTMixin
 from module5.construction_synth import ConstructionSynthMixin
-from Module4_SemanticAnalyzer import collect_module_constants
+from Module4_SemanticAnalyzer import collect_module_constants, collect_module_globals
 from Module2_Parser import (
     CSLNode, ContractWrapper,
     Requires, Ensures, LoopInvariant, LoopVariant,
@@ -70,6 +70,17 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         module_consts = collect_module_constants(node)
         if module_consts:
             self.program_ir["module_constants"] = module_consts
+
+        # inline.md Phase 1: module-level global object instances `g = C(...)`. Modeled
+        # in Module 6 as a Why3 mutable-record global `let g : c = <ctor>`; the ctor
+        # `value` reuses the record-construction lowering (`_call_record_constructor`).
+        _class_names = {c.name for c in node.body if isinstance(c, ast.ClassDef)}
+        module_globals = collect_module_globals(node, _class_names)
+        if module_globals:
+            self.program_ir["module_globals"] = [
+                {"name": nm, "class": call.func.id, "value": self._py_expr_to_ir(call)}
+                for nm, call in module_globals.items()
+            ]
 
         # collections-plan: synthesise record type_decls for module-level
         # `Name = namedtuple(...)` BEFORE visiting functions, so a `Name(...)`
