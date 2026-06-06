@@ -437,6 +437,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         `_handle_call_expr` via `_iter_len_expr`, before the inner args are lowered.)"""
         arg_ir = expr.get("args", [{}])[0] if expr.get("args") else {}
         atype = arg_ir.get("type", "")
+        # §B′: len(d[k]) where d is a seq-valued dict (`Dict[_, List[int]]`) — the
+        # read is a `seq int`, so its length is `Seq.length`.
+        if atype == "Subscript":
+            _b = arg_ir.get("value", {})
+            if (isinstance(_b, dict) and _b.get("type") == "Var"
+                    and getattr(self, "_dict_value_types", {}).get(_b.get("name", "")) == "seq int"):
+                return f"(Seq.length {args[0]})"
         if atype == "String" and isinstance(arg_ir.get("value"), str):
             return str(len(arg_ir["value"]))
         if atype == "Tuple":
@@ -1303,6 +1310,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _nu = getattr(self, "_dict_value_types", {}).get(dvar)
                 if _nu == "string":
                     default = '""'
+                elif _nu == "seq int":
+                    # §B′: a list-snapshot value reads back a `seq int`; the
+                    # `None` placeholder is the empty sequence (dead under
+                    # no_exception KeyError).
+                    default = "(Seq.empty: seq int)"
                 elif _nu and _nu.startswith("map "):
                     # A1-residual: a nested-map value reads back a map; the
                     # `None` placeholder is the empty inner map (option-payload

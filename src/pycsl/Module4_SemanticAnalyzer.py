@@ -289,6 +289,16 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
                 kw = "string" if (isinstance(ki, ast.Name) and ki.id == "str") else "int"
                 vw = "string" if (isinstance(vi, ast.Name) and vi.id == "str") else "int"
                 return f"map {kw} (option {vw})"
+            # no-more-int-7 §B′ (A1-residual): a `List[int]` value → an immutable
+            # `seq int` SNAPSHOT (value-semantics boundary, ownership-discipline §3).
+            # Why3's `seq` is pure, so — unlike a mutable `array int` — it can live
+            # inside a `map`; the store site snapshots the array → seq.
+            if (isinstance(v, ast.Subscript)
+                    and isinstance(v.value, ast.Name)
+                    and v.value.id in ("List", "list")
+                    and isinstance(v.slice, ast.Name)
+                    and v.slice.id == "int"):
+                return "seq int"
         return None
 
     @staticmethod

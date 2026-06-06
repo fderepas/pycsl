@@ -231,6 +231,11 @@ class PreambleEmissionMixin:
             any("float" in f.get("symbol_table", {}).values() for f in functions)
             or any(f.get("return_annotation") == "float" for f in functions)
         )
+        # no-more-int-7 §B′: a `seq int`-valued dict (`Dict[_, List[int]]`) needs
+        # `seq.Seq` for the immutable list-snapshot model.
+        needs_seq = any(
+            "seq" in v for f in functions for v in f.get("dict_value_types", {}).values()
+        )
         needs_map_ghost = any(IRScanner.uses_ghost_type(body, {"ghost_dict", "ghost_set"}) for body in all_bodies)
         needs_ghost_dict = any(IRScanner.uses_ghost_type(body, {"ghost_dict"}) for body in all_bodies)
         # Body-level Python dicts are modelled as `ref (map int (option int))`
@@ -301,6 +306,7 @@ class PreambleEmissionMixin:
             "tuple_return_arities": tuple_return_arities,
             "needs_string": needs_string,
             "needs_real": needs_real,
+            "needs_seq": needs_seq,
             "needs_map_ghost": needs_map_ghost,
             "needs_ghost_dict": needs_ghost_dict,
             "needs_list_ghost": needs_list_ghost,
@@ -330,6 +336,8 @@ class PreambleEmissionMixin:
             out.append("  use string.String")
         if needs.get("needs_real"):
             out.append("  use real.RealInfix")  # no-more-int Stage D — `+.`/`-.`/… on real
+        if needs.get("needs_seq"):
+            out.append("  use seq.Seq")  # no-more-int-7 §B′ — immutable list-snapshot value model
         if self._value_semantic:
             if needs["needs_matrix"]:
                 out.append("  use matrix.Matrix")

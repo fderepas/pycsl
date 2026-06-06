@@ -62,6 +62,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             nu = self._dict_value_types.get(target)
             if nu == "string":
                 val = "(const (None: option string))"
+            elif nu == "seq int":
+                # §B′: immutable list-snapshot value (`Dict[_, List[int]]`).
+                val = "(const (None: option (seq int)))"
             elif nu and nu.startswith("map "):
                 val = f"(const (None: option ({nu})))"
             return f"{indent}let {safe_target} = ref {val} in\n"
@@ -448,8 +451,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     # A1-residual: a nested-map value (ν = `map …`) is passed
                     # through unhashed (the polymorphic op infers `'v = map …`),
                     # like a string value.
-                    v = (val_expr if (nu == "string" or (nu and nu.startswith("map ")))
-                         else self._coerce_to_int(val_expr))
+                    if nu == "seq int":
+                        # §B′: SNAPSHOT the list (array int) to an immutable
+                        # `seq int` at the store site (ownership-discipline §3).
+                        self._add_abstract_op(
+                            "val function array_to_seq (a: array int) : seq int\n"
+                            "    ensures { Seq.length result = Array.length a }")
+                        v = f"(array_to_seq {self._array_coerce_arg(val_expr)})"
+                    elif nu == "string" or (nu and nu.startswith("map ")):
+                        v = val_expr
+                    else:
+                        v = self._coerce_to_int(val_expr)
                     if self_field_name is not None:
                         # `self.<field>[k] = v` — record-field assignment.
                         # Why3 syntax: `self.field <- new_value`.
