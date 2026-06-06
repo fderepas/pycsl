@@ -627,6 +627,56 @@ class DatatypeDecl(CSLNode):
     variants: list
     type_params: list = None
 
+# --- Mixin composition nodes (mixin.md / mixin-ready.md, Tier 1) ---
+# S0 surface: these parse and attach to their class/method node; Module3 weaves
+# them onto `csl_*` fields (S0), and the Module4 composition pass (S2) consumes
+# them. Downstream stages that don't yet recognise them ignore them silently.
+
+@dataclass
+class MixinDecl(CSLNode):
+    """Represents `#@ mixin` — marks a class as a composable mixin (a trait whose
+    provided methods are verified once against its declared dependencies, then
+    flattened into a composer via `#@ compose_from`)."""
+    pass
+
+@dataclass
+class ProvidesDecl(CSLNode):
+    """Represents `#@ provides <m>` — the following method is a provided operation
+    of this mixin (a candidate provider for a sibling's `depends_method`)."""
+    method: str
+
+@dataclass
+class SharedStateDecl(CSLNode):
+    """Represents `#@ shared_state <name>: <type>` (D1) — a field declared as
+    deliberately-shared facade state. Multiple mixins may read/write it; it is NOT
+    an owned-field conflict. A write must still appear in the method's `assigns`."""
+    name: str
+    type_str: str
+
+@dataclass
+class TouchesFieldDecl(CSLNode):
+    """Represents `#@ touches_field <name>: <type>` — an OWNED field of this mixin.
+    At most one mixin may own a given name (two owners → conflict → Tier 2)."""
+    name: str
+    type_str: str
+
+@dataclass
+class MethodDependencyDecl(CSLNode):
+    """Represents `#@ depends_method <m>: <sig>` (D2, a CONCRETE dependency on a
+    sibling/core provider) or `#@ requires_method <m>: <sig>` (an ABSTRACT operation
+    the composing class must supply). Both are modelled as an abstract `val` against
+    which the mixin is verified once; composition discharges provider ⊑ declared."""
+    method: str
+    sig: str          # rendered signature string, e.g. "(self, x: int) -> int"
+    kind: str         # "depends" | "requires"
+
+@dataclass
+class ComposeFromDecl(CSLNode):
+    """Represents `#@ compose_from M1, M2, …` — marks a class as composing the named
+    mixins. Synthesizes the composition obligations (unique provider per dependency,
+    provider-refines-dependency, init-hook) checked by the Module4 pass (S2)."""
+    mixins: list
+
 @dataclass
 class ThreadEntry(CSLNode):
     """Represents `thread_entry` — marks a function as a concurrent thread entry point."""
@@ -690,6 +740,13 @@ PYCSL_GRAMMAR = r"""
              | bounded_int_decl
              | proof_decl
              | datatype_decl
+             | mixin_decl
+             | provides_decl
+             | shared_state_decl
+             | touches_field_decl
+             | depends_method_decl
+             | requires_method_decl
+             | compose_from_decl
              | shared_decl
              | thread_entry_decl
              | acquires_decl
@@ -886,6 +943,21 @@ PYCSL_GRAMMAR = r"""
     variant_def: CNAME "(" CNAME ("," CNAME)* ")" -> variant_payload
                | CNAME -> variant_nullary
 
+    // Mixin composition directives (mixin.md / mixin-ready.md, Tier 1).
+    mixin_decl: "mixin"
+    provides_decl: "provides" CNAME
+    shared_state_decl: "shared_state" CNAME ":" mixin_type
+    touches_field_decl: "touches_field" CNAME ":" mixin_type
+    depends_method_decl: "depends_method" CNAME ":" mixin_method_sig
+    requires_method_decl: "requires_method" CNAME ":" mixin_method_sig
+    compose_from_decl: "compose_from" CNAME ("," CNAME)*
+    // A method signature `(self, x: int) -> int`; param annotations optional.
+    mixin_method_sig: "(" mixin_params? ")" "->" mixin_type
+    mixin_params: mixin_param ("," mixin_param)*
+    mixin_param: CNAME (":" mixin_type)?
+    // A type reference: a name with optional generic args (`int`, `List[int]`).
+    mixin_type: CNAME ("[" mixin_type ("," mixin_type)* "]")?
+
     shared_decl: "shared" CNAME "protected_by" mutex_expr -> shared_protected
                | "shared" CNAME -> shared_unprotected
     thread_entry_decl: "thread_entry"
@@ -1011,6 +1083,35 @@ class PyCSLTransformer(Transformer):
         return DatatypeDecl(str(name), variants, type_params)
     def variant_payload(self, ctor, *types): return (str(ctor), [str(t) for t in types])
     def variant_nullary(self, ctor): return (str(ctor), [])
+
+    # Mixin composition directives (mixin.md / mixin-ready.md, Tier 1).
+    def mixin_decl(self) -> MixinDecl: return MixinDecl()
+    def provides_decl(self, method) -> ProvidesDecl: return ProvidesDecl(str(method))
+    def shared_state_decl(self, name, ty) -> SharedStateDecl:
+        return SharedStateDecl(str(name), str(ty))
+    def touches_field_decl(self, name, ty) -> TouchesFieldDecl:
+        return TouchesFieldDecl(str(name), str(ty))
+    def depends_method_decl(self, method, sig) -> MethodDependencyDecl:
+        return MethodDependencyDecl(str(method), str(sig), "depends")
+    def requires_method_decl(self, method, sig) -> MethodDependencyDecl:
+        return MethodDependencyDecl(str(method), str(sig), "requires")
+    def compose_from_decl(self, *names) -> ComposeFromDecl:
+        return ComposeFromDecl([str(n) for n in names])
+    # Render a method signature / type reference back to a canonical string so the
+    # S2 composition pass can compare provider vs declared signatures textually.
+    def mixin_method_sig(self, *args) -> str:
+        # args: (params_str?, return_type_str) — params optional (filter a possible
+        # None placeholder from the `?` quantifier).
+        vals = [a for a in args if a is not None]
+        if len(vals) == 2:
+            return f"({vals[0]}) -> {vals[1]}"
+        return f"() -> {vals[0]}"
+    def mixin_params(self, *params) -> str: return ", ".join(str(p) for p in params)
+    def mixin_param(self, name, *ty) -> str:
+        return f"{name}: {ty[0]}" if ty else str(name)
+    def mixin_type(self, name, *args) -> str:
+        return f"{name}[{', '.join(str(a) for a in args)}]" if args else str(name)
+
     def thread_entry_decl(self) -> ThreadEntry: return ThreadEntry()
     def acquires_decl(self, mutex) -> Acquires: return Acquires(str(mutex))
     def releases_decl(self, mutex) -> Releases: return Releases(str(mutex))
