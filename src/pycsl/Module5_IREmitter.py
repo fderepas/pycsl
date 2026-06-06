@@ -1257,6 +1257,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         }
         has_hash = "__hash__" in method_names
         has_eq = "__eq__" in method_names
+        # Mixin composition (Tier 1). Record the composition at MODULE level (not on a
+        # type_decl) so a method-only composer with no own fields stays an opaque
+        # `type c = int` — its provided methods are cloned in as `(self: c)` functions
+        # by `_apply_composition` (pycsl.py), no record needed unless it has real state.
+        is_mixin = bool(getattr(node, 'csl_is_mixin', False))
+        compose_from = list(getattr(node, 'csl_compose_from', []) or [])
+        if compose_from:
+            self.program_ir.setdefault("compositions", []).append(
+                {"composer": node.name, "mixins": compose_from})
         if fields or bases:
             class_invariants_ir = [self._csl_to_ir(inv.expr)
                                    for inv in getattr(node, 'csl_class_invariants', [])]
@@ -1270,6 +1279,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 "is_unhashable": has_eq and not has_hash,
                 "constants": constants, "bases": bases,
                 "init_params": init_params, "init_body": init_body,
+                "is_mixin": is_mixin, "compose_from": compose_from,
             })
         self.generic_visit(node)
         self._current_class = None
@@ -1400,6 +1410,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                  "ensures": self._csl_list_to_ir(d["ensures"])}
                 for d in getattr(node, 'csl_method_deps', []) or []
             ],
+            # Field classification (D1): names this mixin method declared it may touch.
+            "shared_state": [{"name": s.name, "type": s.type_str}
+                             for s in getattr(node, 'csl_mixin_shared_state', []) or []],
+            "touches_field": [{"name": s.name, "type": s.type_str}
+                              for s in getattr(node, 'csl_touches_field', []) or []],
         }
 
     def _detect_array_dimensions(self, func_ir: Dict[str, Any]) -> None:

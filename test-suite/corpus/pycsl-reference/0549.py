@@ -11,11 +11,12 @@ of PyCSL's own facade-with-shared-state mixin shape (the self-hosting target,
     dependency, not an abstract hole), calling `self.emit(k)`;
   - `Facade` `#@ compose_from CoreEmit, MapOps` and calls `self.handle_get`.
 
-FAILS today only because mixin composition is unexpressible (the `#@ mixin` /
-`#@ provides` / `#@ depends_method` / `#@ compose_from` directives do not parse).
-Flips to PASS when Tier 1 lands (S2 composition check): the unique provider for
-`emit` is found, its contract refines the declared dependency, and the flattened
-`Facade` proves `run`'s postcondition end-to-end.
+PASSES under Tier-1 mixin composition (S2): the unique provider for `emit` is
+found (`CoreEmit`), the composed mixins' provided methods (`handle_get`, `emit`)
+are flattened into `Facade`, and `facade.run` proves `\result >= 0`
+end-to-end through `self.handle_get` → `self.emit`. Before Tier 1 this failed at
+parse (the `#@ mixin` / `provides` / `depends_method` / `compose_from` directives
+were unrecognised).
 
 HONEST CAVEAT (links mixin-ready.md R2/R4): this is a faithful-but-idealised
 miniature — it uses STATIC `provides`/`depends_method`, not the real facade's
@@ -23,7 +24,6 @@ miniature — it uses STATIC `provides`/`depends_method`, not the real facade's
 2026-06-06, scoped out of Tier 1). Passing it proves the mixin *algebra* works,
 not that PyCSL's real facade is fully self-verifying (that needs Tier 1.5).
 """
-# pycsl-expected: FAIL
 # pycsl-flags: --memory-model hoare
 _ = 0  # anchor
 

@@ -672,6 +672,7 @@ class FunctionEmissionMixin:
         the existing contract-propagation maps attach the dependency's `ensures` to
         the abstract call. These never enter the emission list; they only populate
         the lookup maps. Non-mixin modules yield [] (no behavioural change)."""
+        real_names = {f.get("name") for f in functions}
         pseudo: List[Dict[str, Any]] = []
         for func in functions:
             deps = func.get("method_deps") or []
@@ -682,6 +683,12 @@ class FunctionEmissionMixin:
             for dep in deps:
                 params, ret = self._parse_mixin_sig(dep.get("sig", ""))
                 key = f"{cls}__{dep['method']}" if cls else dep["method"]
+                # Composition (S2): when the dependency has a REAL provider flattened
+                # into this class (`<cls>__<dep>` exists), use that concrete contract,
+                # not the abstract declared interface — skip the pseudo-func so it
+                # doesn't shadow the real provider in the propagation maps.
+                if key in real_names:
+                    continue
                 # Python-type symbol table (self excluded); `_symtype_to_whyml` and the
                 # return-type map convert these exactly as for a real method.
                 symtable = {nm: ty for nm, ty in params}

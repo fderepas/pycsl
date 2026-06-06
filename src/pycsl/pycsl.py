@@ -498,6 +498,117 @@ def _apply_inheritance(ir_data: Dict[str, Any]) -> None:
         merge_one(td)
 
 
+def _apply_composition(ir_data: Dict[str, Any]) -> None:
+    """Tier-1 mixin composition (mixin.md / mixin-ready.md) — an IR→IR pass after
+    inheritance. For each `#@ compose_from M1, M2, …` class it (1) CHECKS the
+    composition is sound and (2) FLATTENS the composed mixins' provided methods into
+    the composer so its own methods can call them.
+
+    Checks (each a hard PyCSLSemanticError, with teeth — the negative drivers stay
+    failing):
+      • unique provider — every mixin `depends_method`/`requires_method` must have
+        EXACTLY one provider among the composed mixins (0 → missing; ≥2 → unresolved
+        collision, Tier-2 `#@ resolve` not implemented).
+      • field classification (D1) — a mixin method may write a `self.<f>` only if `f`
+        is declared `#@ shared_state`/`#@ touches_field` or is one of the mixin's own
+        __init__ fields.
+
+    Flatten: clone each provided method `<mixin>__m → <composer>__m` (retype self), so
+    a `self.<m>(…)` in the composer resolves to the concrete provider's contract (which
+    each mixin was already verified once against in isolation, S1). The provider⊑
+    dependency refinement goal is S2b.
+    """
+    from errors import PyCSLSemanticError
+    compositions = ir_data.get("compositions") or []
+    if not compositions:
+        return
+    type_decls = ir_data.get("type_decls", [])
+    records = {td["name"]: td for td in type_decls if td.get("kind") == "record"}
+    funcs = ir_data.setdefault("functions", [])
+
+    def self_field_writes(body: Any) -> Set[str]:
+        written: Set[str] = set()
+        def walk(n: Any) -> None:
+            if isinstance(n, dict):
+                if (n.get("stmt") in ("FieldAssign", "FieldAugAssign")
+                        and n.get("object") == "self"):
+                    written.add(n.get("field"))
+                for v in n.values():
+                    walk(v)
+            elif isinstance(n, list):
+                for x in n:
+                    walk(x)
+        walk(body)
+        return written
+
+    for comp in compositions:
+        C = comp["composer"]; c = C.lower()
+        mixin_names = comp["mixins"]
+        mixin_funcs = {M: [f for f in funcs if f.get("name", "").startswith(M.lower() + "__")]
+                       for M in mixin_names}
+        # gather providers (method -> [(mixin, func)]) and dependencies
+        providers: Dict[str, List[Any]] = {}
+        deps: List[Any] = []
+        for M in mixin_names:
+            for f in mixin_funcs[M]:
+                for pm in f.get("provides", []):
+                    providers.setdefault(pm, []).append((M, f))
+                for d in f.get("method_deps", []):
+                    deps.append((M, d))
+        # --- check: unique provider per dependency ---
+        for M, d in deps:
+            n = len(providers.get(d["method"], []))
+            if n == 0:
+                raise PyCSLSemanticError(
+                    f"Mixin composition '{C}': dependency '{d['method']}' (declared by "
+                    f"mixin '{M}' via #@ {d['kind']}_method) has NO provider among the "
+                    f"composed mixins {mixin_names}. Every dependency needs exactly one "
+                    f"provider — add a mixin that `#@ provides {d['method']}`.")
+        for pm, provs in providers.items():
+            if len(provs) > 1:
+                owners = ", ".join(M for M, _ in provs)
+                raise PyCSLSemanticError(
+                    f"Mixin composition '{C}': method '{pm}' is provided by more than one "
+                    f"mixin ({owners}) — an unresolved collision. Resolve it with "
+                    f"`#@ resolve {pm} from <Mixin>` (Tier 2); composition never silently "
+                    f"picks a provider.")
+        # --- check: field classification (no undeclared self writes) ---
+        for M in mixin_names:
+            declared: Set[str] = set()
+            for f in mixin_funcs[M]:
+                declared |= {s["name"] for s in f.get("shared_state", [])}
+                declared |= {s["name"] for s in f.get("touches_field", [])}
+            declared |= {fld["name"] for fld in records.get(M, {}).get("fields", [])}
+            for f in mixin_funcs[M]:
+                for fld in self_field_writes(f.get("body", [])):
+                    if fld not in declared:
+                        raise PyCSLSemanticError(
+                            f"Mixin '{M}' (composed into '{C}'): a method writes "
+                            f"`self.{fld}`, a field declared neither `#@ shared_state` nor "
+                            f"`#@ touches_field` nor initialised in __init__. Declare every "
+                            f"field a mixin touches so composition can reason about it.")
+        # --- flatten: clone provided methods into the composer ---
+        existing = {f.get("name") for f in funcs}
+        own_tails = {f["name"][len(c) + 2:] for f in funcs
+                     if f.get("name", "").startswith(c + "__")}
+        for M in mixin_names:
+            m = M.lower()
+            for f in mixin_funcs[M]:
+                if not f.get("provides"):
+                    continue
+                tail = f["name"][len(m) + 2:]
+                new_name = f"{c}__{tail}"
+                if tail in own_tails or new_name in existing:
+                    continue   # composer overrides it, or already cloned
+                clone = copy.deepcopy(f)
+                clone["name"] = new_name
+                clone["self_type"] = C
+                clone["provides"] = []   # the clone is the concrete impl, not a re-provider
+                funcs.append(clone)
+                existing.add(new_name)
+                own_tails.add(tail)
+
+
 def _resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, Any],
                      deep: bool = False, cache: Optional[Dict[str, Any]] = None,
                      processing_set: Optional[Set[str]] = None) -> Set[str]:
@@ -879,6 +990,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # Layers B+C — apply class inheritance (same-file + imported) as an IR pass,
     # then re-sync json_ir (Module 6 is built from it).
     _apply_inheritance(ir_data)
+    _apply_composition(ir_data)   # Tier-1 mixin composition (check + flatten)
     json_ir = _json.dumps(ir_data)
 
     # --fun filter: mark non-selected functions as trusted
