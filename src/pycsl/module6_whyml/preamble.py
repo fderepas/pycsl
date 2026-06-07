@@ -702,7 +702,10 @@ class PreambleEmissionMixin:
         def _fmt_variant(vtd: Dict[str, Any]) -> str:
             """Register a variant's WhyML mapping + constructors and return its
             `<name>['a…] = Ctor pay | …` body (sans the `type`/`with` keyword)."""
-            tn = vtd["name"].lower()
+            # 07-0647-spec S1.1: the Why3 type name must be a legal, non-reserved
+            # identifier — `whyml_ident` lowercases AND mangles reserved words
+            # (`Match` → `py_match`, avoiding the `match` keyword), vs a raw `.lower()`.
+            tn = whyml_ident(vtd["name"].lower())
             declared_types.add(tn)
             # A5d: a parametric datatype `Option[T]` → `type option 't = …`. Each
             # type parameter `T` becomes a Why3 type variable `'t`; a payload
@@ -788,7 +791,8 @@ class PreambleEmissionMixin:
                 i += 1
                 continue
             if td["kind"] == "record":
-                type_name = td["name"].lower()
+                # 07-0647-spec S1.1: reserved-word-safe Why3 type name (see variant above).
+                type_name = whyml_ident(td["name"].lower())
                 declared_types.add(type_name)
                 self._record_types[td["name"]] = {
                     "whyml_name": type_name,
