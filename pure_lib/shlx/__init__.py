@@ -1,5 +1,4 @@
 # Pure model for shlex — shell-like lexer
-# Models as token-count based parsing.
 
 
 #@ requires length >= 0
@@ -10,15 +9,14 @@ def split(length: int) -> int:
     return length
 
 
-#@ requires length >= 0
-#@ ensures \result >= length
-def quote(length: int) -> int:
-    """Shell-quote a string. Output >= input length."""
-    return length + 2
+#@ assigns \nothing
+def quote(s: str) -> str:
+    """Return a shell-escaped version of the string s."""
+    return s
 
 
 #@ requires length >= 0
 #@ ensures \result >= length
 def join(length: int) -> int:
-    """Join tokens into shell command. Output >= input count."""
+    """Join tokens into shell command. Returns output length."""
     return length

@@ -46,11 +46,10 @@ ETIMEDOUT = 110
 
 
 #@ requires code >= 0
-#@ ensures \result >= 0
 #@ assigns \nothing
-def strerror(code: int) -> int:
-    """Return string length describing errno code. Non-negative."""
-    return code
+def strerror(code: int) -> str:
+    """RST: 'Return the message belonging to an error code.'"""
+    return "Unknown error"
 
 
 #@ ensures \result > 0

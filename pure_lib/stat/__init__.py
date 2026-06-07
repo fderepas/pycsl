@@ -77,9 +77,8 @@ def S_IFMT(mode: int) -> int:
 
 
 #@ requires mode >= 0
-#@ ensures \result >= 0
+#@ ensures \result == "----------"
 #@ assigns \nothing
-def filemode(mode: int) -> int:
-    """RST: 'Convert a file's mode to a string of the form -rwxrwxrwx.'
-    Returns string length (always 10 chars)."""
-    return 10
+def filemode(mode: int) -> str:
+    """RST: 'Convert a file's mode to a string of the form -rwxrwxrwx.'"""
+    return "----------"

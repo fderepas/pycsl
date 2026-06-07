@@ -3,9 +3,8 @@ from pure_lib.errno import strerror, errorcode_count
 
 
 #@ requires code >= 0
-#@ ensures \result >= 0
-def test_strerror_nonneg(code: int) -> int:
-    """strerror returns non-negative string length."""
+def test_strerror_returns_str(code: int) -> str:
+    """strerror returns a string description."""
     return strerror(code)
 
 

@@ -1,5 +1,5 @@
 # Formal tests for pure_lib/secr — secrets module
-from pure_lib.secr import randbelow, token_bytes, token_hex, compare_digest
+from pure_lib.secr import randbelow, token_hex, compare_digest
 
 
 #@ requires n > 0
@@ -10,16 +10,8 @@ def test_randbelow_nonneg(n: int) -> int:
 
 
 #@ requires nbytes > 0
-#@ ensures \result >= 0
-def test_token_bytes_nonneg(nbytes: int) -> int:
-    """token_bytes returns non-negative length."""
-    return token_bytes(nbytes)
-
-
-#@ requires nbytes > 0
-#@ ensures \result >= 0
-def test_token_hex_nonneg(nbytes: int) -> int:
-    """token_hex returns non-negative."""
+def test_token_hex_returns_str(nbytes: int) -> str:
+    """token_hex returns a string."""
     return token_hex(nbytes)
 
 

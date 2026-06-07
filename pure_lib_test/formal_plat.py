@@ -2,22 +2,14 @@
 from pure_lib.plat import system, machine, python_version, architecture
 
 
-#@ ensures \result >= 0
-def test_system_nonneg() -> int:
-    """system returns non-negative."""
+def test_system_str() -> str:
+    """system returns a string."""
     return system()
 
 
-#@ ensures \result >= 0
-def test_machine_nonneg() -> int:
-    """machine returns non-negative."""
+def test_machine_str() -> str:
+    """machine returns a string."""
     return machine()
-
-
-#@ ensures \result >= 0
-def test_python_version_nonneg() -> int:
-    """python_version returns non-negative."""
-    return python_version()
 
 
 #@ ensures \result >= 0

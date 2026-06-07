@@ -1,56 +1,57 @@
 # Pure model for platform — system identification
-# Models as deterministic queries returning non-negative integers.
+# Functions return strings describing the platform.
+
+
+#@ assigns \nothing
+def system() -> str:
+    """Return the system/OS name (e.g. 'Linux')."""
+    return "Linux"
+
+
+#@ assigns \nothing
+def node() -> str:
+    """Return the computer's network name."""
+    return ""
+
+
+#@ assigns \nothing
+def release() -> str:
+    """Return the system's release (e.g. kernel version)."""
+    return ""
+
+
+#@ assigns \nothing
+def version() -> str:
+    """Return the system's release version."""
+    return ""
+
+
+#@ assigns \nothing
+def machine() -> str:
+    """Return the machine type (e.g. 'x86_64')."""
+    return "x86_64"
+
+
+#@ assigns \nothing
+def processor() -> str:
+    """Return the (real) processor name."""
+    return ""
+
+
+#@ assigns \nothing
+def python_version() -> str:
+    """Return the Python version as string '3.x.y'."""
+    return "3.14.0"
 
 
 #@ ensures \result >= 0
-def system() -> int:
-    """Return system/OS name length."""
-    return 0
-
-
-#@ ensures \result >= 0
-def node() -> int:
-    """Return network name length."""
-    return 0
-
-
-#@ ensures \result >= 0
-def release() -> int:
-    """Return system release length."""
-    return 0
-
-
-#@ ensures \result >= 0
-def version() -> int:
-    """Return system version length."""
-    return 0
-
-
-#@ ensures \result >= 0
-def machine() -> int:
-    """Return machine type length."""
-    return 0
-
-
-#@ ensures \result >= 0
-def processor() -> int:
-    """Return processor name length."""
-    return 0
-
-
-#@ ensures \result >= 0
-def python_version() -> int:
-    """Return Python version string length."""
-    return 0
-
-
-#@ ensures \result >= 0
+#@ assigns \nothing
 def architecture() -> int:
-    """Return architecture bits."""
+    """Return architecture bits (e.g. 64)."""
     return 64
 
 
-#@ ensures \result >= 0
-def platform_string() -> int:
-    """Return platform identifier length."""
-    return 0
+#@ assigns \nothing
+def platform_string() -> str:
+    """Return a single string identifying the platform."""
+    return "Linux-x86_64"

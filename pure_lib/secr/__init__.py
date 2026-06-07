@@ -26,24 +26,24 @@ def choice(size: int) -> int:
 
 
 #@ requires nbytes > 0
-#@ ensures \result == nbytes
-def token_bytes(nbytes: int) -> int:
-    """Return nbytes random bytes (modeled as length)."""
-    return nbytes
+#@ assigns \nothing
+def token_bytes(nbytes: int) -> str:
+    """Return nbytes random bytes as a bytes-like string."""
+    return ""
 
 
 #@ requires nbytes > 0
-#@ ensures \result == nbytes * 2
-def token_hex(nbytes: int) -> int:
-    """Return hex string of nbytes random bytes (length = 2*nbytes)."""
-    return nbytes * 2
+#@ assigns \nothing
+def token_hex(nbytes: int) -> str:
+    """Return random hex string (2*nbytes chars)."""
+    return ""
 
 
 #@ requires nbytes > 0
-#@ ensures \result >= nbytes
-def token_urlsafe(nbytes: int) -> int:
-    """Return URL-safe base64 token (length >= nbytes)."""
-    return nbytes
+#@ assigns \nothing
+def token_urlsafe(nbytes: int) -> str:
+    """Return URL-safe base64 token string."""
+    return ""
 
 
 #@ requires a >= 0

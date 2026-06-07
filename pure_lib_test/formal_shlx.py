@@ -9,8 +9,6 @@ def test_split_nonneg(length: int) -> int:
     return split(length)
 
 
-#@ requires length >= 0
-#@ ensures \result >= 0
-def test_quote_nonneg(length: int) -> int:
-    """quote returns non-negative."""
-    return quote(length)
+def test_quote_str() -> str:
+    """quote returns a string."""
+    return quote("hello")
