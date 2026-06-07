@@ -1564,6 +1564,32 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 base = req.get("base")
                 if base and base in candidate_params and base not in array2d:
                     array1d.add(base)
+        # 07-1321 S4: a list/bytes/bytearray candidate that is the target of `+=`
+        # (Python list/bytes extension → array concatenation) is array-typed too, even
+        # without a `\valid` requires — otherwise `dst += src` mis-lowers to integer
+        # `+` (an `array int` vs `int` type error). Routing it here sends it to the
+        # array-extend path in `_handle_augassign_stmt`. (Faithful length-additive
+        # concatenation is a documented follow-on; this removes the type error.)
+        # Restrict to params DEFINITELY array-typed (`list`/`bytes`/`bytearray`),
+        # excluding `Any`: an `Any`-typed int accumulator (`total += 1`) is also a `+=`
+        # target and must NOT be reclassified as an array (that was the bug the `\valid`
+        # gate guarded against).
+        strict_array_cands = {k for k, v in symbol_table.items()
+                              if v in ("list", "bytes", "bytearray")}
+
+        def _collect_augextend(node, out):
+            if isinstance(node, dict):
+                if (node.get("stmt") == "AugAssign" and node.get("op") == "+"
+                        and node.get("target") in strict_array_cands):
+                    out.add(node["target"])
+                for v in node.values():
+                    _collect_augextend(v, out)
+            elif isinstance(node, list):
+                for x in node:
+                    _collect_augextend(x, out)
+        aug_ext: Set[str] = set()
+        _collect_augextend(func_ir["body"], aug_ext)
+        array1d |= (aug_ext - array2d)
         if array1d:
             func_ir["array1d_params"] = sorted(array1d)
 

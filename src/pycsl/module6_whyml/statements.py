@@ -556,7 +556,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # the call type-checks.
             self._add_abstract_op(
                 "val array_extend (dst: array int) (src: array int) : unit")
-            code = f"{indent}array_extend {safe_target} {val}"
+            # 07-1321 S4: a non-ref array local passes bare; a ref-wrapped target
+            # (e.g. a `list` param reassigned via `+=`, given a ref shadow) must be
+            # dereferenced so `array_extend` sees `array int`, not `ref (array int)`.
+            dst = f"!{safe_target}" if target in local_refs else safe_target
+            code = f"{indent}array_extend {dst} {val}"
         else:
             code = f"{indent}{safe_target} := !{safe_target} {op} {val}"
         if rest:

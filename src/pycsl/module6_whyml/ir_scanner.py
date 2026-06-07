@@ -106,12 +106,17 @@ class IRScanner:
                 target = stmt.get("target", "")
                 if isinstance(val, dict):
                     vt = val.get("type", "")
-                    if vt == "Call" and val.get("func") in ("list", "sorted"):
+                    if vt == "Call" and val.get("func") in (
+                            "list", "sorted", "bytes", "bytearray"):
                         # `sorted` is emitted as an abstract val returning
                         # `array int`; track its target as array-typed so
                         # the pre-decl path skips the `ref 0` declaration.
                         # (collections-plan: `deque()` lowers to an empty ArrayLit
                         # in Module5, so it is caught by the ArrayLit arm below.)
+                        # 07-1321 S1: `bytes(...)`/`bytearray(...)` lower to faithful
+                        # `array int` constructors (`bytes_new`/`bytearray_empty`), so a
+                        # local bound to one is array-typed too (else `b[0]` would use the
+                        # abstract int subscript and lose the element-equality contract).
                         array_vars.add(target)
                     elif (vt == "Call" and val.get("func", "").rsplit(".", 1)[-1]
                             in ("encode", "ljust", "rjust", "zfill")):

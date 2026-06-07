@@ -154,6 +154,10 @@ The **Ref** column uses the format `section.subsection.row`.
 | 12.4.1 | `Optional[T]` return annotation \| Module5 unwraps `Optional[T]` to T (since `None` maps to `0`) | 0349 | PASS |
 | 12.4.2 | `Union[T, None]` return annotation \| Module5 heuristic picks the first non-`None` component | 0350 | PASS |
 | 12.5.1 | `sorted` builtin on array \| Emits abstract `val sorted_1 (a: array int) : array int`; target tracked as array-typed | 0351 | PASS |
+| 12.5.2 | `bytes()`/`bytearray()` constructors \| Faithful `array int` constructor — length- and element-preserving `ensures` (empty → length 0); result tracked as array-typed (07-1321 S1) | 0616 | PASS |
+| 12.5.3 | array-ref local deref at call site \| Ref-wrapped array local passed to a callee is dereferenced (`!x`); plain args unchanged (07-1321 S2) | 0617 | PASS |
+| 12.5.4 | `b'\x00' * N` byte-literal repetition \| Lowers to `array int` (`Array.make N 0`), incl. slice-assignment RHS (`Array.blit`) (07-1321 S3) | 0618 | PASS |
+| 12.5.5 | `array += array` concatenation \| List/bytes `+=` target recognised as array-typed → `array_extend` (deref'd), not integer `+`; faithful length-additive concat is a follow-on (07-1321 S4) | 0619 | PASS |
 
 ## NoException + UB Detection (workplan PRs 1–10, 2026)
 
