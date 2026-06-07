@@ -32,6 +32,11 @@ class AutoCounter:
 
 _auto_counter = AutoCounter()
 
+# HAPPY: only auto() may advance the counter
+#@ happy counter_ownership:
+#@     protects _auto_counter._next
+#@     except auto
+
 
 #@ ensures \result >= 1
 def auto() -> int:

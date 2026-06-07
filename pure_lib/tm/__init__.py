@@ -21,6 +21,11 @@ class ClockModel:
 # Module-level singleton for simple usage
 _clock = ClockModel()
 
+# HAPPY: only monotonic() may write the clock's ticks field
+#@ happy clock_ownership:
+#@     protects _clock._ticks
+#@     except monotonic
+
 
 #@ ensures \result >= 0
 def monotonic() -> int:
