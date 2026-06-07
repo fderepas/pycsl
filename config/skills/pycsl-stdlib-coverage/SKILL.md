@@ -18,6 +18,34 @@ contract annotations. They are **real, runnable Python** — not stubs,
 not `pass` bodies. This matters: the implementations are tested
 concretely *and* proved formally.
 
+### Everything can be made pure-Python
+
+**No module is inherently un-modelable.** Even modules that interact
+with hardware, the OS kernel, the network, or the runtime itself can
+be made pure-Python by building an **abstract model** of the
+underlying resource — exactly as `pure_lib/os/UnixInodeFileSystem.py`
+models the Unix inode layer with pure-Python arrays and integers.
+
+The pattern:
+1. **Identify the resource** — what external state does the module
+   read/write? (filesystem, process table, clock, network, memory)
+2. **Model it as a Python class** — represent the resource's state as
+   fields (lists, dicts, ints). Example: `UnixInodeFileSystem` uses
+   arrays for inodes, data blocks, and a free-block bitmap.
+3. **Implement APIs against the model** — each stdlib function becomes
+   a method that operates on the model's fields, with full contracts.
+4. **Prove properties of the model** — because the model is pure
+   Python with integer/array operations, PyCSL can verify it.
+
+The model does NOT need to be a perfect replica of the real
+implementation. It needs to faithfully capture the **contract-relevant
+behavior**: pre/postconditions, state transitions, error conditions.
+Abstract away implementation details (caching, buffering, OS-specific
+paths) that don't affect the functional contract.
+
+See `making-it-pure.md` for the full plan of which abstract models
+are needed for each remaining module.
+
 ---
 
 ## Architecture
