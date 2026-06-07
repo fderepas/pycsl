@@ -413,6 +413,83 @@ algebraically about the result, not merely know it is non-negative.
 5. Can a caller prove **more** about their own code using this contract?
    If not, the contract is too weak.
 
+### Step 5b — Use the axiom registry for inductive properties
+
+SMT solvers cannot discharge properties that require induction,
+cross-function relational reasoning, or uninterpreted predicates.
+For these, import cross-validated axioms from the **axiom registry**
+(`_AXIOM_REGISTRY` in `src/pycsl/module6_whyml/preamble.py`).
+
+**Syntax:**
+```python
+#@ proof rocq Pycsl.Reference.Gcd.gcd_step
+#@ proof lean Pycsl.Reference.Gcd.gcd_step
+```
+Each `#@ proof` directive emits a WhyML `axiom` in the preamble.
+Always cite both Rocq and Lean (cross-validation is required).
+
+**Available axiom families:**
+
+| Prefix | Axioms | Use case |
+|--------|--------|----------|
+| `Pycsl.Reference.Gcd.*` | 7 (gcd_0, gcd_step, gcd_divides_a/b, gcd_greatest, gcd_result_nonneg/positive) | Euclidean GCD: loop invariant `gcd(x,y)==gcd(a,b)`, divisibility, maximality |
+| `Pycsl.Reference.Perm.*` | 2 (permut_refl, rev_permutation) | Permutation properties over `array int` — uninterpreted `permut` predicate |
+| `Pycsl.Reference.Json.*` | 1 (mirror_involution) | Inductive properties over recursive `#@ datatype` — structural induction |
+| `UnixFs.Bitmap.*` | 1 (bit_and_one_in_zero_one) | Bitwise `(x >> y) & 1 ∈ {0,1}` — Z3 blowup avoidance |
+| `UnixFs.Struct.*` | 3 (i1a1, i2, i18 round_trips) | `struct.pack`/`struct.unpack` round-trip identity |
+
+**When to use:**
+- Loop invariants with `gcd(x,y) == gcd(a,b)` preservation — needs `gcd_step`
+- `\forall k` maximality in GCD postcondition — needs `gcd_greatest`
+- `\permutation` on reversed/sorted arrays — needs `rev_permutation`
+- Inductive properties over recursive datatypes — needs structural-induction lemma
+- Any VC where Alt-Ergo/Z3 returns Timeout or Unknown after 60 s
+
+**Pattern (GCD flagship, from `test-suite/corpus/pycsl-reference/0342.py`):**
+```python
+#@ proof rocq Pycsl.Reference.Gcd.gcd_0
+#@ proof lean Pycsl.Reference.Gcd.gcd_0
+#@ proof rocq Pycsl.Reference.Gcd.gcd_step
+#@ proof lean Pycsl.Reference.Gcd.gcd_step
+#@ proof rocq Pycsl.Reference.Gcd.gcd_divides_a
+#@ proof lean Pycsl.Reference.Gcd.gcd_divides_a
+#@ proof rocq Pycsl.Reference.Gcd.gcd_divides_b
+#@ proof lean Pycsl.Reference.Gcd.gcd_divides_b
+#@ proof rocq Pycsl.Reference.Gcd.gcd_greatest
+#@ proof lean Pycsl.Reference.Gcd.gcd_greatest
+#@ proof rocq Pycsl.Reference.Gcd.gcd_result_nonneg
+#@ proof lean Pycsl.Reference.Gcd.gcd_result_nonneg
+#@ proof rocq Pycsl.Reference.Gcd.gcd_result_positive
+#@ proof lean Pycsl.Reference.Gcd.gcd_result_positive
+#@ requires a >= 0
+#@ requires b >= 0
+#@ ensures \result == gcd(a, b)
+#@ ensures \result >= 0
+#@ ensures (a > 0 or b > 0) ==> \result > 0
+#@ ensures (a > 0 or b > 0) ==> a % \result == 0
+#@ ensures (a > 0 or b > 0) ==> b % \result == 0
+#@ ensures (a > 0 or b > 0) ==>
+#@   (\forall k; (k > 0 and a % k == 0 and b % k == 0) ==> k <= \result)
+#@ assigns \nothing
+def gcd(a: int, b: int) -> int:
+    x: int = a
+    y: int = b
+    #@ loop invariant x >= 0 and y >= 0
+    #@ loop invariant gcd(x, y) == gcd(a, b)
+    #@ loop variant y
+    while y != 0:
+        r: int = x % y
+        x = y
+        y = r
+    return x
+```
+
+**Trust model:** Each axiom qualname maps to paired Rocq + Lean proofs
+in `NNNN.proofs/{rocq,lean}/`. The `audit_proof.py` tool verifies that
+both proof assistants accept the lemma and that neither introduces
+extraneous axioms beyond the kernel allowlist. A missing or failing
+cross-check is a hard error.
+
 ### Step 6 — Document tool gaps
 
 Any PyCSL limitation discovered during steps 3–5 goes into a
@@ -752,4 +829,7 @@ building any fs-mutating module.
 - `1111.md` — PyCSL tool requirements R5–R7
 - `07-0647-gaps.md` — PyCSL tool requirements R8–R13
 - `docs/glossary/formal-test.md` — defines the formal test concept
+- `docs/glossary/axiom-registry.md` — defines the axiom registry concept
+- `src/pycsl/module6_whyml/preamble.py` — `_AXIOM_REGISTRY` source of truth
+- `test-suite/corpus/pycsl-reference/0342.py` — GCD flagship proof (axiom pattern)
 - `lib/calling.json` — call graph of stdlib symbols to cover

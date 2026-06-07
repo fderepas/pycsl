@@ -60,6 +60,7 @@ relevant page when needed.
 
 ### Solver and prover background
 
+- [axiom registry](axiom-registry.md)
 - [SMT solver](smt-solver.md)
 - [SAT solver](sat-solver.md)
 - [theorem prover](theorem-prover.md)
