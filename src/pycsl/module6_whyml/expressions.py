@@ -944,11 +944,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         bytes_call = self._call_bytes_methods(args, func_name)
         if bytes_call is not None:
             return bytes_call
-        coerced_args = [self._coerce_to_int(a) for a in args]
         safe_fn = whyml_ident(func_name)
         if (func_name not in local_refs
                 and func_name not in self._current_params
                 and safe_fn not in self._module_func_names):
+            # Unannotated callee: no signature is known, so the abstract op and
+            # its args stay in the int model.
+            coerced_args = [self._coerce_to_int(a) for a in args]
             n = len(coerced_args)
             arity_fn = f"{safe_fn}_{n}"
             if n == 0:
@@ -962,6 +964,34 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # compat — ambient.
             inner = f"({arity_fn} {' '.join(coerced_args) if coerced_args else '()'})"
             return self._wrap_unannotated_call_with_strict_assert(inner)
+        # 1111-spec R7 (no-more-int): if the call passes fewer args than the callee
+        # arity, fill the missing trailing params from the callee's positional
+        # defaults (lowered at the param's real type via R5 below) so the application
+        # is total — never a partial application. A missing param with no default is a
+        # hard error, not a silent partial application.
+        formal_params = self._module_method_formal_params.get(func_name, [])
+        if formal_params and len(args) < len(formal_params):
+            defaults = self._module_method_param_defaults.get(func_name, {})
+            for nm in formal_params[len(args):]:
+                if nm in defaults:
+                    args = args + [self._expr_to_whyml(defaults[nm], local_refs,
+                                                       invariant_ctx, subst)]
+                else:
+                    from errors import PyCSLSemanticError
+                    raise PyCSLSemanticError(
+                        f"call to '{func_name}' passes {len(expr.get('args', []))} "
+                        f"positional argument(s) but parameter '{nm}' has no default "
+                        f"(arity {len(formal_params)}).")
+        # Known module function (incl. an imported trusted stub). Coerce each arg to
+        # the callee's REAL declared parameter type (1111-spec R5, no-more-int): a
+        # `string` arg to a `string` param flows as a Why3 string, NOT an int hash; a
+        # `list` arg to an `array int` param stays an array; etc. Without the
+        # signature, fall back to the int model.
+        param_types = self._module_method_param_types.get(func_name, [])
+        if param_types:
+            coerced_args = self._coerce_dotted_args(args, param_types[:len(args)])
+        else:
+            coerced_args = [self._coerce_to_int(a) for a in args]
         # User-function call site. Look up the callee's raises summary;
         # if any clause names an exception the caller has committed to
         # avoid, prepend an assertion that the raises condition cannot

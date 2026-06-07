@@ -1453,9 +1453,20 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # `let X = ref X in` (formal params) vs `let X = ref 0 in`
         # (other locals).
         formal_params = [a.arg for a in node.args.args if a.arg != 'self']
+        # 1111-spec R7: positional default values (param name -> default IR), so a
+        # cross-module call passing fewer args than the callee arity can fill the
+        # missing trailing params from these defaults at the call site.
+        param_defaults: Dict[str, Any] = {}
+        _pos_args = node.args.args
+        _defs = node.args.defaults
+        if _defs:
+            for _a, _d in zip(_pos_args[len(_pos_args) - len(_defs):], _defs):
+                if _a.arg != 'self':
+                    param_defaults[_a.arg] = self._py_expr_to_ir(_d)
         return {
             "name": func_name,
             "symbol_table": symbol_table,
+            "param_defaults": param_defaults,
             # no-more-int-3 A1: dict var -> WhyML value type ν (string), for
             # string-valued dicts only (captured in Module4); int-valued dicts
             # have no entry and keep the `map int (option int)` path.

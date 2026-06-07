@@ -97,6 +97,9 @@ class Module6_WhyMLTranspiler(
         self._module_func_names: Set[str] = set()
         self._module_method_return_types: Dict[str, str] = {}
         self._module_method_param_types: Dict[str, List[str]] = {}
+        # 1111-spec R7: per-function formal-param order + positional defaults.
+        self._module_method_formal_params: Dict[str, List[str]] = {}
+        self._module_method_param_defaults: Dict[str, Dict[str, Any]] = {}
         self._module_method_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
         self._module_method_param_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
         self._auto_trusted_array_returns: List[str] = []
@@ -416,6 +419,12 @@ class Module6_WhyMLTranspiler(
         funcs_for_maps = functions + self._mixin_dep_pseudo_functions(functions)
         self._module_method_return_types = self._build_method_return_type_map(funcs_for_maps)
         self._module_method_param_types = self._build_method_param_types_map(funcs_for_maps)
+        # 1111-spec R7: formal-param order + positional defaults, for call-site
+        # default fill of cross-module / module-function calls.
+        self._module_method_formal_params = {
+            f["name"]: list(f.get("formal_params", [])) for f in funcs_for_maps}
+        self._module_method_param_defaults = {
+            f["name"]: dict(f.get("param_defaults", {})) for f in funcs_for_maps}
         self._module_method_result_ensures = self._build_method_result_ensures_map(funcs_for_maps)
         self._module_method_param_result_ensures = self._build_method_param_result_ensures_map(funcs_for_maps)
         self._module_method_field_result_ensures = self._build_method_field_result_ensures_map(funcs_for_maps)
