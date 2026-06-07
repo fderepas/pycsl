@@ -288,6 +288,12 @@
       "Path": false
     }
   },
+  "platform": {
+    "description": "Platform identification and system information",
+    "file": "platform.py",
+    "pure_lib": "plat",
+    "source": "CPython 3.14"
+  },
   "pprint": {
     "category": "utilities",
     "files": 1,
@@ -303,6 +309,12 @@
       "PriorityQueue": false,
       "Queue": false
     }
+  },
+  "random": {
+    "description": "Generate pseudo-random numbers",
+    "file": "random.py",
+    "pure_lib": "rng",
+    "source": "CPython 3.14"
   },
   "re": {
     "category": "text",
@@ -360,6 +372,12 @@
     "description": "Signal handling for asynchronous events",
     "file": "signal.py",
     "pure_lib": "sig",
+    "source": "CPython 3.14"
+  },
+  "socket": {
+    "description": "Low-level networking interface",
+    "file": "socket.py",
+    "pure_lib": "sock",
     "source": "CPython 3.14"
   },
   "stat": {
@@ -425,6 +443,12 @@
       "fill": false,
       "wrap": false
     }
+  },
+  "threading": {
+    "description": "Thread-based parallelism",
+    "file": "threading.py",
+    "pure_lib": "thrd",
+    "source": "CPython 3.14"
   },
   "time": {
     "category": "time",
