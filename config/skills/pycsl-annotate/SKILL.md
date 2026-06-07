@@ -149,6 +149,47 @@ The field-subscript term `self.field[i]` is usable in any contract (e.g. a hand-
 preservation `ensures`). See `annotations.md` §2.5. Demos: corpus `0459` (proves), `0460`
 (in-region write fails at its site), `0461`/`0462` (trusted boundary with/without `\preserves`).
 
+**Subsystem ownership — `protects` (07-1143 R1/R2).** For whole-program confinement (no region,
+possibly nested/dotted fields), declare which methods may write which paths:
+
+```python
+#@ happy fs_ownership:
+#@     protects world.fs.disk, world.fs.next_fd
+#@     except sys_open, sys_write, _alloc_inode
+```
+
+Any DIRECT write to a protected path in a method **not** in `except` gets a per-site
+`#@ check False` (forbidden outright). Paths may be dotted (`world.fs.disk`). Aliasing a
+protected base into a non-exempt local (`x = world.fs`) is a hard error — it would evade the
+check. A non-exempt `\trusted`/`\abstract` method whose `assigns` names a protected path needs
+`#@ \preserves`. This is *direct-write* ownership: a non-owner may still change state by calling
+an owner method (the intended "go through the API" pattern). Demos: `0611` (proves), `0612`
+(non-exempt write caught), `0613` (aliasing rejected).
+
+**Per-object confinement — parametric HAPPY + `footprint` (07-1143 R3).** When two objects share
+one array (inode A vs inode B in `disk`), parameterise the region and have each method declare
+its footprint:
+
+```python
+#@ happy inode_conf(n):
+#@     protects d.disk[512 + n * 64 : 512 + (n + 1) * 64]
+#@     except formatter
+
+#@ footprint inode_conf(k)
+def sys_truncate(k: int, length: int) -> int: ...   # writes only d.disk[512+k*64 : …]
+```
+
+Each write `d.disk[i]=v` in the footprint method gets `#@ check (512+k*64 <= i and i <
+512+(k+1)*64)` (CONTAINMENT — compose with an indexed `#@ assigns d.disk[lo:hi]` frame for
+per-object PRESERVATION). A `footprint` naming an unknown HAPPY is a hard error. Demos: `0614`
+(in-footprint write proves), `0615` (out-of-footprint caught).
+
+**Auditing trust — `--soundness-report` (07-1143 R4).** Run `pycsl FILE --soundness-report` to
+classify every function/VC as **Modelled** (body-verified), **Specified** (axiomatic contract),
+**Stubbed** (signature-only), or **Confinement** (`\preserves`), with the TCB entries and the
+trusted stubs each body proof rests on (JSON + human summary). Use it to see exactly what a
+module's proof assumes versus proves.
+
 ---
 
 ## Section 3d — Strings (real `string.String` model)
