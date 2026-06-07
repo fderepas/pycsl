@@ -1,21 +1,30 @@
-# Formal test for abc (abcmod) module — universally quantified
-#
-# Based on library_reference/abc.rst:
-#   "A decorator indicating abstract methods."
-#   "Returns cls, to allow usage as a class decorator."
-
-from pure_lib.abcmod import abstractmethod, update_abstractmethods
+# Formal tests for pure_lib/abcmod — abc module model
+from pure_lib.abcmod import abstractmethod, abstractclassmethod, abstractstaticmethod, update_abstractmethods
 
 
-#@ requires func >= 0 and func < 2147483647
+#@ requires func >= 0
 #@ ensures \result == func
 def test_abstractmethod_identity(func: int) -> int:
-    """abstractmethod(func) == func for all func. Decorator returns unchanged."""
+    """abstractmethod is a no-op decorator (returns func unchanged)."""
     return abstractmethod(func)
 
 
-#@ requires cls >= 0 and cls < 2147483647
+#@ requires func >= 0
+#@ ensures \result == func
+def test_abstractclassmethod_identity(func: int) -> int:
+    """abstractclassmethod is a no-op decorator."""
+    return abstractclassmethod(func)
+
+
+#@ requires func >= 0
+#@ ensures \result == func
+def test_abstractstaticmethod_identity(func: int) -> int:
+    """abstractstaticmethod is a no-op decorator."""
+    return abstractstaticmethod(func)
+
+
+#@ requires cls >= 0
 #@ ensures \result == cls
-def test_update_identity(cls: int) -> int:
-    """update_abstractmethods(cls) == cls for all cls. Returns cls."""
+def test_update_abstractmethods_identity(cls: int) -> int:
+    """update_abstractmethods returns cls unchanged."""
     return update_abstractmethods(cls)

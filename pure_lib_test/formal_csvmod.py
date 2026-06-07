@@ -1,39 +1,25 @@
-# Formal test for csv (csvmod) module — universally quantified
-#
-# Based on library_reference/csv.rst:
-#   "Return a reader object that will process lines."
-#   → empty line has 0 fields; non-empty line has >= 1 field.
-#   "Return a writer object responsible for converting data."
-#   → writing N fields produces >= N bytes.
-
+# Formal tests for pure_lib/csvmod — CSV module model
 from pure_lib.csvmod import count_fields, write_row, writerows
 
 
-#@ ensures \result == 0
-def test_count_fields_empty() -> int:
-    """count_fields(0) == 0. Empty line → 0 fields. (Only one input: 0.)"""
-    return count_fields(0)
-
-
-#@ requires line > 0 and line < 2147483647
-#@ ensures \result >= 1
-def test_count_fields_nonempty(line: int) -> int:
-    """count_fields(line) >= 1 for all line > 0. Non-empty → at least 1 field."""
+#@ requires line >= 0
+#@ ensures line == 0 ==> \result == 0
+#@ ensures line > 0 ==> \result >= 1
+def test_count_fields_spec(line: int) -> int:
+    """Empty line -> 0 fields, non-empty -> at least 1."""
     return count_fields(line)
 
 
-#@ requires num_fields >= 0 and num_fields < 2147483647
-#@ ensures \result >= num_fields
-#@ ensures \result == num_fields
-def test_write_row_bounded(num_fields: int) -> int:
-    """write_row(num_fields) == num_fields for all inputs. Exact."""
-    return write_row(num_fields)
+#@ requires n >= 0
+#@ ensures \result == n
+def test_write_row_identity(n: int) -> int:
+    """write_row returns field count."""
+    return write_row(n)
 
 
-#@ requires rows >= 0 and rows < 2147483647
-#@ requires fields_per_row >= 0 and fields_per_row < 2147483647
-#@ ensures \result >= 0
-#@ ensures \result == rows * fields_per_row
-def test_writerows_nonneg(rows: int, fields_per_row: int) -> int:
-    """writerows(rows, fpr) == rows * fpr for all inputs. Exact."""
-    return writerows(rows, fields_per_row)
+#@ requires rows >= 0
+#@ requires fpr >= 0
+#@ ensures \result == rows * fpr
+def test_writerows_product(rows: int, fpr: int) -> int:
+    """writerows returns rows * fields_per_row."""
+    return writerows(rows, fpr)

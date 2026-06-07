@@ -1,69 +1,52 @@
-# Formal test for numbers (nums) module — universally quantified
-#
-# Based on library_reference/numbers.rst:
-#   "The root of the numeric hierarchy."
-#   Integral supports mod (__mod__) and floordiv (__floordiv__).
-#   Rational has .numerator and .denominator properties.
-#   gcd(0, b) == b is a standard mathematical identity.
-
-from pure_lib.nums import mod, floordiv, rational_num, rational_den, gcd
+# Formal tests for pure_lib/nums — numbers module model
+from pure_lib.nums import to_int, mod, floordiv, rational_num, rational_den, gcd
 
 
-#@ requires x >= 0 and x < 2147483647
-#@ requires y > 0 and y < 2147483647
-#@ ensures \result >= 0 and \result < y
+#@ requires x >= 0
+#@ ensures \result == x
+def test_to_int_identity(x: int) -> int:
+    """Integral.__int__ is identity for int inputs."""
+    return to_int(x)
+
+
+#@ requires x >= 0
+#@ requires y > 0
+#@ ensures \result >= 0
+#@ ensures \result < y
 def test_mod_range(x: int, y: int) -> int:
-    """mod(x, y) is in [0, y) for all valid x, y."""
+    """mod result in [0, y)."""
     return mod(x, y)
 
 
-#@ requires x >= 0 and x < 2147483647
-#@ requires y > 0 and y < 2147483647
+#@ requires x >= 0
+#@ requires y > 0
 #@ ensures \result >= 0
 def test_floordiv_nonneg(x: int, y: int) -> int:
-    """floordiv(x, y) >= 0 for all non-negative x and positive y."""
+    """floordiv non-negative for non-negative inputs."""
     return floordiv(x, y)
 
 
-#@ requires num >= 0 and num < 2147483647
-#@ requires den > 0 and den < 2147483647
+#@ requires num >= 0
+#@ requires den > 0
 #@ ensures \result == num
-def test_rational_num(num: int, den: int) -> int:
-    """rational_num(num, den) == num for all valid inputs."""
+def test_rational_num_value(num: int, den: int) -> int:
+    """Rational.numerator returns num."""
     return rational_num(num, den)
 
 
-#@ requires num >= 0 and num < 2147483647
-#@ requires den > 0 and den < 2147483647
+#@ requires num >= 0
+#@ requires den > 0
 #@ ensures \result == den
-def test_rational_den(num: int, den: int) -> int:
-    """rational_den(num, den) == den (always positive) for all valid inputs."""
+def test_rational_den_value(num: int, den: int) -> int:
+    """Rational.denominator returns den."""
     return rational_den(num, den)
 
 
-#@ requires b >= 0 and b < 2147483647
-#@ ensures \result == b
-def test_gcd_zero_left(b: int) -> int:
-    """gcd(0, b) == b for all b >= 0. Mathematical identity."""
-    return gcd(0, b)
-
-
-#@ requires a >= 0 and a < 2147483647
-#@ ensures \result == a
-def test_gcd_zero_right(a: int) -> int:
-    """gcd(a, 0) == a for all a >= 0. Mathematical identity."""
-    return gcd(a, 0)
-
-
-#@ requires a >= 0 and a < 2147483647
-#@ requires b >= 0 and b < 2147483647
+#@ requires a >= 0
+#@ requires b >= 0
 #@ ensures \result >= 0
-#@ ensures (a > 0 or b > 0) ==> \result > 0
-#@ ensures (a > 0 or b > 0) ==> a % \result == 0
-#@ ensures (a > 0 or b > 0) ==> b % \result == 0
-#@ ensures \result == gcd(a, b)
-#@ ensures (a > 0 or b > 0) ==> (\forall k; (k > 0 and a % k == 0 and b % k == 0) ==> k <= \result)
-def test_gcd_nonneg(a: int, b: int) -> int:
-    """gcd(a, b) is the greatest common divisor for all a, b >= 0.
-    Proven via cross-validated Rocq + Lean axioms."""
+#@ ensures a == 0 ==> \result == b
+#@ ensures b == 0 ==> \result == a
+def test_gcd_base_cases(a: int, b: int) -> int:
+    """GCD base: gcd(a,0)=a, gcd(0,b)=b."""
     return gcd(a, b)

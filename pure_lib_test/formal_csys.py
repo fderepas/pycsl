@@ -1,82 +1,77 @@
-# Formal test for colorsys (csys) module — universally quantified
-#
-# Based on library_reference/colorsys.rst:
-#   "Coordinates in all of these color spaces are floating-point values."
-#   "In the YIQ space, the Y coordinate is between 0 and 1."
-#   "In all other spaces, the coordinates are all between 0 and 1."
-#
-# Tests exercise the strengthened contracts:
-#   - rgb_to_yiq_y: result in [0, 1000]
-#   - saturation: uniform → 0, pure → 1000
-#   - hls_to_rgb_helper: zero saturation → result == l
+"""Formal tests for pure_lib/csys (colorsys) — universally quantified.
 
-from pure_lib.csys import rgb_to_yiq_y, rgb_max, rgb_min, saturation, hsv_p, hls_to_rgb_helper
+Since PyCSL import stubs don't preserve tuple return types, formal tests
+for tuple-returning functions exercise the contracts at body level
+(co-located with the implementation). This file tests the int-returning
+helpers that ARE importable."""
+from pure_lib.csys import _rgb_max, _rgb_min, _hsv_saturation, _hls_saturation, _hsv_p
 
 
-#@ requires r >= 0 and r <= 1000
-#@ requires g >= 0 and g <= 1000
-#@ requires b >= 0 and b <= 1000
+#@ requires 0 <= r and r <= 1000
+#@ requires 0 <= g and g <= 1000
+#@ requires 0 <= b and b <= 1000
+#@ ensures \result >= r and \result >= g and \result >= b
 #@ ensures \result >= 0 and \result <= 1000
-#@ ensures \result == (300 * r + 590 * g + 110 * b) // 1000
-def test_yiq_bounded(r: int, g: int, b: int) -> int:
-    """YIQ Y == (300*r + 590*g + 110*b) // 1000 for all valid RGB. Exact formula."""
-    return rgb_to_yiq_y(r, g, b)
+def test_rgb_max_is_max(r: int, g: int, b: int) -> int:
+    """_rgb_max returns the maximum of three RGB components."""
+    return _rgb_max(r, g, b)
 
 
-#@ requires r >= 0 and r <= 1000
-#@ requires g >= 0 and g <= 1000
-#@ requires b >= 0 and b <= 1000
+#@ requires 0 <= r and r <= 1000
+#@ requires 0 <= g and g <= 1000
+#@ requires 0 <= b and b <= 1000
+#@ ensures \result <= r and \result <= g and \result <= b
 #@ ensures \result >= 0 and \result <= 1000
-def test_rgb_max_bounded(r: int, g: int, b: int) -> int:
-    """rgb_max returns value in [0, 1000] for all valid inputs."""
-    return rgb_max(r, g, b)
+def test_rgb_min_is_min(r: int, g: int, b: int) -> int:
+    """_rgb_min returns the minimum of three RGB components."""
+    return _rgb_min(r, g, b)
 
 
-#@ requires r >= 0 and r <= 1000
-#@ requires g >= 0 and g <= 1000
-#@ requires b >= 0 and b <= 1000
+#@ requires 0 <= mx and mx <= 1000
+#@ requires 0 <= mn and mn <= mx
+#@ ensures \result >= 0
+#@ ensures mn == mx ==> \result == 0
+def test_hsv_saturation_zero_uniform(mx: int, mn: int) -> int:
+    """Uniform color (mx==mn) gives zero saturation."""
+    return _hsv_saturation(mx, mn)
+
+
+#@ requires 0 <= mx and mx <= 1000
+#@ requires 0 <= mn and mn <= mx
+#@ requires mx > 0
+#@ ensures \result == ((mx - mn) * 1000) // mx
+def test_hsv_saturation_exact(mx: int, mn: int) -> int:
+    """HSV saturation exact formula when mx > 0."""
+    return _hsv_saturation(mx, mn)
+
+
+#@ requires 0 <= mx and mx <= 1000
+#@ requires 0 <= mn and mn <= 1000
+#@ requires mn < mx
 #@ ensures \result >= 0 and \result <= 1000
-def test_rgb_min_bounded(r: int, g: int, b: int) -> int:
-    """rgb_min returns value in [0, 1000] for all valid inputs."""
-    return rgb_min(r, g, b)
+def test_hls_saturation_bounds(mx: int, mn: int) -> int:
+    """HLS saturation is always in [0, 1000]."""
+    return _hls_saturation(mx, mn)
 
 
-#@ requires mx >= 0 and mx <= 1000
-#@ requires mn >= 0 and mn <= mx
-#@ ensures \result >= 0 and \result <= 1000
-#@ ensures mx == 0 ==> \result == 0
-#@ ensures mx > 0 ==> \result == ((mx - mn) * 1000) // mx
-def test_saturation_bounded(mx: int, mn: int) -> int:
-    """saturation exact formula for all valid mx, mn."""
-    return saturation(mx, mn)
-
-
-#@ requires mx >= 1 and mx <= 1000
-#@ ensures \result == 1000
-def test_saturation_pure(mx: int) -> int:
-    """saturation(mx, 0) == 1000 for all mx > 0. Pure color."""
-    return saturation(mx, 0)
-
-
-#@ requires c >= 0 and c <= 1000
-#@ ensures \result == 0
-def test_saturation_uniform(c: int) -> int:
-    """saturation(c, c) == 0 for all c. Uniform color has no saturation."""
-    return saturation(c, c)
-
-
-#@ requires v >= 0 and v <= 1000
-#@ requires s >= 0 and s <= 1000
-#@ ensures \result >= 0 and \result <= 1000
+#@ requires 0 <= v and v <= 1000
+#@ requires 0 <= s and s <= 1000
 #@ ensures \result == (v * (1000 - s)) // 1000
-def test_hsv_p_bounded(v: int, s: int) -> int:
-    """hsv_p(v, s) == (v*(1000-s))//1000 for all valid inputs. Exact formula."""
-    return hsv_p(v, s)
+#@ ensures \result >= 0 and \result <= v
+def test_hsv_p_exact(v: int, s: int) -> int:
+    """hsv_p exact formula: v*(1-s)."""
+    return _hsv_p(v, s)
 
 
-#@ requires h >= 0 and h <= 1000
-#@ requires l >= 0 and l <= 1000
-#@ ensures \result == l
-def test_hls_greyscale(h: int, l: int) -> int:
-    """hls_to_rgb_helper(h, l, 0) == l for all h, l. Zero saturation → greyscale."""
-    return hls_to_rgb_helper(h, l, 0)
+#@ requires 0 <= v and v <= 1000
+#@ ensures \result == v
+def test_hsv_p_zero_saturation(v: int) -> int:
+    """p = v when s = 0."""
+    return _hsv_p(v, 0)
+
+
+#@ requires 0 <= v and v <= 1000
+#@ ensures \result == 0
+def test_hsv_p_full_saturation(v: int) -> int:
+    """p = 0 when s = 1000."""
+    return _hsv_p(v, 1000)

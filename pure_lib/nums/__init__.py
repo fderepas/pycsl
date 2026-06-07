@@ -11,7 +11,7 @@
 #@ ensures \result >= 0
 #@ ensures \result == x
 def to_int(x: int) -> int:
-    """RST: Integral.__int__ → convert to int. Identity for int inputs."""
+    """RST: Integral.__int__ -> convert to int. Identity for int inputs."""
     return x
 
 
@@ -91,3 +91,41 @@ def gcd(a: int, b: int) -> int:
         x = y
         y = r
     return x
+
+
+# --- Rational class ---
+
+""  # pycsl
+#@ class invariant self._num >= 0
+#@ class invariant self._den > 0
+class Rational:
+    """RST: 'Rational subtypes Real and adds numerator and denominator properties.
+    With these, it provides a default for float().'"""
+
+    def __init__(self):
+        self._num = 0
+        self._den = 1
+
+    #@ requires num >= 0
+    #@ requires den > 0
+    #@ ensures self._num == num
+    #@ ensures self._den == den
+    #@ assigns self._num, self._den
+    def set(self, num: int, den: int) -> None:
+        """Set numerator and denominator."""
+        self._num = num
+        self._den = den
+
+    #@ ensures \result >= 0
+    #@ ensures \result == self._num
+    #@ assigns \nothing
+    def numerator(self) -> int:
+        """RST: 'Abstract property. Numerator of the rational.'"""
+        return self._num
+
+    #@ ensures \result > 0
+    #@ ensures \result == self._den
+    #@ assigns \nothing
+    def denominator(self) -> int:
+        """RST: 'Abstract property. Denominator of the rational.'"""
+        return self._den

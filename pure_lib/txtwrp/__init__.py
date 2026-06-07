@@ -65,3 +65,41 @@ def indent(text: int, prefix: int) -> int:
     RST: 'Add prefix to the beginning of selected lines.'
     Result ≥ original (prefix added, never removed)."""
     return text + prefix
+
+
+""  # pycsl
+#@ class invariant self._width > 0
+class TextWrapper:
+    """RST: 'Convenience class for wrapping and filling text.'"""
+
+    def __init__(self):
+        self._width = 70
+
+    #@ requires width > 0
+    #@ ensures self._width == width
+    #@ assigns self._width
+    def set_width(self, width: int) -> None:
+        self._width = width
+
+    #@ requires text >= 0
+    #@ ensures \result >= 0
+    #@ ensures text == 0 ==> \result == 0
+    #@ ensures text > 0 ==> \result >= 1
+    #@ ensures text > 0 ==> \result == (text + self._width - 1) // self._width
+    #@ assigns \nothing
+    def wrap(self, text: int) -> int:
+        if text == 0:
+            return 0
+        #@ assert self._width > 0
+        return (text + self._width - 1) // self._width
+
+    #@ requires text >= 0
+    #@ ensures \result >= 0
+    #@ ensures text == 0 ==> \result == 0
+    #@ ensures text > 0 ==> \result == text + ((text + self._width - 1) // self._width) - 1
+    #@ assigns \nothing
+    def fill(self, text: int) -> int:
+        if text == 0:
+            return 0
+        #@ assert self._width > 0
+        return text + ((text + self._width - 1) // self._width) - 1

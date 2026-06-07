@@ -5,6 +5,7 @@
 # RST: "Set the handler for signal signalnum to the function handler."
 # RST: "Return the current signal handler for the signal signalnum."
 # RST: "Return the set of valid signal numbers on this platform."
+# RST: "Sigset — set of signals."
 
 # Signal number constants (POSIX subset)
 SIGHUP = 1
@@ -35,7 +36,7 @@ def signal_handler(sig_num: int, handler: int) -> int:
 #@ ensures \result >= 0
 def getsignal(sig_num: int) -> int:
     """RST: 'Return the current signal handler for the signal signalnum.
-    The returned value may be SIG_IGN, SIG_DFL, or None.' → non-negative."""
+    The returned value may be SIG_IGN, SIG_DFL, or None.' -> non-negative."""
     return SIG_DFL
 
 
@@ -50,3 +51,46 @@ def valid_signals_count() -> int:
     """RST: 'Return the set of valid signal numbers on this platform.'
     At least 1 signal exists on any platform."""
     return 64
+
+
+#@ requires sig_num >= 1 and sig_num <= 64
+#@ ensures \result >= 0
+#@ ensures \result <= sig_num
+def strsignal(sig_num: int) -> int:
+    """RST: 'Return the system description of the signal signalnum.'
+    Returns description length (bounded by signal number for model)."""
+    return sig_num
+
+
+# --- Sigset class ---
+
+""  # pycsl
+#@ class invariant self._count >= 0
+#@ class invariant self._count <= 64
+class Sigset:
+    """Model of a signal set (used for pthread_sigmask, etc.)."""
+
+    def __init__(self):
+        self._count = 0
+
+    #@ requires sig_num >= 1 and sig_num <= 64
+    #@ ensures self._count <= 64
+    #@ assigns self._count
+    def add(self, sig_num: int) -> None:
+        """Add a signal to the set."""
+        if self._count < 64:
+            self._count = self._count + 1
+
+    #@ requires sig_num >= 1 and sig_num <= 64
+    #@ ensures self._count >= 0
+    #@ assigns self._count
+    def discard(self, sig_num: int) -> None:
+        """Remove a signal from the set (if present)."""
+        if self._count > 0:
+            self._count = self._count - 1
+
+    #@ ensures \result == self._count
+    #@ assigns \nothing
+    def size(self) -> int:
+        """Number of signals in the set."""
+        return self._count
