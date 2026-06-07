@@ -68,6 +68,8 @@ relevant page when needed.
 
 ### Project discipline and trust boundaries
 
+- [source of truth](source-of-truth.md)
+- [squeeze strategy](squeeze-strategy.md)
 - [load-bearing](load-bearing.md)
 - [extreme rigor](extreme-rigor.md)
 - [abstract op](abstract-op.md)

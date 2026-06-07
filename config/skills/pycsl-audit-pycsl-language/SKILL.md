@@ -166,6 +166,13 @@ for that primitive and confirm what WhyML it produces and whether the prover see
 *should* fail verification and does. If your construct can be made wrong and still "passes",
 it has no teeth, and the audit has failed even though every box is green.
 
+This is the **source-of-truth squeeze (S0)** applied to a language construct: the clause's
+documented meaning must match what the construct actually *means* per Python's source of truth
+(language reference + CPython), and its lowering must produce exactly that. A clause coherent
+across all five surfaces but unfaithful to the source of truth is *coherent and wrong* — the
+exact failure this discipline exists to catch. See `csl-philosophy` "The source of truth" and
+`csl-from-scratch` §0.5 S0.
+
 ## Change-type → what to audit
 
 | You changed… | Minimum audit |

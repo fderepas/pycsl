@@ -49,6 +49,29 @@ must appear in at least one skill, but not necessarily every skill.
 The `bin/doc-coherency.py` tool does not enforce per-skill coverage;
 that's an editorial concern.
 
+### Two kinds of "source": canonical name vs source of truth
+
+`annotations.md` is the **canonical source** for the directive *catalogue*
+— the authoritative list of which `#@` directives exist and their names.
+That is an *internal* source: it settles what to document, and this skill
+enforces that the five surfaces agree with it.
+
+It is **not** the source of truth for what a directive *means*. A
+directive's semantics is faithful only if it reflects Python's external
+**source of truth** — the [language reference](https://docs.python.org/3/reference/index.html)
+and [CPython](https://github.com/python/cpython) (see `csl-philosophy`
+"The source of truth"). Example: the `#@ no_exception KeyError` directive
+is coherent across the five surfaces *and* faithful only because a missing
+dict read genuinely raises `KeyError` in CPython.
+
+Keep the two apart: **coherency is internal parity** (the five surfaces
+match `annotations.md`); **fidelity is to the source of truth** (the
+documented semantics match the language reference / reference
+implementation). `bin/doc-coherency.py` checks the former. The latter is
+the author's obligation, enforced by review and the reference corpus — a
+directive can be perfectly coherent and still wrong if its documented
+meaning diverges from the source of truth (*coherent and wrong*).
+
 ---
 
 ## The discovery tool — `bin/doc-coherency.py`

@@ -65,10 +65,36 @@ but the *stacking* of squeezes. Each layer eliminates a
 different class of defect. Together they leave very little room
 for a bug to hide.
 
+**The cornerstone squeeze is S0 — the two sources of truth.**
+S1–S9 squeeze the *implementation* until only code satisfying
+the spec survives. But what pins the *spec itself*? A
+specification is squeezed between the language's two sources of
+truth: the **English norm** (what behavior is specified —
+bounds the contract from above) and the **reference
+implementation** (what actually executes — bounds it from
+below). Squeezed between the two, the spec has **no freedom**:
+there is no "convenient" or "minimal" contract to pick, only the
+one both sources force. Where they leave a gap, that is your
+only latitude; where they disagree, you stop and surface it.
+**This is what a *CSL is** — a discipline that pins every spec
+between implementation and English. S0 is the first squeeze and
+the first step of Extreme Rigor (§1.5); every later squeeze
+rests on it (see `csl-philosophy` "The source of truth").
+
+S0 differs in *kind* from S1–S9: it is a per-spec **authoring and
+review** discipline (fidelity of each contract to the norm and
+the reference implementation), not a single mechanical CI gate
+owned by one System. That is why the project-level *per-Squeeze
+coverage* checks (`project-lifecycle`, `cmmi-coherency-audit`
+C8) enumerate the System-owned gates **S1–S9** and do not assign
+S0 a System owner — S0 is everyone's first step, enforced by
+review and the reference corpus.
+
 ### Squeeze layers
 
 | # | Layer | What it constrains | Mechanical gate |
 |---|---|---|---|
+| S0 | **Source of truth** (English norm + reference implementation) | The **specification itself** — squeezed between what is *specified* (English) and what *executes* (reference impl.); no freedom between them | Contract reviewed against the English reference **and** a concrete test against the reference implementation; a norm↔impl disagreement is a recorded finding, not a free choice |
 | S1 | **CSL contracts** (`requires`/`ensures`) | The developer (or agent) must write code that satisfies the spec | SMT solver via Why3 |
 | S2 | **Formal semantics** (Rocq + Lean) | The WP calculus and operational semantics must agree | Proof assistant (`Qed`, `theorem`) |
 | S3 | **Reference tests + traceability matrix** | Every grammar production has a passing test; verdicts never regress | CI gate (`make test`; verdict-drift = hard fail) |
@@ -204,8 +230,19 @@ filesystem, with Coq-anchored bitwise lemmas, loop invariants
 operation pairs, and each remaining `\trusted` paired with a
 named feature-plan gap. Read it before you touch the stdlib.
 
-The five habits that distinguish ER from baseline annotation:
+The habits that distinguish ER from baseline annotation. Habit 0
+is the **first step** — it decides what the spec must say; habits
+1–5 are how you then discharge that squeezed spec:
 
+0. **Squeeze the spec between the two sources of truth (S0).**
+   Before any invariant or `\trusted` call, pin the contract
+   between the English norm (the strongest postcondition it
+   justifies) and the reference implementation (what actually
+   executes — exact exceptions, edge cases, ordering). The spec
+   has no freedom between them; a norm↔impl disagreement is a
+   finding, not a choice. Habits 1–5 below are worthless on a
+   spec that was never pinned to the source of truth (see §0.5
+   S0 and `csl-philosophy` "The source of truth").
 1. **Loop invariants AND variants on every loop.** Either alone
    leaves the prover guessing. Variant proves termination;
    invariant proves the loop's contribution to the

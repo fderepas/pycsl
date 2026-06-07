@@ -68,8 +68,22 @@ tool; it stops being the default.
 
 ---
 
+## Where ER begins: the source-of-truth squeeze
+
+ER has two facets that meet here. It **begins** with the
+[source-of-truth squeeze](source-of-truth.md) — layer S0 and cornerstone of the
+[Squeeze Strategy](squeeze-strategy.md) — pinning *what the spec must say* between
+the English norm and the reference implementation, before any invariant or
+`\trusted` decision. It **ends** with the acceptance-claim "done" predicate above,
+proving the squeezed spec actually shipped. Get the squeeze wrong and every
+acceptance claim resting on it is *coherent and wrong*.
+
+---
+
 ## Related terms
 
+- [source of truth](source-of-truth.md)
+- [squeeze strategy](squeeze-strategy.md)
 - [load-bearing](load-bearing.md)
 - [trusted stub](trusted-stub.md)
 - [standard libraries](standard-libraries.md)

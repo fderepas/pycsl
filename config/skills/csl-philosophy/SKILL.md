@@ -42,6 +42,76 @@ Lean theorem `Pycsl.Reference.Gcd.gcd_step` cited from Python as
 the actual identifier in each system. No translation table. No central
 registry. The directory structure of the proofs *is* the index.
 
+## The source of truth: it lives outside the toolchain
+
+The thesis above is about the *internal* single source — the proof,
+projected onto three surfaces the toolchain keeps consistent. But what
+decides whether those projections are *correct in the first place*?
+Correctness is not an internal property. It is fidelity to an
+**external source of truth**: the host language's own authorities,
+which decide what a program or library actually *means*. A *CSL is only
+as trustworthy as its faithfulness to them. The source of truth has two
+axes, and you need both:
+
+- **English — the normative specification.** What behavior is
+  *specified*: the contract the language promises. This is what
+  contracts and `ensures` clauses should transcribe.
+- **Execution — the reference implementation.** What behavior actually
+  *happens*: it resolves whatever the English leaves
+  implementation-defined or silent (edge cases, exact exception types,
+  iteration order, boundary results), and it is the ground truth a
+  runnable model must agree with.
+
+Per family member:
+
+| Language | English (normative) | Execution (reference impl.) |
+|---|---|---|
+| **Python** | the [language reference](https://docs.python.org/3/reference/index.html) + the [standard library reference](https://docs.python.org/3/library/index.html) | [CPython](https://github.com/python/cpython) |
+| **C** | the ISO/ANSI C norms | GCC and LLVM/Clang |
+| (gocsl, rustcsl, …) | that language's spec / memory model | its reference compiler / runtime |
+
+**How the two axes divide labor.** Write the strongest contract the
+**English** justifies (it states the *intended* behavior — see
+`pycsl-stdlib-coverage`). Where the English is genuinely ambiguous or
+silent, the **reference implementation** decides, and the model must
+match what it actually does. Where the two *disagree*, that is a finding
+to surface, not a coin to flip — the "refuse to ship on disagreement"
+instinct (#7) applied outward.
+
+This is *why* the project's hardest disciplines exist. **Faithful typing**
+(no-more-int: a value lowers to its true type class, never a convenience
+int) is fidelity to the language's value model. The **exception model**
+(`#@ no_exception`, faithful `KeyError` on a missing dict read) is
+fidelity to what the reference implementation actually raises. The
+**standard library** (`pure_lib/`) is shaped end-to-end by these sources:
+each stub transcribes the library reference and must behave as CPython
+does. A specification that is internally consistent but unfaithful to
+the source of truth is *coherent and wrong* — the worst kind of green.
+
+### The Squeeze Strategy starts here, and so does ER
+
+This is the **cornerstone of the Squeeze Strategy** (the meta-principle
+of the whole methodology — `csl-from-scratch` §0.5). The later squeezes
+(SMT, dual provers, IR schema, self-annotation) squeeze the
+*implementation* until only code that satisfies the spec survives. But
+the **first** squeeze — the one that decides what the spec must even
+*say* — squeezes the **specification itself between the two sources of
+truth**: the English bounds it from above (the strongest contract the
+norm justifies), the reference implementation bounds it from below (what
+actually executes). **Squeezed between the two, the spec has no freedom.**
+There is no "convenient" or "minimal" contract to choose — the only
+contract is the one both sources force. Where they leave a gap, that gap
+is the only latitude you have; where they conflict, you stop and surface
+it (#7).
+
+That is what a *CSL *is*: not a prover bolted onto a language, but a
+discipline that pins every specification between implementation and
+English so the author has no room to be wrong. **Identifying the two
+sources of truth and squeezing the spec between them is therefore the
+first step of Extreme Rigor (#8)** — before a single loop invariant,
+before any `\trusted` decision. Get the squeeze wrong and everything
+proved on top of it is *coherent and wrong*.
+
 ## The eight design instincts
 
 Internalize these. They generate the right answer to most tactical
@@ -160,10 +230,18 @@ Cumulative `\trusted` debt is what lets the toolchain claim
 "verified" while resting on Tier-2 surface area the size of the
 stdlib.
 
-The five habits that mark ER work (full version lives in
+ER's **first step is the source-of-truth squeeze** (see "The source of
+truth" above): identify the language's English norm and its reference
+implementation, and squeeze the spec between them — *before* any loop
+invariant or `\trusted` decision. The habits below are how you then
+discharge that squeezed spec; they are worthless on top of a spec that
+was never pinned to the source of truth.
+
+The habits that mark ER work (full version lives in
 [`csl-from-scratch/SKILL.md` §1.5](../csl-from-scratch/SKILL.md)
 and [`csl-from-scratch/references/stdlib-extreme-rigor.md`](../csl-from-scratch/references/stdlib-extreme-rigor.md)):
 
+0. **Squeeze the spec between the two sources of truth** (the first step — above)
 1. Loop invariants AND variants on every loop
 2. Body verification first; `\trusted` only with a cited blocker
 3. Coq/Lean axioms for facts SMT cannot discharge

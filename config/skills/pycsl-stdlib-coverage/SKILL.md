@@ -47,6 +47,55 @@ See `making-it-pure-5.md` for the definitive plan.
 
 ---
 
+## Source of truth — what shapes every stub
+
+A `pure_lib/` module is not invented; it is **transcribed from Python's
+sources of truth**. Two axes decide what a stub must say and do (see
+`csl-philosophy` "The source of truth" for the family-wide statement):
+
+- **English — the normative specification.** What the API is *specified*
+  to do, including its error conditions:
+  - the [Python language reference](https://docs.python.org/3/reference/index.html)
+    (semantics of the constructs the module uses), and
+  - the [standard library reference](https://docs.python.org/3/library/index.html)
+    (the documented behavior of the module itself).
+  Mirrored locally under `test-suite/library_reference/`. **This is the
+  source of the contracts** — every `ensures` should be a formal shadow
+  of a sentence in the library reference (see "Contracts must reflect the
+  English specification" below).
+- **Execution — the reference implementation.** What the API *actually
+  does*: [CPython](https://github.com/python/cpython). It is the ground
+  truth for everything the English leaves implementation-defined or
+  silent — exact exception types (`KeyError` vs `IndexError`), boundary
+  results, iteration/insertion order, what `None`/empty inputs yield.
+  **The runnable pure-Python model must agree with CPython** on every
+  input the concrete tests exercise.
+
+**How they divide the work on a stub:**
+1. Read the **library reference** entry → write the strongest contract it
+   justifies (intended behavior, documented exceptions).
+2. Where the reference is silent or ambiguous → consult **CPython** for
+   the actual behavior, and model *that* (do not guess a convenient
+   answer). Pin it with a concrete test against real CPython.
+3. Where the reference and CPython **disagree** → that is a finding to
+   surface (a doc bug or a CPython quirk), not a coin to flip — record
+   the decision and which source you followed, in the module's notes.
+
+This is the **Squeeze Strategy's cornerstone (S0), and the first step of
+Extreme Rigor.** A stub is *squeezed* between the two sources of truth:
+the library reference bounds its contract from above (the strongest
+postcondition the English justifies), CPython bounds it from below (what
+actually executes). **Squeezed between the two, the stub has no freedom**
+— there is no convenient contract to choose, only the one both force.
+That squeeze is *why* a faithful stdlib is even possible: you are not
+designing behavior, you are transcribing it. Do this **first**, before
+loop invariants or any `\trusted` decision (`csl-from-scratch` §1.5 habit
+0; `csl-philosophy` "The source of truth"). The three-bucket
+classification, the exception model, and the no-more-int typing all exist
+to keep the model honest to these sources.
+
+---
+
 ## The World: a shared pure-Python kernel
 
 The Unix kernel maintains **one** coherent state. Our models mirror

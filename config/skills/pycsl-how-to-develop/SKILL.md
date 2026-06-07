@@ -272,6 +272,17 @@ Every landed change records its passed gate inline. The standard gates:
 
 Follow this checklist in order:
 
+### Step 0: Pin the spec to the source of truth (S0)
+Before writing anything, decide what the feature must *mean* by squeezing
+it between Python's two sources of truth: the **English norm** (language
+reference + library reference — the strongest behavior it specifies) and
+the **reference implementation** (CPython — what actually executes: exact
+exceptions, edge cases, ordering). The spec has no freedom between them; a
+norm↔impl disagreement is a finding, not a free choice. This is the first
+step of Extreme Rigor and the cornerstone of the Squeeze Strategy — every
+step below discharges the spec this step pins. See `csl-philosophy` "The
+source of truth" and `csl-from-scratch` §0.5 S0.
+
 ### Step 1: Update `test-suite/annotations.md`
 - Add the new annotation directive or pattern to the appropriate section
 - **NEVER change existing numbering** (section numbers, table row numbers)
