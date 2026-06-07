@@ -1,6 +1,6 @@
 ---
 name: pycsl-stdlib-coverage
-description: Battle-tested discipline for writing pure-Python standard library implementations that PyCSL can verify. Covers the full workflow from concrete tests through annotations to formal tests (symbolic-input proofs). Documents lessons learned from os (98.0% proven), re (16/16 VCs), warnings (18/18 body + 3/3 formal VCs), and json (6/6 formal VCs), including PyCSL tool gaps, naming workarounds, import resolution pitfalls, and the two-level verification strategy (body-level vs stub-level). Use this skill when adding a new stdlib module to pure_lib/, annotating existing modules, writing formal tests, or diagnosing PyCSL proof failures.
+description: Battle-tested discipline for writing pure-Python standard library implementations that PyCSL can verify. Covers the full workflow from concrete tests through annotations to formal tests, the shared World architecture (one filesystem, one process table, one clock — mirroring the Unix kernel), three-bucket classification (modelled/specified/stubbed), HAPPY confinement for cross-module coherence, and lessons learned from os (98.0% proven), re (16/16 VCs), warnings (18/18 body + 3/3 formal VCs), and json (6/6 formal VCs). Use this skill when adding a new stdlib module to pure_lib/, annotating existing modules, writing formal tests, or diagnosing PyCSL proof failures.
 ---
 
 # PyCSL Stdlib Coverage
@@ -43,8 +43,163 @@ behavior**: pre/postconditions, state transitions, error conditions.
 Abstract away implementation details (caching, buffering, OS-specific
 paths) that don't affect the functional contract.
 
-See `making-it-pure.md` for the full plan of which abstract models
-are needed for each remaining module.
+See `making-it-pure-5.md` for the definitive plan.
+
+---
+
+## The World: a shared pure-Python kernel
+
+The Unix kernel maintains **one** coherent state. Our models mirror
+that: a single `World` object shared by reference across all modules.
+Private copies would let you prove false cross-module theorems.
+
+### World structure
+
+```python
+class World:
+    clock: ClockModel             # monotonic ticks (Unix §8.4)
+    fs: UnixInodeFileSystem       # inodes, data, bitmaps, FDs (Unix §3-§5)
+    proc: ProcessState            # pid, cwd, argv, env, umask (Unix §6, §7.2)
+```
+
+### Region-partitioned ownership
+
+The World is **region-partitioned by ownership**, exactly as the Unix
+on-disk layout is (superblock | inode table | data | bitmaps):
+
+| Region | Owner | Who reads it |
+|--------|-------|-------------|
+| `world.fs.*` | fs methods (sys_open, sys_write, ...) | os, io, tempfile, shutil, subprocess |
+| `world.proc.*` | proc methods (chdir, setenv, ...) | sys, subprocess |
+| `world.clock.*` | `ClockModel.monotonic` | fs (for timestamps), time |
+
+**Why this matters:** `sys`, `io`, `tempfile`, and `shutil` are
+**not** independent modules with private state. They are **façades**
+over the same kernel data. A file created through `tempfile.mkstemp()`
+is the *same* inode that `os.stat()` observes, that `io.open()` reads,
+that `shutil.copyfile()` duplicates. Cross-module postconditions like
+"after copyfile, os.read(dst) == os.read(src)" are both statable and
+sound because src and dst share the same filesystem.
+
+### Coherence via HAPPY confinement
+
+Cross-module preservation is achieved by **confinement, not per-call
+`assigns`**. A HAPPY (High-level Assertion-Producing PYthon
+requirement) declares one integrity property per World subsystem:
+
+```python
+#@ happy fs_ownership:
+#@     protects world.fs.disk, world.fs.inodes, world.fs.bitmaps, world.fs.fd_table
+#@     writes outside owner set forbidden
+#@     except <fs methods: sys_open, sys_write, _write_inode, ...>
+
+#@ happy proc_ownership:
+#@     protects world.proc.cwd_inode, world.proc.environ, world.proc.argv, ...
+#@     writes outside owner set forbidden
+#@     except <proc methods: chdir, setenv, ...>
+
+#@ happy clock_ownership:
+#@     protects world.clock._ticks
+#@     writes outside owner set forbidden
+#@     except monotonic
+```
+
+**What this buys:** because `sys`, `io`, `time`, `subprocess`, and
+the pure modules have **no direct write sites** into `world.fs.*`
+(all their fs mutation routes through fs methods), the ownership
+checks confirm they cannot perturb the fs region. Therefore **any fs
+file is preserved across a sys/time/io call with no `assigns` clause
+at all** — preservation is a corollary of the ownership invariant.
+
+### Flush-through I/O model
+
+`io.StreamModel.write` routes directly to `world.fs.sys_write` with
+no private buffer. This means:
+- After `io.write(data)`, `os.read(same_fd, n)` sees `data`
+- No buffer↔inode divergence — no aliasing problem
+- The only fs write site is inside fs (covered by `fs_ownership`)
+
+### Three-bucket classification
+
+Every symbol falls into exactly one bucket:
+
+| Bucket | Meaning | VC value |
+|--------|---------|----------|
+| **Modelled** | Pure-Python stand-in preserving real semantics | A real proof |
+| **Specified** | Axiomatized contract you trust (enters the TCB) | Sound only for stated properties |
+| **Stubbed** | Signature only, no semantics | Proves nothing |
+
+Coverage is **always reported per bucket**. A 100%-specified module
+can show "100% proven" while guaranteeing nothing. The headline
+"os: 98% of 4101 VCs" is meaningful because those are modelled-bucket
+VCs — real proofs of real code.
+
+### Module-by-module bucketing
+
+**World-touching modules (need abstract models):**
+
+| Module | Symbols | Model | Dominant bucket |
+|--------|---------|-------|-----------------|
+| `time` | 1 | ClockModel | Modelled |
+| `sys` | 10 | façade over proc + fd_table | Modelled |
+| `io` | 4 | StreamModel (flush-through) | Modelled + Specified (text) |
+| `subprocess` | 93 (~5 core) | ProcessModel + ProcessTable | Modelled plumbing / Stubbed child |
+| `tempfile` | 26 | over fs (counter replaces randomness) | Modelled |
+| `shutil` | 47 | over fs (compositions of os) | Modelled |
+| `hashlib` | 1 | HashModel (uninterpreted value) | Specified |
+
+**Pure-logic modules (no World dependency):**
+
+| Module | Symbols | Dominant bucket |
+|--------|---------|-----------------|
+| `bisect` | 2 | Modelled (classic binary search) |
+| `keyword` | 1 | Modelled (constant list) |
+| `enum` | 2 | Modelled (int class + auto) |
+| `__future__` | 2 | Modelled (constants) |
+| `collections` | 2 | Modelled (deque, defaultdict) |
+| `unicodedata` | 2 | Specified (Unicode DB axiomatized) |
+| `ast` | 8 | dump Modelled / parse Stubbed |
+| `contextlib` | 9 | ExitStack Modelled / contextmanager Specified |
+| `copy` | 15 | Modelled-hard (aliasing/cycles) |
+| `inspect` | 12 | unwrap Modelled / signature Stubbed |
+| `sysconfig` | 41 | dict ops Modelled / string-heavy Specified |
+| `typing` | 52 | cast Modelled (identity) / rest Stubbed |
+| `tokenize` | 21 | Specified (string-heavy) |
+| `pathlib` | 65 | path parse Specified / fs ops via World |
+| `dataclasses` | 60 | field/fields Modelled / @dataclass Stubbed |
+| `argparse` | 66 | state Modelled / parse_args Specified |
+
+### Soundness Ledger (TCB)
+
+What a green run does NOT guarantee:
+
+| Where | What's trusted | Consequence |
+|-------|---------------|-------------|
+| `hashlib` | Hash value / collision resistance | Value-dependent VCs prove nothing |
+| `unicodedata` | Unicode database | Name/normalization assumed |
+| `ast.parse` | Parsing semantics | Downstream untyped |
+| `subprocess` child | Program execution | Only plumbing covered |
+| `tempfile` names | Unpredictability / collision-freedom | Racy code can verify |
+| `time` rate | Wall-clock duration | Only ordering modelled |
+| String-heavy paths | Encoding, string processing | Specified/stubbed |
+| `typing` | Type introspection | `cast` proves nothing useful |
+| `dataclasses` | Dynamic class construction (`exec`) | Generative core unverified |
+| HAPPY `\preserves` | Trusted stubs preserve declared regions | Confinement theorem trusts these |
+
+### Implementation order (phased)
+
+| Phase | What | Notes |
+|-------|------|-------|
+| 1. Foundation | `time` → ClockModel; wire fs↔clock; `World` aggregate | Clock first — everything depends on it |
+| 2. Confinement | Tier-1 ownership HAPPYs; extend HAPPY to nested fields | The coherence mechanism |
+| 3. Quick wins | bisect, keyword, enum, __future__, collections, unicodedata | No World dependency |
+| 3.5 Coarse probe | Cross-subsystem framing test | Should pass via Tier-1 HAPPY |
+| 3.6 Fine probe (gate) | Intra-subsystem framing test | **Decides Tier-2 path before fs-mutating modules** |
+| 4. Façades | sys, io (flush-through) | No direct fs writes |
+| 5. Filesystem | tempfile, shutil | Use Tier-2 mechanism from 3.6 |
+| 6. Stubs | hashlib, ast, contextlib, inspect | Specified/mixed |
+| 7. Hard | copy (aliasing), subprocess | |
+| 8. String-heavy | sysconfig, typing, tokenize, pathlib, dataclasses, argparse | Mostly specified/stubbed |
 
 ---
 
@@ -467,18 +622,18 @@ main()
 ## What to cover next
 
 The `lib/calling.json` file lists all stdlib symbols PyCSL uses.
-Modules covered so far: `os`, `re`, `warnings`, `json`. Remaining
-modules include `collections`, `typing`, `ast`, `sys`, `io`, and
-others.
+Modules covered so far: `os`, `re`, `warnings`, `json`. The remaining
+23 modules (542 symbols) are planned in `making-it-pure-5.md`.
 
-Priority for the next module should consider:
-1. **Symbol count** in `calling.json` (more symbols = more value)
-2. **Code complexity** (integer-heavy code proves better than string-heavy)
-3. **Self-annotation proximity** (which module unblocks the most
-   self-annotation coverage)
-4. **Verifiability** — prefer modules whose logic is integer/boolean
-   heavy (like `warnings`) over string-heavy ones (like full `json`
-   encoder). When a module is mixed, use the thin API wrapper pattern.
+**Current phase: Foundation (Phase 1).** Build `ClockModel`, wire
+fs↔clock, define the `World` aggregate. Then Phase 2 (confinement
+HAPPYs) and Phase 3 (quick wins: bisect, keyword, enum, etc.).
+
+**The gate (Phase 3.6):** The fine probe — can PyCSL prove that
+writing inode A preserves inode B? — decides whether Phase 5
+(tempfile, shutil) uses parametric HAPPY or a narrow `assigns`
+fallback. This is the make-or-break question; answer it before
+building any fs-mutating module.
 
 ---
 

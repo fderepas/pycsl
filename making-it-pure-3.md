@@ -603,26 +603,31 @@ integer-heavy wins, then façades, then string-heavy/hard cases.
 
 ---
 
-## 6. Open questions (from v2, retained)
+## 6. Questions with Reviewer feedback
 
 1. **Memory-model fit.** Does PyCSL's `typed`/`store` model express
    references into a shared mutable World with sound `assigns`? If not,
    the resource-touching tier cannot be modelled coherently. Answer
    before Phase 3.
+   Review feedback: Yes there should be sound `assign`.
 
 2. **Frame-condition scale.** As `assigns` clauses name World sub-parts,
    do they stay tractable, or does every cross-module call drag in the
    whole World?
+   Review feedback: every cross-module call can drag the whole world.
 
 3. **Stream aliasing.** What is the canonical buffer↔inode model so
    `io` writes and `os` reads on the same fd stay consistent?
+   Review feedback: Answer is in "8. Appendix: flush-through model"
 
 4. **TCB growth.** Is the Soundness Ledger acceptable? Should a
    `--soundness-report` flag surface which VCs rest on specified/stubbed
    models?
+   Review feedback: anyone reading a coverage report needs to know the difference between "proven from the implementation" and "proven from axioms you wrote yourself." Without it, coverage numbers are ambiguous. This is a PyCSL tool feature request.
 
 5. **Coverage honesty.** Will coverage numbers be reported per bucket,
    so "proven" cannot be mistaken for "modelled"?
+   Review feedback: Yes reported per bucket
 
 ---
 
@@ -636,3 +641,51 @@ integer-heavy wins, then façades, then string-heavy/hard cases.
 | `pure_lib/warn/__init__.py` | 18/18 body VCs | No World dependency (pure logic) |
 | `pure_lib/json/_api.py` | 6/6 formal VCs | No World dependency (pure logic) |
 | `pure_lib_test/formal_0001–0004.py` | Done | No change |
+
+
+## 8. Appendix: flush-through model
+
+  Every StreamModel.write(data) immediately delegates to world.fs.sys_write(self._fd, data). No private buffer.
+```
+   class StreamModel:
+       _fd: int          # index into world.fs.fd_* tables
+       _closed: int      # 0=open, 1=closed
+   
+       #@ requires self._closed == 0
+       #@ assigns world.fs.disk
+       #@ ensures \result == \length(data)
+       def write(self, data) -> int:
+           return world.fs.sys_write(self._fd, data)
+   
+       #@ requires self._closed == 0
+       #@ assigns \nothing
+       def read(self, n) -> int:
+           return world.fs.sys_read(self._fd, n)
+   
+       def flush(self):
+           pass  # no-op — already flushed
+```
+  Why this works
+
+   1. Sound: An unbuffered stream is valid Python (open(f, buffering=0) on binary, or line_buffering=True with newlines). We model the contract, not the optimization.
+   2. Consistent: After io.write("hello"), os.read(fd, 5) sees "hello" — because both go through world.fs. No divergence possible.
+   3. Simple assigns: StreamModel.write assigns world.fs.disk — same as os.write. No separate buffer state to track.
+   4. Cross-module proofs work:
+   # provable: write through io, read through os
+   io_stream.write(data)
+   result = world.fs.sys_read(fd, len(data))
+   assert result == data  # ✓ — same inode, same fd
+
+  What we give up (honestly)
+
+   - We don't model buffering bugs (code that forgets flush() before os.read()). In our model those bugs silently work.
+   - We don't model the performance difference between buffered and unbuffered I/O.
+   - StringIO is unaffected — it has no fd, it's purely in-memory, and it keeps its own buffer as the only source of truth.
+
+  If buffering ever matters
+
+  Add an optional _write_buffer: list[int] with a ghost invariant tying it to the inode:
+
+   #@ class invariant inode_data == flushed_prefix ++ self._write_buffer
+
+  But this is unnecessary for self-annotation coverage. Recommend flush-through now, revisit only if a real proof needs to reason about unflushed data.
