@@ -794,7 +794,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         ast.Add: "+", ast.Sub: "-", ast.Mult: "*", ast.Div: "/", ast.FloorDiv: "div",
         ast.Mod: "%",
         ast.Eq: "==", ast.NotEq: "!=", ast.Lt: "<", ast.LtE: "<=", ast.Gt: ">", ast.GtE: ">=",
-        ast.USub: "-", ast.UAdd: "+", ast.Not: "not",
+        ast.USub: "-", ast.UAdd: "+", ast.Not: "not", ast.Invert: "~",
         ast.In: "in", ast.NotIn: "not in",
         ast.Is: "==", ast.IsNot: "!=",
         ast.BitAnd: "&", ast.BitOr: "|", ast.BitXor: "^",

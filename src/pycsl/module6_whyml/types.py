@@ -296,6 +296,30 @@ class TypeInferenceMixin:
             return f"(if {val} then 1 else 0)"
         return val
 
+    def _collect_tuple_var_assigns(self, stmts: List[Dict[str, Any]]) -> Dict[str, int]:
+        """0442.md C2: locals bound to a tuple-returning call (`p = mk(x)` where `mk`'s
+        return type is `(int, …)`) → {name: arity}. The cross-method return-type map
+        (`_module_method_return_types`, built in `transpile()`) supplies the tuple type;
+        arity is the comma count + 1. Lets `p[i]` destructure and excludes `p` from the
+        `ref 0` pre-decl (it is a tuple value, let-bound at first assignment)."""
+        found: Dict[str, int] = {}
+        rets = getattr(self, "_module_method_return_types", {})
+        for s in stmts:
+            if s.get("stmt") == "Assign":
+                val = s.get("value", {})
+                tgt = s.get("target", "")
+                if isinstance(val, dict) and val.get("type") == "Call" and tgt:
+                    rt = rets.get(val.get("func", ""))
+                    if isinstance(rt, str) and rt.startswith("(") and "," in rt:
+                        found[tgt] = rt.count(",") + 1
+            for k in ("body", "orelse"):
+                if k in s:
+                    found.update(self._collect_tuple_var_assigns(s[k]))
+            if s.get("stmt") == "Try":
+                for h in s.get("handlers", []):
+                    found.update(self._collect_tuple_var_assigns(h.get("body", [])))
+        return found
+
     def _collect_array_var_assigns(self, stmts: List[Dict[str, Any]],
                                     seed: Optional[Set[str]] = None) -> Set[str]:
         """Post-pass to `IRScanner.find_array_and_dict_vars`: variables
