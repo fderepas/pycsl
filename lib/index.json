@@ -1,97 +1,121 @@
 {
   "__future__": {
-    "files": 30,
     "category": "language",
+    "files": 30,
     "pycsl-functions-used": {
       "annotations": false
     }
   },
   "argparse": {
-    "files": 2,
     "category": "cli",
+    "files": 2,
     "pycsl-functions-used": {
       "ArgumentParser": false,
       "Namespace": false
     }
   },
   "ast": {
-    "files": 1,
     "category": "parsing",
+    "files": 1,
     "pycsl-functions-used": {
       "dump": false,
       "parse": false
     }
   },
   "bisect": {
-    "files": 1,
     "category": "data",
+    "files": 1,
     "pycsl-functions-used": {
       "bisect_left": false
     }
   },
   "collections": {
-    "files": 2,
     "category": "data",
+    "files": 2,
     "pycsl-functions-used": {
       "defaultdict": false,
       "deque": false
     }
   },
-  "contextlib": {
+  "colorsys": {
+    "category": "math",
     "files": 1,
+    "pycsl-functions-used": {
+      "rgb_to_hls": false,
+      "rgb_to_hsv": false,
+      "rgb_to_yiq": false
+    }
+  },
+  "contextlib": {
     "category": "utilities",
+    "files": 1,
     "pycsl-functions-used": {
       "contextmanager": false,
       "nullcontext": false
     }
   },
   "copy": {
-    "files": 2,
     "category": "data",
+    "files": 2,
     "pycsl-functions-used": {
       "deepcopy": false
     }
   },
   "dataclasses": {
-    "files": 7,
     "category": "language",
+    "files": 7,
     "pycsl-functions-used": {
       "dataclass": false,
       "field": false
     }
   },
   "enum": {
-    "files": 1,
     "category": "language",
+    "files": 1,
     "pycsl-functions-used": {
       "IntEnum": false,
       "auto": false
     }
   },
+  "fnmatch": {
+    "category": "system",
+    "files": 1,
+    "pycsl-functions-used": {
+      "filter": false,
+      "fnmatch": false
+    }
+  },
+  "graphlib": {
+    "category": "data",
+    "files": 1,
+    "pycsl-functions-used": {
+      "TopologicalSorter": false
+    }
+  },
   "hashlib": {
-    "files": 2,
     "category": "crypto",
+    "files": 2,
     "pycsl-functions-used": {
       "sha256": false
     }
   },
   "inspect": {
-    "files": 1,
     "category": "introspection",
+    "files": 1,
     "pycsl-functions-used": {
       "cleandoc": false
     }
   },
   "io": {
-    "files": 1,
     "category": "system",
+    "files": 1,
     "pycsl-functions-used": {
       "StringIO": false
     }
   },
   "json": {
-    "files": 4,
     "category": "data",
+    "files": 4,
     "pycsl-functions-used": {
       "JSONDecodeError": false,
       "dumps": false,
@@ -100,15 +124,22 @@
     }
   },
   "keyword": {
-    "files": 1,
     "category": "language",
+    "files": 1,
     "pycsl-functions-used": {
       "kwlist": false
     }
   },
-  "os": {
-    "files": 4,
+  "linecache": {
     "category": "system",
+    "files": 1,
+    "pycsl-functions-used": {
+      "getline": false
+    }
+  },
+  "os": {
+    "category": "system",
+    "files": 4,
     "pycsl-functions-used": {
       "X_OK": false,
       "access": false,
@@ -132,39 +163,63 @@
     }
   },
   "pathlib": {
-    "files": 4,
     "category": "system",
+    "files": 4,
     "pycsl-functions-used": {
       "Path": false
     }
   },
   "re": {
-    "files": 3,
     "category": "text",
+    "files": 3,
     "pycsl-functions-used": {
       "compile": false,
       "findall": false
     }
   },
+  "reprlib": {
+    "category": "utilities",
+    "files": 1,
+    "pycsl-functions-used": {
+      "Repr": false,
+      "repr": false
+    }
+  },
+  "secrets": {
+    "category": "crypto",
+    "files": 1,
+    "pycsl-functions-used": {
+      "choice": false,
+      "token_hex": false
+    }
+  },
   "shutil": {
-    "files": 2,
     "category": "system",
+    "files": 2,
     "pycsl-functions-used": {
       "copy2": false,
       "which": false
     }
   },
-  "subprocess": {
-    "files": 2,
+  "stat": {
     "category": "system",
+    "files": 1,
+    "pycsl-functions-used": {
+      "S_ISDIR": false,
+      "S_ISREG": false
+    }
+  },
+  "subprocess": {
+    "category": "system",
+    "files": 2,
     "pycsl-functions-used": {
       "TimeoutExpired": false,
       "run": false
     }
   },
   "sys": {
-    "files": 3,
     "category": "system",
+    "files": 3,
     "pycsl-functions-used": {
       "argv": false,
       "exit": false,
@@ -179,30 +234,38 @@
     }
   },
   "sysconfig": {
-    "files": 1,
     "category": "system",
+    "files": 1,
     "pycsl-functions-used": {
       "get_paths": false
     }
   },
   "tempfile": {
-    "files": 2,
     "category": "system",
+    "files": 2,
     "pycsl-functions-used": {
       "NamedTemporaryFile": false,
       "mkstemp": false
     }
   },
   "time": {
-    "files": 1,
     "category": "time",
+    "files": 1,
     "pycsl-functions-used": {
       "monotonic": false
     }
   },
-  "tokenize": {
-    "files": 1,
+  "token": {
     "category": "parsing",
+    "files": 1,
+    "pycsl-functions-used": {
+      "ISNONTERMINAL": false,
+      "ISTERMINAL": false
+    }
+  },
+  "tokenize": {
+    "category": "parsing",
+    "files": 1,
     "pycsl-functions-used": {
       "COMMENT": false,
       "DEDENT": false,
@@ -223,8 +286,8 @@
     }
   },
   "typing": {
-    "files": 30,
     "category": "language",
+    "files": 30,
     "pycsl-functions-used": {
       "Any": false,
       "Callable": false,
@@ -238,16 +301,16 @@
     }
   },
   "unicodedata": {
-    "files": 2,
     "category": "unicode",
+    "files": 2,
     "pycsl-functions-used": {
       "lookup": false,
       "normalize": false
     }
   },
   "warnings": {
-    "files": 3,
     "category": "utilities",
+    "files": 3,
     "pycsl-functions-used": {
       "warn": false
     }
