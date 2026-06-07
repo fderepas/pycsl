@@ -710,6 +710,7 @@ function + agreement lemma).
 | 21 | `\permutation(a, b)` | `Permutation` | `a` is a permutation of `b`. Lowers to an **uninterpreted** `predicate permut` (not unfolded — permutation isn't first-order); constrained by a proof-assistant-imported axiom (`#@ proof`, §2.1.12). See `docs/framing-lemma-demonstration.md`. |
 | 22 | `\is_ctor(x, Ctor)` | `CtorTest` | Datatype discriminator: true iff `x` was built with constructor `Ctor`. Lowers to `match x with Ctor _ … -> true \| _ -> false`. |
 | 23 | `\payload(x, Ctor[, i])` | `CtorPayload` | Datatype projector: the i-th payload of `x` viewed as `Ctor` (`i` defaults to 0). Lowers to `match x with Ctor … z … -> z \| _ -> <typed default>`. Lets a contract name a `match` capture without a match (§2.6). |
+| 24 | `\in_globals(name)` | `InGlobals` | **Introspection (07-1839):** `name` is a statically-declared module binding (function / class / module global / constant). Three-valued, **true-only lower bound**: decided-true (→ `true`) for a declared name; **unknown** otherwise (the world is open — `import`/`exec` inject names), so it lowers to an uninterpreted bool, **never** decided-false. Compile-time knowledge; no runtime `globals()` dict. |
 
 ### 3.2 Operators (by precedence, lowest first)
 

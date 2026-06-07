@@ -1897,6 +1897,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return f"(Array.length {deref}{var})"
         return f"{expr['var']}_len"
 
+    def _module_binding_names(self) -> Set[str]:
+        """07-1839 P2: statically-declared module-level names — the sound lower bound for
+        `\\in_globals` (functions, module-global object instances, module constants, and
+        classes). The world is OPEN beyond this (import/exec), so a name's absence here is
+        *unknown*, never decided-false."""
+        ir = getattr(self, "ir", {})
+        names: Set[str] = {f.get("name") for f in ir.get("functions", [])}
+        names |= set(getattr(self, "_module_global_classes", {}))
+        names |= set(getattr(self, "_module_constants", {}))
+        names |= {c.get("name") for c in ir.get("classes", []) if isinstance(c, dict)}
+        names.discard(None)
+        return names
+
+    def _handle_in_globals_expr(self, expr: Dict[str, Any], local_refs: Set[str],
+                                invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> str:
+        """07-1839 P2: `\\in_globals(name)` — three-valued, true-only lower bound.
+        decided-true (→ `true`) for a declared module binding; UNKNOWN otherwise → an
+        uninterpreted bool (`in_globals_op`), so it is neither provably true nor false
+        (open world: import/exec may inject the name). The unsound decided-false direction
+        is never emitted."""
+        name = expr.get("name", "")
+        if name in self._module_binding_names():
+            return "true"
+        self._add_abstract_op("val in_globals_op (n: int) : bool")
+        return f"(in_globals_op {sum(ord(c) for c in name)})"
+
     def _handle_valid_expr(
         self,
         expr: Dict[str, Any],

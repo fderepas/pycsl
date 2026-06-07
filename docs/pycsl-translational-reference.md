@@ -1453,6 +1453,21 @@ Uses the predicate declared in the typed model prelude.
 
 **Implementation:** `_handle_valid_expr`.
 
+#### `\in_globals(name)` — introspection, three-valued (07-1839)
+
+A *true-only* lower bound over the statically-declared module bindings (functions, module
+globals, constants, classes — the compile-time analogue of the runtime `globals()` dict; no
+runtime dict is emitted):
+
+$$\mathcal{T}_e\llbracket \texttt{\\in\_globals(name)} \rrbracket =
+\begin{cases} \texttt{true} & name \in \text{module bindings (decided-true)} \\
+\texttt{(in\_globals\_op } h(name)\texttt{)} & \text{otherwise (unknown — uninterpreted bool)} \end{cases}$$
+
+The world is **open** (`import`/`exec` may inject names), so a name's absence yields an
+uninterpreted `val in_globals_op (n:int):bool` — neither provably `true` nor `false`. The
+decided-`false` direction is **never** emitted (it would be unsound). **Implementation:**
+`_handle_in_globals_expr`; binding set from `_module_binding_names`.
+
 #### `\separated(a, na, b, nb)`
 
 ##### Hoare/Concurrent Model

@@ -184,6 +184,15 @@ class ArrayLength(CSLNode):
     var: str
 
 @dataclass
+class InGlobals(CSLNode):
+    """07-1839 P2: `\\in_globals(name)` — is `name` a statically-declared module-level
+    binding? Three-valued (sound lower bound): decided-true for a declared module name
+    (function / class / module global / constant), **unknown** otherwise (the world is
+    open — `import`/`exec` inject names), **never** decided-false. Resolved at emission
+    against the module-binding set."""
+    name: str
+
+@dataclass
 class AssignsRegion(CSLNode):
     """Represents `arr[lo..hi]` inside an assigns clause (frame condition region)."""
     base: str       # array parameter name
@@ -1041,6 +1050,7 @@ PYCSL_GRAMMAR = r"""
          | CNAME -> var
          | "\\result" -> result
          | "\\old" "(" expr ")" -> old_var
+         | "\\in_globals" "(" CNAME ")" -> in_globals_pred
          | "\\length" "(" CNAME ")" -> array_length
          | "\\length" "(" "self" "." CNAME ")" -> array_length_field
          | "\\length" "(" "\\result" ")" -> array_length_result
@@ -1354,6 +1364,7 @@ class PyCSLTransformer(Transformer):
         for nm in reversed(names):
             node = Exists(str(nm), node)
         return node
+    def in_globals_pred(self, name) -> InGlobals: return InGlobals(str(name))  # 07-1839 P2
     def array_length(self, var) -> ArrayLength: return ArrayLength(str(var))
     def array_length_field(self, field_name) -> ArrayLength:
         # `\length(self.f)` — length of an `array int` record field.

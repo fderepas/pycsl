@@ -166,6 +166,7 @@ The **Ref** column uses the format `section.subsection.row`.
 | 12.7.2 | growable list local (seq model) \| a grown list LOCAL is `ref (seq int)`: init `Seq.cons` chain, `+=`→`!a ++ snapshot(b)`, `len`→`Seq.length`, `a[i]`→`Seq.get`; proves the length-additive law + element placement (07-1705-rev4 P3) | 0626, 0627, 0628 | PASS |
 | 12.7.3 | seq return boundary \| `return a` of a seq local → `materialize !a` (fresh array); build-by-concat then return proves `\length(\result)` (07-1705-rev4 P4) | 0629 | PASS |
 | 12.7.4 | growable list PARAM (seq model) \| a grown list param is shadowed `let a = ref (snapshot a)`; concat + `return` materialise prove `\length(\result) == \length(a)+\length(b)`; `array_extend` removed (07-1705-rev4 P5) | 0619 | PASS |
+| 12.8.1 | introspection `\in_globals` \| `\in_globals(name)` three-valued true-only lower bound: decided-true for a declared module binding, unknown (uninterpreted bool) otherwise — never decided-false (open world) (07-1839 P1/P2) | 0630; XFAIL: 0631 | PASS |
 
 ## NoException + UB Detection (workplan PRs 1–10, 2026)
 
