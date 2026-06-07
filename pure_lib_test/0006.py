@@ -16,9 +16,9 @@ def check(name, cond):
         failed += 1
 
 # --- hashlib (hlib) ---
-from pure_lib.hlib import sha256
+from pure_lib.hlib import new_sha256
 
-h = sha256([1, 2, 3])
+h = new_sha256([1, 2, 3])
 check("sha256 digest length", len(h.digest()) == 32)
 check("sha256 hexdigest length", len(h.hexdigest()) == 64)
 h.update([4, 5])
