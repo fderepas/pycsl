@@ -1183,6 +1183,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return f"(list_new_arr {args[0] if args else '0'})"
             self._add_abstract_op("val list_new (x: int) : int")
             return f"(list_new {args[0] if args else '0'})"
+        if func_name in ("bytes", "bytearray") and len(args) <= 1:
+            # 07-1321 S1: faithful bytes/bytearray construction. A bytes buffer is an
+            # `array int` (no-more-int doctrine), and the constructor is LENGTH- and
+            # ELEMENT-preserving so byte-packing functions can prove `\length(\result)`
+            # and `\result[i]` postconditions — not merely type-correct. The argument
+            # already lowers to an `array int` expression (array literal or array-typed
+            # local), so it is passed through directly (NOT `_array_coerce_arg`, which
+            # would clobber a `(let _alit = Array.make …)` literal to a placeholder).
+            ctor = func_name
+            if args:
+                self._add_abstract_op(
+                    f"val {ctor}_new (x: array int) : array int\n"
+                    f"    ensures {{ Array.length result = Array.length x }}\n"
+                    f"    ensures {{ forall i:int. 0 <= i < Array.length x -> "
+                    f"result[i] = x[i] }}")
+                return f"({ctor}_new {args[0]})"
+            self._add_abstract_op(
+                f"val {ctor}_empty () : array int\n"
+                f"    ensures {{ Array.length result = 0 }}")
+            return f"({ctor}_empty ())"
         if func_name == "json_mirror" and len(args) == 1:
             # no-more-int A4: `json_mirror(x)` over a recursive `#@ datatype Json`
             # is an abstract `json → json` op (`val function` — program-callable
