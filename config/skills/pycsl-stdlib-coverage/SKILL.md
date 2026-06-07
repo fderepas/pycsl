@@ -860,8 +860,10 @@ building any fs-mutating module.
   move on. Consider the thin API wrapper pattern for partial coverage.
 - **Forgetting `PYTHONHASHSEED=0`** — results become non-deterministic
   without it. Always set it.
-- **Adding `: str` type annotations** — PyCSL maps `str` to Why3
-  `string`, but all APIs use `int`. Drop string annotations.
+- **Forgetting `: str` return types where appropriate** — PyCSL maps
+  `str` to Why3 `string` correctly. Use `-> str` when the real Python
+  function returns a string.  String equality and `\length(\result)`
+  work in postconditions.  Only string *method calls* are unsupported.
 - **Putting functions in a submodule and re-exporting** — function
   contracts don't propagate through `__init__.py` re-exports. Put
   annotated functions directly in `__init__.py` (classes are fine in
