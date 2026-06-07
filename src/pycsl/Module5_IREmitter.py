@@ -16,7 +16,7 @@ from Module2_Parser import (
     Forall, Exists, ArrayLength, SubscriptAccess,
     AssignsRegion, Valid, Separated, At as CSLAt,
     Length2D, Valid2D, FunctionVariant, StringLiteral as CSLStringLiteral,
-    CallExpr, IsSorted, ArrayEq, Permutation, Sum, CSLBool, CSLNone, CSLIn, CSLNotIn, CSLSlice,
+    CallExpr, IsSorted, ArrayEq, Permutation, Sum, CSLBool, CSLNone, CSLIn, CSLNotIn, CSLSlice, DictView,
     ChainedSubscript,
     GhostArraySetDecl,
     MkTupleExpr, FstExpr, SndExpr, ProjExpr, CtorTest, CtorPayload,
@@ -381,6 +381,40 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # off the CSL node (not via `_csl_to_ir`) so the list path below keeps its exact
         # `_fresh_var` allocation order → byte-identical. Lists/arrays / unknown types
         # fall through to the positional `exists`.
+        # 07-1311 Q1.2: `x in range([lo,] hi)` is a direct integer-interval bound, NOT a
+        # positional array search — desugar to `lo <= x and x < hi` (no `Array.length`).
+        if isinstance(node.collection, CallExpr) and node.collection.func == "range":
+            rargs = node.collection.args
+            elt_ir = self._csl_to_ir(node.element)
+            if len(rargs) == 1:
+                lo_ir = {"type": "Number", "value": 0}
+                hi_ir = self._csl_to_ir(rargs[0])
+            else:
+                lo_ir = self._csl_to_ir(rargs[0])
+                hi_ir = self._csl_to_ir(rargs[1])
+            return {"type": "BinOp", "op": "and",
+                    "left": {"type": "BinOp", "op": "<=", "left": lo_ir, "right": elt_ir},
+                    "right": {"type": "BinOp", "op": "<", "left": elt_ir, "right": hi_ir}}
+        # 07-1311 Q3: dict views `d.keys()` / `d.values()` (`.items()` is the separate
+        # two-binder form). `k in d.keys()` is key presence (≡ bare `k in d`); `v in
+        # d.values()` is "v is stored under some key" — `exists _k. Map.get d _k = Some v`.
+        if isinstance(node.collection, DictView):
+            dv = node.collection
+            elt_ir = self._csl_to_ir(node.element)
+            coll_var = {"type": "Var", "name": dv.coll}
+            if dv.kind == "keys":
+                return {"type": "BinOp", "op": "in",
+                        "left": elt_ir, "right": coll_var}
+            if dv.kind == "values":
+                kv = self._fresh_var("_dk")
+                return {"type": "Exists", "var": kv,
+                        "body": {"type": "MapValueIs",
+                                 "map": dv.coll,
+                                 "key": {"type": "Var", "name": kv},
+                                 "value": elt_ir}}
+            raise PyCSLIRError(
+                f"`\\forall x in {dv.coll}.items()` (two-binder) is a 07-1311 follow-on; "
+                f"use `.keys()`/`.values()` or the `\\forall k in {dv.coll};` key form")
         _coll_nm = getattr(node.collection, "name", None)
         # 07-0647-spec R10/S2.1: a `str` collection is NOT an array — `x in s` on a
         # string is substring containment, handled by Module6's `str_contains_op` (which

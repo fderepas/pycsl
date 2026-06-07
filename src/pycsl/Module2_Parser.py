@@ -310,6 +310,15 @@ class CSLNotIn(CSLNode):
     collection: CSLNode
 
 @dataclass
+class DictView(CSLNode):
+    """07-1311 Q3: a dict view in a quantifier domain — `d.keys()` / `d.values()` /
+    `d.items()`. Only meaningful as the collection of a bounded quantifier
+    (`\\forall v in d.values(); …`); Module5's `_csl_in` desugars it onto the map
+    model (`map int (option int)`). `kind` ∈ {"keys","values","items"}."""
+    coll: str
+    kind: str
+
+@dataclass
 class CSLSlice(CSLNode):
     """Represents `arr[lo:hi]` slice notation in contracts."""
     collection: str
@@ -1002,6 +1011,7 @@ PYCSL_GRAMMAR = r"""
          | "None" -> none_lit
          | "self" "." CNAME "[" expr "]" -> field_subscript
          | "self" "." CNAME -> field_access
+         | CNAME "." CNAME "(" ")" -> dict_view_expr
          | CNAME "." CNAME -> param_field_access
          | "\\result" "[" expr "]" -> result_subscript
          | "\\result" "." CNAME -> result_field
@@ -1387,6 +1397,15 @@ class PyCSLTransformer(Transformer):
     # Membership
     def in_expr(self, element, collection) -> CSLIn: return CSLIn(element, collection)
     def not_in_expr(self, element, collection) -> CSLNotIn: return CSLNotIn(element, collection)
+
+    # 07-1311 Q3: dict view `d.keys()` / `d.values()` / `d.items()` (quantifier domain).
+    def dict_view_expr(self, coll, method) -> 'DictView':
+        m = str(method)
+        if m not in ("keys", "values", "items"):
+            raise PyCSLParseError(
+                f"unsupported method '.{m}()' in a contract; only .keys()/.values()/"
+                f".items() are recognised (as quantifier domains, 07-1311)")
+        return DictView(str(coll), m)
 
     # Function calls and built-in predicates
     def call_expr(self, name, args) -> CallExpr: return CallExpr(str(name), args if isinstance(args, list) else [args])

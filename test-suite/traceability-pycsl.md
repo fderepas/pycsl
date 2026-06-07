@@ -158,6 +158,8 @@ The **Ref** column uses the format `section.subsection.row`.
 | 12.5.3 | array-ref local deref at call site \| Ref-wrapped array local passed to a callee is dereferenced (`!x`); plain args unchanged (07-1321 S2) | 0617 | PASS |
 | 12.5.4 | `b'\x00' * N` byte-literal repetition \| Lowers to `array int` (`Array.make N 0`), incl. slice-assignment RHS (`Array.blit`) (07-1321 S3) | 0618 | PASS |
 | 12.5.5 | `array += array` concatenation \| List/bytes `+=` target recognised as array-typed → `array_extend` (deref'd), not integer `+`; faithful length-additive concat is a follow-on (07-1321 S4) | 0619 | PASS |
+| 12.6.1 | quantify over list element / range \| `\forall x in a;` (membership) and `\forall i in range(lo,hi);` → direct `lo<=i<hi` bound (07-1311 Q1) | 0620; XFAIL: 0622 | PASS |
+| 12.6.2 | quantify over dict keys / values \| `\forall k in d;` / `d.keys()` → `Map.get d k <> None`; `\forall v in d.values();` → `exists k. Map.get d k = Some v` (07-1311 Q2/Q3) | 0621 | PASS |
 
 ## NoException + UB Detection (workplan PRs 1–10, 2026)
 
