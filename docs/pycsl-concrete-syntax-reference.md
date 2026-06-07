@@ -112,6 +112,9 @@ _Corresponds to `annotations.md` §2.1._
 | 2.4.8 | Check  | `check_decl ::= "check" expr ;` — `#@ check <expr>` (statement-position; prove-and-discard) |
 | 2.5.1 | HAPPY | `happy_decl ::= "happy" CNAME ":" "region" expr ".." expr "writes" "self" "." CNAME "outside" "region" ("except" CNAME ("," CNAME)*)? ;` — module-level; surface is a `#@ happy <name>:` block with a 4-space-indented body |
 | 2.5.2 | Preserves | `preserves_decl ::= "\preserves" ;` — `#@ \preserves` (function/method; HAPPY trust-boundary opt-in) |
+| 2.5.3 | HAPPY (protects) | `happy_protects_decl ::= "happy" CNAME ":" "protects" dotted_path ("," dotted_path)* ("except" CNAME ("," CNAME)*)? ;` where `dotted_path ::= CNAME ("." CNAME)*` — module-level subsystem ownership (07-1143 R1/R2) |
+| 2.5.4 | HAPPY (parametric) | `happy_param_decl ::= "happy" CNAME "(" CNAME ")" ":" "protects" dotted_path "[" expr ":" expr "]" ("except" CNAME ("," CNAME)*)? ;` — per-object region parameterised by the bound name (07-1143 R3) |
+| 2.5.5 | Footprint | `footprint_decl ::= "footprint" CNAME "(" expr ")" ;` — `#@ footprint <name>(<arg>)` (function/method; binds a parametric HAPPY's parameter, 07-1143 R3) |
 | 3.1.3b | Field subscript | `field_subscript ::= "self" "." CNAME "[" expr "]" ;` — element of an instance array field in a contract expression |
 
 `act` and `happy` blocks are line-folded in Module 1 (indentation is significant in the

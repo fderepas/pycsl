@@ -871,6 +871,12 @@ def _parse_args() -> argparse.Namespace:
     g_scope = parser.add_argument_group("scope / output")
     g_scope.add_argument("--keep-mlw", action="store_true",
                         help="Keep the generated WhyML (.mlw) file for debugging")
+    g_scope.add_argument("--soundness-report", action="store_true",
+                        help="Emit a Soundness Ledger (07-1143 R4): classify every "
+                             "function/VC as Modelled (body-verified), Specified "
+                             "(axiomatic contract), Stubbed (signature-only), or "
+                             "Confinement (HAPPY \\preserves), flag trusted dependencies, "
+                             "and print JSON + a human summary. Skips proving.")
     g_scope.add_argument("--fun", action="append", default=None, metavar="NAME",
                         help="Only verify the named function and its transitive "
                              "call-dependencies (may be repeated). "
@@ -956,6 +962,67 @@ def _parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _build_soundness_report(ir_data: Dict[str, Any], filename: str) -> Dict[str, Any]:
+    """07-1143 R4 — the Soundness Ledger. Classify every function (and thus its VCs)
+    into one of four provenance buckets and record what trust each rests on:
+
+      - Modelled    : body-verified — a real proof.
+      - Specified   : a `\\trusted`/`\\abstract` method WITH a contract (ensures) — the
+                      contract is assumed (axiomatic), so it enters the TCB.
+      - Stubbed     : a `\\trusted`/`\\abstract` method with no contract — proves nothing.
+      - Confinement : a method carrying `#@ \\preserves` — its HAPPY-boundary promise is
+                      assumed, so it enters the TCB.
+
+    Conservative by construction: any non-body provenance is reported as trust (never
+    under-reported). `trusted_dependencies` lists the trusted/abstract callees a Modelled
+    function relies on, so a body proof that rests on an assumed stub is visible."""
+    funcs = ir_data.get("functions", [])
+    trusted_names = {f["name"] for f in funcs if f.get("trusted") or f.get("abstract")}
+    counts = {"Modelled": 0, "Specified": 0, "Stubbed": 0, "Confinement": 0}
+    vcs: List[Dict[str, Any]] = []
+    for f in funcs:
+        name = f["name"]
+        ens = bool(f.get("contracts", {}).get("ensures"))
+        if f.get("preserves"):
+            bucket = "Confinement"
+        elif f.get("trusted") or f.get("abstract"):
+            bucket = "Specified" if ens else "Stubbed"
+        else:
+            bucket = "Modelled"
+        counts[bucket] += 1
+        deps = sorted((_collect_calls(f.get("body", [])) & trusted_names) - {name})
+        vcs.append({
+            "function": name, "bucket": bucket, "has_contract": ens,
+            "trusted": bool(f.get("trusted")), "abstract": bool(f.get("abstract")),
+            "preserves": bool(f.get("preserves")), "trusted_dependencies": deps,
+        })
+    return {"file": filename, "summary": counts, "vcs": vcs}
+
+
+def _print_soundness_report(report: Dict[str, Any]) -> None:
+    """Print the R4 Soundness Ledger: machine-parseable JSON, then a human summary."""
+    print("=== SOUNDNESS REPORT (JSON) ===")
+    print(_json.dumps(report, indent=2))
+    print("\n=== SOUNDNESS REPORT (summary) ===")
+    s = report["summary"]
+    total = sum(s.values())
+    print(f"file: {report['file']}   functions/VCs: {total}")
+    for bucket in ("Modelled", "Specified", "Stubbed", "Confinement"):
+        print(f"  {bucket:<12}: {s[bucket]}")
+    tcb = [v for v in report["vcs"] if v["bucket"] in ("Specified", "Confinement")]
+    if tcb:
+        print("  --- TCB entries (assumed, not body-verified) ---")
+        for v in tcb:
+            why = ("\\preserves" if v["bucket"] == "Confinement"
+                   else "axiomatic contract")
+            print(f"    {v['function']}  [{v['bucket']}]  ({why})")
+    dep = [v for v in report["vcs"] if v["bucket"] == "Modelled" and v["trusted_dependencies"]]
+    if dep:
+        print("  --- body proofs resting on trusted/abstract stubs ---")
+        for v in dep:
+            print(f"    {v['function']}  depends on: {', '.join(v['trusted_dependencies'])}")
+
+
 def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace) -> str:
     """Run Modules 1–6 on *source_code*. Returns WhyML code string."""
     print(f"[*] Parsing and Semantic Analysis for '{args.file}'...")
@@ -1031,6 +1098,14 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     _apply_inheritance(ir_data)
     _apply_composition(ir_data)   # Tier-1 mixin composition (check + flatten)
     _apply_inline_globals(ir_data)   # inline.md: inline method calls on module globals
+
+    # 07-1143 R4: the Soundness Ledger is a provenance view of the fully-resolved IR
+    # (after imports/inheritance/composition), so it runs here and short-circuits before
+    # WhyML emission / proving.
+    if getattr(args, "soundness_report", False):
+        _print_soundness_report(_build_soundness_report(ir_data, args.file))
+        sys.exit(0)
+
     json_ir = _json.dumps(ir_data)
 
     # --fun filter: mark non-selected functions as trusted
