@@ -26,7 +26,8 @@ class FunctionEmissionMixin:
         # share the map model, not the array model.
         if symtype in ("set", "dict", "frozenset"):
             return f"({safe}: map int (option int))"
-        if arg in array1d_params or symtype == "list":
+        if arg in array1d_params or symtype in ("list", "bytes", "bytearray"):
+            # 0442.md B2 (no-more-int): bytes/bytearray are the byte-buffer array class.
             if self._value_semantic:
                 return f"({safe}: array {int_type})"
             return f"({safe}: loc) ({safe}_len: int)"
@@ -241,7 +242,8 @@ class FunctionEmissionMixin:
         bounded_int = func.get("bounded_int")
         return_type = IRScanner.find_return_type(body_stmts)
         ann = func.get("return_annotation")
-        if ann == "list" and return_type == "int":
+        if ann in ("list", "bytes", "bytearray") and return_type == "int":
+            # 0442.md B2 (no-more-int): bytes/bytearray are the byte-buffer array class.
             return_type = "array int"
         elif ann in ("set", "dict", "frozenset") and return_type == "int":
             return_type = "map int (option int)"
@@ -656,7 +658,8 @@ class FunctionEmissionMixin:
         in abstract val parameter declarations. Defaults to `int`."""
         if symtype in ("set", "dict", "frozenset"):
             return "map int (option int)"
-        if symtype in ("list", "tuple"):
+        if symtype in ("list", "tuple", "bytes", "bytearray"):
+            # 0442.md B2 (no-more-int): bytes/bytearray are the byte-buffer array class.
             return "array int"
         if symtype == "str":
             return "string"
