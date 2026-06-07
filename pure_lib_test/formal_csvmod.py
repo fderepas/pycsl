@@ -24,14 +24,16 @@ def test_count_fields_nonempty(line: int) -> int:
 
 #@ requires num_fields >= 0 and num_fields < 2147483647
 #@ ensures \result >= num_fields
+#@ ensures \result == num_fields
 def test_write_row_bounded(num_fields: int) -> int:
-    """write_row(num_fields) >= num_fields for all inputs."""
+    """write_row(num_fields) == num_fields for all inputs. Exact."""
     return write_row(num_fields)
 
 
 #@ requires rows >= 0 and rows < 2147483647
 #@ requires fields_per_row >= 0 and fields_per_row < 2147483647
 #@ ensures \result >= 0
+#@ ensures \result == rows * fields_per_row
 def test_writerows_nonneg(rows: int, fields_per_row: int) -> int:
-    """writerows(rows, fields_per_row) >= 0 for all inputs."""
+    """writerows(rows, fpr) == rows * fpr for all inputs. Exact."""
     return writerows(rows, fields_per_row)

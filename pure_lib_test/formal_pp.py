@@ -10,15 +10,17 @@ from pure_lib.pp import pformat, saferepr, isreadable, isrecursive
 
 #@ requires obj >= 0 and obj < 2147483647
 #@ ensures \result >= 0
+#@ ensures \result == obj
 def test_pformat_nonneg(obj: int) -> int:
-    """pformat(obj) >= 0 for all obj. Non-negative representation length."""
+    """pformat(obj) == obj for all obj. Exact model identity."""
     return pformat(obj)
 
 
 #@ requires obj >= 0 and obj < 2147483647
 #@ ensures \result >= 0
+#@ ensures \result == obj
 def test_saferepr_nonneg(obj: int) -> int:
-    """saferepr(obj) >= 0 for all obj. Non-negative bounded repr length."""
+    """saferepr(obj) == obj for all obj. Exact model identity."""
     return saferepr(obj)
 
 

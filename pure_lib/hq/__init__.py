@@ -43,6 +43,8 @@ def heapify(n: int) -> int:
 #@ ensures \result >= 0
 #@ ensures \result <= n
 #@ ensures \result <= k
+#@ ensures k <= n ==> \result == k
+#@ ensures n < k ==> \result == n
 def nlargest(k: int, n: int) -> int:
     """RST: 'Return a list with the n largest elements.'
     Equivalent to sorted(iterable, reverse=True)[:n] → result = min(k, n)."""
@@ -56,6 +58,8 @@ def nlargest(k: int, n: int) -> int:
 #@ ensures \result >= 0
 #@ ensures \result <= n
 #@ ensures \result <= k
+#@ ensures k <= n ==> \result == k
+#@ ensures n < k ==> \result == n
 def nsmallest(k: int, n: int) -> int:
     """RST: 'Return a list with the n smallest elements.'
     Equivalent to sorted(iterable)[:n] → result = min(k, n)."""

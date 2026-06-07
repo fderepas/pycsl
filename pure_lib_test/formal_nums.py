@@ -58,6 +58,9 @@ def test_gcd_zero_right(a: int) -> int:
 #@ requires a >= 0 and a < 2147483647
 #@ requires b >= 0 and b < 2147483647
 #@ ensures \result >= 0
+#@ ensures (a > 0 or b > 0) ==> \result > 0
+#@ ensures (a > 0 or b > 0) ==> a % \result == 0
+#@ ensures (a > 0 or b > 0) ==> b % \result == 0
 def test_gcd_nonneg(a: int, b: int) -> int:
-    """gcd(a, b) >= 0 for all non-negative a, b."""
+    """gcd(a, b) divides both a and b for all a, b >= 0."""
     return gcd(a, b)

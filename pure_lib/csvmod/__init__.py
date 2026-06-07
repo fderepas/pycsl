@@ -22,6 +22,7 @@ def count_fields(line: int) -> int:
 #@ requires num_fields >= 0
 #@ ensures \result >= 0
 #@ ensures \result >= num_fields
+#@ ensures \result == num_fields
 def write_row(num_fields: int) -> int:
     """RST: 'writer... converting data into delimited strings.'
     Written bytes >= field count (each field is at least 1 byte + delimiters)."""
@@ -45,6 +46,7 @@ def get_dialect(dialect: int) -> int:
 #@ requires rows >= 0
 #@ requires fields_per_row >= 0
 #@ ensures \result >= 0
+#@ ensures \result == rows * fields_per_row
 def writerows(rows: int, fields_per_row: int) -> int:
     """RST: 'Write all elements in rows to the writer's file object.'
     Total bytes written is non-negative."""

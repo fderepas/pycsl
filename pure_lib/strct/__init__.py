@@ -10,6 +10,7 @@
 
 #@ requires fmt >= 0
 #@ ensures \result >= 0
+#@ ensures \result == fmt
 def calcsize(fmt: int) -> int:
     """RST: 'Return the size of the struct corresponding to the format
     string format.' Size is non-negative."""
@@ -18,6 +19,7 @@ def calcsize(fmt: int) -> int:
 
 #@ requires fmt >= 0
 #@ ensures \result >= 0
+#@ ensures \result == fmt
 def pack(fmt: int, val: int) -> int:
     """RST: 'Return a bytes object containing the values packed according
     to the format string.' Result bytes length matches calcsize(fmt)."""
@@ -27,6 +29,7 @@ def pack(fmt: int, val: int) -> int:
 #@ requires fmt >= 0
 #@ requires data >= 0
 #@ ensures \result >= 0
+#@ ensures \result == fmt
 def unpack(fmt: int, data: int) -> int:
     """RST: 'Unpack from the buffer. The result is a tuple even if it
     contains exactly one item.' Returns tuple length (number of format codes)."""
@@ -37,6 +40,7 @@ def unpack(fmt: int, data: int) -> int:
 #@ requires buffer >= 0
 #@ requires offset >= 0
 #@ ensures \result >= 0
+#@ ensures \result == fmt
 def unpack_from(fmt: int, buffer: int, offset: int) -> int:
     """RST: 'Unpack from buffer starting at position offset.'
     Returns tuple length."""
@@ -45,6 +49,7 @@ def unpack_from(fmt: int, buffer: int, offset: int) -> int:
 
 #@ requires fmt >= 0
 #@ ensures \result >= 0
+#@ ensures \result == fmt
 def pack_into(fmt: int, buffer: int, offset: int, val: int) -> int:
     """RST: 'Pack the values according to format and write the packed
     bytes into the writable buffer starting at position offset.'

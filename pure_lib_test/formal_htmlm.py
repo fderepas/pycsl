@@ -11,20 +11,23 @@ from pure_lib.htmlm import escape, unescape, escape_quote
 
 #@ requires s >= 0 and s < 2147483647
 #@ ensures \result >= s
+#@ ensures s == 0 ==> \result == 0
 def test_escape_grows(s: int) -> int:
-    """escape(s) >= s for all s. Escaping only grows strings."""
+    """escape(s) >= s for all s, and empty → empty."""
     return escape(s)
 
 
 #@ requires s >= 0 and s < 2147483647
 #@ ensures \result >= 0 and \result <= s
+#@ ensures s == 0 ==> \result == 0
 def test_unescape_shrinks(s: int) -> int:
-    """unescape(s) <= s for all s. Unescaping only shrinks strings."""
+    """unescape(s) <= s for all s, and empty → empty."""
     return unescape(s)
 
 
 #@ requires s >= 0 and s < 2147483647
 #@ ensures \result >= s
+#@ ensures s == 0 ==> \result == 0
 def test_escape_quote_grows(s: int) -> int:
-    """escape_quote(s) >= s for all s. Same growth property as escape."""
+    """escape_quote(s) >= s for all s, and empty → empty."""
     return escape_quote(s)

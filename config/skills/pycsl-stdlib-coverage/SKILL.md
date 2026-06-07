@@ -369,6 +369,50 @@ is the ground truth; the contract is its formal shadow.
 postcondition it justifies, then verify the body satisfies it.
 Only weaken if the English is genuinely ambiguous.
 
+### Always maximise postcondition precision
+
+After writing a contract, **always ask: can I make the postcondition
+more strict?** A loose postcondition like `ensures \result >= 0` is
+technically true but vacuous — it tells the caller almost nothing.
+The goal is to capture the **mathematical essence** of the function.
+
+Example — `gcd(a, b)`:
+
+```python
+# BAD: technically true, but says almost nothing
+#@ requires a >= 0
+#@ requires b >= 0
+#@ ensures \result >= 0
+def gcd(a: int, b: int) -> int: ...
+
+# GOOD: captures what gcd IS
+#@ requires a >= 0
+#@ requires b >= 0
+#@ ensures \result >= 0
+#@ ensures (a > 0 or b > 0) ==> \result > 0
+#@ ensures (a > 0 or b > 0) ==> a % \result == 0
+#@ ensures (a > 0 or b > 0) ==> b % \result == 0
+#@ ensures (a > 0 or b > 0) ==>
+#@   (\forall k; (k > 0 and a % k == 0 and b % k == 0) ==> k <= \result)
+#@ assigns \nothing
+def gcd(a: int, b: int) -> int: ...
+```
+
+The `\forall k` clause says: no common divisor is larger than the
+result. Together with `a % \result == 0 and b % \result == 0`, this
+*defines* gcd — the greatest common divisor. A caller can now reason
+algebraically about the result, not merely know it is non-negative.
+
+**Checklist for every postcondition:**
+1. Does it capture the *exact* return value when possible? (`== f(args)`)
+2. Does it capture the *divisibility*, *monotonicity*, or *algebraic
+   identity* the function computes?
+3. Does it state the *boundary/edge-case* behavior? (e.g., `a == 0 ==> \result == b`)
+4. Does it use `\forall` to express *maximality* or *minimality* when
+   the function computes an extremum (gcd, max, min, lcm)?
+5. Can a caller prove **more** about their own code using this contract?
+   If not, the contract is too weak.
+
 ### Step 6 — Document tool gaps
 
 Any PyCSL limitation discovered during steps 3–5 goes into a

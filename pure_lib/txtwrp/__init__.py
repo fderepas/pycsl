@@ -10,6 +10,7 @@
 #@ ensures \result >= 0
 #@ ensures text == 0 ==> \result == 0
 #@ ensures text > 0 ==> \result >= 1
+#@ ensures text > 0 ==> \result == (text + width - 1) // width
 def wrap(text: int, width: int) -> int:
     """Wrap text to width. Returns number of lines (list length).
     RST: 'Returns a list of output lines' — empty text → empty list,
@@ -34,6 +35,8 @@ def fill(text: int, width: int) -> int:
 #@ ensures \result >= 0
 #@ ensures \result <= text
 #@ ensures \result <= width
+#@ ensures text <= width ==> \result == text
+#@ ensures text > width ==> \result == width
 def shorten(text: int, width: int) -> int:
     """Shorten text to fit in width.
     RST: 'Collapse and truncate the given text to fit in the given width.'
@@ -56,6 +59,7 @@ def dedent(text: int) -> int:
 #@ requires text >= 0
 #@ requires prefix >= 0
 #@ ensures \result >= text
+#@ ensures \result == text + prefix
 def indent(text: int, prefix: int) -> int:
     """Add prefix to beginning of lines.
     RST: 'Add prefix to the beginning of selected lines.'

@@ -9,6 +9,7 @@
 
 #@ requires obj >= 0
 #@ ensures \result >= 0
+#@ ensures \result == obj
 def pformat(obj: int) -> int:
     """RST: 'Return the formatted representation of object as a string.'
     Result is a string representation (non-negative length)."""
@@ -24,6 +25,7 @@ def pprint_out(obj: int) -> None:
 
 #@ requires obj >= 0
 #@ ensures \result >= 0
+#@ ensures \result == obj
 def saferepr(obj: int) -> int:
     """RST: 'Version of repr() with limits on most sizes.' Result is
     a bounded string representation (non-negative length)."""

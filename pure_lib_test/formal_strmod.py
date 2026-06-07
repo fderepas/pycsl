@@ -26,22 +26,26 @@ def test_capwords_empty() -> int:
 #@ requires template >= 0 and template < 2147483647
 #@ requires mapping >= 0 and mapping < 2147483647
 #@ ensures \result >= 0
+#@ ensures \result == template + mapping
 def test_template_sub_nonneg(template: int, mapping: int) -> int:
-    """template_substitute(template, mapping) >= 0 for all inputs."""
+    """template_substitute(template, mapping) == template + mapping. Exact."""
     return template_substitute(template, mapping)
 
 
 #@ requires template >= 0 and template < 2147483647
 #@ requires mapping >= 0 and mapping < 2147483647
 #@ ensures \result >= template
+#@ ensures \result == template + mapping
 def test_safe_sub_grows(template: int, mapping: int) -> int:
-    """template_safe_substitute(template, mapping) >= template for all inputs."""
+    """safe_substitute(template, mapping) == template + mapping. Exact."""
     return template_safe_substitute(template, mapping)
 
 
 #@ requires fmt >= 0 and fmt < 2147483647
 #@ requires val >= 0 and val < 2147483647
 #@ ensures \result >= 0
+#@ ensures fmt == 0 ==> \result == val
+#@ ensures fmt > 0 ==> \result == fmt + val
 def test_format_field_nonneg(fmt: int, val: int) -> int:
-    """format_field(fmt, val) >= 0 for all inputs."""
+    """format_field exact: fmt==0 → val, fmt>0 → fmt+val."""
     return format_field(fmt, val)

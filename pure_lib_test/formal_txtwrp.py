@@ -20,8 +20,9 @@ def test_wrap_empty(width: int) -> int:
 #@ requires text > 0 and text < 2147483647
 #@ requires width > 0 and width < 2147483647
 #@ ensures \result >= 1
+#@ ensures \result == (text + width - 1) // width
 def test_wrap_nonempty(text: int, width: int) -> int:
-    """wrap(text, width) >= 1 for all text > 0. Non-empty text → at least 1 line."""
+    """wrap(text, width) == ceil(text/width) for all text > 0. Exact formula."""
     return wrap(text, width)
 
 
@@ -35,8 +36,10 @@ def test_fill_empty(width: int) -> int:
 #@ requires text >= 0 and text < 2147483647
 #@ requires width > 0 and width < 2147483647
 #@ ensures \result >= 0 and \result <= text and \result <= width
+#@ ensures text <= width ==> \result == text
+#@ ensures text > width ==> \result == width
 def test_shorten_bounded(text: int, width: int) -> int:
-    """shorten(text, width) <= text AND <= width for all inputs."""
+    """shorten(text, width) == min(text, width) for all inputs. Exact."""
     return shorten(text, width)
 
 
@@ -50,6 +53,7 @@ def test_dedent_bounded(text: int) -> int:
 #@ requires text >= 0 and text < 2147483647
 #@ requires prefix >= 0 and prefix < 2147483647
 #@ ensures \result >= text
+#@ ensures \result == text + prefix
 def test_indent_grows(text: int, prefix: int) -> int:
-    """indent(text, prefix) >= text for all inputs. Prefix only added."""
+    """indent(text, prefix) == text + prefix for all inputs. Exact."""
     return indent(text, prefix)

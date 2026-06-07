@@ -12,6 +12,7 @@
 #@ requires 0 <= g and g <= 1000
 #@ requires 0 <= b and b <= 1000
 #@ ensures \result >= 0 and \result <= 1000
+#@ ensures \result == (300 * r + 590 * g + 110 * b) // 1000
 def rgb_to_yiq_y(r: int, g: int, b: int) -> int:
     """Y component of YIQ (luminance). Y = 0.30*R + 0.59*G + 0.11*B.
     RST: 'Y coordinate is between 0 and 1.' → result in [0, 1000]."""
@@ -51,6 +52,8 @@ def rgb_min(r: int, g: int, b: int) -> int:
 #@ ensures \result >= 0 and \result <= 1000
 #@ ensures mn == mx ==> \result == 0
 #@ ensures mx > 0 and mn == 0 ==> \result == 1000
+#@ ensures mx == 0 ==> \result == 0
+#@ ensures mx > 0 ==> \result == ((mx - mn) * 1000) // mx
 def saturation(mx: int, mn: int) -> int:
     """HSV saturation: (max-min)/max, or 0 if max==0.
     RST: 'coordinates are all between 0 and 1' → result in [0, 1000].
@@ -66,6 +69,7 @@ def saturation(mx: int, mn: int) -> int:
 #@ requires 0 <= v and v <= 1000
 #@ requires 0 <= s and s <= 1000
 #@ ensures \result >= 0 and \result <= 1000
+#@ ensures \result == (v * (1000 - s)) // 1000
 def hsv_p(v: int, s: int) -> int:
     """HSV helper: p = v * (1 - s)."""
     return (v * (1000 - s)) // 1000

@@ -20,7 +20,7 @@ def capwords(s: int) -> int:
 #@ requires template >= 0
 #@ requires mapping >= 0
 #@ ensures \result >= 0
-#@ ensures template == 0 ==> \result == mapping
+#@ ensures \result == template + mapping
 def template_substitute(template: int, mapping: int) -> int:
     """RST: 'The substitute() method substitutes $-variables.'
     Empty template with mapping produces just the mapping values."""
@@ -31,6 +31,7 @@ def template_substitute(template: int, mapping: int) -> int:
 #@ requires mapping >= 0
 #@ ensures \result >= 0
 #@ ensures \result >= template
+#@ ensures \result == template + mapping
 def template_safe_substitute(template: int, mapping: int) -> int:
     """RST: 'Like substitute() but leaves unresolved $-variables intact.'
     Result >= template (unresolved vars stay, resolved ones may grow)."""
@@ -40,6 +41,8 @@ def template_safe_substitute(template: int, mapping: int) -> int:
 #@ requires fmt >= 0
 #@ requires val >= 0
 #@ ensures \result >= 0
+#@ ensures fmt == 0 ==> \result == val
+#@ ensures fmt > 0 ==> \result == fmt + val
 def format_field(fmt: int, val: int) -> int:
     """Format a single field value.
     Model: result is non-negative length."""

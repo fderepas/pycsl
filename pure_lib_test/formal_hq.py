@@ -36,16 +36,20 @@ def test_heapreplace_same(n: int, item: int) -> int:
 #@ requires k >= 0 and k < 2147483647
 #@ requires n >= 0 and n < 2147483647
 #@ ensures \result >= 0 and \result <= k and \result <= n
+#@ ensures k <= n ==> \result == k
+#@ ensures n < k ==> \result == n
 def test_nlargest_bounded(k: int, n: int) -> int:
-    """nlargest(k, n) <= min(k, n) for all k, n."""
+    """nlargest(k, n) == min(k, n) for all k, n. Exact."""
     return nlargest(k, n)
 
 
 #@ requires k >= 0 and k < 2147483647
 #@ requires n >= 0 and n < 2147483647
 #@ ensures \result >= 0 and \result <= k and \result <= n
+#@ ensures k <= n ==> \result == k
+#@ ensures n < k ==> \result == n
 def test_nsmallest_bounded(k: int, n: int) -> int:
-    """nsmallest(k, n) <= min(k, n) for all k, n."""
+    """nsmallest(k, n) == min(k, n) for all k, n. Exact."""
     return nsmallest(k, n)
 
 

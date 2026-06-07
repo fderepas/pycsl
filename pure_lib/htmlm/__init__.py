@@ -8,6 +8,7 @@
 
 #@ requires s >= 0
 #@ ensures \result >= s
+#@ ensures s == 0 ==> \result == 0
 def escape(s: int) -> int:
     """Escape &, <, >, quote chars for HTML.
     RST: 'Convert &, <, > to HTML-safe sequences.' Each replacement
@@ -18,6 +19,7 @@ def escape(s: int) -> int:
 #@ requires s >= 0
 #@ ensures \result >= 0
 #@ ensures \result <= s
+#@ ensures s == 0 ==> \result == 0
 def unescape(s: int) -> int:
     """Unescape HTML entities back to characters.
     RST: 'Convert all named and numeric character references to
@@ -28,6 +30,7 @@ def unescape(s: int) -> int:
 
 #@ requires s >= 0
 #@ ensures \result >= s
+#@ ensures s == 0 ==> \result == 0
 def escape_quote(s: int) -> int:
     """Escape including quote chars (quote=True mode).
     RST: 'the characters \" and ' are also translated.'

@@ -32,6 +32,7 @@ def gnu_getopt_count(argc: int, shortopts: int) -> int:
 #@ ensures \result >= 0
 #@ ensures \result <= argc
 #@ ensures parsed >= argc ==> \result == 0
+#@ ensures parsed <= argc ==> \result == argc - parsed
 def remaining_args(argc: int, parsed: int) -> int:
     """Remaining non-option arguments = argc - parsed.
     When all args are parsed, remaining is 0."""

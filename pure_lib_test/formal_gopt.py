@@ -39,3 +39,11 @@ def test_remaining_bounded(argc: int, parsed: int) -> int:
 def test_remaining_excess(argc: int, parsed: int) -> int:
     """When parsed >= argc, remaining is 0 for all such inputs."""
     return remaining_args(argc, parsed)
+
+
+#@ requires argc >= 0 and argc < 2147483647
+#@ requires parsed >= 0 and parsed <= argc
+#@ ensures \result == argc - parsed
+def test_remaining_exact(argc: int, parsed: int) -> int:
+    """When parsed <= argc, remaining == argc - parsed. Exact."""
+    return remaining_args(argc, parsed)
