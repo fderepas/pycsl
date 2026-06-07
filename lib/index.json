@@ -288,6 +288,12 @@
       "Path": false
     }
   },
+  "pickle": {
+    "description": "Python object serialization",
+    "file": "pickle.py",
+    "pure_lib": "pkl",
+    "source": "CPython 3.14"
+  },
   "platform": {
     "description": "Platform identification and system information",
     "file": "platform.py",
@@ -387,6 +393,12 @@
       "S_ISDIR": false,
       "S_ISREG": false
     }
+  },
+  "statistics": {
+    "description": "Mathematical statistics functions",
+    "file": "statistics.py",
+    "pure_lib": "stats",
+    "source": "CPython 3.14"
   },
   "string": {
     "category": "text",
@@ -524,6 +536,18 @@
       "normalize": false
     }
   },
+  "unittest": {
+    "description": "Unit testing framework",
+    "file": "unittest.py",
+    "pure_lib": "unt",
+    "source": "CPython 3.14"
+  },
+  "urllib": {
+    "description": "URL handling modules (package stub)",
+    "file": "urllib.py",
+    "pure_lib": "url",
+    "source": "CPython 3.14"
+  },
   "uuid": {
     "category": "crypto",
     "files": 1,
@@ -543,6 +567,12 @@
     "description": "Weak reference support",
     "file": "weakref.py",
     "pure_lib": "wref",
+    "source": "CPython 3.14"
+  },
+  "xml": {
+    "description": "XML processing modules (package stub)",
+    "file": "xml.py",
+    "pure_lib": "xmlp",
     "source": "CPython 3.14"
   }
 }
