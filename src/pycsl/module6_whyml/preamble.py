@@ -184,6 +184,14 @@ class PreambleEmissionMixin:
                     break
             if axiom_needs_array:
                 break
+        # 07-1311 Q4: collection-typed quantifier binders (in contracts) need their
+        # theory even with no array/map locals — `\forall a: list;` → array.Array,
+        # `\forall m: dict;` → map.Map. Scan the whole function IR (contracts + body).
+        _coll_binders: Set[str] = set()
+        for func in functions:
+            _coll_binders |= IRScanner.collection_binder_kinds(func)
+        _binder_needs_array = bool(_coll_binders & {"list", "bytes", "bytearray"})
+        _binder_needs_map = "dict" in _coll_binders
         if self._value_semantic:
             needs_array = (
                 has_list_param
@@ -193,6 +201,7 @@ class PreambleEmissionMixin:
                 or any(IRScanner.uses_array_lit(body) for body in all_bodies)
                 or any(IRScanner.uses_ghost_type(body, {"array"}) for body in all_bodies)
                 or axiom_needs_array
+                or _binder_needs_array
             )
         else:
             needs_array = False
@@ -266,6 +275,10 @@ class PreambleEmissionMixin:
                        for v in func.get("symbol_table", {}).values()):
                     needs_body_dict = True
                     break
+        # 07-1311 Q4: a `\forall m: dict;` binder needs `map.Map`/`option.Option` too.
+        if _binder_needs_map:
+            needs_body_dict = True
+            needs_ghost_dict = True
         needs_list_ghost = any(IRScanner.uses_ghost_type(body, {"ghost_list"}) for body in all_bodies)
         needs_sum = any(IRScanner.uses_sum(func) for func in functions)
         needs_set_card = any(IRScanner.uses_set_card(func) for func in functions)

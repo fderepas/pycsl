@@ -7,7 +7,7 @@ from Module2_Parser import (
     CSLNode, ContractWrapper, QuantifierNode, SingleExprNode,
     Requires, Ensures, Assigns, LoopInvariant, LoopVariant,
     Var, Result, Old, BinOp, UnaryOp, Nothing, Number, FieldAccess,
-    ClassInvariant, Forall, Exists, ArrayLength, SubscriptAccess,
+    ClassInvariant, Forall, Exists, ForallItems, ArrayLength, SubscriptAccess,
     AssignsRegion, Valid, Separated, FunctionVariant,
     SharedDecl, MutexInvariant, LockOrder, ChainedSubscript,
     GhostAssignDecl, GhostArraySetDecl,
@@ -223,6 +223,9 @@ def extract_variables(node: CSLNode) -> Set[str]:
     if isinstance(node, Separated):
         return ({node.base1} | extract_variables(node.length1) |
                 {node.base2} | extract_variables(node.length2))
+    if isinstance(node, ForallItems):
+        # 07-1311 Q3: two-binder dict-items quantifier — key/val are bound; coll is free.
+        return (extract_variables(node.body) - {node.key, node.val}) | {node.coll}
     if isinstance(node, QuantifierNode):
         return extract_variables(node.body) - {node.var}
     # Generic structural recursion
@@ -577,6 +580,10 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         # type is a hard error (never a silent `int`); see `_validate_quant_binders`.
         self._known_binder_types = (
             {"int", "bool", "str", "float"}
+            # 07-1311 Q4: collection-typed binders — `\forall a: list; …` (array int),
+            # `\forall m: dict; …` (map int (option int)). Lowered by Module6's
+            # `_quant_binder_whyml`; these are faithful WhyML sorts, not int.
+            | {"list", "bytes", "bytearray", "dict"}
             | {d.name for d in getattr(node, 'csl_datatypes', [])}
             | {c.name for c in node.body if isinstance(c, ast.ClassDef)})
         # lemma.md §7.5: names of `#@ \trusted` functions, so `_validate_lemma` can

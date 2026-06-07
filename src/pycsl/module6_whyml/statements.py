@@ -547,18 +547,19 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             self._add_abstract_op(f"val {op_fn} (x: int) (y: int) : int")
             code = f"{indent}{safe_target} := ({op_fn} !{safe_target} {val})"
         elif raw_op == "+" and array_target:
-            # Python `lines += other` extends the list in place. Module6
-            # declares array locals as non-ref (`let lines = Array.make ... in`)
-            # and uses `lines[i] <- v` for element writes, so `:= !lines + rhs`
-            # is doubly wrong (no `:=`/deref on non-ref arrays, and integer
-            # add on arrays). Emit an abstract `array_extend` with unit
-            # return type — the side effect on `dst` is opaque to Why3 but
-            # the call type-checks.
+            # Python `dst += src` concatenates lists. Why3's `array.Array` is
+            # fixed-length, so this can't mutate in place; and a faithful
+            # length-additive `array_concat (x y: array int): array int` is rejected by
+            # Why3's mutable-array ALIASING discipline (it can't prove the two `array
+            # int` arguments — and the result rebinding — occupy separate regions →
+            # "this application creates an illegal alias"). A truly faithful concat would
+            # need an immutable `seq.Seq` snapshot value model for the operands/result —
+            # a larger change tracked as the 07-1321 S4 follow-on. Until then, emit an
+            # effect-opaque `array_extend` (unit): type-correct (no integer-`+` leak),
+            # but the result's length/contents are not provable. A ref-wrapped target is
+            # dereferenced so the call sees `array int`, not `ref (array int)`.
             self._add_abstract_op(
                 "val array_extend (dst: array int) (src: array int) : unit")
-            # 07-1321 S4: a non-ref array local passes bare; a ref-wrapped target
-            # (e.g. a `list` param reassigned via `+=`, given a ref shadow) must be
-            # dereferenced so `array_extend` sees `array int`, not `ref (array int)`.
             dst = f"!{safe_target}" if target in local_refs else safe_target
             code = f"{indent}array_extend {dst} {val}"
         else:

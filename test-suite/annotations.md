@@ -768,9 +768,14 @@ are used (logic context, no VC needed).
   `d`: `\forall k in d;` and `\forall k in d.keys();` range over present keys
   (`Map.get d k <> None`); `\forall v in d.values();` ranges over stored values
   (`exists k. Map.get d k = Some v`) — quantification over map values. The two-binder
-  `\forall k, v in d.items(); …` is a follow-on (not yet parsed). Element/value *membership*
-  forms are trigger-limited for non-trivial properties; prefer the `range`/index form when the
-  property is index-expressible.
+  `\forall k, v in d.items(); …` binds key and value of every present entry (`forall k. match
+  Map.get d k with Some v -> … | None -> true end`). Element/value *membership* forms are
+  trigger-limited for non-trivial properties; prefer the `range`/index form when the property is
+  index-expressible.
+- **Collection-typed binders (07-1311 Q4).** A binder may range over a whole collection:
+  `\forall a : list; …` (`array int`, so `\length(a)` / `a[i]` work) and `\forall m : dict; …`
+  (`map int (option int)`, so `m[k]` is a `Map.get`). The theory is imported even with no
+  array/map locals in the function.
 - A **class binder** `\forall o: C; …` (P4, value mode) ranges over instances of class
   `C`; `o.field` is the record field, and `C`'s `#@ class invariant` holds for every
   `o` automatically (it is emitted as a Why3 type invariant) — so the quantifier ranges

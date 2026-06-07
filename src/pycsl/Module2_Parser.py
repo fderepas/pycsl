@@ -319,6 +319,16 @@ class DictView(CSLNode):
     kind: str
 
 @dataclass
+class ForallItems(QuantifierNode):
+    """07-1311 Q3: two-binder `\\forall k, v in d.items(); P(k, v)` — binds the key and
+    value of every present entry. Lowers to
+    `forall k. match Map.get d k with Some v -> P | None -> true end`."""
+    key: str
+    val: str
+    coll: str
+    body: CSLNode
+
+@dataclass
 class CSLSlice(CSLNode):
     """Represents `arr[lo:hi]` slice notation in contracts."""
     collection: str
@@ -928,6 +938,7 @@ PYCSL_GRAMMAR = r"""
              | "\\forall" CNAME "in" expr ";" expr -> forall_in_expr
              | "\\forall" CNAME ":" CNAME "in" expr ";" expr -> forall_typed_in_expr
              | "\\forall" CNAME ("," CNAME)+ ";" expr -> forall_multi_expr
+             | "\\forall" CNAME "," CNAME "in" expr ";" expr -> forall_two_in_expr
          | "\\exists" CNAME ";" expr -> exists_expr
              | "\\exists" CNAME ":" CNAME ";" expr -> exists_typed_expr
              | "\\exists" CNAME "in" expr ";" expr -> exists_in_expr
@@ -946,6 +957,7 @@ PYCSL_GRAMMAR = r"""
              | "\\forall" CNAME "in" expr ";" expr -> forall_in_expr
              | "\\forall" CNAME ":" CNAME "in" expr ";" expr -> forall_typed_in_expr
              | "\\forall" CNAME ("," CNAME)+ ";" expr -> forall_multi_expr
+             | "\\forall" CNAME "," CNAME "in" expr ";" expr -> forall_two_in_expr
              | "\\exists" CNAME ";" expr -> exists_expr
              | "\\exists" CNAME ":" CNAME ";" expr -> exists_typed_expr
              | "\\exists" CNAME "in" expr ";" expr -> exists_in_expr
@@ -964,6 +976,7 @@ PYCSL_GRAMMAR = r"""
              | "\\forall" CNAME "in" expr ";" expr -> forall_in_expr
              | "\\forall" CNAME ":" CNAME "in" expr ";" expr -> forall_typed_in_expr
              | "\\forall" CNAME ("," CNAME)+ ";" expr -> forall_multi_expr
+             | "\\forall" CNAME "," CNAME "in" expr ";" expr -> forall_two_in_expr
            | "\\exists" CNAME ";" expr -> exists_expr
              | "\\exists" CNAME ":" CNAME ";" expr -> exists_typed_expr
              | "\\exists" CNAME "in" expr ";" expr -> exists_in_expr
@@ -982,6 +995,7 @@ PYCSL_GRAMMAR = r"""
              | "\\forall" CNAME "in" expr ";" expr -> forall_in_expr
              | "\\forall" CNAME ":" CNAME "in" expr ";" expr -> forall_typed_in_expr
              | "\\forall" CNAME ("," CNAME)+ ";" expr -> forall_multi_expr
+             | "\\forall" CNAME "," CNAME "in" expr ";" expr -> forall_two_in_expr
             | "\\exists" CNAME ";" expr -> exists_expr
              | "\\exists" CNAME ":" CNAME ";" expr -> exists_typed_expr
              | "\\exists" CNAME "in" expr ";" expr -> exists_in_expr
@@ -1406,6 +1420,13 @@ class PyCSLTransformer(Transformer):
                 f"unsupported method '.{m}()' in a contract; only .keys()/.values()/"
                 f".items() are recognised (as quantifier domains, 07-1311)")
         return DictView(str(coll), m)
+
+    # 07-1311 Q3: two-binder `\forall k, v in d.items(); P` (only over `.items()`).
+    def forall_two_in_expr(self, k, v, domain, body) -> 'ForallItems':
+        if isinstance(domain, DictView) and domain.kind == "items":
+            return ForallItems(str(k), str(v), domain.coll, body)
+        raise PyCSLParseError(
+            "two-binder `\\forall k, v in …;` is only supported over `d.items()`")
 
     # Function calls and built-in predicates
     def call_expr(self, name, args) -> CallExpr: return CallExpr(str(name), args if isinstance(args, list) else [args])

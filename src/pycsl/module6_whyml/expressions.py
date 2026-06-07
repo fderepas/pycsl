@@ -1621,13 +1621,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if binder_type is None:
             return "int"
         scalars = {"int": "int", "bool": "bool", "str": "string", "float": "real"}
-        return scalars.get(binder_type, whyml_ident(str(binder_type).lower()))
+        # 07-1311 Q4: collection-typed binders lower to their faithful WhyML sort.
+        collections = {"list": "array int", "bytes": "array int",
+                       "bytearray": "array int", "dict": "map int (option int)"}
+        if binder_type in scalars:
+            return scalars[binder_type]
+        if binder_type in collections:
+            return collections[binder_type]
+        return whyml_ident(str(binder_type).lower())
 
     def _push_quant_binder(self, var: Optional[str], binder_type: Optional[str]):
         """scc3.md Phase A: register a quantifier-bound *record* var so `var.field`
         in the body lowers to the record field. No-op for scalar/datatype/None
         binders (only declared record classes have field access). Returns a restore
         token consumed by `_pop_quant_binder` (nesting/shadowing-safe)."""
+        # 07-1311 Q4: a `dict`-typed binder is registered in `_dict_locals` (push/pop)
+        # so `m[k]` in the body lowers to `Map.get m k`, not the abstract int subscript.
+        if var and binder_type == "dict":
+            dl = self._dict_locals
+            had_d = var in dl
+            dl.add(var)
+            return ("dict", had_d)
         if not var or binder_type not in getattr(self, "_record_types", {}):
             return ("noop", None)
         had = var in self._quant_record_binders
@@ -1638,6 +1652,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     def _pop_quant_binder(self, var: Optional[str], token) -> None:
         kind, prev = token
         if kind == "noop":
+            return
+        if kind == "dict":
+            if not prev:                      # was not previously a dict local
+                self._dict_locals.discard(var)
             return
         if kind:
             self._quant_record_binders[var] = prev
@@ -2117,6 +2135,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             body = self._expr_to_whyml(expr['body'], local_refs, invariant_ctx, subst)
             self._pop_quant_binder(expr.get("var"), saved)
             return f"(exists {expr['var']} : {bty}. {body})"
+        if t == "ForallItems":
+            # 07-1311 Q3: `\forall k, v in d.items(); P` → over the map+option model,
+            # `forall k. match Map.get d k with Some v -> P | None -> true end`. The value
+            # `v` is bound by the match; the key `k` (int) by the outer forall. Register
+            # the map binder so a nested `d2[k]` in the body still lowers correctly.
+            key, val = expr["key"], expr["val"]
+            body = self._expr_to_whyml(expr["body"], local_refs, invariant_ctx, subst)
+            return (f"(forall {key} : int. match Map.get ({expr['map']}) ({key}) with "
+                    f"| Some {val} -> {body} | None -> true end)")
         if t == "MapValueIs":
             # 07-1311 Q3: `\exists k. d[k] = Some v` — the value-membership witness for
             # `\forall v in d.values(); …`. A pure logic term over the `map`+`option` model.

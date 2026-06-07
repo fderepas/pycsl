@@ -16,7 +16,7 @@ from Module2_Parser import (
     Forall, Exists, ArrayLength, SubscriptAccess,
     AssignsRegion, Valid, Separated, At as CSLAt,
     Length2D, Valid2D, FunctionVariant, StringLiteral as CSLStringLiteral,
-    CallExpr, IsSorted, ArrayEq, Permutation, Sum, CSLBool, CSLNone, CSLIn, CSLNotIn, CSLSlice, DictView,
+    CallExpr, IsSorted, ArrayEq, Permutation, Sum, CSLBool, CSLNone, CSLIn, CSLNotIn, CSLSlice, DictView, ForallItems,
     ChainedSubscript,
     GhostArraySetDecl,
     MkTupleExpr, FstExpr, SndExpr, ProjExpr, CtorTest, CtorPayload,
@@ -157,6 +157,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         CSLOld:           "_csl_old",
         Nothing:          "_csl_nothing",
         Forall:           "_csl_forall",
+        ForallItems:      "_csl_forall_items",
         Exists:           "_csl_exists",
         ArrayLength:      "_csl_array_length",
         SubscriptAccess:  "_csl_subscript",
@@ -290,6 +291,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         if getattr(node, "domain", None) is not None:
             d["domain"] = self._csl_to_ir(node.domain)
         return d
+
+    def _csl_forall_items(self, node: ForallItems) -> Dict[str, Any]:
+        # 07-1311 Q3: two-binder dict-items quantifier; Module6 lowers to a `match`.
+        return {"type": "ForallItems", "key": node.key, "val": node.val,
+                "map": node.coll, "body": self._csl_to_ir(node.body)}
 
     def _csl_exists(self, node: Exists) -> Dict[str, Any]:
         d: Dict[str, Any] = {"type": "Exists", "var": node.var, "body": self._csl_to_ir(node.body)}

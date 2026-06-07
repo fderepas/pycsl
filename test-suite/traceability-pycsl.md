@@ -160,6 +160,8 @@ The **Ref** column uses the format `section.subsection.row`.
 | 12.5.5 | `array += array` concatenation \| List/bytes `+=` target recognised as array-typed → `array_extend` (deref'd), not integer `+`; faithful length-additive concat is a follow-on (07-1321 S4) | 0619 | PASS |
 | 12.6.1 | quantify over list element / range \| `\forall x in a;` (membership) and `\forall i in range(lo,hi);` → direct `lo<=i<hi` bound (07-1311 Q1) | 0620; XFAIL: 0622 | PASS |
 | 12.6.2 | quantify over dict keys / values \| `\forall k in d;` / `d.keys()` → `Map.get d k <> None`; `\forall v in d.values();` → `exists k. Map.get d k = Some v` (07-1311 Q2/Q3) | 0621 | PASS |
+| 12.6.3 | collection-typed binder \| `\forall a : list;` (`array int`) / `\forall m : dict;` (`map int (option int)`); `m[k]` is a map lookup (07-1311 Q4) | 0623; XFAIL: 0625 | PASS |
+| 12.6.4 | two-binder dict items \| `\forall k, v in d.items();` → `forall k. match Map.get d k with Some v -> P | None -> true end` (07-1311 Q3) | 0624 | PASS |
 
 ## NoException + UB Detection (workplan PRs 1–10, 2026)
 
