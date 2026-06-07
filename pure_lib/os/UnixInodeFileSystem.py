@@ -81,7 +81,13 @@ def _unpack_inode(data: list) -> list:
     return fields
 
 
-#@ requires \valid(name_bytes, 30)
+#@ assigns \nothing
+#@ ensures \length(\result) >= 30
+def _pad_name(name) -> list:
+    """Encode and null-pad a filename to at least 30 bytes."""
+    return (name.encode('utf-8') + b'\x00' * 30)[:30]
+
+
 #@ assigns \nothing
 #@ ensures \length(\result) == 32
 def _pack_direntry(inode_num: int, name_bytes: list) -> list:
@@ -440,7 +446,7 @@ class UnixInodeFileSystem:
     #             the pack/blit is body-verified).
     def _write_entry(self, block_num: int, slot: int, inode_num: int, name: str) -> None:
         entry_offset = block_num * 512 + slot * 32
-        self.disk[entry_offset:entry_offset + 32] = _pack_direntry(inode_num, name.encode('utf-8'))
+        self.disk[entry_offset:entry_offset + 32] = _pack_direntry(inode_num, _pad_name(name))
 
     #@ requires True
     #@ assigns self.disk
@@ -916,7 +922,7 @@ class UnixInodeFileSystem:
         p_block = self._alloc_block()
         if p_block < 0 or p_block >= 256:
             return -1
-        self.disk[p_block * 512:p_block * 512 + 32] = _pack_direntry(0, target.encode('utf-8'))
+        self.disk[p_block * 512:p_block * 512 + 32] = _pack_direntry(0, _pad_name(target))
         inode = [30, 1, 3, 511, 0, 0, 0, 0, p_block, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         self._write_inode(inode_num, inode)
         slot = self._dir_find_free(5)
