@@ -635,6 +635,45 @@ class Module3_Weaver:
         funcs = [n for n in ast.walk(python_ast) if isinstance(n, ast.FunctionDef)]
         for hp in happy_props:
             except_set = set(hp.except_set)
+            # 07-1143 R1/R2: the `protects <paths>` subsystem-ownership form — no method
+            # outside `except` may DIRECTLY write any protected (possibly dotted) path.
+            # Per-site check is `False` (forbidden outright); there is no region.
+            if hp.protects:
+                protected = set(hp.protects)
+                # (R2 soundness) reject aliasing a protected base into a non-exempt local.
+                self._check_protect_aliasing(python_ast, protected, except_set, None, hp.name)
+                psites: List[tuple] = []
+                self._collect_protect_sites(python_ast, protected, None, psites)
+                psites.sort(key=lambda t: (getattr(t[0], "lineno", 0),
+                                           getattr(t[0], "col_offset", 0)))
+                for stmt, func_name, path in psites:
+                    if func_name in except_set:
+                        continue
+                    origin = (f"happy {hp.name} protects {path} "
+                              f"L{getattr(stmt, 'lineno', 0)}")
+                    cp = CheckPoint("check", CSLBool(False), origin=origin)
+                    stmt.csl_checkpoints = getattr(stmt, "csl_checkpoints", []) + [cp]
+                # (R1.1) trust boundary: a non-exempt trusted/abstract method whose
+                # `assigns` mentions a protected path (it has no body to scan) must opt in
+                # with `#@ \preserves`, else it is a hard error.
+                for fn in [n for n in ast.walk(python_ast) if isinstance(n, ast.FunctionDef)]:
+                    if fn.name in except_set:
+                        continue
+                    if not (getattr(fn, "csl_trusted", False) or getattr(fn, "csl_abstract", False)):
+                        continue
+                    if getattr(fn, "csl_preserves", False):
+                        continue
+                    assigned = {self._target_dotted_path(t)
+                                for a in getattr(fn, "csl_assigns", [])
+                                for t in getattr(a, "targets", [])}
+                    if assigned & protected:
+                        raise PyCSLSemanticError(
+                            f"`happy {hp.name}`: trusted/abstract method '{fn.name}' is "
+                            f"not exempt and its `assigns` writes a protected path "
+                            f"({', '.join(sorted(assigned & protected))}). Add "
+                            f"`#@ \\preserves` to promise it preserves the protected "
+                            f"fields, or add it to the `except` set.")
+                continue
             # (A) Body coverage: a per-site `#@ check` at every direct write of the
             # field in every non-exempt body-verified function (theorem clause 1).
             sites: List[tuple] = []
@@ -694,6 +733,60 @@ class Module3_Weaver:
                    "==",
                    Old(FieldSubscript(hp.field, Var(v))))
         return Ensures(Forall(v, BinOp(guard, "==>", eq)))
+
+    @staticmethod
+    def _target_dotted_path(target: ast.AST):
+        """07-1143 R2: the dotted base path of a write target, stripping a trailing
+        subscript: `world.fs.disk[i]` → "world.fs.disk", `world.proc.umask` →
+        "world.proc.umask", `self.disk[i]` → "self.disk". None if not a Name-rooted
+        attribute/subscript chain."""
+        if isinstance(target, ast.Subscript):
+            return Module3_Weaver._target_dotted_path(target.value)
+        if isinstance(target, ast.Attribute):
+            base = Module3_Weaver._target_dotted_path(target.value)
+            return f"{base}.{target.attr}" if base else None
+        if isinstance(target, ast.Name):
+            return target.id
+        return None
+
+    def _collect_protect_sites(self, node: ast.AST, protected: set,
+                               cur_func, out: List[tuple]) -> None:
+        """07-1143 R1/R2: collect `(stmt, enclosing_func_name, path)` for every direct
+        write whose dotted base path is one of the `protected` paths."""
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+                tgts = (child.targets if isinstance(child, ast.Assign)
+                        else [child.target])
+                for tgt in tgts:
+                    p = self._target_dotted_path(tgt)
+                    if p in protected:
+                        out.append((child, cur_func, p))
+            inner = child.name if isinstance(child, ast.FunctionDef) else cur_func
+            self._collect_protect_sites(child, protected, inner, out)
+
+    def _check_protect_aliasing(self, node: ast.AST, protected: set, except_set: set,
+                                cur_func, hp_name: str) -> None:
+        """07-1143 R2 (soundness): a protected base path may not be ALIASED into a local
+        in a non-exempt method — `x = world.fs` then `x.disk[i]=v` would evade the
+        write-site check. Reject such aliasing as a hard error (sound-by-rejection, not
+        deferred). A value path that is a proper prefix of any protected path is a
+        protected base. Mirrors the inliner's `_check_no_aliasing` discipline."""
+        prefixes = set()
+        for p in protected:
+            parts = p.split(".")
+            for k in range(1, len(parts)):
+                prefixes.add(".".join(parts[:k]))   # world, world.fs, … (proper prefixes)
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, ast.Assign) and isinstance(child.value, (ast.Attribute, ast.Name)):
+                vpath = self._target_dotted_path(child.value)
+                if vpath in prefixes and (cur_func is None or cur_func not in except_set):
+                    raise PyCSLSemanticError(
+                        f"`happy {hp_name}`: aliasing the protected base '{vpath}' into a "
+                        f"local in non-exempt '{cur_func or '<module>'}' is forbidden — it "
+                        f"would evade confinement. Write through the canonical protected "
+                        f"path, or add the method to the `except` set if it is an owner.")
+            inner = child.name if isinstance(child, ast.FunctionDef) else cur_func
+            self._check_protect_aliasing(child, protected, except_set, inner, hp_name)
 
     def _collect_field_sites(self, node: ast.AST, field: str,
                              cur_func, out: List[tuple]) -> None:
