@@ -28,6 +28,12 @@
       "parse": false
     }
   },
+  "base64": {
+    "description": "Base16, Base32, Base64, Base85 encoding/decoding",
+    "file": "base64.py",
+    "pure_lib": "b64",
+    "source": "CPython 3.14"
+  },
   "bisect": {
     "category": "data",
     "files": 1,
@@ -73,6 +79,12 @@
       "deepcopy": false
     }
   },
+  "csv": {
+    "description": "CSV file reading and writing",
+    "file": "csv.py",
+    "pure_lib": "csvmod",
+    "source": "CPython 3.14"
+  },
   "dataclasses": {
     "category": "language",
     "files": 7,
@@ -109,6 +121,12 @@
       "auto": false
     }
   },
+  "filecmp": {
+    "description": "File and directory comparison utilities",
+    "file": "filecmp.py",
+    "pure_lib": "fcmp",
+    "source": "CPython 3.14"
+  },
   "fnmatch": {
     "category": "system",
     "files": 1,
@@ -116,6 +134,18 @@
       "filter": false,
       "fnmatch": false
     }
+  },
+  "fractions": {
+    "description": "Rational number arithmetic",
+    "file": "fractions.py",
+    "pure_lib": "frac",
+    "source": "CPython 3.14"
+  },
+  "getopt": {
+    "description": "Parser for command line options (C-style)",
+    "file": "getopt.py",
+    "pure_lib": "gopt",
+    "source": "CPython 3.14"
   },
   "glob": {
     "description": "Filename globbing utility",
@@ -416,6 +446,12 @@
       "format_exc": false,
       "print_exc": false
     }
+  },
+  "types": {
+    "description": "Dynamic type creation and names for built-in types",
+    "file": "types.py",
+    "pure_lib": "types_stub",
+    "source": "CPython 3.14"
   },
   "typing": {
     "category": "language",
