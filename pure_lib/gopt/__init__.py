@@ -1,8 +1,9 @@
 # pure_lib/gopt — pure-Python getopt module model
 # Named 'gopt' to avoid stdlib name clash.
 #
-# Models getopt/gnu_getopt as argument parsers.
-# Body-proven where possible; error cases contract-only.
+# Contracts derived from library_reference/getopt.rst.
+# RST: "Parses command line options and parameter list."
+# RST: "returns (opts, args) pair"
 
 
 #@ requires argc >= 0
@@ -10,8 +11,9 @@
 #@ ensures \result >= 0
 #@ ensures \result <= argc
 def getopt_count(argc: int, shortopts: int) -> int:
-    """Parse argc arguments with shortopts options.
-    Returns number of recognized option pairs (<= argc)."""
+    """RST: 'Parses command line options and parameter list.
+    After a non-option argument, all further arguments are non-options.'
+    Recognized option count <= total argument count."""
     return argc
 
 
@@ -20,7 +22,8 @@ def getopt_count(argc: int, shortopts: int) -> int:
 #@ ensures \result >= 0
 #@ ensures \result <= argc
 def gnu_getopt_count(argc: int, shortopts: int) -> int:
-    """GNU-style getopt (intermixed args). Returns recognized count."""
+    """RST: 'GNU style scanning mode — option and non-option arguments
+    may be intermixed.' Recognized count still <= argc."""
     return argc
 
 
@@ -28,9 +31,10 @@ def gnu_getopt_count(argc: int, shortopts: int) -> int:
 #@ requires parsed >= 0
 #@ ensures \result >= 0
 #@ ensures \result <= argc
+#@ ensures parsed >= argc ==> \result == 0
 def remaining_args(argc: int, parsed: int) -> int:
-    """Count remaining non-option arguments.
-    Model: remaining = argc - parsed."""
+    """Remaining non-option arguments = argc - parsed.
+    When all args are parsed, remaining is 0."""
     if parsed > argc:
         return 0
     return argc - parsed

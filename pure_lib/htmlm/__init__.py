@@ -1,30 +1,35 @@
 # pure_lib/htmlm — pure-Python html module model
 # Named 'htmlm' to avoid stdlib name clash.
 #
-# Models html.escape() and html.unescape() as string transforms.
-# Body-proven for escape (deterministic char replacement).
+# Contracts derived from library_reference/html.rst.
+# RST: "Convert the characters &, <, > to HTML-safe sequences."
+# RST: "Convert all named and numeric character references to Unicode."
 
 
 #@ requires s >= 0
-#@ ensures \result >= 0
+#@ ensures \result >= s
 def escape(s: int) -> int:
-    """Escape &, <, >, \" characters for HTML.
-    Model: input length s, output length >= s (escaping only grows)."""
+    """Escape &, <, >, quote chars for HTML.
+    RST: 'Convert &, <, > to HTML-safe sequences.' Each replacement
+    grows the string (& → &amp; is 4 extra chars), so result >= input."""
     return s
 
 
 #@ requires s >= 0
 #@ ensures \result >= 0
+#@ ensures \result <= s
 def unescape(s: int) -> int:
     """Unescape HTML entities back to characters.
-    Model: output length <= expanded input (unescaping only shrinks or preserves)."""
+    RST: 'Convert all named and numeric character references to
+    corresponding Unicode characters.' Entity refs are longer than the
+    chars they represent, so result <= input."""
     return s
 
 
 #@ requires s >= 0
-#@ ensures \result >= 0
 #@ ensures \result >= s
 def escape_quote(s: int) -> int:
-    """Escape including single quotes (quote=True mode).
-    Model: result >= input (escaping grows or preserves)."""
+    """Escape including quote chars (quote=True mode).
+    RST: 'the characters \" and ' are also translated.'
+    Same growth property as escape: result >= input."""
     return s

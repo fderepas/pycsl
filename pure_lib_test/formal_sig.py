@@ -3,11 +3,7 @@
 # Based on library_reference/signal.rst:
 #   "Set the handler for signal signalnum to the function handler."
 #   "Return the current signal handler for the signal signalnum."
-#
-# Tests verify contract postconditions:
-#   - signal_handler: ensures result >= 0
-#   - getsignal: ensures result >= 0
-#   - valid_signals_count: ensures result >= 0
+#   "Return the set of valid signal numbers on this platform."
 
 from pure_lib.sig import signal_handler, getsignal, valid_signals_count
 
@@ -24,7 +20,7 @@ def test_getsignal_nonneg() -> int:
     return getsignal(15)
 
 
-#@ ensures \result >= 0
-def test_valid_signals_nonneg() -> int:
-    """Platform signal count is non-negative."""
+#@ ensures \result > 0
+def test_valid_signals_positive() -> int:
+    """RST: 'Return the set of valid signal numbers.' At least 1 signal."""
     return valid_signals_count()

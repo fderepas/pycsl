@@ -1,8 +1,10 @@
 # pure_lib/sig — pure-Python signal module model
 # Named 'sig' to avoid stdlib name clash.
 #
-# Models signal constants and handler registration.
-# Contract-only: all dispatch is C-runtime backed.
+# Contracts derived from library_reference/signal.rst.
+# RST: "Set the handler for signal signalnum to the function handler."
+# RST: "Return the current signal handler for the signal signalnum."
+# RST: "Return the set of valid signal numbers on this platform."
 
 # Signal number constants (POSIX subset)
 SIGHUP = 1
@@ -24,25 +26,27 @@ SIG_IGN = 1
 #@ requires handler >= 0
 #@ ensures \result >= 0
 def signal_handler(sig_num: int, handler: int) -> int:
-    """Register a signal handler. Returns the previous handler.
-    Model: handler is an opaque id; returns old handler id."""
+    """RST: 'Set the handler for signal signalnum to the function handler.'
+    Returns the previous handler (non-negative id). SIG_DFL = 0."""
     return SIG_DFL
 
 
 #@ requires sig_num >= 1 and sig_num <= 64
 #@ ensures \result >= 0
 def getsignal(sig_num: int) -> int:
-    """Get current handler for signal. Returns handler id."""
+    """RST: 'Return the current signal handler for the signal signalnum.
+    The returned value may be SIG_IGN, SIG_DFL, or None.' → non-negative."""
     return SIG_DFL
 
 
 #@ requires sig_num >= 1 and sig_num <= 64
 def raise_signal(sig_num: int) -> None:
-    """Raise a signal in the current process."""
+    """RST: 'Send a signal to the calling process.' No return value."""
     pass
 
 
-#@ ensures \result >= 0
+#@ ensures \result > 0
 def valid_signals_count() -> int:
-    """Return count of valid signals on this platform."""
+    """RST: 'Return the set of valid signal numbers on this platform.'
+    At least 1 signal exists on any platform."""
     return 64

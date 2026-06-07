@@ -1,21 +1,21 @@
 # Formal test for colorsys (csys) module
 #
 # Based on library_reference/colorsys.rst:
-#   "Coordinates in all of these color spaces are floating-point values...
-#    between 0 and 1" — we model as [0, 1000].
+#   "Coordinates in all of these color spaces are floating-point values."
+#   "In the YIQ space, the Y coordinate is between 0 and 1."
+#   "In all other spaces, the coordinates are all between 0 and 1."
 #
-# Tests verify postconditions from csys contracts:
-#   - rgb_to_yiq_y: ensures result >= 0
-#   - rgb_max: ensures 0 <= result <= 1000
-#   - saturation: ensures 0 <= result <= 1000
-#   - hsv_p: ensures 0 <= result <= 1000
+# Tests exercise the strengthened contracts:
+#   - rgb_to_yiq_y: result in [0, 1000]
+#   - saturation: uniform → 0, pure → 1000
+#   - hls_to_rgb_helper: zero saturation → result == l
 
-from pure_lib.csys import rgb_to_yiq_y, rgb_max, rgb_min, saturation, hsv_p
+from pure_lib.csys import rgb_to_yiq_y, rgb_max, rgb_min, saturation, hsv_p, hls_to_rgb_helper
 
 
-#@ ensures \result >= 0
-def test_yiq_nonneg() -> int:
-    """YIQ luminance is non-negative for valid input."""
+#@ ensures \result >= 0 and \result <= 1000
+def test_yiq_bounded() -> int:
+    """YIQ Y is in [0, 1000] for valid RGB input."""
     return rgb_to_yiq_y(500, 300, 800)
 
 
@@ -43,7 +43,7 @@ def test_hsv_p_bounded() -> int:
     return hsv_p(800, 600)
 
 
-#@ ensures \result >= 0
-def test_yiq_black() -> int:
-    """Black → Y >= 0."""
+#@ ensures \result >= 0 and \result <= 1000
+def test_yiq_endpoints() -> int:
+    """Black → Y in [0, 1000]."""
     return rgb_to_yiq_y(0, 0, 0)

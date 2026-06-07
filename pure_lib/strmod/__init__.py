@@ -1,34 +1,39 @@
 # pure_lib/strmod — pure-Python string module model
 # Named 'strmod' to avoid stdlib name clash.
 #
-# Models string.capwords and Template basics.
-# capwords is body-proven; Template is contract-only.
+# Contracts derived from library_reference/string.rst.
+# RST: "Split the argument into words using str.split(), capitalize each word
+#  using str.capitalize(), and join the capitalized words using str.join()."
 
 
 #@ requires s >= 0
 #@ ensures \result >= 0
 #@ ensures \result <= s
+#@ ensures s == 0 ==> \result == 0
 def capwords(s: int) -> int:
-    """Capitalize words in string s.
-    Model: result length <= input (split+capitalize+join preserves or shrinks)."""
+    """RST: 'Split into words, capitalize each word, and join.'
+    Split+join may remove duplicate whitespace → result <= input.
+    Empty input → empty output."""
     return s
 
 
 #@ requires template >= 0
 #@ requires mapping >= 0
 #@ ensures \result >= 0
+#@ ensures template == 0 ==> \result == mapping
 def template_substitute(template: int, mapping: int) -> int:
-    """Substitute $-variables in template string.
-    Model: result depends on template + mapping sizes."""
+    """RST: 'The substitute() method substitutes $-variables.'
+    Empty template with mapping produces just the mapping values."""
     return template + mapping
 
 
 #@ requires template >= 0
 #@ requires mapping >= 0
 #@ ensures \result >= 0
+#@ ensures \result >= template
 def template_safe_substitute(template: int, mapping: int) -> int:
-    """Like substitute but leaves unresolved $-variables intact.
-    Model: result >= template (unresolved vars stay as-is)."""
+    """RST: 'Like substitute() but leaves unresolved $-variables intact.'
+    Result >= template (unresolved vars stay, resolved ones may grow)."""
     return template + mapping
 
 

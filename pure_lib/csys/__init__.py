@@ -1,16 +1,20 @@
 # pure_lib/csys — pure-Python colorsys model
 # Named 'csys' to avoid stdlib name clash.
 #
-# All conversion functions are pure arithmetic — full body proof.
-# Domain: integers scaled 0..1000 representing [0.0, 1.0].
+# Contracts derived from library_reference/colorsys.rst.
+# RST: "Coordinates in all of these color spaces are floating-point values.
+#  In the YIQ space, the Y coordinate is between 0 and 1."
+# All coordinates in RGB, HLS, HSV are between 0 and 1.
+# Modelled as integers scaled 0..1000 representing [0.0, 1.0].
 
 
 #@ requires 0 <= r and r <= 1000
 #@ requires 0 <= g and g <= 1000
 #@ requires 0 <= b and b <= 1000
-#@ ensures \result >= 0
+#@ ensures \result >= 0 and \result <= 1000
 def rgb_to_yiq_y(r: int, g: int, b: int) -> int:
-    """Y component of YIQ (luminance). Y = 0.30*R + 0.59*G + 0.11*B"""
+    """Y component of YIQ (luminance). Y = 0.30*R + 0.59*G + 0.11*B.
+    RST: 'Y coordinate is between 0 and 1.' → result in [0, 1000]."""
     return (300 * r + 590 * g + 110 * b) // 1000
 
 
@@ -45,8 +49,12 @@ def rgb_min(r: int, g: int, b: int) -> int:
 #@ requires 0 <= mx and mx <= 1000
 #@ requires 0 <= mn and mn <= mx
 #@ ensures \result >= 0 and \result <= 1000
+#@ ensures mn == mx ==> \result == 0
+#@ ensures mx > 0 and mn == 0 ==> \result == 1000
 def saturation(mx: int, mn: int) -> int:
-    """HSV saturation: (max-min)/max, or 0 if max==0."""
+    """HSV saturation: (max-min)/max, or 0 if max==0.
+    RST: 'coordinates are all between 0 and 1' → result in [0, 1000].
+    Uniform color (max==min) → 0. Pure color (min==0) → 1000."""
     if mx == 0:
         return 0
     diff = mx - mn
@@ -67,8 +75,11 @@ def hsv_p(v: int, s: int) -> int:
 #@ requires 0 <= l and l <= 1000
 #@ requires 0 <= s and s <= 1000
 #@ ensures \result >= 0
+#@ ensures s == 0 ==> \result == l
 def hls_to_rgb_helper(h: int, l: int, s: int) -> int:
-    """Intermediate HLS→RGB: returns m1 = 2*l - m2."""
+    """Intermediate HLS→RGB: returns m1 = 2*l - m2.
+    RST: 'Convert from HLS to RGB.' When saturation is 0, all channels
+    equal lightness (greyscale)."""
     if s == 0:
         return l
     if l <= 500:

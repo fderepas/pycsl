@@ -2,11 +2,9 @@
 #
 # Based on library_reference/getopt.rst:
 #   "Parses command line options and parameter list."
-#   "Returns (opts, args) pair."
-#
-# Tests verify contract postconditions:
-#   - getopt_count: 0 <= result <= argc
-#   - remaining_args: 0 <= result <= argc
+#   "After a non-option argument, all further arguments are non-options."
+#   → option count <= total argc.
+#   When all args parsed, remaining == 0.
 
 from pure_lib.gopt import getopt_count, gnu_getopt_count, remaining_args
 
@@ -27,3 +25,9 @@ def test_gnu_getopt_bounded() -> int:
 def test_remaining_bounded() -> int:
     """remaining_args bounded by argc."""
     return remaining_args(10, 3)
+
+
+#@ ensures \result == 0
+def test_remaining_excess() -> int:
+    """When parsed >= argc, remaining is 0."""
+    return remaining_args(3, 5)
