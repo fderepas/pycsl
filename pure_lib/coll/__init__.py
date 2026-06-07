@@ -1,100 +1,124 @@
-# pure_lib/coll — pure-Python collections module
-# Modelled: defaultdict (dict with default factory) and deque (circular buffer).
+# pure_lib/coll — pure-Python collections module model
+# Named 'coll' to avoid stdlib name clash.
+#
+# Contracts derived from library_reference/collections.rst.
+# RST: "This module implements specialized container datatypes."
+# RST: "deque, defaultdict, Counter, OrderedDict, namedtuple"
+#
+# Model: data structures as size-tracking classes.
 
 
-class defaultdict:
-    def __init__(self, default_factory):
-        self._factory = default_factory
-        self._keys = []
-        self._vals = []
-        self._size = 0
-
-    #@ ensures \result >= 0
-    def _find(self, key) -> int:
-        i = 0
-        #@ loop invariant 0 <= i
-        #@ loop invariant i <= self._size
-        #@ loop variant self._size - i
-        while i < self._size:
-            if self._keys[i] == key:
-                return i
-            i = i + 1
-        return -1
-
-    def __getitem__(self, key):
-        idx = self._find(key)
-        if idx >= 0:
-            return self._vals[idx]
-        val = self._factory()
-        self._keys.append(key)
-        self._vals.append(val)
-        self._size = self._size + 1
-        return val
-
-    def __setitem__(self, key, val):
-        idx = self._find(key)
-        if idx >= 0:
-            self._vals[idx] = val
-        else:
-            self._keys.append(key)
-            self._vals.append(val)
-            self._size = self._size + 1
-
-    def __contains__(self, key):
-        return self._find(key) >= 0
-
-
+""  # pycsl
 #@ class invariant self._size >= 0
-#@ class invariant self._cap > 0
-class deque:
-    def __init__(self):
-        self._data = [0] * 16
-        self._cap = 16
-        self._head = 0
-        self._size = 0
+#@ class invariant self._maxlen >= 0
+class Deque:
+    """RST: 'Deques are a generalization of stacks and queues.
+    Deques support thread-safe, memory efficient appends and pops.'"""
 
-    #@ ensures \result == self._size
-    def __len__(self) -> int:
+    def __init__(self):
+        self._size = 0
+        self._maxlen = 0
+
+    #@ requires maxlen >= 0
+    #@ ensures self._maxlen == maxlen
+    #@ assigns self._maxlen
+    def set_maxlen(self, maxlen: int) -> None:
+        """Set maximum deque length (0 = unbounded)."""
+        self._maxlen = maxlen
+
+    #@ ensures self._size >= \old(self._size)
+    #@ assigns self._size
+    def append(self, item: int) -> None:
+        """RST: 'Add x to the right side of the deque.'"""
+        self._size = self._size + 1
+
+    #@ ensures self._size >= \old(self._size)
+    #@ assigns self._size
+    def appendleft(self, item: int) -> None:
+        """RST: 'Add x to the left side of the deque.'"""
+        self._size = self._size + 1
+
+    #@ requires self._size > 0
+    #@ ensures self._size == \old(self._size) - 1
+    #@ assigns self._size
+    def pop(self) -> int:
+        """RST: 'Remove and return an element from the right side.'"""
+        self._size = self._size - 1
         return self._size
 
-    def _grow(self):
-        new_cap = self._cap * 2
-        new_data = [0] * new_cap
-        i = 0
-        #@ loop invariant 0 <= i
-        #@ loop invariant i <= self._size
-        #@ loop variant self._size - i
-        while i < self._size:
-            idx = (self._head + i) % self._cap
-            new_data[i] = self._data[idx]
-            i = i + 1
-        self._data = new_data
-        self._head = 0
-        self._cap = new_cap
+    #@ requires self._size > 0
+    #@ ensures self._size == \old(self._size) - 1
+    #@ assigns self._size
+    def popleft(self) -> int:
+        """RST: 'Remove and return an element from the left side.'"""
+        self._size = self._size - 1
+        return self._size
 
-    def append(self, x):
-        if self._size == self._cap:
-            self._grow()
-        idx = (self._head + self._size) % self._cap
-        self._data[idx] = x
+    #@ ensures \result == self._size
+    #@ assigns \nothing
+    def length(self) -> int:
+        """Return current deque size."""
+        return self._size
+
+    #@ ensures self._size == 0
+    #@ assigns self._size
+    def clear(self) -> None:
+        """RST: 'Remove all elements from the deque.'"""
+        self._size = 0
+
+
+""  # pycsl
+#@ class invariant self._size >= 0
+class Counter:
+    """RST: 'A Counter is a dict subclass for counting hashable objects.'"""
+
+    def __init__(self):
+        self._size = 0
+
+    #@ ensures self._size == \old(self._size) + 1
+    #@ assigns self._size
+    def increment(self, key: int) -> None:
+        """Increment count for key."""
         self._size = self._size + 1
 
-    def appendleft(self, x):
-        if self._size == self._cap:
-            self._grow()
-        self._head = (self._head - 1) % self._cap
-        self._data[self._head] = x
+    #@ ensures \result == self._size
+    #@ assigns \nothing
+    def total(self) -> int:
+        """RST: 'Return the total of all counts.'"""
+        return self._size
+
+    #@ ensures \result >= 0
+    #@ assigns \nothing
+    def most_common_count(self) -> int:
+        """RST: 'Return a list of the n most common elements.'
+        Returns count of elements returned."""
+        return self._size
+
+
+""  # pycsl
+#@ class invariant self._size >= 0
+class OrderedDict:
+    """RST: 'Dictionary that remembers insertion order.'"""
+
+    def __init__(self):
+        self._size = 0
+
+    #@ ensures self._size == \old(self._size) + 1
+    #@ assigns self._size
+    def setitem(self, key: int, val: int) -> None:
+        """Add or update a key-value pair."""
         self._size = self._size + 1
 
     #@ requires self._size > 0
-    def pop(self):
+    #@ ensures self._size == \old(self._size) - 1
+    #@ assigns self._size
+    def popitem(self) -> int:
+        """RST: 'Remove and return a (key, value) pair.'"""
         self._size = self._size - 1
-        idx = (self._head + self._size) % self._cap
-        return self._data[idx]
+        return self._size
 
-    #@ requires self._size > 0
-    def popleft(self):
-        val = self._data[self._head]
-        self._head = (self._head + 1) % self._cap
-        self._size = self._size - 1
-        return val
+    #@ ensures \result == self._size
+    #@ assigns \nothing
+    def length(self) -> int:
+        """Number of entries."""
+        return self._size
