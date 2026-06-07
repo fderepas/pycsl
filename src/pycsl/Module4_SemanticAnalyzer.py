@@ -68,6 +68,10 @@ def collect_module_constants(node: ast.Module) -> Dict[str, int]:
         iv = _module_const_int(value)
         if iv is not None:
             candidates[target] = iv
+        # 0442.md C5 (no-more-int): a string-literal module constant folds to a real
+        # Why3 `string`, not an int hash. Collected here so contracts may reference it.
+        elif isinstance(value, ast.Constant) and isinstance(value.value, str):
+            candidates[target] = value.value
     shared = {d.variable for d in getattr(node, "csl_shared_decls", [])}
     written_via_global = {n for g in ast.walk(node) if isinstance(g, ast.Global)
                           for n in g.names}

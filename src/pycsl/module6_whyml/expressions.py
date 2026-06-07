@@ -1284,7 +1284,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         n = len(args)
         arity_fn = f"{whyml_ident(func_name)}_{n}"
         _ARR = ("(Array.make", "(Array.sub ", "(array_slice ", "(sorted_1 ",
-                "(struct_pack", "(encode_", "(ljust_", "(rjust_", "(zfill_")
+                "(struct_pack", "(encode_", "(ljust_", "(rjust_", "(zfill_",
+                # 0442.md C1: a bytes literal (e.g. the `ljust(w, b'\\x00')` fill char)
+                # lowers to `(let _alit = Array.make N v in …)` — an `array int`, not int.
+                "(let _alit = Array.make")
         ptypes: List[str] = []
         cargs: List[str] = []
         for a in args:
@@ -1343,6 +1346,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         names[k] if k == idx else "_" for k in range(arity)
                     )
                     return f"(let ({bindings}) = result in _r{idx}_)"
+        # 0442.md C2: `p[i]` on a tuple-typed local (`p = mk(x)` where `mk` returns a
+        # tuple) → destructure, not the abstract `subscript_get (x:int)` (a type error
+        # against the `(int, …)` tuple). Arity is tracked in `_ghost_tuple_vars`.
+        if value.get("type") == "Var":
+            _tarity = getattr(self, "_ghost_tuple_vars", {}).get(value.get("name", ""), 0)
+            if _tarity and _tarity > 0:
+                try:
+                    _idx = int(index)
+                except ValueError:
+                    _idx = -1
+                if 0 <= _idx < _tarity:
+                    _bind = ", ".join(f"_r{_idx}_" if k == _idx else "_"
+                                      for k in range(_tarity))
+                    _base = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)
+                    return f"(let ({_bind}) = {_base} in _r{_idx}_)"
         # Detect 2D access: a[i][j] → Subscript(Subscript(Var(a), i), j)
         if (value.get("type") == "Subscript" and
                 value.get("value", {}).get("type") == "Var" and
@@ -1498,7 +1516,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # after the local/param/shared checks, so a same-named local correctly shadows
         # it. Replaces the opaque `val constant` for these names.
         if name in self._module_constants:
-            return f"({self._module_constants[name]})"
+            _cv = self._module_constants[name]
+            # 0442.md C5 (no-more-int): a string-literal constant folds to a real Why3
+            # string literal, not an int hash; an int constant folds to its value.
+            if isinstance(_cv, str):
+                return '"' + _cv.replace("\\", "\\\\").replace('"', '\\"') + '"'
+            return f"({_cv})"
         # inline.md Phase 1: a bare reference to a module-level global object resolves to
         # its binding name (e.g. passing `acc` as an argument). After the local/param
         # checks so a same-named local shadows it.
@@ -1603,6 +1626,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         op = op_translate(expr["op"])
         if op == "+":
             return e
+        if op == "~":
+            # 0442.md C4: Python bitwise NOT on the int model is the two's-complement
+            # identity `~x == -x - 1` (genuine int op, not a type-class leak).
+            return f"((- {e}) - 1)"
         if op == "not":
             e = self._to_bool(e, expr["expr"])
         return f"({op} {e})"
@@ -1951,6 +1978,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if t == "None":     return "0"
         if t == "ArrayLit":
             elts = expr.get("elts", [])
+            # 0442.md C3 (no-more-int): an array/list of tuples has no faithful WhyML
+            # model yet (would need `array (int, …)`); silently hashing each tuple
+            # element to a single int loses all structure and is unsound. Reject
+            # explicitly rather than collapse — surface the gap, do not fake it.
+            if any(isinstance(e, dict) and e.get("type") == "Tuple" for e in elts):
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    "array/list of tuples is not supported: there is no faithful "
+                    "`array (tuple)` model, and collapsing tuple elements to int would "
+                    "be unsound. Use parallel arrays (one per tuple field) instead.")
             if elts:
                 # Build a concrete `array int` of the literal's elements:
                 # `(let _alit = Array.make N e0 in _alit[1] <- e1; …; _alit)`.

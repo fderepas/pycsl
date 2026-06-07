@@ -851,11 +851,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         lambda_vars = IRScanner.find_lambda_vars(body_stmts)
         record_vars = IRScanner.find_record_vars(body_stmts, self._record_types)
         variant_vars = self._collect_variant_var_assigns(body_stmts)
+        # 0442.md C2: a local bound to a tuple-returning call is a tuple value —
+        # register its arity (so `p[i]` destructures) and exclude it from the `ref 0`
+        # pre-decl (let-bound at first assignment, like the other typed locals).
+        tuple_vars = self._collect_tuple_var_assigns(body_stmts)
+        self._ghost_tuple_vars.update(tuple_vars)
         # arity2.md (2b): expose the array-local set to the per-operation
         # `is_array` sites WITHOUT touching `_array_locals` (declaration path).
         # Reset per body — `_typed_local_vars` is called once per `_emit_body_code`.
         self._inline_array_temps = set(array_vars)
-        return array_vars | dict_vars | lambda_vars | record_vars | variant_vars
+        return (array_vars | dict_vars | lambda_vars | record_vars | variant_vars
+                | set(tuple_vars))
 
     def _emit_body_code(self, func: Dict[str, Any], body_stmts: List[Dict[str, Any]],
                          local_refs: Set[str], ghost_vars: Set[str], ref_params: Set[str],
