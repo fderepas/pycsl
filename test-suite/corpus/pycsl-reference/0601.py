@@ -1,9 +1,10 @@
-"""Test 0601 — negative: an array/list of tuples is rejected, not silently hashed (0442.md C3).
+"""Test 0601 — negative: RETURNING an array of tuples is not yet supported (07-0903 W1 boundary).
 
-PyCSL has no faithful `array (tuple)` model. Previously a list of tuples silently collapsed each
-tuple element to an int hash (`Array.make 2 (769300025) …`), losing all structure — unsound. It
-is now an explicit hard error (use parallel arrays). This negative test confirms the rejection
-(no silent int-flattening), per the no-more-int doctrine.
+Building and reading a list of tuples in a LOCAL is now supported (W1 — see 0607). But typing a
+function that RETURNS one is not yet: the `-> list` annotation lowers to `array int`, while the
+body builds an `array (int, int)` — a type mismatch. Returning (or passing) a tuple array needs
+richer element-typed annotations (`List[Tuple[int, int]]`), a follow-on to W1. Until then this is
+an honest hard error, NOT the old silent int-hash collapse.
 """
 # pycsl-expected: FAIL
 # pycsl-flags: --memory-model hoare

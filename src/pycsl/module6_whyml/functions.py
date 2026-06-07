@@ -98,6 +98,9 @@ class FunctionEmissionMixin:
         # binding of existing array locals (that perturbation is what made the
         # blunt `_array_locals |= …` approach regress array-return locals).
         self._inline_array_temps: set = set()
+        # 07-0903 W1: locals bound to a list/array of tuples (`a = [(x,y), …]`) → arity,
+        # so `a[i][k]` destructures the element tuple rather than being read as a 2-D matrix.
+        self._tuple_array_locals: Dict[str, int] = {}
         self._dict_locals = set()
         # no-more-int-3 A1: dict var -> WhyML value type ν (string) for
         # string-valued dicts; consulted by the dict literal / declaration /

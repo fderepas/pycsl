@@ -967,6 +967,7 @@ PYCSL_GRAMMAR = r"""
          | "self" "." CNAME -> field_access
          | CNAME "." CNAME -> param_field_access
          | "\\result" "[" expr "]" -> result_subscript
+         | "\\result" "." CNAME -> result_field
          | "\\is_sorted" "(" CNAME "," expr "," expr ")" -> is_sorted_expr
          | "\\array_eq" "(" expr "," expr ")" -> array_eq_expr
          | "\\permutation" "(" expr "," expr ")" -> permutation_expr
@@ -1285,6 +1286,8 @@ class PyCSLTransformer(Transformer):
     def chained_subscript(self, name, index1, index2) -> ChainedSubscript: return ChainedSubscript(str(name), index1, index2)
     def slice_access(self, name, low, high) -> CSLSlice: return CSLSlice(str(name), low, high)
     def result_subscript(self, index) -> SubscriptAccess: return SubscriptAccess("\\result", index)
+    # 07-0903 W2: `\result.<field>` — field access on a record-returning function's result.
+    def result_field(self, field_name) -> FieldAccess: return FieldAccess("\\result", str(field_name))
     def assigns_region(self, name, low, _op, high) -> AssignsRegion: return AssignsRegion(str(name), low, high)
     def assigns_region_list(self, *regions) -> List[AssignsRegion]: return list(regions)
     def valid_pred(self, name, length) -> Valid: return Valid(str(name), length)

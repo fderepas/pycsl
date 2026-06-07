@@ -237,6 +237,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_field_access(self, node: CSLFieldAccess) -> Dict[str, Any]:
         # no-more-int-2 Track 3: `self.f` is a FieldGet; `p.f` on a record-typed param is an
         # Attribute (routed through _handle_attribute_expr, which reads a record param directly).
+        # 07-0903 W2: `\result.<field>` — field access on a record-returning function's
+        # result. Carry a Result receiver so Module6 emits `result.<field_label>`.
+        if node.object == "\\result":
+            return {"type": "Attribute",
+                    "object": {"type": "Result"}, "attr": node.field}
         if node.object != "self":
             return {"type": "Attribute",
                     "object": {"type": "Var", "name": node.object}, "attr": node.field}
