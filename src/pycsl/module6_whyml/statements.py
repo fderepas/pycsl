@@ -161,6 +161,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             "    ensures { forall i:int. 0 <= i < Array.length a -> Seq.get result i = a[i] }")
         return f"(snapshot {self._expr_to_whyml(val_ir, local_refs)})"
 
+    def _materialize_bridge(self) -> None:
+        """07-1705-rev4 P4: emit the faithful seq→array bridge val (fresh result, no
+        region link), used where a seq-modelled value crosses into `array int` code."""
+        self._add_abstract_op(
+            "val materialize (s: seq int) : array int\n"
+            "    ensures { Array.length result = Seq.length s }\n"
+            "    ensures { forall i:int. 0 <= i < Seq.length s -> result[i] = Seq.get s i }")
+
     def _handle_seq_assign(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
                            local_refs: Set[str], declared_refs: Set[str],
                            indent: str, in_loop: bool) -> str:
@@ -598,22 +606,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             op_fn = bitwise_ops[raw_op]
             self._add_abstract_op(f"val {op_fn} (x: int) (y: int) : int")
             code = f"{indent}{safe_target} := ({op_fn} !{safe_target} {val})"
-        elif raw_op == "+" and array_target:
-            # Python `dst += src` concatenates lists. Why3's `array.Array` is
-            # fixed-length, so this can't mutate in place; and a faithful
-            # length-additive `array_concat (x y: array int): array int` is rejected by
-            # Why3's mutable-array ALIASING discipline (it can't prove the two `array
-            # int` arguments — and the result rebinding — occupy separate regions →
-            # "this application creates an illegal alias"). A truly faithful concat would
-            # need an immutable `seq.Seq` snapshot value model for the operands/result —
-            # a larger change tracked as the 07-1321 S4 follow-on. Until then, emit an
-            # effect-opaque `array_extend` (unit): type-correct (no integer-`+` leak),
-            # but the result's length/contents are not provable. A ref-wrapped target is
-            # dereferenced so the call sees `array int`, not `ref (array int)`.
-            self._add_abstract_op(
-                "val array_extend (dst: array int) (src: array int) : unit")
-            dst = f"!{safe_target}" if target in local_refs else safe_target
-            code = f"{indent}array_extend {dst} {val}"
+        # 07-1705-rev4 P5: the effect-opaque `array_extend` arm (07-1321 S4) is REMOVED.
+        # Every grown list var is now seq-promoted (P2) and handled by the faithful seq
+        # concat above (locals via P3, params via the P5 entry shadow), so `array += array`
+        # no longer needs the unit-return opaque fallback. A list `+=` target that somehow
+        # escaped seq-promotion would fall through to the integer `+` below and fail LOUDLY
+        # at Why3 type-check (never a silent int leak) — but no corpus driver reaches it.
         else:
             code = f"{indent}{safe_target} := !{safe_target} {op} {val}"
         if rest:
@@ -1017,6 +1015,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # `let X = ref X in` produces unbound-symbol errors).
         for var in sorted(pre_decl_vars):
             safe_var = whyml_ident(var)
+            # 07-1705-rev4 P5: a seq-promoted PARAM is shadowed as a seq ref —
+            # `let a = ref (snapshot a) in` — bridging the `array int` parameter into the
+            # immutable growable `seq int` model for the body (concat/len/read via P3,
+            # `return a` materialises back via P4).
+            if var in self._seq_locals and var in self._formal_params:
+                self._add_abstract_op(
+                    "val snapshot (a: array int) : seq int\n"
+                    "    ensures { Seq.length result = Array.length a }\n"
+                    "    ensures { forall i:int. 0 <= i < Array.length a -> Seq.get result i = a[i] }")
+                body_code = f"    let {safe_var} = ref (snapshot {safe_var}) in\n{body_code}"
+                continue
             init = safe_var if var in self._formal_params else pfx
             body_code = f"    let {safe_var} = ref {init} in\n{body_code}"
 

@@ -164,6 +164,8 @@ The **Ref** column uses the format `section.subsection.row`.
 | 12.6.4 | two-binder dict items \| `\forall k, v in d.items();` → `forall k. match Map.get d k with Some v -> P | None -> true end` (07-1311 Q3) | 0624 | PASS |
 | 12.7.1 | seq-promotion analysis \| a list local/param GROWN (`+=` list RHS / `a+b`) is marked seq-modelled; int accumulators not promoted (07-1705-rev4 P2) | (metadata; exercised via 12.7.2) | PASS |
 | 12.7.2 | growable list local (seq model) \| a grown list LOCAL is `ref (seq int)`: init `Seq.cons` chain, `+=`→`!a ++ snapshot(b)`, `len`→`Seq.length`, `a[i]`→`Seq.get`; proves the length-additive law + element placement (07-1705-rev4 P3) | 0626, 0627, 0628 | PASS |
+| 12.7.3 | seq return boundary \| `return a` of a seq local → `materialize !a` (fresh array); build-by-concat then return proves `\length(\result)` (07-1705-rev4 P4) | 0629 | PASS |
+| 12.7.4 | growable list PARAM (seq model) \| a grown list param is shadowed `let a = ref (snapshot a)`; concat + `return` materialise prove `\length(\result) == \length(a)+\length(b)`; `array_extend` removed (07-1705-rev4 P5) | 0619 | PASS |
 
 ## NoException + UB Detection (workplan PRs 1–10, 2026)
 
