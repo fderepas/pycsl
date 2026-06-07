@@ -633,6 +633,12 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
                         f"A typo in the exempt set would silently widen the property's "
                         f"coverage, so this is rejected."
                     )
+            # 07-1143 R1/R2: the `protects` form has no single `self.<field>`; its
+            # write-site coverage (dotted paths) is validated by Module3's meta-pass.
+            # An empty protected write set is legitimately inert (e.g. a subsystem with
+            # no non-exempt writers), so do not warn for the protects form.
+            if hp.protects is not None:
+                continue
             if hp.field not in written_fields:
                 warnings.warn(
                     f"`happy {hp.name}`: no write to `self.{hp.field}[...]` found in "
