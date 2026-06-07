@@ -6,6 +6,12 @@
       "annotations": false
     }
   },
+  "abc": {
+    "description": "Abstract Base Classes (ABCs) according to PEP 3119",
+    "file": "abc.py",
+    "pure_lib": "abcmod",
+    "source": "CPython 3.14"
+  },
   "argparse": {
     "category": "cli",
     "files": 2,
@@ -54,6 +60,12 @@
       "nullcontext": false
     }
   },
+  "contextvars": {
+    "description": "Context variables for asyncio and task-local storage",
+    "file": "contextvars.py",
+    "pure_lib": "cvar",
+    "source": "CPython 3.14"
+  },
   "copy": {
     "category": "data",
     "files": 2,
@@ -69,6 +81,12 @@
       "field": false
     }
   },
+  "decimal": {
+    "description": "Decimal fixed-point and floating-point arithmetic",
+    "file": "decimal.py",
+    "pure_lib": "dec",
+    "source": "CPython 3.14"
+  },
   "difflib": {
     "category": "text",
     "files": 1,
@@ -76,6 +94,12 @@
       "SequenceMatcher": false,
       "unified_diff": false
     }
+  },
+  "email": {
+    "description": "Package for parsing, handling, and generating email messages",
+    "file": "email.py",
+    "pure_lib": "eml",
+    "source": "CPython 3.14"
   },
   "enum": {
     "category": "language",
@@ -92,6 +116,12 @@
       "filter": false,
       "fnmatch": false
     }
+  },
+  "glob": {
+    "description": "Filename globbing utility",
+    "file": "glob.py",
+    "pure_lib": "glb",
+    "source": "CPython 3.14"
   },
   "graphlib": {
     "category": "data",
@@ -115,6 +145,24 @@
       "heappop": false,
       "heappush": false
     }
+  },
+  "hmac": {
+    "description": "HMAC (Keyed-Hashing for Message Authentication) module",
+    "file": "hmac.py",
+    "pure_lib": "hmacmod",
+    "source": "CPython 3.14"
+  },
+  "html": {
+    "description": "General functions for HTML manipulation",
+    "file": "html.py",
+    "pure_lib": "htm",
+    "source": "CPython 3.14"
+  },
+  "http": {
+    "description": "HTTP status codes and enumerations",
+    "file": "http.py",
+    "pure_lib": "http",
+    "source": "CPython 3.14"
   },
   "inspect": {
     "category": "introspection",
@@ -153,6 +201,18 @@
     "pycsl-functions-used": {
       "getline": false
     }
+  },
+  "numbers": {
+    "description": "Abstract Base Classes for numbers (PEP 3141)",
+    "file": "numbers.py",
+    "pure_lib": "nums",
+    "source": "CPython 3.14"
+  },
+  "operator": {
+    "description": "Standard operators as functions",
+    "file": "operator.py",
+    "pure_lib": "oper",
+    "source": "CPython 3.14"
   },
   "os": {
     "category": "system",
@@ -217,6 +277,12 @@
       "Repr": false,
       "repr": false
     }
+  },
+  "sched": {
+    "description": "General purpose event scheduler",
+    "file": "sched.py",
+    "pure_lib": "schd",
+    "source": "CPython 3.14"
   },
   "secrets": {
     "category": "crypto",
