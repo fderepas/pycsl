@@ -507,6 +507,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if (isinstance(_b, dict) and _b.get("type") == "Var"
                     and getattr(self, "_dict_value_types", {}).get(_b.get("name", "")) == "seq int"):
                 return f"(Seq.length {args[0]})"
+        # 07-1705-rev4 P3: len() of a seq-modelled (growable) list local is `Seq.length`.
+        if atype == "Var" and arg_ir.get("name") in getattr(self, "_seq_locals", set()):
+            return f"(Seq.length {args[0]})"
         if atype == "String" and isinstance(arg_ir.get("value"), str):
             return str(len(arg_ir["value"]))
         if atype == "Tuple":
@@ -1370,6 +1373,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                           invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
         value = expr["value"]
         index = self._expr_to_whyml(expr["index"], local_refs, invariant_ctx, subst)
+        # 07-1705-rev4 P3: element read of a seq-modelled (growable) list local is `Seq.get`.
+        if (isinstance(value, dict) and value.get("type") == "Var"
+                and value.get("name") in getattr(self, "_seq_locals", set())):
+            base = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)  # `!a`
+            return f"(Seq.get {base} {index})"
         # strings-plan Stage 2: s[i] on a str is the 1-char substring String.substring s i 1
         # (Why3 strings have no char type; a character is a length-1 string). Reuses the
         # str_sub_op bridge whose length lemma gives String.length result = 1 under bounds.
@@ -1865,6 +1873,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     ) -> str:
         if self._value_semantic:
             var = expr['var']
+            # 07-1705-rev4 P3: `\length(a)` of a seq-modelled (growable) list local.
+            if var in getattr(self, "_seq_locals", set()):
+                deref = "!" if var in local_refs else ""
+                return f"(Seq.length {deref}{whyml_ident(var)})"
             if var == "\\result":
                 return "(Array.length result)"
             if var.startswith("self."):

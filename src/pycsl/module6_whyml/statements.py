@@ -110,6 +110,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
             return code
 
+        # 07-1705-rev4 P3: a seq-promoted (growable) list local is a `ref (seq int)`.
+        if target in self._seq_locals:
+            return self._handle_seq_assign(
+                stmt, rest, local_refs, declared_refs, indent, in_loop)
+
         if target not in declared_refs:
             declared_refs.add(target)
             kind = self._first_assign_kind(val, val_ir)
@@ -129,6 +134,47 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         if self._val_is_bool(val_ir):
             val = f"(if {val} then 1 else 0)"
         code = f"{indent}{safe_target} := {val}"
+        if rest:
+            code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+        return code
+
+    def _seq_init_expr(self, val_ir: Dict[str, Any], local_refs: Set[str]) -> str:
+        """07-1705-rev4 P3: lower a seq-local's RHS to a `seq int` value. A list literal
+        `[v0, v1, …]` becomes a `Seq.cons` chain (qualified); any other array-typed RHS
+        is bridged with `snapshot`."""
+        if val_ir.get("type") == "ArrayLit":
+            expr = "Seq.empty"
+            for e in reversed(val_ir.get("elts", [])):
+                es = self._coerce_to_int(self._expr_to_whyml(e, local_refs))
+                expr = f"(Seq.cons {es} {expr})"
+            return expr
+        return self._seq_operand(val_ir, local_refs)
+
+    def _seq_operand(self, val_ir: Dict[str, Any], local_refs: Set[str]) -> str:
+        """07-1705-rev4 P3: an operand that must be a `seq int` — `!b` if `b` is itself a
+        seq local, else `snapshot(b)` to bridge an array-modelled value into seq."""
+        if val_ir.get("type") == "Var" and val_ir.get("name") in self._seq_locals:
+            return f"(!{whyml_ident(val_ir['name'])})"
+        self._add_abstract_op(
+            "val snapshot (a: array int) : seq int\n"
+            "    ensures { Seq.length result = Array.length a }\n"
+            "    ensures { forall i:int. 0 <= i < Array.length a -> Seq.get result i = a[i] }")
+        return f"(snapshot {self._expr_to_whyml(val_ir, local_refs)})"
+
+    def _handle_seq_assign(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
+                           local_refs: Set[str], declared_refs: Set[str],
+                           indent: str, in_loop: bool) -> str:
+        target = stmt["target"]
+        safe = whyml_ident(target)
+        init = self._seq_init_expr(stmt.get("value", {}), local_refs)
+        if target not in declared_refs:
+            declared_refs.add(target)
+            local_refs.add(target)        # seq locals are refs → reads deref `!a`
+            rest_code = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+            if not rest_code:
+                rest_code = f"{indent}()"
+            return f"{indent}let {safe} = ref {init} in\n{rest_code}"
+        code = f"{indent}{safe} := {init}"
         if rest:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
@@ -542,7 +588,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             or target in self._array2d_params
             or target in self._current_array1d_params
         )
-        if raw_op in bitwise_ops:
+        if raw_op == "+" and target in self._seq_locals:
+            # 07-1705-rev4 P3: faithful growable concat. `a += b` → `a := !a ++ <b as seq>`
+            # over the region-free `ref (seq int)`; length-additive and element-preserving
+            # via the standard `seq.Seq` `++` axioms (proven in the 07-1732 P0 probe).
+            rhs = self._seq_operand(stmt.get("value", {}), local_refs)
+            code = f"{indent}{safe_target} := (!{safe_target} ++ {rhs})"
+        elif raw_op in bitwise_ops:
             op_fn = bitwise_ops[raw_op]
             self._add_abstract_op(f"val {op_fn} (x: int) (y: int) : int")
             code = f"{indent}{safe_target} := ({op_fn} !{safe_target} {val})"

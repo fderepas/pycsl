@@ -244,7 +244,7 @@ class PreambleEmissionMixin:
         # `seq.Seq` for the immutable list-snapshot model.
         needs_seq = any(
             "seq" in v for f in functions for v in f.get("dict_value_types", {}).values()
-        )
+        ) or any(f.get("seq_promoted_vars") for f in functions)  # 07-1705-rev4 P3: seq locals
         needs_map_ghost = any(IRScanner.uses_ghost_type(body, {"ghost_dict", "ghost_set"}) for body in all_bodies)
         needs_ghost_dict = any(IRScanner.uses_ghost_type(body, {"ghost_dict"}) for body in all_bodies)
         # Body-level Python dicts are modelled as `ref (map int (option int))`
