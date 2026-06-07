@@ -2117,6 +2117,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             body = self._expr_to_whyml(expr['body'], local_refs, invariant_ctx, subst)
             self._pop_quant_binder(expr.get("var"), saved)
             return f"(exists {expr['var']} : {bty}. {body})"
+        if t == "MapValueIs":
+            # 07-1311 Q3: `\exists k. d[k] = Some v` — the value-membership witness for
+            # `\forall v in d.values(); …`. A pure logic term over the `map`+`option` model.
+            key = self._expr_to_whyml(expr["key"], local_refs, invariant_ctx, subst)
+            val = self._expr_to_whyml(expr["value"], local_refs, invariant_ctx, subst)
+            return f"(Map.get ({expr['map']}) ({key}) = Some ({val}))"
         if t == "DictLit":
             # Body dict literal: empty `map int (option int)`. Non-empty
             # dict literals would need element-by-element `Map.set` but
