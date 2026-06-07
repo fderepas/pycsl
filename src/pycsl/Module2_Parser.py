@@ -72,10 +72,15 @@ class HappyProperty(CSLNode):
     the Stage-A check primitive — no new IR/backend. See `meta.md` Stage B."""
     name: str
     field: str            # the shared instance field, e.g. "disk" (target = self.<field>)
-    region_lo: CSLNode    # region lower bound (inclusive)
-    region_hi: CSLNode    # region upper bound (exclusive)
+    region_lo: CSLNode    # region lower bound (inclusive); None for the `protects` form
+    region_hi: CSLNode    # region upper bound (exclusive); None for the `protects` form
     except_set: List[str] # method names allowed to write the region (the legitimate writers)
     context: str = "writing"
+    # 07-1143 R1/R2: the subsystem-ownership form. When non-None, this HAPPY forbids
+    # ANY direct write to any of these (possibly dotted, e.g. `world.fs.disk`) protected
+    # paths by a non-exempt method — the per-site check is `False` (forbidden outright),
+    # there is no region. `field`/`region_*` are unused in this form.
+    protects: Optional[List[str]] = None
 
 @dataclass
 class LoopInvariant(ContractWrapper):
@@ -801,6 +806,7 @@ PYCSL_GRAMMAR = r"""
              | complete_decl
              | disjoint_decl
              | happy_decl
+             | happy_protects_decl
 
     precondition: "requires" expr
     postcondition: "ensures" expr
@@ -819,7 +825,14 @@ PYCSL_GRAMMAR = r"""
     // [LO, HI) that a named shared field must not be written into, except by an
     // allowlisted set of methods. See `meta.md` Stage B and `Module3._expand_happy_properties`.
     happy_decl: "happy" CNAME ":" "region" expr RANGE_OP expr "writes" "self" "." CNAME "outside" "region" ("except" act_names)?
-    
+
+    // 07-1143 R1/R2: subsystem ownership form — no method outside `except` may directly
+    // write ANY of the (possibly dotted/nested) protected fields. Desugars to a per-site
+    // `#@ check False` at every direct write of a protected path in a non-exempt method.
+    happy_protects_decl: "happy" CNAME ":" "protects" dotted_path_list ("except" act_names)?
+    dotted_path_list: dotted_path ("," dotted_path)*
+    dotted_path: CNAME ("." CNAME)*
+
     // Extracted alias from group to prevent Lark GrammarError
     assigns: "assigns" assigns_target
     ?assigns_target: assigns_region_list
@@ -1116,6 +1129,17 @@ class PyCSLTransformer(Transformer):
         # `rest` is the optional except list (act_names → List[str]) or empty.
         except_set = list(rest[0]) if rest else []
         return HappyProperty(str(name), str(field), lo, hi, except_set)
+
+    # 07-1143 R1/R2: subsystem-ownership HAPPY (`protects <dotted paths> except <methods>`).
+    def dotted_path(self, *parts) -> str:
+        return ".".join(str(p) for p in parts)
+
+    def dotted_path_list(self, *paths) -> list:
+        return [str(p) for p in paths]
+
+    def happy_protects_decl(self, name, paths, *rest) -> HappyProperty:
+        except_set = list(rest[0]) if rest else []
+        return HappyProperty(str(name), "", None, None, except_set, protects=list(paths))
 
     def assigns(self, target) -> Assigns:
         if isinstance(target, Nothing):
