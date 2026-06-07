@@ -141,6 +141,12 @@
     "pure_lib": "frac",
     "source": "CPython 3.14"
   },
+  "functools": {
+    "description": "Higher-order functions and operations on callable objects",
+    "file": "functools.py",
+    "pure_lib": "ftools",
+    "source": "CPython 3.14"
+  },
   "getopt": {
     "description": "Parser for command line options (C-style)",
     "file": "getopt.py",
@@ -207,6 +213,12 @@
     "pycsl-functions-used": {
       "StringIO": false
     }
+  },
+  "ipaddress": {
+    "description": "IPv4/IPv6 address manipulation library",
+    "file": "ipaddress.py",
+    "pure_lib": "ipadr",
+    "source": "CPython 3.14"
   },
   "json": {
     "category": "data",
@@ -322,6 +334,12 @@
       "token_hex": false
     }
   },
+  "selectors": {
+    "description": "High-level I/O multiplexing",
+    "file": "selectors.py",
+    "pure_lib": "sel",
+    "source": "CPython 3.14"
+  },
   "shlex": {
     "category": "text",
     "files": 1,
@@ -337,6 +355,12 @@
       "copy2": false,
       "which": false
     }
+  },
+  "signal": {
+    "description": "Signal handling for asynchronous events",
+    "file": "signal.py",
+    "pure_lib": "sig",
+    "source": "CPython 3.14"
   },
   "stat": {
     "category": "system",
@@ -490,5 +514,11 @@
     "pycsl-functions-used": {
       "warn": false
     }
+  },
+  "weakref": {
+    "description": "Weak reference support",
+    "file": "weakref.py",
+    "pure_lib": "wref",
+    "source": "CPython 3.14"
   }
 }
