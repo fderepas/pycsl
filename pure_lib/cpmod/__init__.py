@@ -6,11 +6,11 @@ class Error(Exception):
     pass
 
 
-#@ ensures \result >= 0
+#@ ensures \result == obj
 def deepcopy(obj) -> int:
     return obj
 
 
-#@ ensures \result >= 0
+#@ ensures \result == obj
 def copy(obj) -> int:
     return obj

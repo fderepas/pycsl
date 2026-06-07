@@ -16,10 +16,12 @@ class IntEnum:
         return self._name
 
 
+#@ class invariant self._next >= 1
 class AutoCounter:
     def __init__(self):
         self._next = 1
 
+    #@ assigns self._next
     #@ ensures \result >= 1
     #@ ensures self._next == \result + 1
     def auto(self) -> int:
