@@ -220,8 +220,6 @@ def _resolve_direct_imports(direct_imports: List[Any], all_calls: Set[str], main
 
     for (module_path, level), names in by_module.items():
         needed = [(local, orig) for local, orig in names if local in all_calls]
-        if not needed:
-            continue
         resolved = _resolve_module_path(module_path, level, main_file)
         if resolved is None:
             for local, orig in needed:
@@ -230,6 +228,9 @@ def _resolve_direct_imports(direct_imports: List[Any], all_calls: Set[str], main
                       f"if verification of callers needs its contract)")
             continue
         orig_names = [orig for _, orig in needed]
+        # Process the dependency even when no *called* function is needed — an
+        # import may bring only constants (1111-spec R6), and we still need the
+        # dep's IR (cached) to read their values.
         dep_funcs = _process_dependency(resolved, orig_names, cache,
                                         deep=deep, processing_set=processing_set)
         for func_ir in dep_funcs:
@@ -237,8 +238,20 @@ def _resolve_direct_imports(direct_imports: List[Any], all_calls: Set[str], main
                 if func_ir["name"] == orig and local != orig:
                     func_ir["name"] = local
         imported_names |= _inject_functions(dep_funcs, ir_data)
+        # 1111-spec R6 (no-more-int): propagate the imported module's
+        # compile-time constant VALUES so the importer folds `SEEK_SET` to its
+        # literal `0` (via Module6's `_module_constants`), instead of emitting a
+        # value-less `val constant sEEK_SET : int`. Local definitions win on a
+        # name clash (only fill names the importer does not already define).
+        dep_consts = (cache.get(os.path.abspath(resolved), {}) or {}).get("module_constants", {})
+        if dep_consts:
+            own = ir_data.setdefault("module_constants", {})
+            for local, orig in names:
+                if orig in dep_consts and local not in own:
+                    own[local] = dep_consts[orig]
         resolved_locals = [local for local, _ in needed]
-        print(f"[*] Imported from '{module_path}': {resolved_locals} (trusted stubs)")
+        if resolved_locals:
+            print(f"[*] Imported from '{module_path}': {resolved_locals} (trusted stubs)")
 
     return imported_names
 
