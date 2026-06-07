@@ -1,4 +1,4 @@
-# Formal test for abc (abcmod) module
+# Formal test for abc (abcmod) module — universally quantified
 #
 # Based on library_reference/abc.rst:
 #   "A decorator indicating abstract methods."
@@ -7,13 +7,15 @@
 from pure_lib.abcmod import abstractmethod, update_abstractmethods
 
 
-#@ ensures \result == 42
-def test_abstractmethod_identity() -> int:
-    """RST: decorator returns function unchanged. abstractmethod(42) == 42."""
-    return abstractmethod(42)
+#@ requires func >= 0 and func < 2147483647
+#@ ensures \result == func
+def test_abstractmethod_identity(func: int) -> int:
+    """abstractmethod(func) == func for all func. Decorator returns unchanged."""
+    return abstractmethod(func)
 
 
-#@ ensures \result == 7
-def test_update_identity() -> int:
-    """RST: 'Returns cls.' update_abstractmethods(7) == 7."""
-    return update_abstractmethods(7)
+#@ requires cls >= 0 and cls < 2147483647
+#@ ensures \result == cls
+def test_update_identity(cls: int) -> int:
+    """update_abstractmethods(cls) == cls for all cls. Returns cls."""
+    return update_abstractmethods(cls)

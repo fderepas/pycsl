@@ -1,4 +1,4 @@
-# Formal test for heapq (hq) module
+# Formal test for heapq (hq) module — universally quantified
 #
 # Based on library_reference/heapq.rst:
 #   "Push the value item onto the heap." → size grows by exactly 1.
@@ -10,37 +10,48 @@
 from pure_lib.hq import heappush, heappop, heapreplace, nlargest, nsmallest, heappushpop
 
 
-#@ ensures \result == 11
-def test_heappush_exact() -> int:
-    """Push onto heap of 10 → size 11. Exact from RST."""
-    return heappush(10, 5)
+#@ requires n >= 0 and n < 2147483647
+#@ requires item >= 0
+#@ ensures \result == n + 1
+def test_heappush_exact(n: int, item: int) -> int:
+    """heappush(n, item) == n+1 for all n. Push adds exactly 1."""
+    return heappush(n, item)
 
 
-#@ ensures \result == 9
-def test_heappop_exact() -> int:
-    """Pop from heap of 10 → size 9. Exact from RST."""
-    return heappop(10)
+#@ requires n >= 1 and n < 2147483647
+#@ ensures \result == n - 1
+def test_heappop_exact(n: int) -> int:
+    """heappop(n) == n-1 for all n >= 1. Pop removes exactly 1."""
+    return heappop(n)
 
 
-#@ ensures \result == 10
-def test_heapreplace_same() -> int:
-    """RST: 'The heap size doesn't change.' heapreplace(10) == 10."""
-    return heapreplace(10, 3)
+#@ requires n >= 1 and n < 2147483647
+#@ requires item >= 0
+#@ ensures \result == n
+def test_heapreplace_same(n: int, item: int) -> int:
+    """heapreplace(n, item) == n for all n >= 1. Size unchanged."""
+    return heapreplace(n, item)
 
 
-#@ ensures \result >= 0 and \result <= 3
-def test_nlargest_bounded_k() -> int:
-    """RST: 'sorted(iterable, reverse=True)[:n]' → bounded by k."""
-    return nlargest(3, 100)
+#@ requires k >= 0 and k < 2147483647
+#@ requires n >= 0 and n < 2147483647
+#@ ensures \result >= 0 and \result <= k and \result <= n
+def test_nlargest_bounded(k: int, n: int) -> int:
+    """nlargest(k, n) <= min(k, n) for all k, n."""
+    return nlargest(k, n)
 
 
-#@ ensures \result >= 0 and \result <= 5
-def test_nsmallest_bounded_n() -> int:
-    """RST: 'sorted(iterable)[:n]' → bounded by n."""
-    return nsmallest(10, 5)
+#@ requires k >= 0 and k < 2147483647
+#@ requires n >= 0 and n < 2147483647
+#@ ensures \result >= 0 and \result <= k and \result <= n
+def test_nsmallest_bounded(k: int, n: int) -> int:
+    """nsmallest(k, n) <= min(k, n) for all k, n."""
+    return nsmallest(k, n)
 
 
-#@ ensures \result == 8
-def test_heappushpop_same() -> int:
-    """RST: 'Push then pop.' Net size unchanged: heappushpop(8) == 8."""
-    return heappushpop(8, 2)
+#@ requires n >= 1 and n < 2147483647
+#@ requires item >= 0
+#@ ensures \result == n
+def test_heappushpop_same(n: int, item: int) -> int:
+    """heappushpop(n, item) == n for all n >= 1. Size unchanged."""
+    return heappushpop(n, item)

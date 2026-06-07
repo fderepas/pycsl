@@ -311,23 +311,42 @@ For string-heavy code (re), body-level proof is blocked by tool gaps
 
 ### Step 5 — Write a formal test
 
-Create `pure_lib_test/formal_NNNN.py` with **symbolic parameters**
-instead of concrete values. Each function returns 0 (pass) or 1 (fail)
-as a provable postcondition:
+Create `pure_lib_test/formal_<module>.py` with **universally quantified
+parameters** — every parameter must be symbolic, never concrete. The
+purpose of a formal test is to prove that a property holds **for all
+valid inputs**, not just one specific test case.
+
+**Critical rule: generalize ALL parameters.**
+
+A formal test that uses concrete values is *not* a formal test — it is
+just a concrete test re-stated in PyCSL syntax. Compare:
 
 ```python
-#@ requires pos >= 0
-#@ assigns \nothing
-#@ ensures \result == 0 or \result == 1
-def formal_test_whitespace(s, pos) -> int:
-    m = _match_whitespace(s, pos)
-    if m < 0:
-        return 1
-    return 0
+# BAD: concrete test disguised as formal test — proves nothing new
+#@ ensures \result == 12
+def test_gcd_zero_right() -> int:
+    return gcd(12, 0)
+
+# GOOD: universally quantified — proves gcd(n, 0) == n for ALL n
+#@ requires n >= 0
+#@ requires n < 2147483647
+#@ ensures \result == n
+def test_gcd_zero_right(n: int) -> int:
+    return gcd(n, 0)
 ```
 
-This proves the property holds for **all valid inputs**, not just
-test cases. See `docs/glossary/formal-test.md` for the concept.
+Each test function:
+- Takes **symbolic parameters** with `requires` matching the callee's
+  preconditions (plus overflow guards like `< 2147483647` when needed)
+- Has an `ensures` clause that is provable solely from the callee's
+  postconditions applied to the symbolic arguments
+- Returns an expression whose value the `ensures` clause constrains
+
+The prover must discharge the `ensures` for **every** integer satisfying
+the `requires`. This is universal quantification — the essence of formal
+verification.
+
+See `docs/glossary/formal-test.md` for the concept.
 
 ### Contracts must reflect the English specification
 

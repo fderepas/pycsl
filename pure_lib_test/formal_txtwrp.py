@@ -1,4 +1,4 @@
-# Formal test for textwrap (txtwrp) module
+# Formal test for textwrap (txtwrp) module — universally quantified
 #
 # Based on library_reference/textwrap.rst:
 #   "Returns a list of output lines" → empty text → empty list (0 lines).
@@ -10,37 +10,46 @@
 from pure_lib.txtwrp import wrap, fill, shorten, dedent, indent
 
 
+#@ requires width > 0 and width < 2147483647
 #@ ensures \result == 0
-def test_wrap_empty() -> int:
-    """Empty text → empty list (0 lines). Direct from RST."""
-    return wrap(0, 80)
+def test_wrap_empty(width: int) -> int:
+    """wrap(0, width) == 0 for all widths. Empty text → empty list."""
+    return wrap(0, width)
 
 
+#@ requires text > 0 and text < 2147483647
+#@ requires width > 0 and width < 2147483647
 #@ ensures \result >= 1
-def test_wrap_nonempty() -> int:
-    """Non-empty text → at least 1 line. Direct from RST."""
-    return wrap(40, 80)
+def test_wrap_nonempty(text: int, width: int) -> int:
+    """wrap(text, width) >= 1 for all text > 0. Non-empty text → at least 1 line."""
+    return wrap(text, width)
 
 
+#@ requires width > 0 and width < 2147483647
 #@ ensures \result == 0
-def test_fill_empty() -> int:
-    """Empty text → empty string. fill = join(wrap(text))."""
-    return fill(0, 80)
+def test_fill_empty(width: int) -> int:
+    """fill(0, width) == 0 for all widths. Empty text → empty string."""
+    return fill(0, width)
 
 
-#@ ensures \result >= 0 and \result <= 200 and \result <= 80
-def test_shorten_bounded() -> int:
-    """shorten(200, 80): result <= text AND <= width."""
-    return shorten(200, 80)
+#@ requires text >= 0 and text < 2147483647
+#@ requires width > 0 and width < 2147483647
+#@ ensures \result >= 0 and \result <= text and \result <= width
+def test_shorten_bounded(text: int, width: int) -> int:
+    """shorten(text, width) <= text AND <= width for all inputs."""
+    return shorten(text, width)
 
 
-#@ ensures \result >= 0 and \result <= 100
-def test_dedent_bounded() -> int:
-    """dedent(100) removes whitespace: result <= original."""
-    return dedent(100)
+#@ requires text >= 0 and text < 2147483647
+#@ ensures \result >= 0 and \result <= text
+def test_dedent_bounded(text: int) -> int:
+    """dedent(text) <= text for all text. Whitespace only removed."""
+    return dedent(text)
 
 
-#@ ensures \result >= 50
-def test_indent_grows() -> int:
-    """indent(50, 4): result >= original (prefix added)."""
-    return indent(50, 4)
+#@ requires text >= 0 and text < 2147483647
+#@ requires prefix >= 0 and prefix < 2147483647
+#@ ensures \result >= text
+def test_indent_grows(text: int, prefix: int) -> int:
+    """indent(text, prefix) >= text for all inputs. Prefix only added."""
+    return indent(text, prefix)

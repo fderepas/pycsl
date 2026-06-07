@@ -1,4 +1,4 @@
-# Formal test for getopt (gopt) module
+# Formal test for getopt (gopt) module — universally quantified
 #
 # Based on library_reference/getopt.rst:
 #   "Parses command line options and parameter list."
@@ -9,25 +9,33 @@
 from pure_lib.gopt import getopt_count, gnu_getopt_count, remaining_args
 
 
-#@ ensures \result >= 0 and \result <= 10
-def test_getopt_bounded() -> int:
-    """getopt result bounded by argc."""
-    return getopt_count(10, 5)
+#@ requires argc >= 0 and argc < 2147483647
+#@ requires shortopts >= 0 and shortopts < 2147483647
+#@ ensures \result >= 0 and \result <= argc
+def test_getopt_bounded(argc: int, shortopts: int) -> int:
+    """getopt_count(argc, shortopts) <= argc for all inputs."""
+    return getopt_count(argc, shortopts)
 
 
-#@ ensures \result >= 0 and \result <= 10
-def test_gnu_getopt_bounded() -> int:
-    """gnu_getopt result bounded by argc."""
-    return gnu_getopt_count(10, 5)
+#@ requires argc >= 0 and argc < 2147483647
+#@ requires shortopts >= 0 and shortopts < 2147483647
+#@ ensures \result >= 0 and \result <= argc
+def test_gnu_getopt_bounded(argc: int, shortopts: int) -> int:
+    """gnu_getopt_count(argc, shortopts) <= argc for all inputs."""
+    return gnu_getopt_count(argc, shortopts)
 
 
-#@ ensures \result >= 0 and \result <= 10
-def test_remaining_bounded() -> int:
-    """remaining_args bounded by argc."""
-    return remaining_args(10, 3)
+#@ requires argc >= 0 and argc < 2147483647
+#@ requires parsed >= 0 and parsed < 2147483647
+#@ ensures \result >= 0 and \result <= argc
+def test_remaining_bounded(argc: int, parsed: int) -> int:
+    """remaining_args(argc, parsed) <= argc for all inputs."""
+    return remaining_args(argc, parsed)
 
 
+#@ requires argc >= 0 and argc < 2147483647
+#@ requires parsed >= argc
 #@ ensures \result == 0
-def test_remaining_excess() -> int:
-    """When parsed >= argc, remaining is 0."""
-    return remaining_args(3, 5)
+def test_remaining_excess(argc: int, parsed: int) -> int:
+    """When parsed >= argc, remaining is 0 for all such inputs."""
+    return remaining_args(argc, parsed)
