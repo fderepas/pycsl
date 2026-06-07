@@ -377,7 +377,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # `_fresh_var` allocation order → byte-identical. Lists/arrays / unknown types
         # fall through to the positional `exists`.
         _coll_nm = getattr(node.collection, "name", None)
-        if _coll_nm is not None and self._cur_func_symtab.get(_coll_nm) in ("set", "dict", "frozenset"):
+        # 07-0647-spec R10/S2.1: a `str` collection is NOT an array — `x in s` on a
+        # string is substring containment, handled by Module6's `str_contains_op` (which
+        # uses `string.String` and imports it). Desugaring it to the positional array
+        # `exists … Array.length …` would use the wrong theory and leave `Array.length`
+        # unbound. Defer to Module6 (as set/dict already do) by keeping the `in` BinOp.
+        if _coll_nm is not None and self._cur_func_symtab.get(_coll_nm) in (
+                "set", "dict", "frozenset", "str"):
             return {"type": "BinOp", "op": "in",
                     "left": self._csl_to_ir(node.element),
                     "right": self._csl_to_ir(node.collection)}

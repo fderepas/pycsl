@@ -258,10 +258,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # uninterpreted bool op over string operands (content witness deferred — see plan).
         if self._is_string_expr(rhs):
             # strings-plan Stage 4: the containment witness. `needle in haystack` holds iff
-            # `needle` occurs as a contiguous substring at some position — the existential
-            # content goal Gate B flagged as the hard one. As an abstract `val` the `ensures`
-            # is assumed (axiomatic), so callers get the witness in both directions: a known
-            # occurrence proves membership true, and membership true yields a matching index.
+            # `needle` occurs as a contiguous substring at some position.
+            # 07-0647-spec R10/S2.1: in SPEC context (requires/ensures) the op must be a
+            # LOGIC term — a program `val` is illegal in a formula ("unbound symbol"). Emit
+            # the existential directly (pure `string.String` logic, already imported). In a
+            # body the `val str_contains_op` (uninterpreted bool) is used.
+            if self._in_spec:
+                form = (f"(exists _si: int. 0 <= _si /\\ "
+                        f"_si + String.length {left} <= String.length {right} /\\ "
+                        f"String.substring {right} _si (String.length {left}) = {left})")
+                return f"(not {form})" if negate else form
             self._add_abstract_op(
                 "val str_contains_op (haystack: string) (needle: string) : bool\n"
                 "    ensures { result <->\n"
@@ -1090,6 +1096,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return f"({pname} {' '.join(coerced)})"
             self._add_abstract_op(f"val {pname} () : int {ens}")
             return f"({pname} ())"
+        # 07-0647-spec S3.2: a string predicate on a COMPUTED receiver
+        # (`s[i].isdigit()`) arrives with a bare method `func` and the receiver in the
+        # `receiver` field. The receiver MUST be passed as the first argument — emitting
+        # a receiver-less `isdigit_0 ()` severs the result from the value tested (a silent
+        # faithfulness violation). The op is still uninterpreted (0/1-valued).
+        if (func_name in (
+                "islower", "isupper", "isalpha", "isdigit", "isspace",
+                "istitle", "isalnum", "isnumeric", "isdecimal",
+                "isidentifier", "startswith", "endswith")
+                and expr.get("receiver") is not None):
+            recv = self._expr_to_whyml(expr["receiver"], local_refs, invariant_ctx, subst)
+            all_args = [recv] + [self._expr_to_whyml(a, local_refs, invariant_ctx, subst)
+                                 for a in args]
+            pname = whyml_ident(func_name) + f"_{len(all_args)}"
+            ens = "ensures { ((result = 0) || (result = 1)) }"
+            # Each operand keeps its real type (the receiver of `s[i].isdigit()` is a
+            # `string` char, not an int) — declare per-arg type variables so the
+            # uninterpreted predicate accepts any operand types.
+            params = " ".join(f"(x{i}: 'a{i})" for i in range(len(all_args)))
+            self._add_abstract_op(f"val {pname} {params} : int {ens}")
+            return f"({pname} {' '.join('(' + a + ')' for a in all_args)})"
         if func_name == "isinstance" and len(args) == 2:
             type_arg = self._coerce_to_int(args[1])
             self_type = self._current_self_type
@@ -1098,7 +1125,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 self._add_abstract_op(f"val {op} (x: {self_type}) (t: int) : bool")
             else:
                 op = "isinstance_check"
-                self._add_abstract_op("val isinstance_check (x: int) (t: int) : bool")
+                # 07-0647-spec S1.2/S4: the checked value may be a record/variant (e.g.
+                # a class-typed param), not just an int — make the receiver polymorphic
+                # (`x: 'a`) so `isinstance_check` accepts any operand type. (Opaque: the
+                # result is an unconstrained bool; isinstance is not modelled.)
+                self._add_abstract_op("val isinstance_check (x: 'a) (t: int) : bool")
             return f"({op} {args[0]} {type_arg})"
         if func_name in ("set", "frozenset") and len(args) == 0:
             # Body set: same `map int (option int)` model as body dicts.
@@ -1530,6 +1561,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # sum-types: a nullary `#@ datatype` constructor used as a value (`Red`).
         if name in self._constructors and self._constructors[name]["arity"] == 0:
             return name
+        # 07-0647-spec S1.2: a bare class NAME used as a VALUE (e.g. the type argument
+        # of `isinstance(x, C)`) must NOT reuse the record/variant TYPE name as its
+        # opaque constant — `type c` and `val constant c` would collide (a kind/type
+        # error). Give the value a distinct namespace.
+        if name in self._record_types or name in getattr(self, "_variant_types", {}):
+            csafe = f"_class_{whyml_ident(name)}"
+            self._add_abstract_op(f"val constant {csafe} : int")
+            return csafe
         safe = whyml_ident(name)
         self._add_abstract_op(f"val constant {safe} : int")
         return safe

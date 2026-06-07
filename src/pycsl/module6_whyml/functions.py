@@ -144,7 +144,10 @@ class FunctionEmissionMixin:
         array1d_params = self._current_array1d_params
 
         if is_method:
-            self._current_self_type = func["self_type"].lower()
+            # 07-0647-spec S1.1: reserved-word-safe self type name (matches the
+            # `whyml_name` stored for the record/variant), so a class named e.g.
+            # `Match` resolves to `py_match` consistently at type and field sites.
+            self._current_self_type = whyml_ident(func["self_type"].lower())
             param_parts = [f"(self: {self._current_self_type})"]
             # Part B move 1: route each non-local/non-ghost symbol-table entry
             # through the single `_param_type_str` resolver. The method and
