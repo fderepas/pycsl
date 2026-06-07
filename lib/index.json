@@ -69,6 +69,14 @@
       "field": false
     }
   },
+  "difflib": {
+    "category": "text",
+    "files": 1,
+    "pycsl-functions-used": {
+      "SequenceMatcher": false,
+      "unified_diff": false
+    }
+  },
   "enum": {
     "category": "language",
     "files": 1,
@@ -176,6 +184,14 @@
     "files": 4,
     "pycsl-functions-used": {
       "Path": false
+    }
+  },
+  "pprint": {
+    "category": "utilities",
+    "files": 1,
+    "pycsl-functions-used": {
+      "pformat": false,
+      "pprint": false
     }
   },
   "queue": {
@@ -327,6 +343,14 @@
       "tok_name": false
     }
   },
+  "traceback": {
+    "category": "utilities",
+    "files": 1,
+    "pycsl-functions-used": {
+      "format_exc": false,
+      "print_exc": false
+    }
+  },
   "typing": {
     "category": "language",
     "files": 30,
@@ -348,6 +372,14 @@
     "pycsl-functions-used": {
       "lookup": false,
       "normalize": false
+    }
+  },
+  "uuid": {
+    "category": "crypto",
+    "files": 1,
+    "pycsl-functions-used": {
+      "UUID": false,
+      "uuid4": false
     }
   },
   "warnings": {
