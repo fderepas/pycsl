@@ -97,6 +97,26 @@ class IRScanner:
         return False
 
     @staticmethod
+    def collection_binder_kinds(obj: Any) -> Set[str]:
+        """07-1311 Q4: collect the set of COLLECTION quantifier binder types
+        (`list`/`bytes`/`bytearray`/`dict`) appearing anywhere in `obj` (a contract
+        or body IR tree). Used by the preamble to trigger `use array.Array` /
+        `use map.Map` for `\\forall a: list; …` / `\\forall m: dict; …`, since such a
+        binder needs the theory even when the file has no array/map locals."""
+        found: Set[str] = set()
+        if isinstance(obj, dict):
+            if obj.get("type") in ("Forall", "Exists"):
+                bt = obj.get("binder_type")
+                if bt in ("list", "bytes", "bytearray", "dict"):
+                    found.add(bt)
+            for v in obj.values():
+                found |= IRScanner.collection_binder_kinds(v)
+        elif isinstance(obj, list):
+            for x in obj:
+                found |= IRScanner.collection_binder_kinds(x)
+        return found
+
+    @staticmethod
     def find_array_and_dict_vars(stmts: List[Dict[str, Any]]) -> Tuple[Set[str], Set[str]]:
         array_vars = set()
         dict_vars = set()
