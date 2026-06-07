@@ -329,6 +329,27 @@ def formal_test_whitespace(s, pos) -> int:
 This proves the property holds for **all valid inputs**, not just
 test cases. See `docs/glossary/formal-test.md` for the concept.
 
+### Contracts must reflect the English specification
+
+When writing postconditions, **always derive them from the English
+documentation in `test-suite/library_reference/`**, not from what
+seems "minimal" or "safe" to assert. A contract like
+`ensures text == 0 -> \result == 0` (wrapping empty text yields an
+empty list) is not "leaking implementation details" — it is a direct
+transcription of the documented behavior: *"Returns a list of output
+lines"*, and an empty input trivially produces an empty list.
+
+Weakening a postcondition to merely `ensures \result >= 0` when the
+English spec says something stronger produces a model that is
+technically provable but **unfaithful to the library semantics**.
+The whole point of formal verification is to capture *intended
+behavior*, not to minimize proof obligations. The RST documentation
+is the ground truth; the contract is its formal shadow.
+
+**Rule**: read the English description first, write the strongest
+postcondition it justifies, then verify the body satisfies it.
+Only weaken if the English is genuinely ambiguous.
+
 ### Step 6 — Document tool gaps
 
 Any PyCSL limitation discovered during steps 3–5 goes into a
