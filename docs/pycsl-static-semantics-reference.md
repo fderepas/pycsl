@@ -156,6 +156,12 @@ specification logic's type universe:
 τ(list)           = list
 τ(List)           = list      (* typing.List alias *)
 τ(List[T])        = list      (* parametric list — element type opaque *)
+                              (* 07-1705-rev4: representation is selected by the seq-promotion
+                                 analysis. A list that is GROWN (`+=` / `+` concat) lowers to a
+                                 growable `seq int` (immutable, region-free ref); all other lists
+                                 stay `array int`. The mark propagates across `b = a`; a list that
+                                 must be BOTH grown and 2-D is a representation conflict, rejected
+                                 (no silent mis-model). Translational §T.2 list rows. *)
 τ(bytes)          = int †     (* byte buffer *)
 τ(bytearray)      = int †     (* mutable byte buffer *)
 τ(dict)           = dict

@@ -101,6 +101,13 @@ class FunctionEmissionMixin:
         # 07-0903 W1: locals bound to a list/array of tuples (`a = [(x,y), …]`) → arity,
         # so `a[i][k]` destructures the element tuple rather than being read as a 2-D matrix.
         self._tuple_array_locals: Dict[str, int] = {}
+        # 07-1705-rev4 P3/P5: list locals AND params modelled as a growable
+        # `ref (seq int)` (the seq-promotion analysis, Module5 `seq_promoted_vars`).
+        # Declared with `ref`, so reads deref (`!a`) and use qualified `Seq.*` ops;
+        # concat rebinds the ref. P5: a seq-promoted PARAM is shadowed at function entry
+        # with `let a = ref (snapshot a) in` (the array param → seq ref), then behaves
+        # like a seq local; a `return a` materialises back to `array int` (P4).
+        self._seq_locals: set = set(func.get("seq_promoted_vars", []))
         self._dict_locals = set()
         # no-more-int-3 A1: dict var -> WhyML value type ν (string) for
         # string-valued dicts; consulted by the dict literal / declaration /

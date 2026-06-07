@@ -1633,6 +1633,86 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         if array1d:
             func_ir["array1d_params"] = sorted(array1d)
 
+    def _detect_seq_promotion(self, func_ir: Dict[str, Any]) -> None:
+        """07-1705-rev4 P2 — the seq-promotion analysis (diagnostics only; no emission
+        change). A `list`/`bytes`/`bytearray` variable is **seq-promoted** (must be
+        modelled as `seq int`, a growable immutable value in a region-free ref) iff it is
+        ever GROWN: the target of `+=` with a list RHS, or assigned `a + b` on lists. The
+        mark propagates across `b = a` (representation must unify). A seq-promoted var
+        that is also used in a 2-D context is a representation CONFLICT (rev4 §7) — a
+        list cannot be both growable-seq and 2-D-array. Results are stored as IR metadata
+        (`seq_promoted_vars`, `seq_promotion_conflicts`) for P3's lowering to consume;
+        until P3 lands, the keys are inert and emission is byte-identical."""
+        symbol_table = func_ir.get("symbol_table", {})
+        list_vars = {k for k, v in symbol_table.items()
+                     if v in ("list", "bytes", "bytearray")}
+        # Locals assigned a list literal or a list-producing call are list-typed too
+        # (the symbol table types them `Any`). Pre-pass to seed those.
+        def _seed_list_vars(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("stmt") == "Assign":
+                    val = node.get("value", {})
+                    if isinstance(val, dict):
+                        if val.get("type") == "ArrayLit":
+                            list_vars.add(node.get("target"))
+                        elif (val.get("type") == "Call"
+                              and val.get("func") in ("list", "sorted", "bytes", "bytearray")):
+                            list_vars.add(node.get("target"))
+                for v in node.values():
+                    _seed_list_vars(v)
+            elif isinstance(node, list):
+                for x in node:
+                    _seed_list_vars(x)
+        _seed_list_vars(func_ir["body"])
+        list_vars.discard(None)
+        if not list_vars:
+            return
+        grown: Set[str] = set()
+        edges: List[Tuple[str, str]] = []   # (target, source) for `b = a` unification
+
+        def walk(node: Any) -> None:
+            if isinstance(node, dict):
+                st = node.get("stmt")
+                if (st == "AugAssign" and node.get("op") == "+"
+                        and node.get("target") in list_vars):
+                    grown.add(node["target"])
+                elif st == "Assign":
+                    tgt = node.get("target")
+                    val = node.get("value", {})
+                    if isinstance(val, dict):
+                        if (val.get("type") == "BinOp" and val.get("op") == "+"
+                                and tgt in list_vars):
+                            for side in ("left", "right"):
+                                s = val.get(side, {})
+                                if (isinstance(s, dict) and s.get("type") == "Var"
+                                        and s.get("name") in list_vars):
+                                    grown.add(tgt)
+                        if (val.get("type") == "Var" and tgt in list_vars
+                                and val.get("name") in list_vars):
+                            edges.append((tgt, val["name"]))
+                for v in node.values():
+                    walk(v)
+            elif isinstance(node, list):
+                for x in node:
+                    walk(x)
+        walk(func_ir["body"])
+
+        # Unify representation across `b = a` edges: growth on either end ⇒ both seq.
+        seq = set(grown)
+        changed = True
+        while changed:
+            changed = False
+            for t, s in edges:
+                if (s in seq) != (t in seq):
+                    seq.add(s); seq.add(t); changed = True
+
+        if seq:
+            func_ir["seq_promoted_vars"] = sorted(seq)
+            # rev4 §7: a growable list cannot also be a 2-D array — flag the conflict.
+            conflicts = seq & set(func_ir.get("array2d_params", []))
+            if conflicts:
+                func_ir["seq_promotion_conflicts"] = sorted(conflicts)
+
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         if self._should_skip_method(node):
             return
@@ -1640,6 +1720,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         self._detect_purity(func_ir)
         self._check_memoization_soundness(func_ir)
         self._detect_array_dimensions(func_ir)
+        self._detect_seq_promotion(func_ir)   # 07-1705-rev4 P2 (diagnostics-only metadata)
         if getattr(node, 'csl_thread_entry', False):
             func_ir["thread_entry"] = True
             if "thread_entries" not in self.program_ir:

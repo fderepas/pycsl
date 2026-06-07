@@ -107,6 +107,20 @@ constructor); nothing else distinguishes the four models pairwise. (So a strateg
 would be over-engineering — the code only ever makes this one split. See the `refactor-python`
 skill §11 and `refactor-recommendations.md`.)
 
+**Two list representations under the value-semantic model (07-1705-rev4).** Within `hoare`/
+`concurrent`, a `list` is `array int` by default — fixed-length, mutable. But a list that is
+*grown* (`+=` / `+` concatenation) is modelled instead as a **growable `ref (seq int)`**: an
+immutable `seq.Seq` value in a region-free ref. This is forced by Why3 — `array.Array` is
+fixed-length and a `ref (array int)` cannot be rebound to a fresh array ("illegal alias" /
+"prohibits further usage", see `07-1732-findings.md`), so faithful concatenation (proving the
+length-additive law, not just type-checking) is only possible over an immutable seq. The
+**seq-promotion analysis** (Module5 `_detect_seq_promotion` → `seq_promoted_vars`) picks which list
+vars are seq; lowering (`module6_whyml/statements.py` seq assign/concat, `expressions.py`
+`Seq.get`/`Seq.length`) emits `Seq.*` (qualified) in body context only — a contract uses the array
+entry value. A grown PARAM is shadowed at entry (`let a = ref (snapshot a)`); a `return a`
+materialises back to a fresh `array int` (`materialize`). A list that must be both grown and 2-D is
+a representation conflict (rejected). This replaced the old effect-opaque `array_extend`.
+
 **Heap-is-ghost constraint (typed/store).** The heap (`int_mem`/`store`) is emitted as a Why3
 *ghost* `ref`. So a non-ghost function may **write** the heap (a ghost effect) but must **not
 return a heap-derived value** — that would make its result ghost-tainted (`Function … must be

@@ -522,6 +522,14 @@ class ControlFlowStmtMixin:
         func_ret_peek = self._func_return_type
         if val_ir is None:
             val = "()"
+        elif (val_ir.get("type") == "Var"
+              and val_ir.get("name") in getattr(self, "_seq_locals", set())):
+            # 07-1705-rev4 P4: returning a seq-modelled (growable) list local where the
+            # function's declared return is `array int` (a `list`) crosses the seq→array
+            # boundary — materialise to a FRESH array (legal: bound at the return slot,
+            # never rebound into a regioned ref). Reuses the faithful `materialize` bridge.
+            self._materialize_bridge()
+            val = f"(materialize !{whyml_ident(val_ir['name'])})"
         else:
             if val_ir.get("type") == "Var" and val_ir.get("name") in self._array_locals:
                 # `exception Return int` can't carry an array, so on the
