@@ -9,8 +9,10 @@ general regex engine.  Only the seven patterns json actually uses are
 supported; compiling an unknown pattern raises PatternError.
 """
 
-from ._engine import compile, sub, Pattern, Match  # noqa: F401
+from ._engine import compile, sub, RePattern, ReMatch  # noqa: F401
 from ._engine import VERBOSE, MULTILINE, DOTALL, DEBUG  # noqa: F401
 from ._engine import PatternError  # noqa: F401
 
+Pattern = RePattern
+Match = ReMatch
 error = PatternError

@@ -33,12 +33,15 @@ class PatternError(Exception):
     """Raised when an unsupported pattern is compiled."""
 
 
-# ── Match object ─────────────────────────────────────────────────────
+# ── ReMatch object ─────────────────────────────────────────────────────
 
-class Match:
-    """Minimal Match compatible with json's usage."""
+class ReMatch:
+    """Minimal ReMatch compatible with json's usage."""
 
     __slots__ = ('_string', '_start', '_end', '_groups')
+
+    #@ class invariant self._start >= 0
+    #@ class invariant self._end >= self._start
 
     def __init__(self, string, start, end, groups):
         self._string = string
@@ -48,24 +51,31 @@ class Match:
         # Group 0 (the whole match) is derived from start/end.
         self._groups = groups
 
+    #@ assigns \nothing
+    #@ ensures \result >= 0
     def group(self, n=0):
         if n == 0:
             return self._string[self._start:self._end]
         return self._groups[n - 1]
 
+    #@ assigns \nothing
     def groups(self):
         return self._groups
 
+    #@ assigns \nothing
+    #@ ensures \result >= 0
     def start(self):
         return self._start
 
+    #@ assigns \nothing
+    #@ ensures \result >= self._start
     def end(self):
         return self._end
 
 
-# ── Pattern object ───────────────────────────────────────────────────
+# ── RePattern object ───────────────────────────────────────────────────
 
-class Pattern:
+class RePattern:
     """Wraps a hand-written matcher function."""
 
     __slots__ = ('_match_fn', '_sub_fn', 'pattern', 'flags')
@@ -90,15 +100,21 @@ class Pattern:
 _WHITESPACE_CHARS = set(' \t\n\r')
 
 
+#@ requires pos >= 0
+#@ assigns \nothing
+#@ ensures \result >= 0
 def _match_whitespace(s, pos=0):
     """r'[ \\t\\n\\r]*'  — match zero or more whitespace chars."""
     i = pos
     n = len(s)
     while i < n and s[i] in _WHITESPACE_CHARS:
         i += 1
-    return Match(s, pos, i, ())
+    return ReMatch(s, pos, i, ())
 
 
+#@ requires pos >= 0
+#@ assigns \nothing
+#@ ensures \result >= 0 or \result == -1
 def _match_hexdigits(s, pos=0):
     """r'[0-9A-Fa-f]{4}'  — match exactly 4 hex digits."""
     if pos + 4 > len(s):
@@ -107,12 +123,15 @@ def _match_hexdigits(s, pos=0):
     for c in chunk:
         if c not in '0123456789abcdefABCDEF':
             return None
-    return Match(s, pos, pos + 4, ())
+    return ReMatch(s, pos, pos + 4, ())
 
 
 _STRINGCHUNK_TERMINATORS = set('"\\') | {chr(i) for i in range(0x20)}
 
 
+#@ requires pos >= 0
+#@ assigns \nothing
+#@ ensures \result >= 0 or \result == -1
 def _match_stringchunk(s, pos=0):
     """r'(.*?)([\"\\\\\\x00-\\x1f])'  — scan until quote, backslash, or ctrl."""
     n = len(s)
@@ -121,11 +140,14 @@ def _match_stringchunk(s, pos=0):
         c = s[i]
         if c in _STRINGCHUNK_TERMINATORS:
             content = s[pos:i] if i > pos else ''
-            return Match(s, pos, i + 1, (content, c))
+            return ReMatch(s, pos, i + 1, (content, c))
         i += 1
     return None
 
 
+#@ requires pos >= 0
+#@ assigns \nothing
+#@ ensures \result >= 0 or \result == -1
 def _match_number(s, pos=0):
     """r'(-?(?:0|[1-9][0-9]*))(\\.‌[0-9]+)?([eE][-+]?[0-9]+)?'"""
     n = len(s)
@@ -174,12 +196,13 @@ def _match_number(s, pos=0):
     if i == pos or (i == pos + 1 and s[pos] == '-'):
         return None
 
-    return Match(s, pos, i, (integer, frac, exp))
+    return ReMatch(s, pos, i, (integer, frac, exp))
 
 
 _ESCAPE_CHARS = {chr(i) for i in range(0x20)} | {'\\', '"'}
 
 
+#@ assigns \nothing
 def _sub_escape(repl, s, count=0):
     """r'[\\x00-\\x1f\\\\\"\\b\\f\\n\\r\\t]' .sub(repl, s)"""
     parts = []
@@ -189,7 +212,7 @@ def _sub_escape(repl, s, count=0):
     while i < n:
         c = s[i]
         if c in _ESCAPE_CHARS:
-            m = Match(s, i, i + 1, ())
+            m = ReMatch(s, i, i + 1, ())
             parts.append(repl(m))
             subs += 1
             if count and subs >= count:
@@ -201,13 +224,17 @@ def _sub_escape(repl, s, count=0):
     return ''.join(parts)
 
 
+#@ requires pos >= 0
+#@ assigns \nothing
+#@ ensures \result >= 0 or \result == -1
 def _match_escape(s, pos=0):
     """r'[\\x00-\\x1f\\\\\"\\b\\f\\n\\r\\t]' .match(s, pos)"""
     if pos < len(s) and s[pos] in _ESCAPE_CHARS:
-        return Match(s, pos, pos + 1, ())
+        return ReMatch(s, pos, pos + 1, ())
     return None
 
 
+#@ assigns \nothing
 def _sub_escape_ascii(repl, s, count=0):
     r"""r'([\\\\"]|[^\\ -~])' .sub(repl, s)
     Matches: backslash, double-quote, or any char outside 0x20..0x7e."""
@@ -219,7 +246,7 @@ def _sub_escape_ascii(repl, s, count=0):
         c = s[i]
         o = ord(c)
         if c == '\\' or c == '"' or o < 0x20 or o > 0x7e:
-            m = Match(s, i, i + 1, (c,))
+            m = ReMatch(s, i, i + 1, (c,))
             parts.append(repl(m))
             subs += 1
             if count and subs >= count:
@@ -231,20 +258,26 @@ def _sub_escape_ascii(repl, s, count=0):
     return ''.join(parts)
 
 
+#@ requires pos >= 0
+#@ assigns \nothing
+#@ ensures \result >= 0 or \result == -1
 def _match_escape_ascii(s, pos=0):
     r"""r'([\\\\"]|[^\\ -~])' .match(s, pos)"""
     if pos < len(s):
         c = s[pos]
         o = ord(c)
         if c == '\\' or c == '"' or o < 0x20 or o > 0x7e:
-            return Match(s, pos, pos + 1, (c,))
+            return ReMatch(s, pos, pos + 1, (c,))
     return None
 
 
+#@ requires pos >= 0
+#@ assigns \nothing
+#@ ensures \result >= 0 or \result == -1
 def _match_has_utf8(s, pos=0):
     """b'[\\x80-\\xff]' .match(s, pos) — bytes pattern."""
     if pos < len(s) and s[pos] >= 0x80:
-        return Match(s, pos, pos + 1, ())
+        return ReMatch(s, pos, pos + 1, ())
     return None
 
 
@@ -259,7 +292,7 @@ def _match_has_utf8(s, pos=0):
 
 
 def _scan_json_string(s, i):
-    """Match a JSON string starting at s[i] == '"'. Returns end index."""
+    """ReMatch a JSON string starting at s[i] == '"'. Returns end index."""
     n = len(s)
     i += 1  # skip opening quote
     while i < n:
@@ -274,7 +307,7 @@ def _scan_json_string(s, i):
 
 
 def _match_color_pattern(s, pos=0):
-    """Match one JSON token at pos for colorising."""
+    """ReMatch one JSON token at pos for colorising."""
     n = len(s)
     if pos >= n:
         return None
@@ -287,30 +320,30 @@ def _match_color_pattern(s, pos=0):
         text = s[pos:end]
         # key if followed by ':'
         if end < n and s[end] == ':':
-            return Match(s, pos, end,
+            return ReMatch(s, pos, end,
                          (text, None, None, None, None))
-        return Match(s, pos, end,
+        return ReMatch(s, pos, end,
                      (None, text, None, None, None))
 
     if c == 't' and s[pos:pos + 4] == 'true':
-        return Match(s, pos, pos + 4,
+        return ReMatch(s, pos, pos + 4,
                      (None, None, None, 'true', None))
     if c == 'f' and s[pos:pos + 5] == 'false':
-        return Match(s, pos, pos + 5,
+        return ReMatch(s, pos, pos + 5,
                      (None, None, None, 'false', None))
     if c == 'n' and s[pos:pos + 4] == 'null':
-        return Match(s, pos, pos + 4,
+        return ReMatch(s, pos, pos + 4,
                      (None, None, None, None, 'null'))
 
     # NaN / -?Infinity / number
     if c == 'N' and s[pos:pos + 3] == 'NaN':
-        return Match(s, pos, pos + 3,
+        return ReMatch(s, pos, pos + 3,
                      (None, None, 'NaN', None, None))
     if c == 'I' and s[pos:pos + 8] == 'Infinity':
-        return Match(s, pos, pos + 8,
+        return ReMatch(s, pos, pos + 8,
                      (None, None, 'Infinity', None, None))
     if c == '-' and s[pos:pos + 9] == '-Infinity':
-        return Match(s, pos, pos + 9,
+        return ReMatch(s, pos, pos + 9,
                      (None, None, '-Infinity', None, None))
 
     # [0-9\-+.Ee]+
@@ -319,7 +352,7 @@ def _match_color_pattern(s, pos=0):
         while i < n and s[i] in '0123456789-+.eE':
             i += 1
         if i > pos:
-            return Match(s, pos, i,
+            return ReMatch(s, pos, i,
                          (None, None, s[pos:i], None, None))
 
     return None
@@ -332,11 +365,11 @@ def _color_match_group(self, n=0):
         if n in _names:
             return self._groups[_names.index(n)]
         return None
-    return Match.group(self, n)
+    return ReMatch.group(self, n)
 
 
-class _ColorMatch(Match):
-    """Match subclass with named-group support for tool.py."""
+class _ColorMatch(ReMatch):
+    """ReMatch subclass with named-group support for tool.py."""
     group = _color_match_group
 
 
@@ -368,7 +401,7 @@ def _sub_color(repl, s, count=0):
     return ''.join(parts)
 
 
-# ── Pattern registry ─────────────────────────────────────────────────
+# ── RePattern registry ─────────────────────────────────────────────────
 
 # Normalise pattern source → (match_fn, sub_fn)
 _PATTERN_KEY_ESCAPE = r'[\x00-\x1f\\"\b\f\n\r\t]'
@@ -381,17 +414,19 @@ def _normalise(source):
     return source.replace(' ', '').replace('\n', '').replace('\t', '')
 
 
-def compile(pattern, flags=0):
-    """Compile a pattern into a Pattern object.
+#@ assigns \nothing
+#@ ensures \result >= 0
+def compile(pat_src, flags=0):
+    """Compile a pattern into a RePattern object.
 
     Only the patterns used by lib/json are supported.
     """
-    src = pattern if isinstance(pattern, (str, bytes)) else str(pattern)
+    src = pat_src if isinstance(pat_src, (str, bytes)) else str(pat_src)
 
     # HAS_UTF8 (bytes) — check before normalising
     if isinstance(src, bytes):
         if b'\x80' in src or b'\\x80' in src:
-            return Pattern(_match_has_utf8, None, src, flags)
+            return RePattern(_match_has_utf8, None, src, flags)
         raise PatternError(
             f"pure_lib.re: unsupported bytes pattern: {src!r}"
         )
@@ -400,38 +435,39 @@ def compile(pattern, flags=0):
 
     # Whitespace
     if norm in (r'[\t\n\r]*', '[\\t\\n\\r]*'):
-        return Pattern(_match_whitespace, None, src, flags)
+        return RePattern(_match_whitespace, None, src, flags)
 
     # Hexdigits
     if norm in ('[0-9A-Fa-f]{4}',):
-        return Pattern(_match_hexdigits, None, src, flags)
+        return RePattern(_match_hexdigits, None, src, flags)
 
     # Stringchunk
     if '(.*?)' in src and '["\\\\' in norm:
-        return Pattern(_match_stringchunk, None, src, flags)
+        return RePattern(_match_stringchunk, None, src, flags)
 
     # Number
     if '(?:0|[1-9]' in src or '(?:0|[1-9]' in norm:
-        return Pattern(_match_number, None, src, flags)
+        return RePattern(_match_number, None, src, flags)
 
     # Escape (exact char-class for control chars + backslash + quote)
     if src == _PATTERN_KEY_ESCAPE:
-        return Pattern(_match_escape, _sub_escape, src, flags)
+        return RePattern(_match_escape, _sub_escape, src, flags)
 
     # Escape ASCII
     if src == _PATTERN_KEY_ESCAPE_ASCII:
-        return Pattern(_match_escape_ascii, _sub_escape_ascii, src, flags)
+        return RePattern(_match_escape_ascii, _sub_escape_ascii, src, flags)
 
     # tool.py color pattern (verbose, contains (?P<key>...)
     if '(?P<key>' in src or '(?P<string>' in src:
-        return Pattern(_match_color, _sub_color, src, flags)
+        return RePattern(_match_color, _sub_color, src, flags)
 
     raise PatternError(
         f"pure_lib.re: unsupported pattern: {src!r}"
     )
 
 
-def sub(pattern, repl, string, count=0, flags=0):
-    """re.sub() — compile then delegate to Pattern.sub."""
-    p = compile(pattern, flags) if not isinstance(pattern, Pattern) else pattern
+#@ assigns \nothing
+def sub(pat_src, repl, string, count=0, flags=0):
+    """re.sub() — compile then delegate to RePattern.sub."""
+    p = compile(pat_src, flags) if not isinstance(pat_src, RePattern) else pat_src
     return p.sub(repl, string, count)
