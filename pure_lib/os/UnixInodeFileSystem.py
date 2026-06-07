@@ -114,6 +114,7 @@ def _unpack_direntry(data: list) -> tuple:
 #@ class invariant self.next_fd >= 3
 #@ class invariant self.cur_uid >= 0
 #@ class invariant self.cur_gid >= 0
+#@ class invariant self._mtime_ticks >= 0
 class UnixInodeFileSystem:
     BLOCK_SIZE = 512
     NUM_BLOCKS = 256  # 128 KB Virtual Disk Block Device
@@ -130,7 +131,7 @@ class UnixInodeFileSystem:
     SEEK_CUR = 1
     SEEK_END = 2
 
-    def __init__(self, num_blocks: int = 256, load_dir=None):
+    def __init__(self, num_blocks: int = 256, load_dir=None, clock=None):
         # The raw bytearray virtual hard drive (array int). Its length is the
         # disk capacity = num_blocks * BLOCK_SIZE. `num_blocks` is a runtime
         # argument so the disk can be made larger than the 256-block default;
@@ -159,6 +160,13 @@ class UnixInodeFileSystem:
         self.cur_uid = 0
         self.cur_gid = 0
 
+        # Monotonic clock for inode timestamps (mtime/atime).
+        # If an external ClockModel is provided (via World), its counter
+        # is shared across all subsystems. Otherwise, an internal counter
+        # is used so mtime values are at least monotonically increasing.
+        self._mtime_ticks = 0
+        self._clock = clock
+
         # Format the storage array layout
         self._format_disk()
 
@@ -170,6 +178,19 @@ class UnixInodeFileSystem:
         if load_dir is not None:
             from unixfs_host_loader import load_host_dir
             load_host_dir(self, load_dir)
+
+    # --- CLOCK (mtime) ---
+
+    #@ assigns self._mtime_ticks
+    #@ ensures \result >= 0
+    def _now(self) -> int:
+        """Return a monotonically increasing timestamp for inode mtime/atime.
+        Uses the shared ClockModel if wired (via World), else an internal
+        counter. Either way, the returned value is >= 0 and non-decreasing."""
+        if self._clock is not None:
+            return self._clock.monotonic()
+        self._mtime_ticks = self._mtime_ticks + 1
+        return self._mtime_ticks
 
     # --- BITMAP ALGORITHMS ---
 
@@ -556,7 +577,7 @@ class UnixInodeFileSystem:
 
     #@ requires fd >= 0
     #@ requires \length(data) <= 5120
-    #@ assigns self.disk, self.fd_offset
+    #@ assigns self.disk, self.fd_offset, self._mtime_ticks
     #@ ensures \result == -1 or (\result >= 0 and \result <= \length(data))
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/write.html
     # cite:_note: POSIX write() — multi-block: writes data across up to 10
@@ -600,6 +621,7 @@ class UnixInodeFileSystem:
         new_size = offset + written
         if new_size > inode[0]:
             inode[0] = new_size
+        inode[7] = self._now()
         self._write_inode(inode_num, inode)
         if written == 0 and n > 0:
             return -1
@@ -713,13 +735,13 @@ class UnixInodeFileSystem:
     # --- THE 13 NEW INTEGRATED SYSTEM CALLS ---
 
     #@ requires True
-    #@ assigns self.disk
+    #@ assigns self.disk, self._mtime_ticks
     #@ ensures \result == 0 or \result == -1
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/mkdir.html
     # cite:_note: POSIX mkdir() — allocates inode+block, seeds '.' and
     #             '..', and links the dir into the root. -1 on EEXIST or
     #             ENFILE/ENOSPC / full root. De-trusted: array inode +
-    #             byte-level entry writes (atime/mtime seeded 0).
+    #             byte-level entry writes (atime/mtime set from clock).
     def sys_mkdir(self, pathname: str, mode: int) -> int:
         if self._dir_lookup(5, pathname) >= 0:
             return -1
@@ -733,7 +755,8 @@ class UnixInodeFileSystem:
         p_block = self._alloc_block()
         if p_block < 0 or p_block >= 256:
             return -1
-        inode = [512, 2, 2, mode, 0, 0, 0, 0, p_block, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        now = self._now()
+        inode = [512, 2, 2, mode, 0, 0, now, now, p_block, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         self._write_inode(inode_num, inode)
         self._write_entry(p_block, 0, inode_num, ".")
         self._write_entry(p_block, 1, 0, "..")
@@ -1060,7 +1083,7 @@ class UnixInodeFileSystem:
         return 0
 
     #@ requires True
-    #@ assigns self.disk, self.fd_open, self.fd_inode, self.fd_offset, self.fd_flags, self.next_fd
+    #@ assigns self.disk, self.fd_open, self.fd_inode, self.fd_offset, self.fd_flags, self.next_fd, self._mtime_ticks
     #@ ensures \result == -1 or \result >= 3
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/creat.html
     # cite:_note: POSIX creat() — equivalent to open(pathname,
@@ -1068,10 +1091,12 @@ class UnixInodeFileSystem:
     #             for the new file so it is immediately writable. -1 on
     #             allocation failure or full root dir.
     def sys_creat(self, pathname: str, mode: int) -> int:
+        now = self._now()
         inode_num = self._dir_lookup(5, pathname)
         if inode_num >= 0 and inode_num < 32:
             inode = self._read_inode(inode_num)
             inode[0] = 0
+            inode[7] = now
             self._write_inode(inode_num, inode)
         else:
             inode_num = self._alloc_inode()
@@ -1080,7 +1105,7 @@ class UnixInodeFileSystem:
             p_block = self._alloc_block()
             if p_block < 0 or p_block >= 256:
                 return -1
-            inode = [0, 1, 1, mode, 0, 0, 0, 0, p_block, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            inode = [0, 1, 1, mode, 0, 0, now, now, p_block, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             self._write_inode(inode_num, inode)
             slot = self._dir_find_free(5)
             if slot < 0:

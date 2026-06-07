@@ -1,6 +1,10 @@
 # pure_lib/subproc — pure-Python subprocess module
 # ProcessModel: Modelled plumbing (pipes, returncode). Child execution: Stubbed.
 # Unix skill §7.1 (fork), §5.7 (pipes), §7.4 (wait).
+#
+# When wired to World: Popen creates pipe FDs via world.fs for
+# stdin/stdout/stderr plumbing. Child execution remains stubbed
+# (the child process is a black box — TCB entry).
 
 
 class CalledProcessError(Exception):
@@ -31,6 +35,15 @@ class CompletedProcess:
         self.stderr = stderr
 
 
+_world = None
+
+
+def set_world(world) -> None:
+    """Wire this module to a World instance."""
+    global _world
+    _world = world
+
+
 #@ class invariant self._returncode >= -1
 class Popen:
     def __init__(self, args):
@@ -40,6 +53,8 @@ class Popen:
         self._stdout_pipe = []
         self._stderr_pipe = []
         self._pid = 0
+        if _world is not None:
+            self._pid = _world.proc.pid
 
     #@ ensures \result >= -1
     def poll(self) -> int:
