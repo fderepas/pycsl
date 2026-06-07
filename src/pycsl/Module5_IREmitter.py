@@ -1530,7 +1530,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _detect_array_dimensions(self, func_ir: Dict[str, Any]) -> None:
         """Detect 2D and 1D array params from contracts and body access patterns."""
         symbol_table = func_ir["symbol_table"]
-        candidate_params = {k for k, v in symbol_table.items() if v in ("list", "Any")}
+        # 0442.md B2 (no-more-int): `bytes`/`bytearray` are the byte-buffer array
+        # class (`array int`), so they are 1-D array param candidates like `list`.
+        candidate_params = {k for k, v in symbol_table.items()
+                            if v in ("list", "Any", "bytes", "bytearray")}
         array2d: Set[str] = set()
         for req in func_ir["contracts"]["requires"]:
             if isinstance(req, dict) and req.get("type") == "Length2D":

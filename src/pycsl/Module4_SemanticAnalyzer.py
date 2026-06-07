@@ -427,19 +427,22 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
                     f"(`map int (option int)`) with no cardinality. Use \\has_key(d, k) "
                     f"for key presence, or a list/array for a length-bearing collection."
                 )
+        # 0442.md B2 (no-more-int): `bytes`/`bytearray` are the byte-buffer array
+        # class, so they are valid `\valid`/`\separated` bases like `list`.
+        _ARRAY_BASE_TYPES = ("list", "List", "bytes", "bytearray", "Any", None)
         if isinstance(node, Valid):
             arr_type = self.current_scope.get(node.base)
-            if arr_type not in ("list", "List", "Any", None):
+            if arr_type not in _ARRAY_BASE_TYPES:
                 raise PyCSLSemanticError(
-                    f"\\valid base '{node.base}' is not a list parameter "
+                    f"\\valid base '{node.base}' is not a list/bytes parameter "
                     f"in {context_name} (got type '{arr_type}')."
                 )
         elif isinstance(node, Separated):
             for base in (node.base1, node.base2):
                 arr_type = self.current_scope.get(base)
-                if arr_type not in ("list", "List", "Any", None):
+                if arr_type not in _ARRAY_BASE_TYPES:
                     raise PyCSLSemanticError(
-                        f"\\separated base '{base}' is not a list parameter "
+                        f"\\separated base '{base}' is not a list/bytes parameter "
                         f"in {context_name} (got type '{arr_type}')."
                     )
         for child in _iter_csl_children(node):

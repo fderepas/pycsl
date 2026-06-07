@@ -241,8 +241,12 @@ class TypeInferenceMixin:
         receiver_name = None
         field_name = None
         if attr_ir.get("type") == "Attribute":
-            receiver = attr_ir.get("value", {})
-            if receiver.get("type") == "Var":
+            # 0442.md B1: Module5 emits an Attribute receiver under either `value`
+            # (spec context) or `object` (body context, e.g. `d.disk[i]` on a global
+            # record). Accept both, else a global array-field read falls through to the
+            # abstract `subscript_get (x:int)` and mismatches the `array int` field.
+            receiver = attr_ir.get("value") or attr_ir.get("object") or {}
+            if isinstance(receiver, dict) and receiver.get("type") == "Var":
                 receiver_name = receiver.get("name")
             field_name = attr_ir.get("attr")
         elif attr_ir.get("type") == "FieldGet":
