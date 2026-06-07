@@ -541,12 +541,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             is_array = not is_dict and (
                 var_name in getattr(self, "_array2d_params", set()) or
                 var_name in getattr(self, "_array_locals", set()) or
+                var_name in getattr(self, "_inline_array_temps", set()) or
                 var_name in getattr(self, "_current_array1d_params", set()))
             if not is_array and not is_dict and var_name:
                 if getattr(self, "_current_symbol_table", {}).get(var_name) in ("list", "dict"):
                     is_array = True
             if is_array:
-                return f"(Array.length {args[0]})"
+                arg0 = f"({args[0]})" if args[0].startswith("!") else args[0]
+                return f"(Array.length {arg0})"
             self._add_abstract_op("val iter_length (x: int) : int")
             return f"(iter_length {args[0]})"
         return f"{args[0].lstrip('!')}_len"
@@ -1268,7 +1270,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 cargs.append(self._coerce_to_int(a))
         params = (" ".join(f"(x{i}: {t})" for i, t in enumerate(ptypes))
                   if n else "()")
-        self._add_abstract_op(f"val {arity_fn} {params} : array int")
+        # 1009.md R2: `s.ljust(w[, fill])` / `rjust` / `zfill(w)` pad to AT LEAST
+        # width `w` — Python returns the original when it is already longer — and `w`
+        # is the first argument `x0`. Emit that length lower bound so a downstream
+        # `\valid(name_bytes, 30)` (`Array.length >= 30`) discharges when fed a
+        # `…ljust(30, b'\x00')`. (`encode`'s output length is genuinely unknown, so it
+        # gets no bound: `>= 0` would be vacuous. Width must be an int operand.)
+        length_ens = ""
+        if func_name in ("ljust", "rjust", "zfill") and n >= 1 and ptypes[0] == "int":
+            length_ens = "\n    ensures { Array.length result >= x0 }"
+        self._add_abstract_op(f"val {arity_fn} {params} : array int{length_ens}")
         return f"({arity_fn} {' '.join(cargs) if cargs else '()'})"
 
     def _handle_subscript(self, expr: Dict[str, Any], local_refs: Set[str],
@@ -1350,6 +1361,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             is_array = not is_dict and (
                 var_name in getattr(self, "_array2d_params", set()) or
                 var_name in getattr(self, "_array_locals", set()) or
+                var_name in getattr(self, "_inline_array_temps", set()) or
                 var_name in getattr(self, "_current_array1d_params", set()))
             if not is_array and not is_dict and var_name:
                 st = getattr(self, "_current_symbol_table", {})
@@ -1365,9 +1377,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 elif ft in ("list", "tuple", "bytes", "bytearray"):
                     is_array = True
             if is_array:
-                inner = f"{value_str}[{index}]"
+                # arity2.md (2b): parenthesise a ref-bound array deref (`!x`)
+                # before subscripting, else `!x[i]` parses as `!(x[i])`.
+                arr_e = f"({value_str})" if value_str.startswith("!") else value_str
+                inner = f"{arr_e}[{index}]"
                 # no_exception IndexError → assert in_bounds before the read.
-                length_expr = f"(Array.length {value_str})"
+                length_expr = f"(Array.length {arr_e})"
                 return self._wrap_with_no_exception_assert(
                     ("subscript", "read"), [length_expr, index], inner)
             elif is_dict:
