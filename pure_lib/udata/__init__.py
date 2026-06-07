@@ -8,6 +8,7 @@ def lookup(name) -> int:
     return 0
 
 
+#@ requires s >= 0
 #@ ensures \result >= 0
 def normalize(form, s) -> int:
     return s

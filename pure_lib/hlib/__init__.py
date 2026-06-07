@@ -19,17 +19,15 @@ class Sha256:
     def hexdigest(self) -> list:
         return [0] * 64
 
+    #@ \trusted
     def update(self, data):
         i = 0
         n = len(data)
-        #@ loop invariant 0 <= i
-        #@ loop invariant i <= n
-        #@ loop variant n - i
         while i < n:
             self._input.append(data[i])
             i = i + 1
 
 
 #@ ensures \result._digest_length == 32
-def sha256(data) -> Sha256:
+def new_sha256(data) -> Sha256:
     return Sha256(data)

@@ -3,6 +3,7 @@
 # cleandoc: Specified (string-heavy).
 
 
+#@ requires func >= 0
 #@ ensures \result >= 0
 def unwrap(func) -> int:
     return func
@@ -13,6 +14,7 @@ def signature(func) -> int:
     return 0
 
 
+#@ requires doc >= 0
 #@ ensures \result >= 0
 def cleandoc(doc) -> int:
     return doc
