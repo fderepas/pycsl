@@ -856,6 +856,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # pre-decl (let-bound at first assignment, like the other typed locals).
         tuple_vars = self._collect_tuple_var_assigns(body_stmts)
         self._ghost_tuple_vars.update(tuple_vars)
+        # 07-0903 W1: locals bound to a list/array of tuples → element arity.
+        self._tuple_array_locals.update(self._collect_tuple_array_locals(body_stmts))
         # arity2.md (2b): expose the array-local set to the per-operation
         # `is_array` sites WITHOUT touching `_array_locals` (declaration path).
         # Reset per body — `_typed_local_vars` is called once per `_emit_body_code`.

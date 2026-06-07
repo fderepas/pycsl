@@ -1363,6 +1363,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
                 " -> String.length result = len }")
             return f"(str_sub_op {vstr} {index} 1)"
+        # 07-0903 W1: `a[i][k]` where `a` is a list/array of tuples — the inner `a[i]` is
+        # a tuple value (`Array.get`), so destructure its k-th component. Must precede the
+        # 2-D matrix detection below (which would otherwise read `a` as a `matrix`).
+        if (value.get("type") == "Subscript"
+                and value.get("value", {}).get("type") == "Var"
+                and value["value"]["name"] in getattr(self, "_tuple_array_locals", {})):
+            _ta = self._tuple_array_locals[value["value"]["name"]]
+            try:
+                _tk = int(index)
+            except ValueError:
+                _tk = -1
+            if 0 <= _tk < _ta:
+                _elem = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)
+                _bind = ", ".join(f"_r{_tk}_" if j == _tk else "_" for j in range(_ta))
+                return f"(let ({_bind}) = {_elem} in _r{_tk}_)"
         # \result[i] on a tuple return → let-destructure
         if value.get("type") == "Result" and hasattr(self, "_current_tuple_arity"):
             arity = self._current_tuple_arity
@@ -1499,6 +1514,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         """Handle non-self attribute access: record field or abstract getter."""
         obj_ir = expr.get("object", {})
         attr = expr.get("attr", "unknown")
+        # 07-0903 W2: `\result.<field>` — field access on a record-returning function's
+        # result. The WhyML result is the record value; emit `result.<field_label>`.
+        if isinstance(obj_ir, dict) and obj_ir.get("type") == "Result":
+            return f"result.{self._field_label(getattr(self, '_func_return_type', None), attr)}"
         # scc3.md Phase A: a quantifier-bound record var `o : C` (registered by
         # `_push_quant_binder`) — `o.field` is the record field, qualified via
         # `_field_label`, not an abstract `get_field` stub. (The class invariant is
@@ -2017,16 +2036,28 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if t == "None":     return "0"
         if t == "ArrayLit":
             elts = expr.get("elts", [])
-            # 0442.md C3 (no-more-int): an array/list of tuples has no faithful WhyML
-            # model yet (would need `array (int, …)`); silently hashing each tuple
-            # element to a single int loses all structure and is unsound. Reject
-            # explicitly rather than collapse — surface the gap, do not fake it.
-            if any(isinstance(e, dict) and e.get("type") == "Tuple" for e in elts):
-                from errors import PyCSLSemanticError
-                raise PyCSLSemanticError(
-                    "array/list of tuples is not supported: there is no faithful "
-                    "`array (tuple)` model, and collapsing tuple elements to int would "
-                    "be unsound. Use parallel arrays (one per tuple field) instead.")
+            # 07-0903 W1 (no-more-int): a list/array of tuples lowers to a faithful
+            # `array (t0, …)` — each element is a Why3 tuple, NOT collapsed to an int.
+            # Homogeneous fixed-arity tuples only (the directory/(key,value) shape);
+            # a mixed-arity literal is still rejected (no single element type).
+            tuple_elts = [e for e in elts if isinstance(e, dict) and e.get("type") == "Tuple"]
+            if tuple_elts:
+                arities = {len(e.get("elts", [])) for e in tuple_elts}
+                if len(tuple_elts) != len(elts) or len(arities) != 1:
+                    from errors import PyCSLSemanticError
+                    raise PyCSLSemanticError(
+                        "array/list with mixed or non-tuple elements alongside tuples is "
+                        "not supported: a faithful `array (tuple)` needs one uniform "
+                        "element type. Use a uniform list of equal-arity tuples.")
+                n = len(elts)
+                # Each element is a Why3 tuple value `(a, b, …)` — no int coercion.
+                lowered = [self._expr_to_whyml(e, local_refs, invariant_ctx, subst)
+                           for e in elts]
+                inner = f"let _alit = Array.make {n} ({lowered[0]}) in"
+                sets = "; ".join(f"_alit[{i}] <- {lowered[i]}" for i in range(1, n))
+                if sets:
+                    inner += f" {sets};"
+                return f"({inner} _alit)"
             if elts:
                 # Build a concrete `array int` of the literal's elements:
                 # `(let _alit = Array.make N e0 in _alit[1] <- e1; …; _alit)`.

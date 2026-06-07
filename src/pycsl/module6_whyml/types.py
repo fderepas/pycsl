@@ -296,6 +296,31 @@ class TypeInferenceMixin:
             return f"(if {val} then 1 else 0)"
         return val
 
+    def _collect_tuple_array_locals(self, stmts: List[Dict[str, Any]]) -> Dict[str, int]:
+        """07-0903 W1: locals assigned a list/array literal of uniform tuples
+        (`a = [(x, y), …]`) → {name: tuple arity}. Used so `a[i][k]` destructures the
+        element tuple (and is not mistaken for a 2-D matrix access)."""
+        found: Dict[str, int] = {}
+        for s in stmts:
+            if s.get("stmt") == "Assign":
+                val = s.get("value", {})
+                tgt = s.get("target", "")
+                if isinstance(val, dict) and val.get("type") in ("ArrayLit", "ListLit") and tgt:
+                    elts = val.get("elts", [])
+                    tups = [e for e in elts
+                            if isinstance(e, dict) and e.get("type") == "Tuple"]
+                    if elts and len(tups) == len(elts):
+                        arities = {len(e.get("elts", [])) for e in tups}
+                        if len(arities) == 1:
+                            found[tgt] = arities.pop()
+            for k in ("body", "orelse"):
+                if k in s:
+                    found.update(self._collect_tuple_array_locals(s[k]))
+            if s.get("stmt") == "Try":
+                for h in s.get("handlers", []):
+                    found.update(self._collect_tuple_array_locals(h.get("body", [])))
+        return found
+
     def _collect_tuple_var_assigns(self, stmts: List[Dict[str, Any]]) -> Dict[str, int]:
         """0442.md C2: locals bound to a tuple-returning call (`p = mk(x)` where `mk`'s
         return type is `(int, …)`) → {name: arity}. The cross-method return-type map
