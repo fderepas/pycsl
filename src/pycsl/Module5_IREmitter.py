@@ -1503,6 +1503,9 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             "diverges": getattr(node, 'csl_diverges', False),
             "trusted": getattr(node, 'csl_trusted', False),
             "abstract": getattr(node, 'csl_abstract', False),
+            # 07-1143 R4: `#@ \preserves` opt-in (HAPPY trust boundary), surfaced in the
+            # IR so `--soundness-report` can classify the function as Confinement-trusted.
+            "preserves": getattr(node, 'csl_preserves', False),
             "lemma": getattr(node, 'csl_lemma', False),
             "uses": list(getattr(node, 'csl_uses', []) or []),
             # no-more-int Stage F: a memoizing decorator requires a referentially

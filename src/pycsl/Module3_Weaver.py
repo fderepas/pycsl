@@ -4,7 +4,7 @@ import pure_ast as ast  # PyCSL toolchain parses Python via its own pure-Python
                         # front-end (no stdlib `ast` / CPython `compile`).
 import warnings
 from typing import List, Dict, Any, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, fields as _dc_fields, is_dataclass as _is_dc
 
 # Import the AST nodes from Module 2
 from Module2_Parser import (
@@ -16,7 +16,7 @@ from Module2_Parser import (
     SharedDecl, DatatypeDecl, InductiveDecl, ThreadEntry, Acquires, Releases, CriticalSection,
     MutexInvariant, LockOrder, BinOp, Number,
     Act, Given, Complete, Disjoint, Old, UnaryOp, CSLBool,
-    CheckPoint, HappyProperty, Preserves, Var, Forall, FieldSubscript,
+    CheckPoint, HappyProperty, Preserves, Footprint, Var, Forall, FieldSubscript,
     MixinDecl, ProvidesDecl, SharedStateDecl, TouchesFieldDecl,
     MethodDependencyDecl, ComposeFromDecl,
 )
@@ -222,6 +222,8 @@ class PyCSLWeaver(ast.NodeVisitor):
                 node.csl_uses.append(c.lemma)
             elif isinstance(c, Preserves):
                 node.csl_preserves = True
+            elif isinstance(c, Footprint):
+                node.csl_footprints = getattr(node, "csl_footprints", []) + [c]
             elif isinstance(c, RaisesDecl):
                 node.csl_raises.append(c)
             elif isinstance(c, NoExceptionDecl):
@@ -633,8 +635,56 @@ class Module3_Weaver:
         if not happy_props:
             return
         funcs = [n for n in ast.walk(python_ast) if isinstance(n, ast.FunctionDef)]
+        # 07-1143 R3 (validation): every `#@ footprint NAME(arg)` must reference a declared
+        # PARAMETRIC HAPPY `NAME` — a typo would silently confine nothing (a soundness
+        # hole, since the method would appear constrained but get no per-site check).
+        param_happy_names = {hp.name for hp in happy_props if hp.param is not None}
+        for fn in funcs:
+            for fpd in getattr(fn, "csl_footprints", []):
+                if fpd.happy_name not in param_happy_names:
+                    raise PyCSLSemanticError(
+                        f"`footprint {fpd.happy_name}` on '{fn.name}' references no "
+                        f"parametric HAPPY named '{fpd.happy_name}'. Declared parametric "
+                        f"HAPPYs: {sorted(param_happy_names)}.")
         for hp in happy_props:
             except_set = set(hp.except_set)
+            # 07-1143 R3: PARAMETRIC (per-object) form. A method binds the region via
+            # `#@ footprint NAME(arg)`; at each point write `path[i]=v` it must prove the
+            # index lies in the substituted region `[lo[param:=arg], hi[param:=arg])`. A
+            # non-exempt method with NO footprint that writes the path is forbidden
+            # (`check False`). (Per the design review: this proves CONTAINMENT — that
+            # writes stay in-region — which composes with an indexed-`assigns` frame to
+            # give per-object PRESERVATION.)
+            if hp.param is not None:
+                path = hp.protects[0]
+                funcs2 = [n for n in ast.walk(python_ast) if isinstance(n, ast.FunctionDef)]
+                fp_arg = {}
+                for fn in funcs2:
+                    for fpd in getattr(fn, "csl_footprints", []):
+                        if fpd.happy_name == hp.name:
+                            fp_arg[fn.name] = fpd.arg
+                psites = []
+                self._collect_protect_index_sites(python_ast, path, None, psites)
+                psites.sort(key=lambda t: (getattr(t[0], "lineno", 0),
+                                           getattr(t[0], "col_offset", 0)))
+                for stmt, func_name, idx_ast in psites:
+                    if func_name in except_set:
+                        continue
+                    line = getattr(stmt, "lineno", 0)
+                    if func_name in fp_arg:
+                        arg = fp_arg[func_name]
+                        lo_s = self._subst_csl_param(hp.region_lo, hp.param, arg)
+                        hi_s = self._subst_csl_param(hp.region_hi, hp.param, arg)
+                        i_csl = self.parser_module.parse_contract(
+                            "check (" + ast.unparse(idx_ast) + ")", line).expr
+                        pred = BinOp(BinOp(lo_s, "<=", i_csl), "and",
+                                     BinOp(i_csl, "<", hi_s))
+                    else:
+                        pred = CSLBool(False)   # non-exempt, no footprint → forbidden
+                    origin = f"happy {hp.name}({hp.param}) protects {path} L{line}"
+                    cp = CheckPoint("check", pred, origin=origin)
+                    stmt.csl_checkpoints = getattr(stmt, "csl_checkpoints", []) + [cp]
+                continue
             # 07-1143 R1/R2: the `protects <paths>` subsystem-ownership form — no method
             # outside `except` may DIRECTLY write any protected (possibly dotted) path.
             # Per-site check is `False` (forbidden outright); there is no region.
@@ -763,6 +813,46 @@ class Module3_Weaver:
                         out.append((child, cur_func, p))
             inner = child.name if isinstance(child, ast.FunctionDef) else cur_func
             self._collect_protect_sites(child, protected, inner, out)
+
+    def _collect_protect_index_sites(self, node: ast.AST, path: str,
+                                     cur_func, out: List[tuple]) -> None:
+        """07-1143 R3: like `_collect_protect_sites` but for a single indexed path,
+        capturing the subscript INDEX ast — `(stmt, enclosing_func_name, index_ast)` for
+        every point write `<path>[i] = v`. (Slice/whole-array writes to a parametric path
+        are not certifiable per-object; they are left to the non-footprint reject.)"""
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+                tgts = (child.targets if isinstance(child, ast.Assign)
+                        else [child.target])
+                for tgt in tgts:
+                    if isinstance(tgt, ast.Subscript) and \
+                            self._target_dotted_path(tgt.value) == path:
+                        sl = tgt.slice
+                        if isinstance(sl, ast.Index):   # pre-3.9 wrapper
+                            sl = sl.value
+                        if not isinstance(sl, ast.Slice):
+                            out.append((child, cur_func, sl))
+            inner = child.name if isinstance(child, ast.FunctionDef) else cur_func
+            self._collect_protect_index_sites(child, path, inner, out)
+
+    @staticmethod
+    def _subst_csl_param(node, param_name: str, repl):
+        """07-1143 R3: return a deep copy of CSL expression `node` with every `Var` named
+        `param_name` replaced by (a copy of) `repl` — binds a parametric HAPPY's region
+        bounds to a method's footprint argument."""
+        if isinstance(node, Var) and getattr(node, "name", None) == param_name:
+            return copy.deepcopy(repl)
+        if _is_dc(node):
+            out = copy.deepcopy(node)
+            for f in _dc_fields(out):
+                v = getattr(out, f.name)
+                if _is_dc(v) or isinstance(v, Var):
+                    setattr(out, f.name, Module3_Weaver._subst_csl_param(v, param_name, repl))
+                elif isinstance(v, list):
+                    setattr(out, f.name, [Module3_Weaver._subst_csl_param(x, param_name, repl)
+                                          if _is_dc(x) else x for x in v])
+            return out
+        return node
 
     def _check_protect_aliasing(self, node: ast.AST, protected: set, except_set: set,
                                 cur_func, hp_name: str) -> None:

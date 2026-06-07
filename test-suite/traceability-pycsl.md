@@ -94,6 +94,11 @@ The **Ref** column uses the format `section.subsection.row`.
 | 2.4.4 | Critical section \| `#@ critical <mutex>` \| with-block is a critical section (havoc+assume+assert) | 0250, 0251, 0252, 0253, 0278; XFAIL: 0254 (unprotected write) | PASS |
 | 2.4.5 | Acquires \| `#@ acquires <mutex>` \| Explicit mutex acquire annotation | 0262, 0263, 0264, 0265, 0266; XFAIL: 0255 (missing lock_order) | PASS |
 | 2.4.6 | Releases \| `#@ releases <mutex>` \| Explicit mutex release annotation | 0267, 0268, 0269, 0270, 0271 | PASS |
+| 2.5.1 | HAPPY (region) \| `#@ happy <name>: region LO..HI writes self.<field> outside region` \| Per-site disjointness check | 0459, 0460 | PASS |
+| 2.5.2 | Preserves \| `#@ \preserves` \| Trusted/abstract HAPPY trust-boundary opt-in | 0461; XFAIL: 0462 | PASS |
+| 2.5.3 | HAPPY (protects) \| `#@ happy <name>: protects <paths> [except …]` \| Subsystem ownership; per-site `check False`; aliasing rejected (07-1143 R1/R2) | 0611; XFAIL: 0612, 0613 | PASS |
+| 2.5.4 | HAPPY (parametric) \| `#@ happy <name>(p): protects <path>[LO:HI]` \| Per-object containment check (07-1143 R3) | 0614; XFAIL: 0615 | PASS |
+| 2.5.5 | Footprint \| `#@ footprint <name>(arg)` \| Binds a parametric HAPPY's parameter (07-1143 R3) | 0614; XFAIL: 0615 | PASS |
 | 5.4 | Concurrent memory model \| `--memory-model concurrent` \| Monitor-invariant sequential reduction | 0250, 0251, 0252, 0253, 0277 | PASS |
 | 10.1.1 | Protected shared variable \| `#@ shared <var> protected_by <mutex>` \| Shared global with mutex | 0250, 0251, 0252, 0253, 0280 | PASS |
 | 10.1.2 | Unprotected shared variable \| `#@ shared <var>` \| Shared global without mutex (lenient) | 0272, 0273, 0274, 0275, 0276 | PASS |

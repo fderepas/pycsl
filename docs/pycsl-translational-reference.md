@@ -432,6 +432,14 @@ emitted on its `val` (§T.2.6) and thus **assumed** at call sites. The field-sub
 `self.f[i]` lowers to a subscript of the record field `f` (hoare: `self.f[i]`); `\old(self.f[i])`
 to `(old self.f[i])`.
 
+**`footprint` / parametric & protects HAPPY (07-1143).** These desugar entirely to the same
+per-site `#@ check` primitive (§ check), so they add **no** new WhyML/IR construct. A `protects
+<paths>` HAPPY emits `#@ check False` at each non-exempt direct write of a protected (possibly
+dotted) path. A parametric `#@ happy <name>(p): protects <path>[LO:HI]` with a method's `#@
+footprint <name>(arg)` emits `#@ check (LO[p:=arg] <= i && i < HI[p:=arg])` at each write
+`<path>[i]` — the bounds are the region with `p` substituted by `arg`. Each carries an `origin`
+comment naming the HAPPY and site.
+
 ### §T.2.6  Trusted Functions (`\trusted [reviewer: <name>]`)
 
 $$\mathcal{T}_f\llbracket \texttt{def f(...): \#@ \\trusted ...} \rrbracket

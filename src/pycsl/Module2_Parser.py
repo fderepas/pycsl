@@ -81,6 +81,20 @@ class HappyProperty(CSLNode):
     # paths by a non-exempt method — the per-site check is `False` (forbidden outright),
     # there is no region. `field`/`region_*` are unused in this form.
     protects: Optional[List[str]] = None
+    # 07-1143 R3: the PARAMETRIC (per-object) form. `param` is the bound name (e.g. `n`);
+    # `protects` holds the single indexed path; `region_lo`/`region_hi` are the bounds in
+    # terms of `param`. A method declares `#@ footprint NAME(arg)` to bind `param := arg`;
+    # the per-site check then asserts each write index lies in the substituted region.
+    param: Optional[str] = None
+
+
+@dataclass
+class Footprint(CSLNode):
+    """07-1143 R3: `#@ footprint NAME(arg)` — binds the parameter of the parametric HAPPY
+    `NAME` to one of the method's own arguments, so the meta-pass injects a per-site
+    region check parameterised by `arg` at each write of the protected path."""
+    happy_name: str
+    arg: CSLNode
 
 @dataclass
 class LoopInvariant(ContractWrapper):
@@ -777,6 +791,7 @@ PYCSL_GRAMMAR = r"""
              | lemma_decl
              | uses_decl
              | preserves_decl
+             | footprint_decl
              | ghost_assign
              | ghost_aug_assign
              | ghost_array_set
@@ -807,6 +822,7 @@ PYCSL_GRAMMAR = r"""
              | disjoint_decl
              | happy_decl
              | happy_protects_decl
+             | happy_param_decl
 
     precondition: "requires" expr
     postcondition: "ensures" expr
@@ -832,6 +848,14 @@ PYCSL_GRAMMAR = r"""
     happy_protects_decl: "happy" CNAME ":" "protects" dotted_path_list ("except" act_names)?
     dotted_path_list: dotted_path ("," dotted_path)*
     dotted_path: CNAME ("." CNAME)*
+
+    // 07-1143 R3: parametric (per-object) HAPPY — a separate rule (not an alternative of
+    // happy_protects_decl) to avoid a parse conflict on the shared `happy CNAME` prefix.
+    happy_param_decl: "happy" CNAME "(" CNAME ")" ":" "protects" dotted_path "[" expr ":" expr "]" ("except" act_names)?
+
+    // 07-1143 R3: a method declares the per-object region it operates on, binding the
+    // parameter of a parametric HAPPY to one of its own arguments.
+    footprint_decl: "footprint" CNAME "(" expr ")"
 
     // Extracted alias from group to prevent Lark GrammarError
     assigns: "assigns" assigns_target
@@ -1140,6 +1164,15 @@ class PyCSLTransformer(Transformer):
     def happy_protects_decl(self, name, paths, *rest) -> HappyProperty:
         except_set = list(rest[0]) if rest else []
         return HappyProperty(str(name), "", None, None, except_set, protects=list(paths))
+
+    # 07-1143 R3: parametric (per-object) HAPPY + the `footprint` method binding.
+    def happy_param_decl(self, name, param, path, lo, hi, *rest) -> HappyProperty:
+        except_set = list(rest[0]) if rest else []
+        return HappyProperty(str(name), "", lo, hi, except_set,
+                             protects=[str(path)], param=str(param))
+
+    def footprint_decl(self, happy_name, arg) -> Footprint:
+        return Footprint(str(happy_name), arg)
 
     def assigns(self, target) -> Assigns:
         if isinstance(target, Nothing):

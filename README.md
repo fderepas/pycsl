@@ -87,6 +87,7 @@ Reading the tokens:
 | `assert` / `check` | `#@ assert P` proves `P` at that statement and assumes it downstream; `#@ check P` proves without assuming. A real obligation — unlike the Python `assert`, which the prover ignores. |
 | `happy <name>:` | A module-level HAPPY region-integrity property: `#@ happy <name>:` with a 4-space-indented body `region LO .. HI` / `writes self.<field> outside region` / optional `except m1, m2`. Expands to a per-site `#@ check` at every write of `self.<field>` in every non-exempt method. |
 | `\preserves` | `#@ \preserves` opts a `\trusted`/`\abstract` method into a HAPPY trust boundary (synthesizes the assumed region-preservation `ensures`); required on any non-exempt bodyless mutator. |
+| `footprint` | `#@ footprint <name>(<arg>)` binds the parameter of a parametric HAPPY (`#@ happy <name>(p): protects <path>[LO:HI]`, 07-1143 R3) to this method's argument, so each write of the path gets a per-object containment `#@ check`. (The HAPPY `protects <paths> [except …]` subsystem-ownership form, 07-1143 R1/R2, expands to a per-site `#@ check False` at non-exempt direct writes and rejects aliasing a protected base.) |
 
 Multiple `requires` / `ensures` lines are conjuncted.
 

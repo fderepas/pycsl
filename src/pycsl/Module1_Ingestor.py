@@ -65,7 +65,7 @@ def _clean(comment_text: str) -> str:
 # `happy NAME:` (module-level HAPPY meta-property) fold identically. See
 # `_Harvester._fold_blocks`.
 _ACT_HDR = re.compile(r"^\s*act\s+(\w+)\s*:\s*$")
-_HAPPY_HDR = re.compile(r"^\s*happy\s+(\w+)\s*:\s*$")
+_HAPPY_HDR = re.compile(r"^\s*happy\s+(\w+)\s*(?:\(\s*(\w+)\s*\))?\s*:\s*$")  # 07-1143 R3: optional `(param)` captured in group(2)
 # inductive.md — `#@ inductive NAME(sig):` opens an indentation block whose 4-space
 # bodies are the rules (`name: clause`), folded into `inductive NAME(sig): <rules>`.
 # The captured group is the whole `NAME(sig)` (the signature contains `:` for typed
@@ -83,7 +83,12 @@ def _match_block_hdr(line: str):
     for kw, rx in _BLOCK_HDRS:
         m = rx.match(line)
         if m:
-            return kw, m.group(1)
+            name = m.group(1)
+            # 07-1143 R3: a `happy NAME(param):` header carries a parameter (group 2);
+            # preserve it in the reconstructed folded header so the grammar sees it.
+            if m.re.groups >= 2 and m.group(2):
+                name = f"{name}({m.group(2)})"
+            return kw, name
     return None
 
 

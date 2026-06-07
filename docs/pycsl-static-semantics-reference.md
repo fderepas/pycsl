@@ -363,6 +363,14 @@ method has no checkable body, so it must opt into the trust boundary with `#@ \p
 checks in `Module4._validate_happy`; the trust-boundary requirement in
 `Module3_Weaver._expand_happy_properties`.
 
+**Rule (`footprint` / parametric & protects forms, 07-1143).** A `#@ footprint <name>(arg)`
+must name a parametric HAPPY `<name>` declared in the module (`#@ happy <name>(p): protects
+<path>[LO:HI]`); the meta-pass binds `p := arg` and injects a per-site containment check
+`LO[p:=arg] <= i and i < HI[p:=arg]` at each write of `<path>[i]` in the declaring method. A
+non-exempt method with no `footprint` writing the path, and any non-exempt direct write of a
+`protects <paths>` (subsystem-ownership) field, get `#@ check False`. Aliasing a protected base
+into a non-exempt local is a hard error (`Module3_Weaver._check_protect_aliasing`).
+
 **Soundness (composition theorem, `meta.md`).** If every body-verified method discharges a
 `#@ check φ(ℓ)` at each write site of `self.f` (universal coverage, clause 1) and every other
 mutator is exempt or carries the `\preserves` region-preservation `ensures` (clause 2), then
