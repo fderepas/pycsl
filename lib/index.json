@@ -99,6 +99,15 @@
       "sha256": false
     }
   },
+  "heapq": {
+    "category": "data",
+    "files": 1,
+    "pycsl-functions-used": {
+      "heapify": false,
+      "heappop": false,
+      "heappush": false
+    }
+  },
   "inspect": {
     "category": "introspection",
     "files": 1,
@@ -169,6 +178,14 @@
       "Path": false
     }
   },
+  "queue": {
+    "category": "concurrency",
+    "files": 1,
+    "pycsl-functions-used": {
+      "PriorityQueue": false,
+      "Queue": false
+    }
+  },
   "re": {
     "category": "text",
     "files": 3,
@@ -193,6 +210,14 @@
       "token_hex": false
     }
   },
+  "shlex": {
+    "category": "text",
+    "files": 1,
+    "pycsl-functions-used": {
+      "quote": false,
+      "split": false
+    }
+  },
   "shutil": {
     "category": "system",
     "files": 2,
@@ -207,6 +232,14 @@
     "pycsl-functions-used": {
       "S_ISDIR": false,
       "S_ISREG": false
+    }
+  },
+  "string": {
+    "category": "text",
+    "files": 1,
+    "pycsl-functions-used": {
+      "Formatter": false,
+      "Template": false
     }
   },
   "subprocess": {
@@ -246,6 +279,15 @@
     "pycsl-functions-used": {
       "NamedTemporaryFile": false,
       "mkstemp": false
+    }
+  },
+  "textwrap": {
+    "category": "text",
+    "files": 1,
+    "pycsl-functions-used": {
+      "dedent": false,
+      "fill": false,
+      "wrap": false
     }
   },
   "time": {
