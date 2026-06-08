@@ -1,40 +1,55 @@
 # Pure Python byte-packing helpers (replaces import struct / import time)
 
 
-#@ requires True
+#@ requires 0 <= v and v <= 65535
 #@ assigns \nothing
 #@ ensures \length(\result) == 2
+#@ ensures 0 <= \result[0] and \result[0] <= 255
+#@ ensures 0 <= \result[1] and \result[1] <= 255
+#@ ensures \result[0] * 256 + \result[1] == v
 def _pack_uint16_be(v: int) -> list:
-    """Pack a 16-bit unsigned int, big-endian."""
-    return bytes([(v >> 8) & 0xFF, v & 0xFF])
+    """Pack a 16-bit unsigned int, big-endian (\result[0]*256 + \result[1] == v)."""
+    return bytes([v // 256, v % 256])
 
 
-#@ requires \valid(data, 2)
+#@ requires \valid(data, offset + 2)
 #@ requires offset >= 0
+#@ requires 0 <= data[offset] and data[offset] <= 255
+#@ requires 0 <= data[offset + 1] and data[offset + 1] <= 255
 #@ assigns \nothing
-#@ ensures \result >= 0
+#@ ensures \result == data[offset] * 256 + data[offset + 1]
+#@ ensures 0 <= \result and \result <= 65535
 def _unpack_uint16_be(data: list, offset: int) -> int:
-    """Unpack a 16-bit unsigned int, big-endian."""
-    return (data[offset] << 8) | data[offset + 1]
+    """Unpack a 16-bit unsigned int, big-endian (inverse of _pack_uint16_be)."""
+    return data[offset] * 256 + data[offset + 1]
 
 
-#@ requires True
+#@ requires 0 <= v and v <= 4294967295
 #@ assigns \nothing
 #@ ensures \length(\result) == 4
+#@ ensures 0 <= \result[0] and \result[0] <= 255
+#@ ensures 0 <= \result[1] and \result[1] <= 255
+#@ ensures 0 <= \result[2] and \result[2] <= 255
+#@ ensures 0 <= \result[3] and \result[3] <= 255
+#@ ensures \result[0] * 16777216 + \result[1] * 65536 + \result[2] * 256 + \result[3] == v
 def _pack_uint32_be(v: int) -> list:
-    """Pack a 32-bit unsigned int, big-endian."""
-    return bytes([(v >> 24) & 0xFF, (v >> 16) & 0xFF,
-                  (v >> 8) & 0xFF, v & 0xFF])
+    """Pack a 32-bit unsigned int, big-endian (b0*2^24+b1*2^16+b2*2^8+b3 == v)."""
+    return bytes([v // 16777216, (v // 65536) % 256, (v // 256) % 256, v % 256])
 
 
-#@ requires \valid(data, 4)
+#@ requires \valid(data, offset + 4)
 #@ requires offset >= 0
+#@ requires 0 <= data[offset] and data[offset] <= 255
+#@ requires 0 <= data[offset + 1] and data[offset + 1] <= 255
+#@ requires 0 <= data[offset + 2] and data[offset + 2] <= 255
+#@ requires 0 <= data[offset + 3] and data[offset + 3] <= 255
 #@ assigns \nothing
-#@ ensures \result >= 0
+#@ ensures \result == data[offset] * 16777216 + data[offset + 1] * 65536 + data[offset + 2] * 256 + data[offset + 3]
+#@ ensures 0 <= \result and \result <= 4294967295
 def _unpack_uint32_be(data: list, offset: int) -> int:
-    """Unpack a 32-bit unsigned int, big-endian."""
-    return ((data[offset] << 24) | (data[offset + 1] << 16) |
-            (data[offset + 2] << 8) | data[offset + 3])
+    """Unpack a 32-bit unsigned int, big-endian (inverse of _pack_uint32_be)."""
+    return (data[offset] * 16777216 + data[offset + 1] * 65536 +
+            data[offset + 2] * 256 + data[offset + 3])
 
 
 #@ requires \valid(fields, 18)
