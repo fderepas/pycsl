@@ -123,6 +123,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # responsibility); pass through.
         if stripped.replace("_", "").replace("!", "").isalnum():
             return whyml_str
+        # L2 sub-gap 2 (os-bodyvc-spec): a function application `(fn arg…)` or array-literal
+        # `(let _alit = …)` in an array slot is an array-returning expression (e.g. `(pack16 x)`,
+        # `(materialize !s)`, the `[..]` literal). Pass it through — clobbering it to a placeholder
+        # discards the value, which breaks contract-composition round-trips
+        # (`unpack(pack(x)) == x` lost `pack(x)` to `(Array.make 1 0)`). Only genuinely-scalar args
+        # (`0`, a numeric `(a + b)`) still get the placeholder.
+        if stripped.startswith("("):
+            inner = stripped[1:].lstrip()
+            head = inner.split(" ", 1)[0] if " " in inner else inner.rstrip(")")
+            head_ok = head.lstrip("!").replace("_", "").replace(".", "").isalnum()
+            if head and head_ok and not head.lstrip("!")[:1].isdigit():
+                return whyml_str
         # Anything else (BinOp result, parenthesised int expression) —
         # coerce to placeholder since we can't recover the array.
         return "(Array.make 1 0)"
