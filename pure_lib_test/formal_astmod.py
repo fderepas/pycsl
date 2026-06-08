@@ -19,10 +19,8 @@ def test_dump_positive(node: int) -> int:
     return dump(node)
 
 
-#@ requires node >= 0
-#@ ensures \result >= 0
-def test_literal_eval_nonneg(node: int) -> int:
-    """literal_eval returns non-negative value."""
+def test_literal_eval_unconstrained(node: int) -> int:
+    """literal_eval is honestly unconstrained (no >= 0; see §4.4 / P5c)."""
     return literal_eval(node)
 
 
@@ -82,3 +80,40 @@ def test_iter_children_nonneg(node: int) -> int:
 def test_walk_positive(node: int) -> int:
     """walk returns positive count (at least the root)."""
     return walk(node)
+
+
+# --- P3: \in_scope on definitely-assigned locals (07-1839) ---
+
+#@ requires node >= 0
+#@ ensures \in_scope(node)
+#@ ensures \in_scope(r)
+def test_in_scope_after_copy_location(node: int) -> int:
+    """\in_scope is decided TRUE for params and assigned locals."""
+    r: int = copy_location(node, node)
+    return r
+
+
+#@ requires src >= 0
+#@ ensures \in_scope(src)
+#@ ensures \in_scope(tree)
+def test_in_scope_after_parse(src: int) -> int:
+    """parse result is definitely assigned → in scope."""
+    tree: int = parse(src)
+    return tree
+
+
+# --- P4: isinstance on typed params (07-1839) ---
+
+#@ requires isinstance(x, int)
+#@ ensures isinstance(x, object)
+#@ assigns \nothing
+def test_isinstance_int_param(x: int) -> int:
+    """isinstance(x:int, int) and isinstance(x, object) both decided TRUE."""
+    return x
+
+
+#@ requires isinstance(s, str)
+#@ assigns \nothing
+def test_isinstance_str_param(s: str) -> int:
+    """isinstance(s:str, str) decided TRUE."""
+    return 0

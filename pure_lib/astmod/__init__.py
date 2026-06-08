@@ -24,12 +24,11 @@ def dump(node: int) -> int:
     return 1
 
 
-#@ requires node >= 0
-#@ ensures \result >= 0
 #@ assigns \nothing
 def literal_eval(node: int) -> int:
     """RST: 'Evaluate an expression node or a string containing only a Python literal.'
-    Returns the evaluated value as int."""
+    Dynamic case: unconstrained value (may be negative, e.g. literal_eval("-5") == -5).
+    Constant-arg case handled by [TOOL] P5c at verification time."""
     return 0
 
 
