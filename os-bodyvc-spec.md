@@ -85,7 +85,7 @@ def _unpack_uint16_be(data: list, offset: int) -> int: ...
 
 ### L2 — STATUS (2026-06-08): blocked on TWO sub-gaps the probe surfaced (leaf-first working as intended)
 Attempting the L2 round-trip exposed, exactly as L0 did, foundational gaps below it:
-1. **[TOOL] seq→array arg-materialize gap.** `_pack_inode` builds `parts = []; parts += _pack_*(…)`
+1. **[TOOL] seq→array arg-materialize gap — FIXED (`6adaaf4`).** `_pack_inode` builds `parts = []; parts += _pack_*(…)`
    (so `parts` is seq-promoted) then returns `bytes(parts)`. `bytes()` (and any array-param call like
    `_unpack_*(data,…)`) expects `array int` but gets `seq int` → **`@rho` type error**
    (`seq.Seq.seq int … expected array.Array.array int`). The real `_pack_inode` **fails standalone with
