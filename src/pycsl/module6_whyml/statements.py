@@ -878,7 +878,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         if arity > 0:
             return f"    try\n{body_code}\n    with Return_{arity} r -> r end"
         if return_type == "array int":
-            return body_code
+            # return-arr.md: early/in-loop returns in an array-returning function are raised as
+            # an immutable `Return_seq (seq int)` (Why3 forbids a mutable array payload); the
+            # catch materializes the seq back to `array int` at the single result-slot boundary.
+            return f"    try\n{body_code}\n    with Return_seq s -> materialize s end"
         return f"    try\n{body_code}\n    with Return r -> r end"
 
     def _typed_local_vars(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:

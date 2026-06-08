@@ -1,7 +1,15 @@
 # return-arr.md — array-returning functions with early returns (the `Return_seq` payload)
 
 **Date:** 2026-06-08
-**Status:** Approved — implementing
+**Status:** P1 IMPLEMENTED (the `Return_seq` mechanism — driver 0651 proves, corpus 608/608, sound).
+P2/P3 (os listdir/walk payoff) BLOCKED on a newly-found sub-gap: `_detect_seq_promotion`
+(`Module5_IREmitter.py`) only treats `+=`/`a+b` as list growth, NOT `.append()`. So listdir's
+append-built `names_out` stays an array-local, and its seq conversion snapshots the 1024-element
+backing rather than the logical length — listdir can't prove `\length(\result) <= 16`, which `walk`
+needs (modular). Applying P2/P3 net-REGRESSED os 39→41 (walk's 6 cleared, but listdir+scandir added 8
+unprovable postcondition goals), so the os application was reverted. **Remaining work:** promote
+`.append()`-built lists to seq (a broad model change — measure corpus/os impact) OR a `_len`-aware
+array→seq conversion in the `Return_seq` raise path. Then re-apply P2/P3 (expected os 39→≤33).
 **Owner:** PyCSL tool ([TOOL], `src/pycsl/**`)
 **Motivation source:** os-coverage follow-on ([[os-coverage-progress]]) — `walk`'s 3 loop-variant
 timeouts are blocked on `listdir` returning a length-bounded array, which it can't because it has

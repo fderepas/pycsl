@@ -555,6 +555,21 @@ class ControlFlowStmtMixin:
                 # _coerce_to_int — for tuple-shaped strings that would hash
                 # the whole tuple to a single int.
                 return f"{indent}raise (Return_{arity} {val})"
+            if func_ret == "array int":
+                # return-arr.md: array-returning functions with early/in-loop returns carry the
+                # value through an IMMUTABLE seq (Why3 forbids a mutable `array int` exception
+                # payload); the `with Return_seq s -> materialize s` catch rebuilds the array.
+                # `_seq_init_expr` turns a list literal into a Seq.cons chain and bridges any
+                # other array-typed RHS (array-local, etc.) with `snapshot`.
+                self._materialize_bridge()
+                if val_ir is None:
+                    seq_val = "Seq.empty"
+                elif (val_ir.get("type") == "Var"
+                      and val_ir.get("name") in getattr(self, "_seq_locals", set())):
+                    seq_val = f"!{whyml_ident(val_ir['name'])}"
+                else:
+                    seq_val = self._seq_init_expr(val_ir, local_refs)
+                return f"{indent}raise (Return_seq {seq_val})"
             # Array-returning functions with early returns CANNOT use the
             # straightforward `raise (Return arr)` shape — Why3 forbids
             # `array int` in exception payloads (mutable types), and the

@@ -210,6 +210,7 @@ class PreambleEmissionMixin:
         needs_break = any(IRScanner.uses_break(body) for body in all_bodies)
         needs_return_exc = False
         needs_return_void = False
+        needs_return_seq = False
         tuple_return_arities: Set[int] = set()
         n = len(functions)
         i = 0
@@ -218,6 +219,7 @@ class PreambleEmissionMixin:
             has_ret = IRScanner.has_in_loop_return(func["body"]) or IRScanner.has_early_return(func["body"])
             if has_ret:
                 ret_type = IRScanner.find_return_type(func["body"])
+                ann = func.get("return_annotation")
                 if ret_type == "unit":
                     needs_return_void = True
                 elif ret_type.startswith("(") and "," in ret_type:
@@ -225,6 +227,12 @@ class PreambleEmissionMixin:
                     # so the value carries through; the plain `exception Return int`
                     # would force `_coerce_to_int` to hash the whole tuple.
                     tuple_return_arities.add(ret_type.count(",") + 1)
+                elif ret_type == "array int" or ann in ("list", "bytes", "bytearray"):
+                    # return-arr.md: an array-returning function with early/in-loop returns.
+                    # Why3 forbids a mutable `array int` exception payload, so carry the value
+                    # through an IMMUTABLE `seq int` and materialize at the catch. (The array-ness
+                    # often comes from the `-> list` annotation, not find_return_type.)
+                    needs_return_seq = True
                 else:
                     needs_return_exc = True
             i += 1
@@ -244,7 +252,8 @@ class PreambleEmissionMixin:
         # `seq.Seq` for the immutable list-snapshot model.
         needs_seq = any(
             "seq" in v for f in functions for v in f.get("dict_value_types", {}).values()
-        ) or any(f.get("seq_promoted_vars") for f in functions)  # 07-1705-rev4 P3: seq locals
+        ) or any(f.get("seq_promoted_vars") for f in functions) \
+          or needs_return_seq  # return-arr.md: Return_seq payload + materialize need seq.Seq
         needs_map_ghost = any(IRScanner.uses_ghost_type(body, {"ghost_dict", "ghost_set"}) for body in all_bodies)
         needs_ghost_dict = any(IRScanner.uses_ghost_type(body, {"ghost_dict"}) for body in all_bodies)
         # Body-level Python dicts are modelled as `ref (map int (option int))`
@@ -314,6 +323,7 @@ class PreambleEmissionMixin:
             "needs_continue": needs_continue,
             "needs_break": needs_break,
             "needs_return_exc": needs_return_exc,
+            "needs_return_seq": needs_return_seq,
             "needs_return_void": needs_return_void,
             "needs_body_dict": needs_body_dict,
             "tuple_return_arities": tuple_return_arities,
@@ -415,6 +425,12 @@ class PreambleEmissionMixin:
         if needs["needs_return_exc"]:
             out.append("")
             out.append("  exception Return int")
+        if needs.get("needs_return_seq"):
+            # return-arr.md: array-returning functions with early returns carry the value
+            # through an IMMUTABLE seq (Why3 forbids a mutable array exception payload);
+            # the catch materializes back to `array int`.
+            out.append("")
+            out.append("  exception Return_seq (Seq.seq int)")
         if needs["needs_return_void"]:
             out.append("")
             out.append("  exception Return_void")
