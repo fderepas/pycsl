@@ -125,6 +125,42 @@ invariant + fix the **two inode-region writers** (`_write_inode`, `__format_disk
 a `_pack_inode` that ensures `0<=\result[i]<=255`) + supply caller-side disjointness for the framed
 writers, iterating against full-os — banked here as scoped, not forced half-done.
 
+## 3c. Application pass 2 (2026-06-09) — each piece proves standalone; the wall is in-context proof cost
+
+Did the four application tasks. Each component proves **standalone**, but they do not yet *land
+together* in the full os because of an **in-context proof-cost wall** (a function provable in seconds
+standalone is slow/intractable inside the full `UnixInodeFileSystem` file).
+
+- **C-app-3 `_pack_inode` rich def — GREEN.** Leaf-compositional body + definition (length + the 18 field
+  VALUES + a quantified byte-ensures `∀i<64. 0<=result[i]<=255`) + interface (length + bytes). Proves
+  `--fun` in ~minutes. The byte-ensures is what lets `_write_inode`'s blit preserve the region invariant.
+- **C-app-2 `_unpack_inode` field-range ensures — proves standalone (12s), context-slow (>300s).**
+  - Two pitfalls found + fixed in isolation: (1) the **block-field loop** must be **unrolled** (else the
+    block ranges 8–17 need a loop invariant); (2) a **quantified** byte-requires (`∀i<64. 0<=data[i]<=255`)
+    **times out on instantiation** — **specific** per-byte requires (`data[0..63]`) prove the 18 ranges
+    in **12s** (standalone probe). The leaves already `ensures 0<=\result<=MAX`, so the field ranges
+    follow directly *given* the byte bounds.
+  - **But in the full file, `--fun _unpack_inode` times out >300s** — the context (other functions, the
+    larger preamble/axioms) inflates each goal far beyond the 12s standalone cost.
+- **C-app-1 region invariant + layout — understood.** Bitmaps live at byte_offset 0/4 → `[0,36)`,
+  directory = block 5 → `[2560,3072)`, data = block ≥6 → `[3072,…)`: **every non-inode write is outside
+  `[512,2560)`**, so they frame from existing block/offset bounds (the bitmap's bitwise byte-ness is a
+  non-issue — it's outside the region). Only `_write_inode` + `__format_disk` write the region.
+- **C1 `_write_inode` — proven** standalone (requires discharge one-hop); **literal-inode** syscalls
+  (`sys_mkdir`) discharge trivially; **disk-read** syscalls (`sys_write`) need C-app-2's `_unpack_inode`
+  ranges, which need the region invariant to feed the 64 byte-bounds at `_read_inode`.
+
+**The recurring wall, named:** every richly-contracted codec function (`_pack_inode`, `_unpack_inode`,
+the inode round-trip, B's `_pack_inode`-in-os) proves **standalone** but is **slow or intractable in
+context** (full file / full os), and each iteration is a 300s–1200s run. Landing the full chain
+(region invariant → `_unpack` ranges with `_read_inode` feeding 64 byte-bounds from the quantified disk
+invariant → C1 → `__format_disk` → full-os framing of the non-inode writers → os@23) is a multi-step
+grind where *each* step is a multi-hundred-second-to-20-minute proof, several of which need the same
+kind of instantiation/loop tuning found above. **Reverted to keep os at 23.** This is not a missing
+mechanism (all proven) — it is that the faithful, richly-contracted os is *proof-cost-bound in
+aggregate*, the same wall `try.md` first hit, now confirmed to recur at each codec function and to
+compound across the chain.
+
 ## 4. The coupling invariant + L0″ (the heavier, later milestone — distinct from C1–C5)
 
 C1–C5 give a **verified, faithful, round-tripping codec inside os at 23** via a *field-range* invariant
