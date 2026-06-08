@@ -203,6 +203,7 @@ printf '%s\0' "${entries[@]}" | xargs -0 -P "$JOBS" -I {} "$0" --worker {}
 passed=0
 failed=0
 errors=()
+failed_files=()      # paths that failed in the parallel pass (for the confirmation re-run)
 current_suite=""
 for py_file in "${entries[@]}"; do
     suite="$(_suite_of "$py_file")"
@@ -215,11 +216,39 @@ for py_file in "${entries[@]}"; do
     case "$status" in
         PASS)  echo -e "${GREEN}[PASS]${RESET} $name"; ((passed++)) ;;
         XFAIL) echo -e "${GREEN}[XFAIL]${RESET} $name (expected failure)"; ((passed++)) ;;
-        SKIP)  echo -e "${YELLOW}[SKIP]${RESET} $name (no output)"; ((failed++)); errors+=("$suite/$name (no output)") ;;
-        FAIL)  echo -e "${RED}[FAIL]${RESET} $name"; ((failed++)); errors+=("$suite/$name") ;;
-        *)     echo -e "${RED}[FAIL]${RESET} $name (no result)"; ((failed++)); errors+=("$suite/$name (no result)") ;;
+        SKIP)  echo -e "${YELLOW}[SKIP]${RESET} $name (no output)"; ((failed++)); errors+=("$suite/$name (no output)"); failed_files+=("$py_file") ;;
+        FAIL)  echo -e "${RED}[FAIL]${RESET} $name"; ((failed++)); errors+=("$suite/$name"); failed_files+=("$py_file") ;;
+        *)     echo -e "${RED}[FAIL]${RESET} $name (no result)"; ((failed++)); errors+=("$suite/$name (no result)"); failed_files+=("$py_file") ;;
     esac
 done
+
+# Confirmation pass: a parallel run can suffer a *spurious* prover timeout when the box is
+# saturated (e.g. another agent is also sweeping → load > cores). Re-run each failure SERIALLY,
+# one at a time with no intra-sweep contention; any that now passes was a load-induced flake, not
+# a regression. This keeps the parallel sweep trustworthy under concurrent load. Skip in serial
+# mode (JOBS=1: nothing to disambiguate) or via PYCSL_NO_RECONFIRM=1.
+if [ ${#failed_files[@]} -gt 0 ] && [ "$JOBS" -gt 1 ] && [ "${PYCSL_NO_RECONFIRM:-0}" != "1" ]; then
+    echo ""
+    echo "[*] Re-running ${#failed_files[@]} failure(s) serially to rule out load-induced timeouts..."
+    recovered=()
+    confirmed=()
+    for py_file in "${failed_files[@]}"; do
+        name="$(basename "$py_file" .py)"
+        "$0" --worker "$py_file"     # rewrites this test's result file, no contention
+        status="$(cat "$RESULTS_DIR/$(_key_of "$py_file")" 2>/dev/null)"
+        if [ "$status" = "PASS" ] || [ "$status" = "XFAIL" ]; then
+            echo -e "  ${YELLOW}[FLAKY→PASS]${RESET} $name (failed under parallel load, passes serially)"
+            recovered+=("$name"); ((passed++)); ((failed--))
+        else
+            echo -e "  ${RED}[CONFIRMED FAIL]${RESET} $name"
+            confirmed+=("$(_suite_of "$py_file")/$name")
+        fi
+    done
+    errors=("${confirmed[@]}")
+    if [ ${#recovered[@]} -gt 0 ]; then
+        echo "[*] ${#recovered[@]} flaky timeout(s) recovered on serial re-run (not regressions)."
+    fi
+fi
 
 total=$((passed + failed))
 
@@ -229,7 +258,7 @@ echo " Results: $passed/$total passed"
 echo "==============================="
 
 if [ ${#errors[@]} -gt 0 ]; then
-    echo "Failed/skipped:"
+    echo "Failed/skipped (confirmed):"
     for f in "${errors[@]}"; do
         echo "  - $f"
     done

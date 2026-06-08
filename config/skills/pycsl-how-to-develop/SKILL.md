@@ -228,7 +228,12 @@ Every landed change records its passed gate inline. The standard gates:
   spurious timeouts the old serial-under-contention runs did (that "run it alone" caveat is superseded by
   the half-cores budget). The one remaining risk: **do not crank `--jobs` past half the cores** —
   over-subscription can starve a prover into a false timeout that looks like a regression (see
-  `more-proc.md` §2, the parallel↔serial acceptance gate).
+  `more-proc.md` §2, the parallel↔serial acceptance gate). A **serial confirmation pass** guards this:
+  any `[FAIL]`/`[SKIP]` is automatically re-run one-at-a-time, and one that then passes is reported
+  `[FLAKY→PASS]` and dropped — so only `[CONFIRMED FAIL]`s count. This matters most when a **second
+  agent is also sweeping** (two half-cores sweeps saturate the box); the confirmation pass is what
+  keeps the result sound. So **trust `[CONFIRMED FAIL]`, not a bare `[FAIL]`**; a lone flake will
+  recover on the re-run (e.g. the Rocq-heavy `0342`/`0352` did).
 - **Emission-identical byte-diff** for any refactor (see §10) — byte-identical `.mlw` across the
   whole corpus and all four memory models.
 - **5-surface doc-coherency** — `bin/doc-coherency.py --check` green across `annotations.md`

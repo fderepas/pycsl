@@ -39,6 +39,20 @@ PASS/XFAIL/FAIL set as the serial run* on the full corpus. Until that's demonstr
 `--timelimit`, or pin one prover. (Likely CPU-time-based given Why3 defaults — but **measure, don't
 assume**.)
 
+**Update — this risk materialized, and is now mitigated.** A full parallel sweep at the half-cores
+default (`--jobs 7`) produced two spurious `[FAIL]`s (`0342`, `0352`, both Rocq-heavy) — *not* from
+over-subscribing our own jobs, but because a **second agent was also sweeping at half-cores** →
+combined load ≈ all 14 cores → prover starvation. Both passed when run alone. The half-cores budget
+assumes the *other* half is free; with two concurrent sweeps it isn't.
+
+**Mitigation shipped — a serial confirmation pass.** After the parallel run, every `[FAIL]`/`[SKIP]`
+is re-run **one at a time** (no intra-sweep contention); any that now passes is reported
+`[FLAKY→PASS]` and dropped from the failure set, leaving only `[CONFIRMED FAIL]`s. So a load-induced
+timeout can never masquerade as a regression — validated: the `0342`/`0352` flakes were recovered and
+the sweep reported a clean `601/601`. (Auto-skipped in `--jobs 1`; disable with `PYCSL_NO_RECONFIRM=1`.)
+The acceptance gate above is thus met *by construction* even under concurrent-agent load: the confirmed
+failure set is what must match serial.
+
 ## 3. Approaches (recommend A now, C later)
 
 | | Approach | Pros | Cons |
