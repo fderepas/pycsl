@@ -538,6 +538,10 @@ class UnixInodeFileSystem:
     #             symlink-follow (recurse on the decoded target string) is
     #             dropped — no string model. next_fd>=3 invariant gives
     #             \result >= 3.
+    #@ requires True
+    #@ assigns self.disk, self.fd_open, self.fd_inode, self.fd_offset, self.fd_flags, self.next_fd
+    #@ ensures \result == -1 or \result >= 3
+    #@ no_inline
     def sys_open(self, pathname: str, flags: int) -> int:
         inode_num = self._dir_lookup(5, pathname)
         if inode_num < 0:

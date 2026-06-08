@@ -261,7 +261,7 @@ def unlink(filepath, *, dir_fd=None):
 #@ requires True
 #@ assigns _filesystem.disk, _filesystem.fd_open, _filesystem.fd_inode, _filesystem.fd_offset, _filesystem.fd_flags, _filesystem.next_fd
 #@ ensures \result == -1 or \result >= 3
-def open(filepath, flags, mode=0o777, *, dir_fd=None):
+def open(filepath: str, flags, mode=0o777, *, dir_fd=None):
     """Open a file. Returns a file descriptor."""
     return _filesystem.sys_open(filepath, flags)
 
