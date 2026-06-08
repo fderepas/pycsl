@@ -702,10 +702,16 @@ in `data/lib_stubs/` if callers need their contracts.
 ### Run reference tests
 
 ```bash
-./bin/run-reference-tests.sh                        # all tests
+./bin/run-reference-tests.sh                        # all tests (parallel, half the cores)
 ./bin/run-reference-tests.sh --start-at 200         # skip 0001–0199
 ./bin/run-reference-tests.sh --start-at 194 --stop-at 195  # range
+./bin/run-reference-tests.sh --jobs 7               # set concurrency (default: cores/2)
+./bin/run-reference-tests.sh --jobs 1               # serial (old behaviour)
 ```
+
+The sweep runs tests **in parallel** (`xargs -P`), defaulting to **half the machine's logical
+cores** (portable count on Linux + macOS). `--jobs K` / `PYCSL_JOBS` override it; results are
+deterministic regardless of completion order. See `more-proc.md`.
 
 Tests support `# pycsl-flags: ...` (extra CLI flags) and
 `# pycsl-expected: FAIL` (expected-failure) directives in file headers.

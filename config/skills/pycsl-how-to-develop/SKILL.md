@@ -217,10 +217,18 @@ project's plan files (`no-more-int*.md`, `strings-plan.md`, `collections-plan.md
 
 Every landed change records its passed gate inline. The standard gates:
 
-- **Full-corpus sweep, zero new regressions** — `PYTHONHASHSEED=0`, honor `# pycsl-flags:` and
-  `# pycsl-expected:`, classify regressions vs now-pass, diff vs the committed baseline. Core-path
-  tracks sweep *per sub-stage*. (~1–2 h with the Rocq tests; **run it alone** — background CPU
-  contention produces spurious timeouts that look like regressions.)
+- **Full-corpus sweep, zero new regressions** — `bin/run-reference-tests.sh [--pycsl]`,
+  `PYTHONHASHSEED=0`, honors `# pycsl-flags:` / `# pycsl-expected:`, classify regressions vs now-pass,
+  diff vs the committed baseline. Core-path tracks sweep *per sub-stage*. **The sweep now runs in
+  parallel** (`xargs -P`, default `JOBS = get_cpu_count()/2` — half the machine's cores; override with
+  `--jobs K` / `PYCSL_JOBS`, and `--jobs 1` reproduces the old serial run exactly): the full
+  pycsl-reference corpus is **~5 min** (was ~30+ min serial). The half-cores default is deliberate — it
+  leaves the other half for a second agent / interactive work, and the parallel↔serial result set is
+  validated **identical** (incl. the slow Rocq `0220`-class), so the default does **not** produce the
+  spurious timeouts the old serial-under-contention runs did (that "run it alone" caveat is superseded by
+  the half-cores budget). The one remaining risk: **do not crank `--jobs` past half the cores** —
+  over-subscription can starve a prover into a false timeout that looks like a regression (see
+  `more-proc.md` §2, the parallel↔serial acceptance gate).
 - **Emission-identical byte-diff** for any refactor (see §10) — byte-identical `.mlw` across the
   whole corpus and all four memory models.
 - **5-surface doc-coherency** — `bin/doc-coherency.py --check` green across `annotations.md`
@@ -255,6 +263,15 @@ Every landed change records its passed gate inline. The standard gates:
 - Standing conventions: `PYTHONHASHSEED=0`, `.venv/bin/python`, **commit/push only when asked**,
   plan files at named repo-root paths, contracts placed **above** any decorator to attach, and keep
   duplicated source in sync (`src/pycsl/` ↔ `src/self-annotate/src/`, `bin/check-self-annotate-sync.sh`).
+- **Never blanket-clean the working tree — it silently destroys uncommitted work.** Two idioms have
+  each eaten finished-but-uncommitted files in this project: `git checkout -- .` discards uncommitted
+  *tracked* edits (unrecoverable), and `git stash push -u … ; git stash drop` discards *untracked*
+  files too (recoverable only from the dangling stash: `git fsck --no-reflogs --unreachable | grep
+  commit`, then `git cat-file -p <commit>:<path>`). The most exposed victims are untracked repo-root
+  `*.md` plans/specs — they're in no commit yet. **Before ANY working-tree cleanup / pull / rebase /
+  `reset --hard` / `stash`: run `git status` and commit anything you care about first.** When you must
+  clear noise, narrow to the real paths (`git checkout -- '*.aux'`) — never the blanket `checkout -- .`,
+  and never `stash -u`+`drop` as a "clear noise" shortcut.
 - **Re-ground a plan against the committed source before acting** — its load-bearing premise may be
   stale; cite `file:line`. Treat recommendations as **hypotheses, not orders** (verify the smell
   exists; reject false unifications; leave faithful upstream ports like `pure_ast.py` alone).
