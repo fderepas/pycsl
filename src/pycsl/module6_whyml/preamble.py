@@ -837,9 +837,12 @@ class PreambleEmissionMixin:
                         ftype = "map int (option int)"
                     elif ftype in ("list", "tuple"):
                         ftype = "array int"
-                    elif ftype == "string":
-                        ftype = "int"
-                    elif ftype != "int" and not ftype.startswith(("array ", "map ", "ref ")):
+                    elif ftype in ("string", "str"):
+                        # 07-2333-rev2 TP-3 (Gap 6): a `str`-annotated field is a faithful
+                        # Why3 `string` (was collapsed to `int`) — the class counterpart of
+                        # the TP-1 str local / str param lowering.
+                        ftype = "string"
+                    elif ftype != "int" and not ftype.startswith(("array ", "map ", "ref ", "string")):
                         # Unrecognised tag (user-defined class etc.) —
                         # fall back to int rather than emitting an
                         # unbound type symbol.

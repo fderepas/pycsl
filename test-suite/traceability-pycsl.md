@@ -176,6 +176,8 @@ The **Ref** column uses the format `section.subsection.row`.
 | 12.8.8 | `exec` splice whitelist \| the splice admits only straight-line assignments / pure expressions; control flow / import / def / class / nested exec are rejected fail-loud (07-1839 P5b) | XFAIL: 0643 | PASS |
 | 12.8.9 | HAPPY exec taint \| a non-exempt method containing a dynamic `exec(...)` cannot be confined by a HAPPY property — hard error (worst-case mutator; same teeth as a non-exempt `\trusted` mutator without `\preserves`) (07-1839 P5) | XFAIL: 0644 | PASS |
 | 12.9.1 | str local binding (type-propagation TP-1) \| a `str`-typed local joins the typed-local set (Γ_w string class) → `let r = ref "ab" in`, not the integer `ref 0`; the local counterpart of the str-param lowering. Closes 07-2333 Gap 1; unblocks 08-0350 astmod Phase 1 (07-2333-rev2 TP-1) | 0645, 0646 | PASS |
+| 12.9.2 | str concat (Gap 2, free with TP-1) \| `a + b` of two str locals dispatches to `str_concat_op` (`_is_string_expr` now sees str locals) — proves `== "hello"`; no new code, enabled by TP-1 (07-2333-rev2) | 0647 | PASS |
+| 12.9.3 | str class field (TP-3 / Gap 6) \| a `str`-annotated field lowers to a faithful Why3 `string` in the WhyML record (was collapsed to `int` in Module5 `_field_type_from_annotation` + the record emitter); a method returning it proves a relational ensures (07-2333-rev2 TP-3) | 0648 | PASS |
 
 ## NoException + UB Detection (workplan PRs 1–10, 2026)
 

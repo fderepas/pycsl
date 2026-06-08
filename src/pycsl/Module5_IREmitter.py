@@ -1205,7 +1205,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 return "dict"
             if name in ("set", "frozenset"):
                 return "set"
-            if name in ("int", "bool", "str", "float"):
+            if name == "str":
+                # 07-2333-rev2 TP-3 (Gap 6): a `str` field is a faithful Why3 `string`
+                # (the WhyML record emitter maps the "str" tag to `string`), not int.
+                return "str"
+            if name in ("int", "bool", "float"):
                 return "int"
             # Unrecognised plain name — treat as int (e.g. user types).
             return "int"
