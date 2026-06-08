@@ -646,11 +646,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             result_ensures = (
                 getattr(self, "_module_method_result_ensures", {}).get(lookup_key, [])
                 + getattr(self, "_module_method_param_result_ensures", {}).get(lookup_key, []))
-            field_ens = getattr(self, "_module_method_field_result_ensures", {}).get(lookup_key, [])
-            if field_ens and cls:
+            # gap7-spec-rev2 P3: fold in void/mutating contract for `self.<m>()` too.
+            _fe = getattr(self, "_module_method_field_result_ensures", {}).get(lookup_key, [])
+            _foe = getattr(self, "_module_method_field_old_ensures", {}).get(lookup_key, [])
+            _w = getattr(self, "_module_method_writes", {}).get(lookup_key, [])
+            field_ens = _fe + _foe
+            if (field_ens or _w) and cls:
                 # `self.<m>()` called from a sibling method: the enclosing
                 # method's own `self` is the receiver, typed as the class.
-                field_spec = ("self", cls, field_ens)
+                field_spec = ("self", cls, field_ens, _w)
         else:
             # `<recordvar>.method(...)` — resolve the receiver's class so the
             # callee's result-only `ensures` propagates to this call site,
@@ -783,7 +787,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # `\old(self.f)` clause then relates post- to pre-state, and the caller sees the change).
             writes_fields = field_spec[3] if len(field_spec) > 3 else []
             if writes_fields:
-                writes_clause = "\n    writes { " + "; ".join(
+                # Why3 `writes` is COMMA-separated (a `;` is a syntax error — only shows with
+                # multi-field writes like os.sys_write's disk+fd_offset+_mtime_ticks).
+                writes_clause = "\n    writes { " + ", ".join(
                     f"self.{f}" for f in writes_fields) + " }"
         ensures_suffix = self._dotted_ensures_suffix(result_ensures, n, param_types, field_spec)
         if n == 0 and not receiver_param:

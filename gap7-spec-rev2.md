@@ -6,9 +6,13 @@ abstract `val … writes {self.x} ensures {self.x = old self.x + 1}` round-trips
 caller — records ARE mutable regions). Maps `_module_method_writes` + `_module_method_field_old_ensures`
 built from the same `contracts.*` as the method's `let` (O2 no-drift). Reproducer 0652 proves
 `c.inc(); return c.x == 1`; value-case companion 0653 unchanged; O3 holds (false ensures fails the
-callee); corpus 610/610. **P3 (self.method() / module-global void-mutation) PENDING** — confirmed still
-broken (`self.inc()` in a sibling → opaque), but extending the `self.`-branch touches every
-`self.method()` call (broad os blast radius) → being measured separately.
+callee); corpus 610/610. **P3 (self.method() / module-global void-mutation) IMPLEMENTED** — the `self.`-branch folds in
+writes/old-ensures too (driver 0654: `inc2` calling `self.inc()` twice proves `\old+2`). Blast-radius
+measured: **os stays 33** (no regression — the writes clause now also frames the module-global
+`no_inline` ops, more faithfully, with no change to the count), corpus otherwise clean. A multi-field
+`writes` separator bug (`;`→`,`, only exposed by os's `sys_write`) was fixed as part of this.
+(0342/0352 are pre-existing environmental timeout-flakes — fail at the P2 commit too, 0352 passes on
+re-run; orthogonal to Gap 7.)
 **Owner:** PyCSL tool ([TOOL], `src/pycsl/**`)
 **Origin:** 07-2333-req-rev2 §1.5 Gap 7 (the lone genuinely-open item), re-confirmed on `main`
 (`9cda78f`). Unblocks class-based stub demos (StringIO / ast.NodeVisitor) flagged by the
