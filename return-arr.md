@@ -1,15 +1,16 @@
 # return-arr.md — array-returning functions with early returns (the `Return_seq` payload)
 
 **Date:** 2026-06-08
-**Status:** P1 IMPLEMENTED (the `Return_seq` mechanism — driver 0651 proves, corpus 608/608, sound).
-P2/P3 (os listdir/walk payoff) BLOCKED on a newly-found sub-gap: `_detect_seq_promotion`
-(`Module5_IREmitter.py`) only treats `+=`/`a+b` as list growth, NOT `.append()`. So listdir's
-append-built `names_out` stays an array-local, and its seq conversion snapshots the 1024-element
-backing rather than the logical length — listdir can't prove `\length(\result) <= 16`, which `walk`
-needs (modular). Applying P2/P3 net-REGRESSED os 39→41 (walk's 6 cleared, but listdir+scandir added 8
-unprovable postcondition goals), so the os application was reverted. **Remaining work:** promote
-`.append()`-built lists to seq (a broad model change — measure corpus/os impact) OR a `_len`-aware
-array→seq conversion in the `Return_seq` raise path. Then re-apply P2/P3 (expected os 39→≤33).
+**Status:** FULLY IMPLEMENTED (P1+P2+P3). The `Return_seq` mechanism (P1), the `.append()`-as-seq-growth
+promotion (the follow-on below), and the os application (P2/P3) all landed. **os 39 → 33** (walk's 6 +
+listdir/scandir cleared); corpus 608/608 (incl. drivers 0650/0651); sound (false-ensures fails callee).
+
+The follow-on (the sub-gap found during P2/P3): `_detect_seq_promotion` (`Module5_IREmitter.py`) now
+treats `.append()` as list growth (previously only `+=`/`a+b`), with an **index-mutation guard** — a
+list that is `x[i] = v` stays an array-local (an immutable seq can't be index-set). `.append()` on a
+seq-local lowers to `Seq.snoc` (`statements.py`). And `len(seq_local)` resolves to `Seq.length` even in
+SPEC context for LOCALS (`expressions.py` — the `not _in_spec` guard now applies only to seq-promoted
+PARAMS), so listdir's loop invariant `len(names_out) <= i` connects to `\length(\result) <= 16`.
 **Owner:** PyCSL tool ([TOOL], `src/pycsl/**`)
 **Motivation source:** os-coverage follow-on ([[os-coverage-progress]]) — `walk`'s 3 loop-variant
 timeouts are blocked on `listdir` returning a length-bounded array, which it can't because it has

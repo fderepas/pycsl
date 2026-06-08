@@ -507,11 +507,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if (isinstance(_b, dict) and _b.get("type") == "Var"
                     and getattr(self, "_dict_value_types", {}).get(_b.get("name", "")) == "seq int"):
                 return f"(Seq.length {args[0]})"
-        # 07-1705-rev4 P3: len() of a seq-modelled (growable) list local is `Seq.length`
-        # (BODY context; a contract uses the array entry value for a seq-promoted param).
-        if (atype == "Var" and arg_ir.get("name") in getattr(self, "_seq_locals", set())
-                and not self._in_spec):
-            return f"(Seq.length {args[0]})"
+        # 07-1705-rev4 P3: len() of a seq-modelled (growable) list local is `Seq.length`.
+        # A seq-promoted PARAM in a CONTRACT refers to its array entry value (so fall through
+        # to Array.length there — the `not _in_spec` guard); but a seq-promoted LOCAL is always
+        # a seq, including in loop invariants (return-arr.md follow-on: else `len(names_out) <= i`
+        # in listdir's invariant wrongly resolves to the non-existent array counter `!X_len`).
+        if atype == "Var" and arg_ir.get("name") in getattr(self, "_seq_locals", set()):
+            _is_param = arg_ir.get("name") in set(getattr(self, "_formal_params", []))
+            if not (_is_param and self._in_spec):
+                return f"(Seq.length {args[0]})"
         if atype == "String" and isinstance(arg_ir.get("value"), str):
             return str(len(arg_ir["value"]))
         if atype == "Tuple":

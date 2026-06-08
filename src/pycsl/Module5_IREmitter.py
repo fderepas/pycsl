@@ -1681,6 +1681,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         if not list_vars:
             return
         grown: Set[str] = set()
+        index_set: Set[str] = set()         # vars that are index-ASSIGNED (`x[i] = v`)
         edges: List[Tuple[str, str]] = []   # (target, source) for `b = a` unification
 
         def walk(node: Any) -> None:
@@ -1689,6 +1690,21 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 if (st == "AugAssign" and node.get("op") == "+"
                         and node.get("target") in list_vars):
                     grown.add(node["target"])
+                elif st == "ArraySet" and node.get("target") in list_vars:
+                    # return-arr.md follow-on: a list that is index-MUTATED (`x[i] = v`)
+                    # CANNOT be an immutable seq — it must stay an array-local. Exclude it
+                    # (and anything unified with it) from seq promotion below.
+                    index_set.add(node["target"])
+                elif (st == "Expr" and isinstance(node.get("value"), dict)
+                      and node["value"].get("type") == "Call"
+                      and isinstance(node["value"].get("func"), str)
+                      and node["value"]["func"].endswith(".append")):
+                    # return-arr.md follow-on: `.append()` GROWS a list (was previously only
+                    # `+=`/`a+b`). Recognising it lets append-built-then-returned lists become
+                    # seq, so `len`/`\length` track the logical length (not the 1024-backing).
+                    tgt = node["value"]["func"].rsplit(".", 1)[0]
+                    if tgt in list_vars:
+                        grown.add(tgt)
                 elif st == "Assign":
                     tgt = node.get("target")
                     val = node.get("value", {})
@@ -1710,14 +1726,19 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     walk(x)
         walk(func_ir["body"])
 
-        # Unify representation across `b = a` edges: growth on either end ⇒ both seq.
+        # Unify representation across `b = a` edges: growth (or index-set) on either end ⇒ both.
         seq = set(grown)
+        blocked = set(index_set)
         changed = True
         while changed:
             changed = False
             for t, s in edges:
                 if (s in seq) != (t in seq):
                     seq.add(s); seq.add(t); changed = True
+                if (s in blocked) != (t in blocked):
+                    blocked.add(s); blocked.add(t); changed = True
+        # An index-mutated list can't be a seq — drop it (and its unified partners).
+        seq -= blocked
 
         if seq:
             func_ir["seq_promoted_vars"] = sorted(seq)

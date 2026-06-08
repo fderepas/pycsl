@@ -178,9 +178,9 @@ def makedirs(name, mode=0o777, exist_ok=False):
 
 #@ requires True
 #@ assigns \nothing
-#@ ensures True
-def listdir(filepath='.'):
-    """List directory contents. Returns list of entry names."""
+#@ ensures \length(\result) <= 16
+def listdir(filepath='.') -> list:
+    """List directory contents. Returns list of entry names (≤ 16; return-arr.md)."""
     ino = _filesystem._dir_lookup(5, filepath) if filepath != '.' else 0
     if ino < 0 and filepath != '.':
         ino = 0
@@ -212,9 +212,9 @@ def listdir(filepath='.'):
 
 #@ requires True
 #@ assigns \nothing
-#@ ensures True
-def scandir(filepath='.'):
-    """Return an iterator of DirEntry inode numbers for the directory."""
+#@ ensures \length(\result) <= 16
+def scandir(filepath='.') -> list:
+    """Return an iterator of DirEntry inode numbers for the directory (≤ 16; return-arr.md)."""
     ino = _filesystem._dir_lookup(5, filepath) if filepath != '.' else 0
     if ino < 0 and filepath != '.':
         ino = 0
@@ -456,7 +456,7 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
     nondirs = []
     #@ loop invariant 0 <= len(dirs) and len(dirs) <= i
     #@ loop invariant 0 <= len(nondirs) and len(nondirs) <= i
-    #@ loop variant 16 - i
+    #@ loop variant len(names) - i
     for i in range(len(names)):
         name = names[i]
         ino = _filesystem.sys_stat(name)

@@ -728,8 +728,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 safe_arr = whyml_ident(arr_name)
                 arg = self._expr_to_whyml(val["args"][0], local_refs)
                 arg = self._coerce_to_int(arg)
-                len_ref = f"{safe_arr}_len"
-                code = f"{indent}{safe_arr}[!{len_ref}] <- {arg};\n{indent}{len_ref} := !{len_ref} + 1"
+                if arr_name in getattr(self, "_seq_locals", set()):
+                    # return-arr.md follow-on: `.append()` on a seq-promoted local grows the
+                    # immutable seq via Seq.snoc (so `len` = Seq.length tracks the logical
+                    # length), instead of the array-local `arr[!len] <- v; len += 1`.
+                    code = f"{indent}{safe_arr} := Seq.snoc !{safe_arr} {arg}"
+                else:
+                    len_ref = f"{safe_arr}_len"
+                    code = f"{indent}{safe_arr}[!{len_ref}] <- {arg};\n{indent}{len_ref} := !{len_ref} + 1"
             elif (func.endswith((".add", ".discard", ".remove"))
                   and self._value_semantic):
                 # Body-level set/dict method calls. Sets and dicts share
