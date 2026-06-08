@@ -1036,6 +1036,12 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     weaver = Module3_Weaver(source_code, extracted_data, parser_mod)
     unified_ast = weaver.process()
 
+    # [07-1839 P5b] Constant-`exec("…")` straight-line splice: replace a constant exec with
+    # its parsed body (verification-equivalent to inline source; whitelist bars control flow).
+    # No-op for files without a constant exec. Dynamic exec is handled downstream (P5a/P5a').
+    from exec_splice import splice_constant_exec
+    unified_ast = splice_constant_exec(unified_ast)
+
     # [Module 4] Semantic Analysis
     analyzer = Module4_SemanticAnalyzer()
     validated_ast = analyzer.process(unified_ast)

@@ -172,6 +172,8 @@ The **Ref** column uses the format `section.subsection.row`.
 | 12.8.4 | dynamic-exec scope havoc \| a function containing `exec(...)` withholds the `\in_scope` decided-false direction (decision C) — `exec` can bind arbitrary names, so a vacuous `requires \in_scope(neverbound)` is closed (07-1839 P5a) | XFAIL: 0638 | PASS |
 | 12.8.5 | dynamic-exec frame taint \| in a frame-checked model (typed/store) `exec(...)` lowers to `exec_havoc … writes {int_mem}`, so a narrow `assigns \nothing` frame condition correctly fails — `exec` is a worst-case mutator (07-1839 P5a') | XFAIL: 0639 | PASS |
 | 12.8.6 | constant `literal_eval` \| `ast.literal_eval("<literal>")` on a compile-time-constant arg is evaluated at verification time (host `ast.literal_eval`) and emitted as the actual value/τ — faithful (int/str); supersedes the opaque handle (07-1839 P5c) | 0640, 0641 | PASS |
+| 12.8.7 | constant `exec` splice \| `exec("<straight-line>")` with a constant arg is parsed at verification time (`pure_ast.parse`) and spliced in place — byte-identical to inline source; spliced names enter scope (07-1839 P5b) | 0642 | PASS |
+| 12.8.8 | `exec` splice whitelist \| the splice admits only straight-line assignments / pure expressions; control flow / import / def / class / nested exec are rejected fail-loud (07-1839 P5b) | XFAIL: 0643 | PASS |
 
 ## NoException + UB Detection (workplan PRs 1–10, 2026)
 
