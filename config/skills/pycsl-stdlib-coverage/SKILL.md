@@ -884,3 +884,36 @@ building any fs-mutating module.
 - `src/pycsl/module6_whyml/preamble.py` — `_AXIOM_REGISTRY` source of truth
 - `test-suite/corpus/pycsl-reference/0342.py` — GCD flagship proof (axiom pattern)
 - `lib/calling.json` — call graph of stdlib symbols to cover
+
+## Serialization (pack/unpack): leaf-first, value+round-trip, compose-don't-re-derive
+
+Binary serialization (the os inode/direntry codecs, struct-style packers) is where "shape-only"
+contracts hide a hollow model. Discipline (learned closing the os inode round-trip):
+
+- **Bottom-up: byte leaves → field composers → records.** Verify `_pack_uintN_be` /
+  `_unpack_uintN_be` FIRST with VALUE contracts (`\result[0]*256 + \result[1] == v` and the inverse),
+  so `unpack(pack(v)) == v` proves by CONTRACT COMPOSITION (no body tracking). Only then the
+  inode/direntry packers. A composer built on length-only leaves can prove `\length == 64` and STILL be
+  a no-op on the contents — the round-trip is the property that makes `_read_inode(_write_inode(x)) ==
+  x` provable, which every syscall ultimately rests on.
+
+- **Compose, don't re-derive (the array-state wall).** A packer that writes a struct into a fixed
+  `out = [0]*K` and RE-derives each field's byte math (`out[o] = f // 2**24; ...`) TIMES OUT once K is
+  large (K=64 for the inode) — the solver carries all K writes per goal. Instead CALL the proven leaf
+  and copy: `b = _pack_uint32_be(f); out[o]=b[0]; out[o+1]=b[1]; ...`. The field ensures then follows
+  from the leaf's already-proven contract, no div/mod re-derivation. This turned a hard SMT timeout
+  into SUCCESS for the full 18-field inode pack — with zero Rocq/Lean.
+
+- **Contract gotchas** (also in pycsl-annotate): no `<<` in contracts (use `*256`); `\valid(data,
+  offset + N)` NOT `\valid(data, N)`; arithmetic bodies (`v // 256`) for provability; range-bound byte
+  params (`0 <= data[i] <= 255`). And `\result[i]` / `data[i]` in contracts lower to `Array.get` (a
+  tool fix that was a prerequisite — without it no value-over-array post can even be expressed).
+
+- **Proof-cost vs the full-module sweep.** Rich round-trip contracts that prove in `--fun` can push the
+  WHOLE-module proof over its wall-clock budget (the os proof slowed markedly once `_pack_inode` carried
+  18 field ensures). Budget for it; a heavy serializer only ever *called* (not re-proven per caller) is
+  a candidate for `#@ no_inline` to keep the module proof affordable.
+
+- **SMT escape order** (see csl-philosophy): compose from a proven leaf FIRST; a cross-validated
+  `#@ proof rocq/lean` lemma (e.g. `UnixFs.Struct.*` round-trips) only for irreducible facts; never a
+  bare SMT skip.

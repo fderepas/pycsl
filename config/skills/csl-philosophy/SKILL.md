@@ -362,3 +362,49 @@ endpoint.
 When making any design decision, ask: does this strengthen the
 convention, or does it strengthen the implementation at the
 convention's expense? The first is almost always the right answer.
+
+## Proof-strategy hierarchy when SMT struggles (leaf-first, composition-first)
+
+When a goal won't discharge, the order of escalation matters — and the cheapest
+move is usually structural, not a bigger hammer:
+
+1. **Leaf-first.** Don't strengthen the contract at the *top* of a call chain —
+   go to the LEAF functions and give them correct VALUE contracts (not just
+   shape/length). A byte `_pack_uint16_be` must say `\result[0]*256 +
+   \result[1] == v`, not merely `\length(\result) == 2`; its inverse `_unpack`
+   must reconstruct it (round-trip). Without true leaves the composers above have
+   nothing true to build on. Stuck deductive proofs → fix BOTTOM-UP: leaves →
+   composers → top. (Each layer, when attempted, also tends to surface the one
+   foundational tool gap beneath it — e.g. contract `\result[i]` lowering to an
+   opaque `subscript_get` instead of `Array.get` — invisible from the top.)
+
+2. **Compose, don't re-derive.** When a VC times out re-deriving a fact over a
+   large state — e.g. the 4-term big-endian byte decomposition over a 64-element
+   array in `_pack_inode` — do NOT make SMT redo the arithmetic. CALL the
+   already-proven leaf and copy its bytes, so the field property follows from the
+   leaf's contract by COMPOSITION. This beat a hard SMT timeout with zero new
+   proof obligations (no Rocq, no Lean, no axiom). Composition is the first escape
+   from the "SMT-can't" wall — cheaper than any external proof.
+
+3. **Cross-validated lemma (the Rocq+Lean escape).** For a genuinely-SMT-hard
+   *reusable fact* (inductive properties, bitwise identities, struct round-trips),
+   prove it in Rocq AND Lean (defense-in-depth), register it in `_AXIOM_REGISTRY`,
+   cite with `#@ proof rocq/lean`. Citing makes the VC prove FAST in SMT (the
+   axiom is a hypothesis the solver just applies) — so the citation solves
+   soundness AND the timeout-wait at once. NB there is no Why3→Lean backend:
+   "Rocq+Lean" means the LEMMA STATEMENT is independently proven in both, then
+   cited as a Why3 axiom (not the raw VC discharged in Lean).
+
+4. **A `#@ no_smt` skip keyword is the wrong lever.** Skipping SMT with no
+   replacement is `\trusted` by another name — the goal silently enters the TCB
+   (unsound). Paired with a citation it is redundant (a cited axiom isn't
+   SMT-proven anyway, and the citing VC proves fast). If the *pain* is dev-loop
+   latency, expose a configurable `--timelimit`, not a goal-level skip.
+
+5. **Proof TIME is a constraint, not just provability.** A richer contract that
+   proves STANDALONE can still blow the full-module proof past a wall-clock budget
+   (round-trip field-ensures that prove in `--fun` can push a whole-module proof
+   over its limit). Verifiability and verification-cost are distinct; a faithful
+   model must be both provable AND affordable to re-verify — which sometimes
+   argues for a modular boundary (`#@ no_inline`: prove the heavy function once,
+   reuse its contract in callers instead of re-proving the inlined body).

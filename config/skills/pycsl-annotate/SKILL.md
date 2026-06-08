@@ -576,6 +576,37 @@ The output must include:
 
 To verify only specific functions: `./pycsl --fun <name> file.py` — transitive call dependencies are included automatically.
 
+## Value contracts, round-trips, and array-indexing gotchas (leaf-first)
+
+When a function's postcondition won't prove, the fix is often at a LEAF it calls whose contract is
+too weak (shape/length only). Fix bottom-up.
+
+- **Serialization leaves need VALUE + round-trip contracts, not just length.** `_pack_uint16_be` →
+  `#@ ensures \result[0] * 256 + \result[1] == v` (the bytes RECONSTRUCT v) on top of
+  `\length(\result) == 2`; the matching `_unpack` → `#@ ensures \result == data[offset] * 256 +
+  data[offset + 1]` (the inverse). Then `unpack(pack(v)) == v` proves by CONTRACT COMPOSITION (no body
+  tracking), and composers (inode/record packers) lift the same way.
+
+- **No `<<` / `>>` in the contract grammar** (parse error). Write byte composition arithmetically:
+  `\result[0] * 256 + \result[1]` for uint16, `\result[0]*16777216 + \result[1]*65536 +
+  \result[2]*256 + \result[3]` for uint32. Make the BODY arithmetic too (`v // 256`, `v % 256`) — it
+  equals the bitwise `(v >> 8) & 0xFF` under the `0 <= v <= 0xFFFF` precondition and is provable; a
+  bitwise body lowers to uninterpreted `bit_*` ops and the value post won't prove without a lemma.
+
+- **`\valid(data, n)` is ABSOLUTE** (`\length(data) >= n`), NOT offset-relative. For
+  `data[offset]` / `data[offset + 1]` the precondition must be `\valid(data, offset + 2)`, not
+  `\valid(data, 2)` — a frequent latent bug (the access is out of bounds for large offset otherwise).
+
+- **`\result[i]` and array-param `data[i]` work in contracts** (they lower to `Array.get`). Range-bound
+  what you need: a uint16 reader needs `#@ requires 0 <= data[offset] and data[offset] <= 255` (and
+  `+ 1`) to discharge `0 <= \result <= 65535`.
+
+- **Compose over re-derive when a packer times out on a big array.** A function writing N fields into a
+  fixed `out = [0]*K` that times out proving each field's value: don't make SMT redo the byte math —
+  CALL the proven leaf and copy its bytes (`b = _pack_uint32_be(f); out[o]=b[0]; out[o+1]=b[1]; ...`),
+  so the field ensures follows from the leaf's already-proven contract. Composition beats SMT
+  re-derivation (and is cheaper than a lemma). See csl-philosophy "compose, don't re-derive".
+
 ## Glossary
 
 Core terms used in this skill have canonical definitions in `../../../docs/glossary/`:
