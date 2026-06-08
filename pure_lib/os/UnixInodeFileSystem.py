@@ -597,7 +597,7 @@ class UnixInodeFileSystem:
         offset = self.fd_offset[fd]
         written = 0
         #@ loop invariant 0 <= written and written <= n
-        #@ loop invariant written + offset == self.fd_offset[fd]
+        #@ loop invariant self.fd_offset[fd] == offset
         #@ loop variant n - written
         while written < n:
             block_idx = (offset + written) // 512
