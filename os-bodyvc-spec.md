@@ -104,6 +104,21 @@ Attempting the L2 round-trip exposed, exactly as L0 did, foundational gaps below
    (`out[k] = …`) instead of `parts += …` (which would still need concat-slice reasoning). Then each
    field composes exactly like the uint round-trip.
 
+   **ATTEMPTED (2026-06-08) — hit the SMT large-array-state limit.** Restructured `_pack_inode` to
+   `out = [0]*64; out[k] = fields[..]//…` (write-at-offsets, block loop unrolled): it generates clean
+   (out stays an array-local, `bytes(out)` is fine) and **proves `\length == 64` standalone**. But the
+   per-field VALUE ensures (`\result[o]*2^24+… == fields[k]`, correctly lowered to `Array.get`, NOT
+   subscript_get) **TIME OUT** — the identical 4-term uint32 decomposition that proved in the 4-byte
+   LEAF (`_pack_uint32_be`) times out here because the solver re-derives it while carrying all 64
+   `out[i]` assignments. (uint16 fields, 2-term, are lighter; uint32 fields are the wall.) Reverted —
+   a function can't partially prove.
+   **The fix (next attempt): leaf-COMPOSITIONAL pack.** Don't re-derive the byte arithmetic in
+   `_pack_inode`; CALL the proven leaf and copy its bytes — `b = _pack_uint32_be(fields[k]); out[o]=b[0];
+   out[o+1]=b[1]; …` — so the field ensures `out[o]*2^24+… == fields[k]` follows from `_pack_uint32_be`'s
+   ALREADY-PROVEN contract (`b[0]*2^24+… == fields[k]`) by composition, not a fresh div/mod proof over
+   the 64-array. This is the same contract-composition that made the uint round-trip work (922d5e6),
+   lifted one level. (Per-field lemmas are the heavier fallback.)
+
 **So L2 is a fresh-session-sized effort** (a [TOOL] arg-materialize fix + concat-layout, or a pack
 restructure), NOT a quick contract addition. L0+L1 (the leaves the review pointed at) are done and
 committed; L2 is precisely scoped below.
