@@ -83,7 +83,27 @@ def _unpack_uint16_be(data: list, offset: int) -> int: ...
 `_unpack_uint16_be(_pack_uint16_be(v), 0) == v` — the property every disk read/write ultimately needs.
 (Today's `ensures \result >= 0` / `\length == 2` are too weak — they assert nothing about content.)
 
-### L2 — [STDLIB] inode/direntry pack/unpack (field-wise round-trip)
+### L2 — STATUS (2026-06-08): blocked on TWO sub-gaps the probe surfaced (leaf-first working as intended)
+Attempting the L2 round-trip exposed, exactly as L0 did, foundational gaps below it:
+1. **[TOOL] seq→array arg-materialize gap.** `_pack_inode` builds `parts = []; parts += _pack_*(…)`
+   (so `parts` is seq-promoted) then returns `bytes(parts)`. `bytes()` (and any array-param call like
+   `_unpack_*(data,…)`) expects `array int` but gets `seq int` → **`@rho` type error**
+   (`seq.Seq.seq int … expected array.Array.array int`). The real `_pack_inode` **fails standalone with
+   this today** — it only "works" because it's always INLINED. The return-arr work added seq→array
+   `materialize` at *return* boundaries; this needs it at *call-arg* boundaries (`bytes(!parts)` →
+   `bytes (materialize !parts)`). Fix site: the call-arg coercion (`_array_coerce_arg` /
+   the `bytes` handler) — materialize a `_seq_locals` arg. Analogous to L0; the L2 prerequisite.
+2. **seq-concat layout reasoning.** Even with (1), the round-trip needs `parts[off:off+N] ==
+   _pack_*(fields[k])` through the `+=` concat — proving a byte slice equals the k-th appended chunk.
+   This is the genuinely hard part (concat offset bookkeeping); options: tool support for slice/concat
+   layout, OR restructure pack to write into a fixed 64-byte array at known offsets (no `+=`/seq),
+   which sidesteps both (1) and (2).
+
+**So L2 is a fresh-session-sized effort** (a [TOOL] arg-materialize fix + concat-layout, or a pack
+restructure), NOT a quick contract addition. L0+L1 (the leaves the review pointed at) are done and
+committed; L2 is precisely scoped below.
+
+### L2 (original design) — [STDLIB] inode/direntry pack/unpack (field-wise round-trip)
 `_pack_inode`/`_unpack_inode` (18 fields) and `_pack_direntry`/`_unpack_direntry` compose the L1 leaves.
 Contract each field: `_unpack_inode(_pack_inode(fields))[k] == fields[k]`. Provable once L1's value
 contracts hold (they currently can't be expressed — L0). This is what lets `_read_inode` after
