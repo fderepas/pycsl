@@ -119,6 +119,22 @@ Attempting the L2 round-trip exposed, exactly as L0 did, foundational gaps below
    the 64-array. This is the same contract-composition that made the uint round-trip work (922d5e6),
    lifted one level. (Per-field lemmas are the heavier fallback.)
 
+   **RESOLVED (2026-06-08) — round-trip proven standalone; can't live in the os module.** Leaf-
+   compositional `_pack_inode` (18 field-value ensures, each field packed by COPYING the proven leaf's
+   bytes) **proves all 18 standalone** (`--fun`) — composition beat the SMT array-state wall that
+   defeated direct write-at-offsets, with zero Rocq/Lean. BUT it cannot live in the os module: the
+   whole-os proof did NOT complete in 1700s with it (os GENERATES in 3s — pure proof cost). Root cause
+   (measured): `_pack_inode` is **imported into os/__init__ as a `val` stub carrying its full contract**;
+   the 18 field ensures propagate to all **8 call sites**, bloating every syscall proof. `#@ no_inline`
+   does NOT help (confirmed empirically: `_pack_inode` is already a modular `val` import-stub, not
+   inlined — no_inline targets *inlined methods*; the os val still carried all 19 ensures), and the
+   import propagates the full contract so the field ensures can't be hidden from os.
+   **Final resolution:** keep `_pack_inode`'s contract LIGHT in the shared module (`\length == 64`, os
+   holds at 23) and prove the codec round-trip in an ISOLATED driver (0658 inode-codec, 0657 uint) — the
+   round-trip + leaf-compositional technique are proven; the os module stays affordable. Putting the
+   round-trip *inside* the os model would need true separate compilation (verify `_pack_inode` in its
+   own unit, import a narrowed contract) — a larger architecture change PyCSL doesn't currently support.
+
 **So L2 is a fresh-session-sized effort** (a [TOOL] arg-materialize fix + concat-layout, or a pack
 restructure), NOT a quick contract addition. L0+L1 (the leaves the review pointed at) are done and
 committed; L2 is precisely scoped below.
