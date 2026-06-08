@@ -175,6 +175,7 @@ The **Ref** column uses the format `section.subsection.row`.
 | 12.8.7 | constant `exec` splice \| `exec("<straight-line>")` with a constant arg is parsed at verification time (`pure_ast.parse`) and spliced in place — byte-identical to inline source; spliced names enter scope (07-1839 P5b) | 0642 | PASS |
 | 12.8.8 | `exec` splice whitelist \| the splice admits only straight-line assignments / pure expressions; control flow / import / def / class / nested exec are rejected fail-loud (07-1839 P5b) | XFAIL: 0643 | PASS |
 | 12.8.9 | HAPPY exec taint \| a non-exempt method containing a dynamic `exec(...)` cannot be confined by a HAPPY property — hard error (worst-case mutator; same teeth as a non-exempt `\trusted` mutator without `\preserves`) (07-1839 P5) | XFAIL: 0644 | PASS |
+| 12.9.1 | str local binding (type-propagation TP-1) \| a `str`-typed local joins the typed-local set (Γ_w string class) → `let r = ref "ab" in`, not the integer `ref 0`; the local counterpart of the str-param lowering. Closes 07-2333 Gap 1; unblocks 08-0350 astmod Phase 1 (07-2333-rev2 TP-1) | 0645, 0646 | PASS |
 
 ## NoException + UB Detection (workplan PRs 1–10, 2026)
 

@@ -917,8 +917,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # `is_array` sites WITHOUT touching `_array_locals` (declaration path).
         # Reset per body — `_typed_local_vars` is called once per `_emit_body_code`.
         self._inline_array_temps = set(array_vars)
+        # 07-2333-rev2 TP-1 (str locals): a `str`-typed local (symbol-table τ = str/string,
+        # not a formal param) must NOT be pre-declared as `ref 0 : ref int` — it is let-bound
+        # at first assignment with its string value (`let r = "ab" in`), the local counterpart
+        # of the str-param lowering (`functions._param_type_str`). The unified type environment
+        # (Γ_w) subsumes this set; this is the string class of it.
+        string_vars = {
+            name for name, ty in getattr(self, "_current_symbol_table", {}).items()
+            if ty in ("str", "string") and name not in set(self._formal_params)
+        }
+        self._string_local_vars = string_vars
         return (array_vars | dict_vars | lambda_vars | record_vars | variant_vars
-                | set(tuple_vars))
+                | set(tuple_vars) | string_vars)
 
     def _emit_body_code(self, func: Dict[str, Any], body_stmts: List[Dict[str, Any]],
                          local_refs: Set[str], ghost_vars: Set[str], ref_params: Set[str],
