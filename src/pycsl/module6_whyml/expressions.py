@@ -119,9 +119,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 or stripped.startswith("(any_1 ")
                 or stripped.startswith("(all_1 ")):
             return whyml_str
-        # Bare identifier — could be array-typed (callee's
-        # responsibility); pass through.
-        if stripped.replace("_", "").replace("!", "").isalnum():
+        # Bare identifier or a dotted FIELD access (`self.fields`) — could be array-typed (callee's
+        # responsibility); pass through. (Track C / cprobe: clobbering `self.fields` to a placeholder
+        # severs it from its representation invariant, so a callee's array precondition can never
+        # discharge from `0 <= self.fields[k] <= MAX`.)
+        if stripped.replace("_", "").replace("!", "").replace(".", "").isalnum():
             return whyml_str
         # L2 sub-gap 2 (os-bodyvc-spec): a function application `(fn arg…)` or array-literal
         # `(let _alit = …)` in an array slot is an array-returning expression (e.g. `(pack16 x)`,
