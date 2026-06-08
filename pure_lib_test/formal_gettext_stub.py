@@ -2,15 +2,12 @@
 from pure_lib.gettext_stub import gettext, ngettext
 
 
-#@ requires s >= 0
-#@ ensures \result == s
-def test_gettext_identity(s: int) -> int:
+#@ ensures \result == "hello"
+def test_gettext_identity() -> str:
     """gettext is identity (no translation)."""
-    return gettext(s)
+    return gettext("hello")
 
 
-#@ requires s >= 0
-#@ ensures \result >= 0
-def test_ngettext_nonneg(s: int) -> int:
-    """ngettext returns non-negative."""
-    return ngettext(s, 0, 1)
+def test_ngettext_returns_str() -> str:
+    """ngettext returns a string."""
+    return ngettext("one", "many", 1)

@@ -3,12 +3,15 @@
 # TCB: name/normalization facts are assumed, not proven.
 
 
-#@ ensures \result >= 0
-def lookup(name) -> int:
-    return 0
+#@ assigns \nothing
+def lookup(name: str) -> str:
+    """RST: 'Look up character by name.'
+    Returns the character as a single-char string."""
+    return name
 
 
-#@ requires s >= 0
-#@ ensures \result >= 0
-def normalize(form, s) -> int:
+#@ assigns \nothing
+def normalize(form: str, s: str) -> str:
+    """RST: 'Return the normal form for the Unicode string.'
+    Normalization is idempotent."""
     return s

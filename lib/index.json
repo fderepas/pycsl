@@ -2,6 +2,7 @@
   "__future__": {
     "category": "language",
     "files": 30,
+    "pure_lib": "fut",
     "pycsl-functions-used": {
       "annotations": false
     }
@@ -15,6 +16,7 @@
   "argparse": {
     "category": "cli",
     "files": 2,
+    "pure_lib": "argp",
     "pycsl-functions-used": {
       "ArgumentParser": false,
       "Namespace": false
@@ -23,6 +25,7 @@
   "ast": {
     "category": "parsing",
     "files": 1,
+    "pure_lib": "astmod",
     "pycsl-functions-used": {
       "dump": false,
       "parse": false
@@ -37,6 +40,7 @@
   "bisect": {
     "category": "data",
     "files": 1,
+    "pure_lib": "bsect",
     "pycsl-functions-used": {
       "bisect_left": false
     }
@@ -44,6 +48,7 @@
   "collections": {
     "category": "data",
     "files": 2,
+    "pure_lib": "coll",
     "pycsl-functions-used": {
       "defaultdict": false,
       "deque": false
@@ -52,6 +57,7 @@
   "colorsys": {
     "category": "math",
     "files": 1,
+    "pure_lib": "clrsys",
     "pycsl-functions-used": {
       "rgb_to_hls": false,
       "rgb_to_hsv": false,
@@ -61,6 +67,7 @@
   "contextlib": {
     "category": "utilities",
     "files": 1,
+    "pure_lib": "ctxlib",
     "pycsl-functions-used": {
       "contextmanager": false,
       "nullcontext": false
@@ -75,6 +82,7 @@
   "copy": {
     "category": "data",
     "files": 2,
+    "pure_lib": "cpmod",
     "pycsl-functions-used": {
       "deepcopy": false
     }
@@ -88,6 +96,7 @@
   "dataclasses": {
     "category": "language",
     "files": 7,
+    "pure_lib": "dc",
     "pycsl-functions-used": {
       "dataclass": false,
       "field": false
@@ -102,6 +111,7 @@
   "difflib": {
     "category": "text",
     "files": 1,
+    "pure_lib": "dlib",
     "pycsl-functions-used": {
       "SequenceMatcher": false,
       "unified_diff": false
@@ -116,6 +126,7 @@
   "enum": {
     "category": "language",
     "files": 1,
+    "pure_lib": "enm",
     "pycsl-functions-used": {
       "IntEnum": false,
       "auto": false
@@ -130,6 +141,7 @@
   "fnmatch": {
     "category": "system",
     "files": 1,
+    "pure_lib": "fnm",
     "pycsl-functions-used": {
       "filter": false,
       "fnmatch": false
@@ -162,6 +174,7 @@
   "graphlib": {
     "category": "data",
     "files": 1,
+    "pure_lib": "grlib",
     "pycsl-functions-used": {
       "TopologicalSorter": false
     }
@@ -169,6 +182,7 @@
   "hashlib": {
     "category": "crypto",
     "files": 2,
+    "pure_lib": "hlib",
     "pycsl-functions-used": {
       "sha256": false
     }
@@ -176,6 +190,7 @@
   "heapq": {
     "category": "data",
     "files": 1,
+    "pure_lib": "hpq",
     "pycsl-functions-used": {
       "heapify": false,
       "heappop": false,
@@ -203,6 +218,7 @@
   "inspect": {
     "category": "introspection",
     "files": 1,
+    "pure_lib": "insp",
     "pycsl-functions-used": {
       "cleandoc": false
     }
@@ -210,6 +226,7 @@
   "io": {
     "category": "system",
     "files": 1,
+    "pure_lib": "iomod",
     "pycsl-functions-used": {
       "StringIO": false
     }
@@ -223,6 +240,7 @@
   "json": {
     "category": "data",
     "files": 4,
+    "pure_lib": "json",
     "pycsl-functions-used": {
       "JSONDecodeError": false,
       "dumps": false,
@@ -233,6 +251,7 @@
   "keyword": {
     "category": "language",
     "files": 1,
+    "pure_lib": "kw",
     "pycsl-functions-used": {
       "kwlist": false
     }
@@ -240,6 +259,7 @@
   "linecache": {
     "category": "system",
     "files": 1,
+    "pure_lib": "lcach",
     "pycsl-functions-used": {
       "getline": false
     }
@@ -259,6 +279,7 @@
   "os": {
     "category": "system",
     "files": 4,
+    "pure_lib": "os",
     "pycsl-functions-used": {
       "X_OK": false,
       "access": false,
@@ -284,6 +305,7 @@
   "pathlib": {
     "category": "system",
     "files": 4,
+    "pure_lib": "plib",
     "pycsl-functions-used": {
       "Path": false
     }
@@ -303,6 +325,7 @@
   "pprint": {
     "category": "utilities",
     "files": 1,
+    "pure_lib": "pp",
     "pycsl-functions-used": {
       "pformat": false,
       "pprint": false
@@ -311,6 +334,7 @@
   "queue": {
     "category": "concurrency",
     "files": 1,
+    "pure_lib": "que",
     "pycsl-functions-used": {
       "PriorityQueue": false,
       "Queue": false
@@ -325,6 +349,7 @@
   "re": {
     "category": "text",
     "files": 3,
+    "pure_lib": "re",
     "pycsl-functions-used": {
       "compile": false,
       "findall": false
@@ -333,6 +358,7 @@
   "reprlib": {
     "category": "utilities",
     "files": 1,
+    "pure_lib": "reprlib",
     "pycsl-functions-used": {
       "Repr": false,
       "repr": false
@@ -347,6 +373,7 @@
   "secrets": {
     "category": "crypto",
     "files": 1,
+    "pure_lib": "secr",
     "pycsl-functions-used": {
       "choice": false,
       "token_hex": false
@@ -361,6 +388,7 @@
   "shlex": {
     "category": "text",
     "files": 1,
+    "pure_lib": "shlx",
     "pycsl-functions-used": {
       "quote": false,
       "split": false
@@ -369,6 +397,7 @@
   "shutil": {
     "category": "system",
     "files": 2,
+    "pure_lib": "shutl",
     "pycsl-functions-used": {
       "copy2": false,
       "which": false
@@ -389,6 +418,7 @@
   "stat": {
     "category": "system",
     "files": 1,
+    "pure_lib": "stat",
     "pycsl-functions-used": {
       "S_ISDIR": false,
       "S_ISREG": false
@@ -403,6 +433,7 @@
   "string": {
     "category": "text",
     "files": 1,
+    "pure_lib": "strmod",
     "pycsl-functions-used": {
       "Formatter": false,
       "Template": false
@@ -411,6 +442,7 @@
   "subprocess": {
     "category": "system",
     "files": 2,
+    "pure_lib": "subproc",
     "pycsl-functions-used": {
       "TimeoutExpired": false,
       "run": false
@@ -419,6 +451,7 @@
   "sys": {
     "category": "system",
     "files": 3,
+    "pure_lib": "sysmod",
     "pycsl-functions-used": {
       "argv": false,
       "exit": false,
@@ -435,6 +468,7 @@
   "sysconfig": {
     "category": "system",
     "files": 1,
+    "pure_lib": "syscfg",
     "pycsl-functions-used": {
       "get_paths": false
     }
@@ -442,6 +476,7 @@
   "tempfile": {
     "category": "system",
     "files": 2,
+    "pure_lib": "tmpf",
     "pycsl-functions-used": {
       "NamedTemporaryFile": false,
       "mkstemp": false
@@ -450,6 +485,7 @@
   "textwrap": {
     "category": "text",
     "files": 1,
+    "pure_lib": "txtwrp",
     "pycsl-functions-used": {
       "dedent": false,
       "fill": false,
@@ -465,6 +501,7 @@
   "time": {
     "category": "time",
     "files": 1,
+    "pure_lib": "tm",
     "pycsl-functions-used": {
       "monotonic": false
     }
@@ -472,6 +509,7 @@
   "token": {
     "category": "parsing",
     "files": 1,
+    "pure_lib": "tok",
     "pycsl-functions-used": {
       "ISNONTERMINAL": false,
       "ISTERMINAL": false
@@ -480,6 +518,7 @@
   "tokenize": {
     "category": "parsing",
     "files": 1,
+    "pure_lib": "token",
     "pycsl-functions-used": {
       "COMMENT": false,
       "DEDENT": false,
@@ -502,6 +541,7 @@
   "traceback": {
     "category": "utilities",
     "files": 1,
+    "pure_lib": "tbk",
     "pycsl-functions-used": {
       "format_exc": false,
       "print_exc": false
@@ -516,6 +556,7 @@
   "typing": {
     "category": "language",
     "files": 30,
+    "pure_lib": "typ",
     "pycsl-functions-used": {
       "Any": false,
       "Callable": false,
@@ -531,6 +572,7 @@
   "unicodedata": {
     "category": "unicode",
     "files": 2,
+    "pure_lib": "udata",
     "pycsl-functions-used": {
       "lookup": false,
       "normalize": false
@@ -551,6 +593,7 @@
   "uuid": {
     "category": "crypto",
     "files": 1,
+    "pure_lib": "uu",
     "pycsl-functions-used": {
       "UUID": false,
       "uuid4": false
@@ -559,6 +602,7 @@
   "warnings": {
     "category": "utilities",
     "files": 3,
+    "pure_lib": "warn",
     "pycsl-functions-used": {
       "warn": false
     }
