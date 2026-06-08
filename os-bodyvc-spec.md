@@ -93,11 +93,16 @@ Attempting the L2 round-trip exposed, exactly as L0 did, foundational gaps below
    `materialize` at *return* boundaries; this needs it at *call-arg* boundaries (`bytes(!parts)` →
    `bytes (materialize !parts)`). Fix site: the call-arg coercion (`_array_coerce_arg` /
    the `bytes` handler) — materialize a `_seq_locals` arg. Analogous to L0; the L2 prerequisite.
-2. **seq-concat layout reasoning.** Even with (1), the round-trip needs `parts[off:off+N] ==
-   _pack_*(fields[k])` through the `+=` concat — proving a byte slice equals the k-th appended chunk.
-   This is the genuinely hard part (concat offset bookkeeping); options: tool support for slice/concat
-   layout, OR restructure pack to write into a fixed 64-byte array at known offsets (no `+=`/seq),
-   which sidesteps both (1) and (2).
+2. **Round-trip by contract composition — UNBLOCKED (`922d5e6`).** The deeper blocker wasn't concat at
+   all: an array-returning CALL passed to an array-int param (`unpack16(pack16(x), 0)`) was clobbered to
+   a placeholder `(Array.make 1 0)` by `_array_coerce_arg` (string heuristic), discarding the value. Now
+   function-application args pass through, so **`unpack16(pack16(x), 0) == x` proves purely from L1's
+   value contracts** (driver 0657) — NO concat or body tracking. The round-trip composes from contracts.
+   **Remaining L2 work (inode level):** give `_pack_inode`/`_unpack_inode` FIELD-WISE value contracts so
+   the same composition lifts to `_unpack_inode(_pack_inode(x))[k] == x[k]`. To make `_pack_inode`'s
+   field contracts PROVABLE, restructure it to write into a fixed 64-byte array at known offsets
+   (`out[k] = …`) instead of `parts += …` (which would still need concat-slice reasoning). Then each
+   field composes exactly like the uint round-trip.
 
 **So L2 is a fresh-session-sized effort** (a [TOOL] arg-materialize fix + concat-layout, or a pack
 restructure), NOT a quick contract addition. L0+L1 (the leaves the review pointed at) are done and
