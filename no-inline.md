@@ -1,7 +1,7 @@
 # no-inline.md — `#@ no_inline`: a modular-verification boundary for large methods
 
 **Date:** 2026-06-08
-**Status:** Design (Approved)
+**Status:** IMPLEMENTED (`dcd1d6d`) — all pieces A/B/C landed; P3 measured os 45→39; driver 0650 proves.
 **Owner:** PyCSL tool ([TOOL], `src/pycsl/**`)
 **Motivation source:** the 07-2333 os-coverage work — 6 of the 14 SMT-timeout goals in the os module
 are an **inlining artifact**, not a contract or solver problem.
