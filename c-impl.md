@@ -59,8 +59,15 @@ The faithful, probe-validated path (no totalizing — b-p4-rev2):
 
 **The decisive open risk is C2** (the computed-mutation bounds), not C1/C3. The probe proved the
 *mechanism*; C2 is whether the os's `new_size`/`_now()` bounds are *establishable* without a new blow-up.
-A C2 micro-probe (one syscall, real mutations, the 18 ranges) should run before the full sweep — same
-discipline as every prior step.
+
+> **C2 micro-probe: GREEN (driver 0662, ~5s).** A field-range invariant **survives computed mutations**
+> — `self.fields[0] = new_size` (`requires new_size ≤ 131072 < 2³²`) and `self.fields[7] = tick`
+> (bounded) — and the 18 `requires` **discharge AFTER the mutations** (the invariant is maintained for
+> the mutated fields; the others survive by frame). So the mechanism for the hard case (bounded
+> computed mutation preserving the representation invariant) is validated. What remains for the real os
+> is *sourcing* the bounds (`new_size ≤ disk_size`, `_now()` bound, `p_block` from `_alloc_block`) and
+> the model refactor (bare `list` inode → typed object carrying the invariant) — engineering, not an
+> unknown mechanism.
 
 ## 4. The coupling invariant + L0″ (the heavier, later milestone — distinct from C1–C5)
 
