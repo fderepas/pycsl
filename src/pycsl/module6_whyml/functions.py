@@ -722,6 +722,75 @@ class FunctionEmissionMixin:
                 out[func["name"]] = kept
         return out
 
+    def _build_method_writes_map(self, functions: List[Dict[str, Any]]) -> Dict[str, List[str]]:
+        """gap7-spec-rev2 (O1/O2): map method name → the self-field names it `assigns`
+        (`assigns self.x` → `["x"]`). Derived from the SAME `contracts.assigns` the method's
+        `let` is verified against, so the abstract op's `writes {self.x}` cannot drift from the
+        method's frame. Only `self.<field>` targets are collected (a non-self / `\nothing`
+        assigns yields no writes — the call needs no `writes` clause)."""
+        out: Dict[str, List[str]] = {}
+        for func in functions:
+            fields: List[str] = []
+            for a in (func.get("contracts", {}).get("assigns", []) or []):
+                if (isinstance(a, dict) and a.get("type") in ("FieldGet", "Attribute")
+                        and a.get("object") == "self" and a.get("field")):
+                    if a["field"] not in fields:
+                        fields.append(a["field"])
+            if fields:
+                out[func["name"]] = fields
+        return out
+
+    def _build_method_field_old_ensures_map(
+            self, functions: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+        """gap7-spec-rev2: map method name → its `ensures` clauses that reference self-fields
+        and/or `\\old(self.f)` (the MUTATING contract) but NO `\\result`, params, locals, or
+        non-self objects. These are exactly the clauses the existing field-RESULT map drops
+        (it rejects `OldVar`/`OldField`) — so a void mutating method (`inc`: `self.x ==
+        \\old(self.x)+1`) propagated nowhere. The call site lowers them by giving the abstract
+        op `(self: <class>)` + `writes {self.f}` and translating `\\old(self.f)` → `old self.f`.
+        Excludes any clause that also references `\\result` (that's the non-void case — kept in
+        the field-RESULT map) so each clause is filed by its kind (the rev2 partition)."""
+        def classify(node: Any) -> Optional[bool]:
+            # False if the subtree references a DISALLOWED leaf (param/local bare Var, \result,
+            # or non-self object field); None otherwise (self-field / old-self-field / const).
+            if not isinstance(node, dict):
+                return None
+            t = node.get("type")
+            if t == "Result":
+                return False
+            if t in ("FieldGet", "Attribute", "OldField"):
+                return False if node.get("object") != "self" else None
+            if t == "OldVar":
+                return False
+            if t == "Var":
+                return False
+            if t == "ArrayLen":
+                v = node.get("var")
+                return None if (v == "self" or (isinstance(v, dict) and v.get("object") == "self")) else False
+            for val in node.values():
+                for c in (val if isinstance(val, list) else [val]):
+                    if classify(c) is False:
+                        return False
+            return None
+
+        def refs_self_field_or_old(node: Any) -> bool:
+            if not isinstance(node, dict):
+                return False
+            if (node.get("type") in ("FieldGet", "Attribute", "OldField")
+                    and node.get("object") == "self"):
+                return True
+            return any(refs_self_field_or_old(c)
+                       for val in node.values()
+                       for c in (val if isinstance(val, list) else [val]))
+
+        out: Dict[str, List[Dict[str, Any]]] = {}
+        for func in functions:
+            kept = [e for e in (func.get("contracts", {}).get("ensures", []) or [])
+                    if classify(e) is not False and refs_self_field_or_old(e)]
+            if kept:
+                out[func["name"]] = kept
+        return out
+
     @staticmethod
     def _symtype_to_whyml(symtype: Optional[str]) -> str:
         """Convert a Module5 symbol-table type tag to the WhyML type used

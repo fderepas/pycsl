@@ -102,6 +102,10 @@ class Module6_WhyMLTranspiler(
         self._module_method_param_defaults: Dict[str, Dict[str, Any]] = {}
         self._module_method_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
         self._module_method_param_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
+        self._module_method_field_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
+        # gap7-spec-rev2: void/mutating record-method support
+        self._module_method_writes: Dict[str, List[str]] = {}
+        self._module_method_field_old_ensures: Dict[str, List[Dict[str, Any]]] = {}
         self._auto_trusted_array_returns: List[str] = []
         self._auto_trusted_tuple_returns: List[str] = []
         self._auto_trusted_map_returns: List[str] = []
@@ -430,6 +434,12 @@ class Module6_WhyMLTranspiler(
         self._module_method_result_ensures = self._build_method_result_ensures_map(funcs_for_maps)
         self._module_method_param_result_ensures = self._build_method_param_result_ensures_map(funcs_for_maps)
         self._module_method_field_result_ensures = self._build_method_field_result_ensures_map(funcs_for_maps)
+        # gap7-spec-rev2: void/mutating record-method support. `_writes` = self-fields a method
+        # `assigns`; `_field_old_ensures` = its `ensures` over self-fields + `\old(self.f)` (no
+        # \result/param). Both derived from the SAME `contracts.*` the method's `let` is verified
+        # against (O2 — cannot drift). A method may appear in BOTH field_result and field_old maps.
+        self._module_method_writes = self._build_method_writes_map(funcs_for_maps)
+        self._module_method_field_old_ensures = self._build_method_field_old_ensures_map(funcs_for_maps)
         # The pseudo-funcs have empty bodies, so the return-type map derives `unit`
         # for a scalar dependency; override with the type from the declared signature
         # so `self.<dep>(…)` is a `: int` (etc.) call, not `: unit`.

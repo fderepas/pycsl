@@ -676,11 +676,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     param_types = self._module_method_param_types.get(lookup_key, [])
                     result_ensures = rens.get(lookup_key, []) + prens.get(lookup_key, [])
                     fens = getattr(self, "_module_method_field_result_ensures", {})
-                    field_ens = fens.get(lookup_key, [])
-                    if field_ens:
-                        # `b.<m>()`: the receiver record `b` becomes the
-                        # abstract op's leading `(self: cls)` parameter.
-                        field_spec = (parts[0], cls, field_ens)
+                    # gap7-spec-rev2: also fold in the void/mutating contract — self-field
+                    # `\old`-relating ensures + the `writes` (assigns) set — so a statement-position
+                    # `c.inc()` mutates `c` instead of lowering to an opaque no-op.
+                    foens = getattr(self, "_module_method_field_old_ensures", {})
+                    mwrites = getattr(self, "_module_method_writes", {})
+                    field_ens = fens.get(lookup_key, []) + foens.get(lookup_key, [])
+                    writes = mwrites.get(lookup_key, [])
+                    if field_ens or writes:
+                        # `b.<m>()`: the receiver record `b` becomes the abstract op's leading
+                        # `(self: cls)` parameter; `writes` frames the mutated self-fields.
+                        field_spec = (parts[0], cls, field_ens, writes)
                     matched_instance = True
             if not matched_instance:
                 # Bytes-producing methods return `array int` (a byte buffer),
@@ -767,17 +773,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `(self: <class>)` and passing the receiver record, so `self.x` in the
         # propagated clause resolves to the actual instance's field.
         receiver_param = ""
+        writes_clause = ""
         if field_spec is not None:
-            receiver_expr, receiver_class, _ = field_spec
+            receiver_expr, receiver_class = field_spec[0], field_spec[1]
             receiver_param = f"(self: {receiver_class}) "
             coerced = [receiver_expr] + coerced
+            # gap7-spec-rev2: a void/mutating method's `assigns self.f` → `writes { self.f }` on
+            # the abstract op, so the call mutates the receiver's region (the `_dotted_ensures_suffix`
+            # `\old(self.f)` clause then relates post- to pre-state, and the caller sees the change).
+            writes_fields = field_spec[3] if len(field_spec) > 3 else []
+            if writes_fields:
+                writes_clause = "\n    writes { " + "; ".join(
+                    f"self.{f}" for f in writes_fields) + " }"
         ensures_suffix = self._dotted_ensures_suffix(result_ensures, n, param_types, field_spec)
         if n == 0 and not receiver_param:
             self._add_abstract_op(f"val {arity_name} () : {ret_type}{ensures_suffix}")
             return f"({arity_name} ())"
         params = " ".join(f"(x{i}: {ptype})" for i, ptype in enumerate(param_types))
         params = f"{receiver_param}{params}".rstrip()
-        self._add_abstract_op(f"val {arity_name} {params} : {ret_type}{ensures_suffix}")
+        self._add_abstract_op(f"val {arity_name} {params} : {ret_type}{writes_clause}{ensures_suffix}")
         return f"({arity_name} {' '.join(coerced)})"
 
     def _coerce_dotted_args(self, args: List[str], param_types: List[str]) -> List[str]:
