@@ -927,8 +927,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             if ty in ("str", "string") and name not in set(self._formal_params)
         }
         self._string_local_vars = string_vars
+        # 07-2333-rev2 Gap 3: a seq-promoted (growable) list LOCAL must NOT be pre-declared
+        # as `ref 0 : ref int` — it is `ref (seq int)`, let-bound at its first assignment by
+        # `_handle_seq_assign` (07-1705 P3). Excluding it here is what lets the first assign
+        # emit `let items = ref (Seq.cons …)` instead of `items := …` onto an int ref (the
+        # `seq int … expected int` leak). Params are not in pre_decl_vars, so unioning the
+        # full set is safe.
+        seq_local_vars = getattr(self, "_seq_locals", set()) - set(self._formal_params)
         return (array_vars | dict_vars | lambda_vars | record_vars | variant_vars
-                | set(tuple_vars) | string_vars)
+                | set(tuple_vars) | string_vars | seq_local_vars)
 
     def _emit_body_code(self, func: Dict[str, Any], body_stmts: List[Dict[str, Any]],
                          local_refs: Set[str], ghost_vars: Set[str], ref_params: Set[str],
