@@ -13,7 +13,7 @@ from Module2_Parser import (
     BinOp as CSLBinOp, UnaryOp as CSLUnaryOp, Var as CSLVar,
     Number as CSLNumber, Result as CSLResult, Old as CSLOld, Nothing,
     FieldAccess as CSLFieldAccess, FieldSubscript as CSLFieldSubscript,
-    Forall, Exists, ArrayLength, InGlobals, SubscriptAccess,
+    Forall, Exists, ArrayLength, InGlobals, InScope, SubscriptAccess,
     AssignsRegion, Valid, Separated, At as CSLAt,
     Length2D, Valid2D, FunctionVariant, StringLiteral as CSLStringLiteral,
     CallExpr, IsSorted, ArrayEq, Permutation, Sum, CSLBool, CSLNone, CSLIn, CSLNotIn, CSLSlice, DictView, ForallItems,
@@ -161,6 +161,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         Exists:           "_csl_exists",
         ArrayLength:      "_csl_array_length",
         InGlobals:        "_csl_in_globals",
+        InScope:          "_csl_in_scope",
         SubscriptAccess:  "_csl_subscript",
         AssignsRegion:    "_csl_assigns_region",
         Valid:            "_csl_valid",
@@ -311,6 +312,9 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
 
     def _csl_in_globals(self, node: InGlobals) -> Dict[str, Any]:
         return {"type": "InGlobals", "name": node.name}   # 07-1839 P2
+
+    def _csl_in_scope(self, node: InScope) -> Dict[str, Any]:
+        return {"type": "InScope", "name": node.name}     # 07-1839 P3
 
     def _csl_subscript(self, node: SubscriptAccess) -> Dict[str, Any]:
         if node.array == "\\result":

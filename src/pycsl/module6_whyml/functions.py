@@ -139,7 +139,44 @@ class FunctionEmissionMixin:
         self._formal_params: List[str] = list(func.get("formal_params", []))
         self._current_array1d_params = set(func.get("array1d_params", []))
         self._array2d_params = set(func.get("array2d_params", []))
+        # 07-1839 P3: definite-assignment sets for `\in_scope` (three-valued).
+        self._scope_params, self._scope_must, self._scope_all = self._compute_scope_sets(func)
+        # 07-1839 P3/decision C: a dynamic exec/eval havocs the binding set → withhold the
+        # decided-false direction downstream. Set by Module5/the exec pass (P5); default off.
+        self._scope_dyn_exec: bool = bool(func.get("has_dynamic_exec", False))
         return local_refs, ghost_vars
+
+    def _compute_scope_sets(self, func: Dict[str, Any]):
+        """07-1839 P3: (params, must-assigned, all-assigned) for `\\in_scope`.
+        `must` = params ∪ top-level assignments that precede ANY control flow / return
+        (assigned on all paths to function end); `all` = every assignment target anywhere
+        (recursive). decided-true ⇐ must; decided-false ⇐ not in (params ∪ all); else unknown."""
+        params = set(func.get("formal_params", []) or [])
+        body = func.get("body", []) or []
+        # Statement IR uses the key "stmt" for the statement kind (expressions use "type").
+        control = {"If", "While", "For", "Try", "Return", "Raise", "Match", "With"}
+        must = set(params)
+        for st in body:
+            if not isinstance(st, dict):
+                continue
+            if st.get("stmt") in control:
+                break  # past this point assignment is no longer guaranteed on all paths
+            if st.get("stmt") in ("Assign", "AugAssign") and isinstance(st.get("target"), str):
+                must.add(st["target"])
+        alla: Set[str] = set()
+        self._collect_assign_targets(body, alla)
+        return params, must, alla
+
+    def _collect_assign_targets(self, node: Any, acc: Set[str]) -> None:
+        """Recursively gather Assign/AugAssign simple-name targets anywhere in a stmt subtree."""
+        if isinstance(node, dict):
+            if node.get("stmt") in ("Assign", "AugAssign") and isinstance(node.get("target"), str):
+                acc.add(node["target"])
+            for v in node.values():
+                self._collect_assign_targets(v, acc)
+        elif isinstance(node, list):
+            for v in node:
+                self._collect_assign_targets(v, acc)
 
     def _build_param_list(self, func: Dict[str, Any],
                            local_refs: Set[str],

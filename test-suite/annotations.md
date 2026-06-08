@@ -711,6 +711,7 @@ function + agreement lemma).
 | 22 | `\is_ctor(x, Ctor)` | `CtorTest` | Datatype discriminator: true iff `x` was built with constructor `Ctor`. Lowers to `match x with Ctor _ … -> true \| _ -> false`. |
 | 23 | `\payload(x, Ctor[, i])` | `CtorPayload` | Datatype projector: the i-th payload of `x` viewed as `Ctor` (`i` defaults to 0). Lowers to `match x with Ctor … z … -> z \| _ -> <typed default>`. Lets a contract name a `match` capture without a match (§2.6). |
 | 24 | `\in_globals(name)` | `InGlobals` | **Introspection (07-1839):** `name` is a statically-declared module binding (function / class / module global / constant). Three-valued, **true-only lower bound**: decided-true (→ `true`) for a declared name; **unknown** otherwise (the world is open — `import`/`exec` inject names), so it lowers to an uninterpreted bool, **never** decided-false. Compile-time knowledge; no runtime `globals()` dict. |
+| 25 | `\in_scope(name)` | `InScope` | **Introspection (07-1839 P3):** `name` is a local/parameter bound at this point, via **definite-assignment**. Three-valued: decided-true (→ `true`) if assigned on all paths (a parameter, or a top-level assignment before any branch/return); decided-false (→ `false`) if `name` is neither a parameter nor assigned anywhere; **unknown** (conditionally assigned) → uninterpreted bool. A dynamic `exec`/`eval` havocs the binding set (the decided-false direction is then withheld). |
 
 ### 3.2 Operators (by precedence, lowest first)
 

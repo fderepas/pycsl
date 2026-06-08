@@ -193,6 +193,15 @@ class InGlobals(CSLNode):
     name: str
 
 @dataclass
+class InScope(CSLNode):
+    """07-1839 P3: `\\in_scope(name)` — is `name` a local/parameter bound at this point?
+    Three-valued via definite-assignment: decided-true if assigned on ALL paths (a formal
+    param, or a top-level assignment before any branching/return); decided-false if `name`
+    is neither a param nor assigned anywhere; **unknown** (conditionally assigned) otherwise.
+    A dynamic `exec`/`eval` havocs the binding set (decision C, P5)."""
+    name: str
+
+@dataclass
 class AssignsRegion(CSLNode):
     """Represents `arr[lo..hi]` inside an assigns clause (frame condition region)."""
     base: str       # array parameter name
@@ -1051,6 +1060,7 @@ PYCSL_GRAMMAR = r"""
          | "\\result" -> result
          | "\\old" "(" expr ")" -> old_var
          | "\\in_globals" "(" CNAME ")" -> in_globals_pred
+         | "\\in_scope" "(" CNAME ")" -> in_scope_pred
          | "\\length" "(" CNAME ")" -> array_length
          | "\\length" "(" "self" "." CNAME ")" -> array_length_field
          | "\\length" "(" "\\result" ")" -> array_length_result
@@ -1365,6 +1375,7 @@ class PyCSLTransformer(Transformer):
             node = Exists(str(nm), node)
         return node
     def in_globals_pred(self, name) -> InGlobals: return InGlobals(str(name))  # 07-1839 P2
+    def in_scope_pred(self, name) -> InScope: return InScope(str(name))        # 07-1839 P3
     def array_length(self, var) -> ArrayLength: return ArrayLength(str(var))
     def array_length_field(self, field_name) -> ArrayLength:
         # `\length(self.f)` — length of an `array int` record field.

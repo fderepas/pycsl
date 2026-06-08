@@ -309,6 +309,7 @@ class Module6_WhyMLTranspiler(
         "SliceAccess":  "_handle_slice_access_expr",
         "ArrayLen":     "_handle_arraylen_expr",
         "InGlobals":    "_handle_in_globals_expr",
+        "InScope":      "_handle_in_scope_expr",
         "Valid":        "_handle_valid_expr",
         "Separated":    "_handle_separated_expr",
         "Length2D":     "_handle_length2d_expr",

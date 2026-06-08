@@ -1122,20 +1122,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             params = " ".join(f"(x{i}: 'a{i})" for i in range(len(all_args)))
             self._add_abstract_op(f"val {pname} {params} : int {ens}")
             return f"({pname} {' '.join('(' + a + ')' for a in all_args)})"
-        if func_name == "isinstance" and len(args) == 2:
-            type_arg = self._coerce_to_int(args[1])
-            self_type = self._current_self_type
-            if args[0] == "self" and self_type:
-                op = f"isinstance_check_{self_type}"
-                self._add_abstract_op(f"val {op} (x: {self_type}) (t: int) : bool")
-            else:
-                op = "isinstance_check"
-                # 07-0647-spec S1.2/S4: the checked value may be a record/variant (e.g.
-                # a class-typed param), not just an int — make the receiver polymorphic
-                # (`x: 'a`) so `isinstance_check` accepts any operand type. (Opaque: the
-                # result is an unconstrained bool; isinstance is not modelled.)
-                self._add_abstract_op("val isinstance_check (x: 'a) (t: int) : bool")
-            return f"({op} {args[0]} {type_arg})"
+        if func_name == "isinstance" and len(expr.get("args", [])) == 2:
+            # 07-1839 P4: faithful metatype resolution — `subtag (\typeof x) T` (decided
+            # from Γ's τ; base types via the subtag relation; symbolic at the `Any` tail).
+            # Supersedes the old opaque `isinstance_check`.
+            return self._handle_isinstance(expr)
         if func_name in ("set", "frozenset") and len(args) == 0:
             # Body set: same `map int (option int)` model as body dicts.
             # Sets store `Some 0` for "present" keys, `None` for absent.
@@ -1257,6 +1248,63 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 self._add_abstract_op("val hasattr_check (x: int) (a: int) : bool")
             return f"({op} {a0} {a1})"
         return None
+
+    # ── 07-1839 P4: metatype tags + \subtag + isinstance ──────────────────────
+    _METATYPE_TAGS = {"int": "tag_int", "bool": "tag_int", "str": "tag_str",
+                      "float": "tag_float", "list": "tag_list", "List": "tag_list",
+                      "dict": "tag_dict", "Dict": "tag_dict", "set": "tag_dict",
+                      "frozenset": "tag_dict", "object": "tag_object"}
+
+    def _emit_metatype_tags(self) -> None:
+        """Emit the tag constants + the `subtag` relation (P0-validated). Decision A:
+        no `tag_bool` — bool collapses to `tag_int` (Γ has `τ(bool)=int`). subtag is
+        reflexive + `b = object`; on-demand, so non-introspecting files stay identical."""
+        for nm, v in (("tag_int", 0), ("tag_str", 1), ("tag_float", 2), ("tag_list", 3),
+                      ("tag_dict", 4), ("tag_record", 5), ("tag_variant", 6),
+                      ("tag_object", 99)):
+            self._add_abstract_op(f"function {nm} : int = {v}")
+        # `99` is `tag_object` inlined: the abstract-op block is emitted alphabetically,
+        # so `subtag` must not reference `tag_object` by name (it would sort before it).
+        # The `tag_*` functions are used only in goals (after all decls), so they are fine.
+        self._add_abstract_op("predicate subtag (a b: int) = a = b \\/ b = 99")
+
+    def _tag_of_type(self, t_name: Optional[str]) -> Optional[str]:
+        """Tag for a *type name* (the 2nd arg of isinstance / a class / datatype).
+        None ⇒ unknown target type (fully uninterpreted)."""
+        if not t_name:
+            return None
+        if t_name in self._METATYPE_TAGS:
+            return self._METATYPE_TAGS[t_name]
+        if t_name.lower() in getattr(self, "_record_types", {}):
+            return "tag_record"
+        if t_name in getattr(self, "_variant_types", {}):
+            return "tag_variant"
+        return None
+
+    def _tag_of_value(self, x_ir: Dict[str, Any]) -> str:
+        """Tag of a *value* from Γ's τ (decision B: only a stable, concrete τ decides;
+        `Any`/unstable/non-var → a free symbolic tag via `typeof_op`, so introspection on
+        it stays unknown — never a wrong-decided)."""
+        name = x_ir.get("name") if isinstance(x_ir, dict) and x_ir.get("type") == "Var" else None
+        tag = self._tag_of_type(getattr(self, "_current_symbol_table", {}).get(name)) if name else None
+        if tag is not None:
+            return tag
+        self._add_abstract_op("val typeof_op (n: int) : int")
+        return f"(typeof_op {sum(ord(c) for c in name) if name else 0})"
+
+    def _handle_isinstance(self, expr: Dict[str, Any]) -> str:
+        """`isinstance(x, T)` → `subtag (\\typeof x) T` (decision: \\subtag, not ==, so a
+        base type like `object` decides true and a leaf≠leaf decides false). Decided when
+        x has a concrete τ; symbolic at the `Any` tail; fully uninterpreted if T is an
+        unknown type."""
+        args_ir = expr.get("args", [])
+        t_name = args_ir[1].get("name") if isinstance(args_ir[1], dict) else None
+        t_tag = self._tag_of_type(t_name)
+        if t_tag is None:
+            self._add_abstract_op("val isinstance_op (x: int) (t: int) : bool")
+            return "(isinstance_op 0 0)"
+        self._emit_metatype_tags()
+        return f"(subtag {self._tag_of_value(args_ir[0])} {t_tag})"
 
     def _subst_params(self, ir: Any, arg_nodes: Dict[str, Any]) -> Any:
         """Deep-copy a value IR, replacing each `Var(param)` with its pre-lowered arg
@@ -1922,6 +1970,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return "true"
         self._add_abstract_op("val in_globals_op (n: int) : bool")
         return f"(in_globals_op {sum(ord(c) for c in name)})"
+
+    def _handle_in_scope_expr(self, expr: Dict[str, Any], local_refs: Set[str],
+                              invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> str:
+        """07-1839 P3: `\\in_scope(name)` — three-valued via definite-assignment.
+        decided-true (→ `true`) if `name` is assigned on all paths (param or top-level
+        assignment before any branch/return); decided-false (→ `false`) if `name` is
+        neither a param nor assigned anywhere; UNKNOWN (conditionally assigned) → an
+        uninterpreted bool. A dynamic exec havocs the binding set, so the decided-false
+        direction is withheld afterwards (decision C)."""
+        name = expr.get("name", "")
+        if name in getattr(self, "_scope_must", set()):
+            return "true"
+        if (not getattr(self, "_scope_dyn_exec", False)
+                and name not in getattr(self, "_scope_all", set())
+                and name not in getattr(self, "_scope_params", set())):
+            return "false"
+        self._add_abstract_op("val in_scope_op (n: int) : bool")
+        return f"(in_scope_op {sum(ord(c) for c in name)})"
 
     def _handle_valid_expr(
         self,

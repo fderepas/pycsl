@@ -167,6 +167,8 @@ The **Ref** column uses the format `section.subsection.row`.
 | 12.7.3 | seq return boundary \| `return a` of a seq local → `materialize !a` (fresh array); build-by-concat then return proves `\length(\result)` (07-1705-rev4 P4) | 0629 | PASS |
 | 12.7.4 | growable list PARAM (seq model) \| a grown list param is shadowed `let a = ref (snapshot a)`; concat + `return` materialise prove `\length(\result) == \length(a)+\length(b)`; `array_extend` removed (07-1705-rev4 P5) | 0619 | PASS |
 | 12.8.1 | introspection `\in_globals` \| `\in_globals(name)` three-valued true-only lower bound: decided-true for a declared module binding, unknown (uninterpreted bool) otherwise — never decided-false (open world) (07-1839 P1/P2) | 0630; XFAIL: 0631 | PASS |
+| 12.8.2 | metatype `isinstance` \| `isinstance(x,T)` → `subtag (\typeof x) T` over an int-tag enum (A: bool→tag_int); decided-true for matching/base type, decided-false for leaf mismatch, symbolic at the `Any` tail (B); supersedes opaque `isinstance_check` (07-1839 P4) | 0632; XFAIL: 0633, 0634 | PASS |
+| 12.8.3 | scope `\in_scope` \| `\in_scope(name)` three-valued via definite-assignment: decided-true for a param / top-level-before-branch assignment, decided-false for a never-bound name, unknown (uninterpreted) for conditional assignment (07-1839 P3) | 0635; XFAIL: 0636, 0637 | PASS |
 
 ## NoException + UB Detection (workplan PRs 1–10, 2026)
 
