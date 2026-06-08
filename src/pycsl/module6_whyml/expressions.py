@@ -1247,6 +1247,39 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 op = "hasattr_check"
                 self._add_abstract_op("val hasattr_check (x: int) (a: int) : bool")
             return f"({op} {a0} {a1})"
+        if func_name == "exec":
+            # 07-1839 P5a': a dynamic `exec` is a worst-case mutator (rev4 §8.4.2). In a
+            # frame-checked model (typed/store) it WRITES the heap, so a narrow `assigns`
+            # (e.g. `\nothing` → `ensures !heap = old !heap`) correctly fails — closing the
+            # frame hole. In the value-semantic model `assigns` is not frame-checked, so an
+            # opaque unit suffices (scope havoc is handled in P5a). Constant splice = P5b.
+            code = args[0] if args else "0"
+            if not self._value_semantic:
+                hv = self._heap_var
+                self._add_abstract_op(f"val exec_havoc (code: 'a) : unit writes {{ {hv} }}")
+                return f"(exec_havoc {code})"
+            self._add_abstract_op("val exec_stmt (code: 'a) : unit")
+            return f"(exec_stmt {code})"
+        if func_name in ("literal_eval", "ast.literal_eval") and len(expr.get("args", [])) == 1:
+            # 07-1839 P5c: `literal_eval` of a CONSTANT literal is compile-time-knowable —
+            # evaluate it with host `ast.literal_eval` (the source of truth) and emit the
+            # ACTUAL value with its true type (faithful, rev4 §8.3). int/str handled; other
+            # types (list/dict/float/bool) fall through to the opaque dynamic stub for now.
+            arg0 = expr["args"][0]
+            if isinstance(arg0, dict) and arg0.get("type") == "String":
+                import ast as _hostast
+                try:
+                    v = _hostast.literal_eval(arg0.get("value", ""))
+                    if isinstance(v, bool):
+                        v = None  # defer bool (context-dependent true/false vs 1/0)
+                    if isinstance(v, int):
+                        return f"(- {abs(v)})" if v < 0 else str(v)
+                    if isinstance(v, str):
+                        return '"' + v.replace('\\', '\\\\').replace('"', '\\"') + '"'
+                except (ValueError, SyntaxError):
+                    pass  # not a valid literal → opaque
+            self._add_abstract_op("val literal_eval_op (s: 'a) : int")
+            return f"(literal_eval_op {args[0] if args else '0'})"
         return None
 
     # ── 07-1839 P4: metatype tags + \subtag + isinstance ──────────────────────

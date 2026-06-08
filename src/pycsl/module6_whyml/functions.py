@@ -141,10 +141,30 @@ class FunctionEmissionMixin:
         self._array2d_params = set(func.get("array2d_params", []))
         # 07-1839 P3: definite-assignment sets for `\in_scope` (three-valued).
         self._scope_params, self._scope_must, self._scope_all = self._compute_scope_sets(func)
-        # 07-1839 P3/decision C: a dynamic exec/eval havocs the binding set → withhold the
-        # decided-false direction downstream. Set by Module5/the exec pass (P5); default off.
-        self._scope_dyn_exec: bool = bool(func.get("has_dynamic_exec", False))
+        # 07-1839 P5a/decision C: a dynamic `exec` can inject arbitrary names, so it havocs
+        # the binding set → withhold the `\in_scope` decided-false direction downstream.
+        self._scope_dyn_exec: bool = (bool(func.get("has_dynamic_exec", False))
+                                      or self._has_dynamic_exec(func))
         return local_refs, ghost_vars
+
+    def _has_dynamic_exec(self, func: Dict[str, Any]) -> bool:
+        """07-1839 P5a: does the body contain an `exec(...)` call? `exec` is the one parser-
+        family member that can BIND names in the caller's scope, so its presence havocs
+        `\\in_scope` (decision C). (`eval`/`compile`/`ast.parse` return values and do not
+        inject names — they don't havoc scope; their unknown *result* is handled separately.)
+        Constant-source splicing is P5b; until then any `exec` is treated conservatively."""
+        found = False
+        stack = [func.get("body", [])]
+        while stack and not found:
+            node = stack.pop()
+            if isinstance(node, dict):
+                if node.get("type") == "Call" and node.get("func") == "exec":
+                    found = True
+                else:
+                    stack.extend(node.values())
+            elif isinstance(node, list):
+                stack.extend(node)
+        return found
 
     def _compute_scope_sets(self, func: Dict[str, Any]):
         """07-1839 P3: (params, must-assigned, all-assigned) for `\\in_scope`.

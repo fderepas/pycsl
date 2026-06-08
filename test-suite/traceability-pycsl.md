@@ -169,6 +169,9 @@ The **Ref** column uses the format `section.subsection.row`.
 | 12.8.1 | introspection `\in_globals` \| `\in_globals(name)` three-valued true-only lower bound: decided-true for a declared module binding, unknown (uninterpreted bool) otherwise — never decided-false (open world) (07-1839 P1/P2) | 0630; XFAIL: 0631 | PASS |
 | 12.8.2 | metatype `isinstance` \| `isinstance(x,T)` → `subtag (\typeof x) T` over an int-tag enum (A: bool→tag_int); decided-true for matching/base type, decided-false for leaf mismatch, symbolic at the `Any` tail (B); supersedes opaque `isinstance_check` (07-1839 P4) | 0632; XFAIL: 0633, 0634 | PASS |
 | 12.8.3 | scope `\in_scope` \| `\in_scope(name)` three-valued via definite-assignment: decided-true for a param / top-level-before-branch assignment, decided-false for a never-bound name, unknown (uninterpreted) for conditional assignment (07-1839 P3) | 0635; XFAIL: 0636, 0637 | PASS |
+| 12.8.4 | dynamic-exec scope havoc \| a function containing `exec(...)` withholds the `\in_scope` decided-false direction (decision C) — `exec` can bind arbitrary names, so a vacuous `requires \in_scope(neverbound)` is closed (07-1839 P5a) | XFAIL: 0638 | PASS |
+| 12.8.5 | dynamic-exec frame taint \| in a frame-checked model (typed/store) `exec(...)` lowers to `exec_havoc … writes {int_mem}`, so a narrow `assigns \nothing` frame condition correctly fails — `exec` is a worst-case mutator (07-1839 P5a') | XFAIL: 0639 | PASS |
+| 12.8.6 | constant `literal_eval` \| `ast.literal_eval("<literal>")` on a compile-time-constant arg is evaluated at verification time (host `ast.literal_eval`) and emitted as the actual value/τ — faithful (int/str); supersedes the opaque handle (07-1839 P5c) | 0640, 0641 | PASS |
 
 ## NoException + UB Detection (workplan PRs 1–10, 2026)
 
