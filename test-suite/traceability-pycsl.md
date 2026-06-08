@@ -174,6 +174,7 @@ The **Ref** column uses the format `section.subsection.row`.
 | 12.8.6 | constant `literal_eval` \| `ast.literal_eval("<literal>")` on a compile-time-constant arg is evaluated at verification time (host `ast.literal_eval`) and emitted as the actual value/τ — faithful (int/str); supersedes the opaque handle (07-1839 P5c) | 0640, 0641 | PASS |
 | 12.8.7 | constant `exec` splice \| `exec("<straight-line>")` with a constant arg is parsed at verification time (`pure_ast.parse`) and spliced in place — byte-identical to inline source; spliced names enter scope (07-1839 P5b) | 0642 | PASS |
 | 12.8.8 | `exec` splice whitelist \| the splice admits only straight-line assignments / pure expressions; control flow / import / def / class / nested exec are rejected fail-loud (07-1839 P5b) | XFAIL: 0643 | PASS |
+| 12.8.9 | HAPPY exec taint \| a non-exempt method containing a dynamic `exec(...)` cannot be confined by a HAPPY property — hard error (worst-case mutator; same teeth as a non-exempt `\trusted` mutator without `\preserves`) (07-1839 P5) | XFAIL: 0644 | PASS |
 
 ## NoException + UB Detection (workplan PRs 1–10, 2026)
 

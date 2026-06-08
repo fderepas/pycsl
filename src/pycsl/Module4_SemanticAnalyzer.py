@@ -617,9 +617,19 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
             return
         method_names: Set[str] = set()
         written_fields: Set[str] = set()
+        exec_methods: Set[str] = set()   # 07-1839 P5/HAPPY taint
         for n in ast.walk(node):
             if isinstance(n, ast.FunctionDef):
                 method_names.add(n.name)
+                # A dynamic exec (constant execs are already spliced away by P5b before
+                # Module4) can write ANYTHING, so a method containing one is a worst-case
+                # mutator w.r.t. any HAPPY region.
+                for sub in ast.walk(n):
+                    if (isinstance(sub, ast.Call)
+                            and isinstance(getattr(sub, "func", None), ast.Name)
+                            and sub.func.id == "exec"):
+                        exec_methods.add(n.name)
+                        break
             tgts = []
             if isinstance(n, ast.Assign):
                 tgts = n.targets
@@ -639,6 +649,20 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
                         f"in this module. Known methods: {sorted(method_names)}. "
                         f"A typo in the exempt set would silently widen the property's "
                         f"coverage, so this is rejected."
+                    )
+            # 07-1839 P5/HAPPY taint: a non-exempt method with a dynamic `exec(...)` may
+            # write anything, so it cannot be confined by this property — same teeth as a
+            # non-exempt `\trusted` mutator without `#@ \preserves` (test 0462). It must be
+            # in the except set (or have its exec removed / made a constant the P5b splice
+            # can bound).
+            for m in sorted(exec_methods):
+                if m not in hp.except_set:
+                    raise PyCSLSemanticError(
+                        f"`happy {hp.name}`: method '{m}' contains a dynamic `exec(...)`, "
+                        f"which may write anything (not a compile-time-constant exec, so it "
+                        f"cannot be spliced/bounded). A non-exempt dynamic-exec method cannot "
+                        f"be confined by this property — add it to the except set or remove the "
+                        f"exec. (07-1839 P5 — exec is a worst-case mutator under HAPPY.)"
                     )
             # 07-1143 R1/R2: the `protects` form has no single `self.<field>`; its
             # write-site coverage (dotted paths) is validated by Module3's meta-pass.
