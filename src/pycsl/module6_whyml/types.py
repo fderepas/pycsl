@@ -345,6 +345,32 @@ class TypeInferenceMixin:
                     found.update(self._collect_tuple_var_assigns(h.get("body", [])))
         return found
 
+    def _call_return_whyml_type(self, fn: str) -> Optional[str]:
+        """Resolve the declared WhyML return type of a call `fn` from the cross-method
+        return-type map, for ALL receiver forms:
+          - bare `func(...)`                      → `func`
+          - `self.method(...)`                    → `<self_class>__method`
+          - `<recordvar>.method(...)`             → via `_current_record_var_classes`
+          - `<module_global>.method(...)`         → via `_module_global_classes`  ← the os
+            `inode = _filesystem._read_inode(...)` case: a method on a module-global instance
+            (07-2333 subscript_get gap — without this `inode` is typed int and `inode[2]`
+            falls to the abstract `subscript_get` instead of `(!inode)[2]`).
+        Returns the WhyML type string (e.g. `"array int"`) or None."""
+        rmap = self._module_method_return_types
+        if "." not in fn:
+            return rmap.get(fn)
+        obj, _, method = fn.rpartition(".")
+        if obj == "self":
+            cls = self._current_self_type
+            return rmap.get(f"{cls}__{method}") if cls else None
+        # receiver is a record-instance local OR a module-global instance
+        cls = (getattr(self, "_current_record_var_classes", {}).get(obj)
+               or getattr(self, "_module_global_classes", {}).get(obj))
+        if cls:
+            return rmap.get(f"{cls.lower()}__{method}")
+        # last resort: the full dotted name might itself be a key (inlined forms)
+        return rmap.get(fn)
+
     def _collect_array_var_assigns(self, stmts: List[Dict[str, Any]],
                                     seed: Optional[Set[str]] = None) -> Set[str]:
         """Post-pass to `IRScanner.find_array_and_dict_vars`: variables
@@ -367,19 +393,8 @@ class TypeInferenceMixin:
                 tgt = s.get("target", "")
                 if isinstance(val, dict) and val.get("type") == "Call":
                     fn = val.get("func", "")
-                    if fn.startswith("self."):
-                        tail = fn[len("self."):]
-                        cls = self._current_self_type
-                        key = f"{cls}__{tail}" if cls else tail
-                        ret = self._module_method_return_types.get(key)
-                        if ret == "array int" and tgt:
-                            found.add(tgt)
-                    else:
-                        # inline.md: bare function calls (from inlined
-                        # method bodies) whose return type is array int.
-                        ret = self._module_method_return_types.get(fn)
-                        if ret == "array int" and tgt:
-                            found.add(tgt)
+                    if tgt and self._call_return_whyml_type(fn) == "array int":
+                        found.add(tgt)
                 elif isinstance(val, dict) and val.get("type") == "Var" and tgt:
                     var_assigns[tgt] = val.get("name", "")
             for k in ("body", "orelse"):
