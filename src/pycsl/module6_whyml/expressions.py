@@ -83,6 +83,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return str(hash(whyml_str) % 2147483647)
         return whyml_str
 
+    def _materialize_if_seq(self, whyml_str: str, arg_ir: Dict[str, Any]) -> str:
+        """L2 (os-bodyvc-spec): if `arg_ir` is a seq-promoted local Var, bridge it seq→array with
+        `materialize` so it can flow into an `array int` slot (e.g. `bytes(parts)`,
+        `_write_entry(p, slot, n, parts)`). The return-arr `materialize` val is `seq int -> array int`
+        (length+element preserving), emitted on demand. Non-seq args are returned unchanged."""
+        if (isinstance(arg_ir, dict) and arg_ir.get("type") == "Var"
+                and arg_ir.get("name") in getattr(self, "_seq_locals", set())):
+            self._materialize_bridge()
+            return f"(materialize {whyml_str})"
+        return whyml_str
+
     @staticmethod
     def _array_coerce_arg(whyml_str: str) -> str:
         """Coerce an arbitrary WhyML expression to an `array int`. Used
@@ -1222,7 +1233,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     f"    ensures {{ Array.length result = Array.length x }}\n"
                     f"    ensures {{ forall i:int. 0 <= i < Array.length x -> "
                     f"result[i] = x[i] }}")
-                return f"({ctor}_new {args[0]})"
+                # L2 (os-bodyvc-spec): a seq-promoted local (`parts = []; parts += …`) passed to
+                # `bytes()` must materialize seq→array — `bytes_new` expects `array int`, the seq is
+                # `seq int` (the `@rho` error). Reuses the return-arr materialize bridge, now at a
+                # call-arg boundary (it already covers return boundaries).
+                arg0 = self._materialize_if_seq(args[0], expr.get("args", [{}])[0])
+                return f"({ctor}_new {arg0})"
             self._add_abstract_op(
                 f"val {ctor}_empty () : array int\n"
                 f"    ensures {{ Array.length result = 0 }}")
