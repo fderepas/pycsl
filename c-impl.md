@@ -69,6 +69,34 @@ The faithful, probe-validated path (no totalizing — b-p4-rev2):
 > the model refactor (bare `list` inode → typed object carrying the invariant) — engineering, not an
 > unknown mechanism.
 
+## 3a. Refactor progress + the C2b finding (the disk-read path)
+
+**C1 — proven (then reverted to keep os green).** Adding the 18 field-range `requires` to `_write_inode`
++ `_pack_inode`'s rich def: `_write_inode` proves standalone (`_pack_inode`'s requires discharge one hop
+from the param requires), and a **literal-inode** syscall (`sys_mkdir`, inode `[0,1,1,420,…]`) discharges
+the 18 ranges trivially. **But `sys_write` FAILS** — it reads its inode via `_read_inode`→`_unpack_inode`,
+which only ensures `\length==18`, so the disk-read inode's field *values* are unknown-range.
+
+**The disk-read path needs a chain, and every link is now probed GREEN:**
+1. **`_unpack_inode` field-range ensures** — `0 <= \result[k] <= MAX_k`. Provable *from* byte bounds:
+   `u16 = data[0]*256+data[1]` with `0<=data[i]<=255` proves `0<=u16<=65535` (probed ✓). But needs the
+   input bytes ∈[0,255], i.e. ⇒
+2. **A quantified disk byte-range invariant** `∀i. 0<=self.disk[i]<=255` — there is none today (the disk
+   is `array int`). This was the feared array-state-wall risk; **it is affordable**:
+   - byte write `disk[pos]=val` preserves it — **2s** (driver 0663);
+   - **slice** write `disk[a:a+64]=data` (byte-valued) over the **full 131072** disk preserves it —
+     **2s** (driver 0664). No blowup — Why3's array theory frames the localized update cheaply.
+
+So **all five Track C mechanisms are GREEN**: 0661 (discharge), 0662 (survives computed mutation), C1
+(`_write_inode` one-hop), 0663/0664 (quantified disk-byte invariant affordable), u16 (field-range from
+bytes). The refactor is fully de-risked at the mechanism level.
+
+**Remaining = pure application (large but no unknown):** add the disk-byte invariant to
+`UnixInodeFileSystem`; add `_unpack_inode` field-range ensures; C1's `_write_inode` requires; `_pack_inode`
+rich def + interface; then ensure **every** os disk write (inode, data block, bitmap, directory) writes
+byte-valued data so the invariant is maintained — the one real application risk is a write that stores a
+non-byte (would surface as a failed invariant-preservation VC, fail-loud), not a missing mechanism.
+
 ## 4. The coupling invariant + L0″ (the heavier, later milestone — distinct from C1–C5)
 
 C1–C5 give a **verified, faithful, round-tripping codec inside os at 23** via a *field-range* invariant
