@@ -305,6 +305,56 @@ class FunctionEmissionMixin:
         self._in_spec = False
         return lines
 
+    def _emit_narrowing_vc(self, name: str, args_str: str, return_type: str,
+                           defc: Dict[str, Any], iface: Dict[str, Any],
+                           spec_refs: Set[str]) -> List[str]:
+        """b-spec §4 / b-impl §4 — the NARROWING VC: emit Why3 `goal`s proving the interface is a
+        sound WEAKENING of the definition (interface ⊑ definition). Emitted only in the owning unit
+        (where the function is a real `let`, so the definition is established by the body). Fail-loud:
+        an interface that claims MORE than the definition proves makes the goal unprovable → rejected.
+
+        ensures:  forall params result. def_requires -> def_ensures -> iface_ensures  (interface ⊑)
+        requires: forall params. iface_requires -> def_requires                       (iface_pre ⟹ def_pre)
+
+        `\\result` in the clauses is bound by aliasing it to a fresh `_res` quantified at the goal."""
+        lines: List[str] = []
+        self._in_spec = True
+        prev_alias = getattr(self, "_result_alias", None)
+        self._result_alias = "_res"
+
+        def conj(exprs: List[Any]) -> str:
+            parts = [self._expr_to_whyml(e, spec_refs) for e in (exprs or [])]
+            return " /\\ ".join(f"({p})" for p in parts) if parts else "true"
+
+        # Why3's `forall` wants the COMMA binder form (`a: int, r: t.`), not the parenthesised
+        # `(a: int) (r: t)` of a function signature — convert args_str by splitting on `) (`.
+        s = args_str.strip()
+        if s.startswith("(") and s.endswith(")"):
+            s = s[1:-1]
+        groups = [g.strip() for g in s.split(") (")] if s else []
+        ens_binder = ", ".join(groups + [f"_res: {return_type}"])
+        def_req = conj(defc.get("requires", []))
+        def_ens = conj(defc.get("ensures", []))
+
+        # ensures direction — each INTERFACE ensures must follow from the definition.
+        for k, ie in enumerate(iface.get("ensures", []) or []):
+            ie_s = self._expr_to_whyml(ie, spec_refs)
+            lines.append(f"  goal {name}__narrows_ens_{k} :")
+            lines.append(f"    forall {ens_binder}. ({def_req}) -> ({def_ens}) -> ({ie_s})")
+
+        # requires direction — the interface precondition must imply the definition's
+        # (a caller establishing the interface pre satisfies the body's). Only when the
+        # interface narrows requires; an absent interface requires inherits the definition (no VC).
+        if iface.get("requires"):
+            iface_req = conj(iface.get("requires", []))
+            rbind = f"forall {', '.join(groups)}. " if groups else ""
+            lines.append(f"  goal {name}__narrows_req :")
+            lines.append(f"    {rbind}({iface_req}) -> ({def_req})")
+
+        self._result_alias = prev_alias
+        self._in_spec = False
+        return lines
+
     def _compute_return_type(self, func: Dict[str, Any], body_stmts: List[Dict[str, Any]]) -> str:
         """Compute the WhyML return type for one function, applying the
         `List[T] → array int`, `Set[T]`/`Dict[K, V]` → `map int (option int)`,
@@ -423,7 +473,25 @@ class FunctionEmissionMixin:
 
         spec_refs = set() if is_method else ref_params
         func_exceptions = IRScanner.collect_escaping_exceptions(body_stmts)
-        lines += self._emit_contracts(func.get("contracts", {}), spec_refs,
+        # b-spec Track B (P3): an imported/abstract `val` stub shows only the NARROW interface
+        # contract. Per-kind: a specified interface clause REPLACES the definition's; an OMITTED kind
+        # INHERITS the definition (so `#@ interface ensures \length==64` narrows ensures but keeps the
+        # def's requires/assigns — sound, since the body still needs the def precondition). The
+        # owning-unit `let` keeps the full definition (+ the narrowing VC below).
+        _iface = func.get("interface") or {}
+        if emit_as_val and _iface:
+            _defc = func.get("contracts", {})
+            contract_src = {
+                "requires": _iface.get("requires") or _defc.get("requires", []),
+                "ensures":  _iface.get("ensures")  or _defc.get("ensures", []),
+                "assigns":  _iface.get("assigns")  or _defc.get("assigns", []),
+                "raises":   _defc.get("raises", []),
+                "no_exception": _defc.get("no_exception", []),
+                "no_exception_all": _defc.get("no_exception_all", False),
+            }
+        else:
+            contract_src = func.get("contracts", {})
+        lines += self._emit_contracts(contract_src, spec_refs,
                                       func_variants, func_diverges, func_exceptions)
 
         if emit_as_val:
@@ -433,6 +501,11 @@ class FunctionEmissionMixin:
         lines.append("  =")
         lines.append(self._emit_body_code(func, body_stmts, local_refs, ghost_vars,
                                           ref_params, is_method, return_type))
+        # b-spec §4 (P2): in the owning unit (real `let`), prove the interface is a sound weakening
+        # of the definition. Fail-loud — an over-claiming interface makes the goal unprovable.
+        if _iface:
+            lines += self._emit_narrowing_vc(name, args_str, return_type,
+                                             func.get("contracts", {}), _iface, spec_refs)
         if _pos_in_scc == _scc_size - 1:
             lines.append("")
         return lines

@@ -2038,7 +2038,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 deref = "!" if var in local_refs else ""
                 return f"(Seq.length {deref}{whyml_ident(var)})"
             if var == "\\result":
-                return "(Array.length result)"
+                return f"(Array.length {getattr(self, '_result_alias', None) or 'result'})"
             if var.startswith("self."):
                 field = var[len("self."):]
                 # Mirror `_handle_field_get_expr`: in a type/class invariant
@@ -2286,7 +2286,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # int-contexts keep working; string-typed contexts now get a real `"..."`.
             escaped = expr["value"].replace('\\', '\\\\').replace('"', '\\"')
             return f'"{escaped}"'
-        if t == "Result":   return "result"
+        if t == "Result":   return getattr(self, "_result_alias", None) or "result"
         if t == "None":     return "0"
         if t == "ArrayLit":
             elts = expr.get("elts", [])

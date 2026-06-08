@@ -1561,6 +1561,19 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             "preserves": getattr(node, 'csl_preserves', False),
             "lemma": getattr(node, 'csl_lemma', False),
             "uses": list(getattr(node, 'csl_uses', []) or []),
+            # b-spec Track B: the NARROW interface contract importers see (opacity). Absent (empty
+            # dict) ⇒ interface = definition (transparent — every existing function byte-identical).
+            "interface": (
+                {
+                    "requires": self._csl_list_to_ir(getattr(node, 'csl_iface_requires', [])),
+                    "ensures": self._csl_list_to_ir(getattr(node, 'csl_iface_ensures', [])),
+                    "assigns": [self._csl_to_ir(t) for a in getattr(node, 'csl_iface_assigns', []) for t in a.targets],
+                }
+                if (getattr(node, 'csl_iface_ensures', []) or getattr(node, 'csl_iface_requires', [])
+                    or getattr(node, 'csl_iface_assigns', []))
+                else {}
+            ),
+            "reveal": list(getattr(node, 'csl_reveal', []) or []),
             # no-more-int Stage F: a memoizing decorator requires a referentially
             # transparent function (checked in _check_memoization_soundness).
             "memoized": self._is_memoized(node),

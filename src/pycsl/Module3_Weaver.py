@@ -10,6 +10,7 @@ from dataclasses import dataclass, fields as _dc_fields, is_dataclass as _is_dc
 from Module2_Parser import (
     CSLNode, Requires, Ensures, Assigns, LoopInvariant, LoopVariant,
     ClassInvariant, Label as CSLLabel, FunctionVariant, Diverges, NoInline, Trusted, Abstract, Lemma, Uses,
+    InterfaceClause, Reveal,
     GhostAssignDecl, GhostArraySetDecl, RaisesDecl, NoExceptionDecl,
     AllowFinalizerDecl, AllowIterationMutationDecl,
     BoundedIntDecl, ProofDecl,
@@ -53,6 +54,10 @@ class PyCSLWeaver(ast.NodeVisitor):
         node.csl_abstract = False
         node.csl_lemma = False            # `#@ lemma` (lemma.md) — proved logical fact
         node.csl_uses = []                # `#@ uses <lemma>` (scc2.md) — ordering citations
+        node.csl_iface_requires = []      # `#@ interface requires` (b-spec) — narrow interface
+        node.csl_iface_ensures = []       # `#@ interface ensures`  (b-spec) — narrow interface
+        node.csl_iface_assigns = []       # `#@ interface assigns`  (b-spec) — narrow interface
+        node.csl_reveal = []              # `#@ reveal <fn>` (b-spec) — opt into <fn>'s definition
         node.csl_preserves = False        # `#@ \preserves` — HAPPY trust-boundary opt-in
         node.csl_reviewer = ""
         node.csl_raises = []
@@ -223,6 +228,15 @@ class PyCSLWeaver(ast.NodeVisitor):
                 node.csl_lemma = True
             elif isinstance(c, Uses):
                 node.csl_uses.append(c.lemma)
+            elif isinstance(c, InterfaceClause):
+                if c.kind == "ensures":
+                    node.csl_iface_ensures.append(c.payload)
+                elif c.kind == "requires":
+                    node.csl_iface_requires.append(c.payload)
+                elif c.kind == "assigns":
+                    node.csl_iface_assigns.append(c.payload)
+            elif isinstance(c, Reveal):
+                node.csl_reveal.append(c.fn)
             elif isinstance(c, Preserves):
                 node.csl_preserves = True
             elif isinstance(c, Footprint):

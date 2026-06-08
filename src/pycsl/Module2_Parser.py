@@ -314,6 +314,25 @@ class Uses(CSLNode):
     lemma: str
 
 @dataclass
+class InterfaceClause(CSLNode):
+    """Represents `#@ interface ensures/requires/assigns <…>` (b-spec Track B) — the NARROW
+    *interface* contract importers/callers see by default, distinct from the rich *definition*
+    contract (the plain `#@ requires/ensures/assigns`) verified against the body. Opacity: the
+    definition's extra facts are hidden, revealed only via `#@ reveal`. Absent ⇒ interface =
+    definition (transparent — all existing code byte-identical). `kind` ∈ {ensures, requires,
+    assigns}; `payload` is the corresponding Ensures/Requires/Assigns node."""
+    kind: str
+    payload: Any
+
+@dataclass
+class Reveal(CSLNode):
+    """Represents `#@ reveal <fn>` (b-spec Track B) — this caller opts into `<fn>`'s rich
+    DEFINITION contract at this site (the definition facts are otherwise hidden behind the
+    interface). Within the owning unit it is a no-op (the definition is the visible `let`);
+    across modules it cites the exported definition-fact (v2)."""
+    fn: str
+
+@dataclass
 class CSLBool(CSLNode):
     """Represents True/False literals in contract expressions."""
     value: bool
@@ -836,6 +855,8 @@ PYCSL_GRAMMAR = r"""
              | abstract_decl
              | lemma_decl
              | uses_decl
+             | interface_decl
+             | reveal_decl
              | preserves_decl
              | footprint_decl
              | ghost_assign
@@ -926,6 +947,13 @@ PYCSL_GRAMMAR = r"""
     abstract_decl: "\\abstract"
     lemma_decl: "lemma"
     uses_decl: "uses" CNAME
+    // b-spec Track B: `#@ interface <clause>` = the NARROW contract importers see (opacity).
+    // Absent ⇒ interface = definition (transparent). `#@ reveal <fn>` opts a caller into <fn>'s
+    // rich DEFINITION contract at that site.
+    interface_decl: "interface" "ensures" expr -> interface_ensures
+                  | "interface" "requires" expr -> interface_requires
+                  | "interface" "assigns" assigns_target -> interface_assigns
+    reveal_decl: "reveal" CNAME
     preserves_decl: "\\preserves"
     REVIEWER_ID: /[A-Za-z0-9._@-]+/
     ghost_assign: "ghost" CNAME ":" GHOST_TYPE "=" expr -> ghost_assign_typed
@@ -1251,6 +1279,14 @@ class PyCSLTransformer(Transformer):
         return Lemma()
     def uses_decl(self, name) -> Uses:
         return Uses(str(name))
+    def interface_ensures(self, expr) -> InterfaceClause:
+        return InterfaceClause("ensures", Ensures(expr))
+    def interface_requires(self, expr) -> InterfaceClause:
+        return InterfaceClause("requires", Requires(expr))
+    def interface_assigns(self, target) -> InterfaceClause:
+        return InterfaceClause("assigns", self.assigns(target))
+    def reveal_decl(self, name) -> Reveal:
+        return Reveal(str(name))
     def preserves_decl(self) -> Preserves:
         return Preserves()
     def ghost_assign_typed(self, name, ghost_type, expr) -> GhostAssignDecl:
