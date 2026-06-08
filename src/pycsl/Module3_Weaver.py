@@ -9,7 +9,7 @@ from dataclasses import dataclass, fields as _dc_fields, is_dataclass as _is_dc
 # Import the AST nodes from Module 2
 from Module2_Parser import (
     CSLNode, Requires, Ensures, Assigns, LoopInvariant, LoopVariant,
-    ClassInvariant, Label as CSLLabel, FunctionVariant, Diverges, Trusted, Abstract, Lemma, Uses,
+    ClassInvariant, Label as CSLLabel, FunctionVariant, Diverges, NoInline, Trusted, Abstract, Lemma, Uses,
     GhostAssignDecl, GhostArraySetDecl, RaisesDecl, NoExceptionDecl,
     AllowFinalizerDecl, AllowIterationMutationDecl,
     BoundedIntDecl, ProofDecl,
@@ -48,6 +48,7 @@ class PyCSLWeaver(ast.NodeVisitor):
         node.csl_assigns = []
         node.csl_function_variants = []
         node.csl_diverges = False
+        node.csl_no_inline = False
         node.csl_trusted = False
         node.csl_abstract = False
         node.csl_lemma = False            # `#@ lemma` (lemma.md) — proved logical fact
@@ -204,6 +205,8 @@ class PyCSLWeaver(ast.NodeVisitor):
                 node.csl_function_variants.append(c)
             elif isinstance(c, Diverges):
                 node.csl_diverges = True
+            elif isinstance(c, NoInline):
+                node.csl_no_inline = True
             elif isinstance(c, Trusted):
                 node.csl_trusted = True
                 node.csl_reviewer = c.reviewer

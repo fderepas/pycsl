@@ -789,6 +789,7 @@ and asserted on exit.
 | `#@ assigns <targets> \| \nothing` | Function / method | Frame condition |
 | `#@ \variant <expr>` | Function / method | Termination measure (recursive functions) |
 | `#@ \diverges` | Function / method | Function may not terminate |
+| `#@ no_inline` | Method on a module-global instance | Modular-verification boundary: body verified once as a `let`, callers reuse its contract instead of splicing the inlined body (avoids re-proving a large body per caller). Sound — a false `ensures` fails the callee. See `test-suite/annotations.md` §2.1.19 / no-inline.md |
 | `#@ \trusted` / `#@ \trusted reviewer: <name>` | Function / method | Body not verified; contracts assumed as axioms. Optional `reviewer:` clause names a human or process accountable for the trust (e.g., `reviewer: alice`, `reviewer: pycsl-self-annotate`); see `test-suite/annotations.md` §2.1.7 |
 | `#@ lemma` | Function / method (`-> None`) | A PROVED logical fact: lowers to `let [rec] lemma … = <proof body>`, Why3 checks the body then exposes `forall params. requires -> ensures`. Recursive lemmas need `#@ \variant` (induction); not an axiom. See `test-suite/annotations.md` §2.1.16 |
 | `#@ uses <lemma>` | Function / method | Cites a `#@ lemma` whose general fact the proof relies on but doesn't name (e.g. a `\forall` over a recursive datatype); forces the lemma to be emitted first so its fact is in scope. Ordering-only, no WhyML. See `test-suite/annotations.md` §2.1.17 |

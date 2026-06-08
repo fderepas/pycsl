@@ -477,6 +477,21 @@ as a flag on the function AST node (`csl_diverges = True`).
 on the same function, the Weaver raises a `ValueError`:
 `"\\variant and \\diverges are contradictory"`.
 
+#### §2.1.6n No inline (`no_inline`)
+
+```
+   ─────────────────────────
+    Γ_f ⊢ no_inline : ok
+```
+
+**Rule:** Always well-formed (no expression to check). Presence is noted as a
+flag on the function AST node (`csl_no_inline = True`) and carried into the
+function IR (`"no_inline": True`). It marks a method on a module-global instance
+as a **modular-verification boundary** (no-inline.md): the IR-inliner leaves its
+calls in place (rather than splicing the body), so the body is verified once and
+callers reuse its contract. Sound iff the body remains a verified `let` (a false
+`ensures` makes the *callee*, not the caller, fail). See translational §T.2.7n.
+
 #### §2.1.7 Trusted (`\trusted [reviewer: <REVIEWER_ID>]`)
 
 ```

@@ -579,6 +579,7 @@ class UnixInodeFileSystem:
     #@ requires \length(data) <= 5120
     #@ assigns self.disk, self.fd_offset, self._mtime_ticks
     #@ ensures \result == -1 or (\result >= 0 and \result <= \length(data))
+    #@ no_inline
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/write.html
     # cite:_note: POSIX write() — multi-block: writes data across up to 10
     #             direct blocks (indices 8..17), allocating new blocks on

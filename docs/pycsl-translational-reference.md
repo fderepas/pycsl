@@ -541,6 +541,28 @@ clause is emitted, and WhyML does not require a termination proof:
   = ...
 ```
 
+### §T.2.7n  No-inline Methods (`no_inline`)
+
+A method marked `#@ no_inline` (no-inline.md) is a **modular-verification
+boundary**. Its body is emitted as a normal verified `let` (proven once against
+its contract). At each call site on a module-global instance, the IR-inliner
+**leaves the call in place** instead of splicing the body; Module6 lowers it as a
+**contract-call** — an abstract `val` carrying the callee's result-only `ensures`
+(resolved by `_resolve_dotted_signature`'s module-global branch), so the caller
+discharges its postcondition from the contract rather than re-proving the body:
+
+```whyml
+  let lib__seven (self: lib) : int = (* body verified once *) 7
+
+  val _lib_seven_0 () : int            (* contract-call at the use site *)
+    ensures { result = 7 }
+  let caller () : int = (_lib_seven_0 ())   (* proves from the ensures, body not re-proven *)
+```
+
+This avoids re-proving a large body in every caller's context (the os `sys_write`
+inlining blow-up — 6 SMT timeouts). **Soundness:** the body stays a verified
+`let`, so a false `ensures` makes the *callee* fail; nothing is moved into the TCB.
+
 ### §T.2.8  Exception-Raising Functions (`raises`)
 
 $$\mathcal{T}_f\llbracket \texttt{\#@ raises E when cond} \rrbracket

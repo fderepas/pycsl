@@ -45,6 +45,7 @@ Python construct they annotate (function, class, loop, or statement).
 | 16 | Case guard | `#@ given <expr>` | Inside an `act` | The case's pre-state guard (ACSL's `assumes`); only valid inside an `act` block. `\result` is not allowed here. |
 | 17 | Complete cases | `#@ complete <name>, ...` | Function/method | Proof obligation that the named acts' guards cover every input — `ensures \old(g1) \|\| ... \|\| \old(gn)`. |
 | 18 | Disjoint cases | `#@ disjoint <name>, ...` | Function/method | Proof obligation that at most one guard holds — per pair `ensures not(\old(gi) && \old(gj))`. |
+| 19 | No inline | `#@ no_inline` | Method on a module-global instance | **Modular-verification boundary (no-inline.md).** The method's body is verified once against its contract (emitted as a `let`); callers reuse its **contract** (a contract-call to an abstract `val` carrying the result-only `ensures`) instead of splicing the inlined body. Avoids re-proving a large body in every caller's context (the os `sys_write` inlining blow-up). Sound iff the body stays a verified `let` — a false `ensures` makes the *callee* fail. |
 
 Multiple `requires`/`ensures` lines are conjuncted (all must hold).
 

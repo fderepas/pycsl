@@ -656,9 +656,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # about the result.
             matched_instance = False
             rv_classes = getattr(self, "_current_record_var_classes", {})
+            # no-inline.md Piece C: also resolve a method on a MODULE-GLOBAL instance
+            # (`_filesystem.sys_write(...)`) so a non-inlined call uses the callee's contract
+            # (return type + result-only ensures), not the abstract int default.
+            gv_classes = getattr(self, "_module_global_classes", {})
             parts = func_name.split(".")
-            if len(parts) == 2 and parts[0] in rv_classes:
-                cls = rv_classes[parts[0]].lower()
+            if len(parts) == 2 and (parts[0] in rv_classes or parts[0] in gv_classes):
+                cls = (rv_classes.get(parts[0]) or gv_classes.get(parts[0])).lower()
                 lookup_key = f"{cls}__{parts[1]}"
                 rens = getattr(self, "_module_method_result_ensures", {})
                 prens = getattr(self, "_module_method_param_result_ensures", {})

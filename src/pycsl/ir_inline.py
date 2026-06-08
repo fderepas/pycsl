@@ -179,11 +179,14 @@ def _substitute(node: Any, self_name: str, param_map: Dict[str, Any],
 
 
 class _Inliner:
-    def __init__(self, funcs, globals_set, g_class, recursive):
+    def __init__(self, funcs, globals_set, g_class, recursive, no_inline=None):
         self.fmap = {f["name"]: f for f in funcs}
         self.globals_set = globals_set
         self.g_class = g_class
         self.recursive = recursive
+        # no-inline.md Piece B: methods marked `#@ no_inline` are NOT spliced; their calls
+        # are left in place to lower as contract-calls to the verified method.
+        self.no_inline = no_inline or set()
         self.counter = 0
 
     def _fresh(self, base: str) -> str:
@@ -260,6 +263,11 @@ class _Inliner:
         if not isinstance(node, dict):
             return node
         callee = _global_call_target(node, self.globals_set, self.g_class)
+        if callee is not None and callee in self.no_inline:
+            # no-inline.md Piece B: a `#@ no_inline` callee — leave the call in place (hoist
+            # any nested global calls in its args) so Module6 lowers it as a contract-call.
+            new_args = [self._hoist_calls_in_expr(a, pre) for a in node.get("args", [])]
+            return {**node, "args": new_args}
         if callee is not None:
             recv = node["func"].partition(".")[0]
             hoisted_args = [self._hoist_calls_in_expr(a, pre) for a in node.get("args", [])]
@@ -279,6 +287,14 @@ class _Inliner:
             # Statement-position call `g.m(args)` (return value discarded).
             if st.get("stmt") == "Expr":
                 callee = _global_call_target(st.get("value", {}), self.globals_set, self.g_class)
+                if callee is not None and callee in self.no_inline:
+                    # no-inline.md Piece B: leave a `#@ no_inline` statement-call in place.
+                    pre: List[Any] = []
+                    new_args = [self._hoist_calls_in_expr(a, pre)
+                                for a in st["value"].get("args", [])]
+                    out.extend(pre)
+                    out.append({**st, "value": {**st["value"], "args": new_args}})
+                    continue
                 if callee is not None:
                     recv = st["value"]["func"].partition(".")[0]
                     pre: List[Any] = []
@@ -339,7 +355,8 @@ def _check_no_aliasing(funcs: List[Dict[str, Any]], globals_set: Set[str]) -> No
 def _inline_calls(funcs: List[Dict[str, Any]], globals_set: Set[str],
                   g_class: Dict[str, str]) -> None:
     recursive = _recursive_methods(funcs, globals_set, g_class)
-    inliner = _Inliner(funcs, globals_set, g_class, recursive)
+    no_inline = {f["name"] for f in funcs if f.get("no_inline")}
+    inliner = _Inliner(funcs, globals_set, g_class, recursive, no_inline)
     for f in funcs:
         body = f.get("body", [])
         for _ in range(_MAX_INLINE_DEPTH):

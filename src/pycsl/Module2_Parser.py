@@ -269,6 +269,14 @@ class Diverges(CSLNode):
     pass
 
 @dataclass
+class NoInline(CSLNode):
+    """Represents `#@ no_inline` (no-inline.md) — a modular-verification boundary: the method's
+    body is verified once against its contract, and callers reuse the contract (a contract-call)
+    instead of splicing the inlined body. Avoids re-proving a large body in every caller's
+    context (the os `sys_write` inlining blow-up)."""
+    pass
+
+@dataclass
 class Trusted(CSLNode):
     """Represents `#@ \\trusted` — function body is not verified.
     Optional `reviewer` identifies who is accountable for the trust assumption."""
@@ -823,6 +831,7 @@ PYCSL_GRAMMAR = r"""
              | function_variant
              | function_variant_structural
              | diverges_decl
+             | no_inline_decl
              | trusted_decl
              | abstract_decl
              | lemma_decl
@@ -912,6 +921,7 @@ PYCSL_GRAMMAR = r"""
     function_variant: "\\variant" expr
     function_variant_structural: "\\variant" "(" expr "," CNAME ")"
     diverges_decl: "\\diverges"
+    no_inline_decl: "no_inline"
     trusted_decl: "\\trusted" ("reviewer" ":" REVIEWER_ID)?
     abstract_decl: "\\abstract"
     lemma_decl: "lemma"
@@ -1232,6 +1242,7 @@ class PyCSLTransformer(Transformer):
     def function_variant(self, expr) -> FunctionVariant: return FunctionVariant(expr)
     def function_variant_structural(self, expr, ordering) -> FunctionVariant: return FunctionVariant(expr, str(ordering))
     def diverges_decl(self) -> Diverges: return Diverges()
+    def no_inline_decl(self) -> NoInline: return NoInline()
     def trusted_decl(self, *args) -> Trusted:
         return Trusted(reviewer=str(args[0]) if args else "")
     def abstract_decl(self) -> Abstract:
