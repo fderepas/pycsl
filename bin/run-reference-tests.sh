@@ -7,60 +7,121 @@
 #   run-reference-tests.sh --pycsl                # run only pycsl-reference tests
 #   run-reference-tests.sh --start-at N           # skip tests before number N
 #   run-reference-tests.sh --stop-at N            # stop after test number N
-#   run-reference-tests.sh --start-at N --stop-at M  # run tests from N to M inclusive
+#   run-reference-tests.sh --jobs K               # run K tests concurrently
+#                                                 # (default = half the machine's cores)
+#   run-reference-tests.sh --jobs 1               # serial (identical to the old behaviour)
+#
+# Parallelism (more-proc.md): tests are independent (each its own process, read-only src,
+# test-unique .mlw/.proofs outputs), so they fan out across cores via `xargs -P`. The default
+# job count is EXACTLY half the machine's logical cores (get_cpu_count/2) — a courtesy budget
+# that leaves the other half for a second agent / interactive work, and that matches the two
+# provers (alt-ergo + z3) each test's `why3` spawns. Output order and the pass/fail summary are
+# deterministic regardless of completion order. PYCSL_JOBS overrides the default; --jobs wins.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PYCSL_DIR="$PROJECT_ROOT/test-suite/corpus/pycsl-reference"
 PYTHON_DIR="$PROJECT_ROOT/test-suite/corpus/python-reference"
+
+# Prefer the project venv's python so workers need no `activate` (why3 is a system tool).
+if [ -x "$PROJECT_ROOT/.venv/bin/python3" ]; then
+    PY="$PROJECT_ROOT/.venv/bin/python3"
+else
+    PY="python3"
+fi
+PYCSL="$PY $PROJECT_ROOT/src/pycsl/pycsl.py"
+
+# get_cpu_count — total logical CPUs on Ubuntu/Linux or macOS (more-proc.md §4.5, verbatim).
+get_cpu_count() {
+    case "$(uname -s)" in
+        Linux)
+            # nproc respects cgroup/affinity limits; fall back if absent
+            if command -v nproc >/dev/null 2>&1; then
+                nproc
+            else
+                getconf _NPROCESSORS_ONLN 2>/dev/null || \
+                grep -c '^processor' /proc/cpuinfo
+            fi
+            ;;
+        Darwin)
+            # logical CPUs (includes Hyper-Threading); use hw.physicalcpu for physical cores
+            sysctl -n hw.logicalcpu 2>/dev/null || \
+            sysctl -n hw.ncpu
+            ;;
+        *)
+            # last-ditch POSIX fallback
+            getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1
+            ;;
+    esac
+}
+
+# Derive the suite name (the corpus subdir) from a test file's path.
+_suite_of() {
+    case "$1" in
+        *"/pycsl-reference/"*) echo "pycsl-reference" ;;
+        *"/python-reference/"*) echo "python-reference" ;;
+        *) basename "$(dirname "$1")" ;;
+    esac
+}
+
+# A stable per-file result key (path with non-alnum → _), so concurrent workers never collide
+# even across suites that share numbering (pycsl-reference/0001 vs python-reference/0001).
+_key_of() { echo "$1" | tr -c 'A-Za-z0-9' '_'; }
+
+# ── Worker mode: run ONE test, classify, write its result file. Always exits 0 (status is in
+#    the file, not the exit code) so xargs never aborts the fan-out. ────────────────────────
+if [ "${1:-}" = "--worker" ]; then
+    py_file="$2"
+    name="$(basename "$py_file" .py)"
+    extra_flags=$(grep -m1 '^# pycsl-flags:' "$py_file" 2>/dev/null | sed 's/^# pycsl-flags://')
+    expect_fail=$(grep -m1 '^# pycsl-expected: FAIL' "$py_file" 2>/dev/null)
+
+    output=$($PYCSL $extra_flags "$py_file" 2>&1)
+    if echo "$output" | grep -q "Verification SUCCESS"; then
+        status=PASS
+    elif [ -n "$expect_fail" ]; then
+        status=XFAIL
+    elif [ -z "$output" ]; then
+        status=SKIP
+    else
+        status=FAIL
+    fi
+    printf '%s\n' "$status" > "$RESULTS_DIR/$(_key_of "$py_file")"
+    exit 0
+fi
+
+# ── Main mode ──────────────────────────────────────────────────────────────────────────────
 TEST_DIRS=("$PYCSL_DIR" "$PYTHON_DIR")
-PYCSL="python3 $PROJECT_ROOT/src/pycsl/pycsl.py"
 
 usage() {
-    echo "Usage: $0 [--python] [--pycsl] [--start-at N] [--stop-at N]"
+    echo "Usage: $0 [--python] [--pycsl] [--start-at N] [--stop-at N] [--jobs K]"
     echo ""
     echo "  (no flags)      run both pycsl-reference and python-reference suites"
     echo "  --python        run only test-suite/corpus/python-reference"
     echo "  --pycsl         run only test-suite/corpus/pycsl-reference"
     echo "  --start-at N    skip tests numbered below N"
     echo "  --stop-at N     stop after test number N"
+    echo "  --jobs K        run K tests concurrently (default: half the cores; 1 = serial)"
 }
 
 START_AT=0
 STOP_AT=""
+JOBS_FLAG=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --python)
-            TEST_DIRS=("$PYTHON_DIR")
-            shift
-            ;;
-        --pycsl)
-            TEST_DIRS=("$PYCSL_DIR")
-            shift
-            ;;
+        --python) TEST_DIRS=("$PYTHON_DIR"); shift ;;
+        --pycsl)  TEST_DIRS=("$PYCSL_DIR"); shift ;;
         --start-at)
-            if [[ -z "${2:-}" ]]; then
-                echo "ERROR: --start-at requires a number"
-                usage; exit 1
-            fi
-            START_AT="$2"
-            shift 2
-            ;;
+            if [[ -z "${2:-}" ]]; then echo "ERROR: --start-at requires a number"; usage; exit 1; fi
+            START_AT="$2"; shift 2 ;;
         --stop-at)
-            if [[ -z "${2:-}" ]]; then
-                echo "ERROR: --stop-at requires a number"
-                usage; exit 1
-            fi
-            STOP_AT="$2"
-            shift 2
-            ;;
-        -h|--help)
-            usage; exit 0
-            ;;
-        *)
-            echo "ERROR: unknown option '$1'"
-            usage; exit 1
-            ;;
+            if [[ -z "${2:-}" ]]; then echo "ERROR: --stop-at requires a number"; usage; exit 1; fi
+            STOP_AT="$2"; shift 2 ;;
+        --jobs)
+            if [[ -z "${2:-}" ]]; then echo "ERROR: --jobs requires a number"; usage; exit 1; fi
+            JOBS_FLAG="$2"; shift 2 ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "ERROR: unknown option '$1'"; usage; exit 1 ;;
     esac
 done
 
@@ -68,8 +129,15 @@ if [ -f "$PROJECT_ROOT/.venv/bin/activate" ]; then
     source "$PROJECT_ROOT/.venv/bin/activate"
 fi
 
-# Stdlib-coverage CI gate (workplan PR 7). Runs before any corpus test
-# so a coverage drift fails fast. Skip with PYCSL_SKIP_STDLIB_CHECK=1.
+# Concurrency: half the cores by default (more-proc.md). --jobs beats PYCSL_JOBS beats the default.
+CORES=$(get_cpu_count)
+JOBS=$(( CORES / 2 ))
+[ "$JOBS" -lt 1 ] && JOBS=1
+JOBS="${PYCSL_JOBS:-$JOBS}"
+[ -n "$JOBS_FLAG" ] && JOBS="$JOBS_FLAG"
+
+# Stdlib-coverage CI gate (workplan PR 7). Runs ONCE before any corpus test so a coverage
+# drift fails fast. Skip with PYCSL_SKIP_STDLIB_CHECK=1.
 if [ "${PYCSL_SKIP_STDLIB_CHECK:-0}" != "1" ]; then
     if ! python3 "$PROJECT_ROOT/bin/stdlib-coverage.py" --check all; then
         echo ""
@@ -81,11 +149,7 @@ if [ "${PYCSL_SKIP_STDLIB_CHECK:-0}" != "1" ]; then
     fi
 fi
 
-# Doc-coherency CI gate. Verifies every #@ directive defined in
-# test-suite/annotations.md is documented in README.md, the three
-# docs/pycsl-*reference*.md files, and the skill set. Governed by
-# config/skills/pycsl-doc-coherency/SKILL.md. Skip temporarily with
-# PYCSL_SKIP_DOC_COHERENCY_CHECK=1.
+# Doc-coherency CI gate. Skip temporarily with PYCSL_SKIP_DOC_COHERENCY_CHECK=1.
 if [ "${PYCSL_SKIP_DOC_COHERENCY_CHECK:-0}" != "1" ]; then
     if ! python3 "$PROJECT_ROOT/bin/doc-coherency.py" --check >/dev/null; then
         echo ""
@@ -104,65 +168,57 @@ RED='\033[0;31m'
 YELLOW='\033[0;33m'
 RESET='\033[0m'
 
-passed=0
-failed=0
-errors=()
-
+# Build the ordered list of test files (same discovery + start/stop logic as before).
+entries=()   # parallel arrays: entry i = file path; suite/name derived on read
 for dir in "${TEST_DIRS[@]}"; do
-    suite_name="$(basename "$dir")"
-    echo "--- $suite_name ---"
-    # Walk top-level numbered tests plus stdlib/ subdirectory tests
-    # (stdlib coverage corpus, workplan §10.6). Other subdirs are
-    # intentionally left out so existing top-level test discovery is
-    # unchanged.
     py_files=()
     for f in "$dir"/0*.py; do
         [ -f "$f" ] && py_files+=("$f")
     done
     if [ -d "$dir/stdlib" ]; then
-        while IFS= read -r f; do
-            py_files+=("$f")
-        done < <(find "$dir/stdlib" -name "*.py" -type f | sort)
+        while IFS= read -r f; do py_files+=("$f"); done \
+            < <(find "$dir/stdlib" -name "*.py" -type f | sort)
     fi
     for py_file in "${py_files[@]}"; do
         [ -f "$py_file" ] || continue
         name="$(basename "$py_file" .py)"
-
-        # Skip files below --start-at threshold
-        file_num=$(echo "$name" | sed 's/^0*//')
-        file_num="${file_num:-0}"
-        if [[ "$file_num" -lt "$START_AT" ]]; then
-            continue
-        fi
-
-        # Stop after --stop-at threshold
-        if [[ -n "$STOP_AT" && "$file_num" -gt "$STOP_AT" ]]; then
-            break
-        fi
-
-        # Extract extra flags from "# pycsl-flags: ..." comment in the file
-        extra_flags=$(grep -m1 '^# pycsl-flags:' "$py_file" 2>/dev/null | sed 's/^# pycsl-flags://')
-
-        # Check if this test is expected to fail
-        expect_fail=$(grep -m1 '^# pycsl-expected: FAIL' "$py_file" 2>/dev/null)
-
-        output=$($PYCSL $extra_flags "$py_file" 2>&1)
-        if echo "$output" | grep -q "Verification SUCCESS"; then
-            echo -e "${GREEN}[PASS]${RESET} $name"
-            ((passed++))
-        elif [ -n "$expect_fail" ]; then
-            echo -e "${GREEN}[XFAIL]${RESET} $name (expected failure)"
-            ((passed++))
-        elif [ -z "$output" ]; then
-            echo -e "${YELLOW}[SKIP]${RESET} $name (no output)"
-            ((failed++))
-            errors+=("$suite_name/$name (no output)")
-        else
-            echo -e "${RED}[FAIL]${RESET} $name"
-            ((failed++))
-            errors+=("$suite_name/$name")
-        fi
+        file_num=$(echo "$name" | sed 's/^0*//'); file_num="${file_num:-0}"
+        [[ "$file_num" -lt "$START_AT" ]] && continue
+        if [[ -n "$STOP_AT" && "$file_num" -gt "$STOP_AT" ]]; then break; fi
+        entries+=("$py_file")
     done
+done
+
+echo "[*] $((${#entries[@]})) tests across ${#TEST_DIRS[@]} suite(s); jobs=$JOBS (cores=$CORES)"
+
+RESULTS_DIR="$(mktemp -d)"
+export RESULTS_DIR PYCSL
+trap 'rm -rf "$RESULTS_DIR"' EXIT
+
+# Fan out: each file → a worker (re-exec of this script in --worker mode), K at a time.
+printf '%s\0' "${entries[@]}" | xargs -0 -P "$JOBS" -I {} "$0" --worker {}
+
+# Aggregate by iterating `entries` IN ORDER (deterministic output identical to the serial run),
+# reading each worker's result file. Completion order is irrelevant.
+passed=0
+failed=0
+errors=()
+current_suite=""
+for py_file in "${entries[@]}"; do
+    suite="$(_suite_of "$py_file")"
+    if [ "$suite" != "$current_suite" ]; then
+        echo "--- $suite ---"
+        current_suite="$suite"
+    fi
+    name="$(basename "$py_file" .py)"
+    status="$(cat "$RESULTS_DIR/$(_key_of "$py_file")" 2>/dev/null)"
+    case "$status" in
+        PASS)  echo -e "${GREEN}[PASS]${RESET} $name"; ((passed++)) ;;
+        XFAIL) echo -e "${GREEN}[XFAIL]${RESET} $name (expected failure)"; ((passed++)) ;;
+        SKIP)  echo -e "${YELLOW}[SKIP]${RESET} $name (no output)"; ((failed++)); errors+=("$suite/$name (no output)") ;;
+        FAIL)  echo -e "${RED}[FAIL]${RESET} $name"; ((failed++)); errors+=("$suite/$name") ;;
+        *)     echo -e "${RED}[FAIL]${RESET} $name (no result)"; ((failed++)); errors+=("$suite/$name (no result)") ;;
+    esac
 done
 
 total=$((passed + failed))
