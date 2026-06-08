@@ -97,6 +97,34 @@ rich def + interface; then ensure **every** os disk write (inode, data block, bi
 byte-valued data so the invariant is maintained — the one real application risk is a write that stores a
 non-byte (would surface as a failed invariant-preservation VC, fail-loud), not a missing mechanism.
 
+## 3b. Application launch findings (2026-06-09) — the real-os complexity, reverted to keep os green
+
+Launched the full application (add the disk-content invariant + fix the writers). Findings:
+
+- **Whole-disk byte invariant** (`∀i. 0<=disk[i]<=255`) generates fine but **breaks every one of the ~13
+  disk writers** — each must now prove its written data is byte-valued (`__format_disk`, `__set_bitmap`,
+  `__write_entry`, … all `remain unproven`/`FAILED`).
+- **Region-scoped invariant** (`∀i∈[512,2560). …`, the inode region) is the right reduction in principle
+  — data/bitmap/directory writes are outside the region and should be **framed** — BUT:
+  - **Framing needs disjointness proofs** (`write_index ∉ [512,2560)`), which depend on **caller
+    context** (the bitmap/data offsets). `--fun <method>` runs standalone and **can't see the caller's
+    offset**, so it over-reports breakage; only a **full-os run (~20 min each)** truly assesses it.
+  - **The bitmap writes via BITWISE ops** (`disk[p] |= (1<<b)`, uninterpreted `bit_*`) — so even where
+    `__set_bitmap` writes, the result is **not provably ∈[0,255]**; preserving a byte invariant there
+    needs a bit-level axiom (it already cites `Bitmap.bit_and_one_in_zero_one`), not just framing.
+- **No incremental-green path**: the invariant breaks **all** writers at once; os only returns to 23
+  once **every** writer is fixed (or framed) — so "gate os continuously" can't keep os green *during*
+  the refactor, and each assessment costs a ~20-min full-os run.
+
+**Conclusion (reverted — os back to 23):** Track C's *mechanisms* are all proven (§1, §3a, 0661–0664),
+but the real-os *application* is a **multi-session, intricate** effort: per-writer disjointness (region
+scope) **or** byte-source proofs (whole-disk), plus the bitmap's **bitwise byte-ness** (needs a
+bit-axiom), assessed only by ~20-min full-os iterations. It is not completable in one stretch, and
+half-applied it leaves os red. The honest next step is a *dedicated* application pass: region-scoped
+invariant + fix the **two inode-region writers** (`_write_inode`, `__format_disk`, sourcing bytes from
+a `_pack_inode` that ensures `0<=\result[i]<=255`) + supply caller-side disjointness for the framed
+writers, iterating against full-os — banked here as scoped, not forced half-done.
+
 ## 4. The coupling invariant + L0″ (the heavier, later milestone — distinct from C1–C5)
 
 C1–C5 give a **verified, faithful, round-tripping codec inside os at 23** via a *field-range* invariant
