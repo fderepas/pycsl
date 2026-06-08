@@ -1558,6 +1558,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             col = index
             return f"(get {base} {row} {col})"
         value_str = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)
+        # L0 (os-bodyvc-spec): `\result[i]` in a CONTRACT where the function returns `array int`
+        # is a real `Array.get` (`result[i]`), not the opaque `subscript_get` — otherwise a value
+        # postcondition over an array result (`\result[0]*256 + \result[1] == v`) can't even be
+        # expressed, let alone proven. Spec context only (a logic term — no bounds-assert wrapper,
+        # matching the hand-verified .mlw); opaque-typed reads still fall through to subscript_get.
+        if (self._in_spec and value.get("type") == "Result"
+                and getattr(self, "_func_return_type", "") == "array int"):
+            return f"({value_str}[{index}])"
         if self._value_semantic:
             # A1-residual nested-map: `d[ko][ki]` — the inner read `d[ko]`
             # yields a `map κi (option νi)` (the outer dict's nested-map value),
