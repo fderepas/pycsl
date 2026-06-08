@@ -871,6 +871,11 @@ class PreambleEmissionMixin:
                 if class_invs:
                     self._in_spec = True
                     self._emit_record_ctx = type_name
+                    # L0′ (challenging-the-plan §4.1): set the self-type so a `self.<field>[i]` access
+                    # in the invariant resolves the field's array type (`_field_type_of` keys on
+                    # `_current_self_type`) and lowers to `Array.get`, not the unbound `subscript_get`.
+                    _prev_self = getattr(self, "_current_self_type", None)
+                    self._current_self_type = type_name
                     n_inv = len(class_invs)
                     i_inv = 0
                     while i_inv < n_inv:
@@ -878,6 +883,7 @@ class PreambleEmissionMixin:
                         inv_str = self._expr_to_whyml(inv, set(), invariant_ctx=True)
                         out.append(f"    invariant {{ {inv_str} }}")
                         i_inv += 1
+                    self._current_self_type = _prev_self
                     self._emit_record_ctx = None
                     self._in_spec = False
                     defaults = td.get("field_defaults", {})

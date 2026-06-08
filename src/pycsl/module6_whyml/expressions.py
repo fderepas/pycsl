@@ -1594,6 +1594,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if (self._in_spec and value.get("type") == "Result"
                 and getattr(self, "_func_return_type", "") == "array int"):
             return f"({value_str}[{index}])"
+        # L0′ (challenging-the-plan §4.1): `self.<array-field>[i]` in a contract/class-invariant is a
+        # real `Array.get`, not the opaque (and, in a class invariant, unbound) `subscript_get` — so a
+        # data-refinement coupling invariant `ginode[n] == unpack(self.disk[…])` can be expressed.
+        # Spec context only, logic term (no bounds-assert wrapper). Needs `_current_self_type` set
+        # during class-invariant emission (preamble L0′ part 1) for `_field_type_of` to resolve.
+        if (self._in_spec and value.get("type") in ("Attribute", "FieldGet")
+                and self._field_type_of(value) in ("list", "tuple", "bytes", "bytearray")):
+            return f"({value_str}[{index}])"
         if self._value_semantic:
             # A1-residual nested-map: `d[ko][ki]` — the inner read `d[ko]`
             # yields a `map κi (option νi)` (the outer dict's nested-map value),
