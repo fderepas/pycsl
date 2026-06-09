@@ -1,11 +1,81 @@
 ---
 name: pycsl-docs
-description: Explains the CMMI-style conventions used to structure docs/*reference.md files — the three-layer architecture (syntax → static semantics → translation), normative document patterns (Status, Version, Source of truth, Scope, Companion documents, section/§ cross-referencing, Gap Analysis), and how to create or extend a reference document. Use this skill when answering questions about PyCSL contract validity that require navigating between the three reference documents, when deciding which reference doc to consult for a specific error or contract question, or when creating or extending a reference document in the docs/ directory.
+description: The conventions for writing and structuring PyCSL documentation. Covers (1) the PROSE DISCIPLINE — mechanism-grounded rigor: every doc (README, glossary, skill, reference) must name the exact verification machinery (WhyML, Why3 weakest-precondition VCs, SMT solvers Alt-Ergo/Z3, E-matching, Valid=negation-unsatisfiable, Rocq/Lean offline-only) rather than hand-wave, and must carry no transient plan references; and (2) the reference-doc ARCHITECTURE — the three-layer stack (syntax → static semantics → translation), normative preambles, section/§ cross-referencing, Gap Analysis. Use this skill whenever writing, reviewing, or sharpening ANY PyCSL documentation, glossary page, skill, or reference document — especially to apply the mechanism-grounded style or to decide which reference doc covers a contract question.
 ---
 
 # PyCSL Documentation Architecture
 
-## The Three-Layer Stack
+## Prose discipline: name the exact mechanism
+
+This is the single most important rule for **every** PyCSL document — README, glossary page,
+skill, or reference doc — and it governs all the structure below: **say what actually happens,
+in the exact machinery, and never hand-wave.** A sentence about verification must name the real
+mechanism, not gesture at it. "The prover proves it" tells a reader nothing about the trust
+boundary; precision about the mechanism *is* the documentation's job, because PyCSL is a
+verification tool and its docs are read by people deciding what to trust.
+
+### The canonical vocabulary (use these terms, exactly)
+
+The verifier is **deductive**. The pipeline, named precisely:
+
+- annotated Python → the PyCSL transpiler → **WhyML** (the input language of **Why3**) → Why3
+  generates **verification conditions (VCs)** by a **weakest-precondition calculus** → the VCs are
+  split into sub-goals and dispatched to **SMT solvers** (Alt-Ergo 2.6.2, Z3 4.13.3) under a
+  per-goal time limit (~30 s).
+- A goal is **Valid** when the solver shows its **negation unsatisfiable**; otherwise it is
+  **Unknown** or **Timeout**. A still-unproven goal is not a false goal — it has exceeded the budget.
+- An **SMT solver** is a CDCL/DPLL Boolean (SAT) core wrapped by theory decision procedures
+  (integers, arrays, uninterpreted functions — the **DPLL(T)** architecture) and, for quantified
+  goals, by **trigger-based quantifier instantiation (E-matching)**. For PyCSL's quantified VCs the
+  dominant cost is E-matching, not the propositional search. It is **not** propositional SAT.
+- **Rocq and Lean run only OFFLINE** — to justify the handful of cited axioms (the axiom registry,
+  via `#@ proof`), and, separately, to formalize the transpilation's soundness. **No Rocq or Lean
+  kernel runs during a normal `pycsl` proof.** The one exception is interactive fallback: when SMT
+  leaves a VC open, `pycsl --rocq` exports that goal to Rocq for manual, offline proof (a proof
+  companion). So: it is **not** a Rocq proof.
+- An imported or abstract function emits as a WhyML **`val`** — contract only, no body, **no VC of
+  its own**; its contract becomes an in-scope assumption for callers. A defined function emits as a
+  **`let`** whose body yields weakest-precondition VCs. A cited **axiom** is a module-level
+  assumption in scope for every goal in the module.
+
+### The rules
+
+1. **Name the mechanism; don't gesture.** "the proof finishes" → "Why3 generates the VCs and
+   Alt-Ergo returns *Valid* on each." Verbs earn their place: Why3 *generates*; a solver
+   *discharges* a goal / reports it *Valid*; an axiom is *instantiated via E-matching*.
+2. **State what it IS and what it is NOT.** Often the negative teaches more — "this is SMT, not a
+   Rocq proof and not propositional SAT" closes a common misconception in one clause.
+3. **Trace every quality claim to the machinery.** If something is slow, cheap, or sound, say *why
+   in mechanism terms* — "slow because the enlarged module context inflates E-matching at every
+   goal", not "the room is crowded".
+4. **Be conservative — never fabricate rigor.** Only sharpen claims already present. Do not invent a
+   mechanism detail to sound precise. If unsure a sharpening is correct, **leave the sentence**: a
+   precisely-wrong sentence is worse than a loose one.
+5. **Carry no transient plan references.** Strip working-doc names (`NN-NNNN.md`, in-flight
+   plan/spec drafts) and transient labels (Track A/B, Phase 6A, G0a, P4, "decision A", revision tags
+   like "R3"); state the underlying concept plainly. **KEEP** genuinely *defined* frameworks the
+   docs themselves establish — the squeeze layers S0–S9, the TCB tiers, the undefined-behaviour
+   catalogue codes (UB-7.x), corpus driver IDs (`0342`) — those are stable taxonomy and real
+   citations, not transient tags. When unsure which a label is, keep it and flag it.
+6. **A rigor pass is a *prose* pass.** Leave code blocks, command examples, tables, contract
+   snippets, diagrams, corpus references, and links exactly as they are — concrete material is
+   already precise.
+
+### A worked sharpening (before → after)
+
+- **Before:** "The os module proof normally finishes in about twenty minutes."
+- **After:** "Why3 generates the weakest-precondition verification conditions, splits them, and
+  Alt-Ergo (then Z3) discharges all but a handful of the resulting sub-goals within their per-goal
+  budgets — about twenty minutes of wall-clock."
+
+The *after* states the kind of proof (WP-generated VCs, SMT-discharged), the agents (Why3,
+Alt-Ergo/Z3), and the unit (per-goal budget); every noun and verb is load-bearing. Apply the same
+test to each sentence you write: could a reader locate exactly where the trust sits? If not, name
+the mechanism until they can.
+
+---
+
+## Reference-document architecture: the three-layer stack
 
 The three `docs/*reference.md` files form an ordered stack. Each layer answers a
 strictly stronger question than the one below it:
