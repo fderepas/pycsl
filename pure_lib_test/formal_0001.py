@@ -21,7 +21,7 @@ SEEK_SET = 0
 
 #@ requires \length(data) >= 1
 #@ requires \length(data) <= 512
-#@ assigns _filesystem.disk, _filesystem.fd_open, _filesystem.fd_inode, _filesystem.fd_offset, _filesystem.fd_flags, _filesystem.next_fd
+#@ assigns _filesystem.disk, _filesystem.fd_open, _filesystem.fd_inode, _filesystem.fd_offset, _filesystem.fd_flags, _filesystem.fd_block, _filesystem.next_fd
 #@ ensures \result == 0 or \result == 1
 def formal_test_0001(filename: str, data: list) -> int:
     # ── Step 1: Create file and write ────────────────────────────────

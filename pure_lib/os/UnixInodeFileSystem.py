@@ -433,6 +433,7 @@ def _unpack_direntry(data: list) -> tuple:
 #@ class invariant \length(self.fd_inode) == 64
 #@ class invariant \length(self.fd_offset) == 64
 #@ class invariant \length(self.fd_flags) == 64
+#@ class invariant \length(self.fd_block) == 64
 #@ class invariant self.next_fd >= 3
 #@ class invariant self.cur_uid >= 0
 #@ class invariant self.cur_gid >= 0
@@ -474,6 +475,11 @@ class UnixInodeFileSystem:
         #   fd_flags[fd]  open flags
         self.fd_open: list = [0] * 64
         self.fd_inode: list = [0] * 64
+        # fd_block: in-core cache of the open file's first data block (the
+        # Unix in-core file-table analogue) — lets reads resolve content
+        # without re-decoding the inode each call; set at open and on first
+        # write. 0 = not yet allocated.
+        self.fd_block: list = [0] * 64
         self.fd_offset: list = [0] * 64
         self.fd_flags: list = [0] * 64
         self.next_fd = 3 # 0, 1, 2 reserved for standard streams
@@ -858,7 +864,7 @@ class UnixInodeFileSystem:
     # =========================================================================
 
     #@ requires True
-    #@ assigns self.disk, self.fd_open, self.fd_inode, self.fd_offset, self.fd_flags, self.next_fd
+    #@ assigns self.disk, self.fd_open, self.fd_inode, self.fd_offset, self.fd_flags, self.fd_block, self.next_fd
     #@ ensures \result == -1 or \result >= 3
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/open.html
     # cite:_note: POSIX open() — returns a new fd >= 3 on success, -1 on
@@ -872,7 +878,7 @@ class UnixInodeFileSystem:
     #             bytes (Gap 5). next_fd>=3 invariant gives
     #             \result >= 3.
     #@ requires True
-    #@ assigns self.disk, self.fd_open, self.fd_inode, self.fd_offset, self.fd_flags, self.next_fd
+    #@ assigns self.disk, self.fd_open, self.fd_inode, self.fd_offset, self.fd_flags, self.fd_block, self.next_fd
     #@ ensures \result == -1 or \result >= 3
     #@ no_inline
     def sys_open(self, pathname: str, flags: int) -> int:
@@ -910,11 +916,14 @@ class UnixInodeFileSystem:
         self.fd_inode[fd] = inode_num
         self.fd_offset[fd] = 0
         self.fd_flags[fd] = flags
+        # cache the file's first data block (recovered from the persisted
+        # inode via read-after-write); 0 if not yet allocated
+        self.fd_block[fd] = inode[8]
         return fd
 
     #@ requires fd >= 0
     #@ requires \length(data) <= 5120
-    #@ assigns self.disk, self.fd_offset, self._mtime_ticks
+    #@ assigns self.disk, self.fd_offset, self.fd_block, self._mtime_ticks
     #@ ensures \result == -1 or (\result >= 0 and \result <= \length(data))
     #@ no_inline
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/write.html
@@ -954,6 +963,8 @@ class UnixInodeFileSystem:
                 chunk = remaining
             disk_start = p_block * 512 + block_off
             self.disk[disk_start:disk_start + chunk] = data[written:written + chunk]
+            if block_idx == 0:
+                self.fd_block[fd] = p_block
             written = written + chunk
         self.fd_offset[fd] = offset + written
         new_size = offset + written
@@ -1443,7 +1454,7 @@ class UnixInodeFileSystem:
         return 0
 
     #@ requires True
-    #@ assigns self.disk, self.fd_open, self.fd_inode, self.fd_offset, self.fd_flags, self.next_fd, self._mtime_ticks
+    #@ assigns self.disk, self.fd_open, self.fd_inode, self.fd_offset, self.fd_flags, self.fd_block, self.next_fd, self._mtime_ticks
     #@ ensures \result == -1 or \result >= 3
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/creat.html
     # cite:_note: POSIX creat() — equivalent to open(pathname,

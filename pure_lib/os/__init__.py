@@ -259,7 +259,7 @@ def unlink(filepath: str, *, dir_fd=None):
     return _filesystem.sys_unlink(filepath)
 
 #@ requires True
-#@ assigns _filesystem.disk, _filesystem.fd_open, _filesystem.fd_inode, _filesystem.fd_offset, _filesystem.fd_flags, _filesystem.next_fd
+#@ assigns _filesystem.disk, _filesystem.fd_open, _filesystem.fd_inode, _filesystem.fd_offset, _filesystem.fd_flags, _filesystem.fd_block, _filesystem.next_fd
 #@ ensures \result == -1 or \result >= 3
 def open(filepath: str, flags, mode=0o777, *, dir_fd=None):
     """Open a file. Returns a file descriptor."""
@@ -274,7 +274,7 @@ def read(fd, n):
     return _filesystem.sys_read(fd, n)
 
 #@ requires fd >= 0
-#@ assigns _filesystem.disk, _filesystem.fd_offset
+#@ assigns _filesystem.disk, _filesystem.fd_offset, _filesystem.fd_block
 #@ ensures \result == -1 or \result >= 0
 def write(fd, data: list):
     """Write to a file descriptor. Returns byte count."""
