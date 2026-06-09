@@ -619,6 +619,18 @@ too weak (shape/length only). Fix bottom-up.
   so the field ensures follows from the leaf's already-proven contract. Composition beats SMT
   re-derivation (and is cheaper than a lemma). See csl-philosophy "compose, don't re-derive".
 
+- **The formal test is the capstone of a leaf-to-API annotation.** Once the leaves and the API carry
+  true contracts, write a driver that exercises the API end-to-end over **symbolic** inputs (every
+  parameter a `requires`-bounded symbol, never a concrete value) and assert the property as its
+  postcondition — proved for *all* inputs, not the handful a concrete test samples (*a test asks "did it
+  work this time"; a proof asks "could it ever fail"*). Two strengths, and say which you have:
+  *totality/safety* (`#@ ensures \result == 0 or \result == 1` — the whole scenario runs to a well-formed
+  result and never faults on any input) versus *functional content* (`#@ ensures \result == True` — a
+  round-trip returns exactly what went in). The concrete test you wrote first is the same scenario with
+  concrete inputs — the rehearsal for the formal one. The `os` module is the worked example
+  (`formal_0001` proves totality over all files); see `docs/formal-filesystem.md` and
+  pycsl-stdlib-coverage "Step 5 — Write a formal test".
+
 ## Glossary
 
 Core terms used in this skill have canonical definitions in `../../../docs/glossary/`:

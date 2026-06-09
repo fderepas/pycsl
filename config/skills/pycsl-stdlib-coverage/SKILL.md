@@ -312,6 +312,17 @@ lib/
 
 ## The workflow (battle-tested)
 
+This workflow is one coherent arc — a **descent and a return** — written up end-to-end in
+`docs/formal-filesystem.md`, with the `os` module as the worked example. The host module's **source of
+truth** (its English spec / POSIX) descends into a **faithful pure-Python model** (no convenient
+abstractions — model the real semantics: bytes if the real thing is bytes, partiality kept not
+totalized), which you **run concretely** to know it is the *right* model (Step 1), then **annotate
+leaf-to-API** so each layer rests on its callees' proved contracts (Steps 2–4), and finally **crown with
+a formal test** (Step 5) that re-states the spec's promise over *symbolic* inputs and proves it for every
+input at once. The concrete test of Step 1 and the formal test of Step 5 are the **same scenario** — the
+formal test is the concrete test with its inputs made universal (the rehearsal, then the proof). Keep the
+descent faithful and the return composes.
+
 ### Step 1 — Write a concrete test
 
 Create `pure_lib_test/NNNN.py` that imports from `pure_lib/<module>`
@@ -400,6 +411,17 @@ symbolic range, not one witness. This is universal quantification — the
 essence of formal verification.
 
 See `docs/glossary/formal-test.md` for the concept.
+
+**Two strengths of a formal-test postcondition — be explicit which you've proved.** A formal test can
+assert *totality / safety* — e.g. `#@ ensures \result == 0 or \result == 1` over a driver that returns a
+status code: *for every symbolic input the whole composed scenario runs to a well-formed result and
+never faults* (no out-of-bounds, no violated precondition, no broken invariant). This is what the `os`
+module's `formal_0001` proves over all filenames and buffers — the full open→write→close→reopen→read API
+cannot be driven into a fault by any file. Or it can assert *functional content* — e.g. `#@ ensures
+\result == True` over a round-trip driver that returns `read-back == written`: *the returned value itself
+is correct, for all inputs*. Totality is usually reachable first; the content theorem is the deeper
+capstone (often proof-cost-bound, not foundation-bound). They are different promises — don't conflate
+"the API never faults on any input" with "the API returns the right answer on any input."
 
 ### Contracts must reflect the English specification
 
@@ -561,20 +583,25 @@ PyCSL tool gaps" table below.
 
 ## Current status
 
-### os module — 98.0% proven (body-level)
+### os module — 100% proven (body-level), 0 unproven
 
 | Metric | Value |
 |--------|-------|
-| Valid VCs | 4019 |
-| Total VCs | 4101 |
-| Proven rate | 98.0% |
-| Unproven goals | 41 |
-| Formal test | 18/18 VCs ✅ |
+| Valid VCs | 1804 |
+| Unproven goals | **0** |
+| Proven rate | **100%** (body-level) |
+| TCB | 1 cross-validated axiom (a bitwise bound) |
+| Formal test | `formal_0001` 18/18 VCs ✅ (totality/safety, all symbolic inputs) |
 
-The 41 remaining failures trace to `subscript_get` abstraction — when
-inlined code reads `inode[2]` on a record field, PyCSL emits
-`subscript_get !inode 2` (abstract) instead of `!inode[2]` (array
-access). This is a PyCSL tool gap, not a pure_lib issue.
+The `os` module — a Unix inode filesystem in `pure_lib/os/` — is **fully proven** body-level: every
+syscall, the codec leaves, the inode round-trip, the read-after-write recovery, and the on-disk layout
+class invariant all discharged by SMT, on a one-line trusted base. The earlier `subscript_get` gap and
+the 23 disk-mutating syscalls were closed — leaf-first VALUE contracts + `#@ no_inline` modular
+boundaries (prove a syscall once, reuse its contract) + the codec extracted to its own minimal-context
+file so the inode round-trip proves inline (eliminating its axiom). The **content round-trip**
+(`formal_0008`, `#@ ensures \result == True` — read-back equals what was written) is the standing
+functional-correctness frontier: its foundation is proved, the remaining gap is proof cost, not
+foundations. The full methodology — and `os` as its worked example — is in `docs/formal-filesystem.md`.
 
 ### re module — 16/16 formal test VCs (stub-level)
 

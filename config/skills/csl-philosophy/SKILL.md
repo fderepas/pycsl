@@ -404,3 +404,35 @@ move is usually structural, not a bigger hammer:
    model must be both provable AND affordable to re-verify — which sometimes
    argues for a modular boundary (`#@ no_inline`: prove the heavy function once,
    reuse its contract in callers instead of re-proving the inlined body).
+
+## The descent and the return: from English spec to formal test
+
+The source-of-truth principle and the leaf-first hierarchy above are the two ends
+of one arc, and seeing the whole arc is the point. A *CSL proof is a **descent and
+a return** — `docs/formal-filesystem.md` walks it end-to-end with the `os` module
+(a Unix inode filesystem, proved with **0 unproven goals** on a one-line trusted
+base) as the worked example.
+
+- **The descent.** The external English specification becomes a *faithful* model
+  (real semantics, never a convenient abstraction — bytes if the real thing is
+  bytes; partiality kept, not totalized), and the model becomes its **smallest
+  checkable contracts**: the leaf whose honesty fits in a glance (`_pack_uint16_be`
+  *ensures* `\result[0]*256 + \result[1] == v`).
+- **The return.** Those leaf contracts are proved, and each higher layer is proved
+  *resting on the proved contracts beneath it* (compose, don't re-derive), climbing
+  leaf-to-API until — at the apex — you write the specification out **again**, as a
+  **formal test** whose postcondition transcribes the English promise and is
+  discharged over *symbolic* inputs.
+
+The hinge between descent and return is the distinction worth internalizing:
+**a test asks *did it work this time*; a proof asks *could it ever fail*.** A
+concrete test fixes the inputs and samples a measure-zero slice of an input space
+larger than atoms; a verification condition quantifies over a *symbol* standing for
+every input and proves the solver cannot break it. The very scenario you ran
+concretely to convince yourself the model is right (the rehearsal) becomes, with
+its inputs made symbolic, the thing that proves it right for everyone. That return
+— the specification re-stated as a discharged formal test — is what turns *we
+believe it* into *it cannot fail*. (Mind the strength you claim: proving a driver
+*never faults* on any input — totality/safety — is a weaker, usually-earlier
+promise than proving it *returns the right answer* on any input — functional
+content. Different theorems; state which one you have.)
