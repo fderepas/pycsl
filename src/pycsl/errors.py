@@ -2,7 +2,7 @@
 
 Self-annotation seed (StdlibCoverage workplan PR 9, §9.1). The
 ``line`` field is non-negative; ``filename`` and ``stage`` are
-strings (modeled as opaque ints for PyCSL). The class invariant
+strings (modeled as the Why3 `string.String` value type). The class invariant
 ``self.line >= 0`` is enforced by `__init__` — the only mutator —
 under the precondition that the caller passes a non-negative value.
 """

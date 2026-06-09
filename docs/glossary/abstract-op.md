@@ -15,7 +15,7 @@ but they trust differently:
 
 ## Why abstract ops matter in PyCSL
 
-Some operations are irreducibly opaque in an integer/array domain — parsing a string into a tree
+Some operations are irreducibly opaque whatever the value domain (int, string, array, map, …) — parsing a string into a tree
 (`ast.literal_eval`), byte marshaling (`struct.unpack`), bitwise tricks. PyCSL cannot model their
 internals soundly, so faking a body would be dishonest. The honest boundary is to declare them
 abstract: an uninterpreted `val` that says only what its contract states.
