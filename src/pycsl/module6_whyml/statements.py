@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Set
 
-from module6_whyml.identifiers import op_translate, whyml_ident, safe_mutex_name, safe_exc_name
+from module6_whyml.identifiers import op_translate, whyml_ident, safe_mutex_name, safe_exc_name, stable_hash
 from module6_whyml.ir_scanner import IRScanner
 from module6_whyml.stmt_control_flow import ControlFlowStmtMixin
 
@@ -664,7 +664,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         val = "(const (None: option int))"
             code = f"{indent}{obj}.{safe_field} <- {val}"
         else:
-            hash_field = hash(field) % 2147483647
+            hash_field = stable_hash(field)
             self_type = self._current_self_type
             if obj == "self" and self_type:
                 self._add_abstract_op(f"val setattr_{self_type} (x: {self_type}) (f: int) (v: int) : unit")
@@ -694,7 +694,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         if field in decl_fields:
             code = f"{indent}{obj}.{safe_field} <- {obj}.{safe_field} {op} {val}"
         else:
-            hash_field = hash(field) % 2147483647
+            hash_field = stable_hash(field)
             self_type = self._current_self_type
             if obj == "self" and self_type:
                 getter = f"getattr_{self_type}"

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Set
 
-from module6_whyml.identifiers import op_translate, whyml_ident
+from module6_whyml.identifiers import op_translate, whyml_ident, stable_hash
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
 from module6_whyml.expr_ghost_spec_ops import GhostSpecOpsMixin
@@ -80,7 +80,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     def _coerce_str_arg(whyml_str: str) -> str:
         """Convert a WhyML string literal to an int hash for abstract val arguments."""
         if whyml_str.startswith('"') and whyml_str.endswith('"'):
-            return str(hash(whyml_str) % 2147483647)
+            return str(stable_hash(whyml_str))
         return whyml_str
 
     def _materialize_if_seq(self, whyml_str: str, arg_ir: Dict[str, Any]) -> str:
@@ -160,7 +160,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         `string`→hash fallback are the benign documented collapses (A7)."""
         # String literals → int hash
         if whyml_str.startswith('"') and whyml_str.endswith('"'):
-            return str(hash(whyml_str) % 2147483647)
+            return str(stable_hash(whyml_str))
         # Array-shaped expressions can't be passed where int is expected.
         # The array's contents have no axioms; coerce to 0 placeholder.
         stripped = whyml_str.strip()
@@ -178,7 +178,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return "0"
         # Tuple literals (a, b, c) → hash to int
         if "," in whyml_str and whyml_str.startswith("(") and whyml_str.endswith(")"):
-            return str(hash(whyml_str) % 2147483647)
+            return str(stable_hash(whyml_str))
         return whyml_str
 
     # ----- no-more-int F1: dict value-type (ν) dispatch, consolidated -----
@@ -374,7 +374,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         non-literal string goes through an uninterpreted `str_hash_op`."""
         s = whyml_str.strip()
         if s.startswith('"') and s.endswith('"'):
-            return str(hash(whyml_str) % 2147483647)
+            return str(stable_hash(whyml_str))
         self._add_abstract_op("val str_hash_op (s: string) : int")
         return f"(str_hash_op {whyml_str})"
 
@@ -1851,7 +1851,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         decl_fields = self._all_record_fields
         if field in decl_fields:
             return f"{obj}.{self._field_label(self_type, field)}"
-        hash_field = hash(field) % 2147483647
+        hash_field = stable_hash(field)
         self_type = self._current_self_type
         if obj == "self" and self_type:
             name = f"getattr_{self_type}"

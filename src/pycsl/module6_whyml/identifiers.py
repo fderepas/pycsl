@@ -1,7 +1,19 @@
 from __future__ import annotations
 
+import hashlib
 import unicodedata
 from typing import Dict, Set
+
+
+def stable_hash(s: str) -> int:
+    """Deterministic, process-independent hash of a string to a non-negative int
+    in [0, 2147483647). Replaces Python's built-in `hash()` for the legacy
+    opaque-string→int fallback: `hash()` randomizes `str` hashing per process
+    (PYTHONHASHSEED), which made WhyML emission non-reproducible (different
+    `decode`/`str_hash` constants run-to-run). This gives the same value on every
+    run and machine — required for the byte-diff reproducibility gate — while
+    preserving the distinguishing property (distinct strings → distinct ints w.h.p.)."""
+    return int(hashlib.sha256(s.encode("utf-8")).hexdigest()[:8], 16) % 2147483647
 
 
 # Maps Python/IR operators to WhyML operators

@@ -33,7 +33,7 @@ def compute_sccs(names: Set[str], call_graph: Dict[str, Set[str]]) -> List[List[
         index_counter[0] += 1
         stack.append(v)
         on_stack[v] = True
-        for w in call_graph.get(v, set()):
+        for w in sorted(call_graph.get(v, set())):  # sorted: deterministic traversal (callees are a set)
             if w not in names:
                 continue
             if w not in index:

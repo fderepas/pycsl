@@ -216,7 +216,8 @@ class _Inliner:
         body = copy.deepcopy(m.get("body", []))
         # Freshen the callee's locals; bind non-trivial actuals to temps (no double-eval
         # / capture); map each formal to its actual (or temp).
-        rename = {loc: self._fresh(loc) for loc in _assigned_locals(body)}
+        # sorted: _assigned_locals is a set — deterministic __inl<N> numbering
+        rename = {loc: self._fresh(loc) for loc in sorted(_assigned_locals(body))}
         pre: List[Any] = []
         param_map: Dict[str, Any] = {}
         for formal, actual in zip(formals, args):
