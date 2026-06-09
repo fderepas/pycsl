@@ -3,10 +3,10 @@ program against curated **contract stubs** that describe what each standard-
 library API is *modeled* to do, not against the real implementation. The stub's
 contract is the source of truth for proof generation.
 
-PyCSL's Python stubs live in `src/pycsl_lib/` (and, per the resolver design in
-`StdlibCoverage_Workplan.md`, a `Lib/` model mirroring the stdlib layout). When
-Module 1 (the ingestor) sees `from os.path import join`, it parses the stub —
-not CPython — and proves against the `#@` contracts on it.
+PyCSL's Python stubs live in `src/pycsl_lib/` (with a `Lib/` model mirroring the
+stdlib layout that the resolver searches). When Module 1 (the ingestor) sees
+`from os.path import join`, it parses the stub — not CPython — and proves against
+the `#@` contracts on it.
 
 ---
 

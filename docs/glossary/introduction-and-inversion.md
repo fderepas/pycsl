@@ -13,8 +13,10 @@ Prove a *concrete* instance of the predicate by applying its rules forward. For
 #@ ensures even(4)        # even(0) → even(2) → even(4)
 ```
 
-The SMT backend can chain the introduction rules to build a specific derivation,
-so a ground goal like `even(4)` discharges directly (driver `0562`).
+The SMT solver (Alt-Ergo, then Z3) chains the introduction rules — by
+instantiating the inductive predicate's defining axioms — to build a specific
+derivation, so a ground goal like `even(4)` is reported *Valid* directly (driver
+`0562`).
 
 ## Inversion (backward)
 
@@ -25,8 +27,8 @@ A value can *only* have been built by the rules, so you can rule cases out:
 ```
 
 Why3 derives an inversion principle from the declaration: `even(n)` implies
-`n = 0 \/ (n >= 2 /\ even(n - 2))`. The solver uses it to refute impossible
-instances.
+`n = 0 \/ (n >= 2 /\ even(n - 2))`. The SMT solver uses it to refute impossible
+instances — it shows the negation of `not even(3)` unsatisfiable.
 
 ## The harder third direction
 

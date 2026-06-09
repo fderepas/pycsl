@@ -1,5 +1,6 @@
-A **class invariant** is a property of an object's fields that PyCSL expects
-to hold whenever control enters or leaves a verified method.
+A **class invariant** is a property of an object's fields that PyCSL lowers to a
+Why3 type invariant, so it is assumed on entry to and a verification condition on
+exit from every verified method.
 
 In source, it is written as `#@ class invariant <expr>` immediately before the
 `class` keyword, using the `""  # pycsl` anchor line so the annotation attaches
@@ -11,7 +12,8 @@ to the class definition.
 
 A class invariant is the class-level summary that survives across method calls.
 
-It matters because PyCSL checks it automatically at method boundaries, so:
+It matters because the type invariant is assumed on method entry and re-proved as
+a verification condition on method exit, so:
 
 - mutating methods need `requires` clauses strong enough to preserve it
 - read-only methods with `#@ assigns \nothing` usually do not need extra

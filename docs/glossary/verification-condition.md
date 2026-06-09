@@ -1,6 +1,9 @@
-A **verification condition (VC)** is a single proof goal emitted by PyCSL and
-Why3 from contracts, loop annotations, and program operations. One function
-typically generates many VCs.
+A **verification condition (VC)** is a single proof goal that Why3 generates from
+a WhyML function and its contract by a **weakest-precondition calculus** —
+a first-order formula whose validity means the function body satisfies its
+postcondition, calls every callee within that callee's precondition, preserves
+every loop invariant, and accesses every array in bounds. One function typically
+generates many VCs after Why3 splits them into independent sub-goals.
 
 **Proof obligation** is the closest near-synonym. In PyCSL glossary usage,
 **VC** is the shorter preferred term when talking about one generated goal.
@@ -37,9 +40,10 @@ A loop with invariants and a variant usually creates separate VCs for:
 
 ### SMT first, Rocq later
 
-If Alt-Ergo or Z3 discharges a VC, no manual action is needed.
+If Alt-Ergo or Z3 reports a VC Valid (the negation unsatisfiable), no manual
+action is needed.
 
-If a VC remains open, `--rocq` can export it into a
+If a VC remains `Unknown` or times out, `--rocq` can export it — offline — into a
 [proof companion](proof-companion.md) for Rocq.
 
 ---

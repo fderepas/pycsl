@@ -6,8 +6,10 @@ automatically.
 
 ## Why proof companions matter in PyCSL
 
-Most VCs should disappear under Alt-Ergo or Z3. The proof companion is the
-fallback layer for the smaller set of hard VCs that need interactive proof.
+Most VCs are discharged *Valid* by Alt-Ergo or Z3 within their per-goal time
+budget. The proof companion is the fallback layer for the smaller set of hard VCs
+the SMT solvers leave *Unknown* or *Timeout* and that need interactive Rocq
+proof.
 
 It also gives you a stable place to keep manual proof work while the source file
 evolves.

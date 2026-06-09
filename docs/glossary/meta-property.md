@@ -15,7 +15,7 @@ region", "this secret field is never written by any function but `encrypt`". Sta
 property as per-function contracts is quadratic and brittle — every function would need a clause
 about every other. A meta-property states it **once** and lets the compiler expand it.
 
-The expansion follows the operating discipline proven by `act` and HAPPY:
+The expansion follows the operating discipline established by HAPPY:
 
 - **Desugar to existing primitives — never grow the TCB.** A meta-property adds **0 new IR nodes,
   0 backend change, 0 `\trusted`**; it lowers onto the existing statement-level `#@ check`

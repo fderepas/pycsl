@@ -13,11 +13,11 @@ the proof assistant.
 
 ## Why it exists
 
-Q2 Sub-α formalized `emit_stmt : whyml_stmt → string` in Rocq +
-Lean and proved, per construct, that the output lies in an
-`acceptable_emit` set of surface-syntactic alternatives. The
-proof anchors at the formal `whyml_stmt` AST and the Rocq
-pretty-printer's output.
+The offline Rocq + Lean formalization defines
+`emit_stmt : whyml_stmt → string` and proves, per construct, that the
+output lies in an `acceptable_emit` set of surface-syntactic
+alternatives. The proof anchors at the formal `whyml_stmt` AST and the
+Rocq pretty-printer's output.
 
 The Python Module 6 is a separately-written pretty-printer
 (string-building code across
@@ -29,17 +29,15 @@ only modulo this extraction-extensional residue: the two
 implementations must agree byte-for-byte on the slice of inputs
 covered by the byte-diff test corpus.
 
-This is honestly framed in `closer-to-code.md §CC.5`. Sub-α +
-Sub-β eliminate every *named axiom* from the WP correspondence
-chain; the residue is what's left, and it lives at the
-meta-level between the formal model and the Python
+The offline correspondence proof eliminates every *named axiom* from
+the WP correspondence chain; the residue is what's left, and it lives
+at the meta-level between the formal model and the Python
 implementation.
 
 ## How it is validated
 
 The validation harness is
-`bin/extraction-byte-diff-upward.sh` (Q4 U.4 — see
-`closer-to-code-execution-status.md` items 35-46). The pipeline
+`bin/extraction-byte-diff-upward.sh`. The pipeline
 per `.py` source:
 
 1. `bin/pycsl-ir-dump.py` extracts Module 5's IR JSON from the
@@ -54,11 +52,10 @@ per `.py` source:
 Empirical state: on the reference corpus the simple-subset
 byte-diff scores 23/23 PASS (synth-001..004 + 19 real-corpus
 tests fitting the formal expression subset). The full PASS rate
-on `test-suite/corpus/pycsl-reference/*.py` under the v6
-extension is 346/386 = 89.6%, with the 24 SKIP cases lying
-outside the formal `expr` / `stmt` subset and the 16 FAIL_M5
-cases reflecting Module 5 limitations rather than extraction
-disagreement.
+on `test-suite/corpus/pycsl-reference/*.py` is 346/386 = 89.6%,
+with the 24 SKIP cases lying outside the formal `expr` / `stmt`
+subset and the 16 FAIL_M5 cases reflecting Module 5 limitations
+rather than extraction disagreement.
 
 ## Why it is acceptable
 
@@ -74,13 +71,12 @@ Eliminating the residue entirely would require either:
   gap between "byte-diff PASSes on the test corpus" and "byte-
   diff PASSes on every conceivable input".
 
-The plan accepts the residue. The CC.5 framing in
-`closer-to-code.md` documents this explicitly; the test
-corpus is the operational guarantee.
+The residue is accepted, documented explicitly, and the test
+corpus is its operational guarantee.
 
 ## How it differs from an Axiom
 
-A named Axiom (e.g., the pre-Q3 `module6_encodes_mlw`) is a
+A named Axiom (e.g., the former `module6_encodes_mlw`) is a
 formal assumption inside the Rocq kernel — `Print Assumptions
 <thm>` lists it. The extraction-extensional residue is
 *outside* the kernel: no `Print Assumptions` query mentions
@@ -90,7 +86,7 @@ between the formal model and the Python codebase.
 
 For a soundness reviewer: the residue is what makes the
 Rocq + Lean proof an honest engineering deliverable rather
-than a complete formal closure. Q4's IR-boundary closing
+than a complete formal closure. Closing the IR boundary
 shifts the trust line so the residue covers only the
 last-mile string-emission gap, not the algorithmic core.
 
@@ -102,6 +98,5 @@ last-mile string-emission gap, not the algorithmic core.
   trusted boundary; the residue is right at the boundary.
 - [Verification condition](verification-condition.md) — what
   the extracted vs Python pretty-printers ultimately produce.
-- `closer-to-code.md §CC.5` — the architectural framing.
 - `bin/extraction-byte-diff-upward.sh` — the validation
   harness.

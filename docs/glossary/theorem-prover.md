@@ -15,10 +15,11 @@ provers establishing that the generated obligations really hold.
 
 The usual flow is:
 
-- PyCSL lowers Python plus contracts to WhyML
-- Why3 generates VCs
-- Alt-Ergo or Z3 try to prove them automatically
-- if some remain, Rocq/Coq can prove them manually and replay them later
+- PyCSL lowers annotated Python to WhyML
+- Why3 generates VCs by a weakest-precondition calculus and splits them
+- Alt-Ergo or Z3 try to discharge each sub-goal automatically (Valid = the
+  negation is unsatisfiable)
+- if some remain, Rocq/Coq can prove them manually, offline, and replay them later
 
 So **theorem prover** is broader than either **SMT solver** or **Rocq proof
 companion**.
@@ -32,13 +33,13 @@ companion**.
 For most files, the theorem provers you notice are the SMT back ends behind
 Why3.
 
-A successful `pycsl file.py` run usually means every VC was discharged
-automatically by Alt-Ergo or Z3.
+A successful `pycsl file.py` run usually means every VC was reported Valid
+automatically by Alt-Ergo or Z3, with no Rocq or Lean kernel involved.
 
 ### Interactive theorem proving
 
 When automatic proof is not enough, `pycsl --rocq DIR file.py` exports the
-leftover goals into Rocq proof skeletons.
+leftover goals into Rocq proof skeletons for offline, manual proof.
 
 Those scripts are then checked by the Rocq kernel during
 `pycsl --rocq-proofs DIR file.py` or normal replay through a retained

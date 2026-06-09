@@ -26,7 +26,7 @@ PyCSL's TCB has three layers.
 
 | Axiom | File | What is assumed |
 |---|---|---|
-| `module6EncodesMlw` | `VcgEmission.lean` (Lean only) | Module6 emits a `.mlw` file whose [verification conditions](verification-condition.md) match the formal specification `vcProp` exactly (emission fidelity), and Why3's provers are sound for those goals. **Eliminated on the Rocq side (2026-05-29)** — `module6_encodes_mlw` is now a PROVED Lemma in `Phase6m_VcgSemBridge.v`. The Lean mirror retains the axiom pending Sub-β port to Lean. |
+| `module6EncodesMlw` | `VcgEmission.lean` (Lean only) | Module6 emits a `.mlw` file whose [verification conditions](verification-condition.md) match the formal specification `vcProp` exactly (emission fidelity), and Why3's provers are sound for those goals. **Eliminated on the Rocq side (2026-05-29)** — `module6_encodes_mlw` is now a PROVED Lemma in `Phase6m_VcgSemBridge.v`. The Lean mirror retains the axiom pending a port of that proof to Lean. |
 | `altErgoCorrect` | `Soundness.lean` | Alt-Ergo and Z3 are sound for the non-linear arithmetic goals they discharge |
 | `trustedContractsAxiom` | `Soundness.lean` | Functions annotated `\trusted` satisfy their stated contracts |
 | `whyCertConstruction` | `Why3Trust.lean` (Lean only) | Whoever constructs a `Why3Certificate` (e.g., Lean's `Why3Trust.check` invoking Why3 externally) has done the work to validate every emitted VC. **Note:** in Rocq this is *not* an axiom — it is structurally enforced by the cert type (`why3_certificate ws Q` directly demands the eval_vc_formula witness for every VC). The trust line is at construction, not projection. |
@@ -48,27 +48,32 @@ outside PyCSL's scope and is handled by the respective upstream communities.
 
 ## How the TCB is being reduced
 
-The history of TCB reduction for the VCG chain illustrates the approach:
+The history of TCB reduction for the VCG chain illustrates the approach — each
+step narrows what is trusted:
 
-**Before Phase 6A:** One broad silent axiom.
+**Starting point:** One broad silent axiom trusting both Why3's VCG algorithm and
+its provers.
 ```lean
 axiom why3ImplementsWpW : Why3Certificate ws Q → wpW ws Q preEs es
 -- trusted: Why3's VCG algorithm AND Why3's provers
 ```
 
-**After Phase 6A (vcgSound):** VCG algorithm correctness is proved as a theorem.
+**VCG algorithm correctness proved as a theorem** (`vcgSound`), removing it from
+the trusted base.
 ```lean
 theorem vcgSound : vcProp ws Q preEs es ↔ wpW ws Q preEs es
 -- proved — no domain axioms beyond propext / Classical.choice / Quot.sound
 ```
 
-**After Phase 6B (vcgBridge):** The sorry is named and documented.
+**The residual gap named and documented** (`vcgBridge`) as a visible `sorry`
+rather than a silent assumption.
 ```lean
 def vcgBridge ... : vcProp ws Q preEs es := sorry
 -- #print axioms vcgBridge → sorryAx  (visible proof obligation)
 ```
 
-**After Phase 6C (module6EncodesMlw):** The sorry is replaced by a named axiom.
+**The `sorry` replaced by a narrow named axiom** (`module6EncodesMlw`) about
+emission fidelity only.
 ```lean
 axiom module6EncodesMlw : Why3Certificate ws Q → vcProp ws Q preEs es
 def vcgBridge ... cert := module6EncodesMlw ws Q preEs es cert
@@ -77,9 +82,8 @@ def vcgBridge ... cert := module6EncodesMlw ws Q preEs es cert
 
 At each step, the trusted claim becomes narrower and more precisely stated.
 
-The planned next steps (`VcgSemBridge` / Phase 6C-β) will further split
-`module6EncodesMlw` into two proved theorems plus one smaller residual axiom about
-the Python emitter.
+A further split of `module6EncodesMlw` into two proved theorems plus one smaller
+residual axiom about the Python emitter narrows it again.
 
 ---
 

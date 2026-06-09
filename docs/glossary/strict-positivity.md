@@ -14,9 +14,9 @@ least fixpoint, and an unsound definition could let you derive `False`. Strict
 positivity is the standard restriction (from inductive type theory) that rules
 this out.
 
-A rejected shape (the negative-driver pattern, since PyCSL's `not` does not parse
-inside a rule clause the way the spec's Horn syntax assumes) is a nested
-implication that buries the predicate in an antecedent:
+A rejected shape — since PyCSL's `not` does not parse inside a rule clause the
+way the Horn syntax assumes — is a nested implication that buries the predicate
+in an antecedent:
 
 ```python
 #@ inductive bad(n: int):

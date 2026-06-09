@@ -11,8 +11,8 @@ an earlier, cleaner diagnostic — never the thing that closes the hole.
 - **Termination of recursive lemmas / functions.** PyCSL does *not* require
   `#@ \variant`. Why3 infers a structural variant and rejects ill-founded recursion
   via its termination VC, so a non-terminating "[lemma](lemma-function.md)" cannot
-  export `False`. (Requiring the annotation was redundant *and* over-restrictive —
-  it rejected provable lemmas. This was "decision A".)
+  export `False`. Requiring the annotation was redundant *and* over-restrictive —
+  it rejected provable lemmas.
 - **[Strict positivity](strict-positivity.md)** of inductive predicates — Why3
   rejects `non strictly positive occurrence …`.
 - **Typed quantifier binder *use*** — misusing a datatype binder (arithmetic on it)

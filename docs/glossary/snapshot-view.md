@@ -40,8 +40,8 @@ This creates a ghost snapshot of the current array.
 This acts as a stable view of the original parent relation while the executable
 array is being rewritten.
 
-Planned or proposed operations such as `\copy_range(arr, lo, hi)` would be even
-more explicit range views.
+A range-restricted copy such as `\copy_range(arr, lo, hi)` would be an even more
+explicit range view.
 
 ---
 

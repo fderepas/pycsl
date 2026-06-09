@@ -1,5 +1,7 @@
 A **trusted stub** is a contract-only function or imported definition whose
-behavior is assumed rather than proved.
+behavior is assumed rather than proved. It emits as a WhyML `val` — a contract
+with no body, so it carries no verification condition of its own; instead its
+contract becomes an in-scope assumption for every caller's goals.
 
 In PyCSL, trusted stubs usually appear in one of two places:
 

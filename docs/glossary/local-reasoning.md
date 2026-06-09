@@ -9,8 +9,10 @@ An equivalent phrase often used in the repository is:
 
 ## Why local reasoning matters in PyCSL
 
-Local reasoning is usually the cheapest and most robust style for SMT-based
-proofs.
+Local reasoning is usually the cheapest and most robust style for SMT discharge
+of weakest-precondition VCs, because it lets the solver close a goal from a few
+ground facts rather than driving its trigger-based quantifier instantiation
+(E-matching) over a context full of `\forall` hypotheses.
 
 It works especially well when the proof uses:
 

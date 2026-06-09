@@ -40,7 +40,7 @@ caught upstream of the WhyML emission.
 ## Formal side — `Phase1c_ValidateIr.v`
 
 The Rocq predicate `validate_ir : json_value → bool` mirrors
-the Python predicate over `json_value`s parsed by Q4 U.1's
+the Python predicate over `json_value`s parsed by
 `Phase0_IrJson.v`. Three bool predicates plus a refinement:
 
 - `validate_ir : json_value → bool` — total boolean
@@ -55,26 +55,26 @@ the Python predicate over `json_value`s parsed by Q4 U.1's
   — the soundness arrow.
 
 The full bidirectional correspondence (`validate_ir j = true
-↔ WellFormedIR j /\ KeysUniqueRec j`) is U.3 in
-`closer-to-code.md` (status doc item 46).
+↔ WellFormedIR j /\ KeysUniqueRec j`) closes the soundness
+arrow into an iff.
 
 ## Correspondence with the Python side
 
-Q4 U.3's theorem captures the Python `validate_ir`'s
+The correspondence theorem captures the Python `validate_ir`'s
 semantics as a Rocq predicate. Practically:
 
 1. Python `validate_ir(ir_data)` either returns `None`
    (well-formed) or raises `PyCSLIRError`.
 2. Rocq `validate_ir(j) : bool` returns `true` iff `j` would
    pass the Python check.
-3. The U.3 theorem establishes the correspondence: the
+3. The correspondence theorem establishes that the
    formal predicate captures every constraint Python's
    `validate_ir` enforces.
 
 This makes IR well-formedness a *machine-checked spec* for
 the Python function — Python's `validate_ir` is the
 operational implementation, Rocq's `validate_ir` is the
-formal spec, the U.3 theorem is the bridge.
+formal spec, the correspondence theorem is the bridge.
 
 ## Why it matters
 
@@ -89,7 +89,7 @@ soundness theorem (`pycsl_soundness`) chains through both.
 If the Python frontend (Modules 1-4) produces ill-formed IR,
 the issue is caught at `validate_ir` time — before any
 WhyML emission. If the Python `validate_ir` differs from the
-formal predicate, the U.3 correspondence theorem flags the
+formal predicate, the correspondence theorem flags the
 gap.
 
 ## See also
@@ -103,9 +103,7 @@ gap.
   on well-formed IR).
 - `src/pycsl/ir_schema.py` — Python implementation.
 - `src/formal-semantics/rocq/Phase1c_ValidateIr.v` — formal
-  predicate + U.3 theorem.
+  predicate + correspondence theorem.
 - `src/formal-semantics/rocq/Phase0_IrJson.v` — the
   `json_value` inductive over which the formal validator
   operates.
-- `closer-to-code-execution-status.md` items 26, 39-40, 46 —
-  the execution log for the U.1/U.3 work.

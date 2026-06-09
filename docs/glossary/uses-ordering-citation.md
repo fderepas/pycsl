@@ -32,7 +32,7 @@ the citation lets the lemma's *general* fact do the work.
 
 ## Where it is used
 
-Introduced for the recursive-datatype quantified wrapper (`scc2.md`, driver `0565`)
+Introduced for the recursive-datatype quantified wrapper (driver `0565`)
 and reused throughout [inductive reflection](inductive-reflection.md): the
 inversion lemma cites the non-negativity consequence (`#@ uses even_nonneg`), and
 the agreement lemma cites the inversion lemma (`#@ uses even_inv`).

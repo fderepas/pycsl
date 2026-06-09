@@ -1,9 +1,9 @@
 A **satisfiability (SAT) solver** decides whether a propositional Boolean
-formula can be made true.
+formula has a satisfying assignment, typically with a CDCL/DPLL search.
 
 It is narrower than an [SMT solver](smt-solver.md): a SAT solver works with
 Boolean variables and connectives, but it does not natively know about integer
-arithmetic, arrays, maps, or quantifiers.
+arithmetic, arrays, maps, uninterpreted functions, or quantifiers.
 
 ---
 
@@ -11,12 +11,13 @@ arithmetic, arrays, maps, or quantifiers.
 
 PyCSL users usually do **not** invoke a bare SAT solver directly.
 
-PyCSL sends Why3-generated VCs to Alt-Ergo or Z3 because those goals talk about
-program theories such as integer bounds, arrays, and maps. That is SMT
-territory, not plain SAT.
+Why3 sends its [verification conditions](verification-condition.md) to Alt-Ergo
+or Z3 because those goals talk about program theories such as integer bounds,
+arrays, and maps. That is SMT territory, not plain SAT.
 
-The SAT idea still matters as background because many SMT solvers use SAT-style
-Boolean search internally.
+The SAT idea still matters as background because an SMT solver contains a
+CDCL/DPLL Boolean (SAT) core; it is that core, wrapped by theory decision
+procedures and quantifier instantiation, that an SMT solver builds on.
 
 ---
 

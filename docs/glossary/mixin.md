@@ -39,7 +39,7 @@ PyCSL's mixin model differs from textbook trait systems in two deliberate ways,
 both driven by how PyCSL's own facade (`Module6_WhyMLTranspiler`) actually
 composes its handler mixins.
 
-**Shared state vs owned fields (D1).** Textbook traits assume each mixin owns
+**Shared state vs owned fields.** Textbook traits assume each mixin owns
 disjoint fields; two mixins touching the same field is a conflict. PyCSL's
 emission mixins do the opposite — `ExpressionEmissionMixin`,
 `StatementEmissionMixin`, `PreambleEmissionMixin`, etc. all share facade state
@@ -48,7 +48,7 @@ declares a field as **deliberately shared** (not a conflict); `#@ touches_field`
 keeps the owned-field / single-owner semantics for fields that genuinely should
 be disjoint.
 
-**Concrete dependencies vs abstract holes (D2).** Textbook `requires_method` is
+**Concrete dependencies vs abstract holes.** Textbook `requires_method` is
 an abstract hole the composing class fills. PyCSL's sub-mixins instead call
 **concrete** helpers that live in a sibling (`self._e`, `self._deref`,
 `self._stmts_to_whyml`). The `#@ depends_method` directive models this: a

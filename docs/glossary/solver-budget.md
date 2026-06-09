@@ -1,5 +1,6 @@
-The **solver budget** is the finite amount of time, memory, and proof search a
-tool like Alt-Ergo or Z3 can spend on a single
+The **solver budget** is the finite amount of time (a per-goal limit of roughly
+30 seconds), memory, and quantifier-instantiation search that a tool like
+Alt-Ergo or Z3 can spend on a single
 [verification condition](verification-condition.md) before it returns
 `Unknown`, times out, or runs out of memory.
 
@@ -44,10 +45,11 @@ Typical heuristics in PyCSL include:
 
 ## Concrete examples
 
-Two recurring budget failures in recent work were:
+Two recurring budget failures are:
 
 - `\mem(x, l)`-style ghost-list reasoning in loop invariants
-- full path-list witnesses that forced the solver into wide quantified proofs
+- full path-list witnesses that forced the solver into wide quantified
+  instantiation
 
 In both cases the issue was not that the idea was false. The issue was that it
 spent too much solver budget.

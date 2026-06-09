@@ -22,7 +22,7 @@ related back to PyCSL's `eval_vc_formula`.
 
 ## How it appears in the PyCSL trust chain
 
-Post-Q3 Sub-β (2026-05-29), the Rocq side of the chain does NOT
+In the current design, the Rocq side of the chain does NOT
 import `formula_rep` directly into the main build. Instead, the
 `why3_certificate` type (Phase6j_Why3Trust.v) is defined as the
 witness type — a function from VC indices to `eval_vc_formula`
