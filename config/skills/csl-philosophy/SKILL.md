@@ -88,6 +88,21 @@ each stub transcribes the library reference and must behave as CPython
 does. A specification that is internally consistent but unfaithful to
 the source of truth is *coherent and wrong* — the worst kind of green.
 
+**Faithfulness must be auditable, and the loop must close.** Fidelity is
+not a private virtue; it has to be checkable *from the outside*. So anchor
+each contract to the sentence it transcribes — a `# cite:` to the
+authority's page and a `# cite:_note:` paraphrase — so any reader can trace
+a contract back to the spec text it encodes (the `os` model carries one on
+every syscall). Formalization does **not replace** the source of truth; it
+makes a faithful, mechanically-checkable **shadow** of it, and everything
+downstream stays *answerable to that text*. And the source of truth is not
+only where a proof *begins* — it is where it *ends*: the **formal test**
+that crowns a verified module re-states the specification's own promise
+(the round-trip, the documented postcondition) over symbolic inputs and
+discharges it for all of them. The proof descends from the English
+authority and returns to it — see "The descent and the return" below, and
+`docs/formal-filesystem.md` (`os` as the worked example).
+
 ### The Squeeze Strategy starts here, and so does ER
 
 This is the **cornerstone of the Squeeze Strategy** (the meta-principle

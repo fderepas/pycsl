@@ -92,6 +92,19 @@ loop invariants or any `\trusted` decision (`csl-from-scratch` §1.5 habit
 classification, the exception model, and the no-more-int typing all exist
 to keep the model honest to these sources.
 
+**Anchor the transcription, and close the loop.** Make the fidelity
+*auditable*: anchor each contract to the sentence it transcribes — a
+`# cite:` to the reference page and a `# cite:_note:` paraphrase — so a
+reader can trace any `ensures` back to its authority (the `os` model
+carries one on every syscall). Transcribing is not a one-way trip: the
+source of truth is where the proof *ends*, not only where it begins. The
+**formal test** (Step 5) re-states the library reference's own promise
+over symbolic inputs and discharges it for all of them — the descent into
+a faithful model returning, at the top, to the English it came from. A
+module is "done" when that loop is closed: spec transcribed into contracts,
+contracts proved, and the spec's promise re-proved as a formal test. See
+`docs/formal-filesystem.md` (`os` as the worked example).
+
 ---
 
 ## The World: a shared pure-Python kernel
