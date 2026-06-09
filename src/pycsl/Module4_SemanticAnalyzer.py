@@ -685,8 +685,8 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         self._validate_no_mutable_defaults(node)
         self._validate_lemma(node)
         self._validate_function_contracts(node)
-        # assigns-region base typing migrated to core_ir_semantic (refactor.md B3)
-        self._validate_subscript_assignments(node)
+        # assigns-region base typing + subscript-assignment base typing migrated to
+        # core_ir_semantic (refactor.md B3 / AST-only #3)
 
         node.csl_symbol_table = self.current_scope.copy()
         node.csl_dict_value_types = self.current_dict_value_types.copy()
@@ -948,33 +948,10 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
     # (`core_ir_semantic._check_assigns_regions`) — assigns-region base typing now
     # runs on the IR (assigns targets + symbol_table), not the AST (refactor.md B3).
 
-    def _validate_subscript_assignments(self, node: ast.FunctionDef) -> None:
-        """Check that arr[i] = v targets are list-typed variables (annotated functions only)."""
-        has_annotations = (
-            getattr(node, 'csl_requires', []) or
-            getattr(node, 'csl_ensures', []) or
-            getattr(node, 'csl_assigns', []) or
-            getattr(node, 'csl_invariants', [])
-        )
-        if not has_annotations:
-            return
-        for child in ast.walk(node):
-            if isinstance(child, ast.Assign):
-                for target in child.targets:
-                    if isinstance(target, ast.Subscript) and isinstance(target.value, ast.Name):
-                        arr_name = target.value.id
-                        arr_type = self.current_scope.get(arr_name)
-                        if arr_type is None:
-                            raise PyCSLSemanticError(
-                                f"Subscript assignment to undefined variable '{arr_name}' "
-                                f"in {self.current_function_name}."
-                            )
-                        if arr_type not in ("list", "List", "dict", "Dict",
-                                             "Any"):
-                            raise PyCSLSemanticError(
-                                f"Subscript assignment to non-list/dict variable '{arr_name}' "
-                                f"(type '{arr_type}') in {self.current_function_name}."
-                            )
+    # `_validate_subscript_assignments` MIGRATED to the language-agnostic core
+    # (`core_ir_semantic._check_subscript_assignments`) — the `arr[i] = v` base-typing
+    # check now walks the IR body's `ArraySet` nodes (no plumbing needed; the data was
+    # already in the IR), gated to annotated functions (refactor.md B / AST-only #3).
 
     def visit_While(self, node: ast.While) -> Any:
         context_name = f"while loop at line {node.lineno} inside {self.current_function_name}"

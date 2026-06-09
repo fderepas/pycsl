@@ -43,6 +43,7 @@ def run_ir_semantic_checks(ir: Any, *, stage: str = "ir-semantic") -> None:
         _check_no_exception(func)
         _check_assigns_regions(func)
         _check_contract_exprs(func, known_binder_types)
+        _check_subscript_assignments(func)
 
 
 def _check_span(func: Any, stage: str) -> None:
@@ -258,3 +259,43 @@ def _pb_expr(node, ctx, symtab, known) -> None:
     # non-literal index (refactor.md: a Module-5-hardening prerequisite).
     for v in node.values():
         _pb_expr(v, ctx, symtab, known)
+
+
+# --- subscript-assignment base typing (body walk) ---------------------------
+
+def _check_subscript_assignments(func) -> None:
+    """An `arr[i] = v` target must be a list/dict variable in scope — migrated from
+    Module 4's ``_validate_subscript_assignments``. Walks the IR **body** (not the
+    contract exprs) for `ArraySet` nodes; gated, exactly like Module 4, to *annotated*
+    functions only (any `requires`/`ensures`/`assigns` — loop invariants do NOT count).
+    The context is uniformly `function 'F'` (no surface tracking). The data is already
+    in the IR (no plumbing): `ArraySet{array, index, value}` + `symbol_table`."""
+    c = func.get("contracts") or {}
+    if not (c.get("requires") or c.get("ensures") or c.get("assigns")):
+        return  # unannotated function — Module 4 skips the check, so do we
+    where = f"function '{func.get('name', '<anonymous>')}'"
+    symtab = func.get("symbol_table") or {}
+    _sa_walk(func.get("body", []) or [], where, symtab)
+
+
+def _sa_walk(node, where, symtab) -> None:
+    if isinstance(node, dict):
+        if node.get("stmt") == "ArraySet":
+            arr = node.get("array")
+            if isinstance(arr, dict) and arr.get("type") == "Var":
+                name = arr.get("name")
+                arr_type = symtab.get(name)
+                if arr_type is None:
+                    raise PyCSLSemanticError(
+                        f"Subscript assignment to undefined variable '{name}' in {where}."
+                    )
+                if arr_type not in ("list", "List", "dict", "Dict", "Any"):
+                    raise PyCSLSemanticError(
+                        f"Subscript assignment to non-list/dict variable '{name}' "
+                        f"(type '{arr_type}') in {where}."
+                    )
+        for v in node.values():
+            _sa_walk(v, where, symtab)
+    elif isinstance(node, list):
+        for x in node:
+            _sa_walk(x, where, symtab)

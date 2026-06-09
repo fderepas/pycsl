@@ -17,7 +17,7 @@ The **Ref** column uses the format `section.subsection.row`.
 | 3.1.1 | `42`, `-1`, `0` \| `Number` \| Integer literal | 0008, 0080, 0081 | PASS |
 | 3.1.2 | `x`, `n`, `total` \| `Var` \| Variable reference | 0009, 0082, 0083 | PASS |
 | 3.1.3 | `self.field` \| `FieldAccess` \| Class field access | 0010 | UNPROVEN |
-| 3.1.4 | `arr[i]` \| `SubscriptAccess` \| Array element access | 0011, 0084, 0085 | PASS |
+| 3.1.4 | `arr[i]` \| `SubscriptAccess` \| Array element access | 0011, 0084, 0085; XFAIL (subscript-assign base typing): 0678 (non-list), 0679 (undefined) | PASS |
 | 3.1.5 | `\result` \| `Result` \| Return value (only in `ensures`) | 0012, 0086, 0087 | PASS |
 | 3.1.6 | `\old(<expr>)` \| `Old` \| Value of expression at function entry | 0013, 0088, 0089 | PASS |
 | 3.1.7 | `\at(<expr>, L)` \| `At` \| Value of expression at label `L` | 0014, 0090, 0091 | PASS |
