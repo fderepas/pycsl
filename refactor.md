@@ -100,7 +100,7 @@ Updated from the spec's §11–12 to start from §2's actual state.
 
 | Phase | Move | Gate (all phases also: corpus byte-clean, `os` 0-unproven, doc-coherency green) |
 |---|---|---|
-| **A — IR as a versioned interface** | Add `ir_version` + `source_language` to `ir_schema`; make `pycsl-ir-dump.py` the canonical (de)serializer with a **round-trip identity** (`load(dump(ir)) == ir`); document the schema + a compatibility policy. | round-trip identity holds; corpus `.mlw` **byte-identical** (re-verify determinism 4–5×). |
+| **A — IR as a versioned interface** ✓ *landed (`99f755d`)* | Add `ir_version` + `source_language` to `ir_schema`; make `pycsl-ir-dump.py` the canonical (de)serializer with a **round-trip identity** (`load(dump(ir)) == ir`); document the schema + a compatibility policy. | round-trip identity holds; corpus `.mlw` **byte-identical** (re-verify determinism 4–5×). |
 | **B — Re-point the core at the IR** | Make Module 4 (semantic analysis) consume the IR, **not** the Python AST. Break the central entanglement. | corpus produces identical pass/fail and identical `.mlw`. |
 | **C — Split the front-end** | Move Modules 1–3 + IR construction into their own package; the core *ingests serialized IR*. The seam becomes a real wire. | corpus reproduced through the serialized boundary; `dump → ingest → prove` matches in-memory. |
 | **D — Honest core** | Add the **WhyML-typecheck gate** (a run is `SUCCESS` only if the emitted WhyML at least *type-checks* — never merely "text emitted"); structured, coded, **located** diagnostics (every IR node has a span); per-level status line (`L1 ✓ L2 ✓ L3-tc ✓ L3-proof …`); capability manifest. | every former silent "success" now states which level it reached; manifest generated from the passing corpus. |
