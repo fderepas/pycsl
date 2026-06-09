@@ -39,11 +39,13 @@ def run_ir_semantic_checks(ir: Any, *, stage: str = "ir-semantic") -> None:
     known_binder_types = {"int", "bool", "str", "float", "list", "bytes",
                           "bytearray", "dict"} | {
         td.get("name") for td in ir.get("type_decls", []) if td.get("name")}
+    module_constants = ir.get("module_constants") or {}
     for func in ir.get("functions", []):
         _check_span(func, stage)
         _check_no_exception(func)
         _check_assigns_regions(func)
         _check_contract_exprs(func, known_binder_types)
+        _check_contract_scope(func, module_constants)
         _check_subscript_assignments(func)
         _check_checkpoints(func)
         _check_mutable_defaults(func)
@@ -265,6 +267,131 @@ def _pb_expr(node, ctx, symtab, known) -> None:
     # non-literal index (refactor.md: a Module-5-hardening prerequisite).
     for v in node.values():
         _pb_expr(v, ctx, symtab, known)
+
+
+# --- contract scope + \result usage (function_contracts) --------------------
+
+def _check_contract_scope(func, module_constants) -> None:
+    """The two surviving checks of Module 4's ``_validate_contract``: (1) ``\\result``
+    is only allowed in ``ensures``; (2) every variable referenced in a contract must be
+    in scope (the function ``symbol_table`` or a ``module_constant``). Both ride the same
+    surfaces as the predicate/quant walk — function clauses (only ``ensures`` admits
+    ``\\result``), while-loop invariants/variants, and ghost values — reconstructing the
+    same context strings. Variable extraction mirrors Module 4's ``extract_variables``
+    via ``_ir_free_vars`` (binders, ``\\result`` and ``self`` fields excluded)."""
+    symtab = func.get("symbol_table") or {}
+    fname = func.get("name", "<anonymous>")
+    fctx = f"function '{fname}'"
+    contracts = func.get("contracts") or {}
+    for key, allow_result in (("requires", False), ("ensures", True),
+                              ("assigns", False), ("function_variants", False)):
+        for clause in contracts.get(key, []) or []:
+            _cs_clause(clause, fctx, allow_result, symtab, module_constants)
+    _cs_body(func.get("body", []) or [], fname, symtab, module_constants)
+
+
+def _cs_body(stmts, fname, symtab, mc) -> None:
+    for s in stmts:
+        if isinstance(s, dict):
+            _cs_stmt(s, fname, symtab, mc)
+
+
+def _cs_stmt(s, fname, symtab, mc) -> None:
+    st = s.get("stmt")
+    if st == "While":
+        lctx = f"while loop at line {s.get('line', 0)} inside function '{fname}'"
+        for clause in (s.get("invariants") or []):
+            _cs_clause(clause, lctx, False, symtab, mc)
+        for clause in (s.get("variants") or []):
+            _cs_clause(clause, lctx, False, symtab, mc)
+        _cs_body(s.get("body", []) or [], fname, symtab, mc)
+    elif st == "For":
+        _cs_body(s.get("body", []) or [], fname, symtab, mc)
+    elif st == "GhostAssign":
+        _cs_clause(s.get("value"),
+                   f"function '{fname}' (ghost '{s.get('target')}')", False, symtab, mc)
+    elif st == "GhostArraySet":
+        gctx = f"function '{fname}' (ghost '{s.get('target')}[...]')"
+        _cs_clause(s.get("index"), gctx, False, symtab, mc)
+        _cs_clause(s.get("value"), gctx, False, symtab, mc)
+    else:
+        for v in s.values():
+            _cs_descend(v, fname, symtab, mc)
+
+
+def _cs_descend(v, fname, symtab, mc) -> None:
+    if isinstance(v, dict):
+        if "stmt" in v:
+            _cs_stmt(v, fname, symtab, mc)
+        else:
+            for x in v.values():
+                _cs_descend(x, fname, symtab, mc)
+    elif isinstance(v, list):
+        for x in v:
+            _cs_descend(x, fname, symtab, mc)
+
+
+def _cs_clause(clause, ctx, allow_result, symtab, mc) -> None:
+    if clause is None:
+        return
+    if not allow_result and _contains_result(clause):
+        raise PyCSLSemanticError(
+            f"Invalid use of '\\result' in {ctx}. It is only allowed in 'ensures'."
+        )
+    for v in _ir_free_vars(clause):
+        if v and v not in symtab and v not in mc:
+            raise PyCSLSemanticError(
+                f"Undefined variable '{v}' referenced in contract for {ctx}. "
+                f"Available variables in scope: {list(symtab.keys())}"
+            )
+
+
+def _ir_free_vars(node):
+    """IR port of Module 4's ``extract_variables`` — the free (local-scope) variable
+    names a contract expr references. Excludes quantifier binders, ``\\result`` (a
+    ``Result`` node, not a ``Var``), and ``self`` fields (``FieldGet``); the string-base
+    predicates (``\\length``/``\\valid``/``\\separated``/``\\copy``/assigns-region) carry
+    their base as a string, so it is added explicitly before the generic recursion picks
+    up nested ``Var`` nodes (lengths, indices, bounds)."""
+    if isinstance(node, list):
+        out: set = set()
+        for x in node:
+            out |= _ir_free_vars(x)
+        return out
+    if not isinstance(node, dict):
+        return set()
+    t = node.get("type")
+    if t == "Var":
+        return {node.get("name")}
+    if t in ("FieldGet", "Result", "Attribute", "Call", "CallExpr"):
+        # OPAQUE to scope extraction, matching Module 4's extract_variables (whose
+        # `_CSL_CHILDREN_MAP` does not list calls, so their args — including type names
+        # like `int` in `isinstance(x, int)` — are not recursed): field/attribute access
+        # (`self.f` → FieldGet, `param.f` → Attribute), `\result`, and function calls.
+        return set()
+    if t == "ArrayLen":
+        var = node.get("var", "")
+        if str(var).startswith("self.") or var == "\\result":
+            return set()
+        return {var}
+    if t in ("Forall", "Exists"):
+        return _ir_free_vars(node.get("body")) - {node.get("var")}
+    if t == "ForallItems":
+        return ((_ir_free_vars(node.get("body")) - {node.get("key"), node.get("val")})
+                | {node.get("coll")})
+    base_names: set = set()
+    if t == "Valid":
+        base_names = {node.get("base")}
+    elif t == "Separated":
+        base_names = {node.get("base1"), node.get("base2")}
+    elif t in ("GhostCopy", "GhostCopyRange"):
+        base_names = {node.get("arr")}
+    elif t == "AssignsRegion":
+        base_names = {node.get("base")}
+    out = {b for b in base_names if b}
+    for v in node.values():
+        out |= _ir_free_vars(v)
+    return out
 
 
 # --- subscript-assignment base typing (body walk) ---------------------------

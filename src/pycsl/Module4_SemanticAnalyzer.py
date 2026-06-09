@@ -365,22 +365,14 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         return None
 
     def _validate_contract(self, contract: CSLNode, context_name: str, is_postcondition: bool = False) -> None:
-        """Validates that a contract's variables exist and keywords are used correctly."""
-        # 1. Check \result usage
-        if contains_result(contract) and not is_postcondition:
-            raise PyCSLSemanticError(
-                f"Invalid use of '\\result' in {context_name}. It is only allowed in 'ensures'."
-            )
-
-        # 2. Check variable scope
-        referenced_vars = extract_variables(contract)
-        for var_name in referenced_vars:
-            if (var_name not in self.current_scope
-                    and var_name not in self._module_constants):
-                raise PyCSLSemanticError(
-                    f"Undefined variable '{var_name}' referenced in contract for {context_name}. "
-                    f"Available variables in scope: {list(self.current_scope.keys())}"
-                )
+        """Validates contract keyword usage. Most checks have migrated to the
+        language-agnostic core; only the \\proj-index guard (a Module 5 precondition)
+        survives here."""
+        # 1. \result usage (only in `ensures`) AND
+        # 2. variable scope (referenced vars must be in scope / a module constant)
+        #    MIGRATED to core_ir_semantic._check_contract_scope — both run on the IR via
+        #    the surface-tracking walk, with free-variable extraction ported as
+        #    `_ir_free_vars` (refactor.md B / function_contracts).
 
         # 2b/3. typed quantifier-binder resolution AND \valid/\separated/\length-on-dict
         #       base checks MIGRATED to the language-agnostic core
