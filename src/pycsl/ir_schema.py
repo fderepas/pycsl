@@ -16,6 +16,23 @@ from errors import PyCSLIRError
 
 
 # ---------------------------------------------------------------------------
+# IR version — the IR is a wire format between a (per-language) front-end and
+# the language-agnostic core (pycsl-language-agnostic-core-spec.md §5; refactor.md
+# Phase A). It is stamped with a semantic version and a source-language tag so the
+# core can refuse an IR it does not understand instead of failing mysteriously
+# downstream.
+#
+# Compatibility policy (semver-style): MINOR bumps are ADDITIVE (new optional
+# keys/nodes a newer core still ingests); MAJOR bumps are BREAKING (a removed or
+# re-meaning'd key). `ACCEPTED_IR_VERSIONS` is the exact set this core ingests;
+# widen it as additive versions land, and drop a major when support ends.
+# ---------------------------------------------------------------------------
+
+IR_VERSION = "1.0"
+ACCEPTED_IR_VERSIONS = frozenset({"1.0"})
+
+
+# ---------------------------------------------------------------------------
 # TypedDict schema (documentation + static type-checker support)
 # ---------------------------------------------------------------------------
 
@@ -57,6 +74,9 @@ class FunctionIR(TypedDict, total=False):
 
 class ProgramIR(TypedDict, total=False):
     """Top-level JSON IR produced by Module5 and consumed by Module6."""
+    # Interface stamp (the IR-as-wire-format contract; see IR_VERSION above):
+    ir_version: str         # semantic version of the IR schema this document conforms to
+    source_language: str    # the front-end that produced it ("python" today)
     # Required at runtime (validated by validate_ir):
     type_decls: List[Dict[str, Any]]
     functions: List[FunctionIR]
@@ -107,6 +127,17 @@ def validate_ir(ir: Any, *, stage: str = "ir-validate") -> None:
     if missing_top:
         raise PyCSLIRError(
             f"IR is missing top-level keys: {sorted(missing_top)}", stage=stage
+        )
+
+    # IR-as-wire-format: the core declares the range of versions it ingests.
+    # A stamped-but-unsupported version is a hard error (don't proceed to lower
+    # an IR this core may misread); an unstamped IR is tolerated as legacy/internal
+    # (the real pipeline's front-end always stamps it — see Module5).
+    ir_version = ir.get("ir_version")
+    if ir_version is not None and ir_version not in ACCEPTED_IR_VERSIONS:
+        raise PyCSLIRError(
+            f"unsupported ir_version {ir_version!r}; this core ingests "
+            f"{sorted(ACCEPTED_IR_VERSIONS)}", stage=stage
         )
 
     if not isinstance(ir["functions"], list):

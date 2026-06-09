@@ -4,6 +4,7 @@ import pure_ast as ast  # consume the same pure-Python tree Module3 builds
 import json
 from typing import Any, Dict, List, Optional, Set, Tuple
 from errors import PyCSLIRError
+from ir_schema import IR_VERSION
 from module5.memoization_rt import MemoizationRTMixin
 from module5.construction_synth import ConstructionSynthMixin
 from Module4_SemanticAnalyzer import collect_module_constants, collect_module_globals
@@ -34,7 +35,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     """Walks the Annotated AST and translates it into a JSON-serializable IR."""
 
     def __init__(self) -> None:
-        self.program_ir = {"type_decls": [], "functions": []}
+        # Stamp the IR as a versioned wire format (the front-end contract; the
+        # Python front-end is the source_language). Module6 ignores these metadata
+        # keys, so emission is unchanged — they exist for the core's version gate
+        # and for any consumer of the serialized IR.
+        self.program_ir = {
+            "ir_version": IR_VERSION,
+            "source_language": "python",
+            "type_decls": [],
+            "functions": [],
+        }
         self._current_class: Optional[str] = None
         # scc3.md Phase B: the current function's symbol table, set while building its
         # contracts so `_csl_in` can dispatch `x in S` on the collection's type (a set
