@@ -113,7 +113,7 @@ class DirEntry:
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == 1
-def access(filepath, mode, *, dir_fd=None, effective_ids=False,
+def access(filepath: str, mode, *, dir_fd=None, effective_ids=False,
            follow_symlinks=True):
     """Check file accessibility. Returns 1 if accessible, 0 otherwise."""
     r = _filesystem.sys_access(filepath, mode)
@@ -168,7 +168,7 @@ def lseek(fd, pos, how):
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
-def makedirs(name, mode=0o777, exist_ok=False):
+def makedirs(name: str, mode=0o777, exist_ok=False):
     """Create a directory (single level in this model)."""
     if exist_ok:
         ino = _filesystem.sys_stat(name)
@@ -290,7 +290,7 @@ def rename(src, dst, *, src_dir_fd=None, dst_dir_fd=None):
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
-def mkdir(filepath, mode=0o777, *, dir_fd=None):
+def mkdir(filepath: str, mode=0o777, *, dir_fd=None):
     """Create a directory."""
     return _filesystem.sys_mkdir(filepath, mode)
 

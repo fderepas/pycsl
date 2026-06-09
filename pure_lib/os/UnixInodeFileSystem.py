@@ -762,6 +762,7 @@ class UnixInodeFileSystem:
     #             '..', and links the dir into the root. -1 on EEXIST or
     #             ENFILE/ENOSPC / full root. De-trusted: array inode +
     #             byte-level entry writes (atime/mtime set from clock).
+    #@ no_inline
     def sys_mkdir(self, pathname: str, mode: int) -> int:
         if self._dir_lookup(5, pathname) >= 0:
             return -1
@@ -1096,6 +1097,7 @@ class UnixInodeFileSystem:
     #             mode=0). Returns 0 if the file exists, -1 on ENOENT.
     #             Permission bits (R_OK, W_OK, X_OK) are not checked in
     #             this model; only existence is tested.
+    #@ no_inline
     def sys_access(self, pathname: str, mode: int) -> int:
         inode_num = self._dir_lookup(5, pathname)
         if inode_num < 0:
