@@ -9,6 +9,52 @@ proof holding at **0 unproven** and the trusted-axiom base staying **one family*
 
 ---
 
+## 0. Phase-0 implementation finding (BLOCKING) — functional correctness depends on the inode round-trip
+
+Starting Phase 0 surfaced a dependency this plan under-anticipated: the content round-trip cannot be
+proven from the disk-slice round-trip alone, because **recovering the file's data block — and proving
+the open succeeds — both route through the inode codec and therefore require the inode to round-trip**
+(`unpack(pack(inode)) == inode`, at least on the relevant fields). Concretely:
+
+1. **Block recovery.** `write` stores the file's data-block number in the inode (`inode[8]`, persisted
+   via `_write_inode → _pack_inode`). *Any* read — even on the same fd — recovers that block via
+   `_read_inode → _unpack_inode → inode[8]`. For the recovered block to provably equal the written
+   block, `_unpack_inode(_pack_inode(inode))[8] == inode[8]` must hold. The current light codec
+   (`ensures \length(\result) == …` only) yields **no field values**, so the recovered block is
+   unknown and the slice location for the read cannot be pinned. The "blit-then-sub disk-slice
+   round-trip" (§1) is necessary but **not sufficient** — its location is unknown without the inode
+   round-trip.
+
+2. **Open success.** `\result == True` requires the reopen to provably return `fd >= 3`, never `-1`.
+   The success path runs a permission check; `_check_perm` bypasses for root, but the class invariant
+   is only `cur_uid >= 0` (not `== 0`), and the constructor's `cur_uid = 0` does not reliably propagate
+   into the symbolic proof — so open-success also leans on inode field values surviving the codec.
+
+3. **Reopen (P3/P4).** A reopen unavoidably re-reads the persisted inode, so it depends on the inode
+   round-trip directly.
+
+The inode round-trip requires the **rich codec contracts** (per-field values), which is exactly the
+parked problem: the rich `_pack_inode` carries 18 field-range **requires**, reintroducing the
+requires-bloat at `_write_inode`'s call sites (needs a **Track-C representation invariant** on a typed
+inode to discharge them), and the rich ensures ride into every codec-touching syscall, hitting the
+**aggregate E-matching proof-cost wall** documented for the in-context codec. There is no clean
+tractable subset: a same-fd P1 still needs block recovery; a non-vacuous P1 still needs open-success;
+the spec's anti-vacuity rule forbids returning `True` on the failure paths.
+
+**Consequence.** `formal_0008` is reachable only via the full **Goal-B / Track-C program** — a typed
+inode with a field-range representation invariant supplying the codec's requires, rich `_unpack_inode`
+field-value ensures giving the round-trip, and the codec kept in a minimal context (separated module +
+narrow imported interface) so the rich contracts are affordable. That is a multi-session,
+research-grade effort, **not** the four light phases §3 implied. The faithfulness bar (no totalized
+codec, no re-added round-trip axiom — the os just shed it) is what makes it hard and is non-negotiable.
+
+**Status:** Phases 1–3 below stand as the *eventual* shape, but they are gated behind closing this
+inode-round-trip dependency first. Pursued autonomously this risks a long non-converging proof grind or
+the temptation to axiomatize; that is deferred to a deliberate session. `pure_lib_test/formal_0008.py`
+remains as the acceptance spec (uncommitted, expected-fail until the program lands).
+
+---
+
 ## 1. The two faithful representations (the central design decision)
 
 The round-trip observes two kinds of byte content. They are modeled differently because they *are*
