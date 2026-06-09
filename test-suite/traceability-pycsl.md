@@ -28,7 +28,7 @@ The **Ref** column uses the format `section.subsection.row`.
 | 3.1.12 | `\valid2d(a, i, j)` \| `Valid2D` \| `(i,j)` is a valid 2D index | 0019 | FAIL |
 | 3.1.13 | `\nothing` \| `Nothing` \| Empty assigns target (pure function) | 0020, 0098, 0099 | PASS |
 | 3.1.14 | `"hello"` \| `StringLiteral` \| String literal (uses Why3 `string.String`) | 0188, 0189, 0190 | PASS |
-| 3.2.1 | 1 (lowest) \| `\forall var; body`, `\exists var; body` \| `Forall`, `Exists` \| Quantifiers (no direct equivalent) | 0021, 0100, 0101 | PASS |
+| 3.2.1 | 1 (lowest) \| `\forall var; body`, `\exists var; body` \| `Forall`, `Exists` \| Quantifiers (no direct equivalent) | 0021, 0100, 0101; XFAIL (unresolved typed binder, 3 surfaces): 0556, 0674, 0675 | PASS |
 | 3.2.2 | 2 \| `==>` (implies), `<==>` (iff) \| `BinOp` \| `not a or b`, `a == b` | 0022, 0102, 0103 | PASS |
 | 3.2.3 | 3 \| `or` \| `BinOp` \| `or` | 0023, 0104, 0105 | PASS |
 | 3.2.4 | 4 \| `and` \| `BinOp` \| `and` | 0024, 0106, 0107 | PASS |

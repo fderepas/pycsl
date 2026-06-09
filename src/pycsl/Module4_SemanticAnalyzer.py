@@ -382,34 +382,13 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
                     f"Available variables in scope: {list(self.current_scope.keys())}"
                 )
 
-        # 2b. quantification.md: resolve every typed quantifier binder.
-        self._validate_quant_binders(contract, context_name)
-
-        # 3. \valid/\separated/\length-on-dict base checks MIGRATED to the core
-        #    (core_ir_semantic._check_predicate_bases) — they run on the IR with a
-        #    surface-tracking walk that reconstructs the same context (refactor.md B4).
+        # 2b/3. typed quantifier-binder resolution AND \valid/\separated/\length-on-dict
+        #       base checks MIGRATED to the language-agnostic core
+        #       (core_ir_semantic._check_contract_exprs) — they run on the IR via a
+        #       surface-tracking walk that reconstructs the same context (refactor.md B4).
 
         # 4. Check \proj index is always a literal
         self._validate_proj_indices(contract, context_name)
-
-    def _validate_quant_binders(self, contract: CSLNode, context_name: str) -> None:
-        """quantification.md (P1): a typed quantifier binder `\\forall x: T; …` must
-        resolve `T` to a scalar (int/bool/str/float) or a declared `#@ datatype` /
-        class. An unresolved name is a hard error — never a silent `int` default
-        (the spec §5.1 soundness rule)."""
-        known = getattr(self, "_known_binder_types", None)
-        if known is None:
-            return
-        for n in _walk_csl_nodes(contract):
-            if isinstance(n, QuantifierNode):
-                bt = getattr(n, "binder_type", None)
-                if bt is not None and bt not in known:
-                    raise PyCSLSemanticError(
-                        f"Quantifier binder '{n.var}: {bt}' in {context_name} has an "
-                        f"unresolved type '{bt}'. A typed binder must name a scalar "
-                        f"(int/bool/str/float) or a declared `#@ datatype` / class — "
-                        f"it is never silently defaulted to int. "
-                        f"Known types: {sorted(known)}.")
 
     def _validate_proj_indices(self, node: CSLNode, context_name: str) -> None:
         """Recursively check that all \\proj index arguments are integer literals."""

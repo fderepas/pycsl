@@ -31,11 +31,18 @@ from errors import PyCSLSemanticError
 
 def run_ir_semantic_checks(ir: Any, *, stage: str = "ir-semantic") -> None:
     """Run the language-agnostic semantic checks on the IR (read-only, in place)."""
+    # Module-level set of types a typed quantifier binder may name (scalars +
+    # collection sorts + every declared datatype/class — classes are type_decls in
+    # the IR, exactly like Module4's {datatypes} | {ClassDefs}). Used by B4's
+    # quant-binder check; computed once per IR.
+    known_binder_types = {"int", "bool", "str", "float", "list", "bytes",
+                          "bytearray", "dict"} | {
+        td.get("name") for td in ir.get("type_decls", []) if td.get("name")}
     for func in ir.get("functions", []):
         _check_span(func, stage)
         _check_no_exception(func)
         _check_assigns_regions(func)
-        _check_predicate_bases(func)
+        _check_contract_exprs(func, known_binder_types)
 
 
 def _check_span(func: Any, stage: str) -> None:
@@ -123,83 +130,87 @@ _PB_ARRAY_BASE_TYPES = ("list", "List", "bytes", "bytearray", "Any", None)
 _PB_LENGTHLESS_TYPES = ("dict", "Dict", "set", "Set", "frozenset", "FrozenSet")
 
 
-def _check_predicate_bases(func) -> None:
-    """B4 — `\\length` not on a dict/set, and `\\valid`/`\\separated` bases must be
-    list/bytes, migrated from Module 4's ``_validate_predicate_bases``. Unlike the
-    flat-metadata checks (B2/B3), this walks the contract EXPRESSION trees, and the
-    error context depends on the predicate's *surface* — which Module 4 reproduced
-    from its AST visitor and the core now reconstructs from the IR:
+def _check_contract_exprs(func, known) -> None:
+    """B4 — the contract-expression checks, migrated from Module 4 (which ran them on
+    the AST in ``_validate_predicate_bases`` and ``_validate_quant_binders``):
+      - `\\length` not on a dict/set; `\\valid`/`\\separated` bases must be list/bytes;
+      - a typed quantifier binder `\\forall x: T` must resolve `T` to a known type.
+    Unlike the flat-metadata checks (B2/B3), these walk the contract EXPRESSION trees,
+    and the error context depends on the predicate's *surface* — which the core
+    reconstructs from the IR (matching Module 4's AST visitor):
       - function contracts (requires/ensures/assigns/variants) → ``function 'F'``;
       - WHILE-loop invariants/variants → ``while loop at line N inside function 'F'``
         (innermost enclosing while; for-loop invariants are NOT checked, matching
         Module 4 — it has no for-loop visitor for this);
       - ghost values → ``function 'F' (ghost 'g')`` (simple) /
         ``function 'F' (ghost 'g[...]')`` (subscript, GhostArraySet).
-    Gated by drivers 0667–0673 staying XFAIL with byte-identical messages.
+    Gated by drivers 0667–0673 (predicate bases) and 0556/0674/0675 (quant binders)
+    staying XFAIL with byte-identical messages.
     """
-    fname = func.get("name", "<anonymous>")
     symtab = func.get("symbol_table") or {}
+    fname = func.get("name", "<anonymous>")
     fctx = f"function '{fname}'"
     contracts = func.get("contracts") or {}
     for key in ("requires", "ensures", "assigns", "function_variants"):
         for clause in contracts.get(key, []) or []:
-            _pb_expr(clause, fctx, symtab)
-    _pb_body(func.get("body", []) or [], fname, symtab)
+            _pb_expr(clause, fctx, symtab, known)
+    _pb_body(func.get("body", []) or [], fname, symtab, known)
 
 
-def _pb_body(stmts, fname, symtab) -> None:
-    """Walk a statement list, applying the predicate checks to while-invariants and
-    ghost values with their surface-specific context, recursing into nested bodies."""
+def _pb_body(stmts, fname, symtab, known) -> None:
+    """Walk a statement list, applying the contract-expr checks to while-invariants
+    and ghost values with their surface-specific context, recursing into nested bodies."""
     for s in stmts:
         if isinstance(s, dict):
-            _pb_stmt(s, fname, symtab)
+            _pb_stmt(s, fname, symtab, known)
 
 
-def _pb_stmt(s, fname, symtab) -> None:
+def _pb_stmt(s, fname, symtab, known) -> None:
     st = s.get("stmt")
     if st == "While":
         lctx = f"while loop at line {s.get('line', 0)} inside function '{fname}'"
         for clause in (s.get("invariants") or []):
-            _pb_expr(clause, lctx, symtab)
+            _pb_expr(clause, lctx, symtab, known)
         for clause in (s.get("variants") or []):
-            _pb_expr(clause, lctx, symtab)
-        _pb_body(s.get("body", []) or [], fname, symtab)
+            _pb_expr(clause, lctx, symtab, known)
+        _pb_body(s.get("body", []) or [], fname, symtab, known)
     elif st == "For":
         # Module 4 does NOT validate for-loop invariants (no for-loop visitor for
         # this check) — recurse the body only, do not touch the invariants.
-        _pb_body(s.get("body", []) or [], fname, symtab)
+        _pb_body(s.get("body", []) or [], fname, symtab, known)
     elif st == "GhostAssign":
         _pb_expr(s.get("value"),
-                 f"function '{fname}' (ghost '{s.get('target')}')", symtab)
+                 f"function '{fname}' (ghost '{s.get('target')}')", symtab, known)
     elif st == "GhostArraySet":
         gctx = f"function '{fname}' (ghost '{s.get('target')}[...]')"
-        _pb_expr(s.get("index"), gctx, symtab)
-        _pb_expr(s.get("value"), gctx, symtab)
+        _pb_expr(s.get("index"), gctx, symtab, known)
+        _pb_expr(s.get("value"), gctx, symtab, known)
     else:
         # Other compound statements (If/Match/Try/With/…): descend into nested
         # statement lists to find deeper whiles / ghosts.
         for v in s.values():
-            _pb_descend(v, fname, symtab)
+            _pb_descend(v, fname, symtab, known)
 
 
-def _pb_descend(v, fname, symtab) -> None:
+def _pb_descend(v, fname, symtab, known) -> None:
     if isinstance(v, dict):
         if "stmt" in v:
-            _pb_stmt(v, fname, symtab)
+            _pb_stmt(v, fname, symtab, known)
         else:
             for x in v.values():
-                _pb_descend(x, fname, symtab)
+                _pb_descend(x, fname, symtab, known)
     elif isinstance(v, list):
         for x in v:
-            _pb_descend(x, fname, symtab)
+            _pb_descend(x, fname, symtab, known)
 
 
-def _pb_expr(node, ctx, symtab) -> None:
-    """Recursively check `\\length`/`\\valid`/`\\separated` nodes in a contract-expr
-    tree, reporting against the surface context. Messages reproduce Module 4 verbatim."""
+def _pb_expr(node, ctx, symtab, known) -> None:
+    """Recursively check predicate bases (`\\length`/`\\valid`/`\\separated`) and typed
+    quantifier binders in a contract-expr tree, against the surface context. Messages
+    reproduce Module 4 verbatim."""
     if isinstance(node, list):
         for x in node:
-            _pb_expr(x, ctx, symtab)
+            _pb_expr(x, ctx, symtab, known)
         return
     if not isinstance(node, dict):
         return
@@ -231,5 +242,14 @@ def _pb_expr(node, ctx, symtab) -> None:
                     f"\\separated base '{base}' is not a list/bytes parameter "
                     f"in {ctx} (got type '{arr_type}')."
                 )
+    elif t in ("Forall", "Exists"):
+        bt = node.get("binder_type")
+        if bt is not None and bt not in known:
+            raise PyCSLSemanticError(
+                f"Quantifier binder '{node.get('var')}: {bt}' in {ctx} has an "
+                f"unresolved type '{bt}'. A typed binder must name a scalar "
+                f"(int/bool/str/float) or a declared `#@ datatype` / class — "
+                f"it is never silently defaulted to int. "
+                f"Known types: {sorted(known)}.")
     for v in node.values():
-        _pb_expr(v, ctx, symtab)
+        _pb_expr(v, ctx, symtab, known)
