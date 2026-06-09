@@ -120,7 +120,7 @@ The **Ref** column uses the format `section.subsection.row`.
 | 11.2.5 | Ghost dict `+=` shorthand \| `#@ ghost d += \mktuple(k, v)` \| `Map.set !d k v` | 0300 | PASS |
 | 11.2.6 | Ghost set union/inter/diff \| `\set_union`, `\set_inter`, `\set_diff` \| functional set ops | 0299 | PASS |
 | 11.2.11 | Ghost set `+=` shorthand \| `#@ ghost s += x` \| `Map.set !s x true` | 0301 | PASS |
-| 11.4.1 | Negative: `\proj` dynamic index \| `\proj(t, n)` where `n` is not a literal | 0302 | XFAIL |
+| 11.4.1 | Negative: `\proj` dynamic index \| `\proj(t, n)` where `n` is not a literal | 0302; XFAIL (loop / ghost surfaces): 0676, 0677 | XFAIL |
 | 11.4.2 | Negative: `\proj` arity mismatch \| `\proj(p, 2)` on `tuple2` (Why3 error) | 0303 | XFAIL |
 | 11.4.3 | Negative: ghost string `+=` \| `#@ ghost s += expr` rejected at Module4 | 0304 | XFAIL |
 | 11.1.1 | Ghost tuple2 end-to-end proof \| `\fst`/`\snd` in loop invariant, proven by Alt-Ergo | 0305 | PASS |

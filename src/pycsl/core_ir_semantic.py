@@ -251,5 +251,10 @@ def _pb_expr(node, ctx, symtab, known) -> None:
                 f"(int/bool/str/float) or a declared `#@ datatype` / class — "
                 f"it is never silently defaulted to int. "
                 f"Known types: {sorted(known)}.")
+    # NOTE: `\proj` index-literal checking is NOT migrated here. It is a *precondition
+    # guard* Module 5 depends on (ProjExpr emission reads `index.value`, assuming a
+    # literal), so it must run BEFORE Module 5 — it stays in Module 4. Migrating it
+    # would first require hardening Module 5's ProjExpr emission to tolerate a
+    # non-literal index (refactor.md: a Module-5-hardening prerequisite).
     for v in node.values():
         _pb_expr(v, ctx, symtab, known)

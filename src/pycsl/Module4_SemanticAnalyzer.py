@@ -387,7 +387,9 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         #       (core_ir_semantic._check_contract_exprs) — they run on the IR via a
         #       surface-tracking walk that reconstructs the same context (refactor.md B4).
 
-        # 4. Check \proj index is always a literal
+        # 4. Check \proj index is a literal. NOT migrated: this is a PRECONDITION GUARD
+        #    Module 5 depends on (ProjExpr emission reads index.value), so it must run
+        #    before Module 5 — it stays here (refactor.md: needs Module-5 hardening first).
         self._validate_proj_indices(contract, context_name)
 
     def _validate_proj_indices(self, node: CSLNode, context_name: str) -> None:
