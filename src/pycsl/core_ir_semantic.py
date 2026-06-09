@@ -48,6 +48,8 @@ def run_ir_semantic_checks(ir: Any, *, stage: str = "ir-semantic") -> None:
         _check_checkpoints(func)
         _check_mutable_defaults(func)
         _check_acts(func)
+    # Module-level (cross-method) checks run once over the whole IR.
+    _check_happy(ir)
 
 
 def _check_span(func: Any, stage: str) -> None:
@@ -405,3 +407,66 @@ def _check_acts(func) -> None:
                     f"act '{nm}' in {where} is not referenced by any "
                     f"`complete`/`disjoint` — possible typo or omission.",
                     stacklevel=2)
+
+
+# --- module-level HAPPY cross-method validation ------------------------------
+
+def _check_happy(ir) -> None:
+    """Module-level HAPPY well-formedness, migrated from Module 4's ``_validate_happy``.
+    The Python-specific facts (declared properties, the module's SHORT method names, and
+    methods containing a dynamic ``exec``) are resolved by the front-end into the
+    top-level ``happy`` IR blob (the IR otherwise flattens method names to
+    ``Class__method``); the core collects written fields from the IR and does the logic:
+      1. an exempt name that is not a method  → error (a typo silently widens coverage);
+      2. a non-exempt method with a dynamic ``exec``  → error (worst-case mutator);
+      3. (warning) a region whose field is written nowhere  → inert property."""
+    happy = ir.get("happy")
+    if not happy:
+        return
+    method_names = set(happy.get("method_names", []))
+    exec_methods = happy.get("exec_methods", [])
+    # written fields = the `self.<field>[...] = v` sites (ArraySet on a FieldGet of self),
+    # collected from every function body in the IR.
+    written: set = set()
+    for func in ir.get("functions", []):
+        _hp_collect_written(func.get("body", []) or [], written)
+    for hp in happy.get("properties", []):
+        hname = hp.get("name")
+        except_set = hp.get("except_set", [])
+        for name in except_set:
+            if name not in method_names:
+                raise PyCSLSemanticError(
+                    f"`happy {hname}`: exempt function '{name}' is not a method "
+                    f"in this module. Known methods: {sorted(method_names)}. "
+                    f"A typo in the exempt set would silently widen the property's "
+                    f"coverage, so this is rejected.")
+        for m in sorted(set(exec_methods)):
+            if m not in except_set:
+                raise PyCSLSemanticError(
+                    f"`happy {hname}`: method '{m}' contains a dynamic `exec(...)`, "
+                    f"which may write anything (not a compile-time-constant exec, so it "
+                    f"cannot be spliced/bounded). A non-exempt dynamic-exec method cannot "
+                    f"be confined by this property — add it to the except set or remove the "
+                    f"exec. (07-1839 P5 — exec is a worst-case mutator under HAPPY.)")
+        if hp.get("protects") is not None:
+            continue
+        if hp.get("field") not in written:
+            warnings.warn(
+                f"`happy {hname}`: no write to `self.{hp.get('field')}[...]` found in "
+                f"this module — the property expands to zero obligations (inert). "
+                f"Check the field name.",
+                stacklevel=2)
+
+
+def _hp_collect_written(node, written) -> None:
+    if isinstance(node, dict):
+        if node.get("stmt") == "ArraySet":
+            arr = node.get("array")
+            if (isinstance(arr, dict) and arr.get("type") == "FieldGet"
+                    and arr.get("object") == "self"):
+                written.add(arr.get("field"))
+        for v in node.values():
+            _hp_collect_written(v, written)
+    elif isinstance(node, list):
+        for x in node:
+            _hp_collect_written(x, written)

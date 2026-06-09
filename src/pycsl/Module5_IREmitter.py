@@ -101,6 +101,34 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 for nm, call in module_globals.items()
             ]
 
+        # Plumb module-level HAPPY for the core's cross-method validation
+        # (core_ir_semantic._check_happy; refactor.md AST-only #3). The Python-specific
+        # facts are resolved in the front-end (where the AST + SHORT method names live —
+        # the IR flattens method names to Class__method): the declared properties, the
+        # module's method names, and which methods contain a dynamic `exec` (a worst-case
+        # mutator). The core collects written fields from the IR and does the logic.
+        happy_props = getattr(node, 'csl_happy_properties', []) or []
+        if happy_props:
+            method_names: List[str] = []
+            exec_methods: List[str] = []
+            for _n in ast.walk(node):
+                if isinstance(_n, ast.FunctionDef):
+                    method_names.append(_n.name)
+                    for _sub in ast.walk(_n):
+                        if (isinstance(_sub, ast.Call)
+                                and isinstance(getattr(_sub, "func", None), ast.Name)
+                                and _sub.func.id == "exec"):
+                            exec_methods.append(_n.name)
+                            break
+            self.program_ir["happy"] = {
+                "properties": [
+                    {"name": hp.name, "field": hp.field,
+                     "protects": hp.protects, "except_set": list(hp.except_set)}
+                    for hp in happy_props],
+                "method_names": method_names,
+                "exec_methods": exec_methods,
+            }
+
         # collections-plan: synthesise record type_decls for module-level
         # `Name = namedtuple(...)` BEFORE visiting functions, so a `Name(...)`
         # construction resolves against `_record_types`.

@@ -556,80 +556,14 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         if lock_order_node is not None:
             self._lock_order = lock_order_node.order
 
-        self._validate_happy(node)
+        # module-level HAPPY cross-method validation MIGRATED to the language-agnostic
+        # core (core_ir_semantic._check_happy) — the front-end (Module5) plumbs the
+        # top-level `happy` blob (properties + short method names + exec methods), the
+        # core collects written fields from the IR and does the logic (refactor.md
+        # AST-only #3, the last of the 5).
 
         self.generic_visit(node)
 
-    def _validate_happy(self, node: ast.Module) -> None:
-        """Validate module-level HAPPY declarations (meta.md Stage B). Each exempt
-        name must be a real method (a typo would silently widen coverage — a hard
-        error); the target field should be written somewhere (else the HAPPY is inert
-        — a warning)."""
-        happy = getattr(node, 'csl_happy_properties', [])
-        if not happy:
-            return
-        method_names: Set[str] = set()
-        written_fields: Set[str] = set()
-        exec_methods: Set[str] = set()   # 07-1839 P5/HAPPY taint
-        for n in ast.walk(node):
-            if isinstance(n, ast.FunctionDef):
-                method_names.add(n.name)
-                # A dynamic exec (constant execs are already spliced away by P5b before
-                # Module4) can write ANYTHING, so a method containing one is a worst-case
-                # mutator w.r.t. any HAPPY region.
-                for sub in ast.walk(n):
-                    if (isinstance(sub, ast.Call)
-                            and isinstance(getattr(sub, "func", None), ast.Name)
-                            and sub.func.id == "exec"):
-                        exec_methods.add(n.name)
-                        break
-            tgts = []
-            if isinstance(n, ast.Assign):
-                tgts = n.targets
-            elif isinstance(n, (ast.AnnAssign, ast.AugAssign)):
-                tgts = [n.target]
-            for t in tgts:
-                if (isinstance(t, ast.Subscript)
-                        and isinstance(t.value, ast.Attribute)
-                        and isinstance(t.value.value, ast.Name)
-                        and t.value.value.id == "self"):
-                    written_fields.add(t.value.attr)
-        for hp in happy:
-            for name in hp.except_set:
-                if name not in method_names:
-                    raise PyCSLSemanticError(
-                        f"`happy {hp.name}`: exempt function '{name}' is not a method "
-                        f"in this module. Known methods: {sorted(method_names)}. "
-                        f"A typo in the exempt set would silently widen the property's "
-                        f"coverage, so this is rejected."
-                    )
-            # 07-1839 P5/HAPPY taint: a non-exempt method with a dynamic `exec(...)` may
-            # write anything, so it cannot be confined by this property — same teeth as a
-            # non-exempt `\trusted` mutator without `#@ \preserves` (test 0462). It must be
-            # in the except set (or have its exec removed / made a constant the P5b splice
-            # can bound).
-            for m in sorted(exec_methods):
-                if m not in hp.except_set:
-                    raise PyCSLSemanticError(
-                        f"`happy {hp.name}`: method '{m}' contains a dynamic `exec(...)`, "
-                        f"which may write anything (not a compile-time-constant exec, so it "
-                        f"cannot be spliced/bounded). A non-exempt dynamic-exec method cannot "
-                        f"be confined by this property — add it to the except set or remove the "
-                        f"exec. (07-1839 P5 — exec is a worst-case mutator under HAPPY.)"
-                    )
-            # 07-1143 R1/R2: the `protects` form has no single `self.<field>`; its
-            # write-site coverage (dotted paths) is validated by Module3's meta-pass.
-            # An empty protected write set is legitimately inert (e.g. a subsystem with
-            # no non-exempt writers), so do not warn for the protects form.
-            if hp.protects is not None:
-                continue
-            if hp.field not in written_fields:
-                warnings.warn(
-                    f"`happy {hp.name}`: no write to `self.{hp.field}[...]` found in "
-                    f"this module — the property expands to zero obligations (inert). "
-                    f"Check the field name.",
-                    stacklevel=2,
-                )
 
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         """Collect field types from __init__, validate class invariants, then validate methods."""

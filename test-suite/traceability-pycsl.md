@@ -98,7 +98,7 @@ The **Ref** column uses the format `section.subsection.row`.
 | 2.4.5 | Acquires \| `#@ acquires <mutex>` \| Explicit mutex acquire annotation | 0262, 0263, 0264, 0265, 0266; XFAIL: 0255 (missing lock_order) | PASS |
 | 2.4.6 | Releases \| `#@ releases <mutex>` \| Explicit mutex release annotation | 0267, 0268, 0269, 0270, 0271 | PASS |
 | 2.5.0 | Guarded cases (`act`) \| `#@ act <name>:` + `given`/`ensures`; `#@ complete`/`disjoint <names>` \| Case-split contract; act-specific well-formedness checked on the IR (plumbed `acts` field) | 0455 (valid); XFAIL: 0684 (duplicate name), 0685 (\result-in-given), 0686 (undefined act in complete) | PASS |
-| 2.5.1 | HAPPY (region) \| `#@ happy <name>: region LO..HI writes self.<field> outside region` \| Per-site disjointness check | 0459, 0460 | PASS |
+| 2.5.1 | HAPPY (region) \| `#@ happy <name>: region LO..HI writes self.<field> outside region` \| Per-site disjointness check; module-level well-formedness checked on the IR (plumbed `happy` blob) | 0459, 0460; XFAIL: 0687 (exempt name not a method) | PASS |
 | 2.5.2 | Preserves \| `#@ \preserves` \| Trusted/abstract HAPPY trust-boundary opt-in | 0461; XFAIL: 0462 | PASS |
 | 2.5.3 | HAPPY (protects) \| `#@ happy <name>: protects <paths> [except …]` \| Subsystem ownership; per-site `check False`; aliasing rejected (07-1143 R1/R2) | 0611; XFAIL: 0612, 0613 | PASS |
 | 2.5.4 | HAPPY (parametric) \| `#@ happy <name>(p): protects <path>[LO:HI]` \| Per-object containment check (07-1143 R3) | 0614; XFAIL: 0615 | PASS |
