@@ -47,6 +47,33 @@ These are intricate effect-contract design choices with proof-cost implications 
 rides into callers), best advanced with measurement at each step rather than blind. The foundation is
 proven viable; what remains is composition, not feasibility.
 
+### Progress on C1 (committed) and sub-step B (findings for continuation)
+
+- **C1 sub-step A — `fd_block` open-file block cache (committed `6f24a0a`).** Added a 5th fd column
+  caching the open file's first data block (the Unix in-core file-table analogue): set at open
+  (`fd_block[fd] = inode[8]`, recovered via read-after-write) and on first write. Lets `write`'s
+  content-effect and a future `pread` reference a simple value instead of a nested inode-byte decode.
+  Threaded through the class invariant, `__init__`, `sys_open`/`sys_write` assigns, the `os.open`/
+  `os.write` wrappers, and `formal_0001`. os stays **0 unproven**.
+
+- **Sub-step B — content-effect ensures on `sys_write` (attempted; reverted, not yet green).** Two
+  findings:
+  1. **`_write_inode` must frame, and it proves.** Its coarse `assigns self.disk` let the solver assume
+     a metadata write could clobber the data block, so `sys_write`'s content-effect floundered
+     (timeout). Adding frame ensures — `_write_inode` preserves every disk byte outside its own 64-byte
+     inode region — **proves standalone (Valid)** and is the principled fix; with it, `sys_write`'s
+     proof *completes* instead of timing out. This frame is the reusable lever (the data-region analogue
+     of the inode readback).
+  2. **The content invariant then leaves ~16 goals (cost, not setup).** With the framing, `sys_write`
+     with the content loop-invariant `(offset==0 and written<=512) ==> ∀i<written:
+     disk[fd_block[fd]*512+i]==data[i]` and the matching content-effect ensures left 10 type-invariant +
+     4 loop-invariant-preservation + 2 postcondition goals open. The type-invariant goals were *green in
+     sub-step A* — the added content quantifier inflates the loop VCs (the region byte-invariant
+     re-instantiation), i.e. proof-cost creeping back at the loop, plus the loop-invariant preservation
+     connecting the blit to `fd_block[fd]`. This is the detailed cost-tuning phase (triggers, splitting,
+     localizing the quantifier, or budget), best done with per-goal measurement — deferred rather than
+     ground blind. The `_write_inode` frame ensures (proven) is the piece to keep when resuming.
+
 ---
 
 ## 1. Where the os is today
