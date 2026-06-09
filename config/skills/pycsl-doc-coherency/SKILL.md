@@ -100,7 +100,7 @@ Single-syllable directive names that overlap with English (``class``,
 will not be considered "documented" if they only appear as bare
 prose words.
 
-**Exit codes** (workplan §13 step 7 conventions):
+**Exit codes:**
 
 | Code | Meaning |
 |---|---|
@@ -158,8 +158,7 @@ target surfaces, not the tool.
 - **Semantic faithfulness.** The tool does not verify that the
   description in README matches the contract-rule in
   `static-semantics-reference.md`. Structural correspondence only.
-  Semantic review is the human's job (or a future LLM-judge soft
-  gate, modelled on the stdlib-coverage skill's §6).
+  Semantic review is the human's job (or an LLM-judge soft gate).
 - **Skill content quality.** The tool counts skills as "covering" a
   directive if the directive name appears anywhere in the skill
   body — even in a prose sentence. The skill's `description:`

@@ -62,8 +62,7 @@ Start at Phase 8+, not Phase 1.
 
 ## Layer terminology
 
-PyCSL's discovered layering (cite
-[`self-annot-2.md`](../../../../self-annot-2.md)):
+PyCSL's discovered layering:
 
 - **Layer 0** — formal semantics (Rocq + Lean theorems).
 - **Layer 1** — `\trusted reviewer:` no-proof gate on the

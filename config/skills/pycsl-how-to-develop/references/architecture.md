@@ -30,7 +30,7 @@ Module5_IREmitter   ← emits intermediate representation (functions, classes, i
 Module6_WhyMLTranspiler   ← generates .mlw (WhyML) file
     │
     ▼
-Why3 / Alt-Ergo     ← SMT solver proves or rejects the goals
+Why3 / Alt-Ergo     ← Why3 generates weakest-precondition VCs; Alt-Ergo (then Z3) discharges each (Valid / Unknown / Timeout)
 ```
 
 ### `pycsl.py` CLI Flags

@@ -5,7 +5,7 @@ description: Describe the reference architecture for the PyCSL codebase. Covers 
 
 # PyCSL Software Architecture
 
-PyCSL is a Python-to-WhyML compiler. It reads a Python source file annotated with `#@` contract comments and produces a WhyML (`.mlw`) file that Why3 can verify formally. This skill describes the full architecture for agents maintaining or extending the codebase.
+PyCSL is a Python-to-WhyML compiler. It reads a Python source file annotated with `#@` contract comments and produces a WhyML (`.mlw`) file from which Why3 generates weakest-precondition verification conditions, which are discharged by SMT solvers (Alt-Ergo, Z3). This skill describes the full architecture for agents maintaining or extending the codebase.
 
 ---
 
@@ -105,14 +105,14 @@ values, no aliasing) vs a **global heap** (`typed`/`store` — arrays are locati
 model name. `typed`-vs-`store` differ only in the heap *variable name* (`Module6_WhyMLTranspiler`
 constructor); nothing else distinguishes the four models pairwise. (So a strategy/visitor object
 would be over-engineering — the code only ever makes this one split. See the `refactor-python`
-skill §11 and `refactor-recommendations.md`.)
+skill §11.)
 
-**Two list representations under the value-semantic model (07-1705-rev4).** Within `hoare`/
+**Two list representations under the value-semantic model.** Within `hoare`/
 `concurrent`, a `list` is `array int` by default — fixed-length, mutable. But a list that is
 *grown* (`+=` / `+` concatenation) is modelled instead as a **growable `ref (seq int)`**: an
 immutable `seq.Seq` value in a region-free ref. This is forced by Why3 — `array.Array` is
 fixed-length and a `ref (array int)` cannot be rebound to a fresh array ("illegal alias" /
-"prohibits further usage", see `07-1732-findings.md`), so faithful concatenation (proving the
+"prohibits further usage"), so faithful concatenation (proving the
 length-additive law, not just type-checking) is only possible over an immutable seq. The
 **seq-promotion analysis** (Module5 `_detect_seq_promotion` → `seq_promoted_vars`) picks which list
 vars are seq; lowering (`module6_whyml/statements.py` seq assign/concat, `expressions.py`

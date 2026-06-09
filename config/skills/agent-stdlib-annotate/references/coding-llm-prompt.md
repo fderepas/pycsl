@@ -1,4 +1,4 @@
-# Coding-LLM system prompt (Item 1.4a)
+# Coding-LLM system prompt
 
 Used by `agent-feature-supervisor.py` when `--allow-llm-delegation`
 is set AND a phase has no load-bearing-file hits. Wraps the

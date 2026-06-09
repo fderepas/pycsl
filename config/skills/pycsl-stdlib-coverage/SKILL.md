@@ -43,8 +43,6 @@ behavior**: pre/postconditions, state transitions, error conditions.
 Abstract away implementation details (caching, buffering, OS-specific
 paths) that don't affect the functional contract.
 
-See `making-it-pure-5.md` for the definitive plan.
-
 ---
 
 ## Source of truth — what shapes every stub
@@ -174,14 +172,16 @@ Every symbol falls into exactly one bucket:
 
 | Bucket | Meaning | VC value |
 |--------|---------|----------|
-| **Modelled** | Pure-Python stand-in preserving real semantics | A real proof |
-| **Specified** | Axiomatized contract you trust (enters the TCB) | Sound only for stated properties |
+| **Modelled** | Pure-Python stand-in preserving real semantics | Body emits as a WhyML `let`; its weakest-precondition VCs are discharged *Valid* by Alt-Ergo/Z3 |
+| **Specified** | Axiomatized contract you trust (emits as a `val`, enters the TCB) | The contract is an assumption, not a VC — sound only for the stated properties |
 | **Stubbed** | Signature only, no semantics | Proves nothing |
 
 Coverage is **always reported per bucket**. A 100%-specified module
-can show "100% proven" while guaranteeing nothing. The headline
-"os: 98% of 4101 VCs" is meaningful because those are modelled-bucket
-VCs — real proofs of real code.
+can show "100% proven" while guaranteeing nothing — a `val`'s contract
+carries no VC of its own, so a green run there proves nothing about a
+body. The headline "os: 98% of 4101 VCs" is meaningful because those
+are modelled-bucket VCs — weakest-precondition obligations of real
+`let` bodies that the solvers returned *Valid* on.
 
 ### Module-by-module bucketing
 
@@ -290,15 +290,17 @@ lib/
 
 ### Two verification levels
 
-1. **Body-level** — PyCSL verifies the function implementation directly.
-   Works best for integer-heavy code (os filesystem, warnings). Requires
-   the full function body to compile to valid WhyML.
+1. **Body-level** — the function emits as a WhyML `let`; Why3 generates
+   its weakest-precondition VCs and the solvers discharge them. Works
+   best for integer-heavy code (os filesystem, warnings). Requires the
+   full function body to compile to valid WhyML.
 
 2. **Stub-level** — PyCSL generates `val` declarations (abstract
-   function specs) from `__init__.py` imports. Formal tests verify
-   properties through these stubs. Works for string-heavy code (re)
-   or partially-verifiable modules (json) where body-level verification
-   hits tool gaps.
+   function specs, contract-only, no body and no VC of their own) from
+   `__init__.py` imports; their contracts become caller assumptions.
+   Formal tests verify properties through these stubs. Works for
+   string-heavy code (re) or partially-verifiable modules (json) where
+   body-level verification hits tool gaps.
 
 3. **Thin API wrapper** (new pattern from json) — When most of a module
    fails body-level proof, create a `_api.py` with:
@@ -391,9 +393,11 @@ Each test function:
   postconditions applied to the symbolic arguments
 - Returns an expression whose value the `ensures` clause constrains
 
-The prover must discharge the `ensures` for **every** integer satisfying
-the `requires`. This is universal quantification — the essence of formal
-verification.
+Why3 generates one weakest-precondition VC per `ensures`, and Alt-Ergo
+(then Z3) must return *Valid* on it for **every** integer satisfying the
+`requires` — the solver shows the negation unsatisfiable over the whole
+symbolic range, not one witness. This is universal quantification — the
+essence of formal verification.
 
 See `docs/glossary/formal-test.md` for the concept.
 
@@ -464,9 +468,10 @@ algebraically about the result, not merely know it is non-negative.
 
 ### Step 5b — Use the axiom registry for inductive properties
 
-SMT solvers cannot discharge properties that require induction,
-cross-function relational reasoning, or uninterpreted predicates.
-For these, import cross-validated axioms from the **axiom registry**
+Alt-Ergo and Z3 return *Unknown*/*Timeout* on goals that require
+induction, cross-function relational reasoning, or uninterpreted
+predicates — E-matching cannot manufacture an induction principle. For
+these, import cross-validated axioms from the **axiom registry**
 (`_AXIOM_REGISTRY` in `src/pycsl/module6_whyml/preamble.py`).
 
 **Syntax:**
@@ -474,8 +479,12 @@ For these, import cross-validated axioms from the **axiom registry**
 #@ proof rocq Pycsl.Reference.Gcd.gcd_step
 #@ proof lean Pycsl.Reference.Gcd.gcd_step
 ```
-Each `#@ proof` directive emits a WhyML `axiom` in the preamble.
-Always cite both Rocq and Lean (cross-validation is required).
+Each `#@ proof` directive emits a WhyML `axiom` in the preamble — a
+module-level hypothesis in scope for every goal, instantiated via
+E-matching like any other quantified fact. The lemma itself is proved
+**offline** in Rocq and Lean; no proof-assistant kernel runs during the
+`pycsl` proof. Always cite both Rocq and Lean (cross-validation is
+required).
 
 **Available axiom families:**
 
@@ -492,7 +501,7 @@ Always cite both Rocq and Lean (cross-validation is required).
 - `\forall k` maximality in GCD postcondition — needs `gcd_greatest`
 - `\permutation` on reversed/sorted arrays — needs `rev_permutation`
 - Inductive properties over recursive datatypes — needs structural-induction lemma
-- Any VC where Alt-Ergo/Z3 returns Timeout or Unknown after 60 s
+- Any VC where Alt-Ergo/Z3 returns *Timeout* or *Unknown* within the per-goal budget
 
 **Pattern (GCD flagship, from `test-suite/corpus/pycsl-reference/0342.py`):**
 ```python
@@ -534,18 +543,19 @@ def gcd(a: int, b: int) -> int:
 ```
 
 **Trust model:** Each axiom qualname maps to paired Rocq + Lean proofs
-in `NNNN.proofs/{rocq,lean}/`. The `audit_proof.py` tool verifies that
-both proof assistants accept the lemma and that neither introduces
-extraneous axioms beyond the kernel allowlist. A missing or failing
-cross-check is a hard error.
+in `NNNN.proofs/{rocq,lean}/`, checked **offline** by their respective
+kernels — not during the `pycsl` proof. The `audit_proof.py` tool
+verifies that both proof assistants accept the lemma and that neither
+introduces extraneous axioms beyond the kernel allowlist. A missing or
+failing cross-check is a hard error.
 
 ### Step 6 — Document tool gaps
 
-Any PyCSL limitation discovered during steps 3–5 goes into a
-requirements document (`NNNN.md` at repo root):
-- `1009.md`: R1–R4 (stub generation, tuple results, assigns)
-- `1111.md`: R5–R7 (str params, constant values, default args)
-- `07-0647-gaps.md`: R8–R13 (keyword clashes, string ops, class returns)
+Any PyCSL limitation discovered during steps 3–5 is recorded as a
+tool-gap requirement. The catalogue of known gaps — stub generation,
+tuple results, `assigns`, string params, constant values, default args,
+keyword clashes, string ops, class returns — is summarized in the "Known
+PyCSL tool gaps" table below.
 
 ---
 
@@ -733,7 +743,7 @@ annotation is still useful documentation but doesn't change the proof.
 ### Tuple result postconditions
 
 `\result[0] >= 0` correctly lowers to
-`let (_r0_, _) = result in _r0_ >= 0`. This works since the R3 fix.
+`let (_r0_, _) = result in _r0_ >= 0`.
 
 ### Proof strategy for remaining failures
 
@@ -833,7 +843,7 @@ main()
 
 The `lib/calling.json` file lists all stdlib symbols PyCSL uses.
 Modules covered so far: `os`, `re`, `warnings`, `json`. The remaining
-23 modules (542 symbols) are planned in `making-it-pure-5.md`.
+23 modules (542 symbols) follow the phased implementation order above.
 
 **Current phase: Foundation (Phase 1).** Build `ClockModel`, wire
 fs↔clock, define the `World` aggregate. Then Phase 2 (confinement
@@ -876,9 +886,6 @@ building any fs-mutating module.
 
 ## Related files
 
-- `1009.md` — PyCSL tool requirements R1–R4
-- `1111.md` — PyCSL tool requirements R5–R7
-- `07-0647-gaps.md` — PyCSL tool requirements R8–R13
 - `docs/glossary/formal-test.md` — defines the formal test concept
 - `docs/glossary/axiom-registry.md` — defines the axiom registry concept
 - `src/pycsl/module6_whyml/preamble.py` — `_AXIOM_REGISTRY` source of truth

@@ -93,7 +93,7 @@ The surface is a Pythonic block; the weaver desugars it:
 Each guard `A` is written **once** (its `given`) — the DRY win that justifies the
 construct, since the raw `ensures \old(g) ==> …` idiom repeats every guard across
 its case, the completeness disjunction, and each disjointness pair. See
-[`act.md`](../../../../act.md) and `annotations.md` §2.1.15.
+`annotations.md` §2.1.15.
 
 **The discipline (each item is a real trap we hit):**
 
@@ -125,8 +125,7 @@ The same move scales to **program scope**. A cross-cutting meta-property (PyCSL'
 **HAPPY** — the equivalent of MetAcsl's HILAREs) is one module-level declaration that
 *expands* into many ordinary per-site obligations: surface → existing primitives →
 0-`\trusted`, only now the expansion pass walks the **whole program** instead of one
-function. The worked instance is region integrity over a shared array field
-([`meta.md`](../../../../meta.md)):
+function. The worked instance is region integrity over a shared array field:
 
 ```
 #@ happy R: region LO .. HI writes self.f outside region except m1, m2

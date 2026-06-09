@@ -273,8 +273,8 @@ is the **first step** — it decides what the spec must say; habits
    the gap. Without that, `\trusted` becomes permanent.
 
 ER work is supposed to expose IR-feature gaps. The
-UnixInodeFileSystem pass surfaced six, catalogued in
-`missing-pycsl-ir-features.md`. That's a feature, not a bug —
+UnixInodeFileSystem pass surfaced six, each catalogued in a
+tracked IR-feature gap entry. That's a feature, not a bug —
 ER drives the language forward by refusing to silently absorb
 limitations.
 

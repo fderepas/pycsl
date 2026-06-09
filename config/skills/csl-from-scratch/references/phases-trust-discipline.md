@@ -97,9 +97,7 @@ external test catches:
   annotations. PyCSL's pattern: `bin/sync-mirror-bodies.py` (a
   libcst-based per-FunctionDef merger).
 
-Cite
-[`self-annot-2.md`](../../../../self-annot-2.md) for the PyCSL
-working invariants:
+The PyCSL self-annotation working invariants:
 
 - `make self-annotate-verify` + sample of full-proof reference
   tests + pytest + mirror-check + self-annotation suite after
@@ -257,8 +255,8 @@ Three load-bearing properties of an ER pass:
 
 An ER pass is also a *forcing function for IR work*: it surfaces
 the gaps that baseline stub work hides. The
-UnixInodeFileSystem pass surfaced six IR-feature gaps catalogued
-in `missing-pycsl-ir-features.md`. Treat the output of an ER
+UnixInodeFileSystem pass surfaced six IR-feature gaps, each
+tracked in a feature plan. Treat the output of an ER
 pass as having two deliverables: the annotated module *and* the
 missing-feature plan it produced.
 

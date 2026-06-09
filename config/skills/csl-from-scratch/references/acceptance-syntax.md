@@ -158,12 +158,11 @@ ship what it claimed? The two are independent. A plan can pass
 the gate while shipping nothing of substance; ER closes that
 loop.
 
-Concrete example from the Phase 4 retrospective of
-`missing-bytes-struct-feature.md`: the implementer (me) declared
-Phase 4 complete with all gates green. Zero of the four target
-methods had promoted to body-verified. The user had to ask
-"what was not done?" to surface the gap. ER's acceptance check
-would have caught it on the first run.
+Concrete example: a feature phase was declared complete with all
+gates green, yet zero of the four target methods had promoted to
+body-verified. The user had to ask "what was not done?" to surface
+the gap. ER's acceptance check would have caught it on the first
+run.
 
 ## Pointers
 

@@ -36,8 +36,6 @@
   — operational reference for the cross-check pipeline.
 - [`0342_explanation.md`](../../../../0342_explanation.md)
   — GCD worked example end-to-end.
-- [`self-annot-2.md`](../../../../self-annot-2.md) — self-annotation
-  working invariants.
 - [`closer-to-code-execution-status.md`](../../../../closer-to-code-execution-status.md)
   — public ledger of TCB-reduction steps.
 - [`bin/proof2why3-emit.py`](../../../../bin/proof2why3-emit.py)

@@ -28,7 +28,7 @@ to its own skill makes the contract auditable.
 
 ---
 
-## Phase 1 — Trigger table
+## Trigger table
 
 | Operation | IR shape | Exception | Trigger condition |
 |---|---|---|---|
@@ -41,8 +41,8 @@ to its own skill makes the contract auditable.
 | `d[k]` | `MapGet(d, k)` | `KeyError` | `has_key d k` |
 | `d.pop(k)` | `AttrCall(d, "pop", [k])` | `KeyError` | `has_key d k` |
 | `1 << n`, `1 >> n` | `BinOp("<<"\|">>", a, n)` | `ValueError` | `non_neg_shift n` (i.e. `n >= 0`) |
-| `s.index(x)` | `AttrCall(s, "index", [x])` | `ValueError` | placeholder `true` (Phase 2: `mem x s`) |
-| `next(it)` | `Call("next", [it])` | `StopIteration` | placeholder `true` (Phase 2: iterator model) |
+| `s.index(x)` | `AttrCall(s, "index", [x])` | `ValueError` | placeholder `true` (deferred: `mem x s`) |
+| `next(it)` | `Call("next", [it])` | `StopIteration` | placeholder `true` (deferred: iterator model) |
 
 The authoritative encoding lives in `src/pycsl/exception_model.py` —
 `KNOWN_EXCEPTIONS`, `TRIGGERS`, `PREDICATE_LIBRARY`. **Do not duplicate
@@ -56,7 +56,7 @@ A new entry is admissible when **all** of the following hold:
 1. **Clean mathematical trigger.** The side condition is expressible in
    PyCSL's existing contract grammar (arithmetic + comparison + the
    bounded-by-length idiom). If the trigger depends on string content,
-   unbounded heap, or a missing dataflow analysis, defer to Phase 2.
+   unbounded heap, or a missing dataflow analysis, defer it.
 2. **Present in the PyCSL IR.** The operation must already be lowered
    to a concrete IR shape that Module 6 dispatches on. If the operation
    currently passes through Module 6 unchanged or via the auto-trust
@@ -66,13 +66,13 @@ A new entry is admissible when **all** of the following hold:
    under `test-suite/corpus/pycsl-reference/`: baseline proves
    (no annotation), annotated_fails (annotation present, no
    precondition), annotated_with_precond (precondition strong enough
-   to discharge). The numbering reservation for Phase 1 is
-   `0353`–`0420`; new exceptions extend forward.
+   to discharge). The numbering reservation is `0353`–`0420`; new
+   exceptions extend forward.
 
 A new entry is **not** admissible when:
 
 - The trigger requires modelling string content (`int("abc")` →
-  `ValueError`). Defer to Phase 2 once string predicates exist.
+  `ValueError`). Defer it until string predicates exist.
 - The trigger depends on type information PyCSL discards
   (`AttributeError` from a misspelled attr is largely pre-excluded by
   PyCSL's type checker today).
@@ -103,9 +103,9 @@ a parallel predicate.
 
 ## Inter-procedural rules
 
-Default behaviour (workplan §1.4): unannotated callees are treated as
-ambient — no implicit exceptions propagate to the caller's obligation.
-Annotated callees flow as follows:
+Default behaviour: unannotated callees are treated as ambient — no
+implicit exceptions propagate to the caller's obligation. Annotated
+callees flow as follows:
 
 - Callee declares `no_exception E` (proved): the call site is safe with
   respect to `E`. No VC at the caller.
@@ -141,9 +141,7 @@ Numbering blocks under `test-suite/corpus/pycsl-reference/` (reserved in
 - `config/skills/pycsl-annotate/SKILL.md` — annotator guidance for
   generating `no_exception` clauses.
 - `config/skills/contract-writer/SKILL.md` — contract-writer agent's
-  triggering rules for emitting `no_exception` (PR 3+).
+  triggering rules for emitting `no_exception`.
 - `docs/pycsl-concrete-syntax-reference.md` §2.1.13 — grammar.
-- `docs/pycsl-static-semantics-reference.md` — formal proof obligation
-  (added by PR 3).
-- `docs/pycsl-translational-reference.md` §T.8 — WhyML emission rules
-  (extended by PR 3).
+- `docs/pycsl-static-semantics-reference.md` — formal proof obligation.
+- `docs/pycsl-translational-reference.md` §T.8 — WhyML emission rules.

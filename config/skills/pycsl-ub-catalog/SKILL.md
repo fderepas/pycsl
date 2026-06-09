@@ -12,9 +12,7 @@ verification stance, and (where applicable) an escape annotation. The
 implementation lives across Module 1 (import classifier), Module 3
 (weaver), Module 4 (semantic analyzer), and Module 5 (IR emitter).
 
-The catalog is grouped by the NoException_and_UBDetection workplan
-numbering (§7.1–§7.7). Entries are filled in as the corresponding PR
-lands; expect partial coverage until all sub-features are merged.
+The catalog is grouped by the UB-category numbering §7.1–§7.7.
 
 ---
 
@@ -83,8 +81,9 @@ discharge — typically via an external `#@ proof rocq` or
 
 Unhashable classes (`__eq__` without `__hash__`) emit a documentation
 comment only; no goal/axiom is generated. Using such a class as a
-dict/set key would raise `TypeError` at runtime, which UB-7.4 / future
-`no_exception TypeError` work can flag separately.
+dict/set key would raise `TypeError` at runtime, which the C-extension
+boundary (UB-7.4) and `no_exception TypeError` modelling can flag
+separately.
 
 **Escape annotation.** None directly — the strict-mode goal requires
 an external `#@ proof` citation; the default-mode axiom is implicit
@@ -223,9 +222,9 @@ class and line. A trivial `__new__` is accepted and ignored
 (construction proceeds via `__init__`).
 
 **Verification stance.** *Hard error*, no escape annotation. PyCSL
-models construction `C(...)` as a **fresh WhyML record literal**
-(`base_op.md` Tier A — parametrized construction substitutes the call
-args into the `__init__` field initialisers). Allocation interposition
+models construction `C(...)` as a **fresh WhyML record literal** —
+parametrized construction substitutes the call args into the `__init__`
+field initialisers. Allocation interposition
 (`__new__` returning a cached/other instance) breaks that model: the
 result would no longer be a fresh `{...}`, and identity/caching
 semantics cannot be soundly represented. Rejecting is the honest

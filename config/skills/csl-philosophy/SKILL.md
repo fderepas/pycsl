@@ -248,22 +248,18 @@ and [`csl-from-scratch/references/stdlib-extreme-rigor.md`](../csl-from-scratch/
 4. Round-trip axioms for inverse operation pairs
 5. Each `\trusted` carries an actionable `cite:_note:` and feature-plan pointer
 
-Case study — Phase 4 of `missing-bytes-struct-feature.md`: the
-implementer (me, on 2026-06-01) declared the phase complete after
-adding proof-rocq directives and a new audit step. The
+Case study: a feature phase was declared complete after adding
+proof-rocq directives and a new audit step. The
 `bin/agent-feature-supervisor` gate passed because it only checked
 deny-lists and CI steps, not phase deliverables. When the user asked
-**"what was not done?"**, seven gaps surfaced, including the central
-claim of Phase 4 (promote four `\trusted` methods to body-verified —
-none had). ER closes that loop: phases carry `**Acceptance:**` blocks
-the supervisor executes; "done" is machine-checked, not
-self-declared.
+**"what was not done?"**, seven gaps surfaced, including the phase's
+central claim (promote four `\trusted` methods to body-verified — none
+had). ER closes that loop: phases carry `**Acceptance:**` blocks the
+supervisor executes; "done" is machine-checked, not self-declared.
 
-Supervisor enforcement of ER is specified in
-[`feature-supervisor-extreme-rigor.md`](../../../feature-supervisor-extreme-rigor.md)
-at repo root. The principle: a phase is DONE when its acceptance
-claims pass — not when its target files were touched, not when the
-gate is green, not when the implementer feels satisfied.
+The principle: a phase is DONE when its acceptance claims pass — not
+when its target files were touched, not when the gate is green, not
+when the implementer feels satisfied.
 
 ## What family members exist, and what they share
 

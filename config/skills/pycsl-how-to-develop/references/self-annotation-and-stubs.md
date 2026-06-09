@@ -29,7 +29,7 @@ src/
     └── linker/         ← pycsl-bridge.manifest.toml writer + drift checker
 ```
 
-**Trust chain** (`pycsl-bridge-plan.md §5`):
+**Trust chain:**
 
 ```text
 formal proof (Rocq or Lean)

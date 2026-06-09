@@ -9,7 +9,7 @@ description: >-
   language change. It verifies the clause is wired through every stage
   (grammar → validate → IR → WhyML), documented across all five normative surfaces,
   covered by the reference corpus, and — critically — that its lowering is
-  *semantically faithful* (the trap that bit the behaviors plan twice). Triggers on
+  *semantically faithful* (the subtlest and most dangerous trap). Triggers on
   phrasings like "I added a new contract directive", "audit the PyCSL language",
   "did I wire this clause through everywhere", "is this consistent before merge",
   "run the language gate", or "does PyCSL actually prove this construct".
@@ -91,8 +91,9 @@ proofs/goldens flap otherwise.
    PYTHONHASHSEED=0 bin/run-reference-tests.sh
    ```
 
-4. **Self-annotation mirrors still verify** (PyCSL proves its own modules under
-   `--no-proof`):
+4. **Self-annotation mirrors still verify** (PyCSL transpiles its own modules to
+   WhyML under `--no-proof` — no VCs are discharged, only that the emission
+   type-checks):
    ```bash
    PYTHONHASHSEED=0 make self-annotate-verify
    ```

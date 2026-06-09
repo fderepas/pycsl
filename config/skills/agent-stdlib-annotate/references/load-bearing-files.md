@@ -2,12 +2,9 @@
 
 Files in this list **always raise the `human-needed` signal** when a
 feature-plan phase declares them as a modification target. The
-supervisor will never attempt to edit them autonomously (even after
-Item 1.4 coding-LLM delegation lands), because their incorrect
-modification produces silent unsoundness in the proof pipeline.
-
-Per [`better-agent.md`](../../../../better-agent.md) §"Safety
-perimeter" and [`cmmi-tailoring-plan-follow-up.md`](../../../../cmmi-tailoring-plan-follow-up.md) Item 1.3.
+supervisor will never attempt to edit them autonomously (even under
+coding-LLM delegation), because their incorrect modification produces
+silent unsoundness in the proof pipeline.
 
 ## Deny-list
 

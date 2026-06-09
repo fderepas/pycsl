@@ -78,8 +78,8 @@
   after editing extracted-module sources, or wire the rebuild
   into the driver script.
 - **Following a deferred plan without re-running the empirical
-  step.** Plans (`todo-saturday.md`, `closer-to-code.md`) carry
-  decisions based on the state when written. Before executing a
+  step.** A deferred plan carries decisions based on the state
+  when it was written. Before executing a
   deferred item, re-run the relevant empirical check —
   byte-diff blocker breakdown, `Print Assumptions` audit,
   cross-check FAIL list, `extraction-byte-diff-upward.sh`

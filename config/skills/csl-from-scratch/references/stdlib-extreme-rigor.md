@@ -144,8 +144,7 @@ UnixInodeFileSystem pass exposed six (catalogued in
    `_write_directory`)
 5. `bytes.encode` / `.ljust` / `.split` methods (blocks
    `_write_directory`)
-6. Append-target auto-invariant in for-range loops (partially
-   landed during Phase 4 gap closure)
+6. Append-target auto-invariant in for-range loops
 
 Treat the output of an ER pass as having **two** deliverables: the
 annotated module *and* the missing-feature plan it surfaced.

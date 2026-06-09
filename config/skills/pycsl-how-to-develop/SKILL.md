@@ -133,12 +133,9 @@ Load on demand:
 ## 8. How PyCSL development actually works — the gating discipline
 
 PyCSL is an output-deterministic verifier, so a change is "done" only when it is **gated**, not
-when it "looks right" or "the tests pass." This section is the judgment distilled from the
-project's plan files (`no-more-int*.md`, `strings-plan.md`, `collections-plan.md`,
-`module-constants-plan.md`, `cross-module-plan.md`, `base_op.md`, `meta.md`, `act.md`,
-`missing-bytes-struct-feature.md`, `refactor-recommendations.md`, `remove-libcst-from-pycsl.md`,
-`pure-ast-parsing-in-pycsl*.md`, `16-steps-exec.md`, `level-up-your-game-agents.md`). Read §9
-(add a feature) and §10 (refactor) as the *mechanics*; this section is the *judgment* behind them.
+when it "looks right" or "the tests pass." This section distils the judgment accumulated across the
+project's feature and refactor campaigns. Read §9 (add a feature) and §10 (refactor) as the
+*mechanics*; this section is the *judgment* behind them.
 
 ### 8.1 Plan first, in a named repo-root file
 
@@ -227,8 +224,8 @@ Every landed change records its passed gate inline. The standard gates:
   validated **identical** (incl. the slow Rocq `0220`-class), so the default does **not** produce the
   spurious timeouts the old serial-under-contention runs did (that "run it alone" caveat is superseded by
   the half-cores budget). The one remaining risk: **do not crank `--jobs` past half the cores** —
-  over-subscription can starve a prover into a false timeout that looks like a regression (see
-  `more-proc.md` §2, the parallel↔serial acceptance gate). A **serial confirmation pass** guards this:
+  over-subscription can starve a prover into a false timeout that looks like a regression (the
+  parallel↔serial acceptance gate). A **serial confirmation pass** guards this:
   any `[FAIL]`/`[SKIP]` is automatically re-run one-at-a-time, and one that then passes is reported
   `[FLAKY→PASS]` and dropped — so only `[CONFIRMED FAIL]`s count. This matters most when a **second
   agent is also sweeping** (two half-cores sweeps saturate the box); the confirmation pass is what
@@ -367,7 +364,8 @@ silently produce wrong output that fails at proof time.
 
 **Why this matters:** agents rely on RAG-indexed skills at runtime, not on
 `annotations.md` or source code. A skill that is one feature behind will produce
-annotations that fail at Module4 semantic analysis or at the Why3 proof step —
+annotations that fail at Module4 semantic analysis, or whose generated WhyML yields
+verification conditions the SMT solvers (Alt-Ergo, Z3) cannot discharge —
 often with an error that is hard to diagnose as a skill gap rather than a code bug.
 
 **Historical example (concurrent model, 2026-05):** `pycsl-annotate/SKILL.md` was
@@ -484,8 +482,7 @@ across representative invocations.
 
 For the general (non-PyCSL) refactoring methodology — right-sizing abstractions, treating
 recommendations as hypotheses, building coverage before reorganising untested code — see the
-`refactor-python` skill (§10–§11). The campaign that hardened both skills lives in
-`refactor-recommendations.md`.
+`refactor-python` skill (§10–§11).
 
 ---
 
