@@ -21,7 +21,7 @@ The **Ref** column uses the format `section.subsection.row`.
 | 3.1.5 | `\result` \| `Result` \| Return value (only in `ensures`) | 0012, 0086, 0087 | PASS |
 | 3.1.6 | `\old(<expr>)` \| `Old` \| Value of expression at function entry | 0013, 0088, 0089 | PASS |
 | 3.1.7 | `\at(<expr>, L)` \| `At` \| Value of expression at label `L` | 0014, 0090, 0091 | PASS |
-| 3.1.8 | `\length(arr)` \| `ArrayLength` \| Length of array `arr` | 0015, 0092, 0093; XFAIL (\length-on-dict, 3 surfaces): 0667, 0668, 0669 | PASS |
+| 3.1.8 | `\length(arr)` \| `ArrayLength` \| Length of array `arr` | 0015, 0092, 0093; XFAIL (\length-on-dict, all surfaces): 0667, 0668, 0669, 0672 (ghost subscript), 0673 (nested while) | PASS |
 | 3.1.9 | `\valid(arr, n)` \| `Valid` \| `arr[0..n)` is allocated | 0016, 0094, 0095; XFAIL (non-list base): 0670 | PASS |
 | 3.1.10 | `\separated(a, na, b, nb)` \| `Separated` \| Regions `a[0..na)` and `b[0..nb)` don't overlap | 0017, 0096, 0097; XFAIL (non-list base): 0671 | PASS |
 | 3.1.11 | `\length2d(a, m, n)` \| `Length2D` \| `a` has `m` rows each of length `n` | 0018 | FAIL |

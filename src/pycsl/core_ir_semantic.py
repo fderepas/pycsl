@@ -16,6 +16,11 @@ Migrated so far:
   - B1: the §4.4 front-end span contract (every function carries a span).
   - B2: ``no_exception`` well-formedness (was Module 4 ``_validate_no_exception``).
   - B3: ``assigns``-region base typing (was Module 4 ``_validate_assigns_regions``).
+  - B4: predicate bases — ``\\length`` not on dict/set, ``\\valid``/``\\separated``
+        bases must be list/bytes (was Module 4 ``_validate_predicate_bases``). This
+        one is a *surface-tracking* expr-walker: the error context varies by where
+        the predicate sits — function contract, while-loop invariant (with the
+        innermost loop's line), or ghost expression (simple / subscript).
 """
 from __future__ import annotations
 
@@ -30,6 +35,7 @@ def run_ir_semantic_checks(ir: Any, *, stage: str = "ir-semantic") -> None:
         _check_span(func, stage)
         _check_no_exception(func)
         _check_assigns_regions(func)
+        _check_predicate_bases(func)
 
 
 def _check_span(func: Any, stage: str) -> None:
@@ -109,3 +115,121 @@ def _check_assigns_regions(func: Any) -> None:
                     f"Assigns region on non-list variable '{base}' "
                     f"(type '{arr_type}') in {where}."
                 )
+
+
+# --- B4: predicate bases (surface-tracking expr-walker) ----------------------
+
+_PB_ARRAY_BASE_TYPES = ("list", "List", "bytes", "bytearray", "Any", None)
+_PB_LENGTHLESS_TYPES = ("dict", "Dict", "set", "Set", "frozenset", "FrozenSet")
+
+
+def _check_predicate_bases(func) -> None:
+    """B4 — `\\length` not on a dict/set, and `\\valid`/`\\separated` bases must be
+    list/bytes, migrated from Module 4's ``_validate_predicate_bases``. Unlike the
+    flat-metadata checks (B2/B3), this walks the contract EXPRESSION trees, and the
+    error context depends on the predicate's *surface* — which Module 4 reproduced
+    from its AST visitor and the core now reconstructs from the IR:
+      - function contracts (requires/ensures/assigns/variants) → ``function 'F'``;
+      - WHILE-loop invariants/variants → ``while loop at line N inside function 'F'``
+        (innermost enclosing while; for-loop invariants are NOT checked, matching
+        Module 4 — it has no for-loop visitor for this);
+      - ghost values → ``function 'F' (ghost 'g')`` (simple) /
+        ``function 'F' (ghost 'g[...]')`` (subscript, GhostArraySet).
+    Gated by drivers 0667–0673 staying XFAIL with byte-identical messages.
+    """
+    fname = func.get("name", "<anonymous>")
+    symtab = func.get("symbol_table") or {}
+    fctx = f"function '{fname}'"
+    contracts = func.get("contracts") or {}
+    for key in ("requires", "ensures", "assigns", "function_variants"):
+        for clause in contracts.get(key, []) or []:
+            _pb_expr(clause, fctx, symtab)
+    _pb_body(func.get("body", []) or [], fname, symtab)
+
+
+def _pb_body(stmts, fname, symtab) -> None:
+    """Walk a statement list, applying the predicate checks to while-invariants and
+    ghost values with their surface-specific context, recursing into nested bodies."""
+    for s in stmts:
+        if isinstance(s, dict):
+            _pb_stmt(s, fname, symtab)
+
+
+def _pb_stmt(s, fname, symtab) -> None:
+    st = s.get("stmt")
+    if st == "While":
+        lctx = f"while loop at line {s.get('line', 0)} inside function '{fname}'"
+        for clause in (s.get("invariants") or []):
+            _pb_expr(clause, lctx, symtab)
+        for clause in (s.get("variants") or []):
+            _pb_expr(clause, lctx, symtab)
+        _pb_body(s.get("body", []) or [], fname, symtab)
+    elif st == "For":
+        # Module 4 does NOT validate for-loop invariants (no for-loop visitor for
+        # this check) — recurse the body only, do not touch the invariants.
+        _pb_body(s.get("body", []) or [], fname, symtab)
+    elif st == "GhostAssign":
+        _pb_expr(s.get("value"),
+                 f"function '{fname}' (ghost '{s.get('target')}')", symtab)
+    elif st == "GhostArraySet":
+        gctx = f"function '{fname}' (ghost '{s.get('target')}[...]')"
+        _pb_expr(s.get("index"), gctx, symtab)
+        _pb_expr(s.get("value"), gctx, symtab)
+    else:
+        # Other compound statements (If/Match/Try/With/…): descend into nested
+        # statement lists to find deeper whiles / ghosts.
+        for v in s.values():
+            _pb_descend(v, fname, symtab)
+
+
+def _pb_descend(v, fname, symtab) -> None:
+    if isinstance(v, dict):
+        if "stmt" in v:
+            _pb_stmt(v, fname, symtab)
+        else:
+            for x in v.values():
+                _pb_descend(x, fname, symtab)
+    elif isinstance(v, list):
+        for x in v:
+            _pb_descend(x, fname, symtab)
+
+
+def _pb_expr(node, ctx, symtab) -> None:
+    """Recursively check `\\length`/`\\valid`/`\\separated` nodes in a contract-expr
+    tree, reporting against the surface context. Messages reproduce Module 4 verbatim."""
+    if isinstance(node, list):
+        for x in node:
+            _pb_expr(x, ctx, symtab)
+        return
+    if not isinstance(node, dict):
+        return
+    t = node.get("type")
+    if t == "ArrayLen":
+        var = node.get("var", "")
+        if not str(var).startswith("self.") and var != "\\result":
+            typ = symtab.get(var)
+            if typ in _PB_LENGTHLESS_TYPES:
+                raise PyCSLSemanticError(
+                    f"\\length is not supported on the {typ}-typed '{var}' in "
+                    f"{ctx}: dicts/sets are modelled as total maps "
+                    f"(`map int (option int)`) with no cardinality. Use \\has_key(d, k) "
+                    f"for key presence, or a list/array for a length-bearing collection."
+                )
+    elif t == "Valid":
+        base = node.get("base")
+        arr_type = symtab.get(base)
+        if arr_type not in _PB_ARRAY_BASE_TYPES:
+            raise PyCSLSemanticError(
+                f"\\valid base '{base}' is not a list/bytes parameter "
+                f"in {ctx} (got type '{arr_type}')."
+            )
+    elif t == "Separated":
+        for base in (node.get("base1"), node.get("base2")):
+            arr_type = symtab.get(base)
+            if arr_type not in _PB_ARRAY_BASE_TYPES:
+                raise PyCSLSemanticError(
+                    f"\\separated base '{base}' is not a list/bytes parameter "
+                    f"in {ctx} (got type '{arr_type}')."
+                )
+    for v in node.values():
+        _pb_expr(v, ctx, symtab)

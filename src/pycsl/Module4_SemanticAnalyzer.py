@@ -385,8 +385,9 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         # 2b. quantification.md: resolve every typed quantifier binder.
         self._validate_quant_binders(contract, context_name)
 
-        # 3. Check \valid and \separated base types
-        self._validate_predicate_bases(contract, context_name)
+        # 3. \valid/\separated/\length-on-dict base checks MIGRATED to the core
+        #    (core_ir_semantic._check_predicate_bases) — they run on the IR with a
+        #    surface-tracking walk that reconstructs the same context (refactor.md B4).
 
         # 4. Check \proj index is always a literal
         self._validate_proj_indices(contract, context_name)
@@ -421,39 +422,10 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         for child in _iter_csl_children(node):
             self._validate_proj_indices(child, context_name)
 
-    def _validate_predicate_bases(self, node: CSLNode, context_name: str) -> None:
-        """Recursively check that \\valid and \\separated reference list-typed parameters,
-        and that \\length is not applied to a dict/set (which have no cardinality)."""
-        if isinstance(node, ArrayLength) and not node.var.startswith("self.") \
-                and node.var != "\\result":
-            t = self.current_scope.get(node.var)
-            if t in ("dict", "Dict", "set", "Set", "frozenset", "FrozenSet"):
-                raise PyCSLSemanticError(
-                    f"\\length is not supported on the {t}-typed '{node.var}' in "
-                    f"{context_name}: dicts/sets are modelled as total maps "
-                    f"(`map int (option int)`) with no cardinality. Use \\has_key(d, k) "
-                    f"for key presence, or a list/array for a length-bearing collection."
-                )
-        # 0442.md B2 (no-more-int): `bytes`/`bytearray` are the byte-buffer array
-        # class, so they are valid `\valid`/`\separated` bases like `list`.
-        _ARRAY_BASE_TYPES = ("list", "List", "bytes", "bytearray", "Any", None)
-        if isinstance(node, Valid):
-            arr_type = self.current_scope.get(node.base)
-            if arr_type not in _ARRAY_BASE_TYPES:
-                raise PyCSLSemanticError(
-                    f"\\valid base '{node.base}' is not a list/bytes parameter "
-                    f"in {context_name} (got type '{arr_type}')."
-                )
-        elif isinstance(node, Separated):
-            for base in (node.base1, node.base2):
-                arr_type = self.current_scope.get(base)
-                if arr_type not in _ARRAY_BASE_TYPES:
-                    raise PyCSLSemanticError(
-                        f"\\separated base '{base}' is not a list/bytes parameter "
-                        f"in {context_name} (got type '{arr_type}')."
-                    )
-        for child in _iter_csl_children(node):
-            self._validate_predicate_bases(child, context_name)
+    # `_validate_predicate_bases` MIGRATED to the language-agnostic core
+    # (`core_ir_semantic._check_predicate_bases`) — `\length`-on-dict/set and
+    # `\valid`/`\separated` base typing now run on the IR via a surface-tracking
+    # walk that reconstructs the function / while-loop / ghost context (refactor.md B4).
 
     # ── Concurrency helpers ────────────────────────────────────────────────
 
