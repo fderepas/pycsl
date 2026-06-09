@@ -74,6 +74,27 @@ proven viable; what remains is composition, not feasibility.
      localizing the quantifier, or budget), best done with per-goal measurement — deferred rather than
      ground blind. The `_write_inode` frame ensures (proven) is the piece to keep when resuming.
 
+- **Sub-step B cost-tuning — diagnosis (the 14 open goals are pure Timeout, and the cheap levers are
+  exhausted).** Resumed with the proven `_write_inode` frame + the content invariant/ensures and
+  measured precisely: the open goals are **all Timeout** (36 Timeout / 183 Valid on `--fun sys_write`),
+  not Unknown — i.e. the solver is still working, the goals are *expensive*, not unprovable. The cheap
+  cost levers do **not** apply:
+  - **Budget** is not CLI-exposed (hard-coded `--timelimit 30` in `pycsl.py`); raised to 90s as a probe,
+    `--fun sys_write` did not even finish in 18 min — so the expensive goals are *very* expensive
+    (the region byte-invariant `\forall` over the 2048-byte inode region cross-firing with the content
+    quantifier's nonlinear `fd_block[fd]*512+i` index). Budget is not a practical lever here.
+  - **`\array_eq` on slices** would replace the per-index `\forall` with one extensional fact, but the
+    slice grammar requires a **CNAME** array, so `self.disk[a:b]` (an attribute) does not parse in a
+    contract — `\array_eq` is unavailable for the disk slice.
+  - PyCSL exposes **no trigger annotation** to stop the quantifiers cross-instantiating.
+  - **The viable lever is LOCALIZE (a refactor):** extract the single-block content write into a
+    `#@ no_inline` helper `_write_block(block, off, data, …)` whose body is one blit and whose ensures
+    states the block holds `data` — proven once, *without* the surrounding loop or the region-invariant
+    re-instantiation — then `sys_write` calls it and reuses the contract. This keeps each goal small
+    (the cost driver — the loop × the content quantifier × the region invariant — is broken up). This is
+    the concrete next step; it is a real refactor of `sys_write`, scoped for a focused session with
+    per-goal measurement, not a blind grind.
+
 ---
 
 ## 1. Where the os is today
