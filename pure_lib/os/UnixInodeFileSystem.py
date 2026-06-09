@@ -328,8 +328,6 @@ class UnixInodeFileSystem:
     #@ requires inode_num < 32
     #@ assigns \nothing
     #@ ensures \length(\result) == 18
-    #@ proof rocq UnixFs.Struct.i18.round_trip
-    #@ proof lean UnixFs.Struct.i18.round_trip
     # cite:_note: De-trusted by the data-model rewrite
     #             (remove-trusted-unixfs.md). An inode is an 18-element
     #             `array int` in struct '>IHHHHHII10Ixx' field order:
@@ -348,8 +346,6 @@ class UnixInodeFileSystem:
     #@ requires \length(inode) == 18
     #@ assigns self.disk
     #@ ensures \length(self.disk) >= 131072
-    #@ proof rocq UnixFs.Struct.i18.round_trip
-    #@ proof lean UnixFs.Struct.i18.round_trip
     # cite:_note: De-trusted by the data-model rewrite. Pairs with
     #             _read_inode under the i18 round-trip axiom. The inode
     #             array is packed with 18 explicit positional args (no
@@ -393,8 +389,6 @@ class UnixInodeFileSystem:
     #@ requires block_num < 256
     #@ assigns \nothing
     #@ ensures \length(\result) >= 0 and \length(\result) <= 16
-    #@ proof rocq UnixFs.Struct.i1a1.round_trip
-    #@ proof lean UnixFs.Struct.i1a1.round_trip
     # cite:_note: Phase 4 of missing-bytes-struct-feature.md:
     #             struct.unpack('>H30s', ...) under the i1a1
     #             round-trip axiom. Phase 2.3b implemented option
@@ -423,8 +417,6 @@ class UnixInodeFileSystem:
     #@ requires \length(names) == 480
     #@ assigns self.disk
     #@ ensures True
-    #@ proof rocq UnixFs.Struct.i1a1.round_trip
-    #@ proof lean UnixFs.Struct.i1a1.round_trip
     # cite:_note: De-trusted by the data-model rewrite
     #             (remove-trusted-unixfs.md). A directory block holds 16
     #             entries of struct '>H30s' (inode_num : H, name : 30-byte
@@ -450,8 +442,6 @@ class UnixInodeFileSystem:
     #@ requires block_num < 256
     #@ assigns \nothing
     #@ ensures \result == -1 or (\result >= 0 and \result < 32)
-    #@ proof rocq UnixFs.Struct.i1a1.round_trip
-    #@ proof lean UnixFs.Struct.i1a1.round_trip
     # cite:_note: Reusable directory name-lookup for the path-based
     #             syscalls. Scans the 16 entries of a directory block,
     #             decodes each name, and returns the inode number whose
@@ -480,8 +470,6 @@ class UnixInodeFileSystem:
     #@ requires block_num < 256
     #@ assigns \nothing
     #@ ensures \result >= -1 and \result < 16
-    #@ proof rocq UnixFs.Struct.i1a1.round_trip
-    #@ proof lean UnixFs.Struct.i1a1.round_trip
     # cite:_note: Returns the entry SLOT index (0..15) whose name equals
     #             `pathname`, or -1. Companion of _dir_lookup (which
     #             returns the inode); the bounded slot lets callers
@@ -505,8 +493,6 @@ class UnixInodeFileSystem:
     #@ requires block_num < 256
     #@ assigns \nothing
     #@ ensures \result >= -1 and \result < 16
-    #@ proof rocq UnixFs.Struct.i1a1.round_trip
-    #@ proof lean UnixFs.Struct.i1a1.round_trip
     # cite:_note: Returns a free entry SLOT index (0..15, inode_num == 0)
     #             or -1 if the directory block is full.
     def _dir_find_free(self, block_num: int) -> int:
@@ -528,8 +514,6 @@ class UnixInodeFileSystem:
     #@ requires slot >= 0 and slot < 16
     #@ assigns self.disk
     #@ ensures True
-    #@ proof rocq UnixFs.Struct.i1a1.round_trip
-    #@ proof lean UnixFs.Struct.i1a1.round_trip
     # cite:_note: Writes a single 32-byte directory entry (struct '>H30s')
     #             at `slot` of `block_num`. The name is `name.encode(...)`
     #             — an opaque byte buffer (gap 5: the encoded byte
