@@ -1042,6 +1042,7 @@ class UnixInodeFileSystem:
     # cite:_note: POSIX readlink() — returns the symlink inode's first
     #             data block number (index 8), or -1 on ENOENT / non-symlink
     #             (type at index 2 != 3). Block numbers are in [0, 256).
+    #@ no_inline
     def sys_readlink(self, pathname: str) -> int:
         inode_num = self._dir_lookup(5, pathname)
         if inode_num < 0 or inode_num >= 32:
@@ -1049,7 +1050,15 @@ class UnixInodeFileSystem:
         inode = self._read_inode(inode_num)
         if inode[2] != 3:
             return -1
-        return inode[8]
+        block = inode[8]
+        # Block numbers are in [0, 256); guard so the return is provably
+        # in range (the field is a uint32, so the type alone does not bound
+        # it). A symlink's target block is allocated in [6, 256), so the
+        # guard never fires in practice — it makes the postcondition explicit
+        # rather than resting on an unstated block-validity invariant.
+        if block < 0 or block >= 256:
+            return -1
+        return block
 
     #@ requires oldfd >= 0
     #@ assigns self.fd_open, self.fd_inode, self.fd_offset, self.fd_flags, self.next_fd

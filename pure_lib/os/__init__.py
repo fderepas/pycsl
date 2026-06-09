@@ -325,7 +325,7 @@ def symlink(src: str, dst: str, target_is_directory=False, *, dir_fd=None):
 #@ requires True
 #@ assigns \nothing
 #@ ensures \result == -1 or (\result >= 0 and \result < 256)
-def readlink(filepath, *, dir_fd=None):
+def readlink(filepath: str, *, dir_fd=None):
     """Read the target of a symbolic link."""
     return _filesystem.sys_readlink(filepath)
 
