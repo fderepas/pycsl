@@ -61,22 +61,32 @@ registry in two cases:
    across a chain of dependent functions. The whole is unaffordable even though
    each part is provable.
 
-**Worked example — `UnixFs.Struct.i18.round_trip` / `i1a1.round_trip`** (the os
-inode/direntry codec round-trip, decided 2026-06-09). Proving it inline was
-attempted end-to-end (a representation invariant supplying the codec's field
-ranges → `_unpack_inode` field-range ensures → `_write_inode` → the full os
-proof). Every mechanism was validated and every codec function proved
-*standalone* (`_pack_inode` Valid in minutes, `_unpack_inode` Valid in 12 s),
-but in the full module each was slow or returned Unknown/Timeout
-(`_unpack_inode` > 300 s), and the cost **compounded** across the chain — each
-step a 300 s–1200 s proof, several chained. The inline proof is therefore
-**proof-cost-bound in aggregate**, not mechanism-limited. The round-trip stays
-cited as the cross-validated axiom; the os holds its proven-goal count without
-the inline blow-up.
+**Cautionary example — `UnixFs.Struct.i18.round_trip` / `i1a1.round_trip`** (the
+os inode/direntry codec round-trip). This was first taken as a case-2 axiom: an
+inline proof was attempted (a representation invariant supplying the codec's
+field ranges → `_unpack_inode` field-range ensures → `_write_inode` → the full
+os proof), every codec function proved *standalone* (`_unpack_inode` Valid in
+12 s) but was slow in the full module (> 300 s) with the cost compounding, so
+the round-trip was kept cited as the cross-validated axiom.
 
-> The axiom is the *pragmatic, sound* resting point — not a concession that the
-> property is unprovable. Revisit case (2) only with a larger solver budget
-> (`--timelimit`) or a faster prover, as a dedicated effort.
+That was the wrong diagnosis. The body-verified os was then rebuilt with a
+**defined pure-Python codec** (`_pack_inode`/`_unpack_inode` composed from the
+body-verified byte leaves `_pack_uint32_be` etc.) replacing `struct.pack`. With
+that codec, the round-trip axiom was discovered to be **unused**: the os's
+verification conditions are return-code and structural goals that are
+independent of disk *contents*, so no goal ever needs `unpack(pack(x)) == x`,
+and the abstract `struct_pack_i18` the axiom constrains is never even called.
+The citations were **vestigial**; removing all eight left the os fully proven
+(0 unproven goals) and dropped its trusted-axiom base from three families to one
+(only `Bitmap.bit_and_one_in_zero_one`).
+
+> The lesson is the first question to ask before axiomatizing *or* proving
+> inline: **is the property needed at all?** A costly inline attempt and a
+> "pragmatic axiom" can both be effort spent discharging a hypothesis no goal
+> consumes. Establish that a goal genuinely depends on the property before
+> paying for it either way. (The `i18`/`i1a1` registry entries remain only
+> because the separate `struct.pack`-based stub `src/pycsl_lib/os` still uses
+> the abstract codec; the body-verified `pure_lib/os` no longer cites them.)
 
 A case (2) axiom is still held to the full [trust model](#trust-model): a paired
 Rocq+Lean proof of the *same* statement, no extraneous axioms, `audit_proof.py`
