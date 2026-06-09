@@ -41,6 +41,45 @@ Every registry entry must satisfy:
 | `UnixFs.Bitmap.*` | 1 | Bitwise bound (`bit_and n 1 ∈ {0,1}`) |
 | `UnixFs.Struct.*` | 3 | struct.pack/unpack round-trip identity |
 
+## When to axiomatize (vs prove inline)
+
+Citing a cross-validated axiom is **sound** (the property is proved, just in a
+proof assistant rather than by the SMT backend), but it moves the property's
+proof out of the SMT-checked perimeter. Prefer an **inline proof** when it is
+affordable; reach for the registry in two cases:
+
+1. **Beyond SMT reach** — the original purpose: properties needing induction,
+   uninterpreted-predicate constraints, or cross-function relational reasoning
+   (GCD maximality, the JSON involution, the bitwise bound). No amount of SMT
+   time closes these.
+
+2. **Proof-cost-bound in aggregate** — a property that proves *standalone* in
+   seconds but is slow or intractable *in context*, and whose cost *compounds*
+   across a chain of dependent functions. The whole is unaffordable even though
+   each part is provable.
+
+**Worked example — `UnixFs.Struct.i18.round_trip` / `i1a1.round_trip`** (the os
+inode/direntry codec round-trip, decided 2026-06-09). Proving it inline was
+attempted end-to-end (a representation invariant supplying the codec's field
+ranges → `_unpack_inode` field-range ensures → `_write_inode` → the full os
+proof). Every mechanism was validated and every codec function proved
+*standalone* (`_pack_inode` in minutes, `_unpack_inode` in 12 s), but in the
+full module each was slow or timed out (`_unpack_inode` > 300 s), and the cost
+**compounded** across the chain — each step a 300 s–1200 s proof, several
+chained. The inline proof is therefore **proof-cost-bound in aggregate**, not
+mechanism-limited. The round-trip stays cited as the cross-validated axiom; the
+os holds its proven-goal count without the inline blow-up. (See
+`c-impl.md §3c`, `b-p4-rev2.md`, `try.md`.)
+
+> The axiom is the *pragmatic, sound* resting point — not a concession that the
+> property is unprovable. Revisit case (2) only with a larger solver budget
+> (`--timelimit`) or a faster prover, as a dedicated effort.
+
+A case (2) axiom is still held to the full [trust model](#trust-model): a paired
+Rocq+Lean proof of the *same* statement, no extraneous axioms, `audit_proof.py`
+cross-check. The reason for citing it differs (aggregate cost, not SMT
+incapacity); the soundness bar does not.
+
 ## Usage in contracts
 
 ```python
