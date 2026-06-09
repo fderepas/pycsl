@@ -1065,6 +1065,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _process_while(self, node: ast.While) -> Dict[str, Any]:
         return {
             "stmt": "While",
+            # §4.4 statement-level span (refactor.md B4a) — the loop's source line, so
+            # the core can report IR-level loop-invariant errors with the same
+            # "while loop at line N" context Module4 produced. Module6 ignores it.
+            "line": getattr(node, "lineno", 0),
             "test": self._py_expr_to_ir(node.test),
             "invariants": self._csl_list_to_ir(getattr(node, 'csl_invariants', [])),
             "variants": self._csl_list_to_ir(getattr(node, 'csl_variants', [])),
@@ -1075,6 +1079,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         target = node.target.id if isinstance(node.target, ast.Name) else "_for_target"
         return {
             "stmt": "For",
+            "line": getattr(node, "lineno", 0),  # §4.4 statement-level span (refactor.md B4a)
             "target": target,
             "iter": self._py_expr_to_ir(node.iter),
             "invariants": self._csl_list_to_ir(getattr(node, 'csl_invariants', [])),
