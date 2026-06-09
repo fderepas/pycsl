@@ -924,7 +924,7 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         for fv in getattr(node, 'csl_function_variants', []):
             self._validate_contract(fv, self.current_function_name, is_postcondition=False)
 
-        self._validate_no_exception(node)
+        # no_exception checks migrated to core_ir_semantic (refactor.md B2)
         self._validate_acts(node)
         self._validate_checkpoints(node)
 
@@ -984,39 +984,12 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
                         f"`complete`/`disjoint` — possible typo or omission.",
                         stacklevel=2)
 
-    def _validate_no_exception(self, node: ast.FunctionDef) -> None:
-        """Validate `no_exception` directives:
-        - each named exception must be in the Phase 1 known set
-        - no_exception E and `raises { E -> _ }` for the same E is rejected
-        - no_exception \\all and any raises clause is rejected
-        """
-        # Imported lazily so the module dependency surface stays small.
-        from exception_model import KNOWN_EXCEPTIONS
-
-        no_exc = list(getattr(node, 'csl_no_exception', []) or [])
-        no_exc_all = bool(getattr(node, 'csl_no_exception_all', False))
-        raises_list = list(getattr(node, 'csl_raises', []) or [])
-        raised_names = {r.exc_type for r in raises_list}
-
-        for name in no_exc:
-            if name not in KNOWN_EXCEPTIONS:
-                raise PyCSLSemanticError(
-                    f"{self.current_function_name} (line {node.lineno}): "
-                    f"no_exception names unknown exception '{name}'. "
-                    f"Known: {sorted(KNOWN_EXCEPTIONS)}."
-                )
-            if name in raised_names:
-                raise PyCSLSemanticError(
-                    f"{self.current_function_name} (line {node.lineno}): "
-                    f"contradictory annotations — no_exception {name} "
-                    f"and raises {{ {name} -> ... }} cannot both apply."
-                )
-        if no_exc_all and raised_names:
-            raise PyCSLSemanticError(
-                f"{self.current_function_name} (line {node.lineno}): "
-                f"no_exception \\all requires the raises set to be empty; "
-                f"found raises {{ {', '.join(sorted(raised_names))} -> ... }}."
-            )
+    # `_validate_no_exception` MIGRATED to the language-agnostic core
+    # (`core_ir_semantic.run_ir_semantic_checks` → `_check_no_exception`) — the
+    # no_exception well-formedness checks now run on the IR, not the AST
+    # (refactor.md Phase B, brick B2). The IR carries the contract data
+    # (no_exception / no_exception_all / raises[].exc_type) and the §4.4 span, so
+    # the identical errors are reported from the core.
 
     def _validate_assigns_regions(self, node: ast.FunctionDef) -> None:
         """Check that assigns region bases are list-typed parameters."""
