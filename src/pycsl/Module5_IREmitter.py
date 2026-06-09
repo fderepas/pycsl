@@ -1774,6 +1774,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         if self._should_skip_method(node):
             return
         func_ir = self._build_function_ir(node)
+        # §4.4 source span — the IR carries the function's location so the core can
+        # report IR-level (migrated) semantic errors against the original source.
+        # The prerequisite for re-pointing semantic analysis off the AST onto the IR
+        # (refactor.md Phase B). Module6 ignores these metadata keys (emission unchanged).
+        func_ir["line"] = getattr(node, "lineno", 0)
+        func_ir["col"] = getattr(node, "col_offset", 0)
         self._detect_purity(func_ir)
         self._check_memoization_soundness(func_ir)
         self._detect_array_dimensions(func_ir)

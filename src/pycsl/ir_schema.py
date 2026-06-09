@@ -54,6 +54,10 @@ class ContractsIR(TypedDict, total=False):
 
 class FunctionIR(TypedDict, total=False):
     """One entry in program_ir["functions"]."""
+    # §4.4 source span (line/col of the function in the original source) — lets the
+    # core report IR-level semantic errors against the source; see refactor.md Phase B.
+    line: int
+    col: int
     # Required at runtime (validated by validate_ir):
     name: str
     symbol_table: Dict[str, str]
