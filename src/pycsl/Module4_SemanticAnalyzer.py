@@ -859,52 +859,19 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
             self._validate_contract(fv, self.current_function_name, is_postcondition=False)
 
         # no_exception checks migrated to core_ir_semantic (refactor.md B2)
-        self._validate_acts(node)
+        # act/complete/disjoint well-formedness MIGRATED to core_ir_semantic._check_acts —
+        # the pre-desugar acts are plumbed through Module5 as the `acts` IR field
+        # (refactor.md AST-only #3).
         # checkpoint \result-ban MIGRATED to core_ir_semantic._check_checkpoints — it
         # walks the IR body's ProofAssert nodes (already in the IR, no plumbing),
         # refactor.md AST-only #3.
 
-    def _validate_acts(self, node: ast.FunctionDef) -> None:
-        """Validate `act`/`complete`/`disjoint` (run on the pre-desugar nodes
-        stashed by Module3 on `node.csl_acts`). The desugared requires/ensures are
-        already validated by `_validate_function_contracts`; here we check the
-        act-specific well-formedness."""
-        acts = getattr(node, 'csl_acts', []) or []
-        if not acts:
-            return
-        from Module2_Parser import Act, Given, Complete, Disjoint
-        where = self.current_function_name
-        defined: Dict[str, Any] = {}
-        for a in acts:
-            if not isinstance(a, Act):
-                continue
-            if a.name in defined:
-                raise PyCSLSemanticError(f"duplicate act name '{a.name}' in {where}.")
-            defined[a.name] = a
-            for cl in a.clauses:
-                if isinstance(cl, Given) and contains_result(cl.expr):
-                    raise PyCSLSemanticError(
-                        f"act '{a.name}' in {where}: '\\result' is not allowed in a "
-                        f"'given' guard (guards are evaluated in the pre-state).")
-        meta = [a for a in acts if isinstance(a, (Complete, Disjoint))]
-        referenced: Set[str] = set()
-        for m in meta:
-            kind = "complete" if isinstance(m, Complete) else "disjoint"
-            for nm in m.names:
-                referenced.add(nm)
-                if nm not in defined:
-                    raise PyCSLSemanticError(
-                        f"`{kind}` in {where} references undefined act '{nm}'.")
-        # Mistyped-name / omission guard: if the author uses complete/disjoint at
-        # all, an act left out of them is likely a typo — warn (not an error,
-        # since declaring cases without claiming coverage is legitimate).
-        if meta:
-            for nm in defined:
-                if nm not in referenced:
-                    warnings.warn(
-                        f"act '{nm}' in {where} is not referenced by any "
-                        f"`complete`/`disjoint` — possible typo or omission.",
-                        stacklevel=2)
+    # `_validate_acts` (act/complete/disjoint well-formedness) MIGRATED to the
+    # language-agnostic core (`core_ir_semantic._check_acts`) — the pre-desugar acts
+    # are plumbed through Module5 as the `acts` IR field (each Act with its `given`-guard
+    # exprs; Complete/Disjoint with referenced names); the core does the 4 sub-checks
+    # (duplicate name / \result-in-given / undefined-act / unreferenced-act warning),
+    # refactor.md AST-only #3.
 
     # `_validate_no_exception` MIGRATED to the language-agnostic core
     # (`core_ir_semantic.run_ir_semantic_checks` → `_check_no_exception`) — the

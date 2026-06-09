@@ -29,6 +29,7 @@ from Module2_Parser import (
     SetSubsetExpr, SetEqExpr,
     NilExpr, ConsExpr, HdExpr, TlExpr, ListLengthExpr,
     NthExpr, MemExpr, AppendExpr,
+    Act, Given, Complete, Disjoint,  # pre-desugar acts, plumbed for the core's _check_acts
 )
 
 class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVisitor):
@@ -1553,11 +1554,30 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             (isinstance(_d, ast.Call) and isinstance(_d.func, ast.Name)
              and _d.func.id in ("list", "dict", "set"))
             for _d in _all_defaults)
+        # Plumb the PRE-DESUGAR acts (Module3 stashes them on node.csl_acts before
+        # desugaring to requires/ensures) for the core's act-specific validation
+        # (core_ir_semantic._check_acts; refactor.md AST-only #3). Metadata only — the
+        # desugared requires/ensures (consumed by Module6) are unchanged, so emission
+        # is byte-identical. Each Act carries its `given` guard exprs (for the
+        # \result-in-guard check); Complete/Disjoint carry their referenced names.
+        acts_ir = []
+        for _a in getattr(node, "csl_acts", []) or []:
+            if isinstance(_a, Act):
+                acts_ir.append({
+                    "kind": "act", "name": _a.name,
+                    "given_exprs": [self._csl_to_ir(_cl.expr)
+                                    for _cl in _a.clauses if isinstance(_cl, Given)],
+                })
+            elif isinstance(_a, Complete):
+                acts_ir.append({"kind": "complete", "names": list(_a.names)})
+            elif isinstance(_a, Disjoint):
+                acts_ir.append({"kind": "disjoint", "names": list(_a.names)})
         return {
             "name": func_name,
             "symbol_table": symbol_table,
             "param_defaults": param_defaults,
             "has_mutable_default": has_mutable_default,
+            "acts": acts_ir,
             # no-more-int-3 A1: dict var -> WhyML value type ν (string), for
             # string-valued dicts only (captured in Module4); int-valued dicts
             # have no entry and keep the `map int (option int)` path.

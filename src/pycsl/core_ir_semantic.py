@@ -24,6 +24,7 @@ Migrated so far:
 """
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 from errors import PyCSLSemanticError
@@ -46,6 +47,7 @@ def run_ir_semantic_checks(ir: Any, *, stage: str = "ir-semantic") -> None:
         _check_subscript_assignments(func)
         _check_checkpoints(func)
         _check_mutable_defaults(func)
+        _check_acts(func)
 
 
 def _check_span(func: Any, stage: str) -> None:
@@ -354,3 +356,52 @@ def _check_mutable_defaults(func) -> None:
             f"(ownership discipline R2). Use a `None` sentinel and initialise the "
             f"collection in the body."
         )
+
+
+# --- act / complete / disjoint well-formedness (plumbed pre-desugar acts) ----
+
+def _check_acts(func) -> None:
+    """Act-specific well-formedness, migrated from Module 4's ``_validate_acts``. The
+    acts are desugared to requires/ensures in the front-end (Module 3) before the IR
+    is built, so they are *plumbed* through as a separate ``acts`` IR field (each Act
+    carries its `given`-guard exprs; Complete/Disjoint carry referenced names). Checks:
+      1. duplicate act name;
+      2. `\\result` in a `given` guard (guards run in the pre-state);
+      3. a `complete`/`disjoint` referencing an undefined act;
+      4. (warning) an act referenced by no `complete`/`disjoint` — likely a typo.
+    Uniform `function 'F'` context."""
+    acts = func.get("acts") or []
+    if not acts:
+        return
+    where = f"function '{func.get('name', '<anonymous>')}'"
+    defined: dict = {}
+    for a in acts:
+        if a.get("kind") != "act":
+            continue
+        name = a.get("name")
+        if name in defined:
+            raise PyCSLSemanticError(f"duplicate act name '{name}' in {where}.")
+        defined[name] = a
+        for gx in a.get("given_exprs", []):
+            if _contains_result(gx):
+                raise PyCSLSemanticError(
+                    f"act '{name}' in {where}: '\\result' is not allowed in a "
+                    f"'given' guard (guards are evaluated in the pre-state).")
+    referenced: set = set()
+    for a in acts:
+        kind = a.get("kind")
+        if kind in ("complete", "disjoint"):
+            for nm in a.get("names", []):
+                referenced.add(nm)
+                if nm not in defined:
+                    raise PyCSLSemanticError(
+                        f"`{kind}` in {where} references undefined act '{nm}'.")
+    # Mistyped-name / omission guard (warning, not error — declaring cases without
+    # claiming coverage is legitimate), reproducing Module 4 verbatim.
+    if any(a.get("kind") in ("complete", "disjoint") for a in acts):
+        for nm in defined:
+            if nm not in referenced:
+                warnings.warn(
+                    f"act '{nm}' in {where} is not referenced by any "
+                    f"`complete`/`disjoint` — possible typo or omission.",
+                    stacklevel=2)
