@@ -137,6 +137,12 @@ when it "looks right" or "the tests pass." This section distils the judgment acc
 project's feature and refactor campaigns. Read §9 (add a feature) and §10 (refactor) as the
 *mechanics*; this section is the *judgment* behind them.
 
+> **Output-determinism is a property you can break.** Emission must be byte-identical on every run —
+> the byte-diff gate depends on it. The recurring way it breaks: emitted output ordered by Python
+> set/dict-hash iteration or hashed with the built-in `hash()` (both randomized per process via
+> `PYTHONHASHSEED`). When touching any emission path, order by *content* (`sorted()`) and use the
+> deterministic `stable_hash`, never `hash()`. See `references/why3-quirks.md` → "Emission determinism."
+
 ### 8.1 Plan first, in a named repo-root file
 
 - Substantial work starts as a plan in a **named `.md` at the repo root** (e.g. `strings-plan.md`),
