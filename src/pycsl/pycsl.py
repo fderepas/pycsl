@@ -24,6 +24,7 @@ from errors import PyCSLError, PyCSLParseError
 from Module5_IREmitter import Module5_IREmitter
 from Module6_WhyMLTranspiler import Module6_WhyMLTranspiler
 from ir_schema import validate_ir
+from core_ir_semantic import run_ir_semantic_checks
 from ir_inline import apply_inline_globals as _apply_inline_globals
 from ConcurrencyChecker import ConcurrencyChecker
 
@@ -1074,6 +1075,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # Validate IR structure before handing off to Module 6
     ir_data = _json.loads(json_ir)
     validate_ir(ir_data)
+    # Language-agnostic semantic checks on the IR (spec §6.2; refactor.md Phase B).
+    # The migration target for Module4's language-agnostic checks — runs on the IR
+    # alone, no AST reference.
+    run_ir_semantic_checks(ir_data)
 
     # [UB-7.1] Mutation-during-iteration check. Walks function bodies for
     # `for x in C: ...` whose body mutates C (and the loop isn't opted
