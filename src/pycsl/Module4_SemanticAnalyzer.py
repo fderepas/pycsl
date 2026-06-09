@@ -879,21 +879,9 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
 
         # no_exception checks migrated to core_ir_semantic (refactor.md B2)
         self._validate_acts(node)
-        self._validate_checkpoints(node)
-
-    def _validate_checkpoints(self, node: ast.FunctionDef) -> None:
-        """Validate `#@ assert`/`#@ check` checkpoints attached to body statements
-        (Module3's `csl_checkpoints`). They are mid-body proof obligations, so
-        `\\result` (bound only at return) is not allowed; free-variable scope is
-        left to Why3 (mid-body locals aren't in the function-contract scope, so
-        checking here would false-reject)."""
-        where = self.current_function_name
-        for stmt in ast.walk(node):
-            for cp in getattr(stmt, 'csl_checkpoints', []) or []:
-                if contains_result(cp.expr):
-                    raise PyCSLSemanticError(
-                        f"'\\result' is not allowed in a `#@ {cp.kind}` in {where} "
-                        f"(it is bound only at return; use `ensures` for return values).")
+        # checkpoint \result-ban MIGRATED to core_ir_semantic._check_checkpoints — it
+        # walks the IR body's ProofAssert nodes (already in the IR, no plumbing),
+        # refactor.md AST-only #3.
 
     def _validate_acts(self, node: ast.FunctionDef) -> None:
         """Validate `act`/`complete`/`disjoint` (run on the pre-desugar nodes

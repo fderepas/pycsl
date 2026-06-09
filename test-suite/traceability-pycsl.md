@@ -14,6 +14,7 @@ The **Ref** column uses the format `section.subsection.row`.
 | 2.4.1 | Label \| `#@ label <NAME>` \| Statement \| Marks a program point for `\at` references | 0007, 0078, 0079 | PASS |
 | 2.4.2 | Ghost assign \| `#@ ghost <name> = <expr>` \| Statement \| Declare/assign ghost variable | 0207, 0208, 0209 | PASS |
 | 2.4.3 | Ghost augmented assign \| `#@ ghost <name> += <expr>` \| Statement \| Augmented assign ghost variable | 0207, 0208, 0209 | PASS |
+| 2.4.3b | Checkpoint `\result` ban \| `#@ assert`/`#@ check <expr>` \| Statement \| `\result` not allowed mid-body (bound only at return) | 0457 (valid); XFAIL: 0680 (assert), 0681 (check, in loop) | PASS |
 | 3.1.1 | `42`, `-1`, `0` \| `Number` \| Integer literal | 0008, 0080, 0081 | PASS |
 | 3.1.2 | `x`, `n`, `total` \| `Var` \| Variable reference | 0009, 0082, 0083 | PASS |
 | 3.1.3 | `self.field` \| `FieldAccess` \| Class field access | 0010 | UNPROVEN |

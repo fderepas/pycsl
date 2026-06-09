@@ -44,6 +44,7 @@ def run_ir_semantic_checks(ir: Any, *, stage: str = "ir-semantic") -> None:
         _check_assigns_regions(func)
         _check_contract_exprs(func, known_binder_types)
         _check_subscript_assignments(func)
+        _check_checkpoints(func)
 
 
 def _check_span(func: Any, stage: str) -> None:
@@ -299,3 +300,38 @@ def _sa_walk(node, where, symtab) -> None:
     elif isinstance(node, list):
         for x in node:
             _sa_walk(x, where, symtab)
+
+
+# --- checkpoint \result ban (body walk) -------------------------------------
+
+def _check_checkpoints(func) -> None:
+    """A `#@ assert`/`#@ check` checkpoint may not use `\\result` (bound only at return),
+    migrated from Module 4's ``_validate_checkpoints``. Walks the IR body for
+    `ProofAssert` nodes (no plumbing — they are already in the IR) and checks each one's
+    test for a `Result` node. Uniform `function 'F'` context."""
+    where = f"function '{func.get('name', '<anonymous>')}'"
+    _cp_walk(func.get("body", []) or [], where)
+
+
+def _cp_walk(node, where) -> None:
+    if isinstance(node, dict):
+        if node.get("stmt") == "ProofAssert" and _contains_result(node.get("test")):
+            raise PyCSLSemanticError(
+                f"'\\result' is not allowed in a `#@ {node.get('kind')}` in {where} "
+                f"(it is bound only at return; use `ensures` for return values)."
+            )
+        for v in node.values():
+            _cp_walk(v, where)
+    elif isinstance(node, list):
+        for x in node:
+            _cp_walk(x, where)
+
+
+def _contains_result(node) -> bool:
+    if isinstance(node, dict):
+        if node.get("type") == "Result":
+            return True
+        return any(_contains_result(v) for v in node.values())
+    if isinstance(node, list):
+        return any(_contains_result(x) for x in node)
+    return False
