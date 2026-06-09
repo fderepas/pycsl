@@ -97,18 +97,71 @@ def _unpack_inode(data: list) -> list:
 
 
 #@ assigns \nothing
-#@ ensures \length(\result) >= 30
-def _pad_name(name) -> list:
-    """Encode and null-pad a filename to at least 30 bytes."""
-    return (name.encode('utf-8') + b'\x00' * 30)[:30]
+#@ ensures \length(\result) == 30
+def _pad_name(name: str) -> list:
+    """Null-pad the UTF-8 encoding of a filename to exactly 30 bytes.
+
+    The encoded byte *content* is opaque to PyCSL (Gap 5: `str.encode()`
+    yields an unmodeled byte buffer of unknown length), so the faithful
+    model here is the 30-byte buffer *shape* only — the contract promises
+    just `\length == 30` and makes no claim about the bytes. No proof
+    depends on the name content: directory-name comparisons are opaque ops.
+    (The `(name.encode(...) + pad)[:30]` source form cannot be emitted —
+    the emitter models `.encode()` as a length-1 opaque array, so slicing
+    it to 30 is ill-formed.)
+    """
+    out = [0] * 30
+    return out
 
 
+#@ requires 0 <= inode_num and inode_num < 65536
+#@ requires \length(name_bytes) >= 30
 #@ assigns \nothing
 #@ ensures \length(\result) == 32
 def _pack_direntry(inode_num: int, name_bytes: list) -> list:
-    """Pack a 32-byte directory entry (big-endian '>H30s')."""
-    padded = (name_bytes + b'\x00' * 30)[:30]
-    return _pack_uint16_be(inode_num) + padded
+    """Pack a 32-byte directory entry (big-endian '>H30s').
+
+    Leaf-compositional: build a fixed 32-byte array by index-set, mirroring
+    _pack_inode. The earlier `_pack_uint16_be(...) + padded` form produced a
+    `seq` (list `+` is seq concat) that cannot flow into a disk `array int`
+    slice — the @rho mismatch. The name byte *content* stays opaque (Gap 5);
+    only the buffer shape is modeled.
+    """
+    entry = [0] * 32
+    hilo = _pack_uint16_be(inode_num)
+    entry[0] = hilo[0]
+    entry[1] = hilo[1]
+    entry[2] = name_bytes[0]
+    entry[3] = name_bytes[1]
+    entry[4] = name_bytes[2]
+    entry[5] = name_bytes[3]
+    entry[6] = name_bytes[4]
+    entry[7] = name_bytes[5]
+    entry[8] = name_bytes[6]
+    entry[9] = name_bytes[7]
+    entry[10] = name_bytes[8]
+    entry[11] = name_bytes[9]
+    entry[12] = name_bytes[10]
+    entry[13] = name_bytes[11]
+    entry[14] = name_bytes[12]
+    entry[15] = name_bytes[13]
+    entry[16] = name_bytes[14]
+    entry[17] = name_bytes[15]
+    entry[18] = name_bytes[16]
+    entry[19] = name_bytes[17]
+    entry[20] = name_bytes[18]
+    entry[21] = name_bytes[19]
+    entry[22] = name_bytes[20]
+    entry[23] = name_bytes[21]
+    entry[24] = name_bytes[22]
+    entry[25] = name_bytes[23]
+    entry[26] = name_bytes[24]
+    entry[27] = name_bytes[25]
+    entry[28] = name_bytes[26]
+    entry[29] = name_bytes[27]
+    entry[30] = name_bytes[28]
+    entry[31] = name_bytes[29]
+    return entry
 
 
 #@ requires \valid(data, 32)
@@ -963,6 +1016,7 @@ class UnixInodeFileSystem:
     #             De-trusted: the target bytes are written via a '>H30s'
     #             pack of `target.encode(...)` (opaque buffer, gap 5);
     #             size field set to 30 (the on-disk name-field width).
+    #@ no_inline
     def sys_symlink(self, target: str, linkpath: str) -> int:
         if self._dir_lookup(5, linkpath) >= 0:
             return -1

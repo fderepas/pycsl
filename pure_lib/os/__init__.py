@@ -152,7 +152,7 @@ def fstat(fd):
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
-def link(src, dst, *, src_dir_fd=None, dst_dir_fd=None,
+def link(src: str, dst: str, *, src_dir_fd=None, dst_dir_fd=None,
          follow_symlinks=True):
     """Create a hard link."""
     return _filesystem.sys_link(src, dst)
@@ -283,7 +283,7 @@ def write(fd, data: list):
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
-def rename(src, dst, *, src_dir_fd=None, dst_dir_fd=None):
+def rename(src: str, dst: str, *, src_dir_fd=None, dst_dir_fd=None):
     """Rename a file or directory."""
     return _filesystem.sys_rename(src, dst)
 
@@ -297,7 +297,7 @@ def mkdir(filepath: str, mode=0o777, *, dir_fd=None):
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
-def rmdir(filepath, *, dir_fd=None):
+def rmdir(filepath: str, *, dir_fd=None):
     """Remove a directory."""
     return _filesystem.sys_rmdir(filepath)
 
@@ -318,7 +318,7 @@ def lstat(filepath, *, dir_fd=None):
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
-def symlink(src, dst, target_is_directory=False, *, dir_fd=None):
+def symlink(src: str, dst: str, target_is_directory=False, *, dir_fd=None):
     """Create a symbolic link."""
     return _filesystem.sys_symlink(src, dst)
 
