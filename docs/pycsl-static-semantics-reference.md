@@ -1046,6 +1046,29 @@ dispatch *table* is the boundary. Recognising `getattr(self, TABLE[t])` and lowe
 
 ---
 
+### 2.x  Bounded contract expansion (`#@ for`)
+
+A `#@ for <var> in range(<lo>, <hi>):` block is well-formed iff:
+
+1. **Static integer bounds.** `<lo>` and `<hi>` are integer literals (v1; named integer constants are a
+   staged follow-on). A non-constant bound is a hard error — never a silent fallback to `\forall` or to
+   skipping expansion.
+2. **Integer index.** `<var>` is an integer, bound **only** within the block (it does not escape), used
+   only in integer positions; the expanded clause is type-checked normally after substitution, so a
+   misuse surfaces as an ordinary clause error on the ground form.
+3. **Non-empty body**, each line a `requires`/`ensures` clause that **mentions `<var>`** (a body clause
+   independent of `<var>` would yield identical copies — flagged).
+4. **No nesting** (v1): a `#@ for` body may not contain another `#@ for` (the body grammar admits only
+   `requires`/`ensures`).
+
+Because the block desugars to ground clauses that already have a defined meaning, it introduces **no new
+proof obligation kind** — well-formedness of the expansion is inherited from the clauses it produces.
+
+**Cross-reference:** `sugar-for-spec.md`, `annotations.md` §2.9, concrete-syntax §2.1.16, translational
+§T.2.5b; corpus `0666`.
+
+---
+
 ## 3. Expression Well-Formedness
 
 _Corresponds to `annotations.md` §3._

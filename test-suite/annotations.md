@@ -679,6 +679,31 @@ group), `0575` (non-positive occurrence in a `with`-member — rejected group-wi
 (universally-quantified consequence via `#@ lemma` + `induction_pr`), `0582` (reflection: decision
 function + agreement lemma).
 
+### 2.9 Bounded contract expansion (`#@ for`)
+
+A `#@ for <var> in range(<lo>, <hi>):` block opens a 4-space-indented body of `requires`/`ensures`
+clauses and is **bounded macro-expansion**: it desugars (Module3) to the **ground** clauses a human
+would otherwise type, one per index, with `<var>` substituted by an integer literal.
+
+```
+#@ for k in range(0, 4):
+#@     requires 0 <= data[k] and data[k] <= 255
+```
+
+desugars to four ground clauses `requires 0 <= data[0] and data[0] <= 255`, … `data[3]`.
+
+| # | Directive | Syntax | Scope | Semantics |
+|---|---|---|---|---|
+| 1 | For | `#@ for <var> in range(<lo>, <hi>):` then `requires`/`ensures` clauses 4-space-indented under it (one-arg `range(<hi>)` ≡ `range(0, <hi>)`) | Function | Expands to ground clauses: for each integer `m` in the Python range `[lo, hi)` (lower-inclusive, **upper-exclusive**), each body clause with `<var>` replaced by the literal `m`, in iteration-then-body order. **Not** a `\forall` — the output is quantifier-free, so it carries no E-matching cost. **Meaning-preserving**: the generated WhyML is byte-identical to the hand-written clauses (a spelling, not a meaning). |
+
+- **Static bounds (v1).** `<lo>`/`<hi>` must be integer literals; a non-constant bound is a hard,
+  fail-loud error (never a silent fallback to `\forall` or to skipping expansion). Named-constant bounds
+  (`range(0, NUM_BLOCKS)`) are a staged follow-on.
+- **`for` vs `\forall`.** Use `#@ for` for **fixed-size** repetitive clauses (codec bytes, struct
+  fields) — readability with ground-clause cost; use `\forall` for **symbolic/unbounded** properties.
+- **Errors.** Non-constant bound, empty body, and a body clause not mentioning `<var>` are fail-loud.
+- Reference driver: `test-suite/corpus/pycsl-reference/0666.py`.
+
 ---
 
 ## 3. Expression Language

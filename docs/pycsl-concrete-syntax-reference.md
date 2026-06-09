@@ -106,6 +106,7 @@ _Corresponds to `annotations.md` §2.1._
 | 2.1.12| Axiom from proof | `proof_decl ::= "proof" prover_id qualname ;` where `prover_id ::= "rocq" \| "lean"` and `qualname ::= CNAME ("." CNAME)*` |
 | 2.1.13| No-exception | `no_exception_decl ::= "no_exception" ( "\all" \| CNAME ("," CNAME)* ) ;` |
 | 2.1.15| Guarded case | `act_block ::= "act" CNAME ":" act_clause+ ;` with `act_clause ::= given_clause \| precondition \| postcondition \| assigns ;` — surface `#@ act <name>:` + a 4-space-indented body |
+| 2.1.16| Bounded expansion | `for_block ::= "for" CNAME "in" "range" "(" expr ("," expr)? ")" ":" for_clause+ ;` with `for_clause ::= precondition \| postcondition ;` — surface `#@ for <var> in range(<lo>, <hi>):` + a 4-space-indented body. Module1 folds the block; Module3 desugars it to ground clauses (one per index). See `test-suite/annotations.md` §2.9 |
 | 2.1.16| Case guard | `given_clause ::= "given" expr ;` — `#@ given <expr>` (only inside an `act`) |
 | 2.1.17| Complete | `complete_decl ::= "complete" CNAME ("," CNAME)* ;` — `#@ complete <names>` |
 | 2.1.18| Disjoint | `disjoint_decl ::= "disjoint" CNAME ("," CNAME)* ;` — `#@ disjoint <names>` |
@@ -935,6 +936,7 @@ contract ::= precondition
            | preserves_decl
            | ghost_array_set
            | act_block
+           | for_block
            | complete_decl
            | disjoint_decl
            | happy_decl
@@ -962,6 +964,8 @@ check_decl     ::= "check" expr ;                       (* §2.4.8, statement-po
 preserves_decl ::= "\preserves" ;                       (* §2.5.2, HAPPY trust boundary *)
 ghost_array_set ::= "ghost" CNAME "[" expr "]" "=" expr ;   (* §2.4, ghost array element set *)
 act_block      ::= "act" CNAME ":" act_clause+ ;        (* §2.1.15, Module1 folds the block *)
+for_block      ::= "for" CNAME "in" "range" "(" expr ("," expr)? ")" ":" for_clause+ ;  (* §2.1.16, Module1 folds the block; Module3 desugars *)
+for_clause     ::= precondition | postcondition ;
 act_clause     ::= given_clause | precondition | postcondition | assigns ;
 given_clause   ::= "given" expr ;
 complete_decl  ::= "complete" CNAME ( "," CNAME )* ;     (* §2.1.17 *)

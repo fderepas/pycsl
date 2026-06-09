@@ -380,6 +380,21 @@ $$\mathcal{T}\llbracket \texttt{\#@ act b: given A; ensures E} \rrbracket
 $$\mathcal{T}\llbracket \texttt{\#@ act b: given A; requires R} \rrbracket
 = \texttt{requires \{ A -> R \}}$$
 
+### §T.2.5b  Bounded expansion (`#@ for`)
+
+`#@ for <var> in range(lo, hi):` is desugared (Module 3) to ordinary `requires`/`ensures` — there is
+**no** new WhyML construct and **no** new translation rule. For each integer `m` in `[lo, hi)`
+(upper-exclusive) and each body clause `C`, the desugarer emits `C[<var> := m]` with `<var>` replaced by
+the integer literal `m` (matching a source integer literal, so the emitted index is `m`, not `m.0`):
+
+$$\mathcal{T}\llbracket \texttt{\#@ for i in range(0,n): requires P(i)} \rrbracket
+= \texttt{requires \{ P(0) \}} \;\dots\; \texttt{requires \{ P(n-1) \}}$$
+
+The output is **ground** (no quantifier) and **byte-identical** to the corresponding hand-written
+clauses — `#@ for` lowers through the existing requires/ensures translation, contributing nothing of its
+own. (Contrast `\forall`, §T.6/§3.3, which lowers to a real Why3 quantifier.) `lo`/`hi` are
+compile-time integer constants (v1: literals). See `test-suite/annotations.md` §2.9.
+
 `complete`/`disjoint` desugar to **function-entry `#@ assert` checkpoints** (not
 `ensures`): `Module3_Weaver._desugar_acts` collects them into `entry_cps` and attaches
 them to the first body statement, so they are discharged **on all paths** (at entry the

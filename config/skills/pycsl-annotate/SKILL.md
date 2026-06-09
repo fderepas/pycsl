@@ -150,6 +150,18 @@ The field-subscript term `self.field[i]` is usable in any contract (e.g. a hand-
 preservation `ensures`). See `annotations.md` §2.5. Demos: corpus `0459` (proves), `0460`
 (in-region write fails at its site), `0461`/`0462` (trusted boundary with/without `\preserves`).
 
+**Repetitive fixed-size clauses — prefer `#@ for` over `\forall`.** For a fixed, statically-sized run
+of near-identical `requires`/`ensures` (codec bytes, struct fields, a fixed-width buffer), write a
+`#@ for` block instead of copy-pasting or a quantifier:
+```
+#@ for k in range(0, 4):
+#@     requires 0 <= data[k] and data[k] <= 255
+```
+It desugars to the four **ground** clauses (`k` → integer literal) — byte-identical to hand-writing them,
+and crucially **without** the E-matching cost a `\forall k; (0<=k<4) ==> …` would carry. Rule of thumb:
+**fixed and small → `#@ for`; symbolic or unbounded → `\forall`.** Bounds must be integer literals (v1).
+See `annotations.md` §2.9, `sugar-for-spec.md`; demo corpus `0666`.
+
 **Subsystem ownership — `protects`.** For whole-program confinement (no region,
 possibly nested/dotted fields), declare which methods may write which paths:
 
