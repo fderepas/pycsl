@@ -4,7 +4,7 @@ import pure_ast as ast  # PyCSL toolchain parses Python via its own pure-Python
                         # front-end (no stdlib `ast` / CPython `compile`).
 import warnings
 from typing import List, Dict, Any, Tuple
-from dataclasses import dataclass, fields as _dc_fields, is_dataclass as _is_dc
+from dataclasses import dataclass, fields as _dc_fields, is_dataclass as _is_dc, replace as _dc_replace
 
 # Import the AST nodes from Module 2
 from Module2_Parser import (
@@ -16,7 +16,7 @@ from Module2_Parser import (
     BoundedIntDecl, ProofDecl,
     SharedDecl, DatatypeDecl, InductiveDecl, ThreadEntry, Acquires, Releases, CriticalSection,
     MutexInvariant, LockOrder, BinOp, Number,
-    Act, Given, Complete, Disjoint, Old, UnaryOp, CSLBool,
+    Act, ForExpand, Given, Complete, Disjoint, Old, UnaryOp, CSLBool,
     CheckPoint, HappyProperty, Preserves, Footprint, Var, Forall, FieldSubscript,
     MixinDecl, ProvidesDecl, SharedStateDecl, TouchesFieldDecl,
     MethodDependencyDecl, ComposeFromDecl,
@@ -83,6 +83,53 @@ class PyCSLWeaver(ast.NodeVisitor):
         for extra in givens[1:]:
             g = BinOp(g, "and", extra)
         return g
+
+    @staticmethod
+    def _const_int(node: Any, var: str) -> int:
+        """Resolve a `#@ for` range bound to an integer. v1: integer literal only
+        (a `Number` with an integral value). Anything else is a hard, fail-loud
+        error — never a silent fallback (sugar-for-spec.md §5.1)."""
+        if isinstance(node, Number) and float(node.value).is_integer():
+            return int(node.value)
+        raise PyCSLSemanticError(
+            f"`for {var} in range(...)`: range bound must be an integer literal "
+            f"(got {type(node).__name__}); named-constant bounds are not yet supported",
+            stage="Module3")
+
+    @staticmethod
+    def _subst_var(node: Any, var: str, m: int) -> Any:
+        """Deep-copy `node`, replacing every `Var(name=var)` with `Number(m)`.
+        The loop index becomes an integer literal — so the expansion is ground."""
+        if isinstance(node, Var) and node.name == var:
+            return Number(int(m))   # match source integer literals (`number` → Number(int))
+        if _is_dc(node):
+            repl = {f.name: PyCSLWeaver._subst_var(getattr(node, f.name), var, m)
+                    for f in _dc_fields(node)}
+            return _dc_replace(node, **repl)
+        if isinstance(node, list):
+            return [PyCSLWeaver._subst_var(x, var, m) for x in node]
+        return node
+
+    @staticmethod
+    def _desugar_for(contracts: List[Any]) -> List[Any]:
+        """Expand each `ForExpand` (`#@ for VAR in range(lo,hi):`) into ground
+        requires/ensures: for each m in [lo, hi) (upper-exclusive), each body
+        clause with VAR substituted by the literal m. Meaning-preserving — the
+        output is exactly the hand-written clause sequence (sugar-for-spec.md §4)."""
+        out: List[Any] = []
+        for c in contracts:
+            if not isinstance(c, ForExpand):
+                out.append(c)
+                continue
+            lo = PyCSLWeaver._const_int(c.lo, c.var)
+            hi = PyCSLWeaver._const_int(c.hi, c.var)
+            if not c.clauses:
+                raise PyCSLSemanticError(
+                    f"`for {c.var} in range(...)`: empty body", stage="Module3")
+            for m in range(lo, hi):
+                for clause in c.clauses:
+                    out.append(PyCSLWeaver._subst_var(clause, c.var, m))
+        return out
 
     @staticmethod
     def _desugar_acts(contracts: List[Any]) -> Tuple[List[Any], List[Any]]:
@@ -185,7 +232,9 @@ class PyCSLWeaver(ast.NodeVisitor):
     @staticmethod
     def _dispatch_function_contracts(node: ast.FunctionDef, contracts: List[Any]) -> None:
         """Attach each parsed contract node to the matching `csl_*` field
-        on the function-def AST node. Acts are desugared to requires/ensures first."""
+        on the function-def AST node. `#@ for` blocks expand to ground
+        requires/ensures, then Acts are desugared to requires/ensures."""
+        contracts = PyCSLWeaver._desugar_for(contracts)
         contracts, node.csl_acts, entry_cps = PyCSLWeaver._desugar_acts(contracts)
         # complete/disjoint become function-entry `#@ assert` checkpoints on the
         # first body statement (discharged under the preconditions, on all paths).

@@ -43,6 +43,17 @@ class Act(CSLNode):
     clauses: List[CSLNode]
 
 @dataclass
+class ForExpand(CSLNode):
+    """`#@ for VAR in range(lo, hi):` (sugar-for-spec.md) — bounded macro-expansion.
+    Desugared in Module3 to ground requires/ensures: for each integer m in
+    [lo, hi), each body clause with VAR substituted by the literal m. lo/hi are
+    bound exprs (Number for v1); clauses are Requires/Ensures."""
+    var: str
+    lo: CSLNode
+    hi: CSLNode
+    clauses: List[CSLNode]
+
+@dataclass
 class Complete(CSLNode):
     """`complete b1, b2, …` — the acts' guards cover every input."""
     names: List[str]
@@ -885,6 +896,7 @@ PYCSL_GRAMMAR = r"""
              | mutex_invariant_decl
              | lock_order_decl
              | act_block
+             | for_block
              | complete_decl
              | disjoint_decl
              | happy_decl
@@ -898,6 +910,12 @@ PYCSL_GRAMMAR = r"""
     // contract string; clauses are keyword-delimited so no indentation here).
     act_block: "act" CNAME ":" act_clause+
     ?act_clause: given_clause | precondition | postcondition | assigns
+
+    // `#@ for VAR in range(lo, hi):` bounded macro-expansion (sugar-for-spec.md).
+    // Module1 folds the 4-space body into one string; clauses are keyword-
+    // delimited here. Desugars to ground requires/ensures in Module3.
+    for_block: "for" CNAME "in" "range" "(" expr ("," expr)? ")" ":" for_clause+
+    ?for_clause: precondition | postcondition
     given_clause: "given" expr
     complete_decl: "complete" act_names
     disjoint_decl: "disjoint" act_names
@@ -1228,6 +1246,21 @@ class PyCSLTransformer(Transformer):
 
     def given_clause(self, expr) -> Given: return Given(expr)
     def act_block(self, name, *clauses) -> Act: return Act(str(name), list(clauses))
+
+    def for_block(self, var, *rest) -> ForExpand:
+        # rest = the bound exprs (1 or 2) followed by the body clauses
+        # (Requires/Ensures, which are ContractWrapper). Separate by type.
+        clauses = [x for x in rest if isinstance(x, ContractWrapper)]
+        bounds = [x for x in rest if not isinstance(x, ContractWrapper)]
+        if len(bounds) == 1:
+            lo, hi = Number(0), bounds[0]        # range(hi) ≡ range(0, hi); int literal
+        elif len(bounds) == 2:
+            lo, hi = bounds[0], bounds[1]
+        else:
+            raise PyCSLParseError(
+                f"`for {var} in range(...)`: range takes 1 or 2 arguments, got {len(bounds)}",
+                stage="Module2")
+        return ForExpand(str(var), lo, hi, clauses)
     def act_names(self, *names) -> list: return [str(n) for n in names]
     def complete_decl(self, names) -> Complete: return Complete(names)
     def disjoint_decl(self, names) -> Disjoint: return Disjoint(names)

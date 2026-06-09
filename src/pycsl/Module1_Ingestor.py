@@ -75,7 +75,12 @@ _INDUCTIVE_HDR = re.compile(r"^\s*inductive\s+(\w+\s*\([^)]*\))\s*:\s*$")
 # by the preceding `#@ inductive`. Handled as a continuation inside the inductive fold
 # (NOT a standalone block header), so a stray `with` with no inductive is a parse error.
 _WITH_HDR = re.compile(r"^\s*with\s+(\w+\s*\([^)]*\))\s*:\s*$")
-_BLOCK_HDRS = (("act", _ACT_HDR), ("happy", _HAPPY_HDR), ("inductive", _INDUCTIVE_HDR))
+# sugar-for-spec.md — `#@ for VAR in range(lo, hi):` opens a 4-space body of
+# requires/ensures clauses that desugar (Module3) to ground clauses, one per
+# index. The captured group is the whole `VAR in range(...)` so the folded
+# header round-trips to the grammar as `for VAR in range(...): <clauses>`.
+_FOR_HDR = re.compile(r"^\s*for\s+(\w+\s+in\s+range\s*\([^)]*\))\s*:\s*$")
+_BLOCK_HDRS = (("act", _ACT_HDR), ("happy", _HAPPY_HDR), ("inductive", _INDUCTIVE_HDR), ("for", _FOR_HDR))
 
 
 def _match_block_hdr(line: str):
