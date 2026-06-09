@@ -618,6 +618,11 @@ class UnixInodeFileSystem:
     #@ requires 0 <= inode[17] and inode[17] <= 4294967295
     #@ assigns self.disk
     #@ ensures \length(self.disk) >= 131072
+    # read-after-write: the persisted inode region decodes back to the
+    # written size (field 0) and first data block (field 8) — the inode
+    # round-trip made usable across calls (recovers a file's block on reopen).
+    #@ ensures self.disk[512 + inode_num*64 + 0]*16777216 + self.disk[512 + inode_num*64 + 1]*65536 + self.disk[512 + inode_num*64 + 2]*256 + self.disk[512 + inode_num*64 + 3] == inode[0]
+    #@ ensures self.disk[512 + inode_num*64 + 22]*16777216 + self.disk[512 + inode_num*64 + 23]*65536 + self.disk[512 + inode_num*64 + 24]*256 + self.disk[512 + inode_num*64 + 25] == inode[8]
     # cite:_note: De-trusted by the data-model rewrite. Pairs with
     #             _read_inode under the i18 round-trip axiom. The inode
     #             array is packed with 18 explicit positional args (no
