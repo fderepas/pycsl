@@ -1069,6 +1069,30 @@ proof obligation kind** — well-formedness of the expansion is inherited from t
 
 ---
 
+### 2.y  Contract opacity (`#@ interface` / `#@ reveal`)
+
+A function may carry a narrow **interface** contract alongside its rich **definition** contract
+(`b-spec.md`, Track B). Well-formedness:
+
+1. **Interface clause kind.** `#@ interface` must be followed by `ensures`, `requires`, or `assigns` —
+   the same clause kinds as a definition contract; the payload is checked exactly like its definition
+   counterpart (same expression well-formedness, §3).
+2. **Soundness — the interface is a weakening of the definition.** The interface may not claim more than
+   the definition proves. This is discharged, not assumed: the **narrowing VC** (translational §T.2.5c)
+   emits Why3 goals `definition ⟹ interface` (for `ensures`) and `interface ⟹ definition` (for
+   `requires`) in the owning unit; an over-claiming interface yields an unprovable goal and is rejected.
+   So a caller relying on the interface relies only on a fact the definition established — opacity adds
+   nothing to the trusted base.
+3. **`#@ reveal <fn>`** names a function in scope; it opts the enclosing call site into `<fn>`'s
+   definition contract. Within `<fn>`'s owning unit it is a no-op (the definition is the visible `let`).
+4. **Absence is transparent.** With no `#@ interface`, the interface *is* the definition — existing code
+   is unaffected.
+
+**Cross-reference:** `b-spec.md`, `annotations.md` §2.10, concrete-syntax §2.1.17–§2.1.18, translational
+§T.2.5c.
+
+---
+
 ## 3. Expression Well-Formedness
 
 _Corresponds to `annotations.md` §3._

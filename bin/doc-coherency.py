@@ -51,6 +51,11 @@ ANNOTATIONS_MD  = REPO_ROOT / "test-suite" / "annotations.md"
 CONCRETE_REF    = REPO_ROOT / "docs" / "pycsl-concrete-syntax-reference.md"
 STATIC_SEM_REF  = REPO_ROOT / "docs" / "pycsl-static-semantics-reference.md"
 TRANSLATIONAL_REF = REPO_ROOT / "docs" / "pycsl-translational-reference.md"
+# Grammar↔annotations cross-check: every `<x>_decl` directive keyword in the Lark
+# grammar must be documented. Closes the blind spot where the annotations.md-derived
+# directive check cannot see a directive wired through the grammar but never added to
+# annotations.md (e.g. Track B `#@ interface`/`#@ reveal`).
+MODULE2_PARSER  = REPO_ROOT / "src" / "pycsl" / "Module2_Parser.py"
 
 # Extreme Rigor acceptance-syntax coherency (gap 10): the user-facing
 # reference doc must stay in sync with what the supervisor actually
@@ -239,6 +244,43 @@ def check(directives: Optional[List[str]] = None) -> int:
 
 
 # ----------------------------------------------------------------------
+# Grammar ↔ annotations cross-check (the reverse direction)
+# ----------------------------------------------------------------------
+# `check()` above is one-directional: annotations.md → the other surfaces.
+# It is blind to a directive wired through the grammar but never added to
+# annotations.md (Track B `#@ interface`/`#@ reveal` lurked this way). This
+# check closes that gap: every `<x>_decl: "<kw>"` production in the Lark
+# grammar must have `<kw>` documented in annotations.md.
+
+_GRAMMAR_DECL_PAT = re.compile(r'[a-z_]+_decl\s*:\s*"(\\?[a-z_]+)"')
+
+
+def check_grammar_directives() -> int:
+    """Every directive keyword opening a `<x>_decl` grammar production must be a
+    documented directive (present in annotations.md). Fail-loud on any gap so an
+    implemented-but-undocumented directive breaks CI instead of lurking."""
+    if not MODULE2_PARSER.exists():
+        print(f"[!] Grammar source missing: {MODULE2_PARSER.relative_to(REPO_ROOT)}",
+              file=sys.stderr)
+        return 2
+    text = MODULE2_PARSER.read_text()
+    grammar_kw = {m.group(1) for m in _GRAMMAR_DECL_PAT.finditer(text)}
+    documented = set(extract_directives_from_annotations())
+    undocumented = sorted(grammar_kw - documented)
+    print("=== Grammar↔annotations cross-check ===")
+    print(f"{len(grammar_kw)} grammar `*_decl` directive keyword(s); "
+          f"{len(documented)} documented directive(s)")
+    if undocumented:
+        print(f"[!] Grammar directives NOT documented in annotations.md: {undocumented}")
+        print("    Each is wired through the grammar but absent from the canonical")
+        print("    source. Document it across the normative surfaces (annotations.md +")
+        print("    README + the 3 reference docs + a skill), or remove the production.")
+        return 1
+    print("[+] Every grammar `*_decl` directive keyword is documented in annotations.md.")
+    return 0
+
+
+# ----------------------------------------------------------------------
 # Acceptance-syntax coherency (Extreme Rigor — gap 10)
 # ----------------------------------------------------------------------
 # `acceptance-syntax.md` is the user-facing reference for ER plan
@@ -374,6 +416,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         # A full `--check` run also gates the ER acceptance-syntax doc.
         # A single-directive query stays narrowly scoped.
         if not args.directive:
+            print("")
+            rc = check_grammar_directives() or rc
             print("")
             rc = check_acceptance_syntax() or rc
         return rc

@@ -810,6 +810,8 @@ and asserted on exit.
 | `#@ datatype D = A \| B(int) \| …` | Module | Declares a sum type as a real Why3 algebraic type; constructed with `B(7)`, consumed by `match`/`case` with solver-checked exhaustiveness. See `test-suite/annotations.md` §2.6 |
 | `#@ inductive <p>(<params>):` + `#@ rule <name>: <clause>` | Module | Declares a least-fixpoint relation (logic-only) by Horn-clause rules; lowers to a Why3 `inductive p … = \| Rule : clause …`. Why3 enforces strict positivity. See `test-suite/annotations.md` §2.8 |
 | `#@ for <var> in range(<lo>, <hi>):` + 4-space-indented `requires`/`ensures` | Function | Bounded macro-expansion: desugars to ground clauses, one per index (`<var>` → integer literal), over the upper-exclusive range. Not a `\forall` (no E-matching cost); meaning-preserving. Static integer bounds. See `test-suite/annotations.md` §2.9 |
+| `#@ interface ensures/requires/assigns <…>` | Function/method | Contract opacity (Track B): the narrow contract callers see, distinct from the rich *definition* (plain `requires`/`ensures`/`assigns`). The narrowing VC proves `definition ⟹ interface`, so opacity adds no trust; an over-claiming interface is rejected. Absent ⇒ transparent. See `test-suite/annotations.md` §2.10 |
+| `#@ reveal <fn>` | Statement (call site) | Opts this caller into `<fn>`'s rich definition contract (otherwise hidden behind its interface). Pairs with `#@ interface`. See `test-suite/annotations.md` §2.10 |
 | `#@ thread_entry` | Function / method | Marks the function as a thread entry point |
 | `#@ critical name` | `with` statement | Critical section (concurrent model) — havoc + assume/assert in WhyML |
 | `#@ acquires name` | `with` statement | Alias for `#@ critical` — name the acquire point explicitly |

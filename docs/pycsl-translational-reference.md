@@ -412,6 +412,25 @@ boolean iff `e` is). Because the `complete`/`disjoint` obligations are entry ass
 they hold on **every** path (not just normal return) — this is the Phase-2 migration that
 removed `act`'s earlier normal-return-only caveat.
 
+### §T.2.5c  Contract opacity — the narrowing VC (`#@ interface` / `#@ reveal`)
+
+A function with a `#@ interface` contract emits, **in its owning unit**, a *narrowing VC* proving the
+interface is a sound weakening of the definition (`b-spec.md`, Track B). Module 6 emits Why3 `goal`s:
+
+$$\texttt{goal narrows\_ens} : \forall \text{params}, result.\; \mathit{def\_requires} \rightarrow
+\mathit{def\_ensures} \rightarrow \mathit{iface\_ensures} \quad(\text{the definition's ensures implies the interface's})$$
+
+$$\texttt{goal narrows\_req} : \forall \text{params}.\; \mathit{iface\_requires} \rightarrow
+\mathit{def\_requires} \quad(\text{the interface precondition implies the definition's})$$
+
+An interface that claims **more** than the definition proves makes a goal unprovable → the function is
+rejected. Lowering of the contracts themselves is unchanged: the **definition** lowers to the function's
+verified `let` (as today); the **interface** is what an importer's `val` stub exports, so callers see the
+narrow contract by default. `#@ reveal <fn>` opts a call site into `<fn>`'s definition facts (within the
+owning unit a no-op — the definition is already the visible `let`; across modules it cites the exported
+definition-fact). With no `#@ interface`, no narrowing VC is emitted and interface = definition
+(transparent — existing emission byte-identical). See `annotations.md` §2.10, static-semantics §2.y.
+
 ### §T.2.5b  Statement checkpoints (`#@ assert` / `#@ check`)
 
 A statement-position checkpoint emits a real WhyML obligation before the statement

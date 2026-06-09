@@ -704,6 +704,34 @@ desugars to four ground clauses `requires 0 <= data[0] and data[0] <= 255`, … 
 - **Errors.** Non-constant bound, empty body, and a body clause not mentioning `<var>` are fail-loud.
 - Reference driver: `test-suite/corpus/pycsl-reference/0666.py`.
 
+### 2.10 Contract opacity (`#@ interface` / `#@ reveal`)
+
+Track B (`b-spec.md`): a function may carry **two** contracts — a rich **definition** contract (the
+plain `#@ requires`/`ensures`/`assigns`, verified against the body) and a narrow **interface** contract
+(what callers/importers see by default). `#@ interface` declares the latter; `#@ reveal` lets a specific
+caller opt back into the definition. This is opacity as a feature (the Dafny `{:opaque}`/`reveal`
+analogue): the definition's extra facts are hidden behind the interface, so a heavy function (e.g. the
+codec's 18 per-field `ensures`) is verified once but only burdens the call sites that reveal it — not
+every importer.
+
+```
+#@ ensures \result[0]*256 + \result[1] == v   # the rich DEFINITION (verified against the body)
+#@ interface ensures \length(\result) == 2     # the narrow INTERFACE callers see by default
+def _pack_uint16_be(v: int) -> list: ...
+
+#@ reveal _pack_uint16_be                       # THIS caller opts into the definition's facts
+```
+
+| # | Directive | Syntax | Scope | Semantics |
+|---|---|---|---|---|
+| 1 | Interface | `#@ interface ensures <expr>` / `#@ interface requires <expr>` / `#@ interface assigns <target>` | Function/method | The narrow contract callers/importers see; the rich `#@ requires`/`ensures`/`assigns` is the *definition*. The interface must be a sound **weakening** of the definition — the **narrowing VC** (Module 6, owning unit) emits Why3 goals proving `definition ⟹ interface` for `ensures` and `interface ⟹ definition` for `requires`; an interface claiming *more* than the definition proves is **rejected** (unprovable goal). Absent ⇒ interface = definition (fully transparent; existing code byte-identical). |
+| 2 | Reveal | `#@ reveal <fn>` | Statement (at a call site) | This caller opts into `<fn>`'s rich definition contract at this site (its facts are otherwise hidden behind the interface). Within the owning unit it is a no-op (the definition is the visible `let`); across modules it cites the exported definition-fact. |
+
+- **Soundness.** Opacity adds no trust: the narrowing VC proves the exported interface is implied by the
+  verified definition, so a caller relying on the interface relies on a fact the definition established.
+- **Why it exists.** It dissolves import-stub bloat — the rich contract proves where it is visible, the
+  light interface keeps importers cheap, and `#@ reveal` pays the rich cost only where needed.
+
 ---
 
 ## 3. Expression Language

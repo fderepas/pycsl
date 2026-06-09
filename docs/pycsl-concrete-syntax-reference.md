@@ -107,6 +107,8 @@ _Corresponds to `annotations.md` §2.1._
 | 2.1.13| No-exception | `no_exception_decl ::= "no_exception" ( "\all" \| CNAME ("," CNAME)* ) ;` |
 | 2.1.15| Guarded case | `act_block ::= "act" CNAME ":" act_clause+ ;` with `act_clause ::= given_clause \| precondition \| postcondition \| assigns ;` — surface `#@ act <name>:` + a 4-space-indented body |
 | 2.1.16| Bounded expansion | `for_block ::= "for" CNAME "in" "range" "(" expr ("," expr)? ")" ":" for_clause+ ;` with `for_clause ::= precondition \| postcondition ;` — surface `#@ for <var> in range(<lo>, <hi>):` + a 4-space-indented body. Module1 folds the block; Module3 desugars it to ground clauses (one per index). See `test-suite/annotations.md` §2.9 |
+| 2.1.17| Opacity (interface) | `interface_decl ::= "interface" ("ensures" expr \| "requires" expr \| "assigns" assigns_target) ;` — surface `#@ interface …`: the narrow contract callers see (the rich `#@ requires`/`ensures`/`assigns` is the *definition*). See `test-suite/annotations.md` §2.10; narrowing VC in translational §T.2.5c |
+| 2.1.18| Opacity (reveal) | `reveal_decl ::= "reveal" CNAME ;` — surface `#@ reveal <fn>`: opt this call site into `<fn>`'s definition contract. See `test-suite/annotations.md` §2.10 |
 | 2.1.16| Case guard | `given_clause ::= "given" expr ;` — `#@ given <expr>` (only inside an `act`) |
 | 2.1.17| Complete | `complete_decl ::= "complete" CNAME ("," CNAME)* ;` — `#@ complete <names>` |
 | 2.1.18| Disjoint | `disjoint_decl ::= "disjoint" CNAME ("," CNAME)* ;` — `#@ disjoint <names>` |
@@ -937,6 +939,8 @@ contract ::= precondition
            | ghost_array_set
            | act_block
            | for_block
+           | interface_decl
+           | reveal_decl
            | complete_decl
            | disjoint_decl
            | happy_decl
@@ -965,6 +969,8 @@ preserves_decl ::= "\preserves" ;                       (* §2.5.2, HAPPY trust 
 ghost_array_set ::= "ghost" CNAME "[" expr "]" "=" expr ;   (* §2.4, ghost array element set *)
 act_block      ::= "act" CNAME ":" act_clause+ ;        (* §2.1.15, Module1 folds the block *)
 for_block      ::= "for" CNAME "in" "range" "(" expr ("," expr)? ")" ":" for_clause+ ;  (* §2.1.16, Module1 folds the block; Module3 desugars *)
+interface_decl ::= "interface" "ensures" expr | "interface" "requires" expr | "interface" "assigns" assigns_target ;  (* §2.1.17, Track B opacity — the narrow contract; narrowing VC in translational *)
+reveal_decl    ::= "reveal" CNAME ;                            (* §2.1.17, opt this call site into <fn>'s definition contract *)
 for_clause     ::= precondition | postcondition ;
 act_clause     ::= given_clause | precondition | postcondition | assigns ;
 given_clause   ::= "given" expr ;
