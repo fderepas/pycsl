@@ -247,14 +247,14 @@ def scandir(filepath='.') -> list:
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
-def remove(filepath):
+def remove(filepath: str):
     """Remove a file."""
     return _filesystem.sys_unlink(filepath)
 
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
-def unlink(filepath, *, dir_fd=None):
+def unlink(filepath: str, *, dir_fd=None):
     """Remove a file (same as remove)."""
     return _filesystem.sys_unlink(filepath)
 

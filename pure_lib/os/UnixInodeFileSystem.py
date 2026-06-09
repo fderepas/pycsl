@@ -214,7 +214,7 @@ class UnixInodeFileSystem:
     #@ requires byte_offset + bit_index // 8 < 131072
     #@ requires value == 0 or value == 1
     #@ assigns self.disk
-    #@ ensures True
+    #@ ensures \length(self.disk) >= 131072
     def _set_bitmap(self, byte_offset: int, bit_index: int, value: int) -> None:
         byte_pos = byte_offset + (bit_index // 8)
         bit_pos = bit_index % 8
@@ -294,7 +294,7 @@ class UnixInodeFileSystem:
     #@ requires inode_num < 32
     #@ requires \length(inode) == 18
     #@ assigns self.disk
-    #@ ensures True
+    #@ ensures \length(self.disk) >= 131072
     #@ proof rocq UnixFs.Struct.i18.round_trip
     #@ proof lean UnixFs.Struct.i18.round_trip
     # cite:_note: De-trusted by the data-model rewrite. Pairs with
@@ -717,6 +717,7 @@ class UnixInodeFileSystem:
     #             the 10 direct blocks (indices 8..17) + the inode bitmap
     #             when it reaches 0. -1 on ENOENT. De-trusted: lookup →
     #             zero the entry slot → decrement → free.
+    #@ no_inline
     def sys_unlink(self, pathname: str) -> int:
         inode_num = self._dir_lookup(5, pathname)
         if inode_num < 0 or inode_num >= 32:
@@ -732,6 +733,7 @@ class UnixInodeFileSystem:
         inode[1] = inode[1] - 1
         if inode[1] == 0:
             #@ loop invariant 8 <= k and k <= 18
+            #@ loop invariant \length(self.disk) >= 131072
             #@ loop variant 18 - k
             for k in range(8, 18):
                 block = inode[k]
