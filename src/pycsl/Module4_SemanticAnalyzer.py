@@ -732,7 +732,7 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         self._validate_no_mutable_defaults(node)
         self._validate_lemma(node)
         self._validate_function_contracts(node)
-        self._validate_assigns_regions(node)
+        # assigns-region base typing migrated to core_ir_semantic (refactor.md B3)
         self._validate_subscript_assignments(node)
 
         node.csl_symbol_table = self.current_scope.copy()
@@ -991,22 +991,9 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
     # (no_exception / no_exception_all / raises[].exc_type) and the §4.4 span, so
     # the identical errors are reported from the core.
 
-    def _validate_assigns_regions(self, node: ast.FunctionDef) -> None:
-        """Check that assigns region bases are list-typed parameters."""
-        for ass in getattr(node, 'csl_assigns', []):
-            for target in ass.targets:
-                if isinstance(target, AssignsRegion):
-                    arr_type = self.current_scope.get(target.base)
-                    if arr_type is None:
-                        raise PyCSLSemanticError(
-                            f"Assigns region references undefined variable '{target.base}' "
-                            f"in {self.current_function_name}."
-                        )
-                    if arr_type not in ("list", "List", "Any"):
-                        raise PyCSLSemanticError(
-                            f"Assigns region on non-list variable '{target.base}' "
-                            f"(type '{arr_type}') in {self.current_function_name}."
-                        )
+    # `_validate_assigns_regions` MIGRATED to the language-agnostic core
+    # (`core_ir_semantic._check_assigns_regions`) — assigns-region base typing now
+    # runs on the IR (assigns targets + symbol_table), not the AST (refactor.md B3).
 
     def _validate_subscript_assignments(self, node: ast.FunctionDef) -> None:
         """Check that arr[i] = v targets are list-typed variables (annotated functions only)."""

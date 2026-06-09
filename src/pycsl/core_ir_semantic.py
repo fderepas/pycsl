@@ -15,6 +15,7 @@ front-end's language, exactly as an AST-based Module 4 check did.
 Migrated so far:
   - B1: the §4.4 front-end span contract (every function carries a span).
   - B2: ``no_exception`` well-formedness (was Module 4 ``_validate_no_exception``).
+  - B3: ``assigns``-region base typing (was Module 4 ``_validate_assigns_regions``).
 """
 from __future__ import annotations
 
@@ -28,6 +29,7 @@ def run_ir_semantic_checks(ir: Any, *, stage: str = "ir-semantic") -> None:
     for func in ir.get("functions", []):
         _check_span(func, stage)
         _check_no_exception(func)
+        _check_assigns_regions(func)
 
 
 def _check_span(func: Any, stage: str) -> None:
@@ -80,3 +82,30 @@ def _check_no_exception(func: Any) -> None:
             f"{where}: no_exception \\all requires the raises set to be empty; "
             f"found raises {{ {', '.join(sorted(raised_names))} -> ... }}."
         )
+
+
+def _check_assigns_regions(func: Any) -> None:
+    """B3 — `assigns`-region bases must be list-typed variables in scope, migrated
+    verbatim from Module 4's ``_validate_assigns_regions`` (which ran on the AST).
+    The IR carries the assigns targets (each an ``{"type": "AssignsRegion",
+    "base": ...}`` node) and the ``symbol_table`` (var → type), so the check runs
+    on the IR alone and reports with the IR function name.
+
+    (The undefined-base path is in practice shadowed by the general contract-scope
+    check that still runs in Module 4 — kept here for fidelity to the original.)
+    """
+    where = f"function '{func.get('name', '<anonymous>')}'"
+    symtab = func.get("symbol_table") or {}
+    for target in func.get("contracts", {}).get("assigns", []) or []:
+        if isinstance(target, dict) and target.get("type") == "AssignsRegion":
+            base = target.get("base")
+            arr_type = symtab.get(base)
+            if arr_type is None:
+                raise PyCSLSemanticError(
+                    f"Assigns region references undefined variable '{base}' in {where}."
+                )
+            if arr_type not in ("list", "List", "Any"):
+                raise PyCSLSemanticError(
+                    f"Assigns region on non-list variable '{base}' "
+                    f"(type '{arr_type}') in {where}."
+                )
