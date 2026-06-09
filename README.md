@@ -1,8 +1,8 @@
 # PyCSL 
 
-PyCSL is an annotation language for Python. It makes it possible to formally verify Python code using Hoare Logic and theorem provers. An associated tool, `pycsl`, verifies the PyCSL annotations using [Why3](https://why3.lri.fr/). Why3 is a front end to SMT solvers such as Alt-Ergo and Z3. When those SMT solvers fail, Rocq can be used as the interactive theorem prover. The project is under [CMMI](docs/cmmi-for-humans.md).
+PyCSL is an annotation language for Python. It makes it possible to formally verify Python code by deductive verification. An associated tool, `pycsl`, transpiles the annotated Python to **WhyML**, the input language of the [Why3](https://why3.lri.fr/) platform; Why3 then generates **verification conditions (VCs)** by a **weakest-precondition calculus** and dispatches them to **SMT solvers** (Alt-Ergo 2.6.2, Z3 4.13.3) under a per-goal time limit. A VC is discharged when a solver reports it **Valid** (equivalently, shows its negation unsatisfiable); a VC no solver closes within its budget comes back **Unknown** or **Timeout**. When SMT leaves a VC open, `pycsl --rocq` exports that goal to Rocq so it can be proved manually, offline, as an interactive [proof companion](docs/glossary/proof-companion.md). The project is under [CMMI](docs/cmmi-for-humans.md).
 
-Documents define PyCSL [syntax](docs/pycsl-concrete-syntax-reference.md), [semantics](docs/pycsl-static-semantics-reference.md) and [translation to Why3](docs/pycsl-translational-reference.md). The semantics of PyCSL has been formally defined twice: once using [Rocq](src/formal-semantics/rocq), once using [LEAN](src/formal-semantics/lean). A [detailed status](docs/self-annotation-status.md) is available.
+Documents define PyCSL [syntax](docs/pycsl-concrete-syntax-reference.md), [semantics](docs/pycsl-static-semantics-reference.md) and [translation to Why3](docs/pycsl-translational-reference.md). The semantics of PyCSL has been formally defined twice: once using [Rocq](src/formal-semantics/rocq), once using [LEAN](src/formal-semantics/lean). This dual formal semantics is a separate, **offline** soundness argument about the transpilation itself — it is not part of each program's proof; no Rocq or Lean kernel runs during a normal `pycsl` verification. A [detailed status](docs/self-annotation-status.md) is available.
 
 PyCSL is being prepared for self-annotation: standard-library coverage is tracked in [`calls-english.md`](calls-english.md), [`calls-pycsl.md`](calls-pycsl.md), and [`src/pycsl_lib/`](src/pycsl_lib/). The discipline is governed by [`pycsl-stdlib-coverage`](config/skills/pycsl-stdlib-coverage/SKILL.md) and enforced by [`bin/stdlib-coverage.py`](bin/stdlib-coverage.py).
 
@@ -18,9 +18,9 @@ Annotations in [`0542.py`](test-suite/corpus/pycsl-reference/0542.py) show an in
 
 This walk-through introduces every concept that drives PyCSL by
 incrementally annotating a single function. The finished file is shipped
-as `test-suite/corpus/pycsl-reference/0342.py` and verifies end-to-end
-under Why3 + Alt-Ergo with no `--no-proof`, no `\trusted`, and no human
-proof scripting.
+as `test-suite/corpus/pycsl-reference/0342.py`; Why3 generates its VCs by
+weakest precondition and Alt-Ergo reports every one **Valid**, with no
+`--no-proof`, no `\trusted`, and no human proof scripting.
 
 ### Step 1 — The unannotated Python
 
@@ -87,7 +87,7 @@ Reading the tokens:
 | `assert` / `check` | `#@ assert P` proves `P` at that statement and assumes it downstream; `#@ check P` proves without assuming. A real obligation — unlike the Python `assert`, which the prover ignores. |
 | `happy <name>:` | A module-level HAPPY region-integrity property: `#@ happy <name>:` with a 4-space-indented body `region LO .. HI` / `writes self.<field> outside region` / optional `except m1, m2`. Expands to a per-site `#@ check` at every write of `self.<field>` in every non-exempt method. |
 | `\preserves` | `#@ \preserves` opts a `\trusted`/`\abstract` method into a HAPPY trust boundary (synthesizes the assumed region-preservation `ensures`); required on any non-exempt bodyless mutator. |
-| `footprint` | `#@ footprint <name>(<arg>)` binds the parameter of a parametric HAPPY (`#@ happy <name>(p): protects <path>[LO:HI]`, 07-1143 R3) to this method's argument, so each write of the path gets a per-object containment `#@ check`. (The HAPPY `protects <paths> [except …]` subsystem-ownership form, 07-1143 R1/R2, expands to a per-site `#@ check False` at non-exempt direct writes and rejects aliasing a protected base.) |
+| `footprint` | `#@ footprint <name>(<arg>)` binds the parameter of a parametric HAPPY (`#@ happy <name>(p): protects <path>[LO:HI]`) to this method's argument, so each write of the path gets a per-object containment `#@ check`. (The HAPPY `protects <paths> [except …]` subsystem-ownership form expands to a per-site `#@ check False` at non-exempt direct writes and rejects aliasing a protected base.) |
 
 Multiple `requires` / `ensures` lines are conjuncted.
 
