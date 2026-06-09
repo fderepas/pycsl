@@ -1,6 +1,6 @@
 ---
 name: pycsl-stdlib-coverage
-description: Battle-tested discipline for writing pure-Python standard library implementations that PyCSL can verify. Covers the full workflow from concrete tests through annotations to formal tests, the shared World architecture (one filesystem, one process table, one clock — mirroring the Unix kernel), three-bucket classification (modelled/specified/stubbed), HAPPY confinement for cross-module coherence, and lessons learned from os (98.0% proven), re (16/16 VCs), warnings (18/18 body + 3/3 formal VCs), and json (6/6 formal VCs). Use this skill when adding a new stdlib module to pure_lib/, annotating existing modules, writing formal tests, or diagnosing PyCSL proof failures.
+description: Battle-tested discipline for writing pure-Python standard library implementations that PyCSL can verify. Covers the full workflow from concrete tests through annotations to formal tests, the shared World architecture (one filesystem, one process table, one clock — mirroring the Unix kernel), three-bucket classification (modelled/specified/stubbed), HAPPY confinement for cross-module coherence, and lessons learned from os (fully proven, 0 unproven), re (16/16 VCs), warnings (18/18 body + 3/3 formal VCs), and json (6/6 formal VCs). Use this skill when adding a new stdlib module to pure_lib/, annotating existing modules, writing formal tests, or diagnosing PyCSL proof failures.
 ---
 
 # PyCSL Stdlib Coverage
@@ -192,8 +192,8 @@ Every symbol falls into exactly one bucket:
 Coverage is **always reported per bucket**. A 100%-specified module
 can show "100% proven" while guaranteeing nothing — a `val`'s contract
 carries no VC of its own, so a green run there proves nothing about a
-body. The headline "os: 98% of 4101 VCs" is meaningful because those
-are modelled-bucket VCs — weakest-precondition obligations of real
+body. The headline "os: 1804/1804 VCs, 0 unproven" is meaningful because
+those are modelled-bucket VCs — weakest-precondition obligations of real
 `let` bodies that the solvers returned *Valid* on.
 
 ### Module-by-module bucketing
@@ -380,7 +380,7 @@ imports. Iterate until WhyML type-checks.
 sys.argv = ['pycsl', '--keep-mlw', 'pure_lib/os/__init__.py']
 ```
 
-For integer-heavy code (os), this works well — 98.0% proven.
+For integer-heavy code (os), this works well — fully proven (0 unproven).
 For string-heavy code (re), body-level proof is blocked by tool gaps
 (see §Tool Gaps below). Proceed to step 5 regardless.
 
