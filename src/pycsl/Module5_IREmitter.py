@@ -1541,10 +1541,23 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             for _a, _d in zip(_pos_args[len(_pos_args) - len(_defs):], _defs):
                 if _a.arg != 'self':
                     param_defaults[_a.arg] = self._py_expr_to_ir(_d)
+        # Front-end resolution of a Python-specific fact for the core's no-mutable-default
+        # check (refactor.md AST-only #3): is any default arg mutable — a list/dict/set
+        # literal, or a list()/dict()/set() call — over ALL defaults (positional + keyword
+        # only, the latter being the gap `param_defaults` misses). The core
+        # (core_ir_semantic._check_mutable_defaults) raises the language-agnostic error.
+        _all_defaults = list(getattr(node.args, "defaults", []) or []) + [
+            _d for _d in (getattr(node.args, "kw_defaults", []) or []) if _d is not None]
+        has_mutable_default = any(
+            isinstance(_d, (ast.List, ast.Dict, ast.Set)) or
+            (isinstance(_d, ast.Call) and isinstance(_d.func, ast.Name)
+             and _d.func.id in ("list", "dict", "set"))
+            for _d in _all_defaults)
         return {
             "name": func_name,
             "symbol_table": symbol_table,
             "param_defaults": param_defaults,
+            "has_mutable_default": has_mutable_default,
             # no-more-int-3 A1: dict var -> WhyML value type ν (string), for
             # string-valued dicts only (captured in Module4); int-valued dicts
             # have no entry and keep the `map int (option int)` path.

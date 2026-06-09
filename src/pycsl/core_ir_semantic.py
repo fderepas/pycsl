@@ -45,6 +45,7 @@ def run_ir_semantic_checks(ir: Any, *, stage: str = "ir-semantic") -> None:
         _check_contract_exprs(func, known_binder_types)
         _check_subscript_assignments(func)
         _check_checkpoints(func)
+        _check_mutable_defaults(func)
 
 
 def _check_span(func: Any, stage: str) -> None:
@@ -335,3 +336,21 @@ def _contains_result(node) -> bool:
     if isinstance(node, list):
         return any(_contains_result(x) for x in node)
     return False
+
+
+# --- mutable default argument (front-end-resolved flag) ----------------------
+
+def _check_mutable_defaults(func) -> None:
+    """A list/dict/set default argument is a shared-aliasing bug — migrated from
+    Module 4's ``_validate_no_mutable_defaults``. The Python-specific *detection*
+    (literal vs `list()/dict()/set()` call, over positional + keyword-only defaults)
+    is resolved by the front-end into the `has_mutable_default` IR flag (B4a-style
+    plumbing); the core just reports the language-agnostic error."""
+    if func.get("has_mutable_default"):
+        raise PyCSLSemanticError(
+            f"Mutable default argument in function '{func.get('name', '<anonymous>')}': "
+            f"a list/dict/set default is a single object shared across all calls (a "
+            f"shared-aliasing bug) and is outside PyCSL's value-semantics boundary "
+            f"(ownership discipline R2). Use a `None` sentinel and initialise the "
+            f"collection in the body."
+        )
