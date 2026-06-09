@@ -15,6 +15,40 @@ the fallback architecture; §9 acceptance.
 
 ---
 
+## STEP-0 RESULT (BREAKTHROUGH, 2026-06-09) + refined remaining path
+
+**The decisive feasibility probe SUCCEEDED — the proof-cost wall is dissolved.** The rich inode codec
+(per-byte / per-field value contracts, `#@ no_inline`) was ported into the os, with the disk-region
+byte-invariant and the 18 field-range `requires` on `_write_inode`. The full os proof **completes at 0
+unproven** with the rich codec in scope — the c-impl aggregate blow-up does **not** recur on the
+now-clean os (no_inline syscalls + the eliminated axioms). Only three per-syscall discharge gaps
+appeared, closed by faithful POSIX guards (link EMLINK, chmod invalid-mode, truncate/ftruncate oversized
+length). **So the §2 obstacle is solved without an axiom: the inode round-trip holds by composition from
+the byte leaves' value contracts.** Committed as the C3 foundation.
+
+**Read-after-write inode consistency landed too:** `_write_inode` now proves the persisted inode region
+decodes back to the written size (`inode[0]`) and data block (`inode[8]`), so a file's block is
+recoverable by a later `_read_inode` — and the os still proves 0 unproven. Committed.
+
+**Refined remaining path (the hard part is now the cross-call *effect* contracts, not the codec cost).**
+Implementing C1 revealed that composing the round-trip needs each syscall in the chain to **expose its
+effect**, which the current count/return-code contracts do not:
+
+- **`sys_write` must ensure *what* it wrote**, not just the byte count — i.e. the file's data block holds
+  `c` after the call (a content-effect ensures, the data-region analogue of the inode readback just
+  added to `_write_inode`).
+- **`pread` (C1) must ensure its result equals the file's data-block slice** — but the block is resolved
+  *inside* `pread` (`fd → inode → inode[8]`), so the contract must expose that resolution for a caller
+  to connect `pread`'s result to what `write` stored.
+- **C2 (value-modeled names)** and **C4 (framing across close/open)** remain as in §4/§5, plus the
+  **success-precondition** discharge (C5) so `\result == True` is non-vacuous.
+
+These are intricate effect-contract design choices with proof-cost implications (each enriched contract
+rides into callers), best advanced with measurement at each step rather than blind. The foundation is
+proven viable; what remains is composition, not feasibility.
+
+---
+
 ## 1. Where the os is today
 
 The os module proves **0 unproven goals** with a one-family trusted-axiom base (a bitwise bound). But
