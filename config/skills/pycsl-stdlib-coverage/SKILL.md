@@ -102,8 +102,12 @@ source of truth is where the proof *ends*, not only where it begins. The
 over symbolic inputs and discharges it for all of them — the descent into
 a faithful model returning, at the top, to the English it came from. A
 module is "done" when that loop is closed: spec transcribed into contracts,
-contracts proved, and the spec's promise re-proved as a formal test. See
-`docs/formal-filesystem.md` (`os` as the worked example).
+contracts proved, and the spec's promise re-proved as a formal test —
+**for the WHOLE module's public API, not a sample** (every exported
+function/method has a propagating theorem in `formal_<module>.py`; see
+Step 5's whole-module coverage rule). A formal test covering only a few of
+a module's functions has NOT closed the loop. See `docs/formal-filesystem.md`
+(`os` as the worked example).
 
 ---
 
@@ -391,6 +395,28 @@ parameters** — every parameter must be symbolic, never concrete. The
 purpose of a formal test is to prove that a property holds **for all
 valid inputs**, not just one specific test case.
 
+**Critical rule: the formal test propagates the source of truth across the
+WHOLE module — cover EVERY public API symbol, not a sample.** The formal
+test is *the* mechanism by which the module's English specification (the
+source of truth) is propagated onto its annotations and proved. So it must
+re-state and discharge the library-reference promise of **every** public
+function/method/class the module exports — each as at least one
+universally-quantified theorem, as strong as the faithful model allows (a
+real equality/relation where provable; the soundest bound where the
+transform is genuinely abstract). **A formal test that exercises only a
+couple of a module's functions leaves the rest's specification
+unpropagated — the loop is NOT closed and the module is NOT done**, no
+matter how green those few theorems are. Concretely: enumerate the module's
+public API (the `__init__.py` exports + class methods); every one must
+appear in `formal_<module>.py`. Two valid shapes: (a) **one composed
+end-to-end scenario** that drives the whole API path — what `os`'s
+`formal_0001` does over open→write→close→reopen→read; or (b) **one theorem
+per API function** when there is no natural composition (e.g. a string or
+math module). Either way the acceptance bar is the same: *no documented API
+promise left unpropagated*. If a function's faithful promise can't be
+proved because the tool can't express it, that is a Step-6 gap (feed it to
+the convergence loop), not a licence to omit the function.
+
 **Critical rule: generalize ALL parameters.**
 
 A formal test that uses concrete values is *not* a formal test — it is
@@ -607,8 +633,9 @@ they **converge**:
    proof attempt has found a **tool bug** (Step 6).
 
 Every module proved faithfully exposes tool gaps; fixing those gaps improves the tool; a better tool lets
-more of the stdlib be proved. The fixed point is a faithfully-proved module *and* a tool with no remaining
-gaps for it.
+more of the stdlib be proved. The fixed point is a faithfully-proved module — its formal test propagating
+the source of truth across the **WHOLE public API** (Step 5's coverage rule), not a sample — *and* a tool
+with no remaining gaps for it.
 
 ### The agent loop
 
@@ -623,6 +650,9 @@ any edit. Traceability is a key concern, so both documents follow a strict dated
   module, incremented each turn).
 - **`DD-HHMM-convergence-spec-N.md`** — written by the tool-agent in answer, reusing the **same `DD`,
   `HH`, `MM`, and `N`** as the gap document it answers (so the pair is unambiguous and sorts together).
+  It opens with a **`STATUS:`** field that drives the handshake through three values:
+  **`DRAFT`** (the tool-agent has written its plan) → **`APPROVED`** (the coordination agent has agreed,
+  after any edits) → **`DONE`** (the tool-agent has finished and gated the implementation).
 
 ```text
    ┌──────────────┐  ①  DD-HHMM-convergence-gap-N.md    ┌───────────────┐
@@ -644,29 +674,35 @@ any edit. Traceability is a key concern, so both documents follow a strict dated
    **writes `DD-HHMM-convergence-gap-N.md`** — per gap: symptom, minimal reproducer, root cause
    (`file:line`), the workaround used, and a proposed fix (see Step 6 and `10-1732-gap.md` for the shape).
 3. The coordination agent **spawns a `tool-agent`** with the gap document. The tool-agent reads it and
-   **answers with `DD-HHMM-convergence-spec-N.md`** (same `DD-HHMM` and `N` as the gap) — its concrete
-   implementation plan for the fix.
-4. The coordination agent **reviews the spec and marks `DD-HHMM-convergence-spec-N.md` as approved** —
-   tool changes are the higher-risk half, so the *plan* is gated before any edit. Only then does the
-   tool-agent **implement the approved spec** and **gate it**: byte-identical `.mlw` everywhere else, the
-   affected module/drivers prove, both conformance corpora pass, doc-coherency green. It edits *only*
-   `src/pycsl/`, never the stdlib model.
-5. The coordination agent **respawns a `stdlib-agent`** to continue from where the previous one stopped,
+   **answers with `DD-HHMM-convergence-spec-N.md`** — its concrete implementation plan, opened with a
+   **`STATUS: DRAFT`** field.
+4. The coordination agent **reviews and approves the spec** — and approval is *editorial*, not a
+   rubber-stamp. It JUDGES the plan and may **add, modify, or remove** parts of it; its goal is to **speed
+   up convergence** (cut a risky or needless step, sharpen the gate, redirect the approach). Tool changes
+   are the higher-risk half, so the *plan* is gated — and amended — before any edit. When satisfied, the
+   coordination agent changes the field to **`STATUS: APPROVED`**.
+5. Only on `STATUS: APPROVED` does the tool-agent **implement the spec** and **gate it**: byte-identical
+   `.mlw` everywhere else, the affected module/drivers prove, both conformance corpora pass, doc-coherency
+   green. It edits *only* `src/pycsl/`, never the stdlib model. When the work is finished and the gate is
+   green, the tool-agent changes the field to **`STATUS: DONE`**.
+6. The coordination agent **respawns a `stdlib-agent`** to continue from where the previous one stopped,
    now unblocked.
 
 The loop repeats — `N` incrementing each iteration — until a pass produces **no new gaps**.
 
 ### Roles (kept strictly separate)
 
-- **coordination agent** — orchestrates the loop, sequences the spawns, and **approves the spec document**
-  (`DD-HHMM-convergence-spec-N.md`) before any tool edit; never edits code (decide-and-dispatch only).
+- **coordination agent** — orchestrates the loop and sequences the spawns. Its **approval is editorial**:
+  it judges the `DRAFT` spec and may add/modify/remove parts to speed convergence, then sets
+  `STATUS: APPROVED`. It never edits source or model code — it edits only the *spec document* (decide,
+  amend-the-spec, and dispatch).
 - **stdlib-agent** — proves one `pure_lib/<module>` faithfully via the workflow above; edits only the
   model + its `pure_lib_test/formal_<module>.py` loop-closer; output is *a proved module and/or a
   `DD-HHMM-convergence-gap-N.md` gap document*.
-- **tool-agent** — reads the gap document and answers with a `DD-HHMM-convergence-spec-N.md` spec
-  document; on the coordination agent's approval of that spec, implements it and gates it; edits only
-  `src/pycsl/`; output is *a spec document and a gated tool fix*. It never weakens the model to dodge a
-  real gap.
+- **tool-agent** — reads the gap document and answers with a `DD-HHMM-convergence-spec-N.md` spec opened
+  at `STATUS: DRAFT`; once the coordination agent sets `STATUS: APPROVED`, implements it, gates it, and
+  sets `STATUS: DONE`; edits only `src/pycsl/`; output is *a spec document and a gated tool fix*. It never
+  weakens the model to dodge a real gap.
 
 ### Invocation
 

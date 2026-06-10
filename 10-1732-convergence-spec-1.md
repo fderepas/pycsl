@@ -1,5 +1,10 @@
 # Convergence spec — 10-1732, iteration N=1 (Gaps 2 & 3)
 
+**STATUS: DONE**
+<!-- lifecycle: DRAFT (tool-agent wrote) → APPROVED (coordination agent, with the R2 amendment in the
+APPROVAL section below) → DONE (implemented + gated in commit 2343c5d; strmod converged in 7462304).
+This doc predates the STATUS convention; the field is retrofitted to its terminal value. -->
+
 Implementation spec for the two remaining gaps in `10-1732-gap.md`. Gap 1 (`Return_str`) is
 already FIXED + committed (89b3f55; demand-driver `0697`… see note) — **out of scope here**.
 
