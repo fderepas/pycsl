@@ -8,6 +8,8 @@ exiting non-zero on `L3-tc ✗`.
 
 **The finding (snapshot).** Of the **588** reference drivers that emit WhyML and report `--no-proof`
 SUCCESS, **54 emit WhyML that does NOT type-check** — i.e. they have been reporting a *dishonest* SUCCESS.
+(Since this snapshot, the `0406 0407` `list.append` pair has been RESOLVED-BY-SUPPORT — growable-list `Seq`
+for `.append`-ed params — and both now type-check honestly; see the `list.append` cohort below.)
 The failure is real, not a harness artifact: the production `why3 prove -a split_vc -P <prover>` path fails
 the same drivers with the same diagnostic (verified on `0250`: `unbound function or predicate symbol
 'counter'`), and none of the 54 are marked `# pycsl-expected: FAIL`.
@@ -55,11 +57,21 @@ Regenerate the list at any time with `bin/typecheck-audit.sh`.
     The type errors are heterogeneous (string-valued exprs used where `int` is expected; undeclared
     `hash_1`/`str_conv`/`repr_conv`/`format_1`/`iter_length`) — symptoms of the absent strings feature,
     not one emission bug. Correct resolution is the strings feature (strings-plan.md), not a patch.
-  - **`list.append` Seq-vs-Array representation mismatch (2) — REPORT (modelling, sub-threshold):**
-    `0406 0407` (the only two with NO `expected: FAIL` — genuinely dishonest). `list` params type as
-    `array int` but `.append` lowers to `Seq.snoc` (sequence) → *"has type array … but is expected …"*.
-    Choosing the canonical `list` representation (Seq vs growable Array) is a modelling decision, and it is
-    a 2-driver cohort (below the ≥3 clear-cohort bar). Left for human decision.
+  - **`list.append` Seq-vs-Array representation mismatch (2) — RESOLVED-BY-SUPPORT (growable-list Seq for params):**
+    `0406 0407` (the only two with NO `expected: FAIL`) WERE genuinely dishonest: a `.append`-ed `list`
+    PARAM typed as `array int`, was seq-promoted (so `.append` lowered to `Seq.snoc`), yet the
+    append-targets backing loop bound it as `let dst = Array.make 1024 0 in` → `Seq.snoc !dst v` applied
+    to an `array int` ref → *"has type array … but is expected …"* (the dishonest SUCCESS). Maintainer
+    decision: **SUPPORT** `list.append` on params via the `Seq` representation (not reject). Fix
+    (`module6_whyml/statements.py` + `stmt_control_flow.py`): a seq-promoted `.append`-ed param is now
+    shadowed as a `ref seq` — `let dst = ref (snapshot dst) in` (the same `snapshot : array int -> seq int`
+    bridge the pre-decl seq-param shadow uses), the `Array.make`/`_len` array backing is omitted, the param
+    joins `local_refs` so it deref's (`!dst`), and `_classify_iterable` reads a seq-promoted iterable via
+    `Seq.length !x` / `Seq.get !x i`. Result: `dst`/`arr` are `ref seq` consistently with `Seq.snoc`, so
+    both **now type-check honestly (`L3-tc ✓`)**. Emission is byte-identical for every other driver and all
+    of `os` (whose append-targets are seq LOCALS, already on the seq path — untouched by the param-only fix).
+    Full proof still does not discharge (these are `--no-proof` detector drivers with no loop invariants); the
+    bar is `L3-tc ✓`, which is met.
   - **Singletons — REPORT (each a distinct negative/boundary test, all `expected: FAIL`):**
     `0050` (`variant … with subterm` — syntax error from the structural-variant lowering);
     `0303` (`\proj` out-of-range → undeclared `z_` from tuple-projection lowering);

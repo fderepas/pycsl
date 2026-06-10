@@ -99,6 +99,13 @@ class ControlFlowStmtMixin:
         if iter_ir.get("type") == "Var" and self._value_semantic:
             var_name = iter_ir.get("name", "")
             iter_expr = self._expr_to_whyml(iter_ir, local_refs)
+            # growable-list: iterating a seq-promoted var (e.g. a `.append`-ed
+            # param being iterated over itself) reads through the `ref seq`
+            # model — `iter_expr` is `!arr` (deref → seq int), so length/element
+            # use `Seq.length`/`Seq.get`, NOT the array `Array.length`/subscript
+            # (which would type-clash against the seq).
+            if var_name in getattr(self, "_seq_locals", set()):
+                return f"(Seq.length {iter_expr})", f"(Seq.get {iter_expr} !{idx})", False
             is_dict = var_name in getattr(self, "_dict_locals", set())
             is_array = not is_dict and (
                 var_name in getattr(self, "_array2d_params", set()) or

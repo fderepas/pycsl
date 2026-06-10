@@ -1027,9 +1027,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # `_handle_tuple_unpack_stmt` to emit `let X = ref tmp in`
         # scoped to the loop body — fresh region each iteration,
         # no cross-iteration alias.
+        # growable-list: a `.append`-ed param that is seq-promoted is shadowed
+        # as a `ref seq` in the append-targets loop below (`let p = ref (snapshot p)`).
+        # Add it to `local_refs` so body resolution deref's it (`!p`) wherever it
+        # appears — `Seq.length !p`, `Seq.get !p i`, `p := Seq.snoc !p v` — exactly
+        # as a seq LOCAL (which is already in `local_refs`) is handled.
+        seq_promoted_params = {
+            t for t in append_targets
+            if t in self._seq_locals and t in self._formal_params
+        }
         body_code = self._stmts_to_whyml(
             body_stmts,
-            (local_refs | {f"{t}_len" for t in append_targets})
+            (local_refs | {f"{t}_len" for t in append_targets} | seq_promoted_params)
                 - struct_array_targets - struct_pack_targets,
             initial_declared
                 - {whyml_ident(v) for v in struct_array_targets}
@@ -1076,6 +1085,22 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
         for tgt in sorted(append_targets):
             safe_tgt = whyml_ident(tgt)
+            # growable-list: a `.append`-ed PARAM that is seq-promoted is bound as a
+            # `ref seq` (consistent with the `Seq.snoc !tgt v` the body emits at
+            # `_handle_expr_stmt`), NOT the `Array.make 1024 0` + `_len` array-counter
+            # backing used for fresh append-locals. The array backing would type-clash
+            # (`array int` ref-assigned a `seq int`), so reuse the seq-param shadow
+            # `let tgt = ref (snapshot tgt) in` — the same bridge the pre_decl shadow
+            # above applies to seq-promoted params (which never reach here, being
+            # absent from `local_refs`). `len(tgt)` resolves via `Seq.length !tgt`
+            # (already handled), so the `_len` counter is unnecessary and omitted.
+            if tgt in self._seq_locals and tgt in self._formal_params:
+                self._add_abstract_op(
+                    "val snapshot (a: array int) : seq int\n"
+                    "    ensures { Seq.length result = Array.length a }\n"
+                    "    ensures { forall i:int. 0 <= i < Array.length a -> Seq.get result i = a[i] }")
+                body_code = f"    let {safe_tgt} = ref (snapshot {safe_tgt}) in\n{body_code}"
+                continue
             body_code = f"    let {safe_tgt}_len = ref {pfx} in\n{body_code}"
             if tgt not in local_refs and tgt not in ref_params:
                 body_code = f"    let {safe_tgt} = Array.make 1024 0 in\n{body_code}"
