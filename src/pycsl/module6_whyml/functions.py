@@ -971,3 +971,37 @@ class FunctionEmissionMixin:
             result[func["name"]] = param_types
         return result
 
+    def _build_method_param_whyml_types_by_name(
+            self, functions: List[Dict[str, Any]]) -> Dict[str, Dict[str, str]]:
+        """10-1732-gap (Gaps 2/3 shared infra): map function name →
+        {formal-param-name → WhyML param type}. Keyed by NAME (not position)
+        so a call-site default-fill can lower an omitted/`None` default at the
+        omitted parameter's faithful type (Gap 3). Derived from the same IR
+        source as the sibling `_module_method_*` tables (the function's
+        `formal_params` order + `symbol_table` py-type tags). Sorted by the
+        declared formal-param order — deterministic."""
+        result: Dict[str, Dict[str, str]] = {}
+        for func in functions:
+            symtable = func.get("symbol_table", {})
+            by_name: Dict[str, str] = {}
+            for pname in func.get("formal_params", []):
+                by_name[pname] = self._symtype_to_whyml(symtable.get(pname))
+            result[func["name"]] = by_name
+        return result
+
+    def _build_method_return_annotation_map(
+            self, functions: List[Dict[str, Any]]) -> Dict[str, str]:
+        """10-1732-gap (Gap 2 shared infra): map function name → the callee's
+        Python `return_annotation` (e.g. `"str"`, `"int"`). Used by
+        `_is_string_expr` to detect that `len(<call>)` wraps a str-returning
+        call so it routes to `str_length_op` rather than the opaque
+        `iter_length`. Separate from `_module_method_return_types` (a WhyML-type
+        map consumed by the dotted-call abstraction) to keep that map's byte
+        output unchanged."""
+        result: Dict[str, str] = {}
+        for func in functions:
+            ann = func.get("return_annotation")
+            if ann:
+                result[func["name"]] = ann
+        return result
+

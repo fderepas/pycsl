@@ -594,6 +594,101 @@ PyCSL tool gaps" table below.
 
 ---
 
+## The Convergence Principle
+
+Covering the stdlib with formal proofs serves **two purposes at once**, and they are not sequential —
+they **converge**:
+
+1. **Annotate the stdlib formally** — re-express each module as a faithful pure-Python model and prove
+   it by Hoare logic, exactly as `docs/formal-filesystem.md` does for `os` (this is the workflow,
+   Steps 1–6, above).
+2. **Debug the PyCSL tool** — the verifier is new, so driving a real module to a *faithful* proof is the
+   best stress test there is. Where the model is correct but the tool cannot express or discharge it, the
+   proof attempt has found a **tool bug** (Step 6).
+
+Every module proved faithfully exposes tool gaps; fixing those gaps improves the tool; a better tool lets
+more of the stdlib be proved. The fixed point is a faithfully-proved module *and* a tool with no remaining
+gaps for it.
+
+### The agent loop
+
+A **coordination agent** orchestrates a ping-pong between two worker agents, mediated by a **paired
+traceability document** — a *gap* document (the problem, from the stdlib-agent) and a *spec* document
+(the proposed fix, from the tool-agent). Every tool change is auditable back to the stdlib limitation
+that motivated it, and the coordination agent approves the **spec** (the plan), not just the gap, before
+any edit. Traceability is a key concern, so both documents follow a strict dated naming convention:
+
+- **`DD-HHMM-convergence-gap-N.md`** — written by the stdlib-agent. `DD` = day-of-month, `HH`/`MM` = the
+  hour and minute it was created, `N` = the iteration number (1 for the first turn of the loop on this
+  module, incremented each turn).
+- **`DD-HHMM-convergence-spec-N.md`** — written by the tool-agent in answer, reusing the **same `DD`,
+  `HH`, `MM`, and `N`** as the gap document it answers (so the pair is unambiguous and sorts together).
+
+```text
+   ┌──────────────┐  ①  DD-HHMM-convergence-gap-N.md    ┌───────────────┐
+   │ stdlib-agent │ ──────────────── gap ──────────────►│   tool-agent   │
+   │ prove <m>;   │                                     │ ② read gap →   │
+   │ on a tool    │  ②  DD-HHMM-convergence-spec-N.md    │    write SPEC  │
+   │ limit, write │ ◄──────────────  spec  ──────────── │ ④ on approval, │
+   │ the GAP doc  │                                     │    fix + gate  │
+   └──────▲───────┘        ③ coordination agent         └───────────────┘
+          │                  APPROVES the spec doc
+          └──────── ⑤ respawn (unblocked; N := N+1) ──────────┘
+```
+
+1. The coordination agent **spawns a `stdlib-agent`** on a target `pure_lib/<module>` to run the
+   workflow above (`docs/formal-filesystem.md` strategy). Faithfulness is non-negotiable — real WhyML
+   type classes, never an int stand-in, never a false postcondition (the no-more-int doctrine).
+2. When the `stdlib-agent` hits something the model needs but the **tool cannot do**, it finishes
+   everything it *can* prove faithfully (working around the gap only to keep its own proof clean), then
+   **writes `DD-HHMM-convergence-gap-N.md`** — per gap: symptom, minimal reproducer, root cause
+   (`file:line`), the workaround used, and a proposed fix (see Step 6 and `10-1732-gap.md` for the shape).
+3. The coordination agent **spawns a `tool-agent`** with the gap document. The tool-agent reads it and
+   **answers with `DD-HHMM-convergence-spec-N.md`** (same `DD-HHMM` and `N` as the gap) — its concrete
+   implementation plan for the fix.
+4. The coordination agent **reviews the spec and marks `DD-HHMM-convergence-spec-N.md` as approved** —
+   tool changes are the higher-risk half, so the *plan* is gated before any edit. Only then does the
+   tool-agent **implement the approved spec** and **gate it**: byte-identical `.mlw` everywhere else, the
+   affected module/drivers prove, both conformance corpora pass, doc-coherency green. It edits *only*
+   `src/pycsl/`, never the stdlib model.
+5. The coordination agent **respawns a `stdlib-agent`** to continue from where the previous one stopped,
+   now unblocked.
+
+The loop repeats — `N` incrementing each iteration — until a pass produces **no new gaps**.
+
+### Roles (kept strictly separate)
+
+- **coordination agent** — orchestrates the loop, sequences the spawns, and **approves the spec document**
+  (`DD-HHMM-convergence-spec-N.md`) before any tool edit; never edits code (decide-and-dispatch only).
+- **stdlib-agent** — proves one `pure_lib/<module>` faithfully via the workflow above; edits only the
+  model + its `pure_lib_test/formal_<module>.py` loop-closer; output is *a proved module and/or a
+  `DD-HHMM-convergence-gap-N.md` gap document*.
+- **tool-agent** — reads the gap document and answers with a `DD-HHMM-convergence-spec-N.md` spec
+  document; on the coordination agent's approval of that spec, implements it and gates it; edits only
+  `src/pycsl/`; output is *a spec document and a gated tool fix*. It never weakens the model to dodge a
+  real gap.
+
+### Invocation
+
+Saying **"apply the convergence principle to `<module>`"** spawns the coordination agent on
+`pure_lib/<module>` and runs the loop to its fixed point — e.g. **"apply the convergence principle to
+strmod"** targets `pure_lib/strmod/`.
+
+### Worked precedent
+
+The strmod pass kicked off the loop: a stdlib-agent rebuilt `pure_lib/strmod/` on real `str` and proved
+it (commit `a50bc61`), surfacing three tool gaps it worked around and recorded in `10-1732-gap.md` (the
+ad-hoc precursor to the `DD-HHMM-convergence-gap-N.md` convention above — hardcoded `exception Return
+int`; `len()` over a string-returning call; the int-`0` default fill for a non-`int` param). The
+tool-agent then fixed the first gap — `Return_str` for early returns in string-returning functions
+(commit `89b3f55`) — strictly additively (652-driver byte-diff DIFFERS=0). The remaining gaps (the
+callee/parameter faithful-type threading) are the next turns; once fixed, a fresh stdlib-agent re-proves
+strmod's functions with their *natural* control flow (early returns, omitted defaults) instead of the
+workarounds. That is convergence: the module pushed the tool, the tool fix lets the module be pushed
+further.
+
+---
+
 ## Current status
 
 ### os module — 100% proven (body-level), 0 unproven
