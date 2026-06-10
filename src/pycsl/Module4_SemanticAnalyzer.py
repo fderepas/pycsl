@@ -496,22 +496,11 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         for child in ast.iter_child_nodes(node):
             self._check_expr_for_shared(child, held, func_name)
 
-    def _validate_mutex_invariant_scope(self, mutex: str, invariant: CSLNode, func_name: str) -> None:
-        """Check that the invariant for 'mutex' only references variables protected by that mutex."""
-        protected = {v for v, m in self._shared_vars.items() if m == mutex or
-                     (m is not None and m.split('[')[0] == mutex.split('[')[0])}
-        referenced = extract_variables(invariant)
-        # Allow quantifier-bound variables (Forall/Exists) and numeric variables — be lenient
-        for var in referenced:
-            if var in self.current_scope or var in protected:
-                continue
-            # Allow single-letter loop variables common in invariants
-            if len(var) <= 2:
-                continue
-            raise PyCSLSemanticError(
-                f"Mutex invariant for '{mutex}': variable '{var}' is not a shared variable "
-                f"protected by '{mutex}'. Protected variables: {sorted(protected)}."
-            )
+    # _validate_mutex_invariant_scope MIGRATED to the language-agnostic core
+    # (core_ir_semantic._check_mutex_invariants — refactor.md B-final). It was a
+    # MODULE-level check (called once in visit_Module) that consulted
+    # `self.current_scope` only over an empty scope (no FunctionDef visited yet);
+    # removing it drops a live `current_scope` consumer from Module 4.
 
     def visit_Module(self, node: ast.Module) -> Any:
         """Collect module-level concurrency declarations."""
@@ -542,7 +531,12 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
 
         for mutex, inv_expr in getattr(node, 'csl_mutex_invariants', {}).items():
             self._mutex_invariants[mutex] = inv_expr
-            self._validate_mutex_invariant_scope(mutex, inv_expr, "<module>")
+            # mutex-invariant scope/well-formedness MIGRATED to the language-agnostic
+            # core (core_ir_semantic._check_mutex_invariants — refactor.md B-final). It
+            # was a MODULE-level check that read only `self._shared_vars` here; the
+            # `self.current_scope` it also consulted was empty at module-visit time
+            # (functions not yet visited), so the move drops a live `current_scope`
+            # reader from Module 4. Message reproduced byte-for-byte in the core.
 
         lock_order_node = getattr(node, 'csl_lock_order', None)
         if lock_order_node is not None:
