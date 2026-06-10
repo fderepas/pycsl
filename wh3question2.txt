@@ -1,9 +1,0 @@
-I want you to answer all folloing questions in `wh3answer-02.md`?
-
-1/ First question: you wrote `Our primary formalization is now Lean 4 (with Rocq as a secondary mirror)` I thought they were on an equal foot. Why did that changed 
-
-2/ Read `./cohen_popl24_why3.pdf` and refine your original answer `wh3answer.md` by writing by appending text in `wh3answer-02.md`.
-
-3/ I dowloaded the 133194 lines of Coq proofs mentionned in article  `./cohen_popl24_why3.pdf` in directory `why3-semantics/`. Should I create a skill out of  `why3-semantics/` so that you get better using Coq?
-
-4/ Whould the current plan we are following (e.g. `monday-01.md`) be changed following these readings. Also answer to that in  `wh3answer-02.md`. 

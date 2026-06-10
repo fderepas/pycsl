@@ -97,6 +97,9 @@ class Module6_WhyMLTranspiler(
         self._module_func_names: Set[str] = set()
         self._module_method_return_types: Dict[str, str] = {}
         self._module_method_param_types: Dict[str, List[str]] = {}
+        # 10-1732-gap (Gaps 2/3): callee return-annotation + by-name param WhyML types.
+        self._module_method_return_annotations: Dict[str, str] = {}
+        self._module_method_param_whyml_types: Dict[str, Dict[str, str]] = {}
         # 1111-spec R7: per-function formal-param order + positional defaults.
         self._module_method_formal_params: Dict[str, List[str]] = {}
         self._module_method_param_defaults: Dict[str, Dict[str, Any]] = {}
@@ -431,6 +434,25 @@ class Module6_WhyMLTranspiler(
             f["name"]: list(f.get("formal_params", [])) for f in funcs_for_maps}
         self._module_method_param_defaults = {
             f["name"]: dict(f.get("param_defaults", {})) for f in funcs_for_maps}
+        # 10-1732-gap (Gap 3): by-name {param → WhyML type} for call-site default fill,
+        # so an omitted `None`-defaulted non-int param is filled at its faithful zero
+        # (`""`/`0.0`) instead of int `0`. Built from the SAME `funcs_for_maps` (incl.
+        # injected imported `\trusted` stubs), so imported callees are covered.
+        self._module_method_param_whyml_types = \
+            self._build_method_param_whyml_types_by_name(funcs_for_maps)
+        # 10-1732-gap (Gap 2): callee-name → Python `return_annotation` (e.g. "str").
+        # NOTE (deviation from spec R1, which assumed `_module_method_return_types`
+        # already carried "string" for a `-> str` callee): it does NOT — that map is
+        # `_build_method_return_type_map`, a stripped duplicate of `_compute_return_type`
+        # that maps only list/set/dict, leaving `-> str` as "int" (ir_scanner
+        # find_return_type even maps a String literal to "int"). Mutating that shared map
+        # to add the str case would risk the byte output of its many dotted-call/abstract-
+        # val consumers (expressions.py:724/762/764, stmt_control_flow.py:152/157). So
+        # Gap 2 keys on this SEPARATE annotation map (the pre-written, previously-unwired
+        # `_build_method_return_annotation_map`), which touches NO existing consumer —
+        # zero byte risk. Built from `funcs_for_maps`, so imported str-stubs are covered.
+        self._module_method_return_annotations = \
+            self._build_method_return_annotation_map(funcs_for_maps)
         self._module_method_result_ensures = self._build_method_result_ensures_map(funcs_for_maps)
         self._module_method_param_result_ensures = self._build_method_param_result_ensures_map(funcs_for_maps)
         self._module_method_field_result_ensures = self._build_method_field_result_ensures_map(funcs_for_maps)

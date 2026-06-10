@@ -1,7 +1,0 @@
-You know the command line option `--start-at` for `./bin/run*.sh` scritps. For instance:
-`bin/run-reference-tests.sh --start-at 194`
-Runs all references tests starting at number 194, not the one between 1 and 193.
-
-Add the command line option `--stop-at` so that
-`bin/run-reference-tests.sh --start-at 194 --stop-at 195`
-Runs all references tests starting at number 194, until 195.

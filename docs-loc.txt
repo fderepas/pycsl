@@ -1,6 +1,0 @@
-`config/skills/`
-`docs/pycsl-concrete-syntax-reference.md`
-`docs/pycsl-static-semantics-reference.md`
-`docs/pycsl-translational-reference.md`
-`test-suite/annotations.md`
-`README.md`

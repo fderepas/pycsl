@@ -1,8 +1,0 @@
-1 ros-issue-1.md/
-2  │ 1B    │ time_verified.py              │ 23    │ #1 overflow   │ ros-issue-2.md
-3  │ 2     │ callback_groups_verified.py   │ 12    │ #2 mutex      │ ros-issue-3.md
-
-
-Write a bug report in `ros-issue-4.md` detailling the threat `3     │ work_tracker_verified.py      │ 9     │ #2 counterw`
-Write a bug report in `ros-issue-5.md` detailling the threat `4     │ qos_validated.py              │ 11    │ #3 validation`
-Write a bug report in `ros-issue-6.md` detailling the threat `5     │ parameter_type_verified.py    │ 22    │ #4 types`

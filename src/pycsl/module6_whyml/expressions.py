@@ -351,6 +351,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if t == "BinOp" and ir.get("op") == "+":
             return (self._is_string_expr(ir.get("left", {}))
                     and self._is_string_expr(ir.get("right", {})))
+        # 10-1732-gap (Gap 2): a `Call` to a module function (incl. an injected
+        # imported `\trusted` stub) declared `-> str` is itself string-typed. Required
+        # so `len(g(s))` routes to str_length_op rather than the opaque iter_length.
+        # Keyed on the SEPARATE `_module_method_return_annotations` map (Python
+        # `return_annotation == "str"`), NOT `_module_method_return_types` — the latter
+        # is a stripped map that leaves `-> str` callees as "int" (see the wiring note
+        # in Module6_WhyMLTranspiler.transpile). A lookup MISS (builtin/unresolved name)
+        # yields None != "str" → safe False (unchanged opaque path).
+        if t == "Call":
+            fn = ir.get("func", "")
+            return getattr(self, "_module_method_return_annotations", {}).get(fn) == "str"
         return False
 
     def _is_float_expr(self, ir: Dict[str, Any]) -> bool:
@@ -1089,8 +1100,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             defaults = self._module_method_param_defaults.get(func_name, {})
             for nm in formal_params[len(args):]:
                 if nm in defaults:
-                    args = args + [self._expr_to_whyml(defaults[nm], local_refs,
-                                                       invariant_ctx, subst)]
+                    # 10-1732-gap (Gap 3, no-more-int): a `None` default on a non-int
+                    # param lowers to the int-model sentinel `0`, which is ill-typed
+                    # against a `string`/`real` param. Fill the param's FAITHFUL zero
+                    # instead, keyed on the by-name WhyML param-type map (covers
+                    # imported `\trusted` stubs, built from the same funcs_for_maps).
+                    # Scope: str/real (R3); any other non-int type falls back to `0`
+                    # (status quo, no worse than today — record/array/map deferred).
+                    dflt_ir = defaults[nm]
+                    pwt = getattr(self, "_module_method_param_whyml_types", {}).get(
+                        func_name, {}).get(nm, "int")
+                    if dflt_ir.get("type") == "None" and pwt != "int":
+                        filled = {"string": '""', "real": "0.0"}.get(pwt, "0")
+                    else:
+                        filled = self._expr_to_whyml(dflt_ir, local_refs,
+                                                     invariant_ctx, subst)
+                    args = args + [filled]
                 else:
                     from errors import PyCSLSemanticError
                     raise PyCSLSemanticError(

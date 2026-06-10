@@ -1,4 +1,0 @@
-Write a skill which details the strategy which has been put in place in PyCSl to have agents independant of the harness. 
-
-
-Ok. Updated of the `src/pycsl/Module*` code is getting more and more complex: there has been some regression recently. I would like to create 6 new skills: on skill per module/  with 6 agents "specialized" in each module coordinated be an architect. Does that make sense? The goal is to keep current agent structrure with the use of `src/pycsl/agents/llm_client.py` and loading of RAGs.
