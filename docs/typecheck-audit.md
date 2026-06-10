@@ -34,10 +34,57 @@ Regenerate the list at any time with `bin/typecheck-audit.sh`.
   fully type-check** (`L3-tc ✓`), non-concurrency `.mlw` byte-identical, no pipeline regression. The fix
   peeled the onion: a SECOND layered blocker (25 drivers) — the source `#@ \diverges` on the worker
   (modelling lock-blocking as possible non-termination) lowers to a `diverges` effect (`functions.py:286`),
-  but the critical section is modelled as non-blocking (havoc+assume), so why3 sees a terminating body and
-  rejects it (*"this expression does not diverge"*). That is a **modelling decision, not a turnkey emission
-  fix** (model lock-acquire as diverging, or revisit the `\diverges` annotation); the 7 that pass are exactly
-  the concurrency drivers WITHOUT `#@ \diverges`. (Plus 0417: a separate unit-vs-int return-type mismatch.)
+  but the critical section was modelled as non-blocking (havoc+assume), so why3 saw a terminating body and
+  rejected it (*"this expression does not diverge"*); the 7 that already passed are exactly the concurrency
+  drivers WITHOUT `#@ \diverges`. **STATUS — `\diverges` cohort RESOLVED (2026-06, maintainer decision:
+  model the acquire as diverging).** MECHANISM (the standard WhyML idiom for "may block forever"): a
+  lock-acquire can block forever (deadlock/contention), so it is *potentially-diverging*. The lowering now
+  declares, per mutex used by any `#@ critical`/`#@ acquires` section, an ABSTRACT diverging operation
+  `val acquire_<mutex> () : unit  diverges` (emitted in `_emit_shared_state`,
+  `module6_whyml/preamble.py`, after the `_check_initial_<mutex>` helpers; mutexes collected by
+  `_collect_critical_mutexes`, **sorted** — no hash-order), and **emits a call to it at section ENTER**
+  (`_handle_critical_section_stmt`, `module6_whyml/statements.py`, prepended before the havoc+assume). The
+  worker's body therefore *genuinely may diverge*, so why3 ACCEPTS the worker's `diverges` effect and the
+  `.mlw` type-checks. The emission fires ONLY for programs with a critical section, so the os and all
+  non-concurrency `.mlw` are byte-identical (verified: ~30-driver basket + `os_demo` diff-clean). The
+  `diverges` effect only RELAXES the termination obligation, so existing concurrency proofs are unaffected
+  (`0257` still proves fully). **Before → after `.mlw` for `0250`:**
+
+  ```
+  (* before — REJECTED: "this expression does not diverge" *)
+    let worker () : int
+      diverges
+    =
+      let _any_counter_0 = any int in
+      counter := _any_counter_0;
+      assume { lock_counter_inv !counter };
+      counter := !counter + 1;
+      ...
+
+  (* after — ACCEPTED: the abstract diverging acquire justifies the effect *)
+    (* lock-acquire may block forever — modelled as diverging *)
+    val acquire_lock_counter () : unit
+      diverges
+
+    let worker () : int
+      diverges
+    =
+      let _any_counter_0 = any int in
+      acquire_lock_counter ();
+      counter := _any_counter_0;
+      assume { lock_counter_inv !counter };
+      counter := !counter + 1;
+      ...
+  ```
+
+  After the fix, **24 concurrency drivers `L3-tc ✓`** (the 7 prior + every `#@ \diverges`+critical worker);
+  the 8 expected-FAIL concurrency drivers emit no `.mlw` (they fail earlier at semantic checks, e.g.
+  `0255`/`0691` lock-order, `0254`/`0415`); two remain `L3-tc ✗` for DIFFERENT, non-`\diverges` reasons:
+  **0417** (the pre-existing unit-vs-int return-type mismatch) and **0276** (a `#@ thread_entry` worker that
+  declares `#@ \diverges` but has NO critical section / no lock-acquire — nothing in its body can block, so
+  the lock-acquire model does not apply; its `\diverges` is unjustified by the maintainer's lock-based
+  rationale and would need either a separate thread-run-loop diverging anchor or removing the annotation —
+  out of scope for this lock-acquire fix).
 - **Other (26):** `0050 0303 0386 0406 0407 0477 0478 0479 0480 0482 0483 0484 0485 0486 0487 0488 0489
   0557 0560 0563 0575 0601 0631 0634 0636 0638` — assorted features whose lowering emits an
   ill-typed/undeclared symbol. **D1 diagnosis (2026-06) groups these:**

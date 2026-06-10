@@ -594,6 +594,34 @@ class PreambleEmissionMixin:
         out.append("")
         return out
 
+    def _collect_critical_mutexes(self) -> List[str]:
+        """Every mutex acquired by a `#@ critical`/`#@ acquires` section anywhere in
+        the program, sorted (deterministic — the repo forbids hash-order emission).
+
+        Used to declare the abstract diverging `acquire_<mutex>` operation per mutex:
+        a lock-acquire can block forever (deadlock/contention), so it is faithfully
+        modelled as a call that *may* diverge. This is what lets a worker carrying a
+        `#@ \\diverges` effect type-check — its body genuinely can fail to terminate."""
+        mutexes: Set[str] = set()
+
+        def walk(stmts: Any) -> None:
+            if not isinstance(stmts, list):
+                return
+            for s in stmts:
+                if not isinstance(s, dict):
+                    continue
+                if s.get("stmt") == "CriticalSection" and s.get("mutex"):
+                    mutexes.add(s["mutex"])
+                for v in s.values():
+                    if isinstance(v, list):
+                        walk(v)
+                    elif isinstance(v, dict):
+                        walk([v])
+
+        for func in self.ir.get("functions", []):
+            walk(func.get("body", []))
+        return sorted(mutexes)
+
     def _emit_shared_state(self) -> List[str]:
         """Emit shared variable declarations and mutex invariant predicates (concurrent model)."""
         out: List[str] = []
@@ -652,6 +680,23 @@ class PreambleEmissionMixin:
                 out.append(f"    assert {{ {app} }}")
                 out.append("")
                 i2 += 1
+        # Faithful concurrency: acquiring a lock can block forever
+        # (deadlock/contention), so the acquire is modelled as an ABSTRACT
+        # operation that MAY diverge. A worker whose body enters a critical
+        # section therefore genuinely *may* fail to terminate, which justifies
+        # the `#@ \diverges` effect the worker declares (`functions.py:~286`).
+        # Without this, why3 sees a provably-terminating body and rejects the
+        # effect ("this expression does not diverge"). One `val` per mutex,
+        # sorted (no hash-order). Only emitted for programs with a critical
+        # section, so non-concurrency `.mlw` is byte-identical.
+        acquire_mutexes = self._collect_critical_mutexes()
+        if acquire_mutexes:
+            out.append("  (* lock-acquire may block forever — modelled as diverging *)")
+            for mutex in acquire_mutexes:
+                safe_mutex = safe_mutex_name(mutex)
+                out.append(f"  val acquire_{safe_mutex} () : unit")
+                out.append("    diverges")
+                out.append("")
         return out
 
     def _mutex_inv_params(self, mutex: str, inv_str: str) -> List[str]:

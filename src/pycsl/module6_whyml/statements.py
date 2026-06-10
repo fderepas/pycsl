@@ -539,6 +539,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         ]
         let_bindings: List[str] = []
         seq_parts: List[str] = []
+        # Faithful lock-acquire: entering the critical section calls the abstract
+        # diverging `acquire_<mutex>` (declared in `_emit_shared_state`), since
+        # acquiring a lock can block forever. This makes the enclosing worker's
+        # body genuinely able to diverge, so why3 accepts its `#@ \diverges`
+        # effect and the `.mlw` type-checks.
+        safe_mutex = safe_mutex_name(mutex)
+        seq_parts.append(f"{indent}acquire_{safe_mutex} ()")
         if assume_inv and shared_for_mutex:
             for var in shared_for_mutex:
                 safe_var = whyml_ident(var)
