@@ -1,0 +1,24 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use array.Array
+
+  type disk = { mutable disk: array int }
+    invariant { ((Array.length disk) >= 8) }
+    by { disk = (Array.make 8 0) }
+
+  let d : disk = { disk = (Array.make 8 0) }
+
+  let poke (i: int) (v: int) : int
+    requires { ((0 <= i) && (i < 8)) }
+    ensures  { (result = 0) } (* linear *)
+  =
+    let y = ref 0 in
+    let x = ref 0 in
+    d.disk[i] <- v;
+    x := d.disk[i];
+    y := d.disk[i];
+    (!y - !x)
+
+end

@@ -1,0 +1,22 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use map.Map
+  use map.Const
+  use option.Option
+
+  type counter = { mutable start: int }
+    invariant { (start >= 0) }
+    by { start = 7 }
+
+  val counter__get (self: counter) : int
+    ensures  { (result = self.start) }
+
+  let make_and_read () : int
+    ensures  { (result = 7) } (* linear *)
+  =
+    let d = { start = 7 } in
+    d.start
+
+end

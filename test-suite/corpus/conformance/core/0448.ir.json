@@ -1,0 +1,564 @@
+{
+  "ir_version": "1.1",
+  "source_language": "python",
+  "type_decls": [
+    {
+      "kind": "record",
+      "name": "FunctionAnalyzer",
+      "fields": [
+        {
+          "name": "_depth",
+          "type": "int",
+          "mutable": true
+        },
+        {
+          "name": "count",
+          "type": "int",
+          "mutable": true
+        }
+      ],
+      "class_invariants": [
+        {
+          "type": "BinOp",
+          "op": ">=",
+          "left": {
+            "type": "FieldGet",
+            "object": "self",
+            "field": "_depth"
+          },
+          "right": {
+            "type": "Number",
+            "value": 0
+          }
+        },
+        {
+          "type": "BinOp",
+          "op": ">=",
+          "left": {
+            "type": "FieldGet",
+            "object": "self",
+            "field": "count"
+          },
+          "right": {
+            "type": "Number",
+            "value": 0
+          }
+        }
+      ],
+      "field_defaults": {
+        "_depth": 0,
+        "count": 0
+      },
+      "has_hash": false,
+      "has_eq": false,
+      "is_unhashable": false,
+      "constants": {},
+      "bases": [],
+      "init_params": [],
+      "init_body": [],
+      "is_mixin": false,
+      "compose_from": []
+    },
+    {
+      "kind": "record",
+      "name": "NodeVisitor",
+      "fields": [
+        {
+          "name": "_depth",
+          "type": "int",
+          "mutable": true
+        }
+      ],
+      "class_invariants": [
+        {
+          "type": "BinOp",
+          "op": ">=",
+          "left": {
+            "type": "FieldGet",
+            "object": "self",
+            "field": "_depth"
+          },
+          "right": {
+            "type": "Number",
+            "value": 0
+          }
+        }
+      ],
+      "field_defaults": {
+        "_depth": 0
+      },
+      "has_hash": false,
+      "has_eq": false,
+      "is_unhashable": false,
+      "constants": {},
+      "bases": [],
+      "init_params": [],
+      "init_body": [],
+      "is_mixin": false,
+      "compose_from": []
+    }
+  ],
+  "functions": [
+    {
+      "name": "nodevisitor__visit",
+      "symbol_table": {
+        "node": "int"
+      },
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [
+        "node"
+      ],
+      "return_annotation": "int",
+      "contracts": {
+        "requires": [],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": ">=",
+            "left": {
+              "type": "Result"
+            },
+            "right": {
+              "type": "Number",
+              "value": 0
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "Call",
+            "func": "self.generic_visit",
+            "args": [
+              {
+                "type": "Var",
+                "name": "node"
+              }
+            ]
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 26,
+      "col": 4,
+      "pure": true,
+      "kind": "method",
+      "self_type": "NodeVisitor"
+    },
+    {
+      "name": "nodevisitor__generic_visit",
+      "symbol_table": {
+        "node": "int"
+      },
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [
+        "node"
+      ],
+      "return_annotation": "int",
+      "contracts": {
+        "requires": [],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": ">=",
+            "left": {
+              "type": "Result"
+            },
+            "right": {
+              "type": "Number",
+              "value": 0
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "Number",
+            "value": 0
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 21,
+      "col": 4,
+      "pure": true,
+      "kind": "method",
+      "self_type": "NodeVisitor"
+    },
+    {
+      "name": "functionanalyzer__visit_FunctionDef",
+      "symbol_table": {
+        "node": "int"
+      },
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [
+        "node"
+      ],
+      "return_annotation": "int",
+      "contracts": {
+        "requires": [],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": ">=",
+            "left": {
+              "type": "Result"
+            },
+            "right": {
+              "type": "Number",
+              "value": 0
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "Number",
+            "value": 1
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 31,
+      "col": 4,
+      "pure": true,
+      "kind": "method",
+      "self_type": "FunctionAnalyzer"
+    },
+    {
+      "name": "run",
+      "symbol_table": {
+        "n": "int",
+        "a": "Any"
+      },
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [
+        "n"
+      ],
+      "return_annotation": "int",
+      "contracts": {
+        "requires": [],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": ">=",
+            "left": {
+              "type": "Result"
+            },
+            "right": {
+              "type": "Number",
+              "value": 0
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Assign",
+          "target": "a",
+          "value": {
+            "type": "Call",
+            "func": "FunctionAnalyzer",
+            "args": []
+          }
+        },
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "Call",
+            "func": "a.visit",
+            "args": [
+              {
+                "type": "Var",
+                "name": "n"
+              }
+            ]
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 37,
+      "col": 0,
+      "pure": true
+    },
+    {
+      "name": "functionanalyzer__visit",
+      "symbol_table": {
+        "node": "int"
+      },
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [
+        "node"
+      ],
+      "return_annotation": "int",
+      "contracts": {
+        "requires": [],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": ">=",
+            "left": {
+              "type": "Result"
+            },
+            "right": {
+              "type": "Number",
+              "value": 0
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "Call",
+            "func": "self.generic_visit",
+            "args": [
+              {
+                "type": "Var",
+                "name": "node"
+              }
+            ]
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 26,
+      "col": 4,
+      "pure": true,
+      "kind": "method",
+      "self_type": "FunctionAnalyzer"
+    },
+    {
+      "name": "functionanalyzer__generic_visit",
+      "symbol_table": {
+        "node": "int"
+      },
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [
+        "node"
+      ],
+      "return_annotation": "int",
+      "contracts": {
+        "requires": [],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": ">=",
+            "left": {
+              "type": "Result"
+            },
+            "right": {
+              "type": "Number",
+              "value": 0
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "Number",
+            "value": 0
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 21,
+      "col": 4,
+      "pure": true,
+      "kind": "method",
+      "self_type": "FunctionAnalyzer"
+    }
+  ],
+  "imports": [
+    [
+      "vb",
+      "multi_file_lib.visitor_base",
+      "multi_file_lib.visitor_base",
+      0,
+      true
+    ]
+  ]
+}

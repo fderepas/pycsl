@@ -1,0 +1,14 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  val func_a (x: int) : int
+    ensures  { (result = (x + 2)) } (* linear *)
+
+  let call_circ (x: int) : int
+    ensures  { (result = (x + 2)) } (* linear *)
+  =
+    (func_a x)
+
+end

@@ -1,0 +1,12 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  let test_with_imports (x: int) : int
+    requires { (x >= 0) }
+    ensures  { (result >= 0) } (* linear *)
+  =
+    x
+
+end

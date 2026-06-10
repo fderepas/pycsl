@@ -1,0 +1,25 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  type lib = { mutable x: int }
+
+
+  (* Abstract operations for unsupported Python patterns *)
+  val _lib_seven_0 () : int
+    ensures { (result = 7) }
+
+  let _lib : lib = { x = 0 }
+
+  let function caller () : int
+    ensures  { (result = 7) } (* linear *)
+  =
+    (_lib_seven_0 ())
+
+  let lib__seven (self: lib) : int
+    ensures  { (result = 7) } (* linear *)
+  =
+    7
+
+end

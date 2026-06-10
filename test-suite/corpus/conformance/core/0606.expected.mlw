@@ -1,0 +1,20 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  type c = { mutable v: int }
+    invariant { (v >= 0) }
+    by { v = 0 }
+
+  let c__get (self: c) : int
+    ensures  { (result = self.v) }
+  =
+    self.v
+
+  let function make () : c
+    ensures  { true }
+  =
+    { v = 0 }
+
+end

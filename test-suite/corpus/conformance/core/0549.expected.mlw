@@ -1,0 +1,42 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  type coreemit = { mutable program_ir: int }
+
+  type mapops = int
+
+  type facade = int
+
+
+  (* Abstract operations for unsupported Python patterns *)
+  val self_emit_1 (x0: int) : int
+    ensures { (result >= 0) }
+
+  let coreemit__emit (self: coreemit) (x: int) : int
+    ensures  { (result >= 0) } (* linear *)
+  =
+    (if (x >= 0) then x else 0)
+
+  let facade__emit (self: facade) (x: int) : int
+    ensures  { (result >= 0) } (* linear *)
+  =
+    (if (x >= 0) then x else 0)
+
+  let facade__handle_get (self: facade) (k: int) : int
+    ensures  { (result >= 0) } (* linear *)
+  =
+    (facade__emit self k)
+
+  let facade__run (self: facade) (k: int) : int
+    ensures  { (result >= 0) } (* linear *)
+  =
+    (facade__handle_get self k)
+
+  let mapops__handle_get (self: mapops) (k: int) : int
+    ensures  { (result >= 0) } (* linear *)
+  =
+    (self_emit_1 k)
+
+end

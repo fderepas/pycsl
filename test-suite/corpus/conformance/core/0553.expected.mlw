@@ -1,0 +1,18 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  type mapops = int
+
+
+  (* Abstract operations for unsupported Python patterns *)
+  val self_emit_1 (x0: int) : int
+    ensures { (result >= 0) }
+
+  let mapops__handle_get (self: mapops) (k: int) : int
+    ensures  { (result >= 0) } (* linear *)
+  =
+    (self_emit_1 k)
+
+end

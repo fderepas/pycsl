@@ -1,0 +1,43 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  type functionanalyzer = { mutable functionanalyzer__depth: int; mutable count: int }
+    invariant { (functionanalyzer__depth >= 0) }
+    invariant { (count >= 0) }
+    by { functionanalyzer__depth = 0; count = 0 }
+
+  type nodevisitor = { mutable nodevisitor__depth: int }
+    invariant { (nodevisitor__depth >= 0) }
+    by { nodevisitor__depth = 0 }
+
+
+  (* Abstract operations for unsupported Python patterns *)
+  val a_visit_1 (x0: int) : int
+    ensures { (result >= 0) }
+
+  val functionanalyzer__generic_visit (self: functionanalyzer) (node: int) : int
+    ensures  { (result >= 0) } (* linear *)
+
+  val functionanalyzer__visit (self: functionanalyzer) (node: int) : int
+    ensures  { (result >= 0) } (* linear *)
+
+  let functionanalyzer__visit_FunctionDef (self: functionanalyzer) (node: int) : int
+    ensures  { (result >= 0) } (* linear *)
+  =
+    1
+
+  val nodevisitor__generic_visit (self: nodevisitor) (node: int) : int
+    ensures  { (result >= 0) } (* linear *)
+
+  val nodevisitor__visit (self: nodevisitor) (node: int) : int
+    ensures  { (result >= 0) } (* linear *)
+
+  let run (n: int) : int
+    ensures  { (result >= 0) } (* linear *)
+  =
+    let a = { functionanalyzer__depth = 0; count = 0 } in
+    (a_visit_1 n)
+
+end

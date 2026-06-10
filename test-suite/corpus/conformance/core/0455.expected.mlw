@@ -1,0 +1,23 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  exception Return int
+
+  let clamp10 (x: int) : int
+    requires { (x >= 0) }
+    ensures  { ((old (x < 10)) -> (result = x)) } (* act small *) (* linear *)
+    ensures  { ((old (x >= 10)) -> (result = 10)) } (* act big *) (* linear *)
+  =
+    try
+    assert { ((x < 10) || (x >= 10)) };
+    assert { (not ((x < 10) && (x >= 10))) };
+    if (x < 10) then begin
+      raise (Return x)
+    end else begin
+      raise (Return 10)
+    end
+    with Return r -> r end
+
+end

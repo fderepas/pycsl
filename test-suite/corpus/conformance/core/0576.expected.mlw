@@ -1,0 +1,18 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  type account = { mutable balance: int }
+    invariant { (balance >= 0) }
+    by { balance = 0 }
+
+  let acc : account = { balance = 0 }
+
+  let peek () : int
+    ensures  { (result = acc.balance) }
+    ensures  { (result >= 0) } (* linear *)
+  =
+    acc.balance
+
+end

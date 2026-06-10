@@ -1,0 +1,30 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  type counter = { mutable counter_count: int }
+
+  type service = { mutable service_count: int }
+    invariant { (service_count >= 0) }
+    by { service_count = 0 }
+
+  let counter__bump (self: counter) : unit
+    requires { (self.counter_count >= 0) }
+    ensures  { (self.counter_count = ((old self.counter_count) + 1)) }
+  =
+    self.counter_count <- (self.counter_count + 1)
+
+  let service__bump (self: service) : unit
+    requires { (self.service_count >= 0) }
+    ensures  { (self.service_count = ((old self.service_count) + 1)) }
+  =
+    self.service_count <- (self.service_count + 1)
+
+  let service__tick (self: service) : unit
+    requires { (self.service_count >= 0) }
+    ensures  { (self.service_count = ((old self.service_count) + 1)) }
+  =
+    let _ = (service__bump self) in ()
+
+end

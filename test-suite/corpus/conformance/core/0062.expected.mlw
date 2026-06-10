@@ -1,0 +1,14 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  val double_int (x: int) : int
+    ensures  { (result = (2 * x)) } (* linear *)
+
+  let foobar (x: int) : int
+    ensures  { (result = (2 * x)) } (* linear *)
+  =
+    (double_int x)
+
+end

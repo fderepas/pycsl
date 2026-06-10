@@ -176,11 +176,18 @@ def _process_dependency(filepath: str, needed_names: Set[str], cache: Dict[str, 
                 reachable.add(callee)
                 worklist.append(callee)
 
+    # Emit in the dependency's SOURCE (definition) order — `reachable` is a set,
+    # so iterating it directly is hash-seed-nondeterministic; for a multi-name
+    # import (e.g. `from m import a, b`) that would make the injected function
+    # ORDER vary run-to-run, breaking the canonical-IR contract the conformance
+    # corpus depends on. Iterating `all_funcs` (insertion-ordered = source order)
+    # and filtering to `reachable` is deterministic and stable.
     result = []
-    for name in reachable:
-        func = dict(all_funcs[name])  # shallow copy
-        func["trusted"] = True
-        result.append(func)
+    for name, func in all_funcs.items():
+        if name in reachable:
+            func = dict(func)  # shallow copy
+            func["trusted"] = True
+            result.append(func)
     return result
 
 

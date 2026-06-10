@@ -6,19 +6,21 @@ real-corpus tests. The IR is then consumed by `bin/ir-to-rocq-ast.py`
 to produce a Rocq AST literal, and by `Module6_WhyMLTranspiler` to
 produce the Module 6 WhyML emission. The byte-diff compares the two.
 
-Usage:  bin/pycsl-ir-dump.py <source.py>  [--function NAME] [--resolved]
+Usage:  bin/pycsl-ir-dump.py <source.py>  [--function NAME] [--resolved] [--deep]
         Prints the IR JSON to stdout.
 
 With ``--resolved``, the dumped IR is the *resolved* Module-5 IR — i.e. the IR
-AFTER the three PURE IR->IR post-Module5 passes that the orchestrator applies
-before Module 6 consumes it (relocated to ``frontend.ir_resolve`` in refactor.md
-Phase C / C2b): ``apply_inheritance`` (monomorphize base methods onto
-subclasses), ``apply_composition`` (Tier-1 ``compose_from``/``mixin``
-flattening) and ``apply_inline_globals`` (inline method calls on module-level
-global instances). These three operate on the IR dict alone (no dependency
-context), so they are safe to run from this tool. Import resolution
-(``resolve_imports``) needs dependency-loading context and is NOT applied here;
-drivers that depend on cross-file imports still need their own follow-on.
+AFTER the FOUR post-Module5 IR-resolution passes the orchestrator applies before
+Module 6 consumes it, via the front-end's single resolution entry
+``frontend.ir_resolve.resolve`` (relocated there in refactor.md Phase C / C2b).
+The passes run IN ORDER: (1) ``resolve_imports`` (load dependency files and
+inject the imported functions/classes the driver calls), (2) ``apply_inheritance``
+(monomorphize base methods onto subclasses), (3) ``apply_composition`` (Tier-1
+``compose_from``/``mixin`` flattening) and (4) ``apply_inline_globals`` (inline
+method calls on module-level global instances). Import resolution uses the SOURCE
+PATH to locate dependency files; ``--deep`` recurses transitive imports (matching
+``pycsl --deep``). For a driver with no imports, ``resolve_imports`` is a no-op,
+so ``--resolved`` output is byte-identical to the historical 3-pass application.
 """
 from __future__ import annotations
 import json
@@ -40,7 +42,7 @@ from frontend.Module4_SemanticAnalyzer import Module4_SemanticAnalyzer  # noqa: 
 from frontend.Module5_IREmitter import Module5_IREmitter  # noqa: E402
 
 
-def dump_ir(source_path: str, resolved: bool = False) -> str:
+def dump_ir(source_path: str, resolved: bool = False, deep: bool = False) -> str:
     src = Path(source_path).read_text()
     # Module 1: ingest Python source
     ingestor = Module1_Ingestor(src)
@@ -56,18 +58,24 @@ def dump_ir(source_path: str, resolved: bool = False) -> str:
     ir_json = Module5_IREmitter(validated_ast).generate_json()
     if not resolved:
         return ir_json
-    # --resolved: apply the three PURE IR->IR post-Module5 passes that the
-    # orchestrator runs before Module 6 consumes the IR. These take only the
-    # IR dict (no dependency/import context) so they are safe here. Import
-    # resolution (_resolve_imports) is intentionally NOT applied — it needs
-    # dependency-loading context and is out of scope for this tool.
-    from frontend.ir_resolve import (  # noqa: E402
-        apply_inheritance, apply_composition, apply_inline_globals,
-    )
+    # --resolved: apply the SAME four post-Module5 IR-resolution passes the
+    # orchestrator (pycsl.py `_run_pipeline`) runs before Module 6 consumes the
+    # IR, via the front-end's single resolution entry `frontend.ir_resolve.resolve`.
+    # The passes run IN ORDER: import resolution → inheritance → composition →
+    # inline-globals. Import resolution needs the SOURCE PATH (to locate
+    # dependency files) and `deep` (recurse transitive imports); the
+    # `validated_ast` argument is threaded for call-site compatibility but no
+    # longer consulted (the import LIST is IR-sourced via ir_data["imports"]).
+    # When the driver has no imports, `resolve_imports` is a no-op, so the
+    # 4-pass `resolve` is byte-identical to the historical 3-pass application.
+    from frontend.ir_resolve import resolve as _ir_resolve  # noqa: E402
+    import contextlib  # noqa: E402
     ir_data = json.loads(ir_json)
-    apply_inheritance(ir_data)
-    apply_composition(ir_data)
-    apply_inline_globals(ir_data)
+    # `resolve_imports` prints informational "[*] Imported from ..." lines to
+    # stdout (as the full pipeline does). This tool's contract is that stdout
+    # carries ONLY the IR JSON, so redirect those lines to stderr.
+    with contextlib.redirect_stdout(sys.stderr):
+        _ir_resolve(ir_data, validated_ast, source_path, deep=deep)
     return json.dumps(ir_data)
 
 
@@ -75,18 +83,22 @@ def main() -> None:
     args = sys.argv[1:]
     fn_filter = None
     resolved = False
+    deep = False
     if "--resolved" in args:
         resolved = True
         args.remove("--resolved")
+    if "--deep" in args:
+        deep = True
+        args.remove("--deep")
     if "--function" in args:
         i = args.index("--function")
         fn_filter = args[i + 1]
         del args[i:i + 2]
     if len(args) != 1:
-        print("usage: pycsl-ir-dump.py <source.py> [--function NAME] [--resolved]",
+        print("usage: pycsl-ir-dump.py <source.py> [--function NAME] [--resolved] [--deep]",
               file=sys.stderr)
         sys.exit(2)
-    ir_json = dump_ir(args[0], resolved=resolved)
+    ir_json = dump_ir(args[0], resolved=resolved, deep=deep)
     if fn_filter:
         data = json.loads(ir_json)
         data["functions"] = [f for f in data["functions"]

@@ -1,0 +1,17 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  type py_match = { mutable pos: int }
+    invariant { (pos >= 0) }
+    by { pos = 0 }
+
+  let m : py_match = { pos = 0 }
+
+  let peek () : int
+    ensures  { (result >= 0) } (* linear *)
+  =
+    m.pos
+
+end

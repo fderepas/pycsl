@@ -1,0 +1,26 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use array.Array
+
+
+  (* Abstract operations for unsupported Python patterns *)
+  val constant j : int
+
+  let test_forall_zero (arr: array int) (n: int) : unit
+    requires { ((Array.length arr) = n) }
+    requires { (n >= 0) }
+    ensures  { (forall i : int. (((0 <= i) && (i < n)) -> (arr[i] = 0))) }
+  =
+    let i = ref 0 in
+    i := 0;
+    while (!i < n) do
+      invariant { ((0 <= !i) && (!i <= n)) }
+      invariant { (forall j : int. (((0 <= j) && (j < !i)) -> (arr[j] = 0))) }
+      variant { (n - !i) }
+      arr[!i] <- 0;
+      i := (!i + 1)
+    done
+
+end

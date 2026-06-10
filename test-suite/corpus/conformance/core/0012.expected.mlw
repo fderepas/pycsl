@@ -1,0 +1,11 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  let test_result (x: int) : int
+    ensures  { (result = (x * x)) }
+  =
+    (x * x)
+
+end

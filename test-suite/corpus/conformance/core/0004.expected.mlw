@@ -1,0 +1,33 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  let pycsl_div (x: int) (y: int) : int
+    requires { [@expl:division by zero] y <> 0 }
+    ensures { result = div x y }
+  = div x y
+
+  let pycsl_mod (x: int) (y: int) : int
+    requires { [@expl:modulo by zero] y <> 0 }
+    ensures { result = mod x y }
+  = mod x y
+
+  let test_loop_invariant (n: int) : int
+    requires { (n >= 0) }
+    ensures  { (result = (div (n * (n - 1)) 2)) }
+  =
+    let s = ref 0 in
+    let i = ref 0 in
+    s := 0;
+    i := 0;
+    while (!i < n) do
+      invariant { (!s = (div (!i * (!i - 1)) 2)) }
+      invariant { ((0 <= !i) && (!i <= n)) }
+      variant { (n - !i) }
+      s := (!s + !i);
+      i := (!i + 1)
+    done;
+    !s
+
+end

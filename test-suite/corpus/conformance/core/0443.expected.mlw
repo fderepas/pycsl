@@ -1,0 +1,26 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  type sub = { mutable sub_size: int; mutable cap: int }
+    invariant { (sub_size >= 0) }
+    invariant { (cap >= 0) }
+    by { sub_size = 0; cap = 5 }
+
+  type store = { mutable store_size: int }
+    invariant { (store_size >= 0) }
+    by { store_size = 0 }
+
+  val store__count (self: store) : int
+    ensures  { (result = self.store_size) }
+
+  val sub__count (self: sub) : int
+    ensures  { (result = self.sub_size) }
+
+  let sub__room (self: sub) : int
+    ensures  { (result >= 0) } (* linear *)
+  =
+    (self.cap + self.sub_size)
+
+end

@@ -1,0 +1,19 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  let test_loop_variant (n: int) : int
+    requires { (n >= 0) }
+    ensures  { (result = n) } (* linear *)
+  =
+    let i = ref 0 in
+    i := 0;
+    while (!i < n) do
+      invariant { ((0 <= !i) && (!i <= n)) }
+      variant { (n - !i) }
+      i := (!i + 1)
+    done;
+    !i
+
+end

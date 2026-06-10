@@ -1,0 +1,26 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use array.Array
+
+
+  type reader = int
+
+  let reader__at (self: reader) (a: array int) (i: int) : int
+    requires { (4 >= 0 && 4 <= Array.length a) }
+    requires { ((0 <= i) && (i < 4)) }
+    ensures  { (result = a[i]) }
+  =
+    a[i]
+
+  let run (a: array int) (i: int) : int
+    requires { (4 >= 0 && 4 <= Array.length a) }
+    requires { ((0 <= i) && (i < 4)) }
+    ensures  { (result = a[i]) }
+  =
+    let _inl_res__inl1 = ref 0 in
+    _inl_res__inl1 := a[i];
+    !_inl_res__inl1
+
+end

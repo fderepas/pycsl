@@ -1,0 +1,11 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  let test_result_sum (x: int) (y: int) : int
+    ensures  { (result = (x + y)) } (* linear *)
+  =
+    (x + y)
+
+end

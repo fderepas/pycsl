@@ -1,0 +1,12 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  let test_precondition (x: int) : int
+    requires { (x >= 0) }
+    ensures  { (result >= 0) } (* linear *)
+  =
+    (x + 1)
+
+end

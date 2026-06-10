@@ -1,0 +1,23 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  let test_ghost_tuple3_proof (n: int) : int
+    requires { (n >= 0) }
+    ensures  { (result = n) } (* linear *)
+  =
+    let i = ref 0 in
+    let ghost t = ref (0, 0, n) in
+    i := 0;
+    while (!i < n) do
+      invariant { ((0 <= !i) && (!i <= n)) }
+      invariant { ((let (z_, _, _) = !t in z_) = !i) }
+      invariant { ((let (_, _, z_) = !t in z_) = (n - !i)) }
+      variant { (n - !i) }
+      ghost t := (((let (z_, _, _) = !t in z_) + 1), (let (_, z_, _) = !t in z_), ((let (_, _, z_) = !t in z_) - 1));
+      i := (!i + 1)
+    done;
+    !i
+
+end

@@ -1,0 +1,13 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use array.Array
+
+  let function test_frame_condition (arr: array int) : int
+    requires { ((Array.length arr) > 0) }
+    ensures  { (result = arr[0]) }
+  =
+    arr[0]
+
+end

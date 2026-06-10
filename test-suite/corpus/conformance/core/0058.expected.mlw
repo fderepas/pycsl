@@ -1,0 +1,12 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  let at_least_one (x: int) : int
+    requires { (x >= 0) }
+    ensures  { (result >= 1) } (* linear *)
+  =
+    (x + 1)
+
+end

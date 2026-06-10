@@ -1,0 +1,30 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  type base = { mutable base_start: int }
+    invariant { (base_start >= 0) }
+    by { base_start = 7 }
+
+  type sub = { mutable sub_start: int; mutable extra: int }
+    invariant { (sub_start >= 0) }
+    invariant { (extra >= 0) }
+    by { sub_start = 7; extra = 0 }
+
+  let base__get (self: base) : int
+    ensures  { (result = self.base_start) }
+  =
+    self.base_start
+
+  let sub__get (self: sub) : int
+    ensures  { (result = self.sub_start) }
+  =
+    self.sub_start
+
+  let sub__total (self: sub) : int
+    ensures  { (result >= 0) } (* linear *)
+  =
+    (self.sub_start + self.extra)
+
+end

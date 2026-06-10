@@ -1,0 +1,14 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  val double_plus_one (x: int) : int
+    ensures  { (result = ((2 * x) + 1)) } (* linear *)
+
+  let call_deep (x: int) : int
+    ensures  { (result = ((2 * x) + 1)) } (* linear *)
+  =
+    (double_plus_one x)
+
+end

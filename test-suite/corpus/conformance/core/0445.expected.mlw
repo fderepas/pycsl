@@ -1,0 +1,26 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  type base = { mutable base_v: int }
+    invariant { (base_v >= 0) }
+    by { base_v = 0 }
+
+  type sub = { mutable sub_v: int }
+    invariant { (sub_v >= 0) }
+    by { sub_v = 0 }
+
+  let base__f (self: base) (x: int) : int
+    requires { (x >= 0) }
+    ensures  { (result >= x) } (* linear *)
+  =
+    (x + self.base_v)
+
+  let sub__f (self: sub) (x: int) : int
+    requires { (x >= 5) }
+    ensures  { (result >= x) } (* linear *)
+  =
+    (x + self.sub_v)
+
+end

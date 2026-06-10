@@ -1,0 +1,17 @@
+module PyCSL_Program
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+
+  val double_int (x: int) : int
+    ensures  { (result = (2 * x)) } (* linear *)
+
+  val triple_int (x: int) : int
+    ensures  { (result = (3 * x)) } (* linear *)
+
+  let quintuple (x: int) : int
+    ensures  { (result = (5 * x)) } (* linear *)
+  =
+    ((double_int x) + (triple_int x))
+
+end

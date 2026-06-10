@@ -1,0 +1,177 @@
+{
+  "ir_version": "1.1",
+  "source_language": "python",
+  "type_decls": [],
+  "functions": [
+    {
+      "name": "double_int",
+      "symbol_table": {
+        "x": "int"
+      },
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [
+        "x"
+      ],
+      "return_annotation": "int",
+      "contracts": {
+        "requires": [],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": "==",
+            "left": {
+              "type": "Result"
+            },
+            "right": {
+              "type": "BinOp",
+              "op": "*",
+              "left": {
+                "type": "Number",
+                "value": 2
+              },
+              "right": {
+                "type": "Var",
+                "name": "x"
+              }
+            }
+          }
+        ],
+        "assigns": [],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "BinOp",
+            "op": "+",
+            "left": {
+              "type": "Var",
+              "name": "x"
+            },
+            "right": {
+              "type": "Var",
+              "name": "x"
+            }
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": true,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 6,
+      "col": 0
+    },
+    {
+      "name": "foobar",
+      "symbol_table": {
+        "x": "int"
+      },
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [
+        "x"
+      ],
+      "return_annotation": "int",
+      "contracts": {
+        "requires": [],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": "==",
+            "left": {
+              "type": "Result"
+            },
+            "right": {
+              "type": "BinOp",
+              "op": "*",
+              "left": {
+                "type": "Number",
+                "value": 2
+              },
+              "right": {
+                "type": "Var",
+                "name": "x"
+              }
+            }
+          }
+        ],
+        "assigns": [],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "Call",
+            "func": "double_int",
+            "args": [
+              {
+                "type": "Var",
+                "name": "x"
+              }
+            ]
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 6,
+      "col": 0
+    }
+  ],
+  "imports": [
+    [
+      "multi_file_lib.arith",
+      "multi_file_lib.arith",
+      "multi_file_lib.arith",
+      0,
+      true
+    ]
+  ],
+  "module_constants": {
+    "_": 0
+  }
+}
