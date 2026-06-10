@@ -713,6 +713,21 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
 
         self.generic_visit(node)
 
+    def visit_For(self, node: ast.For) -> Any:
+        # A Python `for` desugars to a WhyML `while` only at Module-6 emission, so its
+        # loop invariants/variants must still pass the pre-Module-5 \proj-index guard
+        # here (otherwise a dynamic \proj slips through to Module 5's ProjExpr emission
+        # and crashes on `int(index.value)`). Mirror visit_While.
+        context_name = f"for loop at line {node.lineno} inside {self.current_function_name}"
+
+        for inv in getattr(node, 'csl_invariants', []):
+            self._validate_contract(inv, context_name, is_postcondition=False)
+
+        for var in getattr(node, 'csl_variants', []):
+            self._validate_contract(var, context_name, is_postcondition=False)
+
+        self.generic_visit(node)
+
     def process(self, tree: ast.AST) -> ast.AST:
         """Runs the semantic analysis on the unified AST."""
         self.visit(tree)

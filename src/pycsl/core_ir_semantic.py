@@ -156,8 +156,10 @@ def _check_contract_exprs(func, known) -> None:
     reconstructs from the IR (matching Module 4's AST visitor):
       - function contracts (requires/ensures/assigns/variants) → ``function 'F'``;
       - WHILE-loop invariants/variants → ``while loop at line N inside function 'F'``
-        (innermost enclosing while; for-loop invariants are NOT checked, matching
-        Module 4 — it has no for-loop visitor for this);
+        (innermost enclosing while);
+      - FOR-loop invariants/variants → ``for loop at line N inside function 'F'`` (a
+        Python ``for`` desugars to a ``while`` only at Module-6 emission, so at
+        IR-semantic time the node is still a ``for`` and carries the same fields);
       - ghost values → ``function 'F' (ghost 'g')`` (simple) /
         ``function 'F' (ghost 'g[...]')`` (subscript, GhostArraySet).
     Gated by drivers 0667–0673 (predicate bases) and 0556/0674/0675 (quant binders)
@@ -191,8 +193,15 @@ def _pb_stmt(s, fname, symtab, known) -> None:
             _pb_expr(clause, lctx, symtab, known)
         _pb_body(s.get("body", []) or [], fname, symtab, known)
     elif st == "For":
-        # Module 4 does NOT validate for-loop invariants (no for-loop visitor for
-        # this check) — recurse the body only, do not touch the invariants.
+        # A Python `for` desugars to a WhyML `while` only at emission (Module 6), so at
+        # IR-semantic time the node is still a `for`; validate its loop invariants/variants
+        # exactly as the `while` branch does (the For node carries the same `invariants`/
+        # `variants`/`line` fields), then recurse the body.
+        lctx = f"for loop at line {s.get('line', 0)} inside function '{fname}'"
+        for clause in (s.get("invariants") or []):
+            _pb_expr(clause, lctx, symtab, known)
+        for clause in (s.get("variants") or []):
+            _pb_expr(clause, lctx, symtab, known)
         _pb_body(s.get("body", []) or [], fname, symtab, known)
     elif st == "GhostAssign":
         _pb_expr(s.get("value"),
@@ -313,6 +322,14 @@ def _cs_stmt(s, fname, symtab, mc) -> None:
             _cs_clause(clause, lctx, False, symtab, mc)
         _cs_body(s.get("body", []) or [], fname, symtab, mc)
     elif st == "For":
+        # A `for` is still a `for` at IR-semantic time (it desugars to a `while` only at
+        # Module-6 emission); validate its loop invariants/variants exactly as the `while`
+        # branch does, then recurse the body.
+        lctx = f"for loop at line {s.get('line', 0)} inside function '{fname}'"
+        for clause in (s.get("invariants") or []):
+            _cs_clause(clause, lctx, False, symtab, mc)
+        for clause in (s.get("variants") or []):
+            _cs_clause(clause, lctx, False, symtab, mc)
         _cs_body(s.get("body", []) or [], fname, symtab, mc)
     elif st == "GhostAssign":
         _cs_clause(s.get("value"),
