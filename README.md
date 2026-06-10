@@ -601,6 +601,7 @@ PyCSL/
 │   └── reviewer/                       # Human-readable reports
 ├── docs/                               # Reference documents
 │   ├── glossary/                       # Human-facing glossary (witness, ghost code, memory model, ...)
+│   ├── ir.md                              # Front-end <-> core IR wire contract (frozen v1.1)
 │   ├── pycsl-concrete-syntax-reference.md  # Normative EBNF grammar
 │   ├── pycsl-static-semantics-reference.md # Well-formedness rules
 │   └── pycsl-translational-reference.md    # Translation T: Python → WhyML

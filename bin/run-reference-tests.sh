@@ -163,6 +163,24 @@ if [ "${PYCSL_SKIP_DOC_COHERENCY_CHECK:-0}" != "1" ]; then
     fi
 fi
 
+# IR conformance CI gate (docs/ir.md §10; refactor.md Phase E). Runs BOTH conformance
+# corpora — core-only (golden IR -> WhyML) and front-end-only (source -> resolved IR) —
+# so a standard gate run fails if the frozen front-end<->core contract regresses. Additive:
+# runs ONCE before corpus discovery, does not touch the reference-test counting. Skip
+# temporarily with PYCSL_SKIP_CONFORMANCE_CHECK=1.
+if [ "${PYCSL_SKIP_CONFORMANCE_CHECK:-0}" != "1" ]; then
+    if ! "$PROJECT_ROOT/bin/run-conformance.sh"; then
+        echo ""
+        echo "[!] IR conformance failed. Either the core no longer re-derives the golden"
+        echo "    WhyML (core-only corpus), or the front-end no longer produces the canonical"
+        echo "    IR (front-end-only corpus). The IR is frozen at v1.1 (docs/ir.md §10): a"
+        echo "    deliberate shape change requires an IR_VERSION/ACCEPTED_IR_VERSIONS bump and"
+        echo "    refreshed goldens. Run ./bin/run-conformance.sh for the per-corpus detail."
+        echo "    Skip this gate temporarily with PYCSL_SKIP_CONFORMANCE_CHECK=1."
+        exit 1
+    fi
+fi
+
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[0;33m'

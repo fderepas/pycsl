@@ -526,3 +526,73 @@ body `return x + 1`:
   }]
 }
 ```
+
+---
+
+## 10. Stability, versioning & freeze
+
+**The IR is FROZEN at v1.1 as the published front-end ↔ core contract.** With Phase E
+complete (`refactor.md`), this document — together with `ir_schema.py` (`IR_VERSION`,
+`ACCEPTED_IR_VERSIONS`) and the two conformance corpora — is the *stable target* a second
+front-end is developed against. The shape specified in §§4–8 and the obligations in §9 do
+not change underneath an implementer: any change to them is a *versioned* event governed by
+the policy below, not an ambient drift.
+
+### 10.1 Compatibility policy (normative)
+
+Versioning is semver-style (`ir_schema.py:25–28`; restated here as the published policy):
+
+- **MINOR bump** (e.g. `1.1 → 1.2`) is **additive and back-compatible**: it may add new
+  optional top-level keys, optional `FunctionIR`/`ContractsIR` fields, or new node types,
+  but must never remove or re-mean an existing key. A document valid under the lower minor
+  remains valid under the higher one, so the lower version stays in `ACCEPTED_IR_VERSIONS`.
+  The `1.0 → 1.1` bump (the optional `imports` key) is the worked precedent.
+- **MAJOR bump** (e.g. `1.x → 2.0`) is **breaking**: it removes or re-means a key, or
+  tightens a shape. It requires deliberately **widening** `ACCEPTED_IR_VERSIONS` (to ingest
+  both old and new for a migration window) and later **retiring** the old major when support
+  ends. A stamped-but-unaccepted `ir_version` is a hard reject in `validate_ir`
+  (`ir_schema.py:148–153`) — the core never lowers an IR it may misread.
+
+Any change to this document that alters the wire shape MUST be accompanied by the matching
+`IR_VERSION` bump and an `ACCEPTED_IR_VERSIONS` update, and MUST keep the conformance
+corpora green (§10.2). The version field is the single source of truth for "which contract".
+
+### 10.2 The two conformance corpora ARE the contract test
+
+The contract is not merely documented — it is **regression-tested** by the two corpora in
+`test-suite/corpus/conformance/`, run by the gate (see `bin/run-conformance.sh`, wired into
+`bin/run-reference-tests.sh`):
+
+- **Core corpus** (`bin/core-only-conformance.py`): the **core honors the IR with no
+  front-end**. For each frozen `NNNN.ir.json` golden it runs `validate_ir` +
+  `run_ir_semantic_checks` + Module 6 and **byte-diffs** against `NNNN.expected.mlw`, with
+  an import-time assertion that no `Module1..5`/`pure_ast` module loaded. A core change that
+  breaks golden-IR → WhyML fails here.
+- **Front-end corpus** (`bin/frontend-only-conformance.py`): the **Python front-end produces
+  the canonical IR with no prover**. For each golden it re-derives the resolved IR from
+  source (`--resolved`) and **structurally diffs** against the frozen golden, asserting no
+  core / Module 6 / prover module loaded. A front-end change that breaks source → IR fails
+  here.
+
+Together they pin both halves of the seam: golden IR ⇄ both the WhyML the core must emit and
+the IR the front-end must emit. A change that moves either half without a version event
+breaks the gate by design.
+
+### 10.3 Obligation on a NEW front-end
+
+A second front-end — **Go** (via `go/ast` + `go/types`) or **C** (via Frama-C/ACSL) — is now
+developable against a stable target. To be conformant it MUST:
+
+1. **Target this document** (`docs/ir.md`): produce a `ProgramIR` of exactly the shape in
+   §§4–8, honoring every obligation in §9 (version stamp, required keys, source spans,
+   resolved IR, literal `ProjExpr.index`, contract scope, `no_exception` well-formedness, no
+   `Unknown` nodes for supported constructs).
+2. **Emit a canonical, deterministic serialization** (§3): no set/hash-iteration order may
+   leak into the output; every set→list boundary is sorted by a source-derived key. The
+   front-end corpus's PYTHONHASHSEED determinism gate enforces this for the Python front-end,
+   and any new front-end must hold to the same byte-stability discipline.
+3. **Pass the front-end corpus** as its acceptance bar: re-deriving the IR for the reference
+   drivers must structurally match the frozen goldens (modulo the `ir_version` stamp, which
+   is reported as non-fatal `VERSION-SKEW`). Passing the front-end corpus is the operational
+   definition of "this front-end produces the canonical IR" — the existing core then accepts
+   and correctly lowers its programs unchanged, which the core corpus already guarantees.
