@@ -280,6 +280,15 @@ Every landed change records its passed gate inline. The standard gates:
   `reset --hard` / `stash`: run `git status` and commit anything you care about first.** When you must
   clear noise, narrow to the real paths (`git checkout -- '*.aux'`) — never the blanket `checkout -- .`,
   and never `stash -u`+`drop` as a "clear noise" shortcut.
+- **`.mlw` is generated validation output — gitignored by default (`*.mlw`), kept only on purpose.** You
+  do not commit the WhyML a validation run emits; it's reproducible from the source/IR and would clutter
+  the repo. When a `.mlw` is a *deliberate frozen test fixture* — the conformance corpora's
+  `test-suite/corpus/conformance/core/*.expected.mlw` golden outputs (the core-only / front-end-only
+  runners byte-diff against them) — keep it **explicitly** with `git add -f <file>`, NOT a `.gitignore`
+  negation. The distinction is the point: transient verification output stays ignored; only the handful of
+  intentional golden fixtures are tracked, one explicit force-add at a time. (Watch for the trap: a plain
+  `git add <dir>/` silently skips the `*.mlw` goldens, leaving the conformance corpus unusable on a fresh
+  checkout — exactly how the E0/E1 goldens were lost until force-added.)
 - **Re-ground a plan against the committed source before acting** — its load-bearing premise may be
   stale; cite `file:line`. Treat recommendations as **hypotheses, not orders** (verify the smell
   exists; reject false unifications; leave faithful upstream ports like `pure_ast.py` alone).
