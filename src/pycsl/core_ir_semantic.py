@@ -21,6 +21,11 @@ Migrated so far:
         one is a *surface-tracking* expr-walker: the error context varies by where
         the predicate sits — function contract, while-loop invariant (with the
         innermost loop's line), or ghost expression (simple / subscript).
+  - B-final: ghost string ``+=``/``-=``/``*=`` ban — a string-typed ghost variable
+        does not support augmented assignment (use the ``^`` concat operator). Walks
+        the IR body's ``GhostAssign`` nodes; the ghost's declared type rides the
+        function ``symbol_table`` (Module 5 now builds it, including ghost decls).
+        Was Module 4's ``_build_function_scope`` ghost-string-op raise.
 """
 from __future__ import annotations
 
@@ -50,6 +55,7 @@ def run_ir_semantic_checks(ir: Any, *, stage: str = "ir-semantic") -> None:
         _check_checkpoints(func)
         _check_mutable_defaults(func)
         _check_acts(func)
+        _check_ghost_string_ops(func)
     # Module-level (cross-method) checks run once over the whole IR.
     _check_happy(ir)
 
@@ -467,6 +473,42 @@ def _contains_result(node) -> bool:
     if isinstance(node, list):
         return any(_contains_result(x) for x in node)
     return False
+
+
+# --- ghost string augmented-assignment ban (body walk) ----------------------
+
+def _check_ghost_string_ops(func) -> None:
+    """A string-typed ghost variable does not support an augmented assignment
+    (``+=``/``-=``/``*=``); the ``^`` concat operator must be used instead — migrated
+    from Module 4's ``_build_function_scope`` (which read ``current_scope``). Walks the
+    IR body for ``GhostAssign`` nodes (already in the IR, no plumbing); for each with a
+    non-``"="`` ``op`` whose target is ``string``-typed in the function ``symbol_table``
+    (Module 5 now builds it, including ghost declarations — a ``: string`` ghost decl
+    survives in the table because the later augmented assign does not overwrite it),
+    raises Module 4's message verbatim. Context is ``function 'F'`` (matching Module 4's
+    ``self.current_function_name``)."""
+    where = f"function '{func.get('name', '<anonymous>')}'"
+    symtab = func.get("symbol_table") or {}
+    _gso_walk(func.get("body", []) or [], where, symtab)
+
+
+def _gso_walk(node, where, symtab) -> None:
+    if isinstance(node, dict):
+        if node.get("stmt") == "GhostAssign":
+            op = node.get("op")
+            target = node.get("target")
+            if op != "=" and symtab.get(target) == "string":
+                raise PyCSLSemanticError(
+                    f"Ghost string variable '{target}' does not support '{op}' "
+                    f"in {where}. "
+                    "Use the ^ operator for string concatenation: "
+                    f"#@ ghost {target} = {target} ^ expr"
+                )
+        for v in node.values():
+            _gso_walk(v, where, symtab)
+    elif isinstance(node, list):
+        for x in node:
+            _gso_walk(x, where, symtab)
 
 
 # --- mutable default argument (front-end-resolved flag) ----------------------

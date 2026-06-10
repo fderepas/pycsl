@@ -755,14 +755,10 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
                     self._validate_contract(ga.index, ctx, is_postcondition=False)
                     self._validate_contract(ga.value, ctx, is_postcondition=False)
                     continue
-                # String ghosts do not support +=/-=/*= shorthands; use ^ operator.
-                if ga.op != "=" and self.current_scope.get(ga.target) == "string":
-                    raise PyCSLSemanticError(
-                        f"Ghost string variable '{ga.target}' does not support '{ga.op}' "
-                        f"in {self.current_function_name}. "
-                        "Use the ^ operator for string concatenation: "
-                        f"#@ ghost {ga.target} = {ga.target} ^ expr"
-                    )
+                # ghost-string augmented-assignment (`+=`/`-=`/`*=`) ban MIGRATED to
+                # core_ir_semantic._check_ghost_string_ops — it walks the IR body's
+                # GhostAssign nodes and reads the function symbol_table (Module5 now
+                # builds it, including ghost decls), refactor.md B-final.
                 if ga.value is not None:
                     self._validate_contract(
                         ga.value,
