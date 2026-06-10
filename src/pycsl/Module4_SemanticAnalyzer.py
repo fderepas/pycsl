@@ -252,15 +252,12 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
     extracts type hints, and validates contracts against them.
     """
     def __init__(self) -> None:
-        self.current_scope: Dict[str, str] = {}
-        # no-more-int-3 A1: dict var -> WhyML value type ν, captured only for a
-        # NON-int real value type (currently `string`) from a `Dict[K, V]`
-        # annotation — `_get_type_name` discards V. Int-valued dicts get no entry
-        # and keep the existing `map int (option int)` path (byte-identical).
-        self.current_dict_value_types: Dict[str, str] = {}
-        # no-more-int-3 A1 T1.2: dict var -> WhyML key type κ (string), from
-        # `Dict[str, V]`. Int-keyed dicts get no entry (default int key).
-        self.current_dict_key_types: Dict[str, str] = {}
+        # B-final (refactor.md): the `current_scope` / `current_dict_value_types` /
+        # `current_dict_key_types` resolution tables were removed — Module 5 builds its
+        # own function symbol_table / dict-types and the last `current_scope`
+        # semantic-check readers were migrated to core_ir_semantic. Module 4's only
+        # surviving pre-Module-5 ghost work (the \proj-index guard in
+        # `_validate_ghost_values`) reads neither table.
         self.current_function_name: str = ""
         self._class_fields: Dict[str, str] = {}
         # Module-level concurrency state
@@ -305,64 +302,10 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
             return head.lower()
         return "Any"
 
-    @staticmethod
-    def _get_dict_value_type(annotation: ast.expr) -> Optional[str]:
-        """For a `Dict[K, V]` annotation, return the WhyML value type ν of V when
-        it is a NON-int real type worth threading (currently only `str` →
-        `string`); else None. `_get_type_name` discards V, so this is the
-        parallel capture feeding the parametric-map value type (no-more-int-3 A1).
-        An int value (`Dict[_, int]`) returns None — int-valued dicts keep the
-        default `map int (option int)` path. Key type κ is a separate sub-stage."""
-        if (isinstance(annotation, ast.Subscript)
-                and isinstance(annotation.value, ast.Name)
-                and annotation.value.id in ("Dict", "dict")
-                and isinstance(annotation.slice, ast.Tuple)
-                and len(annotation.slice.elts) == 2):
-            v = annotation.slice.elts[1]
-            if isinstance(v, ast.Name) and v.id == "str":
-                return "string"
-            # no-more-int A1-residual: a nested-dict value `Dict[Ki, Vi]` → the
-            # pure Why3 map type `map κi (option νi)`. Why3's `map` is immutable,
-            # so a map-valued map does NOT hit the mutable-aliasing wall an
-            # `array int` value would. (κi/νi ∈ {int, string}; the `JObj`
-            # enabler for json.)
-            if (isinstance(v, ast.Subscript)
-                    and isinstance(v.value, ast.Name)
-                    and v.value.id in ("Dict", "dict")
-                    and isinstance(v.slice, ast.Tuple)
-                    and len(v.slice.elts) == 2):
-                ki, vi = v.slice.elts
-                kw = "string" if (isinstance(ki, ast.Name) and ki.id == "str") else "int"
-                vw = "string" if (isinstance(vi, ast.Name) and vi.id == "str") else "int"
-                return f"map {kw} (option {vw})"
-            # no-more-int-7 §B′ (A1-residual): a `List[int]` value → an immutable
-            # `seq int` SNAPSHOT (value-semantics boundary, ownership-discipline §3).
-            # Why3's `seq` is pure, so — unlike a mutable `array int` — it can live
-            # inside a `map`; the store site snapshots the array → seq.
-            if (isinstance(v, ast.Subscript)
-                    and isinstance(v.value, ast.Name)
-                    and v.value.id in ("List", "list")
-                    and isinstance(v.slice, ast.Name)
-                    and v.slice.id == "int"):
-                return "seq int"
-        return None
-
-    @staticmethod
-    def _get_dict_key_type(annotation: ast.expr) -> Optional[str]:
-        """For a `Dict[K, V]` annotation, return the WhyML key type κ of K when it
-        is a non-int real type (currently only `str` → `string`), else None.
-        Parallel to `_get_dict_value_type`; feeds the parametric-map key type
-        (no-more-int-3 A1 T1.2). Why3 `string` has decidable equality, so
-        `Map.get (m: map string ν) (k: string)` is well-formed."""
-        if (isinstance(annotation, ast.Subscript)
-                and isinstance(annotation.value, ast.Name)
-                and annotation.value.id in ("Dict", "dict")
-                and isinstance(annotation.slice, ast.Tuple)
-                and len(annotation.slice.elts) == 2):
-            k = annotation.slice.elts[0]
-            if isinstance(k, ast.Name) and k.id == "str":
-                return "string"
-        return None
+    # `_get_dict_value_type` / `_get_dict_key_type` REMOVED (B-final, refactor.md):
+    # their only callers were the dead `current_dict_value_types` / `current_dict_key_types`
+    # population in `_build_function_scope`. Module 5 now derives dict key/value types
+    # for its own symbol table, so these AST-level capture helpers were orphaned.
 
     def _validate_contract(self, contract: CSLNode, context_name: str, is_postcondition: bool = False) -> None:
         """Validates contract keyword usage. Most checks have migrated to the
@@ -592,34 +535,28 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         return fields
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
-        saved_scope = self.current_scope
-        saved_dict_value_types = self.current_dict_value_types
-        saved_dict_key_types = self.current_dict_key_types
         saved_function_name = self.current_function_name
         self.current_function_name = f"function '{node.name}'"
-        self.current_scope = {}
-        self.current_dict_value_types = {}
-        self.current_dict_key_types = {}
 
-        self._build_function_scope(node)
+        # B-final (refactor.md): Module 5 now builds its own function symbol_table /
+        # dict-types (`Module5_IREmitter._build_function_symbol_table`) and the last
+        # `current_scope` semantic-check readers (ghost-string-op, mutex-invariant)
+        # were migrated to core_ir_semantic. So Module 4 no longer maintains a
+        # `current_scope` / `current_dict_*` resolution table nor exports
+        # `node.csl_symbol_table` / `csl_dict_*`. The only surviving pre-Module-5
+        # ghost work is the \proj-index guard on ghost values.
+        self._validate_ghost_values(node)
         # no-mutable-default check migrated to core_ir_semantic (refactor.md AST-only #3)
         self._validate_lemma(node)
         self._validate_function_contracts(node)
         # assigns-region base typing + subscript-assignment base typing migrated to
         # core_ir_semantic (refactor.md B3 / AST-only #3)
 
-        node.csl_symbol_table = self.current_scope.copy()
-        node.csl_dict_value_types = self.current_dict_value_types.copy()
-        node.csl_dict_key_types = self.current_dict_key_types.copy()
-
         if self._shared_vars:
             self._check_protected_in_stmts(node.body, set(), node.name)
 
         self.generic_visit(node)
 
-        self.current_scope = saved_scope
-        self.current_dict_value_types = saved_dict_value_types
-        self.current_dict_key_types = saved_dict_key_types
         self.current_function_name = saved_function_name
 
     def _validate_lemma(self, node: ast.FunctionDef) -> None:
@@ -687,60 +624,19 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
     # defaults) is resolved by the front-end (Module5) into the `has_mutable_default`
     # IR flag; the core reports the error (refactor.md AST-only #3).
 
-    def _build_function_scope(self, node: ast.FunctionDef) -> None:
-        """Populate current_scope from function args, local assignments, and ghost variables."""
-        # Function arguments (skip 'self' for methods)
-        for arg in node.args.args:
-            if arg.arg == 'self':
-                continue
-            arg_type = self._get_type_name(arg.annotation) if arg.annotation else "Any"
-            self.current_scope[arg.arg] = arg_type
-            if arg.annotation is not None:
-                nu = self._get_dict_value_type(arg.annotation)
-                if nu is not None:
-                    self.current_dict_value_types[arg.arg] = nu
-                kappa = self._get_dict_key_type(arg.annotation)
-                if kappa is not None:
-                    self.current_dict_key_types[arg.arg] = kappa
+    def _validate_ghost_values(self, node: ast.FunctionDef) -> None:
+        """Run the \\proj-index guard over a function's ghost index/value expressions.
 
-        # Local variables (skip shared module-level variables)
-        for child in ast.walk(node):
-            if isinstance(child, ast.Assign):
-                for target in child.targets:
-                    if isinstance(target, ast.Name) and target.id not in self._shared_vars:
-                        self.current_scope[target.id] = "Any"
-            elif isinstance(child, ast.AnnAssign):
-                if isinstance(child.target, ast.Name) and child.target.id not in self._shared_vars:
-                    self.current_scope[child.target.id] = (
-                        self._get_type_name(child.annotation)
-                        if child.annotation else "Any"
-                    )
-                    if child.annotation is not None:
-                        nu = self._get_dict_value_type(child.annotation)
-                        if nu is not None:
-                            self.current_dict_value_types[child.target.id] = nu
-                        kappa = self._get_dict_key_type(child.annotation)
-                        if kappa is not None:
-                            self.current_dict_key_types[child.target.id] = kappa
-            elif isinstance(child, ast.For):
-                # For-loop iteration variables are in scope throughout the loop body
-                if isinstance(child.target, ast.Name) and child.target.id not in self._shared_vars:
-                    self.current_scope[child.target.id] = "Any"
-                elif isinstance(child.target, ast.Tuple):
-                    for elt in child.target.elts:
-                        if isinstance(elt, ast.Name) and elt.id not in self._shared_vars:
-                            self.current_scope[elt.id] = "Any"
-
-        # Ghost variables — register all targets first, then validate values.
-        # Only declarations (op == "=") carry a meaningful declared_type; augmented
-        # assignments must not overwrite a type that was already registered.
-        for child in ast.walk(node):
-            for ga in getattr(child, 'csl_ghost_assigns', []):
-                if isinstance(ga, GhostArraySetDecl):
-                    continue  # element-set has no declared_type; array var already registered
-                dtype = getattr(ga, 'declared_type', 'int')
-                if ga.target not in self.current_scope or ga.op == "=":
-                    self.current_scope[ga.target] = dtype
+        B-final (refactor.md): this method was `_build_function_scope`. Parts (a) the
+        `current_scope` population from args/locals/For/ghost-target decls, (b) the
+        `current_dict_value_types` / `current_dict_key_types` population, and (c) the
+        `node.csl_symbol_table` / `csl_dict_*` exports are now DEAD — Module 5 builds
+        its own tables (`Module5_IREmitter._build_function_symbol_table`) and the last
+        `current_scope` semantic-check readers were migrated to core_ir_semantic. What
+        survives is the only pre-Module-5 ghost obligation: the \\proj-index literal
+        guard (`_validate_contract` → `_validate_proj_indices`), a Module-5 precondition
+        (ProjExpr emission reads `index.value`), which neither reads scope nor dict-types.
+        """
         for child in ast.walk(node):
             for ga in getattr(child, 'csl_ghost_assigns', []):
                 if isinstance(ga, GhostArraySetDecl):
