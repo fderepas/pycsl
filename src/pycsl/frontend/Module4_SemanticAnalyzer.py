@@ -548,6 +548,7 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
         self._validate_ghost_values(node)
         # no-mutable-default check migrated to core_ir_semantic (refactor.md AST-only #3)
         self._validate_lemma(node)
+        self._validate_diverges(node)
         self._validate_function_contracts(node)
         # assigns-region base typing + subscript-assignment base typing migrated to
         # core_ir_semantic (refactor.md B3 / AST-only #3)
@@ -617,6 +618,47 @@ class Module4_SemanticAnalyzer(ast.NodeVisitor):
                     f"`#@ lemma` '{name}' calls `\\trusted` function '{n.func.id}': a "
                     f"checked lemma may not rest on an unverified (trusted) fact — that "
                     f"would smuggle an unchecked axiom into a 'proved' lemma.")
+
+    def _validate_diverges(self, node: ast.FunctionDef) -> None:
+        """Reject `#@ \\diverges` on a function whose body has NO potentially-diverging
+        construct (refactor.md Phase D2 / typecheck-audit.md residual 0276).
+
+        `#@ \\diverges` is the *escape* from Why3's termination VC: it asserts the body may
+        fail to terminate. But Why3 then enforces the dual obligation — the body must in
+        fact be *able* to diverge (its ``diverges`` effect check rejects a provably-terminating
+        body with *"this expression does not diverge"*). PyCSL must catch this at semantic
+        time with a clear message rather than emit WhyML that silently fails to type-check
+        (the dishonest `--no-proof` SUCCESS the honest gate forbids).
+
+        A body can diverge iff it contains at least one of:
+
+          • a **critical section / lock-acquire** (`#@ critical` / `#@ acquires` `with`) — a
+            lock-acquire may block forever (the maintainer's lock-acquire-is-diverging model);
+          • a **loop** (`while` / `for`) — possibly unbounded (`while True:`), or a bounded loop
+            with no proven `#@ \\variant`;
+          • a **function/method call** — recursion (direct or mutual) or a callee that itself
+            diverges is the classic source of non-termination (0051/0158/0159: `return f(x)`).
+
+        A straight-line body of pure assignments / arithmetic / `return` (0276's `handle`)
+        has none of these and provably terminates, so `#@ \\diverges` is unjustified there."""
+        if not getattr(node, 'csl_diverges', False):
+            return
+        # A lemma's \diverges is already rejected (more specifically) by _validate_lemma.
+        if getattr(node, 'csl_lemma', False):
+            return
+        for n in ast.walk(node):
+            if isinstance(n, (ast.While, ast.For, ast.AsyncFor, ast.Call)):
+                return
+            if isinstance(n, ast.With):
+                if (getattr(n, 'csl_critical_mutex', None)
+                        or getattr(n, 'csl_acquires', None)):
+                    return
+        raise PyCSLSemanticError(
+            f"`#@ \\diverges` on function '{node.name}' is not justified: its body has no "
+            f"potentially-diverging construct (no critical section / lock-acquire, no loop, "
+            f"no call/recursion). A straight-line body provably terminates, so Why3 rejects "
+            f"the `diverges` effect (\"this expression does not diverge\"). Remove `#@ "
+            f"\\diverges`, or give the body a construct that can actually block or loop.")
 
     # `_validate_no_mutable_defaults` MIGRATED to the language-agnostic core
     # (`core_ir_semantic._check_mutable_defaults`). The Python-specific detection

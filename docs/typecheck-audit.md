@@ -129,17 +129,55 @@ Regenerate the list at any time with `bin/typecheck-audit.sh`.
     `0601` (returning an array of tuples — unsupported `array (int,int)` vs `array int`).
     These are intentional negatives whose "type error" IS the documented behavior; no emission fix applies.
 
-## Why the gate is opt-in (not yet default-on)
+## The gate is now DEFAULT-ON (D2 — done)
 
-Flipping `--typecheck` to a default, *enforced* gate today would flip these 54 from PASS to FAIL — a large
-baseline regression. So the gate ships **opt-in** (the capability + the honest per-level status), and the
-default `--no-proof` SUCCESS message is unchanged (no regression, fast dev sweeps preserved). The staged
-path to honest-by-default:
+The staged path to honest-by-default is complete:
 
-1. **D0 (done):** the `--typecheck` capability + per-level status + this audit. ← *here*
-2. **D1:** fix the 54 (start with the concurrency emission gap — one root cause covers ~28) or mark the
-   genuinely-unsupported ones `# pycsl-expected: FAIL`.
-3. **D2:** make the typecheck run by default and gate SUCCESS on it — the spec's end state.
+1. **D0 (done):** the `--typecheck` capability + per-level status + this audit.
+2. **D1 (done):** the 54 fixed-or-marked — concurrency `\diverges` cohort (lock-acquire-is-diverging),
+   the logic-context `val`→`val function` group (G1), the `list.append` Seq-vs-Array pair (G3),
+   and the string/singleton XFAIL stretch targets (G2/G4).
+3. **D2 (done):** the typecheck now runs **by default** on every `--no-proof` run and SUCCESS is gated
+   on `L3-tc ✓`. ← *here*
 
-Until D2, treat a plain `--no-proof` SUCCESS as "WhyML emitted", and `--no-proof --typecheck` SUCCESS as
-"WhyML emitted **and** type-checks".
+**What D2 changed (`src/pycsl/pycsl.py`):**
+
+- `_run_proofs` `--no-proof` branch: `_why3_typecheck` runs **by default** (no longer only under
+  `--typecheck`); a non-type-checking emission EXITS NON-ZERO with the located diagnostic even under
+  plain `--no-proof`. The SUCCESS message states the level reached (`… AND type-checks [L3-tc ✓]`).
+- New **`--no-typecheck`** escape flag (`store_true`): restores the old fast emit-only behavior for
+  byte-diff / dev sweeps and when why3 is absent. A missing why3 is still treated as **skip-not-fail**
+  by `_why3_typecheck` (it returns `ok=True`), so the gate never turns an absent prover into a false
+  failure.
+- `--typecheck` is now a **harmless no-op alias** (the gate is already on).
+- The proof path is unchanged — it already type-checks via `why3 prove`.
+
+**The dishonest set was emptied to ZERO before the flip.** The audit's two genuinely-dishonest residuals
+were resolved:
+
+- **0276** (`#@ thread_entry` + `#@ \diverges`, straight-line body, no critical section): the `\diverges`
+  was *unjustified* (a straight-line body provably terminates, so why3 rejects the `diverges` effect with
+  *"this expression does not diverge"*). Resolution: **PyCSL now LOUDLY REJECTS** `#@ \diverges` on a
+  function whose body has no potentially-diverging construct — no critical section / lock-acquire, no loop,
+  no call/recursion (`Module4_SemanticAnalyzer._validate_diverges`). This is symmetric with why3's own
+  effect check but fires at PyCSL semantic time with a clear message. The driver itself was edited to drop
+  the unjustified annotation (its actual purpose is the ConcurrencyChecker *unprotected-shared* warning
+  path, which still fires) so it is now an honest SUCCESS that type-checks; the rejection is covered by the
+  new negative driver **0695** (`# pycsl-expected: FAIL`, a straight-line `#@ \diverges`). The recursion-
+  justified `\diverges` drivers (0051/0158/0159 — `return f(x)`) and the critical-section ones stay
+  accepted (their bodies *can* diverge).
+- **0417** (unit-vs-int return mismatch): a clear **emission bug**, now FIXED. When `return <v>` is the
+  LAST statement *inside* a `#@ critical` `with` block, the exit-invariant `assert` was appended *after*
+  the body → section tail `… ; <v> ; assert {…}` is `unit` while the function is declared `: int`
+  (why3: *"This expression has type (), but is expected to have type int"*). `_handle_critical_section_stmt`
+  (`module6_whyml/statements.py`) now HOISTS a trailing value-`Return` past the assert: body-prefix
+  (mutations) → `assert` → return value as the tail. Fires only for `return`-inside-critical-section with a
+  `prove_inv`; every other shape (e.g. 0250, where the `return` is *outside* the `with`) is byte-identical.
+
+**Post-D2 audit:** `bin/typecheck-audit.sh` still lists 21 `L3-tc ✗` drivers, but **every one carries
+`# pycsl-expected: FAIL`** — the genuinely-dishonest (SUCCESS + ✗ + no XFAIL) count is **0**. Full
+`--no-proof` sweep: **567 `L3-tc ✓`**, 21 `L3-tc ✗` (all XFAIL), 64 emit-no-mlw. Corpus harness: 652/652
+(was 651/651 + the new 0695 XFAIL); os_demo proves fully (0 unproven) and type-checks; doc-coherency green.
+
+A plain `--no-proof` SUCCESS now means "WhyML emitted **and** type-checks". `--no-proof --no-typecheck`
+SUCCESS means "WhyML emitted (emit-only, typecheck skipped)".

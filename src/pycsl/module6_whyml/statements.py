@@ -563,6 +563,22 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             inv_str = self._expr_to_whyml(assume_inv, local_refs)
             self._in_spec = False
             seq_parts.append(f"{indent}assume {{ {inv_str} }}")
+        # 0417 (typecheck-audit.md residual): if the critical section is the TAIL of a
+        # non-unit function — i.e. `return <v>` is the last statement INSIDE the `with`
+        # block — then naively appending the exit-invariant `assert` AFTER the body makes
+        # the section's tail `… ; <v> ; assert {…}`, whose type is `unit` while the
+        # function is declared `: int` → why3 "This expression has type (), but is expected
+        # to have type int". The invariant must still be checked at section EXIT (after the
+        # body's mutations), so we hoist the trailing value PAST the assert: emit the body's
+        # prefix (mutations), then the `assert`, then the return value as the section's tail.
+        # This fires ONLY when the LAST body statement is a value-producing `Return` AND a
+        # `prove_inv` is present; every other shape (return outside the `with`, as in 0250;
+        # no prove_inv; void return) takes the unchanged path → byte-identical emission.
+        tail_ret = None
+        if (prove_inv and body_stmts and body_stmts[-1].get("stmt") == "Return"
+                and body_stmts[-1].get("value") is not None):
+            tail_ret = body_stmts[-1]
+            body_stmts = body_stmts[:-1]
         body_code = self._stmts_to_whyml(body_stmts, local_refs, declared_refs, indent, in_loop)
         if body_code:
             seq_parts.append(body_code)
@@ -577,6 +593,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             inv_str = self._expr_to_whyml(prove_inv, local_refs)
             self._in_spec = False
             seq_parts.append(f"{indent}assert {{ {inv_str} }}")
+        if tail_ret is not None:
+            # The hoisted return becomes the section's final (value-producing) expression,
+            # rendered through the normal return path (handles raise vs tail-value, tuples,
+            # arrays, …) with no `rest`.
+            seq_parts.append(self._handle_return_stmt(
+                tail_ret, [], local_refs, declared_refs, indent, in_loop))
         if not seq_parts:
             seq_parts = [f"{indent}()"]
         inner = ";\n".join(seq_parts)

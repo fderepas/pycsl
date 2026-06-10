@@ -236,11 +236,16 @@ def _parse_args() -> argparse.Namespace:
                              "(parse, transpile) and report success "
                              "if WhyML is generated.")
     g_proof.add_argument("--typecheck", action="store_true",
-                        help="Honest gate (refactor.md Phase D): after emitting WhyML, "
-                             "run `why3 prove --type-only` and report the per-level status "
-                             "(L1/L2/L3-tc). Exits non-zero if the emitted WhyML does not "
-                             "typecheck — i.e. SUCCESS means it at least type-checks, not "
-                             "merely 'text emitted'. Composes with --no-proof.")
+                        help="(no-op; default-on since refactor.md Phase D2) The honest "
+                             "typecheck gate now runs by DEFAULT on every `--no-proof` run, "
+                             "so this flag is a harmless alias kept for backward compatibility. "
+                             "Use --no-typecheck to opt OUT (fast emit-only).")
+    g_proof.add_argument("--no-typecheck", action="store_true",
+                        help="Opt OUT of the default-on honest typecheck gate (refactor.md "
+                             "Phase D2): a `--no-proof` run then reports SUCCESS as soon as "
+                             "WhyML is emitted, WITHOUT running `why3 prove --type-only`. "
+                             "Use for fast byte-diff / dev sweeps and when why3 is absent. "
+                             "(A missing why3 is already treated as skip-not-fail by the gate.)")
     g_proof.add_argument("--rocq", metavar="DIR", default=None,
                         help="On SMT prover failure, generate Rocq (Coq) "
                              "proof obligations in DIR. Why3 emits .v files "
@@ -539,7 +544,14 @@ def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argp
         f.write(mlw_code)
 
     if args.no_proof:
-        if getattr(args, "typecheck", False):
+        # refactor.md Phase D2: the honest typecheck gate is now DEFAULT-ON. A `--no-proof`
+        # run is SUCCESS only if the emitted WhyML at least TYPE-CHECKS (`why3 prove
+        # --type-only`) — never merely "text emitted" (§1.5). `--no-typecheck` opts out
+        # (fast emit-only, for byte-diff/dev sweeps and when why3 is absent). `--typecheck`
+        # is now a harmless no-op alias (the gate is already on). A missing why3 is treated
+        # as skip-not-fail by `_why3_typecheck` (ok=True), so the gate never turns an absent
+        # prover into a false failure.
+        if not getattr(args, "no_typecheck", False):
             ok, diag = _why3_typecheck(mlw_filename)
             print(f"[level] L1 ✓  L2 ✓  L3-tc {'✓' if ok else '✗'}")
             if not ok:
@@ -548,9 +560,11 @@ def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argp
                 if not args.keep_mlw and os.path.exists(mlw_filename):
                     os.remove(mlw_filename)
                 sys.exit(1)
-            print("[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks; proof skipped).")
+            print("[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks "
+                  "[L3-tc ✓]; proof skipped).")
         else:
-            print(f"[+] Verification SUCCESS (--no-proof: WhyML generated, proof skipped).")
+            print("[+] Verification SUCCESS (--no-proof --no-typecheck: WhyML generated "
+                  "[emit-only, typecheck skipped]).")
         if not args.keep_mlw and os.path.exists(mlw_filename):
             os.remove(mlw_filename)
         sys.exit(0)
