@@ -1,0 +1,308 @@
+{
+  "ir_version": "1.0",
+  "source_language": "python",
+  "type_decls": [],
+  "functions": [
+    {
+      "name": "test_forall_zero",
+      "symbol_table": {
+        "arr": "list",
+        "n": "int",
+        "i": "Any"
+      },
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [
+        "arr",
+        "n"
+      ],
+      "return_annotation": "None",
+      "contracts": {
+        "requires": [
+          {
+            "type": "BinOp",
+            "op": "==",
+            "left": {
+              "type": "ArrayLen",
+              "var": "arr"
+            },
+            "right": {
+              "type": "Var",
+              "name": "n"
+            }
+          },
+          {
+            "type": "BinOp",
+            "op": ">=",
+            "left": {
+              "type": "Var",
+              "name": "n"
+            },
+            "right": {
+              "type": "Number",
+              "value": 0
+            }
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Forall",
+            "var": "i",
+            "body": {
+              "type": "BinOp",
+              "op": "==>",
+              "left": {
+                "type": "BinOp",
+                "op": "and",
+                "left": {
+                  "type": "BinOp",
+                  "op": "<=",
+                  "left": {
+                    "type": "Number",
+                    "value": 0
+                  },
+                  "right": {
+                    "type": "Var",
+                    "name": "i"
+                  }
+                },
+                "right": {
+                  "type": "BinOp",
+                  "op": "<",
+                  "left": {
+                    "type": "Var",
+                    "name": "i"
+                  },
+                  "right": {
+                    "type": "Var",
+                    "name": "n"
+                  }
+                }
+              },
+              "right": {
+                "type": "BinOp",
+                "op": "==",
+                "left": {
+                  "type": "Subscript",
+                  "value": {
+                    "type": "Var",
+                    "name": "arr"
+                  },
+                  "index": {
+                    "type": "Var",
+                    "name": "i"
+                  }
+                },
+                "right": {
+                  "type": "Number",
+                  "value": 0
+                }
+              }
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "AssignsRegion",
+            "base": "arr",
+            "low": {
+              "type": "Number",
+              "value": 0
+            },
+            "high": {
+              "type": "Var",
+              "name": "n"
+            }
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Assign",
+          "target": "i",
+          "value": {
+            "type": "Number",
+            "value": 0
+          }
+        },
+        {
+          "stmt": "While",
+          "line": 13,
+          "test": {
+            "type": "BinOp",
+            "op": "<",
+            "left": {
+              "type": "Var",
+              "name": "i"
+            },
+            "right": {
+              "type": "Var",
+              "name": "n"
+            }
+          },
+          "invariants": [
+            {
+              "type": "BinOp",
+              "op": "and",
+              "left": {
+                "type": "BinOp",
+                "op": "<=",
+                "left": {
+                  "type": "Number",
+                  "value": 0
+                },
+                "right": {
+                  "type": "Var",
+                  "name": "i"
+                }
+              },
+              "right": {
+                "type": "BinOp",
+                "op": "<=",
+                "left": {
+                  "type": "Var",
+                  "name": "i"
+                },
+                "right": {
+                  "type": "Var",
+                  "name": "n"
+                }
+              }
+            },
+            {
+              "type": "Forall",
+              "var": "j",
+              "body": {
+                "type": "BinOp",
+                "op": "==>",
+                "left": {
+                  "type": "BinOp",
+                  "op": "and",
+                  "left": {
+                    "type": "BinOp",
+                    "op": "<=",
+                    "left": {
+                      "type": "Number",
+                      "value": 0
+                    },
+                    "right": {
+                      "type": "Var",
+                      "name": "j"
+                    }
+                  },
+                  "right": {
+                    "type": "BinOp",
+                    "op": "<",
+                    "left": {
+                      "type": "Var",
+                      "name": "j"
+                    },
+                    "right": {
+                      "type": "Var",
+                      "name": "i"
+                    }
+                  }
+                },
+                "right": {
+                  "type": "BinOp",
+                  "op": "==",
+                  "left": {
+                    "type": "Subscript",
+                    "value": {
+                      "type": "Var",
+                      "name": "arr"
+                    },
+                    "index": {
+                      "type": "Var",
+                      "name": "j"
+                    }
+                  },
+                  "right": {
+                    "type": "Number",
+                    "value": 0
+                  }
+                }
+              }
+            }
+          ],
+          "variants": [
+            {
+              "type": "BinOp",
+              "op": "-",
+              "left": {
+                "type": "Var",
+                "name": "n"
+              },
+              "right": {
+                "type": "Var",
+                "name": "i"
+              }
+            }
+          ],
+          "body": [
+            {
+              "stmt": "ArraySet",
+              "array": {
+                "type": "Var",
+                "name": "arr"
+              },
+              "index": {
+                "type": "Var",
+                "name": "i"
+              },
+              "value": {
+                "type": "Number",
+                "value": 0
+              }
+            },
+            {
+              "stmt": "Assign",
+              "target": "i",
+              "value": {
+                "type": "BinOp",
+                "op": "+",
+                "left": {
+                  "type": "Var",
+                  "name": "i"
+                },
+                "right": {
+                  "type": "Number",
+                  "value": 1
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 7,
+      "col": 0
+    }
+  ],
+  "module_constants": {
+    "_": 0
+  }
+}
