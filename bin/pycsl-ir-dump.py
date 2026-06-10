@@ -11,12 +11,13 @@ Usage:  bin/pycsl-ir-dump.py <source.py>  [--function NAME] [--resolved]
 
 With ``--resolved``, the dumped IR is the *resolved* Module-5 IR — i.e. the IR
 AFTER the three PURE IR->IR post-Module5 passes that the orchestrator applies
-before Module 6 consumes it: ``_apply_inheritance`` (monomorphize base methods
-onto subclasses), ``_apply_composition`` (Tier-1 ``compose_from``/``mixin``
+before Module 6 consumes it (relocated to ``frontend.ir_resolve`` in refactor.md
+Phase C / C2b): ``apply_inheritance`` (monomorphize base methods onto
+subclasses), ``apply_composition`` (Tier-1 ``compose_from``/``mixin``
 flattening) and ``apply_inline_globals`` (inline method calls on module-level
 global instances). These three operate on the IR dict alone (no dependency
 context), so they are safe to run from this tool. Import resolution
-(``_resolve_imports``) needs dependency-loading context and is NOT applied here;
+(``resolve_imports``) needs dependency-loading context and is NOT applied here;
 drivers that depend on cross-file imports still need their own follow-on.
 """
 from __future__ import annotations
@@ -60,11 +61,12 @@ def dump_ir(source_path: str, resolved: bool = False) -> str:
     # IR dict (no dependency/import context) so they are safe here. Import
     # resolution (_resolve_imports) is intentionally NOT applied — it needs
     # dependency-loading context and is out of scope for this tool.
-    from pycsl import _apply_inheritance, _apply_composition  # noqa: E402
-    from ir_inline import apply_inline_globals  # noqa: E402
+    from frontend.ir_resolve import (  # noqa: E402
+        apply_inheritance, apply_composition, apply_inline_globals,
+    )
     ir_data = json.loads(ir_json)
-    _apply_inheritance(ir_data)
-    _apply_composition(ir_data)
+    apply_inheritance(ir_data)
+    apply_composition(ir_data)
     apply_inline_globals(ir_data)
     return json.dumps(ir_data)
 
