@@ -228,17 +228,30 @@ def _unpack_inode(data: list) -> list:
 # every name-keyed consequence (mkdir -> access-present) provable AGAINST THE
 # STRING/MAP VIEW of the namespace.
 #
-# WHY THE STRING DOMAIN, NOT BYTES.  The byte-level codec
-# (`b[i] = ord(name[i])` / rebuild the string from bytes) is blocked by Gap 5:
-# `ord`/`chr` have NO char<->int bridge in the emitter.  `name[i]` lowers to
-# `String.substring name i 1 : string`, and the generic unannotated-call path
-# (src/pycsl/module6_whyml/expressions.py:1079-1086) declares `ord` as
-# `val ord_1 (x0: int) : int` while `_coerce_to_int` (expressions.py:150-182)
-# leaves the `string` argument untouched — so `ord_1 (str_sub_op name 0 1)`
-# is a `string` where `int` is expected and FAILS TO EMIT (type error).  See
-# the convergence-gap doc for the precise reproducer + proposed fix.  Until
-# that gap closes, the string-domain codec is the strongest PROVABLE faithful
-# form, and the on-disk 30-byte field stays shape-only (`_pad_name`).
+# THE BYTE DOMAIN IS NOW EXPRESSIBLE (Gap 5 CLOSED, commit 7f53db2).  The
+# `ord`/`chr` char<->int bridge exists: `ord(name[i])` is the byte (0..255) of a
+# 1-char string, `chr(b)` is a 1-char string, and the per-char round-trip
+# `chr(ord(c)) == c` is a Why3 `string.Char` THEORY lemma (no axiom, zero TCB
+# growth).  So the FAITHFUL byte codec is provable:
+#   * `_pad_name(name)` ENCODES `name`'s chars into the 30-byte field via
+#     `b[i] = ord(name[i])`, null-padded (the byte layout — no longer `[0]*30`).
+#   * the per-char decode `chr(b[i])` recovers each char; the byte round-trip
+#     `_byte_codec_char(c) == c` (`chr(ord(c)) == c`) proves standalone.
+#   * a FIXED-WIDTH name round-trip through the disk-array slice
+#     (`disk[off] = ord(name[k]); ... ; chr(disk[off]) == name[k]`) proves —
+#     the byte twin of the inode-field codec round-trip, AGAINST THE ON-DISK
+#     BYTES.  See `pure_lib_test/formal_os_namecodec.py` (the byte-codec leaf)
+#     and `pure_lib_test/formal_os_namespace.py` (the beachhead consequence:
+#     mkdir->access-PRESENT / rmdir->access-ABSENT against the disk bytes).
+#
+# REMAINING WALL — the *variable-length* loop round-trip.  Decoding an
+# arbitrary-length name by accumulating `out = out + chr(b[j])` over a loop
+# needs the invariant `out == String.substring(name, 0, j)`, whose inductive
+# step (concat of the proven per-char char) the solver does not discharge
+# (Unknown / timeout).  So the GENERAL `decode(encode(name)) == name` for an
+# unbounded name stays a documented wall (DD-HHMM-convergence-gap-N.md); the
+# beachhead uses the fixed-width form, which is what the namespace consequence
+# actually rests on (a name is recovered char-for-char and compared).
 # ============================================================================
 
 
@@ -269,31 +282,75 @@ def _decode_name(stored: str) -> str:
 #@ assigns \nothing
 #@ ensures \result == name
 def _name_codec_roundtrip(name: str) -> str:
-    """The name-codec ROUND-TRIP leaf: `decode(encode(name)) == name`.
+    """The name-codec ROUND-TRIP leaf (string view): `decode(encode(name)) == name`.
 
     Proven standalone (string twin of the inode-field codec round-trip).
-    This is the leaf every name-keyed namespace consequence rests on — once
-    `_dir_lookup` resolves names through this codec (Gap 5 permitting on the
-    byte side), `mkdir(d) -> access(d) == present` becomes provable.
+    The BYTE view of the same round-trip is `_byte_codec_char` below (now that
+    Gap 5 is closed).  `_dir_lookup` resolves names through this codec, so
+    `mkdir(d) -> access(d) == present` is provable against the on-disk bytes.
     """
     return _decode_name(_encode_name(name))
+
+
+#@ requires \str_length(c) == 1
+#@ assigns \nothing
+#@ ensures \result == c
+def _byte_codec_char(c: str) -> str:
+    """The BYTE codec round-trip at the char granularity: encode a 1-char name
+    field through a byte and recover it — `chr(ord(c)) == c`.
+
+    This is the FAITHFUL byte twin of the inode-field codec round-trip, now
+    expressible because Gap 5 (the `ord`/`chr` char<->int bridge) is closed.
+    `ord(c)` is the byte (0..255) stored in the dirent name field; `chr(...)`
+    recovers the char.  The round-trip is a Why3 `string.Char` theory lemma —
+    no axiom, zero TCB growth.  The fixed-width name codec (`_pad_name` encode +
+    the per-byte `chr` decode in `_dir_lookup`) composes this char round-trip,
+    which is why a written name is recovered byte-for-byte and matched.
+    """
+    return chr(ord(c))
+
+
+#@ requires 0 <= b and b <= 255
+#@ assigns \nothing
+#@ ensures \str_length(\result) == 1
+def _decode_byte(b: int) -> str:
+    """Recover one name-field char from its stored byte (inverse of `ord`).
+    `chr(b)` is a 1-char string; pairs with `ord` so `chr(ord(c)) == c`."""
+    return chr(b)
 
 
 #@ assigns \nothing
 #@ ensures \length(\result) == 30
 def _pad_name(name: str) -> list:
-    """Null-pad a filename to exactly 30 bytes (the on-disk dirent name field).
+    r"""Encode a filename into the on-disk 30-byte dirent name field.
 
-    This is the BYTE-SHAPE side of the dirent name field.  The faithful VALUE
-    round-trip lives in `_encode_name`/`_decode_name` above (string domain,
-    proven).  The byte *content* here is opaque to PyCSL (Gap 5: `str.encode()`
-    yields an unmodeled byte buffer; `ord`/`chr` have no char<->int bridge), so
-    the contract promises just `\length == 30` and makes no claim about the
-    bytes.  Wiring this byte side to the value codec (so the on-disk bytes, not
-    only the string view, round-trip) requires the Gap-5 fix; see the
-    convergence-gap doc.
+    FAITHFUL BYTE LAYOUT (Gap 5 closed): each char of `name` is stored as its
+    byte `b[i] = ord(name[i])`; the remaining positions stay 0 (null padding),
+    exactly the on-disk `struct '30s'` field.  This REPLACES the former
+    `[0]*30` (which discarded the name, so `mkdir("a")`/`mkdir("b")` wrote
+    identical zero-named entries and no name-keyed consequence could prove).
+    The decode side is `chr(disk[off+k])` (see `_dir_lookup`); the byte
+    round-trip `chr(ord(name[k])) == name[k]` is `_byte_codec_char`.
+
+    TOTAL (no precondition): the field is exactly 30 bytes, so a name longer
+    than 30 chars is TRUNCATED to the field width (`m = min(len(name), 30)`) —
+    the faithful on-disk `struct '30s'` behaviour, and what keeps every caller
+    (`_write_entry`, the symlink target write) free of a length precondition
+    they cannot discharge.  The contract promises `\length == 30` (the bounds
+    the packers/blits need); the per-byte value `out[i] == ord(name[i])` for
+    `i < m` is established at each store and is what the fixed-width namespace
+    consequence (`formal_os_namespace.py`) recovers and compares.
     """
     out = [0] * 30
+    n = len(name)
+    m = n
+    if m > 30:
+        m = 30
+    #@ loop invariant 0 <= i and i <= m
+    #@ loop invariant m <= 30
+    #@ loop variant m - i
+    for i in range(m):
+        out[i] = ord(name[i])
     return out
 
 
