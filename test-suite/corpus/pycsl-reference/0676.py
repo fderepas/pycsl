@@ -1,8 +1,8 @@
 """Test 0676 — negative: dynamic `\proj` index in a LOOP invariant.
 
-`_validate_proj_indices` rejects a non-literal `\proj` index; inside a `#@ loop
-invariant` the context is `while loop at line N inside function 'f'`. Surface twin of
-0302 (function). Characterization test for the proj_indices IR migration (Phase B).
+Module 5's `_csl_proj` rejects a non-literal `\proj` index (B-final STEP 1); the guard
+now reports the enclosing-function context `function 'f'` for every surface (it moved
+out of Module 4's per-surface visit_While). Surface twin of 0302 (function).
 """
 # pycsl-expected: FAIL
 _ = 0  # anchor

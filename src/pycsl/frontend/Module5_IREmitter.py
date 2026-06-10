@@ -7,7 +7,7 @@ from errors import PyCSLIRError
 from ir_schema import IR_VERSION
 from frontend.module5.memoization_rt import MemoizationRTMixin
 from frontend.module5.construction_synth import ConstructionSynthMixin
-from frontend.Module4_SemanticAnalyzer import collect_module_constants, collect_module_globals
+from frontend.module_collect import collect_module_constants, collect_module_globals
 from frontend.Module2_Parser import (
     CSLNode, ContractWrapper,
     Requires, Ensures, LoopInvariant, LoopVariant,
@@ -51,6 +51,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # contracts so `_csl_in` can dispatch `x in S` on the collection's type (a set
         # → key membership, a list → positional `exists`). Empty outside that window.
         self._cur_func_symtab: Dict[str, Any] = {}
+        # refactor.md B-final (STEP 1): the surface name of the function whose contracts
+        # / body are currently being emitted, so `_csl_proj` can name the context in its
+        # \proj-index literal guard (the guard migrated here from Module4 — Module5's
+        # ProjExpr emission depends on a literal index). `function 'F'` (matching Module4's
+        # `self.current_function_name`); set in `_build_function_ir`, empty otherwise.
+        self._cur_func_name: str = ""
         self._fresh_var_counter: int = 0
         self._mutex_invariants_csl: Dict[str, Any] = {}  # mutex → CSLNode
         # refactor.md B-final wedge: the set of module-level shared-variable names
@@ -86,6 +92,17 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             }
         if lock_order is not None:
             self.program_ir["lock_order"] = lock_order.order
+
+        # B-final STEP 4: plumb the bare names of `#@ \trusted` functions so the core's
+        # `_check_lemma` can reject a plain lemma body that calls a trusted (unverified)
+        # fact. Mirrors Module4's `self._trusted_funcs` (which collected `n.name` over
+        # every FunctionDef with `csl_trusted`); a lemma body's IR `Call.func` is the same
+        # bare name, so matching by bare name reproduces the check. Sorted for determinism.
+        trusted_funcs = sorted({
+            n.name for n in ast.walk(node)
+            if isinstance(n, ast.FunctionDef) and getattr(n, 'csl_trusted', False)})
+        if trusted_funcs:
+            self.program_ir["trusted_funcs"] = trusted_funcs
 
         # refactor.md Phase C (C1): emit the module's import list into the IR so
         # multi-file import resolution (pycsl._resolve_imports) becomes a pure
@@ -560,6 +577,20 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return {"type": "SndExpr", "tuple": self._csl_to_ir(node.tuple_expr)}
 
     def _csl_proj(self, node: ProjExpr) -> Dict[str, Any]:
+        # STEP 1 (B-final): \proj index-literal guard, migrated from Module4's
+        # `_validate_proj_indices`. ProjExpr emission below reads `node.index.value`,
+        # which only exists on a Number literal, so a dynamic index must be rejected here
+        # BEFORE `int(...)` crashes. Module4 had the exact surface context (function /
+        # while loop at line N / for loop at line N / ghost 'g'); Module5's `_csl_proj`
+        # has only the enclosing function, so the context is `function 'F'` for every
+        # surface (the affected negative drivers — 0302/0676/0677/0693 — were updated to
+        # match; the error still FIRES for each).
+        if not isinstance(node.index, CSLNumber):
+            from errors import PyCSLSemanticError
+            raise PyCSLSemanticError(
+                f"\\proj index must be an integer literal in {self._cur_func_name}. "
+                "Dynamic projection is not supported."
+            )
         return {"type": "ProjExpr", "tuple": self._csl_to_ir(node.tuple_expr),
                 "index": int(node.index.value)}
 
@@ -1687,6 +1718,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # scc3.md Phase B: expose this function's symbol table to `_csl_in` (built
         # below for contracts/body) so `x in S` dispatches on the collection type.
         self._cur_func_symtab = symbol_table
+        # STEP 1 (B-final): surface name for the \proj-index guard in `_csl_proj`.
+        self._cur_func_name = f"function '{node.name}'"
         return_annotation = None
         if node.returns:
             if isinstance(node.returns, ast.Name):

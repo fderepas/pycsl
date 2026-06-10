@@ -1,12 +1,12 @@
 """Test 0693 — negative: dynamic \\proj index in a FOR-loop invariant.
 
-The \\proj-index literal guard is a pre-Module-5 precondition (Module 5's ProjExpr
-emission reads `index.value`, assuming a literal). A `for` desugars to a `while` only
-at Module-6 emission, so Module 4's visit_For now runs the same _validate_proj_indices
-guard visit_While does. Without it, a dynamic \\proj(p, n) in a for-loop invariant
-slipped past the guard and CRASHED Module 5 (`'Var' object has no attribute 'value'`);
-now it errors cleanly with the SAME "\\proj index must be an integer literal in for loop
-at line N inside function 'f'" message its `while` twin produces (cf. 0302).
+The \\proj-index literal guard lives at Module 5's ProjExpr emission site (B-final
+STEP 1): emission reads `index.value`, which only exists on a literal. A dynamic
+\\proj(p, n) in a for-loop invariant would crash that emission (`'Var' object has no
+attribute 'value'`); the guard raises first with "\\proj index must be an integer
+literal in function 'f'. Dynamic projection is not supported." (the guard's surface
+context narrowed to the enclosing function when it moved out of Module 4's per-surface
+visit_For/visit_While; cf. 0302, its function-surface twin).
 """
 # pycsl-expected: FAIL
 _ = 0  # anchor

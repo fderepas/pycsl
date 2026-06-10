@@ -1,8 +1,8 @@
 """Test 0677 — negative: dynamic `\proj` index in a GHOST expression.
 
-`_validate_proj_indices` rejects a non-literal `\proj` index; in a `#@ ghost` value the
-context is `function 'f' (ghost 'g')`. Third surface twin of 0302. Characterization
-test for the proj_indices IR migration (Phase B).
+Module 5's `_csl_proj` rejects a non-literal `\proj` index (B-final STEP 1); the guard
+now reports the enclosing-function context `function 'f'` for every surface (it moved
+out of Module 4's per-surface ghost-value walk). Third surface twin of 0302.
 """
 # pycsl-expected: FAIL
 _ = 0  # anchor

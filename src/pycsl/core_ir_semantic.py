@@ -45,6 +45,9 @@ def run_ir_semantic_checks(ir: Any, *, stage: str = "ir-semantic") -> None:
                           "bytearray", "dict"} | {
         td.get("name") for td in ir.get("type_decls", []) if td.get("name")}
     module_constants = ir.get("module_constants") or {}
+    # B-final STEP 4: bare names of `#@ \trusted` functions (Module 5 plumbs them as a
+    # module-level list); `_check_lemma` rejects a plain lemma body that calls one.
+    trusted_funcs = set(ir.get("trusted_funcs") or [])
     for func in ir.get("functions", []):
         _check_span(func, stage)
         _check_no_exception(func)
@@ -56,9 +59,13 @@ def run_ir_semantic_checks(ir: Any, *, stage: str = "ir-semantic") -> None:
         _check_mutable_defaults(func)
         _check_acts(func)
         _check_ghost_string_ops(func)
+        _check_diverges(func)
+        _check_lemma(func, trusted_funcs)
     # Module-level (cross-method) checks run once over the whole IR.
     _check_happy(ir)
     _check_mutex_invariants(ir)
+    _check_class_invariants(ir)
+    _check_concurrency(ir)
 
 
 def _check_span(func: Any, stage: str) -> None:
@@ -545,6 +552,170 @@ def _gso_walk(node, where, symtab) -> None:
             _gso_walk(x, where, symtab)
 
 
+# --- \diverges justification (body walk) ------------------------------------
+
+def _body_has_diverging_construct(body) -> bool:
+    """True iff the IR body contains a loop (``While``/``For``), a critical section
+    (``CriticalSection`` — a lock-acquire that may block forever), or a function/method
+    call (``{"type": "Call"}`` — recursion or a diverging callee). This is the IR port of
+    Module 4's ``ast.walk`` over ``ast.While/For/AsyncFor/Call`` + critical ``with``."""
+    found = [False]
+
+    def walk(node):
+        if found[0]:
+            return
+        if isinstance(node, dict):
+            if node.get("stmt") in ("While", "For", "CriticalSection"):
+                found[0] = True
+                return
+            if node.get("type") == "Call":
+                found[0] = True
+                return
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for x in node:
+                walk(x)
+
+    walk(body)
+    return found[0]
+
+
+def _check_diverges(func) -> None:
+    """B-final STEP 2 — reject ``#@ \\diverges`` on a body with NO potentially-diverging
+    construct, migrated verbatim from Module 4's ``_validate_diverges``. The data is in
+    the IR: the ``diverges`` flag plus body ``While``/``For``/``CriticalSection`` nodes and
+    ``Call`` expressions. ``#@ \\diverges`` is the escape from Why3's termination VC; Why3
+    then enforces the dual obligation (the body must actually be able to diverge) and
+    rejects a provably-terminating body with *"this expression does not diverge"*. We catch
+    it here with a clear message rather than emit WhyML that silently fails to type-check.
+    A lemma's ``\\diverges`` is rejected (more specifically) by ``_check_lemma`` first."""
+    if not func.get("diverges"):
+        return
+    if func.get("lemma"):
+        return  # _check_lemma raises the lemma-specific message first
+    if _body_has_diverging_construct(func.get("body", []) or []):
+        return
+    raise PyCSLSemanticError(
+        f"`#@ \\diverges` on function '{func.get('name', '<anonymous>')}' is not "
+        f"justified: its body has no potentially-diverging construct (no critical "
+        f"section / lock-acquire, no loop, no call/recursion). A straight-line body "
+        f"provably terminates, so Why3 rejects the `diverges` effect (\"this expression "
+        f"does not diverge\"). Remove `#@ \\diverges`, or give the body a construct that "
+        f"can actually block or loop.",
+        code="PYCSL-SEM-DIVERGES",
+    )
+
+
+# --- lemma soundness / well-formedness (body walk + plumbed trusted set) -----
+
+def _lemma_returns_value(body) -> bool:
+    """True iff the IR body contains a ``Return`` statement carrying a non-``None`` value
+    (Module 4 walked ``ast.Return`` whose value was neither absent nor the ``None``
+    constant)."""
+    found = [False]
+
+    def walk(node):
+        if found[0]:
+            return
+        if isinstance(node, dict):
+            if node.get("stmt") == "Return":
+                v = node.get("value")
+                # `return` / `return None` → value is None (no value) or a None constant.
+                if v is not None and not (
+                        isinstance(v, dict) and v.get("type") in ("None", "CSLNone")):
+                    found[0] = True
+                    return
+            for x in node.values():
+                walk(x)
+        elif isinstance(node, list):
+            for x in node:
+                walk(x)
+
+    walk(body)
+    return found[0]
+
+
+def _lemma_calls_trusted(body, trusted) -> str:
+    """Return the name of the first ``\\trusted`` function the IR body calls, or ``""``.
+    A lemma-body call is ``{"type": "Call", "func": <bare-name>}`` — Module 5 plumbs the
+    trusted set as bare names, so the match reproduces Module 4's ``n.func.id`` test."""
+    hit = [""]
+
+    def walk(node):
+        if hit[0]:
+            return
+        if isinstance(node, dict):
+            if node.get("type") == "Call":
+                fn = node.get("func")
+                if isinstance(fn, str) and fn in trusted:
+                    hit[0] = fn
+                    return
+            for x in node.values():
+                walk(x)
+        elif isinstance(node, list):
+            for x in node:
+                walk(x)
+
+    walk(body)
+    return hit[0]
+
+
+def _check_lemma(func, trusted_funcs) -> None:
+    """B-final STEP 4 — ``#@ lemma`` soundness/well-formedness, migrated verbatim from
+    Module 4's ``_validate_lemma`` (lemma.md §3). The IR carries the ``lemma`` flag
+    (Module 5), the ``diverges`` flag, ``contracts.ensures``, ``return_annotation``,
+    ``contracts.assigns`` (a ``\\nothing`` target is ``{"type": "Nothing"}``), the body
+    (``Return``/``Call`` nodes), and the module-level plumbed ``trusted_funcs`` set.
+    Enforced (messages reproduced byte-for-byte):
+      - ``\\diverges`` forbidden (a non-terminating lemma proves nothing);
+      - at least one ``#@ ensures`` (the conclusion);
+      - return type ``None`` (a lemma computes ``unit``);
+      - ``assigns \\nothing``;
+      - no ``return <value>`` in the body;
+      - no call to a ``\\trusted`` function (no trust-leakage)."""
+    if not func.get("lemma"):
+        return
+    name = func.get("name", "<anonymous>")
+    if func.get("diverges"):
+        raise PyCSLSemanticError(
+            f"`#@ lemma` '{name}' is also `#@ \\diverges`: a non-terminating "
+            f"lemma proves nothing and would be unsound as a fact. Remove one.",
+            code="PYCSL-SEM-LEMMA")
+    contracts = func.get("contracts") or {}
+    if not (contracts.get("ensures") or []):
+        raise PyCSLSemanticError(
+            f"`#@ lemma` '{name}' has no `#@ ensures`: a lemma must state the "
+            f"fact it proves (the conclusion). Add at least one `#@ ensures`.",
+            code="PYCSL-SEM-LEMMA")
+    # Ghost discipline: a lemma returns unit. `-> None` → return_annotation "None";
+    # no annotation → return_annotation None (both accepted).
+    ra = func.get("return_annotation")
+    if ra not in (None, "None"):
+        raise PyCSLSemanticError(
+            f"`#@ lemma` '{name}' must be annotated `-> None`: a lemma computes "
+            f"nothing (its WhyML result is `unit`); the body is the proof.",
+            code="PYCSL-SEM-LEMMA")
+    for t in contracts.get("assigns", []) or []:
+        if not (isinstance(t, dict) and t.get("type") == "Nothing"):
+            raise PyCSLSemanticError(
+                f"`#@ lemma` '{name}' must be `assigns \\nothing`: a lemma is "
+                f"erased at extraction and may not mutate non-ghost state.",
+                code="PYCSL-SEM-LEMMA")
+    if _lemma_returns_value(func.get("body", []) or []):
+        raise PyCSLSemanticError(
+            f"`#@ lemma` '{name}' body must not `return` a value — it is a "
+            f"proof (returns unit). Use `pass` for an immediate arm.",
+            code="PYCSL-SEM-LEMMA")
+    leaked = _lemma_calls_trusted(func.get("body", []) or [], trusted_funcs)
+    if leaked:
+        raise PyCSLSemanticError(
+            f"`#@ lemma` '{name}' calls `\\trusted` function '{leaked}': a "
+            f"checked lemma may not rest on an unverified (trusted) fact — that "
+            f"would smuggle an unchecked axiom into a 'proved' lemma.",
+            code="PYCSL-SEM-LEMMA")
+
+
 # --- mutable default argument (front-end-resolved flag) ----------------------
 
 def _check_mutable_defaults(func) -> None:
@@ -679,6 +850,139 @@ def _hp_collect_written(node, written) -> None:
     elif isinstance(node, list):
         for x in node:
             _hp_collect_written(x, written)
+
+
+def _check_concurrency(ir) -> None:
+    """B-final STEP 5 — protected-access + lock-order, migrated from Module 4's
+    held-mutex body walk (``_check_protected_in_stmts`` & helpers). The IR carries
+    ``shared_vars`` (``[{name, mutex}]``), ``lock_order`` (an ordered mutex-name list),
+    and body ``CriticalSection{mutex, body}`` nodes (both ``#@ critical`` and
+    ``#@ acquires`` lower to this). Gated, exactly like Module 4, to functions in a module
+    that declares at least one shared var. The walk tracks the set of HELD mutexes:
+
+      * entering a ``CriticalSection`` adds its mutex to the held set for its body;
+      * acquiring a mutex while already holding one requires a ``#@ lock_order``
+        declaration, and must respect that order;
+      * a shared variable may be read/written only while its protecting mutex is held.
+
+    Statement coverage mirrors Module 4 EXACTLY (only ``If``/``While``/``For``/
+    ``CriticalSection``/``Assign``/``AugAssign``/``Return``/``Expr`` are walked — other
+    statements are not inspected for shared access). Messages reproduced byte-for-byte."""
+    shared_list = ir.get("shared_vars") or []
+    if not shared_list:
+        return  # Module 4 ran this walk only when `self._shared_vars` was non-empty.
+    shared = {sv.get("name"): sv.get("mutex") for sv in shared_list}
+    lock_order = ir.get("lock_order")  # list or None
+    for func in ir.get("functions", []):
+        fname = func.get("name", "<anonymous>")
+        _conc_stmts(func.get("body", []) or [], set(), fname, shared, lock_order)
+
+
+def _conc_check_shared_access(var_name, held, fname, shared, write) -> None:
+    if var_name not in shared:
+        return
+    req_mutex = shared[var_name]
+    if req_mutex is None:
+        return  # unprotected shared — the ConcurrencyChecker warns; this walk is lenient
+    if req_mutex not in held:
+        action = "write to" if write else "read of"
+        raise PyCSLSemanticError(
+            f"Function '{fname}': unprotected {action} shared variable '{var_name}' "
+            f"(protected_by '{req_mutex}', but held mutexes are {sorted(held) or 'none'}).",
+            code="PYCSL-SEM-CONCURRENCY")
+
+
+def _conc_check_reads(node, held, fname, shared) -> None:
+    """IR port of Module 4's ``_check_expr_for_shared``: any ``Var`` reference to a shared
+    variable is a read; recurse into every sub-node (matching ``ast.iter_child_nodes``)."""
+    if isinstance(node, dict):
+        if node.get("type") == "Var":
+            _conc_check_shared_access(node.get("name"), held, fname, shared, write=False)
+        for v in node.values():
+            _conc_check_reads(v, held, fname, shared)
+    elif isinstance(node, list):
+        for x in node:
+            _conc_check_reads(x, held, fname, shared)
+
+
+def _conc_stmts(stmts, held, fname, shared, lock_order) -> None:
+    for s in stmts:
+        if isinstance(s, dict):
+            _conc_stmt(s, held, fname, shared, lock_order)
+
+
+def _conc_stmt(s, held, fname, shared, lock_order) -> None:
+    st = s.get("stmt")
+    if st == "CriticalSection":
+        mutex = s.get("mutex")
+        inner_held = held | {mutex} if mutex else held
+        if mutex and held and lock_order is None:
+            raise PyCSLSemanticError(
+                f"Function '{fname}': nested mutex acquisition of '{mutex}' while holding "
+                f"{sorted(held)} requires a module-level '#@ lock_order' declaration.",
+                code="PYCSL-SEM-CONCURRENCY")
+        if mutex and held and lock_order is not None:
+            # Sorted for determinism (Module 4 iterated a set; sorting only affects the
+            # inherently non-deterministic case of >1 held mutex violating the order).
+            for already_held in sorted(held):
+                ah_idx = lock_order.index(already_held) if already_held in lock_order else -1
+                new_idx = lock_order.index(mutex) if mutex in lock_order else -1
+                if ah_idx >= 0 and new_idx >= 0 and new_idx <= ah_idx:
+                    raise PyCSLSemanticError(
+                        f"Function '{fname}': lock_order violation — acquiring '{mutex}' "
+                        f"while holding '{already_held}' violates declared order "
+                        f"{lock_order}.",
+                        code="PYCSL-SEM-CONCURRENCY")
+        _conc_stmts(s.get("body", []) or [], inner_held, fname, shared, lock_order)
+    elif st == "If":
+        _conc_stmts(s.get("body", []) or [], held, fname, shared, lock_order)
+        _conc_stmts(s.get("orelse", []) or [], held, fname, shared, lock_order)
+    elif st in ("While", "For"):
+        _conc_stmts(s.get("body", []) or [], held, fname, shared, lock_order)
+    elif st == "Assign":
+        target = s.get("target")
+        if isinstance(target, str):
+            _conc_check_shared_access(target, held, fname, shared, write=True)
+        _conc_check_reads(s.get("value"), held, fname, shared)
+    elif st == "AugAssign":
+        target = s.get("target")
+        if isinstance(target, str):
+            _conc_check_shared_access(target, held, fname, shared, write=True)
+    elif st == "Return":
+        if s.get("value") is not None:
+            _conc_check_reads(s.get("value"), held, fname, shared)
+    elif st == "Expr":
+        _conc_check_reads(s.get("value"), held, fname, shared)
+    # Any other statement type is NOT inspected (matching Module 4's _PROTECTED_HANDLERS).
+
+
+def _check_class_invariants(ir) -> None:
+    """B-final STEP 3 — class-invariant scope, migrated verbatim from Module 4's
+    ``visit_ClassDef`` check. For each ``type_decl`` of kind ``record``, every free
+    variable a ``class_invariant`` references must be a declared field (``self.<field>``
+    is lowered to ``FieldGet`` and excluded by ``_ir_free_vars``, exactly as Module 4's
+    ``extract_variables`` excluded ``FieldAccess``). The IR carries ``fields`` (name +
+    type) and the lowered ``class_invariants`` exprs, so the check runs on the IR alone.
+    The ``Available fields`` list is the field-name list in first-appearance order
+    (matching Module 4's ``list(self._class_fields.keys())``)."""
+    for td in ir.get("type_decls", []):
+        if td.get("kind") != "record":
+            continue
+        field_names = [f.get("name") for f in td.get("fields", []) or []]
+        field_set = set(field_names)
+        cname = td.get("name")
+        context = f"class invariant for '{cname}'"
+        for inv in td.get("class_invariants", []) or []:
+            # Sorted for determinism (Module 4 iterated a set; sorting only differs in
+            # the inherently non-deterministic multiple-undefined-var case).
+            for var in sorted(v for v in _ir_free_vars(inv) if v is not None):
+                if var not in field_set:
+                    raise PyCSLSemanticError(
+                        f"Undefined variable '{var}' in {context}. "
+                        f"Class invariants should only reference self.field or constants. "
+                        f"Available fields: {field_names}",
+                        code="PYCSL-SEM-CLASSINV",
+                    )
 
 
 def _check_mutex_invariants(ir) -> None:

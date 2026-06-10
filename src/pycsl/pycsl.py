@@ -18,7 +18,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from frontend.Module1_Ingestor import Module1_Ingestor
 from frontend.Module2_Parser import Module2_Parser
 from frontend.Module3_Weaver import Module3_Weaver
-from frontend.Module4_SemanticAnalyzer import Module4_SemanticAnalyzer
+# Module 4 (SemanticAnalyzer) DROPPED — B-final reorder: its checks migrated to the IR
+# seam (core_ir_semantic). The pipeline is now M1-3 → M5 → IR semantic checks → M6.
 from errors import PyCSLError, PyCSLParseError
 from frontend.Module5_IREmitter import Module5_IREmitter
 # refactor.md Phase C (C2c): Module6_WhyMLTranspiler is the CORE backend. Import it
@@ -402,9 +403,12 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     from frontend.exec_splice import splice_constant_exec
     unified_ast = splice_constant_exec(unified_ast)
 
-    # [Module 4] Semantic Analysis
-    analyzer = Module4_SemanticAnalyzer()
-    validated_ast = analyzer.process(unified_ast)
+    # [Module 4 DROPPED — B-final reorder] The pipeline is now M1-3 → M5 (build IR) →
+    # all semantic checks (on the IR, via core_ir_semantic.run_ir_semantic_checks) → M6.
+    # Module 4 used to run here between M3 and M5; every one of its language-agnostic
+    # checks migrated to the IR seam, so its `.process()` had become a no-op visitor and
+    # the construction is removed. Downstream (import classifier, ConcurrencyChecker,
+    # Module 5) takes the woven AST directly.
 
     # [ConcurrencyChecker] Static concurrency analysis (warnings only)
     # [Import classifier] UB-7.4 — C-extension boundary
@@ -412,14 +416,14 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     from pathlib import Path as _Path
     _project_root = _Path(__file__).resolve().parents[2]  # …/pycsl/
     check_imports(
-        validated_ast,
+        unified_ast,
         stub_dir=_project_root / "src" / "pycsl_lib",
         allow_unverified=getattr(args, "allow_unverified_imports", False),
         filename=getattr(args, "file", "<input>"),
     )
 
     cc = ConcurrencyChecker(
-        validated_ast,
+        unified_ast,
         strict_mode=getattr(args, "strict_concurrent_checks", False),
         filename=getattr(args, "file", "<input>"),
     )
@@ -428,7 +432,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         print(cc.summary())
 
     # [Module 5] IR Generation
-    emitter = Module5_IREmitter(validated_ast)
+    emitter = Module5_IREmitter(unified_ast)
     json_ir = emitter.generate_json()
 
     # Validate IR structure before handing off to Module 6
@@ -466,7 +470,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # inline-globals — via the front-end's single resolution entry, leaving ir_data the
     # fully RESOLVED IR (the wire Module 6 / the core consumes). Pure relocation: the
     # passes and their order are unchanged, so emission stays byte-identical.
-    imported_names = _ir_resolve(ir_data, validated_ast, args.file, deep=args.deep)
+    imported_names = _ir_resolve(ir_data, unified_ast, args.file, deep=args.deep)
 
     # 07-1143 R4: the Soundness Ledger is a provenance view of the fully-resolved IR
     # (after imports/inheritance/composition), so it runs here and short-circuits before

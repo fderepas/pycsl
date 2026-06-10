@@ -38,7 +38,6 @@ sys.path.insert(0, str(ROOT / "src" / "pycsl"))
 from frontend.Module1_Ingestor import Module1_Ingestor   # noqa: E402
 from frontend.Module2_Parser import Module2_Parser        # noqa: E402
 from frontend.Module3_Weaver import Module3_Weaver       # noqa: E402
-from frontend.Module4_SemanticAnalyzer import Module4_SemanticAnalyzer  # noqa: E402
 from frontend.Module5_IREmitter import Module5_IREmitter  # noqa: E402
 
 
@@ -51,11 +50,9 @@ def dump_ir(source_path: str, resolved: bool = False, deep: bool = False) -> str
     parser_mod = Module2_Parser()
     weaver = Module3_Weaver(src, extracted, parser_mod)
     unified_ast = weaver.process()
-    # Module 4: semantic analysis
-    analyzer = Module4_SemanticAnalyzer()
-    validated_ast = analyzer.process(unified_ast)
-    # Module 5: IR emission
-    ir_json = Module5_IREmitter(validated_ast).generate_json()
+    # Module 4 DROPPED (B-final reorder): semantic checks moved to the IR seam.
+    # Module 5: IR emission (straight from the woven AST)
+    ir_json = Module5_IREmitter(unified_ast).generate_json()
     if not resolved:
         return ir_json
     # --resolved: apply the SAME four post-Module5 IR-resolution passes the
@@ -63,9 +60,9 @@ def dump_ir(source_path: str, resolved: bool = False, deep: bool = False) -> str
     # IR, via the front-end's single resolution entry `frontend.ir_resolve.resolve`.
     # The passes run IN ORDER: import resolution → inheritance → composition →
     # inline-globals. Import resolution needs the SOURCE PATH (to locate
-    # dependency files) and `deep` (recurse transitive imports); the
-    # `validated_ast` argument is threaded for call-site compatibility but no
-    # longer consulted (the import LIST is IR-sourced via ir_data["imports"]).
+    # dependency files) and `deep` (recurse transitive imports); the AST
+    # argument is threaded for call-site compatibility but no longer consulted
+    # (the import LIST is IR-sourced via ir_data["imports"]).
     # When the driver has no imports, `resolve_imports` is a no-op, so the
     # 4-pass `resolve` is byte-identical to the historical 3-pass application.
     from frontend.ir_resolve import resolve as _ir_resolve  # noqa: E402
@@ -75,7 +72,7 @@ def dump_ir(source_path: str, resolved: bool = False, deep: bool = False) -> str
     # stdout (as the full pipeline does). This tool's contract is that stdout
     # carries ONLY the IR JSON, so redirect those lines to stderr.
     with contextlib.redirect_stdout(sys.stderr):
-        _ir_resolve(ir_data, validated_ast, source_path, deep=deep)
+        _ir_resolve(ir_data, unified_ast, source_path, deep=deep)
     return json.dumps(ir_data)
 
 

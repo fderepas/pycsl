@@ -28,11 +28,10 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from frontend import pure_ast as _ast  # dependency import-discovery parses via the pure-Python front-end
 
-# These re-run Modules 1-5 on dependency files.
+# These re-run Modules 1-3 + 5 on dependency files (Module 4 was dropped — B-final).
 from frontend.Module1_Ingestor import Module1_Ingestor
 from frontend.Module2_Parser import Module2_Parser
 from frontend.Module3_Weaver import Module3_Weaver
-from frontend.Module4_SemanticAnalyzer import Module4_SemanticAnalyzer
 from frontend.Module5_IREmitter import Module5_IREmitter
 
 # inline.md: inline method calls on module-level globals (relocated to frontend).
@@ -141,9 +140,9 @@ def _process_dependency(filepath: str, needed_names: Set[str], cache: Dict[str, 
         parser_mod = Module2_Parser()
         weaver = Module3_Weaver(dep_source, extracted, parser_mod)
         unified = weaver.process()
-        analyzer = Module4_SemanticAnalyzer()
-        validated = analyzer.process(unified)
-        emitter = Module5_IREmitter(validated)
+        # Module 4 DROPPED (B-final): its checks all migrated to the IR seam, so the dep
+        # sub-pipeline goes straight from the woven AST to Module 5.
+        emitter = Module5_IREmitter(unified)
         ir_data = _json.loads(emitter.generate_json())
 
         # With --deep, resolve the dependency's own imports recursively
