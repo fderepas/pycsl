@@ -462,6 +462,53 @@ is correct, for all inputs*. Totality is usually reachable first; the content th
 capstone (often proof-cost-bound, not foundation-bound). They are different promises — don't conflate
 "the API never faults on any input" with "the API returns the right answer on any input."
 
+**Critical rule: a formal test must verify the operation's CONSEQUENCE, not merely call it.** A formal
+test is a *scenario* that exercises the operation's observable EFFECT — never a one-liner that calls the
+operation and asserts its own declared return-code/contract. That one-liner is **VACUOUS**: the
+operation's `ensures` (e.g. `\result == 0 or \result == -1`) is true *by construction*, so re-asserting it
+through a bare call proves NOTHING about what the operation did. The shape of a real test is **set up a
+state → observe it → perform the target operation → observe that the state changed as the operation
+promises** — the assertion is on the OBSERVED CONSEQUENCE (the post-state), not on the call's own return
+value.
+
+This is *why* `os`'s flagship round-trip is the model: `write` data to a file, then **read it back**, and
+assert the read-back equals what was written. Writing has a consequence; reading-after-writing checks it —
+so the round-trip *proves the write worked*.
+
+BAD — vacuous, do NOT do this (it only re-states `rmdir`'s own return-code disjunction; it never checks the
+directory is gone):
+```python
+#@ ensures \result == 0 or \result == -1
+def formal_os_rmdir(name: str) -> int:
+    return rmdir(name)            # just calls rmdir — can't tell if anything was removed
+```
+GOOD — the same syscall, tested by its CONSEQUENCE (**create → check present → rmdir → check absent**):
+```python
+def formal_os_rmdir_scenario(name: str) -> int:
+    mkdir(name)                   # set up: create the directory
+    before = access(name)         # observe: it exists
+    rc = rmdir(name)              # the target action
+    after = access(name)          # observe: it is gone
+    #@ ensures before == True and after == False   # the directory was actually removed
+    return rc
+```
+Now the test proves `rmdir` removed the directory — the operation's functional consequence.
+
+By operation kind:
+- **Mutating ops** (mkdir / rmdir / unlink / link / rename / write / truncate / chmod …): a
+  round-trip/scenario — establish the pre-state, OPERATE, then observe the post-state reflects the change
+  (created → present; removed → absent; renamed → old-absent **and** new-present; written → read-back
+  equal; truncated → new length).
+- **Read-only ops** (stat / access / listdir / getcwd / read …): establish a KNOWN state, then assert the
+  observation matches it (after creating N entries, `len(listdir()) == N`; after `mkdir(d)`, `stat(d)`
+  reports a directory). The observation is verified against a state YOU constructed, not asserted in a
+  vacuum.
+
+A bare return-code assertion (`\result == 0 or -1`) is at best the *totality/safety* strength above (the
+call doesn't fault) — keep it only as that, and never mistake it for functional verification. Every
+mutating syscall needs a consequence-checking scenario; that is what "the formal test propagates the
+source of truth" actually means.
+
 ### Contracts must reflect the English specification
 
 When writing postconditions, **always derive them from the English
