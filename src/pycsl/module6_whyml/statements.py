@@ -533,7 +533,6 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         body_stmts = stmt["body"]
         assume_inv = stmt.get("assume_invariant")
         prove_inv = stmt.get("prove_invariant")
-        safe_mutex = safe_mutex_name(mutex)
         shared_for_mutex = [
             sv["name"] for sv in self.ir.get("shared_vars", [])
             if sv.get("mutex") == mutex
@@ -547,7 +546,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 self._havoc_counter += 1
                 let_bindings.append(f"{indent}let {tmp} = any int in")
                 seq_parts.append(f"{indent}{safe_var} := {tmp}")
-            seq_parts.append(f"{indent}assume {{ {safe_mutex}_inv }}")
+            self._in_spec = True
+            inv_str = self._expr_to_whyml(assume_inv, set())
+            self._in_spec = False
+            app = self._mutex_inv_application(mutex, inv_str)
+            seq_parts.append(f"{indent}assume {{ {app} }}")
         elif assume_inv:
             self._in_spec = True
             inv_str = self._expr_to_whyml(assume_inv, local_refs)
@@ -557,7 +560,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         if body_code:
             seq_parts.append(body_code)
         if prove_inv and shared_for_mutex:
-            seq_parts.append(f"{indent}assert {{ {safe_mutex}_inv }}")
+            self._in_spec = True
+            inv_str = self._expr_to_whyml(prove_inv, set())
+            self._in_spec = False
+            app = self._mutex_inv_application(mutex, inv_str)
+            seq_parts.append(f"{indent}assert {{ {app} }}")
         elif prove_inv:
             self._in_spec = True
             inv_str = self._expr_to_whyml(prove_inv, local_refs)

@@ -28,6 +28,14 @@ Regenerate the list at any time with `bin/typecheck-audit.sh`.
   (`module6_whyml/statements.py:534-535`), i.e. `assert { {mutex}_inv !{var} }`. This CHANGES the
   concurrency `.mlw` (so it is byte-diff-visible and gated by: the fixed `.mlw` type-checks **and** the
   corpus pass/fail is otherwise unchanged), unlike the rest of this refactor's byte-preserving bricks.
+  **STATUS — predicate fix LANDED:** the `unbound symbol` error is gone on all concurrency drivers; **7 now
+  fully type-check** (`L3-tc ✓`), non-concurrency `.mlw` byte-identical, no pipeline regression. The fix
+  peeled the onion: a SECOND layered blocker (25 drivers) — the source `#@ \diverges` on the worker
+  (modelling lock-blocking as possible non-termination) lowers to a `diverges` effect (`functions.py:286`),
+  but the critical section is modelled as non-blocking (havoc+assume), so why3 sees a terminating body and
+  rejects it (*"this expression does not diverge"*). That is a **modelling decision, not a turnkey emission
+  fix** (model lock-acquire as diverging, or revisit the `\diverges` annotation); the 7 that pass are exactly
+  the concurrency drivers WITHOUT `#@ \diverges`. (Plus 0417: a separate unit-vs-int return-type mismatch.)
 - **Other (26):** `0050 0303 0386 0406 0407 0477 0478 0479 0480 0482 0483 0484 0485 0486 0487 0488 0489
   0557 0560 0563 0575 0601 0631 0634 0636 0638` — assorted features whose lowering emits an
   ill-typed/undeclared symbol. Each needs its own diagnosis.

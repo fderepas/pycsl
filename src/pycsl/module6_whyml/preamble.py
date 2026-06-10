@@ -611,6 +611,11 @@ class PreambleEmissionMixin:
                 i += 1
             out.append("")
         if mutex_invariants_ir:
+            # A logic `predicate` cannot dereference a program mutable `ref`
+            # (WhyML forbids logic from seeing mutable program state). So each
+            # mutex invariant is lowered as a predicate PARAMETERIZED by the
+            # plain (un-deref'd) values of the shared vars it references, and
+            # every PROGRAM-context use applies it to the dereferenced refs.
             sorted_mi = sorted(mutex_invariants_ir.items())
             n = len(sorted_mi)
             i = 0
@@ -620,20 +625,55 @@ class PreambleEmissionMixin:
                 self._in_spec = True
                 inv_str = self._expr_to_whyml(inv_ir, set())
                 self._in_spec = False
-                out.append(f"  predicate {safe_mutex}_inv = {inv_str}")
+                params = self._mutex_inv_params(mutex, inv_str)
+                if params:
+                    sig = " ".join(whyml_ident(v) for v in params)
+                    inv_bare = inv_str
+                    for v in params:
+                        inv_bare = inv_bare.replace(f"!{whyml_ident(v)}", whyml_ident(v))
+                    out.append(
+                        f"  predicate {safe_mutex}_inv ({sig} : int) = {inv_bare}"
+                    )
+                else:
+                    out.append(f"  predicate {safe_mutex}_inv = {inv_str}")
                 i += 1
             out.append("")
             sorted_mi2 = sorted(mutex_invariants_ir.items())
             n2 = len(sorted_mi2)
             i2 = 0
             while i2 < n2:
-                mutex2, _ = sorted_mi2[i2]
+                mutex2, inv_ir2 = sorted_mi2[i2]
                 safe_mutex2 = safe_mutex_name(mutex2)
+                self._in_spec = True
+                inv_str2 = self._expr_to_whyml(inv_ir2, set())
+                self._in_spec = False
+                app = self._mutex_inv_application(mutex2, inv_str2)
                 out.append(f"  let _check_initial_{safe_mutex2} () : unit =")
-                out.append(f"    assert {{ {safe_mutex2}_inv }}")
+                out.append(f"    assert {{ {app} }}")
                 out.append("")
                 i2 += 1
         return out
+
+    def _mutex_inv_params(self, mutex: str, inv_str: str) -> List[str]:
+        """The shared vars (sorted, deterministic) protected by `mutex` whose
+        deref `!name` actually occurs in the lowered invariant `inv_str` — these
+        become the parameterized predicate's `int` arguments."""
+        names = sorted(
+            sv["name"]
+            for sv in self.ir.get("shared_vars", [])
+            if sv.get("mutex") == mutex
+        )
+        return [v for v in names if f"!{whyml_ident(v)}" in inv_str]
+
+    def _mutex_inv_application(self, mutex: str, inv_str: str) -> str:
+        """Program-context application of `{mutex}_inv`: applied to the
+        dereferenced shared refs it is parameterized by (or bare if none)."""
+        safe_mutex = safe_mutex_name(mutex)
+        params = self._mutex_inv_params(mutex, inv_str)
+        if not params:
+            return f"{safe_mutex}_inv"
+        args = " ".join(f"!{whyml_ident(v)}" for v in params)
+        return f"{safe_mutex}_inv {args}"
 
     def _inductive_sig_whyml(self, signature: str) -> str:
         """inductive.md: a predicate's WhyML arg-type list (Why3 `inductive p t1 t2`
