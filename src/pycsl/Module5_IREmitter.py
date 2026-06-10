@@ -87,6 +87,29 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         if lock_order is not None:
             self.program_ir["lock_order"] = lock_order.order
 
+        # refactor.md Phase C (C1): emit the module's import list into the IR so
+        # multi-file import resolution (pycsl._resolve_imports) becomes a pure
+        # IR→IR pass instead of re-walking the Python AST. This MUST reproduce
+        # exactly what pycsl._extract_imports yielded — same ast.walk ordering,
+        # same per-alias tuple shape (local, original, module, level, is_module)
+        # — so the set/order of injected dependency functions is byte-identical.
+        # Additive field: Module 6 ignores it (emission unchanged for any driver).
+        imports_ir: List[List[Any]] = []
+        for n in ast.walk(node):
+            if isinstance(n, ast.ImportFrom) and n.module:
+                for alias in n.names:
+                    if alias.name == '*':
+                        imports_ir.append(["*", "*", n.module, n.level or 0, False])
+                        continue
+                    local = alias.asname if alias.asname else alias.name
+                    imports_ir.append([local, alias.name, n.module, n.level or 0, False])
+            elif isinstance(n, ast.Import):
+                for alias in n.names:
+                    local = alias.asname if alias.asname else alias.name
+                    imports_ir.append([local, alias.name, alias.name, 0, True])
+        if imports_ir:
+            self.program_ir["imports"] = imports_ir
+
         # module-constants-plan: module-level int constants (`K_IHDR = 0`) →
         # resolved to their literal in Module 6 (body and contract).
         module_consts = collect_module_constants(node)

@@ -28,8 +28,12 @@ from errors import PyCSLIRError
 # widen it as additive versions land, and drop a major when support ends.
 # ---------------------------------------------------------------------------
 
-IR_VERSION = "1.0"
-ACCEPTED_IR_VERSIONS = frozenset({"1.0"})
+# "1.1" (refactor.md Phase C/C1) adds the optional top-level `imports` key —
+# the module's import list, consumed by pycsl._resolve_imports so multi-file
+# resolution is a pure IR→IR pass. Additive (MINOR bump): "1.0" IRs remain
+# ingestable, so both versions stay in ACCEPTED_IR_VERSIONS.
+IR_VERSION = "1.1"
+ACCEPTED_IR_VERSIONS = frozenset({"1.0", "1.1"})
 
 
 # ---------------------------------------------------------------------------
@@ -84,6 +88,10 @@ class ProgramIR(TypedDict, total=False):
     # Required at runtime (validated by validate_ir):
     type_decls: List[Dict[str, Any]]
     functions: List[FunctionIR]
+    # Optional (IR v1.1; refactor.md Phase C/C1): the module's import list,
+    # each entry [local, original, module, level, is_module]. Consumed by
+    # pycsl._resolve_imports for multi-file resolution; Module6 ignores it.
+    imports: List[List[Any]]
     # Optional concurrency keys (present when --memory-model concurrent):
     shared_vars: List[Dict[str, Any]]
     mutex_invariants: Dict[str, Dict[str, Any]]

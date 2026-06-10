@@ -653,8 +653,18 @@ def _resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str,
                      deep: bool = False, cache: Optional[Dict[str, Any]] = None,
                      processing_set: Optional[Set[str]] = None) -> Set[str]:
     """Detect imports, resolve source files, inject trusted stubs into ir_data.
-    Returns set of imported function local names."""
-    imports = _extract_imports(validated_ast)
+    Returns set of imported function local names.
+
+    refactor.md Phase C (C1): the import list for THIS module now comes from the
+    IR field `ir_data["imports"]` (emitted by Module5.visit_Module), not from a
+    fresh walk of the Python AST. Each entry is a 5-element list
+    [local, original, module, level, is_module] — identical data and order to
+    what `_extract_imports` produced — so the dependency-injection result stays
+    byte-identical. (Dependency LOADING still runs M1–5 on the dep source; only
+    the per-module import LIST is now IR-sourced.) `validated_ast` is retained in
+    the signature for call-site compatibility but no longer consulted here.
+    """
+    imports = ir_data.get("imports", [])
     if not imports:
         return set()
 
