@@ -23,12 +23,12 @@ def formal_strmod_concat_len(a: str, b: str) -> int:
 
 #@ requires \str_length(s) >= 0
 #@ ensures \result <= \str_length(s)
-def formal_strmod_capwords_bound(s: str, sep: str) -> int:
-    """capwords bound: |capwords(s, sep)| <= |s| for all strings s, sep.
+def formal_strmod_capwords_bound(s: str) -> int:
+    """capwords bound: |capwords(s)| <= |s| for all strings s.
     capwords collapses runs of whitespace and trims, so it never grows the
-    string (RST L985-993). Proved for ALL s (and all sep) against capwords'
-    trusted contract — the loop back to the English promise that capwords only
-    ever shortens. (The result is bound to a str-typed local so `len` resolves to
-    String.length on the imported str-returning stub.)"""
-    r: str = capwords(s, sep)
-    return len(r)
+    string (RST L985-993). Proved for ALL s against capwords' trusted contract —
+    the loop back to the English promise that capwords only ever shortens.
+    Written in the natural Python: `len(capwords(s))` directly — `len` over a
+    str-returning call resolves to String.length (str_length_op), and the
+    optional `sep` is OMITTED (filled with the empty-string default)."""
+    return len(capwords(s))

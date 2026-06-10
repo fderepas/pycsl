@@ -101,10 +101,12 @@ def format_field(spec: str, v: str) -> str:
 
     FAITHFUL-PROVABLE: the empty-spec branch is the identity v == str(v) (the
     value is already a string here), proved by SMT; the non-empty branch
-    delegates to the trusted `_format_field_nonempty` leaf. Written as a
-    conditional expression (single tail return) so the str result flows through
-    without an early-return."""
-    return v if spec == "" else _format_field_nonempty(spec, v)
+    delegates to the trusted `_format_field_nonempty` leaf. Written in the
+    natural early-return form (a str-returning function with an EARLY return,
+    exercising Return_str)."""
+    if spec == "":
+        return v
+    return _format_field_nonempty(spec, v)
 
 
 # --- Template class ---
@@ -178,8 +180,11 @@ class Formatter:
         FAITHFUL-PROVABLE: empty-spec branch is the identity; non-empty branch
         delegates to the trusted `_format_field_nonempty` leaf. (Argument order
         is (value, format_spec), matching the RST `format_field(value,
-        format_spec)` signature.)"""
-        return v if spec == "" else _format_field_nonempty(spec, v)
+        format_spec)` signature.) Written in the natural early-return form
+        (Return_str)."""
+        if spec == "":
+            return v
+        return _format_field_nonempty(spec, v)
 
     #@ \trusted reviewer: python-stdlib
     #@ ensures \str_length(\result) >= 0
