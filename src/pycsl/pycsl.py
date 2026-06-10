@@ -1154,6 +1154,14 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         if trusted_names:
             print(f"[*] --fun filter: verifying {verified_names}, trusting {trusted_names}")
 
+    # Phase C boundary (refactor.md): the core consumes the SERIALIZED, fully-resolved IR.
+    # Re-validate it HERE — after the inheritance/composition/inline/--fun mutations — at the
+    # real Module-5→core seam, not only the pre-mutation IR validated near the top of the
+    # pipeline. This closes the gap where the IR Module 6 actually consumes was never
+    # structurally checked: a malformed post-mutation IR previously failed mysteriously
+    # inside Module 6 instead of with a located ir-validate error at the boundary.
+    validate_ir(_json.loads(json_ir), stage="ir-validate-boundary")
+
     # [Module 6] WhyML Transpilation
     transpiler = Module6_WhyMLTranspiler(
         json_ir, memory_model=memory_model,
