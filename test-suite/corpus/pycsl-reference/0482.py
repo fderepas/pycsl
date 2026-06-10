@@ -1,6 +1,7 @@
-"""Test 0482 — strings-plan demand-driver: __mul__ (`s * n`, repetition).
-Target: repetition multiplies the length. Expected-FAIL until strings land."""
-# pycsl-expected: FAIL
+"""Test 0482 — strings: __mul__ (`s * n`, repetition).
+Target: repetition multiplies the length. PROVES as of the G2 strings feature: a string×int
+`*` lowers to `str_repeat_op` (a `val` whose `ensures` pins `String.length result = n *
+String.length s`); the content is opaque, only the length law is modeled (faithful)."""
 # pycsl-flags: --memory-model hoare
 _ = 0  # anchor
 #@ requires n >= 0 and \str_length(s) >= 0

@@ -1,8 +1,7 @@
-"""Test 0485 — strings-plan demand-driver: __hash__ (`hash(s)`).
-Target: hashing a string yields an int (usable as a dict/set key). Under the strings feature
-hash becomes an abstract op over a Why3 string (vs the literal int-hash model today).
-Expected-FAIL until strings land."""
-# pycsl-expected: FAIL
+"""Test 0485 — strings: __hash__ (`hash(s)`).
+Target: hashing a string yields an int (usable as a dict/set key). PROVES as of the G2 strings
+feature: `hash(s)` of a string routes to the abstract `val str_hash_op (s:string):int` (an
+uninterpreted string→int over a real Why3 string, no int-coercion of the value)."""
 # pycsl-flags: --memory-model hoare
 _ = 0  # anchor
 #@ requires \str_length(s) >= 0

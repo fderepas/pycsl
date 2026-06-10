@@ -87,7 +87,8 @@ Regenerate the list at any time with `bin/typecheck-audit.sh`.
   out of scope for this lock-acquire fix).
 - **Other (26):** `0050 0303 0386 0406 0407 0477 0478 0479 0480 0482 0483 0484 0485 0486 0487 0488 0489
   0557 0560 0563 0575 0601 0631 0634 0636 0638` — assorted features whose lowering emits an
-  ill-typed/undeclared symbol. **D1 diagnosis (2026-06) groups these:**
+  ill-typed/undeclared symbol. **D1 diagnosis (2026-06) groups these; the 13 string drivers were
+  subsequently RESOLVED by the G2 strings feature (2026-06) — see below.**
   - **Logic-context abstract op declared as program `val` (4) — FIXED:** `0631 0634 0636 0638`
     (`\in_globals` / `isinstance`/`\typeof` / `\in_scope`). The lowering emitted `val in_globals_op` /
     `val typeof_op` / `val in_scope_op` (program functions) but used them inside `ensures`/`requires`
@@ -98,12 +99,38 @@ Regenerate the list at any time with `bin/typecheck-audit.sh`.
     (`in_scope_op`) now emit `val function …`. All four now `L3-tc ✓`; the change is a single-line
     `val`→`val function` per driver, byte-identical on the decided-true/false neighbors
     (`0603 0630 0632 0633 0635 0637`) and the rest of the corpus.
-  - **String feature demand-drivers (13) — DEFERRED (expected-FAIL stretch targets, not a clean cohort):**
-    `0477 0478 0479 0480 0482 0483 0484 0485 0486 0487 0488 0489`. All carry `# pycsl-expected: FAIL` and
-    document the unsupported `str`-object surface (`<`, `*`/`%`, `hash`/`str`/`repr`/`format`, iteration).
-    The type errors are heterogeneous (string-valued exprs used where `int` is expected; undeclared
-    `hash_1`/`str_conv`/`repr_conv`/`format_1`/`iter_length`) — symptoms of the absent strings feature,
-    not one emission bug. Correct resolution is the strings feature (strings-plan.md), not a patch.
+  - **String feature demand-drivers (13) — RESOLVED by the G2 strings feature (2026-06):**
+    `0477 0478 0479 0480 0481 0482 0483 0484 0485 0486 0487 0488 0489`. (`0481` — `+`/concat — was
+    already supported.) Each now lowers FAITHFULLY (a Python `str` is a real Why3 `string`, never
+    int-coerced) and **FULLY PROVES** (`pycsl <f>` → Verification SUCCESS), so every `# pycsl-expected:
+    FAIL` marker was REMOVED (they are now positive drivers). The lowering changes are confined to
+    `module6_whyml/expressions.py` (`_handle_binop`, `_handle_call_expr`) and
+    `module6_whyml/stmt_control_flow.py` (`_classify_iterable`); each new op fires ONLY for
+    string-typed operands (guarded by `_is_string_expr`), so the rest of the corpus + `os` are
+    byte-identical. Per-op bridges (all `ensures`-tied to the Why3 `string.String` theory):
+    - **`< <= > >=` (0477–0480):** `str_lt_op`/`str_le_op` (`val:bool`, `result <-> String.lt/le`);
+      `>`/`>=` reflect by swapping operands. Body returns Python's int truth (`if … then 1 else 0`).
+    - **`str(s)` / `format(s)` (0486, 0488):** identity — returns the argument string unchanged.
+    - **`hash(s)` (0485):** routes a string arg to the existing `val str_hash_op : int`.
+    - **`s*n` / `n*s` (0482, 0483):** `val str_repeat_op` with `String.length result = n * String.length s`
+      (content opaque; length law only). Canonicalizes string-first.
+    - **`s % x` (0484):** honest abstract `val str_mod_op (s:string)(x:'a):string` with only
+      `String.length result >= 0` — a sound over-approximation; the formatting is NOT modeled
+      (never the int `pycsl_mod`).
+    - **`for c in s` (0489):** `_classify_iterable` now lowers a string iterable to bound
+      `str_length_op s` (= `String.length s`) and element `str_sub_op s !idx 1`. Because the
+      iteration index is internal (not source-referenceable), 0489's *counting* postcondition
+      (which must relate `count` to that index) is stated over an explicit `while i < len(s)` index;
+      it proves `result == String.length s`.
+    - **`repr(s)` (0487) — HONEST DISPOSITION (option b):** the naive `len(repr(s)) == len(s) + 2`
+      is UNSOUND in general (Python adds exactly 2 quote chars only for quote/escape-free strings;
+      escapes lengthen it further), so PyCSL does **NOT** emit that `+2` equality. `repr` lowers to
+      `val str_repr_op (s:string):string` whose only `ensures` is the sound LOWER bound
+      `String.length result >= 2` (repr always carries its two surrounding quotes — Why3's
+      `length_nonneg` axiom is commented out, so a bare `>= 0` is not even provable for an opaque
+      result, whereas `>= 2` is a true, faithful fact). 0487 was rewritten to assert
+      `\str_length(\result) >= 2` and is now a positive (proving) driver — no false postcondition,
+      no string→int coercion anywhere.
   - **`list.append` Seq-vs-Array representation mismatch (2) — RESOLVED-BY-SUPPORT (growable-list Seq for params):**
     `0406 0407` (the only two with NO `expected: FAIL`) WERE genuinely dishonest: a `.append`-ed `list`
     PARAM typed as `array int`, was seq-promoted (so `.append` lowered to `Seq.snoc`), yet the
@@ -136,7 +163,8 @@ The staged path to honest-by-default is complete:
 1. **D0 (done):** the `--typecheck` capability + per-level status + this audit.
 2. **D1 (done):** the 54 fixed-or-marked — concurrency `\diverges` cohort (lock-acquire-is-diverging),
    the logic-context `val`→`val function` group (G1), the `list.append` Seq-vs-Array pair (G3),
-   and the string/singleton XFAIL stretch targets (G2/G4).
+   and the singleton XFAIL targets (G4). **G2 (the 13 string drivers) was subsequently RESOLVED by
+   the faithful strings feature (2026-06): all 13 now type-check AND fully prove; markers removed.**
 3. **D2 (done):** the typecheck now runs **by default** on every `--no-proof` run and SUCCESS is gated
    on `L3-tc ✓`. ← *here*
 

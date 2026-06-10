@@ -414,6 +414,57 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if raw_op in ("==", "!="):
                 eq = f"({left} = {right})"
                 return eq if raw_op == "==" else f"(not {eq})"
+        # G2 strings: lexicographic comparison `< <= > >=` on two strings. Why3's
+        # `string.String` exposes the *predicates* `String.lt`/`String.le` (lexicographic
+        # order). `s < t` → `str_lt_op s t` (a `val:bool` bridge tied by `ensures` to
+        # `String.lt`); `s <= t` → `str_le_op`. `>`/`>=` reflect by swapping operands
+        # (`s > t` ⇔ `t < s`, `s >= t` ⇔ `t <= s`). Like the Python comparison protocol the
+        # body returns an int (the bool→int `if … then 1 else 0` of the float-compare path).
+        # Both operands must be string-typed; a mixed str/int compare is out of scope here.
+        if raw_op in ("<", "<=", ">", ">=") \
+                and self._is_string_expr(expr["left"]) \
+                and self._is_string_expr(expr["right"]):
+            self._add_abstract_op(
+                "val str_lt_op (a: string) (b: string) : bool\n"
+                "    ensures { result <-> String.lt a b }")
+            self._add_abstract_op(
+                "val str_le_op (a: string) (b: string) : bool\n"
+                "    ensures { result <-> String.le a b }")
+            if raw_op == "<":
+                cmp = f"(str_lt_op {left} {right})"
+            elif raw_op == "<=":
+                cmp = f"(str_le_op {left} {right})"
+            elif raw_op == ">":
+                cmp = f"(str_lt_op {right} {left})"
+            else:  # ">="
+                cmp = f"(str_le_op {right} {left})"
+            if self._in_spec:
+                return cmp
+            return f"(if {cmp} then 1 else 0)"
+        # G2 strings: repetition `s * n` / `n * s` on a string + int. The repeated string's
+        # length is `n * String.length s` (canonicalize string-first regardless of operand
+        # order — multiplication is commutative on the int factor). Bridged through a `val`
+        # whose `ensures` pins only the length (the content is an opaque function of s, n).
+        if raw_op == "*" and (
+                (self._is_string_expr(expr["left"]) and not self._is_string_expr(expr["right"]))
+                or (self._is_string_expr(expr["right"]) and not self._is_string_expr(expr["left"]))):
+            if self._is_string_expr(expr["left"]):
+                sstr, nstr = left, right
+            else:
+                sstr, nstr = right, left
+            self._add_abstract_op(
+                "val str_repeat_op (s: string) (n: int) : string\n"
+                "    requires { n >= 0 }\n"
+                "    ensures { String.length result = n * String.length s }")
+            return f"(str_repeat_op {sstr} {nstr})"
+        # G2 strings: `%`-formatting `s % x` produces SOME string — its content is NOT
+        # modeled (faithful boundary). An honest abstract `val` pins only `length >= 0` (a
+        # sound over-approximation), never the int `pycsl_mod`. Fires only for a string LHS.
+        if raw_op == "%" and self._is_string_expr(expr["left"]):
+            self._add_abstract_op(
+                "val str_mod_op (s: string) (x: 'a) : string\n"
+                "    ensures { String.length result >= 0 }")
+            return f"(str_mod_op {left} {right})"
         # strings-plan Stage 2: `s + t` on strings is concatenation, not int addition. The
         # logic symbol `concat` is fine in a spec; in a program (body) context it is bridged
         # through an abstract `val` whose `ensures` ties the result to `concat` (same pattern
@@ -1279,7 +1330,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return f"(array_rev {self._array_coerce_arg(args[0])})"
         if func_name == "join" and len(args) == 1:
             return self._handle_join_call(expr, args)
-        if func_name in ("str", "repr", "int", "bool", "abs") and len(args) == 1:
+        if func_name == "hash" and len(args) == 1:
+            # G2 strings: `hash(s)` of a string routes to the existing `str_hash_op`
+            # (an uninterpreted `string -> int`) — yielding an int usable as a dict/set
+            # key, over a real Why3 string (no int-coercion). A non-string `hash(x)` keeps
+            # the generic call fallback below.
+            arg_ir = expr.get("args", [{}])[0] if expr.get("args") else {}
+            if self._is_string_expr(arg_ir):
+                self._add_abstract_op("val str_hash_op (s: string) : int")
+                return f"(str_hash_op {args[0]})"
+        if func_name in ("str", "repr", "format", "int", "bool", "abs") and len(args) == 1:
             arg_ir = expr.get("args", [{}])[0] if expr.get("args") else {}
             if arg_ir.get("type") == "Number" and func_name in ("int", "abs"):
                 val = arg_ir.get("value")
@@ -1287,6 +1347,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     return str(int(val) if func_name == "int" else abs(int(val)))
             if func_name == "int":
                 return args[0]
+            # G2 strings: `str(s)` / `format(s)` (no spec) of a string is the identity —
+            # the same Why3 string, faithfully (mirrors the int identity above). `repr(s)`
+            # is NOT identity (it adds quotes), so it is handled separately (str_repr_op).
+            if func_name in ("str", "format") and self._is_string_expr(arg_ir):
+                return args[0]
+            # G2 strings: `repr(s)` of a string is an abstract string-valued op. Its content
+            # transform is NOT modeled — Python adds 2 quotes ONLY for quote/escape-free
+            # strings, so a `+2` *equality* length law would be UNSOUND. The only sound,
+            # faithful length fact is the lower bound: `repr` of any str always carries at
+            # least the two surrounding quote characters, so `length result >= 2`. No false
+            # postcondition is emitted.
+            if func_name == "repr" and self._is_string_expr(arg_ir):
+                self._add_abstract_op(
+                    "val str_repr_op (s: string) : string\n"
+                    "    ensures { String.length result >= 2 }")
+                return f"(str_repr_op {args[0]})"
             wf = whyml_ident(func_name)
             self._add_abstract_op(f"val {wf}_conv (x: int) : int")
             return f"({wf}_conv {args[0]})"

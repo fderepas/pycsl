@@ -96,6 +96,23 @@ class ControlFlowStmtMixin:
             stop = self._expr_to_whyml(iter_ir["args"][1], local_refs)
             self._for_idx_init = start
             return stop, f"!{idx}", True
+        # G2 strings: `for c in s` over a string visits each 1-char substring once. The
+        # bound is `str_length_op s` (= `String.length s`) and the element is the length-1
+        # substring `str_sub_op s !idx 1`. Faithful: a string is a real Why3 string, the
+        # loop count equals its length. Must precede the opaque `iter_length`/`iter_get`.
+        if (iter_ir.get("type") == "Var" and self._value_semantic
+                and getattr(self, "_current_symbol_table", {}).get(iter_ir.get("name", "")) == "str"):
+            iter_expr = self._expr_to_whyml(iter_ir, local_refs)
+            self._add_abstract_op(
+                "val str_length_op (s: string) : int\n"
+                "    ensures { result = (String.length s) }")
+            self._add_abstract_op(
+                "val str_sub_op (s: string) (lo len: int) : string\n"
+                "    ensures { result = (String.substring s lo len) }\n"
+                "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
+                " -> String.length result = len }")
+            return (f"(str_length_op {iter_expr})",
+                    f"(str_sub_op {iter_expr} !{idx} 1)", False)
         if iter_ir.get("type") == "Var" and self._value_semantic:
             var_name = iter_ir.get("name", "")
             iter_expr = self._expr_to_whyml(iter_ir, local_refs)
