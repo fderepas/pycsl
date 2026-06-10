@@ -890,8 +890,14 @@ def _parse_args() -> argparse.Namespace:
     g_proof = parser.add_argument_group("proof modes")
     g_proof.add_argument("--no-proof", action="store_true",
                         help="Skip the proof step. Only run the pipeline "
-                             "(parse, typecheck, transpile) and report success "
-                             "if valid WhyML is generated.")
+                             "(parse, transpile) and report success "
+                             "if WhyML is generated.")
+    g_proof.add_argument("--typecheck", action="store_true",
+                        help="Honest gate (refactor.md Phase D): after emitting WhyML, "
+                             "run `why3 prove --type-only` and report the per-level status "
+                             "(L1/L2/L3-tc). Exits non-zero if the emitted WhyML does not "
+                             "typecheck — i.e. SUCCESS means it at least type-checks, not "
+                             "merely 'text emitted'. Composes with --no-proof.")
     g_proof.add_argument("--rocq", metavar="DIR", default=None,
                         help="On SMT prover failure, generate Rocq (Coq) "
                              "proof obligations in DIR. Why3 emits .v files "
@@ -1158,13 +1164,40 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     return transpiler.transpile()
 
 
+def _why3_typecheck(mlw_filename: str):
+    """Phase D honest gate: parse + typecheck the emitted WhyML with why3 (no proof).
+    Returns ``(ok: bool, diagnostic: str)``. A run is only honestly SUCCESS if this
+    passes — emitting text that does not even type-check is the silent success the spec
+    (refactor.md §1.5 / Phase D) forbids. A missing why3 is NOT a failure (we do not turn
+    an absent prover into a false typecheck-fail) — it is reported as skipped."""
+    try:
+        r = subprocess.run(["why3", "prove", "--type-only", mlw_filename],
+                           capture_output=True, text=True)
+    except FileNotFoundError:
+        return True, "(why3 not found — typecheck skipped)"
+    if r.returncode == 0:
+        return True, ""
+    return False, (r.stderr.strip() or r.stdout.strip())
+
+
 def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argparse.Namespace) -> None:
     """Write *mlw_code* to *mlw_filename*, invoke Why3, handle Rocq proofs and cleanup."""
     with open(mlw_filename, "w") as f:
         f.write(mlw_code)
 
     if args.no_proof:
-        print(f"[+] Verification SUCCESS (--no-proof: WhyML generated, proof skipped).")
+        if getattr(args, "typecheck", False):
+            ok, diag = _why3_typecheck(mlw_filename)
+            print(f"[level] L1 ✓  L2 ✓  L3-tc {'✓' if ok else '✗'}")
+            if not ok:
+                print("[!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success:")
+                print(diag)
+                if not args.keep_mlw and os.path.exists(mlw_filename):
+                    os.remove(mlw_filename)
+                sys.exit(1)
+            print("[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks; proof skipped).")
+        else:
+            print(f"[+] Verification SUCCESS (--no-proof: WhyML generated, proof skipped).")
         if not args.keep_mlw and os.path.exists(mlw_filename):
             os.remove(mlw_filename)
         sys.exit(0)
