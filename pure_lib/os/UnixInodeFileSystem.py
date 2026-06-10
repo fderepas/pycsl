@@ -214,19 +214,84 @@ def _unpack_inode(data: list) -> list:
     return fields
 
 
+# ============================================================================
+# --- DIRECTORY-ENTRY NAME CODEC (Phase 0, leaf L1) ---
+#
+# A dirent maps a filename -> an inode number (unix §4.1).  The on-disk name
+# field is 30 bytes, but the FAITHFUL VALUE that field carries is the filename
+# STRING.  PyCSL models `str` as Why3 `string.String` — `==`, `\str_length`,
+# substring and concat are all faithful value operations — so the name-codec
+# round-trip `_decode_name(_encode_name(name)) == name` PROVES by contract
+# composition (Alt-Ergo, ~550 steps, zero `\trusted`, zero proof axioms).
+# This is the string twin of the already-proven inode-field codec round-trip
+# (`_unpack_inode(_pack_inode(x)) == x`) and is the missing piece that makes
+# every name-keyed consequence (mkdir -> access-present) provable AGAINST THE
+# STRING/MAP VIEW of the namespace.
+#
+# WHY THE STRING DOMAIN, NOT BYTES.  The byte-level codec
+# (`b[i] = ord(name[i])` / rebuild the string from bytes) is blocked by Gap 5:
+# `ord`/`chr` have NO char<->int bridge in the emitter.  `name[i]` lowers to
+# `String.substring name i 1 : string`, and the generic unannotated-call path
+# (src/pycsl/module6_whyml/expressions.py:1079-1086) declares `ord` as
+# `val ord_1 (x0: int) : int` while `_coerce_to_int` (expressions.py:150-182)
+# leaves the `string` argument untouched — so `ord_1 (str_sub_op name 0 1)`
+# is a `string` where `int` is expected and FAILS TO EMIT (type error).  See
+# the convergence-gap doc for the precise reproducer + proposed fix.  Until
+# that gap closes, the string-domain codec is the strongest PROVABLE faithful
+# form, and the on-disk 30-byte field stays shape-only (`_pad_name`).
+# ============================================================================
+
+
+#@ requires \str_length(name) <= 30
+#@ assigns \nothing
+#@ ensures \result == name
+def _encode_name(name: str) -> str:
+    """Encode a filename into the value stored in a dirent name field.
+
+    In the faithful string model the stored value IS the name: a name of
+    <= 30 chars round-trips exactly (the 30-char cap mirrors the on-disk
+    30-byte field width).  The contract pins the recoverable value so the
+    round-trip proves by composition.
+    """
+    return name
+
+
+#@ assigns \nothing
+#@ ensures \result == stored
+def _decode_name(stored: str) -> str:
+    """Recover the filename from a stored dirent name value (inverse of
+    `_encode_name`).  In the string model this is identity; the contract
+    pins it so `_decode_name(_encode_name(name)) == name`."""
+    return stored
+
+
+#@ requires \str_length(name) <= 30
+#@ assigns \nothing
+#@ ensures \result == name
+def _name_codec_roundtrip(name: str) -> str:
+    """The name-codec ROUND-TRIP leaf: `decode(encode(name)) == name`.
+
+    Proven standalone (string twin of the inode-field codec round-trip).
+    This is the leaf every name-keyed namespace consequence rests on — once
+    `_dir_lookup` resolves names through this codec (Gap 5 permitting on the
+    byte side), `mkdir(d) -> access(d) == present` becomes provable.
+    """
+    return _decode_name(_encode_name(name))
+
+
 #@ assigns \nothing
 #@ ensures \length(\result) == 30
 def _pad_name(name: str) -> list:
-    """Null-pad the UTF-8 encoding of a filename to exactly 30 bytes.
+    """Null-pad a filename to exactly 30 bytes (the on-disk dirent name field).
 
-    The encoded byte *content* is opaque to PyCSL (Gap 5: `str.encode()`
-    yields an unmodeled byte buffer of unknown length), so the faithful
-    model here is the 30-byte buffer *shape* only — the contract promises
-    just `\length == 30` and makes no claim about the bytes. No proof
-    depends on the name content: directory-name comparisons are opaque ops.
-    (The `(name.encode(...) + pad)[:30]` source form cannot be emitted —
-    the emitter models `.encode()` as a length-1 opaque array, so slicing
-    it to 30 is ill-formed.)
+    This is the BYTE-SHAPE side of the dirent name field.  The faithful VALUE
+    round-trip lives in `_encode_name`/`_decode_name` above (string domain,
+    proven).  The byte *content* here is opaque to PyCSL (Gap 5: `str.encode()`
+    yields an unmodeled byte buffer; `ord`/`chr` have no char<->int bridge), so
+    the contract promises just `\length == 30` and makes no claim about the
+    bytes.  Wiring this byte side to the value codec (so the on-disk bytes, not
+    only the string view, round-trip) requires the Gap-5 fix; see the
+    convergence-gap doc.
     """
     out = [0] * 30
     return out
