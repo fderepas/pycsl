@@ -252,6 +252,11 @@ class PreambleEmissionMixin:
             or any("str" in f.get("symbol_table", {}).values() for f in functions)
             or any(f.get("return_annotation") == "str" for f in functions)
         )
+        # 10-2300-spec-5: the `ord`/`chr` char<->int bridge needs `use string.Char`
+        # (a sibling module of the already-used `string.String`, same trusted
+        # `string.mlw`). Emitted ONLY when an `ord(...)`/`chr(...)` call is present —
+        # absent from the corpus, so existing emission stays byte-identical.
+        needs_char = any(IRScanner.uses_ord_chr(body) for body in all_bodies)
         # no-more-int Stage D: a `float` param/local/return is Why3 `real`; RealInfix
         # provides the disambiguated `+.`/`-.`/`*.`/`/.`/`<.` operators alongside int.Int.
         needs_real = (
@@ -339,6 +344,7 @@ class PreambleEmissionMixin:
             "needs_body_dict": needs_body_dict,
             "tuple_return_arities": tuple_return_arities,
             "needs_string": needs_string,
+            "needs_char": needs_char,
             "needs_real": needs_real,
             "needs_seq": needs_seq,
             "needs_map_ghost": needs_map_ghost,
@@ -368,6 +374,12 @@ class PreambleEmissionMixin:
             i += 1
         if needs["needs_string"]:
             out.append("  use string.String")
+        if needs.get("needs_char"):
+            # 10-2300-spec-5: the char<->int bridge (ord/chr). `string.Char` is a
+            # sibling module in the SAME trusted `string.mlw` as `string.String`; it
+            # provides `code`/`chr`/`get`/`.contents` and the round-trip axioms
+            # `chr_code`/`code_chr` — no PyCSL-owned axiom, no TCB growth beyond the use.
+            out.append("  use string.Char")
         if needs.get("needs_real"):
             out.append("  use real.RealInfix")  # no-more-int Stage D — `+.`/`-.`/… on real
         if needs.get("needs_seq"):

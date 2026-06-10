@@ -361,6 +361,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # yields None != "str" → safe False (unchanged opaque path).
         if t == "Call":
             fn = ir.get("func", "")
+            # 10-2300-spec-5: `chr(...)` yields a 1-char string (chr_op : ... -> string).
+            # So `len(chr(b))`, `s + chr(b)`, `chr(b) == c`, and `chr(...)` as a subscript
+            # base route through the real string bridges, not the opaque int fallback.
+            # (`ord(...)` is int → default `False` below, no edit needed.)
+            if fn == "chr":
+                return True
             return getattr(self, "_module_method_return_annotations", {}).get(fn) == "str"
         return False
 
@@ -1364,6 +1370,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if self._is_string_expr(arg_ir):
                 self._add_abstract_op("val str_hash_op (s: string) : int")
                 return f"(str_hash_op {args[0]})"
+        # 10-2300-spec-5: the `ord`/`chr` char<->int bridge. Handled here — BEFORE the
+        # generic unannotated-callee path (which would declare `val ord_1 (x: int) : int`
+        # and mis-type the 1-char STRING arg of `ord(name[i])`). `ord_op`/`chr_op` are
+        # total abstract vals pinned by `string.Char`'s `code`/`chr`/`get` (no axiom).
+        if func_name == "ord" and len(args) == 1:
+            arg_ir = expr.get("args", [{}])[0] if expr.get("args") else {}
+            if self._is_string_expr(arg_ir):
+                # `args[0]` is the lowered 1-char string (e.g. `(str_sub_op name i 1)`).
+                self._add_abstract_op(
+                    "val ord_op (c: string) : int\n"
+                    "    ensures { 0 <= result < 256 }\n"
+                    "    ensures { result = Char.code (Char.get c 0) }")
+                return f"(ord_op {args[0]})"
+            # non-string `ord(x)`: fall through (return None) — keep current behaviour.
+        if func_name == "chr" and len(args) == 1:
+            self._add_abstract_op(
+                "val chr_op (n: int) : string\n"
+                "    ensures { String.length result = 1 }\n"
+                "    ensures { result = (Char.chr n).contents }")
+            return f"(chr_op {args[0]})"
         if func_name in ("str", "repr", "format", "int", "bool", "abs") and len(args) == 1:
             arg_ir = expr.get("args", [{}])[0] if expr.get("args") else {}
             if arg_ir.get("type") == "Number" and func_name in ("int", "abs"):

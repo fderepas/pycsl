@@ -521,6 +521,21 @@ class IRScanner:
         return False
 
     @staticmethod
+    def uses_ord_chr(obj: Any) -> bool:
+        """10-2300-spec-5: True if any `ord(...)`/`chr(...)` call appears, so the
+        preamble pulls `use string.Char` (the char<->int bridge theory). Fires the
+        SAME trigger as the emitter (expressions.py `_call_named_builtins`), so the
+        `use` is emitted iff `ord_op`/`chr_op` is registered — keeping byte-additivity
+        exact (no spurious `use string.Char` when ord/chr is absent)."""
+        if isinstance(obj, dict):
+            if obj.get("type") == "Call" and obj.get("func") in ("ord", "chr"):
+                return True
+            return any(IRScanner.uses_ord_chr(v) for v in obj.values())
+        if isinstance(obj, list):
+            return any(IRScanner.uses_ord_chr(item) for item in obj)
+        return False
+
+    @staticmethod
     def uses_divmod(stmts: Any) -> bool:
         def _check(obj: Any) -> bool:
             if isinstance(obj, dict):
