@@ -17,8 +17,17 @@ Regenerate the list at any time with `bin/typecheck-audit.sh`.
 ## The 54, by category
 
 - **Concurrency (28):** drivers using `#@ critical`/`acquires`/`releases`/`shared`/`thread_entry`/
-  `mutex_invariant`/`lock_order`. Symptom: the emitted WhyML references shared-state symbols (e.g.
-  `counter`) that the concurrency lowering never declares — an emission gap in that feature.
+  `mutex_invariant`/`lock_order`. **ROOT CAUSE (diagnosed):** the mutex-invariant lowering emits a *logic*
+  `predicate` whose body dereferences a *program* mutable ref — which WhyML forbids (logic cannot see
+  mutable program state). For `0250`: shared state is `val counter : ref int`
+  (`module6_whyml/preamble.py:610`), but the invariant is `predicate lock_counter_inv = (!counter >= 0)`
+  (`preamble.py:623`) → `why3` reports `unbound function or predicate symbol 'counter'` at the predicate
+  line. **FIX (D1, one root cause covers ~all 28):** parameterize the predicate by the shared values —
+  `predicate {mutex}_inv ({var}: int …) = {bare invariant}` — and apply it with the dereference at every
+  program-context use site: `_check_initial` (`preamble.py:633`) and the critical-section assume/prove
+  (`module6_whyml/statements.py:534-535`), i.e. `assert { {mutex}_inv !{var} }`. This CHANGES the
+  concurrency `.mlw` (so it is byte-diff-visible and gated by: the fixed `.mlw` type-checks **and** the
+  corpus pass/fail is otherwise unchanged), unlike the rest of this refactor's byte-preserving bricks.
 - **Other (26):** `0050 0303 0386 0406 0407 0477 0478 0479 0480 0482 0483 0484 0485 0486 0487 0488 0489
   0557 0560 0563 0575 0601 0631 0634 0636 0638` — assorted features whose lowering emits an
   ill-typed/undeclared symbol. Each needs its own diagnosis.
