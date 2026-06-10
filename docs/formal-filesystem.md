@@ -12,6 +12,8 @@ concrete tests → leaf-to-API contracts proved by SMT → a formal test that cl
 specification.** Each link is faithful to the one above it; the last link states, as a runnable driver,
 the property the first link promised, and proves it universally.
 
+[Novel version of this page](filesystem-story.md)
+
 ---
 
 ## 0. The pipeline, named precisely

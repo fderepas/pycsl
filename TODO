@@ -5,15 +5,10 @@ CMMI_AUDIT_NESTED=1 bin/agent-feature-supervisor --allow-load-bearing --allow-ll
 Are documentations: test-suite/annotations.md docs/pycsl-*reference*.md README.md test-suite/traceability-py* config/skills/pycal* in line with the latest changes
 
 ---
-Write a specification for "lemma functions" to be supported by PyCSL by relying on Why3 features.
----
-Write a specification for "Inductive predicates" to be supported by PyCSL by relying on Why3 features.
----
-Write a specification for "Polymorphic / generic datatypes" to be supported by PyCSL by relying on Why3 features.
----
-Write a specification for "Bitvectors" to be supported by PyCSL by relying on Why3 features.
----
-Write a specification for "IEEE-754 floats" to be supported by PyCSL by relying on Why3 features on top of using real.
+
+● Key insight: pycsl's unknown_goals captures the prover-result lines, not goal names — and they split clearly into two kinds: ~14 Timeouts with huge step counts (billions → SMT blow-up) and ~33 Unknowns (moderate steps → can't 
+  discharge). To get the function each belongs to, let me correlate the why3 goal lines with their results in the full log:
+
 ---
 
 Using high-level specification `quantification-spec.md` derive the implementation plan `quantification-spec.md`.
@@ -29,26 +24,6 @@ You wrote in `a2b-stage4-scaffold.md`:  `Demonstrate the novel move: a property 
 
 ---
 
-Take A2b stage-4 Gap 1, the permutation operator- 
-`
-
----
-
-Update `config/skills/csl-from-scratch/` to make sure that the following progress in time is done:
-- interger abstracted stage with Basic PyCSL constraints (No `act` no 
-    - start with a simple minimalistic language
-    - include examples
-- Extend 
-
----
-A lot of work was done in `no-more-int.md` and `no-more-int-2.md`.
-Detail what remains to be done after `no-more-int-2.md` in an new plan named `no-more-int-3.md`.
-Refactor all the following python files:
-- src/pycsl/*.py
-- src/pycsl/module6_whyml/*.py
-Is it ok while the sweep passes?
----
-the CSL contract grammar doesn't accept float literals
 
 ---
 
@@ -167,7 +142,7 @@ here is what I want you to do: the big picture the `ast` is changing dynamically
 Draft a plan named `pure-ast-parsing-in-pycsl.md` which:
 - suppress the use of `ast` from Python Standard Library use `src/pycsl/pure_ast.py` instead.
 - then `pycsl/src/pycsl_lib/ast.py` will call corresponding components in `pycsl`
-
+`<
 Let's take an example:
 ```
 import ast
@@ -489,4 +464,48 @@ Write your analysis in `agent-landscape.md`.
 ---
 
 CMMI_AUDIT_NESTED=1 bin/agent-feature-supervisor --allow-load-bearing --feature-file 16-steps-exec.md
+
+---
+
+I discovered that `  - for-loop invariants are NOT checked by Module 4 (no visit_For context) — so my walk must skip them (else false-positive)`
+
+Enforce the loop invariant on for loops.
+
+
+---
+
+The refactoring plan"
+  Phase B:
+  - AST-only checks (acts, checkpoints, happy, subscript_assignments, no_mutable_defaults) — need IR-data plumbing first.
+  - function_contracts — the forbidden-expression dispatcher; its own sub-phase.
+  - B-final — drop Module 4's AST-resolution role + reorder so the IR is built before semantic analysis. The deepest change.
+
+  Phase C — Split the front-end package ⬜ not started
+
+  Phase D — Honest core (WhyML-typecheck gate + structured diagnostics + capability manifest) ⬜ not started
+
+  Phase E — Conformance corpora + freeze the front-end contract ⬜ not started
+
+---
+
+So, now what we have made this structural change and really structured the IR interface, here is what I want to do. Instead of having pyton source code for Modules* under `src/pycsl`, I want to move existing *.py files under two directories:
+- `src/pycsl/frontend/python` for roughly Module 1/2 (every thing before the IR)
+- `src/pycsl/backend/` for all Module 4-6 python code (including directories `module5/` and `module6_whyml/` to move under `src/pycsl/backend/`)
+I do not know where module 3 should be.
+
+The idea is to use this structure later for other languages:
+- `src/pycsl/frontend/c` for C code
+- `src/pycsl/frontend/go` for Go code
+- `src/pycsl/frontend/rust` for Rust code
+
+Provide your feedback on these changes and future evolutions by writing the specification `structuring.py`.
+
+---
+
+After thinking about it I changed my mind. Growable-list-with-append is a feature you want to support and verify. support growable lists via a Seq representation (and reconcile it with the array-based \valid/subscript model). Do also  E import-driver goldens.
+
+---
+
+You wrote `the core is independently invokable on a serialized IR`.
+Write a specification of the IR in `docs/ir.md`.
 

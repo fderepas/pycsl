@@ -4,6 +4,8 @@
 > space; the second quantifies over it. Only the second can say* shall.
 > — field notes, PyCSL verification log
 
+[Serious version of this page](formal-filesystem.md)
+
 ---
 
 ## ACT ONE — THE PLEDGE
