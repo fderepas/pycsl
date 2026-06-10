@@ -53,12 +53,23 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         self._cur_func_symtab: Dict[str, Any] = {}
         self._fresh_var_counter: int = 0
         self._mutex_invariants_csl: Dict[str, Any] = {}  # mutex → CSLNode
+        # refactor.md B-final wedge: the set of module-level shared-variable names
+        # (from `csl_shared_decls`). Module5 now builds the function symbol_table
+        # itself (see `_build_function_symbol_table`), and — like Module4's
+        # `_build_function_scope` — must SKIP shared vars when collecting locals.
+        # Populated in `visit_Module` before functions are visited via generic_visit.
+        self._shared_var_names: Set[str] = set()
 
     def visit_Module(self, node: ast.Module) -> None:
         """Emit module-level concurrency declarations into the top-level IR."""
         shared_decls = getattr(node, 'csl_shared_decls', [])
         mutex_invs = getattr(node, 'csl_mutex_invariants', {})
         lock_order = getattr(node, 'csl_lock_order', None)
+
+        # refactor.md B-final wedge: record shared-var names so the self-built
+        # function symbol_table skips them (mirrors Module4's `self._shared_vars`
+        # keys, populated from the same `csl_shared_decls`).
+        self._shared_var_names = {d.variable for d in shared_decls}
 
         # Store CSL nodes so _get_mutex_invariant_ir can look them up later
         self._mutex_invariants_csl = dict(mutex_invs)
@@ -1496,14 +1507,160 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             return True
         return False
 
+    # --- refactor.md B-final wedge: Module5 builds the IR symbol_table itself ---
+    #
+    # Ported verbatim from Module4_SemanticAnalyzer (`_get_type_name`,
+    # `_get_dict_value_type`, `_get_dict_key_type`, and the body of
+    # `_build_function_scope`) so Module5 no longer reads `node.csl_symbol_table`
+    # / `node.csl_dict_value_types` / `node.csl_dict_key_types`. The resulting
+    # tables are CONTENT- AND ORDER-IDENTICAL to Module4's, keeping the emitted
+    # `.mlw` byte-for-byte unchanged.
+
+    def _m5_get_type_name(self, annotation: ast.expr) -> str:
+        """Port of Module4._get_type_name. See that method for the rules."""
+        if isinstance(annotation, ast.Name):
+            return annotation.id
+        if isinstance(annotation, ast.Subscript) and isinstance(annotation.value, ast.Name):
+            head = annotation.value.id
+            if head == "Optional":
+                inner = annotation.slice
+                if isinstance(inner, ast.Name):
+                    return inner.id
+                if isinstance(inner, ast.Subscript) and isinstance(inner.value, ast.Name):
+                    return inner.value.id.lower()
+                return "Any"
+            if head == "Union":
+                inner = annotation.slice
+                if isinstance(inner, ast.Tuple):
+                    for elt in inner.elts:
+                        if isinstance(elt, ast.Constant) and elt.value is None:
+                            continue
+                        if isinstance(elt, ast.Name) and elt.id != "None":
+                            return elt.id
+                        if isinstance(elt, ast.Subscript) and isinstance(elt.value, ast.Name):
+                            return elt.value.id.lower()
+                return "Any"
+            return head.lower()
+        return "Any"
+
+    @staticmethod
+    def _m5_get_dict_value_type(annotation: ast.expr) -> Optional[str]:
+        """Port of Module4._get_dict_value_type. See that method for the rules."""
+        if (isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)
+                and annotation.value.id in ("Dict", "dict")
+                and isinstance(annotation.slice, ast.Tuple)
+                and len(annotation.slice.elts) == 2):
+            v = annotation.slice.elts[1]
+            if isinstance(v, ast.Name) and v.id == "str":
+                return "string"
+            if (isinstance(v, ast.Subscript)
+                    and isinstance(v.value, ast.Name)
+                    and v.value.id in ("Dict", "dict")
+                    and isinstance(v.slice, ast.Tuple)
+                    and len(v.slice.elts) == 2):
+                ki, vi = v.slice.elts
+                kw = "string" if (isinstance(ki, ast.Name) and ki.id == "str") else "int"
+                vw = "string" if (isinstance(vi, ast.Name) and vi.id == "str") else "int"
+                return f"map {kw} (option {vw})"
+            if (isinstance(v, ast.Subscript)
+                    and isinstance(v.value, ast.Name)
+                    and v.value.id in ("List", "list")
+                    and isinstance(v.slice, ast.Name)
+                    and v.slice.id == "int"):
+                return "seq int"
+        return None
+
+    @staticmethod
+    def _m5_get_dict_key_type(annotation: ast.expr) -> Optional[str]:
+        """Port of Module4._get_dict_key_type. See that method for the rules."""
+        if (isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)
+                and annotation.value.id in ("Dict", "dict")
+                and isinstance(annotation.slice, ast.Tuple)
+                and len(annotation.slice.elts) == 2):
+            k = annotation.slice.elts[0]
+            if isinstance(k, ast.Name) and k.id == "str":
+                return "string"
+        return None
+
+    def _build_function_symbol_table(
+        self, node: ast.FunctionDef
+    ) -> Tuple[Dict[str, str], Dict[str, str], Dict[str, str]]:
+        """Build (symbol_table, dict_value_types, dict_key_types) from the
+        FunctionDef AST, reproducing Module4._build_function_scope's exact logic
+        and INSERTION ORDER. The returned `symbol_table` still includes `'self'`
+        if present (the caller strips it, matching the prior copy-from-Module4
+        behaviour). Mirrors Module4: args (skip 'self') → Assign/AnnAssign/For
+        locals (skip shared vars) → ghost-var declarations."""
+        scope: Dict[str, str] = {}
+        dict_value_types: Dict[str, str] = {}
+        dict_key_types: Dict[str, str] = {}
+        shared = self._shared_var_names
+
+        # Function arguments (skip 'self' for methods)
+        for arg in node.args.args:
+            if arg.arg == 'self':
+                continue
+            arg_type = self._m5_get_type_name(arg.annotation) if arg.annotation else "Any"
+            scope[arg.arg] = arg_type
+            if arg.annotation is not None:
+                nu = self._m5_get_dict_value_type(arg.annotation)
+                if nu is not None:
+                    dict_value_types[arg.arg] = nu
+                kappa = self._m5_get_dict_key_type(arg.annotation)
+                if kappa is not None:
+                    dict_key_types[arg.arg] = kappa
+
+        # Local variables (skip shared module-level variables)
+        for child in ast.walk(node):
+            if isinstance(child, ast.Assign):
+                for target in child.targets:
+                    if isinstance(target, ast.Name) and target.id not in shared:
+                        scope[target.id] = "Any"
+            elif isinstance(child, ast.AnnAssign):
+                if isinstance(child.target, ast.Name) and child.target.id not in shared:
+                    scope[child.target.id] = (
+                        self._m5_get_type_name(child.annotation)
+                        if child.annotation else "Any"
+                    )
+                    if child.annotation is not None:
+                        nu = self._m5_get_dict_value_type(child.annotation)
+                        if nu is not None:
+                            dict_value_types[child.target.id] = nu
+                        kappa = self._m5_get_dict_key_type(child.annotation)
+                        if kappa is not None:
+                            dict_key_types[child.target.id] = kappa
+            elif isinstance(child, ast.For):
+                if isinstance(child.target, ast.Name) and child.target.id not in shared:
+                    scope[child.target.id] = "Any"
+                elif isinstance(child.target, ast.Tuple):
+                    for elt in child.target.elts:
+                        if isinstance(elt, ast.Name) and elt.id not in shared:
+                            scope[elt.id] = "Any"
+
+        # Ghost variables — register all declarations. Only op == "=" declarations
+        # carry a meaningful declared_type; augmented assignments must not overwrite
+        # a type already registered. (Module4's second/validation pass is purely a
+        # check and writes nothing to the scope, so it is not reproduced here.)
+        for child in ast.walk(node):
+            for ga in getattr(child, 'csl_ghost_assigns', []):
+                if isinstance(ga, GhostArraySetDecl):
+                    continue  # element-set: no declared_type; array var already registered
+                dtype = getattr(ga, 'declared_type', 'int')
+                if ga.target not in scope or ga.op == "=":
+                    scope[ga.target] = dtype
+
+        return scope, dict_value_types, dict_key_types
+
     def _build_function_ir(self, node: ast.FunctionDef) -> Dict[str, Any]:
         """Build the core function IR dict (name, contracts, body)."""
         func_name = (f"{self._current_class.lower()}__{node.name}"
                      if self._current_class else node.name)
-        symbol_table = {
-            k: v for k, v in getattr(node, 'csl_symbol_table', {}).items()
-            if k != 'self'
-        }
+        # refactor.md B-final wedge: Module5 computes the scope itself rather than
+        # copying Module4's `node.csl_symbol_table` (etc.). Byte-identical by design.
+        _sym, _dvt, _dkt = self._build_function_symbol_table(node)
+        symbol_table = {k: v for k, v in _sym.items() if k != 'self'}
         # scc3.md Phase B: expose this function's symbol table to `_csl_in` (built
         # below for contracts/body) so `x in S` dispatches on the collection type.
         self._cur_func_symtab = symbol_table
@@ -1609,8 +1766,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # no-more-int-3 A1: dict var -> WhyML value type ν (string), for
             # string-valued dicts only (captured in Module4); int-valued dicts
             # have no entry and keep the `map int (option int)` path.
-            "dict_value_types": dict(getattr(node, 'csl_dict_value_types', {})),
-            "dict_key_types": dict(getattr(node, 'csl_dict_key_types', {})),
+            "dict_value_types": dict(_dvt),
+            "dict_key_types": dict(_dkt),
             "formal_params": formal_params,
             "return_annotation": return_annotation,
             "contracts": {
