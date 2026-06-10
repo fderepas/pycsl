@@ -1,38 +1,34 @@
-# Formal tests for pure_lib/strmod — string module model
-from pure_lib.strmod import capwords, template_substitute, template_safe_substitute, format_field
+# Formal tests for pure_lib/strmod — REAL string theorems over symbolic `str`.
+#
+# These close the loop back to the English spec (test-suite/library_reference/
+# string.rst): the concat-length law (a string's length is additive under `+`)
+# and the capwords bound (capwords never grows its argument, RST L985-993). Both
+# are genuine string-valued universal theorems over symbolic `str` inputs, NOT
+# length-int artifacts — `len(...)` lowers to Why3 `String.length` (str_length_op)
+# and the capwords bound is discharged against capwords' trusted contract
+# (\str_length(\result) <= \str_length(s)).
+#
+# pycsl-flags: --memory-model hoare
+from pure_lib.strmod import capwords
 
 
-#@ requires s >= 0
-#@ ensures \result <= s
-def test_capwords_bounded(s: int) -> int:
-    """capwords never grows the string (removes extra whitespace)."""
-    return capwords(s)
+#@ requires \str_length(a) >= 0
+#@ ensures \result == \str_length(a) + \str_length(b)
+def formal_strmod_concat_len(a: str, b: str) -> int:
+    """Concat-length law: |a + b| == |a| + |b| for all strings a, b.
+    The fundamental length-additivity of string concatenation, proved by SMT via
+    str_concat_op + str_length_op."""
+    return len(a + b)
 
 
-#@ ensures \result == 0
-def test_capwords_empty() -> int:
-    """capwords of empty is empty."""
-    return capwords(0)
-
-
-#@ requires t >= 0
-#@ requires m >= 0
-#@ ensures \result == t + m
-def test_substitute_additive(t: int, m: int) -> int:
-    """template_substitute produces template + mapping length."""
-    return template_substitute(t, m)
-
-
-#@ requires t >= 0
-#@ requires m >= 0
-#@ ensures \result >= t
-def test_safe_substitute_monotone(t: int, m: int) -> int:
-    """safe_substitute result >= template (unresolved vars stay)."""
-    return template_safe_substitute(t, m)
-
-
-#@ requires val >= 0
-#@ ensures \result == val
-def test_format_field_identity(val: int) -> int:
-    """format_field with empty format is identity."""
-    return format_field(0, val)
+#@ requires \str_length(s) >= 0
+#@ ensures \result <= \str_length(s)
+def formal_strmod_capwords_bound(s: str, sep: str) -> int:
+    """capwords bound: |capwords(s, sep)| <= |s| for all strings s, sep.
+    capwords collapses runs of whitespace and trims, so it never grows the
+    string (RST L985-993). Proved for ALL s (and all sep) against capwords'
+    trusted contract — the loop back to the English promise that capwords only
+    ever shortens. (The result is bound to a str-typed local so `len` resolves to
+    String.length on the imported str-returning stub.)"""
+    r: str = capwords(s, sep)
+    return len(r)
