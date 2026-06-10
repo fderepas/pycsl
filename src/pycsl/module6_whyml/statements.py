@@ -924,6 +924,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # an immutable `Return_seq (seq int)` (Why3 forbids a mutable array payload); the
             # catch materializes the seq back to `array int` at the single result-slot boundary.
             return f"    try\n{body_code}\n    with Return_seq s -> materialize s end"
+        if return_type == "string":
+            # 10-1732-gap Gap 1: a `string`-returning function with an early/in-loop
+            # return raises `Return_str <string>`; the catch hands the payload straight
+            # back (no materialize needed — `string` is immutable). Structured so a later
+            # `Return_<T>` generalization (real/record) extends this branch.
+            return f"    try\n{body_code}\n    with Return_str r -> r end"
         return f"    try\n{body_code}\n    with Return r -> r end"
 
     def _typed_local_vars(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:

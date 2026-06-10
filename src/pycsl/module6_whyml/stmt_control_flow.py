@@ -594,6 +594,11 @@ class ControlFlowStmtMixin:
                 else:
                     seq_val = self._seq_init_expr(val_ir, local_refs)
                 return f"{indent}raise (Return_seq {seq_val})"
+            if func_ret == "string":
+                # 10-1732-gap Gap 1: a `string`-returning function with an early/in-loop
+                # return raises `Return_str <string>` (caught by the `with Return_str r -> r`
+                # arm). `val` is already the lowered string expression — no int coercion.
+                return f"{indent}raise (Return_str {val})"
             # Array-returning functions with early returns CANNOT use the
             # straightforward `raise (Return arr)` shape — Why3 forbids
             # `array int` in exception payloads (mutable types), and the

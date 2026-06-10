@@ -211,6 +211,7 @@ class PreambleEmissionMixin:
         needs_return_exc = False
         needs_return_void = False
         needs_return_seq = False
+        needs_return_str = False
         tuple_return_arities: Set[int] = set()
         n = len(functions)
         i = 0
@@ -233,6 +234,15 @@ class PreambleEmissionMixin:
                     # through an IMMUTABLE `seq int` and materialize at the catch. (The array-ness
                     # often comes from the `-> list` annotation, not find_return_type.)
                     needs_return_seq = True
+                elif ret_type == "string" or ann == "str":
+                    # 10-1732-gap Gap 1: a faithful `string`-returning function with an
+                    # early/in-loop return carries a `string` payload — the generic
+                    # `exception Return int` would mis-type it. Mirror the Return_seq
+                    # machinery with a dedicated `exception Return_str string`. (The
+                    # string-ness usually comes from the `-> str` annotation, since
+                    # find_return_type reports `int` for a string body.) Structured so a
+                    # later `Return_<T>` generalization (real/record) slots in here.
+                    needs_return_str = True
                 else:
                     needs_return_exc = True
             i += 1
@@ -324,6 +334,7 @@ class PreambleEmissionMixin:
             "needs_break": needs_break,
             "needs_return_exc": needs_return_exc,
             "needs_return_seq": needs_return_seq,
+            "needs_return_str": needs_return_str,
             "needs_return_void": needs_return_void,
             "needs_body_dict": needs_body_dict,
             "tuple_return_arities": tuple_return_arities,
@@ -431,6 +442,11 @@ class PreambleEmissionMixin:
             # the catch materializes back to `array int`.
             out.append("")
             out.append("  exception Return_seq (Seq.seq int)")
+        if needs.get("needs_return_str"):
+            # 10-1732-gap Gap 1: a `string`-returning function with an early/in-loop
+            # return carries an immutable `string` payload (parallel to Return_seq).
+            out.append("")
+            out.append("  exception Return_str string")
         if needs["needs_return_void"]:
             out.append("")
             out.append("  exception Return_void")
