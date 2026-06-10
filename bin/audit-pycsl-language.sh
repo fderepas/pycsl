@@ -59,9 +59,9 @@ echo "=== PyCSL language-consistency audit ==="
 run "grammar builds (Module2_Parser constructs)" "$PY" - <<'PY'
 import re, sys, pathlib
 sys.path.insert(0, str(pathlib.Path("src/pycsl")))
-import Module2_Parser as M
+from frontend import Module2_Parser as M
 M.Module2_Parser()  # raises if the Lark grammar has undefined rules / build errors
-src = pathlib.Path("src/pycsl/Module2_Parser.py").read_text()
+src = pathlib.Path("src/pycsl/frontend/Module2_Parser.py").read_text()
 m = re.search(r"\?contract:(.*?)(?:\n\s*\n|\n[A-Za-z_]+:)", src, re.S)
 alts = re.findall(r"[A-Za-z_][A-Za-z_0-9]*", m.group(1)) if m else []
 methods = set(dir(M.PyCSLTransformer))

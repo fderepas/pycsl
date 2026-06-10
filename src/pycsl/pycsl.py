@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import argparse
-import pure_ast as _ast  # dependency import-discovery parses via the pure-Python front-end
+from frontend import pure_ast as _ast  # dependency import-discovery parses via the pure-Python front-end
 import copy
 import hashlib
 import json as _json
@@ -16,17 +16,17 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Import the PyCSL Pipeline Modules
-from Module1_Ingestor import Module1_Ingestor
-from Module2_Parser import Module2_Parser
-from Module3_Weaver import Module3_Weaver
-from Module4_SemanticAnalyzer import Module4_SemanticAnalyzer
+from frontend.Module1_Ingestor import Module1_Ingestor
+from frontend.Module2_Parser import Module2_Parser
+from frontend.Module3_Weaver import Module3_Weaver
+from frontend.Module4_SemanticAnalyzer import Module4_SemanticAnalyzer
 from errors import PyCSLError, PyCSLParseError
-from Module5_IREmitter import Module5_IREmitter
+from frontend.Module5_IREmitter import Module5_IREmitter
 from Module6_WhyMLTranspiler import Module6_WhyMLTranspiler
 from ir_schema import validate_ir
 from core_ir_semantic import run_ir_semantic_checks
 from ir_inline import apply_inline_globals as _apply_inline_globals
-from ConcurrencyChecker import ConcurrencyChecker
+from frontend.ConcurrencyChecker import ConcurrencyChecker
 
 
 # ── Multi-file import helpers ──────────────────────────────────
@@ -1056,7 +1056,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # [07-1839 P5b] Constant-`exec("…")` straight-line splice: replace a constant exec with
     # its parsed body (verification-equivalent to inline source; whitelist bars control flow).
     # No-op for files without a constant exec. Dynamic exec is handled downstream (P5a/P5a').
-    from exec_splice import splice_constant_exec
+    from frontend.exec_splice import splice_constant_exec
     unified_ast = splice_constant_exec(unified_ast)
 
     # [Module 4] Semantic Analysis
@@ -1065,7 +1065,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
 
     # [ConcurrencyChecker] Static concurrency analysis (warnings only)
     # [Import classifier] UB-7.4 — C-extension boundary
-    from import_classifier import check_imports
+    from frontend.import_classifier import check_imports
     from pathlib import Path as _Path
     _project_root = _Path(__file__).resolve().parents[2]  # …/pycsl/
     check_imports(

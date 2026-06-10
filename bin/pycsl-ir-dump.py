@@ -32,11 +32,11 @@ for candidate in VENV_SP.glob("python*/site-packages"):
 
 sys.path.insert(0, str(ROOT / "src" / "pycsl"))
 
-from Module1_Ingestor import Module1_Ingestor   # noqa: E402
-from Module2_Parser import Module2_Parser        # noqa: E402
-from Module3_Weaver import Module3_Weaver       # noqa: E402
-from Module4_SemanticAnalyzer import Module4_SemanticAnalyzer  # noqa: E402
-from Module5_IREmitter import Module5_IREmitter  # noqa: E402
+from frontend.Module1_Ingestor import Module1_Ingestor   # noqa: E402
+from frontend.Module2_Parser import Module2_Parser        # noqa: E402
+from frontend.Module3_Weaver import Module3_Weaver       # noqa: E402
+from frontend.Module4_SemanticAnalyzer import Module4_SemanticAnalyzer  # noqa: E402
+from frontend.Module5_IREmitter import Module5_IREmitter  # noqa: E402
 
 
 def dump_ir(source_path: str, resolved: bool = False) -> str:

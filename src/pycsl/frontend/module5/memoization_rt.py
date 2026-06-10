@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import pure_ast as ast
+from frontend import pure_ast as ast
 from typing import Any, Dict, List, Set
 
 from errors import PyCSLIRError

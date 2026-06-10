@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import pure_ast as ast  # PyCSL toolchain parses Python via its own pure-Python
+from frontend import pure_ast as ast  # PyCSL toolchain parses Python via its own pure-Python
                         # front-end (no stdlib `ast` / CPython `compile`).
 import warnings
 from typing import List, Dict, Any, Tuple
 from dataclasses import dataclass, fields as _dc_fields, is_dataclass as _is_dc, replace as _dc_replace
 
 # Import the AST nodes from Module 2
-from Module2_Parser import (
+from frontend.Module2_Parser import (
     CSLNode, Requires, Ensures, Assigns, LoopInvariant, LoopVariant,
     ClassInvariant, Label as CSLLabel, FunctionVariant, Diverges, NoInline, Trusted, Abstract, Lemma, Uses,
     InterfaceClause, Reveal,
@@ -23,7 +23,7 @@ from Module2_Parser import (
 )
 import copy
 from errors import PyCSLSemanticError
-from Module1_Ingestor import PyCSLContract
+from frontend.Module1_Ingestor import PyCSLContract
 
 # ---------------------------------------------------------
 # 1. The AST Weaver

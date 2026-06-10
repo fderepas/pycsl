@@ -17,7 +17,7 @@ downstream (scope havoc + frame taint, P5a/P5a').
 """
 from __future__ import annotations
 
-import pure_ast as ast
+from frontend import pure_ast as ast
 from errors import PyCSLParseError
 
 # Straight-line only: assignments and pure expression statements. Anything else changes the CFG.

@@ -14,7 +14,7 @@ libcst implementation by the differential in `bin/_libcst_diff.py`.
 from __future__ import annotations
 
 import re
-import pure_ast as ast
+from frontend import pure_ast as ast
 from dataclasses import dataclass, field
 from typing import List, Optional
 

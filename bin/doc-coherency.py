@@ -55,7 +55,7 @@ TRANSLATIONAL_REF = REPO_ROOT / "docs" / "pycsl-translational-reference.md"
 # grammar must be documented. Closes the blind spot where the annotations.md-derived
 # directive check cannot see a directive wired through the grammar but never added to
 # annotations.md (e.g. Track B `#@ interface`/`#@ reveal`).
-MODULE2_PARSER  = REPO_ROOT / "src" / "pycsl" / "Module2_Parser.py"
+MODULE2_PARSER  = REPO_ROOT / "src" / "pycsl" / "frontend" / "Module2_Parser.py"
 
 # Extreme Rigor acceptance-syntax coherency (gap 10): the user-facing
 # reference doc must stay in sync with what the supervisor actually

@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-import pure_ast as ast  # consume the same pure-Python tree Module3 builds
+from frontend import pure_ast as ast  # consume the same pure-Python tree Module3 builds
 import json
 from typing import Any, Dict, List, Optional, Set, Tuple
 from errors import PyCSLIRError
 from ir_schema import IR_VERSION
-from module5.memoization_rt import MemoizationRTMixin
-from module5.construction_synth import ConstructionSynthMixin
-from Module4_SemanticAnalyzer import collect_module_constants, collect_module_globals
-from Module2_Parser import (
+from frontend.module5.memoization_rt import MemoizationRTMixin
+from frontend.module5.construction_synth import ConstructionSynthMixin
+from frontend.Module4_SemanticAnalyzer import collect_module_constants, collect_module_globals
+from frontend.Module2_Parser import (
     CSLNode, ContractWrapper,
     Requires, Ensures, LoopInvariant, LoopVariant,
     BinOp as CSLBinOp, UnaryOp as CSLUnaryOp, Var as CSLVar,

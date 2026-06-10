@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import warnings
-import pure_ast as ast  # consume the same pure-Python tree Module3 builds
+from frontend import pure_ast as ast  # consume the same pure-Python tree Module3 builds
 from typing import Callable, Dict, List, Optional, Set, Any
-from Module2_Parser import (
+from frontend.Module2_Parser import (
     CSLNode, ContractWrapper, QuantifierNode, SingleExprNode,
     Requires, Ensures, Assigns, LoopInvariant, LoopVariant,
     Var, Result, Old, BinOp, UnaryOp, Nothing, Number, FieldAccess,
