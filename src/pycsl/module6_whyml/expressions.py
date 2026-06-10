@@ -1380,7 +1380,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         tag = self._tag_of_type(getattr(self, "_current_symbol_table", {}).get(name)) if name else None
         if tag is not None:
             return tag
-        self._add_abstract_op("val typeof_op (n: int) : int")
+        self._add_abstract_op("val function typeof_op (n: int) : int")
         return f"(typeof_op {sum(ord(c) for c in name) if name else 0})"
 
     def _handle_isinstance(self, expr: Dict[str, Any]) -> str:
@@ -2075,7 +2075,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         name = expr.get("name", "")
         if name in self._module_binding_names():
             return "true"
-        self._add_abstract_op("val in_globals_op (n: int) : bool")
+        self._add_abstract_op("val function in_globals_op (n: int) : bool")
         return f"(in_globals_op {sum(ord(c) for c in name)})"
 
     def _handle_in_scope_expr(self, expr: Dict[str, Any], local_refs: Set[str],
@@ -2093,7 +2093,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and name not in getattr(self, "_scope_all", set())
                 and name not in getattr(self, "_scope_params", set())):
             return "false"
-        self._add_abstract_op("val in_scope_op (n: int) : bool")
+        self._add_abstract_op("val function in_scope_op (n: int) : bool")
         return f"(in_scope_op {sum(ord(c) for c in name)})"
 
     def _handle_valid_expr(

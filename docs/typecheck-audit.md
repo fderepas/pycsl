@@ -38,7 +38,37 @@ Regenerate the list at any time with `bin/typecheck-audit.sh`.
   the concurrency drivers WITHOUT `#@ \diverges`. (Plus 0417: a separate unit-vs-int return-type mismatch.)
 - **Other (26):** `0050 0303 0386 0406 0407 0477 0478 0479 0480 0482 0483 0484 0485 0486 0487 0488 0489
   0557 0560 0563 0575 0601 0631 0634 0636 0638` — assorted features whose lowering emits an
-  ill-typed/undeclared symbol. Each needs its own diagnosis.
+  ill-typed/undeclared symbol. **D1 diagnosis (2026-06) groups these:**
+  - **Logic-context abstract op declared as program `val` (4) — FIXED:** `0631 0634 0636 0638`
+    (`\in_globals` / `isinstance`/`\typeof` / `\in_scope`). The lowering emitted `val in_globals_op` /
+    `val typeof_op` / `val in_scope_op` (program functions) but used them inside `ensures`/`requires`
+    (logic terms) → why3 *"unbound function or predicate symbol"*. A pure program `val` is not visible in
+    logic; the symbols are uninterpreted (pure by construction), so the correct WhyML form is `val function`
+    (a logic function usable in both terms and code). Fix: `module6_whyml/expressions.py` —
+    `_tag_of_value` (`typeof_op`), `_handle_in_globals_expr` (`in_globals_op`), `_handle_in_scope_expr`
+    (`in_scope_op`) now emit `val function …`. All four now `L3-tc ✓`; the change is a single-line
+    `val`→`val function` per driver, byte-identical on the decided-true/false neighbors
+    (`0603 0630 0632 0633 0635 0637`) and the rest of the corpus.
+  - **String feature demand-drivers (13) — DEFERRED (expected-FAIL stretch targets, not a clean cohort):**
+    `0477 0478 0479 0480 0482 0483 0484 0485 0486 0487 0488 0489`. All carry `# pycsl-expected: FAIL` and
+    document the unsupported `str`-object surface (`<`, `*`/`%`, `hash`/`str`/`repr`/`format`, iteration).
+    The type errors are heterogeneous (string-valued exprs used where `int` is expected; undeclared
+    `hash_1`/`str_conv`/`repr_conv`/`format_1`/`iter_length`) — symptoms of the absent strings feature,
+    not one emission bug. Correct resolution is the strings feature (strings-plan.md), not a patch.
+  - **`list.append` Seq-vs-Array representation mismatch (2) — REPORT (modelling, sub-threshold):**
+    `0406 0407` (the only two with NO `expected: FAIL` — genuinely dishonest). `list` params type as
+    `array int` but `.append` lowers to `Seq.snoc` (sequence) → *"has type array … but is expected …"*.
+    Choosing the canonical `list` representation (Seq vs growable Array) is a modelling decision, and it is
+    a 2-driver cohort (below the ≥3 clear-cohort bar). Left for human decision.
+  - **Singletons — REPORT (each a distinct negative/boundary test, all `expected: FAIL`):**
+    `0050` (`variant … with subterm` — syntax error from the structural-variant lowering);
+    `0303` (`\proj` out-of-range → undeclared `z_` from tuple-projection lowering);
+    `0386` (strict-no-exception unannotated callee → undeclared `external_helper_1`);
+    `0557` (arithmetic on a datatype quantifier binder — `color` vs `int`, ill-typed by design);
+    `0560` (non-terminating lemma — *"cannot prove termination"*, the intended boundary);
+    `0563`/`0575` (non-strictly-positive inductive — why3 correctly rejects, the point of the test);
+    `0601` (returning an array of tuples — unsupported `array (int,int)` vs `array int`).
+    These are intentional negatives whose "type error" IS the documented behavior; no emission fix applies.
 
 ## Why the gate is opt-in (not yet default-on)
 
