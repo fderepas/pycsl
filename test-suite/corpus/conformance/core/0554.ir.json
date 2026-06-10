@@ -1,0 +1,400 @@
+{
+  "ir_version": "1.1",
+  "source_language": "python",
+  "type_decls": [
+    {
+      "kind": "record",
+      "name": "Counter",
+      "fields": [
+        {
+          "name": "count",
+          "type": "int",
+          "mutable": true
+        }
+      ],
+      "class_invariants": [],
+      "field_defaults": {
+        "count": 0
+      },
+      "has_hash": false,
+      "has_eq": false,
+      "is_unhashable": false,
+      "constants": {},
+      "bases": [],
+      "init_params": [],
+      "init_body": [],
+      "is_mixin": true,
+      "compose_from": []
+    },
+    {
+      "kind": "record",
+      "name": "Service",
+      "fields": [
+        {
+          "name": "count",
+          "type": "int",
+          "mutable": true
+        }
+      ],
+      "class_invariants": [
+        {
+          "type": "BinOp",
+          "op": ">=",
+          "left": {
+            "type": "FieldGet",
+            "object": "self",
+            "field": "count"
+          },
+          "right": {
+            "type": "Number",
+            "value": 0
+          }
+        }
+      ],
+      "field_defaults": {
+        "count": 0
+      },
+      "has_hash": false,
+      "has_eq": false,
+      "is_unhashable": false,
+      "constants": {},
+      "bases": [],
+      "init_params": [],
+      "init_body": [],
+      "is_mixin": false,
+      "compose_from": [
+        "Counter"
+      ]
+    }
+  ],
+  "functions": [
+    {
+      "name": "counter__bump",
+      "symbol_table": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [],
+      "return_annotation": "None",
+      "contracts": {
+        "requires": [
+          {
+            "type": "BinOp",
+            "op": ">=",
+            "left": {
+              "type": "FieldGet",
+              "object": "self",
+              "field": "count"
+            },
+            "right": {
+              "type": "Number",
+              "value": 0
+            }
+          }
+        ],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": "==",
+            "left": {
+              "type": "FieldGet",
+              "object": "self",
+              "field": "count"
+            },
+            "right": {
+              "type": "BinOp",
+              "op": "+",
+              "left": {
+                "type": "OldField",
+                "object": "self",
+                "field": "count"
+              },
+              "right": {
+                "type": "Number",
+                "value": 1
+              }
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "FieldGet",
+            "object": "self",
+            "field": "count"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "FieldAssign",
+          "object": "self",
+          "field": "count",
+          "value": {
+            "type": "BinOp",
+            "op": "+",
+            "left": {
+              "type": "FieldGet",
+              "object": "self",
+              "field": "count"
+            },
+            "right": {
+              "type": "Number",
+              "value": 1
+            }
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [
+        "bump"
+      ],
+      "method_deps": [],
+      "shared_state": [
+        {
+          "name": "count",
+          "type": "int"
+        }
+      ],
+      "touches_field": [],
+      "line": 44,
+      "col": 4,
+      "kind": "method",
+      "self_type": "Counter"
+    },
+    {
+      "name": "service__tick",
+      "symbol_table": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [],
+      "return_annotation": "None",
+      "contracts": {
+        "requires": [
+          {
+            "type": "BinOp",
+            "op": ">=",
+            "left": {
+              "type": "FieldGet",
+              "object": "self",
+              "field": "count"
+            },
+            "right": {
+              "type": "Number",
+              "value": 0
+            }
+          }
+        ],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": "==",
+            "left": {
+              "type": "FieldGet",
+              "object": "self",
+              "field": "count"
+            },
+            "right": {
+              "type": "BinOp",
+              "op": "+",
+              "left": {
+                "type": "OldField",
+                "object": "self",
+                "field": "count"
+              },
+              "right": {
+                "type": "Number",
+                "value": 1
+              }
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "FieldGet",
+            "object": "self",
+            "field": "count"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Expr",
+          "value": {
+            "type": "Call",
+            "func": "self.bump",
+            "args": []
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 57,
+      "col": 4,
+      "kind": "method",
+      "self_type": "Service"
+    },
+    {
+      "name": "service__bump",
+      "symbol_table": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [],
+      "return_annotation": "None",
+      "contracts": {
+        "requires": [
+          {
+            "type": "BinOp",
+            "op": ">=",
+            "left": {
+              "type": "FieldGet",
+              "object": "self",
+              "field": "count"
+            },
+            "right": {
+              "type": "Number",
+              "value": 0
+            }
+          }
+        ],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": "==",
+            "left": {
+              "type": "FieldGet",
+              "object": "self",
+              "field": "count"
+            },
+            "right": {
+              "type": "BinOp",
+              "op": "+",
+              "left": {
+                "type": "OldField",
+                "object": "self",
+                "field": "count"
+              },
+              "right": {
+                "type": "Number",
+                "value": 1
+              }
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "FieldGet",
+            "object": "self",
+            "field": "count"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "FieldAssign",
+          "object": "self",
+          "field": "count",
+          "value": {
+            "type": "BinOp",
+            "op": "+",
+            "left": {
+              "type": "FieldGet",
+              "object": "self",
+              "field": "count"
+            },
+            "right": {
+              "type": "Number",
+              "value": 1
+            }
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [
+        {
+          "name": "count",
+          "type": "int"
+        }
+      ],
+      "touches_field": [],
+      "line": 44,
+      "col": 4,
+      "kind": "method",
+      "self_type": "Service"
+    }
+  ],
+  "module_constants": {
+    "_": 0
+  },
+  "compositions": [
+    {
+      "composer": "Service",
+      "mixins": [
+        "Counter"
+      ]
+    }
+  ],
+  "composed_provider_methods": [
+    "service__bump"
+  ]
+}

@@ -1,0 +1,318 @@
+{
+  "ir_version": "1.1",
+  "source_language": "python",
+  "type_decls": [
+    {
+      "kind": "record",
+      "name": "Base",
+      "fields": [
+        {
+          "name": "start",
+          "type": "int",
+          "mutable": true
+        }
+      ],
+      "class_invariants": [
+        {
+          "type": "BinOp",
+          "op": ">=",
+          "left": {
+            "type": "FieldGet",
+            "object": "self",
+            "field": "start"
+          },
+          "right": {
+            "type": "Number",
+            "value": 0
+          }
+        }
+      ],
+      "field_defaults": {
+        "start": 7
+      },
+      "has_hash": false,
+      "has_eq": false,
+      "is_unhashable": false,
+      "constants": {},
+      "bases": [],
+      "init_params": [],
+      "init_body": [],
+      "is_mixin": false,
+      "compose_from": []
+    },
+    {
+      "kind": "record",
+      "name": "Sub",
+      "fields": [
+        {
+          "name": "start",
+          "type": "int",
+          "mutable": true
+        },
+        {
+          "name": "extra",
+          "type": "int",
+          "mutable": true
+        }
+      ],
+      "class_invariants": [
+        {
+          "type": "BinOp",
+          "op": ">=",
+          "left": {
+            "type": "FieldGet",
+            "object": "self",
+            "field": "start"
+          },
+          "right": {
+            "type": "Number",
+            "value": 0
+          }
+        },
+        {
+          "type": "BinOp",
+          "op": ">=",
+          "left": {
+            "type": "FieldGet",
+            "object": "self",
+            "field": "extra"
+          },
+          "right": {
+            "type": "Number",
+            "value": 0
+          }
+        }
+      ],
+      "field_defaults": {
+        "start": 7,
+        "extra": 0
+      },
+      "has_hash": false,
+      "has_eq": false,
+      "is_unhashable": false,
+      "constants": {},
+      "bases": [],
+      "init_params": [],
+      "init_body": [],
+      "is_mixin": false,
+      "compose_from": []
+    }
+  ],
+  "functions": [
+    {
+      "name": "base__get",
+      "symbol_table": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [],
+      "return_annotation": "int",
+      "contracts": {
+        "requires": [],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": "==",
+            "left": {
+              "type": "Result"
+            },
+            "right": {
+              "type": "FieldGet",
+              "object": "self",
+              "field": "start"
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "FieldGet",
+            "object": "self",
+            "field": "start"
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 26,
+      "col": 4,
+      "pure": true,
+      "kind": "method",
+      "self_type": "Base"
+    },
+    {
+      "name": "sub__total",
+      "symbol_table": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [],
+      "return_annotation": "int",
+      "contracts": {
+        "requires": [],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": ">=",
+            "left": {
+              "type": "Result"
+            },
+            "right": {
+              "type": "Number",
+              "value": 0
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "BinOp",
+            "op": "+",
+            "left": {
+              "type": "FieldGet",
+              "object": "self",
+              "field": "start"
+            },
+            "right": {
+              "type": "FieldGet",
+              "object": "self",
+              "field": "extra"
+            }
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 38,
+      "col": 4,
+      "pure": true,
+      "kind": "method",
+      "self_type": "Sub"
+    },
+    {
+      "name": "sub__get",
+      "symbol_table": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [],
+      "return_annotation": "int",
+      "contracts": {
+        "requires": [],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": "==",
+            "left": {
+              "type": "Result"
+            },
+            "right": {
+              "type": "FieldGet",
+              "object": "self",
+              "field": "start"
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "FieldGet",
+            "object": "self",
+            "field": "start"
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 26,
+      "col": 4,
+      "pure": true,
+      "kind": "method",
+      "self_type": "Sub"
+    }
+  ]
+}

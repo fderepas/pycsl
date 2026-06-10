@@ -1,0 +1,259 @@
+{
+  "ir_version": "1.1",
+  "source_language": "python",
+  "type_decls": [
+    {
+      "kind": "record",
+      "name": "Account",
+      "fields": [
+        {
+          "name": "balance",
+          "type": "int",
+          "mutable": true
+        }
+      ],
+      "class_invariants": [
+        {
+          "type": "BinOp",
+          "op": ">=",
+          "left": {
+            "type": "FieldGet",
+            "object": "self",
+            "field": "balance"
+          },
+          "right": {
+            "type": "Number",
+            "value": 0
+          }
+        }
+      ],
+      "field_defaults": {
+        "balance": 0
+      },
+      "has_hash": false,
+      "has_eq": false,
+      "is_unhashable": false,
+      "constants": {},
+      "bases": [],
+      "init_params": [],
+      "init_body": [],
+      "is_mixin": false,
+      "compose_from": []
+    }
+  ],
+  "functions": [
+    {
+      "name": "account__deposit",
+      "symbol_table": {
+        "amount": "int"
+      },
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [
+        "amount"
+      ],
+      "return_annotation": "None",
+      "contracts": {
+        "requires": [
+          {
+            "type": "BinOp",
+            "op": ">=",
+            "left": {
+              "type": "Var",
+              "name": "amount"
+            },
+            "right": {
+              "type": "Number",
+              "value": 0
+            }
+          }
+        ],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": "==",
+            "left": {
+              "type": "FieldGet",
+              "object": "self",
+              "field": "balance"
+            },
+            "right": {
+              "type": "BinOp",
+              "op": "+",
+              "left": {
+                "type": "OldField",
+                "object": "self",
+                "field": "balance"
+              },
+              "right": {
+                "type": "Var",
+                "name": "amount"
+              }
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "FieldGet",
+            "object": "self",
+            "field": "balance"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "FieldAugAssign",
+          "object": "self",
+          "field": "balance",
+          "op": "+",
+          "value": {
+            "type": "Var",
+            "name": "amount"
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 20,
+      "col": 4,
+      "kind": "method",
+      "self_type": "Account"
+    },
+    {
+      "name": "do_deposit",
+      "symbol_table": {
+        "amount": "int"
+      },
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [
+        "amount"
+      ],
+      "return_annotation": "None",
+      "contracts": {
+        "requires": [
+          {
+            "type": "BinOp",
+            "op": ">=",
+            "left": {
+              "type": "Var",
+              "name": "amount"
+            },
+            "right": {
+              "type": "Number",
+              "value": 0
+            }
+          }
+        ],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": "==",
+            "left": {
+              "type": "Attribute",
+              "object": {
+                "type": "Var",
+                "name": "acc"
+              },
+              "attr": "balance"
+            },
+            "right": {
+              "type": "BinOp",
+              "op": "+",
+              "left": {
+                "type": "OldField",
+                "object": "acc",
+                "field": "balance"
+              },
+              "right": {
+                "type": "Var",
+                "name": "amount"
+              }
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Attribute",
+            "object": {
+              "type": "Var",
+              "name": "acc"
+            },
+            "attr": "balance"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "FieldAugAssign",
+          "object": "acc",
+          "field": "balance",
+          "op": "+",
+          "value": {
+            "type": "Var",
+            "name": "amount"
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 30,
+      "col": 0
+    }
+  ],
+  "module_globals": [
+    {
+      "name": "acc",
+      "class": "Account",
+      "value": {
+        "type": "Call",
+        "func": "Account",
+        "args": []
+      }
+    }
+  ]
+}

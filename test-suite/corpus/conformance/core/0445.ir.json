@@ -1,0 +1,278 @@
+{
+  "ir_version": "1.1",
+  "source_language": "python",
+  "type_decls": [
+    {
+      "kind": "record",
+      "name": "Base",
+      "fields": [
+        {
+          "name": "v",
+          "type": "int",
+          "mutable": true
+        }
+      ],
+      "class_invariants": [
+        {
+          "type": "BinOp",
+          "op": ">=",
+          "left": {
+            "type": "FieldGet",
+            "object": "self",
+            "field": "v"
+          },
+          "right": {
+            "type": "Number",
+            "value": 0
+          }
+        }
+      ],
+      "field_defaults": {
+        "v": 0
+      },
+      "has_hash": false,
+      "has_eq": false,
+      "is_unhashable": false,
+      "constants": {},
+      "bases": [],
+      "init_params": [],
+      "init_body": [],
+      "is_mixin": false,
+      "compose_from": []
+    },
+    {
+      "kind": "record",
+      "name": "Sub",
+      "fields": [
+        {
+          "name": "v",
+          "type": "int",
+          "mutable": true
+        }
+      ],
+      "class_invariants": [
+        {
+          "type": "BinOp",
+          "op": ">=",
+          "left": {
+            "type": "FieldGet",
+            "object": "self",
+            "field": "v"
+          },
+          "right": {
+            "type": "Number",
+            "value": 0
+          }
+        }
+      ],
+      "field_defaults": {
+        "v": 0
+      },
+      "has_hash": false,
+      "has_eq": false,
+      "is_unhashable": false,
+      "constants": {},
+      "bases": [],
+      "init_params": [],
+      "init_body": [],
+      "is_mixin": false,
+      "compose_from": []
+    }
+  ],
+  "functions": [
+    {
+      "name": "base__f",
+      "symbol_table": {
+        "x": "int"
+      },
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [
+        "x"
+      ],
+      "return_annotation": "int",
+      "contracts": {
+        "requires": [
+          {
+            "type": "BinOp",
+            "op": ">=",
+            "left": {
+              "type": "Var",
+              "name": "x"
+            },
+            "right": {
+              "type": "Number",
+              "value": 0
+            }
+          }
+        ],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": ">=",
+            "left": {
+              "type": "Result"
+            },
+            "right": {
+              "type": "Var",
+              "name": "x"
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "BinOp",
+            "op": "+",
+            "left": {
+              "type": "Var",
+              "name": "x"
+            },
+            "right": {
+              "type": "FieldGet",
+              "object": "self",
+              "field": "v"
+            }
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 21,
+      "col": 4,
+      "pure": true,
+      "kind": "method",
+      "self_type": "Base"
+    },
+    {
+      "name": "sub__f",
+      "symbol_table": {
+        "x": "int"
+      },
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [
+        "x"
+      ],
+      "return_annotation": "int",
+      "contracts": {
+        "requires": [
+          {
+            "type": "BinOp",
+            "op": ">=",
+            "left": {
+              "type": "Var",
+              "name": "x"
+            },
+            "right": {
+              "type": "Number",
+              "value": 5
+            }
+          }
+        ],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": ">=",
+            "left": {
+              "type": "Result"
+            },
+            "right": {
+              "type": "Var",
+              "name": "x"
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "BinOp",
+            "op": "+",
+            "left": {
+              "type": "Var",
+              "name": "x"
+            },
+            "right": {
+              "type": "FieldGet",
+              "object": "self",
+              "field": "v"
+            }
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 29,
+      "col": 4,
+      "pure": true,
+      "kind": "method",
+      "self_type": "Sub"
+    }
+  ],
+  "overrides": [
+    {
+      "sub_method": "sub__f",
+      "base_method": "base__f",
+      "sub_type": "sub",
+      "base_type": "base"
+    }
+  ]
+}

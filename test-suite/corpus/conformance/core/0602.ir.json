@@ -1,0 +1,125 @@
+{
+  "ir_version": "1.1",
+  "source_language": "python",
+  "type_decls": [
+    {
+      "kind": "record",
+      "name": "Match",
+      "fields": [
+        {
+          "name": "pos",
+          "type": "int",
+          "mutable": true
+        }
+      ],
+      "class_invariants": [
+        {
+          "type": "BinOp",
+          "op": ">=",
+          "left": {
+            "type": "FieldGet",
+            "object": "self",
+            "field": "pos"
+          },
+          "right": {
+            "type": "Number",
+            "value": 0
+          }
+        }
+      ],
+      "field_defaults": {
+        "pos": 0
+      },
+      "has_hash": false,
+      "has_eq": false,
+      "is_unhashable": false,
+      "constants": {},
+      "bases": [],
+      "init_params": [],
+      "init_body": [],
+      "is_mixin": false,
+      "compose_from": []
+    }
+  ],
+  "functions": [
+    {
+      "name": "peek",
+      "symbol_table": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [],
+      "return_annotation": "int",
+      "contracts": {
+        "requires": [],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": ">=",
+            "left": {
+              "type": "Result"
+            },
+            "right": {
+              "type": "Number",
+              "value": 0
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "Attribute",
+            "object": {
+              "type": "Var",
+              "name": "m"
+            },
+            "attr": "pos"
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 19,
+      "col": 0
+    }
+  ],
+  "module_globals": [
+    {
+      "name": "m",
+      "class": "Match",
+      "value": {
+        "type": "Call",
+        "func": "Match",
+        "args": []
+      }
+    }
+  ]
+}

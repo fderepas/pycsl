@@ -1,0 +1,278 @@
+{
+  "ir_version": "1.1",
+  "source_language": "python",
+  "type_decls": [],
+  "functions": [
+    {
+      "name": "reader__at",
+      "symbol_table": {
+        "a": "list",
+        "i": "int"
+      },
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [
+        "a",
+        "i"
+      ],
+      "return_annotation": "int",
+      "contracts": {
+        "requires": [
+          {
+            "type": "Valid",
+            "base": "a",
+            "length": {
+              "type": "Number",
+              "value": 4
+            }
+          },
+          {
+            "type": "BinOp",
+            "op": "and",
+            "left": {
+              "type": "BinOp",
+              "op": "<=",
+              "left": {
+                "type": "Number",
+                "value": 0
+              },
+              "right": {
+                "type": "Var",
+                "name": "i"
+              }
+            },
+            "right": {
+              "type": "BinOp",
+              "op": "<",
+              "left": {
+                "type": "Var",
+                "name": "i"
+              },
+              "right": {
+                "type": "Number",
+                "value": 4
+              }
+            }
+          }
+        ],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": "==",
+            "left": {
+              "type": "Result"
+            },
+            "right": {
+              "type": "Subscript",
+              "value": {
+                "type": "Var",
+                "name": "a"
+              },
+              "index": {
+                "type": "Var",
+                "name": "i"
+              }
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "Subscript",
+            "value": {
+              "type": "Var",
+              "name": "a"
+            },
+            "index": {
+              "type": "Var",
+              "name": "i"
+            }
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 20,
+      "col": 4,
+      "pure": true,
+      "array1d_params": [
+        "a"
+      ],
+      "kind": "method",
+      "self_type": "Reader"
+    },
+    {
+      "name": "run",
+      "symbol_table": {
+        "a": "list",
+        "i": "int"
+      },
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [
+        "a",
+        "i"
+      ],
+      "return_annotation": "int",
+      "contracts": {
+        "requires": [
+          {
+            "type": "Valid",
+            "base": "a",
+            "length": {
+              "type": "Number",
+              "value": 4
+            }
+          },
+          {
+            "type": "BinOp",
+            "op": "and",
+            "left": {
+              "type": "BinOp",
+              "op": "<=",
+              "left": {
+                "type": "Number",
+                "value": 0
+              },
+              "right": {
+                "type": "Var",
+                "name": "i"
+              }
+            },
+            "right": {
+              "type": "BinOp",
+              "op": "<",
+              "left": {
+                "type": "Var",
+                "name": "i"
+              },
+              "right": {
+                "type": "Number",
+                "value": 4
+              }
+            }
+          }
+        ],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": "==",
+            "left": {
+              "type": "Result"
+            },
+            "right": {
+              "type": "Subscript",
+              "value": {
+                "type": "Var",
+                "name": "a"
+              },
+              "index": {
+                "type": "Var",
+                "name": "i"
+              }
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Assign",
+          "target": "_inl_res__inl1",
+          "value": {
+            "type": "Subscript",
+            "value": {
+              "type": "Var",
+              "name": "a"
+            },
+            "index": {
+              "type": "Var",
+              "name": "i"
+            }
+          }
+        },
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "Var",
+            "name": "_inl_res__inl1"
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 31,
+      "col": 0,
+      "pure": true,
+      "array1d_params": [
+        "a"
+      ]
+    }
+  ],
+  "module_globals": [
+    {
+      "name": "rd",
+      "class": "Reader",
+      "value": {
+        "type": "Call",
+        "func": "Reader",
+        "args": []
+      }
+    }
+  ]
+}

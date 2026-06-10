@@ -1,0 +1,227 @@
+{
+  "ir_version": "1.1",
+  "source_language": "python",
+  "type_decls": [
+    {
+      "kind": "record",
+      "name": "Disk",
+      "fields": [
+        {
+          "name": "disk",
+          "type": "list",
+          "mutable": true
+        }
+      ],
+      "class_invariants": [
+        {
+          "type": "BinOp",
+          "op": ">=",
+          "left": {
+            "type": "ArrayLen",
+            "var": "self.disk"
+          },
+          "right": {
+            "type": "Number",
+            "value": 8
+          }
+        }
+      ],
+      "field_defaults": {
+        "disk": 8
+      },
+      "has_hash": false,
+      "has_eq": false,
+      "is_unhashable": false,
+      "constants": {},
+      "bases": [],
+      "init_params": [],
+      "init_body": [],
+      "is_mixin": false,
+      "compose_from": []
+    }
+  ],
+  "functions": [
+    {
+      "name": "poke",
+      "symbol_table": {
+        "i": "int",
+        "v": "int",
+        "x": "Any",
+        "y": "Any"
+      },
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [
+        "i",
+        "v"
+      ],
+      "return_annotation": "int",
+      "contracts": {
+        "requires": [
+          {
+            "type": "BinOp",
+            "op": "and",
+            "left": {
+              "type": "BinOp",
+              "op": "<=",
+              "left": {
+                "type": "Number",
+                "value": 0
+              },
+              "right": {
+                "type": "Var",
+                "name": "i"
+              }
+            },
+            "right": {
+              "type": "BinOp",
+              "op": "<",
+              "left": {
+                "type": "Var",
+                "name": "i"
+              },
+              "right": {
+                "type": "Number",
+                "value": 8
+              }
+            }
+          }
+        ],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": "==",
+            "left": {
+              "type": "Result"
+            },
+            "right": {
+              "type": "Number",
+              "value": 0
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Attribute",
+            "object": {
+              "type": "Var",
+              "name": "d"
+            },
+            "attr": "disk"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "ArraySet",
+          "array": {
+            "type": "Attribute",
+            "object": {
+              "type": "Var",
+              "name": "d"
+            },
+            "attr": "disk"
+          },
+          "index": {
+            "type": "Var",
+            "name": "i"
+          },
+          "value": {
+            "type": "Var",
+            "name": "v"
+          }
+        },
+        {
+          "stmt": "Assign",
+          "target": "x",
+          "value": {
+            "type": "Subscript",
+            "value": {
+              "type": "Attribute",
+              "object": {
+                "type": "Var",
+                "name": "d"
+              },
+              "attr": "disk"
+            },
+            "index": {
+              "type": "Var",
+              "name": "i"
+            }
+          }
+        },
+        {
+          "stmt": "Assign",
+          "target": "y",
+          "value": {
+            "type": "Subscript",
+            "value": {
+              "type": "Attribute",
+              "object": {
+                "type": "Var",
+                "name": "d"
+              },
+              "attr": "disk"
+            },
+            "index": {
+              "type": "Var",
+              "name": "i"
+            }
+          }
+        },
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "BinOp",
+            "op": "-",
+            "left": {
+              "type": "Var",
+              "name": "y"
+            },
+            "right": {
+              "type": "Var",
+              "name": "x"
+            }
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 25,
+      "col": 0
+    }
+  ],
+  "module_globals": [
+    {
+      "name": "d",
+      "class": "Disk",
+      "value": {
+        "type": "Call",
+        "func": "Disk",
+        "args": []
+      }
+    }
+  ]
+}

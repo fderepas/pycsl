@@ -1,0 +1,513 @@
+{
+  "ir_version": "1.1",
+  "source_language": "python",
+  "type_decls": [
+    {
+      "kind": "record",
+      "name": "CoreEmit",
+      "fields": [
+        {
+          "name": "program_ir",
+          "type": "int",
+          "mutable": true
+        }
+      ],
+      "class_invariants": [],
+      "field_defaults": {
+        "program_ir": 0
+      },
+      "has_hash": false,
+      "has_eq": false,
+      "is_unhashable": false,
+      "constants": {},
+      "bases": [],
+      "init_params": [],
+      "init_body": [],
+      "is_mixin": true,
+      "compose_from": []
+    }
+  ],
+  "functions": [
+    {
+      "name": "coreemit__emit",
+      "symbol_table": {
+        "x": "int"
+      },
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [
+        "x"
+      ],
+      "return_annotation": "int",
+      "contracts": {
+        "requires": [],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": ">=",
+            "left": {
+              "type": "Result"
+            },
+            "right": {
+              "type": "Number",
+              "value": 0
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "IfExpr",
+            "test": {
+              "type": "BinOp",
+              "op": ">=",
+              "left": {
+                "type": "Var",
+                "name": "x"
+              },
+              "right": {
+                "type": "Number",
+                "value": 0
+              }
+            },
+            "body": {
+              "type": "Var",
+              "name": "x"
+            },
+            "orelse": {
+              "type": "Number",
+              "value": 0
+            }
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [
+        "emit"
+      ],
+      "method_deps": [],
+      "shared_state": [
+        {
+          "name": "program_ir",
+          "type": "int"
+        }
+      ],
+      "touches_field": [],
+      "line": 37,
+      "col": 4,
+      "pure": true,
+      "kind": "method",
+      "self_type": "CoreEmit"
+    },
+    {
+      "name": "mapops__handle_get",
+      "symbol_table": {
+        "k": "int"
+      },
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [
+        "k"
+      ],
+      "return_annotation": "int",
+      "contracts": {
+        "requires": [],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": ">=",
+            "left": {
+              "type": "Result"
+            },
+            "right": {
+              "type": "Number",
+              "value": 0
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "Call",
+            "func": "self.emit",
+            "args": [
+              {
+                "type": "Var",
+                "name": "k"
+              }
+            ]
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [
+        "handle_get"
+      ],
+      "method_deps": [
+        {
+          "method": "emit",
+          "sig": "(self, x: int) -> int",
+          "kind": "depends",
+          "requires": [],
+          "ensures": [
+            {
+              "type": "BinOp",
+              "op": ">=",
+              "left": {
+                "type": "Result"
+              },
+              "right": {
+                "type": "Number",
+                "value": 0
+              }
+            }
+          ]
+        }
+      ],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 48,
+      "col": 4,
+      "pure": true,
+      "kind": "method",
+      "self_type": "MapOps"
+    },
+    {
+      "name": "facade__run",
+      "symbol_table": {
+        "k": "int"
+      },
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [
+        "k"
+      ],
+      "return_annotation": "int",
+      "contracts": {
+        "requires": [],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": ">=",
+            "left": {
+              "type": "Result"
+            },
+            "right": {
+              "type": "Number",
+              "value": 0
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "Call",
+            "func": "self.handle_get",
+            "args": [
+              {
+                "type": "Var",
+                "name": "k"
+              }
+            ]
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 56,
+      "col": 4,
+      "pure": true,
+      "kind": "method",
+      "self_type": "Facade"
+    },
+    {
+      "name": "facade__emit",
+      "symbol_table": {
+        "x": "int"
+      },
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [
+        "x"
+      ],
+      "return_annotation": "int",
+      "contracts": {
+        "requires": [],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": ">=",
+            "left": {
+              "type": "Result"
+            },
+            "right": {
+              "type": "Number",
+              "value": 0
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "IfExpr",
+            "test": {
+              "type": "BinOp",
+              "op": ">=",
+              "left": {
+                "type": "Var",
+                "name": "x"
+              },
+              "right": {
+                "type": "Number",
+                "value": 0
+              }
+            },
+            "body": {
+              "type": "Var",
+              "name": "x"
+            },
+            "orelse": {
+              "type": "Number",
+              "value": 0
+            }
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [
+        {
+          "name": "program_ir",
+          "type": "int"
+        }
+      ],
+      "touches_field": [],
+      "line": 37,
+      "col": 4,
+      "pure": true,
+      "kind": "method",
+      "self_type": "Facade"
+    },
+    {
+      "name": "facade__handle_get",
+      "symbol_table": {
+        "k": "int"
+      },
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "formal_params": [
+        "k"
+      ],
+      "return_annotation": "int",
+      "contracts": {
+        "requires": [],
+        "ensures": [
+          {
+            "type": "BinOp",
+            "op": ">=",
+            "left": {
+              "type": "Result"
+            },
+            "right": {
+              "type": "Number",
+              "value": 0
+            }
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "Call",
+            "func": "self.emit",
+            "args": [
+              {
+                "type": "Var",
+                "name": "k"
+              }
+            ]
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [
+        {
+          "method": "emit",
+          "sig": "(self, x: int) -> int",
+          "kind": "depends",
+          "requires": [],
+          "ensures": [
+            {
+              "type": "BinOp",
+              "op": ">=",
+              "left": {
+                "type": "Result"
+              },
+              "right": {
+                "type": "Number",
+                "value": 0
+              }
+            }
+          ]
+        }
+      ],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 48,
+      "col": 4,
+      "pure": true,
+      "kind": "method",
+      "self_type": "Facade"
+    }
+  ],
+  "module_constants": {
+    "_": 0
+  },
+  "compositions": [
+    {
+      "composer": "Facade",
+      "mixins": [
+        "CoreEmit",
+        "MapOps"
+      ]
+    }
+  ],
+  "composed_provider_methods": [
+    "facade__emit",
+    "facade__handle_get"
+  ]
+}
