@@ -31,29 +31,9 @@ else
 fi
 PYCSL="$PY $PROJECT_ROOT/src/pycsl/pycsl.py"
 
-# get_cpu_count — total logical CPUs on Ubuntu/Linux or macOS (more-proc.md §4.5, verbatim).
-get_cpu_count() {
-    case "$(uname -s)" in
-        Linux)
-            # nproc respects cgroup/affinity limits; fall back if absent
-            if command -v nproc >/dev/null 2>&1; then
-                nproc
-            else
-                getconf _NPROCESSORS_ONLN 2>/dev/null || \
-                grep -c '^processor' /proc/cpuinfo
-            fi
-            ;;
-        Darwin)
-            # logical CPUs (includes Hyper-Threading); use hw.physicalcpu for physical cores
-            sysctl -n hw.logicalcpu 2>/dev/null || \
-            sysctl -n hw.ncpu
-            ;;
-        *)
-            # last-ditch POSIX fallback
-            getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1
-            ;;
-    esac
-}
+# get_cpu_count / half_cpu_jobs — single source of truth (more-proc.md §4.5), shared with
+# bin/byte-diff-sweep.sh so no copy drifts. (Was inline here; factored into lib-cpu.sh.)
+source "$SCRIPT_DIR/lib-cpu.sh"
 
 # Derive the suite name (the corpus subdir) from a test file's path.
 _suite_of() {
