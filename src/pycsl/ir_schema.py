@@ -132,13 +132,15 @@ def validate_ir(ir: Any, *, stage: str = "ir-validate") -> None:
     """
     if not isinstance(ir, dict):
         raise PyCSLIRError(
-            f"IR must be a dict, got {type(ir).__name__}", stage=stage
+            f"IR must be a dict, got {type(ir).__name__}", stage=stage,
+            code="PYCSL-IR-NOTDICT",
         )
 
     missing_top = _REQUIRED_TOP - ir.keys()
     if missing_top:
         raise PyCSLIRError(
-            f"IR is missing top-level keys: {sorted(missing_top)}", stage=stage
+            f"IR is missing top-level keys: {sorted(missing_top)}", stage=stage,
+            code="PYCSL-IR-MISSINGTOP",
         )
 
     # IR-as-wire-format: the core declares the range of versions it ingests.
@@ -149,12 +151,14 @@ def validate_ir(ir: Any, *, stage: str = "ir-validate") -> None:
     if ir_version is not None and ir_version not in ACCEPTED_IR_VERSIONS:
         raise PyCSLIRError(
             f"unsupported ir_version {ir_version!r}; this core ingests "
-            f"{sorted(ACCEPTED_IR_VERSIONS)}", stage=stage
+            f"{sorted(ACCEPTED_IR_VERSIONS)}", stage=stage,
+            code="PYCSL-IR-VERSION",
         )
 
     if not isinstance(ir["functions"], list):
         raise PyCSLIRError(
-            "IR 'functions' must be a list", stage=stage
+            "IR 'functions' must be a list", stage=stage,
+            code="PYCSL-IR-FUNCSLIST",
         )
 
     for i, func in enumerate(ir["functions"]):
@@ -162,6 +166,7 @@ def validate_ir(ir: Any, *, stage: str = "ir-validate") -> None:
             raise PyCSLIRError(
                 f"IR functions[{i}] must be a dict, got {type(func).__name__}",
                 stage=stage,
+                code="PYCSL-IR-FUNCDICT",
             )
         missing_func = _REQUIRED_FUNCTION - func.keys()
         if missing_func:
@@ -169,12 +174,14 @@ def validate_ir(ir: Any, *, stage: str = "ir-validate") -> None:
             raise PyCSLIRError(
                 f"Function '{name}' is missing IR keys: {sorted(missing_func)}",
                 stage=stage,
+                code="PYCSL-IR-MISSINGFUNC",
             )
         contracts = func.get("contracts")
         if not isinstance(contracts, dict):
             name = func.get("name", f"<index {i}>")
             raise PyCSLIRError(
-                f"Function '{name}' contracts must be a dict", stage=stage
+                f"Function '{name}' contracts must be a dict", stage=stage,
+                code="PYCSL-IR-CONTRACTSDICT",
             )
         missing_contracts = _REQUIRED_CONTRACTS - contracts.keys()
         if missing_contracts:
@@ -182,4 +189,5 @@ def validate_ir(ir: Any, *, stage: str = "ir-validate") -> None:
             raise PyCSLIRError(
                 f"Function '{name}' contracts missing keys: {sorted(missing_contracts)}",
                 stage=stage,
+                code="PYCSL-IR-MISSINGCONTRACTS",
             )

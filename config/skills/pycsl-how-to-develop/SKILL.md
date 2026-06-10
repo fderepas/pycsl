@@ -453,6 +453,28 @@ missing entries in each surface. Exits 1 on any gap. Wired into
 
 Governed by `config/skills/pycsl-doc-coherency/SKILL.md`.
 
+**Capability manifest** (refactor.md Phase D). `bin/pycsl-capability-manifest.py`
+emits a deterministic JSON manifest of what THIS build supports — `ir_version` /
+`accepted_ir_versions` (from `ir_schema.py`), the supported `#@` directives (reusing
+doc-coherency's canonical extractor), the verification levels (L1 parse / L2
+semantic-on-IR / L3-tc typecheck / L3-proof), the IR expression+statement node
+inventory (parsed from `docs/ir.md` §7/§8), the stable diagnostic codes
+(`PYCSL-SEM-*` / `PYCSL-IR-*` / `PYCSL-TC-*`), and corpus stats (reference drivers
+by `# pycsl-expected:` marker + conformance golden counts). Output has sorted keys
+and reads only static repo facts, so it is byte-reproducible (run twice → identical):
+
+```bash
+./bin/pycsl-capability-manifest.py            # JSON to stdout
+./bin/pycsl-capability-manifest.py -o cap.json # to a file
+```
+
+**Coded diagnostics.** Every `PyCSLError` carries an optional structural `code`
+(e.g. `PYCSL-SEM-RESULT`), assigned at the core's raise sites (`core_ir_semantic.py`,
+`ir_schema.py`) and the typecheck gate (`pycsl.py`). The code is deliberately NOT in
+`__str__` (the human message stays byte-identical for negative-driver gates); it is
+exposed via `.code` / `.as_dict()` and the `pycsl.py --diagnostics-json` flag, which
+prints `{code, stage, file, line, message}` to stderr on a pipeline error.
+
 **Worked example.** The `#@ proof <prover> <qualname>` directive
 (annotations.md §2.1.12) is the canonical template for cross-prover
 proof attribution. It exercises every step of the pipeline: Module2

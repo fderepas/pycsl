@@ -71,6 +71,7 @@ def _check_span(func: Any, stage: str) -> None:
             f"IR function '{name}' carries no source span; a front-end must "
             f"stamp §4.4 spans (line/col) on every node",
             stage=stage,
+            code="PYCSL-SEM-SPAN",
         )
 
 
@@ -99,17 +100,20 @@ def _check_no_exception(func: Any) -> None:
         if name not in KNOWN_EXCEPTIONS:
             raise PyCSLSemanticError(
                 f"{where}: no_exception names unknown exception '{name}'. "
-                f"Known: {sorted(KNOWN_EXCEPTIONS)}."
+                f"Known: {sorted(KNOWN_EXCEPTIONS)}.",
+                code="PYCSL-SEM-NOEXC",
             )
         if name in raised_names:
             raise PyCSLSemanticError(
                 f"{where}: contradictory annotations — no_exception {name} "
-                f"and raises {{ {name} -> ... }} cannot both apply."
+                f"and raises {{ {name} -> ... }} cannot both apply.",
+                code="PYCSL-SEM-NOEXC",
             )
     if no_exc_all and raised_names:
         raise PyCSLSemanticError(
             f"{where}: no_exception \\all requires the raises set to be empty; "
-            f"found raises {{ {', '.join(sorted(raised_names))} -> ... }}."
+            f"found raises {{ {', '.join(sorted(raised_names))} -> ... }}.",
+            code="PYCSL-SEM-NOEXC",
         )
 
 
@@ -131,12 +135,14 @@ def _check_assigns_regions(func: Any) -> None:
             arr_type = symtab.get(base)
             if arr_type is None:
                 raise PyCSLSemanticError(
-                    f"Assigns region references undefined variable '{base}' in {where}."
+                    f"Assigns region references undefined variable '{base}' in {where}.",
+                    code="PYCSL-SEM-ASSIGNS",
                 )
             if arr_type not in ("list", "List", "Any"):
                 raise PyCSLSemanticError(
                     f"Assigns region on non-list variable '{base}' "
-                    f"(type '{arr_type}') in {where}."
+                    f"(type '{arr_type}') in {where}.",
+                    code="PYCSL-SEM-ASSIGNS",
                 )
 
 
@@ -249,7 +255,8 @@ def _pb_expr(node, ctx, symtab, known) -> None:
                     f"\\length is not supported on the {typ}-typed '{var}' in "
                     f"{ctx}: dicts/sets are modelled as total maps "
                     f"(`map int (option int)`) with no cardinality. Use \\has_key(d, k) "
-                    f"for key presence, or a list/array for a length-bearing collection."
+                    f"for key presence, or a list/array for a length-bearing collection.",
+                    code="PYCSL-SEM-PREDBASE",
                 )
     elif t == "Valid":
         base = node.get("base")
@@ -257,7 +264,8 @@ def _pb_expr(node, ctx, symtab, known) -> None:
         if arr_type not in _PB_ARRAY_BASE_TYPES:
             raise PyCSLSemanticError(
                 f"\\valid base '{base}' is not a list/bytes parameter "
-                f"in {ctx} (got type '{arr_type}')."
+                f"in {ctx} (got type '{arr_type}').",
+                code="PYCSL-SEM-PREDBASE",
             )
     elif t == "Separated":
         for base in (node.get("base1"), node.get("base2")):
@@ -265,7 +273,8 @@ def _pb_expr(node, ctx, symtab, known) -> None:
             if arr_type not in _PB_ARRAY_BASE_TYPES:
                 raise PyCSLSemanticError(
                     f"\\separated base '{base}' is not a list/bytes parameter "
-                    f"in {ctx} (got type '{arr_type}')."
+                    f"in {ctx} (got type '{arr_type}').",
+                    code="PYCSL-SEM-PREDBASE",
                 )
     elif t in ("Forall", "Exists"):
         bt = node.get("binder_type")
@@ -275,7 +284,8 @@ def _pb_expr(node, ctx, symtab, known) -> None:
                 f"unresolved type '{bt}'. A typed binder must name a scalar "
                 f"(int/bool/str/float) or a declared `#@ datatype` / class — "
                 f"it is never silently defaulted to int. "
-                f"Known types: {sorted(known)}.")
+                f"Known types: {sorted(known)}.",
+                code="PYCSL-SEM-QUANTBINDER")
     # NOTE: `\proj` index-literal checking is NOT migrated here. It is a *precondition
     # guard* Module 5 depends on (ProjExpr emission reads `index.value`, assuming a
     # literal), so it must run BEFORE Module 5 — it stays in Module 4. Migrating it
@@ -360,13 +370,15 @@ def _cs_clause(clause, ctx, allow_result, symtab, mc) -> None:
         return
     if not allow_result and _contains_result(clause):
         raise PyCSLSemanticError(
-            f"Invalid use of '\\result' in {ctx}. It is only allowed in 'ensures'."
+            f"Invalid use of '\\result' in {ctx}. It is only allowed in 'ensures'.",
+            code="PYCSL-SEM-RESULT",
         )
     for v in _ir_free_vars(clause):
         if v and v not in symtab and v not in mc:
             raise PyCSLSemanticError(
                 f"Undefined variable '{v}' referenced in contract for {ctx}. "
-                f"Available variables in scope: {list(symtab.keys())}"
+                f"Available variables in scope: {list(symtab.keys())}",
+                code="PYCSL-SEM-SCOPE",
             )
 
 
@@ -444,12 +456,14 @@ def _sa_walk(node, where, symtab) -> None:
                 arr_type = symtab.get(name)
                 if arr_type is None:
                     raise PyCSLSemanticError(
-                        f"Subscript assignment to undefined variable '{name}' in {where}."
+                        f"Subscript assignment to undefined variable '{name}' in {where}.",
+                        code="PYCSL-SEM-SUBSCRIPT",
                     )
                 if arr_type not in ("list", "List", "dict", "Dict", "Any"):
                     raise PyCSLSemanticError(
                         f"Subscript assignment to non-list/dict variable '{name}' "
-                        f"(type '{arr_type}') in {where}."
+                        f"(type '{arr_type}') in {where}.",
+                        code="PYCSL-SEM-SUBSCRIPT",
                     )
         for v in node.values():
             _sa_walk(v, where, symtab)
@@ -474,7 +488,8 @@ def _cp_walk(node, where) -> None:
         if node.get("stmt") == "ProofAssert" and _contains_result(node.get("test")):
             raise PyCSLSemanticError(
                 f"'\\result' is not allowed in a `#@ {node.get('kind')}` in {where} "
-                f"(it is bound only at return; use `ensures` for return values)."
+                f"(it is bound only at return; use `ensures` for return values).",
+                code="PYCSL-SEM-CHECKPOINT",
             )
         for v in node.values():
             _cp_walk(v, where)
@@ -520,7 +535,8 @@ def _gso_walk(node, where, symtab) -> None:
                     f"Ghost string variable '{target}' does not support '{op}' "
                     f"in {where}. "
                     "Use the ^ operator for string concatenation: "
-                    f"#@ ghost {target} = {target} ^ expr"
+                    f"#@ ghost {target} = {target} ^ expr",
+                    code="PYCSL-SEM-GHOSTSTR",
                 )
         for v in node.values():
             _gso_walk(v, where, symtab)
@@ -543,7 +559,8 @@ def _check_mutable_defaults(func) -> None:
             f"a list/dict/set default is a single object shared across all calls (a "
             f"shared-aliasing bug) and is outside PyCSL's value-semantics boundary "
             f"(ownership discipline R2). Use a `None` sentinel and initialise the "
-            f"collection in the body."
+            f"collection in the body.",
+            code="PYCSL-SEM-MUTDEFAULT",
         )
 
 
@@ -569,13 +586,15 @@ def _check_acts(func) -> None:
             continue
         name = a.get("name")
         if name in defined:
-            raise PyCSLSemanticError(f"duplicate act name '{name}' in {where}.")
+            raise PyCSLSemanticError(f"duplicate act name '{name}' in {where}.",
+                                     code="PYCSL-SEM-ACT")
         defined[name] = a
         for gx in a.get("given_exprs", []):
             if _contains_result(gx):
                 raise PyCSLSemanticError(
                     f"act '{name}' in {where}: '\\result' is not allowed in a "
-                    f"'given' guard (guards are evaluated in the pre-state).")
+                    f"'given' guard (guards are evaluated in the pre-state).",
+                    code="PYCSL-SEM-ACT")
     referenced: set = set()
     for a in acts:
         kind = a.get("kind")
@@ -584,7 +603,8 @@ def _check_acts(func) -> None:
                 referenced.add(nm)
                 if nm not in defined:
                     raise PyCSLSemanticError(
-                        f"`{kind}` in {where} references undefined act '{nm}'.")
+                        f"`{kind}` in {where} references undefined act '{nm}'.",
+                        code="PYCSL-SEM-ACT")
     # Mistyped-name / omission guard (warning, not error — declaring cases without
     # claiming coverage is legitimate), reproducing Module 4 verbatim.
     if any(a.get("kind") in ("complete", "disjoint") for a in acts):
@@ -626,7 +646,8 @@ def _check_happy(ir) -> None:
                     f"`happy {hname}`: exempt function '{name}' is not a method "
                     f"in this module. Known methods: {sorted(method_names)}. "
                     f"A typo in the exempt set would silently widen the property's "
-                    f"coverage, so this is rejected.")
+                    f"coverage, so this is rejected.",
+                    code="PYCSL-SEM-HAPPY")
         for m in sorted(set(exec_methods)):
             if m not in except_set:
                 raise PyCSLSemanticError(
@@ -634,7 +655,8 @@ def _check_happy(ir) -> None:
                     f"which may write anything (not a compile-time-constant exec, so it "
                     f"cannot be spliced/bounded). A non-exempt dynamic-exec method cannot "
                     f"be confined by this property — add it to the except set or remove the "
-                    f"exec. (07-1839 P5 — exec is a worst-case mutator under HAPPY.)")
+                    f"exec. (07-1839 P5 — exec is a worst-case mutator under HAPPY.)",
+                    code="PYCSL-SEM-HAPPY")
         if hp.get("protects") is not None:
             continue
         if hp.get("field") not in written:
@@ -687,5 +709,6 @@ def _check_mutex_invariants(ir) -> None:
                 continue
             raise PyCSLSemanticError(
                 f"Mutex invariant for '{mutex}': variable '{var}' is not a shared variable "
-                f"protected by '{mutex}'. Protected variables: {sorted(protected)}."
+                f"protected by '{mutex}'. Protected variables: {sorted(protected)}.",
+                code="PYCSL-SEM-MUTEXINV",
             )

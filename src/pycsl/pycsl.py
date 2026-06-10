@@ -229,6 +229,11 @@ def _parse_args() -> argparse.Namespace:
                         help="Recursively resolve transitive imports in "
                              "dependency files (default: only direct imports "
                              "of the main file are resolved).")
+    g_scope.add_argument("--diagnostics-json", action="store_true",
+                        help="On a pipeline error, ALSO print the structured "
+                             "diagnostic {code, stage, file, line, message} as a single "
+                             "JSON object to stderr (the human message line is unchanged). "
+                             "For machine consumption / coded-diagnostic tooling.")
 
     g_proof = parser.add_argument_group("proof modes")
     g_proof.add_argument("--no-proof", action="store_true",
@@ -557,6 +562,16 @@ def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argp
             if not ok:
                 print("[!] Emitted WhyML does NOT type-check (L3-tc failed) — NOT a success:")
                 print(diag)
+                # Structural-only coded diagnostic for the typecheck gate (opt-in).
+                # The human lines above are unchanged; the code rides --diagnostics-json.
+                if getattr(args, "diagnostics_json", False):
+                    print(_json.dumps({
+                        "code": "PYCSL-TC-FAIL",
+                        "stage": "typecheck",
+                        "file": getattr(args, "file", ""),
+                        "line": 0,
+                        "message": diag,
+                    }, sort_keys=True), file=sys.stderr)
                 if not args.keep_mlw and os.path.exists(mlw_filename):
                     os.remove(mlw_filename)
                 sys.exit(1)
@@ -724,7 +739,14 @@ def main() -> None:
     try:
         mlw_code = _run_pipeline(source_code, memory_model, args)
     except PyCSLError as e:
+        # Human message line: UNCHANGED (byte-identical to the pre-code text that
+        # negative drivers + refactor gates match against).
         print(f"\n[!] PIPELINE ERROR:\n{e}")
+        # Structural-only coded diagnostic, opt-in via --diagnostics-json (stderr).
+        if getattr(args, "diagnostics_json", False):
+            diag = e.as_dict()
+            diag["file"] = diag.pop("filename") or args.file
+            print(_json.dumps(diag, sort_keys=True), file=sys.stderr)
         sys.exit(1)
     except Exception as e:
         print(f"\n[!] UNEXPECTED PIPELINE ERROR:\n{e}")
