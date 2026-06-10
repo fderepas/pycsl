@@ -21,7 +21,11 @@ from frontend.Module3_Weaver import Module3_Weaver
 from frontend.Module4_SemanticAnalyzer import Module4_SemanticAnalyzer
 from errors import PyCSLError, PyCSLParseError
 from frontend.Module5_IREmitter import Module5_IREmitter
-from Module6_WhyMLTranspiler import Module6_WhyMLTranspiler
+# refactor.md Phase C (C2c): Module6_WhyMLTranspiler is the CORE backend. Import it
+# LAZILY at the transpile call site (inside _run_pipeline) rather than at module load,
+# so importing the front-end through `pycsl` never transitively drags in the core. This
+# is what lets bin/frontend-only-conformance.py import the front-end DIRECTLY (no
+# subprocess) and assert no core module is in sys.modules.
 from ir_schema import validate_ir
 from core_ir_semantic import run_ir_semantic_checks
 from frontend.ConcurrencyChecker import ConcurrencyChecker
@@ -501,6 +505,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     validate_ir(_json.loads(json_ir), stage="ir-validate-boundary")
 
     # [Module 6] WhyML Transpilation
+    # C2c: lazy import — the core backend is only loaded when we actually transpile,
+    # keeping the front-end import path free of the core.
+    from Module6_WhyMLTranspiler import Module6_WhyMLTranspiler
     transpiler = Module6_WhyMLTranspiler(
         json_ir, memory_model=memory_model,
         strict_no_exception_propagation=getattr(args, "strict_no_exception_propagation", False),

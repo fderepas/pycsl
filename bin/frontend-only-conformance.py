@@ -8,10 +8,19 @@ freezes the FRONT-END contract: source -> resolved IR, with NO Module 6 and NO p
 For each golden ``<corpus-dir>/NNNN.ir.json`` (the frozen resolved IR — exactly the output of
 ``bin/pycsl-ir-dump.py --resolved`` on ``test-suite/corpus/pycsl-reference/NNNN.py``), this
 runner locates the SOURCE, re-derives the resolved IR via the SAME ``--resolved`` path
-(Modules 1-5 + the three pure post-M5 IR->IR passes ``_apply_inheritance`` /
-``_apply_composition`` / ``apply_inline_globals``), and diffs the re-derived IR against the
+(Modules 1-5 + the three pure post-M5 IR->IR passes ``apply_inheritance`` /
+``apply_composition`` / ``apply_inline_globals``), and diffs the re-derived IR against the
 golden. A Module1-5 change that alters the IR is thereby caught, freezing the IR a second
 front-end can target.
+
+refactor.md Phase C (C2c): this runner now derives the resolved IR by IMPORTING the
+front-end DIRECTLY (``dump_ir(..., resolved=True)`` from ``bin/pycsl-ir-dump.py``, which
+imports only Modules 1-5 and ``frontend.ir_resolve``) — NO subprocess for the main
+conformance check. This is possible because ``pycsl.py`` now imports
+``Module6_WhyMLTranspiler`` lazily (at the transpile call site), so nothing on the
+front-end import path drags in the core. The runner ASSERTS in-process that no core /
+Module 6 / prover module is in ``sys.modules`` AFTER the front-end import — the whole
+point of the front-end/core split: the front-end stands alone.
 
 Comparison policy:
   * Compare as PARSED JSON (``json.loads`` both, assert structural equality) so insignificant
@@ -27,21 +36,15 @@ Determinism gate:
   * For a sample of drivers, re-derive the canonical resolved IR serialization under two
     different ``PYTHONHASHSEED`` values and confirm byte-identical output — the front-end IR
     must be canonical (the repo fixed hash/set nondeterminism; this corpus depends on it).
-
-This runner is FRONT-END ALONE: it shells out to ``bin/pycsl-ir-dump.py --resolved``. The
-resolved IR is produced by Modules 1-5 + the three pure post-M5 passes; Module 6
-(``transpile()``) is NEVER invoked, NO WhyML is emitted, and NO prover / why3 binary is ever
-spawned (verified: zero why3/z3/alt-ergo/cvc execve during a full run). Note: obtaining the
-two pass functions ``_apply_inheritance`` / ``_apply_composition`` imports the ``pycsl``
-orchestrator module, which at module load transitively imports ``Module6_WhyMLTranspiler``
-(``pycsl.py`` line 25) — an IMPORT side-effect only, with no call into it. That leak is
-confined to the dump SUBPROCESS; THIS runner's own process imports no front-end / core /
-Module 6 / prover module, which it asserts in-process via ``sys.modules``.
+    PYTHONHASHSEED is read once at interpreter startup, so this gate necessarily re-derives
+    in SUBPROCESSES (one per seed). That is the only subprocess use that remains; it spawns
+    only the front-end ``--resolved`` path, never Module 6 or a prover.
 
 Usage:  frontend-only-conformance.py [corpus-dir]
         (default corpus-dir: test-suite/corpus/conformance/core)
 """
 import glob
+import importlib.util
 import json
 import os
 import subprocess
@@ -54,24 +57,53 @@ if not os.path.exists(PYBIN):
     PYBIN = sys.executable
 REFERENCE_DIR = os.path.join(ROOT, "test-suite", "corpus", "pycsl-reference")
 
-# Front-end alone: this PROCESS must not have pulled in Module 6 / the prover / why3.
-# (We never import them; the IR is derived in a SUBPROCESS that imports M1-5 + the 3 passes.)
-_FORBIDDEN_PREFIXES = ("Module6", "module6_whyml", "why3")
+# Front-end alone: this PROCESS must not have pulled in the core / Module 6 / the prover.
+# After importing the front-end (dump_ir), we assert these prefixes are ABSENT from
+# sys.modules — the C2c invariant that importing the front-end never loads the core.
+_FORBIDDEN_PREFIXES = ("Module6", "module6_whyml", "core_ir_semantic", "why3")
+
+
+def _load_dump_ir():
+    """Import ``dump_ir`` from bin/pycsl-ir-dump.py DIRECTLY (no subprocess).
+
+    pycsl-ir-dump.py imports only the front-end (Modules 1-5 + frontend.ir_resolve);
+    now that pycsl.py imports Module6 lazily, this pulls in NO core/prover module. The
+    front-end-alone invariant is then asserted by ``_assert_no_core_or_prover``.
+    """
+    sys.path.insert(0, os.path.join(ROOT, "src", "pycsl"))
+    spec = importlib.util.spec_from_file_location("pycsl_ir_dump", IR_DUMP)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.dump_ir
 
 
 def _assert_no_core_or_prover() -> None:
     leaked = sorted(m for m in sys.modules if m.startswith(_FORBIDDEN_PREFIXES))
     if leaked:
-        print(f"[!] front-end-only violation: Module6/prover modules present: {leaked}")
+        print(f"[!] front-end-only violation: core/Module6/prover modules present: {leaked}")
         sys.exit(2)
 
 
-def derive_resolved_ir(src_path: str, hashseed: str = "0") -> str:
-    """Re-derive the canonical resolved-IR serialization from SOURCE via the --resolved path.
+# Imported at module load so the assertion covers the front-end import side-effect.
+_dump_ir = _load_dump_ir()
 
-    Returns the raw stdout (the canonical ``json.dumps(..., indent=2)`` produced by
-    pycsl-ir-dump.py's main()). Runs in a subprocess so the front-end import graph never
-    contaminates this runner's process.
+
+def derive_resolved_ir(src_path: str) -> str:
+    """Re-derive the canonical resolved-IR serialization from SOURCE, IN-PROCESS.
+
+    Calls the directly-imported ``dump_ir(..., resolved=True)`` and re-serializes with the
+    same canonical ``json.dumps(..., indent=2)`` the dump tool's main() uses, so the output
+    matches the frozen goldens exactly.
+    """
+    ir_json = _dump_ir(src_path, resolved=True)
+    return json.dumps(json.loads(ir_json), indent=2)
+
+
+def derive_resolved_ir_subprocess(src_path: str, hashseed: str) -> str:
+    """Re-derive the resolved IR in a SUBPROCESS under a fixed PYTHONHASHSEED.
+
+    Used ONLY by the determinism gate, which must vary PYTHONHASHSEED (read once at
+    interpreter startup). Spawns the front-end ``--resolved`` path only — never the core.
     """
     env = dict(os.environ)
     env["PYTHONHASHSEED"] = hashseed
@@ -99,7 +131,6 @@ def run(corpus_dir: str) -> int:
     ok = 0
     mismatch = 0
     version_skew = 0
-    nondeterministic = []
 
     for g in goldens:
         name = os.path.basename(g)[: -len(".ir.json")]
@@ -111,7 +142,7 @@ def run(corpus_dir: str) -> int:
 
         try:
             derived_text = derive_resolved_ir(src)
-        except RuntimeError as e:
+        except Exception as e:
             print(f"  {name}: DUMP-FAIL {e}")
             mismatch += 1
             continue
@@ -133,8 +164,14 @@ def run(corpus_dir: str) -> int:
             for line in _content_diff(derived, golden):
                 print(f"      {line}")
 
+    # The front-end import happened (dump_ir at module load + every derive call); the
+    # invariant must still hold — no core/prover module leaked in.
+    _assert_no_core_or_prover()
+
     print(f"front-end conformance: {ok} OK / {mismatch} MISMATCH "
           f"({len(goldens)} goldens; {version_skew} version-skew)")
+    print("front-end-only: no core/Module6/prover module in sys.modules (import-based, "
+          "no subprocess for the conformance check)")
 
     det_ok, det_bad = determinism_check(goldens)
     if det_bad:
@@ -159,8 +196,8 @@ def determinism_check(goldens, sample: int = 10):
         if not os.path.exists(src):
             continue
         try:
-            a = derive_resolved_ir(src, hashseed="0")
-            b = derive_resolved_ir(src, hashseed="1")
+            a = derive_resolved_ir_subprocess(src, hashseed="0")
+            b = derive_resolved_ir_subprocess(src, hashseed="1")
         except RuntimeError:
             bad.append(name)
             continue
