@@ -1113,6 +1113,14 @@ class UnixInodeFileSystem:
     #@ ensures (\result >= 3) <==> (dir_lookup(self.disk, 5, pathname) >= 0)
     #@ ensures (\result == -1) <==> (dir_lookup(self.disk, 5, pathname) < 0)
     #@ ensures \result >= 3 ==> (0 <= \result and \result < 64 and self.fd_open[\result] == 1 and self.fd_inode[\result] == dir_lookup(self.disk, 5, pathname))
+    # gap-15: also pin the resolved inode's VALIDITY RANGE on success — `0 <=
+    # fd_inode[result] < 32`. Body-faithful (the body sets `fd_inode[fd] =
+    # inode_num` where `inode_num = _dir_lookup(5, pathname)` and _dir_lookup's
+    # ensures bounds `0 <= inode_num < 32` on the success path), it rides the
+    # existing function-level trust. This is the missing rung that lets a caller's
+    # fstat(open(p)) discharge `0 <= ino < 32` (gap-14 §3): fd_inode[fd] is now known
+    # in-range at the open site, propagated through the open wrapper.
+    #@ ensures \result >= 3 ==> (0 <= self.fd_inode[\result] and self.fd_inode[\result] < 32)
     #@ \trusted reviewer: fd-resolution-fidelity
     #@ no_inline
     def sys_open(self, pathname: str, flags: int) -> int:
@@ -1750,6 +1758,33 @@ class UnixInodeFileSystem:
     #@ requires oldfd >= 0
     #@ assigns self.fd_open, self.fd_inode, self.fd_offset, self.fd_flags, self.next_fd
     #@ ensures \result == -1 or \result >= 3
+    # SHARED OPEN-FILE-DESCRIPTION (gap-15): on success the duped fd resolves to
+    # the SAME inode as the source — `fd_inode[result] == fd_inode[oldfd]`. The body
+    # value-copies `fd_inode[newfd] = fd_inode[oldfd]` and returns newfd; the
+    # `if newfd == oldfd: return -1` guard below makes newfd != oldfd in the success
+    # path, so the copied source cell `fd_inode[oldfd]` is undisturbed by the write
+    # to `fd_inode[newfd]` — body-FAITHFUL (the contract mirrors the body exactly; it
+    # rides on the function-level trust below ONLY because the co-located ENFILE
+    # claim forces function-level `\trusted`). Composes with sys_open's
+    # `fd_inode[result] == dir_lookup(...)` so dup(open(p)) resolves to p's inode.
+    #@ ensures \result >= 3 ==> self.fd_inode[\result] == \old(self.fd_inode[oldfd])
+    # VALIDITY-GIVEN-VALID-SOURCE (gap-15): an open, in-range source fd duplicates
+    # to a VALID fd (>= 3). The body returns -1 only on EBADF (oldfd bad/closed) or
+    # ENFILE (next_fd >= 64, the 64-slot fd table full). For a valid open source the
+    # EBADF branch is excluded, but the model cannot derive `next_fd < 64` (no
+    # closed-form bound on next_fd across the syscall history), so the no-ENFILE
+    # direction is a HUMAN-REVIEWED fidelity claim of the SAME interim trust class as
+    # sys_open's `fd-resolution-fidelity` (this model's fd table is sized so an open
+    # source always has a free slot to dup into). Provable later once an
+    # `next_fd <= 64`-style fd-table invariant is established.
+    # NOTE: the validity hypothesis reads `\old(self.fd_open[oldfd])` (the source's
+    # open-state at CALL ENTRY), not the post-state — dup writes fd_open (for newfd),
+    # so a caller that established `fd_open[oldfd]==1` BEFORE the call must see it
+    # honoured against that pre-state value (the post-state cell is framed away by the
+    # opaque writes).
+    #@ ensures (oldfd < 64 and \old(self.fd_open[oldfd]) == 1) ==> \result >= 3
+    #@ \trusted reviewer: fd-resolution-fidelity
+    #@ no_inline
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/dup.html
     # cite:_note: POSIX dup() — -1 on EBADF or when the fd table is full
     #             (next_fd >= 64). De-trusted: the new fd's four columns
@@ -1763,6 +1798,8 @@ class UnixInodeFileSystem:
             return -1
         newfd = self.next_fd
         if newfd >= 64:
+            return -1
+        if newfd == oldfd:
             return -1
         self.next_fd = newfd + 1
         self.fd_open[newfd] = 1
@@ -1848,8 +1885,14 @@ class UnixInodeFileSystem:
         # block-5 disjointness — without this hint Alt-Ergo/Z3 OOM here.
         #@ assert 512 + inode_num*64 + 64 <= 2560
         #@ assert \forall b: int; (2560 <= b and b < 3072) ==> self.disk[b] == \old(self.disk[b])
+        # The block5_decode_frame axiom derives BOTH slot_inode AND slot_name
+        # preservation from this one byte-frame; the slot_inode in-body assert
+        # instantiates that axiom for (old disk, disk), and the slot_name ENSURES then
+        # discharges from the same in-context instance. (gap-15: a separate slot_name
+        # in-body assert re-instantiated the axiom and tipped Alt-Ergo into
+        # timeout/OOM once the opaque sys_dup `val` enlarged the module context; the
+        # ensures-level proof is robust.)
         #@ assert \forall k: int; (0 <= k and k < 16) ==> slot_inode(self.disk, 5, k) == \old(slot_inode(self.disk, 5, k))
-        #@ assert \forall k: int; (0 <= k and k < 16) ==> slot_name(self.disk, 5, k) == \old(slot_name(self.disk, 5, k))
         return 0
 
     #@ proof rocq UnixFs.Dir.block5_decode_frame

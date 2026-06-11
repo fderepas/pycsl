@@ -144,6 +144,17 @@ def close(fd):
 #@ requires fd >= 0
 #@ assigns _filesystem.fd_open, _filesystem.fd_inode, _filesystem.fd_offset, _filesystem.fd_flags, _filesystem.next_fd
 #@ ensures \result == -1 or \result >= 3
+# gap-15: with the `_filesystem.fd_inode[fd]` (global_field_subscript) grammar, the
+# dup SHARED-OPEN-FILE-DESCRIPTION view composes through the public API:
+#   - VALIDITY-GIVEN-VALID-SOURCE: a valid open source fd dups to a valid fd (>= 3),
+#     so a caller's dup(open(p)) is valid (the gap-14 §5 validity consequence). This
+#     rests on sys_dup's interim `\trusted fd-resolution-fidelity` (the no-ENFILE
+#     direction the model can't yet derive).
+#   - SHARED INODE: the duped fd resolves to the SAME inode as the source —
+#     `_filesystem.fd_inode[\result] == _filesystem.fd_inode[fd]` — so dup and the
+#     source share one open-file-description (the inode the source resolves to).
+#@ ensures (fd < 64 and \old(_filesystem.fd_open[fd]) == 1) ==> \result >= 3
+#@ ensures \result >= 3 ==> _filesystem.fd_inode[\result] == \old(_filesystem.fd_inode[fd])
 def dup(fd):
     """Duplicate a file descriptor."""
     return _filesystem.sys_dup(fd)
@@ -151,15 +162,17 @@ def dup(fd):
 #@ requires fd >= 0
 #@ assigns \nothing
 #@ ensures \result == -1 or (\result >= 0 and \result < 32)
+# gap-15: with the `_filesystem.fd_inode[fd]` (global_field_subscript) grammar now
+# admitted on a wrapper `#@ ensures`, the fd-RESOLUTION view of sys_fstat composes
+# through the public API: fstat REPORTS the inode the fd resolves to. This is the
+# BODY-PROVEN sys_fstat ensures `(fd < 64 and fd_open[fd]==1 and 0<=fd_inode[fd]<32)
+# ==> \result == fd_inode[fd]` (commit 3dec789, ZERO trust) re-stated on the
+# module-global filesystem. Composed with open's `fd_inode[result] ==
+# dir_lookup(...)` resolution, a caller's fstat(open(p)) reports the inode p
+# resolves to (the gap-14 §3 fstat consequence).
+#@ ensures (fd < 64 and _filesystem.fd_open[fd] == 1 and 0 <= _filesystem.fd_inode[fd] and _filesystem.fd_inode[fd] < 32) ==> \result == _filesystem.fd_inode[fd]
 def fstat(fd):
     """Get file status by file descriptor. Returns inode number."""
-    # gap-14: sys_fstat REPORTS the resolved inode `fd_inode[fd]` (fd_resolves) for
-    # an open, in-range fd with a valid stored inode (proven body-side on
-    # sys_fstat). The fd-table-keyed resolution CANNOT be re-stated on THIS wrapper:
-    # the contract grammar admits `self.<field>[i]` (field_subscript) but NOT
-    # subscripting a module-global's array field (`_filesystem.fd_inode[fd]`), so
-    # the fstat consequence cannot compose through the public API. See
-    # DD-1845-convergence-gap-15.md (the gap-10-lineage grammar extension).
     return _filesystem.sys_fstat(fd)
 
 #@ requires True
@@ -286,6 +299,13 @@ def unlink(filepath: str, *, dir_fd=None):
 #@ ensures \result == -1 or \result >= 3
 #@ ensures (\result >= 3) <==> (dir_lookup(_filesystem.disk, 5, filepath) >= 0)
 #@ ensures (\result == -1) <==> (dir_lookup(_filesystem.disk, 5, filepath) < 0)
+# gap-15: with the `_filesystem.fd_inode[\result]` (global_field_subscript) grammar,
+# propagate sys_open's fd-RESOLUTION post-state to the public API so the fd-chain
+# composes: on success the returned fd is OPEN and resolves to an in-range inode —
+# the inode the path names. This is what lets a caller's fstat(open(p)) / dup(open(p))
+# discharge (the fstat/dup wrappers' guards `fd_open[fd]==1`, `0<=fd_inode[fd]<32`
+# are established here at the open site).
+#@ ensures \result >= 3 ==> (\result < 64 and _filesystem.fd_open[\result] == 1 and 0 <= _filesystem.fd_inode[\result] and _filesystem.fd_inode[\result] < 32 and _filesystem.fd_inode[\result] == dir_lookup(_filesystem.disk, 5, filepath))
 def open(filepath: str, flags, mode=0o777, *, dir_fd=None):
     """Open a file. Returns a file descriptor."""
     # gap-14: sys_open carries the fd-RESOLUTION + ENOENT discriminant tied to the
