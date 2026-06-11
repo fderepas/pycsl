@@ -1,4 +1,4 @@
-STATUS: OPEN
+STATUS: PARTIALLY ADDRESSED — §B (stat/lstat str param) FIXED; §A re-scoped in 11-0632-convergence-gap-8.md (the `name_present` view cannot cross the module-level `val` import boundary as a LOGIC symbol — a src/pycsl tool gap)
 
 # Convergence gap — iteration 7 (os namespace consequences won't prove through the PUBLIC API: syscall contracts expose NO observable post-state)
 

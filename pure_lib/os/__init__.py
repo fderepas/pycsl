@@ -304,14 +304,14 @@ def rmdir(filepath: str, *, dir_fd=None):
 #@ requires True
 #@ assigns \nothing
 #@ ensures \result == -1 or (\result >= 0 and \result < 32)
-def stat(filepath, *, dir_fd=None, follow_symlinks=True):
+def stat(filepath: str, *, dir_fd=None, follow_symlinks=True):
     """Get file status. Returns inode number."""
     return _filesystem.sys_stat(filepath)
 
 #@ requires True
 #@ assigns \nothing
 #@ ensures \result == -1 or (\result >= 0 and \result < 32)
-def lstat(filepath, *, dir_fd=None):
+def lstat(filepath: str, *, dir_fd=None):
     """Like stat() but does not follow symbolic links."""
     return _filesystem.sys_stat(filepath)
 
