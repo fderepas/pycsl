@@ -1205,6 +1205,37 @@ class UnixInodeFileSystem:
     # `_alloc_block` failure (-> -1). So the result is the full length or -1.
     #@ ensures (fd < 64 and \old(self.fd_open[fd]) == 1 and 0 <= self.fd_inode[fd] and self.fd_inode[fd] < 32 and \old(self.fd_offset[fd]) == 0 and \length(data) <= 512) ==> (\result == -1 or \result == \length(data))
     #@ ensures (\result == \length(data) and \old(self.fd_offset[fd]) == 0 and \length(data) <= 512) ==> (\forall i: int; (0 <= i and i < \result) ==> self.disk[self.fd_block[fd] * 512 + i] == data[i])
+    # gap-17: the SIZE POST-STATE. On a full single-block write from offset 0, the
+    # reopened inode's SIZE field is at least the number of bytes written:
+    # inode_size(self.disk, self.fd_inode[fd]) >= \length(data). BODY-PROVEN,
+    # ZERO TRUST: with offset 0 and \result == written == \length(data), the body
+    # sets inode[0] = max(\old inode[0], \length(data)) >= \length(data), then
+    # _write_inode persists it so inode_size unfolds to inode[0] (the inode-region
+    # bytes stay 0..255 by the class invariant, so the uint32 round-trip applies).
+    # This is the WRITE end of the content round-trip: composed with sys_open's
+    # reopen frame and sys_read's count==min(n,size) link, read(reopen(p)) returns
+    # len(data). A lower bound (not equality) suffices — read clamps to min, and
+    # decoupling from the file's prior size keeps the ensures unconditional.
+    #@ ensures (fd < 64 and \old(self.fd_open[fd]) == 1 and 0 <= self.fd_inode[fd] and self.fd_inode[fd] < 32 and \old(self.fd_offset[fd]) == 0 and \length(data) <= 512 and \result == \length(data)) ==> inode_size(self.disk, self.fd_inode[fd]) >= \length(data)
+    # gap-17: the NAMESPACE FRAME. write resolves no name and links no entry — it
+    # touches only data blocks (>= 6) and the inode region [512, 2560), both
+    # DISJOINT from the root directory block 5 ([2560, 3072)). So it preserves the
+    # name->inode resolution of EVERY name: dir_lookup(self.disk, 5, q) is unchanged.
+    # BODY-PROVEN via the block-5 byte-frame loop invariant (every data write lands
+    # at >= 3072) + block5_decode_frame (bytes unchanged => slot decodes unchanged)
+    # + _write_inode's slot-decode frame + UnixFs.Dir.lookup_frame (dir_lookup
+    # depends only on those slot decodes). This is what carries the namespace
+    # identity A := dir_lookup(disk,5,p) from the create across write->close->reopen,
+    # so the reopened fd resolves to the SAME inode and recovers its SIZE.
+    #@ ensures \forall q: str; dir_lookup(self.disk, 5, q) == \old(dir_lookup(self.disk, 5, q))
+    # The BOUNDED slot-decode frame is also exported (forall k in [0,16)). It is the
+    # block5_decode_frame consequence the body already establishes, and it lets a
+    # CALLER (the public write() wrapper) re-derive the dir_lookup frame via
+    # lookup_frame without instantiating an unbounded string-universal across the
+    # call boundary (a bounded int forall propagates far more cleanly).
+    #@ ensures \forall k: int; (0 <= k and k < 16) ==> (slot_inode(self.disk, 5, k) == \old(slot_inode(self.disk, 5, k)) and slot_name(self.disk, 5, k) == \old(slot_name(self.disk, 5, k)))
+    #@ proof rocq UnixFs.Dir.lookup_frame
+    #@ proof lean UnixFs.Dir.lookup_frame
     #@ no_inline
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/write.html
     # cite:_note: POSIX write() — multi-block: writes data across up to 10
@@ -1231,6 +1262,11 @@ class UnixInodeFileSystem:
         # already written agree with `data` and fd_block[fd] is the live block.
         #@ loop invariant (offset == 0 and n <= 512 and written > 0) ==> (self.fd_block[fd] >= 6 and self.fd_block[fd] < 256)
         #@ loop invariant (offset == 0 and n <= 512) ==> (\forall i: int; (0 <= i and i < written) ==> self.disk[self.fd_block[fd] * 512 + i] == data[i])
+        # gap-17 namespace frame: every chunk is written to a data block (>= 6, so
+        # disk offset >= 3072), DISJOINT from the root dir block 5 ([2560, 3072)).
+        # So block 5's bytes never change — the maintained frame that, via
+        # block5_decode_frame + lookup_frame, preserves dir_lookup across the write.
+        #@ loop invariant \forall b: int; (2560 <= b and b < 3072) ==> self.disk[b] == \old(self.disk[b])
         #@ loop variant n - written
         while written < n:
             block_idx = (offset + written) // 512
@@ -1238,7 +1274,11 @@ class UnixInodeFileSystem:
             if block_idx < 0 or block_idx >= 10:
                 break
             p_block = inode[8 + block_idx]
-            if p_block <= 0 or p_block >= 256:
+            # gap-17: reserved blocks 0-5 are never file data blocks (a data block
+            # pointer is always >= 6, allocated via _alloc_block); treat any pointer
+            # below 6 as unallocated. This makes every data write provably land at
+            # >= 3072, disjoint from block 5 — the namespace frame's keystone.
+            if p_block < 6 or p_block >= 256:
                 p_block = self._alloc_block()
                 if p_block < 0 or p_block >= 256:
                     break
@@ -1252,12 +1292,24 @@ class UnixInodeFileSystem:
             if block_idx == 0:
                 self.fd_block[fd] = p_block
             written = written + chunk
+        # gap-17: at loop exit block 5's bytes equal \old (the loop frame), so
+        # block5_decode_frame gives the per-slot decodes equal to \old in one step.
+        # _now()/_write_inode below touch only _mtime_ticks and the inode region,
+        # so this slot frame survives to the post-_write_inode asserts.
+        #@ assert \forall k: int; (0 <= k and k < 16) ==> (slot_inode(self.disk, 5, k) == \old(slot_inode(self.disk, 5, k)) and slot_name(self.disk, 5, k) == \old(slot_name(self.disk, 5, k)))
         self.fd_offset[fd] = offset + written
         new_size = offset + written
         if new_size > inode[0]:
             inode[0] = new_size
         inode[7] = self._now()
         self._write_inode(inode_num, inode)
+        # gap-17 namespace frame discharge. The loop kept block 5's bytes equal to
+        # \old (every data write at >= 3072), and _write_inode wrote only the inode
+        # region [512, 2560) — also disjoint from block 5. So block 5's bytes are
+        # unchanged across the whole call; block5_decode_frame lifts that to the
+        # per-slot decodes, and lookup_frame lifts THOSE to dir_lookup of every name.
+        #@ assert \forall k: int; (0 <= k and k < 16) ==> (slot_inode(self.disk, 5, k) == \old(slot_inode(self.disk, 5, k)) and slot_name(self.disk, 5, k) == \old(slot_name(self.disk, 5, k)))
+        #@ assert \forall q: str; dir_lookup(self.disk, 5, q) == \old(dir_lookup(self.disk, 5, q))
         if written == 0 and n > 0:
             return -1
         return written
@@ -1295,6 +1347,13 @@ class UnixInodeFileSystem:
     # the read end of the content round-trip: composed with sys_write's SIZE
     # post-state and sys_open's reopen frame, read(reopen(p)) returns len(data).
     #@ ensures (fd < 64 and self.fd_open[fd] == 1 and 0 <= self.fd_inode[fd] and self.fd_inode[fd] < 32 and \old(self.fd_offset[fd]) == 0 and inode_size(self.disk, self.fd_inode[fd]) >= 0 and nbytes >= inode_size(self.disk, self.fd_inode[fd])) ==> \result == inode_size(self.disk, self.fd_inode[fd])
+    # gap-17: the COMPLEMENT clause — when the request fits within the file
+    # (0 <= nbytes <= inode_size) the count EQUALS the request. Together with the
+    # clause above this is result == min(nbytes, inode_size). BODY-PROVEN: avail =
+    # size - 0 = inode_size >= nbytes, so n = nbytes. This is the clause the content
+    # round-trip uses: sys_write gives inode_size >= len(data), so reading len(data)
+    # from offset 0 returns exactly len(data).
+    #@ ensures (fd < 64 and self.fd_open[fd] == 1 and 0 <= self.fd_inode[fd] and self.fd_inode[fd] < 32 and \old(self.fd_offset[fd]) == 0 and nbytes >= 0 and nbytes <= inode_size(self.disk, self.fd_inode[fd])) ==> \result == nbytes
     def sys_read(self, fd: int, nbytes: int) -> int:
         if fd >= 64:
             return -1
@@ -1580,6 +1639,14 @@ class UnixInodeFileSystem:
     #@ requires whence >= 0 and whence <= 2
     #@ assigns self.fd_offset
     #@ ensures \result >= -1
+    # gap-17: SEEK_SET offset post-state. On a valid fd with whence == SEEK_SET (0)
+    # and a non-negative target, lseek SETS the file offset to that target and
+    # returns it. BODY-PROVEN, ZERO TRUST: the whence==0 branch assigns
+    # fd_offset[fd] = offset, and offset >= 0 means the `< 0` clamp is not taken,
+    # so the offset is exactly `offset`. This is the rewind consequence the content
+    # round-trip needs (lseek(fd, 0, SEEK_SET) re-establishes fd_offset == 0 before
+    # the read-back), and a standalone lseek consequence in its own right.
+    #@ ensures (fd < 64 and self.fd_open[fd] == 1 and whence == 0 and offset >= 0) ==> (self.fd_offset[fd] == offset and \result == offset)
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/lseek.html
     # cite:_note: POSIX lseek() — returns new offset (≥ 0) or -1 on
     #             EBADF. Resulting offset is clamped to >= 0. De-trusted:

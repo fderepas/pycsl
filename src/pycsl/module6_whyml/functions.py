@@ -939,12 +939,23 @@ class FunctionEmissionMixin:
         op `(self: <class>)` + `writes {self.f}` and translating `\\old(self.f)` → `old self.f`.
         Excludes any clause that also references `\\result` (that's the non-void case — kept in
         the field-RESULT map) so each clause is filed by its kind (the rev2 partition)."""
-        def classify(node: Any) -> Optional[bool]:
+        def classify(node: Any, bound: frozenset = frozenset()) -> Optional[bool]:
             # False if the subtree references a DISALLOWED leaf (param/local bare Var, \result,
             # or non-self object field); None otherwise (self-field / old-self-field / const).
+            # `bound` is the set of quantifier-bound variable names in scope: a frame clause
+            # `forall q; dir_lookup(self.disk,5,q) == \old(dir_lookup(self.disk,5,q))` is a
+            # legitimate self-field mutating contract — its `q` is universally bound, NOT a
+            # caller-side param/local, so it must NOT disqualify the clause (the abstract op
+            # reproduces the quantifier verbatim).
             if not isinstance(node, dict):
                 return None
             t = node.get("type")
+            if t in ("Forall", "Exists"):
+                # Extend the bound-variable scope with this quantifier's binder, then
+                # classify the body under it. (A quantified frame over self-fields is kept.)
+                v = node.get("var")
+                inner = bound | ({v} if v else frozenset())
+                return classify(node.get("body"), inner)
             if t == "Result":
                 return False
             if t in ("FieldGet", "Attribute", "OldField"):
@@ -952,13 +963,15 @@ class FunctionEmissionMixin:
             if t == "OldVar":
                 return False
             if t == "Var":
-                return False
+                # A bare Var that is the binder of an enclosing quantifier is allowed;
+                # any other (a caller-visible param/local) disqualifies the clause.
+                return None if node.get("name") in bound else False
             if t == "ArrayLen":
                 v = node.get("var")
                 return None if (v == "self" or (isinstance(v, dict) and v.get("object") == "self")) else False
             for val in node.values():
                 for c in (val if isinstance(val, list) else [val]):
-                    if classify(c) is False:
+                    if classify(c, bound) is False:
                         return False
             return None
 

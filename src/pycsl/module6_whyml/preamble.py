@@ -268,6 +268,38 @@ class PreambleEmissionMixin:
             "( forall k : int. 0 <= k < 16 -> "
             "    slot_inode d1 5 k = slot_inode d0 5 k /\\ "
             "    slot_name  d1 5 k = slot_name  d0 5 k )",
+
+        # UnixFs.Dir.lookup_frame (gap-17) — the dir_lookup CONGRUENCE/FRAME. The
+        # bounded scan `dir_lookup` reads ONLY the 16 per-slot decodes
+        # (slot_inode/slot_name over k in [0,16)) of the block, so two disks that
+        # agree on those decodes resolve every name identically. This is what
+        # threads the namespace identity A := dir_lookup(disk,5,p) SYMBOLICALLY
+        # across a write->close->reopen: a writer that leaves block 5's slot decodes
+        # untouched (every data/inode write is disjoint from block 5, by
+        # block5_decode_frame) preserves dir_lookup, so the reopen recovers the same
+        # inode A and hence the same SIZE. Reuses the SAME slot_inode/slot_name/
+        # dir_lookup symbols (no new _AXIOM_FUNCTIONS entry). Cross-validated by
+        # unix-filesystem/UnixInodeFileSystem.proofs/{rocq,lean}/LookupFrame.{v,lean}
+        # (theorem lookup_frame): induction on the prefix length, the scan reads
+        # only slot j < i. Rocq 8.20.1: Closed under the global context (0
+        # Axiom/Admitted, only abstract Section Variables); Lean 4.30.0:
+        # #print axioms = [propext, Quot.sound] subseteq allowlist, no sorry.
+        # The outer quantifier carries an explicit multi-pattern E-matching
+        # TRIGGER `[dir_lookup d1 5 name, dir_lookup d0 5 name]`: the axiom
+        # instantiates ONLY on a goal in which BOTH dir_lookup applications of its
+        # conclusion already occur (a genuine namespace-frame goal, e.g. the
+        # write() wrapper re-exporting `dir_lookup(disk,5,q)==\old(dir_lookup(...))`),
+        # and NEVER on a bare slot-frame `\forall k. slot_*` assert that lacks a
+        # dir_lookup pair. Without the trigger this global axiom fired on every
+        # block-5-touching syscall's slot-frame asserts (chmod) and chased the
+        # conclusion for unconstrained `name`, E-matching itself into a 30s/4M-step
+        # timeout. The trigger leaves the LOGICAL content unchanged.
+        "UnixFs.Dir.lookup_frame":
+            "forall d0 : array int, d1 : array int, name : string "
+            "[dir_lookup d1 5 name, dir_lookup d0 5 name]. "
+            "( forall k : int. 0 <= k < 16 -> slot_inode d1 5 k = slot_inode d0 5 k ) -> "
+            "( forall k : int. 0 <= k < 16 -> slot_name  d1 5 k = slot_name  d0 5 k ) -> "
+            "dir_lookup d1 5 name = dir_lookup d0 5 name",
     }
 
     # gap-13: axioms that CONSTRAIN the axiom-func symbols a `#@ class invariant`

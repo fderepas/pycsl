@@ -191,6 +191,11 @@ def link(src: str, dst: str, *, src_dir_fd=None, dst_dir_fd=None,
 #@ requires how >= 0 and how <= 2
 #@ assigns _filesystem.fd_offset
 #@ ensures \result >= -1
+# gap-17: SEEK_SET offset post-state propagated to the public API — lseek(fd, pos,
+# SEEK_SET) on a valid fd with pos >= 0 sets the offset to pos and returns it. The
+# rewind consequence the content round-trip rests on (re-establish offset 0 before
+# read-back), and a standalone lseek consequence.
+#@ ensures (fd < 64 and _filesystem.fd_open[fd] == 1 and how == 0 and pos >= 0) ==> (_filesystem.fd_offset[fd] == pos and \result == pos)
 def lseek(fd, pos, how):
     """Set the position of a file descriptor."""
     return _filesystem.sys_lseek(fd, pos, how)
@@ -331,6 +336,10 @@ def open(filepath: str, flags, mode=0o777, *, dir_fd=None):
 # write's SIZE post-state and open's reopen frame, read(reopen(p)) == len(data)
 # is now derivable THROUGH THE API.
 #@ ensures (fd < 64 and _filesystem.fd_open[fd] == 1 and 0 <= _filesystem.fd_inode[fd] and _filesystem.fd_inode[fd] < 32 and \old(_filesystem.fd_offset[fd]) == 0 and inode_size(_filesystem.disk, _filesystem.fd_inode[fd]) >= 0 and n >= inode_size(_filesystem.disk, _filesystem.fd_inode[fd])) ==> \result == inode_size(_filesystem.disk, _filesystem.fd_inode[fd])
+# gap-17: the complement — a request within the file (0 <= n <= inode_size)
+# returns exactly n. With write's inode_size >= len(data), reading len(data) back
+# from offset 0 returns len(data) THROUGH THE API.
+#@ ensures (fd < 64 and _filesystem.fd_open[fd] == 1 and 0 <= _filesystem.fd_inode[fd] and _filesystem.fd_inode[fd] < 32 and \old(_filesystem.fd_offset[fd]) == 0 and n >= 0 and n <= inode_size(_filesystem.disk, _filesystem.fd_inode[fd])) ==> \result == n
 def read(fd, n):
     """Read from a file descriptor. Returns byte count."""
     return _filesystem.sys_read(fd, n)
@@ -347,6 +356,16 @@ def read(fd, n):
 # This is `inode_content(fd_inode[fd]) == data` made concrete over the data-block
 # layout (the content twin of the namespace `dir_lookup` view, one rung lower).
 #@ ensures \result == -1 or \result <= \length(data)
+# gap-17: the SIZE post-state propagated — a full single-block write from offset 0
+# leaves the inode SIZE field at least len(data). With read's count==min link, this
+# is the WRITE end of the content round-trip.
+#@ ensures (fd < 64 and _filesystem.fd_open[fd] == 1 and 0 <= _filesystem.fd_inode[fd] and _filesystem.fd_inode[fd] < 32 and \old(_filesystem.fd_offset[fd]) == 0 and \length(data) <= 512 and \result == \length(data)) ==> inode_size(_filesystem.disk, _filesystem.fd_inode[fd]) >= \length(data)
+# gap-17: the NAMESPACE FRAME propagated — write resolves/links no name, so it
+# preserves dir_lookup of every name. This carries A := dir_lookup(disk,5,p) from
+# create across write->close->reopen so the reopened fd recovers the same inode.
+#@ ensures \forall q: str; dir_lookup(_filesystem.disk, 5, q) == \old(dir_lookup(_filesystem.disk, 5, q))
+#@ proof rocq UnixFs.Dir.lookup_frame
+#@ proof lean UnixFs.Dir.lookup_frame
 def write(fd, data: list):
     """Write to a file descriptor. Returns byte count."""
     return _filesystem.sys_write(fd, data)
