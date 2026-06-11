@@ -509,6 +509,40 @@ call doesn't fault) — keep it only as that, and never mistake it for functiona
 mutating syscall needs a consequence-checking scenario; that is what "the formal test propagates the
 source of truth" actually means.
 
+**Critical rule: a formal test CALLS the public API under test — it must NEVER re-implement or simulate the
+operation.** The test imports the module's PUBLIC functions and calls them (`mkdir(d)`, then `access(d)`);
+it NEVER touches the model's internals (the data structure, private helpers like `_dir_lookup`, raw
+`disk[...]` bytes, `sys_*` methods) and NEVER inlines the operation's logic. A test that hand-manipulates
+the data structure to "simulate" the syscall — writing the dirent bytes itself, zeroing them, then
+re-running the lookup logic inline — proves a **TAUTOLOGY about its own re-implementation, NOT that the API
+works**. It is the worst failure mode: a green test that verifies nothing about the module. THE TELL: *if
+writing the test required knowing the internal byte layout, you are simulating, not testing.*
+
+BAD — simulates (the exact drift this skill exists to prevent):
+```python
+def unlink_then_absent(f: str, ino: int) -> int:
+    disk = [0]*64
+    disk[2] = ord(f[0])          # hand-writes the dirent — re-doing mkdir's job
+    disk[2] = 0                  # hand-zeroes it — re-doing unlink's job
+    name0 = chr(disk[2]); ...    # inlines _dir_lookup — re-doing access's job
+    return found                 # proves the author's re-implementation, not os
+```
+GOOD — calls the API, observes the consequence through it:
+```python
+from os import mkdir, unlink, access, F_OK
+def unlink_then_absent(f: str) -> int:
+    mkdir(f)                     # the REAL syscall
+    before = access(f, F_OK)     # the REAL observation
+    unlink(f)
+    after = access(f, F_OK)
+    #@ ensures before == True and after == False
+    return 0
+```
+The formal test sees the module exactly as a *caller* does — through its public surface only. (This is
+*why* the test author and the model author must be DIFFERENT agents — see the Convergence Principle: the
+**test-agent** is given only the public API + the English spec, never the model internals, so it
+physically cannot simulate.)
+
 ### Contracts must reflect the English specification
 
 When writing postconditions, **always derive them from the English
@@ -686,9 +720,12 @@ with no remaining gaps for it.
 
 ### The agent loop
 
-A **coordination agent** orchestrates a ping-pong between two worker agents, mediated by a **paired
-traceability document** — a *gap* document (the problem, from the stdlib-agent) and a *spec* document
-(the proposed fix, from the tool-agent). Every tool change is auditable back to the stdlib limitation
+A **coordination agent** orchestrates three worker agents — the **stdlib-agent** (builds the `pure_lib/`
+model), the **test-agent** (writes the `pure_lib_test/` formal test, calling ONLY the public API), and the
+**tool-agent** (fixes `src/pycsl/`) — mediated by a **paired traceability document**: a *gap* document
+(the problem, from the stdlib-agent OR the test-agent) and a *spec* document (the proposed fix, from the
+tool-agent). The model author and the test author are deliberately SEPARATE so the test cannot simulate
+the operation it is supposed to call (see Step 5's "call the API, don't simulate" rule + Roles below). Every tool change is auditable back to the stdlib limitation
 that motivated it, and the coordination agent approves the **spec** (the plan), not just the gap, before
 any edit. Traceability is a key concern, so both documents follow a strict dated naming convention:
 
@@ -713,13 +750,17 @@ any edit. Traceability is a key concern, so both documents follow a strict dated
           └──────── ⑤ respawn (unblocked; N := N+1) ──────────┘
 ```
 
-1. The coordination agent **spawns a `stdlib-agent`** on a target `pure_lib/<module>` to run the
-   workflow above (`docs/formal-filesystem.md` strategy). Faithfulness is non-negotiable — real WhyML
-   type classes, never an int stand-in, never a false postcondition (the no-more-int doctrine).
-2. When the `stdlib-agent` hits something the model needs but the **tool cannot do**, it finishes
-   everything it *can* prove faithfully (working around the gap only to keep its own proof clean), then
-   **writes `DD-HHMM-convergence-gap-N.md`** — per gap: symptom, minimal reproducer, root cause
-   (`file:line`), the workaround used, and a proposed fix (see Step 6 and `10-1732-gap.md` for the shape).
+1. The coordination agent **spawns a `stdlib-agent`** to build the `pure_lib/<module>` MODEL (workflow
+   Steps 1–4 — faithful model + `#@` contracts + proved bodies; real WhyML type classes, never an int
+   stand-in, never a false postcondition). Then it **spawns a `test-agent`** to write the formal test
+   (Step 5, `pure_lib_test/formal_<module>.py`) that **CALLS ONLY the module's public API** to exercise
+   each consequence — the test-agent gets the public API + English spec but NOT the model internals, so it
+   cannot simulate.
+2. When the `stdlib-agent` (model) OR the `test-agent` (a consequence that won't prove through the API —
+   e.g. the syscall's contract exposes no observable post-state) hits something the **tool cannot do**,
+   that agent finishes everything it *can* faithfully, then **writes `DD-HHMM-convergence-gap-N.md`** — per
+   gap: symptom, minimal reproducer, root cause (`file:line`), the workaround used, and a proposed fix
+   (see Step 6 and `10-1732-gap.md` for the shape).
 3. The coordination agent **spawns a `tool-agent`** with the gap document. The tool-agent reads it and
    **answers with `DD-HHMM-convergence-spec-N.md`** — its concrete implementation plan, opened with a
    **`STATUS: DRAFT`** field.
@@ -743,9 +784,18 @@ The loop repeats — `N` incrementing each iteration — until a pass produces *
   it judges the `DRAFT` spec and may add/modify/remove parts to speed convergence, then sets
   `STATUS: APPROVED`. It never edits source or model code — it edits only the *spec document* (decide,
   amend-the-spec, and dispatch).
-- **stdlib-agent** — proves one `pure_lib/<module>` faithfully via the workflow above; edits only the
-  model + its `pure_lib_test/formal_<module>.py` loop-closer; output is *a proved module and/or a
-  `DD-HHMM-convergence-gap-N.md` gap document*.
+- **stdlib-agent** — builds the faithful pure-Python MODEL: edits only `pure_lib/<module>` (the model + its
+  `#@` contracts; workflow Steps 1–4), proves the bodies. It does **NOT** write the formal test. Output: *a
+  proved module model and/or a `DD-HHMM-convergence-gap-N.md` gap document*.
+- **test-agent** — writes the formal test (workflow Step 5): edits only `pure_lib_test/formal_<module>.py`,
+  and **CALLS ONLY the module's public API** (`mkdir`, `access`, …) to exercise consequences. It is given
+  ONLY the public API surface + the English spec (`test-suite/library_reference/`) — **never the model
+  internals**, so it physically *cannot* simulate the operation (no `disk[...]`, no `_dir_lookup`, no
+  `sys_*`). This separation is the whole point: the model author knows the internals and would be tempted
+  to re-do the job in the test; the test-agent can't. Output: *a passing formal test that propagates the
+  source of truth THROUGH the real API, and/or a `DD-HHMM-convergence-gap-N.md` gap document* (when an API
+  consequence won't prove — e.g. the syscall's contract is return-code-only and exposes no observable
+  post-state).
 - **tool-agent** — reads the gap document and answers with a `DD-HHMM-convergence-spec-N.md` spec opened
   at `STATUS: DRAFT`; once the coordination agent sets `STATUS: APPROVED`, implements it, gates it, and
   sets `STATUS: DONE`; edits only `src/pycsl/`; output is *a spec document and a gated tool fix*. It never
