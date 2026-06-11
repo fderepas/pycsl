@@ -1045,14 +1045,34 @@ class UnixInodeFileSystem:
             return 0
         return -1
 
+    #@ proof rocq UnixFs.Dir.scan_reflects_present
+    #@ proof lean UnixFs.Dir.scan_reflects_present
+    #@ proof rocq UnixFs.Dir.slot_inode_nonneg
+    #@ proof lean UnixFs.Dir.slot_inode_nonneg
     #@ requires True
     #@ assigns self.disk
     #@ ensures \result == 0 or \result == -1
+    #@ ensures \result == 0 ==> (dir_lookup(self.disk, 5, newpath) >= 0)
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/link.html
     # cite:_note: POSIX link() — increments inode.link_count (index 1) by
     #             1; adds a (newpath, inode_num) entry to the root dir.
     #             -1 on ENOENT or a full root dir. De-trusted: lookup →
     #             free-slot → write entry → bump link_count.
+    #
+    #             gap-9 (PRESENCE direction, mirrors sys_mkdir): on success
+    #             `dir_lookup(self.disk, 5, newpath) >= 0` — the hard-link
+    #             mutator ESTABLISHES the presence view for the NEW name. The
+    #             `_write_entry(5, slot, inode_num, newpath)` (inode_num in
+    #             [1,32) from the oldpath lookup) makes the abstract slot decode
+    #             at `slot` return (inode_num, newpath) — the existential witness
+    #             at k=slot — so the `#@ assert` + scan_reflects_present axiom
+    #             (existential => dir_lookup>=0) discharge the postcondition.
+    #             NB: the bump (`_write_inode`) is done BEFORE the entry write so
+    #             `_write_entry` is LAST (mirrors mkdir), and the call is
+    #             `#@ no_inline` so the witness VC is isolated from the loop-bearing
+    #             `_dir_find_free` scan (the E-matching blowup that times out the
+    #             existential assert when the body is inlined).
+    #@ no_inline
     def sys_link(self, oldpath: str, newpath: str) -> int:
         inode_num = self._dir_lookup(5, oldpath)
         if inode_num < 0 or inode_num >= 32:
@@ -1060,12 +1080,17 @@ class UnixInodeFileSystem:
         slot = self._dir_find_free(5)
         if slot < 0:
             return -1
-        self._write_entry(5, slot, inode_num, newpath)
+        # Bump the link count FIRST (inode region, bytes 512..2559), then write
+        # the directory entry LAST so the slot witness immediately precedes the
+        # presence assert — exactly mkdir's shape (no intervening _write_inode to
+        # havoc root-dir block 5, bytes 2560..3071, after the witness is laid).
         inode = self._read_inode(inode_num)
         if inode[1] >= 65535:
             return -1
         inode[1] = inode[1] + 1
         self._write_inode(inode_num, inode)
+        self._write_entry(5, slot, inode_num, newpath)
+        #@ assert \exists k: int; 0 <= k and k < 16 and slot_inode(self.disk, 5, k) != 0 and slot_inode(self.disk, 5, k) < 32 and slot_name(self.disk, 5, k) == newpath
         return 0
 
     #@ requires True
@@ -1304,15 +1329,32 @@ class UnixInodeFileSystem:
         self._write_inode(inode_num, inode)
         return 0
 
-    #@ requires True
+    #@ proof rocq UnixFs.Dir.scan_reflects_present
+    #@ proof lean UnixFs.Dir.scan_reflects_present
+    #@ proof rocq UnixFs.Dir.slot_inode_nonneg
+    #@ proof lean UnixFs.Dir.slot_inode_nonneg
+    #@ requires oldpath != newpath
     #@ assigns self.disk
     #@ ensures \result == 0 or \result == -1
+    #@ ensures \result == 0 ==> (dir_lookup(self.disk, 5, newpath) >= 0)
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/rename.html
     # cite:_note: POSIX rename() — removes both the oldpath and any
     #             existing newpath entry, then writes (newpath, inode) in
     #             a free slot. -1 on ENOENT (oldpath missing) / full dir.
     #             De-trusted: lookup → zero old slot → zero any newpath
     #             slot → write the new entry.
+    #
+    #             gap-9 (PRESENCE direction): on success `dir_lookup(self.disk,
+    #             5, newpath) >= 0` — the final `_write_entry(5, slot, inode_num,
+    #             newpath)` (inode_num in [1,32) from the oldpath lookup) is the
+    #             existential witness at k=slot, so the `#@ assert` +
+    #             scan_reflects_present axiom discharge the postcondition. The
+    #             precondition `oldpath != newpath` mirrors the driver scenario
+    #             (a != b). The DUAL `a`-ABSENT direction (`dir_lookup(self.disk,
+    #             5, oldpath) < 0`) is the absence valve documented in the dated
+    #             convergence-gap doc (needs the remove-witness + scan-uniqueness
+    #             lemma, not registrable from the model alone).
+    #@ no_inline
     def sys_rename(self, oldpath: str, newpath: str) -> int:
         inode_num = self._dir_lookup(5, oldpath)
         if inode_num < 0 or inode_num >= 32:
@@ -1327,6 +1369,7 @@ class UnixInodeFileSystem:
         if slot < 0:
             return -1
         self._write_entry(5, slot, inode_num, newpath)
+        #@ assert \exists k: int; 0 <= k and k < 16 and slot_inode(self.disk, 5, k) != 0 and slot_inode(self.disk, 5, k) < 32 and slot_name(self.disk, 5, k) == newpath
         return 0
 
     #@ requires True

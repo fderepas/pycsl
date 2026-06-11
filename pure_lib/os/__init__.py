@@ -158,9 +158,13 @@ def fstat(fd):
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
+#@ ensures \result == 0 ==> (dir_lookup(_filesystem.disk, 5, dst) >= 0)
 def link(src: str, dst: str, *, src_dir_fd=None, dst_dir_fd=None,
          follow_symlinks=True):
     """Create a hard link."""
+    # gap-9: sys_link ensures `rc == 0 ==> dir_lookup(_filesystem.disk, 5, dst)
+    # >= 0` (the hard-link mutator establishes the presence view for the new
+    # name dst), so access(dst) reports PRESENT after a successful link.
     return _filesystem.sys_link(src, dst)
 
 #@ requires fd >= 0
@@ -286,11 +290,16 @@ def write(fd, data: list):
     """Write to a file descriptor. Returns byte count."""
     return _filesystem.sys_write(fd, data)
 
-#@ requires True
+#@ requires src != dst
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
+#@ ensures \result == 0 ==> (dir_lookup(_filesystem.disk, 5, dst) >= 0)
 def rename(src: str, dst: str, *, src_dir_fd=None, dst_dir_fd=None):
     """Rename a file or directory."""
+    # gap-9: sys_rename ensures `rc == 0 ==> dir_lookup(_filesystem.disk, 5, dst)
+    # >= 0` (the rename mutator establishes the presence view for the new name
+    # dst), so access(dst) reports PRESENT after a successful rename. The DUAL
+    # `src`-ABSENT direction is the absence valve (see convergence-gap doc).
     return _filesystem.sys_rename(src, dst)
 
 #@ requires True
