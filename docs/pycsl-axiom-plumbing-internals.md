@@ -1,34 +1,58 @@
-# PyCSL axiom-plumbing internals — the `UnixFs.Dir.scan_reflects_present` end-to-end path
+# PyCSL axiom-plumbing internals — the generic cross-validated-lemma end-to-end path
 
-This document describes six PyCSL **compiler-pipeline modules** — NOT
+This document describes the **generic path** by which any cross-validated
+lemma shipped as `MyModule.proofs/{rocq,lean}/MyProof.{v,lean}` and cited as
+`#@ proof rocq|lean MyModule.MyLemma` becomes a *registered*, *bound*, and
+*citable* Why3 `axiom` — constraining the real logic symbols of `MyModule`
+and surviving propagation across a module-global method-call boundary and an
+`import` boundary. The path is the same for every such lemma; only the
+registry entry, its backing logic symbols, and the proof pair differ.
+
+The path is realized by six PyCSL **compiler-pipeline modules** — NOT
 auxiliary "helper tools"; they are core stages of the PyCSL tool itself, all
 living under `src/pycsl/`. Five are the **Module-6 WhyML transpiler**
 (`src/pycsl/module6_whyml/` + `Module6_WhyMLTranspiler.py`) and one is the
 **front-end import-resolver** (`src/pycsl/frontend/ir_resolve.py`). They are
 grouped here only by their shared *role in one feature* — the cross-validated
-axiom plumbing of the gap-9→gap-12 arc — not as a standalone category. Together
-they let a single cross-validated axiom,
-[`UnixFs.Dir.scan_reflects_present`](glossary/axiom-registry.md), be
-*registered*, *bound to real logic symbols*, and *cited* across a
-module-global method-call boundary and an `import` boundary.
+axiom plumbing of the gap-9→gap-12 arc — not as a standalone category. For the
+generic mechanism the relevant trust contract is the
+[axiom registry](glossary/axiom-registry.md) and its
+[proof companion](glossary/proof-companion.md) (the generic Rocq + Lean
+pairing every registered axiom must carry).
 
-The motivating property is the directory-scan reflection lemma
-(`pure_lib/os/UnixInodeFileSystem.py:_dir_lookup`): the bounded scan over
-the 16 root-directory slots returns a non-negative inode **iff** some live
-slot decodes to `name`. This is inductive over the slot loop, so the SMT
+**The running example.** Throughout, the generic mechanism is illustrated by
+one worked instance: the cross-validated axiom
+[`UnixFs.Dir.scan_reflects_present`](glossary/axiom-registry.md) from the
+standard-library `os` directory family. That family —
+`scan_reflects_present`, `remove_reflects_absent`, `insert_preserves_unique`,
+`empty_disk_slots_dead`, and `block5_decode_frame` — is exactly the set of
+lemmas that first exercised this path end to end; they are the concrete
+`MyModule.MyLemma` instances against which each module below is shown working.
+Wherever a snippet names `UnixFs.Dir.scan_reflects_present`, read it as one
+filling of the generic `MyModule.MyLemma` slot.
+
+The worked example's motivating property is the directory-scan reflection
+lemma (`pure_lib/os/UnixInodeFileSystem.py:_dir_lookup`): the bounded scan
+over the 16 root-directory slots returns a non-negative inode **iff** some
+live slot decodes to `name`. This is inductive over the slot loop, so the SMT
 backend (Alt-Ergo/Z3) times out (gap-9 measured 14.6M / 11.6M / 18.8M
-solver steps). Per the *CSL family rule, an SMT wall on an inductive loop
-property is sourced from the proof assistants: a paired Rocq + Lean proof
-(`unix-filesystem/UnixInodeFileSystem.proofs/{rocq,lean}/UnixDirScan.{v,lean}`,
-Rocq closed under the global context, Lean axioms ⊆ {propext, Quot.sound})
-is registered as a Why3 preamble `axiom` and cited via
-`#@ proof rocq|lean UnixFs.Dir.scan_reflects_present`.
+solver steps). Per the *CSL family rule — generic to any module — an SMT wall
+on an inductive loop property is sourced from the proof assistants: a paired
+Rocq + Lean proof (here
+`unix-filesystem/UnixInodeFileSystem.proofs/{rocq,lean}/UnixDirScan.{v,lean}`,
+the concrete `MyModule.proofs/{rocq,lean}/MyProof.{v,lean}`, Rocq closed under
+the global context, Lean axioms ⊆ {propext, Quot.sound}) is registered as a
+Why3 preamble `axiom` and cited via
+`#@ proof rocq|lean MyModule.MyLemma`.
 
-Registering the axiom is the easy half. The hard half is making the
-citation **non-vacuous** — making the axiom constrain the *real* scan, then
-carrying that constraint through a chain of indirections: a method call on
-a module-global filesystem object, and an `import` of the public `os`
-wrappers into a driver. The six tools form that path:
+Registering the axiom is the easy half — and that half is generic: any
+validated body keyed by its dotted qualname becomes a preamble `axiom`. The
+hard half, also generic, is making the citation **non-vacuous** — making the
+axiom constrain the *real* logic symbols of the module, then carrying that
+constraint through a chain of indirections: a method call on a module-global
+object, and an `import` of the module's public wrappers into a driver. (In
+the worked example the global is a filesystem object and the wrappers are the
+public `os` functions.) The six modules form that path:
 
 | # | File | Role in the path |
 |---|------|------------------|
@@ -39,26 +63,30 @@ wrappers into a driver. The six tools form that path:
 | 5 | `module6_whyml/abstract_ops.py` | **Order** the declarations so referencing symbols come after them |
 | 6 | `frontend/ir_resolve.py` | **Resolve** the import boundary (inductive-decl + var-name machinery) |
 
-The path, read end to end: tool 1 makes the axiom and its `val function`
-symbols (`slot_inode`, `slot_name`, `dir_lookup`) exist in the preamble;
-tool 2 wires up the per-module state (`_axiom_logic_funcs`,
-`_emitting_val_contract`) that lets the rest of the pipeline recognize
-those symbols; tool 3 makes a contract reference to `dir_lookup(...)` lower
+The path, read end to end (generic, with the worked example in parentheses):
+tool 1 makes the axiom and its `val function` symbols (for the example,
+`slot_inode`, `slot_name`, `dir_lookup`) exist in the preamble; tool 2 wires
+up the per-module state (`_axiom_logic_funcs`, `_emitting_val_contract`) that
+lets the rest of the pipeline recognize those symbols; tool 3 makes a contract
+reference to a backing logic function (the example's `dir_lookup(...)`) lower
 to the *real* registry symbol instead of degrading into a fresh,
-axiom-unconstrained abstract op; tool 4 lets the syscall postcondition
-`(\result == 0) <==> dir_lookup(self.disk, 5, pathname) >= 0` — which mixes
-a self-field with a parameter — survive being propagated to a call site;
-tool 5 fixes emission ordering so the `val function` decls land before the
-abstract ops that reference them; tool 6 carries the imported predicate
-signatures and stub-citation surgery across the `import` boundary.
+axiom-unconstrained abstract op; tool 4 lets a postcondition that mixes a
+self-field with a parameter (the example's
+`(\result == 0) <==> dir_lookup(self.disk, 5, pathname) >= 0`) survive being
+propagated to a call site; tool 5 fixes emission ordering so the
+`val function` decls land before the abstract ops that reference them; tool 6
+carries the imported predicate signatures and stub-citation surgery across the
+`import` boundary.
 
-> **Honest scope note.** As of the spec-9 implementation report, the
-> os-LEVEL non-vacuity is demonstrated (the syscall postconditions prove
-> *only* via the binding), but the END-TO-END public-API flip is blocked on
-> a pre-existing module-global / logic-vs-program duality gap. Tool 6 is
-> therefore **dormant for the os case** (the importer deliberately keeps
-> `name_present` opaque to avoid an E-matching blow-up) but is part of the
-> same import-boundary surface and is documented here for completeness.
+> **Honest scope note (for the worked example).** As of the spec-9
+> implementation report, the os-LEVEL non-vacuity is demonstrated (the syscall
+> postconditions prove *only* via the binding), but the END-TO-END public-API
+> flip is blocked on a pre-existing module-global / logic-vs-program duality
+> gap. Tool 6 is therefore **dormant for the os case** (the importer
+> deliberately keeps `name_present` opaque to avoid an E-matching blow-up) but
+> is part of the same generic import-boundary surface and is documented here
+> for completeness. This caveat is a property of that one example, not of the
+> generic path.
 
 ---
 
@@ -96,7 +124,8 @@ truth* for both — the "make the axiom exist in the preamble" change.
 ### (c) Internal structure
 
 `_AXIOM_REGISTRY` is `Dict[str, str]`: dotted qualname → Why3 universal
-formula (the axiom body). The `UnixFs.Dir.scan_reflects_present` entry
+formula (the axiom body); any `MyModule.MyLemma` lands here. The worked
+example's `UnixFs.Dir.scan_reflects_present` entry
 (`preamble.py:123-131`) is the IFF
 
 ```
@@ -119,9 +148,9 @@ states that fact as a named axiom, so a caller can discharge the antecedent
 without a per-call class invariant. Callers cite both.
 
 `_AXIOM_FUNCTIONS` is `Dict[str, List[str]]`: a qualname *prefix* →
-declarations. The `"UnixFs.Dir."` entry (`preamble.py:207-211`) declares
-the three backing symbols as Why3 `val function` (both a program symbol and
-a logic symbol):
+declarations (one prefix per module family). The worked example's
+`"UnixFs.Dir."` entry (`preamble.py:207-211`) declares the three backing
+symbols as Why3 `val function` (both a program symbol and a logic symbol):
 
 ```
 val function slot_inode (disk: array int) (blk: int) (k: int) : int
@@ -173,14 +202,16 @@ def sys_access(self, pathname: str) -> int: ...
 The transpiler then injects both axioms into the module preamble, where
 they become hypotheses in scope for every goal in the module.
 
-**Maintainer.** To add a new axiom: (1) add the validated body to
-`_AXIOM_REGISTRY`, (2) if it mentions new logic symbols, add their
-`val function`/`predicate` decls under the right prefix in
+**Maintainer.** To add a new axiom — for *any* module, not just the worked
+example: (1) add the validated body to `_AXIOM_REGISTRY` keyed by
+`MyModule.MyLemma`, (2) if it mentions new logic symbols, add their
+`val function`/`predicate` decls under the right `MyModule.` prefix in
 `_AXIOM_FUNCTIONS`, (3) ship the paired Rocq + Lean proofs into
-`*.proofs/{rocq,lean}/` and document the family in
+`MyModule.proofs/{rocq,lean}/MyProof.{v,lean}` and document the family in
 `docs/glossary/axiom-registry.md`. The trust model
-([axiom-registry](glossary/axiom-registry.md)) requires a paired proof, no
-extraneous kernel axioms, and an `audit_proof.py` cross-check.
+([axiom-registry](glossary/axiom-registry.md)) and the generic Rocq + Lean
+pairing ([proof-companion](glossary/proof-companion.md)) require a paired
+proof, no extraneous kernel axioms, and an `audit_proof.py` cross-check.
 
 ---
 
@@ -265,14 +296,16 @@ property: any new behavior must be a no-op for files that do not trigger it.
 
 ### (a) Purpose
 
-A contract reference to `dir_lookup(self.disk, 5, pathname)` must lower to
-the *raw logic application* `(dir_lookup ...)` bound to the registry's
-`val function` symbol. The default lowering for an applied symbol with no
-native WhyML equivalent is an arity-suffixed abstract op (`dir_lookup_3`) —
-a *fresh, axiom-unconstrained* symbol. If the contract bound to
-`dir_lookup_3`, the cited axiom (which constrains `dir_lookup`) would say
-nothing about it, and the citation would be vacuous. This tool makes the
-citation refer to the real symbol — the load-bearing **risk-2 binding**.
+A contract reference to a backing logic function (the worked example's
+`dir_lookup(self.disk, 5, pathname)`) must lower to the *raw logic
+application* `(dir_lookup ...)` bound to the registry's `val function`
+symbol. The default lowering for an applied symbol with no native WhyML
+equivalent is an arity-suffixed abstract op (`dir_lookup_3`) — a *fresh,
+axiom-unconstrained* symbol. If the contract bound to `dir_lookup_3`, the
+cited axiom (which constrains `dir_lookup`) would say nothing about it, and
+the citation would be vacuous. This holds for any `MyModule.MyLemma` whose
+body mentions a backing function; this tool makes the citation refer to the
+real symbol — the load-bearing **risk-2 binding**.
 
 ### (b) What it does / feature list
 
@@ -331,10 +364,10 @@ fallback is never reached.
 def _dir_lookup(self, block_num: int, pathname: str) -> int: ...
 ```
 
-Once any function in the module cites a `UnixFs.Dir.*` axiom (or applies
-the symbol in a contract / inductive rule), `dir_lookup` is in
-`_axiom_logic_funcs` and lowers raw — so the contract is bound to the
-axiom-constrained symbol.
+Once any function in the module cites a `MyModule.*` axiom (in the example,
+a `UnixFs.Dir.*` axiom) — or applies the symbol in a contract / inductive
+rule — the backing function (here `dir_lookup`) is in `_axiom_logic_funcs`
+and lowers raw, so the contract is bound to the axiom-constrained symbol.
 
 **Maintainer.** The set membership is everything: a symbol binds raw iff it
 is in `_axiom_logic_funcs`, which tool 1's `_precompute_axiom_logic_funcs`
@@ -349,15 +382,19 @@ cited (or applied) qualname prefix in `_AXIOM_FUNCTIONS`.
 
 ### (a) Purpose
 
-The os syscall presence link is
-`(\result == 0) <==> dir_lookup(self.disk, 5, pathname) >= 0`. This `ensures`
-references **both** a self-field (`self.disk`) **and** a parameter
-(`pathname`). PyCSL propagates a callee's `ensures` to a call site through a
-family of maps, but the three pre-existing maps each reject the *other* leaf
-kind: result-only, result+param, and result+field. A clause mixing a
-self-field with a param fell through all three and propagated nowhere — so a
-caller that constructs a filesystem and calls a syscall could prove nothing
-about the result. This tool adds the missing fourth map (the A2c+ case).
+A registered axiom is often cited on a method whose `ensures` references
+**both** a self-field **and** a parameter — in the worked example, the os
+syscall presence link
+`(\result == 0) <==> dir_lookup(self.disk, 5, pathname) >= 0`, mixing the
+self-field `self.disk` and the parameter `pathname`. PyCSL propagates a
+callee's `ensures` to a call site through a family of maps, but the three
+pre-existing maps each reject the *other* leaf kind: result-only,
+result+param, and result+field. A clause mixing a self-field with a param
+fell through all three and propagated nowhere — so a caller that constructs
+the object and calls the method (in the example, constructs a filesystem and
+calls a syscall) could prove nothing about the result. This tool adds the
+missing fourth map (the A2c+ case); it serves any axiom citation of this
+mixed shape, not just the worked example.
 
 ### (b) What it does / feature list
 
@@ -442,9 +479,9 @@ map-building block.
 
 Abstract `val` declarations are accumulated during emission and spliced in
 as one block late, after the last `type` declaration. But an abstract op
-(e.g. a `_filesystem_sys_access` stub) may *reference* an axiom-backing
-`val function dir_lookup ...` that the preamble emits at a position at or
-after the chosen insert point. Why3 rejects a forward reference ("unbound
+(in the worked example, a `_filesystem_sys_access` stub) may *reference* an
+axiom-backing `val function` (the example's `dir_lookup ...`) that the
+preamble emits at a position at or after the chosen insert point. Why3 rejects a forward reference ("unbound
 symbol"). This tool advances the insert point past any such referenced
 axiom-function declaration so the abstract block lands after its
 dependencies.
@@ -512,23 +549,27 @@ together, and make sure the new kind is recorded in
 
 ### (a) Purpose
 
-The public `os` wrappers (`mkdir`, `access`) are imported into a driver
-(`from pure_lib.os import mkdir, access`). When PyCSL injects the imported
-function stubs, the logic symbols their contracts reference — the imported
-`#@ inductive name_present` predicate, and the module-global objects their
-self-field clauses name — must also be made available, with the correct
-types, on the importer side. This is the gap-8 lineage: the
-`#@ inductive` declaration was *dropped* across the import boundary, leaving
-`name_present(...)` as an unknown call that the abstract-op fallback
-emitted as an illegal program value. This tool carries the needed
-declarations and signatures across.
+When a module's public wrappers are imported into a driver, and those
+wrappers' contracts cite a registered axiom, the logic symbols the contracts
+reference — any imported `#@ inductive` predicate, and the module-global
+objects their self-field clauses name — must also be made available, with the
+correct types, on the importer side. (In the worked example the wrappers are
+the public `os` functions `mkdir`/`access`, imported via
+`from pure_lib.os import mkdir, access`, and the inductive predicate is
+`name_present`.) This is the gap-8 lineage: the `#@ inductive` declaration was
+*dropped* across the import boundary, leaving the predicate call (the
+example's `name_present(...)`) as an unknown call that the abstract-op
+fallback emitted as an illegal program value. This tool carries the needed
+declarations and signatures across — generically, for any
+import-of-an-inductive-predicate case.
 
-> **Dormant for the os case.** For `UnixFs.Dir`, the importer deliberately
-> does NOT cross the `name_present` rule (its `\exists k. slot_inode ...`
-> premise has a high-fan-out E-matching trigger that OOMs the large wrapper
-> VCs). Instead it strips the heavy scan-axiom citation from the injected
-> stub and keeps `name_present` opaque, recording only its signature. The
-> machinery below is the same surface used by gap-8/spec-8 for the general
+> **Dormant for the worked example (os case).** For `UnixFs.Dir`, the
+> importer deliberately does NOT cross the `name_present` rule (its
+> `\exists k. slot_inode ...` premise has a high-fan-out E-matching trigger
+> that OOMs the large wrapper VCs). Instead it strips the heavy scan-axiom
+> citation from the injected stub and keeps `name_present` opaque, recording
+> only its signature. This is a tuning choice for that one lemma family; the
+> machinery below is the same generic surface used by gap-8/spec-8 for any
 > import-of-an-inductive-predicate case.
 
 ### (b) What it does / feature list
@@ -624,7 +665,8 @@ via a lighter equivalent form.
 
 ## See also
 
-- [axiom-registry](glossary/axiom-registry.md) — the registry concept and trust model
-- `11-0743-convergence-spec-9.md` — the axiom + the binding (the validated Rocq + Lean proofs)
+- [axiom-registry](glossary/axiom-registry.md) — the registry concept and trust model (generic to any `MyModule.MyLemma`)
+- [proof-companion](glossary/proof-companion.md) — the generic Rocq + Lean pairing every registered axiom carries
+- `11-0743-convergence-spec-9.md` — the worked example's axiom + binding (the validated Rocq + Lean proofs)
 - `11-0743-convergence-gap-9.md` — the inductive lemma and the SMT wall
 - `11-0632-convergence-gap-8.md` / `11-0632-convergence-spec-8.md` — the import-boundary lineage of tool 6
