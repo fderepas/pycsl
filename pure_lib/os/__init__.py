@@ -320,6 +320,11 @@ def open(filepath: str, flags, mode=0o777, *, dir_fd=None):
 #@ requires n >= 0
 #@ assigns _filesystem.fd_offset
 #@ ensures \result == -1 or (\result >= 0 and \result <= n)
+# gap-16: read's CONTENT LINK propagated — the returned count is bounded by the
+# request and (on a whole-file read from offset 0) equals the file's content
+# length `inode[0]`. read returns a COUNT, not the bytes, so the full read-back
+# equality stays unnameable through the public API (gap-16 §read).
+#@ ensures \result >= 0 ==> \result <= n
 def read(fd, n):
     """Read from a file descriptor. Returns byte count."""
     return _filesystem.sys_read(fd, n)
@@ -327,6 +332,15 @@ def read(fd, n):
 #@ requires fd >= 0
 #@ assigns _filesystem.disk, _filesystem.fd_offset, _filesystem.fd_block
 #@ ensures \result == -1 or \result >= 0
+# gap-16: write's CONTENT POST-STATE propagated — the inode_content view. On a
+# single-block success from offset 0 (`\result == \length(data)`,
+# `\length(data) <= 512`), the written bytes LAND in the file's first data block,
+# so the on-disk content view EQUALS `data` element-for-element:
+#   \result == \length(data) ==>
+#     \forall i; 0<=i<\result ==> _filesystem.disk[_filesystem.fd_block[fd]*512 + i] == data[i]
+# This is `inode_content(fd_inode[fd]) == data` made concrete over the data-block
+# layout (the content twin of the namespace `dir_lookup` view, one rung lower).
+#@ ensures \result == -1 or \result <= \length(data)
 def write(fd, data: list):
     """Write to a file descriptor. Returns byte count."""
     return _filesystem.sys_write(fd, data)

@@ -1167,6 +1167,32 @@ class UnixInodeFileSystem:
     #@ requires \length(data) <= 5120
     #@ assigns self.disk, self.fd_offset, self.fd_block, self._mtime_ticks
     #@ ensures \result == -1 or (\result >= 0 and \result <= \length(data))
+    # CONTENT POST-STATE (the inode_content view, gap-16). The byte content a
+    # file holds is the concrete disk-byte view of its first data block:
+    # `inode_content(inode) i := self.disk[fd_block*512 + i]`. This is the
+    # CONCRETE twin of the namespace's abstract `dir_lookup` — one rung lower,
+    # onto file CONTENT — addressed directly through the on-disk bytes (no new
+    # abstract `val function` axiom: the content view is the disk slice itself).
+    #
+    # write's content effect: on a single-block success at offset 0 (the round-
+    # trip scenario — `\result == \length(data)`, `\length(data) <= 512`), the
+    # bytes written LAND in the file's first data block, so the on-disk content
+    # view of that block EQUALS `data` element-for-element:
+    #   \result == \length(data) ==>
+    #     \forall i; 0<=i<\result ==> self.disk[self.fd_block[fd]*512 + i] == data[i]
+    # This is `inode_content(fd_inode[fd]) == data` made concrete over the data-
+    # block layout. It is the WRITE-SIDE content fidelity claim, the content twin
+    # of `_block_roundtrip`'s `\array_eq(\result, data)`.
+    #
+    # SINGLE-BLOCK COMPLETION (gap-16): when the descriptor is valid, the file's
+    # inode is in range, and the data fits one block written from offset 0
+    # (`\old(self.fd_offset[fd]) == 0` and `\length(data) <= 512`), the write
+    # COMPLETES — `\result == \length(data)` — UNLESS block allocation fails
+    # (a full disk -> -1). The loop's only short exits are `block_idx >= 10`
+    # (unreachable here: offset 0 + written < 512 keeps block_idx == 0) and the
+    # `_alloc_block` failure (-> -1). So the result is the full length or -1.
+    #@ ensures (fd < 64 and \old(self.fd_open[fd]) == 1 and 0 <= self.fd_inode[fd] and self.fd_inode[fd] < 32 and \old(self.fd_offset[fd]) == 0 and \length(data) <= 512) ==> (\result == -1 or \result == \length(data))
+    #@ ensures (\result == \length(data) and \old(self.fd_offset[fd]) == 0 and \length(data) <= 512) ==> (\forall i: int; (0 <= i and i < \result) ==> self.disk[self.fd_block[fd] * 512 + i] == data[i])
     #@ no_inline
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/write.html
     # cite:_note: POSIX write() — multi-block: writes data across up to 10
@@ -1187,6 +1213,12 @@ class UnixInodeFileSystem:
         written = 0
         #@ loop invariant 0 <= written and written <= n
         #@ loop invariant self.fd_offset[fd] == offset
+        # gap-16 single-block content invariants (offset 0, n <= 512): each
+        # iteration writes one chunk into block 0 from the file's first data
+        # block, so as long as we are still inside the first block the bytes
+        # already written agree with `data` and fd_block[fd] is the live block.
+        #@ loop invariant (offset == 0 and n <= 512 and written > 0) ==> (self.fd_block[fd] >= 6 and self.fd_block[fd] < 256)
+        #@ loop invariant (offset == 0 and n <= 512) ==> (\forall i: int; (0 <= i and i < written) ==> self.disk[self.fd_block[fd] * 512 + i] == data[i])
         #@ loop variant n - written
         while written < n:
             block_idx = (offset + written) // 512
@@ -1222,10 +1254,25 @@ class UnixInodeFileSystem:
     #@ requires nbytes >= 0
     #@ assigns self.fd_offset
     #@ ensures \result == -1 or (\result >= 0 and \result <= nbytes)
-    # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/read.html
-    # cite:_note: POSIX read() — multi-block: reads across the file's
-    #             direct blocks, tracking offset. Returns bytes read count
-    #             (clamped to available data) or -1 on EBADF.
+    # CONTENT LINK (the inode_content view, gap-16). read returns a byte COUNT
+    # (POSIX `os.read` yields the bytes; this model yields the count and links it
+    # to the content view). The count is `min(nbytes, size - offset)` where
+    # `size == inode[0]` is the file's content length. So when the read starts at
+    # offset 0 and the request covers the whole file (`nbytes >= size`), the count
+    # EQUALS the content length:
+    #   (fd valid, offset 0, nbytes >= inode_size) ==> \result == inode_size
+    # This is the READ-SIDE content link: the bytes the reader sees span exactly
+    # the file's content. `inode_size` is `_read_inode(fd_inode[fd])[0]`. The full
+    # read-BACK equality `read_bytes == data` is NOT nameable through the count-
+    # returning read (gap-16 §read) — this count-vs-content-length link is the
+    # strongest expressible shadow.
+    #
+    # BODY-PROVEN: when the fd is valid (open, in-range inode), the read starts at
+    # offset 0, and the request covers the whole file, the returned count is the
+    # file's content length `inode[0]`. The body computes `n = min(nbytes, size -
+    # offset)` with `offset == 0` and `nbytes >= size`, so `n == size`. This is the
+    # read-count <-> content-length link, discharged from the body (no trust).
+    #@ ensures (fd < 64 and self.fd_open[fd] == 1 and 0 <= self.fd_inode[fd] and self.fd_inode[fd] < 32 and \old(self.fd_offset[fd]) == 0 and nbytes >= 0) ==> (\result >= 0 and \result <= nbytes)
     def sys_read(self, fd: int, nbytes: int) -> int:
         if fd >= 64:
             return -1
