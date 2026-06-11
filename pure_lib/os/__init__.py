@@ -325,6 +325,12 @@ def open(filepath: str, flags, mode=0o777, *, dir_fd=None):
 # length `inode[0]`. read returns a COUNT, not the bytes, so the full read-back
 # equality stays unnameable through the public API (gap-16 §read).
 #@ ensures \result >= 0 ==> \result <= n
+# gap-17: the SIZE link propagated to the public API. On a whole-file read from
+# offset 0 (n >= inode_size, size non-negative), the count EQUALS the reopened
+# inode's SIZE field. This is the read end of the content round-trip: with
+# write's SIZE post-state and open's reopen frame, read(reopen(p)) == len(data)
+# is now derivable THROUGH THE API.
+#@ ensures (fd < 64 and _filesystem.fd_open[fd] == 1 and 0 <= _filesystem.fd_inode[fd] and _filesystem.fd_inode[fd] < 32 and \old(_filesystem.fd_offset[fd]) == 0 and inode_size(_filesystem.disk, _filesystem.fd_inode[fd]) >= 0 and n >= inode_size(_filesystem.disk, _filesystem.fd_inode[fd])) ==> \result == inode_size(_filesystem.disk, _filesystem.fd_inode[fd])
 def read(fd, n):
     """Read from a file descriptor. Returns byte count."""
     return _filesystem.sys_read(fd, n)

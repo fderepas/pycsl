@@ -650,6 +650,18 @@ class UnixInodeFileSystem:
     #@ requires inode_num < 32
     #@ assigns \nothing
     #@ ensures \length(\result) == 18
+    # SIZE-FIELD DECODE (gap-17): the read-side twin of _write_inode's line-681
+    # write-side decode ensures. \result[0] (the inode SIZE field) is
+    # inode_size(self.disk, inode_num) — the big-endian uint32 decode of the four
+    # on-disk bytes at 512 + inode_num*64 (the DEFINED logic function in
+    # _AXIOM_FUNCTIONS, = the concrete decode, ZERO trust / ZERO registry axiom).
+    # BODY-PROVEN: the body returns _unpack_inode(disk[off:off+64]), and
+    # _unpack_inode ensures \result[0] == data[0]*16777216 + ... + data[3]
+    # (line 175); the slice gives data[j] == disk[off+j], and inode_size unfolds
+    # to exactly that decode. Composed with _write_inode's write-side ensures,
+    # this gives the inode SIZE round-trip _read_inode(_write_inode(.., inode))[0]
+    # == inode[0] across the abstract reopen — the content round-trip's size rung.
+    #@ ensures \result[0] == inode_size(self.disk, inode_num)
     # cite:_note: De-trusted by the data-model rewrite
     #             (remove-trusted-unixfs.md). An inode is an 18-element
     #             `array int` in struct '>IHHHHHII10Ixx' field order:
@@ -1273,6 +1285,16 @@ class UnixInodeFileSystem:
     # offset)` with `offset == 0` and `nbytes >= size`, so `n == size`. This is the
     # read-count <-> content-length link, discharged from the body (no trust).
     #@ ensures (fd < 64 and self.fd_open[fd] == 1 and 0 <= self.fd_inode[fd] and self.fd_inode[fd] < 32 and \old(self.fd_offset[fd]) == 0 and nbytes >= 0) ==> (\result >= 0 and \result <= nbytes)
+    # gap-17: the SIZE link MADE CONCRETE. On a whole-file read from offset 0
+    # (nbytes >= inode_size, size non-negative), the returned count EQUALS the
+    # reopened inode's SIZE field — inode_size(self.disk, self.fd_inode[fd]).
+    # BODY-PROVEN, ZERO TRUST: the body sets size = inode[0] =
+    # inode_size(disk, fd_inode[fd]) (via _read_inode's gap-17 ensures), then
+    # n = min(nbytes, size - 0) = size since nbytes >= size >= 0; read assigns
+    # only fd_offset so disk/fd_inode (hence inode_size) are unchanged. This is
+    # the read end of the content round-trip: composed with sys_write's SIZE
+    # post-state and sys_open's reopen frame, read(reopen(p)) returns len(data).
+    #@ ensures (fd < 64 and self.fd_open[fd] == 1 and 0 <= self.fd_inode[fd] and self.fd_inode[fd] < 32 and \old(self.fd_offset[fd]) == 0 and inode_size(self.disk, self.fd_inode[fd]) >= 0 and nbytes >= inode_size(self.disk, self.fd_inode[fd])) ==> \result == inode_size(self.disk, self.fd_inode[fd])
     def sys_read(self, fd: int, nbytes: int) -> int:
         if fd >= 64:
             return -1

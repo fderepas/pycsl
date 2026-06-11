@@ -335,6 +335,22 @@ class PreambleEmissionMixin:
             "(int, int, int, int, int, int, int, int, int, "
             "int, int, int, int, int, int, int, int, int)",
         ],
+        # UnixFs.Content (gap-17): the inode SIZE view. `inode_size disk ino`
+        # is the big-endian uint32 decode of the four on-disk bytes at
+        # 512 + ino*64 (the inode SIZE field, struct '>I...' field 0). It is a
+        # DEFINED logic function (= the concrete decode), NOT an abstract
+        # `val function` + axiom — so it adds ZERO trust and ZERO registry axiom:
+        # Why3 unfolds the definition, and _read_inode/_write_inode's body-proven
+        # decode ensures already establish the bytes. Naming it keeps the content
+        # round-trip contracts (sys_read returns it, sys_write sets it, sys_open
+        # frames it) legible across the abstract close/reopen. Emitted only when a
+        # contract references `inode_size(...)` (the os model) — other files stay
+        # byte-identical.
+        "UnixFs.Content.": [
+            "function inode_size (disk: array int) (ino: int) : int =\n"
+            "    disk[512 + ino*64 + 0] * 16777216 + disk[512 + ino*64 + 1] * 65536\n"
+            "    + disk[512 + ino*64 + 2] * 256 + disk[512 + ino*64 + 3]",
+        ],
         # UnixFs.Dir: the directory-scan reflection axiom's backing symbols.
         # `slot_inode`/`slot_name` are the abstract per-slot decode (disk, blk,
         # k) -> inode / name; `dir_lookup` is the logic model of the bounded
