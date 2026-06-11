@@ -243,6 +243,38 @@ def _contract_referenced_var_names(dep_funcs: List[Dict[str, Any]]) -> Set[str]:
     return referenced
 
 
+def _find_record_type_from_dep_imports(
+        rec_name: str, dep_file: str, cache: Dict[str, Any],
+        deep: bool, processing_set: Set[str]) -> Optional[Dict[str, Any]]:
+    """11-1039-spec-10 (multi-hop): a propagated module-global's record TYPE may
+    not live in its own module's `type_decls` — the os PACKAGE (`os/__init__.py`)
+    instantiates `_filesystem = UnixInodeFileSystem()` but only IMPORTS the
+    `UnixInodeFileSystem` record (`from .UnixInodeFileSystem import …`); with the
+    standard `--deep`-off pipeline the package's own imports are not transitively
+    resolved, so the record is absent from the package IR's `type_decls`. Follow
+    the dependency's OWN `imports` one hop to the module that DEFINES `rec_name`,
+    process it, and return its `type_decl`. Returns None if not found (fail-loud
+    downstream: an unbound type, never a silently-unsound emission)."""
+    dep_ir = cache.get(os.path.abspath(dep_file)) or {}
+    for entry in dep_ir.get("imports", []):
+        # [local, original, module, level, is_module]
+        if len(entry) < 5:
+            continue
+        local, original, module, level, _is_mod = entry[:5]
+        if local != rec_name:
+            continue
+        sub_resolved = _resolve_module_path(module, level, dep_file)
+        if sub_resolved is None:
+            continue
+        _process_dependency(sub_resolved, [], cache, deep=deep,
+                            processing_set=processing_set)
+        sub_ir = cache.get(os.path.abspath(sub_resolved)) or {}
+        for td in sub_ir.get("type_decls", []):
+            if td.get("name") == original:
+                return td
+    return None
+
+
 def _contract_referenced_names(dep_funcs: List[Dict[str, Any]]) -> Set[str]:
     """Collect every callee name applied inside the contracts (`requires`/`ensures`)
     of the injected dependency stubs. Used by 11-0632-spec-8 Part 1 to scope inductive
@@ -264,6 +296,40 @@ def _contract_referenced_names(dep_funcs: List[Dict[str, Any]]) -> Set[str]:
         contracts = func.get("contracts", {}) or {}
         _walk(contracts.get("requires", []))
         _walk(contracts.get("ensures", []))
+    return referenced
+
+
+def _contract_referenced_var_names(dep_funcs: List[Dict[str, Any]]) -> Set[str]:
+    """Collect every bare-variable name read inside the contracts
+    (`requires`/`ensures`/`assigns`) of the injected dependency stubs — both
+    plain `Var` references and the `object` of an `Attribute` projection
+    (`_filesystem.disk` → `_filesystem`). Used by 11-1039-spec-10 to scope
+    module-global propagation to ONLY the globals an injected public contract
+    actually references (so unrelated dependency globals do not cross the import
+    boundary, keeping the propagation byte-additive)."""
+    referenced: Set[str] = set()
+
+    def _walk(node: Any) -> None:
+        if isinstance(node, dict):
+            ntype = node.get("type")
+            if ntype == "Var" and isinstance(node.get("name"), str):
+                referenced.add(node["name"])
+            elif ntype == "Attribute":
+                obj = node.get("object")
+                if isinstance(obj, dict) and obj.get("type") == "Var" \
+                        and isinstance(obj.get("name"), str):
+                    referenced.add(obj["name"])
+            for v in node.values():
+                _walk(v)
+        elif isinstance(node, (list, tuple)):
+            for v in node:
+                _walk(v)
+
+    for func in dep_funcs:
+        contracts = func.get("contracts", {}) or {}
+        _walk(contracts.get("requires", []))
+        _walk(contracts.get("ensures", []))
+        _walk(contracts.get("assigns", []))
     return referenced
 
 
@@ -346,6 +412,56 @@ def _resolve_direct_imports(direct_imports: List[Any], all_calls: Set[str], main
                 if names_of_d & referenced:
                     tgt.append(copy.deepcopy(d))
                     have.add(d["name"])
+        # 11-1039-spec-10 (carry a contract-referenced MODULE-GLOBAL across the
+        # import boundary): an injected stub's `#@ ensures` may project a field of
+        # a dependency module-level global object — `dir_lookup(_filesystem.disk,
+        # 5, name) >= 0`. The dependency emits the global as a `let`-bound record
+        # (`let _filesystem : unixinodefilesystem = <literal>`, preamble.py
+        # `_emit_module_globals`) whose `.disk` projection is a LEGAL logic
+        # record-field accessor. But the importer never received `module_globals`,
+        # so `_module_global_classes` is empty and the contract reference falls
+        # back to the opaque program forms (`val constant _filesystem : int` +
+        # `val get_disk`, illegal in `ensures`). Mirror the `module_constants` /
+        # `inductive_decls` propagation: copy the dep's `module_globals` (and the
+        # record type each names) into the importer, de-duped by name, scoped to
+        # the globals the INJECTED contracts actually reference (so unrelated
+        # dependency globals do not cross). Module6 then re-emits the SAME
+        # `let`-bound record and the contract resolves through the working
+        # in-module branches (expressions.py 1929-1934 / 1976-1977) — byte-
+        # identically to how the dependency itself emits it. Option B of the spec
+        # (the only type-checking form: the disk is a mutable `array int`, so a
+        # standalone pure accessor is rejected by Why3).
+        dep_globals = (cache.get(os.path.abspath(resolved), {}) or {}).get("module_globals", [])
+        if dep_globals:
+            ref_vars = _contract_referenced_var_names(dep_funcs)
+            tgt_g = ir_data.setdefault("module_globals", [])
+            have_g = {g["name"] for g in tgt_g}
+            # The record TYPE each propagated global names must survive into the
+            # importer's `type_decls` (risk 2: the global re-references a record
+            # that is otherwise pruned/never-imported, so `_filesystem.disk` must
+            # resolve as the record-field projection, not the opaque fallback).
+            dep_types = {td.get("name"): td
+                         for td in (cache.get(os.path.abspath(resolved), {}) or {}).get("type_decls", [])}
+            tgt_t = ir_data.setdefault("type_decls", [])
+            have_t = {td.get("name") for td in tgt_t}
+            for g in dep_globals:
+                if g["name"] in have_g or g["name"] not in ref_vars:
+                    continue
+                tgt_g.append(copy.deepcopy(g))
+                have_g.add(g["name"])
+                rec_name = g.get("class")
+                if rec_name and rec_name not in have_t:
+                    rec_td = dep_types.get(rec_name)
+                    if rec_td is None:
+                        # Multi-hop: the package instantiates the global but only
+                        # IMPORTS its record type (os/__init__ →
+                        # UnixInodeFileSystem) — follow the dep's own imports one
+                        # hop to the defining module and pull the record there.
+                        rec_td = _find_record_type_from_dep_imports(
+                            rec_name, resolved, cache, deep, processing_set)
+                    if rec_td is not None:
+                        tgt_t.append(copy.deepcopy(rec_td))
+                        have_t.add(rec_name)
         resolved_locals = [local for local, _ in needed]
         if resolved_locals:
             print(f"[*] Imported from '{module_path}': {resolved_locals} (trusted stubs)")

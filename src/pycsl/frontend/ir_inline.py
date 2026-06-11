@@ -354,11 +354,17 @@ def _check_no_aliasing(funcs: List[Dict[str, Any]], globals_set: Set[str]) -> No
 
 
 def _inline_calls(funcs: List[Dict[str, Any]], globals_set: Set[str],
-                  g_class: Dict[str, str]) -> None:
+                  g_class: Dict[str, str],
+                  rewrite_funcs: Optional[List[Dict[str, Any]]] = None) -> None:
     recursive = _recursive_methods(funcs, globals_set, g_class)
     no_inline = {f["name"] for f in funcs if f.get("no_inline")}
     inliner = _Inliner(funcs, globals_set, g_class, recursive, no_inline)
-    for f in funcs:
+    # `funcs` (all) populates the inliner's callee map; only `rewrite_funcs`
+    # bodies are rewritten in place (defaults to all funcs — 11-1039-spec-10
+    # passes the non-trusted subset so emission-dead trusted-stub bodies, whose
+    # `g.method()` receivers reference methods the importer never imported, are
+    # not walked).
+    for f in (rewrite_funcs if rewrite_funcs is not None else funcs):
         body = f.get("body", [])
         for _ in range(_MAX_INLINE_DEPTH):
             new_body = inliner.inline_stmts(body)
@@ -381,14 +387,28 @@ def apply_inline_globals(ir_data: Dict[str, Any]) -> None:
     g_class = {g["name"]: g["class"] for g in globals_list}
     funcs = ir_data.get("functions", [])
 
+    # 11-1039-spec-10: an IMPORTED trusted stub (a `\trusted` cross-module wrapper,
+    # e.g. `os.rmdir`) keeps its source body in the IR for provenance, but Module6
+    # emits it body-less as a `val` defined by its contract alone — the body is
+    # never verified or emitted. With the dependency's `module_globals` now
+    # propagated (so `_filesystem.disk` types in the importer's contracts), that
+    # dead wrapper body would otherwise be walked by the inliner, which tries to
+    # inline its `_filesystem.sys_rmdir()` receivers against method records the
+    # importer never imported — a spurious pipeline error on emission-dead code.
+    # Exclude trusted stubs from the body-walking phases: their bodies are not part
+    # of what is emitted/verified, so inlining/aliasing-checking them is a no-op.
+    body_funcs = [f for f in funcs if not f.get("trusted")]
+
     # Phase 3: a module global is a single named object — forbid aliasing it (binding it
     # to a local or passing it as an argument), which would reintroduce the aliasing the
     # one-name model avoids. Checked on the ORIGINAL bodies (before inlining rewrites the
     # `g.m(args)` receivers away).
-    _check_no_aliasing(funcs, globals_set)
+    _check_no_aliasing(body_funcs, globals_set)
 
     # Phase 2/3: inline method calls on globals (recursion-guarded, depth-bounded).
-    _inline_calls(funcs, globals_set, g_class)
+    # `funcs` (all) feeds the inliner's callee-lookup / recursion machinery;
+    # `body_funcs` (non-trusted) are the only bodies actually rewritten.
+    _inline_calls(funcs, globals_set, g_class, rewrite_funcs=body_funcs)
 
     # Phase 1: a function that (now) reads/writes a global field is not a pure logic
     # function — demote it so Module 6 emits a program `let` with the inferred effect.
