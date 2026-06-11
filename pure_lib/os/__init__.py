@@ -153,6 +153,13 @@ def dup(fd):
 #@ ensures \result == -1 or (\result >= 0 and \result < 32)
 def fstat(fd):
     """Get file status by file descriptor. Returns inode number."""
+    # gap-14: sys_fstat REPORTS the resolved inode `fd_inode[fd]` (fd_resolves) for
+    # an open, in-range fd with a valid stored inode (proven body-side on
+    # sys_fstat). The fd-table-keyed resolution CANNOT be re-stated on THIS wrapper:
+    # the contract grammar admits `self.<field>[i]` (field_subscript) but NOT
+    # subscripting a module-global's array field (`_filesystem.fd_inode[fd]`), so
+    # the fstat consequence cannot compose through the public API. See
+    # DD-1845-convergence-gap-15.md (the gap-10-lineage grammar extension).
     return _filesystem.sys_fstat(fd)
 
 #@ requires True
@@ -277,8 +284,16 @@ def unlink(filepath: str, *, dir_fd=None):
 #@ requires True
 #@ assigns _filesystem.disk, _filesystem.fd_open, _filesystem.fd_inode, _filesystem.fd_offset, _filesystem.fd_flags, _filesystem.fd_block, _filesystem.next_fd
 #@ ensures \result == -1 or \result >= 3
+#@ ensures (\result >= 3) <==> (dir_lookup(_filesystem.disk, 5, filepath) >= 0)
+#@ ensures (\result == -1) <==> (dir_lookup(_filesystem.disk, 5, filepath) < 0)
 def open(filepath: str, flags, mode=0o777, *, dir_fd=None):
     """Open a file. Returns a file descriptor."""
+    # gap-14: sys_open carries the fd-RESOLUTION + ENOENT discriminant tied to the
+    # namespace view `dir_lookup(_filesystem.disk, 5, filepath)` — a valid fd (>= 3)
+    # iff the name resolves, with `fd_inode[result]` resolving to the path's inode
+    # (the fd-chain analogue of gap-9, one rung lower). Propagated here so a caller
+    # sees: open(existing) >= 3, open(absent O_RDONLY) == -1, and fstat(open(p))
+    # reports the resolved inode (composing on the now-proven namespace).
     return _filesystem.sys_open(filepath, flags)
 
 #@ requires fd >= 0
