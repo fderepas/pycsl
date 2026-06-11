@@ -170,6 +170,49 @@ class PreambleEmissionMixin:
             "( forall k : int. 0 <= k < 16 -> k <> s -> "
             "    slot_name disk blk k = name -> slot_inode disk blk k = 0 ) -> "
             "dir_lookup disk blk name < 0",
+
+        # UnixFs.Dir.insert_preserves_unique (gap-12) — the INSERT companion of
+        # remove_reflects_absent and the MAINTENANCE lemma for the directory-
+        # uniqueness class invariant. Over two disks d0 (pre-write) and d1
+        # (post-write) related by the _write_entry slot-locality frame: if the
+        # no-duplicate-live-names invariant holds on d0, and slot s becomes live
+        # with a name nm that was NOT already live on d0 (the EEXIST guard), and
+        # every OTHER slot agrees byte-for-byte with d0 (the frame), THEN the
+        # invariant is preserved on d1. Faithful (NOT over-strong): it asserts
+        # ONLY the structural fact that a fresh-name single-slot insert under an
+        # unchanged frame cannot manufacture a duplicate live-name pair — it says
+        # nothing about the decode-vs-bytes correspondence (that stays in the
+        # trusted dirscan-fidelity decode ensures). Same trust KIND as
+        # remove_reflects_absent; the remover side needs NO axiom (clearing a slot
+        # only shrinks the live set, discharged directly in WhyML). Reuses the
+        # SAME slot_inode/slot_name symbols (no new _AXIOM_FUNCTIONS entry).
+        # Cross-validated by
+        # unix-filesystem/UnixInodeFileSystem.proofs/{rocq,lean}/InsertPreservesUnique.{v,lean}
+        # (theorem insert_preserves_unique): a finite 4-way case split, no
+        # induction. Rocq 8.20.1: Closed under the global context (0 Axiom/Admitted,
+        # only the abstract Section Variables); Lean 4.30.0: #print axioms =
+        # [propext, Quot.sound] subseteq allowlist, no sorry.
+        "UnixFs.Dir.insert_preserves_unique":
+            "forall d0 : array int. forall d1 : array int. forall blk : int. "
+            "forall s : int. forall nm : string. "
+            "( forall j : int. 0 <= j < 16 -> slot_inode d0 blk j >= 0 ) -> "
+            "( 0 <= s < 16 ) -> "
+            "( forall i j : int. 0 <= i < 16 -> 0 <= j < 16 -> "
+            "    slot_inode d0 blk i <> 0 -> slot_inode d0 blk i < 32 -> "
+            "    slot_inode d0 blk j <> 0 -> slot_inode d0 blk j < 32 -> "
+            "    slot_name d0 blk i = slot_name d0 blk j -> i = j ) -> "
+            "( forall k : int. 0 <= k < 16 -> "
+            "    slot_inode d0 blk k <> 0 -> slot_inode d0 blk k < 32 -> "
+            "    slot_name d0 blk k <> nm ) -> "
+            "( forall k : int. 0 <= k < 16 -> k <> s -> "
+            "    slot_inode d1 blk k = slot_inode d0 blk k /\\ "
+            "    slot_name  d1 blk k = slot_name  d0 blk k ) -> "
+            "( slot_inode d1 blk s <> 0 -> slot_inode d1 blk s < 32 ) -> "
+            "( slot_name  d1 blk s = nm ) -> "
+            "( forall i j : int. 0 <= i < 16 -> 0 <= j < 16 -> "
+            "    slot_inode d1 blk i <> 0 -> slot_inode d1 blk i < 32 -> "
+            "    slot_inode d1 blk j <> 0 -> slot_inode d1 blk j < 32 -> "
+            "    slot_name d1 blk i = slot_name d1 blk j -> i = j )",
     }
 
     # Functions that an axiom block needs declared. Looked up by qualname
@@ -686,6 +729,40 @@ class PreambleEmissionMixin:
             for m in [ind] + ind.get("members", []):
                 for (_rname, clause_ir) in m.get("rules", []):
                     _walk(clause_ir)
+        return hit
+
+    def _class_inv_refs_axiom_func(self, ir: Dict[str, Any]) -> bool:
+        """gap-12: True iff some `#@ class invariant` IR node applies an
+        axiom-backing logic function (`_axiom_logic_funcs`, e.g. `slot_inode`/
+        `slot_name`/`dir_lookup`). Gates the axiom-func-decls-before-record
+        reorder (mirroring the gap-9 conditional reorder) so ONLY a module whose
+        class invariant cites such a symbol triggers it; every existing corpus
+        class invariant references only `\\length`/`self.disk[i]`/scalars, so the
+        gate is False for the whole corpus and the type-decl emission stays
+        byte-identical. Requires `_precompute_axiom_logic_funcs` to have run."""
+        axiom_fns = getattr(self, "_axiom_logic_funcs", set())
+        if not axiom_fns:
+            return False
+
+        hit = False
+
+        def _walk(node: Any) -> None:
+            nonlocal hit
+            if hit:
+                return
+            if isinstance(node, dict):
+                if node.get("type") == "Call" and node.get("func") in axiom_fns:
+                    hit = True
+                    return
+                for v in node.values():
+                    _walk(v)
+            elif isinstance(node, list):
+                for v in node:
+                    _walk(v)
+
+        for td in ir.get("type_decls", []):
+            for inv in td.get("class_invariants", []):
+                _walk(inv)
         return hit
 
     def _precompute_axiom_logic_funcs(self, ir: Dict[str, Any]) -> None:

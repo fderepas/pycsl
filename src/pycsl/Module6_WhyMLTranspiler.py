@@ -387,6 +387,28 @@ class Module6_WhyMLTranspiler(
         out = self._emit_preamble(needs)
         out += self._emit_shared_state()
 
+        # gap-12 Wall A part 1: populate `_axiom_logic_funcs` BEFORE
+        # `_emit_type_decls` so a `#@ class invariant` that applies an axiom
+        # function (`slot_inode`/`slot_name`/`dir_lookup`) lowers it to the raw
+        # bound application `(f args)` instead of an unbound arity-suffixed
+        # abstract op (`slot_inode_3`). Idempotent (re-run at L407+ and inside
+        # `_emit_preamble_axioms`), so a file whose invariants don't apply an
+        # axiom func is unaffected → byte-identical.
+        self._precompute_axiom_logic_funcs(self.ir)
+
+        # gap-12 Wall A part 2: when a class invariant references an axiom
+        # function, emit the matching `val function` decls BEFORE the record type
+        # that names them (else the `invariant { ... slot_inode ... }` references
+        # symbols declared later in the file → unbound). GATED by
+        # `_class_inv_refs_axiom_func` (mirroring the gap-9 conditional reorder):
+        # False for the whole existing corpus (os's 13 class invariants reference
+        # only `\length`/`self.disk[i]`/scalars), so nothing reorders and the
+        # type-decl emission stays byte-identical. The dedup via
+        # `_axiom_emitted_decls` keeps the later `_emit_preamble_axioms` /
+        # `_emit_uncited_axiom_func_decls` from re-declaring these symbols.
+        if self._class_inv_refs_axiom_func(self.ir):
+            out += self._emit_uncited_axiom_func_decls()
+
         type_lines, declared_types = self._emit_type_decls(type_decls)
         out += type_lines
 

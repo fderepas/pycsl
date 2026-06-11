@@ -443,6 +443,40 @@ def _unpack_direntry(data: list) -> tuple:
 #@ class invariant self.cur_uid >= 0
 #@ class invariant self.cur_gid >= 0
 #@ class invariant self._mtime_ticks >= 0
+# DIRECTORY UNIQUENESS INVARIANT (gap-12) — the STATABLE (Wall A lifted) but
+# NOT-YET-DISCHARGEABLE replacement for the trusted uniqueness ensures on
+# `_dir_find_slot`. Block 5 (the root directory) never holds two DISTINCT live
+# slots that decode to the same name. Stated over the registered `UnixFs.Dir.*`
+# abstract symbols `slot_inode`/`slot_name`:
+#
+#   #@ class invariant \forall i: int; \forall j: int; (0 <= i and i < 16 and
+#        0 <= j and j < 16 and slot_inode(self.disk, 5, i) != 0 and
+#        slot_inode(self.disk, 5, i) < 32 and slot_inode(self.disk, 5, j) != 0 and
+#        slot_inode(self.disk, 5, j) < 32 and
+#        slot_name(self.disk, 5, i) == slot_name(self.disk, 5, j)) ==> i == j
+#
+# The gap-12 Wall A tool fix (`_class_inv_refs_axiom_func` gate +
+# `_precompute_axiom_logic_funcs` before `_emit_type_decls`) makes it STATABLE:
+# it now lowers to the raw bound `slot_inode disk 5 i` application, declared
+# before the record. But as a CLASS INVARIANT it is NOT yet dischargeable, for
+# two reasons surfaced when it was activated (see 11-1404-convergence-gap-13.md):
+#  (1) ESTABLISHMENT is not vacuous. The constructor / `_filesystem` global
+#      witness is a raw `Array.make 131072 0`; `slot_inode`/`slot_name` are
+#      UNINTERPRETED `val function`s, so SMT cannot derive that a zeroed disk has
+#      all 16 slots dead (`slot_inode zeros 5 i = 0`) — it needs an
+#      empty-disk-decode fact (`slot_inode` of an all-zero region is 0), a new
+#      cross-validated axiom not yet registered. So the construction VC is Unknown.
+#  (2) MAINTENANCE leaks past the 7 directory mutators. A class invariant is a
+#      proof obligation on EVERY method with `assigns self.disk` — including
+#      non-directory writers (chmod/_write_inode, write, truncate, ...) that
+#      never touch block 5. Their VC re-proves uniqueness over the abstract
+#      `slot_inode disk 5 i` after a full-disk write and balloons (chmod TIMED
+#      OUT at 30s / 232M steps). Per-mutator `insert_preserves_unique` citations
+#      were added to the 7 directory adders/removers (retained below), but the
+#      establishment + non-directory-maintenance VCs (3 goals) wall.
+# Until a follow-on lands the empty-disk-decode axiom AND scopes the maintenance
+# to block-5 writers (the gap-13 work), the invariant is kept INACTIVE and
+# uniqueness remains the trusted `_dir_find_slot` ensures (clearly marked there).
 class UnixInodeFileSystem:
     BLOCK_SIZE = 512
     NUM_BLOCKS = 256  # 128 KB Virtual Disk Block Device
@@ -777,20 +811,34 @@ class UnixInodeFileSystem:
     #             RISK-2 BINDING (gap-11): the read-side decode↔bytes fidelity
     #             of the lookup, the DUAL of `_write_entry`'s write-side claim and
     #             the same human-reviewed trust class as `_dir_lookup`'s
-    #             `dir_lookup` binding (spec risk 6.2):
-    #             - the `\result` slot decodes to a LIVE entry named `pathname`
-    #               (`slot_inode != 0`, `slot_name == pathname`);
-    #             - UNIQUENESS: no OTHER live slot decodes to `pathname`. This is
-    #               TRUE of every reachable root-dir block 5 — `sys_mkdir`,
-    #               `sys_link` (with its EEXIST guard), `sys_open` O_CREAT and
-    #               `sys_symlink` each REJECT a name already live, so block 5
-    #               never holds two live slots with the same name (gap-11 §3c's
-    #               directory uniqueness invariant). Stated here, read off the
-    #               disk at the lookup, rather than carried as a class invariant
-    #               whose preservation re-proof across all block-5 mutators
-    #               balloons the E-matching surface. This is the uniqueness
-    #               HYPOTHESIS that `remove_reflects_absent` needs at the removal
-    #               call site.
+    #             `dir_lookup` binding (spec risk 6.2): the `\result` slot decodes
+    #             to a LIVE entry named `pathname` (`slot_inode != 0`,
+    #             `slot_name == pathname`).
+    #
+    #             UNIQUENESS (the 3rd ensures): no OTHER live slot decodes to
+    #             `pathname`. *** STILL TRUSTED — PENDING the proven class
+    #             invariant. *** The user-directed END STATE is for this clause to
+    #             FOLLOW from a maintained directory-uniqueness CLASS INVARIANT
+    #             over the registered `slot_inode`/`slot_name` symbols, removing
+    #             uniqueness from the TCB.
+    #
+    #             gap-12 PROGRESS (see 11-1404-convergence-spec-12.md +
+    #             11-1404-convergence-gap-13.md): Wall A is now LIFTED — the tool
+    #             can STATE the invariant (`_class_inv_refs_axiom_func` gate +
+    #             `_precompute_axiom_logic_funcs` before `_emit_type_decls`), and
+    #             the maintenance lemma `UnixFs.Dir.insert_preserves_unique` is
+    #             registered + dual-kernel-validated. But ACTIVATING the invariant
+    #             still walls on TWO discharge gaps (gap-13): (1) ESTABLISHMENT is
+    #             not vacuous — the constructor/`_filesystem` witness is a zeroed
+    #             `Array.make`, and `slot_inode`/`slot_name` are uninterpreted, so
+    #             SMT cannot prove the fresh disk has all 16 slots dead (needs an
+    #             empty-disk-decode axiom); (2) MAINTENANCE leaks to EVERY
+    #             `assigns self.disk` method, not just the 7 directory mutators —
+    #             non-directory writers (chmod/_write_inode, write, truncate) re-prove
+    #             uniqueness over the abstract block-5 decode after a full-disk write
+    #             and balloon (chmod TIMED OUT 30s/232M steps). Until gap-13 lands
+    #             the empty-disk axiom AND a block-5-scoped maintenance design,
+    #             uniqueness is kept trusted here to keep os GREEN.
     #@ \trusted reviewer: dirscan-fidelity
     def _dir_find_slot(self, block_num: int, pathname: str) -> int:
         offset = block_num * 512
