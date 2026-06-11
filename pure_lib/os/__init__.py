@@ -10,6 +10,8 @@ from . import path
 # ── Global virtual filesystem ────────────────────────────────────────
 _filesystem = UnixInodeFileSystem()
 
+
+
 # ── Constants ────────────────────────────────────────────────────────
 # Defined as literals so PyCSL emits them with their values in WhyML
 # (class attribute references produce abstract val constants with no
@@ -113,10 +115,14 @@ class DirEntry:
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == 1
+#@ ensures (\result == 1) <==> (dir_lookup(_filesystem.disk, 5, filepath) >= 0)
 def access(filepath: str, mode, *, dir_fd=None, effective_ids=False,
            follow_symlinks=True):
     """Check file accessibility. Returns 1 if accessible, 0 otherwise."""
     r = _filesystem.sys_access(filepath, mode)
+    # gap-9: sys_access ensures `(r == 0) <==> dir_lookup(_filesystem.disk, 5,
+    # filepath) >= 0` (the directory-scan presence view). result == 1 iff r == 0,
+    # so the observer reflects presence.
     if r == 0:
         return 1
     return 0
@@ -290,9 +296,13 @@ def rename(src: str, dst: str, *, src_dir_fd=None, dst_dir_fd=None):
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
+#@ ensures \result == 0 ==> (dir_lookup(_filesystem.disk, 5, filepath) >= 0)
 def mkdir(filepath: str, mode=0o777, *, dir_fd=None):
     """Create a directory."""
-    return _filesystem.sys_mkdir(filepath, mode)
+    rc = _filesystem.sys_mkdir(filepath, mode)
+    # gap-9: sys_mkdir ensures `rc == 0 ==> dir_lookup(_filesystem.disk, 5,
+    # filepath) >= 0` (the mutator establishes the presence view).
+    return rc
 
 #@ requires True
 #@ assigns _filesystem.disk

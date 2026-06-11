@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Set
+from typing import List, Optional, Set
 
 
 class AbstractOpsMixin:
@@ -81,14 +81,71 @@ class AbstractOpsMixin:
                 insert_idx += 1
             if insert_idx < len(out) and out[insert_idx].strip() == "":
                 insert_idx += 1
-            return insert_idx
+            return self._advance_past_referenced_axiom_decls(out, insert_idx)
         for i, line in enumerate(out):
             stripped = line.strip()
             if stripped.startswith("let ") or stripped.startswith("let rec "):
-                return i
+                return self._advance_past_referenced_axiom_decls(out, i)
             if stripped.startswith("val ") and "ghost" not in line:
-                return i
+                return self._advance_past_referenced_axiom_decls(out, i)
         return len(out) - 1
+
+    def _advance_past_referenced_axiom_decls(self, out: List[str], idx: int) -> int:
+        """gap-9: if the abstract-val block would be inserted at `idx` but a
+        pending (emitted) abstract op REFERENCES a symbol declared by a
+        preamble-logic `val function …` / `predicate …` / `inductive …` line at
+        or after `idx` (the `_filesystem_sys_access` stub citing `dir_lookup`),
+        advance `idx` to just past that declaration so the abstract block lands
+        AFTER its dependency. No-op (returns `idx` unchanged) unless such a
+        forward reference exists — so every existing file is byte-identical.
+        Symbols carried ONLY by the deduped axiom-block twin of an abstract op
+        are excluded (they would otherwise drag the block past their own kept
+        declaration)."""
+        # Names declared by the axiom block (their abstract-op twins are deduped
+        # away in `_insert_abstract_val_block`, so they must not count as
+        # "referenced" here).
+        axiom_names: Set[str] = set()
+        for d in getattr(self, "_axiom_emitted_decls", set()):
+            p = d.split()
+            if len(p) >= 3 and p[0] == "val" and p[1] in ("function", "constant"):
+                axiom_names.add(p[2])
+            elif len(p) >= 2 and p[0] == "val":
+                axiom_names.add(p[1])
+            elif len(p) >= 2 and p[0] in ("function", "predicate"):
+                axiom_names.add(p[1])
+        abs_text = " ".join(
+            decl for name, decl in getattr(self, "_abstract_ops", {}).items()
+            if name not in axiom_names)
+        if not abs_text:
+            return idx
+
+        def _decl_symbol(stripped: str) -> Optional[str]:
+            p = stripped.split()
+            if len(p) >= 3 and p[0] == "val" and p[1] == "function":
+                return p[2]
+            if len(p) >= 2 and p[0] in ("function", "inductive", "predicate"):
+                return p[1]
+            return None
+
+        new_idx = idx
+        for j in range(idx, len(out)):
+            s = out[j].strip()
+            if s.startswith(("val function ", "function ", "inductive ", "predicate ")):
+                sym = _decl_symbol(s)
+                if sym and sym in abs_text:
+                    new_idx = j + 1
+        if new_idx == idx:
+            return idx
+        # Skip continuation lines of the last advanced-past decl (a predicate
+        # body, an `inductive … =` rule `| …`, a record `invariant`/`by `) and a
+        # trailing blank, so the block isn't spliced mid-declaration.
+        while (new_idx < len(out) and
+               out[new_idx].strip().startswith(
+                   ("invariant", "by ", "with ", "| ", "axiom "))):
+            new_idx += 1
+        if new_idx < len(out) and out[new_idx].strip() == "":
+            new_idx += 1
+        return new_idx
 
     def _insert_abstract_val_block(self, out: List[str]) -> None:
         """Insert the abstract-val block (collected during transpilation)

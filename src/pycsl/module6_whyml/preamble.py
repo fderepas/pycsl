@@ -105,6 +105,44 @@ class PreambleEmissionMixin:
             "x10 x11 x12 x13 x14 x15 x16 x17) "
             "= (x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, "
             "x10, x11, x12, x13, x14, x15, x16, x17)",
+
+        # UnixFs.Dir — directory-scan reflection. The bounded scan over the 16
+        # root-directory slots returns a non-negative inode IFF some live slot
+        # decodes to `name`. INDUCTIVE over the slot loop (SMT times out:
+        # gap-9, 14.6M/11.6M/18.8M steps). Cross-validated by
+        # unix-filesystem/UnixInodeFileSystem.proofs/{rocq,lean}/UnixDirScan.{v,lean}
+        # (UnixFs.Dir.scan_reflects_present): induction on the prefix length +
+        # per-slot case split. Rocq: Closed under the global context (0 axioms);
+        # Lean: axioms subseteq {propext, Quot.sound}. The slot_inode>=0 side
+        # condition (decoded inode from unsigned bytes) is an EXPLICIT antecedent
+        # `(forall j. 0 <= j < 16 -> slot_inode disk blk j >= 0)`, mirroring the
+        # section-discharged `slot_inode_nonneg` / `hnn` hypothesis of both proofs
+        # — keeping the axiom faithful (NOT over-strong). In WhyML it is
+        # discharged by the companion `UnixFs.Dir.slot_inode_nonneg` axiom below
+        # (the unsigned-byte fact), so callers cite both.
+        "UnixFs.Dir.scan_reflects_present":
+            "forall disk : array int. forall blk : int. forall name : string. "
+            "( forall j : int. 0 <= j < 16 -> slot_inode disk blk j >= 0 ) -> "
+            "( ( dir_lookup disk blk name >= 0 ) "
+            "<-> "
+            "( exists k : int. 0 <= k < 16 "
+            "/\\ slot_inode disk blk k <> 0 "
+            "/\\ slot_inode disk blk k < 32 "
+            "/\\ slot_name disk blk k = name ) )",
+
+        # UnixFs.Dir.slot_inode_nonneg — the unsigned-byte fact: a decoded
+        # directory-slot inode number is always non-negative (it is read from
+        # unsigned disk bytes via `_unpack_direntry`'s uint fields). This is the
+        # `slot_inode_nonneg` / `hnn` HYPOTHESIS of the scan_reflects_present
+        # proofs (UnixDirScan.{v,lean}), surfaced as an explicit named fact so it
+        # discharges the `forall j. slot_inode disk blk j >= 0` antecedent of
+        # scan_reflects_present without a per-call class invariant. Same trust
+        # class as the scan axiom (a faithful property of the abstract decode);
+        # the proofs CARRY it as an assumption, so it is genuinely part of this
+        # family's TCB, named here rather than smuggled into the IFF.
+        "UnixFs.Dir.slot_inode_nonneg":
+            "forall disk : array int. forall blk : int. forall k : int. "
+            "slot_inode disk blk k >= 0",
     }
 
     # Functions that an axiom block needs declared. Looked up by qualname
@@ -158,6 +196,19 @@ class PreambleEmissionMixin:
             "(int, int, int, int, int, int, int, int, int, "
             "int, int, int, int, int, int, int, int, int)",
         ],
+        # UnixFs.Dir: the directory-scan reflection axiom's backing symbols.
+        # `slot_inode`/`slot_name` are the abstract per-slot decode (disk, blk,
+        # k) -> inode / name; `dir_lookup` is the logic model of the bounded
+        # scan result. All three are `val function` (program + logic) so the os
+        # model's `_dir_lookup` can BIND its result to `dir_lookup` and its
+        # name_present predicate to the `slot_inode`/`slot_name` existential —
+        # the load-bearing risk-2 binding that makes the cited ensures
+        # constrain the REAL scan. Abstract-ops dedup skips these here.
+        "UnixFs.Dir.": [
+            "val function slot_inode (disk: array int) (blk: int) (k: int) : int",
+            "val function slot_name  (disk: array int) (blk: int) (k: int) : string",
+            "val function dir_lookup (disk: array int) (blk: int) (name: string) : int",
+        ],
     }
 
     def _scan_preamble_needs(self, functions: List[Dict[str, Any]],
@@ -184,6 +235,38 @@ class PreambleEmissionMixin:
                     break
             if axiom_needs_array:
                 break
+        # gap-9: an axiom-backing logic function with an `array int` parameter
+        # (`dir_lookup`/`slot_inode`/`slot_name`) may be applied in a CONTRACT
+        # without its qualname being cited in THIS module (the importer/driver
+        # case: the os wrappers' `dir_lookup(disk, 5, name) >= 0` presence view,
+        # propagated from a trusted stub). Force `use array.Array` so the emitted
+        # `val function dir_lookup (disk: array int) …` decl typechecks.
+        if not axiom_needs_array:
+            array_fn_names: Set[str] = set()
+            for _decls in self._AXIOM_FUNCTIONS.values():
+                for _d in _decls:
+                    if "array int" in _d or "array " in _d:
+                        _p = _d.split()
+                        if len(_p) >= 3 and _p[0] == "val" and _p[1] == "function":
+                            array_fn_names.add(_p[2])
+                        elif len(_p) >= 2 and _p[0] == "function":
+                            array_fn_names.add(_p[1])
+
+            def _refs_array_fn(node: Any) -> bool:
+                if isinstance(node, dict):
+                    if node.get("type") == "Call" and node.get("func") in array_fn_names:
+                        return True
+                    return any(_refs_array_fn(v) for v in node.values())
+                if isinstance(node, list):
+                    return any(_refs_array_fn(v) for v in node)
+                return False
+
+            for func in functions:
+                contracts = func.get("contracts", {}) or {}
+                if any(_refs_array_fn(contracts.get(k, []))
+                       for k in ("requires", "ensures", "assigns")):
+                    axiom_needs_array = True
+                    break
         # 07-1311 Q4: collection-typed quantifier binders (in contracts) need their
         # theory even with no array/map locals — `\forall a: list;` → array.Array,
         # `\forall m: dict;` → map.Map. Scan the whole function IR (contracts + body).
@@ -536,6 +619,121 @@ class PreambleEmissionMixin:
                 out.append("  = mod x y")
         return out
 
+    def _inductive_refs_global_or_axiom_func(self, ir: Dict[str, Any]) -> bool:
+        """gap-9: True iff some `#@ inductive` rule applies an axiom-backing
+        logic function (`_axiom_logic_funcs`) or references a module-global
+        object (by name). Gates the axioms/globals-before-inductive reorder so
+        only the os family triggers it (all other inductive files keep the
+        historical emission order → byte-identical)."""
+        inds = ir.get("inductive_decls", [])
+        if not inds:
+            return False
+        axiom_fns = getattr(self, "_axiom_logic_funcs", set())
+        globals_names = {g["name"] for g in ir.get("module_globals", [])}
+        if not axiom_fns and not globals_names:
+            return False
+
+        hit = False
+
+        def _walk(node: Any) -> None:
+            nonlocal hit
+            if hit:
+                return
+            if isinstance(node, dict):
+                if node.get("type") == "Call" and node.get("func") in axiom_fns:
+                    hit = True
+                    return
+                if node.get("type") == "Var" and node.get("name") in globals_names:
+                    hit = True
+                    return
+                if isinstance(node.get("object"), str) and node["object"] in globals_names:
+                    hit = True
+                    return
+                for v in node.values():
+                    _walk(v)
+            elif isinstance(node, list):
+                for v in node:
+                    _walk(v)
+
+        for ind in inds:
+            for m in [ind] + ind.get("members", []):
+                for (_rname, clause_ir) in m.get("rules", []):
+                    _walk(clause_ir)
+        return hit
+
+    def _precompute_axiom_logic_funcs(self, ir: Dict[str, Any]) -> None:
+        """Populate `self._axiom_logic_funcs` — the NAMES of `val function FOO`
+        / `function FOO` symbols declared by the `_AXIOM_FUNCTIONS` decls for
+        the qualnames this module CITES (`#@ proof`).
+
+        A contract call to one of these (e.g. `dir_lookup(self.disk, 5, name)`
+        in `_dir_lookup`'s ensures, or `slot_inode(disk, 5, k)` inside the
+        `name_present` inductive rule) must lower to the raw logic application
+        `(FOO args)` bound to THIS registry symbol — NOT an arity-suffixed
+        abstract `FOO_3` (a fresh, axiom-unconstrained symbol). That raw binding
+        is what makes the cited axiom constrain the REAL scan — the risk-2
+        load-bearing binding (see `_handle_call_expr`). Idempotent; safe to call
+        before inductive emission AND again from `_emit_preamble_axioms`.
+        """
+        self._axiom_logic_funcs: Set[str] = set()
+        # (a) qualnames this module CITES (`#@ proof`).
+        seen: Set[str] = set()
+        for func in ir.get("functions", []):
+            for entry in func.get("proof", []):
+                seen.add(entry["qualname"])
+
+        def _names_of(decls: List[str]) -> Set[str]:
+            out: Set[str] = set()
+            for d in decls:
+                parts = d.split()
+                if len(parts) >= 3 and parts[0] == "val" and parts[1] == "function":
+                    out.add(parts[2])
+                elif len(parts) >= 2 and parts[0] == "function":
+                    out.add(parts[1])
+            return out
+
+        cited_fn_names: Set[str] = set()
+        for qn in sorted(seen):
+            for prefix, fn_decls in self._AXIOM_FUNCTIONS.items():
+                if qn.startswith(prefix):
+                    cited_fn_names |= _names_of(fn_decls)
+
+        # (b) axiom-function names APPLIED by an `#@ inductive` rule, even when
+        # the citation was stripped from injected trusted stubs (gap-9: the
+        # importer drops the heavy UnixFs.Dir scan axiom but still emits the
+        # `name_present` inductive, which references slot_inode/slot_name). Those
+        # symbols must still bind to the registry `val function` (raw `(f args)`)
+        # AND get their decls emitted (see `_inductive_referenced_axiom_decls`).
+        all_fn_names: Set[str] = set()
+        for fn_decls in self._AXIOM_FUNCTIONS.values():
+            all_fn_names |= _names_of(fn_decls)
+        ind_applied: Set[str] = set()
+
+        def _walk(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("type") == "Call" and node.get("func") in all_fn_names:
+                    ind_applied.add(node["func"])
+                for v in node.values():
+                    _walk(v)
+            elif isinstance(node, list):
+                for v in node:
+                    _walk(v)
+
+        for ind in ir.get("inductive_decls", []):
+            for m in [ind] + ind.get("members", []):
+                for (_rname, clause_ir) in m.get("rules", []):
+                    _walk(clause_ir)
+        # Also any axiom-function NAME applied in a function's contract
+        # (`_dir_lookup`'s `\result == dir_lookup(...)`, the syscalls'
+        # `name_present(...)` arguments) — so `dir_lookup`/`slot_*` bind to the
+        # registry symbol AND get declared even when the citation was stripped.
+        for func in ir.get("functions", []):
+            contracts = func.get("contracts", {}) or {}
+            for key in ("requires", "ensures", "assigns"):
+                _walk(contracts.get(key, []))
+
+        self._axiom_logic_funcs = cited_fn_names | ind_applied
+
     def _emit_preamble_axioms(self, ir: Dict[str, Any]) -> List[str]:
         """Emit Why3 function decls + axioms for `#@ proof` cites.
 
@@ -550,7 +748,9 @@ class PreambleEmissionMixin:
         # in `_AXIOM_FUNCTIONS`. A symbol like `permut` is declared here only
         # when its axiom is cited; a file that uses `\permutation` WITHOUT a
         # `#@ proof` still needs the abstract-ops declaration.
-        self._axiom_emitted_decls: Set[str] = set()
+        # A decl already emitted EARLY (before an inductive block that references
+        # it — `_emit_inductive_decls`) must not be re-declared here.
+        already = set(getattr(self, "_axiom_emitted_decls", set()))
         seen_qualnames: Set[str] = set()
         for func in ir.get("functions", []):
             for entry in func.get("proof", []):
@@ -562,7 +762,7 @@ class PreambleEmissionMixin:
         # unknown — failure is at transpile time.
         out: List[str] = []
         # Declare backing functions once each (e.g. `function gcd`).
-        declared_fns: Set[str] = set()
+        declared_fns: Set[str] = set(already)
         for qn in sorted(seen_qualnames):
             for prefix, fn_decls in self._AXIOM_FUNCTIONS.items():
                 if qn.startswith(prefix):
@@ -571,6 +771,7 @@ class PreambleEmissionMixin:
                             out.append(f"  {fn_decl}")
                             declared_fns.add(fn_decl)
         self._axiom_emitted_decls = set(declared_fns)
+        self._precompute_axiom_logic_funcs(ir)
         if declared_fns:
             out.append("")
 
@@ -748,6 +949,83 @@ class PreambleEmissionMixin:
         args = " ".join(f"!{whyml_ident(v)}" for v in params)
         return f"{safe_mutex}_inv {args}"
 
+    def _inductive_referenced_axiom_decls(
+            self, inductive_decls: List[Dict[str, Any]]) -> List[str]:
+        """Return the `_AXIOM_FUNCTIONS` `val function` decls (registry order)
+        applied by any inductive rule, so they can be emitted BEFORE the
+        `inductive` block (the rule references them). Empty unless an inductive
+        rule actually applies an axiom logic func → existing files unchanged."""
+        # `_axiom_logic_funcs` already holds every axiom-function NAME applied by
+        # an inductive rule OR a function contract (populated in
+        # `_precompute_axiom_logic_funcs`). Emit the matching `val function`
+        # decls — minus any the axiom block already emits (cited qualnames) so
+        # there is no double declaration.
+        used = set(getattr(self, "_axiom_logic_funcs", set()))
+        already_names: Set[str] = set()
+        for d in getattr(self, "_axiom_emitted_decls", set()):
+            parts = d.split()
+            if len(parts) >= 3 and parts[0] == "val" and parts[1] == "function":
+                already_names.add(parts[2])
+            elif len(parts) >= 2 and parts[0] == "function":
+                already_names.add(parts[1])
+        used -= already_names
+        if not used:
+            return []
+        # Collect the `val function` decls (registry order) whose symbol name is
+        # actually applied by a rule — across ALL `_AXIOM_FUNCTIONS`, NOT just
+        # cited qualnames. gap-9: the importer strips the heavy scan-axiom
+        # citation from injected stubs (avoiding an E-matching OOM), but the
+        # `name_present` inductive STILL needs `slot_inode`/`slot_name` declared.
+        result: List[str] = []
+        for prefix, fn_decls in self._AXIOM_FUNCTIONS.items():
+            for d in fn_decls:
+                parts = d.split()
+                nm = (parts[2] if len(parts) >= 3 and parts[0] == "val"
+                      and parts[1] == "function"
+                      else (parts[1] if len(parts) >= 2
+                            and parts[0] == "function" else None))
+                if nm in used and d not in result:
+                    result.append(d)
+        return result
+
+    def _emit_uncited_axiom_func_decls(self) -> List[str]:
+        """Emit `val function` decls for axiom-backing logic symbols that are
+        REFERENCED by a contract (in `self._axiom_logic_funcs`) but NOT already
+        declared by the axiom block (`_axiom_emitted_decls`) or the early
+        inductive emission. gap-9 importer case: a stripped UnixFs.Dir citation
+        leaves no axiom block, yet `dir_lookup(disk, 5, name) >= 0` appears in
+        the syscall/wrapper contracts. Empty unless such a referenced-but-
+        undeclared symbol exists → existing files byte-identical."""
+        wanted = set(getattr(self, "_axiom_logic_funcs", set()))
+        if not wanted:
+            return []
+        already: Set[str] = set()
+        for d in getattr(self, "_axiom_emitted_decls", set()):
+            parts = d.split()
+            if len(parts) >= 3 and parts[0] == "val" and parts[1] == "function":
+                already.add(parts[2])
+            elif len(parts) >= 2 and parts[0] == "function":
+                already.add(parts[1])
+        wanted -= already
+        if not wanted:
+            return []
+        out: List[str] = []
+        for prefix, fn_decls in self._AXIOM_FUNCTIONS.items():
+            for d in fn_decls:
+                parts = d.split()
+                nm = (parts[2] if len(parts) >= 3 and parts[0] == "val"
+                      and parts[1] == "function"
+                      else (parts[1] if len(parts) >= 2
+                            and parts[0] == "function" else None))
+                if nm in wanted:
+                    out.append(f"  {d}")
+                    self._axiom_emitted_decls = getattr(
+                        self, "_axiom_emitted_decls", set()) | {d}
+                    wanted.discard(nm)
+        if out:
+            out.append("")
+        return out
+
     def _inductive_sig_whyml(self, signature: str) -> str:
         """inductive.md: a predicate's WhyML arg-type list (Why3 `inductive p t1 t2`
         takes UNNAMED arg types). From a source signature `"(n: int, x: Json)"`
@@ -757,10 +1035,25 @@ class PreambleEmissionMixin:
         if not inner:
             return ""
         scalars = {"int": "int", "bool": "bool", "str": "string", "float": "real"}
+        # Collection params lower to their value-semantic Why3 type, matching the
+        # rule-body lowering (a `disk: list` binder appears as `array int` in the
+        # forall) — without this the header emits the unbound source type `list`.
+        # A multi-word type (e.g. `array int`) must be parenthesised in the
+        # space-separated Why3 inductive arg-type list.
+        collections = {
+            "list": "(array int)", "tuple": "(array int)",
+            "bytes": "(array int)", "bytearray": "(array int)",
+            "dict": "(map int (option int))",
+        }
         types = []
         for part in inner.split(","):
             ty = part.split(":")[-1].strip() if ":" in part else "int"
-            types.append(scalars.get(ty, whyml_ident(ty.lower())))
+            if ty in scalars:
+                types.append(scalars[ty])
+            elif ty in collections:
+                types.append(collections[ty])
+            else:
+                types.append(whyml_ident(ty.lower()))
         return " ".join(types)
 
     def _emit_inductive_decls(self, inductive_decls: List[Dict[str, Any]]) -> List[str]:
@@ -773,6 +1066,20 @@ class PreambleEmissionMixin:
         out: List[str] = []
         prev_spec = self._in_spec
         self._in_spec = True
+        # If any inductive rule applies an axiom-backing logic function
+        # (`slot_inode`/`slot_name`/… for the `name_present` existential), that
+        # `val function` decl must be in scope BEFORE the `inductive` block.
+        # Emit (and record as already-emitted) exactly those decls here; the
+        # later `_emit_preamble_axioms` skips them via `_axiom_emitted_decls`.
+        # Gated on the inductive actually referencing one → other files (gcd,
+        # struct, perm) emit byte-identically.
+        early = self._inductive_referenced_axiom_decls(inductive_decls)
+        if early:
+            for d in early:
+                out.append(f"  {d}")
+                self._axiom_emitted_decls = getattr(
+                    self, "_axiom_emitted_decls", set()) | {d}
+            out.append("")
         def _emit_member(kw: str, m: Dict[str, Any]) -> None:
             mname = whyml_ident(m["name"].lower())
             msig = self._inductive_sig_whyml(m["signature"])

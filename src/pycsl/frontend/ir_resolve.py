@@ -190,6 +190,59 @@ def _process_dependency(filepath: str, needed_names: Set[str], cache: Dict[str, 
     return result
 
 
+def _strip_dir_scan_proofs(func: Dict[str, Any]) -> Dict[str, Any]:
+    """gap-9: drop `#@ proof … UnixFs.Dir.scan_reflects_present` (and its
+    `slot_inode_nonneg` companion) citations from an INJECTED trusted stub.
+
+    A trusted stub's contract is ASSUMED in the importer, so its body is NOT
+    re-verified there — the heavy scan axiom (`dir_lookup … <-> exists k …`)
+    would only pollute the importer's proof context with a high-fan-out
+    E-matching trigger (Alt-Ergo/Z3 OOM on the `access`/`mkdir` wrapper VCs that
+    merely need the propositional `name_present` link from the syscall stub's
+    own ensures). The axiom is cited where it is actually USED — the standalone
+    `UnixInodeFileSystem.py` body verification. The `slot_inode`/`slot_name`/
+    `dir_lookup` `val function` decls the `name_present` inductive needs are
+    still emitted by `_emit_inductive_decls` (independent of the citation)."""
+    proofs = func.get("proof")
+    if not proofs:
+        return func
+    kept = [p for p in proofs
+            if not str(p.get("qualname", "")).startswith("UnixFs.Dir.")]
+    if len(kept) != len(proofs):
+        func = dict(func)
+        func["proof"] = kept
+    return func
+
+
+def _contract_referenced_var_names(dep_funcs: List[Dict[str, Any]]) -> Set[str]:
+    """Collect every Var/object NAME referenced inside the contracts of the
+    injected stubs — including the object of an `Attribute`/`FieldGet`
+    (`_filesystem.disk` → `_filesystem`). Used to scope module-global
+    propagation to globals the injected contracts actually touch (gap-9)."""
+    referenced: Set[str] = set()
+
+    def _walk(node: Any) -> None:
+        if isinstance(node, dict):
+            t = node.get("type")
+            if t == "Var" and isinstance(node.get("name"), str):
+                referenced.add(node["name"])
+            obj = node.get("object")
+            if isinstance(obj, str):
+                referenced.add(obj)
+            for v in node.values():
+                _walk(v)
+        elif isinstance(node, (list, tuple)):
+            for v in node:
+                _walk(v)
+
+    for func in dep_funcs:
+        contracts = func.get("contracts", {}) or {}
+        _walk(contracts.get("requires", []))
+        _walk(contracts.get("ensures", []))
+        _walk(contracts.get("assigns", []))
+    return referenced
+
+
 def _contract_referenced_names(dep_funcs: List[Dict[str, Any]]) -> Set[str]:
     """Collect every callee name applied inside the contracts (`requires`/`ensures`)
     of the injected dependency stubs. Used by 11-0632-spec-8 Part 1 to scope inductive
@@ -408,14 +461,16 @@ def _resolve_imported_classes(direct_imports: List[Any], main_file: str,
             # trusted stubs in the un-aliased case (the mangling still matches
             # the record name); an alias would need re-mangling (deferred).
             injected_methods = 0
+            injected_fnames: Set[str] = set()
             if local == orig:
                 prefix = f"{orig.lower()}__"
                 for fname, f in dep_funcs.items():
                     if fname.startswith(prefix) and fname not in existing_funcs:
-                        mf = dict(f)
+                        mf = _strip_dir_scan_proofs(dict(f))
                         mf["trusted"] = True
                         ir_data["functions"].insert(0, mf)
                         existing_funcs.add(fname)
+                        injected_fnames.add(fname)
                         injected_methods += 1
             # inline.md: also import module-level helper functions from the
             # dependency that class methods may call.  After inlining splices
@@ -429,11 +484,32 @@ def _resolve_imported_classes(direct_imports: List[Any], main_file: str,
                     if not fn.startswith(prefix) and fn not in existing_funcs
                 }
                 for fname, f in dep_module_funcs.items():
-                    mf = dict(f)
+                    mf = _strip_dir_scan_proofs(dict(f))
                     mf["trusted"] = True
                     ir_data["functions"].insert(0, mf)
                     existing_funcs.add(fname)
+                    injected_fnames.add(fname)
                     injected_helpers += 1
+            # gap-9: a class method's `#@ ensures` may apply a module-level
+            # `#@ inductive` predicate declared in the dependency
+            # (`name_present`). We deliberately do NOT copy the dep's
+            # `inductive_decls` RULE into the importer: the `name_present` rule
+            # carries a heavy `\exists k. slot_inode … slot_name …` premise whose
+            # E-matching blows up the (large) importer wrapper VCs. Instead the
+            # importer gets an OPAQUE `predicate name_present (array int) string`
+            # (the `_emit_contract_logic_symbol` fallback, type-corrected by
+            # `_imported_predicate_arg_types`); the public-API wrappers reason
+            # via the lighter, equivalent `dir_lookup(disk, 5, name) >= 0` form,
+            # so the opaque predicate's exact value is never needed at the
+            # boundary. Record the dep's inductive predicate SIGNATURES so the
+            # fallback can recover the right param types.
+            dep_ind = dep_ir.get("inductive_decls", [])
+            if dep_ind:
+                sigs = ir_data.setdefault("_imported_inductive_sigs", {})
+                for d in dep_ind:
+                    for m in [d] + d.get("members", []):
+                        if m.get("name") and m.get("signature"):
+                            sigs[m["name"]] = m["signature"]
             print(f"[*] Imported class from '{module_path}': {local} "
                   f"(record + {injected_methods} method stub(s)"
                   f" + {injected_helpers} helper(s))")

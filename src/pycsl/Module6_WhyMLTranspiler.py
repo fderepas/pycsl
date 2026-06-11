@@ -59,6 +59,12 @@ class Module6_WhyMLTranspiler(
         # module-constants-plan: module-level int constants (`K_IHDR = 0`) →
         # resolved to their literal in `_handle_var_expr` (body and contract).
         self._module_constants: Dict[str, int] = self.ir.get("module_constants", {})
+        # gap-9: signatures of imported `#@ inductive` predicates whose RULE was
+        # NOT crossed (kept opaque to avoid an E-matching blow-up). Lets the
+        # `_emit_contract_logic_symbol` fallback declare the opaque predicate
+        # with the correct param types (e.g. `name_present (array int) string`).
+        self._imported_inductive_sigs: Dict[str, str] = self.ir.get(
+            "_imported_inductive_sigs", {})
         # inline.md Phase 1: module-level global object instances. `name → class` (orig
         # case), available in EVERY function so `g.field` resolves to the global record's
         # field (analogous to `_current_record_var_classes`, but module-scoped).
@@ -107,6 +113,8 @@ class Module6_WhyMLTranspiler(
         self._module_method_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
         self._module_method_param_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
         self._module_method_field_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
+        # gap-9 (A2c+): ensures over \result + self-fields + params (params renamed).
+        self._module_method_field_param_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
         # gap7-spec-rev2: void/mutating record-method support
         self._module_method_writes: Dict[str, List[str]] = {}
         self._module_method_field_old_ensures: Dict[str, List[Dict[str, Any]]] = {}
@@ -391,18 +399,34 @@ class Module6_WhyMLTranspiler(
             {ind["name"] for ind in self.ir.get("inductive_decls", [])}
             | {m["name"] for ind in self.ir.get("inductive_decls", [])
                for m in ind.get("members", [])})   # P2: mutual `with` group members
-        out += self._emit_inductive_decls(self.ir.get("inductive_decls", []))
+        # Precompute the axiom-backing logic-function names (e.g.
+        # `slot_inode`/`slot_name`/`dir_lookup`) BEFORE inductive emission, so a
+        # `#@ inductive` rule that applies one of them (the `present` /
+        # `name_present` body) lowers to the raw bound application, not an
+        # abstract op.
+        self._precompute_axiom_logic_funcs(self.ir)
 
-        # `#@ proof` axioms go AFTER the type declarations so an axiom may
-        # quantify over a user `#@ datatype` (A4 json round-trip). Also sets
-        # `self._axiom_emitted_decls` for the abstract-val dedup (which runs
-        # at the end via `_insert_abstract_val_block`).
-        out += self._emit_preamble_axioms(self.ir)
-
-        # inline.md Phase 1: module-level global object instances. Emitted AFTER the
-        # record type declarations (so `_record_types` is populated and the constructor
-        # literal + type invariant resolve) and BEFORE functions (which reference `g`).
-        out += self._emit_module_globals()
+        # gap-9: an `#@ inductive` rule may reference an axiom-backing logic
+        # function (`dir_lookup`) AND/OR a module-level global (`_filesystem`),
+        # which must be in scope BEFORE the inductive block. ONLY in that case
+        # do we reorder to axioms → globals → inductive; otherwise keep the
+        # historical inductive → axioms → globals order so every existing
+        # inductive/axiom file emits byte-identically.
+        if self._inductive_refs_global_or_axiom_func(self.ir):
+            out += self._emit_preamble_axioms(self.ir)
+            out += self._emit_uncited_axiom_func_decls()
+            out += self._emit_module_globals()
+            out += self._emit_inductive_decls(self.ir.get("inductive_decls", []))
+        else:
+            out += self._emit_inductive_decls(self.ir.get("inductive_decls", []))
+            # `#@ proof` axioms go after type declarations so an axiom may
+            # quantify over a user `#@ datatype` (A4 json round-trip); also sets
+            # `self._axiom_emitted_decls` for the abstract-val dedup.
+            out += self._emit_preamble_axioms(self.ir)
+            out += self._emit_uncited_axiom_func_decls()
+            # inline.md Phase 1: module-level global object instances. Emitted
+            # AFTER the record type declarations and BEFORE functions.
+            out += self._emit_module_globals()
 
         self._emit_opaque_class_aliases(functions, out, declared_types)
 
@@ -457,6 +481,13 @@ class Module6_WhyMLTranspiler(
         self._module_method_result_ensures = self._build_method_result_ensures_map(funcs_for_maps)
         self._module_method_param_result_ensures = self._build_method_param_result_ensures_map(funcs_for_maps)
         self._module_method_field_result_ensures = self._build_method_field_result_ensures_map(funcs_for_maps)
+        # gap-9 (A2c+): ensures referencing `\result` + self-fields + params
+        # (the os syscalls' `(\result==0) <==> dir_lookup(self.disk, 5, pathname)
+        # >= 0`). Closes the last A2c gap — a clause mixing a self-field AND a
+        # param previously propagated nowhere. Params are renamed to `x_i`; the
+        # receiver stays `self` (distinct namespace, no collision).
+        self._module_method_field_param_result_ensures = \
+            self._build_method_field_param_result_ensures_map(funcs_for_maps)
         # gap7-spec-rev2: void/mutating record-method support. `_writes` = self-fields a method
         # `assigns`; `_field_old_ensures` = its `ensures` over self-fields + `\old(self.f)` (no
         # \result/param). Both derived from the SAME `contracts.*` the method's `let` is verified

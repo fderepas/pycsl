@@ -414,6 +414,24 @@ def _unpack_direntry(data: list) -> tuple:
     return inode_num, name_bytes
 
 
+# ── Directory-name presence view (gap-9 beachhead) ──────────────────────────
+# The presence of `name` in directory block 5 (the root dir) is the logic
+# proposition `dir_lookup(disk, 5, name) >= 0`, where `dir_lookup` is the
+# abstract logic model of the 16-slot scan (the UnixFs.Dir.* axiom symbol that
+# `_dir_lookup`'s ensures binds its real result to). The cross-validated
+# `scan_reflects_present` axiom relates it to the existential over the abstract
+# per-slot decode (`slot_inode`/`slot_name`):
+#   dir_lookup disk blk name >= 0  <->  exists k. 0<=k<16 /\ slot_inode<>0
+#                                                   /\ slot_inode<32 /\ slot_name=name
+# so a mutator that writes a live slot ESTABLISHES dir_lookup>=0 (existential =>
+# dir_lookup, via the axiom on the post-write disk) and an observer's
+# `_dir_lookup(5,name)` REFLECTS it (its ensures binds \result == dir_lookup).
+# This `dir_lookup(disk, 5, name) >= 0` form is used both in the syscall
+# contracts here and, after the import, in the os `__init__.py` public
+# wrappers — a single light proposition with no `\exists` trigger to blow up
+# the importer's wrapper-VC E-matching.
+
+
 #@ class invariant \length(self.disk) >= 131072
 #@ class invariant \forall i; (512 <= i and i < 2560) ==> (0 <= self.disk[i] and self.disk[i] <= 255)
 #@ class invariant \length(self.fd_open) == 64
@@ -697,10 +715,15 @@ class UnixInodeFileSystem:
             name_slice = names[i * 30:i * 30 + 30]
             self.disk[entry_offset:entry_offset + 32] = _pack_direntry(inodes[i], name_slice)
 
+    #@ proof rocq UnixFs.Dir.scan_reflects_present
+    #@ proof lean UnixFs.Dir.scan_reflects_present
+    #@ proof rocq UnixFs.Dir.slot_inode_nonneg
+    #@ proof lean UnixFs.Dir.slot_inode_nonneg
     #@ requires block_num >= 0
     #@ requires block_num < 256
     #@ assigns \nothing
     #@ ensures \result == -1 or (\result >= 0 and \result < 32)
+    #@ ensures \result == dir_lookup(self.disk, block_num, pathname)
     # cite:_note: Reusable directory name-lookup for the path-based
     #             syscalls. Scans the 16 entries of a directory block,
     #             decodes each name, and returns the inode number whose
@@ -710,6 +733,18 @@ class UnixInodeFileSystem:
     #             (the on-disk encoded bytes are not value-modeled, Gap 5;
     #             `str` itself is modeled as Why3 `string.String`), as in
     #             _read_directory.
+    #
+    #             RISK-2 BINDING (gap-9): the result is bound to the abstract
+    #             logic symbol `dir_lookup(self.disk, block_num, pathname)` (the
+    #             UnixFs.Dir.* scan model). This `\result == dir_lookup(...)`
+    #             ensures is the load-bearing fidelity claim — that the body's
+    #             16-slot scan computes exactly `dir_lookup`. It is a
+    #             HUMAN-REVIEWED modelling claim (same trust class as the cited
+    #             scan_reflects_present axiom): SMT cannot derive the scan's
+    #             closed form (inductive over the loop), so the body proves only
+    #             the range postcondition, and the `dir_lookup` value-binding is
+    #             carried by this ensures + the cross-validated axiom.
+    #@ \trusted reviewer: dirscan-fidelity
     def _dir_lookup(self, block_num: int, pathname: str) -> int:
         offset = block_num * 512
         found = -1
@@ -768,17 +803,34 @@ class UnixInodeFileSystem:
                 found = i
         return found
 
+    #@ proof rocq UnixFs.Dir.scan_reflects_present
+    #@ proof lean UnixFs.Dir.scan_reflects_present
+    #@ proof rocq UnixFs.Dir.slot_inode_nonneg
+    #@ proof lean UnixFs.Dir.slot_inode_nonneg
     #@ requires block_num >= 0
     #@ requires block_num < 256
     #@ requires slot >= 0 and slot < 16
     #@ assigns self.disk
-    #@ ensures True
+    #@ ensures (inode_num != 0 and inode_num < 32) ==> slot_inode(self.disk, block_num, slot) == inode_num
+    #@ ensures (inode_num != 0 and inode_num < 32) ==> slot_name(self.disk, block_num, slot) == name
     # cite:_note: Writes a single 32-byte directory entry (struct '>H30s')
     #             at `slot` of `block_num`. The name is `name.encode(...)`
     #             — an opaque byte buffer (gap 5: the encoded byte
     #             *content* is not value-modeled — `str` itself is the
     #             Why3 `string.String` value type — but the pack/blit is
     #             body-verified).
+    #
+    #             RISK-2 BINDING (gap-9): the two `slot_inode`/`slot_name`
+    #             ensures are the WRITE-SIDE fidelity claim — writing a live
+    #             entry (`inode_num != 0 and < 32`) at `slot` makes the abstract
+    #             per-slot decode at that slot return exactly `(inode_num,
+    #             name)`. This is the witness that lets `sys_mkdir` establish the
+    #             scan_reflects_present existential (at k=slot). It is the SAME
+    #             human-reviewed modelling claim as `_dir_lookup`'s read-side
+    #             `dir_lookup` binding (the on-disk bytes <=> abstract decode
+    #             correspondence the cross-check cannot machine-verify, spec
+    #             risk 6.2). Trusted on that clause.
+    #@ \trusted reviewer: dirscan-fidelity
     def _write_entry(self, block_num: int, slot: int, inode_num: int, name: str) -> None:
         entry_offset = block_num * 512 + slot * 32
         self.disk[entry_offset:entry_offset + 32] = _pack_direntry(inode_num, _pad_name(name))
@@ -1063,14 +1115,27 @@ class UnixInodeFileSystem:
 
     # --- THE 13 NEW INTEGRATED SYSTEM CALLS ---
 
+    #@ proof rocq UnixFs.Dir.scan_reflects_present
+    #@ proof lean UnixFs.Dir.scan_reflects_present
+    #@ proof rocq UnixFs.Dir.slot_inode_nonneg
+    #@ proof lean UnixFs.Dir.slot_inode_nonneg
     #@ requires True
     #@ assigns self.disk, self._mtime_ticks
     #@ ensures \result == 0 or \result == -1
+    #@ ensures \result == 0 ==> (dir_lookup(self.disk, 5, pathname) >= 0)
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/mkdir.html
     # cite:_note: POSIX mkdir() — allocates inode+block, seeds '.' and
     #             '..', and links the dir into the root. -1 on EEXIST or
     #             ENFILE/ENOSPC / full root. De-trusted: array inode +
     #             byte-level entry writes (atime/mtime set from clock).
+    #
+    #             gap-9: `\result == 0 ==> dir_lookup(self.disk, 5, pathname) >= 0`
+    #             — the mutator ESTABLISHES the presence view. The final
+    #             `_write_entry(5, slot, inode_num, pathname)` (with inode_num in
+    #             [1,32) from _alloc_inode) makes the abstract slot decode at
+    #             `slot` return (inode_num, pathname) — the existential witness
+    #             at k=slot — and the `#@ assert` below + the scan_reflects_present
+    #             axiom (existential => dir_lookup>=0) discharge the postcondition.
     #@ no_inline
     def sys_mkdir(self, pathname: str, mode: int) -> int:
         if self._dir_lookup(5, pathname) >= 0:
@@ -1094,6 +1159,12 @@ class UnixInodeFileSystem:
         if slot < 0:
             return -1
         self._write_entry(5, slot, inode_num, pathname)
+        # gap-9: the just-written root-dir slot is the existential witness the
+        # scan_reflects_present axiom needs — slot_inode/slot_name at k=slot come
+        # from _write_entry's post-state (inode_num in [1,32) per _alloc_inode, so
+        # the slot is live). The axiom (existential => dir_lookup>=0) then
+        # discharges `dir_lookup(self.disk, 5, pathname) >= 0`.
+        #@ assert \exists k: int; 0 <= k and k < 16 and slot_inode(self.disk, 5, k) != 0 and slot_inode(self.disk, 5, k) < 32 and slot_name(self.disk, 5, k) == pathname
         return 0
 
     #@ requires True
@@ -1414,14 +1485,25 @@ class UnixInodeFileSystem:
         self._write_inode(inode_num, inode)
         return 0
 
+    #@ proof rocq UnixFs.Dir.scan_reflects_present
+    #@ proof lean UnixFs.Dir.scan_reflects_present
+    #@ proof rocq UnixFs.Dir.slot_inode_nonneg
+    #@ proof lean UnixFs.Dir.slot_inode_nonneg
     #@ requires True
     #@ assigns \nothing
     #@ ensures \result == 0 or \result == -1
+    #@ ensures (\result == 0) <==> (dir_lookup(self.disk, 5, pathname) >= 0)
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/access.html
     # cite:_note: POSIX access() — checks if `pathname` exists (F_OK,
     #             mode=0). Returns 0 if the file exists, -1 on ENOENT.
     #             Permission bits (R_OK, W_OK, X_OK) are not checked in
     #             this model; only existence is tested.
+    #
+    #             gap-9: the observer REFLECTS the presence view. `(\result == 0)
+    #             <==> dir_lookup(self.disk, 5, pathname) >= 0` proves via
+    #             `_dir_lookup`'s `\result == dir_lookup(self.disk, 5, pathname)`
+    #             binding (the body returns 0 iff that result >= 0). The public-API
+    #             `access` wrapper reuses this exact light form.
     #@ no_inline
     def sys_access(self, pathname: str, mode: int) -> int:
         inode_num = self._dir_lookup(5, pathname)

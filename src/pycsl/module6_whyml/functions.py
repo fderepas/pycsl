@@ -804,6 +804,113 @@ class FunctionEmissionMixin:
                 out[func["name"]] = kept
         return out
 
+    def _build_method_field_param_result_ensures_map(
+            self, functions: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+        """gap-9 (A2c+): map method name → its `ensures` clauses that reference
+        `\\result` AND a self-field (`self.x`) AND/OR a param — but NO `\\old`,
+        locals, or non-self objects. The os syscalls' presence link
+        `(\\result == 0) <==> (dir_lookup(self.disk, 5, pathname) >= 0)` mixes a
+        self-field (`self.disk`) with a param (`pathname`), so it propagated
+        through NONE of the three earlier maps (result-only / param / field-only,
+        each of which rejects the OTHER leaf kind — the documented A2c gap).
+
+        Clauses are kept with the `self.x` FieldGet VERBATIM (the call site adds a
+        leading `(self: <class>)` receiver param) and each formal-param Var
+        renamed to `x_i` (the stub's positional params). `self` and `x_i` live in
+        distinct namespaces, so there is no collision. Restricted to clauses that
+        reference a self-field (otherwise the result/param maps already cover
+        them) so existing files are byte-identical."""
+        def classify(node: Any, params: Set[str]) -> Optional[bool]:
+            # False if the subtree references a DISALLOWED leaf (\old, local, or
+            # a non-self object field); None otherwise. A bare Var must be a
+            # param (renamed later) — a non-param Var is a local → disallowed.
+            if not isinstance(node, dict):
+                return None
+            t = node.get("type")
+            if t in ("OldVar", "OldField"):
+                return False
+            if t in ("FieldGet", "Attribute"):
+                if node.get("object") != "self":
+                    return False
+                return None
+            if t == "Var":
+                return None if node.get("name") in params else False
+            if t == "ArrayLen":
+                v = node.get("var")
+                return None if (v == "\\result" or v in params) else False
+            for val in node.values():
+                for c in (val if isinstance(val, list) else [val]):
+                    if classify(c, params) is False:
+                        return False
+            return None
+
+        def saw(node: Any, kind: str, params: Set[str]) -> bool:
+            if not isinstance(node, dict):
+                return False
+            t = node.get("type")
+            if kind == "result" and (t == "Result"
+                                     or (t == "ArrayLen" and node.get("var") == "\\result")):
+                return True
+            if kind == "field" and t in ("FieldGet", "Attribute") and node.get("object") == "self":
+                return True
+            for val in node.values():
+                for c in (val if isinstance(val, list) else [val]):
+                    if saw(c, kind, params):
+                        return True
+            return False
+
+        def rename(node: Any, pmap: Dict[str, str]) -> Any:
+            if not isinstance(node, dict):
+                return node
+            if node.get("type") == "Var" and node.get("name") in pmap:
+                return {"type": "Var", "name": pmap[node["name"]]}
+            new: Dict[str, Any] = {}
+            for k, v in node.items():
+                if k == "var" and node.get("type") == "ArrayLen" and v in pmap:
+                    new[k] = pmap[v]
+                elif isinstance(v, list):
+                    new[k] = [rename(c, pmap) if isinstance(c, dict) else c for c in v]
+                elif isinstance(v, dict):
+                    new[k] = rename(v, pmap)
+                else:
+                    new[k] = v
+            return new
+
+        def refs_param(node: Any, params: Set[str]) -> bool:
+            if not isinstance(node, dict):
+                return False
+            if node.get("type") == "Var" and node.get("name") in params:
+                return True
+            if node.get("type") == "ArrayLen" and node.get("var") in params:
+                return True
+            for val in node.values():
+                for c in (val if isinstance(val, list) else [val]):
+                    if refs_param(c, params):
+                        return True
+            return False
+
+        out: Dict[str, List[Dict[str, Any]]] = {}
+        for func in functions:
+            params = func.get("formal_params", []) or []
+            if not params:
+                continue
+            pset = set(params)
+            pmap = {p: f"x{i}" for i, p in enumerate(params)}
+            # Require result + field + AT LEAST ONE param: a clause mixing all
+            # three is the genuinely-new combination (`(\result==0) <==>
+            # dir_lookup(self.disk, 5, pathname) >= 0`) that the result-only /
+            # param / field-only maps all drop. A field+result clause WITHOUT a
+            # param (`\result == self.x`) stays with `field_result_ensures`
+            # (unchanged) — so existing files emit byte-identically.
+            kept = [rename(e, pmap)
+                    for e in (func.get("contracts", {}).get("ensures", []) or [])
+                    if classify(e, pset) is not False
+                    and saw(e, "result", pset) and saw(e, "field", pset)
+                    and refs_param(e, pset)]
+            if kept:
+                out[func["name"]] = kept
+        return out
+
     def _build_method_writes_map(self, functions: List[Dict[str, Any]]) -> Dict[str, List[str]]:
         """gap7-spec-rev2 (O1/O2): map method name → the self-field names it `assigns`
         (`assigns self.x` → `["x"]`). Derived from the SAME `contracts.assigns` the method's

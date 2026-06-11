@@ -742,8 +742,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # gap7-spec-rev2 P3: fold in void/mutating contract for `self.<m>()` too.
             _fe = getattr(self, "_module_method_field_result_ensures", {}).get(lookup_key, [])
             _foe = getattr(self, "_module_method_field_old_ensures", {}).get(lookup_key, [])
+            _fpe = getattr(self, "_module_method_field_param_result_ensures", {}).get(lookup_key, [])
             _w = getattr(self, "_module_method_writes", {}).get(lookup_key, [])
-            field_ens = _fe + _foe
+            field_ens = _fe + _foe + _fpe
             if (field_ens or _w) and cls:
                 # `self.<m>()` called from a sibling method: the enclosing
                 # method's own `self` is the receiver, typed as the class.
@@ -777,8 +778,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     # `\old`-relating ensures + the `writes` (assigns) set — so a statement-position
                     # `c.inc()` mutates `c` instead of lowering to an opaque no-op.
                     foens = getattr(self, "_module_method_field_old_ensures", {})
+                    fpens = getattr(self, "_module_method_field_param_result_ensures", {})
                     mwrites = getattr(self, "_module_method_writes", {})
-                    field_ens = fens.get(lookup_key, []) + foens.get(lookup_key, [])
+                    field_ens = (fens.get(lookup_key, []) + foens.get(lookup_key, [])
+                                 + fpens.get(lookup_key, []))
                     writes = mwrites.get(lookup_key, [])
                     if field_ens or writes:
                         # `b.<m>()`: the receiver record `b` becomes the abstract op's leading
@@ -1053,6 +1056,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         raw_args = expr.get("args", [])
         if len(raw_args) != len(args):
             return None
+        # gap-9: if `func_name` is an imported `#@ inductive` predicate whose
+        # RULE we deliberately did NOT cross (it carries a heavy `\exists`
+        # trigger), recover its param types from the recorded dependency
+        # signature so the opaque `predicate` decl has the RIGHT types (e.g.
+        # `(array int) (string)` for `name_present(disk, name)`), not the
+        # symbol-table-recovered `int` default (which mistypes `self.disk`).
+        imported_sigs = getattr(self, "_imported_inductive_sigs", {}) or {}
+        if func_name in imported_sigs:
+            from module6_whyml.identifiers import whyml_ident as _wi
+            sig_types = self._inductive_sig_whyml(imported_sigs[func_name])
+            name = _wi(func_name)
+            if sig_types:
+                self._add_abstract_op(f"predicate {name} {sig_types}")
+            else:
+                self._add_abstract_op(f"predicate {name}")
+            return f"({name} {' '.join(args)})" if args else name
         symtab = getattr(self, "_current_symbol_table", {}) or {}
         argtypes: List[str] = []
         for a_ir in raw_args:
@@ -1090,6 +1109,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if func_name in getattr(self, "_inductive_preds", set()):
             p = whyml_ident(func_name.lower())
             return f"({p} {' '.join(args)})" if args else p
+
+        # Axiom-backing logic functions (`_AXIOM_FUNCTIONS`, e.g.
+        # `dir_lookup`/`slot_inode`/`slot_name` for UnixFs.Dir): a contract call
+        # is a raw logic application bound to the registry symbol — NO int
+        # coercion (args keep their faithful array/int/string types) and NO
+        # arity-suffixed abstract op. This is the risk-2 binding: it ties
+        # `_dir_lookup`'s ensures and the `name_present` rule to the SAME symbols
+        # the axiom constrains, so the citation constrains the REAL scan.
+        if func_name in getattr(self, "_axiom_logic_funcs", set()):
+            return f"({func_name} {' '.join(args)})" if args else func_name
 
         # missing-bytes-struct-feature.md Phase 2 — struct.pack /
         # struct.unpack get a format-string-aware abstract emission
