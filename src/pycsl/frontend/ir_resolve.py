@@ -190,6 +190,30 @@ def _process_dependency(filepath: str, needed_names: Set[str], cache: Dict[str, 
     return result
 
 
+def _contract_referenced_names(dep_funcs: List[Dict[str, Any]]) -> Set[str]:
+    """Collect every callee name applied inside the contracts (`requires`/`ensures`)
+    of the injected dependency stubs. Used by 11-0632-spec-8 Part 1 to scope inductive
+    propagation to predicate names the public contracts actually reference (so unrelated
+    internal predicates do not cross the import boundary)."""
+    referenced: Set[str] = set()
+
+    def _walk(node: Any) -> None:
+        if isinstance(node, dict):
+            if node.get("type") == "Call" and isinstance(node.get("func"), str):
+                referenced.add(node["func"])
+            for v in node.values():
+                _walk(v)
+        elif isinstance(node, (list, tuple)):
+            for v in node:
+                _walk(v)
+
+    for func in dep_funcs:
+        contracts = func.get("contracts", {}) or {}
+        _walk(contracts.get("requires", []))
+        _walk(contracts.get("ensures", []))
+    return referenced
+
+
 def _inject_functions(dep_funcs: List[Dict[str, Any]], ir_data: Dict[str, Any]) -> Set[str]:
     """Insert each dependency stub at the front of `ir_data['functions']` if no function
     of that name is present yet; return the set of names added. Shared by the three import
@@ -245,6 +269,30 @@ def _resolve_direct_imports(direct_imports: List[Any], all_calls: Set[str], main
             for local, orig in names:
                 if orig in dep_consts and local not in own:
                     own[local] = dep_consts[orig]
+        # 11-0632-spec-8 Part 1 (carry a contract-referenced LOGIC symbol across the
+        # import boundary): an injected stub's `#@ ensures` may apply a module-level
+        # `#@ inductive` predicate (gap-7's `present`) declared in the dependency. The
+        # dependency emits the predicate as a logic `inductive …` block standalone, but
+        # the importer never received the decl — so its lowering falls back to a program
+        # `val present_1 (int):int`, which is illegal in `ensures` and mistyped. Mirror
+        # the `module_constants` propagation: copy the dep's `inductive_decls` into the
+        # importer's IR, de-duped by name, scoped to the predicate names the INJECTED
+        # contracts actually reference (so unrelated internal predicates do not cross the
+        # public boundary). Module6 then registers `present` in `_inductive_preds` and
+        # `_emit_inductive_decls` emits the real logic block — the program-`val` fallback
+        # is never reached.
+        dep_ind = (cache.get(os.path.abspath(resolved), {}) or {}).get("inductive_decls", [])
+        if dep_ind:
+            referenced = _contract_referenced_names(dep_funcs)
+            tgt = ir_data.setdefault("inductive_decls", [])
+            have = {d["name"] for d in tgt}
+            for d in dep_ind:
+                if d["name"] in have:
+                    continue
+                names_of_d = {d["name"]} | {m["name"] for m in d.get("members", [])}
+                if names_of_d & referenced:
+                    tgt.append(copy.deepcopy(d))
+                    have.add(d["name"])
         resolved_locals = [local for local, _ in needed]
         if resolved_locals:
             print(f"[*] Imported from '{module_path}': {resolved_locals} (trusted stubs)")

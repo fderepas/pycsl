@@ -1031,6 +1031,43 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
         return None
 
+    def _emit_contract_logic_symbol(self, func_name: str, expr: Dict[str, Any],
+                                    args: List[str]) -> Optional[str]:
+        """11-0632-spec-8 Part 2 (NARROW safety net, contract position only).
+
+        An unknown applied symbol seen in CONTRACT/formula context (`_in_spec`) is a
+        LOGIC predicate reference — emit it as a logic `predicate name argtypes`, NOT a
+        program `val name_N (x0:int):int` (the latter is illegal in `ensures`/`requires`
+        and mistyped against a `string`/`real` argument). Argument types are recovered
+        from the enclosing stub's symbol table (`_current_symbol_table`) at the SAME
+        py→WhyML mapping the rest of the emitter uses (`_symtype_to_whyml`: `str`→string,
+        `float`→real, list/tuple/bytes→array int, default int). Returns the logic
+        application `(name args)`, or None if the symbol is unsuitable for the logic path
+        (then the caller keeps the program-`val` fallback).
+
+        Faithfulness: the predicate carries NO axioms — it is an uninterpreted logic
+        symbol that constrains nothing it should not. Part 1 (carrying the dependency's
+        real `#@ inductive` decl) always WINS when it can: a propagated decl puts
+        `func_name` in `_inductive_preds`, so this arm is never reached for it.
+        """
+        raw_args = expr.get("args", [])
+        if len(raw_args) != len(args):
+            return None
+        symtab = getattr(self, "_current_symbol_table", {}) or {}
+        argtypes: List[str] = []
+        for a_ir in raw_args:
+            sym_t = None
+            if isinstance(a_ir, dict) and a_ir.get("type") == "Var":
+                sym_t = symtab.get(a_ir.get("name"))
+            argtypes.append(self._symtype_to_whyml(sym_t))
+        name = whyml_ident(func_name)
+        if argtypes:
+            self._add_abstract_op(
+                f"predicate {name} {' '.join(f'({t})' for t in argtypes)}")
+        else:
+            self._add_abstract_op(f"predicate {name}")
+        return f"({name} {' '.join(args)})" if args else name
+
     def _handle_call_expr(self, expr: Dict[str, Any], local_refs: Set[str],
                           invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
         func_name = expr["func"]
@@ -1080,6 +1117,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if (func_name not in local_refs
                 and func_name not in self._current_params
                 and safe_fn not in self._module_func_names):
+            # 11-0632-spec-8 Part 2 (safety net, NARROW): in CONTRACT/formula
+            # position (`_in_spec`), an unknown applied symbol is a LOGIC predicate
+            # reference (a `present(filepath)`-shaped contract symbol whose decl did
+            # NOT cross the import boundary — e.g. the dependency forgot to declare it,
+            # or a shape Part 1 does not yet carry). A program `val …:int` is illegal
+            # in `ensures`/`requires`, so emit a logic `predicate`/`function` instead,
+            # with arg types recovered from the enclosing stub's symbol table (NOT the
+            # int model). Part 1 always wins when it can supply the real decl (then
+            # `func_name` is in `_inductive_preds` and this arm is never reached). This
+            # fires ONLY in `_in_spec` AND while emitting a bodyless `val`/trusted-stub
+            # contract (`_emitting_val_contract`) — body-position unannotated calls keep
+            # the program `val` below, and a real `let` function whose `ensures`
+            # references a symbol it ALSO program-calls (0386) keeps its program `val`.
+            if (getattr(self, "_in_spec", False)
+                    and getattr(self, "_emitting_val_contract", False)):
+                logic = self._emit_contract_logic_symbol(func_name, expr, args)
+                if logic is not None:
+                    return logic
             # Unannotated callee: no signature is known, so the abstract op and
             # its args stay in the int model.
             coerced_args = [self._coerce_to_int(a) for a in args]

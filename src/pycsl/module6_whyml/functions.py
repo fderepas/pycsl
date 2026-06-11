@@ -491,8 +491,17 @@ class FunctionEmissionMixin:
             }
         else:
             contract_src = func.get("contracts", {})
+        # 11-0632-spec-8 Part 2 (NARROW): flag that we are emitting a bodyless
+        # `val`/trusted-stub contract, so the contract-position logic-symbol fallback
+        # (`_emit_contract_logic_symbol`) fires ONLY here — never for a real `let`
+        # function whose `ensures` references a symbol it ALSO program-calls in its body
+        # (e.g. 0386's `external_helper`, which must keep its program `val` + strict
+        # assert). A trusted stub has no body, so a contract-only unknown symbol there is
+        # necessarily a logic predicate (the gap-7 `present` shape).
+        self._emitting_val_contract = emit_as_val
         lines += self._emit_contracts(contract_src, spec_refs,
                                       func_variants, func_diverges, func_exceptions)
+        self._emitting_val_contract = False
 
         if emit_as_val:
             lines.append("")

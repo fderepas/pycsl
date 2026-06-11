@@ -69,6 +69,7 @@ class Module6_WhyMLTranspiler(
         self._shared_var_names: Set[str] = set()  # Module-level shared variable names (concurrent model)
         self._havoc_counter: int = 0             # Counter for unique havoc variable names
         self._in_spec: bool = False              # True when emitting contracts (no div-by-zero VCs)
+        self._emitting_val_contract: bool = False  # 11-0632-spec-8 Part 2: True only while emitting a bodyless val/trusted-stub contract
         # Per-function state — reset per function via `_reset_function_state`;
         # initialised here so they're always defined and accessing them
         # before the first reset is safe.
