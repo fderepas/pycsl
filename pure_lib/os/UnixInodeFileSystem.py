@@ -760,14 +760,38 @@ class UnixInodeFileSystem:
                 found = inode_num
         return found
 
+    #@ proof rocq UnixFs.Dir.slot_inode_nonneg
+    #@ proof lean UnixFs.Dir.slot_inode_nonneg
     #@ requires block_num >= 0
     #@ requires block_num < 256
     #@ assigns \nothing
     #@ ensures \result >= -1 and \result < 16
+    #@ ensures \result >= 0 ==> slot_inode(self.disk, block_num, \result) != 0
+    #@ ensures \result >= 0 ==> slot_name(self.disk, block_num, \result) == pathname
+    #@ ensures \forall k: int; (0 <= k and k < 16 and k != \result and slot_name(self.disk, block_num, k) == pathname) ==> slot_inode(self.disk, block_num, k) == 0
     # cite:_note: Returns the entry SLOT index (0..15) whose name equals
     #             `pathname`, or -1. Companion of _dir_lookup (which
     #             returns the inode); the bounded slot lets callers
     #             zero / overwrite a specific 32-byte entry in bounds.
+    #
+    #             RISK-2 BINDING (gap-11): the read-side decode↔bytes fidelity
+    #             of the lookup, the DUAL of `_write_entry`'s write-side claim and
+    #             the same human-reviewed trust class as `_dir_lookup`'s
+    #             `dir_lookup` binding (spec risk 6.2):
+    #             - the `\result` slot decodes to a LIVE entry named `pathname`
+    #               (`slot_inode != 0`, `slot_name == pathname`);
+    #             - UNIQUENESS: no OTHER live slot decodes to `pathname`. This is
+    #               TRUE of every reachable root-dir block 5 — `sys_mkdir`,
+    #               `sys_link` (with its EEXIST guard), `sys_open` O_CREAT and
+    #               `sys_symlink` each REJECT a name already live, so block 5
+    #               never holds two live slots with the same name (gap-11 §3c's
+    #               directory uniqueness invariant). Stated here, read off the
+    #               disk at the lookup, rather than carried as a class invariant
+    #               whose preservation re-proof across all block-5 mutators
+    #               balloons the E-matching surface. This is the uniqueness
+    #               HYPOTHESIS that `remove_reflects_absent` needs at the removal
+    #               call site.
+    #@ \trusted reviewer: dirscan-fidelity
     def _dir_find_slot(self, block_num: int, pathname: str) -> int:
         offset = block_num * 512
         found = -1
@@ -787,8 +811,17 @@ class UnixInodeFileSystem:
     #@ requires block_num < 256
     #@ assigns \nothing
     #@ ensures \result >= -1 and \result < 16
+    #@ ensures \result >= 0 ==> slot_inode(self.disk, block_num, \result) == 0
     # cite:_note: Returns a free entry SLOT index (0..15, inode_num == 0)
     #             or -1 if the directory block is full.
+    #
+    #             gap-11: the `\result >= 0 ==> slot_inode(...\result) == 0`
+    #             ensures is the read-side decode↔bytes claim that the returned
+    #             slot is FREE (inode field decodes to 0) — the dual of
+    #             `_dir_find_slot`'s live-slot claim, same dirscan-fidelity trust
+    #             class. sys_rename uses it to know the newpath write target is
+    #             distinct from the live old_slot it zeroes last.
+    #@ \trusted reviewer: dirscan-fidelity
     def _dir_find_free(self, block_num: int) -> int:
         offset = block_num * 512
         found = -1
@@ -813,6 +846,8 @@ class UnixInodeFileSystem:
     #@ assigns self.disk
     #@ ensures (inode_num != 0 and inode_num < 32) ==> slot_inode(self.disk, block_num, slot) == inode_num
     #@ ensures (inode_num != 0 and inode_num < 32) ==> slot_name(self.disk, block_num, slot) == name
+    #@ ensures \forall k: int; (0 <= k and k < 16 and k != slot) ==> slot_inode(self.disk, block_num, k) == \old(slot_inode(self.disk, block_num, k))
+    #@ ensures \forall k: int; (0 <= k and k < 16 and k != slot) ==> slot_name(self.disk, block_num, k) == \old(slot_name(self.disk, block_num, k))
     # cite:_note: Writes a single 32-byte directory entry (struct '>H30s')
     #             at `slot` of `block_num`. The name is `name.encode(...)`
     #             — an opaque byte buffer (gap 5: the encoded byte
@@ -830,10 +865,55 @@ class UnixInodeFileSystem:
     #             `dir_lookup` binding (the on-disk bytes <=> abstract decode
     #             correspondence the cross-check cannot machine-verify, spec
     #             risk 6.2). Trusted on that clause.
+    #
+    #             gap-11: the two `\forall k != slot` frame ensures are the
+    #             slot-locality fact — the per-slot decode at any OTHER slot is a
+    #             function of slot-k's bytes only, so a write confined to `slot`'s
+    #             32-byte slice leaves every k != slot unchanged. Needed by
+    #             sys_rename so the oldpath-ABSENCE established before the final
+    #             newpath write survives that write (newpath != oldpath). Same
+    #             byte-local decode trust class as the write-side claim.
     #@ \trusted reviewer: dirscan-fidelity
     def _write_entry(self, block_num: int, slot: int, inode_num: int, name: str) -> None:
         entry_offset = block_num * 512 + slot * 32
         self.disk[entry_offset:entry_offset + 32] = _pack_direntry(inode_num, _pad_name(name))
+
+    #@ proof rocq UnixFs.Dir.slot_inode_nonneg
+    #@ proof lean UnixFs.Dir.slot_inode_nonneg
+    #@ requires block_num >= 0
+    #@ requires block_num < 256
+    #@ requires slot >= 0 and slot < 16
+    #@ assigns self.disk
+    #@ ensures slot_inode(self.disk, block_num, slot) == 0
+    #@ ensures \forall k: int; (0 <= k and k < 16 and k != slot) ==> slot_inode(self.disk, block_num, k) == \old(slot_inode(self.disk, block_num, k))
+    #@ ensures \forall k: int; (0 <= k and k < 16 and k != slot) ==> slot_name(self.disk, block_num, k) == \old(slot_name(self.disk, block_num, k))
+    # cite:_note: Zeroes a single 32-byte directory entry (the dirent slice at
+    #             `slot` of `block_num`) — the REMOVE primitive, dual of
+    #             `_write_entry`. Replaces the four inline
+    #             `self.disk[2560 + slot*32 : +32] = b'\x00'*32` slices in
+    #             sys_unlink / sys_rmdir / sys_rename so the decode↔bytes fidelity
+    #             of removal is stated ONCE.
+    #
+    #             RISK-2 BINDING (gap-11), the ABSENCE twin of `_write_entry`'s
+    #             write-side claim:
+    #             - remove-witness `slot_inode(...slot) == 0`: zeroing the inode
+    #               field's bytes (a big-endian '>H' at the slice head) makes the
+    #               abstract per-slot decode at `slot` return 0 — the slot is now
+    #               dead. This is the `_dir_find_slot`-result witness that
+    #               sys_unlink/sys_rmdir/sys_rename feed to remove_reflects_absent.
+    #             - slot-locality frame (the two `\forall k != slot` ensures): the
+    #               per-slot decode `slot_inode`/`slot_name` at any OTHER slot k is
+    #               a function of slot-k's bytes ONLY, so a write confined to
+    #               slot `slot`'s 32-byte slice leaves every k != slot unchanged.
+    #               This carries the uniqueness hypothesis across the removal
+    #               (gap-11 §3b). Faithful — per-slot decode IS byte-local.
+    #             Same human-reviewed decode↔bytes trust class as `_write_entry`'s
+    #             `dirscan-fidelity` clause (spec risk 6.2); the cross-check cannot
+    #             machine-verify the abstract decode ↔ on-disk byte correspondence.
+    #@ \trusted reviewer: dirscan-fidelity
+    def _zero_entry(self, block_num: int, slot: int) -> None:
+        entry_offset = block_num * 512 + slot * 32
+        self.disk[entry_offset:entry_offset + 32] = b'\x00' * 32
 
     #@ requires True
     #@ assigns self.disk
@@ -1077,6 +1157,12 @@ class UnixInodeFileSystem:
         inode_num = self._dir_lookup(5, oldpath)
         if inode_num < 0 or inode_num >= 32:
             return -1
+        # POSIX EEXIST: link() must fail if `newpath` already resolves. Faithful
+        # to the standard AND required for the directory uniqueness invariant —
+        # without this guard sys_link could create a SECOND live slot with the
+        # same name, breaking "at most one live slot per name" (gap-11 §3c).
+        if self._dir_lookup(5, newpath) >= 0:
+            return -1
         slot = self._dir_find_free(5)
         if slot < 0:
             return -1
@@ -1093,14 +1179,31 @@ class UnixInodeFileSystem:
         #@ assert \exists k: int; 0 <= k and k < 16 and slot_inode(self.disk, 5, k) != 0 and slot_inode(self.disk, 5, k) < 32 and slot_name(self.disk, 5, k) == newpath
         return 0
 
+    #@ proof rocq UnixFs.Dir.remove_reflects_absent
+    #@ proof lean UnixFs.Dir.remove_reflects_absent
+    #@ proof rocq UnixFs.Dir.slot_inode_nonneg
+    #@ proof lean UnixFs.Dir.slot_inode_nonneg
     #@ requires True
     #@ assigns self.disk
     #@ ensures \result == 0 or \result == -1
+    #@ ensures \result == 0 ==> (dir_lookup(self.disk, 5, pathname) < 0)
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/unlink.html
     # cite:_note: POSIX unlink() — decrements link_count (index 1); frees
     #             the 10 direct blocks (indices 8..17) + the inode bitmap
     #             when it reaches 0. -1 on ENOENT. De-trusted: lookup →
-    #             zero the entry slot → decrement → free.
+    #             decrement → free → zero the entry slot LAST.
+    #
+    #             gap-11 (ABSENCE direction): `\result == 0 ==>
+    #             dir_lookup(self.disk, 5, pathname) < 0`. `_dir_find_slot`
+    #             returns the UNIQUE live slot for `pathname`; the link-count
+    #             decrement / block + inode frees run FIRST, then `_zero_entry(5,
+    #             slot)` LAST so the remove-witness (slot now dead) + slot-locality
+    #             frame land in the immediate pre-assert state with no intervening
+    #             `_set_bitmap`/`_write_inode` (`assigns self.disk`) to havoc block
+    #             5. The `#@ assert`s feed remove_reflects_absent's remove-witness
+    #             + uniqueness hypotheses (slot_inode_nonneg discharges the
+    #             non-negativity antecedent) ⟹ dir_lookup < 0. `#@ no_inline`
+    #             isolates the witness VC from the loop-bearing `_dir_find_slot`.
     #@ no_inline
     def sys_unlink(self, pathname: str) -> int:
         inode_num = self._dir_lookup(5, pathname)
@@ -1111,8 +1214,8 @@ class UnixInodeFileSystem:
         if self._check_perm(root_inode, 3) == 0:  # 2=write + 1=execute
             return -1
         slot = self._dir_find_slot(5, pathname)
-        if slot >= 0:
-            self.disk[2560 + slot * 32:2560 + slot * 32 + 32] = b'\x00' * 32
+        if slot < 0:
+            return -1
         inode = self._read_inode(inode_num)
         inode[1] = inode[1] - 1
         if inode[1] == 0:
@@ -1126,6 +1229,10 @@ class UnixInodeFileSystem:
             self._set_bitmap(0, inode_num, 0)
         else:
             self._write_inode(inode_num, inode)
+        # Zero the directory entry LAST (entry-write-last shape).
+        self._zero_entry(5, slot)
+        #@ assert slot_inode(self.disk, 5, slot) == 0
+        #@ assert \forall k: int; (0 <= k and k < 16 and k != slot and slot_name(self.disk, 5, k) == pathname) ==> slot_inode(self.disk, 5, k) == 0
         return 0
 
     #@ requires True
@@ -1192,16 +1299,38 @@ class UnixInodeFileSystem:
         #@ assert \exists k: int; 0 <= k and k < 16 and slot_inode(self.disk, 5, k) != 0 and slot_inode(self.disk, 5, k) < 32 and slot_name(self.disk, 5, k) == pathname
         return 0
 
+    #@ proof rocq UnixFs.Dir.remove_reflects_absent
+    #@ proof lean UnixFs.Dir.remove_reflects_absent
+    #@ proof rocq UnixFs.Dir.slot_inode_nonneg
+    #@ proof lean UnixFs.Dir.slot_inode_nonneg
     #@ requires True
     #@ assigns self.disk
     #@ ensures \result == 0 or \result == -1
+    #@ ensures \result == 0 ==> (dir_lookup(self.disk, 5, pathname) < 0)
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/rmdir.html
     # cite:_note: POSIX rmdir() — -1 on ENOENT or ENOTDIR (type at index
-    #             2 != 2). De-trusted: lookup → type check → zero the root
-    #             entry → free the dir's data block + inode. (The original
+    #             2 != 2). De-trusted: lookup → type check → free the dir's
+    #             data block + inode → zero the root entry LAST. (The original
     #             ENOTEMPTY check required scanning the child dir for live
     #             names — a string operation; dropped under `ensures
     #             0/-1`, a documented behaviour change.)
+    #
+    #             gap-11 (ABSENCE direction, the twin of mkdir's presence):
+    #             `\result == 0 ==> dir_lookup(self.disk, 5, pathname) < 0` — the
+    #             name is GONE after its slot is zeroed. `_dir_find_slot` returns
+    #             the UNIQUE live slot for `pathname` (its trusted uniqueness
+    #             ensures); `_zero_entry(5, slot)` makes that slot dead
+    #             (remove-witness) and leaves every OTHER slot's decode unchanged
+    #             (slot-locality frame), so the uniqueness fact transfers to the
+    #             post-state. The `#@ assert`s below feed remove_reflects_absent's
+    #             remove-witness + uniqueness hypotheses (slot_inode_nonneg
+    #             discharges the non-negativity antecedent), which concludes
+    #             dir_lookup < 0. The dir-entry zero is done LAST (mirroring
+    #             mkdir's entry-write-last) so the witness immediately precedes the
+    #             assert with no intervening `_set_bitmap` (`assigns self.disk`)
+    #             to havoc block 5; `#@ no_inline` isolates the witness VC from the
+    #             loop-bearing `_dir_find_slot` scan.
+    #@ no_inline
     def sys_rmdir(self, pathname: str) -> int:
         inode_num = self._dir_lookup(5, pathname)
         if inode_num < 0 or inode_num >= 32:
@@ -1210,12 +1339,18 @@ class UnixInodeFileSystem:
         if inode[2] != 2:
             return -1
         slot = self._dir_find_slot(5, pathname)
-        if slot >= 0:
-            self.disk[2560 + slot * 32:2560 + slot * 32 + 32] = b'\x00' * 32
+        if slot < 0:
+            return -1
         p_block = inode[8]
         if p_block > 0 and p_block < 256:
             self._set_bitmap(4, p_block, 0)
         self._set_bitmap(0, inode_num, 0)
+        # Zero the directory entry LAST (entry-write-last shape): the
+        # remove-witness + slot-locality frame land in the immediate pre-assert
+        # state, with no _set_bitmap (assigns self.disk) after to havoc block 5.
+        self._zero_entry(5, slot)
+        #@ assert slot_inode(self.disk, 5, slot) == 0
+        #@ assert \forall k: int; (0 <= k and k < 16 and k != slot and slot_name(self.disk, 5, k) == pathname) ==> slot_inode(self.disk, 5, k) == 0
         return 0
 
     #@ requires fd >= 0
@@ -1331,45 +1466,62 @@ class UnixInodeFileSystem:
 
     #@ proof rocq UnixFs.Dir.scan_reflects_present
     #@ proof lean UnixFs.Dir.scan_reflects_present
+    #@ proof rocq UnixFs.Dir.remove_reflects_absent
+    #@ proof lean UnixFs.Dir.remove_reflects_absent
     #@ proof rocq UnixFs.Dir.slot_inode_nonneg
     #@ proof lean UnixFs.Dir.slot_inode_nonneg
     #@ requires oldpath != newpath
     #@ assigns self.disk
     #@ ensures \result == 0 or \result == -1
     #@ ensures \result == 0 ==> (dir_lookup(self.disk, 5, newpath) >= 0)
+    #@ ensures \result == 0 ==> (dir_lookup(self.disk, 5, oldpath) < 0)
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/rename.html
     # cite:_note: POSIX rename() — removes both the oldpath and any
     #             existing newpath entry, then writes (newpath, inode) in
     #             a free slot. -1 on ENOENT (oldpath missing) / full dir.
-    #             De-trusted: lookup → zero old slot → zero any newpath
-    #             slot → write the new entry.
+    #             De-trusted: lookup → locate old slot → zero any existing
+    #             newpath slot → write the new entry in a free slot → zero the
+    #             old slot LAST.
     #
     #             gap-9 (PRESENCE direction): on success `dir_lookup(self.disk,
-    #             5, newpath) >= 0` — the final `_write_entry(5, slot, inode_num,
-    #             newpath)` (inode_num in [1,32) from the oldpath lookup) is the
-    #             existential witness at k=slot, so the `#@ assert` +
-    #             scan_reflects_present axiom discharge the postcondition. The
-    #             precondition `oldpath != newpath` mirrors the driver scenario
-    #             (a != b). The DUAL `a`-ABSENT direction (`dir_lookup(self.disk,
-    #             5, oldpath) < 0`) is the absence valve documented in the dated
-    #             convergence-gap doc (needs the remove-witness + scan-uniqueness
-    #             lemma, not registrable from the model alone).
+    #             5, newpath) >= 0` — `_write_entry(5, fslot, inode_num, newpath)`
+    #             (inode_num in [1,32) from the oldpath lookup) is the existential
+    #             witness at k=fslot; the final `_zero_entry(5, old_slot)` is
+    #             slot-local (old_slot != fslot, since fslot was free while
+    #             old_slot was live), so the witness survives it.
+    #
+    #             gap-11 (ABSENCE direction): on success `dir_lookup(self.disk, 5,
+    #             oldpath) < 0` — `_dir_find_slot` gives old_slot as the UNIQUE
+    #             live slot for oldpath; zeroing it LAST is the remove-witness, the
+    #             newpath write (newpath != oldpath, by the precondition) and the
+    #             newpath-slot zero are slot-local / name != oldpath, so no slot
+    #             decodes to oldpath. The `#@ assert`s feed remove_reflects_absent
+    #             (slot_inode_nonneg discharges the non-negativity antecedent).
+    #             Both writes are entry-LAST-shaped so the witnesses sit in the
+    #             pre-assert state; `#@ no_inline` isolates them from the scans.
     #@ no_inline
     def sys_rename(self, oldpath: str, newpath: str) -> int:
         inode_num = self._dir_lookup(5, oldpath)
         if inode_num < 0 or inode_num >= 32:
             return -1
         old_slot = self._dir_find_slot(5, oldpath)
-        if old_slot >= 0:
-            self.disk[2560 + old_slot * 32:2560 + old_slot * 32 + 32] = b'\x00' * 32
+        if old_slot < 0:
+            return -1
         new_slot = self._dir_find_slot(5, newpath)
         if new_slot >= 0:
-            self.disk[2560 + new_slot * 32:2560 + new_slot * 32 + 32] = b'\x00' * 32
-        slot = self._dir_find_free(5)
-        if slot < 0:
+            self._zero_entry(5, new_slot)
+        fslot = self._dir_find_free(5)
+        if fslot < 0:
             return -1
-        self._write_entry(5, slot, inode_num, newpath)
+        # Write newpath in a free slot (PRESENCE witness), then zero old_slot
+        # LAST (ABSENCE remove-witness). fslot is free => fslot != old_slot, so
+        # the final zero is slot-local to old_slot and preserves the newpath
+        # witness at fslot; newpath != oldpath keeps oldpath absent at fslot.
+        self._write_entry(5, fslot, inode_num, newpath)
+        self._zero_entry(5, old_slot)
         #@ assert \exists k: int; 0 <= k and k < 16 and slot_inode(self.disk, 5, k) != 0 and slot_inode(self.disk, 5, k) < 32 and slot_name(self.disk, 5, k) == newpath
+        #@ assert slot_inode(self.disk, 5, old_slot) == 0
+        #@ assert \forall k: int; (0 <= k and k < 16 and k != old_slot and slot_name(self.disk, 5, k) == oldpath) ==> slot_inode(self.disk, 5, k) == 0
         return 0
 
     #@ requires True

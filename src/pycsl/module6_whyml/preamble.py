@@ -143,6 +143,33 @@ class PreambleEmissionMixin:
         "UnixFs.Dir.slot_inode_nonneg":
             "forall disk : array int. forall blk : int. forall k : int. "
             "slot_inode disk blk k >= 0",
+
+        # UnixFs.Dir.remove_reflects_absent (gap-11) — the ABSENCE twin of
+        # scan_reflects_present. After the live entry at slot s is zeroed
+        # (remove-witness: slot_inode disk blk s = 0) and provided `name` lived
+        # only at s (uniqueness: every OTHER slot decoding to `name` is dead),
+        # the bounded 16-slot scan finds no match, so dir_lookup < 0. This is the
+        # `<-`/absence half of scan_reflects_present's IFF specialised to an empty
+        # matches-set; the remove-witness and uniqueness are explicit HYPOTHESES
+        # (NOT assertions), exactly the gap-9 trust class. Cross-validated by
+        # unix-filesystem/UnixInodeFileSystem.proofs/{rocq,lean}/UnixDirScanAbsent.{v,lean}
+        # (theorem remove_reflects_absent): same scan_reflects_prefix induction.
+        # Rocq: Closed under the global context (0 axioms); Lean: axioms subseteq
+        # {propext, Quot.sound}. The `forall j. slot_inode disk blk j >= 0`
+        # antecedent is discharged at the call site by slot_inode_nonneg (above);
+        # the `0 <= s < 16` antecedent is carried for call-site symmetry (vacuous
+        # in both proofs — the witness alone empties the matches-set). Reuses the
+        # SAME abstract slot_inode/slot_name/dir_lookup symbols (no new
+        # _AXIOM_FUNCTIONS entry needed).
+        "UnixFs.Dir.remove_reflects_absent":
+            "forall disk : array int. forall blk : int. forall name : string. "
+            "forall s : int. "
+            "( forall j : int. slot_inode disk blk j >= 0 ) -> "
+            "( 0 <= s < 16 ) -> "
+            "( slot_inode disk blk s = 0 ) -> "
+            "( forall k : int. 0 <= k < 16 -> k <> s -> "
+            "    slot_name disk blk k = name -> slot_inode disk blk k = 0 ) -> "
+            "dir_lookup disk blk name < 0",
     }
 
     # Functions that an axiom block needs declared. Looked up by qualname

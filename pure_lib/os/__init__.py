@@ -257,15 +257,21 @@ def scandir(filepath='.') -> list:
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
+#@ ensures \result == 0 ==> (dir_lookup(_filesystem.disk, 5, filepath) < 0)
 def remove(filepath: str):
     """Remove a file."""
+    # gap-11: sys_unlink ensures `rc == 0 ==> dir_lookup(_filesystem.disk, 5,
+    # filepath) < 0` (the unlink mutator establishes the ABSENCE view), so
+    # access(filepath) reports ABSENT after a successful remove.
     return _filesystem.sys_unlink(filepath)
 
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
+#@ ensures \result == 0 ==> (dir_lookup(_filesystem.disk, 5, filepath) < 0)
 def unlink(filepath: str, *, dir_fd=None):
     """Remove a file (same as remove)."""
+    # gap-11: ABSENCE view propagated from sys_unlink.
     return _filesystem.sys_unlink(filepath)
 
 #@ requires True
@@ -294,12 +300,14 @@ def write(fd, data: list):
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
 #@ ensures \result == 0 ==> (dir_lookup(_filesystem.disk, 5, dst) >= 0)
+#@ ensures \result == 0 ==> (dir_lookup(_filesystem.disk, 5, src) < 0)
 def rename(src: str, dst: str, *, src_dir_fd=None, dst_dir_fd=None):
     """Rename a file or directory."""
     # gap-9: sys_rename ensures `rc == 0 ==> dir_lookup(_filesystem.disk, 5, dst)
     # >= 0` (the rename mutator establishes the presence view for the new name
-    # dst), so access(dst) reports PRESENT after a successful rename. The DUAL
-    # `src`-ABSENT direction is the absence valve (see convergence-gap doc).
+    # dst), so access(dst) reports PRESENT after a successful rename.
+    # gap-11: `rc == 0 ==> dir_lookup(_filesystem.disk, 5, src) < 0` — the DUAL
+    # `src`-ABSENT direction, so access(src) reports ABSENT after rename.
     return _filesystem.sys_rename(src, dst)
 
 #@ requires True
@@ -316,8 +324,12 @@ def mkdir(filepath: str, mode=0o777, *, dir_fd=None):
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
+#@ ensures \result == 0 ==> (dir_lookup(_filesystem.disk, 5, filepath) < 0)
 def rmdir(filepath: str, *, dir_fd=None):
     """Remove a directory."""
+    # gap-11: sys_rmdir ensures `rc == 0 ==> dir_lookup(_filesystem.disk, 5,
+    # filepath) < 0` (the rmdir mutator establishes the ABSENCE view), so
+    # access(filepath) reports ABSENT after a successful rmdir.
     return _filesystem.sys_rmdir(filepath)
 
 #@ requires True

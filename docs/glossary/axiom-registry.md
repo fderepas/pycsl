@@ -42,7 +42,7 @@ Every registry entry must satisfy:
 | `Pycsl.Reference.Json.*` | 1 | Inductive involution over recursive datatype |
 | `UnixFs.Bitmap.*` | 1 | Bitwise bound (`bit_and n 1 ∈ {0,1}`) |
 | `UnixFs.Struct.*` | 3 | struct.pack/unpack round-trip identity |
-| `UnixFs.Dir.*` | 2 | Directory-scan reflection (`dir_lookup ≥ 0 ↔ ∃ live slot`) + unsigned-byte inode non-negativity. Cross-validated by `unix-filesystem/UnixInodeFileSystem.proofs/{rocq,lean}/UnixDirScan.{v,lean}` (Rocq: closed under the global context; Lean: axioms ⊆ {propext, Quot.sound}). INDUCTIVE over the 16-slot scan loop — SMT times out (gap-9). |
+| `UnixFs.Dir.*` | 3 | Directory-scan PRESENCE reflection (`dir_lookup ≥ 0 ↔ ∃ live slot`) + unsigned-byte inode non-negativity + ABSENCE reflection (`remove_reflects_absent`: after the live slot is zeroed and `name` lived only there, `dir_lookup < 0` — the `←`/absence half of the presence IFF specialised to an empty matches-set; remove-witness + uniqueness are explicit hypotheses). Cross-validated by `unix-filesystem/UnixInodeFileSystem.proofs/{rocq,lean}/UnixDirScan{,Absent}.{v,lean}` (Rocq: closed under the global context; Lean: axioms ⊆ {propext, Quot.sound}). INDUCTIVE over the 16-slot scan loop — SMT times out (gap-9 presence / gap-11 absence). |
 
 ## When to axiomatize (vs prove inline)
 

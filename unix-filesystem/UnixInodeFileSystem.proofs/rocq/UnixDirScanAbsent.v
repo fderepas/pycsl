@@ -1,0 +1,144 @@
+(* unix-filesystem/UnixInodeFileSystem.proofs/rocq/UnixDirScanAbsent.v
+ *
+ * Validation of UnixFs.Dir.remove_reflects_absent (gap-11).
+ *
+ * Reuses the scan_reflects_prefix induction (gap-9) verbatim, then derives
+ * the ABSENCE direction: after zeroing the matching slot s (slot s now dead,
+ * remove-witness) and under name-uniqueness (no OTHER live slot decodes to
+ * `name`), the bounded scan returns < 0.
+ *
+ * Verified under Coq 8.20.1. No Admitted, no Axiom. *)
+
+Require Import Coq.ZArith.ZArith.
+Require Import Coq.Bool.Bool.
+Require Import Lia.
+
+Open Scope Z_scope.
+
+Module UnixFs.
+Module Dir.
+
+Section Scan.
+
+Variable disk : Type.
+Variable name_t : Type.
+Variable slot_inode : disk -> Z -> Z -> Z.
+Variable slot_name  : disk -> Z -> Z -> name_t.
+Variable eqn : name_t -> name_t -> bool.
+Hypothesis eqn_spec : forall a b, eqn a b = true <-> a = b.
+Hypothesis slot_inode_nonneg : forall d blk k, 0 <= slot_inode d blk k.
+
+Definition matches (d : disk) (blk : Z) (name : name_t) (k : Z) : Prop :=
+  slot_inode d blk k <> 0 /\ slot_inode d blk k < 32 /\ slot_name d blk k = name.
+
+Fixpoint scan (d : disk) (blk : Z) (name : name_t) (i : nat) (found : Z) : Z :=
+  match i with
+  | O => found
+  | S j =>
+      let f := scan d blk name j found in
+      let zj := Z.of_nat j in
+      if andb (negb (Z.eqb (slot_inode d blk zj) 0))
+              (andb (Z.ltb (slot_inode d blk zj) 32)
+                    (eqn (slot_name d blk zj) name))
+      then slot_inode d blk zj
+      else f
+  end.
+
+(* gap-9 lemma, verbatim. *)
+Lemma scan_reflects_prefix : forall (d : disk) (blk : Z) (name : name_t) (i : nat),
+  ( (scan d blk name i (-1) >= 0)
+    <-> (exists k : Z, 0 <= k < Z.of_nat i /\ matches d blk name k) )
+  /\ ( scan d blk name i (-1) >= 0 -> scan d blk name i (-1) < 32 ).
+Proof.
+  intros d blk name i. induction i as [| j IH].
+  - simpl. split.
+    + split.
+      * intro H. lia.
+      * intros [k [Hk _]]. lia.
+    + intro H. lia.
+  - destruct IH as [IHiff IHrng].
+    simpl.
+    set (zj := Z.of_nat j) in *.
+    remember (andb (negb (Z.eqb (slot_inode d blk zj) 0))
+                   (andb (Z.ltb (slot_inode d blk zj) 32)
+                         (eqn (slot_name d blk zj) name))) as guard eqn:Hguard.
+    destruct guard.
+    + symmetry in Hguard.
+      apply andb_true_iff in Hguard. destruct Hguard as [Hne Hrest].
+      apply andb_true_iff in Hrest. destruct Hrest as [Hlt Heqn].
+      apply negb_true_iff in Hne. apply Z.eqb_neq in Hne.
+      apply Z.ltb_lt in Hlt.
+      apply eqn_spec in Heqn.
+      assert (Hm : matches d blk name zj).
+      { unfold matches. repeat split; assumption. }
+      split.
+      * split.
+        -- intro _H. exists zj. split; [ split; [ apply Nat2Z.is_nonneg | lia ] | exact Hm ].
+        -- intro _H. pose proof (slot_inode_nonneg d blk zj). lia.
+      * intro _H. lia.
+    + symmetry in Hguard.
+      split.
+      * rewrite IHiff. split.
+        -- intros [k [Hk Hm]]. exists k. split; [ split; [ lia | lia ] | exact Hm ].
+        -- intros [k [Hk Hm]].
+           assert (Hkj : k < zj \/ k = zj) by lia.
+           destruct Hkj as [Hklt | Hkeq].
+           ++ exists k. split; [ split; [ lia | lia ] | exact Hm ].
+           ++ subst k. exfalso.
+              unfold matches in Hm. destruct Hm as [Hne [Hlt Heq]].
+              assert (Hg : andb (negb (Z.eqb (slot_inode d blk zj) 0))
+                                (andb (Z.ltb (slot_inode d blk zj) 32)
+                                      (eqn (slot_name d blk zj) name)) = true).
+              { apply andb_true_iff. split.
+                - apply negb_true_iff. apply Z.eqb_neq. exact Hne.
+                - apply andb_true_iff. split.
+                  + apply Z.ltb_lt. exact Hlt.
+                  + apply eqn_spec. exact Heq. }
+              rewrite Hg in Hguard. discriminate.
+      * exact IHrng.
+Qed.
+
+Definition dir_lookup (d : disk) (blk : Z) (name : name_t) : Z :=
+  scan d blk name 16 (-1).
+
+(* gap-11: the ABSENCE reflection.
+   Given:
+     - the slot-decode non-negativity antecedent (as gap-9),
+     - 0 <= s < 16,
+     - the remove-witness: slot s is now dead (slot_inode disk blk s = 0),
+     - uniqueness: every OTHER slot k <> s that decodes to `name` is dead,
+   conclude dir_lookup disk blk name < 0.
+
+   Proof: the matches-set over [0,16) is empty, so by the `->` direction of
+   scan_reflects_prefix's IFF the scan cannot be >= 0. *)
+Theorem remove_reflects_absent :
+  forall (d : disk) (blk : Z) (name : name_t) (s : Z),
+    ( forall j : Z, 0 <= slot_inode d blk j ) ->
+    0 <= s < 16 ->
+    slot_inode d blk s = 0 ->
+    ( forall k : Z, 0 <= k < 16 -> k <> s ->
+        slot_name d blk k = name -> slot_inode d blk k = 0 ) ->
+    dir_lookup d blk name < 0.
+Proof.
+  intros d blk name s _Hnn Hs Hwit Huniq.
+  unfold dir_lookup.
+  pose proof (scan_reflects_prefix d blk name 16) as [Hiff Hrng].
+  replace (Z.of_nat 16) with 16 in Hiff by reflexivity.
+  (* show NOT (scan >= 0) by showing the witness set is empty. *)
+  destruct (Z_ge_lt_dec (scan d blk name 16 (-1)) 0) as [Hge | Hlt].
+  - (* scan >= 0 leads to a contradiction. *)
+    exfalso.
+    apply Hiff in Hge. destruct Hge as [k [Hk Hm]].
+    unfold matches in Hm. destruct Hm as [Hne [Hltk Hnm]].
+    (* either k = s (then slot dead, contradicts live) or k <> s (then
+       uniqueness makes it dead, contradicts live). *)
+    destruct (Z.eq_dec k s) as [Hks | Hks].
+    + subst k. rewrite Hwit in Hne. apply Hne. reflexivity.
+    + pose proof (Huniq k Hk Hks Hnm) as Hdead. apply Hne. exact Hdead.
+  - exact Hlt.
+Qed.
+
+End Scan.
+
+End Dir.
+End UnixFs.
