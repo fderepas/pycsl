@@ -7,7 +7,7 @@ Are documentations: test-suite/annotations.md docs/pycsl-*reference*.md README.m
 ---
 
 ● Key insight: pycsl's unknown_goals captures the prover-result lines, not goal names — and they split clearly into two kinds: ~14 Timeouts with huge step counts (billions → SMT blow-up) and ~33 Unknowns (moderate steps → can't 
-  discharge). To get the function each belongs to, let me correlate the why3 goal lines with their results in the full log:
+discharge). To get the function each belongs to, let me correlate the why3 goal lines with their results in the full log:
 
 ---
 
@@ -37,11 +37,11 @@ What is the difference between these two types:
 ---
 
 Some feature were out of scope (deferred, per `meta.md`):
- - \reading/confidentiality variant and weak_invariant/strong_invariant contexts (§B3a — v1
- is check-only \writing).
- - A general predicate-over-\written surface (this v1 is region-disjointness only).
- - typed/store heap-address variant (hoare/shared-field is the proven, simpler first target).
- - Capability tokens / \caller threading (options B/F — unneeded for a fixed-allowlist writer).
+- \reading/confidentiality variant and weak_invariant/strong_invariant contexts (§B3a — v1
+is check-only \writing).
+- A general predicate-over-\written surface (this v1 is region-disjointness only).
+- typed/store heap-address variant (hoare/shared-field is the proven, simpler first target).
+- Capability tokens / \caller threading (options B/F — unneeded for a fixed-allowlist writer).
 Explain the benefit of adding them.
 
 
@@ -61,50 +61,50 @@ import ast
 # The source code we want to analyze
 source_code = """
 def calculate_total(price, tax):
-    return price + (price * tax)
+return price + (price * tax)
 
 def greet_user(name):
-    print(f"Hello, {name}")
+print(f"Hello, {name}")
 
 class Invoice:
-    def __init__(self, amount):
-        self.amount = amount
-        
-    def process_payment(self):
-        pass
+def __init__(self, amount):
+self.amount = amount
+
+def process_payment(self):
+pass
 """
 
 # 1. Create the custom Visitor class with a state tracker
 class FunctionAnalyzer(ast.NodeVisitor):
-    def __init__(self):
-        super().__init__()
-        # Assume everything is fine until proven otherwise
-        self.everything_fine = True
+def __init__(self):
+super().__init__()
+# Assume everything is fine until proven otherwise
+self.everything_fine = True
 
-    def visit_FunctionDef(self, node):
-        # RULE: Check if the function name contains uppercase letters 
-        # (Excluding standard dunder methods like __init__)
-        if not node.name.islower() and not (node.name.startswith('__') and node.name.endswith('__')):
-            self.everything_fine = False
-        
-        # Continue traversing down into child nodes
-        self.generic_visit(node)
+def visit_FunctionDef(self, node):
+# RULE: Check if the function name contains uppercase letters 
+# (Excluding standard dunder methods like __init__)
+if not node.name.islower() and not (node.name.startswith('__') and node.name.endswith('__')):
+self.everything_fine = False
+
+# Continue traversing down into child nodes
+self.generic_visit(node)
 
 # 2. Wrap the execution in a function so it can return 1 or 0
 #@ requires True
 #@ ensures ( source == source_code ) => \result
 def check_code(source):
-    try:
-        tree = ast.parse(source)
-        analyzer = FunctionAnalyzer()
-        analyzer.visit(tree)
-        
-        # Return 1 if the flag remained True, otherwise 0
-        return 1 if analyzer.everything_fine else 0
-        
-    except SyntaxError:
-        # If the code can't even be parsed, it's not fine
-        return 0
+try:
+tree = ast.parse(source)
+analyzer = FunctionAnalyzer()
+analyzer.visit(tree)
+
+# Return 1 if the flag remained True, otherwise 0
+return 1 if analyzer.everything_fine else 0
+
+except SyntaxError:
+# If the code can't even be parsed, it's not fine
+return 0
 
 # 3. Run the check
 # check_code(source_code) should return 1
@@ -120,18 +120,18 @@ user_input = "{'status': 'active', 'threshold': 42, 'flags': [True, False]}"
 
 # Safe evaluation
 try:
-    data_dict = ast.literal_eval(user_input)
-    print(type(data_dict))  # Output: <class 'dict'>
-    print(data_dict['threshold'])  # Output: 42
+data_dict = ast.literal_eval(user_input)
+print(type(data_dict))  # Output: <class 'dict'>
+print(data_dict['threshold'])  # Output: 42
 except (ValueError, SyntaxError):
-    print("Malformed string! Cannot safely evaluate.")
+print("Malformed string! Cannot safely evaluate.")
 
 # Why it's safe: If someone tries to inject malicious code...
 malicious_input = "__import__('os').system('rm -rf /')"
 try:
-    ast.literal_eval(malicious_input)
+ast.literal_eval(malicious_input)
 except ValueError:
-    print("Blocked malicious input!")  # This will trigger, keeping your system safe.
+print("Blocked malicious input!")  # This will trigger, keeping your system safe.
 ```
 
 
@@ -349,48 +349,48 @@ import ast
 # The source code we want to analyze
 source_code = """
 def calculate_total(price, tax):
-    return price + (price * tax)
+return price + (price * tax)
 
 def greet_user(name):
-    print(f"Hello, {name}")
+print(f"Hello, {name}")
 
 class Invoice:
-    def __init__(self, amount):
-        self.amount = amount
-        
-    def process_payment(self):
-        pass
+def __init__(self, amount):
+self.amount = amount
+
+def process_payment(self):
+pass
 """
 
 # 1. Create the custom Visitor class with a state tracker
 class FunctionAnalyzer(ast.NodeVisitor):
-    def __init__(self):
-        super().__init__()
-        # Assume everything is fine until proven otherwise
-        self.everything_fine = True
+def __init__(self):
+super().__init__()
+# Assume everything is fine until proven otherwise
+self.everything_fine = True
 
-    def visit_FunctionDef(self, node):
-        # RULE: Check if the function name contains uppercase letters 
-        # (Excluding standard dunder methods like __init__)
-        if not node.name.islower() and not (node.name.startswith('__') and node.name.endswith('__')):
-            self.everything_fine = False
-        
-        # Continue traversing down into child nodes
-        self.generic_visit(node)
+def visit_FunctionDef(self, node):
+# RULE: Check if the function name contains uppercase letters 
+# (Excluding standard dunder methods like __init__)
+if not node.name.islower() and not (node.name.startswith('__') and node.name.endswith('__')):
+self.everything_fine = False
+
+# Continue traversing down into child nodes
+self.generic_visit(node)
 
 # 2. Wrap the execution in a function so it can return 1 or 0
 def check_code(source):
-    try:
-        tree = ast.parse(source)
-        analyzer = FunctionAnalyzer()
-        analyzer.visit(tree)
-        
-        # Return 1 if the flag remained True, otherwise 0
-        return 1 if analyzer.everything_fine else 0
-        
-    except SyntaxError:
-        # If the code can't even be parsed, it's not fine
-        return 0
+try:
+tree = ast.parse(source)
+analyzer = FunctionAnalyzer()
+analyzer.visit(tree)
+
+# Return 1 if the flag remained True, otherwise 0
+return 1 if analyzer.everything_fine else 0
+
+except SyntaxError:
+# If the code can't even be parsed, it's not fine
+return 0
 
 # 3. Run the check
 # check_code(source_code) should return 1
@@ -406,23 +406,23 @@ user_input = "{'status': 'active', 'threshold': 42, 'flags': [True, False]}"
 
 # Safe evaluation
 try:
-    data_dict = ast.literal_eval(user_input)
-    print(type(data_dict))  # Output: <class 'dict'>
-    print(data_dict['threshold'])  # Output: 42
+data_dict = ast.literal_eval(user_input)
+print(type(data_dict))  # Output: <class 'dict'>
+print(data_dict['threshold'])  # Output: 42
 except (ValueError, SyntaxError):
-    print("Malformed string! Cannot safely evaluate.")
+print("Malformed string! Cannot safely evaluate.")
 
 # Why it's safe: If someone tries to inject malicious code...
 malicious_input = "__import__('os').system('rm -rf /')"
 try:
-    ast.literal_eval(malicious_input)
+ast.literal_eval(malicious_input)
 except ValueError:
-    print("Blocked malicious input!")  # This will trigger, keeping your system safe.
+print("Blocked malicious input!")  # This will trigger, keeping your system safe.
 ```
 Durable fix belongs in the agent, in the skills not in hand-patching each stub, keep this as a guideline to make long term choices.
 
 Create a plan to do that. Save it under `level-up-your-game-agents.md`.
-    
+
 ---
 
 I am going to call
@@ -441,11 +441,11 @@ Annotation pipeline (per file):
 agent-annotate.py
 ├── (single-function path) — direct LLM call using pycsl-annotate skill
 └── (multi-function path) — delegates to:
-    └── agent-splitter.py — call-graph analysis, topological sort
-        └── agent-writer.py — per-function annotation (3-agent pipeline)
-            ├── agent-english-writer.py  — English spec of the function
-            ├── agent-contract-writer.py — requires/ensures/assigns
-            └── agent-invariant-writer.py — loop invariants & variants
+└── agent-splitter.py — call-graph analysis, topological sort
+└── agent-writer.py — per-function annotation (3-agent pipeline)
+├── agent-english-writer.py  — English spec of the function
+├── agent-contract-writer.py — requires/ensures/assigns
+└── agent-invariant-writer.py — loop invariants & variants
 ```
 an coordinator loop (per file, up to 10 retries):
 ```
@@ -475,37 +475,117 @@ Enforce the loop invariant on for loops.
 ---
 
 The refactoring plan"
-  Phase B:
-  - AST-only checks (acts, checkpoints, happy, subscript_assignments, no_mutable_defaults) — need IR-data plumbing first.
-  - function_contracts — the forbidden-expression dispatcher; its own sub-phase.
-  - B-final — drop Module 4's AST-resolution role + reorder so the IR is built before semantic analysis. The deepest change.
+Phase B:
+- AST-only checks (acts, checkpoints, happy, subscript_assignments, no_mutable_defaults) — need IR-data plumbing first.
+- function_contracts — the forbidden-expression dispatcher; its own sub-phase.
+- B-final — drop Module 4's AST-resolution role + reorder so the IR is built before semantic analysis. The deepest change.
 
-  Phase C — Split the front-end package ⬜ not started
+Phase C — Split the front-end package ⬜ not started
 
-  Phase D — Honest core (WhyML-typecheck gate + structured diagnostics + capability manifest) ⬜ not started
+Phase D — Honest core (WhyML-typecheck gate + structured diagnostics + capability manifest) ⬜ not started
 
-  Phase E — Conformance corpora + freeze the front-end contract ⬜ not started
-
----
-
-So, now what we have made this structural change and really structured the IR interface, here is what I want to do. Instead of having pyton source code for Modules* under `src/pycsl`, I want to move existing *.py files under two directories:
-- `src/pycsl/frontend/python` for roughly Module 1/2 (every thing before the IR)
-- `src/pycsl/backend/` for all Module 4-6 python code (including directories `module5/` and `module6_whyml/` to move under `src/pycsl/backend/`)
-I do not know where module 3 should be.
-
-The idea is to use this structure later for other languages:
-- `src/pycsl/frontend/c` for C code
-- `src/pycsl/frontend/go` for Go code
-- `src/pycsl/frontend/rust` for Rust code
-
-Provide your feedback on these changes and future evolutions by writing the specification `structuring.py`.
+Phase E — Conformance corpora + freeze the front-end contract ⬜ not started
 
 ---
 
-After thinking about it I changed my mind. Growable-list-with-append is a feature you want to support and verify. support growable lists via a Seq representation (and reconcile it with the array-based \valid/subscript model). Do also  E import-driver goldens.
+That was a bit too hard. First let's finish what we started: let's finish os.
+Use the convergence principle to finish `pure_lib/os` by enriching formal tests in `pure_list_test/` to cover all system calls in `os`
 
 ---
 
-You wrote `the core is independently invokable on a serialized IR`.
-Write a specification of the IR in `docs/ir.md`.
+Ok, I want you to update `config/skills/pycsl-stdlib-coverage/` and explanin beetter what is a test. The round trip in the `docs/formal-filesystem.md` flagship example was a good exemple. Let's me explain why: writing in a file has a consequence, so if I am reading and checking afterwards, the roundtrip proves that the  `write` operation worked well.
 
+Let me now take a bad example:
+```
+# rmdir: POSIX rmdir() returns 0, or -1 on ENOENT/ENOTDIR.
+# cite: pure_lib/os/__init__.py rmdir   -> `#@ ensures \result == 0 or \result == -1`
+# cite: UnixInodeFileSystem.sys_rmdir   -> `#@ ensures \result == 0 or \result == -1`
+#@ requires True
+#@ assigns _filesystem.disk
+#@ ensures \result == 0 or \result == -1
+def formal_os_rmdir(name: str) -> int:
+    return rmdir(name)
+
+```
+We are just callin rmdir. I can not assess if the directory was actually removed or not. A good test scenario must check the functionnal consequences of the operation performed. So the right formal test is not just calling `rmdir(name)` it is:
+- creating a directory
+- checking it is here
+- removing the directory *the target functionnal action*
+- checking it is not here.
+
+Update the `config/skills/pycsl-stdlib-coverage/` skill.
+Reload the skill.
+Redo the validation of `pure_lib/os`
+
+---
+
+Now os is unlocked we can:
+  - Nothing (do standalone): bisect, keyword, copy, hashlib, unicodedata, __future__ — pure-logic/Specified; no World needed.
+  - The World foundation (model the os-backed resource from scratch): io, sys, time — import nothing, but they're the façades over the fs/proc/clock os already models.
+  - os + only-already-done: sysconfig (its remaining deps re/warnings are done) — the one uncovered module that reduces to os-only.
+
+
+---
+
+Thanks for your feedback. It just means very likely that the structure should be adaoter. From the `unix` skill here is the walk through for `mkdir("foobar")` in C to be used as a source of inspiration.
+
+
+**********************************************************************
+
+## 1. Crossing into the kernel
+
+`mkdir()` in your program is a libc wrapper. It places the syscall number and the two arguments (pathname pointer, mode) in the ABI-defined registers and executes a trap instruction (`syscall` on x86-64). The CPU switches to kernel mode, and the kernel dispatches through its syscall table to the `mkdir` implementation. On failure it returns a negative error which libc translates into `errno` (e.g. `EEXIST`, `EACCES`, `EDQUOT`).
+
+## 2. Path resolution
+
+The path is relative, so the walk starts at the process's **current working directory**. The kernel resolves component by component; for `"foobar"` there's only one component, and since `mkdir` is a *creating* call, the final component is **allowed not to exist** — in fact it must not exist (`EEXIST` otherwise). The kernel checks:
+
+- search (`x`) permission on the cwd, and **write** permission on it, since creating an entry modifies the parent directory's data;
+- that no entry named `foobar` already exists there (a linear or indexed scan of the parent's directory data).
+
+What the kernel now holds is the parent directory's **inode**, locked for modification.
+
+## 3. Allocating the new inode
+
+This is the first data structure created. The kernel (per the `inode_alloc` algorithm in the skill) scans the **inode bitmap** — in ext2/ext4 each block group keeps its own inode bitmap, and the allocator prefers a group near the parent directory for locality. It finds a free bit, marks it allocated, and initializes a fresh on-disk inode:
+
+- type = directory (encoded in `i_mode` along with the permission bits: your `mode & ~umask`)
+- owner uid/gid from the calling process's credentials
+- timestamps set to now
+- size = 0 (about to grow)
+- **link count = 2**, not 1 — one link for the entry `foobar` in the parent, one for the `.` entry inside itself
+
+Crucially: **the inode does not contain the name "foobar" anywhere.** The inode stores only metadata and block pointers (the classic 12 direct + single/double/triple indirect pointers). The name lives elsewhere — see step 5.
+
+## 4. Allocating and initializing the directory's data block
+
+A directory is just a file whose data maps names to inode numbers. So the kernel allocates one data block (via the **block bitmap** of the block group), points the inode's first direct pointer at it, and writes two initial entries into it:
+
+- `.` → the new directory's own inode number
+- `..` → the parent's inode number
+
+Because `..` references the parent, the **parent inode's link count is incremented** too. This is why an empty directory has `st_nlink == 2`, and why a parent's link count equals 2 + number of subdirectories.
+
+## 5. Where "foobar" is stored — the directory entry
+
+The name `foobar` is stored as a **directory entry (dirent) inside the parent directory's data block** — that's the data structure that holds it. In ext2/ext4 these are variable-length records packed into the directory's data:
+
+```
++-----------+----------+----------+--------+------------------+
+| inode no. | rec_len  | name_len | type   | name             |
+|  (e.g.    |          |    6     | DT_DIR | "foobar"         |
+|   48217)  |          |          |        |                  |
++-----------+----------+----------+--------+------------------+
+```
+
+The kernel finds a slot in the parent's data block with enough free space (entries are variable-length precisely so names of different lengths pack efficiently; large directories may use an indexed/hashed structure instead, but the model is the same) and writes the record: the freshly allocated inode number, the name length, the type hint, and the bytes `f o o b a r`. The parent's mtime/ctime are updated.
+
+This is the "separation of naming from content" principle: the **directory entry maps name → inode number; the inode holds everything else**. That's also why hard links work — another dirent elsewhere could point at the same inode number, and `unlink` merely deletes a dirent and decrements the link count.
+
+## 6. Hitting the disk
+
+None of this goes straight to the platters. The modified blocks — inode bitmap, block bitmap, group descriptor counters, the superblock's free-inode/free-block counts, the new inode, the new directory's data block, and the parent's data block — sit dirty in the buffer/page cache and are written back lazily. Ordering matters: if metadata reaches disk before the data it describes, a crash can expose garbage, which is why ext3/ext4 journal these operations (and why durably persisting the new entry requires `fsync()` on the *parent directory*, not just the new object). If any step fails midway — say the data block allocation hits `EDQUOT` — the kernel must roll back the inode allocation, or the inode leaks.
+
+## Summary of what got created
+
+Three things on disk: a **new inode** (the directory object itself: metadata + block pointers, no name), a **new data block** containing the `.` and `..` entries, and a **new directory entry in the parent's data block**, which is the one and only place the string `foobar` is stored. Plus bookkeeping updates: two bitmaps, the superblock counters, and the parent's inode (size/time/link count).
