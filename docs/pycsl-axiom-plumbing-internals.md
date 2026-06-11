@@ -1,10 +1,13 @@
-# PyCSL helper tools — the `UnixFs.Dir.scan_reflects_present` end-to-end path
+# PyCSL axiom-plumbing internals — the `UnixFs.Dir.scan_reflects_present` end-to-end path
 
-This document describes six PyCSL tool components — five in the WhyML
-transpiler (`src/pycsl/module6_whyml/` and `Module6_WhyMLTranspiler.py`)
-and one in the import-resolution front-end
-(`src/pycsl/frontend/ir_resolve.py`) — that together let a single
-cross-validated axiom,
+This document describes six PyCSL **compiler-pipeline modules** — NOT
+auxiliary "helper tools"; they are core stages of the PyCSL tool itself, all
+living under `src/pycsl/`. Five are the **Module-6 WhyML transpiler**
+(`src/pycsl/module6_whyml/` + `Module6_WhyMLTranspiler.py`) and one is the
+**front-end import-resolver** (`src/pycsl/frontend/ir_resolve.py`). They are
+grouped here only by their shared *role in one feature* — the cross-validated
+axiom plumbing of the gap-9→gap-12 arc — not as a standalone category. Together
+they let a single cross-validated axiom,
 [`UnixFs.Dir.scan_reflects_present`](glossary/axiom-registry.md), be
 *registered*, *bound to real logic symbols*, and *cited* across a
 module-global method-call boundary and an `import` boundary.

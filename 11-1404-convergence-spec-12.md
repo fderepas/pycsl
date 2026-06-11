@@ -301,7 +301,7 @@ The path activates only for the NEW uniqueness invariant the stdlib-agent adds.
    per gap-12 §0 — only UNIQUENESS becomes proven.)
 6. Re-gate: os GREEN, 7/7 `formal_os_namespace.py` VALID, byte-diff identical,
    conformance 38/38, doc-coherency green. Add `glossary/axiom-registry.md` +
-   `docs/pycsl-helper-tools.md` entries for the new axiom.
+   `docs/pycsl-axiom-plumbing-internals.md` entries for the new axiom.
 
 **Residual SMT honesty:** activating the invariant adds a maintenance VC per
 mutator that is quantified over the 16 slots against the same E-matching surface
@@ -322,7 +322,7 @@ instantiation) — NOT a re-trust. This is the stdlib-agent's follow-on cost.
       consequences STILL VALID; `\trusted` uniqueness ensures REMOVED from
       `_dir_find_slot`.
 - [ ] doc-coherency green; conformance 38/38; new axiom documented in
-      glossary/axiom-registry.md + docs/pycsl-helper-tools.md.
+      glossary/axiom-registry.md + docs/pycsl-axiom-plumbing-internals.md.
 
 ## 5. RISKS (for the user's judgment)
 

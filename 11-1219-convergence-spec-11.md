@@ -310,7 +310,7 @@ materially bigger than gap-9/gap-10.
 - Conformance 38 OK / 0 MISMATCH; determinism 10/10.
 - doc-coherency `bin/doc-coherency.py --check` green (the registry axioms are NOT tracked
   by it — `proof` is already a known directive; the new axiom needs a `docs/
-  pycsl-helper-tools.md` + `glossary/axiom-registry.md` entry, a doc update not a gate).
+  pycsl-axiom-plumbing-internals.md` + `glossary/axiom-registry.md` entry, a doc update not a gate).
 
 ---
 
