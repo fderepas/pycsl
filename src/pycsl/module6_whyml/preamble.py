@@ -213,7 +213,76 @@ class PreambleEmissionMixin:
             "    slot_inode d1 blk i <> 0 -> slot_inode d1 blk i < 32 -> "
             "    slot_inode d1 blk j <> 0 -> slot_inode d1 blk j < 32 -> "
             "    slot_name d1 blk i = slot_name d1 blk j -> i = j )",
+
+        # UnixFs.Dir.empty_disk_slots_dead (gap-13, Wall E) — the EMPTY-DISK
+        # ESTABLISHMENT axiom for the directory-uniqueness class invariant. The
+        # abstract per-slot decode slot_inode (disk, blk, k) is the 2-byte
+        # big-endian inode field of the 32-byte dirent at slot k of block blk
+        # (256*disk[off] + disk[off+1], off = blk*512 + 32*k). If every byte of
+        # block blk's 512-byte region reads as 0, the decoded inode is 0 for
+        # every one of the 16 slots — hence no slot is live, so the
+        # no-duplicate-live-names invariant holds VACUOUSLY. This is the
+        # ANTECEDENT-discharge dual of slot_inode_nonneg: it lets the
+        # constructor's `Array.make 131072 0` witness and the `_filesystem`
+        # module-global instance ESTABLISH the invariant on the zeroed disk.
+        # Faithful (a property of `_unpack_uint16_be` of all-zero bytes, NOT an
+        # over-claim). Reuses the SAME slot_inode symbol (no new _AXIOM_FUNCTIONS
+        # entry). Cross-validated by
+        # unix-filesystem/UnixInodeFileSystem.proofs/{rocq,lean}/EmptyDiskSlotsDead.{v,lean}
+        # (theorem empty_disk_slots_dead): rewrite the two field bytes to 0 under
+        # the region-zero hypothesis, close by lia/omega; no induction. Rocq
+        # 8.20.1: Closed under the global context (0 Axiom/Admitted, only the
+        # abstract Section Variables); Lean 4.30.0: #print axioms = [propext,
+        # Quot.sound] subseteq allowlist, no sorry.
+        "UnixFs.Dir.empty_disk_slots_dead":
+            "forall disk : array int. forall blk : int. "
+            "( forall b : int. blk * 512 <= b < blk * 512 + 512 -> disk[b] = 0 ) -> "
+            "( forall k : int. 0 <= k < 16 -> slot_inode disk blk k = 0 )",
+
+        # UnixFs.Dir.block5_decode_frame (gap-13, Wall M) — the DECODE-LOCALITY
+        # frame axiom. slot_inode/slot_name (disk, 5, k) read ONLY the 32 bytes of
+        # slot k's dirent, all inside block 5's region [2560, 3072). Hence two
+        # disks d0, d1 agreeing on every byte of [2560, 3072) have identical
+        # block-5 decode at every slot k in [0, 16). This is the frame that lets
+        # the directory-uniqueness class invariant ride UNTOUCHED through every
+        # non-block-5 disk write: each disk-writing HELPER (_write_inode,
+        # _set_bitmap, _alloc_inode, _alloc_block, _block_roundtrip) proves a
+        # block-5 byte-frame from its Array.blit/single-byte write
+        # (its written region is disjoint from [2560,3072)), and this axiom
+        # converts that byte-frame into a DECODE-frame ensures, so the 7
+        # non-directory syscalls (chmod/chown/utimensat/write/truncate/
+        # ftruncate/open) that delegate to those helpers maintain `uniq` with
+        # ZERO body annotation. Same byte-local-decode trust class as
+        # _write_entry/_zero_entry's slot-locality frames and as
+        # empty_disk_slots_dead. Reuses the SAME slot_inode/slot_name symbols (no
+        # new _AXIOM_FUNCTIONS entry). Cross-validated by
+        # unix-filesystem/UnixInodeFileSystem.proofs/{rocq,lean}/Block5DecodeFrame.{v,lean}
+        # (theorem block5_decode_frame): rewrite every read under the byte-
+        # agreement window; no funext, no induction. Rocq 8.20.1: Closed under
+        # the global context (0 Axiom/Admitted, only the abstract Section
+        # Variables); Lean 4.30.0: #print axioms = [propext, Quot.sound]
+        # subseteq allowlist, no sorry.
+        "UnixFs.Dir.block5_decode_frame":
+            "forall d0 : array int. forall d1 : array int. "
+            "( forall b : int. 2560 <= b < 3072 -> d0[b] = d1[b] ) -> "
+            "( forall k : int. 0 <= k < 16 -> "
+            "    slot_inode d1 5 k = slot_inode d0 5 k /\\ "
+            "    slot_name  d1 5 k = slot_name  d0 5 k )",
     }
+
+    # gap-13: axioms that CONSTRAIN the axiom-func symbols a `#@ class invariant`
+    # applies (and therefore must be emitted BEFORE the record type whose
+    # invariant uses them, so the establishment / per-method type-invariant VCs
+    # can see them — a Why3 `axiom` only constrains its symbols from its point of
+    # declaration onward). Emitted by `_emit_class_inv_axioms` ahead of the record
+    # (gated by `_class_inv_refs_axiom_func`) and skipped by the later
+    # `_emit_preamble_axioms` so they appear exactly once. Both are low-fan-out,
+    # byte-local decode facts (no `dir_lookup` existential), so hoisting them does
+    # not reintroduce the gap-9 E-matching blowup.
+    _CLASS_INV_AXIOMS: frozenset = frozenset({
+        "UnixFs.Dir.empty_disk_slots_dead",
+        "UnixFs.Dir.block5_decode_frame",
+    })
 
     # Functions that an axiom block needs declared. Looked up by qualname
     # prefix; declarations emitted once each when any matching axiom fires.
@@ -836,7 +905,52 @@ class PreambleEmissionMixin:
             for key in ("requires", "ensures", "assigns"):
                 _walk(contracts.get(key, []))
 
+        # (c) gap-13: any axiom-function NAME applied in a `#@ class invariant`.
+        # An IMPORTER that pulls in a class WITH such an invariant (e.g. a formal
+        # test importing UnixInodeFileSystem) may cite NO Dir axiom and reference
+        # the symbol ONLY in the inherited invariant — yet the invariant must
+        # still lower to the raw bound `slot_inode disk 5 i` (NOT an arity-suffixed
+        # abstract `slot_inode_3`, which is declared after the record and leaves
+        # the invariant referencing an unbound symbol). Walk the invariants so the
+        # symbol binds AND `_class_inv_refs_axiom_func` fires the decl/axiom hoist.
+        for td in ir.get("type_decls", []):
+            for inv in td.get("class_invariants", []):
+                _walk(inv)
+
         self._axiom_logic_funcs = cited_fn_names | ind_applied
+
+    def _emit_class_inv_axioms(self, ir: Dict[str, Any]) -> List[str]:
+        """gap-13: emit the class-invariant axioms (`_CLASS_INV_AXIOMS`) BEFORE the
+        record type whose invariant applies the constrained symbols, so the
+        establishment (`by`-witness) and per-method type-invariant VCs can see
+        them (a Why3 `axiom` only constrains its symbols from its declaration
+        onward). Only called when `_class_inv_refs_axiom_func` is True. Emits a
+        class-inv axiom when its backing logic-function symbols are among the ones
+        the invariant applies (`_axiom_logic_funcs`) — i.e. INDEPENDENT of whether
+        THIS module cites it. This is what lets an IMPORTER that inherits the class
+        invariant but cites no Dir axiom (e.g. a formal test importing
+        UnixInodeFileSystem) still discharge the establishment VC via
+        `empty_disk_slots_dead`. Records each in `self._class_inv_axioms_emitted`
+        so the later `_emit_preamble_axioms` skips it (emitted exactly once). The
+        backing `val function` decls are already emitted ahead of the record by
+        `_emit_uncited_axiom_func_decls` (gap-12 Wall A), so no decls here."""
+        applied = getattr(self, "_axiom_logic_funcs", set())
+        out: List[str] = []
+        emitted: Set[str] = set()
+        for qn in sorted(self._CLASS_INV_AXIOMS):
+            body = self._AXIOM_REGISTRY[qn]
+            # The axiom is RELEVANT iff it constrains a symbol the invariant
+            # applies (every `_CLASS_INV_AXIOMS` body mentions slot_inode/slot_name).
+            if not any(fn in body for fn in applied):
+                continue
+            axiom_name = "pycsl_axiom_" + qn.replace(".", "_")
+            out.append(f"  (* {qn} — cross-validated Rocq + Lean *)")
+            out.append(f"  axiom {axiom_name} : {body}")
+            emitted.add(qn)
+        if out:
+            out.append("")
+        self._class_inv_axioms_emitted = emitted
+        return out
 
     def _emit_preamble_axioms(self, ir: Dict[str, Any]) -> List[str]:
         """Emit Why3 function decls + axioms for `#@ proof` cites.
@@ -879,8 +993,13 @@ class PreambleEmissionMixin:
         if declared_fns:
             out.append("")
 
+        # gap-13: skip any class-invariant axiom already hoisted before the record
+        # by `_emit_class_inv_axioms` (Why3 forbids re-declaring the same axiom).
+        already_axioms = set(getattr(self, "_class_inv_axioms_emitted", set()))
         # Emit each axiom. Comment records the prover pairing.
         for qn in sorted(seen_qualnames):
+            if qn in already_axioms:
+                continue
             if qn not in self._AXIOM_REGISTRY:
                 raise PyCSLIRError(
                     f"#@ proof {qn}: not in Module6 axiom registry. "

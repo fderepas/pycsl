@@ -190,6 +190,19 @@ def _process_dependency(filepath: str, needed_names: Set[str], cache: Dict[str, 
     return result
 
 
+# gap-13: the two directory-uniqueness CLASS-INVARIANT axioms must survive the
+# importer strip below. Unlike the heavy scan axioms, the importer is EXACTLY
+# where they are needed: the class invariant's ESTABLISHMENT VC lives on the
+# `_filesystem` module-global instance (importer), and its MAINTENANCE VC lives
+# on every imported `assigns self.disk` syscall stub (importer). Both are
+# low-fan-out, byte-local decode facts (no `dir_lookup` existential), so they do
+# NOT cause the gap-9 E-matching blowup that motivated stripping the scan axioms.
+_DIR_CLASS_INV_AXIOMS = frozenset({
+    "UnixFs.Dir.empty_disk_slots_dead",
+    "UnixFs.Dir.block5_decode_frame",
+})
+
+
 def _strip_dir_scan_proofs(func: Dict[str, Any]) -> Dict[str, Any]:
     """gap-9: drop `#@ proof … UnixFs.Dir.scan_reflects_present` (and its
     `slot_inode_nonneg` companion) citations from an INJECTED trusted stub.
@@ -202,12 +215,19 @@ def _strip_dir_scan_proofs(func: Dict[str, Any]) -> Dict[str, Any]:
     own ensures). The axiom is cited where it is actually USED — the standalone
     `UnixInodeFileSystem.py` body verification. The `slot_inode`/`slot_name`/
     `dir_lookup` `val function` decls the `name_present` inductive needs are
-    still emitted by `_emit_inductive_decls` (independent of the citation)."""
+    still emitted by `_emit_inductive_decls` (independent of the citation).
+
+    gap-13 EXCEPTION: the two directory-uniqueness CLASS-INVARIANT axioms
+    (`_DIR_CLASS_INV_AXIOMS`) are KEPT — the importer is where the invariant's
+    establishment (`_filesystem` global) and maintenance (imported syscall
+    stubs) VCs need them, and they are low-fan-out decode-locality facts (no
+    `dir_lookup` existential), so they do not reintroduce the gap-9 blowup."""
     proofs = func.get("proof")
     if not proofs:
         return func
     kept = [p for p in proofs
-            if not str(p.get("qualname", "")).startswith("UnixFs.Dir.")]
+            if not str(p.get("qualname", "")).startswith("UnixFs.Dir.")
+            or str(p.get("qualname", "")) in _DIR_CLASS_INV_AXIOMS]
     if len(kept) != len(proofs):
         func = dict(func)
         func["proof"] = kept

@@ -408,6 +408,18 @@ class Module6_WhyMLTranspiler(
         # `_emit_uncited_axiom_func_decls` from re-declaring these symbols.
         if self._class_inv_refs_axiom_func(self.ir):
             out += self._emit_uncited_axiom_func_decls()
+            # gap-13 Wall E/M: a class-invariant axiom (an axiom that CONSTRAINS
+            # the axiom-func symbols the invariant applies — e.g.
+            # `UnixFs.Dir.empty_disk_slots_dead` / `block5_decode_frame`) must be
+            # in scope at the RECORD's `by`-witness VC and at every method's
+            # type-invariant VC. A Why3 `axiom` only constrains its symbols from
+            # its point of declaration ONWARD, so emitting it after the record (the
+            # historical position) leaves the establishment VC unable to see it
+            # (gap-13: `unixinodefilesystem'vc` Unknown). Hoist those axioms HERE,
+            # before the record, and record them so `_emit_preamble_axioms` does
+            # not re-emit them. Same `_class_inv_refs_axiom_func` gate → False for
+            # the whole existing corpus, so emission stays byte-identical there.
+            out += self._emit_class_inv_axioms(self.ir)
 
         type_lines, declared_types = self._emit_type_decls(type_decls)
         out += type_lines

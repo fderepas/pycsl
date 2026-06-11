@@ -443,40 +443,33 @@ def _unpack_direntry(data: list) -> tuple:
 #@ class invariant self.cur_uid >= 0
 #@ class invariant self.cur_gid >= 0
 #@ class invariant self._mtime_ticks >= 0
-# DIRECTORY UNIQUENESS INVARIANT (gap-12) — the STATABLE (Wall A lifted) but
-# NOT-YET-DISCHARGEABLE replacement for the trusted uniqueness ensures on
-# `_dir_find_slot`. Block 5 (the root directory) never holds two DISTINCT live
-# slots that decode to the same name. Stated over the registered `UnixFs.Dir.*`
-# abstract symbols `slot_inode`/`slot_name`:
+# DIRECTORY UNIQUENESS INVARIANT (gap-12 statable, gap-13 PROVEN) — block 5 (the
+# root directory) never holds two DISTINCT live slots that decode to the same
+# name. Stated over the registered `UnixFs.Dir.*` abstract symbols
+# `slot_inode`/`slot_name`. This is now a PROVEN, maintained class invariant: it
+# REPLACES the trusted uniqueness ensures that used to live on `_dir_find_slot`,
+# removing directory uniqueness from the TCB.
 #
-#   #@ class invariant \forall i: int; \forall j: int; (0 <= i and i < 16 and
-#        0 <= j and j < 16 and slot_inode(self.disk, 5, i) != 0 and
-#        slot_inode(self.disk, 5, i) < 32 and slot_inode(self.disk, 5, j) != 0 and
-#        slot_inode(self.disk, 5, j) < 32 and
-#        slot_name(self.disk, 5, i) == slot_name(self.disk, 5, j)) ==> i == j
-#
-# The gap-12 Wall A tool fix (`_class_inv_refs_axiom_func` gate +
-# `_precompute_axiom_logic_funcs` before `_emit_type_decls`) makes it STATABLE:
-# it now lowers to the raw bound `slot_inode disk 5 i` application, declared
-# before the record. But as a CLASS INVARIANT it is NOT yet dischargeable, for
-# two reasons surfaced when it was activated (see 11-1404-convergence-gap-13.md):
-#  (1) ESTABLISHMENT is not vacuous. The constructor / `_filesystem` global
-#      witness is a raw `Array.make 131072 0`; `slot_inode`/`slot_name` are
-#      UNINTERPRETED `val function`s, so SMT cannot derive that a zeroed disk has
-#      all 16 slots dead (`slot_inode zeros 5 i = 0`) — it needs an
-#      empty-disk-decode fact (`slot_inode` of an all-zero region is 0), a new
-#      cross-validated axiom not yet registered. So the construction VC is Unknown.
-#  (2) MAINTENANCE leaks past the 7 directory mutators. A class invariant is a
-#      proof obligation on EVERY method with `assigns self.disk` — including
-#      non-directory writers (chmod/_write_inode, write, truncate, ...) that
-#      never touch block 5. Their VC re-proves uniqueness over the abstract
-#      `slot_inode disk 5 i` after a full-disk write and balloons (chmod TIMED
-#      OUT at 30s / 232M steps). Per-mutator `insert_preserves_unique` citations
-#      were added to the 7 directory adders/removers (retained below), but the
-#      establishment + non-directory-maintenance VCs (3 goals) wall.
-# Until a follow-on lands the empty-disk-decode axiom AND scopes the maintenance
-# to block-5 writers (the gap-13 work), the invariant is kept INACTIVE and
-# uniqueness remains the trusted `_dir_find_slot` ensures (clearly marked there).
+# Discharge (see 11-1404-convergence-spec-13.md):
+#  - WALL A (statability, gap-12): `_class_inv_refs_axiom_func` gate +
+#    `_precompute_axiom_logic_funcs` before `_emit_type_decls` lower the invariant
+#    to the raw bound `slot_inode disk 5 i` application, declared before the record.
+#  - WALL E (establishment, gap-13): the constructor / `_filesystem` global
+#    witness is a zeroed `Array.make 131072 0`; the registered cross-validated
+#    axiom `UnixFs.Dir.empty_disk_slots_dead` (zeroed block-5 region -> all 16
+#    slots dead) makes establishment VACUOUS (no live slot -> no duplicate pair).
+#  - WALL M (maintenance, gap-13): a class invariant obligates EVERY
+#    `assigns self.disk` method. The 7 directory mutators maintain it via the
+#    registered `UnixFs.Dir.insert_preserves_unique`; the non-directory writers
+#    (chmod/chown/utimensat/write/truncate/ftruncate/open) write the disk ONLY
+#    through the helpers `_write_inode`/`_set_bitmap`/`_alloc_inode`/`_alloc_block`/
+#    `_block_roundtrip`, each of which carries a block-5 DECODE-FRAME ensures
+#    (its write region is disjoint from [2560,3072); the registered cross-
+#    validated `UnixFs.Dir.block5_decode_frame` converts the byte-frame into a
+#    decode-frame), so those syscalls inherit `uniq` maintenance with ZERO body
+#    annotation. The chmod balloon (gap-13: 30s/232M-step timeout over the
+#    abstract block-5 decode) collapses to a one-line rewrite.
+#@ class invariant \forall i: int; \forall j: int; (0 <= i and i < 16 and 0 <= j and j < 16 and slot_inode(self.disk, 5, i) != 0 and slot_inode(self.disk, 5, i) < 32 and slot_inode(self.disk, 5, j) != 0 and slot_inode(self.disk, 5, j) < 32 and slot_name(self.disk, 5, i) == slot_name(self.disk, 5, j)) ==> i == j
 class UnixInodeFileSystem:
     BLOCK_SIZE = 512
     NUM_BLOCKS = 256  # 128 KB Virtual Disk Block Device
@@ -561,12 +554,27 @@ class UnixInodeFileSystem:
 
     # --- BITMAP ALGORITHMS ---
 
+    #@ proof rocq UnixFs.Dir.block5_decode_frame
+    #@ proof lean UnixFs.Dir.block5_decode_frame
     #@ requires byte_offset >= 0
     #@ requires bit_index >= 0
     #@ requires byte_offset + bit_index // 8 < 131072
     #@ requires value == 0 or value == 1
+    # WRITE-LOCALITY (gap-13, Wall M): every caller passes a SYSTEM-BLOCK bitmap
+    # offset — the inode bitmap (byte_offset 0, bit_index < 32 -> byte_pos < 4) or
+    # the block bitmap (byte_offset 4, bit_index < 256 -> byte_pos < 36). The
+    # written byte byte_offset + bit_index//8 is therefore strictly below 2560,
+    # OUTSIDE block 5's region [2560, 3072). This precondition makes that
+    # disjointness explicit so the decode-frame ensures below is provable.
+    #@ requires byte_offset + bit_index // 8 < 2560
     #@ assigns self.disk
     #@ ensures \length(self.disk) >= 131072
+    # BLOCK-5 DECODE FRAME (gap-13, Wall M): the single-byte write at
+    # byte_offset + bit_index//8 (< 2560 by the write-locality requires) does not
+    # touch [2560, 3072), so by UnixFs.Dir.block5_decode_frame every block-5 slot
+    # decode is preserved and the directory-uniqueness invariant rides through.
+    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_inode(self.disk, 5, k) == \old(slot_inode(self.disk, 5, k))
+    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_name(self.disk, 5, k) == \old(slot_name(self.disk, 5, k))
     def _set_bitmap(self, byte_offset: int, bit_index: int, value: int) -> None:
         byte_pos = byte_offset + (bit_index // 8)
         bit_pos = bit_index % 8
@@ -578,6 +586,7 @@ class UnixInodeFileSystem:
             mask = (1 << bit_pos)
             cur = self.disk[byte_pos] & mask
             self.disk[byte_pos] = self.disk[byte_pos] - cur
+        #@ assert \forall b: int; (2560 <= b and b < 3072) ==> self.disk[b] == \old(self.disk[b])
 
     #@ proof rocq UnixFs.Bitmap.bit_and_one_in_zero_one
     #@ proof lean UnixFs.Bitmap.bit_and_one_in_zero_one
@@ -597,9 +606,16 @@ class UnixInodeFileSystem:
         bit_pos = bit_index % 8
         return (self.disk[byte_pos] >> bit_pos) & 1
 
+    #@ proof rocq UnixFs.Dir.block5_decode_frame
+    #@ proof lean UnixFs.Dir.block5_decode_frame
     #@ requires True
     #@ assigns self.disk
     #@ ensures \result == -1 or (\result >= 1 and \result < 32)
+    # BLOCK-5 DECODE FRAME (gap-13, Wall M): _alloc_inode writes the disk ONLY via
+    # _set_bitmap(0, i, 1) (the inode bitmap, byte_pos < 4), which carries the
+    # block-5 decode frame. So every block-5 slot decode is preserved here too.
+    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_inode(self.disk, 5, k) == \old(slot_inode(self.disk, 5, k))
+    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_name(self.disk, 5, k) == \old(slot_name(self.disk, 5, k))
     def _alloc_inode(self) -> int:
         #@ loop invariant 1 <= i and i <= 32
         #@ loop variant 32 - i
@@ -609,9 +625,16 @@ class UnixInodeFileSystem:
                 return i
         return -1
 
+    #@ proof rocq UnixFs.Dir.block5_decode_frame
+    #@ proof lean UnixFs.Dir.block5_decode_frame
     #@ requires True
     #@ assigns self.disk
     #@ ensures \result == -1 or (\result >= 6 and \result < 256)
+    # BLOCK-5 DECODE FRAME (gap-13, Wall M): _alloc_block writes the disk ONLY via
+    # _set_bitmap(4, i, 1) (the block bitmap, byte_pos < 36), which carries the
+    # block-5 decode frame. So every block-5 slot decode is preserved here too.
+    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_inode(self.disk, 5, k) == \old(slot_inode(self.disk, 5, k))
+    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_name(self.disk, 5, k) == \old(slot_name(self.disk, 5, k))
     def _alloc_block(self) -> int:
         #@ loop invariant 6 <= i and i <= 256
         #@ loop variant 256 - i
@@ -657,6 +680,18 @@ class UnixInodeFileSystem:
     # round-trip made usable across calls (recovers a file's block on reopen).
     #@ ensures self.disk[512 + inode_num*64 + 0]*16777216 + self.disk[512 + inode_num*64 + 1]*65536 + self.disk[512 + inode_num*64 + 2]*256 + self.disk[512 + inode_num*64 + 3] == inode[0]
     #@ ensures self.disk[512 + inode_num*64 + 22]*16777216 + self.disk[512 + inode_num*64 + 23]*65536 + self.disk[512 + inode_num*64 + 24]*256 + self.disk[512 + inode_num*64 + 25] == inode[8]
+    #@ proof rocq UnixFs.Dir.block5_decode_frame
+    #@ proof lean UnixFs.Dir.block5_decode_frame
+    # BLOCK-5 DECODE FRAME (gap-13, Wall M): the inode write touches only
+    # [512 + inode_num*64, +64) and inode_num < 32, so the written region is a
+    # subset of [512, 2560), DISJOINT from block 5's region [2560, 3072). Hence
+    # every byte of [2560, 3072) is unchanged, and by UnixFs.Dir.block5_decode_frame
+    # every block-5 slot decode (slot_inode / slot_name at blk 5) is preserved.
+    # This is what lets the directory-uniqueness class invariant ride untouched
+    # through chmod/chown/utimensat/write/truncate/ftruncate/open (which write the
+    # disk only via this helper) with ZERO body annotation in those syscalls.
+    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_inode(self.disk, 5, k) == \old(slot_inode(self.disk, 5, k))
+    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_name(self.disk, 5, k) == \old(slot_name(self.disk, 5, k))
     # cite:_note: De-trusted by the data-model rewrite. Pairs with
     #             _read_inode under the i18 round-trip axiom. The inode
     #             array is packed with 18 explicit positional args (no
@@ -668,11 +703,21 @@ class UnixInodeFileSystem:
         offset = 512 + (inode_num * 64)
         inode_bytes = _pack_inode(inode)
         self.disk[offset:offset + 64] = inode_bytes
+        #@ assert \forall b: int; (2560 <= b and b < 3072) ==> self.disk[b] == \old(self.disk[b])
 
+    #@ proof rocq UnixFs.Dir.block5_decode_frame
+    #@ proof lean UnixFs.Dir.block5_decode_frame
     #@ requires block >= 6 and block < 256
     #@ assigns self.disk
     #@ raises ValueError when \length(data) > 512
     #@ ensures \array_eq(\result, data)
+    # BLOCK-5 DECODE FRAME (gap-13, Wall M): block >= 6 so start = block*512 >= 3072
+    # and the write region [start, start+n) with n <= 512 is a subset of
+    # [3072, ...), DISJOINT from block 5's region [2560, 3072). The block-5 bytes
+    # are unchanged, so by UnixFs.Dir.block5_decode_frame every block-5 slot decode
+    # is preserved — the directory-uniqueness invariant rides through untouched.
+    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_inode(self.disk, 5, k) == \old(slot_inode(self.disk, 5, k))
+    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_name(self.disk, 5, k) == \old(slot_name(self.disk, 5, k))
     # cite:_note: Verified byte round-trip — the model-level analog of
     #             "write a string then read it back unchanged" (cf. my_os
     #             / my_os_demo, which stay runtime-only). Writes `data`
@@ -692,6 +737,7 @@ class UnixInodeFileSystem:
             raise ValueError
         start = block * 512
         self.disk[start:start + n] = data
+        #@ assert \forall b: int; (2560 <= b and b < 3072) ==> self.disk[b] == \old(self.disk[b])
         return self.disk[start:start + n]
 
     # --- DIRECTORY ENTRY RESOLUTION ---
@@ -802,7 +848,6 @@ class UnixInodeFileSystem:
     #@ ensures \result >= -1 and \result < 16
     #@ ensures \result >= 0 ==> slot_inode(self.disk, block_num, \result) != 0
     #@ ensures \result >= 0 ==> slot_name(self.disk, block_num, \result) == pathname
-    #@ ensures \forall k: int; (0 <= k and k < 16 and k != \result and slot_name(self.disk, block_num, k) == pathname) ==> slot_inode(self.disk, block_num, k) == 0
     # cite:_note: Returns the entry SLOT index (0..15) whose name equals
     #             `pathname`, or -1. Companion of _dir_lookup (which
     #             returns the inode); the bounded slot lets callers
@@ -813,32 +858,24 @@ class UnixInodeFileSystem:
     #             the same human-reviewed trust class as `_dir_lookup`'s
     #             `dir_lookup` binding (spec risk 6.2): the `\result` slot decodes
     #             to a LIVE entry named `pathname` (`slot_inode != 0`,
-    #             `slot_name == pathname`).
+    #             `slot_name == pathname`). These two decode-vs-bytes claims remain
+    #             legitimately trusted (`\trusted reviewer: dirscan-fidelity`).
     #
-    #             UNIQUENESS (the 3rd ensures): no OTHER live slot decodes to
-    #             `pathname`. *** STILL TRUSTED — PENDING the proven class
-    #             invariant. *** The user-directed END STATE is for this clause to
-    #             FOLLOW from a maintained directory-uniqueness CLASS INVARIANT
-    #             over the registered `slot_inode`/`slot_name` symbols, removing
-    #             uniqueness from the TCB.
-    #
-    #             gap-12 PROGRESS (see 11-1404-convergence-spec-12.md +
-    #             11-1404-convergence-gap-13.md): Wall A is now LIFTED — the tool
-    #             can STATE the invariant (`_class_inv_refs_axiom_func` gate +
-    #             `_precompute_axiom_logic_funcs` before `_emit_type_decls`), and
-    #             the maintenance lemma `UnixFs.Dir.insert_preserves_unique` is
-    #             registered + dual-kernel-validated. But ACTIVATING the invariant
-    #             still walls on TWO discharge gaps (gap-13): (1) ESTABLISHMENT is
-    #             not vacuous — the constructor/`_filesystem` witness is a zeroed
-    #             `Array.make`, and `slot_inode`/`slot_name` are uninterpreted, so
-    #             SMT cannot prove the fresh disk has all 16 slots dead (needs an
-    #             empty-disk-decode axiom); (2) MAINTENANCE leaks to EVERY
-    #             `assigns self.disk` method, not just the 7 directory mutators —
-    #             non-directory writers (chmod/_write_inode, write, truncate) re-prove
-    #             uniqueness over the abstract block-5 decode after a full-disk write
-    #             and balloon (chmod TIMED OUT 30s/232M steps). Until gap-13 lands
-    #             the empty-disk axiom AND a block-5-scoped maintenance design,
-    #             uniqueness is kept trusted here to keep os GREEN.
+    #             UNIQUENESS — PROVEN, OUT OF THE TCB (gap-13). The former trusted
+    #             ensures "no OTHER live slot decodes to `pathname`
+    #             (`\forall k != \result. slot_name == pathname ==> slot_inode == 0`)"
+    #             is REMOVED. It now FOLLOWS from the maintained directory-
+    #             uniqueness CLASS INVARIANT on UnixInodeFileSystem (no two distinct
+    #             live block-5 slots share a name): with the `\result` slot live and
+    #             named `pathname` (the two trusted ensures above), the invariant
+    #             forces every OTHER live slot named `pathname` to coincide with
+    #             `\result` — i.e. to be dead unless it IS `\result`. Callers that
+    #             relied on the uniqueness ensures (sys_unlink, sys_rename) derive it
+    #             from the active invariant via a one-line `#@ assert`. The invariant
+    #             is established via UnixFs.Dir.empty_disk_slots_dead (Wall E) and
+    #             maintained via UnixFs.Dir.insert_preserves_unique (directory
+    #             mutators) + UnixFs.Dir.block5_decode_frame (non-directory writers).
+    #             See 11-1404-convergence-spec-13.md.
     #@ \trusted reviewer: dirscan-fidelity
     def _dir_find_slot(self, block_num: int, pathname: str) -> int:
         offset = block_num * 512
@@ -963,9 +1000,18 @@ class UnixInodeFileSystem:
         entry_offset = block_num * 512 + slot * 32
         self.disk[entry_offset:entry_offset + 32] = b'\x00' * 32
 
+    #@ proof rocq UnixFs.Dir.empty_disk_slots_dead
+    #@ proof lean UnixFs.Dir.empty_disk_slots_dead
     #@ requires True
     #@ assigns self.disk
     #@ ensures True
+    # ESTABLISHMENT of the directory-uniqueness class invariant (gap-13, Wall E).
+    # Citing UnixFs.Dir.empty_disk_slots_dead emits it into the module preamble
+    # (global scope), where it discharges the record type-invariant `by`-witness
+    # and the `_filesystem` module-global instance: both build the disk from a
+    # zeroed `Array.make 131072 0`, and a zeroed block-5 region decodes to all 16
+    # slots dead (slot_inode == 0), so the no-duplicate-live-names invariant holds
+    # VACUOUSLY (no live slot -> no live duplicate pair).
     def _format_disk(self) -> None:
         # Set block bitmap constraints for system blocks (0 to 5)
         #@ loop invariant 0 <= b and b <= 6
@@ -1462,9 +1508,19 @@ class UnixInodeFileSystem:
             return 0
         return -1
 
+    #@ proof rocq UnixFs.Dir.block5_decode_frame
+    #@ proof lean UnixFs.Dir.block5_decode_frame
     #@ requires True
     #@ assigns self.disk
     #@ ensures \result == 0 or \result == -1
+    # BLOCK-5 DECODE FRAME (gap-13, Wall M): chmod writes the disk ONLY via
+    # _write_inode (the inode region [512,2560), disjoint from block 5), which
+    # carries the block-5 decode frame, so block-5 decode is preserved here.
+    # Proven for free from the helper's ensures (ZERO body annotation). EXPORTED as
+    # an ensures so the importer (os/__init__) discharges the directory-uniqueness
+    # class invariant's maintenance over the imported `val` stub.
+    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_inode(self.disk, 5, k) == \old(slot_inode(self.disk, 5, k))
+    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_name(self.disk, 5, k) == \old(slot_name(self.disk, 5, k))
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/chmod.html
     # cite:_note: POSIX chmod() — sets inode.mode (array index 3); -1 on
     #             ENOENT. De-trusted: lookup → read 18-int inode → set
@@ -1478,11 +1534,30 @@ class UnixInodeFileSystem:
             return -1
         inode[3] = mode
         self._write_inode(inode_num, inode)
+        # BLOCK-5 DECODE FRAME chain (gap-13, Wall M). _write_inode is INLINED in
+        # the importer, so its blit into [512+inode_num*64, +64) is expanded here.
+        # inode_num < 32 (the lookup guard) => the written region is a subset of
+        # [512, 2560), DISJOINT from block 5 [2560, 3072); and _dir_lookup /
+        # _read_inode `assigns \nothing`. So every block-5 byte equals its
+        # function-entry value (byte-frame assert), and the cited
+        # UnixFs.Dir.block5_decode_frame converts that into the decode-frame the
+        # class-invariant maintenance needs (slot decode unchanged -> uniqueness
+        # preserved). This collapses the gap-13 232M-step balloon to a rewrite.
+        #@ assert \forall b: int; (2560 <= b and b < 3072) ==> self.disk[b] == \old(self.disk[b])
+        #@ assert \forall k: int; (0 <= k and k < 16) ==> slot_inode(self.disk, 5, k) == \old(slot_inode(self.disk, 5, k))
+        #@ assert \forall k: int; (0 <= k and k < 16) ==> slot_name(self.disk, 5, k) == \old(slot_name(self.disk, 5, k))
         return 0
 
+    #@ proof rocq UnixFs.Dir.block5_decode_frame
+    #@ proof lean UnixFs.Dir.block5_decode_frame
     #@ requires True
     #@ assigns self.disk
     #@ ensures \result == 0 or \result == -1
+    # BLOCK-5 DECODE FRAME (gap-13, Wall M): chown writes the disk ONLY via the
+    # disjoint inode-region _write_inode; block-5 decode is preserved (exported as
+    # an ensures so the importer maintains the directory-uniqueness invariant).
+    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_inode(self.disk, 5, k) == \old(slot_inode(self.disk, 5, k))
+    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_name(self.disk, 5, k) == \old(slot_name(self.disk, 5, k))
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/chown.html
     # cite:_note: POSIX chown() — sets inode.uid (4) + inode.gid (5); -1
     #             on ENOENT. De-trusted.
@@ -1494,11 +1569,21 @@ class UnixInodeFileSystem:
         inode[4] = owner
         inode[5] = group
         self._write_inode(inode_num, inode)
+        # BLOCK-5 DECODE FRAME chain (gap-13, Wall M) — see sys_chmod.
+        #@ assert \forall b: int; (2560 <= b and b < 3072) ==> self.disk[b] == \old(self.disk[b])
+        #@ assert \forall k: int; (0 <= k and k < 16) ==> slot_inode(self.disk, 5, k) == \old(slot_inode(self.disk, 5, k))
+        #@ assert \forall k: int; (0 <= k and k < 16) ==> slot_name(self.disk, 5, k) == \old(slot_name(self.disk, 5, k))
         return 0
 
+    #@ proof rocq UnixFs.Dir.block5_decode_frame
+    #@ proof lean UnixFs.Dir.block5_decode_frame
     #@ requires True
     #@ assigns self.disk
     #@ ensures \result == 0 or \result == -1
+    # BLOCK-5 DECODE FRAME (gap-13, Wall M): utimensat writes the disk ONLY via
+    # the disjoint inode-region _write_inode; block-5 decode is preserved.
+    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_inode(self.disk, 5, k) == \old(slot_inode(self.disk, 5, k))
+    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_name(self.disk, 5, k) == \old(slot_name(self.disk, 5, k))
     # cite: https://man7.org/linux/man-pages/man2/utimensat.2.html
     # cite:_note: Linux utimensat() — sets inode.atime (6) + inode.mtime
     #             (7); -1 on ENOENT. De-trusted.
@@ -1510,6 +1595,10 @@ class UnixInodeFileSystem:
         inode[6] = atime
         inode[7] = mtime
         self._write_inode(inode_num, inode)
+        # BLOCK-5 DECODE FRAME chain (gap-13, Wall M) — see sys_chmod.
+        #@ assert \forall b: int; (2560 <= b and b < 3072) ==> self.disk[b] == \old(self.disk[b])
+        #@ assert \forall k: int; (0 <= k and k < 16) ==> slot_inode(self.disk, 5, k) == \old(slot_inode(self.disk, 5, k))
+        #@ assert \forall k: int; (0 <= k and k < 16) ==> slot_name(self.disk, 5, k) == \old(slot_name(self.disk, 5, k))
         return 0
 
     #@ proof rocq UnixFs.Dir.scan_reflects_present
@@ -1689,9 +1778,15 @@ class UnixInodeFileSystem:
             return -1
         return inode_num
 
+    #@ proof rocq UnixFs.Dir.block5_decode_frame
+    #@ proof lean UnixFs.Dir.block5_decode_frame
     #@ requires True
     #@ assigns self.disk
     #@ ensures \result == 0 or \result == -1
+    # BLOCK-5 DECODE FRAME (gap-13, Wall M): truncate writes the disk ONLY via the
+    # disjoint inode-region _write_inode; block-5 decode is preserved.
+    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_inode(self.disk, 5, k) == \old(slot_inode(self.disk, 5, k))
+    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_name(self.disk, 5, k) == \old(slot_name(self.disk, 5, k))
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/truncate.html
     # cite:_note: POSIX truncate() — sets inode.size (index 0) to `length`.
     #             -1 on ENOENT. If truncating below current size, data
@@ -1706,11 +1801,26 @@ class UnixInodeFileSystem:
         inode = self._read_inode(inode_num)
         inode[0] = length
         self._write_inode(inode_num, inode)
+        # BLOCK-5 DECODE FRAME chain (gap-13, Wall M) — see sys_chmod. The
+        # disjointness bound (write region [512+inode*64,+64) ends at <= 2560) is
+        # pinned FIRST as a pure-integer assert so the byte-frame assert below does
+        # not have to unfold the field-0 (4294967295-bounded) inode pack to derive
+        # block-5 disjointness — without this hint Alt-Ergo/Z3 OOM here.
+        #@ assert 512 + inode_num*64 + 64 <= 2560
+        #@ assert \forall b: int; (2560 <= b and b < 3072) ==> self.disk[b] == \old(self.disk[b])
+        #@ assert \forall k: int; (0 <= k and k < 16) ==> slot_inode(self.disk, 5, k) == \old(slot_inode(self.disk, 5, k))
+        #@ assert \forall k: int; (0 <= k and k < 16) ==> slot_name(self.disk, 5, k) == \old(slot_name(self.disk, 5, k))
         return 0
 
+    #@ proof rocq UnixFs.Dir.block5_decode_frame
+    #@ proof lean UnixFs.Dir.block5_decode_frame
     #@ requires fd >= 0
     #@ assigns self.disk
     #@ ensures \result == 0 or \result == -1
+    # BLOCK-5 DECODE FRAME (gap-13, Wall M): ftruncate writes the disk ONLY via the
+    # disjoint inode-region _write_inode; block-5 decode is preserved.
+    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_inode(self.disk, 5, k) == \old(slot_inode(self.disk, 5, k))
+    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_name(self.disk, 5, k) == \old(slot_name(self.disk, 5, k))
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/ftruncate.html
     # cite:_note: POSIX ftruncate() — like truncate() but by fd. -1 on EBADF.
     def sys_ftruncate(self, fd: int, length: int) -> int:
@@ -1726,6 +1836,11 @@ class UnixInodeFileSystem:
         inode = self._read_inode(inode_num)
         inode[0] = length
         self._write_inode(inode_num, inode)
+        # BLOCK-5 DECODE FRAME chain (gap-13, Wall M) — see sys_chmod / sys_truncate.
+        #@ assert 512 + inode_num*64 + 64 <= 2560
+        #@ assert \forall b: int; (2560 <= b and b < 3072) ==> self.disk[b] == \old(self.disk[b])
+        #@ assert \forall k: int; (0 <= k and k < 16) ==> slot_inode(self.disk, 5, k) == \old(slot_inode(self.disk, 5, k))
+        #@ assert \forall k: int; (0 <= k and k < 16) ==> slot_name(self.disk, 5, k) == \old(slot_name(self.disk, 5, k))
         return 0
 
     #@ proof rocq UnixFs.Dir.scan_reflects_present
