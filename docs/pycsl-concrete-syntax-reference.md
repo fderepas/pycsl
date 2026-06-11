@@ -120,6 +120,7 @@ _Corresponds to `annotations.md` §2.1._
 | 2.5.4 | HAPPY (parametric) | `happy_param_decl ::= "happy" CNAME "(" CNAME ")" ":" "protects" dotted_path "[" expr ":" expr "]" ("except" CNAME ("," CNAME)*)? ;` — per-object region parameterised by the bound name (07-1143 R3) |
 | 2.5.5 | Footprint | `footprint_decl ::= "footprint" CNAME "(" expr ")" ;` — `#@ footprint <name>(<arg>)` (function/method; binds a parametric HAPPY's parameter, 07-1143 R3) |
 | 3.1.3b | Field subscript | `field_subscript ::= "self" "." CNAME "[" expr "]" ;` — element of an instance array field in a contract expression |
+| 3.1.3c | Global field subscript | `global_field_subscript ::= CNAME "." CNAME "[" expr "]" ;` — element of a module-global record's array field in a contract expression, e.g. `_filesystem.fd_inode[fd]` (spec-15 / gap-15 Wall B); the `<global>.<field>` sibling of `field_subscript`, lowered to `Subscript(Attribute(Var(global), field), index)` |
 
 `act` and `happy` blocks are line-folded in Module 1 (indentation is significant in the
 surface but consumed there); the grammar above sees a flat keyword-delimited clause
@@ -428,6 +429,8 @@ atom ::= NUMBER                                          (* §3.1.1  Integer lit
        | "True"                                          (* §3.1.18 Boolean true          *)
        | "False"                                         (* §3.1.18 Boolean false         *)
        | "None"                                          (* §3.1.19 None literal          *)
+       | "self" "." CNAME "[" expr "]"                   (* §3.1.3b Field subscript       *)
+       | CNAME "." CNAME "[" expr "]"                    (* §3.1.3c Global field subscript *)
        | "self" "." CNAME                                (* §3.1.3  Field access          *)
        | "\result" "[" expr "]"                          (* §3.1.5b Result subscript      *)
        | "\is_sorted" "(" CNAME "," expr "," expr ")"   (* §3.1.15 Sorted predicate      *)
@@ -462,6 +465,7 @@ top-to-bottom. Longer prefixes must appear before shorter ones:
 2. `CNAME "[" expr "]" "[" expr "]"` (chained) before `CNAME "[" expr "]"` (single)
 3. `CNAME "(" expr_list ")"` (call) before `CNAME` (bare variable)
 4. `"\result" "[" expr "]"` (result subscript) before `"\result"` (bare result)
+5. `CNAME "." CNAME "[" expr "]"` (global field subscript, §3.1.3c) before `CNAME "." CNAME` (`param_field_access`, whole field); the `[` lookahead drives the shift into the longer rule (LALR, zero conflict) — exactly as `self.<field>[i]` (§3.1.3b) coexists with `self.<field>` (§3.1.3)
 
 #### Atom Catalogue
 

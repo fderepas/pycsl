@@ -14,6 +14,7 @@ from frontend.Module2_Parser import (
     BinOp as CSLBinOp, UnaryOp as CSLUnaryOp, Var as CSLVar,
     Number as CSLNumber, Result as CSLResult, Old as CSLOld, Nothing,
     FieldAccess as CSLFieldAccess, FieldSubscript as CSLFieldSubscript,
+    GlobalFieldSubscript as CSLGlobalFieldSubscript,
     Forall, Exists, ArrayLength, InGlobals, InScope, SubscriptAccess,
     AssignsRegion, Valid, Separated, At as CSLAt,
     Length2D, Valid2D, FunctionVariant, StringLiteral as CSLStringLiteral,
@@ -238,6 +239,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         CSLUnaryOp:       "_csl_unaryop",
         CSLFieldAccess:   "_csl_field_access",
         CSLFieldSubscript: "_csl_field_subscript",
+        CSLGlobalFieldSubscript: "_csl_global_field_subscript",
         CSLVar:           "_csl_var",
         CSLNumber:        "_csl_number",
         CSLStringLiteral: "_csl_string",
@@ -345,6 +347,17 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # hoare subscript-of-field lowering (module6 `_handle_subscript`).
         return {"type": "Subscript",
                 "value": {"type": "FieldGet", "object": "self", "field": node.field},
+                "index": self._csl_to_ir(node.index)}
+
+    def _csl_global_field_subscript(self, node: CSLGlobalFieldSubscript) -> Dict[str, Any]:
+        # spec-15 / gap-15 Wall B: `<global>.<field>[expr]` → Subscript of an Attribute whose
+        # receiver is the module-global Var — the SAME Attribute shape `_csl_field_access` emits
+        # for a non-`self` receiver (line ~338-340). Module6 resolves it via the existing gap-10
+        # global-field projection + the spec-context `Array.get` branch (no Module6 change).
+        return {"type": "Subscript",
+                "value": {"type": "Attribute",
+                          "object": {"type": "Var", "name": node.obj},
+                          "attr": node.field},
                 "index": self._csl_to_ir(node.index)}
 
     def _csl_var(self, node: CSLVar) -> Dict[str, Any]:

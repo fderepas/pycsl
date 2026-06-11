@@ -165,6 +165,17 @@ class FieldSubscript(CSLNode):
     index: CSLNode
 
 @dataclass
+class GlobalFieldSubscript(CSLNode):
+    """Represents `<global>.<field>[expr]` — subscript of a module-global record's
+    ARRAY field in a contract (spec-15 / gap-15 Wall B), e.g. `_filesystem.fd_inode[fd]`.
+    The sibling of `FieldSubscript` (`self.<field>[i]`) with a module-global instance
+    as the base instead of `self`. Lowers to `Subscript(Attribute(Var(obj), field), index)`,
+    riding the existing gap-10 global-field projection + spec-context `Array.get` machinery."""
+    obj: str         # the module-global instance name, e.g. "_filesystem"
+    field: str       # the field name, e.g. "fd_inode"
+    index: CSLNode
+
+@dataclass
 class ClassInvariant(CSLNode):
     expr: CSLNode
 
@@ -1098,6 +1109,7 @@ PYCSL_GRAMMAR = r"""
          | "False" -> false_lit
          | "None" -> none_lit
          | "self" "." CNAME "[" expr "]" -> field_subscript
+         | CNAME "." CNAME "[" expr "]" -> global_field_subscript
          | "self" "." CNAME -> field_access
          | CNAME "." CNAME "(" ")" -> dict_view_expr
          | CNAME "." CNAME -> param_field_access
@@ -1506,6 +1518,9 @@ class PyCSLTransformer(Transformer):
     def param_field_access(self, var, field_name) -> FieldAccess:
         return FieldAccess(str(var), str(field_name))
     def field_subscript(self, field_name, index) -> FieldSubscript: return FieldSubscript(str(field_name), index)
+    # spec-15 / gap-15 Wall B: `<global>.<field>[expr]` — subscript a module-global record's array field.
+    def global_field_subscript(self, obj, field, index) -> GlobalFieldSubscript:
+        return GlobalFieldSubscript(str(obj), str(field), index)
     def result(self) -> Result: return Result()
     def old_var(self, expr) -> Old: return Old(expr)
     def nothing(self) -> Nothing: return Nothing()
