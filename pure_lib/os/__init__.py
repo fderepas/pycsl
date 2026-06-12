@@ -409,16 +409,28 @@ def rmdir(filepath: str, *, dir_fd=None):
 #@ requires True
 #@ assigns \nothing
 #@ ensures \result == -1 or (\result >= 0 and \result < 32)
+#@ ensures (dir_lookup(_filesystem.disk, 5, filepath) >= 0) ==> (0 <= \result and \result < 32)
+#@ ensures (dir_lookup(_filesystem.disk, 5, filepath) < 0) ==> \result == -1
 def stat(filepath: str, *, dir_fd=None, follow_symlinks=True):
     """Get file status. Returns inode number."""
+    # PATH-LINK (stat consequence): sys_stat carries the two `dir_lookup`
+    # ensures (body-proven via _dir_lookup, no new trust), so a caller that
+    # pinned `dir_lookup(_filesystem.disk,5,filepath) >= 0` (e.g. after a
+    # successful mkdir) observes a VALID inode (0 <= \result < 32); absence
+    # (`dir_lookup < 0`) yields -1.
     return _filesystem.sys_stat(filepath)
 
 #@ requires True
 #@ assigns \nothing
 #@ ensures \result == -1 or (\result >= 0 and \result < 32)
+#@ ensures (dir_lookup(_filesystem.disk, 5, filepath) >= 0) ==> (0 <= \result and \result < 32)
+#@ ensures (dir_lookup(_filesystem.disk, 5, filepath) < 0) ==> \result == -1
 def lstat(filepath: str, *, dir_fd=None):
     """Like stat() but does not follow symbolic links."""
-    return _filesystem.sys_stat(filepath)
+    # PATH-LINK (lstat consequence): sys_lstat (root-dir name lookup,
+    # identical to stat in this single-level model) carries the same two
+    # `dir_lookup` ensures, body-proven via _dir_lookup with no new trust.
+    return _filesystem.sys_lstat(filepath)
 
 #@ requires True
 #@ assigns _filesystem.disk

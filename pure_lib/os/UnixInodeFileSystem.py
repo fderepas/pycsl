@@ -1441,11 +1441,49 @@ class UnixInodeFileSystem:
     #@ requires True
     #@ assigns \nothing
     #@ ensures \result == -1 or (\result >= 0 and \result < 32)
+    #@ ensures (dir_lookup(self.disk, 5, pathname) >= 0) ==> (0 <= \result and \result < 32)
+    #@ ensures (dir_lookup(self.disk, 5, pathname) < 0) ==> \result == -1
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/stat.html
     # cite:_note: POSIX stat() — locates the inode for `pathname` in the
     #             root directory. De-trusted: name lookup via _dir_lookup;
     #             returns the inode number (>= 0 and < 32) or -1 on ENOENT.
+    #
+    #             PATH-LINK (stat/lstat consequence): the two `dir_lookup`
+    #             ensures expose stat's resolution faithfully — a caller that
+    #             pinned `dir_lookup(self.disk,5,pathname) >= 0` (e.g. after a
+    #             successful mkdir) observes a VALID inode (0 <= \result < 32),
+    #             and absence (`dir_lookup < 0`) yields -1. Both are BODY-PROVEN
+    #             from _dir_lookup's existing (already-trusted dirscan-fidelity)
+    #             ensures `\result == dir_lookup(self.disk, 5, pathname)` +
+    #             `\result == -1 or (0 <= \result < 32)` — no NEW trust. Mirrors
+    #             how sys_open (gap-14/15) carries its inode-binding link.
+    #
+    #             no_inline (E-matching): the body is body-proven against the two
+    #             `dir_lookup` ensures, but INLINING it at every caller (the
+    #             stat/lstat wrappers + walk) re-exposes _dir_lookup's trusted
+    #             `dir_lookup` binding to the SMT context and the quantifier
+    #             E-matches into a step blowup (Timeout/OOM). `no_inline` emits an
+    #             abstract `val` carrying exactly these ensures, so callers reason
+    #             modularly from the contract — no new trust, contract still
+    #             body-proven on its own.
+    #@ no_inline
     def sys_stat(self, pathname: str) -> int:
+        return self._dir_lookup(5, pathname)
+
+    #@ requires True
+    #@ assigns \nothing
+    #@ ensures \result == -1 or (\result >= 0 and \result < 32)
+    #@ ensures (dir_lookup(self.disk, 5, pathname) >= 0) ==> (0 <= \result and \result < 32)
+    #@ ensures (dir_lookup(self.disk, 5, pathname) < 0) ==> \result == -1
+    # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/lstat.html
+    # cite:_note: POSIX lstat() — like stat() but does not dereference a
+    #             symbolic link. In this single-level inode model with no live
+    #             symlink resolution, the root-directory name lookup is identical
+    #             to stat(); the same PATH-LINK ensures (body-proven via
+    #             _dir_lookup, no new trust) expose the resolution.
+    #             no_inline for the same E-matching reason as sys_stat.
+    #@ no_inline
+    def sys_lstat(self, pathname: str) -> int:
         return self._dir_lookup(5, pathname)
 
     # --- THE 13 NEW INTEGRATED SYSTEM CALLS ---

@@ -23,31 +23,57 @@
 # convergence-loop outcome.
 
 from pure_lib.os import (
-    mkdir, access, chmod, truncate, F_OK,
+    mkdir, access, chmod, truncate, stat, lstat, F_OK,
 )
 
 
 # ---------------------------------------------------------------------------
-# GAP (stat / lstat functional consequence — NOT PROVABLE, theorems removed):
+# stat / lstat functional consequence — NOW PROVES through the API.
 #
-#   stat / lstat : #@ ensures \result == -1 or (0 <= \result < 32)
+# Public contracts (pure_lib/os/__init__.py):
+#   stat / lstat :
+#     #@ ensures \result == -1 or (0 <= \result < 32)
+#     #@ ensures dir_lookup(disk, 5, filepath) >= 0 ==> 0 <= \result < 32
+#     #@ ensures dir_lookup(disk, 5, filepath) <  0 ==> \result == -1
+#   mkdir :
+#     #@ ensures \result == 0 ==> dir_lookup(disk, 5, filepath) >= 0
 #
-# The `mkdir(d); stat(d) -> valid inode` functional consequence is NOT entailed
-# by the public contracts, so no theorem asserts it here. TWO walls:
-#   (a) mkdir's contract permits `\result == -1` (mkdir can fail -> d absent ->
-#       stat(d) == -1), so even an UNGUARDED `\result == 1` is unprovable.
-#   (b) Even with the mkdir failure guarded, stat/lstat are return-code/geometry
-#       only: their contracts carry NO path->inode link (no `dir_lookup(disk,5,p)
-#       >= 0 ==> 0 <= result < 32`) tying the result to the dir mkdir created.
-# Asserting the bare inode-range bound (`-1 or 0<=result<32`) would be VACUOUS —
-# it merely re-states stat/lstat's own contract. The functional consequence
-# needs a path-link contract `dir_lookup(disk,5,p) >= 0 ==> 0 <= result < 32`;
-# that requires `#@ no_inline` on sys_stat, which OOMs when inlined (axiom
-# E-matching) and clashes with `walk`'s int-typed listdir entry passed to a
-# string-typed sys_stat (the str/list-element tool gap). Deferred.
-# (These previously sat as `stat_after_mkdir_valid_inode` /
-# `lstat_after_mkdir_valid_inode`, Unknowns that made Alt-Ergo flail ~30s each;
-# removed for CI hygiene.)
+# These two contracts CHAIN: a successful mkdir(d) pins the namespace view
+# `dir_lookup(disk, 5, d) >= 0`, and stat/lstat's path-link ensures then deliver
+# `0 <= \result < 32` — a VALID inode — for that same name. So the FUNCTIONAL
+# consequence "after creating d, stat/lstat reports a valid inode for d" is now
+# ENTAILED by the public contracts and is asserted below (NON-VACUOUS: it ties
+# the stat/lstat result to the name mkdir created, not the bare geometry bound).
+#
+# The earlier removal was correct for ITS time: back then stat/lstat carried only
+# the geometry bound (no path->inode link), so the consequence was unprovable and
+# an unguarded `\result == 1` flailed. The str-list-elements tool fix unblocked
+# the `#@ no_inline` path-link on sys_stat (it no longer OOMs on inlining, and the
+# str/list-element typing clash is resolved), so the path-link ensures now ship on
+# stat/lstat and these GUARDED theorems prove. (mkdir's possible -1 is guarded
+# below, mirroring `symlink_then_dst_present`.)
+#@ requires True
+#@ ensures \result == 1
+def stat_after_mkdir_valid_inode(d: str) -> int:
+    rc = mkdir(d, 0o777)            # operate: create the directory
+    if rc != 0:
+        return 1                    # mkdir failed: not the case under test (guarded)
+    ino = stat(d)                   # observe: stat resolves the name mkdir created
+    if ino >= 0 and ino < 32:       # ASSERTED: a valid inode
+        return 1
+    return 0
+
+
+#@ requires True
+#@ ensures \result == 1
+def lstat_after_mkdir_valid_inode(d: str) -> int:
+    rc = mkdir(d, 0o777)            # operate: create the directory
+    if rc != 0:
+        return 1                    # mkdir failed: not the case under test (guarded)
+    ino = lstat(d)                  # observe: lstat resolves the name mkdir created
+    if ino >= 0 and ino < 32:       # ASSERTED: a valid inode
+        return 1
+    return 0
 
 
 # ---------------------------------------------------------------------------
