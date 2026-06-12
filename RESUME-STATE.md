@@ -43,11 +43,26 @@ METHOD BODIES — a real, sound body gate (the `__init__` gate emits methods as 
   gap-3 tuple-unpack-target typing; gap-4 list-literal local as array value; gap-5
   scalar quantifier binders shadow same-named locals.) Full inventory:
   `body-gate-refactor-plan.md` on this branch.
-- `5f3f328` **WIP, UNTESTED, UNGATED**: per-function axiom scoping (the NEXT step —
-  the proof-performance wall). Emits a cited `#@ proof` axiom as a local
-  `assume { <body> }` in the citing function's body instead of a module-global `axiom`,
-  so the UnixFs.Dir.* axioms stop E-match-poisoning sibling method-body VCs. Syntax OK,
-  0342 GCD typechecks, but NOT gated. **This is where to resume the body gate.**
+- `5f3f328` per-function axiom scoping — NOW TESTED (2026-06-13): **SOUND but ZERO
+  proof-perf benefit. DO NOT LAND.** Implemented + gated (all 10 axiom-citing corpus
+  files still prove; mechanism fires: 14 per-func `assume`s, 2 class-inv axioms kept
+  global). But the standalone-os 3s-triage is IDENTICAL before vs after: **1445 Valid,
+  225 Timeout, 1670 goals BOTH ways.** The hypothesis (global axioms poison NON-citing
+  method VCs) is WRONG — non-citing methods prove fast either way; the 225 slow goals
+  are the CITING methods' inherently-heavy VCs (which keep the axioms as `assume` =
+  same content). So scoping is not the fix; revert it before any merge.
+
+### KEY 2026-06-13 finding — the body gate is NOT stuck, it's just BIG
+The standalone proof has **1670 goals**; ~225 (13.5%) are slow at a 3s timelimit. The
+slow goals are dominated by the **constructor class-invariant establishment (136 goals,
+`unixinodefilesystem'vc`)** + disk-mutating syscalls (sys_write 27, _alloc_inode/_block
+20, unlink/rename/rmdir). Most are SLOW-but-PROVABLE: the constructor class invariant
+DOES prove in `__init__` (at 30s). So the 30-min full-proof timeout was simply too short
+— at 30s/goal × (Alt-Ergo + Z3) it's ~5–6 HOURS. **To get the sound body gate: run
+`pycsl pure_lib/os/UnixInodeFileSystem.py` with a multi-HOUR budget** (background,
+poll over hours); it should land mostly-Valid with a handful of genuinely-hard goals to
+then target. The per-function axiom scoping detour does not change this. (Run with the
+clean gap-5 tool — revert `5f3f328` first.)
 
 ### `str-list-elements` — already MERGED to main (ff). The branch can be deleted.
 
