@@ -445,15 +445,6 @@ class Module6_WhyMLTranspiler(
         # abstract op.
         self._precompute_axiom_logic_funcs(self.ir)
 
-        # body-gate axiom-scoping: split cited `#@ proof` axioms into GLOBAL
-        # (`axiom` in the preamble) vs SCOPED (per-function `assume {…}` injected
-        # at body emission). Must run BEFORE `_emit_preamble_axioms` (which now
-        # skips the scoped ones) AND before `_emit_function` (which reads
-        # `self._func_scoped_axioms`). Populates `_globally_emitted_axiom_qns` +
-        # `_func_scoped_axioms`. For files with no scopable citer of any axiom the
-        # split degenerates to all-global → byte-identical emission.
-        self._precompute_axiom_scoping(self.ir)
-
         # gap-9: an `#@ inductive` rule may reference an axiom-backing logic
         # function (`dir_lookup`) AND/OR a module-level global (`_filesystem`),
         # which must be in scope BEFORE the inductive block. ONLY in that case
