@@ -887,7 +887,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # multi-field writes like os.sys_write's disk+fd_offset+_mtime_ticks).
                 writes_clause = "\n    writes { " + ", ".join(
                     f"self.{f}" for f in writes_fields) + " }"
+        # body-gate gap-1: lower the callee's `\result[i]` ensures against the
+        # CALLEE's return type, not the caller's. A method returning `array int`
+        # (e.g. `_read_inode`) whose ensures says `\result[0] == …` must lower
+        # `\result[0]` to `result[0]` (Array.get, via the L0 path in
+        # `_resolve_subscript`), NOT the opaque/unbound `subscript_get` it gets when
+        # `_func_return_type` still holds the CALLER's type. Restore after.
+        _saved_frt = getattr(self, "_func_return_type", "")
+        self._func_return_type = ret_type
         ensures_suffix = self._dotted_ensures_suffix(result_ensures, n, param_types, field_spec)
+        self._func_return_type = _saved_frt
         if n == 0 and not receiver_param:
             self._add_abstract_op(f"val {arity_name} () : {ret_type}{ensures_suffix}")
             return f"({arity_name} ())"
