@@ -210,11 +210,18 @@ def lseek(fd, pos, how):
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
+# gap-2: propagate mkdir's presence post-state. makedirs creates the dir (single
+# level in this model) by delegating to sys_mkdir, which ensures `rc == 0 ==>
+# dir_lookup(_filesystem.disk, 5, name) >= 0`. On the exist_ok shortcut the dir
+# was already found PRESENT — checked via sys_access, whose `(\result == 0) <==>
+# dir_lookup >= 0` ensures gives `rc == 0 ==> dir_lookup >= 0` directly (the
+# inlined sys_stat cannot carry that binding). Both return-0 paths therefore leave
+# the name PRESENT, so access(name) reports present after a successful makedirs.
+#@ ensures \result == 0 ==> (dir_lookup(_filesystem.disk, 5, name) >= 0)
 def makedirs(name: str, mode=0o777, exist_ok=False):
     """Create a directory (single level in this model)."""
     if exist_ok:
-        ino = _filesystem.sys_stat(name)
-        if ino >= 0:
+        if _filesystem.sys_access(name, 0) == 0:
             return 0
     return _filesystem.sys_mkdir(name, mode)
 
@@ -416,8 +423,12 @@ def lstat(filepath: str, *, dir_fd=None):
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
+#@ ensures \result == 0 ==> (dir_lookup(_filesystem.disk, 5, dst) >= 0)
 def symlink(src: str, dst: str, target_is_directory=False, *, dir_fd=None):
     """Create a symbolic link."""
+    # gap-9: sys_symlink ensures `rc == 0 ==> dir_lookup(_filesystem.disk, 5,
+    # linkpath) >= 0` (the symlink mutator establishes the presence view for the
+    # link name dst), so access(dst) reports PRESENT after a successful symlink.
     return _filesystem.sys_symlink(src, dst)
 
 #@ requires True

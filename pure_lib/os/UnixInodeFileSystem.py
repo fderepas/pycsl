@@ -1770,9 +1770,14 @@ class UnixInodeFileSystem:
         #@ assert \forall k: int; (0 <= k and k < 16 and k != old_slot and slot_name(self.disk, 5, k) == oldpath) ==> slot_inode(self.disk, 5, k) == 0
         return 0
 
+    #@ proof rocq UnixFs.Dir.scan_reflects_present
+    #@ proof lean UnixFs.Dir.scan_reflects_present
+    #@ proof rocq UnixFs.Dir.slot_inode_nonneg
+    #@ proof lean UnixFs.Dir.slot_inode_nonneg
     #@ requires True
     #@ assigns self.disk
     #@ ensures \result == 0 or \result == -1
+    #@ ensures \result == 0 ==> (dir_lookup(self.disk, 5, linkpath) >= 0)
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/symlink.html
     # cite:_note: POSIX symlink() — allocates a type-3 (symlink) inode
     #             holding the target-path bytes inline in its data block.
@@ -1780,6 +1785,17 @@ class UnixInodeFileSystem:
     #             De-trusted: the target bytes are written via a '>H30s'
     #             pack of `target.encode(...)` (opaque buffer, gap 5);
     #             size field set to 30 (the on-disk name-field width).
+    #
+    #             gap-9 (PRESENCE direction, mirrors sys_mkdir / sys_link): on
+    #             success `dir_lookup(self.disk, 5, linkpath) >= 0` — the symlink
+    #             mutator ESTABLISHES the presence view for the LINK name. The final
+    #             `_write_entry(5, slot, inode_num, linkpath)` (inode_num in [1,32)
+    #             from _alloc_inode) makes the abstract slot decode at `slot` return
+    #             (inode_num, linkpath) — the existential witness at k=slot — so the
+    #             `#@ assert` below + the scan_reflects_present axiom (existential =>
+    #             dir_lookup>=0) discharge the postcondition. The entry write is LAST
+    #             (mirroring mkdir's entry-write-last) and `#@ no_inline` isolates the
+    #             witness VC from the loop-bearing `_dir_find_free` scan.
     #@ no_inline
     def sys_symlink(self, target: str, linkpath: str) -> int:
         if self._dir_lookup(5, linkpath) >= 0:
@@ -1797,6 +1813,12 @@ class UnixInodeFileSystem:
         if slot < 0:
             return -1
         self._write_entry(5, slot, inode_num, linkpath)
+        # gap-9: the just-written root-dir slot is the existential witness the
+        # scan_reflects_present axiom needs (slot_inode/slot_name at k=slot from
+        # _write_entry's post-state, inode_num in [1,32) per _alloc_inode, so the
+        # slot is live). The axiom (existential => dir_lookup>=0) then discharges
+        # `dir_lookup(self.disk, 5, linkpath) >= 0`.
+        #@ assert \exists k: int; 0 <= k and k < 16 and slot_inode(self.disk, 5, k) != 0 and slot_inode(self.disk, 5, k) < 32 and slot_name(self.disk, 5, k) == linkpath
         return 0
 
     #@ requires True
