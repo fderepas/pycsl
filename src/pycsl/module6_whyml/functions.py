@@ -594,8 +594,25 @@ class FunctionEmissionMixin:
             return lines
 
         lines.append("  =")
-        lines.append(self._emit_body_code(func, body_stmts, local_refs, ghost_vars,
-                                          ref_params, is_method, return_type))
+        body_code = self._emit_body_code(func, body_stmts, local_refs, ghost_vars,
+                                         ref_params, is_method, return_type)
+        # body-gate axiom-scoping: a cited `#@ proof` axiom that was MOVED out of
+        # the module-global preamble (because this function has a scopable body —
+        # see `_precompute_axiom_scoping`) is injected HERE as a leading
+        # `assume { <axiom_body> }`. The axiom is then in scope ONLY for THIS
+        # function's VC; a sibling method that does not cite it never sees it, so
+        # its body VC is not poisoned by the axiom's E-matching (the whole point).
+        # `assume { forall … }` is a valid WhyML program statement, and the cited
+        # axioms are cross-validated (Rocq + Lean), so assuming them is sound — the
+        # SAME trust as the global `axiom`, just confined. Prepended before the
+        # early-return try-wrap, so it dominates the entire body.
+        scoped = getattr(self, "_func_scoped_axioms", {}).get(func["name"], [])
+        if scoped:
+            assume_lines = "".join(
+                f"    assume {{ {ax} }};\n" for ax in scoped
+            )
+            body_code = f"{assume_lines}{body_code}"
+        lines.append(body_code)
         # b-spec §4 (P2): in the owning unit (real `let`), prove the interface is a sound weakening
         # of the definition. Fail-loud — an over-claiming interface makes the goal unprovable.
         if _iface:

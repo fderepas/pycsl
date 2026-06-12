@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Set, Tuple
 
 from module6_whyml.identifiers import whyml_ident, safe_mutex_name, safe_exc_name
 from module6_whyml.ir_scanner import IRScanner
+from module6_whyml.scc import emits_as_logic_symbol
 
 
 class PreambleEmissionMixin:
@@ -968,6 +969,125 @@ class PreambleEmissionMixin:
         self._class_inv_axioms_emitted = emitted
         return out
 
+    def _func_has_scopable_body(self, func: Dict[str, Any]) -> bool:
+        """body-gate axiom-scoping: True iff `func` is emitted as a verifiable
+        program `let`/`let rec`/`let [rec] lemma` WITH a body — i.e. there is a
+        real `= <body>` into which a cited axiom can be injected as a leading
+        `assume { <axiom_body> }` (a valid WhyML program statement, in scope ONLY
+        for THIS function's VC). Mirrors `_emit_function`'s `emit_as_val` /
+        `can_emit_as_logic` decision (the SAME flags), so the per-function
+        `assume` injection and this scoping decision agree.
+
+        NON-scopable (axiom falls back to the module-global `axiom`):
+          - a `\\trusted` / `\\abstract` stub, or an auto-trusted return-shape
+            stub: `emit_as_val` → bodyless `val`, no VC to assume into.
+          - a pure `let function` (`emits_as_logic_symbol`): a TERM, not a
+            program body; `assume` is not a valid term.
+        Scopable (axiom moves to a per-function `assume`):
+          - a real program `let`/`let rec` (incl. `#@ no_inline`, which only
+            disables call-site inlining — the method still emits its own body VC).
+          - a `let [rec] lemma` (its `= <proof body>` is a program expression).
+
+        Auto-trust mirrors `_emit_function`: a map/array/tuple/set return-shape
+        function is silently promoted to a `val`. Replicated here (best-effort,
+        with the same predicates) so a citer that becomes a `val` is treated as
+        non-scopable. The `not local_refs` refinement of `can_emit_as_logic` is
+        intentionally over-approximated to `emits_as_logic_symbol(func)` alone:
+        a pure-but-local-ref'd citer would only fall back to the global axiom
+        (sound, no regression) — and no such function cites an axiom in practice.
+        """
+        if func.get("trusted", False) or func.get("abstract", False):
+            return False
+        if emits_as_logic_symbol(func):
+            return False
+        # Mirror _emit_function's auto-trust promotions (return-shape → val).
+        body_stmts = func.get("body", [])
+        ann = func.get("return_annotation")
+        ret_type = IRScanner.find_return_type(body_stmts)
+        # The List/str annotation override _emit_function applies before the
+        # auto-trust array check (return-arr.md). Approximate it here.
+        if ann in ("list", "bytes", "bytearray"):
+            ret_type = "array int"
+        elif ann == "str":
+            ret_type = "string"
+        try:
+            if self._should_auto_trust_map_return(func, False):
+                return False
+            if self._should_auto_trust_array_return(func, body_stmts, ret_type, False):
+                return False
+            if self._should_auto_trust_tuple_return(body_stmts, ret_type, False):
+                return False
+            if self._should_auto_trust_set_op(body_stmts, False):
+                return False
+        except Exception:
+            # If an auto-trust predicate's shape assumptions don't hold for this
+            # func, err toward "scopable" only when emit_as_val is clearly false;
+            # the corpus/os gates catch any mismatch.
+            pass
+        return True
+
+    def _precompute_axiom_scoping(self, ir: Dict[str, Any]) -> None:
+        """body-gate axiom-scoping: split the cited `#@ proof` axioms into
+        GLOBAL (kept as a module-global `axiom`) vs SCOPED (injected as a leading
+        `assume { <body> }` into each citing function that has a scopable body).
+
+        Rule (per the gate): an axiom is GLOBAL iff EVERY citer lacks a scopable
+        body (a `val`/trusted/abstract/auto-trusted stub or a pure `let function`)
+        — then the global `axiom` is the only place it can live, so nothing
+        regresses. Otherwise (≥1 citer has a real verifiable body) the axiom MOVES
+        to per-function `assume`s, injected ONLY into the citers that have a
+        scopable body. A non-scopable co-citer (e.g. the `\\trusted` `_dir_lookup`
+        that cites `scan_reflects_present`) silently drops it: a `val` has no body
+        VC, so it never needed the axiom — and dropping the GLOBAL is exactly what
+        unpoisons every non-citing sibling method's VC (the E-matching blowup the
+        gate targets).
+
+        EXCEPTIONS kept global regardless (per the gate's KEEP-GLOBAL list):
+          - the class-invariant axioms `_CLASS_INV_AXIOMS` — the class invariant
+            needs them at every method's type-invariant VC, so they must stay
+            module-global. (Already hoisted by `_emit_class_inv_axioms`.)
+
+        Populates:
+          - `self._globally_emitted_axiom_qns`: qualnames to emit as global `axiom`.
+          - `self._func_scoped_axioms`: {func_name: [axiom_body, ...]} to `assume`.
+        Idempotent. Safe to call once in `transpile()` before axiom emission AND
+        before any function body is emitted.
+        """
+        # qualname -> list of citing funcs (dedup Rocq+Lean which cite the same qn)
+        citers: Dict[str, List[Dict[str, Any]]] = {}
+        for func in ir.get("functions", []):
+            qns_here: Set[str] = set()
+            for entry in func.get("proof", []):
+                qns_here.add(entry["qualname"])
+            for qn in qns_here:
+                citers.setdefault(qn, []).append(func)
+
+        global_qns: Set[str] = set()
+        func_scoped: Dict[str, List[str]] = {}
+        for qn, fns in citers.items():
+            # Class-invariant axioms are always global (KEEP-GLOBAL list).
+            if qn in self._CLASS_INV_AXIOMS:
+                global_qns.add(qn)
+                continue
+            body = self._AXIOM_REGISTRY.get(qn)
+            if body is None:
+                # Unknown qualname — leave it global so `_emit_preamble_axioms`
+                # raises the existing fail-loud registry error.
+                global_qns.add(qn)
+                continue
+            scopable = [f for f in fns if self._func_has_scopable_body(f)]
+            if not scopable:
+                # Every citer is a bodyless stub / pure term — keep global.
+                global_qns.add(qn)
+                continue
+            # Move to per-function assumes in each scopable citer.
+            for f in scopable:
+                func_scoped.setdefault(f["name"], [])
+                if body not in func_scoped[f["name"]]:
+                    func_scoped[f["name"]].append(body)
+        self._globally_emitted_axiom_qns = global_qns
+        self._func_scoped_axioms = func_scoped
+
     def _emit_preamble_axioms(self, ir: Dict[str, Any]) -> List[str]:
         """Emit Why3 function decls + axioms for `#@ proof` cites.
 
@@ -1012,9 +1132,19 @@ class PreambleEmissionMixin:
         # gap-13: skip any class-invariant axiom already hoisted before the record
         # by `_emit_class_inv_axioms` (Why3 forbids re-declaring the same axiom).
         already_axioms = set(getattr(self, "_class_inv_axioms_emitted", set()))
+        # body-gate axiom-scoping: emit globally ONLY the axioms classified GLOBAL
+        # by `_precompute_axiom_scoping` (every citer bodyless / pure). An axiom
+        # with ≥1 scopable citer was MOVED to per-function `assume`s (injected at
+        # body emission) and must NOT also appear as a module-global `axiom` (that
+        # would re-poison every non-citing method VC — the whole point). If the
+        # precompute did not run (defensive), default to all-global (legacy).
+        global_qns = getattr(self, "_globally_emitted_axiom_qns", None)
         # Emit each axiom. Comment records the prover pairing.
         for qn in sorted(seen_qualnames):
             if qn in already_axioms:
+                continue
+            if global_qns is not None and qn not in global_qns:
+                # Moved to a per-function `assume` — do not emit globally.
                 continue
             if qn not in self._AXIOM_REGISTRY:
                 raise PyCSLIRError(
