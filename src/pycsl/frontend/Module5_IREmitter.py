@@ -1961,6 +1961,34 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         if array1d:
             func_ir["array1d_params"] = sorted(array1d)
 
+    @staticmethod
+    def _is_decode_call(ir: Any) -> bool:
+        """str-list-elements: is `ir` a `bytes.decode(...)` call (the `func` tail is
+        `decode`)? `b.decode()` lowers to a `Call` whose `func` is `"decode"` (receiver
+        a Subscript) or `"<name>.decode"` (receiver a Name). Its result is a `str`."""
+        if not isinstance(ir, dict) or ir.get("type") != "Call":
+            return False
+        fn = ir.get("func")
+        return isinstance(fn, str) and (fn == "decode" or fn.endswith(".decode"))
+
+    def _collect_str_decode_locals(self, body: Any) -> Set[str]:
+        """str-list-elements: locals assigned a `.decode()` result — these are `str`."""
+        out: Set[str] = set()
+
+        def rec(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("stmt") == "Assign" and isinstance(node.get("target"), str):
+                    if self._is_decode_call(node.get("value")):
+                        out.add(node["target"])
+                for v in node.values():
+                    rec(v)
+            elif isinstance(node, list):
+                for x in node:
+                    rec(x)
+
+        rec(body)
+        return out
+
     def _detect_seq_promotion(self, func_ir: Dict[str, Any]) -> None:
         """07-1705-rev4 P2 — the seq-promotion analysis (diagnostics only; no emission
         change). A `list`/`bytes`/`bytearray` variable is **seq-promoted** (must be
@@ -1998,6 +2026,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         grown: Set[str] = set()
         index_set: Set[str] = set()         # vars that are index-ASSIGNED (`x[i] = v`)
         edges: List[Tuple[str, str]] = []   # (target, source) for `b = a` unification
+        # str-list-elements: per-seq-var the IRs of the elements appended/concatenated
+        # into it. A seq whose elements are ALL string-producing (a `.decode()` result
+        # or a string literal/local) is typed `seq string`, not the default `seq int`.
+        append_elems: Dict[str, List[Any]] = {}
+
+        def _record_elem(tgt: str, elem: Any) -> None:
+            append_elems.setdefault(tgt, []).append(elem)
 
         def walk(node: Any) -> None:
             if isinstance(node, dict):
@@ -2020,6 +2055,9 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     tgt = node["value"]["func"].rsplit(".", 1)[0]
                     if tgt in list_vars:
                         grown.add(tgt)
+                        _args = node["value"].get("args", [])
+                        if _args:
+                            _record_elem(tgt, _args[0])
                 elif st == "Assign":
                     tgt = node.get("target")
                     val = node.get("value", {})
@@ -2061,6 +2099,51 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             conflicts = seq & set(func_ir.get("array2d_params", []))
             if conflicts:
                 func_ir["seq_promotion_conflicts"] = sorted(conflicts)
+            # str-list-elements: type a seq whose appended elements are ALL strings as
+            # `seq string`. Default stays `seq int` (no entry), so int-element lists are
+            # byte-identical. A seq carries STRING elements iff every appended element is
+            # string-producing — a string literal, a `.decode()`-assigned local, or a var
+            # already unified (via `b = a`) with such a seq.
+            symbol_table = func_ir.get("symbol_table", {})
+            str_locals = self._collect_str_decode_locals(func_ir["body"])
+
+            def _is_str_elem(elem: Any) -> bool:
+                if not isinstance(elem, dict):
+                    return False
+                t = elem.get("type")
+                if t == "String":
+                    return True
+                if t == "Var":
+                    nm = elem.get("name")
+                    return nm in str_locals or symbol_table.get(nm) in ("str", "string")
+                if t == "Call" and self._is_decode_call(elem):
+                    return True
+                return False
+
+            seq_value_types: Dict[str, str] = {}
+            for v in seq:
+                elems = append_elems.get(v, [])
+                if elems and all(_is_str_elem(e) for e in elems):
+                    seq_value_types[v] = "string"
+            # Propagate string-ness across `b = a` unification edges (both directions),
+            # so a seq aliased to a string seq is also `seq string`.
+            changed = True
+            while changed:
+                changed = False
+                for t, s in edges:
+                    if t in seq and s in seq:
+                        if (seq_value_types.get(t) == "string") != (seq_value_types.get(s) == "string"):
+                            seq_value_types[t] = "string"
+                            seq_value_types[s] = "string"
+                            changed = True
+            if seq_value_types:
+                func_ir["seq_value_types"] = dict(seq_value_types)
+                # Mark the decode-assigned string locals (e.g. `name`) as `str` in the
+                # symbol table so Module6 lets-binds them as a string ref (not `ref 0`),
+                # making the `Seq.snoc !names string` element well-typed.
+                for v in str_locals:
+                    if symbol_table.get(v) in (None, "Any"):
+                        symbol_table[v] = "str"
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         if self._should_skip_method(node):

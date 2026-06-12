@@ -98,7 +98,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         vt = val_ir.get("type", "")
         self._track_collection_metadata(target, val_ir)
 
+        # str-list-elements: a `.decode()` RHS bound to a STRING-typed local lowers to a
+        # string-returning val (so the decoded name is `string`, not the legacy opaque
+        # int). The flag is scoped to this single RHS so decode calls elsewhere (compared
+        # against ints in an inlined `_dir_lookup`) keep their byte-identical int model.
+        _str_target = (getattr(self, "_current_symbol_table", {}).get(target)
+                       in ("str", "string"))
+        _prev_dts = getattr(self, "_decode_to_string", False)
+        if _str_target:
+            self._decode_to_string = True
         val = self._expr_to_whyml(stmt["value"], local_refs)
+        self._decode_to_string = _prev_dts
         # Tuple/Set literals can't be stored in int refs; use 0 as placeholder
         if vt in ("Tuple", "SetLit"):
             val = "0"
@@ -166,6 +176,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         region link), used where a seq-modelled value crosses into `array int` code."""
         self._add_abstract_op(
             "val materialize (s: seq int) : array int\n"
+            "    ensures { Array.length result = Seq.length s }\n"
+            "    ensures { forall i:int. 0 <= i < Seq.length s -> result[i] = Seq.get s i }")
+
+    def _materialize_str_bridge(self) -> None:
+        """str-list-elements: the STRING analogue of `_materialize_bridge` — bridges a
+        `seq string` (a growable string list) to a fresh `array string` at the return
+        slot, so a list of strings returns as `array string`."""
+        self._add_abstract_op(
+            "val materialize_str (s: seq string) : array string\n"
             "    ensures { Array.length result = Seq.length s }\n"
             "    ensures { forall i:int. 0 <= i < Seq.length s -> result[i] = Seq.get s i }")
 
@@ -924,6 +943,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # an immutable `Return_seq (seq int)` (Why3 forbids a mutable array payload); the
             # catch materializes the seq back to `array int` at the single result-slot boundary.
             return f"    try\n{body_code}\n    with Return_seq s -> materialize s end"
+        if return_type == "array string":
+            # str-list-elements: a STRING-element list returns through the parallel
+            # `Return_seq_str (seq string)` exception; the catch materializes the seq
+            # string back to `array string` (the string analogue of the `array int` arm).
+            self._materialize_str_bridge()
+            return f"    try\n{body_code}\n    with Return_seq_str s -> materialize_str s end"
         if return_type == "string":
             # 10-1732-gap Gap 1: a `string`-returning function with an early/in-loop
             # return raises `Return_str <string>`; the catch hands the payload straight
@@ -931,6 +956,53 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # `Return_<T>` generalization (real/record) extends this branch.
             return f"    try\n{body_code}\n    with Return_str r -> r end"
         return f"    try\n{body_code}\n    with Return r -> r end"
+
+    def _collect_string_elem_read_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """str-list-elements: locals that read an element of a string-element list. Two
+        steps over the body: (1) collect array locals bound to a string-element-list
+        call (`names = listdir(...)`, `listdir` in `_module_string_seq_funcs`); (2) any
+        local assigned `that[i]` for such a `that` is a `string` (its array element type).
+        Returns the string-typed element-read locals. Empty when no module function
+        returns `array string`."""
+        ssf = getattr(self, "_module_string_seq_funcs", set())
+        if not ssf:
+            return set()
+        str_arrays: Set[str] = set()
+        elem_reads: Set[str] = set()
+
+        def rec(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("stmt") == "Assign" and isinstance(node.get("target"), str):
+                    v = node.get("value", {})
+                    if isinstance(v, dict):
+                        if (v.get("type") == "Call"
+                                and isinstance(v.get("func"), str)
+                                and whyml_ident(v["func"]) in ssf):
+                            str_arrays.add(node["target"])
+                        elif (v.get("type") == "Subscript"
+                              and isinstance(v.get("value"), dict)
+                              and v["value"].get("type") == "Var"
+                              and v["value"].get("name") in str_arrays):
+                            elem_reads.add(node["target"])
+                for x in node.values():
+                    rec(x)
+            elif isinstance(node, list):
+                for x in node:
+                    rec(x)
+
+        # Two passes so a `names[i]` read after the `names = listdir()` bind is caught
+        # regardless of nesting/order (str_arrays must be fully populated first).
+        rec(body_stmts)
+        rec(body_stmts)
+        # Reflect the inferred string type into the symbol table so the per-operation
+        # `_is_string_expr` sites (sys_stat arg, `.append` element typing, `not in`)
+        # also see `name : str`.
+        st = getattr(self, "_current_symbol_table", None)
+        if st is not None:
+            for v in elem_reads:
+                if st.get(v) in (None, "Any"):
+                    st[v] = "str"
+        return elem_reads
 
     def _typed_local_vars(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """Body locals that carry a NON-int WhyML type — array, dict/set, lambda,
@@ -977,6 +1049,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             name for name, ty in getattr(self, "_current_symbol_table", {}).items()
             if ty in ("str", "string") and name not in set(self._formal_params)
         }
+        # str-list-elements: cross-function element-type propagation. A local bound to a
+        # STRING-element-list-returning call (`names = listdir(...)`) is a string-element
+        # array; an element READ of it (`name = names[i]`) is a `string`. Mark those
+        # element-read locals as string so they let-bind as a string ref (not `ref 0`),
+        # feeding a string-typed consumer (sys_stat). Byte-identical when no module
+        # function returns `array string` (`_module_string_seq_funcs` empty).
+        string_vars |= self._collect_string_elem_read_locals(body_stmts)
         self._string_local_vars = string_vars
         # 07-2333-rev2 Gap 3: a seq-promoted (growable) list LOCAL must NOT be pre-declared
         # as `ref 0 : ref int` — it is `ref (seq int)`, let-bound at its first assignment by

@@ -366,6 +366,32 @@ class PreambleEmissionMixin:
         ],
     }
 
+    @staticmethod
+    def _func_returns_string_seq(func: Dict[str, Any]) -> bool:
+        """str-list-elements: does `func` return a seq local whose elements are STRING
+        (`seq_value_types[v] == "string"`)? Such a list is emitted as `array string` and
+        carried through the `Return_seq_str (seq string)` exception."""
+        svt = func.get("seq_value_types", {})
+        if not svt:
+            return False
+        found = [False]
+
+        def rec(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("stmt") == "Return":
+                    v = node.get("value")
+                    if (isinstance(v, dict) and v.get("type") == "Var"
+                            and svt.get(v.get("name")) == "string"):
+                        found[0] = True
+                for x in node.values():
+                    rec(x)
+            elif isinstance(node, list):
+                for x in node:
+                    rec(x)
+
+        rec(func.get("body", []))
+        return found[0]
+
     def _scan_preamble_needs(self, functions: List[Dict[str, Any]],
                              all_bodies: List[Any]) -> Dict[str, Any]:
         """Scan all function bodies once to collect feature flags for preamble emission."""
@@ -449,6 +475,7 @@ class PreambleEmissionMixin:
         needs_return_exc = False
         needs_return_void = False
         needs_return_seq = False
+        needs_return_seq_str = False
         needs_return_str = False
         tuple_return_arities: Set[int] = set()
         n = len(functions)
@@ -472,6 +499,10 @@ class PreambleEmissionMixin:
                     # through an IMMUTABLE `seq int` and materialize at the catch. (The array-ness
                     # often comes from the `-> list` annotation, not find_return_type.)
                     needs_return_seq = True
+                    # str-list-elements: a list whose returned seq local carries STRING
+                    # elements travels through the parallel `Return_seq_str (seq string)`.
+                    if self._func_returns_string_seq(func):
+                        needs_return_seq_str = True
                 elif ret_type == "string" or ann == "str":
                     # 10-1732-gap Gap 1: a faithful `string`-returning function with an
                     # early/in-loop return carries a `string` payload — the generic
@@ -487,6 +518,7 @@ class PreambleEmissionMixin:
         needs_string = (
             any(IRScanner.uses_ghost_type(body, {"string"}) for body in all_bodies)
             # strings-plan Stage 1: a runtime `str` param/local/return also needs string.String
+            or needs_return_seq_str  # str-list-elements: `array string` / `seq string`
             or any("str" in f.get("symbol_table", {}).values() for f in functions)
             or any(f.get("return_annotation") == "str" for f in functions)
         )
@@ -577,6 +609,7 @@ class PreambleEmissionMixin:
             "needs_break": needs_break,
             "needs_return_exc": needs_return_exc,
             "needs_return_seq": needs_return_seq,
+            "needs_return_seq_str": needs_return_seq_str,
             "needs_return_str": needs_return_str,
             "needs_return_void": needs_return_void,
             "needs_body_dict": needs_body_dict,
@@ -692,6 +725,11 @@ class PreambleEmissionMixin:
             # the catch materializes back to `array int`.
             out.append("")
             out.append("  exception Return_seq (Seq.seq int)")
+        if needs.get("needs_return_seq_str"):
+            # str-list-elements: a STRING-element list returns through this parallel
+            # exception (the catch materializes the `seq string` to `array string`).
+            out.append("")
+            out.append("  exception Return_seq_str (Seq.seq string)")
         if needs.get("needs_return_str"):
             # 10-1732-gap Gap 1: a `string`-returning function with an early/in-loop
             # return carries an immutable `string` payload (parallel to Return_seq).

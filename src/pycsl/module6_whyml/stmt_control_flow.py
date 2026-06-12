@@ -594,6 +594,19 @@ class ControlFlowStmtMixin:
                 else:
                     seq_val = self._seq_init_expr(val_ir, local_refs)
                 return f"{indent}raise (Return_seq {seq_val})"
+            if func_ret == "array string":
+                # str-list-elements: a STRING-element list returns its growable `seq string`
+                # through `Return_seq_str`; the catch materializes it to `array string`. An
+                # empty-list return (`return []`) carries the polymorphic `Seq.empty`.
+                self._materialize_str_bridge()
+                if val_ir is None:
+                    seq_val = "Seq.empty"
+                elif (val_ir.get("type") == "Var"
+                      and val_ir.get("name") in getattr(self, "_seq_locals", set())):
+                    seq_val = f"!{whyml_ident(val_ir['name'])}"
+                else:
+                    seq_val = self._seq_init_expr(val_ir, local_refs)
+                return f"{indent}raise (Return_seq_str {seq_val})"
             if func_ret == "string":
                 # 10-1732-gap Gap 1: a `string`-returning function with an early/in-loop
                 # return raises `Return_str <string>` (caught by the `with Return_str r -> r`

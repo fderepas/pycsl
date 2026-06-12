@@ -512,6 +512,15 @@ class Module6_WhyMLTranspiler(
         # zero byte risk. Built from `funcs_for_maps`, so imported str-stubs are covered.
         self._module_method_return_annotations = \
             self._build_method_return_annotation_map(funcs_for_maps)
+        # str-list-elements: the set of module functions that return a STRING-element list
+        # (`array string`, via a returned seq local whose `seq_value_types` is "string").
+        # A caller binding `names = f(...)` for such an `f` gets a string-element array
+        # local, so `names[i]` reads a `string` (feeding a string-typed callee like
+        # sys_stat). Empty for every module with no string lists → byte-identical.
+        self._module_string_seq_funcs = {
+            f["name"] for f in funcs_for_maps
+            if self._func_returns_string_seq(f)
+        }
         self._module_method_result_ensures = self._build_method_result_ensures_map(funcs_for_maps)
         self._module_method_param_result_ensures = self._build_method_param_result_ensures_map(funcs_for_maps)
         self._module_method_field_result_ensures = self._build_method_field_result_ensures_map(funcs_for_maps)

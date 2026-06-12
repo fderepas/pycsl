@@ -255,6 +255,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if rhs.get("type") in ("Tuple", "ArrayLit", "SetLit"):
             elts = rhs.get("elts", [])
             if elts:
+                # str-list-elements: `name in ('.', '..')` with a STRING `name` is a
+                # disjunction of string equalities — route each to `str_eq_op` (content
+                # equality) instead of the int-hash compare, so the operands stay `string`
+                # (a string `name = <int hash>` is a type error). Int operands are
+                # byte-identical (the `_coerce_str_arg` int-hash path below).
+                left_is_str = self._is_string_expr(left_ir) if (left_ir := expr.get("left")) else False
+                if not self._in_spec and left_is_str:
+                    self._add_abstract_op(
+                        "val str_eq_op (a: string) (b: string) : bool\n"
+                        "    ensures { result <-> (a = b) }")
+                    checks = []
+                    for elt in elts:
+                        elt_w = self._expr_to_whyml(elt, local_refs, invariant_ctx, subst)
+                        checks.append(f"(str_eq_op {left} {elt_w})")
+                    joined = f"({' || '.join(checks)})"
+                    return f"(not {joined})" if negate else joined
                 left_c = self._coerce_str_arg(left)
                 checks = []
                 for elt in elts:
@@ -1142,6 +1158,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         bytes_call = self._call_bytes_methods(args, func_name)
         if bytes_call is not None:
             return bytes_call
+        # str-list-elements: `bytes.decode(...)` produces a `str`. When the surrounding
+        # assignment binds the result to a STRING-typed local (`self._decode_to_string`),
+        # lower it to a string-returning val so the decoded `name` is a `string` (feeding
+        # `seq string` / a string-typed consumer like sys_stat). Otherwise decode stays in
+        # the legacy opaque INT model (byte-identical for every non-string-list caller).
+        if func_name == "decode" and getattr(self, "_decode_to_string", False):
+            n = len(args)
+            arity_fn = f"decode_str_{n}"
+            if n == 0:
+                self._add_abstract_op(f"val {arity_fn} () : string")
+                return f"({arity_fn} ())"
+            params = " ".join(f"(x{i}: int)" for i in range(n))
+            self._add_abstract_op(f"val {arity_fn} {params} : string")
+            coerced = [self._coerce_to_int(a) for a in args]
+            return f"({arity_fn} {' '.join(coerced)})"
         safe_fn = whyml_ident(func_name)
         if (func_name not in local_refs
                 and func_name not in self._current_params

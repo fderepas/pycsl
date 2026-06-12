@@ -108,6 +108,12 @@ class FunctionEmissionMixin:
         # with `let a = ref (snapshot a) in` (the array param → seq ref), then behaves
         # like a seq local; a `return a` materialises back to `array int` (P4).
         self._seq_locals: set = set(func.get("seq_promoted_vars", []))
+        # str-list-elements: per-seq-var WhyML element type (only "string" is recorded;
+        # absence ⇒ the default `seq int`/`array int`, byte-identical). Drives
+        # `seq string` declaration, `Seq.snoc`/`Seq.get` string elements, the
+        # string materialize bridge, the `Return_seq_str` payload, and the
+        # `array string` return type.
+        self._seq_value_types: Dict[str, str] = func.get("seq_value_types", {})
         self._dict_locals = set()
         # no-more-int-3 A1: dict var -> WhyML value type ν (string) for
         # string-valued dicts; consulted by the dict literal / declaration /
@@ -355,6 +361,31 @@ class FunctionEmissionMixin:
         self._in_spec = False
         return lines
 
+    def _returns_string_seq(self, body_stmts: List[Dict[str, Any]]) -> bool:
+        """str-list-elements: does the function `return` a seq local that was inferred
+        to carry STRING elements (`_seq_value_types[v] == "string"`)? Such a list is
+        emitted as `array string` rather than the default `array int`."""
+        svt = getattr(self, "_seq_value_types", {})
+        if not svt:
+            return False
+        found = [False]
+
+        def rec(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("stmt") == "Return":
+                    v = node.get("value")
+                    if (isinstance(v, dict) and v.get("type") == "Var"
+                            and svt.get(v.get("name")) == "string"):
+                        found[0] = True
+                for x in node.values():
+                    rec(x)
+            elif isinstance(node, list):
+                for x in node:
+                    rec(x)
+
+        rec(body_stmts)
+        return found[0]
+
     def _compute_return_type(self, func: Dict[str, Any], body_stmts: List[Dict[str, Any]]) -> str:
         """Compute the WhyML return type for one function, applying the
         `List[T] → array int`, `Set[T]`/`Dict[K, V]` → `map int (option int)`,
@@ -365,6 +396,11 @@ class FunctionEmissionMixin:
         if ann in ("list", "bytes", "bytearray") and return_type == "int":
             # 0442.md B2 (no-more-int): bytes/bytearray are the byte-buffer array class.
             return_type = "array int"
+            # str-list-elements: a list whose returned seq local carries STRING elements
+            # is `array string` (its elements stay string end-to-end, so a consumer's
+            # `names[i]` is a `string` feeding a string-typed callee like sys_stat).
+            if self._returns_string_seq(body_stmts):
+                return_type = "array string"
         elif ann in ("set", "dict", "frozenset") and return_type == "int":
             return_type = "map int (option int)"
         elif ann == "str" and return_type == "int":
