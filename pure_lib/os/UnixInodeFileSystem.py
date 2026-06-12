@@ -1837,6 +1837,21 @@ class UnixInodeFileSystem:
     # claim forces function-level `\trusted`). Composes with sys_open's
     # `fd_inode[result] == dir_lookup(...)` so dup(open(p)) resolves to p's inode.
     #@ ensures \result >= 3 ==> self.fd_inode[\result] == \old(self.fd_inode[oldfd])
+    # OBSERVABLE SHARED INODE (gap-1): for the shared inode to be observable through
+    # fstat(dup_fd) — whose guarded ensures fires only on `fd_open[fd]==1 and
+    # 0<=fd_inode[fd]<32` — dup must ALSO pin the duped fd as OPEN with an in-range
+    # inode. Body-FAITHFUL: the success path sets `fd_open[newfd] = 1` (so OPEN holds
+    # unconditionally on success), and `fd_inode[newfd] = fd_inode[oldfd]` copies the
+    # source cell — so the range follows from the source's pre-state inode being in
+    # range (the wrapper/test established `0<=fd_inode[oldfd]<32` at the open site;
+    # dup writes only newfd's cells with newfd != oldfd, so `\old(fd_inode[oldfd])` is
+    # the copied value). Mirrors the gap-15 forms sys_open pins on its returned fd.
+    #@ ensures \result >= 3 ==> self.fd_open[\result] == 1
+    # the duped fd is in [3, 64): the success path is `newfd = next_fd; if newfd >= 64:
+    # return -1` so newfd < 64 on success — needed so a caller's fstat(dup_fd) (guarded
+    # by `fd < 64`) can fire on the duped fd.
+    #@ ensures \result >= 3 ==> \result < 64
+    #@ ensures (\result >= 3 and 0 <= \old(self.fd_inode[oldfd]) and \old(self.fd_inode[oldfd]) < 32) ==> (0 <= self.fd_inode[\result] and self.fd_inode[\result] < 32)
     # VALIDITY-GIVEN-VALID-SOURCE (gap-15): an open, in-range source fd duplicates
     # to a VALID fd (>= 3). The body returns -1 only on EBADF (oldfd bad/closed) or
     # ENFILE (next_fd >= 64, the 64-slot fd table full). For a valid open source the

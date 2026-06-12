@@ -155,6 +155,18 @@ def close(fd):
 #     source share one open-file-description (the inode the source resolves to).
 #@ ensures (fd < 64 and \old(_filesystem.fd_open[fd]) == 1) ==> \result >= 3
 #@ ensures \result >= 3 ==> _filesystem.fd_inode[\result] == \old(_filesystem.fd_inode[fd])
+# gap-1: pin the duped fd as OPEN with an in-range inode on success so the shared
+# inode is OBSERVABLE through a caller's fstat(dup_fd) — fstat's ensures is guarded
+# by `fd_open[fd]==1 and 0<=fd_inode[fd]<32`. Body-faithful: sys_dup sets
+# fd_open[\result]==1 and copies fd_inode[oldfd] into fd_inode[\result], so the
+# range rides on the source's pre-state inode being in range (the open site, which
+# pins 0<=fd_inode[fd]<32 on the source). Propagated verbatim from sys_dup's gap-1
+# ensures. This is what makes dup_shares_inode prove THROUGH THE API.
+#@ ensures \result >= 3 ==> _filesystem.fd_open[\result] == 1
+# the duped fd is in [3, 64) on success (body: newfd < 64 guard) — needed so a
+# caller's fstat(dup_fd), whose guard requires fd < 64, can fire on the duped fd.
+#@ ensures \result >= 3 ==> \result < 64
+#@ ensures (\result >= 3 and 0 <= \old(_filesystem.fd_inode[fd]) and \old(_filesystem.fd_inode[fd]) < 32) ==> (0 <= _filesystem.fd_inode[\result] and _filesystem.fd_inode[\result] < 32)
 def dup(fd):
     """Duplicate a file descriptor."""
     return _filesystem.sys_dup(fd)
@@ -427,21 +439,27 @@ def truncate(filepath, length):
 
 #@ requires True
 #@ assigns \nothing
-#@ ensures True
+# gap-2: fsdecode is identity on its argument; pin that documented identity so a
+# caller's `fsdecode(x) == x` is entailed. The post-state holds for any element
+# type (the body is `return filename`), so the contract is body-faithful without a
+# type-narrowing on the param.
+#@ ensures \result == filename
 def fsdecode(filename):
     """Decode filename — identity in formal model."""
     return filename
 
 #@ requires True
 #@ assigns \nothing
-#@ ensures True
+# gap-2: identity on the argument (body `return filename`).
+#@ ensures \result == filename
 def fsencode(filename):
     """Encode filename — identity in formal model."""
     return filename
 
 #@ requires True
 #@ assigns \nothing
-#@ ensures True
+# gap-2: identity on the argument (body `return filepath`).
+#@ ensures \result == filepath
 def fspath(filepath):
     """Return the file system representation of the path — identity."""
     return filepath
@@ -455,7 +473,9 @@ def getcwd():
 
 #@ requires True
 #@ assigns \nothing
-#@ ensures True
+# gap-2: this model has an empty env, so getenv always returns `default` (body
+# `return default`). Pin that so a caller's `getenv(k, d) == d` is entailed.
+#@ ensures \result == default
 def getenv(key, default=0):
     """Get an environment variable. Returns default if not found."""
     return default
