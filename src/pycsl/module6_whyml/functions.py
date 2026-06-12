@@ -355,12 +355,98 @@ class FunctionEmissionMixin:
         self._in_spec = False
         return lines
 
+    def _first_tuple_return_elts(self, stmts: List[Dict[str, Any]]) -> Optional[List[Dict[str, Any]]]:
+        """The element list of the FIRST `return (a, b, …)` (mirrors
+        IRScanner.find_return_type's traversal so the per-slot types line up with
+        the arity it computed). None if no tuple-valued return is found."""
+        for stmt in stmts:
+            if stmt.get("stmt") == "Return" and stmt.get("value"):
+                val = stmt["value"]
+                if isinstance(val, dict) and val.get("type") == "Tuple":
+                    return val.get("elts", [])
+            for key in ("body", "orelse"):
+                if key in stmt:
+                    r = self._first_tuple_return_elts(stmt[key])
+                    if r is not None:
+                        return r
+            if stmt.get("stmt") == "Match":
+                for c in stmt.get("cases", []):
+                    r = self._first_tuple_return_elts(c.get("body", []))
+                    if r is not None:
+                        return r
+        return None
+
+    def _infer_tuple_slot_type(self, elt: Dict[str, Any], array_vars: Set[str],
+                               dict_vars: Set[str], symtab: Dict[str, Any]) -> str:
+        """The WhyML type of ONE tuple-return slot, refining the homogeneous
+        `int` default. Mirrors the value-type recognition in
+        `find_array_and_dict_vars` (the array/dict producers) so a slot bound to a
+        `bytes(...)`/list/slice is typed `array int`, a dict `map int (option int)`,
+        a str `string`, a float `real`. Anything else stays `int`."""
+        if not isinstance(elt, dict):
+            return "int"
+        t = elt.get("type")
+        if t == "Var":
+            nm = elt.get("name")
+            if nm in array_vars:
+                return "array int"
+            if nm in dict_vars:
+                return "map int (option int)"
+            st = symtab.get(nm)
+            if st in ("list", "bytes", "bytearray"):
+                return "array int"
+            if st in ("set", "dict", "frozenset"):
+                return "map int (option int)"
+            if st == "str":
+                return "string"
+            if st == "float":
+                return "real"
+            return "int"
+        if t in ("ListLit", "ArrayLit", "ListComp", "SliceAccess"):
+            return "array int"
+        if t in ("DictLit", "SetLit"):
+            return "map int (option int)"
+        if t == "String":
+            return "string"
+        if t == "Call":
+            fn = (elt.get("func") or "")
+            base = fn.rsplit(".", 1)[-1]
+            if fn in ("list", "sorted", "bytes", "bytearray"):
+                return "array int"
+            if base in ("encode", "ljust", "rjust", "zfill"):
+                return "array int"
+            if fn in ("dict", "defaultdict", "Counter", "OrderedDict", "set", "frozenset"):
+                return "map int (option int)"
+        return "int"
+
+    def _refine_tuple_return_type(self, func: Dict[str, Any],
+                                  body_stmts: List[Dict[str, Any]], return_type: str) -> str:
+        """Refine a homogeneous `(int, int, …)` tuple return type into per-slot
+        types (e.g. `(int, array int)` for `_unpack_direntry`'s `(inode, name_bytes)`).
+        find_return_type defaults every slot to `int`; here each slot is typed from
+        the FIRST tuple return's element expressions. Without this, a tuple with an
+        `array int`/`string`/`map` slot emits a `let` body that cannot type-check
+        against the wrong `int` slot — the standalone-gate line-441 blocker."""
+        if not (return_type.startswith("(") and "," in return_type):
+            return return_type
+        elts = self._first_tuple_return_elts(body_stmts)
+        if not elts:
+            return return_type
+        array_vars, dict_vars = IRScanner.find_array_and_dict_vars(body_stmts)
+        array_vars |= self._collect_array_var_assigns(body_stmts)
+        symtab = func.get("symbol_table", {}) or {}
+        slots = [self._infer_tuple_slot_type(e, array_vars, dict_vars, symtab) for e in elts]
+        if len(slots) == return_type.count(",") + 1 and any(s != "int" for s in slots):
+            return "(" + ", ".join(slots) + ")"
+        return return_type
+
     def _compute_return_type(self, func: Dict[str, Any], body_stmts: List[Dict[str, Any]]) -> str:
         """Compute the WhyML return type for one function, applying the
         `List[T] → array int`, `Set[T]`/`Dict[K, V]` → `map int (option int)`,
         and bounded-int overrides."""
         bounded_int = func.get("bounded_int")
         return_type = IRScanner.find_return_type(body_stmts)
+        return_type = self._refine_tuple_return_type(func, body_stmts, return_type)
         ann = func.get("return_annotation")
         if ann in ("list", "bytes", "bytearray") and return_type == "int":
             # 0442.md B2 (no-more-int): bytes/bytearray are the byte-buffer array class.
@@ -590,6 +676,12 @@ class FunctionEmissionMixin:
         result: Dict[str, str] = {}
         for func in functions:
             ret = IRScanner.find_return_type(func["body"])
+            # body-gate gap-3: refine a homogeneous `(int, int, …)` tuple into per-slot
+            # types so this map (consulted by `_call_return_whyml_type` for unpack-target
+            # typing) agrees with the emitted `let` signature — e.g. `_unpack_direntry`
+            # is `(int, array int)`, so `inode, name_bytes = _unpack_direntry(...)` types
+            # `name_bytes` as `array int`, not a `ref 0` int.
+            ret = self._refine_tuple_return_type(func, func["body"], ret)
             ann = func.get("return_annotation")
             if ann == "list" and ret == "int":
                 ret = "array int"
