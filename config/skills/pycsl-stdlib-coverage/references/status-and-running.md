@@ -75,33 +75,14 @@ PyCSL resolves imports by searching: (1) the file's directory, (2) CWD,
 (3) built-in `Lib/`. This means **CWD controls which `pure_lib/` is
 found**.
 
-- The pycsl **tool** repo has its own `pure_lib/` (with `os/`, `re/`,
-  `json/` — synced separately).
-- New modules (like `warn/`) only exist in `pycsl_copy/pycsl/pure_lib/`.
-- **For new modules**: must run from `pycsl_copy/pycsl` as CWD.
-- **For established modules** (in both repos): can run from either.
+The models live in this repo under `pure_lib/<module>/` and the formal
+tests under `pure_lib_test/`. Run from the repo root.
 
 ```bash
-# For NEW modules not yet in the tool repo:
-cd /path/to/pycsl_copy/pycsl
-PYTHONHASHSEED=0 PYTHONPATH=/path/to/pycsl/src:/path/to/pycsl/src/pycsl \
-/path/to/pycsl/.venv/bin/python -c "
-import sys
-sys.argv = ['pycsl', '--keep-mlw', 'pure_lib_test/formal_0003.py']
-from pycsl.pycsl import main
-main()
-"
-```
-
-```bash
-# For modules already in the tool repo:
 cd /path/to/pycsl
-PYTHONHASHSEED=0 PYTHONPATH=src:src/pycsl .venv/bin/python -c "
-import sys
-sys.argv = ['pycsl', '--keep-mlw', '../pycsl_copy/pycsl/pure_lib/os/__init__.py']
-from pycsl.pycsl import main
-main()
-"
+.venv/bin/python3 src/pycsl/pycsl.py --keep-mlw pure_lib/os/__init__.py
+# or a formal test:
+.venv/bin/python3 src/pycsl/pycsl.py --keep-mlw pure_lib_test/formal_os_namespace.py
 ```
 
 - `--keep-mlw`: preserve generated `.mlw` file for inspection

@@ -138,11 +138,6 @@ lib/
   calling.json               # Call graph: which stdlib symbols to cover
 ```
 
-### Two repos
-
-- **`pycsl_copy/pycsl`** — the modules being verified (pure_lib, tests)
-- **`pycsl`** — the PyCSL tool itself (src/pycsl/)
-
 ### Two verification levels
 
 1. **Body-level** — the function emits as a WhyML `let`; Why3 generates

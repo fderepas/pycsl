@@ -288,12 +288,7 @@ Focus on:
 
 ```bash
 cd /path/to/pycsl
-PYTHONHASHSEED=0 PYTHONPATH=src:src/pycsl .venv/bin/python -c "
-import sys
-sys.argv = ['pycsl', '--keep-mlw', '--no-proof', '../pycsl_copy/pycsl/pure_lib/re/__init__.py']
-from pycsl.pycsl import main
-main()
-"
+.venv/bin/python3 src/pycsl/pycsl.py --keep-mlw --no-proof pure_lib/re/__init__.py
 ```
 
 Check the `.mlw` file. Fix naming issues, type mismatches, missing
@@ -734,8 +729,7 @@ Load these on demand — they hold the load-occasionally, look-up content split 
   annotated functions directly in `__init__.py` (classes are fine in
   submodules).
 - **Running from the wrong CWD** — PyCSL resolves imports from CWD.
-  New modules not yet in the tool repo MUST be run from
-  `pycsl_copy/pycsl` as working directory.
+  Run from the repo root so `pure_lib/` and `pure_lib_test/` resolve.
 
 ---
 
