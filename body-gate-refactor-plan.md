@@ -68,8 +68,34 @@ green check is the FINAL acceptance, landed atomically.
   bodies are reached. Register the quantifier binder in the body-assert lowering so `k` stays a logic
   var, not a ref. (likely more gaps behind it.)
 
-NOTE: the cascade is DEEPER than 4 gaps. gaps 2–4 are WIP (corpus/`__init__` RED until the whole block
-+ gap-5+ land). The branch preserves progress toward the atomic landing.
+- gap-5 (DONE on branch): a `\forall k` SCALAR binder in a body `#@ assert` shadowed by a same-named
+  loop var (`for k in …` in sys_unlink) was deref'd `!k`. Register scalar quantifier binders
+  (`_quant_scalar_binders`, push/pop in `_push/_pop_quant_binder`, checked first in
+  `_handle_var_expr`). Corpus diff: ONLY removes spurious dead `val constant i/j/n` for binders in
+  0664/0703 (both still SUCCESS) — a clean correction. **Standalone os now FULLY TYPECHECKS** (line
+  1479 cleared; `--no-proof` → L3-tc ✓, "Verification SUCCESS").
+
+## MILESTONE + the NEXT wall (proof performance)
+
+**Typecheck cascade COMPLETE** (gaps 1–5): `pycsl pure_lib/os/UnixInodeFileSystem.py --no-proof`
+typechecks the whole model end-to-end (was aborting at line 99). The emitter now produces well-typed
+WhyML for every method body.
+
+**NEW WALL — the standalone PROOF is impractically slow.** A full proof run hit the 30-min timeout
+(EXIT=124); even `--fun` on a SINGLE method (sys_write) timed out >400s. Root cause: now that method
+BODIES generate VCs (they were `val`s in `__init__`), the many GLOBAL `UnixFs.Dir.*` axioms
+(scan_reflects_present, remove_reflects_absent, insert_preserves_unique, empty_disk_slots_dead,
+block5_decode_frame, slot_inode_nonneg) E-match-blow-up in EVERY method-body VC. (`--fun` is also still
+suspect for soundness — its single-method vacuity wasn't re-confirmed because it timed out.)
+
+So a usable body gate needs a PROOF-PERFORMANCE phase AFTER the typecheck cascade:
+- add E-matching TRIGGERS to the `UnixFs.Dir.*` axioms (as done for `lookup_frame`) so they fire only
+  on relevant goals, not every method-body VC;
+- and/or scope axioms to the methods that cite them / split the proof per-method with a reduced axiom set;
+- re-confirm `--fun` soundness (false-postcondition test) once a single method proves in reasonable time.
+
+NOTE: the cascade is DEEPER than 4 gaps. gaps 2–5 are WIP (corpus/`__init__` RED until the whole block
+lands; standalone typechecks but does not yet PROVE in practical time). The branch preserves progress.
 
 - S5 ACCEPTANCE: standalone os verifies (0 unproven, scan incl. "Out of memory"), `__init__` stays
   green (1217, 0 non-Valid), full corpus green, byte-diff diffs all justified. Then commit atomically,

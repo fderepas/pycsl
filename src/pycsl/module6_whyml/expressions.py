@@ -1956,6 +1956,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         name = expr["name"]
         if subst and name in subst:
             name = subst[name]
+        # body-gate gap-5: a scalar quantifier binder reads BARE (a bound logic var),
+        # shadowing a same-named loop/local ref for the quantifier body's duration.
+        if name in getattr(self, "_quant_scalar_binders", ()):
+            return whyml_ident(name)
         if name in self._array_locals:
             return whyml_ident(name)
         if name in self._lambda_locals:
@@ -2030,6 +2034,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             dl.add(var)
             return ("dict", had_d)
         if not var or binder_type not in getattr(self, "_record_types", {}):
+            # body-gate gap-5: register a scalar/None-typed binder so `_handle_var_expr`
+            # reads it BARE (a logic var), shadowing any same-named `local_refs` member
+            # (a loop var) for the duration of the quantifier body. No-op when var is None.
+            if var:
+                sb = self._quant_scalar_binders
+                had_s = var in sb
+                sb.add(var)
+                return ("scalar", had_s)
             return ("noop", None)
         had = var in self._quant_record_binders
         prev = self._quant_record_binders.get(var)
@@ -2039,6 +2051,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     def _pop_quant_binder(self, var: Optional[str], token) -> None:
         kind, prev = token
         if kind == "noop":
+            return
+        if kind == "scalar":
+            if not prev:            # was not already a scalar binder (nesting/shadowing)
+                self._quant_scalar_binders.discard(var)
             return
         if kind == "dict":
             if not prev:                      # was not previously a dict local
