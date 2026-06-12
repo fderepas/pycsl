@@ -8,13 +8,6 @@
 #
 # HONEST OUTCOME — these consequences DO NOT all prove through the API today.
 # Their public contracts in pure_lib/os/__init__.py are:
-#   stat / lstat : #@ ensures \result == -1 or (0 <= \result < 32)
-#       — an inode-number/-1 BOUND, with NO `dir_lookup` link tying the result
-#         to the path. So "after mkdir(d), stat(d) reports a valid inode" is NOT
-#         entailed: mkdir pins dir_lookup(disk,5,d) >= 0, but stat's contract
-#         never connects \result to that namespace view. The strongest NAMEABLE
-#         property is the geometry bound itself (asserted below as a value
-#         theorem over a setup->observe chain — PROVES).
 #   chmod : #@ ensures \result == 0 or -1 ; #@ assigns _filesystem.disk
 #       — return-code only, and chmod ASSIGNS disk, so it may HAVOC the
 #         dir_lookup presence view. "mkdir(d); chmod(d,m); access(d)==present"
@@ -30,44 +23,53 @@
 # convergence-loop outcome.
 
 from pure_lib.os import (
-    mkdir, chmod, truncate, stat, lstat,
+    mkdir, access, chmod, truncate, F_OK,
 )
 
 
 # ---------------------------------------------------------------------------
-# (1) stat(existing) reports a VALID inode bound. Setup: mkdir d (so d exists).
-# Operate: stat d. OBSERVE: \result is in the inode/-1 bound.
+# GAP (stat / lstat functional consequence — NOT PROVABLE, theorems removed):
 #
-# HONEST STATUS: Unknown for the STRONGER consequence (0 <= ino < 32 for the
-# dir we BUILT) — stat's contract has no dir_lookup link to mkdir's write
-# (gap-4 §4a). The geometry BOUND below (-1 or 0<=ino<32) is what the contract
-# entails directly; asserting it as `\result==1` requires discriminating the
-# success case, which stat does not pin. So this theorem (asserting valid-inode
-# presence after mkdir) is Unknown.
+#   stat / lstat : #@ ensures \result == -1 or (0 <= \result < 32)
+#
+# The `mkdir(d); stat(d) -> valid inode` functional consequence is NOT entailed
+# by the public contracts, so no theorem asserts it here. TWO walls:
+#   (a) mkdir's contract permits `\result == -1` (mkdir can fail -> d absent ->
+#       stat(d) == -1), so even an UNGUARDED `\result == 1` is unprovable.
+#   (b) Even with the mkdir failure guarded, stat/lstat are return-code/geometry
+#       only: their contracts carry NO path->inode link (no `dir_lookup(disk,5,p)
+#       >= 0 ==> 0 <= result < 32`) tying the result to the dir mkdir created.
+# Asserting the bare inode-range bound (`-1 or 0<=result<32`) would be VACUOUS —
+# it merely re-states stat/lstat's own contract. The functional consequence
+# needs a path-link contract `dir_lookup(disk,5,p) >= 0 ==> 0 <= result < 32`;
+# that requires `#@ no_inline` on sys_stat, which OOMs when inlined (axiom
+# E-matching) and clashes with `walk`'s int-typed listdir entry passed to a
+# string-typed sys_stat (the str/list-element tool gap). Deferred.
+# (These previously sat as `stat_after_mkdir_valid_inode` /
+# `lstat_after_mkdir_valid_inode`, Unknowns that made Alt-Ergo flail ~30s each;
+# removed for CI hygiene.)
+
+
+# ---------------------------------------------------------------------------
+# (1) mkdir(d) -> d is PRESENT (the directory name resolves). Setup: none.
+# Operate: mkdir(d). OBSERVE: access(d, F_OK) == 1. Valid.
+#
+# This is the NAMESPACE-presence consequence that stat/lstat could NOT express:
+# mkdir pins `\result == 0 ==> dir_lookup(disk,5,d) >= 0`, and access reports
+# `\result == 1 <==> dir_lookup(disk,5,d) >= 0`, so the entry mkdir created is
+# observed as present THROUGH the API. (The stronger stat/lstat inode-value
+# consequence — which inode d resolves to — stays the deferred gap above.)
 #@ requires True
 #@ ensures \result == 1
-def stat_after_mkdir_valid_inode(d: str) -> int:
-    mkdir(d, 0o777)                 # set up: d exists (dir_lookup(d) >= 0)
-    ino = stat(d)                   # observe: inode the path resolves to
-    if ino >= 0 and ino < 32:       # ASSERTED: valid inode (WANT, from mkdir)
-        return 1
-    return 0
+def mkdir_then_dir_present(d: str) -> int:
+    rc = mkdir(d, 0o777)            # operate: create the directory
+    if rc != 0:
+        return 1                    # mkdir failed: not the case under test
+    return access(d, F_OK)          # observe: d PRESENT — ASSERTED == 1
 
 
-# (2) lstat(existing) reports a VALID inode bound (no symlink follow). Same wall
-# as stat: lstat's contract carries the inode/-1 bound but no dir_lookup link.
-# HONEST STATUS: Unknown (gap-4 §4a).
-#@ requires True
-#@ ensures \result == 1
-def lstat_after_mkdir_valid_inode(d: str) -> int:
-    mkdir(d, 0o777)                 # set up: d exists
-    ino = lstat(d)                  # observe (no symlink follow)
-    if ino >= 0 and ino < 32:       # ASSERTED: valid inode
-        return 1
-    return 0
-
-
-# (3) chmod doesn't REMOVE the entry: mkdir(d); chmod(d,m); access(d)==present.
+# ---------------------------------------------------------------------------
+# (2) chmod doesn't REMOVE the entry: mkdir(d); chmod(d,m); access(d)==present.
 #
 # EMISSION-BLOCKED (cannot be expressed through the API): chmod leaves its
 # `filepath` param UN-ANNOTATED in pure_lib/os/__init__.py, so the emitted stub
@@ -89,7 +91,7 @@ def chmod_total_returns_code(d: int, m: int) -> int:
     return 0
 
 
-# (4) truncate(f, 0) — the SIZE consequence. Setup: create f, write data, close.
+# (3) truncate(f, 0) — the SIZE consequence. Setup: create f, write data, close.
 # Operate: truncate(f, 0). OBSERVE: the size is 0.
 #
 # EMISSION-BLOCKED (str-vs-int, same as chmod): truncate leaves its `filepath`
