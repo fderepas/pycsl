@@ -52,6 +52,18 @@ METHOD BODIES — a real, sound body gate (the `__init__` gate emits methods as 
   are the CITING methods' inherently-heavy VCs (which keep the axioms as `assume` =
   same content). So scoping is not the fix; revert it before any merge.
 
+### IN PROGRESS 2026-06-13 — the full body-gate proof IS NOW RUNNING (detached)
+WIP scoping reverted (`b1e1d12`); tool back to clean gap-5. The full standalone proof
+was LAUNCHED detached: `why3 prove -a split_vc -P Alt-Ergo,2.6.2, -P Z3,4.13.3,
+--timelimit 30 /tmp/bodygate.mlw` (mlw emitted from `UnixInodeFileSystem.py` via
+`--keep-mlw --no-proof`), `timeout 21600` (6h), output → `/tmp/bodygate_proof.txt`
+(finishes with a `PROOF_DONE exit=N` line). Early sample (~4min): 562 Valid + first hard
+goals = OOM/Timeout on `_alloc_block'vc`, `_alloc_inode'vc`, `_unpack_direntry'vc`.
+TO RESUME: `grep -ic valid /tmp/bodygate_proof.txt`; scan EVERY non-Valid
+(`grep -iE 'Prover result' /tmp/bodygate_proof.txt | grep -viE ': Valid'`). The
+remaining OOM/Timeout goals (constructor class-inv 136, sys_write, alloc, unlink/rename)
+are the targeted follow-on. If the machine was shut down mid-run, re-launch the same cmd.
+
 ### KEY 2026-06-13 finding — the body gate is NOT stuck, it's just BIG
 The standalone proof has **1670 goals**; ~225 (13.5%) are slow at a 3s timelimit. The
 slow goals are dominated by the **constructor class-invariant establishment (136 goals,
