@@ -12,6 +12,28 @@ Chosen path (b) writer restructuring. VALIDATED + LANDED so far (os __init__ GRE
   ensures: **6 timeouts -> 0 (fully proven)**.
 - **`_alloc_block`/`_alloc_inode`**: dropped their redundant slot-frame ensures (Postcondition
   timeouts gone). BUT they still have ~6 **Type-invariant** Timeouts each (loop + caller-propagation).
+OPTION (a) / ALLOCATOR ROOT-CAUSE 2026-06-13 = TWO-LAYERED WALL (NOT landed, /tmp only).
+Taking on the allocator fix revealed the real blocker is NOT frame lemmas:
+1. **Method-call contract gap**: in the standalone, `_alloc_block`/`_alloc_inode` call `self._set_bitmap`
+   / `self._get_bitmap` which lower to CONTRACTLESS `val` stubs (`self__set_bitmap_3`,
+   `self__get_bitmap_2` — bare `: unit`/`: int`, no requires/ensures/writes), NOT the verified
+   `unixinodefilesystem___set_bitmap` (which IS proven 7/7 but unused by callers). [[pycsl-method-call-contract-gap]]
+   says self-calls work, but the TYPE-INVARIANT is not propagated through them here.
+2. **Even WITH a contract, the inline-forall type invariant doesn't propagate cheaply**: hand-gave the
+   stub `writes { self.disk }` + length ensures (bg10) -> alloc gained Valid goals but STILL 1 OOM +
+   1 Timeout + ~4 Unknown, all Type-invariant. Because a forall-hypothesis (post-call uniqueness) ->
+   forall-goal (exit uniqueness) needs instantiation = the same double-forall explosion. (Calling the
+   REAL set_bitmap failed only on function ORDERING — callee defined after caller — but would hit the
+   same forall-propagation wall.)
+CONCLUSION: the allocators are blocked by the INTERACTION of the method-call gap AND inline-forall
+type-invariant propagation. Neither the frame-lemma (a), the named predicate, nor the contracted-stub
+fix resolves it alone. The LEAF pattern (set_bitmap 6->0, committed) is the part that works because
+the leaf PROVES the invariant itself (doesn't inherit it). Closing the allocators needs a why3-level
+type-invariant-propagation solution (callee guarantee usable by caller as an atom) — likely the named
+predicate done RIGHT (atom in BOTH the type invariant AND the callee's exposed guarantee, with the
+method-call gap fixed so the real verified method is called) — a multi-piece tool effort with
+uncertain payoff. RECOMMEND: consolidate the leaf win; revisit allocators only with a dedicated plan.
+
 NAMED-PREDICATE STEP TRIED 2026-06-13 = NEGATIVE for the allocators (NOT landed, /tmp only).
 Hand-tested on the mlw: abstract `predicate uniq (array int)` + `axiom uniq_intro` (establish uniq
 from the forall) + invariant -> `uniq disk`. Results: constructor still 18/18 (uniq_intro +
