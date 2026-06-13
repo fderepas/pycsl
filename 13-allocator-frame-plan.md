@@ -205,6 +205,35 @@ Per-function body-gate measurement (standalone, 30s, both provers):
   ensures is slot-preserving. Gate: re-measure link/unlink/mkdir return to clean + allocators
   stay fixed + os __init__ green + corpus byte-diff (only 0654 expected). Then full body gate.
 
+## 2.7 SCOPE-TO-WIN ATTEMPT 2026-06-13 — CROSS-GATE CONFLICT (reverted, not landed)
+Tried scoping the concrete-call routing to slot-PRESERVING callees by marking the heavy
+helpers `#@ no_inline` and making `_handle_dotted_call` skip `no_inline` callees (general
+rule) + a `_no_inline_methods` set in Module6. STANDALONE result was excellent — concrete
+ONLY `_set_bitmap`/`_poke`, everything else (`_write_inode`/`_alloc_block`/`_alloc_inode`/
+`_write_directory`/`_write_entry`/`_zero_entry`) abstract: **link 18->1, unlink 18->4,
+mkdir 2->1, allocators stay 38/38, format_disk 0 non-Valid.** A clean net-positive on the
+body gate.
+BUT it **REGRESSED os `__init__`** (the committed green deliverable): `truncate'vc`
+Out-of-memory. Root cause: `no_inline` is OVERLOADED — it means BOTH (a) my new
+"skip concrete sibling-call" AND (b) the ORIGINAL "don't inline the body into wrappers."
+Marking `_write_inode` no_inline made os `__init__`'s `truncate` wrapper use `_write_inode`'s
+CONTRACT instead of inlining its body, and the contract is insufficient for truncate's
+block-frame assertion -> OOM. So `_write_inode` cannot be `no_inline`, yet `_write_inode`
+concrete is exactly what regresses standalone link/unlink. Reverted (working tree back to
+`65bbda8`, os `__init__` green).
+**THE CLEAN FIX needs a flag DECOUPLED from `no_inline`** (one that ONLY skips the concrete
+sibling-call, leaving `__init__` inlining untouched). Two options:
+  (a) NEW opt-IN directive `#@ sibling_concrete` on `_set_bitmap`/`_poke` only (concrete-call
+      becomes opt-in; default reverts to the pre-Layer-1 abstract stub = no link/unlink
+      regression, no `__init__` effect). ~8 mechanical edits across the pipeline + doc/corpus
+      (language-audit). The DEFAULT-OFF means it cannot regress `__init__` or the corpus.
+  (b) STUB-ENSURES pivot (no concrete-call at all): revert Layer 1; add `#@ ensures
+      uniq(self.disk)` + `inode_bytes_valid(self.disk)` to `_set_bitmap`/`_poke`; the
+      allocators then get the atoms from the abstract STUB's propagated field-ensures (+ loop
+      invariants). Cleanest IF the stub path propagates a predicate-call field-ensures
+      (UNVERIFIED — test first). No concrete-call, so no `__init__`/corpus risk.
+Recommend (a) — opt-in is the safest (default-off cannot regress anything).
+
 ## 3. Implementation steps (ordered; gate after each)
 
 0. **Feasibility spike (≤1 session, do FIRST):** confirm PyCSL can declare an abstract
