@@ -140,6 +140,44 @@ inode_bytes_valid(self.disk)` explicitly (now cheap atoms).
 
 ---
 
+## 2.5 Implementation map — PRECISE code sites (established 2026-06-13)
+
+Investigation while starting the implementation pinned the exact sites. **Why the earlier
+named-predicate experiment failed is now understood**: alloc called the CONTRACTLESS stub
+`self__set_bitmap_3`, so it had no `uniq(post)` hypothesis to match — the predicate idea was
+right but starved by the method-call gap. Both fixes (predicate + method-call) are required.
+
+- **DONE (`755f89e`)**: `preamble.py` `_precompute_axiom_logic_funcs._names_of` +
+  `_inductive_referenced_axiom_decls` + `_emit_uncited_axiom_func_decls` now recognize
+  `predicate FOO (args)` (was `val function`/`function` only). So an abstract `predicate uniq
+  (d: array int)` added to `_AXIOM_FUNCTIONS["UnixFs.Dir."]` will bind + be emitted before the
+  record. Corpus-neutral until such a decl exists.
+- **Method-call gap (Layer 1) — the two sites:**
+  1. `scc.py::find_calls_in_ir` (line ~10) matches `obj["func"] in func_names_set`. A
+     `self._set_bitmap(...)` call node's `func` is the DOTTED name `"self._set_bitmap"`, NOT the
+     method func name `"unixinodefilesystem___set_bitmap"` in `func_names_set` → **no ordering
+     edge**. Body calls DO create edges (line 93 `body_edges`, unlike contract refs) — so once
+     the name resolves, ordering (callee-before-caller) works automatically. Need to resolve
+     `self.<m>` → `<class>__<m>` here, which requires per-function class context threaded into
+     `sort_functions_by_scc` (currently absent — it sees a flat function list).
+  2. `expressions.py::_handle_dotted_call` (line ~818): the CONCRETE-call path already exists at
+     lines 828-835 for `_composed_provider_methods` (`(<class>__<m> self args)`). Extend it to
+     intra-class `self._helper()` where the helper is a same-file verified method — emit the
+     concrete call so why3 uses the real method's contract AND its type-invariant guarantee on
+     the result. `_composed_provider_methods` is populated from `ir["composed_provider_methods"]`
+     (Module6 line 478); either add the verified helpers there or add a parallel set.
+  RISK: this changes method-call lowering used CORPUS-WIDE (many files use `self.method()`),
+  and ordering. MUST gate on the full corpus PROOF, expect iteration. Scope it so only
+  same-file verified-method self-calls switch to concrete (others keep the abstract `val`).
+- **Predicate atoms + triggers (Layer 2):** after the method-call gap is fixed so alloc HAS the
+  `uniq(post)`/`inode_bytes_valid(post)` hypotheses, add the abstract predicates + intro/elim/
+  frame axioms (see §2a). Trigger discipline (critical — validated failures in §7): `uniq_intro`
+  must NOT force-fire on `[uniq d]` (it made every uniq goal re-derive the forall + regressed
+  `_poke`); `_poke`/disjoint writers need a `uniq_block5_frame` atom-level axiom
+  (`byte-frame → uniq d0 → uniq d1`); directory mutators need `uniq_elim` (`uniq d → forall`)
+  to feed `insert_preserves_unique`. The intro/elim pair is a DEFINITION (sound by construction,
+  no Rocq/Lean needed); the frame axiom is derivable → emit as a why3 `#@ lemma`.
+
 ## 3. Implementation steps (ordered; gate after each)
 
 0. **Feasibility spike (≤1 session, do FIRST):** confirm PyCSL can declare an abstract
