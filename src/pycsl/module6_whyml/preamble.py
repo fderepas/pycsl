@@ -277,6 +277,33 @@ class PreambleEmissionMixin:
             "0 <= k < 16 -> "
             "( slot_inode d1 5 k = slot_inode d0 5 k /\\ "
             "  slot_name d1 5 k = slot_name d0 5 k )",
+        # allocator-frame plan §2a: DEFINITIONAL intro/elim for the abstract `uniq` /
+        # `inode_bytes_valid` predicates (a conservative definition `pred d <-> P(d)`,
+        # sound by construction — equivalent to `predicate pred (d) = P(d)` but kept
+        # OPAQUE so a callee's maintained invariant matches a caller's goal as an atom).
+        # `_intro` (P -> pred) establishes the predicate (constructor, directory
+        # mutators); `_elim` (pred -> P) unfolds it where the body is needed (mutators
+        # feeding insert_preserves_unique). Triggered on the predicate atom so they fire
+        # only when that atom is in play. NOT cross-validated (definitional, not a fact).
+        "UnixFs.Dir.uniq_intro":
+            "forall d : array int [uniq d]. "
+            "( forall i j : int. (0 <= i < 16 /\\ 0 <= j < 16 /\\ "
+            "slot_inode d 5 i <> 0 /\\ slot_inode d 5 i < 32 /\\ "
+            "slot_inode d 5 j <> 0 /\\ slot_inode d 5 j < 32 /\\ "
+            "slot_name d 5 i = slot_name d 5 j) -> i = j) -> uniq d",
+        "UnixFs.Dir.uniq_elim":
+            "forall d : array int [uniq d]. uniq d -> "
+            "( forall i j : int. (0 <= i < 16 /\\ 0 <= j < 16 /\\ "
+            "slot_inode d 5 i <> 0 /\\ slot_inode d 5 i < 32 /\\ "
+            "slot_inode d 5 j <> 0 /\\ slot_inode d 5 j < 32 /\\ "
+            "slot_name d 5 i = slot_name d 5 j) -> i = j)",
+        "UnixFs.Dir.ibv_intro":
+            "forall d : array int [inode_bytes_valid d]. "
+            "( forall i : int. 512 <= i < 2560 -> 0 <= d[i] <= 255 ) -> "
+            "inode_bytes_valid d",
+        "UnixFs.Dir.ibv_elim":
+            "forall d : array int [inode_bytes_valid d]. inode_bytes_valid d -> "
+            "( forall i : int. 512 <= i < 2560 -> 0 <= d[i] <= 255 )",
     }
 
     # gap-13: axioms that CONSTRAIN the axiom-func symbols a `#@ class invariant`
@@ -291,6 +318,25 @@ class PreambleEmissionMixin:
     _CLASS_INV_AXIOMS: frozenset = frozenset({
         "UnixFs.Dir.empty_disk_slots_dead",
         "UnixFs.Dir.block5_decode_frame",
+        # allocator-frame plan §2a: the definitional intro/elim for the abstract disk
+        # invariant predicates must precede the record so the constructor (`by`-witness)
+        # and every per-method type-invariant VC can establish/unfold `uniq` /
+        # `inode_bytes_valid`.
+        "UnixFs.Dir.uniq_intro",
+        "UnixFs.Dir.uniq_elim",
+        "UnixFs.Dir.ibv_intro",
+        "UnixFs.Dir.ibv_elim",
+    })
+
+    # allocator-frame plan §2a: axioms that are DEFINITIONAL (a conservative definition
+    # `pred d <-> P(d)` of an abstract predicate, given as the intro/elim pair) — sound by
+    # construction, equivalent to a `predicate pred (d) = P(d)` body, so they add ZERO to
+    # the trusted base. Labeled distinctly from the cross-validated Rocq+Lean facts.
+    _DEFINITIONAL_AXIOMS: frozenset = frozenset({
+        "UnixFs.Dir.uniq_intro",
+        "UnixFs.Dir.uniq_elim",
+        "UnixFs.Dir.ibv_intro",
+        "UnixFs.Dir.ibv_elim",
     })
 
     # Functions that an axiom block needs declared. Looked up by qualname
@@ -372,6 +418,16 @@ class PreambleEmissionMixin:
             "val function slot_inode (disk: array int) (blk: int) (k: int) : int",
             "val function slot_name  (disk: array int) (blk: int) (k: int) : string",
             "val function dir_lookup (disk: array int) (blk: int) (name: string) : int",
+            # allocator-frame plan §2a: the two disk class invariants as ABSTRACT
+            # (opaque) predicates, so a callee that maintains them exposes
+            # `uniq self.disk` / `inode_bytes_valid self.disk` as a single ATOM that a
+            # caller's exit-invariant goal matches directly — instead of the inline
+            # double-`forall` the caller cannot cheaply discharge (the allocators'
+            # fast-Unknown goals). Their meaning is fixed by the definitional
+            # intro/elim axioms below (a conservative definition: sound by
+            # construction, no proof-assistant validation needed).
+            "predicate uniq (d: array int)",
+            "predicate inode_bytes_valid (d: array int)",
         ],
     }
 
@@ -1013,7 +1069,10 @@ class PreambleEmissionMixin:
             if not any(fn in body for fn in applied):
                 continue
             axiom_name = "pycsl_axiom_" + qn.replace(".", "_")
-            out.append(f"  (* {qn} — cross-validated Rocq + Lean *)")
+            provenance = ("definitional (conservative predicate definition; ZERO trust)"
+                          if qn in self._DEFINITIONAL_AXIOMS
+                          else "cross-validated Rocq + Lean")
+            out.append(f"  (* {qn} — {provenance} *)")
             out.append(f"  axiom {axiom_name} : {body}")
             emitted.add(qn)
         if out:

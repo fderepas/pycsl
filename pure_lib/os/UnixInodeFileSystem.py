@@ -433,7 +433,7 @@ def _unpack_direntry(data: list) -> tuple:
 
 
 #@ class invariant \length(self.disk) >= 131072
-#@ class invariant \forall i; (512 <= i and i < 2560) ==> (0 <= self.disk[i] and self.disk[i] <= 255)
+#@ class invariant inode_bytes_valid(self.disk)
 #@ class invariant \length(self.fd_open) == 64
 #@ class invariant \length(self.fd_inode) == 64
 #@ class invariant \length(self.fd_offset) == 64
@@ -469,7 +469,7 @@ def _unpack_direntry(data: list) -> tuple:
 #    decode-frame), so those syscalls inherit `uniq` maintenance with ZERO body
 #    annotation. The chmod balloon (gap-13: 30s/232M-step timeout over the
 #    abstract block-5 decode) collapses to a one-line rewrite.
-#@ class invariant \forall i: int; \forall j: int; (0 <= i and i < 16 and 0 <= j and j < 16 and slot_inode(self.disk, 5, i) != 0 and slot_inode(self.disk, 5, i) < 32 and slot_inode(self.disk, 5, j) != 0 and slot_inode(self.disk, 5, j) < 32 and slot_name(self.disk, 5, i) == slot_name(self.disk, 5, j)) ==> i == j
+#@ class invariant uniq(self.disk)
 class UnixInodeFileSystem:
     BLOCK_SIZE = 512
     NUM_BLOCKS = 256  # 128 KB Virtual Disk Block Device
@@ -645,6 +645,11 @@ class UnixInodeFileSystem:
     # type-invariant post-state, so the explicit slot frame ensures are dropped.
     def _alloc_inode(self) -> int:
         #@ loop invariant 1 <= i and i <= 32
+        # allocator-frame plan §2c: carry the disk class invariants as ATOMS across the
+        # loop havoc so the exit/return inherits them cheaply (the loop calls _set_bitmap,
+        # which maintains them; without these the havoc'd loop-state drops the atom).
+        #@ loop invariant uniq(self.disk)
+        #@ loop invariant inode_bytes_valid(self.disk)
         #@ loop variant 32 - i
         for i in range(1, 32):  # MAX_INODES; literal to keep loop bound transparent to prover. Inode 0 reserved for root.
             if self._get_bitmap(0, i) == 0:
@@ -663,6 +668,9 @@ class UnixInodeFileSystem:
     # type-invariant post-state, so the explicit slot frame ensures are dropped.
     def _alloc_block(self) -> int:
         #@ loop invariant 6 <= i and i <= 256
+        # allocator-frame plan §2c: carry the disk class invariants as ATOMS (see _alloc_inode).
+        #@ loop invariant uniq(self.disk)
+        #@ loop invariant inode_bytes_valid(self.disk)
         #@ loop variant 256 - i
         for i in range(6, 256):  # NUM_BLOCKS; literal. Blocks 0-5 are reserved system spaces.
             if self._get_bitmap(4, i) == 0:
