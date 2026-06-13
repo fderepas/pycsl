@@ -1,6 +1,28 @@
 # RESUME STATE
 
-## DIRECTORY-FRAME REWORK — DIAGNOSIS 2026-06-13 (investigation, no model change yet)
+## DIRECTORY-FRAME REWORK — IN PROGRESS 2026-06-13 (pt1 `cdab9ba`, pt2 `485f35c`)
+Chosen path (b) writer restructuring. VALIDATED + LANDED so far (os __init__ GREEN throughout):
+- **Triggered `block5_decode_frame`** in the registry (`preamble.py`): flattened multi-pattern
+  `[slot_inode d1 5 k, slot_inode d0 5 k | slot_name ...]`. Logic-identical (prenex + hints) so
+  Block5DecodeFrame.{v,lean} still apply; os-only axiom -> corpus byte-identical.
+- **`_poke(p,v)` LEAF** (single byte write outside block 5): bears the class-invariant maintenance
+  ONCE in minimal context. Validated: the bare leaf without the trigger was a 42M-step Timeout;
+  WITH the triggered axiom it is **18/18 Valid**.
+- **`_set_bitmap`** routes its bit-twiddle write through `_poke` + DROPS its redundant slot-frame
+  ensures: **6 timeouts -> 0 (fully proven)**.
+- **`_alloc_block`/`_alloc_inode`**: dropped their redundant slot-frame ensures (Postcondition
+  timeouts gone). BUT they still have ~6 **Type-invariant** Timeouts each (loop + caller-propagation).
+NEXT STEP (the alloc Type-invariant subtlety): a callee that maintains the invariant gives the caller
+`<inv>(self.disk)` as a fact, but the invariant is an INLINE forall, so caller-goal vs callee-fact
+may not match as atoms -> why3 re-derives the double-forall (130k-step search). FIX: make uniqueness
++ byte-range NAMED predicates (`predicate uniq (d) = ...`, `inode_bytes_valid`) used in the class
+invariant, so callee-guarantee `uniq self.disk` and caller-goal `uniq self.disk` match as ONE atom
+(cheap propagation). OPEN: does PyCSL support DEFINING a predicate-with-body + referencing it in a
+`#@ class invariant`? (permut is an UNINTERPRETED predicate; need a defined one.) Then propagate the
+_poke routing + ensures-drop to write_inode/write_directory/format_disk/syscalls. Experiment mlws:
+/tmp/poke_test.mlw + /tmp/poke_trig.mlw (the leaf validation), /tmp/bg5.mlw (current state).
+
+## DIRECTORY-FRAME REWORK — DIAGNOSIS 2026-06-13 (investigation)
 Goal: close the body-gate residual (97 goals) by reworking the directory-frame model.
 Built a fast per-writer loop (`why3 prove -T PyCSL_Program -G "unixinodefilesystem___set_bitmap'vc"`
 on a kept mlw). Findings (all on `_set_bitmap` = simplest disjoint writer, baseline 6 slow goals):
