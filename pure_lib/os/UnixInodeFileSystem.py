@@ -1061,6 +1061,8 @@ class UnixInodeFileSystem:
     def _format_disk(self) -> None:
         # Set block bitmap constraints for system blocks (0 to 5)
         #@ loop invariant 0 <= b and b <= 6
+        #@ loop invariant uniq(self.disk)
+        #@ loop invariant inode_bytes_valid(self.disk)
         #@ loop variant 6 - b
         for b in range(6):
             self._set_bitmap(4, b, 1)
@@ -1265,6 +1267,8 @@ class UnixInodeFileSystem:
         # already written agree with `data` and fd_block[fd] is the live block.
         #@ loop invariant (offset == 0 and n <= 512 and written > 0) ==> (self.fd_block[fd] >= 6 and self.fd_block[fd] < 256)
         #@ loop invariant (offset == 0 and n <= 512) ==> (\forall i: int; (0 <= i and i < written) ==> self.disk[self.fd_block[fd] * 512 + i] == data[i])
+        #@ loop invariant uniq(self.disk)
+        #@ loop invariant inode_bytes_valid(self.disk)
         #@ loop variant n - written
         while written < n:
             block_idx = (offset + written) // 512
@@ -1458,6 +1462,8 @@ class UnixInodeFileSystem:
         if inode[1] == 0:
             #@ loop invariant 8 <= k and k <= 18
             #@ loop invariant \length(self.disk) >= 131072
+            #@ loop invariant uniq(self.disk)
+            #@ loop invariant inode_bytes_valid(self.disk)
             #@ loop variant 18 - k
             for k in range(8, 18):
                 block = inode[k]
