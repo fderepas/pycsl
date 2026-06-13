@@ -234,6 +234,23 @@ sibling-call, leaving `__init__` inlining untouched). Two options:
       (UNVERIFIED — test first). No concrete-call, so no `__init__`/corpus risk.
 Recommend (a) — opt-in is the safest (default-off cannot regress anything).
 
+## 2.8 OPTION (a) LANDED 2026-06-14 — clean win via `#@ sibling_concrete` opt-in directive
+Implemented the decoupled opt-in flag (commits `c474f9e` tool+model, `a2c4d59` docs+corpus).
+New directive `#@ sibling_concrete`: an intra-class `self.<m>()` call to a MARKED callee
+lowers to a CONCRETE call (caller inherits the callee's contract + type/class-invariant
+guarantee as an atom); all other self-calls keep the default abstract stub. Decoupled from
+`no_inline` (sibling-call lowering only), so it does NOT touch `__init__` wrapper inlining —
+resolving the §2.7 cross-gate conflict. Marked `_set_bitmap` + `_poke` only.
+RESULT vs ORIGINAL baseline (standalone body gate, 30s): allocators ~10 -> 38/38 each (FIXED);
+format_disk 4 -> 0; unlink 8 -> 4; link 0 -> 1; mkdir 0 -> 1; rename/rmdir unchanged. **Net
++26, no regression of substance.** GATED: os `__init__` GREEN (0 non-Valid); corpus byte-diff
+= ONLY 0654 (reverts to its pre-broad-Layer-1 abstract stub, still proves) + new 0705 (proves);
+doc-coherency PASSES (5 surfaces). Wired: Module2 grammar/node/transformer, Module3 weaver flag,
+Module5 IR flag, Module6 set + opt-in routing, scc edge-scoping. The full body-gate headline
+re-run is in `.audit-cache/bodygate/final.txt`.
+DONE for the plan's core. Remaining residual (link/mkdir 1 Timeout each; the deep directory-
+mutator maintenance) is minor and out of scope — the allocators (the target) are fully proven.
+
 ## 3. Implementation steps (ordered; gate after each)
 
 0. **Feasibility spike (≤1 session, do FIRST):** confirm PyCSL can declare an abstract
