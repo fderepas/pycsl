@@ -926,6 +926,12 @@ class PreambleEmissionMixin:
                     out.add(parts[2])
                 elif len(parts) >= 2 and parts[0] == "function":
                     out.add(parts[1])
+                # allocator-frame plan: an abstract `predicate FOO (args)` is a logic
+                # symbol too (a Prop-valued axiom-function), e.g. `uniq`/
+                # `inode_bytes_valid` referenced bare in a `#@ class invariant`. Without
+                # this it would lower to an unbound arity-suffixed abstract op.
+                elif len(parts) >= 2 and parts[0] == "predicate":
+                    out.add(parts[1])
             return out
 
         cited_fn_names: Set[str] = set()
@@ -1252,7 +1258,7 @@ class PreambleEmissionMixin:
             parts = d.split()
             if len(parts) >= 3 and parts[0] == "val" and parts[1] == "function":
                 already_names.add(parts[2])
-            elif len(parts) >= 2 and parts[0] == "function":
+            elif len(parts) >= 2 and parts[0] in ("function", "predicate"):
                 already_names.add(parts[1])
         used -= already_names
         if not used:
@@ -1269,7 +1275,7 @@ class PreambleEmissionMixin:
                 nm = (parts[2] if len(parts) >= 3 and parts[0] == "val"
                       and parts[1] == "function"
                       else (parts[1] if len(parts) >= 2
-                            and parts[0] == "function" else None))
+                            and parts[0] in ("function", "predicate") else None))
                 if nm in used and d not in result:
                     result.append(d)
         return result
@@ -1290,7 +1296,7 @@ class PreambleEmissionMixin:
             parts = d.split()
             if len(parts) >= 3 and parts[0] == "val" and parts[1] == "function":
                 already.add(parts[2])
-            elif len(parts) >= 2 and parts[0] == "function":
+            elif len(parts) >= 2 and parts[0] in ("function", "predicate"):
                 already.add(parts[1])
         wanted -= already
         if not wanted:
@@ -1302,7 +1308,7 @@ class PreambleEmissionMixin:
                 nm = (parts[2] if len(parts) >= 3 and parts[0] == "val"
                       and parts[1] == "function"
                       else (parts[1] if len(parts) >= 2
-                            and parts[0] == "function" else None))
+                            and parts[0] in ("function", "predicate") else None))
                 if nm in wanted:
                     out.append(f"  {d}")
                     self._axiom_emitted_decls = getattr(
