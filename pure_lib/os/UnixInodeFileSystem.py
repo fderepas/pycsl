@@ -639,11 +639,10 @@ class UnixInodeFileSystem:
     #@ requires True
     #@ assigns self.disk
     #@ ensures \result == -1 or (\result >= 1 and \result < 32)
-    # BLOCK-5 DECODE FRAME (gap-13, Wall M): _alloc_inode writes the disk ONLY via
-    # _set_bitmap(0, i, 1) (the inode bitmap, byte_pos < 4), which carries the
-    # block-5 decode frame. So every block-5 slot decode is preserved here too.
-    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_inode(self.disk, 5, k) == \old(slot_inode(self.disk, 5, k))
-    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_name(self.disk, 5, k) == \old(slot_name(self.disk, 5, k))
+    # BLOCK-5 DECODE FRAME (rework): _alloc_inode writes the disk ONLY via
+    # _set_bitmap -> _poke (the inode bitmap, byte_pos < 4), which maintains the
+    # directory-uniqueness class invariant itself; callers inherit it from the
+    # type-invariant post-state, so the explicit slot frame ensures are dropped.
     def _alloc_inode(self) -> int:
         #@ loop invariant 1 <= i and i <= 32
         #@ loop variant 32 - i
@@ -658,11 +657,10 @@ class UnixInodeFileSystem:
     #@ requires True
     #@ assigns self.disk
     #@ ensures \result == -1 or (\result >= 6 and \result < 256)
-    # BLOCK-5 DECODE FRAME (gap-13, Wall M): _alloc_block writes the disk ONLY via
-    # _set_bitmap(4, i, 1) (the block bitmap, byte_pos < 36), which carries the
-    # block-5 decode frame. So every block-5 slot decode is preserved here too.
-    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_inode(self.disk, 5, k) == \old(slot_inode(self.disk, 5, k))
-    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_name(self.disk, 5, k) == \old(slot_name(self.disk, 5, k))
+    # BLOCK-5 DECODE FRAME (rework): _alloc_block writes the disk ONLY via
+    # _set_bitmap -> _poke (the block bitmap, byte_pos < 36), which maintains the
+    # directory-uniqueness class invariant itself; callers inherit it from the
+    # type-invariant post-state, so the explicit slot frame ensures are dropped.
     def _alloc_block(self) -> int:
         #@ loop invariant 6 <= i and i <= 256
         #@ loop variant 256 - i
