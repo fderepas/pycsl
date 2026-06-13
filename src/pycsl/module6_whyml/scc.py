@@ -17,6 +17,33 @@ def find_calls_in_ir(obj: Any, func_names_set: Set[str]) -> Set[str]:
     return calls
 
 
+def find_self_method_calls(obj: Any, self_type: str,
+                           func_names_set: Set[str]) -> Set[str]:
+    """allocator-frame plan §2b: a `self.<m>(...)` call inside a method lowers (when the
+    callee is a same-file verified method — see expressions._handle_dotted_call) to a
+    CONCRETE `(<class>__<m> self args)` call, so the callee must be emitted BEFORE this
+    caller. Its `Call` node's `func` is the dotted `"self.<m>"`, not the method's IR name
+    `"<class_lower>__<m>"`, so `find_calls_in_ir` misses it. Resolve those here, given the
+    enclosing method's `self_type`, and return the resolved names that ARE real functions
+    (in `func_names_set`) — i.e. the ordering edges. No-op when self_type is falsy."""
+    if not self_type:
+        return set()
+    prefix = self_type.lower() + "__"
+    out: Set[str] = set()
+    if isinstance(obj, dict):
+        f = obj.get("func")
+        if obj.get("type") == "Call" and isinstance(f, str) and f.startswith("self."):
+            resolved = prefix + f[len("self."):]
+            if resolved in func_names_set:
+                out.add(resolved)
+        for v in obj.values():
+            out |= find_self_method_calls(v, self_type, func_names_set)
+    elif isinstance(obj, list):
+        for item in obj:
+            out |= find_self_method_calls(item, self_type, func_names_set)
+    return out
+
+
 def compute_sccs(names: Set[str], call_graph: Dict[str, Set[str]]) -> List[List[str]]:
     """Compute SCCs via Tarjan's algorithm. Returns SCCs in topological order
     (callees before callers). Each SCC is a list of function names."""
@@ -110,7 +137,12 @@ def sort_functions_by_scc(
         # contract-reference edge would form). Added unconditionally (the target is a
         # lemma, deliberately not a `logic_symbol`); the citation is declared intent.
         uses_edges = set(func.get("uses") or []) & func_names_set
-        call_graph[func["name"]] = body_edges | (contract_refs & logic_symbols) | uses_edges
+        # allocator-frame plan §2b: concrete intra-class `self.<m>()` calls (resolved to
+        # the verified same-file method) are body-level ordering edges too.
+        self_call_edges = find_self_method_calls(
+            func.get("body"), func.get("self_type", ""), func_names_set)
+        call_graph[func["name"]] = (body_edges | (contract_refs & logic_symbols)
+                                    | uses_edges | self_call_edges)
         i += 1
     ordered_sccs = compute_sccs(func_names_set, call_graph)
     sorted_names = [name for scc in ordered_sccs for name in scc]
