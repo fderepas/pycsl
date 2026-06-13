@@ -290,13 +290,11 @@ mutator maintenance) is minor and out of scope — the allocators (the target) a
 - **Any new axiom** must be cross-validated Rocq+Lean (or be a why3-checked `#@ lemma`,
   preferred — no TCB growth). Do not add trusted axioms.
 
-## 5. Reference corpus (REQUIRED for the tool features — see memory)
-Add focused `test-suite/corpus/pycsl-reference/0XXX.py` cases:
-- a class with `#@ class invariant p(self.field)` using a named predicate (the §3.0
-  feature), proving establishment + maintenance;
-- an intra-class `self._helper()` call where the caller inherits the callee's class
-  invariant as an atom (the method-call-resolution + ordering fix), e.g. a loop that
-  calls a field-mutating helper and proves the invariant at exit cheaply.
+## 5. Reference corpus (REQUIRED for the tool features — see memory) — ✅ DONE
+- ✅ `0706` — a class with `#@ class invariant field_nonneg(self.x)` using a named
+  REGISTRY predicate (the §3.0 feature), proving establishment + maintenance (`af109b5`).
+- ✅ `0705` — an intra-class `self.bump()` call to a `#@ sibling_concrete` field-mutating
+  helper inside a loop, the caller inheriting the class invariant as an atom (`a2c4d59`).
 
 ## 6. Risks / fallbacks
 - **Predicate-in-invariant unsupported** → the §3.0 lowering becomes the gating tool task;
