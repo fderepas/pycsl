@@ -88,6 +88,15 @@ class TypeInferenceMixin:
             return "lambda"
         if vt == "SliceAccess":
             return "slice"
+        # body-gate gap-4: a list/array literal (`inode = [0, 1, 1, mode, …]`) IS an
+        # array value — the detection passes add it to `_array_locals`, so it must be
+        # VALUE-declared (`let X = (let _alit = Array.make … in … _alit)`), NOT `ref`.
+        # The lowered string starts with `(let _alit = Array.make …`, not `(Array.make`,
+        # so the string-prefix check below missed it and it fell to the `ref` default —
+        # leaving `_array_locals` (read bare) and the `ref` decl inconsistent, so passing
+        # the local as a whole value emitted the ref instead of its array contents.
+        if vt in ("ArrayLit", "ListLit"):
+            return "array"
         if (val.startswith("(Array.make") or val == "(Array.make 1024 0)"
                 or val.startswith("(sorted_1 ")
                 or val.startswith("(struct_pack_")):
@@ -413,13 +422,25 @@ class TypeInferenceMixin:
                     changed = True
         return found
 
+    def _split_tuple_type(self, rt: str) -> List[str]:
+        """Split a WhyML tuple type `(int, array int, map int (option int))` into its
+        top-level slot type strings. The slot types in play (int / array int / string /
+        real / `map int (option int)`) contain NO top-level comma, so a comma split of
+        the paren-stripped body is exact."""
+        inner = rt.strip()
+        if inner.startswith("(") and inner.endswith(")"):
+            inner = inner[1:-1]
+        return [p.strip() for p in inner.split(",")]
+
     def _collect_struct_unpack_array_targets(
             self, stmts: List[Dict[str, Any]]) -> Set[str]:
-        """Phase 2.3b: tuple-unpack LHS slots from
-        `(a, b) = struct.unpack(fmt, data)` whose parsed slot type is
-        `array int`. These are NOT hoisted — they get let-bound
-        inside the loop iteration so Why3's region inference doesn't
-        collapse fresh-region arrays across iterations.
+        """Phase 2.3b: tuple-unpack LHS slots whose slot type is `array int`. From
+        `(a, b) = struct.unpack(fmt, data)` (slot type from the format string) AND
+        (body-gate gap-3) from `(a, b) = func(...)` where `func`'s cross-method return
+        type is a tuple with an `array int` slot — e.g. `inode_num, name_bytes =
+        _unpack_direntry(entry)` with `_unpack_direntry : (int, array int)`. These are
+        NOT hoisted — they get let-bound inside the loop iteration so Why3's region
+        inference doesn't collapse fresh-region arrays across iterations.
         """
         from module6_whyml.struct_format import parse_format
 
@@ -428,15 +449,21 @@ class TypeInferenceMixin:
             for s in stmts:
                 if s.get("stmt") == "TupleUnpack":
                     val = s.get("value", {})
-                    if (isinstance(val, dict)
-                            and val.get("type") == "Call"
-                            and val.get("func", "") == "struct.unpack"):
-                        fmt_arg = (val.get("args") or [{}])[0]
-                        if fmt_arg.get("type") == "String":
-                            parsed = parse_format(fmt_arg.get("value", ""))
-                            if parsed is not None:
-                                targets = s.get("targets", [])
-                                for tgt, slot_t in zip(targets, parsed.slots):
+                    if isinstance(val, dict) and val.get("type") == "Call":
+                        fn = val.get("func", "")
+                        targets = s.get("targets", [])
+                        if fn == "struct.unpack":
+                            fmt_arg = (val.get("args") or [{}])[0]
+                            if fmt_arg.get("type") == "String":
+                                parsed = parse_format(fmt_arg.get("value", ""))
+                                if parsed is not None:
+                                    for tgt, slot_t in zip(targets, parsed.slots):
+                                        if slot_t == "array int":
+                                            found.add(tgt)
+                        else:
+                            rt = self._call_return_whyml_type(fn)
+                            if isinstance(rt, str) and rt.startswith("(") and "," in rt:
+                                for tgt, slot_t in zip(targets, self._split_tuple_type(rt)):
                                     if slot_t == "array int":
                                         found.add(tgt)
                 for k in ("body", "orelse"):

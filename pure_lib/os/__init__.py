@@ -130,7 +130,7 @@ def access(filepath: str, mode, *, dir_fd=None, effective_ids=False,
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
-def chmod(filepath, mode, *, dir_fd=None, follow_symlinks=True):
+def chmod(filepath: str, mode, *, dir_fd=None, follow_symlinks=True):
     """Change file mode bits."""
     return _filesystem.sys_chmod(filepath, mode)
 

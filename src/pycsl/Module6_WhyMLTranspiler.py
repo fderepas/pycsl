@@ -91,6 +91,11 @@ class Module6_WhyMLTranspiler(
         # registered for the duration of a `\forall o: C; …` body so `o.field` lowers
         # to the record field instead of an abstract getter. Nesting-safe (save/restore).
         self._quant_record_binders: Dict[str, str] = {}
+        # body-gate gap-5: SCALAR (int/bool/…) quantifier binders, registered for the
+        # duration of a `\forall k; …` body so `k` reads BARE even when a same-named
+        # loop/local var is in `local_refs` (e.g. sys_unlink's `for k in …` loop var
+        # shadowed by the uniqueness `#@ assert \forall k`). Else `k` lowered to `!k`.
+        self._quant_scalar_binders: Set[str] = set()
         self._lambda_locals: Set[str] = set()
         self._current_self_type: Optional[str] = None
         self._func_return_type: str = "int"

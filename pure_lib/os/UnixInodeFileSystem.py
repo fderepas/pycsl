@@ -1672,6 +1672,14 @@ class UnixInodeFileSystem:
     # cite:_note: POSIX chmod() — sets inode.mode (array index 3); -1 on
     #             ENOENT. De-trusted: lookup → read 18-int inode → set
     #             field → write back.
+    # MODULAR BOUNDARY (gap-1..5 array-typing): without no_inline, sys_chmod inlines
+    # into the os/__init__ chmod wrapper, dropping the block-5 byte-frame asserts into
+    # the wrapper VC. The faithful `array int` typing of name_bytes (gap-2/3/4) adds
+    # array terms that bloat that VC and tip the frame assert to Out-of-memory. Like
+    # sys_stat/sys_lstat, isolate the body to the standalone body gate via no_inline;
+    # __init__ then discharges the namespace frame from this method's ensures (trusted
+    # val), keeping the public-API gate green.
+    #@ no_inline
     def sys_chmod(self, pathname: str, mode: int) -> int:
         inode_num = self._dir_lookup(5, pathname)
         if inode_num < 0 or inode_num >= 32:

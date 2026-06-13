@@ -903,7 +903,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # multi-field writes like os.sys_write's disk+fd_offset+_mtime_ticks).
                 writes_clause = "\n    writes { " + ", ".join(
                     f"self.{f}" for f in writes_fields) + " }"
+        # body-gate gap-1: lower the callee's `\result[i]` ensures against the
+        # CALLEE's return type, not the caller's. A method returning `array int`
+        # (e.g. `_read_inode`) whose ensures says `\result[0] == …` must lower
+        # `\result[0]` to `result[0]` (Array.get, via the L0 path in
+        # `_resolve_subscript`), NOT the opaque/unbound `subscript_get` it gets when
+        # `_func_return_type` still holds the CALLER's type. Restore after.
+        _saved_frt = getattr(self, "_func_return_type", "")
+        self._func_return_type = ret_type
         ensures_suffix = self._dotted_ensures_suffix(result_ensures, n, param_types, field_spec)
+        self._func_return_type = _saved_frt
         if n == 0 and not receiver_param:
             self._add_abstract_op(f"val {arity_name} () : {ret_type}{ensures_suffix}")
             return f"({arity_name} ())"
@@ -1978,6 +1987,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         name = expr["name"]
         if subst and name in subst:
             name = subst[name]
+        # body-gate gap-5: a scalar quantifier binder reads BARE (a bound logic var),
+        # shadowing a same-named loop/local ref for the quantifier body's duration.
+        if name in getattr(self, "_quant_scalar_binders", ()):
+            return whyml_ident(name)
         if name in self._array_locals:
             return whyml_ident(name)
         if name in self._lambda_locals:
@@ -2052,6 +2065,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             dl.add(var)
             return ("dict", had_d)
         if not var or binder_type not in getattr(self, "_record_types", {}):
+            # body-gate gap-5: register a scalar/None-typed binder so `_handle_var_expr`
+            # reads it BARE (a logic var), shadowing any same-named `local_refs` member
+            # (a loop var) for the duration of the quantifier body. No-op when var is None.
+            if var:
+                sb = self._quant_scalar_binders
+                had_s = var in sb
+                sb.add(var)
+                return ("scalar", had_s)
             return ("noop", None)
         had = var in self._quant_record_binders
         prev = self._quant_record_binders.get(var)
@@ -2061,6 +2082,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     def _pop_quant_binder(self, var: Optional[str], token) -> None:
         kind, prev = token
         if kind == "noop":
+            return
+        if kind == "scalar":
+            if not prev:            # was not already a scalar binder (nesting/shadowing)
+                self._quant_scalar_binders.discard(var)
             return
         if kind == "dict":
             if not prev:                      # was not previously a dict local
