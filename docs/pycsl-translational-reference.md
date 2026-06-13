@@ -597,6 +597,32 @@ This avoids re-proving a large body in every caller's context (the os `sys_write
 inlining blow-up — 6 SMT timeouts). **Soundness:** the body stays a verified
 `let`, so a false `ensures` makes the *callee* fail; nothing is moved into the TCB.
 
+### §T.2.7s  Sibling-concrete Methods (`sibling_concrete`)
+
+A method marked `#@ sibling_concrete` (allocator-frame §2.7) **opts in** to a
+CONCRETE intra-class sibling-call lowering. By default a `self.<m>(...)` call is
+lowered to an abstract `val` stub carrying only the callee's propagated `ensures`;
+for a marked callee, Module6's `_handle_dotted_call` instead emits a direct call to
+the verified `let`, `(<class>__<m> self args)`, so the caller obtains the callee's
+**full contract AND its type/class-invariant guarantee** on the post-state (the
+abstract stub conveys neither). `scc.find_self_method_calls` adds the
+callee-before-caller ordering edge for marked callees only.
+
+```whyml
+  let c__bump (self: c) : unit          (* verified let; maintains `invariant x >= 0` *)
+    ensures { self.x = old self.x + 1 } = ...
+
+  let c__bump_loop (self: c) (n: int) : unit =
+    while ... do (c__bump self) done    (* CONCRETE call: caller inherits `x >= 0` as an atom *)
+```
+
+This is the key to the os allocators: `_alloc_block`'s loop concrete-calls the
+marked `_set_bitmap` and inherits the disk class invariant (`uniq` /
+`inode_bytes_valid`) as a single atom (with the loop invariant carrying it), instead
+of re-deriving the double-`forall`. Decoupled from `no_inline` (does not change
+wrapper inlining). **Soundness:** a concrete call to a verified `let` is the method's
+real semantics — it adds nothing to the TCB. Default off → byte-identical.
+
 ### §T.2.8  Exception-Raising Functions (`raises`)
 
 $$\mathcal{T}_f\llbracket \texttt{\#@ raises E when cond} \rrbracket

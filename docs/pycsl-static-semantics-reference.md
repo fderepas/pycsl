@@ -492,6 +492,23 @@ calls in place (rather than splicing the body), so the body is verified once and
 callers reuse its contract. Sound iff the body remains a verified `let` (a false
 `ensures` makes the *callee*, not the caller, fail). See translational §T.2.7n.
 
+#### §2.1.6s Sibling concrete (`sibling_concrete`)
+
+```
+   ──────────────────────────────
+    Γ_f ⊢ sibling_concrete : ok
+```
+
+**Rule:** Always well-formed (no expression to check). Presence is a flag on the
+function AST node (`csl_sibling_concrete = True`) carried into the function IR
+(`"sibling_concrete": True`). It is **opt-in** and affects only how an intra-class
+`self.<m>()` call to THIS method is lowered (allocator-frame §2.7): such a call
+becomes a CONCRETE call to the verified `let` rather than the default abstract `val`
+stub, so the caller obtains the callee's full contract and its type/class-invariant
+guarantee on the post-state. Decoupled from `no_inline` (it does not change whether
+the body is inlined into wrappers). Sound: a concrete call to a verified `let` is the
+method's real semantics — it adds no trust. See translational §T.2.7s.
+
 #### §2.1.7 Trusted (`\trusted [reviewer: <REVIEWER_ID>]`)
 
 ```

@@ -95,6 +95,7 @@ _Corresponds to `annotations.md` §2.1._
 | 2.1.5 | Structural variant | `function_variant_structural ::= "\variant" "(" expr "," CNAME ")" ;` |
 | 2.1.6 | Diverges | `diverges_decl ::= "\diverges" ;` |
 | 2.1.6n | No inline | `no_inline_decl ::= "no_inline" ;` (`#@ no_inline` — modular-verification boundary; see translational §T.2.7n) |
+| 2.1.6s | Sibling concrete | `sibling_concrete_decl ::= "sibling_concrete" ;` (`#@ sibling_concrete` — opt-in concrete intra-class sibling-call; see translational §T.2.7s) |
 | 2.1.7 | Trusted | `trusted_decl ::= "\trusted" ( "reviewer" ":" REVIEWER_ID )? ;` where `REVIEWER_ID ::= /[A-Za-z0-9._@-]+/` |
 | 2.1.14 | Abstract | `abstract_decl ::= "\abstract" ;` — bodyless `val` defined by its contract; sound, not `\trusted` |
 | 2.1.16 | Lemma | `lemma_decl ::= "lemma" ;` — a `-> None` proved fact; lowers to `let [rec] lemma … = <body>` |
