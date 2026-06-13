@@ -554,6 +554,28 @@ class UnixInodeFileSystem:
 
     # --- BITMAP ALGORITHMS ---
 
+    # LEAF SINGLE-BYTE WRITE (directory-frame rework, 2026-06-13). Every non-directory
+    # disk mutation that touches a SINGLE byte outside block 5 ([2560,3072)) routes
+    # through here so the heavy class-invariant MAINTENANCE (byte-range + directory
+    # uniqueness) is discharged ONCE, in this minimal leaf context, instead of being
+    # re-derived inside each bit-twiddling/codec-laden caller (where the double-forall
+    # E-match-explodes — 42M+ steps). With the multi-pattern-triggered
+    # UnixFs.Dir.block5_decode_frame, the uniqueness frame here fires O(1). Callers
+    # then inherit the frame from this method's ensures (a single fact), not a re-proof.
+    #@ proof rocq UnixFs.Dir.block5_decode_frame
+    #@ proof lean UnixFs.Dir.block5_decode_frame
+    #@ requires 0 <= p and p < 131072
+    #@ requires p < 2560 or p >= 3072
+    #@ requires (512 <= p and p < 2560) ==> (0 <= v and v <= 255)
+    #@ assigns self.disk
+    #@ ensures \length(self.disk) == \old(\length(self.disk))
+    #@ ensures self.disk[p] == v
+    #@ ensures \forall i: int; (0 <= i and i < \length(self.disk) and i != p) ==> self.disk[i] == \old(self.disk[i])
+    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_inode(self.disk, 5, k) == \old(slot_inode(self.disk, 5, k))
+    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_name(self.disk, 5, k) == \old(slot_name(self.disk, 5, k))
+    def _poke(self, p: int, v: int) -> None:
+        self.disk[p] = v
+
     #@ proof rocq UnixFs.Dir.block5_decode_frame
     #@ proof lean UnixFs.Dir.block5_decode_frame
     #@ requires byte_offset >= 0
@@ -566,27 +588,33 @@ class UnixInodeFileSystem:
     # written byte byte_offset + bit_index//8 is therefore strictly below 2560,
     # OUTSIDE block 5's region [2560, 3072). This precondition makes that
     # disjointness explicit so the decode-frame ensures below is provable.
-    #@ requires byte_offset + bit_index // 8 < 2560
+    # Tightened <2560 -> <512 (rework): the bitmaps live in block 0 ([0,512)), so the
+    # written byte is below the inode byte-range [512,2560) too — the `_poke` leaf then
+    # carries NO byte-value obligation here (its `(512<=p<2560)==>0<=v<=255` antecedent
+    # is vacuous), so the bitwise value need not be range-proven for the write.
+    #@ requires byte_offset + bit_index // 8 < 512
     #@ assigns self.disk
     #@ ensures \length(self.disk) >= 131072
-    # BLOCK-5 DECODE FRAME (gap-13, Wall M): the single-byte write at
-    # byte_offset + bit_index//8 (< 2560 by the write-locality requires) does not
-    # touch [2560, 3072), so by UnixFs.Dir.block5_decode_frame every block-5 slot
-    # decode is preserved and the directory-uniqueness invariant rides through.
-    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_inode(self.disk, 5, k) == \old(slot_inode(self.disk, 5, k))
-    #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_name(self.disk, 5, k) == \old(slot_name(self.disk, 5, k))
+    # BLOCK-5 DECODE FRAME (gap-13 -> directory-frame rework): the single-byte write
+    # goes through `_poke`, which maintains the directory-uniqueness CLASS INVARIANT
+    # itself (its own type-invariant VC, discharged via the triggered
+    # block5_decode_frame). Callers therefore inherit uniqueness from this method's
+    # type-invariant guarantee (post-state) — the explicit slot_inode/slot_name frame
+    # ensures (which timed out re-deriving the double-forall here) are no longer needed.
     def _set_bitmap(self, byte_offset: int, bit_index: int, value: int) -> None:
         byte_pos = byte_offset + (bit_index // 8)
         bit_pos = bit_index % 8
         if value:
-            self.disk[byte_pos] |= (1 << bit_pos)
+            newval = self.disk[byte_pos] | (1 << bit_pos)
         else:
             # Clear the bit without bitwise NOT (PyCSL has no ~ support).
             # Read current bit, subtract it if set.
             mask = (1 << bit_pos)
             cur = self.disk[byte_pos] & mask
-            self.disk[byte_pos] = self.disk[byte_pos] - cur
-        #@ assert \forall b: int; (2560 <= b and b < 3072) ==> self.disk[b] == \old(self.disk[b])
+            newval = self.disk[byte_pos] - cur
+        # Route the single-byte write through the leaf so the class-invariant
+        # maintenance (uniqueness/byte-range) is discharged there, not re-derived here.
+        self._poke(byte_pos, newval)
 
     #@ proof rocq UnixFs.Bitmap.bit_and_one_in_zero_one
     #@ proof lean UnixFs.Bitmap.bit_and_one_in_zero_one

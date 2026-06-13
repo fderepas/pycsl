@@ -262,12 +262,21 @@ class PreambleEmissionMixin:
         # the global context (0 Axiom/Admitted, only the abstract Section
         # Variables); Lean 4.30.0: #print axioms = [propext, Quot.sound]
         # subseteq allowlist, no sorry.
+        # TRIGGERED (gap directory-frame rework, 2026-06-13): flattened prenex form
+        # with a multi-pattern trigger so the frame fires O(1) per slot when BOTH the
+        # new- and old-disk slot terms are present (the writers' `slot_x disk 5 k =
+        # \old(slot_x disk 5 k)` ensures), instead of E-match-exploding (42M+ steps).
+        # Logically IDENTICAL to the validated statement (k pulled out of the
+        # conclusion into the antecedent; triggers are proof hints, not logic), so
+        # Block5DecodeFrame.{v,lean} still apply unchanged.
         "UnixFs.Dir.block5_decode_frame":
-            "forall d0 : array int. forall d1 : array int. "
+            "forall d0 d1 : array int, k : int "
+            "[slot_inode d1 5 k, slot_inode d0 5 k | "
+            "slot_name d1 5 k, slot_name d0 5 k]. "
             "( forall b : int. 2560 <= b < 3072 -> d0[b] = d1[b] ) -> "
-            "( forall k : int. 0 <= k < 16 -> "
-            "    slot_inode d1 5 k = slot_inode d0 5 k /\\ "
-            "    slot_name  d1 5 k = slot_name  d0 5 k )",
+            "0 <= k < 16 -> "
+            "( slot_inode d1 5 k = slot_inode d0 5 k /\\ "
+            "  slot_name d1 5 k = slot_name d0 5 k )",
     }
 
     # gap-13: axioms that CONSTRAIN the axiom-func symbols a `#@ class invariant`
