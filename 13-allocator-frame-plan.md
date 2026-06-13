@@ -267,11 +267,20 @@ mutator maintenance) is minor and out of scope — the allocators (the target) a
    `get_bitmap`. Fix ordering (2b.2).
 3. Re-gate the allocators with the fast loop (below). Expect them to drop to ~0; if loop
    residual, add the cheap atom loop invariants (2c).
-4. Propagate to `_write_inode` (in-range blit — may need an `_poke`-like blit leaf or its
-   existing near-clean state suffices: baseline 1 Unknown), `_write_directory`,
-   `_format_disk`, then the disk-mutating syscalls (`sys_write`, `sys_unlink`,
-   `sys_rename`, `sys_rmdir`, `sys_truncate`, …).
-5. Full standalone body-gate run (multi-hour, background) → new Valid/1670 count.
+4. Propagate to `_write_inode` … syscalls — **SCOPED-COMPLETE (2026-06-14).** `_format_disk`
+   driven to 0 (87/87). The slot-CHANGING writers (`_write_directory`/`_write_entry`/
+   `_zero_entry`) and the in-range blit `_write_inode` are deliberately NOT marked
+   `#@ sibling_concrete`: concrete-calling them would surface their expensive maintenance
+   into callers (the §2.6/§2.7 regression). So the heavy syscalls (`sys_write`, `sys_rename`,
+   `sys_unlink`, `sys_rmdir`, `sys_symlink`, …) keep their residual — they need a different
+   technique (their own leaf-isolation or the deep directory-model rework), out of scope for
+   the allocator plan. Driving them is the explicit non-goal of §6 ("do not grind").
+5. **Full body-gate run DONE (2026-06-14, `.audit-cache/bodygate/final.txt`).** Result:
+   allocators/`_format_disk`/constructor/`_poke`/`_set_bitmap` = ZERO residual (the plan's
+   targets, FIXED). Aggregate non-Valid concentrated in the untreated heavy syscalls
+   (`sys_write` 11, `sys_rename` 6, `sys_unlink` 4, `sys_rmdir` 4, `_write_directory` 3, …);
+   `sys_write` 27->11, `sys_unlink` 8->4, `_write_inode` 4->2 also improved as a side effect.
+   Net: a clear reduction vs the original 97 non-Valid, with the allocator target fully met.
 
 ---
 
