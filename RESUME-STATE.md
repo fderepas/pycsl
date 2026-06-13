@@ -12,7 +12,19 @@ Chosen path (b) writer restructuring. VALIDATED + LANDED so far (os __init__ GRE
   ensures: **6 timeouts -> 0 (fully proven)**.
 - **`_alloc_block`/`_alloc_inode`**: dropped their redundant slot-frame ensures (Postcondition
   timeouts gone). BUT they still have ~6 **Type-invariant** Timeouts each (loop + caller-propagation).
-NEXT STEP (the alloc Type-invariant subtlety): a callee that maintains the invariant gives the caller
+NAMED-PREDICATE STEP TRIED 2026-06-13 = NEGATIVE for the allocators (NOT landed, /tmp only).
+Hand-tested on the mlw: abstract `predicate uniq (array int)` + `axiom uniq_intro` (establish uniq
+from the forall) + invariant -> `uniq disk`. Results: constructor still 18/18 (uniq_intro +
+empty_disk_slots_dead establishes it); set_bitmap still clean; BUT `_alloc_block` NOT fixed
+(~6 non-Valid, all Type-invariant) and `_poke` REGRESSED (18->17). Tried with `[uniq d]` trigger on
+uniq_intro (backfires: forces every uniq goal to re-derive the forall instead of matching the
+callee hypothesis), without the trigger (no better), and additionally removing the byte-range
+invariant (alloc still 4 Type-invariant Timeouts). CONCLUSION: the atom-matching hypothesis did not
+materialize for the LOOP-bearing allocators; their type-invariant re-derivation persists regardless.
+The leaf pattern (set_bitmap, single write, no loop) is the part that works. The allocators need a
+DIFFERENT approach (likely option (a): explicit `\old`-arg frame-lemma application in the writer
+body, a frontend feature) OR per-allocator loop-invariant carrying the type invariant explicitly.
+SUPERSEDED next-step (kept for context): a callee that maintains the invariant gives the caller
 `<inv>(self.disk)` as a fact, but the invariant is an INLINE forall, so caller-goal vs callee-fact
 may not match as atoms -> why3 re-derives the double-forall (130k-step search). FIX: make uniqueness
 + byte-range NAMED predicates (`predicate uniq (d) = ...`, `inode_bytes_valid`) used in the class
