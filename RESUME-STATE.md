@@ -1,5 +1,32 @@
 # RESUME STATE
 
+## DIRECTORY-FRAME REWORK — DIAGNOSIS 2026-06-13 (investigation, no model change yet)
+Goal: close the body-gate residual (97 goals) by reworking the directory-frame model.
+Built a fast per-writer loop (`why3 prove -T PyCSL_Program -G "unixinodefilesystem___set_bitmap'vc"`
+on a kept mlw). Findings (all on `_set_bitmap` = simplest disjoint writer, baseline 6 slow goals):
+- **line-436 byte-range invariant is a MINOR cost**: removing it ENTIRELY clears only ~2/6.
+- **`block5_decode_frame` axiom multi-pattern trigger** (`[slot_inode d1 5 k, slot_inode d0 5 k
+  | slot_name …]`, logic unchanged so Rocq/Lean validation holds) helps marginally (6→4) and
+  converts some OOM→Timeout.
+- **All triggers combined (byte-range + uniqueness + slot-frame + block5 axiom): plateau at 4.**
+- **MORE TIME DOESN'T HELP**: the 4 survivors are "Type invariant" sub-goals that Timeout at BOTH
+  30s AND 120s (150–215k steps) — genuinely hard, not slow-but-provable.
+- **Removing BOTH disk invariants (byte-range + uniqueness)**: `_set_bitmap` 6→2, `_alloc_block`
+  ~10→6. ⇒ the dominant writer cost is the **per-writer MAINTENANCE of the byte-range +
+  uniqueness class invariants** (re-deriving the double-forall after each disk write), NOT the
+  invariants themselves (which are needed for correctness) and NOT line 436 specifically.
+- **THE FIX = frame lemmas applied EXPLICITLY per writer.** A writer proves its cheap local
+  byte-frame, then applies `uniq_frame(\old(disk), disk)` / `byte_range_frame(...)` to discharge
+  maintenance in O(1) (upper bound = the 6→2 removal result). Needs: (1) named predicates `uniq`,
+  `inode_bytes_valid` used in BOTH the class invariant AND the lemma conclusion (so they align);
+  (2) the two frame lemmas (provable from `block5_decode_frame` + def — `#@ lemma`, why3-checked,
+  no new trust); (3) EXPLICIT lemma application in each writer body (auto-trigger instantiation
+  fails — can't pin d0=\old, d1=new). OPEN QUESTION before building: does PyCSL support calling a
+  `#@ lemma` function with explicit args (incl `\old(...)`) from a method body? (`#@ proof` is only
+  an ordering edge; `let lemma` auto-instantiation hits the same pinning wall.) Validate that first.
+  Experiment mlws in /tmp: bg.mlw (baseline), bg_trig3.mlw (all triggers), bg_nodiskinv.mlw (both
+  invariants removed = the target state). trig*.py = the transforms.
+
 ## ✅ CONSOLIDATED 2026-06-13 (main `aa17948`)
 The body-gate effort is consolidated to a clean milestone and gap-1..5 is MERGED to main:
 - **Body gate measured (sound):** standalone `pycsl pure_lib/os/UnixInodeFileSystem.py`
