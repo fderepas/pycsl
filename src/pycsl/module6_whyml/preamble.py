@@ -304,6 +304,13 @@ class PreambleEmissionMixin:
         "UnixFs.Dir.ibv_elim":
             "forall d : array int [inode_bytes_valid d]. inode_bytes_valid d -> "
             "( forall i : int. 512 <= i < 2560 -> 0 <= d[i] <= 255 )",
+        # allocator-frame §5 reference fixture — DEFINITIONAL intro/elim for the
+        # `field_nonneg` predicate (conservative definition `field_nonneg x <-> x >= 0`;
+        # ZERO trust). Used by the corpus test for predicate-in-`#@ class invariant`.
+        "Pycsl.Reference.FieldPred.field_nonneg_intro":
+            "forall x : int [field_nonneg x]. x >= 0 -> field_nonneg x",
+        "Pycsl.Reference.FieldPred.field_nonneg_elim":
+            "forall x : int [field_nonneg x]. field_nonneg x -> x >= 0",
     }
 
     # gap-13: axioms that CONSTRAIN the axiom-func symbols a `#@ class invariant`
@@ -326,6 +333,9 @@ class PreambleEmissionMixin:
         "UnixFs.Dir.uniq_elim",
         "UnixFs.Dir.ibv_intro",
         "UnixFs.Dir.ibv_elim",
+        # allocator-frame §5 reference fixture (predicate-in-class-invariant corpus test).
+        "Pycsl.Reference.FieldPred.field_nonneg_intro",
+        "Pycsl.Reference.FieldPred.field_nonneg_elim",
     })
 
     # allocator-frame plan §2a: axioms that are DEFINITIONAL (a conservative definition
@@ -337,6 +347,8 @@ class PreambleEmissionMixin:
         "UnixFs.Dir.uniq_elim",
         "UnixFs.Dir.ibv_intro",
         "UnixFs.Dir.ibv_elim",
+        "Pycsl.Reference.FieldPred.field_nonneg_intro",
+        "Pycsl.Reference.FieldPred.field_nonneg_elim",
     })
 
     # Functions that an axiom block needs declared. Looked up by qualname
@@ -346,6 +358,11 @@ class PreambleEmissionMixin:
     # axioms that mention both `struct_pack_<id>` and `struct_unpack_<id>`.
     _AXIOM_FUNCTIONS: Dict[str, List[str]] = {
         "Pycsl.Reference.Gcd.": ["function gcd (a : int) (b : int) : int"],
+        # allocator-frame §5 reference fixture: a named (abstract) predicate over an int
+        # field, for the corpus test that exercises `#@ class invariant p(self.field)`
+        # binding to a registry predicate (the `_names_of` `predicate`-recognition of
+        # commit 755f89e). Its meaning is the definitional intro/elim below.
+        "Pycsl.Reference.FieldPred.": ["predicate field_nonneg (x: int)"],
         # Declare the `\permutation` predicate before its axioms. Same symbol
         # `_handle_permutation_expr` emits via `_add_abstract_op` — the
         # abstract-val dedup skips it here so it is declared exactly once.

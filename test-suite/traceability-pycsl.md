@@ -10,7 +10,7 @@ The **Ref** column uses the format `section.subsection.row`.
 | 2.1.3 | Frame condition \| `#@ assigns <targets>` \| Function/method \| Only listed targets may be mutated | 0003, 0070, 0071 | PASS |
 | 2.2.1 | Loop invariant \| `#@ loop invariant <expr>` \| `while`/`for` \| Inductive property preserved each iteration | 0004, 0072, 0073 | PASS |
 | 2.2.2 | Loop variant \| `#@ loop variant <expr>` \| `while`/`for` \| Termination measure (must decrease, stay ≥ 0) | 0005, 0074, 0075 | PASS |
-| 2.3.1 | Class invariant \| `#@ class invariant <expr>` \| `class` \| Must hold at every method boundary | 0006, 0076, 0077, 0191, 0192, 0193 | PASS |
+| 2.3.1 | Class invariant \| `#@ class invariant <expr>` \| `class` \| Must hold at every method boundary | 0006, 0076, 0077, 0191, 0192, 0193, 0706 (named registry predicate `field_nonneg(self.x)`) | PASS |
 | 2.4.1 | Label \| `#@ label <NAME>` \| Statement \| Marks a program point for `\at` references | 0007, 0078, 0079 | PASS |
 | 2.4.2 | Ghost assign \| `#@ ghost <name> = <expr>` \| Statement \| Declare/assign ghost variable | 0207, 0208, 0209 | PASS |
 | 2.4.3 | Ghost augmented assign \| `#@ ghost <name> += <expr>` \| Statement \| Augmented assign ghost variable | 0207, 0208, 0209 | PASS |
