@@ -26,6 +26,21 @@ on a kept mlw). Findings (all on `_set_bitmap` = simplest disjoint writer, basel
   an ordering edge; `let lemma` auto-instantiation hits the same pinning wall.) Validate that first.
   Experiment mlws in /tmp: bg.mlw (baseline), bg_trig3.mlw (all triggers), bg_nodiskinv.mlw (both
   invariants removed = the target state). trig*.py = the transforms.
+- **UPDATE-KEYED LEMMA FAILS (the would-be clean fix): mutable-field semantics.** Tried defining
+  `predicate uniq` + an update-keyed frame lemma `forall d k v [uniq (d[k<-v])]. (k<2560 \/ 3072<=k)
+  -> uniq d -> uniq (d[k<-v])` (trigger pins d,k,v with no \old needed). It did NOT fire — set_bitmap
+  stayed at 4 Timeout (not the target 2). Cause: `self.disk` is a MUTABLE record field, so why3's WP
+  updates it in place and the exit-invariant goal is NOT a syntactic `(entry_disk)[k<-v]` term, so the
+  trigger never matches. (trig4.py).
+- **THE REAL WALL = tool development, not a model edit.** The clean frame-lemma fix needs EXPLICIT
+  application with the pre-state in each writer body: `uniq_frame(\old(self.disk), self.disk)`. But
+  PyCSL lemma application takes VALUE args (0559: `to_int_nonneg(m)`), not the spec-level `\old(...)`.
+  So closing the writers requires EITHER (a) extend PyCSL to apply a `#@ lemma` with an `\old`/pre-state
+  argument inside a writer body (new frontend+Module5/6 feature), OR (b) restructure the disk writers
+  so why3 can frame the mutable field automatically (e.g. write through a functional-update helper that
+  exposes `d[k<-v]`, or split the heavy invariants off the type into explicit per-method ensures proven
+  in small context). Both are multi-session. CONFIRMED DEAD CHEAP/MEDIUM LEVERS: byte-range rework,
+  axiom triggers, invariant triggers, +120s budget, update-keyed lemma — none close the writers.
 
 ## ✅ CONSOLIDATED 2026-06-13 (main `aa17948`)
 The body-gate effort is consolidated to a clean milestone and gap-1..5 is MERGED to main:
