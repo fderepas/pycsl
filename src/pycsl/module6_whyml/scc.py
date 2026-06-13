@@ -18,15 +18,17 @@ def find_calls_in_ir(obj: Any, func_names_set: Set[str]) -> Set[str]:
 
 
 def find_self_method_calls(obj: Any, self_type: str,
-                           func_names_set: Set[str]) -> Set[str]:
-    """allocator-frame plan §2b: a `self.<m>(...)` call inside a method lowers (when the
-    callee is a same-file verified method — see expressions._handle_dotted_call) to a
-    CONCRETE `(<class>__<m> self args)` call, so the callee must be emitted BEFORE this
-    caller. Its `Call` node's `func` is the dotted `"self.<m>"`, not the method's IR name
-    `"<class_lower>__<m>"`, so `find_calls_in_ir` misses it. Resolve those here, given the
-    enclosing method's `self_type`, and return the resolved names that ARE real functions
-    (in `func_names_set`) — i.e. the ordering edges. No-op when self_type is falsy."""
-    if not self_type:
+                           func_names_set: Set[str],
+                           concrete_set: Set[str]) -> Set[str]:
+    """allocator-frame plan §2.7: a `self.<m>(...)` call to a `#@ sibling_concrete` callee
+    lowers (see expressions._handle_dotted_call) to a CONCRETE `(<class>__<m> self args)`
+    call, so the callee must be emitted BEFORE this caller. Its `Call` node's `func` is the
+    dotted `"self.<m>"`, not the method's IR name `"<class_lower>__<m>"`, so `find_calls_in_ir`
+    misses it. Resolve those here, given the enclosing method's `self_type`, and return the
+    resolved names that ARE real functions AND opted in (`concrete_set`) — i.e. the ordering
+    edges the concrete calls actually need. Restricting to `concrete_set` avoids spurious
+    edges (potential cycles) for the abstract-stub self-calls. No-op when self_type falsy."""
+    if not self_type or not concrete_set:
         return set()
     prefix = self_type.lower() + "__"
     out: Set[str] = set()
@@ -34,13 +36,13 @@ def find_self_method_calls(obj: Any, self_type: str,
         f = obj.get("func")
         if obj.get("type") == "Call" and isinstance(f, str) and f.startswith("self."):
             resolved = prefix + f[len("self."):]
-            if resolved in func_names_set:
+            if resolved in func_names_set and resolved in concrete_set:
                 out.add(resolved)
         for v in obj.values():
-            out |= find_self_method_calls(v, self_type, func_names_set)
+            out |= find_self_method_calls(v, self_type, func_names_set, concrete_set)
     elif isinstance(obj, list):
         for item in obj:
-            out |= find_self_method_calls(item, self_type, func_names_set)
+            out |= find_self_method_calls(item, self_type, func_names_set, concrete_set)
     return out
 
 
@@ -110,6 +112,10 @@ def sort_functions_by_scc(
     """Return functions in SCC-topological order and a scc_info dict."""
     func_names_set = {func["name"] for func in functions}
     func_by_name = {func["name"]: func for func in functions}
+    # allocator-frame plan §2.7: only `#@ sibling_concrete` callees are concrete-called
+    # from siblings, so only they need callee-before-caller ordering edges.
+    sibling_concrete_set = {func["name"] for func in functions
+                            if func.get("sibling_concrete")}
     # scc.md: the only targets a contract reference may edge to are logic symbols.
     logic_symbols = {f["name"] for f in functions if emits_as_logic_symbol(f)}
     call_graph: Dict[str, Set[str]] = {}
@@ -140,7 +146,8 @@ def sort_functions_by_scc(
         # allocator-frame plan §2b: concrete intra-class `self.<m>()` calls (resolved to
         # the verified same-file method) are body-level ordering edges too.
         self_call_edges = find_self_method_calls(
-            func.get("body"), func.get("self_type", ""), func_names_set)
+            func.get("body"), func.get("self_type", ""), func_names_set,
+            sibling_concrete_set)
         call_graph[func["name"]] = (body_edges | (contract_refs & logic_symbols)
                                     | uses_edges | self_call_edges)
         i += 1

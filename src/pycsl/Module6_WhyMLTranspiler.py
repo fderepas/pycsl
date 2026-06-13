@@ -470,6 +470,13 @@ class Module6_WhyMLTranspiler(
         self._emit_opaque_class_aliases(functions, out, declared_types)
 
         self._module_func_names = {whyml_ident(func["name"]) for func in functions}
+        # allocator-frame plan §2.7: methods that OPTED IN to concrete sibling-calls via
+        # `#@ sibling_concrete`. A `self.<m>()` call to one of these lowers to a CONCRETE
+        # call (the callee's real contract + type-invariant guarantee reaches the caller);
+        # every other self-call keeps the default abstract-`val` stub. Default-empty -> no
+        # module without the marker is affected (byte-identical).
+        self._sibling_concrete_methods = {whyml_ident(func["name"]) for func in functions
+                                          if func.get("sibling_concrete")}
         # Stateful composition: the set of flattened provider methods (`<composer>__<m>`,
         # from `_apply_composition`). A `self.<m>()` call inside the composer resolves to
         # the concrete provider (passing `self`) instead of an abstract `val`, so the

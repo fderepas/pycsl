@@ -299,6 +299,18 @@ class NoInline(CSLNode):
     pass
 
 @dataclass
+class SiblingConcrete(CSLNode):
+    """Represents `#@ sibling_concrete` (allocator-frame plan §2.7) — OPT-IN: an intra-class
+    `self.<m>()` call to THIS method is lowered to a CONCRETE call `(<class>__<m> self args)`
+    (so the caller gets the real method's full contract AND its type/class-invariant guarantee
+    on the post-state), instead of the default abstract `val` stub. Use ONLY on cheap-to-
+    maintain leaf writers whose guarantee the caller can absorb as an atom (e.g. the os bitmap
+    leaves `_set_bitmap`/`_poke`). Decoupled from `no_inline`: it affects sibling-call lowering
+    only, NOT whether the body is inlined into wrappers — so it cannot perturb a separate
+    importer gate. Default off → every existing self-call keeps its abstract-stub lowering."""
+    pass
+
+@dataclass
 class Trusted(CSLNode):
     """Represents `#@ \\trusted` — function body is not verified.
     Optional `reviewer` identifies who is accountable for the trust assumption."""
@@ -873,6 +885,7 @@ PYCSL_GRAMMAR = r"""
              | function_variant_structural
              | diverges_decl
              | no_inline_decl
+             | sibling_concrete_decl
              | trusted_decl
              | abstract_decl
              | lemma_decl
@@ -972,6 +985,7 @@ PYCSL_GRAMMAR = r"""
     function_variant_structural: "\\variant" "(" expr "," CNAME ")"
     diverges_decl: "\\diverges"
     no_inline_decl: "no_inline"
+    sibling_concrete_decl: "sibling_concrete"
     trusted_decl: "\\trusted" ("reviewer" ":" REVIEWER_ID)?
     abstract_decl: "\\abstract"
     lemma_decl: "lemma"
@@ -1316,6 +1330,7 @@ class PyCSLTransformer(Transformer):
     def function_variant_structural(self, expr, ordering) -> FunctionVariant: return FunctionVariant(expr, str(ordering))
     def diverges_decl(self) -> Diverges: return Diverges()
     def no_inline_decl(self) -> NoInline: return NoInline()
+    def sibling_concrete_decl(self) -> SiblingConcrete: return SiblingConcrete()
     def trusted_decl(self, *args) -> Trusted:
         return Trusted(reviewer=str(args[0]) if args else "")
     def abstract_decl(self) -> Abstract:

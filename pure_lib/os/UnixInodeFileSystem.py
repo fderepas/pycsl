@@ -573,6 +573,9 @@ class UnixInodeFileSystem:
     #@ ensures \forall i: int; (0 <= i and i < \length(self.disk) and i != p) ==> self.disk[i] == \old(self.disk[i])
     #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_inode(self.disk, 5, k) == \old(slot_inode(self.disk, 5, k))
     #@ ensures \forall k: int; (0 <= k and k < 16) ==> slot_name(self.disk, 5, k) == \old(slot_name(self.disk, 5, k))
+    # allocator-frame §2.7: a cheap leaf writer — callers concrete-call it to inherit the
+    # disk class invariant (uniq/inode_bytes_valid) as an atom on the post-state.
+    #@ sibling_concrete
     def _poke(self, p: int, v: int) -> None:
         self.disk[p] = v
 
@@ -601,6 +604,9 @@ class UnixInodeFileSystem:
     # block5_decode_frame). Callers therefore inherit uniqueness from this method's
     # type-invariant guarantee (post-state) — the explicit slot_inode/slot_name frame
     # ensures (which timed out re-deriving the double-forall here) are no longer needed.
+    # allocator-frame §2.7: cheap leaf writer — the allocators concrete-call it to inherit
+    # the disk class invariant as an atom (the key to fixing alloc_block/alloc_inode).
+    #@ sibling_concrete
     def _set_bitmap(self, byte_offset: int, bit_index: int, value: int) -> None:
         byte_pos = byte_offset + (bit_index // 8)
         bit_pos = bit_index % 8

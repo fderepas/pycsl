@@ -903,18 +903,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # multi-field writes like os.sys_write's disk+fd_offset+_mtime_ticks).
                 writes_clause = "\n    writes { " + ", ".join(
                     f"self.{f}" for f in writes_fields) + " }"
-        # allocator-frame plan §2b: a MUTATING (`field_spec` set) `self.<m>()` call to a
-        # same-file method is emitted CONCRETELY — `(<class>__<m> self args)` — so why3
-        # uses the real method's FULL contract AND its type (class) invariant guarantee on
-        # the post-state. An abstract stub conveys neither, which blocks the caller from
-        # maintaining the class invariant (the allocators' Type-invariant timeouts).
-        # Ordering (callee before caller) is supplied by scc.find_self_method_calls. Pure
-        # self-methods (no field_spec) keep the abstract stub — unaffected.
+        # allocator-frame plan §2.7 (scope-to-win): an OPT-IN `#@ sibling_concrete` callee
+        # gets a CONCRETE `self.<m>()` lowering — `(<class>__<m> self args)` — so why3 uses
+        # the real method's FULL contract AND its type (class) invariant guarantee on the
+        # post-state (an abstract stub conveys neither). Restricted to MARKED callees so it
+        # fires ONLY for cheap leaf writers whose guarantee the caller absorbs (the os bitmap
+        # leaves) — NOT for heavy directory mutators (concrete-calling those surfaces their
+        # expensive maintenance into the caller). Ordering (callee before caller) is supplied
+        # by scc.find_self_method_calls. Default (no marker) → abstract stub, byte-identical.
         if (field_spec is not None and func_name.startswith("self.")
                 and self._current_self_type):
             concrete_name = whyml_ident(
                 f"{self._current_self_type}__{func_name[len('self.'):]}")
-            if concrete_name in getattr(self, "_module_func_names", set()):
+            if (concrete_name in getattr(self, "_module_func_names", set())
+                    and concrete_name in getattr(self, "_sibling_concrete_methods", set())):
                 return f"({concrete_name} {' '.join(coerced)})"
         # body-gate gap-1: lower the callee's `\result[i]` ensures against the
         # CALLEE's return type, not the caller's. A method returning `array int`

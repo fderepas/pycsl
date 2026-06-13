@@ -1856,6 +1856,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             "function_variants": self._csl_list_to_ir(getattr(node, 'csl_function_variants', [])),
             "diverges": getattr(node, 'csl_diverges', False),
             "no_inline": getattr(node, 'csl_no_inline', False),
+            "sibling_concrete": getattr(node, 'csl_sibling_concrete', False),
             "trusted": getattr(node, 'csl_trusted', False),
             "abstract": getattr(node, 'csl_abstract', False),
             # 07-1143 R4: `#@ \preserves` opt-in (HAPPY trust boundary), surfaced in the
