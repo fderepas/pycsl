@@ -1,3 +1,24 @@
+# RESUME STATE
+
+## ✅ CONSOLIDATED 2026-06-13 (main `aa17948`)
+The body-gate effort is consolidated to a clean milestone and gap-1..5 is MERGED to main:
+- **Body gate measured (sound):** standalone `pycsl pure_lib/os/UnixInodeFileSystem.py`
+  proves **1573/1670 method-body goals (94.2%)** — the FIRST real verification of the
+  `sys_*` bodies. Residual 97 (27 OOM, 47 Timeout, 23 Unknown) share ONE root cause: the
+  line-436 quantified byte-range class invariant re-established on every disk write. A
+  `[disk[i]]` trigger is a partial (~2x) win, not a full fix. KNOWN-HARD, deferred.
+- **gap-1..5 typing merged to main** (commit `aa17948`), os `__init__` GREEN. Merging
+  needed two faithful model fixes (inlining had hidden both): `sys_chmod #@ no_inline`
+  (modular boundary like stat/lstat — correct `array int` typing bloated the inlined
+  chmod VC to OOM) + `chmod(filepath: str)` (was defaulting to int).
+- **Per-function axiom scoping: tested, NO benefit, reverted** (`b1e1d12`).
+- Remaining os work (deferred, deep): chmod/truncate functional namespace frame,
+  content_round_trip (gap-17 arc), readlink target value (unmodeled).
+
+Everything below is the pre-consolidation detail (still accurate for the residual).
+
+---
+
 # RESUME STATE — 2026-06-12 (shutdown checkpoint)
 
 Everything is committed to git (nothing lost on shutdown). This file is the single
