@@ -251,6 +251,30 @@ re-run is in `.audit-cache/bodygate/final.txt`.
 DONE for the plan's core. Remaining residual (link/mkdir 1 Timeout each; the deep directory-
 mutator maintenance) is minor and out of scope — the allocators (the target) are fully proven.
 
+## 2.9 HEAVY-SYSCALL CLOSING ATTEMPT 2026-06-14 — NOT closeable via these mechanisms
+Attempted to drive the remaining heavy syscalls to zero. Diagnosis (per-goal kinds) +
+two decisive negative experiments:
+- **Residual kinds:** `sys_write` = loop-invariant-preservation (the content-slice blit) +
+  postcondition/precondition/type-inv; `sys_rename`/`sys_rmdir`/`sys_unlink`/`sys_symlink` =
+  inline **Assertion** timeouts (the block-5 byte/slot frame asserts — the SAME class as
+  chmod's gap-13 frame, inlined in the syscall body so the named-predicate atoms don't reach
+  the raw `forall`); the 1-each (`chmod`/`chown`/`truncate`/`ftruncate`/`mkdir`/`link`/
+  `utimensat`) are the single chmod-class byte-frame assert.
+- **sibling_concrete is exhausted:** marking `_alloc_block`/`_alloc_inode` sibling_concrete
+  (so sys_write/mkdir concrete-call them) is NEUTRAL — mkdir stays 1 Timeout. The residual is
+  the blit / inline assertions, not a helper-call guarantee. (Reverted — neutral = clutter.)
+- **More budget makes it WORSE:** `sys_rename` @120s = 6 **Out-of-memory** (was 6 Timeout
+  @30s). The residual is genuinely hard (E-matching blowup), NOT slow-but-provable.
+VERDICT: the heavy syscalls need the **deep directory-model rework** that is OUT OF SCOPE for
+this plan — the inline block-5 frame assertions (rename/rmdir/unlink/symlink + the chmod-class
+single asserts) and the content blit (`sys_write`) require either CONCRETE `slot_inode`/
+`slot_name` decode (so the frame is congruence, not an E-matching axiom) or restructuring the
+inline frame asserts into one-shot proven lemmas — a separate, sizable effort. The allocator
+plan's mechanisms (named predicates, opt-in concrete leaf-calls) fix the TYPE-INVARIANT
+MAINTENANCE class (allocators/format_disk — DONE) but do not reach the inline-frame-assert /
+blit class. This is the genuine remaining body-gate residual; recorded as a known-hard
+follow-on, not part of the allocator objective.
+
 ## 3. Implementation steps (ordered; gate after each)
 
 0. **Feasibility spike (≤1 session, do FIRST):** confirm PyCSL can declare an abstract
