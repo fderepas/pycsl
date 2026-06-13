@@ -178,6 +178,33 @@ right but starved by the method-call gap. Both fixes (predicate + method-call) a
   to feed `insert_preserves_unique`. The intro/elim pair is a DEFINITION (sound by construction,
   no Rocq/Lean needed); the frame axiom is derivable → emit as a why3 `#@ lemma`.
 
+## 2.6 IMPLEMENTATION RESULT 2026-06-13 — allocators FIXED, but Layer 1 regresses mutator-callers
+Implemented Layer 1 (`a9c6bd3`) + Layer 2 (`01fb652`) + §3.4 loop invariants (`65bbda8`).
+Per-function body-gate measurement (standalone, 30s, both provers):
+- **FIXED (slot-PRESERVING writers):** `_alloc_block` 38/38, `_alloc_inode` 38/38,
+  `format_disk` 87/87, `_set_bitmap`, `_poke` 18/18, constructor 18/18; `sys_rename` 6->0,
+  `sys_rmdir` 4->2.
+- **REGRESSED (slot-CHANGING mutator callers):** `sys_link` ~0->18 (8 OOM+10 T),
+  `sys_unlink` 8->18, `sys_mkdir` 0->2.
+- **ATTRIBUTION (worktree at a9c6bd3 = Layer 1 only, inline invariants):** `sys_link`
+  8 OOM+10 T, `sys_unlink` 7 OOM+15 T, `sys_mkdir` 2 T — IDENTICAL to Layer 1+2. So the
+  regression is **Layer 1's concrete calls**, not Layer 2. Calling a directory mutator
+  (`_write_directory`) CONCRETELY surfaces its intrinsically-expensive inline-forall
+  uniqueness maintenance in the caller. Layer 2 is neutral there.
+- **Net body-gate: roughly a WASH.** NOT a committed-test regression — os `__init__` stays
+  GREEN (sys_* are trusted vals there); the body gate was never a green target (94.2% WIP).
+  This is residual REDISTRIBUTION.
+- **THE CLEAN FIX (next focused step): SCOPE the concrete-call routing** in
+  `expressions._handle_dotted_call` to fire ONLY for slot-PRESERVING callees (the leaf
+  disk writers `_poke`/`_set_bitmap`/`_write_inode` that write outside block 5), keeping
+  abstract stubs for the slot-CHANGING directory mutators (`_write_directory`/`_write_entry`/
+  `_zero_entry`/...). That keeps the allocator/write/format win and DROPS the
+  link/unlink/mkdir regression (restoring them to their clean pre-rework state). Detection
+  options: (a) an explicit small denylist of the block-5 mutator method names (precise, the
+  set is fixed & small); (b) a principled signal — a callee carrying a block-5 byte-frame
+  ensures is slot-preserving. Gate: re-measure link/unlink/mkdir return to clean + allocators
+  stay fixed + os __init__ green + corpus byte-diff (only 0654 expected). Then full body gate.
+
 ## 3. Implementation steps (ordered; gate after each)
 
 0. **Feasibility spike (≤1 session, do FIRST):** confirm PyCSL can declare an abstract
