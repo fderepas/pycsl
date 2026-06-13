@@ -52,6 +52,31 @@ METHOD BODIES — a real, sound body gate (the `__init__` gate emits methods as 
   are the CITING methods' inherently-heavy VCs (which keep the axioms as `assume` =
   same content). So scoping is not the fix; revert it before any merge.
 
+### RESULT 2026-06-13 — full body-gate proof FINISHED: 1573/1670 Valid (94.2%)
+The detached run completed (`/tmp/bodygate_proof.txt`, exit 2). **1573 Valid, 97 non-Valid**
+(27 Out-of-memory, 47 Timeout@30s, 23 Unknown). This is the FIRST sound body-verification
+of the 25 `sys_*` METHOD BODIES (the `__init__` gate never did this). Residual analysis:
+- 47 Timeout MAY clear with a longer budget; 27 OOM + 22 fast-Unknown (<1s give-up) are
+  NOT time-fixable — they need proof engineering.
+- Concentrated in the disk MUTATORS: sys_write, _alloc_inode/_block, _set_bitmap,
+  _format_disk, unlink, rename, rmdir, _write_directory.
+- **SHARED ROOT CAUSE = line-436 class invariant** `\forall i; 512<=i<2560 ==>
+  0<=self.disk[i]<=255` (a 2048-byte quantified range). Every disk mutation must
+  re-establish this forall; combined with array-update frame reasoning it E-match-OOMs.
+  One root cause, not 50. FIX DIRECTIONS (pick when resuming): (a) emit a trigger on the
+  invariant quantifier `[self.disk[i]]`; (b) refactor it into a framed logic predicate
+  `bytes_valid(disk,512,2560)` so out-of-range writes preserve it trivially and in-range
+  writes need only a local lemma; (c) per-mutator `assert` that the update preserves the
+  range with a tight trigger.
+  TRIGGER TESTED (2026-06-13): hand-adding `[disk[i]]` to the line-40 mlw invariant, on
+  _alloc_block: OOM 4->2, many more Valid = PARTIAL win (~2x fewer OOM) but NOT complete
+  (residual 2 OOM + 4 Timeout + 4 Unknown). Helps all mutators but residual still needs
+  per-fn engineering (trigger + framed predicate + per-mutator frame asserts). To LAND it:
+  emitter must put `[disk[i]]` on the class-inv `\forall` lowering.
+  FAST ITERATION LOOP (~1min/fn): emit mlw once
+  (`pycsl … --keep-mlw --no-proof`), then
+  `why3 prove -a split_vc -P "Alt-Ergo,2.6.2," -P "Z3,4.13.3," --timelimit 60 /tmp/bodygate.mlw -T PyCSL_Program -G "unixinodefilesystem___alloc_block'vc"`.
+
 ### IN PROGRESS 2026-06-13 — the full body-gate proof IS NOW RUNNING (detached)
 WIP scoping reverted (`b1e1d12`); tool back to clean gap-5. The full standalone proof
 was LAUNCHED detached: `why3 prove -a split_vc -P Alt-Ergo,2.6.2, -P Z3,4.13.3,
