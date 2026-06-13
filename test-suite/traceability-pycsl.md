@@ -94,6 +94,7 @@ The **Ref** column uses the format `section.subsection.row`.
 | 7.5 | Lambda expression \| `lambda params: body` \| Anonymous function | 0242, 0243 | PASS |
 | 2.1.10 | Thread entry \| `#@ thread_entry` \| Marks function as concurrent thread entry point | 0250, 0251, 0252, 0253, 0277 | PASS |
 | 2.1.19 | No inline \| `#@ no_inline` \| Modular-verification boundary: body verified once, callers reuse the contract (not the inlined body) | 0650 | PASS |
+| 2.1.26 | Sibling concrete \| `#@ sibling_concrete` \| Opt-in: an intra-class `self.<m>()` call to a marked callee lowers to a concrete call (caller inherits the callee's contract + type/class-invariant guarantee), not the default abstract stub | 0705 | PASS |
 | 2.4.4 | Critical section \| `#@ critical <mutex>` \| with-block is a critical section (havoc+assume+assert) | 0250, 0251, 0252, 0253, 0278; XFAIL: 0254 (unprotected write) | PASS |
 | 2.4.5 | Acquires \| `#@ acquires <mutex>` \| Explicit mutex acquire annotation | 0262, 0263, 0264, 0265, 0266; XFAIL: 0255 (missing lock_order) | PASS |
 | 2.4.6 | Releases \| `#@ releases <mutex>` \| Explicit mutex release annotation | 0267, 0268, 0269, 0270, 0271 | PASS |
