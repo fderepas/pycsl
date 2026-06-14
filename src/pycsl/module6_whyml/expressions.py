@@ -2374,7 +2374,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # is an in-scope parameter.
                 ref = field if invariant_ctx else f"self.{field}"
                 return f"(Array.length {ref})"
-            deref = "!" if var in local_refs else ""
+            # An array LOCAL (`out = [0]*n`) is bound as a plain `Array.make` mutable
+            # array, NOT a ref — so it is referenced BARE even when it also appears in
+            # `local_refs` (mirrors `_handle_var_expr`'s `_array_locals` rule). Without
+            # this guard `\length(out)` in a loop invariant emitted `Array.length !out`,
+            # a deref of a non-ref → typecheck failure (`len(out)` and subscript `out[i]`
+            # were already correct via `_handle_var_expr`; only this `\length` path wasn't).
+            deref = ("!" if (var in local_refs
+                             and var not in getattr(self, "_array_locals", set()))
+                     else "")
             return f"(Array.length {deref}{var})"
         return f"{expr['var']}_len"
 
