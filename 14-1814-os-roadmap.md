@@ -25,6 +25,26 @@ functional consequence (not a vacuous return-code echo — see [[feedback_formal
 
 ---
 
+## M4 PROGRESS 2026-06-14 (branch `m4-layer2-frame`, commit 1852322) — rmdir CLOSED; unlink/rename WALL
+The A+B+C build landed on a BRANCH (not main — full body-gate regression unconfirmed in-session +
+unlink/rename not closed). What works:
+- **C** = `slots_lt32` class invariant (every block-5 slot's inode < 32) — definitional intro/elim
+  like `uniq`. os `__init__` GREEN; established via `empty_disk_slots_dead`, maintained via
+  `block5_decode_frame` + dir-mutator write-posts. (chmod OOMs WITH and WITHOUT C → C did not
+  regress it; chmod was already a body-gate failure.)
+- **A** = new `#@ propagate_frame` directive (wired Module2/3/5 like `sibling_concrete`) — opt-in
+  per-callee propagation of a mutator's QUANTIFIED frame onto its boundary stub, pinned with a
+  specific Call-trigger (fires on `slot_inode` only, never raw `self.disk[i]` → no §2.9 poison).
+  Marked on `_zero_entry` (called only by unlink/rmdir/rename, never link/symlink).
+- **RESULT:** `sys_rmdir` 1→**0 CLOSED**; `sys_rename` OOM→2 (improved); `sys_mkdir` 0→0;
+  `sys_unlink` 1→1; `sys_link` 1→1; `sys_chmod` OOM→OOM (unchanged).
+- **WALL (unlink/rename):** the absence assert needs the uniqueness step, but raw `uniq_elim`'s
+  ∀i,j instantiation E-match-EXPLODES (13.7M steps), worsened by `slots_lt32_elim`. The maximal
+  probe (`.audit-cache/m4/unlink_max.mlw`) PROVES the assert once uniqueness is a clean fact, so
+  the fix is a CROSS-VALIDATED uniqueness-absence lemma (the `remove_reflects_absent` pattern) the
+  SMT applies O(1). That + full body-gate regression + the `#@ propagate_frame` doc/corpus audit
+  are the merge prerequisites.
+
 ## 1. The immediate mechanism: the 2-layer frame split
 
 The heavy directory syscalls (unlink/rmdir/rename/symlink) fail in the body gate because a
