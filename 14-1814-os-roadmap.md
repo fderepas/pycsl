@@ -39,11 +39,28 @@ unlink/rename not closed). What works:
 - **RESULT:** `sys_rmdir` 1→**0 CLOSED**; `sys_rename` OOM→2 (improved); `sys_mkdir` 0→0;
   `sys_unlink` 1→1; `sys_link` 1→1; `sys_chmod` OOM→OOM (unchanged).
 - **WALL (unlink/rename):** the absence assert needs the uniqueness step, but raw `uniq_elim`'s
-  ∀i,j instantiation E-match-EXPLODES (13.7M steps), worsened by `slots_lt32_elim`. The maximal
-  probe (`.audit-cache/m4/unlink_max.mlw`) PROVES the assert once uniqueness is a clean fact, so
-  the fix is a CROSS-VALIDATED uniqueness-absence lemma (the `remove_reflects_absent` pattern) the
-  SMT applies O(1). That + full body-gate regression + the `#@ propagate_frame` doc/corpus audit
-  are the merge prerequisites.
+  ∀i,j instantiation E-match-EXPLODES (13.7M steps), worsened by `slots_lt32_elim`.
+
+### M4 ATTEMPT 2 2026-06-14 — `uniq_absent` lemma proves the PRE-zero absence but NOT the post-zero carry (reverted)
+Added a definitional (zero-TCB) `UnixFs.Dir.uniq_absent` axiom — the FO consequence of
+`uniq_elim`+`slots_lt32_elim`: in a uniq+slots_lt32 disk with slot s live, every other same-named
+slot is dead — stated so SMT applies it O(1). FINDINGS:
+- It **works for the PRE-zero (d1) absence**: with `uniq_absent` + the (B) slot-live loop-carry,
+  the d1 absence assert PROVES (the uniqueness step is no longer the blocker).
+- But the **POST-zero (d2) absence still explodes**: carrying the d1 absence through `_zero_entry`'s
+  frame to the post-removal disk drowns in the FULL Dir-axiom set (block5 + scan_reflects +
+  remove_reflects + the frame), even with the elims removed (9.7M steps). And `remove_reflects_absent`
+  needs the absence on d2 (on d1 the name is still PRESENT), so d2 is unavoidable.
+- `uniq_absent`, always-emitted with its broad `[uniq d, slot_name d 5 s]` trigger, **REGRESSED
+  `sys_rename` 2→4** (fires for all 16 s). So it is net-harmful as a global axiom. REVERTED;
+  branch stays at A+C (rmdir closed, 1852322).
+- **REVISED FIX:** the intermediate-step route (prove absence, carry via frame) is E-matching-
+  intractable in this dense context. The proper fix is ONE COMBINED cross-validated axiom
+  `remove_unique_absent`: given uniq d0 + slot s the unique live `nm` entry + d1 = d0 with s zeroed
+  (the `_zero_entry` byte-frame), conclude `dir_lookup(d1, nm) < 0` — the whole removal in a single
+  O(1) application, no intermediate quantified asserts. Cross-validated Rocq+Lean (finite case
+  split). That closes unlink/rmdir/rename uniformly. THE clean next step.
+- Other merge prerequisites unchanged: full body-gate regression + `#@ propagate_frame` doc/corpus.
 
 ## 1. The immediate mechanism: the 2-layer frame split
 
