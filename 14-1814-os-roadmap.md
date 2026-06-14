@@ -58,6 +58,29 @@ contract) and LOCAL (never enters link/symlink's context).
 - a `slot_inode < 32` bound for the two slots uniq compares (where does it come from? — OPEN; may
   need a class-invariant clause `live ⇒ slot_inode<32` or a per-call assert).
 
+### M4 DE-RISK RESULT 2026-06-14 — REACHABLE; needs A+B+C atomically (C is risky)
+Manual `.mlw` probing on `sys_unlink` (`.audit-cache/m4/`) PROVED the absence assert (line 656,
+`\forall k≠slot. slot_name(k)==pathname -> slot_inode(k)==0`) is dischargeable — `why3 prove` is
+ALL VALID — GIVEN, on the pre-zero disk d1: (A) `_zero_entry`'s quantified frame, (B) `slot` live
++ named `pathname`, (C) `\forall i. slot_inode(disk,5,i) < 32`, plus the loop's `uniq`. Dropping
+(C) → timeout (uniq's antecedent needs `slot_inode<32`). So all three are REQUIRED.
+- **(A) frame** — Layer-2 emission. SAFE as a PER-CALLEE opt-in on `_zero_entry`: it is called ONLY
+  by unlink/rmdir/rename, so its frame never enters link/symlink (the §2.9 poison was `_write_entry`'s
+  frame). Buildable (per-callee flag, no full per-call-site machinery needed).
+- **(B) slot-live@d1** — carry `slot_inode(slot)≠0 /\ slot_name(slot)==pathname` from `_dir_find_slot`
+  (d0) through the free-blocks loop + post-loop writes to d1: strengthen the loop invariant (block5
+  frame maintains it, exactly as it already maintains `uniq`) + post-write asserts. Moderate, in-body.
+- **(C) `slot_inode<32`** — a NEW class invariant. NOT byte-derivable. Establish (empty disk → 0 via
+  `empty_disk_slots_dead`) + maintain on every mutator (`_write_entry` sets `inode<32` from
+  `_alloc_inode`; `_zero_entry` sets 0; non-block-5 writes preserve via block5_decode_frame). This
+  is the LONG POLE — a directory-model change touching every method's type-invariant VC, RISKY to
+  the green `__init__` (the `uniq` invariant took gaps 12–13). FLAGGED per [[feedback_safe_vs_risky_bricks]].
+- **CAUTION:** adding (A) WITHOUT (B)+(C) makes unlink WORSE (1→2 timeouts — the frame is pure
+  E-matching noise until the facts to use it exist). So A+B+C must land ATOMICALLY; no safe partial.
+- **VERDICT:** M4 is reachable with a clear recipe, but it is the deep directory-absence rework (not
+  just "emit the frame"). The gating risk is concentrated in (C). Probes saved in `.audit-cache/m4/`
+  (unlink_max.mlw = the ALL-VALID witness).
+
 ---
 
 ## 2. Remaining work classes (what stands between us and 100% body gate)
