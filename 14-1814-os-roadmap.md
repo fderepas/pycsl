@@ -1,0 +1,130 @@
+# os API verification roadmap (living document)
+
+**Purpose.** Track the path from the current state to a fully body-verified, functionally
+faithful Python `os` API. This document EVOLVES — update the status table (§6) and the
+milestone checkboxes (§5) as work lands. Companion plans: `14-string-field-codec-plan.md`
+(the string/field-codec arc + §2.8–2.10 frame investigation).
+
+Last updated: 2026-06-14 (after Layer-1 landed, commit `4cd0d0f`).
+
+---
+
+## 0. The two gates (read this first — they are constantly conflated)
+
+| Gate | Command | What it proves | Status |
+|---|---|---|---|
+| **`__init__` gate** | `pycsl pure_lib/os/__init__.py` | the public `os.*` wrappers + pure helpers; emits each `sys_*` METHOD BODY as a TRUSTED `val` (body NOT verified here) | **GREEN** (committed deliverable) |
+| **Body gate** | `pycsl pure_lib/os/UnixInodeFileSystem.py` | the actual `sys_*` METHOD BODIES against their contracts | ~94% Valid; heavy directory syscalls + content/readlink residual |
+
+"Finishing the os API" = **the BODY gate proves every `sys_*` body** (so the `sys_*` contracts
+the `__init__` gate trusts become PROVEN, not assumed), under the standing discipline (faithful
+models, minimal TCB, `__init__` stays green, byte-diff clean).
+
+A syscall is DONE when: its body proves in the body gate **and** its contract is a real
+functional consequence (not a vacuous return-code echo — see [[feedback_formal_test_consequence]]).
+
+---
+
+## 1. The immediate mechanism: the 2-layer frame split
+
+The heavy directory syscalls (unlink/rmdir/rename/symlink) fail in the body gate because a
+`#@ no_inline` mutator's contract is DROPPED at the boundary stub (`self__zero_entry_<n>`
+carried only `writes`). Restoring it splits cleanly into two layers by clause kind:
+
+### Layer 1 — NON-QUANTIFIED write postconditions  ✅ DONE (`4cd0d0f`)
+`slot_inode(self.disk,b,s)==inode` / `==0`, `self.x==v` — self-field + param, no `\result`/
+`\old`/quantifier. Propagated via `_build_method_field_param_post_ensures_map`. Trigger-free ⇒
+cannot E-match-poison. Result: **sys_unlink 3→1, sys_rmdir 2→1, sys_rename OOM→4-clean**;
+`__init__` green; byte-diff 0; regression test `0710`.
+
+### Layer 2 — QUANTIFIED frame, emitted PER-CALL-SITE  ⛔ NEXT (the real frame)
+`\forall k≠s. slot_x(self.disk,5,k)==\old(slot_x(self.disk,5,k))`. This is the load-bearing
+frame the absence/uniqueness asserts need. It CANNOT go on the shared stub — any usable trigger
+fires on every `slot_*` term and OOMs rich callers (link/symlink; measured, §2.9). It must be
+delivered **locally** at the one call site that needs it:
+```
+label PreCall in
+self._zero_entry(5, slot)
+#@ assume \forall k; (k <> slot) ==> slot_inode(self.disk,5,k) == (slot_inode(self.disk,5,k) at PreCall)
+```
+Build = a statement-level directive (`#@ assume` / `#@ frame_after`) + labeled-`assume` emission
+with `at`-labels for the pre-call value + the language-audit (grammar→IR→WhyML, 5 doc surfaces,
+corpus) + the uniqueness proof below. Sound because `_zero_entry` is `\trusted` (the frame is its
+contract) and LOCAL (never enters link/symlink's context).
+
+### Layer 2 also needs (the absence proof, independent of emission)
+- `uniq_elim` instantiation: pre-state uniqueness (class invariant) + slot was the live `pathname`
+  entry (`_dir_find_slot` ensures, now exposed by Layer 1) ⟹ no other live slot has `pathname`.
+- a `slot_inode < 32` bound for the two slots uniq compares (where does it come from? — OPEN; may
+  need a class-invariant clause `live ⇒ slot_inode<32` or a per-call assert).
+
+---
+
+## 2. Remaining work classes (what stands between us and 100% body gate)
+
+| Class | Syscalls | Blocker | Plan |
+|---|---|---|---|
+| **A. Directory remove/rename** | unlink, rmdir, rename | Layer-2 frame + uniqueness (§1) | build Layer 2 |
+| **B. Directory add** | mkdir ✅, link, symlink | link/symlink OOM on presence + EMLINK/alloc paths; need Layer-1 witness (have) + tame remaining E-matching | diagnose post-Layer-1 residual |
+| **C. content round-trip** | write→read, pread | recover the data block value across calls (gap-17 effect contract) + the field codec | string-codec plan Phase C |
+| **D. readlink target** | readlink, symlink target | return the decoded TARGET (today returns block #); needs `_pad_name` encode (have) + `field_to_str` decode (have) + cross-call framing | string-codec plan Phase C |
+| **E. metadata/no-dir syscalls** | chmod, chown, utimensat, truncate, ftruncate, fstat, etc. | mostly proven via block5_decode_frame; scan residual | spot-fix residuals |
+| **F. pure / fd-table syscalls** | open, close, dup, dup2, lseek, fsync, access, getdents, stat, lstat | largely proven (convergence-loop) | confirm 0 residual |
+
+(Buckets per [[feedback_scope_pycsl_not_pure_lib]] / the stdlib-coverage skill's
+modelled / specified / stubbed classification.)
+
+---
+
+## 3. Functional correctness (beyond structural safety)
+
+Structural (bounds, type invariants, well-formed return codes) is largely done. The harder goal
+is observable CONSEQUENCE through the PUBLIC API ([[feedback_test_calls_api]],
+[[feedback_formal_test_consequence]]): mkdir→present, write→read-back, symlink→readlink-target,
+rename moves the name, unlink→absent. These ride on Classes A–D above + the codec. The acceptance
+target is `formal_0008.py` (the content round-trip, `\result == True`).
+
+---
+
+## 4. TCB / discipline (non-negotiable, every step)
+
+- `__init__` gate stays GREEN; body gate only ever improves (scan EVERY non-Valid incl. "Out of
+  memory" — [[os_gate_does_not_verify_method_bodies]]).
+- corpus byte-diff via `bin/byte-diff-sweep.sh`; behavior change ⇒ corpus PROOF.
+- new axioms: cross-validated Rocq+Lean OR zero-TCB definitional; no totalization, no value→int.
+- new `#@` directive ⇒ full language audit (grammar→validate→IR→WhyML + 5 doc surfaces + corpus +
+  faithful-lowering) — the Layer-2 `#@ assume`/`#@ frame_after` directive triggers this.
+
+---
+
+## 5. Milestones / sequencing
+
+- [x] **M0** — `__init__` gate green; body gate measured (~94%).
+- [x] **M1** — string-codec Phase A′ (field_to_str round-trip, cross-validated axiom).
+- [x] **M2** — codec ENCODE side (`char_code_at`, `_pad_name` byte contract, end-to-end 0708).
+- [x] **M3** — Layer-1 write-post propagation (unlink 3→1, rmdir 2→1).
+- [ ] **M4** — Layer-2 per-call-site quantified frame + uniqueness ⇒ **close A (unlink/rmdir/rename)**.
+- [ ] **M5** — diagnose + close **B** (link/symlink residual).
+- [ ] **M6** — codec Phase C ⇒ **close C (content round-trip)** + **D (readlink target)**.
+- [ ] **M7** — sweep **E + F** residuals to 0; body gate 100% Valid.
+- [ ] **M8** — functional-correctness acceptance (`formal_0008.py`) through the public API.
+- [ ] **M9** — retire trusted `sys_*` boundary in `__init__` (bodies now PROVEN) — the TCB shrink.
+
+---
+
+## 6. Live status table (update as we go)
+
+Body-gate per-syscall unproven-goal counts (via `pycsl --fun unixinodefilesystem__<name>`).
+Baseline = pre-Layer-1; "now" = current.
+
+| syscall | baseline | now | blocker | milestone |
+|---|---|---|---|---|
+| sys_unlink | 3 | **1** | Layer-2 absence assert | M4 |
+| sys_rmdir | 2 | **1** | Layer-2 absence assert | M4 |
+| sys_rename | OOM | **4** | Layer-2 (both add+remove) | M4 |
+| sys_mkdir | 0 | **0** ✅ | — | done |
+| sys_link | 1 | 1 | presence/EMLINK residual | M5 |
+| sys_symlink | OOM | OOM | presence + alloc residual | M5 |
+| (others E/F) | — | mostly 0 | confirm | M7 |
+
+(Refresh this table after each milestone; record the exact failing goal per remaining syscall.)
