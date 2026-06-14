@@ -62,6 +62,33 @@ slot is dead — stated so SMT applies it O(1). FINDINGS:
   split). That closes unlink/rmdir/rename uniformly. THE clean next step.
 - Other merge prerequisites unchanged: full body-gate regression + `#@ propagate_frame` doc/corpus.
 
+### M4 ATTEMPT 3 2026-06-14 — `remove_unique_absent` BUILT (correct) but the wall is STRUCTURAL, not a missing lemma (reverted)
+Built `UnixFs.Dir.remove_unique_absent` as designed: a two-disk (pre/post-zero) lemma with a
+`block5`-style multi-trigger `[slot_inode d1 5 s, slot_inode d0 5 s]`, concluding the post-zero
+absence in O(1). It is mathematically correct (a FO consequence of `uniq_elim`+`slots_lt32_elim`+the
+zero frame; zero-TCB definitional). FINDINGS — it still does NOT close unlink, and the ROOT CAUSE is
+now definitive:
+- The absence goal in unlink STILL times out (6.8M steps) WITH `remove_unique_absent` available,
+  because the explosive `uniq_elim`/`slots_lt32_elim` (which unlink's free-blocks LOOP *needs* for
+  `uniq` maintenance) are ALWAYS-EMITTED and the prover instantiates their ∀i,j / ∀k on unlink's
+  many slot terms — exploding the search regardless of the O(1) lemma sitting right there.
+- And like `uniq_absent`, `remove_unique_absent` as an always-emitted axiom REGRESSED `sys_rename`
+  (2→3) via added E-matching noise — confirming: ANY always-emitted quantified directory axiom
+  poisons some syscall in this dense context.
+- **THE WALL IS STRUCTURAL: Why3 has no per-goal axiom scoping.** The absence proof needs the
+  uniqueness FACT but is poisoned by the uniqueness ELIM that must be in scope (for the loop's
+  maintenance). A correct lemma can't help because the prover still explores the explosive elims.
+  Three mechanisms (Layer-2 frame, `uniq_absent`, `remove_unique_absent`) all hit this same wall.
+- **REAL FIX (structural, beyond a lemma):** isolate the absence proof in a context WITHOUT the
+  explosive elims — e.g. prove `remove_unique_absent` ONCE in a SEPARATE minimal Why3 theory/module
+  (only `uniq`/`slots_lt32`/`slot_*` abstract, no os syscalls, no loop) and import it as an applied
+  fact; OR an external (Rocq/Lean) proof imported as an opaque cited axiom that the os APPLIES
+  without the elims competing. The key is removing `uniq_elim`/`slots_lt32_elim` from the os
+  syscalls' VC context while keeping them where maintenance needs them — a Module6 emission change
+  (scoped/cited elims), not just a new axiom. REVERTED attempt 3; branch stays at A+C (rmdir closed).
+- **STATUS:** M4 = rmdir CLOSED; unlink/rmdir/rename's absence is blocked by this structural Why3
+  limitation. Closing it needs the axiom-scoping/isolation work above — a larger Module6 change.
+
 ## 1. The immediate mechanism: the 2-layer frame split
 
 The heavy directory syscalls (unlink/rmdir/rename/symlink) fail in the body gate because a
