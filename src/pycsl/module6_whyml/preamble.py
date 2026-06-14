@@ -304,6 +304,40 @@ class PreambleEmissionMixin:
         "UnixFs.Dir.ibv_elim":
             "forall d : array int [inode_bytes_valid d]. inode_bytes_valid d -> "
             "( forall i : int. 512 <= i < 2560 -> 0 <= d[i] <= 255 )",
+        # UnixFs.Field.field_to_str_round_trip (string-codec Phase A') — the
+        # string ↔ fixed-width null-padded byte-field codec ROUND-TRIP. `field_to_str
+        # d off width` is the decoded name in the `width`-byte field at `off`: the
+        # bytes d[off..off+width), read as chars, up to the first null (or the full
+        # width if none). The axiom is the ENCODE→DECODE direction: for a `name` that
+        # (i) fits the field (`length name <= width`), (ii) has no embedded null, (iii)
+        # is byte-for-byte present (`d[off+i] = ord(name[i])`), and (iv) is
+        # null-terminated when shorter than the field — the decode RECOVERS it exactly
+        # (`field_to_str d off width = name`). This is the Python `struct '>Ns'` field
+        # round-trip, faithful to `name.encode()` + null-pad + truncate-free pack.
+        #
+        # SMT cannot discharge this directly: the proof is by string EXTENSIONALITY
+        # (equal length + equal char-at-i), and Alt-Ergo/Z3 over Why3's AXIOMATIC
+        # `string.String` E-match-explode on `eq_string` (validated: ~23M-step timeout,
+        # string-codec Phase A de-risking, 14-string-field-codec-plan.md §2.5). So the
+        # round-trip is a CITED axiom — SMT only ever APPLIES it (O(1)); all the
+        # extensionality reasoning lives in the proof assistants. Cross-validated by
+        # test-suite/corpus/pycsl-reference/0708.proofs/{rocq,lean}/FieldToStrRoundTrip.{v,lean}
+        # (theorem field_to_str_round_trip): `field_to_str` is defined there as the
+        # scan-to-first-null decode over an abstract byte-reader; the round-trip is
+        # proved by string extensionality + the per-char byte round-trip
+        # (`chr (code c) = c`), no admits. Rocq 8.20.1: closed under the global context
+        # (0 Axiom/Admitted, only the abstract Section Variables); Lean 4.30.0:
+        # #print axioms ⊆ {propext, Quot.sound}, no sorry.
+        "UnixFs.Field.field_to_str_round_trip":
+            "forall d : array int. forall off width : int. forall name : string. "
+            "0 <= String.length name -> String.length name <= width -> "
+            "( forall i : int. 0 <= i < String.length name -> "
+            "    Char.code (Char.get name i) <> 0 ) -> "
+            "( forall i : int. 0 <= i < String.length name -> "
+            "    d[off + i] = Char.code (Char.get name i) ) -> "
+            "( String.length name < width -> d[off + String.length name] = 0 ) -> "
+            "field_to_str d off width = name",
+
         # allocator-frame §5 reference fixture — DEFINITIONAL intro/elim for the
         # `field_nonneg` predicate (conservative definition `field_nonneg x <-> x >= 0`;
         # ZERO trust). Used by the corpus test for predicate-in-`#@ class invariant`.
@@ -363,6 +397,13 @@ class PreambleEmissionMixin:
         # binding to a registry predicate (the `_names_of` `predicate`-recognition of
         # commit 755f89e). Its meaning is the definitional intro/elim below.
         "Pycsl.Reference.FieldPred.": ["predicate field_nonneg (x: int)"],
+        # string-codec Phase A': the abstract string ↔ byte-field decode. Logic-only
+        # (`function`, no body) — referenced solely in CONTRACTS (the spec-level name
+        # decode), never applied in a program body, so no `val` is needed. Constrained
+        # by the cross-validated `field_to_str_round_trip` axiom above.
+        "UnixFs.Field.": [
+            "function field_to_str (d: array int) (off: int) (width: int) : string",
+        ],
         # Declare the `\permutation` predicate before its axioms. Same symbol
         # `_handle_permutation_expr` emits via `_add_abstract_op` — the
         # abstract-val dedup skips it here so it is declared exactly once.
@@ -608,7 +649,14 @@ class PreambleEmissionMixin:
         # (a sibling module of the already-used `string.String`, same trusted
         # `string.mlw`). Emitted ONLY when an `ord(...)`/`chr(...)` call is present —
         # absent from the corpus, so existing emission stays byte-identical.
-        needs_char = any(IRScanner.uses_ord_chr(body) for body in all_bodies)
+        # string-codec Phase A': `ord`/`chr` may appear ONLY in a CONTRACT (the codec
+        # round-trip's encoding precondition), and a cited Char-using axiom (the
+        # field codec) references `Char.*` with no body occurrence at all — both must
+        # also pull `use string.Char`.
+        needs_char = any(IRScanner.uses_ord_chr(body) for body in all_bodies) \
+            or any(IRScanner.uses_ord_chr(f.get("contracts", {})) for f in functions) \
+            or any("Char." in self._AXIOM_REGISTRY.get(e.get("qualname", ""), "")
+                   for f in functions for e in f.get("proof", []))
         # no-more-int Stage D: a `float` param/local/return is Why3 `real`; RealInfix
         # provides the disambiguated `+.`/`-.`/`*.`/`/.`/`<.` operators alongside int.Int.
         needs_real = (

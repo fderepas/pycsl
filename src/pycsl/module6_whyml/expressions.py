@@ -1516,7 +1516,29 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if func_name == "ord" and len(args) == 1:
             arg_ir = expr.get("args", [{}])[0] if expr.get("args") else {}
             if self._is_string_expr(arg_ir):
+                # string-codec Phase A': context-dependent lowering. In a CONTRACT
+                # (logic context) `ord` MUST lower to the pure `string.Char` logic
+                # form — `val ord_op` is a PROGRAM symbol and cannot appear in a
+                # `requires`/`ensures`/axiom. In a body keep `ord_op` (a body cannot
+                # apply a logic `function`); the two agree by `ord_op`'s ensures.
                 # `args[0]` is the lowered 1-char string (e.g. `(str_sub_op name i 1)`).
+                if self._in_spec:
+                    # string-codec Phase A': `ord(s[i])` — the dominant codec form — must
+                    # lower to `Char.code (Char.get s i)` DIRECTLY, not via the
+                    # `Char.get (String.substring s i 1) 0` detour. The two are equal by
+                    # `substring_get`, but the detour leaves the encoding precondition
+                    # syntactically unequal to `field_to_str_round_trip`'s antecedent, so
+                    # the axiom never instantiates and SMT falls back to extensionality on
+                    # the string-equality goal → OOM (measured). The direct form makes the
+                    # axiom apply in O(1) (~19k steps, Valid).
+                    if (arg_ir.get("type") == "Subscript"
+                            and self._is_string_expr(arg_ir.get("value", {}))):
+                        base = self._expr_to_whyml(
+                            arg_ir["value"], local_refs or set(), invariant_ctx, subst)
+                        idx = self._expr_to_whyml(
+                            arg_ir["index"], local_refs or set(), invariant_ctx, subst)
+                        return f"(Char.code (Char.get {base} {idx}))"
+                    return f"(Char.code (Char.get {args[0]} 0))"
                 self._add_abstract_op(
                     "val ord_op (c: string) : int\n"
                     "    ensures { 0 <= result < 256 }\n"
@@ -1524,6 +1546,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return f"(ord_op {args[0]})"
             # non-string `ord(x)`: fall through (return None) — keep current behaviour.
         if func_name == "chr" and len(args) == 1:
+            # string-codec Phase A': same context split as `ord` (logic form in a
+            # contract, program `chr_op` in a body).
+            if self._in_spec:
+                return f"((Char.chr {args[0]}).contents)"
             self._add_abstract_op(
                 "val chr_op (n: int) : string\n"
                 "    ensures { String.length result = 1 }\n"

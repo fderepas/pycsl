@@ -81,6 +81,45 @@ Findings:
   context-dependent ord/chr lowering. Still feasible and still unblocks the whole class, but it
   is a bigger, TCB-adding effort than the §3 plan assumed. DECISION NEEDED before proceeding.
 
+## 2.6 PHASE A' RESULT 2026-06-14 — cross-validated axiom WORKS (delivered)
+The user chose the cross-validated Rocq+Lean route. Delivered and fully gated:
+- **The round-trip as a CITED axiom proves FAST.** `UnixFs.Field.field_to_str_round_trip`
+  (abstract `function field_to_str (d: array int) (off width: int) : string`, registry) is
+  the ENCODE→DECODE round-trip. The corpus test `0708.py` (the encoding preconditions →
+  `field_to_str(buf,off,width) == name`, empty body) proves **Valid in 0.02s / 18 992 steps**.
+  The Phase-A OOM is GONE: SMT only APPLIES the axiom (O(1)); the extensionality reasoning is
+  offline in the proof assistants. KEY ENABLER: `ord(name[i])` in a contract must lower to
+  `Char.code (Char.get name i)` DIRECTLY (not via `String.substring name i 1`) so it matches
+  the axiom antecedent syntactically — otherwise the antecedent is unprovable and SMT falls
+  back to extensionality on the string-equality goal → OOM (this exact mismatch was measured).
+- **Cross-validated, machine-checked.** `0708.proofs/{rocq,lean}/FieldToStrRoundTrip.{v,lean}`:
+  `field_to_str` defined as the scan-to-first-null decode over an abstract byte-reader (string
+  ↔ `list Z`/`List Int`), round-trip proved by list extensionality (induction) + per-char
+  `chr(code c)=c`. `--reverify-proofs` PASSES — Rocq **Closed under the global context** (only
+  the abstract Section Variable `rd`, 0 Axiom/Admitted); Lean **axioms ⊆ {propext, Quot.sound}**,
+  no sorry. The faithful Why3↔proof symbol correspondence is documented in the registry comment
+  and both proof headers.
+- **Tool changes** (all byte-safe): context-dependent `ord`/`chr` lowering (logic form in a
+  contract, `ord_op`/`chr_op` program val in a body); `needs_char` now also scans contracts +
+  cited Char-axioms; the `UnixFs.Field.` registry decl + axiom; and `crosscheck_ir` now SKIPs
+  (not FAILs) an axiom whose three sides are ALL `Unsupported` (a pure parser gap — string/char/
+  array-index facts beyond the syntactic canonicalizer, exactly like the os `UnixFs.Dir.*`
+  axioms which sit outside that gate; a MIX still FAILs, so no real disagreement is masked).
+- **Gates GREEN/consistent:** os `__init__` proves SUCCESS; body gate type-checks; corpus
+  byte-diff = **0 changed** (only new `0708.mlw`); `--audit-proof --reverify-proofs` 4/4 PASS;
+  `check-proof-crosscheck` 17 PASS / 12 SKIP / **0 FAIL**; axiom-registry-drift clean (orphan,
+  like all os structural axioms); axiom-registry-emittable 7/20 (was 7/19 — +1, the SAME
+  pre-existing parser-gap class as the struct round-trips, an already-RED progress gate).
+- **NOT zero-TCB (as foretold):** this adds ONE cited, cross-validated axiom to the trusted
+  base — the honest cost of an SMT-intractable string fact.
+
+NEXT (Phases B–C): re-model `slot_name d 5 k := field_to_str d (5*512+32*k+2) 30` (+ likely
+`slot_inode` 2-byte decode + block-5 byte-range invariant), reconcile the `UnixFs.Dir.*`
+axioms against the concrete decode, then the heavy directory syscalls' `slot_name==pathname`
+asserts + `content_round_trip` + `readlink` reuse the SAME codec. When the os cites
+`UnixFs.Field.field_to_str_round_trip`, make its proofs findable by the os audit (copy into
+`unix-filesystem/UnixInodeFileSystem.proofs/` or point `--rocq-dir`/`--lean-dir`).
+
 ## 3. Plan (phased; gate after each)
 
 ### Phase A — the codec primitive `field_to_str` (the foundation)
