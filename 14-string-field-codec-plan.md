@@ -120,6 +120,43 @@ asserts + `content_round_trip` + `readlink` reuse the SAME codec. When the os ci
 `UnixFs.Field.field_to_str_round_trip`, make its proofs findable by the os audit (copy into
 `unix-filesystem/UnixInodeFileSystem.proofs/` or point `--rocq-dir`/`--lean-dir`).
 
+## 2.7 PHASE B/C 2026-06-14 — REDIRECTED by measurement; ENCODE side delivered
+**Finding that redirected Phase B.** Body-gate measurement (`--fun unixinodefilesystem__sys_unlink`)
+showed the heavy-syscall (unlink/rmdir/rename) failures are **E-matching EXPLOSIONS with the
+facts already present**, NOT missing codec facts: e.g. `assert slot_inode(disk,5,slot)==0` —
+VERBATIM `_zero_entry`'s own postcondition — times out at 10.6M steps; the absence/uniqueness
+assert OOMs. The forward round-trip codec does NOT address these (they are uniqueness/absence,
+not encode→decode). And concretizing `slot_name = field_to_str` would add MORE terms (worse
+E-matching) and risk the green `__init__` gate. So the plan's "concretize slot_name" lever is
+WRONG for the heavy syscalls — those need E-matching control, a separate problem. DECISION
+(user): redirect the codec to where it genuinely fits — **content_round_trip + readlink**
+(forward-decode facts the round-trip axiom discharges).
+
+**Delivered (gated; the ENCODE side, de-opaquing gap-5 at the encoder):**
+- `char_code_at` body lowering: `ord(s[i])` in a BODY now lowers to `char_code_at s i`
+  (ensures `result = Char.code (Char.get s i)`), NOT `ord_op (str_sub_op s i 1)`. The latter's
+  `String.substring` detour made an encode loop's invariant `out[j] == Char.code (Char.get name j)`
+  only reachable via a `substring_get` bridge that E-match-explodes (measured OOM). The direct
+  form matches the invariant atom-for-atom (the body twin of the Phase A' spec rule). Byte-diff:
+  ONLY `0702.mlw` changes (the lone body `ord(s[i])`), still proves — a strict simplification.
+- `_pad_name` strengthened: now proves `\result[i] == ord(name[i])` (i<min(len,30)) + null-pad
+  tail, exposing the encode side (was opaque gap-5, only `\length==30`). `_pad_name` body gate
+  PROVES; os `__init__` stays GREEN (it feeds `_write_entry`, but `slot_name` rides on
+  `_write_entry`'s ensures, not `_pad_name`'s bytes, so no Dir-model perturbation).
+- `0708.py` gains `encode_field`: the END-TO-END round-trip — an encode loop builds a 30-byte
+  `'>30s'` field, then `field_to_str(\result,0,30) == name` (the cited codec axiom closes the
+  decode). Proves Valid. This is the symlink-target / content_round_trip shape, standalone.
+
+**Latent bug found (NOT fixed; avoided):** `len(array_local)` in a loop INVARIANT emits
+`Array.length !out` for a plain-array local (`out = [0]*N` binds `Array.make`, no ref) →
+typecheck failure. Subscript `out[j]` in an invariant is FINE. Avoided by not putting
+`\length(out)` in invariants (the `Array.make` length is statically known). Worth a separate fix.
+
+**REMAINING (harder, gap-15 effect contracts):** the in-os symlink→readlink CROSS-CALL round-trip
+(symlink writes the target field; readlink, a separate call, decodes `== target`) needs
+`_pack_direntry` byte-preservation ensures + an inode→block→field framing + readlink returning the
+target. That is the intricate effect-contract arc, not low-risk — deferred.
+
 ## 3. Plan (phased; gate after each)
 
 ### Phase A — the codec primitive `field_to_str` (the foundation)

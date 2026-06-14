@@ -321,6 +321,8 @@ def _decode_byte(b: int) -> str:
 
 #@ assigns \nothing
 #@ ensures \length(\result) == 30
+#@ ensures \forall i: int; (0 <= i and i < len(name) and i < 30) ==> \result[i] == ord(name[i])
+#@ ensures \forall i: int; (len(name) <= i and i < 30) ==> \result[i] == 0
 def _pad_name(name: str) -> list:
     r"""Encode a filename into the on-disk 30-byte dirent name field.
 
@@ -348,6 +350,9 @@ def _pad_name(name: str) -> list:
         m = 30
     #@ loop invariant 0 <= i and i <= m
     #@ loop invariant m <= 30
+    #@ loop invariant m <= len(name)
+    #@ loop invariant \forall j: int; (0 <= j and j < i) ==> out[j] == ord(name[j])
+    #@ loop invariant \forall j: int; (i <= j and j < 30) ==> out[j] == 0
     #@ loop variant m - i
     for i in range(m):
         out[i] = ord(name[i])

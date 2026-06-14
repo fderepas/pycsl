@@ -1539,6 +1539,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             arg_ir["index"], local_refs or set(), invariant_ctx, subst)
                         return f"(Char.code (Char.get {base} {idx}))"
                     return f"(Char.code (Char.get {args[0]} 0))"
+                # BODY: `ord(s[i])` lowers to a dedicated `char_code_at s i` val whose
+                # ensures is the SAME logic form a contract uses (`Char.code (Char.get
+                # s i)`), NOT `ord_op (str_sub_op s i 1)`. The latter routes through
+                # `String.substring`, so an encode loop's invariant `out[j] == Char.code
+                # (Char.get name j)` only matches the assigned value via a `substring_get`
+                # bridge that E-match-explodes (OOM, measured). The direct form matches
+                # the invariant atom-for-atom — the body twin of the Phase A' spec rule.
+                if (arg_ir.get("type") == "Subscript"
+                        and self._is_string_expr(arg_ir.get("value", {}))):
+                    base = self._expr_to_whyml(
+                        arg_ir["value"], local_refs or set(), invariant_ctx, subst)
+                    idx = self._expr_to_whyml(
+                        arg_ir["index"], local_refs or set(), invariant_ctx, subst)
+                    self._add_abstract_op(
+                        "val char_code_at (s: string) (i: int) : int\n"
+                        "    ensures { 0 <= result < 256 }\n"
+                        "    ensures { result = Char.code (Char.get s i) }")
+                    return f"(char_code_at {base} {idx})"
                 self._add_abstract_op(
                     "val ord_op (c: string) : int\n"
                     "    ensures { 0 <= result < 256 }\n"

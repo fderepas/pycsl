@@ -33,3 +33,31 @@ from typing import List
 #@ proof lean UnixFs.Field.field_to_str_round_trip
 def decode_field(buf: List[int], off: int, width: int, name: str) -> None:
     pass
+
+
+# The END-TO-END round-trip: ENCODE a name into a fresh 30-byte '>30s' field (the
+# symlink-target / dirent-name shape, the same loop as the os `_pad_name`), then DECODE
+# it back with `field_to_str` == name. The encode loop establishes the codec axiom's
+# byte preconditions in-body (out[i] == ord(name[i]); null-padded tail), and the cited
+# round-trip axiom closes the decode. `ord(name[i])` lowers to `char_code_at name i` in
+# the body and `Char.code (Char.get name i)` in the loop invariant / contract — the
+# string-codec Phase A' direct char lowering that makes the two match atom-for-atom (no
+# `String.substring` detour, which would E-match-explode). This is the foundation for the
+# os symlink-target → readlink round-trip and the file content_round_trip.
+#@ requires len(name) <= 30
+#@ requires \forall i: int; (0 <= i and i < len(name)) ==> ord(name[i]) != 0
+#@ ensures field_to_str(\result, 0, 30) == name
+#@ proof rocq UnixFs.Field.field_to_str_round_trip
+#@ proof lean UnixFs.Field.field_to_str_round_trip
+def encode_field(name: str) -> list:
+    out = [0] * 30
+    m = len(name)
+    #@ loop invariant 0 <= i and i <= m
+    #@ loop invariant m <= 30
+    #@ loop invariant m <= len(name)
+    #@ loop invariant \forall j: int; (0 <= j and j < i) ==> out[j] == ord(name[j])
+    #@ loop invariant \forall j: int; (i <= j and j < 30) ==> out[j] == 0
+    #@ loop variant m - i
+    for i in range(m):
+        out[i] = ord(name[i])
+    return out
