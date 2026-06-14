@@ -304,6 +304,24 @@ class PreambleEmissionMixin:
         "UnixFs.Dir.ibv_elim":
             "forall d : array int [inode_bytes_valid d]. inode_bytes_valid d -> "
             "( forall i : int. 512 <= i < 2560 -> 0 <= d[i] <= 255 )",
+        # M4 (os-roadmap): DEFINITIONAL intro/elim for the `slots_lt32` disk invariant —
+        # every block-5 dirent slot decodes to an inode number < 32 (the FS has 32 inodes;
+        # dirents only ever reference `_alloc_inode` results in [1,32) or the dead 0). This is
+        # the bound `uniq`'s antecedent needs to apply to ALL live slots, so the directory
+        # ABSENCE assert (`\forall k≠s. slot_name(k)==p -> slot_inode(k)==0`) closes. NOT
+        # byte-derivable (a 2-byte field can hold up to 65535) → a genuine maintained invariant,
+        # same definitional (ZERO-trust) intro/elim shape as `uniq` / `inode_bytes_valid`.
+        # Maintained on non-block-5 writes by `block5_decode_frame` (slot decode unchanged) and
+        # on the dir mutators by their write-post (`_write_entry` sets `inode<32` from
+        # `_alloc_inode`; `_zero_entry` sets 0). Established on the zeroed disk via
+        # `empty_disk_slots_dead`.
+        "UnixFs.Dir.slots_lt32_intro":
+            "forall d : array int [slots_lt32 d]. "
+            "( forall k : int. 0 <= k < 16 -> slot_inode d 5 k < 32 ) -> "
+            "slots_lt32 d",
+        "UnixFs.Dir.slots_lt32_elim":
+            "forall d : array int [slots_lt32 d]. slots_lt32 d -> "
+            "( forall k : int. 0 <= k < 16 -> slot_inode d 5 k < 32 )",
         # UnixFs.Field.field_to_str_round_trip (string-codec Phase A') — the
         # string ↔ fixed-width null-padded byte-field codec ROUND-TRIP. `field_to_str
         # d off width` is the decoded name in the `width`-byte field at `off`: the
@@ -367,6 +385,9 @@ class PreambleEmissionMixin:
         "UnixFs.Dir.uniq_elim",
         "UnixFs.Dir.ibv_intro",
         "UnixFs.Dir.ibv_elim",
+        # M4: the slots_lt32 disk invariant (precedes the record, like uniq).
+        "UnixFs.Dir.slots_lt32_intro",
+        "UnixFs.Dir.slots_lt32_elim",
         # allocator-frame §5 reference fixture (predicate-in-class-invariant corpus test).
         "Pycsl.Reference.FieldPred.field_nonneg_intro",
         "Pycsl.Reference.FieldPred.field_nonneg_elim",
@@ -381,6 +402,8 @@ class PreambleEmissionMixin:
         "UnixFs.Dir.uniq_elim",
         "UnixFs.Dir.ibv_intro",
         "UnixFs.Dir.ibv_elim",
+        "UnixFs.Dir.slots_lt32_intro",
+        "UnixFs.Dir.slots_lt32_elim",
         "Pycsl.Reference.FieldPred.field_nonneg_intro",
         "Pycsl.Reference.FieldPred.field_nonneg_elim",
     })
@@ -486,6 +509,8 @@ class PreambleEmissionMixin:
             # construction, no proof-assistant validation needed).
             "predicate uniq (d: array int)",
             "predicate inode_bytes_valid (d: array int)",
+            # M4: every block-5 dirent slot decodes to an inode < 32 (see slots_lt32_intro/elim).
+            "predicate slots_lt32 (d: array int)",
         ],
     }
 

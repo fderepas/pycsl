@@ -475,6 +475,7 @@ def _unpack_direntry(data: list) -> tuple:
 #    annotation. The chmod balloon (gap-13: 30s/232M-step timeout over the
 #    abstract block-5 decode) collapses to a one-line rewrite.
 #@ class invariant uniq(self.disk)
+#@ class invariant slots_lt32(self.disk)
 class UnixInodeFileSystem:
     BLOCK_SIZE = 512
     NUM_BLOCKS = 256  # 128 KB Virtual Disk Block Device
@@ -1053,6 +1054,11 @@ class UnixInodeFileSystem:
     #             `dirscan-fidelity` clause (spec risk 6.2); the cross-check cannot
     #             machine-verify the abstract decode ↔ on-disk byte correspondence.
     #@ \trusted reviewer: dirscan-fidelity
+    # os-roadmap M4: opt in to QUANTIFIED-frame propagation. _zero_entry is called ONLY by
+    # sys_unlink/sys_rmdir/sys_rename (the directory removers), which need its slot frame to
+    # discharge the absence assert; it is NEVER called by the term-rich link/symlink (which
+    # would E-match-explode under it), so exposing the frame on its boundary stub is safe.
+    #@ propagate_frame
     def _zero_entry(self, block_num: int, slot: int) -> None:
         entry_offset = block_num * 512 + slot * 32
         self.disk[entry_offset:entry_offset + 32] = b'\x00' * 32

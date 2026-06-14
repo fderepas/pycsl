@@ -760,12 +760,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _foe = getattr(self, "_module_method_field_old_ensures", {}).get(lookup_key, [])
             _fpe = getattr(self, "_module_method_field_param_result_ensures", {}).get(lookup_key, [])
             _fppe = getattr(self, "_module_method_field_param_post_ensures", {}).get(lookup_key, [])
+            _fpfe = getattr(self, "_module_method_field_param_frame_ensures", {}).get(lookup_key, [])
             _w = getattr(self, "_module_method_writes", {}).get(lookup_key, [])
             field_ens = _fe + _foe + _fpe + _fppe
-            if (field_ens or _w) and cls:
+            if (field_ens or _w or _fpfe) and cls:
                 # `self.<m>()` called from a sibling method: the enclosing
-                # method's own `self` is the receiver, typed as the class.
-                field_spec = ("self", cls, field_ens, _w)
+                # method's own `self` is the receiver, typed as the class. The 5th slot
+                # carries the OPT-IN quantified frame ensures (M4), lowered separately with
+                # the Call-trigger so only they get a trigger (non-frame ensures stay bare).
+                field_spec = ("self", cls, field_ens, _w, _fpfe)
         else:
             # `<recordvar>.method(...)` — resolve the receiver's class so the
             # callee's result-only `ensures` propagates to this call site,
@@ -797,14 +800,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     foens = getattr(self, "_module_method_field_old_ensures", {})
                     fpens = getattr(self, "_module_method_field_param_result_ensures", {})
                     fppens = getattr(self, "_module_method_field_param_post_ensures", {})
+                    fpfens = getattr(self, "_module_method_field_param_frame_ensures", {})
                     mwrites = getattr(self, "_module_method_writes", {})
                     field_ens = (fens.get(lookup_key, []) + foens.get(lookup_key, [])
                                  + fpens.get(lookup_key, []) + fppens.get(lookup_key, []))
                     writes = mwrites.get(lookup_key, [])
-                    if field_ens or writes:
+                    frame_ens = fpfens.get(lookup_key, [])
+                    if field_ens or writes or frame_ens:
                         # `b.<m>()`: the receiver record `b` becomes the abstract op's leading
                         # `(self: cls)` parameter; `writes` frames the mutated self-fields.
-                        field_spec = (parts[0], cls, field_ens, writes)
+                        field_spec = (parts[0], cls, field_ens, writes, frame_ens)
                     matched_instance = True
             if not matched_instance:
                 # Bytes-producing methods return `array int` (a byte buffer),
@@ -967,6 +972,45 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 coerced.append(arg)
         return coerced
 
+    @staticmethod
+    def _strip_outer_parens(s: str) -> str:
+        """Strip ONE matching outer paren pair if it wraps the whole string (else unchanged) —
+        bares a lowered trigger term (`(slot_inode self.disk x0 k)` → `slot_inode self.disk x0 k`);
+        a trigger pattern must be bare (Why3 mis-parses `[(t)]` → auto-trigger fallback)."""
+        s = s.strip()
+        if not (s.startswith("(") and s.endswith(")")):
+            return s
+        depth = 0
+        for i, ch in enumerate(s):
+            if ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+                if depth == 0:
+                    return s[1:-1].strip() if i == len(s) - 1 else s
+        return s
+
+    def _frame_trigger_term(self, node: Any) -> Optional[Dict[str, Any]]:
+        """For a frame conjunct `X == \\old(...)` (or `\\old(...) == X`) anywhere in `node`,
+        return X's IR — the POST-state term to pin as the forall's E-matching trigger (first
+        match, depth-first), else None."""
+        if not isinstance(node, dict):
+            return None
+        if node.get("type") == "BinOp" and node.get("op") == "==":
+            l, r = node.get("left"), node.get("right")
+            l_old = isinstance(l, dict) and l.get("type") in ("Old", "OldField")
+            r_old = isinstance(r, dict) and r.get("type") in ("Old", "OldField")
+            if r_old and not l_old:
+                return l
+            if l_old and not r_old:
+                return r
+        for v in node.values():
+            for c in (v if isinstance(v, list) else [v]):
+                res = self._frame_trigger_term(c)
+                if res is not None:
+                    return res
+        return None
+
     def _dotted_ensures_suffix(self, result_ensures: List[Dict[str, Any]], n: int,
                                param_types: List[str],
                                field_spec: Optional[Any] = None) -> str:
@@ -980,7 +1024,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         receiver class so the leading `(self: <class>)` op parameter binds `self.x` (and
         ambiguous field labels qualify correctly). (Extracted from `_handle_dotted_call`.)"""
         field_ensures = field_spec[2] if field_spec is not None else []
-        if not result_ensures and not field_ensures:
+        frame_ensures = (field_spec[4] if field_spec is not None and len(field_spec) > 4
+                         else [])
+        if not result_ensures and not field_ensures and not frame_ensures:
             return ""
         _prev_spec = self._in_spec
         _prev_params = self._current_params
@@ -996,12 +1042,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         for e in result_ensures:
             w = self._expr_to_whyml(e, set(), invariant_ctx=True)
             ensures_suffix += f"\n    ensures {{ {w} }}"
-        if field_ensures:
+        if field_ensures or frame_ensures:
             _prev_self = self._current_self_type
             self._current_self_type = field_spec[1]   # receiver class
             for e in field_ensures:
                 w = self._expr_to_whyml(e, set())
                 ensures_suffix += f"\n    ensures {{ {w} }}"
+            # M4: the OPT-IN quantified frame ensures — lowered with `_frame_trigger_active`
+            # so the Forall handler pins a specific Call-trigger (`[slot_inode self.disk x0 k]`);
+            # only these clauses get a trigger, so the others stay byte-identical.
+            if frame_ensures:
+                _prev_ft = self._frame_trigger_active
+                self._frame_trigger_active = True
+                for e in frame_ensures:
+                    w = self._expr_to_whyml(e, set())
+                    ensures_suffix += f"\n    ensures {{ {w} }}"
+                self._frame_trigger_active = _prev_ft
             self._current_self_type = _prev_self
         self._current_params = _prev_params
         self._in_spec = _prev_spec
@@ -2681,8 +2737,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             bty = self._quant_binder_whyml(expr.get("binder_type"))
             saved = self._push_quant_binder(expr.get("var"), expr.get("binder_type"))
             body = self._expr_to_whyml(expr['body'], local_refs, invariant_ctx, subst)
+            # M4: when lowering an opt-in `#@ propagate_frame` quantified frame
+            # (`_frame_trigger_active`), pin a SPECIFIC trigger on the post-state term X of
+            # `X == \old(X)` — but ONLY when X is a function APPLICATION (a decode like
+            # `slot_inode self.disk x0 k`), whose trigger fires on `slot_inode` terms alone,
+            # not on raw `self.disk[i]` bounds reads. Bare the term (Why3 mis-parses `[(t)]`).
+            trig = ""
+            if getattr(self, "_frame_trigger_active", False):
+                tt = self._frame_trigger_term(expr['body'])
+                if isinstance(tt, dict) and tt.get("type") == "Call":
+                    _tl = self._expr_to_whyml(tt, local_refs, invariant_ctx, subst)
+                    trig = f" [{self._strip_outer_parens(_tl)}]"
             self._pop_quant_binder(expr.get("var"), saved)
-            return f"(forall {expr['var']} : {bty}. {body})"
+            return f"(forall {expr['var']} : {bty}{trig}. {body})"
         if t == "Exists":
             bty = self._quant_binder_whyml(expr.get("binder_type"))
             saved = self._push_quant_binder(expr.get("var"), expr.get("binder_type"))
