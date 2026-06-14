@@ -1108,6 +1108,96 @@ class FunctionEmissionMixin:
                 out[func["name"]] = kept
         return out
 
+    def _build_method_field_param_post_ensures_map(
+            self, functions: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+        """Map method name → its NON-QUANTIFIED `ensures` clauses that reference a self-field
+        AND a param but NO `\\result`, `\\old`, quantifier, local, or non-self object — each
+        formal param renamed to `x_i`. These are the void-mutator WRITE POSTCONDITIONS
+        (`slot_inode(self.disk, b, s) == inode`, `slot_name(self.disk, b, s) == name`,
+        `slot_inode(self.disk, b, s) == 0`) that every existing map drops: `field_old` rejects
+        params, `field_param_result` requires `\\result`. So a `#@ no_inline` mutator's boundary
+        stub carried only `writes`, and a caller (mkdir/link/symlink: presence witness;
+        unlink/rmdir: the just-zeroed slot) could prove nothing about what the call WROTE.
+
+        Restricted to NON-QUANTIFIED clauses ON PURPOSE (plan §2.9): a non-quantified equality
+        carries no trigger, so it CANNOT E-match-poison sibling goals (the failure mode that
+        sank the quantified-frame attempt). The quantified FRAME (`\\forall k. … == \\old`) is a
+        separate, opt-in concern handled elsewhere. Reuses the param-rename of the field+param
+        +result map; rejects `\\old` and any quantifier so only the safe write-posts survive."""
+        def classify(node: Any, params: Set[str]) -> Optional[bool]:
+            if not isinstance(node, dict):
+                return None
+            t = node.get("type")
+            if t in ("Result", "OldVar", "OldField", "Old",
+                     "Forall", "Exists", "ForallItems"):
+                return False
+            if t in ("FieldGet", "Attribute"):
+                return False if node.get("object") != "self" else None
+            if t == "Subscript":
+                _v = node.get("value", {})
+                if isinstance(_v, dict) and _v.get("type") == "Var":
+                    return False
+            if t == "Var":
+                return None if node.get("name") in params else False
+            if t == "ArrayLen":
+                v = node.get("var")
+                if isinstance(v, dict):
+                    return None if v.get("object") == "self" else False
+                return None if (v == "self" or v in params) else False
+            for k, val in node.items():
+                if k == "type":
+                    continue
+                for c in (val if isinstance(val, list) else [val]):
+                    if classify(c, params) is False:
+                        return False
+            return None
+
+        def saw_field(node: Any) -> bool:
+            if not isinstance(node, dict):
+                return False
+            if node.get("type") in ("FieldGet", "Attribute") and node.get("object") == "self":
+                return True
+            return any(saw_field(c) for val in node.values()
+                       for c in (val if isinstance(val, list) else [val]))
+
+        def refs_param(node: Any, params: Set[str]) -> bool:
+            if not isinstance(node, dict):
+                return False
+            if node.get("type") == "Var" and node.get("name") in params:
+                return True
+            return any(refs_param(c, params) for val in node.values()
+                       for c in (val if isinstance(val, list) else [val]))
+
+        def rename(node: Any, pmap: Dict[str, str]) -> Any:
+            if not isinstance(node, dict):
+                return node
+            if node.get("type") == "Var" and node.get("name") in pmap:
+                return {"type": "Var", "name": pmap[node["name"]]}
+            new: Dict[str, Any] = {}
+            for k, v in node.items():
+                if isinstance(v, list):
+                    new[k] = [rename(c, pmap) if isinstance(c, dict) else c for c in v]
+                elif isinstance(v, dict):
+                    new[k] = rename(v, pmap)
+                else:
+                    new[k] = v
+            return new
+
+        out: Dict[str, List[Dict[str, Any]]] = {}
+        for func in functions:
+            params = func.get("formal_params", []) or []
+            if not params:
+                continue
+            pset = set(params)
+            pmap = {p: f"x{i}" for i, p in enumerate(params)}
+            kept = [rename(e, pmap)
+                    for e in (func.get("contracts", {}).get("ensures", []) or [])
+                    if classify(e, pset) is not False
+                    and saw_field(e) and refs_param(e, pset)]
+            if kept:
+                out[func["name"]] = kept
+        return out
+
     @staticmethod
     def _symtype_to_whyml(symtype: Optional[str]) -> str:
         """Convert a Module5 symbol-table type tag to the WhyML type used

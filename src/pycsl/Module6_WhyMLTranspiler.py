@@ -123,6 +123,10 @@ class Module6_WhyMLTranspiler(
         # gap7-spec-rev2: void/mutating record-method support
         self._module_method_writes: Dict[str, List[str]] = {}
         self._module_method_field_old_ensures: Dict[str, List[Dict[str, Any]]] = {}
+        # void-mutator NON-QUANTIFIED write postconditions: self-field + params (no \result,
+        # no \old, no quantifier) — the _zero_entry/_write_entry write-posts the six maps drop.
+        # Safe to expose (no quantifier → no trigger → no E-matching poison).
+        self._module_method_field_param_post_ensures: Dict[str, List[Dict[str, Any]]] = {}
         self._auto_trusted_array_returns: List[str] = []
         self._auto_trusted_tuple_returns: List[str] = []
         self._auto_trusted_map_returns: List[str] = []
@@ -549,6 +553,8 @@ class Module6_WhyMLTranspiler(
         # against (O2 — cannot drift). A method may appear in BOTH field_result and field_old maps.
         self._module_method_writes = self._build_method_writes_map(funcs_for_maps)
         self._module_method_field_old_ensures = self._build_method_field_old_ensures_map(funcs_for_maps)
+        self._module_method_field_param_post_ensures = \
+            self._build_method_field_param_post_ensures_map(funcs_for_maps)
         # The pseudo-funcs have empty bodies, so the return-type map derives `unit`
         # for a scalar dependency; override with the type from the declared signature
         # so `self.<dep>(…)` is a `: int` (etc.) call, not `: unit`.

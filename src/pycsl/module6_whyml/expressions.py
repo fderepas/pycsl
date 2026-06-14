@@ -759,8 +759,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _fe = getattr(self, "_module_method_field_result_ensures", {}).get(lookup_key, [])
             _foe = getattr(self, "_module_method_field_old_ensures", {}).get(lookup_key, [])
             _fpe = getattr(self, "_module_method_field_param_result_ensures", {}).get(lookup_key, [])
+            _fppe = getattr(self, "_module_method_field_param_post_ensures", {}).get(lookup_key, [])
             _w = getattr(self, "_module_method_writes", {}).get(lookup_key, [])
-            field_ens = _fe + _foe + _fpe
+            field_ens = _fe + _foe + _fpe + _fppe
             if (field_ens or _w) and cls:
                 # `self.<m>()` called from a sibling method: the enclosing
                 # method's own `self` is the receiver, typed as the class.
@@ -795,9 +796,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     # `c.inc()` mutates `c` instead of lowering to an opaque no-op.
                     foens = getattr(self, "_module_method_field_old_ensures", {})
                     fpens = getattr(self, "_module_method_field_param_result_ensures", {})
+                    fppens = getattr(self, "_module_method_field_param_post_ensures", {})
                     mwrites = getattr(self, "_module_method_writes", {})
                     field_ens = (fens.get(lookup_key, []) + foens.get(lookup_key, [])
-                                 + fpens.get(lookup_key, []))
+                                 + fpens.get(lookup_key, []) + fppens.get(lookup_key, []))
                     writes = mwrites.get(lookup_key, [])
                     if field_ens or writes:
                         # `b.<m>()`: the receiver record `b` becomes the abstract op's leading
