@@ -157,6 +157,35 @@ typecheck failure. Subscript `out[j]` in an invariant is FINE. Avoided by not pu
 `_pack_direntry` byte-preservation ensures + an inode→block→field framing + readlink returning the
 target. That is the intricate effect-contract arc, not low-risk — deferred.
 
+## 2.8 HEAVY-SYSCALL E-MATCHING INVESTIGATION 2026-06-14 — §2.7's "E-matching" claim CORRECTED (reverted)
+§2.7 said the heavy-syscall failures are "E-matching explosions with the facts already present."
+That was WRONG (it rested on a `--fun`-scoped read that hid the cause). The true, deeper finding:
+- **The fact was NOT present.** The `#@ no_inline` boundary stub `self__zero_entry_<n>` that the
+  syscall body actually CALLS carried ONLY `writes { self.disk }` — `_zero_entry`'s ensures
+  (`slot_inode(self.disk,b,s)==0` + the `\forall k. … == \old(…)` frame) were ALL dropped. Root
+  cause: the six method-call ensures maps (`functions.py`) each reject the clause kind — `field_old`
+  rejects params, `field_param_result` requires `\result`, and EVERY `classify` rejects a
+  quantifier-bound `k` as a bare non-param Var. So a void mutator's quantified self-field frame
+  propagates NOWHERE. `assert slot_inode(disk,5,slot)==0` then has no hypothesis → the prover
+  thrashes (the "10.6M-step timeout" was searching an UNPROVABLE goal, not E-matching noise).
+- **A fix was built + validated then REVERTED.** A new `_build_method_field_param_old_ensures_map`
+  (self-field + params + `\old` + bound-var threading, params→x_i) restores the frame on the stub;
+  it took `sys_unlink` from 3 unproven → 1, with os `__init__` GREEN and corpus byte-diff = 0.
+- **WHY reverted — the frame ensures POISON surrounding goals.** Once restored, the frame
+  `\forall k. f(self.disk,5,k) == \old(…)` needs a trigger to be usable, but ANY trigger broad
+  enough (`[slot_inode disk 5 k]` / `[self.a[k]]`) fires on EVERY array/decode access in the
+  caller — INCLUDING unrelated `Index in array bounds` VCs — and explodes THEM (18M steps; Alt-Ergo
+  Unknown, Z3 timeout). Standalone repro (corpus-shaped `Buf.poke`/`bump_one`): the asserts were
+  fine but the array-bounds checks for `self.a[i] <- 7` / `self.a[j]` blew up. (Aside: a lowered
+  trigger must be BARE — `[(t)]` with parens is silently mis-parsed → auto-trigger fallback.)
+- **CONCLUSION.** Closing the heavy syscalls is a genuine MULTI-PART research problem, not a quick
+  E-matching-trigger fix: (1) propagate the callee's quantified frame across the no_inline boundary
+  WITHOUT a broad trigger that poisons surrounding goals — likely a targeted per-call-site frame
+  lemma or a frame representation immune to the bounds-check interaction, NOT blanket frame ensures;
+  (2) the absence/uniqueness assert additionally needs `uniq_elim` + a `slot_inode < 32` bound + a
+  hint. Reverted to `b7fc06e`; the `field_param_old` map + `_frame_trigger_term` machinery are
+  documented here for whoever resumes.
+
 ## 3. Plan (phased; gate after each)
 
 ### Phase A — the codec primitive `field_to_str` (the foundation)
