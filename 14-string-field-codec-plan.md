@@ -53,6 +53,34 @@ length round-trip (needs `name` ≤ width + no-embedded-null preconditions, fait
 extensionality + substring reasoning may force reliance on **Z3** and may be slow. So gate
 performance early.
 
+## 2.5 PHASE-A DE-RISKING RESULT 2026-06-14 — SMT round-trip is NOT dischargeable (reverted)
+Ran the spike: added `function field_to_str` + the definitional `field_to_str_spec` to the
+registry, wrote corpus `0707` as a `#@ lemma` (a name written `'>Ns'`-style into a buffer reads
+back `== name`), and tried to prove it from `field_to_str_spec` + `string.Char` + `extensionality`.
+Findings:
+- **Two prerequisite gaps surfaced first:** (i) the `field_to_str_spec` axiom needs `use
+  string.Char`, but `needs_char` only scans BODIES, not contracts (the lemma's `ord` is in a
+  `requires`) — fixable; (ii) `ord`/`chr` lower to a program `val` (`ord_op`), which **cannot be
+  used in a contract** (logic context) — the os only ever used `ord`/`chr` in bodies. A pure
+  logic `function` works in contracts but then **cannot be used in the os program bodies**
+  (`chr_op ... non-ghost context`). So ord/chr need context-dependent lowering (inline
+  `Char.code (Char.get c 0)` in `_in_spec`, `ord_op` in program) — a separate small fix.
+- **THE FATAL FINDING — the round-trip is NOT SMT-dischargeable.** Even after the codec
+  typechecks, proving `field_to_str(buf,0,width) == name` via `extensionality` **times out at
+  ~23 MILLION steps** (Alt-Ergo AND Z3); a `[field_to_str d off width]` trigger on the spec
+  axiom does NOT help (the blowup is the `extensionality`/`eq_string` reasoning itself, not spec
+  instantiation). This is exactly the §4 "biggest risk: SMT string-theory performance" — and it
+  is fatal to the zero-TCB SMT approach. PyCSL's contract language also can't express the needed
+  proof guidance (explicit `eq_string`/per-char extensionality invocation).
+- **REVERTED** the spike (registry + ord/chr-logic + 0707); working tree back to clean `8e64499`.
+- **THE VIABLE PATH (Phase A'):** prove the field round-trip OFFLINE in **Rocq + Lean** and cite
+  it as a cross-validated `axiom` (the project's established pattern for SMT-hard facts —
+  `block5_decode_frame`, the struct codecs). String/char induction is tractable with tactics
+  where SMT thrashes. COST: it adds a CITED (cross-validated) axiom to the TCB — not the
+  zero-TCB outcome originally hoped — plus authoring the Rocq + Lean proofs, plus the
+  context-dependent ord/chr lowering. Still feasible and still unblocks the whole class, but it
+  is a bigger, TCB-adding effort than the §3 plan assumed. DECISION NEEDED before proceeding.
+
 ## 3. Plan (phased; gate after each)
 
 ### Phase A — the codec primitive `field_to_str` (the foundation)
