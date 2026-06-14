@@ -205,6 +205,25 @@ call site that needs it (e.g. an `assume`/lemma instantiation emitted right afte
 in unlink/rmdir only), so it never enters link/symlink's context — a deeper change than shared-stub
 ensures. Reverted to `9e781cb`.
 
+## 2.10 LAYER-1 LANDED 2026-06-14 (commit 4cd0d0f) — non-quantified write-posts propagate
+The SAFE half of §2.9, split out and delivered. `_build_method_field_param_post_ensures_map`
+propagates a void mutator's NON-QUANTIFIED self-field+param postconditions
+(`slot_inode(self.disk,b,s)==inode` / `==0`) across the `#@ no_inline` boundary stub — the write
+WITNESS that the six earlier maps all dropped. Non-quantified ⇒ no trigger ⇒ CANNOT poison (the
+failure mode that sank the quantified-frame attempt). Body-gate (--fun, baseline→fix):
+**sys_unlink 3→1, sys_rmdir 2→1**, sys_rename OOM→4-clean, mkdir/link unchanged, symlink unchanged.
+os `__init__` GREEN; corpus byte-diff = 0; regression test `0710` (fails at baseline, proves with
+the fix). NOTE it beat the quantified-frame attempt even on unlink (3→1 vs 3→2) — the quantified
+frame was hurting even there.
+
+STILL OPEN (Layer 2 — the genuine per-call-site QUANTIFIED frame): the remaining absence/uniqueness
+asserts (`\forall k≠s. slot_name(k)==p -> slot_inode(k)==0`) need the FRAME (`\forall k.
+slot_x(disk,5,k)==\old(...)`) AND `uniq_elim` + a `slot_inode<32` bound. The frame must be emitted
+LOCALLY at the one call site that needs it (a labeled `assume` after `self._zero_entry(…)` in
+unlink/rmdir, using `(… at PreCall)` for the pre-call value), NOT on the shared stub — else it
+poisons rich callers (link/symlink, §2.9). That is a new statement-level directive + labeled-assume
+emission + audit + docs, plus the uniqueness proof — a substantial, separate effort.
+
 ## 3. Plan (phased; gate after each)
 
 ### Phase A — the codec primitive `field_to_str` (the foundation)
