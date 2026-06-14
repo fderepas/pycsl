@@ -186,6 +186,25 @@ That was WRONG (it rested on a `--fun`-scoped read that hid the cause). The true
   hint. Reverted to `b7fc06e`; the `field_param_old` map + `_frame_trigger_term` machinery are
   documented here for whoever resumes.
 
+## 2.9 PER-CALL-SITE FRAME-LEMMA ATTEMPT 2026-06-14 — shared-stub + Call-trigger = MIXED, reverted
+Re-attempted the fix with the §2.8 refinements made principled: (a) `_build_method_field_param_old`
+captures only field+param+no-result clauses (Subscript-on-Var rejected → no `subscript_get`); (b) a
+QUANTIFIED frame is kept ONLY when its term is a function APPLICATION (a decode like `slot_inode`),
+never a raw-array subscript; (c) the trigger is the BARE post-state Call (`[slot_inode self.disk x0
+k]`), specific enough to miss raw `self.disk[i]` bounds reads. Emission was clean: byte-diff = 0
+(corpus), os `__init__` GREEN, and the body-gate `.mlw` diff was 7 lines, PURELY ADDITIVE (frame
+ensures + `_write_entry`'s previously-dropped write postconditions on the shared stubs).
+**RESULT — net MIXED, so reverted:** simple removers improved (`sys_unlink` 3→2, `sys_rmdir` 2→1,
+`sys_mkdir` proven), but the richer adders REGRESSED — `sys_link` went from a CLEAN "1 goal remains"
+(timeout) to a disruptive **OOM**, and `sys_symlink` likewise OOMs. Root cause: the frame ensures
+live on the SHARED stub (`self__write_entry_4`/`self__zero_entry_2`), so they float into EVERY
+caller; in a richer caller (link/symlink: inode read/write + alloc → many more `slot_inode` terms)
+even the specific Call-trigger fires enough to blow up. So this is per-STUB, NOT per-call-site.
+**The genuine per-call-site mechanism** (the real fix) must deliver the frame fact LOCALLY at the one
+call site that needs it (e.g. an `assume`/lemma instantiation emitted right after `self._zero_entry(…)`
+in unlink/rmdir only), so it never enters link/symlink's context — a deeper change than shared-stub
+ensures. Reverted to `9e781cb`.
+
 ## 3. Plan (phased; gate after each)
 
 ### Phase A — the codec primitive `field_to_str` (the foundation)
