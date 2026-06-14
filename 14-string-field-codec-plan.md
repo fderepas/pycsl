@@ -226,7 +226,16 @@ emission + audit + docs, plus the uniqueness proof — a substantial, separate e
 
 ## 3. Plan (phased; gate after each)
 
-### Phase A — the codec primitive `field_to_str` (the foundation)
+> **STATUS RECONCILIATION (2026-06-14).** The phases below are the ORIGINAL design. The
+> §2.6–2.10 investigation superseded part of it: Phase A landed as the cross-validated axiom A′
+> (not the zero-TCB extensionality derivation); **Phase B is PARKED** (its premise — that opaque
+> `slot_name` blocks the heavy syscalls — was refuted in §2.8; the real blocker is a frame/
+> E-matching gap); and the **heavy-syscall closure moved OUT of this plan** into the frame work
+> tracked by `14-1814-os-roadmap.md` (Layer-1 done, Layer-2 = M4). This plan's LIVE remaining
+> scope is therefore only the codec CONSUMERS in Phase C: `content_round_trip` + `readlink`
+> target (roadmap M6). Phase headers below are tagged ✅ done / ⛔ parked / 🟡 live.
+
+### Phase A ✅ DONE (as A′, §2.6) — the codec primitive `field_to_str` (the foundation)
 - New logic function (registry `_AXIOM_FUNCTIONS`, os/string namespace):
   `function field_to_str (d: array int) (off: int) (width: int) : string` — the
   null-terminated name in the `width`-byte field at `off`.
@@ -242,24 +251,31 @@ emission + audit + docs, plus the uniqueness proof — a substantial, separate e
 - **Corpus** (§5 discipline): a standalone test writing a name into an N-byte field and reading
   it back == the original (the codec round-trip), independent of os.
 
-### Phase B — re-model the dirent name on the codec
-- `slot_name d blk k := field_to_str d (blk*512 + k*32 + 2) 30` — now a FUNCTION OF THE SLOT
-  BYTES → congruence framing (a write to a different slot leaves it unchanged for free; a write
-  to THIS slot gives the new name via the codec). Replaces the opaque abstract `slot_name`.
-- Reconcile the existing `UnixFs.Dir.*` axioms (`scan_reflects_present`, `remove_reflects_absent`,
-  `block5_decode_frame`, uniqueness) with the concrete `slot_name`: `block5_decode_frame`
-  becomes PROVABLE (congruence) → droppable; the others must still hold over the concrete decode
-  (re-validate or re-derive). Likely also concretize `slot_inode` (2-byte decode) here — but
-  FIRST extend the byte-range class invariant to cover block 5 `[2560,3072)` so a concrete
-  `slot_inode` stays `>= 0` (consistency with `slot_inode_nonneg`).
+### Phase B ⛔ PARKED (premise refuted, §2.8) — re-model the dirent name on the codec
+PARKED. The original idea: `slot_name d blk k := field_to_str d (blk*512 + k*32 + 2) 30`
+(concrete decode → congruence framing), replacing the opaque abstract `slot_name`. The §2.8
+measurement REFUTED its premise: the heavy syscalls do NOT fail because `slot_name` is opaque —
+the needed facts are missing/un-propagated across the `#@ no_inline` boundary (Layer-1/2 frame
+work). Concretizing `slot_name` would add MORE terms (worse E-matching) and risk the green
+`__init__`. So this is not the lever; the heavy syscalls are closed by the FRAME work in
+`14-1814-os-roadmap.md` (M4/M5), not by this concretization. (Original detail kept for the record:
+concretizing would also need to reconcile `scan_reflects_present` / `remove_reflects_absent` /
+`block5_decode_frame` / uniqueness over the concrete decode, concretize `slot_inode`, and extend
+the byte-range class invariant to block 5 `[2560,3072)`. Revisit ONLY if a future need for a
+concrete `slot_name` arises — it is NOT on the path to finishing the os API.)
 
-### Phase C — the os syscalls + content/readlink (the payoff)
-- The name-resolution asserts (rename/unlink/rmdir/symlink `slot_name(k)==pathname`) now prove
-  via the codec round-trip + per-slot congruence frame — closing the heavy syscalls.
-- `content_round_trip` (file bytes ↔ value) and `readlink` target reuse the SAME field codec
-  (the target/content is a byte field) — both unblock.
-- This is also the prerequisite for allocator-plan option (a): with a concrete `slot_name`,
-  the directory model concretizes cleanly.
+### Phase C 🟡 LIVE (narrowed) — content_round_trip + readlink target (the codec CONSUMERS)
+The heavy-syscall name-resolution asserts (rename/unlink/rmdir/symlink `slot_name(k)==pathname`)
+are NO LONGER part of this plan — they are closed by the frame work (roadmap M4/M5), not the
+codec. This plan's remaining payoff is the two codec CONSUMERS:
+- **`content_round_trip`** (file bytes ↔ value, `sys_write`→`sys_read`/`pread`): reuses the field
+  codec, but the load-bearing piece is the gap-15 CROSS-CALL effect contract (recover the data
+  block value across calls). NOT started.
+- **`readlink` target**: `sys_readlink` returns the block NUMBER today; the real property is
+  decoding the TARGET string via `field_to_str` and proving `symlink(target)`→`readlink == target`.
+  Encode side (`_pad_name` byte contract) is DONE (M2); the cross-call decode framing
+  (inode→block→field + readlink returning the target) is NOT.
+Both are roadmap **M6**.
 
 ### Phase D — gating, corpus, docs (NON-NEGOTIABLE)
 - os `__init__` GREEN after every step; corpus byte-diff (string-codec is os/registry-scoped →
@@ -281,7 +297,11 @@ emission + audit + docs, plus the uniqueness proof — a substantial, separate e
   buffer reuse it). Do NOT drift into a general string-rewrite.
 
 ## 5. Sequencing
-A (codec primitive + corpus, validate SMT perf) → B (re-model slot_name/slot_inode + invariant
-extension, re-validate Dir axioms) → C (syscalls + content/readlink) → D (gates/docs throughout).
-Phase A is the de-risking spike: if the codec round-trip proves cleanly and fast on a standalone
-corpus test, the rest is propagation; if SMT chokes on it, reconsider before touching the os.
+ORIGINAL: A (codec) → B (re-model slot_name) → C (syscalls + content/readlink) → D (gates).
+ACTUAL (after the §2.6–2.10 redirect): A′ ✅ → encode side ✅ → [B PARKED; heavy syscalls split off
+to the frame work in `14-1814-os-roadmap.md`] → **C narrowed to content_round_trip + readlink (the
+live remainder, roadmap M6)** → D throughout. Phase A was the de-risking spike — it showed the
+round-trip is NOT zero-TCB SMT-dischargeable, so A landed as the cross-validated axiom A′.
+
+**This plan's only remaining work = Phase C (content_round_trip + readlink target).** Everything
+else here is either done (A′, encode side) or parked (B) / relocated (heavy syscalls → roadmap).
