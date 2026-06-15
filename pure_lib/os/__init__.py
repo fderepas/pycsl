@@ -325,6 +325,9 @@ def unlink(filepath: str, *, dir_fd=None):
 # discharge (the fstat/dup wrappers' guards `fd_open[fd]==1`, `0<=fd_inode[fd]<32`
 # are established here at the open site).
 #@ ensures \result >= 3 ==> (\result < 64 and _filesystem.fd_open[\result] == 1 and 0 <= _filesystem.fd_inode[\result] and _filesystem.fd_inode[\result] < 32 and _filesystem.fd_inode[\result] == dir_lookup(_filesystem.dir, 5, filepath))
+# M6 gap-17: a freshly opened fd starts at offset 0 — propagated so write() sees
+# \old(fd_offset)==0 and its single-block content ensures fires (content round-trip).
+#@ ensures \result >= 3 ==> _filesystem.fd_offset[\result] == 0
 def open(filepath: str, flags, mode=0o777, *, dir_fd=None):
     """Open a file. Returns a file descriptor."""
     # gap-14: sys_open carries the fd-RESOLUTION + ENOENT discriminant tied to the
@@ -355,20 +358,37 @@ def read(fd, n):
     return _filesystem.sys_read(fd, n)
 
 #@ requires fd >= 0
-#@ assigns _filesystem.disk, _filesystem.fd_offset, _filesystem.fd_block
+#@ requires \length(data) <= 5120
+#@ assigns _filesystem.disk, _filesystem.fd_offset, _filesystem.fd_block, _filesystem._mtime_ticks
 #@ ensures \result == -1 or \result >= 0
-# gap-16: write's CONTENT POST-STATE propagated — the inode_content view. On a
-# single-block success from offset 0 (`\result == \length(data)`,
-# `\length(data) <= 512`), the written bytes LAND in the file's first data block,
-# so the on-disk content view EQUALS `data` element-for-element:
-#   \result == \length(data) ==>
-#     \forall i; 0<=i<\result ==> _filesystem.disk[_filesystem.fd_block[fd]*512 + i] == data[i]
-# This is `inode_content(fd_inode[fd]) == data` made concrete over the data-block
-# layout (the content twin of the namespace `dir_lookup` view, one rung lower).
 #@ ensures \result == -1 or \result <= \length(data)
+# M6 gap-16/17: write's CONTENT POST-STATE now PROPAGATED to the public API (was a
+# comment only — the quantified ensures is exposed here so a caller can compose the
+# content round-trip with pread). On a single-block success from offset 0, the written
+# bytes land in the file's first data block, so the on-disk content view EQUALS `data`.
+#@ ensures (fd < 64 and \old(_filesystem.fd_open[fd]) == 1 and 0 <= _filesystem.fd_inode[fd] and _filesystem.fd_inode[fd] < 32 and \old(_filesystem.fd_offset[fd]) == 0 and \length(data) <= 512) ==> (\result == -1 or \result == \length(data))
+# gap-17 SOLVED: the content claim is exposed as the FOLDED `block_content_eq` atom, which
+# DOES propagate across the no_inline sys_write boundary (the raw ∀i did not). Composes with
+# pread's block_content_eq to give the public-API content round-trip (write→pread == data).
+#@ ensures (\result == \length(data) and \old(_filesystem.fd_offset[fd]) == 0 and \length(data) <= 512) ==> block_content_eq(_filesystem.disk, _filesystem.fd_block[fd], data)
+#@ ensures (\result == \length(data) and \old(_filesystem.fd_offset[fd]) == 0 and \length(data) <= 512) ==> (6 <= _filesystem.fd_block[fd] and _filesystem.fd_block[fd] < 256)
 def write(fd, data: list):
     """Write to a file descriptor. Returns byte count."""
     return _filesystem.sys_write(fd, data)
+
+#@ requires fd >= 0
+#@ requires nbytes >= 0 and nbytes <= 512
+#@ assigns \nothing
+# M6 gap-17: content-returning POSITIONAL read. Returns the bytes of the file's first
+# data block — the CONTENT view `disk[fd_block*512+i]` that write establishes — so a
+# caller composes write→pread into the content round-trip (result == data).
+#@ ensures \length(\result) == nbytes or \length(\result) == 0
+#@ ensures (fd < 64 and _filesystem.fd_open[fd] == 1 and offset == 0 and 6 <= _filesystem.fd_block[fd] and _filesystem.fd_block[fd] < 256) ==> \length(\result) == nbytes
+#@ ensures \forall i: int; (0 <= i and i < \length(\result)) ==> \result[i] == _filesystem.disk[_filesystem.fd_block[fd] * 512 + i]
+#@ ensures block_content_eq(_filesystem.disk, _filesystem.fd_block[fd], \result)
+def pread(fd, nbytes, offset=0) -> list:
+    """Read `nbytes` from `fd` at `offset` (positional). Returns the bytes."""
+    return _filesystem.sys_pread(fd, nbytes, offset)
 
 #@ assigns _filesystem.disk, _filesystem.dir
 #@ ensures \result == 0 or \result == -1
@@ -597,3 +617,5 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
         else:
             nondirs.append(name)
     yield top, dirs, nondirs
+
+

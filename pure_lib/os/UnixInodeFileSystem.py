@@ -810,6 +810,24 @@ class UnixInodeFileSystem:
         #@ assert \forall b: int; (2560 <= b and b < 3072) ==> self.disk[b] == \old(self.disk[b])
         return self.disk[start:start + n]
 
+    # M6 gap-17 — the CONTENT ROUND-TRIP COMPOSITION lemma. Two byte-buffers that both
+    # equal the same data block `b` (as the folded `block_content_eq` atoms `write` and
+    # `pread` respectively establish) and have equal length are themselves equal. This is
+    # the load-bearing step of the round-trip: `write(c)` gives block_content_eq(disk, fd_
+    # block, c), `pread()` gives block_content_eq(disk, fd_block, back), and this lemma
+    # composes them (via block_content_eq_elim, INLINE here where slot_inode is declared)
+    # to `\array_eq(back, c)` — the content survives write→read. The folded atoms cross the
+    # no_inline boundary (the raw \forall i does not), so the round-trip is closeable
+    # THROUGH THE PUBLIC API. Returns `a1` (the proven `_block_roundtrip` shape) so the
+    # equality is the function postcondition, dodging the program-bool encoding of `==`.
+    #@ requires block_content_eq(self.disk, b, a1)
+    #@ requires block_content_eq(self.disk, b, a2)
+    #@ requires \length(a1) == \length(a2)
+    #@ assigns \nothing
+    #@ ensures \array_eq(\result, a2)
+    def _content_compose(self, b: int, a1: list, a2: list) -> list:
+        return a1
+
     # --- DIRECTORY ENTRY RESOLUTION ---
 
     #@ requires block_num >= 0
@@ -1210,6 +1228,10 @@ class UnixInodeFileSystem:
     # fstat(open(p)) discharge `0 <= ino < 32` (gap-14 §3): fd_inode[fd] is now known
     # in-range at the open site, propagated through the open wrapper.
     #@ ensures \result >= 3 ==> (0 <= self.fd_inode[\result] and self.fd_inode[\result] < 32)
+    # M6 gap-17: a freshly opened descriptor starts at offset 0 (body sets
+    # `self.fd_offset[fd] = 0`). The content round-trip needs this so a subsequent
+    # write sees `\old(fd_offset) == 0` and its single-block content ensures fires.
+    #@ ensures \result >= 3 ==> self.fd_offset[\result] == 0
     #@ \trusted reviewer: fd-resolution-fidelity
     #@ no_inline
     def sys_open(self, pathname: str, flags: int) -> int:
@@ -1252,6 +1274,28 @@ class UnixInodeFileSystem:
         self.fd_block[fd] = inode[8]
         return fd
 
+    # M6 Phase 1 — the single-block CONTENT BLIT leaf, isolated `#@ no_inline` so
+    # sys_write's loop carries only this leaf's NON-quantified-per-element ensures
+    # (not the full Array.blit VC inlined into the multi-block loop, which makes the
+    # syscall VC un-dischardgeable). Mirrors `_block_roundtrip`'s proven write half.
+    # The write lands at `p_block*512 + block_off` with p_block >= 6, i.e. >= 3072 —
+    # ABOVE the inode byte-range [512,2560) AND the directory [2560,3072) — so both
+    # class invariants (`inode_bytes_valid(self.disk)`, `uniq(self.dir)`) are preserved
+    # from the Array.blit frame alone.
+    #@ requires 6 <= p_block and p_block < 256
+    #@ requires 0 <= block_off and block_off < 512
+    #@ requires 0 <= chunk and block_off + chunk <= 512
+    #@ requires 0 <= src_off and src_off + chunk <= \length(src)
+    #@ requires \length(self.disk) >= 131072
+    #@ assigns self.disk
+    #@ ensures \length(self.disk) == \old(\length(self.disk))
+    #@ ensures \forall j: int; (0 <= j and j < chunk) ==> self.disk[p_block * 512 + block_off + j] == src[src_off + j]
+    #@ ensures \forall i: int; (0 <= i and i < \length(self.disk) and (i < p_block * 512 + block_off or i >= p_block * 512 + block_off + chunk)) ==> self.disk[i] == \old(self.disk[i])
+    #@ no_inline
+    def _write_block_at(self, p_block: int, block_off: int, src: list, src_off: int, chunk: int) -> None:
+        disk_start = p_block * 512 + block_off
+        self.disk[disk_start:disk_start + chunk] = src[src_off:src_off + chunk]
+
     #@ requires fd >= 0
     #@ requires \length(data) <= 5120
     #@ assigns self.disk, self.fd_offset, self.fd_block, self._mtime_ticks
@@ -1281,7 +1325,14 @@ class UnixInodeFileSystem:
     # (unreachable here: offset 0 + written < 512 keeps block_idx == 0) and the
     # `_alloc_block` failure (-> -1). So the result is the full length or -1.
     #@ ensures (fd < 64 and \old(self.fd_open[fd]) == 1 and 0 <= self.fd_inode[fd] and self.fd_inode[fd] < 32 and \old(self.fd_offset[fd]) == 0 and \length(data) <= 512) ==> (\result == -1 or \result == \length(data))
-    #@ ensures (\result == \length(data) and \old(self.fd_offset[fd]) == 0 and \length(data) <= 512) ==> (\forall i: int; (0 <= i and i < \result) ==> self.disk[self.fd_block[fd] * 512 + i] == data[i])
+    # gap-17: the per-byte content claim, FOLDED into the `block_content_eq` atom so it
+    # PROPAGATES across the no_inline boundary (the raw \forall i does not). Proved INLINE
+    # in the fast path via block_content_eq_intro from the final blit.
+    #@ ensures (\result == \length(data) and \old(self.fd_offset[fd]) == 0 and \length(data) <= 512) ==> block_content_eq(self.disk, self.fd_block[fd], data)
+    # gap-17: on single-block success the file's first data block is live in [6,256) (the
+    # fast path sets fd_block to an _alloc_block result / a resolved data block) — so a
+    # following pread RESOLVES that block (returns its bytes, not the empty []).
+    #@ ensures (\result == \length(data) and \old(self.fd_offset[fd]) == 0 and \length(data) <= 512) ==> (6 <= self.fd_block[fd] and self.fd_block[fd] < 256)
     #@ no_inline
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/write.html
     # cite:_note: POSIX write() — multi-block: writes data across up to 10
@@ -1299,17 +1350,35 @@ class UnixInodeFileSystem:
         inode = self._read_inode(inode_num)
         n = len(data)
         offset = self.fd_offset[fd]
+        # M6 single-block FAST PATH (offset 0, fits one block — the content round-trip
+        # scenario). Straight-line: no loop, no div/mod, and the content blit is the LAST
+        # disk write, so `dir_lookup`-style the content view is the FINAL state and proves
+        # INLINE exactly like `_block_roundtrip` (no _write_inode frame needed — the inode
+        # update happens BEFORE the blit). The general loop below then runs only for
+        # offset != 0 or n > 512, where the content/completion ensures are vacuous.
+        if offset == 0 and n <= 512:
+            if n == 0:
+                return 0
+            p_block = inode[8]
+            if p_block < 6 or p_block >= 256:
+                p_block = self._alloc_block()
+                if p_block < 0 or p_block >= 256:
+                    return -1
+                inode[8] = p_block
+            if n > inode[0]:
+                inode[0] = n
+            inode[7] = self._now()
+            self._write_inode(inode_num, inode)
+            self.disk[p_block * 512:p_block * 512 + n] = data[0:n]
+            self.fd_block[fd] = p_block
+            self.fd_offset[fd] = n
+            return n
         written = 0
         #@ loop invariant 0 <= written and written <= n
         #@ loop invariant self.fd_offset[fd] == offset
-        # gap-16 single-block content invariants (offset 0, n <= 512): each
-        # iteration writes one chunk into block 0 from the file's first data
-        # block, so as long as we are still inside the first block the bytes
-        # already written agree with `data` and fd_block[fd] is the live block.
-        #@ loop invariant (offset == 0 and n <= 512 and written > 0) ==> (self.fd_block[fd] >= 6 and self.fd_block[fd] < 256)
-        #@ loop invariant (offset == 0 and n <= 512) ==> (\forall i: int; (0 <= i and i < written) ==> self.disk[self.fd_block[fd] * 512 + i] == data[i])
         #@ loop invariant uniq(self.dir)
         #@ loop invariant inode_bytes_valid(self.disk)
+        #@ loop invariant \length(self.disk) >= 131072
         #@ loop variant n - written
         while written < n:
             block_idx = (offset + written) // 512
@@ -1317,7 +1386,9 @@ class UnixInodeFileSystem:
             if block_idx < 0 or block_idx >= 10:
                 break
             p_block = inode[8 + block_idx]
-            if p_block <= 0 or p_block >= 256:
+            # blocks 0..5 are reserved (superblock/inode-table/bitmap/directory); a valid
+            # data block is >= 6 (what _alloc_block returns), so treat < 6 as unallocated.
+            if p_block < 6 or p_block >= 256:
                 p_block = self._alloc_block()
                 if p_block < 0 or p_block >= 256:
                     break
@@ -1326,8 +1397,7 @@ class UnixInodeFileSystem:
             remaining = n - written
             if chunk > remaining:
                 chunk = remaining
-            disk_start = p_block * 512 + block_off
-            self.disk[disk_start:disk_start + chunk] = data[written:written + chunk]
+            self._write_block_at(p_block, block_off, data, written, chunk)
             if block_idx == 0:
                 self.fd_block[fd] = p_block
             written = written + chunk
@@ -1392,6 +1462,37 @@ class UnixInodeFileSystem:
             n = avail
         self.fd_offset[fd] = self.fd_offset[fd] + n
         return n
+
+    # M6 Phase 3 — content-returning POSITIONAL read (gap-17 cross-call recovery). Unlike
+    # `sys_read` (which yields a byte COUNT and advances the offset), `sys_pread` RETURNS the
+    # bytes of the file's first data block — the CONTENT view `self.disk[fd_block*512 + i]`
+    # that `sys_write` establishes. It is positional (offset 0, single block) and changes no
+    # state (`assigns \nothing`), so a caller composes write's content effect with pread's
+    # output across calls: write ⇒ disk[fd_block*512+i] == data[i]; pread ⇒ result[i] ==
+    # disk[fd_block*512+i]; hence result == data (the content round-trip). The read-back is
+    # `Array.sub` — the read half of the proven `_block_roundtrip`.
+    #@ requires fd >= 0
+    #@ requires nbytes >= 0 and nbytes <= 512
+    #@ assigns \nothing
+    #@ ensures \length(\result) == nbytes or \length(\result) == 0
+    # gap-17: when the fd resolves to a LIVE first data block (open + a prior write), pread
+    # returns exactly `nbytes` (not the empty []), so the round-trip length matches.
+    #@ ensures (fd < 64 and self.fd_open[fd] == 1 and offset == 0 and 6 <= self.fd_block[fd] and self.fd_block[fd] < 256) ==> \length(\result) == nbytes
+    #@ ensures \forall i: int; (0 <= i and i < \length(\result)) ==> \result[i] == self.disk[self.fd_block[fd] * 512 + i]
+    # gap-17: the same per-byte fact FOLDED — `block_content_eq(disk, fd_block, result)`
+    # says the returned bytes ARE the data block's content. Composes with write's
+    # block_content_eq(disk, fd_block, data) to give result == data (the round-trip).
+    #@ ensures block_content_eq(self.disk, self.fd_block[fd], \result)
+    def sys_pread(self, fd: int, nbytes: int, offset: int) -> list:
+        if fd >= 64 or self.fd_open[fd] == 0:
+            return []
+        if offset != 0:
+            return []
+        block = self.fd_block[fd]
+        if block < 6 or block >= 256:
+            return []
+        start = block * 512
+        return self.disk[start:start + nbytes]
 
     #@ requires fd >= 0
     #@ assigns self.fd_open

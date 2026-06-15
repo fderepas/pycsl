@@ -232,11 +232,36 @@ Baseline = pre-Layer-1; "now" = current.
 | chmod/chown/utimensat/truncate/ftruncate (E) | 1-2 | **0** ✅ | — (cleared by self.dir) | done |
 | stat/fstat/lstat/getdents/readlink/close/dup/access/lseek (F) | — | **0** ✅ | — | done |
 | sys_open / sys_creat | — | **0** ✅ | — | done |
-| sys_write (C) | — | 40 | content round-trip (array-blit + ∀i data-placement; needs gap-17 effect contract + field codec) | M6 |
+| sys_write (C) | 40 | **0** ✅ | CLOSED — single-block content via inline fast-path + `_write_block_at` leaf (M6 P0/1); multi-block content unclaimed (divergent) | M6 |
+| sys_pread (C) | — | **0** ✅ | NEW — content-returning positional read (the read half of `_block_roundtrip`) | M6 |
 
-Post-cleanup status: only **sys_rename (3)** and **sys_write (40)** remain unproven; every
-other syscall + directory helper is 0. sys_rename's 3 are the presence (dir_lookup(newpath)
->= 0) + absence (dir_lookup(oldpath) < 0) ensures: the **add+remove COEXISTENCE wall**.
+M6 RESULT (branch m6-content-roundtrip): **sys_write 40 → 0** via the single-block FAST
+PATH — straight-line, content blit LAST so the content view is the final state and proves
+inline like `_block_roundtrip` (no `_write_inode` frame). Diagnosis was decisive: once the
+blit was extracted to the `_write_block_at` no_inline leaf (45/0), the syscall became
+measurable and the ONLY divergent goals were the content ones (11 postcondition + 4
+content-∀i loop-invariant, billion-step); all bounds/type/other invariants Valid. Added
+`sys_pread` (36/0) + `os.pread` + open `fd_offset==0` + write COMPLETION API ensures.
+**gap-17 cross-call content composition — SOLVED (commit 9e71e5d).** Slice-in-\array_eq was
+NOT the fix: \array_eq lowers to the explicit ∀i, exactly what fails to cross no_inline. The
+real mechanism is a FOLDED (uninterpreted) predicate atom — `UnixFs.Content.block_content_eq
+(d blk data)` with definitional (zero-trust) intro/elim, the uniq / inode_bytes_valid pattern.
+The per-byte ∀i is folded INSIDE sys_write/sys_pread (where it discharges from Array.blit /
+Array.sub) and the ATOM then propagates across no_inline (where the ∀i was Unknown). Closed in
+proven composable pieces: sys_write ⟹ block_content_eq(disk,fd_block,data) (379/0); sys_pread
+⟹ block_content_eq(disk,fd_block,result) (36/0); os.write/os.pread wrappers PROPAGATE the
+atoms (__init__ GREEN 1128/0); `_content_compose` (26/0): two atoms over the same block +
+equal length ⟹ \array_eq — i.e. write→pread == data. Corpus byte-diff clean (601/601). A
+single create→write→read function (formal_0008 style) is still blocked by ORTHOGONAL PyCSL
+test-harness bugs (bool-return int/bool encoding, assert-in-if dropping, slot_inode decl for
+importer tests) — not gap-17. Multi-block content (Phase 2) remains the loop content-∀i
+divergence.
+
+Post-cleanup status: only **sys_rename (3, SMT-divergent)** remains in the body gate; every
+syscall body — including **sys_write (0)** and **sys_pread (0)** — verifies, and the content
+round-trip composes through the public API. sys_rename's 3 are the presence (dir_lookup(
+newpath) >= 0) + absence (dir_lookup(oldpath) < 0) ensures: the **add+remove COEXISTENCE
+wall**.
 
 **FINDING (no-trust closure infeasible — genuine SMT E-matching DIVERGENCE).** Proven, not
 merely slow: at a raised 120 s timelimit the residual GREW (1.7M→4.9M steps) without
