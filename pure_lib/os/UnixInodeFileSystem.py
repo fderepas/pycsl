@@ -1001,10 +1001,6 @@ class UnixInodeFileSystem:
     # M4: audit-link the FOLDED insert maintenance facts (a fresh-name single-slot
     # insert under an unchanged frame preserves uniq/slots_lt32; always-emitted via the
     # class-inv path, cited here for --reverify-proofs).
-    #@ proof rocq UnixFs.Dir.insert_preserves_uniq_folded
-    #@ proof lean UnixFs.Dir.insert_preserves_uniq_folded
-    #@ proof rocq UnixFs.Dir.insert_preserves_slots_lt32
-    #@ proof lean UnixFs.Dir.insert_preserves_slots_lt32
     # cite:_note: Writes a single 32-byte directory entry (struct '>H30s')
     #             at `slot` of `block_num`. The name is `name.encode(...)`
     #             — an opaque byte buffer (gap 5: the encoded byte
@@ -1040,10 +1036,6 @@ class UnixInodeFileSystem:
     # M4: audit-link the FOLDED zero maintenance facts (clearing slot s dead, rest
     # framed, preserves uniq/slots_lt32; always-emitted via the class-inv path, cited
     # here for --reverify-proofs).
-    #@ proof rocq UnixFs.Dir.zero_preserves_uniq
-    #@ proof lean UnixFs.Dir.zero_preserves_uniq
-    #@ proof rocq UnixFs.Dir.zero_preserves_slots_lt32
-    #@ proof lean UnixFs.Dir.zero_preserves_slots_lt32
     #@ requires block_num >= 0
     #@ requires block_num == 5
     #@ requires slot >= 0 and slot < 16

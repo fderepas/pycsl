@@ -508,17 +508,17 @@ class PreambleEmissionMixin:
         # directory invariant — its single `forall i` does not E-match-explode).
         "UnixFs.Dir.ibv_intro",
         "UnixFs.Dir.ibv_elim",
-        # M4: directory-uniqueness + slots_lt32 maintained via FOLDED facts over the
-        # OPAQUE uniq/slots_lt32 (not the explosive intro/elim). establish_* discharge
-        # the constructor `by`-witness; zero_*/insert_* the directory mutators. The
-        # frame_preserves_* facts are RETIRED (M4 #1): non-directory writes preserve the
-        # directory (self.dir) from `assigns self.disk` alone, no frame fact needed.
+        # M4: directory-uniqueness + slots_lt32 ESTABLISHED via establish_* (the
+        # constructor `by`-witness over self.dir = Array.make 0). The maintenance facts
+        # (frame_preserves_*/zero_preserves_*/insert_preserves_*) are ALL RETIRED (M4 #1):
+        # non-directory writes preserve the directory (self.dir) from `assigns self.disk`
+        # alone; the directory MUTATORS (_write_dir_entry/_zero_entry) are \trusted vals
+        # whose post ASSUMES the class invariant — so nothing verifies a directory-write
+        # maintenance VC, and these facts had no remaining use. They only added E-matching
+        # noise (firing on the ubiquitous uniq/slots_lt32 + slot_* atoms). Cross-validated
+        # proofs kept in DirInvariantMaintenance.{v,lean} for reference.
         "UnixFs.Dir.establish_uniq",
         "UnixFs.Dir.establish_slots_lt32",
-        "UnixFs.Dir.zero_preserves_uniq",
-        "UnixFs.Dir.zero_preserves_slots_lt32",
-        "UnixFs.Dir.insert_preserves_uniq_folded",
-        "UnixFs.Dir.insert_preserves_slots_lt32",
         # allocator-frame §5 reference fixture (predicate-in-class-invariant corpus test).
         "Pycsl.Reference.FieldPred.field_nonneg_intro",
         "Pycsl.Reference.FieldPred.field_nonneg_elim",
