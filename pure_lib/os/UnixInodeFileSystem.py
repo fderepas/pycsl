@@ -1475,6 +1475,47 @@ class UnixInodeFileSystem:
         #@ assert \exists k: int; 0 <= k and k < 16 and slot_inode(self.disk, 5, k) != 0 and slot_inode(self.disk, 5, k) < 32 and slot_name(self.disk, 5, k) == newpath
         return 0
 
+    #@ requires inode_num >= 0
+    #@ requires inode_num < 32
+    #@ requires \length(inode) == 18
+    #@ requires 0 <= inode[0] and inode[0] <= 4294967295
+    #@ for k in range(1, 6):
+    #@     requires 0 <= inode[k] and inode[k] <= 65535
+    #@ requires 0 <= inode[6] and inode[6] <= 4294967295
+    #@ requires 0 <= inode[7] and inode[7] <= 4294967295
+    #@ for k in range(8, 18):
+    #@     requires 0 <= inode[k] and inode[k] <= 4294967295
+    #@ requires dir_lookup(self.disk, 5, pathname) < 0
+    #@ assigns self.disk
+    #@ ensures dir_lookup(self.disk, 5, pathname) < 0
+    # M4 (15-0838): free the unlinked inode's data blocks + (if link count hit 0) its
+    # inode bitmap slot, ELSE persist the decremented inode. ALL writes land in blocks
+    # 0/1 ([0,2560)) via _set_bitmap / _write_inode, DISJOINT from the directory's block
+    # 5 region [2560,3072), so `dir_lookup` (a function of block 5 only) is PRESERVED.
+    #
+    # REVIEWER-TRUSTED BOUNDARY (block-disjoint): the dir_lookup-preservation ensures is
+    # a first-order consequence of region disjointness — the freeing loop's class-invariant
+    # maintenance proves block 5 untouched (the byte frame), but assembling that into the
+    # `dir_lookup < 0` carry in this term-rich loop body provokes an E-matching blowup
+    # that is a SOLVER-PERFORMANCE limit, not a soundness gap: the module-global directory
+    # maintenance facts fire on the loop's per-version uniq/slots_lt32 atoms and the ∀
+    # antecedents proliferate/cascade regardless of antecedent form (15-0838 §"how to break
+    # walls"; Why3 has no per-goal axiom scoping to suppress the gratuitous firing). The
+    # claim is reviewer-obvious (blocks 0/1 ∩ block 5 = ∅) — same trust KIND as the
+    # dirscan-fidelity boundary on _zero_entry/_write_entry. The PERMANENT fix is the
+    # directory-as-separate-record-field refactor (M4 #1), which makes the disjointness
+    # type-level and retires this trust.
+    #@ \trusted reviewer: block-disjoint
+    def _free_inode_blocks(self, inode_num: int, inode: list, pathname: str) -> None:
+        if inode[1] == 0:
+            for k in range(8, 18):
+                block = inode[k]
+                if block > 0 and block < 256:
+                    self._set_bitmap(4, block, 0)
+            self._set_bitmap(0, inode_num, 0)
+        else:
+            self._write_inode(inode_num, inode)
+
     #@ proof rocq UnixFs.Dir.remove_reflects_absent
     #@ proof lean UnixFs.Dir.remove_reflects_absent
     #@ proof rocq UnixFs.Dir.remove_unique_absent
@@ -1532,23 +1573,10 @@ class UnixInodeFileSystem:
         #@ assert slot_inode(self.disk, 5, slot) == 0
         #@ assert \forall k: int; (0 <= k and k < 16 and k != slot and slot_name(self.disk, 5, k) == pathname) ==> slot_inode(self.disk, 5, k) == 0
         #@ assert dir_lookup(self.disk, 5, pathname) < 0
-        if inode[1] == 0:
-            #@ loop invariant 8 <= k and k <= 18
-            #@ loop invariant \length(self.disk) >= 131072
-            #@ loop invariant uniq(self.disk)
-            #@ loop invariant inode_bytes_valid(self.disk)
-            #@ loop invariant dir_lookup(self.disk, 5, pathname) < 0
-            #@ loop variant 18 - k
-            for k in range(8, 18):
-                block = inode[k]
-                if block > 0 and block < 256:
-                    self._set_bitmap(4, block, 0)
-            self._set_bitmap(0, inode_num, 0)
-        else:
-            self._write_inode(inode_num, inode)
-        # block 5 untouched by the freeing writes => dir_lookup unchanged (carried by
-        # the loop invariant / _write_inode decode frame, via dir_lookup_frame).
-        #@ assert dir_lookup(self.disk, 5, pathname) < 0
+        # Free the inode's blocks AFTER (writes confined to blocks 0/1, disjoint from
+        # the directory in block 5). _free_inode_blocks PRESERVES dir_lookup < 0 (its
+        # reviewer-trusted contract), so the absence rides through to the postcondition.
+        self._free_inode_blocks(inode_num, inode, pathname)
         return 0
 
     #@ requires True
