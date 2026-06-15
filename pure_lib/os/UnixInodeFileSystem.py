@@ -1439,6 +1439,8 @@ class UnixInodeFileSystem:
 
     #@ proof rocq UnixFs.Dir.remove_reflects_absent
     #@ proof lean UnixFs.Dir.remove_reflects_absent
+    #@ proof rocq UnixFs.Dir.remove_unique_absent
+    #@ proof lean UnixFs.Dir.remove_unique_absent
     #@ proof rocq UnixFs.Dir.slot_inode_nonneg
     #@ proof lean UnixFs.Dir.slot_inode_nonneg
     #@ requires True
@@ -1599,6 +1601,8 @@ class UnixInodeFileSystem:
 
     #@ proof rocq UnixFs.Dir.remove_reflects_absent
     #@ proof lean UnixFs.Dir.remove_reflects_absent
+    #@ proof rocq UnixFs.Dir.remove_unique_absent
+    #@ proof lean UnixFs.Dir.remove_unique_absent
     #@ proof rocq UnixFs.Dir.slot_inode_nonneg
     #@ proof lean UnixFs.Dir.slot_inode_nonneg
     #@ requires True
@@ -1817,6 +1821,8 @@ class UnixInodeFileSystem:
     #@ proof lean UnixFs.Dir.scan_reflects_present
     #@ proof rocq UnixFs.Dir.remove_reflects_absent
     #@ proof lean UnixFs.Dir.remove_reflects_absent
+    #@ proof rocq UnixFs.Dir.remove_unique_absent
+    #@ proof lean UnixFs.Dir.remove_unique_absent
     #@ proof rocq UnixFs.Dir.slot_inode_nonneg
     #@ proof lean UnixFs.Dir.slot_inode_nonneg
     #@ requires oldpath != newpath

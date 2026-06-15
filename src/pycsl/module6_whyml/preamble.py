@@ -208,6 +208,86 @@ class PreambleEmissionMixin:
             "( forall k : int. 0 <= k < 16 -> k <> s -> "
             "    slot_name d1 5 k = slot_name d0 5 s -> slot_inode d1 5 k = 0 )",
 
+        # ============================================================================
+        # FOLDED directory-invariant MAINTENANCE facts (M4 — 15-0838 Part A, sound
+        # realization). These REPLACE uniq_intro/uniq_elim/slots_lt32_intro/
+        # slots_lt32_elim. The elims unfold the FOLDED `uniq`/`slots_lt32` class-inv
+        # atoms into a nested `forall i,j` / `forall k`, triggered on the ubiquitous
+        # `uniq self.disk` atom — which E-match-explodes in the term-rich directory
+        # removers (15-0838 §2). The cited-axiom path is per-MODULE, so "cite the
+        # elim only in leaf writers" does NOT scope it away from the removers
+        # (15-0838's Part A mechanism is unsound). The sound fix: state each
+        # establishment / frame / zero / insert maintenance step over the OPAQUE
+        # `uniq`/`slots_lt32` predicates, discharging the unfolding inside a
+        # cross-validated proof — so NO method's VC ever carries the explosive nested
+        # quantifiers. Triggers bind all binders and fire O(1) at the writer/
+        # constructor site (no nested quantifier introduced into any goal). All
+        # cross-validated by unix-filesystem/UnixInodeFileSystem.proofs/{rocq,lean}/
+        # DirInvariantMaintenance.{v,lean}: Rocq Closed under the global context;
+        # Lean depends on no axioms. Reuse the SAME uniq/slots_lt32/slot_inode/
+        # slot_name symbols (no new _AXIOM_FUNCTIONS entry).
+
+        # ESTABLISH: a disk whose every block-5 slot is dead satisfies the invariant
+        # (the constructor's Array.make-0 witness, via empty_disk_slots_dead).
+        "UnixFs.Dir.establish_uniq":
+            "forall d : array int [uniq d]. "
+            "( forall k : int. 0 <= k < 16 -> slot_inode d 5 k = 0 ) -> uniq d",
+        "UnixFs.Dir.establish_slots_lt32":
+            "forall d : array int [slots_lt32 d]. "
+            "( forall k : int. 0 <= k < 16 -> slot_inode d 5 k = 0 ) -> slots_lt32 d",
+
+        # FRAME: a write that leaves every block-5 slot decode unchanged (non-
+        # directory writers, via block5_decode_frame) preserves the invariant.
+        "UnixFs.Dir.frame_preserves_uniq":
+            "forall d0 d1 : array int [uniq d1, uniq d0]. "
+            "uniq d0 -> "
+            "( forall k : int. 0 <= k < 16 -> "
+            "    slot_inode d1 5 k = slot_inode d0 5 k /\\ "
+            "    slot_name  d1 5 k = slot_name  d0 5 k ) -> "
+            "uniq d1",
+        "UnixFs.Dir.frame_preserves_slots_lt32":
+            "forall d0 d1 : array int [slots_lt32 d1, slots_lt32 d0]. "
+            "slots_lt32 d0 -> "
+            "( forall k : int. 0 <= k < 16 -> slot_inode d1 5 k = slot_inode d0 5 k ) -> "
+            "slots_lt32 d1",
+
+        # ZERO: clearing slot s dead (the remover's _zero_entry), rest framed,
+        # preserves the invariant (the live set only shrinks).
+        "UnixFs.Dir.zero_preserves_uniq":
+            "forall d0 d1 : array int, s : int [slot_inode d1 5 s, uniq d0]. "
+            "uniq d0 -> slot_inode d1 5 s = 0 -> "
+            "( forall k : int. 0 <= k < 16 -> k <> s -> "
+            "    slot_inode d1 5 k = slot_inode d0 5 k /\\ "
+            "    slot_name  d1 5 k = slot_name  d0 5 k ) -> "
+            "uniq d1",
+        "UnixFs.Dir.zero_preserves_slots_lt32":
+            "forall d0 d1 : array int, s : int [slot_inode d1 5 s, slots_lt32 d0]. "
+            "slots_lt32 d0 -> slot_inode d1 5 s = 0 -> "
+            "( forall k : int. 0 <= k < 16 -> k <> s -> "
+            "    slot_inode d1 5 k = slot_inode d0 5 k ) -> "
+            "slots_lt32 d1",
+
+        # INSERT: slot s becomes live with a name NOT already live (the EEXIST guard),
+        # rest framed (the directory adders' _write_entry). nm-free: the inserted name
+        # is `slot_name d1 5 s` itself, so the fact triggers without a name binder.
+        "UnixFs.Dir.insert_preserves_uniq_folded":
+            "forall d0 d1 : array int, s : int [slot_name d1 5 s, uniq d0]. "
+            "uniq d0 -> 0 <= s < 16 -> "
+            "( forall k : int. 0 <= k < 16 -> "
+            "    slot_inode d0 5 k <> 0 -> slot_inode d0 5 k < 32 -> "
+            "    slot_name d0 5 k <> slot_name d1 5 s ) -> "
+            "( forall k : int. 0 <= k < 16 -> k <> s -> "
+            "    slot_inode d1 5 k = slot_inode d0 5 k /\\ "
+            "    slot_name  d1 5 k = slot_name  d0 5 k ) -> "
+            "( slot_inode d1 5 s <> 0 -> slot_inode d1 5 s < 32 ) -> "
+            "uniq d1",
+        "UnixFs.Dir.insert_preserves_slots_lt32":
+            "forall d0 d1 : array int, s : int [slot_inode d1 5 s, slots_lt32 d0]. "
+            "slots_lt32 d0 -> 0 <= s < 16 -> slot_inode d1 5 s < 32 -> "
+            "( forall k : int. 0 <= k < 16 -> k <> s -> "
+            "    slot_inode d1 5 k = slot_inode d0 5 k ) -> "
+            "slots_lt32 d1",
+
         # UnixFs.Dir.insert_preserves_unique (gap-12) — the INSERT companion of
         # remove_reflects_absent and the MAINTENANCE lemma for the directory-
         # uniqueness class invariant. Over two disks d0 (pre-write) and d1
@@ -414,17 +494,25 @@ class PreambleEmissionMixin:
     _CLASS_INV_AXIOMS: frozenset = frozenset({
         "UnixFs.Dir.empty_disk_slots_dead",
         "UnixFs.Dir.block5_decode_frame",
-        # allocator-frame plan §2a: the definitional intro/elim for the abstract disk
-        # invariant predicates must precede the record so the constructor (`by`-witness)
-        # and every per-method type-invariant VC can establish/unfold `uniq` /
-        # `inode_bytes_valid`.
-        "UnixFs.Dir.uniq_intro",
-        "UnixFs.Dir.uniq_elim",
+        # inode_bytes_valid keeps its definitional intro/elim (a different, non-
+        # directory invariant — its single `forall i` does not E-match-explode).
         "UnixFs.Dir.ibv_intro",
         "UnixFs.Dir.ibv_elim",
-        # M4: the slots_lt32 disk invariant (precedes the record, like uniq).
-        "UnixFs.Dir.slots_lt32_intro",
-        "UnixFs.Dir.slots_lt32_elim",
+        # M4 (15-0838 Part A, sound realization): the directory-uniqueness +
+        # slots_lt32 invariants are maintained via FOLDED maintenance facts that
+        # treat `uniq`/`slots_lt32` as OPAQUE, NOT via uniq_intro/uniq_elim/
+        # slots_lt32_intro/slots_lt32_elim. The elims' nested `forall i,j`/`forall k`
+        # E-match-explode in the term-rich removers (15-0838 §2); the folded facts
+        # carry no nested quantifier into any VC. All precede the record (constructor
+        # `by`-witness via establish_*; per-method maintenance via frame/zero/insert).
+        "UnixFs.Dir.establish_uniq",
+        "UnixFs.Dir.establish_slots_lt32",
+        "UnixFs.Dir.frame_preserves_uniq",
+        "UnixFs.Dir.frame_preserves_slots_lt32",
+        "UnixFs.Dir.zero_preserves_uniq",
+        "UnixFs.Dir.zero_preserves_slots_lt32",
+        "UnixFs.Dir.insert_preserves_uniq_folded",
+        "UnixFs.Dir.insert_preserves_slots_lt32",
         # allocator-frame §5 reference fixture (predicate-in-class-invariant corpus test).
         "Pycsl.Reference.FieldPred.field_nonneg_intro",
         "Pycsl.Reference.FieldPred.field_nonneg_elim",
@@ -434,13 +522,14 @@ class PreambleEmissionMixin:
     # `pred d <-> P(d)` of an abstract predicate, given as the intro/elim pair) — sound by
     # construction, equivalent to a `predicate pred (d) = P(d)` body, so they add ZERO to
     # the trusted base. Labeled distinctly from the cross-validated Rocq+Lean facts.
+    # NOTE: the directory uniq/slots_lt32 intro/elim are NO LONGER emitted (M4 —
+    # replaced by the cross-validated FOLDED maintenance facts above, which are NOT
+    # definitional but Rocq+Lean cross-validated). Their bodies remain in
+    # _AXIOM_REGISTRY (inert — cited nowhere) for reference. inode_bytes_valid keeps
+    # its definitional pair (different invariant, no explosion).
     _DEFINITIONAL_AXIOMS: frozenset = frozenset({
-        "UnixFs.Dir.uniq_intro",
-        "UnixFs.Dir.uniq_elim",
         "UnixFs.Dir.ibv_intro",
         "UnixFs.Dir.ibv_elim",
-        "UnixFs.Dir.slots_lt32_intro",
-        "UnixFs.Dir.slots_lt32_elim",
         "Pycsl.Reference.FieldPred.field_nonneg_intro",
         "Pycsl.Reference.FieldPred.field_nonneg_elim",
     })
