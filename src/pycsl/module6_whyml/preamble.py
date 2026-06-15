@@ -288,6 +288,27 @@ class PreambleEmissionMixin:
             "    slot_inode d1 5 k = slot_inode d0 5 k ) -> "
             "slots_lt32 d1",
 
+        # UnixFs.Dir.dir_lookup_frame (M4 — sys_unlink reorder) — dir_lookup is the
+        # bounded 16-slot scan, a function of the per-slot decodes ONLY, so disks
+        # agreeing on every block-5 slot decode have equal dir_lookup. Lets sys_unlink
+        # lay the remove witness FIRST (block 5 fresh) and free the inode blocks AFTER
+        # (writes in block 0 only), carrying `dir_lookup(self.disk,5,pathname) < 0` as a
+        # SCALAR loop invariant — no per-slot terms in the loop, so no E-matching storm
+        # (the per-slot loop-carry alternative exploded, 15-0838 §2.9). Trigger on the
+        # dir_lookup pair (binds d0,d1); the per-slot-eq antecedent is discharged from
+        # _set_bitmap's byte frame via block5_decode_frame. Reuses the SAME dir_lookup/
+        # slot_inode/slot_name symbols. Cross-validated by
+        # unix-filesystem/UnixInodeFileSystem.proofs/{rocq,lean}/DirLookupFrame.{v,lean}
+        # (theorem dir_lookup_frame): scan_frame induction. Rocq Closed under the global
+        # context; Lean axioms ⊆ {propext, Quot.sound}.
+        "UnixFs.Dir.dir_lookup_frame":
+            "forall d0 d1 : array int, name : string "
+            "[dir_lookup d1 5 name, dir_lookup d0 5 name]. "
+            "( forall k : int. 0 <= k < 16 -> "
+            "    slot_inode d1 5 k = slot_inode d0 5 k /\\ "
+            "    slot_name  d1 5 k = slot_name  d0 5 k ) -> "
+            "dir_lookup d1 5 name = dir_lookup d0 5 name",
+
         # UnixFs.Dir.insert_preserves_unique (gap-12) — the INSERT companion of
         # remove_reflects_absent and the MAINTENANCE lemma for the directory-
         # uniqueness class invariant. Over two disks d0 (pre-write) and d1

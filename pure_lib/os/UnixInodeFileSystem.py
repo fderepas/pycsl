@@ -612,6 +612,15 @@ class UnixInodeFileSystem:
     # ensures (which timed out re-deriving the double-forall here) are no longer needed.
     # allocator-frame §2.7: cheap leaf writer — the allocators concrete-call it to inherit
     # the disk class invariant as an atom (the key to fixing alloc_block/alloc_inode).
+    # M4 (15-0838): the single-byte write lands in block 0 ([0,512), see requires above),
+    # so block 5's region [2560,3072) is untouched. Expose the BYTE frame (not the
+    # slot-DECODE frame) — sys_unlink's reorder frees inode blocks via _set_bitmap AFTER
+    # laying the remove witness and needs block 5 (hence dir_lookup) preserved across the
+    # loop. The byte frame carries NO slot_inode/slot_name terms, so it does NOT
+    # re-introduce the per-slot E-matching blowup an exposed ∀k decode frame caused in
+    # the loop (15-0838 §2.9); the caller converts it via the module-global
+    # block5_decode_frame + dir_lookup_frame.
+    #@ ensures \forall b: int; (2560 <= b and b < 3072) ==> self.disk[b] == \old(self.disk[b])
     #@ sibling_concrete
     def _set_bitmap(self, byte_offset: int, bit_index: int, value: int) -> None:
         byte_pos = byte_offset + (bit_index // 8)
@@ -627,6 +636,8 @@ class UnixInodeFileSystem:
         # Route the single-byte write through the leaf so the class-invariant
         # maintenance (uniqueness/byte-range) is discharged there, not re-derived here.
         self._poke(byte_pos, newval)
+        # Block-5 bytes are untouched (byte_pos < 512); materialize the byte frame.
+        #@ assert \forall b: int; (2560 <= b and b < 3072) ==> self.disk[b] == \old(self.disk[b])
 
     #@ proof rocq UnixFs.Bitmap.bit_and_one_in_zero_one
     #@ proof lean UnixFs.Bitmap.bit_and_one_in_zero_one
@@ -1441,6 +1452,8 @@ class UnixInodeFileSystem:
     #@ proof lean UnixFs.Dir.remove_reflects_absent
     #@ proof rocq UnixFs.Dir.remove_unique_absent
     #@ proof lean UnixFs.Dir.remove_unique_absent
+    #@ proof rocq UnixFs.Dir.dir_lookup_frame
+    #@ proof lean UnixFs.Dir.dir_lookup_frame
     #@ proof rocq UnixFs.Dir.slot_inode_nonneg
     #@ proof lean UnixFs.Dir.slot_inode_nonneg
     #@ requires True
@@ -1478,11 +1491,26 @@ class UnixInodeFileSystem:
             return -1
         inode = self._read_inode(inode_num)
         inode[1] = inode[1] - 1
+        # M4 (15-0838) ENTRY-WRITE-FIRST reorder: zero the directory entry NOW, while
+        # block 5 is fresh from _dir_find_slot (slot still live + named `pathname`, no
+        # intervening self.disk write), and discharge the absence -> dir_lookup < 0
+        # immediately via remove_unique_absent + remove_reflects_absent (the lean,
+        # loop-free context where rmdir already proves). Then free the inode blocks
+        # AFTER: those writes hit block 0 only, so block 5 — hence dir_lookup — is
+        # preserved, and we carry the SCALAR `dir_lookup < 0` across the loop (no
+        # per-slot terms => no E-matching storm; the per-slot loop-carry exploded).
+        #@ assert slot_inode(self.disk, 5, slot) != 0
+        #@ assert slot_name(self.disk, 5, slot) == pathname
+        self._zero_entry(5, slot)
+        #@ assert slot_inode(self.disk, 5, slot) == 0
+        #@ assert \forall k: int; (0 <= k and k < 16 and k != slot and slot_name(self.disk, 5, k) == pathname) ==> slot_inode(self.disk, 5, k) == 0
+        #@ assert dir_lookup(self.disk, 5, pathname) < 0
         if inode[1] == 0:
             #@ loop invariant 8 <= k and k <= 18
             #@ loop invariant \length(self.disk) >= 131072
             #@ loop invariant uniq(self.disk)
             #@ loop invariant inode_bytes_valid(self.disk)
+            #@ loop invariant dir_lookup(self.disk, 5, pathname) < 0
             #@ loop variant 18 - k
             for k in range(8, 18):
                 block = inode[k]
@@ -1491,10 +1519,9 @@ class UnixInodeFileSystem:
             self._set_bitmap(0, inode_num, 0)
         else:
             self._write_inode(inode_num, inode)
-        # Zero the directory entry LAST (entry-write-last shape).
-        self._zero_entry(5, slot)
-        #@ assert slot_inode(self.disk, 5, slot) == 0
-        #@ assert \forall k: int; (0 <= k and k < 16 and k != slot and slot_name(self.disk, 5, k) == pathname) ==> slot_inode(self.disk, 5, k) == 0
+        # block 5 untouched by the freeing writes => dir_lookup unchanged (carried by
+        # the loop invariant / _write_inode decode frame, via dir_lookup_frame).
+        #@ assert dir_lookup(self.disk, 5, pathname) < 0
         return 0
 
     #@ requires True
@@ -1603,6 +1630,8 @@ class UnixInodeFileSystem:
     #@ proof lean UnixFs.Dir.remove_reflects_absent
     #@ proof rocq UnixFs.Dir.remove_unique_absent
     #@ proof lean UnixFs.Dir.remove_unique_absent
+    #@ proof rocq UnixFs.Dir.dir_lookup_frame
+    #@ proof lean UnixFs.Dir.dir_lookup_frame
     #@ proof rocq UnixFs.Dir.slot_inode_nonneg
     #@ proof lean UnixFs.Dir.slot_inode_nonneg
     #@ requires True
