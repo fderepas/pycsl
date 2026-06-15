@@ -1210,6 +1210,10 @@ class UnixInodeFileSystem:
     # fstat(open(p)) discharge `0 <= ino < 32` (gap-14 §3): fd_inode[fd] is now known
     # in-range at the open site, propagated through the open wrapper.
     #@ ensures \result >= 3 ==> (0 <= self.fd_inode[\result] and self.fd_inode[\result] < 32)
+    # M6 gap-17: a freshly opened descriptor starts at offset 0 (body sets
+    # `self.fd_offset[fd] = 0`). The content round-trip needs this so a subsequent
+    # write sees `\old(fd_offset) == 0` and its single-block content ensures fires.
+    #@ ensures \result >= 3 ==> self.fd_offset[\result] == 0
     #@ \trusted reviewer: fd-resolution-fidelity
     #@ no_inline
     def sys_open(self, pathname: str, flags: int) -> int:
@@ -1433,6 +1437,30 @@ class UnixInodeFileSystem:
             n = avail
         self.fd_offset[fd] = self.fd_offset[fd] + n
         return n
+
+    # M6 Phase 3 — content-returning POSITIONAL read (gap-17 cross-call recovery). Unlike
+    # `sys_read` (which yields a byte COUNT and advances the offset), `sys_pread` RETURNS the
+    # bytes of the file's first data block — the CONTENT view `self.disk[fd_block*512 + i]`
+    # that `sys_write` establishes. It is positional (offset 0, single block) and changes no
+    # state (`assigns \nothing`), so a caller composes write's content effect with pread's
+    # output across calls: write ⇒ disk[fd_block*512+i] == data[i]; pread ⇒ result[i] ==
+    # disk[fd_block*512+i]; hence result == data (the content round-trip). The read-back is
+    # `Array.sub` — the read half of the proven `_block_roundtrip`.
+    #@ requires fd >= 0
+    #@ requires nbytes >= 0 and nbytes <= 512
+    #@ assigns \nothing
+    #@ ensures \length(\result) == nbytes or \length(\result) == 0
+    #@ ensures \forall i: int; (0 <= i and i < \length(\result)) ==> \result[i] == self.disk[self.fd_block[fd] * 512 + i]
+    def sys_pread(self, fd: int, nbytes: int, offset: int) -> list:
+        if fd >= 64 or self.fd_open[fd] == 0:
+            return []
+        if offset != 0:
+            return []
+        block = self.fd_block[fd]
+        if block < 6 or block >= 256:
+            return []
+        start = block * 512
+        return self.disk[start:start + nbytes]
 
     #@ requires fd >= 0
     #@ assigns self.fd_open
