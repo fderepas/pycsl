@@ -115,12 +115,12 @@ class DirEntry:
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == 1
-#@ ensures (\result == 1) <==> (dir_lookup(_filesystem.disk, 5, filepath) >= 0)
+#@ ensures (\result == 1) <==> (dir_lookup(_filesystem.dir, 5, filepath) >= 0)
 def access(filepath: str, mode, *, dir_fd=None, effective_ids=False,
            follow_symlinks=True):
     """Check file accessibility. Returns 1 if accessible, 0 otherwise."""
     r = _filesystem.sys_access(filepath, mode)
-    # gap-9: sys_access ensures `(r == 0) <==> dir_lookup(_filesystem.disk, 5,
+    # gap-9: sys_access ensures `(r == 0) <==> dir_lookup(_filesystem.dir, 5,
     # filepath) >= 0` (the directory-scan presence view). result == 1 iff r == 0,
     # so the observer reflects presence.
     if r == 0:
@@ -190,11 +190,11 @@ def fstat(fd):
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
-#@ ensures \result == 0 ==> (dir_lookup(_filesystem.disk, 5, dst) >= 0)
+#@ ensures \result == 0 ==> (dir_lookup(_filesystem.dir, 5, dst) >= 0)
 def link(src: str, dst: str, *, src_dir_fd=None, dst_dir_fd=None,
          follow_symlinks=True):
     """Create a hard link."""
-    # gap-9: sys_link ensures `rc == 0 ==> dir_lookup(_filesystem.disk, 5, dst)
+    # gap-9: sys_link ensures `rc == 0 ==> dir_lookup(_filesystem.dir, 5, dst)
     # >= 0` (the hard-link mutator establishes the presence view for the new
     # name dst), so access(dst) reports PRESENT after a successful link.
     return _filesystem.sys_link(src, dst)
@@ -212,12 +212,12 @@ def lseek(fd, pos, how):
 #@ ensures \result == 0 or \result == -1
 # gap-2: propagate mkdir's presence post-state. makedirs creates the dir (single
 # level in this model) by delegating to sys_mkdir, which ensures `rc == 0 ==>
-# dir_lookup(_filesystem.disk, 5, name) >= 0`. On the exist_ok shortcut the dir
+# dir_lookup(_filesystem.dir, 5, name) >= 0`. On the exist_ok shortcut the dir
 # was already found PRESENT — checked via sys_access, whose `(\result == 0) <==>
 # dir_lookup >= 0` ensures gives `rc == 0 ==> dir_lookup >= 0` directly (the
 # inlined sys_stat cannot carry that binding). Both return-0 paths therefore leave
 # the name PRESENT, so access(name) reports present after a successful makedirs.
-#@ ensures \result == 0 ==> (dir_lookup(_filesystem.disk, 5, name) >= 0)
+#@ ensures \result == 0 ==> (dir_lookup(_filesystem.dir, 5, name) >= 0)
 def makedirs(name: str, mode=0o777, exist_ok=False):
     """Create a directory (single level in this model)."""
     if exist_ok:
@@ -296,10 +296,10 @@ def scandir(filepath='.') -> list:
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
-#@ ensures \result == 0 ==> (dir_lookup(_filesystem.disk, 5, filepath) < 0)
+#@ ensures \result == 0 ==> (dir_lookup(_filesystem.dir, 5, filepath) < 0)
 def remove(filepath: str):
     """Remove a file."""
-    # gap-11: sys_unlink ensures `rc == 0 ==> dir_lookup(_filesystem.disk, 5,
+    # gap-11: sys_unlink ensures `rc == 0 ==> dir_lookup(_filesystem.dir, 5,
     # filepath) < 0` (the unlink mutator establishes the ABSENCE view), so
     # access(filepath) reports ABSENT after a successful remove.
     return _filesystem.sys_unlink(filepath)
@@ -307,7 +307,7 @@ def remove(filepath: str):
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
-#@ ensures \result == 0 ==> (dir_lookup(_filesystem.disk, 5, filepath) < 0)
+#@ ensures \result == 0 ==> (dir_lookup(_filesystem.dir, 5, filepath) < 0)
 def unlink(filepath: str, *, dir_fd=None):
     """Remove a file (same as remove)."""
     # gap-11: ABSENCE view propagated from sys_unlink.
@@ -316,19 +316,19 @@ def unlink(filepath: str, *, dir_fd=None):
 #@ requires True
 #@ assigns _filesystem.disk, _filesystem.fd_open, _filesystem.fd_inode, _filesystem.fd_offset, _filesystem.fd_flags, _filesystem.fd_block, _filesystem.next_fd
 #@ ensures \result == -1 or \result >= 3
-#@ ensures (\result >= 3) <==> (dir_lookup(_filesystem.disk, 5, filepath) >= 0)
-#@ ensures (\result == -1) <==> (dir_lookup(_filesystem.disk, 5, filepath) < 0)
+#@ ensures (\result >= 3) <==> (dir_lookup(_filesystem.dir, 5, filepath) >= 0)
+#@ ensures (\result == -1) <==> (dir_lookup(_filesystem.dir, 5, filepath) < 0)
 # gap-15: with the `_filesystem.fd_inode[\result]` (global_field_subscript) grammar,
 # propagate sys_open's fd-RESOLUTION post-state to the public API so the fd-chain
 # composes: on success the returned fd is OPEN and resolves to an in-range inode —
 # the inode the path names. This is what lets a caller's fstat(open(p)) / dup(open(p))
 # discharge (the fstat/dup wrappers' guards `fd_open[fd]==1`, `0<=fd_inode[fd]<32`
 # are established here at the open site).
-#@ ensures \result >= 3 ==> (\result < 64 and _filesystem.fd_open[\result] == 1 and 0 <= _filesystem.fd_inode[\result] and _filesystem.fd_inode[\result] < 32 and _filesystem.fd_inode[\result] == dir_lookup(_filesystem.disk, 5, filepath))
+#@ ensures \result >= 3 ==> (\result < 64 and _filesystem.fd_open[\result] == 1 and 0 <= _filesystem.fd_inode[\result] and _filesystem.fd_inode[\result] < 32 and _filesystem.fd_inode[\result] == dir_lookup(_filesystem.dir, 5, filepath))
 def open(filepath: str, flags, mode=0o777, *, dir_fd=None):
     """Open a file. Returns a file descriptor."""
     # gap-14: sys_open carries the fd-RESOLUTION + ENOENT discriminant tied to the
-    # namespace view `dir_lookup(_filesystem.disk, 5, filepath)` — a valid fd (>= 3)
+    # namespace view `dir_lookup(_filesystem.dir, 5, filepath)` — a valid fd (>= 3)
     # iff the name resolves, with `fd_inode[result]` resolving to the path's inode
     # (the fd-chain analogue of gap-9, one rung lower). Propagated here so a caller
     # sees: open(existing) >= 3, open(absent O_RDONLY) == -1, and fstat(open(p))
@@ -373,35 +373,35 @@ def write(fd, data: list):
 #@ requires src != dst
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
-#@ ensures \result == 0 ==> (dir_lookup(_filesystem.disk, 5, dst) >= 0)
-#@ ensures \result == 0 ==> (dir_lookup(_filesystem.disk, 5, src) < 0)
+#@ ensures \result == 0 ==> (dir_lookup(_filesystem.dir, 5, dst) >= 0)
+#@ ensures \result == 0 ==> (dir_lookup(_filesystem.dir, 5, src) < 0)
 def rename(src: str, dst: str, *, src_dir_fd=None, dst_dir_fd=None):
     """Rename a file or directory."""
-    # gap-9: sys_rename ensures `rc == 0 ==> dir_lookup(_filesystem.disk, 5, dst)
+    # gap-9: sys_rename ensures `rc == 0 ==> dir_lookup(_filesystem.dir, 5, dst)
     # >= 0` (the rename mutator establishes the presence view for the new name
     # dst), so access(dst) reports PRESENT after a successful rename.
-    # gap-11: `rc == 0 ==> dir_lookup(_filesystem.disk, 5, src) < 0` — the DUAL
+    # gap-11: `rc == 0 ==> dir_lookup(_filesystem.dir, 5, src) < 0` — the DUAL
     # `src`-ABSENT direction, so access(src) reports ABSENT after rename.
     return _filesystem.sys_rename(src, dst)
 
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
-#@ ensures \result == 0 ==> (dir_lookup(_filesystem.disk, 5, filepath) >= 0)
+#@ ensures \result == 0 ==> (dir_lookup(_filesystem.dir, 5, filepath) >= 0)
 def mkdir(filepath: str, mode=0o777, *, dir_fd=None):
     """Create a directory."""
     rc = _filesystem.sys_mkdir(filepath, mode)
-    # gap-9: sys_mkdir ensures `rc == 0 ==> dir_lookup(_filesystem.disk, 5,
+    # gap-9: sys_mkdir ensures `rc == 0 ==> dir_lookup(_filesystem.dir, 5,
     # filepath) >= 0` (the mutator establishes the presence view).
     return rc
 
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
-#@ ensures \result == 0 ==> (dir_lookup(_filesystem.disk, 5, filepath) < 0)
+#@ ensures \result == 0 ==> (dir_lookup(_filesystem.dir, 5, filepath) < 0)
 def rmdir(filepath: str, *, dir_fd=None):
     """Remove a directory."""
-    # gap-11: sys_rmdir ensures `rc == 0 ==> dir_lookup(_filesystem.disk, 5,
+    # gap-11: sys_rmdir ensures `rc == 0 ==> dir_lookup(_filesystem.dir, 5,
     # filepath) < 0` (the rmdir mutator establishes the ABSENCE view), so
     # access(filepath) reports ABSENT after a successful rmdir.
     return _filesystem.sys_rmdir(filepath)
@@ -409,13 +409,13 @@ def rmdir(filepath: str, *, dir_fd=None):
 #@ requires True
 #@ assigns \nothing
 #@ ensures \result == -1 or (\result >= 0 and \result < 32)
-#@ ensures (dir_lookup(_filesystem.disk, 5, filepath) >= 0) ==> (0 <= \result and \result < 32)
-#@ ensures (dir_lookup(_filesystem.disk, 5, filepath) < 0) ==> \result == -1
+#@ ensures (dir_lookup(_filesystem.dir, 5, filepath) >= 0) ==> (0 <= \result and \result < 32)
+#@ ensures (dir_lookup(_filesystem.dir, 5, filepath) < 0) ==> \result == -1
 def stat(filepath: str, *, dir_fd=None, follow_symlinks=True):
     """Get file status. Returns inode number."""
     # PATH-LINK (stat consequence): sys_stat carries the two `dir_lookup`
     # ensures (body-proven via _dir_lookup, no new trust), so a caller that
-    # pinned `dir_lookup(_filesystem.disk,5,filepath) >= 0` (e.g. after a
+    # pinned `dir_lookup(_filesystem.dir,5,filepath) >= 0` (e.g. after a
     # successful mkdir) observes a VALID inode (0 <= \result < 32); absence
     # (`dir_lookup < 0`) yields -1.
     return _filesystem.sys_stat(filepath)
@@ -423,8 +423,8 @@ def stat(filepath: str, *, dir_fd=None, follow_symlinks=True):
 #@ requires True
 #@ assigns \nothing
 #@ ensures \result == -1 or (\result >= 0 and \result < 32)
-#@ ensures (dir_lookup(_filesystem.disk, 5, filepath) >= 0) ==> (0 <= \result and \result < 32)
-#@ ensures (dir_lookup(_filesystem.disk, 5, filepath) < 0) ==> \result == -1
+#@ ensures (dir_lookup(_filesystem.dir, 5, filepath) >= 0) ==> (0 <= \result and \result < 32)
+#@ ensures (dir_lookup(_filesystem.dir, 5, filepath) < 0) ==> \result == -1
 def lstat(filepath: str, *, dir_fd=None):
     """Like stat() but does not follow symbolic links."""
     # PATH-LINK (lstat consequence): sys_lstat (root-dir name lookup,
@@ -435,10 +435,10 @@ def lstat(filepath: str, *, dir_fd=None):
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
-#@ ensures \result == 0 ==> (dir_lookup(_filesystem.disk, 5, dst) >= 0)
+#@ ensures \result == 0 ==> (dir_lookup(_filesystem.dir, 5, dst) >= 0)
 def symlink(src: str, dst: str, target_is_directory=False, *, dir_fd=None):
     """Create a symbolic link."""
-    # gap-9: sys_symlink ensures `rc == 0 ==> dir_lookup(_filesystem.disk, 5,
+    # gap-9: sys_symlink ensures `rc == 0 ==> dir_lookup(_filesystem.dir, 5,
     # linkpath) >= 0` (the symlink mutator establishes the presence view for the
     # link name dst), so access(dst) reports PRESENT after a successful symlink.
     return _filesystem.sys_symlink(src, dst)
