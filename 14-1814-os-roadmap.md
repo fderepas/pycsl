@@ -88,6 +88,12 @@ now definitive:
   (scoped/cited elims), not just a new axiom. REVERTED attempt 3; branch stays at A+C (rmdir closed).
 - **STATUS:** M4 = rmdir CLOSED; unlink/rmdir/rename's absence is blocked by this structural Why3
   limitation. Closing it needs the axiom-scoping/isolation work above — a larger Module6 change.
+- **SPEC:** `15-0838-remove-unique-absent.md` specifies the fix — Part A: re-scope
+  `uniq_elim`/`slots_lt32_elim` from always-emitted (`_CLASS_INV_AXIOMS`) to CITED-only (in the leaf
+  writers, which gain `ensures uniq/slots_lt32` maintenance; the removers inherit it and stay
+  elim-free); Part B: deliver `remove_unique_absent` as one applied fact (B1 cross-validated cited
+  axiom — recommended; or B2 separate-theory zero-TCB lemma). A Module6 EMISSION change, not a new
+  axiom.
 
 ## 1. The immediate mechanism: the 2-layer frame split
 
