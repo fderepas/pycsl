@@ -1252,6 +1252,28 @@ class UnixInodeFileSystem:
         self.fd_block[fd] = inode[8]
         return fd
 
+    # M6 Phase 1 — the single-block CONTENT BLIT leaf, isolated `#@ no_inline` so
+    # sys_write's loop carries only this leaf's NON-quantified-per-element ensures
+    # (not the full Array.blit VC inlined into the multi-block loop, which makes the
+    # syscall VC un-dischardgeable). Mirrors `_block_roundtrip`'s proven write half.
+    # The write lands at `p_block*512 + block_off` with p_block >= 6, i.e. >= 3072 —
+    # ABOVE the inode byte-range [512,2560) AND the directory [2560,3072) — so both
+    # class invariants (`inode_bytes_valid(self.disk)`, `uniq(self.dir)`) are preserved
+    # from the Array.blit frame alone.
+    #@ requires 6 <= p_block and p_block < 256
+    #@ requires 0 <= block_off and block_off < 512
+    #@ requires 0 <= chunk and block_off + chunk <= 512
+    #@ requires 0 <= src_off and src_off + chunk <= \length(src)
+    #@ requires \length(self.disk) >= 131072
+    #@ assigns self.disk
+    #@ ensures \length(self.disk) == \old(\length(self.disk))
+    #@ ensures \forall j: int; (0 <= j and j < chunk) ==> self.disk[p_block * 512 + block_off + j] == src[src_off + j]
+    #@ ensures \forall i: int; (0 <= i and i < \length(self.disk) and (i < p_block * 512 + block_off or i >= p_block * 512 + block_off + chunk)) ==> self.disk[i] == \old(self.disk[i])
+    #@ no_inline
+    def _write_block_at(self, p_block: int, block_off: int, src: list, src_off: int, chunk: int) -> None:
+        disk_start = p_block * 512 + block_off
+        self.disk[disk_start:disk_start + chunk] = src[src_off:src_off + chunk]
+
     #@ requires fd >= 0
     #@ requires \length(data) <= 5120
     #@ assigns self.disk, self.fd_offset, self.fd_block, self._mtime_ticks
@@ -1299,17 +1321,35 @@ class UnixInodeFileSystem:
         inode = self._read_inode(inode_num)
         n = len(data)
         offset = self.fd_offset[fd]
+        # M6 single-block FAST PATH (offset 0, fits one block — the content round-trip
+        # scenario). Straight-line: no loop, no div/mod, and the content blit is the LAST
+        # disk write, so `dir_lookup`-style the content view is the FINAL state and proves
+        # INLINE exactly like `_block_roundtrip` (no _write_inode frame needed — the inode
+        # update happens BEFORE the blit). The general loop below then runs only for
+        # offset != 0 or n > 512, where the content/completion ensures are vacuous.
+        if offset == 0 and n <= 512:
+            if n == 0:
+                return 0
+            p_block = inode[8]
+            if p_block < 6 or p_block >= 256:
+                p_block = self._alloc_block()
+                if p_block < 0 or p_block >= 256:
+                    return -1
+                inode[8] = p_block
+            if n > inode[0]:
+                inode[0] = n
+            inode[7] = self._now()
+            self._write_inode(inode_num, inode)
+            self.disk[p_block * 512:p_block * 512 + n] = data[0:n]
+            self.fd_block[fd] = p_block
+            self.fd_offset[fd] = n
+            return n
         written = 0
         #@ loop invariant 0 <= written and written <= n
         #@ loop invariant self.fd_offset[fd] == offset
-        # gap-16 single-block content invariants (offset 0, n <= 512): each
-        # iteration writes one chunk into block 0 from the file's first data
-        # block, so as long as we are still inside the first block the bytes
-        # already written agree with `data` and fd_block[fd] is the live block.
-        #@ loop invariant (offset == 0 and n <= 512 and written > 0) ==> (self.fd_block[fd] >= 6 and self.fd_block[fd] < 256)
-        #@ loop invariant (offset == 0 and n <= 512) ==> (\forall i: int; (0 <= i and i < written) ==> self.disk[self.fd_block[fd] * 512 + i] == data[i])
         #@ loop invariant uniq(self.dir)
         #@ loop invariant inode_bytes_valid(self.disk)
+        #@ loop invariant \length(self.disk) >= 131072
         #@ loop variant n - written
         while written < n:
             block_idx = (offset + written) // 512
@@ -1317,7 +1357,9 @@ class UnixInodeFileSystem:
             if block_idx < 0 or block_idx >= 10:
                 break
             p_block = inode[8 + block_idx]
-            if p_block <= 0 or p_block >= 256:
+            # blocks 0..5 are reserved (superblock/inode-table/bitmap/directory); a valid
+            # data block is >= 6 (what _alloc_block returns), so treat < 6 as unallocated.
+            if p_block < 6 or p_block >= 256:
                 p_block = self._alloc_block()
                 if p_block < 0 or p_block >= 256:
                     break
@@ -1326,8 +1368,7 @@ class UnixInodeFileSystem:
             remaining = n - written
             if chunk > remaining:
                 chunk = remaining
-            disk_start = p_block * 512 + block_off
-            self.disk[disk_start:disk_start + chunk] = data[written:written + chunk]
+            self._write_block_at(p_block, block_off, data, written, chunk)
             if block_idx == 0:
                 self.fd_block[fd] = p_block
             written = written + chunk
