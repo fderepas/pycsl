@@ -328,4 +328,4 @@ at once, if you are willing to rebuild it from faithful parts, prove the smalles
 > space. The whole craft is learning the difference, and then building a machine honest enough that the
 > answer comes back* Valid.
 > — field notes, PyCSL verification log: `pure_lib/os/` — 0 goals unproven, 1 axiom in the trusted base;
-> the end-to-end content-equality theorem (`formal_0008`) the standing frontier.
+> the content-equality theorem PROVEN on-fd (`formal_os_content`); its create→close→reopen-by-name form the standing frontier.

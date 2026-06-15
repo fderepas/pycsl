@@ -8,7 +8,7 @@
 # Run with PyCSL:
 #   PYTHONHASHSEED=0 PYTHONPATH=<pycsl>/src:<pycsl>/src/pycsl \
 #     <pycsl>/.venv/bin/python -c "
-#       import sys; sys.argv=['pycsl','--keep-mlw','pure_lib_test/formal_0007.py']
+#       import sys; sys.argv=['pycsl','--keep-mlw','pure_lib_test/formal_world_wiring.py']
 #       from pycsl.pycsl import main; main()"
 
 from pure_lib.proc import ProcessState

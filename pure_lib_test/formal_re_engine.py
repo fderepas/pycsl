@@ -1,4 +1,4 @@
-"""Formal test 0002: pure_lib/re — compile and match contracts.
+"""Formal test: pure_lib/re — compile and match contracts.
 
 Verifies structural properties of the re module for all symbolic
 inputs: compile returns a valid Pattern, match returns a valid Match

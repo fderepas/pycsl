@@ -1,4 +1,4 @@
-"""Formal test 0009: file CONTENT round-trip through the public os API (gap-17).
+"""Formal test: file CONTENT round-trip through the public os API (gap-17).
 
 Given a valid open descriptor at offset 0, the bytes written are EXACTLY the bytes read
 back: write(fd, c) then pread(fd, len(c), 0) returns c. The content `c` is symbolic, so

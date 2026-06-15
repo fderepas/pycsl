@@ -12,7 +12,7 @@ Consult this when invoking the PyCSL tool (the exact commands, import-resolution
 | Unproven goals | **0** |
 | Proven rate | **100%** (body-level) |
 | TCB | 1 cross-validated axiom (a bitwise bound) |
-| Formal test | `formal_0001` 18/18 VCs ✅ (totality/safety, all symbolic inputs) |
+| Formal test | `formal_os_roundtrip` 18/18 VCs ✅ (totality/safety, all symbolic inputs) |
 
 The `os` module — a Unix inode filesystem in `pure_lib/os/` — is **fully proven** body-level: every
 syscall, the codec leaves, the inode round-trip, the read-after-write recovery, and the on-disk layout
@@ -20,9 +20,11 @@ class invariant all discharged by SMT, on a one-line trusted base. The earlier `
 the 23 disk-mutating syscalls were closed — leaf-first VALUE contracts + `#@ no_inline` modular
 boundaries (prove a syscall once, reuse its contract) + the codec extracted to its own minimal-context
 file so the inode round-trip proves inline (eliminating its axiom). The **content round-trip**
-(`formal_0008`, `#@ ensures \result == True` — read-back equals what was written) is the standing
-functional-correctness frontier: its foundation is proved, the remaining gap is proof cost, not
-foundations. The full methodology — and `os` as its worked example — is in `docs/formal-filesystem.md`.
+(`formal_os_content`, `#@ ensures \result == True` — read-back equals what was written, via the folded
+`block_content_eq` atom that crosses the no_inline boundary) is **PROVEN** through the public API
+(write→pread == data). The remaining functional-correctness frontier is the cross-call REOPEN-by-name
+version (create→write→close→reopen→read), which needs data-block recovery across close/open. The full
+methodology — and `os` as its worked example — is in `docs/formal-filesystem.md`.
 
 ### re module — 16/16 formal test VCs (stub-level)
 

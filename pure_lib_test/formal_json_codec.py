@@ -1,4 +1,4 @@
-"""Formal test 0004: pure_lib/json — detect_encoding, loads, dumps stubs.
+"""Formal test: pure_lib/json — detect_encoding, loads, dumps stubs.
 
 Verifies structural properties of the json API through stubs.
 detect_encoding is tested for all byte sequences, loads/dumps for

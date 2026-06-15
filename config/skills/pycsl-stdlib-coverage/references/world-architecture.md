@@ -125,15 +125,14 @@ pure_lib/
     __init__.py              # Original json implementation
     _api.py                  # Thin verifiable API wrapper
     decoder.py, encoder.py   # Full impl (body-level blocked)
-pure_lib_test/
-  0001.py                    # Concrete test: os write/read round-trip
-  0002.py                    # Concrete test: re matchers (10 tests)
-  0003.py                    # Concrete test: warnings (5 tests)
-  0004.py                    # Concrete test: json (15 tests)
-  formal_0001.py             # Formal test: os (18/18 VCs)
-  formal_0002.py             # Formal test: re (16/16 VCs)
-  formal_0003.py             # Formal test: warnings (3/3 VCs)
-  formal_0004.py             # Formal test: json (6/6 VCs)
+pure_lib_test/                 # ALL formal tests use the topical `formal_<name>.py` scheme
+  formal_os_roundtrip.py       # os write/read round-trip (18/18 VCs)
+  formal_os_content.py         # os CONTENT round-trip (write→pread == data, gap-17)
+  formal_os_*.py               # per-topic os: _dir/_fd/_fdchain/_io/_namespace/_rwsize/…
+  formal_re_engine.py          # re engine + escape
+  formal_warn_filter.py        # warnings simplefilter/_deprecated
+  formal_json_codec.py         # json detect_encoding/loads/dumps
+  formal_<module>.py           # one per stdlib module (re/json/dt/itools/…)
 lib/
   calling.json               # Call graph: which stdlib symbols to cover
 ```

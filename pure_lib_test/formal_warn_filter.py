@@ -1,4 +1,4 @@
-"""Formal test 0003: pure_lib/warn — simplefilter, _deprecated.
+"""Formal test: pure_lib/warn — simplefilter, _deprecated.
 
 Verifies that warning functions maintain their contracts for all
 symbolic inputs. warn() is excluded because it can raise Exception
