@@ -142,6 +142,64 @@ Proof.
   exact Hiff.
 Qed.
 
+(* UnixFs.Dir.dir_lookup_present_witness (M4 rename — add+remove coexistence fix).
+ *
+ * The NARROW-TRIGGER PRESENCE corollary: a single explicit witness slot k that
+ * is a live in-range match for `name` suffices for dir_lookup name >= 0 — no
+ * existential is introduced into the goal. This is exactly the `<-` direction of
+ * scan_reflects_present specialised to a given witness k.
+ *
+ * Why it exists separately from scan_reflects_present: the IFF's forward use
+ * triggers on every dir_lookup term, introducing the matches-existential for
+ * BOTH the present name (newpath) and the absent name (oldpath) in sys_rename's
+ * final state — the existential for oldpath then interleaves with the absence
+ * axioms (remove_unique_absent / remove_reflects_absent), the E-matching balloon
+ * that blocks rename. Triggered on [dir_lookup, slot_inode] with k explicit, this
+ * fires ONCE for the materialised witness slot and discharges the presence in
+ * O(1), so the presence proof no longer coexists with the absence search. *)
+(* nm-free form: the looked-up name IS the witness slot's own name slot_name d blk k,
+   so the WhyML axiom triggers on [slot_inode d blk k, slot_name d blk k] — firing once
+   per slot (~16), NOT once per (name, slot) pair (which would re-explode). *)
+Theorem dir_lookup_present_witness : forall (d : disk) (blk : Z) (k : Z),
+  0 <= k < 16 -> slot_inode d blk k <> 0 -> slot_inode d blk k < 32 ->
+  dir_lookup d blk (slot_name d blk k) >= 0.
+Proof.
+  intros d blk k Hk Hne Hlt.
+  apply scan_reflects_present.
+  exists k. split; [ exact Hk | unfold matches; repeat split; assumption ].
+Qed.
+
+(* UnixFs.Dir.dir_lookup_present_zero_frame (M4 rename — scalar presence carry).
+ *
+ * Zeroing slot s preserves the PRESENCE of any OTHER name: if `name` is present in
+ * d0 (dir_lookup d0 >= 0), and d1 = d0 with slot s cleared (frame off s, slot s now
+ * dead), and `name` is not the name held at s (name <> slot_name d0 5 s), then `name`
+ * is still present in d1. The present witness slot k for `name` in d0 cannot be s
+ * (its name is `name` <> slot_name d0 5 s), so k survives the frame and still matches
+ * in d1. This is the unlink-style SCALAR carry: sys_rename establishes the newpath
+ * presence in the post-write state, then carries dir_lookup(newpath) >= 0 across the
+ * final old-slot zero as a scalar — so the presence proof (post-write) and the absence
+ * proof (post-zero) never do heavy E-matching in the same disk state. *)
+Theorem dir_lookup_present_zero_frame :
+  forall (d0 d1 : disk) (s : Z) (name : name_t),
+    0 <= s < 16 ->
+    slot_inode d1 5 s = 0 ->
+    ( forall k : Z, 0 <= k < 16 -> k <> s ->
+        slot_inode d1 5 k = slot_inode d0 5 k /\ slot_name d1 5 k = slot_name d0 5 k ) ->
+    name <> slot_name d0 5 s ->
+    dir_lookup d0 5 name >= 0 ->
+    dir_lookup d1 5 name >= 0.
+Proof.
+  intros d0 d1 s name Hs Hsdead Hframe Hname Hpres.
+  apply scan_reflects_present in Hpres. destruct Hpres as [k [Hk Hm]].
+  apply scan_reflects_present. exists k. split; [ exact Hk | ].
+  unfold matches in Hm. destruct Hm as [Hne [Hlt Hnm]].
+  assert (Hks : k <> s).
+  { intro He. subst k. apply Hname. rewrite <- Hnm. reflexivity. }
+  destruct (Hframe k Hk Hks) as [Hi Hn].
+  unfold matches. rewrite Hi, Hn. repeat split; assumption.
+Qed.
+
 End Scan.
 
 (* The unsigned-byte fact, named UnixFs.Dir.slot_inode_nonneg (registry's

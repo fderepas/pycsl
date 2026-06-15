@@ -138,6 +138,52 @@ Proof.
   - exact Hlt.
 Qed.
 
+(* The abstract directory-uniqueness predicate at block 5 (matches
+   RemoveUniqueAbsent.v / UnixFs.Dir.uniq) and the slot-range invariant. *)
+Definition uniq (d : disk) : Prop :=
+  forall i j : Z,
+    0 <= i < 16 -> 0 <= j < 16 ->
+    slot_inode d 5 i <> 0 -> slot_inode d 5 i < 32 ->
+    slot_inode d 5 j <> 0 -> slot_inode d 5 j < 32 ->
+    slot_name d 5 i = slot_name d 5 j -> i = j.
+
+Definition slots_lt32 (d : disk) : Prop :=
+  forall k : Z, 0 <= k < 16 -> slot_inode d 5 k < 32.
+
+(* UnixFs.Dir.dir_lookup_remove_absent (M4 rename — add+remove COEXISTENCE fix).
+   The COMBINED, NARROW-trigger absence: remove_unique_absent (produces the
+   empty-matches witness from uniqueness) FUSED with remove_reflects_absent
+   (concludes dir_lookup < 0), as ONE applied fact keyed on the removed slot s.
+   nm-free: the absent name IS the removed slot's old name slot_name d0 5 s, so
+   the WhyML axiom triggers on [slot_inode d1 5 s, slot_inode d0 5 s] (the removed
+   slot) — NOT on dir_lookup. In sys_rename this fires once for the oldpath slot
+   and never matches the per-slot dir_lookup(slot_name k) terms the presence
+   witness creates, so presence and absence stop coexisting in the E-matching. *)
+Theorem dir_lookup_remove_absent :
+  forall (d0 d1 : disk) (s : Z),
+    ( forall j : Z, 0 <= slot_inode d1 5 j ) ->
+    uniq d0 -> slots_lt32 d0 ->
+    0 <= s < 16 -> slot_inode d0 5 s <> 0 -> slot_inode d1 5 s = 0 ->
+    ( forall k : Z, 0 <= k < 16 -> k <> s -> slot_inode d1 5 k = slot_inode d0 5 k ) ->
+    ( forall k : Z, 0 <= k < 16 -> k <> s -> slot_name  d1 5 k = slot_name  d0 5 k ) ->
+    dir_lookup d1 5 (slot_name d0 5 s) < 0.
+Proof.
+  intros d0 d1 s Hnn Huniq Hlt32 Hs Hs0live Hs1dead Hframei Hframen.
+  apply (remove_reflects_absent d1 5 (slot_name d0 5 s) s Hnn Hs Hs1dead).
+  (* witness: every OTHER slot named (slot_name d0 5 s) is dead on d1 — the
+     remove_unique_absent argument, inlined. *)
+  intros k Hk Hks Hname.
+  destruct (Z.eq_dec (slot_inode d1 5 k) 0) as [Hz | Hnz].
+  - exact Hz.
+  - exfalso.
+    rewrite (Hframei k Hk Hks) in Hnz.
+    rewrite (Hframen k Hk Hks) in Hname.
+    assert (Hk32 : slot_inode d0 5 k < 32) by (apply Hlt32; lia).
+    assert (Hs32 : slot_inode d0 5 s < 32) by (apply Hlt32; lia).
+    assert (Heq : k = s) by (apply (Huniq k s); try lia; assumption).
+    lia.
+Qed.
+
 End Scan.
 
 End Dir.

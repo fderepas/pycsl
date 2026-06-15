@@ -127,6 +127,10 @@ class Module6_WhyMLTranspiler(
         # no \old, no quantifier) — the _zero_entry/_write_entry write-posts the six maps drop.
         # Safe to expose (no quantifier → no trigger → no E-matching poison).
         self._module_method_field_param_post_ensures: Dict[str, List[Dict[str, Any]]] = {}
+        # M4: QUANTIFIED self-field frame ensures, opt-in per `#@ propagate_frame` callee
+        # (e.g. _zero_entry). Lowered with a specific Call-trigger so they don't poison.
+        self._module_method_field_param_frame_ensures: Dict[str, List[Dict[str, Any]]] = {}
+        self._frame_trigger_active: bool = False
         self._auto_trusted_array_returns: List[str] = []
         self._auto_trusted_tuple_returns: List[str] = []
         self._auto_trusted_map_returns: List[str] = []
@@ -555,6 +559,8 @@ class Module6_WhyMLTranspiler(
         self._module_method_field_old_ensures = self._build_method_field_old_ensures_map(funcs_for_maps)
         self._module_method_field_param_post_ensures = \
             self._build_method_field_param_post_ensures_map(funcs_for_maps)
+        self._module_method_field_param_frame_ensures = \
+            self._build_method_field_param_frame_ensures_map(funcs_for_maps)
         # The pseudo-funcs have empty bodies, so the return-type map derives `unit`
         # for a scalar dependency; override with the type from the declared signature
         # so `self.<dep>(…)` is a `: int` (etc.) call, not `: unit`.

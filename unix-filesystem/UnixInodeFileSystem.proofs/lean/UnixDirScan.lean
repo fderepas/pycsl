@@ -88,6 +88,45 @@ theorem scan_reflects_present
   have h := (scan_reflects_prefix slotInode slotName d blk name hnn 16).1
   simpa [dirLookup] using h
 
+-- UnixFs.Dir.dir_lookup_present_witness (M4 rename — add+remove coexistence fix).
+-- The NARROW-TRIGGER presence corollary: a single explicit witness slot k that is
+-- a live in-range match for `name` gives dirLookup ≥ 0 with NO existential in the
+-- goal — the `←` direction of scan_reflects_present specialised to a given witness.
+-- sys_rename uses it so the presence (newpath) discharges in O(1) on the
+-- materialised witness slot, never introducing the matches-existential that (for
+-- the absent oldpath) would interleave with the absence axioms.
+-- nm-free: the looked-up name IS the witness slot's own name (slotName d blk k), so the
+-- WhyML axiom triggers on [slotInode k, slotName k] — once per slot, not per (name,slot).
+theorem dir_lookup_present_witness
+    (d : Disk) (blk : Int) (k : Int)
+    (hnn : ∀ k, 0 ≤ slotInode d blk k)
+    (hk : 0 ≤ k ∧ k < 16)
+    (hne : slotInode d blk k ≠ 0) (hlt : slotInode d blk k < 32) :
+    dirLookup slotInode slotName d blk (slotName d blk k) ≥ 0 := by
+  rw [scan_reflects_present slotInode slotName d blk (slotName d blk k) hnn]
+  exact ⟨k, hk.1, hk.2, ⟨hne, hlt, rfl⟩⟩
+
+-- UnixFs.Dir.dir_lookup_present_zero_frame (M4 rename — scalar presence carry).
+-- Zeroing slot s preserves the presence of any OTHER name: the present witness for
+-- `name` in d0 cannot be s (its name is `name` ≠ slotName d0 5 s), so it survives the
+-- frame and still matches in d1. Lets sys_rename carry dir_lookup(newpath) ≥ 0 across
+-- the final old-slot zero as a scalar (presence in post-write, absence in post-zero).
+theorem dir_lookup_present_zero_frame
+    (d0 d1 : Disk) (s : Int) (name : NameT)
+    (hnn0 : ∀ k, 0 ≤ slotInode d0 5 k) (hnn1 : ∀ k, 0 ≤ slotInode d1 5 k)
+    (hs : 0 ≤ s ∧ s < 16) (hsdead : slotInode d1 5 s = 0)
+    (hframe : ∀ k : Int, 0 ≤ k → k < 16 → k ≠ s →
+        slotInode d1 5 k = slotInode d0 5 k ∧ slotName d1 5 k = slotName d0 5 k)
+    (hname : name ≠ slotName d0 5 s)
+    (hpres : dirLookup slotInode slotName d0 5 name ≥ 0) :
+    dirLookup slotInode slotName d1 5 name ≥ 0 := by
+  rw [scan_reflects_present slotInode slotName d0 5 name hnn0] at hpres
+  obtain ⟨k, hk0, hk16, hne, hlt, hnm⟩ := hpres
+  rw [scan_reflects_present slotInode slotName d1 5 name hnn1]
+  have hks : k ≠ s := by intro he; subst he; exact hname hnm.symm
+  obtain ⟨hi, hn⟩ := hframe k hk0 hk16 hks
+  exact ⟨k, hk0, hk16, by rw [hi]; exact hne, by rw [hi]; exact hlt, by rw [hn]; exact hnm⟩
+
 -- The unsigned-byte fact, UnixFs.Dir.slot_inode_nonneg (registry's
 -- slot_inode_nonneg axiom): a decoded directory-slot inode is non-negative.
 -- This is the `hnn` hypothesis of scan_reflects_present, proven here about the

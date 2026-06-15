@@ -1198,6 +1198,117 @@ class FunctionEmissionMixin:
                 out[func["name"]] = kept
         return out
 
+    def _build_method_field_param_frame_ensures_map(
+            self, functions: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+        """Map method name → its QUANTIFIED self-field FRAME `ensures`
+        (`\\forall k. guard -> X == \\old(X)`), params renamed to `x_i` — but ONLY for methods
+        the author OPTED IN with `#@ propagate_frame` (os-roadmap M4). These are the frames the
+        boundary stub drops and that the absence/uniqueness proofs need (`_zero_entry`'s slot
+        frame), yet which POISON term-rich callers if exposed broadly (§2.9). Gating on
+        `propagate_frame` makes the author assert "this mutator's callers need + can absorb the
+        frame" (e.g. `_zero_entry`, called only by unlink/rmdir/rename — never link/symlink).
+
+        Kept clauses must: reference a self-field + a param, contain a quantifier, NO `\\result`,
+        and (belt-and-braces, §2.9) have a frame term `X` that is a function APPLICATION (Call) so
+        its trigger (pinned later in the Forall handler) is specific. Raw-array frames are dropped.
+        Quantifier binders are threaded so the bound `k` is not mistaken for a local."""
+        def classify(node: Any, params: Set[str], bound: Set[str]) -> Optional[bool]:
+            if not isinstance(node, dict):
+                return None
+            t = node.get("type")
+            if t == "Result":
+                return False
+            if t in ("FieldGet", "Attribute", "OldField"):
+                return False if node.get("object") != "self" else None
+            if t == "OldVar":
+                return False
+            if t == "Subscript":
+                _v = node.get("value", {})
+                if isinstance(_v, dict) and _v.get("type") == "Var":
+                    return False
+            if t == "Var":
+                n = node.get("name")
+                return None if (n in params or n in bound) else False
+            if t == "ArrayLen":
+                v = node.get("var")
+                if isinstance(v, dict):
+                    return None if v.get("object") == "self" else False
+                return None if (v == "self" or v in params or v in bound) else False
+            if t in ("Forall", "Exists", "ForallItems"):
+                bv = node.get("var")
+                if bv:
+                    bound = bound | {bv}
+            for k, val in node.items():
+                if k in ("var", "binder_type", "type"):
+                    continue
+                for c in (val if isinstance(val, list) else [val]):
+                    if classify(c, params, bound) is False:
+                        return False
+            return None
+
+        def saw(node: Any, kind: str) -> bool:
+            if not isinstance(node, dict):
+                return False
+            t = node.get("type")
+            if kind == "field" and t in ("FieldGet", "Attribute", "OldField") \
+                    and node.get("object") == "self":
+                return True
+            if kind == "forall" and t in ("Forall", "Exists", "ForallItems"):
+                return True
+            if kind == "result" and (t == "Result"
+                                     or (t == "ArrayLen" and node.get("var") == "\\result")):
+                return True
+            return any(saw(c, kind) for val in node.values()
+                       for c in (val if isinstance(val, list) else [val]))
+
+        def refs_param(node: Any, params: Set[str]) -> bool:
+            if not isinstance(node, dict):
+                return False
+            if node.get("type") == "Var" and node.get("name") in params:
+                return True
+            if node.get("type") == "ArrayLen" and node.get("var") in params:
+                return True
+            return any(refs_param(c, params) for val in node.values()
+                       for c in (val if isinstance(val, list) else [val]))
+
+        def rename(node: Any, pmap: Dict[str, str]) -> Any:
+            if not isinstance(node, dict):
+                return node
+            if node.get("type") == "Var" and node.get("name") in pmap:
+                return {"type": "Var", "name": pmap[node["name"]]}
+            new: Dict[str, Any] = {}
+            for k, v in node.items():
+                if k == "var" and node.get("type") == "ArrayLen" and v in pmap:
+                    new[k] = pmap[v]
+                elif isinstance(v, list):
+                    new[k] = [rename(c, pmap) if isinstance(c, dict) else c for c in v]
+                elif isinstance(v, dict):
+                    new[k] = rename(v, pmap)
+                else:
+                    new[k] = v
+            return new
+
+        out: Dict[str, List[Dict[str, Any]]] = {}
+        for func in functions:
+            if not func.get("propagate_frame"):
+                continue
+            params = func.get("formal_params", []) or []
+            if not params:
+                continue
+            pset = set(params)
+            pmap = {p: f"x{i}" for i, p in enumerate(params)}
+            kept = []
+            for e in (func.get("contracts", {}).get("ensures", []) or []):
+                if (classify(e, pset, set()) is not False
+                        and saw(e, "field") and saw(e, "forall") and not saw(e, "result")
+                        and refs_param(e, pset)):
+                    tt = self._frame_trigger_term(e)
+                    if isinstance(tt, dict) and tt.get("type") == "Call":
+                        kept.append(rename(e, pmap))
+            if kept:
+                out[func["name"]] = kept
+        return out
+
     @staticmethod
     def _symtype_to_whyml(symtype: Optional[str]) -> str:
         """Convert a Module5 symbol-table type tag to the WhyML type used

@@ -196,7 +196,18 @@ target is `formal_0008.py` (the content round-trip, `\result == True`).
 - [x] **M1** — string-codec Phase A′ (field_to_str round-trip, cross-validated axiom).
 - [x] **M2** — codec ENCODE side (`char_code_at`, `_pad_name` byte contract, end-to-end 0708).
 - [x] **M3** — Layer-1 write-post propagation (unlink 3→1, rmdir 2→1).
-- [ ] **M4** — Layer-2 per-call-site quantified frame + uniqueness ⇒ **close A (unlink/rmdir/rename)**.
+- [x] **M4** — DIRECTORY-AS-SEPARATE-FIELD refactor (the #1 clean-out). The root directory
+  (block 5) is its own record field `self.dir`, so writes to blocks 0/1/data (`assigns
+  self.disk`) are TYPE-LEVEL disjoint from it — the verifier sees directory preservation
+  from the `assigns` clause alone. **Closed sys_unlink (trust RETIRED — `_free_inode_blocks`
+  is now a normal verified method), sys_rmdir, sys_mkdir, AND the entire metadata bucket E
+  (chmod/chown/utimensat/truncate/ftruncate: each 1-2 → 0)**; sys_rename 6→4. `_write_inode`
+  329/1→333/0. NO regressions; `__init__` gate GREEN; corpus byte-diff clean (preamble
+  untouched). Earlier sub-steps: folded-fact rework (cross-validated establish/frame/zero/
+  insert × {uniq,slots_lt32} + remove_unique_absent + dir_lookup_frame) + the #2 trusted
+  boundary, both SUPERSEDED by #1 (block5_decode_frame + the cascade-prone frame facts are
+  now obsolete — a future emission cleanup). Remaining residuals: sys_rename (4, add-side),
+  sys_link (1), sys_write (40, content round-trip — M6, unchanged by #1).
 - [ ] **M5** — diagnose + close **B** (link/symlink residual).
 - [ ] **M6** — codec Phase C ⇒ **close C (content round-trip)** + **D (readlink target)**.
 - [ ] **M7** — sweep **E + F** residuals to 0; body gate 100% Valid.
@@ -212,12 +223,51 @@ Baseline = pre-Layer-1; "now" = current.
 
 | syscall | baseline | now | blocker | milestone |
 |---|---|---|---|---|
-| sys_unlink | 3 | **1** | Layer-2 absence assert | M4 |
-| sys_rmdir | 2 | **1** | Layer-2 absence assert | M4 |
-| sys_rename | OOM | **4** | Layer-2 (both add+remove) | M4 |
+| sys_unlink | 3 | **0** ✅ | — (CLOSED; trust retired via self.dir) | M4 |
+| sys_rmdir | 2 | **0** ✅ | — | M4 |
+| sys_rename | OOM | **3** | presence/absence dir_lookup ensures = confirmed SMT E-MATCHING DIVERGENCE (no-trust closure infeasible); 3 cross-validated lemmas built as infrastructure; faithful POSIX x,x no-op | M4 |
 | sys_mkdir | 0 | **0** ✅ | — | done |
-| sys_link | 1 | 1 | presence/EMLINK residual | M5 |
-| sys_symlink | OOM | OOM | presence + alloc residual | M5 |
-| (others E/F) | — | mostly 0 | confirm | M7 |
+| sys_link | 1 | **0** ✅ | — (CLOSED via _dir_lookup [1,32) tightening) | M5 |
+| sys_symlink | OOM | **0** ✅ | — (cleared by self.dir) | M5 |
+| chmod/chown/utimensat/truncate/ftruncate (E) | 1-2 | **0** ✅ | — (cleared by self.dir) | done |
+| stat/fstat/lstat/getdents/readlink/close/dup/access/lseek (F) | — | **0** ✅ | — | done |
+| sys_open / sys_creat | — | **0** ✅ | — | done |
+| sys_write (C) | — | 40 | content round-trip (array-blit + ∀i data-placement; needs gap-17 effect contract + field codec) | M6 |
+
+Post-cleanup status: only **sys_rename (3)** and **sys_write (40)** remain unproven; every
+other syscall + directory helper is 0. sys_rename's 3 are the presence (dir_lookup(newpath)
+>= 0) + absence (dir_lookup(oldpath) < 0) ensures: the **add+remove COEXISTENCE wall**.
+
+**FINDING (no-trust closure infeasible — genuine SMT E-matching DIVERGENCE).** Proven, not
+merely slow: at a raised 120 s timelimit the residual GREW (1.7M→4.9M steps) without
+converging, and one goal OOMs at ~10 s (memory-bound). Every configuration diverges or OOMs:
+inline step-by-step materialization; lean and minimal-context `no_inline` helper isolation;
+three NARROW-trigger cross-validated lemmas (below); a scalar presence-carry. The root cause
+is the term-rich multi-disk-state context (write + zero) × the always-on `establish_*` +
+directory-scan axioms — and Why3 axioms are module-global (no per-goal scoping), so the noise
+cannot be scoped away from rename.
+
+**Infrastructure built (cross-validated, currently UNCITED — `src/pycsl/module6_whyml/
+preamble.py` + `unix-filesystem/UnixInodeFileSystem.proofs/{rocq,lean}/UnixDirScan{,Absent}`):**
+`dir_lookup_present_witness` (nested-trigger presence on one witness slot), `dir_lookup_
+present_zero_frame` (scalar presence carry across a slot zero), `dir_lookup_remove_absent`
+(combined uniqueness→absence keyed on the removed slot). All: Rocq *Closed under the global
+context*; Lean axioms ⊆ {propext, Quot.sound}. They PROVE rename's presence/absence — the SMT
+just cannot compose them in-context. Ready for a future closure: a different prover, a
+restructured proof, or a reviewer-justified trusted `_rename_swap` (confirmed to close
+rename=0; deferred — keeping the no-trust posture). sys_write's 40 are the content round-trip
+(billion-step
+array-slice-blit + ∀i reasoning) — squarely M6, a separate milestone (gap-17 effect contract
++ field codec), NOT directory-related.
+
+Cleanup (M4 #1 follow-on): retired block5_decode_frame + frame_preserves_*/zero_preserves_*/
+insert_preserves_* (all obsolete once the directory is a type-disjoint field — only
+establish_* remains, for the constructor by-witness) + removed dead _write_directory.
+
+M4 directory-as-separate-field refactor landed: `self.dir` field; `_write_entry` split into
+`_write_dir_entry` (self.dir) + kept data-block `_write_entry` (subdir seed); root-dir
+helpers + decode refs migrated; trusted `_free_inode_blocks` retired to a normal method;
+obsolete block-5 maintenance asserts removed. Cross-validated proofs UNCHANGED (block-5
+layout preserved). `__init__` gate GREEN; corpus byte-diff clean (preamble untouched).
 
 (Refresh this table after each milestone; record the exact failing goal per remaining syscall.)

@@ -311,6 +311,18 @@ class SiblingConcrete(CSLNode):
     pass
 
 @dataclass
+class PropagateFrame(CSLNode):
+    """Represents `#@ propagate_frame` (os-roadmap M4) — OPT-IN: THIS method's QUANTIFIED
+    self-field FRAME ensures (`\\forall k. … == \\old(…)`) are propagated onto its `#@ no_inline`
+    boundary stub, each pinned with a specific function-application trigger. Use ONLY on a mutator
+    whose callers genuinely need the frame and are NOT term-rich enough to E-match-explode under it
+    (e.g. the os `_zero_entry`, called only by unlink/rmdir/rename). Default off → the quantified
+    frame is dropped at the boundary (the non-quantified write-posts still propagate via the
+    field_param_post map). NOT for broad mutators like `_write_entry` whose frame poisons rich
+    callers (link/symlink) — see 14-string-field-codec-plan.md §2.9."""
+    pass
+
+@dataclass
 class Trusted(CSLNode):
     """Represents `#@ \\trusted` — function body is not verified.
     Optional `reviewer` identifies who is accountable for the trust assumption."""
@@ -886,6 +898,7 @@ PYCSL_GRAMMAR = r"""
              | diverges_decl
              | no_inline_decl
              | sibling_concrete_decl
+             | propagate_frame_decl
              | trusted_decl
              | abstract_decl
              | lemma_decl
@@ -986,6 +999,7 @@ PYCSL_GRAMMAR = r"""
     diverges_decl: "\\diverges"
     no_inline_decl: "no_inline"
     sibling_concrete_decl: "sibling_concrete"
+    propagate_frame_decl: "propagate_frame"
     trusted_decl: "\\trusted" ("reviewer" ":" REVIEWER_ID)?
     abstract_decl: "\\abstract"
     lemma_decl: "lemma"
@@ -1331,6 +1345,7 @@ class PyCSLTransformer(Transformer):
     def diverges_decl(self) -> Diverges: return Diverges()
     def no_inline_decl(self) -> NoInline: return NoInline()
     def sibling_concrete_decl(self) -> SiblingConcrete: return SiblingConcrete()
+    def propagate_frame_decl(self) -> PropagateFrame: return PropagateFrame()
     def trusted_decl(self, *args) -> Trusted:
         return Trusted(reviewer=str(args[0]) if args else "")
     def abstract_decl(self) -> Abstract:
