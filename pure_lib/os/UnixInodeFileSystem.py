@@ -810,6 +810,24 @@ class UnixInodeFileSystem:
         #@ assert \forall b: int; (2560 <= b and b < 3072) ==> self.disk[b] == \old(self.disk[b])
         return self.disk[start:start + n]
 
+    # M6 gap-17 — the CONTENT ROUND-TRIP COMPOSITION lemma. Two byte-buffers that both
+    # equal the same data block `b` (as the folded `block_content_eq` atoms `write` and
+    # `pread` respectively establish) and have equal length are themselves equal. This is
+    # the load-bearing step of the round-trip: `write(c)` gives block_content_eq(disk, fd_
+    # block, c), `pread()` gives block_content_eq(disk, fd_block, back), and this lemma
+    # composes them (via block_content_eq_elim, INLINE here where slot_inode is declared)
+    # to `\array_eq(back, c)` — the content survives write→read. The folded atoms cross the
+    # no_inline boundary (the raw \forall i does not), so the round-trip is closeable
+    # THROUGH THE PUBLIC API. Returns `a1` (the proven `_block_roundtrip` shape) so the
+    # equality is the function postcondition, dodging the program-bool encoding of `==`.
+    #@ requires block_content_eq(self.disk, b, a1)
+    #@ requires block_content_eq(self.disk, b, a2)
+    #@ requires \length(a1) == \length(a2)
+    #@ assigns \nothing
+    #@ ensures \array_eq(\result, a2)
+    def _content_compose(self, b: int, a1: list, a2: list) -> list:
+        return a1
+
     # --- DIRECTORY ENTRY RESOLUTION ---
 
     #@ requires block_num >= 0
@@ -1307,7 +1325,14 @@ class UnixInodeFileSystem:
     # (unreachable here: offset 0 + written < 512 keeps block_idx == 0) and the
     # `_alloc_block` failure (-> -1). So the result is the full length or -1.
     #@ ensures (fd < 64 and \old(self.fd_open[fd]) == 1 and 0 <= self.fd_inode[fd] and self.fd_inode[fd] < 32 and \old(self.fd_offset[fd]) == 0 and \length(data) <= 512) ==> (\result == -1 or \result == \length(data))
-    #@ ensures (\result == \length(data) and \old(self.fd_offset[fd]) == 0 and \length(data) <= 512) ==> (\forall i: int; (0 <= i and i < \result) ==> self.disk[self.fd_block[fd] * 512 + i] == data[i])
+    # gap-17: the per-byte content claim, FOLDED into the `block_content_eq` atom so it
+    # PROPAGATES across the no_inline boundary (the raw \forall i does not). Proved INLINE
+    # in the fast path via block_content_eq_intro from the final blit.
+    #@ ensures (\result == \length(data) and \old(self.fd_offset[fd]) == 0 and \length(data) <= 512) ==> block_content_eq(self.disk, self.fd_block[fd], data)
+    # gap-17: on single-block success the file's first data block is live in [6,256) (the
+    # fast path sets fd_block to an _alloc_block result / a resolved data block) — so a
+    # following pread RESOLVES that block (returns its bytes, not the empty []).
+    #@ ensures (\result == \length(data) and \old(self.fd_offset[fd]) == 0 and \length(data) <= 512) ==> (6 <= self.fd_block[fd] and self.fd_block[fd] < 256)
     #@ no_inline
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/write.html
     # cite:_note: POSIX write() — multi-block: writes data across up to 10
@@ -1450,7 +1475,14 @@ class UnixInodeFileSystem:
     #@ requires nbytes >= 0 and nbytes <= 512
     #@ assigns \nothing
     #@ ensures \length(\result) == nbytes or \length(\result) == 0
+    # gap-17: when the fd resolves to a LIVE first data block (open + a prior write), pread
+    # returns exactly `nbytes` (not the empty []), so the round-trip length matches.
+    #@ ensures (fd < 64 and self.fd_open[fd] == 1 and offset == 0 and 6 <= self.fd_block[fd] and self.fd_block[fd] < 256) ==> \length(\result) == nbytes
     #@ ensures \forall i: int; (0 <= i and i < \length(\result)) ==> \result[i] == self.disk[self.fd_block[fd] * 512 + i]
+    # gap-17: the same per-byte fact FOLDED — `block_content_eq(disk, fd_block, result)`
+    # says the returned bytes ARE the data block's content. Composes with write's
+    # block_content_eq(disk, fd_block, data) to give result == data (the round-trip).
+    #@ ensures block_content_eq(self.disk, self.fd_block[fd], \result)
     def sys_pread(self, fd: int, nbytes: int, offset: int) -> list:
         if fd >= 64 or self.fd_open[fd] == 0:
             return []

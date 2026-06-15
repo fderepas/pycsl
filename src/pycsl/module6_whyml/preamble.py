@@ -203,6 +203,27 @@ class PreambleEmissionMixin:
             "dir_lookup d0 5 name >= 0 -> "
             "dir_lookup d1 5 name >= 0",
 
+        # UnixFs.Content.block_content_eq_intro / _elim (gap-17 content round-trip) —
+        # the DEFINITIONAL intro/elim for the folded `block_content_eq` content atom
+        # (same zero-trust shape as ibv_intro/elim / uniq_intro/elim). `block_content_eq
+        # d blk data` ≜ the first `length data` bytes of data-block `blk` equal `data`.
+        # INTRO: sys_write / sys_pread prove the per-byte `\forall i` INLINE (from the
+        # Array.blit / Array.sub spec, where it discharges) then fold to the atom, which
+        # PROPAGATES across no_inline. ELIM: the round-trip caller unfolds the two atoms
+        # (write's data-side + pread's result-side) INLINE and composes them to
+        # `array_eq(result, data)`. Trigger [block_content_eq d blk data] so it fires
+        # only where the atom appears (sys_write/sys_pread/wrappers/the round-trip test) —
+        # never poisoning other methods.
+        "UnixFs.Content.block_content_eq_intro":
+            "forall d : array int, blk : int, data : array int "
+            "[block_content_eq d blk data]. "
+            "( forall i : int. 0 <= i < Array.length data -> d[blk * 512 + i] = data[i] ) "
+            "-> block_content_eq d blk data",
+        "UnixFs.Content.block_content_eq_elim":
+            "forall d : array int, blk : int, data : array int "
+            "[block_content_eq d blk data]. block_content_eq d blk data -> "
+            "( forall i : int. 0 <= i < Array.length data -> d[blk * 512 + i] = data[i] )",
+
         # UnixFs.Dir.slot_inode_nonneg — the unsigned-byte fact: a decoded
         # directory-slot inode number is always non-negative (it is read from
         # unsigned disk bytes via `_unpack_direntry`'s uint fields). This is the
@@ -612,6 +633,11 @@ class PreambleEmissionMixin:
         # directory invariant — its single `forall i` does not E-match-explode).
         "UnixFs.Dir.ibv_intro",
         "UnixFs.Dir.ibv_elim",
+        # gap-17 content round-trip: the folded `block_content_eq` content atom's
+        # DEFINITIONAL intro/elim (trigger [block_content_eq d blk data] → fires only in
+        # sys_write/sys_pread/their wrappers/the round-trip test, never elsewhere).
+        "UnixFs.Content.block_content_eq_intro",
+        "UnixFs.Content.block_content_eq_elim",
         # M4: directory-uniqueness + slots_lt32 ESTABLISHED via establish_* (the
         # constructor `by`-witness over self.dir = Array.make 0). The maintenance facts
         # (frame_preserves_*/zero_preserves_*/insert_preserves_*) are ALL RETIRED (M4 #1):
@@ -640,6 +666,8 @@ class PreambleEmissionMixin:
     _DEFINITIONAL_AXIOMS: frozenset = frozenset({
         "UnixFs.Dir.ibv_intro",
         "UnixFs.Dir.ibv_elim",
+        "UnixFs.Content.block_content_eq_intro",
+        "UnixFs.Content.block_content_eq_elim",
         "Pycsl.Reference.FieldPred.field_nonneg_intro",
         "Pycsl.Reference.FieldPred.field_nonneg_elim",
     })
@@ -722,6 +750,15 @@ class PreambleEmissionMixin:
             "function inode_size (disk: array int) (ino: int) : int =\n"
             "    disk[512 + ino*64 + 0] * 16777216 + disk[512 + ino*64 + 1] * 65536\n"
             "    + disk[512 + ino*64 + 2] * 256 + disk[512 + ino*64 + 3]",
+            # gap-17 content round-trip: the FOLDED content-equality predicate. An
+            # uninterpreted atom (NOT a defined predicate that auto-unfolds) so it
+            # crosses the no_inline boundary as ONE atom — the per-byte `\forall i`
+            # content claim does NOT propagate (Alt-Ergo+Z3 Unknown), but this folded
+            # atom does (exactly the uniq / inode_bytes_valid pattern). Its meaning is
+            # fixed by the DEFINITIONAL intro/elim below (zero trust). `block_content_eq
+            # d blk data` ≜ the first `length data` bytes of data-block `blk` of disk `d`
+            # equal `data` element-for-element.
+            "predicate block_content_eq (d: array int) (blk: int) (data: array int)",
         ],
         # UnixFs.Dir: the directory-scan reflection axiom's backing symbols.
         # `slot_inode`/`slot_name` are the abstract per-slot decode (disk, blk,

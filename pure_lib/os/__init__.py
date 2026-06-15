@@ -367,11 +367,11 @@ def read(fd, n):
 # content round-trip with pread). On a single-block success from offset 0, the written
 # bytes land in the file's first data block, so the on-disk content view EQUALS `data`.
 #@ ensures (fd < 64 and \old(_filesystem.fd_open[fd]) == 1 and 0 <= _filesystem.fd_inode[fd] and _filesystem.fd_inode[fd] < 32 and \old(_filesystem.fd_offset[fd]) == 0 and \length(data) <= 512) ==> (\result == -1 or \result == \length(data))
-# NOTE: the per-byte content ensures (∀i. disk[fd_block*512+i] == data[i]) is PROVEN on
-# sys_write itself (body gate, 0 residual) but does NOT propagate across the no_inline
-# boundary to this wrapper — the ∀i quantified-frame propagation wall (gap-17). The
-# public-API content round-trip (write→pread == data) needs a NON-quantified content view
-# (e.g. \array_eq over a data-block slice) to cross the boundary; deferred (see roadmap M6).
+# gap-17 SOLVED: the content claim is exposed as the FOLDED `block_content_eq` atom, which
+# DOES propagate across the no_inline sys_write boundary (the raw ∀i did not). Composes with
+# pread's block_content_eq to give the public-API content round-trip (write→pread == data).
+#@ ensures (\result == \length(data) and \old(_filesystem.fd_offset[fd]) == 0 and \length(data) <= 512) ==> block_content_eq(_filesystem.disk, _filesystem.fd_block[fd], data)
+#@ ensures (\result == \length(data) and \old(_filesystem.fd_offset[fd]) == 0 and \length(data) <= 512) ==> (6 <= _filesystem.fd_block[fd] and _filesystem.fd_block[fd] < 256)
 def write(fd, data: list):
     """Write to a file descriptor. Returns byte count."""
     return _filesystem.sys_write(fd, data)
@@ -383,7 +383,9 @@ def write(fd, data: list):
 # data block — the CONTENT view `disk[fd_block*512+i]` that write establishes — so a
 # caller composes write→pread into the content round-trip (result == data).
 #@ ensures \length(\result) == nbytes or \length(\result) == 0
+#@ ensures (fd < 64 and _filesystem.fd_open[fd] == 1 and offset == 0 and 6 <= _filesystem.fd_block[fd] and _filesystem.fd_block[fd] < 256) ==> \length(\result) == nbytes
 #@ ensures \forall i: int; (0 <= i and i < \length(\result)) ==> \result[i] == _filesystem.disk[_filesystem.fd_block[fd] * 512 + i]
+#@ ensures block_content_eq(_filesystem.disk, _filesystem.fd_block[fd], \result)
 def pread(fd, nbytes, offset=0) -> list:
     """Read `nbytes` from `fd` at `offset` (positional). Returns the bytes."""
     return _filesystem.sys_pread(fd, nbytes, offset)
@@ -615,3 +617,5 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
         else:
             nondirs.append(name)
     yield top, dirs, nondirs
+
+
