@@ -171,6 +171,43 @@ class PreambleEmissionMixin:
             "    slot_name disk blk k = name -> slot_inode disk blk k = 0 ) -> "
             "dir_lookup disk blk name < 0",
 
+        # UnixFs.Dir.remove_unique_absent (M4 directory-absence fix) — the PRODUCER
+        # twin of remove_reflects_absent. remove_reflects_absent CONSUMES the absence
+        # witness (every other same-named slot is dead) to conclude dir_lookup < 0;
+        # this lemma PRODUCES that witness from the directory invariants. Over a
+        # pre-removal disk d0 that is `uniq` + `slots_lt32` (the FOLDED predicates,
+        # taken as opaque hypotheses — NOT their unfolded \forall i,j bodies) where
+        # slot s is the live entry being removed, and a post-removal disk d1 equal to
+        # d0 off slot s (frame) with slot s now dead: every OTHER slot k whose name
+        # equals the removed name (slot_name d0 5 s) is dead on d1.
+        #
+        # CRITICAL — why this is stated over the FOLDED `uniq`/`slots_lt32` atoms: the
+        # removers (sys_unlink/sys_rename) carry `uniq self.disk` as a class invariant
+        # but CANNOT have uniq_elim/slots_lt32_elim in scope (their \forall i,j /
+        # \forall k instantiate combinatorially in the term-rich remover bodies → the
+        # E-matching explosion that blocks M4 — 15-0838-remove-unique-absent.md §2).
+        # By taking `uniq d0`/`slots_lt32 d0` as OPAQUE hypotheses and discharging
+        # all the unfolding INSIDE the cross-validated proof, the removers APPLY this
+        # in O(1) with NO elim in their VC. Multi-trigger [slot_inode d1 5 s,
+        # slot_inode d0 5 s] (the block5_decode_frame precedent) so it fires exactly
+        # for the removed slot. Reuses the SAME uniq/slots_lt32/slot_inode/slot_name
+        # symbols (no new _AXIOM_FUNCTIONS entry). Cross-validated by
+        # unix-filesystem/UnixInodeFileSystem.proofs/{rocq,lean}/RemoveUniqueAbsent.{v,lean}
+        # (theorem remove_unique_absent): one application of `uniq` at the pair (k,s),
+        # finite, no induction. Rocq 8.20.1: Closed under the global context (0 axioms);
+        # Lean 4.30.0: does not depend on any axioms.
+        "UnixFs.Dir.remove_unique_absent":
+            "forall d0 d1 : array int, s : int "
+            "[slot_inode d1 5 s, slot_inode d0 5 s]. "
+            "uniq d0 -> slots_lt32 d0 -> "
+            "0 <= s < 16 -> slot_inode d0 5 s <> 0 -> slot_inode d1 5 s = 0 -> "
+            "( forall k : int. 0 <= k < 16 -> k <> s -> "
+            "    slot_inode d1 5 k = slot_inode d0 5 k ) -> "
+            "( forall k : int. 0 <= k < 16 -> k <> s -> "
+            "    slot_name  d1 5 k = slot_name  d0 5 k ) -> "
+            "( forall k : int. 0 <= k < 16 -> k <> s -> "
+            "    slot_name d1 5 k = slot_name d0 5 s -> slot_inode d1 5 k = 0 )",
+
         # UnixFs.Dir.insert_preserves_unique (gap-12) — the INSERT companion of
         # remove_reflects_absent and the MAINTENANCE lemma for the directory-
         # uniqueness class invariant. Over two disks d0 (pre-write) and d1
