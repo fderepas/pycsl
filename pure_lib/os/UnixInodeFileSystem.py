@@ -570,6 +570,13 @@ class UnixInodeFileSystem:
     # then inherit the frame from this method's ensures (a single fact), not a re-proof.
     #@ proof rocq UnixFs.Dir.block5_decode_frame
     #@ proof lean UnixFs.Dir.block5_decode_frame
+    # M4: audit-link the FOLDED frame maintenance facts (always-emitted via the
+    # class-inv path; cited here so --reverify-proofs machine-checks their Rocq+Lean
+    # cross-validation, matching the block5_decode_frame pattern).
+    #@ proof rocq UnixFs.Dir.frame_preserves_uniq
+    #@ proof lean UnixFs.Dir.frame_preserves_uniq
+    #@ proof rocq UnixFs.Dir.frame_preserves_slots_lt32
+    #@ proof lean UnixFs.Dir.frame_preserves_slots_lt32
     #@ requires 0 <= p and p < 131072
     #@ requires p < 2560 or p >= 3072
     #@ requires (512 <= p and p < 2560) ==> (0 <= v and v <= 255)
@@ -1002,6 +1009,13 @@ class UnixInodeFileSystem:
     #@ ensures (inode_num != 0 and inode_num < 32) ==> slot_name(self.disk, block_num, slot) == name
     #@ ensures \forall k: int; (0 <= k and k < 16 and k != slot) ==> slot_inode(self.disk, block_num, k) == \old(slot_inode(self.disk, block_num, k))
     #@ ensures \forall k: int; (0 <= k and k < 16 and k != slot) ==> slot_name(self.disk, block_num, k) == \old(slot_name(self.disk, block_num, k))
+    # M4: audit-link the FOLDED insert maintenance facts (a fresh-name single-slot
+    # insert under an unchanged frame preserves uniq/slots_lt32; always-emitted via the
+    # class-inv path, cited here for --reverify-proofs).
+    #@ proof rocq UnixFs.Dir.insert_preserves_uniq_folded
+    #@ proof lean UnixFs.Dir.insert_preserves_uniq_folded
+    #@ proof rocq UnixFs.Dir.insert_preserves_slots_lt32
+    #@ proof lean UnixFs.Dir.insert_preserves_slots_lt32
     # cite:_note: Writes a single 32-byte directory entry (struct '>H30s')
     #             at `slot` of `block_num`. The name is `name.encode(...)`
     #             — an opaque byte buffer (gap 5: the encoded byte
@@ -1034,6 +1048,13 @@ class UnixInodeFileSystem:
 
     #@ proof rocq UnixFs.Dir.slot_inode_nonneg
     #@ proof lean UnixFs.Dir.slot_inode_nonneg
+    # M4: audit-link the FOLDED zero maintenance facts (clearing slot s dead, rest
+    # framed, preserves uniq/slots_lt32; always-emitted via the class-inv path, cited
+    # here for --reverify-proofs).
+    #@ proof rocq UnixFs.Dir.zero_preserves_uniq
+    #@ proof lean UnixFs.Dir.zero_preserves_uniq
+    #@ proof rocq UnixFs.Dir.zero_preserves_slots_lt32
+    #@ proof lean UnixFs.Dir.zero_preserves_slots_lt32
     #@ requires block_num >= 0
     #@ requires block_num < 256
     #@ requires slot >= 0 and slot < 16
@@ -1076,6 +1097,12 @@ class UnixInodeFileSystem:
 
     #@ proof rocq UnixFs.Dir.empty_disk_slots_dead
     #@ proof lean UnixFs.Dir.empty_disk_slots_dead
+    # M4: audit-link the FOLDED establishment facts (empty disk -> uniq / slots_lt32;
+    # always-emitted via the class-inv path, cited here for --reverify-proofs).
+    #@ proof rocq UnixFs.Dir.establish_uniq
+    #@ proof lean UnixFs.Dir.establish_uniq
+    #@ proof rocq UnixFs.Dir.establish_slots_lt32
+    #@ proof lean UnixFs.Dir.establish_slots_lt32
     #@ requires True
     #@ assigns self.disk
     #@ ensures True

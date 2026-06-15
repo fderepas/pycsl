@@ -126,7 +126,13 @@ target is `formal_0008.py` (the content round-trip, `\result == True`).
 - [x] **M1** — string-codec Phase A′ (field_to_str round-trip, cross-validated axiom).
 - [x] **M2** — codec ENCODE side (`char_code_at`, `_pad_name` byte contract, end-to-end 0708).
 - [x] **M3** — Layer-1 write-post propagation (unlink 3→1, rmdir 2→1).
-- [ ] **M4** — Layer-2 per-call-site quantified frame + uniqueness ⇒ **close A (unlink/rmdir/rename)**.
+- [~] **M4** — FOLDED-FACT rework (15-0838 sound realization): replaced the explosive
+  uniq/slots_lt32 intro/elim with cross-validated FOLDED maintenance facts (establish/
+  frame/zero/insert × {uniq,slots_lt32}) + `remove_unique_absent` + `dir_lookup_frame`.
+  **sys_rmdir CLOSED (1→0)**; sys_unlink absence now PROVEN (reorder), 1 residual
+  (post-free dir_lookup-carry storm); sys_rename 6→5. NO regressions; `__init__` green.
+  Remaining: tame the freeing-loop dir_lookup-preservation E-matching (unlink) + rename
+  add-side insert wiring.
 - [ ] **M5** — diagnose + close **B** (link/symlink residual).
 - [ ] **M6** — codec Phase C ⇒ **close C (content round-trip)** + **D (readlink target)**.
 - [ ] **M7** — sweep **E + F** residuals to 0; body gate 100% Valid.
@@ -142,12 +148,17 @@ Baseline = pre-Layer-1; "now" = current.
 
 | syscall | baseline | now | blocker | milestone |
 |---|---|---|---|---|
-| sys_unlink | 3 | **1** | Layer-2 absence assert | M4 |
-| sys_rmdir | 2 | **1** | Layer-2 absence assert | M4 |
-| sys_rename | OOM | **4** | Layer-2 (both add+remove) | M4 |
+| sys_unlink | 3 | **1** | post-free dir_lookup-carry storm (absence PROVEN) | M4 |
+| sys_rmdir | 2 | **0** ✅ | — (CLOSED via remove_unique_absent) | M4 |
+| sys_rename | OOM | **5** | add-side insert wiring (was 6) | M4 |
 | sys_mkdir | 0 | **0** ✅ | — | done |
 | sys_link | 1 | 1 | presence/EMLINK residual | M5 |
 | sys_symlink | OOM | OOM | presence + alloc residual | M5 |
 | (others E/F) | — | mostly 0 | confirm | M7 |
+
+M4 folded-fact rework landed: `cccdeec` (anchor remove_unique_absent), `55b94de` (8 folded
+facts), `afe0abe` (emission swap + removers cite producer), `a813d71` (dir_lookup_frame +
+unlink reorder + _set_bitmap byte frame). All facts cross-validated (Rocq Closed; Lean
+axioms ⊆ {propext,Quot.sound}). `__init__` gate GREEN; writers clean; byte-diff clean.
 
 (Refresh this table after each milestone; record the exact failing goal per remaining syscall.)
