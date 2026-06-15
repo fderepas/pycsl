@@ -845,7 +845,12 @@ class UnixInodeFileSystem:
     #@ requires block_num >= 0
     #@ requires block_num == 5
     #@ assigns \nothing
-    #@ ensures \result == -1 or (\result >= 0 and \result < 32)
+    # M4 #1: a MATCH is a LIVE slot (the scan only matches slot_inode != 0 and < 32 —
+    # the inode-0 '.' entry is dead per the scan and resolved specially), so a resolving
+    # lookup returns an inode in [1,32), not just [0,32). This `!= 0` lets sys_link/
+    # sys_rename discharge their presence witness (slot_inode != 0) directly, without an
+    # E-matching search. Sound (reviewer: dirscan-fidelity — same trust as the binding).
+    #@ ensures \result == -1 or (\result >= 1 and \result < 32)
     #@ ensures \result == dir_lookup(self.dir, block_num, pathname)
     # cite:_note: Reusable directory name-lookup for the path-based
     #             syscalls. Scans the 16 entries of a directory block,
@@ -1904,6 +1909,11 @@ class UnixInodeFileSystem:
     #             pre-assert state; `#@ no_inline` isolates them from the scans.
     #@ no_inline
     def sys_rename(self, oldpath: str, newpath: str) -> int:
+        # POSIX rename(x, x) is a no-op. The guard is also load-bearing for the ABSENCE
+        # postcondition: with oldpath == newpath the freshly-written newpath slot WOULD be
+        # a live slot named oldpath, contradicting "oldpath absent after rename".
+        if oldpath == newpath:
+            return 0
         inode_num = self._dir_lookup(5, oldpath)
         if inode_num < 0 or inode_num >= 32:
             return -1
@@ -1916,10 +1926,10 @@ class UnixInodeFileSystem:
         fslot = self._dir_find_free(5)
         if fslot < 0:
             return -1
-        # Write newpath in a free slot (PRESENCE witness), then zero old_slot
-        # LAST (ABSENCE remove-witness). fslot is free => fslot != old_slot, so
-        # the final zero is slot-local to old_slot and preserves the newpath
-        # witness at fslot; newpath != oldpath keeps oldpath absent at fslot.
+        # Write newpath in a free slot (PRESENCE witness), then zero old_slot LAST
+        # (ABSENCE remove-witness). fslot is free (dead) => fslot != old_slot (live), so
+        # the final zero is slot-local to old_slot and preserves the newpath witness at
+        # fslot; oldpath != newpath (guard) keeps oldpath absent at fslot.
         self._write_dir_entry(5, fslot, inode_num, newpath)
         self._zero_entry(5, old_slot)
         #@ assert \exists k: int; 0 <= k and k < 16 and slot_inode(self.dir, 5, k) != 0 and slot_inode(self.dir, 5, k) < 32 and slot_name(self.dir, 5, k) == newpath
