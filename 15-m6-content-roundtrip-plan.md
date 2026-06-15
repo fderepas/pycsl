@@ -1,13 +1,16 @@
 # M6 — content round-trip (sys_write fidelity → cross-call read recovery)
 
-> **STATUS 2026-06-15 (autonomous run).** Phase 0 ✅ (diagnosis), Phase 1 ✅ (**sys_write
-> 40 → 0** via the single-block fast-path + `_write_block_at` leaf), Phase 3 ✅ achievable
-> half (`sys_pread` content read 36/0 + `os.pread` + write/open API ensures; __init__ GREEN
-> 1118/0). Phase 2 (multi-block content) and Phase 4 (formal_0008 round-trip) are BLOCKED by
-> the **gap-17 quantified-content wall**: sys_write's per-byte content ensures is proven ON
-> sys_write but does not propagate across no_inline (∀i; Alt-Ergo+Z3 Unknown). Unblock = a
-> non-quantified content view (`\array_eq` over a data-block slice) — PyCSL lacks
-> slice-in-`\array_eq`; that is the gap-17 next step. Commits a998516, dd88e23.
+> **STATUS 2026-06-15 (autonomous run).** Phase 0 ✅, Phase 1 ✅ (**sys_write 40 → 0**),
+> Phase 3 ✅ (`sys_pread` + `os.pread`), **gap-17 ✅ SOLVED** (commit 9e71e5d): the content
+> round-trip is closed through the public API via the FOLDED `block_content_eq` predicate
+> (definitional intro/elim) — it crosses no_inline where the ∀i / `\array_eq` could not
+> (slice-in-`\array_eq` was a red herring: `\array_eq` IS the ∀i). Pieces: sys_write ⟹
+> block_content_eq (379/0); sys_pread ⟹ block_content_eq (36/0); wrappers propagate the
+> atoms (__init__ GREEN 1128/0); `_content_compose` (26/0): two atoms ⟹ `\array_eq` (back==c).
+> Corpus byte-diff clean 601/601. Phase 2 (multi-block content) = loop content-∀i divergence;
+> a single create→write→read function (formal_0008) = orthogonal PyCSL harness bugs
+> (bool-return, assert-in-if, slot_inode decl for importer tests). Commits a998516, dd88e23,
+> 9e71e5d.
 
 
 Status entering M6 (body gate, branch `m6-content-roundtrip` off `main` @ 61f1afc):

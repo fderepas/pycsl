@@ -172,18 +172,26 @@ blit was extracted to the `_write_block_at` no_inline leaf (45/0), the syscall b
 measurable and the ONLY divergent goals were the content ones (11 postcondition + 4
 content-∀i loop-invariant, billion-step); all bounds/type/other invariants Valid. Added
 `sys_pread` (36/0) + `os.pread` + open `fd_offset==0` + write COMPLETION API ensures.
-**STILL OPEN (gap-17 cross-call content composition):** the per-byte content ensures is
-proven ON sys_write but does NOT propagate across no_inline to the os.write wrapper / a
-caller (∀i quantified-propagation wall — Alt-Ergo+Z3 Unknown), so the public-API round-trip
-(write→pread==data, formal_0008) is blocked. Unblock = a NON-quantified content view
-(\array_eq over a data-block slice) crossing as one atom; PyCSL lacks slice-in-\array_eq —
-the gap-17 next step. Multi-block content (Phase 2) is the same wall (loop content-∀i
-divergence). __init__ GREEN 1118/0 throughout.
+**gap-17 cross-call content composition — SOLVED (commit 9e71e5d).** Slice-in-\array_eq was
+NOT the fix: \array_eq lowers to the explicit ∀i, exactly what fails to cross no_inline. The
+real mechanism is a FOLDED (uninterpreted) predicate atom — `UnixFs.Content.block_content_eq
+(d blk data)` with definitional (zero-trust) intro/elim, the uniq / inode_bytes_valid pattern.
+The per-byte ∀i is folded INSIDE sys_write/sys_pread (where it discharges from Array.blit /
+Array.sub) and the ATOM then propagates across no_inline (where the ∀i was Unknown). Closed in
+proven composable pieces: sys_write ⟹ block_content_eq(disk,fd_block,data) (379/0); sys_pread
+⟹ block_content_eq(disk,fd_block,result) (36/0); os.write/os.pread wrappers PROPAGATE the
+atoms (__init__ GREEN 1128/0); `_content_compose` (26/0): two atoms over the same block +
+equal length ⟹ \array_eq — i.e. write→pread == data. Corpus byte-diff clean (601/601). A
+single create→write→read function (formal_0008 style) is still blocked by ORTHOGONAL PyCSL
+test-harness bugs (bool-return int/bool encoding, assert-in-if dropping, slot_inode decl for
+importer tests) — not gap-17. Multi-block content (Phase 2) remains the loop content-∀i
+divergence.
 
-Post-cleanup status: only **sys_rename (3, SMT-divergent)** remains in the body gate (plus
-the gap-17 cross-call content COMPOSITION for the full round-trip); every
-other syscall + directory helper is 0. sys_rename's 3 are the presence (dir_lookup(newpath)
->= 0) + absence (dir_lookup(oldpath) < 0) ensures: the **add+remove COEXISTENCE wall**.
+Post-cleanup status: only **sys_rename (3, SMT-divergent)** remains in the body gate; every
+syscall body — including **sys_write (0)** and **sys_pread (0)** — verifies, and the content
+round-trip composes through the public API. sys_rename's 3 are the presence (dir_lookup(
+newpath) >= 0) + absence (dir_lookup(oldpath) < 0) ensures: the **add+remove COEXISTENCE
+wall**.
 
 **FINDING (no-trust closure infeasible — genuine SMT E-matching DIVERGENCE).** Proven, not
 merely slow: at a raised 120 s timelimit the residual GREW (1.7M→4.9M steps) without
