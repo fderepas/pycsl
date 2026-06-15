@@ -236,20 +236,11 @@ class PreambleEmissionMixin:
             "forall d : array int [slots_lt32 d]. "
             "( forall k : int. 0 <= k < 16 -> slot_inode d 5 k = 0 ) -> slots_lt32 d",
 
-        # FRAME: a write that leaves every block-5 slot decode unchanged (non-
-        # directory writers, via block5_decode_frame) preserves the invariant.
-        "UnixFs.Dir.frame_preserves_uniq":
-            "forall d0 d1 : array int [uniq d1, uniq d0]. "
-            "uniq d0 -> "
-            "( forall k : int. 0 <= k < 16 -> "
-            "    slot_inode d1 5 k = slot_inode d0 5 k /\\ "
-            "    slot_name  d1 5 k = slot_name  d0 5 k ) -> "
-            "uniq d1",
-        "UnixFs.Dir.frame_preserves_slots_lt32":
-            "forall d0 d1 : array int [slots_lt32 d1, slots_lt32 d0]. "
-            "slots_lt32 d0 -> "
-            "( forall k : int. 0 <= k < 16 -> slot_inode d1 5 k = slot_inode d0 5 k ) -> "
-            "slots_lt32 d1",
+        # NOTE: frame_preserves_uniq / frame_preserves_slots_lt32 RETIRED (M4 #1) — with
+        # the root directory in its own field self.dir, non-directory writes (assigns
+        # self.disk) preserve uniq(self.dir)/slots_lt32(self.dir) from the frame alone, so
+        # these frame facts are obsolete. Cross-validated proofs kept in
+        # DirInvariantMaintenance.{v,lean} for reference.
 
         # ZERO: clearing slot s dead (the remover's _zero_entry), rest framed,
         # preserves the invariant (the live set only shrinks).
@@ -407,14 +398,11 @@ class PreambleEmissionMixin:
         # Logically IDENTICAL to the validated statement (k pulled out of the
         # conclusion into the antecedent; triggers are proof hints, not logic), so
         # Block5DecodeFrame.{v,lean} still apply unchanged.
-        "UnixFs.Dir.block5_decode_frame":
-            "forall d0 d1 : array int, k : int "
-            "[slot_inode d1 5 k, slot_inode d0 5 k | "
-            "slot_name d1 5 k, slot_name d0 5 k]. "
-            "( forall b : int. 2560 <= b < 3072 -> d0[b] = d1[b] ) -> "
-            "0 <= k < 16 -> "
-            "( slot_inode d1 5 k = slot_inode d0 5 k /\\ "
-            "  slot_name d1 5 k = slot_name d0 5 k )",
+        # NOTE: block5_decode_frame RETIRED (M4 #1) — it converted a block-5 BYTE frame
+        # into a slot-decode frame so non-directory writers could prove the (block-5-in-
+        # self.disk) directory preserved. With the directory in its own field self.dir,
+        # that preservation is automatic from `assigns self.disk`, so this axiom is
+        # obsolete. Cross-validated proof kept in Block5DecodeFrame.{v,lean} for reference.
         # allocator-frame plan §2a: DEFINITIONAL intro/elim for the abstract `uniq` /
         # `inode_bytes_valid` predicates (a conservative definition `pred d <-> P(d)`,
         # sound by construction — equivalent to `predicate pred (d) = P(d)` but kept
@@ -514,22 +502,19 @@ class PreambleEmissionMixin:
     # not reintroduce the gap-9 E-matching blowup.
     _CLASS_INV_AXIOMS: frozenset = frozenset({
         "UnixFs.Dir.empty_disk_slots_dead",
-        "UnixFs.Dir.block5_decode_frame",
+        # block5_decode_frame RETIRED (M4 #1): directory now in its own field self.dir,
+        # so non-directory writes preserve it from the frame alone (no byte->decode step).
         # inode_bytes_valid keeps its definitional intro/elim (a different, non-
         # directory invariant — its single `forall i` does not E-match-explode).
         "UnixFs.Dir.ibv_intro",
         "UnixFs.Dir.ibv_elim",
-        # M4 (15-0838 Part A, sound realization): the directory-uniqueness +
-        # slots_lt32 invariants are maintained via FOLDED maintenance facts that
-        # treat `uniq`/`slots_lt32` as OPAQUE, NOT via uniq_intro/uniq_elim/
-        # slots_lt32_intro/slots_lt32_elim. The elims' nested `forall i,j`/`forall k`
-        # E-match-explode in the term-rich removers (15-0838 §2); the folded facts
-        # carry no nested quantifier into any VC. All precede the record (constructor
-        # `by`-witness via establish_*; per-method maintenance via frame/zero/insert).
+        # M4: directory-uniqueness + slots_lt32 maintained via FOLDED facts over the
+        # OPAQUE uniq/slots_lt32 (not the explosive intro/elim). establish_* discharge
+        # the constructor `by`-witness; zero_*/insert_* the directory mutators. The
+        # frame_preserves_* facts are RETIRED (M4 #1): non-directory writes preserve the
+        # directory (self.dir) from `assigns self.disk` alone, no frame fact needed.
         "UnixFs.Dir.establish_uniq",
         "UnixFs.Dir.establish_slots_lt32",
-        "UnixFs.Dir.frame_preserves_uniq",
-        "UnixFs.Dir.frame_preserves_slots_lt32",
         "UnixFs.Dir.zero_preserves_uniq",
         "UnixFs.Dir.zero_preserves_slots_lt32",
         "UnixFs.Dir.insert_preserves_uniq_folded",

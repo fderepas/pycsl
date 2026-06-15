@@ -578,15 +578,9 @@ class UnixInodeFileSystem:
     # E-match-explodes — 42M+ steps). With the multi-pattern-triggered
     # UnixFs.Dir.block5_decode_frame, the uniqueness frame here fires O(1). Callers
     # then inherit the frame from this method's ensures (a single fact), not a re-proof.
-    #@ proof rocq UnixFs.Dir.block5_decode_frame
-    #@ proof lean UnixFs.Dir.block5_decode_frame
     # M4: audit-link the FOLDED frame maintenance facts (always-emitted via the
     # class-inv path; cited here so --reverify-proofs machine-checks their Rocq+Lean
     # cross-validation, matching the block5_decode_frame pattern).
-    #@ proof rocq UnixFs.Dir.frame_preserves_uniq
-    #@ proof lean UnixFs.Dir.frame_preserves_uniq
-    #@ proof rocq UnixFs.Dir.frame_preserves_slots_lt32
-    #@ proof lean UnixFs.Dir.frame_preserves_slots_lt32
     #@ requires 0 <= p and p < 131072
     #@ requires p < 2560 or p >= 3072
     #@ requires (512 <= p and p < 2560) ==> (0 <= v and v <= 255)
@@ -602,8 +596,6 @@ class UnixInodeFileSystem:
     def _poke(self, p: int, v: int) -> None:
         self.disk[p] = v
 
-    #@ proof rocq UnixFs.Dir.block5_decode_frame
-    #@ proof lean UnixFs.Dir.block5_decode_frame
     #@ requires byte_offset >= 0
     #@ requires bit_index >= 0
     #@ requires byte_offset + bit_index // 8 < 131072
@@ -674,8 +666,6 @@ class UnixInodeFileSystem:
         bit_pos = bit_index % 8
         return (self.disk[byte_pos] >> bit_pos) & 1
 
-    #@ proof rocq UnixFs.Dir.block5_decode_frame
-    #@ proof lean UnixFs.Dir.block5_decode_frame
     #@ requires True
     #@ assigns self.disk
     #@ ensures \result == -1 or (\result >= 1 and \result < 32)
@@ -697,8 +687,6 @@ class UnixInodeFileSystem:
                 return i
         return -1
 
-    #@ proof rocq UnixFs.Dir.block5_decode_frame
-    #@ proof lean UnixFs.Dir.block5_decode_frame
     #@ requires True
     #@ assigns self.disk
     #@ ensures \result == -1 or (\result >= 6 and \result < 256)
@@ -766,8 +754,6 @@ class UnixInodeFileSystem:
     # round-trip made usable across calls (recovers a file's block on reopen).
     #@ ensures self.disk[512 + inode_num*64 + 0]*16777216 + self.disk[512 + inode_num*64 + 1]*65536 + self.disk[512 + inode_num*64 + 2]*256 + self.disk[512 + inode_num*64 + 3] == inode[0]
     #@ ensures self.disk[512 + inode_num*64 + 22]*16777216 + self.disk[512 + inode_num*64 + 23]*65536 + self.disk[512 + inode_num*64 + 24]*256 + self.disk[512 + inode_num*64 + 25] == inode[8]
-    #@ proof rocq UnixFs.Dir.block5_decode_frame
-    #@ proof lean UnixFs.Dir.block5_decode_frame
     # BLOCK-5 DECODE FRAME (gap-13, Wall M): the inode write touches only
     # [512 + inode_num*64, +64) and inode_num < 32, so the written region is a
     # subset of [512, 2560), DISJOINT from block 5's region [2560, 3072). Hence
@@ -791,8 +777,6 @@ class UnixInodeFileSystem:
         self.disk[offset:offset + 64] = inode_bytes
         #@ assert \forall b: int; (2560 <= b and b < 3072) ==> self.disk[b] == \old(self.disk[b])
 
-    #@ proof rocq UnixFs.Dir.block5_decode_frame
-    #@ proof lean UnixFs.Dir.block5_decode_frame
     #@ requires block >= 6 and block < 256
     #@ assigns self.disk
     #@ raises ValueError when \length(data) > 512
@@ -853,33 +837,6 @@ class UnixInodeFileSystem:
             if inode_num != 0 or name in ('.', '..'):
                 entries.append((name, inode_num))
         return entries
-
-    #@ requires block_num >= 0
-    #@ requires block_num < 256
-    #@ requires \length(inodes) == 16
-    #@ requires \length(names) == 480
-    #@ assigns self.disk
-    #@ ensures True
-    # cite:_note: De-trusted by the data-model rewrite
-    #             (remove-trusted-unixfs.md). A directory block holds 16
-    #             entries of struct '>H30s' (inode_num : H, name : 30-byte
-    #             field). Entries are passed as parallel int arrays —
-    #             `inodes` (16 inode numbers) and `names` (a flat
-    #             16*30 = 480-byte name buffer; entry i's name is
-    #             names[i*30 : i*30+30]). This replaces the original
-    #             list-of-(str,int)-tuples + enumerate + bytes.encode/
-    #             ljust, none of which PyCSL can emit. The block is
-    #             zero-filled then each entry packed (i1a1) and blitted
-    #             in one bounded range(16) loop.
-    def _write_directory(self, block_num: int, inodes: list, names: list) -> None:
-        offset = block_num * 512
-        self.disk[offset:offset + 512] = b'\x00' * 512
-        #@ loop invariant 0 <= i and i <= 16
-        #@ loop variant 16 - i
-        for i in range(16):
-            entry_offset = offset + (i * 32)
-            name_slice = names[i * 30:i * 30 + 30]
-            self.disk[entry_offset:entry_offset + 32] = _pack_direntry(inodes[i], name_slice)
 
     #@ proof rocq UnixFs.Dir.scan_reflects_present
     #@ proof lean UnixFs.Dir.scan_reflects_present
@@ -1830,8 +1787,6 @@ class UnixInodeFileSystem:
             return 0
         return -1
 
-    #@ proof rocq UnixFs.Dir.block5_decode_frame
-    #@ proof lean UnixFs.Dir.block5_decode_frame
     #@ requires True
     #@ assigns self.disk
     #@ ensures \result == 0 or \result == -1
@@ -1875,8 +1830,6 @@ class UnixInodeFileSystem:
         # preserved). This collapses the gap-13 232M-step balloon to a rewrite.
         return 0
 
-    #@ proof rocq UnixFs.Dir.block5_decode_frame
-    #@ proof lean UnixFs.Dir.block5_decode_frame
     #@ requires True
     #@ assigns self.disk
     #@ ensures \result == 0 or \result == -1
@@ -1899,8 +1852,6 @@ class UnixInodeFileSystem:
         # BLOCK-5 DECODE FRAME chain (gap-13, Wall M) — see sys_chmod.
         return 0
 
-    #@ proof rocq UnixFs.Dir.block5_decode_frame
-    #@ proof lean UnixFs.Dir.block5_decode_frame
     #@ requires True
     #@ assigns self.disk
     #@ ensures \result == 0 or \result == -1
@@ -2175,8 +2126,6 @@ class UnixInodeFileSystem:
             return -1
         return inode_num
 
-    #@ proof rocq UnixFs.Dir.block5_decode_frame
-    #@ proof lean UnixFs.Dir.block5_decode_frame
     #@ requires True
     #@ assigns self.disk
     #@ ensures \result == 0 or \result == -1
@@ -2213,8 +2162,6 @@ class UnixInodeFileSystem:
         # ensures-level proof is robust.)
         return 0
 
-    #@ proof rocq UnixFs.Dir.block5_decode_frame
-    #@ proof lean UnixFs.Dir.block5_decode_frame
     #@ requires fd >= 0
     #@ assigns self.disk
     #@ ensures \result == 0 or \result == -1
