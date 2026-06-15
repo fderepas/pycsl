@@ -370,11 +370,10 @@ def write(fd, data: list):
     """Write to a file descriptor. Returns byte count."""
     return _filesystem.sys_write(fd, data)
 
-#@ requires src != dst
-#@ assigns _filesystem.disk
+#@ assigns _filesystem.disk, _filesystem.dir
 #@ ensures \result == 0 or \result == -1
-#@ ensures \result == 0 ==> (dir_lookup(_filesystem.dir, 5, dst) >= 0)
-#@ ensures \result == 0 ==> (dir_lookup(_filesystem.dir, 5, src) < 0)
+#@ ensures (\result == 0 and src != dst) ==> (dir_lookup(_filesystem.dir, 5, dst) >= 0)
+#@ ensures (\result == 0 and src != dst) ==> (dir_lookup(_filesystem.dir, 5, src) < 0)
 def rename(src: str, dst: str, *, src_dir_fd=None, dst_dir_fd=None):
     """Rename a file or directory."""
     # gap-9: sys_rename ensures `rc == 0 ==> dir_lookup(_filesystem.dir, 5, dst)

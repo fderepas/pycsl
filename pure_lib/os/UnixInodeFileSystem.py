@@ -1878,11 +1878,10 @@ class UnixInodeFileSystem:
     #@ proof lean UnixFs.Dir.remove_unique_absent
     #@ proof rocq UnixFs.Dir.slot_inode_nonneg
     #@ proof lean UnixFs.Dir.slot_inode_nonneg
-    #@ requires oldpath != newpath
     #@ assigns self.disk, self.dir
     #@ ensures \result == 0 or \result == -1
-    #@ ensures \result == 0 ==> (dir_lookup(self.dir, 5, newpath) >= 0)
-    #@ ensures \result == 0 ==> (dir_lookup(self.dir, 5, oldpath) < 0)
+    #@ ensures (\result == 0 and oldpath != newpath) ==> (dir_lookup(self.dir, 5, newpath) >= 0)
+    #@ ensures (\result == 0 and oldpath != newpath) ==> (dir_lookup(self.dir, 5, oldpath) < 0)
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/rename.html
     # cite:_note: POSIX rename() — removes both the oldpath and any
     #             existing newpath entry, then writes (newpath, inode) in
@@ -1909,9 +1908,11 @@ class UnixInodeFileSystem:
     #             pre-assert state; `#@ no_inline` isolates them from the scans.
     #@ no_inline
     def sys_rename(self, oldpath: str, newpath: str) -> int:
-        # POSIX rename(x, x) is a no-op. The guard is also load-bearing for the ABSENCE
-        # postcondition: with oldpath == newpath the freshly-written newpath slot WOULD be
-        # a live slot named oldpath, contradicting "oldpath absent after rename".
+        # POSIX rename(x, x) is a valid no-op returning 0 (faithful semantics — NOT
+        # excluded by a `requires`). The guard is load-bearing: the presence/absence
+        # ensures are guarded on `oldpath != newpath`, and with oldpath == newpath the
+        # freshly-written newpath slot WOULD be a live slot named oldpath, contradicting
+        # "oldpath absent". Returning here makes that postcondition vacuous for x == x.
         if oldpath == newpath:
             return 0
         inode_num = self._dir_lookup(5, oldpath)
@@ -1921,17 +1922,31 @@ class UnixInodeFileSystem:
         if old_slot < 0:
             return -1
         new_slot = self._dir_find_slot(5, newpath)
+        # SLOT-DISJOINTNESS, materialized step-by-step so each mutator's `\forall k != s`
+        # frame applies LOCALLY at old_slot / fslot (no cumulative E-matching search over
+        # the 3 directory writes). new_slot (if live) is named newpath, old_slot is named
+        # oldpath, and oldpath != newpath (guard) => new_slot != old_slot.
+        #@ assert new_slot >= 0 ==> new_slot != old_slot
         if new_slot >= 0:
             self._zero_entry(5, new_slot)
+        # old_slot survives the new-slot zero (old_slot != new_slot).
+        #@ assert slot_inode(self.dir, 5, old_slot) != 0 and slot_name(self.dir, 5, old_slot) == oldpath
         fslot = self._dir_find_free(5)
         if fslot < 0:
             return -1
-        # Write newpath in a free slot (PRESENCE witness), then zero old_slot LAST
-        # (ABSENCE remove-witness). fslot is free (dead) => fslot != old_slot (live), so
-        # the final zero is slot-local to old_slot and preserves the newpath witness at
-        # fslot; oldpath != newpath (guard) keeps oldpath absent at fslot.
+        # fslot is dead (free), old_slot is live => fslot != old_slot. This + old_slot's
+        # live+named-oldpath facts (above) are exactly _rename_swap's requires; the swap +
+        # its presence/absence proof run in that LEAN helper, and its non-quantified
+        # dir_lookup ensures propagate back here (Layer-1).
+        #@ assert fslot != old_slot
         self._write_dir_entry(5, fslot, inode_num, newpath)
+        # fslot holds (inode_num, newpath); old_slot survives the fslot write (!= fslot).
+        #@ assert slot_inode(self.dir, 5, fslot) != 0 and slot_inode(self.dir, 5, fslot) < 32 and slot_name(self.dir, 5, fslot) == newpath
+        #@ assert slot_inode(self.dir, 5, old_slot) != 0 and slot_name(self.dir, 5, old_slot) == oldpath
         self._zero_entry(5, old_slot)
+        # PRESENCE: fslot survives the old zero (fslot != old_slot). ABSENCE: old_slot was
+        # the unique live oldpath holder (uniq) and is now dead => remove_unique_absent.
+        #@ assert slot_inode(self.dir, 5, fslot) != 0 and slot_inode(self.dir, 5, fslot) < 32 and slot_name(self.dir, 5, fslot) == newpath
         #@ assert \exists k: int; 0 <= k and k < 16 and slot_inode(self.dir, 5, k) != 0 and slot_inode(self.dir, 5, k) < 32 and slot_name(self.dir, 5, k) == newpath
         #@ assert slot_inode(self.dir, 5, old_slot) == 0
         #@ assert \forall k: int; (0 <= k and k < 16 and k != old_slot and slot_name(self.dir, 5, k) == oldpath) ==> slot_inode(self.dir, 5, k) == 0
