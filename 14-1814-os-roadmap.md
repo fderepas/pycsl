@@ -155,18 +155,25 @@ Baseline = pre-Layer-1; "now" = current.
 |---|---|---|---|---|
 | sys_unlink | 3 | **0** ✅ | — (CLOSED; trust retired via self.dir) | M4 |
 | sys_rmdir | 2 | **0** ✅ | — | M4 |
-| sys_rename | OOM | **4** | add-side insert wiring | M4 |
+| sys_rename | OOM | **4** | presence-∃/absence-∀ E-matching (term-rich body); x,x guard added | M4 |
 | sys_mkdir | 0 | **0** ✅ | — | done |
-| sys_link | 1 | 1 | presence/EMLINK residual | M5 |
+| sys_link | 1 | **0** ✅ | — (CLOSED via _dir_lookup [1,32) tightening) | M5 |
 | sys_symlink | OOM | **0** ✅ | — (cleared by self.dir) | M5 |
 | chmod/chown/utimensat/truncate/ftruncate (E) | 1-2 | **0** ✅ | — (cleared by self.dir) | done |
 | stat/fstat/lstat/getdents/readlink/close/dup/access/lseek (F) | — | **0** ✅ | — | done |
 | sys_open / sys_creat | — | **0** ✅ | — | done |
-| sys_write (C) | — | 40 | content round-trip (unchanged by #1) | M6 |
+| sys_write (C) | — | 40 | content round-trip (array-blit + ∀i data-placement; needs gap-17 effect contract + field codec) | M6 |
 
-FULL body-gate sweep: the directory bucket (A) + metadata (E) + fd-table (F) are all 0 —
-the refactor's win. Remaining residuals: **sys_rename (4, M4 add-side)**, **sys_link (1,
-M5)**, **sys_write (40, content round-trip — M6, untouched by #1)**.
+Post-cleanup status: only **sys_rename (4)** and **sys_write (40)** remain unproven; every
+other syscall + directory helper is 0. sys_rename's 4 are the presence-∃/absence-∀ asserts
+E-matching in its 6-directory-op body (the recurring wall — needs unlink-style helper
+isolation). sys_write's 40 are the content round-trip (billion-step array-slice-blit + ∀i
+reasoning) — squarely M6, a separate milestone (the gap-17 effect contract + field codec),
+NOT directory-related.
+
+Cleanup (M4 #1 follow-on): retired block5_decode_frame + frame_preserves_*/zero_preserves_*/
+insert_preserves_* (all obsolete once the directory is a type-disjoint field — only
+establish_* remains, for the constructor by-witness) + removed dead _write_directory.
 
 M4 directory-as-separate-field refactor landed: `self.dir` field; `_write_entry` split into
 `_write_dir_entry` (self.dir) + kept data-block `_write_entry` (subdir seed); root-dir
