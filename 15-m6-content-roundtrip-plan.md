@@ -1,5 +1,15 @@
 # M6 — content round-trip (sys_write fidelity → cross-call read recovery)
 
+> **STATUS 2026-06-15 (autonomous run).** Phase 0 ✅ (diagnosis), Phase 1 ✅ (**sys_write
+> 40 → 0** via the single-block fast-path + `_write_block_at` leaf), Phase 3 ✅ achievable
+> half (`sys_pread` content read 36/0 + `os.pread` + write/open API ensures; __init__ GREEN
+> 1118/0). Phase 2 (multi-block content) and Phase 4 (formal_0008 round-trip) are BLOCKED by
+> the **gap-17 quantified-content wall**: sys_write's per-byte content ensures is proven ON
+> sys_write but does not propagate across no_inline (∀i; Alt-Ergo+Z3 Unknown). Unblock = a
+> non-quantified content view (`\array_eq` over a data-block slice) — PyCSL lacks
+> slice-in-`\array_eq`; that is the gap-17 next step. Commits a998516, dd88e23.
+
+
 Status entering M6 (body gate, branch `m6-content-roundtrip` off `main` @ 61f1afc):
 every `os` directory syscall + helper is **0** except **sys_rename (3, proven
 SMT-divergent — parked)** and **sys_write (40)**. M6 closes the last functional

@@ -162,9 +162,26 @@ Baseline = pre-Layer-1; "now" = current.
 | chmod/chown/utimensat/truncate/ftruncate (E) | 1-2 | **0** ✅ | — (cleared by self.dir) | done |
 | stat/fstat/lstat/getdents/readlink/close/dup/access/lseek (F) | — | **0** ✅ | — | done |
 | sys_open / sys_creat | — | **0** ✅ | — | done |
-| sys_write (C) | — | 40 | content round-trip (array-blit + ∀i data-placement; needs gap-17 effect contract + field codec) | M6 |
+| sys_write (C) | 40 | **0** ✅ | CLOSED — single-block content via inline fast-path + `_write_block_at` leaf (M6 P0/1); multi-block content unclaimed (divergent) | M6 |
+| sys_pread (C) | — | **0** ✅ | NEW — content-returning positional read (the read half of `_block_roundtrip`) | M6 |
 
-Post-cleanup status: only **sys_rename (3)** and **sys_write (40)** remain unproven; every
+M6 RESULT (branch m6-content-roundtrip): **sys_write 40 → 0** via the single-block FAST
+PATH — straight-line, content blit LAST so the content view is the final state and proves
+inline like `_block_roundtrip` (no `_write_inode` frame). Diagnosis was decisive: once the
+blit was extracted to the `_write_block_at` no_inline leaf (45/0), the syscall became
+measurable and the ONLY divergent goals were the content ones (11 postcondition + 4
+content-∀i loop-invariant, billion-step); all bounds/type/other invariants Valid. Added
+`sys_pread` (36/0) + `os.pread` + open `fd_offset==0` + write COMPLETION API ensures.
+**STILL OPEN (gap-17 cross-call content composition):** the per-byte content ensures is
+proven ON sys_write but does NOT propagate across no_inline to the os.write wrapper / a
+caller (∀i quantified-propagation wall — Alt-Ergo+Z3 Unknown), so the public-API round-trip
+(write→pread==data, formal_0008) is blocked. Unblock = a NON-quantified content view
+(\array_eq over a data-block slice) crossing as one atom; PyCSL lacks slice-in-\array_eq —
+the gap-17 next step. Multi-block content (Phase 2) is the same wall (loop content-∀i
+divergence). __init__ GREEN 1118/0 throughout.
+
+Post-cleanup status: only **sys_rename (3, SMT-divergent)** remains in the body gate (plus
+the gap-17 cross-call content COMPOSITION for the full round-trip); every
 other syscall + directory helper is 0. sys_rename's 3 are the presence (dir_lookup(newpath)
 >= 0) + absence (dir_lookup(oldpath) < 0) ensures: the **add+remove COEXISTENCE wall**.
 
