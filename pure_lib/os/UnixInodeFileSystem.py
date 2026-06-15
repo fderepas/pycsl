@@ -1934,10 +1934,8 @@ class UnixInodeFileSystem:
         fslot = self._dir_find_free(5)
         if fslot < 0:
             return -1
-        # fslot is dead (free), old_slot is live => fslot != old_slot. This + old_slot's
-        # live+named-oldpath facts (above) are exactly _rename_swap's requires; the swap +
-        # its presence/absence proof run in that LEAN helper, and its non-quantified
-        # dir_lookup ensures propagate back here (Layer-1).
+        # fslot is dead (free), old_slot is live => fslot != old_slot, so the final zero is
+        # slot-local to old_slot and preserves the newpath witness laid at fslot.
         #@ assert fslot != old_slot
         self._write_dir_entry(5, fslot, inode_num, newpath)
         # fslot holds (inode_num, newpath); old_slot survives the fslot write (!= fslot).

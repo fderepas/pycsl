@@ -155,7 +155,7 @@ Baseline = pre-Layer-1; "now" = current.
 |---|---|---|---|---|
 | sys_unlink | 3 | **0** ✅ | — (CLOSED; trust retired via self.dir) | M4 |
 | sys_rmdir | 2 | **0** ✅ | — | M4 |
-| sys_rename | OOM | **3** | step-by-step slot-disjointness (4→3); remaining = presence/absence dir_lookup ensures (add+remove COEXISTENCE wall); now faithful POSIX x,x no-op | M4 |
+| sys_rename | OOM | **3** | presence/absence dir_lookup ensures = confirmed SMT E-MATCHING DIVERGENCE (no-trust closure infeasible); 3 cross-validated lemmas built as infrastructure; faithful POSIX x,x no-op | M4 |
 | sys_mkdir | 0 | **0** ✅ | — | done |
 | sys_link | 1 | **0** ✅ | — (CLOSED via _dir_lookup [1,32) tightening) | M5 |
 | sys_symlink | OOM | **0** ✅ | — (cleared by self.dir) | M5 |
@@ -166,15 +166,27 @@ Baseline = pre-Layer-1; "now" = current.
 
 Post-cleanup status: only **sys_rename (3)** and **sys_write (40)** remain unproven; every
 other syscall + directory helper is 0. sys_rename's 3 are the presence (dir_lookup(newpath)
->= 0) + absence (dir_lookup(oldpath) < 0) ensures: the **add+remove COEXISTENCE wall** —
-scan_reflects_present and remove_unique_absent/remove_reflects_absent firing over the same
-term-rich final state. Step-by-step slot-disjointness materialization closed 1/4 (the carry
-asserts; timeout steps 9M→1.8M). Helper isolation (`_rename_swap`) RELOCATED the residual to
-the lean helper rather than dissolving it (coexistence persists with just 2 mutations) — net
-worse, reverted. **No-trust closure path:** a slot-local `dir_lookup`-preservation fact
-(cross-validated Rocq+Lean, like `dir_lookup_frame` but allowing one slot to change provided
-it isn't the queried name's match) so the presence can be FRAMED across the remove instead of
-re-proven beside the absence. sys_write's 40 are the content round-trip (billion-step
+>= 0) + absence (dir_lookup(oldpath) < 0) ensures: the **add+remove COEXISTENCE wall**.
+
+**FINDING (no-trust closure infeasible — genuine SMT E-matching DIVERGENCE).** Proven, not
+merely slow: at a raised 120 s timelimit the residual GREW (1.7M→4.9M steps) without
+converging, and one goal OOMs at ~10 s (memory-bound). Every configuration diverges or OOMs:
+inline step-by-step materialization; lean and minimal-context `no_inline` helper isolation;
+three NARROW-trigger cross-validated lemmas (below); a scalar presence-carry. The root cause
+is the term-rich multi-disk-state context (write + zero) × the always-on `establish_*` +
+directory-scan axioms — and Why3 axioms are module-global (no per-goal scoping), so the noise
+cannot be scoped away from rename.
+
+**Infrastructure built (cross-validated, currently UNCITED — `src/pycsl/module6_whyml/
+preamble.py` + `unix-filesystem/UnixInodeFileSystem.proofs/{rocq,lean}/UnixDirScan{,Absent}`):**
+`dir_lookup_present_witness` (nested-trigger presence on one witness slot), `dir_lookup_
+present_zero_frame` (scalar presence carry across a slot zero), `dir_lookup_remove_absent`
+(combined uniqueness→absence keyed on the removed slot). All: Rocq *Closed under the global
+context*; Lean axioms ⊆ {propext, Quot.sound}. They PROVE rename's presence/absence — the SMT
+just cannot compose them in-context. Ready for a future closure: a different prover, a
+restructured proof, or a reviewer-justified trusted `_rename_swap` (confirmed to close
+rename=0; deferred — keeping the no-trust posture). sys_write's 40 are the content round-trip
+(billion-step
 array-slice-blit + ∀i reasoning) — squarely M6, a separate milestone (gap-17 effect contract
 + field codec), NOT directory-related.
 

@@ -98,6 +98,45 @@ theorem remove_reflects_absent
     fun hge => hempty (hiff.mp hge)
   omega
 
+-- Directory-uniqueness predicate at block 5 (matches DirInvariantMaintenance.uniq /
+-- the registered UnixFs.Dir.uniq) and the slot-range invariant.
+def uniq (d : Disk) : Prop :=
+  ∀ i j : Int, 0 ≤ i → i < 16 → 0 ≤ j → j < 16 →
+    slotInode d 5 i ≠ 0 → slotInode d 5 i < 32 →
+    slotInode d 5 j ≠ 0 → slotInode d 5 j < 32 →
+    slotName d 5 i = slotName d 5 j → i = j
+
+def slots_lt32 (d : Disk) : Prop :=
+  ∀ k : Int, 0 ≤ k → k < 16 → slotInode d 5 k < 32
+
+-- UnixFs.Dir.dir_lookup_remove_absent (M4 rename — add+remove COEXISTENCE fix).
+-- remove_unique_absent (witness from uniqueness) FUSED with remove_reflects_absent
+-- (dir_lookup < 0), as one fact keyed on the removed slot. nm-free: the absent name
+-- is the removed slot's old name slotName d0 5 s, so the WhyML axiom triggers on
+-- [slotInode d1 5 s, slotInode d0 5 s], never on dir_lookup — so it does not match the
+-- per-slot dir_lookup(slotName k) terms the presence witness creates.
+theorem dir_lookup_remove_absent
+    (d0 d1 : Disk) (s : Int)
+    (hnn : ∀ j, 0 ≤ slotInode d1 5 j)
+    (huniq : uniq slotInode slotName d0) (hlt32 : slots_lt32 slotInode d0)
+    (hs : 0 ≤ s ∧ s < 16) (hs0live : slotInode d0 5 s ≠ 0) (hs1dead : slotInode d1 5 s = 0)
+    (hframei : ∀ k : Int, 0 ≤ k → k < 16 → k ≠ s → slotInode d1 5 k = slotInode d0 5 k)
+    (hframen : ∀ k : Int, 0 ≤ k → k < 16 → k ≠ s → slotName d1 5 k = slotName d0 5 k) :
+    dirLookup slotInode slotName d1 5 (slotName d0 5 s) < 0 := by
+  apply remove_reflects_absent slotInode slotName d1 5 (slotName d0 5 s) s hnn hs hs1dead
+  -- witness: every other slot named (slotName d0 5 s) is dead on d1 (inlined uniqueness).
+  intro k hk0 hk16 hks hname
+  by_cases hz : slotInode d1 5 k = 0
+  · exact hz
+  · exfalso
+    rw [hframei k hk0 hk16 hks] at hz
+    rw [hframen k hk0 hk16 hks] at hname
+    have hk32 : slotInode d0 5 k < 32 := hlt32 k hk0 hk16
+    have hs32 : slotInode d0 5 s < 32 := hlt32 s hs.1 hs.2
+    have heq : k = s := huniq k s hk0 hk16 hs.1 hs.2 hz hk32 hs0live hs32 hname
+    exact hks heq
+
 end UnixFs.Dir
 
 #print axioms UnixFs.Dir.remove_reflects_absent
+#print axioms UnixFs.Dir.dir_lookup_remove_absent

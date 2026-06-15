@@ -130,6 +130,79 @@ class PreambleEmissionMixin:
             "/\\ slot_inode disk blk k < 32 "
             "/\\ slot_name disk blk k = name ) )",
 
+        # =========================================================================
+        # M4 rename directory-closure INFRASTRUCTURE (3 lemmas: dir_lookup_present_
+        # witness, dir_lookup_present_zero_frame, dir_lookup_remove_absent). STATUS:
+        # cross-validated (Rocq Closed / Lean ⊆ {propext, Quot.sound}) but currently
+        # UNCITED. They PROVE sys_rename's directory presence/absence, but integrating
+        # them does NOT close sys_rename: its add+remove proof is a genuine SMT
+        # E-MATCHING DIVERGENCE (confirmed — 1.7M→4.9M steps at 30s→120s without
+        # converging; every config tried: inline, lean/minimal no_inline helper, scalar
+        # carry, all 3 lemmas — diverges or OOMs). Kept as ready infrastructure for a
+        # future closure (a different prover, a restructured proof, or a reviewer-
+        # justified trusted swap). See 14-1814-os-roadmap.md (sys_rename row).
+        # =========================================================================
+        # UnixFs.Dir.dir_lookup_present_witness (M4 rename — add+remove COEXISTENCE fix).
+        # The NARROW-TRIGGER presence corollary of scan_reflects_present: a single
+        # EXPLICIT witness slot k that is a live in-range match for `name` gives
+        # dir_lookup >= 0 — WITHOUT introducing the matches-existential into the goal.
+        #
+        # Why a separate fact: scan_reflects_present's IFF triggers on every dir_lookup
+        # term, so in sys_rename's final state it introduces the matches-∃ for BOTH the
+        # present name (newpath) AND the absent name (oldpath); the oldpath-∃ then
+        # interleaves with the absence axioms (remove_unique_absent / remove_reflects_
+        # absent) — the E-matching balloon that left rename at 3 (the add+remove
+        # coexistence). nm-FREE form: the looked-up name IS the witness slot's own name
+        # (slot_name disk blk k), so the trigger [slot_inode disk blk k, slot_name disk
+        # blk k] fires ONCE PER SLOT (~16) — NOT once per (name, slot) pair, which a
+        # [dir_lookup, slot_inode] trigger would (O(names×slots) re-explosion). It
+        # discharges the presence on the materialised witness slot (fslot, post-write+
+        # zero), never co-introducing the ∃ that fed the absence search. The looked-up
+        # `name` is recovered at the call site from slot_name(self.dir,5,fslot)==newpath.
+        # The `forall j. slot_inode >= 0` antecedent (the scan's `<-` direction
+        # uses it to bound the returned inode) is discharged at the call site by
+        # slot_inode_nonneg, exactly as for scan_reflects_present. Reuses the SAME
+        # dir_lookup/slot_inode/slot_name symbols (no new _AXIOM_FUNCTIONS entry).
+        # Cross-validated by
+        # unix-filesystem/UnixInodeFileSystem.proofs/{rocq,lean}/UnixDirScan.{v,lean}
+        # (theorem dir_lookup_present_witness): the `<-`/witness direction of
+        # scan_reflects_present. Rocq 8.20.1: Closed under the global context (0 axioms);
+        # Lean 4.31.0: axioms ⊆ {propext, Quot.sound}.
+        "UnixFs.Dir.dir_lookup_present_witness":
+            "forall disk : array int, blk : int, k : int "
+            "[dir_lookup disk blk (slot_name disk blk k)]. "
+            "( forall j : int. 0 <= j < 16 -> slot_inode disk blk j >= 0 ) -> "
+            "0 <= k < 16 -> slot_inode disk blk k <> 0 -> slot_inode disk blk k < 32 -> "
+            "dir_lookup disk blk (slot_name disk blk k) >= 0",
+
+        # UnixFs.Dir.dir_lookup_present_zero_frame (M4 rename — SCALAR presence carry).
+        # Zeroing slot s preserves the PRESENCE of any other name: the present witness for
+        # `name` in d0 cannot be slot s (its name is `name` <> slot_name d0 5 s), so it
+        # survives the frame off s and still matches in d1. This is the unlink-style SCALAR
+        # carry (cf. dir_lookup_frame): sys_rename establishes dir_lookup(newpath) >= 0 in
+        # the POST-WRITE state, then carries it across the final old-slot zero AS A SCALAR
+        # — so the presence proof (post-write) and the absence proof (post-zero) never do
+        # heavy E-matching in the same disk state (the add+remove coexistence that the
+        # single-state proof could not escape). Trigger [dir_lookup d1 5 name, slot_inode
+        # d1 5 s] fires on the post-zero lookup + the removed slot; the antecedent
+        # dir_lookup d0 5 name >= 0 is the already-established post-write presence (no new
+        # term cascade). `name <> slot_name d0 5 s` is newpath != oldpath at the call site.
+        # Reuses the SAME dir_lookup/slot_inode/slot_name symbols. Cross-validated by
+        # unix-filesystem/UnixInodeFileSystem.proofs/{rocq,lean}/UnixDirScan.{v,lean}
+        # (theorem dir_lookup_present_zero_frame): the surviving-witness argument over
+        # scan_reflects_present. Rocq 8.20.1: Closed under the global context (0 axioms);
+        # Lean 4.31.0: axioms ⊆ {propext, Quot.sound}.
+        "UnixFs.Dir.dir_lookup_present_zero_frame":
+            "forall d0 d1 : array int, s : int, name : string "
+            "[dir_lookup d1 5 name, slot_inode d1 5 s]. "
+            "0 <= s < 16 -> slot_inode d1 5 s = 0 -> "
+            "( forall k : int. 0 <= k < 16 -> k <> s -> "
+            "    slot_inode d1 5 k = slot_inode d0 5 k /\\ "
+            "    slot_name  d1 5 k = slot_name  d0 5 k ) -> "
+            "name <> slot_name d0 5 s -> "
+            "dir_lookup d0 5 name >= 0 -> "
+            "dir_lookup d1 5 name >= 0",
+
         # UnixFs.Dir.slot_inode_nonneg — the unsigned-byte fact: a decoded
         # directory-slot inode number is always non-negative (it is read from
         # unsigned disk bytes via `_unpack_direntry`'s uint fields). This is the
@@ -207,6 +280,37 @@ class PreambleEmissionMixin:
             "    slot_name  d1 5 k = slot_name  d0 5 k ) -> "
             "( forall k : int. 0 <= k < 16 -> k <> s -> "
             "    slot_name d1 5 k = slot_name d0 5 s -> slot_inode d1 5 k = 0 )",
+
+        # UnixFs.Dir.dir_lookup_remove_absent (M4 rename — add+remove COEXISTENCE fix).
+        # The COMBINED, narrow-trigger absence: remove_unique_absent (produces the
+        # empty-matches witness from uniqueness) FUSED with remove_reflects_absent
+        # (concludes dir_lookup < 0), as ONE applied fact keyed on the removed slot s.
+        # Why combined+narrow: remove_reflects_absent alone triggers on every dir_lookup
+        # term, so it fires for the PRESENT name too (newpath, and the per-slot
+        # dir_lookup(slot_name k) terms the presence witness creates) — trying to prove
+        # those absent (false) is the absence-side E-matching balloon. nm-free: the absent
+        # name IS the removed slot's old name slot_name d0 5 s, and the multi-trigger
+        # [slot_inode d1 5 s, slot_inode d0 5 s] (the remove_unique_absent precedent) fires
+        # exactly for the removed slot — NOT on dir_lookup — so it never matches the
+        # presence terms. The looked-up `oldpath` is recovered at the call site from the
+        # carried slot_name(self.dir,5,old_slot)==oldpath. `forall j. slot_inode d1 5 j >= 0`
+        # discharged by slot_inode_nonneg. Reuses the SAME uniq/slots_lt32/dir_lookup/
+        # slot_inode/slot_name symbols (no new _AXIOM_FUNCTIONS entry). Cross-validated by
+        # unix-filesystem/UnixInodeFileSystem.proofs/{rocq,lean}/UnixDirScanAbsent.{v,lean}
+        # (theorem dir_lookup_remove_absent): remove_unique_absent's uniqueness argument
+        # inlined + remove_reflects_absent. Rocq 8.20.1: Closed under the global context
+        # (0 axioms); Lean 4.31.0: axioms ⊆ {propext, Quot.sound}.
+        "UnixFs.Dir.dir_lookup_remove_absent":
+            "forall d0 d1 : array int, s : int "
+            "[slot_inode d1 5 s, slot_inode d0 5 s]. "
+            "( forall j : int. slot_inode d1 5 j >= 0 ) -> "
+            "uniq d0 -> slots_lt32 d0 -> "
+            "0 <= s < 16 -> slot_inode d0 5 s <> 0 -> slot_inode d1 5 s = 0 -> "
+            "( forall k : int. 0 <= k < 16 -> k <> s -> "
+            "    slot_inode d1 5 k = slot_inode d0 5 k ) -> "
+            "( forall k : int. 0 <= k < 16 -> k <> s -> "
+            "    slot_name  d1 5 k = slot_name  d0 5 k ) -> "
+            "dir_lookup d1 5 (slot_name d0 5 s) < 0",
 
         # ============================================================================
         # FOLDED directory-invariant MAINTENANCE facts (M4 — 15-0838 Part A, sound
