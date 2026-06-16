@@ -1329,10 +1329,12 @@ class UnixInodeFileSystem:
     # PROPAGATES across the no_inline boundary (the raw \forall i does not). Proved INLINE
     # in the fast path via block_content_eq_intro from the final blit.
     #@ ensures (\result == \length(data) and \old(self.fd_offset[fd]) == 0 and \length(data) <= 512) ==> block_content_eq(self.disk, self.fd_block[fd], data)
-    # gap-17: on single-block success the file's first data block is live in [6,256) (the
-    # fast path sets fd_block to an _alloc_block result / a resolved data block) — so a
-    # following pread RESOLVES that block (returns its bytes, not the empty []).
-    #@ ensures (\result == \length(data) and \old(self.fd_offset[fd]) == 0 and \length(data) <= 512) ==> (6 <= self.fd_block[fd] and self.fd_block[fd] < 256)
+    # gap-17: on a NON-EMPTY single-block success the file's first data block is live in
+    # [6,256) (the fast path sets fd_block to an _alloc_block result / a resolved data
+    # block) — so a following pread RESOLVES that block (returns its bytes, not the empty
+    # []). The \result >= 1 guard is required: the empty write (\length(data) == 0) returns
+    # 0 via the `if n == 0` early path WITHOUT touching fd_block, so its range is unclaimed.
+    #@ ensures (\result == \length(data) and \result >= 1 and \old(self.fd_offset[fd]) == 0 and \length(data) <= 512) ==> (6 <= self.fd_block[fd] and self.fd_block[fd] < 256)
     #@ no_inline
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/write.html
     # cite:_note: POSIX write() — multi-block: writes data across up to 10
