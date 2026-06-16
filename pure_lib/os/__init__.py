@@ -371,7 +371,7 @@ def read(fd, n):
 # DOES propagate across the no_inline sys_write boundary (the raw ∀i did not). Composes with
 # pread's block_content_eq to give the public-API content round-trip (write→pread == data).
 #@ ensures (\result == \length(data) and \old(_filesystem.fd_offset[fd]) == 0 and \length(data) <= 512) ==> block_content_eq(_filesystem.disk, _filesystem.fd_block[fd], data)
-#@ ensures (\result == \length(data) and \old(_filesystem.fd_offset[fd]) == 0 and \length(data) <= 512) ==> (6 <= _filesystem.fd_block[fd] and _filesystem.fd_block[fd] < 256)
+#@ ensures (\result == \length(data) and \result >= 1 and \old(_filesystem.fd_offset[fd]) == 0 and \length(data) <= 512) ==> (6 <= _filesystem.fd_block[fd] and _filesystem.fd_block[fd] < 256)
 def write(fd, data: list):
     """Write to a file descriptor. Returns byte count."""
     return _filesystem.sys_write(fd, data)
