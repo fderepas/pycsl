@@ -260,17 +260,22 @@ algebraically about the result, not merely know it is non-negative.
 5. Can a caller prove **more** about their own code using this contract?
    If not, the contract is too weak.
 
-### Step 1 — Write a concrete test
+### Step 1 — Write a concrete test (scratch)
 
-Create `pure_lib_test/NNNN.py` that imports from `pure_lib/<module>`
-and tests all key functions with concrete values. Run it:
+Write a SCRATCH concrete driver that imports from `pure_lib/<module>` and exercises all
+key functions with concrete values, and run it with `python3` to sanity-check behaviour
+before formalizing:
 
 ```bash
-python3 pure_lib_test/0002.py
+python3 /tmp/scratch_<module>.py
 # PASS: 1 — whitespace matcher
 # ...
 # PASS: 10 — flags have correct values
 ```
+
+The KEPT artifact is the FORMAL test (Step 3), named `pure_lib_test/formal_<module>.py`
+(the topical scheme — `formal_re_engine.py`, `formal_json_codec.py`, `formal_os_content.py`,
+…); the scratch concrete driver is not committed.
 
 ### Step 2 — Annotate the implementation
 
@@ -332,7 +337,7 @@ matter how green those few theorems are. Concretely: enumerate the module's
 public API (the `__init__.py` exports + class methods); every one must
 appear in `formal_<module>.py`. Two valid shapes: (a) **one composed
 end-to-end scenario** that drives the whole API path — what `os`'s
-`formal_0001` does over open→write→close→reopen→read; or (b) **one theorem
+`formal_os_roundtrip` does over open→write→close→reopen→read; or (b) **one theorem
 per API function** when there is no natural composition (e.g. a string or
 math module). Either way the acceptance bar is the same: *no documented API
 promise left unpropagated*. If a function's faithful promise can't be
@@ -381,7 +386,7 @@ See `docs/glossary/formal-test.md` for the concept.
 assert *totality / safety* — e.g. `#@ ensures \result == 0 or \result == 1` over a driver that returns a
 status code: *for every symbolic input the whole composed scenario runs to a well-formed result and
 never faults* (no out-of-bounds, no violated precondition, no broken invariant). This is what the `os`
-module's `formal_0001` proves over all filenames and buffers — the full open→write→close→reopen→read API
+module's `formal_os_roundtrip` proves over all filenames and buffers — the full open→write→close→reopen→read API
 cannot be driven into a fault by any file. Or it can assert *functional content* — e.g. `#@ ensures
 \result == True` over a round-trip driver that returns `read-back == written`: *the returned value itself
 is correct, for all inputs*. Totality is usually reachable first; the content theorem is the deeper

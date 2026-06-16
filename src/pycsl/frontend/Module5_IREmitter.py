@@ -1000,6 +1000,18 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 self._py_stmt_match(stmt, ir_stmts)
             for ga in getattr(stmt, 'csl_trailing_ghost_assigns', []):
                 ir_stmts.append(self._emit_ghost_assign(ga))
+            # A `#@ assert`/`#@ check` that is the LAST statement of a block (block footer)
+            # emits AFTER this statement — so it sits at the end of the enclosing block
+            # (e.g. inside an `if`/loop body) where its variables are in scope. Without this
+            # a trailing assert is silently dropped (Module3 now surfaces it as a trailing
+            # checkpoint).
+            for cp in getattr(stmt, 'csl_trailing_checkpoints', []):
+                pa = {"stmt": "ProofAssert", "kind": cp.kind,
+                      "test": self._csl_to_ir(cp.expr)}
+                origin = getattr(cp, "origin", None)
+                if origin:
+                    pa["origin"] = origin
+                ir_stmts.append(pa)
         return ir_stmts
 
     def _emit_ghost_assign(self, ga) -> Dict[str, Any]:

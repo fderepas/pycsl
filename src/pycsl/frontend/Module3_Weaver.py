@@ -597,12 +597,21 @@ class Module3_Weaver:
             if cps:
                 checkpoints_by_line[line] = cps
         trailing_ghost_assigns_by_line: Dict[int, List] = {}
+        trailing_checkpoints_by_line: Dict[int, List] = {}
         for line, nodes in trailing_contracts_map.items():
             ghosts = [n for n in nodes if isinstance(n, (GhostAssignDecl, GhostArraySetDecl))]
             if ghosts:
                 trailing_ghost_assigns_by_line[line] = ghosts
+            # A `#@ assert`/`#@ check` that is the LAST statement of a block lands in the
+            # block FOOTER (Module1 `prev.footer`), i.e. the trailing-contracts map. Extract
+            # it here (it was previously dropped — only ghost-assigns were pulled from
+            # trailing) so it attaches as a TRAILING checkpoint emitted AFTER the block's
+            # last statement, not silently lost.
+            cps = [n for n in nodes if isinstance(n, CheckPoint)]
+            if cps:
+                trailing_checkpoints_by_line[line] = cps
         if not (labels_by_line or ghost_assigns_by_line or trailing_ghost_assigns_by_line
-                or checkpoints_by_line):
+                or trailing_checkpoints_by_line or checkpoints_by_line):
             return
         for ast_node in ast.walk(python_ast):
             if not (isinstance(ast_node, ast.stmt) and hasattr(ast_node, 'lineno')):
@@ -622,6 +631,10 @@ class Module3_Weaver:
             if trailing:
                 existing = getattr(ast_node, 'csl_trailing_ghost_assigns', [])
                 ast_node.csl_trailing_ghost_assigns = existing + trailing
+            tcps = trailing_checkpoints_by_line.get(ast_node.lineno)
+            if tcps:
+                existing = getattr(ast_node, 'csl_trailing_checkpoints', [])
+                ast_node.csl_trailing_checkpoints = existing + tcps
 
     @staticmethod
     def _extract_happy_properties(

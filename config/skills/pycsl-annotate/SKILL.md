@@ -632,7 +632,7 @@ too weak (shape/length only). Fix bottom-up.
   result and never faults on any input) versus *functional content* (`#@ ensures \result == True` — a
   round-trip returns exactly what went in). The concrete test you wrote first is the same scenario with
   concrete inputs — the rehearsal for the formal one. The `os` module is the worked example
-  (`formal_0001` proves totality over all files); see `docs/formal-filesystem.md` and
+  (`formal_os_roundtrip` proves totality over all files); see `docs/formal-filesystem.md` and
   pycsl-stdlib-coverage "Step 5 — Write a formal test".
 
 ## Glossary

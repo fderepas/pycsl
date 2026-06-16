@@ -83,7 +83,7 @@ model earns the right to claim correctness because it does not abstract that rep
 
 ## 4. Test the Python — concretely — before proving anything
 
-Before a single contract is written, the model is **run**: concrete drivers (`pure_lib_test/0001.py`
+Before a single contract is written, the model is **run**: concrete drivers (e.g. the os round-trip
 and siblings) create a file, write known bytes, close, reopen, read, and check the result with ordinary
 assertions on concrete values. This is plain Python execution, not verification.
 
@@ -137,13 +137,14 @@ arbitrary filename `f` and an arbitrary buffer, bounded only by `#@ requires`, a
 with `#@ ensures`. Because Why3/SMT discharges that postcondition, a *Valid* verdict means the property
 holds for **every** input in range — not for the handful a concrete test could sample.
 
-The existing example is `pure_lib_test/formal_0001.py`: open-create, write a symbolic buffer, close,
+The existing example is `pure_lib_test/formal_os_roundtrip.py`: open-create, write a symbolic buffer, close,
 reopen, read it back, over all filenames and buffers up to the modelled sizes (`\length(data)` in
 `[1, 512]`) — proved end-to-end with no `\trusted`. Its postcondition is `\result == 0 or \result == 1`:
 the scenario runs to a *well-formed* result on every symbolic input — a **totality / safety** property
 (no out-of-bounds access, no contract violation, no stuck state, for all filenames and buffers). The
-*deepest* form of this test is the **content round-trip** — *create `f`, write `c`,
-close; reopen `f`, read; **return value == `c`*** (`formal_0008.py`, `#@ ensures \result == True`):
+*deepest* form of this test is the **content round-trip** — *write `c`, read it back, **value == `c`***
+(`formal_os_content.py`, `#@ ensures \result == True`, the on-fd `write→pread == c` form — PROVEN via
+the folded `block_content_eq` atom; the full create→close→reopen-by-name form remains the frontier):
 a single theorem that the filesystem genuinely stores and returns a file's content by name. Reaching it
 requires exactly the foundation built in §3–§5 (the inode round-trip available as a proven contract, the
 block recoverable across a reopen); it is the functional-correctness frontier the same methodology

@@ -1,6 +1,6 @@
-"""Formal test 0001: file write/read round-trip (symbolic inputs).
+"""Formal test: file write/read round-trip (symbolic inputs).
 
-This is the formal counterpart of pure_lib_test/0001.py.  Instead of
+This is the formal (symbolic) version of the os write/read round-trip.  Instead of
 concrete values ("testfile", [72, 101, …]) the filename and data buffer
 are symbolic parameters bounded by #@ requires.  When PyCSL proves the
 postcondition, the round-trip property holds for ALL filenames up to 30

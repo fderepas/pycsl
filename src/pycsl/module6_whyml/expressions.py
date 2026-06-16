@@ -422,6 +422,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return f"(Array.make {size} {default_val})"
         left = self._expr_to_whyml(expr["left"], local_refs, invariant_ctx, subst)
         right = self._expr_to_whyml(expr["right"], local_refs, invariant_ctx, subst)
+        # bool-as-int convention: PyCSL int-encodes bool (a `-> bool` function returns 0/1,
+        # its contract reads `\result == 0 or 1`). So a Bool literal in `==`/`!=` is INT
+        # equality (Python `True == 1`, `False == 0`) — emit it as 1/0 even in spec context,
+        # else `\result == True` lowers to `result = true` (bool) which mismatches the int
+        # `\result` ("term has type int, expected bool"). Fixes the formal-test idiom
+        # `#@ ensures \result == True`.
+        if raw_op in ("==", "!="):
+            if expr["left"].get("type") == "Bool":
+                left = "1" if expr["left"].get("value") else "0"
+            if expr["right"].get("type") == "Bool":
+                right = "1" if expr["right"].get("value") else "0"
         op = op_translate(raw_op)
         # no-more-int Stage D: float arithmetic/comparison is over Why3 `real` (RealInfix
         # `+.`/`-.`/`*.`/`/.`/`<.`/…), not int. Both operands must be float; a mixed float/int

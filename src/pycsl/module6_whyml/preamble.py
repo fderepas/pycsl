@@ -1407,6 +1407,27 @@ class PreambleEmissionMixin:
 
         self._axiom_logic_funcs = cited_fn_names | ind_applied
 
+        # (d) TRANSITIVE closure over the class-invariant axioms that WILL be emitted.
+        # `_emit_class_inv_axioms` emits a `_CLASS_INV_AXIOMS` axiom when its body mentions
+        # an applied symbol (e.g. `uniq_intro`/`uniq_elim` are emitted because `uniq` is
+        # applied in the inherited class invariant). But those axiom bodies ALSO reference
+        # the backing `val function`s (`slot_inode`/`slot_name`) — which must be DECLARED
+        # too, else the emitted axiom references an undeclared symbol. Without this an
+        # importer (a formal test importing UnixInodeFileSystem) that applies only `uniq`
+        # in the inherited invariant fails with `unbound function 'slot_inode'`. Iterate to
+        # a fixpoint (plain substring match, consistent with `_emit_class_inv_axioms`).
+        changed = True
+        while changed:
+            changed = False
+            for qn in self._CLASS_INV_AXIOMS:
+                body = self._AXIOM_REGISTRY.get(qn, "")
+                if not any(fn in body for fn in self._axiom_logic_funcs):
+                    continue
+                for fn in all_fn_names:
+                    if fn not in self._axiom_logic_funcs and fn in body:
+                        self._axiom_logic_funcs.add(fn)
+                        changed = True
+
     def _emit_class_inv_axioms(self, ir: Dict[str, Any]) -> List[str]:
         """gap-13: emit the class-invariant axioms (`_CLASS_INV_AXIOMS`) BEFORE the
         record type whose invariant applies the constrained symbols, so the
