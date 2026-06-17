@@ -124,6 +124,7 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
 | **Plane blend** | a `--no-proof` (emission) green reported as "proven" | no-blend: emission ≠ proof |
 | **Honorary green** | "the gate is green" from a stale/partial run | re-run on the committed file; scan EVERY status incl. `Out of memory` |
 | **Aggregate noise mistaken for a residual** | a goal fails in the full-file gate but proves in `--fun` isolation | re-check residuals per-method before recording them as real |
+| **Empty-disk artifact mistaken for a no-trust retirement** | a de-trusted helper's fidelity ensures appears `Valid` in `--fun` isolation, but the property has no logical path from the body (binds an uninterpreted symbol with no defining axiom) | the isolated pass rides the canonical zeroed `by{}` witness, not the body. Triangulate constants (`==0` ✓, `==1` ✓, `==7` ✗ = perf artifact, not logic) AND run the SOUNDNESS PROBE: add a `#@ requires` that forces a non-canonical disk (e.g. `slot_inode(self.dir,5,0)==3`); if the ensures then fails, the isolated pass was the empty-disk artifact. Decisive test is the FULL body gate (real non-canonical `self`) — there it OOMs/reds. NOT a retirement. *(dirscan-fidelity pilot, 2026-06-17.)* |
 | **Stale test after a model upgrade** | a committed `formal_*` file FAILS at L3-tc with `int`-vs-`string` type errors, or its header claims a consequence is "UNPROVABLE/Unknown" that now proves | the model gained str-typed path params / `dir_lookup` consequence ensures since the test was written; RUN it, fix the param types, and rewrite the stale header to the now-passing reality (don't trust the comment) |
 | **Context pollution mis-blamed on a missing contract** | a theorem is `Unknown` in-module but the author "fixes" it by weakening or adding a contract | re-prove the goal ALONE; if it passes in isolation the contract is fine — split the file instead (pattern A.7) |
 
@@ -206,6 +207,29 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
   candidate**: the only doctrine-compliant routes are a different prover / a
   restructured proof / composing its already-cross-validated lemmas in-context; the
   ready reviewer-trusted `_rename_swap` is OFF THE MENU (see the BINDING rule above).
+- **`dirscan-fidelity` ×6 TCB debt — RETIREMENT IS SMT-INFEASIBLE, a structural wall
+  (probed 2026-06-17; net TCB delta 0, 6→6, nothing retired/weakened).** The 6
+  `#@ \trusted reviewer: dirscan-fidelity` directives (`_dir_lookup`, `_dir_find_slot`,
+  `_dir_find_free`, `_write_dir_entry`, `_write_entry`, `_zero_entry`) bind their byte-
+  scan body to the abstract symbols `slot_inode`/`slot_name`/`dir_lookup`, declared as
+  **uninterpreted `val function`** (`preamble.py:771-774`). NO axiom DEFINES them over
+  the concrete bytes (`preamble.py` slot_inode axioms 123-575 are all RELATIONAL:
+  presence⇔existential, frame, uniqueness, nonneg, all-dead-on-zeroed). So the bodies
+  have no logical path to the fidelity ensures. **Route (a) blocked:** the
+  `UnixDirScan{,Absent}` Rocq/Lean lemmas prove the scan STRUCTURE for an ABSTRACT
+  decode (`UnixDirScan.v:27-33` `Variable slot_inode`) — they deliberately abstract the
+  byte↔slot bridge away; the bridge itself is unprovable even in a kernel because the
+  name byte-CONTENT is opaque (Gap 5, unmodeled). **Route (b) blocked:** de-trusting
+  `_dir_find_free` → its postcondition OOMs in the FULL body gate (the `--fun` "Valid"
+  was an empty-disk artifact — see the catalog row; soundness probe
+  `requires slot_inode(self.dir,5,0)==3` flips it to FAIL); de-trusting `_write_entry`
+  → Unknown/Timeout/OOM even in `--fun`. All six share the identical wall (same three
+  symbols, same missing bridge). Per the HARD CONSTRAINT, removing a `\trusted` that
+  reds a gate is a REGRESSION, not a retirement → directives STAY, logged GAP routed to
+  the human. The real close = a concrete byte-decode definitional axiom for the three
+  symbols, cross-validated Rocq+Lean — blocked TODAY by Gap 5 (name bytes unmodeled);
+  a substantial model extension, human-gated. See
+  `getting-better/20260617-1001-dirscan-fidelity-structural-wall.md`.
 
 *(Other modules: `re` 16/16 stub-level; `warnings` 18/18 body + 3/3 formal;
 `json` 6/6 thin-API. Add ledgers here as missions cover them.)*
