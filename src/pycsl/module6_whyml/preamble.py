@@ -699,6 +699,29 @@ class PreambleEmissionMixin:
             "forall x : int [field_nonneg x]. x >= 0 -> field_nonneg x",
         "Pycsl.Reference.FieldPred.field_nonneg_elim":
             "forall x : int [field_nonneg x]. field_nonneg x -> x >= 0",
+
+        # Pycsl.Strmod.StrLen.length_nonneg — the STRING-UNIVERSAL
+        # length-non-negativity fact that pins every "result is a string" leaf
+        # in pure_lib/strmod (template_substitute / template_safe_substitute /
+        # _format_field_nonempty / Template.substitute / Template.safe_substitute
+        # / Formatter.format). EVERY string — whatever transform produced it —
+        # has non-negative length; this is a GENERIC fact about the abstract
+        # string type, provable with NO transform definition. Each strmod leaf is
+        # an abstract `val` whose sole sound `ensures` is exactly this instance
+        # (`String.length result >= 0`); citing this cross-validated lemma
+        # replaces bare reviewer-`\trusted` with a named, proof-assistant-anchored
+        # fact (the auditable trusted core). NOTE: this is deliberately NOT
+        # transform-specific — facts that depend on what a transform DOES (e.g.
+        # capwords' `length result <= length s`, or `f("") == ""`) are NOT true
+        # of an arbitrary `val` and remain honest GAPs (stay `\trusted`), never
+        # faked as a cited axiom. Cross-validated by
+        # pure_lib/strmod/__init__.proofs/{rocq,lean}/StrLen.{v,lean} (theorem
+        # length_nonneg): `string` is modelled as `list Z` / `List Int`,
+        # `String.length` as `Z.of_nat (length _)` / `(_.length : Int)`, which is
+        # a count, hence >= 0. Rocq 8.20.1: closed under the global context
+        # (0 Axiom/Admitted); Lean 4.31.0: does not depend on any axioms (no sorry).
+        "Pycsl.Strmod.StrLen.length_nonneg":
+            "forall s : string. String.length s >= 0",
     }
 
     # gap-13: axioms that CONSTRAIN the axiom-func symbols a `#@ class invariant`

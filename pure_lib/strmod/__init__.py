@@ -12,15 +12,28 @@
 #   - Template / substitute / safe_substitute / is_valid ~L843-880
 #   - Formatter / format / format_field ~L99/L180/L321
 #
-# Two mechanisms are used:
+# Three mechanisms are used:
 #   * FAITHFUL-PROVABLE: a real body whose contract Why3/SMT discharges
 #     (set_template, is_valid, format_field empty-spec identity).
-#   * ABSTRACT-FAITHFUL: an arbitrary string transform (.split/.join/.replace/
-#     case-conversion / $-substitution / format-spec interpretation) has NO
-#     SMT-checkable body, so it is modelled as a `#@ \trusted` leaf emitting an
-#     abstract `val` whose contract IS its ensures. Such contracts state ONLY
-#     facts universally true of an arbitrary result string (length non-negative,
-#     length non-growing for capwords, empty maps to empty).
+#   * CITED-ABSTRACT (TCB-shrinking): an arbitrary string transform whose ONLY
+#     sound ensures is the STRING-UNIVERSAL fact `\str_length(\result) >= 0`
+#     (true of ANY result string, regardless of the transform) is modelled as a
+#     `#@ \abstract` `val` PINNED by `#@ proof rocq|lean
+#     Pycsl.Strmod.StrLen.length_nonneg` — the cross-validated lemma
+#     `forall s. String.length s >= 0` (Rocq: closed under the global context;
+#     Lean: depends on no axioms; proofs in __init__.proofs/{rocq,lean}/StrLen).
+#     This replaces bare reviewer-`\trusted` with a NAMED, proof-assistant-
+#     anchored fact: the auditable trusted core, not a silent assumption. Applies
+#     to template_substitute / template_safe_substitute / _format_field_nonempty
+#     / Template.substitute / Template.safe_substitute / Formatter.format.
+#   * TRUSTED GAP (capwords only): a TRANSFORM-SPECIFIC ensures —
+#     `\str_length(\result) <= \str_length(s)` (length non-growing) and
+#     `s == "" ==> \result == ""` — is NOT true of an arbitrary `val`; it depends
+#     on what capwords DOES (collapse+trim). Proving it about an abstract `val` is
+#     impossible without DEFINING the split/capitalize/join semantics in Rocq+Lean
+#     (a contained but non-trivial kernel: a tokenizer + per-word case map + join).
+#     Until that definition exists this stays a single honest `#@ \trusted` leaf
+#     (logged GAP), NEVER faked as a cited axiom that secretly assumes the property.
 #
 # HONESTY NOTE (verified by SMT spike): the previous int-mock asserted
 #   substitute:        \result == template + mapping
@@ -44,13 +57,25 @@ def capwords(s: str, sep: str = None) -> str:
     SOUND-ONLY contract: collapsing runs of whitespace to a single space and
     trimming can only shorten (never grow) the string, so
     \\str_length(\\result) <= \\str_length(s); the empty string has no words, so
-    capwords("") == "". The word-by-word case-conversion and re-joining are an
-    arbitrary string transform with no SMT-checkable model, so this is a trusted
-    leaf (emits as an abstract `val` pinned by the contract above)."""
+    capwords("") == "".
+
+    TRUSTED GAP (NOT retirable as a cited universal lemma): unlike the
+    "result is a string" leaves (retired to `#@ proof
+    Pycsl.Strmod.StrLen.length_nonneg`), capwords' two ensures are
+    TRANSFORM-SPECIFIC — `length(\\result) <= length(s)` and `"" -> ""` are FALSE
+    of an arbitrary string transform, so they cannot be proved about an abstract
+    `val`. A genuine retirement would require DEFINING capwords' semantics
+    (whitespace tokenize -> per-word capitalize -> single-space join) in Rocq+Lean
+    and proving the length bound + empty law of THAT definition — a contained but
+    real kernel, not yet built. So this remains a single honest `#@ \trusted`
+    leaf; it is NOT replaced by a cited axiom that would merely re-assume the
+    property (which would surface as a kernel Axiom and fail cross-validation)."""
     return s
 
 
-#@ \trusted reviewer: python-stdlib
+#@ \abstract
+#@ proof rocq Pycsl.Strmod.StrLen.length_nonneg
+#@ proof lean Pycsl.Strmod.StrLen.length_nonneg
 #@ ensures \str_length(\result) >= 0
 #@ assigns \nothing
 def template_substitute(t: str, mapping: dict) -> str:
@@ -65,7 +90,9 @@ def template_substitute(t: str, mapping: dict) -> str:
     return t
 
 
-#@ \trusted reviewer: python-stdlib
+#@ \abstract
+#@ proof rocq Pycsl.Strmod.StrLen.length_nonneg
+#@ proof lean Pycsl.Strmod.StrLen.length_nonneg
 #@ ensures \str_length(\result) >= 0
 #@ assigns \nothing
 def template_safe_substitute(t: str, mapping: dict) -> str:
@@ -80,7 +107,9 @@ def template_safe_substitute(t: str, mapping: dict) -> str:
     return t
 
 
-#@ \trusted reviewer: python-stdlib
+#@ \abstract
+#@ proof rocq Pycsl.Strmod.StrLen.length_nonneg
+#@ proof lean Pycsl.Strmod.StrLen.length_nonneg
 #@ ensures \str_length(\result) >= 0
 #@ assigns \nothing
 def _format_field_nonempty(spec: str, v: str) -> str:
@@ -141,7 +170,9 @@ class Template:
         that the result is a boolean; the constant body witnesses it."""
         return True
 
-    #@ \trusted reviewer: python-stdlib
+    #@ \abstract
+    #@ proof rocq Pycsl.Strmod.StrLen.length_nonneg
+    #@ proof lean Pycsl.Strmod.StrLen.length_nonneg
     #@ ensures \str_length(\result) >= 0
     #@ assigns \nothing
     def substitute(self, mapping: dict) -> str:
@@ -151,7 +182,9 @@ class Template:
         DROPPED. Trusted leaf (abstract `val`)."""
         return self.template
 
-    #@ \trusted reviewer: python-stdlib
+    #@ \abstract
+    #@ proof rocq Pycsl.Strmod.StrLen.length_nonneg
+    #@ proof lean Pycsl.Strmod.StrLen.length_nonneg
     #@ ensures \str_length(\result) >= 0
     #@ assigns \nothing
     def safe_substitute(self, mapping: dict) -> str:
@@ -186,7 +219,9 @@ class Formatter:
             return v
         return _format_field_nonempty(spec, v)
 
-    #@ \trusted reviewer: python-stdlib
+    #@ \abstract
+    #@ proof rocq Pycsl.Strmod.StrLen.length_nonneg
+    #@ proof lean Pycsl.Strmod.StrLen.length_nonneg
     #@ ensures \str_length(\result) >= 0
     #@ assigns \nothing
     def format(self, fmt: str) -> str:
