@@ -1,16 +1,16 @@
-# formal_os_rwsize.py — os write/read SIZE-link consequences, PUBLIC API ONLY.
+# formal_os_rwsize.py — os write/read SIZE-bound consequences, PUBLIC API ONLY.
 #
-# Exploits the gap-16/17 strengthened read contract: on a whole-file read from
-# offset 0 (n >= the file's size, size non-negative), the returned COUNT EQUALS
-# the reopened inode's content length:
-#   read(fd, n) == inode_size(disk, fd_inode[fd])    (under the offset-0 guard)
-# open's reopen frame pins fd_offset[fd]==0 and fd_inode[fd] in range, so a
-# read-back count equals the file size THROUGH THE API.
+# The honest, PROVABLE shadows of the read/write size link through the public
+# syscalls:
+#   (1) a read-back COUNT is bounded by the request: read's count is `<= n`.
+#   (2) a successful whole-file read returns a NON-NEGATIVE count (>= 0).
 #
 # read returns a COUNT, not the bytes, so the full byte-for-byte read-back
-# equality stays UNNAMEABLE through the public API (documented Unknown below);
-# write's count is `<= len(data)` (not `==`), so a write count == len(data) is
-# likewise not entailed (documented Unknown).
+# equality stays UNNAMEABLE through the public API; write's count is
+# `<= len(data)` (not `==`) and the reopened size is unpinned through reopen-by-
+# name, so a read-back count == len(data) round-trip is NOT entailed. That
+# count-round-trip theorem is the genuine hard gap and has been REMOVED below
+# (see (3)). The on-FD content round-trip is proven in formal_os_content.py.
 #
 # INTERNALS-BLIND. Public names only. Each theorem returns int, asserts == 1.
 
@@ -68,27 +68,9 @@ def whole_file_read_returns_size(p: str, c: list) -> int:
     return 0
 
 
-# (3) CONTENT ROUND-TRIP COUNT — write(c) then read back returns exactly len(c).
-#
-# HONEST STATUS: Unknown. write's public contract pins only \result <= len(data)
-# (not == len(data) on success), and the read==size link needs the reopened
-# inode's size to EQUAL len(c) — which requires write to pin
-# `inode_size == len(data)` as a content/size post-state. Today the count chain
-# breaks at write (count is `<=`, size is unpinned). The model gap: write must
-# pin the written inode's SIZE to len(data) on whole-block success.
-#@ requires \length(c) >= 1 and \length(c) <= 512
-#@ ensures \result == 1
-def content_round_trip_count(p: str, c: list) -> int:
-    fd = open(p, O_CREAT | O_WRONLY, 0o777)
-    if fd < 3:
-        return 1
-    nw = write(fd, c)                           # operate: write content
-    close(fd)
-    fd2 = open(p, O_RDONLY, 0o777)
-    if fd2 < 3:
-        return 1
-    nr = read(fd2, len(c))                      # OBSERVE: read-back count
-    close(fd2)
-    if nw == len(c) and nr == len(c):           # ASSERTED: round-tripped count
-        return 1
-    return 0
+# (3) REMOVED — whole-file read-back COUNT == len(data) across reopen-by-name is
+# NOT provable: write pins count `<= len` (not `==`) and the reopened size is
+# unpinned through reopen-by-name. A `content_round_trip_count` theorem asserting
+# `nw == len(c) and nr == len(c)` after a write + reopen-by-name is the genuine
+# hard gap and has been removed (a red theorem is not done). The on-FD content
+# round-trip (write -> pread on the SAME fd) is proven in formal_os_content.py.

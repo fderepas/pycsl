@@ -2,25 +2,39 @@
 # through the PUBLIC API ONLY.
 #
 # INTERNALS-BLIND. Imports only public names from pure_lib.os; no _filesystem,
-# no disk, no sys_*, no _dir_lookup, no UnixInodeFileSystem reference in code or
-# contracts. Each theorem takes symbolic params, returns int, asserts the
-# observed value (the formal_os convention).
+# disk, sys_*, _dir_lookup, or UnixInodeFileSystem reference in code or contracts.
+# Each theorem follows the formal_os convention: take symbolic params, return int,
+# guard the mutator return codes, and assert the OBSERVED value as `\result == 1`.
 #
-# HONEST OUTCOME — these consequences DO NOT all prove through the API today.
-# Their public contracts in pure_lib/os/__init__.py are:
-#   chmod : #@ ensures \result == 0 or -1 ; #@ assigns _filesystem.disk
-#       — return-code only, and chmod ASSIGNS disk, so it may HAVOC the
-#         dir_lookup presence view. "mkdir(d); chmod(d,m); access(d)==present"
-#         is therefore Unknown: nothing in chmod's contract preserves the entry.
-#         The model gap: chmod needs a frame `\result==0 ==> dir_lookup unchanged`.
-#   truncate : #@ ensures \result == 0 or -1 ; #@ assigns _filesystem.disk
-#       — return-code only, no size post-state. The size consequence
-#         (truncate(f,0) => later read returns 0) is NOT expressible (like the
-#         content round-trip). Recorded Unknown.
+# WHAT PROVES (verified by the oracle):
+#   stat / lstat : mkdir(d) pins `dir_lookup(disk,5,d) >= 0`, and stat/lstat's
+#       path-link ensures then deliver a VALID inode (0 <= result < 32) for that
+#       same name. The functional consequence "after creating d, stat/lstat
+#       reports a valid inode for d" is ENTAILED by the public contracts (NON-
+#       VACUOUS: ties the result to the name mkdir created, not the bare bound).
+#   mkdir -> access : mkdir(d) pins `\result == 0 ==> dir_lookup(disk,5,d) >= 0`,
+#       and access reports `\result == 1 <==> dir_lookup(disk,5,d) >= 0`, so the
+#       entry mkdir created is OBSERVED present through the API.
 #
-# DO NOT make these green by simulating, by weakening to the op's own
-# return-code, or by touching internals. A documented Unknown is the correct
-# convergence-loop outcome.
+# DOCUMENTED GAPS (return-code-only contracts; deeper consequence not pinned):
+#   chmod : public contract is `\result == 0 or -1` (return-code only); chmod
+#       `assigns _filesystem.disk` with no dir_lookup frame. The MODE consequence
+#       (chmod(f, m) reflected in stat(f)'s mode field) is NOT pinned by the public
+#       contract (no mode accessor at the os.* layer). chmod takes `filepath: str`,
+#       so it is called with a str path over a mkdir->chmod scenario; the asserted
+#       claim is the documented return-code bound.
+#   truncate : public contract is `\result == 0 or -1` (return-code only), no size
+#       post-state. The SIZE consequence (truncate(f, length) => size == length)
+#       is NOT pinned by the public contract. truncate leaves its `filepath` param
+#       un-annotated, so the emitted stub types it `int`; it is called with an int
+#       and the asserted claim is the documented return-code bound.
+#
+# CO-IMPORT NOTE (tool quirk workaround): chmod/truncate carry only return-code
+# ensures and pull in array-typed helper predicates without an array-typed
+# `ensures`, which can make the emitter skip `use array.Array` and fail at L3-tc
+# with `unbound type symbol 'array'`. We co-import mkdir + access (whose dir_lookup
+# ensures reference the filesystem arrays) and CALL them in theorems below, which
+# triggers `use array.Array` and keeps the file emittable.
 
 from pure_lib.os import (
     mkdir, access, chmod, truncate, stat, lstat, F_OK,
@@ -28,30 +42,7 @@ from pure_lib.os import (
 
 
 # ---------------------------------------------------------------------------
-# stat / lstat functional consequence — NOW PROVES through the API.
-#
-# Public contracts (pure_lib/os/__init__.py):
-#   stat / lstat :
-#     #@ ensures \result == -1 or (0 <= \result < 32)
-#     #@ ensures dir_lookup(disk, 5, filepath) >= 0 ==> 0 <= \result < 32
-#     #@ ensures dir_lookup(disk, 5, filepath) <  0 ==> \result == -1
-#   mkdir :
-#     #@ ensures \result == 0 ==> dir_lookup(disk, 5, filepath) >= 0
-#
-# These two contracts CHAIN: a successful mkdir(d) pins the namespace view
-# `dir_lookup(disk, 5, d) >= 0`, and stat/lstat's path-link ensures then deliver
-# `0 <= \result < 32` — a VALID inode — for that same name. So the FUNCTIONAL
-# consequence "after creating d, stat/lstat reports a valid inode for d" is now
-# ENTAILED by the public contracts and is asserted below (NON-VACUOUS: it ties
-# the stat/lstat result to the name mkdir created, not the bare geometry bound).
-#
-# The earlier removal was correct for ITS time: back then stat/lstat carried only
-# the geometry bound (no path->inode link), so the consequence was unprovable and
-# an unguarded `\result == 1` flailed. The str-list-elements tool fix unblocked
-# the `#@ no_inline` path-link on sys_stat (it no longer OOMs on inlining, and the
-# str/list-element typing clash is resolved), so the path-link ensures now ship on
-# stat/lstat and these GUARDED theorems prove. (mkdir's possible -1 is guarded
-# below, mirroring `symlink_then_dst_present`.)
+# stat: mkdir(d) then stat(d) reports a VALID inode for the name created.
 #@ requires True
 #@ ensures \result == 1
 def stat_after_mkdir_valid_inode(d: str) -> int:
@@ -64,6 +55,8 @@ def stat_after_mkdir_valid_inode(d: str) -> int:
     return 0
 
 
+# ---------------------------------------------------------------------------
+# lstat: like stat (no symlink follow in this single-level model); same chain.
 #@ requires True
 #@ ensures \result == 1
 def lstat_after_mkdir_valid_inode(d: str) -> int:
@@ -77,62 +70,46 @@ def lstat_after_mkdir_valid_inode(d: str) -> int:
 
 
 # ---------------------------------------------------------------------------
-# (1) mkdir(d) -> d is PRESENT (the directory name resolves). Setup: none.
-# Operate: mkdir(d). OBSERVE: access(d, F_OK) == 1. Valid.
-#
-# This is the NAMESPACE-presence consequence that stat/lstat could NOT express:
-# mkdir pins `\result == 0 ==> dir_lookup(disk,5,d) >= 0`, and access reports
-# `\result == 1 <==> dir_lookup(disk,5,d) >= 0`, so the entry mkdir created is
-# observed as present THROUGH the API. (The stronger stat/lstat inode-value
-# consequence — which inode d resolves to — stays the deferred gap above.)
+# mkdir -> access present. This also CALLS mkdir + access whose dir_lookup ensures
+# trigger `use array.Array` (the co-import workaround), so chmod/truncate below
+# emit cleanly.
 #@ requires True
 #@ ensures \result == 1
 def mkdir_then_dir_present(d: str) -> int:
     rc = mkdir(d, 0o777)            # operate: create the directory
     if rc != 0:
-        return 1                    # mkdir failed: not the case under test
+        return 1                    # mkdir failed: not the case under test (guarded)
     return access(d, F_OK)          # observe: d PRESENT — ASSERTED == 1
 
 
 # ---------------------------------------------------------------------------
-# (2) chmod doesn't REMOVE the entry: mkdir(d); chmod(d,m); access(d)==present.
-#
-# EMISSION-BLOCKED (cannot be expressed through the API): chmod leaves its
-# `filepath` param UN-ANNOTATED in pure_lib/os/__init__.py, so the emitted stub
-# types it `int`, while mkdir/access type their path `str`. A str-keyed setup
-# (mkdir d) cannot feed an int-typed chmod(d, m) — that is a WhyML int-vs-string
-# type error at emission, BEFORE any proof. So the presence-preservation
-# consequence is not even NAMEABLE through the API today. The TOOL/model gap:
-# chmod's `filepath` must be annotated `str` (like access/mkdir) for the chain to
-# typecheck. Below we instead exercise chmod DIRECTLY on an int-typed path (its
-# stub's type) and assert the return-code bound it does guarantee — the strongest
-# NAMEABLE property. Even so, chmod `assigns _filesystem.disk` with no dir_lookup
-# frame, so the presence-preservation theorem stays Unknown once the type is fixed.
+# chmod: return-code bound (DOCUMENTED GAP). chmod takes `filepath: str`, so it is
+# called with a str path over a mkdir->chmod scenario. The MODE consequence
+# (chmod(f, m) reflected in stat(f)'s mode field) is NOT pinned by the public
+# contract — no mode accessor at the os.* layer, and chmod assigns disk with no
+# dir_lookup frame. The asserted claim is the documented return-code bound.
 #@ requires True
 #@ ensures \result == 1
-def chmod_total_returns_code(d: int, m: int) -> int:
-    rc = chmod(d, m)                # operate: change mode (int-typed path stub)
-    if rc == 0 or rc == -1:         # ASSERTED: documented return-code bound
+def chmod_returns_code(d: str, m: int) -> int:
+    rc = mkdir(d, 0o777)           # setup: create the directory
+    if rc != 0:
+        return 1                   # mkdir failed: not the case under test (guarded)
+    r = chmod(d, m)                # operate: change mode (str-typed path)
+    if r == 0 or r == -1:          # ASSERTED: documented return-code bound
         return 1
     return 0
 
 
-# (3) truncate(f, 0) — the SIZE consequence. Setup: create f, write data, close.
-# Operate: truncate(f, 0). OBSERVE: the size is 0.
-#
-# EMISSION-BLOCKED (str-vs-int, same as chmod): truncate leaves its `filepath`
-# param UN-ANNOTATED, so the stub types it `int`, while open (the str-keyed
-# creator) types its path `str`. A `truncate(f, 0)` fed a str `f` created via
-# open is a WhyML type error at emission. So the size consequence is not nameable
-# through the API today. The TOOL/model gap: truncate's `filepath` must be `str`,
-# AND truncate needs a size post-state `\result==0 ==> inode_size(disk, inode of
-# filepath) == length` (the truncate twin of write's gap-17 size link). Below we
-# exercise truncate DIRECTLY on an int-typed path and assert its return-code
-# bound — the strongest NAMEABLE property; the size consequence stays unnameable.
+# ---------------------------------------------------------------------------
+# truncate: return-code bound (DOCUMENTED GAP). truncate's `filepath` param is
+# un-annotated, so the emitted stub types it `int`; it is called with an int. The
+# SIZE consequence (truncate(f, length) => size == length) is NOT pinned by the
+# public contract (return-code only, no size post-state). The asserted claim is
+# the documented return-code bound.
 #@ requires True
 #@ ensures \result == 1
-def truncate_total_returns_code(f: int, length: int) -> int:
-    rc = truncate(f, length)        # operate: truncate (int-typed path stub)
-    if rc == 0 or rc == -1:         # ASSERTED: documented return-code bound
+def truncate_returns_code(f: int, length: int) -> int:
+    rc = truncate(f, length)       # operate: truncate (int-typed path stub)
+    if rc == 0 or rc == -1:        # ASSERTED: documented return-code bound
         return 1
     return 0

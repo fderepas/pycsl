@@ -1499,6 +1499,12 @@ class UnixInodeFileSystem:
     #@ requires fd >= 0
     #@ assigns self.fd_open
     #@ ensures \result == 0 or \result == -1
+    # CLOSE-POST-STATE (close consequence): on success the fd is no longer open —
+    # `fd_open[fd] == 0`. Body-faithful: the success branch sets `fd_open[fd]=0`
+    # before returning 0. This is the observable post-state that lets a caller see
+    # close(fd) take effect: a subsequent fstat(fd) (guarded by fd_open[fd]==1)
+    # then reports EBADF. ZERO new trust — the body literally writes the cell.
+    #@ ensures (\result == 0 and fd < 64) ==> self.fd_open[fd] == 0
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/close.html
     # cite:_note: POSIX close() — returns 0 on success, -1 on EBADF.
     #             De-trusted: dict membership → fd_open[fd]==1, `del` →
@@ -1850,6 +1856,14 @@ class UnixInodeFileSystem:
     #@ requires whence >= 0 and whence <= 2
     #@ assigns self.fd_offset
     #@ ensures \result >= -1
+    # SEEK_SET CONSEQUENCE (lseek): an absolute seek to a non-negative position on
+    # an open fd RETURNS that position, and the fd's offset cell is set to it.
+    # Body-faithful: the `whence == 0` branch does `fd_offset[fd] = offset`, the
+    # clamp leaves a non-negative offset unchanged, and the method returns
+    # `fd_offset[fd]`. This is the observable post-state of an absolute seek (the
+    # NEW position), NOT lseek's own success/fail code. ZERO new trust.
+    #@ ensures (whence == 0 and offset >= 0 and fd < 64 and \old(self.fd_open[fd]) == 1) ==> \result == offset
+    #@ ensures (whence == 0 and offset >= 0 and fd < 64 and \old(self.fd_open[fd]) == 1) ==> self.fd_offset[fd] == offset
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/lseek.html
     # cite:_note: POSIX lseek() — returns new offset (≥ 0) or -1 on
     #             EBADF. Resulting offset is clamped to >= 0. De-trusted:
@@ -2231,6 +2245,12 @@ class UnixInodeFileSystem:
     # `fd_inode[result] == dir_lookup(...)` resolution so fstat(open(p)) reports
     # the inode the path p resolves to (the gap-14 fstat consequence).
     #@ ensures (fd < 64 and self.fd_open[fd] == 1 and 0 <= self.fd_inode[fd] and self.fd_inode[fd] < 32) ==> \result == self.fd_inode[fd]
+    # EBADF DIRECTION (close consequence): a CLOSED fd (in range, fd_open[fd]==0)
+    # is reported as EBADF (-1). Body-faithful: the `if self.fd_open[fd] == 0:
+    # return -1` guard. This is the NEGATIVE twin of the fd-resolution ensures —
+    # it lets a caller OBSERVE that close(fd) took effect (fstat(fd) == -1 after a
+    # successful close, whose CLOSE-POST-STATE pinned fd_open[fd]==0). ZERO trust.
+    #@ ensures (fd < 64 and self.fd_open[fd] == 0) ==> \result == -1
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/fstat.html
     # cite:_note: POSIX fstat() — returns the inode number for an open fd,
     #             or -1 on EBADF (fd not open or out of range).
