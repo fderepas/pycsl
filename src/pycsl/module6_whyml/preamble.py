@@ -722,6 +722,35 @@ class PreambleEmissionMixin:
         # (0 Axiom/Admitted); Lean 4.31.0: does not depend on any axioms (no sorry).
         "Pycsl.Strmod.StrLen.length_nonneg":
             "forall s : string. String.length s >= 0",
+
+        # Pycsl.Strmod.Capwords — the TWO TRANSFORM-SPECIFIC facts of a FAITHFUL
+        # CPython `string.capwords` model (default sep=None path). Unlike the
+        # STRING-UNIVERSAL `length_nonneg` above (true of an ARBITRARY result),
+        # these depend on what capwords DOES (whitespace tokenize -> per-word
+        # capitalize -> single-space join) and are FALSE of an arbitrary string
+        # transform. They are therefore NOT provable about an abstract `val`
+        # alone: they are stated about a DEFINED logic symbol `capwords_def`
+        # (the abstract `val function capwords_def` declared by _AXIOM_FUNCTIONS
+        # below, whose intended interpretation IS the concrete definition in the
+        # proofs). The capwords leaf in pure_lib/strmod is an `#@ \abstract` val
+        # whose default-sep (sep = "") ensures is `result = capwords_def s`, from
+        # which the length bound and empty law follow by these two axioms. This
+        # retires the LAST bare reviewer-`\trusted` in strmod, replacing it with
+        # a NAMED, proof-assistant-anchored definition (the auditable trusted
+        # core = the faithfulness of `capwords_def`).
+        #
+        # Cross-validated by pure_lib/strmod/__init__.proofs/{rocq,lean}/
+        # Capwords.{v,lean}: `string` is `list Z` / `List Int`; `capwords_def` is
+        # whitespace-tokenize (CPython str.split() default whitespace
+        # {space,\t,\n,\r,\f,\v}, drop empties, trim) -> capitalize (first upper,
+        # rest lower; length-preserving) -> single-space join, MATCHING
+        # string.capwords(s) = ' '.join(x.capitalize() for x in s.split()).
+        # Rocq 8.20.1: closed under the global context (0 Axiom/Admitted);
+        # Lean 4.31.0: #print axioms = {propext, Quot.sound} (no sorry).
+        "Pycsl.Strmod.Capwords.capwords_length_nongrowing":
+            "forall s : string. String.length (capwords_def s) <= String.length s",
+        "Pycsl.Strmod.Capwords.capwords_empty":
+            "capwords_def \"\" = \"\"",
     }
 
     # gap-13: axioms that CONSTRAIN the axiom-func symbols a `#@ class invariant`
@@ -792,6 +821,11 @@ class PreambleEmissionMixin:
         # binding to a registry predicate (the `_names_of` `predicate`-recognition of
         # commit 755f89e). Its meaning is the definitional intro/elim below.
         "Pycsl.Reference.FieldPred.": ["predicate field_nonneg (x: int)"],
+        # Pycsl.Strmod.Capwords: the abstract `val function capwords_def` (a LOGIC
+        # symbol — referenceable in the capwords leaf's `ensures` and in the two
+        # cross-validated axioms above). Its intended interpretation is the
+        # concrete faithful definition in __init__.proofs/{rocq,lean}/Capwords.
+        "Pycsl.Strmod.Capwords.": ["val function capwords_def (s: string) : string"],
         # string-codec Phase A': the abstract string ↔ byte-field decode. Logic-only
         # (`function`, no body) — referenced solely in CONTRACTS (the spec-level name
         # decode), never applied in a program body, so no `val` is needed. Constrained
