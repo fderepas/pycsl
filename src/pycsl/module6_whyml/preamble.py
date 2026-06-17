@@ -238,6 +238,42 @@ class PreambleEmissionMixin:
             "forall disk : array int. forall blk : int. forall k : int. "
             "slot_inode disk blk k >= 0",
 
+        # UnixFs.Dir.slot_inode_byte_decode (Gap-5 keystone, WRITE SIDE) — the
+        # forward (value) byte->decode fact. slot_inode (disk, blk, k) is the
+        # 2-byte big-endian inode field of the 32-byte dirent at slot k of block
+        # blk: 256*disk[blk*512+32*k] + disk[blk*512+32*k+1] (the SAME field
+        # empty_disk_slots_dead / block5_decode_frame read; this is its forward
+        # value direction). Lets a directory write helper that has just blitted
+        # those two bytes and proved disk[off]=b0, disk[off+1]=b1 conclude
+        # slot_inode disk blk k = 256*b0 + b1 = inode_num — RETIRING the write-side
+        # dirscan-fidelity trust on _write_entry / _zero_entry / _write_dir_entry
+        # without unfolding the abstract slot_inode symbol globally.
+        #
+        # TRIGGER DISCIPLINE (the keystone safety): keyed on the BYTE expression
+        # [disk[blk * 512 + 32 * k]], NOT on [slot_inode disk blk k]. So it fires
+        # ONLY where the explicit slot-byte term already appears (a write helper's
+        # post-blit state), NEVER on the ubiquitous abstract slot_inode atoms that
+        # the uniq / slots_lt32 / scan axiom web triggers on — avoiding the
+        # measured global E-matching explosion of a `slot_inode = <bytes>`
+        # definition (os-coverage-progress: "DON'T concretize slot_name", "would
+        # worsen the noise + risk the green __init__"). The decode is read from the
+        # bytes only when the bytes are present.
+        #
+        # Faithful — a property of _unpack_uint16_be of the dirent inode field; the
+        # SAME slot_inode symbol (no new _AXIOM_FUNCTIONS entry). Cross-validated by
+        # unix-filesystem/UnixInodeFileSystem.proofs/{rocq,lean}/SlotInodeByteDecode.{v,lean}
+        # (theorem slot_inode_byte_decode): unfold the 2-byte decode, rewrite the
+        # two byte hypotheses, close by reflexivity. Rocq 8.20.1: Closed under the
+        # global context (only abstract Section Variables, 0 Axiom/Admitted); Lean
+        # 4.30.0: "does not depend on any axioms" (subseteq {propext, Quot.sound}).
+        "UnixFs.Dir.slot_inode_byte_decode":
+            "forall disk : array int. forall blk : int. forall k : int. "
+            "forall b0 b1 : int "
+            "[disk[blk * 512 + 32 * k]]. "
+            "disk[blk * 512 + 32 * k] = b0 -> "
+            "disk[blk * 512 + 32 * k + 1] = b1 -> "
+            "slot_inode disk blk k = 256 * b0 + b1",
+
         # UnixFs.Dir.remove_reflects_absent (gap-11) — the ABSENCE twin of
         # scan_reflects_present. After the live entry at slot s is zeroed
         # (remove-witness: slot_inode disk blk s = 0) and provided `name` lived
