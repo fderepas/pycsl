@@ -113,6 +113,18 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
    if that needs a model extension, it's a GAP, not a cheap win. *(Carve-out from the
    2026-06-17 `_unpack_direntry` WIN-1 probe;
    `getting-better/20260617-0909-direntry-byte-range-gap.md`.)*
+10. **Retiring a `\trusted` stdlib leaf: string-UNIVERSAL ensures retires, transform-
+   SPECIFIC does not.** The decisive classifier — *is the ensures true of an ARBITRARY
+   result string, regardless of what the transform does?* If YES (e.g.
+   `\str_length(\result) >= 0`, "result is a string"), it retires cleanly to
+   `#@ \abstract` + `#@ proof rocq|lean <Lemma>` citing a `forall s. ...` lemma that
+   needs NO transform definition — kernel-PROVED in both provers (Rocq "Closed", Lean
+   no-axioms), byte-diff 0, gates green. If it depends on what the transform DOES
+   (`capwords` `len <= len`, `f("")==""`), it CANNOT be proved about an abstract `val`
+   without defining the transform's semantics in the kernel → honest GAP, NEVER a cited
+   axiom that re-assumes the property (that surfaces as a kernel `Axiom`/extra Lean axiom
+   and fails `--reverify`). *(strmod pilot 2026-06-17: bare-trust 7→1 — 6 universal
+   retired via `Pycsl.Strmod.StrLen.length_nonneg`, `capwords` GAP'd.)*
 
 ## B. Coherent-and-wrong catalog for formal tests (what the monitor hunts)
 
