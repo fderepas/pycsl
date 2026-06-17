@@ -100,6 +100,20 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
    (whose `dir_lookup` ensures is an array term) emits the `use`. *(CONFIRMED
    emitter bug: `bugs-to-report/20260616-2050-import-stub-missing-use-array.md`.)*
 
+9. **Adding a leaf precondition can RELOCATE a residual, not close it — re-prove the
+   CALLER in isolation before claiming the win.** A failing callee Precondition
+   sub-goal (e.g. `_unpack_direntry` calling `_unpack_uint16_be` with `0<=data[..]<=255`
+   it can't establish) is "fixed" by requiring the byte-range at the callee — but that
+   only makes the callee prove; the obligation moves to EVERY caller, which may equally
+   lack the fact. Verdict rule: a fix that keeps the total non-Valid COUNT the same (or
+   adds an unmet caller obligation) is NOT a win, it is a relocation → REVERT. Diagnose
+   by `--fun <caller>` after the edit: if the same Unknown fingerprint reappears at the
+   caller, the real missing fact is upstream (here: a directory-region disk byte-range
+   predicate the model doesn't have). Route bottom-up to the genuine source fact;
+   if that needs a model extension, it's a GAP, not a cheap win. *(Carve-out from the
+   2026-06-17 `_unpack_direntry` WIN-1 probe;
+   `getting-better/20260617-0909-direntry-byte-range-gap.md`.)*
+
 ## B. Coherent-and-wrong catalog for formal tests (what the monitor hunts)
 
 | Shape | Tell | How the monitor catches it |
@@ -115,14 +129,36 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
 
 ## C. Per-module coverage ledger
 
-### os (`pure_lib/os/`) — as of 2026-06-16
-- **Body gate (authoritative, full file):** 1986 Valid / 8 residual (99.6%).
-  Residuals classified: `sys_rename` ×2 (genuine, SMT-infeasible no-trust),
-  `sys_write` ×3 (aggregate E-matching noise — 400/0 in `--fun` isolation),
-  `_now` ×1 (byte-range class-invariant noise), `_unpack_direntry` ×2 (genuine
-  leaf precondition — fix found but perturbs the `__init__` gate; deferred).
-- **`__init__` gate:** 1129/0 green (restored this session — was silently red
-  1128/2 from the fd_block empty-write over-claim).
+### os (`pure_lib/os/`) — as of 2026-06-17 (re-measured ground truth)
+- **Body gate (authoritative, full file):** **2016 Valid / 8 residual** (grep count;
+  the 8 = 5 UNIQUE non-Valid + 3 summary echoes). Unique residuals re-confirmed
+  2026-06-17 (PYTHONHASHSEED=0, Alt-Ergo 2.6.2 / Z3 4.13.3, load ~2-5): `_unpack_direntry`
+  ×2 (Unknown 320459/337358), `_now` ×1 (Out of memory), `sys_rename` ×2 (Timeout
+  4621194 + Out of memory). `sys_write` proved this run (the historical "×3 aggregate
+  noise" was absent — aggregate noise is non-deterministic; re-measure, don't trust a
+  stale count). **0 `\trusted`.**
+- **`__init__` gate:** **1159/0 GREEN, SUCCESS, exit 0** — WITNESSED clean 2026-06-17
+  on the committed working tree (no edits to `__init__.py` or `UnixInodeFileSystem.py`
+  survived; the WIN-1 experiment was reverted before this run).
+- **`_unpack_direntry` residual — diagnosed CONFIRMED, the prescribed cheap fix does
+  NOT close it (it RELOCATES).** Root cause: `_unpack_uint16_be` is emitted as a `let
+  function` (NOT inlined) carrying `requires 0<=data[offset..+1]<=255`; `_unpack_direntry`
+  calls it with only `\valid(data,32)`, so the 2 byte-range preconditions can't
+  discharge. Adding the minimal 2-clause `#@ requires 0<=data[0..1]<=255` to
+  `_unpack_direntry` makes the LEAF prove (Valid 2016→2018) but moves the SAME Unknown
+  (fingerprints 381631/304712) to its sole caller `_read_directory`, which reads
+  `self.disk[entry_offset:+32]` (block 5, offset≥2560) and has NO byte-range fact:
+  the only disk byte-range predicate `inode_bytes_valid` covers ONLY `[512,2560)` (the
+  inode table), per `src/pycsl/module6_whyml/preamble.py:551-557`. The directory region
+  `[2560,3072)` is unconstrained. Net residual stays 8 + an unmet caller obligation →
+  strictly worse → REVERTED. **This is a LOGGED GAP**, not "fix found / deferred": the
+  faithful close needs a directory-region (or whole-disk) byte-range predicate
+  established in the constructor and maintained by every disk mutator — a substantial,
+  `__init__`-gate-risky model extension, NOT a cheap win. See
+  `getting-better/20260617-0909-direntry-byte-range-gap.md`. The prior
+  `bugs-to-report/20260616-1929-noinline-leaf-not-val-in-importer.md` is SUPERSEDED
+  (the blocker is byte-range, not `no_inline` re-verification; the 2-clause version
+  fails at the BODY gate before reaching `__init__`).
 - **Proven formal tests:** `formal_os_roundtrip` (18/18, totality), `formal_os_content`
   (48/0, on-fd write→pread==data content round-trip), plus the topical
   `formal_os_*` family. As of 2026-06-16 (test-supervise-sl os mission) ALL 19
@@ -141,17 +177,35 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
   wrappers. New tests: `formal_os_close` (close→fstat==EBADF) and `formal_os_lseek`
   (lseek SET returns pos). Body gate failing-goal set UNCHANGED by these edits
   (same step-count fingerprints: 320459/337358/4621194) → no regression.
+- **Barrier-integrity cleanup (2026-06-17):** `formal_os_io.py` was a barrier
+  violation AND a bundle of vacuous self-return assertions — it constructed
+  `UnixInodeFileSystem` directly and called `sys_dup2/getdents/fsync/ftruncate/creat/
+  chown/utimensat` (NONE of which are public `os.*` symbols — only `dup` is), asserting
+  only each op's return code. RECLASSIFIED + renamed to `pure_lib_test/internal_os_io.py`
+  (functions `internal_os_*`), with a docstring that loudly states (a) it reaches
+  internals BY NECESSITY (no public API exists for these ops) and (b) the assertions
+  are return-code SAFETY bounds, NOT consequences — so it is explicitly NOT in the
+  public `formal_os_*` family. Still SUCCESS / 0 non-Valid / 0 `\trusted`. LESSON:
+  when an op has no public API, an honestly-labeled internal smoke test is the
+  doctrine-compliant home — never a `formal_os_*`-named return-code-only "consequence"
+  test (that is the self-return vacuity shape masquerading as coverage).
 - **Open frontiers (logged gaps, not failures):** reopen-by-name content/size
   round-trip (write count is `<=` not `==`; reopened size unpinned through
   reopen-by-name) — the on-FD round-trip IS proven (`formal_os_content`);
   open(absent,O_RDONLY)==-1 with absence NOT pre-established (a never-created
   name's `dir_lookup` is havoc'd — provable only WITH an established absence, as
-  in `formal_os_enoent` after mkdir→rmdir); chmod mode-reflected / truncate
-  size==length (return-code-only contracts, no accessor); multi-block content;
-  `sys_rename` no-trust closure — **a LOGGED GAP, not a trust candidate**: the only
-  doctrine-compliant routes are a different prover / a restructured proof / composing
-  its already-cross-validated lemmas in-context; the ready reviewer-trusted
-  `_rename_swap` is OFF THE MENU (see the BINDING rule above).
+  in `formal_os_enoent` after mkdir→rmdir); **chmod mode-reflected / truncate
+  size==length — LOGGED GAP, NOT a cheap win** (probed 2026-06-17): no public
+  mode/size accessor (`sys_stat` returns only the inode NUMBER), no `inode_mode`
+  logic accessor, no MODE-field round-trip ensures on `_read_inode`/`_write_inode`
+  (only field 0=size and field 8=block have read-back ensures); closing it is a
+  multi-rung extension (accessor + codec round-trip rung + sys_* consequence ensures
+  across `no_inline` + NEW public observer API + `__init__` wrapper plumbing + the
+  formal test). See `getting-better/20260617-0914-chmod-truncate-consequence-gap.md`;
+  multi-block content; `sys_rename` no-trust closure — **a LOGGED GAP, not a trust
+  candidate**: the only doctrine-compliant routes are a different prover / a
+  restructured proof / composing its already-cross-validated lemmas in-context; the
+  ready reviewer-trusted `_rename_swap` is OFF THE MENU (see the BINDING rule above).
 
 *(Other modules: `re` 16/16 stub-level; `warnings` 18/18 body + 3/3 formal;
 `json` 6/6 thin-API. Add ledgers here as missions cover them.)*
