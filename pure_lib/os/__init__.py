@@ -137,6 +137,10 @@ def chmod(filepath: str, mode, *, dir_fd=None, follow_symlinks=True):
 #@ requires fd >= 0
 #@ assigns _filesystem.fd_open
 #@ ensures \result == 0 or \result == -1
+# CLOSE-POST-STATE: propagate sys_close's observable consequence — on success the
+# fd is no longer open (`fd_open[fd] == 0`), so a caller's fstat(fd) after a
+# successful close reports EBADF. Body-faithful (sys_close sets fd_open[fd]=0).
+#@ ensures (\result == 0 and fd < 64) ==> _filesystem.fd_open[fd] == 0
 def close(fd):
     """Close a file descriptor."""
     return _filesystem.sys_close(fd)
@@ -183,6 +187,10 @@ def dup(fd):
 # dir_lookup(...)` resolution, a caller's fstat(open(p)) reports the inode p
 # resolves to (the gap-14 §3 fstat consequence).
 #@ ensures (fd < 64 and _filesystem.fd_open[fd] == 1 and 0 <= _filesystem.fd_inode[fd] and _filesystem.fd_inode[fd] < 32) ==> \result == _filesystem.fd_inode[fd]
+# EBADF DIRECTION: propagate sys_fstat's negative twin — a closed fd in range
+# (fd_open[fd]==0) is reported EBADF (-1). With close's CLOSE-POST-STATE this lets
+# a caller OBSERVE close took effect: fstat(fd) == -1 after a successful close.
+#@ ensures (fd < 64 and _filesystem.fd_open[fd] == 0) ==> \result == -1
 def fstat(fd):
     """Get file status by file descriptor. Returns inode number."""
     return _filesystem.sys_fstat(fd)
@@ -203,6 +211,12 @@ def link(src: str, dst: str, *, src_dir_fd=None, dst_dir_fd=None,
 #@ requires how >= 0 and how <= 2
 #@ assigns _filesystem.fd_offset
 #@ ensures \result >= -1
+# SEEK_SET CONSEQUENCE: propagate sys_lseek's absolute-seek post-state — an
+# absolute seek (how == SEEK_SET == 0) to a non-negative pos on an open fd RETURNS
+# that pos and sets the fd's offset to it. Body-faithful (sys_lseek's whence==0
+# branch). This is the new position observable to a caller, not lseek's own code.
+#@ ensures (how == 0 and pos >= 0 and fd < 64 and \old(_filesystem.fd_open[fd]) == 1) ==> \result == pos
+#@ ensures (how == 0 and pos >= 0 and fd < 64 and \old(_filesystem.fd_open[fd]) == 1) ==> _filesystem.fd_offset[fd] == pos
 def lseek(fd, pos, how):
     """Set the position of a file descriptor."""
     return _filesystem.sys_lseek(fd, pos, how)
