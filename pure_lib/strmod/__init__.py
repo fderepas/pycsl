@@ -26,14 +26,23 @@
 #     anchored fact: the auditable trusted core, not a silent assumption. Applies
 #     to template_substitute / template_safe_substitute / _format_field_nonempty
 #     / Template.substitute / Template.safe_substitute / Formatter.format.
-#   * TRUSTED GAP (capwords only): a TRANSFORM-SPECIFIC ensures —
+#   * CITED-ABSTRACT, TRANSFORM-SPECIFIC (capwords — RETIRED, 0 bare `\trusted`):
+#     capwords' two TRANSFORM-SPECIFIC ensures —
 #     `\str_length(\result) <= \str_length(s)` (length non-growing) and
-#     `s == "" ==> \result == ""` — is NOT true of an arbitrary `val`; it depends
-#     on what capwords DOES (collapse+trim). Proving it about an abstract `val` is
-#     impossible without DEFINING the split/capitalize/join semantics in Rocq+Lean
-#     (a contained but non-trivial kernel: a tokenizer + per-word case map + join).
-#     Until that definition exists this stays a single honest `#@ \trusted` leaf
-#     (logged GAP), NEVER faked as a cited axiom that secretly assumes the property.
+#     `s == "" ==> \result == ""` — are NOT true of an arbitrary `val` (they
+#     depend on what capwords DOES: collapse+trim), so they cannot be pinned by
+#     the STRING-UNIVERSAL `length_nonneg`. They ARE pinned by a FAITHFUL kernel
+#     DEFINITION `capwords_def` (whitespace tokenize -> per-word capitalize ->
+#     single-space join) defined and cross-validated in
+#     __init__.proofs/{rocq,lean}/Capwords.{v,lean}: `capwords_def` is an
+#     `#@ \abstract` `val function` (logic symbol) whose two facts
+#     (`capwords_length_nongrowing`, `capwords_empty`) are cited via `#@ proof`.
+#     The capwords leaf is an `#@ \abstract` val whose default-sep (`sep == ""`,
+#     the lowering of `sep=None`) ensures is the identity `\result ==
+#     capwords_def(s)`, from which the two facts follow. This took strmod's bare
+#     `\trusted` TCB to ZERO — the residual auditable trust is the faithfulness
+#     of `capwords_def` to CPython capwords, a named dual-prover-anchored
+#     definition, NOT a blanket assumption.
 #
 # HONESTY NOTE (verified by SMT spike): the previous int-mock asserted
 #   substitute:        \result == template + mapping
@@ -42,10 +51,15 @@
 # monotone — the monotone claim is SMT-Unknown). They are DROPPED, not ported.
 
 
-#@ \trusted reviewer: python-stdlib
+#@ \abstract
+#@ proof rocq Pycsl.Strmod.Capwords.capwords_length_nongrowing
+#@ proof lean Pycsl.Strmod.Capwords.capwords_length_nongrowing
+#@ proof rocq Pycsl.Strmod.Capwords.capwords_empty
+#@ proof lean Pycsl.Strmod.Capwords.capwords_empty
 #@ requires \str_length(s) >= 0
-#@ ensures \str_length(\result) <= \str_length(s)
-#@ ensures s == "" ==> \result == ""
+#@ ensures sep == "" ==> \result == capwords_def(s)
+#@ ensures sep == "" ==> \str_length(\result) <= \str_length(s)
+#@ ensures sep == "" ==> (s == "" ==> \result == "")
 #@ assigns \nothing
 def capwords(s: str, sep: str = None) -> str:
     """RST L985-993: 'Split the argument into words using str.split(),
@@ -54,22 +68,29 @@ def capwords(s: str, sep: str = None) -> str:
     runs of whitespace characters are replaced by a single space and leading and
     trailing whitespace are removed ...'
 
-    SOUND-ONLY contract: collapsing runs of whitespace to a single space and
-    trimming can only shorten (never grow) the string, so
-    \\str_length(\\result) <= \\str_length(s); the empty string has no words, so
-    capwords("") == "".
+    RETIRED (was the last bare `#@ \\trusted` leaf in strmod): capwords' two
+    transform-specific facts — `\\str_length(\\result) <= \\str_length(s)` and
+    `"" -> ""` — are FALSE of an arbitrary string transform, so (unlike the
+    "result is a string" leaves pinned by `Pycsl.Strmod.StrLen.length_nonneg`)
+    they cannot be proved about an arbitrary `val`. They ARE proved about a
+    FAITHFUL kernel DEFINITION `capwords_def` (whitespace tokenize -> per-word
+    capitalize -> single-space join, MATCHING CPython
+    string.capwords(s) = ' '.join(x.capitalize() for x in s.split())), defined
+    and cross-validated in __init__.proofs/{rocq,lean}/Capwords.{v,lean}:
+    `capwords_length_nongrowing` (length non-growing) and `capwords_empty`
+    (empty law). Rocq: closed under the global context; Lean: #print axioms =
+    {propext, Quot.sound}.
 
-    TRUSTED GAP (NOT retirable as a cited universal lemma): unlike the
-    "result is a string" leaves (retired to `#@ proof
-    Pycsl.Strmod.StrLen.length_nonneg`), capwords' two ensures are
-    TRANSFORM-SPECIFIC — `length(\\result) <= length(s)` and `"" -> ""` are FALSE
-    of an arbitrary string transform, so they cannot be proved about an abstract
-    `val`. A genuine retirement would require DEFINING capwords' semantics
-    (whitespace tokenize -> per-word capitalize -> single-space join) in Rocq+Lean
-    and proving the length bound + empty law of THAT definition — a contained but
-    real kernel, not yet built. So this remains a single honest `#@ \trusted`
-    leaf; it is NOT replaced by a cited axiom that would merely re-assume the
-    property (which would surface as a kernel Axiom and fail cross-validation)."""
+    This is an `#@ \\abstract` val (no body — sound, uninterpreted) whose
+    default-sep (`sep == ""`, the PyCSL lowering of the `sep=None` default — a
+    one-arg `capwords(s)` call lowers to `capwords s ""`) ensures is the EXACT
+    identity `\\result == capwords_def(s)`. The two transform facts follow from
+    that identity and the two cited axioms about `capwords_def`. The facts are
+    gated on `sep == ""` because the kernel models (and the proofs cover) the
+    default-sep behavior; non-default `sep` carries no guarantee (honest — only
+    the default case is proved). The residual, AUDITABLE trust is the
+    faithfulness of `capwords_def` to CPython's default-sep capwords; it is no
+    longer a blanket `\\trusted` but a named, dual-prover-anchored definition."""
     return s
 
 

@@ -120,11 +120,16 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
    `#@ \abstract` + `#@ proof rocq|lean <Lemma>` citing a `forall s. ...` lemma that
    needs NO transform definition — kernel-PROVED in both provers (Rocq "Closed", Lean
    no-axioms), byte-diff 0, gates green. If it depends on what the transform DOES
-   (`capwords` `len <= len`, `f("")==""`), it CANNOT be proved about an abstract `val`
-   without defining the transform's semantics in the kernel → honest GAP, NEVER a cited
-   axiom that re-assumes the property (that surfaces as a kernel `Axiom`/extra Lean axiom
-   and fails `--reverify`). *(strmod pilot 2026-06-17: bare-trust 7→1 — 6 universal
-   retired via `Pycsl.Strmod.StrLen.length_nonneg`, `capwords` GAP'd.)*
+   (`capwords` `len <= len`, `f("")==""`), it is STILL retirable — but only by writing a
+   FAITHFUL kernel DEFINITION of the transform and proving the property about THAT (a
+   real `Definition`/`Fixpoint`, not an assumed `Variable`), then citing it. The
+   residual trust becomes the definition's FAITHFULNESS (auditable: keep it transparently
+   matching the spec), not a silent assertion. What is forbidden is a cited axiom that
+   re-assumes the property about an abstract symbol (surfaces as a kernel `Axiom`/extra
+   Lean axiom, fails `--reverify`). *(strmod 2026-06-17: bare-trust 7→**0** — 6 universal
+   retired via `Pycsl.Strmod.StrLen.length_nonneg`; `capwords` retired via
+   `Pycsl.Strmod.Capwords` over a faithful `capwords_def =
+   join_sp(map capitalize (split_ws s))`, Rocq "Closed" / Lean ⊆{propext,Quot.sound}.)*
 
 ## B. Coherent-and-wrong catalog for formal tests (what the monitor hunts)
 
