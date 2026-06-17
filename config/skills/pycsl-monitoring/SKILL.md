@@ -128,6 +128,7 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
 | **Stale test after a model upgrade** | a committed `formal_*` file FAILS at L3-tc with `int`-vs-`string` type errors, or its header claims a consequence is "UNPROVABLE/Unknown" that now proves | the model gained str-typed path params / `dir_lookup` consequence ensures since the test was written; RUN it, fix the param types, and rewrite the stale header to the now-passing reality (don't trust the comment) |
 | **Context pollution mis-blamed on a missing contract** | a theorem is `Unknown` in-module but the author "fixes" it by weakening or adding a contract | re-prove the goal ALONE; if it passes in isolation the contract is fine — split the file instead (pattern A.7) |
 | **Partial-codec-rung mistaken for a trust retirement** | a new (even cross-validated) byte/string codec axiom makes ONE sub-ensures of a `\trusted` method prove in `--fun`, reported as "the trust is retired" | a `\trusted reviewer` covers the WHOLE method — enumerate every clause: a VALUE ensures may now prove while the `\forall k!=slot` FRAME + `uniq`/`slots_lt32` class-invariant ensures still EXPLODE (Type-invariant Timeout, millions of steps) the moment the body materializes concrete byte terms. A trust is all-or-nothing per method; retirement requires EVERY clause body-proven AND both gates green. Run the FULL method gate, not just the rung. *(slot_inode byte-codec keystone, 2026-06-17.)* |
+| **Banked keystone whose narrow trigger never fires on the real body** | a byte-decode axiom keyed `[disk[blk*512+32*k]]` is merged + cross-validated and assumed "ready", but the mutator body indexes through a let-bound ref (`self.dir[!entry_offset]`) so the trigger never E-matches and the ensures still Times-out (8.5M steps) even with the byte VALUES available | a deliberately-narrow byte-keyed trigger (the safety that prevents the GLOBAL `slot_inode`-atom explosion) is exactly what stops it firing at a mutator that abstracts the index behind a variable. Verify firing by inspecting the emitted `.mlw` (does the literal `disk[blk*512+32*k]` term appear at the assert?), not by assuming "the keystone is banked, so it applies". Closing it requires literal-index restructuring OR a `slot_inode`-keyed bridge (a human-gated TCB axiom) OR Why3 normalization — NOT autonomous. *(dirscan write-side pilot `_write_dir_entry`, 2026-06-17.)* |
 
 ## C. Per-module coverage ledger
 
@@ -283,6 +284,28 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
     helper + single decode-site application. Trigger-tested: with the inline loop both the
     null-tail invariant and the postcondition Timeout at 5–9M steps; after factoring, the
     whole exhibit is 24/24 Valid.
+  - **WRITE-SIDE PILOT 2026-06-17 (`_write_dir_entry`, net TCB 0, 8→8, working tree
+    byte-identical to HEAD after revert).** De-trusting the simplest dir mutator and
+    running `--fun unixinodefilesystem___write_dir_entry` pins obligation (iii) to a
+    SHARPER root than "byte-materialization E-matching": **(1)** the leaf pack helpers
+    DISCARD byte VALUES — `_pack_uint16_be` had NO contract; `_pack_direntry` ensured only
+    `\length==32`. With value ensures added (`_pack_uint16_be`: `\result[0]*256+\result[1]==v`;
+    `_pack_direntry`: `\result[0]*256+\result[1]==inode_num`, `\forall i<30. \result[i+2]==name_bytes[i]`)
+    — both `--fun` SUCCESS — the slot_name Postcondition explosion drops **68M → 1.5M steps**.
+    This is the genuinely-missing FOUNDATION (pattern A.3, leaf-first), proven and bankable.
+    **(2)** Even then the keystone STILL does not fire: the body indexes via a let-bound ref
+    `self.dir[!entry_offset]` (`entry_offset := block_num*512 + slot*32`), and the keystone
+    trigger `[disk[blk*512+32*k]]` does not E-match the deref (and `slot*32` ≠ `32*k`
+    syntactically). The `slot_inode==inode_num` assert Times-out at 8.5M with the keystone
+    never applied (confirmed by reading the emitted `.mlw`). This is the DUAL of the
+    opaque-offset discipline above: an opaque/let-bound offset that keeps the trigger from
+    firing *per-iteration in the loop* ALSO keeps it from firing *at the decode site where
+    you WANT it*. Closing it needs literal-index restructuring of the blit (`block_num*512 +
+    32*slot`, no ref) OR a `slot_inode`-keyed bridge (human-gated TCB) OR Why3 trigger
+    normalization. Per doctrine the de-trust reds the gate (5→7 goals) → REGRESSION →
+    reverted → logged GAP. See
+    `getting-better/20260617-1240-dirscan-write-keystone-trigger-gap.md`. New catalog
+    row B: "Banked keystone whose narrow trigger never fires on the real body".
 
 *(Other modules: `re` 16/16 stub-level; `warnings` 18/18 body + 3/3 formal;
 `json` 6/6 thin-API. Add ledgers here as missions cover them.)*
