@@ -76,10 +76,30 @@ bound `L` and the safe-direction stabilizer:
      SMT-*applied*; the heavy reasoning is done offline, the TCB still bounded by the
      dual-prover check).
    - **Forbidden under this doctrine:** weakening a contract to make SMT pass; adding
-     `\trusted` to skip a goal; accepting an adjacent-weaker property. These are the
-     *weakened-clause* and *trusted-escape-hatch* collapses.
+     `\trusted` to skip a goal; **accepting a reviewer-trusted helper or a "ready
+     trusted swap" (e.g. `_rename_swap`)** — a reviewer's `\trusted` assertion is a
+     raw TCB addition with no machine proof, the exact thing this doctrine forbids;
+     or accepting an adjacent-weaker property. These are the *weakened-clause* and
+     *trusted-escape-hatch* collapses.
    - "SMT can't do it" is therefore **never a stopping condition — it is a routing
      condition** (to the prover), recorded as such.
+
+3. **No trusted escape — an unprovable target is an honest GAP, never a trusted
+   "done".** The sanctioned closure routes are EXHAUSTIVE: (a) a proof assistant
+   (Rocq **and** Lean, cross-validated, cited via `#@ proof`); (b) a restructured /
+   re-folded proof (leaf-first contracts, an uninterpreted folded atom, a reorder
+   that lets SMT discharge); (c) a different prover / tactic. **If none discharges the
+   goal, the target stays an OPEN, LOGGED residual routed to the human — the loop may
+   NOT, on its own authority, add trust to manufacture a "done".** Even adopting the
+   one principled trust form (a Rocq+Lean cross-validated *axiom* — which is PROVING
+   in a kernel, not a bare `\trusted`) is a **human-gated TCB decision**, never the
+   loop's to take autonomously.
+   - **Concretely (`sys_rename`):** its only doctrine-compliant paths are a different
+     prover, a restructured proof, or composing its *already Rocq+Lean
+     cross-validated* presence/absence lemmas in-context. The ready reviewer-trusted
+     `_rename_swap` is **OFF THE MENU**. Until a rigorous route lands, `sys_rename` is
+     a **logged GAP**, not closed — and any status report must present it that way
+     (it must never offer "accept the trusted swap" as an option).
 
 This doctrine sharpens the gates (§3): **Gate B** counts `\trusted` and rejects any
 un-cross-validated axiom; **Gate C** rejects weaken-to-pass and adjacent-weaker;
@@ -252,8 +272,8 @@ The agents file two kinds of artifact (one concern per file):
 | Honorary barrier | base loops run as **sub-agents**; the monitor sees only returned soft outputs |
 | Absorbed surprise | an unprovable target / mis-scope → gap doc → re-plan; never a silent local fix |
 | Scope blur | honest residual ledger; out-of-scope exclusions named explicitly |
-| Trusted escape hatch | the **extreme-rigor doctrine**: zero `\trusted` target; any axiom cross-validated Rocq+Lean; TCB only shrinks |
-| Weaken-to-pass / "SMT can't, so stop" | the **extreme-rigor doctrine**: SMT failure routes to a proof assistant; weakening or trusting-away is a Gate-C/Gate-S REJECT |
+| Trusted escape hatch (incl. a reviewer-trusted helper / "ready trusted swap") | the **extreme-rigor doctrine**: zero `\trusted` target; a raw `\trusted`/reviewer assertion is struck from the option set; an unprovable target is a **logged GAP routed to the human**, never a trusted "done"; any cross-validated-axiom TCB addition is human-gated |
+| Weaken-to-pass / "SMT can't, so stop" | the **extreme-rigor doctrine**: SMT failure routes to a proof assistant / restructured proof; weakening or trusting-away is a Gate-C/Gate-S REJECT |
 
 ---
 

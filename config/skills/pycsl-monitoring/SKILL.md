@@ -23,6 +23,21 @@ base loop `formal-test-sl` (see `formal-test-sl.md`). It is written **only by th
 disjoint skill-monitor**, never by the base loop about itself (that would be
 self-judging). Everything here has passed **Gate S** (`sl-monitoring-sl`).
 
+## BINDING: the extreme-rigor path is the ONLY path
+
+`test-supervise-sl` is the bearer of the extreme-rigor doctrine (full text in
+`test-supervise-sl.md` §Doctrine). The operative rule, restated here because every
+run reads this store: **a residual is NEVER closed by adding trust.** A raw
+`\trusted`, a reviewer-trusted helper, or a "ready trusted swap" (e.g.
+`_rename_swap`) is **struck from the option set** — it is a Gate-B/Gate-C REJECT, not
+a choice. The only sanctioned closure routes are (a) Rocq+Lean cross-validated +
+cited `#@ proof`, (b) a restructured / re-folded proof, (c) a different prover /
+tactic. **If none discharges the goal, the target is a LOGGED GAP routed to the
+human — never a trusted "done", and never offered as "accept the trusted swap".**
+Adopting even a cross-validated axiom (kernel-PROVED, not bare `\trusted`) is a
+human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
+`sys_rename`, see §C) stay open until a rigorous route lands.
+
 ## Discipline for adding knowledge (non-negotiable)
 
 - **Gate S first.** A heuristic enters this file only after the skill-monitor
@@ -133,7 +148,10 @@ self-judging). Everything here has passed **Gate S** (`sl-monitoring-sl`).
   name's `dir_lookup` is havoc'd — provable only WITH an established absence, as
   in `formal_os_enoent` after mkdir→rmdir); chmod mode-reflected / truncate
   size==length (return-code-only contracts, no accessor); multi-block content;
-  `sys_rename` no-trust closure.
+  `sys_rename` no-trust closure — **a LOGGED GAP, not a trust candidate**: the only
+  doctrine-compliant routes are a different prover / a restructured proof / composing
+  its already-cross-validated lemmas in-context; the ready reviewer-trusted
+  `_rename_swap` is OFF THE MENU (see the BINDING rule above).
 
 *(Other modules: `re` 16/16 stub-level; `warnings` 18/18 body + 3/3 formal;
 `json` 6/6 thin-API. Add ledgers here as missions cover them.)*
