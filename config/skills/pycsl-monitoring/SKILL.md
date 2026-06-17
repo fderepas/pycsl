@@ -127,6 +127,7 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
 | **Empty-disk artifact mistaken for a no-trust retirement** | a de-trusted helper's fidelity ensures appears `Valid` in `--fun` isolation, but the property has no logical path from the body (binds an uninterpreted symbol with no defining axiom) | the isolated pass rides the canonical zeroed `by{}` witness, not the body. Triangulate constants (`==0` ✓, `==1` ✓, `==7` ✗ = perf artifact, not logic) AND run the SOUNDNESS PROBE: add a `#@ requires` that forces a non-canonical disk (e.g. `slot_inode(self.dir,5,0)==3`); if the ensures then fails, the isolated pass was the empty-disk artifact. Decisive test is the FULL body gate (real non-canonical `self`) — there it OOMs/reds. NOT a retirement. *(dirscan-fidelity pilot, 2026-06-17.)* |
 | **Stale test after a model upgrade** | a committed `formal_*` file FAILS at L3-tc with `int`-vs-`string` type errors, or its header claims a consequence is "UNPROVABLE/Unknown" that now proves | the model gained str-typed path params / `dir_lookup` consequence ensures since the test was written; RUN it, fix the param types, and rewrite the stale header to the now-passing reality (don't trust the comment) |
 | **Context pollution mis-blamed on a missing contract** | a theorem is `Unknown` in-module but the author "fixes" it by weakening or adding a contract | re-prove the goal ALONE; if it passes in isolation the contract is fine — split the file instead (pattern A.7) |
+| **Partial-codec-rung mistaken for a trust retirement** | a new (even cross-validated) byte/string codec axiom makes ONE sub-ensures of a `\trusted` method prove in `--fun`, reported as "the trust is retired" | a `\trusted reviewer` covers the WHOLE method — enumerate every clause: a VALUE ensures may now prove while the `\forall k!=slot` FRAME + `uniq`/`slots_lt32` class-invariant ensures still EXPLODE (Type-invariant Timeout, millions of steps) the moment the body materializes concrete byte terms. A trust is all-or-nothing per method; retirement requires EVERY clause body-proven AND both gates green. Run the FULL method gate, not just the rung. *(slot_inode byte-codec keystone, 2026-06-17.)* |
 
 ## C. Per-module coverage ledger
 
@@ -230,6 +231,26 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
   symbols, cross-validated Rocq+Lean — blocked TODAY by Gap 5 (name bytes unmodeled);
   a substantial model extension, human-gated. See
   `getting-better/20260617-1001-dirscan-fidelity-structural-wall.md`.
+  - **KEYSTONE UPDATE 2026-06-17 (Gap-5 byte codec LANDED as a primitive; still net TCB 0,
+    8→8 on the os).** The inode-FIELD byte→decode is now a cross-validated axiom
+    `UnixFs.Dir.slot_inode_byte_decode` (preamble `_AXIOM_REGISTRY`; proofs
+    `0711.proofs/{rocq,lean}/SlotInodeByteDecode.{v,lean}` — Rocq Closed under global
+    context, Lean depends on NO axioms; exhibited+proven SUCCESS in corpus `0711.py`,
+    ≤33k steps; byte-keyed trigger `[disk[blk*512+32*k]]` so it NEVER fires on the
+    abstract `slot_inode` atoms; corpus byte-diff 0/601, both gates green). It is
+    NECESSARY but NOT SUFFICIENT to retire a write-side trust: a `\trusted reviewer:
+    dirscan-fidelity` bundles THREE obligations — (i) inode-VALUE `slot_inode==inode_num`
+    (now byte-codec PROVABLE, Valid in `--fun`); (ii) name-VALUE `slot_name==name` (needs
+    the `field_to_str` STRING codec, the ~23M-step E-match wall); (iii) the `\forall k!=slot`
+    FRAME + `uniq`/`slots_lt32` class-invariant maintenance over the ABSTRACT symbol — and
+    (iii) **EXPLODES** the moment the body materializes concrete `disk[...]` byte terms
+    (Type-invariant Timeout 9.05M steps, measured), because the byte-keyed decode axiom and
+    the `slot_inode`-keyed uniq/slots_lt32 axioms then coexist over the same disk. A
+    `\trusted` is all-or-nothing per method, so the value half proving while the
+    invariant half explodes ⇒ trust STAYS. The real remaining wall is therefore NOT
+    "no byte decode" (it now exists) but **invariant-maintenance E-matching surviving
+    byte materialization** + the string codec. See
+    `getting-better/20260617-1039-slot-inode-byte-codec-keystone.md`.
 
 *(Other modules: `re` 16/16 stub-level; `warnings` 18/18 body + 3/3 formal;
 `json` 6/6 thin-API. Add ledgers here as missions cover them.)*
