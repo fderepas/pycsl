@@ -251,6 +251,38 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
     "no byte decode" (it now exists) but **invariant-maintenance E-matching surviving
     byte materialization** + the string codec. See
     `getting-better/20260617-1039-slot-inode-byte-codec-keystone.md`.
+  - **KEYSTONE UPDATE 2026-06-17 (Gap-5 STRING half LANDED as a primitive; net TCB still 0
+    new on the os).** The name-FIELD byte→decode now exists too, as a cross-validated BRIDGE
+    axiom `UnixFs.Dir.slot_name_byte_decode` (preamble `_AXIOM_REGISTRY`; proofs
+    `0712.proofs/{rocq,lean}/SlotNameByteDecode.{v,lean}` — Rocq Closed under the global
+    context, Lean depends ONLY on {propext, Quot.sound}; exhibited+proven SUCCESS in corpus
+    `0712.py`, 24 Valid / 0 non-Valid; corpus byte-diff 0/shared, both gates byte-identical).
+    The bridge states `slot_name disk blk k = field_to_str disk (blk*512+32*k+2) 30` (a
+    32-byte `'>H30s'` slot = 2-byte inode + 30-byte name, so the name field starts at +2),
+    byte-keyed on `[disk[blk*512+32*k+2]]` (the FIRST name-field byte) so it NEVER fires on
+    abstract `slot_name` atoms; composing it with the already-merged `field_to_str_round_trip`
+    gives the write-side `slot_name == name`. This RESOLVES obligation (ii) of the
+    dirscan-fidelity bundle as a *banked primitive* — but it is STILL NOT a trust retirement:
+    obligation (iii) (invariant-maintenance E-matching over the abstract symbol surviving
+    byte materialization) remains the wall, exactly as for the inode half. Net: both VALUE
+    halves (inode + name) are now byte-codec PROVABLE; the FRAME/invariant half is the open
+    keystone for Step 2.
+  - **STRUCTURAL LESSON (Gate-S PASS, slot_name string keystone, 2026-06-17): keep the
+    string axiom OUT of the byte-blit loop.** The string round-trip itself crosses SMT in
+    O(1) when its byte hypotheses are *given* (a probe with the per-byte facts as `requires`
+    proved `slot_name == name` in ~20k steps — the round-trip + bridge APPLY fast). The
+    ~23M-step E-match explosion is NOT the decode; it is the byte-keyed decode trigger firing
+    *per loop iteration* inside the encode loop (the loop writes `disk[off+i]` where
+    `off = blk*512+32*k+2`, so the trigger term `disk[blk*512+32*k+2]` materializes every
+    iteration and drags `field_to_str`/string reasoning into pure-byte loop-invariant goals).
+    FIX: factor the blit into a byte-ONLY helper whose contract names no `slot_name`/
+    `field_to_str` and whose field offset is an OPAQUE parameter `off` (so the trigger pattern
+    cannot syntactically match per-iteration); let the string axioms fire EXACTLY ONCE at the
+    decode site in the caller, with the byte facts already in hand. This is the general
+    discipline for any byte-keyed codec axiom used by a write helper: opaque-offset blit
+    helper + single decode-site application. Trigger-tested: with the inline loop both the
+    null-tail invariant and the postcondition Timeout at 5–9M steps; after factoring, the
+    whole exhibit is 24/24 Valid.
 
 *(Other modules: `re` 16/16 stub-level; `warnings` 18/18 body + 3/3 formal;
 `json` 6/6 thin-API. Add ledgers here as missions cover them.)*

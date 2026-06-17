@@ -274,6 +274,55 @@ class PreambleEmissionMixin:
             "disk[blk * 512 + 32 * k + 1] = b1 -> "
             "slot_inode disk blk k = 256 * b0 + b1",
 
+        # UnixFs.Dir.slot_name_byte_decode (Gap-5 keystone, STRING half) — the
+        # BRIDGE from the abstract per-slot NAME decode to the field_to_str codec.
+        # A directory slot is 32 bytes (struct '>H30s'): a 2-byte big-endian inode
+        # field then a 30-byte null-padded name field. slot_name (disk, blk, k) is
+        # the decoded name in that 30-byte field, which starts 2 bytes into the
+        # slot — i.e. EXACTLY field_to_str disk (blk*512+32*k+2) 30 (the SAME
+        # scan-to-first-null '>Ns' decode validated in FieldToStrRoundTrip).
+        #
+        # This bridge composes with the already-registered field_to_str_round_trip
+        # to give the write-side NAME byte->decode: a directory write helper that
+        # has just blitted a fresh dirent name (disk[off+2+i]=ord(name[i]) for
+        # i<len, disk[off+2+len]=0, len<=30, no embedded null) gets
+        # field_to_str disk (off+2) 30 = name from the round-trip, then this bridge
+        # rewrites that to slot_name disk blk k = name — the string twin of
+        # slot_inode_byte_decode (the inode half). It is the BANKED string-half
+        # keystone for the future directory write helpers; it does NOT by itself
+        # retire any dirscan trust (that remains blocked on invariant maintenance).
+        #
+        # TRIGGER DISCIPLINE (the keystone safety, mirroring slot_inode_byte_decode):
+        # keyed on the BYTE expression [disk[blk * 512 + 32 * k + 2]] (the FIRST
+        # name-field byte), NOT on [slot_name disk blk k]. So it fires ONLY where an
+        # explicit name-field-byte term already appears (a write helper's post-blit
+        # state), NEVER on the ubiquitous abstract slot_name atoms that the uniq /
+        # dir_lookup / scan axiom web triggers on — avoiding the measured global
+        # string E-matching explosion. The decode is read from the bytes only when
+        # the bytes are present.
+        #
+        # SMT cannot discharge the slot_name=name CONCLUSION directly: that is the
+        # field_to_str round-trip, by string EXTENSIONALITY over the 30-byte scan
+        # (the measured ~23M-step Alt-Ergo/Z3 string wall). So this bridge is the
+        # SAME cited-axiom trust class as field_to_str_round_trip: SMT only ever
+        # APPLIES the bridge equality (O(1)) and the round-trip (O(1)); all the
+        # extensionality reasoning is discharged offline in the proof assistants.
+        #
+        # Faithful — slot_name is the dirent name field of the SAME 32-byte '>H30s'
+        # dirent the rest of UnixFs.Dir reads; the SAME abstract slot_name symbol
+        # (no new _AXIOM_FUNCTIONS entry). Cross-validated by
+        # test-suite/corpus/pycsl-reference/0712.proofs/{rocq,lean}/SlotNameByteDecode.{v,lean}
+        # (theorem slot_name_byte_decode): slot_name is defined there as
+        # field_to_str (slot_off blk k + 2) 30 over the scan-to-first-null model,
+        # and the write-direction round-trip is proved by string extensionality (no
+        # admits). Rocq 8.20.1: Closed under the global context (0 Axiom/Admitted,
+        # only the abstract Section Variable rd); Lean 4.31.0: #print axioms ⊆
+        # {propext, Quot.sound}.
+        "UnixFs.Dir.slot_name_byte_decode":
+            "forall disk : array int. forall blk : int. forall k : int "
+            "[disk[blk * 512 + 32 * k + 2]]. "
+            "slot_name disk blk k = field_to_str disk (blk * 512 + 32 * k + 2) 30",
+
         # UnixFs.Dir.remove_reflects_absent (gap-11) — the ABSENCE twin of
         # scan_reflects_present. After the live entry at slot s is zeroed
         # (remove-witness: slot_inode disk blk s = 0) and provided `name` lived
