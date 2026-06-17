@@ -363,6 +363,9 @@ def _pad_name(name: str) -> list:
 #@ requires \length(name_bytes) >= 30
 #@ assigns \nothing
 #@ ensures \length(\result) == 32
+#@ ensures \result[0] * 256 + \result[1] == inode_num
+#@ for i in range(0, 30):
+#@     ensures \result[i + 2] == name_bytes[i]
 def _pack_direntry(inode_num: int, name_bytes: list) -> list:
     """Pack a 32-byte directory entry (big-endian '>H30s').
 
