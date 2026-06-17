@@ -1,7 +1,21 @@
 # `#@ no_inline` on a module-level codec leaf may not be honored as a `val` in an importing gate
 
-**STATUS: UNCONFIRMED** (suspected from a run interrupted by machine load; needs a
-clean repro).
+**STATUS: SUPERSEDED / not the real blocker.** A 2026-06-17 clean retry (load avg ~2
+on 14 cores) found the `_unpack_direntry` residual is a genuine *caller-side missing
+byte-range fact*, NOT a `no_inline` re-verification problem: the minimal 2-clause
+precondition fails at the BODY gate (the obligation relocates to `_read_directory`,
+which has no directory-region disk byte-range fact) and never reaches the `__init__`
+gate. The original `no_inline`-import slowdown hypothesis below is therefore moot for
+this residual. Full clean diagnosis + the model-extension fix needed:
+`getting-better/20260617-0909-direntry-byte-range-gap.md`. This entry is kept for
+history; the `no_inline`-as-importer-val question (if it matters for a *different*
+leaf) remains UNCONFIRMED and was not re-triggered (the 32-clause attempt was never
+re-run, since the 2-clause version already shows the residual is byte-range, not
+no_inline).
+
+---
+
+(original report follows)
 
 **Symptom.** A module-level codec leaf (`_unpack_direntry` in
 `pure_lib/os/UnixInodeFileSystem.py`) was given a byte-range precondition
