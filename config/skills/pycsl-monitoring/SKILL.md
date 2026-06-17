@@ -68,6 +68,22 @@ self-judging). Everything here has passed **Gate S** (`sl-monitoring-sl`).
 6. **Re-run the gate on the COMMITTED artifact; never re-report an intermediate
    count.** A green taken from an intermediate run while the committed file is red is
    the self-declared-done collapse. Run `PYTHONHASHSEED=0` on the file as it stands.
+7. **Keep array-heavy reopen/read/write consequence theorems in their OWN file.**
+   A light fd-chain / namespace theorem that PROVES in isolation can flip to
+   `Unknown` purely by being co-located with a heavy `open→write→close→reopen→read`
+   theorem in the same module (shared E-matching context starves the light goal's
+   step budget). Byte-identical body + import set, different verdict — the only
+   variable is the sibling theorems. Diagnose by re-proving the goal alone; do NOT
+   blame a missing contract. *(Carve-out: split `content_round_trip*` out of
+   `formal_os_fd`/`formal_os_rwsize` this session; see
+   `getting-better/20260616-2050-formal-test-context-pollution.md`.)*
+8. **Co-import an array-trigger op (`mkdir`+`access`) with a return-code-only
+   filesystem stub.** Importing `chmod`/`truncate` alone yields
+   `unbound type symbol 'array'` at L3-tc — the emitter omits `use array.Array`
+   when no imported contract carries an explicit array term, even though the
+   pulled-in helper `val`s reference `array int`. Co-importing+calling `mkdir`
+   (whose `dir_lookup` ensures is an array term) emits the `use`. *(CONFIRMED
+   emitter bug: `bugs-to-report/20260616-2050-import-stub-missing-use-array.md`.)*
 
 ## B. Coherent-and-wrong catalog for formal tests (what the monitor hunts)
 
@@ -79,6 +95,8 @@ self-judging). Everything here has passed **Gate S** (`sl-monitoring-sl`).
 | **Plane blend** | a `--no-proof` (emission) green reported as "proven" | no-blend: emission ≠ proof |
 | **Honorary green** | "the gate is green" from a stale/partial run | re-run on the committed file; scan EVERY status incl. `Out of memory` |
 | **Aggregate noise mistaken for a residual** | a goal fails in the full-file gate but proves in `--fun` isolation | re-check residuals per-method before recording them as real |
+| **Stale test after a model upgrade** | a committed `formal_*` file FAILS at L3-tc with `int`-vs-`string` type errors, or its header claims a consequence is "UNPROVABLE/Unknown" that now proves | the model gained str-typed path params / `dir_lookup` consequence ensures since the test was written; RUN it, fix the param types, and rewrite the stale header to the now-passing reality (don't trust the comment) |
+| **Context pollution mis-blamed on a missing contract** | a theorem is `Unknown` in-module but the author "fixes" it by weakening or adding a contract | re-prove the goal ALONE; if it passes in isolation the contract is fine — split the file instead (pattern A.7) |
 
 ## C. Per-module coverage ledger
 
@@ -92,10 +110,30 @@ self-judging). Everything here has passed **Gate S** (`sl-monitoring-sl`).
   1128/2 from the fd_block empty-write over-claim).
 - **Proven formal tests:** `formal_os_roundtrip` (18/18, totality), `formal_os_content`
   (48/0, on-fd write→pread==data content round-trip), plus the topical
-  `formal_os_*` family.
-- **Open frontiers (logged gaps, not failures):** reopen-by-name content round-trip
-  (create→write→close→reopen→read==data); multi-block content (Phase 2 loop `∀i`
-  divergence); `sys_rename` no-trust closure.
+  `formal_os_*` family. As of 2026-06-16 (test-supervise-sl os mission) ALL 19
+  `formal_os_*.py` files prove SUCCESS / 0 non-Valid / 0 `\trusted`, each
+  re-confirmed non-vacuous from the supervisor's disjoint base (seeded
+  falsification flips to FAILED). Every public `os.*` symbol in `__init__.py` has
+  a proven consequence (not return-code-only) EXCEPT `walk` (yields, geometry
+  only) and the pure stubs (chflags/confstr/copy_file_range/getxattr/listxattr/
+  kill/islink — total constants by spec) and chmod/truncate (return-code only;
+  no mode/size accessor — model gap, below).
+- **Leaf-first extensions this session (zero new trust, body-faithful):**
+  `sys_close` gained `\result==0 ⇒ fd_open[fd]==0` (close post-state); `sys_fstat`
+  gained the EBADF twin `fd_open[fd]==0 ⇒ \result==-1`; `sys_lseek` gained the
+  SEEK_SET consequence `whence==0 ∧ offset≥0 ∧ open ⇒ \result==offset ∧
+  fd_offset[fd]==offset`. Propagated to the public `close`/`fstat`/`lseek`
+  wrappers. New tests: `formal_os_close` (close→fstat==EBADF) and `formal_os_lseek`
+  (lseek SET returns pos). Body gate failing-goal set UNCHANGED by these edits
+  (same step-count fingerprints: 320459/337358/4621194) → no regression.
+- **Open frontiers (logged gaps, not failures):** reopen-by-name content/size
+  round-trip (write count is `<=` not `==`; reopened size unpinned through
+  reopen-by-name) — the on-FD round-trip IS proven (`formal_os_content`);
+  open(absent,O_RDONLY)==-1 with absence NOT pre-established (a never-created
+  name's `dir_lookup` is havoc'd — provable only WITH an established absence, as
+  in `formal_os_enoent` after mkdir→rmdir); chmod mode-reflected / truncate
+  size==length (return-code-only contracts, no accessor); multi-block content;
+  `sys_rename` no-trust closure.
 
 *(Other modules: `re` 16/16 stub-level; `warnings` 18/18 body + 3/3 formal;
 `json` 6/6 thin-API. Add ledgers here as missions cover them.)*
