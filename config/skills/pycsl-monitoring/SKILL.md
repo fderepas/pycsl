@@ -228,6 +228,7 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
 | **Context pollution mis-blamed on a missing contract** | a theorem is `Unknown` in-module but the author "fixes" it by weakening or adding a contract | re-prove the goal ALONE; if it passes in isolation the contract is fine — split the file instead (pattern A.7) |
 | **Partial-codec-rung mistaken for a trust retirement** | a new (even cross-validated) byte/string codec axiom makes ONE sub-ensures of a `\trusted` method prove in `--fun`, reported as "the trust is retired" | a `\trusted reviewer` covers the WHOLE method — enumerate every clause: a VALUE ensures may now prove while the `\forall k!=slot` FRAME + `uniq`/`slots_lt32` class-invariant ensures still EXPLODE (Type-invariant Timeout, millions of steps) the moment the body materializes concrete byte terms. A trust is all-or-nothing per method; retirement requires EVERY clause body-proven AND both gates green. Run the FULL method gate, not just the rung. *(slot_inode byte-codec keystone, 2026-06-17.)* |
 | **Banked keystone whose narrow trigger never fires on the real body** | a byte-decode axiom keyed `[disk[blk*512+32*k]]` is merged + cross-validated and assumed "ready", but the mutator body indexes through a let-bound ref (`self.dir[!entry_offset]`) so the trigger never E-matches and the ensures still Times-out (8.5M steps) even with the byte VALUES available | a deliberately-narrow byte-keyed trigger (the safety that prevents the GLOBAL `slot_inode`-atom explosion) is exactly what stops it firing at a mutator that abstracts the index behind a variable. Verify firing by inspecting the emitted `.mlw` (does the literal `disk[blk*512+32*k]` term appear at the assert?), not by assuming "the keystone is banked, so it applies". Closing it requires literal-index restructuring OR a `slot_inode`-keyed bridge (a human-gated TCB axiom) OR Why3 normalization — NOT autonomous. *(dirscan write-side pilot `_write_dir_entry`, 2026-06-17.)* |
+| **Keystone axiom asserted but never CITED → silently absent from the `.mlw`** | a de-trust pilot adds body asserts matching a keystone's conclusion, sees `Unknown`, and concludes "the trigger doesn't fire / the keystone is too weak" — when in fact the keystone **is not even in the emitted module** | keystone axioms are **emission-gated by `#@ proof` citation**: a helper that asserts the conclusion but does not also `#@ proof rocq/lean <Axiom>` gets `Unknown` because the axiom was never emitted. This is DISTINCT from (and was the real cause beneath) the "trigger never fires" row — the prior write-side run mis-diagnosed an *absent* axiom as a *non-matching* one. Verify by grepping the emitted `.mlw` for the axiom NAME before reasoning about its trigger. With the cite added AND a literal-offset blit, the inode half of `_write_dir_entry` discharges zero-trust (slot_inode Postcond + frame + all `uniq`/`slots_lt32` Type-invariants Valid; body 8→6 goals, baseline 3). *(dir_lookup-correspondence pilot, 2026-06-18; `getting-better/20260617-1240-dirscan-write-keystone-trigger-gap.md` UPDATE.)* |
 
 ## C. Per-module coverage ledger
 
@@ -405,6 +406,24 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
     reverted → logged GAP. See
     `getting-better/20260617-1240-dirscan-write-keystone-trigger-gap.md`. New catalog
     row B: "Banked keystone whose narrow trigger never fires on the real body".
+  - **WRITE-SIDE PILOT 2026-06-18 (`_write_dir_entry`, dir_lookup-correspondence run;
+    net TCB 0, 7→7, tree byte-identical to HEAD; INODE HALF SOLVED).** The 2026-06-17
+    pilot above had TWO compounding causes, only one diagnosed. Applying its own step-2
+    fix — (a) literal-offset blit `5*512 + 32*slot` (no `!entry_offset` ref, `32*slot`
+    aligned) AND (b) **`#@ proof rocq/lean slot_inode_byte_decode` to actually EMIT the
+    keystone** (the prior run never cited it, so the axiom was absent from the `.mlw` —
+    a cause beyond trigger-shape; new catalog row B "asserted but never CITED") — the
+    inode half discharges zero-trust: slot_inode write-side Postcond Valid, slot_inode
+    frame Valid, ALL `uniq`/`slots_lt32` Type-invariants Valid. Body (authoritative "N
+    goal(s) remain", PYTHONHASHSEED=0): baseline **3** → bare de-trust **8** →
+    fix applied **6**. The 3 genuinely-new residual goals — the precisely-relocated
+    wall: (1) Precondition `inode_num<65536` (trivial `#@ requires`), (2) slot_name
+    Postcond (string-extensionality round-trip wall — needs the per-char chain folded
+    behind ONE more cited atom), (3) slot_name slot-locality frame (needs the
+    `block5_decode_frame`-class lemma re-emitted; corpus byte-diff territory). NOT
+    shipped — the inode half alone leaves the body +3 over baseline = body-gate
+    REGRESSION. Campaign target stays 7. See the UPDATE in
+    `getting-better/20260617-1240-dirscan-write-keystone-trigger-gap.md`.
 
 *(Other modules: `re` 16/16 stub-level; `warnings` 18/18 body + 3/3 formal;
 `json` 6/6 thin-API. Add ledgers here as missions cover them.)*
