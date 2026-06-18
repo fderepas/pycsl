@@ -229,6 +229,7 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
 | **Partial-codec-rung mistaken for a trust retirement** | a new (even cross-validated) byte/string codec axiom makes ONE sub-ensures of a `\trusted` method prove in `--fun`, reported as "the trust is retired" | a `\trusted reviewer` covers the WHOLE method — enumerate every clause: a VALUE ensures may now prove while the `\forall k!=slot` FRAME + `uniq`/`slots_lt32` class-invariant ensures still EXPLODE (Type-invariant Timeout, millions of steps) the moment the body materializes concrete byte terms. A trust is all-or-nothing per method; retirement requires EVERY clause body-proven AND both gates green. Run the FULL method gate, not just the rung. *(slot_inode byte-codec keystone, 2026-06-17.)* |
 | **Banked keystone whose narrow trigger never fires on the real body** | a byte-decode axiom keyed `[disk[blk*512+32*k]]` is merged + cross-validated and assumed "ready", but the mutator body indexes through a let-bound ref (`self.dir[!entry_offset]`) so the trigger never E-matches and the ensures still Times-out (8.5M steps) even with the byte VALUES available | a deliberately-narrow byte-keyed trigger (the safety that prevents the GLOBAL `slot_inode`-atom explosion) is exactly what stops it firing at a mutator that abstracts the index behind a variable. Verify firing by inspecting the emitted `.mlw` (does the literal `disk[blk*512+32*k]` term appear at the assert?), not by assuming "the keystone is banked, so it applies". Closing it requires literal-index restructuring OR a `slot_inode`-keyed bridge (a human-gated TCB axiom) OR Why3 normalization — NOT autonomous. *(dirscan write-side pilot `_write_dir_entry`, 2026-06-17.)* |
 | **Keystone axiom asserted but never CITED → silently absent from the `.mlw`** | a de-trust pilot adds body asserts matching a keystone's conclusion, sees `Unknown`, and concludes "the trigger doesn't fire / the keystone is too weak" — when in fact the keystone **is not even in the emitted module** | keystone axioms are **emission-gated by `#@ proof` citation**: a helper that asserts the conclusion but does not also `#@ proof rocq/lean <Axiom>` gets `Unknown` because the axiom was never emitted. This is DISTINCT from (and was the real cause beneath) the "trigger never fires" row — the prior write-side run mis-diagnosed an *absent* axiom as a *non-matching* one. Verify by grepping the emitted `.mlw` for the axiom NAME before reasoning about its trigger. With the cite added AND a literal-offset blit, the inode half of `_write_dir_entry` discharges zero-trust (slot_inode Postcond + frame + all `uniq`/`slots_lt32` Type-invariants Valid; body 8→6 goals, baseline 3). *(dir_lookup-correspondence pilot, 2026-06-18; `getting-better/20260617-1240-dirscan-write-keystone-trigger-gap.md` UPDATE.)* |
+| **Opaque-offset blit helper proves its bytes but the round-trip antecedent never reaches the caller (method-call contract gap)** | the "keep the string axiom out of the loop" structural lesson is applied — a byte-only helper with opaque `off` and PURE-byte ensures — yet the caller's decode-site `field_to_str(...)==name` assert still OOMs, as if the round-trip didn't fire | the helper's self-field-referencing quantified byte ensures (`self.dir[off+i]==ord(name[i])`) are DROPPED across the method-call boundary when the helper lowers to an abstract `val` (the field-referencing-ensures propagation gap) — so the round-trip's antecedent never arrives. **FIX: `#@ sibling_concrete`** on the helper inlines its REAL verified byte semantics at the call site; the antecedent is then concrete and BOTH string axioms (bridge + round-trip) fire ONCE, O(1). Measured: with `sibling_concrete` the slot_name VALUE Postcondition `slot_name(self.dir,5,slot)==name` and the `field_to_str(...)==name` assert go from OOM to **Valid (~50K / 48K steps)** — the ~23M-step string wall is GONE. The structural lesson is NECESSARY but not sufficient; `sibling_concrete` is the missing half for a write helper that mutates a self-field. *(slot_name Postcondition close, 2026-06-18; `getting-better/20260618-1640-slot-name-postcondition-closed-frame-residual.md`.)* |
 
 ## C. Per-module coverage ledger
 
@@ -424,6 +425,32 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
     shipped — the inode half alone leaves the body +3 over baseline = body-gate
     REGRESSION. Campaign target stays 7. See the UPDATE in
     `getting-better/20260617-1240-dirscan-write-keystone-trigger-gap.md`.
+  - **WRITE-SIDE PILOT 2026-06-18b (`_write_dir_entry` slot_name Postcondition CLOSED;
+    net TCB 0, body 3→8 so NOT shipped; tree byte-identical to HEAD).** Goal (2) of the
+    residual trio — the slot_name string-extensionality round-trip wall — is now **closed
+    at the method level**, zero-trust, no weakening, no new axiom. Route: factor the name
+    blit into an OPAQUE-OFFSET byte-only helper `_blit_name_field` (0712's
+    `encode_name_field` shape — the byte-keyed trigger `disk[blk*512+32*k+2]` cannot match
+    an opaque `off`, so the loop is a clean byte loop) marked **`#@ sibling_concrete`**, +
+    literal-offset inode bytes, + the 3 keystone cites
+    (`slot_inode_byte_decode`/`slot_name_byte_decode`/`field_to_str_round_trip`), + the
+    round-trip antecedent requires (`\str_length(name)<=30`, no-embedded-null). DECISIVE:
+    the structural lesson ALONE is insufficient — the opaque helper hits the **method-call
+    contract gap** (self-field-referencing byte ensures don't propagate → OOM at the
+    decode site); `#@ sibling_concrete` inlines the real verified semantics so the
+    antecedent is concrete and both string axioms fire ONCE, O(1). Measured (`--fun`):
+    slot_name Postcond → **Valid (~50K steps)**, `field_to_str(...)==name` assert → Valid
+    (48029 steps); the ~23M-step wall is GONE. The ONLY remaining write-side wall is now
+    goal (3): the slot_name slot-locality FRAME (`∀k≠slot. slot_name unchanged`, OOM) +
+    `uniq`/`slots_lt32` Type-invariant maintenance (Timeout 3.1e9/2.0e8) — AND the
+    byte-keystone EMISSION poisons every dir-mutator's invariant VC (`_blit_name_field`
+    Type-inv 320K Unknown → 5–6M Timeout once keystones emitted). Doctrine-compliant close
+    of (3) = a folded cross-validated invariant-maintenance lemma keyed so no byte term and
+    no slot_inode/slot_name term coexist — a NEW cross-validated Rocq+Lean axiom =
+    HUMAN-GATED TCB. Reverted; logged GAP. See
+    `getting-better/20260618-1640-slot-name-postcondition-closed-frame-residual.md`. New
+    catalog row B: "Opaque-offset blit helper proves its bytes but the round-trip antecedent
+    never reaches the caller (method-call contract gap)".
 
 *(Other modules: `re` 16/16 stub-level; `warnings` 18/18 body + 3/3 formal;
 `json` 6/6 thin-API. Add ledgers here as missions cover them.)*

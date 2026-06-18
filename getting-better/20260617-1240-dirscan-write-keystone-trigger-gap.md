@@ -41,7 +41,31 @@ deeper. No TCB change (7 `\trusted` unchanged; campaign target stays 7). No
 >
 > Net: TCB unchanged (correct — shipping the inode half alone leaves the body at +3
 > over baseline = a body-gate REGRESSION, so NOT shipped). The campaign's two
-> precisely-named next targets are now (2) and (3). The other 6 trusts: the 5 remaining
+> precisely-named next targets are now (2) and (3).
+>
+> **UPDATE 2026-06-18b (slot_name Postcondition CLOSED, test-supervise-sl).** Target (2),
+> the slot_name string-extensionality round-trip wall, is now **CLOSED at the method
+> level** — zero-trust, no weakening, no new axiom. Route: factor the name blit into an
+> OPAQUE-OFFSET byte-only helper `_blit_name_field` (0712's `encode_name_field` shape —
+> the trigger `disk[blk*512+32*k+2]` cannot match an opaque `off`, so the loop stays a
+> clean byte loop) marked **`#@ sibling_concrete`**, plus the literal-offset inode bytes,
+> the 3 keystone cites (`slot_inode_byte_decode`/`slot_name_byte_decode`/
+> `field_to_str_round_trip`), and the `field_to_str_round_trip` antecedent requires
+> (`\str_length(name)<=30`, no-embedded-null). DECISIVE finding: the structural lesson
+> ALONE is insufficient — the opaque helper hits the **method-call contract gap** (its
+> self-field-referencing byte ensures `self.dir[off+i]==ord(name[i])` don't propagate to
+> the caller as an abstract `val` → OOM); `#@ sibling_concrete` inlines the real verified
+> semantics so the antecedent is concrete at the decode site. Measured (`--fun`): slot_name
+> Postcondition `slot_name(self.dir,5,slot)==name` → **Valid (~50K steps)**, the assert
+> `field_to_str(...)==name` → Valid (48029 steps); the ~23M-step string wall is GONE. NOT
+> shipped: the residual goal (3) (slot_name slot-locality FRAME + uniq/slots_lt32
+> maintenance) still reds the full body gate (baseline 3 → 8) — and the byte-keystone
+> EMISSION additionally poisons every dir-mutator's invariant VC (measured:
+> `_blit_name_field` Type-invariant 320K Unknown → 5–6M Timeout once keystones emitted).
+> All experiments reverted; tree byte-identical to HEAD. The ONE remaining write-side wall
+> is now (3) alone — a folded cross-validated invariant-maintenance lemma, human-gated TCB.
+> See `getting-better/20260618-1640-slot-name-postcondition-closed-frame-residual.md`.
+> The other 6 trusts: the 5 remaining
 > dirscan helpers share these two walls; the **read-side** trio
 > (`_dir_lookup`/`_dir_find_slot`/`_dir_find_free`) is a separate, harder class (loop↔
 > `scan` inductive closed form against the *uninterpreted* `dir_lookup` web). `sys_open`
