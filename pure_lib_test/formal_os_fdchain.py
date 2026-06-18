@@ -83,6 +83,14 @@ def fstat_resolves_path_inode(p: str) -> int:
 # Provable now.
 #@ requires True
 #@ ensures \result == 1
+# `#@ fresh_globals`: this standalone, internals-blind driver runs on a freshly
+# imported `os` (import ran `_filesystem`'s constructor), so the fd table is ALL-FREE
+# at entry — the SOUND surfacing of the free-slot side-condition the conditioned
+# no-ENFILE `dup` needs. The constructor's proven all-free `#@ ensures` is assumed at
+# entry; the prior `open` consumes one slot but the single-cell `fd_open` frame
+# preserves the other 62 free, so `\exists k. 3<=k<64 and fd_open[k]==0` holds at the
+# `dup` site. Sound: this driver is a confined, never-inter-called formal-test entry.
+#@ fresh_globals
 def dup_of_valid_source_is_valid(p: str) -> int:
     fd = open(p, O_CREAT | O_WRONLY, 0o777)    # valid source fd (open pins fd_open[fd]==1)
     if fd < 3:

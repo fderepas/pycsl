@@ -496,6 +496,17 @@ class UnixInodeFileSystem:
     SEEK_CUR = 1
     SEEK_END = 2
 
+    # CONSTRUCTOR POST-STATE (`#@ fresh_globals`): a freshly constructed filesystem
+    # has an ALL-FREE fd table — every descriptor slot in [0, 64) is closed
+    # (`fd_open[k] == 0`). Established by construction: `self.fd_open = [0] * 64`
+    # (the `Array.make 64 0` witness), and neither `_format_disk()` nor any other
+    # `__init__` step writes `fd_open`. This is the fact `_emit_module_globals`
+    # re-checks against the `_filesystem` global's literal initializer (a PROVEN
+    # goal) and that `#@ fresh_globals` re-establishes at a confined standalone
+    # formal-test driver's entry — the SOUND surfacing of the all-free start that
+    # the free-slot-conditioned `_alloc_fd` no-ENFILE direction needs (the honest
+    # replacement for the FALSE unconditioned fd-resolution-fidelity body theorem).
+    #@ ensures \forall k: int; (0 <= k and k < 64) ==> self.fd_open[k] == 0
     def __init__(self, num_blocks: int = 256, load_dir=None, clock=None):
         # The raw bytearray virtual hard drive (array int). Its length is the
         # disk capacity = num_blocks * BLOCK_SIZE. `num_blocks` is a runtime
@@ -2273,7 +2284,17 @@ class UnixInodeFileSystem:
     # a free slot) — the residual GAP is now the GLOBAL-INITIAL-STATE modeling, NOT the
     # frame propagation (which this task SOLVED). Retiring this trust still reds the dup
     # formal test until the global-init state is surfaced.
-    #@ ensures (oldfd < 64 and \old(self.fd_open[oldfd]) == 1) ==> \result >= 3
+    # FREE-SLOT-CONDITIONED no-ENFILE (fd-resolution-fidelity RETIRED, this run): an
+    # open source fd (EBADF excluded) WHEN a free fd slot exists at entry duplicates to
+    # a VALID fd (>= 3). This is BODY-PROVEN with ZERO trust: the body routes allocation
+    # through `_alloc_fd`, whose COMPLETENESS ensures returns -1 ONLY if every slot in
+    # [3,64) was already open — contrapositive, a free slot guarantees success. This is
+    # the HONEST form: the UNCONDITIONED `fd_open[oldfd]==1 ==> result>=3` was a FALSE
+    # body theorem (a full table of OTHER fds makes _alloc_fd return -1). The free-slot
+    # side-condition is established for an internals-blind formal-test driver by
+    # `#@ fresh_globals` (the constructor's all-free post-state, propagated across the
+    # prior open/dup by the single-cell `fd_open` frame below).
+    #@ ensures (oldfd < 64 and \old(self.fd_open[oldfd]) == 1 and (\exists k: int; 3 <= k and k < 64 and \old(self.fd_open[k]) == 0)) ==> \result >= 3
     # fd-import-boundary FRAME (THIS TASK): sys_dup touches AT MOST the returned slot of
     # self.fd_open (the body allocates via _alloc_fd, which sets fd_open[newfd]=1 and frames
     # every other cell; the subsequent writes hit fd_inode/fd_offset/fd_flags[newfd], NOT
@@ -2282,7 +2303,6 @@ class UnixInodeFileSystem:
     # open/dup. Body-faithful single-cell frame — the SOUND lowering this task added.
     #@ ensures \forall k: int; (0 <= k and k < 64 and k != \result) ==> self.fd_open[k] == \old(self.fd_open[k])
     #@ propagate_frame
-    #@ \trusted reviewer: fd-resolution-fidelity
     #@ no_inline
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/dup.html
     # cite:_note: POSIX dup() — -1 on EBADF or when the fd table is full

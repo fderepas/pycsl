@@ -1976,13 +1976,66 @@ class PreambleEmissionMixin:
         self._in_spec = prev_spec
         return out
 
+    def _subst_self_in_expr(self, expr: Any, repl: str) -> Any:
+        """fresh-globals.md: deep-copy an `#@ ensures` IR with every `self` receiver
+        (FieldGet/Attribute `object == "self"`, and a bare `Var`/`Name` "self")
+        rewritten to the module-global name `repl`. Used to re-target the CONSTRUCTOR
+        post-state from `self` onto the named global singleton."""
+        import copy as _copy
+
+        def rec(e: Any) -> Any:
+            if isinstance(e, dict):
+                e = dict(e)
+                if (e.get("type") in ("FieldGet", "Attribute")
+                        and e.get("object") == "self"):
+                    e["object"] = repl
+                elif (e.get("type") in ("Var", "Name")
+                        and e.get("name") == "self"):
+                    e["name"] = repl
+                for k, v in list(e.items()):
+                    e[k] = rec(v)
+                return e
+            if isinstance(e, list):
+                return [rec(x) for x in e]
+            return e
+
+        return rec(_copy.deepcopy(expr))
+
+    def _fresh_globals_facts(self) -> List[str]:
+        """fresh-globals.md: the WhyML conjunct strings for EVERY module-global
+        singleton's constructor post-state (`#@ ensures`, `self` -> the global).
+        Shared by `_emit_module_globals` (the proven-of-the-literal GOAL) and the
+        `#@ fresh_globals` driver-entry `assume`, so the ASSUMED fact is provably
+        the SAME fact that was CHECKED of the global's initializer (no drift)."""
+        facts: List[str] = []
+        prev_spec = self._in_spec
+        prev_self = self._current_self_type
+        self._in_spec = True
+        for g in self.ir.get("module_globals", []):
+            rec = self._record_types.get(g["class"])
+            if rec is None:
+                continue
+            self._current_self_type = g["class"]
+            for ens in rec.get("init_ensures", []) or []:
+                retargeted = self._subst_self_in_expr(ens, whyml_ident(g["name"]))
+                facts.append(self._expr_to_whyml(retargeted, set()))
+        self._current_self_type = prev_self
+        self._in_spec = prev_spec
+        return facts
+
     def _emit_module_globals(self) -> List[str]:
         """inline.md Phase 1: emit each module-level global object instance `g = C(...)`
         as a Why3 mutable-record binding `let g : c = <constructor literal>`. The
         constructor `value` (a `Call` IR) reuses the record-construction lowering
         (`_call_record_constructor`); the record type `c` already carries the class
         invariant + `by` witness, which Why3 checks against the literal. Empty for
-        modules with no object globals → byte-identical."""
+        modules with no object globals → byte-identical.
+
+        fresh-globals.md: when a global's class declares a constructor `#@ ensures`,
+        ALSO emit a `goal <g>_fresh_init` proving that post-state holds of the global's
+        literal initializer. This is the PROOF that backs `#@ fresh_globals`' assumed
+        entry fact — the constructor ensures is verified against the freshly
+        constructed global (the `Array.make 64 0` witness), never assumed blind."""
         globals_ir = self.ir.get("module_globals", [])
         if not globals_ir:
             return []
@@ -1995,6 +2048,39 @@ class PreambleEmissionMixin:
                 continue   # not a known record class — skip (defensive)
             lit = self._expr_to_whyml(g["value"], set())
             out.append(f"  let {whyml_ident(g['name'])} : {rec['whyml_name']} = {lit}")
+        # fresh-globals.md: PROVE the constructor `#@ ensures` holds of the freshly
+        # constructed instance. A module-scope `goal` cannot reference the program-
+        # level mutable `let <g>` binding, so the check is a program function that
+        # RE-CONSTRUCTS the same constructor literal and carries the ensures as its
+        # postcondition (`self` -> `result`). Why3 verifies the post against the
+        # `Array.make 64 0` witness — the PROOF backing `#@ fresh_globals`' assumed
+        # entry fact (the constructor ensures is verified, never assumed blind).
+        prev_self = self._current_self_type
+        for g in globals_ir:
+            rec = self._record_types.get(g["class"])
+            if rec is None or not (rec.get("init_ensures")):
+                continue
+            self._current_self_type = g["class"]
+            lit = self._expr_to_whyml(g["value"], set())
+            # Register `result` as an instance of this class so its array-field
+            # subscripts (`result.fd_open[k]`) resolve to the `array int` `[k]`
+            # form (mirroring the global), not the abstract `subscript_get`.
+            self._module_global_classes["result"] = g["class"]
+            posts = []
+            for ens in rec["init_ensures"]:
+                retargeted = self._subst_self_in_expr(ens, "result")
+                posts.append(self._expr_to_whyml(retargeted, set()))
+            self._module_global_classes.pop("result", None)
+            posts = [p for p in posts if p and p != "true"]
+            if not posts:
+                continue
+            gname = whyml_ident(g["name"]) + "_fresh_init"
+            out.append(f"  let {gname} () : {rec['whyml_name']}")
+            for p in posts:
+                out.append(f"    ensures {{ {p} }}")
+            out.append(f"  = {lit}")
+            out.append("")
+        self._current_self_type = prev_self
         self._in_spec = prev_spec
         out.append("")
         return out
@@ -2128,6 +2214,10 @@ class PreambleEmissionMixin:
                     # base_op.md Tier A — parametrized construction C(a, b)
                     "init_params": td.get("init_params", []),
                     "init_body": td.get("init_body", []),
+                    # fresh-globals.md — the constructor's `#@ ensures` (post-state),
+                    # consumed by `_emit_module_globals` (proven-of-the-literal GOAL)
+                    # and `#@ fresh_globals` (assumed-at-driver-entry fact).
+                    "init_ensures": td.get("init_ensures", []),
                 }
                 # Class-body integer constants (e.g. `CAP = 64`) — resolved to
                 # literals when referenced as `self.CONST` in a method/contract.

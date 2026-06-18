@@ -150,16 +150,17 @@ def close(fd):
 #@ ensures \result == -1 or \result >= 3
 # gap-15: with the `_filesystem.fd_inode[fd]` (global_field_subscript) grammar, the
 # dup SHARED-OPEN-FILE-DESCRIPTION view composes through the public API:
-#   - VALIDITY-GIVEN-VALID-SOURCE: a valid open source fd dups to a valid fd (>= 3),
-#     so a caller's dup(open(p)) is valid (the gap-14 §5 validity consequence). This
-#     rests on sys_dup's interim `\trusted fd-resolution-fidelity` (the unconditioned
-#     no-ENFILE direction the model can't yet derive for an internals-blind caller —
-#     blocked on surfacing the `_filesystem` global's all-free init state at test entry,
-#     NOT on frame propagation, which this task SOLVED).
+#   - VALIDITY-GIVEN-VALID-SOURCE + FREE-SLOT: a valid open source fd dups to a valid
+#     fd (>= 3) WHEN a free fd slot exists at entry (the HONEST free-slot-conditioned
+#     no-ENFILE direction — fd-resolution-fidelity RETIRED). This is now BODY-PROVEN
+#     ZERO-trust in sys_dup (via `_alloc_fd`'s completeness ensures); the wrapper
+#     propagates it verbatim. An internals-blind formal-test driver establishes the
+#     free-slot side-condition via `#@ fresh_globals` (the `_filesystem` constructor's
+#     all-free post-state, carried across a prior open/dup by the single-cell frame).
 #   - SHARED INODE: the duped fd resolves to the SAME inode as the source —
 #     `_filesystem.fd_inode[\result] == _filesystem.fd_inode[fd]` — so dup and the
 #     source share one open-file-description (the inode the source resolves to).
-#@ ensures (fd < 64 and \old(_filesystem.fd_open[fd]) == 1) ==> \result >= 3
+#@ ensures (fd < 64 and \old(_filesystem.fd_open[fd]) == 1 and (\exists k: int; 3 <= k and k < 64 and \old(_filesystem.fd_open[k]) == 0)) ==> \result >= 3
 #@ ensures \result >= 3 ==> _filesystem.fd_inode[\result] == \old(_filesystem.fd_inode[fd])
 # gap-1: pin the duped fd as OPEN with an in-range inode on success so the shared
 # inode is OBSERVABLE through a caller's fstat(dup_fd) — fstat's ensures is guarded

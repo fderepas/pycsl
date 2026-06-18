@@ -108,3 +108,22 @@ class ConstructionSynthMixin:
                                       "value": self._py_expr_to_ir(rhs)})
             break
         return init_params, init_body
+
+    def _collect_init_ensures(self, node: ast.ClassDef) -> List[Dict[str, Any]]:
+        """Capture the constructor's `#@ ensures` clauses (fresh_globals.md / the
+        `#@ fresh_globals` directive). These are the CONSTRUCTOR POST-STATE facts
+        (`\\forall k. (0<=k<64) ==> self.fd_open[k] == 0`) that:
+
+          1. `_emit_module_globals` re-checks as a GOAL against each module-global
+             singleton's literal initializer (so the fact is PROVEN of the freshly
+             constructed global — never an arbitrary literal), and
+          2. `#@ fresh_globals` on a confined standalone driver re-establishes as an
+             ASSUMED entry fact (sourced from this PROVEN ensures).
+
+        `self` is left symbolic in the IR; the consumers substitute `self -> <global>`.
+        Returns [] for a class with no `__init__` ensures (byte-identical to before)."""
+        for child in node.body:
+            if isinstance(child, ast.FunctionDef) and child.name == '__init__':
+                return [self._csl_to_ir(e.expr)
+                        for e in getattr(child, 'csl_ensures', [])]
+        return []

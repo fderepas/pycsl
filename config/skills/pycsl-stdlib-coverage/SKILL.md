@@ -442,6 +442,47 @@ call doesn't fault) — keep it only as that, and never mistake it for functiona
 mutating syscall needs a consequence-checking scenario; that is what "the formal test propagates the
 source of truth" actually means.
 
+#### `#@ fresh_globals` — surfacing a freshly-imported global's initial state
+
+A formal-test driver runs against the module's shared mutable globals (the World — the os
+`_filesystem`, the process table, the clock). Why3 verifies each driver with those globals in an
+ARBITRARY state (any prior API sequence could have mutated them), so a driver cannot rely on the
+freshly-imported initial state — e.g. that the os fd table is ALL-FREE at entry. When a theorem's
+proof genuinely needs that initial state (the canonical case: a free-slot side-condition for the
+fd allocator's honest no-ENFILE direction), mark the standalone driver `#@ fresh_globals`:
+
+```python
+#@ requires True
+#@ ensures \result == 1
+#@ fresh_globals          # re-establish each global singleton's constructor post-state at entry
+def dup_of_valid_source_is_valid(p: str) -> int:
+    fd = open(p, O_CREAT | O_WRONLY, 0o777)   # all-free start ⇒ open + dup both find a free slot
+    if fd < 3:
+        return 1
+    fd2 = dup(fd); close(fd)
+    if fd2 >= 3:
+        close(fd2); return 1
+    return 0
+```
+
+`#@ fresh_globals` emits, at the driver's body entry, an `assume` of each module-global singleton's
+CONSTRUCTOR post-state (the class `__init__`'s `#@ ensures`, `self` → the global). It is **proof-backed,
+not assumed blind**: the transpiler also emits a checked `let g_fresh_init () : C ensures {…} = <ctor
+literal>` that PROVES the post-state holds of the freshly constructed global. **Rules:**
+
+- The constructor must carry the post-state as a `#@ ensures` (e.g.
+  `#@ ensures \forall k: int; (0 <= k and k < 64) ==> self.fd_open[k] == 0` on
+  `UnixInodeFileSystem.__init__`); the directive surfaces exactly that.
+- **CONFINED — Module4 rejects it on a method or any callee** (error `PYCSL-SEM-FRESH-GLOBALS`). It is
+  sound ONLY on an independent top-level driver that runs on a freshly-imported global; a method runs on
+  an arbitrary live `self`/shared global, and a callee inherits its caller's possibly-mutated global —
+  assuming the fresh state in either case is unsound.
+- It is the SOUND alternative to a blanket-false `requires` (assuming all-free as a precondition is the
+  forbidden unsound move — false across a sequence of API calls sharing one global). Used together with
+  `#@ propagate_frame` (which carries occupancy across a prior `open`/`dup`), it RETIRES the os
+  `fd-resolution-fidelity` reviewer trust by establishing the free-slot side-condition the honest
+  conditioned dup/open body theorem needs.
+
 #### CALL-THE-API rule — never simulate
 
 **Critical rule: a formal test CALLS the public API under test — it must NEVER re-implement or simulate the

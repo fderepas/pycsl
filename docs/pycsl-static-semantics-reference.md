@@ -529,6 +529,31 @@ frames (`\forall k != \result. self.f[k] == \old(self.f[k])`). Sound: the propag
 `\forall` is the SAME frame the callee's body verifies (a true frame of the body), never
 a fabricated or broadened one — it adds no trust. See translational §T.2.7f.
 
+#### §2.1.6g Fresh globals (`fresh_globals`)
+
+```
+    kind(f) ≠ method     f ∉ ⋃_g calltargets(body(g))
+   ──────────────────────────────────────────────────────
+              Γ_f ⊢ fresh_globals : ok
+```
+
+**Rule:** Presence is a flag on the function AST node (`csl_fresh_globals = True`)
+carried into the function IR (`"fresh_globals": True`). Unlike the always-ok flag
+directives, `fresh_globals` carries a **CONFINEMENT side-condition enforced by Module4**
+(`core_ir_semantic._check_fresh_globals`): the directive is rejected (error
+`PYCSL-SEM-FRESH-GLOBALS`) on (1) a **method** (`kind(f) = method`, a `self`-receiver
+function) and (2) any function that is a **callee** — i.e. whose name appears as a call
+target in *any* function body in the unit. Both rejections are soundness-critical: the
+directive re-establishes each module-global singleton's constructor post-state as an
+**assumed** entry fact, which is true only when the function is an independent entry point
+running on a freshly-imported global (import ran the constructor). A method runs on an
+arbitrary live `self`/shared global, and a callee inherits its caller's possibly-mutated
+global — assuming the fresh state in either case would be unsound. The assumed fact is the
+constructor's own `#@ ensures` (`self` → the global), which Module6 additionally emits as a
+checked `let g_fresh_init () : C ensures {…} = <constructor literal>` proving the post-state
+of the freshly constructed global — so the assume is proof-backed, never an arbitrary
+literal. See translational §T.2.7g.
+
 #### §2.1.7 Trusted (`\trusted [reviewer: <REVIEWER_ID>]`)
 
 ```

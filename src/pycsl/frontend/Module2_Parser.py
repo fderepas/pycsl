@@ -323,6 +323,30 @@ class PropagateFrame(CSLNode):
     pass
 
 @dataclass
+class FreshGlobals(CSLNode):
+    """Represents `#@ fresh_globals` (fresh-globals.md) — OPT-IN, CONFINED: at THIS
+    function's body entry, re-establish each module-global singleton's CONSTRUCTOR
+    POST-STATE (the class `__init__`'s `#@ ensures`, `self` -> the global) as an
+    ASSUMED fact. Models the execution-model convention that a STANDALONE,
+    internals-blind formal-test DRIVER runs on a freshly-imported module global
+    (import ran `__init__`, so the constructor post-state holds at entry) — instead
+    of Why3's default treatment of a shared mutable global as HAVOC'd at every
+    importer-function entry.
+
+    SOUNDNESS (Module4-enforced confinement): sound ONLY on an INDEPENDENT entry
+    point that is never called by another verified function and never composed after
+    a prior driver mutated the shared global — otherwise a callee would falsely
+    assume the all-fresh state against an already-mutated global. Module4 REJECTS it
+    on `self`-methods, library functions, and any function that is a callee of
+    another verified function in the same unit. The assumed fact is NOT an arbitrary
+    literal: it is the constructor's `#@ ensures`, which `_emit_module_globals`
+    re-checks as a GOAL against the global's literal initializer (so the fact is
+    PROVEN of the freshly constructed global). Replaces the FALSE unconditioned
+    fd-resolution-fidelity no-ENFILE body theorem with a sound, confined,
+    constructor-backed entry fact."""
+    pass
+
+@dataclass
 class Trusted(CSLNode):
     """Represents `#@ \\trusted` — function body is not verified.
     Optional `reviewer` identifies who is accountable for the trust assumption."""
@@ -899,6 +923,7 @@ PYCSL_GRAMMAR = r"""
              | no_inline_decl
              | sibling_concrete_decl
              | propagate_frame_decl
+             | fresh_globals_decl
              | trusted_decl
              | abstract_decl
              | lemma_decl
@@ -1000,6 +1025,7 @@ PYCSL_GRAMMAR = r"""
     no_inline_decl: "no_inline"
     sibling_concrete_decl: "sibling_concrete"
     propagate_frame_decl: "propagate_frame"
+    fresh_globals_decl: "fresh_globals"
     trusted_decl: "\\trusted" ("reviewer" ":" REVIEWER_ID)?
     abstract_decl: "\\abstract"
     lemma_decl: "lemma"
@@ -1346,6 +1372,7 @@ class PyCSLTransformer(Transformer):
     def no_inline_decl(self) -> NoInline: return NoInline()
     def sibling_concrete_decl(self) -> SiblingConcrete: return SiblingConcrete()
     def propagate_frame_decl(self) -> PropagateFrame: return PropagateFrame()
+    def fresh_globals_decl(self) -> FreshGlobals: return FreshGlobals()
     def trusted_decl(self, *args) -> Trusted:
         return Trusted(reviewer=str(args[0]) if args else "")
     def abstract_decl(self) -> Abstract:
