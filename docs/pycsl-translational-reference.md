@@ -623,6 +623,46 @@ of re-deriving the double-`forall`. Decoupled from `no_inline` (does not change
 wrapper inlining). **Soundness:** a concrete call to a verified `let` is the method's
 real semantics — it adds nothing to the TCB. Default off → byte-identical.
 
+### §T.2.7f  Frame-propagating Methods (`propagate_frame`)
+
+A method marked `#@ propagate_frame` (os-roadmap M4) **opts in** to carrying its
+QUANTIFIED single-cell self-field FRAME `ensures` onto its abstract boundary `val`.
+By default, `#@ assigns self.f` lowers to `writes { self.f }` on the boundary stub,
+which frames `self.f` as a WHOLE — a caller sees the entire field havoced (only a
+result-pinned cell survives). For a marked callee, Module6 additionally emits the
+method's frame clauses of the shape `\forall k. guard -> self.f[k] == \old(self.f[k])`
+as `ensures` on the boundary `val`, so a caller can prove every *other* cell preserved.
+
+Two frame shapes are propagated (built by `_build_method_field_param_frame_ensures_map`
+and `_build_method_result_frame_ensures_map` respectively, threaded through
+`_resolve_dotted_signature` → `_dotted_ensures_suffix`):
+
+- **param-referencing** frames (the os `_zero_entry` slot frame
+  `\forall k. ... slot_inode(self.disk, x0, k) == \old(...)`), trigger pinned on the
+  post-state decode application;
+- **`\result`-referencing** single-cell frames
+  (`\forall k != \result. self.f[k] == \old(self.f[k])`), where `\result` lowers to the
+  `val`'s `result` keyword — its return value, i.e. the call's result — so binding is
+  automatic with no explicit substitution.
+
+```whyml
+  val _filesystem_sys_dup_1 (self: unixinodefilesystem) (x0: int) : int
+    writes { self.fd_open, self.fd_inode, self.fd_offset, self.fd_flags, self.next_fd }
+    ensures { result = -1 \/ result >= 3 }
+    (* propagated frame: every OTHER fd_open cell is preserved by the call *)
+    ensures { forall k. 0 <= k < 64 /\ k <> result -> self.fd_open[k] = old self.fd_open[k] }
+```
+
+This is the key to retiring the os `fd-resolution-fidelity` trusts: with the frame
+propagating, a caller (the os `__init__` wrapper / a composed test) proves the table is
+not full after a prior `open` (the constructor starts `fd_open` all-free, and each
+syscall preserves all but one cell), so the honest free-slot side-condition `_alloc_fd`
+discharges survives the import boundary. **Opt-in ON PURPOSE:** a broad frame trigger
+can E-match-poison term-rich sibling callers, so the marker asserts "this method's callers
+need *and* can absorb the frame". **Soundness:** the propagated `\forall` is the SAME
+frame the callee's body verifies (a true frame of the body), never a fabricated or
+broadened one — it adds nothing to the TCB. Default off → byte-identical.
+
 ### §T.2.8  Exception-Raising Functions (`raises`)
 
 $$\mathcal{T}_f\llbracket \texttt{\#@ raises E when cond} \rrbracket
