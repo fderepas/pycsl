@@ -547,6 +547,250 @@ def _why3_typecheck(mlw_filename: str):
     return False, (r.stderr.strip() or r.stdout.strip())
 
 
+# ----------------------------------------------------------------------------
+# Per-goal best-of-N prover dispatch
+# ----------------------------------------------------------------------------
+# `why3 prove -P A -P B` is a SINGLE call whose per-goal output reports only the
+# LAST `-P` (B) — it is NOT an "A-then-B fallback". So a goal that ONLY A proves
+# Valid is masked behind B's Unknown and the file FAILS the default pipeline
+# (see getting-better/20260618-1710-...md). To get a SOUND best-of-N — a goal is
+# Valid iff ANY first-class prover returns Valid — we run each prover as its own
+# `why3 prove` call and merge the per-goal verdicts, keeping the BEST one.
+#
+# SOUNDNESS (load-bearing): a goal is promoted to Valid ONLY when some prover's
+# verdict line for that exact goal literally reads "Valid". Unknown / Timeout /
+# Out of memory / Failure / Invalid are NEVER counted as Valid. The merge takes
+# the max over provers, where Valid dominates; no aggregate/summary line is ever
+# parsed as a per-goal verdict (each goal is keyed by its own File+Sub-goal
+# header block).
+
+# Verdict ranks: higher is better. Anything not Valid is non-Valid (unproven).
+_VERDICT_VALID = 2
+_VERDICT_NONVALID = 1  # Unknown / Timeout / Out of memory / Failure / Invalid / unparsed
+
+def _verdict_rank(result_line: str) -> int:
+    """Rank a Why3 `Prover result is: ...` line. ONLY a literal 'Valid' is Valid.
+
+    Soundness: this is the single chokepoint that decides whether a goal counts
+    as proven. It accepts ``Valid`` ONLY when the verdict token is exactly
+    ``Valid`` (Why3 prints ``Valid (...)`` for a proven goal). ``Invalid`` and
+    every other status (``Unknown``, ``Timeout``, ``Out of memory``,
+    ``Failure``, ...) rank as non-Valid and can never be promoted."""
+    # The verdict token follows "Prover result is: ". Why3 emits e.g.
+    #   "Prover result is: Valid (0.03s, 20 steps)."
+    #   "Prover result is: Unknown (unknown) (0.04s, 17627 steps)."
+    #   "Prover result is: Timeout (30.0s)."  / "... Out of memory ..." / "... Failure ..."
+    marker = "Prover result is:"
+    idx = result_line.find(marker)
+    token = result_line[idx + len(marker):].strip() if idx != -1 else result_line.strip()
+    # Guard against "Invalid" (whose substring is "valid"): require the verdict to
+    # START with the exact word "Valid".
+    if token.startswith("Valid (") or token == "Valid" or token.startswith("Valid\t"):
+        return _VERDICT_VALID
+    return _VERDICT_NONVALID
+
+
+def _parse_goal_blocks(output: str) -> "List[Tuple[str, str]]":
+    """Split a `why3 prove` stdout into per-goal (header, result_line) pairs.
+
+    A goal block is::
+
+        File "<f>", line N, characters X-Y:
+        Sub-goal <desc> of goal <name>'vc.
+        Prover result is: <verdict> (...).
+
+    The header (everything up to and including the line that PRECEDES the
+    `Prover result is:` line) is the stable goal KEY — it is byte-identical across
+    provers because it is derived from the same .mlw. The `Prover result is:` line
+    is the per-prover verdict. Returns the blocks in document order; a header with
+    no following result line (should not happen for a real goal) is skipped."""
+    blocks: List[Tuple[str, str]] = []
+    cur_header: List[str] = []
+    for line in output.splitlines():
+        if line.startswith("Prover result is:"):
+            header = "\n".join(cur_header)
+            blocks.append((header, line))
+            cur_header = []
+        else:
+            cur_header.append(line)
+    return blocks
+
+
+def _merge_best_of_n(outputs: "List[str]") -> str:
+    """Merge per-prover `why3 prove` outputs into ONE best-of-N output string.
+
+    For each goal (keyed by its header block) keep the BEST verdict across
+    provers (Valid dominates). The merged string has the SAME shape as a single
+    `why3 prove` run, so the existing downstream success/parse logic consumes it
+    unchanged. Goal order follows the first run that mentions the goal."""
+    order: List[str] = []
+    best: Dict[str, str] = {}        # header -> best result line
+    best_rank: Dict[str, int] = {}   # header -> rank of best result line
+    for out in outputs:
+        for header, result_line in _parse_goal_blocks(out):
+            r = _verdict_rank(result_line)
+            if header not in best:
+                order.append(header)
+                best[header] = result_line
+                best_rank[header] = r
+            elif r > best_rank[header]:
+                best[header] = result_line
+                best_rank[header] = r
+    parts: List[str] = []
+    for header in order:
+        block = (header + "\n" + best[header]) if header else best[header]
+        parts.append(block)
+    return "\n\n".join(parts)
+
+
+def _all_goals_valid(output: str) -> bool:
+    """True iff every parsed goal block is Valid (used for early-exit). An output
+    with no goal blocks is NOT 'all valid' here (callers handle the empty case)."""
+    blocks = _parse_goal_blocks(output)
+    return bool(blocks) and all(_verdict_rank(r) == _VERDICT_VALID for _, r in blocks)
+
+
+import re as _re
+
+# Matches the goal-header location line `File "<path>", line <N>, characters X-Y:`.
+_GOAL_LOC_RE = _re.compile(r'^File "(?P<file>.*)", line (?P<line>\d+), characters')
+
+
+def _residual_selectors(merged_output: str, mlw_filename: str) -> "List[str]":
+    """Return the DISTINCT `<file>:<line>` Why3 sub-goal selectors for every goal in
+    *merged_output* that is NOT yet Valid. Used to re-run the next prover ONLY on the
+    residual goals (`why3 prove -g <file>:<line> ...`), so goals the first prover
+    already proved do NOT pay for a second prover pass (the doctrine's "only residual
+    goals pay"). Duplicate lines collapse: `-g file:line` selects every sub-goal at
+    that line, which is a sound superset (re-proving an already-Valid sub-goal is
+    cheap and the merge keeps the best verdict)."""
+    sels: List[str] = []
+    seen: Set[str] = set()
+    for header, result_line in _parse_goal_blocks(merged_output):
+        if _verdict_rank(result_line) == _VERDICT_VALID:
+            continue
+        # Find the `File "...", line N, ...` location ANYWHERE in the header block
+        # (the block may carry a leading blank-line separator before the File line).
+        m = None
+        for hl in header.splitlines():
+            m = _GOAL_LOC_RE.match(hl.strip())
+            if m:
+                break
+        if not m:
+            # Cannot locate this residual goal precisely — fall back to whole-file
+            # (sound: a broader re-run can only prove MORE). Signal with empty list.
+            return []
+        sel = f"{m.group('file')}:{m.group('line')}"
+        if sel not in seen:
+            seen.add(sel)
+            sels.append(sel)
+    return sels
+
+
+def _run_why3_prove(base_cmd: "List[str]", prover: str, timelimit: str,
+                    mlw_filename: str,
+                    goal_selectors: "Optional[List[str]]" = None
+                    ) -> "subprocess.CompletedProcess":
+    """Run `why3 prove ... -P <prover> --timelimit <t> [-g sel ...] <file>` for ONE
+    prover.
+
+    Each prover gets the FULL per-goal timelimit (it is not split across provers).
+    `base_cmd` carries the shared transforms (`-a split_vc`, optional
+    `-a induction_pr`). When *goal_selectors* is given, only those sub-goals
+    (`-g <file>:<line>`) are attempted — the residual-only second-pass path."""
+    cmd = list(base_cmd) + ["-P", prover, "--timelimit", timelimit]
+    for sel in (goal_selectors or []):
+        cmd += ["-g", sel]
+    cmd += [mlw_filename]
+    return subprocess.run(cmd, capture_output=True, text=True)
+
+
+def _dispatch_provers(base_cmd: "List[str]", provers: List[str], timelimit: str,
+                      mlw_filename: str) -> "Tuple[str, str, int]":
+    """Per-goal best-of-N dispatch. Returns (merged_stdout, merged_stderr, returncode).
+
+    - Single prover: exactly one `why3 prove` call (behaviour byte-identical to
+      the legacy path — same flags, same output).
+    - Multiple provers: the FIRST prover runs full-file; each SUBSEQUENT prover runs
+      ONLY on the goals still non-Valid (`why3 prove -g <file>:<line>`), merging
+      per-goal verdicts (Valid by ANY prover ⇒ Valid). EARLY-EXIT: once every goal
+      is Valid, the remaining provers are not invoked. So goals the first prover
+      already proves cost exactly ONE call; only the residual goals pay for the next
+      prover (the doctrine's "only residual goals pay" — a file with no residuals is
+      a single full-file pass, timing unchanged).
+
+    ATTEMPT ORDER preserves legacy TIMING. `why3 prove -P A -P B` (a single call,
+    the legacy invocation) runs ONLY the LAST `-P` per goal — it is NOT an
+    A-then-B fallback — so the legacy default `[Alt-Ergo, Z3]` effectively ran
+    Z3-ONLY. To keep "goals Z3 already proves are ~unchanged in timing", we attempt
+    the LAST-listed prover FIRST (the one the legacy call reported), early-exit if
+    it clears everything, and only fall to the earlier-listed provers for the
+    residual goals. Order is a pure performance/early-exit choice: best-of-N is
+    Valid-iff-ANY, so the accepted goal set is identical for every order — only the
+    wall-clock differs. (Running Alt-Ergo first instead would make every
+    Z3-fast/Alt-Ergo-slow goal pay a full 30s Alt-Ergo timeout before Z3 runs — a
+    large, needless slowdown; e.g. the 0665 inode codec goes from ~40s Z3-only to
+    minutes.)
+
+    returncode is 0 iff the MERGED result has every goal Valid (or the runs
+    produced no goal blocks AND every per-prover rc was 0 — the zero-goal case);
+    otherwise it is the last run's nonzero rc (so the legacy `rc == 0` guard still
+    means "nothing left unproven")."""
+    if len(provers) == 1:
+        r = _run_why3_prove(base_cmd, provers[0], timelimit, mlw_filename)
+        return r.stdout.strip(), r.stderr.strip(), r.returncode
+
+    # Try the legacy-reported (last-listed) prover first; then the rest, in their
+    # listed order, restricted to residual goals. Soundness is order-independent.
+    attempt_order = [provers[-1]] + provers[:-1]
+
+    outputs: List[str] = []
+    stderrs: List[str] = []
+    last_rc = 0
+    any_goal_blocks = False
+    for idx, prover in enumerate(attempt_order):
+        if idx == 0:
+            # First prover: full file.
+            selectors: Optional[List[str]] = None
+        else:
+            # Subsequent provers: ONLY the goals still non-Valid in the merge so far.
+            selectors = _residual_selectors(_merge_best_of_n(outputs), mlw_filename)
+            if selectors == []:
+                # No precisely-locatable residuals OR none at all. If the merge is
+                # already all-Valid we would have early-exited; reaching here with an
+                # empty selector means we could not pin the residuals — fall back to a
+                # full-file re-run (sound: only proves MORE), preserving correctness.
+                if _all_goals_valid(_merge_best_of_n(outputs)):
+                    break
+                selectors = None
+        r = _run_why3_prove(base_cmd, prover, timelimit, mlw_filename, selectors)
+        out = r.stdout.strip()
+        outputs.append(out)
+        if r.stderr.strip():
+            stderrs.append(r.stderr.strip())
+        last_rc = r.returncode
+        merged = _merge_best_of_n(outputs)
+        if _parse_goal_blocks(merged):
+            any_goal_blocks = True
+            if _all_goals_valid(merged):
+                # Every goal proven by some prover so far — no need to run the rest.
+                return merged, "\n".join(stderrs), 0
+        else:
+            # No goal blocks (e.g. zero goals to prove). If this prover succeeded
+            # with empty output, the legacy success path accepts it.
+            if r.returncode == 0:
+                return merged, "\n".join(stderrs), 0
+
+    merged = _merge_best_of_n(outputs)
+    # Final verdict: rc 0 iff every goal is Valid in the merge. If there were
+    # genuinely no goal blocks, fall back to the last run's rc.
+    if any_goal_blocks:
+        rc = 0 if _all_goals_valid(merged) else (last_rc if last_rc != 0 else 1)
+    else:
+        rc = last_rc
+    return merged, "\n".join(stderrs), rc
+
+
 def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argparse.Namespace) -> None:
     """Write *mlw_code* to *mlw_filename*, invoke Why3, handle Rocq proofs and cleanup."""
     with open(mlw_filename, "w") as f:
@@ -594,7 +838,7 @@ def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argp
         # sub-goals.  Most sub-goals are trivially linear; only genuinely hard arithmetic
         # goals remain, and they benefit from Z3 NIA in isolation (rather than as part of a
         # huge combined query that triggers OOM).
-        cmd = ["why3", "prove", "-a", "split_vc"]
+        base_cmd = ["why3", "prove", "-a", "split_vc"]
         # inductive.md: a universally-quantified CONSEQUENCE of an inductive predicate
         # (`#@ lemma … ensures \forall x; p(x) ==> Q`) is proved by induction on the
         # predicate's derivation, which the SMT backend cannot do alone (it times out).
@@ -603,27 +847,29 @@ def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argp
         # hypothesis, and is added only when the module declares an inductive predicate, so
         # non-inductive files are unaffected.
         if "\n  inductive " in mlw_code:
-            cmd += ["-a", "induction_pr"]
-        for p in provers:
-            cmd += ["-P", p]
-        cmd += ["--timelimit", "30", mlw_filename]
+            base_cmd += ["-a", "induction_pr"]
 
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        output = result.stdout.strip()
+        # Per-goal best-of-N prover dispatch (see _dispatch_provers): each prover
+        # runs as its OWN `why3 prove` call and a goal is Valid iff ANY prover
+        # proves it Valid — instead of `why3 prove -P A -P B` reporting only the
+        # LAST prover and masking an Alt-Ergo win behind a Z3 Unknown. A single
+        # prover (`-p <prover>`) takes the byte-identical legacy single-call path.
+        output, merged_stderr, returncode = _dispatch_provers(
+            base_cmd, provers, "30", mlw_filename)
 
         print("\n--- Verification Results ---")
         if output:
             print(output)
-        if result.stderr.strip():
+        if merged_stderr:
             print("\nWarnings/Errors from Why3:")
-            print(result.stderr.strip())
+            print(merged_stderr)
 
         unknown_goals = [line for line in output.splitlines()
                          if "Unknown" in line or "Timeout" in line]
         invalid_goals = [line for line in output.splitlines() if "Invalid" in line]
         smt_proved = len([line for line in output.splitlines() if "Valid" in line])
 
-        if result.returncode == 0 and not unknown_goals and not invalid_goals and ("Valid" in output or not output):
+        if returncode == 0 and not unknown_goals and not invalid_goals and ("Valid" in output or not output):
             print(f"\n[+] Verification SUCCESS! All contracts formally proven.")
         else:
             unproven_count = len(unknown_goals) + len(invalid_goals)
