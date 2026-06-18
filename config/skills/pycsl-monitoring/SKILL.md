@@ -177,6 +177,26 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
    fresh-instance / per-test constructor-invariant mechanism), not frame propagation. The
    sound frame is banked; the retirement lands once global-init is surfaced. *(os fd
    import-boundary frame fix, 2026-06-18; the UPDATE section of the same gap doc.)*
+14. **Module-global constructor state (e.g. fresh-import all-free `fd_open`) is HAVOC'd at
+   EVERY importer-function entry — and surfacing it soundly is a `by-construction`, not a
+   `requires`, mechanism.** Proof: an `#@ assert (\exists k. fd_open[k]==0)` on the FIRST
+   line of a formal test — before any syscall — FAILS; the `let _filesystem = {all-free
+   literal}` is only initialization, and Why3 verifies each function with the shared mutable
+   global in an arbitrary state. **Diagnostic:** if a chain proves ONLY under a
+   `requires`-assumed entry fact (here `requires \forall k. fd_open[k]==0` made
+   `dup(dup(open(p)))>=3` prove zero-trust), the residual gap is GLOBAL-INIT SURFACING, not
+   frame propagation. **The forbidden move** is shipping that `requires` — it's a blanket
+   precondition FALSE in any post-sequence (post-many-opens) context. **The sound route** is
+   a NEW tool mechanism (`#@ fresh_globals`-style) that RE-ESTABLISHES the constructor
+   post-state BY CONSTRUCTION at a standalone internals-blind driver's entry (sound only
+   because such a driver is an independent entry point on the freshly-imported global, never
+   inter-called with a pre-mutated one), plus a constructor `#@ ensures` capturing that
+   post-state (often absent). High-blast-radius, human-gated. Corollary (audit, for
+   `pycsl-audit-pycsl-language`): an UNCONDITIONED no-failure/no-ENFILE ensures over a body
+   that routes through a first-free-slot allocator is a **FALSE BODY THEOREM** — the body
+   theorem is the free-slot-CONDITIONED form; the unconditioned form is honest only behind a
+   trust or a soundly-surfaced entry fact. *(os fd-resolution-fidelity, 2026-06-18:
+   `getting-better/20260618-0903-os-fd-import-boundary-frame-gap.md`.)*
 
 ## B. Coherent-and-wrong catalog for formal tests (what the monitor hunts)
 
