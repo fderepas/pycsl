@@ -692,6 +692,47 @@ class PreambleEmissionMixin:
             "( String.length name < width -> d[off + String.length name] = 0 ) -> "
             "field_to_str d off width = name",
 
+        # UnixFs.Field.field_to_str_frame (string-codec Phase A', DISJOINT-REGION
+        # FRAME) — the byte-locality twin of `field_to_str_round_trip`. The decode of
+        # a `width`-byte null-padded field at `off` depends ONLY on the bytes
+        # d[off..off+width): if two disks d0, d1 AGREE byte-for-byte over that exact
+        # window (`forall i. 0 <= i < width -> d0[off+i] = d1[off+i]`), they decode
+        # to the SAME name (`field_to_str d0 off width = field_to_str d1 off width`).
+        # This is the disjoint-region frame the dir-mutators need: a blit that
+        # rewrites slot `s`'s 32-byte entry leaves every OTHER slot k≠s's name window
+        # untouched, so composed with `slot_name_byte_decode`
+        # (`slot_name d 5 k = field_to_str d (2560+32*k+2) 30`) it supplies the
+        # `∀k≠s. slot_name d1 5 k = slot_name d0 5 k` slot_name frame. It is the
+        # DISJOINT-REGION twin of the retired `block5_decode_frame` (which required
+        # FULL block-5 byte agreement — broken by any in-block blit); this frame only
+        # asks for agreement on the SINGLE field's window, which a disjoint blit
+        # always supplies.
+        #
+        # SMT cannot discharge this directly: like the round-trip, the proof is by
+        # induction over the scan-to-first-null decode (the abstract `field_to_str`
+        # has no WhyML body to unfold — it is a logic `function` constrained only by
+        # axioms), which E-match-explodes over Why3's axiomatic strings. So it is a
+        # CITED axiom — SMT only ever APPLIES it (O(1)) under the byte-frame
+        # antecedent; the induction lives in the proof assistants. The TRIGGER is the
+        # SAME shape as `slot_name_byte_decode`/round-trip — keyed on BOTH decode
+        # terms `[field_to_str d1 off width, field_to_str d0 off width]` so it fires
+        # ONLY when both field decodes are already present in the goal (a frame
+        # between two named disk states), never on a lone decode (no global
+        # E-matching). Cross-validated by
+        # test-suite/corpus/pycsl-reference/0714.proofs/{rocq,lean}/FieldToStrFrame.{v,lean}
+        # (theorem field_to_str_frame): `field_to_str` is the scan-to-first-null
+        # decode over an abstract byte-reader (the SAME concrete model as
+        # FieldToStrRoundTrip); the frame is proved by induction on the scan fuel /
+        # width — agreeing bytes feed the same scan branch at every step. Rocq 8.20.1:
+        # closed under the global context (0 Axiom/Admitted, only the abstract Section
+        # Variables); Lean 4.30.0: #print axioms ⊆ {propext, Quot.sound}, no sorry.
+        "UnixFs.Field.field_to_str_frame":
+            "forall d0 d1 : array int. forall off width : int "
+            "[field_to_str d1 off width, field_to_str d0 off width]. "
+            "0 <= width -> "
+            "( forall i : int. 0 <= i < width -> d0[off + i] = d1[off + i] ) -> "
+            "field_to_str d0 off width = field_to_str d1 off width",
+
         # allocator-frame §5 reference fixture — DEFINITIONAL intro/elim for the
         # `field_nonneg` predicate (conservative definition `field_nonneg x <-> x >= 0`;
         # ZERO trust). Used by the corpus test for predicate-in-`#@ class invariant`.
