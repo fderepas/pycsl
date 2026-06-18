@@ -130,6 +130,23 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
    retired via `Pycsl.Strmod.StrLen.length_nonneg`; `capwords` retired via
    `Pycsl.Strmod.Capwords` over a faithful `capwords_def =
    join_sp(map capitalize (split_ws s))`, Rocq "Closed" / Lean ⊆{propext,Quot.sound}.)*
+11. **A no-ENFILE / free-resource trust on a MONOTONIC-COUNTER model is NOT retirable by
+   adding a precondition — it needs a model upgrade.** Class-4 trusts that assert "a
+   fresh resource is always available" (e.g. os `fd-resolution-fidelity` on `sys_open`/
+   `sys_dup`: `\result >= 3`) are genuinely FALSE at resource exhaustion. De-trusting +
+   adding the honest precondition (`requires next_fd < 64`) makes the LEAF body verify
+   (measured: `sys_dup` 46/0, zero trust) — but if that precondition is **not
+   establishable through the public API** (no op bounds the counter; `close` doesn't free
+   a slot), it reds the public formal tests (`formal_os_fd`/`fdchain`). **A precondition
+   that reds a previously-green formal test is a REGRESSION, even when the leaf itself
+   verifies cleanly** → revert. The doctrine-correct route is a faithful **allocator** (a
+   free-slot scan + an occupancy invariant the caller can establish), OR a logged GAP —
+   never a bare `\trusted`, never a precondition the API can't discharge. *(os
+   `fd-resolution-fidelity` ×2, 2026-06-18:
+   `getting-better/20260617-2317-os-fd-resolution-fidelity-class4-wall.md`.)* Corollary
+   (os-gate blind spot, reconfirmed): the `__init__` gate stays green when a callee
+   precondition is added because it imports `sys_*` as trusted `val`s — green there does
+   NOT mean a wrapper discharges the new precondition; ALWAYS run the public formal tests.
 
 ## B. Coherent-and-wrong catalog for formal tests (what the monitor hunts)
 
