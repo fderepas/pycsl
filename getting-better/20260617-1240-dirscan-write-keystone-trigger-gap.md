@@ -1,7 +1,55 @@
 # Dirscan write-side retirement: the keystone trigger does not fire on the real body — precise GAP
 
-STATUS: GAP (confirmed, precisely located). No TCB change (8 `\trusted` unchanged).
-No `preamble.py` change. Working tree byte-identical to HEAD after the experiment.
+STATUS: GAP (still open) — but the INODE HALF is now SOLVED; the wall moved one rung
+deeper. No TCB change (7 `\trusted` unchanged; campaign target stays 7). No
+`preamble.py`/`src` change. Working tree byte-identical to HEAD after every experiment.
+
+> **UPDATE 2026-06-18 (dir_lookup-correspondence pilot, test-supervise-sl).**
+> ROOT CAUSE #2 below ("the keystone still does not fire") was **incomplete**. The
+> deeper cause: **keystone axioms are emission-gated by `#@ proof` citation** — a
+> helper that *asserts* the keystone's conclusion but does not also CITE it gets
+> `Unknown`, because the keystone is **not even in the emitted `.mlw`**. The prior
+> write-side run never cited `slot_inode_byte_decode`, so the trigger could not fire
+> for a reason beyond trigger-shape: the axiom was absent.
+>
+> **With the fix from step 2 actually applied** — (a) blit at the **literal offset**
+> `5*512 + 32*slot` (no let-bound `!entry_offset`, `32*slot` aligned to the trigger)
+> AND (b) `#@ proof rocq/lean UnixFs.Dir.slot_inode_byte_decode` so the keystone is
+> emitted — the **inode half discharges zero-trust**: slot_inode write-side
+> Postcondition **Valid**, slot_inode slot-locality frame **Valid**, and **ALL**
+> `uniq(self.dir)` / `slots_lt32(self.dir)` Type-invariants **Valid**. Measured on the
+> full body gate (authoritative "N goal(s) remain"), PYTHONHASHSEED=0:
+> baseline **3** → bare de-trust **8** → literal-offset blit + keystone-cite **6**.
+>
+> So **6 − 3 = 3 genuinely-new** `_write_dir_entry` goals remain (the inode-half wall
+> of ROOT CAUSE #2 is GONE):
+> 1. **Precondition `inode_num < 65536`** — trivially fixed by a `#@ requires`
+>    (callers pass `[0,32)`).
+> 2. **slot_name Postcondition** — the string-extensionality round-trip wall
+>    (`field_to_str_round_trip`'s `∀i. d[off+i]=ord(name[i])` antecedent vs Alt-Ergo/Z3
+>    `eq_string`/`Char.get`: 5–7M-step Timeout). Needs the per-char chain folded behind
+>    ONE more cited atom — an honest extension, not a body assert.
+> 3. **slot_name slot-locality frame** (`∀k≠slot. slot_name unchanged`) — needs the
+>    `block5_decode_frame`-class lemma **re-emitted** into the preamble (it was retired
+>    from emission in M4 #1 *because* the mutator was trusted). Corpus byte-diff
+>    territory.
+>
+> Cross-validation of the substrate cited (re-verified in this run): `0711.proofs`
+> Rocq `Print Assumptions` → Section Variables only, 0 Axiom/Admitted; Lean → no axiom
+> dependence. `slot_name_byte_decode` Rocq "Closed under the global context"; Lean
+> `[propext, Quot.sound]`.
+>
+> Net: TCB unchanged (correct — shipping the inode half alone leaves the body at +3
+> over baseline = a body-gate REGRESSION, so NOT shipped). The campaign's two
+> precisely-named next targets are now (2) and (3). The other 6 trusts: the 5 remaining
+> dirscan helpers share these two walls; the **read-side** trio
+> (`_dir_lookup`/`_dir_find_slot`/`_dir_find_free`) is a separate, harder class (loop↔
+> `scan` inductive closed form against the *uninterpreted* `dir_lookup` web). `sys_open`
+> `fd-resolution-fidelity` is NOT a fold target (its `\result>=3 ⟺ dir_lookup>=0` is a
+> path-completeness over-claim — ENFILE/ENOSPC return −1 on a resolvable name — with no
+> per-element ∀ to fold).
+
+---
 
 ## Mission
 Step-2 pilot: retire ONE `\trusted reviewer: dirscan-fidelity` on a directory-mutating
