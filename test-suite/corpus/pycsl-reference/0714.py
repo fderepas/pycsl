@@ -1,4 +1,3 @@
-# pycsl-flags: -p alt-ergo
 """Test 0714 — string-field DISJOINT-REGION FRAME (the byte-locality twin of 0708).
 
 The frame primitive for the `field_to_str` codec — the byte-locality twin of 0708's
@@ -41,16 +40,18 @@ decodes are already present in the goal (a frame BETWEEN two named disk states),
 lone decode. This keeps it narrow: it cannot E-match-explode globally (the round-trip's and
 slot_name's atoms are single-decode shapes that never match this two-decode trigger).
 
-PROVER NOTE (`# pycsl-flags: -p alt-ergo`): applying this axiom requires discharging its
-nested universal antecedent (`forall i. ... -> d0[off+i] = d1[off+i]`) from the caller's
-matching `forall i` hypothesis. Alt-Ergo does this in ~20 steps (Valid); Z3 (via the Why3
-driver) does NOT fire the multi-decode trigger / discharge the inner universal here and
-returns Unknown — a genuine Alt-Ergo/Z3 divergence on the frame shape (NOT present for the
-single-conclusion round-trip 0708, which Z3 applies). Per the extreme-rigor doctrine an SMT
-divergence is a ROUTING condition: this exhibit is pinned to Alt-Ergo (a first-class pipeline
-prover that APPLIES the axiom), while the deep induction is discharged offline in the
-cross-validated Rocq + Lean proofs. The divergence is filed for the future citation site
-(`_write_dir_entry` retirement) in getting-better/.
+PROVER NOTE (best-of-N dispatch): applying this axiom requires discharging its nested
+universal antecedent (`forall i. ... -> d0[off+i] = d1[off+i]`) from the caller's matching
+`forall i` hypothesis. Alt-Ergo does this in ~20 steps (Valid); Z3 (via the Why3 driver)
+does NOT fire the multi-decode trigger / discharge the inner universal here and returns
+Unknown — a genuine Alt-Ergo/Z3 divergence on the frame shape (NOT present for the
+single-conclusion round-trip 0708, which Z3 applies). This file is NO LONGER pinned to a
+prover: PyCSL now runs per-goal best-of-N dispatch (a goal is Valid iff ANY first-class
+prover proves it), so the default pipeline picks up Alt-Ergo's win on the residual goals Z3
+leaves Unknown. Per the extreme-rigor doctrine the divergence is a ROUTING condition (some
+sound prover APPLIES the axiom; the deep induction is discharged offline in the
+cross-validated Rocq + Lean proofs), now handled automatically. See
+getting-better/20260618-1710-field-to-str-frame-z3-cannot-apply-nested-forall-frame.md.
 
 Cross-validated by FieldToStrFrame.{v,lean} (theorem field_to_str_frame): `field_to_str` is
 the scan-to-first-null decode over an abstract byte-reader (the SAME concrete model as 0708's

@@ -4,6 +4,15 @@ DATE: 2026-06-18
 LOOP: test-supervise-sl (rung-1 `field_to_str_frame` landing)
 STATUS: CONFIRMED (measured, both provers, isolated probe)
 KIND: ergonomic / prover-divergence finding (affects the FUTURE `_write_dir_entry` citation)
+RESOLUTION: IMPLEMENTED 2026-06-18 — per-goal best-of-N prover dispatch landed in
+`src/pycsl/pycsl.py` (`_dispatch_provers`/`_merge_best_of_n`/`_verdict_rank`). The
+"Proposed ergonomic fix" below is now the shipping behaviour: each `-P` prover runs
+as its own `why3 prove` call and a goal is Valid iff ANY prover returns Valid
+(early-exit once all goals are Valid; single `-p <prover>` keeps the byte-identical
+legacy single-call path). `0714.py` now verifies SUCCESS under the DEFAULT pipeline
+with NO `# pycsl-flags: -p alt-ergo` pin (removed). Corpus emission byte-diff: 0/605
+(proving change only). The future `_write_dir_entry` citation site no longer needs an
+Alt-Ergo pin — the default pipeline picks up the Alt-Ergo win automatically.
 
 ## What landed (rung-1, this run)
 `field_to_str_frame` — the disjoint-region byte-locality frame for the `field_to_str`
