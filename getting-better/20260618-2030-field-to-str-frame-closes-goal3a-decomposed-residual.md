@@ -1,5 +1,21 @@
 # `_write_dir_entry` goal #3 — `field_to_str_frame` CLOSES goal (3a) + tames (3c); residual decomposed to ONE keystone-value-decode wall + a folded zero/insert maintenance lemma
 
+> **UPDATE 2026-06-18 (test-supervise-sl): `field_to_str_frame` is LANDED (rung-1 BANKED, in-tree, permanent).**
+> The `/tmp`-only cross-validation this doc described is now a permanent, re-verifiable
+> in-tree artifact: registry entry in `src/pycsl/module6_whyml/preamble.py`
+> (`_AXIOM_REGISTRY["UnixFs.Field.field_to_str_frame"]`, emission-gated, UNCITED) + exhibit
+> `test-suite/corpus/pycsl-reference/0714.py` + persisted proofs
+> `0714.proofs/{rocq/FieldToStrFrame.v, lean/FieldToStrFrame.lean}`. Gating reproduced:
+> full-corpus byte-diff **0 diffs** on the shared corpus (corpus-inert, emission-gating
+> sound); 0714 exhibit verifies SUCCESS; Rocq `Print Assumptions` = Section-Variables-only
+> (closed under the global context); Lean `#print axioms` = `[propext, Quot.sound]`.
+> NEW FINDING: Z3 cannot APPLY the nested-∀ frame antecedent (Alt-Ergo can, 20 steps) —
+> exhibit pinned `-p alt-ergo`; the future CITATION site (`_write_dir_entry`) must route to
+> Alt-Ergo too. Filed: getting-better/20260618-1710-field-to-str-frame-z3-cannot-apply-nested-forall-frame.md.
+> `\trusted` UNCHANGED at 7 (rung-1 is inert; this is NOT the retirement). The folded
+> `zero_preserves_dir_invariant` / `insert_preserves_dir_invariant` (byte rung folded) remains
+> the human-gated TCB decision for the actual de-trust.
+
 DATE: 2026-06-18
 LOOP: test-supervise-sl (residual goal #3 of `_write_dir_entry` / `_zero_entry`)
 STATUS: **NOT retired** (campaign `\trusted` stays 7; net delta 0). But goal **(3a) the
