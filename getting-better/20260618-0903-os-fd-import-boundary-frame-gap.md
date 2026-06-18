@@ -60,6 +60,63 @@ entry, `dup(open(p))` proves VALID with ZERO trust (sys_dup body de-trusted + fr
 no-ENFILE discharges from `_alloc_fd`'s completeness ensures; the propagated frame carries the
 free-slot fact across the prior `open`). So the frame half is done.
 
+## UPDATE 2026-06-18 (later) — the wall PRECISELY characterized at the WhyML level; SOUND mechanism scoped; still a GAP
+A squeeze run drove the de-trust pilot end to end and pinned the wall to its exact WhyML cause.
+
+**WHERE THE GOAL ACTUALLY REDS (two distinct sites, both real):**
+1. **BODY of `sys_dup`** (`--fun unixinodefilesystem__sys_dup`, trust removed): the single unproven goal is
+   `((oldfd<64) && (old fd_open[oldfd]=1)) -> result>=3` (the UNCONDITIONED no-ENFILE). This is
+   **literally false as a body theorem** — a full table of OTHER open fds makes `_alloc_fd` return -1, so
+   `result=-1`, not `>=3`. The body genuinely cannot prove it. The FREE-SLOT-CONDITIONED form
+   `(... and \exists k. 3<=k<64 and \old(fd_open[k])==0) ==> result>=3` proves with ZERO trust (verified).
+   So a sound de-trust REQUIRES rewriting the contract (body + `os.dup` wrapper) to the conditioned form.
+2. **Formal test `dup_of_valid_source_is_valid`** (after the conditioned rewrite): reds because the test
+   cannot establish the `\exists k. fd_open[k]==0` the conditioned `dup` val now demands.
+
+**THE ROOT CAUSE (newly pinned):** the module-global `_filesystem` is HAVOC'd at EVERY importer-function
+verification entry. PROOF: an `#@ assert \exists k. 3<=k<64 and _filesystem.fd_open[k]==0` placed at the
+VERY FIRST line of a formal-test function (before any syscall) FAILS. The `let _filesystem = {...all-free
+literal...}` is only the *initialization*; Why3 verifies each function with `_filesystem` in an ARBITRARY
+state (standard treatment of a shared mutable global — other functions could have mutated it). The no-`writes`
+murkiness on the import vals (Why3 warns "`_filesystem` is used under `old` but is not modified") is NOT the
+blocker — see the diagnostic below.
+
+**DIAGNOSTIC — the propagation half is DONE; only the entry state is missing:** with an explicit
+`requires \forall k. (3<=k<64) ==> _filesystem.fd_open[k]==0` (all-free at entry) ADDED to the test, the
+conditioned chain `dup(open(p))>=3` PROVES with ZERO trust, AND a `dup(dup(open(p)))` chain ALSO proves
+(the `open`/`dup` single-cell frames correctly carry occupancy from the all-free base — only the touched
+cells become 1). So `#@ propagate_frame` (the prior layer) + `_alloc_fd`'s completeness ensures are
+SUFFICIENT. The ENTIRE residual is: surface the all-free entry state SOUNDLY.
+
+**THE SOUNDNESS LINE (sharp):**
+- That `requires \forall k. fd_open[k]==0` is the FORBIDDEN blanket-false precondition: it lets the function
+  *assume* all-free, which is false in any composed context (after a sequence of opens). NOT a deliverable.
+- The SOUND surfacing must *establish* all-free BY CONSTRUCTION at the function entry (mirroring "a fresh
+  driver freshly imports os, so `_filesystem.__init__` ran and the table is all-free at entry"), never
+  *assume* it. The honest mechanism is a tool change that, for an internals-blind formal-test importer
+  function, RE-ESTABLISHES the module-global constructor post-state at the function body entry (e.g. a
+  `#@ fresh_globals` directive emitting `_filesystem`'s constructor literal / its all-free ensures at body
+  start, so all-free is a PROVEN fact at entry, not a precondition). Soundness rests on the fresh-import-
+  driver argument AND on these functions being independent entry-points never inter-called with the shared
+  pre-mutated global — the mechanism must be confined to that case (a formal-test importer driver), never a
+  general always-on assumption. Subtlety to guard: if surfaced as a blanket assumed fact on every importer
+  function and one such function were CALLED by another (passing the already-mutated global), the callee
+  would falsely assume all-free — UNSOUND. Confining the re-establishment to standalone driver entry avoids
+  this.
+- Also requires a constructor `#@ ensures` capturing the all-free initial state
+  (`\forall k. (0<=k<64) ==> self.fd_open[k]==0`), currently ABSENT on `UnixInodeFileSystem.__init__`, as
+  the fact the surfacing re-establishes.
+
+**VERDICT: STILL A LOGGED GAP (sound surfacing not yet built).** The de-trust was piloted (sys_dup body
+de-trusted + conditioned), the conditioned body proved zero-trust, the `os.dup` wrapper proved, but the
+formal test reds for want of the sound entry-state surfacing — and the only thing that closes it (a blanket
+all-free `requires`) is the forbidden unsound move. Per doctrine (no formal_os red, no unsound surface),
+EVERYTHING was REVERTED. os `\trusted` stays 8. The remaining work is a NEW tool mechanism
+(`#@ fresh_globals`-style constructor-post-state re-establishment at importer-driver entry) + the
+constructor all-free `#@ ensures` — high-blast-radius, human-gated. The frame infra + body-provable
+conditioned contract remain BANKED and ready: the day the entry state is surfaced soundly, the retirement
+lands with one rewrite.
+
 **THE REMAINING WALL (the new, distinct GAP):** the internals-blind formal test
 `dup_of_valid_source_is_valid` reasons about the module-global `_filesystem` HAVOC'd at function
 entry — PyCSL does not surface the constructor's ALL-FREE initial state as an importer-function
