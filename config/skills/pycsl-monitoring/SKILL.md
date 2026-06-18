@@ -147,6 +147,21 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
    (os-gate blind spot, reconfirmed): the `__init__` gate stays green when a callee
    precondition is added because it imports `sys_*` as trusted `val`s — green there does
    NOT mean a wrapper discharges the new precondition; ALWAYS run the public formal tests.
+12. **Building the allocator (A.11) is a MODEL-SOUNDNESS win but may not retire the trust —
+   the blocker can move to the import-boundary frame-ensures propagation.** os gained a
+   faithful `_alloc_fd` (verified, zero trust; first-free-slot scan + honest ENFILE),
+   `sys_open`/`sys_dup`/`sys_creat` routed through it, body gate 2047→2092, full suite
+   18/18, `__init__` 1159/0 — a genuine model upgrade (the monotonic `next_fd` counter,
+   which falsely read "full" after 61 opens, is retired). BUT bare `\trusted` stayed 8:
+   the honest free-slot-conditioned `\result>=3` is body-provable, yet the side-condition
+   "a free slot exists" cannot SURVIVE THE IMPORT BOUNDARY — each syscall `val` havocs the
+   whole `fd_open` array, and the propagation machinery
+   (`_build_method_field_param_frame_ensures_map` / `_dotted_ensures_suffix`) **drops
+   `\result`-referencing quantified single-cell frame ensures** (kept frames must be
+   quantifier-bearing, self-field+param, NO `\result`). So a faithful model fix can leave
+   a NAMED TOOL gap as the residual wall. Land the soundness win; log the tool-gap GAP;
+   never force a retirement that reds a gate/test. *(os fd-reuse allocator, 2026-06-18:
+   `getting-better/20260618-0903-os-fd-import-boundary-frame-gap.md`.)*
 
 ## B. Coherent-and-wrong catalog for formal tests (what the monitor hunts)
 
