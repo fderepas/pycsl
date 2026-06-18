@@ -12,8 +12,11 @@ reviewer-asserted, with **no machine proof**. They make the annotated function's
   `_dir_lookup`, `_dir_find_slot`, `_dir_find_free`, `_write_dir_entry`,
   `_write_entry`. They assume the concrete 16-slot block scan faithfully realizes the
   abstract `dir_lookup` / `slot_inode` / `slot_name` model.
-- **`fd-resolution-fidelity` ×2** — `_check_perm` and `sys_readlink` (the
-  no-ENFILE / resolution direction the model cannot currently derive).
+- **`fd-resolution-fidelity` ×2** — `sys_open` and `sys_dup` (the no-ENFILE / fd
+  allocation direction the model cannot currently derive). *(Corrected 2026-06-18: an
+  earlier draft of this line named `_check_perm`/`sys_readlink` — wrong; those carry
+  no `\trusted`. The real carriers are `sys_open` (line 1238) and `sys_dup` (2192).
+  See `20260617-2317-os-fd-resolution-fidelity-class4-wall.md`.)*
 
 (`__init__.py` only *references* these in a comment; the wrappers are `val`s with no
 `\trusted` directive of their own.)
