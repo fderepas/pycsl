@@ -772,14 +772,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _fpe = getattr(self, "_module_method_field_param_result_ensures", {}).get(lookup_key, [])
             _fppe = getattr(self, "_module_method_field_param_post_ensures", {}).get(lookup_key, [])
             _fpfe = getattr(self, "_module_method_field_param_frame_ensures", {}).get(lookup_key, [])
+            _rfe = getattr(self, "_module_method_result_frame_ensures", {}).get(lookup_key, [])
             _w = getattr(self, "_module_method_writes", {}).get(lookup_key, [])
             field_ens = _fe + _foe + _fpe + _fppe
-            if (field_ens or _w or _fpfe) and cls:
+            if (field_ens or _w or _fpfe or _rfe) and cls:
                 # `self.<m>()` called from a sibling method: the enclosing
                 # method's own `self` is the receiver, typed as the class. The 5th slot
                 # carries the OPT-IN quantified frame ensures (M4), lowered separately with
                 # the Call-trigger so only they get a trigger (non-frame ensures stay bare).
-                field_spec = ("self", cls, field_ens, _w, _fpfe)
+                # The 6th slot carries the OPT-IN `\result`-referencing single-cell frame
+                # (fd-import-boundary), lowered with `\result` bound to the val's `result`.
+                field_spec = ("self", cls, field_ens, _w, _fpfe, _rfe)
         else:
             # `<recordvar>.method(...)` — resolve the receiver's class so the
             # callee's result-only `ensures` propagates to this call site,
@@ -812,15 +815,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     fpens = getattr(self, "_module_method_field_param_result_ensures", {})
                     fppens = getattr(self, "_module_method_field_param_post_ensures", {})
                     fpfens = getattr(self, "_module_method_field_param_frame_ensures", {})
+                    rfens = getattr(self, "_module_method_result_frame_ensures", {})
                     mwrites = getattr(self, "_module_method_writes", {})
                     field_ens = (fens.get(lookup_key, []) + foens.get(lookup_key, [])
                                  + fpens.get(lookup_key, []) + fppens.get(lookup_key, []))
                     writes = mwrites.get(lookup_key, [])
                     frame_ens = fpfens.get(lookup_key, [])
-                    if field_ens or writes or frame_ens:
+                    result_frame_ens = rfens.get(lookup_key, [])
+                    if field_ens or writes or frame_ens or result_frame_ens:
                         # `b.<m>()`: the receiver record `b` becomes the abstract op's leading
                         # `(self: cls)` parameter; `writes` frames the mutated self-fields.
-                        field_spec = (parts[0], cls, field_ens, writes, frame_ens)
+                        field_spec = (parts[0], cls, field_ens, writes, frame_ens,
+                                      result_frame_ens)
                     matched_instance = True
             if not matched_instance:
                 # Bytes-producing methods return `array int` (a byte buffer),
@@ -1037,7 +1043,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         field_ensures = field_spec[2] if field_spec is not None else []
         frame_ensures = (field_spec[4] if field_spec is not None and len(field_spec) > 4
                          else [])
-        if not result_ensures and not field_ensures and not frame_ensures:
+        result_frame_ensures = (field_spec[5] if field_spec is not None and len(field_spec) > 5
+                                else [])
+        if (not result_ensures and not field_ensures and not frame_ensures
+                and not result_frame_ensures):
             return ""
         _prev_spec = self._in_spec
         _prev_params = self._current_params
@@ -1053,7 +1062,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         for e in result_ensures:
             w = self._expr_to_whyml(e, set(), invariant_ctx=True)
             ensures_suffix += f"\n    ensures {{ {w} }}"
-        if field_ensures or frame_ensures:
+        if field_ensures or frame_ensures or result_frame_ensures:
             _prev_self = self._current_self_type
             self._current_self_type = field_spec[1]   # receiver class
             for e in field_ensures:
@@ -1062,10 +1071,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # M4: the OPT-IN quantified frame ensures — lowered with `_frame_trigger_active`
             # so the Forall handler pins a specific Call-trigger (`[slot_inode self.disk x0 k]`);
             # only these clauses get a trigger, so the others stay byte-identical.
-            if frame_ensures:
+            if frame_ensures or result_frame_ensures:
                 _prev_ft = self._frame_trigger_active
                 self._frame_trigger_active = True
                 for e in frame_ensures:
+                    w = self._expr_to_whyml(e, set())
+                    ensures_suffix += f"\n    ensures {{ {w} }}"
+                # fd-import-boundary: the `\result`-referencing single-cell frame. `\result`
+                # lowers to the val's `result` keyword (its return value = the call result),
+                # so binding is automatic. A self-field Subscript post-state term carries no
+                # Call-trigger (the Forall handler only pins Call triggers), so Why3 auto-
+                # triggers the single-cell frame — sound for the per-cell fd_open frame.
+                for e in result_frame_ensures:
                     w = self._expr_to_whyml(e, set())
                     ensures_suffix += f"\n    ensures {{ {w} }}"
                 self._frame_trigger_active = _prev_ft

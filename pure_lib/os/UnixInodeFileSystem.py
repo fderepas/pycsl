@@ -1293,6 +1293,14 @@ class UnixInodeFileSystem:
     # `self.fd_offset[fd] = 0`). The content round-trip needs this so a subsequent
     # write sees `\old(fd_offset) == 0` and its single-block content ensures fires.
     #@ ensures \result >= 3 ==> self.fd_offset[\result] == 0
+    # fd-import-boundary FRAME: sys_open touches AT MOST the returned slot of self.fd_open
+    # (the body allocates via _alloc_fd, which sets fd_open[fd]=1 and frames every other cell;
+    # the subsequent writes hit fd_inode/fd_offset/fd_flags/fd_block, NOT fd_open). So every
+    # OTHER fd_open cell is preserved. Propagated across the import boundary (`#@ propagate_frame`)
+    # so a caller can prove "the table is not full" survives a prior open — the honest free-slot
+    # side-condition a subsequent dup/open's _alloc_fd needs. Body-faithful single-cell frame.
+    #@ ensures \forall k: int; (0 <= k and k < 64 and k != \result) ==> self.fd_open[k] == \old(self.fd_open[k])
+    #@ propagate_frame
     #@ \trusted reviewer: fd-resolution-fidelity
     #@ no_inline
     def sys_open(self, pathname: str, flags: int) -> int:
@@ -2248,24 +2256,32 @@ class UnixInodeFileSystem:
     # so a caller that established `fd_open[oldfd]==1` BEFORE the call must see it
     # honoured against that pre-state value (the post-state cell is framed away by the
     # opaque writes).
-    # no-ENFILE (UNCONDITIONED): an open source ALWAYS dups to a valid fd. This is
-    # the form the os.__init__ `dup` wrapper + the public formal tests
-    # (formal_os_fd/fdchain `dup_of_valid_source_is_valid`) consume. The body now
-    # allocates the new fd through the FAITHFUL `_alloc_fd` (first-free-slot reuse +
-    # honest ENFILE), so dup's success direction is genuinely first-free semantics —
-    # but the "a free slot exists" side-condition the honest no-ENFILE needs is NOT
-    # establishable through the public API: each syscall's import-boundary `val`
-    # HAVOCS the whole _filesystem.fd_open array (only the returned slot's cell is
-    # pinned), so "the table is not full" does not survive across a prior open even
-    # though the constructor starts it all-free. Propagating the single-cell fd_open
-    # FRAME would close this, but the method-call/import-boundary contract gap drops
-    # quantified `\result`-referencing frame ensures (see _dotted_ensures_suffix /
-    # _build_method_field_param_frame_ensures_map: kept frames must be quantifier-
-    # bearing, self-field+param, NO `\result`). So the unconditioned no-ENFILE remains
-    # a HUMAN-REVIEWED model-fidelity claim (this 64-slot model is sized so an open
-    # source has a free slot to dup into) — the documented residual GAP. Retiring this
-    # trust reds the __init__ gate (1159->1158) and the dup formal tests.
+    # no-ENFILE: an open source dups to a valid fd. The FREE-SLOT-CONDITIONED form
+    # (`... and (\exists k. 3<=k<64 and \old(fd_open[k])==0) ==> \result>=3`) IS now
+    # BODY-PROVEN with ZERO trust (the body routes allocation through `_alloc_fd`, whose
+    # completeness ensures discharges it) and the single-cell `fd_open` FRAME below now
+    # PROPAGATES the free-slot fact across the import boundary (validated: a caller that
+    # establishes the all-free start proves dup(open(p)) valid zero-trust — see
+    # getting-better/...-fd-import-boundary-frame-gap.md probe). The UNCONDITIONED form
+    # kept here (consumed by the os.dup wrapper + internals-blind formal tests) drops the
+    # `\exists` free-slot hypothesis — that hypothesis is establishable for a composed
+    # caller ONLY if the module-global `_filesystem`'s constructor ALL-FREE initial state is
+    # surfaced at the importer-test entry, which PyCSL does not yet do (each importer
+    # function reasons about `_filesystem` havoc'd at entry; assuming all-free blanket is
+    # UNSOUND across a sequence of API calls). So the unconditioned no-ENFILE remains a
+    # HUMAN-REVIEWED model-fidelity claim (this 64-slot model is sized so an open source has
+    # a free slot) — the residual GAP is now the GLOBAL-INITIAL-STATE modeling, NOT the
+    # frame propagation (which this task SOLVED). Retiring this trust still reds the dup
+    # formal test until the global-init state is surfaced.
     #@ ensures (oldfd < 64 and \old(self.fd_open[oldfd]) == 1) ==> \result >= 3
+    # fd-import-boundary FRAME (THIS TASK): sys_dup touches AT MOST the returned slot of
+    # self.fd_open (the body allocates via _alloc_fd, which sets fd_open[newfd]=1 and frames
+    # every other cell; the subsequent writes hit fd_inode/fd_offset/fd_flags[newfd], NOT
+    # fd_open). So every OTHER fd_open cell is preserved. Propagated across the import boundary
+    # (`#@ propagate_frame`) so a caller can prove "the table is not full" survives a prior
+    # open/dup. Body-faithful single-cell frame — the SOUND lowering this task added.
+    #@ ensures \forall k: int; (0 <= k and k < 64 and k != \result) ==> self.fd_open[k] == \old(self.fd_open[k])
+    #@ propagate_frame
     #@ \trusted reviewer: fd-resolution-fidelity
     #@ no_inline
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/dup.html

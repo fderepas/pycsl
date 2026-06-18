@@ -509,6 +509,26 @@ guarantee on the post-state. Decoupled from `no_inline` (it does not change whet
 the body is inlined into wrappers). Sound: a concrete call to a verified `let` is the
 method's real semantics — it adds no trust. See translational §T.2.7s.
 
+#### §2.1.6f Propagate frame (`propagate_frame`)
+
+```
+   ──────────────────────────────
+    Γ_f ⊢ propagate_frame : ok
+```
+
+**Rule:** Always well-formed (no expression to check). Presence is a flag on the
+function AST node (`csl_propagate_frame = True`) carried into the function IR
+(`"propagate_frame": True`). It is **opt-in** and affects only how THIS method's
+QUANTIFIED single-cell self-field FRAME `ensures` are carried onto its abstract
+boundary `val` (os-roadmap M4). Without it, `#@ assigns self.f` frames the whole field
+`self.f` and a caller sees it havoced (only a result-pinned cell survives). With it,
+the method's frame clauses of the shape `\forall k. guard -> self.f[k] == \old(self.f[k])`
+are emitted onto the boundary `val`, so a caller can prove every *other* cell preserved.
+Two frame shapes qualify: param-referencing frames and `\result`-referencing single-cell
+frames (`\forall k != \result. self.f[k] == \old(self.f[k])`). Sound: the propagated
+`\forall` is the SAME frame the callee's body verifies (a true frame of the body), never
+a fabricated or broadened one — it adds no trust. See translational §T.2.7f.
+
 #### §2.1.7 Trusted (`\trusted [reviewer: <REVIEWER_ID>]`)
 
 ```

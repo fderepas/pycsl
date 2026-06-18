@@ -152,8 +152,10 @@ def close(fd):
 # dup SHARED-OPEN-FILE-DESCRIPTION view composes through the public API:
 #   - VALIDITY-GIVEN-VALID-SOURCE: a valid open source fd dups to a valid fd (>= 3),
 #     so a caller's dup(open(p)) is valid (the gap-14 §5 validity consequence). This
-#     rests on sys_dup's interim `\trusted fd-resolution-fidelity` (the no-ENFILE
-#     direction the model can't yet derive).
+#     rests on sys_dup's interim `\trusted fd-resolution-fidelity` (the unconditioned
+#     no-ENFILE direction the model can't yet derive for an internals-blind caller —
+#     blocked on surfacing the `_filesystem` global's all-free init state at test entry,
+#     NOT on frame propagation, which this task SOLVED).
 #   - SHARED INODE: the duped fd resolves to the SAME inode as the source —
 #     `_filesystem.fd_inode[\result] == _filesystem.fd_inode[fd]` — so dup and the
 #     source share one open-file-description (the inode the source resolves to).
@@ -342,6 +344,11 @@ def unlink(filepath: str, *, dir_fd=None):
 # M6 gap-17: a freshly opened fd starts at offset 0 — propagated so write() sees
 # \old(fd_offset)==0 and its single-block content ensures fires (content round-trip).
 #@ ensures \result >= 3 ==> _filesystem.fd_offset[\result] == 0
+# fd-import-boundary FRAME: open touches AT MOST the returned slot of _filesystem.fd_open
+# (sys_open's propagated single-cell frame). Carried to the public API so a caller can
+# prove "the table is not full" survives a prior open — the free-slot side-condition a
+# subsequent dup/open needs. Discharges directly from sys_open's identical boundary frame.
+#@ ensures \forall k: int; (0 <= k and k < 64 and k != \result) ==> _filesystem.fd_open[k] == \old(_filesystem.fd_open[k])
 def open(filepath: str, flags, mode=0o777, *, dir_fd=None):
     """Open a file. Returns a file descriptor."""
     # gap-14: sys_open carries the fd-RESOLUTION + ENOENT discriminant tied to the

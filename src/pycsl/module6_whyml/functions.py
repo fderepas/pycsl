@@ -1309,6 +1309,112 @@ class FunctionEmissionMixin:
                 out[func["name"]] = kept
         return out
 
+    def _build_method_result_frame_ensures_map(
+            self, functions: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
+        """Map method name → its QUANTIFIED self-field SINGLE-CELL FRAME `ensures` that
+        REFERENCES `\\result` (`\\forall k. (… and k != \\result) -> self.f[k] == \\old(self.f[k])`),
+        params renamed to `x_i` — but ONLY for methods that OPTED IN with `#@ propagate_frame`.
+
+        This is the `\\result`-referencing TWIN of `_build_method_field_param_frame_ensures_map`
+        (which deliberately DROPS `\\result`-bearing frames — see its `not saw(e, "result")`). The
+        os fd-allocating syscalls (`sys_open`/`sys_dup`) touch AT MOST the returned slot of
+        `self.fd_open`; the frame `\\forall k != \\result. fd_open[k] == \\old(fd_open[k])` lets a
+        caller (the os `__init__` wrapper / a composed test) prove "the table is not full" survives
+        a prior `open` — the honest free-slot side-condition `_alloc_fd` discharges. WITHOUT this
+        the boundary `val` havocs the whole `fd_open` array (only the returned cell is pinned).
+
+        BINDING: at the call site this is lowered inside the abstract `val ... : ty ensures { … }`
+        where `\\result` lowers to Why3's `result` keyword — which IS the val's return value (the
+        call result). So no explicit `\\result`→result-var substitution is needed; the existing
+        lowering binds it correctly. The frame is a SOUND lowering of the leaf's real ensures (it
+        is literally the same `\\forall` clause the body verifies), not a fabricated/over-broad one.
+
+        Kept clauses must: reference a self-field, contain a quantifier, AND reference `\\result`;
+        and (soundness) contain no local / non-self object / `\\old` of a non-self term. Restricted
+        to `propagate_frame` opt-in so it fires ONLY for the marked fd allocators, never broadly."""
+        def classify(node: Any, params: Set[str], bound: Set[str]) -> Optional[bool]:
+            if not isinstance(node, dict):
+                return None
+            t = node.get("type")
+            # `\result` IS permitted here (the whole point of this map).
+            if t == "Result":
+                return None
+            if t in ("FieldGet", "Attribute", "OldField"):
+                return False if node.get("object") != "self" else None
+            if t == "OldVar":
+                return False
+            if t == "Subscript":
+                _v = node.get("value", {})
+                if isinstance(_v, dict) and _v.get("type") == "Var":
+                    return False
+            if t == "Var":
+                n = node.get("name")
+                return None if (n in params or n in bound) else False
+            if t == "ArrayLen":
+                v = node.get("var")
+                if isinstance(v, dict):
+                    return None if v.get("object") == "self" else False
+                return None if (v == "self" or v in params or v in bound) else False
+            if t in ("Forall", "Exists", "ForallItems"):
+                bv = node.get("var")
+                if bv:
+                    bound = bound | {bv}
+            for k, val in node.items():
+                if k in ("var", "binder_type", "type"):
+                    continue
+                for c in (val if isinstance(val, list) else [val]):
+                    if classify(c, params, bound) is False:
+                        return False
+            return None
+
+        def saw(node: Any, kind: str) -> bool:
+            if not isinstance(node, dict):
+                return False
+            t = node.get("type")
+            if kind == "field" and t in ("FieldGet", "Attribute", "OldField") \
+                    and node.get("object") == "self":
+                return True
+            if kind == "forall" and t in ("Forall", "Exists", "ForallItems"):
+                return True
+            if kind == "result" and (t == "Result"
+                                     or (t == "ArrayLen" and node.get("var") == "\\result")):
+                return True
+            return any(saw(c, kind) for val in node.values()
+                       for c in (val if isinstance(val, list) else [val]))
+
+        def rename(node: Any, pmap: Dict[str, str]) -> Any:
+            if not isinstance(node, dict):
+                return node
+            if node.get("type") == "Var" and node.get("name") in pmap:
+                return {"type": "Var", "name": pmap[node["name"]]}
+            new: Dict[str, Any] = {}
+            for k, v in node.items():
+                if k == "var" and node.get("type") == "ArrayLen" and v in pmap:
+                    new[k] = pmap[v]
+                elif isinstance(v, list):
+                    new[k] = [rename(c, pmap) if isinstance(c, dict) else c for c in v]
+                elif isinstance(v, dict):
+                    new[k] = rename(v, pmap)
+                else:
+                    new[k] = v
+            return new
+
+        out: Dict[str, List[Dict[str, Any]]] = {}
+        for func in functions:
+            if not func.get("propagate_frame"):
+                continue
+            params = func.get("formal_params", []) or []
+            pset = set(params)
+            pmap = {p: f"x{i}" for i, p in enumerate(params)}
+            kept = []
+            for e in (func.get("contracts", {}).get("ensures", []) or []):
+                if (classify(e, pset, set()) is not False
+                        and saw(e, "field") and saw(e, "forall") and saw(e, "result")):
+                    kept.append(rename(e, pmap))
+            if kept:
+                out[func["name"]] = kept
+        return out
+
     @staticmethod
     def _symtype_to_whyml(symtype: Optional[str]) -> str:
         """Convert a Module5 symbol-table type tag to the WhyML type used

@@ -162,6 +162,21 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
    a NAMED TOOL gap as the residual wall. Land the soundness win; log the tool-gap GAP;
    never force a retirement that reds a gate/test. *(os fd-reuse allocator, 2026-06-18:
    `getting-better/20260618-0903-os-fd-import-boundary-frame-gap.md`.)*
+13. **The import-boundary `\result`-frame propagation gap (A.12) is now SOLVED — and the
+   wall moved ONE deeper to module-global-initial-state.** A new
+   `_build_method_result_frame_ensures_map` (twin of the param-frame map; opt-in via
+   `#@ propagate_frame`) carries `\result`-referencing single-cell self-field frames across
+   the method-call/import boundary. Key fact: inside the abstract `val`, `\result` lowers to
+   Why3's `result` keyword automatically — no substitution needed. **Corpus-inert** (byte-diff
+   0/603 — only os emits it). With it, `sys_dup`'s free-slot-conditioned no-ENFILE is
+   body-provable AND the free-slot fact survives a prior `open`. BUT the retirement STILL
+   doesn't land (`\trusted` 8): the internals-blind `dup_of_valid_source_is_valid` needs the
+   module-global `_filesystem` CONSTRUCTOR initial state (all fds free) at importer-function
+   entry — PyCSL HAVOCS the global at entry, and assuming it blanket is UNSOUND across an
+   API-call sequence. So the residual wall is now **module-global-init surfacing** (a
+   fresh-instance / per-test constructor-invariant mechanism), not frame propagation. The
+   sound frame is banked; the retirement lands once global-init is surfaced. *(os fd
+   import-boundary frame fix, 2026-06-18; the UPDATE section of the same gap doc.)*
 
 ## B. Coherent-and-wrong catalog for formal tests (what the monitor hunts)
 

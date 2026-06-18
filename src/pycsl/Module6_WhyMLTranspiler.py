@@ -561,6 +561,14 @@ class Module6_WhyMLTranspiler(
             self._build_method_field_param_post_ensures_map(funcs_for_maps)
         self._module_method_field_param_frame_ensures = \
             self._build_method_field_param_frame_ensures_map(funcs_for_maps)
+        # fd-import-boundary: the `\result`-referencing single-cell quantified self-field
+        # FRAME (`\forall k != \result. fd_open[k] == \old(fd_open[k])`), opt-in via
+        # `#@ propagate_frame`. The map above DROPS `\result`-frames; this one keeps exactly
+        # those, so the os fd allocators' single-cell frame survives the import boundary (the
+        # "table not full" side-condition the honest no-ENFILE needs). `\result` lowers to the
+        # val's `result` keyword at the call site, so no explicit substitution is required.
+        self._module_method_result_frame_ensures = \
+            self._build_method_result_frame_ensures_map(funcs_for_maps)
         # The pseudo-funcs have empty bodies, so the return-type map derives `unit`
         # for a scalar dependency; override with the type from the declared signature
         # so `self.<dep>(…)` is a `: int` (etc.) call, not `: unit`.
