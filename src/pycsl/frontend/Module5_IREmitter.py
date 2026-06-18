@@ -1563,6 +1563,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             field_witness = {f["name"]: field_defaults.get(f["name"], 0) for f in fields}
             constants = self._collect_class_constants(node, {f["name"] for f in fields})
             init_params, init_body = self._collect_init_construction(node)
+            init_ensures = self._collect_init_ensures(node)
             self.program_ir["type_decls"].append({
                 "kind": "record", "name": node.name, "fields": fields,
                 "class_invariants": class_invariants_ir, "field_defaults": field_witness,
@@ -1570,6 +1571,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 "is_unhashable": has_eq and not has_hash,
                 "constants": constants, "bases": bases,
                 "init_params": init_params, "init_body": init_body,
+                "init_ensures": init_ensures,
                 "is_mixin": is_mixin, "compose_from": compose_from,
             })
         self.generic_visit(node)
@@ -1870,6 +1872,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             "no_inline": getattr(node, 'csl_no_inline', False),
             "sibling_concrete": getattr(node, 'csl_sibling_concrete', False),
             "propagate_frame": getattr(node, 'csl_propagate_frame', False),
+            "fresh_globals": getattr(node, 'csl_fresh_globals', False),
             "trusted": getattr(node, 'csl_trusted', False),
             "abstract": getattr(node, 'csl_abstract', False),
             # 07-1143 R4: `#@ \preserves` opt-in (HAPPY trust boundary), surfaced in the

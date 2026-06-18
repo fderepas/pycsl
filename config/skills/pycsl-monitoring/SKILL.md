@@ -197,6 +197,21 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
    theorem is the free-slot-CONDITIONED form; the unconditioned form is honest only behind a
    trust or a soundly-surfaced entry fact. *(os fd-resolution-fidelity, 2026-06-18:
    `getting-better/20260618-0903-os-fd-import-boundary-frame-gap.md`.)*
+   **RESOLVED (2026-06-18, `\trusted` 8→7):** built `#@ fresh_globals` — an opt-in,
+   Module4-CONFINED directive that re-establishes a module-global singleton's constructor
+   post-state at a standalone driver's entry, sound BY CONSTRUCTION (the assume is the
+   constructor's PROVEN `#@ ensures`, re-checked against the literal initializer; Module4
+   rejects the directive on methods + callees where it'd be unsound — `PYCSL-SEM-FRESH-GLOBALS`).
+   `sys_dup`'s `fd-resolution-fidelity` RETIRED: body+wrapper rewritten to the free-slot-
+   CONDITIONED form, `dup_of_valid_source_is_valid` marked `#@ fresh_globals`; body proves
+   zero-trust, full suite 18/18, corpus byte-diff 0 (directive corpus-inert), os body 2135 /
+   `__init__` 1182. The retirement is SOUND (a false body theorem replaced by a conditioned
+   one + a confined proof-backed entry fact), NOT trust relocation. **Still GAP — `sys_open`'s
+   `fd-resolution-fidelity`** is a DISTINCT wall: de-trusting leaves 11 unproven goals
+   (the `dir_lookup` resolution `<==>` + fd→inode binding non-derivable across the `no_inline`
+   opaque name-scan — the dirscan-fidelity class, NOT global-init); needs the dir_lookup
+   correspondence folded into a cross-validated predicate (the `block_content_eq` pattern).
+   *(`#@ fresh_globals` milestone, 2026-06-18; the first os trust retirement.)*
 
 ## B. Coherent-and-wrong catalog for formal tests (what the monitor hunts)
 

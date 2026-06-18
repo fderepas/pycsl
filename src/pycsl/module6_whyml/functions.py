@@ -630,6 +630,17 @@ class FunctionEmissionMixin:
             return lines
 
         lines.append("  =")
+        # fresh-globals.md: `#@ fresh_globals` re-establishes each module-global
+        # singleton's CONSTRUCTOR post-state (the `#@ ensures`, `self` -> the global)
+        # as an ASSUMED fact at this confined standalone driver's entry — the SOUND
+        # surfacing of "a freshly-imported global ran its constructor". The SAME facts
+        # are CHECKED of the global's literal initializer by `_emit_module_globals`
+        # (`goal <g>_fresh_init_*`), so the assume is proof-backed, not blind. Module4
+        # confines the directive to non-callee top-level drivers (soundness).
+        if func.get("fresh_globals"):
+            for fact in self._fresh_globals_facts():
+                if fact and fact != "true":
+                    lines.append(f"    assume {{ {fact} }};")
         lines.append(self._emit_body_code(func, body_stmts, local_refs, ghost_vars,
                                           ref_params, is_method, return_type))
         # b-spec §4 (P2): in the owning unit (real `let`), prove the interface is a sound weakening

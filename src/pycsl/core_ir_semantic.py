@@ -66,6 +66,78 @@ def run_ir_semantic_checks(ir: Any, *, stage: str = "ir-semantic") -> None:
     _check_mutex_invariants(ir)
     _check_class_invariants(ir)
     _check_concurrency(ir)
+    _check_fresh_globals(ir, stage)
+
+
+def _collect_call_targets(node: Any, acc: set) -> None:
+    """Collect the bare/dotted callee name of every ``Call`` IR node reachable
+    from ``node`` (the ``func`` slot, both ``f(...)`` and ``x.m(...)`` shapes)."""
+    if isinstance(node, dict):
+        if node.get("type") == "Call":
+            f = node.get("func")
+            if isinstance(f, str):
+                acc.add(f)
+                acc.add(f.rsplit(".", 1)[-1])
+        for v in node.values():
+            _collect_call_targets(v, acc)
+    elif isinstance(node, list):
+        for v in node:
+            _collect_call_targets(v, acc)
+
+
+def _check_fresh_globals(ir: Any, stage: str) -> None:
+    """fresh-globals.md — SOUNDNESS CONFINEMENT for ``#@ fresh_globals``.
+
+    ``#@ fresh_globals`` re-establishes each module-global singleton's CONSTRUCTOR
+    post-state as an ASSUMED fact at the function's body entry. That is sound ONLY for
+    a STANDALONE entry point that runs on a freshly-imported global (import ran the
+    constructor) and is NEVER entered with a pre-mutated global. So the directive is
+    confined to a top-level formal-test DRIVER that:
+
+      (1) is NOT a method (``self``-receiver) — a method runs on an arbitrary live
+          ``self`` / shared global, NOT a fresh construction; and
+      (2) is NOT called by any other function in the unit — a callee inherits its
+          caller's (possibly already-mutated) global, so assuming the fresh state
+          would be UNSOUND.
+
+    Either violation is a hard error: an unsound surfacing is worse than a missed
+    proof. (A library function that another module imports and calls would also be
+    rejected by (2) once that call is in scope; a top-level driver that nothing calls
+    is the only admissible site.)"""
+    funcs = ir.get("functions", []) or []
+    fresh = [f for f in funcs if f.get("fresh_globals")]
+    if not fresh:
+        return
+    # Union of every call target across ALL function bodies (so a `fresh_globals`
+    # function that is invoked anywhere is caught).
+    call_targets: set = set()
+    for f in funcs:
+        _collect_call_targets(f.get("body", []), call_targets)
+    for f in fresh:
+        name = f.get("name", "<anonymous>")
+        short = name.rsplit("__", 1)[-1]
+        where = f"function '{name}' (line {f.get('line', 0)})"
+        if f.get("kind") == "method":
+            raise PyCSLSemanticError(
+                f"{where}: `#@ fresh_globals` is not allowed on a method. It "
+                f"re-establishes the module-global constructor post-state as an "
+                f"assumed entry fact, which is sound only for a standalone driver "
+                f"that runs on a freshly-imported global — a method runs on an "
+                f"arbitrary live `self`/shared global, so assuming the fresh state "
+                f"would be unsound. See config/skills/pycsl-stdlib-coverage (fresh_globals).",
+                stage=stage,
+                code="PYCSL-SEM-FRESH-GLOBALS",
+            )
+        if name in call_targets or short in call_targets:
+            raise PyCSLSemanticError(
+                f"{where}: `#@ fresh_globals` is only allowed on a top-level driver "
+                f"that no other verified function calls. '{short}' is called "
+                f"elsewhere; a callee inherits its caller's (possibly already-mutated) "
+                f"global, so re-establishing the fresh constructor state at its entry "
+                f"would be unsound. Remove the call, or drop `#@ fresh_globals`.",
+                stage=stage,
+                code="PYCSL-SEM-FRESH-GLOBALS",
+            )
 
 
 def _check_span(func: Any, stage: str) -> None:

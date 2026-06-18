@@ -663,6 +663,50 @@ need *and* can absorb the frame". **Soundness:** the propagated `\forall` is the
 frame the callee's body verifies (a true frame of the body), never a fabricated or
 broadened one — it adds nothing to the TCB. Default off → byte-identical.
 
+### §T.2.7g  Fresh-globals Drivers (`fresh_globals`)
+
+A top-level driver marked `#@ fresh_globals` (fresh-globals.md) **opts in** to
+re-establishing each module-global singleton's CONSTRUCTOR post-state as an ASSUMED
+fact at its body entry. Why3 verifies every importer function with each shared mutable
+module-global in an ARBITRARY state (other functions could have mutated it), so an
+internals-blind driver cannot otherwise establish the freshly-imported initial state
+(e.g. the os `_filesystem` fd table being all-free at entry). For a marked driver,
+Module6 (`functions._emit_function`) emits, as the FIRST body statement, an `assume`
+of each global's constructor `#@ ensures` with `self` rewritten to the global name
+(`preamble._fresh_globals_facts` / `_subst_self_in_expr`):
+
+```whyml
+  let dup_of_valid_source_is_valid (p: string) : int
+    requires { true }
+    ensures  { result = 1 }
+  =
+    assume { forall k. 0 <= k < 64 -> _filesystem.fd_open[k] = 0 };   (* fresh_globals *)
+    try ... with Return r -> r end
+```
+
+The assumed fact is **proof-backed**, not an arbitrary literal: for each global whose
+class declares a constructor `#@ ensures`, `preamble._emit_module_globals` ALSO emits a
+checked function that re-constructs the same constructor literal and carries the ensures
+as its postcondition, so Why3 PROVES the post-state holds of the freshly constructed
+global (the `Array.make 64 0` witness):
+
+```whyml
+  let _filesystem_fresh_init () : unixinodefilesystem
+    ensures { forall k. 0 <= k < 64 -> result.fd_open[k] = 0 }
+  = { disk = Array.make 131072 0; ...; fd_open = Array.make 64 0; ... }
+```
+
+The same `_fresh_globals_facts` lowering feeds both the checked goal (`self` → `result`)
+and the driver `assume` (`self` → the global), so the assumed fact is exactly the proven
+one. **Soundness / confinement:** Module4 (`core_ir_semantic._check_fresh_globals`)
+REJECTS the directive on a method or on any callee (§2.1.6g) — it is sound only for an
+independent entry point that runs on a freshly-imported global. This RETIRES the os
+`fd-resolution-fidelity` no-ENFILE reviewer trust: with the free-slot side-condition
+established at the driver entry (and carried across a prior `open`/`dup` by the
+`propagate_frame` single-cell frame, §T.2.7f), the honest free-slot-CONDITIONED dup body
+theorem (zero-trust, via `_alloc_fd`'s completeness) proves the formal test — replacing
+the FALSE unconditioned `\result>=3` body theorem the trust used to assume.
+
 ### §T.2.8  Exception-Raising Functions (`raises`)
 
 $$\mathcal{T}_f\llbracket \texttt{\#@ raises E when cond} \rrbracket

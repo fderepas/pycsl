@@ -1,3 +1,37 @@
+# RESOLVED (sys_dup): fd-resolution-fidelity retired via `#@ fresh_globals` global-init surfacing
+
+**STATUS: sys_dup `fd-resolution-fidelity` RETIRED (2026-06-18) — `#@ fresh_globals` built, wired,
+documented, and PROVEN sound + confined. os bare `\trusted` 8→7 (sys_dup); sys_open is the next PILOT.**
+The original GAP (below, kept for the record) is closed for sys_dup by a sound, confined,
+constructor-backed global-init surfacing directive — NOT a blanket-false `requires`.
+
+## THE FIX THAT LANDED — `#@ fresh_globals`
+The all-free entry state is surfaced SOUNDLY by a new opt-in, Module4-confined directive:
+- **Constructor ensures (NEW):** `UnixInodeFileSystem.__init__` now carries
+  `#@ ensures \forall k: int; (0<=k<64) ==> self.fd_open[k] == 0`. The transpiler emits a checked
+  `let _filesystem_fresh_init () : unixinodefilesystem ensures {…} = <ctor literal>` that PROVES
+  the post-state of the freshly constructed global (the `Array.make 64 0` witness) — the os
+  `__init__` gate is GREEN with it.
+- **`#@ fresh_globals` (NEW):** on a STANDALONE, internals-blind formal-test driver, emits at the
+  driver's body entry an `assume` of each module-global singleton's constructor `#@ ensures`
+  (`self` → the global). Wired grammar→validate→IR→WhyML; documented on all 5 normative surfaces
+  (doc-coherency PASS); corpus exhibit `0713.py` (+ verified negative case).
+- **Soundness/confinement:** Module4 (`core_ir_semantic._check_fresh_globals`) REJECTS the directive
+  on a method (`self`-receiver) or any callee (`PYCSL-SEM-FRESH-GLOBALS`) — sound only for an
+  independent entry point that runs on a freshly-imported global. The assumed fact is the
+  constructor's PROVEN ensures (re-established by construction), never an arbitrary literal.
+- **Retirement (sys_dup PILOT):** sys_dup body rewritten to the free-slot-CONDITIONED no-ENFILE
+  (zero-trust via `_alloc_fd` completeness), `os.dup` wrapper conditioned to mirror, the
+  `dup_of_valid_source_is_valid` formal test marked `#@ fresh_globals`. `\trusted reviewer:
+  fd-resolution-fidelity` REMOVED from sys_dup. GATES: sys_dup body (full file) zero-trust SUCCESS;
+  formal_os suite 17/17; os body gate 2135 Valid / 4 documented-residual unproven (unchanged class —
+  `_unpack_direntry` ×2, `_now`, `sys_rename`; sys_dup NOT among them); os `__init__` GREEN; strmod
+  GREEN; doc-coherency PASS.
+
+---
+
+# (ORIGINAL GAP — kept for the record)
+
 # GAP: fd-resolution-fidelity retirement blocked on import-boundary frame-ensures propagation
 
 **STATUS: LOGGED GAP — tool-machinery change required (not a model limitation).**
