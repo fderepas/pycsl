@@ -1,0 +1,1030 @@
+diff --git a/pure_lib/os/UnixInodeFileSystem.py b/pure_lib/os/UnixInodeFileSystem.py
+index 9f74ea5..1691f1a 100644
+--- a/pure_lib/os/UnixInodeFileSystem.py
++++ b/pure_lib/os/UnixInodeFileSystem.py
+@@ -343,6 +343,13 @@ def _pad_name(name: str) -> list:
+     `i < m` is established at each store and is what the fixed-width namespace
+     consequence (`formal_os_namespace.py`) recovers and compares.
+     """
++    #@ assigns \nothing
++    #@ ensures \length(\result) == 30
++    # ROUTE 1 byte-VALUE ensures (the loop invariants already prove these at exit;
++    # surfaced as top-level ensures so _blit_dir_entry can chain them into the
++    # dirent name-field byte facts the marker intro needs).
++    #@ ensures \forall j: int; (0 <= j and j < \str_length(name) and j < 30) ==> \result[j] == ord(name[j])
++    #@ ensures \forall j: int; (\str_length(name) <= j and j < 30) ==> \result[j] == 0
+     out = [0] * 30
+     n = len(name)
+     m = n
+@@ -1059,27 +1066,115 @@ class UnixInodeFileSystem:
+                 found = i
+         return found
+ 
++    #@ requires off >= 0
++    #@ requires off + 32 <= \length(self.dir)
++    #@ requires inode_num == 0 or (inode_num != 0 and inode_num < 32)
++    #@ requires \str_length(name) <= 30
++    #@ assigns self.dir
++    #@ ensures \length(self.dir) == \old(\length(self.dir))
++    # inode VALUE (the 2-byte big-endian decode = inode_num). We expose the byte-VALUE
++    # round-trip (self.dir[off]*256+self.dir[off+1]==inode_num) rather than the
++    # //256 / %256 decomposition, since _pack_direntry proves exactly that form (the
++    # //256 form would need a byte-range fact _pack_direntry does not carry).
++    #@ ensures self.dir[off] * 256 + self.dir[off + 1] == inode_num
++    #@ ensures \forall i: int; (0 <= i and i < \str_length(name) and i < 30) ==> self.dir[off + 2 + i] == ord(name[i])
++    #@ ensures \forall i: int; (\str_length(name) <= i and i < 30) ==> self.dir[off + 2 + i] == 0
++    #@ ensures \forall b: int; (0 <= b and b < \length(self.dir) and (b < off or off + 32 <= b)) ==> self.dir[b] == \old(self.dir[b])
++    # ROUTE 1 byte-only directory-entry blit (opaque off — NO slot_inode/slot_name
++    # term, so NO slot-web axiom can match its loop). The byte-keyed slot keystones
++    # are NOT cited here, and the dir_blit_marker maintenance axiom keys on the
++    # marker atom (absent here), so this helper's PURE-BYTE postcondition is never
++    # poisoned by the dir-mutator invariant fold. sibling_concrete so the caller
++    # inlines its REAL verified byte semantics (the self-field byte ensures do not
++    # propagate across an abstract-val boundary — the method-call contract gap).
++    #@ sibling_concrete
++    def _blit_dir_entry(self, off: int, inode_num: int, name: str) -> None:
++        # Write the 32-byte dirent DIRECTLY into self.dir (no _pad_name/_pack_direntry/
++        # blit composition — that 3-stage array-transform chain made the per-byte name
++        # ensures E-match-explode). Inode: 2 big-endian bytes. Name: a single loop over
++        # the 30-byte field (chars then null-pad), so the byte-value ensures are LOCAL
++        # and linear.
++        self.dir[off] = inode_num // 256
++        self.dir[off + 1] = inode_num % 256
++        n = len(name)
++        m = n
++        if m > 30:
++            m = 30
++        #@ loop invariant 0 <= i and i <= 30
++        #@ loop invariant m <= 30
++        #@ loop invariant m <= \str_length(name)
++        #@ loop invariant self.dir[off] == inode_num // 256
++        #@ loop invariant self.dir[off + 1] == inode_num % 256
++        #@ loop invariant \forall j: int; (0 <= j and j < i and j < m) ==> self.dir[off + 2 + j] == ord(name[j])
++        #@ loop invariant \forall j: int; (m <= j and j < i) ==> self.dir[off + 2 + j] == 0
++        #@ loop invariant \forall b: int; (0 <= b and b < \length(self.dir) and (b < off or off + 32 <= b)) ==> self.dir[b] == \old(self.dir[b])
++        #@ loop variant 30 - i
++        for i in range(30):
++            if i < m:
++                self.dir[off + 2 + i] = ord(name[i])
++            else:
++                self.dir[off + 2 + i] = 0
++
++    # ROUTE 1: cite ONLY the unique-marker axioms (intro + insert) and the read-side
++    # scan facts. Crucially we DO NOT cite slot_inode_byte_decode / slot_name_byte_decode
++    # / field_to_str_round_trip here: those key on the generic byte shape
++    # disk[blk*512+32*k] (and field_to_str), so citing them would EMIT them module-wide
++    # and their triggers would E-match-explode the sibling pure-byte helper
++    # _blit_dir_entry (measured: 8.6e9-step Timeout). The marker carries BOTH slot VALUE
++    # decodes (inode AND name) in its cross-validated conclusion, so no byte-decode/string
++    # keystone is needed at this site at all.
+     #@ proof rocq UnixFs.Dir.scan_reflects_present
+     #@ proof lean UnixFs.Dir.scan_reflects_present
+     #@ proof rocq UnixFs.Dir.slot_inode_nonneg
+     #@ proof lean UnixFs.Dir.slot_inode_nonneg
++    #@ proof rocq UnixFs.Dir.dir_blit_marker_intro
++    #@ proof lean UnixFs.Dir.dir_blit_marker_intro
++    #@ proof rocq UnixFs.Dir.dir_blit_marker_insert
++    #@ proof lean UnixFs.Dir.dir_blit_marker_insert
++    #@ proof rocq UnixFs.Dir.dir_blit_marker_frame_only
++    #@ proof lean UnixFs.Dir.dir_blit_marker_frame_only
+     #@ requires block_num == 5
+     #@ requires slot >= 0 and slot < 16
++    #@ requires inode_num == 0 or (inode_num != 0 and inode_num < 32)
++    #@ requires \str_length(name) <= 30
++    #@ requires \forall i: int; (0 <= i and i < \str_length(name)) ==> ord(name[i]) != 0
++    # FRESHNESS (the EEXIST guard the live-insert callers establish via _dir_lookup<0):
++    # the inserted name is not already a live name in block 5. Needed for the
++    # insert-side uniqueness maintenance (dir_blit_marker_insert).
++    #@ requires \forall k: int; (0 <= k and k < 16 and k != slot and slot_inode(self.dir, 5, k) != 0 and slot_inode(self.dir, 5, k) < 32) ==> slot_name(self.dir, 5, k) != name
+     #@ assigns self.dir
+     #@ ensures (inode_num != 0 and inode_num < 32) ==> slot_inode(self.dir, block_num, slot) == inode_num
+     #@ ensures (inode_num != 0 and inode_num < 32) ==> slot_name(self.dir, block_num, slot) == name
+     #@ ensures \forall k: int; (0 <= k and k < 16 and k != slot) ==> slot_inode(self.dir, block_num, k) == \old(slot_inode(self.dir, block_num, k))
+     #@ ensures \forall k: int; (0 <= k and k < 16 and k != slot) ==> slot_name(self.dir, block_num, k) == \old(slot_name(self.dir, block_num, k))
+     # M4 #1 (15-0838): ROOT-directory entry writer — block 5 lives in self.dir. The
+-    # self.dir twin of _write_entry (same dirscan-fidelity decode<->bytes trust). The
+-    # dual-use _write_entry is SPLIT: this writes the root directory (self.dir); the
+-    # original _write_entry keeps writing SUBDIRECTORY data blocks (self.disk, the mkdir
+-    # '.'/'..' seed). With the root directory in its own field, non-directory writes
+-    # (assigns self.disk) are TYPE-LEVEL disjoint from it.
+-    #@ \trusted reviewer: dirscan-fidelity
++    # self.dir twin of _write_entry. DE-TRUSTED (ROUTE 1 unique-marker fold): the body
++    # blits the entry via the pure-byte helper, materializes the byte facts + the
++    # byte-region frame (from the helper's frame ensures), folds them into the UNIQUE
++    # marker atom dir_blit_marker, and cites dir_blit_marker_insert to discharge the
++    # value(inode+name)+frame+uniq+slots_lt32 in one marker-keyed step. The marker
++    # trigger materializes ONLY at this asserted atom, so the maintenance axiom fires
++    # EXACTLY ONCE here and never inside _blit_dir_entry or any other block-5 byte mutator.
+     def _write_dir_entry(self, block_num: int, slot: int, inode_num: int, name: str) -> None:
+         entry_offset = block_num * 512 + slot * 32
+-        self.dir[entry_offset:entry_offset + 32] = _pack_direntry(inode_num, _pad_name(name))
++        self._blit_dir_entry(entry_offset, inode_num, name)
++        # the two blitted inode bytes (named b0,b1 = the actual written bytes; the
++        # marker intro takes them directly and concludes slot_inode == 256*b0+b1).
++        # _blit_dir_entry's value ensures gives 256*b0+b1 == inode_num.
++        #@ assert self.dir[2560 + 32 * slot] * 256 + self.dir[2560 + 32 * slot + 1] == inode_num
++        # the per-char name-field bytes + null-pad (the marker intro's name hypotheses)
++        #@ assert \forall i: int; (0 <= i and i < \str_length(name) and i < 30) ==> self.dir[2560 + 32 * slot + 2 + i] == ord(name[i])
++        #@ assert \str_length(name) < 30 ==> self.dir[2560 + 32 * slot + 2 + \str_length(name)] == 0
++        # byte-region frame: every block-5 byte OUTSIDE slot's 32-byte window agrees
++        # with the pre-state (the blit only touched [entry_offset, entry_offset+32)).
++        #@ assert \forall b: int; (0 <= b and b < 512 and (b < 32 * slot or 32 * slot + 32 <= b)) ==> self.dir[2560 + b] == \old(self.dir[2560 + b])
++        # FOLD the byte+name facts into the UNIQUE marker atom (intro fires here, bytes->marker).
++        # The marker-insert axiom (keyed on this atom) then discharges all four ensures in
++        # one step. NOTE (route-1 residual): this proves in `--fun` isolation (real,
++        # soundness-probe-clean) but the full-module shared E-matching context starves the
++        # step budget here (catalog-B A.7 aggregate-context pollution) — the de-trust reds
++        # the FULL body gate. See getting-better/<route1 writeup> for the precise GAP.
++        #@ assert dir_blit_marker(\old(self.dir), self.dir, slot, self.dir[2560 + 32 * slot], self.dir[2560 + 32 * slot + 1], name)
+ 
+     #@ proof rocq UnixFs.Dir.scan_reflects_present
+     #@ proof lean UnixFs.Dir.scan_reflects_present
+diff --git a/src/pycsl/module6_whyml/preamble.py b/src/pycsl/module6_whyml/preamble.py
+index bd03d96..90be56e 100644
+--- a/src/pycsl/module6_whyml/preamble.py
++++ b/src/pycsl/module6_whyml/preamble.py
+@@ -489,6 +489,133 @@ class PreambleEmissionMixin:
+             "    slot_inode d1 5 k = slot_inode d0 5 k ) -> "
+             "slots_lt32 d1",
+ 
++        # ====================================================================
++        # ROUTE 1 (test-supervise-sl 2026-06-19): the UNIQUE-MARKER-ATOM form of
++        # the folded byte-rung directory-invariant maintenance fact for the dir
++        # mutators (_write_dir_entry / _zero_entry).
++        #
++        # WHY (the trigger-poison wall, 20260618-2350 + catalog-B):
++        #   The byte-keyed fold `insert/zero_preserves_dir_invariant_blit` keyed on
++        #   `[d1[2560 + 32 * s]]` is CORRECT logic (cross-validated zero-TCB) but its
++        #   byte key matches the SHAPE `disk[2560 + <expr>]` — EXACTLY the index every
++        #   block-5 byte read produces. So it fires INSIDE the pure-byte helper
++        #   `_blit_dir_entry`, dragging the abstract slot_inode/slot_name/uniq/slots_lt32
++        #   web into that helper's byte VC -> Timeout 869,354,004 steps / OOM.
++        #
++        # THE FIX (gap-17 `block_content_eq` discipline): introduce a UNIQUE
++        # uninterpreted predicate `dir_blit_marker d0 d1 s b0 b1` (declared in
++        # _AXIOM_FUNCTIONS["UnixFs.Dir."]) and key BOTH the byte->marker intro AND the
++        # marker->maintenance facts on `[dir_blit_marker d0 d1 s b0 b1]`. The marker
++        # atom appears ONLY where the genuine mutator body asserts it
++        # (`#@ assert dir_blit_marker(...)` at the real apply site) — it CANNOT match a
++        # bare `disk[2560 + <expr>]` byte read, so the maintenance axioms never fire in
++        # `_blit_dir_entry` or any other block-5 toucher. The axiom fires EXACTLY ONCE,
++        # at the asserted marker.
++        #
++        # ZERO-TCB / cross-validation: the three facts are the SAME logic as
++        # insert/zero_preserves_dir_invariant_blit, refactored through the marker.
++        #   - dir_blit_marker_intro is DEFINITIONAL (the marker is conservatively DEFINED
++        #     by its byte hypotheses; the intro is one direction of `marker <-> bytes`,
++        #     used to ESTABLISH the marker from the bytes). ZERO trust.
++        #   - dir_blit_marker_insert / _zero are the cross-validated maintenance steps:
++        #     from the marker (= the byte facts, by definition) + uniq/slots_lt32 d0 +
++        #     freshness, conclude value + frame + uniq + slots_lt32. Cross-validated by
++        #     test-suite/corpus/pycsl-reference/0716.proofs/{rocq,lean}/DirBlitMarker.{v,lean}
++        #     (Rocq Section-Variables-only / Closed under global context; Lean
++        #     [propext, Quot.sound]). In the kernel the marker is DEFINED as the
++        #     conjunction of its byte hypotheses, so dir_blit_marker_intro is `fun h => h`
++        #     (definitional) and the maintenance theorems are the blit theorems with the
++        #     byte hyps packaged behind the definition — same proof, zero new TCB.
++        #
++        # No byte term and no slot atom ever coexist in a body VC: `_blit_dir_entry`
++        # carries only bytes (and the marker trigger cannot match its byte reads);
++        # `_write_dir_entry` carries the marker atom + slot atoms (its contract already
++        # references slot_inode/slot_name — that is the genuine apply site, where slot
++        # atoms are expected) but NO loose `disk[2560+...]` blit term in the slot-web VC.
++        # dir_blit_marker_intro (DEFINITIONAL, zero trust): the marker is conservatively
++        # DEFINED as the conjunction of ALL the byte facts a directory-entry blit at slot
++        # s establishes — the two inode bytes (b0,b1), the per-char name-field bytes, the
++        # null-pad, and the byte-region frame — PLUS the name well-formedness the
++        # round-trip needs (len<=30, no embedded null). The intro fires ONLY on the marker
++        # atom (the trigger), so it never matches a bare disk[...] read. The string codec
++        # (field_to_str) is referenced ONLY here behind the marker, NOT cited module-wide,
++        # so the byte->string round-trip never poisons a sibling byte mutator.
++        "UnixFs.Dir.dir_blit_marker_intro":
++            "forall d0 d1 : array int, s b0 b1 : int, name : string "
++            "[dir_blit_marker d0 d1 s b0 b1 name]. "
++            "0 <= String.length name -> String.length name <= 30 -> "
++            "d1[2560 + 32 * s] = b0 -> d1[2560 + 32 * s + 1] = b1 -> "
++            "( forall i : int. 0 <= i < String.length name -> "
++            "    Char.code (Char.get name i) <> 0 ) -> "
++            "( forall i : int. 0 <= i < String.length name -> "
++            "    d1[2560 + 32 * s + 2 + i] = Char.code (Char.get name i) ) -> "
++            "( String.length name < 30 -> d1[2560 + 32 * s + 2 + String.length name] = 0 ) -> "
++            "( forall b : int. 0 <= b < 512 -> "
++            "    (b < 32 * s \\/ 32 * s + 32 <= b) -> d1[2560 + b] = d0[2560 + b] ) -> "
++            "dir_blit_marker d0 d1 s b0 b1 name",
++        # dir_blit_marker_insert (cross-validated): from the marker (= the byte facts +
++        # name well-formedness, by definition) + uniq/slots_lt32 d0 + inode range +
++        # freshness, conclude BOTH slot VALUE decodes (inode AND name=name), the
++        # slot-locality frame, uniq d1, slots_lt32 d1 — in ONE marker-keyed step. The
++        # name VALUE comes from the field_to_str round-trip discharged INSIDE the kernel
++        # proof (0716 DirBlitMarker), so the os body provides ONLY the marker atom and
++        # NEVER materializes the string codec in its VC.
++        "UnixFs.Dir.dir_blit_marker_insert":
++            "forall d0 d1 : array int, s b0 b1 : int, name : string "
++            "[dir_blit_marker d0 d1 s b0 b1 name]. "
++            "dir_blit_marker d0 d1 s b0 b1 name -> "
++            "uniq d0 -> slots_lt32 d0 -> 0 <= s < 16 -> "
++            "256 * b0 + b1 <> 0 -> 256 * b0 + b1 < 32 -> "
++            # VACUITY REPAIR (v3): freshness restricted to k <> s. The target slot s
++            # is being OVERWRITTEN, so whether d0's slot s already held `name` is
++            # irrelevant to whether the insert manufactures a duplicate live-name pair.
++            # The original all-k freshness was OVER-STRONG: under the in-place-mutation
++            # `\old(self.dir) == self.dir` collapse (the blit is an opaque val that
++            # mutates the array in place, so d0 and d1 are the SAME array term in the
++            # body VC), the all-k antecedent fired at k=s on the POST-state — where slot
++            # s IS live with `name` — forcing slot_name=name AND (from freshness)
++            # slot_name<>name, i.e. False (the live-branch inconsistency). The Rocq/Lean
++            # cross-validation only ever applies freshness at slots <> s (DirBlitMarker.v
++            # Hfresh used at j<>s / i<>s only), so the k<>s-restricted axiom is the SAME
++            # theorem with an unused hypothesis dropped — still zero-TCB.
++            "( forall k : int. 0 <= k < 16 -> k <> s -> "
++            "    slot_inode d0 5 k <> 0 -> slot_inode d0 5 k < 32 -> "
++            "    slot_name d0 5 k <> name ) -> "
++            "( slot_inode d1 5 s = 256 * b0 + b1 "
++            "  /\\ slot_name d1 5 s = name "
++            "  /\\ ( forall k : int. 0 <= k < 16 -> k <> s -> "
++            "         slot_inode d1 5 k = slot_inode d0 5 k /\\ "
++            "         slot_name  d1 5 k = slot_name  d0 5 k ) "
++            "  /\\ uniq d1 /\\ slots_lt32 d1 )",
++        # dir_blit_marker_frame_only (SPIKE-2, cross-validated): the SLOT-LOCALITY
++        # FRAME alone, marker-keyed. From the marker (= the byte facts, by
++        # definition) and the slot-in-range fact, conclude that EVERY slot k <> s
++        # decodes IDENTICALLY in d1 and d0 — WITHOUT needing uniq/slots_lt32/range/
++        # freshness. This is a STRICT corollary of dir_blit_marker_insert: it is
++        # `slot_frame_of_region` (DirBlitMarker.{v,lean}) applied to the marker
++        # definition's byte-region-frame conjunct. dir_blit_marker_insert ALREADY
++        # derives this exact frame conjunct (`Hsf`/`hsf`) purely from the marker's
++        # frame component, independent of the value/uniq/freshness antecedents, so
++        # the corollary is the SAME sub-derivation exposed as its own theorem — zero
++        # new TCB. WHY EMIT IT SEPARATELY: in the FULL-module aggregate E-matching
++        # context, the two `forall k<>s` frame postconditions of _write_dir_entry
++        # starve when forced to go through the four-way conjunction of the heavier
++        # _insert axiom (it drags slot_name VALUE + uniq d1 + slots_lt32 d1 into the
++        # frame VC). This lean, frame-only marker-keyed fact lets the frame goals
++        # close directly. Cross-validated by
++        # test-suite/corpus/pycsl-reference/0716.proofs/{rocq,lean}/DirBlitMarker.{v,lean}
++        # (theorem dir_blit_marker_frame_only): Rocq Section-Variables-only / Closed
++        # under the global context; Lean #print axioms ⊆ {propext, Quot.sound}.
++        "UnixFs.Dir.dir_blit_marker_frame_only":
++            "forall d0 d1 : array int, s b0 b1 : int, name : string "
++            "[dir_blit_marker d0 d1 s b0 b1 name]. "
++            "dir_blit_marker d0 d1 s b0 b1 name -> "
++            "0 <= s < 16 -> "
++            "( forall k : int. 0 <= k < 16 -> k <> s -> "
++            "    slot_inode d1 5 k = slot_inode d0 5 k /\\ "
++            "    slot_name  d1 5 k = slot_name  d0 5 k )",
++        # ====================================================================
++
+         # UnixFs.Dir.dir_lookup_frame (M4 — sys_unlink reorder) — dir_lookup is the
+         # bounded 16-slot scan, a function of the per-slot decodes ONLY, so disks
+         # agreeing on every block-5 slot decode have equal dir_lookup. Lets sys_unlink
+@@ -967,6 +1094,15 @@ class PreambleEmissionMixin:
+             "predicate inode_bytes_valid (d: array int)",
+             # M4: every block-5 dirent slot decodes to an inode < 32 (see slots_lt32_intro/elim).
+             "predicate slots_lt32 (d: array int)",
++            # ROUTE 1 (2026-06-19): the UNIQUE marker atom for the dir-mutator
++            # invariant-maintenance fold. An uninterpreted predicate (NOT a defined
++            # predicate that auto-unfolds) keyed by dir_blit_marker_intro /
++            # dir_blit_marker_insert / dir_blit_marker_zero — all triggered
++            # `[dir_blit_marker d0 d1 s b0 b1]`, so the maintenance step fires ONLY
++            # where the mutator body asserts the marker, NEVER on a raw
++            # `disk[2560+<expr>]` byte read (the trigger-poison wall fix). d0 = pre,
++            # d1 = post, s = slot, (b0,b1) = the two blitted inode bytes.
++            "predicate dir_blit_marker (d0 d1: array int) (s b0 b1: int) (name: string)",
+         ],
+     }
+ 
+diff --git a/test-suite/corpus/pycsl-reference/0716.proofs/lean/DirBlitMarker.lean b/test-suite/corpus/pycsl-reference/0716.proofs/lean/DirBlitMarker.lean
+new file mode 100644
+index 0000000..5c49562
+--- /dev/null
++++ b/test-suite/corpus/pycsl-reference/0716.proofs/lean/DirBlitMarker.lean
+@@ -0,0 +1,314 @@
++/- Validation of the ROUTE-1 UNIQUE-MARKER form of the folded byte-rung
++   directory-invariant maintenance facts -- Lean 4 mirror of
++   ../rocq/DirBlitMarker.v:
++     UnixFs.Dir.dir_blit_marker_intro
++     UnixFs.Dir.dir_blit_marker_insert
++
++   CONTEXT (test-supervise-sl route 1, 2026-06-19): the byte-keyed fold (0715) is
++   correct logic but its byte key matches disk[2560 + <expr>] and explodes inside the
++   pure-byte helper _blit_dir_entry; worse, citing the byte VALUE keystones
++   (slot_inode_byte_decode, slot_name_byte_decode, field_to_str_round_trip) at the
++   real mutator EMITS them MODULE-WIDE and their generic disk[...] / field_to_str
++   triggers E-match-explode _blit_dir_entry's byte loop (Timeout 8.6e9 steps).
++
++   THE FIX: route the ENTIRE maintenance fact -- including BOTH slot VALUE decodes
++   (inode AND name) -- through a SINGLE UNIQUE uninterpreted predicate
++   dir_blit_marker d0 d1 s b0 b1 name, triggered [dir_blit_marker ...]. The os body
++   cites ONLY the marker intro+insert, so NO byte-decode/string keystone is emitted
++   module-wide and NO sibling byte mutator is poisoned. All byte->slot and
++   byte->string decode reasoning is discharged INSIDE this kernel proof.
++
++   Faithful interpretation (IDENTICAL to the keystone proofs for the shared symbols;
++   `name` modelled as char-code list, as in FieldToStrRoundTrip).
++
++   Verified under Lean 4 (core only, no Mathlib). No sorry. -/
++
++namespace UnixFs
++namespace Dir
++section Marker
++
++variable {Disk : Type}
++variable (rd : Disk → Int → Int)
++variable {Name : Type}
++variable (nchar : Name → Int → Int)
++variable (nlen : Name → Int)
++
++def slot_off (blk k : Int) : Int := blk * 512 + 32 * k
++
++def slot_inode (d : Disk) (blk k : Int) : Int :=
++  256 * rd d (slot_off blk k) + rd d (slot_off blk k + 1)
++
++def scan (rdf : Int → Int) (off : Int) : Nat → List Int
++  | 0 => []
++  | Nat.succ m => if rdf off = 0 then [] else rdf off :: scan rdf (off + 1) m
++
++def field_to_str (rdf : Int → Int) (off width : Int) : List Int :=
++  scan rdf off width.toNat
++
++def slot_name (d : Disk) (blk k : Int) : List Int :=
++  field_to_str (rd d) (slot_off blk k + 2) 30
++
++def name_list (nm : Name) : Nat → Int → List Int
++  | 0, _ => []
++  | Nat.succ m, i => nchar nm i :: name_list nm m (i + 1)
++
++def name_val (nm : Name) : List Int := name_list nchar nm (nlen nm).toNat 0
++
++def uniq (d : Disk) : Prop :=
++  ∀ i j : Int, 0 ≤ i → i < 16 → 0 ≤ j → j < 16 →
++    slot_inode rd d 5 i ≠ 0 → slot_inode rd d 5 i < 32 →
++    slot_inode rd d 5 j ≠ 0 → slot_inode rd d 5 j < 32 →
++    slot_name rd d 5 i = slot_name rd d 5 j → i = j
++
++def slots_lt32 (d : Disk) : Prop :=
++  ∀ k : Int, 0 ≤ k → k < 16 → slot_inode rd d 5 k < 32
++
++/-- THE MARKER: the conservative DEFINITION of the abstract WhyML predicate as the
++    conjunction of ALL byte facts a blit establishes plus name well-formedness. -/
++def dir_blit_marker (d0 d1 : Disk) (s b0 b1 : Int) (nm : Name) : Prop :=
++  0 ≤ nlen nm
++  ∧ nlen nm ≤ 30
++  ∧ rd d1 (slot_off 5 s) = b0
++  ∧ rd d1 (slot_off 5 s + 1) = b1
++  ∧ (∀ i : Int, 0 ≤ i → i < nlen nm → nchar nm i ≠ 0)
++  ∧ (∀ i : Int, 0 ≤ i → i < nlen nm → rd d1 (slot_off 5 s + 2 + i) = nchar nm i)
++  ∧ (nlen nm < 30 → rd d1 (slot_off 5 s + 2 + nlen nm) = 0)
++  ∧ (∀ b : Int, 0 ≤ b → b < 512 →
++        (b < 32 * s ∨ 32 * s + 32 ≤ b) →
++        rd d1 (5 * 512 + b) = rd d0 (5 * 512 + b))
++
++theorem scan_frame (rd0 rd1 : Int → Int) :
++    ∀ (fuel : Nat) (off : Int),
++      (∀ j, j < fuel → rd0 (off + (j : Int)) = rd1 (off + (j : Int))) →
++      scan rd0 off fuel = scan rd1 off fuel := by
++  intro fuel
++  induction fuel with
++  | zero => intro off _; rfl
++  | succ m ih =>
++    intro off hagree
++    have hhead : rd0 off = rd1 off := by
++      have h := hagree 0 (by omega); simpa using h
++    have htail : scan rd0 (off + 1) m = scan rd1 (off + 1) m := by
++      apply ih (off + 1)
++      intro j hj
++      have h := hagree (j + 1) (by omega)
++      have hcast : off + ((j : Int) + 1) = off + 1 + (j : Int) := by omega
++      push_cast at h; rw [hcast] at h; exact h
++    simp only [scan, hhead, htail]
++
++theorem field_to_str_frame
++    (rd0 rd1 : Int → Int) (off width : Int)
++    (_hw : 0 ≤ width)
++    (hagree : ∀ i : Int, 0 ≤ i → i < width → rd0 (off + i) = rd1 (off + i)) :
++    field_to_str rd0 off width = field_to_str rd1 off width := by
++  unfold field_to_str
++  apply scan_frame rd0 rd1 width.toNat off
++  intro j hj
++  have hjw : (j : Int) < width := by
++    have : ((width.toNat : Int)) = width := Int.toNat_of_nonneg _hw
++    omega
++  have h := hagree (j : Int) (by omega) hjw
++  simpa using h
++
++theorem slot_frame_of_region (d0 d1 : Disk) (s : Int)
++    (hs0 : 0 ≤ s) (hs1 : s < 16)
++    (hframe : ∀ b : Int, 0 ≤ b → b < 512 →
++        (b < 32 * s ∨ 32 * s + 32 ≤ b) →
++        rd d1 (5 * 512 + b) = rd d0 (5 * 512 + b)) :
++    ∀ k : Int, 0 ≤ k → k < 16 → k ≠ s →
++      slot_inode rd d1 5 k = slot_inode rd d0 5 k ∧
++      slot_name rd d1 5 k = slot_name rd d0 5 k := by
++  have hslotbytes : ∀ k : Int, 0 ≤ k → k < 16 → k ≠ s →
++      ∀ j : Int, 0 ≤ j → j < 32 →
++        rd d1 (slot_off 5 k + j) = rd d0 (slot_off 5 k + j) := by
++    intro k hk0 hk1 hne j hj0 hj1
++    have hbeq : slot_off 5 k + j = 5 * 512 + (32 * k + j) := by unfold slot_off; omega
++    rw [hbeq]
++    apply hframe
++    · omega
++    · omega
++    · omega
++  intro k hk0 hk1 hne
++  refine ⟨?_, ?_⟩
++  · unfold slot_inode
++    have hb0 := hslotbytes k hk0 hk1 hne 0 (by omega) (by omega)
++    have hb1 := hslotbytes k hk0 hk1 hne 1 (by omega) (by omega)
++    simp only [Int.add_zero] at hb0
++    rw [hb0, hb1]
++  · unfold slot_name
++    apply field_to_str_frame (rd d1) (rd d0) (slot_off 5 k + 2) 30 (by omega)
++    intro i hi0 hi1
++    have hcast : slot_off 5 k + 2 + i = slot_off 5 k + (2 + i) := by omega
++    rw [hcast]
++    exact hslotbytes k hk0 hk1 hne (2 + i) (by omega) (by omega)
++
++/-- the name byte->decode round-trip (identical model to FieldToStrRoundTrip). -/
++theorem scan_recovers (rdf : Int → Int) (nm : Name) :
++    ∀ (fuel : Nat) (off i : Int),
++      0 ≤ i →
++      i + (fuel : Int) = 30 →
++      nlen nm ≤ 30 →
++      i ≤ nlen nm →
++      (∀ t, i ≤ t → t < nlen nm → nchar nm t ≠ 0) →
++      (∀ t, i ≤ t → t < nlen nm → rdf (off + (t - i)) = nchar nm t) →
++      (nlen nm < 30 → rdf (off + (nlen nm - i)) = 0) →
++      scan rdf off fuel = name_list nchar nm (nlen nm - i).toNat i := by
++  intro fuel
++  induction fuel with
++  | zero =>
++    intro off i _ hwf _ hile _ _ _
++    have h0 : nlen nm - i = 0 := by simp at hwf; omega
++    rw [h0]; simp [scan, name_list]
++  | succ m ih =>
++    intro off i hi hwf hl30 hile hnn hbytes hnull
++    by_cases hlt : i < nlen nm
++    · -- the byte is the (nonzero) char code, recurse
++      have hb : rdf off = nchar nm i := by
++        have h := hbytes i (by omega) hlt
++        have : off + (i - i) = off := by omega
++        rw [this] at h; exact h
++      have hnz : nchar nm i ≠ 0 := hnn i (by omega) hlt
++      have hstep : (nlen nm - i).toNat = Nat.succ (nlen nm - (i + 1)).toNat := by omega
++      rw [hstep]
++      simp only [scan, hb, name_list, if_neg hnz]
++      congr 1
++      apply ih (off + 1) (i + 1)
++      · omega
++      · push_cast; omega
++      · omega
++      · omega
++      · intro t ht0 ht1; exact hnn t (by omega) ht1
++      · intro t ht0 ht1
++        have h := hbytes t (by omega) ht1
++        have hc : off + (t - i) = off + 1 + (t - (i + 1)) := by omega
++        rw [hc] at h; exact h
++      · intro hlt2
++        have h := hnull hlt2
++        have hc : off + (nlen nm - i) = off + 1 + (nlen nm - (i + 1)) := by omega
++        rw [hc] at h; exact h
++    · -- i = nlen nm and fuel > 0 => len < 30 => trailing null fires
++      have hieq : i = nlen nm := by omega
++      have hlen_lt : nlen nm < 30 := by omega
++      have hzero : rdf off = 0 := by
++        have h := hnull hlen_lt
++        rw [← hieq] at h
++        have : off + (i - i) = off := by omega
++        rw [this] at h; exact h
++      have h0 : nlen nm - i = 0 := by omega
++      rw [h0]
++      simp [scan, name_list, hzero]
++
++theorem name_round_trip (d : Disk) (nm : Name) (s : Int)
++    (hlen0 : 0 ≤ nlen nm) (hlen30 : nlen nm ≤ 30)
++    (hnn : ∀ i, 0 ≤ i → i < nlen nm → nchar nm i ≠ 0)
++    (hbytes : ∀ i, 0 ≤ i → i < nlen nm → rd d (slot_off 5 s + 2 + i) = nchar nm i)
++    (hnull : nlen nm < 30 → rd d (slot_off 5 s + 2 + nlen nm) = 0) :
++    slot_name rd d 5 s = name_val nchar nlen nm := by
++  unfold slot_name field_to_str name_val
++  have h30 : (30 : Int).toNat = 30 := by decide
++  rw [h30]
++  have hwf : (0 : Int) + ((30 : Nat) : Int) = 30 := by simp
++  have hbytes' : ∀ t : Int, 0 ≤ t → t < nlen nm →
++      rd d (slot_off 5 s + 2 + (t - 0)) = nchar nm t := by
++    intro t ht0 ht1
++    have h := hbytes t ht0 ht1
++    have he : slot_off 5 s + 2 + (t - 0) = slot_off 5 s + 2 + t := by omega
++    rw [he]; exact h
++  have hnull' : nlen nm < 30 → rd d (slot_off 5 s + 2 + (nlen nm - 0)) = 0 := by
++    intro hlt
++    have h := hnull hlt
++    have he : slot_off 5 s + 2 + (nlen nm - 0) = slot_off 5 s + 2 + nlen nm := by omega
++    rw [he]; exact h
++  have hrec := scan_recovers (nchar := nchar) (nlen := nlen) (rd d) nm 30
++    (slot_off 5 s + 2) 0
++    (by omega) hwf hlen30 (by omega) hnn hbytes' hnull'
++  have hz : (nlen nm - 0).toNat = (nlen nm).toNat := by congr 1; omega
++  rw [hrec, hz]
++
++/-- dir_blit_marker_intro: byte facts -> marker (DEFINITIONAL, zero trust). -/
++theorem dir_blit_marker_intro (d0 d1 : Disk) (s b0 b1 : Int) (nm : Name)
++    (hl0 : 0 ≤ nlen nm) (hl30 : nlen nm ≤ 30)
++    (hb0 : rd d1 (slot_off 5 s) = b0)
++    (hb1 : rd d1 (slot_off 5 s + 1) = b1)
++    (hnn : ∀ i : Int, 0 ≤ i → i < nlen nm → nchar nm i ≠ 0)
++    (hbytes : ∀ i : Int, 0 ≤ i → i < nlen nm → rd d1 (slot_off 5 s + 2 + i) = nchar nm i)
++    (hnull : nlen nm < 30 → rd d1 (slot_off 5 s + 2 + nlen nm) = 0)
++    (hframe : ∀ b : Int, 0 ≤ b → b < 512 →
++        (b < 32 * s ∨ 32 * s + 32 ≤ b) →
++        rd d1 (5 * 512 + b) = rd d0 (5 * 512 + b)) :
++    dir_blit_marker rd nchar nlen d0 d1 s b0 b1 nm :=
++  ⟨hl0, hl30, hb0, hb1, hnn, hbytes, hnull, hframe⟩
++
++/-- dir_blit_marker_insert: marker + uniq/slots_lt32 d0 + range + freshness ->
++    slot_inode value + slot_name value (= name_val) + frame + uniq d1 + slots_lt32 d1. -/
++theorem dir_blit_marker_insert (d0 d1 : Disk) (s b0 b1 : Int) (nm : Name)
++    (hmark : dir_blit_marker rd nchar nlen d0 d1 s b0 b1 nm)
++    (hu0 : uniq rd d0)
++    (hl0 : slots_lt32 rd d0)
++    (hs0 : 0 ≤ s) (hs1 : s < 16)
++    (_hlive : 256 * b0 + b1 ≠ 0)
++    (hlt : 256 * b0 + b1 < 32)
++    (hfresh : ∀ k : Int, 0 ≤ k → k < 16 → k ≠ s →
++        slot_inode rd d0 5 k ≠ 0 → slot_inode rd d0 5 k < 32 →
++        slot_name rd d0 5 k ≠ name_val nchar nlen nm) :
++       slot_inode rd d1 5 s = 256 * b0 + b1
++    ∧ slot_name rd d1 5 s = name_val nchar nlen nm
++    ∧ (∀ k : Int, 0 ≤ k → k < 16 → k ≠ s →
++           slot_inode rd d1 5 k = slot_inode rd d0 5 k ∧
++           slot_name rd d1 5 k = slot_name rd d0 5 k)
++    ∧ uniq rd d1
++    ∧ slots_lt32 rd d1 := by
++  obtain ⟨hnl0, hnl30, hb0, hb1, hnn, hbytes, hnull, hframe⟩ := hmark
++  have hsf := slot_frame_of_region rd d0 d1 s hs0 hs1 hframe
++  have hvali : slot_inode rd d1 5 s = 256 * b0 + b1 := by
++    unfold slot_inode; rw [hb0, hb1]
++  have hvaln : slot_name rd d1 5 s = name_val nchar nlen nm :=
++    name_round_trip rd nchar nlen d1 nm s hnl0 hnl30 hnn hbytes hnull
++  have hu1 : uniq rd d1 := by
++    intro i j hi0 hi1 hj0 hj1 hil hilt hjl hjlt hnm
++    by_cases his : i = s <;> by_cases hjs : j = s
++    · rw [his, hjs]
++    · exfalso; subst his
++      obtain ⟨hji, hjn⟩ := hsf j hj0 hj1 hjs
++      apply hfresh j hj0 hj1 hjs (by rw [← hji]; exact hjl) (by rw [← hji]; exact hjlt)
++      rw [← hjn, ← hnm, hvaln]
++    · exfalso; subst hjs
++      obtain ⟨hii, hin⟩ := hsf i hi0 hi1 his
++      apply hfresh i hi0 hi1 his (by rw [← hii]; exact hil) (by rw [← hii]; exact hilt)
++      rw [← hin, hnm, hvaln]
++    · obtain ⟨hii, hin⟩ := hsf i hi0 hi1 his
++      obtain ⟨hji, hjn⟩ := hsf j hj0 hj1 hjs
++      exact hu0 i j hi0 hi1 hj0 hj1
++        (by rw [← hii]; exact hil) (by rw [← hii]; exact hilt)
++        (by rw [← hji]; exact hjl) (by rw [← hji]; exact hjlt)
++        (by rw [← hin, ← hjn]; exact hnm)
++  have hl1 : slots_lt32 rd d1 := by
++    intro k hk0 hk1
++    by_cases hks : k = s
++    · rw [hks, hvali]; exact hlt
++    · obtain ⟨hki, _⟩ := hsf k hk0 hk1 hks
++      rw [hki]; exact hl0 k hk0 hk1
++  exact ⟨hvali, hvaln, hsf, hu1, hl1⟩
++
++/-- dir_blit_marker_frame_only (SPIKE-2): the SLOT-LOCALITY FRAME alone. A STRICT
++    corollary of the marker — every slot k ≠ s decodes identically in d1 and d0,
++    needing ONLY the marker (= the byte facts, by definition) and the slot-in-range
++    fact, NOT uniq/slots_lt32/range/freshness. It is `slot_frame_of_region` applied
++    to the marker's byte-region-frame conjunct (the same sub-derivation
++    dir_blit_marker_insert performs to obtain its frame conjunct hsf). Zero new TCB. -/
++theorem dir_blit_marker_frame_only (d0 d1 : Disk) (s b0 b1 : Int) (nm : Name)
++    (hmark : dir_blit_marker rd nchar nlen d0 d1 s b0 b1 nm)
++    (hs0 : 0 ≤ s) (hs1 : s < 16) :
++    ∀ k : Int, 0 ≤ k → k < 16 → k ≠ s →
++      slot_inode rd d1 5 k = slot_inode rd d0 5 k ∧
++      slot_name rd d1 5 k = slot_name rd d0 5 k := by
++  obtain ⟨_, _, _, _, _, _, _, hframe⟩ := hmark
++  exact slot_frame_of_region rd d0 d1 s hs0 hs1 hframe
++
++#print axioms dir_blit_marker_intro
++#print axioms dir_blit_marker_insert
++#print axioms dir_blit_marker_frame_only
++
++end Marker
++end Dir
++end UnixFs
+diff --git a/test-suite/corpus/pycsl-reference/0716.proofs/rocq/DirBlitMarker.v b/test-suite/corpus/pycsl-reference/0716.proofs/rocq/DirBlitMarker.v
+new file mode 100644
+index 0000000..a7a380a
+--- /dev/null
++++ b/test-suite/corpus/pycsl-reference/0716.proofs/rocq/DirBlitMarker.v
+@@ -0,0 +1,409 @@
++(* Validation of the ROUTE-1 UNIQUE-MARKER form of the folded byte-rung
++ * directory-invariant maintenance facts:
++ *   UnixFs.Dir.dir_blit_marker_intro
++ *   UnixFs.Dir.dir_blit_marker_insert
++ *
++ * CONTEXT (test-supervise-sl route 1, 2026-06-19): the byte-keyed fold
++ * insert/zero_preserves_dir_invariant_blit (0715, keyed [d1[2560 + 32*s]]) is
++ * correct logic but its byte key matches the SHAPE disk[2560 + <expr>] that every
++ * block-5 byte read produces, so the WhyML axiom fires inside the pure-byte helper
++ * _blit_dir_entry and E-match-explodes. Worse, citing the byte VALUE keystones
++ * (slot_inode_byte_decode keyed [disk[blk*512+32*k]], slot_name_byte_decode,
++ * field_to_str_round_trip) at the real mutator EMITS them MODULE-WIDE, and their
++ * generic disk[...] / field_to_str triggers E-match-explode _blit_dir_entry's
++ * _pad_name byte loop (Timeout 8,605,711,403 steps, measured).
++ *
++ * THE FIX: route the ENTIRE maintenance fact — including BOTH slot VALUE decodes
++ * (inode AND name) — through a SINGLE UNIQUE uninterpreted predicate
++ *   dir_blit_marker d0 d1 s b0 b1 name
++ * whose WhyML trigger is [dir_blit_marker d0 d1 s b0 b1 name]. The marker atom
++ * materializes ONLY where the genuine mutator body asserts it; the os body cites
++ * ONLY the marker intro+insert (NOT slot_inode_byte_decode / slot_name_byte_decode /
++ * field_to_str_round_trip), so NO byte-decode/string keystone is emitted module-wide
++ * and NO sibling byte mutator is poisoned. All the byte->slot and byte->string
++ * decode reasoning is discharged INSIDE this kernel proof.
++ *
++ * Faithful interpretation (the cross-validation contract — IDENTICAL to
++ * SlotInodeByteDecode.v / SlotNameByteDecode.v / FieldToStrRoundTrip.v /
++ * FieldToStrFrame.v / DirInvariantMaintenance.v for the shared symbols):
++ *   - `array int` read d[b]    <-> abstract byte reader rd : disk -> Z -> Z.
++ *   - slot_inode d blk k       <-> 256 * rd d (slot_off blk k) + rd d (slot_off blk k + 1).
++ *   - slot_name d blk k        <-> field_to_str over rd d (scan-to-first-null name
++ *                                  decode of the 30-byte field at slot_off blk k + 2).
++ *   - uniq / slots_lt32        <-> the FOLDED block-5 predicates.
++ *   - dir_blit_marker d0 d1 s b0 b1 name <-> the CONJUNCTION of ALL byte facts a blit
++ *                                  at slot s establishes (the two inode bytes, the
++ *                                  per-char name-field bytes, the null-pad, the
++ *                                  byte-region frame) PLUS the name well-formedness the
++ *                                  round-trip needs (len<=30, no embedded null). A
++ *                                  CONSERVATIVE DEFINITION of the abstract WhyML
++ *                                  predicate, so the intro is definitional (one
++ *                                  direction of the iff) and the insert theorem unfolds
++ *                                  it and derives the conclusion.
++ *
++ * Verified under Coq 8.20.x.  No Admitted, no Axiom (only Section Variables). *)
++
++Require Import Coq.ZArith.ZArith.
++Require Import Coq.Lists.List.
++Require Import Lia.
++Import ListNotations.
++Open Scope Z_scope.
++
++Module UnixFs.
++Module Dir.
++Section Marker.
++
++Variable disk : Type.
++(* rd d b : the byte at offset b of disk d. *)
++Variable rd : disk -> Z -> Z.
++
++(* The name is modelled (as in FieldToStrRoundTrip.v) as a list of its char
++ * codes; `nchar nm i` is the code of char i, `nlen nm` is its length. *)
++Variable name_t : Type.
++Variable nchar : name_t -> Z -> Z.
++Variable nlen : name_t -> Z.
++
++Definition slot_off (blk k : Z) : Z := blk * 512 + 32 * k.
++
++(* ---- the concrete decodes (identical to the keystone proofs) ---- *)
++
++Definition slot_inode (d : disk) (blk k : Z) : Z :=
++  256 * (rd d (slot_off blk k)) + rd d (slot_off blk k + 1).
++
++Fixpoint scan (rdf : Z -> Z) (off : Z) (fuel : nat) : list Z :=
++  match fuel with
++  | O => []
++  | S m => if Z.eqb (rdf off) 0 then [] else rdf off :: scan rdf (Z.succ off) m
++  end.
++
++Definition field_to_str (rdf : Z -> Z) (off width : Z) : list Z :=
++  scan rdf off (Z.to_nat width).
++
++Definition slot_name (d : disk) (blk k : Z) : list Z :=
++  field_to_str (rd d) (slot_off blk k + 2) 30.
++
++(* the name as its char-code list (the value `slot_name` is compared against) *)
++Fixpoint name_list (nm : name_t) (fuel : nat) (i : Z) : list Z :=
++  match fuel with
++  | O => []
++  | S m => nchar nm i :: name_list nm m (i + 1)
++  end.
++
++Definition name_val (nm : name_t) : list Z := name_list nm (Z.to_nat (nlen nm)) 0.
++
++(* ---- the FOLDED block-5 invariants (identical to DirInvariantMaintenance.v) ---- *)
++
++Definition uniq (d : disk) : Prop :=
++  forall i j : Z,
++    0 <= i < 16 -> 0 <= j < 16 ->
++    slot_inode d 5 i <> 0 -> slot_inode d 5 i < 32 ->
++    slot_inode d 5 j <> 0 -> slot_inode d 5 j < 32 ->
++    slot_name d 5 i = slot_name d 5 j -> i = j.
++
++Definition slots_lt32 (d : disk) : Prop :=
++  forall k : Z, 0 <= k < 16 -> slot_inode d 5 k < 32.
++
++(* ---- THE MARKER: the conservative DEFINITION of the abstract WhyML predicate ----
++ *
++ * `dir_blit_marker d0 d1 s b0 b1 nm` is DEFINED as the conjunction of ALL the byte
++ * facts a blit at slot s establishes plus the name well-formedness. This makes the
++ * intro one direction of an iff (definitional, zero trust) and packages the byte +
++ * string facts so the insert theorem carries only the marker. *)
++
++Definition dir_blit_marker (d0 d1 : disk) (s b0 b1 : Z) (nm : name_t) : Prop :=
++  0 <= nlen nm
++  /\ nlen nm <= 30
++  /\ rd d1 (slot_off 5 s) = b0
++  /\ rd d1 (slot_off 5 s + 1) = b1
++  /\ (forall i : Z, 0 <= i < nlen nm -> nchar nm i <> 0)
++  /\ (forall i : Z, 0 <= i < nlen nm -> rd d1 (slot_off 5 s + 2 + i) = nchar nm i)
++  /\ (nlen nm < 30 -> rd d1 (slot_off 5 s + 2 + nlen nm) = 0)
++  /\ (forall b : Z, 0 <= b < 512 ->
++        (b < 32 * s \/ 32 * s + 32 <= b) ->
++        rd d1 (5 * 512 + b) = rd d0 (5 * 512 + b)).
++
++(* ---- the scan frame (identical to FieldToStrFrame.v) ---- *)
++
++Lemma scan_frame :
++  forall (rda rdb : Z -> Z) (fuel : nat) (off : Z),
++    (forall j, (j < fuel)%nat -> rda (off + Z.of_nat j) = rdb (off + Z.of_nat j)) ->
++    scan rda off fuel = scan rdb off fuel.
++Proof.
++  intros rda rdb.
++  induction fuel as [| m IH]; intros off Hagree.
++  - reflexivity.
++  - assert (Hhead : rda off = rdb off).
++    { specialize (Hagree 0%nat ltac:(lia)).
++      rewrite Z.add_0_r in Hagree. exact Hagree. }
++    simpl scan. rewrite Hhead.
++    destruct (Z.eqb (rdb off) 0) eqn:Hb.
++    + reflexivity.
++    + f_equal.
++      apply IH. intros j Hj.
++      specialize (Hagree (S j) ltac:(lia)).
++      replace (Z.succ off + Z.of_nat j) with (off + Z.of_nat (S j)) by lia.
++      exact Hagree.
++Qed.
++
++Lemma field_to_str_frame :
++  forall (rda rdb : Z -> Z) (off width : Z),
++    0 <= width ->
++    (forall i, 0 <= i < width -> rda (off + i) = rdb (off + i)) ->
++    field_to_str rda off width = field_to_str rdb off width.
++Proof.
++  intros rda rdb off width Hw Hagree.
++  unfold field_to_str. apply scan_frame.
++  intros j Hj.
++  apply Hagree. split.
++  - lia.
++  - rewrite <- (Z2Nat.id width) by lia.
++    apply Nat2Z.inj_lt. exact Hj.
++Qed.
++
++(* ---- the byte-region frame -> slot frame bridge (the heart of the fold) ----
++ * IDENTICAL to 0715 DirBlitInvariant.v, proved ONCE and applied opaquely. *)
++
++Lemma slot_frame_of_region :
++  forall (d0 d1 : disk) (s : Z),
++    0 <= s < 16 ->
++    (forall b : Z, 0 <= b < 512 ->
++        (b < 32 * s \/ 32 * s + 32 <= b) ->
++        rd d1 (5 * 512 + b) = rd d0 (5 * 512 + b)) ->
++    forall k : Z, 0 <= k < 16 -> k <> s ->
++      slot_inode d1 5 k = slot_inode d0 5 k /\
++      slot_name  d1 5 k = slot_name  d0 5 k.
++Proof.
++  intros d0 d1 s Hs Hframe.
++  assert (Hslotbytes :
++    forall k : Z, 0 <= k < 16 -> k <> s ->
++      forall j, 0 <= j < 32 -> rd d1 (slot_off 5 k + j) = rd d0 (slot_off 5 k + j)).
++  { intros k Hk Hne j Hj.
++    assert (Hbeq : slot_off 5 k + j = 5 * 512 + (32 * k + j)) by (unfold slot_off; lia).
++    rewrite Hbeq.
++    apply Hframe.
++    - lia.
++    - destruct (Z_lt_le_dec k s) as [Hks | Hsk].
++      + left. lia.
++      + right. assert (s < k) by lia. lia. }
++  intros k Hk Hne. split.
++  - unfold slot_inode.
++    pose proof (Hslotbytes k Hk Hne 0 ltac:(lia)) as Hb0k.
++    pose proof (Hslotbytes k Hk Hne 1 ltac:(lia)) as Hb1k.
++    rewrite Z.add_0_r in Hb0k.
++    rewrite Hb0k, Hb1k. reflexivity.
++  - unfold slot_name. apply field_to_str_frame; [ lia |].
++    intros i Hi.
++    replace (slot_off 5 k + 2 + i) with (slot_off 5 k + (2 + i)) by lia.
++    apply (Hslotbytes k Hk Hne (2 + i) ltac:(lia)).
++Qed.
++
++(* ---- the name byte->decode round-trip (identical model to FieldToStrRoundTrip.v) ----
++ *
++ * If the field at off holds the name's char codes for i < len, a null at len (when
++ * len < width), and len <= width with no embedded null, then field_to_str off width
++ * recovers the name's char-code list. Proved by induction on the field width / fuel. *)
++
++(* fuel is exactly the number of remaining field bytes (width - i). At i = nlen nm:
++ * if fuel = 0 we are at the field boundary (len = width), base case; if fuel > 0 the
++ * field has a trailing null (len < width), which scan reads to stop. We carry the
++ * invariant `nlen nm - i = Z.of_nat fuel`-free by guarding the null hypothesis with
++ * `nlen nm < off-relative width`, supplied as `i < nlen nm \/ (i = nlen nm /\ fuel>0
++ * -> null)`. We keep it simple: the os call always has fuel = 30 - i, len <= 30. *)
++Lemma scan_recovers :
++  forall (rdf : Z -> Z) (nm : name_t) (fuel : nat) (off : Z) (i : Z),
++    0 <= i ->
++    i + Z.of_nat fuel = 30 ->
++    nlen nm <= 30 ->
++    i <= nlen nm ->
++    (forall t, i <= t < nlen nm -> nchar nm t <> 0) ->
++    (forall t, i <= t < nlen nm -> rdf (off + (t - i)) = nchar nm t) ->
++    (nlen nm < 30 -> rdf (off + (nlen nm - i)) = 0) ->
++    scan rdf off fuel = name_list nm (Z.to_nat (nlen nm - i)) i.
++Proof.
++  intros rdf nm.
++  induction fuel as [| m IH]; intros off i Hi Hwf Hl30 Hile Hnn Hbytes Hnull.
++  - (* fuel = 0 => i = 30 >= nlen nm and i <= nlen nm => nlen nm - i = 0 *)
++    assert (nlen nm - i = 0) by lia.
++    replace (Z.to_nat (nlen nm - i)) with 0%nat by (rewrite H; reflexivity).
++    reflexivity.
++  - simpl scan.
++    destruct (Z_lt_le_dec i (nlen nm)) as [Hlt | Hge].
++    + (* i < nlen nm : the byte is the (nonzero) char code, recurse *)
++      assert (Hb : rdf off = nchar nm i).
++      { specialize (Hbytes i ltac:(lia)).
++        replace (off + (i - i)) with off in Hbytes by lia. exact Hbytes. }
++      assert (Hnz : nchar nm i <> 0) by (apply Hnn; lia).
++      rewrite Hb.
++      assert (Heqb : Z.eqb (nchar nm i) 0 = false) by (apply Z.eqb_neq; exact Hnz).
++      rewrite Heqb.
++      assert (Hstep : Z.to_nat (nlen nm - i) = S (Z.to_nat (nlen nm - (i + 1)))).
++      { rewrite <- Z2Nat.inj_succ by lia. f_equal. lia. }
++      rewrite Hstep. simpl name_list. f_equal.
++      apply IH.
++      * lia.
++      * lia.
++      * lia.
++      * lia.
++      * intros t Ht. apply Hnn. lia.
++      * intros t Ht. specialize (Hbytes t ltac:(lia)).
++        replace (Z.succ off + (t - (i + 1))) with (off + (t - i)) by lia. exact Hbytes.
++      * intros Hlt2. specialize (Hnull Hlt2).
++        replace (Z.succ off + (nlen nm - (i + 1))) with (off + (nlen nm - i)) by lia.
++        exact Hnull.
++    + (* i = nlen nm : len < 30 (since fuel = S m > 0 => i = 30 - S m < 30, and
++         i = nlen nm), so the trailing null fires; scan stops, name_list empty *)
++      assert (Hieq : i = nlen nm) by lia.
++      assert (Hlen_lt : nlen nm < 30) by lia.
++      assert (Hzero : rdf off = 0).
++      { specialize (Hnull Hlen_lt).
++        rewrite <- Hieq in Hnull.
++        replace (off + (i - i)) with off in Hnull by lia.
++        exact Hnull. }
++      rewrite Hzero. simpl.
++      assert (nlen nm - i = 0) by lia.
++      replace (Z.to_nat (nlen nm - i)) with 0%nat by (rewrite H; reflexivity).
++      reflexivity.
++Qed.
++
++Lemma name_round_trip :
++  forall (d : disk) (nm : name_t) (s : Z),
++    0 <= nlen nm -> nlen nm <= 30 ->
++    (forall i, 0 <= i < nlen nm -> nchar nm i <> 0) ->
++    (forall i, 0 <= i < nlen nm -> rd d (slot_off 5 s + 2 + i) = nchar nm i) ->
++    (nlen nm < 30 -> rd d (slot_off 5 s + 2 + nlen nm) = 0) ->
++    slot_name d 5 s = name_val nm.
++Proof.
++  intros d nm s Hlen0 Hlen30 Hnn Hbytes Hnull.
++  unfold slot_name, field_to_str, name_val.
++  rewrite (scan_recovers (rd d) nm (Z.to_nat 30) (slot_off 5 s + 2) 0).
++  - f_equal. lia.
++  - lia.
++  - reflexivity.
++  - lia.
++  - lia.
++  - intros t Ht. apply Hnn. lia.
++  - intros t Ht.
++    replace (slot_off 5 s + 2 + (t - 0)) with (slot_off 5 s + 2 + t) by lia.
++    apply Hbytes. lia.
++  - intros Hlt.
++    replace (slot_off 5 s + 2 + (nlen nm - 0)) with (slot_off 5 s + 2 + nlen nm) by lia.
++    apply Hnull. lia.
++Qed.
++
++(* ---- dir_blit_marker_intro: byte facts -> marker (DEFINITIONAL, zero trust) ---- *)
++
++Theorem dir_blit_marker_intro :
++  forall (d0 d1 : disk) (s b0 b1 : Z) (nm : name_t),
++    0 <= nlen nm -> nlen nm <= 30 ->
++    rd d1 (slot_off 5 s) = b0 ->
++    rd d1 (slot_off 5 s + 1) = b1 ->
++    (forall i : Z, 0 <= i < nlen nm -> nchar nm i <> 0) ->
++    (forall i : Z, 0 <= i < nlen nm -> rd d1 (slot_off 5 s + 2 + i) = nchar nm i) ->
++    (nlen nm < 30 -> rd d1 (slot_off 5 s + 2 + nlen nm) = 0) ->
++    (forall b : Z, 0 <= b < 512 ->
++        (b < 32 * s \/ 32 * s + 32 <= b) ->
++        rd d1 (5 * 512 + b) = rd d0 (5 * 512 + b)) ->
++    dir_blit_marker d0 d1 s b0 b1 nm.
++Proof.
++  intros d0 d1 s b0 b1 nm Hl0 Hl30 Hb0 Hb1 Hnn Hbytes Hnull Hframe.
++  unfold dir_blit_marker.
++  repeat split; try assumption.
++Qed.
++
++Print Assumptions dir_blit_marker_intro.
++
++(* ---- dir_blit_marker_insert: marker + uniq/slots_lt32 d0 + range + freshness
++ *      -> slot_inode value + slot_name value (= name_val) + frame + uniq d1 +
++ *      slots_lt32 d1.  Same invariant logic as 0715, with the name VALUE derived
++ *      from the byte round-trip, all behind the marker. *)
++
++Theorem dir_blit_marker_insert :
++  forall (d0 d1 : disk) (s b0 b1 : Z) (nm : name_t),
++    dir_blit_marker d0 d1 s b0 b1 nm ->
++    uniq d0 ->
++    slots_lt32 d0 ->
++    0 <= s < 16 ->
++    256 * b0 + b1 <> 0 ->
++    256 * b0 + b1 < 32 ->
++    (forall k : Z, 0 <= k < 16 -> k <> s ->
++        slot_inode d0 5 k <> 0 -> slot_inode d0 5 k < 32 ->
++        slot_name d0 5 k <> name_val nm) ->
++       slot_inode d1 5 s = 256 * b0 + b1
++    /\ slot_name d1 5 s = name_val nm
++    /\ (forall k : Z, 0 <= k < 16 -> k <> s ->
++           slot_inode d1 5 k = slot_inode d0 5 k /\
++           slot_name  d1 5 k = slot_name  d0 5 k)
++    /\ uniq d1
++    /\ slots_lt32 d1.
++Proof.
++  intros d0 d1 s b0 b1 nm Hmark Hu0 Hl0 Hs Hlive Hlt Hfresh.
++  destruct Hmark as
++    [Hnl0 [Hnl30 [Hb0 [Hb1 [Hnn [Hbytes [Hnull Hframe]]]]]]].
++  pose proof (slot_frame_of_region d0 d1 s Hs Hframe) as Hsf.
++  assert (Hvali : slot_inode d1 5 s = 256 * b0 + b1).
++  { unfold slot_inode. rewrite Hb0, Hb1. reflexivity. }
++  assert (Hvaln : slot_name d1 5 s = name_val nm).
++  { apply name_round_trip; assumption. }
++  assert (Hu1 : uniq d1).
++  { intros i j Hi Hj Hil Hilt Hjl Hjlt Hnm.
++    destruct (Z.eq_dec i s) as [His | His];
++    destruct (Z.eq_dec j s) as [Hjs | Hjs].
++    - subst; reflexivity.
++    - exfalso. subst i.
++      destruct (Hsf j Hj Hjs) as [Hji Hjn].
++      apply (Hfresh j Hj Hjs).
++      + rewrite <- Hji; exact Hjl.
++      + rewrite <- Hji; exact Hjlt.
++      + rewrite <- Hjn, <- Hnm, Hvaln. reflexivity.
++    - exfalso. subst j.
++      destruct (Hsf i Hi His) as [Hii Hin].
++      apply (Hfresh i Hi His).
++      + rewrite <- Hii; exact Hil.
++      + rewrite <- Hii; exact Hilt.
++      + rewrite <- Hin, Hnm, Hvaln. reflexivity.
++    - destruct (Hsf i Hi His) as [Hii Hin].
++      destruct (Hsf j Hj Hjs) as [Hji Hjn].
++      apply (Hu0 i j Hi Hj).
++      + rewrite <- Hii; exact Hil.
++      + rewrite <- Hii; exact Hilt.
++      + rewrite <- Hji; exact Hjl.
++      + rewrite <- Hji; exact Hjlt.
++      + rewrite <- Hin, <- Hjn; exact Hnm. }
++  assert (Hl1 : slots_lt32 d1).
++  { intros k Hk. destruct (Z.eq_dec k s) as [He | Hne].
++    - subst k. rewrite Hvali. exact Hlt.
++    - destruct (Hsf k Hk Hne) as [Hki _]. rewrite Hki. apply Hl0. exact Hk. }
++  exact (conj Hvali (conj Hvaln (conj Hsf (conj Hu1 Hl1)))).
++Qed.
++
++Print Assumptions dir_blit_marker_insert.
++
++(* ---- dir_blit_marker_frame_only (SPIKE-2): the SLOT-LOCALITY FRAME alone.
++ * A STRICT corollary of the marker: every slot k <> s decodes identically in
++ * d1 and d0 — needing ONLY the marker (= the byte facts, by definition) and the
++ * slot-in-range fact, NOT uniq/slots_lt32/range/freshness. It is exactly
++ * `slot_frame_of_region` applied to the marker's byte-region-frame conjunct (the
++ * SAME sub-derivation dir_blit_marker_insert performs to obtain its frame
++ * conjunct Hsf). Exposed as its own theorem so the WhyML lean frame-only
++ * marker-keyed axiom can close _write_dir_entry's two `forall k<>s` frame
++ * postconditions DIRECTLY in the full-module aggregate context. Zero new TCB. *)
++
++Theorem dir_blit_marker_frame_only :
++  forall (d0 d1 : disk) (s b0 b1 : Z) (nm : name_t),
++    dir_blit_marker d0 d1 s b0 b1 nm ->
++    0 <= s < 16 ->
++    forall k : Z, 0 <= k < 16 -> k <> s ->
++      slot_inode d1 5 k = slot_inode d0 5 k /\
++      slot_name  d1 5 k = slot_name  d0 5 k.
++Proof.
++  intros d0 d1 s b0 b1 nm Hmark Hs.
++  destruct Hmark as
++    [_ [_ [_ [_ [_ [_ [_ Hframe]]]]]]].
++  exact (slot_frame_of_region d0 d1 s Hs Hframe).
++Qed.
++
++Print Assumptions dir_blit_marker_frame_only.
++
++End Marker.
++End Dir.
++End UnixFs.
