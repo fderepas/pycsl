@@ -1176,50 +1176,140 @@ class UnixInodeFileSystem:
         # the FULL body gate. See getting-better/<route1 writeup> for the precise GAP.
         #@ assert dir_blit_marker(\old(self.dir), self.dir, slot, self.dir[2560 + 32 * slot], self.dir[2560 + 32 * slot + 1], name)
 
-    #@ proof rocq UnixFs.Dir.scan_reflects_present
-    #@ proof lean UnixFs.Dir.scan_reflects_present
-    #@ proof rocq UnixFs.Dir.slot_inode_nonneg
-    #@ proof lean UnixFs.Dir.slot_inode_nonneg
+    #@ requires off >= 0
+    #@ requires off + 32 <= \length(self.disk)
+    #@ requires inode_num == 0 or (inode_num != 0 and inode_num < 32)
+    #@ requires \str_length(name) <= 30
+    #@ assigns self.disk
+    #@ ensures \length(self.disk) == \old(\length(self.disk))
+    # inode VALUE (the 2-byte big-endian decode = inode_num), the self.disk twin of
+    # _blit_dir_entry's inode-byte ensures.
+    #@ ensures self.disk[off] * 256 + self.disk[off + 1] == inode_num
+    #@ ensures \forall i: int; (0 <= i and i < \str_length(name) and i < 30) ==> self.disk[off + 2 + i] == ord(name[i])
+    #@ ensures \forall i: int; (\str_length(name) <= i and i < 30) ==> self.disk[off + 2 + i] == 0
+    # SINGLE-POINT null-pad at the boundary (the robustness lever — the marker-at
+    # intro's null-pad antecedent is the single point off+2+len, so surface it directly
+    # here, pre-instantiated, instead of forcing _write_entry to instantiate the \forall
+    # above at the symbolic index block_num*512+... where it E-match-explodes).
+    #@ ensures \str_length(name) < 30 ==> self.disk[off + 2 + \str_length(name)] == 0
+    #@ ensures \forall b: int; (0 <= b and b < \length(self.disk) and (b < off or off + 32 <= b)) ==> self.disk[b] == \old(self.disk[b])
+    # ROUTE 1 byte-only directory-entry blit on SELF.DISK at an ARBITRARY offset (the
+    # _blit_dir_entry twin for self.disk — _write_entry seeds the './..' loopback
+    # entries of a fresh SUBDIRECTORY data block, which lives in self.disk, NOT the
+    # root self.dir). Opaque off => NO slot_inode/slot_name term, so NO slot-web axiom
+    # can match its loop; the dir_blit_marker_at maintenance axiom keys on the marker
+    # atom (absent here), so this helper's PURE-BYTE postcondition is never poisoned.
+    #@ sibling_concrete
+    def _blit_disk_entry(self, off: int, inode_num: int, name: str) -> None:
+        # Identical byte layout to _blit_dir_entry, on self.disk: inode = 2 big-endian
+        # bytes; name = a single loop over the 30-byte field (chars then null-pad).
+        self.disk[off] = inode_num // 256
+        self.disk[off + 1] = inode_num % 256
+        n = len(name)
+        m = n
+        if m > 30:
+            m = 30
+        #@ loop invariant 0 <= i and i <= 30
+        #@ loop invariant m <= 30
+        #@ loop invariant m <= \str_length(name)
+        #@ loop invariant self.disk[off] == inode_num // 256
+        #@ loop invariant self.disk[off + 1] == inode_num % 256
+        #@ loop invariant \forall j: int; (0 <= j and j < i and j < m) ==> self.disk[off + 2 + j] == ord(name[j])
+        #@ loop invariant \forall j: int; (m <= j and j < i) ==> self.disk[off + 2 + j] == 0
+        #@ loop invariant \forall b: int; (0 <= b and b < \length(self.disk) and (b < off or off + 32 <= b)) ==> self.disk[b] == \old(self.disk[b])
+        #@ loop variant 30 - i
+        for i in range(30):
+            if i < m:
+                self.disk[off + 2 + i] = ord(name[i])
+            else:
+                self.disk[off + 2 + i] = 0
+
+    # ROUTE 1 (BLOCK-PARAMETERIZED, 2026-06-19): cite ONLY the arbitrary-block
+    # unique-marker axioms. _write_entry is the self.disk twin of _write_dir_entry but
+    # at an ARBITRARY block_num (NOT the hardcoded block 5 of self.dir), so it cites the
+    # dir_blit_marker_at family (0718 DirBlitMarkerAt) rather than the block-5
+    # dir_blit_marker family. As with _write_dir_entry we do NOT cite
+    # slot_inode_byte_decode / slot_name_byte_decode / field_to_str_round_trip (their
+    # generic disk[...] / field_to_str triggers would E-match-explode the sibling
+    # pure-byte helper _blit_disk_entry); the marker carries BOTH slot VALUE decodes
+    # (inode AND name) and the slot-locality frame in its cross-validated conclusions.
+    #@ proof rocq UnixFs.Dir.dir_blit_marker_at_intro
+    #@ proof lean UnixFs.Dir.dir_blit_marker_at_intro
+    #@ proof rocq UnixFs.Dir.dir_blit_marker_at_value_inode
+    #@ proof lean UnixFs.Dir.dir_blit_marker_at_value_inode
+    #@ proof rocq UnixFs.Dir.dir_blit_marker_at_value_name
+    #@ proof lean UnixFs.Dir.dir_blit_marker_at_value_name
+    #@ proof rocq UnixFs.Dir.dir_blit_marker_at_frame_only
+    #@ proof lean UnixFs.Dir.dir_blit_marker_at_frame_only
     #@ requires block_num >= 0
     #@ requires block_num < 256
     #@ requires slot >= 0 and slot < 16
+    #@ requires inode_num == 0 or (inode_num != 0 and inode_num < 32)
+    #@ requires \str_length(name) <= 30
+    #@ requires \forall i: int; (0 <= i and i < \str_length(name)) ==> ord(name[i]) != 0
     #@ assigns self.disk
     #@ ensures (inode_num != 0 and inode_num < 32) ==> slot_inode(self.disk, block_num, slot) == inode_num
     #@ ensures (inode_num != 0 and inode_num < 32) ==> slot_name(self.disk, block_num, slot) == name
     #@ ensures \forall k: int; (0 <= k and k < 16 and k != slot) ==> slot_inode(self.disk, block_num, k) == \old(slot_inode(self.disk, block_num, k))
     #@ ensures \forall k: int; (0 <= k and k < 16 and k != slot) ==> slot_name(self.disk, block_num, k) == \old(slot_name(self.disk, block_num, k))
-    # M4: audit-link the FOLDED insert maintenance facts (a fresh-name single-slot
-    # insert under an unchanged frame preserves uniq/slots_lt32; always-emitted via the
-    # class-inv path, cited here for --reverify-proofs).
     # cite:_note: Writes a single 32-byte directory entry (struct '>H30s')
-    #             at `slot` of `block_num`. The name is `name.encode(...)`
-    #             — an opaque byte buffer (gap 5: the encoded byte
-    #             *content* is not value-modeled — `str` itself is the
-    #             Why3 `string.String` value type — but the pack/blit is
-    #             body-verified).
+    #             at `slot` of `block_num` in self.disk.
     #
-    #             RISK-2 BINDING (gap-9): the two `slot_inode`/`slot_name`
-    #             ensures are the WRITE-SIDE fidelity claim — writing a live
-    #             entry (`inode_num != 0 and < 32`) at `slot` makes the abstract
-    #             per-slot decode at that slot return exactly `(inode_num,
-    #             name)`. This is the witness that lets `sys_mkdir` establish the
-    #             scan_reflects_present existential (at k=slot). It is the SAME
-    #             human-reviewed modelling claim as `_dir_lookup`'s read-side
-    #             `dir_lookup` binding (the on-disk bytes <=> abstract decode
-    #             correspondence the cross-check cannot machine-verify, spec
-    #             risk 6.2). Trusted on that clause.
+    #             DE-TRUSTED (route 1, block-parameterized): the decode<->bytes
+    #             correspondence the `dirscan-fidelity` reviewer used to vouch for is
+    #             now MACHINE-PROVEN via the cross-validated block-parameterized marker
+    #             corollaries (0718 DirBlitMarkerAt, the arbitrary-block generalization
+    #             of the block-5 0716 DirBlitMarker). The body blits the entry via the
+    #             pure-byte helper _blit_disk_entry, materializes the inode-byte facts,
+    #             the per-char name-field bytes, the null-pad, and the block-blk
+    #             byte-region frame as their OWN cheap asserts, folds them into the
+    #             UNIQUE marker atom dir_blit_marker_at, and cites the value_inode +
+    #             value_name + frame_only corollaries to discharge the four ensures in
+    #             marker-keyed steps. The marker atom appears ONLY at this asserted
+    #             site, so the corollaries fire EXACTLY ONCE here and never inside
+    #             _blit_disk_entry or any other byte mutator.
     #
-    #             gap-11: the two `\forall k != slot` frame ensures are the
-    #             slot-locality fact — the per-slot decode at any OTHER slot is a
-    #             function of slot-k's bytes only, so a write confined to `slot`'s
-    #             32-byte slice leaves every k != slot unchanged. Needed by
-    #             sys_rename so the oldpath-ABSENCE established before the final
-    #             newpath write survives that write (newpath != oldpath). Same
-    #             byte-local decode trust class as the write-side claim.
-    #@ \trusted reviewer: dirscan-fidelity
+    #             SCOPE: _write_entry's ensures are VALUE (slot_inode + slot_name at
+    #             slot) + FRAME (forall k <> slot). It does NOT maintain the block-5
+    #             directory uniqueness invariants uniq/slots_lt32 (those are
+    #             self.dir/block-5 facts), so no `insert`-style maintenance is needed —
+    #             only the value + frame corollaries.
     def _write_entry(self, block_num: int, slot: int, inode_num: int, name: str) -> None:
         entry_offset = block_num * 512 + slot * 32
-        self.disk[entry_offset:entry_offset + 32] = _pack_direntry(inode_num, _pad_name(name))
+        self._blit_disk_entry(entry_offset, inode_num, name)
+        # STANDALONE BYTE-FACT MATERIALIZATION (the _write_dir_entry twin, on self.disk
+        # at arbitrary block_num): pre-prove EACH of the marker intro's byte antecedents
+        # as its OWN cheap assert BEFORE the marker fold, so the intro consumes
+        # already-discharged facts in one marker-keyed step (the robustness lever — pull
+        # the quantifier bridges OUT of the marker-establishment goal).
+        # ARITHMETIC BRIDGE: entry_offset (= off passed to _blit_disk_entry, whose
+        # ensures are keyed on off) equals the marker-intro index base block_num*512 +
+        # 32*slot. Pin it ONCE so the cheap off-form byte facts below unify with the
+        # marker intro's blk*512+32*s-form antecedents without re-triggering the slot web.
+        #@ assert entry_offset == block_num * 512 + 32 * slot
+        # the two blitted inode bytes (b0,b1 = the actual written bytes; the marker
+        # intro takes them directly and value_inode concludes slot_inode == 256*b0+b1).
+        # Stated in entry_offset form (matches _blit_disk_entry's off-keyed sum ensures).
+        #@ assert self.disk[entry_offset] * 256 + self.disk[entry_offset + 1] == inode_num
+        # the per-char name-field bytes (the marker intro's per-char name hypotheses),
+        # in entry_offset form (matches _blit_disk_entry's off+2+i ensures directly).
+        #@ assert \forall i: int; (0 <= i and i < \str_length(name) and i < 30) ==> self.disk[entry_offset + 2 + i] == ord(name[i])
+        # the single-point null-pad (consumes _blit_disk_entry's pre-instantiated
+        # single-point null-pad ensures directly — no \forall instantiation here).
+        #@ assert \str_length(name) < 30 ==> self.disk[entry_offset + 2 + \str_length(name)] == 0
+        # block-blk byte-region frame: every byte of block block_num OUTSIDE slot's
+        # 32-byte window agrees with the pre-state (the blit only touched [entry_offset,
+        # entry_offset+32)). Derived from _blit_disk_entry's global frame ensures;
+        # materialized as its OWN assert HERE so the marker fold never re-derives it.
+        #@ assert \forall b: int; (0 <= b and b < 512 and (b < 32 * slot or 32 * slot + 32 <= b)) ==> self.disk[block_num * 512 + b] == \old(self.disk[block_num * 512 + b])
+        # FOLD the byte facts into the UNIQUE block-parameterized marker atom
+        # (dir_blit_marker_at_intro fires here, bytes->marker) with blk=block_num,
+        # b0,b1 = the written inode bytes. dir_blit_marker_at_value_inode then concludes
+        # slot_inode == 256*b0+b1 (== inode_num by _blit_disk_entry's sum ensures),
+        # dir_blit_marker_at_value_name slot_name == name (the byte round-trip, inside
+        # the kernel proof), and dir_blit_marker_at_frame_only the forall k<>slot
+        # slot-locality frame — all marker-keyed, firing EXACTLY ONCE at this atom.
+        #@ assert dir_blit_marker_at(\old(self.disk), self.disk, block_num, slot, self.disk[block_num * 512 + 32 * slot], self.disk[block_num * 512 + 32 * slot + 1], name)
 
     #@ proof rocq UnixFs.Dir.slot_inode_nonneg
     #@ proof lean UnixFs.Dir.slot_inode_nonneg
