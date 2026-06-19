@@ -404,6 +404,79 @@ Qed.
 
 Print Assumptions dir_blit_marker_frame_only.
 
+(* ---- dir_blit_marker_value_inode (ZERO-ENTRY corollary): the inode VALUE
+ * decode alone, marker-keyed.  From the marker (= the byte facts, by
+ * definition) conclude slot_inode d1 5 s = 256*b0+b1 -- needing ONLY the
+ * marker's two inode-byte conjuncts (Hb0, Hb1), NOT liveness / uniq /
+ * slots_lt32 / freshness.  This is exactly the `Hvali` sub-derivation
+ * dir_blit_marker_insert performs (unfold slot_inode; rewrite the two inode
+ * bytes), exposed as its own theorem.  Unlike dir_blit_marker_insert it does
+ * NOT require 256*b0+b1 <> 0, so it APPLIES to the REMOVE primitive
+ * (_zero_entry, b0=b1=0): the caller instantiates it to slot_inode d1 5 s = 0.
+ * Zero new TCB -- a strict corollary of the marker DEFINITION. *)
+
+Theorem dir_blit_marker_value_inode :
+  forall (d0 d1 : disk) (s b0 b1 : Z) (nm : name_t),
+    dir_blit_marker d0 d1 s b0 b1 nm ->
+    slot_inode d1 5 s = 256 * b0 + b1.
+Proof.
+  intros d0 d1 s b0 b1 nm Hmark.
+  destruct Hmark as
+    [_ [_ [Hb0 [Hb1 [_ [_ [_ _]]]]]]].
+  unfold slot_inode. rewrite Hb0, Hb1. reflexivity.
+Qed.
+
+Print Assumptions dir_blit_marker_value_inode.
+
+(* ---- dir_blit_marker_intro_zero (ZERO-ENTRY intro corollary): establish the
+ * marker for a ZEROED entry (b0=b1=0, EMPTY name) from the MINIMAL byte facts.
+ *
+ * The general dir_blit_marker_intro needs EIGHT hypotheses (the two inode bytes,
+ * the per-char name-field bytes, the per-char nonzero codes, the null-pad, the
+ * name-len bounds, and the byte-region frame).  For a zeroed entry the name is
+ * EMPTY (nlen nm = 0), so:
+ *   - 0 <= nlen nm        is 0 <= 0                       (trivial),
+ *   - nlen nm <= 30       is 0 <= 30                      (trivial),
+ *   - the per-char nonzero forall (0 <= i < 0)           is VACUOUS,
+ *   - the per-char byte forall (0 <= i < 0)              is VACUOUS,
+ *   - the null-pad (nlen nm < 30 -> rd d1 (off+2+nlen nm)=0) collapses to the
+ *     SINGLE byte fact rd d1 (slot_off 5 s + 2) = 0.
+ * So the marker for a zeroed entry follows from just THREE byte facts (the two
+ * inode bytes = 0, the head name byte = 0) plus the byte-region frame -- a far
+ * cheaper establishment than the general intro.  This is the SAME conjunction the
+ * general intro builds, specialised to nlen nm = 0; exposed as its own theorem so
+ * the os body's _zero_entry can fold the marker in ONE cheap marker-keyed step in
+ * the FULL-module aggregate E-matching context (where the heavier general intro's
+ * eight instantiations starve the prover step budget).  Zero new TCB -- a strict
+ * specialisation of the marker DEFINITION. *)
+
+Theorem dir_blit_marker_intro_zero :
+  forall (d0 d1 : disk) (s b0 b1 : Z) (nm : name_t),
+    nlen nm = 0 ->
+    rd d1 (slot_off 5 s) = b0 ->
+    rd d1 (slot_off 5 s + 1) = b1 ->
+    rd d1 (slot_off 5 s + 2) = 0 ->
+    (forall b : Z, 0 <= b < 512 ->
+        (b < 32 * s \/ 32 * s + 32 <= b) ->
+        rd d1 (5 * 512 + b) = rd d0 (5 * 512 + b)) ->
+    dir_blit_marker d0 d1 s b0 b1 nm.
+Proof.
+  intros d0 d1 s b0 b1 nm Hnl Hb0 Hb1 Hpad Hframe.
+  unfold dir_blit_marker.
+  repeat split.
+  - rewrite Hnl. lia.
+  - rewrite Hnl. lia.
+  - exact Hb0.
+  - exact Hb1.
+  - intros i Hi. rewrite Hnl in Hi. lia.
+  - intros i Hi. rewrite Hnl in Hi. lia.
+  - intros _. rewrite Hnl. rewrite Z.add_0_r. exact Hpad.
+  - intros b Hb Hout. apply Hframe; assumption.
+Qed.
+
+Print Assumptions dir_blit_marker_intro_zero.
+
+
 End Marker.
 End Dir.
 End UnixFs.

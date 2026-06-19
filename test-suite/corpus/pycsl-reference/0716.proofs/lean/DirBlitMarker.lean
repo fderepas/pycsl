@@ -309,6 +309,50 @@ theorem dir_blit_marker_frame_only (d0 d1 : Disk) (s b0 b1 : Int) (nm : Name)
 #print axioms dir_blit_marker_insert
 #print axioms dir_blit_marker_frame_only
 
+/-- dir_blit_marker_value_inode (ZERO-ENTRY corollary): the inode VALUE decode
+    alone. From the marker conclude slot_inode d1 5 s = 256*b0+b1 — needing ONLY
+    the marker's two inode-byte conjuncts, NOT liveness/uniq/slots_lt32/freshness.
+    The `hvali` sub-derivation of dir_blit_marker_insert, exposed as its own
+    theorem; it does NOT need 256*b0+b1 ≠ 0, so it applies to _zero_entry
+    (b0=b1=0 ⇒ slot_inode d1 5 s = 0). Zero new TCB. -/
+theorem dir_blit_marker_value_inode (d0 d1 : Disk) (s b0 b1 : Int) (nm : Name)
+    (hmark : dir_blit_marker rd nchar nlen d0 d1 s b0 b1 nm) :
+    slot_inode rd d1 5 s = 256 * b0 + b1 := by
+  obtain ⟨_, _, hb0, hb1, _, _, _, _⟩ := hmark
+  unfold slot_inode
+  rw [hb0, hb1]
+
+#print axioms dir_blit_marker_value_inode
+
+/-- dir_blit_marker_intro_zero (ZERO-ENTRY intro corollary): establish the marker
+    for a ZEROED entry (b0=b1=0, EMPTY name) from the MINIMAL byte facts. The
+    general dir_blit_marker_intro needs EIGHT hypotheses; for nlen nm = 0 the two
+    per-char foralls are vacuous, the len bounds are trivial, and the null-pad
+    collapses to the single byte fact rd d1 (slot_off 5 s + 2) = 0. So the marker
+    follows from just three byte facts (the two inode bytes = 0, the head name byte
+    = 0) plus the byte-region frame — a far cheaper establishment than the general
+    intro, exposed as its own theorem so _zero_entry folds the marker in ONE cheap
+    marker-keyed step in the full-module aggregate context. Zero new TCB — a strict
+    specialisation of the marker DEFINITION. -/
+theorem dir_blit_marker_intro_zero (d0 d1 : Disk) (s b0 b1 : Int) (nm : Name)
+    (hnl : nlen nm = 0)
+    (hb0 : rd d1 (slot_off 5 s) = b0)
+    (hb1 : rd d1 (slot_off 5 s + 1) = b1)
+    (hpad : rd d1 (slot_off 5 s + 2) = 0)
+    (hframe : ∀ b : Int, 0 ≤ b → b < 512 →
+        (b < 32 * s ∨ 32 * s + 32 ≤ b) →
+        rd d1 (5 * 512 + b) = rd d0 (5 * 512 + b)) :
+    dir_blit_marker rd nchar nlen d0 d1 s b0 b1 nm := by
+  refine ⟨?_, ?_, hb0, hb1, ?_, ?_, ?_, hframe⟩
+  · rw [hnl]; omega
+  · rw [hnl]; omega
+  · intro i _ hi; rw [hnl] at hi; omega
+  · intro i _ hi; rw [hnl] at hi; omega
+  · intro _; rw [hnl]; simpa using hpad
+
+#print axioms dir_blit_marker_intro_zero
+
+
 end Marker
 end Dir
 end UnixFs
