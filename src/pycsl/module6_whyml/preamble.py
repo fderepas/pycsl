@@ -670,6 +670,80 @@ class PreambleEmissionMixin:
             "[dir_blit_marker d0 d1 s b0 b1 name]. "
             "dir_blit_marker d0 d1 s b0 b1 name -> "
             "slot_inode d1 5 s = 256 * b0 + b1",
+
+        # ====================================================================
+        # BLOCK-PARAMETERIZED marker family (2026-06-19) — the arbitrary-block
+        # generalization of the block-5 dir_blit_marker family above. _write_entry
+        # mutates self.disk at an ARBITRARY block `block_num` (ensures reference
+        # slot_inode(self.disk, block_num, slot) / slot_name(self.disk, block_num,
+        # slot)), so the block-5-hardcoded family does NOT apply. These four axioms
+        # add a `blk` parameter to the marker, slot_off, and the byte-region-frame
+        # base (blk*512); slot_off/slot_inode/slot_name/field_to_str are ALREADY
+        # generic over the block argument. The block-5 family is the blk=5 instance
+        # of THESE — same proof, 5 -> blk. SCOPE: _write_entry's ensures are VALUE
+        # (slot_inode + slot_name at slot) + FRAME (forall k <> slot); it does NOT
+        # maintain the block-5 directory uniqueness invariants uniq/slots_lt32
+        # (those are self.dir/block-5 facts established by the live-insert callers,
+        # NOT a property of an arbitrary-block write), so there is NO block-
+        # parameterized `insert` — only intro + value_inode + value_name + frame.
+        # The new predicate `dir_blit_marker_at` is declared in _AXIOM_FUNCTIONS;
+        # its trigger [dir_blit_marker_at d0 d1 blk s b0 b1 name] is UNIQUE, so it
+        # fires ONLY at _write_entry's asserted marker atom, NEVER inside a sibling
+        # byte mutator. Cross-validated zero-TCB by
+        # test-suite/corpus/pycsl-reference/0718.proofs/{rocq,lean}/DirBlitMarkerAt.{v,lean}
+        # (Rocq Section-Variables-only / Closed under the global context; Lean
+        # #print axioms ⊆ {propext, Quot.sound}).
+        #
+        # dir_blit_marker_at_intro (DEFINITIONAL, zero trust): byte facts -> marker,
+        # generalised over blk. IDENTICAL antecedents to dir_blit_marker_intro but
+        # with slot_off blk s (not slot_off 5 s = 2560 + ...) and the byte-region
+        # frame base blk*512 (not 2560).
+        "UnixFs.Dir.dir_blit_marker_at_intro":
+            "forall d0 d1 : array int, blk s b0 b1 : int, name : string "
+            "[dir_blit_marker_at d0 d1 blk s b0 b1 name]. "
+            "0 <= String.length name -> String.length name <= 30 -> "
+            "d1[blk * 512 + 32 * s] = b0 -> d1[blk * 512 + 32 * s + 1] = b1 -> "
+            "( forall i : int. 0 <= i < String.length name -> "
+            "    Char.code (Char.get name i) <> 0 ) -> "
+            "( forall i : int. 0 <= i < String.length name -> "
+            "    d1[blk * 512 + 32 * s + 2 + i] = Char.code (Char.get name i) ) -> "
+            "( String.length name < 30 -> "
+            "    d1[blk * 512 + 32 * s + 2 + String.length name] = 0 ) -> "
+            "( forall b : int. 0 <= b < 512 -> "
+            "    (b < 32 * s \\/ 32 * s + 32 <= b) -> "
+            "    d1[blk * 512 + b] = d0[blk * 512 + b] ) -> "
+            "dir_blit_marker_at d0 d1 blk s b0 b1 name",
+        # dir_blit_marker_at_value_inode: slot_inode d1 blk s = 256*b0+b1 — the two
+        # inode-byte conjuncts only. The `Hvali` sub-derivation, generalised over blk.
+        "UnixFs.Dir.dir_blit_marker_at_value_inode":
+            "forall d0 d1 : array int, blk s b0 b1 : int, name : string "
+            "[dir_blit_marker_at d0 d1 blk s b0 b1 name]. "
+            "dir_blit_marker_at d0 d1 blk s b0 b1 name -> "
+            "slot_inode d1 blk s = 256 * b0 + b1",
+        # dir_blit_marker_at_value_name: slot_name d1 blk s = name (the byte
+        # round-trip), generalised over blk. The `Hvaln` sub-derivation
+        # (name_round_trip) exposed as its own block-parameterized theorem;
+        # _write_entry needs it for the slot_name(self.disk, block_num, slot) == name
+        # ensures. The name round-trip is discharged INSIDE the 0718 kernel proof, so
+        # the os body provides ONLY the marker atom and never materializes the string
+        # codec (field_to_str) in its VC.
+        "UnixFs.Dir.dir_blit_marker_at_value_name":
+            "forall d0 d1 : array int, blk s b0 b1 : int, name : string "
+            "[dir_blit_marker_at d0 d1 blk s b0 b1 name]. "
+            "dir_blit_marker_at d0 d1 blk s b0 b1 name -> "
+            "slot_name d1 blk s = name",
+        # dir_blit_marker_at_frame_only: every slot k <> s decodes identically in d1
+        # and d0 (slot_inode AND slot_name), generalised over blk. The
+        # `slot_frame_of_region_at` corollary applied to the marker's byte-region-frame
+        # conjunct — needs ONLY the marker and slot-in-range, NOT uniq/range/freshness.
+        "UnixFs.Dir.dir_blit_marker_at_frame_only":
+            "forall d0 d1 : array int, blk s b0 b1 : int, name : string "
+            "[dir_blit_marker_at d0 d1 blk s b0 b1 name]. "
+            "dir_blit_marker_at d0 d1 blk s b0 b1 name -> "
+            "0 <= s < 16 -> "
+            "( forall k : int. 0 <= k < 16 -> k <> s -> "
+            "    slot_inode d1 blk k = slot_inode d0 blk k /\\ "
+            "    slot_name  d1 blk k = slot_name  d0 blk k )",
         # ====================================================================
 
         # UnixFs.Dir.dir_lookup_frame (M4 — sys_unlink reorder) — dir_lookup is the
@@ -1159,6 +1233,25 @@ class PreambleEmissionMixin:
             # `disk[2560+<expr>]` byte read (the trigger-poison wall fix). d0 = pre,
             # d1 = post, s = slot, (b0,b1) = the two blitted inode bytes.
             "predicate dir_blit_marker (d0 d1: array int) (s b0 b1: int) (name: string)",
+        ],
+        # BLOCK-PARAMETERIZED marker (2026-06-19): the arbitrary-block twin of
+        # dir_blit_marker for _write_entry, which mutates self.disk at an ARBITRARY
+        # block `block_num` (not the hardcoded block 5 of self.dir). Extra `blk`
+        # parameter; keyed [dir_blit_marker_at d0 d1 blk s b0 b1 name] so it fires
+        # ONLY where _write_entry's body asserts it, never on a raw disk[...] read.
+        # Cross-validated zero-TCB by 0718.proofs (DirBlitMarkerAt.{v,lean}); the
+        # block-5 family is its blk=5 instance (same proof, 5 -> blk).
+        #
+        # GATING: keyed on the MORE-SPECIFIC prefix "UnixFs.Dir.dir_blit_marker_at"
+        # (NOT the general "UnixFs.Dir." list above) so the predicate declaration is
+        # emitted ONLY when a dir_blit_marker_at* axiom is cited (i.e. by _write_entry's
+        # os module), NOT for every UnixFs.Dir.* citation. This preserves byte-identity
+        # for sibling corpus modules (0711/0712) that cite scan_reflects_present etc.
+        # but never the block-parameterized marker. `startswith` matches both prefixes
+        # for a dir_blit_marker_at_* qualname, so the os module still gets BOTH the
+        # general Dir decls AND this predicate.
+        "UnixFs.Dir.dir_blit_marker_at": [
+            "predicate dir_blit_marker_at (d0 d1: array int) (blk s b0 b1: int) (name: string)",
         ],
     }
 
