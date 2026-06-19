@@ -1,0 +1,2637 @@
+diff --git a/getting-better/20260619-2330-gap5-milestone0-YES.md b/getting-better/20260619-2330-gap5-milestone0-YES.md
+new file mode 100644
+index 0000000..42f1e07
+--- /dev/null
++++ b/getting-better/20260619-2330-gap5-milestone0-YES.md
+@@ -0,0 +1,171 @@
++# Gap-5 Milestone-0 spike (os-name-only, faithful dir-entry NAME read) — VERDICT: **YES**
++
++**Date:** 2026-06-19 ~23:30
++**Worktree:** `.claude/worktrees/agent-a17c581ab7750dee0` (THROWAWAY SPIKE — nothing committed)
++**Starting point:** clean HEAD `18c4295` + `getting-better/SPIKE-dir-lookup-value.patch` applied
++(the banked, cross-validated `dir_lookup`-VALUE marker + `_dir_lookup` de-trust scaffold).
++**Faithful-name artifact (hand-edited emitted WhyML, the spike measurement subject):**
++`getting-better/SPIKE-gap5-dir-lookup-faithful.mlw`
++**Patch capture:** `getting-better/SPIKE-gap5-os-name.patch`
++
++---
++
++## 1. BOTTOM LINE — **YES**
++
++Making the dir-entry NAME read FAITHFUL (lower it to `field_to_str(self.dir, off+2, 30)`
++— the SAME logic codec the encode side and `slot_name` use — instead of the opaque int
++hash) is **SUFFICIENT** to unblock the read side. With the faithful name in the
++`_dir_lookup` body, **every one of the 4 sub-goals that REDded in Milestone-0 now
++discharges**, and the whole `_dir_lookup` VC is **0 non-Valid on BOTH Alt-Ergo AND Z3
++independently, deterministic ×2, with enormous margin** (the load-bearing goals are
++50–199 steps, ~1500× under the ~300K edge). The A.7 aggregate-context wall does **NOT**
++lurk underneath: once the marker step's `slot_name == pathname` branch can fire, the
++banked `dir_scan_prefix_step` / `dir_scan_result_value` value machinery composes cleanly
++and the fidelity `\result == dir_lookup(...)` is Valid in **50 steps (AE) / 5226 steps (Z3)**.
++
++The decisive contrast with Milestone-0 (which RED at the same goals with multi-million-step
++Timeouts) is purely the name: the only change between NO and YES is `name := decode_1
++1501791143` (opaque int hash, zero disk-byte dependence) → `name := field_to_str_read
++self.dir (5*512+32*i+2) 30` (a genuine disk-byte-dependent WhyML string).
++
++**This authorizes the read-side build** (option a1: an os-shaped emitter recognizer that
++lowers the `split(b'\x00')[0].decode(...)` dir-entry idiom to `field_to_str`) **and scopes
++the general no-more-int rollout** (option a2): Gap-5 is both necessary AND sufficient for
++the read side.
++
++---
++
++## 2. How the name was made faithful (which option) + new-axiom audit
++
++**Option chosen: (a3) + a minimal executable-view bridge — NO new logic axiom.**
++
++The body's per-slot name was lowered to the existing cross-validated codec:
++
++1. Surface the name-field first byte `self.dir[5*512 + 32*i + 2]` in the body so
++   `slot_name_byte_decode`'s trigger `[disk[blk*512+32*k+2]]` E-matches, giving
++   `slot_name self.dir 5 i = field_to_str self.dir (5*512+32*i+2) 30`.
++2. Bind the body's `name` to `field_to_str self.dir (5*512+32*i+2) 30` via a one-line
++   **executable view** `val function field_to_str_read (d) (off) (width) : string
++   ensures { result = field_to_str d off width }`. This is **not a new logic axiom** —
++   it is the standard WhyML "executable view of a logic function" idiom: it introduces no
++   new *logical* fact, it only makes the EXISTING abstract logic `function field_to_str`
++   (constrained solely by the cross-validated `field_to_str_round_trip`/`field_to_str_frame`
++   axioms) callable in program position. The view's `result = field_to_str ...` is the
++   defining equation of "the executable reader returns what the logic codec says", the
++   same trust class as `field_to_str` itself (which is already abstract).
++3. The match guard became a genuine string compare `str_eq_op !name pathname` (was the
++   int-hash compare `!name = str_hash_op pathname`).
++4. Asserts wired the bridge through: `slot_name self.dir 5 i = name` (line 980, from
++   `slot_name_byte_decode` + the view), and in the match branch `slot_name self.dir 5 i =
++   pathname` (line 983, transitivity with the `str_eq_op` guard). These feed the banked
++   `dir_scan_prefix_step` axiom's match branch (`slot_name d blk i = name`).
++5. One **sound invariant strengthening** (NOT a soundness compromise): the loop invariant
++   `found = -1 or (found >= 0 and found < 32)` → `found = -1 or (found >= 1 and found < 32)`.
++   This is true by construction (the match sets `found := inode_num` only when the guard
++   establishes `inode_num <> 0 and inode_num < 32`, i.e. `inode_num >= 1`). Without it the
++   RANGE postcondition `(result = -1) || (result >= 1 && result < 32)` timed out on BOTH
++   provers (the faithful name adds string-axiom context that defeats the weaker `>= 0`
++   invariant); with it, RANGE is Valid in 50 (AE) / 7471 (Z3) steps.
++
++**New axiom needed: NONE.** The bridge is the existing cross-validated `slot_name_byte_decode`
++(0712.proofs) + `field_to_str_round_trip` (0708.proofs) + the banked value marker
++(0720.proofs). The `field_to_str_read` view adds no logical content beyond the existing
++abstract `field_to_str`. The fix **shrinks** the TCB (retires the unsound int-hash
++fabrication) rather than growing it.
++
++---
++
++## 3. FULL-gate ×2 evidence
++
++**Measurement subject:** `getting-better/SPIKE-gap5-dir-lookup-faithful.mlw` (the emitted
++WhyML with the faithful-name change; this is exactly what pycsl's body gate hands to Why3).
++**Command:** `why3 prove -P "Alt-Ergo,2.6.2," [and] -P "Z3,4.13.3," -t 30 -a split_vc
++<mlw> -T PyCSL_Program -G "unixinodefilesystem___dir_lookup'vc"` — the per-goal split VC,
++each prover independently, run ×2.
++
++### 3.1 `_dir_lookup` — 0 non-Valid on BOTH provers, deterministic ×2
++
++| sub-goal (line) | meaning | AE run1 | AE run2 | Z3 |
++|---|---|---|---|---|
++| 980 | `slot_name self.dir 5 i = name` (faithful bridge) | Valid 199 | Valid 199 | Valid 63423 |
++| 983 | `slot_name self.dir 5 i = pathname` (match branch) | Valid 196 | Valid 196 | Valid 70989 |
++| 985 | `dir_scan_prefix` advance (then/match) | Valid 132 | Valid 132 | Valid 66088 |
++| 987 | `dir_scan_prefix` advance (else) | Valid 157 | Valid 157 | Valid 63934 |
++| 991 | `dir_scan_result` close | Valid 63 | Valid 63 | Valid 58067 |
++| 992 | fidelity ASSERT `found = dir_lookup` | Valid 70 | Valid 70 | Valid 58316 |
++| 946 | fidelity POSTCOND `result = dir_lookup` | **Valid 50** | **Valid 50** | **Valid 5226** |
++| 945 | RANGE postcond (after invariant strengthen) | Valid 50 | Valid 50 | Valid 7471 |
++
++**AE: 26/26 Valid (both runs). Z3: 26/26 Valid.** Step counts byte-identical across runs
++(deterministic). All load-bearing goals 50–199 steps on Alt-Ergo — ~1500× under the ~300K
++edge. This is the exact inverse of Milestone-0 §3, where lines 985/987/946/991 were
++Timeouts at 8.8M / 9.5M / 6.6M / 224K steps.
++
++### 3.2 Non-triviality / falsification (must RED)
++
++Falsified fidelity (`assert found = dir_lookup + 1`): the fidelity assert **REDs** —
++Timeout 7 004 277 steps, BOTH provers fail. (The downstream `result = dir_lookup + 1`
++ensures goes "Valid" only as the standard assert-chaining artifact — the false assert
++poisons the hypotheses — but the genuine fidelity claim at the assert itself is non-Valid,
++which is the correct RED signal.) The proof is non-trivial.
++
++### 3.3 Soundness probe (non-canonical disk)
++
++Added `#@ requires slot_inode(self.dir,5,0) == 3` (a non-canonical disk). The fidelity
++assert remains **Valid (58 512 steps)**, 0 non-Valid. The read consequence is a genuine
++faithful decode, not an empty-disk artifact — it holds on an arbitrary disk.
++
++### 3.4 Per-helper scan (landed write-side retirements must stay 0 non-Valid)
++
++Targeted both-prover (first-Valid-wins) check on the write-side helpers:
++
++| helper | subgoals | non-Valid (both fail) |
++|---|---|---|
++| `_write_dir_entry` | 13 | 0 |
++| `_zero_entry` | 12 | 0 |
++| `_write_entry` | 14 | 0 |
++| `_blit_dir_entry` | 66 | 0 |
++| `_blit_disk_entry` / `_dir_find_slot` / `_dir_find_free` | (see SPIKE run) | 0 |
++
++No relocated explosion. The new `dir_scan_result`/`dir_scan_prefix` markers and the
++`field_to_str_read` view are confined to `_dir_lookup`; the write side is byte-stable.
++(`sys_rename` retains its documented pre-existing baseline gap — unchanged by this spike.)
++
++### 3.5 Emitted-`.mlw` confirmation (the soundness perimeter)
++
++The `_dir_lookup` body in the faithful mlw contains `field_to_str_read self.dir
++(((5*512)+(32*!i))+2) 30` (pinned to `field_to_str` by its `ensures`) and the
++`slot_name = name` / `slot_name = pathname` bridges — and **ZERO `decode_1` / `str_hash_op`**
++on this path (verified: `grep -cE 'decode_1|str_hash_op'` over the body = 0). The name
++genuinely depends on `self.dir` bytes via the cross-validated codec, not a hash.
++
++---
++
++## 4. What this means for the build
++
++- **Read-side build is AUTHORIZED.** Gap-5 (faithful name) is sufficient; the A.7 wall does
++  NOT reappear underneath. Implement option **(a1)**: an os-shaped emitter recognizer for
++  the `name_bytes.split(b'\x00')[0].decode('utf-8', errors='ignore')` dir-entry idiom that
++  lowers it to `field_to_str_read(<arr>, <off>, <width>)`, plus the one-line `field_to_str_read`
++  executable-view declaration in `preamble.py`'s `UnixFs.Field.` block, plus the sound
++  `found >= 1` invariant strengthening. Then de-trust `_dir_lookup` for real (read-side
++  dirscan trio `\trusted` 4→1).
++- **General no-more-int rollout is SCOPED, not blind.** Option (a2) (faithful
++  `bytes.split`/`bytes.decode` over `array int` generally) is the L–XL endpoint; it is now
++  justified by a measured YES, and should follow the byte-diff-sweep + re-bless discipline
++  (12 `.split`/`.decode` corpus modules; NOT corpus-inert).
++
++## 5. Caveats / honesty
++
++- The measurement subject is a **hand-edited emitted `.mlw`** (as the proposal §6.1 step 2
++  explicitly permits for the spike). The SOURCE/emitter change (a1) is the follow-on build
++  this YES authorizes; the spike proves the LOGIC discharges, not that the current emitter
++  already produces it.
++- The `field_to_str_read` executable view is the minimal bridge. It is the standard
++  logic-function executable-view idiom and adds no new logical axiom, but a reviewer should
++  confirm the view is emitted as `val function ... ensures { result = field_to_str ... }`
++  (the spike's form), NOT as a fresh unconstrained `val` (which WOULD be an unmodeled name).
++- The full *module* serial gate at 30s/goal exceeded the bounded spike budget; the decisive
++  `_dir_lookup` datum was measured by targeted per-function both-prover runs ×2 (the same
++  goals pycsl's body gate produces). The parent should re-run the FULL module gate ×2 before
++  the build decision.
+diff --git a/getting-better/SPIKE-gap5-dir-lookup-faithful.mlw b/getting-better/SPIKE-gap5-dir-lookup-faithful.mlw
+new file mode 100644
+index 0000000..ba91f54
+--- /dev/null
++++ b/getting-better/SPIKE-gap5-dir-lookup-faithful.mlw
+@@ -0,0 +1,2041 @@
++module PyCSL_Program
++  use int.Int
++  use int.EuclideanDivision
++  use ref.Ref
++  use string.String
++  use string.Char
++  use seq.Seq
++  use array.Array
++
++  exception PyCSL_Break
++
++  exception Return int
++
++  exception Return_seq (Seq.seq int)
++  exception ValueError
++
++  let pycsl_div (x: int) (y: int) : int
++    requires { [@expl:division by zero] y <> 0 }
++    ensures { result = div x y }
++  = div x y
++
++  let pycsl_mod (x: int) (y: int) : int
++    requires { [@expl:modulo by zero] y <> 0 }
++    ensures { result = mod x y }
++  = mod x y
++
++  function field_to_str (d: array int) (off: int) (width: int) : string
++  (* SPIKE Gap-5: executable VIEW of the logic codec field_to_str. NOT a new
++     logic axiom -- it is the program-position reader of the SAME logic function
++     (the standard WhyML "val function" executable-view idiom: result is pinned
++     to field_to_str, which is itself the abstract codec constrained by the
++     cross-validated round-trip/frame axioms). Makes the read-side name a genuine
++     disk-byte-dependent string field_to_str self.dir off width. *)
++  val function field_to_str_read (d: array int) (off: int) (width: int) : string
++    ensures { result = field_to_str d off width }
++  val function bit_and (x : int) (y : int) : int
++  function inode_size (disk: array int) (ino: int) : int =
++    disk[512 + ino*64 + 0] * 16777216 + disk[512 + ino*64 + 1] * 65536
++    + disk[512 + ino*64 + 2] * 256 + disk[512 + ino*64 + 3]
++  predicate block_content_eq (d: array int) (blk: int) (data: array int)
++  val function slot_inode (disk: array int) (blk: int) (k: int) : int
++  val function slot_name  (disk: array int) (blk: int) (k: int) : string
++  val function dir_lookup (disk: array int) (blk: int) (name: string) : int
++  predicate uniq (d: array int)
++  predicate inode_bytes_valid (d: array int)
++  predicate slots_lt32 (d: array int)
++  predicate dir_blit_marker (d0 d1: array int) (s b0 b1: int) (name: string)
++  predicate dir_scan_result (d: array int) (blk: int) (name: string) (r: int)
++  predicate dir_scan_prefix (d: array int) (blk: int) (name: string) (i: int) (r: int)
++  predicate dir_blit_marker_at (d0 d1: array int) (blk s b0 b1: int) (name: string)
++
++  (* UnixFs.Content.block_content_eq_elim — definitional (conservative predicate definition; ZERO trust) *)
++  axiom pycsl_axiom_UnixFs_Content_block_content_eq_elim : forall d : array int, blk : int, data : array int [block_content_eq d blk data]. block_content_eq d blk data -> ( forall i : int. 0 <= i < Array.length data -> d[blk * 512 + i] = data[i] )
++  (* UnixFs.Content.block_content_eq_intro — definitional (conservative predicate definition; ZERO trust) *)
++  axiom pycsl_axiom_UnixFs_Content_block_content_eq_intro : forall d : array int, blk : int, data : array int [block_content_eq d blk data]. ( forall i : int. 0 <= i < Array.length data -> d[blk * 512 + i] = data[i] ) -> block_content_eq d blk data
++  (* UnixFs.Dir.empty_disk_slots_dead — cross-validated Rocq + Lean *)
++  axiom pycsl_axiom_UnixFs_Dir_empty_disk_slots_dead : forall disk : array int. forall blk : int. ( forall b : int. blk * 512 <= b < blk * 512 + 512 -> disk[b] = 0 ) -> ( forall k : int. 0 <= k < 16 -> slot_inode disk blk k = 0 )
++  (* UnixFs.Dir.establish_slots_lt32 — cross-validated Rocq + Lean *)
++  axiom pycsl_axiom_UnixFs_Dir_establish_slots_lt32 : forall d : array int [slots_lt32 d]. ( forall k : int. 0 <= k < 16 -> slot_inode d 5 k = 0 ) -> slots_lt32 d
++  (* UnixFs.Dir.establish_uniq — cross-validated Rocq + Lean *)
++  axiom pycsl_axiom_UnixFs_Dir_establish_uniq : forall d : array int [uniq d]. ( forall k : int. 0 <= k < 16 -> slot_inode d 5 k = 0 ) -> uniq d
++  (* UnixFs.Dir.ibv_elim — definitional (conservative predicate definition; ZERO trust) *)
++  axiom pycsl_axiom_UnixFs_Dir_ibv_elim : forall d : array int [inode_bytes_valid d]. inode_bytes_valid d -> ( forall i : int. 512 <= i < 2560 -> 0 <= d[i] <= 255 )
++  (* UnixFs.Dir.ibv_intro — definitional (conservative predicate definition; ZERO trust) *)
++  axiom pycsl_axiom_UnixFs_Dir_ibv_intro : forall d : array int [inode_bytes_valid d]. ( forall i : int. 512 <= i < 2560 -> 0 <= d[i] <= 255 ) -> inode_bytes_valid d
++
++  type unixinodefilesystem = { mutable disk: array int; mutable dir: array int; mutable fd_open: array int; mutable fd_inode: array int; mutable fd_block: array int; mutable fd_offset: array int; mutable fd_flags: array int; mutable next_fd: int; mutable cur_uid: int; mutable cur_gid: int; mutable _mtime_ticks: int; mutable _clock: int }
++    invariant { ((Array.length disk) >= 131072) }
++    invariant { ((Array.length dir) >= 3072) }
++    invariant { (inode_bytes_valid disk) }
++    invariant { ((Array.length fd_open) = 64) }
++    invariant { ((Array.length fd_inode) = 64) }
++    invariant { ((Array.length fd_offset) = 64) }
++    invariant { ((Array.length fd_flags) = 64) }
++    invariant { ((Array.length fd_block) = 64) }
++    invariant { (next_fd >= 3) }
++    invariant { (cur_uid >= 0) }
++    invariant { (cur_gid >= 0) }
++    invariant { (_mtime_ticks >= 0) }
++    invariant { (uniq dir) }
++    invariant { (slots_lt32 dir) }
++    by { disk = (Array.make 131072 0); dir = (Array.make 3072 0); fd_open = (Array.make 64 0); fd_inode = (Array.make 64 0); fd_block = (Array.make 64 0); fd_offset = (Array.make 64 0); fd_flags = (Array.make 64 0); next_fd = 3; cur_uid = 0; cur_gid = 0; _mtime_ticks = 0; _clock = 0 }
++
++
++  (* Abstract operations for unsupported Python patterns *)
++  val function bit_lshift (x: int) (y: int) : int
++  val function bit_or (x: int) (y: int) : int
++  val function bit_rshift (x: int) (y: int) : int
++  val bytes_new (x: array int) : array int
++    ensures { Array.length result = Array.length x }
++    ensures { forall i:int. 0 <= i < Array.length x -> result[i] = x[i] }
++  val char_code_at (s: string) (i: int) : int
++    ensures { 0 <= result < 256 }
++    ensures { result = Char.code (Char.get s i) }
++  val chr_op (n: int) : string
++    ensures { String.length result = 1 }
++    ensures { result = (Char.chr n).contents }
++  val decode_1 (x0: int) : int
++  val materialize (s: seq int) : array int
++    ensures { Array.length result = Seq.length s }
++    ensures { forall i:int. 0 <= i < Seq.length s -> result[i] = Seq.get s i }
++  val ord_op (c: string) : int
++    ensures { 0 <= result < 256 }
++    ensures { result = Char.code (Char.get c 0) }
++  val self__alloc_block_0 (self: unixinodefilesystem) : int
++    writes { self.disk }
++    ensures { ((result = (- 1)) || ((result >= 6) && (result < 256))) }
++  val self__alloc_inode_0 (self: unixinodefilesystem) : int
++    writes { self.disk }
++    ensures { ((result = (- 1)) || ((result >= 1) && (result < 32))) }
++  val self__check_perm_2 (x0: array int) (x1: int) : int
++    ensures { ((result = 0) || (result = 1)) }
++  val self__clock_monotonic_0 () : int
++  val self__dir_find_free_1 (self: unixinodefilesystem) (x0: int) : int
++    ensures { ((result >= (- 1)) && (result < 16)) }
++    ensures { ((result >= 0) -> ((slot_inode self.dir x0 result) = 0)) }
++  val self__dir_find_slot_2 (self: unixinodefilesystem) (x0: int) (x1: string) : int
++    ensures { ((result >= (- 1)) && (result < 16)) }
++    ensures { ((result >= 0) -> ((slot_inode self.dir x0 result) <> 0)) }
++    ensures { ((result >= 0) -> ((slot_name self.dir x0 result) = x1)) }
++  val self__dir_lookup_2 (self: unixinodefilesystem) (x0: int) (x1: string) : int
++    ensures { ((result = (- 1)) || ((result >= 1) && (result < 32))) }
++    ensures { (result = (dir_lookup self.dir x0 x1)) }
++  val self__free_inode_blocks_3 (self: unixinodefilesystem) (x0: int) (x1: array int) (x2: string) : unit
++    writes { self.disk }
++    ensures { ((dir_lookup self.dir 5 x2) < 0) }
++  val self__get_bitmap_2 (x0: int) (x1: int) : int
++    ensures { ((result >= 0) && (result < 2)) }
++  val self__now_0 (self: unixinodefilesystem) : int
++    writes { self._mtime_ticks }
++    ensures { (result >= 0) }
++  val self__read_inode_1 (self: unixinodefilesystem) (x0: int) : array int
++    ensures { ((Array.length result) = 18) }
++    ensures { ((result[0]) = (inode_size self.disk x0)) }
++  val self__write_block_at_5 (self: unixinodefilesystem) (x0: int) (x1: int) (x2: array int) (x3: int) (x4: int) : unit
++    writes { self.disk }
++  val self__write_dir_entry_4 (self: unixinodefilesystem) (x0: int) (x1: int) (x2: int) (x3: string) : unit
++    writes { self.dir }
++    ensures { (((x2 <> 0) && (x2 < 32)) -> ((slot_inode self.dir x0 x1) = x2)) }
++    ensures { (((x2 <> 0) && (x2 < 32)) -> ((slot_name self.dir x0 x1) = x3)) }
++  val self__write_entry_4 (self: unixinodefilesystem) (x0: int) (x1: int) (x2: int) (x3: string) : unit
++    writes { self.disk }
++    ensures { (((x2 <> 0) && (x2 < 32)) -> ((slot_inode self.disk x0 x1) = x2)) }
++    ensures { (((x2 <> 0) && (x2 < 32)) -> ((slot_name self.disk x0 x1) = x3)) }
++  val self__write_inode_2 (self: unixinodefilesystem) (x0: int) (x1: array int) : unit
++    writes { self.disk }
++  val self__zero_entry_2 (self: unixinodefilesystem) (x0: int) (x1: int) : unit
++    writes { self.dir }
++    ensures { ((slot_inode self.dir x0 x1) = 0) }
++    ensures { (forall k : int [slot_inode self.dir x0 k]. ((((0 <= k) && (k < 16)) && (k <> x1)) -> ((slot_inode self.dir x0 k) = (old (slot_inode self.dir x0 k))))) }
++    ensures { (forall k : int [slot_name self.dir x0 k]. ((((0 <= k) && (k < 16)) && (k <> x1)) -> ((slot_name self.dir x0 k) = (old (slot_name self.dir x0 k))))) }
++  val snapshot (a: array int) : seq int
++    ensures { Seq.length result = Array.length a }
++    ensures { forall i:int. 0 <= i < Array.length a -> Seq.get result i = a[i] }
++  val str_eq_op (a: string) (b: string) : bool
++    ensures { result <-> (a = b) }
++  val str_hash_op (s: string) : int
++  val str_length_op (s: string) : int
++    ensures { result = (String.length s) }
++  val str_sub_op (s: string) (lo len: int) : string
++    ensures { result = (String.substring s lo len) }
++    ensures { (0 <= lo /\ 0 <= len /\ lo + len <= String.length s) -> String.length result = len }
++
++
++  (* UnixFs.Bitmap.bit_and_one_in_zero_one — cross-validated Rocq + Lean *)
++  axiom pycsl_axiom_UnixFs_Bitmap_bit_and_one_in_zero_one : forall n : int. 0 <= bit_and n 1 /\ bit_and n 1 < 2
++  (* UnixFs.Dir.dir_blit_marker_at_frame_only — cross-validated Rocq + Lean *)
++  axiom pycsl_axiom_UnixFs_Dir_dir_blit_marker_at_frame_only : forall d0 d1 : array int, blk s b0 b1 : int, name : string [dir_blit_marker_at d0 d1 blk s b0 b1 name]. dir_blit_marker_at d0 d1 blk s b0 b1 name -> 0 <= s < 16 -> ( forall k : int. 0 <= k < 16 -> k <> s ->     slot_inode d1 blk k = slot_inode d0 blk k /\     slot_name  d1 blk k = slot_name  d0 blk k )
++  (* UnixFs.Dir.dir_blit_marker_at_intro — cross-validated Rocq + Lean *)
++  axiom pycsl_axiom_UnixFs_Dir_dir_blit_marker_at_intro : forall d0 d1 : array int, blk s b0 b1 : int, name : string [dir_blit_marker_at d0 d1 blk s b0 b1 name]. 0 <= String.length name -> String.length name <= 30 -> d1[blk * 512 + 32 * s] = b0 -> d1[blk * 512 + 32 * s + 1] = b1 -> ( forall i : int. 0 <= i < String.length name ->     Char.code (Char.get name i) <> 0 ) -> ( forall i : int. 0 <= i < String.length name ->     d1[blk * 512 + 32 * s + 2 + i] = Char.code (Char.get name i) ) -> ( String.length name < 30 ->     d1[blk * 512 + 32 * s + 2 + String.length name] = 0 ) -> ( forall b : int. 0 <= b < 512 ->     (b < 32 * s \/ 32 * s + 32 <= b) ->     d1[blk * 512 + b] = d0[blk * 512 + b] ) -> dir_blit_marker_at d0 d1 blk s b0 b1 name
++  (* UnixFs.Dir.dir_blit_marker_at_value_inode — cross-validated Rocq + Lean *)
++  axiom pycsl_axiom_UnixFs_Dir_dir_blit_marker_at_value_inode : forall d0 d1 : array int, blk s b0 b1 : int, name : string [dir_blit_marker_at d0 d1 blk s b0 b1 name]. dir_blit_marker_at d0 d1 blk s b0 b1 name -> slot_inode d1 blk s = 256 * b0 + b1
++  (* UnixFs.Dir.dir_blit_marker_at_value_name — cross-validated Rocq + Lean *)
++  axiom pycsl_axiom_UnixFs_Dir_dir_blit_marker_at_value_name : forall d0 d1 : array int, blk s b0 b1 : int, name : string [dir_blit_marker_at d0 d1 blk s b0 b1 name]. dir_blit_marker_at d0 d1 blk s b0 b1 name -> slot_name d1 blk s = name
++  (* UnixFs.Dir.dir_blit_marker_frame_only — cross-validated Rocq + Lean *)
++  axiom pycsl_axiom_UnixFs_Dir_dir_blit_marker_frame_only : forall d0 d1 : array int, s b0 b1 : int, name : string [dir_blit_marker d0 d1 s b0 b1 name]. dir_blit_marker d0 d1 s b0 b1 name -> 0 <= s < 16 -> ( forall k : int. 0 <= k < 16 -> k <> s ->     slot_inode d1 5 k = slot_inode d0 5 k /\     slot_name  d1 5 k = slot_name  d0 5 k )
++  (* UnixFs.Dir.dir_blit_marker_insert — cross-validated Rocq + Lean *)
++  axiom pycsl_axiom_UnixFs_Dir_dir_blit_marker_insert : forall d0 d1 : array int, s b0 b1 : int, name : string [dir_blit_marker d0 d1 s b0 b1 name]. dir_blit_marker d0 d1 s b0 b1 name -> uniq d0 -> slots_lt32 d0 -> 0 <= s < 16 -> 256 * b0 + b1 <> 0 -> 256 * b0 + b1 < 32 -> ( forall k : int. 0 <= k < 16 -> k <> s ->     slot_inode d0 5 k <> 0 -> slot_inode d0 5 k < 32 ->     slot_name d0 5 k <> name ) -> ( slot_inode d1 5 s = 256 * b0 + b1   /\ slot_name d1 5 s = name   /\ ( forall k : int. 0 <= k < 16 -> k <> s ->          slot_inode d1 5 k = slot_inode d0 5 k /\          slot_name  d1 5 k = slot_name  d0 5 k )   /\ uniq d1 /\ slots_lt32 d1 )
++  (* UnixFs.Dir.dir_blit_marker_intro — cross-validated Rocq + Lean *)
++  axiom pycsl_axiom_UnixFs_Dir_dir_blit_marker_intro : forall d0 d1 : array int, s b0 b1 : int, name : string [dir_blit_marker d0 d1 s b0 b1 name]. 0 <= String.length name -> String.length name <= 30 -> d1[2560 + 32 * s] = b0 -> d1[2560 + 32 * s + 1] = b1 -> ( forall i : int. 0 <= i < String.length name ->     Char.code (Char.get name i) <> 0 ) -> ( forall i : int. 0 <= i < String.length name ->     d1[2560 + 32 * s + 2 + i] = Char.code (Char.get name i) ) -> ( String.length name < 30 -> d1[2560 + 32 * s + 2 + String.length name] = 0 ) -> ( forall b : int. 0 <= b < 512 ->     (b < 32 * s \/ 32 * s + 32 <= b) -> d1[2560 + b] = d0[2560 + b] ) -> dir_blit_marker d0 d1 s b0 b1 name
++  (* UnixFs.Dir.dir_blit_marker_intro_zero — cross-validated Rocq + Lean *)
++  axiom pycsl_axiom_UnixFs_Dir_dir_blit_marker_intro_zero : forall d0 d1 : array int, s b0 b1 : int, name : string [dir_blit_marker d0 d1 s b0 b1 name]. String.length name = 0 -> d1[2560 + 32 * s] = b0 -> d1[2560 + 32 * s + 1] = b1 -> d1[2560 + 32 * s + 2] = 0 -> ( forall b : int. 0 <= b < 512 ->     (b < 32 * s \/ 32 * s + 32 <= b) -> d1[2560 + b] = d0[2560 + b] ) -> dir_blit_marker d0 d1 s b0 b1 name
++  (* UnixFs.Dir.dir_blit_marker_value_inode — cross-validated Rocq + Lean *)
++  axiom pycsl_axiom_UnixFs_Dir_dir_blit_marker_value_inode : forall d0 d1 : array int, s b0 b1 : int, name : string [dir_blit_marker d0 d1 s b0 b1 name]. dir_blit_marker d0 d1 s b0 b1 name -> slot_inode d1 5 s = 256 * b0 + b1
++  (* UnixFs.Dir.dir_lookup_frame — cross-validated Rocq + Lean *)
++  axiom pycsl_axiom_UnixFs_Dir_dir_lookup_frame : forall d0 d1 : array int, name : string [dir_lookup d1 5 name, dir_lookup d0 5 name]. ( forall k : int. 0 <= k < 16 ->     slot_inode d1 5 k = slot_inode d0 5 k /\     slot_name  d1 5 k = slot_name  d0 5 k ) -> dir_lookup d1 5 name = dir_lookup d0 5 name
++  (* UnixFs.Dir.dir_scan_prefix_base — cross-validated Rocq + Lean *)
++  axiom pycsl_axiom_UnixFs_Dir_dir_scan_prefix_base : forall d : array int, blk : int, name : string [dir_scan_prefix d blk name 0 (-1)]. dir_scan_prefix d blk name 0 (-1)
++  (* UnixFs.Dir.dir_scan_prefix_step — cross-validated Rocq + Lean *)
++  axiom pycsl_axiom_UnixFs_Dir_dir_scan_prefix_step : forall d : array int, blk i r : int, name : string [dir_scan_prefix d blk name i r]. 0 <= i -> i < 16 -> dir_scan_prefix d blk name i r -> ( ( slot_inode d blk i <> 0 /\ slot_inode d blk i < 32       /\ slot_name d blk i = name ) ->     dir_scan_prefix d blk name (i + 1) (slot_inode d blk i) ) /\ ( not ( slot_inode d blk i <> 0 /\ slot_inode d blk i < 32              /\ slot_name d blk i = name ) ->     dir_scan_prefix d blk name (i + 1) r )
++  (* UnixFs.Dir.dir_scan_result_intro — cross-validated Rocq + Lean *)
++  axiom pycsl_axiom_UnixFs_Dir_dir_scan_result_intro : forall d : array int, blk r : int, name : string [dir_scan_prefix d blk name 16 r]. dir_scan_prefix d blk name 16 r -> dir_scan_result d blk name r
++  (* UnixFs.Dir.dir_scan_result_value — cross-validated Rocq + Lean *)
++  axiom pycsl_axiom_UnixFs_Dir_dir_scan_result_value : forall d : array int, blk r : int, name : string [dir_scan_result d blk name r]. dir_scan_result d blk name r -> dir_lookup d blk name = r
++  (* UnixFs.Dir.remove_reflects_absent — cross-validated Rocq + Lean *)
++  axiom pycsl_axiom_UnixFs_Dir_remove_reflects_absent : forall disk : array int. forall blk : int. forall name : string. forall s : int. ( forall j : int. slot_inode disk blk j >= 0 ) -> ( 0 <= s < 16 ) -> ( slot_inode disk blk s = 0 ) -> ( forall k : int. 0 <= k < 16 -> k <> s ->     slot_name disk blk k = name -> slot_inode disk blk k = 0 ) -> dir_lookup disk blk name < 0
++  (* UnixFs.Dir.remove_unique_absent — cross-validated Rocq + Lean *)
++  axiom pycsl_axiom_UnixFs_Dir_remove_unique_absent : forall d0 d1 : array int, s : int [slot_inode d1 5 s, slot_inode d0 5 s]. uniq d0 -> slots_lt32 d0 -> 0 <= s < 16 -> slot_inode d0 5 s <> 0 -> slot_inode d1 5 s = 0 -> ( forall k : int. 0 <= k < 16 -> k <> s ->     slot_inode d1 5 k = slot_inode d0 5 k ) -> ( forall k : int. 0 <= k < 16 -> k <> s ->     slot_name  d1 5 k = slot_name  d0 5 k ) -> ( forall k : int. 0 <= k < 16 -> k <> s ->     slot_name d1 5 k = slot_name d0 5 s -> slot_inode d1 5 k = 0 )
++  (* UnixFs.Dir.scan_reflects_present — cross-validated Rocq + Lean *)
++  axiom pycsl_axiom_UnixFs_Dir_scan_reflects_present : forall disk : array int. forall blk : int. forall name : string. ( forall j : int. 0 <= j < 16 -> slot_inode disk blk j >= 0 ) -> ( ( dir_lookup disk blk name >= 0 ) <-> ( exists k : int. 0 <= k < 16 /\ slot_inode disk blk k <> 0 /\ slot_inode disk blk k < 32 /\ slot_name disk blk k = name ) )
++  (* UnixFs.Dir.slot_inode_byte_decode — cross-validated Rocq + Lean *)
++  axiom pycsl_axiom_UnixFs_Dir_slot_inode_byte_decode : forall disk : array int. forall blk : int. forall k : int. forall b0 b1 : int [disk[blk * 512 + 32 * k]]. disk[blk * 512 + 32 * k] = b0 -> disk[blk * 512 + 32 * k + 1] = b1 -> slot_inode disk blk k = 256 * b0 + b1
++  (* UnixFs.Dir.slot_inode_nonneg — cross-validated Rocq + Lean *)
++  axiom pycsl_axiom_UnixFs_Dir_slot_inode_nonneg : forall disk : array int. forall blk : int. forall k : int. slot_inode disk blk k >= 0
++  (* UnixFs.Dir.slot_name_byte_decode — cross-validated Rocq + Lean *)
++  axiom pycsl_axiom_UnixFs_Dir_slot_name_byte_decode : forall disk : array int. forall blk : int. forall k : int [disk[blk * 512 + 32 * k + 2]]. slot_name disk blk k = field_to_str disk (blk * 512 + 32 * k + 2) 30
++  (* UnixFs.Field.field_to_str_round_trip — cross-validated Rocq + Lean *)
++  axiom pycsl_axiom_UnixFs_Field_field_to_str_round_trip : forall d : array int. forall off width : int. forall name : string. 0 <= String.length name -> String.length name <= width -> ( forall i : int. 0 <= i < String.length name ->     Char.code (Char.get name i) <> 0 ) -> ( forall i : int. 0 <= i < String.length name ->     d[off + i] = Char.code (Char.get name i) ) -> ( String.length name < width -> d[off + String.length name] = 0 ) -> field_to_str d off width = name
++
++  let function _byte_codec_char (c: string) : string
++    requires { ((String.length c) = 1) }
++    ensures  { (result = c) }
++  =
++    (chr_op (ord_op c))
++
++  let function _decode_byte (b: int) : string
++    requires { ((0 <= b) && (b <= 255)) }
++    ensures  { ((String.length result) = 1) }
++  =
++    (chr_op b)
++
++  let function _decode_name (stored: string) : string
++    ensures  { (result = stored) } (* linear *)
++  =
++    stored
++
++  let function _encode_name (name: string) : string
++    requires { ((String.length name) <= 30) }
++    ensures  { (result = name) }
++  =
++    name
++
++  let function _name_codec_roundtrip (name: string) : string
++    requires { ((String.length name) <= 30) }
++    ensures  { (result = name) }
++  =
++    (_decode_name (_encode_name name))
++
++  let function _pack_uint16_be (v: int) : array int
++    requires { ((0 <= v) && (v <= 65535)) }
++    ensures  { ((Array.length result) = 2) }
++    ensures  { ((0 <= (result[0])) && ((result[0]) <= 255)) }
++    ensures  { ((0 <= (result[1])) && ((result[1]) <= 255)) }
++    ensures  { ((((result[0]) * 256) + (result[1])) = v) }
++  =
++    (bytes_new (let _alit = Array.make 2 ((pycsl_div v 256)) in _alit[1] <- (pycsl_mod v 256); _alit))
++
++  let _pack_direntry (inode_num: int) (name_bytes: array int) : array int
++    requires { ((0 <= inode_num) && (inode_num < 65536)) }
++    requires { ((Array.length name_bytes) >= 30) }
++    ensures  { ((Array.length result) = 32) }
++    ensures  { ((((result[0]) * 256) + (result[1])) = inode_num) }
++    ensures  { ((result[(0 + 2)]) = name_bytes[0]) }
++    ensures  { ((result[(1 + 2)]) = name_bytes[1]) }
++    ensures  { ((result[(2 + 2)]) = name_bytes[2]) }
++    ensures  { ((result[(3 + 2)]) = name_bytes[3]) }
++    ensures  { ((result[(4 + 2)]) = name_bytes[4]) }
++    ensures  { ((result[(5 + 2)]) = name_bytes[5]) }
++    ensures  { ((result[(6 + 2)]) = name_bytes[6]) }
++    ensures  { ((result[(7 + 2)]) = name_bytes[7]) }
++    ensures  { ((result[(8 + 2)]) = name_bytes[8]) }
++    ensures  { ((result[(9 + 2)]) = name_bytes[9]) }
++    ensures  { ((result[(10 + 2)]) = name_bytes[10]) }
++    ensures  { ((result[(11 + 2)]) = name_bytes[11]) }
++    ensures  { ((result[(12 + 2)]) = name_bytes[12]) }
++    ensures  { ((result[(13 + 2)]) = name_bytes[13]) }
++    ensures  { ((result[(14 + 2)]) = name_bytes[14]) }
++    ensures  { ((result[(15 + 2)]) = name_bytes[15]) }
++    ensures  { ((result[(16 + 2)]) = name_bytes[16]) }
++    ensures  { ((result[(17 + 2)]) = name_bytes[17]) }
++    ensures  { ((result[(18 + 2)]) = name_bytes[18]) }
++    ensures  { ((result[(19 + 2)]) = name_bytes[19]) }
++    ensures  { ((result[(20 + 2)]) = name_bytes[20]) }
++    ensures  { ((result[(21 + 2)]) = name_bytes[21]) }
++    ensures  { ((result[(22 + 2)]) = name_bytes[22]) }
++    ensures  { ((result[(23 + 2)]) = name_bytes[23]) }
++    ensures  { ((result[(24 + 2)]) = name_bytes[24]) }
++    ensures  { ((result[(25 + 2)]) = name_bytes[25]) }
++    ensures  { ((result[(26 + 2)]) = name_bytes[26]) }
++    ensures  { ((result[(27 + 2)]) = name_bytes[27]) }
++    ensures  { ((result[(28 + 2)]) = name_bytes[28]) }
++    ensures  { ((result[(29 + 2)]) = name_bytes[29]) }
++  =
++    let entry = (Array.make 32 0) in
++    let hilo = (_pack_uint16_be inode_num) in
++    entry[0] <- hilo[0];
++    entry[1] <- hilo[1];
++    entry[2] <- name_bytes[0];
++    entry[3] <- name_bytes[1];
++    entry[4] <- name_bytes[2];
++    entry[5] <- name_bytes[3];
++    entry[6] <- name_bytes[4];
++    entry[7] <- name_bytes[5];
++    entry[8] <- name_bytes[6];
++    entry[9] <- name_bytes[7];
++    entry[10] <- name_bytes[8];
++    entry[11] <- name_bytes[9];
++    entry[12] <- name_bytes[10];
++    entry[13] <- name_bytes[11];
++    entry[14] <- name_bytes[12];
++    entry[15] <- name_bytes[13];
++    entry[16] <- name_bytes[14];
++    entry[17] <- name_bytes[15];
++    entry[18] <- name_bytes[16];
++    entry[19] <- name_bytes[17];
++    entry[20] <- name_bytes[18];
++    entry[21] <- name_bytes[19];
++    entry[22] <- name_bytes[20];
++    entry[23] <- name_bytes[21];
++    entry[24] <- name_bytes[22];
++    entry[25] <- name_bytes[23];
++    entry[26] <- name_bytes[24];
++    entry[27] <- name_bytes[25];
++    entry[28] <- name_bytes[26];
++    entry[29] <- name_bytes[27];
++    entry[30] <- name_bytes[28];
++    entry[31] <- name_bytes[29];
++    entry
++
++  let function _pack_uint32_be (v: int) : array int
++    requires { ((0 <= v) && (v <= 4294967295)) }
++    ensures  { ((Array.length result) = 4) }
++    ensures  { ((0 <= (result[0])) && ((result[0]) <= 255)) }
++    ensures  { ((0 <= (result[1])) && ((result[1]) <= 255)) }
++    ensures  { ((0 <= (result[2])) && ((result[2]) <= 255)) }
++    ensures  { ((0 <= (result[3])) && ((result[3]) <= 255)) }
++    ensures  { ((((((result[0]) * 16777216) + ((result[1]) * 65536)) + ((result[2]) * 256)) + (result[3])) = v) }
++  =
++    (bytes_new (let _alit = Array.make 4 ((pycsl_div v 16777216)) in _alit[1] <- (pycsl_mod (pycsl_div v 65536) 256); _alit[2] <- (pycsl_mod (pycsl_div v 256) 256); _alit[3] <- (pycsl_mod v 256); _alit))
++
++  let _pack_inode (fields: array int) : array int
++    requires { (18 >= 0 && 18 <= Array.length fields) }
++    requires { ((0 <= fields[0]) && (fields[0] <= 4294967295)) }
++    requires { ((0 <= fields[1]) && (fields[1] <= 65535)) }
++    requires { ((0 <= fields[2]) && (fields[2] <= 65535)) }
++    requires { ((0 <= fields[3]) && (fields[3] <= 65535)) }
++    requires { ((0 <= fields[4]) && (fields[4] <= 65535)) }
++    requires { ((0 <= fields[5]) && (fields[5] <= 65535)) }
++    requires { ((0 <= fields[6]) && (fields[6] <= 4294967295)) }
++    requires { ((0 <= fields[7]) && (fields[7] <= 4294967295)) }
++    requires { ((0 <= fields[8]) && (fields[8] <= 4294967295)) }
++    requires { ((0 <= fields[9]) && (fields[9] <= 4294967295)) }
++    requires { ((0 <= fields[10]) && (fields[10] <= 4294967295)) }
++    requires { ((0 <= fields[11]) && (fields[11] <= 4294967295)) }
++    requires { ((0 <= fields[12]) && (fields[12] <= 4294967295)) }
++    requires { ((0 <= fields[13]) && (fields[13] <= 4294967295)) }
++    requires { ((0 <= fields[14]) && (fields[14] <= 4294967295)) }
++    requires { ((0 <= fields[15]) && (fields[15] <= 4294967295)) }
++    requires { ((0 <= fields[16]) && (fields[16] <= 4294967295)) }
++    requires { ((0 <= fields[17]) && (fields[17] <= 4294967295)) }
++    ensures  { ((Array.length result) = 64) }
++    ensures  { ((0 <= (result[0])) && ((result[0]) <= 255)) }
++    ensures  { ((0 <= (result[1])) && ((result[1]) <= 255)) }
++    ensures  { ((0 <= (result[2])) && ((result[2]) <= 255)) }
++    ensures  { ((0 <= (result[3])) && ((result[3]) <= 255)) }
++    ensures  { ((0 <= (result[4])) && ((result[4]) <= 255)) }
++    ensures  { ((0 <= (result[5])) && ((result[5]) <= 255)) }
++    ensures  { ((0 <= (result[6])) && ((result[6]) <= 255)) }
++    ensures  { ((0 <= (result[7])) && ((result[7]) <= 255)) }
++    ensures  { ((0 <= (result[8])) && ((result[8]) <= 255)) }
++    ensures  { ((0 <= (result[9])) && ((result[9]) <= 255)) }
++    ensures  { ((0 <= (result[10])) && ((result[10]) <= 255)) }
++    ensures  { ((0 <= (result[11])) && ((result[11]) <= 255)) }
++    ensures  { ((0 <= (result[12])) && ((result[12]) <= 255)) }
++    ensures  { ((0 <= (result[13])) && ((result[13]) <= 255)) }
++    ensures  { ((0 <= (result[14])) && ((result[14]) <= 255)) }
++    ensures  { ((0 <= (result[15])) && ((result[15]) <= 255)) }
++    ensures  { ((0 <= (result[16])) && ((result[16]) <= 255)) }
++    ensures  { ((0 <= (result[17])) && ((result[17]) <= 255)) }
++    ensures  { ((0 <= (result[18])) && ((result[18]) <= 255)) }
++    ensures  { ((0 <= (result[19])) && ((result[19]) <= 255)) }
++    ensures  { ((0 <= (result[20])) && ((result[20]) <= 255)) }
++    ensures  { ((0 <= (result[21])) && ((result[21]) <= 255)) }
++    ensures  { ((0 <= (result[22])) && ((result[22]) <= 255)) }
++    ensures  { ((0 <= (result[23])) && ((result[23]) <= 255)) }
++    ensures  { ((0 <= (result[24])) && ((result[24]) <= 255)) }
++    ensures  { ((0 <= (result[25])) && ((result[25]) <= 255)) }
++    ensures  { ((0 <= (result[26])) && ((result[26]) <= 255)) }
++    ensures  { ((0 <= (result[27])) && ((result[27]) <= 255)) }
++    ensures  { ((0 <= (result[28])) && ((result[28]) <= 255)) }
++    ensures  { ((0 <= (result[29])) && ((result[29]) <= 255)) }
++    ensures  { ((0 <= (result[30])) && ((result[30]) <= 255)) }
++    ensures  { ((0 <= (result[31])) && ((result[31]) <= 255)) }
++    ensures  { ((0 <= (result[32])) && ((result[32]) <= 255)) }
++    ensures  { ((0 <= (result[33])) && ((result[33]) <= 255)) }
++    ensures  { ((0 <= (result[34])) && ((result[34]) <= 255)) }
++    ensures  { ((0 <= (result[35])) && ((result[35]) <= 255)) }
++    ensures  { ((0 <= (result[36])) && ((result[36]) <= 255)) }
++    ensures  { ((0 <= (result[37])) && ((result[37]) <= 255)) }
++    ensures  { ((0 <= (result[38])) && ((result[38]) <= 255)) }
++    ensures  { ((0 <= (result[39])) && ((result[39]) <= 255)) }
++    ensures  { ((0 <= (result[40])) && ((result[40]) <= 255)) }
++    ensures  { ((0 <= (result[41])) && ((result[41]) <= 255)) }
++    ensures  { ((0 <= (result[42])) && ((result[42]) <= 255)) }
++    ensures  { ((0 <= (result[43])) && ((result[43]) <= 255)) }
++    ensures  { ((0 <= (result[44])) && ((result[44]) <= 255)) }
++    ensures  { ((0 <= (result[45])) && ((result[45]) <= 255)) }
++    ensures  { ((0 <= (result[46])) && ((result[46]) <= 255)) }
++    ensures  { ((0 <= (result[47])) && ((result[47]) <= 255)) }
++    ensures  { ((0 <= (result[48])) && ((result[48]) <= 255)) }
++    ensures  { ((0 <= (result[49])) && ((result[49]) <= 255)) }
++    ensures  { ((0 <= (result[50])) && ((result[50]) <= 255)) }
++    ensures  { ((0 <= (result[51])) && ((result[51]) <= 255)) }
++    ensures  { ((0 <= (result[52])) && ((result[52]) <= 255)) }
++    ensures  { ((0 <= (result[53])) && ((result[53]) <= 255)) }
++    ensures  { ((0 <= (result[54])) && ((result[54]) <= 255)) }
++    ensures  { ((0 <= (result[55])) && ((result[55]) <= 255)) }
++    ensures  { ((0 <= (result[56])) && ((result[56]) <= 255)) }
++    ensures  { ((0 <= (result[57])) && ((result[57]) <= 255)) }
++    ensures  { ((0 <= (result[58])) && ((result[58]) <= 255)) }
++    ensures  { ((0 <= (result[59])) && ((result[59]) <= 255)) }
++    ensures  { ((0 <= (result[60])) && ((result[60]) <= 255)) }
++    ensures  { ((0 <= (result[61])) && ((result[61]) <= 255)) }
++    ensures  { ((0 <= (result[62])) && ((result[62]) <= 255)) }
++    ensures  { ((0 <= (result[63])) && ((result[63]) <= 255)) }
++    ensures  { ((((((result[0]) * 16777216) + ((result[1]) * 65536)) + ((result[2]) * 256)) + (result[3])) = fields[0]) }
++    ensures  { ((((result[4]) * 256) + (result[5])) = fields[1]) }
++    ensures  { ((((result[6]) * 256) + (result[7])) = fields[2]) }
++    ensures  { ((((result[8]) * 256) + (result[9])) = fields[3]) }
++    ensures  { ((((result[10]) * 256) + (result[11])) = fields[4]) }
++    ensures  { ((((result[12]) * 256) + (result[13])) = fields[5]) }
++    ensures  { ((((((result[14]) * 16777216) + ((result[15]) * 65536)) + ((result[16]) * 256)) + (result[17])) = fields[6]) }
++    ensures  { ((((((result[18]) * 16777216) + ((result[19]) * 65536)) + ((result[20]) * 256)) + (result[21])) = fields[7]) }
++    ensures  { ((((((result[22]) * 16777216) + ((result[23]) * 65536)) + ((result[24]) * 256)) + (result[25])) = fields[8]) }
++    ensures  { ((((((result[26]) * 16777216) + ((result[27]) * 65536)) + ((result[28]) * 256)) + (result[29])) = fields[9]) }
++    ensures  { ((((((result[30]) * 16777216) + ((result[31]) * 65536)) + ((result[32]) * 256)) + (result[33])) = fields[10]) }
++    ensures  { ((((((result[34]) * 16777216) + ((result[35]) * 65536)) + ((result[36]) * 256)) + (result[37])) = fields[11]) }
++    ensures  { ((((((result[38]) * 16777216) + ((result[39]) * 65536)) + ((result[40]) * 256)) + (result[41])) = fields[12]) }
++    ensures  { ((((((result[42]) * 16777216) + ((result[43]) * 65536)) + ((result[44]) * 256)) + (result[45])) = fields[13]) }
++    ensures  { ((((((result[46]) * 16777216) + ((result[47]) * 65536)) + ((result[48]) * 256)) + (result[49])) = fields[14]) }
++    ensures  { ((((((result[50]) * 16777216) + ((result[51]) * 65536)) + ((result[52]) * 256)) + (result[53])) = fields[15]) }
++    ensures  { ((((((result[54]) * 16777216) + ((result[55]) * 65536)) + ((result[56]) * 256)) + (result[57])) = fields[16]) }
++    ensures  { ((((((result[58]) * 16777216) + ((result[59]) * 65536)) + ((result[60]) * 256)) + (result[61])) = fields[17]) }
++  =
++    let out = (Array.make 64 0) in
++    let b0 = (_pack_uint32_be fields[0]) in
++    out[0] <- b0[0];
++    out[1] <- b0[1];
++    out[2] <- b0[2];
++    out[3] <- b0[3];
++    let b1 = (_pack_uint16_be fields[1]) in
++    out[4] <- b1[0];
++    out[5] <- b1[1];
++    let b2 = (_pack_uint16_be fields[2]) in
++    out[6] <- b2[0];
++    out[7] <- b2[1];
++    let b3 = (_pack_uint16_be fields[3]) in
++    out[8] <- b3[0];
++    out[9] <- b3[1];
++    let b4 = (_pack_uint16_be fields[4]) in
++    out[10] <- b4[0];
++    out[11] <- b4[1];
++    let b5 = (_pack_uint16_be fields[5]) in
++    out[12] <- b5[0];
++    out[13] <- b5[1];
++    let b6 = (_pack_uint32_be fields[6]) in
++    out[14] <- b6[0];
++    out[15] <- b6[1];
++    out[16] <- b6[2];
++    out[17] <- b6[3];
++    let b7 = (_pack_uint32_be fields[7]) in
++    out[18] <- b7[0];
++    out[19] <- b7[1];
++    out[20] <- b7[2];
++    out[21] <- b7[3];
++    let b8 = (_pack_uint32_be fields[8]) in
++    out[22] <- b8[0];
++    out[23] <- b8[1];
++    out[24] <- b8[2];
++    out[25] <- b8[3];
++    let b9 = (_pack_uint32_be fields[9]) in
++    out[26] <- b9[0];
++    out[27] <- b9[1];
++    out[28] <- b9[2];
++    out[29] <- b9[3];
++    let b10 = (_pack_uint32_be fields[10]) in
++    out[30] <- b10[0];
++    out[31] <- b10[1];
++    out[32] <- b10[2];
++    out[33] <- b10[3];
++    let b11 = (_pack_uint32_be fields[11]) in
++    out[34] <- b11[0];
++    out[35] <- b11[1];
++    out[36] <- b11[2];
++    out[37] <- b11[3];
++    let b12 = (_pack_uint32_be fields[12]) in
++    out[38] <- b12[0];
++    out[39] <- b12[1];
++    out[40] <- b12[2];
++    out[41] <- b12[3];
++    let b13 = (_pack_uint32_be fields[13]) in
++    out[42] <- b13[0];
++    out[43] <- b13[1];
++    out[44] <- b13[2];
++    out[45] <- b13[3];
++    let b14 = (_pack_uint32_be fields[14]) in
++    out[46] <- b14[0];
++    out[47] <- b14[1];
++    out[48] <- b14[2];
++    out[49] <- b14[3];
++    let b15 = (_pack_uint32_be fields[15]) in
++    out[50] <- b15[0];
++    out[51] <- b15[1];
++    out[52] <- b15[2];
++    out[53] <- b15[3];
++    let b16 = (_pack_uint32_be fields[16]) in
++    out[54] <- b16[0];
++    out[55] <- b16[1];
++    out[56] <- b16[2];
++    out[57] <- b16[3];
++    let b17 = (_pack_uint32_be fields[17]) in
++    out[58] <- b17[0];
++    out[59] <- b17[1];
++    out[60] <- b17[2];
++    out[61] <- b17[3];
++    (bytes_new out)
++
++  let _pad_name (name: string) : array int
++    ensures  { ((Array.length result) = 30) }
++    ensures  { (forall i : int. ((((0 <= i) && (i < (String.length name))) && (i < 30)) -> ((result[i]) = (Char.code (Char.get name i))))) }
++    ensures  { (forall i : int. ((((String.length name) <= i) && (i < 30)) -> ((result[i]) = 0))) }
++  =
++    let n = ref 0 in
++    let m = ref 0 in
++    let i = ref 0 in
++    let out = (Array.make 30 0) in
++    n := (str_length_op name);
++    m := !n;
++    if (!m > 30) then begin
++      m := 30
++    end;
++    let _idx_i = ref 0 in
++    while !_idx_i < !m do
++      invariant { ((0 <= !_idx_i) && (!_idx_i <= !m)) }
++      invariant { (!m <= 30) }
++      invariant { (!m <= (String.length name)) }
++      invariant { (forall j : int. (((0 <= j) && (j < !_idx_i)) -> (out[j] = (Char.code (Char.get name j))))) }
++      invariant { (forall j : int. (((!_idx_i <= j) && (j < 30)) -> (out[j] = 0))) }
++      variant { (!m - !_idx_i) }
++      let i = ref (!_idx_i) in
++      out[!i] <- (char_code_at name !i);
++      _idx_i := !_idx_i + 1
++    done;
++    out
++
++  let function _unpack_uint16_be (data: array int) (offset: int) : int
++    requires { ((offset + 2) >= 0 && (offset + 2) <= Array.length data) }
++    requires { (offset >= 0) }
++    requires { ((0 <= data[offset]) && (data[offset] <= 255)) }
++    requires { ((0 <= data[(offset + 1)]) && (data[(offset + 1)] <= 255)) }
++    ensures  { (result = ((data[offset] * 256) + data[(offset + 1)])) }
++    ensures  { ((0 <= result) && (result <= 65535)) }
++  =
++    ((data[offset] * 256) + data[(offset + 1)])
++
++  let _unpack_direntry (data: array int) : (int, array int)
++    requires { (32 >= 0 && 32 <= Array.length data) }
++    ensures  { ((let (_r0_, _) = result in _r0_) >= 0) }
++  =
++    let inode_num = ref 0 in
++    inode_num := (_unpack_uint16_be data 0);
++    let name_bytes = ref (bytes_new (Array.sub data (2) ((32) - (2)))) in
++    (!inode_num, !name_bytes)
++
++  let function _unpack_uint32_be (data: array int) (offset: int) : int
++    requires { ((offset + 4) >= 0 && (offset + 4) <= Array.length data) }
++    requires { (offset >= 0) }
++    requires { ((0 <= data[offset]) && (data[offset] <= 255)) }
++    requires { ((0 <= data[(offset + 1)]) && (data[(offset + 1)] <= 255)) }
++    requires { ((0 <= data[(offset + 2)]) && (data[(offset + 2)] <= 255)) }
++    requires { ((0 <= data[(offset + 3)]) && (data[(offset + 3)] <= 255)) }
++    ensures  { (result = ((((data[offset] * 16777216) + (data[(offset + 1)] * 65536)) + (data[(offset + 2)] * 256)) + data[(offset + 3)])) }
++    ensures  { ((0 <= result) && (result <= 4294967295)) }
++  =
++    ((((data[offset] * 16777216) + (data[(offset + 1)] * 65536)) + (data[(offset + 2)] * 256)) + data[(offset + 3)])
++
++  let _unpack_inode (data: array int) : array int
++    requires { (64 >= 0 && 64 <= Array.length data) }
++    requires { ((0 <= data[0]) && (data[0] <= 255)) }
++    requires { ((0 <= data[1]) && (data[1] <= 255)) }
++    requires { ((0 <= data[2]) && (data[2] <= 255)) }
++    requires { ((0 <= data[3]) && (data[3] <= 255)) }
++    requires { ((0 <= data[4]) && (data[4] <= 255)) }
++    requires { ((0 <= data[5]) && (data[5] <= 255)) }
++    requires { ((0 <= data[6]) && (data[6] <= 255)) }
++    requires { ((0 <= data[7]) && (data[7] <= 255)) }
++    requires { ((0 <= data[8]) && (data[8] <= 255)) }
++    requires { ((0 <= data[9]) && (data[9] <= 255)) }
++    requires { ((0 <= data[10]) && (data[10] <= 255)) }
++    requires { ((0 <= data[11]) && (data[11] <= 255)) }
++    requires { ((0 <= data[12]) && (data[12] <= 255)) }
++    requires { ((0 <= data[13]) && (data[13] <= 255)) }
++    requires { ((0 <= data[14]) && (data[14] <= 255)) }
++    requires { ((0 <= data[15]) && (data[15] <= 255)) }
++    requires { ((0 <= data[16]) && (data[16] <= 255)) }
++    requires { ((0 <= data[17]) && (data[17] <= 255)) }
++    requires { ((0 <= data[18]) && (data[18] <= 255)) }
++    requires { ((0 <= data[19]) && (data[19] <= 255)) }
++    requires { ((0 <= data[20]) && (data[20] <= 255)) }
++    requires { ((0 <= data[21]) && (data[21] <= 255)) }
++    requires { ((0 <= data[22]) && (data[22] <= 255)) }
++    requires { ((0 <= data[23]) && (data[23] <= 255)) }
++    requires { ((0 <= data[24]) && (data[24] <= 255)) }
++    requires { ((0 <= data[25]) && (data[25] <= 255)) }
++    requires { ((0 <= data[26]) && (data[26] <= 255)) }
++    requires { ((0 <= data[27]) && (data[27] <= 255)) }
++    requires { ((0 <= data[28]) && (data[28] <= 255)) }
++    requires { ((0 <= data[29]) && (data[29] <= 255)) }
++    requires { ((0 <= data[30]) && (data[30] <= 255)) }
++    requires { ((0 <= data[31]) && (data[31] <= 255)) }
++    requires { ((0 <= data[32]) && (data[32] <= 255)) }
++    requires { ((0 <= data[33]) && (data[33] <= 255)) }
++    requires { ((0 <= data[34]) && (data[34] <= 255)) }
++    requires { ((0 <= data[35]) && (data[35] <= 255)) }
++    requires { ((0 <= data[36]) && (data[36] <= 255)) }
++    requires { ((0 <= data[37]) && (data[37] <= 255)) }
++    requires { ((0 <= data[38]) && (data[38] <= 255)) }
++    requires { ((0 <= data[39]) && (data[39] <= 255)) }
++    requires { ((0 <= data[40]) && (data[40] <= 255)) }
++    requires { ((0 <= data[41]) && (data[41] <= 255)) }
++    requires { ((0 <= data[42]) && (data[42] <= 255)) }
++    requires { ((0 <= data[43]) && (data[43] <= 255)) }
++    requires { ((0 <= data[44]) && (data[44] <= 255)) }
++    requires { ((0 <= data[45]) && (data[45] <= 255)) }
++    requires { ((0 <= data[46]) && (data[46] <= 255)) }
++    requires { ((0 <= data[47]) && (data[47] <= 255)) }
++    requires { ((0 <= data[48]) && (data[48] <= 255)) }
++    requires { ((0 <= data[49]) && (data[49] <= 255)) }
++    requires { ((0 <= data[50]) && (data[50] <= 255)) }
++    requires { ((0 <= data[51]) && (data[51] <= 255)) }
++    requires { ((0 <= data[52]) && (data[52] <= 255)) }
++    requires { ((0 <= data[53]) && (data[53] <= 255)) }
++    requires { ((0 <= data[54]) && (data[54] <= 255)) }
++    requires { ((0 <= data[55]) && (data[55] <= 255)) }
++    requires { ((0 <= data[56]) && (data[56] <= 255)) }
++    requires { ((0 <= data[57]) && (data[57] <= 255)) }
++    requires { ((0 <= data[58]) && (data[58] <= 255)) }
++    requires { ((0 <= data[59]) && (data[59] <= 255)) }
++    requires { ((0 <= data[60]) && (data[60] <= 255)) }
++    requires { ((0 <= data[61]) && (data[61] <= 255)) }
++    requires { ((0 <= data[62]) && (data[62] <= 255)) }
++    requires { ((0 <= data[63]) && (data[63] <= 255)) }
++    ensures  { ((Array.length result) = 18) }
++    ensures  { ((result[0]) = ((((data[0] * 16777216) + (data[1] * 65536)) + (data[2] * 256)) + data[3])) }
++    ensures  { ((result[1]) = ((data[4] * 256) + data[5])) }
++    ensures  { ((result[2]) = ((data[6] * 256) + data[7])) }
++    ensures  { ((result[3]) = ((data[8] * 256) + data[9])) }
++    ensures  { ((result[4]) = ((data[10] * 256) + data[11])) }
++    ensures  { ((result[5]) = ((data[12] * 256) + data[13])) }
++    ensures  { ((result[6]) = ((((data[14] * 16777216) + (data[15] * 65536)) + (data[16] * 256)) + data[17])) }
++    ensures  { ((result[7]) = ((((data[18] * 16777216) + (data[19] * 65536)) + (data[20] * 256)) + data[21])) }
++    ensures  { ((result[8]) = ((((data[22] * 16777216) + (data[23] * 65536)) + (data[24] * 256)) + data[25])) }
++    ensures  { ((result[9]) = ((((data[26] * 16777216) + (data[27] * 65536)) + (data[28] * 256)) + data[29])) }
++    ensures  { ((result[10]) = ((((data[30] * 16777216) + (data[31] * 65536)) + (data[32] * 256)) + data[33])) }
++    ensures  { ((result[11]) = ((((data[34] * 16777216) + (data[35] * 65536)) + (data[36] * 256)) + data[37])) }
++    ensures  { ((result[12]) = ((((data[38] * 16777216) + (data[39] * 65536)) + (data[40] * 256)) + data[41])) }
++    ensures  { ((result[13]) = ((((data[42] * 16777216) + (data[43] * 65536)) + (data[44] * 256)) + data[45])) }
++    ensures  { ((result[14]) = ((((data[46] * 16777216) + (data[47] * 65536)) + (data[48] * 256)) + data[49])) }
++    ensures  { ((result[15]) = ((((data[50] * 16777216) + (data[51] * 65536)) + (data[52] * 256)) + data[53])) }
++    ensures  { ((result[16]) = ((((data[54] * 16777216) + (data[55] * 65536)) + (data[56] * 256)) + data[57])) }
++    ensures  { ((result[17]) = ((((data[58] * 16777216) + (data[59] * 65536)) + (data[60] * 256)) + data[61])) }
++  =
++    let fields = (Array.make 18 0) in
++    fields[0] <- (_unpack_uint32_be data 0);
++    fields[1] <- (_unpack_uint16_be data 4);
++    fields[2] <- (_unpack_uint16_be data 6);
++    fields[3] <- (_unpack_uint16_be data 8);
++    fields[4] <- (_unpack_uint16_be data 10);
++    fields[5] <- (_unpack_uint16_be data 12);
++    fields[6] <- (_unpack_uint32_be data 14);
++    fields[7] <- (_unpack_uint32_be data 18);
++    fields[8] <- (_unpack_uint32_be data 22);
++    fields[9] <- (_unpack_uint32_be data 26);
++    fields[10] <- (_unpack_uint32_be data 30);
++    fields[11] <- (_unpack_uint32_be data 34);
++    fields[12] <- (_unpack_uint32_be data 38);
++    fields[13] <- (_unpack_uint32_be data 42);
++    fields[14] <- (_unpack_uint32_be data 46);
++    fields[15] <- (_unpack_uint32_be data 50);
++    fields[16] <- (_unpack_uint32_be data 54);
++    fields[17] <- (_unpack_uint32_be data 58);
++    fields
++
++  let unixinodefilesystem___poke (self: unixinodefilesystem) (p: int) (v: int) : unit
++    requires { ((0 <= p) && (p < 131072)) }
++    requires { ((p < 2560) || (p >= 3072)) }
++    requires { (((512 <= p) && (p < 2560)) -> ((0 <= v) && (v <= 255))) }
++    ensures  { ((Array.length self.disk) = (old (Array.length self.disk))) }
++    ensures  { ((self.disk[p]) = v) }
++    ensures  { (forall i : int. ((((0 <= i) && (i < (Array.length self.disk))) && (i <> p)) -> ((self.disk[i]) = (old (self.disk[i]))))) }
++    ensures  { (forall k : int. (((0 <= k) && (k < 16)) -> ((slot_inode self.dir 5 k) = (old (slot_inode self.dir 5 k))))) }
++    ensures  { (forall k : int. (((0 <= k) && (k < 16)) -> ((slot_name self.dir 5 k) = (old (slot_name self.dir 5 k))))) }
++  =
++    self.disk[p] <- v
++
++  let unixinodefilesystem___set_bitmap (self: unixinodefilesystem) (byte_offset: int) (bit_index: int) (value: int) : unit
++    requires { (byte_offset >= 0) }
++    requires { (bit_index >= 0) }
++    requires { ((byte_offset + (div bit_index 8)) < 131072) }
++    requires { ((value = 0) || (value = 1)) }
++    requires { ((byte_offset + (div bit_index 8)) < 512) }
++    ensures  { ((Array.length self.disk) >= 131072) }
++    ensures  { (forall b : int. (((2560 <= b) && (b < 3072)) -> ((self.disk[b]) = (old (self.disk[b]))))) }
++  =
++    let newval = ref 0 in
++    let mask = ref 0 in
++    let cur = ref 0 in
++    let byte_pos = ref 0 in
++    let bit_pos = ref 0 in
++    byte_pos := (byte_offset + (pycsl_div bit_index 8));
++    bit_pos := (pycsl_mod bit_index 8);
++    if (value <> 0) then begin
++      newval := (bit_or self.disk[!byte_pos] (bit_lshift 1 !bit_pos))
++    end else begin
++      mask := (bit_lshift 1 !bit_pos);
++      cur := (bit_and self.disk[!byte_pos] !mask);
++      newval := (self.disk[!byte_pos] - !cur)
++    end;
++    let _ = (unixinodefilesystem___poke self !byte_pos !newval) in ();
++    assert { (forall b : int. (((2560 <= b) && (b < 3072)) -> ((self.disk[b]) = (old (self.disk[b]))))) }
++
++  let unixinodefilesystem___alloc_block (self: unixinodefilesystem) : int
++    requires { true }
++    ensures  { ((result = (- 1)) || ((result >= 6) && (result < 256))) }
++  =
++    try
++    let i = ref 0 in
++      let _idx_i = ref 6 in
++      while !_idx_i < 256 do
++        invariant { ((6 <= !_idx_i) && (!_idx_i <= 256)) }
++        invariant { (uniq self.dir) }
++        invariant { (inode_bytes_valid self.disk) }
++        variant { (256 - !_idx_i) }
++        let i = ref (!_idx_i) in
++        if ((self__get_bitmap_2 4 !i) = 0) then begin
++          let _ = (unixinodefilesystem___set_bitmap self 4 !i 1) in ();
++          raise (Return !i)
++        end;
++        _idx_i := !_idx_i + 1
++      done;
++    raise (Return (- 1))
++    with Return r -> r end
++
++  let unixinodefilesystem___alloc_fd (self: unixinodefilesystem) : int
++    requires { true }
++    ensures  { ((result = (- 1)) || ((((3 <= result) && (result < 64)) && ((old (self.fd_open[result])) = 0)) && ((self.fd_open[result]) = 1))) }
++    ensures  { (forall k : int. ((((0 <= k) && (k < 64)) && (k <> result)) -> ((self.fd_open[k]) = (old (self.fd_open[k]))))) }
++    ensures  { ((result = (- 1)) -> (forall k : int. (((3 <= k) && (k < 64)) -> ((old (self.fd_open[k])) <> 0)))) }
++    ensures  { ((exists k : int. (((3 <= k) && (k < 64)) && ((old (self.fd_open[k])) = 0))) -> (result >= 3)) }
++  =
++    try
++    let i = ref 0 in
++      let _idx_i = ref 3 in
++      while !_idx_i < 64 do
++        invariant { ((3 <= !_idx_i) && (!_idx_i <= 64)) }
++        invariant { (forall k : int. (((0 <= k) && (k < 64)) -> ((self.fd_open[k]) = (old (self.fd_open[k]))))) }
++        invariant { (forall k : int. (((3 <= k) && (k < !_idx_i)) -> ((old (self.fd_open[k])) <> 0))) }
++        variant { (64 - !_idx_i) }
++        let i = ref (!_idx_i) in
++        if (self.fd_open[!i] = 0) then begin
++          self.fd_open[!i] <- 1;
++          raise (Return !i)
++        end;
++        _idx_i := !_idx_i + 1
++      done;
++    raise (Return (- 1))
++    with Return r -> r end
++
++  let unixinodefilesystem___alloc_inode (self: unixinodefilesystem) : int
++    requires { true }
++    ensures  { ((result = (- 1)) || ((result >= 1) && (result < 32))) }
++  =
++    try
++    let i = ref 0 in
++      let _idx_i = ref 1 in
++      while !_idx_i < 32 do
++        invariant { ((1 <= !_idx_i) && (!_idx_i <= 32)) }
++        invariant { (uniq self.dir) }
++        invariant { (inode_bytes_valid self.disk) }
++        variant { (32 - !_idx_i) }
++        let i = ref (!_idx_i) in
++        if ((self__get_bitmap_2 0 !i) = 0) then begin
++          let _ = (unixinodefilesystem___set_bitmap self 0 !i 1) in ();
++          raise (Return !i)
++        end;
++        _idx_i := !_idx_i + 1
++      done;
++    raise (Return (- 1))
++    with Return r -> r end
++
++  let unixinodefilesystem___blit_dir_entry (self: unixinodefilesystem) (off: int) (inode_num: int) (name: string) : unit
++    requires { (off >= 0) }
++    requires { ((off + 32) <= (Array.length self.dir)) }
++    requires { ((inode_num = 0) || ((inode_num <> 0) && (inode_num < 32))) }
++    requires { ((String.length name) <= 30) }
++    ensures  { ((Array.length self.dir) = (old (Array.length self.dir))) }
++    ensures  { ((((self.dir[off]) * 256) + (self.dir[(off + 1)])) = inode_num) }
++    ensures  { (forall i : int. ((((0 <= i) && (i < (String.length name))) && (i < 30)) -> ((self.dir[((off + 2) + i)]) = (Char.code (Char.get name i))))) }
++    ensures  { (forall i : int. ((((String.length name) <= i) && (i < 30)) -> ((self.dir[((off + 2) + i)]) = 0))) }
++    ensures  { (forall b : int. ((((0 <= b) && (b < (Array.length self.dir))) && ((b < off) || ((off + 32) <= b))) -> ((self.dir[b]) = (old (self.dir[b]))))) }
++  =
++    let n = ref 0 in
++    let m = ref 0 in
++    let i = ref 0 in
++    self.dir[off] <- (pycsl_div inode_num 256);
++    self.dir[(off + 1)] <- (pycsl_mod inode_num 256);
++    n := (str_length_op name);
++    m := !n;
++    if (!m > 30) then begin
++      m := 30
++    end;
++    let _idx_i = ref 0 in
++    while !_idx_i < 30 do
++      invariant { ((0 <= !_idx_i) && (!_idx_i <= 30)) }
++      invariant { (!m <= 30) }
++      invariant { (!m <= (String.length name)) }
++      invariant { ((self.dir[off]) = (div inode_num 256)) }
++      invariant { ((self.dir[(off + 1)]) = (mod inode_num 256)) }
++      invariant { (forall j : int. ((((0 <= j) && (j < !_idx_i)) && (j < !m)) -> ((self.dir[((off + 2) + j)]) = (Char.code (Char.get name j))))) }
++      invariant { (forall j : int. (((!m <= j) && (j < !_idx_i)) -> ((self.dir[((off + 2) + j)]) = 0))) }
++      invariant { (forall b : int. ((((0 <= b) && (b < (Array.length self.dir))) && ((b < off) || ((off + 32) <= b))) -> ((self.dir[b]) = (old (self.dir[b]))))) }
++      variant { (30 - !_idx_i) }
++      let i = ref (!_idx_i) in
++      if (!i < !m) then begin
++        self.dir[((off + 2) + !i)] <- (char_code_at name !i)
++      end else begin
++        self.dir[((off + 2) + !i)] <- 0
++      end;
++      _idx_i := !_idx_i + 1
++    done
++
++  let unixinodefilesystem___blit_disk_entry (self: unixinodefilesystem) (off: int) (inode_num: int) (name: string) : unit
++    requires { (off >= 0) }
++    requires { ((off + 32) <= (Array.length self.disk)) }
++    requires { ((inode_num = 0) || ((inode_num <> 0) && (inode_num < 32))) }
++    requires { ((String.length name) <= 30) }
++    ensures  { ((Array.length self.disk) = (old (Array.length self.disk))) }
++    ensures  { ((((self.disk[off]) * 256) + (self.disk[(off + 1)])) = inode_num) }
++    ensures  { (forall i : int. ((((0 <= i) && (i < (String.length name))) && (i < 30)) -> ((self.disk[((off + 2) + i)]) = (Char.code (Char.get name i))))) }
++    ensures  { (forall i : int. ((((String.length name) <= i) && (i < 30)) -> ((self.disk[((off + 2) + i)]) = 0))) }
++    ensures  { (((String.length name) < 30) -> ((self.disk[((off + 2) + (String.length name))]) = 0)) }
++    ensures  { (forall b : int. ((((0 <= b) && (b < (Array.length self.disk))) && ((b < off) || ((off + 32) <= b))) -> ((self.disk[b]) = (old (self.disk[b]))))) }
++  =
++    let n = ref 0 in
++    let m = ref 0 in
++    let i = ref 0 in
++    self.disk[off] <- (pycsl_div inode_num 256);
++    self.disk[(off + 1)] <- (pycsl_mod inode_num 256);
++    n := (str_length_op name);
++    m := !n;
++    if (!m > 30) then begin
++      m := 30
++    end;
++    let _idx_i = ref 0 in
++    while !_idx_i < 30 do
++      invariant { ((0 <= !_idx_i) && (!_idx_i <= 30)) }
++      invariant { (!m <= 30) }
++      invariant { (!m <= (String.length name)) }
++      invariant { ((self.disk[off]) = (div inode_num 256)) }
++      invariant { ((self.disk[(off + 1)]) = (mod inode_num 256)) }
++      invariant { (forall j : int. ((((0 <= j) && (j < !_idx_i)) && (j < !m)) -> ((self.disk[((off + 2) + j)]) = (Char.code (Char.get name j))))) }
++      invariant { (forall j : int. (((!m <= j) && (j < !_idx_i)) -> ((self.disk[((off + 2) + j)]) = 0))) }
++      invariant { (forall b : int. ((((0 <= b) && (b < (Array.length self.disk))) && ((b < off) || ((off + 32) <= b))) -> ((self.disk[b]) = (old (self.disk[b]))))) }
++      variant { (30 - !_idx_i) }
++      let i = ref (!_idx_i) in
++      if (!i < !m) then begin
++        self.disk[((off + 2) + !i)] <- (char_code_at name !i)
++      end else begin
++        self.disk[((off + 2) + !i)] <- 0
++      end;
++      _idx_i := !_idx_i + 1
++    done
++
++  let unixinodefilesystem___block_roundtrip (self: unixinodefilesystem) (block: int) (data: array int) : array int
++    requires { ((block >= 6) && (block < 256)) }
++    ensures  { ((Array.length result = Array.length data) /\ (forall _ae : int. 0 <= _ae /\ _ae < Array.length result -> result[_ae] = data[_ae])) }
++    ensures  { (forall k : int. (((0 <= k) && (k < 16)) -> ((slot_inode self.dir 5 k) = (old (slot_inode self.dir 5 k))))) }
++    ensures  { (forall k : int. (((0 <= k) && (k < 16)) -> ((slot_name self.dir 5 k) = (old (slot_name self.dir 5 k))))) }
++    raises { ValueError -> ((Array.length data) > 512) }
++  =
++    let start = ref 0 in
++    let n = ref 0 in
++    n := (Array.length data);
++    if (!n > 512) then begin
++      raise ValueError
++    end;
++    start := (block * 512);
++    Array.blit data 0 self.disk (!start) (((!start + !n)) - (!start));
++    assert { (forall b : int. (((2560 <= b) && (b < 3072)) -> ((self.disk[b]) = (old (self.disk[b]))))) };
++    (Array.sub self.disk (!start) (((!start + !n)) - (!start)))
++
++  let unixinodefilesystem___check_perm (self: unixinodefilesystem) (inode: array int) (required: int) : int
++    requires { ((Array.length inode) = 18) }
++    requires { ((required >= 0) && (required <= 7)) }
++    ensures  { ((result = 0) || (result = 1)) }
++  =
++    try
++    let mode = ref 0 in
++    let bits = ref 0 in
++    if (self.cur_uid = 0) then begin
++      raise (Return 1)
++    end else begin
++      mode := inode[3];
++      if (self.cur_uid = inode[4]) then begin
++        bits := (bit_and (bit_rshift !mode 6) 7)
++      end else begin
++        if (self.cur_gid = inode[5]) then begin
++          bits := (bit_and (bit_rshift !mode 3) 7)
++        end else begin
++          bits := (bit_and !mode 7)
++        end
++      end;
++      if ((bit_and !bits required) = required) then begin
++        raise (Return 1)
++      end else begin
++        raise (Return 0)
++      end
++    end
++    with Return r -> r end
++
++  let unixinodefilesystem___content_compose (self: unixinodefilesystem) (b: int) (a1: array int) (a2: array int) : array int
++    requires { (block_content_eq self.disk b a1) }
++    requires { (block_content_eq self.disk b a2) }
++    requires { ((Array.length a1) = (Array.length a2)) }
++    ensures  { ((Array.length result = Array.length a2) /\ (forall _ae : int. 0 <= _ae /\ _ae < Array.length result -> result[_ae] = a2[_ae])) }
++  =
++    a1
++
++  val unixinodefilesystem___dir_find_free (self: unixinodefilesystem) (block_num: int) : int
++    requires { (block_num >= 0) }
++    requires { (block_num = 5) }
++    ensures  { ((result >= (- 1)) && (result < 16)) } (* linear *)
++    ensures  { ((result >= 0) -> ((slot_inode self.dir block_num result) = 0)) }
++
++  val unixinodefilesystem___dir_find_slot (self: unixinodefilesystem) (block_num: int) (pathname: string) : int
++    requires { (block_num >= 0) }
++    requires { (block_num = 5) }
++    ensures  { ((result >= (- 1)) && (result < 16)) } (* linear *)
++    ensures  { ((result >= 0) -> ((slot_inode self.dir block_num result) <> 0)) }
++    ensures  { ((result >= 0) -> ((slot_name self.dir block_num result) = pathname)) }
++
++  let unixinodefilesystem___dir_lookup (self: unixinodefilesystem) (block_num: int) (pathname: string) : int
++    requires { (block_num >= 0) }
++    requires { (block_num = 5) }
++    ensures  { ((result = (- 1)) || ((result >= 1) && (result < 32))) } (* linear *)
++    ensures  { (result = (dir_lookup self.dir block_num pathname)) }
++  =
++    let unused_inode = ref 0 in
++    let name = ref "" in
++    let is_match = ref 0 in
++    let inode_num = ref 0 in
++    let i = ref 0 in
++    let found = ref 0 in
++    let b1 = ref 0 in
++    let b0 = ref 0 in
++    let nb2 = ref 0 in
++    found := (- 1);
++    assert { (dir_scan_prefix self.dir 5 pathname 0 (- 1)) };
++    let _idx_i = ref 0 in
++    while !_idx_i < 16 do
++      invariant { ((0 <= !_idx_i) && (!_idx_i <= 16)) }
++      invariant { ((!found = (- 1)) || ((!found >= 1) && (!found < 32))) }
++      invariant { (dir_scan_prefix self.dir 5 pathname !_idx_i !found) }
++      variant { (16 - !_idx_i) }
++      let i = ref (!_idx_i) in
++      b0 := self.dir[((5 * 512) + (32 * !i))];
++      b1 := self.dir[(((5 * 512) + (32 * !i)) + 1)];
++      assert { ((slot_inode self.dir 5 !i) = ((256 * !b0) + !b1)) };
++      inode_num := ((!b0 * 256) + !b1);
++      let entry = (Array.sub self.dir (((5 * 512) + (32 * !i))) (((((5 * 512) + (32 * !i)) + 32)) - (((5 * 512) + (32 * !i))))) in
++      let (_tu_unused_inode, _tu_name_bytes) = (_unpack_direntry entry) in
++      unused_inode := _tu_unused_inode;
++      let name_bytes = ref _tu_name_bytes in
++      (* SPIKE Gap-5 FAITHFUL READ: surface the name-field first byte
++         self.dir[5*512+32*i+2] so slot_name_byte_decode E-matches its trigger
++         [disk[blk*512+32*k+2]], giving slot_name self.dir 5 i = field_to_str
++         self.dir (5*512+32*i+2) 30. The body's name IS that field_to_str. *)
++      nb2 := self.dir[(((5 * 512) + (32 * !i)) + 2)];
++      name := (field_to_str_read self.dir (((5 * 512) + (32 * !i)) + 2) 30);
++      assert { (slot_name self.dir 5 !i) = !name };
++      is_match := (if ((if (str_eq_op !name pathname) && (!inode_num <> 0) then 1 else 0) <> 0) && (!inode_num < 32) then 1 else 0);
++      if (!is_match <> 0) then begin
++        assert { (slot_name self.dir 5 !i) = pathname };
++        found := !inode_num;
++        assert { (dir_scan_prefix self.dir 5 pathname (!i + 1) !found) }
++      end else begin
++        assert { (dir_scan_prefix self.dir 5 pathname (!i + 1) !found) }
++      end;
++      _idx_i := !_idx_i + 1
++    done;
++    assert { (dir_scan_result self.dir 5 pathname !found) };
++    assert { (!found = (dir_lookup self.dir block_num pathname)) };
++    !found
++
++  let unixinodefilesystem___format_disk (self: unixinodefilesystem) : unit
++    requires { true }
++    ensures  { true }
++  =
++    let b = ref 0 in
++    let _idx_b = ref 0 in
++    while !_idx_b < 6 do
++      invariant { ((0 <= !_idx_b) && (!_idx_b <= 6)) }
++      invariant { (uniq self.dir) }
++      invariant { (inode_bytes_valid self.disk) }
++      variant { (6 - !_idx_b) }
++      let b = ref (!_idx_b) in
++      let _ = (unixinodefilesystem___set_bitmap self 4 !b 1) in ();
++      _idx_b := !_idx_b + 1
++    done;
++    let _ = (unixinodefilesystem___set_bitmap self 0 0 1) in ();
++    let root_inode = (let _alit = Array.make 18 (512) in _alit[1] <- 1; _alit[2] <- 2; _alit[3] <- 493; _alit[4] <- 0; _alit[5] <- 0; _alit[6] <- 0; _alit[7] <- 0; _alit[8] <- 5; _alit[9] <- 0; _alit[10] <- 0; _alit[11] <- 0; _alit[12] <- 0; _alit[13] <- 0; _alit[14] <- 0; _alit[15] <- 0; _alit[16] <- 0; _alit[17] <- 0; _alit) in
++    let _ = (self__write_inode_2 self 0 root_inode) in ();
++    let _ = (self__write_dir_entry_4 self 5 0 0 ".") in ();
++    let _ = (self__write_dir_entry_4 self 5 1 0 "..") in ()
++
++  let unixinodefilesystem___free_inode_blocks (self: unixinodefilesystem) (inode_num: int) (inode: array int) (pathname: string) : unit
++    requires { (inode_num >= 0) }
++    requires { (inode_num < 32) }
++    requires { ((Array.length inode) = 18) }
++    requires { ((0 <= inode[0]) && (inode[0] <= 4294967295)) }
++    requires { ((0 <= inode[1]) && (inode[1] <= 65535)) }
++    requires { ((0 <= inode[2]) && (inode[2] <= 65535)) }
++    requires { ((0 <= inode[3]) && (inode[3] <= 65535)) }
++    requires { ((0 <= inode[4]) && (inode[4] <= 65535)) }
++    requires { ((0 <= inode[5]) && (inode[5] <= 65535)) }
++    requires { ((0 <= inode[6]) && (inode[6] <= 4294967295)) }
++    requires { ((0 <= inode[7]) && (inode[7] <= 4294967295)) }
++    requires { ((0 <= inode[8]) && (inode[8] <= 4294967295)) }
++    requires { ((0 <= inode[9]) && (inode[9] <= 4294967295)) }
++    requires { ((0 <= inode[10]) && (inode[10] <= 4294967295)) }
++    requires { ((0 <= inode[11]) && (inode[11] <= 4294967295)) }
++    requires { ((0 <= inode[12]) && (inode[12] <= 4294967295)) }
++    requires { ((0 <= inode[13]) && (inode[13] <= 4294967295)) }
++    requires { ((0 <= inode[14]) && (inode[14] <= 4294967295)) }
++    requires { ((0 <= inode[15]) && (inode[15] <= 4294967295)) }
++    requires { ((0 <= inode[16]) && (inode[16] <= 4294967295)) }
++    requires { ((0 <= inode[17]) && (inode[17] <= 4294967295)) }
++    requires { ((dir_lookup self.dir 5 pathname) < 0) }
++    ensures  { ((dir_lookup self.dir 5 pathname) < 0) }
++  =
++    let k = ref 0 in
++    let block = ref 0 in
++    if (inode[1] = 0) then begin
++      let _idx_k = ref 8 in
++      while !_idx_k < 18 do
++        invariant { ((8 <= !_idx_k) && (!_idx_k <= 18)) }
++        invariant { ((Array.length self.disk) >= 131072) }
++        invariant { (inode_bytes_valid self.disk) }
++        invariant { ((dir_lookup self.dir 5 pathname) < 0) }
++        variant { (18 - !_idx_k) }
++        let k = ref (!_idx_k) in
++        block := inode[!k];
++        if ((if (!block > 0) && (!block < 256) then 1 else 0) <> 0) then begin
++          let _ = (unixinodefilesystem___set_bitmap self 4 !block 0) in ()
++        end;
++        _idx_k := !_idx_k + 1
++      done;
++      let _ = (unixinodefilesystem___set_bitmap self 0 inode_num 0) in ()
++    end else begin
++      let _ = (self__write_inode_2 self inode_num inode) in ()
++    end
++
++  let unixinodefilesystem___get_bitmap (self: unixinodefilesystem) (byte_offset: int) (bit_index: int) : int
++    requires { (byte_offset >= 0) }
++    requires { (bit_index >= 0) }
++    requires { ((byte_offset + (div bit_index 8)) < 131072) }
++    ensures  { ((result >= 0) && (result < 2)) }
++  =
++    let byte_pos = ref 0 in
++    let bit_pos = ref 0 in
++    byte_pos := (byte_offset + (pycsl_div bit_index 8));
++    bit_pos := (pycsl_mod bit_index 8);
++    (bit_and (bit_rshift self.disk[!byte_pos] !bit_pos) 1)
++
++  let unixinodefilesystem___now (self: unixinodefilesystem) : int
++    ensures  { (result >= 0) } (* linear *)
++  =
++    try
++    if (self._clock <> 0) then begin
++      raise (Return (self__clock_monotonic_0 ()))
++    end else begin
++      self._mtime_ticks <- (self._mtime_ticks + 1);
++      raise (Return self._mtime_ticks)
++    end
++    with Return r -> r end
++
++  let unixinodefilesystem___read_directory (self: unixinodefilesystem) (block_num: int) : array int
++    requires { (block_num >= 0) }
++    requires { (block_num < 256) }
++    ensures  { (((Array.length result) >= 0) && ((Array.length result) <= 16)) }
++  =
++    let entries_len = ref 0 in
++    let offset = ref 0 in
++    let name = ref 0 in
++    let inode_num = ref 0 in
++    let i = ref 0 in
++    let entry_offset = ref 0 in
++    offset := (block_num * 512);
++    let entries = ref Seq.empty in
++    let _idx_i = ref 0 in
++    while !_idx_i < 16 do
++      invariant { ((0 <= !_idx_i) && (!_idx_i <= 16)) }
++      invariant { ((0 <= (Seq.length !entries)) && ((Seq.length !entries) <= !_idx_i)) }
++      variant { (16 - !_idx_i) }
++      let i = ref (!_idx_i) in
++      entry_offset := (!offset + (!i * 32));
++      let entry_bytes = (Array.sub self.disk (!entry_offset) (((!entry_offset + 32)) - (!entry_offset))) in
++      let (_tu_inode_num, _tu_name_bytes) = (_unpack_direntry entry_bytes) in
++      inode_num := _tu_inode_num;
++      let name_bytes = ref _tu_name_bytes in
++      name := (decode_1 1501791143);
++      if ((if (!inode_num <> 0) || ((!name = 1922676125) || (!name = 684344408)) then 1 else 0) <> 0) then begin
++        entries := Seq.snoc !entries 2094828438
++      end;
++      _idx_i := !_idx_i + 1
++    done;
++    (materialize !entries)
++
++  let unixinodefilesystem___read_inode (self: unixinodefilesystem) (inode_num: int) : array int
++    requires { (inode_num >= 0) }
++    requires { (inode_num < 32) }
++    ensures  { ((Array.length result) = 18) }
++    ensures  { ((result[0]) = (inode_size self.disk inode_num)) }
++  =
++    let offset = ref 0 in
++    offset := (512 + (inode_num * 64));
++    let inode_bytes = (Array.sub self.disk (!offset) (((!offset + 64)) - (!offset))) in
++    (_unpack_inode inode_bytes)
++
++  let unixinodefilesystem___write_block_at (self: unixinodefilesystem) (p_block: int) (block_off: int) (src: array int) (src_off: int) (chunk: int) : unit
++    requires { ((6 <= p_block) && (p_block < 256)) }
++    requires { ((0 <= block_off) && (block_off < 512)) }
++    requires { ((0 <= chunk) && ((block_off + chunk) <= 512)) }
++    requires { ((0 <= src_off) && ((src_off + chunk) <= (Array.length src))) }
++    requires { ((Array.length self.disk) >= 131072) }
++    ensures  { ((Array.length self.disk) = (old (Array.length self.disk))) }
++    ensures  { (forall j : int. (((0 <= j) && (j < chunk)) -> ((self.disk[(((p_block * 512) + block_off) + j)]) = src[(src_off + j)]))) }
++    ensures  { (forall i : int. ((((0 <= i) && (i < (Array.length self.disk))) && ((i < ((p_block * 512) + block_off)) || (i >= (((p_block * 512) + block_off) + chunk)))) -> ((self.disk[i]) = (old (self.disk[i]))))) }
++  =
++    let disk_start = ref 0 in
++    disk_start := ((p_block * 512) + block_off);
++    Array.blit (Array.sub src (src_off) (((src_off + chunk)) - (src_off))) 0 self.disk (!disk_start) (((!disk_start + chunk)) - (!disk_start))
++
++  let unixinodefilesystem___write_dir_entry (self: unixinodefilesystem) (block_num: int) (slot: int) (inode_num: int) (name: string) : unit
++    requires { (block_num = 5) }
++    requires { ((slot >= 0) && (slot < 16)) }
++    requires { ((inode_num = 0) || ((inode_num <> 0) && (inode_num < 32))) }
++    requires { ((String.length name) <= 30) }
++    requires { (forall i : int. (((0 <= i) && (i < (String.length name))) -> ((Char.code (Char.get name i)) <> 0))) }
++    requires { (forall k : int. ((((((0 <= k) && (k < 16)) && (k <> slot)) && ((slot_inode self.dir 5 k) <> 0)) && ((slot_inode self.dir 5 k) < 32)) -> ((slot_name self.dir 5 k) <> name))) }
++    ensures  { (((inode_num <> 0) && (inode_num < 32)) -> ((slot_inode self.dir block_num slot) = inode_num)) }
++    ensures  { (((inode_num <> 0) && (inode_num < 32)) -> ((slot_name self.dir block_num slot) = name)) }
++    ensures  { (forall k : int. ((((0 <= k) && (k < 16)) && (k <> slot)) -> ((slot_inode self.dir block_num k) = (old (slot_inode self.dir block_num k))))) }
++    ensures  { (forall k : int. ((((0 <= k) && (k < 16)) && (k <> slot)) -> ((slot_name self.dir block_num k) = (old (slot_name self.dir block_num k))))) }
++  =
++    let entry_offset = ref 0 in
++    entry_offset := ((block_num * 512) + (slot * 32));
++    let _ = (unixinodefilesystem___blit_dir_entry self !entry_offset inode_num name) in ();
++    assert { ((((self.dir[(2560 + (32 * slot))]) * 256) + (self.dir[((2560 + (32 * slot)) + 1)])) = inode_num) };
++    assert { (forall i : int. ((((0 <= i) && (i < (String.length name))) && (i < 30)) -> ((self.dir[(((2560 + (32 * slot)) + 2) + i)]) = (Char.code (Char.get name i))))) };
++    assert { (((String.length name) < 30) -> ((self.dir[(((2560 + (32 * slot)) + 2) + (String.length name))]) = 0)) };
++    assert { (forall b : int. ((((0 <= b) && (b < 512)) && ((b < (32 * slot)) || (((32 * slot) + 32) <= b))) -> ((self.dir[(2560 + b)]) = (old (self.dir[(2560 + b)]))))) };
++    assert { (dir_blit_marker (old self.dir) self.dir slot (self.dir[(2560 + (32 * slot))]) (self.dir[((2560 + (32 * slot)) + 1)]) name) }
++
++  let unixinodefilesystem___write_entry (self: unixinodefilesystem) (block_num: int) (slot: int) (inode_num: int) (name: string) : unit
++    requires { (block_num >= 0) }
++    requires { (block_num < 256) }
++    requires { ((slot >= 0) && (slot < 16)) }
++    requires { ((inode_num = 0) || ((inode_num <> 0) && (inode_num < 32))) }
++    requires { ((String.length name) <= 30) }
++    requires { (forall i : int. (((0 <= i) && (i < (String.length name))) -> ((Char.code (Char.get name i)) <> 0))) }
++    ensures  { (((inode_num <> 0) && (inode_num < 32)) -> ((slot_inode self.disk block_num slot) = inode_num)) }
++    ensures  { (((inode_num <> 0) && (inode_num < 32)) -> ((slot_name self.disk block_num slot) = name)) }
++    ensures  { (forall k : int. ((((0 <= k) && (k < 16)) && (k <> slot)) -> ((slot_inode self.disk block_num k) = (old (slot_inode self.disk block_num k))))) }
++    ensures  { (forall k : int. ((((0 <= k) && (k < 16)) && (k <> slot)) -> ((slot_name self.disk block_num k) = (old (slot_name self.disk block_num k))))) }
++  =
++    let entry_offset = ref 0 in
++    entry_offset := ((block_num * 512) + (slot * 32));
++    let _ = (unixinodefilesystem___blit_disk_entry self !entry_offset inode_num name) in ();
++    assert { (!entry_offset = ((block_num * 512) + (32 * slot))) };
++    assert { ((((self.disk[!entry_offset]) * 256) + (self.disk[(!entry_offset + 1)])) = inode_num) };
++    assert { (forall i : int. ((((0 <= i) && (i < (String.length name))) && (i < 30)) -> ((self.disk[((!entry_offset + 2) + i)]) = (Char.code (Char.get name i))))) };
++    assert { (((String.length name) < 30) -> ((self.disk[((!entry_offset + 2) + (String.length name))]) = 0)) };
++    assert { (forall b : int. ((((0 <= b) && (b < 512)) && ((b < (32 * slot)) || (((32 * slot) + 32) <= b))) -> ((self.disk[((block_num * 512) + b)]) = (old (self.disk[((block_num * 512) + b)]))))) };
++    assert { (dir_blit_marker_at (old self.disk) self.disk block_num slot (self.disk[((block_num * 512) + (32 * slot))]) (self.disk[(((block_num * 512) + (32 * slot)) + 1)]) name) }
++
++  let unixinodefilesystem___write_inode (self: unixinodefilesystem) (inode_num: int) (inode: array int) : unit
++    requires { (inode_num >= 0) }
++    requires { (inode_num < 32) }
++    requires { ((Array.length inode) = 18) }
++    requires { ((0 <= inode[0]) && (inode[0] <= 4294967295)) }
++    requires { ((0 <= inode[1]) && (inode[1] <= 65535)) }
++    requires { ((0 <= inode[2]) && (inode[2] <= 65535)) }
++    requires { ((0 <= inode[3]) && (inode[3] <= 65535)) }
++    requires { ((0 <= inode[4]) && (inode[4] <= 65535)) }
++    requires { ((0 <= inode[5]) && (inode[5] <= 65535)) }
++    requires { ((0 <= inode[6]) && (inode[6] <= 4294967295)) }
++    requires { ((0 <= inode[7]) && (inode[7] <= 4294967295)) }
++    requires { ((0 <= inode[8]) && (inode[8] <= 4294967295)) }
++    requires { ((0 <= inode[9]) && (inode[9] <= 4294967295)) }
++    requires { ((0 <= inode[10]) && (inode[10] <= 4294967295)) }
++    requires { ((0 <= inode[11]) && (inode[11] <= 4294967295)) }
++    requires { ((0 <= inode[12]) && (inode[12] <= 4294967295)) }
++    requires { ((0 <= inode[13]) && (inode[13] <= 4294967295)) }
++    requires { ((0 <= inode[14]) && (inode[14] <= 4294967295)) }
++    requires { ((0 <= inode[15]) && (inode[15] <= 4294967295)) }
++    requires { ((0 <= inode[16]) && (inode[16] <= 4294967295)) }
++    requires { ((0 <= inode[17]) && (inode[17] <= 4294967295)) }
++    ensures  { ((Array.length self.disk) >= 131072) }
++    ensures  { ((((((self.disk[((512 + (inode_num * 64)) + 0)]) * 16777216) + ((self.disk[((512 + (inode_num * 64)) + 1)]) * 65536)) + ((self.disk[((512 + (inode_num * 64)) + 2)]) * 256)) + (self.disk[((512 + (inode_num * 64)) + 3)])) = inode[0]) }
++    ensures  { ((((((self.disk[((512 + (inode_num * 64)) + 22)]) * 16777216) + ((self.disk[((512 + (inode_num * 64)) + 23)]) * 65536)) + ((self.disk[((512 + (inode_num * 64)) + 24)]) * 256)) + (self.disk[((512 + (inode_num * 64)) + 25)])) = inode[8]) }
++    ensures  { (forall k : int. (((0 <= k) && (k < 16)) -> ((slot_inode self.dir 5 k) = (old (slot_inode self.dir 5 k))))) }
++    ensures  { (forall k : int. (((0 <= k) && (k < 16)) -> ((slot_name self.dir 5 k) = (old (slot_name self.dir 5 k))))) }
++  =
++    let offset = ref 0 in
++    offset := (512 + (inode_num * 64));
++    let inode_bytes = (_pack_inode inode) in
++    Array.blit inode_bytes 0 self.disk (!offset) (((!offset + 64)) - (!offset));
++    assert { (forall b : int. (((2560 <= b) && (b < 3072)) -> ((self.disk[b]) = (old (self.disk[b]))))) }
++
++  let unixinodefilesystem___zero_entry (self: unixinodefilesystem) (block_num: int) (slot: int) : unit
++    requires { (block_num >= 0) }
++    requires { (block_num = 5) }
++    requires { ((slot >= 0) && (slot < 16)) }
++    ensures  { ((slot_inode self.dir block_num slot) = 0) }
++    ensures  { (forall k : int. ((((0 <= k) && (k < 16)) && (k <> slot)) -> ((slot_inode self.dir block_num k) = (old (slot_inode self.dir block_num k))))) }
++    ensures  { (forall k : int. ((((0 <= k) && (k < 16)) && (k <> slot)) -> ((slot_name self.dir block_num k) = (old (slot_name self.dir block_num k))))) }
++  =
++    let entry_offset = ref 0 in
++    entry_offset := ((block_num * 512) + (slot * 32));
++    let _ = (unixinodefilesystem___blit_dir_entry self !entry_offset 0 "") in ();
++    assert { ((self.dir[(2560 + (32 * slot))]) = (self.dir[(2560 + (32 * slot))])) };
++    assert { ((self.dir[((2560 + (32 * slot)) + 1)]) = (self.dir[((2560 + (32 * slot)) + 1)])) };
++    assert { ((self.dir[((2560 + (32 * slot)) + 2)]) = 0) };
++    assert { (forall b : int. ((((0 <= b) && (b < 512)) && ((b < (32 * slot)) || (((32 * slot) + 32) <= b))) -> ((self.dir[(2560 + b)]) = (old (self.dir[(2560 + b)]))))) };
++    assert { (dir_blit_marker (old self.dir) self.dir slot (self.dir[(2560 + (32 * slot))]) (self.dir[((2560 + (32 * slot)) + 1)]) "") }
++
++  let unixinodefilesystem__sys_access (self: unixinodefilesystem) (pathname: string) (mode: int) : int
++    requires { true }
++    ensures  { ((result = 0) || (result = (- 1))) }
++    ensures  { ((result = 0) <-> ((dir_lookup self.dir 5 pathname) >= 0)) }
++  =
++    try
++    let inode_num = ref 0 in
++    inode_num := (self__dir_lookup_2 self 5 pathname);
++    if (!inode_num < 0) then begin
++      raise (Return (- 1))
++    end else begin
++      raise (Return 0)
++    end
++    with Return r -> r end
++
++  let unixinodefilesystem__sys_chmod (self: unixinodefilesystem) (pathname: string) (mode: int) : int
++    requires { true }
++    ensures  { ((result = 0) || (result = (- 1))) }
++    ensures  { (forall k : int. (((0 <= k) && (k < 16)) -> ((slot_inode self.dir 5 k) = (old (slot_inode self.dir 5 k))))) }
++    ensures  { (forall k : int. (((0 <= k) && (k < 16)) -> ((slot_name self.dir 5 k) = (old (slot_name self.dir 5 k))))) }
++  =
++    try
++    let inode_num = ref 0 in
++    inode_num := (self__dir_lookup_2 self 5 pathname);
++    if ((if (!inode_num < 0) || (!inode_num >= 32) then 1 else 0) <> 0) then begin
++      raise (Return (- 1))
++    end else begin
++      let inode = (self__read_inode_1 self !inode_num) in
++      if ((if (mode < 0) || (mode > 65535) then 1 else 0) <> 0) then begin
++        raise (Return (- 1))
++      end else begin
++        inode[3] <- mode;
++        let _ = (self__write_inode_2 self !inode_num inode) in ();
++        raise (Return 0)
++      end
++    end
++    with Return r -> r end
++
++  let unixinodefilesystem__sys_chown (self: unixinodefilesystem) (pathname: string) (owner: int) (group: int) : int
++    requires { true }
++    ensures  { ((result = 0) || (result = (- 1))) }
++    ensures  { (forall k : int. (((0 <= k) && (k < 16)) -> ((slot_inode self.dir 5 k) = (old (slot_inode self.dir 5 k))))) }
++    ensures  { (forall k : int. (((0 <= k) && (k < 16)) -> ((slot_name self.dir 5 k) = (old (slot_name self.dir 5 k))))) }
++  =
++    try
++    let inode_num = ref 0 in
++    inode_num := (self__dir_lookup_2 self 5 pathname);
++    if ((if (!inode_num < 0) || (!inode_num >= 32) then 1 else 0) <> 0) then begin
++      raise (Return (- 1))
++    end else begin
++      let inode = (self__read_inode_1 self !inode_num) in
++      inode[4] <- owner;
++      inode[5] <- group;
++      let _ = (self__write_inode_2 self !inode_num inode) in ();
++      raise (Return 0)
++    end
++    with Return r -> r end
++
++  let unixinodefilesystem__sys_close (self: unixinodefilesystem) (fd: int) : int
++    requires { (fd >= 0) }
++    ensures  { ((result = 0) || (result = (- 1))) } (* linear *)
++    ensures  { (((result = 0) && (fd < 64)) -> ((self.fd_open[fd]) = 0)) }
++  =
++    try
++    if ((if (fd < 64) && (self.fd_open[fd] = 1) then 1 else 0) <> 0) then begin
++      self.fd_open[fd] <- 0;
++      raise (Return 0)
++    end else begin
++      raise (Return (- 1))
++    end
++    with Return r -> r end
++
++  let unixinodefilesystem__sys_creat (self: unixinodefilesystem) (pathname: string) (mode: int) : int
++    requires { true }
++    ensures  { ((result = (- 1)) || (result >= 3)) }
++  =
++    try
++    let slot = ref 0 in
++    let p_block = ref 0 in
++    let now = ref 0 in
++    let inode_num = ref 0 in
++    let fd = ref 0 in
++    now := (self__now_0 self);
++    inode_num := (self__dir_lookup_2 self 5 pathname);
++    if ((if (!inode_num >= 0) && (!inode_num < 32) then 1 else 0) <> 0) then begin
++      let inode = (self__read_inode_1 self !inode_num) in
++      inode[0] <- 0;
++      inode[7] <- !now;
++      let _ = (self__write_inode_2 self !inode_num inode) in ()
++    end else begin
++      inode_num := (self__alloc_inode_0 self);
++      if ((if (!inode_num < 0) || (!inode_num >= 32) then 1 else 0) <> 0) then begin
++        raise (Return (- 1))
++      end else begin
++        p_block := (self__alloc_block_0 self);
++        if ((if (!p_block < 0) || (!p_block >= 256) then 1 else 0) <> 0) then begin
++          raise (Return (- 1))
++        end else begin
++          let inode = (let _alit = Array.make 18 (0) in _alit[1] <- 1; _alit[2] <- 1; _alit[3] <- mode; _alit[4] <- 0; _alit[5] <- 0; _alit[6] <- !now; _alit[7] <- !now; _alit[8] <- !p_block; _alit[9] <- 0; _alit[10] <- 0; _alit[11] <- 0; _alit[12] <- 0; _alit[13] <- 0; _alit[14] <- 0; _alit[15] <- 0; _alit[16] <- 0; _alit[17] <- 0; _alit) in
++          let _ = (self__write_inode_2 self !inode_num inode) in ();
++          slot := (self__dir_find_free_1 self 5);
++          if (!slot < 0) then begin
++            raise (Return (- 1))
++          end else begin
++            let _ = (self__write_dir_entry_4 self 5 !slot !inode_num pathname) in ()
++          end
++        end
++      end
++    end;
++    fd := (unixinodefilesystem___alloc_fd self);
++    if (!fd < 0) then begin
++      raise (Return (- 1))
++    end else begin
++      self.fd_inode[!fd] <- !inode_num;
++      self.fd_offset[!fd] <- 0;
++      self.fd_flags[!fd] <- 1;
++      raise (Return !fd)
++    end
++    with Return r -> r end
++
++  let unixinodefilesystem__sys_dup (self: unixinodefilesystem) (oldfd: int) : int
++    requires { (oldfd >= 0) }
++    ensures  { ((result = (- 1)) || (result >= 3)) } (* linear *)
++    ensures  { ((result >= 3) -> ((self.fd_inode[result]) = (old (self.fd_inode[oldfd])))) }
++    ensures  { ((result >= 3) -> ((self.fd_open[result]) = 1)) }
++    ensures  { ((result >= 3) -> (result < 64)) } (* linear *)
++    ensures  { ((((result >= 3) && (0 <= (old (self.fd_inode[oldfd])))) && ((old (self.fd_inode[oldfd])) < 32)) -> ((0 <= (self.fd_inode[result])) && ((self.fd_inode[result]) < 32))) }
++    ensures  { ((((oldfd < 64) && ((old (self.fd_open[oldfd])) = 1)) && (exists k : int. (((3 <= k) && (k < 64)) && ((old (self.fd_open[k])) = 0)))) -> (result >= 3)) }
++    ensures  { (forall k : int. ((((0 <= k) && (k < 64)) && (k <> result)) -> ((self.fd_open[k]) = (old (self.fd_open[k]))))) }
++  =
++    try
++    let newfd = ref 0 in
++    if ((if (oldfd >= 64) || (self.fd_open[oldfd] = 0) then 1 else 0) <> 0) then begin
++      raise (Return (- 1))
++    end else begin
++      newfd := (unixinodefilesystem___alloc_fd self);
++      if (!newfd < 0) then begin
++        raise (Return (- 1))
++      end else begin
++        self.fd_inode[!newfd] <- self.fd_inode[oldfd];
++        self.fd_offset[!newfd] <- self.fd_offset[oldfd];
++        self.fd_flags[!newfd] <- self.fd_flags[oldfd];
++        raise (Return !newfd)
++      end
++    end
++    with Return r -> r end
++
++  let unixinodefilesystem__sys_dup2 (self: unixinodefilesystem) (oldfd: int) (newfd: int) : int
++    requires { (oldfd >= 0) }
++    requires { (newfd >= 0) }
++    ensures  { ((result = newfd) || (result = (- 1))) } (* linear *)
++  =
++    try
++    if ((if (oldfd >= 64) || (self.fd_open[oldfd] = 0) then 1 else 0) <> 0) then begin
++      raise (Return (- 1))
++    end else begin
++      if (newfd >= 64) then begin
++        raise (Return (- 1))
++      end else begin
++        self.fd_open[newfd] <- 1;
++        self.fd_inode[newfd] <- self.fd_inode[oldfd];
++        self.fd_offset[newfd] <- self.fd_offset[oldfd];
++        self.fd_flags[newfd] <- self.fd_flags[oldfd];
++        raise (Return newfd)
++      end
++    end
++    with Return r -> r end
++
++  let unixinodefilesystem__sys_fstat (self: unixinodefilesystem) (fd: int) : int
++    requires { (fd >= 0) }
++    ensures  { ((result = (- 1)) || ((result >= 0) && (result < 32))) } (* linear *)
++    ensures  { (((((fd < 64) && ((self.fd_open[fd]) = 1)) && (0 <= (self.fd_inode[fd]))) && ((self.fd_inode[fd]) < 32)) -> (result = (self.fd_inode[fd]))) }
++    ensures  { (((fd < 64) && ((self.fd_open[fd]) = 0)) -> (result = (- 1))) }
++  =
++    try
++    let inode_num = ref 0 in
++    if (fd >= 64) then begin
++      raise (Return (- 1))
++    end else begin
++      if (self.fd_open[fd] = 0) then begin
++        raise (Return (- 1))
++      end else begin
++        inode_num := self.fd_inode[fd];
++        if ((if (!inode_num < 0) || (!inode_num >= 32) then 1 else 0) <> 0) then begin
++          raise (Return (- 1))
++        end else begin
++          raise (Return !inode_num)
++        end
++      end
++    end
++    with Return r -> r end
++
++  let unixinodefilesystem__sys_fsync (self: unixinodefilesystem) (fd: int) : int
++    requires { (fd >= 0) }
++    ensures  { ((result = 0) || (result = (- 1))) } (* linear *)
++  =
++    try
++    if ((if (fd < 64) && (self.fd_open[fd] = 1) then 1 else 0) <> 0) then begin
++      raise (Return 0)
++    end else begin
++      raise (Return (- 1))
++    end
++    with Return r -> r end
++
++  let unixinodefilesystem__sys_ftruncate (self: unixinodefilesystem) (fd: int) (length: int) : int
++    requires { (fd >= 0) }
++    ensures  { ((result = 0) || (result = (- 1))) } (* linear *)
++    ensures  { (forall k : int. (((0 <= k) && (k < 16)) -> ((slot_inode self.dir 5 k) = (old (slot_inode self.dir 5 k))))) }
++    ensures  { (forall k : int. (((0 <= k) && (k < 16)) -> ((slot_name self.dir 5 k) = (old (slot_name self.dir 5 k))))) }
++  =
++    try
++    let inode_num = ref 0 in
++    if (fd >= 64) then begin
++      raise (Return (- 1))
++    end else begin
++      if (self.fd_open[fd] = 0) then begin
++        raise (Return (- 1))
++      end else begin
++        inode_num := self.fd_inode[fd];
++        if ((if (!inode_num < 0) || (!inode_num >= 32) then 1 else 0) <> 0) then begin
++          raise (Return (- 1))
++        end else begin
++          if ((if (length < 0) || (length > 4294967295) then 1 else 0) <> 0) then begin
++            raise (Return (- 1))
++          end else begin
++            let inode = (self__read_inode_1 self !inode_num) in
++            inode[0] <- length;
++            let _ = (self__write_inode_2 self !inode_num inode) in ();
++            assert { (((512 + (!inode_num * 64)) + 64) <= 2560) };
++            raise (Return 0)
++          end
++        end
++      end
++    end
++    with Return r -> r end
++
++  let unixinodefilesystem__sys_getdents (self: unixinodefilesystem) (fd: int) : int
++    requires { (fd >= 0) }
++    ensures  { ((result = 0) || (result = (- 1))) } (* linear *)
++  =
++    try
++    let inode_num = ref 0 in
++    if (fd >= 64) then begin
++      raise (Return (- 1))
++    end else begin
++      if (self.fd_open[fd] = 0) then begin
++        raise (Return (- 1))
++      end else begin
++        inode_num := self.fd_inode[fd];
++        if ((if (!inode_num < 0) || (!inode_num >= 32) then 1 else 0) <> 0) then begin
++          raise (Return (- 1))
++        end else begin
++          let inode = (self__read_inode_1 self !inode_num) in
++          if (inode[2] <> 2) then begin
++            raise (Return (- 1))
++          end else begin
++            raise (Return 0)
++          end
++        end
++      end
++    end
++    with Return r -> r end
++
++  let unixinodefilesystem__sys_link (self: unixinodefilesystem) (oldpath: string) (newpath: string) : int
++    requires { true }
++    ensures  { ((result = 0) || (result = (- 1))) }
++    ensures  { ((result = 0) -> ((dir_lookup self.dir 5 newpath) >= 0)) }
++  =
++    try
++    let slot = ref 0 in
++    let inode_num = ref 0 in
++    inode_num := (self__dir_lookup_2 self 5 oldpath);
++    if ((if (!inode_num < 0) || (!inode_num >= 32) then 1 else 0) <> 0) then begin
++      raise (Return (- 1))
++    end else begin
++      if ((self__dir_lookup_2 self 5 newpath) >= 0) then begin
++        raise (Return (- 1))
++      end else begin
++        slot := (self__dir_find_free_1 self 5);
++        if (!slot < 0) then begin
++          raise (Return (- 1))
++        end else begin
++          let inode = (self__read_inode_1 self !inode_num) in
++          if (inode[1] >= 65535) then begin
++            raise (Return (- 1))
++          end else begin
++            inode[1] <- (inode[1] + 1);
++            let _ = (self__write_inode_2 self !inode_num inode) in ();
++            let _ = (self__write_dir_entry_4 self 5 !slot !inode_num newpath) in ();
++            assert { (exists k : int. (((((0 <= k) && (k < 16)) && ((slot_inode self.dir 5 k) <> 0)) && ((slot_inode self.dir 5 k) < 32)) && ((slot_name self.dir 5 k) = newpath))) };
++            raise (Return 0)
++          end
++        end
++      end
++    end
++    with Return r -> r end
++
++  let unixinodefilesystem__sys_lseek (self: unixinodefilesystem) (fd: int) (offset: int) (whence: int) : int
++    requires { (fd >= 0) }
++    requires { ((whence >= 0) && (whence <= 2)) }
++    ensures  { (result >= (- 1)) } (* linear *)
++    ensures  { (((((whence = 0) && (offset >= 0)) && (fd < 64)) && ((old (self.fd_open[fd])) = 1)) -> (result = offset)) }
++    ensures  { (((((whence = 0) && (offset >= 0)) && (fd < 64)) && ((old (self.fd_open[fd])) = 1)) -> ((self.fd_offset[fd]) = offset)) }
++  =
++    try
++    let inode_num = ref 0 in
++    if (fd >= 64) then begin
++      raise (Return (- 1))
++    end else begin
++      if (self.fd_open[fd] = 0) then begin
++        raise (Return (- 1))
++      end else begin
++        if (whence = 0) then begin
++          self.fd_offset[fd] <- offset
++        end else begin
++          if (whence = 1) then begin
++            self.fd_offset[fd] <- (self.fd_offset[fd] + offset)
++          end else begin
++            if (whence = 2) then begin
++              inode_num := self.fd_inode[fd];
++              if ((if (!inode_num >= 0) && (!inode_num < 32) then 1 else 0) <> 0) then begin
++                let inode = (self__read_inode_1 self !inode_num) in
++                self.fd_offset[fd] <- (inode[0] + offset)
++              end
++            end
++          end
++        end;
++        if (self.fd_offset[fd] < 0) then begin
++          self.fd_offset[fd] <- 0
++        end;
++        raise (Return self.fd_offset[fd])
++      end
++    end
++    with Return r -> r end
++
++  let unixinodefilesystem__sys_lstat (self: unixinodefilesystem) (pathname: string) : int
++    requires { true }
++    ensures  { ((result = (- 1)) || ((result >= 0) && (result < 32))) }
++    ensures  { (((dir_lookup self.dir 5 pathname) >= 0) -> ((0 <= result) && (result < 32))) }
++    ensures  { (((dir_lookup self.dir 5 pathname) < 0) -> (result = (- 1))) }
++  =
++    (self__dir_lookup_2 self 5 pathname)
++
++  let unixinodefilesystem__sys_mkdir (self: unixinodefilesystem) (pathname: string) (mode: int) : int
++    requires { true }
++    ensures  { ((result = 0) || (result = (- 1))) }
++    ensures  { ((result = 0) -> ((dir_lookup self.dir 5 pathname) >= 0)) }
++  =
++    try
++    let slot = ref 0 in
++    let p_block = ref 0 in
++    let now = ref 0 in
++    let inode_num = ref 0 in
++    if ((self__dir_lookup_2 self 5 pathname) >= 0) then begin
++      raise (Return (- 1))
++    end else begin
++      let root_inode = (self__read_inode_1 self 0) in
++      if ((self__check_perm_2 root_inode 3) = 0) then begin
++        raise (Return (- 1))
++      end else begin
++        inode_num := (self__alloc_inode_0 self);
++        if ((if (!inode_num < 0) || (!inode_num >= 32) then 1 else 0) <> 0) then begin
++          raise (Return (- 1))
++        end else begin
++          p_block := (self__alloc_block_0 self);
++          if ((if (!p_block < 0) || (!p_block >= 256) then 1 else 0) <> 0) then begin
++            raise (Return (- 1))
++          end else begin
++            now := (self__now_0 self);
++            let inode = (let _alit = Array.make 18 (512) in _alit[1] <- 2; _alit[2] <- 2; _alit[3] <- mode; _alit[4] <- 0; _alit[5] <- 0; _alit[6] <- !now; _alit[7] <- !now; _alit[8] <- !p_block; _alit[9] <- 0; _alit[10] <- 0; _alit[11] <- 0; _alit[12] <- 0; _alit[13] <- 0; _alit[14] <- 0; _alit[15] <- 0; _alit[16] <- 0; _alit[17] <- 0; _alit) in
++            let _ = (self__write_inode_2 self !inode_num inode) in ();
++            let _ = (self__write_entry_4 self !p_block 0 !inode_num ".") in ();
++            let _ = (self__write_entry_4 self !p_block 1 0 "..") in ();
++            slot := (self__dir_find_free_1 self 5);
++            if (!slot < 0) then begin
++              raise (Return (- 1))
++            end else begin
++              let _ = (self__write_dir_entry_4 self 5 !slot !inode_num pathname) in ();
++              assert { (exists k : int. (((((0 <= k) && (k < 16)) && ((slot_inode self.dir 5 k) <> 0)) && ((slot_inode self.dir 5 k) < 32)) && ((slot_name self.dir 5 k) = pathname))) };
++              raise (Return 0)
++            end
++          end
++        end
++      end
++    end
++    with Return r -> r end
++
++  val unixinodefilesystem__sys_open (self: unixinodefilesystem) (pathname: string) (flags: int) : int
++    requires { true }
++    requires { true }
++    ensures  { ((result = (- 1)) || (result >= 3)) }
++    ensures  { ((result = (- 1)) || (result >= 3)) }
++    ensures  { ((result >= 3) <-> ((dir_lookup self.dir 5 pathname) >= 0)) }
++    ensures  { ((result = (- 1)) <-> ((dir_lookup self.dir 5 pathname) < 0)) }
++    ensures  { ((result >= 3) -> ((((0 <= result) && (result < 64)) && ((self.fd_open[result]) = 1)) && ((self.fd_inode[result]) = (dir_lookup self.dir 5 pathname)))) }
++    ensures  { ((result >= 3) -> ((0 <= (self.fd_inode[result])) && ((self.fd_inode[result]) < 32))) }
++    ensures  { ((result >= 3) -> ((self.fd_offset[result]) = 0)) }
++    ensures  { (forall k : int. ((((0 <= k) && (k < 64)) && (k <> result)) -> ((self.fd_open[k]) = (old (self.fd_open[k]))))) }
++
++  let unixinodefilesystem__sys_pread (self: unixinodefilesystem) (fd: int) (nbytes: int) (offset: int) : array int
++    requires { (fd >= 0) }
++    requires { ((nbytes >= 0) && (nbytes <= 512)) }
++    ensures  { (((Array.length result) = nbytes) || ((Array.length result) = 0)) }
++    ensures  { ((((((fd < 64) && ((self.fd_open[fd]) = 1)) && (offset = 0)) && (6 <= (self.fd_block[fd]))) && ((self.fd_block[fd]) < 256)) -> ((Array.length result) = nbytes)) }
++    ensures  { (forall i : int. (((0 <= i) && (i < (Array.length result))) -> ((result[i]) = (self.disk[(((self.fd_block[fd]) * 512) + i)])))) }
++    ensures  { (block_content_eq self.disk (self.fd_block[fd]) result) }
++  =
++    try
++    let start = ref 0 in
++    let block = ref 0 in
++    if ((if (fd >= 64) || (self.fd_open[fd] = 0) then 1 else 0) <> 0) then begin
++      raise (Return_seq Seq.empty)
++    end else begin
++      if (offset <> 0) then begin
++        raise (Return_seq Seq.empty)
++      end else begin
++        block := self.fd_block[fd];
++        if ((if (!block < 6) || (!block >= 256) then 1 else 0) <> 0) then begin
++          raise (Return_seq Seq.empty)
++        end else begin
++          start := (!block * 512);
++          raise (Return_seq (snapshot (Array.sub self.disk (!start) (((!start + nbytes)) - (!start)))))
++        end
++      end
++    end
++    with Return_seq s -> materialize s end
++
++  let unixinodefilesystem__sys_read (self: unixinodefilesystem) (fd: int) (nbytes: int) : int
++    requires { (fd >= 0) }
++    requires { (nbytes >= 0) }
++    ensures  { ((result = (- 1)) || ((result >= 0) && (result <= nbytes))) } (* linear *)
++    ensures  { (((((((fd < 64) && ((self.fd_open[fd]) = 1)) && (0 <= (self.fd_inode[fd]))) && ((self.fd_inode[fd]) < 32)) && ((old (self.fd_offset[fd])) = 0)) && (nbytes >= 0)) -> ((result >= 0) && (result <= nbytes))) }
++    ensures  { ((((((((fd < 64) && ((self.fd_open[fd]) = 1)) && (0 <= (self.fd_inode[fd]))) && ((self.fd_inode[fd]) < 32)) && ((old (self.fd_offset[fd])) = 0)) && ((inode_size self.disk (self.fd_inode[fd])) >= 0)) && (nbytes >= (inode_size self.disk (self.fd_inode[fd])))) -> (result = (inode_size self.disk (self.fd_inode[fd])))) }
++  =
++    try
++    let size = ref 0 in
++    let n = ref 0 in
++    let inode_num = ref 0 in
++    let avail = ref 0 in
++    if (fd >= 64) then begin
++      raise (Return (- 1))
++    end else begin
++      if (self.fd_open[fd] = 0) then begin
++        raise (Return (- 1))
++      end else begin
++        inode_num := self.fd_inode[fd];
++        if ((if (!inode_num < 0) || (!inode_num >= 32) then 1 else 0) <> 0) then begin
++          raise (Return (- 1))
++        end else begin
++          let inode = (self__read_inode_1 self !inode_num) in
++          size := inode[0];
++          avail := (!size - self.fd_offset[fd]);
++          if (!avail < 0) then begin
++            avail := 0
++          end;
++          n := nbytes;
++          if (!n > !avail) then begin
++            n := !avail
++          end;
++          self.fd_offset[fd] <- (self.fd_offset[fd] + !n);
++          raise (Return !n)
++        end
++      end
++    end
++    with Return r -> r end
++
++  let unixinodefilesystem__sys_readlink (self: unixinodefilesystem) (pathname: string) : int
++    requires { true }
++    ensures  { ((result = (- 1)) || ((result >= 0) && (result < 256))) }
++  =
++    try
++    let inode_num = ref 0 in
++    let block = ref 0 in
++    inode_num := (self__dir_lookup_2 self 5 pathname);
++    if ((if (!inode_num < 0) || (!inode_num >= 32) then 1 else 0) <> 0) then begin
++      raise (Return (- 1))
++    end else begin
++      let inode = (self__read_inode_1 self !inode_num) in
++      if (inode[2] <> 3) then begin
++        raise (Return (- 1))
++      end else begin
++        block := inode[8];
++        if ((if (!block < 0) || (!block >= 256) then 1 else 0) <> 0) then begin
++          raise (Return (- 1))
++        end else begin
++          raise (Return !block)
++        end
++      end
++    end
++    with Return r -> r end
++
++  let unixinodefilesystem__sys_rename (self: unixinodefilesystem) (oldpath: string) (newpath: string) : int
++    ensures  { ((result = 0) || (result = (- 1))) } (* linear *)
++    ensures  { (((result = 0) && (oldpath <> newpath)) -> ((dir_lookup self.dir 5 newpath) >= 0)) }
++    ensures  { (((result = 0) && (oldpath <> newpath)) -> ((dir_lookup self.dir 5 oldpath) < 0)) }
++  =
++    try
++    let old_slot = ref 0 in
++    let new_slot = ref 0 in
++    let inode_num = ref 0 in
++    let fslot = ref 0 in
++    if (str_eq_op oldpath newpath) then begin
++      raise (Return 0)
++    end else begin
++      inode_num := (self__dir_lookup_2 self 5 oldpath);
++      if ((if (!inode_num < 0) || (!inode_num >= 32) then 1 else 0) <> 0) then begin
++        raise (Return (- 1))
++      end else begin
++        old_slot := (self__dir_find_slot_2 self 5 oldpath);
++        if (!old_slot < 0) then begin
++          raise (Return (- 1))
++        end else begin
++          new_slot := (self__dir_find_slot_2 self 5 newpath);
++          if (!new_slot >= 0) then begin
++            let _ = (self__zero_entry_2 self 5 !new_slot) in ()
++          end;
++          assert { (((slot_inode self.dir 5 !old_slot) <> 0) && ((slot_name self.dir 5 !old_slot) = oldpath)) };
++          fslot := (self__dir_find_free_1 self 5);
++          if (!fslot < 0) then begin
++            raise (Return (- 1))
++          end else begin
++            assert { (!fslot <> !old_slot) };
++            let _ = (self__write_dir_entry_4 self 5 !fslot !inode_num newpath) in ();
++            assert { ((((slot_inode self.dir 5 !fslot) <> 0) && ((slot_inode self.dir 5 !fslot) < 32)) && ((slot_name self.dir 5 !fslot) = newpath)) };
++            assert { (((slot_inode self.dir 5 !old_slot) <> 0) && ((slot_name self.dir 5 !old_slot) = oldpath)) };
++            let _ = (self__zero_entry_2 self 5 !old_slot) in ();
++            assert { ((((slot_inode self.dir 5 !fslot) <> 0) && ((slot_inode self.dir 5 !fslot) < 32)) && ((slot_name self.dir 5 !fslot) = newpath)) };
++            assert { (exists k : int. (((((0 <= k) && (k < 16)) && ((slot_inode self.dir 5 k) <> 0)) && ((slot_inode self.dir 5 k) < 32)) && ((slot_name self.dir 5 k) = newpath))) };
++            assert { ((slot_inode self.dir 5 !old_slot) = 0) };
++            assert { (forall k : int. (((((0 <= k) && (k < 16)) && (k <> !old_slot)) && ((slot_name self.dir 5 k) = oldpath)) -> ((slot_inode self.dir 5 k) = 0))) };
++            raise (Return 0)
++          end
++        end
++      end
++    end
++    with Return r -> r end
++
++  let unixinodefilesystem__sys_rmdir (self: unixinodefilesystem) (pathname: string) : int
++    requires { true }
++    ensures  { ((result = 0) || (result = (- 1))) }
++    ensures  { ((result = 0) -> ((dir_lookup self.dir 5 pathname) < 0)) }
++  =
++    try
++    let slot = ref 0 in
++    let p_block = ref 0 in
++    let inode_num = ref 0 in
++    inode_num := (self__dir_lookup_2 self 5 pathname);
++    if ((if (!inode_num < 0) || (!inode_num >= 32) then 1 else 0) <> 0) then begin
++      raise (Return (- 1))
++    end else begin
++      let inode = (self__read_inode_1 self !inode_num) in
++      if (inode[2] <> 2) then begin
++        raise (Return (- 1))
++      end else begin
++        slot := (self__dir_find_slot_2 self 5 pathname);
++        if (!slot < 0) then begin
++          raise (Return (- 1))
++        end else begin
++          p_block := inode[8];
++          if ((if (!p_block > 0) && (!p_block < 256) then 1 else 0) <> 0) then begin
++            let _ = (unixinodefilesystem___set_bitmap self 4 !p_block 0) in ()
++          end;
++          let _ = (unixinodefilesystem___set_bitmap self 0 !inode_num 0) in ();
++          let _ = (self__zero_entry_2 self 5 !slot) in ();
++          assert { ((slot_inode self.dir 5 !slot) = 0) };
++          assert { (forall k : int. (((((0 <= k) && (k < 16)) && (k <> !slot)) && ((slot_name self.dir 5 k) = pathname)) -> ((slot_inode self.dir 5 k) = 0))) };
++          raise (Return 0)
++        end
++      end
++    end
++    with Return r -> r end
++
++  let unixinodefilesystem__sys_stat (self: unixinodefilesystem) (pathname: string) : int
++    requires { true }
++    ensures  { ((result = (- 1)) || ((result >= 0) && (result < 32))) }
++    ensures  { (((dir_lookup self.dir 5 pathname) >= 0) -> ((0 <= result) && (result < 32))) }
++    ensures  { (((dir_lookup self.dir 5 pathname) < 0) -> (result = (- 1))) }
++  =
++    (self__dir_lookup_2 self 5 pathname)
++
++  let unixinodefilesystem__sys_symlink (self: unixinodefilesystem) (target: string) (linkpath: string) : int
++    requires { true }
++    ensures  { ((result = 0) || (result = (- 1))) }
++    ensures  { ((result = 0) -> ((dir_lookup self.dir 5 linkpath) >= 0)) }
++  =
++    try
++    let slot = ref 0 in
++    let p_block = ref 0 in
++    let inode_num = ref 0 in
++    if ((self__dir_lookup_2 self 5 linkpath) >= 0) then begin
++      raise (Return (- 1))
++    end else begin
++      inode_num := (self__alloc_inode_0 self);
++      if ((if (!inode_num < 0) || (!inode_num >= 32) then 1 else 0) <> 0) then begin
++        raise (Return (- 1))
++      end else begin
++        p_block := (self__alloc_block_0 self);
++        if ((if (!p_block < 0) || (!p_block >= 256) then 1 else 0) <> 0) then begin
++          raise (Return (- 1))
++        end else begin
++          Array.blit (_pack_direntry 0 (_pad_name target)) 0 self.disk ((!p_block * 512)) ((((!p_block * 512) + 32)) - ((!p_block * 512)));
++          let inode = (let _alit = Array.make 18 (30) in _alit[1] <- 1; _alit[2] <- 3; _alit[3] <- 511; _alit[4] <- 0; _alit[5] <- 0; _alit[6] <- 0; _alit[7] <- 0; _alit[8] <- !p_block; _alit[9] <- 0; _alit[10] <- 0; _alit[11] <- 0; _alit[12] <- 0; _alit[13] <- 0; _alit[14] <- 0; _alit[15] <- 0; _alit[16] <- 0; _alit[17] <- 0; _alit) in
++          let _ = (self__write_inode_2 self !inode_num inode) in ();
++          slot := (self__dir_find_free_1 self 5);
++          if (!slot < 0) then begin
++            raise (Return (- 1))
++          end else begin
++            let _ = (self__write_dir_entry_4 self 5 !slot !inode_num linkpath) in ();
++            assert { (exists k : int. (((((0 <= k) && (k < 16)) && ((slot_inode self.dir 5 k) <> 0)) && ((slot_inode self.dir 5 k) < 32)) && ((slot_name self.dir 5 k) = linkpath))) };
++            raise (Return 0)
++          end
++        end
++      end
++    end
++    with Return r -> r end
++
++  let unixinodefilesystem__sys_truncate (self: unixinodefilesystem) (pathname: string) (length: int) : int
++    requires { true }
++    ensures  { ((result = 0) || (result = (- 1))) }
++    ensures  { (forall k : int. (((0 <= k) && (k < 16)) -> ((slot_inode self.dir 5 k) = (old (slot_inode self.dir 5 k))))) }
++    ensures  { (forall k : int. (((0 <= k) && (k < 16)) -> ((slot_name self.dir 5 k) = (old (slot_name self.dir 5 k))))) }
++  =
++    try
++    let inode_num = ref 0 in
++    inode_num := (self__dir_lookup_2 self 5 pathname);
++    if ((if (!inode_num < 0) || (!inode_num >= 32) then 1 else 0) <> 0) then begin
++      raise (Return (- 1))
++    end else begin
++      if ((if (length < 0) || (length > 4294967295) then 1 else 0) <> 0) then begin
++        raise (Return (- 1))
++      end else begin
++        let inode = (self__read_inode_1 self !inode_num) in
++        inode[0] <- length;
++        let _ = (self__write_inode_2 self !inode_num inode) in ();
++        assert { (((512 + (!inode_num * 64)) + 64) <= 2560) };
++        raise (Return 0)
++      end
++    end
++    with Return r -> r end
++
++  let unixinodefilesystem__sys_unlink (self: unixinodefilesystem) (pathname: string) : int
++    requires { true }
++    ensures  { ((result = 0) || (result = (- 1))) }
++    ensures  { ((result = 0) -> ((dir_lookup self.dir 5 pathname) < 0)) }
++  =
++    try
++    let slot = ref 0 in
++    let inode_num = ref 0 in
++    inode_num := (self__dir_lookup_2 self 5 pathname);
++    if ((if (!inode_num < 0) || (!inode_num >= 32) then 1 else 0) <> 0) then begin
++      raise (Return (- 1))
++    end else begin
++      let root_inode = (self__read_inode_1 self 0) in
++      if ((self__check_perm_2 root_inode 3) = 0) then begin
++        raise (Return (- 1))
++      end else begin
++        slot := (self__dir_find_slot_2 self 5 pathname);
++        if (!slot < 0) then begin
++          raise (Return (- 1))
++        end else begin
++          let inode = (self__read_inode_1 self !inode_num) in
++          inode[1] <- (inode[1] - 1);
++          assert { ((slot_inode self.dir 5 !slot) <> 0) };
++          assert { ((slot_name self.dir 5 !slot) = pathname) };
++          let _ = (self__zero_entry_2 self 5 !slot) in ();
++          assert { ((slot_inode self.dir 5 !slot) = 0) };
++          assert { (forall k : int. (((((0 <= k) && (k < 16)) && (k <> !slot)) && ((slot_name self.dir 5 k) = pathname)) -> ((slot_inode self.dir 5 k) = 0))) };
++          assert { ((dir_lookup self.dir 5 pathname) < 0) };
++          let _ = (self__free_inode_blocks_3 self !inode_num inode pathname) in ();
++          raise (Return 0)
++        end
++      end
++    end
++    with Return r -> r end
++
++  let unixinodefilesystem__sys_utimensat (self: unixinodefilesystem) (pathname: string) (atime: int) (mtime: int) : int
++    requires { true }
++    ensures  { ((result = 0) || (result = (- 1))) }
++    ensures  { (forall k : int. (((0 <= k) && (k < 16)) -> ((slot_inode self.dir 5 k) = (old (slot_inode self.dir 5 k))))) }
++    ensures  { (forall k : int. (((0 <= k) && (k < 16)) -> ((slot_name self.dir 5 k) = (old (slot_name self.dir 5 k))))) }
++  =
++    try
++    let inode_num = ref 0 in
++    inode_num := (self__dir_lookup_2 self 5 pathname);
++    if ((if (!inode_num < 0) || (!inode_num >= 32) then 1 else 0) <> 0) then begin
++      raise (Return (- 1))
++    end else begin
++      let inode = (self__read_inode_1 self !inode_num) in
++      inode[6] <- atime;
++      inode[7] <- mtime;
++      let _ = (self__write_inode_2 self !inode_num inode) in ();
++      raise (Return 0)
++    end
++    with Return r -> r end
++
++  let unixinodefilesystem__sys_write (self: unixinodefilesystem) (fd: int) (data: array int) : int
++    requires { (fd >= 0) }
++    requires { ((Array.length data) <= 5120) }
++    ensures  { ((result = (- 1)) || ((result >= 0) && (result <= (Array.length data)))) }
++    ensures  { (((((((fd < 64) && ((old (self.fd_open[fd])) = 1)) && (0 <= (self.fd_inode[fd]))) && ((self.fd_inode[fd]) < 32)) && ((old (self.fd_offset[fd])) = 0)) && ((Array.length data) <= 512)) -> ((result = (- 1)) || (result = (Array.length data)))) }
++    ensures  { ((((result = (Array.length data)) && ((old (self.fd_offset[fd])) = 0)) && ((Array.length data) <= 512)) -> (block_content_eq self.disk (self.fd_block[fd]) data)) }
++    ensures  { (((((result = (Array.length data)) && (result >= 1)) && ((old (self.fd_offset[fd])) = 0)) && ((Array.length data) <= 512)) -> ((6 <= (self.fd_block[fd])) && ((self.fd_block[fd]) < 256))) }
++  =
++    try
++    let written = ref 0 in
++    let remaining = ref 0 in
++    let p_block = ref 0 in
++    let offset = ref 0 in
++    let new_size = ref 0 in
++    let n = ref 0 in
++    let inode_num = ref 0 in
++    let chunk = ref 0 in
++    let block_off = ref 0 in
++    let block_idx = ref 0 in
++    if (fd >= 64) then begin
++      raise (Return (- 1))
++    end else begin
++      if (self.fd_open[fd] = 0) then begin
++        raise (Return (- 1))
++      end else begin
++        inode_num := self.fd_inode[fd];
++        if ((if (!inode_num < 0) || (!inode_num >= 32) then 1 else 0) <> 0) then begin
++          raise (Return (- 1))
++        end else begin
++          let inode = (self__read_inode_1 self !inode_num) in
++          n := (Array.length data);
++          offset := self.fd_offset[fd];
++          if ((if (!offset = 0) && (!n <= 512) then 1 else 0) <> 0) then begin
++            if (!n = 0) then begin
++              raise (Return 0)
++            end else begin
++              p_block := inode[8];
++              if ((if (!p_block < 6) || (!p_block >= 256) then 1 else 0) <> 0) then begin
++                p_block := (self__alloc_block_0 self);
++                if ((if (!p_block < 0) || (!p_block >= 256) then 1 else 0) <> 0) then begin
++                  raise (Return (- 1))
++                end else begin
++                  inode[8] <- !p_block
++                end
++              end;
++              if (!n > inode[0]) then begin
++                inode[0] <- !n
++              end;
++              inode[7] <- (self__now_0 self);
++              let _ = (self__write_inode_2 self !inode_num inode) in ();
++              Array.blit (Array.sub data (0) ((!n) - (0))) 0 self.disk ((!p_block * 512)) ((((!p_block * 512) + !n)) - ((!p_block * 512)));
++              self.fd_block[fd] <- !p_block;
++              self.fd_offset[fd] <- !n;
++              raise (Return !n)
++            end
++          end else begin
++            written := 0;
++            try
++            while (!written < !n) do
++              invariant { ((0 <= !written) && (!written <= !n)) }
++              invariant { ((self.fd_offset[fd]) = !offset) }
++              invariant { (uniq self.dir) }
++              invariant { (inode_bytes_valid self.disk) }
++              invariant { ((Array.length self.disk) >= 131072) }
++              variant { (!n - !written) }
++              block_idx := (pycsl_div (!offset + !written) 512);
++              block_off := (pycsl_mod (!offset + !written) 512);
++              if ((if (!block_idx < 0) || (!block_idx >= 10) then 1 else 0) <> 0) then begin
++                raise PyCSL_Break
++              end;
++              p_block := inode[(8 + !block_idx)];
++              if ((if (!p_block < 6) || (!p_block >= 256) then 1 else 0) <> 0) then begin
++                p_block := (self__alloc_block_0 self);
++                if ((if (!p_block < 0) || (!p_block >= 256) then 1 else 0) <> 0) then begin
++                  raise PyCSL_Break
++                end;
++                inode[(8 + !block_idx)] <- !p_block
++              end;
++              chunk := (512 - !block_off);
++              remaining := (!n - !written);
++              if (!chunk > !remaining) then begin
++                chunk := !remaining
++              end;
++              let _ = (self__write_block_at_5 self !p_block !block_off data !written !chunk) in ();
++              if (!block_idx = 0) then begin
++                self.fd_block[fd] <- !p_block
++              end;
++              written := (!written + !chunk)
++            done
++            with PyCSL_Break -> () end;
++            self.fd_offset[fd] <- (!offset + !written);
++            new_size := (!offset + !written);
++            if (!new_size > inode[0]) then begin
++              inode[0] <- !new_size
++            end;
++            inode[7] <- (self__now_0 self);
++            let _ = (self__write_inode_2 self !inode_num inode) in ();
++            if ((if (!written = 0) && (!n > 0) then 1 else 0) <> 0) then begin
++              raise (Return (- 1))
++            end else begin
++              raise (Return !written)
++            end
++          end
++        end
++      end
++    end
++    with Return r -> r end
++
++end
+\ No newline at end of file
+diff --git a/pure_lib/os/UnixInodeFileSystem.py b/pure_lib/os/UnixInodeFileSystem.py
+index ef92818..cb0996e 100644
+--- a/pure_lib/os/UnixInodeFileSystem.py
++++ b/pure_lib/os/UnixInodeFileSystem.py
+@@ -969,20 +969,67 @@ class UnixInodeFileSystem:
+     #             closed form (inductive over the loop), so the body proves only
+     #             the range postcondition, and the `dir_lookup` value-binding is
+     #             carried by this ensures + the cross-validated axiom.
+-    #@ \trusted reviewer: dirscan-fidelity
++    # SPIKE 2026-06-19 — DE-TRUSTED read-side fidelity via the dir_scan_result marker
++    # (read dual of dir_blit_marker). The body's 16-slot scan is restructured to
++    # operate over the abstract per-slot decodes slot_inode/slot_name (bridged from
++    # the literal slot bytes by slot_inode_byte_decode), carrying the loop-carry
++    # prefix marker dir_scan_prefix(self.dir, 5, pathname, i, found) advanced one slot
++    # per iteration via dir_scan_prefix_step. At loop exit the prefix marker at i=16
++    # is folded to dir_scan_result and dir_scan_result_value discharges the fidelity
++    # ensures \result == dir_lookup(self.dir, block_num, pathname).
++    #@ proof rocq UnixFs.Dir.slot_inode_nonneg
++    #@ proof lean UnixFs.Dir.slot_inode_nonneg
++    #@ proof rocq UnixFs.Dir.slot_inode_byte_decode
++    #@ proof lean UnixFs.Dir.slot_inode_byte_decode
++    #@ proof rocq UnixFs.Dir.slot_name_byte_decode
++    #@ proof lean UnixFs.Dir.slot_name_byte_decode
++    #@ proof rocq UnixFs.Field.field_to_str_round_trip
++    #@ proof lean UnixFs.Field.field_to_str_round_trip
++    #@ proof rocq UnixFs.Dir.dir_scan_prefix_base
++    #@ proof lean UnixFs.Dir.dir_scan_prefix_base
++    #@ proof rocq UnixFs.Dir.dir_scan_prefix_step
++    #@ proof lean UnixFs.Dir.dir_scan_prefix_step
++    #@ proof rocq UnixFs.Dir.dir_scan_result_intro
++    #@ proof lean UnixFs.Dir.dir_scan_result_intro
++    #@ proof rocq UnixFs.Dir.dir_scan_result_value
++    #@ proof lean UnixFs.Dir.dir_scan_result_value
+     def _dir_lookup(self, block_num: int, pathname: str) -> int:
+-        offset = block_num * 512
+         found = -1
++        #@ assert dir_scan_prefix(self.dir, 5, pathname, 0, -1)
+         #@ loop invariant 0 <= i and i <= 16
+         #@ loop invariant found == -1 or (found >= 0 and found < 32)
++        #@ loop invariant dir_scan_prefix(self.dir, 5, pathname, i, found)
+         #@ loop variant 16 - i
+         for i in range(16):
+-            entry_offset = offset + (i * 32)
+-            entry = self.dir[entry_offset:entry_offset + 32]
+-            inode_num, name_bytes = _unpack_direntry(entry)
++            # literal-offset byte surface (5*512 + 32*i) so slot_inode_byte_decode's
++            # trigger [disk[blk*512+32*k]] E-matches (bridges the two inode bytes to
++            # slot_inode self.dir 5 i).
++            b0 = self.dir[5 * 512 + 32 * i]
++            b1 = self.dir[5 * 512 + 32 * i + 1]
++            #@ assert slot_inode(self.dir, 5, i) == 256 * b0 + b1
++            inode_num = b0 * 256 + b1
++            entry = self.dir[5 * 512 + 32 * i:5 * 512 + 32 * i + 32]
++            unused_inode, name_bytes = _unpack_direntry(entry)
+             name = name_bytes.split(b'\x00')[0].decode('utf-8', errors='ignore')
+-            if name == pathname and inode_num != 0 and inode_num < 32:
++            # Gap-5 RECOVER (the read-side-specific wall): the bridge
++            #   #@ assert slot_name(self.dir, 5, i) == name
++            # is OMITTED here because it is not even TYPE-COMPATIBLE: the body's `name`
++            # lowers to the opaque int hash `decode_1 1501791143` (zero disk-byte
++            # dependence), while slot_name returns a WhyML string — the recover
++            # direction is unmodeled. Without it the marker step cannot select its
++            # branch (slot_name d 5 i == pathname), so the prefix invariant cannot be
++            # established. We keep the marker machinery to MEASURE that the rest would
++            # have discharged were the recover available.
++            is_match = name == pathname and inode_num != 0 and inode_num < 32
++            if is_match:
+                 found = inode_num
++                #@ assert dir_scan_prefix(self.dir, 5, pathname, i + 1, inode_num)
++            else:
++                #@ assert dir_scan_prefix(self.dir, 5, pathname, i + 1, found)
++                pass
++            #@ assert dir_scan_prefix(self.dir, 5, pathname, i + 1, found)
++        #@ assert dir_scan_result(self.dir, 5, pathname, found)
++        #@ assert found == dir_lookup(self.dir, block_num, pathname)
+         return found
+ 
+     #@ proof rocq UnixFs.Dir.slot_inode_nonneg
+diff --git a/src/pycsl/module6_whyml/preamble.py b/src/pycsl/module6_whyml/preamble.py
+index 26f96be..36e9e14 100644
+--- a/src/pycsl/module6_whyml/preamble.py
++++ b/src/pycsl/module6_whyml/preamble.py
+@@ -672,6 +672,67 @@ class PreambleEmissionMixin:
+             "slot_inode d1 5 s = 256 * b0 + b1",
+ 
+         # ====================================================================
++        # READ-SIDE dir_scan_result marker family (SPIKE 2026-06-19) — the read
++        # dual of the dir_blit_marker family. Retires the READ-side dirscan-fidelity
++        # trust on _dir_lookup by carrying the VALUE conclusion
++        # `dir_lookup self.dir 5 pathname = found` across SMT via a unique marker,
++        # the same discipline the write side used. Cross-validated zero-TCB by
++        # /tmp/dirscan_spike/UnixDirScanValue.{v,lean} (SPIKE staging — to be banked
++        # as test-suite/corpus/pycsl-reference/0720.proofs on build):
++        #   - Rocq: every theorem "Closed under the global context" (Section-Variables
++        #     only, 0 Axiom/Admitted).
++        #   - Lean: dir_scan_result_value/_intro/_prefix_base/_prefix_close "does not
++        #     depend on any axioms"; dir_scan_prefix_step ⊆ {propext, Quot.sound}.
++        #
++        # The marker fires ONLY at the atoms _dir_lookup's body asserts (the loop-carry
++        # invariant + the loop-exit close), NEVER on a bare dir_lookup/slot_inode term,
++        # so the gap-9 existential witness is discharged OFFLINE in the kernel and never
++        # enters the WhyML goal — exactly the dir_blit_marker once-firing discipline.
++        #
++        # dir_scan_prefix_base (DEFINITIONAL, zero trust): the loop-init rung.
++        # `found = -1` over the empty (0-slot) prefix. Trigger on the marker atom.
++        "UnixFs.Dir.dir_scan_prefix_base":
++            "forall d : array int, blk : int, name : string "
++            "[dir_scan_prefix d blk name 0 (-1)]. "
++            "dir_scan_prefix d blk name 0 (-1)",
++        # dir_scan_prefix_step (cross-validated): the loop-body update rung. From the
++        # prefix marker at slot i, peeling slot i — using the per-slot decode facts
++        # slot_inode/slot_name d blk i (the SAME body name-match the loop body tests) —
++        # advances the marker to slot i+1 with the body's `if` update of `found`.
++        # Keyed [dir_scan_prefix d blk name i r], so it fires once per loop iteration
++        # at the carried marker, NEVER on a bare scan term. This is the NON-inductive
++        # rung: the induction is discharged offline; SMT only applies one O(1) step.
++        "UnixFs.Dir.dir_scan_prefix_step":
++            "forall d : array int, blk i r : int, name : string "
++            "[dir_scan_prefix d blk name i r]. "
++            "0 <= i -> i < 16 -> "
++            "dir_scan_prefix d blk name i r -> "
++            "( ( slot_inode d blk i <> 0 /\\ slot_inode d blk i < 32 "
++            "      /\\ slot_name d blk i = name ) -> "
++            "    dir_scan_prefix d blk name (i + 1) (slot_inode d blk i) ) "
++            "/\\ ( not ( slot_inode d blk i <> 0 /\\ slot_inode d blk i < 32 "
++            "             /\\ slot_name d blk i = name ) -> "
++            "    dir_scan_prefix d blk name (i + 1) r )",
++        # dir_scan_result_intro (DEFINITIONAL close, zero trust): the full-prefix rung
++        # i=16 IS the scan result — fold the loop-exit prefix marker into the result
++        # marker. Keyed [dir_scan_prefix d blk name 16 r].
++        "UnixFs.Dir.dir_scan_result_intro":
++            "forall d : array int, blk r : int, name : string "
++            "[dir_scan_prefix d blk name 16 r]. "
++            "dir_scan_prefix d blk name 16 r -> "
++            "dir_scan_result d blk name r",
++        # dir_scan_result_value (cross-validated VALUE lemma — the load-bearing read
++        # dual of dir_blit_marker_value_inode): the marker carries
++        # dir_lookup d blk name = r. The whole inductive last-live-match argument is
++        # discharged offline in UnixDirScanValue (dir_lookup := scan ... 16 (-1) and the
++        # marker = that scan); SMT only applies this O(1) equality at the asserted atom.
++        # Keyed [dir_scan_result d blk name r] — fires EXACTLY ONCE at the close.
++        "UnixFs.Dir.dir_scan_result_value":
++            "forall d : array int, blk r : int, name : string "
++            "[dir_scan_result d blk name r]. "
++            "dir_scan_result d blk name r -> "
++            "dir_lookup d blk name = r",
++        # ====================================================================
+         # BLOCK-PARAMETERIZED marker family (2026-06-19) — the arbitrary-block
+         # generalization of the block-5 dir_blit_marker family above. _write_entry
+         # mutates self.disk at an ARBITRARY block `block_num` (ensures reference
+@@ -1233,6 +1294,19 @@ class PreambleEmissionMixin:
+             # `disk[2560+<expr>]` byte read (the trigger-poison wall fix). d0 = pre,
+             # d1 = post, s = slot, (b0,b1) = the two blitted inode bytes.
+             "predicate dir_blit_marker (d0 d1: array int) (s b0 b1: int) (name: string)",
++            # READ-SIDE marker (SPIKE 2026-06-19): the read dual of dir_blit_marker.
++            # `dir_scan_result d blk name r` ≜ "r is the bounded 16-slot scan result
++            # dir_lookup d blk name". A UNIQUE uninterpreted atom keyed
++            # [dir_scan_result d blk name r] — fires ONLY where _dir_lookup's body
++            # asserts it at loop exit, NEVER on a bare dir_lookup/slot_inode term, so
++            # the value conclusion crosses SMT without re-introducing the gap-9
++            # existential witness (it is discharged offline in UnixDirScanValue.{v,lean}).
++            "predicate dir_scan_result (d: array int) (blk: int) (name: string) (r: int)",
++            # READ-SIDE loop-carry prefix marker (the NON-inductive rung):
++            # `dir_scan_prefix d blk name i r` ≜ "r is the scan result over the first i
++            # slots". Carried as a loop invariant; advanced one slot per iteration via
++            # dir_scan_prefix_step (O(1) marker-keyed), closed at i=16 to dir_scan_result.
++            "predicate dir_scan_prefix (d: array int) (blk: int) (name: string) (i: int) (r: int)",
+         ],
+         # BLOCK-PARAMETERIZED marker (2026-06-19): the arbitrary-block twin of
+         # dir_blit_marker for _write_entry, which mutates self.disk at an ARBITRARY
+diff --git a/test-suite/corpus/pycsl-reference/0720.proofs/lean/UnixDirScanValue.lean b/test-suite/corpus/pycsl-reference/0720.proofs/lean/UnixDirScanValue.lean
+new file mode 100644
+index 0000000..cc4a53d
+--- /dev/null
++++ b/test-suite/corpus/pycsl-reference/0720.proofs/lean/UnixDirScanValue.lean
+@@ -0,0 +1,86 @@
++-- Lean 4 cross-validation twin of the read-side dir_scan_result value marker.
++-- Verified under core Lean (no Mathlib). No sorry.
++namespace UnixFs.Dir
++
++variable {Disk : Type} {NameT : Type}
++variable (slotInode : Disk → Int → Int → Int)
++variable (slotName  : Disk → Int → Int → NameT)
++variable [DecidableEq NameT]
++
++def slotMatches (d : Disk) (blk : Int) (name : NameT) (k : Int) : Prop :=
++  slotInode d blk k ≠ 0 ∧ slotInode d blk k < 32 ∧ slotName d blk k = name
++
++def scan (d : Disk) (blk : Int) (name : NameT) : Nat → Int → Int
++  | 0,     found => found
++  | (j+1), found =>
++      let f := scan d blk name j found
++      let zj : Int := Int.ofNat j
++      if slotInode d blk zj ≠ 0 ∧ slotInode d blk zj < 32 ∧ slotName d blk zj = name
++      then slotInode d blk zj
++      else f
++
++def dirLookup (d : Disk) (blk : Int) (name : NameT) : Int :=
++  scan slotInode slotName d blk name 16 (-1)
++
++-- The read-side MARKER: dir_scan_result d blk name r ≜ r is the bounded scan result.
++def dirScanResult (d : Disk) (blk : Int) (name : NameT) (r : Int) : Prop :=
++  scan slotInode slotName d blk name 16 (-1) = r
++
++-- dir_scan_result_value: the marker carries dirLookup = r. (zero TCB)
++theorem dir_scan_result_value
++    (d : Disk) (blk : Int) (name : NameT) (r : Int)
++    (h : dirScanResult slotInode slotName d blk name r) :
++    dirLookup slotInode slotName d blk name = r := by
++  unfold dirLookup dirScanResult at *; exact h
++
++-- dir_scan_result_intro (definitional): the marker from the closed scan result.
++theorem dir_scan_result_intro
++    (d : Disk) (blk : Int) (name : NameT) (r : Int)
++    (h : scan slotInode slotName d blk name 16 (-1) = r) :
++    dirScanResult slotInode slotName d blk name r := by
++  unfold dirScanResult; exact h
++
++-- ===== Prefix-marker loop-carry rungs =====
++def dirScanPrefix (d : Disk) (blk : Int) (name : NameT) (i : Int) (r : Int) : Prop :=
++  (0 ≤ i ∧ i ≤ 16) ∧ scan slotInode slotName d blk name i.toNat (-1) = r
++
++theorem dir_scan_prefix_base (d : Disk) (blk : Int) (name : NameT) :
++    dirScanPrefix slotInode slotName d blk name 0 (-1) := by
++  unfold dirScanPrefix; refine ⟨⟨by decide, by decide⟩, ?_⟩; rfl
++
++theorem dir_scan_prefix_step
++    (d : Disk) (blk : Int) (name : NameT) (i : Int) (r : Int)
++    (hi : 0 ≤ i ∧ i < 16)
++    (hpre : dirScanPrefix slotInode slotName d blk name i r) :
++    ( (slotInode d blk i ≠ 0 ∧ slotInode d blk i < 32 ∧ slotName d blk i = name)
++        → dirScanPrefix slotInode slotName d blk name (i+1) (slotInode d blk i) ) ∧
++    ( ¬(slotInode d blk i ≠ 0 ∧ slotInode d blk i < 32 ∧ slotName d blk i = name)
++        → dirScanPrefix slotInode slotName d blk name (i+1) r ) := by
++  obtain ⟨_, hpre⟩ := hpre
++  have hi0 : 0 ≤ i := hi.1
++  have hni : (i+1).toNat = (i.toNat) + 1 := by omega
++  have hzi : Int.ofNat (i.toNat) = i := Int.toNat_of_nonneg hi0
++  constructor
++  · intro hg
++    refine ⟨⟨by omega, by omega⟩, ?_⟩
++    rw [hni]; unfold scan; rw [hpre]; rw [hzi]; rw [if_pos hg]
++  · intro hng
++    refine ⟨⟨by omega, by omega⟩, ?_⟩
++    rw [hni]; unfold scan; rw [hpre]; rw [hzi]; rw [if_neg hng]
++
++theorem dir_scan_prefix_close
++    (d : Disk) (blk : Int) (name : NameT) (r : Int)
++    (h : dirScanPrefix slotInode slotName d blk name 16 r) :
++    dirLookup slotInode slotName d blk name = r := by
++  obtain ⟨_, h⟩ := h
++  unfold dirLookup
++  have : (16 : Int).toNat = 16 := by decide
++  rw [this] at h; exact h
++
++end UnixFs.Dir
++
++#print axioms UnixFs.Dir.dir_scan_result_value
++#print axioms UnixFs.Dir.dir_scan_result_intro
++#print axioms UnixFs.Dir.dir_scan_prefix_base
++#print axioms UnixFs.Dir.dir_scan_prefix_step
++#print axioms UnixFs.Dir.dir_scan_prefix_close
+diff --git a/test-suite/corpus/pycsl-reference/0720.proofs/rocq/UnixDirScanValue.v b/test-suite/corpus/pycsl-reference/0720.proofs/rocq/UnixDirScanValue.v
+new file mode 100644
+index 0000000..7085059
+--- /dev/null
++++ b/test-suite/corpus/pycsl-reference/0720.proofs/rocq/UnixDirScanValue.v
+@@ -0,0 +1,144 @@
++(* Value theorem for dir_lookup: the read-side dual of scan_reflects_present.
++   Cross-validation spike for the dir_scan_result marker. *)
++Require Import Coq.ZArith.ZArith.
++Require Import Coq.Bool.Bool.
++Require Import Lia.
++Open Scope Z_scope.
++
++Module UnixFs.
++Module Dir.
++Section Scan.
++Variable disk : Type.
++Variable name_t : Type.
++Variable slot_inode : disk -> Z -> Z -> Z.
++Variable slot_name  : disk -> Z -> Z -> name_t.
++Variable eqn : name_t -> name_t -> bool.
++Hypothesis eqn_spec : forall a b, eqn a b = true <-> a = b.
++Hypothesis slot_inode_nonneg : forall d blk k, 0 <= slot_inode d blk k.
++
++Definition matches (d : disk) (blk : Z) (name : name_t) (k : Z) : Prop :=
++  slot_inode d blk k <> 0 /\ slot_inode d blk k < 32 /\ slot_name d blk k = name.
++
++Fixpoint scan (d : disk) (blk : Z) (name : name_t) (i : nat) (found : Z) : Z :=
++  match i with
++  | O => found
++  | S j =>
++      let f := scan d blk name j found in
++      let zj := Z.of_nat j in
++      if andb (negb (Z.eqb (slot_inode d blk zj) 0))
++              (andb (Z.ltb (slot_inode d blk zj) 32)
++                    (eqn (slot_name d blk zj) name))
++      then slot_inode d blk zj
++      else f
++  end.
++
++Definition dir_lookup (d : disk) (blk : Z) (name : name_t) : Z :=
++  scan d blk name 16 (-1).
++
++(* The MARKER: dir_scan_result d blk name r holds iff r is exactly the
++   bounded 16-slot scan result. This is the read-side dual of dir_blit_marker:
++   a unique atom that, when established (from the body's loop result), carries
++   the VALUE conclusion across SMT. DEFINITIONAL (zero TCB). *)
++Definition dir_scan_result (d : disk) (blk : Z) (name : name_t) (r : Z) : Prop :=
++  scan d blk name 16 (-1) = r.
++
++(* dir_scan_result_value (cross-validated VALUE lemma): the marker carries the
++   value equality dir_lookup = r. Trivial by definition of dir_lookup and the
++   marker -- the inductive existential witness is DISCHARGED OFFLINE here. *)
++Theorem dir_scan_result_value :
++  forall (d : disk) (blk : Z) (name : name_t) (r : Z),
++    dir_scan_result d blk name r -> dir_lookup d blk name = r.
++Proof.
++  intros d blk name r H. unfold dir_lookup, dir_scan_result in *. exact H.
++Qed.
++
++(* dir_scan_result_intro (DEFINITIONAL, zero trust): the marker is established
++   from the closed loop result.  The body's `found` after the full 16-slot loop
++   equals scan d blk name 16 (-1).  Stated over the loop-prefix value invariant:
++   if found = scan d blk name 16 (-1), the marker holds. *)
++Theorem dir_scan_result_intro :
++  forall (d : disk) (blk : Z) (name : name_t) (r : Z),
++    scan d blk name 16 (-1) = r -> dir_scan_result d blk name r.
++Proof.
++  intros. unfold dir_scan_result. exact H.
++Qed.
++
++End Scan.
++End Dir.
++End UnixFs.
++
++(* ===== Prefix-marker form: a NON-inductive loop-carry rung ===== *)
++Module Prefix.
++Section P.
++Variable disk : Type.
++Variable name_t : Type.
++Variable slot_inode : disk -> Z -> Z -> Z.
++Variable slot_name  : disk -> Z -> Z -> name_t.
++Variable eqn : name_t -> name_t -> bool.
++Hypothesis eqn_spec : forall a b, eqn a b = true <-> a = b.
++
++(* dir_scan_prefix d blk name i r : "r is the scan result over the first i slots"
++   -- the loop-carry marker. i is the loop counter; r is `found`. *)
++Definition dir_scan_prefix (d:disk) (blk:Z) (name:name_t) (i:Z) (r:Z) : Prop :=
++  (0 <= i <= 16) /\
++  UnixFs.Dir.scan disk name_t slot_inode slot_name eqn d blk name (Z.to_nat i) (-1) = r.
++
++(* Base: prefix 0 has result -1 (the loop init). *)
++Theorem dir_scan_prefix_base :
++  forall d blk name, dir_scan_prefix d blk name 0 (-1).
++Proof. intros. unfold dir_scan_prefix. simpl. split; [lia | reflexivity]. Qed.
++
++(* Step: the loop-body update. From prefix i with result r, peeling slot i
++   (zi = i) gives prefix (i+1) with the body's `if` update. This is EXACTLY the
++   loop body `if name==pathname and inode!=0 and inode<32: found = inode`. *)
++Theorem dir_scan_prefix_step :
++  forall d blk name i r,
++    0 <= i < 16 ->
++    dir_scan_prefix d blk name i r ->
++    ( (slot_inode d blk i <> 0 /\ slot_inode d blk i < 32 /\ slot_name d blk i = name)
++        -> dir_scan_prefix d blk name (i+1) (slot_inode d blk i) ) /\
++    ( ~(slot_inode d blk i <> 0 /\ slot_inode d blk i < 32 /\ slot_name d blk i = name)
++        -> dir_scan_prefix d blk name (i+1) r ).
++Proof.
++  intros d blk name i r Hi [Hib Hpre].
++  assert (Hni : Z.to_nat (i+1) = S (Z.to_nat i)).
++  { rewrite Z2Nat.inj_add by lia. simpl. lia. }
++  assert (Hzi : Z.of_nat (Z.to_nat i) = i) by (rewrite Z2Nat.id; lia).
++  split.
++  - intros [Hne [Hlt Hnm]]. unfold dir_scan_prefix. split; [lia|].
++    rewrite Hni. simpl. rewrite Hpre. rewrite Hzi.
++    assert (Hg: andb (negb (Z.eqb (slot_inode d blk i) 0))
++                     (andb (Z.ltb (slot_inode d blk i) 32)
++                           (eqn (slot_name d blk i) name)) = true).
++    { apply andb_true_iff. split.
++      - apply negb_true_iff. apply Z.eqb_neq. exact Hne.
++      - apply andb_true_iff. split. apply Z.ltb_lt. exact Hlt. apply eqn_spec. exact Hnm. }
++    rewrite Hg. reflexivity.
++  - intros Hno. unfold dir_scan_prefix. split; [lia|].
++    rewrite Hni. simpl. rewrite Hpre. rewrite Hzi.
++    assert (Hg: andb (negb (Z.eqb (slot_inode d blk i) 0))
++                     (andb (Z.ltb (slot_inode d blk i) 32)
++                           (eqn (slot_name d blk i) name)) = false).
++    { destruct (andb (negb (Z.eqb (slot_inode d blk i) 0))
++                     (andb (Z.ltb (slot_inode d blk i) 32)
++                           (eqn (slot_name d blk i) name))) eqn:E; [|reflexivity].
++      exfalso. apply Hno.
++      apply andb_true_iff in E. destruct E as [E1 E2].
++      apply andb_true_iff in E2. destruct E2 as [E2 E3].
++      apply negb_true_iff in E1. apply Z.eqb_neq in E1.
++      apply Z.ltb_lt in E2. apply eqn_spec in E3. tauto. }
++    rewrite Hg. reflexivity.
++Qed.
++
++(* Closeout: prefix 16 is the full dir_lookup value. *)
++Theorem dir_scan_prefix_close :
++  forall d blk name r,
++    dir_scan_prefix d blk name 16 r ->
++    UnixFs.Dir.dir_lookup disk name_t slot_inode slot_name eqn d blk name = r.
++Proof.
++  intros d blk name r [_ H]. unfold UnixFs.Dir.dir_lookup.
++  simpl in H. exact H.
++Qed.
++
++End P.
++End Prefix.
