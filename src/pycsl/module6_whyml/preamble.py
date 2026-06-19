@@ -553,6 +553,40 @@ class PreambleEmissionMixin:
             "( forall b : int. 0 <= b < 512 -> "
             "    (b < 32 * s \\/ 32 * s + 32 <= b) -> d1[2560 + b] = d0[2560 + b] ) -> "
             "dir_blit_marker d0 d1 s b0 b1 name",
+        # dir_blit_marker_intro_zero (ZERO-ENTRY intro corollary, cross-validated):
+        # establish the marker for a ZEROED entry (b0=b1=0, EMPTY name) from the
+        # MINIMAL byte facts. The general dir_blit_marker_intro above carries EIGHT
+        # antecedents (the two inode bytes, the per-char name-field bytes, the per-char
+        # nonzero codes, the null-pad, the name-len bounds, and the byte-region frame);
+        # in the FULL-module aggregate E-matching context establishing the marker
+        # through it for _zero_entry costs ~314K steps (measured in --fun) and the
+        # full-module aggregate tips it OVER the prover step budget (Unknown). For a
+        # ZEROED entry the name is EMPTY (String.length name = 0), so the two per-char
+        # foralls are VACUOUS, the len bounds are trivial, and the null-pad collapses to
+        # the SINGLE byte fact d1[2560+32*s+2] = 0. This lean intro establishes the
+        # marker from just the two inode-byte pins, the head name byte = 0, and the
+        # byte-region frame, firing the marker fold in ONE cheap marker-keyed step — the
+        # zero-entry twin of dir_blit_marker_frame_only's lean specialisation for
+        # _write_dir_entry's frames. The conclusion keeps b0,b1 universally quantified
+        # and pins them to the disk bytes (so it matches the ASSERTED atom
+        # `dir_blit_marker(.., self.dir[2560+32*slot], self.dir[2560+32*slot+1], "")`);
+        # b0,b1 themselves need NOT be individually 0 — the marker carries them opaquely
+        # and dir_blit_marker_value_inode later concludes slot_inode = 256*b0+b1 (= 0 via
+        # _blit_dir_entry's sum ensures), so no per-byte zero fact is needed. It is the
+        # SAME conjunction the general intro builds, specialised to the empty name;
+        # NOTHING is widened — the trigger stays the marker atom. Cross-validated by
+        # test-suite/corpus/pycsl-reference/0716.proofs/{rocq,lean}/DirBlitMarker.{v,lean}
+        # (theorem dir_blit_marker_intro_zero): Rocq Section-Variables-only / Closed
+        # under the global context; Lean #print axioms ⊆ {propext, Quot.sound}.
+        "UnixFs.Dir.dir_blit_marker_intro_zero":
+            "forall d0 d1 : array int, s b0 b1 : int, name : string "
+            "[dir_blit_marker d0 d1 s b0 b1 name]. "
+            "String.length name = 0 -> "
+            "d1[2560 + 32 * s] = b0 -> d1[2560 + 32 * s + 1] = b1 -> "
+            "d1[2560 + 32 * s + 2] = 0 -> "
+            "( forall b : int. 0 <= b < 512 -> "
+            "    (b < 32 * s \\/ 32 * s + 32 <= b) -> d1[2560 + b] = d0[2560 + b] ) -> "
+            "dir_blit_marker d0 d1 s b0 b1 name",
         # dir_blit_marker_insert (cross-validated): from the marker (= the byte facts +
         # name well-formedness, by definition) + uniq/slots_lt32 d0 + inode range +
         # freshness, conclude BOTH slot VALUE decodes (inode AND name=name), the
@@ -614,6 +648,28 @@ class PreambleEmissionMixin:
             "( forall k : int. 0 <= k < 16 -> k <> s -> "
             "    slot_inode d1 5 k = slot_inode d0 5 k /\\ "
             "    slot_name  d1 5 k = slot_name  d0 5 k )",
+        # dir_blit_marker_value_inode (ZERO-ENTRY corollary, cross-validated): the
+        # inode VALUE decode alone, marker-keyed. From the marker (= the byte facts,
+        # by definition) conclude slot_inode d1 5 s = 256 * b0 + b1 — needing ONLY the
+        # marker's two inode-byte conjuncts (d1[2560+32*s]=b0, d1[2560+32*s+1]=b1), NOT
+        # liveness/uniq/slots_lt32/range/freshness. It is the `Hvali`/`hvali`
+        # sub-derivation that dir_blit_marker_insert performs (unfold slot_inode,
+        # rewrite the two inode bytes), exposed as its own theorem. CRUCIALLY, unlike
+        # dir_blit_marker_insert it does NOT require 256*b0+b1 <> 0, so it APPLIES to
+        # the REMOVE primitive _zero_entry (b0=b1=0): the caller instantiates it to
+        # slot_inode self.dir 5 slot = 256*0+0 = 0 (the dead-slot value postcondition).
+        # The lone marker-keyed value fact lets _zero_entry's value goal close directly
+        # without dragging the name round-trip / uniq / slots_lt32 of the heavier
+        # _insert axiom into its VC. Cross-validated by
+        # test-suite/corpus/pycsl-reference/0716.proofs/{rocq,lean}/DirBlitMarker.{v,lean}
+        # (theorem dir_blit_marker_value_inode): Rocq Section-Variables-only / Closed
+        # under the global context; Lean #print axioms = "does not depend on any
+        # axioms" (⊆ {propext, Quot.sound}).
+        "UnixFs.Dir.dir_blit_marker_value_inode":
+            "forall d0 d1 : array int, s b0 b1 : int, name : string "
+            "[dir_blit_marker d0 d1 s b0 b1 name]. "
+            "dir_blit_marker d0 d1 s b0 b1 name -> "
+            "slot_inode d1 5 s = 256 * b0 + b1",
         # ====================================================================
 
         # UnixFs.Dir.dir_lookup_frame (M4 — sys_unlink reorder) — dir_lookup is the

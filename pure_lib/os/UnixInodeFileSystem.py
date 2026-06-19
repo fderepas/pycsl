@@ -1226,6 +1226,24 @@ class UnixInodeFileSystem:
     # M4: audit-link the FOLDED zero maintenance facts (clearing slot s dead, rest
     # framed, preserves uniq/slots_lt32; always-emitted via the class-inv path, cited
     # here for --reverify-proofs).
+    # DE-TRUST (ROUTE 1 unique-marker fold, the _write_dir_entry twin): cite the LEAN
+    # ZERO intro (dir_blit_marker_intro_zero: bytes->marker for an EMPTY name, established
+    # from just the two inode-byte pins + the head name byte = 0 + the byte-region frame
+    # — the heavy general dir_blit_marker_intro's eight-antecedent establishment costs
+    # ~314K steps and tips OVER the step budget in the FULL-module aggregate context) and
+    # the TWO lean marker-keyed corollaries the REMOVE primitive needs —
+    # dir_blit_marker_value_inode (slot_inode==256*b0+b1, here 256*b0+b1==0 ⇒ ==0 via the
+    # blit's sum ensures) and dir_blit_marker_frame_only (the ∀k≠slot slot-locality
+    # frame). We do NOT cite dir_blit_marker_insert: its 256*b0+b1<>0 antecedent is FALSE
+    # for a zero (and it would drag the name round-trip / uniq / slots_lt32 into the VC);
+    # we also do NOT cite the heavy general dir_blit_marker_intro (the zero intro
+    # subsumes it here at a fraction of the step cost).
+    #@ proof rocq UnixFs.Dir.dir_blit_marker_intro_zero
+    #@ proof lean UnixFs.Dir.dir_blit_marker_intro_zero
+    #@ proof rocq UnixFs.Dir.dir_blit_marker_value_inode
+    #@ proof lean UnixFs.Dir.dir_blit_marker_value_inode
+    #@ proof rocq UnixFs.Dir.dir_blit_marker_frame_only
+    #@ proof lean UnixFs.Dir.dir_blit_marker_frame_only
     #@ requires block_num >= 0
     #@ requires block_num == 5
     #@ requires slot >= 0 and slot < 16
@@ -1253,10 +1271,15 @@ class UnixInodeFileSystem:
     #               slot `slot`'s 32-byte slice leaves every k != slot unchanged.
     #               This carries the uniqueness hypothesis across the removal
     #               (gap-11 §3b). Faithful — per-slot decode IS byte-local.
-    #             Same human-reviewed decode↔bytes trust class as `_write_entry`'s
-    #             `dirscan-fidelity` clause (spec risk 6.2); the cross-check cannot
-    #             machine-verify the abstract decode ↔ on-disk byte correspondence.
-    #@ \trusted reviewer: dirscan-fidelity
+    #             DE-TRUSTED (route 1): the decode↔bytes correspondence the
+    #             `dirscan-fidelity` reviewer used to vouch for is now MACHINE-PROVEN
+    #             via the cross-validated marker corollaries — the body blits zeros via
+    #             the pure-byte helper, materializes the inode-byte facts (=0) and the
+    #             byte-region frame, folds them into the UNIQUE marker atom, and cites
+    #             dir_blit_marker_value_inode + dir_blit_marker_frame_only to discharge
+    #             value + frame in marker-keyed steps. The marker atom appears ONLY at
+    #             this asserted site, so the corollaries fire EXACTLY ONCE here and
+    #             never inside _blit_dir_entry or any other block-5 byte mutator.
     # os-roadmap M4: opt in to QUANTIFIED-frame propagation. _zero_entry is called ONLY by
     # sys_unlink/sys_rmdir/sys_rename (the directory removers), which need its slot frame to
     # discharge the absence assert; it is NEVER called by the term-rich link/symlink (which
@@ -1264,7 +1287,40 @@ class UnixInodeFileSystem:
     #@ propagate_frame
     def _zero_entry(self, block_num: int, slot: int) -> None:
         entry_offset = block_num * 512 + slot * 32
-        self.dir[entry_offset:entry_offset + 32] = b'\x00' * 32
+        # ROUTE 1: blit a DEAD entry (inode 0, empty name) via the pure-byte helper.
+        self._blit_dir_entry(entry_offset, 0, "")
+        # STANDALONE BYTE-FACT MATERIALIZATION (the _write_dir_entry twin, zero-cased):
+        # pre-prove EACH of the zero-intro's byte antecedents as its own cheap assert
+        # BEFORE the marker fold, so the intro consumes already-discharged facts in one
+        # marker-keyed step. (The v1 route dropped these and folded the marker DIRECTLY
+        # from the helper ensures; the quantifier-to-quantifier frame bridge then ran
+        # INSIDE the marker-establishment goal and starved the full-module step budget —
+        # the regression. Materializing the frame as its OWN assert FIRST is exactly how
+        # _write_dir_entry's twin stays robust.)
+        # the head inode byte and the second inode byte (b0,b1 = the ACTUAL written bytes;
+        # the zero intro pins them, dir_blit_marker_value_inode then concludes
+        # slot_inode == 256*b0+b1). These two byte pins are trivially reflexive.
+        #@ assert self.dir[2560 + 32 * slot] == self.dir[2560 + 32 * slot]
+        #@ assert self.dir[2560 + 32 * slot + 1] == self.dir[2560 + 32 * slot + 1]
+        # the head name byte is 0 (str_length("")==0 ⇒ _blit_dir_entry's null-pad ensures
+        # \forall i: 0<=i<30 ==> self.dir[off+2+i]==0; instantiate at i=0). The zero intro
+        # uses ONLY this single head byte for its null-pad conjunct (the per-char name
+        # foralls are VACUOUS for the empty name).
+        #@ assert self.dir[2560 + 32 * slot + 2] == 0
+        # the byte-region frame (every block-5 byte OUTSIDE slot's 32-byte window agrees
+        # with the pre-state; the blit only touched [entry_offset, entry_offset+32)). This
+        # is the quantifier bridge from _blit_dir_entry's frame ensures to the marker's
+        # region-frame conjunct — proven as its OWN assert HERE (lean local context) so the
+        # marker fold below NEVER re-derives it inside the heavier establishment goal.
+        #@ assert \forall b: int; (0 <= b and b < 512 and (b < 32 * slot or 32 * slot + 32 <= b)) ==> self.dir[2560 + b] == \old(self.dir[2560 + b])
+        # FOLD the byte facts into the UNIQUE marker atom (the LEAN ZERO intro
+        # dir_blit_marker_intro_zero fires here, bytes->marker) with b0,b1 = the written
+        # inode bytes, name="": it consumes the four asserts above (two inode-byte pins,
+        # the head name byte = 0, the byte-region frame) in ONE cheap marker-keyed step.
+        # dir_blit_marker_value_inode then concludes slot_inode == 256*b0+b1 (== 0 by
+        # _blit_dir_entry's sum ensures) and dir_blit_marker_frame_only the ∀k≠slot
+        # slot-locality frame — both marker-keyed, firing EXACTLY ONCE at this atom.
+        #@ assert dir_blit_marker(\old(self.dir), self.dir, slot, self.dir[2560 + 32 * slot], self.dir[2560 + 32 * slot + 1], "")
 
     #@ proof rocq UnixFs.Dir.empty_disk_slots_dead
     #@ proof lean UnixFs.Dir.empty_disk_slots_dead
