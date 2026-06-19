@@ -489,6 +489,133 @@ class PreambleEmissionMixin:
             "    slot_inode d1 5 k = slot_inode d0 5 k ) -> "
             "slots_lt32 d1",
 
+        # ====================================================================
+        # ROUTE 1 (test-supervise-sl 2026-06-19): the UNIQUE-MARKER-ATOM form of
+        # the folded byte-rung directory-invariant maintenance fact for the dir
+        # mutators (_write_dir_entry / _zero_entry).
+        #
+        # WHY (the trigger-poison wall, 20260618-2350 + catalog-B):
+        #   The byte-keyed fold `insert/zero_preserves_dir_invariant_blit` keyed on
+        #   `[d1[2560 + 32 * s]]` is CORRECT logic (cross-validated zero-TCB) but its
+        #   byte key matches the SHAPE `disk[2560 + <expr>]` — EXACTLY the index every
+        #   block-5 byte read produces. So it fires INSIDE the pure-byte helper
+        #   `_blit_dir_entry`, dragging the abstract slot_inode/slot_name/uniq/slots_lt32
+        #   web into that helper's byte VC -> Timeout 869,354,004 steps / OOM.
+        #
+        # THE FIX (gap-17 `block_content_eq` discipline): introduce a UNIQUE
+        # uninterpreted predicate `dir_blit_marker d0 d1 s b0 b1` (declared in
+        # _AXIOM_FUNCTIONS["UnixFs.Dir."]) and key BOTH the byte->marker intro AND the
+        # marker->maintenance facts on `[dir_blit_marker d0 d1 s b0 b1]`. The marker
+        # atom appears ONLY where the genuine mutator body asserts it
+        # (`#@ assert dir_blit_marker(...)` at the real apply site) — it CANNOT match a
+        # bare `disk[2560 + <expr>]` byte read, so the maintenance axioms never fire in
+        # `_blit_dir_entry` or any other block-5 toucher. The axiom fires EXACTLY ONCE,
+        # at the asserted marker.
+        #
+        # ZERO-TCB / cross-validation: the three facts are the SAME logic as
+        # insert/zero_preserves_dir_invariant_blit, refactored through the marker.
+        #   - dir_blit_marker_intro is DEFINITIONAL (the marker is conservatively DEFINED
+        #     by its byte hypotheses; the intro is one direction of `marker <-> bytes`,
+        #     used to ESTABLISH the marker from the bytes). ZERO trust.
+        #   - dir_blit_marker_insert / _zero are the cross-validated maintenance steps:
+        #     from the marker (= the byte facts, by definition) + uniq/slots_lt32 d0 +
+        #     freshness, conclude value + frame + uniq + slots_lt32. Cross-validated by
+        #     test-suite/corpus/pycsl-reference/0716.proofs/{rocq,lean}/DirBlitMarker.{v,lean}
+        #     (Rocq Section-Variables-only / Closed under global context; Lean
+        #     [propext, Quot.sound]). In the kernel the marker is DEFINED as the
+        #     conjunction of its byte hypotheses, so dir_blit_marker_intro is `fun h => h`
+        #     (definitional) and the maintenance theorems are the blit theorems with the
+        #     byte hyps packaged behind the definition — same proof, zero new TCB.
+        #
+        # No byte term and no slot atom ever coexist in a body VC: `_blit_dir_entry`
+        # carries only bytes (and the marker trigger cannot match its byte reads);
+        # `_write_dir_entry` carries the marker atom + slot atoms (its contract already
+        # references slot_inode/slot_name — that is the genuine apply site, where slot
+        # atoms are expected) but NO loose `disk[2560+...]` blit term in the slot-web VC.
+        # dir_blit_marker_intro (DEFINITIONAL, zero trust): the marker is conservatively
+        # DEFINED as the conjunction of ALL the byte facts a directory-entry blit at slot
+        # s establishes — the two inode bytes (b0,b1), the per-char name-field bytes, the
+        # null-pad, and the byte-region frame — PLUS the name well-formedness the
+        # round-trip needs (len<=30, no embedded null). The intro fires ONLY on the marker
+        # atom (the trigger), so it never matches a bare disk[...] read. The string codec
+        # (field_to_str) is referenced ONLY here behind the marker, NOT cited module-wide,
+        # so the byte->string round-trip never poisons a sibling byte mutator.
+        "UnixFs.Dir.dir_blit_marker_intro":
+            "forall d0 d1 : array int, s b0 b1 : int, name : string "
+            "[dir_blit_marker d0 d1 s b0 b1 name]. "
+            "0 <= String.length name -> String.length name <= 30 -> "
+            "d1[2560 + 32 * s] = b0 -> d1[2560 + 32 * s + 1] = b1 -> "
+            "( forall i : int. 0 <= i < String.length name -> "
+            "    Char.code (Char.get name i) <> 0 ) -> "
+            "( forall i : int. 0 <= i < String.length name -> "
+            "    d1[2560 + 32 * s + 2 + i] = Char.code (Char.get name i) ) -> "
+            "( String.length name < 30 -> d1[2560 + 32 * s + 2 + String.length name] = 0 ) -> "
+            "( forall b : int. 0 <= b < 512 -> "
+            "    (b < 32 * s \\/ 32 * s + 32 <= b) -> d1[2560 + b] = d0[2560 + b] ) -> "
+            "dir_blit_marker d0 d1 s b0 b1 name",
+        # dir_blit_marker_insert (cross-validated): from the marker (= the byte facts +
+        # name well-formedness, by definition) + uniq/slots_lt32 d0 + inode range +
+        # freshness, conclude BOTH slot VALUE decodes (inode AND name=name), the
+        # slot-locality frame, uniq d1, slots_lt32 d1 — in ONE marker-keyed step. The
+        # name VALUE comes from the field_to_str round-trip discharged INSIDE the kernel
+        # proof (0716 DirBlitMarker), so the os body provides ONLY the marker atom and
+        # NEVER materializes the string codec in its VC.
+        "UnixFs.Dir.dir_blit_marker_insert":
+            "forall d0 d1 : array int, s b0 b1 : int, name : string "
+            "[dir_blit_marker d0 d1 s b0 b1 name]. "
+            "dir_blit_marker d0 d1 s b0 b1 name -> "
+            "uniq d0 -> slots_lt32 d0 -> 0 <= s < 16 -> "
+            "256 * b0 + b1 <> 0 -> 256 * b0 + b1 < 32 -> "
+            # VACUITY REPAIR (v3): freshness restricted to k <> s. The target slot s
+            # is being OVERWRITTEN, so whether d0's slot s already held `name` is
+            # irrelevant to whether the insert manufactures a duplicate live-name pair.
+            # The original all-k freshness was OVER-STRONG: under the in-place-mutation
+            # `\old(self.dir) == self.dir` collapse (the blit is an opaque val that
+            # mutates the array in place, so d0 and d1 are the SAME array term in the
+            # body VC), the all-k antecedent fired at k=s on the POST-state — where slot
+            # s IS live with `name` — forcing slot_name=name AND (from freshness)
+            # slot_name<>name, i.e. False (the live-branch inconsistency). The Rocq/Lean
+            # cross-validation only ever applies freshness at slots <> s (DirBlitMarker.v
+            # Hfresh used at j<>s / i<>s only), so the k<>s-restricted axiom is the SAME
+            # theorem with an unused hypothesis dropped — still zero-TCB.
+            "( forall k : int. 0 <= k < 16 -> k <> s -> "
+            "    slot_inode d0 5 k <> 0 -> slot_inode d0 5 k < 32 -> "
+            "    slot_name d0 5 k <> name ) -> "
+            "( slot_inode d1 5 s = 256 * b0 + b1 "
+            "  /\\ slot_name d1 5 s = name "
+            "  /\\ ( forall k : int. 0 <= k < 16 -> k <> s -> "
+            "         slot_inode d1 5 k = slot_inode d0 5 k /\\ "
+            "         slot_name  d1 5 k = slot_name  d0 5 k ) "
+            "  /\\ uniq d1 /\\ slots_lt32 d1 )",
+        # dir_blit_marker_frame_only (SPIKE-2, cross-validated): the SLOT-LOCALITY
+        # FRAME alone, marker-keyed. From the marker (= the byte facts, by
+        # definition) and the slot-in-range fact, conclude that EVERY slot k <> s
+        # decodes IDENTICALLY in d1 and d0 — WITHOUT needing uniq/slots_lt32/range/
+        # freshness. This is a STRICT corollary of dir_blit_marker_insert: it is
+        # `slot_frame_of_region` (DirBlitMarker.{v,lean}) applied to the marker
+        # definition's byte-region-frame conjunct. dir_blit_marker_insert ALREADY
+        # derives this exact frame conjunct (`Hsf`/`hsf`) purely from the marker's
+        # frame component, independent of the value/uniq/freshness antecedents, so
+        # the corollary is the SAME sub-derivation exposed as its own theorem — zero
+        # new TCB. WHY EMIT IT SEPARATELY: in the FULL-module aggregate E-matching
+        # context, the two `forall k<>s` frame postconditions of _write_dir_entry
+        # starve when forced to go through the four-way conjunction of the heavier
+        # _insert axiom (it drags slot_name VALUE + uniq d1 + slots_lt32 d1 into the
+        # frame VC). This lean, frame-only marker-keyed fact lets the frame goals
+        # close directly. Cross-validated by
+        # test-suite/corpus/pycsl-reference/0716.proofs/{rocq,lean}/DirBlitMarker.{v,lean}
+        # (theorem dir_blit_marker_frame_only): Rocq Section-Variables-only / Closed
+        # under the global context; Lean #print axioms ⊆ {propext, Quot.sound}.
+        "UnixFs.Dir.dir_blit_marker_frame_only":
+            "forall d0 d1 : array int, s b0 b1 : int, name : string "
+            "[dir_blit_marker d0 d1 s b0 b1 name]. "
+            "dir_blit_marker d0 d1 s b0 b1 name -> "
+            "0 <= s < 16 -> "
+            "( forall k : int. 0 <= k < 16 -> k <> s -> "
+            "    slot_inode d1 5 k = slot_inode d0 5 k /\\ "
+            "    slot_name  d1 5 k = slot_name  d0 5 k )",
+        # ====================================================================
+
         # UnixFs.Dir.dir_lookup_frame (M4 — sys_unlink reorder) — dir_lookup is the
         # bounded 16-slot scan, a function of the per-slot decodes ONLY, so disks
         # agreeing on every block-5 slot decode have equal dir_lookup. Lets sys_unlink
@@ -967,6 +1094,15 @@ class PreambleEmissionMixin:
             "predicate inode_bytes_valid (d: array int)",
             # M4: every block-5 dirent slot decodes to an inode < 32 (see slots_lt32_intro/elim).
             "predicate slots_lt32 (d: array int)",
+            # ROUTE 1 (2026-06-19): the UNIQUE marker atom for the dir-mutator
+            # invariant-maintenance fold. An uninterpreted predicate (NOT a defined
+            # predicate that auto-unfolds) keyed by dir_blit_marker_intro /
+            # dir_blit_marker_insert / dir_blit_marker_zero — all triggered
+            # `[dir_blit_marker d0 d1 s b0 b1]`, so the maintenance step fires ONLY
+            # where the mutator body asserts the marker, NEVER on a raw
+            # `disk[2560+<expr>]` byte read (the trigger-poison wall fix). d0 = pre,
+            # d1 = post, s = slot, (b0,b1) = the two blitted inode bytes.
+            "predicate dir_blit_marker (d0 d1: array int) (s b0 b1: int) (name: string)",
         ],
     }
 
