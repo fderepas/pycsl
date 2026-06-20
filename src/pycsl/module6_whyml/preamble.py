@@ -796,6 +796,72 @@ class PreambleEmissionMixin:
             "dir_find_slot_result d blk name r -> "
             "r >= 0 -> "
             "slot_inode d blk r <> 0 /\\ slot_name d blk r = name",
+        # READ-SIDE FREE-SLOT-INDEX dir_find_free_result marker family — the
+        # FREE-slot twin of the dir_find_slot_result family. Retires the READ-side
+        # dirscan-fidelity trust on _dir_find_free, which returns the slot INDEX
+        # (0..15) of the LAST FREE slot (slot_inode == 0), or -1 if the block is
+        # full. Unlike _dir_find_slot it reads ONLY slot_inode (NO name decode),
+        # and the guard is the free condition `slot_inode == 0` (not the live-match
+        # slot_inode <> 0 /\ slot_name == name). Carries the slot's free-fidelity
+        # (slot_inode == 0 at the returned index) across SMT via a unique marker,
+        # the same once-firing discipline as dir_find_slot_result. Cross-validated
+        # zero-TCB by
+        # test-suite/corpus/pycsl-reference/0722.proofs/{rocq,lean}/UnixDirFindFreeValue.{v,lean}:
+        #   - Rocq: every theorem "Closed under the global context" (Section
+        #     Variables only, 0 Axiom/Admitted).
+        #   - Lean: dir_find_free_result_intro/_prefix_base/_prefix_close "does not
+        #     depend on any axioms"; _result_value/_result_range/_prefix_step ⊆
+        #     {propext, Quot.sound}.
+        #
+        # The marker fires ONLY at the atoms _dir_find_free's body asserts (the
+        # loop-carry prefix invariant + the loop-exit close), NEVER on a bare
+        # slot_inode term — exactly the dir_find_slot_result once-firing discipline.
+        # The Fixpoint `ffscan` is the FREE-slot dual of `fscan`: on a free slot,
+        # found becomes the INDEX i.
+        #
+        # dir_find_free_prefix_base (DEFINITIONAL, zero trust): the loop-init rung.
+        # `found = -1` over the empty (0-slot) prefix. Trigger on the marker atom.
+        "UnixFs.Dir.dir_find_free_prefix_base":
+            "forall d : array int, blk : int "
+            "[dir_find_free_prefix d blk 0 (-1)]. "
+            "dir_find_free_prefix d blk 0 (-1)",
+        # dir_find_free_prefix_step (cross-validated): the loop-body update rung.
+        # From the prefix marker at slot i, peeling slot i — using the per-slot
+        # decode fact slot_inode d blk i (the SAME body guard the loop tests) —
+        # advances the marker to slot i+1. On a free slot `found` becomes the INDEX
+        # i. Keyed [dir_find_free_prefix d blk i r] so it fires once per loop
+        # iteration at the carried marker, NEVER on a bare term. The induction is
+        # discharged offline; SMT only applies one O(1) step.
+        "UnixFs.Dir.dir_find_free_prefix_step":
+            "forall d : array int, blk i r : int "
+            "[dir_find_free_prefix d blk i r]. "
+            "0 <= i -> i < 16 -> "
+            "dir_find_free_prefix d blk i r -> "
+            "( ( slot_inode d blk i = 0 ) -> "
+            "    dir_find_free_prefix d blk (i + 1) i ) "
+            "/\\ ( ( slot_inode d blk i <> 0 ) -> "
+            "    dir_find_free_prefix d blk (i + 1) r )",
+        # dir_find_free_result_intro (DEFINITIONAL close, zero trust): the
+        # full-prefix rung i=16 IS the free-slot-index scan result — fold the
+        # loop-exit prefix marker into the result marker. Keyed
+        # [dir_find_free_prefix d blk 16 r].
+        "UnixFs.Dir.dir_find_free_result_intro":
+            "forall d : array int, blk r : int "
+            "[dir_find_free_prefix d blk 16 r]. "
+            "dir_find_free_prefix d blk 16 r -> "
+            "dir_find_free_result d blk r",
+        # dir_find_free_result_value (cross-validated VALUE lemma — the
+        # load-bearing free-slot fidelity): when r >= 0 the returned slot has
+        # slot_inode == 0 (it is FREE). This is EXACTLY _dir_find_free's fidelity
+        # ensures (\result >= 0 ==> slot_inode == 0). The last-free argument is
+        # discharged offline in UnixDirFindFreeValue; SMT only applies this O(1)
+        # implication. Keyed [dir_find_free_result d blk r] — fires EXACTLY ONCE.
+        "UnixFs.Dir.dir_find_free_result_value":
+            "forall d : array int, blk r : int "
+            "[dir_find_free_result d blk r]. "
+            "dir_find_free_result d blk r -> "
+            "r >= 0 -> "
+            "slot_inode d blk r = 0",
         # ====================================================================
         # BLOCK-PARAMETERIZED marker family (2026-06-19) — the arbitrary-block
         # generalization of the block-5 dir_blit_marker family above. _write_entry
@@ -1413,6 +1479,27 @@ class PreambleEmissionMixin:
         "UnixFs.Dir.dir_find_slot": [
             "predicate dir_find_slot_result (d: array int) (blk: int) (name: string) (r: int)",
             "predicate dir_find_slot_prefix (d: array int) (blk: int) (name: string) (i: int) (r: int)",
+        ],
+        # READ-SIDE FREE-SLOT-INDEX markers (the free-slot twin of
+        # dir_find_slot_result/dir_find_slot_prefix): `dir_find_free_result d blk r`
+        # ≜ "r is the bounded 16-slot free-index scan result" (the LAST free INDEX,
+        # or -1); `dir_find_free_prefix d blk i r` ≜ "r is that free-index-scan over
+        # the first i slots". UNIQUE uninterpreted atoms keyed
+        # [dir_find_free_result d blk r] / [dir_find_free_prefix d blk i r], firing
+        # ONLY where _dir_find_free's body asserts them, NEVER on a bare slot_inode
+        # term, so the free-slot fidelity crosses SMT without re-introducing the
+        # last-free argument (discharged offline in UnixDirFindFreeValue.{v,lean}).
+        # No `name` parameter — _dir_find_free reads only slot_inode.
+        #
+        # GATING (byte-identity, same discipline as dir_find_slot): keyed on the
+        # MORE-SPECIFIC prefix "UnixFs.Dir.dir_find_free" so these two predicate
+        # declarations are emitted ONLY when a dir_find_free_* axiom is cited (i.e.
+        # by _dir_find_free's os module), NOT for every UnixFs.Dir.* citation.
+        # `startswith` matches both prefixes for a dir_find_free_* qualname, so the
+        # os module still gets BOTH the general Dir decls AND these predicates.
+        "UnixFs.Dir.dir_find_free": [
+            "predicate dir_find_free_result (d: array int) (blk: int) (r: int)",
+            "predicate dir_find_free_prefix (d: array int) (blk: int) (i: int) (r: int)",
         ],
         # BLOCK-PARAMETERIZED marker (2026-06-19): the arbitrary-block twin of
         # dir_blit_marker for _write_entry, which mutates self.disk at an ARBITRARY
