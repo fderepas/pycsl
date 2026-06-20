@@ -1083,20 +1083,79 @@ class UnixInodeFileSystem:
     #             maintained via UnixFs.Dir.insert_preserves_unique (directory
     #             mutators) + UnixFs.Dir.block5_decode_frame (non-directory writers).
     #             See 11-1404-convergence-spec-13.md.
-    #@ \trusted reviewer: dirscan-fidelity
+    # DE-TRUSTED read-side fidelity (was `\trusted reviewer: dirscan-fidelity`) via the
+    # SLOT-INDEX dir_find_slot_result marker (the slot-index twin of dir_scan_result) +
+    # the FAITHFUL read-name EMITTER lowering. _dir_find_slot scans the 16 slots like
+    # _dir_lookup, but returns the matched slot's INDEX (found = i) rather than its inode.
+    # The body operates over the abstract per-slot decodes slot_inode/slot_name (bridged
+    # from the literal slot bytes by slot_inode_byte_decode / slot_name_byte_decode),
+    # carrying the loop-carry prefix marker dir_find_slot_prefix(self.dir, 5, pathname,
+    # i, found) advanced one slot per iteration via dir_find_slot_prefix_step (whose match
+    # branch sets found to the INDEX i). At loop exit the prefix marker at i=16 is folded
+    # to dir_find_slot_result, and dir_find_slot_result_value discharges the two fidelity
+    # ensures (\result >= 0 ==> slot_inode != 0 /\ slot_name == pathname).
+    #
+    # The KEYSTONE that makes the marker step fire: `name` is now the FAITHFUL on-disk
+    # decode (the inline self.dir[eo+2:eo+32].split(b'\x00')[0].decode(...) idiom that the
+    # null-terminated-field EMITTER recognizer lowers to field_to_str self.dir (eo+2) 30 —
+    # the SAME symbol slot_name_byte_decode bridges to slot_name self.dir 5 i). So
+    # `slot_name == pathname` is a real string equality, the match guard fires the marker
+    # step, and the slot-index fidelity crosses SMT with NO relocated trust: zero new
+    # \trusted, zero val/ensures shim — the marker is cross-validated by
+    # 0721.proofs/UnixDirFindSlotValue.{v,lean}.
+    #@ proof rocq UnixFs.Dir.slot_inode_nonneg
+    #@ proof lean UnixFs.Dir.slot_inode_nonneg
+    #@ proof rocq UnixFs.Dir.slot_inode_byte_decode
+    #@ proof lean UnixFs.Dir.slot_inode_byte_decode
+    #@ proof rocq UnixFs.Dir.slot_name_byte_decode
+    #@ proof lean UnixFs.Dir.slot_name_byte_decode
+    #@ proof rocq UnixFs.Field.field_to_str_round_trip
+    #@ proof lean UnixFs.Field.field_to_str_round_trip
+    #@ proof rocq UnixFs.Dir.dir_find_slot_prefix_base
+    #@ proof lean UnixFs.Dir.dir_find_slot_prefix_base
+    #@ proof rocq UnixFs.Dir.dir_find_slot_prefix_step
+    #@ proof lean UnixFs.Dir.dir_find_slot_prefix_step
+    #@ proof rocq UnixFs.Dir.dir_find_slot_result_intro
+    #@ proof lean UnixFs.Dir.dir_find_slot_result_intro
+    #@ proof rocq UnixFs.Dir.dir_find_slot_result_value
+    #@ proof lean UnixFs.Dir.dir_find_slot_result_value
+    #@ verify_module FindSlotMod
     def _dir_find_slot(self, block_num: int, pathname: str) -> int:
-        offset = block_num * 512
         found = -1
+        #@ assert dir_find_slot_prefix(self.dir, 5, pathname, 0, -1)
         #@ loop invariant 0 <= i and i <= 16
         #@ loop invariant found >= -1 and found < 16
+        #@ loop invariant dir_find_slot_prefix(self.dir, 5, pathname, i, found)
         #@ loop variant 16 - i
         for i in range(16):
-            entry_offset = offset + (i * 32)
-            entry = self.dir[entry_offset:entry_offset + 32]
-            inode_num, name_bytes = _unpack_direntry(entry)
-            name = name_bytes.split(b'\x00')[0].decode('utf-8', errors='ignore')
-            if name == pathname and inode_num != 0:
+            # literal-offset byte surface (5*512 + 32*i) so slot_inode_byte_decode's
+            # trigger [disk[blk*512+32*k]] E-matches (bridges the two inode bytes to
+            # slot_inode self.dir 5 i), and slot_name_byte_decode's trigger on the
+            # name-field byte [disk[blk*512+32*k+2]] E-matches (bridges to slot_name).
+            b0 = self.dir[5 * 512 + 32 * i]
+            b1 = self.dir[5 * 512 + 32 * i + 1]
+            #@ assert slot_inode(self.dir, 5, i) == 256 * b0 + b1
+            inode_num = b0 * 256 + b1
+            # FAITHFUL read-name: the 30-byte null-padded name field [eo+2, eo+32) is
+            # decoded inline. The EMITTER recognizer lowers this idiom to the codec term
+            # field_to_str self.dir (5*512+32*i+2) 30, so `name` is the genuine on-disk
+            # string slot_name_byte_decode bridges to slot_name self.dir 5 i.
+            name: str = self.dir[5 * 512 + 32 * i + 2:5 * 512 + 32 * i + 32].split(b'\x00')[0].decode('utf-8', errors='ignore')
+            #@ assert slot_name(self.dir, 5, i) == name
+            is_match = name == pathname and inode_num != 0 and inode_num < 32
+            if is_match:
+                # The match guard gives name==pathname /\ inode_num!=0 /\ inode_num<32;
+                # bridged to the abstract decodes (slot_name==pathname, slot_inode==inode_num)
+                # this is exactly dir_find_slot_prefix_step's match-branch antecedent. After
+                # found:=i the step advances the marker to (i+1, i) — found is the INDEX.
+                #@ assert slot_name(self.dir, 5, i) == pathname
                 found = i
+                #@ assert dir_find_slot_prefix(self.dir, 5, pathname, i + 1, found)
+            else:
+                #@ assert dir_find_slot_prefix(self.dir, 5, pathname, i + 1, found)
+                pass
+            #@ assert dir_find_slot_prefix(self.dir, 5, pathname, i + 1, found)
+        #@ assert dir_find_slot_result(self.dir, 5, pathname, found)
         return found
 
     #@ requires block_num >= 0
