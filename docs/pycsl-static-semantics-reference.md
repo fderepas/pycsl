@@ -139,7 +139,18 @@ specification logic's type universe:
 
 ```
 τ(int)            = int
-τ(bool)           = int       (* booleans are modeled as integers *)
+τ(bool)           = int       (* FAITHFUL int-encoding (verified 2026-06): a bool value is
+                                 Why3 `int` valued 0/1 — a `-> bool` function emits `: int` with
+                                 `exception Return int`, bool params/locals are `int`, and a
+                                 contract reads `\result == 0 or \result == 1`. Bool literals
+                                 lower to 1/0 (so `\result == True` becomes `result = 1`);
+                                 bool-producing expressions (compare / and-or-not / isinstance)
+                                 coerce to `(if X then 1 else 0)` at value boundaries, while pure
+                                 guard and spec contexts emit native WhyML boolean formulas,
+                                 bridged to the encoding by `= 1`. Unlike the retired τ(float)=int
+                                 (lossy → unsound, now `real`), 0/1 is a *lossless* injection of a
+                                 genuinely 2-valued type, so it is deliberately RETAINED under
+                                 no-more-int. *)
 τ(str)            = string    (* real Why3 string.String — runtime str values carry content.
                                  A str parameter/local/return is a `string`; literals are
                                  `"..."`; len / + / [i] / [a:b] / == lower to String.length /
