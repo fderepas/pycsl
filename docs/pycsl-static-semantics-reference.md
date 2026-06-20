@@ -644,7 +644,7 @@ _Corresponds to `annotations.md` §2.1.7._
 it is a *policy* distinction, not a typing one:
 
 - `\trusted` asserts a present Python body is correct without checking it
-  (trust); `bin/check-no-trusted-stubs.py` forbids it on library stubs.
+  (trust); `attic/stdlib-coverage-tooling/check-no-trusted-stubs.py` forbids it on library stubs.
 - `\abstract` asserts there is no meaningful body — the contract (plus any
   `#@ proof` axioms) *is* the definition. Sound: an uninterpreted `val`
   constrains callers only by its spec. It is **not** counted as `\trusted`
@@ -1976,5 +1976,5 @@ hand-curated models, anchored to `cpython/Doc/library/*.rst` via
 `calls-english.md` and `calls-pycsl.md`.
 
 The three artefacts are kept in lockstep by
-`bin/stdlib-coverage.py --check`. See
+`attic/stdlib-coverage-tooling/stdlib-coverage.py --check`. See
 `config/skills/pycsl-stdlib-coverage/SKILL.md` for the discipline.

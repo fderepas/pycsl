@@ -34,7 +34,7 @@ entirely in the light — pure Python, no syscalls, no C, no hardware — and th
 English, byte for byte. If the model was faithful and the model was proved, then the law was no longer
 believed. It was *known.*
 
-She made a directory called `pure_lib/os/` and began.
+She made a directory called `src/pycsl_lib/os/` and began.
 
 ---
 
@@ -65,7 +65,7 @@ really does live in a data block whose number is really written, most-significan
 bytes of its inode. Abstract that and you have proved nothing the law cares about. The law said *shall.*
 You do not answer *shall* with a convenient abstraction.
 
-She did not annotate any of it yet. First she *ran* it. She wrote a plain Python test — `pure_lib_test/`
+She did not annotate any of it yet. First she *ran* it. She wrote a plain Python test — `src/pycsl_lib_test/`
 held a row of them, `0001.py` through `0008.py` — create a file, write the five bytes of `HELLO`
 (`[72, 101, 108, 108, 111]`), close, reopen, read, assert the list comes back equal. It came back equal.
 
@@ -263,7 +263,7 @@ through `read`, end to end, and could not be made to fall.
 
 This was the prestige: not a green test suite but a **proved module** with its public API demonstrated
 total and safe on every input. The Python `os` module's filesystem, re-implemented faithfully in
-`pure_lib/os/` and then mechanically verified — its on-disk machinery correct by construction, its
+`src/pycsl_lib/os/` and then mechanically verified — its on-disk machinery correct by construction, its
 round-trip API faultless for all files at once.
 
 ### 8.
@@ -327,5 +327,5 @@ at once, if you are willing to rebuild it from faithful parts, prove the smalles
 > closed. A concrete test convinces a person; a discharged verification condition obliges the input
 > space. The whole craft is learning the difference, and then building a machine honest enough that the
 > answer comes back* Valid.
-> — field notes, PyCSL verification log: `pure_lib/os/` — 0 goals unproven, 1 axiom in the trusted base;
+> — field notes, PyCSL verification log: `src/pycsl_lib/os/` — 0 goals unproven, 1 axiom in the trusted base;
 > the content-equality theorem PROVEN on-fd (`formal_os_content`); its create→close→reopen-by-name form the standing frontier.

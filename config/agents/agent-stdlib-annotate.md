@@ -1,3 +1,8 @@
+> **⚠️ RETIRED.** This agent spec drove `agent-stdlib-annotate.py` over the old
+> stdlib stub set. Both were archived (`attic/stdlib-coverage-tooling/`,
+> `attic/pycsl_lib/`) when the verified `pure_lib` was promoted to
+> `src/pycsl_lib/` (see `lets-move.md`). Kept for historical reference.
+
 Act as an expert Python verification engineer building deductive
 contracts for Python stdlib stubs in PyCSL. Write a Python script
 named `agent-stdlib-annotate.py` that autonomously promotes
@@ -42,7 +47,7 @@ provide:
 For each stdlib module in scope:
 
 1. **Snapshot baseline**: invoke
-   `bin/stdlib-coverage-report.py --module <name> --json` and
+   `attic/stdlib-coverage-tooling/stdlib-coverage-report.py --module <name> --json` and
    record the per-level counts. This is the
    monotonic-ratchet anchor.
 2. **Identify promotion targets**: parse
@@ -80,7 +85,7 @@ For each stdlib module in scope:
      `# pycsl-flags: --no-proof` for the corpus runner.
 7. **Validate gate**: run sequentially:
    - `.venv/bin/python -m pycsl.pycsl --no-proof src/pycsl_lib/<name>.py` (exit 0).
-   - `bin/stdlib-coverage-report.py --module <name>` (parse output; L4+ count must NOT decrease).
+   - `attic/stdlib-coverage-tooling/stdlib-coverage-report.py --module <name>` (parse output; L4+ count must NOT decrease).
    - `bash bin/run-self-annotation-suite.sh` (must still report `26/26 proved`).
 
    If any gate fails:
@@ -135,7 +140,7 @@ system=system_prompt, model=model)` per function.
 The agent must skip modules that the coverage scanner
 classifies as non-stdlib (Module1_Ingestor.py, Module2_Parser.py,
 … , __future__.py, jsonschema, lark, libcst, mcp, numpy).
-Read this set from `bin/stdlib-coverage-report.py`'s
+Read this set from `attic/stdlib-coverage-tooling/stdlib-coverage-report.py`'s
 `_NON_STDLIB` constant (import it). Also skip modules with
 zero L1+L2+L3 functions remaining (all already at L4+).
 
@@ -190,6 +195,6 @@ contract content does not vary by memory model.
 * Strategy plan (multi-quarter context):
   `.claude/plans/parsed-booping-ember.md`.
 * Coverage classifier (mechanical gate):
-  `bin/stdlib-coverage-report.py`.
+  `attic/stdlib-coverage-tooling/stdlib-coverage-report.py`.
 * Existing agent pattern (analogous architecture):
   `src/pycsl/agents/agent-annotate.py`.

@@ -88,7 +88,7 @@ The citations were **vestigial**; removing all eight left the os fully proven
 > consumes. Establish that a goal genuinely depends on the property before
 > paying for it either way. (The `i18`/`i1a1` registry entries remain only
 > because the separate `struct.pack`-based stub `src/pycsl_lib/os` still uses
-> the abstract codec; the body-verified `pure_lib/os` no longer cites them.)
+> the abstract codec; the body-verified `src/pycsl_lib/os` no longer cites them.)
 
 A case (2) axiom is still held to the full [trust model](#trust-model): a paired
 Rocq+Lean proof of the *same* statement, no extraneous axioms, `audit_proof.py`

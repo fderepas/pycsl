@@ -83,7 +83,7 @@ This is *why* the project's hardest disciplines exist. **Faithful typing**
 int) is fidelity to the language's value model. The **exception model**
 (`#@ no_exception`, faithful `KeyError` on a missing dict read) is
 fidelity to what the reference implementation actually raises. The
-**standard library** (`pure_lib/`) is shaped end-to-end by these sources:
+**standard library** (`src/pycsl_lib/`) is shaped end-to-end by these sources:
 each stub transcribes the library reference and must behave as CPython
 does. A specification that is internally consistent but unfaithful to
 the source of truth is *coherent and wrong* — the worst kind of green.

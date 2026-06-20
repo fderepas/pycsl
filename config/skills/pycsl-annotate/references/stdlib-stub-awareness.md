@@ -18,7 +18,7 @@ each function proves its own contract (`return 0` already proves
 `unix-filesystem/UnixInodeFileSystem.py`, and an irreducibly-opaque
 kernel uses an abstract `val` + a named `#@ proof rocq/lean` citation,
 never `\trusted`. *(Legacy generated stubs may still carry `\trusted`;
-they are being migrated — `bin/check-no-trusted-stubs.py` tracks them.)*
+they are being migrated — `attic/stdlib-coverage-tooling/check-no-trusted-stubs.py` tracks them.)*
 Practical implications for annotating a function that calls stdlib:
 
 - **Stub returns are `int`-valued in the model.** `os.path.exists(p)`

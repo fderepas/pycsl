@@ -112,7 +112,7 @@ What a green run does NOT guarantee:
 ### Directory layout
 
 ```text
-pure_lib/
+src/pycsl_lib/
   os/
     __init__.py              # Re-exports, constants (literal values)
     UnixInodeFileSystem.py   # Full inode filesystem (~1090 lines)
@@ -125,7 +125,7 @@ pure_lib/
     __init__.py              # Original json implementation
     _api.py                  # Thin verifiable API wrapper
     decoder.py, encoder.py   # Full impl (body-level blocked)
-pure_lib_test/                 # ALL formal tests use the topical `formal_<name>.py` scheme
+src/pycsl_lib_test/                 # ALL formal tests use the topical `formal_<name>.py` scheme
   formal_os_roundtrip.py       # os write/read round-trip (18/18 VCs)
   formal_os_content.py         # os CONTENT round-trip (write→pread == data, gap-17)
   formal_os_*.py               # per-topic os: _dir/_fd/_fdchain/_io/_namespace/_rwsize/…

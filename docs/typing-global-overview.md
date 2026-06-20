@@ -29,17 +29,17 @@ taxonomy (Modelled / Specified / Stubbed / Confinement), which §2.3 extends.
 ## 0. The one-sentence thesis
 
 `os` was a library whose meaning lives at the value level, so it was modelled in
-`pure_lib` and crowned with formal tests; `typing` is Python's native
+`pycsl_lib` and crowned with formal tests; `typing` is Python's native
 *specification sub-language* — its meaning lives in static judgments about
 programs, which is the IR's domain — so it is **absorbed into PyCSL's
 specification layer** (front-end + static semantics + Module 6 lowering), with
-only a thin `pure_lib/typing` shim for the few functions that the library
+only a thin `src/pycsl_lib/typing` shim for the few functions that the library
 reference gives genuine runtime behaviour. The proportions of the `os` effort
 invert: roughly 15% shim, 85% front-end/IR/Module 6.
 
 A bootstrap fact makes this concrete: PyCSL already interprets a fragment of
 `typing` implicitly — every `def sys_write(self, fd: int, buf: bytes) -> int`
-in `pure_lib/os` is the front-end and Module 6's type inference reading
+in `src/pycsl_lib/os` is the front-end and Module 6's type inference reading
 annotations into IR and WhyML types. The first deliverable of this whole effort
 is therefore not a feature: it is the **specification of that existing implicit
 subset** (TY0, §4.2), with error codes and citations, so the verifier does not
@@ -56,7 +56,7 @@ planes* of meaning. Every rule this effort adds must `# cite:` the right one.
 |---|-----------|---------|----------|
 | S1 | **The Specification for the Python type system** (typing.readthedocs.io, maintained under the Typing Council, PEP 729) | the static meaning of every typing construct: assignability, narrowing, Protocol conformance, overload resolution, generics | static-semantics rules; conformance obligations |
 | S2 | **The defining PEPs** — 483 (theory), 484 (hints), 526 (variable annotations), 544 (`Protocol`), 586 (`Literal`), 589 (`TypedDict`), 591 (`Final`), 593 (`Annotated`), 604 (`X \| Y`), 612 (`ParamSpec`), 646 (`TypeVarTuple`), 673 (`Self`), 695 (type-parameter syntax), 742 (`TypeIs`) | historical rationale and the construct-level fine print; **where S1 and a PEP conflict, S1 wins** (the spec supersedes the PEPs as the living authority) | `# cite:_note:` rationale anchors |
-| S3 | **The library reference** (`docs.python.org/3/library/typing.html`) | the **runtime** surface only: "the Python runtime does not enforce function and variable type annotations"; `cast(t, v)` returns `v` unchanged; `@overload` bodies are discarded; `get_origin`/`get_args` introspection | the `pure_lib/typing` shim contracts |
+| S3 | **The library reference** (`docs.python.org/3/library/typing.html`) | the **runtime** surface only: "the Python runtime does not enforce function and variable type annotations"; `cast(t, v)` returns `v` unchanged; `@overload` bodies are discarded; `get_origin`/`get_args` introspection | the `src/pycsl_lib/typing` shim contracts |
 | S4 | **CPython's `Lib/typing.py` observable behaviour** | the runtime lower bound the shim must be faithful to (what actually executes — including what is *not* checked) | shim faithfulness audits |
 | S5 | **The typing conformance test suite** (`python/typing` repository) | executable ground truth for checker behaviour; PyCSL declares the subset it conforms to and runs it as a gate (§2.4) | the conformance gate |
 | S6 | **The CPython 3.12 grammar / ASDL schema** | the concrete syntax of annotations and PEP 695 forms; already the source of truth `pure_ast.py` is differentially tested against | `pure_ast` parser productions |
