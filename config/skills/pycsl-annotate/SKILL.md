@@ -533,7 +533,7 @@ For anything beyond the workflow + §1 + worked-examples above, consult these fi
 - **`references/concurrent-model.md`** — §6: `--memory-model concurrent`, `#@ shared`, `#@ mutex_invariant`, `#@ critical`, `#@ thread_entry`, `#@ acquires`/`releases`, `#@ lock_order`.
 - **`references/undefined-behaviour-patterns.md`** — §7: the 5 UB categories (mutation-during-iteration, hash+eq, shared writes, C-extension boundary, finalizers) and their escape annotations.
 - **`references/no-exception-patterns.md`** — §8: writing `#@ no_exception` preconditions, branching-precondition pattern, inter-procedural call sites.
-- **`references/stdlib-stub-awareness.md`** — §9: how stdlib calls resolve to `src/pycsl_lib/` stubs; when to add `#@ \trusted` vs extend the three-artefact set.
+- **`references/stdlib-stub-awareness.md`** — §9: how stdlib calls resolve to the body-verified `src/pycsl_lib/` models (consumed as trusted stubs at the import boundary); when to extend the three-artefact set.
 - **`references/real-world-patterns.md`** — patterns from rclpy verification: file-level anchors, simplified-model classes, IntEnum-as-int, TR-BUG-1/2 workarounds, `no_exception` call templates, trivial-prove class invariants.
 
 ### Pre-existing references

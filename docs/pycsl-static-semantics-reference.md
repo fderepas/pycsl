@@ -1968,13 +1968,25 @@ is adequate (XFAIL tests 0254, 0255, 0256).
 
 ## Appendix C. Trusted Computing Base
 
-The PyCSL stdlib stub library at `src/pycsl_lib/` is part of the
-**trusted computing base**: a wrong contract there silently makes
-proofs unsound, exactly as a wrong axiom does. The stub contracts are
-not derived from the actual CPython implementations — they are
-hand-curated models, anchored to `cpython/Doc/library/*.rst` via
-`calls-english.md` and `calls-pycsl.md`.
+The standard-library models at `src/pycsl_lib/` are consumed as **trusted
+stubs** by an importing program's proof: that program is verified against the
+model's `#@` contracts, not against CPython. Those contracts are therefore a
+trust boundary for the *consumer*.
 
-The three artefacts are kept in lockstep by
-`attic/stdlib-coverage-tooling/stdlib-coverage.py --check`. See
-`config/skills/pycsl-stdlib-coverage/SKILL.md` for the discipline.
+Critically, the contracts are no longer un-checked assertions. Each model's
+bodies are themselves **body-verified within the library** (e.g. the `os`
+filesystem model carries zero bare `\trusted`), so a contract a consumer relies
+on is discharged by the library's own machine-checked proofs. What remains in the
+trusted computing base reduces to:
+
+- the **faithfulness of each model to CPython semantics** — the models are
+  hand-written transcriptions anchored to `cpython/Doc/library/*.rst`; a model
+  that faithfully implements the wrong behaviour would still be internally
+  consistent; and
+- the **cited cross-validated axiom families** at irreducibly-opaque kernels
+  (each pinned by a named `#@ proof rocq|lean` lemma, cross-checked zero-TCB in
+  both Rocq and Lean — see `_AXIOM_REGISTRY` in
+  `src/pycsl/module6_whyml/preamble.py`).
+
+This is a strictly smaller TCB than blanket trust in hand-curated contracts. See
+`config/skills/pycsl-stdlib-coverage/SKILL.md` for the model-building discipline.

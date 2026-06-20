@@ -40,7 +40,9 @@ test-suite/corpus/            ← reference tests (pycsl-reference/), negative t
 bin/                          ← shell scripts (run-reference-tests.sh, annotate.sh, …)
 src/skill2rag/                ← indexes config/skills/ into a Chroma vector store
 data/                         ← Why3 stdlib stubs and other data
-src/pycsl_lib/                ← PyCSL stdlib stubs (renamed from data/lib_stubs/)
+src/pycsl_lib/                ← PyCSL verified standard library (body-verified stdlib
+                                models, consumed as trusted stubs at import boundaries;
+                                the old un-promoted stub set is in attic/pycsl_lib/)
 src/pycsl/exception_model.py  ← Phase 1 trigger-condition table for the
                                 `no_exception` contract directive; consumed
                                 by Module 4 (validation) and Module 6

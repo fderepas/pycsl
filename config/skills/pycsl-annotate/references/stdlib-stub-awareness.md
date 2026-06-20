@@ -10,15 +10,15 @@ and you need to know how PyCSL models the call.
 > workflow. This file is the annotator-workflow summary only.
 
 Calls to standard-library APIs resolve through PyCSL's import
-resolver to **curated stubs** under `src/pycsl_lib/`. **Stubs are
-body-verified — 0 `\trusted`** (see
-[`../../agent-stdlib-annotate/SKILL.md`](../../agent-stdlib-annotate/SKILL.md)):
+resolver to the **standard-library models** under `src/pycsl_lib/`, consumed as
+trusted stubs at the import boundary. **Those models are body-verified — 0
+`\trusted`** (see [`../../pycsl-stdlib-coverage/SKILL.md`](../../pycsl-stdlib-coverage/SKILL.md)):
 each function proves its own contract (`return 0` already proves
 `ensures \result >= 0`), state is modeled concretely like
 `unix-filesystem/UnixInodeFileSystem.py`, and an irreducibly-opaque
 kernel uses an abstract `val` + a named `#@ proof rocq/lean` citation,
-never `\trusted`. *(Legacy generated stubs may still carry `\trusted`;
-they are being migrated — `attic/stdlib-coverage-tooling/check-no-trusted-stubs.py` tracks them.)*
+never `\trusted`. *(The old generated stub set that still carried `\trusted` was
+retired to `attic/pycsl_lib/`; the promoted library is body-verified.)*
 Practical implications for annotating a function that calls stdlib:
 
 - **Stub returns are `int`-valued in the model.** `os.path.exists(p)`
