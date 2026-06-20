@@ -252,6 +252,22 @@ def _parse_args() -> argparse.Namespace:
                              "WhyML is emitted, WITHOUT running `why3 prove --type-only`. "
                              "Use for fast byte-diff / dev sweeps and when why3 is absent. "
                              "(A missing why3 is already treated as skip-not-fail by the gate.)")
+    g_proof.add_argument("--check-vacuity", action="store_true",
+                        help="Run the NON-VACUITY GATE. After a file verifies, the gate "
+                             "re-proves, per body-bearing function, a probe with an extra "
+                             "`ensures false`: if that goal proves Valid the function's "
+                             "assumed context is INCONSISTENT and its 'green' is VACUOUS "
+                             "(every postcondition, axiom-backed or not, is discharged for "
+                             "free) — the gate then FAILS the run, naming the function(s). A "
+                             "vacuous context proves `false` near-instantly, so the probe "
+                             "uses a short per-goal timelimit. Currently OPT-IN (it surfaces "
+                             "pre-existing vacuities, e.g. csys yiq_to_rgb); intended to "
+                             "become default-on once the corpus is swept clean. A missing "
+                             "why3 skips the gate (not a failure).")
+    g_proof.add_argument("--vacuity-timelimit", metavar="SECS", default="5",
+                        help="Per-goal timelimit (seconds) for the non-vacuity gate probe "
+                             "(default 5). An inconsistent context derives `false` quickly; "
+                             "raise it if you suspect a slow-to-manifest vacuity.")
     g_proof.add_argument("--rocq", metavar="DIR", default=None,
                         help="On SMT prover failure, generate Rocq (Coq) "
                              "proof obligations in DIR. Why3 emits .v files "
@@ -656,6 +672,90 @@ import re as _re
 _GOAL_LOC_RE = _re.compile(r'^File "(?P<file>.*)", line (?P<line>\d+), characters')
 
 
+# --- Non-vacuity gate -------------------------------------------------------------
+# A function whose ASSUMED context (its preconditions + the `ensures` it assumes from
+# every callee at its call sites) is logically INCONSISTENT proves any postcondition —
+# its "green" is vacuous. The gate detects this by re-proving a probe in which every
+# body-bearing function carries an extra `ensures { [@expl:vacuity] false }`: that goal
+# is provable IFF the context is inconsistent. (Empirically, an `#@ assert false` in the
+# BODY is position-sensitive/unreliable; the postcondition form is not — it is the
+# reliable probe.) See getting-better/csys-vacuity-investigation/ROOT-CAUSE.md.
+
+# The body-start separator of a top-level `let`/`let function`: a line beginning with
+# exactly two spaces then `=` (own line `  =` or inline `  = <expr>`). Nested
+# `let … = … in` inside a body is indented deeper and never matches; `val` stubs have
+# no `=` body and are correctly left unprobed (they are trusted, not verified).
+_BODY_EQ_RE = _re.compile(r'^  =(\s|$)')
+
+
+# A top-level function definition header: `  let [rec] [function] [ghost] <name>`.
+_LET_FN_RE = _re.compile(r'^  let (?:rec )?(?:function )?(?:ghost )?(\w+)\b')
+
+
+def _function_body_eqs(mlw_code: str) -> "Tuple[List[Tuple[str, int]], List[str]]":
+    """Return ([(fname, body_eq_line_index)], lines) for every top-level body-bearing
+    function. The body `=` is the first `^  =` line after a `^  let <name>` header
+    (only contract clauses sit between them). `val` stubs (no `=`) are skipped."""
+    lines = mlw_code.splitlines()
+    res: List[Tuple[str, int]] = []
+    cur: Optional[str] = None
+    for i, line in enumerate(lines):
+        m = _LET_FN_RE.match(line)
+        if m:
+            cur = m.group(1)
+        elif cur is not None and _BODY_EQ_RE.match(line):
+            res.append((cur, i))
+            cur = None
+    return res, lines
+
+
+def _run_vacuity_gate(mlw_code: str, provers: List[str],
+                      args: argparse.Namespace) -> "Optional[List[str]]":
+    """Run the non-vacuity gate. Returns the list of vacuous function names (empty = all
+    contexts consistent), or None if why3 is absent (skip-not-fail, like the typecheck
+    gate).
+
+    PER-FUNCTION probe (no cross-contamination): for each body-bearing function it emits
+    a variant in which ONLY that function carries an extra `ensures { false }`, then proves
+    JUST that postcondition goal (`-g <probe>:<line>`). A function whose assumed context is
+    inconsistent proves `false`; a sound one cannot. Adding `ensures false` to every
+    function at once would be wrong — a callee's injected `false` would propagate into every
+    caller's assumed context and flag them all."""
+    import tempfile
+    fns, lines = _function_body_eqs(mlw_code)
+    if not fns:
+        return []
+    base_cmd = ["why3", "prove", "-a", "split_vc"]
+    if "\n  inductive " in mlw_code:
+        base_cmd += ["-a", "induction_pr"]
+    tl = str(getattr(args, "vacuity_timelimit", "5"))
+    vac: List[str] = []
+    try:
+        for fname, idx in fns:
+            probe_lines = lines[:idx] + ["    ensures { false }"] + lines[idx:]
+            probe_line_no = idx + 1   # 1-based line of the inserted `ensures { false }`
+            fd, probe_path = tempfile.mkstemp(suffix=".mlw", prefix=".pycsl_vac_")
+            try:
+                with os.fdopen(fd, "w") as f:
+                    f.write("\n".join(probe_lines) + "\n")
+                sel = [f"{probe_path}:{probe_line_no}"]
+                proved = False
+                for p in provers:
+                    r = _run_why3_prove(base_cmd, p, tl, probe_path, sel)
+                    if any(_verdict_rank(rl) == _VERDICT_VALID
+                           for _, rl in _parse_goal_blocks(r.stdout)):
+                        proved = True
+                        break
+                if proved:
+                    vac.append(fname)
+            finally:
+                if os.path.exists(probe_path):
+                    os.remove(probe_path)
+    except FileNotFoundError:
+        return None
+    return vac
+
+
 def _residual_selectors(merged_output: str, mlw_filename: str) -> "List[str]":
     """Return the DISTINCT `<file>:<line>` Why3 sub-goal selectors for every goal in
     *merged_output* that is NOT yet Valid. Used to re-run the next prover ONLY on the
@@ -869,8 +969,36 @@ def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argp
         invalid_goals = [line for line in output.splitlines() if "Invalid" in line]
         smt_proved = len([line for line in output.splitlines() if "Valid" in line])
 
+        def _gate_vacuity_then_succeed(success_msg: str) -> None:
+            """Run the non-vacuity gate before declaring success. If any function's
+            context is vacuous, FAIL the run instead of reporting the (vacuous) green."""
+            if getattr(args, "check_vacuity", False):
+                vac = _run_vacuity_gate(mlw_code, provers, args)
+                if vac:
+                    print("\n[-] NON-VACUITY GATE FAILED: the following function(s) verify "
+                          "VACUOUSLY — their assumed context is logically inconsistent, so "
+                          "every postcondition is discharged for free (the 'green' is meaningless):")
+                    for name in vac:
+                        print(f"    {name}  (proves `ensures false`)")
+                    print("    Root cause is usually several nonlinear integer-division facts "
+                          "coexisting in one context (helper `result == …//…` ensures, "
+                          "division-bound inequalities, disjunctive value-equalities). See "
+                          "getting-better/csys-vacuity-investigation/ROOT-CAUSE.md.")
+                    print("    (Opt out with --no-vacuity-check; tune with --vacuity-timelimit.)")
+                    if getattr(args, "diagnostics_json", False):
+                        print(_json.dumps({
+                            "code": "PYCSL-VACUOUS",
+                            "stage": "vacuity-gate",
+                            "file": getattr(args, "file", ""),
+                            "line": 0,
+                            "message": "vacuous context: " + ", ".join(vac),
+                        }, sort_keys=True), file=sys.stderr)
+                    print("\n[-] Verification FAILED (vacuous proof). Check the solver output.")
+                    sys.exit(1)
+            print(success_msg)
+
         if returncode == 0 and not unknown_goals and not invalid_goals and ("Valid" in output or not output):
-            print(f"\n[+] Verification SUCCESS! All contracts formally proven.")
+            _gate_vacuity_then_succeed("\n[+] Verification SUCCESS! All contracts formally proven.")
         else:
             unproven_count = len(unknown_goals) + len(invalid_goals)
             rocq_proved = 0
@@ -889,8 +1017,9 @@ def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argp
 
             remaining = unproven_count - rocq_proved
             if remaining <= 0 and rocq_proved > 0:
-                print(f"\n[+] Verification SUCCESS! All contracts formally proven "
-                      f"({smt_proved} SMT + {rocq_proved} Rocq).")
+                _gate_vacuity_then_succeed(
+                    f"\n[+] Verification SUCCESS! All contracts formally proven "
+                    f"({smt_proved} SMT + {rocq_proved} Rocq).")
             else:
                 if unknown_goals:
                     print(f"\n[-] {len(unknown_goals)} goal(s) remain unproven after all provers:")
