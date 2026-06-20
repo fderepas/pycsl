@@ -1006,6 +1006,7 @@ class UnixInodeFileSystem:
     #@ proof rocq UnixFs.Dir.dir_scan_result_value
     #@ proof lean UnixFs.Dir.dir_scan_result_value
     #@ verify_module ReadMod
+    #@ no_inline
     def _dir_lookup(self, block_num: int, pathname: str) -> int:
         found = -1
         #@ assert dir_scan_prefix(self.dir, 5, pathname, 0, -1)

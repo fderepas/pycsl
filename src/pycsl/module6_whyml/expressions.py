@@ -1305,39 +1305,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return None
         return uc - lc
 
-    def _recognize_field_decode_idiom(
-            self, expr: Dict[str, Any], local_refs: Set[str],
-            invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> Optional[str]:
-        """FAITHFUL READ-NAME LOWERING (the narrow null-terminated-field recognizer).
-
-        Match EXACTLY the on-disk fixed-width null-padded NAME-field decode idiom
+    def _match_field_decode_idiom(
+            self, expr: Dict[str, Any]
+    ) -> Optional[tuple]:
+        """PURE STRUCTURAL match of the null-terminated-field NAME-decode idiom
 
             <arr>[<a>:<b>].split(b'\\x00')[0].decode('utf-8', errors='ignore')
 
-        over a byte-array SLICE, and lower it to the genuine codec TERM
+        Returns `(slice_node, lower_ir, width)` when ALL five narrowness
+        conditions (see `_recognize_field_decode_idiom`) hold, else None.
 
-            (field_to_str <arr> <a> <b-a>)
-
-        — the SAME abstract `field_to_str` symbol the cross-validated
-        `field_to_str_round_trip` / `field_to_str_frame` / `slot_name_byte_decode`
-        axioms constrain (declared `val function`, so it is program-callable). This is a
-        faithful Python->WhyML lowering, NOT a `val`/assumed-ensures shim and NOT a new
-        trust: `bytes[a:b].split(b'\\x00')[0].decode('utf-8', errors='ignore')` IS the
-        bytes from `a` up to the first null within the `b-a`-byte window, read as a
-        UTF-8 string — exactly `field_to_str`'s scan-to-first-null definition.
-
-        NARROWNESS (provably corpus-confined): EVERY one of the following must hold, or
-        the recognizer declines (returns None, leaving every other `.split`/`.decode`
-        use on its existing path, byte-identical):
-          1. the outer call is `decode` with first arg the string literal `'utf-8'`;
-          2. its receiver is `Subscript[0]` (the `[0]` first split-part);
-          3. over a `split` Call whose sole arg is the byte literal `b'\\x00'`;
-          4. whose receiver is a `SliceAccess` (`arr[a:b]`, a genuine `[a:b]` slice);
-          5. with a statically-known field WIDTH `b-a` (so the term carries the literal
-             width the round-trip axiom keys on).
-        Any other `split`/`decode` shape (non-`b'\\x00'` separator, non-`[0]` index,
-        non-utf8 codec, non-slice receiver, dynamic width) is NOT matched."""
+        Factored out so BOTH the value-lowering recognizer AND the
+        local-VARIABLE typing pass key on the SAME shape: the recognizer
+        lowers the matched value to a `field_to_str …` STRING term, so any
+        local assigned this idiom must be declared a string-typed ref (never
+        `ref 0 : ref int`). It performs NO emission (no `_expr_to_whyml`), so
+        it is safe to call during the pre-declaration classification pass."""
         # (1) outer decode('utf-8', ...)
+        if not isinstance(expr, dict):
+            return None
         dargs = expr.get("args", [])
         if not dargs or dargs[0].get("type") != "String" \
                 or dargs[0].get("value") != "utf-8":
@@ -1377,6 +1363,44 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         width = self._static_width(lower_ir, upper_ir)
         if width is None or width <= 0:
             return None
+        return (slice_node, lower_ir, width)
+
+    def _recognize_field_decode_idiom(
+            self, expr: Dict[str, Any], local_refs: Set[str],
+            invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """FAITHFUL READ-NAME LOWERING (the narrow null-terminated-field recognizer).
+
+        Match EXACTLY the on-disk fixed-width null-padded NAME-field decode idiom
+
+            <arr>[<a>:<b>].split(b'\\x00')[0].decode('utf-8', errors='ignore')
+
+        over a byte-array SLICE, and lower it to the genuine codec TERM
+
+            (field_to_str <arr> <a> <b-a>)
+
+        — the SAME abstract `field_to_str` symbol the cross-validated
+        `field_to_str_round_trip` / `field_to_str_frame` / `slot_name_byte_decode`
+        axioms constrain (declared `val function`, so it is program-callable). This is a
+        faithful Python->WhyML lowering, NOT a `val`/assumed-ensures shim and NOT a new
+        trust: `bytes[a:b].split(b'\\x00')[0].decode('utf-8', errors='ignore')` IS the
+        bytes from `a` up to the first null within the `b-a`-byte window, read as a
+        UTF-8 string — exactly `field_to_str`'s scan-to-first-null definition.
+
+        NARROWNESS (provably corpus-confined): EVERY one of the following must hold, or
+        the recognizer declines (returns None, leaving every other `.split`/`.decode`
+        use on its existing path, byte-identical):
+          1. the outer call is `decode` with first arg the string literal `'utf-8'`;
+          2. its receiver is `Subscript[0]` (the `[0]` first split-part);
+          3. over a `split` Call whose sole arg is the byte literal `b'\\x00'`;
+          4. whose receiver is a `SliceAccess` (`arr[a:b]`, a genuine `[a:b]` slice);
+          5. with a statically-known field WIDTH `b-a` (so the term carries the literal
+             width the round-trip axiom keys on).
+        Any other `split`/`decode` shape (non-`b'\\x00'` separator, non-`[0]` index,
+        non-utf8 codec, non-slice receiver, dynamic width) is NOT matched."""
+        m = self._match_field_decode_idiom(expr)
+        if m is None:
+            return None
+        slice_node, lower_ir, width = m
         base = slice_node.get("value", {})
         arr = self._array_coerce_arg(
             self._expr_to_whyml(base, local_refs, invariant_ctx, subst))

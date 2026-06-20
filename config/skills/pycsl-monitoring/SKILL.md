@@ -245,6 +245,17 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
    opaque name-scan — the dirscan-fidelity class, NOT global-init); needs the dir_lookup
    correspondence folded into a cross-validated predicate (the `block_content_eq` pattern).
    *(`#@ fresh_globals` milestone, 2026-06-18; the first os trust retirement.)*
+15. **Per-retirement verification MUST include the full `__init__` TYPECHECK gate — `--fun`
+   body gates + byte-diff (`--no-typecheck`) HIDE type errors.** A `--fun` leaf gate typechecks
+   only the leaf; the corpus byte-diff sweep runs `--no-typecheck` (emission only). Neither
+   catches an emitter type leak that only manifests when the leaf is INLINED into a different
+   host context (a string-typed value assigned to an int-typed local in a wrapper). The #53
+   `_dir_lookup` faithful-name landing passed every `--fun`+byte-diff check yet left the os
+   `__init__` gate RED for three retirements because `pycsl pure_lib/os/__init__.py` (the full
+   typecheck) was never re-run. **Rule:** after ANY emitter change touching value lowering, run
+   `pycsl pure_lib/os/__init__.py` (which typechecks the WHOLE module, all inline sites) at
+   least once per retirement — not just `--fun`/byte-diff. *(faithful-name string-type leak,
+   2026-06-20; `getting-better/PROPOSAL-faithful-name-stringtype-fix.patch`.)*
 
 ## B. Coherent-and-wrong catalog for formal tests (what the monitor hunts)
 

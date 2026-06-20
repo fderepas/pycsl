@@ -245,7 +245,7 @@ def makedirs(name: str, mode=0o777, exist_ok=False):
 #@ requires True
 #@ assigns \nothing
 #@ ensures \length(\result) <= 16
-def listdir(filepath='.') -> list:
+def listdir(filepath: str = '.') -> list:
     """List directory contents. Returns list of entry names (≤ 16; return-arr.md)."""
     ino = _filesystem._dir_lookup(5, filepath) if filepath != '.' else 0
     if ino < 0 and filepath != '.':
@@ -279,7 +279,7 @@ def listdir(filepath='.') -> list:
 #@ requires True
 #@ assigns \nothing
 #@ ensures \length(\result) <= 16
-def scandir(filepath='.') -> list:
+def scandir(filepath: str = '.') -> list:
     """Return an iterator of DirEntry inode numbers for the directory (≤ 16; return-arr.md)."""
     ino = _filesystem._dir_lookup(5, filepath) if filepath != '.' else 0
     if ino < 0 and filepath != '.':
@@ -494,7 +494,7 @@ def readlink(filepath: str, *, dir_fd=None):
 #@ requires True
 #@ assigns _filesystem.disk
 #@ ensures \result == 0 or \result == -1
-def truncate(filepath, length):
+def truncate(filepath: str, length):
     """Truncate a file to a specified length."""
     return _filesystem.sys_truncate(filepath, length)
 
@@ -619,7 +619,7 @@ def islink(filepath):
 #@ requires True
 #@ assigns \nothing
 #@ ensures True
-def walk(top, topdown=True, onerror=None, followlinks=False):
+def walk(top: str, topdown=True, onerror=None, followlinks=False):
     """Directory tree generator. Simplified: yields one level from root."""
     names = listdir(top)
     dirs = []
