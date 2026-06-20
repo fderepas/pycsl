@@ -150,7 +150,8 @@ sub-module thereof) are classified as `UNVERIFIED`.
 **Detection mechanism.** A new import-classification pass runs after
 Module 4 semantic analysis and before Module 5 IR emission. It walks
 the AST for `ast.Import` / `ast.ImportFrom`, classifies each module
-against the deny-list, the trusted-stub set (under `src/pycsl_lib/`),
+against the deny-list, the standard-library model set (under `src/pycsl_lib/`,
+consumed as trusted stubs at the import boundary),
 or the residual `UNRESOLVED` bucket. Only `UNVERIFIED` triggers a
 hard error.
 

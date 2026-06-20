@@ -1,5 +1,13 @@
 # Stdlib stub annotation conventions
 
+> **⚠️ HISTORICAL.** The L1–L5 *annotation-depth promotion* workflow described
+> here ran over the old stdlib stub set and its coverage tooling, both retired to
+> `attic/` when the formally-verified `pure_lib` was promoted to `src/pycsl_lib/`
+> (see `lets-move.md`). The library is now body-verified, not promoted through
+> depth levels. For building/extending it today, use the live
+> **`pycsl-stdlib-coverage`** skill (the convergence-loop). The contract-writing
+> conventions below remain useful as reference.
+
 How to promote a `src/pycsl_lib/<module>.py` stub function from
 L2 (trusted, no semantic content) to L4 (full contract) or L5
 (L4 + reference test). Operationalizes the strategy in

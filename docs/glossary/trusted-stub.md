@@ -5,7 +5,10 @@ contract becomes an in-scope assumption for every caller's goals.
 
 In PyCSL, trusted stubs usually appear in one of two places:
 
-- library stubs under `src/pycsl_lib/`
+- standard-library models under `src/pycsl_lib/`, when consumed by an importing
+  program's proof (the program trusts the model's contract rather than re-proving
+  it — though the model's own bodies are body-verified within the library, so the
+  contract is itself discharged, not merely asserted)
 - sliced or imported functions that are modeled by contract in the current
   verification run
 
