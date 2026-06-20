@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from module6_whyml.identifiers import op_translate, whyml_ident, stable_hash
 from module6_whyml.struct_format import parse_format
@@ -841,6 +841,33 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
     def _handle_dotted_call(self, func_name: str, args: List[str]) -> str:
         """Handle dotted method calls (x.method(...)): emit abstract val declaration."""
+        # module-emission.md (§T.2.7m): a CROSS-MODULE `self.<m>(...)` call — the callee
+        # lives in a DIFFERENT `#@ verify_module` group than the function currently being
+        # emitted — is lowered to the callee's PROVEN interface contract via the Why3
+        # `clone`-refinement interface module `<G>Sig`, NOT to an assumed abstract `val`
+        # stub. The interface `val <fn>` carries the callee's real contract (proved by the
+        # provider module's `'refn'vc`), so the caller gets a proven boundary with NO new
+        # trust. Active only on the `_transpile_modular` path (`_verify_module_of` set);
+        # default flat path leaves this dict empty → byte-identical.
+        vmod_of = getattr(self, "_verify_module_of", None)
+        if vmod_of and func_name.startswith("self.") and self._current_self_type:
+            callee_whyml = whyml_ident(
+                f"{self._current_self_type}__{func_name[len('self.'):]}")
+            callee_group = vmod_of.get(callee_whyml)
+            cur_group = getattr(self, "_current_emit_group", None)
+            if callee_group is not None and callee_group != cur_group:
+                # Resolve the callee's declared signature so the args are coerced to the
+                # interface val's parameter types (the Sig `val` is emitted with the same
+                # signature from the SAME maps).
+                ret_type, param_types, _, _ = self._resolve_dotted_signature(func_name)
+                n = len(args)
+                while len(param_types) < n:
+                    param_types.append("int")
+                param_types = param_types[:n]
+                coerced = self._coerce_dotted_args(args, param_types)
+                sig_mod = f"{callee_group}Sig"
+                return (f"({sig_mod}.{callee_whyml} "
+                        + " ".join(["self"] + coerced) + ")").replace("  ", " ")
         # Stateful composition: when this is `self.<m>(...)` inside a composer and
         # `<self_type>__<m>` is a flattened provider (`_apply_composition`), call it
         # CONCRETELY — `(<self_type>__<m> self args)` — so the provider's full
@@ -1213,6 +1240,151 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             self._add_abstract_op(f"predicate {name}")
         return f"({name} {' '.join(args)})" if args else name
 
+    @staticmethod
+    def _is_null_byte_lit(ir: Dict[str, Any]) -> bool:
+        """True iff `ir` is the byte literal `b'\\x00'` — represented in the IR as an
+        `ArrayLit` of a single `Number 0` (the bytes literal lowering)."""
+        if ir.get("type") != "ArrayLit":
+            return False
+        elts = ir.get("elts", [])
+        return (len(elts) == 1
+                and elts[0].get("type") == "Number"
+                and elts[0].get("value") == 0)
+
+    def _linear_form(self, ir: Dict[str, Any]) -> Optional[Tuple[int, Dict[str, int]]]:
+        """Evaluate an integer IR node to an AFFINE form (const, {var: coeff}) over
+        `BinOp(+/-/*)` of `Number` and `Var` leaves. Returns None if any sub-term is
+        non-affine (e.g. var*var, a Call, a Subscript). Used to compute the NULL-padded
+        field WIDTH `upper - lower` as a literal even though both bounds carry the loop
+        variable `i`: the difference cancels `i` and folds to the constant `30`, the
+        SAME literal width the cross-validated `slot_name_byte_decode` /
+        `field_to_str_round_trip` axioms key on."""
+        t = ir.get("type")
+        if t == "Number":
+            v = ir.get("value")
+            if isinstance(v, (int, float)) and float(v).is_integer():
+                return (int(v), {})
+            return None
+        if t == "Var":
+            return (0, {ir.get("name", ""): 1})
+        if t == "BinOp":
+            lf = self._linear_form(ir.get("left", {}))
+            rf = self._linear_form(ir.get("right", {}))
+            if lf is None or rf is None:
+                return None
+            (lc, lv), (rc, rv) = lf, rf
+            op = ir.get("op")
+            if op in ("+", "-"):
+                sgn = 1 if op == "+" else -1
+                out = dict(lv)
+                for k, c in rv.items():
+                    out[k] = out.get(k, 0) + sgn * c
+                return (lc + sgn * rc, {k: c for k, c in out.items() if c != 0})
+            if op == "*":
+                # affine only if one side is a pure constant
+                if not lv:
+                    return (lc * rc, {k: lc * c for k, c in rv.items()})
+                if not rv:
+                    return (lc * rc, {k: rc * c for k, c in lv.items()})
+            return None
+        return None
+
+    def _static_width(self, lower_ir: Dict[str, Any],
+                      upper_ir: Dict[str, Any]) -> Optional[int]:
+        """The field WIDTH `upper - lower` as a literal int, or None if it is not a
+        constant (var-coefficients must all cancel)."""
+        lf = self._linear_form(lower_ir)
+        uf = self._linear_form(upper_ir)
+        if lf is None or uf is None:
+            return None
+        (lc, lv), (uc, uv) = lf, uf
+        diff_vars = dict(uv)
+        for k, c in lv.items():
+            diff_vars[k] = diff_vars.get(k, 0) - c
+        if any(c != 0 for c in diff_vars.values()):
+            return None
+        return uc - lc
+
+    def _recognize_field_decode_idiom(
+            self, expr: Dict[str, Any], local_refs: Set[str],
+            invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """FAITHFUL READ-NAME LOWERING (the narrow null-terminated-field recognizer).
+
+        Match EXACTLY the on-disk fixed-width null-padded NAME-field decode idiom
+
+            <arr>[<a>:<b>].split(b'\\x00')[0].decode('utf-8', errors='ignore')
+
+        over a byte-array SLICE, and lower it to the genuine codec TERM
+
+            (field_to_str <arr> <a> <b-a>)
+
+        — the SAME abstract `field_to_str` symbol the cross-validated
+        `field_to_str_round_trip` / `field_to_str_frame` / `slot_name_byte_decode`
+        axioms constrain (declared `val function`, so it is program-callable). This is a
+        faithful Python->WhyML lowering, NOT a `val`/assumed-ensures shim and NOT a new
+        trust: `bytes[a:b].split(b'\\x00')[0].decode('utf-8', errors='ignore')` IS the
+        bytes from `a` up to the first null within the `b-a`-byte window, read as a
+        UTF-8 string — exactly `field_to_str`'s scan-to-first-null definition.
+
+        NARROWNESS (provably corpus-confined): EVERY one of the following must hold, or
+        the recognizer declines (returns None, leaving every other `.split`/`.decode`
+        use on its existing path, byte-identical):
+          1. the outer call is `decode` with first arg the string literal `'utf-8'`;
+          2. its receiver is `Subscript[0]` (the `[0]` first split-part);
+          3. over a `split` Call whose sole arg is the byte literal `b'\\x00'`;
+          4. whose receiver is a `SliceAccess` (`arr[a:b]`, a genuine `[a:b]` slice);
+          5. with a statically-known field WIDTH `b-a` (so the term carries the literal
+             width the round-trip axiom keys on).
+        Any other `split`/`decode` shape (non-`b'\\x00'` separator, non-`[0]` index,
+        non-utf8 codec, non-slice receiver, dynamic width) is NOT matched."""
+        # (1) outer decode('utf-8', ...)
+        dargs = expr.get("args", [])
+        if not dargs or dargs[0].get("type") != "String" \
+                or dargs[0].get("value") != "utf-8":
+            return None
+        recv = expr.get("receiver")
+        if not isinstance(recv, dict):
+            return None
+        # (2) receiver is Subscript[0]
+        if recv.get("type") != "Subscript":
+            return None
+        idx = recv.get("index", {})
+        if idx.get("type") != "Number" or idx.get("value") != 0:
+            return None
+        split_call = recv.get("value", {})
+        # (3) ... over a `split(b'\x00')` Call
+        if split_call.get("type") != "Call":
+            return None
+        sfunc = split_call.get("func", "")
+        if not (sfunc == "split" or (isinstance(sfunc, str) and sfunc.endswith(".split"))):
+            return None
+        sargs = split_call.get("args", [])
+        if len(sargs) != 1 or not self._is_null_byte_lit(sargs[0]):
+            return None
+        slice_node = split_call.get("receiver", {})
+        # (4) ... whose receiver is a genuine `arr[a:b]` slice
+        if slice_node.get("type") != "SliceAccess":
+            return None
+        sl = slice_node.get("slice", {})
+        if sl.get("type") != "Slice" or sl.get("step") is not None:
+            return None
+        lower_ir = sl.get("lower")
+        upper_ir = sl.get("upper")
+        if lower_ir is None or upper_ir is None:
+            return None
+        # (5) statically-known field WIDTH (upper - lower), even though both bounds
+        # carry the loop variable: the affine difference cancels it to the constant.
+        width = self._static_width(lower_ir, upper_ir)
+        if width is None or width <= 0:
+            return None
+        base = slice_node.get("value", {})
+        arr = self._array_coerce_arg(
+            self._expr_to_whyml(base, local_refs, invariant_ctx, subst))
+        off = self._expr_to_whyml(lower_ir, local_refs, invariant_ctx, subst)
+        # Genuine codec TERM — the abstract `field_to_str` symbol the axioms key on
+        # (declared `val function` in preamble._AXIOM_FUNCTIONS, no ensures/shim).
+        return f"(field_to_str {arr} {off} {width})"
+
     def _handle_call_expr(self, expr: Dict[str, Any], local_refs: Set[str],
                           invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
         func_name = expr["func"]
@@ -1224,6 +1396,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if _le is not None:
                 return _le
         args = [self._expr_to_whyml(a, local_refs, invariant_ctx, subst) for a in expr["args"]]
+
+        # FAITHFUL READ-NAME LOWERING (null-terminated byte-field decode recognizer).
+        # Recognize the EXACT idiom `arr[a:b].split(b'\x00')[0].decode('utf-8', ...)`
+        # over a byte-array slice and lower it to the genuine codec TERM
+        # `field_to_str arr a (b-a)` — a faithful Python->WhyML lowering (same trust
+        # class as lowering `+` to integer add), NOT a per-program trust / val-shim.
+        # Must run BEFORE the generic `decode` -> opaque-int / decode_str_n paths.
+        if func_name == "decode":
+            fd = self._recognize_field_decode_idiom(expr, local_refs,
+                                                    invariant_ctx, subst)
+            if fd is not None:
+                return fd
 
         # sum-types: an applied `#@ datatype` constructor (`Circle(5)`) builds the variant.
         if func_name in self._constructors:

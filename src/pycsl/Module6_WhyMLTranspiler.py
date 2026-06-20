@@ -396,6 +396,24 @@ class Module6_WhyMLTranspiler(
 
         self._all_record_fields = self._collect_record_fields(type_decls)
 
+        # module-emission.md: OPT-IN axiom isolation. If a function carries
+        # `#@ verify_module <name>` AND is emitted here as a REAL `let` body (i.e. it is
+        # verified in THIS unit — not an imported/`\trusted` stub, and not inlined away),
+        # emit each named group into its OWN top-level Why3 `module` (shared infra
+        # re-declared, per-module axiom selection) so the cited `#@ proof` axioms of one
+        # group are NOT in scope for another's goals. The split's whole purpose is to
+        # isolate the SMT context of a function's BODY VC; an importer that pulls the
+        # tagged function in as a trusted stub gains nothing from the split (it never
+        # proves that body) and the cross-module `clone`-refinement has no real `let` to
+        # discharge it — so for an importer the tag is inert and we take the flat path
+        # (which keeps every importer byte-identical). Default (no real-body tag) → the
+        # single flat `module PyCSL_Program`, byte-identical. (Why3 `scope` does NOT
+        # isolate axioms — a scope is a namespace; only separate `module`s do; spike
+        # `getting-better/20260620-0640-scope-emission-milestone0-YES.md`.)
+        if any(f.get("verify_module") and not f.get("trusted") and not f.get("abstract")
+               for f in functions):
+            return self._transpile_modular(functions, type_decls)
+
         needs = self._scan_preamble_needs(functions, all_bodies)
         out = self._emit_preamble(needs)
         out += self._emit_shared_state()
@@ -586,3 +604,334 @@ class Module6_WhyMLTranspiler(
         out.append("end")
         self._insert_abstract_val_block(out)
         return "\n".join(out)
+
+    # ------------------------------------------------------------------
+    # module-emission.md — OPT-IN axiom isolation via separate Why3 modules
+    # ------------------------------------------------------------------
+    def _verify_module_groups(self, functions: List[Dict[str, Any]]) -> Dict[str, List[str]]:
+        """{group-name -> [whyml function names]} for every `#@ verify_module <name>`
+        group, deterministic. Empty when no function is tagged (→ flat path)."""
+        groups: Dict[str, List[str]] = {}
+        for f in functions:
+            g = f.get("verify_module")
+            if g:
+                groups.setdefault(g, []).append(whyml_ident(f["name"]))
+        return groups
+
+    def _compute_shared_module_maps(self, functions: List[Dict[str, Any]]) -> None:
+        """Populate the SHARED cross-function lookup state (return-types, contract-
+        propagation ensures maps, no_exception summary, …) from the FULL function set
+        — identical to the maps `transpile()` builds at lines ~491-588. These are
+        global to the program (a cross-module call still needs the callee's propagated
+        contract), so they are computed ONCE here and reused for every emitted module."""
+        self._module_func_names = {whyml_ident(func["name"]) for func in functions}
+        self._sibling_concrete_methods = {whyml_ident(func["name"]) for func in functions
+                                          if func.get("sibling_concrete")}
+        self._composed_provider_methods = set(self.ir.get("composed_provider_methods", []))
+        self._inductive_preds = (
+            {ind["name"] for ind in self.ir.get("inductive_decls", [])}
+            | {m["name"] for ind in self.ir.get("inductive_decls", [])
+               for m in ind.get("members", [])})
+        funcs_for_maps = functions + self._mixin_dep_pseudo_functions(functions)
+        self._module_method_return_types = self._build_method_return_type_map(funcs_for_maps)
+        self._module_method_param_types = self._build_method_param_types_map(funcs_for_maps)
+        self._module_method_formal_params = {
+            f["name"]: list(f.get("formal_params", [])) for f in funcs_for_maps}
+        self._module_method_param_defaults = {
+            f["name"]: dict(f.get("param_defaults", {})) for f in funcs_for_maps}
+        self._module_method_param_whyml_types = \
+            self._build_method_param_whyml_types_by_name(funcs_for_maps)
+        self._module_method_return_annotations = \
+            self._build_method_return_annotation_map(funcs_for_maps)
+        self._module_string_seq_funcs = {
+            f["name"] for f in funcs_for_maps if self._func_returns_string_seq(f)}
+        self._module_method_result_ensures = self._build_method_result_ensures_map(funcs_for_maps)
+        self._module_method_param_result_ensures = self._build_method_param_result_ensures_map(funcs_for_maps)
+        self._module_method_field_result_ensures = self._build_method_field_result_ensures_map(funcs_for_maps)
+        self._module_method_field_param_result_ensures = \
+            self._build_method_field_param_result_ensures_map(funcs_for_maps)
+        self._module_method_writes = self._build_method_writes_map(funcs_for_maps)
+        self._module_method_field_old_ensures = self._build_method_field_old_ensures_map(funcs_for_maps)
+        self._module_method_field_param_post_ensures = \
+            self._build_method_field_param_post_ensures_map(funcs_for_maps)
+        self._module_method_field_param_frame_ensures = \
+            self._build_method_field_param_frame_ensures_map(funcs_for_maps)
+        self._module_method_result_frame_ensures = \
+            self._build_method_result_frame_ensures_map(funcs_for_maps)
+        for pf in self._mixin_dep_pseudo_functions(functions):
+            self._module_method_return_types[pf["name"]] = pf["_mixin_ret_whyml"]
+        self._build_callee_no_exception_summary(functions)
+
+    # ------------------------------------------------------------------
+    # module-emission.md — per-module emission helpers
+    # ------------------------------------------------------------------
+    def _emit_prefunctions_infra(self, functions: List[Dict[str, Any]],
+                                 type_decls: List[Dict[str, Any]],
+                                 all_bodies: List[Any],
+                                 module_name: str,
+                                 emit_axioms: bool,
+                                 axiom_ir: Dict[str, Any]) -> List[str]:
+        """Emit the SHARED pre-functions infrastructure (preamble `use`s + helpers +
+        predicates + `val function` symbols + record type + class-inv axioms + record
+        witness + module globals + inductive decls) under header `module <module_name>`.
+        Mirrors `transpile()` lines ~410-489 EXACTLY (so the shape matches the flat
+        path), except: (a) the module header name is parameterised, and (b) `#@ proof`
+        axioms are emitted ONLY when `emit_axioms` is True and are routed through
+        `axiom_ir` (a per-module function-subset IR) so a module sees only its group's
+        cited axioms. Does NOT emit `let` functions or the abstract-val block."""
+        needs = self._scan_preamble_needs(functions, all_bodies)
+        out = self._emit_preamble(needs, module_name)
+        out += self._emit_shared_state()
+        self._precompute_axiom_logic_funcs(self.ir)
+        if self._class_inv_refs_axiom_func(self.ir):
+            out += self._emit_uncited_axiom_func_decls()
+            out += self._emit_class_inv_axioms(self.ir)
+        type_lines, declared_types = self._emit_type_decls(type_decls)
+        out += type_lines
+        self._inductive_preds = (
+            {ind["name"] for ind in self.ir.get("inductive_decls", [])}
+            | {m["name"] for ind in self.ir.get("inductive_decls", [])
+               for m in ind.get("members", [])})
+        self._precompute_axiom_logic_funcs(self.ir)
+        if self._inductive_refs_global_or_axiom_func(self.ir):
+            if emit_axioms:
+                out += self._emit_preamble_axioms(axiom_ir)
+            out += self._emit_uncited_axiom_func_decls()
+            out += self._emit_module_globals()
+            out += self._emit_inductive_decls(self.ir.get("inductive_decls", []))
+        else:
+            out += self._emit_inductive_decls(self.ir.get("inductive_decls", []))
+            if emit_axioms:
+                out += self._emit_preamble_axioms(axiom_ir)
+            out += self._emit_uncited_axiom_func_decls()
+            out += self._emit_module_globals()
+        self._emit_opaque_class_aliases(functions, out, declared_types)
+        self._declared_types_modular = declared_types
+        return out
+
+    def _reset_module_accumulators(self) -> None:
+        """Reset the per-module emission accumulators so each emitted Why3 `module`
+        gets its OWN abstract-val block / axiom-decl set / class-inv-axiom set (the
+        flat path leaves these global)."""
+        self._abstract_ops = {}
+        self._axiom_emitted_decls = set()
+        self._class_inv_axioms_emitted = set()
+
+    def _sig_val_from_let(self, let_lines: List[str]) -> List[str]:
+        """Convert an emitted `let <fn> ... = <body>` block into a bodyless interface
+        `val <fn> ...` carrying ONLY the contract (requires/ensures/writes), dropping the
+        `variant` (illegal on a bodyless `val`) and everything from the `=` onward. This
+        is the `<G>Sig` interface declaration the provider's `clone`-refinement proves and
+        the consumer module calls — the PROVEN cross-module boundary (no assumed `val`)."""
+        out: List[str] = []
+        for ln in let_lines:
+            stripped = ln.strip()
+            if stripped.startswith("let function "):
+                out.append(ln.replace("let function ", "val ", 1))
+                continue
+            if stripped.startswith("let rec "):
+                out.append(ln.replace("let rec ", "val ", 1))
+                continue
+            if stripped.startswith("let "):
+                out.append(ln.replace("let ", "val ", 1))
+                continue
+            if stripped == "=" or stripped.startswith("= "):
+                break
+            if stripped.startswith("variant"):
+                continue  # a bodyless `val` cannot carry a variant
+            # requires / ensures / writes / reads / raises / diverges lines pass through
+            out.append(ln)
+        return out
+
+    def _transpile_modular(self, functions: List[Dict[str, Any]],
+                           type_decls: List[Dict[str, Any]]) -> str:
+        """module-emission.md — emit the program as SEVERAL top-level Why3 `module`s so
+        that each `#@ verify_module <name>` group's cited `#@ proof` axioms are isolated
+        from the other groups' goals (resolving the os read+write `field_to_str`
+        co-residence OOM that blocks `_dir_lookup`). PARTIAL BUILD — see
+        getting-better/<writeup> §"remaining emitter work": the sound MECHANISM
+        (Why3 `clone`-refinement, axiom-isolated, narrowing-VC-equivalent) is PROVEN at
+        the Why3 level and validated on the real os axiom families
+        (getting-better validation artifact /tmp/os_split.mlw → `'refn'vc` Valid +
+        non-vacuous), and this directive is wired through the full pipeline + corpus-
+        inert, but the multi-module emitter assembly below is NOT yet complete enough to
+        pass the full body gate ×2. It is left raising a clear, actionable error rather
+        than emitting an unsound/under-verified module split."""
+        from module6_whyml.scc import sort_functions_by_scc
+
+        groups = self._verify_module_groups(functions)
+        all_bodies = [func["body"] for func in functions]
+
+        # Cross-function contract-propagation maps are GLOBAL to the program (a cross-
+        # module call still needs the callee's propagated contract). Compute ONCE.
+        self._compute_shared_module_maps(functions)
+
+        # {whyml_fn_name -> group}; consulted by `_handle_dotted_call` to route a
+        # cross-module `self.<m>()` through the proven `<G>Sig` interface.
+        self._verify_module_of = {}
+        for g, names in groups.items():
+            for nm in names:
+                self._verify_module_of[nm] = g
+
+        # Partition the SORTED function list (preserve emission order) into the main
+        # (untagged) set + one list per group.
+        sorted_functions, scc_info = sort_functions_by_scc(functions)
+        group_funcs: Dict[str, List[Dict[str, Any]]] = {g: [] for g in groups}
+        main_funcs: List[Dict[str, Any]] = []
+        for func in sorted_functions:
+            wn = whyml_ident(func["name"])
+            g = self._verify_module_of.get(wn)
+            if g is not None:
+                group_funcs[g].append(func)
+            else:
+                main_funcs.append(func)
+
+        def _emit_funcs(funcs: List[Dict[str, Any]], group: Optional[str]) -> List[str]:
+            """Emit the `let` blocks for `funcs`, with `_current_emit_group` set so a
+            cross-module `self.<m>()` routes through `<G>Sig`. Returns the lines."""
+            # The `val function` axiom-symbols (slot_inode/slot_name/dir_lookup/…) all
+            # live in `Shared` and are `use`d by every emitted module, so a contract
+            # application of one must bind to that shared logic symbol — NOT an unbound
+            # arity-suffixed abstract op. The flat `_precompute_axiom_logic_funcs(ir)`
+            # derives these from `ir["functions"]`' `#@ proof` cites; in the split a cited
+            # function may live in another module, so precompute from the FULL ir here.
+            self._precompute_axiom_logic_funcs(self.ir)
+            self._current_emit_group = group
+            lines: List[str] = []
+            for func in funcs:
+                lines += self._emit_function(func, scc_info)
+            self._current_emit_group = None
+            return lines
+
+        # ============================ Shared ============================
+        # The concrete record type + invariants + concrete predicates/functions + the
+        # shared `val function` symbols + record-witness/class-inv axioms + globals.
+        # A DEFINED record type cannot be clone-substituted, so it MUST live here and be
+        # `use`d by every other module. NO `#@ proof` axioms here (routed per-module).
+        # Shared emits NO `let` functions, so it registers NO abstract ops (verified:
+        # `_emit_prefunctions_infra` with an empty function set leaves `_abstract_ops`
+        # empty) — every abstract-op call stub (`subscript_get`, `materialize`, the
+        # `_filesystem_sys_*` importer stubs, the `self__*` sibling stubs) is caller-local
+        # and is emitted by the module whose functions USE it, in that module's own
+        # abstract-val block (no cross-module `use` of these → no duplicate-symbol clash).
+        self._shared_op_skip = set()
+        self._reset_module_accumulators()
+        shared = self._emit_prefunctions_infra(
+            functions, type_decls, all_bodies,
+            module_name="Shared", emit_axioms=False, axiom_ir={**self.ir, "functions": []})
+        shared.append("end")
+        self._insert_abstract_val_block(shared)  # no-op: Shared has no abstract ops
+
+        # Capture the axiom-backing logic-symbol DECLARATIONS Shared emitted
+        # (`val function slot_inode …`, `predicate uniq …`, `function inode_size …`).
+        # Every other module `use Shared`, so it must reference these via the shared
+        # symbol — re-declaring them locally would create a DISTINCT symbol, breaking the
+        # `clone`-refinement (the body's `dir_lookup` would differ from the interface's).
+        # Pre-seeding each subsequent module's `_axiom_emitted_decls` with these strings
+        # makes `_emit_preamble_axioms`/`_emit_uncited_axiom_func_decls` skip the decl but
+        # still emit the AXIOM (which now constrains the shared symbol).
+        self._shared_symbol_decls = self._collect_shared_symbol_decls(shared)
+
+        out_modules: List[List[str]] = [shared]
+
+        # ===================== per-group Sig + provider =====================
+        for g in sorted(groups):
+            gfuncs = group_funcs[g]
+            cited_ir = {**self.ir, "functions": gfuncs}
+
+            # ---- <G>Sig : bodyless contract `val`s (the proven interface) ----
+            sig: List[str] = [f"module {g}Sig"]
+            sig += self._shared_use_lines()
+            self._reset_module_accumulators()
+            self._precompute_axiom_logic_funcs(self.ir)
+            self._current_emit_group = g
+            for func in gfuncs:
+                let_block = self._emit_function(func, scc_info)
+                sig += self._sig_val_from_let(let_block)
+                sig.append("")
+            self._current_emit_group = None
+            sig.append("end")
+            out_modules.append(sig)
+
+            # ---- <G> : shared symbols + group axioms LOCALLY + real let + clone ----
+            prov: List[str] = [f"module {g}"]
+            prov += self._shared_use_lines()
+            self._reset_module_accumulators()
+            self._axiom_emitted_decls = set(self._shared_symbol_decls)
+            # The group's cited `#@ proof` axioms, emitted LOCALLY (in scope only here).
+            # The backing symbol DECLS are suppressed (seeded above) so the axioms
+            # constrain the SHARED symbols (`use Shared`), keeping body == interface.
+            prov += self._emit_preamble_axioms(cited_ir)
+            prov_body = _emit_funcs(gfuncs, g)
+            prov += prov_body
+            # Trailing clone-refinement: generates `<fn>'refn'vc` proving the real `let`
+            # implements the `<G>Sig` contract — the PROVEN boundary (never an assumed val).
+            subs = ", ".join(f"val {whyml_ident(f['name'])} = {whyml_ident(f['name'])}"
+                             for f in gfuncs)
+            prov.append(f"  clone {g}Sig with {subs}")
+            prov.append("end")
+            self._insert_abstract_val_block(prov)
+            out_modules.append(prov)
+
+        # ============================ PyCSL_Program ============================
+        # The main module: everything else + the NON-group axioms + `use Shared` +
+        # `use <G>Sig` (proven interfaces), with cross-module `self.X()` calls rewritten.
+        main_ir = {**self.ir, "functions": main_funcs}
+        main: List[str] = ["module PyCSL_Program"]
+        main += self._shared_use_lines()
+        for g in sorted(groups):
+            main.append(f"  use {g}Sig")
+        self._reset_module_accumulators()
+        self._axiom_emitted_decls = set(self._shared_symbol_decls)
+        main += self._emit_preamble_axioms(main_ir)
+        main += _emit_funcs(main_funcs, None)
+        if self.check_behavioral_subtyping:
+            main += self._emit_subtyping_goals(functions)
+        main.append("end")
+        self._insert_abstract_val_block(main)
+        out_modules.append(main)
+
+        return "\n".join("\n".join(m) for m in out_modules)
+
+    def _collect_shared_symbol_decls(self, shared_lines: List[str]) -> Set[str]:
+        """Scan the emitted Shared module for axiom-backing logic-symbol declarations and
+        return the SET OF RAW `_AXIOM_FUNCTIONS` decl strings whose symbol Shared declares.
+        Those raw strings are what `_emit_preamble_axioms`/`_emit_uncited_axiom_func_decls`
+        compare against (`if fn_decl not in declared_fns`), so seeding a subsequent
+        module's `_axiom_emitted_decls` with them suppresses the duplicate decl while the
+        AXIOM (constraining the SHARED symbol) is still emitted. A module that `use Shared`
+        must reference the SAME symbol — a local re-declaration would break the
+        `clone`-refinement (body `dir_lookup` ≠ interface `dir_lookup`)."""
+        def _symbol(stripped: str):
+            p = stripped.split()
+            if len(p) >= 3 and p[0] == "val" and p[1] == "function":
+                return p[2]
+            if len(p) >= 2 and p[0] in ("function", "predicate"):
+                return p[1]
+            return None
+
+        shared_syms: Set[str] = set()
+        for ln in shared_lines:
+            sym = _symbol(ln.strip())
+            if sym:
+                shared_syms.add(sym)
+        # Map back to the raw registry decl strings (exact match for the skip-check).
+        raw: Set[str] = set()
+        for fn_decls in self._AXIOM_FUNCTIONS.values():
+            for d in fn_decls:
+                if _symbol(d.strip()) in shared_syms:
+                    raw.add(d)
+        return raw
+
+    def _shared_use_lines(self) -> List[str]:
+        """The `use` lines every emitted module needs to see the Shared infrastructure
+        (the concrete record type, val-functions, predicates, helpers) plus the standard
+        Why3 library `use`s. Mirrors the libraries the flat preamble imports."""
+        needs = self._scan_preamble_needs(
+            self.ir.get("functions", []),
+            [f["body"] for f in self.ir.get("functions", [])])
+        # The flat preamble `use`s, MINUS the `module PyCSL_Program` header line, plus a
+        # `use Shared` so the record type + shared symbols are in scope.
+        lib_uses = self._emit_preamble_uses(needs, module_name="__tmp__")[1:]
+        return lib_uses + ["  use Shared"]
+

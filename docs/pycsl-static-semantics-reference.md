@@ -554,6 +554,36 @@ checked `let g_fresh_init () : C ensures {…} = <constructor literal>` proving 
 of the freshly constructed global — so the assume is proof-backed, never an arbitrary
 literal. See translational §T.2.7g.
 
+#### §2.1.6m Verify module (`verify_module <name>`)
+
+```
+   ──────────────────────────────────
+    Γ_f ⊢ verify_module <name> : ok
+```
+
+**Rule:** Always well-formed (the argument is a `CNAME` group label; no expression to
+check). Presence is carried on the function AST node (`csl_verify_module = "<name>"`) into
+the function IR (`"verify_module": "<name>"`). It is **opt-in**: a function tagged
+`#@ verify_module <name>` is emitted into its own top-level Why3 `module <name>` (rather
+than the single flat `module PyCSL_Program`), so that only the `#@ proof` axioms cited by
+the functions in that group are in scope for its goals. Functions sharing the same `<name>`
+co-reside in one module; shared infrastructure (the concrete record type, `val function`s,
+predicates, witness/class-invariant axioms, abstract stubs) is re-declared per module, with
+the concrete record type shared through a common base `module` that every emitted module
+`use`s (a defined record type cannot be `clone`-substituted). **Soundness:** a cross-module
+`self.<m>(...)` call is lowered to the callee's PROVEN contract via Why3 module
+`clone`-refinement — the interface `module` declares the contract, and the owning provider
+`module` discharges the synthetic refinement VC `<fn>'refn'vc` proving the real `let`
+implements that contract — so the boundary is a proven interface, NOT an assumed `val`, a
+new `\trusted`, or a new axiom; the net trusted base is unchanged (every function is proved
+exactly once, against a contract that is itself proved). The directive only changes WHICH
+declarations share the SMT context at each VC (a feasibility lever, not a trust lever) —
+resolving the os read+write axiom co-residence (`field_to_str`/`dir_scan_*` vs
+`dir_blit_marker*`) that OOMs the directory writers. Why3 `scope` does NOT provide this
+isolation (a scope is a namespace; an `axiom` is global within the enclosing module); only
+separate top-level `module`s isolate axioms. Default (untagged) → byte-identical emission.
+See translational §T.2.7m.
+
 #### §2.1.7 Trusted (`\trusted [reviewer: <REVIEWER_ID>]`)
 
 ```

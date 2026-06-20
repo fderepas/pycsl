@@ -177,10 +177,18 @@ class AbstractOpsMixin:
                 # `function FOO …` / `predicate FOO …` → name is parts[1]
                 axiom_decl_names.add(parts[1])
 
+        # module-emission.md: in the `_transpile_modular` path the genuinely shared
+        # (non-self) abstract ops are declared once in `Shared` and `use`d everywhere, so
+        # a non-Shared module must NOT re-declare them (Why3 would flag the symbol as an
+        # ambiguous double declaration). `_shared_op_skip` names exactly those; empty on
+        # the flat path → byte-identical.
+        shared_skip: Set[str] = getattr(self, "_shared_op_skip", set())
         insert_idx = self._find_abstract_val_insert_idx(out)
         abs_lines = ["", "  (* Abstract operations for unsupported Python patterns *)"]
         for name, decl in sorted(self._abstract_ops.items()):
             if name in axiom_decl_names:
+                continue
+            if name in shared_skip:
                 continue
             abs_lines.append(f"  {decl}")
         # If everything got deduped, don't leave a dangling comment.
