@@ -731,6 +731,72 @@ class PreambleEmissionMixin:
             "dir_scan_result d blk name r -> "
             "dir_lookup d blk name = r",
         # ====================================================================
+        # READ-SIDE SLOT-INDEX dir_find_slot_result marker family — the SLOT-INDEX
+        # twin of the dir_scan_result family. Retires the READ-side dirscan-fidelity
+        # trust on _dir_find_slot, which returns the slot INDEX (0..15) of the LAST
+        # live slot named `pathname`, or -1 (whereas _dir_lookup returns the matched
+        # slot's INODE). Carries the slot's VALUE-fidelity (slot_inode <> 0 /\
+        # slot_name = name at the returned index) across SMT via a unique marker, the
+        # same once-firing discipline as dir_scan_result. Cross-validated zero-TCB by
+        # test-suite/corpus/pycsl-reference/0721.proofs/{rocq,lean}/UnixDirFindSlotValue.{v,lean}:
+        #   - Rocq: every theorem "Closed under the global context" (Section Variables
+        #     only, 0 Axiom/Admitted).
+        #   - Lean: dir_find_slot_result_intro/_prefix_base/_prefix_close "does not
+        #     depend on any axioms"; _result_value/_result_range/_prefix_step ⊆
+        #     {propext, Quot.sound}.
+        #
+        # The marker fires ONLY at the atoms _dir_find_slot's body asserts (the
+        # loop-carry prefix invariant + the loop-exit close), NEVER on a bare
+        # slot_inode/slot_name term — exactly the dir_scan_result once-firing discipline.
+        # The Fixpoint `fscan` is the INDEX-keeping dual of `scan`: on a match, found
+        # becomes the INDEX i (not the inode). The whole last-match argument is
+        # discharged offline; SMT only applies the O(1) rungs.
+        #
+        # dir_find_slot_prefix_base (DEFINITIONAL, zero trust): the loop-init rung.
+        # `found = -1` over the empty (0-slot) prefix. Trigger on the marker atom.
+        "UnixFs.Dir.dir_find_slot_prefix_base":
+            "forall d : array int, blk : int, name : string "
+            "[dir_find_slot_prefix d blk name 0 (-1)]. "
+            "dir_find_slot_prefix d blk name 0 (-1)",
+        # dir_find_slot_prefix_step (cross-validated): the loop-body update rung. From
+        # the prefix marker at slot i, peeling slot i — using the per-slot decode facts
+        # slot_inode/slot_name d blk i (the SAME body match the loop body tests) —
+        # advances the marker to slot i+1. On a match `found` becomes the INDEX i (NOT
+        # the inode). Keyed [dir_find_slot_prefix d blk name i r] so it fires once per
+        # loop iteration at the carried marker, NEVER on a bare term. The induction is
+        # discharged offline; SMT only applies one O(1) step.
+        "UnixFs.Dir.dir_find_slot_prefix_step":
+            "forall d : array int, blk i r : int, name : string "
+            "[dir_find_slot_prefix d blk name i r]. "
+            "0 <= i -> i < 16 -> "
+            "dir_find_slot_prefix d blk name i r -> "
+            "( ( slot_inode d blk i <> 0 /\\ slot_inode d blk i < 32 "
+            "      /\\ slot_name d blk i = name ) -> "
+            "    dir_find_slot_prefix d blk name (i + 1) i ) "
+            "/\\ ( not ( slot_inode d blk i <> 0 /\\ slot_inode d blk i < 32 "
+            "             /\\ slot_name d blk i = name ) -> "
+            "    dir_find_slot_prefix d blk name (i + 1) r )",
+        # dir_find_slot_result_intro (DEFINITIONAL close, zero trust): the full-prefix
+        # rung i=16 IS the slot-index scan result — fold the loop-exit prefix marker
+        # into the result marker. Keyed [dir_find_slot_prefix d blk name 16 r].
+        "UnixFs.Dir.dir_find_slot_result_intro":
+            "forall d : array int, blk r : int, name : string "
+            "[dir_find_slot_prefix d blk name 16 r]. "
+            "dir_find_slot_prefix d blk name 16 r -> "
+            "dir_find_slot_result d blk name r",
+        # dir_find_slot_result_value (cross-validated VALUE lemma — the load-bearing
+        # slot-index fidelity): when r >= 0 the returned slot decodes to a LIVE entry
+        # named `name` (slot_inode <> 0 /\ slot_name = name). This is EXACTLY
+        # _dir_find_slot's two fidelity ensures. The last-match argument is discharged
+        # offline in UnixDirFindSlotValue; SMT only applies this O(1) implication.
+        # Keyed [dir_find_slot_result d blk name r] — fires EXACTLY ONCE at the close.
+        "UnixFs.Dir.dir_find_slot_result_value":
+            "forall d : array int, blk r : int, name : string "
+            "[dir_find_slot_result d blk name r]. "
+            "dir_find_slot_result d blk name r -> "
+            "r >= 0 -> "
+            "slot_inode d blk r <> 0 /\\ slot_name d blk r = name",
+        # ====================================================================
         # BLOCK-PARAMETERIZED marker family (2026-06-19) — the arbitrary-block
         # generalization of the block-5 dir_blit_marker family above. _write_entry
         # mutates self.disk at an ARBITRARY block `block_num` (ensures reference
@@ -1324,6 +1390,29 @@ class PreambleEmissionMixin:
             # slots". Carried as a loop invariant; advanced one slot per iteration via
             # dir_scan_prefix_step (O(1) marker-keyed), closed at i=16 to dir_scan_result.
             "predicate dir_scan_prefix (d: array int) (blk: int) (name: string) (i: int) (r: int)",
+        ],
+        # READ-SIDE SLOT-INDEX markers (the slot-index twin of dir_scan_result/
+        # dir_scan_prefix): `dir_find_slot_result d blk name r` ≜ "r is the bounded
+        # 16-slot index scan result" (the LAST live-match INDEX, or -1);
+        # `dir_find_slot_prefix d blk name i r` ≜ "r is that index-scan over the
+        # first i slots". UNIQUE uninterpreted atoms keyed
+        # [dir_find_slot_result d blk name r] / [dir_find_slot_prefix d blk name i r],
+        # firing ONLY where _dir_find_slot's body asserts them, NEVER on a bare
+        # slot_inode/slot_name term, so the slot-index fidelity crosses SMT without
+        # re-introducing the last-match argument (discharged offline in
+        # UnixDirFindSlotValue.{v,lean}).
+        #
+        # GATING (byte-identity, same discipline as dir_blit_marker_at): keyed on the
+        # MORE-SPECIFIC prefix "UnixFs.Dir.dir_find_slot" (NOT the general "UnixFs.Dir."
+        # list above) so these two predicate declarations are emitted ONLY when a
+        # dir_find_slot_* axiom is cited (i.e. by _dir_find_slot's os module), NOT for
+        # every UnixFs.Dir.* citation. Sibling corpus modules (0711/0712) that cite
+        # scan_reflects_present etc. but never the slot-index marker stay byte-identical.
+        # `startswith` matches both prefixes for a dir_find_slot_* qualname, so the os
+        # module still gets BOTH the general Dir decls AND these predicates.
+        "UnixFs.Dir.dir_find_slot": [
+            "predicate dir_find_slot_result (d: array int) (blk: int) (name: string) (r: int)",
+            "predicate dir_find_slot_prefix (d: array int) (blk: int) (name: string) (i: int) (r: int)",
         ],
         # BLOCK-PARAMETERIZED marker (2026-06-19): the arbitrary-block twin of
         # dir_blit_marker for _write_entry, which mutates self.disk at an ARBITRARY
