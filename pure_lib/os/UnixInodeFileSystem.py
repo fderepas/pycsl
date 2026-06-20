@@ -1172,19 +1172,68 @@ class UnixInodeFileSystem:
     #             `_dir_find_slot`'s live-slot claim, same dirscan-fidelity trust
     #             class. sys_rename uses it to know the newpath write target is
     #             distinct from the live old_slot it zeroes last.
-    #@ \trusted reviewer: dirscan-fidelity
+    # DE-TRUSTED read-side fidelity (was `\trusted reviewer: dirscan-fidelity`) via the
+    # FREE-SLOT-INDEX dir_find_free_result marker (the free-slot twin of
+    # dir_find_slot_result). _dir_find_free scans the 16 slots like _dir_find_slot, but
+    # the guard is the FREE condition `inode_num == 0` (NOT a live-name match) and it
+    # reads ONLY slot_inode — there is NO name decode, so the faithful-name EMITTER
+    # recognizer is UNNEEDED here (simpler than _dir_find_slot). The body operates over
+    # the abstract per-slot decode slot_inode (bridged from the literal slot bytes by
+    # slot_inode_byte_decode), carrying the loop-carry prefix marker
+    # dir_find_free_prefix(self.dir, 5, i, found) advanced one slot per iteration via
+    # dir_find_free_prefix_step (whose free branch sets found to the INDEX i). At loop
+    # exit the prefix marker at i=16 is folded to dir_find_free_result, and
+    # dir_find_free_result_value discharges the fidelity ensures
+    # (\result >= 0 ==> slot_inode == 0).
+    #
+    # The literal-offset byte surface (5*512 + 32*i) makes slot_inode_byte_decode's
+    # trigger [disk[blk*512+32*k]] E-match (bridges the two inode bytes to
+    # slot_inode self.dir 5 i). The free guard inode_num==0 then gives
+    # slot_inode self.dir 5 i = 0 = dir_find_free_prefix_step's free-branch antecedent.
+    # NO relocated trust: zero new \trusted, zero val/ensures shim — the marker is
+    # cross-validated by 0722.proofs/UnixDirFindFreeValue.{v,lean}.
+    #@ proof rocq UnixFs.Dir.slot_inode_nonneg
+    #@ proof lean UnixFs.Dir.slot_inode_nonneg
+    #@ proof rocq UnixFs.Dir.slot_inode_byte_decode
+    #@ proof lean UnixFs.Dir.slot_inode_byte_decode
+    #@ proof rocq UnixFs.Dir.dir_find_free_prefix_base
+    #@ proof lean UnixFs.Dir.dir_find_free_prefix_base
+    #@ proof rocq UnixFs.Dir.dir_find_free_prefix_step
+    #@ proof lean UnixFs.Dir.dir_find_free_prefix_step
+    #@ proof rocq UnixFs.Dir.dir_find_free_result_intro
+    #@ proof lean UnixFs.Dir.dir_find_free_result_intro
+    #@ proof rocq UnixFs.Dir.dir_find_free_result_value
+    #@ proof lean UnixFs.Dir.dir_find_free_result_value
+    #@ verify_module FindFreeMod
     def _dir_find_free(self, block_num: int) -> int:
-        offset = block_num * 512
         found = -1
+        #@ assert dir_find_free_prefix(self.dir, 5, 0, -1)
         #@ loop invariant 0 <= i and i <= 16
         #@ loop invariant found >= -1 and found < 16
+        #@ loop invariant dir_find_free_prefix(self.dir, 5, i, found)
         #@ loop variant 16 - i
         for i in range(16):
-            entry_offset = offset + (i * 32)
-            entry = self.dir[entry_offset:entry_offset + 32]
-            inode_num, name_bytes = _unpack_direntry(entry)
+            # literal-offset byte surface (5*512 + 32*i) so slot_inode_byte_decode's
+            # trigger [disk[blk*512+32*k]] E-matches (bridges the two inode bytes to
+            # slot_inode self.dir 5 i).
+            b0 = self.dir[5 * 512 + 32 * i]
+            b1 = self.dir[5 * 512 + 32 * i + 1]
+            #@ assert slot_inode(self.dir, 5, i) == 256 * b0 + b1
+            inode_num = b0 * 256 + b1
             if inode_num == 0:
+                # the guard gives inode_num==0; bridged to the abstract decode
+                # (slot_inode == inode_num == 0) this is exactly
+                # dir_find_free_prefix_step's free-branch antecedent. After found:=i
+                # the step advances the marker to (i+1, i) — found is the INDEX.
+                #@ assert slot_inode(self.dir, 5, i) == 0
                 found = i
+                #@ assert dir_find_free_prefix(self.dir, 5, i + 1, found)
+            else:
+                #@ assert slot_inode(self.dir, 5, i) != 0
+                #@ assert dir_find_free_prefix(self.dir, 5, i + 1, found)
+                pass
+            #@ assert dir_find_free_prefix(self.dir, 5, i + 1, found)
+        #@ assert dir_find_free_result(self.dir, 5, found)
         return found
 
     #@ requires off >= 0
