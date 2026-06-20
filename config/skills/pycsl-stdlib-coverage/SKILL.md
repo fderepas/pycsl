@@ -1,6 +1,6 @@
 ---
 name: pycsl-stdlib-coverage
-description: Battle-tested discipline for writing pure-Python standard library implementations that PyCSL can verify. Covers the full workflow from concrete tests through annotations to formal tests, the shared World architecture (one filesystem, one process table, one clock — mirroring the Unix kernel), three-bucket classification (modelled/specified/stubbed), HAPPY confinement for cross-module coherence, and lessons learned from os (fully proven, 0 unproven), re (16/16 VCs), warnings (18/18 body + 3/3 formal VCs), and json (6/6 formal VCs). Use this skill when adding a new stdlib module to pure_lib/, annotating existing modules, writing formal tests, diagnosing PyCSL proof failures, or applying the convergence-loop ("apply the convergence principle to <module>").
+description: Battle-tested discipline for writing pure-Python standard library implementations that PyCSL can verify. Covers the full workflow from concrete tests through annotations to formal tests, the shared World architecture (one filesystem, one process table, one clock — mirroring the Unix kernel), three-bucket classification (modelled/specified/stubbed), HAPPY confinement for cross-module coherence, and lessons learned from os (fully proven, 0 unproven), re (16/16 VCs), warnings (18/18 body + 3/3 formal VCs), and json (6/6 formal VCs). Use this skill when adding a new stdlib module to src/pycsl_lib/, annotating existing modules, writing formal tests, diagnosing PyCSL proof failures, or applying the convergence-loop ("apply the convergence principle to <module>").
 ---
 
 # PyCSL Stdlib Coverage
@@ -13,7 +13,7 @@ goal: for every stdlib API that PyCSL uses internally, provide a
 verifiable pure-Python model so that PyCSL can eventually verify its
 own source code (self-annotation).
 
-The implementations live in `pure_lib/<module>/` with inline PyCSL
+The implementations live in `src/pycsl_lib/<module>/` with inline PyCSL
 contract annotations. They are **real, runnable Python** — not stubs,
 not `pass` bodies. This matters: the implementations are tested
 concretely *and* proved formally.
@@ -23,7 +23,7 @@ concretely *and* proved formally.
 **No module is inherently un-modelable.** Even modules that interact
 with hardware, the OS kernel, the network, or the runtime itself can
 be made pure-Python by building an **abstract model** of the
-underlying resource — exactly as `pure_lib/os/UnixInodeFileSystem.py`
+underlying resource — exactly as `src/pycsl_lib/os/UnixInodeFileSystem.py`
 models the Unix inode layer with pure-Python arrays and integers.
 
 The pattern:
@@ -47,7 +47,7 @@ paths) that don't affect the functional contract.
 
 ## Source of truth — what shapes every stub
 
-A `pure_lib/` module is not invented; it is **transcribed from Python's
+A `src/pycsl_lib/` module is not invented; it is **transcribed from Python's
 sources of truth**. Two axes decide what a stub must say and do (see
 `csl-philosophy` "The source of truth" for the family-wide statement):
 
@@ -262,7 +262,7 @@ algebraically about the result, not merely know it is non-negative.
 
 ### Step 1 — Write a concrete test (scratch)
 
-Write a SCRATCH concrete driver that imports from `pure_lib/<module>` and exercises all
+Write a SCRATCH concrete driver that imports from `src/pycsl_lib/<module>` and exercises all
 key functions with concrete values, and run it with `python3` to sanity-check behaviour
 before formalizing:
 
@@ -273,7 +273,7 @@ python3 /tmp/scratch_<module>.py
 # PASS: 10 — flags have correct values
 ```
 
-The KEPT artifact is the FORMAL test (Step 3), named `pure_lib_test/formal_<module>.py`
+The KEPT artifact is the FORMAL test (Step 3), named `src/pycsl_lib_test/formal_<module>.py`
 (the topical scheme — `formal_re_engine.py`, `formal_json_codec.py`, `formal_os_content.py`,
 …); the scratch concrete driver is not committed.
 
@@ -293,7 +293,7 @@ Focus on:
 
 ```bash
 cd /path/to/pycsl
-.venv/bin/python3 src/pycsl/pycsl.py --keep-mlw --no-proof pure_lib/re/__init__.py
+.venv/bin/python3 src/pycsl/pycsl.py --keep-mlw --no-proof src/pycsl_lib/re/__init__.py
 ```
 
 Check the `.mlw` file. Fix naming issues, type mismatches, missing
@@ -303,7 +303,7 @@ imports. Iterate until WhyML type-checks.
 
 ```python
 # Remove --no-proof to run the full proof
-sys.argv = ['pycsl', '--keep-mlw', 'pure_lib/os/__init__.py']
+sys.argv = ['pycsl', '--keep-mlw', 'src/pycsl_lib/os/__init__.py']
 ```
 
 For integer-heavy code (os), this works well — fully proven (0 unproven).
@@ -312,7 +312,7 @@ For string-heavy code (re), body-level proof is blocked by tool gaps
 
 ### Step 5 — Write a formal test
 
-Create `pure_lib_test/formal_<module>.py` with **universally quantified
+Create `src/pycsl_lib_test/formal_<module>.py` with **universally quantified
 parameters** — every parameter must be symbolic, never concrete. The
 purpose of a formal test is to prove that a property holds **for all
 valid inputs**, not just one specific test case.
@@ -631,8 +631,8 @@ with no remaining gaps for it.
 
 ### The agent loop
 
-A **coordination agent** orchestrates three worker agents — the **stdlib-agent** (builds the `pure_lib/`
-model), the **test-agent** (writes the `pure_lib_test/` formal test, calling ONLY the public API), and the
+A **coordination agent** orchestrates three worker agents — the **stdlib-agent** (builds the `src/pycsl_lib/`
+model), the **test-agent** (writes the `src/pycsl_lib_test/` formal test, calling ONLY the public API), and the
 **tool-agent** (fixes `src/pycsl/`) — mediated by a **paired traceability document**: a *gap* document
 (the problem, from the stdlib-agent OR the test-agent) and a *spec* document (the proposed fix, from the
 tool-agent). The model author and the test author are deliberately SEPARATE so the test cannot simulate
@@ -661,10 +661,10 @@ any edit. Traceability is a key concern, so both documents follow a strict dated
           └──────── ⑤ respawn (unblocked; N := N+1) ──────────┘
 ```
 
-1. The coordination agent **spawns a `stdlib-agent`** to build the `pure_lib/<module>` MODEL (workflow
+1. The coordination agent **spawns a `stdlib-agent`** to build the `src/pycsl_lib/<module>` MODEL (workflow
    Steps 1–4 — faithful model + `#@` contracts + proved bodies; real WhyML type classes, never an int
    stand-in, never a false postcondition). Then it **spawns a `test-agent`** to write the formal test
-   (Step 5, `pure_lib_test/formal_<module>.py`) that **CALLS ONLY the module's public API** to exercise
+   (Step 5, `src/pycsl_lib_test/formal_<module>.py`) that **CALLS ONLY the module's public API** to exercise
    each consequence — the test-agent gets the public API + English spec but NOT the model internals, so it
    cannot simulate.
 2. When the `stdlib-agent` (model) OR the `test-agent` (a consequence that won't prove through the API —
@@ -695,10 +695,10 @@ The loop repeats — `N` incrementing each iteration — until a pass produces *
   it judges the `DRAFT` spec and may add/modify/remove parts to speed convergence, then sets
   `STATUS: APPROVED`. It never edits source or model code — it edits only the *spec document* (decide,
   amend-the-spec, and dispatch).
-- **stdlib-agent** — builds the faithful pure-Python MODEL: edits only `pure_lib/<module>` (the model + its
+- **stdlib-agent** — builds the faithful pure-Python MODEL: edits only `src/pycsl_lib/<module>` (the model + its
   `#@` contracts; workflow Steps 1–4), proves the bodies. It does **NOT** write the formal test. Output: *a
   proved module model and/or a `DD-HHMM-convergence-gap-N.md` gap document*.
-- **test-agent** — writes the formal test (workflow Step 5): edits only `pure_lib_test/formal_<module>.py`,
+- **test-agent** — writes the formal test (workflow Step 5): edits only `src/pycsl_lib_test/formal_<module>.py`,
   and **CALLS ONLY the module's public API** (`mkdir`, `access`, …) to exercise consequences. It is given
   ONLY the public API surface + the English spec (`test-suite/library_reference/`) — **never the model
   internals**, so it physically *cannot* simulate the operation (no `disk[...]`, no `_dir_lookup`, no
@@ -715,12 +715,12 @@ The loop repeats — `N` incrementing each iteration — until a pass produces *
 ### Invocation
 
 Saying **"apply the convergence principle to `<module>`"** spawns the coordination agent on
-`pure_lib/<module>` and runs the loop to its fixed point — e.g. **"apply the convergence principle to
-strmod"** targets `pure_lib/strmod/`.
+`src/pycsl_lib/<module>` and runs the loop to its fixed point — e.g. **"apply the convergence principle to
+strmod"** targets `src/pycsl_lib/strmod/`.
 
 ### Worked precedent
 
-The strmod pass kicked off the loop: a stdlib-agent rebuilt `pure_lib/strmod/` on real `str` and proved
+The strmod pass kicked off the loop: a stdlib-agent rebuilt `src/pycsl_lib/strmod/` on real `str` and proved
 it (commit `a50bc61`), surfacing three tool gaps it worked around and recorded in `10-1732-gap.md` (the
 ad-hoc precursor to the `DD-HHMM-convergence-gap-N.md` convention above — hardcoded `exception Return
 int`; `len()` over a string-returning call; the int-`0` default fill for a non-`int` param). The
@@ -757,7 +757,7 @@ Load these on demand — they hold the load-occasionally, look-up content split 
 
 - **Using `\trusted`** — defeats the purpose. If PyCSL can't prove
   something, identify the missing feature precisely and document it.
-- **Abstraction over concrete implementations** — pure_lib modules are
+- **Abstraction over concrete implementations** — pycsl_lib modules are
   real runnable Python, not stubs. Test them concretely first.
 - **Ignoring formal test failures** — a formal test failure means the
   postcondition is wrong or the implementation has a bug. Fix it.
@@ -775,7 +775,7 @@ Load these on demand — they hold the load-occasionally, look-up content split 
   annotated functions directly in `__init__.py` (classes are fine in
   submodules).
 - **Running from the wrong CWD** — PyCSL resolves imports from CWD.
-  Run from the repo root so `pure_lib/` and `pure_lib_test/` resolve.
+  Run from the repo root so `src/pycsl_lib/` and `src/pycsl_lib_test/` resolve.
 
 ---
 

@@ -489,7 +489,7 @@ Phase E — Conformance corpora + freeze the front-end contract ⬜ not started
 ---
 
 That was a bit too hard. First let's finish what we started: let's finish os.
-Use the convergence principle to finish `pure_lib/os` by enriching formal tests in `pure_list_test/` to cover all system calls in `os`
+Use the convergence principle to finish `src/pycsl_lib/os` by enriching formal tests in `pure_list_test/` to cover all system calls in `os`
 
 ---
 
@@ -498,7 +498,7 @@ Ok, I want you to update `config/skills/pycsl-stdlib-coverage/` and explanin bee
 Let me now take a bad example:
 ```
 # rmdir: POSIX rmdir() returns 0, or -1 on ENOENT/ENOTDIR.
-# cite: pure_lib/os/__init__.py rmdir   -> `#@ ensures \result == 0 or \result == -1`
+# cite: src/pycsl_lib/os/__init__.py rmdir   -> `#@ ensures \result == 0 or \result == -1`
 # cite: UnixInodeFileSystem.sys_rmdir   -> `#@ ensures \result == 0 or \result == -1`
 #@ requires True
 #@ assigns _filesystem.disk
@@ -515,7 +515,7 @@ We are just callin rmdir. I can not assess if the directory was actually removed
 
 Update the `config/skills/pycsl-stdlib-coverage/` skill.
 Reload the skill.
-Redo the validation of `pure_lib/os`
+Redo the validation of `src/pycsl_lib/os`
 
 ---
 

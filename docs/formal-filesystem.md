@@ -3,7 +3,7 @@
 **What this is.** A methodology: how a real operating-system subsystem can be re-expressed in pure
 Python and then **proved correct by Hoare logic** — annotated Python → WhyML → Why3 → SMT — with the
 proof obligations discharged mechanically. The worked example throughout is Python's `os` module,
-realised as a Unix inode filesystem in `pure_lib/os/`. The emphasis is on *how it is done now* and *why
+realised as a Unix inode filesystem in `src/pycsl_lib/os/`. The emphasis is on *how it is done now* and *why
 each step has the form it does* — the spirit, from the source of truth down to a formal test that proves
 an end-to-end property for all inputs.
 
@@ -46,7 +46,7 @@ back to the sentence in POSIX it encodes.
 ## 2. Re-implement faithfully in pure Python
 
 The subsystem is rebuilt as **ordinary Python** with no C, no real kernel, no actual syscalls
-(`pure_lib/os/`). This is a *simulation* the verifier can reason about — but the point is fidelity, not
+(`src/pycsl_lib/os/`). This is a *simulation* the verifier can reason about — but the point is fidelity, not
 convenience: the model implements the **real semantics**, not a comfortable abstraction of them. A file
 is bytes on a disk; an inode is a packed byte record; a directory is a block of entries; a descriptor
 is a row in a table. Where Python's real `os` would trap into the kernel, the model does the work the
@@ -137,7 +137,7 @@ arbitrary filename `f` and an arbitrary buffer, bounded only by `#@ requires`, a
 with `#@ ensures`. Because Why3/SMT discharges that postcondition, a *Valid* verdict means the property
 holds for **every** input in range — not for the handful a concrete test could sample.
 
-The existing example is `pure_lib_test/formal_os_roundtrip.py`: open-create, write a symbolic buffer, close,
+The existing example is `src/pycsl_lib_test/formal_os_roundtrip.py`: open-create, write a symbolic buffer, close,
 reopen, read it back, over all filenames and buffers up to the modelled sizes (`\length(data)` in
 `[1, 512]`) — proved end-to-end with no `\trusted`. Its postcondition is `\result == 0 or \result == 1`:
 the scenario runs to a *well-formed* result on every symbolic input — a **totality / safety** property

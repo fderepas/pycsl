@@ -32,7 +32,7 @@ Wherever a snippet names `UnixFs.Dir.scan_reflects_present`, read it as one
 filling of the generic `MyModule.MyLemma` slot.
 
 The worked example's motivating property is the directory-scan reflection
-lemma (`pure_lib/os/UnixInodeFileSystem.py:_dir_lookup`): the bounded scan
+lemma (`src/pycsl_lib/os/UnixInodeFileSystem.py:_dir_lookup`): the bounded scan
 over the 16 root-directory slots returns a non-negative inode **iff** some
 live slot decodes to `name`. This is inductive over the slot loop, so the SMT
 backend (Alt-Ergo/Z3) times out (gap-9 measured 14.6M / 11.6M / 18.8M
@@ -555,7 +555,7 @@ reference — any imported `#@ inductive` predicate, and the module-global
 objects their self-field clauses name — must also be made available, with the
 correct types, on the importer side. (In the worked example the wrappers are
 the public `os` functions `mkdir`/`access`, imported via
-`from pure_lib.os import mkdir, access`, and the inductive predicate is
+`from pycsl_lib.os import mkdir, access`, and the inductive predicate is
 `name_present`.) This is the gap-8 lineage: the `#@ inductive` declaration was
 *dropped* across the import boundary, leaving the predicate call (the
 example's `name_present(...)`) as an unknown call that the abstract-op
@@ -637,7 +637,7 @@ type-checks while reasoning via the lighter, equivalent
 **PyCSL author.** Import the public API normally:
 
 ```python
-from pure_lib.os import mkdir, access
+from pycsl_lib.os import mkdir, access
 #@ ensures \result == 1
 def mkdir_then_access_present(d: str) -> int:
     rc = mkdir(d, 0o777)

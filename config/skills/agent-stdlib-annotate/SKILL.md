@@ -13,6 +13,13 @@ description: >-
 
 # agent-stdlib-annotate — body-verified stdlib stubs (0 `\trusted`)
 
+> **⚠️ RETIRED.** This skill governed annotating the old stdlib *stub* set, now
+> archived to `attic/pycsl_lib/` with its tooling in
+> `attic/stdlib-coverage-tooling/`, after the formally-verified `pure_lib` was
+> promoted to `src/pycsl_lib/` as the canonical standard library (see
+> `lets-move.md`). For building/annotating the verified library today, use the
+> live **`pycsl-stdlib-coverage`** skill. Kept for historical reference.
+
 The guiding discipline for `src/pycsl_lib/` standard-library stubs and their
 `*_demo.py` drivers. This is a **policy**, not a suggestion: the durable fix for
 "the delegate keeps shipping unprovable stubs" lives here, in the skill — not in
@@ -55,10 +62,10 @@ That is the whole point: replace blanket trust with a citation a reviewer can ch
 
 ## Enforcement
 
-- `bin/check-no-trusted-stubs.py` reports every `#@ \trusted` under `src/pycsl_lib/`
+- `attic/stdlib-coverage-tooling/check-no-trusted-stubs.py` reports every `#@ \trusted` under `src/pycsl_lib/`
   (informational census tree-wide; `--strict <files>` hard-fails the named stubs).
   A migrated stub must pass `--strict`. Wired into the feature-supervisor gate.
-- `bin/generate_lib_stubs.py` no longer emits `#@ \trusted` by default; newly
+- `attic/stdlib-coverage-tooling/generate_lib_stubs.py` no longer emits `#@ \trusted` by default; newly
   generated stubs are body-verified (or carry a `# TODO: body-verify or cite axiom`
   marker, never silent trust).
 

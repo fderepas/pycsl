@@ -23,13 +23,13 @@ re-exports (`ReMatch as Match`).
 ### Naming: Python stdlib module name clashes
 
 PyCSL's import resolver can pick up the *real* stdlib module instead
-of your `pure_lib/` version if names collide:
+of your `src/pycsl_lib/` version if names collide:
 
 | Module name | Clash | Fix |
 |-------------|-------|-----|
 | `warnings` | Resolves to stdlib `warnings` | Name directory `warn/` |
 
-**Rule:** If your pure_lib module shares a name with a top-level
+**Rule:** If your pycsl_lib module shares a name with a top-level
 Python stdlib package, rename it. Use `__init__.py` to re-export
 under the expected API names.
 
@@ -43,7 +43,7 @@ re-export.
 
 **Consequence:** For modules that export top-level functions (not
 classes), put the annotated function definitions **directly in
-`__init__.py`**, not in a submodule. This is why `pure_lib/warn/`
+`__init__.py`**, not in a submodule. This is why `src/pycsl_lib/warn/`
 has everything in `__init__.py`.
 
 ### Constants: use literals, not imports

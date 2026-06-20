@@ -520,7 +520,7 @@ so the contract (plus any `#@ proof` axioms) is the complete, sound
 definition of an uninterpreted operation. `functions.py:_emit_function`
 selects the `val` form when `func["trusted"] or func["abstract"]`, but
 `\abstract` does **not** set the trusted flag, so it does not count toward
-the 0-`\trusted` policy (`bin/check-no-trusted-stubs.py`).
+the 0-`\trusted` policy (`attic/stdlib-coverage-tooling/check-no-trusted-stubs.py`).
 
 This is the canonical translation for irreducibly-opaque library stubs —
 e.g. `ast.literal_eval`, whose parsed value is uninterpreted but whose

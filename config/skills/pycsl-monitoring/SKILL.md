@@ -251,9 +251,9 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
    catches an emitter type leak that only manifests when the leaf is INLINED into a different
    host context (a string-typed value assigned to an int-typed local in a wrapper). The #53
    `_dir_lookup` faithful-name landing passed every `--fun`+byte-diff check yet left the os
-   `__init__` gate RED for three retirements because `pycsl pure_lib/os/__init__.py` (the full
+   `__init__` gate RED for three retirements because `pycsl src/pycsl_lib/os/__init__.py` (the full
    typecheck) was never re-run. **Rule:** after ANY emitter change touching value lowering, run
-   `pycsl pure_lib/os/__init__.py` (which typechecks the WHOLE module, all inline sites) at
+   `pycsl src/pycsl_lib/os/__init__.py` (which typechecks the WHOLE module, all inline sites) at
    least once per retirement — not just `--fun`/byte-diff. *(faithful-name string-type leak,
    2026-06-20; `getting-better/PROPOSAL-faithful-name-stringtype-fix.patch`.)*
 
@@ -283,7 +283,7 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
 
 ## C. Per-module coverage ledger
 
-### os (`pure_lib/os/`) — as of 2026-06-17 (re-measured ground truth)
+### os (`src/pycsl_lib/os/`) — as of 2026-06-17 (re-measured ground truth)
 - **Body gate (authoritative, full file):** **2016 Valid / 8 residual** (grep count;
   the 8 = 5 UNIQUE non-Valid + 3 summary echoes). Unique residuals re-confirmed
   2026-06-17 (PYTHONHASHSEED=0, Alt-Ergo 2.6.2 / Z3 4.13.3, load ~2-5): `_unpack_direntry`
@@ -335,7 +335,7 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
   violation AND a bundle of vacuous self-return assertions — it constructed
   `UnixInodeFileSystem` directly and called `sys_dup2/getdents/fsync/ftruncate/creat/
   chown/utimensat` (NONE of which are public `os.*` symbols — only `dup` is), asserting
-  only each op's return code. RECLASSIFIED + renamed to `pure_lib_test/internal_os_io.py`
+  only each op's return code. RECLASSIFIED + renamed to `src/pycsl_lib_test/internal_os_io.py`
   (functions `internal_os_*`), with a docstring that loudly states (a) it reaches
   internals BY NECESSITY (no public API exists for these ops) and (b) the assertions
   are return-code SAFETY bounds, NOT consequences — so it is explicitly NOT in the

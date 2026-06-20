@@ -567,8 +567,8 @@ exposed. Three agents form the chain:
 ### Step 1 — Gap detection (`agent-stdlib-annotate --detect-gaps`)
 
 ```bash
-bin/agent-stdlib-annotate --detect-gaps                      # scan src/pycsl_lib/
-bin/agent-stdlib-annotate --detect-gaps --scan-path <file>   # scan a fixture file
+attic/stdlib-coverage-tooling/agent-stdlib-annotate --detect-gaps                      # scan src/pycsl_lib/
+attic/stdlib-coverage-tooling/agent-stdlib-annotate --detect-gaps --scan-path <file>   # scan a fixture file
 ```
 
 Walks `src/pycsl_lib/` (or any fixture path), extracts every
@@ -594,8 +594,8 @@ contract-block convention). The 2026-05-31 13:47:22 incident's
 ### Step 2 — Feature-plan proposal (`agent-stdlib-annotate --propose-feature`)
 
 ```bash
-bin/agent-stdlib-annotate --propose-feature iterator-semantics
-bin/agent-stdlib-annotate --propose-feature regex-semantics --proposal-threshold 3
+attic/stdlib-coverage-tooling/agent-stdlib-annotate --propose-feature iterator-semantics
+attic/stdlib-coverage-tooling/agent-stdlib-annotate --propose-feature regex-semantics --proposal-threshold 3
 ```
 
 When a category's note count passes `--proposal-threshold` (default
@@ -643,7 +643,7 @@ The supervisor:
    files. **Always.** Even with `--allow-llm-delegation`.
 4. **Otherwise (no deny-list hits)**, runs the verification gate:
    `pytest`, `bin/run-reference-tests.sh`, `bin/doc-coherency.py
-   --check`, `bin/cmmi-audit.sh`, `bin/stdlib-coverage-report.py`.
+   --check`, `bin/cmmi-audit.sh`, `attic/stdlib-coverage-tooling/stdlib-coverage-report.py`.
    Halts with exit 74 on first failure.
 
 ### Step 5 (optional) — Coding-LLM delegation
@@ -704,8 +704,8 @@ For phases with no deny-list hits, the supervisor:
 | Per commit | Doc + audit | `bin/cmmi-audit.sh` | Local before commit |
 | Weekly | KPI snapshot | `bin/cmmi-weekly-snapshot.sh` | Cron Mon 06:00 |
 | Weekly | QPM report | `bin/cmmi-qpm-charts.py` | After snapshot |
-| As needed | Gap detection | `bin/agent-stdlib-annotate --detect-gaps` | Manual |
-| Per feature | Proposal generation | `bin/agent-stdlib-annotate --propose-feature <cat>` | After detect-gaps |
+| As needed | Gap detection | `attic/stdlib-coverage-tooling/agent-stdlib-annotate --detect-gaps` | Manual |
+| Per feature | Proposal generation | `attic/stdlib-coverage-tooling/agent-stdlib-annotate --propose-feature <cat>` | After detect-gaps |
 | Per APPROVED plan | Supervised rollout | `bin/agent-feature-supervisor` | After human approval |
 
 ### What to watch (artefact-driven alerts)

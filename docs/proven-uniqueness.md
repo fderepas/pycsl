@@ -1,10 +1,10 @@
 # Proven directory uniqueness — out of the TCB
 
-This document explains, in detail, how the `pure_lib/os` model's
+This document explains, in detail, how the `src/pycsl_lib/os` model's
 **directory-uniqueness** property is now *genuinely proven* rather than *trusted*,
 and why that change shrinks the [trusted computing base](glossary/trusted-computing-base.md)
 (TCB). It is a record of a real result — commit `2e37a9a`, the gap-13 closure —
-documented from the actual code (`pure_lib/os/UnixInodeFileSystem.py`), the axiom
+documented from the actual code (`src/pycsl_lib/os/UnixInodeFileSystem.py`), the axiom
 registry (`docs/glossary/axiom-registry.md`), and the dual-kernel proof companion
 (`docs/glossary/proof-companion.md`).
 

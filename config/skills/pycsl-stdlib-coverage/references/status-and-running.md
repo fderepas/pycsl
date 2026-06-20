@@ -14,7 +14,7 @@ Consult this when invoking the PyCSL tool (the exact commands, import-resolution
 | TCB | 1 cross-validated axiom (a bitwise bound) |
 | Formal test | `formal_os_roundtrip` 18/18 VCs ✅ (totality/safety, all symbolic inputs) |
 
-The `os` module — a Unix inode filesystem in `pure_lib/os/` — is **fully proven** body-level: every
+The `os` module — a Unix inode filesystem in `src/pycsl_lib/os/` — is **fully proven** body-level: every
 syscall, the codec leaves, the inode round-trip, the read-after-write recovery, and the on-disk layout
 class invariant all discharged by SMT, on a one-line trusted base. The earlier `subscript_get` gap and
 the 23 disk-mutating syscalls were closed — leaf-first VALUE contracts + `#@ no_inline` modular
@@ -74,17 +74,17 @@ are stubs delegating to real implementation.
 ### Import resolution (critical)
 
 PyCSL resolves imports by searching: (1) the file's directory, (2) CWD,
-(3) built-in `Lib/`. This means **CWD controls which `pure_lib/` is
+(3) built-in `Lib/`. This means **CWD controls which `src/pycsl_lib/` is
 found**.
 
-The models live in this repo under `pure_lib/<module>/` and the formal
-tests under `pure_lib_test/`. Run from the repo root.
+The models live in this repo under `src/pycsl_lib/<module>/` and the formal
+tests under `src/pycsl_lib_test/`. Run from the repo root.
 
 ```bash
 cd /path/to/pycsl
-.venv/bin/python3 src/pycsl/pycsl.py --keep-mlw pure_lib/os/__init__.py
+.venv/bin/python3 src/pycsl/pycsl.py --keep-mlw src/pycsl_lib/os/__init__.py
 # or a formal test:
-.venv/bin/python3 src/pycsl/pycsl.py --keep-mlw pure_lib_test/formal_os_namespace.py
+.venv/bin/python3 src/pycsl/pycsl.py --keep-mlw src/pycsl_lib_test/formal_os_namespace.py
 ```
 
 - `--keep-mlw`: preserve generated `.mlw` file for inspection

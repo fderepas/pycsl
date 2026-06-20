@@ -72,7 +72,7 @@ In order — each step may halt the run:
 5. **Verification gate** (unless `--skip-gate`):
    `pytest`, `bin/run-reference-tests.sh` (deep mode only),
    `bin/doc-coherency.py --check`, `bin/cmmi-audit.sh --quick`,
-   `bin/stdlib-coverage-report.py`. First failure → halt exit 74.
+   `attic/stdlib-coverage-tooling/stdlib-coverage-report.py`. First failure → halt exit 74.
 
 Halt reports land at `metrics/feature-supervisor/<slug>/halt-report.md`.
 
