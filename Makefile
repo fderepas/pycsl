@@ -50,21 +50,12 @@ self-annotate-verify: .venv
 	@$(MAKE) check-axiom-registry-emittable
 	@echo ""
 	@$(MAKE) check-axiom-registry-drift
-	@echo ""
-	@$(MAKE) stdlib-coverage
 
-# Phase 0 of the fully-annotated-stdlib strategy: classify every
-# stub function in `src/pycsl_lib/` by annotation depth (L1
-# typed → L5 tested) and regenerate `docs/stdlib-coverage.md`.
-# Pure reporting — does not modify any stub. The squeeze is the
-# monotonic ratchet enforced by reviewer attention on every PR:
-# coverage percentages should never drop. See
-# `.claude/plans/parsed-booping-ember.md` for the strategy.
-.PHONY: stdlib-coverage
-stdlib-coverage: .venv
-	@echo "=== Stdlib stub annotation coverage ==="
-	@$(PYTHON) bin/stdlib-coverage-report.py --gen-doc
-	@$(PYTHON) bin/stdlib-coverage-report.py | tail -30
+# NOTE: the `stdlib-coverage` target (and its bin/stdlib-coverage* tooling) was
+# RETIRED to attic/stdlib-coverage-tooling/ when the verified `pure_lib` was
+# promoted to `src/pycsl_lib/` (see lets-move.md). The promoted library is fully
+# annotated/verified, so the old annotation-depth ratchet over the stub set no
+# longer applies.
 
 # `proof2why3 emit` round-trip: every `_AXIOM_REGISTRY` body parses,
 # canonicalizes, emits, re-parses, and canonicalizes to the same IR.
