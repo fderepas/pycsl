@@ -333,11 +333,29 @@ def unlink(filepath: str, *, dir_fd=None):
 #@ requires True
 #@ assigns _filesystem.disk, _filesystem.fd_open, _filesystem.fd_inode, _filesystem.fd_offset, _filesystem.fd_flags, _filesystem.fd_block, _filesystem.next_fd
 #@ ensures \result == -1 or \result >= 3
-#@ ensures (\result >= 3) <==> (dir_lookup(_filesystem.dir, 5, filepath) >= 0)
-#@ ensures (\result == -1) <==> (dir_lookup(_filesystem.dir, 5, filepath) < 0)
-# gap-15: with the `_filesystem.fd_inode[\result]` (global_field_subscript) grammar,
-# propagate sys_open's fd-RESOLUTION post-state to the public API so the fd-chain
-# composes: on success the returned fd is OPEN and resolves to an in-range inode —
+# fd-resolution-fidelity RETIRED (the LAST os bare \trusted, on sys_open): the public
+# `open` contract no longer carries the FALSE UNCONDITIONED bi-implications
+#     (\result >= 3) <==> (dir_lookup(_filesystem.dir, 5, filepath) >= 0)
+#     (\result == -1) <==> (dir_lookup(_filesystem.dir, 5, filepath) < 0)
+# whose reverse (`dir_lookup >= 0 ==> \result >= 3`) is FALSE on ENFILE/permission
+# denial (a resolvable name still fails when the 64-slot fd table is full). Mirroring
+# the RETIRED `dup` fd-resolution, the honest directions are propagated verbatim from
+# sys_open's now-ZERO-trust body:
+#   - FORWARD resolution (body-proven): on success the fd resolves the name —
+#     \result >= 3 ==> dir_lookup(post) >= 0, and fd_inode[\result] == dir_lookup(post).
+#   - REVERSE no-failure, FREE-SLOT-CONDITIONED (the dup precedent): an EXISTING
+#     readable name opened with a free fd slot at entry yields a valid fd. An
+#     internals-blind formal-test driver establishes the free-slot side-condition via
+#     `#@ fresh_globals` (the `_filesystem` constructor's all-free fd_open post-state,
+#     carried across a prior open by the single-cell frame below).
+#@ ensures \result >= 3 ==> (dir_lookup(_filesystem.dir, 5, filepath) >= 0)
+#@ ensures (dir_lookup(\old(_filesystem.dir), 5, filepath) >= 0 and (\exists k: int; 3 <= k and k < 64 and \old(_filesystem.fd_open[k]) == 0)) ==> \result >= 3
+# ENOENT discriminant (SOUND direction, NOT the over-claim): an unresolvable name in
+# the post-state means open returned -1 (an absent name fails regardless of the fd
+# table). The FALSE twin `\result == -1 ==> dir_lookup < 0` was the ENFILE over-claim
+# and is GONE with the retired trust.
+#@ ensures dir_lookup(_filesystem.dir, 5, filepath) < 0 ==> \result == -1
+# gap-15: on success the returned fd is OPEN and resolves to an in-range inode —
 # the inode the path names. This is what lets a caller's fstat(open(p)) / dup(open(p))
 # discharge (the fstat/dup wrappers' guards `fd_open[fd]==1`, `0<=fd_inode[fd]<32`
 # are established here at the open site).
