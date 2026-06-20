@@ -729,30 +729,45 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
     if "\n  inductive " in mlw_code:
         base_cmd += ["-a", "induction_pr"]
     tl = str(getattr(args, "vacuity_timelimit", "5"))
-    vac: List[str] = []
-    try:
-        for fname, idx in fns:
-            probe_lines = lines[:idx] + ["    ensures { false }"] + lines[idx:]
-            probe_line_no = idx + 1   # 1-based line of the inserted `ensures { false }`
-            fd, probe_path = tempfile.mkstemp(suffix=".mlw", prefix=".pycsl_vac_")
-            try:
-                with os.fdopen(fd, "w") as f:
-                    f.write("\n".join(probe_lines) + "\n")
-                sel = [f"{probe_path}:{probe_line_no}"]
-                proved = False
-                for p in provers:
+    def _probe_one(fname_idx: "Tuple[str, int]") -> "Tuple[str, Optional[bool]]":
+        """Probe one function. Returns (fname, vacuous?) — vacuous? is None if why3 is
+        absent (so the caller can degrade the whole gate to skip-not-fail)."""
+        fname, idx = fname_idx
+        probe_lines = lines[:idx] + ["    ensures { false }"] + lines[idx:]
+        probe_line_no = idx + 1   # 1-based line of the inserted `ensures { false }`
+        fd, probe_path = tempfile.mkstemp(suffix=".mlw", prefix=".pycsl_vac_")
+        try:
+            with os.fdopen(fd, "w") as f:
+                f.write("\n".join(probe_lines) + "\n")
+            sel = [f"{probe_path}:{probe_line_no}"]
+            for p in provers:
+                try:
                     r = _run_why3_prove(base_cmd, p, tl, probe_path, sel)
-                    if any(_verdict_rank(rl) == _VERDICT_VALID
-                           for _, rl in _parse_goal_blocks(r.stdout)):
-                        proved = True
-                        break
-                if proved:
-                    vac.append(fname)
-            finally:
-                if os.path.exists(probe_path):
-                    os.remove(probe_path)
-    except FileNotFoundError:
-        return None
+                except FileNotFoundError:
+                    return fname, None
+                if any(_verdict_rank(rl) == _VERDICT_VALID
+                       for _, rl in _parse_goal_blocks(r.stdout)):
+                    return fname, True
+            return fname, False
+        finally:
+            if os.path.exists(probe_path):
+                os.remove(probe_path)
+
+    # Parallelize the per-function probes (each is an independent why3 subprocess that
+    # releases the GIL); a large module (e.g. os) otherwise serializes dozens of probes.
+    import concurrent.futures
+    try:
+        ncpu = os.cpu_count() or 2
+    except Exception:
+        ncpu = 2
+    workers = max(1, min(len(fns), ncpu // 2 if ncpu > 2 else 1))
+    vac: List[str] = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as ex:
+        for fname, verdict in ex.map(_probe_one, fns):
+            if verdict is None:
+                return None   # why3 absent — skip the gate (not a failure)
+            if verdict:
+                vac.append(fname)
     return vac
 
 
