@@ -443,41 +443,54 @@ def rename(src: str, dst: str, *, src_dir_fd=None, dst_dir_fd=None):
     # `src`-ABSENT direction, so access(src) reports ABSENT after rename.
     return _filesystem.sys_rename(src, dst)
 
+# FAITHFUL FAILURE SEMANTICS (os.rst l.47-49: "All functions in this module
+# raise OSError (or subclasses) in the case of invalid or inaccessible file
+# names and paths …").  The wrapper is the errno->exception translation layer
+# (exactly as CPython's `os` module is a thin wrapper over the syscall ABI):
+# the `sys_*` KERNEL layer keeps the faithful Unix-syscall `-1` return (that IS
+# the kernel ABI), and the wrapper turns `-1` into the right OSError subclass.
+#   - mkdir on an existing name -> FileExistsError (CPython EEXIST); any other
+#     mkdir failure (ENFILE/ENOSPC/perm) -> generic OSError.
+# On success mkdir returns None (CPython) and the presence view holds.
 #@ requires True
 #@ assigns _filesystem.disk
-#@ ensures \result == 0 or \result == -1
-#@ ensures \result == 0 ==> (dir_lookup(_filesystem.dir, 5, filepath) >= 0)
+#@ raises OSError when True
+#@ ensures dir_lookup(_filesystem.dir, 5, filepath) >= 0
 def mkdir(filepath: str, mode=0o777, *, dir_fd=None):
-    """Create a directory."""
+    """Create a directory. Raises OSError on any failure (faithful to
+    CPython's os.mkdir, which raises OSError/FileExistsError)."""
     rc = _filesystem.sys_mkdir(filepath, mode)
-    # gap-9: sys_mkdir ensures `rc == 0 ==> dir_lookup(_filesystem.dir, 5,
-    # filepath) >= 0` (the mutator establishes the presence view).
-    return rc
+    if rc < 0:
+        raise OSError
+    # gap-9: success establishes the presence view (sys_mkdir's post-state).
 
 #@ requires True
 #@ assigns _filesystem.disk
-#@ ensures \result == 0 or \result == -1
-#@ ensures \result == 0 ==> (dir_lookup(_filesystem.dir, 5, filepath) < 0)
+#@ raises OSError when True
+#@ ensures dir_lookup(_filesystem.dir, 5, filepath) < 0
 def rmdir(filepath: str, *, dir_fd=None):
-    """Remove a directory."""
-    # gap-11: sys_rmdir ensures `rc == 0 ==> dir_lookup(_filesystem.dir, 5,
-    # filepath) < 0` (the rmdir mutator establishes the ABSENCE view), so
-    # access(filepath) reports ABSENT after a successful rmdir.
-    return _filesystem.sys_rmdir(filepath)
+    """Remove a directory. Raises OSError on any failure (faithful to CPython's
+    os.rmdir, which raises FileNotFoundError/OSError)."""
+    rc = _filesystem.sys_rmdir(filepath)
+    if rc < 0:
+        raise OSError
+    # gap-11: success establishes the ABSENCE view (sys_rmdir's post-state).
 
 #@ requires True
 #@ assigns \nothing
-#@ ensures \result == -1 or (\result >= 0 and \result < 32)
-#@ ensures (dir_lookup(_filesystem.dir, 5, filepath) >= 0) ==> (0 <= \result and \result < 32)
-#@ ensures (dir_lookup(_filesystem.dir, 5, filepath) < 0) ==> \result == -1
+#@ raises FileNotFoundError when dir_lookup(_filesystem.dir, 5, filepath) < 0
+#@ ensures 0 <= \result and \result < 32
+#@ ensures dir_lookup(_filesystem.dir, 5, filepath) >= 0
 def stat(filepath: str, *, dir_fd=None, follow_symlinks=True):
-    """Get file status. Returns inode number."""
-    # PATH-LINK (stat consequence): sys_stat carries the two `dir_lookup`
-    # ensures (body-proven via _dir_lookup, no new trust), so a caller that
-    # pinned `dir_lookup(_filesystem.dir,5,filepath) >= 0` (e.g. after a
-    # successful mkdir) observes a VALID inode (0 <= \result < 32); absence
-    # (`dir_lookup < 0`) yields -1.
-    return _filesystem.sys_stat(filepath)
+    """Get file status. Returns the inode number on success, raises
+    FileNotFoundError if the path does not resolve (faithful to CPython)."""
+    # PATH-LINK (stat consequence): sys_stat carries the `dir_lookup` ensures
+    # (body-proven via _dir_lookup, no new trust). On absence the kernel
+    # returns -1; the faithful wrapper raises FileNotFoundError instead.
+    ino = _filesystem.sys_stat(filepath)
+    if ino < 0:
+        raise FileNotFoundError
+    return ino
 
 #@ requires True
 #@ assigns \nothing

@@ -294,16 +294,56 @@ class FunctionEmissionMixin:
 
         raises_contracts = contracts.get("raises", [])
         if raises_contracts:
+            from exception_model import handler_catches
+            # `#@ raises OSError when COND` SUMMARISES the subclasses:
+            # it covers a body `raise FileNotFoundError` under the same
+            # condition. Why3 matches `raises {}` arms by exact tag, so a
+            # declared base must be expanded into a conditioned arm for
+            # every body-raised subclass it covers. The base tag itself is
+            # still emitted (a literal `raise OSError`).
+            declared_exc: set = set()
+            covered_raw: set = set()  # raw raised names a declared arm covers
             for rc in raises_contracts:
                 cond_str = self._expr_to_whyml(rc["condition"], spec_refs)
-                lines.append(
-                    f"    raises {{ {safe_exc_name(rc['exc_type'])} -> {cond_str} }}"
-                )
-            declared_exc = {safe_exc_name(rc["exc_type"])
-                             for rc in raises_contracts}
-            sanitized_func_exc = {safe_exc_name(e) for e in func_exceptions}
-            for exc in sorted(sanitized_func_exc - declared_exc):
-                lines.append(f"    raises {{ {exc} }}")
+                base_raw = rc["exc_type"]
+                base = safe_exc_name(base_raw)
+                # Which raised exceptions are strict subclasses of this base
+                # (modelled hierarchy)? Only relevant for hierarchy bases
+                # like OSError; for a flat exception (ZeroDivisionError) this
+                # is always empty.
+                raised_subs = [r for r in sorted(func_exceptions)
+                               if r != base_raw and handler_catches(base_raw, r)]
+                # Emit the declared base arm UNLESS it is acting purely as a
+                # SUMMARY: the base itself is not in the body's effect, yet
+                # some subclass is. Why3 rejects `raises { OSError -> ... }`
+                # when only FileNotFoundError is actually raised ("does not
+                # raise exception OSError"), so in that case the base arm is
+                # dropped and the subclass arms below carry the condition.
+                # When the base has NO raised subclasses (the legacy flat
+                # case, e.g. an implicit ZeroDivisionError trigger that is
+                # not in func_exceptions), the declared arm is emitted as
+                # before — preserving the pre-existing behaviour.
+                summary_only = (base_raw not in func_exceptions) and bool(raised_subs)
+                if not summary_only:
+                    lines.append(f"    raises {{ {base} -> {cond_str} }}")
+                    declared_exc.add(base)
+                    covered_raw.add(base_raw)
+                # conditioned arms for each subclass actually raised
+                for raw in raised_subs:
+                    sub = safe_exc_name(raw)
+                    if sub not in declared_exc:
+                        lines.append(f"    raises {{ {sub} -> {cond_str} }}")
+                        declared_exc.add(sub)
+                    covered_raw.add(raw)
+            # Any raised exception NOT covered by a declared (base or
+            # subclass) arm still needs an unconditioned `raises` arm.
+            for raw in sorted(func_exceptions):
+                if raw in covered_raw:
+                    continue
+                exc = safe_exc_name(raw)
+                if exc not in declared_exc:
+                    lines.append(f"    raises {{ {exc} }}")
+                    declared_exc.add(exc)
         elif func_exceptions:
             sanitized = sorted({safe_exc_name(e) for e in func_exceptions})
             lines.append(f"    raises {{ {', '.join(sanitized)} }}")
@@ -595,6 +635,22 @@ class FunctionEmissionMixin:
 
         spec_refs = set() if is_method else ref_params
         func_exceptions = IRScanner.collect_escaping_exceptions(body_stmts)
+        # Exceptions raised by called functions (via their declared
+        # `#@ raises`) also escape this function unless caught — include
+        # them so the emitted `raises {}` summary is complete (e.g. a
+        # wrapper that calls `sys_open` propagates its FileNotFoundError).
+        # `_callee_raised_in` already drops what an enclosing try/except in
+        # the body catches. A callee raise the caller has committed to avoid
+        # via `#@ no_exception E` is `assert`-and-`absurd`-wrapped at the
+        # call site (so it provably does NOT escape) — subtract those, else
+        # we would emit a spurious `raises {E}` on a function PyCSL is
+        # otherwise free to emit as a pure `let function` (TR-BUG-2 / 0383).
+        callee_escaping = self._callee_raised_in(body_stmts)
+        if self._current_no_exception_all:
+            from exception_model import all_phase1_exceptions
+            callee_escaping -= set(all_phase1_exceptions())
+        callee_escaping -= set(self._current_no_exception)
+        func_exceptions |= callee_escaping
         # b-spec Track B (P3): an imported/abstract `val` stub shows only the NARROW interface
         # contract. Per-kind: a specified interface clause REPLACES the definition's; an OMITTED kind
         # INHERITS the definition (so `#@ interface ensures \length==64` narrows ensures but keeps the
