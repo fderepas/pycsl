@@ -1202,7 +1202,7 @@ class PreambleEmissionMixin:
 
         # Pycsl.Strmod.StrLen.length_nonneg — the STRING-UNIVERSAL
         # length-non-negativity fact that pins every "result is a string" leaf
-        # in pure_lib/strmod (template_substitute / template_safe_substitute /
+        # in src/pycsl_lib/strmod (template_substitute / template_safe_substitute /
         # _format_field_nonempty / Template.substitute / Template.safe_substitute
         # / Formatter.format). EVERY string — whatever transform produced it —
         # has non-negative length; this is a GENERIC fact about the abstract
@@ -1215,7 +1215,7 @@ class PreambleEmissionMixin:
         # capwords' `length result <= length s`, or `f("") == ""`) are NOT true
         # of an arbitrary `val` and remain honest GAPs (stay `\trusted`), never
         # faked as a cited axiom. Cross-validated by
-        # pure_lib/strmod/__init__.proofs/{rocq,lean}/StrLen.{v,lean} (theorem
+        # src/pycsl_lib/strmod/__init__.proofs/{rocq,lean}/StrLen.{v,lean} (theorem
         # length_nonneg): `string` is modelled as `list Z` / `List Int`,
         # `String.length` as `Z.of_nat (length _)` / `(_.length : Int)`, which is
         # a count, hence >= 0. Rocq 8.20.1: closed under the global context
@@ -1232,14 +1232,14 @@ class PreambleEmissionMixin:
         # alone: they are stated about a DEFINED logic symbol `capwords_def`
         # (the abstract `val function capwords_def` declared by _AXIOM_FUNCTIONS
         # below, whose intended interpretation IS the concrete definition in the
-        # proofs). The capwords leaf in pure_lib/strmod is an `#@ \abstract` val
+        # proofs). The capwords leaf in src/pycsl_lib/strmod is an `#@ \abstract` val
         # whose default-sep (sep = "") ensures is `result = capwords_def s`, from
         # which the length bound and empty law follow by these two axioms. This
         # retires the LAST bare reviewer-`\trusted` in strmod, replacing it with
         # a NAMED, proof-assistant-anchored definition (the auditable trusted
         # core = the faithfulness of `capwords_def`).
         #
-        # Cross-validated by pure_lib/strmod/__init__.proofs/{rocq,lean}/
+        # Cross-validated by src/pycsl_lib/strmod/__init__.proofs/{rocq,lean}/
         # Capwords.{v,lean}: `string` is `list Z` / `List Int`; `capwords_def` is
         # whitespace-tokenize (CPython str.split() default whitespace
         # {space,\t,\n,\r,\f,\v}, drop empties, trim) -> capitalize (first upper,

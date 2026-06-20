@@ -85,10 +85,13 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
             return pkg_init
         return None
 
-    # Absolute import: try main file's directory, CWD, then built-in Lib/ stubs
+    # Absolute import: try main file's directory, CWD, the repo `src/` (so the
+    # promoted standard library `pycsl_lib.X` resolves to `src/pycsl_lib/X`
+    # regardless of cwd), then built-in Lib/ stubs
     script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     lib_dir = os.path.join(script_dir, "Lib")
-    for base in [os.path.dirname(os.path.abspath(main_file)), os.getcwd(), lib_dir]:
+    src_dir = os.path.dirname(script_dir)  # …/pycsl/src
+    for base in [os.path.dirname(os.path.abspath(main_file)), os.getcwd(), src_dir, lib_dir]:
         candidate = os.path.join(base, *parts) + ".py"
         if os.path.isfile(candidate):
             return candidate

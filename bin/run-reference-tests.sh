@@ -116,18 +116,10 @@ JOBS=$(( CORES / 2 ))
 JOBS="${PYCSL_JOBS:-$JOBS}"
 [ -n "$JOBS_FLAG" ] && JOBS="$JOBS_FLAG"
 
-# Stdlib-coverage CI gate (workplan PR 7). Runs ONCE before any corpus test so a coverage
-# drift fails fast. Skip with PYCSL_SKIP_STDLIB_CHECK=1.
-if [ "${PYCSL_SKIP_STDLIB_CHECK:-0}" != "1" ]; then
-    if ! python3 "$PROJECT_ROOT/bin/stdlib-coverage.py" --check all; then
-        echo ""
-        echo "[!] stdlib-coverage --check failed. Either:"
-        echo "    1. Update calls-english.md / calls-pycsl.md / src/pycsl_lib/ to match the report, OR"
-        echo "    2. Regenerate the report with --discover after intentional code changes."
-        echo "    Skip this gate temporarily with PYCSL_SKIP_STDLIB_CHECK=1."
-        exit 1
-    fi
-fi
+# NOTE: the stdlib-coverage CI gate was RETIRED when the verified `pure_lib` was
+# promoted to `src/pycsl_lib/` (see lets-move.md); bin/stdlib-coverage.py now lives
+# in attic/stdlib-coverage-tooling/. The promoted library is verified, so the
+# annotation-drift gate over the old stub set no longer applies.
 
 # Doc-coherency CI gate. Skip temporarily with PYCSL_SKIP_DOC_COHERENCY_CHECK=1.
 if [ "${PYCSL_SKIP_DOC_COHERENCY_CHECK:-0}" != "1" ]; then

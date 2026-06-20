@@ -4,7 +4,7 @@ PyCSL is an annotation language for Python. It makes it possible to formally ver
 
 Documents define PyCSL [syntax](docs/pycsl-concrete-syntax-reference.md), [semantics](docs/pycsl-static-semantics-reference.md) and [translation to Why3](docs/pycsl-translational-reference.md).
 
-PyCSL is being prepared for self-annotation: standard-library coverage is tracked in [`calls-english.md`](calls-english.md), [`calls-pycsl.md`](calls-pycsl.md), and [`src/pycsl_lib/`](src/pycsl_lib/). The discipline is governed by [`pycsl-stdlib-coverage`](config/skills/pycsl-stdlib-coverage/SKILL.md) and enforced by [`bin/stdlib-coverage.py`](bin/stdlib-coverage.py).
+PyCSL ships a formally-verified standard library in [`src/pycsl_lib/`](src/pycsl_lib/) — pure-Python models of stdlib modules whose contracts are discharged by the verifier (the `os` filesystem model, for example, carries zero bare `\trusted`). Its formal consequence tests live in [`src/pycsl_lib_test/`](src/pycsl_lib_test/). (The earlier annotation-coverage tooling and the un-promoted stub set were retired to [`attic/`](attic/) once this library became canonical — see [`lets-move.md`](lets-move.md).)
 
 For human-facing definitions of recurring verification terms such as
 *witness*, *ghost code*, *ghost state*, *memory model*, and *solver budget*,
