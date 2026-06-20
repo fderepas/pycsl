@@ -21,13 +21,20 @@ never `\trusted`. *(The old generated stub set that still carried `\trusted` was
 retired to `attic/pycsl_lib/`; the promoted library is body-verified.)*
 Practical implications for annotating a function that calls stdlib:
 
-- **Stub returns are `int`-valued in the model.** `os.path.exists(p)`
-  returns 0 or 1; `re.compile(p)` returns an opaque non-negative
-  integer; `len(x)` returns array length or `iter_length`.
-- **The stub's postcondition propagates automatically** — claim
-  `#@ ensures \result >= 0` after `return json.dumps(obj)` because
-  the stub's postcondition already guarantees it. Don't re-prove
-  what the stub already states.
+- **A result carries its faithful type class — not a universal `int`.**
+  Per the no-more-int doctrine a value lowers to its true WhyML type:
+  `str`→`string`, `list`→`array`, `dict`→`map`, `float`→`real`, structured
+  or enum values to a `record`/`variant`. Genuinely-integer results stay
+  `int` — `len(x)` is an array length (`\result >= 0`), and a predicate like
+  `os.path.exists(p)` is a 0/1 boolean. An irreducibly-opaque handle (e.g. a
+  compiled `re` pattern) is an abstract `val`, **not** an int hash.
+- **The stub's postcondition propagates automatically** — restate the stub's
+  own postcondition rather than re-proving it, in the result's faithful type:
+  `#@ ensures \result >= 0` after an `int`-returning size/count call; a
+  `\length(\result)` / content fact after a `string`-returning call like
+  `json.dumps(obj)` (its result is a `string`, **never** `\result >= 0`); an
+  array-length fact after a list-returning call. Don't re-prove what the stub
+  already states, and don't coerce a non-`int` result to an integer to state it.
 - **Bare imports are fine.** `import os.path` resolves against the
   stub set; the pipeline never executes or fully parses CPython.
 
