@@ -1004,6 +1004,50 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     st[v] = "str"
         return elem_reads
 
+    def _collect_field_decode_str_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """Locals assigned the null-terminated-field NAME-decode idiom
+        `arr[a:b].split(b'\\x00')[0].decode('utf-8', ...)`. The expression
+        recognizer (`expressions._recognize_field_decode_idiom`) lowers that
+        VALUE to a `field_to_str …` STRING term, so the receiving variable must
+        be a string-typed ref — never the integer `ref 0` pre-declaration.
+
+        Without this, a local whose string-ness was previously discoverable ONLY
+        from a manual `name: str` annotation (e.g. `_dir_lookup`) typechecks, but
+        the SAME idiom in an un-annotated local (e.g. `listdir`'s `name = …`)
+        stays `ref 0 : ref int` and the string assignment fails L3 typecheck
+        ('type string, but is expected to have type int'). Keying the variable
+        type on the idiom shape — the EXACT shape the value recognizer fires on —
+        makes the two consistent in every context the recognizer fires.
+
+        Byte-identical for any local NOT assigned this idiom (e.g. corpus files
+        that never read a fixed-width null-padded byte field as a string)."""
+        out: Set[str] = set()
+
+        def rec(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("stmt") == "Assign" and isinstance(node.get("target"), str):
+                    v = node.get("value", {})
+                    if (isinstance(v, dict) and v.get("type") == "Call"
+                            and v.get("func") == "decode"
+                            and self._match_field_decode_idiom(v) is not None):
+                        out.add(node["target"])
+                for x in node.values():
+                    rec(x)
+            elif isinstance(node, list):
+                for x in node:
+                    rec(x)
+
+        rec(body_stmts)
+        # Reflect into the symbol table so the per-operation string sites (the
+        # `slot_name … = !name` assert RHS, `not in ('.', '..')`, `.append(name)`)
+        # also see `name : str`, exactly as the explicit-annotation path does.
+        st = getattr(self, "_current_symbol_table", None)
+        if st is not None:
+            for v in out:
+                if st.get(v) in (None, "Any"):
+                    st[v] = "str"
+        return out
+
     def _typed_local_vars(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """Body locals that carry a NON-int WhyML type — array, dict/set, lambda,
         record, or variant — and so must be EXCLUDED from the integer `ref 0`
@@ -1056,6 +1100,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # feeding a string-typed consumer (sys_stat). Byte-identical when no module
         # function returns `array string` (`_module_string_seq_funcs` empty).
         string_vars |= self._collect_string_elem_read_locals(body_stmts)
+        # field-decode idiom locals: a local assigned
+        # `arr[a:b].split(b'\x00')[0].decode('utf-8', ...)` receives the
+        # recognizer's `field_to_str …` STRING value, so it must be a string
+        # ref (not `ref 0`). Keys on the SAME shape the value recognizer fires
+        # on, so the variable type and the assigned value stay consistent in
+        # every context (annotated `_dir_lookup` AND un-annotated `listdir`).
+        string_vars |= self._collect_field_decode_str_locals(body_stmts)
         self._string_local_vars = string_vars
         # 07-2333-rev2 Gap 3: a seq-promoted (growable) list LOCAL must NOT be pre-declared
         # as `ref 0 : ref int` — it is `ref (seq int)`, let-bound at its first assignment by
