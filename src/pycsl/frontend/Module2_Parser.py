@@ -311,6 +311,22 @@ class SiblingConcrete(CSLNode):
     pass
 
 @dataclass
+class VerifyModule(CSLNode):
+    """Represents `#@ verify_module <name>` (module-emission.md) — OPT-IN axiom-isolation:
+    the method is emitted into its OWN top-level Why3 `module <name>` (re-declaring the shared
+    infra — record type, val-functions, predicates, witness/class-invariant axioms, abstract
+    stubs) so that ONLY the `#@ proof` axioms cited by the functions in that module are in
+    scope for its goals. Functions sharing the same `<name>` are co-emitted into one module.
+    Cross-module `self.<m>(...)` calls (a sibling in a DIFFERENT verify_module / the flat
+    default module) are lowered to a bodyless `val` carrying the sibling's proven contract,
+    discharged by the Track-B narrowing VC in the sibling's owning module — a PROVEN interface,
+    never an assumed `val` / new `\\trusted` / new axiom. Resolves the read+write axiom
+    co-residence OOM that blocks `_dir_lookup` (read `field_to_str`/`dir_scan_*` axioms out of
+    scope for the write helpers' per-byte goals, and vice-versa). Default (untagged) → the
+    single flat `module PyCSL_Program` is emitted unchanged → corpus byte-identical."""
+    name: str
+
+@dataclass
 class PropagateFrame(CSLNode):
     """Represents `#@ propagate_frame` (os-roadmap M4) — OPT-IN: THIS method's QUANTIFIED
     self-field FRAME ensures (`\\forall k. … == \\old(…)`) are propagated onto its `#@ no_inline`
@@ -922,6 +938,7 @@ PYCSL_GRAMMAR = r"""
              | diverges_decl
              | no_inline_decl
              | sibling_concrete_decl
+             | verify_module_decl
              | propagate_frame_decl
              | fresh_globals_decl
              | trusted_decl
@@ -1024,6 +1041,7 @@ PYCSL_GRAMMAR = r"""
     diverges_decl: "\\diverges"
     no_inline_decl: "no_inline"
     sibling_concrete_decl: "sibling_concrete"
+    verify_module_decl: "verify_module" CNAME
     propagate_frame_decl: "propagate_frame"
     fresh_globals_decl: "fresh_globals"
     trusted_decl: "\\trusted" ("reviewer" ":" REVIEWER_ID)?
@@ -1381,6 +1399,8 @@ class PyCSLTransformer(Transformer):
         return Lemma()
     def uses_decl(self, name) -> Uses:
         return Uses(str(name))
+    def verify_module_decl(self, name) -> VerifyModule:
+        return VerifyModule(str(name))
     def interface_ensures(self, expr) -> InterfaceClause:
         return InterfaceClause("ensures", Ensures(expr))
     def interface_requires(self, expr) -> InterfaceClause:

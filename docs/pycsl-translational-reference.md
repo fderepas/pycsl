@@ -707,6 +707,41 @@ established at the driver entry (and carried across a prior `open`/`dup` by the
 theorem (zero-trust, via `_alloc_fd`'s completeness) proves the formal test — replacing
 the FALSE unconditioned `\result>=3` body theorem the trust used to assume.
 
+### §T.2.7m  Module-emission (`verify_module <name>`)
+
+A function tagged `#@ verify_module <name>` is emitted into its OWN top-level Why3
+`module <name>` instead of the single flat `module PyCSL_Program`. The transpiler
+partitions the program's functions by their `verify_module` group (untagged → the flat
+default module). For each emitted module it re-declares the shared infrastructure — `use`s,
+helpers, the `val function`/`predicate` symbols, witness/class-invariant axioms, and the
+abstract stubs — and emits ONLY that group's `#@ proof`-cited axioms (axiom selection is
+per-module because the axiom emitter scans only the functions in the module). The concrete
+record type is declared once in a common base `module` that every emitted module `use`s,
+because Why3 cannot `clone`-substitute a defined (concrete, field-bearing) type.
+
+A cross-module `self.<m>(...)` call — to a sibling in a different `verify_module` group, or
+in the flat default module — is lowered to the callee's PROVEN contract via Why3 module
+**`clone`-refinement**: an interface `module <name>Sig` declares the callee's contract as a
+bodyless `val` (the contract only, no body, no axioms); the owning provider `module <name>`
+re-declares the shared symbols, holds its group's axioms LOCALLY, emits the real
+`let <fn> = <body>` discharging the contract, and ends with `clone <name>Sig with
+val <fn> = <fn>, …` — for which Why3 generates the synthetic refinement VC `<fn>'refn'vc`
+proving the implementation satisfies the interface contract (validated non-vacuous: a
+contract that over-claims relative to the body makes `'refn'vc` unprovable). The consumer
+`module` `use`s the interface `module` and calls `<name>Sig.<fn>` (the proven contract),
+NOT an abstract `val self__<fn>_<n>` stub. The boundary is therefore a PROVEN interface —
+never an assumed `val`, a new `\trusted`, or a new axiom. The net TCB is unchanged: every
+function is proved exactly once, against a contract that is itself proved; the directive
+only changes WHICH declarations share the SMT context at each VC, isolating one group's
+axioms from another's goals (e.g. the os read-side `field_to_str`/`dir_scan_*` axioms out
+of scope for the directory writers' per-byte goals, and the write-side `dir_blit_marker*`
+axioms out of scope for `_dir_lookup`'s read goals — resolving the co-residence OOM).
+
+Why3 `scope` does NOT provide this isolation — a `scope` is a namespace, and an `axiom` is
+global within its enclosing `module` regardless of scope nesting; only separate top-level
+`module`s isolate axioms. Default (untagged) → the single flat `module PyCSL_Program` is
+emitted unchanged → corpus byte-identical (see static §2.1.6m, concrete §2.1.6m).
+
 ### §T.2.8  Exception-Raising Functions (`raises`)
 
 $$\mathcal{T}_f\llbracket \texttt{\#@ raises E when cond} \rrbracket

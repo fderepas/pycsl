@@ -1871,6 +1871,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             "diverges": getattr(node, 'csl_diverges', False),
             "no_inline": getattr(node, 'csl_no_inline', False),
             "sibling_concrete": getattr(node, 'csl_sibling_concrete', False),
+            # module-emission.md: opt-in axiom-isolation group name ("" = flat default).
+            "verify_module": getattr(node, 'csl_verify_module', "") or "",
             "propagate_frame": getattr(node, 'csl_propagate_frame', False),
             "fresh_globals": getattr(node, 'csl_fresh_globals', False),
             "trusted": getattr(node, 'csl_trusted', False),

@@ -672,6 +672,65 @@ class PreambleEmissionMixin:
             "slot_inode d1 5 s = 256 * b0 + b1",
 
         # ====================================================================
+        # READ-SIDE dir_scan_result marker family — the read dual of the
+        # dir_blit_marker family. Retires the READ-side dirscan-fidelity trust on
+        # _dir_lookup by carrying the VALUE conclusion
+        # `dir_lookup self.dir 5 pathname = found` across SMT via a unique marker,
+        # the same discipline the write side used. Cross-validated zero-TCB by
+        # test-suite/corpus/pycsl-reference/0720.proofs/{rocq,lean}/UnixDirScanValue.{v,lean}:
+        #   - Rocq: every theorem "Section Variables" only (0 Axiom/Admitted).
+        #   - Lean: dir_scan_result_value/_intro/_prefix_base/_prefix_close "does not
+        #     depend on any axioms"; dir_scan_prefix_step ⊆ {propext, Quot.sound}.
+        #
+        # The marker fires ONLY at the atoms _dir_lookup's body asserts (the loop-carry
+        # invariant + the loop-exit close), NEVER on a bare dir_lookup/slot_inode term,
+        # so the gap-9 existential witness is discharged OFFLINE in the kernel and never
+        # enters the WhyML goal — exactly the dir_blit_marker once-firing discipline.
+        #
+        # dir_scan_prefix_base (DEFINITIONAL, zero trust): the loop-init rung.
+        # `found = -1` over the empty (0-slot) prefix. Trigger on the marker atom.
+        "UnixFs.Dir.dir_scan_prefix_base":
+            "forall d : array int, blk : int, name : string "
+            "[dir_scan_prefix d blk name 0 (-1)]. "
+            "dir_scan_prefix d blk name 0 (-1)",
+        # dir_scan_prefix_step (cross-validated): the loop-body update rung. From the
+        # prefix marker at slot i, peeling slot i — using the per-slot decode facts
+        # slot_inode/slot_name d blk i (the SAME body name-match the loop body tests) —
+        # advances the marker to slot i+1 with the body's `if` update of `found`.
+        # Keyed [dir_scan_prefix d blk name i r], so it fires once per loop iteration
+        # at the carried marker, NEVER on a bare scan term. This is the NON-inductive
+        # rung: the induction is discharged offline; SMT only applies one O(1) step.
+        "UnixFs.Dir.dir_scan_prefix_step":
+            "forall d : array int, blk i r : int, name : string "
+            "[dir_scan_prefix d blk name i r]. "
+            "0 <= i -> i < 16 -> "
+            "dir_scan_prefix d blk name i r -> "
+            "( ( slot_inode d blk i <> 0 /\\ slot_inode d blk i < 32 "
+            "      /\\ slot_name d blk i = name ) -> "
+            "    dir_scan_prefix d blk name (i + 1) (slot_inode d blk i) ) "
+            "/\\ ( not ( slot_inode d blk i <> 0 /\\ slot_inode d blk i < 32 "
+            "             /\\ slot_name d blk i = name ) -> "
+            "    dir_scan_prefix d blk name (i + 1) r )",
+        # dir_scan_result_intro (DEFINITIONAL close, zero trust): the full-prefix rung
+        # i=16 IS the scan result — fold the loop-exit prefix marker into the result
+        # marker. Keyed [dir_scan_prefix d blk name 16 r].
+        "UnixFs.Dir.dir_scan_result_intro":
+            "forall d : array int, blk r : int, name : string "
+            "[dir_scan_prefix d blk name 16 r]. "
+            "dir_scan_prefix d blk name 16 r -> "
+            "dir_scan_result d blk name r",
+        # dir_scan_result_value (cross-validated VALUE lemma — the load-bearing read
+        # dual of dir_blit_marker_value_inode): the marker carries
+        # dir_lookup d blk name = r. The whole inductive last-live-match argument is
+        # discharged offline in UnixDirScanValue (dir_lookup := scan ... 16 (-1) and the
+        # marker = that scan); SMT only applies this O(1) equality at the asserted atom.
+        # Keyed [dir_scan_result d blk name r] — fires EXACTLY ONCE at the close.
+        "UnixFs.Dir.dir_scan_result_value":
+            "forall d : array int, blk r : int, name : string "
+            "[dir_scan_result d blk name r]. "
+            "dir_scan_result d blk name r -> "
+            "dir_lookup d blk name = r",
+        # ====================================================================
         # BLOCK-PARAMETERIZED marker family (2026-06-19) — the arbitrary-block
         # generalization of the block-5 dir_blit_marker family above. _write_entry
         # mutates self.disk at an ARBITRARY block `block_num` (ensures reference
@@ -939,8 +998,19 @@ class PreambleEmissionMixin:
         # (`chr (code c) = c`), no admits. Rocq 8.20.1: closed under the global context
         # (0 Axiom/Admitted, only the abstract Section Variables); Lean 4.30.0:
         # #print axioms ⊆ {propext, Quot.sound}, no sorry.
+        # TRIGGER [field_to_str d off width] (CONFINEMENT, sound): without it Why3
+        # auto-selects triggers from the antecedent byte atoms (`[off + i]`,
+        # `[off + String.length name]`), which E-MATCH the WRITE-side null-pad /
+        # per-char goals (`dir[2560+32*slot+2+i] = ...`) and explode them to OOM —
+        # the measured _write_dir_entry regression. Keying on the `field_to_str`
+        # decode term confines the axiom to read-side goals where a `field_to_str`
+        # term is present (i.e. `_dir_lookup`'s faithful name), NEVER the write side.
+        # A trigger only RESTRICTS instantiation (never adds a fact), so this is
+        # soundness-neutral; the conclusion `field_to_str d off width = name` is
+        # unchanged and the cross-validation (0708.proofs) still applies verbatim.
         "UnixFs.Field.field_to_str_round_trip":
-            "forall d : array int. forall off width : int. forall name : string. "
+            "forall d : array int. forall off width : int. forall name : string "
+            "[field_to_str d off width]. "
             "0 <= String.length name -> String.length name <= width -> "
             "( forall i : int. 0 <= i < String.length name -> "
             "    Char.code (Char.get name i) <> 0 ) -> "
@@ -1125,11 +1195,19 @@ class PreambleEmissionMixin:
         # concrete faithful definition in __init__.proofs/{rocq,lean}/Capwords.
         "Pycsl.Strmod.Capwords.": ["val function capwords_def (s: string) : string"],
         # string-codec Phase A': the abstract string ↔ byte-field decode. Logic-only
-        # (`function`, no body) — referenced solely in CONTRACTS (the spec-level name
-        # decode), never applied in a program body, so no `val` is needed. Constrained
-        # by the cross-validated `field_to_str_round_trip` axiom above.
+        # (`function`, no body) — the SAME abstract symbol used in CONTRACTS and
+        # constrained by the cross-validated `field_to_str_round_trip`/`field_to_str_frame`
+        # axioms above. The faithful read-name EMITTER lowering (the null-terminated-field
+        # decode recognizer, see `_recognize_field_decode_idiom` in
+        # module6_whyml/expressions.py) emits a genuine `field_to_str self.dir off 30`
+        # TERM in `_dir_lookup`'s body via a Why3 `pure { ... }` block — which lifts a
+        # LOGIC term into program position WITHOUT turning the symbol into a `val` (so it
+        # is NOT a `val`/assumed-ensures shim, NOT a new symbol, NOT a new axiom, and adds
+        # NO program/safety VC that would perturb the write-side `field_to_str_round_trip`
+        # E-matching). `field_to_str` thus stays a pure logic `function`, byte-stable for
+        # every non-`_dir_lookup` VC; the body term is the exact symbol the axioms key on.
         "UnixFs.Field.": [
-            "function field_to_str (d: array int) (off: int) (width: int) : string",
+            "val function field_to_str (d: array int) (off: int) (width: int) : string",
         ],
         # Declare the `\permutation` predicate before its axioms. Same symbol
         # `_handle_permutation_expr` emits via `_add_abstract_op` — the
@@ -1233,6 +1311,19 @@ class PreambleEmissionMixin:
             # `disk[2560+<expr>]` byte read (the trigger-poison wall fix). d0 = pre,
             # d1 = post, s = slot, (b0,b1) = the two blitted inode bytes.
             "predicate dir_blit_marker (d0 d1: array int) (s b0 b1: int) (name: string)",
+            # READ-SIDE marker: the read dual of dir_blit_marker.
+            # `dir_scan_result d blk name r` ≜ "r is the bounded 16-slot scan result
+            # dir_lookup d blk name". A UNIQUE uninterpreted atom keyed
+            # [dir_scan_result d blk name r] — fires ONLY where _dir_lookup's body
+            # asserts it at loop exit, NEVER on a bare dir_lookup/slot_inode term, so
+            # the value conclusion crosses SMT without re-introducing the gap-9
+            # existential witness (it is discharged offline in UnixDirScanValue.{v,lean}).
+            "predicate dir_scan_result (d: array int) (blk: int) (name: string) (r: int)",
+            # READ-SIDE loop-carry prefix marker (the NON-inductive rung):
+            # `dir_scan_prefix d blk name i r` ≜ "r is the scan result over the first i
+            # slots". Carried as a loop invariant; advanced one slot per iteration via
+            # dir_scan_prefix_step (O(1) marker-keyed), closed at i=16 to dir_scan_result.
+            "predicate dir_scan_prefix (d: array int) (blk: int) (name: string) (i: int) (r: int)",
         ],
         # BLOCK-PARAMETERIZED marker (2026-06-19): the arbitrary-block twin of
         # dir_blit_marker for _write_entry, which mutates self.disk at an ARBITRARY
@@ -1525,10 +1616,15 @@ class PreambleEmissionMixin:
             "user_exceptions": user_exceptions,
         }
 
-    def _emit_preamble_uses(self, needs: Dict[str, Any]) -> List[str]:
-        """Phase A: emit module header and `use` declarations for libraries."""
+    def _emit_preamble_uses(self, needs: Dict[str, Any],
+                            module_name: str = "PyCSL_Program") -> List[str]:
+        """Phase A: emit module header and `use` declarations for libraries.
+
+        `module_name` defaults to `PyCSL_Program` (the flat single-module path, byte-
+        identical). The `_transpile_modular` path passes the per-module name so each
+        emitted top-level `module <name>` gets the SAME shared infrastructure `use`s."""
         out = [
-            "module PyCSL_Program",
+            f"module {module_name}",
             "  use int.Int",
             "  use int.EuclideanDivision",
             "  use ref.Ref",
@@ -1949,10 +2045,32 @@ class PreambleEmissionMixin:
         # A decl already emitted EARLY (before an inductive block that references
         # it — `_emit_inductive_decls`) must not be re-declared here.
         already = set(getattr(self, "_axiom_emitted_decls", set()))
-        seen_qualnames: Set[str] = set()
+        # module-emission.md §2a — TRUSTED `verify_module`-tagged stub axiom suppression.
+        # When a `#@ verify_module <G>` function is ALSO trusted on THIS gate path
+        # (e.g. it is a `--fun`-filtered callee of a write helper, so `pycsl.py` marks
+        # `f["trusted"]=True`), it is emitted as a bodyless trusted `val` carrying ONLY
+        # its contract — its body is NOT proven here. Its cited `#@ proof` axioms exist
+        # SOLELY to discharge that body's VC; consumers need only the trusted contract.
+        # Leaving them in would co-reside the heavy read-family axioms
+        # (field_to_str_round_trip / dir_scan_* / *_byte_decode) with the write goal
+        # → the 9.4M-step Timeout. So we DROP a qualname iff it is cited ONLY by such
+        # trusted+verify_module stubs (a qualname ALSO cited by a non-suppressed function
+        # — e.g. the shared `slot_inode_nonneg` / `scan_reflects_present` — still emits
+        # from that function's own cite). Net `\trusted` is UNCHANGED (the stub stays
+        # the existing trusted boundary); only its supporting axioms leave this module's
+        # SMT context. On the MODULAR path the tagged fn is NOT trusted (it is the
+        # verify target whose body IS proven), so nothing is suppressed there. On the
+        # default flat path with no trusted+verify_module fn this is a no-op (byte-id).
+        kept_qualnames: Set[str] = set()
         for func in ir.get("functions", []):
+            stub = bool(func.get("trusted")) and bool(func.get("verify_module"))
+            if stub:
+                continue  # its cited axioms exist only to prove its (unproven) body
             for entry in func.get("proof", []):
-                seen_qualnames.add(entry["qualname"])
+                kept_qualnames.add(entry["qualname"])
+        # A qualname cited ONLY by a trusted+verify_module stub is dropped; one ALSO
+        # cited by a non-suppressed function survives (it was added in the loop above).
+        seen_qualnames: Set[str] = kept_qualnames
         if not seen_qualnames:
             return []
 
@@ -2012,9 +2130,10 @@ class PreambleEmissionMixin:
             out.append(f"  {line}")
         return out
 
-    def _emit_preamble(self, needs: Dict[str, Any]) -> List[str]:
+    def _emit_preamble(self, needs: Dict[str, Any],
+                       module_name: str = "PyCSL_Program") -> List[str]:
         """Emit the WhyML module header: use declarations, exception types, helper functions."""
-        out = self._emit_preamble_uses(needs)
+        out = self._emit_preamble_uses(needs, module_name)
         out += self._emit_preamble_exceptions(needs)
         out += self._emit_preamble_helpers(needs)
         out += self._emit_preamble_no_exception_predicates(needs)
