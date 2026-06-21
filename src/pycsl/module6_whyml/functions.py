@@ -953,8 +953,19 @@ class FunctionEmissionMixin:
             if not isinstance(node, dict):
                 return None
             t = node.get("type")
-            if t in ("OldVar", "OldField"):
+            if t == "OldVar":
                 return False
+            if t == "OldField":
+                # `\old(self.<plainfield>)` flattens to OldField (Module5), whereas
+                # `\old(self.arr[i])` stays an `Old` node — so a result-guarded counter
+                # exposed to a caller (`\result==0 ==> self.n == \old(self.n)+1`)
+                # propagated through NO map: field_old rejects \result; this map and
+                # field_param_result rejected OldField. Allow OldField OF SELF here (the
+                # shared field-ensures lowering already emits `old (self.f)`, as the
+                # field_old void-mutator clauses prove). Requires a CURRENT self-field too
+                # (the `saw("field")` gate below), so a pure `\result == \old(self.x)`
+                # getter — no current field — is unaffected (byte-identical).
+                return False if node.get("object") != "self" else None
             if t in ("FieldGet", "Attribute"):
                 # Only `self.<field>` is allowed; `other.f` / a chained
                 # `self.a.b` (object is itself a dict) is rejected.
