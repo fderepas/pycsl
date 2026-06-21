@@ -6,9 +6,10 @@ H-T…H-S, §8 cross-cutting obligations, and §9 gap analysis are binding here)
 `pycsl-stdlib-coverage` convergence loop (the coordinator / worker / paired-document
 protocol this guide adapts); `pycsl-prereqs-impl.md` (the core-directed inversion of
 that loop, reused here). **Scope:** H-T (hardening), H-I1, H-R, H-D, H-E, H-S
-implemented to Normative-graduation. **H-I2 (noninterference) is out of scope** — the
-roadmap sequences it last as the only milestone needing a genuinely new relational WP
-mechanism (self-composition); it is a separate engagement.
+implemented to Normative-graduation. **H-I2 (noninterference) is now IMPLEMENTED** (it was wrongly deemed to need a new
+relational WP mechanism) — via self-composition: the meta-pass synthesizes a twin that calls
+the target twice (public shared, secret split) and asserts equal results, exactly as the C
+sibling macsl does (`emit_selfcomp`). No new WP mechanism — a synthesized 1-safety driver.
 
 **Name (and a C sibling).** In PyCSL, **HAPPY** = **H**igh-level **A**ssertion-**P**roducing
 **PY**thon requirement. There is now a C implementation — **macsl** (a standalone re-spin of
@@ -115,7 +116,7 @@ both — only the host language and the prover plumbing differ.
 | **H-D** | DoS | totality / termination | `\total` | `availability` |
 | **H-E** | Elevation | privilege monotonicity | `\postcond` | `priv_monotonic` |
 | **H-S** | Spoofing | check-before-use capability | `\precond` | `authn` |
-| **H-I2** | Info-Disclosure | noninterference | `\noninterference` | (out of scope here) |
+| **H-I2** | Info-Disclosure | noninterference | `\noninterference` | (self-composition twin; drivers 0729/0730) |
 
 **Directive vocabulary correspondence.** macsl's ACSL form is the reference grammar; PyCSL
 adopts the same selector/context keywords (only the comment host and the formula syntax
