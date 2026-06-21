@@ -212,6 +212,13 @@ def dup(fd):
 # EBADF DIRECTION (now a RAISE, not -1): a closed fd in range (fd_open[fd]==0) makes
 # fstat RAISE OSError. With close's CLOSE-POST-STATE this lets a caller OBSERVE close
 # took effect: fstat(fd) raises after a successful close (the absence consequence).
+# This is the NORMAL-RETURN restatement of that direction: if fstat RETURNS (does not
+# raise), then an in-range fd was OPEN. BODY-PROVEN (ZERO trust): a normal return means
+# `ino >= 0`, and sys_fstat's `(fd < 64 and fd_open[fd]==0) ==> \result == -1` ensures
+# (UnixInodeFileSystem l.2841, the `if self.fd_open[fd]==0: return -1` guard) gives the
+# contrapositive `\result != -1 and fd < 64 ==> fd_open[fd] != 0`. This is what lets a
+# caller prove the post-close fstat MUST raise (its return-0 path is unreachable).
+#@ ensures fd < 64 ==> _filesystem.fd_open[fd] != 0
 def fstat(fd):
     """Get file status by file descriptor. Returns inode number; raises OSError
     on a bad/closed fd (CPython-faithful)."""
