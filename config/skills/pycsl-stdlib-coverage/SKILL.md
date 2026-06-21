@@ -161,6 +161,14 @@ checks confirm they cannot perturb the fs region. Therefore **any fs
 file is preserved across a sys/time/io call with no `assigns` clause
 at all** — preservation is a corollary of the ownership invariant.
 
+> **A HAPPY-annotated class is a verified spec-subject, NOT a formal test.** A file whose proof
+> shows the method *bodies* satisfy their HAPPY policies / contracts has verified the *spec holds
+> of the bodies* — it has NOT exercised the operation's consequence through the public API. To
+> also be a formal test it needs a driver that constructs an instance, CALLS the API, and OBSERVES
+> the post-state over symbolic inputs (e.g. `formal_bank_transfer.py`'s
+> `formal_transfer_moves_money`: `seed → transfer → read balances/audit back → assert`). See the
+> three-rule definition in `references/what-is-a-formal-test.md`.
+
 ### Flush-through I/O model
 
 `io.StreamModel.write` routes directly to `world.fs.sys_write` with
@@ -311,6 +319,21 @@ For string-heavy code (re), body-level proof is blocked by tool gaps
 (see `references/tool-gaps.md`). Proceed to step 5 regardless.
 
 ### Step 5 — Write a formal test
+
+> **DEFINITION — an artifact is a formal test ONLY if all three hold** (the crisp,
+> checkable form; see `references/what-is-a-formal-test.md` for examples + anti-patterns):
+> 1. **FOR-ALL** — every parameter symbolic, constrained by `#@ requires` (never concrete).
+> 2. **CONSEQUENCE** — set up → OPERATE → observe the post-state; assert the *observed effect*,
+>    never the call's own return-code (that's vacuous).
+> 3. **CALLS THE API** — import + call the public functions; observe through them; never simulate
+>    internals.
+>
+> Miss one and it is NOT a formal test. The subtle miss is a **verified spec-subject**: a class
+> annotated with policies/contracts where the proof shows the *bodies* satisfy their own
+> pre/postconditions but **no driver constructs an instance, calls the API, and observes a
+> post-state** (fails rules 2 & 3). It is a contract proof of the subject, not a consequence test
+> — don't file it as `formal_<name>.py` without a consequence driver. A formal test counts only
+> when **green AND non-vacuous** (`--check-vacuity`).
 
 Create `src/pycsl_lib_test/formal_<module>.py` with **universally quantified
 parameters** — every parameter must be symbolic, never concrete. The

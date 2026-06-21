@@ -272,6 +272,16 @@ class TypeInferenceMixin:
             gcls = getattr(self, "_module_global_classes", {}).get(receiver_name)
             if gcls is not None and gcls in self._record_types:
                 cls = self._record_types[gcls].get("whyml_name")
+            else:
+                # LOCAL record var: a driver `b = Bank()` then `b.balance[i]`. The
+                # receiver's class comes from `_current_record_var_classes` (the same
+                # map that lets `<recordvar>.method(...)` propagate a callee contract).
+                # Without this, a record-local array-field subscript falls through to
+                # the abstract `subscript_get (x:int)` and mismatches `array int` —
+                # blocking a consequence driver from reading a record's field back.
+                rvcls = getattr(self, "_current_record_var_classes", {}).get(receiver_name)
+                if rvcls is not None and rvcls in self._record_types:
+                    cls = self._record_types[rvcls].get("whyml_name")
         if not cls:
             return None
         for info in self._record_types.values():
