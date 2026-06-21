@@ -72,9 +72,11 @@ termination VC, i.e. the DoS).
 
 ## Remaining (out of scope here)
 
-- **Full banking flagship `formal_bank_transfer.py`** composing all five named policies on one
-  `transfer` — the per-milestone drivers above already prove each policy; the single-file
-  composition is a packaging follow-up.
+- **Full banking flagship `src/pycsl_lib_test/formal_bank_transfer.py`** — DONE: composes all
+  five `transfer` policies (nonrepud_complete/_append_only, bal_integrity, authn,
+  priv_monotonic) on one operation, plus a `seed` bootstrap and an H-S `handle` caller.
+  Verifies SUCCESS and is non-vacuous (`--check-vacuity`). The PyCSL equivalent of macsl
+  `tests/small_example/main.c`.
 - **Full macsl-parity for H-S** (universal callee-precondition checking at ALL call sites,
   receiver-var call sites) — beyond the scoped self-call injection shipped here.
 - **os-flagship H-R/H-E variants** needing cross-validated Rocq+Lean axioms (the prefix lemma /
