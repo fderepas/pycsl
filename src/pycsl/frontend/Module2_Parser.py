@@ -104,6 +104,11 @@ class HappyProperty(CSLNode):
     # (nonrepud, postcond), H-E (priv_monotonic, postcond), H-S (authn, precond).
     target: Optional[str] = None
     formula: Optional[CSLNode] = None
+    # H-I2 (noninterference, macsl's \context(\noninterference)): the SECRET parameter names
+    # of `target`. The meta-pass synthesizes a self-composition twin `<target>__selfcomp`
+    # that calls `target` twice (public params shared, secret params split _a/_b) and asserts
+    # the two results are equal — a leak (result depending on a secret) is then unprovable.
+    secret: Optional[List[str]] = None
 
 
 @dataclass
@@ -990,6 +995,7 @@ PYCSL_GRAMMAR = r"""
              | happy_post_decl
              | happy_pre_decl
              | happy_total_decl
+             | happy_ni_decl
              | happy_protects_decl
              | happy_param_decl
 
@@ -1035,6 +1041,12 @@ PYCSL_GRAMMAR = r"""
     // default (Why3 emits a termination VC; loops need a `variant`), so this names the
     // policy and rejects `\diverges` on the target.
     happy_total_decl: "happy" CNAME ":" "targets" CNAME "total"
+
+    // H-I2 (Information-Disclosure / noninterference, macsl's \context(\noninterference)):
+    // the meta-pass synthesizes a self-composition twin `<m>__selfcomp` calling <m> twice
+    // (public params shared, the listed secret params split _a/_b) and asserting equal
+    // results. A result that depends on a secret makes the twin's assert unprovable.
+    happy_ni_decl: "happy" CNAME ":" "targets" CNAME "noninterference" "secret" act_names
 
     // 07-1143 R1/R2: subsystem ownership form — no method outside `except` may directly
     // write ANY of the (possibly dotted/nested) protected fields. Desugars to a per-site
@@ -1400,6 +1412,10 @@ class PyCSLTransformer(Transformer):
     def happy_total_decl(self, name, target) -> HappyProperty:
         return HappyProperty(str(name), "", None, None, [], context="total",
                              target=str(target))
+
+    def happy_ni_decl(self, name, target, secrets) -> HappyProperty:
+        return HappyProperty(str(name), "", None, None, [], context="noninterference",
+                             target=str(target), secret=[str(x) for x in secrets])
 
     # 07-1143 R1/R2: subsystem-ownership HAPPY (`protects <dotted paths> except <methods>`).
     def dotted_path(self, *parts) -> str:

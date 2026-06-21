@@ -739,6 +739,12 @@ class Module3_Weaver:
                         f"HAPPYs: {sorted(param_happy_names)}.")
         for hp in happy_props:
             except_set = set(hp.except_set)
+            # H-I2 (noninterference): synthesize a self-composition twin (macsl's approach —
+            # ../macsl src/macsl.ml emit_selfcomp). NOT a new relational WP mechanism; a
+            # twin function that calls the target twice and asserts equal results.
+            if hp.context == "noninterference":
+                self._synthesize_selfcomp(python_ast, hp)
+                continue
             # General `targets`/`context` form (coherent with macsl): a NAMED property
             # attached to ONE target function as an `ensures` (postcond — H-R/H-E) or a
             # `requires` (precond — H-S). The clause is verified as an ordinary contract
@@ -1147,6 +1153,84 @@ class Module3_Weaver:
                 if cur_stmt is not None:
                     out.append((cur_stmt, cur_func))
             self._collect_self_call_sites(child, target, new_func, new_stmt, out)
+
+    def _synthesize_selfcomp(self, python_ast: ast.AST, hp: HappyProperty) -> None:
+        """H-I2 noninterference via SELF-COMPOSITION (macsl's emit_selfcomp). Synthesize a
+        twin method `<target>__selfcomp` into the target's class: it takes the PUBLIC params
+        once and each SECRET param twice (`_a`/`_b`), calls the target twice (public shared,
+        secret split), and asserts the two results are equal. Verified modularly from the
+        target's result-`ensures`: if the result depends on a secret, `ra == rb` is
+        unprovable — a leak. No new relational WP mechanism; a synthesized 1-safety driver."""
+        target_fn = None
+        target_cls = None
+        for node in ast.walk(python_ast):
+            if isinstance(node, ast.ClassDef):
+                for item in node.body:
+                    if isinstance(item, ast.FunctionDef) and item.name == hp.target:
+                        target_fn, target_cls = item, node
+        if target_fn is None:
+            raise PyCSLSemanticError(
+                f"`happy {hp.name}`: noninterference targets '{hp.target}', which is not a "
+                f"method of any class in this module.")
+        secret = list(hp.secret or [])
+        ann_of = {a.arg: getattr(a, "annotation", None) for a in target_fn.args.args}
+        formal = [a.arg for a in target_fn.args.args if a.arg != "self"]
+        if not formal:
+            raise PyCSLSemanticError(
+                f"`happy {hp.name}`: noninterference target '{hp.target}' has no parameters.")
+        for s in secret:
+            if s not in formal:
+                raise PyCSLSemanticError(
+                    f"`happy {hp.name}`: secret '{s}' is not a parameter of '{hp.target}' "
+                    f"(parameters: {formal}).")
+        line = getattr(target_fn, "lineno", 0)
+        secset = set(secret)
+
+        def _arg(nm, ann):
+            a = ast.arg(); a.arg = nm; a.annotation = ann; a.type_comment = None
+            return a
+
+        def _name(nm, store=False):
+            n = ast.Name(); n.id = nm; n.ctx = ast.Store() if store else ast.Load(); return n
+
+        def _call(suffix):
+            f = ast.Attribute(); f.value = _name("self"); f.attr = hp.target; f.ctx = ast.Load()
+            c = ast.Call(); c.func = f; c.keywords = []
+            c.args = [_name(p + suffix if p in secset else p) for p in formal]
+            return c
+
+        def _assign(tgt, val):
+            a = ast.Assign(); a.targets = [_name(tgt, store=True)]; a.value = val
+            a.type_comment = None; return a
+
+        # twin params: self + public-once + secret-twice (signature order).
+        twin_args = [_arg("self", None)]
+        for p in formal:
+            if p in secset:
+                twin_args += [_arg(p + "_a", ann_of.get(p)), _arg(p + "_b", ann_of.get(p))]
+            else:
+                twin_args.append(_arg(p, ann_of.get(p)))
+        argsobj = ast.arguments()
+        argsobj.posonlyargs = []; argsobj.args = twin_args; argsobj.vararg = None
+        argsobj.kwonlyargs = []; argsobj.kw_defaults = []; argsobj.kwarg = None
+        argsobj.defaults = []
+
+        ret = ast.Return(); zero = ast.Constant(); zero.value = 0; zero.kind = None
+        ret.value = zero
+        body = [_assign("ra", _call("_a")), _assign("rb", _call("_b")), ret]
+
+        twin = ast.FunctionDef()
+        twin.name = hp.target + "__selfcomp"
+        twin.args = argsobj; twin.body = body; twin.decorator_list = []
+        twin.returns = None; twin.type_comment = None; twin.type_params = []
+        PyCSLWeaver._init_function_csl_fields(twin)
+        # The relational obligation: equal public inputs => equal public outputs.
+        pred = self.parser_module.parse_contract("check (ra == rb)", line).expr
+        ret.csl_checkpoints = [CheckPoint("assert", pred,
+                                          origin=f"happy {hp.name} noninterference ra==rb")]
+        twin.lineno = line; twin.col_offset = 0
+        ast.fix_missing_locations(twin)
+        target_cls.body.append(twin)
 
     def _collect_field_read_sites(self, node: ast.AST, field: str, cur_func,
                                   cur_stmt, out: List[tuple]) -> None:
