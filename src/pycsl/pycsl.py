@@ -635,26 +635,41 @@ def _parse_goal_blocks(output: str) -> "List[Tuple[str, str]]":
 def _merge_best_of_n(outputs: "List[str]") -> str:
     """Merge per-prover `why3 prove` outputs into ONE best-of-N output string.
 
-    For each goal (keyed by its header block) keep the BEST verdict across
-    provers (Valid dominates). The merged string has the SAME shape as a single
-    `why3 prove` run, so the existing downstream success/parse logic consumes it
-    unchanged. Goal order follows the first run that mentions the goal."""
-    order: List[str] = []
-    best: Dict[str, str] = {}        # header -> best result line
-    best_rank: Dict[str, int] = {}   # header -> rank of best result line
+    For each goal keep the BEST verdict across provers (Valid dominates). The
+    merged string has the SAME shape as a single `why3 prove` run, so the existing
+    downstream success/parse logic consumes it unchanged. Goal order follows the
+    first run that mentions the goal.
+
+    KEY = (header, occurrence-index-within-one-prover-output), NOT header alone.
+    `split_vc` can emit SEVERAL sub-goals that share a byte-identical header — e.g.
+    the then/else branch obligations of one postcondition sit at the SAME source
+    line and carry the SAME `Sub-goal Postcondition of goal f'vc.` text. Keying by
+    header alone would COLLAPSE those distinct sub-goals into one and let a Valid
+    sibling MASK a non-Valid one (a dead branch proving `false` hiding a real
+    unproven branch) — an unsound false-green. why3's split is deterministic, so the
+    k-th occurrence of a given header denotes the SAME sub-goal across provers; we
+    align by that occurrence index and merge per sub-goal."""
+    order: List["Tuple[str, int]"] = []
+    best: Dict["Tuple[str, int]", str] = {}        # (header, occ) -> best result line
+    best_rank: Dict["Tuple[str, int]", int] = {}   # (header, occ) -> rank of best
     for out in outputs:
+        occ: Dict[str, int] = {}                   # header -> count seen in THIS output
         for header, result_line in _parse_goal_blocks(out):
+            n = occ.get(header, 0)
+            occ[header] = n + 1
+            key = (header, n)
             r = _verdict_rank(result_line)
-            if header not in best:
-                order.append(header)
-                best[header] = result_line
-                best_rank[header] = r
-            elif r > best_rank[header]:
-                best[header] = result_line
-                best_rank[header] = r
+            if key not in best:
+                order.append(key)
+                best[key] = result_line
+                best_rank[key] = r
+            elif r > best_rank[key]:
+                best[key] = result_line
+                best_rank[key] = r
     parts: List[str] = []
-    for header in order:
-        block = (header + "\n" + best[header]) if header else best[header]
+    for key in order:
+        header = key[0]
+        block = (header + "\n" + best[key]) if header else best[key]
         parts.append(block)
     return "\n\n".join(parts)
 
