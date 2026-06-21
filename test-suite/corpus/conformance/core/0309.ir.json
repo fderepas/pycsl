@@ -1,5 +1,5 @@
 {
-  "ir_version": "1.1",
+  "ir_version": "1.2",
   "source_language": "python",
   "type_decls": [],
   "functions": [
@@ -268,6 +268,10 @@
       "function_variants": [],
       "diverges": false,
       "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
       "trusted": false,
       "abstract": false,
       "preserves": false,

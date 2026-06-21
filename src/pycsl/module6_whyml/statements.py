@@ -899,6 +899,37 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         In typed/store models: emits `writes` + quantified `ensures` for unchanged locations.
         Returns a list of WhyML lines to append after the function's `ensures` clauses.
         """
+        # A `val` (trusted stub / imported function / `#@ \abstract`) has NO body, so Why3
+        # cannot INFER its `writes` from mutations — they must be declared explicitly. Without
+        # them, the val is treated as pure (writes nothing), so an `ensures` describing a
+        # post-state field (`_filesystem.fd_open[fd] == 0`) is read on the UNCHANGED field and
+        # contradicts any prior fact about it (a preceding `open`'s `fd_open[result] == 1`),
+        # making every consumer that composes two such mutating stubs VACUOUS (it proves
+        # `false`). This is needed even in the Hoare/value-semantic model, where the `let` path
+        # (writes inferred from the body's mutations) needs none. Emit `writes` for each
+        # field-target assigns (`self.f` / `_filesystem.fd_open`). Assigns node shape:
+        # {type:"Attribute"/"FieldGet", object:{type:"Var",name:X} | "X", attr|field:"f"}.
+        if getattr(self, "_emitting_val_contract", False):
+            nothings = [a for a in assigns_list
+                        if isinstance(a, dict) and a.get("type") == "Nothing"]
+            field_targets: List[str] = []
+            for a in assigns_list:
+                if not isinstance(a, dict) or a.get("type") not in ("Attribute", "FieldGet"):
+                    continue
+                obj = a.get("object")
+                objname = obj.get("name") if isinstance(obj, dict) else obj
+                field = a.get("attr") or a.get("field")
+                # Only GLOBAL-field assigns (`_filesystem.fd_open`) need an explicit `writes`
+                # here. A method's `self.<field>` assigns is already turned into the val's
+                # `writes` by the existing method-writes machinery; re-emitting it produces an
+                # unbound/duplicate target (regressed formal_coll/formal_que: `self._size`).
+                if objname and objname != "self" and field:
+                    t = f"{objname}.{field}"
+                    if t not in field_targets:
+                        field_targets.append(t)
+            if field_targets and not nothings:
+                return [f"    writes   {{ {', '.join(field_targets)} }}"]
+
         if self._value_semantic:
             return []
 

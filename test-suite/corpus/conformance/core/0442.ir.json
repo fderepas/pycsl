@@ -1,5 +1,5 @@
 {
-  "ir_version": "1.1",
+  "ir_version": "1.2",
   "source_language": "python",
   "type_decls": [
     {
@@ -37,6 +37,7 @@
       "bases": [],
       "init_params": [],
       "init_body": [],
+      "init_ensures": [],
       "is_mixin": false,
       "compose_from": []
     },
@@ -94,6 +95,7 @@
       "bases": [],
       "init_params": [],
       "init_body": [],
+      "init_ensures": [],
       "is_mixin": false,
       "compose_from": []
     }
@@ -147,6 +149,10 @@
       "function_variants": [],
       "diverges": false,
       "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
       "trusted": false,
       "abstract": false,
       "preserves": false,
@@ -224,6 +230,10 @@
       "function_variants": [],
       "diverges": false,
       "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
       "trusted": false,
       "abstract": false,
       "preserves": false,
@@ -293,6 +303,10 @@
       "function_variants": [],
       "diverges": false,
       "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
       "trusted": false,
       "abstract": false,
       "preserves": false,

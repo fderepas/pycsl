@@ -71,17 +71,21 @@ Two top-level metadata keys stamp the IR as a versioned wire format
 
 | Key | Value today | Meaning |
 |-----|-------------|---------|
-| `ir_version` | `"1.1"` | Semantic version of the IR schema this document conforms to (`ir_schema.py:35`, `IR_VERSION`). |
+| `ir_version` | `"1.2"` | Semantic version of the IR schema this document conforms to (`ir_schema.py:35`, `IR_VERSION`). |
 | `source_language` | `"python"` | The front-end that produced it. |
 
-**Accepted versions.** `ACCEPTED_IR_VERSIONS = frozenset({"1.0", "1.1"})`
+**Accepted versions.** `ACCEPTED_IR_VERSIONS = frozenset({"1.0", "1.1", "1.2"})`
 (`ir_schema.py:36`) is the exact set this core ingests.
 
 **Compatibility policy (semver-style)** (`ir_schema.py:25–28`): MINOR bumps are **additive**
 — new optional keys/nodes a newer core still ingests; a `"1.0"` IR remains ingestable by a
-`"1.1"` core. MAJOR bumps are **breaking** — a removed or re-meaning'd key. Widen
+`"1.2"` core. MAJOR bumps are **breaking** — a removed or re-meaning'd key. Widen
 `ACCEPTED_IR_VERSIONS` as additive versions land; drop a major when support ends. (The
-`1.0 → 1.1` bump added the optional top-level `imports` key — `ir_schema.py:31–34`.)
+`1.0 → 1.1` bump added the optional top-level `imports` key — `ir_schema.py:31–34`. The
+`1.1 → 1.2` bump added the optional, default-valued `FunctionIR` directive fields
+`sibling_concrete` / `verify_module` / `propagate_frame` / `fresh_globals` and the
+`type_decls` field `init_ensures` — all default to `false`/`""`, so a `"1.0"`/`"1.1"` IR
+without them remains ingestable.)
 
 **Enforcement** in `validate_ir` (`ir_schema.py:148–153`): if `ir_version` is present and
 *not* in `ACCEPTED_IR_VERSIONS`, it is a **hard error** (do not lower an IR this core may
@@ -164,10 +168,13 @@ corresponding feature.
   "field_defaults": {"start": 7},
   "has_hash": false, "has_eq": false, "is_unhashable": false,
   "constants": {}, "bases": [],
-  "init_params": [], "init_body": [],
+  "init_params": [], "init_body": [], "init_ensures": [],
   "is_mixin": false, "compose_from": []
 }
 ```
+
+**(v1.2)** `init_ensures` — `List[expr-IR]`, the `__init__` postconditions a constructed
+instance is known to satisfy (`Module5_IREmitter.py:1574`). Optional; defaults to `[]`.
 
 Field `type` ∈ `int` | `list` | `dict` | `set` | `str` (`_field_type_from_annotation`,
 `Module5_IREmitter.py:1264`; container shapes inferred from RHS in `_collect_class_fields`).
@@ -240,6 +247,10 @@ carry their own `line` (`Module5_IREmitter.py:1134`, `:1145`), used to reconstru
 | `thread_entry` | `bool` | `#@ thread_entry` (also adds name to top-level `thread_entries`). |
 | `kind` | `str` | `"method"` for class methods (`Module5_IREmitter.py:2039`). |
 | `self_type` | `str` | The class name for a method. |
+| `sibling_concrete` | `bool` | **(v1.2)** `#@ sibling_concrete` — lower `self.<m>()` to a concrete call (allocator-frame §2.7) (`Module5_IREmitter.py:1873`). Default `false`. |
+| `verify_module` | `str` | **(v1.2)** `#@ verify_module` target (`Module5_IREmitter.py:1875`). Default `""`. |
+| `propagate_frame` | `bool` | **(v1.2)** `#@ propagate_frame` directive (`Module5_IREmitter.py:1876`). Default `false`. |
+| `fresh_globals` | `bool` | **(v1.2)** `#@ fresh_globals` — fresh global state on entry (`Module5_IREmitter.py:1877`); read by `core_ir_semantic`. Default `false`. |
 
 ---
 
@@ -461,7 +472,7 @@ descending into nested lists for compound statements.
 
 A new front-end (Go, C, …) that produces this IR for the existing core must guarantee:
 
-1. **Version stamp.** Emit `ir_version` ∈ `ACCEPTED_IR_VERSIONS` (currently `"1.0"`/`"1.1"`)
+1. **Version stamp.** Emit `ir_version` ∈ `ACCEPTED_IR_VERSIONS` (currently `"1.0"`/`"1.1"`/`"1.2"`)
    and a `source_language` tag. An unrecognized stamped version is a hard reject.
 2. **Required keys.** Top-level `type_decls` and `functions` (a list). Each function:
    `name`, `symbol_table`, `return_annotation`, `contracts`, `body`,
@@ -500,7 +511,7 @@ body `return x + 1`:
 
 ```json
 {
-  "ir_version": "1.1", "source_language": "python",
+  "ir_version": "1.2", "source_language": "python",
   "type_decls": [],
   "functions": [{
     "name": "test_precondition",

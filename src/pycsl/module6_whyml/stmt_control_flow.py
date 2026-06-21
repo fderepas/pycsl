@@ -289,6 +289,72 @@ class ControlFlowStmtMixin:
             return "dict"
         return "default"
 
+    def _callee_raised_direct(self, node: Any) -> Set[str]:
+        """Exceptions that calls anywhere within `node` may raise via the
+        callee's declared `#@ raises` contracts, WITHOUT regard to any
+        enclosing try/except in `node`. Walks every `Call`, looks the
+        function up in the module raises registry, unions declared names."""
+        registry = getattr(self, "_module_func_raises", {}) or {}
+        out: Set[str] = set()
+
+        def walk(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("type") == "Call":
+                    fn = n.get("func", "")
+                    for rc in registry.get(fn, []):
+                        exc = rc.get("exc_type")
+                        if exc:
+                            out.add(exc)
+                for v in n.values():
+                    walk(v)
+            elif isinstance(n, (list, tuple)):
+                for v in n:
+                    walk(v)
+
+        walk(node)
+        return out
+
+    def _callee_raised_in(self, stmts: List[Dict[str, Any]]) -> Set[str]:
+        """Callee-declared exceptions (via `#@ raises`) that ESCAPE the
+        given statement list — i.e. raised by some call but not caught by
+        an enclosing `try/except` in the same list. Mirrors
+        `IRScanner.collect_escaping_exceptions` but for callee raises, so a
+        function's emitted `raises {}` summary excludes what its own
+        handlers catch. Hierarchy-aware: `except OSError` removes a
+        callee's FileNotFoundError from the escaping set."""
+        from exception_model import handler_catches
+        registry = getattr(self, "_module_func_raises", {}) or {}
+        escaping: Set[str] = set()
+        for stmt in stmts:
+            if not isinstance(stmt, dict):
+                continue
+            if stmt.get("stmt") == "Try":
+                inner = self._callee_raised_in(stmt.get("body", []))
+                handler_bases: Set[str] = set()
+                for h in stmt.get("handlers", []):
+                    exc = h.get("exc_type")
+                    if exc:
+                        for ep in exc.split("|"):
+                            ep = ep.strip()
+                            if ep:
+                                handler_bases.add(ep)
+                    escaping |= self._callee_raised_in(h.get("body", []))
+                escaping |= {
+                    e for e in inner
+                    if not any(handler_catches(b, e) for b in handler_bases)
+                }
+                continue
+            # Non-Try statement: any call here (in its test/value/etc.)
+            # escapes unconditionally; recurse structurally for nested
+            # blocks (if/while/for bodies) which carry their own scoping.
+            for key, val in stmt.items():
+                if key in ("body", "orelse", "handlers"):
+                    if isinstance(val, list):
+                        escaping |= self._callee_raised_in(val)
+                else:
+                    escaping |= self._callee_raised_direct(val)
+        return escaping
+
     def _handle_try_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
                           local_refs: Set[str], declared_refs: Set[str],
                           indent: str, in_loop: bool) -> str:
@@ -338,35 +404,69 @@ class ControlFlowStmtMixin:
         if not body_str:
             body_str = f"{indent}  ()"
         if handlers:
+            from exception_model import handler_catches
+            # Concrete exception tags that can actually escape the try body
+            # (raises inside, minus what nested trys catch). A handler
+            # `except OSError:` must produce a Why3 `with` arm for EACH such
+            # tag it catches (OSError itself + every modelled subclass that
+            # the body raises), because Why3 matches exception arms by exact
+            # tag — there is no subtyping at the `with` level.
+            body_raised = set(
+                IRScanner.collect_escaping_exceptions(body_stmts))
+            # A call inside the try body to a function that DECLARES
+            # `raises { E -> ... }` can raise E, even though there is no
+            # literal `raise E` statement here (the os wrappers: a wrapper's
+            # try body calls `sys_open`, which raises FileNotFoundError via
+            # its contract). Pull those callee-declared exceptions in so the
+            # handler expansion covers them.
+            body_raised |= self._callee_raised_in(body_stmts)
+            body_raised = sorted(body_raised)
+
             code = f"{pre_decls}{indent}try\n{body_str}\n"
             n_h = len(handlers)
             i_h = 0
             first_handler = True
+            already_matched: Set[str] = set()
             # Why3 requires `try BODY with Exc1 -> h1 | Exc2 -> h2 end` —
-            # only the first handler uses `with`, subsequent handlers
-            # (and additional alternatives within a `|`-separated
-            # exc_type) use `|`. Emitting separate `with` clauses for
-            # each handler produces a syntax error.
+            # only the first arm uses `with`, subsequent arms use `|`.
+            # Emitting separate `with` clauses produces a syntax error.
             while i_h < n_h:
                 h = handlers[i_h]
                 exc = h.get("exc_type") or "PyCSL_Exception"
-                # Sanitize each piece of a `|`-separated exc_type union;
-                # leading-underscore local aliases like `_FooError` must
-                # match the sanitized declaration emitted by the preamble.
-                exc_parts = [safe_exc_name(p) for p in
-                              (exc.split("|") if "|" in exc else [exc])]
-                n_ep = len(exc_parts)
-                i_ep = 0
-                while i_ep < n_ep:
-                    ep = exc_parts[i_ep].strip()
-                    handler_body = self._stmts_to_whyml(
-                        h.get("body", []), local_refs, declared_refs.copy(), indent + "  ", in_loop)
-                    if not handler_body:
-                        handler_body = f"{indent}  ()"
+                # A `|`-separated handler (`except (A, B):`) is the union of
+                # its parts; each part is a base whose closure we expand.
+                raw_parts = (exc.split("|") if "|" in exc else [exc])
+                handler_body = self._stmts_to_whyml(
+                    h.get("body", []), local_refs, declared_refs.copy(),
+                    indent + "  ", in_loop)
+                if not handler_body:
+                    handler_body = f"{indent}  ()"
+                # Build the concrete set of tags this handler matches:
+                #   - each base part itself (so a literal `raise OSError`
+                #     or a base never raised in the body still matches, and
+                #     the arm is never empty -> no Why3 syntax error);
+                #   - every body-raised tag that is a subclass of a part.
+                arm_tags: List[str] = []
+                seen_local: Set[str] = set()
+                for part in raw_parts:
+                    base = part.strip()
+                    if not base:
+                        continue
+                    candidates = [base] + [
+                        e for e in body_raised if handler_catches(base, e)]
+                    for tag in candidates:
+                        if tag in already_matched or tag in seen_local:
+                            continue  # earlier arm already consumes this tag
+                        seen_local.add(tag)
+                        arm_tags.append(tag)
+                # Sanitize for WhyML: leading-underscore aliases like
+                # `_FooError` must match the sanitized preamble declaration.
+                for tag in arm_tags:
+                    ep = safe_exc_name(tag)
                     connector = "with" if first_handler else "|"
                     code += f"{indent}{connector} {ep} -> \n{handler_body}\n"
                     first_handler = False
-                    i_ep += 1
+                already_matched |= seen_local
                 i_h += 1
             code += f"{indent}end"
         else:
@@ -552,8 +652,19 @@ class ControlFlowStmtMixin:
             # function's declared return is `array int` (a `list`) crosses the seq→array
             # boundary — materialise to a FRESH array (legal: bound at the return slot,
             # never rebound into a regioned ref). Reuses the faithful `materialize` bridge.
-            self._materialize_bridge()
-            val = f"(materialize !{whyml_ident(val_ir['name'])})"
+            # ELEMENT-TYPE FIDELITY: a `string`-element list (declared return `array string`)
+            # must use the STRING materialize bridge — `materialize` is `seq int -> array int`
+            # and would type-clash on a `seq string` payload. This mirrors the early/in-loop
+            # `Return_seq_str` path (below) for the TAIL (non-raise) return; without it, a
+            # string-list function whose only normal exit is the tail return (e.g. os.listdir
+            # once its failure paths raise OSError instead of `return []`) wrongly emits the
+            # int `materialize` and fails L3 type-check.
+            if self._func_return_type == "array string":
+                self._materialize_str_bridge()
+                val = f"(materialize_str !{whyml_ident(val_ir['name'])})"
+            else:
+                self._materialize_bridge()
+                val = f"(materialize !{whyml_ident(val_ir['name'])})"
         else:
             if val_ir.get("type") == "Var" and val_ir.get("name") in self._array_locals:
                 # `exception Return int` can't carry an array, so on the

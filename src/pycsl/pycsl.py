@@ -580,34 +580,11 @@ def _why3_typecheck(mlw_filename: str):
 # parsed as a per-goal verdict (each goal is keyed by its own File+Sub-goal
 # header block).
 
-# Verdict ranks: higher is better. Anything not Valid is non-Valid (unproven).
-_VERDICT_VALID = 2
-_VERDICT_NONVALID = 1  # Unknown / Timeout / Out of memory / Failure / Invalid / unparsed
-
-def _verdict_rank(result_line: str) -> int:
-    """Rank a Why3 `Prover result is: ...` line. ONLY a literal 'Valid' is Valid.
-
-    Soundness: this is the single chokepoint that decides whether a goal counts
-    as proven. It accepts ``Valid`` ONLY when the verdict token is exactly
-    ``Valid`` (Why3 prints ``Valid (...)`` for a proven goal). ``Invalid`` and
-    every other status (``Unknown``, ``Timeout``, ``Out of memory``,
-    ``Failure``, ...) rank as non-Valid and can never be promoted."""
-    # The verdict token follows "Prover result is: ". Why3 emits e.g.
-    #   "Prover result is: Valid (0.03s, 20 steps)."
-    #   "Prover result is: Unknown (unknown) (0.04s, 17627 steps)."
-    #   "Prover result is: Timeout (30.0s)."  / "... Out of memory ..." / "... Failure ..."
-    marker = "Prover result is:"
-    idx = result_line.find(marker)
-    token = result_line[idx + len(marker):].strip() if idx != -1 else result_line.strip()
-    # Guard against "Invalid" (whose substring is "valid"): require the verdict to
-    # START with the exact word "Valid".
-    if token.startswith("Valid (") or token == "Valid" or token.startswith("Valid\t"):
-        return _VERDICT_VALID
-    return _VERDICT_NONVALID
-
-
 def _parse_goal_blocks(output: str) -> "List[Tuple[str, str]]":
-    """Split a `why3 prove` stdout into per-goal (header, result_line) pairs.
+    """Split goal-block text into per-goal (header, result_line) pairs by COUNTING
+    `Prover result is:` lines. Used only by `_check_goal_conservation` over the
+    synthesised canonical text (one block per record) to count goals — the live
+    verdict/merge logic runs over structured `--json` records, not this text.
 
     A goal block is::
 
@@ -615,11 +592,8 @@ def _parse_goal_blocks(output: str) -> "List[Tuple[str, str]]":
         Sub-goal <desc> of goal <name>'vc.
         Prover result is: <verdict> (...).
 
-    The header (everything up to and including the line that PRECEDES the
-    `Prover result is:` line) is the stable goal KEY — it is byte-identical across
-    provers because it is derived from the same .mlw. The `Prover result is:` line
-    is the per-prover verdict. Returns the blocks in document order; a header with
-    no following result line (should not happen for a real goal) is skipped."""
+    Returns the blocks in document order; a header with no following result line is
+    skipped."""
     blocks: List[Tuple[str, str]] = []
     cur_header: List[str] = []
     for line in output.splitlines():
@@ -632,44 +606,185 @@ def _parse_goal_blocks(output: str) -> "List[Tuple[str, str]]":
     return blocks
 
 
-def _merge_best_of_n(outputs: "List[str]") -> str:
-    """Merge per-prover `why3 prove` outputs into ONE best-of-N output string.
-
-    For each goal (keyed by its header block) keep the BEST verdict across
-    provers (Valid dominates). The merged string has the SAME shape as a single
-    `why3 prove` run, so the existing downstream success/parse logic consumes it
-    unchanged. Goal order follows the first run that mentions the goal."""
-    order: List[str] = []
-    best: Dict[str, str] = {}        # header -> best result line
-    best_rank: Dict[str, int] = {}   # header -> rank of best result line
-    for out in outputs:
-        for header, result_line in _parse_goal_blocks(out):
-            r = _verdict_rank(result_line)
-            if header not in best:
-                order.append(header)
-                best[header] = result_line
-                best_rank[header] = r
-            elif r > best_rank[header]:
-                best[header] = result_line
-                best_rank[header] = r
-    parts: List[str] = []
-    for header in order:
-        block = (header + "\n" + best[header]) if header else best[header]
-        parts.append(block)
-    return "\n\n".join(parts)
+class _MergeConservationError(Exception):
+    """Raised when the best-of-N merge produces FEWER goal blocks than the first
+    full-file prover run — i.e. aggregation LOST a goal. This is the structural
+    signature of the false-green class fixed in fa3668d (a Valid sibling masking a
+    non-Valid one). It is a trust-free, fail-closed backstop: it depends on NO merge
+    implementation being correct, so it survives any future rewrite of the merge.
+    See soundness-issue.md (Tier 0)."""
+    def __init__(self, expected: int, got: int):
+        self.expected = expected
+        self.got = got
+        super().__init__(
+            f"merge dropped goal(s): first full-file run enumerated {expected} "
+            f"goal block(s) but the merged result has only {got} — refusing to "
+            f"report a verdict (a dropped goal must never silently pass).")
 
 
-def _all_goals_valid(output: str) -> bool:
-    """True iff every parsed goal block is Valid (used for early-exit). An output
-    with no goal blocks is NOT 'all valid' here (callers handle the empty case)."""
-    blocks = _parse_goal_blocks(output)
-    return bool(blocks) and all(_verdict_rank(r) == _VERDICT_VALID for _, r in blocks)
+def _check_goal_conservation(first_full_output: str, merged_output: str) -> None:
+    """Trust-free fail-closed backstop (soundness-issue.md, Tier 0).
+
+    The first prover attempt runs FULL-FILE and enumerates every goal; later
+    attempts only re-prove residual subsets. So the merged best-of-N output must
+    contain at LEAST as many goal blocks as that first run. Fewer means aggregation
+    dropped a goal (the false-green class fixed in fa3668d) — raise rather than let
+    a dropped obligation silently pass. Independent of how the merge is implemented,
+    so it survives any future rewrite. Operates on the synthesised canonical text
+    (one block per record), counting goal blocks via `_parse_goal_blocks`."""
+    first_n = len(_parse_goal_blocks(first_full_output))
+    merged_n = len(_parse_goal_blocks(merged_output))
+    if merged_n < first_n:
+        raise _MergeConservationError(first_n, merged_n)
+
+
+# --- Structured (`why3 prove --json`) goal handling -------------------------------
+# #6 (soundness-issue.md): the verdict/identity/merge logic runs over STRUCTURED JSON
+# records — one per sub-goal — instead of re-grepping human stdout. Two split
+# sub-goals can be byte-identical (same loc + goal_name + explanations: the exact
+# collision that masked the false-green), but as records they are distinct LIST
+# elements, so the merge never dedups them and a Valid sibling can never mask a
+# non-Valid one. We then SYNTHESISE canonical legacy text from the records so the
+# rest of the pipeline (success greps, Rocq replay, display) and the Tier-0
+# conservation guard consume it unchanged. The only thing trusted is why3's typed,
+# versioned JSON contract — no new TCB (why3 is already trusted), and no fragile
+# reverse-engineered text format.
+
+def _parse_why3_json(stdout: str) -> "List[dict]":
+    """Parse `why3 prove --json` output into a list of records in document order.
+    why3 emits a STREAM of concatenated JSON objects (one per goal), NOT a single
+    array — so a plain json.loads fails with 'Extra data'. raw_decode in a loop
+    consumes them; a single top-level array (other why3 versions) is also handled."""
+    out: "List[dict]" = []
+    dec = _json.JSONDecoder()
+    s = stdout
+    i, n = 0, len(s)
+    while i < n:
+        while i < n and s[i] in " \t\r\n":
+            i += 1
+        if i >= n:
+            break
+        try:
+            obj, end = dec.raw_decode(s, i)
+        except ValueError:
+            break
+        if isinstance(obj, list):
+            out.extend(x for x in obj if isinstance(x, dict))
+        elif isinstance(obj, dict):
+            out.append(obj)
+        i = end
+    return out
+
+
+def _json_goal_records(stdout: str) -> "List[dict]":
+    """The goal-verdict records (those carrying a prover result) from --json output."""
+    return [r for r in _parse_why3_json(stdout) if "prover-result" in r]
+
+
+def _record_answer(rec: dict) -> str:
+    return (rec.get("prover-result") or {}).get("answer", "") or ""
+
+
+def _record_is_valid(rec: dict) -> bool:
+    """Soundness chokepoint: ONLY a literal 'Valid' answer counts as proven.
+    Invalid / Unknown / Timeout / OutOfMemory / Failure / ... are never proven."""
+    return _record_answer(rec) == "Valid"
+
+
+def _record_key(rec: dict) -> "Tuple":
+    """Cross-prover alignment key (everything but occurrence). Two split sub-goals
+    can be byte-identical here — the merge disambiguates by occurrence index."""
+    term = rec.get("term") or {}
+    loc = term.get("loc") or {}
+    return ((loc.get("file-name"), loc.get("start-line"), loc.get("start-char"),
+             loc.get("end-line"), loc.get("end-char")),
+            term.get("goal_name"), tuple(term.get("explanations") or []))
+
+
+def _merge_records_best_of_n(record_lists: "List[List[dict]]") -> "List[dict]":
+    """Best-of-N over structured records. Aligns by (_record_key, occurrence-index)
+    — the k-th record of a key in one prover's output is the SAME sub-goal as the
+    k-th in another's — and keeps a Valid record if ANY prover proved it. Distinct
+    sub-goals are NEVER collapsed (the merge-collapse class is impossible: records
+    are list elements, not dict keys)."""
+    order: "List[Tuple]" = []
+    best: "Dict[Tuple, dict]" = {}
+    for records in record_lists:
+        occ: "Dict[Tuple, int]" = {}
+        for rec in records:
+            k = _record_key(rec)
+            nseen = occ.get(k, 0)
+            occ[k] = nseen + 1
+            key = (k, nseen)
+            if key not in best:
+                order.append(key)
+                best[key] = rec
+            elif not _record_is_valid(best[key]) and _record_is_valid(rec):
+                best[key] = rec
+    return [best[key] for key in order]
+
+
+def _synthesize_block(rec: dict) -> str:
+    """Render one record as a legacy why3 goal block (File + Sub-goal + result), so
+    the text-based downstream and the Tier-0 guard consume it unchanged. The verdict
+    token is 'Valid (...)' ONLY for a real Valid; every non-Valid answer renders with
+    a leading token the downstream greps catch (Invalid/Timeout/Unknown), preserving
+    the true why3 answer for transparency."""
+    term = rec.get("term") or {}
+    loc = term.get("loc") or {}
+    f = loc.get("file-name", "?")
+    line = loc.get("start-line", 0)
+    sc = loc.get("start-char", 0)
+    ec = loc.get("end-char", 0)
+    expl = ", ".join(term.get("explanations") or []) or "goal"
+    name = term.get("goal_name", "?")
+    pr = rec.get("prover-result") or {}
+    ans = pr.get("answer", "") or ""
+    t = pr.get("time", 0.0) or 0.0
+    steps = pr.get("step", 0) or 0
+    if ans == "Valid":
+        tok = "Valid"
+    elif ans == "Invalid":
+        tok = "Invalid"
+    elif ans == "Timeout":
+        tok = "Timeout"
+    elif ans == "Unknown":
+        tok = "Unknown"
+    else:
+        # OutOfMemory / Failure / StepLimitExceeded / HighFailure / ... — treat as
+        # unproven (leading 'Unknown' so downstream catches it), keep the truth.
+        tok = f"Unknown (why3: {ans})"
+    return (f'File "{f}", line {line}, characters {sc}-{ec}:\n'
+            f"Sub-goal {expl} of goal {name}.\n"
+            f"Prover result is: {tok} ({t:.2f}s, {steps} steps).")
+
+
+def _synthesize_legacy_text(records: "List[dict]") -> str:
+    """Canonical, lossless legacy-format text — ONE block per record, no dedup."""
+    return "\n\n".join(_synthesize_block(r) for r in records)
+
+
+def _residual_selectors_from_records(records: "List[dict]") -> "Optional[List[str]]":
+    """`<file>:<line>` selectors for every non-Valid record (deduped). None if any
+    residual lacks a locatable loc — caller falls back to a full-file re-run (sound,
+    proves only MORE). Empty list iff there are no residuals."""
+    sels: "List[str]" = []
+    seen: "Set[str]" = set()
+    for rec in records:
+        if _record_is_valid(rec):
+            continue
+        loc = (rec.get("term") or {}).get("loc") or {}
+        fn, ln = loc.get("file-name"), loc.get("start-line")
+        if fn is None or ln is None:
+            return None
+        s = f"{fn}:{ln}"
+        if s not in seen:
+            seen.add(s)
+            sels.append(s)
+    return sels
 
 
 import re as _re
-
-# Matches the goal-header location line `File "<path>", line <N>, characters X-Y:`.
-_GOAL_LOC_RE = _re.compile(r'^File "(?P<file>.*)", line (?P<line>\d+), characters')
 
 
 # --- Non-vacuity gate -------------------------------------------------------------
@@ -745,8 +860,8 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
                     r = _run_why3_prove(base_cmd, p, tl, probe_path, sel)
                 except FileNotFoundError:
                     return fname, None
-                if any(_verdict_rank(rl) == _VERDICT_VALID
-                       for _, rl in _parse_goal_blocks(r.stdout)):
+                # #6: read structured --json records, not re-grepped text.
+                if any(_record_is_valid(rec) for rec in _json_goal_records(r.stdout)):
                     return fname, True
             return fname, False
         finally:
@@ -771,37 +886,6 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
     return vac
 
 
-def _residual_selectors(merged_output: str, mlw_filename: str) -> "List[str]":
-    """Return the DISTINCT `<file>:<line>` Why3 sub-goal selectors for every goal in
-    *merged_output* that is NOT yet Valid. Used to re-run the next prover ONLY on the
-    residual goals (`why3 prove -g <file>:<line> ...`), so goals the first prover
-    already proved do NOT pay for a second prover pass (the doctrine's "only residual
-    goals pay"). Duplicate lines collapse: `-g file:line` selects every sub-goal at
-    that line, which is a sound superset (re-proving an already-Valid sub-goal is
-    cheap and the merge keeps the best verdict)."""
-    sels: List[str] = []
-    seen: Set[str] = set()
-    for header, result_line in _parse_goal_blocks(merged_output):
-        if _verdict_rank(result_line) == _VERDICT_VALID:
-            continue
-        # Find the `File "...", line N, ...` location ANYWHERE in the header block
-        # (the block may carry a leading blank-line separator before the File line).
-        m = None
-        for hl in header.splitlines():
-            m = _GOAL_LOC_RE.match(hl.strip())
-            if m:
-                break
-        if not m:
-            # Cannot locate this residual goal precisely — fall back to whole-file
-            # (sound: a broader re-run can only prove MORE). Signal with empty list.
-            return []
-        sel = f"{m.group('file')}:{m.group('line')}"
-        if sel not in seen:
-            seen.add(sel)
-            sels.append(sel)
-    return sels
-
-
 def _run_why3_prove(base_cmd: "List[str]", prover: str, timelimit: str,
                     mlw_filename: str,
                     goal_selectors: "Optional[List[str]]" = None
@@ -812,8 +896,11 @@ def _run_why3_prove(base_cmd: "List[str]", prover: str, timelimit: str,
     Each prover gets the FULL per-goal timelimit (it is not split across provers).
     `base_cmd` carries the shared transforms (`-a split_vc`, optional
     `-a induction_pr`). When *goal_selectors* is given, only those sub-goals
-    (`-g <file>:<line>`) are attempted — the residual-only second-pass path."""
-    cmd = list(base_cmd) + ["-P", prover, "--timelimit", timelimit]
+    (`-g <file>:<line>`) are attempted — the residual-only second-pass path.
+
+    `--json` makes stdout a STRUCTURED stream of per-goal records (#6) — parse it
+    with `_json_goal_records`, never by re-grepping human text."""
+    cmd = list(base_cmd) + ["-P", prover, "--timelimit", timelimit, "--json"]
     for sel in (goal_selectors or []):
         cmd += ["-g", sel]
     cmd += [mlw_filename]
@@ -824,8 +911,11 @@ def _dispatch_provers(base_cmd: "List[str]", provers: List[str], timelimit: str,
                       mlw_filename: str) -> "Tuple[str, str, int]":
     """Per-goal best-of-N dispatch. Returns (merged_stdout, merged_stderr, returncode).
 
-    - Single prover: exactly one `why3 prove` call (behaviour byte-identical to
-      the legacy path — same flags, same output).
+    Identity, merge and the verdict run over STRUCTURED `--json` records (#6); the
+    returned stdout is canonical legacy text synthesised from the merged records,
+    so the rest of the pipeline is unchanged.
+
+    - Single prover: exactly one `why3 prove --json` call.
     - Multiple provers: the FIRST prover runs full-file; each SUBSEQUENT prover runs
       ONLY on the goals still non-Valid (`why3 prove -g <file>:<line>`), merging
       per-goal verdicts (Valid by ANY prover ⇒ Valid). EARLY-EXIT: once every goal
@@ -851,59 +941,81 @@ def _dispatch_provers(base_cmd: "List[str]", provers: List[str], timelimit: str,
     produced no goal blocks AND every per-prover rc was 0 — the zero-goal case);
     otherwise it is the last run's nonzero rc (so the legacy `rc == 0` guard still
     means "nothing left unproven")."""
+    # #6: identity + merge run over STRUCTURED JSON records (one per sub-goal), then
+    # we synthesise canonical legacy text so the downstream is unchanged. record_lists
+    # holds each attempt's goal records; record_lists[0] is the first full-file run.
+    record_lists: "List[List[dict]]" = []
+    stderrs: List[str] = []
+
+    def _finalize(merged_records: "List[dict]", rc: int) -> "Tuple[str, str, int]":
+        """Synthesise the merged text and apply the Tier-0 fail-closed conservation
+        guard: the first attempt runs FULL-FILE and enumerates every goal, so the
+        merged result must not have FEWER goal records than that first run. Fewer =>
+        aggregation dropped a goal => raise. Trust-free: holds over the synthesised
+        canonical text regardless of how the merge is implemented."""
+        merged_text = _synthesize_legacy_text(merged_records)
+        if record_lists:
+            _check_goal_conservation(_synthesize_legacy_text(record_lists[0]), merged_text)
+        return merged_text, "\n".join(stderrs), rc
+
     if len(provers) == 1:
         r = _run_why3_prove(base_cmd, provers[0], timelimit, mlw_filename)
-        return r.stdout.strip(), r.stderr.strip(), r.returncode
+        if r.stderr.strip():
+            stderrs.append(r.stderr.strip())
+        record_lists.append(_json_goal_records(r.stdout))
+        merged = record_lists[0]
+        if merged:
+            rc = 0 if all(_record_is_valid(x) for x in merged) else (r.returncode or 1)
+        else:
+            rc = r.returncode
+        return _finalize(merged, rc)
 
     # Try the legacy-reported (last-listed) prover first; then the rest, in their
     # listed order, restricted to residual goals. Soundness is order-independent.
     attempt_order = [provers[-1]] + provers[:-1]
-
-    outputs: List[str] = []
-    stderrs: List[str] = []
     last_rc = 0
-    any_goal_blocks = False
+    any_goals = False
+
     for idx, prover in enumerate(attempt_order):
         if idx == 0:
             # First prover: full file.
             selectors: Optional[List[str]] = None
         else:
             # Subsequent provers: ONLY the goals still non-Valid in the merge so far.
-            selectors = _residual_selectors(_merge_best_of_n(outputs), mlw_filename)
+            selectors = _residual_selectors_from_records(_merge_records_best_of_n(record_lists))
             if selectors == []:
-                # No precisely-locatable residuals OR none at all. If the merge is
-                # already all-Valid we would have early-exited; reaching here with an
-                # empty selector means we could not pin the residuals — fall back to a
-                # full-file re-run (sound: only proves MORE), preserving correctness.
-                if _all_goals_valid(_merge_best_of_n(outputs)):
-                    break
-                selectors = None
+                # No residuals — if the merge is already all-Valid we early-exited
+                # above; reaching here means nothing left to do.
+                break
+            if selectors is None:
+                # Could not pin a residual's loc — fall back to a full-file re-run
+                # (sound: proves only MORE).
+                pass  # selectors already None -> full file
         r = _run_why3_prove(base_cmd, prover, timelimit, mlw_filename, selectors)
-        out = r.stdout.strip()
-        outputs.append(out)
         if r.stderr.strip():
             stderrs.append(r.stderr.strip())
         last_rc = r.returncode
-        merged = _merge_best_of_n(outputs)
-        if _parse_goal_blocks(merged):
-            any_goal_blocks = True
-            if _all_goals_valid(merged):
+        record_lists.append(_json_goal_records(r.stdout))
+        merged = _merge_records_best_of_n(record_lists)
+        if merged:
+            any_goals = True
+            if all(_record_is_valid(x) for x in merged):
                 # Every goal proven by some prover so far — no need to run the rest.
-                return merged, "\n".join(stderrs), 0
+                return _finalize(merged, 0)
         else:
-            # No goal blocks (e.g. zero goals to prove). If this prover succeeded
-            # with empty output, the legacy success path accepts it.
+            # No goals (e.g. zero goals to prove). If this prover succeeded with
+            # empty output, the success path accepts it.
             if r.returncode == 0:
-                return merged, "\n".join(stderrs), 0
+                return _finalize(merged, 0)
 
-    merged = _merge_best_of_n(outputs)
+    merged = _merge_records_best_of_n(record_lists)
     # Final verdict: rc 0 iff every goal is Valid in the merge. If there were
-    # genuinely no goal blocks, fall back to the last run's rc.
-    if any_goal_blocks:
-        rc = 0 if _all_goals_valid(merged) else (last_rc if last_rc != 0 else 1)
+    # genuinely no goals, fall back to the last run's rc.
+    if any_goals:
+        rc = 0 if all(_record_is_valid(x) for x in merged) else (last_rc if last_rc != 0 else 1)
     else:
         rc = last_rc
-    return merged, "\n".join(stderrs), rc
+    return _finalize(merged, rc)
 
 
 def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argparse.Namespace) -> None:
@@ -1053,6 +1165,22 @@ def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argp
                     sys.exit(2)
                 sys.exit(1)
 
+    except _MergeConservationError as e:
+        # Tier-0 fail-closed soundness backstop: the prover-result aggregation lost a
+        # goal, so the merged output can no longer be trusted to represent every
+        # obligation. Refuse to report ANY verdict rather than risk a false green.
+        print("\n[-] SOUNDNESS ABORT (merge conservation): " + str(e))
+        print("    This is a tool bug in the best-of-N merge, not a proof outcome. "
+              "See soundness-issue.md.")
+        if getattr(args, "diagnostics_json", False):
+            print(_json.dumps({
+                "code": "PYCSL-MERGE-DROP",
+                "stage": "prover-merge",
+                "file": getattr(args, "file", ""),
+                "line": 0,
+                "message": str(e),
+            }, sort_keys=True), file=sys.stderr)
+        sys.exit(1)
     except FileNotFoundError:
         print("\n[!] ERROR: 'why3' command not found. Please ensure Why3 is installed and in your PATH.")
         sys.exit(1)

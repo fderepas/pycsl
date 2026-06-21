@@ -1981,6 +1981,11 @@ class UnixInodeFileSystem:
     # the read end of the content round-trip: composed with sys_write's SIZE
     # post-state and sys_open's reopen frame, read(reopen(p)) returns len(data).
     #@ ensures (fd < 64 and self.fd_open[fd] == 1 and 0 <= self.fd_inode[fd] and self.fd_inode[fd] < 32 and \old(self.fd_offset[fd]) == 0 and inode_size(self.disk, self.fd_inode[fd]) >= 0 and nbytes >= inode_size(self.disk, self.fd_inode[fd])) ==> \result == inode_size(self.disk, self.fd_inode[fd])
+    # no_inline: the os.read wrapper now RAISES on EBADF. Inlining this body imports
+    # the `inode_size` nonlinear-div facts into the wrapper's normal-return context
+    # and tips it into the module-context vacuity; the modular `val` boundary keeps
+    # the wrapper non-vacuous (csys-vacuity-investigation).
+    #@ no_inline
     def sys_read(self, fd: int, nbytes: int) -> int:
         if fd >= 64:
             return -1
@@ -2020,6 +2025,11 @@ class UnixInodeFileSystem:
     # says the returned bytes ARE the data block's content. Composes with write's
     # block_content_eq(disk, fd_block, data) to give result == data (the round-trip).
     #@ ensures block_content_eq(self.disk, self.fd_block[fd], \result)
+    # no_inline: the os.pread wrapper now RAISES on EBADF. Inlining this body imports
+    # the `block_content_eq` / data-block facts into the wrapper's normal-return
+    # context and tips it into the module-context vacuity; the modular `val` boundary
+    # keeps the wrapper non-vacuous (csys-vacuity-investigation).
+    #@ no_inline
     def sys_pread(self, fd: int, nbytes: int, offset: int) -> list:
         if fd >= 64 or self.fd_open[fd] == 0:
             return []
@@ -2045,6 +2055,11 @@ class UnixInodeFileSystem:
     #             De-trusted: dict membership → fd_open[fd]==1, `del` →
     #             fd_open[fd]=0. The `fd < 64` guard short-circuits the
     #             array read so the access is in-bounds.
+    # no_inline: the os.close wrapper now RAISES on failure (returns None on
+    # success). Inlining this int-returning body into the None-typed wrapper
+    # clashed the inlined `return`/`Return` exception with the unit result; the
+    # modular boundary keeps close a clean `val` call (like sys_chmod/sys_mkdir).
+    #@ no_inline
     def sys_close(self, fd: int) -> int:
         if fd < 64 and self.fd_open[fd] == 1:
             self.fd_open[fd] = 0
@@ -2827,6 +2842,12 @@ class UnixInodeFileSystem:
     # cite: https://pubs.opengroup.org/onlinepubs/9699919799/functions/fstat.html
     # cite:_note: POSIX fstat() — returns the inode number for an open fd,
     #             or -1 on EBADF (fd not open or out of range).
+    # no_inline: the os.fstat wrapper now RAISES on EBADF (returns the inode on
+    # success). Keeping this a modular `val` (not inlined) means the wrapper's
+    # normal-return context is just the kernel post-state + the raise guard,
+    # avoiding the inlined-body facts that tipped the wrapper into the
+    # module-context nonlinear-div vacuity (csys-vacuity-investigation).
+    #@ no_inline
     def sys_fstat(self, fd: int) -> int:
         if fd >= 64:
             return -1
@@ -2849,6 +2870,10 @@ class UnixInodeFileSystem:
     #             -1 on ENOENT. If truncating below current size, data
     #             beyond `length` becomes inaccessible but blocks are not
     #             freed (a simplification — real truncate may free blocks).
+    # no_inline: the os.truncate wrapper now RAISES on failure (returns None on
+    # success); inlining this int-returning body into the None-typed wrapper clashes
+    # the inlined `Return` exception with the unit result (the sys_close precedent).
+    #@ no_inline
     def sys_truncate(self, pathname: str, length: int) -> int:
         inode_num = self._dir_lookup(5, pathname)
         if inode_num < 0 or inode_num >= 32:

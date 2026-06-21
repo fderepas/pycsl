@@ -32,8 +32,16 @@ from errors import PyCSLIRError
 # the module's import list, consumed by pycsl._resolve_imports so multi-file
 # resolution is a pure IR→IR pass. Additive (MINOR bump): "1.0" IRs remain
 # ingestable, so both versions stay in ACCEPTED_IR_VERSIONS.
-IR_VERSION = "1.1"
-ACCEPTED_IR_VERSIONS = frozenset({"1.0", "1.1"})
+#
+# "1.2" adds optional, default-valued FUNCTION fields `sibling_concrete` (bool),
+# `verify_module` (str), `propagate_frame` (bool), `fresh_globals` (bool) — the
+# allocator-frame / module-verification directives (#@ sibling_concrete,
+# #@ verify_module, #@ propagate_frame, #@ fresh_globals) — and the optional
+# TYPE-DECL field `init_ensures`. All default to False/"" so a "1.0"/"1.1" IR
+# without them remains ingestable (additive MINOR bump); all three versions stay
+# in ACCEPTED_IR_VERSIONS. See docs/ir.md §10.
+IR_VERSION = "1.2"
+ACCEPTED_IR_VERSIONS = frozenset({"1.0", "1.1", "1.2"})
 
 
 # ---------------------------------------------------------------------------

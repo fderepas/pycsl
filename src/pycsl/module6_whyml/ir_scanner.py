@@ -350,15 +350,24 @@ class IRScanner:
                 raised.add(stmt["exc_type"])
             if stmt.get("stmt") == "Try":
                 inner_raised = IRScanner.collect_escaping_exceptions(stmt.get("body", []))
+                handler_bases: Set[str] = set()
                 for h in stmt.get("handlers", []):
                     exc = h.get("exc_type")
                     if exc:
                         for ep in exc.split("|"):
                             ep = ep.strip()
                             if ep:
-                                caught.add(ep)
+                                handler_bases.add(ep)
                     raised |= IRScanner.collect_escaping_exceptions(h.get("body", []))
-                raised |= (inner_raised - caught)
+                # A handler `except B` catches B and every modelled subclass
+                # of B (hierarchy-aware), so a raised `FileNotFoundError`
+                # under `except OSError:` does NOT escape.
+                from exception_model import handler_catches
+                still_escapes = {
+                    e for e in inner_raised
+                    if not any(handler_catches(b, e) for b in handler_bases)
+                }
+                raised |= still_escapes
                 continue
             for key in ("body", "orelse"):
                 if key in stmt:
