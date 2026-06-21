@@ -20,7 +20,6 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "src" / "pycsl"))
 
 from pycsl import (  # noqa: E402
-    _merge_best_of_n,
     _parse_goal_blocks,
     _check_goal_conservation,
     _MergeConservationError,
@@ -69,46 +68,6 @@ def test_parse_keeps_colliding_headers_as_separate_blocks() -> None:
     assert len(h119) == 2 and h119[0] == h119[1]
 
 
-# --- _merge_best_of_n: a Valid sibling must NOT mask a non-Valid one --------
-
-def test_merge_does_not_mask_timeout_sibling_at_same_header() -> None:
-    """THE regression: then-branch Timeout + else-branch Valid at the same header.
-    The merged output must still contain the Timeout (so downstream FAILS)."""
-    single_prover_output = _output(
-        _block(10, "Valid (0.01s, 1 steps)", label="Precondition of goal f'vc"),
-        _block(119, "Timeout (30.00s, 25638167 steps)"),  # then-branch (live, unproven)
-        _block(119, "Valid (0.01s, 762 steps)"),          # else-branch (dead)
-    )
-    merged = _merge_best_of_n([single_prover_output])
-    blocks = _parse_goal_blocks(merged)
-    assert len(blocks) == 3, "merge collapsed two same-header sub-goals into one"
-    verdicts = [rl for _, rl in blocks]
-    assert any("Timeout" in v for v in verdicts), "Timeout sibling was masked — false green"
-
-
-def test_merge_best_of_n_promotes_per_occurrence_across_provers() -> None:
-    """Legitimate best-of-N: occurrence k in prover A pairs with occurrence k in B.
-    A's [Timeout, Valid] and B's [Valid, Timeout] (same two headers) merge to
-    [Valid, Valid] — each sub-goal proven by SOME prover."""
-    lead = _block(10, "Valid (1s, 0 steps)", label="Precondition of goal f'vc")
-    a = _output(lead, _block(119, "Timeout (1s, 1 steps)"), _block(119, "Valid (1s, 2 steps)"))
-    b = _output(lead, _block(119, "Valid (1s, 3 steps)"), _block(119, "Timeout (1s, 4 steps)"))
-    merged = _merge_best_of_n([a, b])
-    blocks = _parse_goal_blocks(merged)
-    v119 = [rl for h, rl in blocks if "line 119" in h]
-    assert len(v119) == 2
-    assert all("Valid" in v for v in v119), "per-occurrence best-of-N failed"
-
-
-def test_merge_unique_headers_unaffected() -> None:
-    """No collision => behaviour is unchanged (occurrence index always 0)."""
-    out = _output(_block(10, "Valid (1s, 1 steps)"), _block(20, "Timeout (1s, 1 steps)"))
-    merged = _merge_best_of_n([out])
-    blocks = _parse_goal_blocks(merged)
-    assert len(blocks) == 2
-    assert any("Timeout" in rl for _, rl in blocks)
-
-
 # --- _check_goal_conservation: trust-free fail-closed backstop --------------
 
 def test_conservation_passes_when_counts_match() -> None:
@@ -117,8 +76,7 @@ def test_conservation_passes_when_counts_match() -> None:
         _block(119, "Timeout (1s, 1 steps)"),
         _block(119, "Valid (1s, 2 steps)"),
     )
-    merged = _merge_best_of_n([first])  # correct merge preserves all three
-    _check_goal_conservation(first, merged)  # must not raise
+    _check_goal_conservation(first, first)  # same goal count => must not raise
 
 
 def test_conservation_raises_when_a_goal_is_dropped() -> None:

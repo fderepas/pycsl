@@ -580,34 +580,11 @@ def _why3_typecheck(mlw_filename: str):
 # parsed as a per-goal verdict (each goal is keyed by its own File+Sub-goal
 # header block).
 
-# Verdict ranks: higher is better. Anything not Valid is non-Valid (unproven).
-_VERDICT_VALID = 2
-_VERDICT_NONVALID = 1  # Unknown / Timeout / Out of memory / Failure / Invalid / unparsed
-
-def _verdict_rank(result_line: str) -> int:
-    """Rank a Why3 `Prover result is: ...` line. ONLY a literal 'Valid' is Valid.
-
-    Soundness: this is the single chokepoint that decides whether a goal counts
-    as proven. It accepts ``Valid`` ONLY when the verdict token is exactly
-    ``Valid`` (Why3 prints ``Valid (...)`` for a proven goal). ``Invalid`` and
-    every other status (``Unknown``, ``Timeout``, ``Out of memory``,
-    ``Failure``, ...) rank as non-Valid and can never be promoted."""
-    # The verdict token follows "Prover result is: ". Why3 emits e.g.
-    #   "Prover result is: Valid (0.03s, 20 steps)."
-    #   "Prover result is: Unknown (unknown) (0.04s, 17627 steps)."
-    #   "Prover result is: Timeout (30.0s)."  / "... Out of memory ..." / "... Failure ..."
-    marker = "Prover result is:"
-    idx = result_line.find(marker)
-    token = result_line[idx + len(marker):].strip() if idx != -1 else result_line.strip()
-    # Guard against "Invalid" (whose substring is "valid"): require the verdict to
-    # START with the exact word "Valid".
-    if token.startswith("Valid (") or token == "Valid" or token.startswith("Valid\t"):
-        return _VERDICT_VALID
-    return _VERDICT_NONVALID
-
-
 def _parse_goal_blocks(output: str) -> "List[Tuple[str, str]]":
-    """Split a `why3 prove` stdout into per-goal (header, result_line) pairs.
+    """Split goal-block text into per-goal (header, result_line) pairs by COUNTING
+    `Prover result is:` lines. Used only by `_check_goal_conservation` over the
+    synthesised canonical text (one block per record) to count goals — the live
+    verdict/merge logic runs over structured `--json` records, not this text.
 
     A goal block is::
 
@@ -615,11 +592,8 @@ def _parse_goal_blocks(output: str) -> "List[Tuple[str, str]]":
         Sub-goal <desc> of goal <name>'vc.
         Prover result is: <verdict> (...).
 
-    The header (everything up to and including the line that PRECEDES the
-    `Prover result is:` line) is the stable goal KEY — it is byte-identical across
-    provers because it is derived from the same .mlw. The `Prover result is:` line
-    is the per-prover verdict. Returns the blocks in document order; a header with
-    no following result line (should not happen for a real goal) is skipped."""
+    Returns the blocks in document order; a header with no following result line is
+    skipped."""
     blocks: List[Tuple[str, str]] = []
     cur_header: List[str] = []
     for line in output.splitlines():
@@ -637,8 +611,8 @@ class _MergeConservationError(Exception):
     full-file prover run — i.e. aggregation LOST a goal. This is the structural
     signature of the false-green class fixed in fa3668d (a Valid sibling masking a
     non-Valid one). It is a trust-free, fail-closed backstop: it depends on NO merge
-    implementation being correct, so it survives any future rewrite of
-    `_merge_best_of_n`. See soundness-issue.md (Tier 0)."""
+    implementation being correct, so it survives any future rewrite of the merge.
+    See soundness-issue.md (Tier 0)."""
     def __init__(self, expected: int, got: int):
         self.expected = expected
         self.got = got
@@ -648,48 +622,6 @@ class _MergeConservationError(Exception):
             f"report a verdict (a dropped goal must never silently pass).")
 
 
-def _merge_best_of_n(outputs: "List[str]") -> str:
-    """Merge per-prover `why3 prove` outputs into ONE best-of-N output string.
-
-    For each goal keep the BEST verdict across provers (Valid dominates). The
-    merged string has the SAME shape as a single `why3 prove` run, so the existing
-    downstream success/parse logic consumes it unchanged. Goal order follows the
-    first run that mentions the goal.
-
-    KEY = (header, occurrence-index-within-one-prover-output), NOT header alone.
-    `split_vc` can emit SEVERAL sub-goals that share a byte-identical header — e.g.
-    the then/else branch obligations of one postcondition sit at the SAME source
-    line and carry the SAME `Sub-goal Postcondition of goal f'vc.` text. Keying by
-    header alone would COLLAPSE those distinct sub-goals into one and let a Valid
-    sibling MASK a non-Valid one (a dead branch proving `false` hiding a real
-    unproven branch) — an unsound false-green. why3's split is deterministic, so the
-    k-th occurrence of a given header denotes the SAME sub-goal across provers; we
-    align by that occurrence index and merge per sub-goal."""
-    order: List["Tuple[str, int]"] = []
-    best: Dict["Tuple[str, int]", str] = {}        # (header, occ) -> best result line
-    best_rank: Dict["Tuple[str, int]", int] = {}   # (header, occ) -> rank of best
-    for out in outputs:
-        occ: Dict[str, int] = {}                   # header -> count seen in THIS output
-        for header, result_line in _parse_goal_blocks(out):
-            n = occ.get(header, 0)
-            occ[header] = n + 1
-            key = (header, n)
-            r = _verdict_rank(result_line)
-            if key not in best:
-                order.append(key)
-                best[key] = result_line
-                best_rank[key] = r
-            elif r > best_rank[key]:
-                best[key] = result_line
-                best_rank[key] = r
-    parts: List[str] = []
-    for key in order:
-        header = key[0]
-        block = (header + "\n" + best[key]) if header else best[key]
-        parts.append(block)
-    return "\n\n".join(parts)
-
-
 def _check_goal_conservation(first_full_output: str, merged_output: str) -> None:
     """Trust-free fail-closed backstop (soundness-issue.md, Tier 0).
 
@@ -697,19 +629,13 @@ def _check_goal_conservation(first_full_output: str, merged_output: str) -> None
     attempts only re-prove residual subsets. So the merged best-of-N output must
     contain at LEAST as many goal blocks as that first run. Fewer means aggregation
     dropped a goal (the false-green class fixed in fa3668d) — raise rather than let
-    a dropped obligation silently pass. Independent of whether `_merge_best_of_n`
-    itself is correct, so it survives any future rewrite of the merge."""
+    a dropped obligation silently pass. Independent of how the merge is implemented,
+    so it survives any future rewrite. Operates on the synthesised canonical text
+    (one block per record), counting goal blocks via `_parse_goal_blocks`."""
     first_n = len(_parse_goal_blocks(first_full_output))
     merged_n = len(_parse_goal_blocks(merged_output))
     if merged_n < first_n:
         raise _MergeConservationError(first_n, merged_n)
-
-
-def _all_goals_valid(output: str) -> bool:
-    """True iff every parsed goal block is Valid (used for early-exit). An output
-    with no goal blocks is NOT 'all valid' here (callers handle the empty case)."""
-    blocks = _parse_goal_blocks(output)
-    return bool(blocks) and all(_verdict_rank(r) == _VERDICT_VALID for _, r in blocks)
 
 
 # --- Structured (`why3 prove --json`) goal handling -------------------------------
@@ -760,7 +686,7 @@ def _record_answer(rec: dict) -> str:
 
 
 def _record_is_valid(rec: dict) -> bool:
-    """Soundness chokepoint (mirrors _verdict_rank): ONLY a literal 'Valid' counts.
+    """Soundness chokepoint: ONLY a literal 'Valid' answer counts as proven.
     Invalid / Unknown / Timeout / OutOfMemory / Failure / ... are never proven."""
     return _record_answer(rec) == "Valid"
 
@@ -860,9 +786,6 @@ def _residual_selectors_from_records(records: "List[dict]") -> "Optional[List[st
 
 import re as _re
 
-# Matches the goal-header location line `File "<path>", line <N>, characters X-Y:`.
-_GOAL_LOC_RE = _re.compile(r'^File "(?P<file>.*)", line (?P<line>\d+), characters')
-
 
 # --- Non-vacuity gate -------------------------------------------------------------
 # A function whose ASSUMED context (its preconditions + the `ensures` it assumes from
@@ -961,37 +884,6 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
             if verdict:
                 vac.append(fname)
     return vac
-
-
-def _residual_selectors(merged_output: str, mlw_filename: str) -> "List[str]":
-    """Return the DISTINCT `<file>:<line>` Why3 sub-goal selectors for every goal in
-    *merged_output* that is NOT yet Valid. Used to re-run the next prover ONLY on the
-    residual goals (`why3 prove -g <file>:<line> ...`), so goals the first prover
-    already proved do NOT pay for a second prover pass (the doctrine's "only residual
-    goals pay"). Duplicate lines collapse: `-g file:line` selects every sub-goal at
-    that line, which is a sound superset (re-proving an already-Valid sub-goal is
-    cheap and the merge keeps the best verdict)."""
-    sels: List[str] = []
-    seen: Set[str] = set()
-    for header, result_line in _parse_goal_blocks(merged_output):
-        if _verdict_rank(result_line) == _VERDICT_VALID:
-            continue
-        # Find the `File "...", line N, ...` location ANYWHERE in the header block
-        # (the block may carry a leading blank-line separator before the File line).
-        m = None
-        for hl in header.splitlines():
-            m = _GOAL_LOC_RE.match(hl.strip())
-            if m:
-                break
-        if not m:
-            # Cannot locate this residual goal precisely — fall back to whole-file
-            # (sound: a broader re-run can only prove MORE). Signal with empty list.
-            return []
-        sel = f"{m.group('file')}:{m.group('line')}"
-        if sel not in seen:
-            seen.add(sel)
-            sels.append(sel)
-    return sels
 
 
 def _run_why3_prove(base_cmd: "List[str]", prover: str, timelimit: str,
