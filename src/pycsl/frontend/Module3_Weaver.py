@@ -815,6 +815,83 @@ class Module3_Weaver:
                             f"`#@ \\preserves` to promise it preserves the protected "
                             f"fields, or add it to the `except` set.")
                 continue
+            # H-I1 (read confinement): the READ mirror of the R1 region form. No non-exempt
+            # method may READ self.<field> inside [LO, HI). Soundness mirrors the write form:
+            # (i) a per-READ-site `#@ check (index outside region)` in every non-exempt body;
+            # (ii) aliasing the protected base is forbidden (a read via `x = self.field`
+            #      would evade the per-site check); (iii) well-formedness (exempt names are
+            #      methods; no dynamic exec in a non-exempt method — it could read anything);
+            #      (iv) a non-exempt trusted/abstract method has no checkable body so it could
+            #      read the region — it must be exempt. Realised entirely here (not in the IR
+            #      `happy` blob), so the IR stays byte-identical for write-confinement files.
+            if hp.context == "reading":
+                # (ii) no aliasing the protected base into a non-exempt local.
+                # `_check_protect_aliasing` catches the prefix alias `x = self`; we also
+                # forbid the full-path alias `x = self.<field>` (a read through `x` would
+                # evade the per-read check — closing a gap the shipped R1 write form leaves).
+                self._check_protect_aliasing(
+                    python_ast, {f"self.{hp.field}"}, except_set, None, hp.name)
+                for fn in funcs:
+                    if fn.name in except_set:
+                        continue
+                    for n in ast.walk(fn):
+                        if (isinstance(n, ast.Assign)
+                                and isinstance(n.value, ast.Attribute)
+                                and isinstance(n.value.value, ast.Name)
+                                and n.value.value.id == "self"
+                                and n.value.attr == hp.field):
+                            raise PyCSLSemanticError(
+                                f"`happy {hp.name}`: aliasing the protected field "
+                                f"'self.{hp.field}' into a local in non-exempt '{fn.name}' is "
+                                f"forbidden — a read through the alias would evade the "
+                                f"read-confinement check. Read through self.{hp.field} "
+                                f"directly, or add '{fn.name}' to `except`.")
+                # (iii) well-formedness, mirroring core_ir_semantic._check_happy (which is
+                # skipped for reading properties): exempt names must be methods; a non-exempt
+                # dynamic-exec method cannot be confined.
+                method_names = {fn.name for fn in funcs}
+                for nm in except_set:
+                    if nm not in method_names:
+                        raise PyCSLSemanticError(
+                            f"`happy {hp.name}`: exempt function '{nm}' is not a method in "
+                            f"this module. Known methods: {sorted(method_names)}.")
+                for fn in funcs:
+                    if fn.name in except_set:
+                        continue
+                    if any(isinstance(c, ast.Call) and isinstance(getattr(c, 'func', None), ast.Name)
+                           and c.func.id == "exec" for c in ast.walk(fn)):
+                        raise PyCSLSemanticError(
+                            f"`happy {hp.name}`: method '{fn.name}' contains a dynamic "
+                            f"`exec(...)`, which may read anything — add it to `except` or "
+                            f"remove the exec.")
+                # (i) per-read-site check.
+                rsites: List[tuple] = []
+                self._collect_field_read_sites(python_ast, hp.field, None, None, rsites)
+                rsites.sort(key=lambda t: (getattr(t[0], "lineno", 0),
+                                           getattr(t[0], "col_offset", 0)))
+                for stmt, site, func_name in rsites:
+                    if func_name in except_set:
+                        continue
+                    pred = self._happy_predicate(hp, site, getattr(stmt, "lineno", 0))
+                    origin = (f"happy {hp.name} reads self.{hp.field} "
+                              f"L{getattr(stmt, 'lineno', 0)}")
+                    cp = CheckPoint("check", pred, origin=origin)
+                    stmt.csl_checkpoints = getattr(stmt, "csl_checkpoints", []) + [cp]
+                # (iv) trust boundary: a non-exempt trusted/abstract method could read the
+                # region with no checkable body — it must be exempt.
+                for fn in funcs:
+                    if fn.name in except_set:
+                        continue
+                    if (getattr(fn, "csl_trusted", False)
+                            or getattr(fn, "csl_abstract", False)):
+                        lo, hi = (self._region_bound_str(hp.region_lo),
+                                  self._region_bound_str(hp.region_hi))
+                        raise PyCSLSemanticError(
+                            f"`happy {hp.name}`: trusted/abstract function '{fn.name}' is "
+                            f"not exempt and has no checkable body, so it could read the "
+                            f"protected region [{lo}, {hi}) of self.{hp.field}. List it in "
+                            f"`except` if it is a legitimate reader.")
+                continue
             # (A) Body coverage: a per-site `#@ check` at every direct write of the
             # field in every non-exempt body-verified function (theorem clause 1).
             sites: List[tuple] = []
@@ -981,6 +1058,40 @@ class Module3_Weaver:
                     out.append((child, site, cur_func))
             inner_func = child.name if isinstance(child, ast.FunctionDef) else cur_func
             self._collect_field_sites(child, field, inner_func, out)
+
+    @staticmethod
+    def _subscript_read_site(sub: ast.Subscript, field: str):
+        """If `sub` is a Load of `self.<field>[...]`, return its site descriptor (same
+        shape as `_field_write_site`: point/slice), else None. The READ analogue used by
+        H-I1 read confinement."""
+        base = sub.value
+        if not (isinstance(base, ast.Attribute)
+                and isinstance(base.value, ast.Name)
+                and base.value.id == "self"
+                and base.attr == field):
+            return None
+        sl = sub.slice
+        if isinstance(sl, ast.Index):              # pre-3.9 wrapper
+            sl = sl.value
+        if isinstance(sl, ast.Slice):
+            return {"kind": "slice", "lower": sl.lower, "upper": sl.upper}
+        return {"kind": "point", "index": sl}
+
+    def _collect_field_read_sites(self, node: ast.AST, field: str, cur_func,
+                                  cur_stmt, out: List[tuple]) -> None:
+        """Recursive descent collecting `(enclosing_stmt, site, func_name)` for every READ
+        (Load) of `self.<field>[...]`. The check attaches to the nearest enclosing statement
+        so it is discharged before the read executes. A `self.<field>[i] = v` LHS is a Store
+        (write) and is NOT collected here — that is the H-T (write) form's concern."""
+        for child in ast.iter_child_nodes(node):
+            new_func = child.name if isinstance(child, ast.FunctionDef) else cur_func
+            new_stmt = child if isinstance(child, ast.stmt) else cur_stmt
+            if (isinstance(child, ast.Subscript)
+                    and isinstance(getattr(child, "ctx", None), ast.Load)):
+                site = self._subscript_read_site(child, field)
+                if site is not None and cur_stmt is not None:
+                    out.append((cur_stmt, site, cur_func))
+            self._collect_field_read_sites(child, field, new_func, new_stmt, out)
 
     def process(self) -> ast.AST:
         contracts_map, trailing_contracts_map = self._parse_extracted_contracts()

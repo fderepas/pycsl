@@ -979,6 +979,7 @@ PYCSL_GRAMMAR = r"""
              | complete_decl
              | disjoint_decl
              | happy_decl
+             | happy_reads_decl
              | happy_protects_decl
              | happy_param_decl
 
@@ -1005,6 +1006,12 @@ PYCSL_GRAMMAR = r"""
     // [LO, HI) that a named shared field must not be written into, except by an
     // allowlisted set of methods. See `meta.md` Stage B and `Module3._expand_happy_properties`.
     happy_decl: "happy" CNAME ":" "region" expr RANGE_OP expr "writes" "self" "." CNAME "outside" "region" ("except" act_names)?
+
+    // H-I1 (Information-Disclosure / read confinement): the READ mirror of happy_decl.
+    // No method outside `except` may READ self.FIELD inside the reserved region [LO, HI);
+    // expands to a per-READ-site `#@ check (i < LO or i >= HI)` in every non-exempt method
+    // (and forbids aliasing the protected base, which would evade the read-site check).
+    happy_reads_decl: "happy" CNAME ":" "region" expr RANGE_OP expr "reads" "self" "." CNAME "outside" "region" ("except" act_names)?
 
     // 07-1143 R1/R2: subsystem ownership form — no method outside `except` may directly
     // write ANY of the (possibly dotted/nested) protected fields. Desugars to a per-site
@@ -1352,6 +1359,11 @@ class PyCSLTransformer(Transformer):
         # `rest` is the optional except list (act_names → List[str]) or empty.
         except_set = list(rest[0]) if rest else []
         return HappyProperty(str(name), str(field), lo, hi, except_set)
+
+    # H-I1: read-confinement HAPPY (`region LO .. HI reads self.FIELD outside region`).
+    def happy_reads_decl(self, name, lo, _op, hi, field, *rest) -> HappyProperty:
+        except_set = list(rest[0]) if rest else []
+        return HappyProperty(str(name), str(field), lo, hi, except_set, context="reading")
 
     # 07-1143 R1/R2: subsystem-ownership HAPPY (`protects <dotted paths> except <methods>`).
     def dotted_path(self, *parts) -> str:

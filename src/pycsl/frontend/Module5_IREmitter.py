@@ -173,10 +173,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                             exec_methods.append(_n.name)
                             break
             self.program_ir["happy"] = {
+                # H-I1 read-confinement (context=="reading") properties are fully realised
+                # as injected per-read `#@ check`s by Module3 (with their own aliasing /
+                # trust-boundary / exec well-formedness checks there), so they are NOT
+                # emitted into this blob — keeping the IR byte-identical for write-confinement
+                # files and avoiding `_check_happy`'s write-oriented "inert field" warning.
                 "properties": [
                     {"name": hp.name, "field": hp.field,
                      "protects": hp.protects, "except_set": list(hp.except_set)}
-                    for hp in happy_props],
+                    for hp in happy_props if getattr(hp, "context", "writing") != "reading"],
                 "method_names": method_names,
                 "exec_methods": exec_methods,
             }
