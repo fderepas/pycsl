@@ -2421,6 +2421,15 @@ class UnixInodeFileSystem:
     #             literals 0/1/2 (SEEK_SET/CUR/END). The inode read for
     #             SEEK_END is guarded so _read_inode's 0<=n<32 precondition
     #             holds.
+    # no_inline: the os.lseek wrapper proves its contract from THIS contract, not
+    # the inlined body. Inlining dragged the SEEK_END inode decode (_unpack_inode /
+    # Array.sub disk) + the module's record invariants into the wrapper VC, which
+    # timed out (the last os-module red). This is the SAME modular boundary the other
+    # 28 sys_* already use; sys_lseek was the lone anomaly still inlined. The body
+    # still proves THIS contract standalone (result>=-1 from the >=0 clamp; the
+    # SEEK_SET ensures from the whence==0 branch), so the boundary is body-faithful,
+    # not new bare trust.
+    #@ no_inline
     def sys_lseek(self, fd: int, offset: int, whence: int) -> int:
         if fd >= 64:
             return -1
