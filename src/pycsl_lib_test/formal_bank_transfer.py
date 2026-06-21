@@ -1,12 +1,17 @@
 """formal_bank_transfer.py — the shared HAPPY flagship (PyCSL edition of macsl small_example).
 
-FIVE named security policies on ONE money operation, `transfer`, composed (cf.
+SIX named security policies on ONE money operation, `transfer`, composed (cf.
 happy-roadmap-impl.md §0b and ../macsl tests/small_example/main.c):
   - H-R nonrepud_complete    : any balance change implies the audit log grew
   - H-R nonrepud_append_only : every earlier audit record is unchanged
   - H-T bal_integrity        : only `transfer` (and the `seed` bootstrap) may write a balance
   - H-S authn                : `transfer` is reachable only with the session capability
   - H-E priv_monotonic       : a transfer never RAISES a role (0=super-admin..2=user)
+  - H-D availability         : `transfer` is TOTAL (always terminates — no attacker-induced DoS)
+
+This is a STRICT SUPERSET of macsl's main.c, which composes the first five: macsl keeps H-D
+off its flagship because main's accept-loop is intentionally infinite (`terminates \false`),
+whereas PyCSL's straight-line `transfer` is genuinely total, so H-D composes here too.
 """
 # pycsl-flags: --memory-model hoare
 #@ class invariant \length(self.role) >= 5
@@ -29,6 +34,9 @@ happy-roadmap-impl.md §0b and ../macsl tests/small_example/main.c):
 #@ happy authn:
 #@     targets transfer
 #@     precond self.session_authenticated == 1
+#@ happy availability:
+#@     targets transfer
+#@     total
 class Bank:
     #@ ensures \forall i; (0 <= i and i < 5) ==> self.role[i] == 0
     #@ ensures \forall i; (0 <= i and i < 5) ==> self.balance[i] == 0
