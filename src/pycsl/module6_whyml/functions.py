@@ -1178,25 +1178,30 @@ class FunctionEmissionMixin:
     def _build_method_field_param_post_ensures_map(
             self, functions: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
         """Map method name → its NON-QUANTIFIED `ensures` clauses that reference a self-field
-        AND a param but NO `\\result`, `\\old`, quantifier, local, or non-self object — each
-        formal param renamed to `x_i`. These are the void-mutator WRITE POSTCONDITIONS
+        AND a param but NO `\\result`, quantifier, local, or non-self object — each formal param
+        renamed to `x_i`. These are the void-mutator WRITE POSTCONDITIONS
         (`slot_inode(self.disk, b, s) == inode`, `slot_name(self.disk, b, s) == name`,
         `slot_inode(self.disk, b, s) == 0`) that every existing map drops: `field_old` rejects
         params, `field_param_result` requires `\\result`. So a `#@ no_inline` mutator's boundary
         stub carried only `writes`, and a caller (mkdir/link/symlink: presence witness;
         unlink/rmdir: the just-zeroed slot) could prove nothing about what the call WROTE.
 
+        `\\old` IS allowed (it lowers to the val's pre-state and the no_inline method's own val
+        proves the clause). It was originally lumped into the reject set, which dropped a
+        post-state whose GUARD references `\\old` of a field — e.g. lseek's
+        `(whence==0 ∧ offset≥0 ∧ fd<64 ∧ \\old(self.fd_open[fd])==1) → self.fd_offset[fd]==offset`
+        (field+param+old, no result) — leaving the SEEK_SET stub unable to pin fd_offset.
+
         Restricted to NON-QUANTIFIED clauses ON PURPOSE (plan §2.9): a non-quantified equality
         carries no trigger, so it CANNOT E-match-poison sibling goals (the failure mode that
-        sank the quantified-frame attempt). The quantified FRAME (`\\forall k. … == \\old`) is a
-        separate, opt-in concern handled elsewhere. Reuses the param-rename of the field+param
-        +result map; rejects `\\old` and any quantifier so only the safe write-posts survive."""
+        sank the quantified-frame attempt) — this is why quantifiers (not `\\old`) are the real
+        restriction. The quantified FRAME (`\\forall k. … == \\old`) is a separate, opt-in
+        concern handled elsewhere. Reuses the param-rename of the field+param+result map."""
         def classify(node: Any, params: Set[str]) -> Optional[bool]:
             if not isinstance(node, dict):
                 return None
             t = node.get("type")
-            if t in ("Result", "OldVar", "OldField", "Old",
-                     "Forall", "Exists", "ForallItems"):
+            if t in ("Result", "Forall", "Exists", "ForallItems"):
                 return False
             if t in ("FieldGet", "Attribute"):
                 return False if node.get("object") != "self" else None
