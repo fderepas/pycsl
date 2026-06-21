@@ -33,22 +33,24 @@ The macsl-coherent named-postcondition form:
 (negative — lowers a role → postcondition VC fails). annotations.md §2.5 rows 6 & 7.
 **Gated:** conformance 38/38 + 38/38; 0719 non-vacuous; (full corpus/formal re-run in flight).
 
-## HARD BLOCKER — H-S (Spoofing / check-before-use)
+## H-S (Spoofing / check-before-use) — UNBLOCKED + done
 
-H-S's whole point is the **call-site** obligation: a guarded operation is unreachable unless
-the caller established the capability, so the *negative must fail in the caller*. PyCSL
-**does not enforce a callee's precondition at a self-call site**: `self.<m>(…)` lowers to a
-*contractless* abstract `val`. Verified directly — a caller invoking `self.f(-5)` against
-`f`'s `requires x > 0` **passes** (the precondition is checked nowhere). So a `precond` HAPPY
-would attach a `requires` the callee *assumes* but no caller *proves* — an unchecked
-assumption, i.e. a false-security green, which the extreme-rigor doctrine forbids.
+The blocker was: PyCSL does not enforce a callee's precondition at a self-call site
+(`self.<m>(…)` lowers to a *contractless* abstract `val`; even `self.f(-5)` against
+`requires x>0` passed). Investigating the C sibling **macsl** (../macsl `src/macsl.ml`
+`emit_requires`) showed H-S there is just a plain `requires` — *checked by WP's automatic
+call rule at every call site* (the `unauth_endpoint` red in `tests/small_example/attacks.c`).
 
-**Decision (sound-by-rejection):** the `precond` form is parsed but raises a hard error
-naming the gap, rather than shipping silently. H-S is unblocked only by **self-call
-precondition propagation** (the precondition direction of the method-call-contract gap) — a
-separate tool change (propagate the callee `requires` onto the self-call's abstract `val` /
-inject a call-site assert), which would itself need a full byte-diff/corpus gate. That is the
-halt point.
+PyCSL has no such automatic call rule for the abstract stub, so we get the SAME effect the
+PyCSL-idiomatic way: the `precond` HAPPY (a) attaches the clause as a `requires` so the
+target ASSUMES the capability (sound), and (b) **injects `#@ check <clause>` before every
+`self.<target>(…)` call site** (the HAPPY check primitive) so the caller must PROVE it. A
+caller that skipped the grant gets an unprovable VC IN THE CALLER — exactly macsl's
+`unauth_endpoint`. Drivers 0721 (positive) / 0722 (negative — fails in `handle`).
+
+**ASSUMPTION:** scoped to `self.<target>(…)` self-call sites (the H-S flagship pattern) with
+minimal blast radius — receiver-var call sites and full macsl-parity *universal* precondition
+checking at *all* call sites are a documented follow-up.
 
 ## Remaining (not blocked, not attempted this run)
 

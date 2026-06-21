@@ -751,22 +751,34 @@ class Module3_Weaver:
                     raise PyCSLSemanticError(
                         f"`happy {hp.name}`: targets '{hp.target}', which is not a method in "
                         f"this module. Known methods: {sorted(fn.name for fn in funcs)}.")
-                if hp.context == "precond":
-                    # H-S (check-before-use) needs the target's precondition discharged AT
-                    # EVERY CALL SITE — otherwise it is an UNCHECKED ASSUMPTION (unsound).
-                    # PyCSL lowers a sibling `self.<m>(…)` call to a CONTRACTLESS abstract
-                    # `val`, so callee preconditions are NOT enforced at self-call sites. Until
-                    # that gap is closed, a `precond` HAPPY would silently assume-without-proof;
-                    # reject it rather than ship a false-security green. (See the H-S blocker in
-                    # getting-better/…-happy-impl-status.md.)
-                    raise PyCSLSemanticError(
-                        f"`happy {hp.name}`: the `precond` (H-S check-before-use) form is not "
-                        f"yet supported — PyCSL does not enforce a callee's precondition at a "
-                        f"self-call site (`self.{hp.target}(…)` lowers to a contractless val), "
-                        f"so the call-site obligation that H-S relies on cannot be discharged. "
-                        f"Use it only once self-call precondition propagation lands.")
                 for fn in target_fns:
-                    fn.csl_ensures.append(Ensures(copy.deepcopy(hp.formula)))
+                    if hp.context == "postcond":
+                        fn.csl_ensures.append(Ensures(copy.deepcopy(hp.formula)))
+                    else:
+                        # H-S: the target ASSUMES the capability (a sound precondition on its
+                        # own body — it is the guarded operation).
+                        fn.csl_requires.append(Requires(copy.deepcopy(hp.formula)))
+                if hp.context == "precond":
+                    # H-S check-before-use: every CALL SITE must PROVE the capability. macsl
+                    # gets this from WP's automatic call rule; PyCSL lowers a sibling
+                    # `self.<m>(…)` to a CONTRACTLESS abstract val (no call-site obligation), so
+                    # we inject the obligation explicitly as a `#@ check <formula>` BEFORE each
+                    # `self.<target>(…)` call (the HAPPY check primitive). A caller that skipped
+                    # the grant gets an unprovable VC IN THE CALLER — exactly macsl's
+                    # `unauth_endpoint` red (../macsl tests/small_example/attacks.c). The
+                    # target's own (recursive) self-call already assumes the precond, so skip it.
+                    csites: List[tuple] = []
+                    self._collect_self_call_sites(python_ast, hp.target, None, None, csites)
+                    csites.sort(key=lambda t: (getattr(t[0], "lineno", 0),
+                                               getattr(t[0], "col_offset", 0)))
+                    for stmt, caller in csites:
+                        if caller == hp.target:
+                            continue
+                        line = getattr(stmt, "lineno", 0)
+                        cp = CheckPoint("check", copy.deepcopy(hp.formula),
+                                        origin=(f"happy {hp.name} call-site precond before "
+                                                f"self.{hp.target} L{line}"))
+                        stmt.csl_checkpoints = getattr(stmt, "csl_checkpoints", []) + [cp]
                 continue
             # 07-1143 R3: PARAMETRIC (per-object) form. A method binds the region via
             # `#@ footprint NAME(arg)`; at each point write `path[i]=v` it must prove the
@@ -1105,6 +1117,22 @@ class Module3_Weaver:
         if isinstance(sl, ast.Slice):
             return {"kind": "slice", "lower": sl.lower, "upper": sl.upper}
         return {"kind": "point", "index": sl}
+
+    def _collect_self_call_sites(self, node: ast.AST, target: str, cur_func,
+                                 cur_stmt, out: List[tuple]) -> None:
+        """Collect `(enclosing_stmt, caller_func)` for every call `self.<target>(...)` —
+        the H-S check-before-use call sites where the capability precondition is injected."""
+        for child in ast.iter_child_nodes(node):
+            new_func = child.name if isinstance(child, ast.FunctionDef) else cur_func
+            new_stmt = child if isinstance(child, ast.stmt) else cur_stmt
+            if (isinstance(child, ast.Call)
+                    and isinstance(child.func, ast.Attribute)
+                    and isinstance(child.func.value, ast.Name)
+                    and child.func.value.id == "self"
+                    and child.func.attr == target):
+                if cur_stmt is not None:
+                    out.append((cur_stmt, cur_func))
+            self._collect_self_call_sites(child, target, new_func, new_stmt, out)
 
     def _collect_field_read_sites(self, node: ast.AST, field: str, cur_func,
                                   cur_stmt, out: List[tuple]) -> None:
