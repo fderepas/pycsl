@@ -1,67 +1,43 @@
 # formal_os_namespace.py — os NAMESPACE consequences, through the PUBLIC API ONLY.
 #
-# This file was REWRITTEN to remove the previous SIMULATION. The prior version
-# built a local `disk = [0]*64`, hand-wrote the dirent bytes (`disk[2]=ord(d[0])`),
-# and inlined `_dir_lookup`'s scan/decode logic — then asserted that its own
-# re-implementation behaved as expected. That proves a TAUTOLOGY about a hand-
-# written copy of the syscalls, NOT that os.mkdir / os.access / os.rmdir / … work.
-# (The TELL, per the skill: writing it required knowing the internal byte layout.)
-#
-# Here every theorem CALLS THE REAL PUBLIC API the way a caller does — it imports
-# `mkdir`, `rmdir`, `unlink`, `link`, `rename`, `access`, `stat`, `F_OK` from
+# This file CALLS THE REAL PUBLIC API the way a caller does — it imports
+# `mkdir`, `rmdir`, `unlink`, `link`, `rename`, `access`, `F_OK` from
 # pycsl_lib.os and drives a setup -> operate -> OBSERVE scenario, asserting the
 # observation's promised post-state. There is NO `disk`, NO `_dir_lookup`, NO
 # `sys_*`, NO `UnixInodeFileSystem(...)`, NO hand-written dirent bytes.
 #
-# HONEST OUTCOME — these consequences DO NOT PROVE through the API today.
-# The os syscalls' public contracts in pycsl_lib/os/__init__.py are RETURN-CODE
-# ONLY: `mkdir`/`rmdir`/`unlink`/`link`/`rename` ensure `\result == 0 or -1`;
-# `access` ensures `\result == 0 or 1`; `stat` ensures `\result == -1 or
-# (0 <= \result < 32)`. NONE of them ensures any link between a name written by a
-# mutator and what an observer later reads under that same name. So after
-# `mkdir(d)`, `access(d, F_OK)` reads a post-state the prover sees as fully
-# unconstrained, and the PRESENT assertion is Unknown. Verified directly:
-# `mkdir(d) -> access(d, F_OK) == 1` => Unknown (0.06s, 186713 steps), matching
-# convergence-gap-4 §4a. Each theorem below is therefore the HONEST,
-# API-calling form of the consequence; it is expected to report Unknown until the
-# MODEL's syscall contracts gain observable post-state `ensures`. The precise
-# reproducer, root cause, and proposed model fix are recorded in the dated
-# convergence-gap doc that accompanies this rewrite (11-0605-convergence-gap-7.md).
+# FAITHFUL EXCEPTION MODEL. The namespace mutators no longer return -1 on
+# failure: they RAISE OSError. The SUCCESS path is precisely the non-raising
+# path, on which each mutator's dir_lookup post-state holds UNCONDITIONALLY:
+#   mkdir/link/rename(new): dir_lookup(dir, 5, name) >= 0   (present after)
+#   rmdir/unlink/rename(old): dir_lookup(dir, 5, name) < 0  (absent after)
+# `access`'s contract is (\result == 1) <==> dir_lookup(dir, 5, name) >= 0, so
+# the observer reflects the mutator's post-state and each consequence PROVES
+# through the API. (Under the old -1 model these were guarded by `if rc != 0`
+# and reported Unknown; the strengthened raise-model contracts make them green.)
 #
 # DO NOT make these green by simulating, by weakening to the observer's own
-# return-code disjunction, or by touching internals. An Unknown that is documented
-# is the correct convergence-loop outcome here, not a simulated green.
+# return-code disjunction, or by touching internals.
 
 from pycsl_lib.os import (
     mkdir, rmdir, unlink, link, rename, access, F_OK,
 )
 
 # NOTE on observers used here. We observe presence/absence with `access`, whose
-# path param IS annotated `str` in pycsl_lib/os/__init__.py. We deliberately do
-# NOT use `stat`/`lstat` as the observer: their `filepath` param is left
-# un-annotated in the model, so PyCSL's emitted stub types it `int` — passing a
-# symbolic `str` name to `stat(name)` is a WhyML type error at emission, before
-# any proof runs. That stub-typing friction is recorded in the accompanying
-# convergence-gap doc (11-0605-convergence-gap-7.md, §B). `access` is the one
-# str-typed observer in the namespace surface, so it is the only API observer
-# through which these consequences are even expressible.
+# path param is annotated `str`. access does NOT raise (returns 0/1), so it is
+# the faithful observer for the ABSENT consequence: on an absent name it simply
+# returns 0 rather than raising.
 
 
 # ---------------------------------------------------------------------------
 # (1) mkdir(d) -> d is PRESENT.
-# Observe absence first, then create d via the REAL mkdir, then OBSERVE d via
-# the REAL access. CONSEQUENCE: access reports PRESENT (== 1) after mkdir.
-# Returns the post-mkdir observation so the ensures pins the observed value.
-#
-# HONEST STATUS: Unknown. access's contract (\result == 0 or 1) carries no link
-# to mkdir's write — gap-4 §4a / gap-7.
+# Create d via the REAL mkdir (raises on failure), then OBSERVE d via the REAL
+# access. CONSEQUENCE: access reports PRESENT (== 1) after mkdir.
 #@ requires True
+#@ assigns _filesystem.disk
 #@ ensures \result == 1
 def mkdir_then_access_present(d: str) -> int:
-    before = access(d, F_OK)        # observe: absent initially (return-code 0/1)
-    rc = mkdir(d, 0o777)            # the REAL syscall
-    if rc != 0:
-        return 1                    # mkdir failed: vacuously satisfy (not the case under test)
+    mkdir(d, 0o777)                 # the REAL syscall (raises on failure)
     return access(d, F_OK)          # observe: now PRESENT — ASSERTED == 1
 
 
@@ -69,16 +45,12 @@ def mkdir_then_access_present(d: str) -> int:
 # (2) mkdir(d) then rmdir(d) -> d is ABSENT again.
 # Create d, then remove it via the REAL rmdir, then OBSERVE via the REAL access.
 # CONSEQUENCE: access reports ABSENT (== 0) after rmdir.
-#
-# HONEST STATUS: Unknown — rmdir's contract (\result == 0 or -1) does not pin the
-# post-state access reads (gap-4 §4a / gap-7).
 #@ requires True
+#@ assigns _filesystem.disk
 #@ ensures \result == 0
 def rmdir_then_access_absent(d: str) -> int:
     mkdir(d, 0o777)                 # set up: create the directory
-    rc = rmdir(d)                   # the REAL removal
-    if rc != 0:
-        return 0                    # rmdir failed: vacuously ABSENT-consistent
+    rmdir(d)                        # the REAL removal (raises on failure)
     return access(d, F_OK)          # observe: now ABSENT — ASSERTED == 0
 
 
@@ -86,15 +58,12 @@ def rmdir_then_access_absent(d: str) -> int:
 # (3) unlink(f) -> f is ABSENT.
 # Create f, then unlink via the REAL unlink, then OBSERVE via the REAL access.
 # CONSEQUENCE: access reports ABSENT (== 0) after unlink.
-#
-# HONEST STATUS: Unknown (gap-4 §4a / gap-7).
 #@ requires True
+#@ assigns _filesystem.disk
 #@ ensures \result == 0
 def unlink_then_access_absent(f: str) -> int:
     mkdir(f, 0o777)                 # set up a name f resolvable by access
-    rc = unlink(f)                  # the REAL removal
-    if rc != 0:
-        return 0                    # unlink failed: vacuously ABSENT-consistent
+    unlink(f)                       # the REAL removal (raises on failure)
     return access(f, F_OK)          # observe: now ABSENT — ASSERTED == 0
 
 
@@ -103,14 +72,11 @@ def unlink_then_access_absent(f: str) -> int:
 # removal (so the absence theorems above are a genuine remove, not a vacuous
 # miss against a never-present name). Create f, then OBSERVE via the REAL access.
 # CONSEQUENCE: access reports PRESENT (== 1) right after mkdir.
-#
-# HONEST STATUS: Unknown (same wall as (1); gap-4 §4a / gap-7).
 #@ requires True
+#@ assigns _filesystem.disk
 #@ ensures \result == 1
 def file_present_after_mkdir(f: str) -> int:
-    rc = mkdir(f, 0o777)            # the REAL syscall
-    if rc != 0:
-        return 1
+    mkdir(f, 0o777)                 # the REAL syscall (raises on failure)
     return access(f, F_OK)          # observe: PRESENT — ASSERTED == 1
 
 
@@ -119,18 +85,13 @@ def file_present_after_mkdir(f: str) -> int:
 # Create a, then link a -> b via the REAL link, then OBSERVE b via the REAL access.
 # CONSEQUENCE: access(b, F_OK) reports PRESENT (== 1) after link — b now resolves.
 # (The deeper hard-link identity "a and b share one inode" can only be observed
-# through stat's inode number, which the str/int stub-typing friction blocks at
-# emission — see gap-7 §B; access can express PRESENT but not the shared inode.)
-#
-# HONEST STATUS: Unknown — link's contract (\result == 0 or -1) does not pin
-# access(b)'s post-state (gap-4 §4a / gap-7).
+# through stat's inode number; access expresses PRESENT but not the shared inode.)
 #@ requires a != b
+#@ assigns _filesystem.disk, _filesystem.fd_open, _filesystem.fd_inode, _filesystem.fd_offset, _filesystem.fd_flags, _filesystem.fd_block, _filesystem.next_fd, _filesystem._mtime_ticks
 #@ ensures \result == 1
 def link_then_b_present(a: str, b: str) -> int:
     mkdir(a, 0o777)                 # set up: a exists
-    rc = link(a, b)                 # the REAL hard link
-    if rc != 0:
-        return 1                    # link failed: not the case under test
+    link(a, b)                      # the REAL hard link (raises on failure)
     return access(b, F_OK)          # observe: b PRESENT — ASSERTED == 1
 
 
@@ -138,15 +99,12 @@ def link_then_b_present(a: str, b: str) -> int:
 # (6a) rename(a, b) -> b is PRESENT.
 # Create a, rename a -> b via the REAL rename, then OBSERVE b via the REAL access.
 # CONSEQUENCE: access(b, F_OK) reports PRESENT (== 1) after rename.
-#
-# HONEST STATUS: Unknown (gap-4 §4a / gap-7).
 #@ requires a != b
+#@ assigns _filesystem.disk, _filesystem.dir
 #@ ensures \result == 1
 def rename_then_b_present(a: str, b: str) -> int:
     mkdir(a, 0o777)                 # set up: a exists
-    rc = rename(a, b)               # the REAL rename
-    if rc != 0:
-        return 1                    # rename failed: not the case under test
+    rename(a, b)                    # the REAL rename (raises on failure)
     return access(b, F_OK)          # observe: b PRESENT — ASSERTED == 1
 
 
@@ -154,14 +112,10 @@ def rename_then_b_present(a: str, b: str) -> int:
 # (6b) rename(a, b) -> a is ABSENT (the old name no longer resolves).
 # Create a, rename a -> b via the REAL rename, then OBSERVE a via the REAL access.
 # CONSEQUENCE: access(a, F_OK) reports ABSENT (== 0) after rename.
-#
-# HONEST STATUS: Unknown — rename's contract does not pin access(a)'s post-state
-# (gap-4 §4a / gap-7).
 #@ requires a != b
+#@ assigns _filesystem.disk, _filesystem.dir
 #@ ensures \result == 0
 def rename_then_a_absent(a: str, b: str) -> int:
     mkdir(a, 0o777)                 # set up: a exists
-    rc = rename(a, b)               # the REAL rename
-    if rc != 0:
-        return 0                    # rename failed: treat as absent-consistent
-    return access(a, F_OK)          # observe: a ABSENT — ASSERTED == 0
+    rename(a, b)                    # the REAL rename (raises on failure)
+    return access(a, F_OK)          # observe: a now ABSENT — ASSERTED == 0

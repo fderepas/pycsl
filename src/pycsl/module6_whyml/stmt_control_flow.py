@@ -652,8 +652,19 @@ class ControlFlowStmtMixin:
             # function's declared return is `array int` (a `list`) crosses the seq→array
             # boundary — materialise to a FRESH array (legal: bound at the return slot,
             # never rebound into a regioned ref). Reuses the faithful `materialize` bridge.
-            self._materialize_bridge()
-            val = f"(materialize !{whyml_ident(val_ir['name'])})"
+            # ELEMENT-TYPE FIDELITY: a `string`-element list (declared return `array string`)
+            # must use the STRING materialize bridge — `materialize` is `seq int -> array int`
+            # and would type-clash on a `seq string` payload. This mirrors the early/in-loop
+            # `Return_seq_str` path (below) for the TAIL (non-raise) return; without it, a
+            # string-list function whose only normal exit is the tail return (e.g. os.listdir
+            # once its failure paths raise OSError instead of `return []`) wrongly emits the
+            # int `materialize` and fails L3 type-check.
+            if self._func_return_type == "array string":
+                self._materialize_str_bridge()
+                val = f"(materialize_str !{whyml_ident(val_ir['name'])})"
+            else:
+                self._materialize_bridge()
+                val = f"(materialize !{whyml_ident(val_ir['name'])})"
         else:
             if val_ir.get("type") == "Var" and val_ir.get("name") in self._array_locals:
                 # `exception Return int` can't carry an array, so on the
