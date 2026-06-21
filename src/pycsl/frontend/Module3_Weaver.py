@@ -745,12 +745,26 @@ class Module3_Weaver:
             # (callee proves the ensures; every call site proves the requires), so the
             # H-S negative fails IN THE CALLER. A missing target is a hard error (a typo
             # would silently attach the property to nothing).
-            if hp.context in ("postcond", "precond"):
+            if hp.context in ("postcond", "precond", "total"):
                 target_fns = [fn for fn in funcs if fn.name == hp.target]
                 if not target_fns:
                     raise PyCSLSemanticError(
                         f"`happy {hp.name}`: targets '{hp.target}', which is not a method in "
                         f"this module. Known methods: {sorted(fn.name for fn in funcs)}.")
+                if hp.context == "total":
+                    # H-D (totality / DoS): PyCSL functions are total by DEFAULT — Why3 emits a
+                    # termination VC (each loop needs a `#@ loop variant`), so an attacker-driven
+                    # unbounded loop fails to verify. This policy NAMES that guarantee and
+                    # forbids the only opt-out: `#@ \diverges` on the target contradicts the
+                    # totality claim and is a hard error.
+                    for fn in target_fns:
+                        if getattr(fn, "csl_diverges", False):
+                            raise PyCSLSemanticError(
+                                f"`happy {hp.name}`: total target '{hp.target}' is marked "
+                                f"`#@ \\diverges` — it opts OUT of termination, contradicting "
+                                f"the totality (H-D) claim. Remove `\\diverges`, or drop the "
+                                f"`total` policy.")
+                    continue
                 for fn in target_fns:
                     if hp.context == "postcond":
                         fn.csl_ensures.append(Ensures(copy.deepcopy(hp.formula)))

@@ -52,26 +52,31 @@ caller that skipped the grant gets an unprovable VC IN THE CALLER — exactly ma
 minimal blast radius — receiver-var call sites and full macsl-parity *universal* precondition
 checking at *all* call sites are a documented follow-up.
 
-## Remaining (not blocked, not attempted this run)
+## H-R (Repudiation) — done
 
-- **H-R (Repudiation)** — `nonrepud_complete` + `nonrepud_append_only` are `postcond`s on
-  `transfer`, so the keystone directive already supports them; needs a small audit-array bank
-  model. `nonrepud_append_only` is a frame clause that should ride the lseek
-  `_build_method_field_param_post_ensures_map` `\old` fix already landed. *Attemptable next via
-  the postcond directive* (SMT-dischargeable on the banking flagship; the roadmap's os
-  `sys_unlink` prefix-lemma variant would need a cross-validated Rocq+Lean axiom — that is the
-  doctrine's separate hard requirement).
-- **H-D (DoS / totality)** — loop variant + `no_exception \all` (shipped machinery) on a
-  bounded request handler; the server loop is the out-of-scope `#@ \diverges`.
-- **Full banking flagship `formal_bank_transfer.py`** (§0b) — composes H-R/H-E/H-T(protects)
-  and, once unblocked, H-S. H-E and H-T(protects) are ready today; H-R needs the audit model;
-  H-S is blocked as above.
+`nonrepud_complete` (any balance change implies the audit log grew) + `nonrepud_append_only`
+(every earlier record is unchanged) as named `postcond`s on `transfer`, over an audit-array
+bank model. SMT-dischargeable (append-only is the single-slot frame; completeness is the
+both-paths implication). Drivers 0723 (positive) / 0724 (completeness negative — moves money
+without logging) / 0725 (append-only negative — overwrites an earlier record). Mirrors macsl
+main.c's two H-R policies.
 
-## ASSUMPTIONS recorded
-- Executed the guide's §5 order (H-I1 first); grew capability milestone-by-milestone.
-- Reading/postcond/precond HAPPYs are realised in Module3 and **excluded from the IR `happy`
-  blob** to keep the IR byte-identical and avoid `_check_happy`'s write-oriented checks.
-- H-I1 closes the full-path alias gap that the shipped R1 write form leaves (stricter, sound).
-- Delivered H-E/H-R via the shared `postcond` directive rather than per-milestone bespoke
-  machinery (the §0b shared-flagship intent).
-- `precond`/H-S rejected rather than shipped (see blocker).
+## H-D (DoS / totality) — done
+
+`#@ happy availability: targets parse total` (macsl's `\context(	otal)`). PyCSL is
+total-by-default — Why3 emits a termination VC and each loop needs a `#@ loop variant` — so
+the policy NAMES that guarantee and rejects the only opt-out (`#@ \diverges` on the target is
+a hard error). Drivers 0726 (positive — bounded loop + variant + `no_exception ll`) / 0727
+(negative — `\diverges` rejected) / 0728 (negative — unbounded variant-less loop fails its
+termination VC, i.e. the DoS).
+
+## Remaining (out of scope here)
+
+- **Full banking flagship `formal_bank_transfer.py`** composing all five named policies on one
+  `transfer` — the per-milestone drivers above already prove each policy; the single-file
+  composition is a packaging follow-up.
+- **Full macsl-parity for H-S** (universal callee-precondition checking at ALL call sites,
+  receiver-var call sites) — beyond the scoped self-call injection shipped here.
+- **os-flagship H-R/H-E variants** needing cross-validated Rocq+Lean axioms (the prefix lemma /
+  privilege lattice) — the doctrine's separate hard requirement; the banking variants shipped
+  here are SMT-dischargeable.

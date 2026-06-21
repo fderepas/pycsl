@@ -182,7 +182,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     {"name": hp.name, "field": hp.field,
                      "protects": hp.protects, "except_set": list(hp.except_set)}
                     for hp in happy_props
-                    if getattr(hp, "context", "writing") not in ("reading", "postcond", "precond")],
+                    if getattr(hp, "context", "writing") not in ("reading", "postcond", "precond", "total")],
                 "method_names": method_names,
                 "exec_methods": exec_methods,
             }

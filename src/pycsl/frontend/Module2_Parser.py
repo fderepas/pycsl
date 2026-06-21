@@ -989,6 +989,7 @@ PYCSL_GRAMMAR = r"""
              | happy_reads_decl
              | happy_post_decl
              | happy_pre_decl
+             | happy_total_decl
              | happy_protects_decl
              | happy_param_decl
 
@@ -1028,6 +1029,12 @@ PYCSL_GRAMMAR = r"""
     // The two rules diverge at the postcond/precond keyword (an LALR shift decision).
     happy_post_decl: "happy" CNAME ":" "targets" CNAME "postcond" expr
     happy_pre_decl:  "happy" CNAME ":" "targets" CNAME "precond" expr
+
+    // H-D (Denial-of-Service / totality, macsl's \context(\total)): the target must be
+    // TOTAL — terminate and not opt out via `\diverges`. PyCSL functions are total by
+    // default (Why3 emits a termination VC; loops need a `variant`), so this names the
+    // policy and rejects `\diverges` on the target.
+    happy_total_decl: "happy" CNAME ":" "targets" CNAME "total"
 
     // 07-1143 R1/R2: subsystem ownership form — no method outside `except` may directly
     // write ANY of the (possibly dotted/nested) protected fields. Desugars to a per-site
@@ -1389,6 +1396,10 @@ class PyCSLTransformer(Transformer):
     def happy_pre_decl(self, name, target, expr) -> HappyProperty:
         return HappyProperty(str(name), "", None, None, [], context="precond",
                              target=str(target), formula=expr)
+
+    def happy_total_decl(self, name, target) -> HappyProperty:
+        return HappyProperty(str(name), "", None, None, [], context="total",
+                             target=str(target))
 
     # 07-1143 R1/R2: subsystem-ownership HAPPY (`protects <dotted paths> except <methods>`).
     def dotted_path(self, *parts) -> str:
