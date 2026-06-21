@@ -10,6 +10,29 @@ implemented to Normative-graduation. **H-I2 (noninterference) is out of scope** 
 roadmap sequences it last as the only milestone needing a genuinely new relational WP
 mechanism (self-composition); it is a separate engagement.
 
+**Name (and a C sibling).** In PyCSL, **HAPPY** = **H**igh-level **A**ssertion-**P**roducing
+**PY**thon requirement. There is now a C implementation — **macsl** (a standalone re-spin of
+CEA's MetAcsl, a Frama-C/WP plugin) at <https://github.com/canonical/macsl> — where the same
+acronym is expanded differently: **H**yperproperty **A**nalysis for **P**rogram **P**olic**Y**.
+Same milestone taxonomy, same flagship; different host language and prover stack. §0a pins the
+shared vocabulary and the C↔Python differences; §0b gives the shared banking flagship in both.
+
+> **Review note (2026-06-21).** Refreshed against the current repo. **H-T is shipped** and the
+> base HAPPY (`region`/`protects`/`footprint`/`\preserves`) is in `test-suite/annotations.md
+> §2.5`; **H-I1/H-R/H-D/H-E/H-S remain unimplemented** — this guide is the live work order for
+> them. Updated: paths (`pure_lib` → `src/pycsl_lib`), the formal-test scheme (`formal_0001` →
+> topical `formal_<name>.py`), the pipeline (Module 4 deleted; the meta-pass runs in
+> `core_ir_semantic`), and the gates — which now include **non-vacuity** (`--check-vacuity` /
+> `bin/false-twin.py`) and **IR-conformance + IR_VERSION bump** (docs/ir.md §10) for any new IR
+> shape. **Cited axiom × vacuity** (H-R/H-E) is a newly-emphasised gate (§2 meta-agent rules).
+> **Still to fold in (flagged, not integrated):**
+> - *Tooling:* the `#@ check → assert → WP VC` lower bound now flows through the `why3 prove
+>   --json` dispatch (#6) + the fail-closed Tier-0 conservation guard (`soundness-issue.md`);
+>   `bin/false-twin.py` is reusable for the negative-driver discipline.
+> - *Preconditions:* `happy-roadmap.md` is duplicated at `docs/happy-roadmap.md` (pick one
+>   canonical); "os standing count" is now "os fully green" (1 `\trusted` line); IR baseline is
+>   **1.2** → the first new HAPPY IR node bumps to 1.3.
+
 ---
 
 ## 0. Why this guide is NOT the stdlib guide with names swapped
@@ -20,7 +43,7 @@ building the squeeze out of different materials. Read this section before §1; t
 process is tailored to it.
 
 **In the stdlib/P-series world the upper bound was an external normative authority.**
-A `pure_lib/os` contract was squeezed from above by the Python library reference and
+A `src/pycsl_lib/os` contract was squeezed from above by the Python library reference and
 from below by CPython's execution; a P-1 binder by the ACSL manual and the existing IR
 field. In both, *someone outside PyCSL had already written down what the right answer
 is* — the job was faithful transcription, and "done" meant the formal test re-proved
@@ -72,18 +95,153 @@ reconstructed from two different surfaces:
 
 ---
 
+## 0a. The C sibling (macsl) and the shared HAPPY vocabulary
+
+`macsl` (<https://github.com/canonical/macsl>) is the C/Frama-C implementation of HAPPY — a
+standalone re-spin of CEA's MetAcsl meta-property mechanism, run as a WP plugin
+(`frama-c -no-autoload-plugins -load-plugin wp -load-module …/macsl.cmxs -macsl -wp -wp-rte`).
+It already ships the milestones this guide still has to build in PyCSL, on a real banking
+HTTP server (§0b). **It is the closest thing HAPPY has to a second independent
+implementation, and PyCSL must stay name-coherent with it** so a property reads the same in
+both — only the host language and the prover plumbing differ.
+
+**The taxonomy is identical** (same codes, same STRIDE letters, same per-policy `\context`):
+
+| Code | STRIDE | Property | `\context` | Shared policy name(s) |
+|---|---|---|---|---|
+| **H-T** | Tampering | write confinement | `\writing` | `bal_integrity` |
+| **H-I1** | Info-Disclosure | read confinement | `\reading` | `read_confine` |
+| **H-R** | Repudiation | audit completeness + append-only | `\postcond` | `nonrepud_complete`, `nonrepud_append_only` |
+| **H-D** | DoS | totality / termination | `\total` | `availability` |
+| **H-E** | Elevation | privilege monotonicity | `\postcond` | `priv_monotonic` |
+| **H-S** | Spoofing | check-before-use capability | `\precond` | `authn` |
+| **H-I2** | Info-Disclosure | noninterference | `\noninterference` | (out of scope here) |
+
+**Directive vocabulary correspondence.** macsl's ACSL form is the reference grammar; PyCSL
+adopts the same selector/context keywords (only the comment host and the formula syntax
+change). This guide's milestone designs use the macsl keywords verbatim for coherence:
+
+| Concept | macsl (C / ACSL) | PyCSL (`#@`) |
+|---|---|---|
+| policy directive | `happy \prop, \name("…"), …;` | `#@ happy <name>: …` |
+| policy name | `\name("nonrepud_complete")` | the `<name>` after `#@ happy` |
+| scope | `\targets({transfer})` / `\targets(\diff(\ALL,{f,…}))` / `\targets(\ALL)` | `\targets(transfer)` / `\targets(\diff(\ALL,{f,…}))` |
+| proof context | `\context(\writing\|\reading\|\precond\|\postcond\|\total\|\noninterference)` | same `\context(…)` values |
+| write set | `\separated(\written, &db[…].balance)` | `\separated(\written, bank.balance)` |
+| API exemption | `\diff(\ALL, {transfer, main})` | `\diff(\ALL, {transfer, main})` |
+| trusted boundary | ACSL libc specs + Variadic plugin | `\trusted`/`\abstract` + `#@ \preserves` |
+| non-termination | `terminates \false;` | `#@ \diverges` (H-D out-of-scope marker) |
+
+> **Naming action for this engagement.** Where the shipped PyCSL H-T sugar
+> `#@ happy <name>: protects <path> [except …]` and the macsl `\context(\writing)` form both
+> exist, treat `protects <path>` as **surface sugar for** `\targets(\diff(\ALL,{…except})),
+> \context(\writing), \separated(\written, <path>)` — same policy, same name (`bal_integrity`).
+> All NEW milestones (H-I1/H-R/H-D/H-E/H-S) use the `\targets`/`\context` form directly, so the
+> two implementations share policy names and shapes one-to-one.
+
+### The C↔Python differences (what is NOT shared)
+
+| Aspect | macsl (C, Frama-C) | PyCSL (Python) |
+|---|---|---|
+| Acronym | **H**yperproperty **A**nalysis for **P**rogram **P**olic**Y** | **H**igh-level **A**ssertion-**P**roducing **PY**thon requirement |
+| Lineage | re-spin of CEA's MetAcsl | the HAPPY meta-pass in `core_ir_semantic` |
+| Substrate | Frama-C + WP | front-end → WhyML → Why3 |
+| Annotation host | ACSL `/*@ … @*/` | `#@` comments |
+| Discharge | WP → Alt-Ergo / Z3 / **Coq 8.20.1** (Why3 1.8.2 realization) | Why3 1.8.2 → Alt-Ergo / Z3; hard facts via the **Rocq+Lean** cited-axiom registry |
+| Trusted edge | ACSL libc contracts (strcmp/strncpy/…), Variadic plugin | `pycsl_lib` models + `\trusted`/`\abstract` + `#@ \preserves` |
+| Negative corpus | `attacks.c` / `rbac_horizontal.c` / `compliant.c` — mutation goes RED | prove/fail driver pairs (`0611`/`0612`) + `bin/false-twin.py` |
+| Vacuity guard | (WP; relies on prover) | `--check-vacuity` + the Tier-0 conservation guard (`soundness-issue.md`) |
+| Invocation | `frama-c -macsl -wp -wp-rte file.c` | `pycsl file.py` (+ `--check-vacuity`) |
+| Conformance | `./tests/run.sh` (34/34, Frama-C 32.1) | corpus byte-diff + IR-conformance corpora + the `formal_<name>` suite |
+| Flagship domain | HTTP banking server (`transfer`) | os/filesystem model — **plus** the shared banking flagship (§0b) |
+
+---
+
+## 0b. The shared flagship: the banking `transfer`
+
+macsl's flagship (`tests/small_example/main.c`) instruments FIVE policies on one
+RBAC-guarded money operation, `transfer(token, from, to, amount)`, against a `db[]` of
+accounts and an append-only `audit_log[]`. PyCSL adds the same example so the two
+implementations share a head-to-head reference. The C policies (verbatim shape):
+
+```c
+/*@ happy \prop, \name("nonrepud_complete"),  \targets({transfer}), \context(\postcond),
+      (\exists integer i; 0 <= i < MAX_USERS && db[i].balance != \old(db[i].balance))
+        ==> audit_len > \old(audit_len); */
+/*@ happy \prop, \name("nonrepud_append_only"), \targets({transfer}), \context(\postcond),
+      \forall integer i; 0 <= i < \old(audit_len) ==> audit_log[i] == \old(audit_log[i]); */
+/*@ happy \prop, \name("bal_integrity"), \targets(\diff(\ALL, {transfer, main})),
+      \context(\writing), \separated(\written, &db[0 .. MAX_USERS-1].balance); */
+/*@ happy \prop, \name("authn"), \targets({transfer}), \context(\precond),
+      session_authenticated == 1; */
+/*@ happy \prop, \name("priv_monotonic"), \targets({transfer}), \context(\postcond),
+      \forall integer i; 0 <= i < MAX_USERS ==> db[i].role >= \old(db[i].role); */
+```
+
+The PyCSL edition — `src/pycsl_lib_test/formal_bank_transfer.py` (the flagship driver this
+guide's milestones build toward) — same five policies, same names, the `\targets`/`\context`
+form, on the PyCSL banking model (`bank.role[]`, `bank.balance[]`, `bank.token[]`, the
+append-only `bank.audit[]` ghost + `bank.audit_len`, the request-scoped
+`bank.session_authenticated` capability):
+
+```python
+# formal_bank_transfer.py — the shared HAPPY flagship (PyCSL edition of macsl small_example)
+MAX_USERS = 5
+
+#@ happy nonrepud_complete: \targets(transfer), \context(\postcond)
+#@   (\exists i; 0 <= i and i < MAX_USERS and bank.balance[i] != \old(bank.balance[i]))
+#@     ==> bank.audit_len > \old(bank.audit_len)
+#@ happy nonrepud_append_only: \targets(transfer), \context(\postcond)
+#@   \forall i; 0 <= i and i < \old(bank.audit_len) ==> bank.audit[i] == \old(bank.audit[i])
+#@ happy bal_integrity: \targets(\diff(\ALL, {transfer, seed_db})), \context(\writing)
+#@   \separated(\written, bank.balance)
+#@ happy authn: \targets(transfer), \context(\precond)
+#@   bank.session_authenticated == 1
+#@ happy priv_monotonic: \targets(transfer), \context(\postcond)
+#@   \forall i; 0 <= i and i < MAX_USERS ==> bank.role[i] >= \old(bank.role[i])
+def transfer(token: str, user_sending: str, user_receiving: str, amount: int) -> int:
+    ...
+```
+
+Milestone-by-milestone, this single driver is the **positive** half of the prove/fail pair
+for each milestone (the matching **negative** mirrors macsl's `attacks.c`: the unauth
+endpoint that calls `transfer` without granting `session_authenticated` → H-S call-site goal
+RED; the confused-deputy helper that lowers a role → H-E RED; the "optimized" unlogged path →
+H-R completeness RED). Lowering notes, kept name-coherent with macsl:
+
+- **H-R `nonrepud_complete` / `nonrepud_append_only`** — `bank.audit` is the ghost-list; the
+  two `\postcond` clauses are the completeness + append-only theorems. `nonrepud_append_only`
+  is a pure FRAME clause (`transfer` writes only the new slot) — in macsl this is the goal
+  that needed `-wp-split` because the record is a struct; in PyCSL it is the
+  field-post-state stub clause that motivated the lseek `\old`-classifier fix (the
+  `_build_method_field_param_post_ensures_map` relaxation), so the machinery is in place.
+- **H-T `bal_integrity`** — the shipped `protects bank.balance except seed_db` sugar; macsl
+  exempts `main` (the DB bootstrap), PyCSL exempts the `seed_db` constructor.
+- **H-S `authn`** — `bank.session_authenticated` is the H-T-protected ghost capability,
+  writable only in the `verify_token` gate; the `\precond` clause is the call-site `requires`
+  — the negative MUST fail in the CALLER (the forgotten grant), exactly as in macsl.
+- **H-E `priv_monotonic`** — monotonicity `\postcond` (roles `0=super-admin … 2=user`, smaller
+  = more privilege, so the law is `role >= \old`); the cited-lattice-axiom route applies, so
+  run `--check-vacuity` after adding the axiom (§2).
+- **H-D `availability`** — `\context(\total)` on the request handler; the server accept-loop
+  is the out-of-scope `#@ \diverges` (macsl's `terminates \false;`).
+
+---
+
 ## 1. The agent loop, HAPPY-tailored
 
 Same topology as the convergence loop, **core-directed** like the P-series (every
-milestone lands in `src/pycsl/` — the meta-pass, Module 6 emission, the three reference
-docs — not in a `pure_lib/` model), with one role added upstream and the test author's
-firewall re-pointed at the threat instead of the library reference.
+milestone lands in `src/pycsl/` — the HAPPY meta-pass, which now runs in the
+`core_ir_semantic` IR seam (`M1–3 → M5 → core_ir_semantic → M6`; Module 4 was deleted in
+`refactor.md` Phase B), the Module 6 §T emission, the three reference docs — not in a
+`src/pycsl_lib/` model), with one role added upstream and the test author's firewall
+re-pointed at the threat instead of the library reference.
 
 | Agent | Builds | Squeezed from above by | Squeezed from below by | Forbidden move |
 |---|---|---|---|---|
 | **coordinator** (main thread) | approvals, sequencing, gate verdicts | `happy-roadmap.md` §8 + the milestone's flagship | the standing gate's output | editing source; approving an unjudged spec |
 | **threat-agent** (NEW, upstream) | the precise threat spec: STRIDE scenario → enumerated obligation clauses → the one attack the negative must catch | the STRIDE category + the roadmap flagship | what a per-site/ghost/relational mechanism could *in principle* express (so the claim is dischargeable, not aspirational) | proposing a lowering; reading the meta-pass code. It writes the *property*, not the implementation |
-| **meta-agent** (≈ core/tool-agent) | the milestone inside `src/pycsl/`: meta-pass extension + Module 6 §T lowering + the three reference docs + `annotations.md` entry | the threat spec's clauses (the strongest claim) + the roadmap's named lowering | the shipped H-T pass (must reduce to existing machinery) + total additivity | weakening a clause to make it prove; editing the drivers; a `\trusted` shortcut not named in the threat spec |
+| **meta-agent** (≈ core/tool-agent) | the milestone inside `src/pycsl/`: meta-pass extension + Module 6 §T lowering + the three reference docs + `test-suite/annotations.md` entry | the threat spec's clauses (the strongest claim) + the roadmap's named lowering | the shipped H-T pass (must reduce to existing machinery) + total additivity | weakening a clause to make it prove; editing the drivers; a `\trusted` shortcut not named in the threat spec |
 | **driver-agent** (≈ test-agent) | the prove/fail corpus driver pairs (pattern `0611`/`0612`) | the threat spec's clauses + the flagship English | what actually proves through the injected obligations | reading the meta-pass implementation. It gets the threat spec + the directive surface, **never** the lowering — so it cannot write a driver that merely re-passes the implementation; it exercises the *threat* |
 
 Protocol kept verbatim from the skill (it is what made the loop converge):
@@ -136,7 +294,7 @@ state precisely in English is a finding, not something to blur.
 ```markdown
 ---
 name: happy-meta-agent
-description: MUST BE USED to implement one HAPPY milestone in src/pycsl/ from its threat spec: extend the meta-pass, add the Module 6 §T lowering, the three reference docs, the annotations.md entry. Writes DD-HHMM-happy-spec-N.md (DRAFT), implements on APPROVED, gates with total additivity and soundness-report classification.
+description: MUST BE USED to implement one HAPPY milestone in src/pycsl/ from its threat spec: extend the meta-pass, add the Module 6 §T lowering, the three reference docs, the test-suite/annotations.md entry. Writes DD-HHMM-happy-spec-N.md (DRAFT), implements on APPROVED, gates with total additivity and soundness-report classification.
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: opus
 effort: high
@@ -153,17 +311,31 @@ Hard rules:
   requires. If a milestone needs machinery H-T lacks, that is a gap doc, not an invention.
 - Transcribe the threat spec's clauses into obligations exactly - do not weaken a clause
   to make it prove. If it won't prove, the gap is real: write it up.
-- Total additivity: byte-identical emission for every existing driver; doc-coherency
-  green; the milestone graduates to Normative only when its surface is in annotations.md
+- Total additivity: byte-identical emission for every UNAFFECTED driver; doc-coherency
+  green; the milestone graduates to Normative only when its surface is in test-suite/annotations.md
   AND all three reference docs (concrete syntax production, static-semantics rule + error
   code, §T lowering).
+- IR shape change is a DELIBERATE-version event, not a byte-diff failure. A milestone that
+  adds an IR node/field (a ghost capability, the audit-log ghost, a protects/happy
+  extension) is NOT byte-identical for drivers that use it: bump IR_VERSION (currently
+  1.2 -> 1.3, additive — keep older versions in ACCEPTED_IR_VERSIONS), refresh the
+  conformance goldens (core + front-end), and document the field in docs/ir.md per its §10
+  process. "Byte-identical" applies only to drivers the milestone does not touch.
+- Non-vacuity is a hard gate (soundness-issue.md). A positive driver proving *Valid* is
+  meaningless if its context is inconsistent. Every milestone must pass `--check-vacuity`,
+  and a false-twin (an impossible obligation, e.g. via bin/false-twin.py) on each injected
+  clause must FAIL.
 - Classify every new escape hatch (each `except` member, every trusted `val`, every
   \preserves) in --soundness-report as Modelled/Specified/Stubbed/Confinement. An
   unclassified escape is a TARA hole and a hard fail.
 - Quantified-ensures milestones (H-R, H-E): if Alt-Ergo/Z3 returns Unknown/Timeout on a
   prefix or lattice fact, take the Rocq+Lean axiom-registry route (cross-validated, cited
   with #@ proof; no kernel runs during the pycsl proof) - never \trusted, never a weaker
-  clause.
+  clause. **A cited axiom is a vacuity risk:** an over-strong or inconsistent axiom makes
+  EVERY VC vacuously Valid (the `vacuity_nonlinear_div` failure). The Rocq+Lean
+  cross-validation guards the axiom's *truth*; you ALSO run `--check-vacuity` / a false-twin
+  after adding it to confirm it did not collapse the context. This is the sharpest H-R/H-E
+  gate.
 - You never write the drivers and never edit them to pass. DONE is the coordinator's
   gates passing.
 Workflow: write DD-HHMM-happy-spec-N.md (DRAFT: directive grammar, meta-pass injection
@@ -200,20 +372,24 @@ stop.
 
 The coordinator includes the relevant row in each delegation prompt. Note the columns are
 **not** "library reference vs CPython" — they are reconstructed for a property that has no
-external spec.
+external spec. Each row carries its **shared policy name** (§0a) so the milestone reads the
+same in PyCSL and in macsl; the os-flavoured flagships below are PyCSL's substrate-native
+twin of macsl's banking flagship (§0b), which exercises the SAME named policies.
 
-| Milestone | Upper bound (the threat, made precise) | Lower bound (executable ground truth) | The coherent-and-wrong trap to guard |
+| Milestone (policy name) | Upper bound (the threat, made precise) | Lower bound (executable ground truth) | The coherent-and-wrong trap to guard |
 |---|---|---|---|
-| **H-T** (hardening) | the shipped §2.5 region-integrity spec + drivers `0459`–`0462`, `0611`–`0615` | the meta-pass itself | an aliasing escape (`x = world.fs` into a non-exempt local) that smuggles a protected base past the pass — the grammar-completeness hole |
-| **H-I1** read confinement | flagship: the inode formatter cannot read key bytes `[0,64)` | H-T pass, direction flipped to **read** sites | proving a *write* stays in-region instead of a *read* not happening — the mirror that looks identical but guards the wrong direction |
-| **H-R** repudiation | flagship: traceless `sys_unlink` is impossible; log is append-only + complete | ghost-list append + 2 quantified `ensures`; prefix lemma via cited Rocq+Lean axiom | proving a record is *appended* while NOT proving existing records are *immutable* (completeness without append-only, or vice versa) |
-| **H-D** denial of service | flagship: attacker-controlled parser always returns, within a declared step bound | `loop variant` + `no_exception \all` + fuel ghost (all shipped) | proving termination while NOT proving the no-uncaught-exception half, or claiming wall-clock/memory (GH2) the model can't support |
-| **H-E** elevation of privilege | flagship: `user`-context `sys_chmod` cannot reach `admin` through *any* path | `protects` on a ghost priv field + monotonicity `ensures` + small cited lattice axiom | proving the *direct* write is blocked (which shipped `protects` already does) while NOT closing the through-the-API path the milestone exists to close |
-| **H-S** spoofing | flagship: no guarded syscall reachable without `verify_token` having set the capability | ghost capability (H-T-protected) + call-site `requires` strengthening; `verify_token` a trusted cited `val` | proving the callee checks the capability while NOT making the missing **call-site** check fail in the caller — the whole point is the caller-side VC |
+| **H-T** `bal_integrity` (hardening) | the shipped §2.5 region-integrity spec + drivers `0459`–`0462`, `0611`–`0615` | the meta-pass itself | an aliasing escape (`x = world.fs` into a non-exempt local) that smuggles a protected base past the pass — the grammar-completeness hole |
+| **H-I1** `read_confine` | flagship: the inode formatter cannot read key bytes `[0,64)` (macsl: `\context(\reading)`) | H-T pass, direction flipped to **read** sites | proving a *write* stays in-region instead of a *read* not happening — the mirror that looks identical but guards the wrong direction |
+| **H-R** `nonrepud_complete` + `nonrepud_append_only` | flagship: traceless `sys_unlink` is impossible; log is append-only + complete | ghost-list append + 2 quantified `ensures`; prefix lemma via cited Rocq+Lean axiom | proving a record is *appended* while NOT proving existing records are *immutable* (completeness without append-only, or vice versa) |
+| **H-D** `availability` | flagship: attacker-controlled parser always returns, within a declared step bound | `loop variant` + `no_exception \all` + fuel ghost (all shipped) | proving termination while NOT proving the no-uncaught-exception half, or claiming wall-clock/memory (GH2) the model can't support |
+| **H-E** `priv_monotonic` | flagship: `user`-context `sys_chmod` cannot reach `admin` through *any* path | `protects` on a ghost priv field + monotonicity `ensures` + small cited lattice axiom | proving the *direct* write is blocked (which shipped `protects` already does) while NOT closing the through-the-API path the milestone exists to close |
+| **H-S** `authn` | flagship: no guarded syscall reachable without `verify_token` having set the capability | ghost capability (H-T-protected) + call-site `requires` strengthening; `verify_token` a trusted cited `val` | proving the callee checks the capability while NOT making the missing **call-site** check fail in the caller — the whole point is the caller-side VC |
 
 Cross-cutting lower bound for every milestone: `refactor.md`'s standing gate (corpus
-byte-diff, doc-coherency, os standing count) + the `--soundness-report` classification
-of every escape, cross-referenced to the §9 GH code.
+byte-diff, doc-coherency, os now fully green) + the IR-conformance corpora (core +
+front-end, with the IR_VERSION bump + golden refresh for any new IR shape) + the
+non-vacuity gate (`--check-vacuity` / false-twin) on every injected obligation + the
+`--soundness-report` classification of every escape, cross-referenced to the §9 GH code.
 
 ---
 
@@ -231,13 +407,16 @@ GATE A  coordinator validates the threat spec against the flagship + §9 gap cod
         ▼
 meta-agent writes DD-HHMM-happy-spec-N.md (DRAFT) → coordinator EDITORIAL APPROVED
         ▼
-meta-agent implements (meta-pass + §T + 3 docs + annotations.md) + standing gate → DONE
+meta-agent implements (meta-pass + §T + 3 docs + test-suite/annotations.md) + standing gate → DONE
         ▼
 driver-agent writes prove/fail pair from the threat spec + surface (never the diff)
         │
-GATE B  machine-checked: positive Valid (no \trusted, no --no-proof); negative FAILS at
-        │  the named site violating the named clause; doc-coherency green; every escape
-        │  classified in --soundness-report; byte-identical elsewhere
+GATE B  machine-checked: positive NON-VACUOUSLY Valid (no \trusted, no --no-proof; passes
+        │  --check-vacuity / a false-twin — a Valid VC over an inconsistent context, incl. one
+        │  introduced by a cited axiom, proves nothing); negative FAILS at the named site
+        │  violating the named clause; doc-coherency green; every escape classified in
+        │  --soundness-report; byte-identical for UNAFFECTED drivers (new IR shape =>
+        │  IR_VERSION bump + conformance-golden refresh per docs/ir.md §10); IR-conformance green
         ▼
 GATE C  COVERAGE (load-bearing): the threat↔VC map. Each obligation clause from the
         │  threat spec maps to a specific Valid VC in the positive driver; the negative
@@ -294,10 +473,11 @@ designed. The meta-agent encodes this as an explicit NOT-claim, not silence.
 
 The batch is done when, for each of H-T, H-I1, H-R, H-D, H-E, H-S: a `<code>-threat-spec.md`
 exists and passed Gate A; the milestone is at `STATUS: DONE` and **graduated to Normative**
-(surface in `annotations.md` + all three reference docs, doc-coherency green); Gate B and
+(surface in `test-suite/annotations.md` + all three reference docs, doc-coherency green); Gate B and
 Gate C passed and recorded (driver IDs + the filled threat↔VC coverage map); every escape
 hatch is classified in `--soundness-report` and cross-referenced to its §9 GH code; the
-standing gate (corpus byte-diff, os standing count, formal_0001) is green after every
+standing gate (corpus byte-diff, os now-green, the formal_<name> suite, the IR-conformance
+corpora, `--check-vacuity`) is green after every
 milestone; and the paired-document trail is complete — every `src/pycsl/` change traceable
 to an APPROVED spec doc, every spec doc to its threat spec, every threat spec to a STRIDE
 letter + flagship. Do not mark a milestone done because the meta-agent reported success:
