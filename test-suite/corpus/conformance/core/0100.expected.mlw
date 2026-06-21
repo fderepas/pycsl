@@ -4,10 +4,6 @@ module PyCSL_Program
   use ref.Ref
   use array.Array
 
-
-  (* Abstract operations for unsupported Python patterns *)
-  val constant j : int
-
   let test_forall_zero (arr: array int) (n: int) : unit
     requires { ((Array.length arr) = n) }
     requires { (n >= 0) }
