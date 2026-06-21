@@ -97,6 +97,13 @@ class HappyProperty(CSLNode):
     # terms of `param`. A method declares `#@ footprint NAME(arg)` to bind `param := arg`;
     # the per-site check then asserts each write index lies in the substituted region.
     param: Optional[str] = None
+    # The general `\targets`/`\context` form (coherent with the C sibling macsl): a NAMED
+    # security property attached to ONE target function. `context` is "postcond" (the
+    # formula becomes an `ensures` on `target`) or "precond" (a `requires`); `formula` is
+    # the property expression; `target` is the method name it constrains. Used by H-R
+    # (nonrepud, postcond), H-E (priv_monotonic, postcond), H-S (authn, precond).
+    target: Optional[str] = None
+    formula: Optional[CSLNode] = None
 
 
 @dataclass
@@ -980,6 +987,8 @@ PYCSL_GRAMMAR = r"""
              | disjoint_decl
              | happy_decl
              | happy_reads_decl
+             | happy_post_decl
+             | happy_pre_decl
              | happy_protects_decl
              | happy_param_decl
 
@@ -1012,6 +1021,13 @@ PYCSL_GRAMMAR = r"""
     // expands to a per-READ-site `#@ check (i < LO or i >= HI)` in every non-exempt method
     // (and forbids aliasing the protected base, which would evade the read-site check).
     happy_reads_decl: "happy" CNAME ":" "region" expr RANGE_OP expr "reads" "self" "." CNAME "outside" "region" ("except" act_names)?
+
+    // The general `\targets`/`\context` HAPPY form (coherent with the C sibling macsl):
+    // a NAMED security property attached to ONE target function as an `ensures` (postcond)
+    // or `requires` (precond). Used by H-R (nonrepud), H-E (priv_monotonic), H-S (authn).
+    // The two rules diverge at the postcond/precond keyword (an LALR shift decision).
+    happy_post_decl: "happy" CNAME ":" "targets" CNAME "postcond" expr
+    happy_pre_decl:  "happy" CNAME ":" "targets" CNAME "precond" expr
 
     // 07-1143 R1/R2: subsystem ownership form — no method outside `except` may directly
     // write ANY of the (possibly dotted/nested) protected fields. Desugars to a per-site
@@ -1364,6 +1380,15 @@ class PyCSLTransformer(Transformer):
     def happy_reads_decl(self, name, lo, _op, hi, field, *rest) -> HappyProperty:
         except_set = list(rest[0]) if rest else []
         return HappyProperty(str(name), str(field), lo, hi, except_set, context="reading")
+
+    # General targets/context HAPPY (H-R / H-E postconditions, H-S precondition).
+    def happy_post_decl(self, name, target, expr) -> HappyProperty:
+        return HappyProperty(str(name), "", None, None, [], context="postcond",
+                             target=str(target), formula=expr)
+
+    def happy_pre_decl(self, name, target, expr) -> HappyProperty:
+        return HappyProperty(str(name), "", None, None, [], context="precond",
+                             target=str(target), formula=expr)
 
     # 07-1143 R1/R2: subsystem-ownership HAPPY (`protects <dotted paths> except <methods>`).
     def dotted_path(self, *parts) -> str:

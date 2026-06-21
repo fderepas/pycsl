@@ -739,6 +739,35 @@ class Module3_Weaver:
                         f"HAPPYs: {sorted(param_happy_names)}.")
         for hp in happy_props:
             except_set = set(hp.except_set)
+            # General `targets`/`context` form (coherent with macsl): a NAMED property
+            # attached to ONE target function as an `ensures` (postcond — H-R/H-E) or a
+            # `requires` (precond — H-S). The clause is verified as an ordinary contract
+            # (callee proves the ensures; every call site proves the requires), so the
+            # H-S negative fails IN THE CALLER. A missing target is a hard error (a typo
+            # would silently attach the property to nothing).
+            if hp.context in ("postcond", "precond"):
+                target_fns = [fn for fn in funcs if fn.name == hp.target]
+                if not target_fns:
+                    raise PyCSLSemanticError(
+                        f"`happy {hp.name}`: targets '{hp.target}', which is not a method in "
+                        f"this module. Known methods: {sorted(fn.name for fn in funcs)}.")
+                if hp.context == "precond":
+                    # H-S (check-before-use) needs the target's precondition discharged AT
+                    # EVERY CALL SITE — otherwise it is an UNCHECKED ASSUMPTION (unsound).
+                    # PyCSL lowers a sibling `self.<m>(…)` call to a CONTRACTLESS abstract
+                    # `val`, so callee preconditions are NOT enforced at self-call sites. Until
+                    # that gap is closed, a `precond` HAPPY would silently assume-without-proof;
+                    # reject it rather than ship a false-security green. (See the H-S blocker in
+                    # getting-better/…-happy-impl-status.md.)
+                    raise PyCSLSemanticError(
+                        f"`happy {hp.name}`: the `precond` (H-S check-before-use) form is not "
+                        f"yet supported — PyCSL does not enforce a callee's precondition at a "
+                        f"self-call site (`self.{hp.target}(…)` lowers to a contractless val), "
+                        f"so the call-site obligation that H-S relies on cannot be discharged. "
+                        f"Use it only once self-call precondition propagation lands.")
+                for fn in target_fns:
+                    fn.csl_ensures.append(Ensures(copy.deepcopy(hp.formula)))
+                continue
             # 07-1143 R3: PARAMETRIC (per-object) form. A method binds the region via
             # `#@ footprint NAME(arg)`; at each point write `path[i]=v` it must prove the
             # index lies in the substituted region `[lo[param:=arg], hi[param:=arg])`. A
