@@ -255,15 +255,17 @@ def _parse_args() -> argparse.Namespace:
     g_proof.add_argument("--check-vacuity", action="store_true",
                         help="Run the NON-VACUITY GATE. After a file verifies, the gate "
                              "re-proves, per body-bearing function, a probe with an extra "
-                             "`ensures false`: if that goal proves Valid the function's "
-                             "assumed context is INCONSISTENT and its 'green' is VACUOUS "
-                             "(every postcondition, axiom-backed or not, is discharged for "
-                             "free) — the gate then FAILS the run, naming the function(s). A "
-                             "vacuous context proves `false` near-instantly, so the probe "
-                             "uses a short per-goal timelimit. Currently OPT-IN (it surfaces "
-                             "pre-existing vacuities, e.g. csys yiq_to_rgb); intended to "
-                             "become default-on once the corpus is swept clean. A missing "
-                             "why3 skips the gate (not a failure).")
+                             "`ensures false`. split_vc emits one such goal per NORMAL-EXIT "
+                             "path; the function is VACUOUS iff EVERY one proves Valid (every "
+                             "exit's context is inconsistent, so its 'green' is discharged for "
+                             "free) — the gate then FAILS, naming the function(s). If even one "
+                             "exit is consistent (its false-goal is Unknown/Timeout) the "
+                             "function is SOUND, even when a DEAD branch's false-goal is Valid "
+                             "(a consequence test's 'didn't-happen' branch is provably dead by "
+                             "design — this is why the criterion is ALL exits, not ANY). The "
+                             "probe filters to the injected goal only and uses a short per-goal "
+                             "timelimit. OPT-IN (surfaces pre-existing genuine vacuities, e.g. "
+                             "the os removal->absence proofs); a missing why3 skips it.")
     g_proof.add_argument("--vacuity-timelimit", metavar="SECS", default="5",
                         help="Per-goal timelimit (seconds) for the non-vacuity gate probe "
                              "(default 5). An inconsistent context derives `false` quickly; "
@@ -846,24 +848,56 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
     tl = str(getattr(args, "vacuity_timelimit", "5"))
     def _probe_one(fname_idx: "Tuple[str, int]") -> "Tuple[str, Optional[bool]]":
         """Probe one function. Returns (fname, vacuous?) — vacuous? is None if why3 is
-        absent (so the caller can degrade the whole gate to skip-not-fail)."""
+        absent (so the caller can degrade the whole gate to skip-not-fail).
+
+        `split_vc` emits ONE `ensures false` goal per NORMAL-EXIT path. A function is
+        vacuous iff EVERY normal exit has an inconsistent context — i.e. EVERY false-goal
+        proves Valid. It is NOT vacuous if even one exit is consistent (its false-goal is
+        Unknown/Timeout): the real postcondition was genuinely discharged there.
+
+        Two correctness points learned the hard way (a consequence test like
+        `mkdir → access(present) → unlink → access(absent)` has a provably-DEAD
+        "still-present" branch by design):
+          1. FILTER to the injected goal — `why3 -g <file>:<line>` returns the false-goal
+             AND sibling goals (the real postcondition, preconditions) at/near that line.
+             Keep only records whose `loc.start-line` is the injected line.
+          2. ALL, not ANY — the OLD gate flagged a function if ANY selected record was
+             Valid. That fired on (a) the always-Valid sibling postcondition and (b) the
+             Valid false-goal of a genuinely-DEAD branch — over-reporting every sound
+             consequence test as vacuous. Require ALL false-goals Valid (best-of-N across
+             provers: a path is inconsistent if ANY prover proves its false-goal)."""
         fname, idx = fname_idx
-        probe_lines = lines[:idx] + ["    ensures { false }"] + lines[idx:]
-        probe_line_no = idx + 1   # 1-based line of the inserted `ensures { false }`
+        probe_lines = lines[:idx] + ["    ensures { [@expl:vacprobe] false }"] + lines[idx:]
+        probe_line_no = idx + 1   # 1-based line of the inserted `ensures false`
         fd, probe_path = tempfile.mkstemp(suffix=".mlw", prefix=".pycsl_vac_")
         try:
             with os.fdopen(fd, "w") as f:
                 f.write("\n".join(probe_lines) + "\n")
             sel = [f"{probe_path}:{probe_line_no}"]
+
+            def _is_false_goal(rec: dict) -> bool:
+                loc = (rec.get("term") or {}).get("loc") or {}
+                return loc.get("start-line") == probe_line_no
+
+            per_prover: "List[List[dict]]" = []
             for p in provers:
                 try:
                     r = _run_why3_prove(base_cmd, p, tl, probe_path, sel)
                 except FileNotFoundError:
                     return fname, None
-                # #6: read structured --json records, not re-grepped text.
-                if any(_record_is_valid(rec) for rec in _json_goal_records(r.stdout)):
-                    return fname, True
-            return fname, False
+                # #6: read structured --json records, not re-grepped text. Keep ONLY the
+                # injected false-goal(s) — never the sibling real-postcondition goals.
+                per_prover.append([rec for rec in _json_goal_records(r.stdout)
+                                   if _is_false_goal(rec)])
+            # best-of-N: a normal-exit path counts inconsistent if ANY prover proved its
+            # false-goal Valid; align the per-path goals by occurrence across provers.
+            merged = [rec for rec in _merge_records_best_of_n(per_prover)
+                      if _is_false_goal(rec)]
+            if not merged:
+                # No normal-exit false-goal surfaced (e.g. a function with no normal
+                # return, only `raises`) — nothing to flag as vacuous.
+                return fname, False
+            return fname, all(_record_is_valid(rec) for rec in merged)
         finally:
             if os.path.exists(probe_path):
                 os.remove(probe_path)
