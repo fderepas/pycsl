@@ -632,6 +632,22 @@ def _parse_goal_blocks(output: str) -> "List[Tuple[str, str]]":
     return blocks
 
 
+class _MergeConservationError(Exception):
+    """Raised when the best-of-N merge produces FEWER goal blocks than the first
+    full-file prover run — i.e. aggregation LOST a goal. This is the structural
+    signature of the false-green class fixed in fa3668d (a Valid sibling masking a
+    non-Valid one). It is a trust-free, fail-closed backstop: it depends on NO merge
+    implementation being correct, so it survives any future rewrite of
+    `_merge_best_of_n`. See soundness-issue.md (Tier 0)."""
+    def __init__(self, expected: int, got: int):
+        self.expected = expected
+        self.got = got
+        super().__init__(
+            f"merge dropped goal(s): first full-file run enumerated {expected} "
+            f"goal block(s) but the merged result has only {got} — refusing to "
+            f"report a verdict (a dropped goal must never silently pass).")
+
+
 def _merge_best_of_n(outputs: "List[str]") -> str:
     """Merge per-prover `why3 prove` outputs into ONE best-of-N output string.
 
@@ -672,6 +688,21 @@ def _merge_best_of_n(outputs: "List[str]") -> str:
         block = (header + "\n" + best[key]) if header else best[key]
         parts.append(block)
     return "\n\n".join(parts)
+
+
+def _check_goal_conservation(first_full_output: str, merged_output: str) -> None:
+    """Trust-free fail-closed backstop (soundness-issue.md, Tier 0).
+
+    The first prover attempt runs FULL-FILE and enumerates every goal; later
+    attempts only re-prove residual subsets. So the merged best-of-N output must
+    contain at LEAST as many goal blocks as that first run. Fewer means aggregation
+    dropped a goal (the false-green class fixed in fa3668d) — raise rather than let
+    a dropped obligation silently pass. Independent of whether `_merge_best_of_n`
+    itself is correct, so it survives any future rewrite of the merge."""
+    first_n = len(_parse_goal_blocks(first_full_output))
+    merged_n = len(_parse_goal_blocks(merged_output))
+    if merged_n < first_n:
+        raise _MergeConservationError(first_n, merged_n)
 
 
 def _all_goals_valid(output: str) -> bool:
@@ -878,6 +909,18 @@ def _dispatch_provers(base_cmd: "List[str]", provers: List[str], timelimit: str,
     stderrs: List[str] = []
     last_rc = 0
     any_goal_blocks = False
+
+    def _finalize(merged: str, rc: int) -> "Tuple[str, str, int]":
+        """Tier-0 fail-closed conservation guard. The first attempt runs FULL-FILE
+        and enumerates every goal; subsequent attempts only re-prove residual
+        subsets, so the merged output must contain at least as many goal blocks as
+        that first run. Fewer => aggregation dropped a goal => raise (never return a
+        verdict over a lossy merge). Trust-free: independent of whether the merge
+        itself is correct. See _check_goal_conservation."""
+        if outputs:
+            _check_goal_conservation(outputs[0], merged)
+        return merged, "\n".join(stderrs), rc
+
     for idx, prover in enumerate(attempt_order):
         if idx == 0:
             # First prover: full file.
@@ -904,12 +947,12 @@ def _dispatch_provers(base_cmd: "List[str]", provers: List[str], timelimit: str,
             any_goal_blocks = True
             if _all_goals_valid(merged):
                 # Every goal proven by some prover so far — no need to run the rest.
-                return merged, "\n".join(stderrs), 0
+                return _finalize(merged, 0)
         else:
             # No goal blocks (e.g. zero goals to prove). If this prover succeeded
             # with empty output, the legacy success path accepts it.
             if r.returncode == 0:
-                return merged, "\n".join(stderrs), 0
+                return _finalize(merged, 0)
 
     merged = _merge_best_of_n(outputs)
     # Final verdict: rc 0 iff every goal is Valid in the merge. If there were
@@ -918,7 +961,7 @@ def _dispatch_provers(base_cmd: "List[str]", provers: List[str], timelimit: str,
         rc = 0 if _all_goals_valid(merged) else (last_rc if last_rc != 0 else 1)
     else:
         rc = last_rc
-    return merged, "\n".join(stderrs), rc
+    return _finalize(merged, rc)
 
 
 def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argparse.Namespace) -> None:
@@ -1068,6 +1111,22 @@ def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argp
                     sys.exit(2)
                 sys.exit(1)
 
+    except _MergeConservationError as e:
+        # Tier-0 fail-closed soundness backstop: the prover-result aggregation lost a
+        # goal, so the merged output can no longer be trusted to represent every
+        # obligation. Refuse to report ANY verdict rather than risk a false green.
+        print("\n[-] SOUNDNESS ABORT (merge conservation): " + str(e))
+        print("    This is a tool bug in the best-of-N merge, not a proof outcome. "
+              "See soundness-issue.md.")
+        if getattr(args, "diagnostics_json", False):
+            print(_json.dumps({
+                "code": "PYCSL-MERGE-DROP",
+                "stage": "prover-merge",
+                "file": getattr(args, "file", ""),
+                "line": 0,
+                "message": str(e),
+            }, sort_keys=True), file=sys.stderr)
+        sys.exit(1)
     except FileNotFoundError:
         print("\n[!] ERROR: 'why3' command not found. Please ensure Why3 is installed and in your PATH.")
         sys.exit(1)
