@@ -1,7 +1,7 @@
 # typing-global-impl.md — Implementation Guide for the Python `typing` Module
 
 **Status:** Implementation guide (executable work order for a Claude Code session).
-**Origin:** `typing-global-overview.md` (the pre-normative strategy; its S1–S7 sources of
+**Origin:** `docs/typing-global-overview.md` (the pre-normative strategy; its S1–S7 sources of
 truth, the two-plane squeeze, the TY0–TY3 tiers, the GT1–GT8 gaps, and the
 Interpreted/Shimmed/Ignored soundness classification are binding here); the
 `pycsl-stdlib-coverage` convergence loop (the coordinator / worker / paired-document
@@ -13,6 +13,21 @@ the PEP 695 `pure_ast` parser productions landed before TY3 — per the overview
 sequencing. **Scope:** TY0, TY1, TY2, and TY3 to Normative-graduation. The permanent-
 refusal gaps (GT1 `Any`, GT6 `# type: ignore`, GT7 the `Protocol` runtime/static split)
 are *specified*, not *solved*, at their owning tier (§5).
+
+> **Review note (2026-06-21).** Refreshed against the current repo: paths (`pure_lib` →
+> `src/pycsl_lib`), the formal-test scheme (`formal_0001` → topical `formal_<name>.py`), the
+> pipeline (Module 4 deleted; static checks in `core_ir_semantic`), and the gates — which now
+> include **non-vacuity** (`--check-vacuity` / `bin/false-twin.py`) and **IR-conformance +
+> IR_VERSION bump** (docs/ir.md §10) for any new IR shape. **NoReturn × the vacuity gate** is a
+> newly-identified TY1 obligation (§5).
+> **Still to fold in (flagged, not yet integrated):**
+> - *Tooling:* the prover dispatch now runs over `why3 prove --json` structured records (#6)
+>   with a fail-closed Tier-0 conservation guard (`soundness-issue.md`); the gates inherit this
+>   automatically, but the conformance-agent could reuse `bin/false-twin.py` directly for
+>   typing-contract mutation testing.
+> - *Preconditions (re-confirm before starting):* `refactor.md` Phase B is COMPLETE (P-series);
+>   verify HAPPY is landed; the old "os standing count" precondition is now "os fully green"
+>   (down to 1 `\trusted` line). IR baseline is **1.2** → typing's first new node bumps to 1.3.
 
 ---
 
@@ -51,7 +66,7 @@ construction.
 
 - **The seventh source, and why TY0 comes first. S7** is *PyCSL's own current front-end
   behaviour*. The bootstrap fact: every `def sys_write(self, fd: int, buf: bytes) -> int`
-  in `pure_lib/os` is already the front-end interpreting a fragment of `typing` into IR
+  in `src/pycsl_lib/os` is already the front-end interpreting a fragment of `typing` into IR
   and WhyML types. That de facto implicit subset must be **transcribed into the
   references (TY0) before a single construct is added** — otherwise the effort grows
   features on top of an unspecified interpreter inside a verifier whose identity is "no
@@ -86,7 +101,9 @@ and-wrong failure, typing edition. Three tailorings follow:
 ## 1. The agent loop, typing-tailored
 
 Core-directed (every construct lands in `src/pycsl/` — the front-end normalization pass,
-the Module 6 lowering table, the monomorphizer — plus the thin `pure_lib/typing` shim and
+the `core_ir_semantic` IR-check seam where the static-plane judgments live (the pipeline is
+now `M1–3 → M5 → core_ir_semantic → M6`; Module 4 was deleted in `refactor.md` Phase B), the
+Module 6 lowering table, the monomorphizer — plus the thin `src/pycsl_lib/typing` shim and
 the three reference docs). Four workers under the coordinator: one more than the prior
 efforts, justified because typing has two distinct executable ground truths (S5, S4) plus
 a transcription prerequisite (S7/TY0) plus a feasibility risk (monomorphization).
@@ -148,7 +165,7 @@ a finding, not something to merge.
 ```markdown
 ---
 name: typing-core-agent
-description: MUST BE USED to implement one typing construct in src/pycsl/ from its two-plane spec: the front-end normalization, the Module 6 lowering, the pure_lib/typing shim, the three reference docs, the annotations.md entry, the soundness-report classification. Writes DD-HHMM-typing-spec-N.md (DRAFT), implements on APPROVED, gates with total additivity.
+description: MUST BE USED to implement one typing construct in src/pycsl/ from its two-plane spec: the front-end normalization, the core_ir_semantic static-plane checks, the Module 6 lowering, the src/pycsl_lib/typing shim, the three reference docs, the test-suite/annotations.md entry, the soundness-report classification. Writes DD-HHMM-typing-spec-N.md (DRAFT), implements on APPROVED, gates with total additivity (incl. non-vacuity + IR-conformance, see §4).
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: opus
 effort: high
@@ -174,9 +191,20 @@ Hard rules:
   bound becomes an instantiation-time obligation. Polymorphic recursion is a LOUD-FAIL
   (GT4), never an approximation. Keep per-instantiation VC volume affordable with the same
   no_inline / contract-opacity boundaries used elsewhere.
-- Total additivity: byte-identical emission for every existing driver; the os proof and
-  formal_0001 re-confirmed; doc-coherency green. A construct graduates to Normative only
-  when its surface is in annotations.md AND all three reference docs.
+- Total additivity: byte-identical emission for every UNAFFECTED driver; the os proof (now
+  fully green) and the formal_<name> suite re-confirmed; doc-coherency green. A construct
+  graduates to Normative only when its surface is in test-suite/annotations.md AND all three
+  reference docs.
+- IR shape change is a DELIBERATE-version event, not a byte-diff failure. A construct that
+  adds an IR node/field is NOT byte-identical for drivers that use it: bump IR_VERSION
+  (currently 1.2 -> 1.3, additive: keep older versions in ACCEPTED_IR_VERSIONS), refresh the
+  conformance goldens (core + front-end *.ir.json / *.expected.mlw), and document the field
+  in docs/ir.md per its §10 process. "Byte-identical" applies only to drivers the construct
+  does not touch.
+- Non-vacuity is a hard gate, not an afterthought (soundness-issue.md). A "Valid VC" proves
+  nothing if its context is inconsistent. Every construct that adds obligations must pass
+  `--check-vacuity`, and a false-twin (an impossible postcondition, e.g. via bin/false-twin.py)
+  on each new obligation must FAIL. NoReturn is the known interaction — see §5.
 - Classify every construct in --soundness-report (Interpreted/Shimmed/Ignored) and every
   shim escape (Modelled/Specified/Stubbed/Confinement). An unclassified annotation is a
   hard fail.
@@ -260,8 +288,10 @@ gives the two squeezes and the no-blend trap.
 | **TY3** TypeVar/Generic/PEP 695/Callable | S1 generics + bound + variance | whole-module monomorphization; bound as instantiation obligation; variance deferred (GT2) | generic aliases are runtime objects | `GenericAlias` behaviour | an un-instantiated generic claiming a per-instance theorem it never emitted |
 
 Cross-cutting lower bound for every tier: `refactor.md`'s standing gate (corpus byte-diff,
-os standing count, formal_0001, doc-coherency) + the construct's `--soundness-report`
-classification cross-referenced to its GT code.
+os now fully green, the formal_<name> suite, doc-coherency) + the IR-conformance corpora
+(core + front-end, with the IR_VERSION bump + golden refresh for any new IR shape) + the
+non-vacuity gate (`--check-vacuity` / false-twin) on every new obligation + the construct's
+`--soundness-report` classification cross-referenced to its GT code.
 
 ---
 
@@ -284,12 +314,16 @@ core-agent implements both planes + standing gate                         → DO
         ▼
 conformance-agent builds the S5 subset (static) + S4 shim drivers (runtime) from the spec + surface
         │
-GATE B  machine-checked: total additivity (byte-identical elsewhere, os + formal_0001
-        │  re-confirmed); doc-coherency green; the construct classified in --soundness-report
+GATE B  machine-checked: total additivity (byte-identical for UNAFFECTED drivers; for new
+        │  IR shape, IR_VERSION bumped + conformance goldens refreshed per docs/ir.md §10;
+        │  os now-green + the formal_<name> suite re-confirmed); IR-conformance corpora
+        │  green; doc-coherency green; the construct classified in --soundness-report
         ▼
 GATE C  TWO-PLANE COVERAGE (load-bearing):
         │  (a) STATIC, machine-checked — the construct passes every case in its declared S5
-        │      subset; each static obligation clause maps to a passing case / Valid VC.
+        │      subset; each static obligation clause maps to a passing case / NON-VACUOUS
+        │      Valid VC (passes `--check-vacuity`; a false-twin on the obligation FAILS — a
+        │      Valid VC over an inconsistent context proves nothing; see soundness-issue.md).
         │  (b) RUNTIME, machine-checked — the shim agrees with S4; nothing it does enforces
         │      what S3 says is unenforced.
         │  (c) NO-BLEND, independence-based — the runtime gate does NOT pass the static claim
@@ -325,6 +359,14 @@ the PEP 695 `pure_ast` productions land before TY3.**
    lowering, immediate VC value, no type variables. Establishes the sum-type narrowing
    vocabulary (and the `TypeIs`/`TypeGuard` constructor-fact correspondence) that later
    tiers reuse.
+   - **NoReturn × the non-vacuity gate (must specify).** `NoReturn` lowers to a `false`/
+     `\diverges` post — but the non-vacuity gate (`--check-vacuity`) detects a vacuous
+     context by injecting `ensures { false }`, so a faithful `NoReturn` function is
+     INDISTINGUISHABLE from a vacuous one and will be flagged (the same false-positive class
+     as dead-branch over-flagging, see soundness-issue.md §7). TY1 MUST specify how the gate
+     exempts a declared-`NoReturn` function (e.g. it carries a `false` post by design, so
+     the vacuity probe must skip it / treat it as expected-false) — otherwise every
+     `NoReturn` is a spurious vacuity failure. This is the sharpest new TY1 obligation.
 3. **TY2 — aggregates and interfaces.** TypedDict/NamedTuple/overload/Protocol. The
    `Protocol`-as-contract-interface work is where the GT7 no-blend trap is sharpest —
    give Gate C (c) extra weight here.
@@ -356,12 +398,13 @@ artifact — the same instinct as HAPPY's §9 gap analysis.
 
 The engagement is done when, for every construct in TY0–TY3: a `<K>-twoplane-spec.md`
 exists with both planes stated separately and passed Gate A; the construct is at
-`STATUS: DONE` and **graduated to Normative** (surface in `annotations.md` + all three
-reference docs, doc-coherency green); Gate B and Gate C passed and recorded — including the
-construct passing its **declared S5 conformance subset** (static), its shim agreeing with
-**S4** (runtime), and the **no-blend** check holding; every construct is classified
-Interpreted/Shimmed/Ignored in `--soundness-report` and every GT gap is dispositioned in
-the ledger; the standing gate (corpus byte-diff, os standing count, formal_0001) is green
+`STATUS: DONE` and **graduated to Normative** (surface in `test-suite/annotations.md` + all
+three reference docs, doc-coherency green); Gate B and Gate C passed and recorded — including
+the construct passing its **declared S5 conformance subset** (static, NON-VACUOUS), its shim
+agreeing with **S4** (runtime), and the **no-blend** check holding; every construct is
+classified Interpreted/Shimmed/Ignored in `--soundness-report` and every GT gap is
+dispositioned in the ledger; the standing gate (corpus byte-diff, os now-green, the
+formal_<name> suite, the IR-conformance corpora, `--check-vacuity`) is green
 after every construct; and the paired-document trail is complete — every `src/pycsl/`
 change traceable to an APPROVED spec doc, every spec doc to its two-plane spec, every
 two-plane spec to its S1–S7 authorities with S1 precedence honoured. Do not mark a
