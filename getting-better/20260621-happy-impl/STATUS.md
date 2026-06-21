@@ -63,10 +63,10 @@ main.c's two H-R policies.
 
 ## H-D (DoS / totality) — done
 
-`#@ happy availability: targets parse total` (macsl's `\context(	otal)`). PyCSL is
+`#@ happy availability: targets parse total` (macsl's `\context(\total)`). PyCSL is
 total-by-default — Why3 emits a termination VC and each loop needs a `#@ loop variant` — so
 the policy NAMES that guarantee and rejects the only opt-out (`#@ \diverges` on the target is
-a hard error). Drivers 0726 (positive — bounded loop + variant + `no_exception ll`) / 0727
+a hard error). Drivers 0726 (positive — bounded loop + variant + `no_exception \all`) / 0727
 (negative — `\diverges` rejected) / 0728 (negative — unbounded variant-less loop fails its
 termination VC, i.e. the DoS).
 
