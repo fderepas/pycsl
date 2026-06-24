@@ -425,10 +425,30 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         else:
             hi = f"(Array.length {dst})"
         src = self._expr_to_whyml(stmt["value"], local_refs)
-        code = f"{indent}Array.blit {src} 0 {dst} ({lo}) (({hi}) - ({lo}))"
+        # If `src` is a non-trivial expression (e.g. `Array.sub ...`), it
+        # cannot be referenced inside a logic `assert {...}` (WhyML program
+        # functions are not logic functions). Bind it to a fresh local first
+        # so both the `Array.blit` call and the per-element equality assert
+        # below reference the same let-bound array value.
+        src_needs_let = not src.isidentifier()
+        if src_needs_let:
+            tmp_count = getattr(self, "_slice_set_tmp_counter", 0) + 1
+            self._slice_set_tmp_counter = tmp_count
+            src_var = f"__pycsl_slice_src_{tmp_count}"
+            prologue = f"{indent}let {src_var} = {src} in\n"
+            src = src_var
+        else:
+            prologue = ""
+        code = f"{indent}Array.blit {src} 0 {dst} ({lo}) (({hi}) - ({lo}));"
+        # Per-element equality hint (definitional fact from Why3's Array.blit
+        # spec, zero TCB): surface `forall i. 0 <= i < n -> dst[lo+i] = src[i]`
+        # so downstream ensures/assert clauses that reference individual dst
+        # bytes after the blit can discharge. See toolfix-spec.md.
+        code += (f"\n{indent}assert {{ forall i : int. (0 <= i /\\ i < (({hi}) - ({lo}))) "
+                 f"-> ({dst}[({lo}) + i] = {src}[i]) }}")
         if rest:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
-        return code
+        return prologue + code
 
     def _handle_array_set_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
                                 local_refs: Set[str], declared_refs: Set[str],

@@ -644,3 +644,70 @@ Core terms used in this skill have canonical definitions in `../../../docs/gloss
 [solver budget](../../../docs/glossary/solver-budget.md) ·
 [memory model](../../../docs/glossary/memory-model.md) ·
 [loop invariant](../../../docs/glossary/loop-invariant.md)
+
+---
+
+## Consolidated heuristics (from `test-supervise-sl` monitoring)
+
+These heuristics were consolidated from the `os` module annotation fleet runs
+(2026-06-22/23), trigger-tested and Gate-S-passed. Full provenance in
+`config/skills/pycsl-monitoring/SKILL.md`.
+
+### `#@ interface` is a RESTRICTIVE gate, not additive
+
+Adding `#@ interface ensures` lines to a function causes the NON-interface
+`ensures` to be DROPPED from the importer's view. When NO `#@ interface` is
+present, ALL ensures are visible. Adding interface lines NEVER adds visibility —
+it can only REMOVE it. Use `#@ interface` only to narrow an imported contract;
+never to widen.
+
+### Strengthen callee contract → caller-side consequence proves by application
+
+When a caller-side consequence times out on SMT string theory (e.g.
+`\str_sub`/`\str_length` reasoning at the call site), push the reasoning INTO
+the callee's body-proven contract (strengthen it), then the caller proves by
+DIRECT CONTRACT APPLICATION — no string-theory reasoning at the call site. This
+is the leaf-first doctrine: prove hard facts where the body's local ops are
+visible, expose them via the contract, compose at the caller. NEVER weaken,
+NEVER `\trusted`.
+
+### Module-level alias loses contract
+
+`name = other_name` at module level loses the original function's contract.
+`from pycsl_lib.os import kill` (where `kill = _kill`) emits `kill` as an
+abstract `val` with NO ensures. Import the underlying function directly (even if
+underscore-prefixed) to get the contract.
+
+### Per-write type-invariant VC blowup → restructure to local-array + single slice write
+
+A `sibling_concrete` helper that writes `self.dir`/`self.disk` in a 30-iteration
+loop generates 30 type-invariant maintenance VCs per loop. Each needs the
+slot-specific marker fold, but the helper only knows the opaque offset (not the
+slot), so the marker can't fire — timeouts at billions of steps. Restructure:
+extract the byte-building loop into a FREE function that builds in a LOCAL array
+(no self-field write → ZERO class-invariant VCs on the loop). The helper then
+does a SINGLE slice write — 1 type-invariant VC instead of 30.
+
+### Unverifiable external-object call → restructure to verified-only path
+
+When a method body calls an external object's method whose return value the
+solver cannot constrain (e.g. `self._clock.monotonic()`), restructure to a
+verified-only path (internal counter, pure computation) and treat the external
+path as a runtime concern outside the verified surface (like host I/O). NEVER
+add `\trusted` or weaken the contract.
+
+### Callee-precondition Unknown → add leaf byte-range requires
+
+When a body-VC reports "precondition Unknown" for a callee, the caller lacks the
+facts the callee needs. Add them as `requires` on the caller (leaf-first: push
+the byte-range/type facts to where they are known). Verify callers can discharge
+the new requires (or add matching requires up the call chain). NEVER weaken the
+callee's precondition to make it discharge.
+
+### Cross-module `#@ reveal` does not surface interface-hidden ensures
+
+`#@ reveal` is reliable WITHIN the owning unit; cross-module it does not
+currently surface interface-hidden ensures. For cross-module consequence tests,
+prefer a function with a transparent interface (no `#@ interface` → all ensures
+visible to importers), or accept the interface opacity as a logged residual (the
+property is body-proven, just not caller-visible).

@@ -1,13 +1,9 @@
 ---
 name: sl-builder
 description: >-
-  Interview a human who wants to build a Squeeze Loop (SL) for their problem,
-  then draft a concrete, structured plan. Elicits the deliverable, the upper
-  bound (soft normative authority — spec/standard/policy/contracts), the lower
-  bound (executable oracle — prover/checker/tests/runtime/reference impl), the
-  actors and their disjoint (U,L) pairs, the context barriers, the gates
-  (A editorial / B machine / C coverage-no-blend), the coherent-and-wrong
-  failure to guard, and the stabilizers/collapse modes to pre-empt — then turns
+  Defines how to construct and package Squeeze Loop (SL) artifacts, ensuring
+  deterministic builds, reproducible environments, and correct integration of
+  monitoring components. Use when generating an SL implementation or CI pipeline.
   the answers into a roles+bounds+barriers+gates+loop-steps plan. Use when the
   user says any of: "draft a plan to generate a squeeze loop", "draft an SL
   validation plan", "build an SL strategy for X", "design a squeeze loop for my

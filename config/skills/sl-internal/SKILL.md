@@ -1,6 +1,7 @@
 ---
 name: sl-internal
-description: A self-contained explainer of how the Squeeze Loop (SL) strategy works — the construction that makes a multi-actor loop converge on a correct deliverable rather than on a plausible-looking one. It defines the squeeze (every actor pinned between a soft upper bound and a hard, executable lower bound), the coherent-and-wrong failure it targets, the load-bearing disjointness principle (each actor answers to a different authority pair, with physical context barriers), the canonical cast of roles, the gates (A editorial, B machine-checked, C coverage / no-blend / coherent-and-wrong, S skill-consistency), the loop mechanics (DRAFT→APPROVED→DONE handshake, gap documents, gate-defined done), the terrain archetypes (where truth lives), the stabilizers against collapse, and the compliance conditions. It is domain-generic and stands alone — no external sources. Use it whenever you need to understand or explain the strategy from first principles. Trigger phrasings include "how does a squeeze loop work", "explain the squeeze loop strategy", "what is the disjointness principle", "what are the gates / the canonical cast", "what is coherent-and-wrong", "why is done gate-defined", "what are the terrain archetypes", "what are the stabilizers".
+description: >-
+  Explains the Squeeze Loop (SL) strategy, its disjointness principle, canonical roles, gates, and collapse‑prevention stabilizers. Use to understand or teach the core SL concepts.
 ---
 
 # The Squeeze Loop (SL) strategy

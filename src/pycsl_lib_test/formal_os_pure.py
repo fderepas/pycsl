@@ -97,19 +97,21 @@ def islink_total_zero(p: int) -> int:
     return 0
 
 
-# (B) IDENTITY helpers — the identity CONSEQUENCE. HONEST STATUS: Unknown.
-# fsdecode/fsencode/fspath ensure only `True`; the identity is not entailed.
-# getenv ensures only `True`; getenv(k, d) == d is not entailed. The model gap
-# is a value post-state (`\result == filename` / `\result == default`).
+# (B) IDENTITY helpers — the identity CONSEQUENCE. STATUS: PROVEN (gap-2
+# closed). fsdecode/fsencode/fspath carry `#@ ensures \result == filename`
+# and getenv carries `#@ ensures \result == default` (body-faithful: each
+# body is `return <arg>`). The identity is entailed, so the tests below
+# PROVE non-vacuously (a non-identity body would make `return 0` reachable
+# and `ensures \result == 1` would FAIL).
 # NOTE: fsdecode/fsencode/fspath leave their param UN-ANNOTATED, so the emitted
 # stub types it `int`; the driver params are `int` to match (a `str` arg trips a
-# WhyML int-vs-string emission type error at the `== x` compare — itself a facet
-# of the model gap: no str-coherent identity contract).
+# WhyML int-vs-string emission type error at the `== x` compare — a facet of the
+# string-compare int-hash fallback, not of the identity contract).
 
 #@ requires True
 #@ ensures \result == 1
 def fsdecode_is_identity(x: int) -> int:
-    if fsdecode(x) == x:            # want: identity — NOT entailed (ensures True)
+    if fsdecode(x) == x:            # identity — ENTAILED (ensures \result == filename)
         return 1
     return 0
 
@@ -117,7 +119,7 @@ def fsdecode_is_identity(x: int) -> int:
 #@ requires True
 #@ ensures \result == 1
 def fsencode_is_identity(x: int) -> int:
-    if fsencode(x) == x:           # want: identity — NOT entailed
+    if fsencode(x) == x:           # identity — ENTAILED
         return 1
     return 0
 
@@ -125,7 +127,7 @@ def fsencode_is_identity(x: int) -> int:
 #@ requires True
 #@ ensures \result == 1
 def fspath_is_identity(x: int) -> int:
-    if fspath(x) == x:             # want: identity — NOT entailed
+    if fspath(x) == x:             # identity — ENTAILED
         return 1
     return 0
 
@@ -133,6 +135,6 @@ def fspath_is_identity(x: int) -> int:
 #@ requires True
 #@ ensures \result == 1
 def getenv_returns_default(key: int, default: int) -> int:
-    if getenv(key, default) == default:   # want: returns default — NOT entailed
+    if getenv(key, default) == default:   # returns default — ENTAILED
         return 1
     return 0

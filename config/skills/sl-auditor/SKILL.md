@@ -1,24 +1,10 @@
 ---
 name: sl-auditor
 description: >-
-  Audits an existing Squeeze Loop (SL) for soundness — checking whether a target
-  loop is truly compliant (pairwise-disjoint authority pairs, physically barriered
-  contexts, gate-defined "done", a genuine executable lower bound, and demonstrated
-  catching of coherent-and-wrong) or is quietly collapsing into a rubber stamp. It
-  applies the squeeze's own discipline to the loop under audit: it maps the actual
-  (upper, lower) authority pairs and hunts for an actor certifying its own work;
-  probes whether each context barrier is physical or merely honorary; confirms an
-  executable oracle disjoint from the actor it judges; checks Gate A / Gate B /
-  Gate C are present and load-bearing; seeds coherent-and-wrong artifacts to
-  calibrate the monitors (flag rate not zero, not saturated); audits the loop's
-  accumulated learned skills VIA the sl-monitoring-sl pattern; checks each known
-  collapse mode is blocked by a stabilizer; and routes whatever an internal audit
-  cannot self-certify to a disjoint base (external / cross-provider / human reviewer).
-  Emits a per-dimension findings report with severities. Use when asked to "audit a
-  squeeze loop", "review an existing SL", "is this squeeze loop sound", "check my SL
-  for collapse", "does this loop actually have disjoint authorities", "is the barrier
-  real or honorary", "who certifies the certifier", "is done gate-defined or self-
-  reported", "is this monitor a rubber stamp", or "is my loop quietly collapsing".
+  Audits a Squeeze Loop (SL) for soundness, checking disjoint authority pairs,
+  physical barriers, machine‑defined completion, executable lower bounds, and
+  proper monitoring. Use to verify that an SL is truly compliant and not a rubber
+  stamp.
 ---
 
 # sl-auditor — auditing an existing Squeeze Loop

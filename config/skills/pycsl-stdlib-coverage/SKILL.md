@@ -776,6 +776,65 @@ Load these on demand — they hold the load-occasionally, look-up content split 
 
 ---
 
+## Consolidated heuristics (from `test-supervise-sl` monitoring)
+
+These heuristics were consolidated from the `os` module formal-test fleet runs
+(2026-06-22/23), trigger-tested and Gate-S-passed. Full provenance in
+`config/skills/pycsl-monitoring/SKILL.md`.
+
+### Co-import trigger for World record emission
+
+When a formal test imports a CLASS from a module that also defines a World
+global (e.g. `_filesystem`), co-import at least one FUNCTION that references the
+World global in its contract. Importing the class alone does NOT emit the World
+record type declaration, causing "unbound symbol" errors in the helper stubs.
+
+### String-returning imported functions cannot assign to locals
+
+For imported functions returning `str`, avoid local variable assignment AND
+body-level string `==` — pycsl initializes locals as `ref 0` (int), and assigning
+a string return causes a type mismatch. Instead, return the call result directly
+and assert the consequence in the `ensures` contract
+(`def f(p) -> str: return expanduser(p)` with `ensures \result == p`).
+
+### PyCSL string-op abstract vals (rfind/split/join) → `\abstract` zero-TCB
+
+`str.rfind`, `str.split`, `str.join`, and variadic `*parts` lower to opaque
+WhyML vals with NO contracts. Functions that use them cannot be body-proven.
+Mark each affected function `#@ \abstract` with `assigns \nothing` and NO
+`ensures` — this emits a bodyless `val` (zero TCB growth) and suppresses the
+body's type error. The Python body is RETAINED for runtime. NEVER use
+`\trusted`.
+
+### Pure-Python string-op reimplementation bypasses rfind/split/variadic opacity
+
+When a string-op body is blocked by `rfind`/`split`/`*parts` opacity, REWRITE
+with `len` + indexing + slicing + concat (all body-verifiable: `str_length_op` /
+`str_sub_op` / `str_concat_op`) before resorting to `\abstract`. Replace
+`path.rfind('/')` with a `while i >= 0` tail scan using `path[i] == '/'`. Keep
+`return`/`break` OUT of loops (they emit unbound `Return` exceptions). Accept
+only SMT-tractable postconditions (length bounds); route `\forall`-position
+properties to Rocq/Lean.
+
+### Tuple / heterogeneous-seq return type defaults to int
+
+A function returning `(s1, s2)` (string tuple) or `[(top, dirs, nondirs)]` (list
+of heterogeneous tuples) emits a type error: the tuple/seq component-type
+inference defaults to `int` regardless of the body's component types. Workaround:
+narrow the return to an INT (e.g. a bounded count) — body-verifiable, preserves a
+totality consequence. For a function that MUST return structured data, keep it
+`\abstract` (zero-TCB) and log the GAP.
+
+### Class import does not materialize module-global object instances
+
+When a formal-test driver needs a CLASS from a module that defines module-global
+object instances (e.g. `_filesystem`), do NOT import the class — it emits
+`val constant _filesystem : int` (not the record type), causing ill-typed stubs.
+Instead, import FUNCTION wrappers that construct the object internally. Function
+imports materialize the World global correctly.
+
+---
+
 ## Anti-patterns
 
 - **Using `\trusted`** — defeats the purpose. If PyCSL can't prove

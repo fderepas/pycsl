@@ -1,6 +1,7 @@
 ---
 name: stride
-description: Learn and apply STRIDE threat modeling — Microsoft's framework for systematically finding security threats in a system design across six categories (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege). Use this skill whenever the user wants to threat model a system, design, feature, API, or architecture; asks "what could go wrong with this system / where are the security risks"; mentions STRIDE, data flow diagrams (DFDs), trust boundaries, attack surface, or a design/security review; wants to derive security requirements or countermeasures from a design; or is preparing for a threat-modeling interview. Trigger it even when the request is informal ("can you sanity-check the security of this design", "we're adding a payments flow, what should we worry about") — STRIDE gives the structured checklist that turns vague security worry into an enumerated, prioritized threat list with concrete mitigations.
+description: >-
+  Teaches STRIDE threat modeling (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege) and guides users to enumerate, prioritize, and mitigate security threats in system designs.
 ---
 
 # STRIDE Threat Modeling

@@ -1,6 +1,7 @@
 ---
 name: pycsl-docs
-description: The conventions for writing and structuring PyCSL documentation. Covers (1) the PROSE DISCIPLINE — mechanism-grounded rigor: every doc (README, glossary, skill, reference) must name the exact verification machinery (WhyML, Why3 weakest-precondition VCs, SMT solvers Alt-Ergo/Z3, E-matching, Valid=negation-unsatisfiable, Rocq/Lean offline-only) rather than hand-wave, and must carry no transient plan references; and (2) the reference-doc ARCHITECTURE — the three-layer stack (syntax → static semantics → translation), normative preambles, section/§ cross-referencing, Gap Analysis. Use this skill whenever writing, reviewing, or sharpening ANY PyCSL documentation, glossary page, skill, or reference document — especially to apply the mechanism-grounded style or to decide which reference doc covers a contract question.
+description: >-
+  Defines conventions for PyCSL documentation, enforcing mechanism‑grounded prose and a three‑layer reference architecture (syntax, static semantics, translation). Use when writing, reviewing, or sharpening any PyCSL docs or reference material.
 ---
 
 # PyCSL Documentation Architecture

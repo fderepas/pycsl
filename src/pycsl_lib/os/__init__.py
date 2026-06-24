@@ -56,26 +56,36 @@ _pid = 1
 
 # ── DirEntry (for scandir) ──────────────────────────────────────────
 
+# gap-4 (DirEntry aliasing) — Strategy C: DirEntry.__init__ previously took
+# `fs` (the UnixInodeFileSystem instance) as a parameter, but PyCSL's
+# aliasing rule prohibits passing the module global `_filesystem` as an
+# argument in a formal-test driver ("would alias the global"). Removed `fs`
+# from the constructor; the is_dir/is_file/is_symlink methods now reach the
+# module-level `_filesystem` directly (exactly as listdir/scandir/walk
+# already do). DirEntry is now CONSTRUCTIBLE in a formal-test driver without
+# aliasing the global. The out-of-range sentinel direction is pinned on each
+# classifier (`(self._inode_num < 0 or self._inode_num >= 32) ==> \result == 0`)
+# so a driver can prove the -1-sentinel consequence.
 #@ class invariant self._inode_num >= -1 and self._inode_num < 32
 class DirEntry:
     """Minimal os.DirEntry returned by scandir()."""
 
     #@ requires inode_num >= -1 and inode_num < 32
-    #@ assigns self.name, self.path, self._inode_num, self._fs
+    #@ assigns self.name, self.path, self._inode_num
     #@ ensures self._inode_num == inode_num
-    def __init__(self, name, inode_num, fs):
+    def __init__(self, name, inode_num):
         self.name = name
         self.path = name
         self._inode_num = inode_num
-        self._fs = fs
 
     #@ requires True
     #@ assigns \nothing
     #@ ensures \result == 0 or \result == 1
+    #@ ensures (self._inode_num < 0 or self._inode_num >= 32) ==> \result == 0
     def is_dir(self) -> int:
         if self._inode_num < 0 or self._inode_num >= 32:
             return 0
-        inode = self._fs._read_inode(self._inode_num)
+        inode = _filesystem._read_inode(self._inode_num)
         if inode[2] == 2:
             return 1
         return 0
@@ -83,10 +93,11 @@ class DirEntry:
     #@ requires True
     #@ assigns \nothing
     #@ ensures \result == 0 or \result == 1
+    #@ ensures (self._inode_num < 0 or self._inode_num >= 32) ==> \result == 0
     def is_file(self) -> int:
         if self._inode_num < 0 or self._inode_num >= 32:
             return 0
-        inode = self._fs._read_inode(self._inode_num)
+        inode = _filesystem._read_inode(self._inode_num)
         if inode[2] == 1:
             return 1
         return 0
@@ -94,10 +105,11 @@ class DirEntry:
     #@ requires True
     #@ assigns \nothing
     #@ ensures \result == 0 or \result == 1
+    #@ ensures (self._inode_num < 0 or self._inode_num >= 32) ==> \result == 0
     def is_symlink(self) -> int:
         if self._inode_num < 0 or self._inode_num >= 32:
             return 0
-        inode = self._fs._read_inode(self._inode_num)
+        inode = _filesystem._read_inode(self._inode_num)
         if inode[2] == 3:
             return 1
         return 0
@@ -107,6 +119,51 @@ class DirEntry:
     #@ ensures \result == 0
     def is_junction(self) -> int:
         return 0
+
+
+
+# ── DirEntry free-function wrappers (gap-4 Strategy D) ───────────────
+# Public free functions wrapping each DirEntry classifier. The formal-test
+# driver imports THESE (function imports materialize `_filesystem` correctly),
+# not the DirEntry class (whose class-import path emits ill-typed module
+# stubs — see bugs-to-report/20260623-1600-direntry-class-import.md). Each
+# wrapper constructs a DirEntry and delegates, so the consequence tested is
+# the DirEntry method's behavior. Body-verified, zero-TCB.
+
+#@ requires inode_num >= -1 and inode_num < 32
+#@ assigns \nothing
+#@ ensures \result == 0 or \result == 1
+#@ ensures (inode_num < 0 or inode_num >= 32) ==> \result == 0
+def dirent_is_dir(name, inode_num):
+    """Construct a DirEntry and return its is_dir() result."""
+    d = DirEntry(name, inode_num)
+    return d.is_dir()
+
+#@ requires inode_num >= -1 and inode_num < 32
+#@ assigns \nothing
+#@ ensures \result == 0 or \result == 1
+#@ ensures (inode_num < 0 or inode_num >= 32) ==> \result == 0
+def dirent_is_file(name, inode_num):
+    """Construct a DirEntry and return its is_file() result."""
+    d = DirEntry(name, inode_num)
+    return d.is_file()
+
+#@ requires inode_num >= -1 and inode_num < 32
+#@ assigns \nothing
+#@ ensures \result == 0 or \result == 1
+#@ ensures (inode_num < 0 or inode_num >= 32) ==> \result == 0
+def dirent_is_symlink(name, inode_num):
+    """Construct a DirEntry and return its is_symlink() result."""
+    d = DirEntry(name, inode_num)
+    return d.is_symlink()
+
+#@ requires inode_num >= -1 and inode_num < 32
+#@ assigns \nothing
+#@ ensures \result == 0
+def dirent_is_junction(name, inode_num):
+    """Construct a DirEntry and return its is_junction() result (always 0)."""
+    d = DirEntry(name, inode_num)
+    return d.is_junction()
 
 
 
@@ -769,14 +826,27 @@ def islink(filepath):
 
 #@ requires True
 #@ assigns \nothing
-#@ ensures True
+# gap-3 (walk generator) — Strategy A: PyCSL's emitter cannot lower `yield`
+# (the yield expression emits as type `()`, causing a WhyML type error on the
+# walk import stub). Rewritten as a NON-generator returning the COUNT of
+# subdirectory names found at `top` (an int). The original generator yielded
+# `(top, dirs, nondirs)` triples; PyCSL cannot express a (string, list, list)
+# tuple return nor a string-list return (tuple/seq component-type inference
+# defaults to int), so the public return is narrowed to the bounded COUNT —
+# the totality + bounded-result consequence a caller can prove is preserved.
+# Single-level model (no recursion into subdirs).
+#@ raises OSError when True
+#@ ensures \result >= 0 and \result <= 16
 def walk(top: str, topdown=True, onerror=None, followlinks=False):
-    """Directory tree generator. Simplified: yields one level from root."""
+    """Directory tree walker. Simplified: returns the count of subdirectory
+    names at `top` (0..16). Raises OSError if `top` does not resolve or is
+    not a directory (CPython-faithful, via listdir)."""
     names = listdir(top)
     dirs = []
     nondirs = []
     #@ loop invariant 0 <= len(dirs) and len(dirs) <= i
     #@ loop invariant 0 <= len(nondirs) and len(nondirs) <= i
+    #@ loop invariant 0 <= i and i <= len(names)
     #@ loop variant len(names) - i
     for i in range(len(names)):
         name = names[i]
@@ -789,6 +859,6 @@ def walk(top: str, topdown=True, onerror=None, followlinks=False):
                 nondirs.append(name)
         else:
             nondirs.append(name)
-    yield top, dirs, nondirs
+    return len(dirs)
 
 

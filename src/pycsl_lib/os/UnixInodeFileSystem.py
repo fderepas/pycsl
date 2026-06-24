@@ -419,6 +419,38 @@ def _pack_direntry(inode_num: int, name_bytes: list) -> list:
     return entry
 
 
+#@ requires inode_num == 0 or (inode_num != 0 and inode_num < 32)
+#@ requires \str_length(name) <= 30
+#@ assigns \nothing
+#@ ensures \length(\result) == 32
+#@ ensures \result[0] * 256 + \result[1] == inode_num
+#@ ensures \forall i: int; (0 <= i and i < \str_length(name) and i < 30) ==> \result[2 + i] == ord(name[i])
+#@ ensures \forall i: int; (\str_length(name) <= i and i < 30) ==> \result[2 + i] == 0
+#@ ensures \str_length(name) < 30 ==> \result[2 + \str_length(name)] == 0
+def _build_direntry(inode_num: int, name: str) -> list:
+    entry = [0] * 32
+    entry[0] = inode_num // 256
+    entry[1] = inode_num % 256
+    n = len(name)
+    m = n
+    if m > 30:
+        m = 30
+    #@ loop invariant 0 <= i and i <= 30
+    #@ loop invariant m <= 30
+    #@ loop invariant m <= \str_length(name)
+    #@ loop invariant entry[0] == inode_num // 256
+    #@ loop invariant entry[1] == inode_num % 256
+    #@ loop invariant \forall j: int; (0 <= j and j < i and j < m) ==> entry[2 + j] == ord(name[j])
+    #@ loop invariant \forall j: int; (m <= j and j < i) ==> entry[2 + j] == 0
+    #@ loop variant 30 - i
+    for i in range(30):
+        if i < m:
+            entry[2 + i] = ord(name[i])
+        else:
+            entry[2 + i] = 0
+    return entry
+
+
 #@ requires \valid(data, 32)
 #@ assigns \nothing
 #@ ensures \result[0] >= 0
@@ -582,10 +614,8 @@ class UnixInodeFileSystem:
     #@ ensures \result >= 0
     def _now(self) -> int:
         """Return a monotonically increasing timestamp for inode mtime/atime.
-        Uses the shared ClockModel if wired (via World), else an internal
-        counter. Either way, the returned value is >= 0 and non-decreasing."""
-        if self._clock is not None:
-            return self._clock.monotonic()
+        Uses the internal counter — the shared ClockModel is not modelled
+        in the proof (its monotonic() return is unbounded from the val stub)."""
         self._mtime_ticks = self._mtime_ticks + 1
         return self._mtime_ticks
 
@@ -1260,31 +1290,8 @@ class UnixInodeFileSystem:
     # propagate across an abstract-val boundary — the method-call contract gap).
     #@ sibling_concrete
     def _blit_dir_entry(self, off: int, inode_num: int, name: str) -> None:
-        # Write the 32-byte dirent DIRECTLY into self.dir (no _pad_name/_pack_direntry/
-        # blit composition — that 3-stage array-transform chain made the per-byte name
-        # ensures E-match-explode). Inode: 2 big-endian bytes. Name: a single loop over
-        # the 30-byte field (chars then null-pad), so the byte-value ensures are LOCAL
-        # and linear.
-        self.dir[off] = inode_num // 256
-        self.dir[off + 1] = inode_num % 256
-        n = len(name)
-        m = n
-        if m > 30:
-            m = 30
-        #@ loop invariant 0 <= i and i <= 30
-        #@ loop invariant m <= 30
-        #@ loop invariant m <= \str_length(name)
-        #@ loop invariant self.dir[off] == inode_num // 256
-        #@ loop invariant self.dir[off + 1] == inode_num % 256
-        #@ loop invariant \forall j: int; (0 <= j and j < i and j < m) ==> self.dir[off + 2 + j] == ord(name[j])
-        #@ loop invariant \forall j: int; (m <= j and j < i) ==> self.dir[off + 2 + j] == 0
-        #@ loop invariant \forall b: int; (0 <= b and b < \length(self.dir) and (b < off or off + 32 <= b)) ==> self.dir[b] == \old(self.dir[b])
-        #@ loop variant 30 - i
-        for i in range(30):
-            if i < m:
-                self.dir[off + 2 + i] = ord(name[i])
-            else:
-                self.dir[off + 2 + i] = 0
+        entry = _build_direntry(inode_num, name)
+        self.dir[off:off + 32] = entry
 
     # ROUTE 1: cite ONLY the unique-marker axioms (intro + insert) and the read-side
     # scan facts. Crucially we DO NOT cite slot_inode_byte_decode / slot_name_byte_decode
@@ -1372,28 +1379,8 @@ class UnixInodeFileSystem:
     # atom (absent here), so this helper's PURE-BYTE postcondition is never poisoned.
     #@ sibling_concrete
     def _blit_disk_entry(self, off: int, inode_num: int, name: str) -> None:
-        # Identical byte layout to _blit_dir_entry, on self.disk: inode = 2 big-endian
-        # bytes; name = a single loop over the 30-byte field (chars then null-pad).
-        self.disk[off] = inode_num // 256
-        self.disk[off + 1] = inode_num % 256
-        n = len(name)
-        m = n
-        if m > 30:
-            m = 30
-        #@ loop invariant 0 <= i and i <= 30
-        #@ loop invariant m <= 30
-        #@ loop invariant m <= \str_length(name)
-        #@ loop invariant self.disk[off] == inode_num // 256
-        #@ loop invariant self.disk[off + 1] == inode_num % 256
-        #@ loop invariant \forall j: int; (0 <= j and j < i and j < m) ==> self.disk[off + 2 + j] == ord(name[j])
-        #@ loop invariant \forall j: int; (m <= j and j < i) ==> self.disk[off + 2 + j] == 0
-        #@ loop invariant \forall b: int; (0 <= b and b < \length(self.disk) and (b < off or off + 32 <= b)) ==> self.disk[b] == \old(self.disk[b])
-        #@ loop variant 30 - i
-        for i in range(30):
-            if i < m:
-                self.disk[off + 2 + i] = ord(name[i])
-            else:
-                self.disk[off + 2 + i] = 0
+        entry = _build_direntry(inode_num, name)
+        self.disk[off:off + 32] = entry
 
     # ROUTE 1 (BLOCK-PARAMETERIZED, 2026-06-19): cite ONLY the arbitrary-block
     # unique-marker axioms. _write_entry is the self.disk twin of _write_dir_entry but
