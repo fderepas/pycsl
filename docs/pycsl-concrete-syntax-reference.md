@@ -1238,7 +1238,8 @@ what Python's own grammar admits:
   parser uses the stdlib `ast` parse; any `ast.Name` annotation node is
   carried through without rejection).
 - **`Subscript`** — `x: List[int]`, `x: Tuple[int, int]`, `x: Optional[T]`,
-  `x: Dict[K, V]`, `x: Union[A, B]`. # cite: `src/pycsl/frontend/pure_ast.py`.
+  `x: Dict[K, V]`, `x: Union[A, B]`, `x: Literal[v1, ..., vn]`. # cite:
+  `src/pycsl/frontend/pure_ast.py`.
 - **`BinOp(BitOr)`** — `x: A | B` (PEP 604 union). # cite:
   `src/pycsl/frontend/pure_ast.py` (parsed as `BinOp(op=BitOr)`, left-assoc).
 - **`Constant` (stringized / forward reference)** — `x: "Foo"`,
@@ -1269,6 +1270,27 @@ IGNORED) is a Module 5 / Module 6 concern documented in the translational
 reference §N, not a syntax concern. From the **concrete-syntax** standpoint,
 the surface is: *all standard Python annotation syntax is accepted; none is
 rejected.*
+
+**Exception — `Literal` value-kind rejections (typing-engagement ty1).** The
+`Literal[v1, ..., vn]` annotation is accepted at parse time, but its *value
+arguments* are classified at normalization time (`Module5_IREmitter._classify_literal_value`).
+Per PEP 586 (S2, via S1), only `int`, `str`, `bool`, and `None` literals are
+supported (L4). The following value forms are REJECTED with a clear
+`[ir-emit]` error before any WhyML is emitted:
+
+- `Literal[b"x"]` — `bytes` literals are NOT supported (L4a / PEP 586).
+- `Literal[Literal[1, 2]]` — nested `Literal` is forbidden (L5c / PEP 586).
+- `Literal[Color.RED]` — `Enum` members are out of scope (L4b).
+- `Literal[1, "a"]` — mixed-kind literals (int + str) are rejected (sound
+  stricter-than-S1: PyCSL parameter types are monomorphic).
+- `Literal[x]` (where `x` is a non-literal `Name` other than `None`/`True`/
+  `False`) — only literal values are supported.
+
+These are normalization-time static rejections (the same channel as any other
+front-end semantic error), NOT Why3 type errors. # cite:
+`src/pycsl/frontend/Module5_IREmitter.py` (`_normalize_literal_annotation`,
+`_classify_literal_value`). See translational §T.14.6 and static-semantics τ
+for the lowering of accepted forms.
 
 ---
 

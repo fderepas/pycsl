@@ -60,6 +60,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         self._cur_func_name: str = ""
         self._fresh_var_counter: int = 0
         self._mutex_invariants_csl: Dict[str, Any] = {}  # mutex → CSLNode
+        # typing-engagement ty1 / 26-0000-typing-spec-2: per-function accumulators
+        # for synthesized Literal contracts. `_cur_literal_requires` collects
+        # `requires` IR exprs synthesized from `x: Literal[v1, ..., vn]` parameter
+        # annotations; `_cur_literal_ensures` collects `ensures` IR exprs synthesized
+        # from `-> Literal[v1, ..., vn]` return annotations. Both are flushed into
+        # `func_ir["contracts"]` by `_build_function_ir` AFTER the user-written
+        # `csl_requires`/`csl_ensures` (order within requires/ensures is logically
+        # conjunctive and commutative, so this is a rendering detail only).
+        self._cur_literal_requires: List[Dict[str, Any]] = []
+        self._cur_literal_ensures: List[Dict[str, Any]] = []
         # refactor.md B-final wedge: the set of module-level shared-variable names
         # (from `csl_shared_decls`). Module5 now builds the function symbol_table
         # itself (see `_build_function_symbol_table`), and — like Module4's
@@ -853,6 +863,23 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 # modelled as empty (sound under-approximation); left-end ops
                 # (appendleft/popleft) and pop are out of scope.
                 return {"type": "ArrayLit", "elts": []}
+            # typing-engagement ty1 / 26-0000-typing-spec-2 §2.2 (LR4):
+            # `isinstance(v, Literal[...])` is not supported — `typing.Literal`
+            # aliases are not valid second arguments to `isinstance` (PEP 586 /
+            # CPython raises TypeError natively). Surface this as a clear
+            # normalization-time rejection (mirroring the L4a bytes-literal
+            # rejection) rather than letting it lower to an opaque uninterpreted
+            # boolean that surfaces as a solver timeout. The shim must NOT make
+            # `Literal[...]` a valid isinstance second argument (LR8).
+            if (expr.func.id == "isinstance"
+                    and len(expr.args) == 2
+                    and isinstance(expr.args[1], ast.Subscript)
+                    and isinstance(expr.args[1].value, ast.Name)
+                    and expr.args[1].value.id == "Literal"):
+                raise PyCSLIRError(
+                    "isinstance: a typing.Literal alias is not a valid second "
+                    "argument (LR4 / PEP 586 — use a concrete value equality test)",
+                    stage="ir-emit")
             return {"type": "Call", "func": expr.func.id,
                     "args": [self._py_expr_to_ir(arg) for arg in expr.args]}
         elif isinstance(expr.func, ast.Attribute):
@@ -1758,6 +1785,149 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             self.program_ir.setdefault("union_gt1_sites", []).append(variant_name)
         return variant_name
 
+    def _normalize_literal_annotation(self, ann_expr: ast.expr,
+                                      param_name: str) -> Optional[str]:
+        """Recognize `Literal[v1, ..., vn]` (PEP 586) and synthesize a ground
+        `requires` (parameter) or `ensures` (return) clause. Returns the base
+        type tag (`"int"` or `"str"`) for a Literal annotation, or `None` for a
+        non-Literal annotation (caller falls back to existing logic — byte-identical).
+
+        typing-engagement ty1 / 26-0000-typing-spec-2 §1.3: the value-set
+        obligation (L1) lowers to `requires { x = v1 \\/ ... \\/ x = vn }` (a
+        ground requires, per the two-plane spec §1.6). L4 restricts literal
+        kinds to int/str/bool/None; L4a rejects bytes; L5c rejects nested
+        Literal / non-literal forms. L5a de-duplicates; L5b is the degenerate
+        single-value case (bare `=`, no `\\/`). Mixed-kind literals (int + str)
+        are rejected (PyCSL monomorphic parameter types — sound stricter-than-S1).
+
+        `param_name` is the parameter name (for `requires x == v`), or
+        `"\\result"` for a return annotation (synthesizes `ensures` instead).
+        The synthesized IR expr is appended to `self._cur_literal_requires`
+        (parameter) or `self._cur_literal_ensures` (return)."""
+        if not (isinstance(ann_expr, ast.Subscript)
+                and isinstance(ann_expr.value, ast.Name)
+                and ann_expr.value.id == "Literal"):
+            return None
+        inner = ann_expr.slice
+        val_elts: List[ast.expr] = (
+            list(inner.elts) if isinstance(inner, ast.Tuple) else [inner])
+        if not val_elts:
+            raise PyCSLIRError(
+                "Literal: empty value set is not supported (L1 / PEP 586)",
+                stage="ir-emit")
+        # Step 2 (L4/L4a/L4b/L5c): classify each literal; reject unsupported kinds.
+        # Each entry is (kind, value, ir_node) where kind ∈ {"int", "str"}.
+        classified: List[Tuple[str, Any, Dict[str, Any]]] = []
+        for elt in val_elts:
+            kind, value, ir_node = self._classify_literal_value(elt)
+            classified.append((kind, value, ir_node))
+        # Step 4: derive the base type tag; reject mixed-kind.
+        kinds = {k for k, _v, _ir in classified}
+        if len(kinds) > 1:
+            raise PyCSLIRError(
+                "Literal: mixed-kind literals (int + str) are not supported "
+                "(PyCSL monomorphic parameter types — L4 / PEP 586)",
+                stage="ir-emit")
+        base_tag = "str" if kinds == {"str"} else "int"
+        # Step 3 (L5a): de-duplicate by (kind, value); preserve source order (L5).
+        seen: Set[Tuple[str, Any]] = set()
+        deduped: List[Dict[str, Any]] = []
+        for kind, value, ir_node in classified:
+            key = (kind, value)
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(ir_node)
+        # Step 5: synthesize the disjunction (or bare `==` for the degenerate
+        # single-value case, L5b). The param/\\result reference uses the `Result`
+        # IR node for return annotations (matching `_csl_to_ir(CSLResult)` —
+        # `{"type": "Result"}`), or a `Var` IR node for parameter annotations.
+        if param_name == "\\result":
+            var_node = {"type": "Result"}
+            # Return annotation: synthesize an `ensures \result == v1 \/ ...`.
+            # The `==` IR node shape matches a hand-written `#@ ensures \result == v`.
+            clauses: List[Dict[str, Any]] = [
+                {"type": "BinOp", "op": "==", "left": var_node, "right": v}
+                for v in deduped]
+            if len(clauses) == 1:
+                self._cur_literal_ensures.append(clauses[0])
+            else:
+                acc = clauses[0]
+                for c in clauses[1:]:
+                    acc = {"type": "BinOp", "op": "or", "left": acc, "right": c}
+                self._cur_literal_ensures.append(acc)
+        else:
+            var_node = {"type": "Var", "name": param_name}
+            # Parameter annotation: synthesize a `requires x == v1 \/ ...`.
+            clauses = [
+                {"type": "BinOp", "op": "==", "left": var_node, "right": v}
+                for v in deduped]
+            if len(clauses) == 1:
+                self._cur_literal_requires.append(clauses[0])
+            else:
+                acc = clauses[0]
+                for c in clauses[1:]:
+                    acc = {"type": "BinOp", "op": "or", "left": acc, "right": c}
+                self._cur_literal_requires.append(acc)
+        return base_tag
+
+    @staticmethod
+    def _classify_literal_value(elt: ast.expr) -> Tuple[str, Any, Dict[str, Any]]:
+        """Classify one Literal value AST into (kind, python_value, ir_node).
+
+        `kind` is `"int"` (for int/bool/None — the IR's int universe) or
+        `"str"`. `ir_node` is the IR literal node (`Number`/`String`/`Bool`/
+        `None`) that `_expr_to_whyml` will lower to the WhyML literal. Raises
+        `PyCSLIRError` for unsupported kinds (L4a bytes, L4b Enum, L5c nested
+        Literal, non-literal forms)."""
+        # ast.Constant covers `1`, `"a"`, `True`, `False`, `None`, `b"x"`.
+        if isinstance(elt, ast.Constant):
+            v = elt.value
+            if v is None:
+                # Literal[None] — the singleton type of None. The IR's None
+                # convention is int 0 (None → 0 in the int universe). Emit a
+                # Number node so the `==` binop lowers to `x = 0` directly
+                # (byte-stable; matches the existing `x == None` path).
+                return ("int", None, {"type": "Number", "value": 0})
+            if isinstance(v, bool):
+                # bool is a subtype of int; IR encodes True→1, False→0.
+                return ("int", v, {"type": "Bool", "value": v})
+            if isinstance(v, int):
+                return ("int", v, {"type": "Number", "value": v})
+            if isinstance(v, str):
+                return ("str", v, {"type": "String", "value": v})
+            if isinstance(v, bytes):
+                # L4a: bytes literals are NOT supported (PEP 586 restriction).
+                raise PyCSLIRError(
+                    "Literal: bytes literals are not supported "
+                    "(L4a / PEP 586)", stage="ir-emit")
+            # Any other Constant kind (float, complex, Ellipsis, ...) — reject.
+            raise PyCSLIRError(
+                f"Literal: unsupported literal kind {type(v).__name__} "
+                "(L4 / PEP 586 — only int/str/bool/None supported)",
+                stage="ir-emit")
+        # `Literal[None]` spelled with the bare name (PEP 586 permits both).
+        if isinstance(elt, ast.Name):
+            if elt.id == "None":
+                return ("int", None, {"type": "Number", "value": 0})
+            if elt.id == "True":
+                return ("int", True, {"type": "Bool", "value": True})
+            if elt.id == "False":
+                return ("int", False, {"type": "Bool", "value": False})
+            # Any other Name (including nested Literal[Literal[...]] which is a
+            # Subscript, handled below) — reject (L4b Enum, L5c nested, or a
+            # non-literal Name).
+            raise PyCSLIRError(
+                f"Literal: unsupported value '{elt.id}' "
+                "(L4 / L5c / PEP 586 — only int/str/bool/None literals supported)",
+                stage="ir-emit")
+        # A Subscript here is `Literal[Literal[...]]` (L5c) or
+        # `Literal[Color.RED]` (L4b Enum) — both rejected.
+        raise PyCSLIRError(
+            "Literal: only int/str/bool/None literals are supported "
+            "(L4 / L5c / PEP 586 — nested Literal and Enum members are not)",
+            stage="ir-emit")
+
     def _m5_get_type_name_legacy(self, annotation: ast.expr) -> str:
         """The pre-Union `_m5_get_type_name` body, preserved verbatim so
         `_normalize_union_annotation` can fall back to it for non-Union
@@ -1788,14 +1958,34 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return "Any"
 
     def _m5_get_type_name(self, annotation: ast.expr,
-                          scope_name: str = "") -> str:
-        """Public entry: try Union normalization first (synthesizing a per-site
+                          scope_name: str = "",
+                          param_name: str = "") -> str:
+        """Public entry: try Literal normalization first (synthesizing a ground
+        `requires` clause), then Union normalization (synthesizing a per-site
         variant `type_decl`), else fall back to the legacy tag resolution. For
-        non-Union annotations the result is byte-identical to the pre-Union
-        `_m5_get_type_name`. `scope_name` seeds the deterministic variant-name
-        mangling; empty is tolerated (used by callers that cannot supply a
-        function name, e.g. field annotations — those synthesize `_union_anon_*`
-        which is still deterministic per-file)."""
+        non-Literal/non-Union annotations the result is byte-identical to the
+        pre-typing-engagement `_m5_get_type_name`. `scope_name` seeds the
+        deterministic variant-name mangling; empty is tolerated (used by callers
+        that cannot supply a function name, e.g. field annotations — those
+        synthesize `_union_anon_*` which is still deterministic per-file).
+        `param_name` is the parameter name for Literal `requires` synthesis
+        (typing-engagement ty1 / 26-0000-typing-spec-2); empty means the caller
+        is a field/local annotation, in which case Literal is NOT synthesized
+        (a local `Literal` claim is unchecked on locals — see §1.3 step 6 / §8
+        Q3 of the spec)."""
+        if param_name:
+            try:
+                lit_tag = self._normalize_literal_annotation(annotation, param_name)
+                if lit_tag is not None:
+                    return lit_tag
+            except PyCSLIRError:
+                raise
+            except Exception:
+                # Never let a Literal-recognition bug perturb a non-Literal
+                # driver: fall back to the legacy path (byte-identical) on any
+                # non-PyCSLIRError exception. PyCSLIRError (L4a/L5c rejections)
+                # MUST propagate — they are deliberate static rejections.
+                pass
         if scope_name:
             try:
                 return self._normalize_union_annotation(annotation, scope_name)
@@ -1865,7 +2055,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         for arg in node.args.args:
             if arg.arg == 'self':
                 continue
-            arg_type = self._m5_get_type_name(arg.annotation, _scope_name) if arg.annotation else "Any"
+            arg_type = (self._m5_get_type_name(arg.annotation, _scope_name, arg.arg)
+                        if arg.annotation else "Any")
             scope[arg.arg] = arg_type
             if arg.annotation is not None:
                 nu = self._m5_get_dict_value_type(arg.annotation)
@@ -1920,6 +2111,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         """Build the core function IR dict (name, contracts, body)."""
         func_name = (f"{self._current_class.lower()}__{node.name}"
                      if self._current_class else node.name)
+        # typing-engagement ty1 / 26-0000-typing-spec-2: reset the per-function
+        # Literal accumulators BEFORE building the symbol table (which calls
+        # `_m5_get_type_name` on each param annotation and may synthesize
+        # `requires` clauses into `_cur_literal_requires`). The return-annotation
+        # path below may additionally synthesize `ensures` clauses into
+        # `_cur_literal_ensures`. Both are flushed into `contracts` at the end.
+        self._cur_literal_requires = []
+        self._cur_literal_ensures = []
         # refactor.md B-final wedge: Module5 computes the scope itself rather than
         # copying Module4's `node.csl_symbol_table` (etc.). Byte-identical by design.
         _sym, _dvt, _dkt = self._build_function_symbol_table(node)
@@ -1946,7 +2145,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 # case-sensitive checks against the bare `list` annotation).
                 if isinstance(node.returns.value, ast.Name):
                     head = node.returns.value.id
-                    if head in ("Optional", "Union"):
+                    if head == "Literal":
+                        # `-> Literal[v1, ..., vn]` — synthesize a ground
+                        # `ensures \result == v1 \/ ...` clause (typing-engagement
+                        # ty1 / 26-0000-typing-spec-2 §1.3 step 6). The base type
+                        # is the return type. `_normalize_literal_annotation`
+                        # appends to `self._cur_literal_ensures`.
+                        return_annotation = self._normalize_literal_annotation(
+                            node.returns, "\\result")
+                    elif head in ("Optional", "Union"):
                         # `Optional[T]` / `Union[...]` return — synthesize a
                         # per-site variant (typing-engagement ty1), so the
                         # return type is a real sum type, not a collapsed int.
@@ -2017,8 +2224,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             "formal_params": formal_params,
             "return_annotation": return_annotation,
             "contracts": {
-                "requires": self._csl_list_to_ir(getattr(node, 'csl_requires', [])),
-                "ensures": self._csl_list_to_ir(getattr(node, 'csl_ensures', [])),
+                # typing-engagement ty1 / 26-0000-typing-spec-2: merge the
+                # synthesized Literal `requires`/`ensures` clauses AFTER the
+                # user-written `csl_requires`/`csl_ensures` (order within
+                # requires/ensures is logically conjunctive and commutative, so
+                # this is a rendering detail only). The accumulators are empty
+                # for non-Literal functions → byte-identical emission.
+                "requires": (self._csl_list_to_ir(getattr(node, 'csl_requires', []))
+                             + list(self._cur_literal_requires)),
+                "ensures": (self._csl_list_to_ir(getattr(node, 'csl_ensures', []))
+                            + list(self._cur_literal_ensures)),
                 "assigns": [self._csl_to_ir(t) for a in getattr(node, 'csl_assigns', []) for t in a.targets],
                 "raises": [{"exc_type": r.exc_type, "condition": self._csl_to_ir(r.condition)}
                            for r in getattr(node, 'csl_raises', [])],

@@ -208,6 +208,14 @@ specification logic's type universe:
 τ(Union[T1, T2,…])= _union_<scope>_<idx>   (* one arm per T_i; Any dropped (GT1);
                                    de-duplicated (C1a); None → nullary ctor *)
 τ(A | B)          = _union_<scope>_<idx>   (* PEP 604: same as Union[A, B] (C1) *)
+τ(Literal[v1,…,vn]) = base(v_i)            (* typing-engagement ty1: Literal lowers to a
+                                   ground `requires { x = v1 \/ … \/ x = vn }`
+                                   (L1) — NOT a sum type. base(v_i) is "int" for
+                                   int/bool/None, "str" for str. Mixed-kind rejected
+                                   (sound stricter-than-S1 — monomorphic params).
+                                   De-duplicated (L5a); degenerate Literal[v] (L5b)
+                                   → bare `requires { x = v }`. L4a rejects bytes;
+                                   L5c rejects nested Literal/Enum. No new IR node. *)
 τ(_)              = Any       (* all other types, including no annotation *)
 ```
 

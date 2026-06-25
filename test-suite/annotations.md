@@ -1881,3 +1881,57 @@ n = Empty            # nullary constructor
 
 This is the body side of §2.6 (the declaration) and §7.4 (constructor-pattern match). Drivers:
 0520 (nullary enum), 0521 (payload construction + capture match).
+
+### §12.9 `Literal[v1, ..., vn]` annotations (typing-engagement ty1)
+
+PEP 586 `Literal[v1, ..., vn]` is **desugared at the front-end normalization seam**
+into a per-annotation-site synthesized **ground `requires` clause** (parameters) or
+**ground `ensures` clause** (return):
+
+```python
+def f(x: Literal[1, 2]) -> int: ...   # synthesizes:
+# requires { x = 1 \/ x = 2 }
+```
+
+The parameter's WhyML type stays the literal's base type (`int` for
+`Literal[1, 2]` / `Literal[True]` / `Literal[None]`; `string` for `Literal["a","b"]`),
+so `def f(x: Literal[1, 2]) -> int` lowers to
+`let f (x: int) requires { x = 1 \/ x = 2 } = ...`. This reuses the EXISTING
+`requires` / `ensures` IR list and the existing `BinOp`(`or`)/`==`/`Number`/
+`String`/`Bool`/`None` IR expression nodes — **no new IR node, no IR_VERSION
+bump, no new VC kind.** The `Literal[v]` degenerate single-value case (L5b)
+synthesizes a bare `requires { x = v }` (no `\/` wrapper).
+
+**Supported literal kinds (L4):** `int`, `str`, `bool` (→ 1/0), `None` (→ 0).
+**Rejected (L4a):** `bytes` literals (`Literal[b"x"]`) — a static error with a
+clear message, raised at normalization time. **Rejected (L5c):** nested
+`Literal[Literal[...]]` and any non-literal form (`Literal[Color.RED]` — L4b
+Enum, out of scope). **Rejected (sound stricter-than-S1):** mixed-kind literals
+(`Literal[1, "a"]`) — PyCSL's parameter type-tag system is monomorphic (a
+parameter has one WhyML type; Why3 has no `int \/ string` sum without a
+constructor). The two-plane spec §1.6 permits sound expressibility to be
+stricter than S1; this is that strictness.
+
+Arms are de-duplicated (L5a) and source order is preserved (L5 — order is
+irrelevant for the static judgment, since the disjunction is commutative).
+
+**Static plane (Interpreted):** the synthesized `requires`/`ensures` IS the VC
+— Why3 discharges it as a standard precondition/postcondition goal. L2
+(narrowing by equality — `if x == 1:`) is emergent from the standard
+path-condition VC on the existing `if x == v` lowering (no new node — the
+disjunction is in the precondition, the path condition is the runtime `==`
+test, and Why3's precondition-preservation-on-branch refines the disjunction on
+each branch). L3 (match/if-chain exhaustiveness) is emergent from the existing
+postcondition VCs. **No new `core_ir_semantic` check** beyond the L4a/L5c
+normalization-time rejections.
+
+**Runtime plane (Shimmed):** `src/pycsl_lib/typ/__init__.py` provides a
+`Literal(*args, val)` shim with `#@ ensures \result == val` — identity, no
+validation (LR1–LR8, LD3 no-blend). The static L1 value-set obligation is NOT
+discharged by the shim (it is a precondition VC, invisible to the runtime).
+
+**No GT gap** is tagged for `Literal` — the literal value set is finite,
+enumerated, and decidable (the two-plane spec §4 confirms full soundness).
+
+**Tests**: 0731 (witness — `Literal[1, 2]` param), 0732 (L2 narrowing),
+0733 (negative — `Literal[b"x"]` rejected, L4a).

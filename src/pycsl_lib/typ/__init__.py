@@ -6,6 +6,14 @@
 #   This runtime shim constructs the introspectable object and performs NO
 #   validation (R1–R8, D4 no-blend). The `ensures \result == val` carries ONLY
 #   the identity postcondition — it cannot discharge any static clause.
+# Literal (typing-engagement ty1 / 26-0000-typing-spec-2): Modelled-for-identity.
+#   The static plane (Module 5) desugars `Literal[v1, ..., vn]` annotations into
+#   a ground `requires { x = v1 \/ ... \/ x = vn }` clause (L1) — a finite
+#   disjunction of concrete-value equalities, discharged by SMT. This runtime
+#   shim constructs the introspectable `typing.Literal` alias object and performs
+#   NO validation (LR1–LR8, LD3 no-blend). The `ensures \result == val` carries
+#   ONLY the identity postcondition — the static L1 value-set obligation is NOT
+#   discharged by the shim (it is a precondition VC, invisible to the runtime).
 
 
 #@ ensures \result == val
@@ -30,6 +38,11 @@ def get_args(tp) -> int:
 
 #@ ensures \result == val
 def Union(x0, x1, val) -> int:
+    return val
+
+
+#@ ensures \result == val
+def Literal(x0, x1, val) -> int:
     return val
 
 

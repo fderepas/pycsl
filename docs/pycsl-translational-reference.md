@@ -2701,6 +2701,64 @@ The target of `s = sorted(arr)` is tracked as array-typed (via
 `is_array_val` recognising the `(sorted_1 ` prefix), so the pre-decl
 path emits `let s = (sorted_1 arr) in` instead of `let s = ref 0 in`.
 
+### §T.14.6  `Literal[v1, ..., vn]` annotations (typing-engagement ty1)
+
+PEP 586 `Literal[v1, ..., vn]` is desugared at the front-end normalization seam
+(`Module5_IREmitter._normalize_literal_annotation`) into a per-annotation-site
+synthesized **ground `requires` clause** (parameters) or **ground `ensures`
+clause** (return) — a finite disjunction of concrete-value equalities:
+
+```whyml
+let function f (x: int)
+  requires { (x = 1 \/ x = 2) }   (* synthesized from x: Literal[1, 2] *)
+  ensures  { ... }                  (* user-written *)
+= ...
+```
+
+**Translation table:**
+
+| Form | IR `return_annotation` / symbol_table entry | WhyML |
+|------|---------------------------------------------|-------|
+| `x: Literal[1, 2]` | `int` + synthesized `requires` | `requires { (x = 1 \/ x = 2) }` |
+| `x: Literal["a", "b"]` | `str` + synthesized `requires` | `requires { (x = "a" \/ x = "b") }` (`use string.String` auto-imported) |
+| `x: Literal[True, False]` | `int` + synthesized `requires` | `requires { (x = 1 \/ x = 0) }` (bool-as-int convention) |
+| `x: Literal[None]` | `int` + synthesized `requires` | `requires { (x = 0) }` (None → 0) |
+| `x: Literal[1]` (L5b degenerate) | `int` + synthesized `requires` | `requires { (x = 1) }` (no `\/` wrapper) |
+| `-> Literal[1, 2]` | `int` + synthesized `ensures` | `ensures { (\result = 1 \/ \result = 2) }` |
+
+The synthesized clause reuses the EXISTING `contracts.requires` / `contracts.ensures`
+IR list and the EXISTING `BinOp`(`or`)/`==`/`Number`/`String`/`Bool`/`None` IR
+expression nodes — **no new IR node, no IR_VERSION bump, no new VC kind.** The
+synthesized clause is appended AFTER the user-written `requires`/`ensures` (order
+within `requires`/`ensures` is logically conjunctive and commutative, so this is a
+rendering detail only).
+
+**Per-clause VC mapping (L1–L5c):** L1 (value set) IS the synthesized
+`requires`/`ensures` VC — Why3 discharges it as a standard precondition/
+postcondition goal. L2 (narrowing by equality — `if x == 1:`) is emergent from
+the standard path-condition VC on the existing `if x == v` lowering (the
+disjunction is in the precondition, the path condition is the runtime `==` test,
+and Why3's precondition-preservation-on-branch refines the disjunction on each
+branch — no new node). L2a (chained narrowing) is L2 applied repeatedly. L2b
+(`is None` for `Literal[None]`) lowers `is None` to `== 0` (the None convention),
+then L2 applies. L3 (match/if-chain exhaustiveness) is emergent from the existing
+postcondition VCs. L4/L4a/L4b/L5c are normalization-time rejections
+(`_classify_literal_value`). L5/L5a/L5b are normalization-time canonicalization
+(de-dup, source order, degenerate single-value).
+
+**Rejected forms:** `Literal[b"x"]` (L4a — bytes not supported by PEP 586);
+`Literal[Literal[...]]` (L5c — no nested Literal); `Literal[Color.RED]` (L4b —
+Enum members out of scope); `Literal[1, "a"]` (sound stricter-than-S1 —
+mixed-kind literals, PyCSL parameter types are monomorphic).
+
+**Runtime shim** (`src/pycsl_lib/typ/__init__.py`): `Literal(*args, val)` is
+`#@ ensures \result == val` (identity, no validation — LR1–LR8, LD3 no-blend).
+The static L1 value-set obligation is NOT discharged by the shim (it is a
+precondition VC, invisible to the runtime).
+
+**No GT gap** is tagged for `Literal` — the literal value set is finite,
+enumerated, and decidable (two-plane spec §4 confirms full soundness).
+
 ---
 
 ## §T.15  Bytes / Bytearray Type Unification
