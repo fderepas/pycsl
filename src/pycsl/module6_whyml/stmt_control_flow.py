@@ -844,6 +844,18 @@ class ControlFlowStmtMixin:
         for ctor_name in constructors:
             if val.startswith(ctor_name):
                 return val
+        # GAP-004 (O3): `return None` from a function whose declared return type
+        # is a synthesized `_union_*` variant (= `Optional[X]` = `Union[X, None]`)
+        # must inject into the variant's nullary `Arm_*_None` constructor. None is
+        # always assignable to Optional[X] (spec clause O3, optional-twoplane-spec
+        # §1.1); without this arm the bare `0` (the Python-None singleton model)
+        # type-clashes against the variant. Symmetric to the int-arm injection
+        # below; fires BEFORE the type-based arm search so a None-typed return
+        # never falls through to the lossy `int` fallback.
+        if isinstance(val_ir, dict) and val_ir.get("type") == "None":
+            for ctor_name, ctor in constructors.items():
+                if ctor.get("arity") == 0 and "None" in ctor_name:
+                    return ctor_name
         # Determine the value's WhyML type and find a matching arm.
         val_type = self._infer_return_value_type(val_ir)
         if val_type is None:
