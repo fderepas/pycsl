@@ -1216,6 +1216,60 @@ The following Lark-specific constructs were normalized to standard EBNF:
 
 ---
 
+## 11. Annotation Surface (S7 Transcription — TY0)
+
+> **Tier-0 (TY0) transcription.** This section pins the **de facto** front-end
+> annotation-acceptance behavior of PyCSL as of the S7 witness sweep
+> (`typing-engagement/ty0-witness/VERDICTS.md`, 13 probed forms). It is a
+> transcription of *existing* behavior, not a design choice: nothing here is
+> normative beyond "this is what the parser does today." No `src/pycsl/` code
+> was modified to produce this section.
+
+### 11.1 What the Front-End Accepts
+
+As of S7 (TY0), the PyCSL front-end parses Python source via the standard
+`ast` module (`src/pycsl/frontend/pure_ast.py`) and accepts **every form of
+Python annotation syntax** on parameters and return types — it performs **no**
+annotation-specific rejection at parse time. The accepted surface is exactly
+what Python's own grammar admits:
+
+- **Bare `Name`** — `x: int`, `x: bool`, `x: Foo`, `x: Baz` (where `Baz` is
+  never defined in the unit). # cite: `src/pycsl/frontend/pure_ast.py` (the
+  parser uses the stdlib `ast` parse; any `ast.Name` annotation node is
+  carried through without rejection).
+- **`Subscript`** — `x: List[int]`, `x: Tuple[int, int]`, `x: Optional[T]`,
+  `x: Dict[K, V]`. # cite: `src/pycsl/frontend/pure_ast.py`.
+- **`Constant` (stringized / forward reference)** — `x: "Foo"`,
+  `-> "Foo"`. # cite: `src/pycsl/frontend/pure_ast.py` (the parser passes
+  stringized annotations through verbatim; they reach `_m5_get_type_name` in
+  Module 5 as `ast.Constant` nodes — see static-semantics §N / translational
+  §N for the lowering consequences).
+- **No annotation** — `def f(x): ...` is accepted (the unannotated default).
+
+### 11.2 What the Front-End Rejects
+
+**No annotation form is rejected at parse time.** Across the 13-form S7
+witness sweep (`typing-engagement/ty0-witness/VERDICTS.md`, summary table
+rows 1a–6c), the disposition `REJECTED` was never produced. Every form that
+Python's `ast` parser accepts, PyCSL's front-end accepts — including:
+
+- `x: int`, `x: bool`, `x: float`, `x: bytes`, `x: str`, `x: list`,
+  `x: dict`, `x: tuple` (bare container names).
+- `-> None` (including on non-`#@ lemma` functions).
+- Stringized forward references `x: "Foo"` / `-> "Foo"`.
+- Bare class names that are **undefined** in the unit: `x: "Baz"` with `Baz`
+  never defined is accepted at parse time (and, as the translational
+  reference records, silently lowered to the default `int` with no
+  diagnostic — GT5 gap). # cite: `src/pycsl/frontend/pure_ast.py`.
+
+Whether an accepted annotation then has any *lowering effect* (INTERPRETED vs.
+IGNORED) is a Module 5 / Module 6 concern documented in the translational
+reference §N, not a syntax concern. From the **concrete-syntax** standpoint,
+the surface is: *all standard Python annotation syntax is accepted; none is
+rejected.*
+
+---
+
 ## Appendix A. AST Node Hierarchy
 
 For reference, the complete hierarchy of CSL AST nodes defined in

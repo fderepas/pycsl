@@ -3103,3 +3103,102 @@ module PyCSL_Program
 
 end
 ```
+
+---
+
+## §T.Ann  Annotation Lowering Table (S7 Transcription — TY0)
+
+> **Tier-0 (TY0) transcription.** This section pins the **de facto** lowering
+> of Python-side annotations (`: T` and `-> R`) to WhyML types as of the S7
+> witness sweep (`typing-engagement/ty0-witness/VERDICTS.md`, 13 probed
+> forms). It is a transcription of existing emitter behavior, not a design
+> choice — the table below records what `module6_whyml/functions.py` and
+> `frontend/Module5_IREmitter.py` actually emit today. No `src/pycsl/` code
+> was modified to produce this section. The §T.2.2 type-mapping table is
+> the *intended* mapping; this section is the *observed* S7 baseline for the
+> bare-annotation forms that the §T.2.2 table does not exhaustively enumerate.
+
+### §T.Ann.1  Disposition Key
+
+Each probed annotation form receives one of three dispositions
+(VERDICTS.md §disposition key):
+
+- **INTERPRETED** — the annotation lowers to a concrete WhyML type **distinct
+  from the unannotated default** (`int`). The unannotated baseline is
+  `let f (x: int) : int` (VERDICTS.md §baseline).
+- **IGNORED** — the annotation is present in source but PyCSL drops it
+  silently: the emitted WhyML signature is byte-identical to the unannotated
+  baseline, and no error is raised.
+- **REJECTED** — PyCSL raises a parse/semantic error on the form. (No form
+  in the S7 sweep was rejected.)
+
+### §T.Ann.2  Full Lowering Table
+
+| # | Annotation form | Source line | Disposition | Emitted WhyML | # cite |
+|---|-----------------|-------------|-------------|---------------|--------|
+| 1a | `int` | `def f(x: int) -> int` | IGNORED | `let f (x: int) : int` (= baseline; `int` is the default `int_type`, so the annotation carries no info) | `src/pycsl/frontend/Module5_IREmitter.py:1757-1801` (return_annotation capture), `:1693` (arg symbol_table capture); `src/pycsl/module6_whyml/functions.py:52` (default `int_type` fallback) |
+| 1b | `bool` | `def f(x: bool) -> bool` | IGNORED | `let f (x: int) : int` (no `bool` arm in `_param_type_str` / `_compute_return_type`; falls through to default `int`) | `src/pycsl/module6_whyml/functions.py:13-52`, `:514-544` |
+| 1c | `float` | `def f(x: float) -> float` | INTERPRETED | `let f (x: real) : real` | `src/pycsl/module6_whyml/functions.py:38-40` (param), `:534-535` (return) |
+| 2a | `bytes` | `def f(x: bytes) -> bytes` | INTERPRETED (L3-tc ✗ — see §T.Ann.4) | `let f (x: array int) : array int` (the `array` WhyML theory is NOT imported by the default-model preamble for this bare-`bytes`-only signature shape, so the resulting module fails L3 type-check in isolation) | `src/pycsl/module6_whyml/functions.py:29-33` (param), `:522-524` (return); preamble-import gap in `src/pycsl/module6_whyml/preamble.py` |
+| 2b | `str` | `def f(x: str) -> str` | INTERPRETED | `let f (x: string) : string` | `src/pycsl/module6_whyml/functions.py:34-37` (param), `:532-533` (return) |
+| 3a | `list` | `def f(x: list) -> list` | INTERPRETED | `let f (x: array int) : array int` (bare `list` lowers to `array int`) | `src/pycsl/module6_whyml/functions.py:29` (param, `symtype in ("list", "bytes", "bytearray")`), `:522-524` (return) |
+| 3b | `dict` | `def f(x: dict) -> dict` | INTERPRETED | `let f (x: map int (option int)) : map int (option int)` | `src/pycsl/module6_whyml/functions.py:27-28` (param, `symtype in ("set", "dict", "frozenset")`), `:530-531` (return) |
+| 3c | `tuple` (bare) | `def f(x: tuple) -> tuple` | IGNORED | `let f (x: int) : int` (no bare-`tuple` arm; falls through to default `int`. Subscripted `Tuple[int, int]` IS handled via the tuple-return refinement path `_refine_tuple_return_type`, but the bare form is not.) | `src/pycsl/module6_whyml/functions.py:13-52`, `:514-544` |
+| 4 | `-> None` (non-lemma) | `def f(x: int) -> None: return None` | IGNORED | `let f (x: int) : int` with body `0` (`return_annotation == "None"` IS consulted for `#@ lemma` ghost discipline → `unit`, but for a non-lemma function it has no effect on the WhyML return type, and `return None` is emitted as `0`) | `src/pycsl/frontend/Module5_IREmitter.py:1761-1762`; `src/pycsl/module6_whyml/functions.py:521-544` (only `lemma` branch consults it for `unit`, `:556-559`); `src/pycsl/core_ir_semantic.py:763-765` |
+| 5 | stringized fwd-ref | `def f(x: "Foo") -> "Foo"` | IGNORED | `let f (x: int) : int` (param: `_m5_get_type_name` has no `ast.Constant` arm → returns `"Any"` → default `int`; return: `return_annotation = "Foo"` is captured but no Module 6 arm matches it → default `int`. Asymmetric — see static-semantics §11.3) | `src/pycsl/frontend/Module5_IREmitter.py:1607-1632` (no `ast.Constant` arm), `:1761-1762` |
+| 6a | bare name, class AFTER | `def f_before(x: Foo) -> Foo` (`class Foo` below) | IGNORED | `let f_before (x: int) : int` (`Foo` captured into `symbol_table["x"] = "Foo"` and `return_annotation = "Foo"`, but `Foo` is not in `_record_types` / `_variant_types` — no `#@ datatype` / record decl — so `_param_type_str` falls through to default `int`. Forward position is irrelevant.) | `src/pycsl/module6_whyml/functions.py:13-52`, `:514-544`; `src/pycsl/frontend/Module5_IREmitter.py:1607-1632` |
+| 6b | bare name, class BEFORE | `def f_after(x: Bar) -> Bar` (`class Bar` above) | IGNORED | `let f_after (x: int) : int` (same as 6a: a bare Python `class Bar` without `#@ datatype` / record annotation is not registered in `_record_types`; position before/after makes no difference) | `src/pycsl/module6_whyml/functions.py:13-52`, `:514-544` |
+| 6c | UNDEFINED name | `def f(x: "Baz") -> "Baz"` (`Baz` never defined) | IGNORED | `let f (x: int) : int`, L3-tc ✓ (no name-resolution / forward-reference check on annotations at any pipeline stage — GT5 gap, see static-semantics §11.1) | `src/pycsl/frontend/Module5_IREmitter.py:1607-1632`; `src/pycsl/core_ir_semantic.py` (no annotation-name-resolution pass) |
+
+### §T.Ann.3  INTERPRETED Set (Distinct Concrete WhyML Type)
+
+The five (six, counting the unprobed `set`/`frozenset` siblings of `dict`)
+annotation forms that lower to a concrete WhyML type distinct from the
+default `int`:
+
+| Annotation | WhyML type | # cite |
+|------------|-----------|--------|
+| `float` | `real` | `src/pycsl/module6_whyml/functions.py:38-40`, `:534-535` |
+| `str` | `string` | `src/pycsl/module6_whyml/functions.py:34-37`, `:532-533` |
+| `list` | `array int` | `src/pycsl/module6_whyml/functions.py:29`, `:522-524` |
+| `dict` | `map int (option int)` | `src/pycsl/module6_whyml/functions.py:27-28`, `:530-531` |
+| `bytes` | `array int` (⚠ L3-tc gap — §T.Ann.4) | `src/pycsl/module6_whyml/functions.py:29-33`, `:522-524` |
+
+### §T.Ann.4  IGNORED Set (Silently Dropped to Default `int`)
+
+The eight annotation forms that are silently dropped to the default `int` /
+`int`-typed body, with no diagnostic:
+
+| Annotation | Reason for drop | # cite |
+|------------|----------------|--------|
+| `int` | Redundant — `int` is already the default `int_type` | `src/pycsl/module6_whyml/functions.py:52` |
+| `bool` | No `bool → bool` arm in `_param_type_str` / `_compute_return_type` | `src/pycsl/module6_whyml/functions.py:13-52`, `:514-544` |
+| `tuple` (bare) | No bare-`tuple` arm (subscripted `Tuple[…]` IS handled via a separate refinement path) | `src/pycsl/module6_whyml/functions.py:13-52`, `:514-544` |
+| `-> None` (non-lemma) | `return_annotation == "None"` captured but only consulted by the `#@ lemma` branch | `src/pycsl/module6_whyml/functions.py:521-544`, `:556-559`; `src/pycsl/frontend/Module5_IREmitter.py:1761-1762` |
+| stringized param `"Foo"` | `_m5_get_type_name` has no `ast.Constant` arm → returns `"Any"` → default `int` | `src/pycsl/frontend/Module5_IREmitter.py:1607-1632` |
+| stringized return `-> "Foo"` | Raw string captured into `return_annotation` but no Module 6 arm matches it | `src/pycsl/frontend/Module5_IREmitter.py:1761-1762`; `src/pycsl/module6_whyml/functions.py:514-544` |
+| bare class name (`Foo`, `Bar`) | Class not registered in `_record_types` (no `#@ datatype` / record decl) → falls through | `src/pycsl/module6_whyml/functions.py:13-52`; `src/pycsl/frontend/Module5_IREmitter.py:1607-1632` |
+| UNDEFINED name (`"Baz"`) | No name-resolution pass exists (GT5 gap) → falls through | `src/pycsl/frontend/Module5_IREmitter.py:1607-1632`; `src/pycsl/core_ir_semantic.py` |
+
+### §T.Ann.5  The `bytes` L3-Type-Check Gap
+
+**Currently, PyCSL lowers** `x: bytes` / `-> bytes` to the WhyML type
+`array int` (`src/pycsl/module6_whyml/functions.py:29-33` for parameters,
+`:522-524` for returns — the `bytes`/`bytearray`/`list` arm). However, the
+default `hoare`-model preamble (`src/pycsl/module6_whyml/preamble.py`)
+only imports `use array.Array` when the array theory is *triggered* by an
+array-typed local or similar emission — a signature that is *only*
+`bytes`-typed (no array locals) does not trigger the import, producing a
+WhyML module that fails L3 type-check with:
+
+```
+unbound type symbol 'array'
+```
+
+(VERDICTS.md §2a). The annotation IS interpreted (it lowers to a concrete
+type), but the resulting module is broken in the default model in
+isolation. The `typed` / `store` memory models import `array` unconditionally
+and are likely unaffected; and a real program with array locals alongside a
+`bytes` parameter will trigger the import and type-check. The gap is
+specific to the bare-`bytes`-only-signature case. This is recorded as S7
+SURPRISE.2 — not fixed in TY0.

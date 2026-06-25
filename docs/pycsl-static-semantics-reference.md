@@ -31,6 +31,7 @@ is well-formed in context Γ"). It does NOT define the concrete syntax
 8. [Weaving Constraints](#8-weaving-constraints)
 9. [Error Catalogue](#9-error-catalogue)
 10. [Gap Analysis](#10-gap-analysis)
+11. [Annotation Well-Formedness (S7 Transcription — TY0)](#11-annotation-well-formedness-s7-transcription--ty0)
 
 ---
 
@@ -1949,6 +1950,99 @@ well-formedness rules.
 **Recommendation:** Add dedicated negative tests for E1, E2, E5, E6/E7,
 W1. Current negative test coverage for concurrency errors (E8, E9, E11)
 is adequate (XFAIL tests 0254, 0255, 0256).
+
+---
+
+## 11. Annotation Well-Formedness (S7 Transcription — TY0)
+
+> **Tier-0 (TY0) transcription.** This section pins the **de facto**
+> well-formedness rules for *Python-side* annotations (the `: T` and
+> `-> R` parts of a `def`) as of the S7 witness sweep
+> (`typing-engagement/ty0-witness/VERDICTS.md`, 13 probed forms). It is a
+> transcription of existing behavior, not a design choice. No `src/pycsl/`
+> code was modified to produce this section. This section concerns only
+> Python-side annotations — the well-formedness of the `#@` *contract*
+> directives is covered in §2.
+
+### 11.1 No Name-Resolution Pass on Annotations (GT5 Gap)
+
+```
+   (no rule — the judgement is vacuously true)
+   ─────────────────────────────────────────────
+   Γ ⊢ annotation(x : N) : ok   for any name N, defined or not
+```
+
+**Rule (S7 baseline).** As of S7 (TY0), PyCSL performs **no**
+name-resolution / forward-reference check on Python annotations at any
+pipeline stage. An annotation `x: Foo` (or the stringized form `x: "Foo"`)
+is accepted by Module 4 regardless of whether `Foo` is defined in the
+module, defined later, defined in another unit, or never defined at all.
+The annotation name is **not** validated against `Γ_m`, `Γ_c`, or any
+record/variant type registry. # cite: `src/pycsl/core_ir_semantic.py`
+(there is no annotation-name-resolution pass in the semantic analyzer);
+# cite: `src/pycsl/frontend/Module5_IREmitter.py:1607-1632`
+(`_m5_get_type_name` returns whatever `ast.Name.id` it sees without
+validating it against any symbol table — see VERDICTS.md §6c).
+
+> **GT5 gap (tagged).** Forward-reference resolution order is **not
+> implemented**. The S7 witnesses `s11_fwd_after_def.py` (class defined
+> BEFORE the function) and `s12_fwd_before_def.py` (class defined AFTER
+> the function) both emit the identical default signature `let f (x: int) :
+> int` — the position of the class definition relative to the function is
+> irrelevant to PyCSL. The undefined-name witness `s13_fwd_undefined.py`
+> (`x: "Baz"`, `Baz` never defined) is silently accepted and lowered to
+> `int`, exit code 0. # cite: `src/pycsl/frontend/Module5_IREmitter.py:1607-1632`;
+> # cite: `src/pycsl/core_ir_semantic.py`. See VERDICTS.md §6a/§6b/§6c
+> for the three forward-reference cases.
+
+This contradicts the assumption (recorded in VERDICTS.md §SURPRISES.5)
+that an UNDEFINED annotation name would be `REJECTED`. It is not — it is
+`IGNORED`, falling through to the default `int` at emission time (see
+translational §N for the lowering table).
+
+### 11.2 `bool` / `tuple` / `-> None` (non-lemma) — Accepted, No Effect
+
+Three annotation forms are syntactically accepted (§11 of the concrete-syntax
+reference) and pass Module 4 well-formedness, but have **no static-semantics
+effect** — they do not alter the symbol-table type tag in a way that any
+Module 4 check consults:
+
+- **`x: bool`** is accepted. `bool` is captured into the symbol table as
+  the raw tag `"bool"`, but no `_validate_*` arm in Module 4 reads it, and
+  the emitter (translational §N) has no `bool → bool` arm, so the
+  annotation is silently dropped to the default `int`. # cite:
+  `src/pycsl/frontend/Module5_IREmitter.py:1607-1632` (the tag is captured
+  verbatim); # cite: VERDICTS.md §1b.
+- **`x: tuple`** (bare) is accepted. Same as `bool`: the raw tag `"tuple"`
+  is stored, no Module 4 arm consults it, and the emitter has no bare-`tuple`
+  arm (subscripted `Tuple[int, int]` is handled by a separate tuple-return
+  refinement path, not the bare-name form). # cite:
+  `src/pycsl/frontend/Module5_IREmitter.py:1607-1632`; # cite: VERDICTS.md §3c.
+- **`-> None`** on a **non-`#@ lemma`** function is accepted. The
+  `return_annotation` is set to `"None"`, but Module 4 only consults this
+  for `#@ lemma` ghost discipline (forcing the WhyML return type to `unit`).
+  For a regular function, `-> None` does NOT constrain the WhyML return
+  type — it stays `int`, and `return None` lowers to the body literal `0`.
+  # cite: `src/pycsl/frontend/Module5_IREmitter.py:1757-1801` (the
+  `return_annotation` capture); # cite:
+  `src/pycsl/core_ir_semantic.py:763-765` (the lemma ghost-discipline
+  comment); # cite: VERDICTS.md §4.
+
+### 11.3 Stringized Parameter Annotations — Asymmetry
+
+A stringized parameter annotation `x: "Foo"` is accepted at parse time but
+is **not** captured into the parameter's symbol-table entry as a class name.
+`_m5_get_type_name` only handles `ast.Name` and `ast.Subscript` annotation
+nodes — it has no `ast.Constant` arm — so the parameter's type tag becomes
+`"Any"`, which falls through every consumer to the default `int`. The
+return-side annotation `-> "Foo"` IS captured as the raw string `"Foo"`
+into `return_annotation`, but no Module 6 arm recognizes it, so it also
+falls through to `int`. This is an asymmetry between the parameter and
+return sides of the same stringized form. # cite:
+`src/pycsl/frontend/Module5_IREmitter.py:1607-1632` (no `ast.Constant` arm
+in `_m5_get_type_name`); # cite:
+`src/pycsl/frontend/Module5_IREmitter.py:1761-1762` (return side captures
+the raw string); # cite: VERDICTS.md §5, §SURPRISES.6.
 
 ---
 
