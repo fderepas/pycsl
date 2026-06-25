@@ -80,8 +80,8 @@ PyCF_ALLOW_TOP_LEVEL_AWAIT = 0x2000
 #     mapping `{...}` patterns raise PyCSLSyntaxError (loud-fail).
 #
 # NOT YET IMPLEMENTED  (each raises PyCSLSyntaxError with a clear message)
-#   - type-parameter syntax  def f[T] / class C[T]   (PEP 695)
-#   - the `type X = ...` alias statement             (PEP 695)
+        #    - type-parameter syntax  def f[T] / class C[T]    (PEP 695, IMPLEMENTED)
+#    - the `type X = ...` alias statement              (PEP 695, IMPLEMENTED)
 #   - type comments (# type: ...)  -> parse(type_comments=True) raises
 #   - class / mapping match patterns                 (PEP 634, see above)
 #
@@ -723,7 +723,7 @@ class _Parser:
         if self.at_name("match") and self._looks_like_match():
             return [self.match_stmt()]
         if self.at_name("type") and self._looks_like_type_alias():
-            self.unsupported("PEP 695 type alias statement")
+            return [self.type_alias_stmt()]
         return self.simple_stmt()
 
     def _looks_like_match(self):
@@ -763,9 +763,59 @@ class _Parser:
                 and last_sig.string == ":")
 
     def _looks_like_type_alias(self):
-        # PEP 695: `type NAME [type-params] = ...` ('type' soft keyword).
+         # PEP 695: `type NAME [type-params] = ...` ('type' soft keyword).
         nxt = self.peek(1)
         return nxt.type == _tokenize.NAME and nxt.string not in _keyword.kwlist
+
+    def _parse_type_params(self):
+         # PEP 695: parse content between '[' and ']'
+         # Grammar: type_param ( ',' type_param )*
+         #   where type_param is one of:
+         #     NAME [ < bound ]       -> TypeVar(name, bound)
+         #     * NAME                 -> TypeVarTuple(name)
+         #     ** NAME               -> ParamSpec(name)
+        self.expect_op("[")
+        params = []
+        while not self.at_op("]"):
+            param_start = self.cur()
+            if len(params) > 0:
+                self.expect_op(",")
+
+            if self.at_op("**"):
+                 # ParamSpec
+                self.advance()  # consume '**'
+                name = self._name_str()
+                params.append(self._fin(_N("ParamSpec")(name=name), param_start))
+            elif self.at_op("*"):
+                 # TypeVarTuple
+                self.advance()  # consume '*'
+                name = self._name_str()
+                params.append(self._fin(_N("TypeVarTuple")(name=name), param_start))
+            else:
+                  # TypeVar with optional bound (PEP 695 uses ':' not '<')
+                name = self._name_str()
+                bound = None
+                if self.at_op(":"):
+                    self.advance()   # consume ':'
+                    bound = self.test()
+                params.append(self._fin(_N("TypeVar")(name=name, bound=bound), param_start))
+
+        self.expect_op("]")
+        return params
+
+    def type_alias_stmt(self):
+         # PEP 695: type NAME [type-params] = expr
+        t = self.advance()                             # consume 'type' soft keyword
+        name_id = self._name_str()                     # NAME token after 'type'
+         # 'name' field holds an expression (Name or Subscript for generic names)
+        name_node = _N("Name")(id=name_id, ctx=_N("Load")())
+        type_params = []
+        if self.at_op("["):
+            type_params = self._parse_type_params()
+         # Generic name qualifiers handled by the expression parser (e.g. X[Y])
+        self.expect_op("=")
+        value = self.test()
+        return self._fin(_N("TypeAlias")(name=name_node, type_params=type_params, value=value), t)
 
     def simple_stmt(self):
         stmts = [self.small_stmt()]
@@ -1369,8 +1419,9 @@ class _Parser:
         t = start if start is not None else self.cur()
         self.expect_kw("def")
         name = self._name_str()
+        type_params = []
         if self.at_op("["):
-            self.unsupported("PEP 695 type parameters")
+            type_params = self._parse_type_params()
         self.expect_op("(")
         args = self.parse_parameters(")")
         self.expect_op(")")
@@ -1381,15 +1432,16 @@ class _Parser:
         body = self.block()
         cls = "AsyncFunctionDef" if async_ else "FunctionDef"
         n = _N(cls)(name=name, args=args, body=body, decorator_list=decorators,
-                    returns=returns, type_comment=None, type_params=[])
+                     returns=returns, type_comment=None, type_params=type_params)
         return self._fin_block(n, t)
 
     def classdef(self, decorators):
         t = self.cur()
         self.expect_kw("class")
         name = self._name_str()
+        type_params = []
         if self.at_op("["):
-            self.unsupported("PEP 695 type parameters")
+            type_params = self._parse_type_params()
         bases = []; keywords = []
         if self.accept_op("("):
             bases, keywords = self._call_args(")")
@@ -1397,7 +1449,7 @@ class _Parser:
         self.expect_op(":")
         body = self.block()
         n = _N("ClassDef")(name=name, bases=bases, keywords=keywords,
-                           body=body, decorator_list=decorators, type_params=[])
+                           body=body, decorator_list=decorators, type_params=type_params)
         return self._fin_block(n, t)
 
     # -- parameters ---------------------------------------------------------
