@@ -1,0 +1,396 @@
+DIGEST 3b64fe33b4d49b857ac1fd8c80c0e46c
+FSlotNameByteDecode
+R2811:2827 Coq.ZArith.ZArith <> <> lib
+R2845:2858 Coq.Lists.List <> <> lib
+R2876:2878 Coq.micromega.Lia <> <> lib
+R2888:2900 Coq.Lists.List ListNotations <> mod
+mod 2931:2936 <> UnixFs
+mod 2946:2948 <> UnixFs.Dir
+sec 2959:2962 UnixFs.Dir Scan
+var 3058:3059 UnixFs.Dir.Scan rd
+R3064:3067 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3063:3063 Coq.Numbers.BinNums <> Z ind
+R3068:3068 Coq.Numbers.BinNums <> Z ind
+def 3157:3160 UnixFs.Dir scan
+R3169:3169 Coq.Numbers.BinNums <> Z ind
+binder 3163:3165 <> off:3
+R3180:3182 Coq.Init.Datatypes <> nat ind
+binder 3173:3176 <> fuel:4
+R3187:3190 Coq.Init.Datatypes <> list ind
+R3192:3192 Coq.Numbers.BinNums <> Z ind
+R3205:3208 SlotNameByteDecode <> fuel:4 var
+R3219:3219 Coq.Init.Datatypes <> O constr
+R3224:3225 Coq.Lists.List ListNotations ::list_scope:'['_']' not
+R3231:3231 Coq.Init.Datatypes <> S constr
+R3241:3245 Coq.ZArith.BinInt Z eqb def
+R3248:3249 SlotNameByteDecode <> UnixFs.Dir.Scan.rd var
+R3251:3253 SlotNameByteDecode <> off:3 var
+R3277:3280 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R3271:3272 SlotNameByteDecode <> UnixFs.Dir.Scan.rd var
+R3274:3276 SlotNameByteDecode <> off:3 var
+R3281:3284 SlotNameByteDecode <> scan:5 def
+R3287:3292 Coq.ZArith.BinInt Z succ def
+R3294:3296 SlotNameByteDecode <> off:3 var
+R3263:3264 Coq.Lists.List ListNotations ::list_scope:'['_']' not
+def 3320:3331 UnixFs.Dir field_to_str
+R3346:3346 Coq.Numbers.BinNums <> Z ind
+binder 3334:3336 <> off:7
+binder 3338:3342 <> width:8
+R3351:3354 Coq.Init.Datatypes <> list ind
+R3356:3356 Coq.Numbers.BinNums <> Z ind
+R3361:3364 SlotNameByteDecode UnixFs.Dir scan def
+R3366:3368 SlotNameByteDecode <> off:7 var
+R3371:3378 Coq.ZArith.BinInt Z to_nat def
+R3380:3384 SlotNameByteDecode <> width:8 var
+def 3400:3406 UnixFs.Dir byte_at
+R3416:3419 Coq.Init.Datatypes <> list ind
+R3421:3421 Coq.Numbers.BinNums <> Z ind
+binder 3409:3412 <> name:9
+R3429:3431 Coq.Init.Datatypes <> nat ind
+binder 3425:3425 <> j:10
+R3436:3436 Coq.Numbers.BinNums <> Z ind
+R3441:3443 Coq.Lists.List <> nth def
+R3447:3450 SlotNameByteDecode <> name:9 var
+R3445:3445 SlotNameByteDecode <> j:10 var
+prf 3591:3605 UnixFs.Dir scan_round_trip
+R3626:3629 Coq.Init.Datatypes <> list ind
+R3631:3631 Coq.Numbers.BinNums <> Z ind
+binder 3619:3622 <> name:11
+R3641:3641 Coq.Numbers.BinNums <> Z ind
+binder 3635:3637 <> off:12
+R3652:3654 Coq.Init.Datatypes <> nat ind
+binder 3645:3648 <> fuel:13
+R3687:3694 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3674:3677 Coq.Init.Peano <> ::nat_scope:x_'<='_x not
+R3663:3668 Coq.Init.Datatypes <> length def
+R3670:3673 SlotNameByteDecode <> name:11 var
+R3678:3681 SlotNameByteDecode <> fuel:13 var
+R3695:3695 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3750:3758 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+binder 3703:3703 <> j:14
+R3727:3730 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3708:3710 Coq.Init.Peano <> ::nat_scope:x_'<'_x not
+R3707:3707 SlotNameByteDecode <> j:14 var
+R3711:3716 Coq.Init.Datatypes <> length def
+R3718:3721 SlotNameByteDecode <> name:11 var
+R3745:3748 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R3731:3737 SlotNameByteDecode UnixFs.Dir byte_at def
+R3739:3742 SlotNameByteDecode <> name:11 var
+R3744:3744 SlotNameByteDecode <> j:14 var
+R3759:3759 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3833:3841 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+binder 3767:3767 <> j:15
+R3791:3794 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3772:3774 Coq.Init.Peano <> ::nat_scope:x_'<'_x not
+R3771:3771 SlotNameByteDecode <> j:15 var
+R3775:3780 Coq.Init.Datatypes <> length def
+R3782:3785 SlotNameByteDecode <> name:11 var
+R3816:3818 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3795:3796 SlotNameByteDecode <> UnixFs.Dir.Scan.rd var
+R3802:3804 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R3799:3801 SlotNameByteDecode <> off:12 var
+R3805:3812 Coq.ZArith.BinInt Z of_nat def
+R3814:3814 SlotNameByteDecode <> j:15 var
+R3819:3825 SlotNameByteDecode UnixFs.Dir byte_at def
+R3827:3830 SlotNameByteDecode <> name:11 var
+R3832:3832 SlotNameByteDecode <> j:15 var
+R3842:3842 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3908:3916 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3867:3870 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3855:3857 Coq.Init.Peano <> ::nat_scope:x_'<'_x not
+R3844:3849 Coq.Init.Datatypes <> length def
+R3851:3854 SlotNameByteDecode <> name:11 var
+R3858:3861 SlotNameByteDecode <> fuel:13 var
+R3904:3906 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3871:3872 SlotNameByteDecode <> UnixFs.Dir.Scan.rd var
+R3878:3880 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R3875:3877 SlotNameByteDecode <> off:12 var
+R3881:3888 Coq.ZArith.BinInt Z of_nat def
+R3891:3896 Coq.Init.Datatypes <> length def
+R3898:3901 SlotNameByteDecode <> name:11 var
+R3930:3932 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3917:3920 SlotNameByteDecode UnixFs.Dir scan def
+R3922:3924 SlotNameByteDecode <> off:12 var
+R3926:3929 SlotNameByteDecode <> fuel:13 var
+R3933:3936 SlotNameByteDecode <> name:11 var
+R4086:4091 Coq.Init.Datatypes <> length def
+R4129:4131 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4123:4124 SlotNameByteDecode <> UnixFs.Dir.Scan.rd var
+R4129:4131 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4123:4124 SlotNameByteDecode <> UnixFs.Dir.Scan.rd var
+R4183:4191 Coq.ZArith.BinInt Z add_0_r thm
+R4183:4191 Coq.ZArith.BinInt Z add_0_r thm
+R4183:4191 Coq.ZArith.BinInt Z add_0_r thm
+R4284:4289 Coq.Init.Datatypes <> length def
+R4319:4324 Coq.Init.Datatypes <> length def
+R4359:4361 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4353:4354 SlotNameByteDecode <> UnixFs.Dir.Scan.rd var
+R4359:4361 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4353:4354 SlotNameByteDecode <> UnixFs.Dir.Scan.rd var
+R4408:4413 Coq.Init.Datatypes <> length def
+R4408:4413 Coq.Init.Datatypes <> length def
+R4437:4443 SlotNameByteDecode UnixFs.Dir byte_at def
+R4461:4463 Coq.Lists.List <> nth def
+R4491:4499 Coq.ZArith.BinInt Z add_0_r thm
+R4491:4499 Coq.ZArith.BinInt Z add_0_r thm
+R4491:4499 Coq.ZArith.BinInt Z add_0_r thm
+R4547:4550 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R4547:4550 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R4594:4599 Coq.Init.Datatypes <> length def
+R4594:4599 Coq.Init.Datatypes <> length def
+R4623:4629 SlotNameByteDecode UnixFs.Dir byte_at def
+R4644:4646 Coq.Lists.List <> nth def
+R4680:4683 SlotNameByteDecode UnixFs.Dir scan def
+R4712:4715 Coq.ZArith.BinInt <> ::Z_scope:x_'=?'_x not
+R4724:4728 Coq.Init.Datatypes <> false constr
+R4750:4758 Coq.ZArith.BinInt Z eqb_neq thm
+R4712:4715 Coq.ZArith.BinInt <> ::Z_scope:x_'=?'_x not
+R4724:4728 Coq.Init.Datatypes <> false constr
+R4750:4758 Coq.ZArith.BinInt Z eqb_neq thm
+R4847:4847 Coq.Init.Datatypes <> S constr
+R4863:4868 Coq.Init.Datatypes <> length def
+R4847:4847 Coq.Init.Datatypes <> S constr
+R4863:4868 Coq.Init.Datatypes <> length def
+R4892:4898 SlotNameByteDecode UnixFs.Dir byte_at def
+R4911:4913 Coq.Lists.List <> nth def
+R4974:4974 Coq.Init.Datatypes <> S constr
+R4990:4995 Coq.Init.Datatypes <> length def
+R4974:4974 Coq.Init.Datatypes <> S constr
+R4990:4995 Coq.Init.Datatypes <> length def
+R5019:5025 SlotNameByteDecode UnixFs.Dir byte_at def
+R5038:5040 Coq.Lists.List <> nth def
+R5079:5081 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5069:5074 Coq.ZArith.BinInt Z succ def
+R5082:5089 Coq.ZArith.BinInt Z of_nat def
+R5103:5105 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5106:5113 Coq.ZArith.BinInt Z of_nat def
+R5116:5116 Coq.Init.Datatypes <> S constr
+R5079:5081 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5069:5074 Coq.ZArith.BinInt Z succ def
+R5082:5089 Coq.ZArith.BinInt Z of_nat def
+R5103:5105 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5106:5113 Coq.ZArith.BinInt Z of_nat def
+R5116:5116 Coq.Init.Datatypes <> S constr
+R5197:5202 Coq.Init.Datatypes <> length def
+R5197:5202 Coq.Init.Datatypes <> length def
+R5224:5229 Coq.Init.Datatypes <> length def
+R5267:5269 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5257:5262 Coq.ZArith.BinInt Z succ def
+R5270:5277 Coq.ZArith.BinInt Z of_nat def
+R5280:5285 Coq.Init.Datatypes <> length def
+R5318:5320 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5321:5328 Coq.ZArith.BinInt Z of_nat def
+R5331:5331 Coq.Init.Datatypes <> S constr
+R5334:5339 Coq.Init.Datatypes <> length def
+R5267:5269 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5257:5262 Coq.ZArith.BinInt Z succ def
+R5270:5277 Coq.ZArith.BinInt Z of_nat def
+R5280:5285 Coq.Init.Datatypes <> length def
+R5318:5320 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5321:5328 Coq.ZArith.BinInt Z of_nat def
+R5331:5331 Coq.Init.Datatypes <> S constr
+R5334:5339 Coq.Init.Datatypes <> length def
+prf 5391:5413 UnixFs.Dir field_to_str_round_trip
+R5434:5437 Coq.Init.Datatypes <> list ind
+R5439:5439 Coq.Numbers.BinNums <> Z ind
+binder 5427:5430 <> name:16
+R5455:5455 Coq.Numbers.BinNums <> Z ind
+binder 5443:5445 <> off:17
+binder 5447:5451 <> width:18
+R5490:5497 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5464:5467 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5468:5475 Coq.ZArith.BinInt Z of_nat def
+R5478:5483 Coq.Init.Datatypes <> length def
+R5485:5488 SlotNameByteDecode <> name:16 var
+R5529:5536 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5520:5523 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5498:5505 Coq.ZArith.BinInt Z of_nat def
+R5508:5513 Coq.Init.Datatypes <> length def
+R5515:5518 SlotNameByteDecode <> name:16 var
+R5524:5528 SlotNameByteDecode <> width:18 var
+R5537:5537 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5619:5627 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+binder 5545:5545 <> i:19
+R5579:5590 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5549:5552 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R5554:5556 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R5553:5553 SlotNameByteDecode <> i:19 var
+R5553:5553 SlotNameByteDecode <> i:19 var
+R5557:5564 Coq.ZArith.BinInt Z of_nat def
+R5567:5572 Coq.Init.Datatypes <> length def
+R5574:5577 SlotNameByteDecode <> name:16 var
+R5614:5617 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R5591:5593 Coq.Lists.List <> nth def
+R5608:5611 SlotNameByteDecode <> name:16 var
+R5596:5603 Coq.ZArith.BinInt Z to_nat def
+R5605:5605 SlotNameByteDecode <> i:19 var
+R5628:5628 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5720:5728 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+binder 5636:5636 <> i:20
+R5670:5681 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5640:5643 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R5645:5647 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R5644:5644 SlotNameByteDecode <> i:20 var
+R5644:5644 SlotNameByteDecode <> i:20 var
+R5648:5655 Coq.ZArith.BinInt Z of_nat def
+R5658:5663 Coq.Init.Datatypes <> length def
+R5665:5668 SlotNameByteDecode <> name:16 var
+R5694:5696 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R5682:5683 SlotNameByteDecode <> UnixFs.Dir.Scan.rd var
+R5689:5691 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5686:5688 SlotNameByteDecode <> off:17 var
+R5692:5692 SlotNameByteDecode <> i:20 var
+R5697:5699 Coq.Lists.List <> nth def
+R5714:5717 SlotNameByteDecode <> name:16 var
+R5702:5709 Coq.ZArith.BinInt Z to_nat def
+R5711:5711 SlotNameByteDecode <> i:20 var
+R5729:5729 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5801:5809 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5760:5763 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5752:5754 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R5730:5737 Coq.ZArith.BinInt Z of_nat def
+R5740:5745 Coq.Init.Datatypes <> length def
+R5747:5750 SlotNameByteDecode <> name:16 var
+R5755:5759 SlotNameByteDecode <> width:18 var
+R5797:5799 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R5764:5765 SlotNameByteDecode <> UnixFs.Dir.Scan.rd var
+R5771:5773 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5768:5770 SlotNameByteDecode <> off:17 var
+R5774:5781 Coq.ZArith.BinInt Z of_nat def
+R5784:5789 Coq.Init.Datatypes <> length def
+R5791:5794 SlotNameByteDecode <> name:16 var
+R5832:5834 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R5810:5821 SlotNameByteDecode UnixFs.Dir field_to_str def
+R5823:5825 SlotNameByteDecode <> off:17 var
+R5827:5831 SlotNameByteDecode <> width:18 var
+R5835:5838 SlotNameByteDecode <> name:16 var
+R5905:5916 SlotNameByteDecode UnixFs.Dir field_to_str def
+R5936:5939 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5936:5939 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5963:5977 SlotNameByteDecode UnixFs.Dir scan_round_trip thm
+R5963:5977 SlotNameByteDecode UnixFs.Dir scan_round_trip thm
+R5992:6003 Coq.ZArith.Znat Z2Nat inj_le thm
+R5992:6003 Coq.ZArith.Znat Z2Nat inj_le thm
+R5992:6003 Coq.ZArith.Znat Z2Nat inj_le thm
+R6028:6035 Coq.ZArith.Znat Nat2Z id thm
+R6028:6035 Coq.ZArith.Znat Nat2Z id thm
+R6028:6035 Coq.ZArith.Znat Nat2Z id thm
+R6080:6086 SlotNameByteDecode UnixFs.Dir byte_at def
+R6110:6117 Coq.ZArith.BinInt Z of_nat def
+R6110:6117 Coq.ZArith.BinInt Z of_nat def
+R6136:6143 Coq.ZArith.Znat Nat2Z id thm
+R6136:6143 Coq.ZArith.Znat Nat2Z id thm
+R6136:6143 Coq.ZArith.Znat Nat2Z id thm
+R6211:6217 SlotNameByteDecode UnixFs.Dir byte_at def
+R6244:6251 Coq.ZArith.BinInt Z of_nat def
+R6244:6251 Coq.ZArith.BinInt Z of_nat def
+R6270:6277 Coq.ZArith.Znat Nat2Z id thm
+R6270:6277 Coq.ZArith.Znat Nat2Z id thm
+R6270:6277 Coq.ZArith.Znat Nat2Z id thm
+R6396:6403 Coq.ZArith.Znat Z2Nat id thm
+R6396:6403 Coq.ZArith.Znat Z2Nat id thm
+R6396:6403 Coq.ZArith.Znat Z2Nat id thm
+R6435:6446 Coq.ZArith.Znat Nat2Z inj_lt thm
+R6435:6446 Coq.ZArith.Znat Nat2Z inj_lt thm
+R6435:6446 Coq.ZArith.Znat Nat2Z inj_lt thm
+def 6603:6610 UnixFs.Dir slot_off
+R6621:6621 Coq.Numbers.BinNums <> Z ind
+binder 6613:6615 <> blk:21
+binder 6617:6617 <> k:22
+R6626:6626 Coq.Numbers.BinNums <> Z ind
+R6640:6642 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R6634:6636 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R6631:6633 SlotNameByteDecode <> blk:21 var
+R6645:6647 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R6648:6648 SlotNameByteDecode <> k:22 var
+def 6814:6822 UnixFs.Dir slot_name
+R6833:6833 Coq.Numbers.BinNums <> Z ind
+binder 6825:6827 <> blk:23
+binder 6829:6829 <> k:24
+R6838:6841 Coq.Init.Datatypes <> list ind
+R6843:6843 Coq.Numbers.BinNums <> Z ind
+R6848:6859 SlotNameByteDecode UnixFs.Dir field_to_str def
+R6876:6878 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R6862:6869 SlotNameByteDecode UnixFs.Dir slot_off def
+R6871:6873 SlotNameByteDecode <> blk:23 var
+R6875:6875 SlotNameByteDecode <> k:24 var
+prf 7251:7271 UnixFs.Dir slot_name_byte_decode
+R7292:7295 Coq.Init.Datatypes <> list ind
+R7297:7297 Coq.Numbers.BinNums <> Z ind
+binder 7285:7288 <> name:25
+R7309:7309 Coq.Numbers.BinNums <> Z ind
+binder 7301:7303 <> blk:26
+binder 7305:7305 <> k:27
+R7345:7352 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R7339:7342 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R7317:7324 Coq.ZArith.BinInt Z of_nat def
+R7327:7332 Coq.Init.Datatypes <> length def
+R7334:7337 SlotNameByteDecode <> name:25 var
+R7353:7353 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R7435:7443 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+binder 7361:7361 <> i:28
+R7395:7406 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R7365:7368 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R7370:7372 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R7369:7369 SlotNameByteDecode <> i:28 var
+R7369:7369 SlotNameByteDecode <> i:28 var
+R7373:7380 Coq.ZArith.BinInt Z of_nat def
+R7383:7388 Coq.Init.Datatypes <> length def
+R7390:7393 SlotNameByteDecode <> name:25 var
+R7430:7433 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R7407:7409 Coq.Lists.List <> nth def
+R7424:7427 SlotNameByteDecode <> name:25 var
+R7412:7419 Coq.ZArith.BinInt Z to_nat def
+R7421:7421 SlotNameByteDecode <> i:28 var
+R7444:7444 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R7551:7559 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+binder 7452:7452 <> i:29
+R7486:7497 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R7456:7459 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R7461:7463 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R7460:7460 SlotNameByteDecode <> i:29 var
+R7460:7460 SlotNameByteDecode <> i:29 var
+R7464:7471 Coq.ZArith.BinInt Z of_nat def
+R7474:7479 Coq.Init.Datatypes <> length def
+R7481:7484 SlotNameByteDecode <> name:25 var
+R7525:7527 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7498:7499 SlotNameByteDecode <> UnixFs.Dir.Scan.rd var
+R7520:7522 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R7516:7518 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R7502:7509 SlotNameByteDecode UnixFs.Dir slot_off def
+R7511:7513 SlotNameByteDecode <> blk:26 var
+R7515:7515 SlotNameByteDecode <> k:27 var
+R7523:7523 SlotNameByteDecode <> i:29 var
+R7528:7530 Coq.Lists.List <> nth def
+R7545:7548 SlotNameByteDecode <> name:25 var
+R7533:7540 Coq.ZArith.BinInt Z to_nat def
+R7542:7542 SlotNameByteDecode <> i:29 var
+R7560:7560 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R7652:7660 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R7588:7599 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R7583:7585 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R7561:7568 Coq.ZArith.BinInt Z of_nat def
+R7571:7576 Coq.Init.Datatypes <> length def
+R7578:7581 SlotNameByteDecode <> name:25 var
+R7648:7650 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7600:7601 SlotNameByteDecode <> UnixFs.Dir.Scan.rd var
+R7622:7624 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R7618:7620 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R7604:7611 SlotNameByteDecode UnixFs.Dir slot_off def
+R7613:7615 SlotNameByteDecode <> blk:26 var
+R7617:7617 SlotNameByteDecode <> k:27 var
+R7625:7632 Coq.ZArith.BinInt Z of_nat def
+R7635:7640 Coq.Init.Datatypes <> length def
+R7642:7645 SlotNameByteDecode <> name:25 var
+R7676:7678 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7661:7669 SlotNameByteDecode UnixFs.Dir slot_name def
+R7671:7673 SlotNameByteDecode <> blk:26 var
+R7675:7675 SlotNameByteDecode <> k:27 var
+R7679:7682 SlotNameByteDecode <> name:25 var
+R7743:7751 SlotNameByteDecode UnixFs.Dir slot_name def
+R7762:7784 SlotNameByteDecode UnixFs.Dir field_to_str_round_trip thm
+R7762:7784 SlotNameByteDecode UnixFs.Dir field_to_str_round_trip thm
+R7885:7905 SlotNameByteDecode UnixFs.Dir slot_name_byte_decode thm
+R7913:7916 SlotNameByteDecode UnixFs.Dir.Scan <> sec
+R7923:7925 SlotNameByteDecode UnixFs.Dir <> mod
+R7932:7937 SlotNameByteDecode UnixFs <> mod

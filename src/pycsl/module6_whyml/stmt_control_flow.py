@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from module6_whyml.identifiers import whyml_ident, safe_exc_name
 from module6_whyml.ir_scanner import IRScanner
@@ -475,9 +475,142 @@ class ControlFlowStmtMixin:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
+    def _try_union_is_none_match(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
+                                  local_refs: Set[str], declared_refs: Set[str],
+                                  indent: str, in_loop: bool) -> Any:
+        """typing-engagement ty1 C5 — detect `if x is None:` / `if x is not None:`
+        where `x` is a Union-typed variable, and lower to a constructor-pattern
+        `match` (Why3 forbids `=` on algebraic types in a program `if`). Returns
+        the match code string, or None if the pattern does not apply (caller falls
+        back to the normal `if` lowering)."""
+        test = stmt.get("test", {})
+        if not isinstance(test, dict) or test.get("type") != "BinOp":
+            return None
+        op = test.get("op")
+        if op not in ("==", "!="):
+            return None
+        left, right = test.get("left", {}), test.get("right", {})
+        var_node = None
+        is_none = False
+        if left.get("type") == "None" and right.get("type") == "Var":
+            var_node = right
+            is_none = True
+        elif right.get("type") == "None" and left.get("type") == "Var":
+            var_node = left
+            is_none = True
+        if not is_none or not var_node:
+            return None
+        var_name = var_node.get("name")
+        symtype = getattr(self, "_current_symbol_table", {}).get(var_name)
+        if not symtype or not isinstance(symtype, str) or not symtype.startswith("_union_"):
+            return None
+        vinfo = getattr(self, "_variant_types", {}).get(symtype)
+        if not vinfo:
+            return None
+        none_ctor = None
+        other_ctors = []
+        for ctor_name, ctor in vinfo.get("constructors", {}).items():
+            if ctor.get("arity") == 0 and "None" in ctor_name:
+                none_ctor = ctor_name
+            else:
+                other_ctors.append(ctor_name)
+        if none_ctor is None:
+            return None
+        body = stmt.get("body", []) or []
+        orelse = stmt.get("orelse", []) or []
+        body_str = self._stmts_to_whyml(body, local_refs, declared_refs.copy(),
+                                        indent + "    ", in_loop)
+        if not body_str.strip():
+            body_str = f"{indent}    ()"
+        orelse_str = self._stmts_to_whyml(orelse, local_refs, declared_refs.copy(),
+                                          indent + "    ", in_loop) if orelse else ""
+        if not orelse_str.strip():
+            orelse_str = f"{indent}    ()"
+        var_safe = whyml_ident(var_name)
+        if op == "==":
+            true_body, false_body = body_str, orelse_str
+            true_is_none = True   # `if x is None:` — True branch is the None arm
+        else:
+            true_body, false_body = orelse_str, body_str
+            true_is_none = False  # `if x is not None:` — True branch is non-None
+        # C5 (GAP-001): on the False branch of `if x is None:` the variable
+        # `x` narrows from `Union[A, None]` to the non-None arm's carrier type
+        # `A`. Why3 has no path-condition narrowing, so we lower the False
+        # branch as a constructor match that binds the carrier value and
+        # SHADOWS `x` with it: `| Arm_0_0 v -> let x = v in <false_body> end`.
+        # The match has exactly one arm per non-None constructor (no wildcard)
+        # so Why3's exhaustiveness check confirms the narrowing is total.
+        #
+        # `rest` handling: when the True branch returns (so `rest` is
+        # unreachable there), `rest` is inlined into the FALSE arm(s) so the
+        # narrowed `x` is in scope. When the True branch does not return,
+        # `rest` runs on both branches and is appended after the match.
+        true_branch_stmts = body if true_is_none else orelse
+        true_returns = bool(true_branch_stmts) and IRScanner.ends_with_return(
+            true_branch_stmts)
+        # Build the None arm.
+        none_arm = f"{indent}  | {none_ctor} ->\n{true_body}"
+        # Build the non-None arms (with carrier projection).
+        non_none_arms: List[str] = []
+        for i, ctor_name in enumerate(other_ctors):
+            ctor_info = vinfo["constructors"][ctor_name]
+            ctor_payload = ctor_info.get("payload", [])
+            # The bound carrier variable. Reuse the original variable name
+            # so a downstream `return x` resolves to the projected carrier.
+            bind = var_safe if len(other_ctors) == 1 else f"{var_safe}_{i}"
+            arm_pat = f"{ctor_name} {bind}" if ctor_payload else ctor_name
+            # Project `x` to the carrier on EVERY non-None arm so `x` is
+            # narrowed to `A` (C5). `let x = bind in <false_body>`.
+            if ctor_payload:
+                non_none_arms.append(
+                    f"{indent}  | {arm_pat} ->\n"
+                    f"{indent}    let {var_safe} = {bind} in\n"
+                    f"{false_body}")
+            else:
+                non_none_arms.append(f"{indent}  | {arm_pat} ->\n{false_body}")
+        # Decide where `rest` goes.
+        if true_returns and rest:
+            rest_str = self._stmts_to_whyml(
+                rest, local_refs, declared_refs,
+                indent + "    ", in_loop)
+            if true_is_none:
+                # `==`: True (None) returns → `rest` runs on the False
+                # (non-None) branch. Inline `rest` into the LAST non-None
+                # arm (after the projected body). Earlier non-None arms
+                # must return independently or the match is non-exhaustive.
+                if non_none_arms:
+                    last = non_none_arms[-1]
+                    non_none_arms[-1] = last + f";\n{rest_str}"
+            else:
+                # `!=`: True (non-None) returns → `rest` runs on the False
+                # (None) branch. Inline `rest` into the None arm. `x` is the
+                # variant on this arm (no projection — it IS None).
+                none_arm = f"{indent}  | {none_ctor} ->\n{true_body};\n{rest_str}"
+            arms = [none_arm] + non_none_arms
+            code = (f"{indent}match {var_safe} with\n" + "\n".join(arms) +
+                    f"\n{indent}  end")
+            return code
+        # True branch does not return (or no rest): `rest` runs on both
+        # branches — append after the match. The non-None arms still project
+        # `x` to the carrier for the False-branch body.
+        arms = [none_arm] + non_none_arms
+        code = (f"{indent}match {var_safe} with\n" + "\n".join(arms) +
+                f"\n{indent}  end")
+        if rest:
+            code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs,
+                                                indent, in_loop)
+        return code
+
     def _handle_if_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
                         local_refs: Set[str], declared_refs: Set[str],
                         indent: str, in_loop: bool) -> str:
+        # typing-engagement ty1 / 25-1700-typing-spec-1 §1.2 C5: `if x is None:`
+        # on a Union-typed variable lowers to a constructor-pattern `match`
+        # (Why3 does not allow `=` on algebraic types in a program `if`).
+        union_match = self._try_union_is_none_match(stmt, rest, local_refs,
+                                                    declared_refs, indent, in_loop)
+        if union_match is not None:
+            return union_match
         test = self._expr_to_whyml(stmt["test"], local_refs)
         test = self._to_bool(test, stmt["test"])
         body = stmt.get("body", [])
@@ -554,11 +687,72 @@ class ControlFlowStmtMixin:
             return f"({body})"
         return "_"
 
+    def _match_subject_union_info(self, stmt: Dict[str, Any]) -> Optional[Tuple[str, Dict[str, Any]]]:
+        """typing-engagement ty1 C9 — if the match subject is a `Var` whose
+        symbol-table entry is a synthesized `_union_*` variant, return
+        (subject_var_name, variant_info) so a `case int():` / `case str():`
+        pattern can be lowered to the variant's constructor (`Arm_0_0 v`).
+        Returns None for non-Union subjects (byte-identical fallback)."""
+        subj = stmt.get("subject", {})
+        if not isinstance(subj, dict) or subj.get("type") != "Var":
+            return None
+        var_name = subj.get("name")
+        symtype = getattr(self, "_current_symbol_table", {}).get(var_name)
+        if not symtype or not isinstance(symtype, str) or not symtype.startswith("_union_"):
+            return None
+        vinfo = getattr(self, "_variant_types", {}).get(symtype)
+        if not vinfo:
+            return None
+        return var_name, vinfo
+
+    def _union_ctor_for_arm_tag(self, vinfo: Dict[str, Any], arm_tag: str) -> Optional[Tuple[str, Dict[str, Any]]]:
+        """Find the (ctor_name, ctor_info) of the variant constructor whose
+        payload tag matches `arm_tag` (e.g. `int` → `Arm_0_0`). Returns None
+        if no constructor carries that arm type."""
+        for ctor_name, ctor in vinfo.get("constructors", {}).items():
+            payload = ctor.get("payload", [])
+            if payload and payload[0] == arm_tag:
+                return ctor_name, ctor
+        return None
+
     def _handle_match_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
                            local_refs: Set[str], declared_refs: Set[str],
                            indent: str, in_loop: bool) -> str:
         subject = self._expr_to_whyml(stmt["subject"], local_refs)
         cases = stmt.get("cases", [])
+        # typing-engagement ty1 / 25-1700-typing-spec-1 §1.3 C9: a `match` on a
+        # Union-typed value must lower to a constructor-pattern match over the
+        # synthesized variant's constructors (`Arm_0_0 v -> ...`), NOT against
+        # the bare type name (`int -> ...`). A `case int():` pattern on a
+        # `Union[int, str]` subject is rewritten to the variant's `int`-armed
+        # constructor with a bound carrier, so Why3's native exhaustiveness
+        # check fires on a missing arm. (GAP-002.)
+        union_info = self._match_subject_union_info(stmt)
+        if union_info is not None:
+            _uvar, uinfo = union_info
+            for c in cases:
+                pat = c["pattern"]
+                if pat.get("pattern") != "Constructor":
+                    continue
+                ctor_name = pat.get("ctor", "")
+                # `case int():` / `case str():` — map the type name to the
+                # variant's constructor for that arm.
+                match = self._union_ctor_for_arm_tag(uinfo, ctor_name)
+                if match is not None:
+                    arm_ctor, arm_ctor_info = match
+                    # Bind the carrier to a fresh local so the arm body can
+                    # use it; if the case captured a name, reuse it.
+                    existing_caps = pat.get("captures", []) or []
+                    if existing_caps:
+                        bind_name = self._render_match_pattern(existing_caps[0])
+                    else:
+                        bind_name = f"_u_{arm_ctor}"
+                    # Rewrite the pattern to the variant constructor with the
+                    # bound carrier. The carrier is positional.
+                    new_pat = {"pattern": "Constructor", "ctor": arm_ctor,
+                               "captures": [{"pattern": "Capture",
+                                             "name": bind_name}]}
+                    c["pattern"] = new_pat
         # sum-types: a constructor-pattern match over a `#@ datatype` lowers to a real Why3
         # `match … with` (so Why3 checks exhaustiveness), not the value-pattern if-chain.
         # A5c: route to the native match if ANY arm involves a constructor — directly
@@ -631,6 +825,76 @@ class ControlFlowStmtMixin:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
+    def _maybe_inject_union_return(self, val: str, val_ir: Any) -> str:
+        """typing-engagement ty1 §0/§2.2 C2 — if the function's return type is a
+        synthesized `_union_*` variant, auto-inject the return value into the
+        first arm whose payload type matches the value's type. If the value is
+        already a constructor application (starts with `Arm_`), leave it. If no
+        arm matches, leave the value (Why3 will flag the type error)."""
+        func_ret = getattr(self, "_func_return_type", "")
+        if not func_ret or not func_ret.startswith("_union_"):
+            return val
+        vinfo = getattr(self, "_variant_types", {}).get(func_ret)
+        if not vinfo:
+            return val
+        constructors = vinfo.get("constructors", {})
+        if not constructors:
+            return val
+        # If the value is already a constructor application, don't re-wrap.
+        for ctor_name in constructors:
+            if val.startswith(ctor_name):
+                return val
+        # Determine the value's WhyML type and find a matching arm.
+        val_type = self._infer_return_value_type(val_ir)
+        if val_type is None:
+            return val
+        for ctor_name, ctor in constructors.items():
+            if ctor.get("arity") == 0:
+                continue
+            payload = ctor.get("payload", [])
+            if not payload:
+                continue
+            arm_type = self._union_arm_whyml_type(payload[0])
+            if arm_type == val_type:
+                return f"({ctor_name} {val})"
+        return val
+
+    def _infer_return_value_type(self, val_ir: Any) -> Optional[str]:
+        """Infer the WhyML type of a return value IR node for Union injection."""
+        if not isinstance(val_ir, dict):
+            return None
+        t = val_ir.get("type")
+        if t in ("Number", "BinOp") or t == "UnaryOp":
+            return "int"
+        if t == "String":
+            return "string"
+        if t == "Bool":
+            return "int"
+        if t == "Var":
+            name = val_ir.get("name", "")
+            symtab = getattr(self, "_current_symbol_table", {})
+            symtype = symtab.get(name)
+            if symtype:
+                return self._union_arm_whyml_type(symtype) \
+                    if not symtype.startswith("_union_") else symtype
+            return "int"
+        if t == "Call":
+            func = val_ir.get("func", "")
+            if isinstance(func, str):
+                if func in ("len", "int", "abs", "ord"):
+                    return "int"
+                if func in ("str",):
+                    return "string"
+        return None
+
+    def _union_arm_whyml_type(self, tag: str) -> str:
+        """Map a Union arm IR type tag to its WhyML type string."""
+        m = {"int": "int", "bool": "int", "str": "string", "float": "real",
+             "list": "array int", "bytes": "array int", "bytearray": "array int",
+             "dict": "map int (option int)", "set": "map int (option int)",
+             "frozenset": "map int (option int)", "tuple": "array int"}
+        return m.get(tag, "int")
+
     def _handle_return_stmt(
         self,
         stmt: Dict[str, Any],
@@ -679,6 +943,13 @@ class ControlFlowStmtMixin:
                     val = whyml_ident(val_ir["name"])
             else:
                 val = self._expr_to_whyml(val_ir, local_refs)
+        # typing-engagement ty1 / 25-1700-typing-spec-1 §0/§2.2 C2: if the
+        # function's return type is a synthesized `_union_*` variant and the
+        # returned value is NOT already a constructor application, auto-inject
+        # it into the first arm whose payload type matches (the injection
+        # wrapper per arm). This lets `def f() -> Optional[int]: return x+x`
+        # type-check (the int return is wrapped as `Arm_<idx>_0 (x+x)`).
+        val = self._maybe_inject_union_return(val, val_ir)
         if use_raise:
             func_ret = self._func_return_type
             if func_ret == "unit":

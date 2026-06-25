@@ -157,8 +157,8 @@ The **Ref** column uses the format `section.subsection.row`.
 | 12.1.2 | Body dict membership \| `k in d` / `k not in d` lowers to `match Map.get` (option `Some`/`None`) | 0346 | PASS |
 | 12.2.1 | Body set modelling \| `set()` + `s.add(x)` + `x in s` shares the dict's `map int (option int)` model; `.add`/`.discard` use `map_update_some`/`map_update_none` wrappers | 0347 | PASS |
 | 12.3.1 | Multi-argument `range(start, stop)` under full proof \| Loop with `for i in range(s, e)`, sum accumulator + invariants | 0348 | PASS |
-| 12.4.1 | `Optional[T]` return annotation \| Module5 unwraps `Optional[T]` to T (since `None` maps to `0`) | 0349 | PASS |
-| 12.4.2 | `Union[T, None]` return annotation \| Module5 heuristic picks the first non-`None` component | 0350 | PASS |
+| 12.4.1 | `Optional[int]` parameter annotation \| typing-engagement ty1: Optional[X] IS Union[X, None]; synthesizes per-site variant `_union_<f>_<i> = Arm_<i>_0 int \| Arm_<i>_None` | 0349 | PASS |
+| 12.4.2 | `Union[int, None]` parameter annotation \| same variant seam as Optional (C1b); per-arm VCs C2/C3 discharge | 0350 | PASS |
 | 12.5.1 | `sorted` builtin on array \| Emits abstract `val sorted_1 (a: array int) : array int`; target tracked as array-typed | 0351 | PASS |
 | 12.5.2 | `bytes()`/`bytearray()` constructors \| Faithful `array int` constructor — length- and element-preserving `ensures` (empty → length 0); result tracked as array-typed (07-1321 S1) | 0616 | PASS |
 | 12.5.3 | array-ref local deref at call site \| Ref-wrapped array local passed to a callee is dereferenced (`!x`); plain args unchanged (07-1321 S2) | 0617 | PASS |

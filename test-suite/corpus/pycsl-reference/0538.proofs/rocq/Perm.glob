@@ -1,0 +1,20 @@
+DIGEST 96993ccbe6140b8876e9a823653e4a58
+FPerm
+R309:312 Coq.Lists.List <> <> lib
+R330:352 Coq.Sorting.Permutation <> <> lib
+mod 363:367 <> Pycsl
+mod 377:385 <> Pycsl.Reference
+mod 395:398 <> Pycsl.Reference.Perm
+prf 596:606 Pycsl.Reference.Perm permut_refl
+binder 618:618 <> A:1
+R633:636 Coq.Init.Datatypes <> list ind
+R638:638 Perm <> A:1 var
+binder 629:629 <> l:2
+R642:652 Coq.Sorting.Permutation <> Permutation ind
+R656:656 Perm <> l:2 var
+R654:654 Perm <> l:2 var
+R684:699 Coq.Sorting.Permutation <> Permutation_refl thm
+R684:699 Coq.Sorting.Permutation <> Permutation_refl thm
+R712:715 Perm Pycsl.Reference.Perm <> mod
+R722:730 Perm Pycsl.Reference <> mod
+R737:741 Perm Pycsl <> mod

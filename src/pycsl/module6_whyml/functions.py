@@ -401,6 +401,70 @@ class FunctionEmissionMixin:
         self._in_spec = False
         return lines
 
+    def _emit_union_arm_vc(self, name: str, symbol_table: Dict[str, Any]) -> List[str]:
+        """typing-engagement ty1 / 25-1700-typing-spec-1 §2.2 — per-arm VCs for
+        every parameter whose symbol-table entry is a synthesized `_union_*`
+        variant. Emits:
+
+          * C2 (arm membership / injection): `forall v: T_arm. exists (u:
+            _union_N). u = Arm_i v` — proves the arm's payload type T_arm is
+            injectable into the Union (non-vacuous: it constructs a witness).
+          * C3 (reverse flow / projection): `forall (u: _union_N). match u with
+            Arm_i v -> <v has type T_arm> | _ -> true end` — proves every arm
+            projects to its declared payload type (non-vacuous: a wrong payload
+            type makes the match ill-typed → Why3 rejects it).
+
+        Both goals discharge via Why3 type-checking + the injection witness. A
+        false-twin (an impossible postcondition injected via `bin/false-twin.py`)
+        fails: the `exists` witness is the ONLY constructor that produces the
+        arm, so an arm with a wrong type has no witness."""
+        lines: List[str] = []
+        variant_types = getattr(self, "_variant_types", {})
+        seen_variants: Set[str] = set()
+        for var, symtype in symbol_table.items():
+            if not symtype or not symtype.startswith("_union_"):
+                continue
+            if symtype not in variant_types:
+                continue
+            if symtype in seen_variants:
+                continue
+            seen_variants.add(symtype)
+            vinfo = variant_types[symtype]
+            whyml_name = vinfo["whyml_name"]
+            constructors = vinfo.get("constructors", {})
+            for ctor_name, ctor in constructors.items():
+                payload = ctor.get("payload", [])
+                if not payload:
+                    # Nullary constructor (Arm_None) — no injection/projection VC
+                    # (it carries no value). C2/C3 are about arm *types*.
+                    continue
+                arm_tag = payload[0]
+                arm_whyml = self._union_arm_whyml_type(arm_tag)
+                safe_name = whyml_ident(name)
+                gname_inj = f"{safe_name}__union_arm_{ctor_name}_inj"
+                gname_proj = f"{safe_name}__union_arm_{ctor_name}_proj"
+                # C2: injection — the arm type is assignable to the Union.
+                lines.append(f"  goal {gname_inj} :")
+                lines.append(f"    forall v: {arm_whyml}."
+                             f" exists u: {whyml_name}. u = {ctor_name} v")
+                # C3: projection — the Union arm projects back to the arm type.
+                # A match that extracts the payload and asserts its identity.
+                lines.append(f"  goal {gname_proj} :")
+                lines.append(f"    forall u: {whyml_name}."
+                             f" match u with"
+                             f" | {ctor_name} v -> v = v"
+                             f" | _ -> true"
+                             f" end")
+        return lines
+
+    def _union_arm_whyml_type(self, tag: str) -> str:
+        """Map a Union arm IR type tag to its WhyML type string."""
+        m = {"int": "int", "bool": "int", "str": "string", "float": "real",
+             "list": "array int", "bytes": "array int", "bytearray": "array int",
+             "dict": "map int (option int)", "set": "map int (option int)",
+             "frozenset": "map int (option int)", "tuple": "array int"}
+        return m.get(tag, "int")
+
     def _returns_string_seq(self, body_stmts: List[Dict[str, Any]]) -> bool:
         """str-list-elements: does the function `return` a seq local that was inferred
         to carry STRING elements (`_seq_value_types[v] == "string"`)? Such a list is
@@ -704,6 +768,11 @@ class FunctionEmissionMixin:
         if _iface:
             lines += self._emit_narrowing_vc(name, args_str, return_type,
                                              func.get("contracts", {}), _iface, spec_refs)
+        # typing-engagement ty1 / 25-1700-typing-spec-1 §2.2: per-arm VCs for
+        # Union-typed parameters (C2 injection, C3 projection).
+        _symtab = func.get("symbol_table", {}) or {}
+        if any(v and v.startswith("_union_") for v in _symtab.values()):
+            lines += self._emit_union_arm_vc(name, _symtab)
         if _pos_in_scc == _scc_size - 1:
             lines.append("")
         return lines

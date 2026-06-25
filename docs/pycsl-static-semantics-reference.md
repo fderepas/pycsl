@@ -201,9 +201,13 @@ specification logic's type universe:
                                  captures-in-contracts (`\is_ctor`/`\payload`) are all SUPPORTED
                                  (§ datatype note); only in-place variant-field mutation and
                                  use-site type-param `\payload` remain out of scope *)
-τ(Optional[T])    = τ(T)      (* None maps to 0; the optional-ness adds no type info *)
-τ(Union[T, None]) = τ(T)      (* equivalent to Optional[T] *)
-τ(Union[T1, T2])  = τ(T1)     (* heuristic: first non-None component *)
+τ(Optional[T])    = _union_<scope>_<idx>   (* typing-engagement ty1: Optional[X]
+                                   IS Union[X, None]; synthesizes a per-site
+                                   variant with arm τ(T) + nullary Arm_None *)
+τ(Union[T, None]) = _union_<scope>_<idx>   (* C1b: equivalent to Optional[T] *)
+τ(Union[T1, T2,…])= _union_<scope>_<idx>   (* one arm per T_i; Any dropped (GT1);
+                                   de-duplicated (C1a); None → nullary ctor *)
+τ(A | B)          = _union_<scope>_<idx>   (* PEP 604: same as Union[A, B] (C1) *)
 τ(_)              = Any       (* all other types, including no annotation *)
 ```
 

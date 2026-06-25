@@ -1371,6 +1371,19 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             return head.lower()
         return "int"
 
+    def _field_type_from_annotation_inst(self, annotation: Optional[ast.expr],
+                                          scope_name: str = "") -> str:
+        """Instance wrapper for `_field_type_from_annotation` that tries Union
+        normalization first (synthesizing a per-site variant for
+        `Union`/`Optional`/`|` field annotations), else falls back to the static
+        legacy resolution. For non-Union annotations, byte-identical."""
+        if annotation is not None and scope_name:
+            try:
+                return self._normalize_union_annotation(annotation, scope_name)
+            except Exception:
+                pass
+        return self._field_type_from_annotation(annotation)
+
     @staticmethod
     def _mixin_field_type(type_str: str) -> str:
         """Map a `#@ shared_state`/`#@ touches_field` declared type to the record
@@ -1429,7 +1442,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                 isinstance(stmt.target.value, ast.Name) and
                                 stmt.target.value.id == 'self' and
                                 stmt.target.attr not in field_names_seen):
-                            ftype = self._field_type_from_annotation(stmt.annotation)
+                            ftype = self._field_type_from_annotation_inst(
+                                stmt.annotation, node.name)
                             fields.append({"name": stmt.target.attr, "type": ftype, "mutable": True})
                             field_names_seen.add(stmt.target.attr)
                             if (stmt.value and isinstance(stmt.value, ast.Constant) and
@@ -1604,8 +1618,150 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # tables are CONTENT- AND ORDER-IDENTICAL to Module4's, keeping the emitted
     # `.mlw` byte-for-byte unchanged.
 
-    def _m5_get_type_name(self, annotation: ast.expr) -> str:
-        """Port of Module4._get_type_name. See that method for the rules."""
+    # --- Union normalization (typing-engagement ty1 / 25-1700-typing-spec-1) ---
+    #
+    # `Union[A, B]`, `Optional[X]`, `A | B`, and degenerate `Union[X]` are
+    # desugared at this seam into a per-annotation-site synthesized `type_decl`
+    # of kind "variant" (one constructor per arm; `None` → nullary `Arm_None`),
+    # registered under a fresh variant name `_union_<func>_<idx>`. The symbol-
+    # table entry for the variable is set to that variant name so the EXISTING
+    # `_variant_types` branches in functions.py resolve it. For any annotation
+    # that is NOT one of the four Union surface forms, the helper returns the
+    # existing IR tag UNCHANGED, so every unaffected driver stays byte-identical.
+    # `Any` arms are dropped (GT1) and recorded for --soundness-report.
+
+    _UNION_ARM_TAGS = {"int", "bool", "str", "bytes", "float", "list", "dict", "set"}
+
+    def _union_arm_tag(self, elt: ast.expr) -> Optional[str]:
+        """Lower one Union arm AST to an IR type tag, or None if it is `Any`
+        (GT1 — dropped) / unrecognised. `None` (the singleton) is returned as
+        the sentinel string "None" so the caller can emit a nullary ctor."""
+        if isinstance(elt, ast.Constant) and elt.value is None:
+            return "None"
+        if isinstance(elt, ast.Name):
+            if elt.id == "None":
+                return "None"
+            if elt.id == "Any":
+                return "Any"
+            if elt.id in ("int", "bool", "float", "str", "bytes",
+                          "list", "dict", "set", "frozenset", "tuple", "bytearray"):
+                return "int" if elt.id in ("int", "bool") else elt.id
+            return "Any"
+        if isinstance(elt, ast.Subscript) and isinstance(elt.value, ast.Name):
+            head = elt.value.id
+            if head in ("List", "list"):
+                return "list"
+            if head in ("Dict", "dict"):
+                return "dict"
+            if head in ("Set", "set", "FrozenSet", "frozenset"):
+                return "set"
+            if head in ("Tuple", "tuple"):
+                return "list"
+            if head in ("Bytes", "bytes", "ByteArray", "bytearray"):
+                return "list"
+            return "Any"
+        return "Any"
+
+    def _collect_union_arms(self, ann_expr: ast.expr) -> Optional[List[ast.expr]]:
+        """Return the list of arm AST expressions if `ann_expr` is one of the
+        four Union surface forms, else None (caller falls back to existing
+        logic). Flattens nested `|` (left-assoc BinOp BitOr) and degenerate
+        `Union[X]` (non-Tuple slice)."""
+        if isinstance(ann_expr, ast.Subscript) and isinstance(ann_expr.value, ast.Name):
+            head = ann_expr.value.id
+            if head == "Union":
+                inner = ann_expr.slice
+                if isinstance(inner, ast.Tuple):
+                    return list(inner.elts)
+                return [inner]
+            if head == "Optional":
+                inner = ann_expr.slice
+                return [inner, ast.Constant(value=None)]
+        if isinstance(ann_expr, ast.BinOp) and isinstance(ann_expr.op, ast.BitOr):
+            arms: List[ast.expr] = []
+            stack = [ann_expr]
+            while stack:
+                node = stack.pop()
+                if isinstance(node, ast.BinOp) and isinstance(node.op, ast.BitOr):
+                    stack.append(node.right)
+                    stack.append(node.left)
+                else:
+                    arms.append(node)
+            arms.reverse()
+            return arms
+        return None
+
+    def _normalize_union_annotation(self, ann_expr: ast.expr,
+                                    scope_name: str) -> str:
+        """Recognize `Union`/`Optional`/`|` annotations and synthesize a per-site
+        variant `type_decl`. Returns the variant name (registered in
+        `symbol_table` and `program_ir["type_decls"]`), OR the existing IR tag
+        for non-Union annotations (byte-identical fallback).
+
+        `scope_name` is the enclosing function/method name used for deterministic
+        per-site mangling (`_union_<func>_<idx>`)."""
+        arms_ast = self._collect_union_arms(ann_expr)
+        if arms_ast is None:
+            return self._m5_get_type_name_legacy(ann_expr)
+        # Lower each arm, de-duplicate (C1a), drop Any (C4/GT1), order by source
+        # with None last (C1b rendering detail).
+        lowered: List[Tuple[str, str]] = []  # (tag, ctor-suffix-source)
+        seen_tags: Set[str] = set()
+        any_dropped = False
+        none_present = False
+        for elt in arms_ast:
+            tag = self._union_arm_tag(elt)
+            if tag == "Any":
+                any_dropped = True
+                continue
+            if tag == "None":
+                none_present = True
+                continue
+            if tag in seen_tags:
+                continue
+            seen_tags.add(tag)
+            lowered.append((tag, elt))
+        if none_present and "None" not in seen_tags:
+            seen_tags.add("None")
+        # Degenerate single-arm Union with no None (C1c): `Union[X]` is `X`.
+        if len(lowered) == 1 and not none_present and not any_dropped:
+            return self._m5_get_type_name_legacy(arms_ast[0])
+        if not lowered and not none_present:
+            # All arms were Any — refuse to synthesize a universal sink.
+            return "int"
+        idx = self._fresh_var_counter
+        self._fresh_var_counter += 1
+        safe_scope = "".join(c if c.isalnum() else "_" for c in scope_name) or "anon"
+        variant_name = f"_union_{safe_scope}_{idx}"
+        # Build the variant constructors: one per arm tag + a nullary Arm_None.
+        # Constructor names are mangled per-variant (`Arm_<idx>_<i>`) so they
+        # are globally unique within the Why3 module (Why3 constructors share
+        # one namespace, so two variants cannot both have `Arm_0`).
+        constructors = []
+        for i, (tag, _elt) in enumerate(lowered):
+            ctor_name = f"Arm_{idx}_{i}"
+            payload = [tag]
+            constructors.append({"name": ctor_name, "arity": 1, "payload": payload})
+        if none_present:
+            constructors.append({"name": f"Arm_{idx}_None", "arity": 0, "payload": []})
+        self.program_ir["type_decls"].append({
+            "kind": "variant",
+            "name": variant_name,
+            "type_params": [],
+            "constructors": constructors,
+        })
+        self.program_ir.setdefault("constructors", {})
+        for c in constructors:
+            self.program_ir["constructors"][c["name"]] = {
+                "type": variant_name, "arity": c["arity"]}
+        if any_dropped:
+            self.program_ir.setdefault("union_gt1_sites", []).append(variant_name)
+        return variant_name
+
+    def _m5_get_type_name_legacy(self, annotation: ast.expr) -> str:
+        """The pre-Union `_m5_get_type_name` body, preserved verbatim so
+        `_normalize_union_annotation` can fall back to it for non-Union
+        annotations (byte-identical emission)."""
         if isinstance(annotation, ast.Name):
             return annotation.id
         if isinstance(annotation, ast.Subscript) and isinstance(annotation.value, ast.Name):
@@ -1630,6 +1786,24 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 return "Any"
             return head.lower()
         return "Any"
+
+    def _m5_get_type_name(self, annotation: ast.expr,
+                          scope_name: str = "") -> str:
+        """Public entry: try Union normalization first (synthesizing a per-site
+        variant `type_decl`), else fall back to the legacy tag resolution. For
+        non-Union annotations the result is byte-identical to the pre-Union
+        `_m5_get_type_name`. `scope_name` seeds the deterministic variant-name
+        mangling; empty is tolerated (used by callers that cannot supply a
+        function name, e.g. field annotations — those synthesize `_union_anon_*`
+        which is still deterministic per-file)."""
+        if scope_name:
+            try:
+                return self._normalize_union_annotation(annotation, scope_name)
+            except Exception:
+                # Never let a Union-recognition bug perturb a non-Union driver:
+                # fall back to the legacy path (byte-identical) on any error.
+                pass
+        return self._m5_get_type_name_legacy(annotation)
 
     @staticmethod
     def _m5_get_dict_value_type(annotation: ast.expr) -> Optional[str]:
@@ -1685,12 +1859,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         dict_value_types: Dict[str, str] = {}
         dict_key_types: Dict[str, str] = {}
         shared = self._shared_var_names
+        _scope_name = node.name
 
         # Function arguments (skip 'self' for methods)
         for arg in node.args.args:
             if arg.arg == 'self':
                 continue
-            arg_type = self._m5_get_type_name(arg.annotation) if arg.annotation else "Any"
+            arg_type = self._m5_get_type_name(arg.annotation, _scope_name) if arg.annotation else "Any"
             scope[arg.arg] = arg_type
             if arg.annotation is not None:
                 nu = self._m5_get_dict_value_type(arg.annotation)
@@ -1709,7 +1884,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             elif isinstance(child, ast.AnnAssign):
                 if isinstance(child.target, ast.Name) and child.target.id not in shared:
                     scope[child.target.id] = (
-                        self._m5_get_type_name(child.annotation)
+                        self._m5_get_type_name(child.annotation, _scope_name)
                         if child.annotation else "Any"
                     )
                     if child.annotation is not None:
@@ -1760,6 +1935,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 return_annotation = node.returns.id
             elif isinstance(node.returns, ast.Constant):
                 return_annotation = str(node.returns.value)
+            elif isinstance(node.returns, ast.BinOp) and isinstance(node.returns.op, ast.BitOr):
+                # PEP 604 `X | Y` return — route through Union normalization.
+                return_annotation = self._normalize_union_annotation(
+                    node.returns, node.name)
             elif isinstance(node.returns, ast.Subscript):
                 # Parametric annotations like `List[str]`, `Tuple[int, int]`,
                 # `Dict[str, Any]`, `Optional[int]`. Capture the head identifier
@@ -1767,38 +1946,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 # case-sensitive checks against the bare `list` annotation).
                 if isinstance(node.returns.value, ast.Name):
                     head = node.returns.value.id
-                    # `Optional[T]` reduces to T (we model `None` as `0`, so
-                    # the optional-ness adds no type-level info Module6
-                    # could use). Recurse into the inner type so
-                    # `Optional[List[str]]` → `"list"`.
-                    if head == "Optional":
-                        inner = node.returns.slice
-                        if isinstance(inner, ast.Name):
-                            return_annotation = inner.id.lower()
-                        elif isinstance(inner, ast.Subscript) and isinstance(inner.value, ast.Name):
-                            return_annotation = inner.value.id.lower()
-                        else:
-                            return_annotation = "int"
-                    elif head == "Union":
-                        # `Union[T, None]` is equivalent to `Optional[T]`.
-                        # General Union[T1, T2, …] collapses to int since
-                        # Module6 has no sum-type model. Heuristic: pick
-                        # the first non-None component.
-                        inner = node.returns.slice
-                        chosen = "int"
-                        if isinstance(inner, ast.Tuple):
-                            for elt in inner.elts:
-                                if isinstance(elt, ast.Constant) and elt.value is None:
-                                    continue
-                                if isinstance(elt, ast.Name) and elt.id != "None":
-                                    chosen = elt.id.lower()
-                                    break
-                                if isinstance(elt, ast.Subscript) and isinstance(elt.value, ast.Name):
-                                    chosen = elt.value.id.lower()
-                                    break
-                        return_annotation = chosen
+                    if head in ("Optional", "Union"):
+                        # `Optional[T]` / `Union[...]` return — synthesize a
+                        # per-site variant (typing-engagement ty1), so the
+                        # return type is a real sum type, not a collapsed int.
+                        return_annotation = self._normalize_union_annotation(
+                            node.returns, node.name)
                     else:
                         return_annotation = head.lower()
+        # Fallback: a bare Name/Constant that we didn't recognise above.
         # Formal parameter names ONLY (excluding `self`). Distinct from
         # `symbol_table`, which Module4 also populates with local
         # variables, for-loop targets, and ghost vars. Module6's

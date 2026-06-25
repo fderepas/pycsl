@@ -1238,7 +1238,9 @@ what Python's own grammar admits:
   parser uses the stdlib `ast` parse; any `ast.Name` annotation node is
   carried through without rejection).
 - **`Subscript`** — `x: List[int]`, `x: Tuple[int, int]`, `x: Optional[T]`,
-  `x: Dict[K, V]`. # cite: `src/pycsl/frontend/pure_ast.py`.
+  `x: Dict[K, V]`, `x: Union[A, B]`. # cite: `src/pycsl/frontend/pure_ast.py`.
+- **`BinOp(BitOr)`** — `x: A | B` (PEP 604 union). # cite:
+  `src/pycsl/frontend/pure_ast.py` (parsed as `BinOp(op=BitOr)`, left-assoc).
 - **`Constant` (stringized / forward reference)** — `x: "Foo"`,
   `-> "Foo"`. # cite: `src/pycsl/frontend/pure_ast.py` (the parser passes
   stringized annotations through verbatim; they reach `_m5_get_type_name` in

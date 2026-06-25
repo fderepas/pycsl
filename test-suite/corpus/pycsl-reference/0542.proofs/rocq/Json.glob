@@ -1,0 +1,46 @@
+DIGEST 97c245c3dad283310abdc0e1d31b1817
+FJson
+R15:20 Coq.ZArith.ZArith <> <> lib
+mod 30:34 <> Pycsl
+mod 44:52 <> Pycsl.Reference
+mod 62:65 <> Pycsl.Reference.Json
+ind 79:82 Pycsl.Reference.Json json
+constr 98:102 Pycsl.Reference.Json JNull
+constr 115:118 Pycsl.Reference.Json JInt
+constr 136:140 Pycsl.Reference.Json JPair
+R106:109 Json <> json:1 ind
+R123:126 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R122:122 Coq.Numbers.BinNums <> Z ind
+R127:130 Json <> json:1 ind
+R148:151 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R144:147 Json <> json:1 ind
+R156:159 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R152:155 Json <> json:1 ind
+R160:163 Json <> json:1 ind
+scheme 79:82 Pycsl.Reference.Json json_rect
+scheme 79:82 Pycsl.Reference.Json json_ind
+scheme 79:82 Pycsl.Reference.Json json_rec
+scheme 79:82 Pycsl.Reference.Json json_sind
+def 176:181 Pycsl.Reference.Json mirror
+R187:190 Json Pycsl.Reference.Json json ind
+binder 184:184 <> j:3
+R195:198 Json Pycsl.Reference.Json json ind
+R211:211 Json <> j:3 var
+R222:226 Json Pycsl.Reference.Json JNull constr
+R231:235 Json Pycsl.Reference.Json JNull constr
+R241:244 Json Pycsl.Reference.Json JInt constr
+R251:254 Json Pycsl.Reference.Json JInt constr
+R262:266 Json Pycsl.Reference.Json JPair constr
+R275:279 Json Pycsl.Reference.Json JPair constr
+R282:287 Json <> mirror:4 def
+R293:298 Json <> mirror:4 def
+prf 396:412 Pycsl.Reference.Json mirror_involution
+binder 423:423 <> j:6
+R443:445 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R426:431 Json Pycsl.Reference.Json mirror def
+R434:439 Json Pycsl.Reference.Json mirror def
+R441:441 Json <> j:6 var
+R446:446 Json <> j:6 var
+R559:562 Json Pycsl.Reference.Json <> mod
+R569:577 Json Pycsl.Reference <> mod
+R584:588 Json Pycsl <> mod

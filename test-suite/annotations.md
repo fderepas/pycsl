@@ -1783,18 +1783,39 @@ expressions (no constraint to literals).
 **Tests**: 0327, 0328 (parse-level), 0348 (full proof with loop
 invariants + variant).
 
-### §12.4 `Optional[T]` and `Union[T1, T2]` return annotations
+### §12.4 `Union` / `Optional` / `X | Y` annotations (typing-engagement ty1)
 
-Module5 extracts parametric return annotations recursively:
+PEP 484 `Union[X, Y]`, PEP 604 `X | Y`, and `Optional[X]` (= `Union[X, None]`)
+are **desugared at the front-end normalization seam** into a per-annotation-site
+synthesized `type_decl` of kind `variant`:
 
-- `-> Optional[T]` ⇒ `return_annotation = "<T_head>"` (e.g. `Optional[int]` → `"int"`, `Optional[List[str]]` → `"list"`)
-- `-> Union[T, None]` ⇒ same as Optional (picks first non-`None` component)
-- `-> Union[T1, T2, …]` ⇒ heuristic: first non-`None` component
+```python
+def f(x: Union[int, str]) -> int: ...   # synthesizes:
+# type _union_f_0 = Arm_0_0 int | Arm_1_0 string
+```
 
-PyCSL models `None` as `0`, so Optional adds no type-level info Module6
-could use; the unwrap collapses to the inner type.
+The variant name is `_union_<func>_<idx>` (per-site, deterministic). `None` arms
+become a nullary `Arm_<idx>_None` constructor. `Any` arms are dropped (GT1 —
+the static plane refuses gradual consistency; reported in `--soundness-report`).
+Arms are de-duplicated (C1a) and ordered by source with `None` last (C1b).
 
-**Tests**: 0349 (Optional[int]), 0350 (Union[int, None]).
+**Static plane (Interpreted):** the variant type reuses the existing `#@ datatype`
+machinery — `_variant_types` in functions.py resolves the param/return type, and
+preamble.py emits the Why3 `type _union_N = Arm_0 of int | …`. Per-arm VCs (C2
+injection, C3 projection) are emitted by `_emit_union_arm_vc`. `if x is None:`
+on a Union-typed variable lowers to a constructor-pattern `match` (C5). `isinstance`
+narrowing (C6) uses the existing tag machinery. Match exhaustiveness (C9) is
+Why3's native check. C8 (no narrowing without a guard) and C11 (dead-arm
+reporting) are `core_ir_semantic` well-formedness checks.
+
+**Runtime plane (Shimmed):** `src/pycsl_lib/typ/__init__.py` provides a `Union`
+shim with `#@ ensures \result == val` — identity, no validation (R1–R8, D4
+no-blend). The static clauses are NOT discharged by the shim.
+
+**Return-value auto-injection:** a function returning `Optional[int]` whose body
+returns an `int` auto-injects into the matching arm constructor (`Arm_0_0 (expr)`).
+
+**Tests**: 0349 (Optional[int] param), 0350 (Union[int, None] param).
 
 ### §12.5 `sorted` builtin
 

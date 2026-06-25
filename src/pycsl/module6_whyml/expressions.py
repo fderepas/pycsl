@@ -433,6 +433,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 left = "1" if expr["left"].get("value") else "0"
             if expr["right"].get("type") == "Bool":
                 right = "1" if expr["right"].get("value") else "0"
+        # typing-engagement ty1 / 25-1700-typing-spec-1 §1.2 C5: `x is None`
+        # (BinOp `==`/`!=` with `None`) on a Union-typed variable lowers to a
+        # constructor check against the nullary `Arm_<idx>_None` ctor, NOT `x=0`.
+        if raw_op in ("==", "!=") and (
+                expr["left"].get("type") == "None" or
+                expr["right"].get("type") == "None"):
+            union_ctor = self._union_none_ctor_for(expr["left"]) or \
+                self._union_none_ctor_for(expr["right"])
+            if union_ctor is not None:
+                var_side = expr["right"] if expr["left"].get("type") == "None" \
+                    else expr["left"]
+                var_str = self._expr_to_whyml(var_side, local_refs,
+                                              invariant_ctx, subst)
+                chk = f"({var_str} = {union_ctor})"
+                return chk if raw_op == "==" else f"(not {chk})"
         op = op_translate(raw_op)
         # no-more-int Stage D: float arithmetic/comparison is over Why3 `real` (RealInfix
         # `+.`/`-.`/`*.`/`/.`/`<.`/…), not int. Both operands must be float; a mixed float/int
@@ -1986,6 +2001,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return tag
         self._add_abstract_op("val function typeof_op (n: int) : int")
         return f"(typeof_op {sum(ord(c) for c in name) if name else 0})"
+
+    def _union_none_ctor_for(self, x_ir: Dict[str, Any]) -> Optional[str]:
+        """typing-engagement ty1 C5 — if `x_ir` is a Var whose symbol-table type
+        is a synthesized `_union_*` variant that has a nullary `Arm_*_None`
+        constructor, return that constructor name (so `x is None` lowers to a
+        constructor check). Else None (caller falls back to `x = 0`)."""
+        if not isinstance(x_ir, dict) or x_ir.get("type") != "Var":
+            return None
+        name = x_ir.get("name")
+        symtype = getattr(self, "_current_symbol_table", {}).get(name)
+        if not symtype or not isinstance(symtype, str) or not symtype.startswith("_union_"):
+            return None
+        vinfo = getattr(self, "_variant_types", {}).get(symtype)
+        if not vinfo:
+            return None
+        for ctor_name, ctor in vinfo.get("constructors", {}).items():
+            if ctor.get("arity") == 0 and "None" in ctor_name:
+                return ctor_name
+        return None
 
     def _handle_isinstance(self, expr: Dict[str, Any]) -> str:
         """`isinstance(x, T)` → `subtag (\\typeof x) T` (decision: \\subtag, not ==, so a

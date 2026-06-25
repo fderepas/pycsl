@@ -61,12 +61,14 @@ def run_ir_semantic_checks(ir: Any, *, stage: str = "ir-semantic") -> None:
         _check_ghost_string_ops(func)
         _check_diverges(func)
         _check_lemma(func, trusted_funcs)
+        _check_union_narrowing(func)
     # Module-level (cross-method) checks run once over the whole IR.
     _check_happy(ir)
     _check_mutex_invariants(ir)
     _check_class_invariants(ir)
     _check_concurrency(ir)
     _check_fresh_globals(ir, stage)
+    _check_union_gt1(ir)
 
 
 def _collect_call_targets(node: Any, acc: set) -> None:
@@ -1088,3 +1090,122 @@ def _check_mutex_invariants(ir) -> None:
                 f"protected by '{mutex}'. Protected variables: {sorted(protected)}.",
                 code="PYCSL-SEM-MUTEXINV",
             )
+
+
+def _check_union_narrowing(func: Any) -> None:
+    """typing-engagement ty1 / 25-1700-typing-spec-1 §1.2 — C8 (no narrowing
+    without a guard) and C11 (unreachable arm).
+
+    Only fires on functions with `_union_*`-typed parameters (zero impact on
+    every existing driver — none use Union annotations). Walks the function
+    body for `if` statements whose condition narrows a Union-typed variable via
+    a path NOT derived from `is None` / `isinstance` / `TypeIs` / `TypeGuard`
+    (C8), and for `match` statements with dead arms (C11).
+    """
+    symtab = func.get("symbol_table", {}) or {}
+    union_vars = {v for v, t in symtab.items()
+                  if t and isinstance(t, str) and t.startswith("_union_")}
+    if not union_vars:
+        return
+    _union_c8_walk(func.get("body", []) or [], union_vars, func.get("name", "?"))
+
+
+def _union_c8_walk(stmts: list, union_vars: set, fname: str) -> None:
+    """Walk the body IR. C8: an `if` condition that references a Union-typed
+    variable without a recognized narrowing guard (is None / isinstance /
+    TypeIs / TypeGuard) does NOT refine the variable's type — flag a warning
+    (not an error, since the variable simply retains its Union type; the
+    static rejection is for a downstream claim of narrowing, which is caught
+    by the Why3 type system)."""
+    for s in stmts:
+        if not isinstance(s, dict):
+            continue
+        st = s.get("stmt")
+        if st == "If":
+            test = s.get("test", {})
+            if _union_c8_test_references_union_var(test, union_vars):
+                if not _union_c8_recognized_guard(test):
+                    warnings.warn(
+                        f"Function '{fname}': path condition narrows a Union-typed "
+                        f"variable without a recognized guard (is None / isinstance / "
+                        f"TypeIs / TypeGuard). The variable retains its Union type on "
+                        f"both branches (C8).",
+                        stacklevel=2,
+                    )
+            _union_c8_walk(s.get("body", []) or [], union_vars, fname)
+            _union_c8_walk(s.get("orelse", []) or [], union_vars, fname)
+        elif st in ("While", "For"):
+            _union_c8_walk(s.get("body", []) or [], union_vars, fname)
+        elif st == "Match":
+            _union_c11_check_dead_arms(s, fname)
+            for c in s.get("cases", []) or []:
+                _union_c8_walk(c.get("body", []) or [], union_vars, fname)
+
+
+def _union_c8_test_references_union_var(test: Any, union_vars: set) -> bool:
+    """Does the `if` test IR reference a Union-typed variable?"""
+    if isinstance(test, dict):
+        if test.get("type") == "Var" and test.get("name") in union_vars:
+            return True
+        return any(_union_c8_test_references_union_var(v, union_vars)
+                   for v in test.values())
+    if isinstance(test, list):
+        return any(_union_c8_test_references_union_var(v, union_vars)
+                   for v in test)
+    return False
+
+
+def _union_c8_recognized_guard(test: Any) -> bool:
+    """Is this `if` condition a recognized narrowing guard? Checks for:
+    `x is None` (BinOp op ==), `isinstance(x, ...)`, or a Call to a
+    TypeIs/TypeGuard function."""
+    if not isinstance(test, dict):
+        return False
+    if test.get("type") == "BinOp" and test.get("op") in ("==", "!="):
+        for side in (test.get("left"), test.get("right")):
+            if isinstance(side, dict) and side.get("type") == "None":
+                return True
+    if test.get("type") == "Call":
+        func = test.get("func")
+        if isinstance(func, str) and func == "isinstance":
+            return True
+        args = test.get("args", [])
+        if isinstance(args, list) and args:
+            first = args[0]
+            if isinstance(first, dict) and first.get("type") == "Var":
+                return True
+    return False
+
+
+def _union_c11_check_dead_arms(match_stmt: Any, fname: str) -> None:
+    """C11 — a match arm whose pattern is subsumed by an earlier arm is dead.
+    Basic check: flag duplicate constructor patterns (same ctor name)."""
+    cases = match_stmt.get("cases", []) or []
+    seen_ctors: set = set()
+    for c in cases:
+        pat = c.get("pattern", {})
+        if not isinstance(pat, dict):
+            continue
+        ctor = pat.get("ctor")
+        if ctor and ctor in seen_ctors:
+            warnings.warn(
+                f"Function '{fname}': match arm '{ctor}' is subsumed by an earlier "
+                f"arm — dead code (C11).",
+                stacklevel=2,
+            )
+        if ctor:
+            seen_ctors.add(ctor)
+
+
+def _check_union_gt1(ir: Any) -> None:
+    """typing-engagement ty1 / 25-1700-typing-spec-1 §4.1 — GT1 `Any`-arm
+    reporting. The front-end records dropped `Any` arms in
+    `ir["union_gt1_sites"]`; surface them as warnings for the soundness report."""
+    gt1_sites = ir.get("union_gt1_sites") or []
+    for site in gt1_sites:
+        warnings.warn(
+            f"GT1: Union arm `Any` refused (opaque, operation-barren) in "
+            f"variant '{site}'. The arm was dropped from the synthesized variant; "
+            f"the static plane discharges C2/C3 against non-`Any` arms only.",
+            stacklevel=2,
+        )

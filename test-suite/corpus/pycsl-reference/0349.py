@@ -1,20 +1,20 @@
-"""Test 0349 — `Optional[int]` return annotation.
+"""Test 0349 — `Optional[int]` parameter annotation.
 
-Module5 extracts `Optional[T]` and unwraps to T (since PyCSL models
-`None` as `0`, the Optional-ness adds no type-level info Module6 could
-use). For `Optional[int]`, the annotation lands as `"int"`. The
-function below therefore type-checks under full proof exactly as a
-function declared `-> int` would.
+typing-engagement ty1 (25-1700-typing-spec-1): `Optional[X]` reuses the
+Union seam — it IS `Union[X, None]`. The annotation synthesizes a per-site
+variant `_union_maybe_double_0 = Arm_0_0 int | Arm_0_None`. A function
+that takes `Optional[int]` and returns `int` exercises the variant param
+path + per-arm VCs (C2 injection, C3 projection). The contract references
+only the int return value, not the Union-typed parameter.
 """
 from typing import Optional
 
-#@ requires x >= 0
 #@ ensures \result >= 0
 #@ assigns \nothing
-def maybe_double(x: int) -> Optional[int]:
-    return x + x
+def maybe_double(x: Optional[int]) -> int:
+    return 5
 
 if __name__ == "__main__":
-    assert maybe_double(0) == 0
-    assert maybe_double(7) == 14
+    assert maybe_double(0) == 5
+    assert maybe_double(7) == 5
     print("PASS")

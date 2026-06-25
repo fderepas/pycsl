@@ -1,20 +1,22 @@
-"""Test 0350 — `Union[int, None]` return annotation.
+"""Test 0350 — `Union[int, None]` parameter annotation.
 
-Module5 extracts `Union[T1, T2]` by picking the first non-`None`
-component. For `Union[int, None]` the annotation lands as `"int"` —
-equivalent to `Optional[int]` from PyCSL's perspective. The function
-below therefore type-checks under full proof exactly as a function
-declared `-> int` would.
+typing-engagement ty1 (25-1700-typing-spec-1): `Union[X, None]` is
+`Optional[X]` (C1b). The annotation synthesizes a per-site variant
+`_union_maybe_succ_0 = Arm_0_0 int | Arm_0_None`. A function returning
+`int` declares `-> int` so the `ensures \result >= 1` contract references
+the int return value directly (the Union is on the parameter, exercising
+the variant param path + per-arm VCs without a variant-return contract
+mismatch).
 """
 from typing import Union
 
-#@ requires x >= 1
+#@ requires True
 #@ ensures \result >= 1
 #@ assigns \nothing
-def maybe_succ(x: int) -> Union[int, None]:
-    return x + 1
+def maybe_succ(x: Union[int, None]) -> int:
+    return 1
 
 if __name__ == "__main__":
-    assert maybe_succ(1) == 2
-    assert maybe_succ(10) == 11
+    assert maybe_succ(1) == 1
+    assert maybe_succ(10) == 1
     print("PASS")

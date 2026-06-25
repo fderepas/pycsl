@@ -2648,18 +2648,43 @@ T[[for i in range(start, stop): body]]
 
 For 1-arg `range(n)`, `start` defaults to `0` (existing behaviour).
 
-### §T.14.4  `Optional[T]` and `Union[T1, T2]` return annotations
+### §T.14.4  `Union` / `Optional` / `X | Y` annotations (typing-engagement ty1)
 
-Module5's `_build_function_ir` handles `ast.Subscript` return
-annotations:
+PEP 484 `Union[X, Y]`, PEP 604 `X | Y`, and `Optional[X]` (= `Union[X, None]`)
+are desugared at the front-end normalization seam
+(`Module5_IREmitter._normalize_union_annotation`) into a per-annotation-site
+synthesized `type_decl` of kind `variant`:
 
-- `-> Optional[T]` ⇒ `return_annotation = <T>.lower()`. Since PyCSL
-  models `None` as `0`, the optional-ness adds no type-level info
-  Module6 could use; the inner type stands.
-- `-> Union[T, None]` ⇒ same as Optional (heuristic picks first
-  non-`None` component).
-- `-> Union[T1, T2, …]` ⇒ heuristic: first non-`None` component (rare
-  case; document loudly).
+```whyml
+type _union_<func>_<idx> = Arm_<idx>_0 of <T_0> | Arm_<idx>_1 of <T_1> | Arm_<idx>_None
+```
+
+**Translation table:**
+
+| Form | IR `return_annotation` / symbol_table entry | WhyML |
+|------|---------------------------------------------|-------|
+| `x: Union[int, str]` | `_union_<f>_<i>` | `type _union_<f>_<i> = Arm_<i>_0 int \| Arm_<i>_1 string` |
+| `x: Optional[int]` | `_union_<f>_<i>` | `type _union_<f>_<i> = Arm_<i>_0 int \| Arm_<i>_None` |
+| `x: int \| str` | `_union_<f>_<i>` | same as `Union[int, str]` (C1) |
+| `-> Optional[int]` | `_union_<f>_<i>` | return type is the variant; body auto-injects |
+
+**Per-arm VCs** (`functions._emit_union_arm_vc`): C2 (injection —
+`forall v: T_arm. exists u. u = Arm_i v`) and C3 (projection —
+`forall u. match u with Arm_i v -> v=v | _ -> true end`).
+
+**`is None` narrowing (C5):** `if x is None:` on a Union-typed `x` lowers to
+`match x with Arm_<i>_None -> <true> | _ -> <false>` (Why3 forbids `=` on
+algebraic types in a program `if`).
+
+**Return-value auto-injection:** a function returning `Optional[int]` whose
+body returns `expr` (an int) emits `Arm_<i>_0 (expr)`.
+
+**`Any` arm (GT1):** dropped from the synthesized variant; reported in
+`--soundness-report`. The static plane discharges C2/C3 against non-`Any`
+arms only.
+
+**Runtime shim** (`src/pycsl_lib/typ/__init__.py`): `Union(*args)` is
+`#@ ensures \result == val` (identity, no validation — R1–R8, D4 no-blend).
 
 ### §T.14.5  `sorted` / `any` / `all` builtins
 
