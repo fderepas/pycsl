@@ -2839,6 +2839,11 @@ class PreambleEmissionMixin:
                     # consumed by `_emit_module_globals` (proven-of-the-literal GOAL)
                     # and `#@ fresh_globals` (assumed-at-driver-entry fact).
                     "init_ensures": td.get("init_ensures", []),
+                    # typing-engagement ty2 / 29-1700-typing-spec-5: gates the
+                    # TypedDict subscript → record-field-read lowering and the
+                    # dict-literal → record-literal lowering. False for every
+                    # pre-existing record (byte-identical fallback).
+                    "is_typeddict": bool(td.get("is_typeddict", False)),
                 }
                 # Class-body integer constants (e.g. `CAP = 64`) — resolved to
                 # literals when referenced as `self.CONST` in a method/contract.

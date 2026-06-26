@@ -2880,6 +2880,84 @@ not a soundness gap.
 
 ---
 
+### §T.14.9  `TypedDict` annotations (typing-engagement ty2 / PEP 589)
+
+PEP 589 `class Point(TypedDict): x: int; y: int` (and the functional form
+`Point = TypedDict("Point", {"x": int, "y": int})`, plus PEP 655
+`Required[T]`/`NotRequired[T]` per-key totality and `total=False` class-level
+totality) is **lowered at the front-end normalization seam** to a record
+`type_decl` with one field per declared key. Per the two-plane spec
+(`typing-engagement/ty2/typeddict-twoplane-spec.md`) and the core-agent hard
+rule (`typing-global-impl.md` §5, TY2): a TypedDict class synthesizes a WhyML
+record `type td = { x: int; y: int }`, field access `p["x"]` becomes
+record-field access `p.x`, and construction `{"x": 1, "y": 2}` becomes a
+record literal.
+
+**Normalization** (`Module5_IREmitter._emit_typeddict_record` /
+`_synthesize_typeddict_functional`): the `visit_ClassDef` seam recognizes
+`class X(TypedDict)` (a base name `TypedDict`) and dispatches to
+`_emit_typeddict_record`, which walks the class body's `AnnAssign`s (the
+`x: int` field declarations) and emits a record `type_decl` with one field
+per declared key (field types resolved via the existing
+Union/Optional/Final/Literal-aware resolver
+`_field_type_from_annotation_inst`). Per-key totality (PEP 655) and
+class-level totality (`total=False`) apply: a not-required key's type is
+`Optional[T]` (reusing the TY1 Union variant synthesis). The functional form
+`Point = TypedDict("Point", {...})` is recognized by
+`_synthesize_typeddict_functional` (best-effort: only literal dicts; a
+non-literal fields dict synthesizes nothing — byte-identical fallback).
+
+**Field-access lowering**
+(`module6_whyml/expressions._typeddict_field_access`, invoked from
+`_handle_subscript`): a string-literal subscript `p["x"]` on a
+TypedDict-record-typed receiver lowers to a record-field read `p.x` (via the
+existing `_field_label`). Why3 type-checks the field's declared type natively
+(T5/T6). A non-literal index or an unknown key falls through to the opaque
+`subscript_get` path (Why3 rejects — static error). Non-TypedDict receivers
+fall through unchanged (byte-identical).
+
+**Construction lowering**
+(`module6_whyml/expressions._typeddict_record_literal`, invoked from the
+`DictLit` branch of `_expr_to_whyml`): a dict literal `{"x": 1, "y": 2}` in a
+TypedDict construction context (the enclosing function's return type is a
+TypedDict record) lowers to a record literal `{ x = 1; y = 2 }` in declaration
+order. Why3 type-checks each field's value against the declared type and
+rejects missing/extra fields natively (T8/T9). Non-TypedDict dict literals
+fall through to the existing empty-map stub (byte-identical).
+
+**Static plane (Interpreted):** the record `type_decl` with one field per
+declared key; field access is a record-field read; construction is a record
+literal. Each clause T2–T9 in the two-plane spec maps to one VC or one S5
+conformance case (Why3 record-type-checking).
+
+**Runtime plane (Shimmed):** a thin shim in
+`src/pycsl_lib/typ/__init__.py.TypedDict` exposes the introspectable class
+object with `#@ ensures \result == val` — identity, no validation (R1–R8,
+D4 no-blend). A TypedDict instance IS a plain dict at runtime (S4); the shim
+does NOT construct instances, only the class object. The class form
+`class Point(TypedDict)` is lowered at the front-end seam — it never reaches
+the shim; the functional form reaches the shim as an opaque identity call.
+
+**No IR_VERSION bump.** The TypedDict construct reuses the EXISTING `type_decl`
+(record) IR node and adds ONE optional boolean field `is_typeddict` (defaults
+`False`), so the IR schema is backward-compatible: `type_decl.get("is_typeddict",
+False)` reads as `False` for every pre-existing record. `IR_VERSION` stays at
+`1.3`; `ACCEPTED_IR_VERSIONS` is unchanged.
+
+**GT7** (analogous, NOT a new code) — D3 documents the
+`isinstance`-against-TypedDict asymmetry: the static T2 record-shape
+obligation must NOT be discharged by any runtime `isinstance`/presence check
+(R4 raises `TypeError`; even `"x" in p` is the dict-plane behaviour, not the
+static record-shape judgment). Tagged in the report as a
+`no_blend_typeddict_isinstance` note.
+
+**GT-T2-future** (out of scope) — cross-TypedDict structural subtyping (a
+TypedDict with a superset of keys assignable to one with a subset) is flagged
+for a future TY2 enhancement. This delivery limits T2 to same-named
+assignability.
+
+---
+
 ## §T.15  Bytes / Bytearray Type Unification
 
 _Corresponds to annotations.md §12.6._

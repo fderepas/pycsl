@@ -45,6 +45,12 @@ def run_ir_semantic_checks(ir: Any, *, stage: str = "ir-semantic") -> None:
                           "bytearray", "dict"} | {
         td.get("name") for td in ir.get("type_decls", []) if td.get("name")}
     module_constants = ir.get("module_constants") or {}
+    # typing-engagement ty2 / 29-1700-typing-spec-5: the set of TypedDict
+    # record names (carries `is_typeddict: True`), consumed by
+    # `_check_typeddict_access` for the T5 literal-key + known-field check.
+    td_record_names = {td.get("name") for td in ir.get("type_decls", [])
+                       if td.get("kind") == "record"
+                       and td.get("is_typeddict")}
     # B-final STEP 4: bare names of `#@ \trusted` functions (Module 5 plumbs them as a
     # module-level list); `_check_lemma` rejects a plain lemma body that calls one.
     trusted_funcs = set(ir.get("trusted_funcs") or [])
@@ -63,6 +69,7 @@ def run_ir_semantic_checks(ir: Any, *, stage: str = "ir-semantic") -> None:
         _check_lemma(func, trusted_funcs)
         _check_union_narrowing(func)
         _check_noreturn(func)
+        _check_typeddict_access(func, td_record_names)
     # Module-level (cross-method) checks run once over the whole IR.
     _check_happy(ir)
     _check_mutex_invariants(ir)
@@ -1347,6 +1354,61 @@ def _check_mutex_invariants(ir) -> None:
                 f"protected by '{mutex}'. Protected variables: {sorted(protected)}.",
                 code="PYCSL-SEM-MUTEXINV",
             )
+
+
+def _check_typeddict_access(func: Any, td_record_names: set) -> None:
+    """typing-engagement ty2 / 29-1700-typing-spec-5 §1.2 — T5 (typed key
+    access: the index must be a string literal matching a declared field).
+
+    Only fires on functions whose symbol_table contains a TypedDict-record-
+    typed variable (zero impact on every existing driver — none use TypedDict
+    annotations). Walks the function body for `Subscript` IR nodes whose
+    receiver is a TypedDict-record-typed variable and flags a warning when the
+    index is non-literal or names an undeclared field. The static rejection is
+    a Why3 type error at emission; this check surfaces the issue earlier with a
+    clearer message."""
+    if not td_record_names:
+        return
+    symtab = func.get("symbol_table", {}) or {}
+    td_vars = {v for v, t in symtab.items() if t in td_record_names}
+    if not td_vars:
+        return
+    _typeddict_walk_subscripts(func.get("body", []) or [], td_vars,
+                               func.get("name", "?"))
+
+
+def _typeddict_walk_subscripts(stmts: list, td_vars: set, fname: str) -> None:
+    """Walk the body IR for Subscript nodes whose receiver is a TypedDict-
+    typed variable. T5: the index must be a string literal naming a declared
+    field. A non-literal or unknown-key access is flagged (Why3 will reject it
+    at type-check; this surfaces the issue earlier)."""
+    for s in stmts:
+        if not isinstance(s, dict):
+            continue
+        for k, v in s.items():
+            if k == "value" and isinstance(v, dict) and v.get("type") == "Subscript":
+                _typeddict_check_subscript(v, td_vars, fname)
+            elif isinstance(v, dict):
+                if v.get("type") == "Subscript":
+                    _typeddict_check_subscript(v, td_vars, fname)
+                _typeddict_walk_subscripts([v], td_vars, fname)
+            elif isinstance(v, list):
+                _typeddict_walk_subscripts(v, td_vars, fname)
+
+
+def _typeddict_check_subscript(sub: dict, td_vars: set, fname: str) -> None:
+    """T5 check for one Subscript node."""
+    recv = sub.get("value", {})
+    if not (isinstance(recv, dict) and recv.get("type") == "Var"
+            and recv.get("name") in td_vars):
+        return
+    idx = sub.get("index", {})
+    if not (isinstance(idx, dict) and idx.get("type") == "String"):
+        warnings.warn(
+            f"Function '{fname}': TypedDict subscript index is not a string "
+            f"literal (T5 requires literal keys). Why3 will reject this.",
+            stacklevel=2,
+        )
 
 
 def _check_union_narrowing(func: Any) -> None:

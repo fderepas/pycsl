@@ -1341,6 +1341,30 @@ not enforce divergence (NR-R3 — no enforcement). # cite:
 `_check_noreturn_successors`). See translational §T.14.8 and
 static-semantics τ for the lowering of accepted forms.
 
+**Exception — `TypedDict` field-access / construction lowering
+(typing-engagement ty2).** A `class Point(TypedDict): x: int; y: int`
+declaration (PEP 589) and the functional form
+`Point = TypedDict("Point", {"x": int, "y": int})` are recognized at the
+front-end normalization seam (`_emit_typeddict_record` /
+`_synthesize_typeddict_functional` in `Module5_IREmitter`) and lowered to a
+record `type_decl` with one field per declared key. Field access `p["x"]`
+on a TypedDict-record-typed variable lowers to a record-field read `p.x`
+(`module6_whyml/expressions._typeddict_field_access`); construction
+`{"x": 1, "y": 2}` in a TypedDict return context lowers to a record literal
+`{ x = 1; y = 2 }` (`_typeddict_record_literal`). The literal-key check
+(T5) is a static-semantics warning (`core_ir_semantic._check_typeddict_access`)
+— a non-literal index or unknown key is rejected by Why3 at type-check.
+
+These are static-plane judgments only (D1 record vs plain-dict): the runtime
+plane is the plain-dict alias (a TypedDict instance IS a `dict`, S4 — R1–R8,
+no enforcement). # cite:
+`src/pycsl/frontend/Module5_IREmitter.py` (`_emit_typeddict_record`,
+`_synthesize_typeddict_functional`),
+`src/pycsl/module6_whyml/expressions.py` (`_typeddict_field_access`,
+`_typeddict_record_literal`),
+`src/pycsl/core_ir_semantic.py` (`_check_typeddict_access`). See translational
+§T.14.9 and static-semantics τ for the lowering of accepted forms.
+
 ---
 
 ## Appendix A. AST Node Hierarchy

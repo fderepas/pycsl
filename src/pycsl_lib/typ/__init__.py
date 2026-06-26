@@ -35,6 +35,18 @@
 #   `typing.NoReturn` alias object and performs NO validation (NR-R1–NR-R5,
 #   NR-D2 no-blend). The runtime does NOT enforce divergence (NR-R3 — the
 #   central negative sentence: the runtime does not enforce annotations).
+# TypedDict (typing-engagement ty2 / 29-1700-typing-spec-5): Modelled-for-identity.
+#   The static plane (Module 5 + Module 6 + core_ir_semantic) treats
+#   `class Point(TypedDict): x: int; y: int` as a record type_decl (T1): field
+#   access `p["x"]` lowers to a record-field read `p.x` (T5); construction
+#   `{"x": 1, "y": 2}` lowers to a record literal `{ x = 1; y = 2 }` (T8).
+#   This runtime shim exposes the introspectable `typing.TypedDict` class
+#   object and performs NO validation (R1–R8, D4 no-blend). A TypedDict
+#   instance IS a plain dict at runtime (S4) — the shim does not construct
+#   instances, only the class object. The `ensures \result == val` carries
+#   ONLY the identity postcondition — the static record-shape obligation is
+#   NOT discharged by the shim (it is Why3 record-type-checking, invisible to
+#   the runtime).
 
 
 #@ ensures \result == val
@@ -78,6 +90,17 @@ def Final(x0, x1, val) -> int:
 # static plane handles the `false` postcondition (NR1); the runtime plane does
 # nothing (NR-D1/NR-D2 no-blend).
 NoReturn = None
+
+
+# TypedDict (PEP 589) functional form: `Point = TypedDict("Point", {...})`.
+# The shim exposes the introspectable class object (R1/R2) with NO enforcement
+# (R3/R7). The class form `class Point(TypedDict)` is lowered at the front-end
+# seam (Module 5._emit_typeddict_record) — it never reaches this shim. The
+# static plane handles the record type_decl (T1/T5/T8); the runtime plane is
+# the plain-dict alias (D1/D4 no-blend).
+#@ ensures \result == val
+def TypedDict(typename, fields, val) -> int:
+    return val
 
 
 def overload(func):

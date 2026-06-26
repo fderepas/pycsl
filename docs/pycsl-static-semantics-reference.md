@@ -241,8 +241,25 @@ specification logic's type universe:
                                    divergence) is a static-semantics check
                                    (`core_ir_semantic._check_noreturn`); NR3 (dead
                                    successor) is `_check_noreturn_successors`; NR4
-                                   (vacuity-gate exemption) is in `pycsl.py`. No new IR
-                                   node beyond the `is_noreturn` flag. *)
+                                    (vacuity-gate exemption) is in `pycsl.py`. No new IR
+                                    node beyond the `is_noreturn` flag. *)
+τ(TypedDict)       = record_name        (* typing-engagement ty2 / 29-1700-typing-spec-5:
+                                    `class Point(TypedDict): x: int; y: int` (PEP 589) lowers
+                                    at the front-end seam to a record `type_decl` with one
+                                    field per declared key. The class name is the record key
+                                    (`Point`); Module 6 resolves it to the WhyML record type
+                                    `point`. Field access `p["x"]` is a record-field read
+                                    (T5); construction `{"x": 1, "y": 2}` is a record literal
+                                    (T8). Per-key totality (PEP 655 Required/NotRequired)
+                                    and class-level `total=False` wrap a not-required key's
+                                    type as `Optional[T]` (reusing the TY1 Union variant
+                                    synthesis). The record carries an optional `is_typeddict:
+                                    True` field (backward-compatible — defaults False; NO
+                                    IR_VERSION bump) gating Module 6's subscript/literal
+                                    lowering paths. Static-semantics check
+                                    `core_ir_semantic._check_typeddict_access` flags a
+                                    non-literal TypedDict subscript index (T5 requires
+                                    literal keys). *)
 τ(_)              = Any       (* all other types, including no annotation *)
 ```
 
@@ -511,6 +528,20 @@ vacuity probe: their `false` postcondition is the SPEC (NR1), not a vacuity
 signal. The exemption is keyed on the IR `is_noreturn` flag (from the
 `-> NoReturn` annotation), NOT on the inferred postcondition — the latter
 would exempt every genuinely-vacuous function, defeating the gate.
+
+#### §2.5c `TypedDict` literal-key access (typing-engagement ty2 / PEP 589)
+
+**Rule.** A subscript `p["x"]` on a TypedDict-record-typed variable `p` (PEP
+589) requires the index to be a string *literal* naming a declared field (T5).
+A non-literal index or an unknown key is a static error (Why3 rejects the
+lowered record-field read at type-check). `core_ir_semantic._check_typeddict_access`
+walks the body IR for `Subscript` nodes whose receiver is a TypedDict-record-
+typed variable and flags a warning when the index is non-literal, surfacing
+the issue earlier than the Why3 type error.
+
+**No GT gap** is tagged for the literal-key check — it is a precision concern
+(a non-literal key cannot be a record-field read), not a soundness gap. The
+runtime plane (plain-dict subscript) is unaffected (R5/R6, D1 no-blend).
 
 #### §2.1.1 Precondition (`requires`)
 

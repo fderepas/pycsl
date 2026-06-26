@@ -2148,10 +2148,131 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         self._add_abstract_op(f"val {arity_fn} {params} : array int{length_ens}")
         return f"({arity_fn} {' '.join(cargs) if cargs else '()'})"
 
+    def _typeddict_field_access(self, value: Dict[str, Any],
+                                index_ir: Dict[str, Any],
+                                local_refs: Set[str],
+                                invariant_ctx: bool,
+                                subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """Lower `p["x"]` on a TypedDict-record-typed receiver to `p.x`.
+
+        Per the two-plane spec §1.2 T5 and the core-agent hard rule
+        (typing-global-impl.md §5, TY2): a string-literal subscript into a
+        TypedDict-typed variable/field lowers to a record-field read. Returns
+        None for non-TypedDict receivers OR a non-string-literal index (so the
+        caller falls through to the existing array/dict/opaque paths — byte-
+        identical for non-TypedDict drivers). The static plane is Interpreted
+        (record-field read); the runtime plane is the plain-dict alias
+        (Shimmed) — the runtime never sees this lowering (no blend)."""
+        if index_ir.get("type") != "String":
+            return None
+        field_name = index_ir.get("value", "")
+        if not isinstance(field_name, str) or not field_name:
+            return None
+        rec_name = None
+        if value.get("type") == "Var":
+            sym = getattr(self, "_current_symbol_table", {}).get(value.get("name", ""))
+            if sym and sym in getattr(self, "_record_types", {}):
+                if self._record_types[sym].get("is_typeddict"):
+                    rec_name = sym
+        if rec_name is None and value.get("type") in ("Attribute", "FieldGet"):
+            ft = self._field_type_of(value)
+            if ft and ft in getattr(self, "_record_types", {}):
+                if self._record_types[ft].get("is_typeddict"):
+                    rec_name = ft
+        if rec_name is None:
+            return None
+        rec_info = self._record_types[rec_name]
+        if field_name not in rec_info["fields"]:
+            return None
+        rec_lower = rec_info["whyml_name"]
+        base = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)
+        return f"{base}.{self._field_label(rec_lower, field_name)}"
+
+    def _typeddict_record_literal(self, expr: Dict[str, Any],
+                                  local_refs: Set[str],
+                                  invariant_ctx: bool,
+                                  subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """Lower a `DictLit` in a TypedDict construction context to a record
+        literal `{ x = v0; y = v1 }` (per the two-plane spec §1.3 T8 and the
+        core-agent hard rule).
+
+        The construction context is detected from `_func_return_type` (a
+        `return {"x":1,"y":2}` in a `-> Point` function): if the return type
+        is a known TypedDict record's whyml_name, the literal is matched
+        field-by-field against the record's declared fields (in declaration
+        order) and each value is lowered. Returns None for non-TypedDict
+        construction contexts (byte-identical fallback to the empty-map stub).
+        Why3 type-checks each field's value against the declared field type
+        natively (T8/T9)."""
+        frt = getattr(self, "_func_return_type", "")
+        if not frt:
+            return None
+        rec_name = None
+        for name, info in getattr(self, "_record_types", {}).items():
+            if info.get("whyml_name") == frt and info.get("is_typeddict"):
+                rec_name = name
+                break
+        if rec_name is None:
+            return None
+        rec_info = self._record_types[rec_name]
+        rec_lower = rec_info["whyml_name"]
+        keys = expr.get("keys", [])
+        values = expr.get("values", [])
+        # Build a key→value map (keys are String IR nodes per _py_expr_dict).
+        kv: Dict[str, Dict[str, Any]] = {}
+        for k, v in zip(keys, values):
+            if isinstance(k, dict) and k.get("type") == "String":
+                kv[k.get("value", "")] = v
+        # T8/T9 (typeddict-twoplane-spec.md §1.3): every declared field must be
+        # present (T9 — missing required key is a static error) AND no extra key
+        # may be present (T9 — extra key is a static error). The default-filling
+        # in the loop below is reserved for the `Point()` zero-arg construction
+        # path (`_call_record_constructor`); the dict-literal path is a
+        # fully-specified construction and must reject missing/extra keys.
+        # GAP-001 (typing-engagement ty2): previously the missing field was
+        # silently filled with its default, bypassing the T9 obligation.
+        declared = set(rec_info["fields"])
+        present = set(kv.keys())
+        missing = [f for f in rec_info["fields"] if f not in present]
+        extra = [k for k in present if k not in declared]
+        if missing or extra:
+            from errors import PyCSLSemanticError
+            if missing:
+                raise PyCSLSemanticError(
+                    f"TypedDict construction is missing required key(s) "
+                    f"{missing!r} (T9 / PEP 589 — a total=True TypedDict "
+                    f"literal must provide every declared key).",
+                    stage="whyml-emit")
+            raise PyCSLSemanticError(
+                f"TypedDict construction has extra key(s) "
+                f"{extra!r} not declared on the TypedDict (T9 / PEP 589 — "
+                f"a literal must not provide keys outside the declared set).",
+                stage="whyml-emit")
+        # Emit each declared field in declaration order. All declared fields
+        # are present (missing/extra rejected above); each value is lowered
+        # against its declared field type, and Why3 type-checks it natively
+        # (T8 — typed construction).
+        parts: List[str] = []
+        for fname in rec_info["fields"]:
+            v = kv.get(fname)
+            val = self._expr_to_whyml(v, local_refs, invariant_ctx, subst)
+            parts.append(f"{self._field_label(rec_lower, fname)} = {val}")
+        return "{ " + "; ".join(parts) + " }"
+
     def _handle_subscript(self, expr: Dict[str, Any], local_refs: Set[str],
                           invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
         value = expr["value"]
         index = self._expr_to_whyml(expr["index"], local_refs, invariant_ctx, subst)
+        # typing-engagement ty2 / 29-1700-typing-spec-5 §2.2 T5: a string-literal
+        # subscript `p["x"]` on a TypedDict-record-typed receiver lowers to a
+        # record-field read `p.x` (the core-agent hard rule). Non-TypedDict
+        # receivers and non-literal indices fall through unchanged
+        # (byte-identical). The static plane is Interpreted (record-field read);
+        # the runtime plane is the plain-dict alias (Shimmed) — no blend.
+        td_access = self._typeddict_field_access(value, expr.get("index", {}),
+                                                  local_refs, invariant_ctx, subst)
+        if td_access is not None:
+            return td_access
         # 07-1705-rev4 P3/P5: element read of a seq-modelled list local is `Seq.get` —
         # BODY context only (in a contract a seq-promoted param is the array entry value).
         if (isinstance(value, dict) and value.get("type") == "Var"
@@ -3042,6 +3163,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             val = self._expr_to_whyml(expr["value"], local_refs, invariant_ctx, subst)
             return f"(Map.get ({expr['map']}) ({key}) = Some ({val}))"
         if t == "DictLit":
+            # typing-engagement ty2 / 29-1700-typing-spec-5 §2.2 T8: a dict
+            # literal `{"x": 1, "y": 2}` in a TypedDict construction context
+            # (the enclosing function/assignment target is a TypedDict record)
+            # lowers to a record literal `{ x = 1; y = 2 }`. The static plane
+            # is Interpreted (record-literal type-checking); the runtime plane
+            # is the plain-dict alias (Shimmed) — no blend. Non-TypedDict dict
+            # literals fall through to the existing empty-map stub (byte-
+            # identical).
+            td_lit = self._typeddict_record_literal(expr, local_refs,
+                                                    invariant_ctx, subst)
+            if td_lit is not None:
+                return td_lit
             # Body dict literal: empty `map int (option int)`. Non-empty
             # dict literals would need element-by-element `Map.set` but
             # are currently uncommon enough to fall through to empty.

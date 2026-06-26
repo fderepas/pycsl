@@ -211,6 +211,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # `Name = namedtuple(...)` BEFORE visiting functions, so a `Name(...)`
         # construction resolves against `_record_types`.
         self._synthesize_namedtuple_records(node)
+        # typing-engagement ty2 / 29-1700-typing-spec-5: synthesise record
+        # type_decls for the functional form `Name = TypedDict("Name", {...})`.
+        # Best-effort literal-only; a non-literal fields dict falls through
+        # unchanged (byte-identical fallback).
+        self._synthesize_typeddict_functional(node)
 
         # sum-types: `#@ datatype Name = C1 | C2(int) | …` → a variant type_decl, and a
         # constructor registry so a `C1` / `C2(x)` value and a `case C1()` pattern resolve.
@@ -1449,6 +1454,163 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             return "list" if t == "array" else t
         return "int"
 
+    # --- TypedDict normalization (typing-engagement ty2 / 29-1700-typing-spec-5) ---
+    #
+    # `class Point(TypedDict): x: int; y: int` (PEP 589) is lowered at this seam
+    # to a record `type_decl` with one field per declared key. Per the two-plane
+    # spec §1 (T1–T9) and the core-agent hard rule (typing-global-impl.md §5,
+    # TY2): a TypedDict class synthesizes a WhyML record `type td = { x: int;
+    # y: int }`, field access `p["x"]` becomes record-field access `p.x`, and
+    # construction `{"x": 1, "y": 2}` becomes a record literal. NO `\trusted`.
+    # The `is_typeddict: True` flag is the ONLY new IR state — backward-
+    # compatible (defaults False), so NO IR_VERSION bump. Consumed by Module 6's
+    # subscript/dict-literal lowering and `core_ir_semantic`'s no-blend check.
+
+    @staticmethod
+    def _is_typeddict_class(node: ast.ClassDef) -> bool:
+        """True iff `node` is `class X(TypedDict)` / `class X(TypedDict, total=...)`.
+
+        Recognizes the bare head name `TypedDict` in `node.bases` (the
+        import-rewriting in `import_classifier.py` canonicalizes
+        `from typing import TypedDict`). A dotted `typing.TypedDict` base is
+        also recognized. Byte-identical for non-TypedDict classes (pure base-name
+        test)."""
+        for b in node.bases:
+            if isinstance(b, ast.Name) and b.id == "TypedDict":
+                return True
+            if isinstance(b, ast.Attribute) and b.attr == "TypedDict":
+                return True
+        return False
+
+    def _emit_typeddict_record(self, node: ast.ClassDef) -> None:
+        """Synthesize a record `type_decl` for `class X(TypedDict): ...`.
+
+        Walks the class body's AnnAssigns (the `x: int` field declarations,
+        PEP 589 §"Class Syntax") and emits a record with one field per declared
+        key. Per-key totality (PEP 655 `Required`/`NotRequired`, T1c) and
+        class-level totality (`total=False`, T1b) are applied: a not-required
+        key's type is `Optional[T]` (a `_union_<scope>_<idx>` variant with a
+        `None` arm, reusing the TY1 Union normalization). The record carries NO
+        `__init__`, NO class invariants, NO bases — it is a pure data record.
+        Construction is via dict literals (Module 6 lowers them to record
+        literals), not `__init__`."""
+        scope_name = node.name
+        total = True
+        for kw in node.keywords:
+            if kw.arg == "total" and isinstance(kw.value, ast.Constant):
+                total = bool(kw.value.value)
+        fields: List[Dict[str, Any]] = []
+        field_defaults: Dict[str, int] = {}
+        for child in node.body:
+            if not (isinstance(child, ast.AnnAssign)
+                    and isinstance(child.target, ast.Name)):
+                continue
+            fname = child.target.id
+            ftype = self._typeddict_field_type(child.annotation, scope_name,
+                                                total)
+            fields.append({"name": fname, "type": ftype, "mutable": True})
+            field_defaults[fname] = 0
+        self.program_ir["type_decls"].append({
+            "kind": "record", "name": node.name, "fields": fields,
+            "class_invariants": [], "field_defaults": field_defaults,
+            "has_hash": False, "has_eq": False, "is_unhashable": False,
+            "constants": {}, "bases": [],
+            "init_params": [], "init_body": [], "init_ensures": [],
+            "is_mixin": False, "compose_from": [],
+            "is_typeddict": True,
+        })
+        self.program_ir.setdefault("constructors", {})
+        self.program_ir["constructors"][node.name] = {"type": node.name,
+                                                       "arity": 0}
+
+    def _typeddict_field_type(self, annotation: ast.expr, scope_name: str,
+                               total: bool) -> str:
+        """Resolve a TypedDict field's annotation to its IR type tag, applying
+        per-key totality (PEP 655) and class-level totality (PEP 589).
+
+        - `Required[T]` → unwrap to `τ(T)` (required key, even in total=False).
+        - `NotRequired[T]` → `Optional[τ(T)]` (not-required key, even in
+          total=True).
+        - In `total=False`, a plain `T` annotation becomes `Optional[T]`.
+        - Otherwise resolve `τ(T)` via the existing Union/Final/Literal-aware
+          resolver `_field_type_from_annotation_inst`."""
+        if (isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)
+                and annotation.value.id == "Required"):
+            return self._field_type_from_annotation_inst(annotation.slice,
+                                                         scope_name)
+        if (isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)
+                and annotation.value.id == "NotRequired"):
+            return self._wrap_optional(annotation.slice, scope_name)
+        if not total:
+            return self._wrap_optional(annotation, scope_name)
+        return self._field_type_from_annotation_inst(annotation, scope_name)
+
+    def _wrap_optional(self, inner: ast.expr, scope_name: str) -> str:
+        """Lower `Optional[T]` for a TypedDict field by synthesizing a
+        `_union_<scope>_<idx>` variant with a `None` arm (reusing the TY1
+        Union normalization)."""
+        optional_ann = ast.Subscript(
+            value=ast.Name(id="Optional", ctx=ast.Load()),
+            slice=inner, ctx=ast.Load())
+        try:
+            return self._normalize_union_annotation(optional_ann, scope_name)
+        except Exception:
+            return self._field_type_from_annotation_inst(inner, scope_name)
+
+    def _synthesize_typeddict_functional(self, node: ast.Module) -> None:
+        """Recognize the functional form `Name = TypedDict("Name", {k: T, ...})`
+        (PEP 589 §"Functional Syntax") and synthesize the same record type_decl
+        as the class form. Best-effort: only literal `{"name": type}` dicts are
+        recognized; a non-literal fields dict synthesizes nothing (byte-
+        identical fallback — the assignment stays an opaque int)."""
+        for stmt in node.body:
+            if not (isinstance(stmt, ast.Assign) and len(stmt.targets) == 1
+                    and isinstance(stmt.targets[0], ast.Name)
+                    and isinstance(stmt.value, ast.Call)):
+                continue
+            call = stmt.value
+            fn = call.func
+            is_td = ((isinstance(fn, ast.Name) and fn.id == "TypedDict")
+                     or (isinstance(fn, ast.Attribute)
+                         and fn.attr == "TypedDict"))
+            if not is_td or len(call.args) < 2:
+                continue
+            name_arg, fields_arg = call.args[0], call.args[1]
+            if not (isinstance(name_arg, ast.Constant)
+                    and isinstance(name_arg.value, str)):
+                continue
+            td_name = name_arg.value
+            if not isinstance(fields_arg, ast.Dict):
+                continue
+            fields: List[Dict[str, Any]] = []
+            field_defaults: Dict[str, int] = {}
+            ok = True
+            for k, v in zip(fields_arg.keys, fields_arg.values):
+                if not (isinstance(k, ast.Constant)
+                        and isinstance(k.value, str)):
+                    ok = False
+                    break
+                ftype = self._field_type_from_annotation_inst(v, td_name)
+                fields.append({"name": k.value, "type": ftype,
+                               "mutable": True})
+                field_defaults[k.value] = 0
+            if not ok or not fields:
+                continue
+            self.program_ir["type_decls"].append({
+                "kind": "record", "name": td_name, "fields": fields,
+                "class_invariants": [], "field_defaults": field_defaults,
+                "has_hash": False, "has_eq": False, "is_unhashable": False,
+                "constants": {}, "bases": [],
+                "init_params": [], "init_body": [], "init_ensures": [],
+                "is_mixin": False, "compose_from": [],
+                "is_typeddict": True,
+            })
+            self.program_ir.setdefault("constructors", {})
+            self.program_ir["constructors"][td_name] = {"type": td_name,
+                                                        "arity": 0}
+
     def _collect_class_fields(self, node: ast.ClassDef) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
         """Extract mutable fields and default values from __init__.
 
@@ -1583,8 +1745,19 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         Inheritance (Layer B+C) is applied as a separate IR→IR pass
         (`_apply_inheritance` in pycsl.py) AFTER cross-module import resolution,
         so a base class defined in another module is available before the merge.
-        Here we only record the base names in the type_decl.
+        Here we only record the base names.
+
+        typing-engagement ty2 / 29-1700-typing-spec-5: a `class Point(TypedDict)`
+        declaration is recognized at this seam and lowered to a record type_decl
+        with one field per declared key (per the two-plane spec §1, T1–T9). The
+        static plane is the record (Interpreted); the runtime plane is the
+        plain-dict alias (Shimmed). NO `\trusted`. The `is_typeddict: True` flag
+        gates Module 6's subscript/literal lowering paths.
         """
+        if self._is_typeddict_class(node):
+            self._emit_typeddict_record(node)
+            self.generic_visit(node)
+            return
         self._current_class = node.name
         fields, field_defaults = self._collect_class_fields(node)
         # Capture both `class X(Base)` (ast.Name) and `class X(mod.Base)`
