@@ -260,6 +260,32 @@ specification logic's type universe:
                                     `core_ir_semantic._check_typeddict_access` flags a
                                     non-literal TypedDict subscript index (T5 requires
                                     literal keys). *)
+τ(NamedTuple)      = record_name        (* typing-engagement ty2 / 30-1700-typing-spec-6:
+                                    `class Point(NamedTuple): x: int; y: int` (PEP 526) lowers
+                                    at the front-end seam to a record `type_decl` with one
+                                    field per declared key, in declaration order (positional
+                                    index is significant — N5 maps `p[i]` to the i-th field).
+                                    The class name is the record key (`Point`); Module 6
+                                    resolves it to the WhyML record type `point`. Named field
+                                    access `p.x` is a record-field read (N4, via the existing
+                                    `_handle_attribute_expr` path — a NamedTuple-record-typed
+                                    param is in `_record_locals`); positional access `p[0]` is
+                                    a record-field read by index (N5,
+                                    `_namedtuple_positional_access`); construction
+                                    `Point(1, 2)` is a record literal (N6, via the existing
+                                    `_call_record_constructor` path — the record carries
+                                    `init_params` / `init_body`). A field with a default
+                                    (`x: int = 0`, N1b) populates `field_defaults`; a field
+                                    without a default is a required positional argument (N7 —
+                                    wrong arity is a hard `PYCSL-SEM-NAMEDTUPLE-ARITY` error).
+                                    The record carries an optional `is_namedtuple: True` field
+                                    (backward-compatible — defaults False; NO IR_VERSION bump)
+                                    gating Module 6's positional-subscript lowering path.
+                                    Static-semantics check
+                                    `core_ir_semantic._check_namedtuple_access` flags a
+                                    non-literal NamedTuple subscript index (N5 requires
+                                    literal indices) and rejects wrong-arity construction
+                                    (N7). *)
 τ(_)              = Any       (* all other types, including no annotation *)
 ```
 
@@ -542,6 +568,35 @@ the issue earlier than the Why3 type error.
 **No GT gap** is tagged for the literal-key check — it is a precision concern
 (a non-literal key cannot be a record-field read), not a soundness gap. The
 runtime plane (plain-dict subscript) is unaffected (R5/R6, D1 no-blend).
+
+#### §2.5d `NamedTuple` literal-index access & arity (typing-engagement ty2 / PEP 526)
+
+**Rule (N5 — literal-index access).** A subscript `p[i]` on a NamedTuple-
+record-typed variable `p` (PEP 526) requires the index `i` to be an integer
+*literal* in the range `[0, nfields)` (N5). A non-literal index or an
+out-of-range index is a static error (Why3 rejects the lowered record-field
+read at type-check — an out-of-range index falls through to the opaque
+`subscript_get` path, which Why3 rejects because the record type is not
+`int`). `core_ir_semantic._check_namedtuple_access` walks the body IR for
+`Subscript` nodes whose receiver is a NamedTuple-record-typed variable and
+flags a warning when the index is non-literal, surfacing the issue earlier
+than the Why3 type error.
+
+**Rule (N7 — wrong-arity construction).** A call `Point(...)` to a NamedTuple
+constructor (PEP 526) requires the number of positional arguments to be in
+the range `[min_arity, nfields]`, where `min_arity` is the count of fields
+WITHOUT a default (N1b — a field with a default makes the trailing positional
+argument optional). A wrong-arity call is a hard static error:
+`core_ir_semantic._check_namedtuple_access` walks the body IR for `Call`
+nodes to a NamedTuple constructor and raises `PYCSL-SEM-NAMEDTUPLE-ARITY`
+when the call arity is wrong. This mirrors the TypedDict GAP-001 missing-key
+rejection: the shared `_call_record_constructor` default-fills missing args
+soundly but imprecisely, so this check makes the wrong-arity case a static
+error (N7), not a silent default-fill.
+
+**No GT gap** is tagged for the literal-index or arity checks — they are
+precision concerns, not soundness gaps. The runtime plane (plain-tuple
+subscript / plain-tuple construction) is unaffected (R6/R7, D1 no-blend).
 
 #### §2.1.1 Precondition (`requires`)
 

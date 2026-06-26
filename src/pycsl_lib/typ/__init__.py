@@ -47,6 +47,19 @@
 #   ONLY the identity postcondition — the static record-shape obligation is
 #   NOT discharged by the shim (it is Why3 record-type-checking, invisible to
 #   the runtime).
+# NamedTuple (typing-engagement ty2 / 30-1700-typing-spec-6): Modelled-for-identity.
+#   The static plane (Module 5 + Module 6 + core_ir_semantic) treats
+#   `class Point(NamedTuple): x: int; y: int` (PEP 526) as a record type_decl
+#   (N1): named field access `p.x` lowers to a record-field read `p.x` (N4);
+#   positional access `p[0]` lowers to a record-field read by index (N5);
+#   construction `Point(1, 2)` lowers to a record literal `{ x = 1; y = 2 }`
+#   (N6). This runtime shim exposes the introspectable `typing.NamedTuple`
+#   class object and performs NO validation (R1–R9, D4 no-blend). A
+#   NamedTuple instance IS a plain tuple at runtime (S4) — the shim does not
+#   construct instances, only the class object. The `ensures \result == val`
+#   carries ONLY the identity postcondition — the static record-shape
+#   obligation is NOT discharged by the shim (it is Why3 record-type-
+#   checking, invisible to the runtime).
 
 
 #@ ensures \result == val
@@ -100,6 +113,18 @@ NoReturn = None
 # the plain-dict alias (D1/D4 no-blend).
 #@ ensures \result == val
 def TypedDict(typename, fields, val) -> int:
+    return val
+
+
+# NamedTuple (PEP 526 / PEP 484) functional form:
+# `Point = NamedTuple("Point", [("x", int), ("y", int)])`. The shim exposes the
+# introspectable class object (R1/R2) with NO enforcement (R3/R8). The class
+# form `class Point(NamedTuple)` is lowered at the front-end seam
+# (Module 5._emit_namedtuple_record) — it never reaches this shim. The static
+# plane handles the record type_decl (N1/N4/N5/N6); the runtime plane is the
+# plain-tuple alias (D1/D4 no-blend).
+#@ ensures \result == val
+def NamedTuple(typename, fields, val) -> int:
     return val
 
 

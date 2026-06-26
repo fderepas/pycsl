@@ -2259,6 +2259,49 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             parts.append(f"{self._field_label(rec_lower, fname)} = {val}")
         return "{ " + "; ".join(parts) + " }"
 
+    def _namedtuple_positional_access(self, value: Dict[str, Any],
+                                      index_ir: Dict[str, Any],
+                                      local_refs: Set[str],
+                                      invariant_ctx: bool,
+                                      subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """Lower `p[0]` on a NamedTuple-record-typed receiver to `p.<field at index 0>`.
+
+        Per the two-plane spec §1.3 N5 and the core-agent hard rule
+        (typing-global-impl.md §5, TY2): an integer-literal subscript into a
+        NamedTuple-typed variable/field lowers to a record-field read of the
+        field at that declaration index. Returns None for non-NamedTuple
+        receivers OR a non-integer-literal index (so the caller falls through
+        to the existing array/dict/opaque paths — byte-identical for non-
+        NamedTuple drivers). The static plane is Interpreted (record-field
+        read by index); the runtime plane is the plain-tuple alias (Shimmed) —
+        the runtime never sees this lowering (no blend)."""
+        if index_ir.get("type") != "Number":
+            return None
+        idx_val = index_ir.get("value")
+        if not isinstance(idx_val, int) or idx_val < 0:
+            return None
+        rec_name = None
+        if value.get("type") == "Var":
+            sym = getattr(self, "_current_symbol_table", {}).get(value.get("name", ""))
+            if sym and sym in getattr(self, "_record_types", {}):
+                if self._record_types[sym].get("is_namedtuple"):
+                    rec_name = sym
+        if rec_name is None and value.get("type") in ("Attribute", "FieldGet"):
+            ft = self._field_type_of(value)
+            if ft and ft in getattr(self, "_record_types", {}):
+                if self._record_types[ft].get("is_namedtuple"):
+                    rec_name = ft
+        if rec_name is None:
+            return None
+        rec_info = self._record_types[rec_name]
+        fields = rec_info["fields"]
+        if idx_val >= len(fields):
+            return None
+        field_name = fields[idx_val]
+        rec_lower = rec_info["whyml_name"]
+        base = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)
+        return f"{base}.{self._field_label(rec_lower, field_name)}"
+
     def _handle_subscript(self, expr: Dict[str, Any], local_refs: Set[str],
                           invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
         value = expr["value"]
@@ -2273,6 +2316,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                                   local_refs, invariant_ctx, subst)
         if td_access is not None:
             return td_access
+        # typing-engagement ty2 / 30-1700-typing-spec-6 §2.2 N5: an integer-
+        # literal subscript `p[0]` on a NamedTuple-record-typed receiver lowers
+        # to a record-field read of the field at that declaration index (the
+        # core-agent hard rule). Non-NamedTuple receivers and non-literal
+        # indices fall through unchanged (byte-identical). The static plane is
+        # Interpreted (record-field read by index); the runtime plane is the
+        # plain-tuple alias (Shimmed) — no blend.
+        nt_access = self._namedtuple_positional_access(value, expr.get("index", {}),
+                                                       local_refs, invariant_ctx,
+                                                       subst)
+        if nt_access is not None:
+            return nt_access
         # 07-1705-rev4 P3/P5: element read of a seq-modelled list local is `Seq.get` —
         # BODY context only (in a contract a seq-promoted param is the array entry value).
         if (isinstance(value, dict) and value.get("type") == "Var"

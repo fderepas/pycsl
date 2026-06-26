@@ -1365,6 +1365,36 @@ no enforcement). # cite:
 `src/pycsl/core_ir_semantic.py` (`_check_typeddict_access`). See translational
 §T.14.9 and static-semantics τ for the lowering of accepted forms.
 
+**Exception — `NamedTuple` field-access / construction lowering
+(typing-engagement ty2).** A `class Point(NamedTuple): x: int; y: int`
+declaration (PEP 526) and the functional form
+`Point = NamedTuple("Point", [("x", int), ("y", int)])` (PEP 484) are
+recognized at the front-end normalization seam (`_emit_namedtuple_record` /
+`_synthesize_namedtuple_functional` in `Module5_IREmitter`) and lowered to a
+record `type_decl` with one field per declared key, in declaration order
+(positional index is significant). Named field access `p.x` lowers to a
+record-field read `p.x` via the existing `_handle_attribute_expr` path (a
+NamedTuple-record-typed param is in `_record_locals`); positional access
+`p[0]` lowers to a record-field read of the field at declaration index 0
+(`module6_whyml/expressions._namedtuple_positional_access`); construction
+`Point(1, 2)` lowers to a record literal `{ x = 1; y = 2 }` via the existing
+`_call_record_constructor` path (the record carries `init_params` /
+`init_body`). The literal-index check (N5) and the wrong-arity construction
+check (N7) are static-semantics checks
+(`core_ir_semantic._check_namedtuple_access`) — a non-literal index, an
+out-of-range index, or a wrong-arity call is rejected (N7 is a hard
+`PYCSL-SEM-NAMEDTUPLE-ARITY` error; N5 is a warning surfaced before Why3
+rejects at type-check).
+
+These are static-plane judgments only (D1 record vs plain-tuple): the runtime
+plane is the plain-tuple alias (a NamedTuple instance IS a `tuple`, S4 —
+R1–R9, no enforcement). # cite:
+`src/pycsl/frontend/Module5_IREmitter.py` (`_emit_namedtuple_record`,
+`_synthesize_namedtuple_functional`),
+`src/pycsl/module6_whyml/expressions.py` (`_namedtuple_positional_access`),
+`src/pycsl/core_ir_semantic.py` (`_check_namedtuple_access`). See translational
+§T.14.10 and static-semantics τ for the lowering of accepted forms.
+
 ---
 
 ## Appendix A. AST Node Hierarchy

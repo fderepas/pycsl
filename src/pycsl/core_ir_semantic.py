@@ -51,6 +51,24 @@ def run_ir_semantic_checks(ir: Any, *, stage: str = "ir-semantic") -> None:
     td_record_names = {td.get("name") for td in ir.get("type_decls", [])
                        if td.get("kind") == "record"
                        and td.get("is_typeddict")}
+    # typing-engagement ty2 / 30-1700-typing-spec-6: the set of NamedTuple
+    # record names (carries `is_namedtuple: True`), consumed by
+    # `_check_namedtuple_access` for the N5 literal-index + in-range check.
+    nt_record_names = {td.get("name") for td in ir.get("type_decls", [])
+                       if td.get("kind") == "record"
+                       and td.get("is_namedtuple")}
+    # N7 (wrong-arity construction rejected): a NamedTuple record's required
+    # arity = the number of declared fields. A `Call` to a NamedTuple
+    # constructor with a different arity is a static error (PEP 526 — every
+    # field is a required positional argument unless it has a default).
+    nt_record_arities = {
+        td.get("name"): (len(td.get("fields", [])),
+                         {f["name"] for f in td.get("fields", [])},
+                         {f["name"] for f in td.get("fields", [])
+                          if f["name"] in (td.get("field_defaults") or {})})
+        for td in ir.get("type_decls", [])
+        if td.get("kind") == "record" and td.get("is_namedtuple")
+    }
     # B-final STEP 4: bare names of `#@ \trusted` functions (Module 5 plumbs them as a
     # module-level list); `_check_lemma` rejects a plain lemma body that calls one.
     trusted_funcs = set(ir.get("trusted_funcs") or [])
@@ -70,6 +88,7 @@ def run_ir_semantic_checks(ir: Any, *, stage: str = "ir-semantic") -> None:
         _check_union_narrowing(func)
         _check_noreturn(func)
         _check_typeddict_access(func, td_record_names)
+        _check_namedtuple_access(func, nt_record_names, nt_record_arities)
     # Module-level (cross-method) checks run once over the whole IR.
     _check_happy(ir)
     _check_mutex_invariants(ir)
@@ -1407,6 +1426,107 @@ def _typeddict_check_subscript(sub: dict, td_vars: set, fname: str) -> None:
         warnings.warn(
             f"Function '{fname}': TypedDict subscript index is not a string "
             f"literal (T5 requires literal keys). Why3 will reject this.",
+            stacklevel=2,
+        )
+
+
+def _check_namedtuple_access(func: Any, nt_record_names: set,
+                             nt_record_arities: dict) -> None:
+    """typing-engagement ty2 / 30-1700-typing-spec-6 §1.3 — N5 (typed positional
+    access: the index must be an integer literal in range) and N7 (wrong-arity
+    construction rejected).
+
+    Only fires on functions whose symbol_table contains a NamedTuple-record-
+    typed variable OR whose body calls a NamedTuple constructor (zero impact on
+    every existing driver — none use NamedTuple annotations). Walks the
+    function body for `Subscript` IR nodes whose receiver is a NamedTuple-
+    record-typed variable and flags a warning when the index is non-literal or
+    out of range (N5). Walks for `Call` nodes to a NamedTuple constructor and
+    raises a hard error when the call arity is wrong (N7 — a NamedTuple's
+    fields are required positional arguments; the shared
+    `_call_record_constructor` default-fills missing args soundly but
+    imprecisely, so this check makes the wrong-arity case a static error,
+    mirroring the TypedDict GAP-001 missing-key rejection)."""
+    if not nt_record_names:
+        return
+    symtab = func.get("symbol_table", {}) or {}
+    nt_vars = {v for v, t in symtab.items() if t in nt_record_names}
+    fname = func.get("name", "?")
+    body = func.get("body", []) or []
+    if nt_vars:
+        _namedtuple_walk_subscripts(body, nt_vars, fname)
+    if nt_record_arities:
+        _namedtuple_walk_construction(body, nt_record_arities, fname)
+
+
+def _namedtuple_walk_construction(stmts: list, nt_arities: dict,
+                                  fname: str) -> None:
+    """Walk the body IR for `Call` nodes to a NamedTuple constructor and raise
+    a hard error when the call arity is wrong (N7). A field with a default (N1b)
+    makes trailing arguments optional, so the minimum arity is the count of
+    fields WITHOUT defaults."""
+    for s in stmts:
+        if not isinstance(s, dict):
+            continue
+        for k, v in s.items():
+            if k == "value" and isinstance(v, dict) and v.get("type") == "Call":
+                _namedtuple_check_call(v, nt_arities, fname)
+            elif isinstance(v, dict):
+                if v.get("type") == "Call":
+                    _namedtuple_check_call(v, nt_arities, fname)
+                _namedtuple_walk_construction([v], nt_arities, fname)
+            elif isinstance(v, list):
+                _namedtuple_walk_construction(v, nt_arities, fname)
+
+
+def _namedtuple_check_call(call: dict, nt_arities: dict, fname: str) -> None:
+    """N7 check for one Call node."""
+    callee = call.get("func")
+    if not (isinstance(callee, str) and callee in nt_arities):
+        return
+    nfields, field_names, defaulted = nt_arities[callee]
+    args = call.get("args", []) or []
+    nargs = len(args)
+    min_arity = nfields - len(defaulted)
+    if nargs < min_arity or nargs > nfields:
+        raise PyCSLSemanticError(
+            f"NamedTuple construction '{callee}(...)' called with {nargs} "
+            f"argument(s) but the NamedTuple declares {nfields} field(s) "
+            f"(arity range {min_arity}..{nfields}; N7 / PEP 526 — a "
+            f"NamedTuple's fields are required positional arguments).",
+            stage="semantic")
+
+
+def _namedtuple_walk_subscripts(stmts: list, nt_vars: set, fname: str) -> None:
+    """Walk the body IR for Subscript nodes whose receiver is a NamedTuple-
+    typed variable. N5: the index must be an integer literal in range. A
+    non-literal or out-of-range index is flagged (Why3 will reject it at
+    type-check; this surfaces the issue earlier)."""
+    for s in stmts:
+        if not isinstance(s, dict):
+            continue
+        for k, v in s.items():
+            if k == "value" and isinstance(v, dict) and v.get("type") == "Subscript":
+                _namedtuple_check_subscript(v, nt_vars, fname)
+            elif isinstance(v, dict):
+                if v.get("type") == "Subscript":
+                    _namedtuple_check_subscript(v, nt_vars, fname)
+                _namedtuple_walk_subscripts([v], nt_vars, fname)
+            elif isinstance(v, list):
+                _namedtuple_walk_subscripts(v, nt_vars, fname)
+
+
+def _namedtuple_check_subscript(sub: dict, nt_vars: set, fname: str) -> None:
+    """N5 check for one Subscript node."""
+    recv = sub.get("value", {})
+    if not (isinstance(recv, dict) and recv.get("type") == "Var"
+            and recv.get("name") in nt_vars):
+        return
+    idx = sub.get("index", {})
+    if not (isinstance(idx, dict) and idx.get("type") == "Number"):
+        warnings.warn(
+            f"Function '{fname}': NamedTuple subscript index is not an integer "
+            f"literal (N5 requires literal indices). Why3 will reject this.",
             stacklevel=2,
         )
 

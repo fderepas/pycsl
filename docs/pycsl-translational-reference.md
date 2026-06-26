@@ -2956,6 +2956,90 @@ TypedDict with a superset of keys assignable to one with a subset) is flagged
 for a future TY2 enhancement. This delivery limits T2 to same-named
 assignability.
 
+### §T.14.10  `NamedTuple` annotations (typing-engagement ty2 / PEP 526)
+
+PEP 526 `class Point(NamedTuple): x: int; y: int` (and the functional form
+`Point = NamedTuple("Point", [("x", int), ("y", int)])` per PEP 484) is
+**lowered at the front-end normalization seam** to a record `type_decl` with
+one field per declared key, in declaration order (positional index is
+significant). Per the two-plane spec
+(`typing-engagement/ty2/namedtuple-twoplane-spec.md`) and the core-agent hard
+rule (`typing-global-impl.md` §5, TY2): a NamedTuple class synthesizes a
+WhyML record `type nt = { x: int; y: int }` (reusing the TypedDict record
+seam), named field access `p.x` becomes record-field access, positional access
+`p[0]` becomes record-field access by index, and construction `Point(1, 2)`
+becomes a record literal.
+
+**Normalization** (`Module5_IREmitter._emit_namedtuple_record` /
+`_synthesize_namedtuple_functional`): the `visit_ClassDef` seam recognizes
+`class X(NamedTuple)` (a base name `NamedTuple`) and dispatches to
+`_emit_namedtuple_record`, which walks the class body's `AnnAssign`s (the
+`x: int` field declarations, in declaration order) and emits a record
+`type_decl` with one field per declared key (field types resolved via the
+existing Union/Optional/Final/Literal-aware resolver
+`_field_type_from_annotation_inst`). A field with a default (`x: int = 0`,
+N1b) populates `field_defaults`; a field without a default is a required
+positional argument (N7). The record carries `init_params` (field names in
+order) and `init_body` (each field set from its same-named param) so
+positional construction `Point(1, 2)` reuses the EXISTING Tier-A parametrized
+record construction (`_call_record_constructor`). The functional form
+`Point = NamedTuple("Point", [...])` is recognized by
+`_synthesize_namedtuple_functional` (best-effort: only literal
+`[("name", type), ...]` lists; a non-literal fields list synthesizes nothing
+— byte-identical fallback). The pre-existing `_synthesize_namedtuple_records`
+(functional `collections.namedtuple` form, all-int fields) is NOT modified —
+it handles a different factory.
+
+**Named-field-access lowering** (the EXISTING
+`module6_whyml/expressions._handle_attribute_expr` path): a NamedTuple-
+record-typed param is added to `_record_locals` by `_param_type_str`, so
+`p.x` emits `p.x` (a record-field read). Why3 type-checks the field's declared
+type natively (N4). An unknown attribute (`p.z`) is a Why3 type error (the
+field doesn't exist). Non-NamedTuple receivers fall through unchanged
+(byte-identical).
+
+**Positional-access lowering**
+(`module6_whyml/expressions._namedtuple_positional_access`, invoked from
+`_handle_subscript`): an integer-literal subscript `p[0]` on a
+NamedTuple-record-typed receiver lowers to a record-field read of the field
+at that declaration index (`p[0]` → `p.x`, `p[1]` → `p.y`, via the existing
+`_field_label`). Why3 type-checks the field's declared type natively (N5). An
+out-of-range index (`p[2]` on a 2-field Point) or a non-literal index falls
+through to the opaque `subscript_get` path (Why3 rejects — static error).
+Non-NamedTuple receivers fall through unchanged (byte-identical).
+
+**Construction lowering** (the EXISTING
+`module6_whyml/expressions._call_record_constructor` path): a positional call
+`Point(1, 2)` with `init_params` matching arity emits a record literal
+`{ x = 1; y = 2 }` in declaration order. Why3 type-checks each field's value
+against the declared type natively (N6).
+
+**Static plane (Interpreted):** the record `type_decl` with one field per
+declared key (in declaration order); named field access is a record-field
+read; positional access is a record-field read by index; construction is a
+record literal. Each clause N2–N7 in the two-plane spec maps to one VC or one
+S5 conformance case (Why3 record-type-checking).
+
+**Runtime plane (Shimmed):** a thin shim in
+`src/pycsl_lib/typ/__init__.py.NamedTuple` exposes the introspectable class
+object with `#@ ensures \result == val` — identity, no validation (R1–R9,
+D4 no-blend). A NamedTuple instance IS a plain tuple at runtime (S4); the
+shim does NOT construct instances, only the class object. The class form
+`class Point(NamedTuple)` is lowered at the front-end seam — it never reaches
+the shim; the functional form reaches the shim as an opaque identity call.
+
+**No IR_VERSION bump.** The NamedTuple construct reuses the EXISTING `type_decl`
+(record) IR node and adds ONE optional boolean field `is_namedtuple` (defaults
+`False`), so the IR schema is backward-compatible: `type_decl.get("is_namedtuple",
+False)` reads as `False` for every pre-existing record. `IR_VERSION` stays at
+`1.3`; `ACCEPTED_IR_VERSIONS` is unchanged.
+
+**GT7** (analogous, NOT a new code) — D3 documents the
+`isinstance`-against-NamedTuple asymmetry: the static N2 record-shape
+obligation must NOT be discharged by any runtime `isinstance`/tuple-shape
+check (R4 is a tuple-ness check, not a type-enforcement check). Tagged in the
+report as a `no_blend_namedtuple_isinstance` note.
+
 ---
 
 ## §T.15  Bytes / Bytearray Type Unification

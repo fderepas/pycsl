@@ -216,6 +216,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # Best-effort literal-only; a non-literal fields dict falls through
         # unchanged (byte-identical fallback).
         self._synthesize_typeddict_functional(node)
+        # typing-engagement ty2 / 30-1700-typing-spec-6: synthesise record
+        # type_decls for the functional form `Name = NamedTuple("Name", [...])`.
+        # Best-effort literal-only; a non-literal fields list falls through
+        # unchanged (byte-identical fallback).
+        self._synthesize_namedtuple_functional(node)
 
         # sum-types: `#@ datatype Name = C1 | C2(int) | …` → a variant type_decl, and a
         # constructor registry so a `C1` / `C2(x)` value and a `case C1()` pattern resolve.
@@ -1609,7 +1614,158 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             })
             self.program_ir.setdefault("constructors", {})
             self.program_ir["constructors"][td_name] = {"type": td_name,
+                                                         "arity": 0}
+
+    # typing-engagement ty2 / 30-1700-typing-spec-6: `class Point(NamedTuple)`
+    # (PEP 526) is recognized at this seam and lowered to a record type_decl
+    # with one field per declared key, in declaration order (positional index is
+    # significant — N5 maps `p[i]` to the i-th field). Per the two-plane spec §1
+    # (N1–N7) and the core-agent hard rule (typing-global-impl.md §5, TY2): a
+    # NamedTuple class synthesizes a WhyML record `type nt = { x: int; y: int }`
+    # (reusing the TypedDict record seam), named field access `p.x` becomes
+    # record-field access, positional access `p[0]` becomes record-field access
+    # by index, construction `Point(1, 2)` becomes a record literal. NO
+    # `\trusted`. The `is_namedtuple: True` flag is the ONLY new IR state —
+    # backward-compatible (defaults False), so NO IR_VERSION bump. Consumed by
+    # Module 6's positional-subscript lowering and `core_ir_semantic`'s no-blend
+    # check. The pre-existing `_synthesize_namedtuple_records` (functional
+    # `collections.namedtuple` form, all-int fields) is NOT modified — it
+    # handles a different factory.
+
+    @staticmethod
+    def _is_namedtuple_class(node: ast.ClassDef) -> bool:
+        """True iff `node` is `class X(NamedTuple)` (PEP 526 class form).
+
+        Recognizes the bare head name `NamedTuple` in `node.bases` (the
+        import-rewriting in `import_classifier.py` canonicalizes
+        `from typing import NamedTuple`). A dotted `typing.NamedTuple` base is
+        also recognized. Byte-identical for non-NamedTuple classes (pure
+        base-name test)."""
+        for b in node.bases:
+            if isinstance(b, ast.Name) and b.id == "NamedTuple":
+                return True
+            if isinstance(b, ast.Attribute) and b.attr == "NamedTuple":
+                return True
+        return False
+
+    def _emit_namedtuple_record(self, node: ast.ClassDef) -> None:
+        """Synthesize a record `type_decl` for `class X(NamedTuple): ...`.
+
+        Walks the class body's AnnAssigns (the `x: int` field declarations,
+        PEP 526 §"Custom Class Bodies") and emits a record with one field per
+        declared field, in declaration order (order is significant for
+        positional access N5). Field types are resolved via the existing
+        Union/Optional/Final/Literal-aware resolver. A field with a default
+        (N1b, `x: int = 0`) captures the default into `field_defaults`
+        (int-valued per the existing convention; a non-int default falls back
+        to 0). The record carries `init_params` (field names in order) and
+        `init_body` (each field set from its same-named param) so positional
+        construction `Point(1, 2)` reuses the EXISTING Tier-A parametrized
+        record construction (`_call_record_constructor`) — emitting a record
+        literal `{ x = 1; y = 2 }`. The record carries NO `__init__`, NO class
+        invariants, NO bases — it is a pure data record."""
+        scope_name = node.name
+        fields: List[Dict[str, Any]] = []
+        field_defaults: Dict[str, int] = {}
+        init_params: List[str] = []
+        init_body: List[Dict[str, Any]] = []
+        for child in node.body:
+            if not (isinstance(child, ast.AnnAssign)
+                    and isinstance(child.target, ast.Name)):
+                continue
+            fname = child.target.id
+            ftype = self._field_type_from_annotation_inst(child.annotation,
+                                                           scope_name)
+            fields.append({"name": fname, "type": ftype, "mutable": True})
+            # N1b: only fields with an explicit default value (x: int = 0)
+            # populate `field_defaults`. A field WITHOUT a default is a
+            # required positional argument (N7 — wrong arity is a static
+            # error). The int-coded convention is used for the default value;
+            # a non-int default falls back to 0 (sound — the field is set at
+            # construction time, never read before write).
+            if (child.value is not None
+                    and isinstance(child.value, ast.Constant)
+                    and isinstance(child.value.value, (int, float))):
+                field_defaults[fname] = int(child.value.value)
+            init_params.append(fname)
+            init_body.append({"field": fname,
+                              "value": {"type": "Var", "name": fname}})
+        self.program_ir["type_decls"].append({
+            "kind": "record", "name": node.name, "fields": fields,
+            "class_invariants": [], "field_defaults": field_defaults,
+            "has_hash": False, "has_eq": False, "is_unhashable": False,
+            "constants": {}, "bases": [],
+            "init_params": init_params, "init_body": init_body,
+            "init_ensures": [],
+            "is_mixin": False, "compose_from": [],
+            "is_namedtuple": True,
+        })
+        self.program_ir.setdefault("constructors", {})
+        self.program_ir["constructors"][node.name] = {"type": node.name,
                                                         "arity": 0}
+
+    def _synthesize_namedtuple_functional(self, node: ast.Module) -> None:
+        """Recognize the functional form `Name = NamedTuple("Name", [(k, T), ...])`
+        (PEP 484 §"NamedTuple") and synthesize the same record type_decl as the
+        class form. Best-effort: only literal `[("name", type), ...]` lists are
+        recognized; a non-literal fields list synthesizes nothing (byte-
+        identical fallback — the assignment stays an opaque int)."""
+        for stmt in node.body:
+            if not (isinstance(stmt, ast.Assign) and len(stmt.targets) == 1
+                    and isinstance(stmt.targets[0], ast.Name)
+                    and isinstance(stmt.value, ast.Call)):
+                continue
+            call = stmt.value
+            fn = call.func
+            is_nt = ((isinstance(fn, ast.Name) and fn.id == "NamedTuple")
+                     or (isinstance(fn, ast.Attribute)
+                         and fn.attr == "NamedTuple"))
+            if not is_nt or len(call.args) < 2:
+                continue
+            name_arg, fields_arg = call.args[0], call.args[1]
+            if not (isinstance(name_arg, ast.Constant)
+                    and isinstance(name_arg.value, str)):
+                continue
+            nt_name = name_arg.value
+            if not isinstance(fields_arg, ast.List):
+                continue
+            fields: List[Dict[str, Any]] = []
+            field_defaults: Dict[str, int] = {}
+            init_params: List[str] = []
+            init_body: List[Dict[str, Any]] = []
+            ok = True
+            for elt in fields_arg.elts:
+                if not (isinstance(elt, ast.Tuple) and len(elt.elts) == 2):
+                    ok = False
+                    break
+                k, v = elt.elts
+                if not (isinstance(k, ast.Constant)
+                        and isinstance(k.value, str)):
+                    ok = False
+                    break
+                fname = k.value
+                ftype = self._field_type_from_annotation_inst(v, nt_name)
+                fields.append({"name": fname, "type": ftype,
+                               "mutable": True})
+                field_defaults[fname] = 0
+                init_params.append(fname)
+                init_body.append({"field": fname,
+                                  "value": {"type": "Var", "name": fname}})
+            if not ok or not fields:
+                continue
+            self.program_ir["type_decls"].append({
+                "kind": "record", "name": nt_name, "fields": fields,
+                "class_invariants": [], "field_defaults": field_defaults,
+                "has_hash": False, "has_eq": False, "is_unhashable": False,
+                "constants": {}, "bases": [],
+                "init_params": init_params, "init_body": init_body,
+                "init_ensures": [],
+                "is_mixin": False, "compose_from": [],
+                "is_namedtuple": True,
+            })
+            self.program_ir.setdefault("constructors", {})
+            self.program_ir["constructors"][nt_name] = {"type": nt_name,
+                                                          "arity": 0}
 
     def _collect_class_fields(self, node: ast.ClassDef) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
         """Extract mutable fields and default values from __init__.
@@ -1756,6 +1912,17 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         """
         if self._is_typeddict_class(node):
             self._emit_typeddict_record(node)
+            self.generic_visit(node)
+            return
+        # typing-engagement ty2 / 30-1700-typing-spec-6: a `class Point(NamedTuple)`
+        # declaration (PEP 526) is recognized here and lowered to a record
+        # type_decl with one field per declared key, in declaration order
+        # (per the two-plane spec §1, N1–N7). The static plane is the record
+        # (Interpreted); the runtime plane is the plain-tuple alias (Shimmed).
+        # NO `\trusted`. The `is_namedtuple: True` flag gates Module 6's
+        # positional-subscript lowering path.
+        if self._is_namedtuple_class(node):
+            self._emit_namedtuple_record(node)
             self.generic_visit(node)
             return
         self._current_class = node.name

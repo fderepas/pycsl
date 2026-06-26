@@ -2844,6 +2844,11 @@ class PreambleEmissionMixin:
                     # dict-literal → record-literal lowering. False for every
                     # pre-existing record (byte-identical fallback).
                     "is_typeddict": bool(td.get("is_typeddict", False)),
+                    # typing-engagement ty2 / 30-1700-typing-spec-6: gates the
+                    # NamedTuple positional-subscript → record-field-read-by-
+                    # index lowering. False for every pre-existing record
+                    # (byte-identical fallback).
+                    "is_namedtuple": bool(td.get("is_namedtuple", False)),
                 }
                 # Class-body integer constants (e.g. `CAP = 64`) — resolved to
                 # literals when referenced as `self.CONST` in a method/contract.
