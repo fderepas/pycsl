@@ -2759,6 +2759,64 @@ precondition VC, invisible to the runtime).
 **No GT gap** is tagged for `Literal` — the literal value set is finite,
 enumerated, and decidable (two-plane spec §4 confirms full soundness).
 
+### §T.14.7  `Final[T]` annotations (typing-engagement ty1)
+
+PEP 591 `Final[T]` (and bare `Final`) is **lowered at the front-end
+normalization seam** to the degenerate single-attribute, single-writer form of
+HAPPY's no-write confinement. The annotation's *type* is the inner type `T`
+(F3 — no narrowing): `_normalize_final_annotation` recognizes `Final[T]`
+(Subscript value=Name "Final") and bare `Final` (Name "Final"), returns `τ(T)`
+(or `"Any"` for bare `Final`), and records the name in a per-module
+**final registry** (`program_ir["final_registry"]`, omitted when empty →
+byte-identical for Final-free modules). The write-policy is a
+**static-semantics check** (`core_ir_semantic._check_final`), NOT a VC:
+
+```whyml
+(* x: Final[int] = 5  →  module constant x = 5 (the existing module-constant
+   path). The type is `int` (F3 — Final does not narrow). NO synthesized
+   contract, NO new IR node. *)
+
+(* attr: Final[int] in class C  →  field type `int` (the existing field-type
+   path). The write-policy is NOT emitted as a VC; it is a write-site check. *)
+```
+
+**Translation table:**
+
+| Form | IR symbol_table / field type | WhyML | Write-policy |
+|------|------------------------------|-------|--------------|
+| `x: Final[int] = 5` (module) | `int` (module-constant path unchanged) | `constant x: int = 5` (existing path) | F1: declaration is the only write; any `Assign`/`AugAssign` to `x` in a function body → `PyCSLSemanticError` |
+| `attr: Final[int]` (class body) | field type `int` (existing field path) | record field `attr: int` (existing path) | F2: `__init__`-only writes; any `FieldAssign`/`FieldAugAssign` to `self.attr` in a function body → `PyCSLSemanticError` |
+| `x: Final[int]` (parameter) | `int` | `let f (x: int) = ...` (F3 — no `requires` synthesized) | (deferred — parameter Final is not registered; see spec §8 Q2) |
+| `x: Final` (bare, module) | `Any` (no inference) | `constant x: int = <init>` | F1 (as above) |
+
+**Per-clause VC mapping (F1/F2/F3 — there are NO VCs):** the write-policy is
+decidable syntactically (a write either is or is not textually inside the
+allowed perimeter), NOT by SMT. F1 (write-once) and F2 (`__init__`-only) are
+the `_check_final` write-site walk (a `core_ir_semantic` check, modeled on
+HAPPY's `_check_happy` pattern in its degenerate single-attribute,
+single-writer form). F3 (no narrowing) is satisfied by construction — the
+type tag is `T`, not a refined type; no narrowing VC is emitted (there is no
+VC at all). F2a (the class-body `attr: Final[T]` declaration is not a write)
+is normalization-time (the front-end emits an `Assign` ONLY when
+`stmt.value is not None`). F2b (subclass `__init__` writes) is a documented
+strictness gap (§6 of the spec): a subclass `D(C)`'s `__init__` write is not
+caught (dunders are skipped from `ir["functions"]`) — a soundness-preserving
+under-approximation.
+
+**No new IR node, no IR_VERSION bump, no new VC kind.** The final registry
+is an additive module-level metadata key; Module 6 ignores it, so emission is
+byte-identical for every Final-free driver.
+
+**Runtime shim** (`src/pycsl_lib/typ/__init__.py`): `Final(x0, x1, val)` is
+`#@ ensures \result == val` (identity, no validation — FR1–FR6, FD2 no-blend).
+It is explicitly NOT a write-guard descriptor — introducing one would blend
+the planes (FR6). The static write-policy is NOT discharged by the shim (it is
+a semantic check, invisible to the runtime).
+
+**No GT gap** is tagged for `Final` — the write-restriction is a syntactic
+write-site check (decidable by construction; the two-plane spec §4 confirms
+full soundness).
+
 ---
 
 ## §T.15  Bytes / Bytearray Type Unification

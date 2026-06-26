@@ -1,0 +1,63 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "Section Variables:\nrd\n: byte_disk -> Z -> Z\nname_t\n: Type\nname_decode\n: Z ->\n  Z ->\n  Z ->\n  Z ->\n  Z ->\n  Z ->\n  Z ->\n  Z ->\n  Z ->\n  Z ->\n  Z ->\n  Z ->\n  Z ->\n  Z ->\n  Z ->\n  Z ->\n  Z ->\n  Z -> Z -> Z -> Z -> Z -> Z -> Z -> Z -> Z -> Z -> Z -> Z -> Z -> name_t\nbyte_disk\n: Type\n",
+  "compile_stderr": "Warning: Cannot open unix-filesystem/UnixInodeFileSystem.proofs/rocq\n[cannot-open-path,filesystem,default]\n",
+  "elapsed_compile_s": 1.6716444659978151,
+  "qualname_results": [
+    [
+      "UnixFs.Dir.block5_decode_frame",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.block5_decode_frame",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.block5_decode_frame",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.block5_decode_frame",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.block5_decode_frame",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.block5_decode_frame",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.block5_decode_frame",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.block5_decode_frame",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.block5_decode_frame",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.block5_decode_frame",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.block5_decode_frame",
+      true,
+      []
+    ]
+  ]
+}

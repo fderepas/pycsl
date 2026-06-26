@@ -1,0 +1,16 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "'UnixFs.Field.field_to_str_round_trip' depends on axioms: [propext, Quot.sound]\n",
+  "compile_stderr": "",
+  "elapsed_compile_s": 1.1223345559992595,
+  "qualname_results": [
+    [
+      "UnixFs.Field.field_to_str_round_trip",
+      true,
+      [
+        "propext",
+        "Quot.sound"
+      ]
+    ]
+  ]
+}

@@ -1,0 +1,24 @@
+=== __init__ gate ===
+[+] Verification SUCCESS! All contracts formally proven.
+=== body sweep ===
+sys_unlink: nV=0
+sys_rmdir: nV=0
+sys_mkdir: nV=0
+sys_open: nV=0
+sys_creat: nV=0
+sys_chmod: nV=0
+sys_chown: nV=0
+sys_utimensat: nV=0
+sys_truncate: nV=0
+sys_ftruncate: nV=0
+sys_stat: nV=0
+sys_getdents: nV=0
+sys_readlink: nV=0
+_free_inode_blocks: nV=0
+_write_inode: nV=0
+_set_bitmap: nV=0
+_zero_entry: nV=0
+_write_dir_entry: nV=0
+_format_disk: nV=0
+_dir_lookup: nV=4
+CLEANUPDONE

@@ -1,0 +1,510 @@
+diff --git a/pure_lib/os/UnixInodeFileSystem.py b/pure_lib/os/UnixInodeFileSystem.py
+index 118d979..86749a5 100644
+--- a/pure_lib/os/UnixInodeFileSystem.py
++++ b/pure_lib/os/UnixInodeFileSystem.py
+@@ -1172,19 +1172,68 @@ class UnixInodeFileSystem:
+     #             `_dir_find_slot`'s live-slot claim, same dirscan-fidelity trust
+     #             class. sys_rename uses it to know the newpath write target is
+     #             distinct from the live old_slot it zeroes last.
+-    #@ \trusted reviewer: dirscan-fidelity
++    # DE-TRUSTED read-side fidelity (was `\trusted reviewer: dirscan-fidelity`) via the
++    # FREE-SLOT-INDEX dir_find_free_result marker (the free-slot twin of
++    # dir_find_slot_result). _dir_find_free scans the 16 slots like _dir_find_slot, but
++    # the guard is the FREE condition `inode_num == 0` (NOT a live-name match) and it
++    # reads ONLY slot_inode — there is NO name decode, so the faithful-name EMITTER
++    # recognizer is UNNEEDED here (simpler than _dir_find_slot). The body operates over
++    # the abstract per-slot decode slot_inode (bridged from the literal slot bytes by
++    # slot_inode_byte_decode), carrying the loop-carry prefix marker
++    # dir_find_free_prefix(self.dir, 5, i, found) advanced one slot per iteration via
++    # dir_find_free_prefix_step (whose free branch sets found to the INDEX i). At loop
++    # exit the prefix marker at i=16 is folded to dir_find_free_result, and
++    # dir_find_free_result_value discharges the fidelity ensures
++    # (\result >= 0 ==> slot_inode == 0).
++    #
++    # The literal-offset byte surface (5*512 + 32*i) makes slot_inode_byte_decode's
++    # trigger [disk[blk*512+32*k]] E-match (bridges the two inode bytes to
++    # slot_inode self.dir 5 i). The free guard inode_num==0 then gives
++    # slot_inode self.dir 5 i = 0 = dir_find_free_prefix_step's free-branch antecedent.
++    # NO relocated trust: zero new \trusted, zero val/ensures shim — the marker is
++    # cross-validated by 0722.proofs/UnixDirFindFreeValue.{v,lean}.
++    #@ proof rocq UnixFs.Dir.slot_inode_nonneg
++    #@ proof lean UnixFs.Dir.slot_inode_nonneg
++    #@ proof rocq UnixFs.Dir.slot_inode_byte_decode
++    #@ proof lean UnixFs.Dir.slot_inode_byte_decode
++    #@ proof rocq UnixFs.Dir.dir_find_free_prefix_base
++    #@ proof lean UnixFs.Dir.dir_find_free_prefix_base
++    #@ proof rocq UnixFs.Dir.dir_find_free_prefix_step
++    #@ proof lean UnixFs.Dir.dir_find_free_prefix_step
++    #@ proof rocq UnixFs.Dir.dir_find_free_result_intro
++    #@ proof lean UnixFs.Dir.dir_find_free_result_intro
++    #@ proof rocq UnixFs.Dir.dir_find_free_result_value
++    #@ proof lean UnixFs.Dir.dir_find_free_result_value
++    #@ verify_module FindFreeMod
+     def _dir_find_free(self, block_num: int) -> int:
+-        offset = block_num * 512
+         found = -1
++        #@ assert dir_find_free_prefix(self.dir, 5, 0, -1)
+         #@ loop invariant 0 <= i and i <= 16
+         #@ loop invariant found >= -1 and found < 16
++        #@ loop invariant dir_find_free_prefix(self.dir, 5, i, found)
+         #@ loop variant 16 - i
+         for i in range(16):
+-            entry_offset = offset + (i * 32)
+-            entry = self.dir[entry_offset:entry_offset + 32]
+-            inode_num, name_bytes = _unpack_direntry(entry)
++            # literal-offset byte surface (5*512 + 32*i) so slot_inode_byte_decode's
++            # trigger [disk[blk*512+32*k]] E-matches (bridges the two inode bytes to
++            # slot_inode self.dir 5 i).
++            b0 = self.dir[5 * 512 + 32 * i]
++            b1 = self.dir[5 * 512 + 32 * i + 1]
++            #@ assert slot_inode(self.dir, 5, i) == 256 * b0 + b1
++            inode_num = b0 * 256 + b1
+             if inode_num == 0:
++                # the guard gives inode_num==0; bridged to the abstract decode
++                # (slot_inode == inode_num == 0) this is exactly
++                # dir_find_free_prefix_step's free-branch antecedent. After found:=i
++                # the step advances the marker to (i+1, i) — found is the INDEX.
++                #@ assert slot_inode(self.dir, 5, i) == 0
+                 found = i
++                #@ assert dir_find_free_prefix(self.dir, 5, i + 1, found)
++            else:
++                #@ assert slot_inode(self.dir, 5, i) != 0
++                #@ assert dir_find_free_prefix(self.dir, 5, i + 1, found)
++                pass
++            #@ assert dir_find_free_prefix(self.dir, 5, i + 1, found)
++        #@ assert dir_find_free_result(self.dir, 5, found)
+         return found
+ 
+     #@ requires off >= 0
+diff --git a/src/pycsl/module6_whyml/preamble.py b/src/pycsl/module6_whyml/preamble.py
+index 8d1c5d0..fa12a29 100644
+--- a/src/pycsl/module6_whyml/preamble.py
++++ b/src/pycsl/module6_whyml/preamble.py
+@@ -796,6 +796,72 @@ class PreambleEmissionMixin:
+             "dir_find_slot_result d blk name r -> "
+             "r >= 0 -> "
+             "slot_inode d blk r <> 0 /\\ slot_name d blk r = name",
++        # READ-SIDE FREE-SLOT-INDEX dir_find_free_result marker family — the
++        # FREE-slot twin of the dir_find_slot_result family. Retires the READ-side
++        # dirscan-fidelity trust on _dir_find_free, which returns the slot INDEX
++        # (0..15) of the LAST FREE slot (slot_inode == 0), or -1 if the block is
++        # full. Unlike _dir_find_slot it reads ONLY slot_inode (NO name decode),
++        # and the guard is the free condition `slot_inode == 0` (not the live-match
++        # slot_inode <> 0 /\ slot_name == name). Carries the slot's free-fidelity
++        # (slot_inode == 0 at the returned index) across SMT via a unique marker,
++        # the same once-firing discipline as dir_find_slot_result. Cross-validated
++        # zero-TCB by
++        # test-suite/corpus/pycsl-reference/0722.proofs/{rocq,lean}/UnixDirFindFreeValue.{v,lean}:
++        #   - Rocq: every theorem "Closed under the global context" (Section
++        #     Variables only, 0 Axiom/Admitted).
++        #   - Lean: dir_find_free_result_intro/_prefix_base/_prefix_close "does not
++        #     depend on any axioms"; _result_value/_result_range/_prefix_step ⊆
++        #     {propext, Quot.sound}.
++        #
++        # The marker fires ONLY at the atoms _dir_find_free's body asserts (the
++        # loop-carry prefix invariant + the loop-exit close), NEVER on a bare
++        # slot_inode term — exactly the dir_find_slot_result once-firing discipline.
++        # The Fixpoint `ffscan` is the FREE-slot dual of `fscan`: on a free slot,
++        # found becomes the INDEX i.
++        #
++        # dir_find_free_prefix_base (DEFINITIONAL, zero trust): the loop-init rung.
++        # `found = -1` over the empty (0-slot) prefix. Trigger on the marker atom.
++        "UnixFs.Dir.dir_find_free_prefix_base":
++            "forall d : array int, blk : int "
++            "[dir_find_free_prefix d blk 0 (-1)]. "
++            "dir_find_free_prefix d blk 0 (-1)",
++        # dir_find_free_prefix_step (cross-validated): the loop-body update rung.
++        # From the prefix marker at slot i, peeling slot i — using the per-slot
++        # decode fact slot_inode d blk i (the SAME body guard the loop tests) —
++        # advances the marker to slot i+1. On a free slot `found` becomes the INDEX
++        # i. Keyed [dir_find_free_prefix d blk i r] so it fires once per loop
++        # iteration at the carried marker, NEVER on a bare term. The induction is
++        # discharged offline; SMT only applies one O(1) step.
++        "UnixFs.Dir.dir_find_free_prefix_step":
++            "forall d : array int, blk i r : int "
++            "[dir_find_free_prefix d blk i r]. "
++            "0 <= i -> i < 16 -> "
++            "dir_find_free_prefix d blk i r -> "
++            "( ( slot_inode d blk i = 0 ) -> "
++            "    dir_find_free_prefix d blk (i + 1) i ) "
++            "/\\ ( ( slot_inode d blk i <> 0 ) -> "
++            "    dir_find_free_prefix d blk (i + 1) r )",
++        # dir_find_free_result_intro (DEFINITIONAL close, zero trust): the
++        # full-prefix rung i=16 IS the free-slot-index scan result — fold the
++        # loop-exit prefix marker into the result marker. Keyed
++        # [dir_find_free_prefix d blk 16 r].
++        "UnixFs.Dir.dir_find_free_result_intro":
++            "forall d : array int, blk r : int "
++            "[dir_find_free_prefix d blk 16 r]. "
++            "dir_find_free_prefix d blk 16 r -> "
++            "dir_find_free_result d blk r",
++        # dir_find_free_result_value (cross-validated VALUE lemma — the
++        # load-bearing free-slot fidelity): when r >= 0 the returned slot has
++        # slot_inode == 0 (it is FREE). This is EXACTLY _dir_find_free's fidelity
++        # ensures (\result >= 0 ==> slot_inode == 0). The last-free argument is
++        # discharged offline in UnixDirFindFreeValue; SMT only applies this O(1)
++        # implication. Keyed [dir_find_free_result d blk r] — fires EXACTLY ONCE.
++        "UnixFs.Dir.dir_find_free_result_value":
++            "forall d : array int, blk r : int "
++            "[dir_find_free_result d blk r]. "
++            "dir_find_free_result d blk r -> "
++            "r >= 0 -> "
++            "slot_inode d blk r = 0",
+         # ====================================================================
+         # BLOCK-PARAMETERIZED marker family (2026-06-19) — the arbitrary-block
+         # generalization of the block-5 dir_blit_marker family above. _write_entry
+@@ -1414,6 +1480,27 @@ class PreambleEmissionMixin:
+             "predicate dir_find_slot_result (d: array int) (blk: int) (name: string) (r: int)",
+             "predicate dir_find_slot_prefix (d: array int) (blk: int) (name: string) (i: int) (r: int)",
+         ],
++        # READ-SIDE FREE-SLOT-INDEX markers (the free-slot twin of
++        # dir_find_slot_result/dir_find_slot_prefix): `dir_find_free_result d blk r`
++        # ≜ "r is the bounded 16-slot free-index scan result" (the LAST free INDEX,
++        # or -1); `dir_find_free_prefix d blk i r` ≜ "r is that free-index-scan over
++        # the first i slots". UNIQUE uninterpreted atoms keyed
++        # [dir_find_free_result d blk r] / [dir_find_free_prefix d blk i r], firing
++        # ONLY where _dir_find_free's body asserts them, NEVER on a bare slot_inode
++        # term, so the free-slot fidelity crosses SMT without re-introducing the
++        # last-free argument (discharged offline in UnixDirFindFreeValue.{v,lean}).
++        # No `name` parameter — _dir_find_free reads only slot_inode.
++        #
++        # GATING (byte-identity, same discipline as dir_find_slot): keyed on the
++        # MORE-SPECIFIC prefix "UnixFs.Dir.dir_find_free" so these two predicate
++        # declarations are emitted ONLY when a dir_find_free_* axiom is cited (i.e.
++        # by _dir_find_free's os module), NOT for every UnixFs.Dir.* citation.
++        # `startswith` matches both prefixes for a dir_find_free_* qualname, so the
++        # os module still gets BOTH the general Dir decls AND these predicates.
++        "UnixFs.Dir.dir_find_free": [
++            "predicate dir_find_free_result (d: array int) (blk: int) (r: int)",
++            "predicate dir_find_free_prefix (d: array int) (blk: int) (i: int) (r: int)",
++        ],
+         # BLOCK-PARAMETERIZED marker (2026-06-19): the arbitrary-block twin of
+         # dir_blit_marker for _write_entry, which mutates self.disk at an ARBITRARY
+         # block `block_num` (not the hardcoded block 5 of self.dir). Extra `blk`
+diff --git a/test-suite/corpus/pycsl-reference/0722.proofs/lean/UnixDirFindFreeValue.lean b/test-suite/corpus/pycsl-reference/0722.proofs/lean/UnixDirFindFreeValue.lean
+new file mode 100644
+index 0000000..a3b5a73
+--- /dev/null
++++ b/test-suite/corpus/pycsl-reference/0722.proofs/lean/UnixDirFindFreeValue.lean
+@@ -0,0 +1,134 @@
++-- Lean 4 cross-validation twin of the FREE-SLOT-INDEX dir_find_free_result
++-- marker. _dir_find_free scans the 16 slots and returns the INDEX (0..15) of
++-- the LAST FREE slot (slot_inode = 0), or -1 (the free-slot dual of
++-- _dir_find_slot's live-match INDEX in UnixDirFindSlotValue.lean). Unlike its
++-- twin it reads ONLY slot_inode (no name decode), and the guard is the free
++-- condition `slot_inode = 0`. Verified under core Lean (no Mathlib). No sorry.
++namespace UnixFs.Dir
++
++variable {Disk : Type}
++variable (slotInode : Disk → Int → Int → Int)
++
++def slotFree (d : Disk) (blk : Int) (k : Int) : Prop :=
++  slotInode d blk k = 0
++
++-- The running FREE-SLOT-INDEX scan: keeps the LAST free INDEX (when slot j is
++-- free, found becomes the INDEX zj).
++def ffscan (d : Disk) (blk : Int) : Nat → Int → Int
++  | 0,     found => found
++  | (j+1), found =>
++      let f := ffscan d blk j found
++      let zj : Int := Int.ofNat j
++      if slotInode d blk zj = 0
++      then zj
++      else f
++
++def dirFindFree (d : Disk) (blk : Int) : Int :=
++  ffscan slotInode d blk 16 (-1)
++
++-- The carry invariant: the result is either an in-range free INDEX, or the
++-- unchanged start value.
++theorem ffscan_result_free
++    (d : Disk) (blk : Int) (i : Nat) (start : Int) :
++    let r := ffscan slotInode d blk i start
++    ((0 ≤ r ∧ r < Int.ofNat i ∧ slotFree slotInode d blk r) ∨ r = start) := by
++  induction i with
++  | zero => simp [ffscan]
++  | succ j IH =>
++      simp only [ffscan, slotFree] at IH ⊢
++      have hsucc : Int.ofNat (j + 1) = Int.ofNat j + 1 := rfl
++      split
++      · rename_i hg
++        left
++        refine ⟨Int.natCast_nonneg j, ?_, hg⟩
++        rw [hsucc]; omega
++      · rcases IH with ⟨hr0, hrlt, hf⟩ | heq
++        · left
++          refine ⟨hr0, ?_, hf⟩
++          rw [hsucc]; omega
++        · right; exact heq
++
++-- The MARKER: dir_find_free_result d blk r ≜ r is the bounded free-index-scan result.
++def dirFindFreeResult (d : Disk) (blk : Int) (r : Int) : Prop :=
++  ffscan slotInode d blk 16 (-1) = r
++
++-- dir_find_free_result_intro (definitional).
++theorem dir_find_free_result_intro
++    (d : Disk) (blk : Int) (r : Int)
++    (h : ffscan slotInode d blk 16 (-1) = r) :
++    dirFindFreeResult slotInode d blk r := by
++  unfold dirFindFreeResult; exact h
++
++-- dir_find_free_result_value (load-bearing free-slot fidelity): when r ≥ 0,
++-- slot r has slot_inode = 0.
++theorem dir_find_free_result_value
++    (d : Disk) (blk : Int) (r : Int)
++    (hmk : dirFindFreeResult slotInode d blk r)
++    (hpos : r ≥ 0) :
++    slotInode d blk r = 0 := by
++  unfold dirFindFreeResult at hmk
++  have hinv := ffscan_result_free slotInode d blk 16 (-1)
++  simp only [slotFree] at hinv
++  rw [hmk] at hinv
++  rcases hinv with ⟨_, _, hf⟩ | heq
++  · exact hf
++  · omega
++
++-- dir_find_free_result_range (definitional): r is in [-1, 16).
++theorem dir_find_free_result_range
++    (d : Disk) (blk : Int) (r : Int)
++    (hmk : dirFindFreeResult slotInode d blk r) :
++    -1 ≤ r ∧ r < 16 := by
++  unfold dirFindFreeResult at hmk
++  have hinv := ffscan_result_free slotInode d blk 16 (-1)
++  simp only [slotFree] at hinv
++  rw [hmk] at hinv
++  rcases hinv with ⟨hr0, hrlt, _⟩ | heq
++  · constructor <;> omega
++  · constructor <;> omega
++
++-- ===== Prefix-marker loop-carry rungs =====
++def dirFindFreePrefix (d : Disk) (blk : Int) (i : Int) (r : Int) : Prop :=
++  (0 ≤ i ∧ i ≤ 16) ∧ ffscan slotInode d blk i.toNat (-1) = r
++
++theorem dir_find_free_prefix_base (d : Disk) (blk : Int) :
++    dirFindFreePrefix slotInode d blk 0 (-1) := by
++  unfold dirFindFreePrefix; refine ⟨⟨by decide, by decide⟩, ?_⟩; rfl
++
++theorem dir_find_free_prefix_step
++    (d : Disk) (blk : Int) (i : Int) (r : Int)
++    (hi : 0 ≤ i ∧ i < 16)
++    (hpre : dirFindFreePrefix slotInode d blk i r) :
++    ( slotInode d blk i = 0
++        → dirFindFreePrefix slotInode d blk (i+1) i ) ∧
++    ( slotInode d blk i ≠ 0
++        → dirFindFreePrefix slotInode d blk (i+1) r ) := by
++  obtain ⟨_, hpre⟩ := hpre
++  have hi0 : 0 ≤ i := hi.1
++  have hni : (i+1).toNat = (i.toNat) + 1 := by omega
++  have hzi : Int.ofNat (i.toNat) = i := Int.toNat_of_nonneg hi0
++  constructor
++  · intro hg
++    refine ⟨⟨by omega, by omega⟩, ?_⟩
++    rw [hni]; unfold ffscan; rw [hpre]; rw [hzi]; rw [if_pos hg]
++  · intro hng
++    refine ⟨⟨by omega, by omega⟩, ?_⟩
++    rw [hni]; unfold ffscan; rw [hpre]; rw [hzi]; rw [if_neg hng]
++
++theorem dir_find_free_prefix_close
++    (d : Disk) (blk : Int) (r : Int)
++    (h : dirFindFreePrefix slotInode d blk 16 r) :
++    dirFindFreeResult slotInode d blk r := by
++  obtain ⟨_, h⟩ := h
++  unfold dirFindFreeResult
++  have : (16 : Int).toNat = 16 := by decide
++  rw [this] at h; exact h
++
++end UnixFs.Dir
++
++#print axioms UnixFs.Dir.dir_find_free_result_value
++#print axioms UnixFs.Dir.dir_find_free_result_intro
++#print axioms UnixFs.Dir.dir_find_free_result_range
++#print axioms UnixFs.Dir.dir_find_free_prefix_base
++#print axioms UnixFs.Dir.dir_find_free_prefix_step
++#print axioms UnixFs.Dir.dir_find_free_prefix_close
+diff --git a/test-suite/corpus/pycsl-reference/0722.proofs/rocq/UnixDirFindFreeValue.v b/test-suite/corpus/pycsl-reference/0722.proofs/rocq/UnixDirFindFreeValue.v
+new file mode 100644
+index 0000000..36ef8e9
+--- /dev/null
++++ b/test-suite/corpus/pycsl-reference/0722.proofs/rocq/UnixDirFindFreeValue.v
+@@ -0,0 +1,181 @@
++(* Value theorem for _dir_find_free: the FREE-SLOT-INDEX dual of
++   dir_find_slot_result (UnixDirFindSlotValue.v). _dir_find_free scans the 16
++   directory slots and returns the INDEX (0..15) of the LAST slot whose inode
++   field is 0 (a FREE slot), or -1 if the block is full. Unlike _dir_find_slot
++   it reads ONLY slot_inode (NO name decode), and the match condition is
++   `slot_inode = 0` (free) rather than `slot_inode <> 0 /\ slot_name = name`
++   (live). This cross-validates the dir_find_free_result marker family: the
++   read-side fidelity that the returned slot index has slot_inode = 0.
++
++   Same shape and the SAME abstract per-slot decode (slot_inode) as
++   UnixDirFindSlot.v, over a free-slot predicate. The marker fires ONLY at the
++   atoms _dir_find_free's body asserts (loop-carry prefix + loop-exit close),
++   NEVER on a bare slot_inode term — the once-firing discipline of its twin.
++   Verified under Coq 8.20.1. No Admitted, no Axiom (Section Variables only). *)
++Require Import Coq.ZArith.ZArith.
++Require Import Coq.Bool.Bool.
++Require Import Lia.
++Open Scope Z_scope.
++
++Module UnixFs.
++Module Dir.
++Section FindFree.
++Variable disk : Type.
++Variable slot_inode : disk -> Z -> Z -> Z.
++
++(* A slot k is FREE in block `blk` iff its inode field decodes to 0. This is
++   exactly _dir_find_free's loop guard `if inode_num == 0`. *)
++Definition is_free (d : disk) (blk : Z) (k : Z) : Prop :=
++  slot_inode d blk k = 0.
++
++(* The running FREE-SLOT-INDEX scan over the first i slots, mirroring
++   _dir_find_free's loop body `if inode_num == 0: found = i`. It keeps the LAST
++   free INDEX (recurse first, then test slot j); when slot j is free the
++   carried `found` becomes the INDEX zj. *)
++Fixpoint ffscan (d : disk) (blk : Z) (i : nat) (found : Z) : Z :=
++  match i with
++  | O => found
++  | S j =>
++      let f := ffscan d blk j found in
++      let zj := Z.of_nat j in
++      if Z.eqb (slot_inode d blk zj) 0
++      then zj
++      else f
++  end.
++
++(* The carry invariant proved at every prefix length i: if the running index
++   `found` started >= 0 then it is a free slot, AND the result is either the
++   start value or a free in-range index. *)
++Lemma ffscan_result_free : forall (d : disk) (blk : Z) (i : nat) (start : Z),
++  let r := ffscan d blk i start in
++  ( (0 <= r < Z.of_nat i /\ is_free d blk r) \/ r = start ).
++Proof.
++  intros d blk i start. induction i as [| j IH].
++  - (* base: ffscan = start. *)
++    simpl. right. reflexivity.
++  - (* step: peel slot j. *)
++    simpl.
++    set (zj := Z.of_nat j) in *.
++    remember (Z.eqb (slot_inode d blk zj) 0) as guard eqn:Hguard.
++    destruct guard.
++    + (* guard true: result = index zj, a free slot. *)
++      symmetry in Hguard. apply Z.eqb_eq in Hguard.
++      left. split.
++      * split. apply Nat2Z.is_nonneg. lia.
++      * unfold is_free. exact Hguard.
++    + (* guard false: result = ffscan over j; classify via IH. *)
++      destruct IH as [ [Hrng Hf] | Heq ].
++      * left. split; [ lia | exact Hf ].
++      * right. exact Heq.
++Qed.
++
++(* dir_find_free d blk := ffscan d blk 16 (-1). *)
++Definition dir_find_free (d : disk) (blk : Z) : Z :=
++  ffscan d blk 16 (-1).
++
++(* The MARKER: dir_find_free_result d blk r holds iff r is exactly the bounded
++   16-slot free-index scan result. DEFINITIONAL (zero TCB). *)
++Definition dir_find_free_result (d : disk) (blk : Z) (r : Z) : Prop :=
++  ffscan d blk 16 (-1) = r.
++
++(* dir_find_free_result_intro (DEFINITIONAL, zero trust). *)
++Theorem dir_find_free_result_intro :
++  forall (d : disk) (blk : Z) (r : Z),
++    ffscan d blk 16 (-1) = r -> dir_find_free_result d blk r.
++Proof. intros. unfold dir_find_free_result. exact H. Qed.
++
++(* dir_find_free_result_value (cross-validated VALUE lemma — the load-bearing
++   free-slot fidelity): when r >= 0, slot r has slot_inode = 0. This is exactly
++   _dir_find_free's fidelity ensures `\result >= 0 ==> slot_inode = 0`. *)
++Theorem dir_find_free_result_value :
++  forall (d : disk) (blk : Z) (r : Z),
++    dir_find_free_result d blk r ->
++    r >= 0 ->
++    slot_inode d blk r = 0.
++Proof.
++  intros d blk r Hmk Hpos. unfold dir_find_free_result in Hmk.
++  pose proof (ffscan_result_free d blk 16 (-1)) as Hinv.
++  cbv zeta in Hinv. rewrite Hmk in Hinv.
++  destruct Hinv as [ [Hrng Hf] | Heq ].
++  - unfold is_free in Hf. exact Hf.
++  - (* r = -1 here (start = -1), contradicts r >= 0 *)
++    lia.
++Qed.
++
++(* dir_find_free_result_range (DEFINITIONAL, zero trust): r in [-1, 16). *)
++Theorem dir_find_free_result_range :
++  forall (d : disk) (blk : Z) (r : Z),
++    dir_find_free_result d blk r -> -1 <= r < 16.
++Proof.
++  intros d blk r Hmk. unfold dir_find_free_result in Hmk.
++  pose proof (ffscan_result_free d blk 16 (-1)) as Hinv.
++  cbv zeta in Hinv. rewrite Hmk in Hinv.
++  replace (Z.of_nat 16) with 16 in Hinv by reflexivity.
++  destruct Hinv as [ [Hrng _] | Heq ].
++  - lia.
++  - lia.
++Qed.
++
++End FindFree.
++End Dir.
++End UnixFs.
++
++(* ===== Prefix-marker form: a NON-inductive loop-carry rung ===== *)
++Module Prefix.
++Section P.
++Variable disk : Type.
++Variable slot_inode : disk -> Z -> Z -> Z.
++
++(* dir_find_free_prefix d blk i r : "r is the free-index scan over the first i
++   slots" -- the loop-carry marker. i is the loop counter; r is `found`. *)
++Definition dir_find_free_prefix (d:disk) (blk:Z) (i:Z) (r:Z) : Prop :=
++  (0 <= i <= 16) /\
++  UnixFs.Dir.ffscan disk slot_inode d blk (Z.to_nat i) (-1) = r.
++
++(* Base: prefix 0 has result -1 (the loop init). *)
++Theorem dir_find_free_prefix_base :
++  forall d blk, dir_find_free_prefix d blk 0 (-1).
++Proof. intros. unfold dir_find_free_prefix. simpl. split; [lia | reflexivity]. Qed.
++
++(* Step: the loop-body update. From prefix i with result r, peeling slot i
++   (zi = i) gives prefix (i+1) with the body's `if` update. This is EXACTLY
++   the loop body `if inode_num == 0: found = i`. *)
++Theorem dir_find_free_prefix_step :
++  forall d blk i r,
++    0 <= i < 16 ->
++    dir_find_free_prefix d blk i r ->
++    ( slot_inode d blk i = 0
++        -> dir_find_free_prefix d blk (i+1) i ) /\
++    ( slot_inode d blk i <> 0
++        -> dir_find_free_prefix d blk (i+1) r ).
++Proof.
++  intros d blk i r Hi [Hib Hpre].
++  assert (Hni : Z.to_nat (i+1) = S (Z.to_nat i)).
++  { rewrite Z2Nat.inj_add by lia. simpl. lia. }
++  assert (Hzi : Z.of_nat (Z.to_nat i) = i) by (rewrite Z2Nat.id; lia).
++  split.
++  - intros Hfree. unfold dir_find_free_prefix. split; [lia|].
++    rewrite Hni. simpl. rewrite Hpre. rewrite Hzi.
++    assert (Hg: Z.eqb (slot_inode d blk i) 0 = true).
++    { apply Z.eqb_eq. exact Hfree. }
++    rewrite Hg. reflexivity.
++  - intros Hne. unfold dir_find_free_prefix. split; [lia|].
++    rewrite Hni. simpl. rewrite Hpre. rewrite Hzi.
++    assert (Hg: Z.eqb (slot_inode d blk i) 0 = false).
++    { apply Z.eqb_neq. exact Hne. }
++    rewrite Hg. reflexivity.
++Qed.
++
++(* Closeout: prefix 16 is the full dir_find_free value, folded to the result
++   marker. *)
++Theorem dir_find_free_prefix_close :
++  forall d blk r,
++    dir_find_free_prefix d blk 16 r ->
++    UnixFs.Dir.dir_find_free_result disk slot_inode d blk r.
++Proof.
++  intros d blk r [_ H]. unfold UnixFs.Dir.dir_find_free_result.
++  simpl in H. exact H.
++Qed.
++
++End P.
++End Prefix.

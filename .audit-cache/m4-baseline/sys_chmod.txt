@@ -1,0 +1,198 @@
+[*] Parsing and Semantic Analysis for 'pure_lib/os/UnixInodeFileSystem.py'...
+[*] Memory model: hoare
+[*] --fun filter: verifying ['unixinodefilesystem__sys_chmod'], trusting ['_byte_codec_char', '_decode_byte', '_decode_name', '_encode_name', '_name_codec_roundtrip', '_pack_direntry', '_pack_inode', '_pack_uint16_be', '_pack_uint32_be', '_pad_name', '_unpack_direntry', '_unpack_inode', '_unpack_uint16_be', '_unpack_uint32_be', 'unixinodefilesystem___alloc_block', 'unixinodefilesystem___alloc_inode', 'unixinodefilesystem___block_roundtrip', 'unixinodefilesystem___check_perm', 'unixinodefilesystem___dir_find_free', 'unixinodefilesystem___dir_find_slot', 'unixinodefilesystem___dir_lookup', 'unixinodefilesystem___format_disk', 'unixinodefilesystem___get_bitmap', 'unixinodefilesystem___now', 'unixinodefilesystem___poke', 'unixinodefilesystem___read_directory', 'unixinodefilesystem___read_inode', 'unixinodefilesystem___set_bitmap', 'unixinodefilesystem___write_directory', 'unixinodefilesystem___write_entry', 'unixinodefilesystem___write_inode', 'unixinodefilesystem___zero_entry', 'unixinodefilesystem__sys_access', 'unixinodefilesystem__sys_chown', 'unixinodefilesystem__sys_close', 'unixinodefilesystem__sys_creat', 'unixinodefilesystem__sys_dup', 'unixinodefilesystem__sys_dup2', 'unixinodefilesystem__sys_fstat', 'unixinodefilesystem__sys_fsync', 'unixinodefilesystem__sys_ftruncate', 'unixinodefilesystem__sys_getdents', 'unixinodefilesystem__sys_link', 'unixinodefilesystem__sys_lseek', 'unixinodefilesystem__sys_lstat', 'unixinodefilesystem__sys_mkdir', 'unixinodefilesystem__sys_open', 'unixinodefilesystem__sys_read', 'unixinodefilesystem__sys_readlink', 'unixinodefilesystem__sys_rename', 'unixinodefilesystem__sys_rmdir', 'unixinodefilesystem__sys_stat', 'unixinodefilesystem__sys_symlink', 'unixinodefilesystem__sys_truncate', 'unixinodefilesystem__sys_unlink', 'unixinodefilesystem__sys_utimensat', 'unixinodefilesystem__sys_write']
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.2, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_vl2nqhak.mlw", line 18, characters 4-11:
+Sub-goal Precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.01s, 1377 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 17, characters 14-30:
+Sub-goal Postcondition of goal pycsl_div'vc.
+Prover result is: Valid (0.01s, 1672 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 23, characters 4-11:
+Sub-goal Precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.01s, 1377 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 22, characters 14-30:
+Sub-goal Postcondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 1517 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 67, characters 170-187:
+Sub-goal Array creation size of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 2217 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 67, characters 140-157:
+Sub-goal Array creation size of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 2411 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 67, characters 109-126:
+Sub-goal Array creation size of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 2457 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 67, characters 79-96:
+Sub-goal Array creation size of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 2503 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 67, characters 49-66:
+Sub-goal Array creation size of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 2549 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 67, characters 16-37:
+Sub-goal Array creation size of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 2595 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 54, characters 16-47:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 3829 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 55, characters 16-40:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.02s, 24532 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 56, characters 16-45:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 2657 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 57, characters 16-46:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 2666 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 58, characters 16-47:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 2675 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 59, characters 16-46:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 2684 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 60, characters 16-46:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 2693 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 61, characters 16-30:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 2698 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 62, characters 16-30:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 2703 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 63, characters 16-30:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 2708 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 64, characters 16-35:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 2713 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 65, characters 16-27:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.02s, 24984 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 66, characters 16-33:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.02s, 25105 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 487, characters 15-49:
+Sub-goal Postcondition of goal unixinodefilesystem__sys_chmod'vc.
+Prover result is: Valid (0.01s, 2970 steps).
+
+File /tmp/.pycsl_vl2nqhak.mlw:
+Sub-goal Postcondition of goal unixinodefilesystem__sys_chmod'vc.
+Prover result is: Valid (0.01s, 2970 steps).
+
+File /tmp/.pycsl_vl2nqhak.mlw:
+Sub-goal Postcondition of goal unixinodefilesystem__sys_chmod'vc.
+Prover result is: Valid (0.01s, 2970 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 487, characters 15-49:
+Sub-goal Postcondition of goal unixinodefilesystem__sys_chmod'vc.
+Prover result is: Valid (0.01s, 3262 steps).
+
+File /tmp/.pycsl_vl2nqhak.mlw:
+Sub-goal Postcondition of goal unixinodefilesystem__sys_chmod'vc.
+Prover result is: Valid (0.01s, 3262 steps).
+
+File /tmp/.pycsl_vl2nqhak.mlw:
+Sub-goal Postcondition of goal unixinodefilesystem__sys_chmod'vc.
+Prover result is: Valid (0.01s, 3262 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 501, characters 8-24:
+Sub-goal Index in array bounds of goal unixinodefilesystem__sys_chmod'vc.
+Prover result is: Valid (0.01s, 4694 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 503, characters 66-105:
+Sub-goal Assertion of goal unixinodefilesystem__sys_chmod'vc.
+Prover result is: Out of memory (11.60s).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 504, characters 61-124:
+Sub-goal Assertion of goal unixinodefilesystem__sys_chmod'vc.
+Prover result is: Valid (0.03s, 43096 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 505, characters 61-122:
+Sub-goal Assertion of goal unixinodefilesystem__sys_chmod'vc.
+Prover result is: Valid (0.04s, 52921 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 487, characters 15-49:
+Sub-goal Postcondition of goal unixinodefilesystem__sys_chmod'vc.
+Prover result is: Valid (0.01s, 3652 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 488, characters 59-122:
+Sub-goal Postcondition of goal unixinodefilesystem__sys_chmod'vc.
+Prover result is: Valid (0.02s, 43417 steps).
+
+File "/tmp/.pycsl_vl2nqhak.mlw", line 489, characters 59-120:
+Sub-goal Postcondition of goal unixinodefilesystem__sys_chmod'vc.
+Prover result is: Valid (0.03s, 43826 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 347, character 33 to line 355, character 124: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 365, characters 41-45: unused variable self
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 369, characters 41-45: unused variable self
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 373, character 44 to line 378, character 56: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 380, characters 40-44: unused variable self
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 404, characters 41-45: unused variable self
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 408, characters 40-44: unused variable self
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 414, characters 33-37: unused variable self
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 417, characters 44-48: unused variable self
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 428, characters 45-49: unused variable self
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 435, character 40 to line 442, character 157: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 444, character 40 to line 470, character 124: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 472, character 39 to line 478, character 157: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 480, characters 86-90: unused variable mode
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 511, characters 66-74: unused variable pathname
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 511, characters 85-90: unused variable owner
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 511, characters 98-103: unused variable group
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 511, character 37 to line 515, character 124: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 517, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 521, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 521, characters 66-74: unused variable pathname
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 521, characters 85-89: unused variable mode
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 525, character 35 to line 532, character 87: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 534, characters 37-41: unused variable self
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 544, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 548, characters 80-86: unused variable length
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 548, character 41 to line 552, character 124: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 554, characters 41-45: unused variable self
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 558, characters 65-72: unused variable oldpath
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 563, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 563, characters 76-82: unused variable offset
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 574, characters 85-89: unused variable mode
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 579, characters 84-89: unused variable flags
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 589, character 36 to line 594, character 332: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 596, characters 41-45: unused variable self
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 596, characters 69-77: unused variable pathname
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 617, characters 68-74: unused variable target
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 622, characters 69-77: unused variable pathname
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 622, characters 88-94: unused variable length
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 622, character 40 to line 626, character 124: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 633, characters 70-78: unused variable pathname
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 633, characters 89-94: unused variable atime
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 633, characters 102-107: unused variable mtime
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 633, character 41 to line 637, character 124: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_vl2nqhak.mlw", line 639, character 37 to line 644, character 233: variable self is used under `old` but is not modified by the function
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.

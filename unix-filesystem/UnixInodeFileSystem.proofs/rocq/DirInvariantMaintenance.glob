@@ -1,0 +1,410 @@
+DIGEST c7b7fb974778c9e2a84a37480a5d6897
+FDirInvariantMaintenance
+R1008:1024 Coq.ZArith.ZArith <> <> lib
+R1042:1044 Coq.micromega.Lia <> <> lib
+mod 1076:1081 <> UnixFs
+mod 1091:1093 <> UnixFs.Dir
+sec 1105:1115 UnixFs.Dir Maintenance
+var 1128:1131 UnixFs.Dir.Maintenance disk
+var 1152:1157 UnixFs.Dir.Maintenance name_t
+var 1176:1185 UnixFs.Dir.Maintenance slot_inode
+R1193:1196 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1189:1192 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.disk var
+R1198:1201 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1197:1197 Coq.Numbers.BinNums <> Z ind
+R1203:1206 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1202:1202 Coq.Numbers.BinNums <> Z ind
+R1207:1207 Coq.Numbers.BinNums <> Z ind
+var 1219:1227 UnixFs.Dir.Maintenance slot_name
+R1236:1239 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1232:1235 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.disk var
+R1241:1244 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1240:1240 Coq.Numbers.BinNums <> Z ind
+R1246:1249 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1245:1245 Coq.Numbers.BinNums <> Z ind
+R1250:1255 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.name_t var
+def 1339:1342 UnixFs.Dir uniq
+R1349:1352 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.disk var
+binder 1345:1345 <> d:9
+R1380:1380 Coq.Numbers.BinNums <> Z ind
+binder 1374:1374 <> i:10
+binder 1376:1376 <> j:11
+R1398:1401 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1388:1391 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R1393:1395 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R1392:1392 DirInvariantMaintenance <> i:10 var
+R1392:1392 DirInvariantMaintenance <> i:10 var
+R1413:1420 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1403:1406 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R1408:1410 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R1407:1407 DirInvariantMaintenance <> j:11 var
+R1407:1407 DirInvariantMaintenance <> j:11 var
+R1442:1445 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1437:1440 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R1421:1430 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R1432:1432 DirInvariantMaintenance <> d:9 var
+R1436:1436 DirInvariantMaintenance <> i:10 var
+R1467:1474 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1462:1464 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R1446:1455 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R1457:1457 DirInvariantMaintenance <> d:9 var
+R1461:1461 DirInvariantMaintenance <> i:10 var
+R1496:1499 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1491:1494 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R1475:1484 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R1486:1486 DirInvariantMaintenance <> d:9 var
+R1490:1490 DirInvariantMaintenance <> j:11 var
+R1521:1528 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1516:1518 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R1500:1509 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R1511:1511 DirInvariantMaintenance <> d:9 var
+R1515:1515 DirInvariantMaintenance <> j:11 var
+R1562:1565 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1544:1546 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1529:1537 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_name var
+R1539:1539 DirInvariantMaintenance <> d:9 var
+R1543:1543 DirInvariantMaintenance <> i:10 var
+R1547:1555 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_name var
+R1557:1557 DirInvariantMaintenance <> d:9 var
+R1561:1561 DirInvariantMaintenance <> j:11 var
+R1567:1569 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1566:1566 DirInvariantMaintenance <> i:10 var
+R1570:1570 DirInvariantMaintenance <> j:11 var
+def 1636:1645 UnixFs.Dir slots_lt32
+R1652:1655 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.disk var
+binder 1648:1648 <> d:12
+R1681:1681 Coq.Numbers.BinNums <> Z ind
+binder 1677:1677 <> k:13
+R1695:1698 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1685:1688 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R1690:1692 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R1689:1689 DirInvariantMaintenance <> k:13 var
+R1689:1689 DirInvariantMaintenance <> k:13 var
+R1715:1717 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R1699:1708 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R1710:1710 DirInvariantMaintenance <> d:12 var
+R1714:1714 DirInvariantMaintenance <> k:13 var
+prf 1861:1874 UnixFs.Dir establish_uniq
+R1891:1894 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.disk var
+binder 1887:1887 <> d:14
+R1901:1901 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1951:1959 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1913:1913 Coq.Numbers.BinNums <> Z ind
+binder 1909:1909 <> k:15
+R1927:1930 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1917:1920 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R1922:1924 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R1921:1921 DirInvariantMaintenance <> k:15 var
+R1921:1921 DirInvariantMaintenance <> k:15 var
+R1947:1949 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1931:1940 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R1942:1942 DirInvariantMaintenance <> d:14 var
+R1946:1946 DirInvariantMaintenance <> k:15 var
+R1960:1963 DirInvariantMaintenance UnixFs.Dir uniq def
+R1965:1965 DirInvariantMaintenance <> d:14 var
+prf 2080:2099 UnixFs.Dir establish_slots_lt32
+R2116:2119 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.disk var
+binder 2112:2112 <> d:16
+R2126:2126 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2176:2184 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2138:2138 Coq.Numbers.BinNums <> Z ind
+binder 2134:2134 <> k:17
+R2152:2155 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2142:2145 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R2147:2149 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R2146:2146 DirInvariantMaintenance <> k:17 var
+R2146:2146 DirInvariantMaintenance <> k:17 var
+R2172:2174 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R2156:2165 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R2167:2167 DirInvariantMaintenance <> d:16 var
+R2171:2171 DirInvariantMaintenance <> k:17 var
+R2185:2194 DirInvariantMaintenance UnixFs.Dir slots_lt32 def
+R2196:2196 DirInvariantMaintenance <> d:16 var
+prf 2340:2359 UnixFs.Dir frame_preserves_uniq
+R2380:2383 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.disk var
+binder 2372:2373 <> d0:18
+binder 2375:2376 <> d1:19
+R2397:2404 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2390:2393 DirInvariantMaintenance UnixFs.Dir uniq def
+R2395:2396 DirInvariantMaintenance <> d0:18 var
+R2405:2405 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2527:2535 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2417:2417 Coq.Numbers.BinNums <> Z ind
+binder 2413:2413 <> k:20
+R2431:2441 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2421:2424 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R2426:2428 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R2425:2425 DirInvariantMaintenance <> k:20 var
+R2425:2425 DirInvariantMaintenance <> k:20 var
+R2479:2489 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R2459:2461 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R2442:2451 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R2453:2454 DirInvariantMaintenance <> d1:19 var
+R2458:2458 DirInvariantMaintenance <> k:20 var
+R2462:2471 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R2473:2474 DirInvariantMaintenance <> d0:18 var
+R2478:2478 DirInvariantMaintenance <> k:20 var
+R2507:2509 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R2490:2498 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_name var
+R2501:2502 DirInvariantMaintenance <> d1:19 var
+R2506:2506 DirInvariantMaintenance <> k:20 var
+R2510:2518 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_name var
+R2521:2522 DirInvariantMaintenance <> d0:18 var
+R2526:2526 DirInvariantMaintenance <> k:20 var
+R2536:2539 DirInvariantMaintenance UnixFs.Dir uniq def
+R2541:2542 DirInvariantMaintenance <> d1:19 var
+prf 2882:2907 UnixFs.Dir frame_preserves_slots_lt32
+R2928:2931 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.disk var
+binder 2920:2921 <> d0:21
+binder 2923:2924 <> d1:22
+R2951:2958 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2938:2947 DirInvariantMaintenance UnixFs.Dir slots_lt32 def
+R2949:2950 DirInvariantMaintenance <> d0:21 var
+R2959:2959 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3026:3034 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2971:2971 Coq.Numbers.BinNums <> Z ind
+binder 2967:2967 <> k:23
+R2985:2988 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2975:2978 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R2980:2982 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R2979:2979 DirInvariantMaintenance <> k:23 var
+R2979:2979 DirInvariantMaintenance <> k:23 var
+R3006:3008 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R2989:2998 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R3000:3001 DirInvariantMaintenance <> d1:22 var
+R3005:3005 DirInvariantMaintenance <> k:23 var
+R3009:3018 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R3020:3021 DirInvariantMaintenance <> d0:21 var
+R3025:3025 DirInvariantMaintenance <> k:23 var
+R3035:3044 DirInvariantMaintenance UnixFs.Dir slots_lt32 def
+R3046:3047 DirInvariantMaintenance <> d1:22 var
+prf 3200:3218 UnixFs.Dir zero_preserves_uniq
+R3240:3243 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.disk var
+binder 3232:3233 <> d0:24
+binder 3235:3236 <> d1:25
+R3251:3251 Coq.Numbers.BinNums <> Z ind
+binder 3247:3247 <> s:26
+R3266:3273 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3259:3262 DirInvariantMaintenance UnixFs.Dir uniq def
+R3264:3265 DirInvariantMaintenance <> d0:24 var
+R3295:3302 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3291:3293 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3274:3283 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R3285:3286 DirInvariantMaintenance <> d1:25 var
+R3290:3290 DirInvariantMaintenance <> s:26 var
+R3303:3303 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3435:3443 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3315:3315 Coq.Numbers.BinNums <> Z ind
+binder 3311:3311 <> k:27
+R3329:3332 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3319:3322 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R3324:3326 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R3323:3323 DirInvariantMaintenance <> k:27 var
+R3323:3323 DirInvariantMaintenance <> k:27 var
+R3339:3349 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3334:3337 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R3333:3333 DirInvariantMaintenance <> k:27 var
+R3338:3338 DirInvariantMaintenance <> s:26 var
+R3387:3397 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R3367:3369 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3350:3359 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R3361:3362 DirInvariantMaintenance <> d1:25 var
+R3366:3366 DirInvariantMaintenance <> k:27 var
+R3370:3379 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R3381:3382 DirInvariantMaintenance <> d0:24 var
+R3386:3386 DirInvariantMaintenance <> k:27 var
+R3415:3417 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3398:3406 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_name var
+R3409:3410 DirInvariantMaintenance <> d1:25 var
+R3414:3414 DirInvariantMaintenance <> k:27 var
+R3418:3426 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_name var
+R3429:3430 DirInvariantMaintenance <> d0:24 var
+R3434:3434 DirInvariantMaintenance <> k:27 var
+R3444:3447 DirInvariantMaintenance UnixFs.Dir uniq def
+R3449:3450 DirInvariantMaintenance <> d1:25 var
+R3618:3621 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R3618:3621 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R3705:3708 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R3705:3708 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+prf 4058:4082 UnixFs.Dir zero_preserves_slots_lt32
+R4104:4107 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.disk var
+binder 4096:4097 <> d0:28
+binder 4099:4100 <> d1:29
+R4115:4115 Coq.Numbers.BinNums <> Z ind
+binder 4111:4111 <> s:30
+R4136:4143 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4123:4132 DirInvariantMaintenance UnixFs.Dir slots_lt32 def
+R4134:4135 DirInvariantMaintenance <> d0:28 var
+R4165:4172 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4161:4163 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4144:4153 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R4155:4156 DirInvariantMaintenance <> d1:29 var
+R4160:4160 DirInvariantMaintenance <> s:30 var
+R4173:4173 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4257:4265 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4185:4185 Coq.Numbers.BinNums <> Z ind
+binder 4181:4181 <> k:31
+R4199:4202 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4189:4192 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R4194:4196 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R4193:4193 DirInvariantMaintenance <> k:31 var
+R4193:4193 DirInvariantMaintenance <> k:31 var
+R4209:4219 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4204:4207 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R4203:4203 DirInvariantMaintenance <> k:31 var
+R4208:4208 DirInvariantMaintenance <> s:30 var
+R4237:4239 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4220:4229 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R4231:4232 DirInvariantMaintenance <> d1:29 var
+R4236:4236 DirInvariantMaintenance <> k:31 var
+R4240:4249 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R4251:4252 DirInvariantMaintenance <> d0:28 var
+R4256:4256 DirInvariantMaintenance <> k:31 var
+R4266:4275 DirInvariantMaintenance UnixFs.Dir slots_lt32 def
+R4277:4278 DirInvariantMaintenance <> d1:29 var
+R4334:4341 Coq.ZArith.BinInt Z eq_dec def
+R4334:4341 Coq.ZArith.BinInt Z eq_dec def
+prf 4821:4848 UnixFs.Dir insert_preserves_uniq_folded
+R4870:4873 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.disk var
+binder 4862:4863 <> d0:32
+binder 4865:4866 <> d1:33
+R4881:4881 Coq.Numbers.BinNums <> Z ind
+binder 4877:4877 <> s:34
+R4896:4903 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4889:4892 DirInvariantMaintenance UnixFs.Dir uniq def
+R4894:4895 DirInvariantMaintenance <> d0:32 var
+R4915:4922 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4905:4908 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R4910:4912 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R4909:4909 DirInvariantMaintenance <> s:34 var
+R4909:4909 DirInvariantMaintenance <> s:34 var
+R4923:4923 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5055:5063 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4935:4935 Coq.Numbers.BinNums <> Z ind
+binder 4931:4931 <> k:35
+R4949:4959 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4939:4942 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R4944:4946 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R4943:4943 DirInvariantMaintenance <> k:35 var
+R4943:4943 DirInvariantMaintenance <> k:35 var
+R4982:4985 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4977:4980 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R4960:4969 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R4971:4972 DirInvariantMaintenance <> d0:32 var
+R4976:4976 DirInvariantMaintenance <> k:35 var
+R5008:5018 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5003:5005 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R4986:4995 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R4997:4998 DirInvariantMaintenance <> d0:32 var
+R5002:5002 DirInvariantMaintenance <> k:35 var
+R5035:5038 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R5019:5027 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_name var
+R5029:5030 DirInvariantMaintenance <> d0:32 var
+R5034:5034 DirInvariantMaintenance <> k:35 var
+R5039:5047 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_name var
+R5049:5050 DirInvariantMaintenance <> d1:33 var
+R5054:5054 DirInvariantMaintenance <> s:34 var
+R5064:5064 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5196:5204 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5076:5076 Coq.Numbers.BinNums <> Z ind
+binder 5072:5072 <> k:36
+R5090:5093 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5080:5083 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R5085:5087 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R5084:5084 DirInvariantMaintenance <> k:36 var
+R5084:5084 DirInvariantMaintenance <> k:36 var
+R5100:5110 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5095:5098 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R5094:5094 DirInvariantMaintenance <> k:36 var
+R5099:5099 DirInvariantMaintenance <> s:34 var
+R5148:5158 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R5128:5130 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R5111:5120 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R5122:5123 DirInvariantMaintenance <> d1:33 var
+R5127:5127 DirInvariantMaintenance <> k:36 var
+R5131:5140 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R5142:5143 DirInvariantMaintenance <> d0:32 var
+R5147:5147 DirInvariantMaintenance <> k:36 var
+R5176:5178 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R5159:5167 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_name var
+R5170:5171 DirInvariantMaintenance <> d1:33 var
+R5175:5175 DirInvariantMaintenance <> k:36 var
+R5179:5187 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_name var
+R5190:5191 DirInvariantMaintenance <> d0:32 var
+R5195:5195 DirInvariantMaintenance <> k:36 var
+R5205:5205 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5254:5262 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5228:5231 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5223:5226 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R5206:5215 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R5217:5218 DirInvariantMaintenance <> d1:33 var
+R5222:5222 DirInvariantMaintenance <> s:34 var
+R5249:5251 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R5232:5241 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R5243:5244 DirInvariantMaintenance <> d1:33 var
+R5248:5248 DirInvariantMaintenance <> s:34 var
+R5263:5266 DirInvariantMaintenance UnixFs.Dir uniq def
+R5268:5269 DirInvariantMaintenance <> d1:33 var
+R5418:5425 Coq.ZArith.BinInt Z eq_dec def
+R5460:5467 Coq.ZArith.BinInt Z eq_dec def
+R5418:5425 Coq.ZArith.BinInt Z eq_dec def
+R5460:5467 Coq.ZArith.BinInt Z eq_dec def
+R5460:5467 Coq.ZArith.BinInt Z eq_dec def
+R5702:5704 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R5686:5694 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_name var
+R5705:5713 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_name var
+R5702:5704 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R5686:5694 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_name var
+R5705:5713 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_name var
+R5983:5985 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R5967:5975 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_name var
+R5986:5994 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_name var
+R5983:5985 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R5967:5975 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_name var
+R5986:5994 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_name var
+prf 6482:6508 UnixFs.Dir insert_preserves_slots_lt32
+R6530:6533 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.disk var
+binder 6522:6523 <> d0:37
+binder 6525:6526 <> d1:38
+R6541:6541 Coq.Numbers.BinNums <> Z ind
+binder 6537:6537 <> s:39
+R6562:6569 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R6549:6558 DirInvariantMaintenance UnixFs.Dir slots_lt32 def
+R6560:6561 DirInvariantMaintenance <> d0:37 var
+R6581:6588 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R6571:6574 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R6576:6578 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R6575:6575 DirInvariantMaintenance <> s:39 var
+R6575:6575 DirInvariantMaintenance <> s:39 var
+R6611:6618 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R6606:6608 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R6589:6598 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R6600:6601 DirInvariantMaintenance <> d1:38 var
+R6605:6605 DirInvariantMaintenance <> s:39 var
+R6619:6619 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R6703:6711 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R6631:6631 Coq.Numbers.BinNums <> Z ind
+binder 6627:6627 <> k:40
+R6645:6648 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R6635:6638 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R6640:6642 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R6639:6639 DirInvariantMaintenance <> k:40 var
+R6639:6639 DirInvariantMaintenance <> k:40 var
+R6655:6665 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R6650:6653 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R6649:6649 DirInvariantMaintenance <> k:40 var
+R6654:6654 DirInvariantMaintenance <> s:39 var
+R6683:6685 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R6666:6675 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R6677:6678 DirInvariantMaintenance <> d1:38 var
+R6682:6682 DirInvariantMaintenance <> k:40 var
+R6686:6695 DirInvariantMaintenance <> UnixFs.Dir.Maintenance.slot_inode var
+R6697:6698 DirInvariantMaintenance <> d0:37 var
+R6702:6702 DirInvariantMaintenance <> k:40 var
+R6712:6721 DirInvariantMaintenance UnixFs.Dir slots_lt32 def
+R6723:6724 DirInvariantMaintenance <> d1:38 var
+R6784:6791 Coq.ZArith.BinInt Z eq_dec def
+R6784:6791 Coq.ZArith.BinInt Z eq_dec def
+R6896:6906 DirInvariantMaintenance UnixFs.Dir.Maintenance <> sec
+R6914:6916 DirInvariantMaintenance UnixFs.Dir <> mod
+R6923:6928 DirInvariantMaintenance UnixFs <> mod

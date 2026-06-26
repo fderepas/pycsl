@@ -1,0 +1,10 @@
+__init__: Valid=0 nonValid=0
+_poke: Valid=41 nonValid=1
+_write_inode: Valid=327 nonValid=6
+_zero_entry: Valid=23 nonValid=0
+_write_entry: Valid=129 nonValid=0
+sys_chmod: Valid=35 nonValid=1
+sys_unlink: Valid=59 nonValid=1
+sys_rmdir: Valid=45 nonValid=0
+sys_rename: Valid=43 nonValid=6
+DONE

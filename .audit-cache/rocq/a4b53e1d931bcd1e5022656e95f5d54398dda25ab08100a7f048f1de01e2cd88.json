@@ -1,0 +1,48 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "",
+  "compile_stderr": "Warning: Cannot open unix-filesystem/UnixInodeFileSystem.proofs/rocq\n[cannot-open-path,filesystem,default]\n",
+  "elapsed_compile_s": 0.8149328809959115,
+  "qualname_results": [
+    [
+      "UnixFs.Dir.frame_preserves_uniq",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.frame_preserves_slots_lt32",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.insert_preserves_uniq_folded",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.insert_preserves_slots_lt32",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.zero_preserves_uniq",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.zero_preserves_slots_lt32",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.establish_uniq",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.establish_slots_lt32",
+      true,
+      []
+    ]
+  ]
+}

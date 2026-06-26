@@ -1,0 +1,18 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "",
+  "compile_stderr": "Warning: Cannot open unix-filesystem/UnixInodeFileSystem.proofs/rocq\n[cannot-open-path,filesystem,default]\n",
+  "elapsed_compile_s": 0.7663092519942438,
+  "qualname_results": [
+    [
+      "UnixFs.Dir.dir_lookup_frame",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.dir_lookup_frame",
+      true,
+      []
+    ]
+  ]
+}

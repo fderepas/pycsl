@@ -1,0 +1,38 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "'Pycsl.Strmod.StrLen.length_nonneg' does not depend on any axioms\n",
+  "compile_stderr": "",
+  "elapsed_compile_s": 0.8865892050089315,
+  "qualname_results": [
+    [
+      "Pycsl.Strmod.StrLen.length_nonneg",
+      true,
+      []
+    ],
+    [
+      "Pycsl.Strmod.StrLen.length_nonneg",
+      true,
+      []
+    ],
+    [
+      "Pycsl.Strmod.StrLen.length_nonneg",
+      true,
+      []
+    ],
+    [
+      "Pycsl.Strmod.StrLen.length_nonneg",
+      true,
+      []
+    ],
+    [
+      "Pycsl.Strmod.StrLen.length_nonneg",
+      true,
+      []
+    ],
+    [
+      "Pycsl.Strmod.StrLen.length_nonneg",
+      true,
+      []
+    ]
+  ]
+}

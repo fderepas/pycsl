@@ -216,6 +216,20 @@ specification logic's type universe:
                                    De-duplicated (L5a); degenerate Literal[v] (L5b)
                                    → bare `requires { x = v }`. L4a rejects bytes;
                                    L5c rejects nested Literal/Enum. No new IR node. *)
+τ(Final[T])        = τ(T)               (* typing-engagement ty1: Final is a write-restriction,
+                                   NOT a type refinement (F3 — no narrowing). The
+                                   annotation's type is the inner type T. The
+                                   write-policy (F1 write-once at declaration /
+                                   F2 __init__-only) is NOT a τ rule — it is a
+                                   static-semantics write-site check
+                                   (`core_ir_semantic._check_final`), reusing HAPPY's
+                                   no-write confinement pattern in its degenerate
+                                   single-attribute, single-writer form. Bare `Final`
+                                   (no slice) → "Any" (no inference). No new IR node,
+                                   no IR_VERSION bump, no new VC kind. *)
+τ(Final)            = Any                (* bare `Final` (PEP 591 inferred type) → opaque
+                                   Any tag; the name carries the write-restriction but
+                                   no type refinement (sound: no narrowing claim). *)
 τ(_)              = Any       (* all other types, including no annotation *)
 ```
 
@@ -410,6 +424,41 @@ the location written; value-semantic arrays bar local-alias escape) and no calle
 
 The field-subscript atom `self.f[i]` is well-formed where `self.f` is an instance array field
 in scope (Γ_f), with `i : int`; it is the term used in `\preserves` postconditions.
+
+#### §2.5a `Final[T]` write-policy (typing-engagement ty1 / PEP 591)
+
+```
+   x: Final[T] declared at module scope          ─────────────────────────────
+                                                  `x = …` outside its declaration ok
+   (the declaration is the single permitted write; any function-body write is a reassignment)
+
+   attr: Final[T] declared in class C's body      ─────────────────────────────
+   `self.attr = …` textually inside C.__init__     `self.attr = …` ok
+   (a write outside C.__init__ — in any other method of C, in a subclass __init__,
+    or anywhere else — is a static error)
+```
+
+**Rule.** `Final[T]` is a *write-restriction annotation*, not a type refinement (F3 —
+the type is `T`). The write-policy is the degenerate single-attribute, single-writer
+form of HAPPY's no-write confinement: F1 (module/class-level Final — write-once at the
+declaration) and F2 (instance-attribute Final — `__init__`-only writes). The check is a
+*syntactic write-site walk* over the IR body (`core_ir_semantic._check_final`), NOT a VC:
+a write either is or is not textually inside the allowed perimeter (the declaration for
+F1, the declaring class's `__init__` for F2). The front-end collects a per-module
+`final_registry` (`program_ir["final_registry"]`, omitted when empty → byte-identical
+for Final-free modules); the core walks each `ir["functions"]` body for `Assign`/
+`AugAssign` to a registered module-level Final name (F1 violation) or `FieldAssign`/
+`FieldAugAssign` to `self.<attr>` for a registered class_attr Final (F2 violation).
+`__init__` is a dunder (skipped from `ir["functions"]`), so its write is modelled via
+the record's `field_defaults` / `init_body` path, NOT as a function-body statement —
+correctly not flagged. Validation: `_normalize_final_annotation` + `_collect_final_registry`
+in `Module5_IREmitter`; `_check_final` in `core_ir_semantic`.
+
+**Strictness gap (F2b).** A subclass `D(C)`'s `__init__` write to `self.attr` is NOT
+flagged (dunders are skipped from `ir["functions"]`). PEP 591 rejects this; PyCSL does
+not. This is a soundness-preserving under-approximation: the write executes at runtime
+(FR3 — no enforcement), and no static claim depends on it. See
+`typing-engagement/ty1/27-0000-typing-spec-3.md` §6.
 
 #### §2.1.1 Precondition (`requires`)
 

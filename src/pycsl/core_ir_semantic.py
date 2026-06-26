@@ -69,6 +69,7 @@ def run_ir_semantic_checks(ir: Any, *, stage: str = "ir-semantic") -> None:
     _check_concurrency(ir)
     _check_fresh_globals(ir, stage)
     _check_union_gt1(ir)
+    _check_final(ir)
 
 
 def _collect_call_targets(node: Any, acc: set) -> None:
@@ -924,6 +925,95 @@ def _hp_collect_written(node, written) -> None:
     elif isinstance(node, list):
         for x in node:
             _hp_collect_written(x, written)
+
+
+# --- Final write-policy check (typing-engagement ty1 / 27-0000-typing-spec-3) ---
+
+def _check_final(ir) -> None:
+    """Static write-policy check for `Final[T]` (PEP 591) — the degenerate
+    single-attribute, single-writer form of HAPPY's no-write confinement
+    (two-plane spec §1.4 / §1.5 F4). The write-restriction is a *syntactic
+    write-site check* (decidable by construction), NOT a VC: a write either is or
+    is not textually inside the allowed perimeter. This function walks each
+    function body in `ir["functions"]` for write sites that violate the
+    Final registry plumbed by the front-end (`program_ir["final_registry"]`).
+
+      F1 (module/class-level Final — write-once at the declaration): any
+          `Assign`/`AugAssign` whose bare-name target is a registered module-level
+          Final → error. The declaration write is at module scope (NOT a function
+          body), so it is naturally not flagged — any function-body write to a
+          module-level Final is by definition a reassignment.
+      F2 (instance-attribute Final — __init__-only writes): any
+          `FieldAssign`/`FieldAugAssign` to `self.<attr>` where `<attr>` is a
+          registered class_attr Final → error. `__init__` is a dunder (skipped by
+          the front-end's `_should_skip_method`), so it is NEVER in
+          `ir["functions"]`; therefore ANY function-body write to a Final instance
+          attribute is by definition outside `__init__` → flagged. The
+          `__init__` write itself is modelled via the record's `field_defaults` /
+          `init_body` (the construction path), NOT as a function-body statement,
+          so it is correctly NOT flagged.
+
+    F2b (subclass `__init__` writes) is a documented strictness gap: a subclass
+    `D(C)`'s `__init__` write to `self.attr` is NOT in `ir["functions"]` (dunder
+    skip) and is therefore NOT flagged. This is a soundness-preserving
+    under-approximation (the write executes at runtime — FR3 no-enforcement; no
+    static claim depends on it). See 27-0000-typing-spec-3 §6."""
+    registry = ir.get("final_registry")
+    if not registry:
+        return  # Final-free module → byte-identical (no work, no error).
+    module_finals = {e["name"] for e in registry if e.get("kind") == "module"}
+    class_attr_finals = {e["name"] for e in registry if e.get("kind") == "class_attr"}
+    if not module_finals and not class_attr_finals:
+        return
+    for func in ir.get("functions", []):
+        fname = func.get("name", "<anonymous>")
+        _final_walk_body(func.get("body", []) or [], fname,
+                         module_finals, class_attr_finals)
+
+
+def _final_walk_body(stmts, fname, module_finals, class_attr_finals) -> None:
+    """Walk a list of IR statements for Final write-policy violations."""
+    for s in stmts:
+        if isinstance(s, dict):
+            _final_check_stmt(s, fname, module_finals, class_attr_finals)
+
+
+def _final_check_stmt(s, fname, module_finals, class_attr_finals) -> None:
+    st = s.get("stmt")
+    # F1: bare-name write to a module-level Final → reassignment (error).
+    if st in ("Assign", "AugAssign"):
+        target = s.get("target")
+        if isinstance(target, str) and target in module_finals:
+            raise PyCSLSemanticError(
+                f"Final: cannot reassign Final name '{target}' in function "
+                f"'{fname}' (F1 — write-once at declaration; PEP 591). The name "
+                f"is declared `Final` at module/class scope and may be written "
+                f"only at its declaration.",
+                code="PYCSL-SEM-FINAL")
+    # F2: self.<attr> write to a class_attr Final outside __init__ (error).
+    elif st in ("FieldAssign", "FieldAugAssign"):
+        if s.get("object") == "self" and s.get("field") in class_attr_finals:
+            field = s.get("field")
+            raise PyCSLSemanticError(
+                f"Final: cannot write Final instance attribute 'self.{field}' "
+                f"in function '{fname}' (F2 — __init__-only writes; PEP 591). "
+                f"The attribute is declared `Final` and may be written only in "
+                f"the declaring class's __init__.",
+                code="PYCSL-SEM-FINAL")
+    # Recurse into nested statement containers (If/While/For/Try/With bodies).
+    for key in ("body", "orelse", "finalbody", "handlers"):
+        child = s.get(key)
+        if isinstance(child, list):
+            _final_walk_body(child, fname, module_finals, class_attr_finals)
+        elif isinstance(child, dict):
+            _final_check_stmt(child, fname, module_finals, class_attr_finals)
+    # CriticalSection carries a body; Match carries cases with bodies.
+    if st == "CriticalSection" and isinstance(s.get("body"), list):
+        _final_walk_body(s["body"], fname, module_finals, class_attr_finals)
+    if st == "Match" and isinstance(s.get("cases"), list):
+        for case in s["cases"]:
+            if isinstance(case, dict) and isinstance(case.get("body"), list):
+                _final_walk_body(case["body"], fname, module_finals, class_attr_finals)
 
 
 def _check_concurrency(ir) -> None:

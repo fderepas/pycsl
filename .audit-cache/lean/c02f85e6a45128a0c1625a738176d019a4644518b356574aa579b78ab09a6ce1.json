@@ -1,0 +1,72 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "",
+  "compile_stderr": "",
+  "elapsed_compile_s": 1.7228960450738668,
+  "qualname_results": [
+    [
+      "UnixFs.Dir.scan_reflects_present",
+      true,
+      [
+        "propext",
+        "Quot.sound"
+      ]
+    ],
+    [
+      "UnixFs.Dir.slot_inode_nonneg",
+      true,
+      [
+        "propext",
+        "Quot.sound"
+      ]
+    ],
+    [
+      "UnixFs.Dir.scan_reflects_present",
+      true,
+      [
+        "propext",
+        "Quot.sound"
+      ]
+    ],
+    [
+      "UnixFs.Dir.slot_inode_nonneg",
+      true,
+      [
+        "propext",
+        "Quot.sound"
+      ]
+    ],
+    [
+      "UnixFs.Dir.scan_reflects_present",
+      true,
+      [
+        "propext",
+        "Quot.sound"
+      ]
+    ],
+    [
+      "UnixFs.Dir.slot_inode_nonneg",
+      true,
+      [
+        "propext",
+        "Quot.sound"
+      ]
+    ],
+    [
+      "UnixFs.Dir.scan_reflects_present",
+      true,
+      [
+        "propext",
+        "Quot.sound"
+      ]
+    ],
+    [
+      "UnixFs.Dir.slot_inode_nonneg",
+      true,
+      [
+        "propext",
+        "Quot.sound"
+      ]
+    ]
+  ]
+}

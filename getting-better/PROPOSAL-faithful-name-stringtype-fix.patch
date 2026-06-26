@@ -1,0 +1,246 @@
+diff --git a/config/skills/pycsl-monitoring/SKILL.md b/config/skills/pycsl-monitoring/SKILL.md
+index d269bf6..86d0854 100644
+--- a/config/skills/pycsl-monitoring/SKILL.md
++++ b/config/skills/pycsl-monitoring/SKILL.md
+@@ -245,6 +245,17 @@ human-gated TCB decision, not the loop's. Recorded GAPs under this rule (e.g.
+    opaque name-scan — the dirscan-fidelity class, NOT global-init); needs the dir_lookup
+    correspondence folded into a cross-validated predicate (the `block_content_eq` pattern).
+    *(`#@ fresh_globals` milestone, 2026-06-18; the first os trust retirement.)*
++15. **Per-retirement verification MUST include the full `__init__` TYPECHECK gate — `--fun`
++   body gates + byte-diff (`--no-typecheck`) HIDE type errors.** A `--fun` leaf gate typechecks
++   only the leaf; the corpus byte-diff sweep runs `--no-typecheck` (emission only). Neither
++   catches an emitter type leak that only manifests when the leaf is INLINED into a different
++   host context (a string-typed value assigned to an int-typed local in a wrapper). The #53
++   `_dir_lookup` faithful-name landing passed every `--fun`+byte-diff check yet left the os
++   `__init__` gate RED for three retirements because `pycsl pure_lib/os/__init__.py` (the full
++   typecheck) was never re-run. **Rule:** after ANY emitter change touching value lowering, run
++   `pycsl pure_lib/os/__init__.py` (which typechecks the WHOLE module, all inline sites) at
++   least once per retirement — not just `--fun`/byte-diff. *(faithful-name string-type leak,
++   2026-06-20; `getting-better/PROPOSAL-faithful-name-stringtype-fix.patch`.)*
+ 
+ ## B. Coherent-and-wrong catalog for formal tests (what the monitor hunts)
+ 
+diff --git a/pure_lib/os/UnixInodeFileSystem.py b/pure_lib/os/UnixInodeFileSystem.py
+index 86749a5..b78b4f9 100644
+--- a/pure_lib/os/UnixInodeFileSystem.py
++++ b/pure_lib/os/UnixInodeFileSystem.py
+@@ -1006,6 +1006,7 @@ class UnixInodeFileSystem:
+     #@ proof rocq UnixFs.Dir.dir_scan_result_value
+     #@ proof lean UnixFs.Dir.dir_scan_result_value
+     #@ verify_module ReadMod
++    #@ no_inline
+     def _dir_lookup(self, block_num: int, pathname: str) -> int:
+         found = -1
+         #@ assert dir_scan_prefix(self.dir, 5, pathname, 0, -1)
+diff --git a/pure_lib/os/__init__.py b/pure_lib/os/__init__.py
+index a514575..aae0d03 100644
+--- a/pure_lib/os/__init__.py
++++ b/pure_lib/os/__init__.py
+@@ -245,7 +245,7 @@ def makedirs(name: str, mode=0o777, exist_ok=False):
+ #@ requires True
+ #@ assigns \nothing
+ #@ ensures \length(\result) <= 16
+-def listdir(filepath='.') -> list:
++def listdir(filepath: str = '.') -> list:
+     """List directory contents. Returns list of entry names (≤ 16; return-arr.md)."""
+     ino = _filesystem._dir_lookup(5, filepath) if filepath != '.' else 0
+     if ino < 0 and filepath != '.':
+@@ -279,7 +279,7 @@ def listdir(filepath='.') -> list:
+ #@ requires True
+ #@ assigns \nothing
+ #@ ensures \length(\result) <= 16
+-def scandir(filepath='.') -> list:
++def scandir(filepath: str = '.') -> list:
+     """Return an iterator of DirEntry inode numbers for the directory (≤ 16; return-arr.md)."""
+     ino = _filesystem._dir_lookup(5, filepath) if filepath != '.' else 0
+     if ino < 0 and filepath != '.':
+@@ -494,7 +494,7 @@ def readlink(filepath: str, *, dir_fd=None):
+ #@ requires True
+ #@ assigns _filesystem.disk
+ #@ ensures \result == 0 or \result == -1
+-def truncate(filepath, length):
++def truncate(filepath: str, length):
+     """Truncate a file to a specified length."""
+     return _filesystem.sys_truncate(filepath, length)
+ 
+@@ -619,7 +619,7 @@ def islink(filepath):
+ #@ requires True
+ #@ assigns \nothing
+ #@ ensures True
+-def walk(top, topdown=True, onerror=None, followlinks=False):
++def walk(top: str, topdown=True, onerror=None, followlinks=False):
+     """Directory tree generator. Simplified: yields one level from root."""
+     names = listdir(top)
+     dirs = []
+diff --git a/src/pycsl/module6_whyml/expressions.py b/src/pycsl/module6_whyml/expressions.py
+index a8b8905..ea04643 100644
+--- a/src/pycsl/module6_whyml/expressions.py
++++ b/src/pycsl/module6_whyml/expressions.py
+@@ -1305,39 +1305,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+             return None
+         return uc - lc
+ 
+-    def _recognize_field_decode_idiom(
+-            self, expr: Dict[str, Any], local_refs: Set[str],
+-            invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> Optional[str]:
+-        """FAITHFUL READ-NAME LOWERING (the narrow null-terminated-field recognizer).
+-
+-        Match EXACTLY the on-disk fixed-width null-padded NAME-field decode idiom
++    def _match_field_decode_idiom(
++            self, expr: Dict[str, Any]
++    ) -> Optional[tuple]:
++        """PURE STRUCTURAL match of the null-terminated-field NAME-decode idiom
+ 
+             <arr>[<a>:<b>].split(b'\\x00')[0].decode('utf-8', errors='ignore')
+ 
+-        over a byte-array SLICE, and lower it to the genuine codec TERM
+-
+-            (field_to_str <arr> <a> <b-a>)
+-
+-        — the SAME abstract `field_to_str` symbol the cross-validated
+-        `field_to_str_round_trip` / `field_to_str_frame` / `slot_name_byte_decode`
+-        axioms constrain (declared `val function`, so it is program-callable). This is a
+-        faithful Python->WhyML lowering, NOT a `val`/assumed-ensures shim and NOT a new
+-        trust: `bytes[a:b].split(b'\\x00')[0].decode('utf-8', errors='ignore')` IS the
+-        bytes from `a` up to the first null within the `b-a`-byte window, read as a
+-        UTF-8 string — exactly `field_to_str`'s scan-to-first-null definition.
++        Returns `(slice_node, lower_ir, width)` when ALL five narrowness
++        conditions (see `_recognize_field_decode_idiom`) hold, else None.
+ 
+-        NARROWNESS (provably corpus-confined): EVERY one of the following must hold, or
+-        the recognizer declines (returns None, leaving every other `.split`/`.decode`
+-        use on its existing path, byte-identical):
+-          1. the outer call is `decode` with first arg the string literal `'utf-8'`;
+-          2. its receiver is `Subscript[0]` (the `[0]` first split-part);
+-          3. over a `split` Call whose sole arg is the byte literal `b'\\x00'`;
+-          4. whose receiver is a `SliceAccess` (`arr[a:b]`, a genuine `[a:b]` slice);
+-          5. with a statically-known field WIDTH `b-a` (so the term carries the literal
+-             width the round-trip axiom keys on).
+-        Any other `split`/`decode` shape (non-`b'\\x00'` separator, non-`[0]` index,
+-        non-utf8 codec, non-slice receiver, dynamic width) is NOT matched."""
++        Factored out so BOTH the value-lowering recognizer AND the
++        local-VARIABLE typing pass key on the SAME shape: the recognizer
++        lowers the matched value to a `field_to_str …` STRING term, so any
++        local assigned this idiom must be declared a string-typed ref (never
++        `ref 0 : ref int`). It performs NO emission (no `_expr_to_whyml`), so
++        it is safe to call during the pre-declaration classification pass."""
+         # (1) outer decode('utf-8', ...)
++        if not isinstance(expr, dict):
++            return None
+         dargs = expr.get("args", [])
+         if not dargs or dargs[0].get("type") != "String" \
+                 or dargs[0].get("value") != "utf-8":
+@@ -1377,6 +1363,44 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+         width = self._static_width(lower_ir, upper_ir)
+         if width is None or width <= 0:
+             return None
++        return (slice_node, lower_ir, width)
++
++    def _recognize_field_decode_idiom(
++            self, expr: Dict[str, Any], local_refs: Set[str],
++            invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> Optional[str]:
++        """FAITHFUL READ-NAME LOWERING (the narrow null-terminated-field recognizer).
++
++        Match EXACTLY the on-disk fixed-width null-padded NAME-field decode idiom
++
++            <arr>[<a>:<b>].split(b'\\x00')[0].decode('utf-8', errors='ignore')
++
++        over a byte-array SLICE, and lower it to the genuine codec TERM
++
++            (field_to_str <arr> <a> <b-a>)
++
++        — the SAME abstract `field_to_str` symbol the cross-validated
++        `field_to_str_round_trip` / `field_to_str_frame` / `slot_name_byte_decode`
++        axioms constrain (declared `val function`, so it is program-callable). This is a
++        faithful Python->WhyML lowering, NOT a `val`/assumed-ensures shim and NOT a new
++        trust: `bytes[a:b].split(b'\\x00')[0].decode('utf-8', errors='ignore')` IS the
++        bytes from `a` up to the first null within the `b-a`-byte window, read as a
++        UTF-8 string — exactly `field_to_str`'s scan-to-first-null definition.
++
++        NARROWNESS (provably corpus-confined): EVERY one of the following must hold, or
++        the recognizer declines (returns None, leaving every other `.split`/`.decode`
++        use on its existing path, byte-identical):
++          1. the outer call is `decode` with first arg the string literal `'utf-8'`;
++          2. its receiver is `Subscript[0]` (the `[0]` first split-part);
++          3. over a `split` Call whose sole arg is the byte literal `b'\\x00'`;
++          4. whose receiver is a `SliceAccess` (`arr[a:b]`, a genuine `[a:b]` slice);
++          5. with a statically-known field WIDTH `b-a` (so the term carries the literal
++             width the round-trip axiom keys on).
++        Any other `split`/`decode` shape (non-`b'\\x00'` separator, non-`[0]` index,
++        non-utf8 codec, non-slice receiver, dynamic width) is NOT matched."""
++        m = self._match_field_decode_idiom(expr)
++        if m is None:
++            return None
++        slice_node, lower_ir, width = m
+         base = slice_node.get("value", {})
+         arr = self._array_coerce_arg(
+             self._expr_to_whyml(base, local_refs, invariant_ctx, subst))
+diff --git a/src/pycsl/module6_whyml/statements.py b/src/pycsl/module6_whyml/statements.py
+index 38c6193..53d6ae0 100644
+--- a/src/pycsl/module6_whyml/statements.py
++++ b/src/pycsl/module6_whyml/statements.py
+@@ -1004,6 +1004,50 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
+                     st[v] = "str"
+         return elem_reads
+ 
++    def _collect_field_decode_str_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
++        """Locals assigned the null-terminated-field NAME-decode idiom
++        `arr[a:b].split(b'\\x00')[0].decode('utf-8', ...)`. The expression
++        recognizer (`expressions._recognize_field_decode_idiom`) lowers that
++        VALUE to a `field_to_str …` STRING term, so the receiving variable must
++        be a string-typed ref — never the integer `ref 0` pre-declaration.
++
++        Without this, a local whose string-ness was previously discoverable ONLY
++        from a manual `name: str` annotation (e.g. `_dir_lookup`) typechecks, but
++        the SAME idiom in an un-annotated local (e.g. `listdir`'s `name = …`)
++        stays `ref 0 : ref int` and the string assignment fails L3 typecheck
++        ('type string, but is expected to have type int'). Keying the variable
++        type on the idiom shape — the EXACT shape the value recognizer fires on —
++        makes the two consistent in every context the recognizer fires.
++
++        Byte-identical for any local NOT assigned this idiom (e.g. corpus files
++        that never read a fixed-width null-padded byte field as a string)."""
++        out: Set[str] = set()
++
++        def rec(node: Any) -> None:
++            if isinstance(node, dict):
++                if node.get("stmt") == "Assign" and isinstance(node.get("target"), str):
++                    v = node.get("value", {})
++                    if (isinstance(v, dict) and v.get("type") == "Call"
++                            and v.get("func") == "decode"
++                            and self._match_field_decode_idiom(v) is not None):
++                        out.add(node["target"])
++                for x in node.values():
++                    rec(x)
++            elif isinstance(node, list):
++                for x in node:
++                    rec(x)
++
++        rec(body_stmts)
++        # Reflect into the symbol table so the per-operation string sites (the
++        # `slot_name … = !name` assert RHS, `not in ('.', '..')`, `.append(name)`)
++        # also see `name : str`, exactly as the explicit-annotation path does.
++        st = getattr(self, "_current_symbol_table", None)
++        if st is not None:
++            for v in out:
++                if st.get(v) in (None, "Any"):
++                    st[v] = "str"
++        return out
++
+     def _typed_local_vars(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+         """Body locals that carry a NON-int WhyML type — array, dict/set, lambda,
+         record, or variant — and so must be EXCLUDED from the integer `ref 0`
+@@ -1056,6 +1100,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
+         # feeding a string-typed consumer (sys_stat). Byte-identical when no module
+         # function returns `array string` (`_module_string_seq_funcs` empty).
+         string_vars |= self._collect_string_elem_read_locals(body_stmts)
++        # field-decode idiom locals: a local assigned
++        # `arr[a:b].split(b'\x00')[0].decode('utf-8', ...)` receives the
++        # recognizer's `field_to_str …` STRING value, so it must be a string
++        # ref (not `ref 0`). Keys on the SAME shape the value recognizer fires
++        # on, so the variable type and the assigned value stay consistent in
++        # every context (annotated `_dir_lookup` AND un-annotated `listdir`).
++        string_vars |= self._collect_field_decode_str_locals(body_stmts)
+         self._string_local_vars = string_vars
+         # 07-2333-rev2 Gap 3: a seq-promoted (growable) list LOCAL must NOT be pre-declared
+         # as `ref 0 : ref int` — it is `ref (seq int)`, let-bound at its first assignment by

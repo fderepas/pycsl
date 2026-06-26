@@ -1,0 +1,533 @@
+DIGEST d740adf649d2b323229c73552526763b
+FUnixDirScan
+R575:591 Coq.ZArith.ZArith <> <> lib
+R609:621 Coq.Bool.Bool <> <> lib
+R639:641 Coq.micromega.Lia <> <> lib
+mod 673:678 <> UnixFs
+mod 688:690 <> UnixFs.Dir
+sec 906:909 UnixFs.Dir Scan
+var 922:925 UnixFs.Dir.Scan disk
+var 996:1001 UnixFs.Dir.Scan name_t
+var 1064:1073 UnixFs.Dir.Scan slot_inode
+R1081:1084 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1077:1080 UnixDirScan <> UnixFs.Dir.Scan.disk var
+R1086:1089 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1085:1085 Coq.Numbers.BinNums <> Z ind
+R1091:1094 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1090:1090 Coq.Numbers.BinNums <> Z ind
+R1095:1095 Coq.Numbers.BinNums <> Z ind
+var 1142:1150 UnixFs.Dir.Scan slot_name
+R1159:1162 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1155:1158 UnixDirScan <> UnixFs.Dir.Scan.disk var
+R1164:1167 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1163:1163 Coq.Numbers.BinNums <> Z ind
+R1169:1172 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1168:1168 Coq.Numbers.BinNums <> Z ind
+R1173:1178 UnixDirScan <> UnixFs.Dir.Scan.name_t var
+var 1221:1223 UnixFs.Dir.Scan eqn
+R1233:1236 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1227:1232 UnixDirScan <> UnixFs.Dir.Scan.name_t var
+R1243:1246 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1237:1242 UnixDirScan <> UnixFs.Dir.Scan.name_t var
+R1247:1250 Coq.Init.Datatypes <> bool ind
+var 1301:1308 UnixFs.Dir.Scan eqn_spec
+binder 1319:1319 <> a:11
+binder 1321:1321 <> b:12
+R1338:1342 Coq.Init.Logic <> ::type_scope:x_'<->'_x not
+R1331:1333 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1324:1326 UnixDirScan <> UnixFs.Dir.Scan.eqn var
+R1328:1328 UnixDirScan <> a:11 var
+R1330:1330 UnixDirScan <> b:12 var
+R1334:1337 Coq.Init.Datatypes <> true constr
+R1344:1346 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1343:1343 UnixDirScan <> a:11 var
+R1347:1347 UnixDirScan <> b:12 var
+var 1631:1647 UnixFs.Dir.Scan slot_inode_nonneg
+binder 1658:1658 <> d:15
+binder 1660:1662 <> blk:16
+binder 1664:1664 <> k:17
+R1668:1671 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R1672:1681 UnixDirScan <> UnixFs.Dir.Scan.slot_inode var
+R1683:1683 UnixDirScan <> d:15 var
+R1685:1687 UnixDirScan <> blk:16 var
+R1689:1689 UnixDirScan <> k:17 var
+def 1762:1768 UnixFs.Dir matches
+R1775:1778 UnixDirScan <> UnixFs.Dir.Scan.disk var
+binder 1771:1771 <> d:20
+R1788:1788 Coq.Numbers.BinNums <> Z ind
+binder 1782:1784 <> blk:21
+R1799:1804 UnixDirScan <> UnixFs.Dir.Scan.name_t var
+binder 1792:1795 <> name:22
+R1812:1812 Coq.Numbers.BinNums <> Z ind
+binder 1808:1808 <> k:23
+R1850:1853 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R1845:1848 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R1827:1836 UnixDirScan <> UnixFs.Dir.Scan.slot_inode var
+R1838:1838 UnixDirScan <> d:20 var
+R1840:1842 UnixDirScan <> blk:21 var
+R1844:1844 UnixDirScan <> k:23 var
+R1877:1880 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R1872:1874 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R1854:1863 UnixDirScan <> UnixFs.Dir.Scan.slot_inode var
+R1865:1865 UnixDirScan <> d:20 var
+R1867:1869 UnixDirScan <> blk:21 var
+R1871:1871 UnixDirScan <> k:23 var
+R1898:1900 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1881:1889 UnixDirScan <> UnixFs.Dir.Scan.slot_name var
+R1891:1891 UnixDirScan <> d:20 var
+R1893:1895 UnixDirScan <> blk:21 var
+R1897:1897 UnixDirScan <> k:23 var
+R1901:1904 UnixDirScan <> name:22 var
+def 2203:2206 UnixFs.Dir scan
+R2213:2216 UnixDirScan <> UnixFs.Dir.Scan.disk var
+binder 2209:2209 <> d:24
+R2226:2226 Coq.Numbers.BinNums <> Z ind
+binder 2220:2222 <> blk:25
+R2237:2242 UnixDirScan <> UnixFs.Dir.Scan.name_t var
+binder 2230:2233 <> name:26
+R2250:2252 Coq.Init.Datatypes <> nat ind
+binder 2246:2246 <> i:27
+R2264:2264 Coq.Numbers.BinNums <> Z ind
+binder 2256:2260 <> found:28
+R2269:2269 Coq.Numbers.BinNums <> Z ind
+R2282:2282 UnixDirScan <> i:27 var
+R2293:2293 Coq.Init.Datatypes <> O constr
+R2298:2302 UnixDirScan <> found:28 var
+R2308:2308 Coq.Init.Datatypes <> S constr
+R2330:2333 UnixDirScan <> scan:29 def
+R2348:2352 UnixDirScan <> found:28 var
+R2341:2344 UnixDirScan <> name:26 var
+R2337:2339 UnixDirScan <> blk:25 var
+R2335:2335 UnixDirScan <> d:24 var
+binder 2325:2325 <> f:31
+R2373:2380 Coq.ZArith.BinInt Z of_nat def
+binder 2367:2368 <> zj:32
+R2396:2399 Coq.Init.Datatypes <> andb def
+R2455:2458 Coq.Init.Datatypes <> andb def
+R2514:2516 UnixDirScan <> UnixFs.Dir.Scan.eqn var
+R2519:2527 UnixDirScan <> UnixFs.Dir.Scan.slot_name var
+R2529:2529 UnixDirScan <> d:24 var
+R2531:2533 UnixDirScan <> blk:25 var
+R2535:2536 UnixDirScan <> zj:32 var
+R2539:2542 UnixDirScan <> name:26 var
+R2461:2465 Coq.ZArith.BinInt Z ltb def
+R2468:2477 UnixDirScan <> UnixFs.Dir.Scan.slot_inode var
+R2479:2479 UnixDirScan <> d:24 var
+R2481:2483 UnixDirScan <> blk:25 var
+R2485:2486 UnixDirScan <> zj:32 var
+R2402:2405 Coq.Init.Datatypes <> negb def
+R2408:2412 Coq.ZArith.BinInt Z eqb def
+R2415:2424 UnixDirScan <> UnixFs.Dir.Scan.slot_inode var
+R2426:2426 UnixDirScan <> d:24 var
+R2428:2430 UnixDirScan <> blk:25 var
+R2432:2433 UnixDirScan <> zj:32 var
+R2588:2588 UnixDirScan <> f:31 var
+R2557:2566 UnixDirScan <> UnixFs.Dir.Scan.slot_inode var
+R2568:2568 UnixDirScan <> d:24 var
+R2570:2572 UnixDirScan <> blk:25 var
+R2574:2575 UnixDirScan <> zj:32 var
+prf 2841:2860 UnixFs.Dir scan_reflects_prefix
+R2876:2879 UnixDirScan <> UnixFs.Dir.Scan.disk var
+binder 2872:2872 <> d:33
+R2889:2889 Coq.Numbers.BinNums <> Z ind
+binder 2883:2885 <> blk:34
+R2900:2905 UnixDirScan <> UnixFs.Dir.Scan.name_t var
+binder 2893:2896 <> name:35
+R2913:2915 Coq.Init.Datatypes <> nat ind
+binder 2909:2909 <> i:36
+R2921:2922 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R3020:3029 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R3088:3089 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R2923:2923 Coq.Init.Logic <> ::type_scope:x_'<->'_x not
+R2951:2961 Coq.Init.Logic <> ::type_scope:x_'<->'_x not
+R3019:3019 Coq.Init.Logic <> ::type_scope:x_'<->'_x not
+R2946:2949 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R2924:2927 UnixDirScan UnixFs.Dir scan def
+R2929:2929 UnixDirScan <> d:33 var
+R2931:2933 UnixDirScan <> blk:34 var
+R2935:2938 UnixDirScan <> name:35 var
+R2940:2940 UnixDirScan <> i:36 var
+R2962:2968 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R2974:2975 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R2973:2973 Coq.Numbers.BinNums <> Z ind
+binder 2969:2969 <> k:37
+R2995:2998 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R2977:2980 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R2982:2984 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R2981:2981 UnixDirScan <> k:37 var
+R2981:2981 UnixDirScan <> k:37 var
+R2985:2992 Coq.ZArith.BinInt Z of_nat def
+R2994:2994 UnixDirScan <> i:36 var
+R2999:3005 UnixDirScan UnixFs.Dir matches def
+R3007:3007 UnixDirScan <> d:33 var
+R3009:3011 UnixDirScan <> blk:34 var
+R3013:3016 UnixDirScan <> name:35 var
+R3018:3018 UnixDirScan <> k:37 var
+R3057:3060 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3052:3055 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R3030:3033 UnixDirScan UnixFs.Dir scan def
+R3035:3035 UnixDirScan <> d:33 var
+R3037:3039 UnixDirScan <> blk:34 var
+R3041:3044 UnixDirScan <> name:35 var
+R3046:3046 UnixDirScan <> i:36 var
+R3083:3085 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R3061:3064 UnixDirScan UnixFs.Dir scan def
+R3066:3066 UnixDirScan <> d:33 var
+R3068:3070 UnixDirScan <> blk:34 var
+R3072:3075 UnixDirScan <> name:35 var
+R3077:3077 UnixDirScan <> i:36 var
+R3394:3401 Coq.ZArith.BinInt Z of_nat def
+R3394:3401 Coq.ZArith.BinInt Z of_nat def
+R3426:3429 Coq.Init.Datatypes <> andb def
+R3490:3493 Coq.Init.Datatypes <> andb def
+R3554:3556 UnixDirScan <> UnixFs.Dir.Scan.eqn var
+R3559:3567 UnixDirScan <> UnixFs.Dir.Scan.slot_name var
+R3496:3500 Coq.ZArith.BinInt Z ltb def
+R3503:3512 UnixDirScan <> UnixFs.Dir.Scan.slot_inode var
+R3432:3435 Coq.Init.Datatypes <> negb def
+R3438:3442 Coq.ZArith.BinInt Z eqb def
+R3445:3454 UnixDirScan <> UnixFs.Dir.Scan.slot_inode var
+R3426:3429 Coq.Init.Datatypes <> andb def
+R3490:3493 Coq.Init.Datatypes <> andb def
+R3554:3556 UnixDirScan <> UnixFs.Dir.Scan.eqn var
+R3559:3567 UnixDirScan <> UnixFs.Dir.Scan.slot_name var
+R3496:3500 Coq.ZArith.BinInt Z ltb def
+R3503:3512 UnixDirScan <> UnixFs.Dir.Scan.slot_inode var
+R3432:3435 Coq.Init.Datatypes <> negb def
+R3438:3442 Coq.ZArith.BinInt Z eqb def
+R3445:3454 UnixDirScan <> UnixFs.Dir.Scan.slot_inode var
+R3767:3779 Coq.Bool.Bool <> andb_true_iff thm
+R3767:3779 Coq.Bool.Bool <> andb_true_iff thm
+R3836:3848 Coq.Bool.Bool <> andb_true_iff thm
+R3836:3848 Coq.Bool.Bool <> andb_true_iff thm
+R3902:3914 Coq.Bool.Bool <> negb_true_iff thm
+R3902:3914 Coq.Bool.Bool <> negb_true_iff thm
+R3930:3938 Coq.ZArith.BinInt Z eqb_neq thm
+R3930:3938 Coq.ZArith.BinInt Z eqb_neq thm
+R3960:3967 Coq.ZArith.BinInt Z ltb_lt thm
+R3960:3967 Coq.ZArith.BinInt Z ltb_lt thm
+R3989:3996 UnixDirScan <> UnixFs.Dir.Scan.eqn_spec var
+R3989:3996 UnixDirScan <> UnixFs.Dir.Scan.eqn_spec var
+R4026:4032 UnixDirScan UnixFs.Dir matches def
+R4026:4032 UnixDirScan UnixFs.Dir matches def
+R4065:4071 UnixDirScan UnixFs.Dir matches def
+R4186:4200 Coq.ZArith.Znat Nat2Z is_nonneg thm
+R4186:4200 Coq.ZArith.Znat Nat2Z is_nonneg thm
+R4257:4273 UnixDirScan <> UnixFs.Dir.Scan.slot_inode_nonneg var
+R4257:4273 UnixDirScan <> UnixFs.Dir.Scan.slot_inode_nonneg var
+R4753:4756 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
+R4748:4750 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R4758:4760 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4753:4756 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
+R4748:4750 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R4758:4760 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4988:4994 UnixDirScan UnixFs.Dir matches def
+R5306:5308 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R5121:5124 Coq.Init.Datatypes <> andb def
+R5198:5201 Coq.Init.Datatypes <> andb def
+R5275:5277 UnixDirScan <> UnixFs.Dir.Scan.eqn var
+R5280:5288 UnixDirScan <> UnixFs.Dir.Scan.slot_name var
+R5204:5208 Coq.ZArith.BinInt Z ltb def
+R5211:5220 UnixDirScan <> UnixFs.Dir.Scan.slot_inode var
+R5127:5130 Coq.Init.Datatypes <> negb def
+R5133:5137 Coq.ZArith.BinInt Z eqb def
+R5140:5149 UnixDirScan <> UnixFs.Dir.Scan.slot_inode var
+R5309:5312 Coq.Init.Datatypes <> true constr
+R5306:5308 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R5121:5124 Coq.Init.Datatypes <> andb def
+R5198:5201 Coq.Init.Datatypes <> andb def
+R5275:5277 UnixDirScan <> UnixFs.Dir.Scan.eqn var
+R5280:5288 UnixDirScan <> UnixFs.Dir.Scan.slot_name var
+R5204:5208 Coq.ZArith.BinInt Z ltb def
+R5211:5220 UnixDirScan <> UnixFs.Dir.Scan.slot_inode var
+R5127:5130 Coq.Init.Datatypes <> negb def
+R5133:5137 Coq.ZArith.BinInt Z eqb def
+R5140:5149 UnixDirScan <> UnixFs.Dir.Scan.slot_inode var
+R5309:5312 Coq.Init.Datatypes <> true constr
+R5338:5350 Coq.Bool.Bool <> andb_true_iff thm
+R5338:5350 Coq.Bool.Bool <> andb_true_iff thm
+R5384:5396 Coq.Bool.Bool <> negb_true_iff thm
+R5384:5396 Coq.Bool.Bool <> negb_true_iff thm
+R5405:5413 Coq.ZArith.BinInt Z eqb_neq thm
+R5405:5413 Coq.ZArith.BinInt Z eqb_neq thm
+R5451:5463 Coq.Bool.Bool <> andb_true_iff thm
+R5451:5463 Coq.Bool.Bool <> andb_true_iff thm
+R5499:5506 Coq.ZArith.BinInt Z ltb_lt thm
+R5499:5506 Coq.ZArith.BinInt Z ltb_lt thm
+R5546:5553 UnixDirScan <> UnixFs.Dir.Scan.eqn_spec var
+R5546:5553 UnixDirScan <> UnixFs.Dir.Scan.eqn_spec var
+def 5767:5776 UnixFs.Dir dir_lookup
+R5783:5786 UnixDirScan <> UnixFs.Dir.Scan.disk var
+binder 5779:5779 <> d:38
+R5796:5796 Coq.Numbers.BinNums <> Z ind
+binder 5790:5792 <> blk:39
+R5807:5812 UnixDirScan <> UnixFs.Dir.Scan.name_t var
+binder 5800:5803 <> name:40
+R5817:5817 Coq.Numbers.BinNums <> Z ind
+R5824:5827 UnixDirScan UnixFs.Dir scan def
+R5829:5829 UnixDirScan <> d:38 var
+R5831:5833 UnixDirScan <> blk:39 var
+R5835:5838 UnixDirScan <> name:40 var
+prf 5858:5878 UnixFs.Dir scan_reflects_present
+R5894:5897 UnixDirScan <> UnixFs.Dir.Scan.disk var
+binder 5890:5890 <> d:41
+R5907:5907 Coq.Numbers.BinNums <> Z ind
+binder 5901:5903 <> blk:42
+R5918:5923 UnixDirScan <> UnixFs.Dir.Scan.name_t var
+binder 5911:5914 <> name:43
+R5929:5929 Coq.Init.Logic <> ::type_scope:x_'<->'_x not
+R5956:5964 Coq.Init.Logic <> ::type_scope:x_'<->'_x not
+R6014:6014 Coq.Init.Logic <> ::type_scope:x_'<->'_x not
+R5951:5954 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R5930:5939 UnixDirScan UnixFs.Dir dir_lookup def
+R5941:5941 UnixDirScan <> d:41 var
+R5943:5945 UnixDirScan <> blk:42 var
+R5947:5950 UnixDirScan <> name:43 var
+R5965:5971 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R5977:5978 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R5976:5976 Coq.Numbers.BinNums <> Z ind
+binder 5972:5972 <> k:44
+R5990:5993 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R5980:5983 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R5985:5987 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R5984:5984 UnixDirScan <> k:44 var
+R5984:5984 UnixDirScan <> k:44 var
+R5994:6000 UnixDirScan UnixFs.Dir matches def
+R6002:6002 UnixDirScan <> d:41 var
+R6004:6006 UnixDirScan <> blk:42 var
+R6008:6011 UnixDirScan <> name:43 var
+R6013:6013 UnixDirScan <> k:44 var
+R6052:6061 UnixDirScan UnixFs.Dir dir_lookup def
+R6078:6097 UnixDirScan UnixFs.Dir scan_reflects_prefix thm
+R6078:6097 UnixDirScan UnixFs.Dir scan_reflects_prefix thm
+R6163:6170 Coq.ZArith.BinInt Z of_nat def
+R6163:6170 Coq.ZArith.BinInt Z of_nat def
+prf 7523:7548 UnixFs.Dir dir_lookup_present_witness
+R7564:7567 UnixDirScan <> UnixFs.Dir.Scan.disk var
+binder 7560:7560 <> d:45
+R7577:7577 Coq.Numbers.BinNums <> Z ind
+binder 7571:7573 <> blk:46
+R7585:7585 Coq.Numbers.BinNums <> Z ind
+binder 7581:7581 <> k:47
+R7602:7605 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R7592:7595 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R7597:7599 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R7596:7596 UnixDirScan <> k:47 var
+R7596:7596 UnixDirScan <> k:47 var
+R7629:7632 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R7624:7627 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R7606:7615 UnixDirScan <> UnixFs.Dir.Scan.slot_inode var
+R7617:7617 UnixDirScan <> d:45 var
+R7619:7621 UnixDirScan <> blk:46 var
+R7623:7623 UnixDirScan <> k:47 var
+R7656:7661 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R7651:7653 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R7633:7642 UnixDirScan <> UnixFs.Dir.Scan.slot_inode var
+R7644:7644 UnixDirScan <> d:45 var
+R7646:7648 UnixDirScan <> blk:46 var
+R7650:7650 UnixDirScan <> k:47 var
+R7698:7701 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R7662:7671 UnixDirScan UnixFs.Dir dir_lookup def
+R7673:7673 UnixDirScan <> d:45 var
+R7675:7677 UnixDirScan <> blk:46 var
+R7680:7688 UnixDirScan <> UnixFs.Dir.Scan.slot_name var
+R7690:7690 UnixDirScan <> d:45 var
+R7692:7694 UnixDirScan <> blk:46 var
+R7696:7696 UnixDirScan <> k:47 var
+R7749:7769 UnixDirScan UnixFs.Dir scan_reflects_present thm
+R7749:7769 UnixDirScan UnixFs.Dir scan_reflects_present thm
+R7811:7817 UnixDirScan UnixFs.Dir matches def
+prf 8708:8736 UnixFs.Dir dir_lookup_present_zero_frame
+R8758:8761 UnixDirScan <> UnixFs.Dir.Scan.disk var
+binder 8750:8751 <> d0:48
+binder 8753:8754 <> d1:49
+R8769:8769 Coq.Numbers.BinNums <> Z ind
+binder 8765:8765 <> s:50
+R8780:8785 UnixDirScan <> UnixFs.Dir.Scan.name_t var
+binder 8773:8776 <> name:51
+R8804:8811 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R8794:8797 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R8799:8801 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R8798:8798 UnixDirScan <> s:50 var
+R8798:8798 UnixDirScan <> s:50 var
+R8833:8840 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R8829:8831 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R8812:8821 UnixDirScan <> UnixFs.Dir.Scan.slot_inode var
+R8823:8824 UnixDirScan <> d1:49 var
+R8828:8828 UnixDirScan <> s:50 var
+R8841:8842 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R8966:8975 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R8854:8854 Coq.Numbers.BinNums <> Z ind
+binder 8850:8850 <> k:52
+R8868:8871 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R8858:8861 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R8863:8865 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R8862:8862 UnixDirScan <> k:52 var
+R8862:8862 UnixDirScan <> k:52 var
+R8878:8889 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R8873:8876 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R8872:8872 UnixDirScan <> k:52 var
+R8877:8877 UnixDirScan <> s:50 var
+R8927:8930 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R8907:8909 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R8890:8899 UnixDirScan <> UnixFs.Dir.Scan.slot_inode var
+R8901:8902 UnixDirScan <> d1:49 var
+R8906:8906 UnixDirScan <> k:52 var
+R8910:8919 UnixDirScan <> UnixFs.Dir.Scan.slot_inode var
+R8921:8922 UnixDirScan <> d0:48 var
+R8926:8926 UnixDirScan <> k:52 var
+R8947:8949 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R8931:8939 UnixDirScan <> UnixFs.Dir.Scan.slot_name var
+R8941:8942 UnixDirScan <> d1:49 var
+R8946:8946 UnixDirScan <> k:52 var
+R8950:8958 UnixDirScan <> UnixFs.Dir.Scan.slot_name var
+R8960:8961 UnixDirScan <> d0:48 var
+R8965:8965 UnixDirScan <> k:52 var
+R9000:9007 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R8980:8983 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R8976:8979 UnixDirScan <> name:51 var
+R8984:8992 UnixDirScan <> UnixFs.Dir.Scan.slot_name var
+R8994:8995 UnixDirScan <> d0:48 var
+R8999:8999 UnixDirScan <> s:50 var
+R9033:9040 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R9028:9031 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R9008:9017 UnixDirScan UnixFs.Dir dir_lookup def
+R9019:9020 UnixDirScan <> d0:48 var
+R9024:9027 UnixDirScan <> name:51 var
+R9061:9064 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R9041:9050 UnixDirScan UnixFs.Dir dir_lookup def
+R9052:9053 UnixDirScan <> d1:49 var
+R9057:9060 UnixDirScan <> name:51 var
+R9135:9155 UnixDirScan UnixFs.Dir scan_reflects_present thm
+R9135:9155 UnixDirScan UnixFs.Dir scan_reflects_present thm
+R9206:9226 UnixDirScan UnixFs.Dir scan_reflects_present thm
+R9206:9226 UnixDirScan UnixFs.Dir scan_reflects_present thm
+R9271:9277 UnixDirScan UnixFs.Dir matches def
+R9335:9338 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R9335:9338 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R9460:9466 UnixDirScan UnixFs.Dir matches def
+R9521:9524 UnixDirScan UnixFs.Dir.Scan <> sec
+sec 10190:10195 UnixFs.Dir Nonneg
+var 10208:10211 UnixFs.Dir.Nonneg byte
+R10216:10219 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R10215:10215 Coq.Numbers.BinNums <> Z ind
+R10221:10224 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R10220:10220 Coq.Numbers.BinNums <> Z ind
+R10226:10229 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R10225:10225 Coq.Numbers.BinNums <> Z ind
+R10230:10230 Coq.Numbers.BinNums <> Z ind
+var 10290:10302 UnixFs.Dir.Nonneg byte_unsigned
+binder 10313:10313 <> d:55
+binder 10315:10317 <> blk:56
+binder 10319:10319 <> p:57
+R10323:10326 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<='_x not
+R10339:10342 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<='_x not
+R10327:10330 UnixDirScan <> UnixFs.Dir.Nonneg.byte var
+R10332:10332 UnixDirScan <> d:55 var
+R10334:10336 UnixDirScan <> blk:56 var
+R10338:10338 UnixDirScan <> p:57 var
+R10327:10330 UnixDirScan <> UnixFs.Dir.Nonneg.byte var
+R10332:10332 UnixDirScan <> d:55 var
+R10334:10336 UnixDirScan <> blk:56 var
+R10338:10338 UnixDirScan <> p:57 var
+def 10511:10529 UnixFs.Dir slot_inode_concrete
+R10542:10542 Coq.Numbers.BinNums <> Z ind
+binder 10532:10532 <> d:60
+binder 10534:10536 <> blk:61
+binder 10538:10538 <> k:62
+R10547:10547 Coq.Numbers.BinNums <> Z ind
+R10682:10686 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10640:10644 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10596:10600 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10585:10587 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10554:10557 UnixDirScan <> UnixFs.Dir.Nonneg.byte var
+R10559:10559 UnixDirScan <> d:60 var
+R10561:10563 UnixDirScan <> blk:61 var
+R10580:10582 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10573:10575 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10569:10569 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10566:10568 UnixDirScan <> blk:61 var
+R10577:10577 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10576:10576 UnixDirScan <> k:62 var
+R10632:10634 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10601:10604 UnixDirScan <> UnixFs.Dir.Nonneg.byte var
+R10606:10606 UnixDirScan <> d:60 var
+R10608:10610 UnixDirScan <> blk:61 var
+R10627:10629 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10620:10622 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10616:10616 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10613:10615 UnixDirScan <> blk:61 var
+R10624:10624 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10623:10623 UnixDirScan <> k:62 var
+R10676:10678 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10645:10648 UnixDirScan <> UnixFs.Dir.Nonneg.byte var
+R10650:10650 UnixDirScan <> d:60 var
+R10652:10654 UnixDirScan <> blk:61 var
+R10671:10673 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10664:10666 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10660:10660 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10657:10659 UnixDirScan <> blk:61 var
+R10668:10668 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10667:10667 UnixDirScan <> k:62 var
+R10687:10690 UnixDirScan <> UnixFs.Dir.Nonneg.byte var
+R10692:10692 UnixDirScan <> d:60 var
+R10694:10696 UnixDirScan <> blk:61 var
+R10713:10715 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10706:10708 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10702:10702 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10699:10701 UnixDirScan <> blk:61 var
+R10710:10710 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10709:10709 UnixDirScan <> k:62 var
+prf 10729:10745 UnixFs.Dir slot_inode_nonneg
+binder 10756:10756 <> d:63
+binder 10758:10760 <> blk:64
+binder 10762:10762 <> k:65
+R10766:10769 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R10770:10788 UnixDirScan UnixFs.Dir slot_inode_concrete def
+R10790:10790 UnixDirScan <> d:63 var
+R10792:10794 UnixDirScan <> blk:64 var
+R10796:10796 UnixDirScan <> k:65 var
+R10831:10849 UnixDirScan UnixFs.Dir slot_inode_concrete def
+R10866:10878 UnixDirScan <> UnixFs.Dir.Nonneg.byte_unsigned var
+R10901:10903 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10894:10896 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10890:10890 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10898:10898 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10866:10878 UnixDirScan <> UnixFs.Dir.Nonneg.byte_unsigned var
+R10901:10903 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10894:10896 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10890:10890 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10898:10898 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10923:10935 UnixDirScan <> UnixFs.Dir.Nonneg.byte_unsigned var
+R10958:10960 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10951:10953 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10947:10947 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10955:10955 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10923:10935 UnixDirScan <> UnixFs.Dir.Nonneg.byte_unsigned var
+R10958:10960 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10951:10953 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10947:10947 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10955:10955 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10980:10992 UnixDirScan <> UnixFs.Dir.Nonneg.byte_unsigned var
+R11015:11017 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R11008:11010 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R11004:11004 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R11012:11012 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R10980:10992 UnixDirScan <> UnixFs.Dir.Nonneg.byte_unsigned var
+R11015:11017 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R11008:11010 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R11004:11004 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R11012:11012 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R11037:11049 UnixDirScan <> UnixFs.Dir.Nonneg.byte_unsigned var
+R11072:11074 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R11065:11067 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R11061:11061 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R11069:11069 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R11037:11049 UnixDirScan <> UnixFs.Dir.Nonneg.byte_unsigned var
+R11072:11074 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R11065:11067 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R11061:11061 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R11069:11069 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R11097:11102 UnixDirScan UnixFs.Dir.Nonneg <> sec
+R11110:11112 UnixDirScan UnixFs.Dir <> mod
+R11119:11124 UnixDirScan UnixFs <> mod

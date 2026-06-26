@@ -1,0 +1,105 @@
+DIGEST ffbaef52d1c2a7f034797bca46ebc804
+FEmptyDiskSlotsDead
+R1060:1076 Coq.ZArith.ZArith <> <> lib
+R1094:1096 Coq.micromega.Lia <> <> lib
+mod 1127:1132 <> UnixFs
+mod 1142:1144 <> UnixFs.Dir
+sec 1155:1158 UnixFs.Dir Scan
+var 1171:1174 UnixFs.Dir.Scan disk
+var 1249:1250 UnixFs.Dir.Scan rd
+R1258:1261 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1254:1257 EmptyDiskSlotsDead <> UnixFs.Dir.Scan.disk var
+R1263:1266 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1262:1262 Coq.Numbers.BinNums <> Z ind
+R1267:1267 Coq.Numbers.BinNums <> Z ind
+def 1457:1464 UnixFs.Dir slot_off
+R1475:1475 Coq.Numbers.BinNums <> Z ind
+binder 1467:1469 <> blk:5
+binder 1471:1471 <> k:6
+R1480:1480 Coq.Numbers.BinNums <> Z ind
+R1494:1496 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R1488:1490 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R1485:1487 EmptyDiskSlotsDead <> blk:5 var
+R1499:1501 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R1502:1502 EmptyDiskSlotsDead <> k:6 var
+def 1517:1526 UnixFs.Dir slot_inode
+R1533:1536 EmptyDiskSlotsDead <> UnixFs.Dir.Scan.disk var
+binder 1529:1529 <> d:7
+R1548:1548 Coq.Numbers.BinNums <> Z ind
+binder 1540:1542 <> blk:8
+binder 1544:1544 <> k:9
+R1553:1553 Coq.Numbers.BinNums <> Z ind
+R1589:1591 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R1563:1566 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R1588:1588 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R1567:1568 EmptyDiskSlotsDead <> UnixFs.Dir.Scan.rd var
+R1570:1570 EmptyDiskSlotsDead <> d:7 var
+R1573:1580 EmptyDiskSlotsDead UnixFs.Dir slot_off def
+R1582:1584 EmptyDiskSlotsDead <> blk:8 var
+R1586:1586 EmptyDiskSlotsDead <> k:9 var
+R1592:1593 EmptyDiskSlotsDead <> UnixFs.Dir.Scan.rd var
+R1595:1595 EmptyDiskSlotsDead <> d:7 var
+R1612:1614 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R1598:1605 EmptyDiskSlotsDead UnixFs.Dir slot_off def
+R1607:1609 EmptyDiskSlotsDead <> blk:8 var
+R1611:1611 EmptyDiskSlotsDead <> k:9 var
+prf 1766:1786 UnixFs.Dir empty_disk_slots_dead
+R1804:1807 EmptyDiskSlotsDead <> UnixFs.Dir.Scan.disk var
+binder 1800:1800 <> d:10
+R1817:1817 Coq.Numbers.BinNums <> Z ind
+binder 1811:1813 <> blk:11
+R1825:1825 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1882:1890 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+binder 1833:1833 <> b:12
+R1868:1871 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1845:1848 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R1850:1852 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R1839:1841 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R1836:1838 EmptyDiskSlotsDead <> blk:11 var
+R1849:1849 EmptyDiskSlotsDead <> b:12 var
+R1849:1849 EmptyDiskSlotsDead <> b:12 var
+R1862:1864 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R1856:1858 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R1853:1855 EmptyDiskSlotsDead <> blk:11 var
+R1878:1880 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1872:1873 EmptyDiskSlotsDead <> UnixFs.Dir.Scan.rd var
+R1875:1875 EmptyDiskSlotsDead <> d:10 var
+R1877:1877 EmptyDiskSlotsDead <> b:12 var
+binder 1898:1898 <> k:13
+R1912:1915 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1902:1905 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R1907:1909 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R1906:1906 EmptyDiskSlotsDead <> k:13 var
+R1906:1906 EmptyDiskSlotsDead <> k:13 var
+R1934:1936 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1916:1925 EmptyDiskSlotsDead UnixFs.Dir slot_inode def
+R1927:1927 EmptyDiskSlotsDead <> d:10 var
+R1929:1931 EmptyDiskSlotsDead <> blk:11 var
+R1933:1933 EmptyDiskSlotsDead <> k:13 var
+R1983:1992 EmptyDiskSlotsDead UnixFs.Dir slot_inode def
+R1995:2002 EmptyDiskSlotsDead UnixFs.Dir slot_off def
+R2032:2034 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2026:2028 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R2037:2039 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R2032:2034 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2026:2028 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R2037:2039 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R2032:2034 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2026:2028 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R2037:2039 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R2088:2090 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2079:2081 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2073:2075 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R2084:2086 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R2088:2090 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2079:2081 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2073:2075 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R2084:2086 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R2088:2090 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2079:2081 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R2073:2075 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R2084:2086 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R2134:2154 EmptyDiskSlotsDead UnixFs.Dir empty_disk_slots_dead thm
+R2162:2165 EmptyDiskSlotsDead UnixFs.Dir.Scan <> sec
+R2172:2174 EmptyDiskSlotsDead UnixFs.Dir <> mod
+R2181:2186 EmptyDiskSlotsDead UnixFs <> mod

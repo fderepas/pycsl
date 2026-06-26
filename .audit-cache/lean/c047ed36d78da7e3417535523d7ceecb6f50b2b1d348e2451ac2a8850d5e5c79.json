@@ -1,0 +1,16 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "'UnixFs.Dir.empty_disk_slots_dead' depends on axioms: [propext, Quot.sound]\n",
+  "compile_stderr": "",
+  "elapsed_compile_s": 0.9280147670069709,
+  "qualname_results": [
+    [
+      "UnixFs.Dir.empty_disk_slots_dead",
+      true,
+      [
+        "propext",
+        "Quot.sound"
+      ]
+    ]
+  ]
+}

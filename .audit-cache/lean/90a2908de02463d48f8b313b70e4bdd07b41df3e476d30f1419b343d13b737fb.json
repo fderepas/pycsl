@@ -1,0 +1,17 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "",
+  "compile_stderr": "",
+  "elapsed_compile_s": 1.17256814497523,
+  "qualname_results": [
+    [
+      "UnixFs.Bitmap.bit_and_one_in_zero_one",
+      true,
+      [
+        "propext",
+        "Classical.choice",
+        "Quot.sound"
+      ]
+    ]
+  ]
+}

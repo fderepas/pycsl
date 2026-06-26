@@ -1,0 +1,24 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "",
+  "compile_stderr": "",
+  "elapsed_compile_s": 0.8926708180079004,
+  "qualname_results": [
+    [
+      "UnixFs.Dir.dir_lookup_frame",
+      true,
+      [
+        "propext",
+        "Quot.sound"
+      ]
+    ],
+    [
+      "UnixFs.Dir.dir_lookup_frame",
+      true,
+      [
+        "propext",
+        "Quot.sound"
+      ]
+    ]
+  ]
+}

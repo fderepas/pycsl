@@ -1,0 +1,1 @@
+claude --permission-mode  bypassPermissions --resume fa301ee0-7f61-4494-89cd-82053b08670b

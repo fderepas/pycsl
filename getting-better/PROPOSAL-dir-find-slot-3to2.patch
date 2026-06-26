@@ -1,0 +1,560 @@
+diff --git a/pure_lib/os/UnixInodeFileSystem.py b/pure_lib/os/UnixInodeFileSystem.py
+index 1af2a42..118d979 100644
+--- a/pure_lib/os/UnixInodeFileSystem.py
++++ b/pure_lib/os/UnixInodeFileSystem.py
+@@ -1083,20 +1083,79 @@ class UnixInodeFileSystem:
+     #             maintained via UnixFs.Dir.insert_preserves_unique (directory
+     #             mutators) + UnixFs.Dir.block5_decode_frame (non-directory writers).
+     #             See 11-1404-convergence-spec-13.md.
+-    #@ \trusted reviewer: dirscan-fidelity
++    # DE-TRUSTED read-side fidelity (was `\trusted reviewer: dirscan-fidelity`) via the
++    # SLOT-INDEX dir_find_slot_result marker (the slot-index twin of dir_scan_result) +
++    # the FAITHFUL read-name EMITTER lowering. _dir_find_slot scans the 16 slots like
++    # _dir_lookup, but returns the matched slot's INDEX (found = i) rather than its inode.
++    # The body operates over the abstract per-slot decodes slot_inode/slot_name (bridged
++    # from the literal slot bytes by slot_inode_byte_decode / slot_name_byte_decode),
++    # carrying the loop-carry prefix marker dir_find_slot_prefix(self.dir, 5, pathname,
++    # i, found) advanced one slot per iteration via dir_find_slot_prefix_step (whose match
++    # branch sets found to the INDEX i). At loop exit the prefix marker at i=16 is folded
++    # to dir_find_slot_result, and dir_find_slot_result_value discharges the two fidelity
++    # ensures (\result >= 0 ==> slot_inode != 0 /\ slot_name == pathname).
++    #
++    # The KEYSTONE that makes the marker step fire: `name` is now the FAITHFUL on-disk
++    # decode (the inline self.dir[eo+2:eo+32].split(b'\x00')[0].decode(...) idiom that the
++    # null-terminated-field EMITTER recognizer lowers to field_to_str self.dir (eo+2) 30 —
++    # the SAME symbol slot_name_byte_decode bridges to slot_name self.dir 5 i). So
++    # `slot_name == pathname` is a real string equality, the match guard fires the marker
++    # step, and the slot-index fidelity crosses SMT with NO relocated trust: zero new
++    # \trusted, zero val/ensures shim — the marker is cross-validated by
++    # 0721.proofs/UnixDirFindSlotValue.{v,lean}.
++    #@ proof rocq UnixFs.Dir.slot_inode_nonneg
++    #@ proof lean UnixFs.Dir.slot_inode_nonneg
++    #@ proof rocq UnixFs.Dir.slot_inode_byte_decode
++    #@ proof lean UnixFs.Dir.slot_inode_byte_decode
++    #@ proof rocq UnixFs.Dir.slot_name_byte_decode
++    #@ proof lean UnixFs.Dir.slot_name_byte_decode
++    #@ proof rocq UnixFs.Field.field_to_str_round_trip
++    #@ proof lean UnixFs.Field.field_to_str_round_trip
++    #@ proof rocq UnixFs.Dir.dir_find_slot_prefix_base
++    #@ proof lean UnixFs.Dir.dir_find_slot_prefix_base
++    #@ proof rocq UnixFs.Dir.dir_find_slot_prefix_step
++    #@ proof lean UnixFs.Dir.dir_find_slot_prefix_step
++    #@ proof rocq UnixFs.Dir.dir_find_slot_result_intro
++    #@ proof lean UnixFs.Dir.dir_find_slot_result_intro
++    #@ proof rocq UnixFs.Dir.dir_find_slot_result_value
++    #@ proof lean UnixFs.Dir.dir_find_slot_result_value
++    #@ verify_module FindSlotMod
+     def _dir_find_slot(self, block_num: int, pathname: str) -> int:
+-        offset = block_num * 512
+         found = -1
++        #@ assert dir_find_slot_prefix(self.dir, 5, pathname, 0, -1)
+         #@ loop invariant 0 <= i and i <= 16
+         #@ loop invariant found >= -1 and found < 16
++        #@ loop invariant dir_find_slot_prefix(self.dir, 5, pathname, i, found)
+         #@ loop variant 16 - i
+         for i in range(16):
+-            entry_offset = offset + (i * 32)
+-            entry = self.dir[entry_offset:entry_offset + 32]
+-            inode_num, name_bytes = _unpack_direntry(entry)
+-            name = name_bytes.split(b'\x00')[0].decode('utf-8', errors='ignore')
+-            if name == pathname and inode_num != 0:
++            # literal-offset byte surface (5*512 + 32*i) so slot_inode_byte_decode's
++            # trigger [disk[blk*512+32*k]] E-matches (bridges the two inode bytes to
++            # slot_inode self.dir 5 i), and slot_name_byte_decode's trigger on the
++            # name-field byte [disk[blk*512+32*k+2]] E-matches (bridges to slot_name).
++            b0 = self.dir[5 * 512 + 32 * i]
++            b1 = self.dir[5 * 512 + 32 * i + 1]
++            #@ assert slot_inode(self.dir, 5, i) == 256 * b0 + b1
++            inode_num = b0 * 256 + b1
++            # FAITHFUL read-name: the 30-byte null-padded name field [eo+2, eo+32) is
++            # decoded inline. The EMITTER recognizer lowers this idiom to the codec term
++            # field_to_str self.dir (5*512+32*i+2) 30, so `name` is the genuine on-disk
++            # string slot_name_byte_decode bridges to slot_name self.dir 5 i.
++            name: str = self.dir[5 * 512 + 32 * i + 2:5 * 512 + 32 * i + 32].split(b'\x00')[0].decode('utf-8', errors='ignore')
++            #@ assert slot_name(self.dir, 5, i) == name
++            is_match = name == pathname and inode_num != 0 and inode_num < 32
++            if is_match:
++                # The match guard gives name==pathname /\ inode_num!=0 /\ inode_num<32;
++                # bridged to the abstract decodes (slot_name==pathname, slot_inode==inode_num)
++                # this is exactly dir_find_slot_prefix_step's match-branch antecedent. After
++                # found:=i the step advances the marker to (i+1, i) — found is the INDEX.
++                #@ assert slot_name(self.dir, 5, i) == pathname
+                 found = i
++                #@ assert dir_find_slot_prefix(self.dir, 5, pathname, i + 1, found)
++            else:
++                #@ assert dir_find_slot_prefix(self.dir, 5, pathname, i + 1, found)
++                pass
++            #@ assert dir_find_slot_prefix(self.dir, 5, pathname, i + 1, found)
++        #@ assert dir_find_slot_result(self.dir, 5, pathname, found)
+         return found
+ 
+     #@ requires block_num >= 0
+diff --git a/src/pycsl/module6_whyml/preamble.py b/src/pycsl/module6_whyml/preamble.py
+index c6ce5df..8d1c5d0 100644
+--- a/src/pycsl/module6_whyml/preamble.py
++++ b/src/pycsl/module6_whyml/preamble.py
+@@ -731,6 +731,72 @@ class PreambleEmissionMixin:
+             "dir_scan_result d blk name r -> "
+             "dir_lookup d blk name = r",
+         # ====================================================================
++        # READ-SIDE SLOT-INDEX dir_find_slot_result marker family — the SLOT-INDEX
++        # twin of the dir_scan_result family. Retires the READ-side dirscan-fidelity
++        # trust on _dir_find_slot, which returns the slot INDEX (0..15) of the LAST
++        # live slot named `pathname`, or -1 (whereas _dir_lookup returns the matched
++        # slot's INODE). Carries the slot's VALUE-fidelity (slot_inode <> 0 /\
++        # slot_name = name at the returned index) across SMT via a unique marker, the
++        # same once-firing discipline as dir_scan_result. Cross-validated zero-TCB by
++        # test-suite/corpus/pycsl-reference/0721.proofs/{rocq,lean}/UnixDirFindSlotValue.{v,lean}:
++        #   - Rocq: every theorem "Closed under the global context" (Section Variables
++        #     only, 0 Axiom/Admitted).
++        #   - Lean: dir_find_slot_result_intro/_prefix_base/_prefix_close "does not
++        #     depend on any axioms"; _result_value/_result_range/_prefix_step ⊆
++        #     {propext, Quot.sound}.
++        #
++        # The marker fires ONLY at the atoms _dir_find_slot's body asserts (the
++        # loop-carry prefix invariant + the loop-exit close), NEVER on a bare
++        # slot_inode/slot_name term — exactly the dir_scan_result once-firing discipline.
++        # The Fixpoint `fscan` is the INDEX-keeping dual of `scan`: on a match, found
++        # becomes the INDEX i (not the inode). The whole last-match argument is
++        # discharged offline; SMT only applies the O(1) rungs.
++        #
++        # dir_find_slot_prefix_base (DEFINITIONAL, zero trust): the loop-init rung.
++        # `found = -1` over the empty (0-slot) prefix. Trigger on the marker atom.
++        "UnixFs.Dir.dir_find_slot_prefix_base":
++            "forall d : array int, blk : int, name : string "
++            "[dir_find_slot_prefix d blk name 0 (-1)]. "
++            "dir_find_slot_prefix d blk name 0 (-1)",
++        # dir_find_slot_prefix_step (cross-validated): the loop-body update rung. From
++        # the prefix marker at slot i, peeling slot i — using the per-slot decode facts
++        # slot_inode/slot_name d blk i (the SAME body match the loop body tests) —
++        # advances the marker to slot i+1. On a match `found` becomes the INDEX i (NOT
++        # the inode). Keyed [dir_find_slot_prefix d blk name i r] so it fires once per
++        # loop iteration at the carried marker, NEVER on a bare term. The induction is
++        # discharged offline; SMT only applies one O(1) step.
++        "UnixFs.Dir.dir_find_slot_prefix_step":
++            "forall d : array int, blk i r : int, name : string "
++            "[dir_find_slot_prefix d blk name i r]. "
++            "0 <= i -> i < 16 -> "
++            "dir_find_slot_prefix d blk name i r -> "
++            "( ( slot_inode d blk i <> 0 /\\ slot_inode d blk i < 32 "
++            "      /\\ slot_name d blk i = name ) -> "
++            "    dir_find_slot_prefix d blk name (i + 1) i ) "
++            "/\\ ( not ( slot_inode d blk i <> 0 /\\ slot_inode d blk i < 32 "
++            "             /\\ slot_name d blk i = name ) -> "
++            "    dir_find_slot_prefix d blk name (i + 1) r )",
++        # dir_find_slot_result_intro (DEFINITIONAL close, zero trust): the full-prefix
++        # rung i=16 IS the slot-index scan result — fold the loop-exit prefix marker
++        # into the result marker. Keyed [dir_find_slot_prefix d blk name 16 r].
++        "UnixFs.Dir.dir_find_slot_result_intro":
++            "forall d : array int, blk r : int, name : string "
++            "[dir_find_slot_prefix d blk name 16 r]. "
++            "dir_find_slot_prefix d blk name 16 r -> "
++            "dir_find_slot_result d blk name r",
++        # dir_find_slot_result_value (cross-validated VALUE lemma — the load-bearing
++        # slot-index fidelity): when r >= 0 the returned slot decodes to a LIVE entry
++        # named `name` (slot_inode <> 0 /\ slot_name = name). This is EXACTLY
++        # _dir_find_slot's two fidelity ensures. The last-match argument is discharged
++        # offline in UnixDirFindSlotValue; SMT only applies this O(1) implication.
++        # Keyed [dir_find_slot_result d blk name r] — fires EXACTLY ONCE at the close.
++        "UnixFs.Dir.dir_find_slot_result_value":
++            "forall d : array int, blk r : int, name : string "
++            "[dir_find_slot_result d blk name r]. "
++            "dir_find_slot_result d blk name r -> "
++            "r >= 0 -> "
++            "slot_inode d blk r <> 0 /\\ slot_name d blk r = name",
++        # ====================================================================
+         # BLOCK-PARAMETERIZED marker family (2026-06-19) — the arbitrary-block
+         # generalization of the block-5 dir_blit_marker family above. _write_entry
+         # mutates self.disk at an ARBITRARY block `block_num` (ensures reference
+@@ -1325,6 +1391,29 @@ class PreambleEmissionMixin:
+             # dir_scan_prefix_step (O(1) marker-keyed), closed at i=16 to dir_scan_result.
+             "predicate dir_scan_prefix (d: array int) (blk: int) (name: string) (i: int) (r: int)",
+         ],
++        # READ-SIDE SLOT-INDEX markers (the slot-index twin of dir_scan_result/
++        # dir_scan_prefix): `dir_find_slot_result d blk name r` ≜ "r is the bounded
++        # 16-slot index scan result" (the LAST live-match INDEX, or -1);
++        # `dir_find_slot_prefix d blk name i r` ≜ "r is that index-scan over the
++        # first i slots". UNIQUE uninterpreted atoms keyed
++        # [dir_find_slot_result d blk name r] / [dir_find_slot_prefix d blk name i r],
++        # firing ONLY where _dir_find_slot's body asserts them, NEVER on a bare
++        # slot_inode/slot_name term, so the slot-index fidelity crosses SMT without
++        # re-introducing the last-match argument (discharged offline in
++        # UnixDirFindSlotValue.{v,lean}).
++        #
++        # GATING (byte-identity, same discipline as dir_blit_marker_at): keyed on the
++        # MORE-SPECIFIC prefix "UnixFs.Dir.dir_find_slot" (NOT the general "UnixFs.Dir."
++        # list above) so these two predicate declarations are emitted ONLY when a
++        # dir_find_slot_* axiom is cited (i.e. by _dir_find_slot's os module), NOT for
++        # every UnixFs.Dir.* citation. Sibling corpus modules (0711/0712) that cite
++        # scan_reflects_present etc. but never the slot-index marker stay byte-identical.
++        # `startswith` matches both prefixes for a dir_find_slot_* qualname, so the os
++        # module still gets BOTH the general Dir decls AND these predicates.
++        "UnixFs.Dir.dir_find_slot": [
++            "predicate dir_find_slot_result (d: array int) (blk: int) (name: string) (r: int)",
++            "predicate dir_find_slot_prefix (d: array int) (blk: int) (name: string) (i: int) (r: int)",
++        ],
+         # BLOCK-PARAMETERIZED marker (2026-06-19): the arbitrary-block twin of
+         # dir_blit_marker for _write_entry, which mutates self.disk at an ARBITRARY
+         # block `block_num` (not the hardcoded block 5 of self.dir). Extra `blk`
+diff --git a/test-suite/corpus/pycsl-reference/0721.proofs/lean/UnixDirFindSlotValue.lean b/test-suite/corpus/pycsl-reference/0721.proofs/lean/UnixDirFindSlotValue.lean
+new file mode 100644
+index 0000000..c1c7b00
+--- /dev/null
++++ b/test-suite/corpus/pycsl-reference/0721.proofs/lean/UnixDirFindSlotValue.lean
+@@ -0,0 +1,134 @@
++-- Lean 4 cross-validation twin of the SLOT-INDEX dir_find_slot_result marker.
++-- _dir_find_slot returns the INDEX (0..15) of the LAST live slot matching
++-- `name`, or -1 (the slot-index dual of _dir_lookup's INODE result in
++-- UnixDirScanValue.lean). Verified under core Lean (no Mathlib). No sorry.
++namespace UnixFs.Dir
++
++variable {Disk : Type} {NameT : Type}
++variable (slotInode : Disk → Int → Int → Int)
++variable (slotName  : Disk → Int → Int → NameT)
++variable [DecidableEq NameT]
++
++def slotMatches (d : Disk) (blk : Int) (name : NameT) (k : Int) : Prop :=
++  slotInode d blk k ≠ 0 ∧ slotInode d blk k < 32 ∧ slotName d blk k = name
++
++-- The running SLOT-INDEX scan: keeps the LAST matching INDEX (when slot j
++-- matches, found becomes the INDEX zj, not the inode).
++def fscan (d : Disk) (blk : Int) (name : NameT) : Nat → Int → Int
++  | 0,     found => found
++  | (j+1), found =>
++      let f := fscan d blk name j found
++      let zj : Int := Int.ofNat j
++      if slotInode d blk zj ≠ 0 ∧ slotInode d blk zj < 32 ∧ slotName d blk zj = name
++      then zj
++      else f
++
++def dirFindSlot (d : Disk) (blk : Int) (name : NameT) : Int :=
++  fscan slotInode slotName d blk name 16 (-1)
++
++-- The carry invariant: the result is either an in-range live-match INDEX, or
++-- the unchanged start value.
++theorem fscan_result_matches
++    (d : Disk) (blk : Int) (name : NameT) (i : Nat) (start : Int) :
++    let r := fscan slotInode slotName d blk name i start
++    ((0 ≤ r ∧ r < Int.ofNat i ∧ slotMatches slotInode slotName d blk name r) ∨ r = start) := by
++  induction i with
++  | zero => simp [fscan]
++  | succ j IH =>
++      simp only [fscan, slotMatches] at IH ⊢
++      have hsucc : Int.ofNat (j + 1) = Int.ofNat j + 1 := rfl
++      split
++      · rename_i hg
++        left
++        refine ⟨Int.natCast_nonneg j, ?_, hg⟩
++        rw [hsucc]; omega
++      · rcases IH with ⟨hr0, hrlt, hm⟩ | heq
++        · left
++          refine ⟨hr0, ?_, hm⟩
++          rw [hsucc]; omega
++        · right; exact heq
++
++-- The MARKER: dir_find_slot_result d blk name r ≜ r is the bounded index-scan result.
++def dirFindSlotResult (d : Disk) (blk : Int) (name : NameT) (r : Int) : Prop :=
++  fscan slotInode slotName d blk name 16 (-1) = r
++
++-- dir_find_slot_result_intro (definitional): the marker from the closed result.
++theorem dir_find_slot_result_intro
++    (d : Disk) (blk : Int) (name : NameT) (r : Int)
++    (h : fscan slotInode slotName d blk name 16 (-1) = r) :
++    dirFindSlotResult slotInode slotName d blk name r := by
++  unfold dirFindSlotResult; exact h
++
++-- dir_find_slot_result_value (load-bearing slot-index fidelity): when r ≥ 0,
++-- slot r decodes to a live entry named `name`.
++theorem dir_find_slot_result_value
++    (d : Disk) (blk : Int) (name : NameT) (r : Int)
++    (hmk : dirFindSlotResult slotInode slotName d blk name r)
++    (hpos : r ≥ 0) :
++    slotInode d blk r ≠ 0 ∧ slotName d blk r = name := by
++  unfold dirFindSlotResult at hmk
++  have hinv := fscan_result_matches slotInode slotName d blk name 16 (-1)
++  simp only [slotMatches] at hinv
++  rw [hmk] at hinv
++  rcases hinv with ⟨_, _, hi, _, hn⟩ | heq
++  · exact ⟨hi, hn⟩
++  · omega
++
++-- dir_find_slot_result_range (definitional): r is in [-1, 16).
++theorem dir_find_slot_result_range
++    (d : Disk) (blk : Int) (name : NameT) (r : Int)
++    (hmk : dirFindSlotResult slotInode slotName d blk name r) :
++    -1 ≤ r ∧ r < 16 := by
++  unfold dirFindSlotResult at hmk
++  have hinv := fscan_result_matches slotInode slotName d blk name 16 (-1)
++  simp only [slotMatches] at hinv
++  rw [hmk] at hinv
++  rcases hinv with ⟨hr0, hrlt, _⟩ | heq
++  · constructor <;> omega
++  · constructor <;> omega
++
++-- ===== Prefix-marker loop-carry rungs =====
++def dirFindSlotPrefix (d : Disk) (blk : Int) (name : NameT) (i : Int) (r : Int) : Prop :=
++  (0 ≤ i ∧ i ≤ 16) ∧ fscan slotInode slotName d blk name i.toNat (-1) = r
++
++theorem dir_find_slot_prefix_base (d : Disk) (blk : Int) (name : NameT) :
++    dirFindSlotPrefix slotInode slotName d blk name 0 (-1) := by
++  unfold dirFindSlotPrefix; refine ⟨⟨by decide, by decide⟩, ?_⟩; rfl
++
++theorem dir_find_slot_prefix_step
++    (d : Disk) (blk : Int) (name : NameT) (i : Int) (r : Int)
++    (hi : 0 ≤ i ∧ i < 16)
++    (hpre : dirFindSlotPrefix slotInode slotName d blk name i r) :
++    ( (slotInode d blk i ≠ 0 ∧ slotInode d blk i < 32 ∧ slotName d blk i = name)
++        → dirFindSlotPrefix slotInode slotName d blk name (i+1) i ) ∧
++    ( ¬(slotInode d blk i ≠ 0 ∧ slotInode d blk i < 32 ∧ slotName d blk i = name)
++        → dirFindSlotPrefix slotInode slotName d blk name (i+1) r ) := by
++  obtain ⟨_, hpre⟩ := hpre
++  have hi0 : 0 ≤ i := hi.1
++  have hni : (i+1).toNat = (i.toNat) + 1 := by omega
++  have hzi : Int.ofNat (i.toNat) = i := Int.toNat_of_nonneg hi0
++  constructor
++  · intro hg
++    refine ⟨⟨by omega, by omega⟩, ?_⟩
++    rw [hni]; unfold fscan; rw [hpre]; rw [hzi]; rw [if_pos hg]
++  · intro hng
++    refine ⟨⟨by omega, by omega⟩, ?_⟩
++    rw [hni]; unfold fscan; rw [hpre]; rw [hzi]; rw [if_neg hng]
++
++theorem dir_find_slot_prefix_close
++    (d : Disk) (blk : Int) (name : NameT) (r : Int)
++    (h : dirFindSlotPrefix slotInode slotName d blk name 16 r) :
++    dirFindSlotResult slotInode slotName d blk name r := by
++  obtain ⟨_, h⟩ := h
++  unfold dirFindSlotResult
++  have : (16 : Int).toNat = 16 := by decide
++  rw [this] at h; exact h
++
++end UnixFs.Dir
++
++#print axioms UnixFs.Dir.dir_find_slot_result_value
++#print axioms UnixFs.Dir.dir_find_slot_result_intro
++#print axioms UnixFs.Dir.dir_find_slot_result_range
++#print axioms UnixFs.Dir.dir_find_slot_prefix_base
++#print axioms UnixFs.Dir.dir_find_slot_prefix_step
++#print axioms UnixFs.Dir.dir_find_slot_prefix_close
+diff --git a/test-suite/corpus/pycsl-reference/0721.proofs/rocq/UnixDirFindSlotValue.v b/test-suite/corpus/pycsl-reference/0721.proofs/rocq/UnixDirFindSlotValue.v
+new file mode 100644
+index 0000000..b221e81
+--- /dev/null
++++ b/test-suite/corpus/pycsl-reference/0721.proofs/rocq/UnixDirFindSlotValue.v
+@@ -0,0 +1,216 @@
++(* Value theorem for _dir_find_slot: the SLOT-INDEX dual of dir_scan_result.
++   _dir_find_slot returns the INDEX (0..15) of the LAST live slot matching
++   `name`, or -1 — whereas _dir_lookup (UnixDirScanValue.v) returns the
++   matched slot's INODE. This cross-validates the dir_find_slot_result marker
++   family: the read-side fidelity that the returned slot index decodes to a
++   LIVE entry named `name` (slot_inode <> 0 /\ slot_name = name).
++
++   Same shape and the SAME abstract per-slot decode (slot_inode/slot_name) as
++   UnixDirScan.v / UnixDirScanValue.v, over the EXISTING `matches` predicate.
++   Verified under Coq 8.20.1. No Admitted, no Axiom (Section Variables only). *)
++Require Import Coq.ZArith.ZArith.
++Require Import Coq.Bool.Bool.
++Require Import Lia.
++Open Scope Z_scope.
++
++Module UnixFs.
++Module Dir.
++Section FindSlot.
++Variable disk : Type.
++Variable name_t : Type.
++Variable slot_inode : disk -> Z -> Z -> Z.
++Variable slot_name  : disk -> Z -> Z -> name_t.
++Variable eqn : name_t -> name_t -> bool.
++Hypothesis eqn_spec : forall a b, eqn a b = true <-> a = b.
++
++(* A slot k is a live match for `name` in block `blk` — IDENTICAL to the
++   `matches` of UnixDirScan.v (the inode-range conjunct slot_inode < 32 is
++   carried by _dir_find_slot's loop the same way). *)
++Definition matches (d : disk) (blk : Z) (name : name_t) (k : Z) : Prop :=
++  slot_inode d blk k <> 0 /\ slot_inode d blk k < 32 /\ slot_name d blk k = name.
++
++(* The running SLOT-INDEX scan over the first i slots, mirroring
++   _dir_find_slot's loop body `if name==pathname and inode!=0: found = i`.
++   It keeps the LAST matching INDEX (recurse first, then test slot j); when
++   slot j matches the carried `found` becomes the INDEX zj (not the inode). *)
++Fixpoint fscan (d : disk) (blk : Z) (name : name_t) (i : nat) (found : Z) : Z :=
++  match i with
++  | O => found
++  | S j =>
++      let f := fscan d blk name j found in
++      let zj := Z.of_nat j in
++      if andb (negb (Z.eqb (slot_inode d blk zj) 0))
++              (andb (Z.ltb (slot_inode d blk zj) 32)
++                    (eqn (slot_name d blk zj) name))
++      then zj
++      else f
++  end.
++
++(* The carry invariant proved at every prefix length i: if the running
++   index `found` started >= 0 then it is a live match, AND the result is
++   either the start value or a live in-range index. We instantiate at the
++   loop init found = -1 below; the general form makes the induction go
++   through cleanly. *)
++Lemma fscan_result_matches : forall (d : disk) (blk : Z) (name : name_t) (i : nat) (start : Z),
++  let r := fscan d blk name i start in
++  ( (0 <= r < Z.of_nat i /\ matches d blk name r) \/ r = start ).
++Proof.
++  intros d blk name i start. induction i as [| j IH].
++  - (* base: fscan = start. *)
++    simpl. right. reflexivity.
++  - (* step: peel slot j. *)
++    simpl.
++    set (zj := Z.of_nat j) in *.
++    remember (andb (negb (Z.eqb (slot_inode d blk zj) 0))
++                   (andb (Z.ltb (slot_inode d blk zj) 32)
++                         (eqn (slot_name d blk zj) name))) as guard eqn:Hguard.
++    destruct guard.
++    + (* guard true: result = index zj, a live match. *)
++      symmetry in Hguard.
++      apply andb_true_iff in Hguard. destruct Hguard as [Hne Hrest].
++      apply andb_true_iff in Hrest. destruct Hrest as [Hlt Heqn].
++      apply negb_true_iff in Hne. apply Z.eqb_neq in Hne.
++      apply Z.ltb_lt in Hlt. apply eqn_spec in Heqn.
++      left. split.
++      * split. apply Nat2Z.is_nonneg. lia.
++      * unfold matches. repeat split; assumption.
++    + (* guard false: result = fscan over j; classify via IH. *)
++      destruct IH as [ [Hrng Hm] | Heq ].
++      * left. split; [ lia | exact Hm ].
++      * right. exact Heq.
++Qed.
++
++(* dir_find_slot d blk name := fscan d blk name 16 (-1). *)
++Definition dir_find_slot (d : disk) (blk : Z) (name : name_t) : Z :=
++  fscan d blk name 16 (-1).
++
++(* The MARKER: dir_find_slot_result d blk name r holds iff r is exactly the
++   bounded 16-slot index scan result. DEFINITIONAL (zero TCB). *)
++Definition dir_find_slot_result (d : disk) (blk : Z) (name : name_t) (r : Z) : Prop :=
++  fscan d blk name 16 (-1) = r.
++
++(* dir_find_slot_result_intro (DEFINITIONAL, zero trust): the marker from the
++   closed loop result. *)
++Theorem dir_find_slot_result_intro :
++  forall (d : disk) (blk : Z) (name : name_t) (r : Z),
++    fscan d blk name 16 (-1) = r -> dir_find_slot_result d blk name r.
++Proof. intros. unfold dir_find_slot_result. exact H. Qed.
++
++(* dir_find_slot_result_value (cross-validated VALUE lemma — the load-bearing
++   slot-index fidelity): when r >= 0, slot r decodes to a live entry named
++   `name`. This is exactly _dir_find_slot's two fidelity ensures
++   (slot_inode <> 0  /\  slot_name = name). The whole last-match argument is
++   discharged offline here; SMT only applies this O(1) implication. *)
++Theorem dir_find_slot_result_value :
++  forall (d : disk) (blk : Z) (name : name_t) (r : Z),
++    dir_find_slot_result d blk name r ->
++    r >= 0 ->
++    slot_inode d blk r <> 0 /\ slot_name d blk r = name.
++Proof.
++  intros d blk name r Hmk Hpos. unfold dir_find_slot_result in Hmk.
++  pose proof (fscan_result_matches d blk name 16 (-1)) as Hinv.
++  cbv zeta in Hinv. rewrite Hmk in Hinv.
++  destruct Hinv as [ [Hrng Hm] | Heq ].
++  - unfold matches in Hm. destruct Hm as [Hne [_ Hnm]]. split; assumption.
++  - (* r = -1 here (start = -1), contradicts r >= 0 *)
++    lia.
++Qed.
++
++(* dir_find_slot_result_range (DEFINITIONAL, zero trust): r is in [-1, 16).
++   Mirrors _dir_find_slot's `\result >= -1 and \result < 16` (the body proves
++   the range directly; this lemma confirms the marker is consistent with it). *)
++Theorem dir_find_slot_result_range :
++  forall (d : disk) (blk : Z) (name : name_t) (r : Z),
++    dir_find_slot_result d blk name r -> -1 <= r < 16.
++Proof.
++  intros d blk name r Hmk. unfold dir_find_slot_result in Hmk.
++  pose proof (fscan_result_matches d blk name 16 (-1)) as Hinv.
++  cbv zeta in Hinv. rewrite Hmk in Hinv.
++  replace (Z.of_nat 16) with 16 in Hinv by reflexivity.
++  destruct Hinv as [ [Hrng _] | Heq ].
++  - lia.
++  - lia.
++Qed.
++
++End FindSlot.
++End Dir.
++End UnixFs.
++
++(* ===== Prefix-marker form: a NON-inductive loop-carry rung ===== *)
++Module Prefix.
++Section P.
++Variable disk : Type.
++Variable name_t : Type.
++Variable slot_inode : disk -> Z -> Z -> Z.
++Variable slot_name  : disk -> Z -> Z -> name_t.
++Variable eqn : name_t -> name_t -> bool.
++Hypothesis eqn_spec : forall a b, eqn a b = true <-> a = b.
++
++(* dir_find_slot_prefix d blk name i r : "r is the index-scan result over the
++   first i slots" -- the loop-carry marker. i is the loop counter; r is
++   `found` (the slot index). *)
++Definition dir_find_slot_prefix (d:disk) (blk:Z) (name:name_t) (i:Z) (r:Z) : Prop :=
++  (0 <= i <= 16) /\
++  UnixFs.Dir.fscan disk name_t slot_inode slot_name eqn d blk name (Z.to_nat i) (-1) = r.
++
++(* Base: prefix 0 has result -1 (the loop init). *)
++Theorem dir_find_slot_prefix_base :
++  forall d blk name, dir_find_slot_prefix d blk name 0 (-1).
++Proof. intros. unfold dir_find_slot_prefix. simpl. split; [lia | reflexivity]. Qed.
++
++(* Step: the loop-body update. From prefix i with result r, peeling slot i
++   (zi = i) gives prefix (i+1) with the body's `if` update. This is EXACTLY
++   the loop body `if name==pathname and inode!=0: found = i` (when matched,
++   found becomes the INDEX i, not the inode). *)
++Theorem dir_find_slot_prefix_step :
++  forall d blk name i r,
++    0 <= i < 16 ->
++    dir_find_slot_prefix d blk name i r ->
++    ( (slot_inode d blk i <> 0 /\ slot_inode d blk i < 32 /\ slot_name d blk i = name)
++        -> dir_find_slot_prefix d blk name (i+1) i ) /\
++    ( ~(slot_inode d blk i <> 0 /\ slot_inode d blk i < 32 /\ slot_name d blk i = name)
++        -> dir_find_slot_prefix d blk name (i+1) r ).
++Proof.
++  intros d blk name i r Hi [Hib Hpre].
++  assert (Hni : Z.to_nat (i+1) = S (Z.to_nat i)).
++  { rewrite Z2Nat.inj_add by lia. simpl. lia. }
++  assert (Hzi : Z.of_nat (Z.to_nat i) = i) by (rewrite Z2Nat.id; lia).
++  split.
++  - intros [Hne [Hlt Hnm]]. unfold dir_find_slot_prefix. split; [lia|].
++    rewrite Hni. simpl. rewrite Hpre. rewrite Hzi.
++    assert (Hg: andb (negb (Z.eqb (slot_inode d blk i) 0))
++                     (andb (Z.ltb (slot_inode d blk i) 32)
++                           (eqn (slot_name d blk i) name)) = true).
++    { apply andb_true_iff. split.
++      - apply negb_true_iff. apply Z.eqb_neq. exact Hne.
++      - apply andb_true_iff. split. apply Z.ltb_lt. exact Hlt. apply eqn_spec. exact Hnm. }
++    rewrite Hg. reflexivity.
++  - intros Hno. unfold dir_find_slot_prefix. split; [lia|].
++    rewrite Hni. simpl. rewrite Hpre. rewrite Hzi.
++    assert (Hg: andb (negb (Z.eqb (slot_inode d blk i) 0))
++                     (andb (Z.ltb (slot_inode d blk i) 32)
++                           (eqn (slot_name d blk i) name)) = false).
++    { destruct (andb (negb (Z.eqb (slot_inode d blk i) 0))
++                     (andb (Z.ltb (slot_inode d blk i) 32)
++                           (eqn (slot_name d blk i) name))) eqn:E; [|reflexivity].
++      exfalso. apply Hno.
++      apply andb_true_iff in E. destruct E as [E1 E2].
++      apply andb_true_iff in E2. destruct E2 as [E2 E3].
++      apply negb_true_iff in E1. apply Z.eqb_neq in E1.
++      apply Z.ltb_lt in E2. apply eqn_spec in E3. tauto. }
++    rewrite Hg. reflexivity.
++Qed.
++
++(* Closeout: prefix 16 is the full dir_find_slot value, folded to the result
++   marker. *)
++Theorem dir_find_slot_prefix_close :
++  forall d blk name r,
++    dir_find_slot_prefix d blk name 16 r ->
++    UnixFs.Dir.dir_find_slot_result disk name_t slot_inode slot_name eqn d blk name r.
++Proof.
++  intros d blk name r [_ H]. unfold UnixFs.Dir.dir_find_slot_result.
++  simpl in H. exact H.
++Qed.
++
++End P.
++End Prefix.

@@ -1,0 +1,38 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "Closed under the global context\n",
+  "compile_stderr": "",
+  "elapsed_compile_s": 1.0550511670007836,
+  "qualname_results": [
+    [
+      "Pycsl.Strmod.StrLen.length_nonneg",
+      true,
+      []
+    ],
+    [
+      "Pycsl.Strmod.StrLen.length_nonneg",
+      true,
+      []
+    ],
+    [
+      "Pycsl.Strmod.StrLen.length_nonneg",
+      true,
+      []
+    ],
+    [
+      "Pycsl.Strmod.StrLen.length_nonneg",
+      true,
+      []
+    ],
+    [
+      "Pycsl.Strmod.StrLen.length_nonneg",
+      true,
+      []
+    ],
+    [
+      "Pycsl.Strmod.StrLen.length_nonneg",
+      true,
+      []
+    ]
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "",
+  "compile_stderr": "Warning: Cannot open unix-filesystem/UnixInodeFileSystem.proofs/rocq\n[cannot-open-path,filesystem,default]\n",
+  "elapsed_compile_s": 1.6211248689796776,
+  "qualname_results": [
+    [
+      "UnixFs.Bitmap.bit_and_one_in_zero_one",
+      true,
+      []
+    ]
+  ]
+}

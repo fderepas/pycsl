@@ -1,0 +1,4531 @@
+[*] Parsing and Semantic Analysis for 'pure_lib/os/__init__.py'...
+[*] Memory model: hoare
+[*] Imported class from 'UnixInodeFileSystem': UnixInodeFileSystem (record + 46 method stub(s) + 14 helper(s))
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.2, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_6217edto.mlw", line 22, characters 4-11:
+Sub-goal Precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.01s, 1377 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 21, characters 14-30:
+Sub-goal Postcondition of goal pycsl_div'vc.
+Prover result is: Valid (0.01s, 1672 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 27, characters 4-11:
+Sub-goal Precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 1377 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 26, characters 14-30:
+Sub-goal Postcondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.01s, 1517 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 66, characters 16-60:
+Sub-goal Type invariant of goal direntry'vc.
+Prover result is: Valid (0.01s, 2591 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 84, characters 197-214:
+Sub-goal Array creation size of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 2606 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 84, characters 167-184:
+Sub-goal Array creation size of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 2800 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 84, characters 136-153:
+Sub-goal Array creation size of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 2846 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 84, characters 106-123:
+Sub-goal Array creation size of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 2892 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 84, characters 76-93:
+Sub-goal Array creation size of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 2938 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 84, characters 45-64:
+Sub-goal Array creation size of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 2984 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 84, characters 16-37:
+Sub-goal Array creation size of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 3030 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 70, characters 16-47:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 4484 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 71, characters 16-44:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 4517 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 72, characters 16-40:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.03s, 31682 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 73, characters 16-45:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 3099 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 74, characters 16-46:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 3108 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 75, characters 16-47:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 3117 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 76, characters 16-46:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 3126 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 77, characters 16-46:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 3135 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 78, characters 16-30:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 3140 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 79, characters 16-30:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 3145 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 80, characters 16-30:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 3150 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 81, characters 16-35:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.01s, 3155 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 82, characters 16-26:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.02s, 31959 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 83, characters 16-32:
+Sub-goal Type invariant of goal unixinodefilesystem'vc.
+Prover result is: Valid (0.02s, 32028 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 166, characters 232-249:
+Sub-goal Array creation size of goal _filesystem'vc.
+Prover result is: Valid (0.01s, 2870 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 166, characters 202-219:
+Sub-goal Array creation size of goal _filesystem'vc.
+Prover result is: Valid (0.01s, 3036 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 166, characters 171-188:
+Sub-goal Array creation size of goal _filesystem'vc.
+Prover result is: Valid (0.01s, 3082 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 166, characters 141-158:
+Sub-goal Array creation size of goal _filesystem'vc.
+Prover result is: Valid (0.01s, 3128 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 166, characters 111-128:
+Sub-goal Array creation size of goal _filesystem'vc.
+Prover result is: Valid (0.01s, 3174 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 166, characters 80-99:
+Sub-goal Array creation size of goal _filesystem'vc.
+Prover result is: Valid (0.01s, 3220 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 166, characters 51-72:
+Sub-goal Array creation size of goal _filesystem'vc.
+Prover result is: Valid (0.01s, 3266 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 166, characters 42-320:
+Sub-goal Precondition of goal _filesystem'vc.
+Prover result is: Valid (0.01s, 4800 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 166, characters 42-320:
+Sub-goal Precondition of goal _filesystem'vc.
+Prover result is: Valid (0.01s, 4833 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 166, characters 42-320:
+Sub-goal Precondition of goal _filesystem'vc.
+Prover result is: Valid (0.02s, 33946 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 166, characters 42-320:
+Sub-goal Precondition of goal _filesystem'vc.
+Prover result is: Valid (0.01s, 3335 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 166, characters 42-320:
+Sub-goal Precondition of goal _filesystem'vc.
+Prover result is: Valid (0.01s, 3344 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 166, characters 42-320:
+Sub-goal Precondition of goal _filesystem'vc.
+Prover result is: Valid (0.01s, 3353 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 166, characters 42-320:
+Sub-goal Precondition of goal _filesystem'vc.
+Prover result is: Valid (0.01s, 3362 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 166, characters 42-320:
+Sub-goal Precondition of goal _filesystem'vc.
+Prover result is: Valid (0.01s, 3371 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 166, characters 42-320:
+Sub-goal Precondition of goal _filesystem'vc.
+Prover result is: Valid (0.01s, 3376 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 166, characters 42-320:
+Sub-goal Precondition of goal _filesystem'vc.
+Prover result is: Valid (0.01s, 3381 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 166, characters 42-320:
+Sub-goal Precondition of goal _filesystem'vc.
+Prover result is: Valid (0.01s, 3386 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 166, characters 42-320:
+Sub-goal Precondition of goal _filesystem'vc.
+Prover result is: Valid (0.01s, 3391 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 166, characters 42-320:
+Sub-goal Precondition of goal _filesystem'vc.
+Prover result is: Valid (0.03s, 34223 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 166, characters 42-320:
+Sub-goal Precondition of goal _filesystem'vc.
+Prover result is: Valid (0.03s, 34292 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 186, characters 15-27:
+Sub-goal Postcondition of goal _kill'vc.
+Prover result is: Valid (0.01s, 2876 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 434, characters 15-45:
+Sub-goal Postcondition of goal access'vc.
+Prover result is: Valid (0.01s, 3024 steps).
+
+File /tmp/.pycsl_6217edto.mlw:
+Sub-goal Postcondition of goal access'vc.
+Prover result is: Valid (0.01s, 4372 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 434, characters 15-45:
+Sub-goal Postcondition of goal access'vc.
+Prover result is: Valid (0.01s, 3024 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 435, characters 15-80:
+Sub-goal Postcondition of goal access'vc.
+Prover result is: Valid (0.01s, 4381 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 449, characters 15-27:
+Sub-goal Postcondition of goal chflags'vc.
+Prover result is: Valid (0.01s, 2866 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 455, characters 15-49:
+Sub-goal Postcondition of goal chmod'vc.
+Prover result is: Valid (0.01s, 4535 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 465, characters 26-49:
+Sub-goal Index in array bounds of goal close'vc.
+Prover result is: Valid (0.02s, 33960 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 466, characters 6-34:
+Sub-goal Index in array bounds of goal close'vc.
+Prover result is: Valid (0.03s, 37621 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 463, character 4 to line 472, character 26:
+Sub-goal Type invariant of goal close'vc.
+Prover result is: Valid (0.03s, 36055 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 463, character 4 to line 472, character 26:
+Sub-goal Type invariant of goal close'vc.
+Prover result is: Valid (0.03s, 36209 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 463, character 4 to line 472, character 26:
+Sub-goal Type invariant of goal close'vc.
+Prover result is: Valid (0.02s, 36344 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 463, character 4 to line 472, character 26:
+Sub-goal Type invariant of goal close'vc.
+Prover result is: Valid (0.03s, 37979 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 463, character 4 to line 472, character 26:
+Sub-goal Type invariant of goal close'vc.
+Prover result is: Valid (0.02s, 36581 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 463, character 4 to line 472, character 26:
+Sub-goal Type invariant of goal close'vc.
+Prover result is: Valid (0.02s, 36738 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 463, character 4 to line 472, character 26:
+Sub-goal Type invariant of goal close'vc.
+Prover result is: Valid (0.02s, 36895 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 463, character 4 to line 472, character 26:
+Sub-goal Type invariant of goal close'vc.
+Prover result is: Valid (0.02s, 37052 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 463, character 4 to line 472, character 26:
+Sub-goal Type invariant of goal close'vc.
+Prover result is: Valid (0.03s, 37155 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 463, character 4 to line 472, character 26:
+Sub-goal Type invariant of goal close'vc.
+Prover result is: Valid (0.03s, 37260 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 463, character 4 to line 472, character 26:
+Sub-goal Type invariant of goal close'vc.
+Prover result is: Valid (0.02s, 37363 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 463, character 4 to line 472, character 26:
+Sub-goal Type invariant of goal close'vc.
+Prover result is: Valid (0.02s, 37466 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 463, character 4 to line 472, character 26:
+Sub-goal Type invariant of goal close'vc.
+Prover result is: Valid (0.02s, 37579 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 463, character 4 to line 472, character 26:
+Sub-goal Type invariant of goal close'vc.
+Prover result is: Valid (0.02s, 37655 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 461, characters 15-49:
+Sub-goal Postcondition of goal close'vc.
+Prover result is: Valid (0.01s, 3452 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 461, characters 15-49:
+Sub-goal Postcondition of goal close'vc.
+Prover result is: Valid (0.01s, 3209 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 476, characters 15-27:
+Sub-goal Postcondition of goal confstr'vc.
+Prover result is: Valid (0.01s, 2866 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 482, characters 15-27:
+Sub-goal Postcondition of goal copy_file_range'vc.
+Prover result is: Valid (0.01s, 2871 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 488, characters 15-45:
+Sub-goal Postcondition of goal direntry__is_dir'vc.
+Prover result is: Valid (0.01s, 2962 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 488, characters 15-45:
+Sub-goal Postcondition of goal direntry__is_dir'vc.
+Prover result is: Valid (0.01s, 2960 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 488, characters 15-45:
+Sub-goal Postcondition of goal direntry__is_dir'vc.
+Prover result is: Valid (0.01s, 2969 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 506, characters 15-45:
+Sub-goal Postcondition of goal direntry__is_file'vc.
+Prover result is: Valid (0.01s, 2962 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 506, characters 15-45:
+Sub-goal Postcondition of goal direntry__is_file'vc.
+Prover result is: Valid (0.01s, 2960 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 506, characters 15-45:
+Sub-goal Postcondition of goal direntry__is_file'vc.
+Prover result is: Valid (0.01s, 2969 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 524, characters 15-27:
+Sub-goal Postcondition of goal direntry__is_junction'vc.
+Prover result is: Valid (0.01s, 2905 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 530, characters 15-45:
+Sub-goal Postcondition of goal direntry__is_symlink'vc.
+Prover result is: Valid (0.01s, 2962 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 530, characters 15-45:
+Sub-goal Postcondition of goal direntry__is_symlink'vc.
+Prover result is: Valid (0.01s, 2960 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 530, characters 15-45:
+Sub-goal Postcondition of goal direntry__is_symlink'vc.
+Prover result is: Valid (0.01s, 2969 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 548, characters 15-50:
+Sub-goal Postcondition of goal dup'vc.
+Prover result is: Valid (0.01s, 4980 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 549, characters 72-85:
+Sub-goal Postcondition of goal dup'vc.
+Prover result is: Valid (0.01s, 4957 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 550, characters 33-100:
+Sub-goal Postcondition of goal dup'vc.
+Prover result is: Valid (0.01s, 4997 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 551, characters 33-68:
+Sub-goal Postcondition of goal dup'vc.
+Prover result is: Valid (0.01s, 5006 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 552, characters 33-46:
+Sub-goal Postcondition of goal dup'vc.
+Prover result is: Valid (0.01s, 5017 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 553, characters 123-203:
+Sub-goal Postcondition of goal dup'vc.
+Prover result is: Valid (0.01s, 5038 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 559, characters 15-34:
+Sub-goal Postcondition of goal fsdecode'vc.
+Prover result is: Valid (0.01s, 2866 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 565, characters 15-34:
+Sub-goal Postcondition of goal fsencode'vc.
+Prover result is: Valid (0.01s, 2866 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 571, characters 15-34:
+Sub-goal Postcondition of goal fspath'vc.
+Prover result is: Valid (0.01s, 2866 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 577, characters 15-69:
+Sub-goal Postcondition of goal fstat'vc.
+Prover result is: Valid (0.01s, 2995 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 578, characters 144-181:
+Sub-goal Postcondition of goal fstat'vc.
+Prover result is: Valid (0.01s, 3183 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 586, characters 10-33:
+Sub-goal Index in array bounds of goal fstat'vc.
+Prover result is: Valid (0.02s, 33956 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 577, characters 15-69:
+Sub-goal Postcondition of goal fstat'vc.
+Prover result is: Valid (0.01s, 3139 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 578, characters 144-181:
+Sub-goal Postcondition of goal fstat'vc.
+Prover result is: Valid (0.01s, 4598 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 589, characters 27-51:
+Sub-goal Index in array bounds of goal fstat'vc.
+Prover result is: Valid (0.02s, 31940 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 577, characters 15-69:
+Sub-goal Postcondition of goal fstat'vc.
+Prover result is: Valid (0.01s, 3209 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 578, characters 144-181:
+Sub-goal Postcondition of goal fstat'vc.
+Prover result is: Valid (0.01s, 18535 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 577, characters 15-69:
+Sub-goal Postcondition of goal fstat'vc.
+Prover result is: Valid (0.01s, 17106 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 578, characters 144-181:
+Sub-goal Postcondition of goal fstat'vc.
+Prover result is: Valid (0.01s, 11103 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 602, characters 15-27:
+Sub-goal Postcondition of goal get_exec_path'vc.
+Prover result is: Valid (0.01s, 2866 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 608, characters 15-27:
+Sub-goal Postcondition of goal getcwd'vc.
+Prover result is: Valid (0.01s, 2866 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 614, characters 15-33:
+Sub-goal Postcondition of goal getenv'vc.
+Prover result is: Valid (0.01s, 2866 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 620, characters 15-27:
+Sub-goal Postcondition of goal getpid'vc.
+Prover result is: Valid (0.01s, 2866 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 626, characters 15-27:
+Sub-goal Postcondition of goal getxattr'vc.
+Prover result is: Valid (0.01s, 2866 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 632, characters 15-27:
+Sub-goal Postcondition of goal islink'vc.
+Prover result is: Valid (0.01s, 2866 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 638, characters 15-49:
+Sub-goal Postcondition of goal link'vc.
+Prover result is: Valid (0.01s, 4564 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 639, characters 32-73:
+Sub-goal Postcondition of goal link'vc.
+Prover result is: Valid (0.01s, 4572 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 666, characters 18-67:
+Sub-goal Loop invariant init of goal listdir'vc.
+Prover result is: Valid (0.01s, 3015 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 667, characters 18-93:
+Sub-goal Loop invariant init of goal listdir'vc.
+Prover result is: Valid (0.01s, 3042 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 671, characters 25-132:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.02s, 34747 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 672, characters 44-75:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.01s, 4794 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 668, characters 16-37:
+Sub-goal Loop variant decrease of goal listdir'vc.
+Prover result is: Valid (0.01s, 13218 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 666, characters 18-67:
+Sub-goal Loop invariant preservation of goal listdir'vc.
+Prover result is: Valid (0.03s, 42474 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 667, characters 18-93:
+Sub-goal Loop invariant preservation of goal listdir'vc.
+Prover result is: Valid (0.01s, 25852 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 668, characters 16-37:
+Sub-goal Loop variant decrease of goal listdir'vc.
+Prover result is: Valid (0.01s, 11721 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 666, characters 18-67:
+Sub-goal Loop invariant preservation of goal listdir'vc.
+Prover result is: Valid (0.03s, 37851 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 667, characters 18-93:
+Sub-goal Loop invariant preservation of goal listdir'vc.
+Prover result is: Valid (0.01s, 5123 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 645, characters 15-44:
+Sub-goal Postcondition of goal listdir'vc.
+Prover result is: Valid (0.01s, 6227 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 690, characters 31-121:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.02s, 40425 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.01s, 4982 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.02s, 43141 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 43290 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 43784 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.02s, 44278 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.02s, 44772 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 45266 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 45760 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 46254 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.02s, 46748 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 47242 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.02s, 47736 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 48230 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 48724 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.02s, 49218 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 49712 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 50207 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.02s, 50701 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 51195 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 51689 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 52183 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.02s, 52678 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 53172 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 53666 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 54160 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 54654 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 55148 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 55642 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 56136 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 56630 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 57124 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 57618 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 58112 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 58607 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 59101 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 59596 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 60090 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 60584 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 61078 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 61572 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 62066 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 62561 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 63055 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 63549 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 64043 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 64537 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.06s, 65031 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 65525 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 66019 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 66513 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 67008 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 67502 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 67997 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 68491 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 68985 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 69479 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 69973 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 70467 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 70961 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 71455 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 71949 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 72443 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 72938 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 73432 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 73926 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 693, characters 10-18:
+Sub-goal Index in array bounds of goal listdir'vc.
+Prover result is: Valid (0.01s, 6405 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 645, characters 15-44:
+Sub-goal Postcondition of goal listdir'vc.
+Prover result is: Valid (0.01s, 8101 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 696, characters 19-27:
+Sub-goal Index in array bounds of goal listdir'vc.
+Prover result is: Valid (0.01s, 6416 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 708, characters 22-94:
+Sub-goal Loop invariant init of goal listdir'vc.
+Prover result is: Valid (0.01s, 7507 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 709, characters 22-57:
+Sub-goal Loop invariant init of goal listdir'vc.
+Prover result is: Valid (0.01s, 4335 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 713, characters 28-115:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 65090 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 714, characters 48-78:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.01s, 6902 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 710, characters 20-34:
+Sub-goal Loop variant decrease of goal listdir'vc.
+Prover result is: Valid (0.02s, 22372 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 708, characters 22-94:
+Sub-goal Loop invariant preservation of goal listdir'vc.
+Prover result is: Valid (0.04s, 72289 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 709, characters 22-57:
+Sub-goal Loop invariant preservation of goal listdir'vc.
+Prover result is: Valid (0.04s, 72072 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 710, characters 20-34:
+Sub-goal Loop variant decrease of goal listdir'vc.
+Prover result is: Valid (0.02s, 19045 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 708, characters 22-94:
+Sub-goal Loop invariant preservation of goal listdir'vc.
+Prover result is: Valid (0.03s, 55698 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 709, characters 22-57:
+Sub-goal Loop invariant preservation of goal listdir'vc.
+Prover result is: Valid (0.03s, 60126 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 645, characters 15-44:
+Sub-goal Postcondition of goal listdir'vc.
+Prover result is: Valid (0.02s, 34386 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 645, characters 15-44:
+Sub-goal Postcondition of goal listdir'vc.
+Prover result is: Valid (0.01s, 4685 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 708, characters 22-94:
+Sub-goal Loop invariant init of goal listdir'vc.
+Prover result is: Valid (0.01s, 7491 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 709, characters 22-57:
+Sub-goal Loop invariant init of goal listdir'vc.
+Prover result is: Valid (0.01s, 4323 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 713, characters 28-115:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 69214 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 714, characters 48-78:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.01s, 6886 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 710, characters 20-34:
+Sub-goal Loop variant decrease of goal listdir'vc.
+Prover result is: Valid (0.02s, 22337 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 708, characters 22-94:
+Sub-goal Loop invariant preservation of goal listdir'vc.
+Prover result is: Valid (0.04s, 77313 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 709, characters 22-57:
+Sub-goal Loop invariant preservation of goal listdir'vc.
+Prover result is: Valid (0.04s, 77108 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 710, characters 20-34:
+Sub-goal Loop variant decrease of goal listdir'vc.
+Prover result is: Valid (0.02s, 19010 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 708, characters 22-94:
+Sub-goal Loop invariant preservation of goal listdir'vc.
+Prover result is: Valid (0.03s, 59812 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 709, characters 22-57:
+Sub-goal Loop invariant preservation of goal listdir'vc.
+Prover result is: Valid (0.03s, 64264 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 645, characters 15-44:
+Sub-goal Postcondition of goal listdir'vc.
+Prover result is: Valid (0.02s, 34378 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 645, characters 15-44:
+Sub-goal Postcondition of goal listdir'vc.
+Prover result is: Valid (0.01s, 6232 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 690, characters 31-121:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.02s, 39968 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.01s, 4962 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.02s, 42220 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 42712 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 43518 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 43810 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 44359 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 44908 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 45457 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 46006 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 46555 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 47104 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 47653 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 48202 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 48751 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 49300 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 49849 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 50399 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 50948 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 51497 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 52046 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 52595 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 53145 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 53694 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 54243 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 54792 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 55341 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.02s, 55890 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 56439 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 56988 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 57537 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 58086 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 58635 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 59184 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 59734 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 60283 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 60832 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 61381 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 61930 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 62479 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 63028 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 63577 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 64127 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 64676 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 65225 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 65774 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 66323 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 66872 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 67421 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 67970 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 68519 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 69069 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 69618 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.05s, 70169 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 70718 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 71267 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 71816 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 72365 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 72914 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 73463 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 74012 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 74561 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 75110 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.04s, 75660 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.05s, 76209 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 691, characters 28-62:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 76758 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 693, characters 10-18:
+Sub-goal Index in array bounds of goal listdir'vc.
+Prover result is: Valid (0.01s, 6385 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 645, characters 15-44:
+Sub-goal Postcondition of goal listdir'vc.
+Prover result is: Valid (0.01s, 8079 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 696, characters 19-27:
+Sub-goal Index in array bounds of goal listdir'vc.
+Prover result is: Valid (0.01s, 6396 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 708, characters 22-94:
+Sub-goal Loop invariant init of goal listdir'vc.
+Prover result is: Valid (0.01s, 7489 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 709, characters 22-57:
+Sub-goal Loop invariant init of goal listdir'vc.
+Prover result is: Valid (0.01s, 4318 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 713, characters 28-115:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 64978 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 714, characters 48-78:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.02s, 6886 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 710, characters 20-34:
+Sub-goal Loop variant decrease of goal listdir'vc.
+Prover result is: Valid (0.02s, 22335 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 708, characters 22-94:
+Sub-goal Loop invariant preservation of goal listdir'vc.
+Prover result is: Valid (0.04s, 72155 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 709, characters 22-57:
+Sub-goal Loop invariant preservation of goal listdir'vc.
+Prover result is: Valid (0.03s, 71940 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 710, characters 20-34:
+Sub-goal Loop variant decrease of goal listdir'vc.
+Prover result is: Valid (0.01s, 19008 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 708, characters 22-94:
+Sub-goal Loop invariant preservation of goal listdir'vc.
+Prover result is: Valid (0.03s, 55600 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 709, characters 22-57:
+Sub-goal Loop invariant preservation of goal listdir'vc.
+Prover result is: Valid (0.04s, 60026 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 645, characters 15-44:
+Sub-goal Postcondition of goal listdir'vc.
+Prover result is: Valid (0.02s, 36273 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 645, characters 15-44:
+Sub-goal Postcondition of goal listdir'vc.
+Prover result is: Valid (0.01s, 8172 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 708, characters 22-94:
+Sub-goal Loop invariant init of goal listdir'vc.
+Prover result is: Valid (0.01s, 7469 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 709, characters 22-57:
+Sub-goal Loop invariant init of goal listdir'vc.
+Prover result is: Valid (0.01s, 4306 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 713, characters 28-115:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.03s, 67499 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 714, characters 48-78:
+Sub-goal Precondition of goal listdir'vc.
+Prover result is: Valid (0.01s, 6866 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 710, characters 20-34:
+Sub-goal Loop variant decrease of goal listdir'vc.
+Prover result is: Valid (0.01s, 22359 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 708, characters 22-94:
+Sub-goal Loop invariant preservation of goal listdir'vc.
+Prover result is: Valid (0.04s, 75444 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 709, characters 22-57:
+Sub-goal Loop invariant preservation of goal listdir'vc.
+Prover result is: Valid (0.04s, 75237 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 710, characters 20-34:
+Sub-goal Loop variant decrease of goal listdir'vc.
+Prover result is: Valid (0.02s, 18574 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 708, characters 22-94:
+Sub-goal Loop invariant preservation of goal listdir'vc.
+Prover result is: Valid (0.03s, 57893 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 709, characters 22-57:
+Sub-goal Loop invariant preservation of goal listdir'vc.
+Prover result is: Valid (0.03s, 62335 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 645, characters 15-44:
+Sub-goal Postcondition of goal listdir'vc.
+Prover result is: Valid (0.02s, 32088 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 730, characters 15-27:
+Sub-goal Postcondition of goal listxattr'vc.
+Prover result is: Valid (0.01s, 2866 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 737, characters 15-32:
+Sub-goal Postcondition of goal lseek'vc.
+Prover result is: Valid (0.01s, 3013 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 746, characters 10-33:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.02s, 34100 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 737, characters 15-32:
+Sub-goal Postcondition of goal lseek'vc.
+Prover result is: Valid (0.01s, 3157 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 749, character 26 to line 751, character 11:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.02s, 34770 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 767, characters 12-37:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.03s, 37615 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 767, character 48 to line 769, character 11:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.03s, 37790 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 770, characters 26-51:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.02s, 38217 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 38230 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 38383 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 38519 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 38638 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 38796 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 38885 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 37466 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 37619 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 37720 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 37823 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 37924 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 38025 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 38136 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 38210 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 737, characters 15-32:
+Sub-goal Postcondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 40257 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 770, characters 26-51:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.03s, 37751 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 36190 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 36340 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 36473 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 36587 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 36740 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 38404 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 36995 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 37148 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 37249 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 37352 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 37453 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 37554 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 37665 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 37739 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 737, characters 15-32:
+Sub-goal Postcondition of goal lseek'vc.
+Prover result is: Valid (0.02s, 39075 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 753, characters 42-67:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.02s, 34803 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 752, character 28 to line 754, character 13:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.03s, 34803 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 767, characters 12-37:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.02s, 39180 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 767, character 48 to line 769, character 11:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.03s, 39371 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 770, characters 26-51:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.02s, 39850 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 39869 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 40028 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.04s, 40166 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 40289 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 40453 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 40554 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 39131 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 39290 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 39395 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 39502 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 39607 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 39712 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 39825 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 39901 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 737, characters 15-32:
+Sub-goal Postcondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 41972 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 770, characters 26-51:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.02s, 39330 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 37773 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 37929 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 38064 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 38182 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 38341 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 40019 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 38616 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 38775 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 38880 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 38987 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 39092 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 39197 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 39310 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 39386 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 737, characters 15-32:
+Sub-goal Postcondition of goal lseek'vc.
+Prover result is: Valid (0.02s, 40740 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 756, characters 33-57:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.03s, 34826 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 759, characters 40-127:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.02s, 35571 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.01s, 4892 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 37255 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 37680 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.02s, 38157 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.02s, 38634 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 39111 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 39588 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 40065 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 40542 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 41019 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 41496 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.02s, 41973 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 42450 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 42927 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 43404 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 43882 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 44360 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 44837 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 45314 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 45791 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 46268 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 46745 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 47222 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 47699 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 48176 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 48653 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 49130 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 49607 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 50084 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 50562 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 51039 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 51516 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 51993 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 52470 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 52947 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 53424 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 53901 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 54379 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 54856 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 55333 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 55810 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 56287 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 56764 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 57241 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 57719 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 58196 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 58673 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.05s, 59150 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 59627 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 60104 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 60582 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 61059 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 61536 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 62013 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 62490 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.05s, 62967 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 63444 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 63922 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.06s, 64400 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.05s, 64877 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 65354 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 65831 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 66308 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 66785 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 760, characters 37-70:
+Sub-goal Precondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 67262 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 762, characters 46-60:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.02s, 6315 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 762, characters 16-67:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.03s, 49114 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 767, characters 12-37:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.03s, 53330 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 767, character 48 to line 769, character 11:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.04s, 53525 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 770, characters 26-51:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.04s, 54026 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 53759 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 53922 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 54062 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 54189 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.04s, 54326 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.04s, 54427 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 53109 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 53272 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 53379 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.04s, 53488 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 53595 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 53702 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 53817 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 53895 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 737, characters 15-32:
+Sub-goal Postcondition of goal lseek'vc.
+Prover result is: Valid (0.04s, 56168 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 770, characters 26-51:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.04s, 53482 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 51376 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 51536 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 51673 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 51795 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 51927 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 53866 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 52566 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 52729 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.04s, 52836 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 52945 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 53052 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 53159 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.04s, 53274 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 53352 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 737, characters 15-32:
+Sub-goal Postcondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 51303 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 767, characters 12-37:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.02s, 35281 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 767, character 48 to line 769, character 11:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.02s, 35474 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 770, characters 26-51:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.03s, 38323 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 36755 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 36905 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 37038 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 37152 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 37277 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 38952 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 37536 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 37689 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 37790 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 37893 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 37994 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 38095 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 38206 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 38280 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 737, characters 15-32:
+Sub-goal Postcondition of goal lseek'vc.
+Prover result is: Valid (0.02s, 40313 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 770, characters 26-51:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.03s, 35437 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 737, characters 15-32:
+Sub-goal Postcondition of goal lseek'vc.
+Prover result is: Valid (0.02s, 35057 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 767, characters 12-37:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.02s, 32364 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 767, character 48 to line 769, character 11:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.02s, 32549 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 770, characters 26-51:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.02s, 35325 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 33753 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 33891 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 34020 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 34124 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 34265 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 35948 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 35946 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 36093 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 36190 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 36289 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 36386 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.03s, 36483 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.04s, 36594 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 739, character 4 to line 774, character 26:
+Sub-goal Type invariant of goal lseek'vc.
+Prover result is: Valid (0.02s, 36666 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 737, characters 15-32:
+Sub-goal Postcondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 37116 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 770, characters 26-51:
+Sub-goal Index in array bounds of goal lseek'vc.
+Prover result is: Valid (0.02s, 32514 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 737, characters 15-32:
+Sub-goal Postcondition of goal lseek'vc.
+Prover result is: Valid (0.03s, 32154 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 778, characters 15-69:
+Sub-goal Postcondition of goal lstat'vc.
+Prover result is: Valid (0.01s, 4430 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 779, characters 66-98:
+Sub-goal Postcondition of goal lstat'vc.
+Prover result is: Valid (0.01s, 4434 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 780, characters 65-81:
+Sub-goal Postcondition of goal lstat'vc.
+Prover result is: Valid (0.01s, 4429 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 786, characters 15-49:
+Sub-goal Postcondition of goal makedirs'vc.
+Prover result is: Valid (0.01s, 3006 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 787, characters 32-74:
+Sub-goal Postcondition of goal makedirs'vc.
+Prover result is: Valid (0.01s, 3013 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 786, characters 15-49:
+Sub-goal Postcondition of goal makedirs'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 787, characters 32-74:
+Sub-goal Postcondition of goal makedirs'vc.
+Prover result is: Valid (0.01s, 4708 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 786, characters 15-49:
+Sub-goal Postcondition of goal makedirs'vc.
+Prover result is: Valid (0.01s, 4569 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 787, characters 32-74:
+Sub-goal Postcondition of goal makedirs'vc.
+Prover result is: Valid (0.01s, 4577 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 800, characters 15-49:
+Sub-goal Postcondition of goal mkdir'vc.
+Prover result is: Valid (0.01s, 4562 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 801, characters 32-78:
+Sub-goal Postcondition of goal mkdir'vc.
+Prover result is: Valid (0.01s, 4570 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 809, characters 15-50:
+Sub-goal Postcondition of goal open'vc.
+Prover result is: Valid (0.01s, 4911 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 810, characters 15-81:
+Sub-goal Postcondition of goal open'vc.
+Prover result is: Valid (0.01s, 3398 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 811, characters 15-83:
+Sub-goal Postcondition of goal open'vc.
+Prover result is: Valid (0.01s, 3407 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 812, characters 33-253:
+Sub-goal Postcondition of goal open'vc.
+Prover result is: Valid (0.01s, 6497 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 819, characters 15-69:
+Sub-goal Postcondition of goal read'vc.
+Prover result is: Valid (0.01s, 3000 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 820, characters 33-46:
+Sub-goal Postcondition of goal read'vc.
+Prover result is: Valid (0.01s, 3006 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 821, characters 327-394:
+Sub-goal Postcondition of goal read'vc.
+Prover result is: Valid (0.01s, 3307 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 833, characters 10-33:
+Sub-goal Index in array bounds of goal read'vc.
+Prover result is: Valid (0.02s, 34013 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 819, characters 15-69:
+Sub-goal Postcondition of goal read'vc.
+Prover result is: Valid (0.01s, 3144 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 820, characters 33-46:
+Sub-goal Postcondition of goal read'vc.
+Prover result is: Valid (0.01s, 3150 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 821, characters 327-394:
+Sub-goal Postcondition of goal read'vc.
+Prover result is: Valid (0.01s, 4766 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 836, characters 28-52:
+Sub-goal Index in array bounds of goal read'vc.
+Prover result is: Valid (0.02s, 34821 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 819, characters 15-69:
+Sub-goal Postcondition of goal read'vc.
+Prover result is: Valid (0.01s, 3214 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 820, characters 33-46:
+Sub-goal Postcondition of goal read'vc.
+Prover result is: Valid (0.01s, 3220 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 821, characters 327-394:
+Sub-goal Postcondition of goal read'vc.
+Prover result is: Valid (0.02s, 19246 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 841, characters 35-125:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 36878 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.01s, 4810 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.02s, 38566 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.02s, 38991 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 39468 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.02s, 39945 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 40422 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 40899 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.02s, 41376 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 41853 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 42330 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.02s, 42807 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 43284 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.02s, 43761 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 44238 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 44715 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 45193 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 45671 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 46148 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 46625 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 47102 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 47579 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 48056 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 48533 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 49010 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 49487 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 49964 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 50441 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 50918 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 51395 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 51873 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 52350 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 52827 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 53304 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 53781 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 54258 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 54735 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 55212 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 55690 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 56167 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 56644 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 57121 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 57598 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 58075 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 58552 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 59030 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 59507 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 59984 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 60461 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 60938 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 61415 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 61893 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 62370 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 62847 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.05s, 63324 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 63801 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 64278 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 64755 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.03s, 65233 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 65711 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 66188 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 66665 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 67142 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.05s, 67619 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 68096 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 842, characters 32-66:
+Sub-goal Precondition of goal read'vc.
+Prover result is: Valid (0.04s, 68573 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 844, characters 25-40:
+Sub-goal Index in array bounds of goal read'vc.
+Prover result is: Valid (0.01s, 6233 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 845, characters 42-67:
+Sub-goal Index in array bounds of goal read'vc.
+Prover result is: Valid (0.03s, 50474 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 853, characters 40-65:
+Sub-goal Index in array bounds of goal read'vc.
+Prover result is: Valid (0.03s, 51175 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 853, characters 10-78:
+Sub-goal Index in array bounds of goal read'vc.
+Prover result is: Valid (0.04s, 51175 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 51427 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 51582 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 51720 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 51841 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.04s, 51974 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 53920 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 52627 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 52787 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 52893 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 53001 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 53107 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 53213 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.04s, 53329 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 53408 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 819, characters 15-69:
+Sub-goal Postcondition of goal read'vc.
+Prover result is: Valid (0.01s, 7352 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 820, characters 33-46:
+Sub-goal Postcondition of goal read'vc.
+Prover result is: Valid (0.01s, 6862 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 821, characters 327-394:
+Sub-goal Postcondition of goal read'vc.
+Prover result is: Valid (0.03s, 57907 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 853, characters 40-65:
+Sub-goal Index in array bounds of goal read'vc.
+Prover result is: Valid (0.03s, 51021 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 853, characters 10-78:
+Sub-goal Index in array bounds of goal read'vc.
+Prover result is: Valid (0.03s, 51021 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 51297 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.04s, 51452 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 51590 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 51711 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 51844 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 53788 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 52495 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 52655 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 52761 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 52869 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 52975 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 53081 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 53197 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 53276 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 819, characters 15-69:
+Sub-goal Postcondition of goal read'vc.
+Prover result is: Valid (0.01s, 19715 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 820, characters 33-46:
+Sub-goal Postcondition of goal read'vc.
+Prover result is: Valid (0.01s, 7361 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 821, characters 327-394:
+Sub-goal Postcondition of goal read'vc.
+Prover result is: Valid (0.03s, 52770 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 853, characters 40-65:
+Sub-goal Index in array bounds of goal read'vc.
+Prover result is: Valid (0.03s, 51152 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 853, characters 10-78:
+Sub-goal Index in array bounds of goal read'vc.
+Prover result is: Valid (0.03s, 51152 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 51428 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 51583 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 51721 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 51842 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 51975 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.02s, 53929 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 52626 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 52786 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 52892 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 53000 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 53106 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.04s, 53212 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 53328 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 53407 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 819, characters 15-69:
+Sub-goal Postcondition of goal read'vc.
+Prover result is: Valid (0.03s, 51496 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 820, characters 33-46:
+Sub-goal Postcondition of goal read'vc.
+Prover result is: Valid (0.01s, 6963 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 821, characters 327-394:
+Sub-goal Postcondition of goal read'vc.
+Prover result is: Valid (0.03s, 59790 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 853, characters 40-65:
+Sub-goal Index in array bounds of goal read'vc.
+Prover result is: Valid (0.03s, 51074 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 853, characters 10-78:
+Sub-goal Index in array bounds of goal read'vc.
+Prover result is: Valid (0.03s, 51074 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.02s, 51370 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.02s, 51525 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 51663 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 51784 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 51917 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.04s, 53873 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 52562 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 52722 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 52828 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 52936 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 53042 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.03s, 53148 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.04s, 53264 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 823, character 4 to line 859, character 26:
+Sub-goal Type invariant of goal read'vc.
+Prover result is: Valid (0.04s, 53343 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 819, characters 15-69:
+Sub-goal Postcondition of goal read'vc.
+Prover result is: Valid (0.01s, 19927 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 820, characters 33-46:
+Sub-goal Postcondition of goal read'vc.
+Prover result is: Valid (0.01s, 7348 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 821, characters 327-394:
+Sub-goal Postcondition of goal read'vc.
+Prover result is: Valid (0.04s, 55682 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 863, characters 15-70:
+Sub-goal Postcondition of goal readlink'vc.
+Prover result is: Valid (0.01s, 4211 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 869, characters 15-49:
+Sub-goal Postcondition of goal remove'vc.
+Prover result is: Valid (0.01s, 4576 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 870, characters 32-77:
+Sub-goal Postcondition of goal remove'vc.
+Prover result is: Valid (0.01s, 4582 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 876, characters 15-49:
+Sub-goal Postcondition of goal rename'vc.
+Prover result is: Valid (0.01s, 4614 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 877, characters 32-73:
+Sub-goal Postcondition of goal rename'vc.
+Prover result is: Valid (0.01s, 4624 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 878, characters 32-72:
+Sub-goal Postcondition of goal rename'vc.
+Prover result is: Valid (0.01s, 4625 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 884, characters 15-49:
+Sub-goal Postcondition of goal rmdir'vc.
+Prover result is: Valid (0.01s, 4576 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 885, characters 32-77:
+Sub-goal Postcondition of goal rmdir'vc.
+Prover result is: Valid (0.01s, 4582 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 913, characters 18-67:
+Sub-goal Loop invariant init of goal scandir'vc.
+Prover result is: Valid (0.01s, 3015 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 914, characters 18-93:
+Sub-goal Loop invariant init of goal scandir'vc.
+Prover result is: Valid (0.01s, 3042 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 918, characters 25-132:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.02s, 34747 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 919, characters 44-75:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.01s, 4794 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 915, characters 16-37:
+Sub-goal Loop variant decrease of goal scandir'vc.
+Prover result is: Valid (0.01s, 13218 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 913, characters 18-67:
+Sub-goal Loop invariant preservation of goal scandir'vc.
+Prover result is: Valid (0.02s, 42474 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 914, characters 18-93:
+Sub-goal Loop invariant preservation of goal scandir'vc.
+Prover result is: Valid (0.02s, 25852 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 915, characters 16-37:
+Sub-goal Loop variant decrease of goal scandir'vc.
+Prover result is: Valid (0.01s, 11721 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 913, characters 18-67:
+Sub-goal Loop invariant preservation of goal scandir'vc.
+Prover result is: Valid (0.02s, 37851 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 914, characters 18-93:
+Sub-goal Loop invariant preservation of goal scandir'vc.
+Prover result is: Valid (0.01s, 5123 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 891, characters 15-44:
+Sub-goal Postcondition of goal scandir'vc.
+Prover result is: Valid (0.01s, 5865 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 937, characters 31-121:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.02s, 40425 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.01s, 4982 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 43141 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 43290 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.02s, 43784 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.02s, 44278 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.02s, 44772 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 45266 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 45760 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.02s, 46254 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 46748 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 47242 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 47736 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 48230 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 48724 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 49218 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 49712 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 50207 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 50701 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 51195 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 51689 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 52183 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 52678 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 53172 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 53666 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 54160 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 54654 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 55148 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 55642 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 56136 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 56630 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 57124 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 57618 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 58112 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 58607 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 59101 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 59596 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 60090 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 60584 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 61078 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 61572 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 62066 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 62561 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 63055 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 63549 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 64043 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 64537 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 65031 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 65525 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 66019 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 66513 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 67008 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 67502 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.05s, 67997 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 68491 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 68985 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 69479 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 69973 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 70467 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 70961 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 71455 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 71949 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 72443 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 72938 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 73432 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 73926 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 940, characters 10-18:
+Sub-goal Index in array bounds of goal scandir'vc.
+Prover result is: Valid (0.01s, 6405 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 891, characters 15-44:
+Sub-goal Postcondition of goal scandir'vc.
+Prover result is: Valid (0.01s, 7507 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 943, characters 19-27:
+Sub-goal Index in array bounds of goal scandir'vc.
+Prover result is: Valid (0.01s, 6416 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 955, characters 22-86:
+Sub-goal Loop invariant init of goal scandir'vc.
+Prover result is: Valid (0.01s, 7507 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 956, characters 22-57:
+Sub-goal Loop invariant init of goal scandir'vc.
+Prover result is: Valid (0.01s, 4335 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 960, characters 28-115:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 65090 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 961, characters 48-78:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.01s, 6902 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 957, characters 20-34:
+Sub-goal Loop variant decrease of goal scandir'vc.
+Prover result is: Valid (0.02s, 21964 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 955, characters 22-86:
+Sub-goal Loop invariant preservation of goal scandir'vc.
+Prover result is: Valid (0.03s, 70730 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 956, characters 22-57:
+Sub-goal Loop invariant preservation of goal scandir'vc.
+Prover result is: Valid (0.03s, 70517 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 957, characters 20-34:
+Sub-goal Loop variant decrease of goal scandir'vc.
+Prover result is: Valid (0.02s, 19045 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 955, characters 22-86:
+Sub-goal Loop invariant preservation of goal scandir'vc.
+Prover result is: Valid (0.03s, 55619 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 956, characters 22-57:
+Sub-goal Loop invariant preservation of goal scandir'vc.
+Prover result is: Valid (0.03s, 60043 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 891, characters 15-44:
+Sub-goal Postcondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 32000 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 891, characters 15-44:
+Sub-goal Postcondition of goal scandir'vc.
+Prover result is: Valid (0.01s, 4379 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 955, characters 22-86:
+Sub-goal Loop invariant init of goal scandir'vc.
+Prover result is: Valid (0.01s, 7491 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 956, characters 22-57:
+Sub-goal Loop invariant init of goal scandir'vc.
+Prover result is: Valid (0.01s, 4323 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 960, characters 28-115:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 69214 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 961, characters 48-78:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.01s, 6886 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 957, characters 20-34:
+Sub-goal Loop variant decrease of goal scandir'vc.
+Prover result is: Valid (0.02s, 21929 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 955, characters 22-86:
+Sub-goal Loop invariant preservation of goal scandir'vc.
+Prover result is: Valid (0.04s, 75634 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 956, characters 22-57:
+Sub-goal Loop invariant preservation of goal scandir'vc.
+Prover result is: Valid (0.03s, 75433 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 957, characters 20-34:
+Sub-goal Loop variant decrease of goal scandir'vc.
+Prover result is: Valid (0.02s, 19010 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 955, characters 22-86:
+Sub-goal Loop invariant preservation of goal scandir'vc.
+Prover result is: Valid (0.03s, 59733 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 956, characters 22-57:
+Sub-goal Loop invariant preservation of goal scandir'vc.
+Prover result is: Valid (0.03s, 64181 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 891, characters 15-44:
+Sub-goal Postcondition of goal scandir'vc.
+Prover result is: Valid (0.02s, 31992 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 891, characters 15-44:
+Sub-goal Postcondition of goal scandir'vc.
+Prover result is: Valid (0.01s, 5870 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 937, characters 31-121:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 39968 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.01s, 4962 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 42220 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 42712 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 43518 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 43810 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.02s, 44359 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.02s, 44908 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.02s, 45457 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 46006 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 46555 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 47104 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.02s, 47653 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.02s, 48202 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 48751 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.02s, 49300 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 49849 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 50399 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 50948 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 51497 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 52046 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 52595 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 53145 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 53694 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 54243 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 54792 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 55341 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 55890 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 56439 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 56988 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 57537 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 58086 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 58635 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 59184 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 59734 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 60283 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 60832 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 61381 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 61930 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 62479 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 63028 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 63577 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 64127 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 64676 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 65225 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 65774 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 66323 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.05s, 66872 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 67421 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 67970 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 68519 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 69069 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 69618 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.05s, 70169 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 70718 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 71267 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.05s, 71816 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.05s, 72365 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 72914 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 73463 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 74012 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 74561 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.05s, 75110 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.05s, 75660 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.04s, 76209 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 938, characters 28-62:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.05s, 76758 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 940, characters 10-18:
+Sub-goal Index in array bounds of goal scandir'vc.
+Prover result is: Valid (0.01s, 6385 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 891, characters 15-44:
+Sub-goal Postcondition of goal scandir'vc.
+Prover result is: Valid (0.01s, 7485 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 943, characters 19-27:
+Sub-goal Index in array bounds of goal scandir'vc.
+Prover result is: Valid (0.01s, 6396 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 955, characters 22-86:
+Sub-goal Loop invariant init of goal scandir'vc.
+Prover result is: Valid (0.01s, 7489 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 956, characters 22-57:
+Sub-goal Loop invariant init of goal scandir'vc.
+Prover result is: Valid (0.01s, 4318 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 960, characters 28-115:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 64978 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 961, characters 48-78:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.01s, 6886 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 957, characters 20-34:
+Sub-goal Loop variant decrease of goal scandir'vc.
+Prover result is: Valid (0.02s, 21927 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 955, characters 22-86:
+Sub-goal Loop invariant preservation of goal scandir'vc.
+Prover result is: Valid (0.03s, 70604 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 956, characters 22-57:
+Sub-goal Loop invariant preservation of goal scandir'vc.
+Prover result is: Valid (0.04s, 70393 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 957, characters 20-34:
+Sub-goal Loop variant decrease of goal scandir'vc.
+Prover result is: Valid (0.02s, 19008 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 955, characters 22-86:
+Sub-goal Loop invariant preservation of goal scandir'vc.
+Prover result is: Valid (0.03s, 55519 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 956, characters 22-57:
+Sub-goal Loop invariant preservation of goal scandir'vc.
+Prover result is: Valid (0.04s, 59941 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 891, characters 15-44:
+Sub-goal Postcondition of goal scandir'vc.
+Prover result is: Valid (0.02s, 33731 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 891, characters 15-44:
+Sub-goal Postcondition of goal scandir'vc.
+Prover result is: Valid (0.01s, 7578 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 955, characters 22-86:
+Sub-goal Loop invariant init of goal scandir'vc.
+Prover result is: Valid (0.01s, 7469 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 956, characters 22-57:
+Sub-goal Loop invariant init of goal scandir'vc.
+Prover result is: Valid (0.01s, 4306 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 960, characters 28-115:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.03s, 67499 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 961, characters 48-78:
+Sub-goal Precondition of goal scandir'vc.
+Prover result is: Valid (0.01s, 6866 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 957, characters 20-34:
+Sub-goal Loop variant decrease of goal scandir'vc.
+Prover result is: Valid (0.02s, 21951 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 955, characters 22-86:
+Sub-goal Loop invariant preservation of goal scandir'vc.
+Prover result is: Valid (0.04s, 73819 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 956, characters 22-57:
+Sub-goal Loop invariant preservation of goal scandir'vc.
+Prover result is: Valid (0.03s, 73616 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 957, characters 20-34:
+Sub-goal Loop variant decrease of goal scandir'vc.
+Prover result is: Valid (0.02s, 18574 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 955, characters 22-86:
+Sub-goal Loop invariant preservation of goal scandir'vc.
+Prover result is: Valid (0.03s, 57814 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 956, characters 22-57:
+Sub-goal Loop invariant preservation of goal scandir'vc.
+Prover result is: Valid (0.03s, 62252 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 891, characters 15-44:
+Sub-goal Postcondition of goal scandir'vc.
+Prover result is: Valid (0.02s, 29860 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 977, characters 15-69:
+Sub-goal Postcondition of goal stat'vc.
+Prover result is: Valid (0.01s, 4430 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 978, characters 66-98:
+Sub-goal Postcondition of goal stat'vc.
+Prover result is: Valid (0.01s, 4434 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 979, characters 65-81:
+Sub-goal Postcondition of goal stat'vc.
+Prover result is: Valid (0.01s, 4429 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 985, characters 15-49:
+Sub-goal Postcondition of goal symlink'vc.
+Prover result is: Valid (0.01s, 4564 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 986, characters 32-73:
+Sub-goal Postcondition of goal symlink'vc.
+Prover result is: Valid (0.01s, 4572 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1010, characters 18-67:
+Sub-goal Loop invariant init of goal truncate'vc.
+Prover result is: Valid (0.01s, 3015 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1011, characters 18-93:
+Sub-goal Loop invariant init of goal truncate'vc.
+Prover result is: Valid (0.01s, 3042 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1015, characters 25-132:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.02s, 34747 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1016, characters 44-75:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.01s, 4794 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1012, characters 16-37:
+Sub-goal Loop variant decrease of goal truncate'vc.
+Prover result is: Valid (0.01s, 13218 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1010, characters 18-67:
+Sub-goal Loop invariant preservation of goal truncate'vc.
+Prover result is: Valid (0.02s, 42474 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1011, characters 18-93:
+Sub-goal Loop invariant preservation of goal truncate'vc.
+Prover result is: Valid (0.02s, 25852 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1012, characters 16-37:
+Sub-goal Loop variant decrease of goal truncate'vc.
+Prover result is: Valid (0.01s, 11721 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1010, characters 18-67:
+Sub-goal Loop invariant preservation of goal truncate'vc.
+Prover result is: Valid (0.03s, 37851 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1011, characters 18-93:
+Sub-goal Loop invariant preservation of goal truncate'vc.
+Prover result is: Valid (0.01s, 5123 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 992, characters 15-49:
+Sub-goal Postcondition of goal truncate'vc.
+Prover result is: Valid (0.01s, 3124 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 992, characters 15-49:
+Sub-goal Postcondition of goal truncate'vc.
+Prover result is: Valid (0.01s, 3193 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1034, characters 33-123:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.02s, 37916 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.01s, 4962 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.02s, 40295 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 40423 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 40906 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 41389 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 41872 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 42355 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 42838 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 43321 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 43804 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 44287 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 44770 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 45253 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 45736 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 46219 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 46702 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 47186 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 47669 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 48152 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 48635 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 49118 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 49602 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 50085 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 50568 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 51051 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 51534 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 52017 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 52500 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 52983 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 53466 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 53949 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 54432 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 54915 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 55399 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 55882 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 56365 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 56848 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 57331 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 57814 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 58297 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 58780 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 59264 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 59747 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 60230 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 60713 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 61196 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 61679 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 62162 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 62645 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 63128 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 63612 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 64095 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 64580 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 65063 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 65546 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 66029 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 66512 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 66995 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 67478 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.05s, 67961 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 68444 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 68927 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 69411 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 69894 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1035, characters 30-64:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 70377 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1037, characters 8-33:
+Sub-goal Index in array bounds of goal truncate'vc.
+Prover result is: Valid (0.01s, 6385 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1039, characters 33-59:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.02s, 6574 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1039, characters 33-59:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 54702 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1039, characters 33-59:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 58846 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1039, characters 33-59:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 59079 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1039, characters 33-59:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 59312 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1039, characters 33-59:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 59545 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1039, characters 33-59:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 59778 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1039, characters 33-59:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 60277 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1039, characters 33-59:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 60510 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1039, characters 33-59:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 60743 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1039, characters 33-59:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 60976 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1039, characters 33-59:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 61209 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1039, characters 33-59:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 61442 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1039, characters 33-59:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 61675 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1039, characters 33-59:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 61908 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1039, characters 33-59:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 62141 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1039, characters 33-59:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 62374 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1039, characters 33-59:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.03s, 62607 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1039, characters 33-59:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 62840 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1040, characters 8-118:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.01s, 9321 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1040, characters 8-118:
+Sub-goal Precondition of goal truncate'vc.
+Prover result is: Valid (0.04s, 76088 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1041, characters 17-66:
+Sub-goal Assertion of goal truncate'vc.
+Prover result is: Valid (0.03s, 69581 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1042, characters 66-119:
+Sub-goal Assertion of goal truncate'vc.
+Prover result is: Valid (0.05s, 81963 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1043, characters 61-136:
+Sub-goal Assertion of goal truncate'vc.
+Prover result is: Valid (0.01s, 6137 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 994, character 4 to line 1048, character 26:
+Sub-goal Type invariant of goal truncate'vc.
+Prover result is: Valid (0.04s, 83483 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 994, character 4 to line 1048, character 26:
+Sub-goal Type invariant of goal truncate'vc.
+Prover result is: Valid (0.05s, 70297 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 994, character 4 to line 1048, character 26:
+Sub-goal Type invariant of goal truncate'vc.
+Prover result is: Valid (4.01s, 17605695 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 994, character 4 to line 1048, character 26:
+Sub-goal Type invariant of goal truncate'vc.
+Prover result is: Valid (0.04s, 70569 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 994, character 4 to line 1048, character 26:
+Sub-goal Type invariant of goal truncate'vc.
+Prover result is: Valid (0.04s, 70721 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 994, character 4 to line 1048, character 26:
+Sub-goal Type invariant of goal truncate'vc.
+Prover result is: Valid (0.05s, 70873 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 994, character 4 to line 1048, character 26:
+Sub-goal Type invariant of goal truncate'vc.
+Prover result is: Valid (0.04s, 71025 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 994, character 4 to line 1048, character 26:
+Sub-goal Type invariant of goal truncate'vc.
+Prover result is: Valid (0.03s, 71177 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 994, character 4 to line 1048, character 26:
+Sub-goal Type invariant of goal truncate'vc.
+Prover result is: Valid (0.04s, 71277 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 994, character 4 to line 1048, character 26:
+Sub-goal Type invariant of goal truncate'vc.
+Prover result is: Valid (0.04s, 71379 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 994, character 4 to line 1048, character 26:
+Sub-goal Type invariant of goal truncate'vc.
+Prover result is: Valid (0.04s, 71479 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 994, character 4 to line 1048, character 26:
+Sub-goal Type invariant of goal truncate'vc.
+Prover result is: Valid (0.04s, 71579 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 994, character 4 to line 1048, character 26:
+Sub-goal Type invariant of goal truncate'vc.
+Prover result is: Valid (0.03s, 71691 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 994, character 4 to line 1048, character 26:
+Sub-goal Type invariant of goal truncate'vc.
+Prover result is: Valid (0.04s, 71766 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 992, characters 15-49:
+Sub-goal Postcondition of goal truncate'vc.
+Prover result is: Valid (0.01s, 6278 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1365, characters 15-49:
+Sub-goal Postcondition of goal unlink'vc.
+Prover result is: Valid (0.01s, 4576 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1366, characters 32-77:
+Sub-goal Postcondition of goal unlink'vc.
+Prover result is: Valid (0.01s, 4582 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1379, characters 16-29:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.01s, 2985 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1384, characters 18-80:
+Sub-goal Loop invariant init of goal walk'vc.
+Prover result is: Valid (0.01s, 5634 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1385, characters 18-86:
+Sub-goal Loop invariant init of goal walk'vc.
+Prover result is: Valid (0.01s, 5653 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1388, characters 21-30:
+Sub-goal Index in array bounds of goal walk'vc.
+Prover result is: Valid (0.02s, 36779 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1392, characters 33-123:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.02s, 43603 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.01s, 5499 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 46012 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 46143 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 46632 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 47121 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 47610 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 48099 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 48588 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 49077 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 49566 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 50055 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 50544 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 51033 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 51522 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 52011 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 52501 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 52990 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.04s, 53479 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.04s, 53968 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 54458 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 54947 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 55436 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 55925 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.04s, 56414 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 56903 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.04s, 57392 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.04s, 57881 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 58370 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 58859 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 59348 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 59837 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 60326 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 60816 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 61305 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 61794 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 62283 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.04s, 62772 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.04s, 63261 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 63750 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 64239 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 64729 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.05s, 65218 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 65707 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 66196 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 66685 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 67174 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.05s, 67663 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.03s, 68152 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.04s, 68642 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.04s, 69132 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.04s, 69621 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.04s, 70110 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.04s, 70600 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.04s, 71089 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.04s, 71578 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.04s, 72067 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.04s, 72556 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.04s, 73045 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.05s, 73534 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.04s, 74023 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.04s, 74513 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.04s, 75002 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.04s, 75491 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.04s, 75980 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1393, characters 30-64:
+Sub-goal Precondition of goal walk'vc.
+Prover result is: Valid (0.04s, 76469 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1395, characters 12-20:
+Sub-goal Index in array bounds of goal walk'vc.
+Prover result is: Valid (0.02s, 6922 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1386, characters 16-48:
+Sub-goal Loop variant decrease of goal walk'vc.
+Prover result is: Valid (0.04s, 63588 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1384, characters 18-80:
+Sub-goal Loop invariant preservation of goal walk'vc.
+Prover result is: Valid (0.03s, 68075 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1385, characters 18-86:
+Sub-goal Loop invariant preservation of goal walk'vc.
+Prover result is: Valid (0.03s, 63641 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1386, characters 16-48:
+Sub-goal Loop variant decrease of goal walk'vc.
+Prover result is: Valid (0.03s, 63314 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1384, characters 18-80:
+Sub-goal Loop invariant preservation of goal walk'vc.
+Prover result is: Valid (0.03s, 63178 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1385, characters 18-86:
+Sub-goal Loop invariant preservation of goal walk'vc.
+Prover result is: Valid (0.03s, 68255 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1386, characters 16-48:
+Sub-goal Loop variant decrease of goal walk'vc.
+Prover result is: Valid (0.03s, 49825 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1384, characters 18-80:
+Sub-goal Loop invariant preservation of goal walk'vc.
+Prover result is: Valid (0.02s, 49713 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1385, characters 18-86:
+Sub-goal Loop invariant preservation of goal walk'vc.
+Prover result is: Valid (0.03s, 50414 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1372, characters 15-19:
+Sub-goal Postcondition of goal walk'vc.
+Prover result is: Valid (0.01s, 3348 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1409, characters 15-50:
+Sub-goal Postcondition of goal write'vc.
+Prover result is: Valid (0.01s, 4893 steps).
+
+File "/tmp/.pycsl_6217edto.mlw", line 1410, characters 15-68:
+Sub-goal Postcondition of goal write'vc.
+Prover result is: Valid (0.01s, 4906 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 88, characters 73-75: unused variable x1
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 91, characters 59-61: unused variable x0
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 91, characters 72-74: unused variable x1
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 102, characters 58-60: unused variable x0
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 110, characters 72-74: unused variable x1
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 114, characters 71-73: unused variable x1
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 122, characters 34-36: unused variable x0
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 137, characters 61-63: unused variable x0
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 447, characters 24-32: unused variable filepath
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 447, characters 40-45: unused variable flags
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 447, characters 53-68: unused variable follow_symlinks
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 474, characters 24-28: unused variable name
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 480, characters 32-35: unused variable src
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 480, characters 43-46: unused variable dst
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 480, characters 67-77: unused variable offset_src
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 480, characters 85-95: unused variable offset_dst
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 522, characters 29-33: unused variable self
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 600, characters 30-33: unused variable env
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 612, characters 23-26: unused variable key
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 624, characters 25-33: unused variable filepath
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 624, characters 41-50: unused variable attribute
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 630, characters 23-31: unused variable filepath
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 674, characters 10-20: unused variable name_bytes
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 716, characters 14-24: unused variable name_bytes
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 657, characters 8-9: unused variable i
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 656, characters 8-16: unused variable i__inl14
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 648, characters 8-21: unused variable names_out_len
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 728, characters 26-34: unused variable filepath
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 807, characters 44-48: unused variable mode
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 921, characters 10-20: unused variable name_bytes
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 963, characters 14-24: unused variable name_bytes
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 904, characters 8-9: unused variable i
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 903, characters 8-16: unused variable i__inl24
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 894, characters 8-17: unused variable items_len
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 983, characters 43-62: unused variable target_is_directory
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1018, characters 10-20: unused variable name_bytes
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1001, characters 8-16: unused variable i__inl46
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1050, character 33 to line 1058, character 122: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1060, character 39 to line 1067, character 107: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1069, characters 41-45: unused variable self
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1073, characters 41-45: unused variable self
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1077, character 44 to line 1082, character 56: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1084, characters 40-44: unused variable self
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1108, characters 41-45: unused variable self
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1137, characters 40-44: unused variable self
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1143, characters 33-37: unused variable self
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1146, characters 44-48: unused variable self
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1157, character 44 to line 1163, character 155: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1165, characters 45-49: unused variable self
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1172, character 40 to line 1179, character 157: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1181, character 40 to line 1207, character 122: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1209, character 39 to line 1215, character 155: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1217, characters 86-90: unused variable mode
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1222, characters 66-74: unused variable pathname
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1222, characters 85-89: unused variable mode
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1222, character 37 to line 1226, character 122: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1228, characters 66-74: unused variable pathname
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1228, characters 85-90: unused variable owner
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1228, characters 98-103: unused variable group
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1228, character 37 to line 1232, character 122: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1234, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1238, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1238, characters 66-74: unused variable pathname
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1238, characters 85-89: unused variable mode
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1242, character 35 to line 1249, character 87: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1251, characters 37-41: unused variable self
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1261, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1265, characters 80-86: unused variable length
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1265, character 41 to line 1269, character 122: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1271, characters 41-45: unused variable self
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1275, characters 65-72: unused variable oldpath
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1280, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1280, characters 76-82: unused variable offset
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1291, characters 85-89: unused variable mode
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1296, characters 84-89: unused variable flags
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1306, character 36 to line 1311, character 332: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1313, characters 41-45: unused variable self
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1313, characters 69-77: unused variable pathname
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1334, characters 68-74: unused variable target
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1339, characters 69-77: unused variable pathname
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1339, characters 88-94: unused variable length
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1339, character 40 to line 1343, character 122: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1350, characters 70-78: unused variable pathname
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1350, characters 89-94: unused variable atime
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1350, characters 102-107: unused variable mtime
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1350, character 41 to line 1354, character 122: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1356, character 37 to line 1361, character 233: variable self is used under `old` but is not modified by the function
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1378, characters 8-9: unused variable i
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1375, characters 8-16: unused variable dirs_len
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1374, characters 8-19: unused variable nondirs_len
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1370, characters 23-30: unused variable topdown
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1370, characters 38-45: unused variable onerror
+Warning, file "/tmp/.pycsl_6217edto.mlw", line 1370, characters 53-64: unused variable followlinks
+
+[+] Verification SUCCESS! All contracts formally proven.
+DONE

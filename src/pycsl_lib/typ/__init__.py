@@ -14,6 +14,17 @@
 #   NO validation (LR1–LR8, LD3 no-blend). The `ensures \result == val` carries
 #   ONLY the identity postcondition — the static L1 value-set obligation is NOT
 #   discharged by the shim (it is a precondition VC, invisible to the runtime).
+# Final (typing-engagement ty1 / 27-0000-typing-spec-3): Modelled-for-identity.
+#   The static plane (Module 5 + core_ir_semantic._check_final) treats
+#   `Final[T]` as a write-restriction: write-once at the declaration (F1) or
+#   __init__-only for instance attributes (F2), discharged by a syntactic
+#   write-site check (degenerate HAPPY no-write confinement — NOT a VC). This
+#   runtime shim constructs the introspectable `typing.Final` alias object and
+#   performs NO validation (FR1–FR6, FD2 no-blend). It is explicitly NOT a
+#   write-guard descriptor — introducing one would blend the planes (FR6). The
+#   `ensures \result == val` carries ONLY the identity postcondition — the
+#   static write-policy is NOT discharged by the shim (it is a semantic check,
+#   invisible to the runtime).
 
 
 #@ ensures \result == val
@@ -43,6 +54,11 @@ def Union(x0, x1, val) -> int:
 
 #@ ensures \result == val
 def Literal(x0, x1, val) -> int:
+    return val
+
+
+#@ ensures \result == val
+def Final(x0, x1, val) -> int:
     return val
 
 

@@ -1,0 +1,202 @@
+DIGEST 6f817f296c3582b59b27a7026a46be88
+FDirLookupFrame
+R779:795 Coq.ZArith.ZArith <> <> lib
+R813:825 Coq.Bool.Bool <> <> lib
+R843:845 Coq.micromega.Lia <> <> lib
+mod 877:882 <> UnixFs
+mod 892:894 <> UnixFs.Dir
+sec 906:910 UnixFs.Dir Frame
+var 923:926 UnixFs.Dir.Frame disk
+var 945:950 UnixFs.Dir.Frame name_t
+var 969:978 UnixFs.Dir.Frame slot_inode
+R986:989 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R982:985 DirLookupFrame <> UnixFs.Dir.Frame.disk var
+R991:994 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R990:990 Coq.Numbers.BinNums <> Z ind
+R996:999 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R995:995 Coq.Numbers.BinNums <> Z ind
+R1000:1000 Coq.Numbers.BinNums <> Z ind
+var 1012:1020 UnixFs.Dir.Frame slot_name
+R1029:1032 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1025:1028 DirLookupFrame <> UnixFs.Dir.Frame.disk var
+R1034:1037 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1033:1033 Coq.Numbers.BinNums <> Z ind
+R1039:1042 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1038:1038 Coq.Numbers.BinNums <> Z ind
+R1043:1048 DirLookupFrame <> UnixFs.Dir.Frame.name_t var
+var 1060:1062 UnixFs.Dir.Frame eqn
+R1072:1075 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1066:1071 DirLookupFrame <> UnixFs.Dir.Frame.name_t var
+R1082:1085 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1076:1081 DirLookupFrame <> UnixFs.Dir.Frame.name_t var
+R1086:1089 Coq.Init.Datatypes <> bool ind
+def 1153:1156 UnixFs.Dir scan
+R1163:1166 DirLookupFrame <> UnixFs.Dir.Frame.disk var
+binder 1159:1159 <> d:11
+R1176:1176 Coq.Numbers.BinNums <> Z ind
+binder 1170:1172 <> blk:12
+R1187:1192 DirLookupFrame <> UnixFs.Dir.Frame.name_t var
+binder 1180:1183 <> name:13
+R1200:1202 Coq.Init.Datatypes <> nat ind
+binder 1196:1196 <> i:14
+R1214:1214 Coq.Numbers.BinNums <> Z ind
+binder 1206:1210 <> found:15
+R1219:1219 Coq.Numbers.BinNums <> Z ind
+R1232:1232 DirLookupFrame <> i:14 var
+R1243:1243 Coq.Init.Datatypes <> O constr
+R1248:1252 DirLookupFrame <> found:15 var
+R1258:1258 Coq.Init.Datatypes <> S constr
+R1280:1283 DirLookupFrame <> scan:16 def
+R1298:1302 DirLookupFrame <> found:15 var
+R1291:1294 DirLookupFrame <> name:13 var
+R1287:1289 DirLookupFrame <> blk:12 var
+R1285:1285 DirLookupFrame <> d:11 var
+binder 1275:1275 <> f:18
+R1323:1330 Coq.ZArith.BinInt Z of_nat def
+binder 1317:1318 <> zj:19
+R1346:1349 Coq.Init.Datatypes <> andb def
+R1405:1408 Coq.Init.Datatypes <> andb def
+R1464:1466 DirLookupFrame <> UnixFs.Dir.Frame.eqn var
+R1469:1477 DirLookupFrame <> UnixFs.Dir.Frame.slot_name var
+R1479:1479 DirLookupFrame <> d:11 var
+R1481:1483 DirLookupFrame <> blk:12 var
+R1485:1486 DirLookupFrame <> zj:19 var
+R1489:1492 DirLookupFrame <> name:13 var
+R1411:1415 Coq.ZArith.BinInt Z ltb def
+R1418:1427 DirLookupFrame <> UnixFs.Dir.Frame.slot_inode var
+R1429:1429 DirLookupFrame <> d:11 var
+R1431:1433 DirLookupFrame <> blk:12 var
+R1435:1436 DirLookupFrame <> zj:19 var
+R1352:1355 Coq.Init.Datatypes <> negb def
+R1358:1362 Coq.ZArith.BinInt Z eqb def
+R1365:1374 DirLookupFrame <> UnixFs.Dir.Frame.slot_inode var
+R1376:1376 DirLookupFrame <> d:11 var
+R1378:1380 DirLookupFrame <> blk:12 var
+R1382:1383 DirLookupFrame <> zj:19 var
+R1538:1538 DirLookupFrame <> f:18 var
+R1507:1516 DirLookupFrame <> UnixFs.Dir.Frame.slot_inode var
+R1518:1518 DirLookupFrame <> d:11 var
+R1520:1522 DirLookupFrame <> blk:12 var
+R1524:1525 DirLookupFrame <> zj:19 var
+def 1559:1568 UnixFs.Dir dir_lookup
+R1575:1578 DirLookupFrame <> UnixFs.Dir.Frame.disk var
+binder 1571:1571 <> d:20
+R1588:1588 Coq.Numbers.BinNums <> Z ind
+binder 1582:1584 <> blk:21
+R1599:1604 DirLookupFrame <> UnixFs.Dir.Frame.name_t var
+binder 1592:1595 <> name:22
+R1609:1609 Coq.Numbers.BinNums <> Z ind
+R1616:1619 DirLookupFrame UnixFs.Dir scan def
+R1621:1621 DirLookupFrame <> d:20 var
+R1623:1625 DirLookupFrame <> blk:21 var
+R1627:1630 DirLookupFrame <> name:22 var
+prf 1779:1788 UnixFs.Dir scan_frame
+R1810:1813 DirLookupFrame <> UnixFs.Dir.Frame.disk var
+binder 1802:1803 <> d0:23
+binder 1805:1806 <> d1:24
+R1824:1829 DirLookupFrame <> UnixFs.Dir.Frame.name_t var
+binder 1817:1820 <> name:25
+R1837:1839 Coq.Init.Datatypes <> nat ind
+binder 1833:1833 <> i:26
+R1847:1847 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1977:1985 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1859:1859 Coq.Numbers.BinNums <> Z ind
+binder 1855:1855 <> j:27
+R1881:1891 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1863:1866 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R1868:1870 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R1867:1867 DirLookupFrame <> j:27 var
+R1867:1867 DirLookupFrame <> j:27 var
+R1871:1878 Coq.ZArith.BinInt Z of_nat def
+R1880:1880 DirLookupFrame <> i:26 var
+R1929:1939 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R1909:1911 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1892:1901 DirLookupFrame <> UnixFs.Dir.Frame.slot_inode var
+R1903:1904 DirLookupFrame <> d1:24 var
+R1908:1908 DirLookupFrame <> j:27 var
+R1912:1921 DirLookupFrame <> UnixFs.Dir.Frame.slot_inode var
+R1923:1924 DirLookupFrame <> d0:23 var
+R1928:1928 DirLookupFrame <> j:27 var
+R1957:1959 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1940:1948 DirLookupFrame <> UnixFs.Dir.Frame.slot_name var
+R1951:1952 DirLookupFrame <> d1:24 var
+R1956:1956 DirLookupFrame <> j:27 var
+R1960:1968 DirLookupFrame <> UnixFs.Dir.Frame.slot_name var
+R1971:1972 DirLookupFrame <> d0:23 var
+R1976:1976 DirLookupFrame <> j:27 var
+R2007:2009 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1986:1989 DirLookupFrame UnixFs.Dir scan def
+R1991:1992 DirLookupFrame <> d1:24 var
+R1996:1999 DirLookupFrame <> name:25 var
+R2001:2001 DirLookupFrame <> i:26 var
+R2010:2013 DirLookupFrame UnixFs.Dir scan def
+R2015:2016 DirLookupFrame <> d0:23 var
+R2020:2023 DirLookupFrame <> name:25 var
+R2025:2025 DirLookupFrame <> i:26 var
+R2148:2151 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R2162:2164 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R2152:2159 Coq.ZArith.BinInt Z of_nat def
+R2152:2159 Coq.ZArith.BinInt Z of_nat def
+R2165:2172 Coq.ZArith.BinInt Z of_nat def
+R2175:2175 Coq.Init.Datatypes <> S constr
+R2148:2151 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R2162:2164 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R2152:2159 Coq.ZArith.BinInt Z of_nat def
+R2152:2159 Coq.ZArith.BinInt Z of_nat def
+R2165:2172 Coq.ZArith.BinInt Z of_nat def
+R2175:2175 Coq.Init.Datatypes <> S constr
+R2203:2217 Coq.ZArith.Znat Nat2Z is_nonneg thm
+R2203:2217 Coq.ZArith.Znat Nat2Z is_nonneg thm
+R2232:2245 Coq.ZArith.Znat Nat2Z inj_succ thm
+R2232:2245 Coq.ZArith.Znat Nat2Z inj_succ thm
+R2232:2245 Coq.ZArith.Znat Nat2Z inj_succ thm
+R2277:2284 Coq.ZArith.BinInt Z of_nat def
+R2277:2284 Coq.ZArith.BinInt Z of_nat def
+R2407:2420 Coq.ZArith.Znat Nat2Z inj_succ thm
+R2407:2420 Coq.ZArith.Znat Nat2Z inj_succ thm
+R2407:2420 Coq.ZArith.Znat Nat2Z inj_succ thm
+prf 2442:2457 UnixFs.Dir dir_lookup_frame
+R2479:2482 DirLookupFrame <> UnixFs.Dir.Frame.disk var
+binder 2471:2472 <> d0:28
+binder 2474:2475 <> d1:29
+R2493:2498 DirLookupFrame <> UnixFs.Dir.Frame.name_t var
+binder 2486:2489 <> name:30
+R2506:2506 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2628:2636 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2518:2518 Coq.Numbers.BinNums <> Z ind
+binder 2514:2514 <> k:31
+R2532:2542 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2522:2525 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R2527:2529 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R2526:2526 DirLookupFrame <> k:31 var
+R2526:2526 DirLookupFrame <> k:31 var
+R2580:2590 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R2560:2562 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R2543:2552 DirLookupFrame <> UnixFs.Dir.Frame.slot_inode var
+R2554:2555 DirLookupFrame <> d1:29 var
+R2559:2559 DirLookupFrame <> k:31 var
+R2563:2572 DirLookupFrame <> UnixFs.Dir.Frame.slot_inode var
+R2574:2575 DirLookupFrame <> d0:28 var
+R2579:2579 DirLookupFrame <> k:31 var
+R2608:2610 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R2591:2599 DirLookupFrame <> UnixFs.Dir.Frame.slot_name var
+R2602:2603 DirLookupFrame <> d1:29 var
+R2607:2607 DirLookupFrame <> k:31 var
+R2611:2619 DirLookupFrame <> UnixFs.Dir.Frame.slot_name var
+R2622:2623 DirLookupFrame <> d0:28 var
+R2627:2627 DirLookupFrame <> k:31 var
+R2657:2659 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R2637:2646 DirLookupFrame UnixFs.Dir dir_lookup def
+R2648:2649 DirLookupFrame <> d1:29 var
+R2653:2656 DirLookupFrame <> name:30 var
+R2660:2669 DirLookupFrame UnixFs.Dir dir_lookup def
+R2671:2672 DirLookupFrame <> d0:28 var
+R2676:2679 DirLookupFrame <> name:30 var
+R2724:2733 DirLookupFrame UnixFs.Dir dir_lookup def
+R2744:2753 DirLookupFrame UnixFs.Dir scan_frame thm
+R2744:2753 DirLookupFrame UnixFs.Dir scan_frame thm
+R2794:2801 Coq.ZArith.BinInt Z of_nat def
+R2794:2801 Coq.ZArith.BinInt Z of_nat def
+R2852:2856 DirLookupFrame UnixFs.Dir.Frame <> sec
+R2864:2866 DirLookupFrame UnixFs.Dir <> mod
+R2873:2878 DirLookupFrame UnixFs <> mod

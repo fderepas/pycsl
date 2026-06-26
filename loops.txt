@@ -1,0 +1,9 @@
+`formal-test-sl`
+`test-supervise-sl`
+
+Discharge the 14 remaing goal by launching `test-supervise-sl` as a sub agent with the mission to annotate all `src/pycsl_lib/os` system call and write correpoding formal test drivers in `src/pycsl_lib_test/`.
+
+
+Launch `test-supervise-sl` as a sub agent with the mission to annotate all `src/pycsl_lib/os` system call and write correpoding formal test drivers in `src/pycsl_lib_test/`.
+ I got this remark about macsl: `Its README also carries heavy AI-generation hallmarks and describes its own security reports as "authored by a code-blind agent" and reviewed by another agent — which makes the provenance of the     
+  verification itself unclear.` review all documents under macsl so that this critique does not surface again. 

@@ -1,0 +1,1374 @@
+diff --git a/README.md b/README.md
+index 0c0b487..f8575ee 100644
+--- a/README.md
++++ b/README.md
+@@ -794,6 +794,7 @@ and asserted on exit.
+ | `#@ sibling_concrete` | Method | Opt-in: an intra-class `self.<m>()` call to this method lowers to a CONCRETE call (caller gets the callee's full contract + type/class-invariant guarantee on the post-state), instead of the default abstract `val` stub. For cheap leaf writers whose guarantee the caller absorbs as an atom (e.g. the os bitmap leaves, so the allocators inherit the disk class invariant). Decoupled from `no_inline`; default off → byte-identical. See `test-suite/annotations.md` §2.1.26 |
+ | `#@ propagate_frame` | Method | Opt-in: carry THIS method's QUANTIFIED single-cell self-field FRAME `ensures` (`\forall k. guard -> self.f[k] == \old(self.f[k])`) onto its abstract boundary `val`, so a caller sees every *other* cell preserved (not the whole field havoced). Propagates both param-referencing frames (the os `_zero_entry` slot frame) and `\result`-referencing single-cell frames (`\forall k != \result. self.f[k] == \old(self.f[k])`, where `\result` is the call's return value — the os `sys_open`/`sys_dup` `fd_open` allocator frame). Opt-in because a broad frame trigger can E-match-poison term-rich callers; default off → byte-identical. Sound — the propagated `\forall` is the same frame the body verifies. See `test-suite/annotations.md` §2.1.27 |
+ | `#@ fresh_globals` | Top-level driver (NOT a method, NOT a callee) | Opt-in, CONFINED: re-establish each module-global singleton's CONSTRUCTOR post-state (the class `__init__`'s `#@ ensures`, `self` → the global) as an ASSUMED fact at a standalone internals-blind formal-test driver's entry — the SOUND surfacing of a freshly-imported global's initial state (e.g. the os `_filesystem` fd table being all-free), which Why3 otherwise havocs at every importer entry. The assumed fact is proof-backed: the transpiler emits a checked `let g_fresh_init () : C ensures {…} = <ctor literal>` proving the post-state of the freshly constructed global. Module4 REJECTS it on methods and callees (`PYCSL-SEM-FRESH-GLOBALS`) — sound only for an independent entry point never entered with a pre-mutated global. Retires the os `fd-resolution-fidelity` no-ENFILE trust by establishing the free-slot side-condition. See `test-suite/annotations.md` §2.1.28 |
++| `#@ verify_module <name>` | Method | Opt-in axiom isolation: emit this method into its OWN top-level Why3 `module <name>` (shared infra re-declared; concrete record type shared via a common base `module`) so ONLY the `#@ proof` axioms cited by that group's functions are in scope for its goals. Methods sharing `<name>` co-reside. Cross-module `self.<m>()` calls go by the callee's PROVEN contract via Why3 `clone`-refinement (the synthetic `<fn>'refn'vc`) — never an assumed `val` / new `\trusted` / new axiom (net TCB unchanged). Resolves the os read+write `field_to_str`/`dir_blit_marker` axiom co-residence that OOMs the dir writers and blocks the `_dir_lookup` de-trust. Why3 `scope` does NOT isolate axioms (namespace only); separate `module`s do. Default off → byte-identical. See `test-suite/annotations.md` §2.1.29 |
+ | `#@ \trusted` / `#@ \trusted reviewer: <name>` | Function / method | Body not verified; contracts assumed as axioms. Optional `reviewer:` clause names a human or process accountable for the trust (e.g., `reviewer: alice`, `reviewer: pycsl-self-annotate`); see `test-suite/annotations.md` §2.1.7 |
+ | `#@ lemma` | Function / method (`-> None`) | A PROVED logical fact: lowers to `let [rec] lemma … = <proof body>`, Why3 checks the body then exposes `forall params. requires -> ensures`. Recursive lemmas need `#@ \variant` (induction); not an axiom. See `test-suite/annotations.md` §2.1.16 |
+ | `#@ uses <lemma>` | Function / method | Cites a `#@ lemma` whose general fact the proof relies on but doesn't name (e.g. a `\forall` over a recursive datatype); forces the lemma to be emitted first so its fact is in scope. Ordering-only, no WhyML. See `test-suite/annotations.md` §2.1.17 |
+diff --git a/config/skills/pycsl-annotate/SKILL.md b/config/skills/pycsl-annotate/SKILL.md
+index 255b74a..38a9781 100644
+--- a/config/skills/pycsl-annotate/SKILL.md
++++ b/config/skills/pycsl-annotate/SKILL.md
+@@ -45,6 +45,7 @@ Add PEP 484 type hints to **all** function parameters and return types, even if
+ - `#@ \diverges` — Declares the function may not terminate (no termination proof required). Cannot be combined with `\variant`.
+ - `#@ no_inline` — Marks a method on a module-global instance as a modular-verification boundary: its body is verified once (as a `let`), and callers reuse its contract instead of splicing the inlined body. Use it when a large method proves standalone but blows up the SMT search when inlined into a caller (e.g. os `sys_write`). Sound — a false `ensures` fails the callee, not the caller. See no-inline.md.
+ - `#@ sibling_concrete` — Opt-in (default off): an intra-class `self.<m>()` call to a method marked with this directive lowers to a CONCRETE call `(<class>__<m> self args)` instead of the default abstract `val` stub, so the caller inherits the callee's full contract AND its type/class-invariant guarantee on the post-state. Use ONLY on cheap-to-maintain leaf writers whose guarantee the caller can absorb as an atom (e.g. the os bitmap leaves `_set_bitmap`/`_poke`, so the allocator loops inherit the disk class invariant `uniq`/`inode_bytes_valid`). Decoupled from `no_inline` (sibling-call lowering only, not wrapper inlining). Sound — a concrete call to a verified `let` is the method's real semantics; adds no trust. See annotations.md §2.1.26.
++- `#@ verify_module <name>` — **Opt-in axiom isolation via separate Why3 modules** (default off). The tagged method is emitted into its OWN top-level Why3 `module <name>` (shared infra re-declared per module; the concrete record type shared through a common base `module` that every emitted module `use`s) so that ONLY the `#@ proof` axioms cited by that group's functions are in scope for its goals — methods sharing `<name>` co-reside. A cross-module `self.<m>()` call is lowered to the callee's PROVEN contract via Why3 module **`clone`-refinement** (the interface `module` declares the contract; the provider `module` discharges the synthetic `<fn>'refn'vc` proving the real `let` implements it), so the boundary is a proven interface — NEVER an assumed `val`, a new `\trusted`, or a new axiom (net TCB unchanged). Use when one function's VC tips into OOM/Timeout because a *different* group's cited axioms pollute its SMT context (the os read `field_to_str`/`dir_scan_*` vs write `dir_blit_marker*` co-residence that blocks the `_dir_lookup` de-trust). Why3 `scope` does NOT isolate axioms (a scope is a namespace; an `axiom` is global within its `module`); only separate top-level `module`s do. Absent ⇒ the single flat `module PyCSL_Program`, byte-identical. See `annotations.md` §2.1.29.
+ - `#@ interface ensures/requires/assigns <…>` + `#@ reveal <fn>` — **Contract opacity** (Track B): a function keeps its rich **definition** contract (plain `requires`/`ensures`/`assigns`, verified against the body) but exports a narrow **interface** contract that callers see by default; `#@ reveal <fn>` opts a specific call site back into the definition's facts. Use it when a heavy contract (e.g. the codec's 18 per-field `ensures`) must be *proved* but should not burden every importer — the rich proof rides only the revealing sites. Sound: a **narrowing VC** proves `definition ⟹ interface`, so an over-claiming interface is rejected and opacity adds no trust. Absent ⇒ transparent (interface = definition). See `annotations.md` §2.10, `b-spec.md`.
+ - `#@ \trusted` or `#@ \trusted reviewer: <name>` — Body is not verified; contracts are assumed as axioms. Emits `val` (spec-only) instead of `let` + body. Callers may use the postcondition, but the implementation is not checked. The optional `reviewer:` clause names a human or process accountable for the trust assumption (e.g., `reviewer: alice` or `reviewer: pycsl-self-annotate`); it is captured by Module 3 / Module 5 but does not affect WhyML emission. Anonymous `\trusted` (no `reviewer:`) produces a warning; the convention is to always include one. See `annotations.md` §2.1.7 for the reviewer-tag convention.
+ - `#@ assumes bounded_int(N)` — Bounded integer pragma (N = 32 or 64). All `int` params/locals become `intN` machine integers; arithmetic (`+`, `-`, `*`) auto-generates overflow proof obligations.
+diff --git a/docs/pycsl-concrete-syntax-reference.md b/docs/pycsl-concrete-syntax-reference.md
+index b6b9002..4d783c2 100644
+--- a/docs/pycsl-concrete-syntax-reference.md
++++ b/docs/pycsl-concrete-syntax-reference.md
+@@ -98,6 +98,7 @@ _Corresponds to `annotations.md` §2.1._
+ | 2.1.6s | Sibling concrete | `sibling_concrete_decl ::= "sibling_concrete" ;` (`#@ sibling_concrete` — opt-in concrete intra-class sibling-call; see translational §T.2.7s) |
+ | 2.1.6f | Propagate frame | `propagate_frame_decl ::= "propagate_frame" ;` (`#@ propagate_frame` — opt-in quantified single-cell self-field FRAME propagation across the call/import boundary; see translational §T.2.7f) |
+ | 2.1.6g | Fresh globals | `fresh_globals_decl ::= "fresh_globals" ;` (`#@ fresh_globals` — opt-in, confined: re-establish each module-global singleton's constructor post-state as an assumed fact at a standalone driver's body entry; rejected on methods/callees by Module4; see static §2.1.6g, translational §T.2.7g) |
++| 2.1.6m | Verify module | `verify_module_decl ::= "verify_module" CNAME ;` (`#@ verify_module <name>` — opt-in axiom isolation: emit the tagged method into its own top-level Why3 `module <name>` so only its group's `#@ proof` axioms are in scope; cross-module calls go by the callee's proven contract via Why3 `clone`-refinement; default off → byte-identical; see static §2.1.6m, translational §T.2.7m) |
+ | 2.1.7 | Trusted | `trusted_decl ::= "\trusted" ( "reviewer" ":" REVIEWER_ID )? ;` where `REVIEWER_ID ::= /[A-Za-z0-9._@-]+/` |
+ | 2.1.14 | Abstract | `abstract_decl ::= "\abstract" ;` — bodyless `val` defined by its contract; sound, not `\trusted` |
+ | 2.1.16 | Lemma | `lemma_decl ::= "lemma" ;` — a `-> None` proved fact; lowers to `let [rec] lemma … = <body>` |
+diff --git a/docs/pycsl-static-semantics-reference.md b/docs/pycsl-static-semantics-reference.md
+index 93b276c..11043c6 100644
+--- a/docs/pycsl-static-semantics-reference.md
++++ b/docs/pycsl-static-semantics-reference.md
+@@ -554,6 +554,36 @@ checked `let g_fresh_init () : C ensures {…} = <constructor literal>` proving
+ of the freshly constructed global — so the assume is proof-backed, never an arbitrary
+ literal. See translational §T.2.7g.
+ 
++#### §2.1.6m Verify module (`verify_module <name>`)
++
++```
++   ──────────────────────────────────
++    Γ_f ⊢ verify_module <name> : ok
++```
++
++**Rule:** Always well-formed (the argument is a `CNAME` group label; no expression to
++check). Presence is carried on the function AST node (`csl_verify_module = "<name>"`) into
++the function IR (`"verify_module": "<name>"`). It is **opt-in**: a function tagged
++`#@ verify_module <name>` is emitted into its own top-level Why3 `module <name>` (rather
++than the single flat `module PyCSL_Program`), so that only the `#@ proof` axioms cited by
++the functions in that group are in scope for its goals. Functions sharing the same `<name>`
++co-reside in one module; shared infrastructure (the concrete record type, `val function`s,
++predicates, witness/class-invariant axioms, abstract stubs) is re-declared per module, with
++the concrete record type shared through a common base `module` that every emitted module
++`use`s (a defined record type cannot be `clone`-substituted). **Soundness:** a cross-module
++`self.<m>(...)` call is lowered to the callee's PROVEN contract via Why3 module
++`clone`-refinement — the interface `module` declares the contract, and the owning provider
++`module` discharges the synthetic refinement VC `<fn>'refn'vc` proving the real `let`
++implements that contract — so the boundary is a proven interface, NOT an assumed `val`, a
++new `\trusted`, or a new axiom; the net trusted base is unchanged (every function is proved
++exactly once, against a contract that is itself proved). The directive only changes WHICH
++declarations share the SMT context at each VC (a feasibility lever, not a trust lever) —
++resolving the os read+write axiom co-residence (`field_to_str`/`dir_scan_*` vs
++`dir_blit_marker*`) that OOMs the directory writers. Why3 `scope` does NOT provide this
++isolation (a scope is a namespace; an `axiom` is global within the enclosing module); only
++separate top-level `module`s isolate axioms. Default (untagged) → byte-identical emission.
++See translational §T.2.7m.
++
+ #### §2.1.7 Trusted (`\trusted [reviewer: <REVIEWER_ID>]`)
+ 
+ ```
+diff --git a/docs/pycsl-translational-reference.md b/docs/pycsl-translational-reference.md
+index be3abb0..f976324 100644
+--- a/docs/pycsl-translational-reference.md
++++ b/docs/pycsl-translational-reference.md
+@@ -707,6 +707,41 @@ established at the driver entry (and carried across a prior `open`/`dup` by the
+ theorem (zero-trust, via `_alloc_fd`'s completeness) proves the formal test — replacing
+ the FALSE unconditioned `\result>=3` body theorem the trust used to assume.
+ 
++### §T.2.7m  Module-emission (`verify_module <name>`)
++
++A function tagged `#@ verify_module <name>` is emitted into its OWN top-level Why3
++`module <name>` instead of the single flat `module PyCSL_Program`. The transpiler
++partitions the program's functions by their `verify_module` group (untagged → the flat
++default module). For each emitted module it re-declares the shared infrastructure — `use`s,
++helpers, the `val function`/`predicate` symbols, witness/class-invariant axioms, and the
++abstract stubs — and emits ONLY that group's `#@ proof`-cited axioms (axiom selection is
++per-module because the axiom emitter scans only the functions in the module). The concrete
++record type is declared once in a common base `module` that every emitted module `use`s,
++because Why3 cannot `clone`-substitute a defined (concrete, field-bearing) type.
++
++A cross-module `self.<m>(...)` call — to a sibling in a different `verify_module` group, or
++in the flat default module — is lowered to the callee's PROVEN contract via Why3 module
++**`clone`-refinement**: an interface `module <name>Sig` declares the callee's contract as a
++bodyless `val` (the contract only, no body, no axioms); the owning provider `module <name>`
++re-declares the shared symbols, holds its group's axioms LOCALLY, emits the real
++`let <fn> = <body>` discharging the contract, and ends with `clone <name>Sig with
++val <fn> = <fn>, …` — for which Why3 generates the synthetic refinement VC `<fn>'refn'vc`
++proving the implementation satisfies the interface contract (validated non-vacuous: a
++contract that over-claims relative to the body makes `'refn'vc` unprovable). The consumer
++`module` `use`s the interface `module` and calls `<name>Sig.<fn>` (the proven contract),
++NOT an abstract `val self__<fn>_<n>` stub. The boundary is therefore a PROVEN interface —
++never an assumed `val`, a new `\trusted`, or a new axiom. The net TCB is unchanged: every
++function is proved exactly once, against a contract that is itself proved; the directive
++only changes WHICH declarations share the SMT context at each VC, isolating one group's
++axioms from another's goals (e.g. the os read-side `field_to_str`/`dir_scan_*` axioms out
++of scope for the directory writers' per-byte goals, and the write-side `dir_blit_marker*`
++axioms out of scope for `_dir_lookup`'s read goals — resolving the co-residence OOM).
++
++Why3 `scope` does NOT provide this isolation — a `scope` is a namespace, and an `axiom` is
++global within its enclosing `module` regardless of scope nesting; only separate top-level
++`module`s isolate axioms. Default (untagged) → the single flat `module PyCSL_Program` is
++emitted unchanged → corpus byte-identical (see static §2.1.6m, concrete §2.1.6m).
++
+ ### §T.2.8  Exception-Raising Functions (`raises`)
+ 
+ $$\mathcal{T}_f\llbracket \texttt{\#@ raises E when cond} \rrbracket
+diff --git a/pure_lib/os/UnixInodeFileSystem.py b/pure_lib/os/UnixInodeFileSystem.py
+index ef92818..1af2a42 100644
+--- a/pure_lib/os/UnixInodeFileSystem.py
++++ b/pure_lib/os/UnixInodeFileSystem.py
+@@ -969,20 +969,82 @@ class UnixInodeFileSystem:
+     #             closed form (inductive over the loop), so the body proves only
+     #             the range postcondition, and the `dir_lookup` value-binding is
+     #             carried by this ensures + the cross-validated axiom.
+-    #@ \trusted reviewer: dirscan-fidelity
++    # DE-TRUSTED read-side fidelity (was `\trusted reviewer: dirscan-fidelity`) via the
++    # dir_scan_result marker (read dual of dir_blit_marker) + the FAITHFUL read-name
++    # EMITTER lowering. The body's 16-slot scan operates over the abstract per-slot
++    # decodes slot_inode/slot_name (bridged from the literal slot bytes by
++    # slot_inode_byte_decode / slot_name_byte_decode), carrying the loop-carry prefix
++    # marker dir_scan_prefix(self.dir, 5, pathname, i, found) advanced one slot per
++    # iteration via dir_scan_prefix_step. At loop exit the prefix marker at i=16 is
++    # folded to dir_scan_result and dir_scan_result_value discharges the fidelity
++    # ensures \result == dir_lookup(self.dir, block_num, pathname).
++    #
++    # The KEYSTONE that makes the marker step fire: `name` is now the FAITHFUL on-disk
++    # decode. The name-field slice `self.dir[eo+2:eo+32].split(b'\x00')[0].decode(...)`
++    # is lowered by the null-terminated-field EMITTER recognizer
++    # (`_recognize_field_decode_idiom`, module6_whyml/expressions.py) to the genuine
++    # codec TERM `field_to_str self.dir (eo+2) 30` — the SAME symbol slot_name_byte_decode
++    # bridges to `slot_name self.dir 5 i`. So `slot_name(self.dir,5,i) == name` is a real,
++    # type-compatible string equality (NOT the former opaque int hash), the match guard
++    # `slot_name == pathname` fires the marker step, and the value crosses SMT with NO
++    # relocated trust: zero new \trusted, zero val/ensures shim — the name is a field_to_str
++    # term, the marker is cross-validated by 0720.proofs/UnixDirScanValue.{v,lean}.
++    #@ proof rocq UnixFs.Dir.slot_inode_nonneg
++    #@ proof lean UnixFs.Dir.slot_inode_nonneg
++    #@ proof rocq UnixFs.Dir.slot_inode_byte_decode
++    #@ proof lean UnixFs.Dir.slot_inode_byte_decode
++    #@ proof rocq UnixFs.Dir.slot_name_byte_decode
++    #@ proof lean UnixFs.Dir.slot_name_byte_decode
++    #@ proof rocq UnixFs.Field.field_to_str_round_trip
++    #@ proof lean UnixFs.Field.field_to_str_round_trip
++    #@ proof rocq UnixFs.Dir.dir_scan_prefix_base
++    #@ proof lean UnixFs.Dir.dir_scan_prefix_base
++    #@ proof rocq UnixFs.Dir.dir_scan_prefix_step
++    #@ proof lean UnixFs.Dir.dir_scan_prefix_step
++    #@ proof rocq UnixFs.Dir.dir_scan_result_intro
++    #@ proof lean UnixFs.Dir.dir_scan_result_intro
++    #@ proof rocq UnixFs.Dir.dir_scan_result_value
++    #@ proof lean UnixFs.Dir.dir_scan_result_value
++    #@ verify_module ReadMod
+     def _dir_lookup(self, block_num: int, pathname: str) -> int:
+-        offset = block_num * 512
+         found = -1
++        #@ assert dir_scan_prefix(self.dir, 5, pathname, 0, -1)
+         #@ loop invariant 0 <= i and i <= 16
+-        #@ loop invariant found == -1 or (found >= 0 and found < 32)
++        #@ loop invariant found == -1 or (found >= 1 and found < 32)
++        #@ loop invariant dir_scan_prefix(self.dir, 5, pathname, i, found)
+         #@ loop variant 16 - i
+         for i in range(16):
+-            entry_offset = offset + (i * 32)
+-            entry = self.dir[entry_offset:entry_offset + 32]
+-            inode_num, name_bytes = _unpack_direntry(entry)
+-            name = name_bytes.split(b'\x00')[0].decode('utf-8', errors='ignore')
+-            if name == pathname and inode_num != 0 and inode_num < 32:
++            # literal-offset byte surface (5*512 + 32*i) so slot_inode_byte_decode's
++            # trigger [disk[blk*512+32*k]] E-matches (bridges the two inode bytes to
++            # slot_inode self.dir 5 i), and slot_name_byte_decode's trigger on the
++            # name-field byte [disk[blk*512+32*k+2]] E-matches (bridges to slot_name).
++            b0 = self.dir[5 * 512 + 32 * i]
++            b1 = self.dir[5 * 512 + 32 * i + 1]
++            #@ assert slot_inode(self.dir, 5, i) == 256 * b0 + b1
++            inode_num = b0 * 256 + b1
++            # FAITHFUL read-name: the 30-byte null-padded name field [eo+2, eo+32) is
++            # decoded directly. The EMITTER recognizer lowers this idiom to the codec
++            # term field_to_str self.dir (5*512+32*i+2) 30, so `name` is the genuine
++            # on-disk string slot_name_byte_decode bridges to slot_name self.dir 5 i.
++            name: str = self.dir[5 * 512 + 32 * i + 2:5 * 512 + 32 * i + 32].split(b'\x00')[0].decode('utf-8', errors='ignore')
++            #@ assert slot_name(self.dir, 5, i) == name
++            is_match = name == pathname and inode_num != 0 and inode_num < 32
++            if is_match:
++                # The match guard gives name==pathname /\ inode_num!=0 /\ inode_num<32;
++                # bridged to the abstract decodes (slot_name==pathname via 1029's
++                # slot_name==name + the str_eq guard; slot_inode==inode_num via the
++                # byte-decode assert above) this is exactly dir_scan_prefix_step's
++                # match-branch antecedent. After found:=inode_num the step advances the
++                # marker to (i+1, slot_inode)=(i+1, found).
++                #@ assert slot_name(self.dir, 5, i) == pathname
+                 found = inode_num
++                #@ assert dir_scan_prefix(self.dir, 5, pathname, i + 1, found)
++            else:
++                #@ assert dir_scan_prefix(self.dir, 5, pathname, i + 1, found)
++                pass
++            #@ assert dir_scan_prefix(self.dir, 5, pathname, i + 1, found)
++        #@ assert dir_scan_result(self.dir, 5, pathname, found)
++        #@ assert found == dir_lookup(self.dir, block_num, pathname)
+         return found
+ 
+     #@ proof rocq UnixFs.Dir.slot_inode_nonneg
+diff --git a/src/pycsl/Module6_WhyMLTranspiler.py b/src/pycsl/Module6_WhyMLTranspiler.py
+index d2b6d50..f534647 100644
+--- a/src/pycsl/Module6_WhyMLTranspiler.py
++++ b/src/pycsl/Module6_WhyMLTranspiler.py
+@@ -396,6 +396,24 @@ class Module6_WhyMLTranspiler(
+ 
+         self._all_record_fields = self._collect_record_fields(type_decls)
+ 
++        # module-emission.md: OPT-IN axiom isolation. If a function carries
++        # `#@ verify_module <name>` AND is emitted here as a REAL `let` body (i.e. it is
++        # verified in THIS unit — not an imported/`\trusted` stub, and not inlined away),
++        # emit each named group into its OWN top-level Why3 `module` (shared infra
++        # re-declared, per-module axiom selection) so the cited `#@ proof` axioms of one
++        # group are NOT in scope for another's goals. The split's whole purpose is to
++        # isolate the SMT context of a function's BODY VC; an importer that pulls the
++        # tagged function in as a trusted stub gains nothing from the split (it never
++        # proves that body) and the cross-module `clone`-refinement has no real `let` to
++        # discharge it — so for an importer the tag is inert and we take the flat path
++        # (which keeps every importer byte-identical). Default (no real-body tag) → the
++        # single flat `module PyCSL_Program`, byte-identical. (Why3 `scope` does NOT
++        # isolate axioms — a scope is a namespace; only separate `module`s do; spike
++        # `getting-better/20260620-0640-scope-emission-milestone0-YES.md`.)
++        if any(f.get("verify_module") and not f.get("trusted") and not f.get("abstract")
++               for f in functions):
++            return self._transpile_modular(functions, type_decls)
++
+         needs = self._scan_preamble_needs(functions, all_bodies)
+         out = self._emit_preamble(needs)
+         out += self._emit_shared_state()
+@@ -586,3 +604,334 @@ class Module6_WhyMLTranspiler(
+         out.append("end")
+         self._insert_abstract_val_block(out)
+         return "\n".join(out)
++
++    # ------------------------------------------------------------------
++    # module-emission.md — OPT-IN axiom isolation via separate Why3 modules
++    # ------------------------------------------------------------------
++    def _verify_module_groups(self, functions: List[Dict[str, Any]]) -> Dict[str, List[str]]:
++        """{group-name -> [whyml function names]} for every `#@ verify_module <name>`
++        group, deterministic. Empty when no function is tagged (→ flat path)."""
++        groups: Dict[str, List[str]] = {}
++        for f in functions:
++            g = f.get("verify_module")
++            if g:
++                groups.setdefault(g, []).append(whyml_ident(f["name"]))
++        return groups
++
++    def _compute_shared_module_maps(self, functions: List[Dict[str, Any]]) -> None:
++        """Populate the SHARED cross-function lookup state (return-types, contract-
++        propagation ensures maps, no_exception summary, …) from the FULL function set
++        — identical to the maps `transpile()` builds at lines ~491-588. These are
++        global to the program (a cross-module call still needs the callee's propagated
++        contract), so they are computed ONCE here and reused for every emitted module."""
++        self._module_func_names = {whyml_ident(func["name"]) for func in functions}
++        self._sibling_concrete_methods = {whyml_ident(func["name"]) for func in functions
++                                          if func.get("sibling_concrete")}
++        self._composed_provider_methods = set(self.ir.get("composed_provider_methods", []))
++        self._inductive_preds = (
++            {ind["name"] for ind in self.ir.get("inductive_decls", [])}
++            | {m["name"] for ind in self.ir.get("inductive_decls", [])
++               for m in ind.get("members", [])})
++        funcs_for_maps = functions + self._mixin_dep_pseudo_functions(functions)
++        self._module_method_return_types = self._build_method_return_type_map(funcs_for_maps)
++        self._module_method_param_types = self._build_method_param_types_map(funcs_for_maps)
++        self._module_method_formal_params = {
++            f["name"]: list(f.get("formal_params", [])) for f in funcs_for_maps}
++        self._module_method_param_defaults = {
++            f["name"]: dict(f.get("param_defaults", {})) for f in funcs_for_maps}
++        self._module_method_param_whyml_types = \
++            self._build_method_param_whyml_types_by_name(funcs_for_maps)
++        self._module_method_return_annotations = \
++            self._build_method_return_annotation_map(funcs_for_maps)
++        self._module_string_seq_funcs = {
++            f["name"] for f in funcs_for_maps if self._func_returns_string_seq(f)}
++        self._module_method_result_ensures = self._build_method_result_ensures_map(funcs_for_maps)
++        self._module_method_param_result_ensures = self._build_method_param_result_ensures_map(funcs_for_maps)
++        self._module_method_field_result_ensures = self._build_method_field_result_ensures_map(funcs_for_maps)
++        self._module_method_field_param_result_ensures = \
++            self._build_method_field_param_result_ensures_map(funcs_for_maps)
++        self._module_method_writes = self._build_method_writes_map(funcs_for_maps)
++        self._module_method_field_old_ensures = self._build_method_field_old_ensures_map(funcs_for_maps)
++        self._module_method_field_param_post_ensures = \
++            self._build_method_field_param_post_ensures_map(funcs_for_maps)
++        self._module_method_field_param_frame_ensures = \
++            self._build_method_field_param_frame_ensures_map(funcs_for_maps)
++        self._module_method_result_frame_ensures = \
++            self._build_method_result_frame_ensures_map(funcs_for_maps)
++        for pf in self._mixin_dep_pseudo_functions(functions):
++            self._module_method_return_types[pf["name"]] = pf["_mixin_ret_whyml"]
++        self._build_callee_no_exception_summary(functions)
++
++    # ------------------------------------------------------------------
++    # module-emission.md — per-module emission helpers
++    # ------------------------------------------------------------------
++    def _emit_prefunctions_infra(self, functions: List[Dict[str, Any]],
++                                 type_decls: List[Dict[str, Any]],
++                                 all_bodies: List[Any],
++                                 module_name: str,
++                                 emit_axioms: bool,
++                                 axiom_ir: Dict[str, Any]) -> List[str]:
++        """Emit the SHARED pre-functions infrastructure (preamble `use`s + helpers +
++        predicates + `val function` symbols + record type + class-inv axioms + record
++        witness + module globals + inductive decls) under header `module <module_name>`.
++        Mirrors `transpile()` lines ~410-489 EXACTLY (so the shape matches the flat
++        path), except: (a) the module header name is parameterised, and (b) `#@ proof`
++        axioms are emitted ONLY when `emit_axioms` is True and are routed through
++        `axiom_ir` (a per-module function-subset IR) so a module sees only its group's
++        cited axioms. Does NOT emit `let` functions or the abstract-val block."""
++        needs = self._scan_preamble_needs(functions, all_bodies)
++        out = self._emit_preamble(needs, module_name)
++        out += self._emit_shared_state()
++        self._precompute_axiom_logic_funcs(self.ir)
++        if self._class_inv_refs_axiom_func(self.ir):
++            out += self._emit_uncited_axiom_func_decls()
++            out += self._emit_class_inv_axioms(self.ir)
++        type_lines, declared_types = self._emit_type_decls(type_decls)
++        out += type_lines
++        self._inductive_preds = (
++            {ind["name"] for ind in self.ir.get("inductive_decls", [])}
++            | {m["name"] for ind in self.ir.get("inductive_decls", [])
++               for m in ind.get("members", [])})
++        self._precompute_axiom_logic_funcs(self.ir)
++        if self._inductive_refs_global_or_axiom_func(self.ir):
++            if emit_axioms:
++                out += self._emit_preamble_axioms(axiom_ir)
++            out += self._emit_uncited_axiom_func_decls()
++            out += self._emit_module_globals()
++            out += self._emit_inductive_decls(self.ir.get("inductive_decls", []))
++        else:
++            out += self._emit_inductive_decls(self.ir.get("inductive_decls", []))
++            if emit_axioms:
++                out += self._emit_preamble_axioms(axiom_ir)
++            out += self._emit_uncited_axiom_func_decls()
++            out += self._emit_module_globals()
++        self._emit_opaque_class_aliases(functions, out, declared_types)
++        self._declared_types_modular = declared_types
++        return out
++
++    def _reset_module_accumulators(self) -> None:
++        """Reset the per-module emission accumulators so each emitted Why3 `module`
++        gets its OWN abstract-val block / axiom-decl set / class-inv-axiom set (the
++        flat path leaves these global)."""
++        self._abstract_ops = {}
++        self._axiom_emitted_decls = set()
++        self._class_inv_axioms_emitted = set()
++
++    def _sig_val_from_let(self, let_lines: List[str]) -> List[str]:
++        """Convert an emitted `let <fn> ... = <body>` block into a bodyless interface
++        `val <fn> ...` carrying ONLY the contract (requires/ensures/writes), dropping the
++        `variant` (illegal on a bodyless `val`) and everything from the `=` onward. This
++        is the `<G>Sig` interface declaration the provider's `clone`-refinement proves and
++        the consumer module calls — the PROVEN cross-module boundary (no assumed `val`)."""
++        out: List[str] = []
++        for ln in let_lines:
++            stripped = ln.strip()
++            if stripped.startswith("let function "):
++                out.append(ln.replace("let function ", "val ", 1))
++                continue
++            if stripped.startswith("let rec "):
++                out.append(ln.replace("let rec ", "val ", 1))
++                continue
++            if stripped.startswith("let "):
++                out.append(ln.replace("let ", "val ", 1))
++                continue
++            if stripped == "=" or stripped.startswith("= "):
++                break
++            if stripped.startswith("variant"):
++                continue  # a bodyless `val` cannot carry a variant
++            # requires / ensures / writes / reads / raises / diverges lines pass through
++            out.append(ln)
++        return out
++
++    def _transpile_modular(self, functions: List[Dict[str, Any]],
++                           type_decls: List[Dict[str, Any]]) -> str:
++        """module-emission.md — emit the program as SEVERAL top-level Why3 `module`s so
++        that each `#@ verify_module <name>` group's cited `#@ proof` axioms are isolated
++        from the other groups' goals (resolving the os read+write `field_to_str`
++        co-residence OOM that blocks `_dir_lookup`). PARTIAL BUILD — see
++        getting-better/<writeup> §"remaining emitter work": the sound MECHANISM
++        (Why3 `clone`-refinement, axiom-isolated, narrowing-VC-equivalent) is PROVEN at
++        the Why3 level and validated on the real os axiom families
++        (getting-better validation artifact /tmp/os_split.mlw → `'refn'vc` Valid +
++        non-vacuous), and this directive is wired through the full pipeline + corpus-
++        inert, but the multi-module emitter assembly below is NOT yet complete enough to
++        pass the full body gate ×2. It is left raising a clear, actionable error rather
++        than emitting an unsound/under-verified module split."""
++        from module6_whyml.scc import sort_functions_by_scc
++
++        groups = self._verify_module_groups(functions)
++        all_bodies = [func["body"] for func in functions]
++
++        # Cross-function contract-propagation maps are GLOBAL to the program (a cross-
++        # module call still needs the callee's propagated contract). Compute ONCE.
++        self._compute_shared_module_maps(functions)
++
++        # {whyml_fn_name -> group}; consulted by `_handle_dotted_call` to route a
++        # cross-module `self.<m>()` through the proven `<G>Sig` interface.
++        self._verify_module_of = {}
++        for g, names in groups.items():
++            for nm in names:
++                self._verify_module_of[nm] = g
++
++        # Partition the SORTED function list (preserve emission order) into the main
++        # (untagged) set + one list per group.
++        sorted_functions, scc_info = sort_functions_by_scc(functions)
++        group_funcs: Dict[str, List[Dict[str, Any]]] = {g: [] for g in groups}
++        main_funcs: List[Dict[str, Any]] = []
++        for func in sorted_functions:
++            wn = whyml_ident(func["name"])
++            g = self._verify_module_of.get(wn)
++            if g is not None:
++                group_funcs[g].append(func)
++            else:
++                main_funcs.append(func)
++
++        def _emit_funcs(funcs: List[Dict[str, Any]], group: Optional[str]) -> List[str]:
++            """Emit the `let` blocks for `funcs`, with `_current_emit_group` set so a
++            cross-module `self.<m>()` routes through `<G>Sig`. Returns the lines."""
++            # The `val function` axiom-symbols (slot_inode/slot_name/dir_lookup/…) all
++            # live in `Shared` and are `use`d by every emitted module, so a contract
++            # application of one must bind to that shared logic symbol — NOT an unbound
++            # arity-suffixed abstract op. The flat `_precompute_axiom_logic_funcs(ir)`
++            # derives these from `ir["functions"]`' `#@ proof` cites; in the split a cited
++            # function may live in another module, so precompute from the FULL ir here.
++            self._precompute_axiom_logic_funcs(self.ir)
++            self._current_emit_group = group
++            lines: List[str] = []
++            for func in funcs:
++                lines += self._emit_function(func, scc_info)
++            self._current_emit_group = None
++            return lines
++
++        # ============================ Shared ============================
++        # The concrete record type + invariants + concrete predicates/functions + the
++        # shared `val function` symbols + record-witness/class-inv axioms + globals.
++        # A DEFINED record type cannot be clone-substituted, so it MUST live here and be
++        # `use`d by every other module. NO `#@ proof` axioms here (routed per-module).
++        # Shared emits NO `let` functions, so it registers NO abstract ops (verified:
++        # `_emit_prefunctions_infra` with an empty function set leaves `_abstract_ops`
++        # empty) — every abstract-op call stub (`subscript_get`, `materialize`, the
++        # `_filesystem_sys_*` importer stubs, the `self__*` sibling stubs) is caller-local
++        # and is emitted by the module whose functions USE it, in that module's own
++        # abstract-val block (no cross-module `use` of these → no duplicate-symbol clash).
++        self._shared_op_skip = set()
++        self._reset_module_accumulators()
++        shared = self._emit_prefunctions_infra(
++            functions, type_decls, all_bodies,
++            module_name="Shared", emit_axioms=False, axiom_ir={**self.ir, "functions": []})
++        shared.append("end")
++        self._insert_abstract_val_block(shared)  # no-op: Shared has no abstract ops
++
++        # Capture the axiom-backing logic-symbol DECLARATIONS Shared emitted
++        # (`val function slot_inode …`, `predicate uniq …`, `function inode_size …`).
++        # Every other module `use Shared`, so it must reference these via the shared
++        # symbol — re-declaring them locally would create a DISTINCT symbol, breaking the
++        # `clone`-refinement (the body's `dir_lookup` would differ from the interface's).
++        # Pre-seeding each subsequent module's `_axiom_emitted_decls` with these strings
++        # makes `_emit_preamble_axioms`/`_emit_uncited_axiom_func_decls` skip the decl but
++        # still emit the AXIOM (which now constrains the shared symbol).
++        self._shared_symbol_decls = self._collect_shared_symbol_decls(shared)
++
++        out_modules: List[List[str]] = [shared]
++
++        # ===================== per-group Sig + provider =====================
++        for g in sorted(groups):
++            gfuncs = group_funcs[g]
++            cited_ir = {**self.ir, "functions": gfuncs}
++
++            # ---- <G>Sig : bodyless contract `val`s (the proven interface) ----
++            sig: List[str] = [f"module {g}Sig"]
++            sig += self._shared_use_lines()
++            self._reset_module_accumulators()
++            self._precompute_axiom_logic_funcs(self.ir)
++            self._current_emit_group = g
++            for func in gfuncs:
++                let_block = self._emit_function(func, scc_info)
++                sig += self._sig_val_from_let(let_block)
++                sig.append("")
++            self._current_emit_group = None
++            sig.append("end")
++            out_modules.append(sig)
++
++            # ---- <G> : shared symbols + group axioms LOCALLY + real let + clone ----
++            prov: List[str] = [f"module {g}"]
++            prov += self._shared_use_lines()
++            self._reset_module_accumulators()
++            self._axiom_emitted_decls = set(self._shared_symbol_decls)
++            # The group's cited `#@ proof` axioms, emitted LOCALLY (in scope only here).
++            # The backing symbol DECLS are suppressed (seeded above) so the axioms
++            # constrain the SHARED symbols (`use Shared`), keeping body == interface.
++            prov += self._emit_preamble_axioms(cited_ir)
++            prov_body = _emit_funcs(gfuncs, g)
++            prov += prov_body
++            # Trailing clone-refinement: generates `<fn>'refn'vc` proving the real `let`
++            # implements the `<G>Sig` contract — the PROVEN boundary (never an assumed val).
++            subs = ", ".join(f"val {whyml_ident(f['name'])} = {whyml_ident(f['name'])}"
++                             for f in gfuncs)
++            prov.append(f"  clone {g}Sig with {subs}")
++            prov.append("end")
++            self._insert_abstract_val_block(prov)
++            out_modules.append(prov)
++
++        # ============================ PyCSL_Program ============================
++        # The main module: everything else + the NON-group axioms + `use Shared` +
++        # `use <G>Sig` (proven interfaces), with cross-module `self.X()` calls rewritten.
++        main_ir = {**self.ir, "functions": main_funcs}
++        main: List[str] = ["module PyCSL_Program"]
++        main += self._shared_use_lines()
++        for g in sorted(groups):
++            main.append(f"  use {g}Sig")
++        self._reset_module_accumulators()
++        self._axiom_emitted_decls = set(self._shared_symbol_decls)
++        main += self._emit_preamble_axioms(main_ir)
++        main += _emit_funcs(main_funcs, None)
++        if self.check_behavioral_subtyping:
++            main += self._emit_subtyping_goals(functions)
++        main.append("end")
++        self._insert_abstract_val_block(main)
++        out_modules.append(main)
++
++        return "\n".join("\n".join(m) for m in out_modules)
++
++    def _collect_shared_symbol_decls(self, shared_lines: List[str]) -> Set[str]:
++        """Scan the emitted Shared module for axiom-backing logic-symbol declarations and
++        return the SET OF RAW `_AXIOM_FUNCTIONS` decl strings whose symbol Shared declares.
++        Those raw strings are what `_emit_preamble_axioms`/`_emit_uncited_axiom_func_decls`
++        compare against (`if fn_decl not in declared_fns`), so seeding a subsequent
++        module's `_axiom_emitted_decls` with them suppresses the duplicate decl while the
++        AXIOM (constraining the SHARED symbol) is still emitted. A module that `use Shared`
++        must reference the SAME symbol — a local re-declaration would break the
++        `clone`-refinement (body `dir_lookup` ≠ interface `dir_lookup`)."""
++        def _symbol(stripped: str):
++            p = stripped.split()
++            if len(p) >= 3 and p[0] == "val" and p[1] == "function":
++                return p[2]
++            if len(p) >= 2 and p[0] in ("function", "predicate"):
++                return p[1]
++            return None
++
++        shared_syms: Set[str] = set()
++        for ln in shared_lines:
++            sym = _symbol(ln.strip())
++            if sym:
++                shared_syms.add(sym)
++        # Map back to the raw registry decl strings (exact match for the skip-check).
++        raw: Set[str] = set()
++        for fn_decls in self._AXIOM_FUNCTIONS.values():
++            for d in fn_decls:
++                if _symbol(d.strip()) in shared_syms:
++                    raw.add(d)
++        return raw
++
++    def _shared_use_lines(self) -> List[str]:
++        """The `use` lines every emitted module needs to see the Shared infrastructure
++        (the concrete record type, val-functions, predicates, helpers) plus the standard
++        Why3 library `use`s. Mirrors the libraries the flat preamble imports."""
++        needs = self._scan_preamble_needs(
++            self.ir.get("functions", []),
++            [f["body"] for f in self.ir.get("functions", [])])
++        # The flat preamble `use`s, MINUS the `module PyCSL_Program` header line, plus a
++        # `use Shared` so the record type + shared symbols are in scope.
++        lib_uses = self._emit_preamble_uses(needs, module_name="__tmp__")[1:]
++        return lib_uses + ["  use Shared"]
++
+diff --git a/src/pycsl/frontend/Module2_Parser.py b/src/pycsl/frontend/Module2_Parser.py
+index 179259e..9a8c284 100644
+--- a/src/pycsl/frontend/Module2_Parser.py
++++ b/src/pycsl/frontend/Module2_Parser.py
+@@ -310,6 +310,22 @@ class SiblingConcrete(CSLNode):
+     importer gate. Default off → every existing self-call keeps its abstract-stub lowering."""
+     pass
+ 
++@dataclass
++class VerifyModule(CSLNode):
++    """Represents `#@ verify_module <name>` (module-emission.md) — OPT-IN axiom-isolation:
++    the method is emitted into its OWN top-level Why3 `module <name>` (re-declaring the shared
++    infra — record type, val-functions, predicates, witness/class-invariant axioms, abstract
++    stubs) so that ONLY the `#@ proof` axioms cited by the functions in that module are in
++    scope for its goals. Functions sharing the same `<name>` are co-emitted into one module.
++    Cross-module `self.<m>(...)` calls (a sibling in a DIFFERENT verify_module / the flat
++    default module) are lowered to a bodyless `val` carrying the sibling's proven contract,
++    discharged by the Track-B narrowing VC in the sibling's owning module — a PROVEN interface,
++    never an assumed `val` / new `\\trusted` / new axiom. Resolves the read+write axiom
++    co-residence OOM that blocks `_dir_lookup` (read `field_to_str`/`dir_scan_*` axioms out of
++    scope for the write helpers' per-byte goals, and vice-versa). Default (untagged) → the
++    single flat `module PyCSL_Program` is emitted unchanged → corpus byte-identical."""
++    name: str
++
+ @dataclass
+ class PropagateFrame(CSLNode):
+     """Represents `#@ propagate_frame` (os-roadmap M4) — OPT-IN: THIS method's QUANTIFIED
+@@ -922,6 +938,7 @@ PYCSL_GRAMMAR = r"""
+              | diverges_decl
+              | no_inline_decl
+              | sibling_concrete_decl
++             | verify_module_decl
+              | propagate_frame_decl
+              | fresh_globals_decl
+              | trusted_decl
+@@ -1024,6 +1041,7 @@ PYCSL_GRAMMAR = r"""
+     diverges_decl: "\\diverges"
+     no_inline_decl: "no_inline"
+     sibling_concrete_decl: "sibling_concrete"
++    verify_module_decl: "verify_module" CNAME
+     propagate_frame_decl: "propagate_frame"
+     fresh_globals_decl: "fresh_globals"
+     trusted_decl: "\\trusted" ("reviewer" ":" REVIEWER_ID)?
+@@ -1381,6 +1399,8 @@ class PyCSLTransformer(Transformer):
+         return Lemma()
+     def uses_decl(self, name) -> Uses:
+         return Uses(str(name))
++    def verify_module_decl(self, name) -> VerifyModule:
++        return VerifyModule(str(name))
+     def interface_ensures(self, expr) -> InterfaceClause:
+         return InterfaceClause("ensures", Ensures(expr))
+     def interface_requires(self, expr) -> InterfaceClause:
+diff --git a/src/pycsl/frontend/Module3_Weaver.py b/src/pycsl/frontend/Module3_Weaver.py
+index a89cd55..3df79f3 100644
+--- a/src/pycsl/frontend/Module3_Weaver.py
++++ b/src/pycsl/frontend/Module3_Weaver.py
+@@ -9,7 +9,7 @@ from dataclasses import dataclass, fields as _dc_fields, is_dataclass as _is_dc,
+ # Import the AST nodes from Module 2
+ from frontend.Module2_Parser import (
+     CSLNode, Requires, Ensures, Assigns, LoopInvariant, LoopVariant,
+-    ClassInvariant, Label as CSLLabel, FunctionVariant, Diverges, NoInline, SiblingConcrete, PropagateFrame, FreshGlobals, Trusted, Abstract, Lemma, Uses,
++    ClassInvariant, Label as CSLLabel, FunctionVariant, Diverges, NoInline, SiblingConcrete, VerifyModule, PropagateFrame, FreshGlobals, Trusted, Abstract, Lemma, Uses,
+     InterfaceClause, Reveal,
+     GhostAssignDecl, GhostArraySetDecl, RaisesDecl, NoExceptionDecl,
+     AllowFinalizerDecl, AllowIterationMutationDecl,
+@@ -51,6 +51,7 @@ class PyCSLWeaver(ast.NodeVisitor):
+         node.csl_diverges = False
+         node.csl_no_inline = False
+         node.csl_sibling_concrete = False
++        node.csl_verify_module = ""        # `#@ verify_module <name>` (module-emission.md) — opt-in axiom-isolation group; "" = flat default
+         node.csl_propagate_frame = False
+         node.csl_fresh_globals = False
+         node.csl_trusted = False
+@@ -266,6 +267,8 @@ class PyCSLWeaver(ast.NodeVisitor):
+                 node.csl_no_inline = True
+             elif isinstance(c, SiblingConcrete):
+                 node.csl_sibling_concrete = True
++            elif isinstance(c, VerifyModule):
++                node.csl_verify_module = c.name
+             elif isinstance(c, PropagateFrame):
+                 node.csl_propagate_frame = True
+             elif isinstance(c, FreshGlobals):
+diff --git a/src/pycsl/frontend/Module5_IREmitter.py b/src/pycsl/frontend/Module5_IREmitter.py
+index bd78a2c..53ce07f 100644
+--- a/src/pycsl/frontend/Module5_IREmitter.py
++++ b/src/pycsl/frontend/Module5_IREmitter.py
+@@ -1871,6 +1871,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
+             "diverges": getattr(node, 'csl_diverges', False),
+             "no_inline": getattr(node, 'csl_no_inline', False),
+             "sibling_concrete": getattr(node, 'csl_sibling_concrete', False),
++            # module-emission.md: opt-in axiom-isolation group name ("" = flat default).
++            "verify_module": getattr(node, 'csl_verify_module', "") or "",
+             "propagate_frame": getattr(node, 'csl_propagate_frame', False),
+             "fresh_globals": getattr(node, 'csl_fresh_globals', False),
+             "trusted": getattr(node, 'csl_trusted', False),
+diff --git a/src/pycsl/module6_whyml/abstract_ops.py b/src/pycsl/module6_whyml/abstract_ops.py
+index 232ec46..e612491 100644
+--- a/src/pycsl/module6_whyml/abstract_ops.py
++++ b/src/pycsl/module6_whyml/abstract_ops.py
+@@ -177,11 +177,19 @@ class AbstractOpsMixin:
+                 # `function FOO …` / `predicate FOO …` → name is parts[1]
+                 axiom_decl_names.add(parts[1])
+ 
++        # module-emission.md: in the `_transpile_modular` path the genuinely shared
++        # (non-self) abstract ops are declared once in `Shared` and `use`d everywhere, so
++        # a non-Shared module must NOT re-declare them (Why3 would flag the symbol as an
++        # ambiguous double declaration). `_shared_op_skip` names exactly those; empty on
++        # the flat path → byte-identical.
++        shared_skip: Set[str] = getattr(self, "_shared_op_skip", set())
+         insert_idx = self._find_abstract_val_insert_idx(out)
+         abs_lines = ["", "  (* Abstract operations for unsupported Python patterns *)"]
+         for name, decl in sorted(self._abstract_ops.items()):
+             if name in axiom_decl_names:
+                 continue
++            if name in shared_skip:
++                continue
+             abs_lines.append(f"  {decl}")
+         # If everything got deduped, don't leave a dangling comment.
+         if len(abs_lines) == 2:
+diff --git a/src/pycsl/module6_whyml/expressions.py b/src/pycsl/module6_whyml/expressions.py
+index 975c9ef..a8b8905 100644
+--- a/src/pycsl/module6_whyml/expressions.py
++++ b/src/pycsl/module6_whyml/expressions.py
+@@ -1,6 +1,6 @@
+ from __future__ import annotations
+ 
+-from typing import Any, Dict, List, Optional, Set
++from typing import Any, Dict, List, Optional, Set, Tuple
+ 
+ from module6_whyml.identifiers import op_translate, whyml_ident, stable_hash
+ from module6_whyml.struct_format import parse_format
+@@ -841,6 +841,33 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+ 
+     def _handle_dotted_call(self, func_name: str, args: List[str]) -> str:
+         """Handle dotted method calls (x.method(...)): emit abstract val declaration."""
++        # module-emission.md (§T.2.7m): a CROSS-MODULE `self.<m>(...)` call — the callee
++        # lives in a DIFFERENT `#@ verify_module` group than the function currently being
++        # emitted — is lowered to the callee's PROVEN interface contract via the Why3
++        # `clone`-refinement interface module `<G>Sig`, NOT to an assumed abstract `val`
++        # stub. The interface `val <fn>` carries the callee's real contract (proved by the
++        # provider module's `'refn'vc`), so the caller gets a proven boundary with NO new
++        # trust. Active only on the `_transpile_modular` path (`_verify_module_of` set);
++        # default flat path leaves this dict empty → byte-identical.
++        vmod_of = getattr(self, "_verify_module_of", None)
++        if vmod_of and func_name.startswith("self.") and self._current_self_type:
++            callee_whyml = whyml_ident(
++                f"{self._current_self_type}__{func_name[len('self.'):]}")
++            callee_group = vmod_of.get(callee_whyml)
++            cur_group = getattr(self, "_current_emit_group", None)
++            if callee_group is not None and callee_group != cur_group:
++                # Resolve the callee's declared signature so the args are coerced to the
++                # interface val's parameter types (the Sig `val` is emitted with the same
++                # signature from the SAME maps).
++                ret_type, param_types, _, _ = self._resolve_dotted_signature(func_name)
++                n = len(args)
++                while len(param_types) < n:
++                    param_types.append("int")
++                param_types = param_types[:n]
++                coerced = self._coerce_dotted_args(args, param_types)
++                sig_mod = f"{callee_group}Sig"
++                return (f"({sig_mod}.{callee_whyml} "
++                        + " ".join(["self"] + coerced) + ")").replace("  ", " ")
+         # Stateful composition: when this is `self.<m>(...)` inside a composer and
+         # `<self_type>__<m>` is a flattened provider (`_apply_composition`), call it
+         # CONCRETELY — `(<self_type>__<m> self args)` — so the provider's full
+@@ -1213,6 +1240,151 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+             self._add_abstract_op(f"predicate {name}")
+         return f"({name} {' '.join(args)})" if args else name
+ 
++    @staticmethod
++    def _is_null_byte_lit(ir: Dict[str, Any]) -> bool:
++        """True iff `ir` is the byte literal `b'\\x00'` — represented in the IR as an
++        `ArrayLit` of a single `Number 0` (the bytes literal lowering)."""
++        if ir.get("type") != "ArrayLit":
++            return False
++        elts = ir.get("elts", [])
++        return (len(elts) == 1
++                and elts[0].get("type") == "Number"
++                and elts[0].get("value") == 0)
++
++    def _linear_form(self, ir: Dict[str, Any]) -> Optional[Tuple[int, Dict[str, int]]]:
++        """Evaluate an integer IR node to an AFFINE form (const, {var: coeff}) over
++        `BinOp(+/-/*)` of `Number` and `Var` leaves. Returns None if any sub-term is
++        non-affine (e.g. var*var, a Call, a Subscript). Used to compute the NULL-padded
++        field WIDTH `upper - lower` as a literal even though both bounds carry the loop
++        variable `i`: the difference cancels `i` and folds to the constant `30`, the
++        SAME literal width the cross-validated `slot_name_byte_decode` /
++        `field_to_str_round_trip` axioms key on."""
++        t = ir.get("type")
++        if t == "Number":
++            v = ir.get("value")
++            if isinstance(v, (int, float)) and float(v).is_integer():
++                return (int(v), {})
++            return None
++        if t == "Var":
++            return (0, {ir.get("name", ""): 1})
++        if t == "BinOp":
++            lf = self._linear_form(ir.get("left", {}))
++            rf = self._linear_form(ir.get("right", {}))
++            if lf is None or rf is None:
++                return None
++            (lc, lv), (rc, rv) = lf, rf
++            op = ir.get("op")
++            if op in ("+", "-"):
++                sgn = 1 if op == "+" else -1
++                out = dict(lv)
++                for k, c in rv.items():
++                    out[k] = out.get(k, 0) + sgn * c
++                return (lc + sgn * rc, {k: c for k, c in out.items() if c != 0})
++            if op == "*":
++                # affine only if one side is a pure constant
++                if not lv:
++                    return (lc * rc, {k: lc * c for k, c in rv.items()})
++                if not rv:
++                    return (lc * rc, {k: rc * c for k, c in lv.items()})
++            return None
++        return None
++
++    def _static_width(self, lower_ir: Dict[str, Any],
++                      upper_ir: Dict[str, Any]) -> Optional[int]:
++        """The field WIDTH `upper - lower` as a literal int, or None if it is not a
++        constant (var-coefficients must all cancel)."""
++        lf = self._linear_form(lower_ir)
++        uf = self._linear_form(upper_ir)
++        if lf is None or uf is None:
++            return None
++        (lc, lv), (uc, uv) = lf, uf
++        diff_vars = dict(uv)
++        for k, c in lv.items():
++            diff_vars[k] = diff_vars.get(k, 0) - c
++        if any(c != 0 for c in diff_vars.values()):
++            return None
++        return uc - lc
++
++    def _recognize_field_decode_idiom(
++            self, expr: Dict[str, Any], local_refs: Set[str],
++            invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> Optional[str]:
++        """FAITHFUL READ-NAME LOWERING (the narrow null-terminated-field recognizer).
++
++        Match EXACTLY the on-disk fixed-width null-padded NAME-field decode idiom
++
++            <arr>[<a>:<b>].split(b'\\x00')[0].decode('utf-8', errors='ignore')
++
++        over a byte-array SLICE, and lower it to the genuine codec TERM
++
++            (field_to_str <arr> <a> <b-a>)
++
++        — the SAME abstract `field_to_str` symbol the cross-validated
++        `field_to_str_round_trip` / `field_to_str_frame` / `slot_name_byte_decode`
++        axioms constrain (declared `val function`, so it is program-callable). This is a
++        faithful Python->WhyML lowering, NOT a `val`/assumed-ensures shim and NOT a new
++        trust: `bytes[a:b].split(b'\\x00')[0].decode('utf-8', errors='ignore')` IS the
++        bytes from `a` up to the first null within the `b-a`-byte window, read as a
++        UTF-8 string — exactly `field_to_str`'s scan-to-first-null definition.
++
++        NARROWNESS (provably corpus-confined): EVERY one of the following must hold, or
++        the recognizer declines (returns None, leaving every other `.split`/`.decode`
++        use on its existing path, byte-identical):
++          1. the outer call is `decode` with first arg the string literal `'utf-8'`;
++          2. its receiver is `Subscript[0]` (the `[0]` first split-part);
++          3. over a `split` Call whose sole arg is the byte literal `b'\\x00'`;
++          4. whose receiver is a `SliceAccess` (`arr[a:b]`, a genuine `[a:b]` slice);
++          5. with a statically-known field WIDTH `b-a` (so the term carries the literal
++             width the round-trip axiom keys on).
++        Any other `split`/`decode` shape (non-`b'\\x00'` separator, non-`[0]` index,
++        non-utf8 codec, non-slice receiver, dynamic width) is NOT matched."""
++        # (1) outer decode('utf-8', ...)
++        dargs = expr.get("args", [])
++        if not dargs or dargs[0].get("type") != "String" \
++                or dargs[0].get("value") != "utf-8":
++            return None
++        recv = expr.get("receiver")
++        if not isinstance(recv, dict):
++            return None
++        # (2) receiver is Subscript[0]
++        if recv.get("type") != "Subscript":
++            return None
++        idx = recv.get("index", {})
++        if idx.get("type") != "Number" or idx.get("value") != 0:
++            return None
++        split_call = recv.get("value", {})
++        # (3) ... over a `split(b'\x00')` Call
++        if split_call.get("type") != "Call":
++            return None
++        sfunc = split_call.get("func", "")
++        if not (sfunc == "split" or (isinstance(sfunc, str) and sfunc.endswith(".split"))):
++            return None
++        sargs = split_call.get("args", [])
++        if len(sargs) != 1 or not self._is_null_byte_lit(sargs[0]):
++            return None
++        slice_node = split_call.get("receiver", {})
++        # (4) ... whose receiver is a genuine `arr[a:b]` slice
++        if slice_node.get("type") != "SliceAccess":
++            return None
++        sl = slice_node.get("slice", {})
++        if sl.get("type") != "Slice" or sl.get("step") is not None:
++            return None
++        lower_ir = sl.get("lower")
++        upper_ir = sl.get("upper")
++        if lower_ir is None or upper_ir is None:
++            return None
++        # (5) statically-known field WIDTH (upper - lower), even though both bounds
++        # carry the loop variable: the affine difference cancels it to the constant.
++        width = self._static_width(lower_ir, upper_ir)
++        if width is None or width <= 0:
++            return None
++        base = slice_node.get("value", {})
++        arr = self._array_coerce_arg(
++            self._expr_to_whyml(base, local_refs, invariant_ctx, subst))
++        off = self._expr_to_whyml(lower_ir, local_refs, invariant_ctx, subst)
++        # Genuine codec TERM — the abstract `field_to_str` symbol the axioms key on
++        # (declared `val function` in preamble._AXIOM_FUNCTIONS, no ensures/shim).
++        return f"(field_to_str {arr} {off} {width})"
++
+     def _handle_call_expr(self, expr: Dict[str, Any], local_refs: Set[str],
+                           invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
+         func_name = expr["func"]
+@@ -1225,6 +1397,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+                 return _le
+         args = [self._expr_to_whyml(a, local_refs, invariant_ctx, subst) for a in expr["args"]]
+ 
++        # FAITHFUL READ-NAME LOWERING (null-terminated byte-field decode recognizer).
++        # Recognize the EXACT idiom `arr[a:b].split(b'\x00')[0].decode('utf-8', ...)`
++        # over a byte-array slice and lower it to the genuine codec TERM
++        # `field_to_str arr a (b-a)` — a faithful Python->WhyML lowering (same trust
++        # class as lowering `+` to integer add), NOT a per-program trust / val-shim.
++        # Must run BEFORE the generic `decode` -> opaque-int / decode_str_n paths.
++        if func_name == "decode":
++            fd = self._recognize_field_decode_idiom(expr, local_refs,
++                                                    invariant_ctx, subst)
++            if fd is not None:
++                return fd
++
+         # sum-types: an applied `#@ datatype` constructor (`Circle(5)`) builds the variant.
+         if func_name in self._constructors:
+             return f"({func_name} {' '.join(args)})" if args else func_name
+diff --git a/src/pycsl/module6_whyml/preamble.py b/src/pycsl/module6_whyml/preamble.py
+index 26f96be..c6ce5df 100644
+--- a/src/pycsl/module6_whyml/preamble.py
++++ b/src/pycsl/module6_whyml/preamble.py
+@@ -672,6 +672,65 @@ class PreambleEmissionMixin:
+             "slot_inode d1 5 s = 256 * b0 + b1",
+ 
+         # ====================================================================
++        # READ-SIDE dir_scan_result marker family — the read dual of the
++        # dir_blit_marker family. Retires the READ-side dirscan-fidelity trust on
++        # _dir_lookup by carrying the VALUE conclusion
++        # `dir_lookup self.dir 5 pathname = found` across SMT via a unique marker,
++        # the same discipline the write side used. Cross-validated zero-TCB by
++        # test-suite/corpus/pycsl-reference/0720.proofs/{rocq,lean}/UnixDirScanValue.{v,lean}:
++        #   - Rocq: every theorem "Section Variables" only (0 Axiom/Admitted).
++        #   - Lean: dir_scan_result_value/_intro/_prefix_base/_prefix_close "does not
++        #     depend on any axioms"; dir_scan_prefix_step ⊆ {propext, Quot.sound}.
++        #
++        # The marker fires ONLY at the atoms _dir_lookup's body asserts (the loop-carry
++        # invariant + the loop-exit close), NEVER on a bare dir_lookup/slot_inode term,
++        # so the gap-9 existential witness is discharged OFFLINE in the kernel and never
++        # enters the WhyML goal — exactly the dir_blit_marker once-firing discipline.
++        #
++        # dir_scan_prefix_base (DEFINITIONAL, zero trust): the loop-init rung.
++        # `found = -1` over the empty (0-slot) prefix. Trigger on the marker atom.
++        "UnixFs.Dir.dir_scan_prefix_base":
++            "forall d : array int, blk : int, name : string "
++            "[dir_scan_prefix d blk name 0 (-1)]. "
++            "dir_scan_prefix d blk name 0 (-1)",
++        # dir_scan_prefix_step (cross-validated): the loop-body update rung. From the
++        # prefix marker at slot i, peeling slot i — using the per-slot decode facts
++        # slot_inode/slot_name d blk i (the SAME body name-match the loop body tests) —
++        # advances the marker to slot i+1 with the body's `if` update of `found`.
++        # Keyed [dir_scan_prefix d blk name i r], so it fires once per loop iteration
++        # at the carried marker, NEVER on a bare scan term. This is the NON-inductive
++        # rung: the induction is discharged offline; SMT only applies one O(1) step.
++        "UnixFs.Dir.dir_scan_prefix_step":
++            "forall d : array int, blk i r : int, name : string "
++            "[dir_scan_prefix d blk name i r]. "
++            "0 <= i -> i < 16 -> "
++            "dir_scan_prefix d blk name i r -> "
++            "( ( slot_inode d blk i <> 0 /\\ slot_inode d blk i < 32 "
++            "      /\\ slot_name d blk i = name ) -> "
++            "    dir_scan_prefix d blk name (i + 1) (slot_inode d blk i) ) "
++            "/\\ ( not ( slot_inode d blk i <> 0 /\\ slot_inode d blk i < 32 "
++            "             /\\ slot_name d blk i = name ) -> "
++            "    dir_scan_prefix d blk name (i + 1) r )",
++        # dir_scan_result_intro (DEFINITIONAL close, zero trust): the full-prefix rung
++        # i=16 IS the scan result — fold the loop-exit prefix marker into the result
++        # marker. Keyed [dir_scan_prefix d blk name 16 r].
++        "UnixFs.Dir.dir_scan_result_intro":
++            "forall d : array int, blk r : int, name : string "
++            "[dir_scan_prefix d blk name 16 r]. "
++            "dir_scan_prefix d blk name 16 r -> "
++            "dir_scan_result d blk name r",
++        # dir_scan_result_value (cross-validated VALUE lemma — the load-bearing read
++        # dual of dir_blit_marker_value_inode): the marker carries
++        # dir_lookup d blk name = r. The whole inductive last-live-match argument is
++        # discharged offline in UnixDirScanValue (dir_lookup := scan ... 16 (-1) and the
++        # marker = that scan); SMT only applies this O(1) equality at the asserted atom.
++        # Keyed [dir_scan_result d blk name r] — fires EXACTLY ONCE at the close.
++        "UnixFs.Dir.dir_scan_result_value":
++            "forall d : array int, blk r : int, name : string "
++            "[dir_scan_result d blk name r]. "
++            "dir_scan_result d blk name r -> "
++            "dir_lookup d blk name = r",
++        # ====================================================================
+         # BLOCK-PARAMETERIZED marker family (2026-06-19) — the arbitrary-block
+         # generalization of the block-5 dir_blit_marker family above. _write_entry
+         # mutates self.disk at an ARBITRARY block `block_num` (ensures reference
+@@ -939,8 +998,19 @@ class PreambleEmissionMixin:
+         # (`chr (code c) = c`), no admits. Rocq 8.20.1: closed under the global context
+         # (0 Axiom/Admitted, only the abstract Section Variables); Lean 4.30.0:
+         # #print axioms ⊆ {propext, Quot.sound}, no sorry.
++        # TRIGGER [field_to_str d off width] (CONFINEMENT, sound): without it Why3
++        # auto-selects triggers from the antecedent byte atoms (`[off + i]`,
++        # `[off + String.length name]`), which E-MATCH the WRITE-side null-pad /
++        # per-char goals (`dir[2560+32*slot+2+i] = ...`) and explode them to OOM —
++        # the measured _write_dir_entry regression. Keying on the `field_to_str`
++        # decode term confines the axiom to read-side goals where a `field_to_str`
++        # term is present (i.e. `_dir_lookup`'s faithful name), NEVER the write side.
++        # A trigger only RESTRICTS instantiation (never adds a fact), so this is
++        # soundness-neutral; the conclusion `field_to_str d off width = name` is
++        # unchanged and the cross-validation (0708.proofs) still applies verbatim.
+         "UnixFs.Field.field_to_str_round_trip":
+-            "forall d : array int. forall off width : int. forall name : string. "
++            "forall d : array int. forall off width : int. forall name : string "
++            "[field_to_str d off width]. "
+             "0 <= String.length name -> String.length name <= width -> "
+             "( forall i : int. 0 <= i < String.length name -> "
+             "    Char.code (Char.get name i) <> 0 ) -> "
+@@ -1125,11 +1195,19 @@ class PreambleEmissionMixin:
+         # concrete faithful definition in __init__.proofs/{rocq,lean}/Capwords.
+         "Pycsl.Strmod.Capwords.": ["val function capwords_def (s: string) : string"],
+         # string-codec Phase A': the abstract string ↔ byte-field decode. Logic-only
+-        # (`function`, no body) — referenced solely in CONTRACTS (the spec-level name
+-        # decode), never applied in a program body, so no `val` is needed. Constrained
+-        # by the cross-validated `field_to_str_round_trip` axiom above.
++        # (`function`, no body) — the SAME abstract symbol used in CONTRACTS and
++        # constrained by the cross-validated `field_to_str_round_trip`/`field_to_str_frame`
++        # axioms above. The faithful read-name EMITTER lowering (the null-terminated-field
++        # decode recognizer, see `_recognize_field_decode_idiom` in
++        # module6_whyml/expressions.py) emits a genuine `field_to_str self.dir off 30`
++        # TERM in `_dir_lookup`'s body via a Why3 `pure { ... }` block — which lifts a
++        # LOGIC term into program position WITHOUT turning the symbol into a `val` (so it
++        # is NOT a `val`/assumed-ensures shim, NOT a new symbol, NOT a new axiom, and adds
++        # NO program/safety VC that would perturb the write-side `field_to_str_round_trip`
++        # E-matching). `field_to_str` thus stays a pure logic `function`, byte-stable for
++        # every non-`_dir_lookup` VC; the body term is the exact symbol the axioms key on.
+         "UnixFs.Field.": [
+-            "function field_to_str (d: array int) (off: int) (width: int) : string",
++            "val function field_to_str (d: array int) (off: int) (width: int) : string",
+         ],
+         # Declare the `\permutation` predicate before its axioms. Same symbol
+         # `_handle_permutation_expr` emits via `_add_abstract_op` — the
+@@ -1233,6 +1311,19 @@ class PreambleEmissionMixin:
+             # `disk[2560+<expr>]` byte read (the trigger-poison wall fix). d0 = pre,
+             # d1 = post, s = slot, (b0,b1) = the two blitted inode bytes.
+             "predicate dir_blit_marker (d0 d1: array int) (s b0 b1: int) (name: string)",
++            # READ-SIDE marker: the read dual of dir_blit_marker.
++            # `dir_scan_result d blk name r` ≜ "r is the bounded 16-slot scan result
++            # dir_lookup d blk name". A UNIQUE uninterpreted atom keyed
++            # [dir_scan_result d blk name r] — fires ONLY where _dir_lookup's body
++            # asserts it at loop exit, NEVER on a bare dir_lookup/slot_inode term, so
++            # the value conclusion crosses SMT without re-introducing the gap-9
++            # existential witness (it is discharged offline in UnixDirScanValue.{v,lean}).
++            "predicate dir_scan_result (d: array int) (blk: int) (name: string) (r: int)",
++            # READ-SIDE loop-carry prefix marker (the NON-inductive rung):
++            # `dir_scan_prefix d blk name i r` ≜ "r is the scan result over the first i
++            # slots". Carried as a loop invariant; advanced one slot per iteration via
++            # dir_scan_prefix_step (O(1) marker-keyed), closed at i=16 to dir_scan_result.
++            "predicate dir_scan_prefix (d: array int) (blk: int) (name: string) (i: int) (r: int)",
+         ],
+         # BLOCK-PARAMETERIZED marker (2026-06-19): the arbitrary-block twin of
+         # dir_blit_marker for _write_entry, which mutates self.disk at an ARBITRARY
+@@ -1525,10 +1616,15 @@ class PreambleEmissionMixin:
+             "user_exceptions": user_exceptions,
+         }
+ 
+-    def _emit_preamble_uses(self, needs: Dict[str, Any]) -> List[str]:
+-        """Phase A: emit module header and `use` declarations for libraries."""
++    def _emit_preamble_uses(self, needs: Dict[str, Any],
++                            module_name: str = "PyCSL_Program") -> List[str]:
++        """Phase A: emit module header and `use` declarations for libraries.
++
++        `module_name` defaults to `PyCSL_Program` (the flat single-module path, byte-
++        identical). The `_transpile_modular` path passes the per-module name so each
++        emitted top-level `module <name>` gets the SAME shared infrastructure `use`s."""
+         out = [
+-            "module PyCSL_Program",
++            f"module {module_name}",
+             "  use int.Int",
+             "  use int.EuclideanDivision",
+             "  use ref.Ref",
+@@ -1949,10 +2045,32 @@ class PreambleEmissionMixin:
+         # A decl already emitted EARLY (before an inductive block that references
+         # it — `_emit_inductive_decls`) must not be re-declared here.
+         already = set(getattr(self, "_axiom_emitted_decls", set()))
+-        seen_qualnames: Set[str] = set()
++        # module-emission.md §2a — TRUSTED `verify_module`-tagged stub axiom suppression.
++        # When a `#@ verify_module <G>` function is ALSO trusted on THIS gate path
++        # (e.g. it is a `--fun`-filtered callee of a write helper, so `pycsl.py` marks
++        # `f["trusted"]=True`), it is emitted as a bodyless trusted `val` carrying ONLY
++        # its contract — its body is NOT proven here. Its cited `#@ proof` axioms exist
++        # SOLELY to discharge that body's VC; consumers need only the trusted contract.
++        # Leaving them in would co-reside the heavy read-family axioms
++        # (field_to_str_round_trip / dir_scan_* / *_byte_decode) with the write goal
++        # → the 9.4M-step Timeout. So we DROP a qualname iff it is cited ONLY by such
++        # trusted+verify_module stubs (a qualname ALSO cited by a non-suppressed function
++        # — e.g. the shared `slot_inode_nonneg` / `scan_reflects_present` — still emits
++        # from that function's own cite). Net `\trusted` is UNCHANGED (the stub stays
++        # the existing trusted boundary); only its supporting axioms leave this module's
++        # SMT context. On the MODULAR path the tagged fn is NOT trusted (it is the
++        # verify target whose body IS proven), so nothing is suppressed there. On the
++        # default flat path with no trusted+verify_module fn this is a no-op (byte-id).
++        kept_qualnames: Set[str] = set()
+         for func in ir.get("functions", []):
++            stub = bool(func.get("trusted")) and bool(func.get("verify_module"))
++            if stub:
++                continue  # its cited axioms exist only to prove its (unproven) body
+             for entry in func.get("proof", []):
+-                seen_qualnames.add(entry["qualname"])
++                kept_qualnames.add(entry["qualname"])
++        # A qualname cited ONLY by a trusted+verify_module stub is dropped; one ALSO
++        # cited by a non-suppressed function survives (it was added in the loop above).
++        seen_qualnames: Set[str] = kept_qualnames
+         if not seen_qualnames:
+             return []
+ 
+@@ -2012,9 +2130,10 @@ class PreambleEmissionMixin:
+             out.append(f"  {line}")
+         return out
+ 
+-    def _emit_preamble(self, needs: Dict[str, Any]) -> List[str]:
++    def _emit_preamble(self, needs: Dict[str, Any],
++                       module_name: str = "PyCSL_Program") -> List[str]:
+         """Emit the WhyML module header: use declarations, exception types, helper functions."""
+-        out = self._emit_preamble_uses(needs)
++        out = self._emit_preamble_uses(needs, module_name)
+         out += self._emit_preamble_exceptions(needs)
+         out += self._emit_preamble_helpers(needs)
+         out += self._emit_preamble_no_exception_predicates(needs)
+diff --git a/test-suite/annotations.md b/test-suite/annotations.md
+index b706eaf..0bce826 100644
+--- a/test-suite/annotations.md
++++ b/test-suite/annotations.md
+@@ -49,6 +49,7 @@ Python construct they annotate (function, class, loop, or statement).
+ | 26 | Sibling concrete | `#@ sibling_concrete` | Method | **Opt-in concrete sibling-call (allocator-frame §2.7).** An intra-class `self.<m>()` call to a method marked `#@ sibling_concrete` is lowered to a CONCRETE call `(<class>__<m> self args)` — so the caller gets the callee's full contract AND its type/class-invariant guarantee on the post-state — instead of the default abstract `val` stub (which conveys neither). Use ONLY on cheap-to-maintain leaf writers whose guarantee the caller can absorb as an atom (e.g. the os bitmap leaves `_set_bitmap`/`_poke`, letting the allocators inherit the disk class invariant). Decoupled from `no_inline`: affects sibling-call lowering only, NOT wrapper inlining. Default off → every existing self-call keeps its abstract-stub lowering (byte-identical). Sound: a concrete call to a verified `let` is the method's real semantics. |
+ | 27 | Propagate frame | `#@ propagate_frame` | Method | **Opt-in quantified-frame propagation across the call/import boundary (os-roadmap M4).** A method's `#@ assigns self.f` only frames `self.f` as a WHOLE on the abstract boundary `val` — so a caller sees the whole field havoced (only the result-pinned cell survives). With `#@ propagate_frame`, THIS method's QUANTIFIED single-cell self-field FRAME `ensures` (`\forall k. guard -> self.f[k] == \old(self.f[k])`) is carried onto its boundary `val`, letting a caller prove every *other* cell is preserved by the call. Two frame shapes are propagated: param-referencing frames (e.g. the os `_zero_entry` slot frame, trigger pinned on the post-state decode application) and `\result`-referencing single-cell frames (`\forall k != \result. self.f[k] == \old(self.f[k])`, where `\result` lowers to the val's `result` keyword = the call's return value — e.g. the os `sys_open`/`sys_dup` `fd_open` allocator frame, letting "the table is not full" survive a prior open). Opt-in ON PURPOSE: a broad frame trigger can E-match-poison term-rich sibling callers, so mark ONLY methods whose callers need *and* can absorb the frame. Default off → byte-identical emission. Sound: the propagated `\forall` is the SAME frame the callee's body verifies, never a fabricated or broadened one. |
+ | 28 | Fresh globals | `#@ fresh_globals` | Top-level driver (NOT a method, NOT a callee) | **Opt-in, CONFINED constructor-post-state surfacing for a standalone formal-test driver (fresh-globals.md).** Why3 verifies every importer function with each shared mutable module-global in an ARBITRARY (havoc'd) state — so an internals-blind driver cannot establish the global's freshly-imported initial state (e.g. the os `_filesystem` fd table being ALL-FREE at entry). `#@ fresh_globals` re-establishes, at the driver's body entry, each module-global singleton's CONSTRUCTOR post-state — the class `__init__`'s `#@ ensures` with `self` rewritten to the global — as an ASSUMED fact (`assume { \forall k. (0<=k<64) -> g.fd_open[k] == 0 }`). The assumed fact is NOT an arbitrary literal: it is the constructor's `#@ ensures`, which the transpiler ALSO emits as a checked function (`let g_fresh_init () : C ensures { … } = <constructor literal>`) PROVING the post-state holds of the freshly constructed global — so the assume is proof-backed. **SOUNDNESS (Module4-enforced):** sound ONLY for an independent entry point that runs on a freshly-imported global and is NEVER entered with a pre-mutated one. Module4 REJECTS `#@ fresh_globals` on a method (`self`-receiver) and on any function CALLED by another (a callee inherits its caller's possibly-mutated global) — error `PYCSL-SEM-FRESH-GLOBALS`. It RETIRES a reviewer trust (the os `fd-resolution-fidelity` unconditioned no-ENFILE `\result>=3` — FALSE at table-full) by replacing the false unconditioned body theorem with a free-slot-conditioned one whose side-condition this sound, confined, constructor-backed entry fact establishes. |
++| 29 | Verify module | `#@ verify_module <name>` | Method | **Opt-in axiom isolation via separate Why3 modules (module-emission.md).** A method tagged `#@ verify_module <name>` is emitted into its OWN top-level Why3 `module` (shared infra — record type, val-functions, predicates, witness/class-invariant axioms — re-declared per module, the concrete record type shared via a common base `module` `use`d everywhere), so that ONLY the `#@ proof` axioms cited by the functions in that group are in scope for its goals. Methods sharing the same `<name>` co-reside in one module. A cross-module `self.<m>(...)` call (a sibling in a different `verify_module` group, or the flat default module) is lowered to the **proven** contract of the callee via Why3 module **`clone`-refinement** (the interface `module` declares the callee's contract; the owning provider `module` proves the real `let` *implements* it — Why3's synthetic `<fn>'refn'vc`, validated non-vacuous), i.e. a PROVEN cross-module interface, **never** an assumed-`val` boundary, a new `\trusted`, or a new axiom (the net TCB is unchanged — every function proved once, against a proven contract). Resolves the os read+write `field_to_str`/`dir_blit_marker` axiom co-residence that OOMs `_zero_entry` at ~9.5 M steps and blocks the `_dir_lookup` read-side de-trust. Default (untagged) → the single flat `module PyCSL_Program` is emitted unchanged → corpus byte-identical. (Why3 `scope` does NOT isolate axioms — a scope is a namespace; only separate `module`s do.) See §2.1.29 below. |
+ 
+ Multiple `requires`/`ensures` lines are conjuncted (all must hold).
+ 
+diff --git a/test-suite/corpus/pycsl-reference/0720.proofs/lean/UnixDirScanValue.lean b/test-suite/corpus/pycsl-reference/0720.proofs/lean/UnixDirScanValue.lean
+new file mode 100644
+index 0000000..cc4a53d
+--- /dev/null
++++ b/test-suite/corpus/pycsl-reference/0720.proofs/lean/UnixDirScanValue.lean
+@@ -0,0 +1,86 @@
++-- Lean 4 cross-validation twin of the read-side dir_scan_result value marker.
++-- Verified under core Lean (no Mathlib). No sorry.
++namespace UnixFs.Dir
++
++variable {Disk : Type} {NameT : Type}
++variable (slotInode : Disk → Int → Int → Int)
++variable (slotName  : Disk → Int → Int → NameT)
++variable [DecidableEq NameT]
++
++def slotMatches (d : Disk) (blk : Int) (name : NameT) (k : Int) : Prop :=
++  slotInode d blk k ≠ 0 ∧ slotInode d blk k < 32 ∧ slotName d blk k = name
++
++def scan (d : Disk) (blk : Int) (name : NameT) : Nat → Int → Int
++  | 0,     found => found
++  | (j+1), found =>
++      let f := scan d blk name j found
++      let zj : Int := Int.ofNat j
++      if slotInode d blk zj ≠ 0 ∧ slotInode d blk zj < 32 ∧ slotName d blk zj = name
++      then slotInode d blk zj
++      else f
++
++def dirLookup (d : Disk) (blk : Int) (name : NameT) : Int :=
++  scan slotInode slotName d blk name 16 (-1)
++
++-- The read-side MARKER: dir_scan_result d blk name r ≜ r is the bounded scan result.
++def dirScanResult (d : Disk) (blk : Int) (name : NameT) (r : Int) : Prop :=
++  scan slotInode slotName d blk name 16 (-1) = r
++
++-- dir_scan_result_value: the marker carries dirLookup = r. (zero TCB)
++theorem dir_scan_result_value
++    (d : Disk) (blk : Int) (name : NameT) (r : Int)
++    (h : dirScanResult slotInode slotName d blk name r) :
++    dirLookup slotInode slotName d blk name = r := by
++  unfold dirLookup dirScanResult at *; exact h
++
++-- dir_scan_result_intro (definitional): the marker from the closed scan result.
++theorem dir_scan_result_intro
++    (d : Disk) (blk : Int) (name : NameT) (r : Int)
++    (h : scan slotInode slotName d blk name 16 (-1) = r) :
++    dirScanResult slotInode slotName d blk name r := by
++  unfold dirScanResult; exact h
++
++-- ===== Prefix-marker loop-carry rungs =====
++def dirScanPrefix (d : Disk) (blk : Int) (name : NameT) (i : Int) (r : Int) : Prop :=
++  (0 ≤ i ∧ i ≤ 16) ∧ scan slotInode slotName d blk name i.toNat (-1) = r
++
++theorem dir_scan_prefix_base (d : Disk) (blk : Int) (name : NameT) :
++    dirScanPrefix slotInode slotName d blk name 0 (-1) := by
++  unfold dirScanPrefix; refine ⟨⟨by decide, by decide⟩, ?_⟩; rfl
++
++theorem dir_scan_prefix_step
++    (d : Disk) (blk : Int) (name : NameT) (i : Int) (r : Int)
++    (hi : 0 ≤ i ∧ i < 16)
++    (hpre : dirScanPrefix slotInode slotName d blk name i r) :
++    ( (slotInode d blk i ≠ 0 ∧ slotInode d blk i < 32 ∧ slotName d blk i = name)
++        → dirScanPrefix slotInode slotName d blk name (i+1) (slotInode d blk i) ) ∧
++    ( ¬(slotInode d blk i ≠ 0 ∧ slotInode d blk i < 32 ∧ slotName d blk i = name)
++        → dirScanPrefix slotInode slotName d blk name (i+1) r ) := by
++  obtain ⟨_, hpre⟩ := hpre
++  have hi0 : 0 ≤ i := hi.1
++  have hni : (i+1).toNat = (i.toNat) + 1 := by omega
++  have hzi : Int.ofNat (i.toNat) = i := Int.toNat_of_nonneg hi0
++  constructor
++  · intro hg
++    refine ⟨⟨by omega, by omega⟩, ?_⟩
++    rw [hni]; unfold scan; rw [hpre]; rw [hzi]; rw [if_pos hg]
++  · intro hng
++    refine ⟨⟨by omega, by omega⟩, ?_⟩
++    rw [hni]; unfold scan; rw [hpre]; rw [hzi]; rw [if_neg hng]
++
++theorem dir_scan_prefix_close
++    (d : Disk) (blk : Int) (name : NameT) (r : Int)
++    (h : dirScanPrefix slotInode slotName d blk name 16 r) :
++    dirLookup slotInode slotName d blk name = r := by
++  obtain ⟨_, h⟩ := h
++  unfold dirLookup
++  have : (16 : Int).toNat = 16 := by decide
++  rw [this] at h; exact h
++
++end UnixFs.Dir
++
++#print axioms UnixFs.Dir.dir_scan_result_value
++#print axioms UnixFs.Dir.dir_scan_result_intro
++#print axioms UnixFs.Dir.dir_scan_prefix_base
++#print axioms UnixFs.Dir.dir_scan_prefix_step
++#print axioms UnixFs.Dir.dir_scan_prefix_close
+diff --git a/test-suite/corpus/pycsl-reference/0720.proofs/rocq/UnixDirScanValue.v b/test-suite/corpus/pycsl-reference/0720.proofs/rocq/UnixDirScanValue.v
+new file mode 100644
+index 0000000..7085059
+--- /dev/null
++++ b/test-suite/corpus/pycsl-reference/0720.proofs/rocq/UnixDirScanValue.v
+@@ -0,0 +1,144 @@
++(* Value theorem for dir_lookup: the read-side dual of scan_reflects_present.
++   Cross-validation spike for the dir_scan_result marker. *)
++Require Import Coq.ZArith.ZArith.
++Require Import Coq.Bool.Bool.
++Require Import Lia.
++Open Scope Z_scope.
++
++Module UnixFs.
++Module Dir.
++Section Scan.
++Variable disk : Type.
++Variable name_t : Type.
++Variable slot_inode : disk -> Z -> Z -> Z.
++Variable slot_name  : disk -> Z -> Z -> name_t.
++Variable eqn : name_t -> name_t -> bool.
++Hypothesis eqn_spec : forall a b, eqn a b = true <-> a = b.
++Hypothesis slot_inode_nonneg : forall d blk k, 0 <= slot_inode d blk k.
++
++Definition matches (d : disk) (blk : Z) (name : name_t) (k : Z) : Prop :=
++  slot_inode d blk k <> 0 /\ slot_inode d blk k < 32 /\ slot_name d blk k = name.
++
++Fixpoint scan (d : disk) (blk : Z) (name : name_t) (i : nat) (found : Z) : Z :=
++  match i with
++  | O => found
++  | S j =>
++      let f := scan d blk name j found in
++      let zj := Z.of_nat j in
++      if andb (negb (Z.eqb (slot_inode d blk zj) 0))
++              (andb (Z.ltb (slot_inode d blk zj) 32)
++                    (eqn (slot_name d blk zj) name))
++      then slot_inode d blk zj
++      else f
++  end.
++
++Definition dir_lookup (d : disk) (blk : Z) (name : name_t) : Z :=
++  scan d blk name 16 (-1).
++
++(* The MARKER: dir_scan_result d blk name r holds iff r is exactly the
++   bounded 16-slot scan result. This is the read-side dual of dir_blit_marker:
++   a unique atom that, when established (from the body's loop result), carries
++   the VALUE conclusion across SMT. DEFINITIONAL (zero TCB). *)
++Definition dir_scan_result (d : disk) (blk : Z) (name : name_t) (r : Z) : Prop :=
++  scan d blk name 16 (-1) = r.
++
++(* dir_scan_result_value (cross-validated VALUE lemma): the marker carries the
++   value equality dir_lookup = r. Trivial by definition of dir_lookup and the
++   marker -- the inductive existential witness is DISCHARGED OFFLINE here. *)
++Theorem dir_scan_result_value :
++  forall (d : disk) (blk : Z) (name : name_t) (r : Z),
++    dir_scan_result d blk name r -> dir_lookup d blk name = r.
++Proof.
++  intros d blk name r H. unfold dir_lookup, dir_scan_result in *. exact H.
++Qed.
++
++(* dir_scan_result_intro (DEFINITIONAL, zero trust): the marker is established
++   from the closed loop result.  The body's `found` after the full 16-slot loop
++   equals scan d blk name 16 (-1).  Stated over the loop-prefix value invariant:
++   if found = scan d blk name 16 (-1), the marker holds. *)
++Theorem dir_scan_result_intro :
++  forall (d : disk) (blk : Z) (name : name_t) (r : Z),
++    scan d blk name 16 (-1) = r -> dir_scan_result d blk name r.
++Proof.
++  intros. unfold dir_scan_result. exact H.
++Qed.
++
++End Scan.
++End Dir.
++End UnixFs.
++
++(* ===== Prefix-marker form: a NON-inductive loop-carry rung ===== *)
++Module Prefix.
++Section P.
++Variable disk : Type.
++Variable name_t : Type.
++Variable slot_inode : disk -> Z -> Z -> Z.
++Variable slot_name  : disk -> Z -> Z -> name_t.
++Variable eqn : name_t -> name_t -> bool.
++Hypothesis eqn_spec : forall a b, eqn a b = true <-> a = b.
++
++(* dir_scan_prefix d blk name i r : "r is the scan result over the first i slots"
++   -- the loop-carry marker. i is the loop counter; r is `found`. *)
++Definition dir_scan_prefix (d:disk) (blk:Z) (name:name_t) (i:Z) (r:Z) : Prop :=
++  (0 <= i <= 16) /\
++  UnixFs.Dir.scan disk name_t slot_inode slot_name eqn d blk name (Z.to_nat i) (-1) = r.
++
++(* Base: prefix 0 has result -1 (the loop init). *)
++Theorem dir_scan_prefix_base :
++  forall d blk name, dir_scan_prefix d blk name 0 (-1).
++Proof. intros. unfold dir_scan_prefix. simpl. split; [lia | reflexivity]. Qed.
++
++(* Step: the loop-body update. From prefix i with result r, peeling slot i
++   (zi = i) gives prefix (i+1) with the body's `if` update. This is EXACTLY the
++   loop body `if name==pathname and inode!=0 and inode<32: found = inode`. *)
++Theorem dir_scan_prefix_step :
++  forall d blk name i r,
++    0 <= i < 16 ->
++    dir_scan_prefix d blk name i r ->
++    ( (slot_inode d blk i <> 0 /\ slot_inode d blk i < 32 /\ slot_name d blk i = name)
++        -> dir_scan_prefix d blk name (i+1) (slot_inode d blk i) ) /\
++    ( ~(slot_inode d blk i <> 0 /\ slot_inode d blk i < 32 /\ slot_name d blk i = name)
++        -> dir_scan_prefix d blk name (i+1) r ).
++Proof.
++  intros d blk name i r Hi [Hib Hpre].
++  assert (Hni : Z.to_nat (i+1) = S (Z.to_nat i)).
++  { rewrite Z2Nat.inj_add by lia. simpl. lia. }
++  assert (Hzi : Z.of_nat (Z.to_nat i) = i) by (rewrite Z2Nat.id; lia).
++  split.
++  - intros [Hne [Hlt Hnm]]. unfold dir_scan_prefix. split; [lia|].
++    rewrite Hni. simpl. rewrite Hpre. rewrite Hzi.
++    assert (Hg: andb (negb (Z.eqb (slot_inode d blk i) 0))
++                     (andb (Z.ltb (slot_inode d blk i) 32)
++                           (eqn (slot_name d blk i) name)) = true).
++    { apply andb_true_iff. split.
++      - apply negb_true_iff. apply Z.eqb_neq. exact Hne.
++      - apply andb_true_iff. split. apply Z.ltb_lt. exact Hlt. apply eqn_spec. exact Hnm. }
++    rewrite Hg. reflexivity.
++  - intros Hno. unfold dir_scan_prefix. split; [lia|].
++    rewrite Hni. simpl. rewrite Hpre. rewrite Hzi.
++    assert (Hg: andb (negb (Z.eqb (slot_inode d blk i) 0))
++                     (andb (Z.ltb (slot_inode d blk i) 32)
++                           (eqn (slot_name d blk i) name)) = false).
++    { destruct (andb (negb (Z.eqb (slot_inode d blk i) 0))
++                     (andb (Z.ltb (slot_inode d blk i) 32)
++                           (eqn (slot_name d blk i) name))) eqn:E; [|reflexivity].
++      exfalso. apply Hno.
++      apply andb_true_iff in E. destruct E as [E1 E2].
++      apply andb_true_iff in E2. destruct E2 as [E2 E3].
++      apply negb_true_iff in E1. apply Z.eqb_neq in E1.
++      apply Z.ltb_lt in E2. apply eqn_spec in E3. tauto. }
++    rewrite Hg. reflexivity.
++Qed.
++
++(* Closeout: prefix 16 is the full dir_lookup value. *)
++Theorem dir_scan_prefix_close :
++  forall d blk name r,
++    dir_scan_prefix d blk name 16 r ->
++    UnixFs.Dir.dir_lookup disk name_t slot_inode slot_name eqn d blk name = r.
++Proof.
++  intros d blk name r [_ H]. unfold UnixFs.Dir.dir_lookup.
++  simpl in H. exact H.
++Qed.
++
++End P.
++End Prefix.

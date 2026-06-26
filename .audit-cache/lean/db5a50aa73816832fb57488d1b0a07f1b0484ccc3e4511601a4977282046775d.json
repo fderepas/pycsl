@@ -1,0 +1,48 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "",
+  "compile_stderr": "",
+  "elapsed_compile_s": 0.9719579359953059,
+  "qualname_results": [
+    [
+      "UnixFs.Dir.frame_preserves_uniq",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.frame_preserves_slots_lt32",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.insert_preserves_uniq_folded",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.insert_preserves_slots_lt32",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.zero_preserves_uniq",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.zero_preserves_slots_lt32",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.establish_uniq",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.establish_slots_lt32",
+      true,
+      []
+    ]
+  ]
+}

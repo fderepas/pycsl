@@ -1,0 +1,7 @@
+[+] Verification SUCCESS! All contracts formally proven.
+--- spot regression (dir_lookup callers) ---
+sys_rmdir nV=0
+sys_creat nV=0
+sys_access nV=0
+sys_lstat nV=0
+CI3DONE

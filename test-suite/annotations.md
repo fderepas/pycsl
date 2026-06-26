@@ -1935,3 +1935,63 @@ enumerated, and decidable (the two-plane spec §4 confirms full soundness).
 
 **Tests**: 0731 (witness — `Literal[1, 2]` param), 0732 (L2 narrowing),
 0733 (negative — `Literal[b"x"]` rejected, L4a).
+
+### §12.10 `Final[T]` annotations (typing-engagement ty1)
+
+PEP 591 `Final[T]` (and bare `Final`) is **lowered at the front-end
+normalization seam** to the degenerate single-attribute, single-writer form of
+HAPPY's no-write confinement. The annotation's *type* is the inner type `T`
+(F3 — no narrowing): `_normalize_final_annotation` recognizes `Final[T]`
+(Subscript value=Name "Final") and bare `Final` (Name "Final"), returns `τ(T)`
+(or `"Any"` for bare `Final`), and records the name in a per-module
+**final registry** plumbed as `program_ir["final_registry"]` (omitted when
+empty → byte-identical for Final-free modules). The write-policy itself is a
+**static-semantics check** in `core_ir_semantic._check_final` (a syntactic
+write-site walk over the IR body, NOT a VC):
+
+```python
+x: Final[int] = 5           # F1: module-level — write-once at declaration.
+def f() -> int: return x    # a read; the declaration write is at module scope.
+
+class C:
+    attr: Final[int]        # F2: instance attribute — __init__-only writes.
+    def __init__(self):
+        self.attr = 0        # the single permitted write (modelled via the
+                             # record's field_defaults / init_body path, NOT
+                             # as a function-body statement).
+```
+
+**Static plane (Interpreted):** `_check_final` reuses HAPPY's no-write
+confinement *pattern* (a write-site walk) in its degenerate single-attribute,
+single-writer form. F1 (module-level Final — write-once): any `Assign`/
+`AugAssign` to a registered module-level Final name in a function body →
+`PyCSLSemanticError` (the declaration write is at module scope, not a function
+body, so it is naturally not flagged). F2 (instance-attribute Final —
+`__init__`-only): any `FieldAssign`/`FieldAugAssign` to `self.<attr>` (a
+registered class_attr Final) in a function body → `PyCSLSemanticError`
+(`__init__` is a dunder, skipped from `ir["functions"]`, so any function-body
+write is by definition outside `__init__`). F3 (no narrowing) is satisfied by
+construction — the type tag is `T`, not a refined type; no narrowing VC is
+emitted. F2b (subclass `__init__` writes) is a documented strictness gap
+(`27-0000-typing-spec-3` §6): a subclass `D(C)`'s `__init__` write to
+`self.attr` is NOT flagged (dunders are skipped), a soundness-preserving
+under-approximation.
+
+**Runtime plane (Shimmed):** `src/pycsl_lib/typ/__init__.py` provides a
+`Final(x0, x1, val)` shim with `#@ ensures \result == val` — identity, no
+validation (FR1–FR6, FD2 no-blend). It is explicitly NOT a write-guard
+descriptor — introducing one would blend the planes (FR6). The static
+write-policy is NOT discharged by the shim (it is a semantic check,
+invisible to the runtime).
+
+**No new IR node, no IR_VERSION bump, no new VC kind.** The final registry is
+an additive module-level metadata key (`program_ir["final_registry"]`); Module
+6 ignores it, so emission is byte-identical for every Final-free driver.
+
+**No GT gap** is tagged for `Final` — the write-restriction is a syntactic
+write-site check (decidable by construction; the two-plane spec §4 confirms
+full soundness).
+
+**Tests**: 0734 (F1 witness — module-level Final), 0735 (F1 negative —
+reassignment rejected), 0736 (F2 witness — instance-attr Final), 0737 (F2
+negative — write outside `__init__` rejected).

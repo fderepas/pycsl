@@ -1238,8 +1238,8 @@ what Python's own grammar admits:
   parser uses the stdlib `ast` parse; any `ast.Name` annotation node is
   carried through without rejection).
 - **`Subscript`** — `x: List[int]`, `x: Tuple[int, int]`, `x: Optional[T]`,
-  `x: Dict[K, V]`, `x: Union[A, B]`, `x: Literal[v1, ..., vn]`. # cite:
-  `src/pycsl/frontend/pure_ast.py`.
+  `x: Dict[K, V]`, `x: Union[A, B]`, `x: Literal[v1, ..., vn]`,
+  `x: Final[T]`. # cite: `src/pycsl/frontend/pure_ast.py`.
 - **`BinOp(BitOr)`** — `x: A | B` (PEP 604 union). # cite:
   `src/pycsl/frontend/pure_ast.py` (parsed as `BinOp(op=BitOr)`, left-assoc).
 - **`Constant` (stringized / forward reference)** — `x: "Foo"`,
@@ -1291,6 +1291,29 @@ front-end semantic error), NOT Why3 type errors. # cite:
 `src/pycsl/frontend/Module5_IREmitter.py` (`_normalize_literal_annotation`,
 `_classify_literal_value`). See translational §T.14.6 and static-semantics τ
 for the lowering of accepted forms.
+
+**Exception — `Final` write-policy rejection (typing-engagement ty1).** The
+`Final[T]` / bare `Final` annotation is accepted at parse time and normalized
+to the inner type `T` (F3 — no narrowing). The write-policy (F1 write-once /
+F2 `__init__`-only) is a *static-semantics check* (`core_ir_semantic._check_final`),
+raised as a `PyCSLSemanticError` (code `PYCSL-SEM-FINAL`) BEFORE any WhyML is
+emitted, when a function body contains a write to a Final name outside its
+allowed perimeter:
+
+- `x: Final[int] = 5` at module scope + a later `x = 10` in a function →
+  `Final: cannot reassign Final name 'x' ... (F1 — write-once at declaration;
+  PEP 591)`.
+- `attr: Final[int]` in class `C` + `self.attr = 1` in a `C` method other than
+  `__init__` → `Final: cannot write Final instance attribute 'self.attr'
+  outside __init__ (F2 — __init__-only writes; PEP 591)`.
+
+These are static-plane judgments only (FD1 divergence): the runtime would
+execute the write (FR3 — no enforcement); the rejection is a write-site
+check, not a runtime check. # cite:
+`src/pycsl/frontend/Module5_IREmitter.py` (`_normalize_final_annotation`,
+`_collect_final_registry`), `src/pycsl/core_ir_semantic.py`
+(`_check_final`). See translational §T.14.7 and static-semantics τ for the
+lowering of accepted forms.
 
 ---
 

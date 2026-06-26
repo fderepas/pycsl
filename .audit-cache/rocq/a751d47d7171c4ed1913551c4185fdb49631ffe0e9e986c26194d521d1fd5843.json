@@ -1,0 +1,18 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "Section Variables:\nrd\n: Z -> Z\n",
+  "compile_stderr": "",
+  "elapsed_compile_s": 1.1039657619999161,
+  "qualname_results": [
+    [
+      "UnixFs.Field.field_to_str_round_trip",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Field.field_to_str_round_trip",
+      true,
+      []
+    ]
+  ]
+}

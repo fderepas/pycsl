@@ -1,0 +1,23 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "RemoveUniqueAbsent.lean:38:5: warning: unused variable `hs1dead`\n\nNote: This linter can be disabled with `set_option linter.unusedVariables false`\n",
+  "compile_stderr": "",
+  "elapsed_compile_s": 0.8375597229896812,
+  "qualname_results": [
+    [
+      "UnixFs.Dir.remove_unique_absent",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.remove_unique_absent",
+      true,
+      []
+    ],
+    [
+      "UnixFs.Dir.remove_unique_absent",
+      true,
+      []
+    ]
+  ]
+}

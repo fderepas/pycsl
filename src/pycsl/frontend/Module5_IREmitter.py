@@ -70,6 +70,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # conjunctive and commutative, so this is a rendering detail only).
         self._cur_literal_requires: List[Dict[str, Any]] = []
         self._cur_literal_ensures: List[Dict[str, Any]] = []
+        # typing-engagement ty1 / 27-0000-typing-spec-3: the per-module Final
+        # registry. Each entry records a Final-annotated name and its allowed
+        # writer — the degenerate single-attribute, single-writer form of HAPPY's
+        # no-write confinement (F1: module-level Final → no function may write;
+        # F2: instance-attribute Final → only the declaring class's __init__ may
+        # write). Plumbed into `program_ir["final_registry"]` (omitted when empty,
+        # so byte-identical for Final-free modules). Consumed by
+        # `core_ir_semantic._check_final` (a static write-site check, NOT a VC).
+        self._final_registry: List[Dict[str, Any]] = []
         # refactor.md B-final wedge: the set of module-level shared-variable names
         # (from `csl_shared_decls`). Module5 now builds the function symbol_table
         # itself (see `_build_function_symbol_table`), and — like Module4's
@@ -233,6 +242,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     for (mname, msig, mrules) in (getattr(ind, 'members', None) or [])
                 ],
             })
+
+        # typing-engagement ty1 / 27-0000-typing-spec-3: collect the per-module
+        # Final registry (F1 module-level + F2 instance-attribute declarations)
+        # BEFORE generic_visit so the class walk sees the resolved class names.
+        # Plumbed as `program_ir["final_registry"]` (omitted when empty →
+        # byte-identical for Final-free modules). Consumed by the static
+        # write-policy check `core_ir_semantic._check_final` (NOT a VC).
+        self._collect_final_registry(node)
+        if self._final_registry:
+            self.program_ir["final_registry"] = list(self._final_registry)
 
         self.generic_visit(node)
 
@@ -1400,15 +1419,24 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
 
     def _field_type_from_annotation_inst(self, annotation: Optional[ast.expr],
                                           scope_name: str = "") -> str:
-        """Instance wrapper for `_field_type_from_annotation` that tries Union
-        normalization first (synthesizing a per-site variant for
-        `Union`/`Optional`/`|` field annotations), else falls back to the static
-        legacy resolution. For non-Union annotations, byte-identical."""
-        if annotation is not None and scope_name:
+        """Instance wrapper for `_field_type_from_annotation` that tries Final
+        normalization first (resolving the inner type `τ(T)` — F3, no narrowing,
+        typing-engagement ty1 / 27-0000-typing-spec-3), then Union normalization
+        (synthesizing a per-site variant for `Union`/`Optional`/`|` field
+        annotations), else falls back to the static legacy resolution. For
+        non-Final/non-Union annotations, byte-identical."""
+        if annotation is not None:
             try:
-                return self._normalize_union_annotation(annotation, scope_name)
+                fin_tag = self._normalize_final_annotation(annotation)
+                if fin_tag is not None:
+                    return fin_tag
             except Exception:
                 pass
+            if scope_name:
+                try:
+                    return self._normalize_union_annotation(annotation, scope_name)
+                except Exception:
+                    pass
         return self._field_type_from_annotation(annotation)
 
     @staticmethod
@@ -1785,8 +1813,118 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             self.program_ir.setdefault("union_gt1_sites", []).append(variant_name)
         return variant_name
 
+    # --- Final normalization (typing-engagement ty1 / 27-0000-typing-spec-3) ---
+    #
+    # `Final[T]` (PEP 591) is lowered at this seam to the degenerate single-
+    # attribute, single-writer form of HAPPY's no-write confinement. The
+    # annotation's *type* is the inner type `T` (F3 — no narrowing): the helper
+    # returns `τ(T)` (resolved via the legacy tag resolver on the slice), or
+    # `"Any"` for bare `Final`. The *write-policy* is recorded in a per-module
+    # `final_registry` (collected by `_collect_final_registry` from `visit_Module`)
+    # and discharged by the static-semantics check `core_ir_semantic._check_final`
+    # — NOT by a VC. For any annotation that is NOT `Final[T]` / bare `Final`,
+    # the helper returns `None` and the caller falls back to the existing logic
+    # (byte-identical emission for every unaffected driver). NO new IR node, NO
+    # IR_VERSION bump, NO new VC kind.
+
+    @staticmethod
+    def _is_final_annotation(ann_expr: ast.expr) -> bool:
+        """True iff `ann_expr` is `Final[T]` (Subscript value=Name "Final") or
+        bare `Final` (Name "Final")."""
+        if isinstance(ann_expr, ast.Name) and ann_expr.id == "Final":
+            return True
+        return (isinstance(ann_expr, ast.Subscript)
+                and isinstance(ann_expr.value, ast.Name)
+                and ann_expr.value.id == "Final")
+
+    def _normalize_final_annotation(self, ann_expr: ast.expr) -> Optional[str]:
+        """Recognize `Final[T]` / bare `Final` (PEP 591) and return the inner
+        type tag `τ(T)` (F3 — no narrowing; `Final` adds a write-restriction,
+        NOT a type refinement). For bare `Final` (no slice), returns `"Any"`
+        (PEP 591 permits an inferred type; PyCSL's monomorphic tag system has no
+        inference, so the type is the opaque `Any` — sound: the name carries the
+        write-restriction but no type refinement). Returns `None` for a non-Final
+        annotation (caller falls back to existing logic — byte-identical).
+
+        typing-engagement ty1 / 27-0000-typing-spec-3 §1.3: the write-policy
+        itself (F1 write-once / F2 __init__-only) is NOT synthesized here — it
+        is recorded in the per-module `final_registry` by
+        `_collect_final_registry` and discharged by `core_ir_semantic._check_final`
+        (a static write-site check, NOT a VC). This helper resolves ONLY the type
+        tag (F3)."""
+        if isinstance(ann_expr, ast.Name) and ann_expr.id == "Final":
+            # Bare `Final` — no inner type. Return the opaque `Any` tag (sound:
+            # the name carries the write-restriction but no type refinement).
+            return "Any"
+        if (isinstance(ann_expr, ast.Subscript)
+                and isinstance(ann_expr.value, ast.Name)
+                and ann_expr.value.id == "Final"):
+            # `Final[T]` — the type is τ(T) (F3: Final does not narrow). Resolve
+            # the inner type via the legacy tag resolver (so `Final[int]` → "int",
+            # `Final[str]` → "str", `Final[MyClass]` → "myclass"). A nested
+            # `Final[Final[int]]` resolves the inner `Final[int]` via this same
+            # path → "Any" (the inner Final's bare-name fallback is not reached
+            # because the inner is a Subscript, handled above → returns τ(int)).
+            return self._m5_get_type_name_legacy(ann_expr.slice)
+        return None
+
+    def _collect_final_registry(self, module_node: ast.Module) -> None:
+        """Walk the module AST for Final-annotated names and record each in
+        `self._final_registry` with its allowed writer (the degenerate HAPPY
+        single-attribute, single-writer form).
+
+        - **F1 (module-level Final):** a top-level `AnnAssign` whose target is a
+          `Name` and whose annotation is Final → `{"name", "kind": "module",
+          "class": None, "allowed_writer": None}`. The declaration write is the
+          ONLY permitted write; `allowed_writer: None` encodes "no function may
+          write this name" (any function-body write is a reassignment).
+        - **F2 (instance-attribute Final):** a class-body `AnnAssign` whose
+          target is a `Name` (the `attr: Final[T]` declaration form, F2a — the
+          declaration is NOT a write) → `{"name", "kind": "class_attr",
+          "class": <ClassName>, "allowed_writer": "__init__"}`. Also records the
+          `self.attr: Final[T]` form inside a class's `__init__` (same registry
+          shape; the attribute is owned by the enclosing class).
+
+        The registry is plumbed into `program_ir["final_registry"]` by
+        `visit_Module` (omitted when empty → byte-identical for Final-free
+        modules). Consumed by `core_ir_semantic._check_final`."""
+        for stmt in module_node.body:
+            # F1: module-level Final (`x: Final[int] = 5` or `x: Final[int]`).
+            if (isinstance(stmt, ast.AnnAssign)
+                    and isinstance(stmt.target, ast.Name)
+                    and self._is_final_annotation(stmt.annotation)):
+                self._final_registry.append({
+                    "name": stmt.target.id, "kind": "module",
+                    "class": None, "allowed_writer": None,
+                })
+            # F2: class-body Final instance-attribute declarations.
+            if isinstance(stmt, ast.ClassDef):
+                for cstmt in stmt.body:
+                    # `attr: Final[T]` (with or without value) in the class body.
+                    if (isinstance(cstmt, ast.AnnAssign)
+                            and isinstance(cstmt.target, ast.Name)
+                            and self._is_final_annotation(cstmt.annotation)):
+                        self._final_registry.append({
+                            "name": cstmt.target.id, "kind": "class_attr",
+                            "class": stmt.name, "allowed_writer": "__init__",
+                        })
+                    # `self.attr: Final[T]` inside the class's own __init__.
+                    if (isinstance(cstmt, ast.FunctionDef)
+                            and cstmt.name == "__init__"):
+                        for sub in ast.walk(cstmt):
+                            if (isinstance(sub, ast.AnnAssign)
+                                    and isinstance(sub.target, ast.Attribute)
+                                    and isinstance(sub.target.value, ast.Name)
+                                    and sub.target.value.id == "self"
+                                    and self._is_final_annotation(sub.annotation)):
+                                self._final_registry.append({
+                                    "name": sub.target.attr, "kind": "class_attr",
+                                    "class": stmt.name,
+                                    "allowed_writer": "__init__",
+                                })
+
     def _normalize_literal_annotation(self, ann_expr: ast.expr,
-                                      param_name: str) -> Optional[str]:
+                                       param_name: str) -> Optional[str]:
         """Recognize `Literal[v1, ..., vn]` (PEP 586) and synthesize a ground
         `requires` (parameter) or `ensures` (return) clause. Returns the base
         type tag (`"int"` or `"str"`) for a Literal annotation, or `None` for a
@@ -1960,19 +2098,41 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _m5_get_type_name(self, annotation: ast.expr,
                           scope_name: str = "",
                           param_name: str = "") -> str:
-        """Public entry: try Literal normalization first (synthesizing a ground
-        `requires` clause), then Union normalization (synthesizing a per-site
-        variant `type_decl`), else fall back to the legacy tag resolution. For
-        non-Literal/non-Union annotations the result is byte-identical to the
-        pre-typing-engagement `_m5_get_type_name`. `scope_name` seeds the
-        deterministic variant-name mangling; empty is tolerated (used by callers
-        that cannot supply a function name, e.g. field annotations — those
-        synthesize `_union_anon_*` which is still deterministic per-file).
-        `param_name` is the parameter name for Literal `requires` synthesis
-        (typing-engagement ty1 / 26-0000-typing-spec-2); empty means the caller
-        is a field/local annotation, in which case Literal is NOT synthesized
-        (a local `Literal` claim is unchecked on locals — see §1.3 step 6 / §8
-        Q3 of the spec)."""
+        """Public entry: try Final normalization first (resolving the inner type
+        tag `τ(T)` — F3, no narrowing), then Literal normalization (synthesizing
+        a ground `requires` clause), then Union normalization (synthesizing a
+        per-site variant `type_decl`), else fall back to the legacy tag
+        resolution. For non-Final/non-Literal/non-Union annotations the result is
+        byte-identical to the pre-typing-engagement `_m5_get_type_name`.
+        `scope_name` seeds the deterministic variant-name mangling; empty is
+        tolerated (used by callers that cannot supply a function name, e.g. field
+        annotations — those synthesize `_union_anon_*` which is still
+        deterministic per-file). `param_name` is the parameter name for Literal
+        `requires` synthesis (typing-engagement ty1 / 26-0000-typing-spec-2);
+        empty means the caller is a field/local annotation, in which case
+        Literal is NOT synthesized (a local `Literal` claim is unchecked on
+        locals — see §1.3 step 6 / §8 Q3 of the spec).
+
+        typing-engagement ty1 / 27-0000-typing-spec-3: `Final[T]` resolves to
+        `τ(T)` (F3) BEFORE Literal/Union so a `Final[Literal[1, 2]]`-style
+        annotation would resolve the inner Literal first (the Final is a
+        write-restriction wrapper, not a type wrapper). The Final write-policy
+        itself (F1/F2) is NOT synthesized here — it is recorded in the per-module
+        `final_registry` (`_collect_final_registry` from `visit_Module`) and
+        discharged by `core_ir_semantic._check_final` (a static write-site
+        check, NOT a VC)."""
+        # Final first: `Final[T]` → τ(T); bare `Final` → "Any". Returns None for
+        # non-Final annotations (byte-identical fall-through). A Final
+        # recognition bug MUST NOT perturb a non-Final driver — fall back to the
+        # legacy path (byte-identical) on any non-PyCSLIRError exception.
+        try:
+            fin_tag = self._normalize_final_annotation(annotation)
+            if fin_tag is not None:
+                return fin_tag
+        except PyCSLIRError:
+            raise
+        except Exception:
+            pass
         if param_name:
             try:
                 lit_tag = self._normalize_literal_annotation(annotation, param_name)

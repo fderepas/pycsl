@@ -1,0 +1,32 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "UnixDirScanAbsent.lean:81:5: warning: unused variable `hs`\n\nNote: This linter can be disabled with `set_option linter.unusedVariables false`\n'UnixFs.Dir.remove_reflects_absent' depends on axioms: [propext, Quot.sound]\n",
+  "compile_stderr": "",
+  "elapsed_compile_s": 1.1430204030039022,
+  "qualname_results": [
+    [
+      "UnixFs.Dir.remove_reflects_absent",
+      true,
+      [
+        "propext",
+        "Quot.sound"
+      ]
+    ],
+    [
+      "UnixFs.Dir.remove_reflects_absent",
+      true,
+      [
+        "propext",
+        "Quot.sound"
+      ]
+    ],
+    [
+      "UnixFs.Dir.remove_reflects_absent",
+      true,
+      [
+        "propext",
+        "Quot.sound"
+      ]
+    ]
+  ]
+}
