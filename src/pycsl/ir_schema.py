@@ -40,8 +40,17 @@ from errors import PyCSLIRError
 # TYPE-DECL field `init_ensures`. All default to False/"" so a "1.0"/"1.1" IR
 # without them remains ingestable (additive MINOR bump); all three versions stay
 # in ACCEPTED_IR_VERSIONS. See docs/ir.md §10.
-IR_VERSION = "1.2"
-ACCEPTED_IR_VERSIONS = frozenset({"1.0", "1.1", "1.2"})
+#
+# "1.3" (typing-engagement ty1 / 28-0000-typing-spec-4) adds the optional
+# FUNCTION field `is_noreturn` (bool) — set true when the source declares
+# `-> NoReturn` (PEP 484). The field is ABSENT on non-NoReturn functions (the
+# emitter emits it only when true), so a "1.0"/"1.1"/"1.2" IR without it remains
+# byte-identical and ingestable (additive MINOR bump); all four versions stay in
+# ACCEPTED_IR_VERSIONS. Module 6 lowers `is_noreturn: true` to `ensures { false }`
+# (NR1) and the non-vacuity gate (NR4) exempts the function from the vacuity
+# probe. See docs/ir.md §10.
+IR_VERSION = "1.3"
+ACCEPTED_IR_VERSIONS = frozenset({"1.0", "1.1", "1.2", "1.3"})
 
 
 # ---------------------------------------------------------------------------
@@ -86,6 +95,12 @@ class FunctionIR(TypedDict, total=False):
     array1d_params: List[str]
     kind: str
     self_type: str
+    # Optional (IR v1.3; typing-engagement ty1 / 28-0000-typing-spec-4): set true
+    # when the source declares `-> NoReturn` (PEP 484). ABSENT on non-NoReturn
+    # functions (emitted only when true → byte-identical for unaffected drivers).
+    # Module 6 lowers it to `ensures { false }` (NR1); the non-vacuity gate
+    # exempts the function from the vacuity probe (NR4). See docs/ir.md §5/§10.
+    is_noreturn: bool
 
 
 class ProgramIR(TypedDict, total=False):

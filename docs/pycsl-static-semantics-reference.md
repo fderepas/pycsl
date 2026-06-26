@@ -1,7 +1,7 @@
 # PyCSL Static Semantics Reference
 
 **Status:** Normative  
-**Version:** 1.3  
+**Version:** 1.4  
 **Source of truth:** This document specifies the well-formedness rules that
 determine which syntactically valid PyCSL annotations are accepted or
 rejected. It is derived from the implemented checks in
@@ -230,6 +230,19 @@ specification logic's type universe:
 τ(Final)            = Any                (* bare `Final` (PEP 591 inferred type) → opaque
                                    Any tag; the name carries the write-restriction but
                                    no type refinement (sound: no narrowing claim). *)
+τ(NoReturn)         = unit               (* typing-engagement ty1 / 28-0000-typing-spec-4:
+                                   `-> NoReturn` (PEP 484) is a CONTROL-FLOW judgment, not
+                                   a return-value type. The function never returns normally
+                                   (it raises or diverges), so there is no return value —
+                                   the WhyML return type is `unit` (the body has no `Return`).
+                                   The lowering sets the `is_noreturn` IR flag (IR v1.3,
+                                   additive — absent on non-NoReturn functions); Module 6
+                                   emits `ensures { false }` (NR1). NR2a (body supports
+                                   divergence) is a static-semantics check
+                                   (`core_ir_semantic._check_noreturn`); NR3 (dead
+                                   successor) is `_check_noreturn_successors`; NR4
+                                   (vacuity-gate exemption) is in `pycsl.py`. No new IR
+                                   node beyond the `is_noreturn` flag. *)
 τ(_)              = Any       (* all other types, including no annotation *)
 ```
 
@@ -459,6 +472,45 @@ flagged (dunders are skipped from `ir["functions"]`). PEP 591 rejects this; PyCS
 not. This is a soundness-preserving under-approximation: the write executes at runtime
 (FR3 — no enforcement), and no static claim depends on it. See
 `typing-engagement/ty1/27-0000-typing-spec-3.md` §6.
+
+#### §2.5b `-> NoReturn` body-supports-divergence (typing-engagement ty1 / PEP 484)
+
+```
+   def f() -> NoReturn: return …          def f() -> NoReturn: raise …
+   def f() -> NoReturn: x = 1             def f() -> NoReturn: while True: …
+   (NR2a violation — normal exit)         (NR2a ok — raises or diverges)
+```
+
+**Rule.** `-> NoReturn` (PEP 484) carries the postcondition `false` (NR1 — the
+function never returns normally). The body MUST support that claim: every path
+must raise or diverge. `core_ir_semantic._check_noreturn` enforces two
+conservative sound conditions (stricter than S1 is permitted):
+
+- **No `Return` statement** — any `Return` (with or without a value) anywhere
+  in the body is a normal-exit path → `PyCSLSemanticError` (code
+  `PYCSL-SEM-NORETURN`). Even a `Return` inside a provably-dead branch is
+  rejected (sound — a dead `Return` indicates a logic error).
+- **At least one `Raise` or diverging construct** — a body with no `Raise` and
+  no `While`/`For`/`CriticalSection`/`Call` provably falls off the end (a
+  normal exit) → rejected.
+
+Why3 provides defense-in-depth: if a normal-exit path slips past this check,
+the `ensures { false }` VC fails at proof time. Validation: `_build_function_ir`
+in `Module5_IREmitter` (sets `is_noreturn`); `_check_noreturn` in
+`core_ir_semantic`.
+
+**NR3 (dead successor).** `_check_noreturn_successors` flags any statement
+following a bare-expression `Call` to a NoReturn function as dead code (the
+callee's `false` postcondition makes the continuation unreachable). This is
+the dead-branch class `soundness-issue.md` §7 identifies — a dead branch proves
+`false` SOUNDLY, which is NOT vacuity.
+
+**NR4 (vacuity-gate exemption).** The non-vacuity gate
+(`pycsl.py:_run_vacuity_gate`) exempts declared-NoReturn functions from the
+vacuity probe: their `false` postcondition is the SPEC (NR1), not a vacuity
+signal. The exemption is keyed on the IR `is_noreturn` flag (from the
+`-> NoReturn` annotation), NOT on the inferred postcondition — the latter
+would exempt every genuinely-vacuous function, defeating the gate.
 
 #### §2.1.1 Precondition (`requires`)
 

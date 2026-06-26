@@ -827,7 +827,8 @@ def _function_body_eqs(mlw_code: str) -> "Tuple[List[Tuple[str, int]], List[str]
 
 
 def _run_vacuity_gate(mlw_code: str, provers: List[str],
-                      args: argparse.Namespace) -> "Optional[List[str]]":
+                      args: argparse.Namespace,
+                      noreturn_names: "Optional[Set[str]]" = None) -> "Optional[List[str]]":
     """Run the non-vacuity gate. Returns the list of vacuous function names (empty = all
     contexts consistent), or None if why3 is absent (skip-not-fail, like the typecheck
     gate).
@@ -837,11 +838,20 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
     JUST that postcondition goal (`-g <probe>:<line>`). A function whose assumed context is
     inconsistent proves `false`; a sound one cannot. Adding `ensures false` to every
     function at once would be wrong — a callee's injected `false` would propagate into every
-    caller's assumed context and flag them all."""
+    caller's assumed context and flag them all.
+
+    NR4 (typing-engagement ty1 / 28-0000-typing-spec-4 §1.2): a function declared
+    `-> NoReturn` ALREADY carries a `false` postcondition (NR1 — `ensures { false }`),
+    so it is INDISTINGUISHABLE from a vacuous one under the probe. The gate EXEMPTS
+    declared-NoReturn functions: ``noreturn_names`` (keyed on the `-> NoReturn`
+    annotation → IR `is_noreturn` flag, NOT on the inferred postcondition) is the
+    skip-set. A genuinely-vacuous function (inconsistent context, no NoReturn
+    annotation) is still probed — the exemption does NOT extend to it."""
     import tempfile
     fns, lines = _function_body_eqs(mlw_code)
     if not fns:
         return []
+    skip = noreturn_names or set()
     base_cmd = ["why3", "prove", "-a", "split_vc"]
     if "\n  inductive " in mlw_code:
         base_cmd += ["-a", "induction_pr"]
@@ -850,7 +860,7 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
         """Probe one function. Returns (fname, vacuous?) — vacuous? is None if why3 is
         absent (so the caller can degrade the whole gate to skip-not-fail).
 
-        `split_vc` emits ONE `ensures false` goal per NORMAL-EXIT path. A function is
+        split_vc emits ONE `ensures false` goal per NORMAL-EXIT path. A function is
         vacuous iff EVERY normal exit has an inconsistent context — i.e. EVERY false-goal
         proves Valid. It is NOT vacuous if even one exit is consistent (its false-goal is
         Unknown/Timeout): the real postcondition was genuinely discharged there.
@@ -867,6 +877,11 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
              consequence test as vacuous. Require ALL false-goals Valid (best-of-N across
              provers: a path is inconsistent if ANY prover proves its false-goal)."""
         fname, idx = fname_idx
+        # NR4: exempt declared-NoReturn functions — their `false` postcondition is the
+        # SPEC (NR1), not a vacuity signal. Keyed on the IR `is_noreturn` flag (which
+        # comes from the `-> NoReturn` annotation), NOT on the inferred postcondition.
+        if fname in skip:
+            return fname, False
         probe_lines = lines[:idx] + ["    ensures { [@expl:vacprobe] false }"] + lines[idx:]
         probe_line_no = idx + 1   # 1-based line of the inserted `ensures false`
         fd, probe_path = tempfile.mkstemp(suffix=".mlw", prefix=".pycsl_vac_")
@@ -1134,7 +1149,20 @@ def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argp
             """Run the non-vacuity gate before declaring success. If any function's
             context is vacuous, FAIL the run instead of reporting the (vacuous) green."""
             if getattr(args, "check_vacuity", False):
-                vac = _run_vacuity_gate(mlw_code, provers, args)
+                # NR4: build the skip-set of declared-NoReturn function names (WhyML
+                # names, matching the `let <name>` headers _function_body_eqs extracts).
+                # Keyed on the IR `is_noreturn` flag (from the `-> NoReturn` annotation),
+                # NOT on the inferred postcondition — the latter would exempt every
+                # genuinely-vacuous function, defeating the gate.
+                _nr_names = set()
+                try:
+                    from module6_whyml.identifiers import whyml_ident
+                    for _f in ir_data.get("functions", []):
+                        if _f.get("is_noreturn"):
+                            _nr_names.add(whyml_ident(_f.get("name", "")))
+                except Exception:
+                    pass
+                vac = _run_vacuity_gate(mlw_code, provers, args, _nr_names)
                 if vac:
                     print("\n[-] NON-VACUITY GATE FAILED: the following function(s) verify "
                           "VACUOUSLY — their assumed context is logically inconsistent, so "

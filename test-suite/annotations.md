@@ -1995,3 +1995,68 @@ full soundness).
 **Tests**: 0734 (F1 witness — module-level Final), 0735 (F1 negative —
 reassignment rejected), 0736 (F2 witness — instance-attr Final), 0737 (F2
 negative — write outside `__init__` rejected).
+
+### §12.11 `-> NoReturn` annotations (typing-engagement ty1)
+
+PEP 484 `-> NoReturn` is **lowered at the front-end normalization seam** to a
+`false` postcondition: the function never returns normally (it raises or
+diverges). `_build_function_ir` recognizes `NoReturn` (Name "NoReturn") and
+`typing.NoReturn` (Attribute `typing.NoReturn`) in the return annotation and
+sets the IR flag `is_noreturn: true` (a new optional `FunctionIR` field, IR
+v1.3 — emitted ONLY when true, so every non-NoReturn driver stays
+byte-identical). Module 6 emits `ensures { false }` (NR1) — the same goal
+shape the non-vacuity gate INJECTS, which is the crux of NR4.
+
+```python
+def f() -> NoReturn:        # NR1: lowers to `ensures { false }`
+    raise Exception()       # NR2a: body raises (no normal exit) — justified
+
+def g() -> NoReturn:
+    while True: pass        # NR2a: body diverges — justified
+
+def caller() -> int:
+    f()
+    return 1                # NR3: dead code — unreachable (f never returns)
+```
+
+**Static plane (Interpreted):**
+- **NR1** (`ensures { false }`): Module 6 (`functions.py:_emit_contracts`)
+  emits the `false` postcondition when `is_noreturn` is true. The VC discharges
+  by the ABSENCE of a normal-exit path (the body raises or diverges), not by an
+  inconsistent context.
+- **NR2a** (body supports divergence): `core_ir_semantic._check_noreturn`
+  rejects a NoReturn function whose body contains a `return` statement (a
+  normal-exit path) OR whose body has no `raise` and no diverging construct
+  (`While`/`For`/`CriticalSection`/`Call`) — it provably falls off the end. A
+  conservative sound under-approximation (stricter than S1 is permitted).
+- **NR3** (unreachable successor): `core_ir_semantic._check_noreturn_successors`
+  flags any statement following a call to a NoReturn function as dead code
+  (the callee's `false` postcondition makes the continuation contradictory).
+- **NR4** (vacuity-gate exemption): the non-vacuity gate
+  (`pycsl.py:_run_vacuity_gate`) EXEMPTS declared-NoReturn functions from the
+  vacuity probe. The exemption is KEYED ON THE `-> NoReturn` ANNOTATION (the IR
+  `is_noreturn` flag), NOT on the inferred `false` postcondition — the latter
+  would exempt every genuinely-vacuous function, defeating the gate. A
+  genuinely-vacuous function (inconsistent context, no NoReturn) is still
+  probed and flagged.
+
+**Runtime plane (Shimmed):** `src/pycsl_lib/typ/__init__.py` provides a
+`NoReturn` alias object (a module-level constant) — introspectable, NO
+enforcement (NR-R1–NR-R5, NR-D2 no-blend). The runtime does NOT enforce
+divergence (NR-R3 — the central negative sentence: annotations are not
+enforced). The static `false` postcondition is NOT discharged by the shim.
+
+**IR_VERSION bump (1.2 → 1.3, additive).** The `is_noreturn` field is a new
+optional `FunctionIR` field; it is ABSENT on non-NoReturn functions (the
+emitter emits it only when true), so a `"1.0"`/`"1.1"`/`"1.2"` IR without it
+remains byte-identical and ingestable. `"1.3"` is added to
+`ACCEPTED_IR_VERSIONS`; older versions are kept.
+
+**No GT gap** is tagged for `NoReturn` — the `false` postcondition is a genuine
+proof obligation (the function must be shown to diverge or raise), not an
+unsoundness. The NR4 vacuity-gate exemption is a gate-precision concern, not a
+soundness gap.
+
+**Tests**: 0738 (NR1/NR2a witness — `-> NoReturn` raises), 0739 (NR2a negative
+— `-> NoReturn` with `return` rejected), 0740 (NR3 negative — dead successor
+rejected), 0741 (NR4 — NoReturn passes `--check-vacuity`).

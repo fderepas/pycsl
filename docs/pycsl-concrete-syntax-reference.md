@@ -1,7 +1,7 @@
 # PyCSL Concrete Syntax Reference
 
 **Status:** Normative  
-**Version:** 1.3  
+**Version:** 1.4  
 **Source of truth:** This document is the canonical specification of PyCSL's
 concrete syntax. It is derived from the implemented grammar in
 `src/pycsl/Module2_Parser.py` and cross-referenced against
@@ -1240,6 +1240,10 @@ what Python's own grammar admits:
 - **`Subscript`** — `x: List[int]`, `x: Tuple[int, int]`, `x: Optional[T]`,
   `x: Dict[K, V]`, `x: Union[A, B]`, `x: Literal[v1, ..., vn]`,
   `x: Final[T]`. # cite: `src/pycsl/frontend/pure_ast.py`.
+- **`Attribute`** — `-> typing.NoReturn` (PEP 484; typing-engagement ty1 /
+  28-0000-typing-spec-4). The qualified `NoReturn` spelling is recognised at
+  the front-end normalization seam and sets the `is_noreturn` IR flag. # cite:
+  `src/pycsl/frontend/Module5_IREmitter.py`.
 - **`BinOp(BitOr)`** — `x: A | B` (PEP 604 union). # cite:
   `src/pycsl/frontend/pure_ast.py` (parsed as `BinOp(op=BitOr)`, left-assoc).
 - **`Constant` (stringized / forward reference)** — `x: "Foo"`,
@@ -1314,6 +1318,28 @@ check, not a runtime check. # cite:
 `_collect_final_registry`), `src/pycsl/core_ir_semantic.py`
 (`_check_final`). See translational §T.14.7 and static-semantics τ for the
 lowering of accepted forms.
+
+**Exception — `NoReturn` body/successor rejection (typing-engagement ty1).**
+The `-> NoReturn` / `-> typing.NoReturn` return annotation is accepted at
+parse time and normalized to the `is_noreturn` IR flag (IR v1.3). The
+body-supports-divergence check (NR2a) and the dead-successor check (NR3) are
+*static-semantics checks* (`core_ir_semantic._check_noreturn` /
+`_check_noreturn_successors`), raised as `PyCSLSemanticError` (code
+`PYCSL-SEM-NORETURN`) BEFORE any WhyML is emitted:
+
+- `def f() -> NoReturn: return 1` → NR2a rejection (a `return` is a
+  normal-exit path; the `false` postcondition would be unprovable).
+- `def f() -> NoReturn: x = 1` → NR2a rejection (no raise, no diverging
+  construct — the body falls off the end).
+- `f()` (where `f` is `NoReturn`) followed by another statement → NR3
+  rejection (dead code — the continuation is unreachable).
+
+These are static-plane judgments only (NR-D1 divergence): the runtime does
+not enforce divergence (NR-R3 — no enforcement). # cite:
+`src/pycsl/frontend/Module5_IREmitter.py` (`_build_function_ir`),
+`src/pycsl/core_ir_semantic.py` (`_check_noreturn`,
+`_check_noreturn_successors`). See translational §T.14.8 and
+static-semantics τ for the lowering of accepted forms.
 
 ---
 

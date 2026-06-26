@@ -25,6 +25,16 @@
 #   `ensures \result == val` carries ONLY the identity postcondition — the
 #   static write-policy is NOT discharged by the shim (it is a semantic check,
 #   invisible to the runtime).
+# NoReturn (typing-engagement ty1 / 28-0000-typing-spec-4): Modelled-for-identity.
+#   The static plane (Module 5 + Module 6 + core_ir_semantic) treats
+#   `-> NoReturn` as a `false` postcondition (NR1): the function never returns
+#   normally. Module 5 records the `is_noreturn` IR flag; Module 6 emits
+#   `ensures { false }`; core_ir_semantic checks the body supports divergence
+#   (NR2a) and flags dead successors (NR3); the non-vacuity gate exempts the
+#   function (NR4). This runtime shim constructs the introspectable
+#   `typing.NoReturn` alias object and performs NO validation (NR-R1–NR-R5,
+#   NR-D2 no-blend). The runtime does NOT enforce divergence (NR-R3 — the
+#   central negative sentence: the runtime does not enforce annotations).
 
 
 #@ ensures \result == val
@@ -60,6 +70,14 @@ def Literal(x0, x1, val) -> int:
 #@ ensures \result == val
 def Final(x0, x1, val) -> int:
     return val
+
+
+# NoReturn (PEP 484) is a type marker, not a callable: it appears only in
+# return annotations (`-> NoReturn`), never as a value. The shim provides the
+# introspectable alias object (NR-R1/NR-R2) with NO enforcement (NR-R3). The
+# static plane handles the `false` postcondition (NR1); the runtime plane does
+# nothing (NR-D1/NR-D2 no-blend).
+NoReturn = None
 
 
 def overload(func):

@@ -261,14 +261,15 @@ class FunctionEmissionMixin:
 
     def _emit_contracts(self, contracts: Dict[str, Any], spec_refs: Set[str],
                          func_variants: List[Any], func_diverges: bool,
-                         func_exceptions: Set[str]) -> List[str]:
+                         func_exceptions: Set[str],
+                         func_is_noreturn: bool = False) -> List[str]:
         """Emit requires/ensures/assigns/variant/raises lines.
         Toggles self._in_spec around emission."""
         lines: List[str] = []
         self._in_spec = True
 
         requires_exprs = contracts.get("requires", [])
-        ensures_exprs  = contracts.get("ensures", [])
+        ensures_exprs = contracts.get("ensures", [])
 
         for req in requires_exprs:
             lines.append(f"    requires {{ {self._expr_to_whyml(req, spec_refs)} }}")
@@ -281,6 +282,15 @@ class FunctionEmissionMixin:
             act_tag = (f" (* act {ens['act_name']} *)"
                        if isinstance(ens, dict) and ens.get("act_name") else "")
             lines.append(f"    ensures  {{ {self._expr_to_whyml(ens, spec_refs)} }}{act_tag}{lin_tag}")
+        # typing-engagement ty1 / 28-0000-typing-spec-4 §1.0 NR1: `-> NoReturn`
+        # lowers to a `false` postcondition — the function never returns normally
+        # (it raises or diverges). Emitted AFTER the user-written ensures (the
+        # `false` postcondition is the NoReturn claim, additional to any explicit
+        # contract). This is the SAME goal shape the non-vacuity gate INJECTS
+        # (`ensures { [@expl:vacprobe] false }`); the gate EXEMPTS declared-
+        # NoReturn functions (NR4) so this is the SPEC, not a vacuity signal.
+        if func_is_noreturn:
+            lines.append("    ensures { false }")
         for fl in self._emit_frame_condition(contracts.get("assigns", []), spec_refs):
             lines.append(fl)
         for fv in func_variants:
@@ -633,6 +643,9 @@ class FunctionEmissionMixin:
         func_variants = func.get("function_variants", [])
         func_diverges = func.get("diverges", False)
         func_trusted = func.get("trusted", False)
+        # typing-engagement ty1 / 28-0000-typing-spec-4: the `-> NoReturn` IR flag
+        # (NR1 — `ensures { false }` postcondition).
+        func_is_noreturn = func.get("is_noreturn", False)
         # `#@ \abstract` — emit a bodyless `val` defined by its contract alone
         # (an uninterpreted op, sound; see Module2_Parser.Abstract). Same WhyML
         # shape as a trusted stub (`val` + spec, no body) but distinct
@@ -742,7 +755,8 @@ class FunctionEmissionMixin:
         # necessarily a logic predicate (the gap-7 `present` shape).
         self._emitting_val_contract = emit_as_val
         lines += self._emit_contracts(contract_src, spec_refs,
-                                      func_variants, func_diverges, func_exceptions)
+                                      func_variants, func_diverges,
+                                      func_exceptions, func_is_noreturn)
         self._emitting_val_contract = False
 
         if emit_as_val:

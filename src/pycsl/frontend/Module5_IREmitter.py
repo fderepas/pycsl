@@ -2289,9 +2289,20 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # STEP 1 (B-final): surface name for the \proj-index guard in `_csl_proj`.
         self._cur_func_name = f"function '{node.name}'"
         return_annotation = None
+        is_noreturn = False
         if node.returns:
             if isinstance(node.returns, ast.Name):
-                return_annotation = node.returns.id
+                if node.returns.id == "NoReturn":
+                    # typing-engagement ty1 / 28-0000-typing-spec-4 §1.0 NR1:
+                    # `-> NoReturn` (PEP 484) — the function never returns
+                    # normally. Record the IR flag (consumed by Module 6 to emit
+                    # `ensures { false }` and by the non-vacuity gate's NR4
+                    # exemption). The return_annotation stays None (no return
+                    # value type — the body never reaches a normal exit).
+                    is_noreturn = True
+                    return_annotation = None
+                else:
+                    return_annotation = node.returns.id
             elif isinstance(node.returns, ast.Constant):
                 return_annotation = str(node.returns.value)
             elif isinstance(node.returns, ast.BinOp) and isinstance(node.returns.op, ast.BitOr):
@@ -2321,6 +2332,17 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                             node.returns, node.name)
                     else:
                         return_annotation = head.lower()
+            elif isinstance(node.returns, ast.Attribute):
+                # `typing.NoReturn` (Attribute value=Name "typing", attr
+                # "NoReturn") — the qualified spelling of the PEP 484 marker.
+                # Treated identically to the bare `-> NoReturn` form (NR1).
+                # Other Attribute returns fall through (return_annotation stays
+                # None — the original behaviour for unrecognised forms).
+                if (node.returns.attr == "NoReturn"
+                        and isinstance(node.returns.value, ast.Name)
+                        and node.returns.value.id == "typing"):
+                    is_noreturn = True
+                    return_annotation = None
         # Fallback: a bare Name/Constant that we didn't recognise above.
         # Formal parameter names ONLY (excluding `self`). Distinct from
         # `symbol_table`, which Module4 also populates with local
@@ -2383,6 +2405,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             "dict_key_types": dict(_dkt),
             "formal_params": formal_params,
             "return_annotation": return_annotation,
+            # typing-engagement ty1 / 28-0000-typing-spec-4: `-> NoReturn` (PEP
+            # 484) sets the IR flag consumed by Module 6 (`ensures { false }`,
+            # NR1) and the non-vacuity gate (NR4 exemption). Emitted ONLY when
+            # true → byte-identical for every non-NoReturn driver (additive IR
+            # v1.3 field; see docs/ir.md §5/§10).
+            **({"is_noreturn": True} if is_noreturn else {}),
             "contracts": {
                 # typing-engagement ty1 / 26-0000-typing-spec-2: merge the
                 # synthesized Literal `requires`/`ensures` clauses AFTER the

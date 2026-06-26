@@ -62,6 +62,7 @@ def run_ir_semantic_checks(ir: Any, *, stage: str = "ir-semantic") -> None:
         _check_diverges(func)
         _check_lemma(func, trusted_funcs)
         _check_union_narrowing(func)
+        _check_noreturn(func)
     # Module-level (cross-method) checks run once over the whole IR.
     _check_happy(ir)
     _check_mutex_invariants(ir)
@@ -70,6 +71,7 @@ def run_ir_semantic_checks(ir: Any, *, stage: str = "ir-semantic") -> None:
     _check_fresh_globals(ir, stage)
     _check_union_gt1(ir)
     _check_final(ir)
+    _check_noreturn_successors(ir)
 
 
 def _collect_call_targets(node: Any, acc: set) -> None:
@@ -680,6 +682,171 @@ def _check_diverges(func) -> None:
         f"can actually block or loop.",
         code="PYCSL-SEM-DIVERGES",
     )
+
+
+# --- NoReturn (typing-engagement ty1 / 28-0000-typing-spec-4) ---------------
+
+def _body_has_raise(body) -> bool:
+    """True iff the IR body contains a ``Raise`` statement (anywhere, at any depth)."""
+    found = [False]
+
+    def walk(node):
+        if found[0]:
+            return
+        if isinstance(node, dict):
+            if node.get("stmt") == "Raise":
+                found[0] = True
+                return
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for x in node:
+                walk(x)
+
+    walk(body)
+    return found[0]
+
+
+def _body_has_return(body) -> bool:
+    """True iff the IR body contains a ``Return`` statement (anywhere, at any depth).
+    A ``Return`` (with or without a value) is a NORMAL-EXIT path — the very thing a
+    ``NoReturn`` function must not have."""
+    found = [False]
+
+    def walk(node):
+        if found[0]:
+            return
+        if isinstance(node, dict):
+            if node.get("stmt") == "Return":
+                found[0] = True
+                return
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for x in node:
+                walk(x)
+
+    walk(body)
+    return found[0]
+
+
+def _check_noreturn(func) -> None:
+    """NR2a (typing-engagement ty1 / 28-0000-typing-spec-4 §1.0) — a function
+    declared ``-> NoReturn`` carries the postcondition ``false`` (NR1): it never
+    returns normally. The body MUST support that claim — every path must raise or
+    diverge (call a NoReturn function, loop forever). A body that CAN return
+    normally (contains a ``Return``, or falls off the end without raising) is a
+    STATIC ERROR: the ``false`` postcondition would be genuinely unprovable (not
+    vacuous, just wrong — the two-plane spec §1.0 NR2a).
+
+    This is a CONSERVATIVE sound under-approximation (stricter than S1 is
+    permitted): any ``Return`` statement anywhere in the body is rejected
+    (even one inside a provably-dead branch — sound, since a dead ``Return``
+    indicates a logic error). A body with neither a ``Raise`` nor a diverging
+    construct (``While``/``For``/``CriticalSection``/``Call``) is rejected too
+    (it falls off the end → normal exit). Why3 provides defense-in-depth: if a
+    normal-exit path slips past this check, the ``ensures { false }`` VC fails
+    at proof time."""
+    if not func.get("is_noreturn"):
+        return
+    name = func.get("name", "<anonymous>")
+    body = func.get("body", []) or []
+    if _body_has_return(body):
+        raise PyCSLSemanticError(
+            f"`-> NoReturn` on function '{name}' is not justified: its body "
+            f"contains a `return` statement (a normal-exit path). A NoReturn "
+            f"function must never return normally — every path must raise or "
+            f"diverge (NR2a / PEP 484). Remove `-> NoReturn`, or eliminate the "
+            f"normal return (raise instead, or call another NoReturn function).",
+            code="PYCSL-SEM-NORETURN",
+        )
+    if not _body_has_raise(body) and not _body_has_diverging_construct(body):
+        raise PyCSLSemanticError(
+            f"`-> NoReturn` on function '{name}' is not justified: its body has "
+            f"no `raise` and no potentially-diverging construct (no loop, no call, "
+            f"no critical section) — it provably falls off the end (a normal exit). "
+            f"A NoReturn function must raise or diverge on every path (NR2a / "
+            f"PEP 484). Remove `-> NoReturn`, or give the body a raise/divergence.",
+            code="PYCSL-SEM-NORETURN",
+        )
+
+
+def _collect_noreturn_names(ir) -> set:
+    """The set of function names (bare and ``Class__method``) declared ``-> NoReturn``
+    in this IR. Used by NR3 to flag statements following a NoReturn call as dead."""
+    out: set = set()
+    for func in ir.get("functions", []):
+        if func.get("is_noreturn"):
+            nm = func.get("name")
+            if nm:
+                out.add(nm)
+                # A method call `self.m()` or `obj.m()` resolves to the
+                # `Class__method` flattened name; also accept the short tail.
+                out.add(nm.rsplit("__", 1)[-1])
+    return out
+
+
+def _check_noreturn_successors(ir) -> None:
+    """NR3 (typing-engagement ty1 / 28-0000-typing-spec-4 §1.1) — a statement
+    immediately following a call to a ``NoReturn``-annotated function is
+    statically UNREACHABLE: the callee's ``false`` postcondition (NR1) makes the
+    continuation path's condition contradictory. PyCSL reports this as dead code
+    (a static warning/error — the same dead-branch class ``soundness-issue.md``
+    §7 identifies; a dead branch proves ``false`` SOUNDLY, which is NOT vacuity).
+
+    This walks each function body's statement lists (top-level and nested) and
+    flags any statement that follows a bare-expression ``Call`` to a NoReturn
+    function in the same block."""
+    noreturn_names = _collect_noreturn_names(ir)
+    if not noreturn_names:
+        return  # NoReturn-free module → byte-identical (no work, no error).
+    for func in ir.get("functions", []):
+        fname = func.get("name", "<anonymous>")
+        _noreturn_walk_stmts(func.get("body", []) or [], fname, noreturn_names)
+
+
+def _noreturn_walk_stmts(stmts, fname, noreturn_names) -> None:
+    """Walk a list of IR statements for NR3 dead-successor violations."""
+    prev_noreturn_call = False
+    for s in stmts:
+        if isinstance(s, dict):
+            if prev_noreturn_call:
+                raise PyCSLSemanticError(
+                    f"Dead code in function '{fname}': this statement follows a "
+                    f"call to a `NoReturn` function, which never returns normally "
+                    f"(NR3 / PEP 484). The continuation path is unreachable. "
+                    f"Remove the dead statement, or move it before the NoReturn call.",
+                    code="PYCSL-SEM-NORETURN",
+                )
+                prev_noreturn_call = False
+            prev_noreturn_call = _stmt_is_noreturn_call(s, noreturn_names)
+            # Recurse into nested statement containers (If/While/For/Try/With bodies).
+            for key in ("body", "orelse", "finalbody"):
+                child = s.get(key)
+                if isinstance(child, list):
+                    _noreturn_walk_stmts(child, fname, noreturn_names)
+            if s.get("stmt") == "Try":
+                for h in s.get("handlers", []) or []:
+                    if isinstance(h, dict) and isinstance(h.get("body"), list):
+                        _noreturn_walk_stmts(h["body"], fname, noreturn_names)
+            if s.get("stmt") == "Match" and isinstance(s.get("cases"), list):
+                for case in s["cases"]:
+                    if isinstance(case, dict) and isinstance(case.get("body"), list):
+                        _noreturn_walk_stmts(case["body"], fname, noreturn_names)
+
+
+def _stmt_is_noreturn_call(s, noreturn_names) -> bool:
+    """True iff statement ``s`` is a bare-expression ``Call`` to a NoReturn
+    function (``f()`` / ``obj.m()`` as a statement, not assigned to anything)."""
+    if s.get("stmt") != "Expr":
+        return False
+    val = s.get("value")
+    if not isinstance(val, dict) or val.get("type") != "Call":
+        return False
+    fn = val.get("func")
+    if not isinstance(fn, str):
+        return False
+    return fn in noreturn_names or fn.rsplit(".", 1)[-1] in noreturn_names
 
 
 # --- lemma soundness / well-formedness (body walk + plumbed trusted set) -----
