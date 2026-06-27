@@ -5,7 +5,7 @@ tools: Read, Write, Edit, Bash, Grep, Glob
 model: opus
 effort: high
 memory: project
-skills: [pycsl-annotate, pycsl-docs, csl-philosophy]
+skills: [pycsl-annotate, pycsl-docs, csl-philosophy, pycsl-stdlib-coverage]
 ---
 You implement one construct against its two-plane spec and the overview's named lowering.
 Hard rules:

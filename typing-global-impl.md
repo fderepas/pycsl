@@ -194,7 +194,9 @@ Hard rules:
 - Total additivity: byte-identical emission for every UNAFFECTED driver; the os proof (now
   fully green) and the formal_<name> suite re-confirmed; doc-coherency green. A construct
   graduates to Normative only when its surface is in test-suite/annotations.md AND all three
-  reference docs.
+  reference docs AND a `formal_typing_<construct>.py` formal test exists in
+  `src/pycsl_lib_test/` (per `pycsl-stdlib-coverage` Step 5 — the spec's promise re-proved
+  over universally quantified inputs via a consequence driver; NOT just a verified stub).
 - IR shape change is a DELIBERATE-version event, not a byte-diff failure. A construct that
   adds an IR node/field is NOT byte-identical for drivers that use it: bump IR_VERSION
   (currently 1.2 -> 1.3, additive: keep older versions in ACCEPTED_IR_VERSIONS), refresh the
@@ -399,7 +401,11 @@ artifact — the same instinct as HAPPY's §9 gap analysis.
 The engagement is done when, for every construct in TY0–TY3: a `<K>-twoplane-spec.md`
 exists with both planes stated separately and passed Gate A; the construct is at
 `STATUS: DONE` and **graduated to Normative** (surface in `test-suite/annotations.md` + all
-three reference docs, doc-coherency green); Gate B and Gate C passed and recorded — including
+three reference docs, doc-coherency green); **a `formal_typing_<construct>.py` formal test
+exists in `src/pycsl_lib_test/`** (per the `pycsl-stdlib-coverage` skill Step 5: a driver
+that constructs an instance, CALLS the shim/API, and OBSERVES a consequence — the spec's
+promise re-proved over universally quantified inputs; a verified spec-subject alone does
+NOT count); Gate B and Gate C passed and recorded — including
 the construct passing its **declared S5 conformance subset** (static, NON-VACUOUS), its shim
 agreeing with **S4** (runtime), and the **no-blend** check holding; every construct is
 classified Interpreted/Shimmed/Ignored in `--soundness-report` and every GT gap is
