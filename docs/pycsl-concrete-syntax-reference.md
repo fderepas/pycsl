@@ -1646,6 +1646,26 @@ x: C[int]              # annotation — also an instantiation site
 Only concrete-type arguments are collected (a nested generic instantiation is
 not supported in this delivery). `Any` as a type argument is refused (GT1).
 
+### §T.TY3.5 — `Callable` (PEP 484)
+
+```
+def g(f: Callable[[int, str], bool], n: int) -> int: ...
+#                 ^^^^^^^^^^^^^^^^^^^^^^^^^^ a function-type annotation
+```
+
+`Callable[[A1, ..., An], R]` declares that the parameter is a function accepting
+arguments of types `A1..An` (in order) and returning `R`. The arg-list is a
+literal Python list `[A1, ..., An]`; `R` is the return type. See the
+[translational reference §T.TY3.8](pycsl-translational-reference.md#tty38) and
+the [static-semantics reference §S.TY3.8](pycsl-static-semantics-reference.md#sty8).
+*Cites S1, PEP 484 (S2); S6 (the `Subscript` grammar).*
+
+**Scope (C5, stricter than S1, sound):** arg/return types must be
+`int`/`bool`/`str`/`float` or a bare record/variant class name. `bytes`,
+`list`/`dict`/`set`, `Any` (GT1), a nested `Callable`, and the ellipsis form
+`Callable[..., R]` (ParamSpec-derived, GT3) are rejected with
+`PYCSL-TY3-CALLABLE-SCOPE`.
+
 ---
 
 ## Appendix C. Revision History

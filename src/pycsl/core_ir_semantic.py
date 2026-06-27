@@ -89,6 +89,7 @@ def run_ir_semantic_checks(ir: Any, *, stage: str = "ir-semantic") -> None:
         _check_noreturn(func)
         _check_typeddict_access(func, td_record_names)
         _check_namedtuple_access(func, nt_record_names, nt_record_arities)
+        _check_callable_params(func)
     # Module-level (cross-method) checks run once over the whole IR.
     _check_happy(ir)
     _check_mutex_invariants(ir)
@@ -1634,6 +1635,40 @@ def _union_c11_check_dead_arms(match_stmt: Any, fname: str) -> None:
             )
         if ctor:
             seen_ctors.add(ctor)
+
+
+def _check_callable_params(func: Any) -> None:
+    """typing-engagement ty3 / 34-1700-typing-spec-10 — validate a
+    `Callable[[A1, ..., An], R]`-typed parameter's encoded tag.
+
+    Module 5 encodes a Callable parameter annotation as the symbol_table tag
+    `"callable:<a1>,...-><r>"` (C1). This check is a belt-and-suspenders
+    well-formedness guard: the encoding must carry a `->` separator and every
+    arg/return tag must be a non-empty bare identifier. A malformed encoding
+    (which would otherwise silently fall through to the WhyML `int` default in
+    Module 6, hiding a mis-recognition) is a static reject. Only fires on
+    parameters whose tag starts with `"callable:"` → zero impact on every
+    existing driver."""
+    symtab = func.get("symbol_table") or {}
+    for _pname, ptag in symtab.items():
+        if not (isinstance(ptag, str) and ptag.startswith("callable:")):
+            continue
+        body = ptag[len("callable:"):]
+        arg_part, sep, ret_part = body.partition("->")
+        if not sep:
+            raise PyCSLSemanticError(
+                f"Callable parameter tag {ptag!r} is malformed (no `->` "
+                f"separator) — the encoding must be "
+                f"`callable:<a1>,...-><r>`.",
+                stage="ir-semantic", code="PYCSL-TY3-CALLABLE-SHAPE",
+            )
+        tags = [t for t in arg_part.split(",") if t] + [ret_part]
+        if not ret_part or any(not t.isidentifier() for t in tags):
+            raise PyCSLSemanticError(
+                f"Callable parameter tag {ptag!r} is malformed (an arg/return "
+                f"tag is empty or not a bare identifier).",
+                stage="ir-semantic", code="PYCSL-TY3-CALLABLE-SHAPE",
+            )
 
 
 def _check_union_gt1(ir: Any) -> None:

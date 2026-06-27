@@ -2706,8 +2706,102 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         if isinstance(elt, ast.Subscript) and isinstance(elt.value, ast.Name):
                             return elt.value.id.lower()
                 return "Any"
+            if head == "Callable":
+                # typing-engagement ty3 / 34-1700-typing-spec-10: `Callable[[A1,
+                # ..., An], R]` (PEP 484) on a parameter is a function-type
+                # obligation (C1). The arg-list + return type are encoded into
+                # the existing symbol_table value as "callable:<a1>,...-><r>"
+                # (a new tag VALUE, NOT a new IR field → no IR_VERSION bump).
+                # Module 6's _param_type_str parses this into a curried WhyML
+                # arrow type; the call site `f(a1, ..., an)` already lowers to
+                # WhyML application. Triggers ONLY on head == "Callable" →
+                # byte-identical for every non-Callable driver.
+                return self._encode_callable_annotation(annotation)
             return head.lower()
         return "Any"
+
+    # typing-engagement ty3 / 34-1700-typing-spec-10 — Callable (PEP 484) helpers.
+    # The static plane treats `f: Callable[[A1, ..., An], R]` as a function-type
+    # obligation (C1): the parameter is a value of function type. The arg-list +
+    # return type are encoded into the existing symbol_table value string as
+    # "callable:<a1>,<a2>,...-><r>" (a new tag VALUE, NOT a new IR field → no
+    # IR_VERSION bump). Module 6's _param_type_str parses this into a curried
+    # WhyML arrow type; the call site `f(a1, ..., an)` already lowers to WhyML
+    # application. The runtime plane is the thin `Callable` shim (an
+    # introspectable alias object, NO signature check — R1/R3). NO-BLEND (D1):
+    # the static function-type obligation is a WhyML arrow parameter + Why3
+    # typecheck, NOT a runtime callable() presence check.
+
+    # The set of PyCSL primitive tags admissible as a Callable arg/return type
+    # (C5 — stricter than S1, sound). bytes is excluded (modeled as a two-param
+    # (loc, len) — not a single arrow type); list/dict/set excluded (not value-
+    # semantic arrow domains in this delivery); Any refused (GT1).
+    _CALLABLE_SCALAR_TAGS = frozenset({"int", "bool", "str", "float"})
+
+    def _encode_callable_annotation(self, annotation: ast.Subscript) -> str:
+        """Encode `Callable[[A1, ..., An], R]` as `"callable:<a1>,...-><r>"`.
+
+        The slice is `Tuple([List([A1, ..., An]), R])` (PEP 484). Each Ai and R
+        must resolve to a primitive scalar tag (`int`/`bool`/`str`/`float`) or a
+        bare record/variant class name (a `Name` node). Anything else (bytes,
+        list/dict/set, Any, a nested Callable, ParamSpec-derived `...`,
+        `Concatenate[...]`) is a loud-fail `PYCSL-TY3-CALLABLE-SCOPE` (C5 sound
+        scope limit, stricter than S1). Returns the encoded tag string."""
+        from errors import PyCSLSemanticError
+        slice_node = annotation.slice
+        # The arg-list + return are a 2-tuple: ([A1, ..., An], R).
+        if not (isinstance(slice_node, ast.Tuple) and len(slice_node.elts) == 2):
+            raise PyCSLSemanticError(
+                "Callable annotation must be `Callable[[A1, ..., An], R]` — "
+                "the ellipsis form `Callable[..., R]` and ParamSpec-derived "
+                "forms are not interpreted (GT3: ParamSpec is schema-only; "
+                "C5 sound scope limit).",
+                stage="ir-emit", code="PYCSL-TY3-CALLABLE-SCOPE",
+            )
+        arg_list_node, ret_node = slice_node.elts
+        if not isinstance(arg_list_node, ast.List):
+            raise PyCSLSemanticError(
+                "Callable annotation's first argument must be a literal list "
+                "[A1, ..., An] of argument types.",
+                stage="ir-emit", code="PYCSL-TY3-CALLABLE-SCOPE",
+            )
+        arg_tags = [self._callable_type_tag(a) for a in arg_list_node.elts]
+        ret_tag = self._callable_type_tag(ret_node)
+        return f"callable:{','.join(arg_tags)}->{ret_tag}"
+
+    def _callable_type_tag(self, node: ast.expr) -> str:
+        """Resolve a single Callable arg/return type node to a PyCSL tag.
+
+        Accepted: a `Name` whose id is a primitive scalar (`int`/`bool`/`str`/
+        `float`) or a bare class name (record/variant — resolved by Module 6
+        against `_record_types`/`_variant_types`). Refused: `Any` (GT1), a
+        nested `Callable`/Subscript (C5), and anything not a bare Name."""
+        from errors import PyCSLSemanticError
+        if isinstance(node, ast.Name):
+            tag = node.id
+            if tag == "Any":
+                raise PyCSLSemanticError(
+                    "Callable arg/return type `Any` is refused — GT1: Any "
+                    "never instantiates a function-type obligation (the "
+                    "consistency relation is deliberately unsound).",
+                    stage="ir-emit", code="PYCSL-TY3-GT1",
+                )
+            # Primitive scalar OR a bare class name (record/variant) — Module 6
+            # resolves the class name against the known record/variant types.
+            return tag
+        if isinstance(node, ast.Subscript):
+            raise PyCSLSemanticError(
+                "A nested generic/Callable arg or return type is not "
+                "interpreted (C5 sound scope limit, stricter than S1). "
+                "Callable arg/return types must be bare primitive or class "
+                "names in this delivery.",
+                stage="ir-emit", code="PYCSL-TY3-CALLABLE-SCOPE",
+            )
+        raise PyCSLSemanticError(
+            f"Callable arg/return type must be a bare Name (got "
+            f"{type(node).__name__}) — C5 sound scope limit.",
+            stage="ir-emit", code="PYCSL-TY3-CALLABLE-SCOPE",
+        )
 
     def _m5_get_type_name(self, annotation: ast.expr,
                           scope_name: str = "",

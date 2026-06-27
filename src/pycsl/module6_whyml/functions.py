@@ -20,6 +20,15 @@ class FunctionEmissionMixin:
         if arg in array2d_params:
             return f"({safe}: matrix {int_type})"
         symtype = symbol_table.get(arg)
+        # typing-engagement ty3 / 34-1700-typing-spec-10: a `Callable[[A1, ...],
+        # R]`-typed parameter (C1) lowers to a curried WhyML function-type
+        # parameter `<w1> -> ... -> <wr>`. The call site `f(a1, ..., an)`
+        # already lowers to WhyML application `(f a1 ... an)`; Why3's own
+        # typecheck discharges the arg-type match (C2) and the result type
+        # (C3). Triggers ONLY when symtype starts with "callable:" →
+        # byte-identical for every non-Callable driver.
+        if isinstance(symtype, str) and symtype.startswith("callable:"):
+            return f"({safe}: {self._callable_whyml_arrow(symtype)})"
         # `Set[T]` / `Dict[K, V]` / `FrozenSet[T]` parameters are
         # modelled as `map int (option int)` (parallel to body-level
         # dicts). Must come before the `list` branch since dict/set
@@ -50,6 +59,44 @@ class FunctionEmissionMixin:
             # sum-types: a `#@ datatype`-typed param is its Why3 variant type.
             return f"({safe}: {self._variant_types[symtype]['whyml_name']})"
         return f"({safe}: {int_type})"
+
+    def _callable_whyml_arrow(self, symtype: str) -> str:
+        """Render a `"callable:<a1>,...-><r>"` tag (typing-engagement ty3 /
+        34-1700-typing-spec-10) as a curried WhyML function-arrow type
+        `<w1> -> <w2> -> ... -> <wr>`.
+
+        Each PyCSL tag maps to its WhyML type: `int`/`bool`→`int` (PyCSL
+        int-encodes bool), `str`→`string`, `float`→`real`, a record/variant
+        class name→its WhyML name (resolved against `_record_types`/
+        `_variant_types`). A tag that resolves to None (an unknown class name
+        in this delivery) falls back to `int` — Why3 then rejects the
+        application if the arg type disagrees, which is sound (never weaker
+        than S1)."""
+        body = symtype[len("callable:"):]
+        arg_part, _, ret_part = body.partition("->")
+        arg_tags = [t for t in arg_part.split(",") if t]
+        whyml_args = [self._callable_tag_to_whyml(t) for t in arg_tags]
+        whyml_ret = self._callable_tag_to_whyml(ret_part)
+        parts = whyml_args + [whyml_ret]
+        return " -> ".join(parts)
+
+    def _callable_tag_to_whyml(self, tag: str) -> str:
+        """Map a single Callable arg/return PyCSL tag to its WhyML type."""
+        if tag in ("int", "bool"):
+            return "int"
+        if tag == "str":
+            return "string"
+        if tag == "float":
+            return "real"
+        record_types = getattr(self, "_record_types", {})
+        if tag in record_types:
+            return record_types[tag]["whyml_name"]
+        variant_types = getattr(self, "_variant_types", {})
+        if tag in variant_types:
+            return variant_types[tag]["whyml_name"]
+        # Unknown bare name — sound fallback to `int`; Why3 rejects a mismatched
+        # application rather than admitting an unsound type.
+        return "int"
 
     def _collect_record_fields(self, type_decls: List[Dict[str, Any]]) -> Set[str]:
         """Collect all declared record field names for FieldGet resolution."""

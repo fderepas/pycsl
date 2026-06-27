@@ -2464,3 +2464,36 @@ are checked invariantly (§S.TY3.3). Divergence-by-strictness, recorded (GT2).
 `Any` never instantiates a `TypeVar` (the consistency relation is deliberately
 unsound). `C[Any]` is rejected with `PYCSL-TY3-GT1`.
 
+### §S.TY3.8 — `Callable` function-type obligation (PEP 484)
+
+A parameter `f: Callable[[A1, ..., An], R]` carries a **function-type
+obligation** (C1): `f` is a value of function type. The proof obligations arise
+at the CALL SITE on `f` and are discharged by Why3's own typecheck at the
+application (the existing `(f a1 ... an)` lowering):
+
+- **C2 (arg-type match).** A call `f(a1, ..., an)` requires each `ai` to have
+  type `τ(Ai)` positionally; a mismatch is a static WhyML type error (reject
+  code: the Why3 typecheck diagnostic). *Cites S1, PEP 484 (S2).*
+- **C3 (result type).** The call yields a value of type `τ(R)`; a declared
+  return annotation that disagrees is a static WhyML type error. *Cites S1.*
+- **C4 (no value postcondition from a bare Callable).** A bare `Callable`
+  guarantees only arg/result TYPES, not a specific return VALUE. A postcondition
+  asserting a value of `f(...)` (e.g. `ensures \result == x + 1` where the body
+  is `return f(x)`) is **unprovable** — `f` is an opaque function value. This is
+  sound: the static plane refuses a value theorem the function-type does not
+  justify. A `\trusted` shortcut is refused (NO-BLEND, §S.TY3.9).
+- **C5 (scope limit — stricter than S1, sound).** Only `int`/`bool`/`str`/
+  `float` and record/variant class names are admissible as Callable arg/return
+  types. `bytes`, `list`/`dict`/`set`, `Any` (GT1), a nested `Callable`, and
+  `Callable[..., R]` (ellipsis / `ParamSpec`-derived, GT3) are rejected with
+  `PYCSL-TY3-CALLABLE-SCOPE`. Divergence-by-strictness, recorded.
+
+### §S.TY3.9 — `Callable` no-blend (D1, the keystone)
+
+The static function-type obligation is a **proof-time judgment** (a WhyML arrow
+parameter + Why3 typecheck). The runtime `callable(x)` / `isinstance(x,
+Callable)` is a **presence check** (signature-agnostic). The static signature
+obligation must NOT be discharged by the runtime presence check — the
+coherent-and-wrong trap, Callable edition. Defended by the independence of the
+spec-agent and conformance-agent from the core-agent (§4.2 of the overview).
+

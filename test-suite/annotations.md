@@ -2353,3 +2353,37 @@ instantiation path proves 10/10 VCs (the feasibility-probe shape); the
 multi-instantiation Module 6 field-mangling gap is recorded in
 `typing-engagement/ty3/33-1700-typing-gap-9.md`.
 
+### §12.17 `Callable` (PEP 484) annotations (typing-engagement ty3)
+
+**Surface** (PEP 484 / S2, resolved by S1): `f: Callable[[A1, ..., An], R]` —
+a function-type annotation on a parameter.
+
+**Static plane** (Interpreted): a `Callable[[A1, ..., An], R]`-typed parameter
+lowers to a curried WhyML **function-type parameter** `<w1> -> ... -> <wr>` (C1).
+Module 5 (`_m5_get_type_name_legacy` + `_encode_callable_annotation`) encodes
+the arg-list + return type into the existing `symbol_table` value as
+`"callable:<a1>,...-><r>"` (a new tag VALUE, NOT a new IR field → no
+IR_VERSION bump). Module 6 (`_param_type_str` + `_callable_whyml_arrow`) emits
+the arrow type. The call site `f(a1, ..., an)` already lowers to WhyML
+application; Why3's typecheck discharges the arg-type match (C2) and the result
+type (C3). A bare Callable gives NO value postcondition (C4 — `f` is opaque; a
+value `ensures` on the enclosing function is correctly unprovable, NOT a
+`\trusted` shortcut). Scope limit (C5): only `int`/`bool`/`str`/`float` and
+record/variant names are admissible as arg/return types (stricter than S1,
+sound; `bytes`/`list`/`dict`/`set`/`Any`/nested-`Callable`/ellipsis rejected
+with `PYCSL-TY3-CALLABLE-SCOPE`).
+
+**Runtime plane** (Shimmed): `Callable[[...], R]` constructs an introspectable
+alias object (R1); `callable(x)` / `isinstance(x, Callable)` is a PRESENCE
+check (R2), signature-agnostic; NO signature enforcement at runtime (R3 — S3's
+negative sentence).
+
+**Divergence / no-blend (D1)**: the static "this value is a function with
+signature S" is a proof-time judgment (WhyML arrow parameter + Why3 typecheck);
+the runtime `callable()` / `isinstance(x, Callable)` is a presence check. The
+static signature obligation must NOT be discharged by the runtime callable
+check — the coherent-and-wrong trap, Callable edition.
+
+**Tests**: see the typing-engagement `ty3/conformance_callable/` S5 subset + S4
+shim drivers (authored by the conformance-agent, never the core-agent).
+

@@ -3779,3 +3779,43 @@ is a Module 6 consistency gap (see `typing-engagement/ty3/33-1700-typing-gap-9.m
 NOT a monomorphization bug. The single-instantiation path (the feasibility-probe
 shape) proves 10/10 VCs.
 
+### §T.TY3.8 — `Callable` (PEP 484) — function-type parameter
+
+A `Callable[[A1, ..., An], R]`-typed parameter lowers to a curried WhyML
+**function-type parameter** (C1). The call site `f(a1, ..., an)` already lowers
+to WhyML application `(f a1 ... an)` (the existing Call lowering — unchanged);
+once `f` carries a function type, Why3's typecheck discharges the arg-type
+obligation (C2) and the result type (C3). No `\trusted`. No new IR field.
+
+**Recognition (Module 5).** `_m5_get_type_name_legacy` recognizes a `Subscript`
+whose head is `Callable` and encodes the arg-list + return type into the
+EXISTING `symbol_table` value string as `"callable:<a1>,...-><r>"` (e.g.
+`"callable:int,str->bool"`). This is a new tag VALUE, NOT a new IR field — no
+`IR_VERSION` bump (IR stays at 1.4). The encoding is constructed by
+`_encode_callable_annotation`; `_callable_type_tag` refuses unsupported
+arg/return types (C5 — `bytes`/`list`/`dict`/`set`/`Any`/nested-`Callable`/
+ellipsis) with `PYCSL-TY3-CALLABLE-SCOPE` (sound scope limit). `Any` is refused
+with `PYCSL-TY3-GT1`.
+
+**Emission (Module 6).** `module6_whyml/functions.py:_param_type_str` gains one
+branch: if the symbol_table value starts with `"callable:"`, `_callable_whyml_arrow`
+parses the encoding and emits `(f: <w1> -> ... -> <wr>)` (a curried Why3 arrow
+type). The tag→WhyML map (`_callable_tag_to_whyml`): `int`/`bool`→`int` (PyCSL
+int-encodes bool), `str`→`string`, `float`→`real`, a record/variant name→its
+WhyML name; an unknown bare name falls back to `int` (Why3 then rejects a
+mismatched application — sound, never weaker than S1).
+
+**Call site.** Unchanged — the existing Call lowering already emits `(f a1 ...
+an)` as WhyML application; with `f` now function-typed, the application
+type-checks. C4: a value postcondition on a bare callable is correctly
+unprovable (`f` is opaque); refused, NOT shortcut.
+
+**Validation (core_ir_semantic).** `_check_callable_params` is a
+belt-and-suspenders well-formedness guard on the `"callable:"` encoding
+(rejects a malformed encoding with `PYCSL-TY3-CALLABLE-SHAPE` so a
+mis-recognition cannot silently fall through to the WhyML `int` default).
+
+**IR shape.** No change (IR v1.4). The callable descriptor lives in the
+existing `symbol_table` value slot. Byte-identical for every non-Callable
+driver (the branch triggers only on `head == "Callable"`).
+

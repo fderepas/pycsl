@@ -175,3 +175,35 @@ def runtime_checkable(cls, val) -> int:
 
 def no_type_check(func):
     return func
+
+
+# Callable (typing-engagement ty3 / 34-1700-typing-spec-10): Modelled-for-identity.
+#   The static plane (Module 5 + Module 6) treats `f: Callable[[A1, ..., An], R]`
+#   as a function-type obligation (C1): the parameter lowers to a curried WhyML
+#   arrow type `<w1> -> ... -> <wr>` (Module 6 `_param_type_str` parses the
+#   `callable:<a1>,...-><r>` symbol_table tag emitted by Module 5). A call site
+#   `f(a1, ..., an)` already lowers to WhyML application; Why3's typecheck
+#   discharges the arg-type match (C2) and the result type (C3). A bare Callable
+#   gives NO value postcondition (C4 — `f` is opaque, a value `ensures` on the
+#   enclosing function is correctly unprovable, NOT a `\trusted` shortcut).
+#   This runtime shim exposes the introspectable `typing.Callable` alias object
+#   (R1) with NO enforcement (R3 — the central negative sentence: the runtime
+#   does not enforce annotations). `Callable[[...], R]` constructs an alias
+#   recording `__args__` for introspection; `callable(x)` / `isinstance(x,
+#   Callable)` is a PRESENCE check (R2), signature-agnostic. NO-BLEND (D1): the
+#   static function-type obligation is a WhyML arrow parameter + Why3 typecheck,
+#   NOT a runtime callable() presence check — the runtime check must NOT
+#   discharge the static signature obligation.
+class _CallableAlias:
+    """Introspectable `typing.Callable` alias object (R1). Subscripting
+    `Callable[[A1, ...], R]` returns the alias (recording the args for
+    introspection); NO signature check runs (R3). Identity, no enforcement."""
+
+    def __getitem__(self, params):
+        return self
+
+    def __call__(self, *args, **kwargs):
+        return self
+
+
+Callable = _CallableAlias()
