@@ -95,6 +95,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # every overload-free module → byte-identical emission.
         self._pending_overloads: Dict[str, List[Dict[str, Any]]] = {}
 
+        # typing-engagement ty2 / 32-1700-typing-spec-8: Protocol interface registry.
+        # `self._protocols[P] = {m1, m2, ...}` records each Protocol class's member
+        # names so a `#@ conforms_to P` class can populate `overrides` with
+        # `(C__m, P__m)` pairs (P2/P4 per-method contract-refinement VCs). Empty for
+        # every Protocol-free module → byte-identical emission.
+        self._protocols: Dict[str, set] = {}
+
     def visit_Module(self, node: ast.Module) -> None:
         """Emit module-level concurrency declarations into the top-level IR."""
         shared_decls = getattr(node, 'csl_shared_decls', [])
@@ -1774,7 +1781,133 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             })
             self.program_ir.setdefault("constructors", {})
             self.program_ir["constructors"][nt_name] = {"type": nt_name,
-                                                          "arity": 0}
+                                                           "arity": 0}
+
+    # typing-engagement ty2 / 32-1700-typing-spec-8 — Protocol (PEP 544) helpers.
+    # The static plane treats `class P(Protocol)` as a contract interface (a named
+    # collection of method contracts): a marker record (`is_protocol: True`, no
+    # fields) + each member emitted as an `abstract: True` function (a bodyless
+    # `val` with its contract — the refinement TARGET). Conformance `C conforms to
+    # P` (declared via `#@ conforms_to P`) populates the EXISTING `overrides` IR
+    # list with `(C__m, P__m)` pairs; `--check-behavioral-subtyping` emits the
+    # per-method refinement goal `((pre_P -> pre_C) /\\ (post_C -> post_P))` (P2/P4).
+    # The runtime plane is the thin `runtime_checkable` shim (presence-only
+    # isinstance, NO signature check — R3/R4). NO-BLEND (D1): the refinement goal
+    # is a WhyML formula over the two contracts, NOT a runtime hasattr check.
+
+    def _is_protocol_class(self, node: ast.ClassDef) -> bool:
+        """True iff `node` is `class P(Protocol)` / `class P(typing.Protocol)` (PEP
+        544). Recognizes the bare head name `Protocol` in `node.bases` (the
+        import-rewriting in `import_classifier.py` already canonicalizes
+        `from typing import Protocol`). A dotted `typing.Protocol` base is also
+        recognized. Byte-identical for non-Protocol classes (pure base-name test)."""
+        for b in node.bases:
+            if isinstance(b, ast.Name) and b.id == "Protocol":
+                return True
+            if isinstance(b, ast.Attribute) and b.attr == "Protocol":
+                return True
+        return False
+
+    def _emit_protocol_interface(self, node: ast.ClassDef) -> None:
+        """Synthesize the contract interface for `class P(Protocol): ...` (P1).
+
+        Emits (a) a marker record `type_decl` with `is_protocol: True` and NO
+        fields (a protocol has no instance state — the record is the interface
+        anchor), and (b) each protocol member `def m(self, ...) -> R: ...` as a
+        function IR node with `abstract: True` (a bodyless `val` defined by its
+        contract alone — the refinement TARGET, P1a). The member's
+        `#@ ensures/requires/assigns` is the refinement target. Records the
+        protocol's member names in `self._protocols[P]` for the conformance pass.
+
+        `@runtime_checkable` (P1b) is a RUNTIME-plane marker; the static plane
+        IGNORES it (it gates the runtime shim, §3 of the two-plane spec)."""
+        proto_name = node.name
+        self.program_ir["type_decls"].append({
+            "kind": "record", "name": proto_name, "fields": [],
+            "class_invariants": [], "field_defaults": {},
+            "has_hash": False, "has_eq": False, "is_unhashable": False,
+            "constants": {}, "bases": [],
+            "init_params": [], "init_body": [], "init_ensures": [],
+            "is_mixin": False, "compose_from": [],
+            "is_protocol": True,
+        })
+        self.program_ir.setdefault("constructors", {})
+        self.program_ir["constructors"][proto_name] = {"type": proto_name,
+                                                        "arity": 0}
+        members: Set[str] = set()
+        self._current_class = proto_name
+        for child in node.body:
+            if not isinstance(child, ast.FunctionDef):
+                continue
+            if self._should_skip_method(child):
+                continue
+            member_ir = self._build_function_ir(child)
+            # A protocol member is an abstract `val` defined by its contract —
+            # the refinement TARGET (P1a). `abstract: True` emits a bodyless
+            # `val` (sound uninterpreted op, NOT `\trusted`). The member's body
+            # (`...`/`pass` by PEP 544 convention) is NOT lowered.
+            member_ir["abstract"] = True
+            member_ir["kind"] = "method"
+            member_ir["self_type"] = proto_name
+            member_ir["line"] = getattr(child, "lineno", 0)
+            member_ir["col"] = getattr(child, "col_offset", 0)
+            self.program_ir["functions"].append(member_ir)
+            members.add(child.name)
+        self._current_class = None
+        self._protocols[proto_name] = members
+
+    def _populate_protocol_conformance(self, node: ast.ClassDef) -> None:
+        """Populate `overrides` for a `#@ conforms_to P` class (P2/P4).
+
+        For each protocol `P` in `node.csl_conforms_to`, for each member `m` of
+        `P`, find the conforming class's own method `C__m` and record an
+        `(C__m, P__m)` override pair. The EXISTING `--check-behavioral-subtyping`
+        emitter (`_render_refinement_goal`) discharges the per-method refinement
+        goal `((pre_P -> pre_C) /\\ (post_C -> post_P))` — the per-method
+        behavioural-refinement VC (P2). A class missing a member raises a static
+        error (P3); a non-refining contract makes the goal unprovable (P3)."""
+        conforms_to = list(getattr(node, 'csl_conforms_to', []) or [])
+        if not conforms_to:
+            return
+        sub_name = node.name
+        sub_lower = sub_name.lower()
+        # The conforming class's own method names, namespaced `<sub>__<tail>`.
+        own_methods: Set[str] = set()
+        own_method_tails: Dict[str, str] = {}
+        prefix_sub = f"{sub_lower}__"
+        for fn in self.program_ir.get("functions", []):
+            fname = fn.get("name", "")
+            if fname.startswith(prefix_sub):
+                tail = fname[len(prefix_sub):]
+                own_methods.add(fname)
+                own_method_tails[tail] = fname
+        for proto_name in conforms_to:
+            members = self._protocols.get(proto_name)
+            if members is None:
+                # P3: a conformance declaration against a non-protocol is a
+                # static error (the target is not a recognized Protocol class).
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    f"class '{sub_name}' (line {getattr(node, 'lineno', 0)}): "
+                    f"`#@ conforms_to {proto_name}` but '{proto_name}' is not a "
+                    f"recognized Protocol class. Conformance targets must be "
+                    f"`class P(Protocol)` declarations in the same module.")
+            proto_lower = proto_name.lower()
+            for m in members:
+                sub_method = own_method_tails.get(m)
+                if sub_method is None:
+                    # P3: a class missing a member fails conformance.
+                    from errors import PyCSLSemanticError
+                    raise PyCSLSemanticError(
+                        f"class '{sub_name}' (line {getattr(node, 'lineno', 0)}): "
+                        f"`#@ conforms_to {proto_name}` but '{sub_name}' does not "
+                        f"provide member '{m}'. Conformance requires every protocol "
+                        f"member to be present with a refining contract.")
+                base_method = f"{proto_lower}__{m}"
+                self.program_ir.setdefault("overrides", []).append({
+                    "sub_method": sub_method, "base_method": base_method,
+                    "sub_type": sub_lower, "base_type": proto_lower,
+                })
 
     def _collect_class_fields(self, node: ast.ClassDef) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
         """Extract mutable fields and default values from __init__.
@@ -1934,6 +2067,21 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             self._emit_namedtuple_record(node)
             self.generic_visit(node)
             return
+        # typing-engagement ty2 / 32-1700-typing-spec-8: a `class P(Protocol)`
+        # declaration (PEP 544) is recognized here and lowered to a contract
+        # interface (a marker record `is_protocol: True` + each member emitted as
+        # an `abstract: True` function — the refinement target, P1/P1a). The
+        # static plane is the contract interface (Interpreted); the runtime plane
+        # is the thin `runtime_checkable` shim (Shimmed). NO `\trusted`.
+        if self._is_protocol_class(node):
+            self._emit_protocol_interface(node)
+            # NOTE: no `generic_visit(node)` — the protocol members are emitted
+            # explicitly by `_emit_protocol_interface` (as `abstract: True` vals).
+            # `generic_visit` would re-visit each member FunctionDef and emit it
+            # AGAIN as a regular function (double emission). The protocol class
+            # body carries ONLY member declarations (no nested classes / assigns
+            # that need visiting), so skipping the walk is correct.
+            return
         self._current_class = node.name
         fields, field_defaults = self._collect_class_fields(node)
         # Capture both `class X(Base)` (ast.Name) and `class X(mod.Base)`
@@ -2000,6 +2148,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 "is_mixin": is_mixin, "compose_from": compose_from,
             })
         self.generic_visit(node)
+        # typing-engagement ty2 / 32-1700-typing-spec-8: populate the per-method
+        # conformance `overrides` for a `#@ conforms_to P` class AFTER the class's
+        # own methods have been emitted (so `C__m` is in `program_ir["functions"]`).
+        # This records `(C__m, P__m)` pairs; `--check-behavioral-subtyping`
+        # discharges the per-method refinement goal (P2/P4). Byte-identical for
+        # classes without `csl_conforms_to` (the population is a no-op).
+        self._populate_protocol_conformance(node)
         self._current_class = None
 
     def _should_skip_method(self, node: ast.FunctionDef) -> bool:

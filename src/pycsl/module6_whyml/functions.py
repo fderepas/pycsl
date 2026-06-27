@@ -593,6 +593,16 @@ class FunctionEmissionMixin:
         return_type = IRScanner.find_return_type(body_stmts)
         return_type = self._refine_tuple_return_type(func, body_stmts, return_type)
         ann = func.get("return_annotation")
+        # typing-engagement ty2 / 32-1700-typing-spec-8: a Protocol member is an
+        # `abstract: True` bodyless `val` (the refinement target). Its body is
+        # `...`/empty, so `find_return_type` returns "unit" — but the `-> T`
+        # annotation is authoritative for an abstract member (the contract's
+        # return type is the annotation, not the body). Promote the annotation
+        # to the return type when the body carries no return statement. This
+        # mirrors the existing `ann == "int" and return_type == "int"` override
+        # path, generalized to the `unit`-from-empty-body case for abstract vals.
+        if func.get("abstract") and return_type == "unit" and ann:
+            return_type = "int"
         if ann in ("list", "bytes", "bytearray") and return_type == "int":
             # 0442.md B2 (no-more-int): bytes/bytearray are the byte-buffer array class.
             return_type = "array int"

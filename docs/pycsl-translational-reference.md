@@ -3114,6 +3114,81 @@ code (a value check). Tagged in the report as a
 
 ---
 
+### §T.14.12  `Protocol` / `@runtime_checkable` / `#@ conforms_to` annotations (typing-engagement ty2 / PEP 544)
+
+PEP 544 `Protocol` — `class P(Protocol): def m(self, ...) -> R: ...` — is lowered
+as a **contract interface** (the TY2 hard rule: "Protocol -> a contract interface,
+conformance as per-method behavioural refinement"). NO `\trusted`; NO IR_VERSION
+bump (reuses the EXISTING `abstract` function flag + the EXISTING `overrides` IR
+list + the EXISTING refinement-goal emitter).
+
+**Front-end recognition** (`src/pycsl/frontend/Module5_IREmitter.py`):
+`_is_protocol_class(node)` returns True iff `node.bases` contains a `Name("Protocol")`
+or `Attribute(attr="Protocol")`. `_emit_protocol_interface(node)` then synthesizes
+(a) a marker record `type_decl` with `is_protocol: True` and NO fields (a protocol
+has no instance state — the record is the interface anchor), and (b) each protocol
+member `def m(self, ...) -> R: ...` as a function IR node with `abstract: True`
+(a bodyless `val` with its contract — the refinement target, P1a). The member's
+`#@ ensures/requires/assigns` is the refinement TARGET. The member's body
+(`...`/`pass` by PEP 544 convention) is NOT lowered. `self._protocols[P] = {m1,
+m2, ...}` records the member names for the conformance pass. NOTE: no
+`generic_visit(node)` — the protocol members are emitted explicitly by
+`_emit_protocol_interface`; `generic_visit` would re-visit each member and emit
+it AGAIN.
+
+**Conformance declaration** (`#@ conforms_to P`, a class-level directive harvested
+by `Module3_Weaver.visit_ClassDef` from `Module2_Parser.ConformsToDecl`): when a
+non-protocol class `C` carries `#@ conforms_to P`, `_populate_protocol_conformance`
+(AFTER `generic_visit` so `C__m` is in `program_ir["functions"]`) records, for
+each member `m` of `P` that `C` provides, an `(C__m, P__m)` override pair in the
+EXISTING `overrides` IR list. A class missing a member raises `PYCSLSEMANTICERROR`
+(P3 — non-conformance is a static error). A conformance declaration against a
+non-Protocol class also raises (P3). PEP 544 conformance is structural/implicit;
+PyCSL's TY2 scope requires the explicit directive (divergence-by-strictness — an
+implicit structural search is outside the per-module verification model).
+
+**Module 6 lowering** (`src/pycsl/module6_whyml/`): NO new code for the member. The
+`abstract: True` flag lowers through the EXISTING `_emit_function` path
+(`functions.py:620`): `func_abstract = func.get("abstract", False)` →
+`emit_as_val = func_trusted or func_abstract` → a bodyless `val` with the contract
+is emitted. The return type of an abstract member whose body has no return
+statement is promoted from the `-> T` annotation (the contract's return type is
+the annotation, not the empty body — `_compute_return_type` promotes `ann` when
+`abstract` and `return_type == "unit"`). The conformance refinement goal lowers
+through the EXISTING `_emit_subtyping_goals` path (`functions.py:794`): for each
+`overrides` entry, `_render_refinement_goal` emits
+`goal <C__m>_refines_<p> : forall self: C, .... ((pre_P -> pre_C) /\\ (post_C ->
+post_P))` — the per-method behavioural-refinement VC (P2). This is discharged by
+Why3/SMT from the two contracts (no body execution required). The
+`assigns`-refinement (`assigns(C.m) ⊆ assigns(P.m)`) is NOT separately checked by
+the existing emitter (it checks pre weakening + post strengthening); a protocol
+member's `assigns` is typically `\nothing` (a pure query).
+
+**Runtime shim** (`src/pycsl_lib/typ/__init__.py.runtime_checkable`): a thin
+identity (`#@ ensures \result == val`) that performs NO validation (R1–R7). The
+real runtime `runtime_checkable(cls)` (S4) returns `cls` unchanged after installing
+a `hasattr`-loop `__instancecheck__` that checks attribute PRESENCE ONLY (R3 — not
+signature, not contract, not attribute type); the shim models this as identity.
+The `ensures \result == val` carries ONLY the identity postcondition — the static
+per-method refinement VC is NOT discharged by the shim (it is Why3 SMT over the two
+contracts, invisible to the runtime).
+
+**No IR_VERSION bump.** The `Protocol` construct reuses the EXISTING `abstract`
+function flag + the EXISTING `overrides` IR list, and adds a record-level
+`is_protocol: True` boolean (same shape as `is_typeddict`/`is_namedtuple`, which
+did NOT bump the version). NO new IR node, NO new wire-format field. The IR schema
+is unchanged; `IR_VERSION` stays at `1.3`; `ACCEPTED_IR_VERSIONS` is unchanged.
+
+**GT7** (THIS IS the canonical GT7 trap, not an analogue) — D1 documents the
+`@runtime_checkable` presence-vs-conformance divergence: the static P2/P4
+per-method contract-refinement obligation must NOT be discharged by any runtime
+`isinstance`/`hasattr` presence check (R3 is attribute presence, a value check,
+NOT the contract-refinement type judgment). The refinement goal is a WhyML spec
+formula over the two contracts (discharged by SMT); the runtime `hasattr` is a
+value check. Tagged in the report as a `no_blend_protocol_presence` note.
+
+---
+
 ## §T.15  Bytes / Bytearray Type Unification
 
 _Corresponds to annotations.md §12.6._

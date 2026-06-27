@@ -19,7 +19,7 @@ from frontend.Module2_Parser import (
     Act, ForExpand, Given, Complete, Disjoint, Old, UnaryOp, CSLBool,
     CheckPoint, HappyProperty, Preserves, Footprint, Var, Forall, FieldSubscript,
     MixinDecl, ProvidesDecl, SharedStateDecl, TouchesFieldDecl,
-    MethodDependencyDecl, ComposeFromDecl,
+    MethodDependencyDecl, ComposeFromDecl, ConformsToDecl,
 )
 import copy
 from errors import PyCSLSemanticError
@@ -418,6 +418,7 @@ class PyCSLWeaver(ast.NodeVisitor):
         node.csl_allow_finalizer = False   # UB-7.5 opt-in
         node.csl_is_mixin = False          # `#@ mixin` (Tier 1)
         node.csl_compose_from = []         # `#@ compose_from M1, M2, …` (Tier 1)
+        node.csl_conforms_to = []          # `#@ conforms_to P1, P2, …` (ty2 / PEP 544)
 
         if node.lineno in self.contracts_map:
             contracts = self.contracts_map[node.lineno]
@@ -430,6 +431,8 @@ class PyCSLWeaver(ast.NodeVisitor):
                     node.csl_is_mixin = True
                 elif isinstance(c, ComposeFromDecl):
                     node.csl_compose_from = list(c.mixins)
+                elif isinstance(c, ConformsToDecl):
+                    node.csl_conforms_to = list(c.protocols)
 
         # UB-7.5: reject classes with `__del__` unless explicitly opted
         # in via #@ allow_finalizer. The finalizer protocol is

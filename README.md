@@ -828,6 +828,7 @@ and asserted on exit.
 | `#@ depends_method <m>: <sig>` | method | Concrete dependency on a sibling/core method; provider must refine it (D2) |
 | `#@ requires_method <m>: <sig>` | method | Abstract operation the composing class must supply (D2) |
 | `#@ compose_from <M1>, <M2>, …` | `class` | Composes the named mixins (unique-provider + field-classification check, then flatten) |
+| `#@ conforms_to <P1>, <P2>, …` | `class` | Declares conformance to the named `Protocol`(s); synthesizes per-method contract-refinement VCs (typing-engagement ty2 / PEP 544). See `test-suite/annotations.md` §12.15 |
 
 ### Special atoms
 

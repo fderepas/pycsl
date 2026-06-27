@@ -899,6 +899,19 @@ class ComposeFromDecl(CSLNode):
     mixins: list
 
 @dataclass
+class ConformsToDecl(CSLNode):
+    """Represents `#@ conforms_to P1, P2, …` (typing-engagement ty2 / PEP 544) — marks a
+    class as conforming to the named Protocols. Synthesizes per-method contract-refinement
+    `overrides` entries (P2/P4): for each member `m` of each named Protocol `P` that the
+    class provides, an `(C__m, P__m)` pair is recorded so `--check-behavioral-subtyping`
+    emits the refinement goal `((pre_P -> pre_C) /\\ (post_C -> post_P))`. This is the
+    static-plane conformance VC — it must NOT be discharged by any runtime
+    `isinstance`/`hasattr` presence check (GT7 no-blend, D1). PEP 544 conformance is
+    structural/implicit; PyCSL's TY2 scope requires the explicit directive (divergence-by-
+    strictness) so conformance is a discharged per-method VC, not a whole-program search."""
+    protocols: list
+
+@dataclass
 class ThreadEntry(CSLNode):
     """Represents `thread_entry` — marks a function as a concurrent thread entry point."""
     pass
@@ -978,7 +991,8 @@ PYCSL_GRAMMAR = r"""
              | touches_field_decl
              | depends_method_decl
              | requires_method_decl
-             | compose_from_decl
+              | compose_from_decl
+              | conforms_to_decl
              | shared_decl
              | thread_entry_decl
              | acquires_decl
@@ -1311,6 +1325,8 @@ PYCSL_GRAMMAR = r"""
     depends_method_decl: "depends_method" CNAME ":" mixin_method_sig
     requires_method_decl: "requires_method" CNAME ":" mixin_method_sig
     compose_from_decl: "compose_from" CNAME ("," CNAME)*
+    // typing-engagement ty2 / PEP 544 Protocol conformance declaration.
+    conforms_to_decl: "conforms_to" CNAME ("," CNAME)*
     // A method signature `(self, x: int) -> int`; param annotations optional.
     mixin_method_sig: "(" mixin_params? ")" "->" mixin_type
     mixin_params: mixin_param ("," mixin_param)*
@@ -1550,6 +1566,9 @@ class PyCSLTransformer(Transformer):
         return MethodDependencyDecl(str(method), str(sig), "requires")
     def compose_from_decl(self, *names) -> ComposeFromDecl:
         return ComposeFromDecl([str(n) for n in names])
+    # typing-engagement ty2 / PEP 544 Protocol conformance declaration.
+    def conforms_to_decl(self, *names) -> ConformsToDecl:
+        return ConformsToDecl([str(n) for n in names])
     # Render a method signature / type reference back to a canonical string so the
     # S2 composition pass can compare provider vs declared signatures textually.
     def mixin_method_sig(self, *args) -> str:

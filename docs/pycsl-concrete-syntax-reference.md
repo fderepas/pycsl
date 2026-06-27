@@ -1425,6 +1425,42 @@ formula over the parameter's type tag, NOT the runtime isinstance body code.
 `_overload_type_name`). See translational §T.14.11 and static-semantics τ for
 the lowering of accepted forms.
 
+**Exception — `Protocol` / `@runtime_checkable` / `#@ conforms_to` lowering
+(typing-engagement ty2).** A `class P(Protocol)` declaration (PEP 544) is
+recognized at the front-end normalization seam (`_is_protocol_class` /
+`_emit_protocol_interface` / `_populate_protocol_conformance` in
+`Module5_IREmitter`). It synthesizes a contract interface: a marker record
+(`is_protocol: True`, no fields) + each member `def m(self, ...) -> R: ...`
+emitted as an `abstract: True` function (a bodyless `val` with its contract —
+the refinement target, P1a). The member's `#@ ensures/requires/assigns` is the
+refinement TARGET. Conformance `C conforms to P` is declared via the class-level
+directive `#@ conforms_to P` (parallel to `#@ compose_from`); for each member
+`m` of `P` that `C` provides, an `(C__m, P__m)` override pair is recorded in the
+EXISTING `overrides` IR list. `--check-behavioral-subtyping` emits the per-method
+refinement goal `((pre_P -> pre_C) /\\ (post_C -> post_P))` (P2/P4 — per-method
+behavioural refinement). A class missing a member raises a static error (P3); a
+non-refining contract makes the goal unprovable (P3). PEP 544 conformance is
+structural/implicit; PyCSL's TY2 scope requires the explicit directive
+(divergence-by-strictness). `@runtime_checkable` is a RUNTIME-plane marker — the
+static plane IGNORES it (P1b).
+
+This is a static-plane judgment only (D1 full-signature refinement vs runtime
+presence-only isinstance): the runtime plane is the plain-class behaviour plus,
+when `@runtime_checkable`, the presence-only `isinstance` (a `hasattr` loop over
+member names, S3/S4). The runtime shim
+(`src/pycsl_lib/typ/__init__.py.runtime_checkable`) is a thin identity
+(`ensures \result == val`, no validation). NO-BLEND (the canonical GT7 trap):
+the refinement goal is a spec formula over the two contracts, NOT the runtime
+hasattr value check. A class with method presence but a non-refining contract
+FAILS static conformance — the runtime presence cannot rescue it.
+# cite:
+`src/pycsl/frontend/Module5_IREmitter.py` (`_is_protocol_class`,
+`_emit_protocol_interface`, `_populate_protocol_conformance`),
+`src/pycsl/frontend/Module2_Parser.py` (`ConformsToDecl`, `conforms_to_decl`),
+`src/pycsl/frontend/Module3_Weaver.py` (`visit_ClassDef` harvest). See
+translational §T.14.12 and static-semantics τ for the lowering of accepted
+forms.
+
 ---
 
 ## Appendix A. AST Node Hierarchy

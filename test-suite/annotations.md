@@ -2227,6 +2227,50 @@ report as a `no_blend_namedtuple_isinstance` note.
 **Tests**: see the typing-engagement `ty2/conformance_nt/` S5 subset + S4 shim
 drivers (authored by the conformance-agent, never the core-agent).
 
+### §12.15 `Protocol` / `@runtime_checkable` / `#@ conforms_to` annotations (typing-engagement ty2)
+
+**Surface** (PEP 544 / S2, resolved by S1): `class P(Protocol): ...` declares a protocol
+class whose body is one or more method-signature members `def m(self, ...) -> R: ...`
+(each the refinement target). `@runtime_checkable` decorates a protocol to opt it into
+runtime `isinstance`/`issubclass` support (a RUNTIME-plane marker — it has NO static
+effect). `#@ conforms_to P1, P2, …` (a class-level directive, parallel to `#@ compose_from`)
+declares that a class conforms to the named protocols, synthesizing per-method contract-
+refinement VCs.
+
+**Static plane** (Interpreted): `class P(Protocol)` synthesizes a contract interface
+(P1): a marker record (`is_protocol: True`, no fields) + each member emitted as an
+`abstract: True` function (a bodyless `val` with its contract — the refinement target,
+P1a). The `#@ ensures/requires/assigns` on a member is the refinement TARGET. Conformance
+`C conforms to P` (declared via `#@ conforms_to P`) populates the EXISTING `overrides` IR
+list with `(C__m, P__m)` pairs; `--check-behavioral-subtyping` emits the per-method
+refinement goal `((pre_P -> pre_C) /\\ (post_C -> post_P))` (P2/P4 — per-method
+behavioural refinement, NOT attribute presence). A class missing a member raises a static
+error (P3); a non-refining contract makes the goal unprovable (P3). PEP 544 conformance is
+structural/implicit; PyCSL's TY2 scope requires the explicit `#@ conforms_to` directive
+(divergence-by-strictness — an implicit structural search is outside the per-module
+verification model). NO `\trusted`; NO IR_VERSION bump (reuses the EXISTING `abstract`
+function flag + the EXISTING `overrides` IR list + the EXISTING refinement-goal emitter).
+
+**Runtime plane** (Shimmed): `@runtime_checkable` makes `isinstance(x, P)` check attribute
+PRESENCE ONLY (S3/S4 — a `hasattr` loop over member names; NOT signature, NOT contract,
+NOT attribute type). The `src/pycsl_lib/typ/__init__.py.runtime_checkable` shim is a thin
+identity (`ensures \result == val`) that performs NO validation (R1–R7) — it does NOT
+model the `hasattr` loop (a runtime attribute-presence check is outside the TY2 verified
+surface).
+
+**NO-BLEND** (D1, THE canonical GT7 trap): the static conformance obligation (P2/P4) is a
+per-method contract-refinement VC — a WhyML formula over the two method contracts,
+discharged by Why3/SMT. It must NOT be discharged by the runtime `@runtime_checkable`
+`isinstance` presence check (R3 is attribute presence, a value check, NOT the contract-
+refinement type judgment). The refinement goal is a spec formula; the runtime `hasattr` is
+a value check — different WhyML terms. The keystone witness: a class with method PRESENCE
+(passes runtime isinstance) but a NON-refining contract FAILS static conformance — the
+runtime presence cannot rescue the static refinement VC. Tagged in the report as a
+`no_blend_protocol_presence` note.
+
+**Tests**: see the typing-engagement `ty2/conformance_proto/` S5 subset + S4 shim
+drivers (authored by the conformance-agent, never the core-agent).
+
 ### §12.14 `@overload` annotations (typing-engagement ty2)
 
 **Surface** (PEP 484 / S2, resolved by S1): an `@overload` family is a sequence of

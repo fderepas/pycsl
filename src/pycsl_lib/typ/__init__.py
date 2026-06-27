@@ -148,5 +148,30 @@ def overload(func, val) -> int:
     return val
 
 
+# Protocol / runtime_checkable (typing-engagement ty2 / 32-1700-typing-spec-8):
+# Modelled-for-identity. The static plane (Module 5 + Module 6) treats
+# `class P(Protocol)` as a contract interface (P1): a marker record
+# (`is_protocol: True`) + each member `def m(self, ...) -> R: ...` emitted as an
+# `abstract: True` function (a bodyless `val` with its contract — the refinement
+# TARGET, P1a). Conformance `C conforms to P` (declared via `#@ conforms_to P`)
+# populates the `overrides` IR list with `(C__m, P__m)` pairs; the EXISTING
+# `--check-behavioral-subtyping` emitter discharges the per-method refinement
+# goal `((pre_P -> pre_C) /\ (post_C -> post_P))` (P2/P4 — per-method
+# behavioural refinement, NOT attribute presence). This runtime shim exposes
+# the `typing.runtime_checkable` decorator object and performs NO validation
+# (R1–R7). The real runtime `runtime_checkable(cls)` (S4) returns `cls`
+# unchanged after installing a `hasattr`-loop `__instancecheck__` that checks
+# attribute PRESENCE ONLY (R3 — not signature, not contract, not attribute
+# type); the shim models this as identity. The `ensures \result == val` carries
+# ONLY the identity postcondition — the static per-method refinement VC is NOT
+# discharged by the shim (it is Why3 SMT over the two contracts, invisible to
+# the runtime). NO-BLEND (GT7 / D1): a class with method PRESENCE (passes
+# runtime isinstance) but a NON-refining contract FAILS static conformance —
+# the runtime presence check cannot rescue the static refinement VC.
+#@ ensures \result == val
+def runtime_checkable(cls, val) -> int:
+    return val
+
+
 def no_type_check(func):
     return func

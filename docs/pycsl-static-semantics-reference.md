@@ -650,6 +650,64 @@ discharged by any runtime `isinstance` check in the implementation (R4 is
 value dispatch, not type judgment). Tagged in the report as a
 `no_blend_overload_isinstance` note.
 
+#### §2.5f `Protocol` contract interface & conformance (typing-engagement ty2 / PEP 544)
+
+**Rule (P1 — protocol declaration).** `class P(Protocol): ...` declares a protocol
+type — a contract interface (a named collection of method contracts).
+`Module5_IREmitter._is_protocol_class` recognizes the family at the `visit_ClassDef`
+seam (bare head name `Protocol` or dotted `typing.Protocol` in `node.bases`).
+`_emit_protocol_interface` synthesizes a marker record (`is_protocol: True`, no
+fields) + each member as an `abstract: True` function (a bodyless `val` with its
+contract — the refinement target, P1a).
+
+**Rule (P1b — `@runtime_checkable` is a runtime marker).** `@runtime_checkable`
+decorates a protocol to opt it into runtime `isinstance`/`issubclass` support. It
+has NO static-plane effect: a non-`@runtime_checkable` protocol has the SAME static
+conformance semantics as a `@runtime_checkable` one. The static plane IGNORES
+`@runtime_checkable` (it is a runtime-plane concern).
+
+**Rule (P2/P4 — per-method behavioural refinement, the load-bearing rule).** A
+class `C` **conforms to** protocol `P` iff, for every member `m` of `P`, `C` has a
+method `m` whose contract **refines** `P.m`'s contract: `requires(C.m) ⟹
+requires(P.m)` (weaker-or-equal pre), `ensures(P.m) ⟹ ensures(C.m)` (stronger-or-
+equal post), `assigns(C.m) ⊆ assigns(P.m)` (narrower frame). Conformance is
+declared via the class-level directive `#@ conforms_to P`; for each member `m` of
+`P` that `C` provides, `_populate_protocol_conformance` records an `(C__m, P__m)`
+override pair in the EXISTING `overrides` IR list. `--check-behavioral-subtyping`
+emits the per-method refinement goal `forall self: C, .... ((pre_P -> pre_C) /\\
+(post_C -> post_P))` — the per-method contract-refinement VC. This is a per-method
+VC (NOT a presence check): it is discharged by Why3/SMT from the two contracts.
+
+**Rule (P3 — non-conformance rejected).** A class `C` that lacks a member of `P`
+raises a static error (`PYCSLSEMANTICERROR`); a member whose contract does NOT
+refine `P.m`'s contract makes the refinement goal unprovable, so verification
+FAILS. A conformance declaration against a non-Protocol class also raises.
+
+**Rule (P5 — NO-BLEND, the canonical GT7 trap).** The static conformance obligation
+(P2/P4) is a per-method contract-refinement VC — a WhyML formula over the two
+contracts. It must NOT be discharged by any runtime `isinstance`/`hasattr` check.
+The runtime `@runtime_checkable` isinstance (R3) checks attribute PRESENCE ONLY —
+it is a value check on the object, NOT the contract-refinement type judgment. The
+two are carried as SEPARATE facts: the static conformance VC is discharged by
+contract refinement; the runtime isinstance is discharged by the object's attribute
+presence at run time. A lowering that let the weak runtime presence check SATISFY
+the static conformance obligation would blend the planes — this is the GT7
+canonical failure.
+
+**TY2 scope restriction (divergence-by-strictness).** PEP 544 conformance is
+structural and implicit; PyCSL's TY2 scope requires the explicit `#@ conforms_to P`
+directive. An implicit structural search would require whole-program analysis
+(every class against every protocol), which is outside PyCSL's per-module
+verification model. The explicit directive makes conformance a discharged per-method
+VC within the module.
+
+**GT7** (THIS IS the canonical GT7 trap, not an analogue) — D1 documents the
+`@runtime_checkable` presence-vs-conformance divergence: the static P2/P4
+per-method contract-refinement obligation must NOT be discharged by any runtime
+`isinstance`/`hasattr` presence check (R3 is attribute presence, a value check,
+NOT the contract-refinement type judgment). Tagged in the report as a
+`no_blend_protocol_presence` note.
+
 #### §2.1.1 Precondition (`requires`)
 
 ```
