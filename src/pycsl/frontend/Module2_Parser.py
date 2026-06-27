@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import List, Union, Any, Optional
-from lark import Lark, Transformer, v_args
-from lark.exceptions import LarkError
 from errors import PyCSLParseError
 
 # ---------------------------------------------------------
@@ -942,428 +940,6 @@ class LockOrder(CSLNode):
     """Represents `lock_order M1, M2, ...` — total order on mutex acquisition to prevent deadlock."""
     order: List[str]
 
-# ---------------------------------------------------------
-# 2. The EBNF Grammar
-# ---------------------------------------------------------
-
-PYCSL_GRAMMAR = r"""
-    ?start: contract
-
-    ?contract: precondition
-             | postcondition
-             | assigns
-             | loop_invariant
-             | loop_variant
-             | class_invariant
-             | label_decl
-             | assert_decl
-             | check_decl
-             | function_variant
-             | function_variant_structural
-             | diverges_decl
-             | no_inline_decl
-             | sibling_concrete_decl
-             | verify_module_decl
-             | propagate_frame_decl
-             | fresh_globals_decl
-             | trusted_decl
-             | abstract_decl
-             | lemma_decl
-             | uses_decl
-             | interface_decl
-             | reveal_decl
-             | preserves_decl
-             | footprint_decl
-             | ghost_assign
-             | ghost_aug_assign
-             | ghost_array_set
-             | raises_decl
-             | no_exception_decl
-             | allow_finalizer_decl
-             | allow_iteration_mutation_decl
-             | bounded_int_decl
-             | proof_decl
-             | datatype_decl
-             | inductive_decl
-             | mixin_decl
-             | provides_decl
-             | shared_state_decl
-             | touches_field_decl
-             | depends_method_decl
-             | requires_method_decl
-              | compose_from_decl
-              | conforms_to_decl
-             | shared_decl
-             | thread_entry_decl
-             | acquires_decl
-             | releases_decl
-             | critical_decl
-             | mutex_invariant_decl
-             | lock_order_decl
-             | act_block
-             | for_block
-             | complete_decl
-             | disjoint_decl
-             | happy_decl
-             | happy_reads_decl
-             | happy_post_decl
-             | happy_pre_decl
-             | happy_total_decl
-             | happy_ni_decl
-             | happy_protects_decl
-             | happy_param_decl
-
-    precondition: "requires" expr
-    postcondition: "ensures" expr
-
-    // Guarded contract cases (Module1 folds each `act NAME:` block into one
-    // contract string; clauses are keyword-delimited so no indentation here).
-    act_block: "act" CNAME ":" act_clause+
-    ?act_clause: given_clause | precondition | postcondition | assigns
-
-    // `#@ for VAR in range(lo, hi):` bounded macro-expansion (sugar-for-spec.md).
-    // Module1 folds the 4-space body into one string; clauses are keyword-
-    // delimited here. Desugars to ground requires/ensures in Module3.
-    for_block: "for" CNAME "in" "range" "(" expr ("," expr)? ")" ":" for_clause+
-    ?for_clause: precondition | postcondition
-    given_clause: "given" expr
-    complete_decl: "complete" act_names
-    disjoint_decl: "disjoint" act_names
-    act_names: CNAME ("," CNAME)*
-
-    // Module-level HAPPY meta-property (Module1 folds the `happy NAME:` block into
-    // one contract string; clauses are keyword-delimited). v1 surface: a region
-    // [LO, HI) that a named shared field must not be written into, except by an
-    // allowlisted set of methods. See `meta.md` Stage B and `Module3._expand_happy_properties`.
-    happy_decl: "happy" CNAME ":" "region" expr RANGE_OP expr "writes" "self" "." CNAME "outside" "region" ("except" act_names)?
-
-    // H-I1 (Information-Disclosure / read confinement): the READ mirror of happy_decl.
-    // No method outside `except` may READ self.FIELD inside the reserved region [LO, HI);
-    // expands to a per-READ-site `#@ check (i < LO or i >= HI)` in every non-exempt method
-    // (and forbids aliasing the protected base, which would evade the read-site check).
-    happy_reads_decl: "happy" CNAME ":" "region" expr RANGE_OP expr "reads" "self" "." CNAME "outside" "region" ("except" act_names)?
-
-    // The general `\targets`/`\context` HAPPY form (coherent with the C sibling macsl):
-    // a NAMED security property attached to ONE target function as an `ensures` (postcond)
-    // or `requires` (precond). Used by H-R (nonrepud), H-E (priv_monotonic), H-S (authn).
-    // The two rules diverge at the postcond/precond keyword (an LALR shift decision).
-    happy_post_decl: "happy" CNAME ":" "targets" CNAME "postcond" expr
-    happy_pre_decl:  "happy" CNAME ":" "targets" CNAME "precond" expr
-
-    // H-D (Denial-of-Service / totality, macsl's \context(\total)): the target must be
-    // TOTAL — terminate and not opt out via `\diverges`. PyCSL functions are total by
-    // default (Why3 emits a termination VC; loops need a `variant`), so this names the
-    // policy and rejects `\diverges` on the target.
-    happy_total_decl: "happy" CNAME ":" "targets" CNAME "total"
-
-    // H-I2 (Information-Disclosure / noninterference, macsl's \context(\noninterference)):
-    // the meta-pass synthesizes a self-composition twin `<m>__selfcomp` calling <m> twice
-    // (public params shared, the listed secret params split _a/_b) and asserting equal
-    // results. A result that depends on a secret makes the twin's assert unprovable.
-    happy_ni_decl: "happy" CNAME ":" "targets" CNAME "noninterference" "secret" act_names
-
-    // 07-1143 R1/R2: subsystem ownership form — no method outside `except` may directly
-    // write ANY of the (possibly dotted/nested) protected fields. Desugars to a per-site
-    // `#@ check False` at every direct write of a protected path in a non-exempt method.
-    happy_protects_decl: "happy" CNAME ":" "protects" dotted_path_list ("except" act_names)?
-    dotted_path_list: dotted_path ("," dotted_path)*
-    dotted_path: CNAME ("." CNAME)*
-
-    // 07-1143 R3: parametric (per-object) HAPPY — a separate rule (not an alternative of
-    // happy_protects_decl) to avoid a parse conflict on the shared `happy CNAME` prefix.
-    happy_param_decl: "happy" CNAME "(" CNAME ")" ":" "protects" dotted_path "[" expr ":" expr "]" ("except" act_names)?
-
-    // 07-1143 R3: a method declares the per-object region it operates on, binding the
-    // parameter of a parametric HAPPY to one of its own arguments.
-    footprint_decl: "footprint" CNAME "(" expr ")"
-
-    // Extracted alias from group to prevent Lark GrammarError
-    assigns: "assigns" assigns_target
-    ?assigns_target: assigns_region_list
-                   | expr_list 
-                   | "\\nothing" -> nothing
-
-    assigns_region_list: assigns_region ("," assigns_region)*
-    assigns_region: CNAME "[" expr RANGE_OP expr "]"
-
-    loop_invariant: "loop" "invariant" expr
-    loop_variant: "loop" "variant" expr
-    class_invariant: "class" "invariant" expr
-    label_decl: "label" CNAME
-    assert_decl: "assert" expr
-    check_decl: "check" expr
-    function_variant: "\\variant" expr
-    function_variant_structural: "\\variant" "(" expr "," CNAME ")"
-    diverges_decl: "\\diverges"
-    no_inline_decl: "no_inline"
-    sibling_concrete_decl: "sibling_concrete"
-    verify_module_decl: "verify_module" CNAME
-    propagate_frame_decl: "propagate_frame"
-    fresh_globals_decl: "fresh_globals"
-    trusted_decl: "\\trusted" ("reviewer" ":" REVIEWER_ID)?
-    abstract_decl: "\\abstract"
-    lemma_decl: "lemma"
-    uses_decl: "uses" CNAME
-    // b-spec Track B: `#@ interface <clause>` = the NARROW contract importers see (opacity).
-    // Absent ⇒ interface = definition (transparent). `#@ reveal <fn>` opts a caller into <fn>'s
-    // rich DEFINITION contract at that site.
-    interface_decl: "interface" "ensures" expr -> interface_ensures
-                  | "interface" "requires" expr -> interface_requires
-                  | "interface" "assigns" assigns_target -> interface_assigns
-    reveal_decl: "reveal" CNAME
-    preserves_decl: "\\preserves"
-    REVIEWER_ID: /[A-Za-z0-9._@-]+/
-    ghost_assign: "ghost" CNAME ":" GHOST_TYPE "=" expr -> ghost_assign_typed
-              | "ghost" CNAME "=" expr -> ghost_assign_untyped
-    ghost_aug_assign: "ghost" CNAME GHOST_AUG_OP expr
-    ghost_array_set: "ghost" CNAME "[" expr "]" "=" expr
-    raises_decl: "raises" CNAME "when" expr
-
-    // no_exception — implicit exceptions become proof obligations
-    // (see config/skills/pycsl-exception-model). The bare-name form lists
-    // specific exceptions; the `\all` form expands at transpilation to the
-    // full Phase 1 set and requires the function's raises set to be empty.
-    no_exception_decl: "no_exception" "\\all" -> no_exception_all_decl
-                     | "no_exception" exception_name_list -> no_exception_list_decl
-    exception_name_list: CNAME ("," CNAME)*
-
-    // UB-7.5 — opt-in to `__del__` despite the default rejection
-    allow_finalizer_decl: "allow_finalizer"
-    // UB-7.1 — opt-in to mutating the iterated container inside a for loop
-    allow_iteration_mutation_decl: "allow_iteration_mutation"
-
-    bounded_int_decl: "assumes" "bounded_int" "(" NUMBER ")"
-
-    // §2.1.12 Proof citation — emits a Why3 axiom in the WhyML preamble
-    // whose body is provided by the cited Rocq or Lean theorem under
-    // <test>.proofs/{rocq,lean}/. See docs/cross-validated-spec-sources.md.
-    // `PROVER_ID` is restricted to {rocq, lean} by the terminal.
-    // `QUALNAME` is a dotted identifier path (e.g. Pycsl.Reference.Gcd.gcd_step).
-    proof_decl: "proof" PROVER_ID QUALNAME
-    PROVER_ID: "rocq" | "lean"
-    QUALNAME: CNAME ("." CNAME)*
-
-    // Expression hierarchy (handles operator precedence and left-recursion)
-    // Quantifiers can appear at top level or as the RHS of ==>, and, or.
-    ?expr: implication
-         | "\\forall" CNAME ";" expr -> forall_expr
-             | "\\forall" CNAME ":" CNAME ";" expr -> forall_typed_expr
-             | "\\forall" CNAME "in" expr ";" expr -> forall_in_expr
-             | "\\forall" CNAME ":" CNAME "in" expr ";" expr -> forall_typed_in_expr
-             | "\\forall" CNAME ("," CNAME)+ ";" expr -> forall_multi_expr
-             | "\\forall" CNAME "," CNAME "in" expr ";" expr -> forall_two_in_expr
-         | "\\exists" CNAME ";" expr -> exists_expr
-             | "\\exists" CNAME ":" CNAME ";" expr -> exists_typed_expr
-             | "\\exists" CNAME "in" expr ";" expr -> exists_in_expr
-             | "\\exists" CNAME ":" CNAME "in" expr ";" expr -> exists_typed_in_expr
-             | "\\exists" CNAME ("," CNAME)+ ";" expr -> exists_multi_expr
-         | "\\exist"  CNAME ";" expr -> exists_expr
-             | "\\exist"  CNAME ":" CNAME ";" expr -> exists_typed_expr
-             | "\\exist"  CNAME "in" expr ";" expr -> exists_in_expr
-             | "\\exist"  CNAME ":" CNAME "in" expr ";" expr -> exists_typed_in_expr
-             | "\\exist"  CNAME ("," CNAME)+ ";" expr -> exists_multi_expr
-
-    ?implication: logical_or | implication IMPL_OP impl_rhs
-    ?impl_rhs: logical_or
-             | "\\forall" CNAME ";" expr -> forall_expr
-             | "\\forall" CNAME ":" CNAME ";" expr -> forall_typed_expr
-             | "\\forall" CNAME "in" expr ";" expr -> forall_in_expr
-             | "\\forall" CNAME ":" CNAME "in" expr ";" expr -> forall_typed_in_expr
-             | "\\forall" CNAME ("," CNAME)+ ";" expr -> forall_multi_expr
-             | "\\forall" CNAME "," CNAME "in" expr ";" expr -> forall_two_in_expr
-             | "\\exists" CNAME ";" expr -> exists_expr
-             | "\\exists" CNAME ":" CNAME ";" expr -> exists_typed_expr
-             | "\\exists" CNAME "in" expr ";" expr -> exists_in_expr
-             | "\\exists" CNAME ":" CNAME "in" expr ";" expr -> exists_typed_in_expr
-             | "\\exists" CNAME ("," CNAME)+ ";" expr -> exists_multi_expr
-             | "\\exist"  CNAME ";" expr -> exists_expr
-             | "\\exist"  CNAME ":" CNAME ";" expr -> exists_typed_expr
-             | "\\exist"  CNAME "in" expr ";" expr -> exists_in_expr
-             | "\\exist"  CNAME ":" CNAME "in" expr ";" expr -> exists_typed_in_expr
-             | "\\exist"  CNAME ("," CNAME)+ ";" expr -> exists_multi_expr
-
-    ?logical_or: logical_and | logical_or OR_OP or_rhs
-    ?or_rhs: logical_and
-           | "\\forall" CNAME ";" expr -> forall_expr
-             | "\\forall" CNAME ":" CNAME ";" expr -> forall_typed_expr
-             | "\\forall" CNAME "in" expr ";" expr -> forall_in_expr
-             | "\\forall" CNAME ":" CNAME "in" expr ";" expr -> forall_typed_in_expr
-             | "\\forall" CNAME ("," CNAME)+ ";" expr -> forall_multi_expr
-             | "\\forall" CNAME "," CNAME "in" expr ";" expr -> forall_two_in_expr
-           | "\\exists" CNAME ";" expr -> exists_expr
-             | "\\exists" CNAME ":" CNAME ";" expr -> exists_typed_expr
-             | "\\exists" CNAME "in" expr ";" expr -> exists_in_expr
-             | "\\exists" CNAME ":" CNAME "in" expr ";" expr -> exists_typed_in_expr
-             | "\\exists" CNAME ("," CNAME)+ ";" expr -> exists_multi_expr
-           | "\\exist"  CNAME ";" expr -> exists_expr
-             | "\\exist"  CNAME ":" CNAME ";" expr -> exists_typed_expr
-             | "\\exist"  CNAME "in" expr ";" expr -> exists_in_expr
-             | "\\exist"  CNAME ":" CNAME "in" expr ";" expr -> exists_typed_in_expr
-             | "\\exist"  CNAME ("," CNAME)+ ";" expr -> exists_multi_expr
-
-    ?logical_and: equality | logical_and AND_OP and_rhs
-    ?and_rhs: equality
-            | "\\forall" CNAME ";" expr -> forall_expr
-             | "\\forall" CNAME ":" CNAME ";" expr -> forall_typed_expr
-             | "\\forall" CNAME "in" expr ";" expr -> forall_in_expr
-             | "\\forall" CNAME ":" CNAME "in" expr ";" expr -> forall_typed_in_expr
-             | "\\forall" CNAME ("," CNAME)+ ";" expr -> forall_multi_expr
-             | "\\forall" CNAME "," CNAME "in" expr ";" expr -> forall_two_in_expr
-            | "\\exists" CNAME ";" expr -> exists_expr
-             | "\\exists" CNAME ":" CNAME ";" expr -> exists_typed_expr
-             | "\\exists" CNAME "in" expr ";" expr -> exists_in_expr
-             | "\\exists" CNAME ":" CNAME "in" expr ";" expr -> exists_typed_in_expr
-             | "\\exists" CNAME ("," CNAME)+ ";" expr -> exists_multi_expr
-            | "\\exist"  CNAME ";" expr -> exists_expr
-             | "\\exist"  CNAME ":" CNAME ";" expr -> exists_typed_expr
-             | "\\exist"  CNAME "in" expr ";" expr -> exists_in_expr
-             | "\\exist"  CNAME ":" CNAME "in" expr ";" expr -> exists_typed_in_expr
-             | "\\exist"  CNAME ("," CNAME)+ ";" expr -> exists_multi_expr
-    ?equality: comparison | equality EQ_OP comparison
-    ?comparison: membership | comparison COMP_OP membership
-    ?membership: term
-              | term "in" term -> in_expr
-              | term "not" "in" term -> not_in_expr
-    ?term: factor | term ADD_OP factor
-    ?factor: unary | factor MUL_OP unary
-    
-    ?unary: UNARY_OP unary -> unary_op
-          | atom
-
-    ?atom: DECIMAL -> decimal
-         | NUMBER -> number
-         | ESCAPED_STRING -> string_literal
-         | "True" -> true_lit
-         | "False" -> false_lit
-         | "None" -> none_lit
-         | "self" "." CNAME "[" expr "]" -> field_subscript
-         | CNAME "." CNAME "[" expr "]" -> global_field_subscript
-         | "self" "." CNAME -> field_access
-         | CNAME "." CNAME "(" ")" -> dict_view_expr
-         | CNAME "." CNAME -> param_field_access
-         | "\\result" "[" expr "]" -> result_subscript
-         | "\\result" "." CNAME -> result_field
-         | "\\is_sorted" "(" CNAME "," expr "," expr ")" -> is_sorted_expr
-         | "\\array_eq" "(" expr "," expr ")" -> array_eq_expr
-         | "\\permutation" "(" expr "," expr ")" -> permutation_expr
-         | "\\sum" "(" CNAME "," expr "," expr ")" -> sum_expr
-         | CNAME "(" expr_list ")" -> call_expr
-         | CNAME "(" ")" -> call_expr_noargs
-         | CNAME "[" expr ":" expr "]" -> slice_access
-         | CNAME "[" expr "]" "[" expr "]" -> chained_subscript
-         | CNAME "[" expr "]" -> subscript_access
-         | CNAME -> var
-         | "\\result" -> result
-         | "\\old" "(" expr ")" -> old_var
-         | "\\in_globals" "(" CNAME ")" -> in_globals_pred
-         | "\\in_scope" "(" CNAME ")" -> in_scope_pred
-         | "\\length" "(" CNAME ")" -> array_length
-         | "\\length" "(" "self" "." CNAME ")" -> array_length_field
-         | "\\length" "(" "\\result" ")" -> array_length_result
-         | "\\valid" "(" CNAME "," expr ")" -> valid_pred
-         | "\\separated" "(" CNAME "," expr "," CNAME "," expr ")" -> separated_pred
-         | "\\at" "(" expr "," CNAME ")" -> at_expr
-         | "\\length2d" "(" CNAME "," expr "," expr ")" -> length2d_pred
-         | "\\valid2d" "(" CNAME "," expr "," expr ")" -> valid2d_pred
-         | atom "^" atom -> str_concat
-         | "\\str_length" "(" expr ")" -> str_length_expr
-         | "\\str_sub" "(" expr "," expr "," expr ")" -> str_sub_expr
-         | "\\mktuple" "(" expr_list ")" -> mktuple_expr
-         | "\\fst" "(" expr ")" -> fst_expr
-         | "\\snd" "(" expr ")" -> snd_expr
-         | "\\proj" "(" expr "," expr ")" -> proj_expr
-         | "\\is_ctor" "(" CNAME "," CNAME ")" -> ctor_test
-         | "\\payload" "(" CNAME "," CNAME "," NUMBER ")" -> ctor_payload_idx
-         | "\\payload" "(" CNAME "," CNAME ")" -> ctor_payload
-         | "\\empty_map" -> empty_map_expr
-         | "\\map_get" "(" expr "," expr ")" -> map_get_expr
-         | "\\map_set" "(" expr "," expr "," expr ")" -> map_set_expr
-         | "\\map_eq" "(" expr "," expr ")" -> map_eq_expr
-         | "\\has_key" "(" expr "," expr ")" -> has_key_expr
-         | "\\map_remove" "(" expr "," expr ")" -> map_remove_expr
-         | "\\set_empty" -> set_empty_expr
-         | "\\set_add" "(" expr "," expr ")" -> set_add_expr
-         | "\\set_remove" "(" expr "," expr ")" -> set_remove_expr
-         | "\\set_mem" "(" expr "," expr ")" -> set_mem_expr
-         | "\\set_union" "(" expr "," expr ")" -> set_union_expr
-         | "\\set_inter" "(" expr "," expr ")" -> set_inter_expr
-         | "\\set_diff" "(" expr "," expr ")" -> set_diff_expr
-         | "\\set_card" "(" expr "," expr "," expr ")" -> set_card_expr
-         | "\\set_subset" "(" expr "," expr ")" -> set_subset_expr
-         | "\\set_eq" "(" expr "," expr ")" -> set_eq_expr
-         | "\\nil" -> nil_expr
-         | "\\cons" "(" expr "," expr ")" -> cons_expr
-         | "\\hd" "(" expr ")" -> hd_expr
-         | "\\tl" "(" expr ")" -> tl_expr
-         | "\\list_length" "(" expr ")" -> list_length_expr
-         | "\\nth" "(" expr "," expr ")" -> nth_expr
-         | "\\mem" "(" expr "," expr ")" -> mem_expr
-         | "\\append" "(" expr "," expr ")" -> append_expr
-         | "\\copy" "(" CNAME ")" -> copy_expr
-         | "\\copy_range" "(" CNAME "," expr "," expr ")" -> copy_range_expr
-         | "\\make" "(" expr "," expr ")" -> make_expr
-         | "(" expr ")"
-
-    expr_list: expr ("," expr)*
-
-    // Concurrency annotations
-    mutex_expr: CNAME "[" expr "]" -> mutex_subscript
-              | CNAME -> mutex_name
-
-    datatype_decl: "datatype" CNAME ("[" CNAME ("," CNAME)* "]")? "=" variant_def ("|" variant_def)*
-    inductive_decl: "inductive" CNAME "(" mixin_params? ")" ":" inductive_rule+ inductive_with_member*
-    inductive_with_member: "with" CNAME "(" mixin_params? ")" ":" inductive_rule+
-    inductive_rule: CNAME ":" expr
-    variant_def: CNAME "(" CNAME ("," CNAME)* ")" -> variant_payload
-               | CNAME -> variant_nullary
-
-    // Mixin composition directives (mixin.md / mixin-ready.md, Tier 1).
-    mixin_decl: "mixin"
-    provides_decl: "provides" CNAME
-    shared_state_decl: "shared_state" CNAME ":" mixin_type
-    touches_field_decl: "touches_field" CNAME ":" mixin_type
-    depends_method_decl: "depends_method" CNAME ":" mixin_method_sig
-    requires_method_decl: "requires_method" CNAME ":" mixin_method_sig
-    compose_from_decl: "compose_from" CNAME ("," CNAME)*
-    // typing-engagement ty2 / PEP 544 Protocol conformance declaration.
-    conforms_to_decl: "conforms_to" CNAME ("," CNAME)*
-    // A method signature `(self, x: int) -> int`; param annotations optional.
-    mixin_method_sig: "(" mixin_params? ")" "->" mixin_type
-    mixin_params: mixin_param ("," mixin_param)*
-    mixin_param: CNAME (":" mixin_type)?
-    // A type reference: a name with optional generic args (`int`, `List[int]`).
-    mixin_type: CNAME ("[" mixin_type ("," mixin_type)* "]")?
-
-    shared_decl: "shared" CNAME "protected_by" mutex_expr -> shared_protected
-               | "shared" CNAME -> shared_unprotected
-    thread_entry_decl: "thread_entry"
-    acquires_decl: "acquires" mutex_expr
-    releases_decl: "releases" mutex_expr
-    critical_decl: "critical" mutex_expr
-    mutex_invariant_decl: "mutex_invariant" mutex_expr ":" expr
-    lock_order_decl: "lock_order" mutex_expr ("," mutex_expr)*
-
-    // Explicit tokens so Lark doesn't drop the operators
-    IMPL_OP: "==>" | "<==>"
-    OR_OP: "or"
-    AND_OP: "and"
-    EQ_OP: "==" | "!="
-    COMP_OP: ">" | "<" | ">=" | "<="
-    ADD_OP: "+" | "-"
-    MUL_OP: "*" | "//" | "/" | "%"
-    UNARY_OP: "not" | "-" | "+"
-    RANGE_OP: ".."
-    GHOST_AUG_OP: "+=" | "-=" | "*="
-    GHOST_TYPE: "string" | "array" | "ghost_dict" | "ghost_list" | "ghost_set" | "tuple2" | "tuple3" | "tuple4"
-
-    %import common.CNAME
-    %import common.INT -> NUMBER
-    DECIMAL.2: /\d+\.\d+/
-    %import common.ESCAPED_STRING
-    %import common.WS
-    %ignore WS
-"""
-
 def _csl_to_str(node: CSLNode) -> str:
     """Convert a simple CSL node to string — used for mutex subscript indices."""
     if isinstance(node, Var):
@@ -1376,401 +952,1214 @@ def _csl_to_str(node: CSLNode) -> str:
 
 
 # ---------------------------------------------------------
-# 3. The Tree Transformer
+# 3. Hand-written recursive-descent parser (the `pure_ast` style)
 # ---------------------------------------------------------
+# Replaces the former Lark LALR grammar + PyCSLTransformer. One method per
+# grammar rule, each building the SAME `CSLNode` the transformer built. The
+# tokenizer is regex-based: Python's `tokenize` rejects the contract language's
+# `\result` / `\forall` identifiers (`\` is line-continuation). The differential
+# test in `bin/diff_parser.py` proved this engine produces CSLNode trees
+# byte-identical to the legacy Lark engine before deletion.
 
-@v_args(inline=True)
-class PyCSLTransformer(Transformer):
-    """Converts Lark's ParseTree into our Contract AST Nodes."""
-    
-    def precondition(self, expr) -> Requires: return Requires(expr)
-    def postcondition(self, expr) -> Ensures: return Ensures(expr)
+import os as _os
+import re as _re
 
-    def given_clause(self, expr) -> Given: return Given(expr)
-    def act_block(self, name, *clauses) -> Act: return Act(str(name), list(clauses))
 
-    def for_block(self, var, *rest) -> ForExpand:
-        # rest = the bound exprs (1 or 2) followed by the body clauses
-        # (Requires/Ensures, which are ContractWrapper). Separate by type.
-        clauses = [x for x in rest if isinstance(x, ContractWrapper)]
-        bounds = [x for x in rest if not isinstance(x, ContractWrapper)]
-        if len(bounds) == 1:
-            lo, hi = Number(0), bounds[0]        # range(hi) ≡ range(0, hi); int literal
-        elif len(bounds) == 2:
-            lo, hi = bounds[0], bounds[1]
-        else:
-            raise PyCSLParseError(
-                f"`for {var} in range(...)`: range takes 1 or 2 arguments, got {len(bounds)}",
-                stage="Module2")
-        return ForExpand(str(var), lo, hi, clauses)
-    def act_names(self, *names) -> list: return [str(n) for n in names]
-    def complete_decl(self, names) -> Complete: return Complete(names)
-    def disjoint_decl(self, names) -> Disjoint: return Disjoint(names)
-    def happy_decl(self, name, lo, _op, hi, field, *rest) -> HappyProperty:
-        # `rest` is the optional except list (act_names → List[str]) or empty.
-        except_set = list(rest[0]) if rest else []
-        return HappyProperty(str(name), str(field), lo, hi, except_set)
+class _ContractSyntaxError(Exception):
+    """Internal syntax error raised by `_ContractParser`; converted to
+    `PyCSLParseError` at the `Module2_Parser` boundary."""
 
-    # H-I1: read-confinement HAPPY (`region LO .. HI reads self.FIELD outside region`).
-    def happy_reads_decl(self, name, lo, _op, hi, field, *rest) -> HappyProperty:
-        except_set = list(rest[0]) if rest else []
-        return HappyProperty(str(name), str(field), lo, hi, except_set, context="reading")
 
-    # General targets/context HAPPY (H-R / H-E postconditions, H-S precondition).
-    def happy_post_decl(self, name, target, expr) -> HappyProperty:
-        return HappyProperty(str(name), "", None, None, [], context="postcond",
-                             target=str(target), formula=expr)
+class _Tok:
+    __slots__ = ("type", "string", "start")
 
-    def happy_pre_decl(self, name, target, expr) -> HappyProperty:
-        return HappyProperty(str(name), "", None, None, [], context="precond",
-                             target=str(target), formula=expr)
+    def __init__(self, type_, string, start):
+        self.type = type_        # 'NAME' | 'NUMBER' | 'DECIMAL' | 'STRING' | 'BSNAME' | 'OP'
+        self.string = string
+        self.start = start       # offset into source (for REVIEWER_ID re-scan)
 
-    def happy_total_decl(self, name, target) -> HappyProperty:
-        return HappyProperty(str(name), "", None, None, [], context="total",
-                             target=str(target))
+    def __repr__(self):
+        return f"_Tok({self.type}, {self.string!r})"
 
-    def happy_ni_decl(self, name, target, secrets) -> HappyProperty:
-        return HappyProperty(str(name), "", None, None, [], context="noninterference",
-                             target=str(target), secret=[str(x) for x in secrets])
 
-    # 07-1143 R1/R2: subsystem-ownership HAPPY (`protects <dotted paths> except <methods>`).
-    def dotted_path(self, *parts) -> str:
-        return ".".join(str(p) for p in parts)
+# Longest-match-first operator table (Lark terminal priorities replicated).
+_OP_ALTERNATIVES = [
+    "==>", "<==>", "//", "..", "+=", "-=", "*=", "->",
+    "==", "!=", ">=", "<=",
+    "+", "-", "*", "/", "%", "^", ":", ",", ";",
+    "(", ")", "[", "]", "=", ".", "<", ">", "|",
+]
+_TOKEN_RE = _re.compile(_re.escape('|') and r"""(?xs)
+    (?P<WS>\s+)
+  | (?P<DECIMAL>\d+\.\d+)
+  | (?P<NUMBER>\d+)
+  | (?P<STRING>"(?:[^"\\]|\\.)*")
+  | (?P<BSNAME>\\[A-Za-z_][A-Za-z0-9_]*)
+  | (?P<NAME>[A-Za-z_][A-Za-z0-9_]*)
+  | (?P<OP>""" + "|".join(_re.escape(o) for o in _OP_ALTERNATIVES) + r""")
+""")
 
-    def dotted_path_list(self, *paths) -> list:
-        return [str(p) for p in paths]
 
-    def happy_protects_decl(self, name, paths, *rest) -> HappyProperty:
-        except_set = list(rest[0]) if rest else []
-        return HappyProperty(str(name), "", None, None, except_set, protects=list(paths))
+def _lex_contract(source: str):
+    """Tokenize a contract string (no `#@` prefix) into a list of `_Tok`.
 
-    # 07-1143 R3: parametric (per-object) HAPPY + the `footprint` method binding.
-    def happy_param_decl(self, name, param, path, lo, hi, *rest) -> HappyProperty:
-        except_set = list(rest[0]) if rest else []
-        return HappyProperty(str(name), "", lo, hi, except_set,
-                             protects=[str(path)], param=str(param))
+    Mirrors `pure_ast._lex` in shape (filter trivia, return token list) but is
+    regex-based: Python's `tokenize` rejects `\\result`/`\\forall` (`\\` is the
+    line-continuation character). A trailing NEWLINE is appended if missing so
+    the lexer is uniform whether or not the caller included one.
+    """
+    if not source.endswith("\n"):
+        source = source + "\n"
+    toks = []
+    pos = 0
+    n = len(source)
+    while pos < n:
+        m = _TOKEN_RE.match(source, pos)
+        if m is None:
+            raise _ContractSyntaxError(
+                f"unexpected character {source[pos]!r} at offset {pos}")
+        pos = m.end()
+        kind = m.lastgroup
+        if kind == "WS":
+            continue
+        toks.append(_Tok(kind, m.group(), m.start()))
+    toks.append(_Tok("EOF", "", n))
+    return toks, source
 
-    def footprint_decl(self, happy_name, arg) -> Footprint:
-        return Footprint(str(happy_name), arg)
 
-    def assigns(self, target) -> Assigns:
-        if isinstance(target, Nothing):
-            return Assigns([target])
-        elif isinstance(target, list):
-            return Assigns(target)
-        else:
-            return Assigns([target])
+# Operator sets used by the expression precedence ladder (mirror the grammar's
+# IMPL_OP / OR_OP / AND_OP / EQ_OP / COMP_OP / ADD_OP / MUL_OP terminals).
+_IMPL_OPS = ("==>", "<==>")
+_EQ_OPS = ("==", "!=")
+_COMP_OPS = (">", "<", ">=", "<=")
+_ADD_OPS = ("+", "-")
+_MUL_OPS = ("*", "//", "/", "%")
 
-    def loop_invariant(self, expr) -> LoopInvariant: return LoopInvariant(expr)
-    def loop_variant(self, expr) -> LoopVariant: return LoopVariant(expr)
-    def class_invariant(self, expr) -> ClassInvariant: return ClassInvariant(expr)
-    def function_variant(self, expr) -> FunctionVariant: return FunctionVariant(expr)
-    def function_variant_structural(self, expr, ordering) -> FunctionVariant: return FunctionVariant(expr, str(ordering))
-    def diverges_decl(self) -> Diverges: return Diverges()
-    def no_inline_decl(self) -> NoInline: return NoInline()
-    def sibling_concrete_decl(self) -> SiblingConcrete: return SiblingConcrete()
-    def propagate_frame_decl(self) -> PropagateFrame: return PropagateFrame()
-    def fresh_globals_decl(self) -> FreshGlobals: return FreshGlobals()
-    def trusted_decl(self, *args) -> Trusted:
-        return Trusted(reviewer=str(args[0]) if args else "")
-    def abstract_decl(self) -> Abstract:
-        return Abstract()
-    def lemma_decl(self) -> Lemma:
-        return Lemma()
-    def uses_decl(self, name) -> Uses:
-        return Uses(str(name))
-    def verify_module_decl(self, name) -> VerifyModule:
-        return VerifyModule(str(name))
-    def interface_ensures(self, expr) -> InterfaceClause:
-        return InterfaceClause("ensures", Ensures(expr))
-    def interface_requires(self, expr) -> InterfaceClause:
-        return InterfaceClause("requires", Requires(expr))
-    def interface_assigns(self, target) -> InterfaceClause:
-        return InterfaceClause("assigns", self.assigns(target))
-    def reveal_decl(self, name) -> Reveal:
-        return Reveal(str(name))
-    def preserves_decl(self) -> Preserves:
-        return Preserves()
-    def ghost_assign_typed(self, name, ghost_type, expr) -> GhostAssignDecl:
-        return GhostAssignDecl(str(name), expr, "=", declared_type=str(ghost_type))
-    def ghost_assign_untyped(self, name, expr) -> GhostAssignDecl:
-        return GhostAssignDecl(str(name), expr, "=")
-    def ghost_aug_assign(self, name, op, expr) -> GhostAssignDecl: return GhostAssignDecl(str(name), expr, str(op))
-    def ghost_array_set(self, name, index, value) -> GhostArraySetDecl:
-        return GhostArraySetDecl(str(name), index, value)
-    def raises_decl(self, exc_type, condition) -> RaisesDecl: return RaisesDecl(str(exc_type), condition)
 
-    def exception_name_list(self, *names) -> List[str]:
-        return [str(n) for n in names]
+class _ContractParser:
+    """Recursive-descent parser over `_Tok` producing `CSLNode` trees.
 
-    def no_exception_all_decl(self) -> NoExceptionDecl:
-        return NoExceptionDecl(exceptions=[], all_form=True)
+    One method per grammar rule; each builds the SAME `CSLNode` the
+    corresponding `PyCSLTransformer` method built. Dispatch is on the leading
+    keyword / backslash-name of the contract.
+    """
 
-    def no_exception_list_decl(self, names) -> NoExceptionDecl:
-        return NoExceptionDecl(exceptions=list(names), all_form=False)
+    def __init__(self, source: str):
+        toks, raw = _lex_contract(source)
+        self.toks = toks
+        self.source = raw
+        self.i = 0
 
-    def allow_finalizer_decl(self) -> AllowFinalizerDecl:
-        return AllowFinalizerDecl()
+    # -- token helpers ------------------------------------------------------
+    def cur(self):
+        return self.toks[self.i]
 
-    def allow_iteration_mutation_decl(self) -> AllowIterationMutationDecl:
-        return AllowIterationMutationDecl()
+    def peek(self, k=1):
+        j = self.i + k
+        return self.toks[j] if j < len(self.toks) else self.toks[-1]
 
-    def bounded_int_decl(self, size) -> BoundedIntDecl: return BoundedIntDecl(int(size))
-    def proof_decl(self, prover, qualname) -> ProofDecl:
-        return ProofDecl(prover=str(prover), qualname=str(qualname))
+    def advance(self):
+        t = self.toks[self.i]
+        if self.i < len(self.toks) - 1:
+            self.i += 1
+        return t
 
-    # Concurrency annotations
-    def mutex_name(self, name) -> str: return str(name)
-    def mutex_subscript(self, name, index) -> str:
-        return f"{name}[{_csl_to_str(index)}]"
-    def shared_protected(self, name, mutex) -> SharedDecl: return SharedDecl(str(name), str(mutex))
-    def shared_unprotected(self, name) -> SharedDecl: return SharedDecl(str(name), None)
-    # sum-types: `datatype Name = C1 | C2(int) | …`
-    def inductive_decl(self, name, *rest) -> InductiveDecl:
-        # `rest` holds, in order: an optional `mixin_params` (a str), the
-        # `inductive_rule+` results (each a 2-tuple `(rule_name, clause_expr)`), and
-        # any `inductive_with_member` results (each a 3-tuple `(name, sig, rules)` —
-        # inductive.md P2 mutual group). Rules are folded INLINE under the header
-        # (indentation block — the `#@ rule` keyword was retired).
-        params = next((r for r in rest if isinstance(r, str)), None)
-        rules = [r for r in rest if isinstance(r, tuple) and len(r) == 2]
-        members = [r for r in rest if isinstance(r, tuple) and len(r) == 3]
-        sig = f"({params})" if params else "()"
-        return InductiveDecl(str(name), sig, rules, members)
-    def inductive_with_member(self, name, *rest) -> tuple:
-        params = next((r for r in rest if isinstance(r, str)), None)
-        rules = [r for r in rest if isinstance(r, tuple) and len(r) == 2]
-        sig = f"({params})" if params else "()"
-        return (str(name), sig, rules)
-    def inductive_rule(self, name, body) -> tuple:
-        return (str(name), body)
-    def datatype_decl(self, name, *args) -> DatatypeDecl:
-        # A5d: type-parameter CNAMEs arrive as bare tokens; variants arrive as
-        # (ctor, [types]) tuples — partition by shape.
-        type_params = [str(a) for a in args if not isinstance(a, tuple)]
-        variants = [a for a in args if isinstance(a, tuple)]
-        return DatatypeDecl(str(name), variants, type_params)
-    def variant_payload(self, ctor, *types): return (str(ctor), [str(t) for t in types])
-    def variant_nullary(self, ctor): return (str(ctor), [])
+    def at_op(self, *vals):
+        t = self.cur()
+        return t.type == "OP" and (not vals or t.string in vals)
 
-    # Mixin composition directives (mixin.md / mixin-ready.md, Tier 1).
-    def mixin_decl(self) -> MixinDecl: return MixinDecl()
-    def provides_decl(self, method) -> ProvidesDecl: return ProvidesDecl(str(method))
-    def shared_state_decl(self, name, ty) -> SharedStateDecl:
-        return SharedStateDecl(str(name), str(ty))
-    def touches_field_decl(self, name, ty) -> TouchesFieldDecl:
-        return TouchesFieldDecl(str(name), str(ty))
-    def depends_method_decl(self, method, sig) -> MethodDependencyDecl:
-        return MethodDependencyDecl(str(method), str(sig), "depends")
-    def requires_method_decl(self, method, sig) -> MethodDependencyDecl:
-        return MethodDependencyDecl(str(method), str(sig), "requires")
-    def compose_from_decl(self, *names) -> ComposeFromDecl:
-        return ComposeFromDecl([str(n) for n in names])
-    # typing-engagement ty2 / PEP 544 Protocol conformance declaration.
-    def conforms_to_decl(self, *names) -> ConformsToDecl:
-        return ConformsToDecl([str(n) for n in names])
-    # Render a method signature / type reference back to a canonical string so the
-    # S2 composition pass can compare provider vs declared signatures textually.
-    def mixin_method_sig(self, *args) -> str:
-        # args: (params_str?, return_type_str) — params optional (filter a possible
-        # None placeholder from the `?` quantifier).
-        vals = [a for a in args if a is not None]
-        if len(vals) == 2:
-            return f"({vals[0]}) -> {vals[1]}"
-        return f"() -> {vals[0]}"
-    def mixin_params(self, *params) -> str: return ", ".join(str(p) for p in params)
-    def mixin_param(self, name, *ty) -> str:
-        return f"{name}: {ty[0]}" if ty else str(name)
-    def mixin_type(self, name, *args) -> str:
-        return f"{name}[{', '.join(str(a) for a in args)}]" if args else str(name)
+    def at_name(self, *vals):
+        t = self.cur()
+        return t.type == "NAME" and (not vals or t.string in vals)
 
-    def thread_entry_decl(self) -> ThreadEntry: return ThreadEntry()
-    def acquires_decl(self, mutex) -> Acquires: return Acquires(str(mutex))
-    def releases_decl(self, mutex) -> Releases: return Releases(str(mutex))
-    def critical_decl(self, mutex) -> CriticalSection: return CriticalSection(str(mutex))
-    def mutex_invariant_decl(self, mutex, expr) -> MutexInvariant: return MutexInvariant(str(mutex), expr)
-    def lock_order_decl(self, *mutexes) -> LockOrder: return LockOrder([str(m) for m in mutexes])
+    def at_bs(self, *vals):
+        t = self.cur()
+        return t.type == "BSNAME" and (not vals or t.string in vals)
 
-    # Quantifiers
-    def forall_expr(self, var, body) -> Forall: return Forall(str(var), body)
-    def exists_expr(self, var, body) -> Exists: return Exists(str(var), body)
-    def forall_typed_expr(self, var, ty, body) -> Forall:
-        return Forall(str(var), body, binder_type=str(ty))
-    def exists_typed_expr(self, var, ty, body) -> Exists:
-        return Exists(str(var), body, binder_type=str(ty))
-    # quantification.md P3 / scc3.md Phase B — bounded quantification `\forall x [: T] in S; P`.
-    # Desugared here, reusing the P1 typed binder + the existing `in` membership +
-    # implication/conjunction:  \forall x in S; P ≡ \forall x; (x in S) ==> P ;
-    # \exists x in S; P ≡ \exists x; (x in S) and P. No new IR/Module 6 emission.
-    def forall_in_expr(self, var, domain, body) -> Forall:
-        return Forall(str(var), BinOp(CSLIn(Var(str(var)), domain), "==>", body))
-    def forall_typed_in_expr(self, var, ty, domain, body) -> Forall:
-        return Forall(str(var), BinOp(CSLIn(Var(str(var)), domain), "==>", body),
-                      binder_type=str(ty))
-    def exists_in_expr(self, var, domain, body) -> Exists:
-        return Exists(str(var), BinOp(CSLIn(Var(str(var)), domain), "and", body))
-    def exists_typed_in_expr(self, var, ty, domain, body) -> Exists:
-        return Exists(str(var), BinOp(CSLIn(Var(str(var)), domain), "and", body),
-                      binder_type=str(ty))
-    # quantification (remains-2.md C) — multi-binder sugar `\forall x, y, …; P`,
-    # desugared to nested single binders (all `int`): \forall x; \forall y; … P.
-    def forall_multi_expr(self, *items) -> Forall:
-        *names, body = items
-        node = body
-        for nm in reversed(names):
-            node = Forall(str(nm), node)
+    def at_eof(self):
+        return self.cur().type == "EOF"
+
+    def accept_op(self, val):
+        if self.at_op(val):
+            return self.advance()
+        return None
+
+    def expect_op(self, val):
+        if not self.at_op(val):
+            self._err(f"expected {val!r}")
+        return self.advance()
+
+    def expect_name(self, val=None):
+        if not self.at_name() or (val is not None and not self.at_name(val)):
+            self._err(f"expected name {val!r}" if val else "expected name")
+        return self.advance().string
+
+    def expect_bs(self, val):
+        if not self.at_bs(val):
+            self._err(f"expected {val!r}")
+        return self.advance().string
+
+    def _err(self, msg):
+        t = self.cur()
+        raise _ContractSyntaxError(f"{msg} (got {t.type} {t.string!r})")
+
+    def _try(self, fn):
+        saved = self.i
+        try:
+            return fn()
+        except _ContractSyntaxError:
+            self.i = saved
+            return None
+
+    # -- entry --------------------------------------------------------------
+    def parse(self):
+        node = self._parse_contract()
+        if not self.at_eof():
+            self._err("unexpected trailing input")
         return node
-    def exists_multi_expr(self, *items) -> Exists:
-        *names, body = items
-        node = body
-        for nm in reversed(names):
-            node = Exists(str(nm), node)
+
+    # -- top-level dispatch -------------------------------------------------
+    def _parse_contract(self):
+        t = self.cur()
+        if t.type == "NAME":
+            kw = t.string
+            if kw == "requires": self.advance(); return Requires(self._parse_expr())
+            if kw == "ensures":  self.advance(); return Ensures(self._parse_expr())
+            if kw == "assigns":  self.advance(); return self._parse_assigns()
+            if kw == "loop":     return self._parse_loop()
+            if kw == "class":    return self._parse_class_invariant()
+            if kw == "label":    self.advance(); return Label(self.expect_name())
+            if kw == "assert":   self.advance(); return CheckPoint("assert", self._parse_expr())
+            if kw == "check":    self.advance(); return CheckPoint("check", self._parse_expr())
+            if kw == "no_inline": self.advance(); return NoInline()
+            if kw == "sibling_concrete": self.advance(); return SiblingConcrete()
+            if kw == "verify_module": self.advance(); return VerifyModule(self.expect_name())
+            if kw == "propagate_frame": self.advance(); return PropagateFrame()
+            if kw == "fresh_globals": self.advance(); return FreshGlobals()
+            if kw == "lemma": self.advance(); return Lemma()
+            if kw == "uses": self.advance(); return Uses(self.expect_name())
+            if kw == "interface": return self._parse_interface()
+            if kw == "reveal": self.advance(); return Reveal(self.expect_name())
+            if kw == "ghost":   return self._parse_ghost()
+            if kw == "raises":  return self._parse_raises()
+            if kw == "no_exception": return self._parse_no_exception()
+            if kw == "allow_finalizer": self.advance(); return AllowFinalizerDecl()
+            if kw == "allow_iteration_mutation": self.advance(); return AllowIterationMutationDecl()
+            if kw == "assumes": return self._parse_assumes()
+            if kw == "proof":   return self._parse_proof()
+            if kw == "datatype": return self._parse_datatype()
+            if kw == "inductive": return self._parse_inductive()
+            if kw == "mixin":   self.advance(); return MixinDecl()
+            if kw == "provides": self.advance(); return ProvidesDecl(self.expect_name())
+            if kw == "shared_state": return self._parse_shared_state()
+            if kw == "touches_field": return self._parse_touches_field()
+            if kw == "depends_method": return self._parse_depends_method("depends")
+            if kw == "requires_method": return self._parse_depends_method("requires")
+            if kw == "compose_from": return self._parse_compose_from()
+            if kw == "conforms_to": return self._parse_conforms_to()
+            if kw == "shared":   return self._parse_shared()
+            if kw == "thread_entry": self.advance(); return ThreadEntry()
+            if kw == "acquires": self.advance(); return Acquires(self._parse_mutex_expr_str())
+            if kw == "releases": self.advance(); return Releases(self._parse_mutex_expr_str())
+            if kw == "critical": self.advance(); return CriticalSection(self._parse_mutex_expr_str())
+            if kw == "mutex_invariant": return self._parse_mutex_invariant()
+            if kw == "lock_order": return self._parse_lock_order()
+            if kw == "act":  return self._parse_act_block()
+            if kw == "for":  return self._parse_for_block()
+            if kw == "complete": self.advance(); return Complete(self._parse_act_names())
+            if kw == "disjoint": self.advance(); return Disjoint(self._parse_act_names())
+            if kw == "happy": return self._parse_happy()
+            if kw == "footprint": return self._parse_footprint()
+        elif t.type == "BSNAME":
+            s = t.string
+            if s == "\\variant":   return self._parse_function_variant()
+            if s == "\\diverges":  self.advance(); return Diverges()
+            if s == "\\trusted":   return self._parse_trusted()
+            if s == "\\abstract":  self.advance(); return Abstract()
+            if s == "\\preserves": self.advance(); return Preserves()
+        self._err("unrecognized contract keyword")
+
+    # -- loop / class invariant --------------------------------------------
+    def _parse_loop(self):
+        self.expect_name("loop")
+        if self.at_name("invariant"):
+            self.advance(); return LoopInvariant(self._parse_expr())
+        if self.at_name("variant"):
+            self.advance(); return LoopVariant(self._parse_expr())
+        self._err("expected 'invariant' or 'variant' after 'loop'")
+
+    def _parse_class_invariant(self):
+        self.expect_name("class")
+        self.expect_name("invariant")
+        return ClassInvariant(self._parse_expr())
+
+    def _parse_function_variant(self):
+        self.expect_bs("\\variant")
+        if self.at_op("("):
+            self.advance()
+            e = self._parse_expr()
+            self.expect_op(",")
+            ordering = self.expect_name()
+            self.expect_op(")")
+            return FunctionVariant(e, ordering)
+        return FunctionVariant(self._parse_expr())
+
+    # -- trusted / reviewer -------------------------------------------------
+    def _parse_trusted(self):
+        self.expect_bs("\\trusted")
+        reviewer = ""
+        if self.at_name("reviewer"):
+            self.advance()
+            self.expect_op(":")
+            reviewer = self._grab_reviewer_id()
+        return Trusted(reviewer=reviewer)
+
+    def _grab_reviewer_id(self):
+        # REVIEWER_ID: /[A-Za-z0-9._@-]+/ — my tokenizer splits e.g. `c2-probe`
+        # into `c2`, `-`, `probe`. Re-scan from the current source position so
+        # the matched string is byte-identical to Lark's terminal.
+        tok = self.cur()
+        pos = tok.start
+        m = _re.match(r"[A-Za-z0-9._@-]+", self.source[pos:])
+        if m is None:
+            self._err("expected reviewer id")
+        reviewer = m.group(0)
+        end_pos = pos + len(reviewer)
+        # advance past every token fully inside the matched span
+        while self.i < len(self.toks) and self.toks[self.i].type != "EOF" \
+                and self.toks[self.i].start < end_pos:
+            self.i += 1
+        return reviewer
+
+    # -- ghost --------------------------------------------------------------
+    def _parse_ghost(self):
+        self.expect_name("ghost")
+        name = self.expect_name()
+        if self.accept_op(":"):
+            gtype = self.expect_name()  # GHOST_TYPE
+            self.expect_op("=")
+            return GhostAssignDecl(name, self._parse_expr(), "=", declared_type=gtype)
+        if self.at_op("+=") or self.at_op("-=") or self.at_op("*="):
+            op = self.advance().string
+            return GhostAssignDecl(name, self._parse_expr(), op)
+        if self.at_op("["):
+            self.advance()
+            index = self._parse_expr()
+            self.expect_op("]")
+            self.expect_op("=")
+            return GhostArraySetDecl(name, index, self._parse_expr())
+        self.expect_op("=")
+        return GhostAssignDecl(name, self._parse_expr(), "=")
+
+    # -- raises / no_exception / assumes / proof ----------------------------
+    def _parse_raises(self):
+        self.expect_name("raises")
+        exc = self.expect_name()
+        self.expect_name("when")
+        return RaisesDecl(exc, self._parse_expr())
+
+    def _parse_no_exception(self):
+        self.expect_name("no_exception")
+        if self.at_bs("\\all"):
+            self.advance()
+            return NoExceptionDecl(exceptions=[], all_form=True)
+        names = [self.expect_name()]
+        while self.accept_op(","):
+            names.append(self.expect_name())
+        return NoExceptionDecl(exceptions=names, all_form=False)
+
+    def _parse_assumes(self):
+        self.expect_name("assumes")
+        self.expect_name("bounded_int")
+        self.expect_op("(")
+        size_tok = self.cur()
+        if size_tok.type != "NUMBER":
+            self._err("expected NUMBER in bounded_int(...)")
+        self.advance()
+        self.expect_op(")")
+        return BoundedIntDecl(int(size_tok.string))
+
+    def _parse_proof(self):
+        self.expect_name("proof")
+        prover = self.expect_name()  # PROVER_ID: rocq | lean
+        qualname = self._parse_qualname()
+        return ProofDecl(prover=prover, qualname=qualname)
+
+    def _parse_qualname(self):
+        name = self.expect_name()
+        while self.accept_op("."):
+            name += "." + self.expect_name()
+        return name
+
+    # -- interface / reveal --------------------------------------------------
+    def _parse_interface(self):
+        self.expect_name("interface")
+        if self.at_name("ensures"):
+            self.advance(); return InterfaceClause("ensures", Ensures(self._parse_expr()))
+        if self.at_name("requires"):
+            self.advance(); return InterfaceClause("requires", Requires(self._parse_expr()))
+        if self.at_name("assigns"):
+            self.advance(); return InterfaceClause("assigns", self._parse_assigns())
+        self._err("expected ensures/requires/assigns after 'interface'")
+
+    # -- assigns ------------------------------------------------------------
+    def _parse_assigns(self):
+        return Assigns(self._parse_assigns_target())
+
+    def _parse_assigns_target(self):
+        if self.at_bs("\\nothing"):
+            self.advance()
+            return [Nothing()]
+        region = self._try(self._parse_assigns_region)
+        if region is not None:
+            regions = [region]
+            while self.accept_op(","):
+                regions.append(self._parse_assigns_region())
+            return regions
+        exprs = [self._parse_expr()]
+        while self.accept_op(","):
+            exprs.append(self._parse_expr())
+        return exprs
+
+    def _parse_assigns_region(self):
+        name = self.expect_name()
+        self.expect_op("[")
+        lo = self._parse_expr()
+        self.expect_op("..")
+        hi = self._parse_expr()
+        self.expect_op("]")
+        return AssignsRegion(name, lo, hi)
+
+    # -- act / for / complete / disjoint ------------------------------------
+    def _parse_act_block(self):
+        self.expect_name("act")
+        name = self.expect_name()
+        self.expect_op(":")
+        clauses = []
+        while self.at_name("given") or self.at_name("requires") \
+                or self.at_name("ensures") or self.at_name("assigns"):
+            if self.at_name("given"):
+                self.advance(); clauses.append(Given(self._parse_expr()))
+            elif self.at_name("requires"):
+                self.advance(); clauses.append(Requires(self._parse_expr()))
+            elif self.at_name("ensures"):
+                self.advance(); clauses.append(Ensures(self._parse_expr()))
+            else:
+                self.advance(); clauses.append(self._parse_assigns())
+        if not clauses:
+            self._err("act block requires at least one clause")
+        return Act(name, clauses)
+
+    def _parse_for_block(self):
+        self.expect_name("for")
+        var = self.expect_name()
+        self.expect_name("in")
+        self.expect_name("range")
+        self.expect_op("(")
+        e1 = self._parse_expr()
+        if self.accept_op(","):
+            lo, hi = e1, self._parse_expr()
+        else:
+            lo, hi = Number(0), e1
+        self.expect_op(")")
+        self.expect_op(":")
+        clauses = []
+        while self.at_name("requires") or self.at_name("ensures"):
+            if self.at_name("requires"):
+                self.advance(); clauses.append(Requires(self._parse_expr()))
+            else:
+                self.advance(); clauses.append(Ensures(self._parse_expr()))
+        if not clauses:
+            self._err("for block requires at least one clause")
+        return ForExpand(var, lo, hi, clauses)
+
+    def _parse_act_names(self):
+        names = [self.expect_name()]
+        while self.accept_op(","):
+            names.append(self.expect_name())
+        return names
+
+    # -- happy / footprint --------------------------------------------------
+    def _parse_happy(self):
+        self.expect_name("happy")
+        name = self.expect_name()
+        if self.at_op("("):
+            self.advance()
+            param = self.expect_name()
+            self.expect_op(")")
+            self.expect_op(":")
+            self.expect_name("protects")
+            path = self._parse_dotted_path()
+            self.expect_op("[")
+            lo = self._parse_expr()
+            self.expect_op(":")
+            hi = self._parse_expr()
+            self.expect_op("]")
+            except_set = self._parse_opt_except()
+            return HappyProperty(name, "", lo, hi, except_set,
+                                 protects=[path], param=param)
+        # not parametric: `happy NAME : ...`
+        self.expect_op(":")
+        if self.at_name("region"):
+            return self._parse_happy_region(name)
+        if self.at_name("targets"):
+            return self._parse_happy_targets(name)
+        if self.at_name("protects"):
+            self.advance()
+            paths = self._parse_dotted_path_list()
+            except_set = self._parse_opt_except()
+            return HappyProperty(name, "", None, None, except_set, protects=paths)
+        self._err("expected 'region'/'targets'/'protects' after 'happy NAME:'")
+
+    def _parse_happy_region(self, name):
+        self.expect_name("region")
+        lo = self._parse_expr()
+        self.expect_op("..")
+        hi = self._parse_expr()
+        if self.at_name("writes"):
+            mode = "writing"
+        elif self.at_name("reads"):
+            mode = "reading"
+        else:
+            self._err("expected 'writes' or 'reads' in happy region decl")
+        self.advance()
+        self.expect_name("self")
+        self.expect_op(".")
+        field = self.expect_name()
+        self.expect_name("outside")
+        self.expect_name("region")
+        except_set = self._parse_opt_except()
+        return HappyProperty(name, field, lo, hi, except_set, context=mode)
+
+    def _parse_happy_targets(self, name):
+        self.expect_name("targets")
+        target = self.expect_name()
+        if self.at_name("postcond"):
+            self.advance()
+            return HappyProperty(name, "", None, None, [], context="postcond",
+                                 target=target, formula=self._parse_expr())
+        if self.at_name("precond"):
+            self.advance()
+            return HappyProperty(name, "", None, None, [], context="precond",
+                                 target=target, formula=self._parse_expr())
+        if self.at_name("total"):
+            self.advance()
+            return HappyProperty(name, "", None, None, [], context="total",
+                                 target=target)
+        if self.at_name("noninterference"):
+            self.advance()
+            self.expect_name("secret")
+            secrets = self._parse_act_names()
+            return HappyProperty(name, "", None, None, [], context="noninterference",
+                                 target=target, secret=secrets)
+        self._err("expected postcond/precond/total/noninterference after targets")
+
+    def _parse_opt_except(self):
+        if self.at_name("except"):
+            self.advance()
+            return self._parse_act_names()
+        return []
+
+    def _parse_dotted_path(self):
+        path = self.expect_name()
+        while self.accept_op("."):
+            path += "." + self.expect_name()
+        return path
+
+    def _parse_dotted_path_list(self):
+        paths = [self._parse_dotted_path()]
+        while self.accept_op(","):
+            paths.append(self._parse_dotted_path())
+        return paths
+
+    def _parse_footprint(self):
+        self.expect_name("footprint")
+        happy_name = self.expect_name()
+        self.expect_op("(")
+        arg = self._parse_expr()
+        self.expect_op(")")
+        return Footprint(happy_name, arg)
+
+    # -- datatype / inductive ----------------------------------------------
+    def _parse_datatype(self):
+        self.expect_name("datatype")
+        name = self.expect_name()
+        type_params = []
+        if self.at_op("["):
+            self.advance()
+            type_params.append(self.expect_name())
+            while self.accept_op(","):
+                type_params.append(self.expect_name())
+            self.expect_op("]")
+        self.expect_op("=")
+        variants = [self._parse_variant_def()]
+        while self.accept_op("|"):
+            variants.append(self._parse_variant_def())
+        return DatatypeDecl(name, variants, type_params)
+
+    def _parse_variant_def(self):
+        ctor = self.expect_name()
+        if self.at_op("("):
+            self.advance()
+            types = [self.expect_name()]
+            while self.accept_op(","):
+                types.append(self.expect_name())
+            self.expect_op(")")
+            return (ctor, types)
+        return (ctor, [])
+
+    def _parse_inductive(self):
+        self.expect_name("inductive")
+        name = self.expect_name()
+        self.expect_op("(")
+        params = None
+        if not self.at_op(")"):
+            params = self._parse_mixin_params()
+        self.expect_op(")")
+        self.expect_op(":")
+        rules = self._parse_inductive_rules()
+        members = []
+        while self.at_name("with"):
+            self.advance()
+            wname = self.expect_name()
+            self.expect_op("(")
+            wparams = None
+            if not self.at_op(")"):
+                wparams = self._parse_mixin_params()
+            self.expect_op(")")
+            self.expect_op(":")
+            wrules = self._parse_inductive_rules()
+            wsig = f"({wparams})" if wparams else "()"
+            members.append((wname, wsig, wrules))
+        sig = f"({params})" if params else "()"
+        return InductiveDecl(name, sig, rules, members)
+
+    def _parse_inductive_rules(self):
+        rules = []
+        while self.at_name() and not self.at_name("with"):
+            rname = self.expect_name()
+            self.expect_op(":")
+            rules.append((rname, self._parse_expr()))
+        if not rules:
+            self._err("inductive block requires at least one rule")
+        return rules
+
+    # -- mixin composition --------------------------------------------------
+    def _parse_shared_state(self):
+        self.expect_name("shared_state")
+        name = self.expect_name()
+        self.expect_op(":")
+        ty = self._parse_mixin_type()
+        return SharedStateDecl(name, ty)
+
+    def _parse_touches_field(self):
+        self.expect_name("touches_field")
+        name = self.expect_name()
+        self.expect_op(":")
+        ty = self._parse_mixin_type()
+        return TouchesFieldDecl(name, ty)
+
+    def _parse_depends_method(self, kind):
+        self.advance()  # depends_method / requires_method
+        method = self.expect_name()
+        self.expect_op(":")
+        sig = self._parse_mixin_method_sig()
+        return MethodDependencyDecl(method, sig, kind)
+
+    def _parse_compose_from(self):
+        self.expect_name("compose_from")
+        names = [self.expect_name()]
+        while self.accept_op(","):
+            names.append(self.expect_name())
+        return ComposeFromDecl(names)
+
+    def _parse_conforms_to(self):
+        self.expect_name("conforms_to")
+        names = [self.expect_name()]
+        while self.accept_op(","):
+            names.append(self.expect_name())
+        return ConformsToDecl(names)
+
+    def _parse_mixin_type(self):
+        name = self.expect_name()
+        if self.at_op("["):
+            self.advance()
+            args = [self._parse_mixin_type()]
+            while self.accept_op(","):
+                args.append(self._parse_mixin_type())
+            self.expect_op("]")
+            return f"{name}[{', '.join(args)}]"
+        return str(name)
+
+    def _parse_mixin_param(self):
+        name = self.expect_name()
+        if self.accept_op(":"):
+            return f"{name}: {self._parse_mixin_type()}"
+        return str(name)
+
+    def _parse_mixin_params(self):
+        params = [self._parse_mixin_param()]
+        while self.accept_op(","):
+            params.append(self._parse_mixin_param())
+        return ", ".join(params)
+
+    def _parse_mixin_method_sig(self):
+        self.expect_op("(")
+        params = None
+        if not self.at_op(")"):
+            params = self._parse_mixin_params()
+        self.expect_op(")")
+        self.expect_op("->")
+        ret = self._parse_mixin_type()
+        if params is not None:
+            return f"({params}) -> {ret}"
+        return f"() -> {ret}"
+
+    # -- concurrency --------------------------------------------------------
+    def _parse_shared(self):
+        self.expect_name("shared")
+        name = self.expect_name()
+        if self.at_name("protected_by"):
+            self.advance()
+            mutex = self._parse_mutex_expr_str()
+            return SharedDecl(name, mutex)
+        return SharedDecl(name, None)
+
+    def _parse_mutex_expr_str(self):
+        name = self.expect_name()
+        if self.at_op("["):
+            self.advance()
+            index = self._parse_expr()
+            self.expect_op("]")
+            return f"{name}[{_csl_to_str(index)}]"
+        return name
+
+    def _parse_mutex_invariant(self):
+        self.expect_name("mutex_invariant")
+        mutex = self._parse_mutex_expr_str()
+        self.expect_op(":")
+        return MutexInvariant(mutex, self._parse_expr())
+
+    def _parse_lock_order(self):
+        self.expect_name("lock_order")
+        names = [self._parse_mutex_expr_str()]
+        while self.accept_op(","):
+            names.append(self._parse_mutex_expr_str())
+        return LockOrder(names)
+
+    # ======================================================================
+    # Expression grammar (mirror the Lark `expr` hierarchy + quantifier rules)
+    # ======================================================================
+    def _parse_expr(self):
+        if self.at_bs("\\forall") or self.at_bs("\\exists") or self.at_bs("\\exist"):
+            return self._parse_quantifier()
+        return self._parse_implication()
+
+    def _parse_quantifier(self):
+        kw = self.advance().string
+        is_exists = kw in ("\\exists", "\\exist")
+        cls = Exists if is_exists else Forall
+        var = self.expect_name()
+        # `: TYPE` (typed binder)
+        if self.accept_op(":"):
+            ty = self.expect_name()
+            if self.at_name("in"):
+                self.advance()
+                domain = self._parse_expr()
+                self.expect_op(";")
+                body = self._parse_expr()
+                return cls(var, self._mk_in(var, domain, body, is_exists),
+                           binder_type=ty)
+            self.expect_op(";")
+            return cls(var, self._parse_expr(), binder_type=ty)
+        # `in DOMAIN` (untyped bounded)
+        if self.at_name("in"):
+            self.advance()
+            domain = self._parse_expr()
+            self.expect_op(";")
+            body = self._parse_expr()
+            return cls(var, self._mk_in(var, domain, body, is_exists))
+        # `, NAME ...` (multi-binder or two-in)
+        if self.at_op(","):
+            names = [var]
+            self.advance()
+            names.append(self.expect_name())
+            while self.accept_op(","):
+                names.append(self.expect_name())
+            # two-in: exactly 2 binders + `in`
+            if len(names) == 2 and self.at_name("in"):
+                self.advance()
+                domain = self._parse_expr()
+                self.expect_op(";")
+                body = self._parse_expr()
+                if not is_exists:
+                    if not (isinstance(domain, DictView) and domain.kind == "items"):
+                        raise _ContractSyntaxError(
+                            "two-binder `\\forall k, v in …;` requires `d.items()`")
+                    return ForallItems(names[0], names[1], domain.coll, body)
+                raise _ContractSyntaxError("two-in quantifier is forall-only")
+            self.expect_op(";")
+            body = self._parse_expr()
+            node = body
+            for nm in reversed(names):
+                node = cls(nm, node)
+            return node
+        # plain `; body`
+        self.expect_op(";")
+        return cls(var, self._parse_expr())
+
+    @staticmethod
+    def _mk_in(var, domain, body, is_exists):
+        # quantification.md P3 desugar: ∀x in S; P ≡ ∀x; (x in S) ==> P ;
+        # ∃x in S; P ≡ ∃x; (x in S) and P.
+        op = "and" if is_exists else "==>"
+        return BinOp(CSLIn(Var(var), domain), op, body)
+
+    def _parse_impl_rhs(self):
+        if self.at_bs("\\forall") or self.at_bs("\\exists") or self.at_bs("\\exist"):
+            return self._parse_quantifier()
+        return self._parse_logical_or()
+
+    def _parse_or_rhs(self):
+        if self.at_bs("\\forall") or self.at_bs("\\exists") or self.at_bs("\\exist"):
+            return self._parse_quantifier()
+        return self._parse_logical_and()
+
+    def _parse_and_rhs(self):
+        if self.at_bs("\\forall") or self.at_bs("\\exists") or self.at_bs("\\exist"):
+            return self._parse_quantifier()
+        return self._parse_equality()
+
+    def _parse_implication(self):
+        left = self._parse_logical_or()
+        while self.at_op("==>", "<==>"):
+            op = self.advance().string
+            right = self._parse_impl_rhs()
+            left = BinOp(left, op, right)
+        return left
+
+    def _parse_logical_or(self):
+        left = self._parse_logical_and()
+        while self.at_name("or"):
+            self.advance()
+            right = self._parse_or_rhs()
+            left = BinOp(left, "or", right)
+        return left
+
+    def _parse_logical_and(self):
+        left = self._parse_equality()
+        while self.at_name("and"):
+            self.advance()
+            right = self._parse_and_rhs()
+            left = BinOp(left, "and", right)
+        return left
+
+    def _parse_equality(self):
+        left = self._parse_comparison()
+        while self.at_op("==", "!="):
+            op = self.advance().string
+            left = BinOp(left, op, self._parse_comparison())
+        return left
+
+    def _parse_comparison(self):
+        left = self._parse_membership()
+        while self.at_op(">", "<", ">=", "<="):
+            op = self.advance().string
+            left = BinOp(left, op, self._parse_membership())
+        return left
+
+    def _parse_membership(self):
+        left = self._parse_term()
+        if self.at_name("in"):
+            self.advance()
+            return CSLIn(left, self._parse_term())
+        if self.at_name("not") and self.peek().type == "NAME" and self.peek().string == "in":
+            self.advance(); self.advance()
+            return CSLNotIn(left, self._parse_term())
+        return left
+
+    def _parse_term(self):
+        left = self._parse_factor()
+        while self.at_op("+", "-"):
+            op = self.advance().string
+            left = BinOp(left, op, self._parse_factor())
+        return left
+
+    def _parse_factor(self):
+        left = self._parse_unary()
+        while self.at_op("*", "//", "/", "%"):
+            op = self.advance().string
+            left = BinOp(left, op, self._parse_unary())
+        return left
+
+    def _parse_unary(self):
+        if self.at_name("not") or self.at_op("-", "+"):
+            op = self.advance().string
+            return UnaryOp(op, self._parse_unary())
+        return self._parse_atom()
+
+    # -- atom (the long rule list, in grammar order) -----------------------
+    def _parse_atom(self):
+        node = self._parse_atom_primary()
+        if self.at_op("^"):
+            self.advance()
+            right = self._parse_atom()        # right-assoc (Lark LALR shifts)
+            return StrConcatExpr(node, right)
         return node
-    def in_globals_pred(self, name) -> InGlobals: return InGlobals(str(name))  # 07-1839 P2
-    def in_scope_pred(self, name) -> InScope: return InScope(str(name))        # 07-1839 P3
-    def array_length(self, var) -> ArrayLength: return ArrayLength(str(var))
-    def array_length_field(self, field_name) -> ArrayLength:
-        # `\length(self.f)` — length of an `array int` record field.
-        # Emitted by Module6 as `Array.length self.f`.
-        return ArrayLength("self." + str(field_name))
-    def array_length_result(self) -> ArrayLength:
-        # `\length(\result)` — length of an `array int` return value.
-        # Emitted by Module6 as `Array.length result`.
-        return ArrayLength("\\result")
-    def subscript_access(self, name, index) -> SubscriptAccess: return SubscriptAccess(str(name), index)
-    def chained_subscript(self, name, index1, index2) -> ChainedSubscript: return ChainedSubscript(str(name), index1, index2)
-    def slice_access(self, name, low, high) -> CSLSlice: return CSLSlice(str(name), low, high)
-    def result_subscript(self, index) -> SubscriptAccess: return SubscriptAccess("\\result", index)
-    # 07-0903 W2: `\result.<field>` — field access on a record-returning function's result.
-    def result_field(self, field_name) -> FieldAccess: return FieldAccess("\\result", str(field_name))
-    def assigns_region(self, name, low, _op, high) -> AssignsRegion: return AssignsRegion(str(name), low, high)
-    def assigns_region_list(self, *regions) -> List[AssignsRegion]: return list(regions)
-    def valid_pred(self, name, length) -> Valid: return Valid(str(name), length)
-    def separated_pred(self, name1, len1, name2, len2) -> Separated: return Separated(str(name1), len1, str(name2), len2)
-    def label_decl(self, name) -> Label: return Label(str(name))
-    def assert_decl(self, expr) -> CheckPoint: return CheckPoint("assert", expr)
-    def check_decl(self, expr) -> CheckPoint: return CheckPoint("check", expr)
-    def at_expr(self, expr, label) -> At: return At(expr, str(label))
-    def length2d_pred(self, name, rows, cols) -> Length2D: return Length2D(str(name), rows, cols)
-    def valid2d_pred(self, name, row, col) -> Valid2D: return Valid2D(str(name), row, col)
 
-    # Operations
-    # All binary-operator rules build the same `BinOp(left, op, right)`; one handler,
-    # aliased to each rule name (Lark resolves rule → method by name, and the class-level
-    # @v_args(inline=True) spreads children as positional args for every alias too).
-    def _binop(self, left, op, right) -> BinOp: return BinOp(left, str(op), right)
-    implication = logical_or = logical_and = equality = comparison = term = factor = _binop
+    def _parse_atom_primary(self):
+        t = self.cur()
+        if t.type == "DECIMAL":
+            self.advance(); return Number(float(t.string))
+        if t.type == "NUMBER":
+            self.advance(); return Number(int(t.string))
+        if t.type == "STRING":
+            self.advance(); return StringLiteral(t.string[1:-1])
+        if t.type == "BSNAME":
+            return self._parse_atom_bs()
+        if t.type == "NAME":
+            return self._parse_atom_name()
+        if t.type == "OP" and t.string == "(":
+            self.advance()
+            e = self._parse_expr()
+            self.expect_op(")")
+            return e
+        self._err("unexpected token in expression")
 
-    def unary_op(self, op, expr) -> UnaryOp: return UnaryOp(str(op), expr)
+    def _parse_atom_name(self):
+        name = self.advance().string
+        if name == "True":  return CSLBool(True)
+        if name == "False": return CSLBool(False)
+        if name == "None":  return CSLNone()
+        if name == "self":
+            self.expect_op(".")
+            field = self.expect_name()
+            if self.at_op("["):
+                self.advance()
+                idx = self._parse_expr()
+                self.expect_op("]")
+                return FieldSubscript(field, idx)
+            return FieldAccess("self", field)
+        # general CNAME
+        if self.at_op("."):
+            self.advance()
+            field2 = self.expect_name()
+            if self.at_op("("):
+                self.advance()
+                self.expect_op(")")
+                if field2 not in ("keys", "values", "items"):
+                    raise PyCSLParseError(
+                        f"unsupported method '.{field2}()' in a contract; only "
+                        f".keys()/.values()/.items() are recognised (07-1311)")
+                return DictView(name, field2)
+            if self.at_op("["):
+                self.advance()
+                idx = self._parse_expr()
+                self.expect_op("]")
+                return GlobalFieldSubscript(name, field2, idx)
+            return FieldAccess(name, field2)  # param_field_access
+        if self.at_op("("):
+            self.advance()
+            if self.at_op(")"):
+                self.advance()
+                return CallExpr(name, [])
+            args = self._parse_expr_list()
+            self.expect_op(")")
+            return CallExpr(name, args)
+        if self.at_op("["):
+            self.advance()
+            e1 = self._parse_expr()
+            if self.at_op(":"):
+                self.advance()
+                e2 = self._parse_expr()
+                self.expect_op("]")
+                return CSLSlice(name, e1, e2)
+            self.expect_op("]")
+            if self.at_op("["):
+                self.advance()
+                e2 = self._parse_expr()
+                self.expect_op("]")
+                return ChainedSubscript(name, e1, e2)
+            return SubscriptAccess(name, e1)
+        return Var(name)
 
-    # Atoms
-    def number(self, n) -> Number: return Number(int(n))
-    # no-more-int Stage D: a decimal literal (`0.0`, `1.5`) is a float — kept distinct from
-    # an integer NUMBER so Module6 lowers it to a Why3 `real`, not an int.
-    def decimal(self, n) -> Number: return Number(float(n))
-    def string_literal(self, s) -> StringLiteral: return StringLiteral(str(s)[1:-1])  # strip quotes
-    def true_lit(self) -> CSLBool: return CSLBool(True)
-    def false_lit(self) -> CSLBool: return CSLBool(False)
-    def none_lit(self) -> CSLNone: return CSLNone()
-    def var(self, name) -> Var: return Var(str(name))
-    def field_access(self, field_name) -> FieldAccess: return FieldAccess("self", str(field_name))
-    # no-more-int-2 Track 3: `p.field` on a record-typed param in a contract (object != "self").
-    def param_field_access(self, var, field_name) -> FieldAccess:
-        return FieldAccess(str(var), str(field_name))
-    def field_subscript(self, field_name, index) -> FieldSubscript: return FieldSubscript(str(field_name), index)
-    # spec-15 / gap-15 Wall B: `<global>.<field>[expr]` — subscript a module-global record's array field.
-    def global_field_subscript(self, obj, field, index) -> GlobalFieldSubscript:
-        return GlobalFieldSubscript(str(obj), str(field), index)
-    def result(self) -> Result: return Result()
-    def old_var(self, expr) -> Old: return Old(expr)
-    def nothing(self) -> Nothing: return Nothing()
+    def _parse_atom_bs(self):
+        name = self.advance().string
+        if name == "\\result":
+            if self.at_op("["):
+                self.advance()
+                idx = self._parse_expr()
+                self.expect_op("]")
+                return SubscriptAccess("\\result", idx)
+            if self.at_op("."):
+                self.advance()
+                field = self.expect_name()
+                return FieldAccess("\\result", field)
+            return Result()
+        if name == "\\old":
+            self.expect_op("(")
+            e = self._parse_expr()
+            self.expect_op(")")
+            return Old(e)
+        if name == "\\nothing":
+            return Nothing()
+        if name == "\\in_globals":
+            self.expect_op("("); v = self.expect_name(); self.expect_op(")")
+            return InGlobals(v)
+        if name == "\\in_scope":
+            self.expect_op("("); v = self.expect_name(); self.expect_op(")")
+            return InScope(v)
+        if name == "\\length":
+            self.expect_op("(")
+            if self.at_name("self"):
+                self.advance(); self.expect_op(".")
+                f = self.expect_name(); self.expect_op(")")
+                return ArrayLength("self." + f)
+            if self.at_bs("\\result"):
+                self.advance(); self.expect_op(")")
+                return ArrayLength("\\result")
+            v = self.expect_name(); self.expect_op(")")
+            return ArrayLength(v)
+        if name == "\\valid":
+            self.expect_op("(")
+            base = self.expect_name(); self.expect_op(",")
+            ln = self._parse_expr(); self.expect_op(")")
+            return Valid(base, ln)
+        if name == "\\separated":
+            self.expect_op("(")
+            b1 = self.expect_name(); self.expect_op(","); l1 = self._parse_expr()
+            self.expect_op(","); b2 = self.expect_name(); self.expect_op(","); l2 = self._parse_expr()
+            self.expect_op(")")
+            return Separated(b1, l1, b2, l2)
+        if name == "\\at":
+            self.expect_op("(")
+            e = self._parse_expr(); self.expect_op(","); lbl = self.expect_name()
+            self.expect_op(")")
+            return At(e, lbl)
+        if name == "\\length2d":
+            self.expect_op("(")
+            b = self.expect_name(); self.expect_op(","); r = self._parse_expr()
+            self.expect_op(","); c = self._parse_expr(); self.expect_op(")")
+            return Length2D(b, r, c)
+        if name == "\\valid2d":
+            self.expect_op("(")
+            b = self.expect_name(); self.expect_op(","); r = self._parse_expr()
+            self.expect_op(","); c = self._parse_expr(); self.expect_op(")")
+            return Valid2D(b, r, c)
+        if name == "\\is_sorted":
+            self.expect_op("(")
+            b = self.expect_name(); self.expect_op(","); lo = self._parse_expr()
+            self.expect_op(","); hi = self._parse_expr(); self.expect_op(")")
+            return IsSorted(b, lo, hi)
+        if name == "\\array_eq":
+            self.expect_op("(")
+            a = self._parse_expr(); self.expect_op(","); b = self._parse_expr()
+            self.expect_op(")")
+            return ArrayEq(a, b)
+        if name == "\\permutation":
+            self.expect_op("(")
+            a = self._parse_expr(); self.expect_op(","); b = self._parse_expr()
+            self.expect_op(")")
+            return Permutation(a, b)
+        if name == "\\sum":
+            self.expect_op("(")
+            b = self.expect_name(); self.expect_op(","); lo = self._parse_expr()
+            self.expect_op(","); hi = self._parse_expr(); self.expect_op(")")
+            return Sum(b, lo, hi)
+        if name == "\\str_length":
+            self.expect_op("(")
+            e = self._parse_expr(); self.expect_op(")")
+            return StrLengthExpr(e)
+        if name == "\\str_sub":
+            self.expect_op("(")
+            s = self._parse_expr(); self.expect_op(","); lo = self._parse_expr()
+            self.expect_op(","); hi = self._parse_expr(); self.expect_op(")")
+            return StrSubExpr(s, lo, hi)
+        if name == "\\mktuple":
+            self.expect_op("(")
+            elts = self._parse_expr_list(); self.expect_op(")")
+            return MkTupleExpr(elts)
+        if name == "\\fst":
+            self.expect_op("("); e = self._parse_expr(); self.expect_op(")")
+            return FstExpr(e)
+        if name == "\\snd":
+            self.expect_op("("); e = self._parse_expr(); self.expect_op(")")
+            return SndExpr(e)
+        if name == "\\proj":
+            self.expect_op("(")
+            e = self._parse_expr(); self.expect_op(","); idx = self._parse_expr()
+            self.expect_op(")")
+            return ProjExpr(e, idx)
+        if name == "\\is_ctor":
+            self.expect_op("(")
+            v = self.expect_name(); self.expect_op(","); ctor = self.expect_name()
+            self.expect_op(")")
+            return CtorTest(v, ctor)
+        if name == "\\payload":
+            self.expect_op("(")
+            v = self.expect_name(); self.expect_op(","); ctor = self.expect_name()
+            if self.accept_op(","):
+                idx_tok = self.cur()
+                if idx_tok.type != "NUMBER":
+                    self._err("expected NUMBER payload index")
+                self.advance()
+                self.expect_op(")")
+                return CtorPayload(v, ctor, int(idx_tok.string))
+            self.expect_op(")")
+            return CtorPayload(v, ctor, 0)
+        if name == "\\empty_map":
+            return MapEmptyExpr()
+        if name == "\\map_get":
+            self.expect_op("(")
+            d = self._parse_expr(); self.expect_op(","); k = self._parse_expr()
+            self.expect_op(")")
+            return MapGetExpr(d, k)
+        if name == "\\map_set":
+            self.expect_op("(")
+            d = self._parse_expr(); self.expect_op(","); k = self._parse_expr()
+            self.expect_op(","); v = self._parse_expr(); self.expect_op(")")
+            return MapSetExpr(d, k, v)
+        if name == "\\map_eq":
+            self.expect_op("(")
+            a = self._parse_expr(); self.expect_op(","); b = self._parse_expr()
+            self.expect_op(")")
+            return MapEqExpr(a, b)
+        if name == "\\has_key":
+            self.expect_op("(")
+            d = self._parse_expr(); self.expect_op(","); k = self._parse_expr()
+            self.expect_op(")")
+            return HasKeyExpr(d, k)
+        if name == "\\map_remove":
+            self.expect_op("(")
+            d = self._parse_expr(); self.expect_op(","); k = self._parse_expr()
+            self.expect_op(")")
+            return MapRemoveExpr(d, k)
+        if name == "\\set_empty":
+            return SetEmptyExpr()
+        if name == "\\set_add":
+            self.expect_op("(")
+            s = self._parse_expr(); self.expect_op(","); e = self._parse_expr()
+            self.expect_op(")")
+            return SetAddExpr(s, e)
+        if name == "\\set_remove":
+            self.expect_op("(")
+            s = self._parse_expr(); self.expect_op(","); e = self._parse_expr()
+            self.expect_op(")")
+            return SetRemoveExpr(s, e)
+        if name == "\\set_mem":
+            self.expect_op("(")
+            e = self._parse_expr(); self.expect_op(","); s = self._parse_expr()
+            self.expect_op(")")
+            return SetMemExpr(e, s)
+        if name == "\\set_union":
+            self.expect_op("(")
+            a = self._parse_expr(); self.expect_op(","); b = self._parse_expr()
+            self.expect_op(")")
+            return SetUnionExpr(a, b)
+        if name == "\\set_inter":
+            self.expect_op("(")
+            a = self._parse_expr(); self.expect_op(","); b = self._parse_expr()
+            self.expect_op(")")
+            return SetInterExpr(a, b)
+        if name == "\\set_diff":
+            self.expect_op("(")
+            a = self._parse_expr(); self.expect_op(","); b = self._parse_expr()
+            self.expect_op(")")
+            return SetDiffExpr(a, b)
+        if name == "\\set_card":
+            self.expect_op("(")
+            s = self._parse_expr(); self.expect_op(","); lo = self._parse_expr()
+            self.expect_op(","); hi = self._parse_expr(); self.expect_op(")")
+            return SetCardExpr(s, lo, hi)
+        if name == "\\set_subset":
+            self.expect_op("(")
+            a = self._parse_expr(); self.expect_op(","); b = self._parse_expr()
+            self.expect_op(")")
+            return SetSubsetExpr(a, b)
+        if name == "\\set_eq":
+            self.expect_op("(")
+            a = self._parse_expr(); self.expect_op(","); b = self._parse_expr()
+            self.expect_op(")")
+            return SetEqExpr(a, b)
+        if name == "\\nil":
+            return NilExpr()
+        if name == "\\cons":
+            self.expect_op("(")
+            h = self._parse_expr(); self.expect_op(","); tl = self._parse_expr()
+            self.expect_op(")")
+            return ConsExpr(h, tl)
+        if name == "\\hd":
+            self.expect_op("("); e = self._parse_expr(); self.expect_op(")")
+            return HdExpr(e)
+        if name == "\\tl":
+            self.expect_op("("); e = self._parse_expr(); self.expect_op(")")
+            return TlExpr(e)
+        if name == "\\list_length":
+            self.expect_op("("); e = self._parse_expr(); self.expect_op(")")
+            return ListLengthExpr(e)
+        if name == "\\nth":
+            self.expect_op("(")
+            l = self._parse_expr(); self.expect_op(","); i = self._parse_expr()
+            self.expect_op(")")
+            return NthExpr(l, i)
+        if name == "\\mem":
+            self.expect_op("(")
+            e = self._parse_expr(); self.expect_op(","); l = self._parse_expr()
+            self.expect_op(")")
+            return MemExpr(e, l)
+        if name == "\\append":
+            self.expect_op("(")
+            a = self._parse_expr(); self.expect_op(","); b = self._parse_expr()
+            self.expect_op(")")
+            return AppendExpr(a, b)
+        if name == "\\copy":
+            self.expect_op("(")
+            v = self.expect_name(); self.expect_op(")")
+            return GhostCopyExpr(v)
+        if name == "\\copy_range":
+            self.expect_op("(")
+            v = self.expect_name(); self.expect_op(","); lo = self._parse_expr()
+            self.expect_op(","); hi = self._parse_expr(); self.expect_op(")")
+            return GhostCopyRangeExpr(v, lo, hi)
+        if name == "\\make":
+            self.expect_op("(")
+            sz = self._parse_expr(); self.expect_op(","); d = self._parse_expr()
+            self.expect_op(")")
+            return GhostMakeExpr(sz, d)
+        self._err(f"unrecognised backslash atom {name!r}")
 
-    # Membership
-    def in_expr(self, element, collection) -> CSLIn: return CSLIn(element, collection)
-    def not_in_expr(self, element, collection) -> CSLNotIn: return CSLNotIn(element, collection)
+    def _parse_expr_list(self):
+        exprs = [self._parse_expr()]
+        while self.accept_op(","):
+            exprs.append(self._parse_expr())
+        return exprs
 
-    # 07-1311 Q3: dict view `d.keys()` / `d.values()` / `d.items()` (quantifier domain).
-    def dict_view_expr(self, coll, method) -> 'DictView':
-        m = str(method)
-        if m not in ("keys", "values", "items"):
-            raise PyCSLParseError(
-                f"unsupported method '.{m}()' in a contract; only .keys()/.values()/"
-                f".items() are recognised (as quantifier domains, 07-1311)")
-        return DictView(str(coll), m)
-
-    # 07-1311 Q3: two-binder `\forall k, v in d.items(); P` (only over `.items()`).
-    def forall_two_in_expr(self, k, v, domain, body) -> 'ForallItems':
-        if isinstance(domain, DictView) and domain.kind == "items":
-            return ForallItems(str(k), str(v), domain.coll, body)
-        raise PyCSLParseError(
-            "two-binder `\\forall k, v in …;` is only supported over `d.items()`")
-
-    # Function calls and built-in predicates
-    def call_expr(self, name, args) -> CallExpr: return CallExpr(str(name), args if isinstance(args, list) else [args])
-    def call_expr_noargs(self, name) -> CallExpr: return CallExpr(str(name), [])
-    def is_sorted_expr(self, base, lo, hi) -> IsSorted: return IsSorted(str(base), lo, hi)
-    def array_eq_expr(self, left, right) -> ArrayEq: return ArrayEq(left, right)
-    def permutation_expr(self, left, right) -> Permutation: return Permutation(left, right)
-    def sum_expr(self, base, lo, hi) -> Sum: return Sum(str(base), lo, hi)
-
-    # Ghost expression transformers
-    def str_concat(self, left, right) -> StrConcatExpr: return StrConcatExpr(left, right)
-    def str_length_expr(self, string) -> StrLengthExpr: return StrLengthExpr(string)
-    def str_sub_expr(self, string, lo, hi) -> StrSubExpr: return StrSubExpr(string, lo, hi)
-    def mktuple_expr(self, elts) -> MkTupleExpr: return MkTupleExpr(elts if isinstance(elts, list) else [elts])
-    def fst_expr(self, expr) -> FstExpr: return FstExpr(expr)
-    def snd_expr(self, expr) -> SndExpr: return SndExpr(expr)
-    def proj_expr(self, expr, index) -> ProjExpr: return ProjExpr(expr, index)
-    def ctor_test(self, var, ctor) -> CtorTest: return CtorTest(str(var), str(ctor))
-    def ctor_payload(self, var, ctor) -> CtorPayload: return CtorPayload(str(var), str(ctor), 0)
-    def ctor_payload_idx(self, var, ctor, idx) -> CtorPayload: return CtorPayload(str(var), str(ctor), int(idx))
-    def empty_map_expr(self) -> MapEmptyExpr: return MapEmptyExpr()
-    def map_get_expr(self, dict_expr, key) -> MapGetExpr: return MapGetExpr(dict_expr, key)
-    def map_set_expr(self, dict_expr, key, value) -> MapSetExpr: return MapSetExpr(dict_expr, key, value)
-    def map_eq_expr(self, left, right) -> MapEqExpr: return MapEqExpr(left, right)
-    def has_key_expr(self, dict_expr, key) -> HasKeyExpr: return HasKeyExpr(dict_expr, key)
-    def map_remove_expr(self, dict_expr, key) -> MapRemoveExpr: return MapRemoveExpr(dict_expr, key)
-    def set_empty_expr(self) -> SetEmptyExpr: return SetEmptyExpr()
-    def set_add_expr(self, set_expr, elem) -> SetAddExpr: return SetAddExpr(set_expr, elem)
-    def set_remove_expr(self, set_expr, elem) -> SetRemoveExpr: return SetRemoveExpr(set_expr, elem)
-    def set_mem_expr(self, elem, set_expr) -> SetMemExpr: return SetMemExpr(elem, set_expr)
-    def set_union_expr(self, left, right) -> SetUnionExpr: return SetUnionExpr(left, right)
-    def set_inter_expr(self, left, right) -> SetInterExpr: return SetInterExpr(left, right)
-    def set_diff_expr(self, left, right) -> SetDiffExpr: return SetDiffExpr(left, right)
-    def set_card_expr(self, set_expr, lo, hi) -> SetCardExpr: return SetCardExpr(set_expr, lo, hi)
-    def set_subset_expr(self, left, right) -> SetSubsetExpr: return SetSubsetExpr(left, right)
-    def set_eq_expr(self, left, right) -> SetEqExpr: return SetEqExpr(left, right)
-    def nil_expr(self) -> NilExpr: return NilExpr()
-    def cons_expr(self, head, tail) -> ConsExpr: return ConsExpr(head, tail)
-    def hd_expr(self, list_expr) -> HdExpr: return HdExpr(list_expr)
-    def tl_expr(self, list_expr) -> TlExpr: return TlExpr(list_expr)
-    def list_length_expr(self, list_expr) -> ListLengthExpr: return ListLengthExpr(list_expr)
-    def nth_expr(self, list_expr, index) -> NthExpr: return NthExpr(list_expr, index)
-    def mem_expr(self, elem, list_expr) -> MemExpr: return MemExpr(elem, list_expr)
-    def append_expr(self, left, right) -> AppendExpr: return AppendExpr(left, right)
-    def copy_expr(self, name) -> GhostCopyExpr: return GhostCopyExpr(str(name))
-    def copy_range_expr(self, name, lo, hi) -> GhostCopyRangeExpr: return GhostCopyRangeExpr(str(name), lo, hi)
-    def make_expr(self, size, default) -> GhostMakeExpr: return GhostMakeExpr(size, default)
-
-    def expr_list(self, *exprs) -> List[CSLNode]: return list(exprs)
 
 # ---------------------------------------------------------
 # 4. The Parser Interface
 # ---------------------------------------------------------
 
 class Module2_Parser:
-    """Parses raw PyCSL string contracts into Contract AST objects."""
-    def __init__(self) -> None:
-        self.parser = Lark(PYCSL_GRAMMAR, parser='lalr', transformer=PyCSLTransformer())
+    """Parses raw PyCSL string contracts into Contract AST objects.
+
+    A pure-Python recursive-descent parser (`_ContractParser`) — no 3rd-party
+    deps. Replaces the former Lark LALR engine; the 1:1 grammar→CSLNode map is
+    preserved (differential-tested against the legacy engine in
+    `bin/diff_parser.py`).
+    """
+    def __init__(self, use_rdp=None) -> None:
+        # `use_rdp` is accepted (and ignored) for backward compatibility with
+        # callers that passed it during the migration; the rdp engine is now
+        # the only engine.
+        pass
 
     def parse_contract(self, contract_str: str, line_number: int) -> CSLNode:
         try:
-            return self.parser.parse(contract_str)
-        except LarkError as e:
+            return _ContractParser(contract_str).parse()
+        except _ContractSyntaxError as e:
             raise PyCSLParseError(
-                f"PyCSL Syntax Error around line {line_number}:\n{contract_str}\n{str(e)}",
-                line=line_number, stage="parse"
-            ) from e
+                f"PyCSL Syntax Error around line {line_number}:\n{contract_str}\n{e}",
+                line=line_number, stage="parse") from e
 
     def parse_node_contracts(self, raw_contracts: List[str], line_number: int) -> List[CSLNode]:
         parsed_nodes = []
