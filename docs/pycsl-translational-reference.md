@@ -3040,6 +3040,78 @@ obligation must NOT be discharged by any runtime `isinstance`/tuple-shape
 check (R4 is a tuple-ness check, not a type-enforcement check). Tagged in the
 report as a `no_blend_namedtuple_isinstance` note.
 
+### §T.14.11  `@overload` annotations (typing-engagement ty2 / PEP 484)
+
+PEP 484 `@overload` — a sequence of `@overload def f(p_i: T_i) -> R_i: ...`
+stubs (each with a literal `...`/`pass` body) followed by one non-`@overload`
+implementation `def f(p) -> R: <body>` — is lowered as a **guarded contract
+family** (the TY2 hard rule: "overload -> a guarded contract family proved
+against the single implementation"). NO `\trusted`; NO IR_VERSION bump (reuses
+the existing `contracts.ensures` list + the existing `==>`/`isinstance` IR
+shapes).
+
+**Front-end recognition** (`src/pycsl/frontend/Module5_IREmitter.py`):
+`_is_overload_stub(node)` returns True iff `node.decorator_list` contains a
+`Name("overload")` or `Attribute(attr="overload")` AND `node.body` is exactly
+`[Expr(Constant(Ellipsis))]` or `[Pass]` (O1a — the `...`/`pass` body). The
+stub is NOT emitted as a function IR node (its body is discarded — R1). A
+stub's `#@ ensures Q_i` must PRECEDE the `@overload` decorator (the CSL
+contract-placement convention — a `#@` between `@overload` and `def` lands on
+the decorator line, not the `def` line).
+
+**Guard synthesis** (`_synthesize_overload_guard` / `_build_overload_param_guard`
+/ `_overload_type_name`): for each stub parameter `p_i: T_i`, the guard is
+`isinstance(p_i, T_i)` — the IR `{"type": "Call", "func": "isinstance", "args":
+[Var(p_i), Var(T_i)]}`. For each stub `#@ ensures Q_i`, the guarded
+postcondition `{"type": "BinOp", "op": "==>", "left": <guard>, "right": <Q_i
+IR>}` is built and collected into `self._pending_overloads[name]`.
+
+**Implementation attachment** (`visit_FunctionDef`): when the non-`@overload`
+implementation `def f(...)` is visited, the collected guarded postconditions
+are appended to `func_ir["contracts"]["ensures"]` (after the user-written +
+Literal ensures, like the Literal accumulator pattern). Then the existing
+function-IR path proceeds (byte-identical for non-overload drivers — the
+`_is_overload_stub` check is a pure decorator-name + body-shape test that
+fires only when `@overload` is present).
+
+**Module 6 lowering** (`src/pycsl/module6_whyml/`): NO new code. The guarded
+postcondition `G_i ==> Q_i` lowers through the EXISTING `_emit_contracts` path
+(`functions.py:266`): each `ensures` clause is rendered via `_expr_to_whyml`,
+which handles `BinOp("==>")` via the existing identifier map
+(`identifiers.py:23` maps `==>` → `->`) and `Call("isinstance", ...)` via
+`_handle_isinstance` (`expressions.py:2024` → `(subtag (typeof p_i) <T_i
+tag>)`). The resulting WhyML line is
+`ensures { (subtag (typeof p_i) <T_i tag>) -> <Q_i whyml> }`. The
+implementation's body proves each `G_i ==> Q_i` under the guard assumption
+(O6). At a call site `f(v)`, the argument's static type selects the active
+overload by type-based assignability (O4) — native Why3 type-checking when the
+implementation's parameter is typed. For the guard to be a decided type
+judgment, the implementation's parameter must carry a type annotation (TY2
+scope restriction — divergence-by-strictness; an unannotated implementation
+yields a symbolic `typeof_op` guard, sound but imprecise).
+
+**Runtime shim** (`src/pycsl_lib/typ/__init__.py.overload`): a thin identity
+(`#@ ensures \result == val`) that performs NO validation (R1–R7). The real
+runtime `overload(func)` registers `func` and returns `_overload_dummy` (S4);
+the shim models this as identity — the stub is discarded at runtime (R1) and
+the implementation runs (R2). The `ensures \result == val` carries ONLY the
+identity postcondition — the static guarded-postcondition family is NOT
+discharged by the shim (it is Why3 SMT over the guard, invisible to the
+runtime).
+
+**No IR_VERSION bump.** The `@overload` construct reuses the EXISTING
+`contracts.ensures` list and the EXISTING `==>`/`isinstance` IR shapes. NO new
+IR node, NO new field. The IR schema is unchanged; `IR_VERSION` stays at `1.3`;
+`ACCEPTED_IR_VERSIONS` is unchanged.
+
+**GT7** (analogous, NOT a new code) — D1 documents the `isinstance`-dispatch
+no-blend trap: the static O4/O5 type-based-selection obligation must NOT be
+discharged by any runtime `isinstance` check in the implementation (R4 is
+value dispatch, not type judgment). The guard is a WhyML spec formula over the
+parameter's type tag (decided from Γ's τ); the runtime `isinstance` is body
+code (a value check). Tagged in the report as a
+`no_blend_overload_isinstance` note.
+
 ---
 
 ## §T.15  Bytes / Bytearray Type Unification

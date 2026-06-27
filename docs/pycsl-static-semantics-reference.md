@@ -598,6 +598,58 @@ error (N7), not a silent default-fill.
 precision concerns, not soundness gaps. The runtime plane (plain-tuple
 subscript / plain-tuple construction) is unaffected (R6/R7, D1 no-blend).
 
+#### §2.5e `@overload` guarded contract family (typing-engagement ty2 / PEP 484)
+
+**Rule (O1 — overload family recognition).** A function `f` is an overload
+family iff there exist N ≥ 1 `@overload`-decorated stubs
+`@overload def f(p_i: T_i) -> R_i: ...` (each with a literal `...`/`pass` body,
+O1a) followed by exactly one non-`@overload` implementation `def f(p) -> R:
+<body>` (O1b), all at the same scope and same name `f`. A stub with a non-`...`
+body is NOT an overload stub (it is a regular decorated function). The stubs'
+declaration order is the resolution order (first match wins). `Module5_IREmitter.
+_is_overload_stub` recognizes the family at the `visit_FunctionDef` seam.
+
+**Rule (O2/O3 — guard synthesis + guarded postcondition).** For each overload
+stub `i` with parameter `p_i: T_i`, the static plane synthesizes a **guard**
+`G_i = isinstance(p_i, T_i)` (the same metatype-tag vocabulary
+`_handle_isinstance` uses — `(subtag (typeof p_i) <T_i tag>)`, a WhyML bool).
+For each stub `#@ ensures Q_i`, a **guarded postcondition** `ensures { G_i ==>
+Q_i }` is synthesized (`_synthesize_overload_guard`) and attached to the
+implementation's `contracts.ensures`. A stub with no `#@ ensures` contributes
+no guarded clause (its guard is still synthesized for selection but adds no
+VC). The `==>` implication is parsed by `Module2_Parser` IMPL_OP and lowered to
+WhyML `->` by `identifiers.py`.
+
+**Rule (O4/O5 — type-based call-site selection, NO-BLEND).** At a call site
+`f(v)` where `v` has static type `T_v`, the active overload is the first stub
+`i` (in declaration order) whose guard `G_i` is satisfied by `T_v`. The
+selection is a **type-based VC** — discharged by proving `T_v` assignable to
+`T_i` (native Why3 type-checking when the implementation's parameter is typed),
+NOT by any runtime check. A lowering that let the implementation's runtime
+`isinstance` dispatch SATISFY the static selection obligation would blend the
+planes (D1). The guard is a WhyML spec formula over the parameter's type tag
+(decided from Γ's τ); the runtime `isinstance` is body code (a value check) —
+different WhyML terms.
+
+**Rule (O6 — implementation proves the family).** The implementation's single
+body proves EACH guarded postcondition `G_i ==> Q_i` under the guard
+assumption `G_i`. This is the "guarded contract family proved against the
+single implementation" (TY2 hard rule). One Why3 VC per guarded postcondition.
+
+**TY2 scope restriction (divergence-by-strictness).** For the guard `G_i` to
+be a **decided** type judgment (not a symbolic `typeof_op` placeholder), the
+implementation's parameter must carry a type annotation. PEP 484 does not
+require the implementation to be annotated, but PyCSL's sound lower bound may
+be stricter than S1 (§0). An unannotated implementation yields a symbolic
+guard (sound but imprecise — the call-site selection VC is discharged only
+when the body unconditionally establishes the postcondition).
+
+**GT7** (analogous, NOT a new code) — D1 documents the `isinstance`-dispatch
+no-blend trap: the static O4/O5 type-based-selection obligation must NOT be
+discharged by any runtime `isinstance` check in the implementation (R4 is
+value dispatch, not type judgment). Tagged in the report as a
+`no_blend_overload_isinstance` note.
+
 #### §2.1.1 Precondition (`requires`)
 
 ```

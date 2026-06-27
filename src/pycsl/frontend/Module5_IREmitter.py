@@ -85,6 +85,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # `_build_function_scope` — must SKIP shared vars when collecting locals.
         # Populated in `visit_Module` before functions are visited via generic_visit.
         self._shared_var_names: Set[str] = set()
+        # typing-engagement ty2 / 31-1700-typing-spec-7: per-name pending
+        # overload-stub guarded postconditions. Each `@overload def f(...)...`
+        # stub synthesizes `isinstance(p_i, T_i) ==> Q_i` IR clauses (O3); these
+        # are collected here and appended to the non-`@overload` implementation's
+        # `contracts.ensures` when it is visited (O6 — the single body proves each
+        # guarded postcondition). The stub itself is NOT emitted as a function IR
+        # node (its body is `...`/`pass` — R1, discarded at runtime). Empty for
+        # every overload-free module → byte-identical emission.
+        self._pending_overloads: Dict[str, List[Dict[str, Any]]] = {}
 
     def visit_Module(self, node: ast.Module) -> None:
         """Emit module-level concurrency declarations into the top-level IR."""
@@ -3073,7 +3082,28 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         if self._should_skip_method(node):
             return
+        # typing-engagement ty2 / 31-1700-typing-spec-7 §1.3: an `@overload`
+        # stub (`@overload def f(x: T) -> R: ...`) is collected into
+        # `_pending_overloads[name]` as a guarded postcondition
+        # `isinstance(p_i, T_i) ==> Q_i` (O2/O3) and is NOT emitted as a function
+        # IR node — its body is `...`/`pass` (R1, discarded at runtime). The
+        # guarded postconditions are appended to the implementation's ensures when
+        # the non-`@overload` `def f(...)` is visited below (O6). Byte-identical
+        # for non-overload drivers: the check is a pure decorator-name + body-
+        # shape test.
+        if self._is_overload_stub(node):
+            guarded = self._synthesize_overload_guard(node)
+            if guarded:
+                self._pending_overloads.setdefault(node.name, []).extend(guarded)
+            return
         func_ir = self._build_function_ir(node)
+        # typing-engagement ty2 / 31-1700-typing-spec-7 §1.3 step 3: attach the
+        # collected guarded postconditions to the implementation's ensures (O6).
+        # Appended AFTER `_build_function_ir` (which already merged user-written
+        # + Literal ensures); order within ensures is conjunctive/commutative.
+        if node.name in self._pending_overloads:
+            func_ir["contracts"]["ensures"].extend(
+                self._pending_overloads.pop(node.name))
         # §4.4 source span — the IR carries the function's location so the core can
         # report IR-level (migrated) semantic errors against the original source.
         # The prerequisite for re-pointing semantic analysis off the AST onto the IR
@@ -3094,6 +3124,106 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             func_ir["self_type"] = self._current_class
         self.program_ir["functions"].append(func_ir)
         self.generic_visit(node)
+
+    # typing-engagement ty2 / 31-1700-typing-spec-7 — @overload (PEP 484) helpers.
+    # The static plane treats an @overload family as a guarded contract family
+    # (O1–O6): each stub's postcondition is guarded by its parameter-type
+    # predicate; the single implementation proves each guarded postcondition.
+    # The runtime plane discards stubs (R1) — see src/pycsl_lib/typ shim. NO-BLEND
+    # (D1): the guard is a WhyML formula over the parameter's type tag (a type
+    # judgment), NOT the runtime isinstance dispatch (a value check).
+
+    @staticmethod
+    def _is_overload_stub(node: ast.FunctionDef) -> bool:
+        """True iff `node` is an `@overload` stub: it carries an `@overload`
+        decorator (bare `Name("overload")` or `Attribute(attr="overload")`) AND
+        its body is exactly the literal `...` (Ellipsis) or `pass` (O1a — a stub
+        carries no executable code; a non-`...` body is a regular decorated
+        function, byte-identical fallback)."""
+        has_overload = False
+        for d in node.decorator_list:
+            if isinstance(d, ast.Name) and d.id == "overload":
+                has_overload = True
+                break
+            if isinstance(d, ast.Attribute) and d.attr == "overload":
+                has_overload = True
+                break
+        if not has_overload:
+            return False
+        body = node.body
+        if len(body) != 1:
+            return False
+        stmt = body[0]
+        if isinstance(stmt, ast.Pass):
+            return True
+        if (isinstance(stmt, ast.Expr) and isinstance(stmt.value, ast.Constant)
+                and stmt.value.value is Ellipsis):
+            return True
+        return False
+
+    def _synthesize_overload_guard(self, node: ast.FunctionDef) -> List[Dict[str, Any]]:
+        """Synthesize the guarded postconditions for one `@overload` stub (O2/O3).
+        For each parameter `p_i: T_i`, the guard is `isinstance(p_i, T_i)` (the
+        same predicate vocabulary the body-level isinstance lowering uses —
+        `_handle_isinstance` at expressions.py:2024 emits `(subtag <typeof p_i>
+        <T_i tag>)`, a WhyML bool). For each `#@ ensures Q_i` on the stub, the
+        guarded postcondition `isinstance(p_i, T_i) ==> Q_i` is built (the `==>`
+        operator is parsed by Module2_Parser IMPL_OP and lowered to WhyML `->`).
+        A stub with no `#@ ensures` returns `[]` (O3 — the guard is still
+        synthesized for selection but contributes no VC)."""
+        guard = self._build_overload_param_guard(node)
+        if guard is None:
+            return []
+        clauses: List[Dict[str, Any]] = []
+        for csl_ens in getattr(node, 'csl_ensures', []) or []:
+            q_ir = self._csl_to_ir(csl_ens.expr)
+            clauses.append({
+                "type": "BinOp", "op": "==>",
+                "left": guard, "right": q_ir,
+            })
+        return clauses
+
+    def _build_overload_param_guard(self, node: ast.FunctionDef) -> Optional[Dict[str, Any]]:
+        """Build the conjunction of per-parameter `isinstance(p_i, T_i)` guards
+        for the stub. For the monomorphic TY2 scope each stub has exactly one
+        typed parameter, so the guard is the single isinstance call. Returns
+        None if no parameter carries a type annotation (no guard → no guarded
+        postcondition)."""
+        guards: List[Dict[str, Any]] = []
+        for arg in node.args.args:
+            if arg.arg == 'self':
+                continue
+            ann = arg.annotation
+            if ann is None:
+                continue
+            t_name = self._overload_type_name(ann)
+            if t_name is None:
+                continue
+            guards.append({
+                "type": "Call", "func": "isinstance",
+                "args": [{"type": "Var", "name": arg.arg},
+                         {"type": "Var", "name": t_name}],
+            })
+        if not guards:
+            return None
+        if len(guards) == 1:
+            return guards[0]
+        acc = guards[0]
+        for g in guards[1:]:
+            acc = {"type": "BinOp", "op": "and", "left": acc, "right": g}
+        return acc
+
+    @staticmethod
+    def _overload_type_name(ann: ast.AST) -> Optional[str]:
+        """Resolve a parameter annotation to its type-name string for the guard.
+        A `Name` → `id`; an `Attribute` → `attr` (so `typing.int`-style spellings
+        resolve). Lower-cased to match the existing int/str/bool/bytes/float
+        vocabulary the isinstance lowering's `_tag_of_type` expects."""
+        if isinstance(ann, ast.Name):
+            return ann.id.lower()
+        if isinstance(ann, ast.Attribute):
+            return ann.attr.lower()
+        return None
 
 class Module5_IREmitter:
     """Consumes the validated AAST and outputs a JSON string."""

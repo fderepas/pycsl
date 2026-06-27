@@ -2224,5 +2224,52 @@ obligation must NOT be discharged by any runtime `isinstance`/tuple-shape
 check (R4 is a tuple-ness check, not a type-enforcement check). Tagged in the
 report as a `no_blend_namedtuple_isinstance` note.
 
-**Tests**: see the typing-engagement `ty2/conformance/` S5 subset + S4 shim
+**Tests**: see the typing-engagement `ty2/conformance_nt/` S5 subset + S4 shim
+drivers (authored by the conformance-agent, never the core-agent).
+
+### §12.14 `@overload` annotations (typing-engagement ty2)
+
+**Surface** (PEP 484 / S2, resolved by S1): an `@overload` family is a sequence of
+N ≥ 1 `@overload`-decorated stubs `@overload def f(p_i: T_i) -> R_i: ...` (each with a
+literal `...` / `pass` body) followed by exactly one non-`@overload` implementation
+`def f(p) -> R: <body>`. A stub's `#@ ensures Q_i` must PRECEDE the `@overload` decorator
+(the standard CSL contract-placement convention — a `#@` between `@overload` and `def`
+lands on the decorator line, not the `def` line).
+
+**Static plane** (Interpreted): an `@overload` family is a **guarded contract family**
+(O1–O6). Each stub synthesizes a **guard** `G_i = isinstance(p_i, T_i)` — the same type-
+predicate vocabulary the body-level `isinstance` lowering uses (`_handle_isinstance` →
+`(subtag <typeof p_i> <T_i tag>)`, a WhyML bool). For each stub carrying `#@ ensures Q_i`,
+a **guarded postcondition** `ensures { G_i ==> Q_i }` is synthesized and attached to the
+single implementation (`contracts.ensures`), where `==>` is the implication operator
+(parsed by `Module2_Parser` IMPL_OP, lowered to WhyML `->` by `identifiers.py`). The
+implementation's body proves each `G_i ==> Q_i` under the guard assumption (O6 — the
+guarded contract family proved against the single implementation). At a call site `f(v)`,
+the argument's static type selects the active overload by type-based assignability (O4) —
+native Why3 type-checking when the implementation's parameter is typed. For the guard to
+be a **decided** type judgment (not a symbolic `typeof_op` placeholder), the
+implementation's parameter must carry a type annotation (a TY2 scope restriction —
+divergence-by-strictness; an unannotated implementation yields a symbolic guard, sound but
+imprecise). The stubs themselves are NOT emitted as functions (their `...` body is
+discarded — R1). NO `\trusted`; NO IR_VERSION bump (reuses the existing `contracts.ensures`
+list + the existing `==>` / `isinstance` IR shapes).
+
+**Runtime plane** (Shimmed): `@overload` stubs are discarded at runtime (S3/S4 — the
+decorator returns `_overload_dummy` which raises if called; the implementation is a plain
+function). `get_overloads` returns the registered stubs (introspection only). The
+`src/pycsl_lib/typ/__init__.py.overload` shim is a thin identity (`ensures \result == val`)
+that performs NO validation (R1–R7) — it does NOT model the implementation's isinstance
+branches (those are body code, lowered through the existing statement path).
+
+**NO-BLEND** (D1, the load-bearing trap): the static overload-selection obligation (O4/O5)
+is a **type-based VC** — the argument's static type against the stub's parameter type,
+discharged by Why3/SMT over the guard formula `subtag (typeof p_i) T_i`. It must NOT be
+discharged by the implementation's runtime `isinstance` dispatch (R4 is value dispatch, a
+runtime check on the value, NOT the type judgment). The guard is a WhyML *spec formula*
+(over the parameter's type tag, decided from Γ's τ); the runtime `isinstance` is *body
+code* (a value check). They are different WhyML terms — the runtime isinstance cannot
+satisfy the static selection VC. Tagged in the report as a `no_blend_overload_isinstance`
+note.
+
+**Tests**: see the typing-engagement `ty2/conformance_ovl/` S5 subset + S4 shim
 drivers (authored by the conformance-agent, never the core-agent).

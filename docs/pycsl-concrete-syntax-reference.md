@@ -1395,6 +1395,36 @@ R1–R9, no enforcement). # cite:
 `src/pycsl/core_ir_semantic.py` (`_check_namedtuple_access`). See translational
 §T.14.10 and static-semantics τ for the lowering of accepted forms.
 
+**Exception — `@overload` guarded-contract-family lowering
+(typing-engagement ty2).** An `@overload` family (PEP 484) — a sequence of
+`@overload def f(p_i: T_i) -> R_i: ...` stubs (each with a literal `...`/`pass`
+body) followed by one non-`@overload` implementation `def f(p) -> R: <body>` —
+is recognized at the front-end normalization seam
+(`_is_overload_stub` / `_synthesize_overload_guard` in `Module5_IREmitter`).
+Each stub synthesizes a **guard** `G_i = isinstance(p_i, T_i)` and, for each
+stub `#@ ensures Q_i`, a **guarded postcondition** `ensures { G_i ==> Q_i }`
+attached to the implementation's `contracts.ensures` (the stub itself is NOT
+emitted — its `...` body is discarded, R1). The `==>` implication is the
+existing CSL IMPL_OP (`Module2_Parser`), lowered to WhyML `->`; the
+`isinstance(p_i, T_i)` is the existing metatype-tag guard (`subtag (typeof p_i)
+<T_i tag>`, a WhyML bool). The implementation's single body proves each
+`G_i ==> Q_i` under the guard assumption (O6). For the guard to be a decided
+type judgment, the implementation's parameter must carry a type annotation
+(TY2 scope restriction — divergence-by-strictness).
+
+This is a static-plane judgment only (D1 type-based selection vs runtime
+isinstance dispatch): the runtime plane is the discard-and-plain-function
+behaviour (S3/S4 — `@overload` returns `_overload_dummy` which raises; the
+implementation is a plain function; `get_overloads` is introspection only).
+The runtime shim (`src/pycsl_lib/typ/__init__.py.overload`) is a thin identity
+(`ensures \result == val`, no validation). NO-BLEND: the guard is a spec
+formula over the parameter's type tag, NOT the runtime isinstance body code.
+# cite:
+`src/pycsl/frontend/Module5_IREmitter.py` (`_is_overload_stub`,
+`_synthesize_overload_guard`, `_build_overload_param_guard`,
+`_overload_type_name`). See translational §T.14.11 and static-semantics τ for
+the lowering of accepted forms.
+
 ---
 
 ## Appendix A. AST Node Hierarchy

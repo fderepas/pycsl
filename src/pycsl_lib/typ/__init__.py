@@ -128,8 +128,24 @@ def NamedTuple(typename, fields, val) -> int:
     return val
 
 
-def overload(func):
-    return func
+# overload (typing-engagement ty2 / 31-1700-typing-spec-7): Modelled-for-identity.
+#   The static plane (Module 5 + Module 6) treats an `@overload` family as a
+#   guarded contract family (O1–O6): each `@overload def f(p_i: T_i) -> R_i: ...`
+#   stub synthesizes `isinstance(p_i, T_i) ==> Q_i` (the `==>` implication over
+#   the parameter-type guard), and the guarded postconditions attach to the
+#   single non-`@overload` implementation, whose body proves each (O6). The
+#   stubs themselves are NOT emitted as functions (their `...` body is
+#   discarded — R1). This runtime shim exposes the `typing.overload` decorator
+#   object and performs NO validation (R1–R7). The real runtime `overload(func)`
+#   registers `func` in `_overload_registry` and returns `_overload_dummy` (S4);
+#   the shim models this as identity — the stub is discarded at runtime (R1)
+#   and the implementation runs (R2); the shim performs no type enforcement
+#   (R3/R6). The `ensures \result == val` carries ONLY the identity
+#   postcondition — the static guarded-postcondition family is NOT discharged
+#   by the shim (it is Why3 SMT over the guard, invisible to the runtime).
+#@ ensures \result == val
+def overload(func, val) -> int:
+    return val
 
 
 def no_type_check(func):
