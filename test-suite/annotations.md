@@ -2317,3 +2317,39 @@ note.
 
 **Tests**: see the typing-engagement `ty2/conformance_ovl/` S5 subset + S4 shim
 drivers (authored by the conformance-agent, never the core-agent).
+
+### §12.16 `TypeVar` / `Generic` / PEP 695 type-parameter annotations (typing-engagement ty3)
+
+**Surface** (PEP 484 + PEP 695 / S2, resolved by S1): `class C[T]: ...`, `def
+f[T](): ...`, `T = TypeVar("T", bound=B)` + `class C(Generic[T])`. A generic
+class/function parameterized by a type variable `T`.
+
+**Static plane** (Interpreted): whole-module monomorphization. The
+`frontend/monomorphize.py` step-5 IR-resolution pass COLLECTs concrete
+instantiation sites (`C[int]()`, `x: C[int]`), and EMITs ONE name-mangled
+specialized WhyML `let`/`val` per `(generic, concrete-type)` pair with `T`
+substituted (`Stack` → `Stack_int`, `stack__push` → `stack_int__push`). The
+TypeVar bound (`T: B`) is an instantiation-time obligation (the concrete type
+must satisfy the bound — invariant checking, GT2). `ParamSpec`/`TypeVarTuple`
+are schema-only loud-fails (GT3). Polymorphic recursion (`f[T]()` inside
+`f[T]`) is a loud-fail (GT4). `Any` as a type argument is refused (GT1).
+Variance is deferred (GT2 — invariant checking). An un-instantiated generic
+emits NO specialized copy and is recorded Ignored/GT8.
+
+**Runtime plane** (Shimmed): `TypeVar("T", bound=B)` constructs an
+introspectable object (`__bound__`); `Generic[T]`/`C[int]` constructs a
+`GenericAlias`; the bound is NOT checked at runtime (S3's negative sentence).
+The shim is identity, no enforcement.
+
+**Divergence / no-blend (D1)**: the static per-instantiation theorem
+(`Stack_int.pop` returns `int`, provable because the int specialization was
+emitted) vs the runtime generic-alias object (`Stack[int]` is a GenericAlias,
+NO specialized proof). An un-instantiated generic must NOT claim a per-instance
+theorem it never emitted — the coherent-and-wrong trap, typing edition.
+
+**Tests**: see the typing-engagement `ty3/conformance/` S5 subset + S4 shim
+drivers (authored by the conformance-agent, never the core-agent). Single-
+instantiation path proves 10/10 VCs (the feasibility-probe shape); the
+multi-instantiation Module 6 field-mangling gap is recorded in
+`typing-engagement/ty3/33-1700-typing-gap-9.md`.
+

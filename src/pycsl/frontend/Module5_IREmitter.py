@@ -279,6 +279,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         if self._final_registry:
             self.program_ir["final_registry"] = list(self._final_registry)
 
+        # typing-engagement ty3 / 33-1700-typing-spec-9: collect the legacy
+        # `T = TypeVar("T", bound=B)` / `T = TypeVar("T")` module-level calls so a
+        # `class C(Generic[T])` (PEP 484 spelling) can recover the bound from
+        # `_collect_type_params`. Omitted when no TypeVar calls exist →
+        # byte-identical for non-generic modules (additive IR v1.4 field).
+        typevar_registry = self._collect_typevar_registry(node)
+        if typevar_registry:
+            self.program_ir["typevar_registry"] = typevar_registry
+
         self.generic_visit(node)
 
     def _get_mutex_invariant_ir(self, mutex: str) -> Optional[Dict[str, Any]]:
@@ -1503,6 +1512,99 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 return True
         return False
 
+    # typing-engagement ty3 / 33-1700-typing-spec-9 — TypeVar/Generic (PEP 484 + PEP 695):
+    # collect the type parameters of a generic class/function so the step-5
+    # monomorphization IR-resolution pass can COLLECT concrete instantiations and
+    # EMIT name-mangled specialized copies. This seam captures `class C[T]:`,
+    # `def f[T]():` (PEP 695) and the legacy `class C(Generic[T])` / `TypeVar("T")`
+    # spelling. ABSENT on non-generic decls → byte-identical for unaffected drivers
+    # (additive IR v1.4 field). NO lowering here — the monomorphization pass does
+    # the COLLECT/EMIT; Module 6 lowers the specialized copies as ordinary
+    # monomorphic code.
+
+    _GENERIC_BASE_NAMES = {"Generic"}
+
+    def _collect_type_params(self, node) -> List[Dict[str, Any]]:
+        """Return the IR `type_params` list for a generic ClassDef/FunctionDef, or
+        `[]` if it is not generic. Each entry is `{"name": str, "bound": Optional[str],
+        "kind": str}` where kind is "TypeVar" (the only interpreted kind —
+        ParamSpec/TypeVarTuple are schema-only and loud-fail in the monomorphization
+        pass, GT3). The PEP 695 `type_params` attribute is the primary source; the
+        legacy `Generic[T]` base / `TypeVar("T", bound=B)` call is recognized too."""
+        tparams = getattr(node, "type_params", None) or []
+        out: List[Dict[str, Any]] = []
+        for tp in tparams:
+            kind = type(tp).__name__  # TypeVar / ParamSpec / TypeVarTuple
+            name = getattr(tp, "name", None)
+            bound = None
+            bnode = getattr(tp, "bound", None)
+            if isinstance(bnode, ast.Name):
+                bound = bnode.id
+            elif isinstance(bnode, ast.Attribute):
+                bound = bnode.attr
+            out.append({"name": name, "bound": bound, "kind": kind})
+        # Legacy spelling: `class C(Generic[T])` where T was declared via
+        # `T = TypeVar("T", bound=B)` at module scope. The PEP 695 `type_params`
+        # is empty; the Generic[T] base carries the TypeVar name(s). We resolve
+        # the names against the module's TypeVar-call registry (collected in
+        # visit_Assign below) so the bound is recovered. Only the bare-Name form
+        # is recognized (a generic base that is itself a Subscript on Generic).
+        if not out and isinstance(node, ast.ClassDef):
+            for b in node.bases:
+                if (isinstance(b, ast.Subscript)
+                        and isinstance(b.value, ast.Name)
+                        and b.value.id in self._GENERIC_BASE_NAMES):
+                    names = self._extract_generic_arg_names(b.slice)
+                    registry = self.program_ir.get("typevar_registry") or {}
+                    for nm in names:
+                        info = registry.get(nm, {})
+                        out.append({"name": nm,
+                                    "bound": info.get("bound"),
+                                    "kind": "TypeVar"})
+                    break
+        return out
+
+    @staticmethod
+    def _extract_generic_arg_names(slice_node) -> List[str]:
+        """Extract the TypeVar names from `Generic[T]` / `Generic[T, U]` slice."""
+        if isinstance(slice_node, ast.Name):
+            return [slice_node.id]
+        if isinstance(slice_node, ast.Tuple):
+            names = []
+            for elt in slice_node.elts:
+                if isinstance(elt, ast.Name):
+                    names.append(elt.id)
+            return names
+        return []
+
+    def _collect_typevar_registry(self, node: ast.Module) -> Dict[str, Dict[str, Any]]:
+        """Scan module-level assigns for `T = TypeVar("T"[, bound=B])` and return
+        `{name: {"bound": Optional[str]}}`. The legacy PEP 484 spelling; the
+        PEP 695 `class C[T]` form needs no registry (its `type_params` carry the
+        bound directly)."""
+        registry: Dict[str, Dict[str, Any]] = {}
+        for stmt in node.body:
+            if not isinstance(stmt, ast.Assign) or len(stmt.targets) != 1:
+                continue
+            target = stmt.targets[0]
+            if not isinstance(target, ast.Name):
+                continue
+            call = stmt.value
+            if not isinstance(call, ast.Call) or not isinstance(call.func, ast.Name):
+                continue
+            if call.func.id != "TypeVar":
+                continue
+            name = target.id
+            bound = None
+            for kw in call.keywords:
+                if kw.arg == "bound":
+                    if isinstance(kw.value, ast.Name):
+                        bound = kw.value.id
+                    elif isinstance(kw.value, ast.Attribute):
+                        bound = kw.value.attr
+            registry[name] = {"bound": bound}
+        return registry
+
     def _emit_typeddict_record(self, node: ast.ClassDef) -> None:
         """Synthesize a record `type_decl` for `class X(TypedDict): ...`.
 
@@ -2146,6 +2248,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 "init_params": init_params, "init_body": init_body,
                 "init_ensures": init_ensures,
                 "is_mixin": is_mixin, "compose_from": compose_from,
+                # typing-engagement ty3 / 33-1700-typing-spec-9: PEP 695 type
+                # parameters of a generic class (`class C[T]:`) or the legacy
+                # `TypeVar`/`Generic` spelling. ABSENT on non-generic classes
+                # (emitted only when non-empty → byte-identical for unaffected
+                # drivers, additive IR v1.4). Consumed by the monomorphization
+                # IR-resolution pass (frontend/monomorphize.apply_monomorphization).
+                **({"type_params": self._collect_type_params(node)}
+                   if getattr(node, "type_params", None) else {}),
             })
         self.generic_visit(node)
         # typing-engagement ty2 / 32-1700-typing-spec-8: populate the per-method
@@ -2915,6 +3025,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # true → byte-identical for every non-NoReturn driver (additive IR
             # v1.3 field; see docs/ir.md §5/§10).
             **({"is_noreturn": True} if is_noreturn else {}),
+            # typing-engagement ty3 / 33-1700-typing-spec-9: PEP 695 type
+            # parameters of a generic top-level function (`def f[T]():`). Methods
+            # of a generic class carry the class's type_params via the
+            # monomorphization pass (which substitutes the class's TypeVar in
+            # its methods). ABSENT on non-generic functions (emitted only when
+            # non-empty → byte-identical for unaffected drivers, additive IR v1.4).
+            **({"type_params": self._collect_type_params(node)}
+               if getattr(node, "type_params", None) else {}),
             "contracts": {
                 # typing-engagement ty1 / 26-0000-typing-spec-2: merge the
                 # synthesized Literal `requires`/`ensures` clauses AFTER the

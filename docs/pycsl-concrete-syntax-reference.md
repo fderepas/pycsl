@@ -1594,6 +1594,60 @@ Every grammar production must have at least one test in
 
 ---
 
+## §T.TY3 — TypeVar / Generic (PEP 484 + PEP 695)
+
+The PEP 695 type-parameter syntax is parsed by `frontend/pure_ast.py` (commit
+8335eede — the `type_params` field on `ClassDef`/`FunctionDef`, the `type_param`
+family `TypeVar`/`ParamSpec`/`TypeVarTuple`, and the `TypeAlias` statement).
+This section documents the surface PyCSL interprets; the lowering is in the
+[translational reference §T.TY3](pycsl-translational-reference.md#sty3) and the
+static semantics in the [static-semantics reference
+§S.TY3](pycsl-static-semantics-reference.md#sty3). *Cites S6 (CPython 3.12
+grammar / ASDL).*
+
+### §T.TY3.1 — Generic class declaration (PEP 695)
+
+```
+class C[T]: ...           # one type parameter
+class C[T: B]: ...        # bounded type parameter (B is the bound)
+class C[T, U]: ...        # multiple type parameters
+```
+
+The `type_params` list carries `TypeVar` nodes (with optional `bound`), plus
+`ParamSpec` (`**P`) and `TypeVarTuple` (`*Ts`) — the latter two are
+schema-only and loud-fail (GT3, §S.TY3.5).
+
+### §T.TY3.2 — Generic function declaration (PEP 695)
+
+```
+def f[T](): ...           # one type parameter
+def f[T: B](x: T) -> T:   # bounded, used in signature
+```
+
+### §T.TY3.3 — Legacy spelling (PEP 484)
+
+```
+T = TypeVar("T", bound=B)     # module-level TypeVar call
+class C(Generic[T]): ...      # Generic base
+def f(x: T) -> T: ...
+```
+
+The legacy `TypeVar("T", bound=B)` call + `Generic[T]` base are recognized
+identically to the PEP 695 form (the `typevar_registry` IR field records the
+bound; see §T.TY3 in the translational reference).
+
+### §T.TY3.4 — Instantiation site
+
+```
+C[int]()               # constructor call — the instantiation site
+x: C[int]              # annotation — also an instantiation site
+```
+
+Only concrete-type arguments are collected (a nested generic instantiation is
+not supported in this delivery). `Any` as a type argument is refused (GT1).
+
+---
+
 ## Appendix C. Revision History
 
 | Version | Date | Changes |

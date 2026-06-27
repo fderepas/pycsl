@@ -3713,3 +3713,69 @@ and are likely unaffected; and a real program with array locals alongside a
 `bytes` parameter will trigger the import and type-check. The gap is
 specific to the bare-`bytes`-only-signature case. This is recorded as S7
 SURPRISE.2 — not fixed in TY0.
+
+---
+
+## §T.TY3 — Whole-module monomorphization (TypeVar/Generic, PEP 484 + PEP 695)
+
+The monomorphization machinery is a **step-5 IR-resolution pass**
+(`frontend/monomorphize.py:apply_monomorphization`), wired into
+`frontend/ir_resolve.resolve` AFTER `apply_inline_globals` and BEFORE Module 6
+(WhyML emission). It operates on the resolved IR dict + the woven AST; it is a
+no-op (early return) when no type_decl/function carries `type_params`, keeping
+every non-generic module byte-identical (total additivity). *Cites S1; the
+closed-module enabling assumption per `docs/typing-global-overview.md` §4.1.*
+
+### §T.TY3.1 — IR shape (v1.4, additive)
+
+A new optional TYPE-DECL field `type_params` and a new optional FUNCTION field
+`type_params`, each a list of `{"name": str, "bound": Optional[str], "kind":
+str}`. ABSENT on non-generic decls (emitted only when non-empty) →
+byte-identical for unaffected drivers. `IR_VERSION` is bumped 1.3 → 1.4
+(additive; `"1.4"` added to `ACCEPTED_IR_VERSIONS`).
+
+### §T.TY3.2 — COLLECT
+
+`_collect_instantiations` scans the IR `functions` bodies for
+`Call(Subscript(Name(generic), <concrete-type>))` patterns and annotation
+subscripts; `_collect_instantiations_ast` scans the woven AST for module-level
+sites (`if __name__ == ...` blocks, which are NOT in the IR functions list).
+Returns the deduped `(generic, concrete_type)` set.
+
+### §T.TY3.3 — GT3 / GT4 loud-fails
+
+`_check_gt3_schema_only` rejects any `type_params` entry whose `kind !=
+"TypeVar"` (ParamSpec/TypeVarTuple). `_check_gt4_polymorphic_recursion` scans
+the AST for a generic function `f[T]` whose body calls `f[T]()` (the TypeVar
+itself — non-terminating).
+
+### §T.TY3.4 — BOUNDS (invariant, GT2)
+
+`_check_bounds` verifies each `(generic, concrete_type)` with a bound `B`
+satisfies `concrete == bound` (invariant checking). Rejects `Any` (GT1).
+
+### §T.TY3.5 — EMIT
+
+`_emit_specializations` deep-copies the generic's type_decl + methods for each
+`(generic, concrete_type)` pair, substituting the TypeVar by the concrete type
+in field types, signatures (`symbol_table`, `return_annotation`, `self_type`),
+and contract clauses (recursively via `_subst_type_in_ir`), with name-mangling
+(`Stack` → `Stack_int`, `stack__push` → `stack_int__push`). Call sites
+`Stack[int]()` → `Stack_int()` and annotations are rewritten. The original
+generic decl + methods are REMOVED (replaced by the copies).
+
+### §T.TY3.6 — CLASSIFY
+
+Specialized copies are ordinary monomorphic IR (Interpreted by default). An
+un-instantiated generic is recorded Ignored/GT8 in
+`ir["monomorphization_report"]["uninstantiated"]`.
+
+### §T.TY3.7 — Gap: multi-instantiation field-mangling
+
+When two specialized copies share field names (e.g. `Stack_int._items` and
+`Stack_str._items`), Module 6's record field-mangling prefixes the field names
+but does NOT consistently rewrite the invariant/requires/body references. This
+is a Module 6 consistency gap (see `typing-engagement/ty3/33-1700-typing-gap-9.md`),
+NOT a monomorphization bug. The single-instantiation path (the feasibility-probe
+shape) proves 10/10 VCs.
+

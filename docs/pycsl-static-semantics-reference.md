@@ -2404,3 +2404,63 @@ trusted computing base reduces to:
 
 This is a strictly smaller TCB than blanket trust in hand-curated contracts. See
 `config/skills/pycsl-stdlib-coverage/SKILL.md` for the model-building discipline.
+
+---
+
+## §S.TY3 — TypeVar / Generic static semantics (PEP 484 + PEP 695)
+
+The static plane treats a generic `C[T]` as a **template**: the declaration is
+NOT itself a proof obligation. The obligations arise at each CONCRETE
+instantiation `C[int]`, where `T` is replaced by the concrete type and the
+whole class is specialized. This is **whole-module monomorphization**. *Cites
+S1 (the typing spec); PEP 484/695 (S2) yield to S1 on conflict. See the
+two-plane spec `typing-engagement/ty3/typevar-generic-twoplane-spec.md`.*
+
+### §S.TY3.1 — COLLECT (G2, closed-world)
+
+A generic is discharged by scanning the closed module for concrete
+instantiation sites (`C[int]()` calls, `x: C[int]` annotations). Each
+`(generic, concrete-type)` pair is one instantiation site. An **un-instantiated**
+generic emits NO specialized copy (G5) — only its declaration is checked.
+
+### §S.TY3.2 — EMIT (G3, name-mangled substitution)
+
+For each `(C, A)` pair, emit ONE specialized copy: `C` → `C_<A>` (e.g.
+`Stack_int`); `T` substituted by `A` in field types, signatures, and contract
+clauses; methods `C__m` → `C_<A>__m`. The copy is an ordinary monomorphic
+class. The ORIGINAL generic decl + methods are REMOVED (replaced by the copies).
+
+**No-blend (G3a, D1):** an un-instantiated generic carries NO per-instance
+theorem. Claiming `Stack.pop` returns `int` when no `Stack_int` was emitted is a
+defect — the static plane refuses the claim.
+
+### §S.TY3.3 — BOUNDS (G4, instantiation-time obligation)
+
+A `T: B` bound makes each instantiation `C[A]` admissible iff `A` is a subtype
+of `B`. Today PyCSL checks **invariantly** (A must be exactly B) — stricter
+than S1, legitimate divergence-by-strictness. Reject code: `PYCSL-TY3-BOUND`.
+
+### §S.TY3.4 — Un-instantiated generic (G5, declaration-only)
+
+A generic never instantiated stays as declaration-only: its method bodies are
+NOT lowered to WhyML, NO VC is generated. The soundness report records it
+**Ignored/GT8**.
+
+### §S.TY3.5 — Loud-fails (GT3, GT4)
+
+- **GT3** (`PYCSL-TY3-GT3`): `ParamSpec`/`TypeVarTuple` are schema-only — a
+  generic using them is rejected.
+- **GT4** (`PYCSL-TY3-GT4`): polymorphic recursion — a generic function `f[T]`
+  that calls `f[T]()` (with the TypeVar itself) does not terminate under
+  monomorphization; rejected.
+
+### §S.TY3.6 — Variance (GT2, deferred)
+
+Co/contravariance is NOT interpreted in TY3's first delivery. Instantiations
+are checked invariantly (§S.TY3.3). Divergence-by-strictness, recorded (GT2).
+
+### §S.TY3.7 — `Any` refusal (GT1)
+
+`Any` never instantiates a `TypeVar` (the consistency relation is deliberately
+unsound). `C[Any]` is rejected with `PYCSL-TY3-GT1`.
+

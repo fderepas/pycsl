@@ -71,15 +71,15 @@ Two top-level metadata keys stamp the IR as a versioned wire format
 
 | Key | Value today | Meaning |
 |-----|-------------|---------|
-| `ir_version` | `"1.3"` | Semantic version of the IR schema this document conforms to (`ir_schema.py:35`, `IR_VERSION`). |
+| `ir_version` | `"1.4"` | Semantic version of the IR schema this document conforms to (`ir_schema.py:35`, `IR_VERSION`). |
 | `source_language` | `"python"` | The front-end that produced it. |
 
-**Accepted versions.** `ACCEPTED_IR_VERSIONS = frozenset({"1.0", "1.1", "1.2", "1.3"})`
+**Accepted versions.** `ACCEPTED_IR_VERSIONS = frozenset({"1.0", "1.1", "1.2", "1.3", "1.4"})`
 (`ir_schema.py:36`) is the exact set this core ingests.
 
 **Compatibility policy (semver-style)** (`ir_schema.py:25–28`): MINOR bumps are **additive**
 — new optional keys/nodes a newer core still ingests; a `"1.0"` IR remains ingestable by a
-`"1.3"` core. MAJOR bumps are **breaking** — a removed or re-meaning'd key. Widen
+`"1.4"` core. MAJOR bumps are **breaking** — a removed or re-meaning'd key. Widen
 `ACCEPTED_IR_VERSIONS` as additive versions land; drop a major when support ends. (The
 `1.0 → 1.1` bump added the optional top-level `imports` key — `ir_schema.py:31–34`. The
 `1.1 → 1.2` bump added the optional, default-valued `FunctionIR` directive fields
@@ -88,7 +88,13 @@ Two top-level metadata keys stamp the IR as a versioned wire format
 without them remains ingestable. The `1.2 → 1.3` bump added the optional `FunctionIR`
 field `is_noreturn` (typing-engagement ty1 / 28-0000-typing-spec-4) — emitted only when
 `true` (`-> NoReturn`), so a `"1.0"`/`"1.1"`/`"1.2"` IR without it remains byte-identical
-and ingestable.)
+and ingestable. The `1.3 → 1.4` bump added the optional `type_params` field on
+`type_decls` and `FunctionIR` (typing-engagement ty3 / 33-1700-typing-spec-9) — emitted
+only when a PEP 695 generic (`class C[T]`, `def f[T]()`) or the legacy `TypeVar`/`Generic`
+spelling declares a type variable, so a `"1.0"`–`"1.3"` IR without it remains byte-identical
+and ingestable; consumed by `frontend/monomorphize.apply_monomorphization`, the step-5
+IR-resolution pass that COLLECTs concrete instantiations and EMITs name-mangled specialized
+copies with substituted contracts.)
 
 **Enforcement** in `validate_ir` (`ir_schema.py:148–153`): if `ir_version` is present and
 *not* in `ACCEPTED_IR_VERSIONS`, it is a **hard error** (do not lower an IR this core may
@@ -179,6 +185,14 @@ corresponding feature.
 **(v1.2)** `init_ensures` — `List[expr-IR]`, the `__init__` postconditions a constructed
 instance is known to satisfy (`Module5_IREmitter.py:1574`). Optional; defaults to `[]`.
 
+**(v1.4)** `type_params` — `list` of `{"name": str, "bound": Optional[str], "kind": str}`,
+the PEP 695 type parameters of a generic class (`class C[T]:`) or the legacy
+`TypeVar`/`Generic` spelling (typing-engagement ty3 / 33-1700-typing-spec-9). **ABSENT**
+on non-generic classes (emitted only when non-empty → byte-identical for unaffected
+drivers). Consumed by `frontend/monomorphize.apply_monomorphization` (the step-5
+IR-resolution pass): COLLECT concrete instantiations → EMIT name-mangled specialized
+copies with substituted contracts.
+
 Field `type` ∈ `int` | `list` | `dict` | `set` | `str` (`_field_type_from_annotation`,
 `Module5_IREmitter.py:1264`; container shapes inferred from RHS in `_collect_class_fields`).
 
@@ -255,6 +269,7 @@ carry their own `line` (`Module5_IREmitter.py:1134`, `:1145`), used to reconstru
 | `propagate_frame` | `bool` | **(v1.2)** `#@ propagate_frame` directive (`Module5_IREmitter.py:1876`). Default `false`. |
 | `fresh_globals` | `bool` | **(v1.2)** `#@ fresh_globals` — fresh global state on entry (`Module5_IREmitter.py:1877`); read by `core_ir_semantic`. Default `false`. |
 | `is_noreturn` | `bool` | **(v1.3)** `-> NoReturn` (PEP 484) — the function never returns normally (typing-engagement ty1 / 28-0000-typing-spec-4). Set `true` by `_build_function_ir` when the return annotation is `NoReturn` / `typing.NoReturn`; **ABSENT otherwise** (emitted only when true → byte-identical for non-NoReturn drivers). Module 6 lowers it to `ensures { false }` (NR1); `core_ir_semantic._check_noreturn` checks the body supports divergence (NR2a) and `_check_noreturn_successors` flags dead successors (NR3); the non-vacuity gate exempts the function (NR4). |
+| `type_params` | `list` | **(v1.4)** PEP 695 type parameters of a generic function (`def f[T]():`) or the legacy `TypeVar` spelling (typing-engagement ty3 / 33-1700-typing-spec-9). Each entry `{"name": str, "bound": Optional[str], "kind": str}`; `kind` is `"TypeVar"` (the only interpreted kind — `ParamSpec`/`TypeVarTuple` are schema-only and loud-fail GT3). **ABSENT** on non-generic functions (emitted only when non-empty → byte-identical for unaffected drivers). Consumed by `frontend/monomorphize.apply_monomorphization` (the step-5 IR-resolution pass): COLLECT concrete instantiations → EMIT name-mangled specialized copies. |
 
 ---
 
@@ -476,7 +491,7 @@ descending into nested lists for compound statements.
 
 A new front-end (Go, C, …) that produces this IR for the existing core must guarantee:
 
-1. **Version stamp.** Emit `ir_version` ∈ `ACCEPTED_IR_VERSIONS` (currently `"1.0"`/`"1.1"`/`"1.2"`/`"1.3"`)
+1. **Version stamp.** Emit `ir_version` ∈ `ACCEPTED_IR_VERSIONS` (currently `"1.0"`/`"1.1"`/`"1.2"`/`"1.3"`/`"1.4"`)
    and a `source_language` tag. An unrecognized stamped version is a hard reject.
 2. **Required keys.** Top-level `type_decls` and `functions` (a list). Each function:
    `name`, `symbol_table`, `return_annotation`, `contracts`, `body`,
@@ -515,7 +530,7 @@ body `return x + 1`:
 
 ```json
 {
-  "ir_version": "1.3", "source_language": "python",
+  "ir_version": "1.4", "source_language": "python",
   "type_decls": [],
   "functions": [{
     "name": "test_precondition",

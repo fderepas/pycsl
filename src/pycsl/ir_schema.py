@@ -49,8 +49,18 @@ from errors import PyCSLIRError
 # ACCEPTED_IR_VERSIONS. Module 6 lowers `is_noreturn: true` to `ensures { false }`
 # (NR1) and the non-vacuity gate (NR4) exempts the function from the vacuity
 # probe. See docs/ir.md §10.
-IR_VERSION = "1.3"
-ACCEPTED_IR_VERSIONS = frozenset({"1.0", "1.1", "1.2", "1.3"})
+# "1.4" (typing-engagement ty3 / 33-1700-typing-spec-9) adds the optional TYPE-DECL
+# field `type_params` and the optional FUNCTION field `type_params` — each a list of
+# `{"name": str, "bound": Optional[str], "kind": str}` — set when a PEP 695 generic
+# (`class C[T]:`, `def f[T]():`) or the legacy `TypeVar`/`Generic` spelling declares a
+# type variable. The field is ABSENT on non-generic decls (emitted only when non-empty),
+# so a "1.0"/"1.1"/"1.2"/"1.3" IR without it remains byte-identical and ingestable
+# (additive MINOR bump); all five versions stay in ACCEPTED_IR_VERSIONS. The field is
+# consumed by `frontend/monomorphize.apply_monomorphization` (the step-5 IR-resolution
+# pass): COLLECT concrete instantiations, EMIT name-mangled specialized copies with
+# substituted contracts, GT3/GT4 loud-fails. See docs/ir.md §10.
+IR_VERSION = "1.4"
+ACCEPTED_IR_VERSIONS = frozenset({"1.0", "1.1", "1.2", "1.3", "1.4"})
 
 
 # ---------------------------------------------------------------------------
@@ -101,6 +111,14 @@ class FunctionIR(TypedDict, total=False):
     # Module 6 lowers it to `ensures { false }` (NR1); the non-vacuity gate
     # exempts the function from the vacuity probe (NR4). See docs/ir.md §5/§10.
     is_noreturn: bool
+    # Optional (IR v1.4; typing-engagement ty3 / 33-1700-typing-spec-9): the type
+    # parameters of a PEP 695 generic method/function (`def f[T]():`) or the legacy
+    # `TypeVar`/`Generic` spelling. ABSENT on non-generic functions (emitted only when
+    # non-empty → byte-identical for unaffected drivers). Consumed by
+    # `frontend/monomorphize.apply_monomorphization` (the step-5 IR-resolution pass):
+    # COLLECT concrete instantiations → EMIT name-mangled specialized copies with
+    # substituted contracts. See docs/ir.md §10.
+    type_params: List[Dict[str, Any]]
 
 
 class ProgramIR(TypedDict, total=False):

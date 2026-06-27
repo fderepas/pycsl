@@ -970,10 +970,19 @@ def resolve(ir_data: Dict[str, Any], validated_ast: _ast.AST, main_file: str,
 
     Order (must match the orchestrator's historical inline sequence):
       1. resolve_imports  → 2. apply_inheritance  → 3. apply_composition
-      → 4. apply_inline_globals
+      → 4. apply_inline_globals  → 5. apply_monomorphization (typing TY3)
     """
     imported_names = resolve_imports(validated_ast, main_file, ir_data, deep=deep)
     apply_inheritance(ir_data)
     apply_composition(ir_data)
     apply_inline_globals(ir_data)
+    # typing-engagement ty3 / 33-1700-typing-spec-9: whole-module monomorphization
+    # of PEP 484/695 generics (COLLECT concrete instantiations → EMIT name-mangled
+    # specialized copies with substituted contracts; GT3/GT4 loud-fails). No-op
+    # (early return) when no type_decl/function carries `type_params` →
+    # byte-identical for every non-generic module (total additivity). COLLECT scans
+    # the AST (module-level instantiation sites live in `if __name__ == ...` blocks
+    # that are NOT in the IR functions list) AND the IR (annotation subscripts).
+    from frontend.monomorphize import apply_monomorphization
+    apply_monomorphization(ir_data, validated_ast)
     return imported_names
