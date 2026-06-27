@@ -45,3 +45,5 @@ projects/pycsl/message-queues/.bridge-cursor.json
 # metrics cron logs and lock files
 metrics/cron.log
 metrics/.cmmi-*.lock
+
+.claude/
