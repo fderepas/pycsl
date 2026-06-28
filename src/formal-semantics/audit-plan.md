@@ -1,5 +1,11 @@
 # PyCSL Formal Semantics — Security Audit Traceability Plan
 
+> **Last refreshed:** 2026-06-28 (Phase F of `28-self-annotate.md`).
+> This refresh adds the 12 typing constructs (TY0–TY3, §3.9), the IR
+> 1.2→1.4 fields (§3.10), and the Module2 Lark-free migration note
+> (§3.11). The Rocq/Lean proofs themselves were NOT modified — Phase F
+> refreshes the map, not the proof.
+
 ## 1. Purpose
 
 This document maps every user-facing feature of the PyCSL annotation language
@@ -123,7 +129,7 @@ zero axioms. The trust line moved to the cert construction site
 
 | Modules | Status | Rationale |
 |---------|--------|-----------|
-| 1-4 (Python frontend) | `\trusted reviewer:` | CC.6 out-of-scope — libcst + Lark formalization is a separate research project |
+| 1-4 (Python frontend) | `\trusted reviewer:` | CC.6 out-of-scope — libcst ingestion + the hand-written recursive-descent contract parser (Module2, migrated off Lark 2026-06-27 — see §3.11) + AST weaving + semantic analysis. The Module2 Lark→recursive-descent swap is a parser-engine change; the `#@` contract grammar surface is unchanged, so it has no formal-semantics impact. |
 | 5 (IR shape) | ✅ Verified | U.3 well-formedness correspondence + U.4 byte-diff against real corpus |
 | 6 (WhyML transpilation) | ✅ Verified | Q2 Sub-α per-construct + composition + state-aware byte-diff |
 | WP / VCG / soundness | ✅ Verified | `wp_gen_correct`, `vcg_sound`, `pycsl_soundness` — all proved with zero PyCSL-specific axioms in Rocq |
@@ -279,6 +285,90 @@ maps it to the formal model elements that cover it.
 | 3 | `--fun` filtering | ✅ (vacuous) | `vacuous-soundness.md` §F.3 — Soundness holds for verified subset |
 | 4 | `split_vc` | ✅ (vacuous) | `vacuous-soundness.md` §F.4 — Why3 hint; doesn't change proof obligations |
 
+### 3.9 Typing Constructs (annotations.md §12.4, §12.9–§12.17) — typing-engagement TY0–TY3
+
+The 12 typing constructs landed between 2026-06-06 and the audit refresh date
+(2026-06-28) — *after* the Rocq/Lean mechanisation's last touch. They are
+**out-of-model**, by design: each is either (a) a front-end normalization
+seam that desugars to *existing* IR/contract nodes, (b) a static-semantics
+syntactic check, or (c) a Module-6 emission refinement. None introduces a
+new `stmt` constructor or a new `wp` rule, so the soundness theorem's
+statement and proof are unaffected. The shared rationale: **these are
+lowering/emission features, not WP-calculus features** — the typing work
+extends the *surface* language and the *static* plane, never the core
+operational-semantics → WP → soundness chain that `pycsl_soundness`
+covers.
+
+| # | Feature (spec §) | Covered | Rocq artefact | Lean artefact | Justification (out-of-model) |
+|---|------------------|---------|---------------|---------------|------------------------------|
+| 1 | `Union`/`Optional`/`X \| Y` (§12.4, TY1) | ❌ Out-of-model | None | None | Desugared at the front-end normalization seam into a per-site synthesized `type_decl` of kind `variant` (reusing the §2.6 `#@ datatype` machinery). The variant type, its arms, and the per-arm C2/C3 injection/projection VCs are Why3-level — Module 6 `preamble.py` emits the `type _union_N = Arm_0 of int \| …` declaration, and Why3 discharges the match exhaustiveness (C9). No new `stmt` constructor; `wp` unchanged. The runtime shim (`src/pycsl_lib/typ/__init__.py.Union`) carries `#@ ensures \result == val` — identity, no validation (R1–R8, D4 no-blend). |
+| 2 | `Literal[v1, …, vn]` (§12.9, TY1) | ❌ Out-of-model | None | None | Desugared at the front-end normalization seam into a synthesized ground `requires`/`ensures` clause (`x = 1 \/ x = 2`). The WhyML parameter type stays the literal's base type; the synthesized clause reuses the EXISTING `requires`/`ensures` IR list and the EXISTING `BinOp(or)`/`==`/`Number`/`String`/`Bool`/`None` IR expression nodes. **No new IR node, no IR_VERSION bump, no new VC kind.** Narrowing (L2) and exhaustiveness (L3) are emergent from the standard path-condition + postcondition VCs on the existing `if x == v` lowering. The runtime `Literal(*args, val)` shim is identity (LR1–LR8, LD3). |
+| 3 | `Final[T]` (§12.10, TY1) | ❌ Out-of-model | None | None | Lowered at the front-end normalization seam to the degenerate single-attribute, single-writer form of HAPPY's no-write confinement. The write-policy is a **static-semantics check** in `core_ir_semantic._check_final` (a syntactic write-site walk over the IR body, NOT a VC). The annotation's type is the inner type `T` (F3 — no narrowing). The registry is plumbed as `program_ir["final_registry"]` (an additive module-level metadata key — see §3.10); Module 6 ignores it. **No new IR node, no IR_VERSION bump, no new VC kind.** Runtime `Final(x0, x1, val)` shim is identity (FR1–FR6, FD2). |
+| 4 | `-> NoReturn` (§12.11, TY1) | ❌ Out-of-model (AST: ⚠️ IR-level only) | None | None | Lowered at the front-end normalization seam to a `false` postcondition. `_build_function_ir` recognizes `NoReturn` and sets the IR flag `is_noreturn: true` (IR v1.3 — see §3.10); Module 6 emits `ensures { false }` (NR1). The `false` postcondition is a genuine proof obligation (the function must diverge or raise), discharged by Why3 — it reuses the existing `ensures` clause shape. `core_ir_semantic._check_noreturn` (NR2a body-supports-divergence) and `_check_noreturn_successors` (NR3 dead-code) are static-semantics checks, NOT VCs. The non-vacuity gate exempts declared-NoReturn functions (NR4). The formal AST does NOT model `is_noreturn` — it is an IR-emitter flag consumed by Module 6. |
+| 5 | `TypedDict` (§12.12, TY2) | ❌ Out-of-model | None | None | Lowered at the front-end normalization seam to a record `type_decl` with one field per declared key (reusing the §2.3 class-record machinery). Field access `p["x"]` lowers to a record-field read `p.x`; construction `{"x": 1, "y": 2}` lowers to a record literal. Why3's native record type-checking discharges the field-shape obligations (T5–T9). An optional `is_typeddict: True` field on the record `type_decl` gates Module 6's subscript/literal lowering paths (defaults `False` → byte-identical for non-TypedDict drivers). **No IR_VERSION bump.** `core_ir_semantic._check_typeddict_access` is a static-semantics warning. The runtime shim is identity (R1–R8, D4). |
+| 6 | `NamedTuple` (§12.13, TY2) | ❌ Out-of-model | None | None | Lowered at the front-end normalization seam to a record `type_decl` (reusing the TypedDict record seam). Named field access `p.x` and positional access `p[0]` both lower to record-field reads; positional construction `Point(1, 2)` reuses the existing Tier-A parametrized record construction (`_call_record_constructor`). Why3's native record type-checking discharges the field-shape + arity obligations (N4–N7). An optional `is_namedtuple: True` field gates Module 6's positional-subscript lowering path. **No IR_VERSION bump.** `core_ir_semantic._check_namedtuple_access` is a static-semantics check. The runtime shim is identity (R1–R9, D4). |
+| 7 | `@overload` (§12.14, TY2) | ❌ Out-of-model | None | None | An `@overload` family is lowered to a **guarded contract family** (O1–O6). Each stub synthesizes a guard `G_i = isinstance(p_i, T_i)` (reusing the existing `_handle_isinstance` → `(subtag <typeof p_i> <T_i tag>)` IR shape), and each `#@ ensures Q_i` becomes a guarded postcondition `ensures { G_i ==> Q_i }` attached to the single implementation. Reuses the EXISTING `contracts.ensures` list + the EXISTING `==>`/`isinstance` IR shapes. The stubs themselves are NOT emitted as functions (their `...` body is discarded — R1). **No `\trusted`; no IR_VERSION bump; no new VC kind.** The runtime `@overload` shim is identity (R1–R7). |
+| 8 | `Protocol` / `@runtime_checkable` / `#@ conforms_to` (§12.15, TY2) | ❌ Out-of-model | None | None | `class P(Protocol)` synthesizes a contract interface: a marker record (`is_protocol: True`, no fields) + each member emitted as an `abstract: True` function (a bodyless `val` with its contract — the refinement target, P1a). `C conforms to P` (declared via `#@ conforms_to P`) populates the EXISTING `overrides` IR list with `(C__m, P__m)` pairs; `--check-behavioral-subtyping` emits the per-method refinement goal `((pre_P -> pre_C) /\ (post_C -> post_P))` (P2/P4). NO `\trusted`; **no IR_VERSION bump** (reuses the existing `abstract` function flag + the existing `overrides` IR list + the existing refinement-goal emitter). The runtime `@runtime_checkable` shim is identity (R1–R7). |
+| 9 | `TypeVar` / `Generic` / PEP 695 `class C[T]` / `def f[T]()` (§12.16, TY3) | ❌ Out-of-model | None | None | Whole-module monomorphization. The `frontend/monomorphize.py` step-5 IR-resolution pass COLLECTs concrete instantiation sites (`C[int]()`, `x: C[int]`) and EMITs one name-mangled specialized WhyML `let`/`val` per `(generic, concrete-type)` pair with `T` substituted (`Stack` → `Stack_int`). The TypeVar bound (`T: B`) is an instantiation-time obligation (GT2). `ParamSpec`/`TypeVarTuple` are schema-only loud-fails (GT3). The IR carries the new optional `type_params` field (IR v1.4 — see §3.10); Module 6 reads it only via the monomorphization pass. **No new `stmt` constructor; `wp` unchanged.** The runtime `TypeVar("T", bound=B)` shim is identity (R1–R7). |
+| 10 | `Callable[[A1, …, An], R]` (§12.17, TY3) | ❌ Out-of-model | None | None | A `Callable[[A1, …, An], R]`-typed parameter lowers to a curried WhyML function-type parameter `<w1> -> ... -> <wr>` (C1). Module 5 encodes the arg-list + return type into the existing `symbol_table` value as `"callable:<a1>,...-><r>"` (a new tag VALUE, NOT a new IR field → **no IR_VERSION bump**). Module 6 emits the arrow type via `_param_type_str` + `_callable_whyml_arrow`. The call site `f(a1, …, an)` already lowers to WhyML application; Why3's typecheck discharges the arg-type match (C2) and the result type (C3). Scope limit (C5): only `int`/`bool`/`str`/`float` and record/variant names are admissible as arg/return types. The runtime `Callable[[...], R]` shim is identity (R1–R3). |
+| 11 | `typing.cast(T, v)` (TY1, cast-twoplane-spec) | ❌ Out-of-model | None | None | Not in §12 of `annotations.md` (documented in the typing-engagement `ty1/conformance-cast/` drivers + the `cast-twoplane-spec.md`). The shim `src/pycsl_lib/typ/__init__.py.cast` is a literal `def cast(typ, val): return val` with `#@ ensures \result == val` (CR1). Static gate CA1: `cast` carries NO static plane — the only thing the static plane can observe about `cast(int, 5)` is the identity postcondition. **No new IR node, no IR_VERSION bump, no new VC kind.** |
+| 12 | `Protocol` structural subtyping (§12.15, implicit) | ❌ Out-of-model (deliberate strictness) | None | None | PEP 544 conformance is structural/implicit; PyCSL's TY2 scope requires the explicit `#@ conforms_to` directive (divergence-by-strictness — an implicit structural search is outside the per-module verification model). See row 8 for the explicit-directive coverage. |
+
+**Net WP-calculus impact of the typing engagement:** ZERO new `stmt`
+constructors, ZERO new `wp` rules, ZERO changes to `pycsl_soundness`.
+Every typing construct is discharged either by Why3's native type-checker
+(record fields, variant arms, arrow types), by reusing an existing IR/VC
+shape (`requires`/`ensures`/`BinOp(or)`/`==`/`isinstance`/`overrides`),
+or by a static-semantics syntactic check in `core_ir_semantic`. The
+soundness theorem's hypothesis set is unchanged. The trust line is
+exactly where it was pre-typing: the formal model proves the WP engine,
+and the typing features are lowering/emission concerns above the trust
+seam documented in §2 (Modules 1-4 trusted-by-design; Module 5 IR shape
+verified by U.3/U.4; Module 6 transpilation verified by Q2 Sub-α).
+
+### 3.10 IR_VERSION 1.4 fields (docs/ir.md §2, §4, §5)
+
+IR_VERSION went 1.2 → 1.4 between the last formal-semantics touch
+(2026-06-06) and this refresh (2026-06-28). The bumps are **additive**
+(new optional fields, emitted only when the feature is used → byte-identical
+for unaffected drivers). None changes the `stmt`/`expr`/`contract_expr`
+inductive types the soundness theorem is quantified over.
+
+| # | Field | IR version | Carried on | Formal-model status | Justification |
+|---|-------|-----------|-----------|---------------------|---------------|
+| 1 | `is_noreturn: bool` | 1.3 | `FunctionIR` | ❌ Out-of-model | Consumed by Module 6 to emit `ensures { false }` (NR1 — reuses the existing `ensures` clause shape). The formal `func_spec` has no `is_noreturn` field; the `false` postcondition is a WhyML-level emission, not an AST-level construct. `core_ir_semantic._check_noreturn` (NR2a) and `_check_noreturn_successors` (NR3) are static-semantics checks, not VCs. See §3.9 row 4. |
+| 2 | `type_params: list` | 1.4 | `type_decls` + `FunctionIR` | ❌ Out-of-model | Consumed ONLY by `frontend/monomorphize.apply_monomorphization` (the step-5 IR-resolution pass), which COLLECTs concrete instantiations and EMITs name-mangled specialized copies with substituted contracts. The monomorphization output is plain non-generic `type_decls`/`functions` — the post-monomorphization IR has no `type_params`, so the formal model (which operates on the post-monomorphization IR) never sees it. See §3.9 row 9. |
+| 3 | `final_registry: list` | (no bump — additive top-level key) | `ProgramIR` (top-level) | ❌ Out-of-model | Plumbed as `program_ir["final_registry"]` (omitted when empty → byte-identical for Final-free modules). Consumed ONLY by `core_ir_semantic._check_final` (a static-semantics write-site walk, NOT a VC). Module 6 ignores it. The formal model has no class records at the function-body level; the `Final` write-policy is a syntactic check above the trust seam. See §3.9 row 3. |
+
+**Net IR-shape impact:** the new fields are consumed either by Module 6
+emission (then erased) or by the static-semantics checker (not in the WP
+chain). The Q4 IR-bridge (`Phase1b_IrToStmt.v`, `Phase1c_ValidateIr.v`)
+ingests the post-monomorphization, post-`final_registry` IR; the
+`pycsl_ir_json` inductive and `ir_to_stmt` do not model these fields
+because they have no `stmt`-level representation. Re-proving the IR
+correspondence for the new fields is a future formal-semantics effort
+(out of scope for Phase F — see §6).
+
+### 3.11 Module2 Lark-free migration (no formal-semantics impact)
+
+On 2026-06-27, `Module2_Parser.py` was migrated from a Lark-generated
+EBNF parser to a hand-written recursive-descent parser (commit
+`3adf9d47`). **This is a parser-engine swap, not a grammar change**: the
+`#@` contract grammar surface (the set of directives, clauses, and
+expression forms accepted) is unchanged. The migration therefore has
+**no formal-semantics impact**:
+
+- The formal model (`Phase1_AST.v` / `AST.lean`) models the *contract
+  AST*, not the parser that produces it. The AST inductive types are
+  unchanged.
+- The trust seam for Modules 1-4 remains `\trusted reviewer:` (§2 trust
+  boundary table) — the migration moves the trust from "Lark + the
+  Lark grammar" to "the hand-written recursive-descent parser", but
+  does not eliminate it. A formal proof of parser correctness is
+  CC.6 out-of-scope regardless of the parser engine.
+- The Q4 IR-bridge operates on the IR JSON (post-Module-5), so the
+  parser engine is below its input boundary.
+
 ---
 
 ## 4. Coverage Summary
@@ -320,8 +410,19 @@ those represented in the formal AST and given both operational semantics
 | **Termination** | \diverges, structural \variant, function \variant | The soundness theorem is partial correctness ("if terminates, then post holds"). Termination proofs are delegated to WhyML/Why3. |
 | **Trusted** | \trusted | Axiom introduction — inherently cannot be formally verified. |
 | **Pipeline** | multi-file, --deep, --fun, split_vc | Build-system orchestration, not WP semantics. |
+| **Typing constructs (TY0–TY3)** | Union, Optional, `X\|Y`, Literal, Final, NoReturn, TypedDict, NamedTuple, overload, Protocol/`@runtime_checkable`/`#@ conforms_to`, TypeVar/Generic/PEP 695, Callable, `typing.cast` (12 constructs — see §3.9) | Each is a front-end normalization seam (desugars to existing IR/contract nodes), a Module-6 emission refinement, or a static-semantics syntactic check. None introduces a new `stmt` constructor or `wp` rule. Discharged by Why3's native type-checker (records, variants, arrows), by reusing existing IR/VC shapes (`requires`/`ensures`/`BinOp(or)`/`==`/`isinstance`/`overrides`), or by `core_ir_semantic` checks. The runtime shims are identity (`#@ ensures \result == val`). **Zero WP-calculus impact.** |
+| **IR 1.4 fields** | `is_noreturn`, `type_params`, `final_registry` (see §3.10) | Additive IR fields consumed either by Module 6 emission (then erased) or by the static-semantics checker (not in the WP chain). The formal model operates on post-monomorphization IR; `type_params` is gone by then. Not modelled in `pycsl_ir_json` / `ir_to_stmt`. |
+| **Module2 parser engine** | Lark → hand-written recursive-descent (2026-06-27) | Parser-engine swap; the `#@` contract grammar surface is unchanged. The formal model captures the contract AST, not the parser that produces it. Trust seam for Modules 1-4 unchanged (CC.6 out-of-scope). See §3.11. |
 
 ### Quantitative coverage
+
+> **Note (2026-06-28 refresh):** the typing engagement (TY0–TY3, 12
+> constructs) and the IR 1.2→1.4 bumps landed *after* the last
+> formal-semantics touch (2026-06-06). The counts below reflect the
+> current feature set; the typing constructs and IR 1.4 fields are all
+> **out-of-model** (§3.9 / §3.10) — they are lowering/emission features,
+> not WP-calculus features, so the **effective WP-engine coverage
+> remains 100%**.
 
 - **Directives**: 10 function + 2 loop + 1 class + 6 program-point + 7 concurrent = **26 total**
   - Formally modelled: **5** (requires, ensures, assigns, loop invariant, loop variant)
@@ -330,6 +431,8 @@ those represented in the formal AST and given both operational semantics
 - **Operators**: 9 groups → **8 modelled** = **89%**
 - **Statements**: 15 total → **10 modelled** = **67%**
 - **Memory models**: 4 total → **1 modelled** (Hoare) = **25%**
+- **Typing constructs**: 12 total (§3.9) → **0 modelled** = **0%** — all are lowering/emission features above the WP trust seam
+- **IR 1.4 fields**: 3 total (`is_noreturn`, `type_params`, `final_registry`) → **0 modelled** = **0%** — all are IR-emitter / static-semantics fields, not AST-level
 
 **Effective coverage of the WP engine**: The 5 modelled directives +
 10 modelled statement types + 8 expression atoms + 8 operator groups
@@ -337,6 +440,9 @@ constitute the **core WP calculus**. All other features are either:
 (a) syntactic sugar lowered before WP, (b) WhyML-level axioms, or
 (c) orchestration. The formal proof therefore covers **100% of the
 WP calculus logic** — the component that generates proof obligations.
+The 12 typing constructs (§3.9) and 3 IR 1.4 fields (§3.10) are
+out-of-model by design: they extend the surface language and the
+static plane, never the core WP calculus.
 
 ---
 
@@ -410,6 +516,36 @@ The following tasks would produce the final audit-ready deliverable:
 - [ ] Add ghost variable support to the formal model
 - [ ] Model the typed memory model as an alternative state representation
 
+### Phase 5 — Formal-semantics coverage of the typing engagement (out of Phase F scope)
+
+Phase F refreshes the *map* (this document); re-proving the soundness
+theorem for the new IR fields is a separate formal-semantics effort
+(explicitly out of scope per `28-self-annotate.md` §6). The following
+are tracked here for future work:
+
+- [ ] Extend `pycsl_ir_json` (`Phase0_IrJson.v`) with `is_noreturn`,
+  `type_params`, `final_registry` (IR 1.3/1.4 fields — §3.10). Update
+  `validate_ir_correspondence` (`Phase1c_ValidateIr.v`) to check them.
+  These fields have no `stmt`-level representation, so the
+  `ir_to_stmt` bridge (`Phase1b_IrToStmt.v`) is unaffected — the
+  correspondence is at the IR-JSON metadata level only.
+- [ ] Model a `NoReturn` `func_spec` flag in `Phase1_AST.v` /
+  `AST.lean`, with a WP rule that emits the `false` postcondition
+  (NR1). Currently the `false` postcondition is emitted by Module 6
+  from the IR flag — modelling it at the AST level would let the WP
+  calculus reason about it directly. Low soundness impact (the `false`
+  postcondition is a genuine proof obligation either way).
+- [ ] Model the monomorphization pass (`frontend/monomorphize.py`) as a
+  `monomorphize : stmt → stmt` transformation with a
+  `monomorphize_correct` lemma (analogous to `desugar_correct`).
+  Currently the formal model operates on *post-monomorphization* IR,
+  so `type_params` is invisible to it by construction.
+- [ ] None of the 12 typing constructs (§3.9) requires AST extension —
+  each desugars to existing IR/contract nodes. The only formal-semantics
+  work would be a *desugaring correctness* lemma per construct (proving
+  the front-end normalization seam preserves semantics). This is
+  CC.6-adjacent (front-end formalization) and currently out-of-scope.
+
 ---
 
 ## 7. Trust Boundary Diagram
@@ -438,13 +574,24 @@ The following tasks would produce the final audit-ready deliverable:
 │  TRUSTED BY DESIGN   │  │  TRUSTED BY WhyML    │
 │                      │  │                      │
 │  • Python parser     │  │  • \valid, \separated│
-│  • Transpiler        │  │  • \is_sorted, \sum  │
-│  • Syntactic desugar │  │  • Memory model axiom│
-│  • Ghost insertion   │  │  • Why3 solvers      │
-│  • Multi-file import │  │  • mach.int overflow │
-│  • Class→record      │  │  • string.String     │
+│    (Module1-4;       │  │  • \is_sorted, \sum  │
+│    Module2 now       │  │  • Memory model axiom│
+│    hand-written      │  │  • Why3 solvers      │
+│    recursive-descent │  │  • mach.int overflow │
+│    — §3.11)          │  │  • string.String     │
+│  • Transpiler        │  │                      │
+│  • Syntactic desugar │  │                      │
+│  • Ghost insertion   │  │                      │
+│  • Multi-file import │  │                      │
+│  • Class→record      │  │                      │
 │  • Concurrency       │  │                      │
 │    reduction         │  │                      │
+│  • Typing constructs │  │                      │
+│    (TY0–TY3, §3.9 —  │  │                      │
+│    lowering/emission │  │                      │
+│    above the WP seam)│  │                      │
+│  • IR 1.4 fields     │  │                      │
+│    (§3.10)           │  │                      │
 └──────────────────────┘  └──────────────────────┘
 ```
 
