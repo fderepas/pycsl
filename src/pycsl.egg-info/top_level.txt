@@ -1,2 +1,8 @@
+lean2pycsl
 pycsl
+pycsl_bridge
+pycsl_emit
+pycsl_lib
+pycsl_lib_test
+rocq2pycsl
 skill2rag

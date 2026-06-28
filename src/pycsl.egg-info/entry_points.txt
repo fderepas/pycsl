@@ -1,3 +1,6 @@
 [console_scripts]
+lean2pycsl = lean2pycsl.cli:main
 pycsl = pycsl.pycsl:main
+pycsl-bridge = pycsl_bridge.cli:main
+rocq2pycsl = rocq2pycsl.cli:main
 skill2rag = skill2rag.cli:main
