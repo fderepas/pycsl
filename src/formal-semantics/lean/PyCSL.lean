@@ -27,5 +27,6 @@ import PyCSL.EmitSeq          -- Sub-α.5/.8/.12/.13: wSeq recursive composition
 import PyCSL.EmitBlocks       -- Sub-α.6/.7/.9/.10/.11: wIf/wWhile/wTryCatch/wGhostDecl/wGhostAssign + emitStmtFullComplete
 import PyCSL.EmitComposition  -- Sub-α.14: aggregate composition lemma covering all 22 Stmt constructors
 import PyCSL.SoundnessVerified
+import PyCSL.ClassInvariants   -- Phase 6: class invariant wrapping (Category A, derived)
 import PyCSL.Tests
 -- import PyCSL.Macros  -- Phase L5 bonus

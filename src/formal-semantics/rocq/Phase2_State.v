@@ -255,6 +255,8 @@ Fixpoint eval_z (st pre_st : state) (result : option val)
     end
   | CSlice _ _ _ => 0      (* array-valued expression — placeholder *)
   | CIn _ _ | CNotIn _ _ => 0  (* boolean — use eval_contract *)
+  (* Phase 6 — class invariant: predicate — use eval_contract *)
+  | CClassInvariant _ _ => 0
   (* Phase 2 additions *)
   | CResultSubscript i =>
     let n := eval_z st pre_st result i in
@@ -563,6 +565,10 @@ Fixpoint eval_contract (st pre_st : state) (result : option val)
   | CGFst _ | CGSnd _ | CGTrd _ | CGFth _ => True
   | CGStrConcat _ _ | CGStrLen _ | CGStrNth _ _ => True
   | CGMake _ _ | CGCopy _ | CGCopyRange _ _ _ => True
+  (* Phase 6 — class invariant: evaluate the predicate over current state.
+     The class_name tag is documentation-only in the Hoare model; the
+     Phase 7 record/heap instance will scope it to the named record. *)
+  | CClassInvariant _ inv => eval_contract st pre_st result inv
   end.
 
 (* Variant evaluation — produces Z for well-founded induction *)

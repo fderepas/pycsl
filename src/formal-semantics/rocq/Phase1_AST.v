@@ -167,10 +167,24 @@ Inductive contract_expr : Type :=
      the flat-array model (VArray (list Z)) there is no 2D structure, so
      \length2d(arr) returns length(arr). The rows/cols args from the pure
      AST (Length2D.base/rows/cols) are elided — no flat-model meaning. *)
-  | CValid     (ptr len : contract_expr)
-  | CSeparated (a b : contract_expr)
-  | CLength2d  (arr : ident)
-  | CValid2d   (ptr rows cols : contract_expr).
+   | CValid     (ptr len : contract_expr)
+   | CSeparated (a b : contract_expr)
+   | CLength2d  (arr : ident)
+   | CValid2d   (ptr rows cols : contract_expr)
+   (* Phase 6 — class invariants (Category A).
+      `CClassInvariant cls inv` is a contract-level construct: `cls` names
+      the class (a tag for the future heap/record model in Phase 7), and
+      `inv` is the invariant predicate (a contract_expr evaluated over the
+      current state). The Hoare model evaluates `CClassInvariant cls inv`
+      exactly as `inv`; the class tag is carried for documentation and for
+      the Phase 7 record-typed-state instance, where it will scope the
+      predicate to the named record's fields.
+
+      This is NOT a new Stmt: invariant-wrapping around method bodies is
+      modelled as a derived lemma (Phase6n_ClassInvariants.v) that
+      instantiates `pycsl_soundness` with the invariant as both the
+      assumed precondition and the ensured normal postcondition. *)
+   | CClassInvariant (class_name : ident) (invariant_ : contract_expr).
 
 (* Frame conditions *)
 Inductive frame_cond : Type :=

@@ -71,9 +71,10 @@ is no constructor for unannotated loops.
 ### 2.2 Explicit non-goals (deferred)
 
 - Typed/store memory models (`\valid`, `\separated`, heap reasoning)
-- Class invariants and record-valued state (field read/write exist as
-  flat synthesised-variable lookups; the class-invariant wrapping pattern
-  is not in the WP calculus)
+- Record-typed state for class invariants — the contract-level
+  `CClassInvariant cls inv` constructor and the derived preservation lemma
+  landed (Phase6n); the record-typed `state` instance that scopes the
+  invariant to the named record's fields is deferred to Phase 7
 - Lambda and higher-order functions
 - `acquires`/`releases` (real concurrency model; the Hoare-identity stubs
   `SCritical`/`SThreadEntry` exist but do not encode the monitor-invariant
@@ -421,21 +422,21 @@ Why3 ecosystem), or orchestration (build-system concerns).
 
 ---
 
-## 10. Remaining Features (11 of 36 Unmodelled)
+## 10. Remaining Features (10 of 36 Unmodelled)
 
 The 2026-05-19 snapshot of this file claimed "38 Unmodelled" features
-across six categories. As of the 2026-06-28 audit refresh, **25 of the 36
+across six categories. As of the 2026-06-28 audit refresh, **26 of the 36
 catalogued features are modelled** (the previous "38" was an off-by-two
 arithmetic slip; the six category lists sum to 7+4+10+7+4+4 = 36). This
 section re-classifies each feature honestly, with file:line citations
 against the current AST.
 
-### Category A — Add to core model (2 remaining, 5 done)
+### Category A — Add to core model (1 remaining, 6 done)
 
 | Feature | Status |
 |---------|--------|
 | `raises` (exceptions) | ✅ DONE — `SRaise`/`STryCatch` stmts (Phase1_AST.v:219-220; AST.lean:281-282); `OThrew`/`OFailed` outcomes (Phase3_SOS.v; SOS.lean:17-19); WP 5th continuation `Qe` (Phase4_WP.v:128-136; WP.lean:105-113); soundness cases (Phase5b_Soundness.v; Soundness.lean:41,68) |
-| `class invariant` | ❌ Class invariants remain a WhyML record-type feature; the core WP calculus operates on flat state |
+| `class invariant` | ✅ PARTIAL — modelled as a contract-level construct `CClassInvariant cls inv` (Phase1_AST.v:187; AST.lean:252) that evaluates the invariant predicate over the current state, plus a derived preservation lemma `class_invariant_preserved`/`classInvariantPreserved` (Phase6n_ClassInvariants.v; ClassInvariants.lean) instantiating `pycsl_soundness` with the invariant as both assumed precondition and ensured normal postcondition. The class tag `cls` is documentation-only in the Hoare model; record-typed state (scoping the invariant to the named record's fields) is deferred to Phase 7 (memory-model parameterisation). No new Stmt, no new SOS rule, 0 new axioms, 0 new Admitted/sorry. |
 | `self.field` | ✅ DONE — `EFieldGet`/`fieldGet` runtime ctor (Phase1_AST.v:37; AST.lean:24); `SFieldAssign`/`SFieldAugAssign` stmts (Phase1_AST.v:222-223; AST.lean:284-285). Field state is a flat synthesised-variable lookup (`obj ++ "." ++ f`); record-valued state is the deferred class-invariant work |
 | String literals | ✅ DONE — `CStringLit`/`.stringLit` (Phase1_AST.v:103; AST.lean:168); `evalZ` = 0, `evalContract` = `s ≠ ""` (Phase2_State.v; State.lean:201,237) |
 | `None` | ✅ DONE — `CNoneLit`/`.noneLit` (Phase1_AST.v:102; AST.lean:167); `evalZ` = 0, `evalContract` = False (Phase2_State.v; State.lean:200,236) |
@@ -515,10 +516,15 @@ ecosystem), or orchestration (build-system concerns).
 
 ### Remaining work
 
-The 11 unmodelled features cluster into three work-streams:
+The 10 unmodelled features cluster into three work-streams:
 
-1. **Class invariants + record-valued state** (Category A: `class invariant`,
-   Lambda) — requires record types in `state` and field-access semantics.
+1. **Class invariants + record-valued state** (Category A: record-typed
+   `state` for class invariants, Lambda) — the contract-level `CClassInvariant
+   cls inv` constructor and the derived preservation lemma
+   `class_invariant_preserved`/`classInvariantPreserved` landed (Phase6n;
+   see §10 Category A). What remains is record-typed state so the class tag
+   `cls` scopes the predicate to the named record's fields — deferred to
+   Phase 7.
 2. **2D-array library predicates** (Category C: `\valid`, `\separated`,
    `\length2d`, `\valid2d`) — blocked on the typed/store memory model.
 3. **Memory-model parameterisation** (Category D: typed, store, real

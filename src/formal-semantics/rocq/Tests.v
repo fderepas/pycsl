@@ -10,6 +10,7 @@ Require Import Phase3b_Desugar.
 Require Import Phase4_WP.
 Require Import Phase5a_WhileInv.
 Require Import Phase5b_Soundness.
+Require Import Phase6n_ClassInvariants.
 Open Scope Z_scope.
 
 Definition es_empty : exec_state := mk_exec_state nil.
@@ -201,3 +202,52 @@ Qed.
 Lemma test_cvalid2d_hoare_stub :
   forall st, eval_contract st st None (CValid2d (CVar "p") (CInt 3) (CInt 4)).
 Proof. intros. simpl. exact I. Qed.
+
+(* ===== Test 25: Phase 6 CClassInvariant evaluates its predicate ===== *)
+Lemma test_class_invariant_evaluates :
+  forall st cls inv,
+    eval_contract st st None (CClassInvariant cls inv) <->
+    eval_contract st st None inv.
+Proof. intros. simpl. reflexivity. Qed.
+
+(* ===== Test 26: Phase 6 invariant holds at entry ⟹ holds at exit (skip body) ===== *)
+(* The simplest preservation case: a method whose body is SSkip preserves
+   the invariant trivially, since the exit state equals the entry state. *)
+Lemma test_class_invariant_preserved_skip :
+  forall es cls inv,
+    invariant_holds es es cls inv ->
+    exec es SSkip (ONormal es) ->
+    invariant_holds es es cls inv.
+Proof.
+  intros es cls inv Hinv Hexec.
+  apply (class_invariant_preserved es es es SSkip cls inv
+           (fun _ => True) (fun _ => True) (fun _ => True)
+           (fun _ _ => True) Hinv).
+  - simpl. exact Hinv.
+  - exact Hexec.
+Qed.
+
+(* ===== Test 27: Phase 6 invariant preservation via method_preserves_invariant ===== *)
+(* Same shape as Test 26 but routed through the method-body specialisation. *)
+Lemma test_method_preserves_invariant_skip :
+  forall es cls inv,
+    invariant_holds es es cls inv ->
+    wp SSkip (fun es' => invariant_holds es' es cls inv)
+            (fun _ => True) (fun _ => True) (fun _ => True)
+            (fun _ _ => True) es es ->
+    exec es SSkip (ONormal es) ->
+    invariant_holds es es cls inv.
+Proof.
+  intros es cls inv Hinv Hwp Hexec.
+  apply (method_preserves_invariant es es es SSkip cls inv Hinv Hwp Hexec).
+Qed.
+
+(* ===== Test 28: Phase 6 CClassInvariant with CBoolLit true holds ===== *)
+Lemma test_class_invariant_boollit_true (st : state) :
+  eval_contract st st None (CClassInvariant "Counter" (CBoolLit true)).
+Proof. simpl. reflexivity. Qed.
+
+(* ===== Test 29: Phase 6 CClassInvariant with CBoolLit false does not hold ===== *)
+Lemma test_class_invariant_boollit_false (st : state) :
+  ~ eval_contract st st None (CClassInvariant "Counter" (CBoolLit false)).
+Proof. simpl. discriminate. Qed.

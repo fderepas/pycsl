@@ -17,6 +17,7 @@ import PyCSL.EmitArraySet
 import PyCSL.EmitSeq
 import PyCSL.EmitBlocks
 import PyCSL.EmitComposition
+import PyCSL.ClassInvariants
 
 def esEmpty : ExecState := mkExecState []
 
@@ -186,6 +187,50 @@ theorem test_clength2d_flat (st : List (Ident × Val)) (a : List Int)
 -- Test 24: Phase 4 CValid2d is vacuously true (Hoare stub)
 theorem test_cvalid2d_hoare_stub (st : List (Ident × Val)) :
     evalContract st st none (.cValid2d (.var "p") (.int 3) (.int 4)) := by
+  simp [evalContract]
+
+-- ===== Test 25: Phase 6 CClassInvariant evaluates its predicate =====
+theorem test_class_invariant_evaluates (st : List (Ident × Val))
+    (cls : Ident) (inv : ContractExpr) :
+    evalContract st st none (.cClassInvariant cls inv) ↔
+    evalContract st st none inv := by
+  rfl
+
+-- ===== Test 26: Phase 6 invariant holds at entry ⟹ holds at exit (skip body) =====
+-- The simplest preservation case: a method whose body is `.skip` preserves
+-- the invariant trivially, since the exit state equals the entry state.
+theorem test_class_invariant_preserved_skip (es : ExecState)
+    (cls : Ident) (inv : ContractExpr)
+    (hInv : invariantHolds es es cls inv)
+    (hExec : Exec es .skip (.normal es)) :
+    invariantHolds es es cls inv := by
+  have hWp : wp .skip (fun es' => invariantHolds es' es cls inv)
+                     (fun _ => True) (fun _ => True) (fun _ => True)
+                     (fun _ _ => True) es es := hInv
+  exact classInvariantPreserved es es es .skip cls inv
+    (fun _ => True) (fun _ => True) (fun _ => True) (fun _ _ => True)
+    hInv hWp hExec
+
+-- ===== Test 27: Phase 6 invariant preservation via methodPreservesInvariant =====
+-- Same shape as Test 26 but routed through the method-body specialisation.
+theorem test_method_preserves_invariant_skip (es : ExecState)
+    (cls : Ident) (inv : ContractExpr)
+    (hInv : invariantHolds es es cls inv)
+    (hWp : wp .skip (fun es' => invariantHolds es' es cls inv)
+                (fun _ => True) (fun _ => True) (fun _ => True)
+                (fun _ _ => True) es es)
+    (hExec : Exec es .skip (.normal es)) :
+    invariantHolds es es cls inv :=
+  methodPreservesInvariant es es es .skip cls inv hInv hWp hExec
+
+-- ===== Test 28: Phase 6 CClassInvariant with boolLit true holds =====
+theorem test_class_invariant_boollit_true (st : List (Ident × Val)) :
+    evalContract st st none (.cClassInvariant "Counter" (.boolLit true)) := by
+  simp [evalContract]
+
+-- ===== Test 29: Phase 6 CClassInvariant with boolLit false does not hold =====
+theorem test_class_invariant_boollit_false (st : List (Ident × Val)) :
+    ¬ evalContract st st none (.cClassInvariant "Counter" (.boolLit false)) := by
   simp [evalContract]
 
 -- ===== Axiom audit =====

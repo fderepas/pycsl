@@ -236,6 +236,20 @@ inductive ContractExpr where
   | cSeparated (a b : ContractExpr)
   | cLength2d  (arr : Ident)
   | cValid2d   (ptr rows cols : ContractExpr)
+  /-- Phase 6 — class invariants (Category A).
+      `cClassInvariant cls inv` is a contract-level construct: `cls` names
+      the class (a tag for the future heap/record model in Phase 7), and
+      `inv` is the invariant predicate (a ContractExpr evaluated over the
+      current state). The Hoare model evaluates `cClassInvariant cls inv`
+      exactly as `inv`; the class tag is carried for documentation and for
+      the Phase 7 record-typed-state instance, where it will scope the
+      predicate to the named record's fields.
+
+      This is NOT a new Stmt: invariant-wrapping around method bodies is
+      modelled as a derived lemma (ClassInvariants.lean) that instantiates
+      `pycsl_soundness` with the invariant as both the assumed precondition
+      and the ensured normal postcondition. -/
+  | cClassInvariant (className : Ident) (inv : ContractExpr)
   deriving Repr
 
 inductive FrameCond where

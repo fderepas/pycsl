@@ -270,8 +270,12 @@ mutual
     | .cValid _ _ => True
     | .cSeparated _ _ => True
     | .cValid2d _ _ _ => True
+    -- Phase 6 — class invariant: evaluate the predicate over current state.
+    -- The className tag is documentation-only in the Hoare model; the
+    -- Phase 7 record/heap instance will scope it to the named record.
+    | .cClassInvariant _ inv => evalContract st preSt result inv
     | _ => True
-end
+    end
 
 def evalVariant (st preSt : State) (e : ContractExpr) : Int :=
   evalZ st preSt none e
