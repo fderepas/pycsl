@@ -1,8 +1,8 @@
 from __future__ import annotations
-#@ proof rocq Phase5b_Soundness.pycsl_soundness
-#@ proof lean PyCSL.Soundness.pycsl_soundness
+
 import json
 from typing import Any, Dict, List, Optional, Set
+
 from module6_whyml.identifiers import whyml_ident
 from module6_whyml.scc import sort_functions_by_scc
 from module6_whyml.auto_trust import AutoTrustMixin
@@ -12,18 +12,38 @@ from module6_whyml.expressions import ExpressionEmissionMixin
 from module6_whyml.statements import StatementEmissionMixin
 from module6_whyml.preamble import PreambleEmissionMixin
 from module6_whyml.functions import FunctionEmissionMixin
-""  # pycsl
-class Module6_WhyMLTranspiler(ExpressionEmissionMixin, StatementEmissionMixin, PreambleEmissionMixin, FunctionEmissionMixin, TypeInferenceMixin, AutoTrustMixin, AbstractOpsMixin):
-    'Reads the JSON IR and transpiles it into valid WhyML (.mlw) syntax.'
+
+
+class Module6_WhyMLTranspiler(
+    ExpressionEmissionMixin,
+    StatementEmissionMixin,
+    PreambleEmissionMixin,
+    FunctionEmissionMixin,
+    TypeInferenceMixin,
+    AutoTrustMixin,
+    AbstractOpsMixin,
+):
+    """Reads the JSON IR and transpiles it into valid WhyML (.mlw) syntax."""
+
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __init__(self, json_ir: str, memory_model: str = "hoare",
                  strict_no_exception_propagation: bool = False,
-                 strict_hash_eq_consistency: bool = False) -> None:
+                 strict_hash_eq_consistency: bool = False,
+                 check_behavioral_subtyping: bool = False) -> None:
         self.ir = json.loads(json_ir)
-        self.memory_model = memory_model   # "hoare" | "typed" | "store"
+        self.memory_model = memory_model   # "hoare" | "typed" | "store" | "concurrent"
+        # The one distinction every emission site actually makes: value-semantic arrays
+        # (hoare/concurrent — arrays are values, no aliasing) vs a global heap
+        # (typed/store — arrays are locations into `int_mem`/`store`). Named once here so
+        # the grouping lives in a single place instead of `memory_model in (...)` at ~24
+        # scattered sites. (typed-vs-store, where it matters, is the heap variable name below.)
+        self._value_semantic = memory_model in ("hoare", "concurrent")
+        # Layer D — emit Liskov refinement goals for overriding methods
+        # (pre_base ⇒ pre_sub, post_sub ⇒ post_base). Default off.
+        self.check_behavioral_subtyping = bool(check_behavioral_subtyping)
         # Workplan PR 4 — strict mode flips the ambient default at
         # call sites: unannotated callees produce a hard VC under any
         # caller that has `no_exception` set. Default off.
@@ -35,9 +55,31 @@ class Module6_WhyMLTranspiler(ExpressionEmissionMixin, StatementEmissionMixin, P
         self.strict_hash_eq_consistency = bool(strict_hash_eq_consistency)
         self._abstract_ops: Dict[str, str] = {}  # Abstract val declarations: name → full decl string
         self._record_types: Dict[str, Any] = {}  # class_name_lower → {fields: [...], defaults: {...}}
+        # sum-types: variant type name → {whyml_name, constructors}; constructor name →
+        # {type, whyml_type, arity, payload}. Drive param typing, construction, and match.
+        self._variant_types: Dict[str, Any] = {}
+        self._constructors: Dict[str, Any] = {}
+        self._class_constants: Dict[str, Dict[str, int]] = {}  # class_name_lower → {CONST: int literal}
+        # module-constants-plan: module-level int constants (`K_IHDR = 0`) →
+        # resolved to their literal in `_handle_var_expr` (body and contract).
+        self._module_constants: Dict[str, int] = self.ir.get("module_constants", {})
+        # gap-9: signatures of imported `#@ inductive` predicates whose RULE was
+        # NOT crossed (kept opaque to avoid an E-matching blow-up). Lets the
+        # `_emit_contract_logic_symbol` fallback declare the opaque predicate
+        # with the correct param types (e.g. `name_present (array int) string`).
+        self._imported_inductive_sigs: Dict[str, str] = self.ir.get(
+            "_imported_inductive_sigs", {})
+        # inline.md Phase 1: module-level global object instances. `name → class` (orig
+        # case), available in EVERY function so `g.field` resolves to the global record's
+        # field (analogous to `_current_record_var_classes`, but module-scoped).
+        self._module_global_classes: Dict[str, str] = {
+            g["name"]: g["class"] for g in self.ir.get("module_globals", [])}
+        self._ambiguous_fields: Set[str] = set()  # field names shared by >1 record → qualified labels
+        self._emit_record_ctx: Optional[str] = None  # record name (lower) during invariant/witness emission
         self._shared_var_names: Set[str] = set()  # Module-level shared variable names (concurrent model)
         self._havoc_counter: int = 0             # Counter for unique havoc variable names
         self._in_spec: bool = False              # True when emitting contracts (no div-by-zero VCs)
+        self._emitting_val_contract: bool = False  # 11-0632-spec-8 Part 2: True only while emitting a bodyless val/trusted-stub contract
         # Per-function state — reset per function via `_reset_function_state`;
         # initialised here so they're always defined and accessing them
         # before the first reset is safe.
@@ -49,6 +91,15 @@ class Module6_WhyMLTranspiler(ExpressionEmissionMixin, StatementEmissionMixin, P
         self._array_locals: Set[str] = set()
         self._dict_locals: Set[str] = set()
         self._record_locals: Set[str] = set()
+        # scc3.md Phase A: quantifier-bound record vars (var → original class name),
+        # registered for the duration of a `\forall o: C; …` body so `o.field` lowers
+        # to the record field instead of an abstract getter. Nesting-safe (save/restore).
+        self._quant_record_binders: Dict[str, str] = {}
+        # body-gate gap-5: SCALAR (int/bool/…) quantifier binders, registered for the
+        # duration of a `\forall k; …` body so `k` reads BARE even when a same-named
+        # loop/local var is in `local_refs` (e.g. sys_unlink's `for k in …` loop var
+        # shadowed by the uniqueness `#@ assert \forall k`). Else `k` lowered to `!k`.
+        self._quant_scalar_binders: Set[str] = set()
         self._lambda_locals: Set[str] = set()
         self._current_self_type: Optional[str] = None
         self._func_return_type: str = "int"
@@ -62,6 +113,28 @@ class Module6_WhyMLTranspiler(ExpressionEmissionMixin, StatementEmissionMixin, P
         self._module_func_names: Set[str] = set()
         self._module_method_return_types: Dict[str, str] = {}
         self._module_method_param_types: Dict[str, List[str]] = {}
+        # 10-1732-gap (Gaps 2/3): callee return-annotation + by-name param WhyML types.
+        self._module_method_return_annotations: Dict[str, str] = {}
+        self._module_method_param_whyml_types: Dict[str, Dict[str, str]] = {}
+        # 1111-spec R7: per-function formal-param order + positional defaults.
+        self._module_method_formal_params: Dict[str, List[str]] = {}
+        self._module_method_param_defaults: Dict[str, Dict[str, Any]] = {}
+        self._module_method_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
+        self._module_method_param_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
+        self._module_method_field_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
+        # gap-9 (A2c+): ensures over \result + self-fields + params (params renamed).
+        self._module_method_field_param_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
+        # gap7-spec-rev2: void/mutating record-method support
+        self._module_method_writes: Dict[str, List[str]] = {}
+        self._module_method_field_old_ensures: Dict[str, List[Dict[str, Any]]] = {}
+        # void-mutator NON-QUANTIFIED write postconditions: self-field + params (no \result,
+        # no \old, no quantifier) — the _zero_entry/_write_entry write-posts the six maps drop.
+        # Safe to expose (no quantifier → no trigger → no E-matching poison).
+        self._module_method_field_param_post_ensures: Dict[str, List[Dict[str, Any]]] = {}
+        # M4: QUANTIFIED self-field frame ensures, opt-in per `#@ propagate_frame` callee
+        # (e.g. _zero_entry). Lowered with a specific Call-trigger so they don't poison.
+        self._module_method_field_param_frame_ensures: Dict[str, List[Dict[str, Any]]] = {}
+        self._frame_trigger_active: bool = False
         self._auto_trusted_array_returns: List[str] = []
         self._auto_trusted_tuple_returns: List[str] = []
         self._auto_trusted_map_returns: List[str] = []
@@ -77,11 +150,11 @@ class Module6_WhyMLTranspiler(ExpressionEmissionMixin, StatementEmissionMixin, P
         self._module_func_raises: Dict[str, List[Dict[str, Any]]] = {}
         self._module_func_param_names: Dict[str, List[str]] = {}
 
+    @property
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    @property
     def _heap_var(self) -> str:
         """Returns the name of the mutable heap variable for the current model."""
         if self.memory_model == "typed":
@@ -287,7 +360,70 @@ class Module6_WhyMLTranspiler(ExpressionEmissionMixin, StatementEmissionMixin, P
             parts.append(f"assert {{ {expr} }};")
         return " ".join(parts)
 
-    _EXPR_DISPATCH: int = {'BinOp': '_handle_binop', 'Call': '_handle_call_expr', 'Subscript': '_handle_subscript', 'Attribute': '_handle_attribute_expr', 'FString': '_handle_fstring_expr', 'UnaryOp': '_handle_unaryop_expr', 'Old': '_handle_old_expr', 'At': '_handle_at_expr', 'IfExpr': '_handle_ifexpr_expr', 'NamedExpr': '_handle_named_expr_expr', 'SliceAccess': '_handle_slice_access_expr', 'ArrayLen': '_handle_arraylen_expr', 'Valid': '_handle_valid_expr', 'Separated': '_handle_separated_expr', 'Length2D': '_handle_length2d_expr', 'Valid2D': '_handle_valid2d_expr', 'IsSorted': '_handle_issorted_expr', 'Sum': '_handle_sum_node_expr', 'Lambda': '_handle_lambda_expr', 'SetLit': '_handle_setlit_expr', 'MkTuple': '_handle_mktuple_expr', 'FstExpr': '_handle_fst_expr', 'SndExpr': '_handle_snd_expr', 'ProjExpr': '_handle_proj_expr', 'StrConcat': '_handle_strconcat_expr', 'StrLength': '_handle_str_length_expr', 'StrSub': '_handle_str_sub_expr', 'GhostCopy': '_handle_ghost_copy_expr', 'GhostCopyRange': '_handle_ghost_copy_range_expr', 'GhostMake': '_handle_ghost_make_expr', 'MapEmpty': '_handle_map_empty_expr', 'MapGet': '_handle_map_get_expr', 'MapSet': '_handle_map_set_expr', 'MapEq': '_handle_map_eq_expr', 'HasKey': '_handle_has_key_expr', 'MapRemove': '_handle_map_remove_expr', 'SetEmpty': '_handle_set_empty_expr', 'SetAdd': '_handle_set_add_expr', 'SetRemove': '_handle_set_remove_expr', 'SetMem': '_handle_set_mem_expr', 'SetUnion': '_handle_set_union_expr', 'SetInter': '_handle_set_inter_expr', 'SetDiff': '_handle_set_diff_expr', 'SetCard': '_handle_set_card_expr', 'SetSubset': '_handle_set_subset_expr', 'SetEq': '_handle_set_eq_expr', 'Nil': '_handle_nil_expr', 'Cons': '_handle_cons_expr', 'Hd': '_handle_hd_expr', 'Tl': '_handle_tl_expr', 'ListLength': '_handle_list_length_expr', 'Nth': '_handle_nth_expr', 'Mem': '_handle_mem_expr', 'Append': '_handle_append_expr'}
+    _EXPR_DISPATCH: Dict[str, str] = {
+        "BinOp":        "_handle_binop",
+        "Call":         "_handle_call_expr",
+        "Subscript":    "_handle_subscript",
+        "Attribute":    "_handle_attribute_expr",
+        "FString":      "_handle_fstring_expr",
+        "UnaryOp":      "_handle_unaryop_expr",
+        "Old":          "_handle_old_expr",
+        "At":           "_handle_at_expr",
+        "IfExpr":       "_handle_ifexpr_expr",
+        "NamedExpr":    "_handle_named_expr_expr",
+        "SliceAccess":  "_handle_slice_access_expr",
+        "ArrayLen":     "_handle_arraylen_expr",
+        "InGlobals":    "_handle_in_globals_expr",
+        "InScope":      "_handle_in_scope_expr",
+        "Valid":        "_handle_valid_expr",
+        "Separated":    "_handle_separated_expr",
+        "Length2D":     "_handle_length2d_expr",
+        "Valid2D":      "_handle_valid2d_expr",
+        "IsSorted":     "_handle_issorted_expr",
+        "ArrayEq":      "_handle_arrayeq_expr",
+        "Permutation":  "_handle_permutation_expr",
+        "Sum":          "_handle_sum_node_expr",
+        "Lambda":       "_handle_lambda_expr",
+        "SetLit":       "_handle_setlit_expr",
+        # Ghost expression types
+        "MkTuple":      "_handle_mktuple_expr",
+        "FstExpr":      "_handle_fst_expr",
+        "SndExpr":      "_handle_snd_expr",
+        "ProjExpr":     "_handle_proj_expr",
+        "CtorTest":     "_handle_ctor_test_expr",
+        "CtorPayload":  "_handle_ctor_payload_expr",
+        "StrConcat":    "_handle_strconcat_expr",
+        "StrLength":    "_handle_str_length_expr",
+        "StrSub":       "_handle_str_sub_expr",
+        "GhostCopy":      "_handle_ghost_copy_expr",
+        "GhostCopyRange": "_handle_ghost_copy_range_expr",
+        "GhostMake":      "_handle_ghost_make_expr",
+        "MapEmpty":     "_handle_map_empty_expr",
+        "MapGet":       "_handle_map_get_expr",
+        "MapSet":       "_handle_map_set_expr",
+        "MapEq":        "_handle_map_eq_expr",
+        "HasKey":       "_handle_has_key_expr",
+        "MapRemove":    "_handle_map_remove_expr",
+        "SetEmpty":     "_handle_set_empty_expr",
+        "SetAdd":       "_handle_set_add_expr",
+        "SetRemove":    "_handle_set_remove_expr",
+        "SetMem":       "_handle_set_mem_expr",
+        "SetUnion":     "_handle_set_union_expr",
+        "SetInter":     "_handle_set_inter_expr",
+        "SetDiff":      "_handle_set_diff_expr",
+        "SetCard":      "_handle_set_card_expr",
+        "SetSubset":    "_handle_set_subset_expr",
+        "SetEq":        "_handle_set_eq_expr",
+        "Nil":          "_handle_nil_expr",
+        "Cons":         "_handle_cons_expr",
+        "Hd":           "_handle_hd_expr",
+        "Tl":           "_handle_tl_expr",
+        "ListLength":   "_handle_list_length_expr",
+        "Nth":          "_handle_nth_expr",
+        "Mem":          "_handle_mem_expr",
+        "Append":       "_handle_append_expr",
+    }
+
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -300,26 +436,582 @@ class Module6_WhyMLTranspiler(ExpressionEmissionMixin, StatementEmissionMixin, P
 
         self._all_record_fields = self._collect_record_fields(type_decls)
 
+        # module-emission.md: OPT-IN axiom isolation. If a function carries
+        # `#@ verify_module <name>` AND is emitted here as a REAL `let` body (i.e. it is
+        # verified in THIS unit — not an imported/`\trusted` stub, and not inlined away),
+        # emit each named group into its OWN top-level Why3 `module` (shared infra
+        # re-declared, per-module axiom selection) so the cited `#@ proof` axioms of one
+        # group are NOT in scope for another's goals. The split's whole purpose is to
+        # isolate the SMT context of a function's BODY VC; an importer that pulls the
+        # tagged function in as a trusted stub gains nothing from the split (it never
+        # proves that body) and the cross-module `clone`-refinement has no real `let` to
+        # discharge it — so for an importer the tag is inert and we take the flat path
+        # (which keeps every importer byte-identical). Default (no real-body tag) → the
+        # single flat `module PyCSL_Program`, byte-identical. (Why3 `scope` does NOT
+        # isolate axioms — a scope is a namespace; only separate `module`s do; spike
+        # `getting-better/20260620-0640-scope-emission-milestone0-YES.md`.)
+        if any(f.get("verify_module") and not f.get("trusted") and not f.get("abstract")
+               for f in functions):
+            return self._transpile_modular(functions, type_decls)
+
         needs = self._scan_preamble_needs(functions, all_bodies)
         out = self._emit_preamble(needs)
         out += self._emit_shared_state()
 
+        # gap-12 Wall A part 1: populate `_axiom_logic_funcs` BEFORE
+        # `_emit_type_decls` so a `#@ class invariant` that applies an axiom
+        # function (`slot_inode`/`slot_name`/`dir_lookup`) lowers it to the raw
+        # bound application `(f args)` instead of an unbound arity-suffixed
+        # abstract op (`slot_inode_3`). Idempotent (re-run at L407+ and inside
+        # `_emit_preamble_axioms`), so a file whose invariants don't apply an
+        # axiom func is unaffected → byte-identical.
+        self._precompute_axiom_logic_funcs(self.ir)
+
+        # gap-12 Wall A part 2: when a class invariant references an axiom
+        # function, emit the matching `val function` decls BEFORE the record type
+        # that names them (else the `invariant { ... slot_inode ... }` references
+        # symbols declared later in the file → unbound). GATED by
+        # `_class_inv_refs_axiom_func` (mirroring the gap-9 conditional reorder):
+        # False for the whole existing corpus (os's 13 class invariants reference
+        # only `\length`/`self.disk[i]`/scalars), so nothing reorders and the
+        # type-decl emission stays byte-identical. The dedup via
+        # `_axiom_emitted_decls` keeps the later `_emit_preamble_axioms` /
+        # `_emit_uncited_axiom_func_decls` from re-declaring these symbols.
+        if self._class_inv_refs_axiom_func(self.ir):
+            out += self._emit_uncited_axiom_func_decls()
+            # gap-13 Wall E/M: a class-invariant axiom (an axiom that CONSTRAINS
+            # the axiom-func symbols the invariant applies — e.g.
+            # `UnixFs.Dir.empty_disk_slots_dead` / `block5_decode_frame`) must be
+            # in scope at the RECORD's `by`-witness VC and at every method's
+            # type-invariant VC. A Why3 `axiom` only constrains its symbols from
+            # its point of declaration ONWARD, so emitting it after the record (the
+            # historical position) leaves the establishment VC unable to see it
+            # (gap-13: `unixinodefilesystem'vc` Unknown). Hoist those axioms HERE,
+            # before the record, and record them so `_emit_preamble_axioms` does
+            # not re-emit them. Same `_class_inv_refs_axiom_func` gate → False for
+            # the whole existing corpus, so emission stays byte-identical there.
+            out += self._emit_class_inv_axioms(self.ir)
+
         type_lines, declared_types = self._emit_type_decls(type_decls)
         out += type_lines
+
+        # inductive.md: `#@ inductive` predicates emit AFTER datatypes (their rules
+        # reference constructors) and BEFORE axioms/functions (which may mention the
+        # predicate in contracts). Empty for non-inductive modules → no change.
+        # Register the predicate names FIRST so the rule clauses' own `p(args)`
+        # applications lower to `(p args)` (not an abstract op).
+        self._inductive_preds = (
+            {ind["name"] for ind in self.ir.get("inductive_decls", [])}
+            | {m["name"] for ind in self.ir.get("inductive_decls", [])
+               for m in ind.get("members", [])})   # P2: mutual `with` group members
+        # Precompute the axiom-backing logic-function names (e.g.
+        # `slot_inode`/`slot_name`/`dir_lookup`) BEFORE inductive emission, so a
+        # `#@ inductive` rule that applies one of them (the `present` /
+        # `name_present` body) lowers to the raw bound application, not an
+        # abstract op.
+        self._precompute_axiom_logic_funcs(self.ir)
+
+        # gap-9: an `#@ inductive` rule may reference an axiom-backing logic
+        # function (`dir_lookup`) AND/OR a module-level global (`_filesystem`),
+        # which must be in scope BEFORE the inductive block. ONLY in that case
+        # do we reorder to axioms → globals → inductive; otherwise keep the
+        # historical inductive → axioms → globals order so every existing
+        # inductive/axiom file emits byte-identically.
+        if self._inductive_refs_global_or_axiom_func(self.ir):
+            out += self._emit_preamble_axioms(self.ir)
+            out += self._emit_uncited_axiom_func_decls()
+            out += self._emit_module_globals()
+            out += self._emit_inductive_decls(self.ir.get("inductive_decls", []))
+        else:
+            out += self._emit_inductive_decls(self.ir.get("inductive_decls", []))
+            # `#@ proof` axioms go after type declarations so an axiom may
+            # quantify over a user `#@ datatype` (A4 json round-trip); also sets
+            # `self._axiom_emitted_decls` for the abstract-val dedup.
+            out += self._emit_preamble_axioms(self.ir)
+            out += self._emit_uncited_axiom_func_decls()
+            # inline.md Phase 1: module-level global object instances. Emitted
+            # AFTER the record type declarations and BEFORE functions.
+            out += self._emit_module_globals()
 
         self._emit_opaque_class_aliases(functions, out, declared_types)
 
         self._module_func_names = {whyml_ident(func["name"]) for func in functions}
-        self._module_method_return_types = self._build_method_return_type_map(functions)
-        self._module_method_param_types = self._build_method_param_types_map(functions)
+        # allocator-frame plan §2.7: methods that OPTED IN to concrete sibling-calls via
+        # `#@ sibling_concrete`. A `self.<m>()` call to one of these lowers to a CONCRETE
+        # call (the callee's real contract + type-invariant guarantee reaches the caller);
+        # every other self-call keeps the default abstract-`val` stub. Default-empty -> no
+        # module without the marker is affected (byte-identical).
+        self._sibling_concrete_methods = {whyml_ident(func["name"]) for func in functions
+                                          if func.get("sibling_concrete")}
+        # Stateful composition: the set of flattened provider methods (`<composer>__<m>`,
+        # from `_apply_composition`). A `self.<m>()` call inside the composer resolves to
+        # the concrete provider (passing `self`) instead of an abstract `val`, so the
+        # provider's state-mutating contract reaches the composer. Empty for non-mixin
+        # modules → self-calls keep their abstract-val lowering → byte-identical.
+        self._composed_provider_methods = set(self.ir.get("composed_provider_methods", []))
+        # inductive.md: declared inductive-predicate names, so a `p(args)` application
+        # in a contract / rule lowers to `(p args)` (not an arity-suffixed abstract op).
+        self._inductive_preds = (
+            {ind["name"] for ind in self.ir.get("inductive_decls", [])}
+            | {m["name"] for ind in self.ir.get("inductive_decls", [])
+               for m in ind.get("members", [])})   # P2: mutual `with` group members
+        # Mixin verify-once (S1): synthesize a pseudo-function per declared
+        # `depends_method`/`requires_method` so the SAME contract-propagation maps
+        # that wire `self.<m>(…)` to a sibling's `ensures` also carry the DECLARED
+        # interface's contract. The pseudo-funcs feed only the lookup maps below —
+        # never the emission list — so the abstract `self.<dep>` val picks up the
+        # dependency's `ensures` (e.g. `result >= 0`) and the provider verifies once
+        # against it. Empty for non-mixin modules → maps unchanged → byte-identical.
+        funcs_for_maps = functions + self._mixin_dep_pseudo_functions(functions)
+        self._module_method_return_types = self._build_method_return_type_map(funcs_for_maps)
+        self._module_method_param_types = self._build_method_param_types_map(funcs_for_maps)
+        # 1111-spec R7: formal-param order + positional defaults, for call-site
+        # default fill of cross-module / module-function calls.
+        self._module_method_formal_params = {
+            f["name"]: list(f.get("formal_params", [])) for f in funcs_for_maps}
+        self._module_method_param_defaults = {
+            f["name"]: dict(f.get("param_defaults", {})) for f in funcs_for_maps}
+        # 10-1732-gap (Gap 3): by-name {param → WhyML type} for call-site default fill,
+        # so an omitted `None`-defaulted non-int param is filled at its faithful zero
+        # (`""`/`0.0`) instead of int `0`. Built from the SAME `funcs_for_maps` (incl.
+        # injected imported `\trusted` stubs), so imported callees are covered.
+        self._module_method_param_whyml_types = \
+            self._build_method_param_whyml_types_by_name(funcs_for_maps)
+        # 10-1732-gap (Gap 2): callee-name → Python `return_annotation` (e.g. "str").
+        # NOTE (deviation from spec R1, which assumed `_module_method_return_types`
+        # already carried "string" for a `-> str` callee): it does NOT — that map is
+        # `_build_method_return_type_map`, a stripped duplicate of `_compute_return_type`
+        # that maps only list/set/dict, leaving `-> str` as "int" (ir_scanner
+        # find_return_type even maps a String literal to "int"). Mutating that shared map
+        # to add the str case would risk the byte output of its many dotted-call/abstract-
+        # val consumers (expressions.py:724/762/764, stmt_control_flow.py:152/157). So
+        # Gap 2 keys on this SEPARATE annotation map (the pre-written, previously-unwired
+        # `_build_method_return_annotation_map`), which touches NO existing consumer —
+        # zero byte risk. Built from `funcs_for_maps`, so imported str-stubs are covered.
+        self._module_method_return_annotations = \
+            self._build_method_return_annotation_map(funcs_for_maps)
+        # str-list-elements: the set of module functions that return a STRING-element list
+        # (`array string`, via a returned seq local whose `seq_value_types` is "string").
+        # A caller binding `names = f(...)` for such an `f` gets a string-element array
+        # local, so `names[i]` reads a `string` (feeding a string-typed callee like
+        # sys_stat). Empty for every module with no string lists → byte-identical.
+        self._module_string_seq_funcs = {
+            f["name"] for f in funcs_for_maps
+            if self._func_returns_string_seq(f)
+        }
+        self._module_method_result_ensures = self._build_method_result_ensures_map(funcs_for_maps)
+        self._module_method_param_result_ensures = self._build_method_param_result_ensures_map(funcs_for_maps)
+        self._module_method_field_result_ensures = self._build_method_field_result_ensures_map(funcs_for_maps)
+        # gap-9 (A2c+): ensures referencing `\result` + self-fields + params
+        # (the os syscalls' `(\result==0) <==> dir_lookup(self.disk, 5, pathname)
+        # >= 0`). Closes the last A2c gap — a clause mixing a self-field AND a
+        # param previously propagated nowhere. Params are renamed to `x_i`; the
+        # receiver stays `self` (distinct namespace, no collision).
+        self._module_method_field_param_result_ensures = \
+            self._build_method_field_param_result_ensures_map(funcs_for_maps)
+        # gap7-spec-rev2: void/mutating record-method support. `_writes` = self-fields a method
+        # `assigns`; `_field_old_ensures` = its `ensures` over self-fields + `\old(self.f)` (no
+        # \result/param). Both derived from the SAME `contracts.*` the method's `let` is verified
+        # against (O2 — cannot drift). A method may appear in BOTH field_result and field_old maps.
+        self._module_method_writes = self._build_method_writes_map(funcs_for_maps)
+        self._module_method_field_old_ensures = self._build_method_field_old_ensures_map(funcs_for_maps)
+        self._module_method_field_param_post_ensures = \
+            self._build_method_field_param_post_ensures_map(funcs_for_maps)
+        self._module_method_field_param_frame_ensures = \
+            self._build_method_field_param_frame_ensures_map(funcs_for_maps)
+        # fd-import-boundary: the `\result`-referencing single-cell quantified self-field
+        # FRAME (`\forall k != \result. fd_open[k] == \old(fd_open[k])`), opt-in via
+        # `#@ propagate_frame`. The map above DROPS `\result`-frames; this one keeps exactly
+        # those, so the os fd allocators' single-cell frame survives the import boundary (the
+        # "table not full" side-condition the honest no-ENFILE needs). `\result` lowers to the
+        # val's `result` keyword at the call site, so no explicit substitution is required.
+        self._module_method_result_frame_ensures = \
+            self._build_method_result_frame_ensures_map(funcs_for_maps)
+        # The pseudo-funcs have empty bodies, so the return-type map derives `unit`
+        # for a scalar dependency; override with the type from the declared signature
+        # so `self.<dep>(…)` is a `: int` (etc.) call, not `: unit`.
+        for pf in self._mixin_dep_pseudo_functions(functions):
+            self._module_method_return_types[pf["name"]] = pf["_mixin_ret_whyml"]
         self._build_callee_no_exception_summary(functions)
 
         sorted_functions, scc_info = sort_functions_by_scc(functions)
         for func in sorted_functions:
             out += self._emit_function(func, scc_info)
 
+        if self.check_behavioral_subtyping:
+            out += self._emit_subtyping_goals(functions)
+
         out.append("end")
         self._insert_abstract_val_block(out)
         return "\n".join(out)
 
+    # ------------------------------------------------------------------
+    # module-emission.md — OPT-IN axiom isolation via separate Why3 modules
+    # ------------------------------------------------------------------
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _verify_module_groups(self, functions: List[Dict[str, Any]]) -> Dict[str, List[str]]:
+        """{group-name -> [whyml function names]} for every `#@ verify_module <name>`
+        group, deterministic. Empty when no function is tagged (→ flat path)."""
+        groups: Dict[str, List[str]] = {}
+        for f in functions:
+            g = f.get("verify_module")
+            if g:
+                groups.setdefault(g, []).append(whyml_ident(f["name"]))
+        return groups
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _compute_shared_module_maps(self, functions: List[Dict[str, Any]]) -> None:
+        """Populate the SHARED cross-function lookup state (return-types, contract-
+        propagation ensures maps, no_exception summary, …) from the FULL function set
+        — identical to the maps `transpile()` builds at lines ~491-588. These are
+        global to the program (a cross-module call still needs the callee's propagated
+        contract), so they are computed ONCE here and reused for every emitted module."""
+        self._module_func_names = {whyml_ident(func["name"]) for func in functions}
+        self._sibling_concrete_methods = {whyml_ident(func["name"]) for func in functions
+                                          if func.get("sibling_concrete")}
+        self._composed_provider_methods = set(self.ir.get("composed_provider_methods", []))
+        self._inductive_preds = (
+            {ind["name"] for ind in self.ir.get("inductive_decls", [])}
+            | {m["name"] for ind in self.ir.get("inductive_decls", [])
+               for m in ind.get("members", [])})
+        funcs_for_maps = functions + self._mixin_dep_pseudo_functions(functions)
+        self._module_method_return_types = self._build_method_return_type_map(funcs_for_maps)
+        self._module_method_param_types = self._build_method_param_types_map(funcs_for_maps)
+        self._module_method_formal_params = {
+            f["name"]: list(f.get("formal_params", [])) for f in funcs_for_maps}
+        self._module_method_param_defaults = {
+            f["name"]: dict(f.get("param_defaults", {})) for f in funcs_for_maps}
+        self._module_method_param_whyml_types = \
+            self._build_method_param_whyml_types_by_name(funcs_for_maps)
+        self._module_method_return_annotations = \
+            self._build_method_return_annotation_map(funcs_for_maps)
+        self._module_string_seq_funcs = {
+            f["name"] for f in funcs_for_maps if self._func_returns_string_seq(f)}
+        self._module_method_result_ensures = self._build_method_result_ensures_map(funcs_for_maps)
+        self._module_method_param_result_ensures = self._build_method_param_result_ensures_map(funcs_for_maps)
+        self._module_method_field_result_ensures = self._build_method_field_result_ensures_map(funcs_for_maps)
+        self._module_method_field_param_result_ensures = \
+            self._build_method_field_param_result_ensures_map(funcs_for_maps)
+        self._module_method_writes = self._build_method_writes_map(funcs_for_maps)
+        self._module_method_field_old_ensures = self._build_method_field_old_ensures_map(funcs_for_maps)
+        self._module_method_field_param_post_ensures = \
+            self._build_method_field_param_post_ensures_map(funcs_for_maps)
+        self._module_method_field_param_frame_ensures = \
+            self._build_method_field_param_frame_ensures_map(funcs_for_maps)
+        self._module_method_result_frame_ensures = \
+            self._build_method_result_frame_ensures_map(funcs_for_maps)
+        for pf in self._mixin_dep_pseudo_functions(functions):
+            self._module_method_return_types[pf["name"]] = pf["_mixin_ret_whyml"]
+        self._build_callee_no_exception_summary(functions)
+
+    # ------------------------------------------------------------------
+    # module-emission.md — per-module emission helpers
+    # ------------------------------------------------------------------
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _emit_prefunctions_infra(self, functions: List[Dict[str, Any]],
+                                 type_decls: List[Dict[str, Any]],
+                                 all_bodies: List[Any],
+                                 module_name: str,
+                                 emit_axioms: bool,
+                                 axiom_ir: Dict[str, Any]) -> List[str]:
+        """Emit the SHARED pre-functions infrastructure (preamble `use`s + helpers +
+        predicates + `val function` symbols + record type + class-inv axioms + record
+        witness + module globals + inductive decls) under header `module <module_name>`.
+        Mirrors `transpile()` lines ~410-489 EXACTLY (so the shape matches the flat
+        path), except: (a) the module header name is parameterised, and (b) `#@ proof`
+        axioms are emitted ONLY when `emit_axioms` is True and are routed through
+        `axiom_ir` (a per-module function-subset IR) so a module sees only its group's
+        cited axioms. Does NOT emit `let` functions or the abstract-val block."""
+        needs = self._scan_preamble_needs(functions, all_bodies)
+        out = self._emit_preamble(needs, module_name)
+        out += self._emit_shared_state()
+        self._precompute_axiom_logic_funcs(self.ir)
+        if self._class_inv_refs_axiom_func(self.ir):
+            out += self._emit_uncited_axiom_func_decls()
+            out += self._emit_class_inv_axioms(self.ir)
+        type_lines, declared_types = self._emit_type_decls(type_decls)
+        out += type_lines
+        self._inductive_preds = (
+            {ind["name"] for ind in self.ir.get("inductive_decls", [])}
+            | {m["name"] for ind in self.ir.get("inductive_decls", [])
+               for m in ind.get("members", [])})
+        self._precompute_axiom_logic_funcs(self.ir)
+        if self._inductive_refs_global_or_axiom_func(self.ir):
+            if emit_axioms:
+                out += self._emit_preamble_axioms(axiom_ir)
+            out += self._emit_uncited_axiom_func_decls()
+            out += self._emit_module_globals()
+            out += self._emit_inductive_decls(self.ir.get("inductive_decls", []))
+        else:
+            out += self._emit_inductive_decls(self.ir.get("inductive_decls", []))
+            if emit_axioms:
+                out += self._emit_preamble_axioms(axiom_ir)
+            out += self._emit_uncited_axiom_func_decls()
+            out += self._emit_module_globals()
+        self._emit_opaque_class_aliases(functions, out, declared_types)
+        self._declared_types_modular = declared_types
+        return out
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _reset_module_accumulators(self) -> None:
+        """Reset the per-module emission accumulators so each emitted Why3 `module`
+        gets its OWN abstract-val block / axiom-decl set / class-inv-axiom set (the
+        flat path leaves these global)."""
+        self._abstract_ops = {}
+        self._axiom_emitted_decls = set()
+        self._class_inv_axioms_emitted = set()
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _sig_val_from_let(self, let_lines: List[str]) -> List[str]:
+        """Convert an emitted `let <fn> ... = <body>` block into a bodyless interface
+        `val <fn> ...` carrying ONLY the contract (requires/ensures/writes), dropping the
+        `variant` (illegal on a bodyless `val`) and everything from the `=` onward. This
+        is the `<G>Sig` interface declaration the provider's `clone`-refinement proves and
+        the consumer module calls — the PROVEN cross-module boundary (no assumed `val`)."""
+        out: List[str] = []
+        for ln in let_lines:
+            stripped = ln.strip()
+            if stripped.startswith("let function "):
+                out.append(ln.replace("let function ", "val ", 1))
+                continue
+            if stripped.startswith("let rec "):
+                out.append(ln.replace("let rec ", "val ", 1))
+                continue
+            if stripped.startswith("let "):
+                out.append(ln.replace("let ", "val ", 1))
+                continue
+            if stripped == "=" or stripped.startswith("= "):
+                break
+            if stripped.startswith("variant"):
+                continue  # a bodyless `val` cannot carry a variant
+            # requires / ensures / writes / reads / raises / diverges lines pass through
+            out.append(ln)
+        return out
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _transpile_modular(self, functions: List[Dict[str, Any]],
+                           type_decls: List[Dict[str, Any]]) -> str:
+        """module-emission.md — emit the program as SEVERAL top-level Why3 `module`s so
+        that each `#@ verify_module <name>` group's cited `#@ proof` axioms are isolated
+        from the other groups' goals (resolving the os read+write `field_to_str`
+        co-residence OOM that blocks `_dir_lookup`). PARTIAL BUILD — see
+        getting-better/<writeup> §"remaining emitter work": the sound MECHANISM
+        (Why3 `clone`-refinement, axiom-isolated, narrowing-VC-equivalent) is PROVEN at
+        the Why3 level and validated on the real os axiom families
+        (getting-better validation artifact /tmp/os_split.mlw → `'refn'vc` Valid +
+        non-vacuous), and this directive is wired through the full pipeline + corpus-
+        inert, but the multi-module emitter assembly below is NOT yet complete enough to
+        pass the full body gate ×2. It is left raising a clear, actionable error rather
+        than emitting an unsound/under-verified module split."""
+        from module6_whyml.scc import sort_functions_by_scc
+
+        groups = self._verify_module_groups(functions)
+        all_bodies = [func["body"] for func in functions]
+
+        # Cross-function contract-propagation maps are GLOBAL to the program (a cross-
+        # module call still needs the callee's propagated contract). Compute ONCE.
+        self._compute_shared_module_maps(functions)
+
+        # {whyml_fn_name -> group}; consulted by `_handle_dotted_call` to route a
+        # cross-module `self.<m>()` through the proven `<G>Sig` interface.
+        self._verify_module_of = {}
+        for g, names in groups.items():
+            for nm in names:
+                self._verify_module_of[nm] = g
+
+        # Partition the SORTED function list (preserve emission order) into the main
+        # (untagged) set + one list per group.
+        sorted_functions, scc_info = sort_functions_by_scc(functions)
+        group_funcs: Dict[str, List[Dict[str, Any]]] = {g: [] for g in groups}
+        main_funcs: List[Dict[str, Any]] = []
+        for func in sorted_functions:
+            wn = whyml_ident(func["name"])
+            g = self._verify_module_of.get(wn)
+            if g is not None:
+                group_funcs[g].append(func)
+            else:
+                main_funcs.append(func)
+
+        #@ \trusted reviewer: pycsl-self-annotate
+        #@ requires True
+        #@ ensures True
+        #@ assigns \nothing
+        def _emit_funcs(funcs: List[Dict[str, Any]], group: Optional[str]) -> List[str]:
+            """Emit the `let` blocks for `funcs`, with `_current_emit_group` set so a
+            cross-module `self.<m>()` routes through `<G>Sig`. Returns the lines."""
+            # The `val function` axiom-symbols (slot_inode/slot_name/dir_lookup/…) all
+            # live in `Shared` and are `use`d by every emitted module, so a contract
+            # application of one must bind to that shared logic symbol — NOT an unbound
+            # arity-suffixed abstract op. The flat `_precompute_axiom_logic_funcs(ir)`
+            # derives these from `ir["functions"]`' `#@ proof` cites; in the split a cited
+            # function may live in another module, so precompute from the FULL ir here.
+            self._precompute_axiom_logic_funcs(self.ir)
+            self._current_emit_group = group
+            lines: List[str] = []
+            for func in funcs:
+                lines += self._emit_function(func, scc_info)
+            self._current_emit_group = None
+            return lines
+
+        # ============================ Shared ============================
+        # The concrete record type + invariants + concrete predicates/functions + the
+        # shared `val function` symbols + record-witness/class-inv axioms + globals.
+        # A DEFINED record type cannot be clone-substituted, so it MUST live here and be
+        # `use`d by every other module. NO `#@ proof` axioms here (routed per-module).
+        # Shared emits NO `let` functions, so it registers NO abstract ops (verified:
+        # `_emit_prefunctions_infra` with an empty function set leaves `_abstract_ops`
+        # empty) — every abstract-op call stub (`subscript_get`, `materialize`, the
+        # `_filesystem_sys_*` importer stubs, the `self__*` sibling stubs) is caller-local
+        # and is emitted by the module whose functions USE it, in that module's own
+        # abstract-val block (no cross-module `use` of these → no duplicate-symbol clash).
+        self._shared_op_skip = set()
+        self._reset_module_accumulators()
+        shared = self._emit_prefunctions_infra(
+            functions, type_decls, all_bodies,
+            module_name="Shared", emit_axioms=False, axiom_ir={**self.ir, "functions": []})
+        shared.append("end")
+        self._insert_abstract_val_block(shared)  # no-op: Shared has no abstract ops
+
+        # Capture the axiom-backing logic-symbol DECLARATIONS Shared emitted
+        # (`val function slot_inode …`, `predicate uniq …`, `function inode_size …`).
+        # Every other module `use Shared`, so it must reference these via the shared
+        # symbol — re-declaring them locally would create a DISTINCT symbol, breaking the
+        # `clone`-refinement (the body's `dir_lookup` would differ from the interface's).
+        # Pre-seeding each subsequent module's `_axiom_emitted_decls` with these strings
+        # makes `_emit_preamble_axioms`/`_emit_uncited_axiom_func_decls` skip the decl but
+        # still emit the AXIOM (which now constrains the shared symbol).
+        self._shared_symbol_decls = self._collect_shared_symbol_decls(shared)
+
+        out_modules: List[List[str]] = [shared]
+
+        # ===================== per-group Sig + provider =====================
+        for g in sorted(groups):
+            gfuncs = group_funcs[g]
+            cited_ir = {**self.ir, "functions": gfuncs}
+
+            # ---- <G>Sig : bodyless contract `val`s (the proven interface) ----
+            sig: List[str] = [f"module {g}Sig"]
+            sig += self._shared_use_lines()
+            self._reset_module_accumulators()
+            self._precompute_axiom_logic_funcs(self.ir)
+            self._current_emit_group = g
+            for func in gfuncs:
+                let_block = self._emit_function(func, scc_info)
+                sig += self._sig_val_from_let(let_block)
+                sig.append("")
+            self._current_emit_group = None
+            sig.append("end")
+            out_modules.append(sig)
+
+            # ---- <G> : shared symbols + group axioms LOCALLY + real let + clone ----
+            prov: List[str] = [f"module {g}"]
+            prov += self._shared_use_lines()
+            self._reset_module_accumulators()
+            self._axiom_emitted_decls = set(self._shared_symbol_decls)
+            # The group's cited `#@ proof` axioms, emitted LOCALLY (in scope only here).
+            # The backing symbol DECLS are suppressed (seeded above) so the axioms
+            # constrain the SHARED symbols (`use Shared`), keeping body == interface.
+            prov += self._emit_preamble_axioms(cited_ir)
+            prov_body = _emit_funcs(gfuncs, g)
+            prov += prov_body
+            # Trailing clone-refinement: generates `<fn>'refn'vc` proving the real `let`
+            # implements the `<G>Sig` contract — the PROVEN boundary (never an assumed val).
+            subs = ", ".join(f"val {whyml_ident(f['name'])} = {whyml_ident(f['name'])}"
+                             for f in gfuncs)
+            prov.append(f"  clone {g}Sig with {subs}")
+            prov.append("end")
+            self._insert_abstract_val_block(prov)
+            out_modules.append(prov)
+
+        # ============================ PyCSL_Program ============================
+        # The main module: everything else + the NON-group axioms + `use Shared` +
+        # `use <G>Sig` (proven interfaces), with cross-module `self.X()` calls rewritten.
+        main_ir = {**self.ir, "functions": main_funcs}
+        main: List[str] = ["module PyCSL_Program"]
+        main += self._shared_use_lines()
+        for g in sorted(groups):
+            main.append(f"  use {g}Sig")
+        self._reset_module_accumulators()
+        self._axiom_emitted_decls = set(self._shared_symbol_decls)
+        main += self._emit_preamble_axioms(main_ir)
+        main += _emit_funcs(main_funcs, None)
+        if self.check_behavioral_subtyping:
+            main += self._emit_subtyping_goals(functions)
+        main.append("end")
+        self._insert_abstract_val_block(main)
+        out_modules.append(main)
+
+        return "\n".join("\n".join(m) for m in out_modules)
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _collect_shared_symbol_decls(self, shared_lines: List[str]) -> Set[str]:
+        """Scan the emitted Shared module for axiom-backing logic-symbol declarations and
+        return the SET OF RAW `_AXIOM_FUNCTIONS` decl strings whose symbol Shared declares.
+        Those raw strings are what `_emit_preamble_axioms`/`_emit_uncited_axiom_func_decls`
+        compare against (`if fn_decl not in declared_fns`), so seeding a subsequent
+        module's `_axiom_emitted_decls` with them suppresses the duplicate decl while the
+        AXIOM (constraining the SHARED symbol) is still emitted. A module that `use Shared`
+        must reference the SAME symbol — a local re-declaration would break the
+        `clone`-refinement (body `dir_lookup` ≠ interface `dir_lookup`)."""
+        #@ \trusted reviewer: pycsl-self-annotate
+        #@ requires True
+        #@ ensures True
+        #@ assigns \nothing
+        def _symbol(stripped: str):
+            p = stripped.split()
+            if len(p) >= 3 and p[0] == "val" and p[1] == "function":
+                return p[2]
+            if len(p) >= 2 and p[0] in ("function", "predicate"):
+                return p[1]
+            return None
+
+        shared_syms: Set[str] = set()
+        for ln in shared_lines:
+            sym = _symbol(ln.strip())
+            if sym:
+                shared_syms.add(sym)
+        # Map back to the raw registry decl strings (exact match for the skip-check).
+        raw: Set[str] = set()
+        for fn_decls in self._AXIOM_FUNCTIONS.values():
+            for d in fn_decls:
+                if _symbol(d.strip()) in shared_syms:
+                    raw.add(d)
+        return raw
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _shared_use_lines(self) -> List[str]:
+        """The `use` lines every emitted module needs to see the Shared infrastructure
+        (the concrete record type, val-functions, predicates, helpers) plus the standard
+        Why3 library `use`s. Mirrors the libraries the flat preamble imports."""
+        needs = self._scan_preamble_needs(
+            self.ir.get("functions", []),
+            [f["body"] for f in self.ir.get("functions", [])])
+        # The flat preamble `use`s, MINUS the `module PyCSL_Program` header line, plus a
+        # `use Shared` so the record type + shared symbols are in scope.
+        lib_uses = self._emit_preamble_uses(needs, module_name="__tmp__")[1:]
+        return lib_uses + ["  use Shared"]
 

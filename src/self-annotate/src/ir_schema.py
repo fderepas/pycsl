@@ -16,6 +16,54 @@ from errors import PyCSLIRError
 
 
 # ---------------------------------------------------------------------------
+# IR version — the IR is a wire format between a (per-language) front-end and
+# the language-agnostic core (pycsl-language-agnostic-core-spec.md §5; refactor.md
+# Phase A). It is stamped with a semantic version and a source-language tag so the
+# core can refuse an IR it does not understand instead of failing mysteriously
+# downstream.
+#
+# Compatibility policy (semver-style): MINOR bumps are ADDITIVE (new optional
+# keys/nodes a newer core still ingests); MAJOR bumps are BREAKING (a removed or
+# re-meaning'd key). `ACCEPTED_IR_VERSIONS` is the exact set this core ingests;
+# widen it as additive versions land, and drop a major when support ends.
+# ---------------------------------------------------------------------------
+
+# "1.1" (refactor.md Phase C/C1) adds the optional top-level `imports` key —
+# the module's import list, consumed by pycsl._resolve_imports so multi-file
+# resolution is a pure IR→IR pass. Additive (MINOR bump): "1.0" IRs remain
+# ingestable, so both versions stay in ACCEPTED_IR_VERSIONS.
+#
+# "1.2" adds optional, default-valued FUNCTION fields `sibling_concrete` (bool),
+# `verify_module` (str), `propagate_frame` (bool), `fresh_globals` (bool) — the
+# allocator-frame / module-verification directives (#@ sibling_concrete,
+# #@ verify_module, #@ propagate_frame, #@ fresh_globals) — and the optional
+# TYPE-DECL field `init_ensures`. All default to False/"" so a "1.0"/"1.1" IR
+# without them remains ingestable (additive MINOR bump); all three versions stay
+# in ACCEPTED_IR_VERSIONS. See docs/ir.md §10.
+#
+# "1.3" (typing-engagement ty1 / 28-0000-typing-spec-4) adds the optional
+# FUNCTION field `is_noreturn` (bool) — set true when the source declares
+# `-> NoReturn` (PEP 484). The field is ABSENT on non-NoReturn functions (the
+# emitter emits it only when true), so a "1.0"/"1.1"/"1.2" IR without it remains
+# byte-identical and ingestable (additive MINOR bump); all four versions stay in
+# ACCEPTED_IR_VERSIONS. Module 6 lowers `is_noreturn: true` to `ensures { false }`
+# (NR1) and the non-vacuity gate (NR4) exempts the function from the vacuity
+# probe. See docs/ir.md §10.
+# "1.4" (typing-engagement ty3 / 33-1700-typing-spec-9) adds the optional TYPE-DECL
+# field `type_params` and the optional FUNCTION field `type_params` — each a list of
+# `{"name": str, "bound": Optional[str], "kind": str}` — set when a PEP 695 generic
+# (`class C[T]:`, `def f[T]():`) or the legacy `TypeVar`/`Generic` spelling declares a
+# type variable. The field is ABSENT on non-generic decls (emitted only when non-empty),
+# so a "1.0"/"1.1"/"1.2"/"1.3" IR without it remains byte-identical and ingestable
+# (additive MINOR bump); all five versions stay in ACCEPTED_IR_VERSIONS. The field is
+# consumed by `frontend/monomorphize.apply_monomorphization` (the step-5 IR-resolution
+# pass): COLLECT concrete instantiations, EMIT name-mangled specialized copies with
+# substituted contracts, GT3/GT4 loud-fails. See docs/ir.md §10.
+IR_VERSION = "1.4"
+ACCEPTED_IR_VERSIONS = frozenset({"1.0", "1.1", "1.2", "1.3", "1.4"})
+
+
+# ---------------------------------------------------------------------------
 # TypedDict schema (documentation + static type-checker support)
 # ---------------------------------------------------------------------------
 
@@ -37,6 +85,10 @@ class ContractsIR(TypedDict, total=False):
 
 class FunctionIR(TypedDict, total=False):
     """One entry in program_ir["functions"]."""
+    # §4.4 source span (line/col of the function in the original source) — lets the
+    # core report IR-level semantic errors against the source; see refactor.md Phase B.
+    line: int
+    col: int
     # Required at runtime (validated by validate_ir):
     name: str
     symbol_table: Dict[str, str]
@@ -53,13 +105,34 @@ class FunctionIR(TypedDict, total=False):
     array1d_params: List[str]
     kind: str
     self_type: str
+    # Optional (IR v1.3; typing-engagement ty1 / 28-0000-typing-spec-4): set true
+    # when the source declares `-> NoReturn` (PEP 484). ABSENT on non-NoReturn
+    # functions (emitted only when true → byte-identical for unaffected drivers).
+    # Module 6 lowers it to `ensures { false }` (NR1); the non-vacuity gate
+    # exempts the function from the vacuity probe (NR4). See docs/ir.md §5/§10.
+    is_noreturn: bool
+    # Optional (IR v1.4; typing-engagement ty3 / 33-1700-typing-spec-9): the type
+    # parameters of a PEP 695 generic method/function (`def f[T]():`) or the legacy
+    # `TypeVar`/`Generic` spelling. ABSENT on non-generic functions (emitted only when
+    # non-empty → byte-identical for unaffected drivers). Consumed by
+    # `frontend/monomorphize.apply_monomorphization` (the step-5 IR-resolution pass):
+    # COLLECT concrete instantiations → EMIT name-mangled specialized copies with
+    # substituted contracts. See docs/ir.md §10.
+    type_params: List[Dict[str, Any]]
 
 
 class ProgramIR(TypedDict, total=False):
     """Top-level JSON IR produced by Module5 and consumed by Module6."""
+    # Interface stamp (the IR-as-wire-format contract; see IR_VERSION above):
+    ir_version: str         # semantic version of the IR schema this document conforms to
+    source_language: str    # the front-end that produced it ("python" today)
     # Required at runtime (validated by validate_ir):
     type_decls: List[Dict[str, Any]]
     functions: List[FunctionIR]
+    # Optional (IR v1.1; refactor.md Phase C/C1): the module's import list,
+    # each entry [local, original, module, level, is_module]. Consumed by
+    # pycsl._resolve_imports for multi-file resolution; Module6 ignores it.
+    imports: List[List[Any]]
     # Optional concurrency keys (present when --memory-model concurrent):
     shared_vars: List[Dict[str, Any]]
     mutex_invariants: Dict[str, Dict[str, Any]]
@@ -105,18 +178,33 @@ def validate_ir(ir: Any, *, stage: str = "ir-validate") -> None:
     """
     if not isinstance(ir, dict):
         raise PyCSLIRError(
-            f"IR must be a dict, got {type(ir).__name__}", stage=stage
+            f"IR must be a dict, got {type(ir).__name__}", stage=stage,
+            code="PYCSL-IR-NOTDICT",
         )
 
     missing_top = _REQUIRED_TOP - ir.keys()
     if missing_top:
         raise PyCSLIRError(
-            f"IR is missing top-level keys: {sorted(missing_top)}", stage=stage
+            f"IR is missing top-level keys: {sorted(missing_top)}", stage=stage,
+            code="PYCSL-IR-MISSINGTOP",
+        )
+
+    # IR-as-wire-format: the core declares the range of versions it ingests.
+    # A stamped-but-unsupported version is a hard error (don't proceed to lower
+    # an IR this core may misread); an unstamped IR is tolerated as legacy/internal
+    # (the real pipeline's front-end always stamps it — see Module5).
+    ir_version = ir.get("ir_version")
+    if ir_version is not None and ir_version not in ACCEPTED_IR_VERSIONS:
+        raise PyCSLIRError(
+            f"unsupported ir_version {ir_version!r}; this core ingests "
+            f"{sorted(ACCEPTED_IR_VERSIONS)}", stage=stage,
+            code="PYCSL-IR-VERSION",
         )
 
     if not isinstance(ir["functions"], list):
         raise PyCSLIRError(
-            "IR 'functions' must be a list", stage=stage
+            "IR 'functions' must be a list", stage=stage,
+            code="PYCSL-IR-FUNCSLIST",
         )
 
     for i, func in enumerate(ir["functions"]):
@@ -124,6 +212,7 @@ def validate_ir(ir: Any, *, stage: str = "ir-validate") -> None:
             raise PyCSLIRError(
                 f"IR functions[{i}] must be a dict, got {type(func).__name__}",
                 stage=stage,
+                code="PYCSL-IR-FUNCDICT",
             )
         missing_func = _REQUIRED_FUNCTION - func.keys()
         if missing_func:
@@ -131,12 +220,14 @@ def validate_ir(ir: Any, *, stage: str = "ir-validate") -> None:
             raise PyCSLIRError(
                 f"Function '{name}' is missing IR keys: {sorted(missing_func)}",
                 stage=stage,
+                code="PYCSL-IR-MISSINGFUNC",
             )
         contracts = func.get("contracts")
         if not isinstance(contracts, dict):
             name = func.get("name", f"<index {i}>")
             raise PyCSLIRError(
-                f"Function '{name}' contracts must be a dict", stage=stage
+                f"Function '{name}' contracts must be a dict", stage=stage,
+                code="PYCSL-IR-CONTRACTSDICT",
             )
         missing_contracts = _REQUIRED_CONTRACTS - contracts.keys()
         if missing_contracts:
@@ -144,4 +235,5 @@ def validate_ir(ir: Any, *, stage: str = "ir-validate") -> None:
             raise PyCSLIRError(
                 f"Function '{name}' contracts missing keys: {sorted(missing_contracts)}",
                 stage=stage,
+                code="PYCSL-IR-MISSINGCONTRACTS",
             )

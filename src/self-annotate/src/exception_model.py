@@ -33,6 +33,96 @@ KNOWN_EXCEPTIONS: frozenset = frozenset({
 
 
 # ----------------------------------------------------------------------
+# 1b. Exception subclass hierarchy
+# ----------------------------------------------------------------------
+# PyCSL otherwise treats exception names as flat, distinct tokens. The os
+# model (and faithful Python in general) relies on `except OSError:`
+# catching a raised subclass such as `FileNotFoundError`, and on
+# `#@ raises OSError` summarising the subclass raises.
+#
+# `EXCEPTION_BASES[E]` is the tuple of E's *direct* base class names, in
+# Python MRO order (most-derived base first). The reflexive-transitive
+# closure (`bases_closure`) gives the full set of ancestors of E; a
+# handler `except B` catches a raised `E` iff `E == B` or `B in
+# bases_closure(E)`.
+#
+# `OSError` is deliberately kept OUT of KNOWN_EXCEPTIONS: it has no
+# mathematical implicit trigger. It (and its subclasses) is raised on an
+# explicit failure CONDITION in the body (e.g. `if lookup(p) < 0: raise
+# FileNotFoundError`), exactly like the `SyntaxError` precedent. The
+# hierarchy below only governs handler matching and `raises`
+# summarisation — it does not auto-inject any VC.
+
+EXCEPTION_BASES: Dict[str, Tuple[str, ...]] = {
+    # --- the OSError family (the os-module faithfulness fix) ---------
+    "OSError":            ("Exception",),
+    "FileNotFoundError":  ("OSError", "Exception"),
+    "FileExistsError":    ("OSError", "Exception"),
+    "PermissionError":    ("OSError", "Exception"),
+    "NotADirectoryError": ("OSError", "Exception"),
+    "IsADirectoryError":  ("OSError", "Exception"),
+    "InterruptedError":   ("OSError", "Exception"),
+    "BlockingIOError":    ("OSError", "Exception"),
+    "ChildProcessError":  ("OSError", "Exception"),
+    "ConnectionError":    ("OSError", "Exception"),
+    "ProcessLookupError": ("OSError", "Exception"),
+    "TimeoutError":       ("OSError", "Exception"),
+    # `os.error` is documented as an alias for OSError (os.rst l.51-53).
+    # Treat it as a synonym so `except os.error` behaves like
+    # `except OSError`.
+    "error":              ("OSError", "Exception"),
+}
+
+
+#@ \trusted reviewer: pycsl-self-annotate
+#@ requires True
+#@ ensures True
+#@ assigns \nothing
+def bases_closure(exc: str) -> frozenset:
+    """Return the reflexive-transitive set of ancestor class names of
+    `exc` (NOT including `exc` itself). Unknown names — exceptions not in
+    EXCEPTION_BASES — have no modelled ancestors (the flat-token default),
+    so this returns an empty set, preserving the legacy behaviour for
+    every exception outside the hierarchy."""
+    seen: set = set()
+    frontier = list(EXCEPTION_BASES.get(exc, ()))
+    while frontier:
+        b = frontier.pop()
+        if b in seen:
+            continue
+        seen.add(b)
+        frontier.extend(EXCEPTION_BASES.get(b, ()))
+    return frozenset(seen)
+
+
+#@ \trusted reviewer: pycsl-self-annotate
+#@ requires True
+#@ ensures True
+#@ assigns \nothing
+def handler_catches(handler_exc: str, raised_exc: str) -> bool:
+    """True iff a `except handler_exc:` clause catches a raised
+    `raised_exc` — i.e. they are the same name, or `handler_exc` is an
+    ancestor of `raised_exc` in the modelled hierarchy. Names outside the
+    hierarchy match only themselves (legacy flat-token semantics)."""
+    if handler_exc == raised_exc:
+        return True
+    return handler_exc in bases_closure(raised_exc)
+
+
+#@ \trusted reviewer: pycsl-self-annotate
+#@ requires True
+#@ ensures True
+#@ assigns \nothing
+def subclasses_of(base: str, candidates) -> frozenset:
+    """Return the members of `candidates` that are caught by a
+    `except base:` handler (base itself, or any strict subclass of base
+    present in `candidates`). Used to expand a handler into the concrete
+    raised tags it must match in WhyML, and to compute which raised
+    exceptions a handler actually catches for the escaping-set analysis."""
+    return frozenset(c for c in candidates if handler_catches(base, c))
+
+
+# ----------------------------------------------------------------------
 # 2. WhyML predicate library
 # ----------------------------------------------------------------------
 # Each predicate is emitted into the WhyML preamble when at least one
