@@ -14,7 +14,6 @@
 -/
 import PyCSL.AST
 import PyCSL.State
-import PyCSL.SOS
 import PyCSL.DesugarDef
 import PyCSL.MemModel
 
@@ -129,17 +128,3 @@ def wp : Stmt
 
   | .acquires _, Qn, _, _, _, _, _, es => Qn es
   | .releases _, Qn, _, _, _, _, _, es => Qn es
-  | .call r fn arg, Qn, _, _, _, Qe, _, es =>
-    -- Phase 8 — Lambda (Category A, optional).
-    -- WP is a closed formula quantifying over the body's exec outcomes.
-    -- See Phase 8 gap doc for design rationale (no `wp body` recursion).
-    match evalExpr es.regState fn with
-    | .closure param body cstate =>
-      let argval := evalExpr es.regState arg
-      let cstateEs := setReg (mkExecState cstate) (update cstate param argval)
-      (∀ st' v, Exec cstateEs body (.returned st' v) →
-         match lookup st'.regState "\\result" with
-         | some v' => Qn (setReg es (update es.regState r v'))
-         | none => Qn es) ∧
-      (∀ exc st', Exec cstateEs body (.threw st' exc) → Qe exc st')
-    | _ => True

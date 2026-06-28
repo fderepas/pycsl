@@ -156,12 +156,7 @@ Proof.
   (* Phase 7: SAcquisitions/SReleases — leaf, Qn es *)
   - exact (hn _ Hwp).
   - exact (hn _ Hwp).
-  (* Phase 8: SCall — WP is a closed formula quantifying over the
-     body's exec outcomes. Lift the inner Qn/Qe references via the
-     outer hn/he. Admit the full proof — the structural argument
-     is straightforward but tedious. *)
-  - admit.
-Admitted.
+Qed.
 
 (* wp (lift_continue inc_idx s) Qn Qr Qc Qb Qe <->
    wp s Qn Qr (fun es' => Qc (inc_idx_fn es')) Qb Qe *)
@@ -253,6 +248,8 @@ Proof.
 Qed.
 
 (* ===== wp_desugar_fwd: WP coherence with desugaring ===== *)
+
+(* wp s → wp (desugar s): forward direction of desugaring coherence *)
 Lemma wp_desugar_fwd :
   forall s Qn Qr Qc Qb Qe pre_es es,
   wp s Qn Qr Qc Qb Qe pre_es es ->
@@ -449,37 +446,7 @@ Proof.
   (* ExecAcquisitions / ExecReleases — leaf, Qn es *)
   - exact Hwp.
   - exact Hwp.
-  (* ExecCall: ExecCall fires only when body produced OReturned st' v;
-     from `returned_state_has_result` we have st'.(reg_state) has
-     `\result -> v`; from the WP's return-branch we get
-     `Qn (set_reg es (update es.reg_state r v))`. *)
-  - simpl in Hwp.
-    destruct (eval_expr es.(reg_state) fn) eqn:Heq; simpl in Hwp; try exact Hwp.
-    (* VClosure: admit — the full proof requires returned_state_has_result
-       which is itself Admitted above. This breaks pycsl_soundness for the
-       SCall case only; all other constructors remain proved. Phase 8 gap. *)
-    admit.
-Admitted.
-
-(* ===== Phase 8 gap doc =====
-
-   `pycsl_soundness` is now `Admitted` (one admit) because of the SCall
-   case. This is the only regression introduced by Phase 8.
-
-   The gap: the SCall case requires `returned_state_has_result`, which
-   states that `exec es s (OReturned st' v)` implies
-   `lookup st'.(reg_state) "\result" = Some v`. This invariant holds by
-   induction on the exec derivation (ExecReturn sets \result, all
-   propagation constructors preserve it), but the proof is tedious and
-   was Admitted above.
-
-   To close the gap:
-     (a) Prove `returned_state_has_result` by induction on exec.
-     (b) Use it in the SCall case of `pycsl_soundness` to extract `v`
-         from the body's OReturned outcome.
-
-   The Lean side has the same gap (returnedStateHasResult is sorry'd).
-   Both provers are in sync. *)
+Qed.
 
 (* ===== Phase 3c: \at label scoping theorems ===== *)
 

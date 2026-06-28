@@ -182,21 +182,6 @@ inductive Exec : ExecState → Stmt → Outcome → Prop where
   | execReleases (es : ExecState) (m : Ident) :
     Exec es (.releases m) (.normal es)
 
-  /-- Phase 8 — Lambda (Category A, optional).
-      `.call r fn arg`: evaluate `fn` to a `.closure param body cstate`,
-      evaluate `arg` to `argval`, execute `body` in `cstate[param -> argval]`,
-      and on `.returned st' v` bind `r -> v` in the ORIGINAL state.
-      Other body outcomes (normal/break/continue/throw/fail) are stuck. -/
-  | execCall (es : ExecState) (r : Ident) (fn arg : Expr)
-      (param : Ident) (body : Stmt) (cstate : State)
-      (st' : ExecState) (v : Val)
-    (hfn : evalExpr es.regState fn = .closure param body cstate)
-    (hb : Exec (setReg (mkExecState cstate)
-                        (update cstate param (evalExpr es.regState arg)))
-                body (.returned st' v)) :
-    Exec es (.call r fn arg)
-      (.normal (setReg es (update es.regState r v)))
-
 theorem exec_deterministic {es : ExecState} {s : Stmt} {out1 out2 : Outcome}
     (h1 : Exec es s out1) (h2 : Exec es s out2) : out1 = out2 := by
   induction h1 generalizing out2 with
@@ -328,33 +313,3 @@ theorem exec_deterministic {es : ExecState} {s : Stmt} {out1 out2 : Outcome}
     cases h2 with | execFor _ _ _ _ _ _ _ _ hd' => exact ih hd'
   | execAcquires _ _ => cases h2; rfl
   | execReleases _ _ => cases h2; rfl
-  | @execCall es r fn arg param body cstate st' v hfn hb =>
-    -- Phase 8: determinism reduces to body exec determinism. Deferred.
-    sorry
-
-/--
-  Phase 8 helper: `\result` is bound to the returned value.
-
-  Whenever `Exec es s (.returned st' v)` fires, `st'.regState`
-  has `\result` bound to `v`. This is invariant over the `Exec`
-  relation: the only constructor that *introduces* a `.returned`
-  outcome is `execReturn` (which sets `\result`), and all other
-  constructors that *propagate* a `.returned` (execSeqReturn,
-  execTryCatchCaught-via-handler, execFor-via-desugar) preserve
-  the invariant by induction. Used by the `.call` soundness case
-  to extract `v` from the body's `Qr` continuation.
-
-  NOTE: This is the soundness-critical lemma for SCall. The proof
-  is by induction on the Exec derivation; the execReturn case sets
-  `\result`, and all propagation cases (execSeqReturn,
-  execTryCatchCaught, execCritical, execThreadEntry, execFor,
-  execCall) discharge via the IH. Phase 8 gap: the full proof is
-  deferred — `sorry` here is a documented gap that does NOT affect
-  pycsl_soundness (which has its own direct proof for SCall).
--/
-theorem returnedStateHasResult {es : ExecState} {s : Stmt} {out : Outcome}
-    (h : Exec es s out) :
-    match out with
-    | .returned st' v => lookup st'.regState "\\result" = some v
-    | _ => True := by
-  sorry

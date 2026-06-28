@@ -4,27 +4,10 @@
 -/
 import PyCSL.AST
 
--- Phase 8: `Val` references `State` (which is defined below). To avoid
--- the forward reference, we define `State` first as an `abbrev` over
--- `List (Ident × Val)`, but `Val` is defined *after* it. This is a
--- chicken-and-egg problem. Solution: use `Val.closureBody` as a separate
--- type that stores the closure body without referencing State, and have
--- `State` use `Val`. The captured state in a `VClosure` is therefore
--- stored as a `List (Ident × Val)` directly (not aliased to `State`)
--- to break the cycle.
-
 inductive Val where
-  | int     (n : Int)
-  | array   (a : List Int)
-  /-- Phase 8 — Lambda (Category A, optional).
-      `.closure param body closure` is the value of a `.lambda`
-      expression: it captures the defining state `closure` so that
-      `.call` can later execute `body` in `closure[param -> argval]`.
-      The captured state is a plain `List (Ident × Val)` (regState
-      only); ghost and label snapshots are not captured by this
-      minimal model. -/
-  | closure (param : Ident) (body : Stmt) (closure : List (Ident × Val))
-  deriving Repr
+  | int   (n : Int)
+  | array (a : List Int)
+  deriving DecidableEq, Repr
 
 abbrev State := List (Ident × Val)
 
@@ -167,11 +150,6 @@ def evalExpr (st : State) : Expr → Val
   | .call _ _ =>
     -- Q4 U.4 (2026-05-29): generic call defaults to int 0.
     .int 0
-  | .lambda param body =>
-    -- Phase 8: evaluating a .lambda captures the current state.
-    -- The body is opaque to the Hoare model — it is only entered
-    -- when an .call fires.
-    .closure param body st
 
 def evalBool (st : State) (e : Expr) : Bool :=
   match evalExpr st e with

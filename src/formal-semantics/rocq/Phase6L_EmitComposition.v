@@ -105,7 +105,6 @@ Definition acceptable_emit (state : assign_state) (s : stmt) : list string :=
   | SThreadEntry body         => [ emit_stmt_full_complete state (gen body) ]
   | SAcquires _               => acceptable_skip_emissions  (* gen → WSkip *)
   | SReleases _               => acceptable_skip_emissions  (* gen → WSkip *)
-  | SCall _ _ _               => acceptable_skip_emissions  (* gen → WSkip; Phase 8 lambda gap *)
   end.
 
 (* ===== The composition theorem ===== *)
@@ -167,8 +166,6 @@ Proof.
   (* SAcquisitions — gen reduces to WSkip *)
   - left. reflexivity.
   (* SReleases — gen reduces to WSkip *)
-  - left. reflexivity.
-  (* SCall — gen reduces to WSkip (Phase 8 lambda gap) *)
   - left. reflexivity.
 Qed.
 

@@ -71,7 +71,6 @@ def prettyExpr : Expr → String
   | .fieldGet obj f  => obj ++ "." ++ f
   | .call func args  =>
       func ++ "(" ++ String.intercalate ", " (args.map prettyExpr) ++ ")"
-  | .lambda _ _      => "(* closure *)"  -- Phase 8: closures not emitted by Module 6
 
 /-- The state Module 6 consults at `_handle_assign_stmt`. -/
 structure AssignState where

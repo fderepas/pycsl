@@ -31,7 +31,56 @@ theorem wp_mono {s : Stmt}
     {preEs es : ExecState}
     (h : wp s Qn Qr Qc Qb Qe preEs es) :
     wp s Qn' Qr' Qc' Qb' Qe' preEs es := by
-  sorry
+  induction s generalizing Qn Qn' Qr Qr' Qc Qc' Qb Qb' Qe Qe' preEs es with
+  | skip          => exact hn _ h
+  | assign        => exact hn _ h
+  | augAssign     => exact hn _ h
+  | arraySet      => exact hn _ h
+  | ret           => exact hr _ h
+  | continue_     => exact hc _ h
+  | break_        => exact hb _ h
+  | raise_ _      => exact he _ _ h
+  | assert_ _ _   => simp only [wp] at h ⊢; exact ⟨h.1, hn _ h.2⟩
+  | tupleUnpack _ _ => exact hn _ h
+  | ghostDecl _ _ _   => exact hn _ h
+  | ghostAssign _ _ _ _ => exact hn _ h
+  | label_ _      => exact hn _ h
+  | fieldAssign _ _ _   => exact hn _ h
+  | fieldAugAssign _ _ _ _ => exact hn _ h
+  | acquires _       => exact hn _ h
+  | releases _       => exact hn _ h
+  | seq s1 s2 ih1 ih2 =>
+    simp only [wp] at h ⊢
+    exact ih1 (fun es' h' => ih2 hn hr hc hb he h') hr hc hb he h
+  | ite _ s1 s2 ih1 ih2 =>
+    simp only [wp] at h ⊢
+    exact ⟨fun hcond => ih1 hn hr hc hb he (h.1 hcond),
+           fun hcond => ih2 hn hr hc hb he (h.2 hcond)⟩
+  | while_ _ _ _ _ ih =>
+    simp only [wp] at h ⊢
+    obtain ⟨hInv, hBody, hExit⟩ := h
+    refine ⟨hInv, fun es' hInv' hCond => ?_, fun es' hInv' hCond => hn _ (hExit es' hInv' hCond)⟩
+    -- break continuation of body = outer Qn; change Qb via hn, leave bodyDone fixed
+    exact ih (fun _ h => h) hr (fun _ h => h) hn he (hBody es' hInv' hCond)
+  | for_ _ _ _ _ _ _ ih =>
+    simp only [wp] at h ⊢
+    obtain ⟨hInv, hBody, hExit⟩ := h
+    refine ⟨hInv, fun es' hInv' hCond => ?_, fun es' hInv' hCond => hn _ (hExit es' hInv' hCond)⟩
+    -- break continuation of body = outer Qn; change Qb via hn, leave bodyDone fixed
+    exact ih (fun _ h => h) hr (fun _ h => h) hn he (hBody es' hInv' hCond)
+  | tryCatch _ exc _ ih1 ih2 =>
+    simp only [wp] at h ⊢
+    apply ih1 hn hr hc hb _ h
+    intro e' es' h'
+    -- Bool.eq_false_or_eq_true : b = true ∨ b = false  (TRUE first)
+    rcases Bool.eq_false_or_eq_true (e' == exc) with heq | heq
+    · rw [if_pos heq] at h' ⊢; exact ih2 hn hr hc hb he h'
+    · have hf : ¬((e' == exc) = true) := fun h => Bool.false_ne_true (heq ▸ h)
+      rw [if_neg hf] at h' ⊢; exact he _ _ h'
+  | critical _ _ ih =>
+    simp only [wp] at h ⊢; exact ih hn hr hc hb he h
+  | threadEntry _ ih =>
+    simp only [wp] at h ⊢; exact ih hn hr hc hb he h
 
 -- ===== WP Desugaring (forward direction) =====
 
@@ -56,19 +105,123 @@ private theorem liftContinue_wp (s : Stmt)
     (Qe : Ident → ExecState → Prop) (preEs es : ExecState) :
     wp (liftContinue (.augAssign forIdx .add (.int 1)) s) Qn Qr Qc Qb Qe preEs es =
     wp s Qn Qr (fun es' => Qc (incIdxFn es')) Qb Qe preEs es := by
-  sorry
+  induction s generalizing Qn Qr Qc Qb Qe preEs es with
+  | skip => simp only [liftContinue, wp]
+  | assign _ _ => simp only [liftContinue, wp]
+  | augAssign _ _ _ => simp only [liftContinue, wp]
+  | arraySet _ _ _ => simp only [liftContinue, wp]
+  | ret _ => simp only [liftContinue, wp]
+  | break_ => simp only [liftContinue, wp]
+  | assert_ _ _ => simp only [liftContinue, wp]
+  | tupleUnpack _ _ => simp only [liftContinue, wp]
+  | ghostDecl _ _ _ => simp only [liftContinue, wp]
+  | ghostAssign _ _ _ _ => simp only [liftContinue, wp]
+  | label_ _ => simp only [liftContinue, wp]
+  | raise_ _ => simp only [liftContinue, wp]
+  | fieldAssign _ _ _   => simp only [liftContinue, wp]
+  | fieldAugAssign _ _ _ _ => simp only [liftContinue, wp]
+  | acquires _       => simp only [liftContinue, wp]
+  | releases _       => simp only [liftContinue, wp]
+  | while_ _ _ _ _ _ => simp only [liftContinue, wp]
+  | for_ _ _ _ _ _ _ => simp only [liftContinue, wp]
+  | continue_ => simp only [liftContinue, wp, incIdxFn, evalExpr, evalBinopZ]; rfl
+  | seq s1 s2 ih1 ih2 =>
+    simp only [liftContinue, wp]
+    have h2 := funext (fun es' => ih2 Qn Qr Qc Qb Qe preEs es')
+    rw [h2]
+    exact ih1 (fun es' => wp s2 Qn Qr (fun es'' => Qc (incIdxFn es'')) Qb Qe preEs es')
+              Qr Qc Qb Qe preEs es
+  | ite _ s1 s2 ih1 ih2 =>
+    simp only [liftContinue, wp, ih1, ih2]
+  | tryCatch s1 exc handler ih1 ih2 =>
+    simp only [liftContinue, wp]
+    have hQe : (fun exc' es' =>
+                  if (exc' == exc) = true
+                  then wp (liftContinue (.augAssign forIdx .add (.int 1)) handler) Qn Qr Qc Qb Qe preEs es'
+                  else Qe exc' es') =
+               (fun exc' es' =>
+                  if (exc' == exc) = true
+                  then wp handler Qn Qr (fun es'' => Qc (incIdxFn es'')) Qb Qe preEs es'
+                  else Qe exc' es') := by
+      funext e' es'
+      by_cases heq : (e' == exc) = true
+      · rw [if_pos heq, if_pos heq]; exact ih2 Qn Qr Qc Qb Qe preEs es'
+      · rw [if_neg heq, if_neg heq]
+    rw [hQe]
+    exact ih1 Qn Qr Qc Qb _ preEs es
+  | critical _ _ ih =>
+    simp only [liftContinue, wp]
+    exact ih Qn Qr Qc Qb Qe preEs es
+  | threadEntry _ ih =>
+    simp only [liftContinue, wp]
+    exact ih Qn Qr Qc Qb Qe preEs es
 
--- Phase 8 gap: wp_desugar_fwd was previously proved by induction on Stmt.
--- Since Stmt is now mutually inductive, `induction s` doesn't work.
--- Admitted here as a documented gap. The execFor case of pycsl_soundness
--- depends on this; that case is also admitted (via `sorry` below).
 theorem wp_desugar_fwd (s : Stmt)
     (Qn Qr Qc Qb : ExecState → Prop)
     (Qe : Ident → ExecState → Prop)
     (preEs es : ExecState)
     (h : wp s Qn Qr Qc Qb Qe preEs es) :
     wp (desugar s) Qn Qr Qc Qb Qe preEs es := by
-  sorry
+  induction s generalizing Qn Qr Qc Qb Qe preEs es with
+  | skip          => exact h
+  | assign        => exact h
+  | augAssign     => exact h
+  | arraySet      => exact h
+  | ret           => exact h
+  | continue_     => exact h
+  | break_        => exact h
+  | assert_ _ _   => exact h
+  | tupleUnpack _ _ => exact h
+  | ghostDecl _ _ _   => exact h
+  | ghostAssign _ _ _ _ => exact h
+  | label_ _      => exact h
+  | raise_ _      => exact h
+  | fieldAssign _ _ _   => exact h
+  | fieldAugAssign _ _ _ _ => exact h
+  | acquires _       => exact h
+  | releases _       => exact h
+  | seq s1 s2 ih1 ih2 =>
+    simp only [desugar, wp] at h ⊢
+    -- Step 1: desugar s1 using IH for s1
+    have h1 := ih1 (fun es' => wp s2 Qn Qr Qc Qb Qe preEs es') Qr Qc Qb Qe preEs es h
+    -- Step 2: desugar s2 in the inner continuation via wp_mono on desugar s1
+    exact wp_mono (fun es' h' => ih2 Qn Qr Qc Qb Qe preEs es' h')
+      (fun _ h => h) (fun _ h => h) (fun _ h => h) (fun _ _ h => h) h1
+  | ite _ s1 s2 ih1 ih2 =>
+    simp only [desugar, wp] at h ⊢
+    exact ⟨fun hcond => ih1 Qn Qr Qc Qb Qe preEs es (h.1 hcond),
+           fun hcond => ih2 Qn Qr Qc Qb Qe preEs es (h.2 hcond)⟩
+  | while_ _ _ _ _ ih_body =>
+    simp only [desugar, wp] at h ⊢
+    obtain ⟨hInv, hBody, hExit⟩ := h
+    -- desugar (.while_ i v c b) = .while_ i v c (desugar b): body IH suffices
+    exact ⟨hInv, fun es' hInv' hCond =>
+      ih_body _ Qr _ Qn Qe preEs es' (hBody es' hInv' hCond), hExit⟩
+  | for_ x arr inv var body _aim ih_body =>
+    simp only [desugar, wp] at h ⊢
+    -- h : evalC es0 inv ∧ (∀ es' inv guard → wp body bodyDone ...) ∧ (∀ es' inv ¬guard → Qn)
+    obtain ⟨hInv, hBody, hExit⟩ := h
+    refine ⟨hInv, fun es' hInv' hGuard => ?_, hExit⟩
+    rw [liftContinue_wp]
+    exact ih_body _ Qr _ Qn Qe preEs _ (hBody es' hInv' hGuard)
+  | tryCatch s1 exc handler ih1 ih2 =>
+    simp only [desugar, wp] at h ⊢
+    -- Apply ih1 first so Lean infers the upgraded Qe from the outer goal.
+    -- Then upgrade wp handler → wp (desugar handler) in the continuation via wp_mono.
+    -- Note: if (e' == exc) has Prop condition (e' == exc = true), so use if_pos/if_neg.
+    apply ih1
+    apply wp_mono (fun _ hx => hx) (fun _ hx => hx) (fun _ hx => hx) (fun _ hx => hx) _ h
+    intro e' es'' h_exc
+    -- Bool.eq_false_or_eq_true : b = true ∨ b = false  (TRUE first)
+    rcases Bool.eq_false_or_eq_true (e' == exc) with heq | heq
+    · rw [if_pos heq] at h_exc ⊢
+      exact ih2 Qn Qr Qc Qb Qe preEs es'' h_exc
+    · have hf : ¬((e' == exc) = true) := fun h => Bool.false_ne_true (heq ▸ h)
+      rw [if_neg hf] at h_exc ⊢; exact h_exc
+  | critical _ _ ih =>
+    simp only [desugar, wp] at h ⊢; exact ih Qn Qr Qc Qb Qe preEs es h
+  | threadEntry _ ih =>
+    simp only [desugar, wp] at h ⊢; exact ih Qn Qr Qc Qb Qe preEs es h
 
 def outcomePost
     (Qn Qr Qc Qb : ExecState → Prop)
@@ -197,29 +350,10 @@ theorem pycsl_soundness
     simp only [wp] at hWp; exact ih Qn Qr Qc Qb Qe preEs hWp
   -- For: ExecFor gives Exec es0 (desugar (.for_ ...)) out; wp_desugar_fwd bridges the WPs
   | execFor es0 x arr inv var body aim _ _ ih =>
-    exact ih Qn Qr Qc Qb Qe preEs (wp_desugar_fwd (.for_ x arr inv var body aim) Qn Qr Qc Qb Qe preEs es0 hWp)  -- Acquires/Releases: leaf, Qn es
+    exact ih Qn Qr Qc Qb Qe preEs (wp_desugar_fwd (.for_ x arr inv var body aim) Qn Qr Qc Qb Qe preEs es0 hWp)
+  -- Acquires/Releases: leaf, Qn es
   | execAcquires _ _ => exact hWp
   | execReleases _ _ => exact hWp
-  | @execCall es r fn arg param body cstate st' v hfn hb ih =>
-    -- Phase 8: ExecCall fires only when body produced .returned st' v.
-    -- From `returnedStateHasResult` we have st'.regState has \result -> v.
-    -- From the WP's return-branch (after matching on evalExpr fn = closure)
-    -- we get Qn (setReg es (update es.regState r v)).
-    simp only [wp] at hWp
-    -- hWp depends on evalExpr es.regState fn = closure param body cstate.
-    -- After matching, the return-branch hypothesis Hret applies.
-    have heq : evalExpr es.regState fn = .closure param body cstate := hfn
-    rw [heq] at hWp
-    -- Now hWp = (∀ st'' v', Exec _ body (.returned st'' v') →
-    --   match lookup st''.regState "\\result" with
-    --   | some v' => Qn (setReg es (update es.regState r v'))
-    --   | none => Qn es) ∧ ...
-    obtain ⟨hret, _⟩ := hWp
-    specialize (hret st' v hb)
-    -- From returnedStateHasResult: lookup st'.regState "\result" = some v
-    have hres := returnedStateHasResult hb
-    rw [hres] at hret
-    exact hret
 
 -- ===== Phase 3c: \at label scoping theorems =====
 
