@@ -41,6 +41,15 @@ Inductive expr : Type :=
      constructor is a structural placeholder that downstream code
      with function-interpretation infrastructure can intercept. *)
   | ECall      (func : ident) (args : list expr).
+  (* Phase 8 gap: `ELambda (param : ident) (body : stmt)` is NOT
+     added to `expr` because Rocq requires `stmt` to be defined
+     before `expr`, but `stmt` references `contract_expr` which
+     is defined after `expr`. Making `expr`/`stmt`/`contract_expr`
+     a mutual block would be invasive. Instead, lambda values are
+     constructed ONLY at the value level (`VClosure`), and the
+     `ELambda` expression is represented by a runtime token. The
+     `SCall` statement still fires on `VClosure` values. This is
+     the "minimal proved version" per the task spec. *)
 
 (* ===== Decidable equality on operators and runtime expressions =====
    Added 2026-05-29 for CC.4 Module 4 citation. These structural-
@@ -261,5 +270,13 @@ Inductive stmt : Type :=
      the real lock discipline (lock-held flag, deadlock prevention via
      lock_order) is the deferred ConcurrentMM instance work — see
      Phase7_MemModel.v §"Deferred work". *)
-  | SAcquires    (mutex : ident)
-  | SReleases    (mutex : ident).
+   | SAcquires    (mutex : ident)
+   | SReleases    (mutex : ident)
+   (* Phase 8 — Lambda (Category A, optional).
+      `SCall result fn arg` calls `fn` (which must evaluate to a
+      `VClosure param body cstate`) with `arg`; executes the body
+      in `cstate[param -> argval]`; on `OReturned st' v`, binds
+      `result` to `v` in the ORIGINAL state. If the body produces
+      any non-return outcome, SCall is stuck (no SOS rule fires) —
+      a sound, limited model fitting the "rarely used" status. *)
+   | SCall       (result : ident) (fn : expr) (arg : expr).

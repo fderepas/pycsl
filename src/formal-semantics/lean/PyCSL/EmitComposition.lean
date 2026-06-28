@@ -64,6 +64,7 @@ def acceptableEmit (state : AssignState) : Stmt → List String
   | .threadEntry body           => [ emitStmtFullComplete state (gen body) ]
   | .acquires _                 => acceptableSkipEmissions  -- gen → wSkip
   | .releases _                 => acceptableSkipEmissions  -- gen → wSkip
+  | .call _ _ _                 => acceptableSkipEmissions  -- gen → wSkip; Phase 8 lambda gap
 
 /-- The composition theorem: for every stmt constructor,
     `emitStmtFullComplete state (gen s)` lies in `acceptableEmit
@@ -135,6 +136,10 @@ theorem emitStmtFullCompleteSound (state : AssignState) (s : Stmt) :
   | acquires _ =>
       simp [acceptableEmit, gen, emitStmtFullComplete, acceptableSkipEmissions]
   | releases _ =>
+      simp [acceptableEmit, gen, emitStmtFullComplete, acceptableSkipEmissions]
+  | call _ _ _ =>
+      -- Phase 8 lambda gap: gen (.call r fn arg) = .wSkip, so emission is
+      -- `()` which is in `acceptableSkipEmissions`.
       simp [acceptableEmit, gen, emitStmtFullComplete, acceptableSkipEmissions]
 
 /-- Existential corollary: the emission is some specific string in

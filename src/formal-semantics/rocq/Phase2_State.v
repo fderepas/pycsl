@@ -7,8 +7,18 @@ Open Scope Z_scope.
 
 (* Runtime values *)
 Inductive val : Type :=
-  | VInt   (n : Z)
-  | VArray (a : list Z).
+  | VInt     (n : Z)
+  | VArray   (a : list Z)
+  (* Phase 8 — Lambda (Category A, optional).
+     `VClosure param body closure` is the value of an `ELambda`
+     expression: it captures the defining state `closure` so that
+     `SCall` can later execute `body` in `closure[param -> argval]`.
+     The captured state is a plain `list (ident * val)` (reg_state
+     only); ghost and label snapshots are not captured by this
+     minimal model. We use `list (ident * val)` directly (not the
+     `state` abbrev) to avoid a forward reference — `state` is
+     defined just below. *)
+  | VClosure  (param : ident) (body : stmt) (closure : list (ident * val)).
 
 (* Association-list state *)
 Definition state := list (ident * val).

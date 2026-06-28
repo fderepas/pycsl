@@ -1,0 +1,161 @@
+DIGEST 3b1df9f97541257a44b83ccdfae08777
+FPyCSL.Phase6L_EmitSeq
+R1325:1330 Coq.Strings.String <> <> lib
+R1332:1335 Coq.Lists.List <> <> lib
+R1337:1342 Coq.ZArith.ZArith <> <> lib
+R1344:1348 Coq.Strings.Ascii <> <> lib
+R1366:1375 PyCSL.Phase1_AST <> <> lib
+R1393:1404 PyCSL.Phase6_WhyML <> <> lib
+R1422:1436 PyCSL.Phase6d_StmtGen <> <> lib
+R1454:1469 PyCSL.Phase6L_EmitStmt <> <> lib
+R1487:1504 PyCSL.Phase6L_EmitAssign <> <> lib
+R1522:1542 PyCSL.Phase6L_EmitAugAssign <> <> lib
+R1560:1579 PyCSL.Phase6L_EmitArraySet <> <> lib
+R1590:1602 Coq.Lists.List ListNotations <> mod
+def 1709:1715 <> seq_sep
+R1719:1724 Coq.Strings.String <> string ind
+R1732:1735 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R1736:1741 Coq.Strings.String <> String constr
+def 1999:2012 <> emit_stmt_full
+R2019:2030 PyCSL.Phase6L_EmitAssign <> assign_state rec
+binder 2015:2015 <> s:1
+R2039:2048 PyCSL.Phase6_WhyML <> whyml_stmt ind
+binder 2034:2035 <> ws:2
+R2053:2058 Coq.Strings.String <> string ind
+R2071:2072 PyCSL.Phase6L_EmitSeq <> ws:2 var
+R2083:2087 PyCSL.Phase6_WhyML <> WSkip constr
+R2118:2124 PyCSL.Phase6_WhyML <> WAssign constr
+R2144:2154 PyCSL.Phase6L_EmitAssign <> emit_assign def
+R2156:2156 PyCSL.Phase6L_EmitSeq <> s:1 var
+R2166:2175 PyCSL.Phase6_WhyML <> WAugAssign constr
+R2192:2206 PyCSL.Phase6L_EmitAugAssign <> emit_aug_assign def
+R2219:2227 PyCSL.Phase6_WhyML <> WArraySet constr
+R2245:2258 PyCSL.Phase6L_EmitArraySet <> emit_array_set def
+R2272:2275 PyCSL.Phase6_WhyML <> WSeq constr
+R2317:2320 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R2298:2311 PyCSL.Phase6L_EmitSeq <> emit_stmt_full:3 def
+R2313:2313 PyCSL.Phase6L_EmitSeq <> s:1 var
+R2328:2363 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R2321:2327 PyCSL.Phase6L_EmitSeq <> seq_sep def
+R2364:2377 PyCSL.Phase6L_EmitSeq <> emit_stmt_full:3 def
+R2379:2379 PyCSL.Phase6L_EmitSeq <> s:1 var
+R2506:2508 PyCSL.Phase6_WhyML <> WIf constr
+R2539:2544 PyCSL.Phase6_WhyML <> WWhile constr
+R2572:2577 PyCSL.Phase6_WhyML <> WRaise constr
+R2605:2613 PyCSL.Phase6_WhyML <> WTryCatch constr
+R2638:2647 PyCSL.Phase6_WhyML <> WGhostDecl constr
+R2671:2682 PyCSL.Phase6_WhyML <> WGhostAssign constr
+R2704:2709 PyCSL.Phase6_WhyML <> WLabel constr
+R2737:2743 PyCSL.Phase6_WhyML <> WAssert constr
+R2770:2776 PyCSL.Phase6_WhyML <> WAssume constr
+def 2974:2997 <> acceptable_seq_emissions
+R3015:3026 PyCSL.Phase6L_EmitAssign <> assign_state rec
+binder 3011:3011 <> s:5
+R3038:3047 PyCSL.Phase6_WhyML <> whyml_stmt ind
+binder 3030:3031 <> w1:6
+binder 3033:3034 <> w2:7
+R3052:3055 Coq.Init.Datatypes <> list ind
+R3057:3062 Coq.Strings.String <> string ind
+R3069:3070 Coq.Lists.List ListNotations ::list_scope:'['_x_']' not
+R3124:3125 Coq.Lists.List ListNotations ::list_scope:'['_x_']' not
+R3090:3093 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R3071:3084 PyCSL.Phase6L_EmitSeq <> emit_stmt_full def
+R3086:3086 PyCSL.Phase6L_EmitSeq <> s:5 var
+R3088:3089 PyCSL.Phase6L_EmitSeq <> w1:6 var
+R3101:3104 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R3094:3100 PyCSL.Phase6L_EmitSeq <> seq_sep def
+R3105:3118 PyCSL.Phase6L_EmitSeq <> emit_stmt_full def
+R3120:3120 PyCSL.Phase6L_EmitSeq <> s:5 var
+R3122:3123 PyCSL.Phase6L_EmitSeq <> w2:7 var
+prf 3176:3191 <> emit_seq_correct
+binder 3204:3204 <> s:8
+binder 3206:3207 <> w1:9
+binder 3209:3210 <> w2:10
+R3217:3218 Coq.Lists.List <> In def
+R3253:3276 PyCSL.Phase6L_EmitSeq <> acceptable_seq_emissions def
+R3278:3278 PyCSL.Phase6L_EmitSeq <> s:8 var
+R3280:3281 PyCSL.Phase6L_EmitSeq <> w1:9 var
+R3283:3284 PyCSL.Phase6L_EmitSeq <> w2:10 var
+R3221:3234 PyCSL.Phase6L_EmitSeq <> emit_stmt_full def
+R3236:3236 PyCSL.Phase6L_EmitSeq <> s:8 var
+R3239:3242 PyCSL.Phase6_WhyML <> WSeq constr
+R3244:3245 PyCSL.Phase6L_EmitSeq <> w1:9 var
+R3247:3248 PyCSL.Phase6L_EmitSeq <> w2:10 var
+R3322:3345 PyCSL.Phase6L_EmitSeq <> acceptable_seq_emissions def
+prf 3453:3478 <> emit_stmt_full_seq_correct
+binder 3491:3491 <> s:11
+binder 3493:3494 <> s1:12
+binder 3496:3497 <> s2:13
+R3504:3505 Coq.Lists.List <> In def
+R3553:3576 PyCSL.Phase6L_EmitSeq <> acceptable_seq_emissions def
+R3578:3578 PyCSL.Phase6L_EmitSeq <> s:11 var
+R3581:3583 PyCSL.Phase6d_StmtGen <> gen def
+R3585:3586 PyCSL.Phase6L_EmitSeq <> s1:12 var
+R3590:3592 PyCSL.Phase6d_StmtGen <> gen def
+R3594:3595 PyCSL.Phase6L_EmitSeq <> s2:13 var
+R3508:3521 PyCSL.Phase6L_EmitSeq <> emit_stmt_full def
+R3523:3523 PyCSL.Phase6L_EmitSeq <> s:11 var
+R3526:3528 PyCSL.Phase6d_StmtGen <> gen def
+R3531:3534 PyCSL.Phase1_AST <> SSeq constr
+R3536:3537 PyCSL.Phase6L_EmitSeq <> s1:12 var
+R3539:3540 PyCSL.Phase6L_EmitSeq <> s2:13 var
+R3630:3645 PyCSL.Phase6L_EmitSeq <> emit_seq_correct thm
+R3630:3645 PyCSL.Phase6L_EmitSeq <> emit_seq_correct thm
+prf 3906:3924 <> emit_stmt_full_skip
+binder 3937:3937 <> s:14
+R3962:3964 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3940:3953 PyCSL.Phase6L_EmitSeq <> emit_stmt_full def
+R3955:3955 PyCSL.Phase6L_EmitSeq <> s:14 var
+R3957:3961 PyCSL.Phase6_WhyML <> WSkip constr
+prf 4005:4033 <> emit_stmt_full_assign_correct
+binder 4046:4046 <> s:15
+binder 4048:4048 <> x:16
+binder 4050:4050 <> e:17
+R4057:4058 Coq.Lists.List <> In def
+R4094:4120 PyCSL.Phase6L_EmitAssign <> acceptable_assign_emissions def
+R4122:4122 PyCSL.Phase6L_EmitSeq <> s:15 var
+R4124:4124 PyCSL.Phase6L_EmitSeq <> x:16 var
+R4126:4126 PyCSL.Phase6L_EmitSeq <> e:17 var
+R4061:4074 PyCSL.Phase6L_EmitSeq <> emit_stmt_full def
+R4076:4076 PyCSL.Phase6L_EmitSeq <> s:15 var
+R4079:4085 PyCSL.Phase6_WhyML <> WAssign constr
+R4087:4087 PyCSL.Phase6L_EmitSeq <> x:16 var
+R4089:4089 PyCSL.Phase6L_EmitSeq <> e:17 var
+R4160:4178 PyCSL.Phase6L_EmitAssign <> emit_assign_correct thm
+R4160:4178 PyCSL.Phase6L_EmitAssign <> emit_assign_correct thm
+prf 4195:4227 <> emit_stmt_full_aug_assign_correct
+binder 4240:4240 <> s:18
+binder 4242:4242 <> x:19
+binder 4244:4245 <> op:20
+binder 4247:4247 <> e:21
+R4254:4255 Coq.Lists.List <> In def
+R4304:4334 PyCSL.Phase6L_EmitAugAssign <> acceptable_aug_assign_emissions def
+R4336:4336 PyCSL.Phase6L_EmitSeq <> x:19 var
+R4338:4339 PyCSL.Phase6L_EmitSeq <> op:20 var
+R4341:4341 PyCSL.Phase6L_EmitSeq <> e:21 var
+R4258:4271 PyCSL.Phase6L_EmitSeq <> emit_stmt_full def
+R4273:4273 PyCSL.Phase6L_EmitSeq <> s:18 var
+R4276:4285 PyCSL.Phase6_WhyML <> WAugAssign constr
+R4287:4287 PyCSL.Phase6L_EmitSeq <> x:19 var
+R4289:4290 PyCSL.Phase6L_EmitSeq <> op:20 var
+R4292:4292 PyCSL.Phase6L_EmitSeq <> e:21 var
+R4375:4397 PyCSL.Phase6L_EmitAugAssign <> emit_aug_assign_correct thm
+R4375:4397 PyCSL.Phase6L_EmitAugAssign <> emit_aug_assign_correct thm
+prf 4414:4445 <> emit_stmt_full_array_set_correct
+binder 4458:4458 <> s:22
+binder 4460:4462 <> arr:23
+binder 4464:4464 <> i:24
+binder 4466:4466 <> v:25
+R4473:4474 Coq.Lists.List <> In def
+R4523:4552 PyCSL.Phase6L_EmitArraySet <> acceptable_array_set_emissions def
+R4554:4556 PyCSL.Phase6L_EmitSeq <> arr:23 var
+R4558:4558 PyCSL.Phase6L_EmitSeq <> i:24 var
+R4560:4560 PyCSL.Phase6L_EmitSeq <> v:25 var
+R4477:4490 PyCSL.Phase6L_EmitSeq <> emit_stmt_full def
+R4492:4492 PyCSL.Phase6L_EmitSeq <> s:22 var
+R4495:4503 PyCSL.Phase6_WhyML <> WArraySet constr
+R4505:4507 PyCSL.Phase6L_EmitSeq <> arr:23 var
+R4509:4509 PyCSL.Phase6L_EmitSeq <> i:24 var
+R4511:4511 PyCSL.Phase6L_EmitSeq <> v:25 var
+R4594:4615 PyCSL.Phase6L_EmitArraySet <> emit_array_set_correct thm
+R4594:4615 PyCSL.Phase6L_EmitArraySet <> emit_array_set_correct thm

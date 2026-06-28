@@ -34,6 +34,7 @@ def freshInStmt (x : Ident) : Stmt → Bool
   | .threadEntry b      => freshInStmt x b
   | .acquires _         => true
   | .releases _         => true
+  | .call _ _ _         => true
 
 -- liftContinue incStmt s: replace every shallow continue_ in s with (seq incStmt continue_).
 -- "Shallow" means: recurse into seq/ite/tryCatch/critical/threadEntry but
@@ -49,6 +50,7 @@ def freshInStmt (x : Ident) : Stmt → Bool
   | .threadEntry b          => .threadEntry (liftContinue incStmt b)
   | .acquires m             => .acquires m
   | .releases m             => .releases m
+  | .call r fn arg          => .call r fn arg
   -- Leaf constructors: identity (explicit to generate clean equation lemmas)
   | .skip                   => .skip
   | .break_                 => .break_
@@ -84,6 +86,7 @@ def desugar : Stmt → Stmt
   | .threadEntry b       => .threadEntry (desugar b)
   | .acquires m          => .acquires m
   | .releases m          => .releases m
+  | .call r fn arg       => .call r fn arg
   | s                    => s
 
 -- =====================================================================

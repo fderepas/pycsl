@@ -1,0 +1,304 @@
+DIGEST 2478612c47d31332aa746e81f1d26e41
+FPyCSL.Phase5a_WhileInv
+R129:134 Coq.ZArith.ZArith <> <> lib
+R136:141 Coq.Strings.String <> <> lib
+R143:146 Coq.Lists.List <> <> lib
+R148:151 Coq.Bool.Bool <> <> lib
+R169:171 Coq.micromega.Lia <> <> lib
+R189:198 PyCSL.Phase1_AST <> <> lib
+R216:227 PyCSL.Phase2_State <> <> lib
+R245:254 PyCSL.Phase3_SOS <> <> lib
+R272:286 PyCSL.Phase3b_Desugar <> <> lib
+R304:312 PyCSL.Phase4_WP <> <> lib
+prf 420:438 <> while_not_continued
+binder 451:452 <> es:1
+binder 454:456 <> inv:2
+binder 458:460 <> var:3
+binder 462:465 <> cond:4
+binder 467:470 <> body:5
+binder 472:474 <> out:6
+R517:522 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R479:482 PyCSL.Phase3_SOS <> exec ind
+R484:485 PyCSL.Phase5a_WhileInv <> es:1 var
+R488:493 PyCSL.Phase1_AST <> SWhile constr
+R495:497 PyCSL.Phase5a_WhileInv <> inv:2 var
+R499:501 PyCSL.Phase5a_WhileInv <> var:3 var
+R503:506 PyCSL.Phase5a_WhileInv <> cond:4 var
+R508:511 PyCSL.Phase5a_WhileInv <> body:5 var
+R514:516 PyCSL.Phase5a_WhileInv <> out:6 var
+R529:531 PyCSL.Phase5a_WhileInv <> out:6 var
+R538:547 PyCSL.Phase3_SOS <> OContinued constr
+R554:558 Coq.Init.Logic <> False ind
+R567:570 Coq.Init.Logic <> True ind
+R637:642 PyCSL.Phase1_AST <> SWhile constr
+R637:642 PyCSL.Phase1_AST <> SWhile constr
+R813:813 Coq.Init.Logic <> I constr
+R813:813 Coq.Init.Logic <> I constr
+R866:866 Coq.Init.Logic <> I constr
+R866:866 Coq.Init.Logic <> I constr
+prf 1056:1074 <> while_inv_preserved
+R1095:1098 PyCSL.Phase1_AST <> expr ind
+binder 1088:1091 <> cond:8
+R1109:1112 PyCSL.Phase1_AST <> stmt ind
+binder 1102:1105 <> body:9
+R1126:1138 PyCSL.Phase1_AST <> contract_expr ind
+binder 1116:1118 <> inv:10
+binder 1120:1122 <> var:11
+R1164:1167 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1154:1163 PyCSL.Phase2_State <> exec_state rec
+binder 1146:1147 <> Qn:12
+binder 1149:1150 <> Qr:13
+R1185:1188 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1180:1184 PyCSL.Phase1_AST <> ident def
+R1199:1202 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1189:1198 PyCSL.Phase2_State <> exec_state rec
+binder 1175:1176 <> Qe:14
+R1226:1235 PyCSL.Phase2_State <> exec_state rec
+binder 1214:1219 <> pre_es:15
+binder 1221:1222 <> es:16
+R1243:1243 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1595:1603 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+binder 1251:1253 <> es0:17
+binder 1255:1258 <> out0:18
+binder 1260:1262 <> Qn0:19
+binder 1264:1266 <> Qr0:20
+binder 1268:1270 <> Qc0:21
+binder 1272:1274 <> Qb0:22
+binder 1276:1278 <> Qe0:23
+R1306:1316 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1288:1291 PyCSL.Phase3_SOS <> exec ind
+R1293:1295 PyCSL.Phase5a_WhileInv <> es0:17 var
+R1297:1300 PyCSL.Phase5a_WhileInv <> body:9 var
+R1302:1305 PyCSL.Phase5a_WhileInv <> out0:18 var
+R1355:1365 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1317:1318 PyCSL.Phase4_WP <> wp def
+R1320:1323 PyCSL.Phase5a_WhileInv <> body:9 var
+R1325:1327 PyCSL.Phase5a_WhileInv <> Qn0:19 var
+R1329:1331 PyCSL.Phase5a_WhileInv <> Qr0:20 var
+R1333:1335 PyCSL.Phase5a_WhileInv <> Qc0:21 var
+R1337:1339 PyCSL.Phase5a_WhileInv <> Qn0:19 var
+R1341:1343 PyCSL.Phase5a_WhileInv <> Qe0:23 var
+R1345:1350 PyCSL.Phase5a_WhileInv <> pre_es:15 var
+R1352:1354 PyCSL.Phase5a_WhileInv <> es0:17 var
+R1372:1375 PyCSL.Phase5a_WhileInv <> out0:18 var
+R1391:1397 PyCSL.Phase3_SOS <> ONormal constr
+R1407:1409 PyCSL.Phase5a_WhileInv <> Qn0:19 var
+R1424:1432 PyCSL.Phase3_SOS <> OReturned constr
+R1443:1445 PyCSL.Phase5a_WhileInv <> Qr0:20 var
+R1460:1469 PyCSL.Phase3_SOS <> OContinued constr
+R1478:1480 PyCSL.Phase5a_WhileInv <> Qc0:21 var
+R1495:1500 PyCSL.Phase3_SOS <> OBroke constr
+R1509:1511 PyCSL.Phase5a_WhileInv <> Qb0:22 var
+R1526:1531 PyCSL.Phase3_SOS <> OThrew constr
+R1544:1546 PyCSL.Phase5a_WhileInv <> Qe0:23 var
+R1565:1571 PyCSL.Phase3_SOS <> OFailed constr
+R1580:1583 Coq.Init.Logic <> True ind
+R1629:1636 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1604:1609 PyCSL.Phase4_WP <> eval_c def
+R1611:1612 PyCSL.Phase5a_WhileInv <> es:16 var
+R1614:1619 PyCSL.Phase5a_WhileInv <> pre_es:15 var
+R1621:1624 Coq.Init.Datatypes <> None constr
+R1626:1628 PyCSL.Phase5a_WhileInv <> inv:10 var
+R1662:1669 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1657:1660 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R1637:1642 PyCSL.Phase4_WP <> eval_v def
+R1644:1645 PyCSL.Phase5a_WhileInv <> es:16 var
+R1647:1652 PyCSL.Phase5a_WhileInv <> pre_es:15 var
+R1654:1656 PyCSL.Phase5a_WhileInv <> var:11 var
+R1670:1670 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2050:2058 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+binder 1678:1680 <> es':25
+R1709:1729 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1683:1688 PyCSL.Phase4_WP <> eval_c def
+R1690:1692 PyCSL.Phase5a_WhileInv <> es':25 var
+R1694:1699 PyCSL.Phase5a_WhileInv <> pre_es:15 var
+R1701:1704 Coq.Init.Datatypes <> None constr
+R1706:1708 PyCSL.Phase5a_WhileInv <> inv:10 var
+R1767:1787 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1760:1762 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1730:1738 PyCSL.Phase2_State <> eval_bool def
+R1745:1753 PyCSL.Phase2_State <> reg_state proj
+R1740:1742 PyCSL.Phase5a_WhileInv <> es':25 var
+R1756:1759 PyCSL.Phase5a_WhileInv <> cond:8 var
+R1763:1766 Coq.Init.Datatypes <> true constr
+binder 1802:1805 <> es'':26
+R1856:1878 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R1829:1834 PyCSL.Phase4_WP <> eval_c def
+R1836:1839 PyCSL.Phase5a_WhileInv <> es'':26 var
+R1841:1846 PyCSL.Phase5a_WhileInv <> pre_es:15 var
+R1848:1851 Coq.Init.Datatypes <> None constr
+R1853:1855 PyCSL.Phase5a_WhileInv <> inv:10 var
+R1925:1947 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R1901:1903 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R1879:1884 PyCSL.Phase4_WP <> eval_v def
+R1886:1889 PyCSL.Phase5a_WhileInv <> es'':26 var
+R1891:1896 PyCSL.Phase5a_WhileInv <> pre_es:15 var
+R1898:1900 PyCSL.Phase5a_WhileInv <> var:11 var
+R1904:1909 PyCSL.Phase4_WP <> eval_v def
+R1911:1913 PyCSL.Phase5a_WhileInv <> es':25 var
+R1915:1920 PyCSL.Phase5a_WhileInv <> pre_es:15 var
+R1922:1924 PyCSL.Phase5a_WhileInv <> var:11 var
+R1970:1973 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R1948:1953 PyCSL.Phase4_WP <> eval_v def
+R1955:1958 PyCSL.Phase5a_WhileInv <> es'':26 var
+R1960:1965 PyCSL.Phase5a_WhileInv <> pre_es:15 var
+R1967:1969 PyCSL.Phase5a_WhileInv <> var:11 var
+binder 1792:1800 <> body_done:27
+R1996:1997 PyCSL.Phase4_WP <> wp def
+R1999:2002 PyCSL.Phase5a_WhileInv <> body:9 var
+R2004:2012 PyCSL.Phase5a_WhileInv <> body_done:27 var
+R2014:2015 PyCSL.Phase5a_WhileInv <> Qr:13 var
+R2017:2025 PyCSL.Phase5a_WhileInv <> body_done:27 var
+R2027:2035 PyCSL.Phase5a_WhileInv <> body_done:27 var
+R2037:2038 PyCSL.Phase5a_WhileInv <> Qe:14 var
+R2040:2045 PyCSL.Phase5a_WhileInv <> pre_es:15 var
+R2047:2049 PyCSL.Phase5a_WhileInv <> es':25 var
+R2059:2059 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2167:2175 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+binder 2067:2069 <> es':28
+R2098:2118 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2072:2077 PyCSL.Phase4_WP <> eval_c def
+R2079:2081 PyCSL.Phase5a_WhileInv <> es':28 var
+R2083:2088 PyCSL.Phase5a_WhileInv <> pre_es:15 var
+R2090:2093 Coq.Init.Datatypes <> None constr
+R2095:2097 PyCSL.Phase5a_WhileInv <> inv:10 var
+R2157:2160 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2149:2151 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R2119:2127 PyCSL.Phase2_State <> eval_bool def
+R2134:2142 PyCSL.Phase2_State <> reg_state proj
+R2129:2131 PyCSL.Phase5a_WhileInv <> es':28 var
+R2145:2148 PyCSL.Phase5a_WhileInv <> cond:8 var
+R2152:2156 Coq.Init.Datatypes <> false constr
+R2161:2162 PyCSL.Phase5a_WhileInv <> Qn:12 var
+R2164:2166 PyCSL.Phase5a_WhileInv <> es':28 var
+binder 2183:2185 <> out:29
+R2226:2233 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2188:2191 PyCSL.Phase3_SOS <> exec ind
+R2193:2194 PyCSL.Phase5a_WhileInv <> es:16 var
+R2197:2202 PyCSL.Phase1_AST <> SWhile constr
+R2204:2206 PyCSL.Phase5a_WhileInv <> inv:10 var
+R2208:2210 PyCSL.Phase5a_WhileInv <> var:11 var
+R2212:2215 PyCSL.Phase5a_WhileInv <> cond:8 var
+R2217:2220 PyCSL.Phase5a_WhileInv <> body:9 var
+R2223:2225 PyCSL.Phase5a_WhileInv <> out:29 var
+R2240:2242 PyCSL.Phase5a_WhileInv <> out:29 var
+R2255:2261 PyCSL.Phase3_SOS <> ONormal constr
+R2271:2272 PyCSL.Phase5a_WhileInv <> Qn:12 var
+R2284:2292 PyCSL.Phase3_SOS <> OReturned constr
+R2303:2304 PyCSL.Phase5a_WhileInv <> Qr:13 var
+R2316:2325 PyCSL.Phase3_SOS <> OContinued constr
+R2332:2335 Coq.Init.Logic <> True ind
+R2343:2348 PyCSL.Phase3_SOS <> OBroke constr
+R2355:2358 Coq.Init.Logic <> True ind
+R2366:2371 PyCSL.Phase3_SOS <> OThrew constr
+R2384:2385 PyCSL.Phase5a_WhileInv <> Qe:14 var
+R2401:2407 PyCSL.Phase3_SOS <> OFailed constr
+R2416:2419 Coq.Init.Logic <> True ind
+R2637:2642 PyCSL.Phase1_AST <> SWhile constr
+R2637:2642 PyCSL.Phase1_AST <> SWhile constr
+R3012:3021 PyCSL.Phase2_State <> exec_state rec
+binder 3005:3008 <> es'':31
+R3060:3069 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R3032:3037 PyCSL.Phase4_WP <> eval_c def
+R3039:3042 PyCSL.Phase5a_WhileInv <> es'':31 var
+R3051:3054 Coq.Init.Datatypes <> None constr
+R3117:3126 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R3093:3095 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R3070:3075 PyCSL.Phase4_WP <> eval_v def
+R3077:3080 PyCSL.Phase5a_WhileInv <> es'':31 var
+R3096:3101 PyCSL.Phase4_WP <> eval_v def
+R3150:3153 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R3127:3132 PyCSL.Phase4_WP <> eval_v def
+R3134:3137 PyCSL.Phase5a_WhileInv <> es'':31 var
+R3012:3021 PyCSL.Phase2_State <> exec_state rec
+binder 3005:3008 <> es'':32
+R3060:3069 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R3032:3037 PyCSL.Phase4_WP <> eval_c def
+R3039:3042 PyCSL.Phase5a_WhileInv <> es'':32 var
+R3051:3054 Coq.Init.Datatypes <> None constr
+R3117:3126 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R3093:3095 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R3070:3075 PyCSL.Phase4_WP <> eval_v def
+R3077:3080 PyCSL.Phase5a_WhileInv <> es'':32 var
+R3096:3101 PyCSL.Phase4_WP <> eval_v def
+R3150:3153 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R3127:3132 PyCSL.Phase4_WP <> eval_v def
+R3134:3137 PyCSL.Phase5a_WhileInv <> es'':32 var
+R3209:3215 PyCSL.Phase3_SOS <> ONormal constr
+R3209:3215 PyCSL.Phase3_SOS <> ONormal constr
+R3343:3347 Coq.Init.Logic <> proj1 thm
+R3371:3375 Coq.Init.Logic <> proj2 thm
+R3378:3382 Coq.Init.Logic <> proj2 thm
+R3420:3426 Coq.Init.Logic <> eq_refl constr
+R3343:3347 Coq.Init.Logic <> proj1 thm
+R3371:3375 Coq.Init.Logic <> proj2 thm
+R3378:3382 Coq.Init.Logic <> proj2 thm
+R3420:3426 Coq.Init.Logic <> eq_refl constr
+R3578:3587 PyCSL.Phase2_State <> exec_state rec
+binder 3571:3574 <> es'':33
+R3626:3635 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R3598:3603 PyCSL.Phase4_WP <> eval_c def
+R3605:3608 PyCSL.Phase5a_WhileInv <> es'':33 var
+R3617:3620 Coq.Init.Datatypes <> None constr
+R3683:3692 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R3659:3661 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R3636:3641 PyCSL.Phase4_WP <> eval_v def
+R3643:3646 PyCSL.Phase5a_WhileInv <> es'':33 var
+R3662:3667 PyCSL.Phase4_WP <> eval_v def
+R3716:3719 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R3693:3698 PyCSL.Phase4_WP <> eval_v def
+R3700:3703 PyCSL.Phase5a_WhileInv <> es'':33 var
+R3578:3587 PyCSL.Phase2_State <> exec_state rec
+binder 3571:3574 <> es'':34
+R3626:3635 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R3598:3603 PyCSL.Phase4_WP <> eval_c def
+R3605:3608 PyCSL.Phase5a_WhileInv <> es'':34 var
+R3617:3620 Coq.Init.Datatypes <> None constr
+R3683:3692 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R3659:3661 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R3636:3641 PyCSL.Phase4_WP <> eval_v def
+R3643:3646 PyCSL.Phase5a_WhileInv <> es'':34 var
+R3662:3667 PyCSL.Phase4_WP <> eval_v def
+R3716:3719 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R3693:3698 PyCSL.Phase4_WP <> eval_v def
+R3700:3703 PyCSL.Phase5a_WhileInv <> es'':34 var
+R3775:3784 PyCSL.Phase3_SOS <> OContinued constr
+R3775:3784 PyCSL.Phase3_SOS <> OContinued constr
+R3912:3916 Coq.Init.Logic <> proj1 thm
+R3940:3944 Coq.Init.Logic <> proj2 thm
+R3947:3951 Coq.Init.Logic <> proj2 thm
+R3989:3995 Coq.Init.Logic <> eq_refl constr
+R3912:3916 Coq.Init.Logic <> proj1 thm
+R3940:3944 Coq.Init.Logic <> proj2 thm
+R3947:3951 Coq.Init.Logic <> proj2 thm
+R3989:3995 Coq.Init.Logic <> eq_refl constr
+R4154:4163 PyCSL.Phase2_State <> exec_state rec
+binder 4147:4150 <> es'':35
+R4202:4211 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R4174:4179 PyCSL.Phase4_WP <> eval_c def
+R4181:4184 PyCSL.Phase5a_WhileInv <> es'':35 var
+R4193:4196 Coq.Init.Datatypes <> None constr
+R4259:4268 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R4235:4237 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R4212:4217 PyCSL.Phase4_WP <> eval_v def
+R4219:4222 PyCSL.Phase5a_WhileInv <> es'':35 var
+R4238:4243 PyCSL.Phase4_WP <> eval_v def
+R4292:4295 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R4269:4274 PyCSL.Phase4_WP <> eval_v def
+R4276:4279 PyCSL.Phase5a_WhileInv <> es'':35 var
+R4154:4163 PyCSL.Phase2_State <> exec_state rec
+binder 4147:4150 <> es'':36
+R4202:4211 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R4174:4179 PyCSL.Phase4_WP <> eval_c def
+R4181:4184 PyCSL.Phase5a_WhileInv <> es'':36 var
+R4193:4196 Coq.Init.Datatypes <> None constr
+R4259:4268 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R4235:4237 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R4212:4217 PyCSL.Phase4_WP <> eval_v def
+R4219:4222 PyCSL.Phase5a_WhileInv <> es'':36 var
+R4238:4243 PyCSL.Phase4_WP <> eval_v def
+R4292:4295 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R4269:4274 PyCSL.Phase4_WP <> eval_v def
+R4276:4279 PyCSL.Phase5a_WhileInv <> es'':36 var
+R4319:4324 PyCSL.Phase3_SOS <> OBroke constr
+R4319:4324 PyCSL.Phase3_SOS <> OBroke constr

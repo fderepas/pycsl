@@ -70,3 +70,8 @@ def gen : Stmt → WhyMLStmt
   -- Phase 7 acquires/releases: Hoare-model no-op (emit wSkip)
   | .acquires _                => .wSkip
   | .releases _                => .wSkip
+  -- Phase 8 lambda: .call is an opaque statement that Module 6
+  -- does not emit WhyML for (closures are not in the WhyML model).
+  -- Emit wSkip — parity with .fieldAssign and .tupleUnpack, which
+  -- also reduce to wSkip in the Hoare model.
+  | .call _ _ _                => .wSkip

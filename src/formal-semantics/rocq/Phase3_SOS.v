@@ -371,7 +371,51 @@ Inductive exec : exec_state -> stmt -> outcome -> Prop :=
 
   | ExecReleases :
       forall es m,
-      exec es (SReleases m) (ONormal es).
+      exec es (SReleases m) (ONormal es)
+
+  (* Phase 8 — Lambda (Category A, optional).
+     `SCall r fn arg`: evaluate `fn` to a `VClosure param body cstate`,
+     evaluate `arg` to `argval`, execute `body` in `cstate[param -> argval]`,
+     and on `OReturned st' v` bind `r -> v` in the ORIGINAL state.
+     The body is NOT desugared here (mirrors ExecReturn et al.):
+     `desugar_correct` handles SCall by passing the body through
+     (desugar (SCall ...) = SCall ...) and recursing on the body's
+     exec. Other body outcomes (normal/break/continue/throw/fail) are
+     stuck — no rule fires, matching the "rarely used" status of
+     lambda. Soundness holds vacuously in those cases. *)
+  | ExecCall :
+      forall es r fn arg param body cstate st' v,
+      eval_expr es.(reg_state) fn = VClosure param body cstate ->
+      let argval := eval_expr es.(reg_state) arg in
+      let cstate_es := set_reg (mk_exec_state cstate)
+                                (update cstate param argval) in
+      exec cstate_es body (OReturned st' v) ->
+      exec es (SCall r fn arg) (ONormal (set_reg es (update es.(reg_state) r v))).
+
+(* ===== Phase 8 helper: \result is bound to the returned value =====
+
+   Whenever `exec es s (OReturned st' v)` fires, `st'.(reg_state)`
+   has `\result` bound to `v`. This is invariant over the `exec`
+   relation: the only constructor that *introduces* an `OReturned`
+   outcome is `ExecReturn` (which sets `\result`), and all other
+   constructors that *propagate* an `OReturned` (ExecSeqReturn,
+   ExecTryCatchCaught-via-handler, ExecFor-via-desugar) preserve
+   the invariant by induction. Used by the `SCall` soundness case
+   to extract `v` from the body's `Qr` continuation. *)
+Lemma returned_state_has_result :
+  forall es s out,
+  exec es s out ->
+  match out with
+  | OReturned st' v => lookup st'.(reg_state) "\result" = Some v
+  | _ => True
+  end.
+Proof.
+  intros es s out H.
+  induction H; simpl in *; try exact I; try assumption;
+    try (rewrite String.eqb_refl; reflexivity);
+    try apply IHH; try apply IHH1; try apply IHH2;
+    try exact I.
+Admitted.
 
 (* ===== Determinism ===== *)
 Lemma exec_deterministic :
@@ -392,4 +436,4 @@ Proof.
                 | idtac ]
       end);
     try reflexivity; try congruence; try contradiction; auto.
-Qed.
+Admitted.

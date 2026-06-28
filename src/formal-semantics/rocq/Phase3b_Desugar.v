@@ -115,7 +115,10 @@ Proof.
     apply ExecAcquires.
   - (* ExecReleases *)
     apply ExecReleases.
-Qed.
+  - (* ExecCall: desugar (SCall r fn arg) = SCall r fn arg (leaf),
+       so the desugared exec is the same as the original. *)
+    eapply ExecCall; eassumption.
+  Qed.
 
 Lemma desugar_correct_bwd : forall s es out,
   fresh_in_stmt for_idx s ->

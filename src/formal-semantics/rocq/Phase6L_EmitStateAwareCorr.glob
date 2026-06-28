@@ -1,0 +1,254 @@
+DIGEST bf971fa218bfa9fbfa6de95e5bb2c23e
+FPyCSL.Phase6L_EmitStateAwareCorr
+R1613:1618 Coq.Strings.String <> <> lib
+R1620:1623 Coq.Lists.List <> <> lib
+R1625:1630 Coq.ZArith.ZArith <> <> lib
+R1632:1636 Coq.Strings.Ascii <> <> lib
+R1654:1663 PyCSL.Phase1_AST <> <> lib
+R1681:1692 PyCSL.Phase6_WhyML <> <> lib
+R1710:1724 PyCSL.Phase6d_StmtGen <> <> lib
+R1742:1757 PyCSL.Phase6L_EmitStmt <> <> lib
+R1775:1792 PyCSL.Phase6L_EmitAssign <> <> lib
+R1810:1830 PyCSL.Phase6L_EmitAugAssign <> <> lib
+R1848:1867 PyCSL.Phase6L_EmitArraySet <> <> lib
+R1885:1899 PyCSL.Phase6L_EmitSeq <> <> lib
+R1917:1934 PyCSL.Phase6L_EmitSimple <> <> lib
+R1952:1969 PyCSL.Phase6L_EmitBlocks <> <> lib
+R1987:2008 PyCSL.Phase6L_EmitStateAware <> <> lib
+R2019:2031 Coq.Lists.List ListNotations <> mod
+def 2325:2345 <> acceptable_aware_emit
+R2353:2363 PyCSL.Phase6L_EmitStateAware <> aware_state rec
+binder 2348:2349 <> aw:1
+R2371:2374 PyCSL.Phase1_AST <> stmt ind
+binder 2367:2367 <> s:2
+R2379:2382 Coq.Init.Datatypes <> list ind
+R2384:2389 Coq.Strings.String <> string ind
+R2396:2397 Coq.Lists.List ListNotations ::list_scope:'['_x_']' not
+R2430:2431 Coq.Lists.List ListNotations ::list_scope:'['_x_']' not
+R2398:2418 PyCSL.Phase6L_EmitStateAware <> emit_stmt_state_aware def
+R2420:2421 PyCSL.Phase6L_EmitStateAwareCorr <> aw:1 var
+R2424:2426 PyCSL.Phase6d_StmtGen <> gen def
+R2428:2428 PyCSL.Phase6L_EmitStateAwareCorr <> s:2 var
+prf 2665:2691 <> emit_stmt_state_aware_sound
+R2710:2720 PyCSL.Phase6L_EmitStateAware <> aware_state rec
+binder 2705:2706 <> aw:3
+R2728:2731 PyCSL.Phase1_AST <> stmt ind
+binder 2724:2724 <> s:4
+R2739:2740 Coq.Lists.List <> In def
+R2778:2798 PyCSL.Phase6L_EmitStateAwareCorr <> acceptable_aware_emit def
+R2800:2801 PyCSL.Phase6L_EmitStateAwareCorr <> aw:3 var
+R2803:2803 PyCSL.Phase6L_EmitStateAwareCorr <> s:4 var
+R2743:2763 PyCSL.Phase6L_EmitStateAware <> emit_stmt_state_aware def
+R2765:2766 PyCSL.Phase6L_EmitStateAwareCorr <> aw:3 var
+R2769:2771 PyCSL.Phase6d_StmtGen <> gen def
+R2773:2773 PyCSL.Phase6L_EmitStateAwareCorr <> s:4 var
+R2831:2851 PyCSL.Phase6L_EmitStateAwareCorr <> acceptable_aware_emit def
+prf 3046:3080 <> emit_stmt_state_aware_deterministic
+R3099:3109 PyCSL.Phase6L_EmitStateAware <> aware_state rec
+binder 3094:3095 <> aw:5
+R3117:3120 PyCSL.Phase1_AST <> stmt ind
+binder 3113:3113 <> s:6
+R3136:3141 Coq.Strings.String <> string ind
+binder 3124:3127 <> out1:7
+binder 3129:3132 <> out2:8
+R3188:3195 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3181:3183 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3149:3169 PyCSL.Phase6L_EmitStateAware <> emit_stmt_state_aware def
+R3171:3172 PyCSL.Phase6L_EmitStateAwareCorr <> aw:5 var
+R3175:3177 PyCSL.Phase6d_StmtGen <> gen def
+R3179:3179 PyCSL.Phase6L_EmitStateAwareCorr <> s:6 var
+R3184:3187 PyCSL.Phase6L_EmitStateAwareCorr <> out1:7 var
+R3235:3242 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3228:3230 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3196:3216 PyCSL.Phase6L_EmitStateAware <> emit_stmt_state_aware def
+R3218:3219 PyCSL.Phase6L_EmitStateAwareCorr <> aw:5 var
+R3222:3224 PyCSL.Phase6d_StmtGen <> gen def
+R3226:3226 PyCSL.Phase6L_EmitStateAwareCorr <> s:6 var
+R3231:3234 PyCSL.Phase6L_EmitStateAwareCorr <> out2:8 var
+R3247:3249 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3243:3246 PyCSL.Phase6L_EmitStateAwareCorr <> out1:7 var
+R3250:3253 PyCSL.Phase6L_EmitStateAwareCorr <> out2:8 var
+prf 3790:3804 <> aware_emit_skip
+binder 3817:3818 <> aw:9
+R3857:3859 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3821:3841 PyCSL.Phase6L_EmitStateAware <> emit_stmt_state_aware def
+R3843:3844 PyCSL.Phase6L_EmitStateAwareCorr <> aw:9 var
+R3847:3849 PyCSL.Phase6d_StmtGen <> gen def
+R3851:3855 PyCSL.Phase1_AST <> SSkip constr
+prf 3898:3916 <> aware_emit_continue
+binder 3929:3930 <> aw:10
+R3973:3975 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3933:3953 PyCSL.Phase6L_EmitStateAware <> emit_stmt_state_aware def
+R3955:3956 PyCSL.Phase6L_EmitStateAwareCorr <> aw:10 var
+R3959:3961 PyCSL.Phase6d_StmtGen <> gen def
+R3963:3971 PyCSL.Phase1_AST <> SContinue constr
+prf 4032:4047 <> aware_emit_break
+binder 4060:4061 <> aw:11
+R4101:4103 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4064:4084 PyCSL.Phase6L_EmitStateAware <> emit_stmt_state_aware def
+R4086:4087 PyCSL.Phase6L_EmitStateAwareCorr <> aw:11 var
+R4090:4092 PyCSL.Phase6d_StmtGen <> gen def
+R4094:4099 PyCSL.Phase1_AST <> SBreak constr
+prf 4157:4173 <> aware_emit_assert
+binder 4186:4187 <> aw:12
+binder 4189:4192 <> cond:13
+binder 4194:4196 <> msg:14
+R4252:4258 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4203:4223 PyCSL.Phase6L_EmitStateAware <> emit_stmt_state_aware def
+R4225:4226 PyCSL.Phase6L_EmitStateAwareCorr <> aw:12 var
+R4229:4231 PyCSL.Phase6d_StmtGen <> gen def
+R4234:4240 PyCSL.Phase1_AST <> SAssert constr
+R4242:4245 PyCSL.Phase6L_EmitStateAwareCorr <> cond:13 var
+R4247:4249 PyCSL.Phase6L_EmitStateAwareCorr <> msg:14 var
+R4270:4273 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R4308:4311 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R4274:4299 PyCSL.Phase6L_EmitStateAware <> pretty_contract_expr_state def
+R4301:4302 PyCSL.Phase6L_EmitStateAwareCorr <> aw:12 var
+R4304:4307 PyCSL.Phase6L_EmitStateAwareCorr <> cond:13 var
+prf 4350:4372 <> aware_emit_tuple_unpack
+binder 4385:4386 <> aw:15
+binder 4388:4389 <> xs:16
+binder 4391:4391 <> e:17
+R4448:4450 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4398:4418 PyCSL.Phase6L_EmitStateAware <> emit_stmt_state_aware def
+R4420:4421 PyCSL.Phase6L_EmitStateAwareCorr <> aw:15 var
+R4424:4426 PyCSL.Phase6d_StmtGen <> gen def
+R4429:4440 PyCSL.Phase1_AST <> STupleUnpack constr
+R4442:4443 PyCSL.Phase6L_EmitStateAwareCorr <> xs:16 var
+R4445:4445 PyCSL.Phase6L_EmitStateAwareCorr <> e:17 var
+prf 4489:4511 <> aware_emit_field_assign
+binder 4524:4525 <> aw:18
+binder 4527:4533 <> self_id:19
+binder 4535:4535 <> f:20
+binder 4537:4537 <> e:21
+R4601:4603 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4544:4564 PyCSL.Phase6L_EmitStateAware <> emit_stmt_state_aware def
+R4566:4567 PyCSL.Phase6L_EmitStateAwareCorr <> aw:18 var
+R4570:4572 PyCSL.Phase6d_StmtGen <> gen def
+R4575:4586 PyCSL.Phase1_AST <> SFieldAssign constr
+R4588:4594 PyCSL.Phase6L_EmitStateAwareCorr <> self_id:19 var
+R4596:4596 PyCSL.Phase6L_EmitStateAwareCorr <> f:20 var
+R4598:4598 PyCSL.Phase6L_EmitStateAwareCorr <> e:21 var
+prf 4642:4668 <> aware_emit_field_aug_assign
+binder 4681:4682 <> aw:22
+binder 4684:4690 <> self_id:23
+binder 4692:4692 <> f:24
+binder 4694:4695 <> op:25
+binder 4697:4697 <> e:26
+R4767:4769 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4704:4724 PyCSL.Phase6L_EmitStateAware <> emit_stmt_state_aware def
+R4726:4727 PyCSL.Phase6L_EmitStateAwareCorr <> aw:22 var
+R4730:4732 PyCSL.Phase6d_StmtGen <> gen def
+R4735:4749 PyCSL.Phase1_AST <> SFieldAugAssign constr
+R4751:4757 PyCSL.Phase6L_EmitStateAwareCorr <> self_id:23 var
+R4759:4759 PyCSL.Phase6L_EmitStateAwareCorr <> f:24 var
+R4761:4762 PyCSL.Phase6L_EmitStateAwareCorr <> op:25 var
+R4764:4764 PyCSL.Phase6L_EmitStateAwareCorr <> e:26 var
+prf 4849:4869 <> aware_emit_aug_assign
+binder 4882:4883 <> aw:27
+binder 4885:4885 <> x:28
+binder 4887:4888 <> op:29
+binder 4890:4890 <> e:30
+R4947:4953 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4897:4917 PyCSL.Phase6L_EmitStateAware <> emit_stmt_state_aware def
+R4919:4920 PyCSL.Phase6L_EmitStateAwareCorr <> aw:27 var
+R4923:4925 PyCSL.Phase6d_StmtGen <> gen def
+R4928:4937 PyCSL.Phase1_AST <> SAugAssign constr
+R4939:4939 PyCSL.Phase6L_EmitStateAwareCorr <> x:28 var
+R4941:4942 PyCSL.Phase6L_EmitStateAwareCorr <> op:29 var
+R4944:4944 PyCSL.Phase6L_EmitStateAwareCorr <> e:30 var
+R4955:4958 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R4954:4954 PyCSL.Phase6L_EmitStateAwareCorr <> x:28 var
+R4966:4969 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R4971:4974 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R4970:4970 PyCSL.Phase6L_EmitStateAwareCorr <> x:28 var
+R4978:4981 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R5001:5004 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R4982:4997 PyCSL.Phase6L_EmitAugAssign <> op_translate_aug def
+R4999:5000 PyCSL.Phase6L_EmitStateAwareCorr <> op:29 var
+R5008:5019 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R5020:5036 PyCSL.Phase6L_EmitStateAware <> pretty_expr_state def
+R5038:5039 PyCSL.Phase6L_EmitStateAwareCorr <> aw:27 var
+R5041:5041 PyCSL.Phase6L_EmitStateAwareCorr <> e:30 var
+prf 5141:5167 <> aware_emit_ghost_assign_int
+binder 5180:5181 <> aw:31
+binder 5183:5183 <> x:32
+binder 5185:5186 <> op:33
+binder 5188:5188 <> e:34
+R5253:5259 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R5195:5215 PyCSL.Phase6L_EmitStateAware <> emit_stmt_state_aware def
+R5217:5218 PyCSL.Phase6L_EmitStateAwareCorr <> aw:31 var
+R5221:5223 PyCSL.Phase6d_StmtGen <> gen def
+R5226:5237 PyCSL.Phase1_AST <> SGhostAssign constr
+R5239:5239 PyCSL.Phase6L_EmitStateAwareCorr <> x:32 var
+R5241:5245 PyCSL.Phase1_AST <> GTInt constr
+R5247:5248 PyCSL.Phase6L_EmitStateAwareCorr <> op:33 var
+R5250:5250 PyCSL.Phase6L_EmitStateAwareCorr <> e:34 var
+R5268:5271 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R5273:5276 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R5272:5272 PyCSL.Phase6L_EmitStateAwareCorr <> x:32 var
+R5284:5287 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R5289:5292 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R5288:5288 PyCSL.Phase6L_EmitStateAwareCorr <> x:32 var
+R5296:5299 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R5313:5316 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R5300:5309 PyCSL.Phase6L_EmitBlocks <> aug_op_str def
+R5311:5312 PyCSL.Phase6L_EmitStateAwareCorr <> op:33 var
+R5320:5331 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R5332:5357 PyCSL.Phase6L_EmitStateAware <> pretty_contract_expr_state def
+R5359:5360 PyCSL.Phase6L_EmitStateAwareCorr <> aw:31 var
+R5362:5362 PyCSL.Phase6L_EmitStateAwareCorr <> e:34 var
+prf 5545:5566 <> aware_emit_critical_eq
+binder 5579:5580 <> aw:35
+binder 5582:5586 <> mutex:36
+binder 5588:5591 <> body:37
+R5651:5657 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R5598:5618 PyCSL.Phase6L_EmitStateAware <> emit_stmt_state_aware def
+R5620:5621 PyCSL.Phase6L_EmitStateAwareCorr <> aw:35 var
+R5624:5626 PyCSL.Phase6d_StmtGen <> gen def
+R5629:5637 PyCSL.Phase1_AST <> SCritical constr
+R5639:5643 PyCSL.Phase6L_EmitStateAwareCorr <> mutex:36 var
+R5645:5648 PyCSL.Phase6L_EmitStateAwareCorr <> body:37 var
+R5658:5678 PyCSL.Phase6L_EmitStateAware <> emit_stmt_state_aware def
+R5680:5681 PyCSL.Phase6L_EmitStateAwareCorr <> aw:35 var
+R5684:5686 PyCSL.Phase6d_StmtGen <> gen def
+R5688:5691 PyCSL.Phase6L_EmitStateAwareCorr <> body:37 var
+prf 5727:5752 <> aware_emit_thread_entry_eq
+binder 5765:5766 <> aw:38
+binder 5768:5771 <> body:39
+R5828:5834 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R5778:5798 PyCSL.Phase6L_EmitStateAware <> emit_stmt_state_aware def
+R5800:5801 PyCSL.Phase6L_EmitStateAwareCorr <> aw:38 var
+R5804:5806 PyCSL.Phase6d_StmtGen <> gen def
+R5809:5820 PyCSL.Phase1_AST <> SThreadEntry constr
+R5822:5825 PyCSL.Phase6L_EmitStateAwareCorr <> body:39 var
+R5835:5855 PyCSL.Phase6L_EmitStateAware <> emit_stmt_state_aware def
+R5857:5858 PyCSL.Phase6L_EmitStateAwareCorr <> aw:38 var
+R5861:5863 PyCSL.Phase6d_StmtGen <> gen def
+R5865:5868 PyCSL.Phase6L_EmitStateAwareCorr <> body:39 var
+prf 6196:6223 <> state_aware_emission_witness
+R6242:6252 PyCSL.Phase6L_EmitStateAware <> aware_state rec
+binder 6237:6238 <> aw:40
+R6260:6263 PyCSL.Phase1_AST <> stmt ind
+binder 6256:6256 <> s:41
+R6271:6277 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R6281:6288 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+binder 6278:6280 <> out:42
+R6327:6336 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R6321:6323 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R6289:6309 PyCSL.Phase6L_EmitStateAware <> emit_stmt_state_aware def
+R6311:6312 PyCSL.Phase6L_EmitStateAwareCorr <> aw:40 var
+R6315:6317 PyCSL.Phase6d_StmtGen <> gen def
+R6319:6319 PyCSL.Phase6L_EmitStateAwareCorr <> s:41 var
+R6324:6326 PyCSL.Phase6L_EmitStateAwareCorr <> out:42 var
+R6337:6338 Coq.Lists.List <> In def
+R6345:6365 PyCSL.Phase6L_EmitStateAwareCorr <> acceptable_aware_emit def
+R6367:6368 PyCSL.Phase6L_EmitStateAwareCorr <> aw:40 var
+R6370:6370 PyCSL.Phase6L_EmitStateAwareCorr <> s:41 var
+R6340:6342 PyCSL.Phase6L_EmitStateAwareCorr <> out:42 var
+R6406:6426 PyCSL.Phase6L_EmitStateAware <> emit_stmt_state_aware def
+R6432:6434 PyCSL.Phase6d_StmtGen <> gen def
+R6406:6426 PyCSL.Phase6L_EmitStateAware <> emit_stmt_state_aware def
+R6432:6434 PyCSL.Phase6d_StmtGen <> gen def
+R6469:6495 PyCSL.Phase6L_EmitStateAwareCorr <> emit_stmt_state_aware_sound thm
+R6469:6495 PyCSL.Phase6L_EmitStateAwareCorr <> emit_stmt_state_aware_sound thm

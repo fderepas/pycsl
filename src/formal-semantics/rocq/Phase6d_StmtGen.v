@@ -90,4 +90,9 @@ Fixpoint gen (s : stmt) : whyml_stmt :=
   (* Phase 7 acquires/releases: Hoare-model no-op (emit WSkip) *)
   | SAcquires _               => WSkip
   | SReleases _               => WSkip
+  (* Phase 8 lambda: SCall is an opaque statement that Module 6
+     does not emit WhyML for (closures are not in the WhyML model).
+     Emit WSkip — parity with SFieldAssign and STupleUnpack, which
+     also reduce to WSkip in the Hoare model. *)
+  | SCall _ _ _               => WSkip
   end.

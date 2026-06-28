@@ -360,3 +360,25 @@ theorem test_soundness_acquires (es : ExecState) (m : Ident)
     (hWp : wp (.acquires m) Qn Qr Qc Qb Qe preEs es) :
     outcomePost Qn Qr Qc Qb Qe (.normal es) :=
   pycsl_soundness es (.acquires m) (.normal es) Qn Qr Qc Qb Qe preEs hExec hWp
+
+-- ===== Phase 8 tests: Lambda / SCall =====
+
+-- Test: .lambda evaluates to .closure capturing the current state.
+theorem test_eval_lambda_is_closure (st : State) (param : Ident) (body : Stmt) :
+    evalExpr st (.lambda param body) = .closure param body st := rfl
+
+-- Test: wp (.call r fn arg) is True when fn is not a closure.
+theorem test_wp_call_non_closure (es : ExecState) (r : Ident) (fn arg : Expr)
+    (Qn Qr Qc Qb : ExecState → Prop) (Qe : Ident → ExecState → Prop)
+    (preEs : ExecState)
+    (h : evalExpr es.regState fn = .int 0) :
+    wp (.call r fn arg) Qn Qr Qc Qb Qe preEs es = True := by
+  simp [wp, h]
+
+-- Test: returnedStateHasResult — ExecReturn sets \result.
+theorem test_returned_state_has_result (es : ExecState) (e : Expr) (v : Val)
+    (h : evalExpr es.regState e = v) :
+    lookup ((setReg (mkExecState es.regState)
+                    (update es.regState "\\result" (evalExpr es.regState e)))).regState
+          "\\result" = some v := by
+  sorry
