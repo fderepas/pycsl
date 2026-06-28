@@ -1,0 +1,1335 @@
+from __future__ import annotations
+from dataclasses import dataclass
+from typing import List, Union, Any, Optional
+from errors import PyCSLParseError
+""  # pycsl
+@dataclass
+class CSLNode:
+    pass
+
+class ContractWrapper(CSLNode):
+    pass
+
+class QuantifierNode(CSLNode):
+    pass
+
+class SingleExprNode(CSLNode):
+    pass
+
+@dataclass
+class Requires(ContractWrapper):
+    expr: CSLNode
+
+@dataclass
+class Ensures(ContractWrapper):
+    expr: CSLNode
+
+@dataclass
+class Assigns(CSLNode):
+    targets: List[CSLNode]
+
+@dataclass
+class Given(CSLNode):
+    "An `act`'s guard clause (`given <expr>`). ACSL `assumes`, pre-state."
+    expr: CSLNode
+
+@dataclass
+class Act(CSLNode):
+    'A named guarded case: `act NAME:` with body clauses (Given/Requires/\n    Ensures/Assigns). Desugared in Module3 to ordinary requires/ensures.'
+    name: str
+    clauses: List[CSLNode]
+
+@dataclass
+class ForExpand(CSLNode):
+    '`#@ for VAR in range(lo, hi):` (sugar-for-spec.md) — bounded macro-expansion.\n    Desugared in Module3 to ground requires/ensures: for each integer m in\n    [lo, hi), each body clause with VAR substituted by the literal m. lo/hi are\n    bound exprs (Number for v1); clauses are Requires/Ensures.'
+    var: str
+    lo: CSLNode
+    hi: CSLNode
+    clauses: List[CSLNode]
+
+@dataclass
+class Complete(CSLNode):
+    "`complete b1, b2, …` — the acts' guards cover every input."
+    names: List[str]
+
+@dataclass
+class Disjoint(CSLNode):
+    "`disjoint b1, b2, …` — at most one act's guard holds at a time."
+    names: List[str]
+
+@dataclass
+class Preserves(CSLNode):
+    '`#@ \\preserves` on a `\\trusted`/`\\abstract` method — opts the function into\n    the HAPPY trust boundary (meta.md Stage B, option C). The meta-pass synthesizes\n    and attaches the canonical region-preservation `ensures` for every module HAPPY\n    over a field this function does not legitimately write, so callers may assume the\n    region is untouched. A non-exempt trusted/abstract function WITHOUT this marker is\n    a hard error (theorem clause 2 has teeth).'
+
+@dataclass
+class HappyProperty(CSLNode):
+    "A module-level HAPPY (High-level Assertion-Producing PYthon requirement):\n    `#@ happy NAME: region LO .. HI writes self.FIELD outside region except f, g`.\n    Declares one cross-cutting region-disjointness property; Module3's meta-pass\n    expands it into a per-site `#@ check` (a `CheckPoint`) at every write site of\n    `self.FIELD` in every method other than the exempt set. Desugars entirely to\n    the Stage-A check primitive — no new IR/backend. See `meta.md` Stage B."
+    name: str
+    field: str
+    region_lo: CSLNode
+    region_hi: CSLNode
+    except_set: List[str]
+    context: str = 'writing'
+    protects: Optional[List[str]] = None
+    param: Optional[str] = None
+    target: Optional[str] = None
+    formula: Optional[CSLNode] = None
+    secret: Optional[List[str]] = None
+
+@dataclass
+class Footprint(CSLNode):
+    "07-1143 R3: `#@ footprint NAME(arg)` — binds the parameter of the parametric HAPPY\n    `NAME` to one of the method's own arguments, so the meta-pass injects a per-site\n    region check parameterised by `arg` at each write of the protected path."
+    happy_name: str
+    arg: CSLNode
+
+@dataclass
+class LoopInvariant(ContractWrapper):
+    expr: CSLNode
+
+@dataclass
+class LoopVariant(ContractWrapper):
+    expr: CSLNode
+
+@dataclass
+class BinOp(CSLNode):
+    left: CSLNode
+    op: str
+    right: CSLNode
+
+@dataclass
+class UnaryOp(SingleExprNode):
+    op: str
+    expr: CSLNode
+
+@dataclass
+class Var(CSLNode):
+    name: str
+
+@dataclass
+class Number(CSLNode):
+    value: float
+
+@dataclass
+class StringLiteral(CSLNode):
+    value: str
+
+@dataclass
+class Result(CSLNode):
+    pass
+
+@dataclass
+class Old(SingleExprNode):
+    expr: CSLNode
+
+@dataclass
+class Nothing(CSLNode):
+    pass
+
+@dataclass
+class FieldAccess(CSLNode):
+    object: str
+    field: str
+
+@dataclass
+class FieldSubscript(CSLNode):
+    'Represents `self.<field>[i]` — subscript of an instance ARRAY field in a\n    contract. Enables region-preservation postconditions such as\n    `\\forall i; (lo <= i and i < hi) ==> self.disk[i] == \\old(self.disk[i])`\n    on a `\\trusted`/`\\abstract` writer (meta.md Stage B, option C).'
+    field: str
+    index: CSLNode
+
+@dataclass
+class GlobalFieldSubscript(CSLNode):
+    "Represents `<global>.<field>[expr]` — subscript of a module-global record's\n    ARRAY field in a contract (spec-15 / gap-15 Wall B), e.g. `_filesystem.fd_inode[fd]`.\n    The sibling of `FieldSubscript` (`self.<field>[i]`) with a module-global instance\n    as the base instead of `self`. Lowers to `Subscript(Attribute(Var(obj), field), index)`,\n    riding the existing gap-10 global-field projection + spec-context `Array.get` machinery."
+    obj: str
+    field: str
+    index: CSLNode
+
+@dataclass
+class ClassInvariant(CSLNode):
+    expr: CSLNode
+
+@dataclass
+class SubscriptAccess(CSLNode):
+    array: str
+    index: CSLNode
+
+@dataclass
+class Forall(QuantifierNode):
+    var: str
+    body: CSLNode
+    binder_type: Optional[str] = None
+    domain: Optional[CSLNode] = None
+
+@dataclass
+class Exists(QuantifierNode):
+    var: str
+    body: CSLNode
+    binder_type: Optional[str] = None
+    domain: Optional[CSLNode] = None
+
+@dataclass
+class ArrayLength(CSLNode):
+    var: str
+
+@dataclass
+class InGlobals(CSLNode):
+    '07-1839 P2: `\\in_globals(name)` — is `name` a statically-declared module-level\n    binding? Three-valued (sound lower bound): decided-true for a declared module name\n    (function / class / module global / constant), **unknown** otherwise (the world is\n    open — `import`/`exec` inject names), **never** decided-false. Resolved at emission\n    against the module-binding set.'
+    name: str
+
+@dataclass
+class InScope(CSLNode):
+    '07-1839 P3: `\\in_scope(name)` — is `name` a local/parameter bound at this point?\n    Three-valued via definite-assignment: decided-true if assigned on ALL paths (a formal\n    param, or a top-level assignment before any branching/return); decided-false if `name`\n    is neither a param nor assigned anywhere; **unknown** (conditionally assigned) otherwise.\n    A dynamic `exec`/`eval` havocs the binding set (decision C, P5).'
+    name: str
+
+@dataclass
+class AssignsRegion(CSLNode):
+    'Represents `arr[lo..hi]` inside an assigns clause (frame condition region).'
+    base: str
+    low: CSLNode
+    high: CSLNode
+
+@dataclass
+class Valid(CSLNode):
+    'Represents `\\valid(arr, n)` — memory region [arr, arr+n) is allocated.'
+    base: str
+    length: CSLNode
+
+@dataclass
+class Separated(CSLNode):
+    "Represents `\\separated(a, na, b, nb)` — regions [a,a+na) and [b,b+nb) don't overlap."
+    base1: str
+    length1: CSLNode
+    base2: str
+    length2: CSLNode
+
+@dataclass
+class Label(CSLNode):
+    'Represents a `#@ label L` program point annotation.'
+    name: str
+
+@dataclass
+class CheckPoint(CSLNode):
+    'A statement-level proof obligation attached to the following statement:\n    `#@ assert P` (prove-and-assume — P becomes a hypothesis afterward) or\n    `#@ check P` (prove-and-discard). Distinct from the Python `assert` statement,\n    which is a runtime check the prover ignores.'
+    kind: str
+    expr: CSLNode
+    origin: str = None
+
+@dataclass
+class At(CSLNode):
+    'Represents `\\at(expr, L)` — value of expr at program point L.'
+    expr: CSLNode
+    label: str
+
+@dataclass
+class Length2D(CSLNode):
+    'Represents `\\length2d(arr, m, n)` — arr has m rows each of length n.'
+    base: str
+    rows: CSLNode
+    cols: CSLNode
+
+@dataclass
+class Valid2D(CSLNode):
+    'Represents `\\valid2d(arr, i, j)` — (i,j) is a valid 2D index into arr.'
+    base: str
+    row: CSLNode
+    col: CSLNode
+
+@dataclass
+class FunctionVariant(CSLNode):
+    'Represents `#@ \\variant <expr>` or `#@ \\variant (<expr>, <ordering>)`.'
+    expr: CSLNode
+    ordering: Optional[str] = None
+
+@dataclass
+class Diverges(CSLNode):
+    'Represents `#@ \\diverges` — function may not terminate.'
+
+@dataclass
+class NoInline(CSLNode):
+    "Represents `#@ no_inline` (no-inline.md) — a modular-verification boundary: the method's\n    body is verified once against its contract, and callers reuse the contract (a contract-call)\n    instead of splicing the inlined body. Avoids re-proving a large body in every caller's\n    context (the os `sys_write` inlining blow-up)."
+
+@dataclass
+class SiblingConcrete(CSLNode):
+    "Represents `#@ sibling_concrete` (allocator-frame plan §2.7) — OPT-IN: an intra-class\n    `self.<m>()` call to THIS method is lowered to a CONCRETE call `(<class>__<m> self args)`\n    (so the caller gets the real method's full contract AND its type/class-invariant guarantee\n    on the post-state), instead of the default abstract `val` stub. Use ONLY on cheap-to-\n    maintain leaf writers whose guarantee the caller can absorb as an atom (e.g. the os bitmap\n    leaves `_set_bitmap`/`_poke`). Decoupled from `no_inline`: it affects sibling-call lowering\n    only, NOT whether the body is inlined into wrappers — so it cannot perturb a separate\n    importer gate. Default off → every existing self-call keeps its abstract-stub lowering."
+
+@dataclass
+class VerifyModule(CSLNode):
+    "Represents `#@ verify_module <name>` (module-emission.md) — OPT-IN axiom-isolation:\n    the method is emitted into its OWN top-level Why3 `module <name>` (re-declaring the shared\n    infra — record type, val-functions, predicates, witness/class-invariant axioms, abstract\n    stubs) so that ONLY the `#@ proof` axioms cited by the functions in that module are in\n    scope for its goals. Functions sharing the same `<name>` are co-emitted into one module.\n    Cross-module `self.<m>(...)` calls (a sibling in a DIFFERENT verify_module / the flat\n    default module) are lowered to a bodyless `val` carrying the sibling's proven contract,\n    discharged by the Track-B narrowing VC in the sibling's owning module — a PROVEN interface,\n    never an assumed `val` / new `\\trusted` / new axiom. Resolves the read+write axiom\n    co-residence OOM that blocks `_dir_lookup` (read `field_to_str`/`dir_scan_*` axioms out of\n    scope for the write helpers' per-byte goals, and vice-versa). Default (untagged) → the\n    single flat `module PyCSL_Program` is emitted unchanged → corpus byte-identical."
+    name: str
+
+@dataclass
+class PropagateFrame(CSLNode):
+    "Represents `#@ propagate_frame` (os-roadmap M4) — OPT-IN: THIS method's QUANTIFIED\n    self-field FRAME ensures (`\\forall k. … == \\old(…)`) are propagated onto its `#@ no_inline`\n    boundary stub, each pinned with a specific function-application trigger. Use ONLY on a mutator\n    whose callers genuinely need the frame and are NOT term-rich enough to E-match-explode under it\n    (e.g. the os `_zero_entry`, called only by unlink/rmdir/rename). Default off → the quantified\n    frame is dropped at the boundary (the non-quantified write-posts still propagate via the\n    field_param_post map). NOT for broad mutators like `_write_entry` whose frame poisons rich\n    callers (link/symlink) — see 14-string-field-codec-plan.md §2.9."
+
+@dataclass
+class FreshGlobals(CSLNode):
+    "Represents `#@ fresh_globals` (fresh-globals.md) — OPT-IN, CONFINED: at THIS\n    function's body entry, re-establish each module-global singleton's CONSTRUCTOR\n    POST-STATE (the class `__init__`'s `#@ ensures`, `self` -> the global) as an\n    ASSUMED fact. Models the execution-model convention that a STANDALONE,\n    internals-blind formal-test DRIVER runs on a freshly-imported module global\n    (import ran `__init__`, so the constructor post-state holds at entry) — instead\n    of Why3's default treatment of a shared mutable global as HAVOC'd at every\n    importer-function entry.\n\n    SOUNDNESS (Module4-enforced confinement): sound ONLY on an INDEPENDENT entry\n    point that is never called by another verified function and never composed after\n    a prior driver mutated the shared global — otherwise a callee would falsely\n    assume the all-fresh state against an already-mutated global. Module4 REJECTS it\n    on `self`-methods, library functions, and any function that is a callee of\n    another verified function in the same unit. The assumed fact is NOT an arbitrary\n    literal: it is the constructor's `#@ ensures`, which `_emit_module_globals`\n    re-checks as a GOAL against the global's literal initializer (so the fact is\n    PROVEN of the freshly constructed global). Replaces the FALSE unconditioned\n    fd-resolution-fidelity no-ENFILE body theorem with a sound, confined,\n    constructor-backed entry fact."
+
+@dataclass
+class Trusted(CSLNode):
+    'Represents `#@ \\trusted` — function body is not verified.\n    Optional `reviewer` identifies who is accountable for the trust assumption.'
+    reviewer: str = ''
+
+@dataclass
+class Abstract(CSLNode):
+    "Represents `#@ \\abstract` — the function is emitted as a bodyless WhyML\n    `val` defined SOLELY by its contract (+ any cited `#@ proof` axioms). Unlike\n    `\\trusted` (a Python body that is present but unchecked), an `\\abstract`\n    declaration asserts there is no meaningful body to check — the contract IS\n    the definition. Sound: an uninterpreted `val` constrains callers only by its\n    spec. Used for irreducibly-opaque operations (e.g. `ast.literal_eval`, which\n    IS Python's parser) where the honest model is `val + ensures/raises + cited\n    axiom`, not an unverified body. Does NOT count as `\\trusted`."
+
+@dataclass
+class Lemma(CSLNode):
+    "Represents `#@ lemma` (lemma.md) — the function is a PROVED logical fact.\n    It lowers to a WhyML `let [rec] lemma name (params) : unit requires {H}\n    ensures {C} [variant {m}] = <proof body>`: Why3 verifies the body against the\n    contract, then makes `forall params. H -> C` available to later goals. Unlike\n    `\\trusted` (assumed) and `#@ proof` (proved elsewhere, an axiom), a lemma\n    introduces NO axiom that isn't itself checked. A recursive lemma's self-calls\n    are the induction hypotheses; it MUST carry `#@ \\variant` (soundness)."
+
+@dataclass
+class Uses(CSLNode):
+    "Represents `#@ uses <lemma>` (scc2.md) — a NON-instantiating citation that the\n    function's verification relies on lemma `<lemma>`'s general fact. Its only effect\n    is an ordering edge (the cited lemma is emitted before this function, so its\n    `forall …` fact is in scope to discharge e.g. a `\\forall`-over-a-recursive-\n    datatype goal). It emits no WhyML of its own; it is consumed by the SCC edge\n    collector (`scc.py`)."
+    lemma: str
+
+@dataclass
+class InterfaceClause(CSLNode):
+    "Represents `#@ interface ensures/requires/assigns <…>` (b-spec Track B) — the NARROW\n    *interface* contract importers/callers see by default, distinct from the rich *definition*\n    contract (the plain `#@ requires/ensures/assigns`) verified against the body. Opacity: the\n    definition's extra facts are hidden, revealed only via `#@ reveal`. Absent ⇒ interface =\n    definition (transparent — all existing code byte-identical). `kind` ∈ {ensures, requires,\n    assigns}; `payload` is the corresponding Ensures/Requires/Assigns node."
+    kind: str
+    payload: Any
+
+@dataclass
+class Reveal(CSLNode):
+    "Represents `#@ reveal <fn>` (b-spec Track B) — this caller opts into `<fn>`'s rich\n    DEFINITION contract at this site (the definition facts are otherwise hidden behind the\n    interface). Within the owning unit it is a no-op (the definition is the visible `let`);\n    across modules it cites the exported definition-fact (v2)."
+    fn: str
+
+@dataclass
+class CSLBool(CSLNode):
+    'Represents True/False literals in contract expressions.'
+    value: bool
+
+@dataclass
+class CSLNone(CSLNode):
+    'Represents None literal in contract expressions.'
+
+@dataclass
+class CSLIn(CSLNode):
+    'Represents `x in arr` membership test in contracts.'
+    element: CSLNode
+    collection: CSLNode
+
+@dataclass
+class CSLNotIn(CSLNode):
+    'Represents `x not in arr` negated membership test in contracts.'
+    element: CSLNode
+    collection: CSLNode
+
+@dataclass
+class DictView(CSLNode):
+    '07-1311 Q3: a dict view in a quantifier domain — `d.keys()` / `d.values()` /\n    `d.items()`. Only meaningful as the collection of a bounded quantifier\n    (`\\forall v in d.values(); …`); Module5\'s `_csl_in` desugars it onto the map\n    model (`map int (option int)`). `kind` ∈ {"keys","values","items"}.'
+    coll: str
+    kind: str
+
+@dataclass
+class ForallItems(QuantifierNode):
+    '07-1311 Q3: two-binder `\\forall k, v in d.items(); P(k, v)` — binds the key and\n    value of every present entry. Lowers to\n    `forall k. match Map.get d k with Some v -> P | None -> true end`.'
+    key: str
+    val: str
+    coll: str
+    body: CSLNode
+
+@dataclass
+class CSLSlice(CSLNode):
+    'Represents `arr[lo:hi]` slice notation in contracts.'
+    collection: str
+    low: CSLNode
+    high: CSLNode
+
+@dataclass
+class ChainedSubscript(CSLNode):
+    'Represents `arr[i][j]` chained subscript access (2D array element).'
+    array: str
+    index1: CSLNode
+    index2: CSLNode
+
+@dataclass
+class CallExpr(CSLNode):
+    'Represents a function call in a contract expression.'
+    func: str
+    args: List[CSLNode]
+
+@dataclass
+class IsSorted(CSLNode):
+    'Represents `\\is_sorted(a, lo, hi)` — array is sorted in range.'
+    base: str
+    lo: CSLNode
+    hi: CSLNode
+
+@dataclass
+class ArrayEq(CSLNode):
+    'Represents `\\array_eq(a, b)` — two arrays have equal length and\n    equal elements at every index (extensional content equality).'
+    left: CSLNode
+    right: CSLNode
+
+@dataclass
+class Permutation(CSLNode):
+    'Represents `\\permutation(a, b)` — `a` is a permutation of `b` (same\n    multiset of elements). Unlike `\\array_eq` it does NOT unfold to a\n    first-order formula; it lowers to an uninterpreted Why3 `predicate permut`\n    that a proof-assistant-imported axiom constrains (no-more-int A2b Gap 1).'
+    left: CSLNode
+    right: CSLNode
+
+@dataclass
+class Sum(CSLNode):
+    'Represents `\\sum(a, lo, hi)` — sum of array elements in range.'
+    base: str
+    lo: CSLNode
+    hi: CSLNode
+
+@dataclass
+class GhostAssignDecl(CSLNode):
+    'Represents `ghost var = expr` or `ghost var += expr` in contracts.'
+    target: str
+    value: CSLNode
+    op: str
+    declared_type: str = 'int'
+
+@dataclass
+class MkTupleExpr(CSLNode):
+    '\\mktuple(a, b[, c[, d]]) — construct a ghost tuple.'
+    elts: List[CSLNode]
+
+@dataclass
+class FstExpr(CSLNode):
+    '\\fst(t) — first component of a ghost tuple.'
+    tuple_expr: CSLNode
+
+@dataclass
+class SndExpr(CSLNode):
+    '\\snd(t) — second component of a ghost tuple.'
+    tuple_expr: CSLNode
+
+@dataclass
+class ProjExpr(CSLNode):
+    '\\proj(t, i) — ith component of a ghost tuple (i must be a literal).'
+    tuple_expr: CSLNode
+    index: CSLNode
+
+@dataclass
+class CtorTest(CSLNode):
+    '\\is_ctor(x, Ctor) — true iff `x` was built with constructor `Ctor`\n    (A5b: a datatype discriminator usable in a contract).'
+    var: str
+    ctor: str
+
+@dataclass
+class CtorPayload(CSLNode):
+    '\\payload(x, Ctor[, i]) — the i-th payload of `x` viewed as constructor\n    `Ctor` (A5b: a datatype projector usable in a contract; `i` defaults to 0).'
+    var: str
+    ctor: str
+    index: int = 0
+
+@dataclass
+class StrConcatExpr(CSLNode):
+    's ^ t — string concatenation in ghost / contract context.'
+    left: CSLNode
+    right: CSLNode
+
+@dataclass
+class StrLengthExpr(CSLNode):
+    '\\str_length(s) — length of a ghost string variable.'
+    string: CSLNode
+
+@dataclass
+class StrSubExpr(CSLNode):
+    '\\str_sub(s, lo, hi) — substring of ghost string s from lo to hi.'
+    string: CSLNode
+    lo: CSLNode
+    hi: CSLNode
+
+@dataclass
+class GhostCopyExpr(CSLNode):
+    '\\copy(arr) — snapshot of an array into a ghost array.'
+    arr: str
+
+@dataclass
+class GhostCopyRangeExpr(CSLNode):
+    '\\copy_range(arr, lo, hi) — bounded snapshot: arr[lo..hi-1] into a new ghost array.'
+    arr: str
+    lo: CSLNode
+    hi: CSLNode
+
+@dataclass
+class GhostMakeExpr(CSLNode):
+    '\\make(n, v) — create a ghost array of length n filled with v.'
+    size: CSLNode
+    default: CSLNode
+
+@dataclass
+class MapEmptyExpr(CSLNode):
+    '\\empty_map — an empty ghost dictionary (total map defaulting to 0).'
+
+@dataclass
+class MapGetExpr(CSLNode):
+    '\\map_get(d, k) — look up key k in ghost dict d.'
+    dict_expr: CSLNode
+    key: CSLNode
+
+@dataclass
+class MapSetExpr(CSLNode):
+    '\\map_set(d, k, v) — return ghost dict d with d[k] := v.'
+    dict_expr: CSLNode
+    key: CSLNode
+    value: CSLNode
+
+@dataclass
+class MapEqExpr(CSLNode):
+    '\\map_eq(d1, d2) — extensional equality of two ghost dicts.'
+    left: CSLNode
+    right: CSLNode
+
+@dataclass
+class HasKeyExpr(CSLNode):
+    '\\has_key(d, k) — true iff ghost dict d has a present (non-None) value at key k.'
+    dict_expr: CSLNode
+    key: CSLNode
+
+@dataclass
+class MapRemoveExpr(CSLNode):
+    '\\map_remove(d, k) — return ghost dict d with key k removed (set to None/absent).'
+    dict_expr: CSLNode
+    key: CSLNode
+
+@dataclass
+class SetEmptyExpr(CSLNode):
+    '\\set_empty — the empty ghost set.'
+
+@dataclass
+class SetAddExpr(CSLNode):
+    '\\set_add(s, x) — ghost set with x added.'
+    set_expr: CSLNode
+    elem: CSLNode
+
+@dataclass
+class SetRemoveExpr(CSLNode):
+    '\\set_remove(s, x) — ghost set with x removed.'
+    set_expr: CSLNode
+    elem: CSLNode
+
+@dataclass
+class SetMemExpr(CSLNode):
+    '\\set_mem(x, s) — x is a member of ghost set s.'
+    elem: CSLNode
+    set_expr: CSLNode
+
+@dataclass
+class SetUnionExpr(CSLNode):
+    '\\set_union(s1, s2) — union of two ghost sets.'
+    left: CSLNode
+    right: CSLNode
+
+@dataclass
+class SetInterExpr(CSLNode):
+    '\\set_inter(s1, s2) — intersection of two ghost sets.'
+    left: CSLNode
+    right: CSLNode
+
+@dataclass
+class SetDiffExpr(CSLNode):
+    '\\set_diff(s1, s2) — set difference s1 \\ s2.'
+    left: CSLNode
+    right: CSLNode
+
+@dataclass
+class SetCardExpr(CSLNode):
+    '\\set_card(s, lo, hi) — cardinality of s restricted to [lo, hi).'
+    set_expr: CSLNode
+    lo: CSLNode
+    hi: CSLNode
+
+@dataclass
+class SetSubsetExpr(CSLNode):
+    '\\set_subset(s1, s2) — s1 is a subset of s2.'
+    left: CSLNode
+    right: CSLNode
+
+@dataclass
+class SetEqExpr(CSLNode):
+    '\\set_eq(s1, s2) — extensional equality of two ghost sets.'
+    left: CSLNode
+    right: CSLNode
+
+@dataclass
+class NilExpr(CSLNode):
+    '\\nil — the empty ghost list.'
+
+@dataclass
+class ConsExpr(CSLNode):
+    '\\cons(x, l) — prepend x to ghost list l.'
+    head: CSLNode
+    tail: CSLNode
+
+@dataclass
+class HdExpr(CSLNode):
+    '\\hd(l) — head of ghost list l (requires l non-empty).'
+    list_expr: CSLNode
+
+@dataclass
+class TlExpr(CSLNode):
+    '\\tl(l) — tail of ghost list l (requires l non-empty).'
+    list_expr: CSLNode
+
+@dataclass
+class ListLengthExpr(CSLNode):
+    '\\list_length(l) — length of ghost list l.'
+    list_expr: CSLNode
+
+@dataclass
+class NthExpr(CSLNode):
+    '\\nth(l, i) — ith element of ghost list l (requires 0 <= i < length).'
+    list_expr: CSLNode
+    index: CSLNode
+
+@dataclass
+class MemExpr(CSLNode):
+    '\\mem(x, l) — x appears in ghost list l.'
+    elem: CSLNode
+    list_expr: CSLNode
+
+@dataclass
+class AppendExpr(CSLNode):
+    '\\append(l1, l2) — concatenation of two ghost lists.'
+    left: CSLNode
+    right: CSLNode
+
+@dataclass
+class GhostArraySetDecl(CSLNode):
+    'ghost arr[i] = expr — in-place assignment to a ghost array element.'
+    target: str
+    index: CSLNode
+    value: CSLNode
+
+@dataclass
+class RaisesDecl(CSLNode):
+    'Represents `raises ExcType when condition` in contracts.'
+    exc_type: str
+    condition: CSLNode
+
+@dataclass
+class NoExceptionDecl(CSLNode):
+    'Represents `no_exception E1, E2, ...` or `no_exception \\all`.\n\n    Turns implicit Python exceptions into proof obligations: every IR\n    operation that could raise one of `exceptions` must be preceded by an\n    assertion discharging its trigger condition (see exception_model.py).\n\n    `all_form=True` is the wildcard form; `exceptions` is empty in that case\n    and the function context expands to the full Phase 1 exception set at\n    transpilation time.\n    '
+    exceptions: List[str]
+    all_form: bool = False
+
+@dataclass
+class AllowFinalizerDecl(CSLNode):
+    "Represents `#@ allow_finalizer` — opts a class with `__del__` out\n    of UB-7.5's hard rejection. Place on the `class` line.\n    "
+
+@dataclass
+class AllowIterationMutationDecl(CSLNode):
+    "Represents `#@ allow_iteration_mutation` — opts a `for` loop out\n    of UB-7.1's hard rejection. Place on the `for` line.\n    "
+
+@dataclass
+class BoundedIntDecl(CSLNode):
+    'Represents `assumes bounded_int(N)` in contracts.'
+    size: int
+
+@dataclass
+class ProofDecl(CSLNode):
+    'Represents `#@ proof <prover> <qualname>` — cites a Rocq or\n    Lean theorem as the justification for a Why3 axiom in the WhyML\n    preamble.\n\n    Emits an `axiom <name> : <body>` line in the transpiled WhyML.\n    The body is looked up from a per-test manifest or hand-curated\n    mapping during the MVP phase, and from `proof2why3` extraction\n    once that pipeline exists (see docs/cross-validated-spec-sources.md).\n    '
+    prover: str
+    qualname: str
+
+@dataclass
+class SharedDecl(CSLNode):
+    'Represents `shared VAR protected_by MUTEX` or `shared VAR` (unprotected).'
+    variable: str
+    mutex: Optional[str] = None
+
+@dataclass
+class DatatypeDecl(CSLNode):
+    'Represents `#@ datatype Name = C1 | C2(int) | C3(int, int)` — an algebraic\n    (sum) type. `variants` is a list of (constructor_name, [payload_type_names]).\n    `type_params` (A5d) holds the declared type parameters of a *parametric*\n    datatype `#@ datatype Option[T] = …`; empty for a monomorphic one.'
+    name: str
+    variants: list
+    type_params: list = None
+
+@dataclass
+class InductiveDecl(CSLNode):
+    'Represents an `#@ inductive p(params):` least-fixpoint relation (inductive.md).\n    `signature` is the rendered param string `"(n: int)"`; `rules` is a list of\n    `(rule_name, horn_clause_expr)` parsed inline from the indentation block. `members`\n    (inductive.md P2) holds any `with q(params): …` mutually-inductive group members as\n    `(name, signature, rules)` tuples. Lowers to a Why3 `inductive p (params) = | Rule :\n    clause … [with q … = | …]` (no closing `end`).'
+    name: str
+    signature: str
+    rules: list = None
+    members: list = None
+
+@dataclass
+class MixinDecl(CSLNode):
+    'Represents `#@ mixin` — marks a class as a composable mixin (a trait whose\n    provided methods are verified once against its declared dependencies, then\n    flattened into a composer via `#@ compose_from`).'
+
+@dataclass
+class ProvidesDecl(CSLNode):
+    "Represents `#@ provides <m>` — the following method is a provided operation\n    of this mixin (a candidate provider for a sibling's `depends_method`)."
+    method: str
+
+@dataclass
+class SharedStateDecl(CSLNode):
+    "Represents `#@ shared_state <name>: <type>` (D1) — a field declared as\n    deliberately-shared facade state. Multiple mixins may read/write it; it is NOT\n    an owned-field conflict. A write must still appear in the method's `assigns`."
+    name: str
+    type_str: str
+
+@dataclass
+class TouchesFieldDecl(CSLNode):
+    'Represents `#@ touches_field <name>: <type>` — an OWNED field of this mixin.\n    At most one mixin may own a given name (two owners → conflict → Tier 2).'
+    name: str
+    type_str: str
+
+@dataclass
+class MethodDependencyDecl(CSLNode):
+    'Represents `#@ depends_method <m>: <sig>` (D2, a CONCRETE dependency on a\n    sibling/core provider) or `#@ requires_method <m>: <sig>` (an ABSTRACT operation\n    the composing class must supply). Both are modelled as an abstract `val` against\n    which the mixin is verified once; composition discharges provider ⊑ declared.'
+    method: str
+    sig: str
+    kind: str
+
+@dataclass
+class ComposeFromDecl(CSLNode):
+    'Represents `#@ compose_from M1, M2, …` — marks a class as composing the named\n    mixins. Synthesizes the composition obligations (unique provider per dependency,\n    provider-refines-dependency, init-hook) checked by the Module4 pass (S2).'
+    mixins: list
+
+@dataclass
+class ConformsToDecl(CSLNode):
+    "Represents `#@ conforms_to P1, P2, …` (typing-engagement ty2 / PEP 544) — marks a\n    class as conforming to the named Protocols. Synthesizes per-method contract-refinement\n    `overrides` entries (P2/P4): for each member `m` of each named Protocol `P` that the\n    class provides, an `(C__m, P__m)` pair is recorded so `--check-behavioral-subtyping`\n    emits the refinement goal `((pre_P -> pre_C) /\\ (post_C -> post_P))`. This is the\n    static-plane conformance VC — it must NOT be discharged by any runtime\n    `isinstance`/`hasattr` presence check (GT7 no-blend, D1). PEP 544 conformance is\n    structural/implicit; PyCSL's TY2 scope requires the explicit directive (divergence-by-\n    strictness) so conformance is a discharged per-method VC, not a whole-program search."
+    protocols: list
+
+@dataclass
+class ThreadEntry(CSLNode):
+    'Represents `thread_entry` — marks a function as a concurrent thread entry point.'
+
+@dataclass
+class Acquires(CSLNode):
+    'Represents `acquires MUTEX` — marks a mutex acquire point.'
+    mutex: str
+
+@dataclass
+class Releases(CSLNode):
+    'Represents `releases MUTEX` — marks a mutex release point.'
+    mutex: str
+
+@dataclass
+class CriticalSection(CSLNode):
+    'Represents `critical MUTEX` — marks a `with` block as a critical section.'
+    mutex: str
+
+@dataclass
+class MutexInvariant(CSLNode):
+    'Represents `mutex_invariant MUTEX: EXPR` — invariant held when mutex is unlocked.'
+    mutex: str
+    expr: CSLNode
+
+@dataclass
+class LockOrder(CSLNode):
+    'Represents `lock_order M1, M2, ...` — total order on mutex acquisition to prevent deadlock.'
+    order: List[str]
+
+#@ \trusted reviewer: pycsl-self-annotate
+#@ requires True
+#@ ensures True
+#@ assigns \nothing
+def _csl_to_str(node: CSLNode) -> str:
+    return ""
+
+import os as _os
+import re as _re
+class _ContractSyntaxError(Exception):
+    'Internal syntax error raised by `_ContractParser`; converted to\n    `PyCSLParseError` at the `Module2_Parser` boundary.'
+
+class _Tok:
+    __slots__ = ('type', 'string', 'start')
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def __init__(self, type_, string, start):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def __repr__(self):
+        pass
+
+
+_OP_ALTERNATIVES = ['==>', '<==>', '//', '..', '+=', '-=', '*=', '->', '==', '!=', '>=', '<=', '+', '-', '*', '/', '%', '^', ':', ',', ';', '(', ')', '[', ']', '=', '.', '<', '>', '|']
+_TOKEN_RE = _re.compile(_re.escape('|') and '(?xs)\n    (?P<WS>\\s+)\n  | (?P<DECIMAL>\\d+\\.\\d+)\n  | (?P<NUMBER>\\d+)\n  | (?P<STRING>"(?:[^"\\\\]|\\\\.)*")\n  | (?P<BSNAME>\\\\[A-Za-z_][A-Za-z0-9_]*)\n  | (?P<NAME>[A-Za-z_][A-Za-z0-9_]*)\n  | (?P<OP>' + '|'.join((_re.escape(o) for o in _OP_ALTERNATIVES)) + ')\n')
+#@ \trusted reviewer: pycsl-self-annotate
+#@ requires True
+#@ ensures True
+#@ assigns \nothing
+def _lex_contract(source: str):
+    pass
+
+_IMPL_OPS = ('==>', '<==>')
+_EQ_OPS = ('==', '!=')
+_COMP_OPS = ('>', '<', '>=', '<=')
+_ADD_OPS = ('+', '-')
+_MUL_OPS = ('*', '//', '/', '%')
+class _ContractParser:
+    'Recursive-descent parser over `_Tok` producing `CSLNode` trees.\n\n    One method per grammar rule; each builds the SAME `CSLNode` the\n    corresponding `PyCSLTransformer` method built. Dispatch is on the leading\n    keyword / backslash-name of the contract.\n    '
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def __init__(self, source: str):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def cur(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def peek(self, k=1):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def advance(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def at_op(self, *vals):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def at_name(self, *vals):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def at_bs(self, *vals):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def at_eof(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def accept_op(self, val):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def expect_op(self, val):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def expect_name(self, val=None):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def expect_bs(self, val):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _err(self, msg):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _try(self, fn):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def parse(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_contract(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_loop(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_class_invariant(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_function_variant(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_trusted(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _grab_reviewer_id(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_ghost(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_raises(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_no_exception(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_assumes(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_proof(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_qualname(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_interface(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_assigns(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_assigns_target(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_assigns_region(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_act_block(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_for_block(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_act_names(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_happy(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_happy_region(self, name):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_happy_targets(self, name):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_opt_except(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_dotted_path(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_dotted_path_list(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_footprint(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_datatype(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_variant_def(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_inductive(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_inductive_rules(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_shared_state(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_touches_field(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_depends_method(self, kind):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_compose_from(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_conforms_to(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_mixin_type(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_mixin_param(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_mixin_params(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_mixin_method_sig(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_shared(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_mutex_expr_str(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_mutex_invariant(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_lock_order(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_expr(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_quantifier(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    @staticmethod
+    def _mk_in(var, domain, body, is_exists):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_impl_rhs(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_or_rhs(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_and_rhs(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_implication(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_logical_or(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_logical_and(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_equality(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_comparison(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_membership(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_term(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_factor(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_unary(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_atom(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_atom_primary(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_atom_name(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_atom_bs(self):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _parse_expr_list(self):
+        pass
+
+
+class Module2_Parser:
+    'Parses raw PyCSL string contracts into Contract AST objects.\n\n    A pure-Python recursive-descent parser (`_ContractParser`) — no 3rd-party\n    deps. Replaces the former Lark LALR engine; the 1:1 grammar→CSLNode map is\n    preserved (differential-tested against the legacy engine in\n    `bin/diff_parser.py`).\n    '
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def __init__(self, use_rdp=None) -> None:
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def parse_contract(self, contract_str: str, line_number: int) -> CSLNode:
+        return None
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def parse_node_contracts(self, raw_contracts: List[str], line_number: int) -> List[CSLNode]:
+        return []
+
+
