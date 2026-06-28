@@ -72,7 +72,56 @@ class TypeInferenceMixin:
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _collect_array_var_assigns(self, stmts: List[int]) -> int:
+    def _collect_tuple_array_locals(self, stmts: List[int]) -> int:
+        return {}
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _collect_tuple_var_assigns(self, stmts: List[int]) -> int:
+        return {}
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _call_return_whyml_type(self, fn: str) -> Optional[str]:
+        return None
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _collect_array_var_assigns(self, stmts: List[int], seed: int=None) -> int:
+        return set()
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _split_tuple_type(self, rt: str) -> List[str]:
+        return []
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _collect_struct_unpack_array_targets(self, stmts: List[int]) -> int:
+        return set()
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _collect_struct_pack_assign_targets(self, stmts: List[int]) -> int:
+        return set()
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _collect_variant_var_assigns(self, stmts: List[int]) -> int:
         return set()
 
     #@ \trusted reviewer: pycsl-self-annotate

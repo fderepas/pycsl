@@ -56,6 +56,14 @@ class IRScanner:
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
+    def collection_binder_kinds(obj: Any) -> int:
+        return set()
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    @staticmethod
     def find_array_and_dict_vars(stmts: List[int]) -> int:
         return ([], {})
 
@@ -82,6 +90,14 @@ class IRScanner:
     @staticmethod
     def find_record_vars(stmts: List[int], record_types: int) -> int:
         return set()
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    @staticmethod
+    def find_record_var_classes(stmts: List[int], record_types: int) -> int:
+        return {}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -209,6 +225,14 @@ class IRScanner:
     #@ assigns \nothing
     @staticmethod
     def uses_set_card(obj: Any) -> bool:
+        return False
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    @staticmethod
+    def uses_ord_chr(obj: Any) -> bool:
         return False
 
     #@ \trusted reviewer: pycsl-self-annotate

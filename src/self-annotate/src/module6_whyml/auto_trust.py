@@ -9,8 +9,16 @@ class AutoTrustMixin:
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def _build_witness_str(field_names: List[str], vals: int) -> str:
+    def _build_witness_str(field_names: List[str], vals: int, field_types: int=None, array_lengths: int=None) -> str:
         return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    @staticmethod
+    def _extract_array_lengths(invs: List[Any]) -> int:
+        return {}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

@@ -1,9 +1,11 @@
 from __future__ import annotations
-from typing import Any, Dict, List, Optional, Set
-from module6_whyml.identifiers import op_translate, whyml_ident
-from module6_whyml.ir_scanner import IRScanner
+from typing import Any, Dict, List, Optional, Set, Tuple
+from module6_whyml.identifiers import op_translate, whyml_ident, stable_hash
+from module6_whyml.struct_format import parse_format
+from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
+from module6_whyml.expr_ghost_spec_ops import GhostSpecOpsMixin
 ""  # pycsl
-class ExpressionEmissionMixin:
+class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     'Expression-emission dispatch: every IR expression-shape `_handle_*_expr`\n    handler routed via `_EXPR_DISPATCH` on the facade, plus the orchestration\n    entrypoints (`_expr_to_whyml`, `_expr_to_whyml_string_ctx`) and the shared\n    helpers (`_to_bool`, `_coerce_*`, `_match_pattern_cond`, ...). Mixed into\n    Module6_WhyMLTranspiler. `_EXPR_DISPATCH` stays on the facade as a class\n    attribute — moving it would force a circular import.\n    '
     _BITWISE_FOLD_OPS = {'&': lambda a, b: a & b, '|': lambda a, b: a | b, '^': lambda a, b: a ^ b, '<<': lambda a, b: a << b, '>>': lambda a, b: a >> b, '**': lambda a, b: a ** b}
     _BITWISE_FN_NAMES = {'&': 'bit_and', '|': 'bit_or', '^': 'bit_xor', '<<': 'bit_lshift', '>>': 'bit_rshift', '**': 'py_pow'}
@@ -33,6 +35,13 @@ class ExpressionEmissionMixin:
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    def _materialize_if_seq(self, whyml_str: str, arg_ir: int) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
     @staticmethod
     def _array_coerce_arg(whyml_str: str) -> str:
         return ""
@@ -41,7 +50,35 @@ class ExpressionEmissionMixin:
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    def _deref(self, expr: str) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
     def _coerce_to_int(self, whyml_str: str) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _dv_empty_default(self, nu: Optional[str]) -> Optional[str]:
+        return None
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _dv_missing_default(self, nu: Optional[str]) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _dv_store_value(self, nu: Optional[str], val_expr: str) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -69,8 +106,36 @@ class ExpressionEmissionMixin:
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    def _is_string_expr(self, ir: int) -> bool:
+        return False
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _is_float_expr(self, ir: int) -> bool:
+        return False
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _str_operand_to_int(self, whyml_str: str) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
     def _handle_binop(self, expr: int, local_refs: int, invariant_ctx: bool=False, subst: int=None) -> str:
         return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _iter_len_expr(self, ir: int, local_refs: int) -> Optional[str]:
+        return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -97,6 +162,13 @@ class ExpressionEmissionMixin:
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    def _resolve_dotted_signature(self, func_name: str):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
     def _handle_dotted_call(self, func_name: str, args: List[str]) -> str:
         return ""
 
@@ -104,8 +176,179 @@ class ExpressionEmissionMixin:
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    def _coerce_dotted_args(self, args: List[str], param_types: List[str]) -> List[str]:
+        return []
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    @staticmethod
+    def _strip_outer_parens(s: str) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _frame_trigger_term(self, node: Any) -> int:
+        return {}
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _dotted_ensures_suffix(self, result_ensures: List[int], n: int, param_types: List[str], field_spec: Optional[Any]=None) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _handle_struct_call(self, expr: int, args: List[str], func_name: str) -> Optional[str]:
+        return None
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _emit_contract_logic_symbol(self, func_name: str, expr: int, args: List[str]) -> Optional[str]:
+        return None
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    @staticmethod
+    def _is_null_byte_lit(ir: int) -> bool:
+        return False
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _linear_form(self, ir: int) -> int:
+        return None
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _static_width(self, lower_ir: int, upper_ir: int) -> int:
+        return None
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _match_field_decode_idiom(self, expr: int) -> Optional[tuple]:
+        return None
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _recognize_field_decode_idiom(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> Optional[str]:
+        return None
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
     def _handle_call_expr(self, expr: int, local_refs: int, invariant_ctx: bool=False, subst: int=None) -> str:
         return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _content_string_method(self, expr: int, args: List[str], func_name: str, local_refs: int, invariant_ctx: bool, subst: int) -> Optional[str]:
+        return None
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _call_named_builtins(self, expr: int, args: List[str], func_name: str, local_refs: int=None, invariant_ctx: bool=False, subst: int=None) -> Optional[str]:
+        return None
+
+    _METATYPE_TAGS = {'int': 'tag_int', 'bool': 'tag_int', 'str': 'tag_str', 'float': 'tag_float', 'list': 'tag_list', 'List': 'tag_list', 'dict': 'tag_dict', 'Dict': 'tag_dict', 'set': 'tag_dict', 'frozenset': 'tag_dict', 'object': 'tag_object'}
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _emit_metatype_tags(self) -> None:
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _tag_of_type(self, t_name: Optional[str]) -> Optional[str]:
+        return None
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _tag_of_value(self, x_ir: int) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _union_none_ctor_for(self, x_ir: int) -> Optional[str]:
+        return None
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _handle_isinstance(self, expr: int) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _subst_params(self, ir: Any, arg_nodes: int) -> Any:
+        return None
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _call_record_constructor(self, args: List[str], func_name: str) -> Optional[str]:
+        return None
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _call_bytes_methods(self, args: List[str], func_name: str) -> Optional[str]:
+        return None
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _typeddict_field_access(self, value: int, index_ir: int, local_refs: int, invariant_ctx: bool, subst: int) -> Optional[str]:
+        return None
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _typeddict_record_literal(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> Optional[str]:
+        return None
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _namedtuple_positional_access(self, value: int, index_ir: int, local_refs: int, invariant_ctx: bool, subst: int) -> Optional[str]:
+        return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -126,6 +369,34 @@ class ExpressionEmissionMixin:
     #@ ensures True
     #@ assigns \nothing
     def _handle_var_expr(self, expr: int, local_refs: int, subst: int=None) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _quant_binder_whyml(self, binder_type: Optional[str]) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _push_quant_binder(self, var: Optional[str], binder_type: Optional[str]):
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _pop_quant_binder(self, var: Optional[str], token) -> None:
+        pass
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _field_label(self, record_lower: Optional[str], field: str) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -195,6 +466,27 @@ class ExpressionEmissionMixin:
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    def _module_binding_names(self) -> int:
+        return set()
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _handle_in_globals_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _handle_in_scope_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
     def _handle_valid_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
         return ""
 
@@ -230,6 +522,20 @@ class ExpressionEmissionMixin:
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    def _handle_arrayeq_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _handle_permutation_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
     def _handle_sum_node_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
         return ""
 
@@ -245,244 +551,6 @@ class ExpressionEmissionMixin:
     #@ ensures True
     #@ assigns \nothing
     def _handle_setlit_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_mktuple_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_fst_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_snd_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_proj_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_strconcat_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_str_length_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_str_sub_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_ghost_copy_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_ghost_copy_range_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_ghost_make_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_map_empty_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_map_get_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_map_set_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_map_eq_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_has_key_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_map_remove_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_set_empty_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_set_add_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_set_remove_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_set_mem_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_set_union_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_set_inter_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_set_diff_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_set_card_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_set_subset_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_set_eq_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_nil_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_cons_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_hd_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_tl_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_list_length_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_nth_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_mem_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_append_expr(self, expr: int, lr: int, _ic: bool, _sub: int) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
