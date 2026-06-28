@@ -6,6 +6,7 @@ import PyCSL.AST
 import PyCSL.State
 import PyCSL.SOS
 import PyCSL.WP
+import PyCSL.MemModel
 import PyCSL.WhileInv
 import PyCSL.Soundness
 import PyCSL.SoundnessVerified
@@ -314,3 +315,48 @@ theorem test_class_invariant_boollit_false (st : List (Ident × Val)) :
 -- extraction for the CC.5 byte-diff tooling. The Lean side keeps
 -- the structural composition lemma as its canonical correctness
 -- theorem.
+
+-- ===== Phase 7 tests: acquires/releases, criticalHavoc, MemModel =====
+
+-- Test: acquires produces .normal in the Hoare instance.
+theorem test_acquires_normal (es : ExecState) (m : Ident) :
+    Exec es (.acquires m) (.normal es) :=
+  .execAcquires es m
+
+-- Test: releases produces .normal in the Hoare instance.
+theorem test_releases_normal (es : ExecState) (m : Ident) :
+    Exec es (.releases m) (.normal es) :=
+  .execReleases es m
+
+-- Test: wp (.acquires m) Qn ... = Qn es (Hoare-instance identity).
+theorem test_wp_acquires (es : ExecState) (m : Ident) (Qn : ExecState → Prop)
+    (Qr Qc Qb : ExecState → Prop) (Qe : Ident → ExecState → Prop)
+    (preEs : ExecState) :
+    wp (.acquires m) Qn Qr Qc Qb Qe preEs es = Qn es := by
+  simp [wp]
+
+-- Test: wp (.releases m) Qn ... = Qn es (Hoare-instance identity).
+theorem test_wp_releases (es : ExecState) (m : Ident) (Qn : ExecState → Prop)
+    (Qr Qc Qb : ExecState → Prop) (Qe : Ident → ExecState → Prop)
+    (preEs : ExecState) :
+    wp (.releases m) Qn Qr Qc Qb Qe preEs es = Qn es := by
+  simp [wp]
+
+-- Test: criticalHavoc is identity in the Hoare instance.
+theorem test_criticalHavoc_identity (es : ExecState) (P : ExecState → Prop) :
+    criticalHavoc es P = P es := rfl
+
+-- Test: Hoare instance valid is vacuously True.
+theorem test_valid_true : valid 0 10 := trivial
+
+-- Test: Hoare instance separated is vacuously True.
+theorem test_separated_true : separated 0 10 := trivial
+
+-- Test: soundness holds for .acquires (Qn case).
+theorem test_soundness_acquires (es : ExecState) (m : Ident)
+    (Qn Qr Qc Qb : ExecState → Prop) (Qe : Ident → ExecState → Prop)
+    (preEs : ExecState)
+    (hExec : Exec es (.acquires m) (.normal es))
+    (hWp : wp (.acquires m) Qn Qr Qc Qb Qe preEs es) :
+    outcomePost Qn Qr Qc Qb Qe (.normal es) :=
+  pycsl_soundness es (.acquires m) (.normal es) Qn Qr Qc Qb Qe preEs hExec hWp

@@ -254,4 +254,12 @@ Inductive stmt : Type :=
   | SFieldAugAssign (self_id f : ident) (op : binop) (e : expr)
   (* Phase 8 concurrent additions *)
   | SCritical    (mutex : ident) (body : stmt)
-  | SThreadEntry (body : stmt).
+  | SThreadEntry (body : stmt)
+  (* Phase 7 (Category D) concurrency primitives.
+     `acquires m` / `releases m` take/release a mutex. In the Hoare
+     instance (no lock state) these are identity (ONormal es, Qn es);
+     the real lock discipline (lock-held flag, deadlock prevention via
+     lock_order) is the deferred ConcurrentMM instance work — see
+     Phase7_MemModel.v §"Deferred work". *)
+  | SAcquires    (mutex : ident)
+  | SReleases    (mutex : ident).

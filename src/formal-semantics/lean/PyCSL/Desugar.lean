@@ -68,6 +68,8 @@ private theorem bwd_while_aux {b : Stmt}
   | execCritical _ _ _ _ _ _ => simp at heq
   | execThreadEntry _ _ _ _ _ => simp at heq
   | execFor _ _ _ _ _ _ _ _ _ _ => simp at heq
+  | execAcquires _ _ => simp at heq
+  | execReleases _ _ => simp at heq
 
 -- =====================================================================
 -- Forward direction: Exec es s out → Exec es (desugar s) out
@@ -149,6 +151,8 @@ theorem desugar_correct_fwd (es : ExecState) (s : Stmt) (out : Outcome)
     exact .execThreadEntry _ _ _ (ih1 hfresh)
   -- For: execFor provides Exec es (desugar .for_...) out directly
   | execFor _ _ _ _ _ _ _ _ h _ => exact h
+  | execAcquires _ _ => exact .execAcquires _ _
+  | execReleases _ _ => exact .execReleases _ _
 
 -- =====================================================================
 -- Backward direction: Exec es (desugar s) out → Exec es s out
@@ -234,7 +238,10 @@ theorem desugar_correct_bwd (s : Stmt) (es : ExecState) (out : Outcome)
     cases hd with
     | execThreadEntry _ _ _ h1 =>
       exact .execThreadEntry _ _ _ (desugar_correct_bwd b es _ hfresh h1)
-termination_by sizeOf s
+  -- Acquires/Releases: desugar is identity
+  | .acquires _ => exact hd
+  | .releases _ => exact hd
+  termination_by sizeOf s
 
 theorem desugar_correct (es : ExecState) (s : Stmt) (out : Outcome)
     (hfresh : freshInStmt forIdx s = true) :

@@ -62,6 +62,8 @@ def acceptableEmit (state : AssignState) : Stmt → List String
   | .fieldAugAssign _ _ _ _     => acceptableSkipEmissions  -- gen → wSkip
   | .critical _ body            => [ emitStmtFullComplete state (gen body) ]
   | .threadEntry body           => [ emitStmtFullComplete state (gen body) ]
+  | .acquires _                 => acceptableSkipEmissions  -- gen → wSkip
+  | .releases _                 => acceptableSkipEmissions  -- gen → wSkip
 
 /-- The composition theorem: for every stmt constructor,
     `emitStmtFullComplete state (gen s)` lies in `acceptableEmit
@@ -130,6 +132,10 @@ theorem emitStmtFullCompleteSound (state : AssignState) (s : Stmt) :
       simp [acceptableEmit, gen]
   | threadEntry body =>
       simp [acceptableEmit, gen]
+  | acquires _ =>
+      simp [acceptableEmit, gen, emitStmtFullComplete, acceptableSkipEmissions]
+  | releases _ =>
+      simp [acceptableEmit, gen, emitStmtFullComplete, acceptableSkipEmissions]
 
 /-- Existential corollary: the emission is some specific string in
     the acceptable set. -/

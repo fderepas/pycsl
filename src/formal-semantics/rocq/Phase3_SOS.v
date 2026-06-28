@@ -360,7 +360,18 @@ Inductive exec : exec_state -> stmt -> outcome -> Prop :=
   | ExecFor :
       forall es x arr inv var body aim out,
       exec es (desugar (SFor x arr inv var body aim)) out ->
-      exec es (SFor x arr inv var body aim) out.
+      exec es (SFor x arr inv var body aim) out
+
+  (* Phase 7: acquires/releases — Hoare-instance identity stubs.
+     No lock state in exec_state; real lock discipline is the deferred
+     ConcurrentMM instance (see Phase7_MemModel.v). *)
+  | ExecAcquires :
+      forall es m,
+      exec es (SAcquires m) (ONormal es)
+
+  | ExecReleases :
+      forall es m,
+      exec es (SReleases m) (ONormal es).
 
 (* ===== Determinism ===== *)
 Lemma exec_deterministic :

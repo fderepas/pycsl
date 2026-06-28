@@ -103,6 +103,8 @@ Definition acceptable_emit (state : assign_state) (s : stmt) : list string :=
   | SFieldAugAssign _ _ _ _   => acceptable_skip_emissions  (* simplified to WSkip *)
   | SCritical _ body          => [ emit_stmt_full_complete state (gen body) ]
   | SThreadEntry body         => [ emit_stmt_full_complete state (gen body) ]
+  | SAcquires _               => acceptable_skip_emissions  (* gen → WSkip *)
+  | SReleases _               => acceptable_skip_emissions  (* gen → WSkip *)
   end.
 
 (* ===== The composition theorem ===== *)
@@ -160,6 +162,10 @@ Proof.
   (* SCritical — gen body singleton *)
   - left. reflexivity.
   (* SThreadEntry — gen body singleton *)
+  - left. reflexivity.
+  (* SAcquisitions — gen reduces to WSkip *)
+  - left. reflexivity.
+  (* SReleases — gen reduces to WSkip *)
   - left. reflexivity.
 Qed.
 

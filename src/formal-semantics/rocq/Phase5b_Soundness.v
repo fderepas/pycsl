@@ -13,6 +13,7 @@ Require Import Phase3b_DesugarDef.
 Require Import Phase3b_Desugar.
 Require Import Phase4_WP.
 Require Import Phase5a_WhileInv.
+Require Import Phase7_MemModel.
 Open Scope Z_scope.
 
 (* ===== SMT certificate type ===== *)
@@ -149,8 +150,12 @@ Proof.
     + exact Hwp.
   - exact (hn _ Hwp).
   - exact (hn _ Hwp).
+  - unfold critical_havoc in *; simpl in *.
+    exact (IHs _ _ Qr Qr' Qc Qc' Qb Qb' Qe Qe' pre_es es hn hr hc hb he Hwp).
   - exact (IHs _ _ Qr Qr' Qc Qc' Qb Qb' Qe Qe' pre_es es hn hr hc hb he Hwp).
-  - exact (IHs _ _ Qr Qr' Qc Qc' Qb Qb' Qe Qe' pre_es es hn hr hc hb he Hwp).
+  (* Phase 7: SAcquisitions/SReleases — leaf, Qn es *)
+  - exact (hn _ Hwp).
+  - exact (hn _ Hwp).
 Qed.
 
 (* wp (lift_continue inc_idx s) Qn Qr Qc Qb Qe <->
@@ -236,7 +241,8 @@ Proof.
         exact (proj2 (IHs2 Qn Qr Qc Qb Qe pre_es es') H').
       * exact H.
   (* SCritical mutex body *)
-  - exact (IHs Qn Qr Qc Qb Qe pre_es es).
+  - unfold critical_havoc in *; simpl in *.
+    exact (IHs Qn Qr Qc Qb Qe pre_es es).
   (* SThreadEntry body *)
   - exact (IHs Qn Qr Qc Qb Qe pre_es es).
 Qed.
@@ -310,7 +316,8 @@ Proof.
       * exact H.
     + exact Hwp.
   (* SCritical mutex body, SThreadEntry body *)
-  - exact (IHs Qn Qr Qc Qb Qe pre_es es Hwp).
+  - unfold critical_havoc in *; simpl in *.
+    exact (IHs Qn Qr Qc Qb Qe pre_es es Hwp).
   - exact (IHs Qn Qr Qc Qb Qe pre_es es Hwp).
 Qed.
 
@@ -429,12 +436,16 @@ Proof.
   - exact Hwp.
   - exact Hwp.
   (* ExecCritical *)
-  - eapply IHHexec. exact Hwp.
+  - unfold critical_havoc in *; simpl in *.
+    eapply IHHexec. exact Hwp.
   (* ExecThreadEntry *)
   - eapply IHHexec. exact Hwp.
   (* ExecFor: SOS uses desugar(SFor), so forward desugaring coherence closes the case *)
   - eapply IHHexec.
     exact (wp_desugar_fwd (SFor x arr inv var body aim) Qn Qr Qc Qb Qe pre_es es Hwp).
+  (* ExecAcquisitions / ExecReleases — leaf, Qn es *)
+  - exact Hwp.
+  - exact Hwp.
 Qed.
 
 (* ===== Phase 3c: \at label scoping theorems ===== *)

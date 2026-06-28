@@ -37,6 +37,8 @@ Fixpoint fresh_in_stmt (id : ident) (s : stmt) : Prop :=
   | SFieldAugAssign _ _ _ _ => True
   | SCritical _ body => fresh_in_stmt id body
   | SThreadEntry body => fresh_in_stmt id body
+  | SAcquires _ => True
+  | SReleases _ => True
   end.
 
 (* Decidable boolean version of freshness *)
@@ -67,6 +69,8 @@ Fixpoint fresh_in_stmt_b (id : ident) (s : stmt) : bool :=
   | SFieldAugAssign _ _ _ _ => true
   | SCritical _ body => fresh_in_stmt_b id body
   | SThreadEntry body => fresh_in_stmt_b id body
+  | SAcquires _ => true
+  | SReleases _ => true
   end.
 
 (* lift_continue inc s: replace every shallow SContinue in s with (SSeq inc SContinue).
@@ -81,6 +85,8 @@ Fixpoint lift_continue (inc_stmt : stmt) (s : stmt) : stmt :=
   | STryCatch b exc h      => STryCatch (lift_continue inc_stmt b) exc (lift_continue inc_stmt h)
   | SCritical m b          => SCritical m (lift_continue inc_stmt b)
   | SThreadEntry b         => SThreadEntry (lift_continue inc_stmt b)
+  | SAcquires m            => SAcquires m
+  | SReleases m            => SReleases m
   (* Leaf constructors: identity (explicit to generate clean equations) *)
   | SSkip                  => SSkip
   | SBreak                 => SBreak

@@ -118,3 +118,16 @@ Lemma wp_gen_field_aug_assign :
   wp (SFieldAugAssign self_id f op e) Qn Qr Qc Qb Qe pre_es es <->
   wp_w (gen (SFieldAugAssign self_id f op e)) (enc Qn Qr Qc Qb Qe) pre_es es.
 Proof. intros. simpl. unfold enc. simpl. tauto. Qed.
+
+(* Phase 7: acquires/releases — gen → WSkip, wp → Qn es *)
+Lemma wp_gen_acquires :
+  forall m Qn Qr Qc Qb Qe pre_es es,
+  wp (SAcquires m) Qn Qr Qc Qb Qe pre_es es <->
+  wp_w (gen (SAcquires m)) (enc Qn Qr Qc Qb Qe) pre_es es.
+Proof. intros. simpl. unfold enc. simpl. tauto. Qed.
+
+Lemma wp_gen_releases :
+  forall m Qn Qr Qc Qb Qe pre_es es,
+  wp (SReleases m) Qn Qr Qc Qb Qe pre_es es <->
+  wp_w (gen (SReleases m)) (enc Qn Qr Qc Qb Qe) pre_es es.
+Proof. intros. simpl. unfold enc. simpl. tauto. Qed.

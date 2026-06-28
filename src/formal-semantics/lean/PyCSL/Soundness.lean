@@ -11,6 +11,7 @@ import PyCSL.AST
 import PyCSL.State
 import PyCSL.SOS
 import PyCSL.WP
+import PyCSL.MemModel
 import PyCSL.WhileInv
 import PyCSL.Why3Trust
 
@@ -46,6 +47,8 @@ theorem wp_mono {s : Stmt}
   | label_ _      => exact hn _ h
   | fieldAssign _ _ _   => exact hn _ h
   | fieldAugAssign _ _ _ _ => exact hn _ h
+  | acquires _       => exact hn _ h
+  | releases _       => exact hn _ h
   | seq s1 s2 ih1 ih2 =>
     simp only [wp] at h ⊢
     exact ih1 (fun es' h' => ih2 hn hr hc hb he h') hr hc hb he h
@@ -115,8 +118,10 @@ private theorem liftContinue_wp (s : Stmt)
   | ghostAssign _ _ _ _ => simp only [liftContinue, wp]
   | label_ _ => simp only [liftContinue, wp]
   | raise_ _ => simp only [liftContinue, wp]
-  | fieldAssign _ _ _ => simp only [liftContinue, wp]
+  | fieldAssign _ _ _   => simp only [liftContinue, wp]
   | fieldAugAssign _ _ _ _ => simp only [liftContinue, wp]
+  | acquires _       => simp only [liftContinue, wp]
+  | releases _       => simp only [liftContinue, wp]
   | while_ _ _ _ _ _ => simp only [liftContinue, wp]
   | for_ _ _ _ _ _ _ => simp only [liftContinue, wp]
   | continue_ => simp only [liftContinue, wp, incIdxFn, evalExpr, evalBinopZ]; rfl
@@ -173,6 +178,8 @@ theorem wp_desugar_fwd (s : Stmt)
   | raise_ _      => exact h
   | fieldAssign _ _ _   => exact h
   | fieldAugAssign _ _ _ _ => exact h
+  | acquires _       => exact h
+  | releases _       => exact h
   | seq s1 s2 ih1 ih2 =>
     simp only [desugar, wp] at h ⊢
     -- Step 1: desugar s1 using IH for s1
@@ -334,14 +341,19 @@ theorem pycsl_soundness
     · exact hih
     · trivial
     · exact absurd rfl (hno es' exc')
-  -- Critical / ThreadEntry: transparent WP wrappers
+  -- Critical / ThreadEntry: WP wrappers. criticalHavoc reduces to
+  -- identity in the Hoare instance (see MemModel.lean).
   | execCritical _ _ body _ _ ih =>
-    simp only [wp] at hWp; exact ih Qn Qr Qc Qb Qe preEs hWp
+    simp only [wp, criticalHavoc] at hWp
+    exact ih Qn Qr Qc Qb Qe preEs hWp
   | execThreadEntry _ body _ _ ih =>
     simp only [wp] at hWp; exact ih Qn Qr Qc Qb Qe preEs hWp
   -- For: ExecFor gives Exec es0 (desugar (.for_ ...)) out; wp_desugar_fwd bridges the WPs
   | execFor es0 x arr inv var body aim _ _ ih =>
     exact ih Qn Qr Qc Qb Qe preEs (wp_desugar_fwd (.for_ x arr inv var body aim) Qn Qr Qc Qb Qe preEs es0 hWp)
+  -- Acquires/Releases: leaf, Qn es
+  | execAcquires _ _ => exact hWp
+  | execReleases _ _ => exact hWp
 
 -- ===== Phase 3c: \at label scoping theorems =====
 

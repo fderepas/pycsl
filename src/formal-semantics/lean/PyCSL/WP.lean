@@ -15,6 +15,7 @@
 import PyCSL.AST
 import PyCSL.State
 import PyCSL.DesugarDef
+import PyCSL.MemModel
 
 def wp : Stmt
        → (Qn Qr Qc Qb : ExecState → Prop)
@@ -116,7 +117,14 @@ def wp : Stmt
   | .fieldAugAssign _ _ _ _, Qn, _, _, _, _, _, es => Qn es
 
   | .critical _ body, Qn, Qr, Qc, Qb, Qe, preEs, es =>
-    wp body Qn Qr Qc Qb Qe preEs es
+    -- Phase 7: criticalHavoc models the ExecCritical shared-state risk.
+    -- Hoare instance: criticalHavoc es P = P es (identity, matching
+    -- the previous Phase 8 stub). Future ConcurrentMM:
+    -- ∀ shared, P (mergeShared es shared).
+    criticalHavoc es (fun es' => wp body Qn Qr Qc Qb Qe preEs es')
 
   | .threadEntry body, Qn, Qr, Qc, Qb, Qe, preEs, es =>
     wp body Qn Qr Qc Qb Qe preEs es
+
+  | .acquires _, Qn, _, _, _, _, _, es => Qn es
+  | .releases _, Qn, _, _, _, _, _, es => Qn es

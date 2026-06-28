@@ -81,6 +81,10 @@ theorem wpGenCorrect (s : Stmt) :
   | threadEntry body ih =>
     intros Qn Qr Qc Qb Qe preEs es
     exact wpGen_threadEntry body Qn Qr Qc Qb Qe preEs es ih
+  | acquires m =>
+    intros; exact wpGen_acquires m _ _ _ _ _ _ _
+  | releases m =>
+    intros; exact wpGen_releases m _ _ _ _ _ _ _
 
 -- ===== Corollary: wpW (gen s) implies wp s =====
 

@@ -118,3 +118,18 @@ theorem wpGen_fieldAugAssign (selfId f : Ident) (op : Binop) (e : Expr)
     wp (.fieldAugAssign selfId f op e) Qn Qr Qc Qb Qe preEs es ↔
     wpW (gen (.fieldAugAssign selfId f op e)) (enc Qn Qr Qc Qb Qe) preEs es := by
   simp [wp, gen, wpW, enc]
+
+-- Phase 7: acquires/releases — gen → wSkip, wp → Qn es
+theorem wpGen_acquires (m : Ident)
+    (Qn Qr Qc Qb : ExecState → Prop) (Qe : Ident → ExecState → Prop)
+    (preEs es : ExecState) :
+    wp (.acquires m) Qn Qr Qc Qb Qe preEs es ↔
+    wpW (gen (.acquires m)) (enc Qn Qr Qc Qb Qe) preEs es := by
+  simp [wp, gen, wpW, enc]
+
+theorem wpGen_releases (m : Ident)
+    (Qn Qr Qc Qb : ExecState → Prop) (Qe : Ident → ExecState → Prop)
+    (preEs es : ExecState) :
+    wp (.releases m) Qn Qr Qc Qb Qe preEs es ↔
+    wpW (gen (.releases m)) (enc Qn Qr Qc Qb Qe) preEs es := by
+  simp [wp, gen, wpW, enc]

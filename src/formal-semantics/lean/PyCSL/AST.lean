@@ -317,4 +317,12 @@ inductive Stmt where
   -- Phase 8 concurrent
   | critical    (mutex : Ident) (body : Stmt)
   | threadEntry (body : Stmt)
+  /-- Phase 7 (Category D) concurrency primitives.
+      `acquires m` / `releases m` take/release a mutex. In the Hoare
+      instance (no lock state) these are identity (ONormal es, Qn es);
+      the real lock discipline (lock-held flag, deadlock prevention via
+      lock_order) is the deferred ConcurrentMM instance work — see
+      MemModel.lean §"Deferred work". -/
+  | acquires   (mutex : Ident)
+  | releases   (mutex : Ident)
   deriving Repr

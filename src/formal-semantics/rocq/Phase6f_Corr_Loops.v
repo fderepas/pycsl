@@ -21,6 +21,7 @@ Require Import Phase2_State.
 Require Import Phase3b_DesugarDef.
 Require Import Phase3b_Desugar.
 Require Import Phase4_WP.
+Require Import Phase7_MemModel.
 Require Import Phase6_WhyML.
 Require Import Phase6b_WPW.
 Require Import Phase6c_ExprTrans.
@@ -306,7 +307,7 @@ Lemma wp_gen_critical :
   wp_w (gen (SCritical mutex body)) (enc Qn Qr Qc Qb Qe) pre_es es.
 Proof.
   intros mutex body Qn Qr Qc Qb Qe pre_es es IHbody.
-  simpl gen. simpl wp.
+  simpl gen. simpl wp. unfold critical_havoc in *.
   exact (IHbody Qn Qr Qc Qb Qe pre_es es).
 Qed.
 

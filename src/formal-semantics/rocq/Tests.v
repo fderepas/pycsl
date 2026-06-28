@@ -10,6 +10,7 @@ Require Import Phase3b_Desugar.
 Require Import Phase4_WP.
 Require Import Phase5a_WhileInv.
 Require Import Phase5b_Soundness.
+Require Import Phase7_MemModel.
 Require Import Phase6n_ClassInvariants.
 Open Scope Z_scope.
 
@@ -251,3 +252,54 @@ Proof. simpl. reflexivity. Qed.
 Lemma test_class_invariant_boollit_false (st : state) :
   ~ eval_contract st st None (CClassInvariant "Counter" (CBoolLit false)).
 Proof. simpl. discriminate. Qed.
+
+(* ===== Phase 7 tests: acquires/releases, critical_havoc, MemModel ===== *)
+
+(* Test 30: acquires produces ONormal in the Hoare instance. *)
+Lemma test_acquires_normal :
+  forall es m, exec es (SAcquires m) (ONormal es).
+Proof. intros. apply ExecAcquires. Qed.
+
+(* Test 31: releases produces ONormal in the Hoare instance. *)
+Lemma test_releases_normal :
+  forall es m, exec es (SReleases m) (ONormal es).
+Proof. intros. apply ExecReleases. Qed.
+
+(* Test 32: wp (SAcquires m) Qn ... = Qn es (Hoare-instance identity). *)
+Lemma test_wp_acquires :
+  forall es m (Qn : exec_state -> Prop),
+  wp (SAcquires m) Qn (fun _ => True) (fun _ => True) (fun _ => True)
+      (fun _ _ => True) es es = Qn es.
+Proof. intros. simpl. reflexivity. Qed.
+
+(* Test 33: wp (SReleases m) Qn ... = Qn es (Hoare-instance identity). *)
+Lemma test_wp_releases :
+  forall es m (Qn : exec_state -> Prop),
+  wp (SReleases m) Qn (fun _ => True) (fun _ => True) (fun _ => True)
+      (fun _ _ => True) es es = Qn es.
+Proof. intros. simpl. reflexivity. Qed.
+
+(* Test 34: critical_havoc is identity in the Hoare instance. *)
+Lemma test_critical_havoc_identity :
+  forall es (P : exec_state -> Prop),
+  critical_havoc es P = P es.
+Proof. intros. reflexivity. Qed.
+
+(* Test 35: Hoare instance valid is vacuously True. *)
+Lemma test_valid_true : valid 0 10.
+Proof. exact I. Qed.
+
+(* Test 36: Hoare instance separated is vacuously True. *)
+Lemma test_separated_true : separated 0 10.
+Proof. exact I. Qed.
+
+(* Test 37: soundness holds for SAcquires (Qn case). *)
+Lemma test_soundness_acquires :
+  forall es m Qn Qr Qc Qb Qe pre_es,
+  exec es (SAcquires m) (ONormal es) ->
+  wp (SAcquires m) Qn Qr Qc Qb Qe pre_es es ->
+  outcome_post Qn Qr Qc Qb Qe (ONormal es).
+Proof.
+  intros es m Qn Qr Qc Qb Qe pre_es Hexec Hwp.
+  eapply pycsl_soundness; eauto.
+Qed.

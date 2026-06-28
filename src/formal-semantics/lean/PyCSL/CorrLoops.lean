@@ -6,6 +6,7 @@
 import PyCSL.AST
 import PyCSL.State
 import PyCSL.WP
+import PyCSL.MemModel
 import PyCSL.WhyML
 import PyCSL.WPW
 import PyCSL.StmtGen
@@ -251,7 +252,9 @@ theorem wpGen_critical (mutex : Ident) (body : Stmt)
               wpW (gen body) (enc Qn' Qr' Qc' Qb' Qe') preEs' es') :
     wp (.critical mutex body) Qn Qr Qc Qb Qe preEs es ↔
     wpW (gen (.critical mutex body)) (enc Qn Qr Qc Qb Qe) preEs es := by
-  simp [wp, gen]
+  simp only [wp, gen]
+  -- Phase 7: criticalHavoc es P = P es in Hoare instance.
+  simp only [criticalHavoc]
   exact ihBody Qn Qr Qc Qb Qe preEs es
 
 theorem wpGen_threadEntry (body : Stmt)

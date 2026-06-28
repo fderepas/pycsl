@@ -258,8 +258,10 @@ constructors have WP rules (Rocq: `Phase4_WP.v:35-145`; Lean: `WP.lean:19-122`).
 | `STryCatch s1 exc handler` | `wp s1 … (λ exc' st'. if exc' = exc then wp handler … else Qe exc' st') …` | 5-continuation handler dispatch |
 | `SFieldAssign self f e` | `Qn st` | Placeholder (flat synthesised var) |
 | `SFieldAugAssign self f op e` | `Qn st` | Placeholder (flat synthesised var) |
-| `SCritical mutex body` | `wp body …` | Hoare-identity stub |
+| `SCritical mutex body` | `critical_havoc es (wp body …)` | Phase 7: routes through `critical_havoc` (MemModel); Hoare instance = `wp body …` |
 | `SThreadEntry body` | `wp body …` | Hoare-identity stub |
+| `SAcquires m` | `Qn es` | Phase 7: Hoare-instance identity (no lock state) |
+| `SReleases m` | `Qn es` | Phase 7: Hoare-instance identity (no lock state) |
 
 The `SFor` case delegates to `desugar` in both provers. In Lean, this
 requires a `wpFor` helper defined outside the structural recursion to
@@ -467,7 +469,7 @@ against the current AST.
 | function call in contract | ✅ (opaque) — `CCall` ctor (Phase1_AST.v:111; AST.lean:176); `evalContract = True` (Phase2_State.v:530; State.lean `_ => True`) — Hoare-model opacity, no `func_env` |
 | `arr[lo:hi]` | ✅ (opaque) — `CSlice` ctor (Phase1_AST.v:106; AST.lean:171); `evalContract = True` placeholder (Phase2_State.v:522; State.lean `_ => True`) — slice equality deferred to typed memory model |
 
-### Category D — Alternative memory models (5 remaining, 2 done as Hoare-identity stubs)
+### Category D — Alternative memory models (3 remaining, 4 done as Hoare-identity stubs)
 
 | Feature | Status |
 |---------|--------|
@@ -475,9 +477,9 @@ against the current AST.
 | store model | ❌ Single-heap model not parameterised |
 | concurrent model (real) | ❌ The Hoare-identity `SCritical`/`SThreadEntry` stubs (see below) do not encode the monitor-invariant pattern. `ExecCritical` must universally quantify `shared` at entry (modelling havoc); `lock_order` (deadlock prevention) must be a well-formedness condition |
 | `thread_entry` | ✅ DONE — `SThreadEntry` stmt (Phase1_AST.v:226; AST.lean:288); SOS `execThreadEntry` (SOS.lean:167); WP delegates to body (Phase4_WP.v:145; WP.lean:121). Hoare-identity stub |
-| `critical` | ✅ DONE — `SCritical` stmt (Phase1_AST.v:225; AST.lean:287); SOS `execCritical` (SOS.lean:163); WP delegates to body (Phase4_WP.v:143; WP.lean:118). Hoare-identity stub |
-| `acquires` | ❌ No stmt constructor |
-| `releases` | ❌ No stmt constructor |
+| `critical` | ✅ PARTIAL — `SCritical` stmt (Phase1_AST.v:225; AST.lean:287); SOS `execCritical` (SOS.lean:163); WP now routes through `critical_havoc` (Phase4_WP.v:143; WP.lean:118-121), the Phase 7 memory-model interface (Phase7_MemModel.v; MemModel.lean). The Hoare instance makes `critical_havoc es P = P es` (identity), preserving the previous stub semantics. A real concurrent instance would make `critical_havoc es P = ∀ shared, P (merge_shared es shared)` — see Phase7_MemModel.v §"Deferred work". |
+| `acquires` | ✅ DONE — `SAcquires`/`.acquires` stmt (Phase1_AST.v:258; AST.lean:321); SOS `ExecAcquires` (Phase3_SOS.v:369; SOS.lean:172); WP `Qn es` (Phase4_WP.v:151; WP.lean:123). Hoare-instance identity stub — no lock state; real lock discipline deferred to ConcurrentMM. |
+| `releases` | ✅ DONE — `SReleases`/`.releases` stmt (Phase1_AST.v:259; AST.lean:322); SOS `ExecReleases` (Phase3_SOS.v:373; SOS.lean:175); WP `Qn es` (Phase4_WP.v:152; WP.lean:124). Hoare-instance identity stub — no lock state; real lock discipline deferred to ConcurrentMM. |
 
 ### Category E — Vacuously sound (0 remaining, 4 done)
 
@@ -497,10 +499,10 @@ All four remain vacuously sound: multi-file imports, `--deep`, `--fun`,
 | A — Core model | 7 | 5 | 2 |
 | B — Desugaring | 4 | 4 | 0 |
 | C — Contract extensions | 10 | 6 | 4 |
-| D — Memory models | 7 | 2 | 5 |
+| D — Memory models | 7 | 4 | 3 |
 | E — Vacuously sound | 4 | 4 | 0 |
 | F — Pipeline orchestration | 4 | 4 | 0 |
-| **Total** | **36** | **25** | **11** |
+| **Total** | **36** | **27** | **9** |
 
 (The previous README mis-stated the total as "38"; the six category
 sub-totals sum to 36.)
@@ -567,14 +569,14 @@ A phase is **complete** when:
 
 | Category | Total | Modelled | Coverage |
 |----------|------:|:--------:|:--------:|
-| `Stmt` constructors | 22 | 22 | 100% |
+| `Stmt` constructors | 24 | 24 | 100% |
 | `ContractExpr` constructors | 70 | 66 (4 opaque placeholders: `slice`, `call`, `resultSubscript`, ghost atoms with `_ => True`) | 94% |
 | Function-spec directives | 11 | 11 | 100% |
 | Statement-level features (§10 cat. A+B) | 11 | 9 | 82% |
 | Contract-expression features (§10 cat. C) | 10 | 6 | 60% |
-| Memory models (§10 cat. D) | 7 | 2 (Hoare-identity stubs) | 29% |
+| Memory models (§10 cat. D) | 7 | 4 (Hoare instance: `critical_havoc`, `acquires`/`releases`) | 57% |
 | Vacuous features (§10 cat. E+F) | 8 | 8 | 100% |
-| **§10 totals** | **36** | **25** | **69%** |
+| **§10 totals** | **36** | **27** | **75%** |
 
 **Effective WP engine coverage**: The modelled features constitute 100% of
 the WP calculus logic — the component that generates proof obligations. All

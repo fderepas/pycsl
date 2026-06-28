@@ -73,6 +73,10 @@ Proof.
   - (* SThreadEntry: body sub-term named 's' by Coq induction *)
     exact (wp_gen_thread_entry s Qn Qr Qc Qb Qe pre_es es
              (fun Qn' Qr' Qc' Qb' Qe' pre_es' es' => IHs Qn' Qr' Qc' Qb' Qe' pre_es' es')).
+  - (* SAcquisitions *)
+    exact (wp_gen_acquires mutex Qn Qr Qc Qb Qe pre_es es).
+  - (* SReleases *)
+    exact (wp_gen_releases mutex Qn Qr Qc Qb Qe pre_es es).
 Qed.
 
 (* ===== Corollary: using wp_w (gen s) implies wp s ===== *)

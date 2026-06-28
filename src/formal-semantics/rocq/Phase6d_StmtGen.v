@@ -87,4 +87,7 @@ Fixpoint gen (s : stmt) : whyml_stmt :=
   (* Phase 8 concurrency: transparent in Hoare model *)
   | SCritical _ body          => gen body
   | SThreadEntry body         => gen body
+  (* Phase 7 acquires/releases: Hoare-model no-op (emit WSkip) *)
+  | SAcquires _               => WSkip
+  | SReleases _               => WSkip
   end.

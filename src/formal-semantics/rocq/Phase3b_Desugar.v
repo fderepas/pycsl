@@ -111,6 +111,10 @@ Proof.
     apply ExecThreadEntry; apply IHHexec, Hfresh.
   - (* ExecFor: premise is already exec es (desugar (SFor ...)) out *)
     exact Hexec.
+  - (* ExecAcquisitions *)
+    apply ExecAcquires.
+  - (* ExecReleases *)
+    apply ExecReleases.
 Qed.
 
 Lemma desugar_correct_bwd : forall s es out,

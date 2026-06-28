@@ -173,6 +173,15 @@ inductive Exec : ExecState → Stmt → Outcome → Prop where
     Exec es (desugar (.for_ x arr inv var body aim)) out →
     Exec es (.for_ x arr inv var body aim) out
 
+  /-- Phase 7: acquires/releases — Hoare-instance identity stubs.
+      No lock state in ExecState; real lock discipline is the deferred
+      ConcurrentMM instance (see MemModel.lean §"Deferred work"). -/
+  | execAcquires (es : ExecState) (m : Ident) :
+    Exec es (.acquires m) (.normal es)
+
+  | execReleases (es : ExecState) (m : Ident) :
+    Exec es (.releases m) (.normal es)
+
 theorem exec_deterministic {es : ExecState} {s : Stmt} {out1 out2 : Outcome}
     (h1 : Exec es s out1) (h2 : Exec es s out2) : out1 = out2 := by
   induction h1 generalizing out2 with
@@ -302,3 +311,5 @@ theorem exec_deterministic {es : ExecState} {s : Stmt} {out1 out2 : Outcome}
     cases h2 with | execThreadEntry _ _ _ hb' => exact ih hb'
   | execFor _ _ _ _ _ _ _ _ hd ih =>
     cases h2 with | execFor _ _ _ _ _ _ _ _ hd' => exact ih hd'
+  | execAcquires _ _ => cases h2; rfl
+  | execReleases _ _ => cases h2; rfl

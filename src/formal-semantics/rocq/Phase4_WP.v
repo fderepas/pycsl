@@ -16,6 +16,7 @@ Require Import Phase2_State.
 Require Import Phase3_SOS.
 Require Import Phase3b_DesugarDef.
 Require Import Phase3b_Desugar.
+Require Import Phase7_MemModel.
 Open Scope Z_scope.
 
 (* Phase 3c: eval_c uses exec_state-aware evaluator for CAt support *)
@@ -139,9 +140,15 @@ Fixpoint wp (s : stmt)
   | SFieldAssign _ _ _ => Qn es
   | SFieldAugAssign _ _ _ _ => Qn es
 
-  (* Phase 8: concurrent — placeholder *)
+  (* Phase 8: concurrent — SCritical now uses critical_havoc (Phase 7).
+     Hoare instance: critical_havoc es P = P es (identity).
+     Future ConcurrentMM: forall shared, P (merge_shared es shared). *)
   | SCritical _ body =>
-    wp body Qn Qr Qc Qb Qe pre_es es
+    critical_havoc es (fun es' => wp body Qn Qr Qc Qb Qe pre_es es')
   | SThreadEntry body =>
     wp body Qn Qr Qc Qb Qe pre_es es
+  (* Phase 7: acquires/releases — Hoare-instance identity (Qn es).
+     Real lock discipline deferred to ConcurrentMM. *)
+  | SAcquires _ => Qn es
+  | SReleases _ => Qn es
   end.

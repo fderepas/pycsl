@@ -67,3 +67,6 @@ def gen : Stmt → WhyMLStmt
   -- Phase 8 concurrency: transparent in Hoare model
   | .critical _ body           => gen body
   | .threadEntry body          => gen body
+  -- Phase 7 acquires/releases: Hoare-model no-op (emit wSkip)
+  | .acquires _                => .wSkip
+  | .releases _                => .wSkip
