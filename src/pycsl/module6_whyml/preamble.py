@@ -2971,7 +2971,7 @@ class PreambleEmissionMixin:
         in methods but not declared as records."""
         for func in functions:
             if func.get("kind") == "method" and func.get("self_type"):
-                st = func["self_type"].lower()
+                st = whyml_ident(func["self_type"].lower())
                 if st not in declared_types:
                     declared_types.add(st)
                     out.append(f"  type {st} = int")
