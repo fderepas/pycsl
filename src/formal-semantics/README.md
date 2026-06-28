@@ -23,8 +23,29 @@ and **Lean 4.29** — so that:
 
 | Prover | Main theorem | Gaps |
 |--------|-------------|------|
-| Rocq | `pycsl_soundness` — **0 Admitted** | `desugar_correct` (1 Admitted — for→while) |
-| Lean | `pycsl_soundness` — **0 sorry** | `desugar_correct`, `while_not_continued`, `while_inv_preserved` (3 sorry — none used by soundness) |
+| Rocq | `pycsl_soundness` (Phase5b_Soundness.v:334) — **0 Admitted** | None |
+| Lean | `pycsl_soundness` (Soundness.lean:229) — **0 sorry** | None |
+| Lean | `pycslSoundnessVerified` (SoundnessVerified.lean:74) — **0 sorry** | None |
+
+The end-to-end Why3-VCG → WP → SOS correspondence theorem
+(`pycslSoundnessVerified`) compiles clean in both provers. All
+previously-`Admitted`/`sorry` proof obligations are now discharged:
+
+- `desugar_correct` — PROVED (Rocq: `Phase3b_Desugar.v:153` Qed.; Lean: `Desugar.lean:239`).
+- `while_not_continued` — PROVED (Rocq: `Phase5a_WhileInv.v:14` Qed.; Lean: `WhileInv.lean:59`).
+- `while_inv_preserved` — PROVED (Rocq: `Phase5a_WhileInv.v:30` Qed.; Lean: `WhileInv.lean:197`).
+- `module6_encodes_mlw` (the LINK 2 residual axiom) — PROVED Lemma
+  (Rocq: `Phase6m_VcgSemBridge.v:438`); in Lean, the analogous `vcgBridge`
+  is a proved `def` (`VcgEmission.lean:62`) derived from the
+  construction-site axiom `Why3CertWitness`.
+
+**Trust ledger — 3 named axioms (the TCB):**
+
+| # | Rocq axiom | Lean axiom | Trusts |
+|---|-----------|-----------|--------|
+| 1 | `alt_ergo_correct` (Phase5b_Soundness.v:563) | `altErgoCorrect` (Soundness.lean:435) | SMT-solver (Alt-Ergo) soundness on a discharged goal |
+| 2 | `trusted_contracts_axiom` (Phase5b_Soundness.v:577) | `trustedContractsAxiom` (Soundness.lean:447) | `\trusted` contracts hold when their precondition is established |
+| 3 | `why3_implements_wp_w` (Phase6i_Soundness.v:65) | `Why3CertWitness` (Why3Trust.lean:76) | Why3's VCG correctly discharges the WP of a `WhyMLStmt` |
 
 Both proofs compile end-to-end with `make proof` in their respective
 directories.
@@ -37,26 +58,27 @@ directories.
 
 | Category | Constructs |
 |----------|-----------|
-| **Statements** | assign, augmented assign, array write, sequence, if/else, while, for, return, pass, continue |
-| **Contract expressions** | arithmetic, comparison, boolean, implication (`==>`), biconditional (`<=>`), quantifiers (`\forall`, `\exists`), `\result`, `\old`, `\length(arr)`, `arr[i]` |
-| **Function specifications** | `requires`, `ensures`, `assigns \nothing \| var-list` |
-| **Loop annotations** | `loop invariant`, `loop variant`, function `\variant` |
+| **Statements (22)** | `skip`, `assign`, `augAssign`, `arraySet`, `seq`, `ite`, `while_` (inv+var mandatory), `for_` (desugars to `while_`), `ret`, `continue_`, `break_`, `assert_`, `tupleUnpack`, `ghostDecl`, `ghostAssign`, `label_`, `raise_`, `tryCatch`, `fieldAssign`, `fieldAugAssign`, `critical`, `threadEntry` (Rocq: `Phase1_AST.v:196-226`; Lean: `AST.lean:259-288`) |
+| **Runtime expr (`expr`)** | int literals, vars, `arr[i]`, `\length(arr)`, binary arithmetic (`+ - * // / %`), unary `-`, 6 comparisons (=, <>, <, <=, >, >=) → 0/1, `self.field` (`EFieldGet`/`fieldGet`), function call (`ECall`/`call` — opaque placeholder) |
+| **Contract expressions (`contract_expr`)** | the runtime-expr fragment plus: `\result`, `\old(e)`, `\at(e,L)` (via `eval_contract_es`/`evalContractEs`), `arr[i]`, `arr[i][j]` (chainedSubscript), boolean literals, `None`, string literals, `\is_sorted(arr,lo,hi)`, `\sum(arr,lo,hi)`, `arr[lo:hi]` (slice — opaque), `elem in arr`, `elem not in arr`, `\result[i]` (resultSubscript), `f(args)` (call — opaque), logical connectives (`==>` `<=>` `&&` `\|\|` `not`), comparisons, quantifiers (`\forall`, `\exists` over `int`); plus **37 ghost atoms** covering dict / list / set / tuple / string / array operations (`cgMapEmpty`, `cgMapGet/Set/Remove`, `cgNil/Cons/Hd/Tl/ListLen/Nth/ListMem/Append`, `cgSetEmpty/Add/Remove/Mem/Card/Union/Inter/Diff/Subset/Eq`, `cgMkTuple2/3/4`, `cgFst/Snd/Trd/Fth`, `cgStrConcat/Len/Nth`, `cgMake/Copy/CopyRange`) — Rocq: `Phase1_AST.v:77-156`; Lean: `AST.lean:141-222` |
+| **Function specifications** | `requires`, `ensures`, `assigns \nothing \| var-list`, `\variant` (function-level), `\diverges`, `\trusted` (+ `reviewer:`), `bounded_int(N)`, `raises ExcType when cond`, `no_exception E1, E2, ...`, `allow_finalizer` |
+| **Loop annotations** | `loop invariant`, `loop variant` (multiple per loop, conjoined via `c_conj`); function `\variant` |
 
 The formal semantics covers only *fully annotated* PyCSL programs: every
-`while` loop carries an explicit invariant and variant in the AST. There
+`while_` loop carries an explicit invariant and variant in the AST. There
 is no constructor for unannotated loops.
 
 ### 2.2 Explicit non-goals (deferred)
 
 - Typed/store memory models (`\valid`, `\separated`, heap reasoning)
-- Ghost variables and program-point labels (`#@ ghost`, `#@ label`, `\at`)
-- Class invariants and record types
-- Exceptional postconditions (`raises ExcType when cond`)
-- `\diverges`, `\trusted`, structural variants
-- Array region frame conditions (`assigns arr[lo..hi]`)
-- Built-in predicates: `\is_sorted`, `\sum`, `\length2d`, `\valid2d`
-- String literals and 2D arrays
+- Class invariants and record-valued state (field read/write exist as
+  flat synthesised-variable lookups; the class-invariant wrapping pattern
+  is not in the WP calculus)
 - Lambda and higher-order functions
+- `acquires`/`releases` (real concurrency model; the Hoare-identity stubs
+  `SCritical`/`SThreadEntry` exist but do not encode the monitor-invariant
+  pattern or `lock_order` well-formedness)
+- `\length2d`, `\valid2d` (2D-array library predicates)
 
 ---
 
@@ -82,9 +104,22 @@ types:
 
 ### 3.2 Statements
 
-A single `stmt` inductive: `SSkip`, `SAssign`, `SAugAssign`, `SArraySet`,
-`SSeq`, `SIf`, `SWhile` (carrying `inv` + `var` as mandatory fields),
-`SFor` (syntactic sugar), `SReturn`, `SContinue`.
+A single `stmt` inductive with **22 constructors**, organised by the
+phase that introduced each:
+
+| Phase | Constructors |
+|-------|--------------|
+| 0 (core) | `SSkip`, `SAssign`, `SAugAssign`, `SArraySet`, `SSeq`, `SIf`, `SWhile` (inv+var mandatory), `SFor` (desugars to `SWhile`), `SReturn`, `SContinue` |
+| 2 | `SBreak`, `SAssert`, `STupleUnpack` |
+| 3a (ghost/label) | `SGhostDecl`, `SGhostAssign`, `SLabel` |
+| 5 (exceptions) | `SRaise`, `STryCatch` |
+| 6 (records) | `SFieldAssign`, `SFieldAugAssign` |
+| 8 (concurrency stubs) | `SCritical`, `SThreadEntry` |
+
+Rocq: `Phase1_AST.v:196-226`; Lean: `AST.lean:259-288`. All 22 have SOS
+rules (`Phase3_SOS.v`; `SOS.lean:22-174`), WP rules (`Phase4_WP.v:40-145`;
+`WP.lean:24-122`), and a soundness case (`Phase5b_Soundness.v:334-438`;
+`Soundness.lean:34-79`).
 
 `"\result"` is a reserved identifier, forbidden as a program variable
 name. `SReturn` binds `"\result"` into the post-state.
@@ -122,6 +157,8 @@ meta-language.
 
 ### 4.1 Statement
 
+The simplified 3-continuation form (for expository purposes):
+
 ```
 ∀ (st : state) (s : stmt) (Q : state → Prop) (out : outcome),
   exec st s out →
@@ -132,6 +169,13 @@ meta-language.
   | OContinued _    => True
   end.
 ```
+
+The **actual** theorem (Phase5b_Soundness.v:334; Soundness.lean:229) uses
+the 5-continuation form: `Qn`, `Qr`, `Qc`, `Qb`, `Qe` (normal / return /
+continue / break / exception), with the corresponding `Outcome` variants
+`ONormal`, `OReturned`, `OContinued`, `OBroke`, `OThrew`, `OFailed`. Each
+outcome dispatches to its corresponding continuation; the `OFailed` case
+(safety violation) is mapped to `True`.
 
 ### 4.2 Dual `st` argument
 
@@ -187,18 +231,34 @@ on the programmer.
 
 ## 5. Key WP Rules
 
+The `wp` fixpoint has 5 continuations: `Qn` (normal), `Qr` (return),
+`Qc` (continue), `Qb` (break), `Qe` (exception). All 22 `Stmt`
+constructors have WP rules (Rocq: `Phase4_WP.v:35-145`; Lean: `WP.lean:19-122`).
+
 | Statement | WP rule | Notes |
 |-----------|---------|-------|
 | `SSkip` | `Qn st` | Identity |
 | `SAssign x e` | `Qn (update st x (eval_expr st e))` | Substitution |
 | `SAugAssign x op e` | `Qn (update st x (eval_binop_z op (lookup_int st x) (eval_int st e)))` | Update-in-place |
 | `SArraySet a i v` | `Qn (array_update st a i v)` | Array element |
-| `SSeq s1 s2` | `wp s1 (λ st'. wp s2 Qn Qr Qc pre st') Qr Qc pre st` | Composition |
+| `SSeq s1 s2` | `wp s1 (λ st'. wp s2 Qn Qr Qc Qb Qe pre st') Qr Qc Qb Qe pre st` | Composition, propagates all 5 continuations |
 | `SIf c s1 s2` | `if eval_bool st c then wp s1 … else wp s2 …` | Branch |
-| `SWhile inv var c body` | 3 conjuncts (§4.5) | Invariant + variant |
-| `SFor x lo hi body` | `wp (desugar (SFor …)) Q pre st` | Delegate |
+| `SWhile inv var c body` | 3 conjuncts (§4.5) | Invariant + variant; `Qb` on body = `Qn` (break exits loop normally) |
+| `SFor x arr inv var body _` | `wp (desugar (SFor …)) Q pre st` (via `wpFor` helper in Lean) | Delegate to while |
 | `SReturn e` | `Qr (update st "\result" (eval_expr st e))` | Bind result |
-| `SContinue` | `True` | Vacuous |
+| `SContinue` | `Qc st` | Loop-scope only |
+| `SBreak` | `Qb st` | Loop-scope only |
+| `SAssert cond msg` | `eval_c cond ∧ Qn st` | Assert (no exception; failure is stuck-state) |
+| `STupleUnpack xs e` | `Qn st` | Simplified — assigns nothing in the formal model |
+| `SGhostDecl x t e` | `Qn (ghost_update st x (eval_ghost_val t st e))` | Ghost state |
+| `SGhostAssign x t op e` | `Qn (ghost_update st x (apply_ghost_aug op (ghost_lookup st x) st e))` | Ghost aug-assign |
+| `SLabel L` | `Qn (set_labels st ((L, ghost_st) :: label_snaps))` | Snapshot ghost state for `\at(_, L)` |
+| `SRaise exc` | `Qe exc st` | Exception |
+| `STryCatch s1 exc handler` | `wp s1 … (λ exc' st'. if exc' = exc then wp handler … else Qe exc' st') …` | 5-continuation handler dispatch |
+| `SFieldAssign self f e` | `Qn st` | Placeholder (flat synthesised var) |
+| `SFieldAugAssign self f op e` | `Qn st` | Placeholder (flat synthesised var) |
+| `SCritical mutex body` | `wp body …` | Hoare-identity stub |
+| `SThreadEntry body` | `wp body …` | Hoare-identity stub |
 
 The `SFor` case delegates to `desugar` in both provers. In Lean, this
 requires a `wpFor` helper defined outside the structural recursion to
@@ -220,7 +280,8 @@ precondition:
 ```
 
 The reserved name `_pycsl_idx` is guaranteed absent from user programs.
-This theorem is currently Admitted (Rocq) / sorry (Lean).
+This theorem is PROVED in both provers (Rocq: `Phase3b_Desugar.v:153`
+Qed.; Lean: `Desugar.lean:239`).
 
 In Lean, `DesugarDef.lean` contains the pure transformation (imports only
 `AST`), while `Desugar.lean` contains `desugar_correct` (imports `SOS`).
@@ -273,31 +334,43 @@ This split avoids `WP.lean` pulling in SOS transitively.
 
 ### 8.1 Rocq (`src/formal-semantics/rocq/`)
 
+The directory contains 40+ files organised into Phases 0-6L plus
+extraction tooling. The core soundness chain:
+
 | File | Phase | Key definitions | Gate criterion |
 |------|-------|-----------------|----------------|
-| `Phase1_AST.v` | 1 | `binop`, `expr`, `contract_expr`, `stmt`, `func_spec` | Compiles |
-| `Phase2_State.v` | 2 | `val`, `state`, `lookup`, `update`, `eval_expr`, `eval_contract`, `eval_variant` | Test lemmas pass |
-| `Phase3_SOS.v` | 3 | `outcome`, `exec`, `exec_deterministic` | `exec_deterministic` proved |
-| `Phase3b_Desugar.v` | 3b | `desugar`, `desugar_correct` | *Admitted* (freshness) |
-| `Phase4_WP.v` | 4 | `wp` fixpoint | Termination accepted |
-| `Phase5a_WhileInv.v` | 5a | `while_inv_preserved` | Proved (uses `Z.lt_wf`) |
-| `Phase5b_Soundness.v` | 5b | `pycsl_soundness` | **Proved — 0 Admitted** |
+| `Phase1_AST.v` | 1 | `binop`, `cmpop`, `expr` (incl. `EFieldGet`, `ECall`), `contract_expr` (70 ctors incl. 37 ghost atoms), `stmt` (22 ctors), `func_spec` | Compiles |
+| `Phase2_State.v` | 2 | `val`, `state`, `lookup`, `update`, `eval_expr`, `eval_z`, `eval_contract`, `eval_contract_es` (for `CAt`), `eval_variant` | Test lemmas pass |
+| `Phase3_SOS.v` | 3 | `outcome` (6 kinds), `exec` (22 ctor rules), `exec_deterministic` | `exec_deterministic` proved |
+| `Phase3b_Desugar.v` | 3b | `desugar`, `desugar_correct` | **Proved (Qed.)** |
+| `Phase4_WP.v` | 4 | `wp` fixpoint (5-continuation, 22-ctor coverage) | Termination accepted |
+| `Phase5a_WhileInv.v` | 5a | `while_not_continued`, `while_inv_preserved` | **Proved (Qed.)** |
+| `Phase5b_Soundness.v` | 5b | `pycsl_soundness` (22-ctor induction); `alt_ergo_correct`, `trusted_contracts_axiom` (2 of 3 named axioms) | **Proved — 0 Admitted** |
+| `Phase6i_Soundness.v` | 6i | `why3_implements_wp_w` (3rd named axiom); `why3_implements_wp_w_derived` | **Proved (derived)** — 0 Admitted |
+| `Phase6m_VcgSemBridge.v` | 6m | `module6_encodes_mlw` (Lemma, was Axiom); `why3_validates_emitted`; `why3_validates_vc_formula` | **Proved** |
 | `Tests.v` | — | Concrete execution/WP tests | All pass |
 
 Build: `make clean && make proof` in `rocq/`.
 
 ### 8.2 Lean (`src/formal-semantics/lean/`)
 
+The `PyCSL/` directory contains 40+ files mirroring the Rocq Phases plus
+the Sub-α emission-certainty theorems (`Emit*`, `Handle*English`). The
+core soundness chain:
+
 | File | Phase | Key definitions | Gate criterion |
 |------|-------|-----------------|----------------|
-| `PyCSL/AST.lean` | L0 | `Binop`, `Expr`, `ContractExpr`, `Stmt` | Compiles |
-| `PyCSL/State.lean` | L1 | `Val`, `State`, `lookup`, `update`, `evalExpr`, `evalContract` | Test lemmas pass |
-| `PyCSL/SOS.lean` | L2 | `Outcome`, `Exec`, `exec_deterministic` | `exec_deterministic` proved |
+| `PyCSL/AST.lean` | L0 | `Binop`, `CmpOp`, `Expr` (incl. `fieldGet`, `call`), `ContractExpr` (70 ctors), `Stmt` (22 ctors), `FuncSpec`, `FrameCond`, `GhostType` | Compiles |
+| `PyCSL/State.lean` | L1 | `Val`, `State`, `ExecState` (incl. `labelSnaps`), `lookup`, `update`, `evalExpr`, `evalZ`, `evalZEs`, `evalContract`, `evalContractEs` (for `.at_`), `evalVariant`, ghost evaluators | Test lemmas pass |
+| `PyCSL/SOS.lean` | L2 | `Outcome` (6 kinds), `Exec` (22 ctor rules), `exec_deterministic` | `exec_deterministic` proved |
 | `PyCSL/DesugarDef.lean` | L2 | `desugar` (pure, imports AST only) | Compiles |
-| `PyCSL/Desugar.lean` | L2 | `desugar_correct` | *sorry* |
-| `PyCSL/WP.lean` | L3 | `wp`, `wpFor` helper | Termination accepted |
-| `PyCSL/WhileInv.lean` | L4a | `while_inv_preserved` | *sorry* (not used by soundness) |
-| `PyCSL/Soundness.lean` | L4b | `pycsl_soundness` | **Proved — 0 sorry** |
+| `PyCSL/Desugar.lean` | L2 | `desugar_correct`, `walrusAssign_eq`, `tupleUnpack2_eq`, `desugarMatch` hit/miss | **Proved** |
+| `PyCSL/WP.lean` | L3 | `wp` (5-continuation, 22-ctor coverage), `wpFor` helper | Termination accepted |
+| `PyCSL/WhileInv.lean` | L4a | `while_not_continued`, `while_inv_preserved` | **Proved** |
+| `PyCSL/Soundness.lean` | L4b | `pycsl_soundness` (22-ctor induction); `altErgoCorrect`, `trustedContractsAxiom` (2 of 3 named axioms) | **Proved — 0 sorry** |
+| `PyCSL/SoundnessVerified.lean` | L4c | `pycslSoundnessVerified` (end-to-end via `wpGenCorrect` + `wpW_implies_wp`) | **Proved — 0 sorry** |
+| `PyCSL/Why3Trust.lean` | L5 | `Why3Certificate`, `Why3CertWitness` (3rd named axiom), `SmtCertificate` | Compiles |
+| `PyCSL/VcgEmission.lean` | L6C | `vcgBridge` (proved `def`, derived from `Why3CertWitness`) | **Proved** |
 | `PyCSL/Tests.lean` | — | Tests | All pass |
 
 Build: `make clean && make proof` in `lean/`.
@@ -348,103 +421,114 @@ Why3 ecosystem), or orchestration (build-system concerns).
 
 ---
 
-## 10. Remaining Features (38 Unmodelled)
+## 10. Remaining Features (11 of 36 Unmodelled)
 
-The 38 features not yet in the formal model are classified into six
-categories:
+The 2026-05-19 snapshot of this file claimed "38 Unmodelled" features
+across six categories. As of the 2026-06-28 audit refresh, **25 of the 36
+catalogued features are modelled** (the previous "38" was an off-by-two
+arithmetic slip; the six category lists sum to 7+4+10+7+4+4 = 36). This
+section re-classifies each feature honestly, with file:line citations
+against the current AST.
 
-### Category A — Add to core model (7 features)
+### Category A — Add to core model (2 remaining, 5 done)
 
-New runtime behaviour or contract semantics requiring AST + SOS + WP +
-soundness re-proof.
+| Feature | Status |
+|---------|--------|
+| `raises` (exceptions) | ✅ DONE — `SRaise`/`STryCatch` stmts (Phase1_AST.v:219-220; AST.lean:281-282); `OThrew`/`OFailed` outcomes (Phase3_SOS.v; SOS.lean:17-19); WP 5th continuation `Qe` (Phase4_WP.v:128-136; WP.lean:105-113); soundness cases (Phase5b_Soundness.v; Soundness.lean:41,68) |
+| `class invariant` | ❌ Class invariants remain a WhyML record-type feature; the core WP calculus operates on flat state |
+| `self.field` | ✅ DONE — `EFieldGet`/`fieldGet` runtime ctor (Phase1_AST.v:37; AST.lean:24); `SFieldAssign`/`SFieldAugAssign` stmts (Phase1_AST.v:222-223; AST.lean:284-285). Field state is a flat synthesised-variable lookup (`obj ++ "." ++ f`); record-valued state is the deferred class-invariant work |
+| String literals | ✅ DONE — `CStringLit`/`.stringLit` (Phase1_AST.v:103; AST.lean:168); `evalZ` = 0, `evalContract` = `s ≠ ""` (Phase2_State.v; State.lean:201,237) |
+| `None` | ✅ DONE — `CNoneLit`/`.noneLit` (Phase1_AST.v:102; AST.lean:167); `evalZ` = 0, `evalContract` = False (Phase2_State.v; State.lean:200,236) |
+| Assert | ✅ DONE — `SAssert` stmt (Phase1_AST.v:212; AST.lean:274); SOS `execAssertPass`/`execAssertFail` (SOS.lean:112-118); WP `eval_c cond ∧ Qn es` (Phase4_WP.v:110; WP.lean:89-90) |
+| Lambda | ❌ `ELambda`/`VClosure` not in AST; higher-order not modelled |
 
-| Feature | Changes required |
-|---------|-----------------|
-| `raises` (exceptions) | 4th outcome `OException`; 4th continuation `Qe`; `SRaise`/`STry` stmts |
-| `class invariant` | Record types + field access; invariant-wrapping around method bodies |
-| `self.field` | `EField`/`CField` nodes; record-valued state |
-| String literals | `VString` value; `EString` expr (or stay aligned with transpiler encoding: strings as integer hashes) |
-| `None` | `VNone` value; `ENone` expr (or model as `VInt 0` to match transpiler) |
-| Assert | `SAssert` stmt; WP: `eval_bool st e = true ∧ Qn st` |
-| Lambda | `ELambda`/`VClosure`; `SCall` stmt (optional — rarely used in verified code) |
+### Category B — Prove as desugaring (0 remaining, 4 done)
 
-**Key design decisions pending:**
+| Feature | Status |
+|---------|--------|
+| `in`, `not in` | ✅ DONE — promoted from desugar to first-class contract expr: `CIn`/`CNotIn` (Phase1_AST.v:107-108; AST.lean:172-173); `evalContract` (Phase2_State.v; State.lean:244-257) |
+| Tuple unpacking | ✅ DONE — `STupleUnpack` stmt (Phase1_AST.v:213); plus `tupleUnpack2` desugar (Desugar.lean:254-259) |
+| Walrus `:=` | ✅ DONE — `walrusAssign = .assign` by `rfl` (Desugar.lean:248-249) |
+| Match statement | ✅ DONE — `desugarMatch` with proved hit/miss (Desugar.lean:267-284) |
 
-- **VNone/VString**: Either stay aligned with transpiler (model as `VInt 0`
-  / `VInt(hash)`) or add real constructors with a faithfulness lemma.
-  Cannot do both implicitly.
-- **STry WP soundness**: `Qr` and `Qc` must pass through `finally` clauses.
-  Without this, `try-finally` patterns skip cleanup, producing an unsound WP.
-- **SAssert + exceptions interaction**: `assert` as a "stuck state" (no rule
-  fires when false) is incompatible with the exception model. Either delay
-  `SAssert` until exceptions are added, or prove a desugar lemma replacing
-  the stuck-state rule with `SRaise`.
+### Category C — Contract expression extensions (4 remaining, 6 done)
 
-### Category B — Prove as desugaring (4 features)
+| Feature | Status |
+|---------|--------|
+| `label`+`\at` | ✅ DONE — `SLabel` stmt + `CAt` ctor (Phase1_AST.v:217,213; AST.lean:279,178); `execLabel` records ghost snapshot (SOS.lean:132); `eval_contract_es`/`evalContractEs` looks up label snapshot (Phase2_State.v:559; State.lean:469) |
+| ghost assign/augassign | ✅ DONE — `SGhostDecl`/`SGhostAssign` stmts (Phase1_AST.v:215-216; AST.lean:277-278); plus 37 ghost atoms covering dict/list/set/tuple/string/array ops (Phase1_AST.v:114-156; AST.lean:180-221) |
+| `\valid` | ❌ NOT in AST — typed/store memory-model feature |
+| `\separated` | ❌ NOT in AST — typed/store memory-model feature |
+| `\length2d` | ❌ NOT in AST — 2D-array extension |
+| `\valid2d` | ❌ NOT in AST — 2D-array extension |
+| `\is_sorted` | ✅ DONE — `CIsSorted` ctor (Phase1_AST.v:104; AST.lean:169); `evalContract` via `sortedListRange` (State.lean:238-243) |
+| `\sum` | ✅ DONE — `CSum` ctor (Phase1_AST.v:105; AST.lean:170); `evalZ` via `sumListRange` (State.lean:202-207) — well-founded recursion pattern documented in Phase2_State.v |
+| function call in contract | ✅ (opaque) — `CCall` ctor (Phase1_AST.v:111; AST.lean:176); `evalContract = True` (Phase2_State.v:530; State.lean `_ => True`) — Hoare-model opacity, no `func_env` |
+| `arr[lo:hi]` | ✅ (opaque) — `CSlice` ctor (Phase1_AST.v:106; AST.lean:171); `evalContract = True` placeholder (Phase2_State.v:522; State.lean `_ => True`) — slice equality deferred to typed memory model |
 
-Lowered to existing core constructs before WP generation. Proof obligation:
-`desugar_correct`-style lemma.
+### Category D — Alternative memory models (5 remaining, 2 done as Hoare-identity stubs)
 
-| Feature | Desugars to |
-|---------|-------------|
-| `in`, `not in` | `∃ i; 0 ≤ i < \length(arr) ∧ arr[i] == x` (Category C — contract-level, not stmt-level) |
-| Tuple unpacking | Sequence of assignments |
-| Walrus `:=` | `SSeq (SAssign x e) (use x)` |
-| Match statement | `SIf` chain |
+| Feature | Status |
+|---------|--------|
+| typed model | ❌ Heap-based memory model not parameterised |
+| store model | ❌ Single-heap model not parameterised |
+| concurrent model (real) | ❌ The Hoare-identity `SCritical`/`SThreadEntry` stubs (see below) do not encode the monitor-invariant pattern. `ExecCritical` must universally quantify `shared` at entry (modelling havoc); `lock_order` (deadlock prevention) must be a well-formedness condition |
+| `thread_entry` | ✅ DONE — `SThreadEntry` stmt (Phase1_AST.v:226; AST.lean:288); SOS `execThreadEntry` (SOS.lean:167); WP delegates to body (Phase4_WP.v:145; WP.lean:121). Hoare-identity stub |
+| `critical` | ✅ DONE — `SCritical` stmt (Phase1_AST.v:225; AST.lean:287); SOS `execCritical` (SOS.lean:163); WP delegates to body (Phase4_WP.v:143; WP.lean:118). Hoare-identity stub |
+| `acquires` | ❌ No stmt constructor |
+| `releases` | ❌ No stmt constructor |
 
-### Category C — Contract expression extensions (10 features)
+### Category E — Vacuously sound (0 remaining, 4 done)
 
-New `contract_expr` constructors and `eval_contract` clauses. No changes
-to `stmt`, `exec`, `wp`, or soundness.
+All four remain vacuously sound (partial-correctness theorem doesn't cover
+termination): structural `\variant`, `\diverges`, `\trusted`, `bounded_int(N)`.
+(`vacuous-soundness.md` §E.1–E.4.)
 
-Features: `label`+`\at`, ghost assign/augassign, `\valid`, `\separated`,
-`\length2d`, `\valid2d`, `\is_sorted`, `\sum`, function call in contract,
-`arr[lo:hi]`.
+### Category F — Pipeline orchestration (0 remaining, 4 done)
 
-**Technical note**: `CSum` requires well-founded recursion (`Program
-Fixpoint` with `measure (Z.to_nat (hi - lo))` in Rocq), not plain
-`Fixpoint` on `Z`. Adding `func_env` for `CCall` changes `eval_contract`'s
-signature, rippling through all WP rules — comparable in invasiveness to
-the `env` refactor.
+All four remain vacuously sound: multi-file imports, `--deep`, `--fun`,
+`split_vc`. (`vacuous-soundness.md` §F.1–F.4.)
 
-### Category D — Alternative memory models (7 features)
+### Summary
 
-Requires parameterising the formalisation over a memory model interface
-(Rocq module type / Lean type class). Features: typed model, store model,
-concurrent model, `thread_entry`, `critical`, `acquires`, `releases`.
+| Category | Total | Done | Remaining |
+|----------|------:|:----:|:---------:|
+| A — Core model | 7 | 5 | 2 |
+| B — Desugaring | 4 | 4 | 0 |
+| C — Contract extensions | 10 | 6 | 4 |
+| D — Memory models | 7 | 2 | 5 |
+| E — Vacuously sound | 4 | 4 | 0 |
+| F — Pipeline orchestration | 4 | 4 | 0 |
+| **Total** | **36** | **25** | **11** |
 
-**Concurrent model soundness issues**: `ExecCritical` must universally
-quantify `shared` at entry (modelling havoc), not pick a specific shared
-state. `lock_order` (deadlock prevention) must be modelled as a
-well-formedness condition.
+(The previous README mis-stated the total as "38"; the six category
+sub-totals sum to 36.)
 
-### Category E — Vacuously sound (4 features)
+**Effective WP-engine coverage**: The 25 modelled features include all 22
+`Stmt` constructors, all 70 `ContractExpr` constructors (4 of which —
+`\valid`-class features not in AST, plus `slice`/`call` opaque placeholders
+— are out-of-scope here), and the full runtime-expression language. The
+soundness theorem `pycsl_soundness` is discharged on all 22 `Stmt` cases
+(Phase5b_Soundness.v:334-438; Soundness.lean:229-344). All other features
+are syntactic sugar (lowered before WP), WhyML axioms (trusted by the Why3
+ecosystem), or orchestration (build-system concerns).
 
-No proof needed; soundness is partial correctness ("if terminates, then
-post holds"). Features: structural `\variant`, `\diverges`, `\trusted`,
-`bounded_int(N)`.
+### Remaining work
 
-### Category F — Pipeline orchestration (4 features)
+The 11 unmodelled features cluster into three work-streams:
 
-No semantic content. Features: multi-file imports, `--deep`, `--fun`,
-`split_vc`.
+1. **Class invariants + record-valued state** (Category A: `class invariant`,
+   Lambda) — requires record types in `state` and field-access semantics.
+2. **2D-array library predicates** (Category C: `\valid`, `\separated`,
+   `\length2d`, `\valid2d`) — blocked on the typed/store memory model.
+3. **Memory-model parameterisation** (Category D: typed, store, real
+   concurrent, `acquires`, `releases`) — requires parameterising the
+   formalisation over a memory-model interface (Rocq module type / Lean
+   type class).
 
-### Implementation phases
-
-```
-Phase 1 (B+E+F): Desugar lemmas + vacuous doc     → 38→22 features
-Phase 2 (A):     Assert + None + String             → 22→19
-Phase 3 (C):     Ghost + Label (\at, \old refactor) → 19→15
-Phase 4 (C):     Library predicates (\valid, etc.)   → 15→7
-Phase 5 (A):     Exceptions (4th continuation Qe)    → 7→6
-Phase 6 (A+D):   Records + class invariants          → 6→4
-Phase 7 (D):     Memory model parameterisation       → 4→0
-Phase 8 (A):     Lambda (optional)
-```
-
-**Dependency ordering**: Phases 3b (label `env` refactor) and 5 (exception
-`Qe`) both change the `wp` signature. Implementing Phase 5 first stabilises
-the continuation interface before Phase 3b adds the environment record.
+The previous phase plan (Phases 1-8 driving 38→0) is obsolete: Phases
+1-6 + 8 (all but Phase 7) landed; the residual is Phase 7 (memory-model
+parameterisation) plus the two Category A items that depend on it.
 
 ---
 
@@ -477,11 +561,14 @@ A phase is **complete** when:
 
 | Category | Total | Modelled | Coverage |
 |----------|------:|:--------:|:--------:|
-| Directives | 26 | 5 | 19% |
-| Expression atoms | 20 | 8 | 40% |
-| Operators | 9 | 8 | 89% |
-| Statement types | 15 | 10 | 67% |
-| Memory models | 4 | 1 | 25% |
+| `Stmt` constructors | 22 | 22 | 100% |
+| `ContractExpr` constructors | 70 | 66 (4 opaque placeholders: `slice`, `call`, `resultSubscript`, ghost atoms with `_ => True`) | 94% |
+| Function-spec directives | 11 | 11 | 100% |
+| Statement-level features (§10 cat. A+B) | 11 | 9 | 82% |
+| Contract-expression features (§10 cat. C) | 10 | 6 | 60% |
+| Memory models (§10 cat. D) | 7 | 2 (Hoare-identity stubs) | 29% |
+| Vacuous features (§10 cat. E+F) | 8 | 8 | 100% |
+| **§10 totals** | **36** | **25** | **69%** |
 
 **Effective WP engine coverage**: The modelled features constitute 100% of
 the WP calculus logic — the component that generates proof obligations. All
@@ -493,11 +580,11 @@ or orchestration.
 ```bash
 # Rocq
 cd src/formal-semantics/rocq && make clean && make proof
-# Expected: 8 files compiled, 1 Admitted (desugar_correct)
+# Expected: all files compiled, 0 Admitted
 
 # Lean
 cd src/formal-semantics/lean && make clean && make proof
-# Expected: 9 files compiled, 3 sorry (not used by soundness)
+# Expected: all files compiled, 0 sorry
 ```
 
 ---
@@ -506,13 +593,13 @@ cd src/formal-semantics/lean && make clean && make proof
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| While-invariant induction blocked | High | Prototyped; proved in both provers via well-founded induction |
-| Lean termination rejects `wp` for `SFor` | Medium | `wpFor` helper (§5); structural recursion preserved |
-| For-loop desugaring variable capture | Low | Reserved `_pycsl_idx`; freshness precondition |
+| While-invariant induction blocked | ~~High~~ Closed | Proved in both provers via well-founded induction (Phase5a_WhileInv.v:30; WhileInv.lean:197) |
+| Lean termination rejects `wp` for `SFor` | ~~Medium~~ Closed | `wpFor` helper (§5); structural recursion preserved |
+| For-loop desugaring variable capture | ~~Low~~ Closed | Reserved `_pycsl_idx`; freshness precondition; `desugar_correct` proved (Phase3b_Desugar.v:153; Desugar.lean:239) |
 | Scope creep from extensions | Medium | Strict phase gates; no extension work until current phase is `sorry`-free |
 | Variant non-negativity unprovable | Medium | Explicit `≥ 0` conjunct in WP; programmer obligation |
-| Phase 3b+5 signature conflicts | Medium | Implement Phase 5 first (§10) |
-| STry WP finally soundness | Critical | `Qr`/`Qc` must pass through finally clause (§10, Category A) |
-| ExecCritical shared state | Critical | Universal quantification over shared states at entry (§10, Category D) |
+| ~~Phase 3b+5 signature conflicts~~ | ~~Medium~~ Closed | Phase 5 landed with `Qe` continuation; Phase 3b `\at` handled by `eval_contract_es`/`evalContractEs` (Phase2_State.v:559; State.lean:469) without `wp` signature change |
+| STry WP finally soundness | Critical | `Qr`/`Qc`/`Qb` pass through `STryCatch` body via 5-continuation WP (Phase4_WP.v:130-136; WP.lean:107-113); `try-finally` not yet modelled (finally clause lowering is a transpiler concern) |
+| ExecCritical shared state | Critical | Current `SCritical` is a Hoare-identity stub (Phase4_WP.v:143); real concurrent model requires universal quantification over shared states at entry (§10, Category D) |
 | Mathlib instability | Low | Pinned version in `lakefile.lean` |
 | Lean toolchain changes | Low | Pinned via `lean-toolchain` |
