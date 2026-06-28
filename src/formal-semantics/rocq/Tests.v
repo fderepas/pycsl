@@ -177,3 +177,27 @@ Lemma test_is_sorted_empty :
 Proof.
   intros. simpl. destruct (lookup st "a") as [[|]|]; simpl; exact I.
 Qed.
+
+(* ===== Test 21: Phase 4 CValid is vacuously true (Hoare stub) ===== *)
+Lemma test_cvalid_hoare_stub :
+  forall st, eval_contract st st None (CValid (CVar "p") (CInt 10)).
+Proof. intros. simpl. exact I. Qed.
+
+(* ===== Test 22: Phase 4 CSeparated is vacuously true (Hoare stub) ===== *)
+Lemma test_cseparated_hoare_stub :
+  forall st, eval_contract st st None (CSeparated (CVar "a") (CVar "b")).
+Proof. intros. simpl. exact I. Qed.
+
+(* ===== Test 23: Phase 4 CLength2d returns array length (flat model) ===== *)
+Lemma test_clength2d_flat :
+  forall st a,
+  lookup st "arr" = Some (VArray a) ->
+  eval_z st st None (CLength2d "arr") = Z.of_nat (List.length a).
+Proof.
+  intros st a H. simpl. rewrite H. reflexivity.
+Qed.
+
+(* ===== Test 24: Phase 4 CValid2d is vacuously true (Hoare stub) ===== *)
+Lemma test_cvalid2d_hoare_stub :
+  forall st, eval_contract st st None (CValid2d (CVar "p") (CInt 3) (CInt 4)).
+Proof. intros. simpl. exact I. Qed.

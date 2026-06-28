@@ -219,6 +219,23 @@ inductive ContractExpr where
   | cgMake      (n v : ContractExpr)
   | cgCopy      (arr : Ident)
   | cgCopyRange (arr : Ident) (lo hi : ContractExpr)
+  /-- Phase 4 — Category C library predicates (contract-expr extensions).
+      These add ContractExpr constructors + evalContract clauses ONLY;
+      they do NOT extend Stmt/Exec/wp, so pycsl_soundness is unaffected.
+
+      Heap-dependent predicates (\valid, \separated, \valid2d) are modelled
+      as Hoare-model stubs (True): the Hoare model has no heap, so the
+      predicates are vacuously satisfied. They become real when Phase 7
+      (memory-model parameterisation) lands a heap interface.
+
+      \length2d extends the existing \length (modelled) to 2D arrays. In
+      the flat-array model (Val.array (List Int)) there is no 2D structure,
+      so \length2d(arr) returns length(arr). The rows/cols args from the
+      pure AST (Length2D.base/rows/cols) are elided — no flat-model meaning. -/
+  | cValid     (ptr len : ContractExpr)
+  | cSeparated (a b : ContractExpr)
+  | cLength2d  (arr : Ident)
+  | cValid2d   (ptr rows cols : ContractExpr)
   deriving Repr
 
 inductive FrameCond where

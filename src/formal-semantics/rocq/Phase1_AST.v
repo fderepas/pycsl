@@ -153,7 +153,24 @@ Inductive contract_expr : Type :=
   (* Phase 3b — ghost array atoms *)
   | CGMake      (n v : contract_expr)
   | CGCopy      (arr : ident)
-  | CGCopyRange (arr : ident) (lo hi : contract_expr).
+  | CGCopyRange (arr : ident) (lo hi : contract_expr)
+  (* Phase 4 — Category C library predicates (contract-expr extensions).
+     These add ContractExpr constructors + eval_contract clauses ONLY;
+     they do NOT extend Stmt/Exec/wp, so pycsl_soundness is unaffected.
+
+     Heap-dependent predicates (\valid, \separated, \valid2d) are modelled
+     as Hoare-model stubs (True): the Hoare model has no heap, so the
+     predicates are vacuously satisfied. They become real when Phase 7
+     (memory-model parameterisation) lands a heap interface.
+
+     \length2d extends the existing \length (modelled) to 2D arrays. In
+     the flat-array model (VArray (list Z)) there is no 2D structure, so
+     \length2d(arr) returns length(arr). The rows/cols args from the pure
+     AST (Length2D.base/rows/cols) are elided — no flat-model meaning. *)
+  | CValid     (ptr len : contract_expr)
+  | CSeparated (a b : contract_expr)
+  | CLength2d  (arr : ident)
+  | CValid2d   (ptr rows cols : contract_expr).
 
 (* Frame conditions *)
 Inductive frame_cond : Type :=

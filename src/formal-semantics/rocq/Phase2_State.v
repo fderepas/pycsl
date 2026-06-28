@@ -210,6 +210,13 @@ Fixpoint eval_z (st pre_st : state) (result : option val)
     | Some (VArray a) => Z.of_nat (List.length a)
     | _ => 0
     end
+  | CLength2d arr =>
+    (* Phase 4: \length2d — flat-array model: returns \length(arr).
+       No 2D structure in VArray (list Z); rows/cols elided. *)
+    match lookup st arr with
+    | Some (VArray a) => Z.of_nat (List.length a)
+    | _ => 0
+    end
   | CSubscript arr i =>
     let n := eval_z st pre_st result i in
     match lookup st arr with
@@ -382,6 +389,12 @@ with eval_z_es (es pre_es : exec_state) (result : option val)
     | Some (VArray a) => Z.of_nat (List.length a)
     | _ => 0
     end
+  | CLength2d arr =>
+    (* Phase 4: \length2d — flat-array model: returns \length(arr). *)
+    match lookup es.(reg_state) arr with
+    | Some (VArray a) => Z.of_nat (List.length a)
+    | _ => 0
+    end
   | CSubscript arr i =>
     let n := eval_z_es es pre_es result i in
     match lookup es.(reg_state) arr with
@@ -481,7 +494,7 @@ Fixpoint eval_contract (st pre_st : state) (result : option val)
     match lookup st x with Some (VInt 0) => False | _ => True end
   | CResult =>
     match result with Some (VInt 0) => False | _ => True end
-  | CLength _ | CSubscript _ _ | COld _ | CBinOp _ _ _ | CNeg _ =>
+  | CLength _ | CLength2d _ | CSubscript _ _ | COld _ | CBinOp _ _ _ | CNeg _ =>
     eval_z st pre_st result e <> 0
   | CEq  e1 e2 => eval_z st pre_st result e1 =  eval_z st pre_st result e2
   | CNe  e1 e2 => eval_z st pre_st result e1 <> eval_z st pre_st result e2
@@ -530,6 +543,13 @@ Fixpoint eval_contract (st pre_st : state) (result : option val)
   | CCall _ _ => True     (* opaque in Hoare model; axiomatized by \trusted *)
   (* Phase 3 — \at: base model returns True (no label tracking without exec_state) *)
   | CAt _ _ => True
+  (* Phase 4 — Category C library predicates (Hoare-model stubs).
+     \valid, \separated, \valid2d are heap-dependent; the Hoare model has
+     no heap, so they are vacuously True. They become real predicates when
+     Phase 7 (memory-model parameterisation) lands a heap interface. *)
+  | CValid _ _ => True
+  | CSeparated _ _ => True
+  | CValid2d _ _ _ => True
   (* Phase 3b ghost atoms — all opaque in base evaluator *)
   | CGMapEmpty | CGNil | CGSetEmpty => True
   | CGMapGet _ _ | CGMapSet _ _ _ | CGMapRemove _ _ => True
@@ -597,7 +617,7 @@ Fixpoint eval_contract_es (es pre_es : exec_state) (result : option val)
   | CInt n => n <> 0
   | CResult =>
     match result with Some (VInt 0) => False | _ => True end
-  | CLength _ | CSubscript _ _ | COld _ | CBinOp _ _ _ | CNeg _ =>
+  | CLength _ | CLength2d _ | CSubscript _ _ | COld _ | CBinOp _ _ _ | CNeg _ =>
     eval_z_es es pre_es result e <> 0
   (* Phase 3d: comparison operators use eval_z_es so ghost vars resolve *)
   | CEq e1 e2 => eval_z_es es pre_es result e1 =  eval_z_es es pre_es result e2

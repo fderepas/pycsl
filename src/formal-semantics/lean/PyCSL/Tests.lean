@@ -167,6 +167,27 @@ theorem test_is_sorted_empty (st : List (Ident × Val)) :
   split <;> simp only [sortedListRange] <;>
     (split <;> first | omega | trivial)
 
+-- Test 21: Phase 4 CValid is vacuously true (Hoare stub)
+theorem test_cvalid_hoare_stub (st : List (Ident × Val)) :
+    evalContract st st none (.cValid (.var "p") (.int 10)) := by
+  simp [evalContract]
+
+-- Test 22: Phase 4 CSeparated is vacuously true (Hoare stub)
+theorem test_cseparated_hoare_stub (st : List (Ident × Val)) :
+    evalContract st st none (.cSeparated (.var "a") (.var "b")) := by
+  simp [evalContract]
+
+-- Test 23: Phase 4 CLength2d returns array length (flat model)
+theorem test_clength2d_flat (st : List (Ident × Val)) (a : List Int)
+    (h : lookup st "arr" = some (.array a)) :
+    evalZ st st none (.cLength2d "arr") = a.length := by
+  simp [evalZ, h]
+
+-- Test 24: Phase 4 CValid2d is vacuously true (Hoare stub)
+theorem test_cvalid2d_hoare_stub (st : List (Ident × Val)) :
+    evalContract st st none (.cValid2d (.var "p") (.int 3) (.int 4)) := by
+  simp [evalContract]
+
 -- ===== Axiom audit =====
 -- Lists all axioms (propositional + classical) that pycsl_soundness depends on.
 -- Expected: [propext, Classical.choice, Quot.sound]

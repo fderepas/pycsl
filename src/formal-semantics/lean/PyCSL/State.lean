@@ -177,6 +177,12 @@ mutual
       match lookup st arr with
       | some (.array a) => a.length
       | _ => 0
+    | .cLength2d arr =>
+      -- Phase 4: \length2d — flat-array model: returns \length(arr).
+      -- No 2D structure in Val.array (List Int); rows/cols elided.
+      match lookup st arr with
+      | some (.array a) => a.length
+      | _ => 0
     | .subscript arr i =>
       let n := evalZ st preSt result i
       match lookup st arr with
@@ -212,6 +218,7 @@ mutual
     | .var x => match lookup st x with | some (.int 0) => False | _ => True
     | .result => match result with | some (.int 0) => False | _ => True
     | .length _ => evalZ st preSt result (.length "") ≠ 0
+    | .cLength2d arr => evalZ st preSt result (.cLength2d arr) ≠ 0
     | .subscript arr i => evalZ st preSt result (.subscript arr i) ≠ 0
     | .old e => evalZ st preSt result (.old e) ≠ 0
     | .binop op e1 e2 => evalZ st preSt result (.binop op e1 e2) ≠ 0
@@ -256,6 +263,13 @@ mutual
                       | _ => False
         | _ => False
     -- Phase 2 and later: opaque/placeholder
+    -- Phase 4 — Category C library predicates (Hoare-model stubs).
+    -- \valid, \separated, \valid2d are heap-dependent; the Hoare model has
+    -- no heap, so they are vacuously True. They become real predicates when
+    -- Phase 7 (memory-model parameterisation) lands a heap interface.
+    | .cValid _ _ => True
+    | .cSeparated _ _ => True
+    | .cValid2d _ _ _ => True
     | _ => True
 end
 
@@ -389,6 +403,11 @@ def evalZEs (es preEs : ExecState) (result : Option Val) : ContractExpr → Int
     match lookup es.regState arr with
     | some (.array a) => a.length
     | _ => 0
+  | .cLength2d arr =>
+    -- Phase 4: \length2d — flat-array model: returns \length(arr).
+    match lookup es.regState arr with
+    | some (.array a) => a.length
+    | _ => 0
   | .subscript arr i =>
     let n := evalZEs es preEs result i
     match lookup es.regState arr with
@@ -497,6 +516,7 @@ def evalContractEs (es preEs : ExecState) (result : Option Val) : ContractExpr �
   | .int n           => n ≠ 0
   | .result          => match result with | some (.int 0) => False | _ => True
   | .length arr      => evalZEs es preEs result (.length arr) ≠ 0
+  | .cLength2d arr   => evalZEs es preEs result (.cLength2d arr) ≠ 0
   | .subscript arr i => evalZEs es preEs result (.subscript arr i) ≠ 0
   | .old e'          => evalZEs es preEs result (.old e') ≠ 0
   | .binop op e1 e2  => evalZEs es preEs result (.binop op e1 e2) ≠ 0
