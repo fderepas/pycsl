@@ -755,7 +755,7 @@ class FStringExpr(ExprIR):
 @dataclass(frozen=True)
 class LambdaExpr(ExprIR):
     params: List[str]
-    body: List["StmtIR"]
+    body: "ExprIR"
 
 
 @dataclass(frozen=True)
@@ -1241,7 +1241,7 @@ def _expr_from_dict_inner(d: Dict[str, Any]) -> ExprIR:
         return FStringExpr(kind=k, parts=_es(d.get("parts", [])))
     if k == "Lambda":
         return LambdaExpr(kind=k, params=d.get("params", []),
-                         body=_ss(d.get("body", [])))
+                         body=_e(d.get("body")))
     if k == "SetLit":
         return SetLitExpr(kind=k, elts=_es(d.get("elts", [])))
     if k == "MkTuple":
@@ -1596,7 +1596,7 @@ def _expr_to_dict(e: ExprIR) -> Dict[str, Any]:
         out["parts"] = [p.to_dict() for p in e.parts]
     elif isinstance(e, LambdaExpr):
         out["params"] = e.params
-        out["body"] = [b.to_dict() for b in e.body]
+        out["body"] = e.body.to_dict()
     elif isinstance(e, SetLitExpr):
         out["elts"] = [x.to_dict() for x in e.elts]
     elif isinstance(e, MkTupleExpr):

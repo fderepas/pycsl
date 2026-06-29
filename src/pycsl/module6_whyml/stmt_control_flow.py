@@ -5,6 +5,10 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 from module6_whyml.identifiers import whyml_ident, safe_exc_name
 from module6_whyml.ir_scanner import IRScanner
 
+from ir_schema import (
+    IfStmt, WhileStmt, ForStmt, TryStmt, MatchStmt, ReturnStmt,
+)
+
 
 class ControlFlowStmtMixin:
     """Control-flow statement handlers — `while` / `for` / `if` / `try` / `match`
@@ -17,36 +21,38 @@ class ControlFlowStmtMixin:
     recurse back into the core `self._stmts_to_whyml` / `self._expr_to_whyml`
     (which stay in `StatementEmissionMixin`)."""
 
-    def _handle_while_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
+    def _handle_while_stmt(self, stmt: WhileStmt, rest: List[Dict[str, Any]],
                             local_refs: Set[str], declared_refs: Set[str],
                             indent: str, in_loop: bool) -> str:
-        test = self._expr_to_whyml(stmt["test"], local_refs)
-        test = self._to_bool(test, stmt["test"])
-        has_cont = IRScanner.has_continue(stmt.get("body", []))
-        has_direct_ret = IRScanner.has_direct_return(stmt.get("body", []))
+        _test_d = stmt.test.to_dict()
+        test = self._expr_to_whyml(_test_d, local_refs)
+        test = self._to_bool(test, _test_d)
+        _body_d = [s.to_dict() for s in stmt.body]
+        has_cont = IRScanner.has_continue(_body_d)
+        has_direct_ret = IRScanner.has_direct_return(_body_d)
 
         loop_indent = (indent + "  ") if has_direct_ret else indent
         inner_indent = loop_indent + "  "
 
         body_str = self._stmts_to_whyml(
-            stmt["body"], local_refs, declared_refs.copy(), inner_indent, in_loop=True)
+            _body_d, local_refs, declared_refs.copy(), inner_indent, in_loop=True)
 
         loop_code = f"{loop_indent}while {test} do\n"
         self._in_spec = True
-        invariants_w = stmt.get("invariants", [])
+        invariants_w = stmt.invariants
         n_inv_w = len(invariants_w)
         i_inv_w = 0
         while i_inv_w < n_inv_w:
             inv = invariants_w[i_inv_w]
-            inv_str = self._expr_to_whyml(inv, local_refs)
+            inv_str = self._expr_to_whyml(inv.to_dict(), local_refs)
             loop_code += f"{inner_indent}invariant {{ {inv_str} }}\n"
             i_inv_w += 1
-        variants_w = stmt.get("variants", [])
+        variants_w = stmt.variants
         n_var_w = len(variants_w)
         i_var_w = 0
         while i_var_w < n_var_w:
             var = variants_w[i_var_w]
-            var_str = self._expr_to_whyml(var, local_refs)
+            var_str = self._expr_to_whyml(var.to_dict(), local_refs)
             loop_code += f"{inner_indent}variant {{ {var_str} }}\n"
             i_var_w += 1
         self._in_spec = False
@@ -58,7 +64,7 @@ class ControlFlowStmtMixin:
             loop_code += body_str + "\n"
         loop_code += f"{loop_indent}done"
 
-        has_break = IRScanner.uses_break(stmt.get("body", []))
+        has_break = IRScanner.uses_break(_body_d)
         if has_break:
             loop_code = (f"{loop_indent}try\n{loop_code}\n"
                          f"{loop_indent}with PyCSL_Break -> () end")
@@ -166,32 +172,33 @@ class ControlFlowStmtMixin:
         self._add_abstract_op("val iter_get (x: int) (i: int) : int")
         return f"(iter_length {iter_expr})", f"(iter_get {iter_expr} !{idx})", False
 
-    def _handle_for_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
+    def _handle_for_stmt(self, stmt: ForStmt, rest: List[Dict[str, Any]],
                           local_refs: Set[str], declared_refs: Set[str],
                           indent: str, in_loop: bool) -> str:
-        target = stmt["target"]
+        target = stmt.target
         safe_target = whyml_ident(target)
-        iter_ir = stmt["iter"]
+        iter_ir = stmt.iter.to_dict()
         idx = f"_idx_{safe_target}"
-        has_direct_ret = IRScanner.has_direct_return(stmt.get("body", []))
+        _body_d = [s.to_dict() for s in stmt.body]
+        has_direct_ret = IRScanner.has_direct_return(_body_d)
         loop_indent = (indent + "  ") if has_direct_ret else indent
         inner_indent = loop_indent + "  "
 
         body_local = local_refs | {target}
         body_declared = declared_refs.copy() | {target}
         inner_body = self._stmts_to_whyml(
-            stmt.get("body", []), body_local, body_declared, inner_indent, True)
+            _body_d, body_local, body_declared, inner_indent, True)
         if not inner_body:
             inner_body = f"{inner_indent}()"
 
-        has_cont = IRScanner.has_continue(stmt.get("body", []))
+        has_cont = IRScanner.has_continue(_body_d)
         len_expr, elem_expr, is_range = self._classify_iterable(iter_ir, local_refs, idx)
 
         while_parts = [f"{loop_indent}while !{idx} < {len_expr} do"]
         inv_subst = {target: idx} if is_range else None
         inv_refs = local_refs | {idx}
         self._in_spec = True
-        invariants_f = stmt.get("invariants", [])
+        invariants_f = stmt.invariants
         n_inv_f = len(invariants_f)
         i_inv_f = 0
         #@ loop invariant 0 <= i_inv_f and i_inv_f <= n_inv_f
@@ -199,10 +206,10 @@ class ControlFlowStmtMixin:
         #@ loop variant n_inv_f - i_inv_f
         while i_inv_f < n_inv_f:
             inv = invariants_f[i_inv_f]
-            inv_str = self._expr_to_whyml(inv, inv_refs, subst=inv_subst)
+            inv_str = self._expr_to_whyml(inv.to_dict(), inv_refs, subst=inv_subst)
             while_parts.append(f"{inner_indent}invariant {{ {inv_str} }}")
             i_inv_f += 1
-        variants_f = stmt.get("variants", [])
+        variants_f = stmt.variants
         n_var_f = len(variants_f)
         i_var_f = 0
         #@ loop invariant 0 <= i_var_f and i_var_f <= n_var_f
@@ -210,7 +217,7 @@ class ControlFlowStmtMixin:
         #@ loop variant n_var_f - i_var_f
         while i_var_f < n_var_f:
             var_ir = variants_f[i_var_f]
-            var_str = self._expr_to_whyml(var_ir, inv_refs, subst=inv_subst)
+            var_str = self._expr_to_whyml(var_ir.to_dict(), inv_refs, subst=inv_subst)
             while_parts.append(f"{inner_indent}variant {{ {var_str} }}")
             i_var_f += 1
         self._in_spec = False
@@ -226,7 +233,7 @@ class ControlFlowStmtMixin:
 
         while_parts.append(f"{inner_indent}{idx} := !{idx} + 1")
         while_parts.append(f"{loop_indent}done")
-        has_break = IRScanner.uses_break(stmt.get("body", []))
+        has_break = IRScanner.uses_break(_body_d)
         while_code = "\n".join(while_parts)
 
         if has_break:
@@ -355,11 +362,11 @@ class ControlFlowStmtMixin:
                     escaping |= self._callee_raised_direct(val)
         return escaping
 
-    def _handle_try_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
+    def _handle_try_stmt(self, stmt: TryStmt, rest: List[Dict[str, Any]],
                           local_refs: Set[str], declared_refs: Set[str],
                           indent: str, in_loop: bool) -> str:
-        body_stmts = stmt.get("body", [])
-        handlers = stmt.get("handlers", [])
+        body_stmts = [s.to_dict() for s in stmt.body]
+        handlers = stmt.handlers
         try_assigned = IRScanner.find_assigned_vars(body_stmts)
         n_ha = len(handlers)
         i_ha = 0
@@ -601,20 +608,25 @@ class ControlFlowStmtMixin:
                                                 indent, in_loop)
         return code
 
-    def _handle_if_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
+    def _handle_if_stmt(self, stmt: IfStmt, rest: List[Dict[str, Any]],
                         local_refs: Set[str], declared_refs: Set[str],
                         indent: str, in_loop: bool) -> str:
         # typing-engagement ty1 / 25-1700-typing-spec-1 §1.2 C5: `if x is None:`
         # on a Union-typed variable lowers to a constructor-pattern `match`
         # (Why3 does not allow `=` on algebraic types in a program `if`).
-        union_match = self._try_union_is_none_match(stmt, rest, local_refs,
+        # `_try_union_is_none_match` does deep dict inspection of the test
+        # expression (BinOp/None/Var shape); pass the round-tripped dict so the
+        # helper's dict-based inspection stays byte-identical (expressions.py
+        # is Phase B+ scope — not yet on typed ExprIR).
+        union_match = self._try_union_is_none_match(stmt.to_dict(), rest, local_refs,
                                                     declared_refs, indent, in_loop)
         if union_match is not None:
             return union_match
-        test = self._expr_to_whyml(stmt["test"], local_refs)
-        test = self._to_bool(test, stmt["test"])
-        body = stmt.get("body", [])
-        orelse = stmt.get("orelse", [])
+        _test_d = stmt.test.to_dict()
+        test = self._expr_to_whyml(_test_d, local_refs)
+        test = self._to_bool(test, _test_d)
+        body = [s.to_dict() for s in stmt.body]
+        orelse = [s.to_dict() for s in stmt.orelse]
         body_str = self._stmts_to_whyml(body, local_refs, declared_refs.copy(), indent + "  ", in_loop)
         if not body_str:
             body_str = f"{indent}  ()"
@@ -715,11 +727,11 @@ class ControlFlowStmtMixin:
                 return ctor_name, ctor
         return None
 
-    def _handle_match_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
+    def _handle_match_stmt(self, stmt: MatchStmt, rest: List[Dict[str, Any]],
                            local_refs: Set[str], declared_refs: Set[str],
                            indent: str, in_loop: bool) -> str:
-        subject = self._expr_to_whyml(stmt["subject"], local_refs)
-        cases = stmt.get("cases", [])
+        subject = self._expr_to_whyml(stmt.subject.to_dict(), local_refs)
+        cases = stmt.cases
         # typing-engagement ty1 / 25-1700-typing-spec-1 §1.3 C9: a `match` on a
         # Union-typed value must lower to a constructor-pattern match over the
         # synthesized variant's constructors (`Arm_0_0 v -> ...`), NOT against
@@ -727,7 +739,9 @@ class ControlFlowStmtMixin:
         # `Union[int, str]` subject is rewritten to the variant's `int`-armed
         # constructor with a bound carrier, so Why3's native exhaustiveness
         # check fires on a missing arm. (GAP-002.)
-        union_info = self._match_subject_union_info(stmt)
+        # `_match_subject_union_info` does deep dict inspection of the subject;
+        # pass the round-tripped dict (expressions.py is Phase B+ scope).
+        union_info = self._match_subject_union_info(stmt.to_dict())
         if union_info is not None:
             _uvar, uinfo = union_info
             for c in cases:
@@ -909,7 +923,7 @@ class ControlFlowStmtMixin:
 
     def _handle_return_stmt(
         self,
-        stmt: Dict[str, Any],
+        stmt: ReturnStmt,
         rest: List[Dict[str, Any]],
         local_refs: Set[str],
         declared_refs: Set[str],
@@ -917,7 +931,7 @@ class ControlFlowStmtMixin:
         in_loop: bool,
     ) -> str:
         """Reads self._has_early_ret, self._func_return_type, self._array_locals (no writes)."""
-        val_ir = stmt.get("value")
+        val_ir = stmt.value.to_dict() if stmt.value is not None else None
         use_raise = in_loop or self._has_early_ret
         func_ret_peek = self._func_return_type
         if val_ir is None:

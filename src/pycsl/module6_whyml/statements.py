@@ -6,6 +6,16 @@ from module6_whyml.identifiers import op_translate, whyml_ident, safe_mutex_name
 from module6_whyml.ir_scanner import IRScanner
 from module6_whyml.stmt_control_flow import ControlFlowStmtMixin
 
+from ir_schema import (
+    stmt_from_dict, _ABSENT,
+    AssignStmt, AugAssignStmt, ArraySetStmt, ArraySliceSetStmt,
+    GhostAssignStmt, GhostArraySetStmt, TupleUnpackStmt,
+    FieldAssignStmt, FieldAugAssignStmt, ExprStmt, CriticalSectionStmt,
+    ReturnStmt, IfStmt, WhileStmt, ForStmt, TryStmt, MatchStmt,
+    LabelStmt, RaiseStmt, ProofAssertStmt, AssertStmt,
+    PassStmt, BreakStmt, ContinueStmt, OpaqueStmt,
+)
+
 
 class StatementEmissionMixin(ControlFlowStmtMixin):
     """Statement-emission dispatch: every `_handle_*_stmt` handler plus the
@@ -16,29 +26,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     classification. Mixed into Module6_WhyMLTranspiler.
     """
 
-    # IR statement type -> handler method, for the uniform branches whose body is just
-    # `return self._handle_<x>_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)`.
-    # The remaining statement types (Label/Continue/Raise and the code-set-then-chain forms
-    # ProofAssert/Assert/Pass/Break) are handled inline in `_stmts_to_whyml`.
-    _STMT_HANDLERS = {
-        "GhostAssign":     "_handle_ghost_assign_stmt",
-        "GhostArraySet":   "_handle_ghost_array_set_stmt",
-        "Assign":          "_handle_assign_stmt",
-        "TupleUnpack":     "_handle_tuple_unpack_stmt",
-        "AugAssign":       "_handle_augassign_stmt",
-        "FieldAssign":     "_handle_fieldassign_stmt",
-        "FieldAugAssign":  "_handle_fieldaugassign_stmt",
-        "ArraySet":        "_handle_array_set_stmt",
-        "ArraySliceSet":   "_handle_array_slice_set_stmt",
-        "While":           "_handle_while_stmt",
-        "Return":          "_handle_return_stmt",
-        "If":              "_handle_if_stmt",
-        "For":             "_handle_for_stmt",
-        "Expr":            "_handle_expr_stmt",
-        "Try":             "_handle_try_stmt",
-        "Match":           "_handle_match_stmt",
-        "CriticalSection": "_handle_critical_section_stmt",
-    }
+    # Phase B (ir-schema-spec.md §6): the prior `_STMT_HANDLERS` string table
+    # is REPLACED by the typed `isinstance` dispatch in `_stmts_to_whyml`. The
+    # table-driven indirection (str-kind → method-name → getattr) is no longer
+    # needed: each typed `StmtIR` subclass routes directly to its handler.
 
     def _emit_first_assign(self, kind: str, indent: str, safe_target: str, target: str,
                            val: str, val_ir: Dict[str, Any]) -> str:
@@ -89,12 +80,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             parts.append(f"{indent}{len_name} := !{len_name} + 1")
         return ";\n".join(parts)
 
-    def _handle_assign_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
+    def _handle_assign_stmt(self, stmt: AssignStmt, rest: List[Dict[str, Any]],
                              local_refs: Set[str], declared_refs: Set[str],
                              indent: str, in_loop: bool) -> str:
-        target = stmt["target"]
+        target = stmt.target
         safe_target = whyml_ident(target)
-        val_ir = stmt.get("value", {})
+        val_ir = stmt.value.to_dict()
         vt = val_ir.get("type", "")
         self._track_collection_metadata(target, val_ir)
 
@@ -107,7 +98,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         _prev_dts = getattr(self, "_decode_to_string", False)
         if _str_target:
             self._decode_to_string = True
-        val = self._expr_to_whyml(stmt["value"], local_refs)
+        val = self._expr_to_whyml(val_ir, local_refs)
         self._decode_to_string = _prev_dts
         # Tuple/Set literals can't be stored in int refs; use 0 as placeholder
         if vt in ("Tuple", "SetLit"):
@@ -188,12 +179,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             "    ensures { Array.length result = Seq.length s }\n"
             "    ensures { forall i:int. 0 <= i < Seq.length s -> result[i] = Seq.get s i }")
 
-    def _handle_seq_assign(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
+    def _handle_seq_assign(self, stmt: AssignStmt, rest: List[Dict[str, Any]],
                            local_refs: Set[str], declared_refs: Set[str],
                            indent: str, in_loop: bool) -> str:
-        target = stmt["target"]
+        target = stmt.target
         safe = whyml_ident(target)
-        init = self._seq_init_expr(stmt.get("value", {}), local_refs)
+        init = self._seq_init_expr(stmt.value.to_dict(), local_refs)
         if target not in declared_refs:
             declared_refs.add(target)
             local_refs.add(target)        # seq locals are refs → reads deref `!a`
@@ -217,25 +208,26 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             rest_code = f"{indent}()"
         return f"{indent}let ghost {safe_target} {binding} in\n{rest_code}"
 
-    def _handle_ghost_assign_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
+    def _handle_ghost_assign_stmt(self, stmt: GhostAssignStmt, rest: List[Dict[str, Any]],
                                    local_refs: Set[str], declared_refs: Set[str],
                                    indent: str, in_loop: bool) -> str:
-        target = stmt["target"]
+        target = stmt.target
         safe_target = whyml_ident(target)
-        op = stmt.get("op", "=")
-        ghost_type = self._resolve_effective_ghost_type(target, op, stmt.get("ghost_type", "int"))
+        op = stmt.op
+        ghost_type = self._resolve_effective_ghost_type(target, op, stmt.ghost_type)
         is_new = target not in declared_refs
+        _val_d = stmt.value.to_dict()
 
         if ghost_type == "string":
             self._ghost_string_vars.add(target)
-            val = self._expr_to_whyml_string_ctx(stmt["value"], local_refs | {target})
+            val = self._expr_to_whyml_string_ctx(_val_d, local_refs | {target})
             if is_new:
                 return self._emit_new_ghost_ref(safe_target, target, f"= ref ({val})",
                                                 rest, local_refs, declared_refs, indent, in_loop)
             code = f"{indent}ghost {safe_target} := {val}"
         elif ghost_type in ("tuple2", "tuple3", "tuple4"):
             self._ghost_tuple_vars[target] = int(ghost_type[-1])
-            val = self._expr_to_whyml(stmt["value"], local_refs | {target})
+            val = self._expr_to_whyml(_val_d, local_refs | {target})
             if is_new:
                 return self._emit_new_ghost_ref(safe_target, target, f"= ref {val}",
                                                 rest, local_refs, declared_refs, indent, in_loop)
@@ -245,7 +237,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # Ghost arrays are direct array values (not refs); add to _array_locals
             # so subscript access in invariants emits arr[i] not subscript_get arr i
             self._array_locals.add(target)
-            val = self._expr_to_whyml(stmt["value"], local_refs | {target})
+            val = self._expr_to_whyml(_val_d, local_refs | {target})
             if is_new:
                 return self._emit_new_ghost_ref(safe_target, target, f"= {val}",
                                                 rest, local_refs, declared_refs, indent, in_loop)
@@ -253,23 +245,23 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         elif ghost_type == "ghost_dict":
             self._ghost_dict_vars.add(target)
             if op == "+=" and not is_new:
-                val_ir = stmt["value"]
+                val_ir = _val_d
                 if val_ir.get("type") == "MkTuple" and len(val_ir.get("elts", [])) == 2:
                     k = self._e(val_ir["elts"][0], local_refs)
                     v = self._e(val_ir["elts"][1], local_refs)
                     code = f"{indent}ghost {safe_target} := (Map.set !{safe_target} {k} (Some {v}))"
                 else:
-                    val = self._expr_to_whyml(stmt["value"], local_refs | {target})
+                    val = self._expr_to_whyml(_val_d, local_refs | {target})
                     code = f"{indent}ghost {safe_target} := {val}"
             else:
-                val = self._expr_to_whyml(stmt["value"], local_refs | {target})
+                val = self._expr_to_whyml(_val_d, local_refs | {target})
                 if is_new:
                     return self._emit_new_ghost_ref(safe_target, target, f"= ref {val}",
                                                     rest, local_refs, declared_refs, indent, in_loop)
                 code = f"{indent}ghost {safe_target} := {val}"
         elif ghost_type == "ghost_list":
             self._ghost_list_vars.add(target)
-            val = self._expr_to_whyml(stmt["value"], local_refs | {target})
+            val = self._expr_to_whyml(_val_d, local_refs | {target})
             if is_new:
                 # Annotate Nil with type to allow Why3 to infer list int for unused vars
                 init_val = f"({val}: list int)" if val == "Nil" else val
@@ -281,7 +273,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 code = f"{indent}ghost {safe_target} := {val}"
         elif ghost_type == "ghost_set":
             self._ghost_set_vars.add(target)
-            val = self._expr_to_whyml(stmt["value"], local_refs | {target})
+            val = self._expr_to_whyml(_val_d, local_refs | {target})
             if is_new:
                 return self._emit_new_ghost_ref(safe_target, target, f"= ref {val}",
                                                 rest, local_refs, declared_refs, indent, in_loop)
@@ -291,7 +283,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 code = f"{indent}ghost {safe_target} := {val}"
         else:
             # Default: int ghost (existing behaviour)
-            val = self._expr_to_whyml(stmt["value"], local_refs | {target})
+            val = self._expr_to_whyml(_val_d, local_refs | {target})
             if is_new:
                 if self._bounded_int:
                     binding = f"= ref ({val} : int{self._bounded_int})"
@@ -314,25 +306,25 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
-    def _handle_ghost_array_set_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
+    def _handle_ghost_array_set_stmt(self, stmt: GhostArraySetStmt, rest: List[Dict[str, Any]],
                                       local_refs: Set[str], declared_refs: Set[str],
                                       indent: str, in_loop: bool) -> str:
-        arr = whyml_ident(stmt["target"])
-        idx = self._expr_to_whyml(stmt["index"], local_refs)
-        val = self._expr_to_whyml(stmt["value"], local_refs)
+        arr = whyml_ident(stmt.target)
+        idx = self._expr_to_whyml(stmt.index.to_dict(), local_refs)
+        val = self._expr_to_whyml(stmt.value.to_dict(), local_refs)
         # Why3 array element assignment: a[i] <- v
         code = f"{indent}{arr}[{idx}] <- {val}"
         if rest:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
-    def _handle_tuple_unpack_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
+    def _handle_tuple_unpack_stmt(self, stmt: TupleUnpackStmt, rest: List[Dict[str, Any]],
                                    local_refs: Set[str], declared_refs: Set[str],
                                    indent: str, in_loop: bool) -> str:
-        targets = stmt["targets"]
-        val_whyml = self._expr_to_whyml(stmt["value"], local_refs)
+        targets = stmt.targets
+        val_ir = stmt.value.to_dict()
+        val_whyml = self._expr_to_whyml(val_ir, local_refs)
         safe_targets = [whyml_ident(t) for t in targets]
-        val_ir = stmt.get("value", {})
         if val_ir.get("type") == "Call":
             func_name = val_ir.get("func", "")
             nargs = len(val_ir.get("args", []))
@@ -405,7 +397,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 code += ";\n" + rest_code
         return code
 
-    def _handle_array_slice_set_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
+    def _handle_array_slice_set_stmt(self, stmt: ArraySliceSetStmt, rest: List[Dict[str, Any]],
                                       local_refs: Set[str], declared_refs: Set[str],
                                       indent: str, in_loop: bool) -> str:
         """`dst[lo:hi] = src` (src array-typed) → bounded `Array.blit`.
@@ -417,14 +409,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         gap 4 of missing-pycsl-ir-features.md — the array-valued RHS forms
         `dst[a:b] = struct.pack(...)` and `dst[a:b] = b'\\x00' * N`.
         """
-        arr = stmt["array"]
+        arr = stmt.array.to_dict()
         dst = self._expr_to_whyml(arr, local_refs)
-        lo = self._expr_to_whyml(stmt["lower"], local_refs)
-        if stmt.get("upper") is not None:
-            hi = self._expr_to_whyml(stmt["upper"], local_refs)
+        lo = self._expr_to_whyml(stmt.lower.to_dict(), local_refs)
+        if stmt.upper is not None:
+            hi = self._expr_to_whyml(stmt.upper.to_dict(), local_refs)
         else:
             hi = f"(Array.length {dst})"
-        src = self._expr_to_whyml(stmt["value"], local_refs)
+        src = self._expr_to_whyml(stmt.value.to_dict(), local_refs)
         # If `src` is a non-trivial expression (e.g. `Array.sub ...`), it
         # cannot be referenced inside a logic `assert {...}` (WhyML program
         # functions are not logic functions). Bind it to a fresh local first
@@ -450,10 +442,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return prologue + code
 
-    def _handle_array_set_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
+    def _handle_array_set_stmt(self, stmt: ArraySetStmt, rest: List[Dict[str, Any]],
                                 local_refs: Set[str], declared_refs: Set[str],
                                 indent: str, in_loop: bool) -> str:
-        arr = stmt["array"]
+        arr = stmt.array.to_dict()
         if arr.get("type") == "Var":
             var_name = arr.get("name", "")
             if var_name in getattr(self, "_dict_locals", set()):
@@ -468,13 +460,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 arr.get("value", {}).get("name") not in getattr(self, "_dict_locals", set())):
             base = arr["value"]["name"]
             row_expr = self._expr_to_whyml(arr["index"], local_refs)
-            col_expr = self._expr_to_whyml(stmt["index"], local_refs)
-            val_expr = self._expr_to_whyml(stmt["value"], local_refs)
+            col_expr = self._expr_to_whyml(stmt.index.to_dict(), local_refs)
+            val_expr = self._expr_to_whyml(stmt.value.to_dict(), local_refs)
             code = f"{indent}set {base} {row_expr} {col_expr} {val_expr}"
         else:
             array_expr = self._expr_to_whyml(arr, local_refs)
-            index_expr = self._expr_to_whyml(stmt["index"], local_refs)
-            val_expr = self._expr_to_whyml(stmt["value"], local_refs)
+            index_expr = self._expr_to_whyml(stmt.index.to_dict(), local_refs)
+            val_expr = self._expr_to_whyml(stmt.value.to_dict(), local_refs)
             if self._value_semantic:
                 var_name = arr.get("name", "") if arr.get("type") == "Var" else ""
                 is_dict = var_name in getattr(self, "_dict_locals", set())
@@ -565,13 +557,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
-    def _handle_critical_section_stmt(self, stmt: Dict[str, Any], rest: List[Dict[str, Any]],
+    def _handle_critical_section_stmt(self, stmt: CriticalSectionStmt, rest: List[Dict[str, Any]],
                                        local_refs: Set[str], declared_refs: Set[str],
                                        indent: str, in_loop: bool) -> str:
-        mutex = stmt["mutex"]
-        body_stmts = stmt["body"]
-        assume_inv = stmt.get("assume_invariant")
-        prove_inv = stmt.get("prove_invariant")
+        mutex = stmt.mutex
+        body_stmts = stmt.body
+        assume_inv = stmt.assume_invariant
+        prove_inv = stmt.prove_invariant
         shared_for_mutex = [
             sv["name"] for sv in self.ir.get("shared_vars", [])
             if sv.get("mutex") == mutex
@@ -593,13 +585,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 let_bindings.append(f"{indent}let {tmp} = any int in")
                 seq_parts.append(f"{indent}{safe_var} := {tmp}")
             self._in_spec = True
-            inv_str = self._expr_to_whyml(assume_inv, set())
+            inv_str = self._expr_to_whyml(assume_inv.to_dict(), set())
             self._in_spec = False
             app = self._mutex_inv_application(mutex, inv_str)
             seq_parts.append(f"{indent}assume {{ {app} }}")
         elif assume_inv:
             self._in_spec = True
-            inv_str = self._expr_to_whyml(assume_inv, local_refs)
+            inv_str = self._expr_to_whyml(assume_inv.to_dict(), local_refs)
             self._in_spec = False
             seq_parts.append(f"{indent}assume {{ {inv_str} }}")
         # 0417 (typecheck-audit.md residual): if the critical section is the TAIL of a
@@ -614,22 +606,23 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # `prove_inv` is present; every other shape (return outside the `with`, as in 0250;
         # no prove_inv; void return) takes the unchanged path → byte-identical emission.
         tail_ret = None
-        if (prove_inv and body_stmts and body_stmts[-1].get("stmt") == "Return"
-                and body_stmts[-1].get("value") is not None):
+        if (prove_inv and body_stmts and isinstance(body_stmts[-1], ReturnStmt)
+                and body_stmts[-1].value is not None):
             tail_ret = body_stmts[-1]
             body_stmts = body_stmts[:-1]
-        body_code = self._stmts_to_whyml(body_stmts, local_refs, declared_refs, indent, in_loop)
+        body_code = self._stmts_to_whyml(
+            [s.to_dict() for s in body_stmts], local_refs, declared_refs, indent, in_loop)
         if body_code:
             seq_parts.append(body_code)
         if prove_inv and shared_for_mutex:
             self._in_spec = True
-            inv_str = self._expr_to_whyml(prove_inv, set())
+            inv_str = self._expr_to_whyml(prove_inv.to_dict(), set())
             self._in_spec = False
             app = self._mutex_inv_application(mutex, inv_str)
             seq_parts.append(f"{indent}assert {{ {app} }}")
         elif prove_inv:
             self._in_spec = True
-            inv_str = self._expr_to_whyml(prove_inv, local_refs)
+            inv_str = self._expr_to_whyml(prove_inv.to_dict(), local_refs)
             self._in_spec = False
             seq_parts.append(f"{indent}assert {{ {inv_str} }}")
         if tail_ret is not None:
@@ -648,17 +641,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
     def _handle_augassign_stmt(
         self,
-        stmt: Dict[str, Any],
+        stmt: AugAssignStmt,
         rest: List[Dict[str, Any]],
         local_refs: Set[str],
         declared_refs: Set[str],
         indent: str,
         in_loop: bool,
     ) -> str:
-        target = stmt["target"]
+        target = stmt.target
         safe_target = whyml_ident(target)
-        val = self._expr_to_whyml(stmt["value"], local_refs)
-        raw_op = stmt["op"]
+        _val_d = stmt.value.to_dict()
+        val = self._expr_to_whyml(_val_d, local_refs)
+        raw_op = stmt.op
         op = op_translate(raw_op)
         bitwise_ops = {"&": "bit_and", "|": "bit_or", "^": "bit_xor",
                        "<<": "bit_lshift", ">>": "bit_rshift", "**": "py_pow"}
@@ -675,10 +669,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # 07-1705-rev4 P3: faithful growable concat. `a += b` → `a := !a ++ <b as seq>`
             # over the region-free `ref (seq int)`; length-additive and element-preserving
             # via the standard `seq.Seq` `++` axioms (proven in the 07-1732 P0 probe).
-            rhs = self._seq_operand(stmt.get("value", {}), local_refs)
+            rhs = self._seq_operand(_val_d, local_refs)
             code = f"{indent}{safe_target} := (!{safe_target} ++ {rhs})"
         elif raw_op == "+" and self._is_string_expr({"type": "Var", "name": target}) \
-                and self._is_string_expr(stmt.get("value", {})):
+                and self._is_string_expr(_val_d):
             # 14-string-field-codec-plan Gap (str-augassign): `s += t` on a
             # string-typed local/param lowers to the SAME string-concat bridge
             # `s + t` uses in `_binop_to_whyml` (`str_concat_op` in body, `concat`
@@ -687,7 +681,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # expected int). Fires only when BOTH the target is a str-typed
             # symbol AND the RHS is a string expression — byte-identical for
             # every non-string target (the prior path type-errored anyway).
-            val = self._expr_to_whyml(stmt["value"], local_refs)
+            val = self._expr_to_whyml(_val_d, local_refs)
             if getattr(self, "_in_spec", False):
                 code = f"{indent}{safe_target} := (concat !{safe_target} {val})"
             else:
@@ -714,16 +708,16 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
     def _handle_fieldassign_stmt(
         self,
-        stmt: Dict[str, Any],
+        stmt: FieldAssignStmt,
         rest: List[Dict[str, Any]],
         local_refs: Set[str],
         declared_refs: Set[str],
         indent: str,
         in_loop: bool,
     ) -> str:
-        obj = stmt["object"]
-        field = stmt["field"]
-        val = self._expr_to_whyml(stmt["value"], local_refs)
+        obj = stmt.object
+        field = stmt.field
+        val = self._expr_to_whyml(stmt.value.to_dict(), local_refs)
         if val == "true":
             val = "1"
         elif val == "false":
@@ -772,17 +766,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
     def _handle_fieldaugassign_stmt(
         self,
-        stmt: Dict[str, Any],
+        stmt: FieldAugAssignStmt,
         rest: List[Dict[str, Any]],
         local_refs: Set[str],
         declared_refs: Set[str],
         indent: str,
         in_loop: bool,
     ) -> str:
-        obj = stmt["object"]
-        field = stmt["field"]
-        val = self._expr_to_whyml(stmt["value"], local_refs)
-        op = op_translate(stmt["op"])
+        obj = stmt.object
+        field = stmt.field
+        val = self._expr_to_whyml(stmt.value.to_dict(), local_refs)
+        op = op_translate(stmt.op)
         safe_field = whyml_ident(field)
         decl_fields = self._all_record_fields
         if field in decl_fields:
@@ -807,14 +801,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
     def _handle_expr_stmt(
         self,
-        stmt: Dict[str, Any],
+        stmt: ExprStmt,
         rest: List[Dict[str, Any]],
         local_refs: Set[str],
         declared_refs: Set[str],
         indent: str,
         in_loop: bool,
     ) -> str:
-        val = stmt.get("value", {})
+        val = stmt.value.to_dict()
         if val.get("type") == "Call":
             func = val.get("func", "")
             if func.endswith(".append") and self._value_semantic:
@@ -871,58 +865,109 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         return code
 
     def _stmts_to_whyml(self, stmts: List[Dict[str, Any]], local_refs: Set[str], declared_refs: Set[str], indent: str, in_loop: bool = False) -> str:
-        """Recursively translates imperative statements into WhyML strings."""
+        """Recursively translates imperative statements into WhyML strings.
+
+        Phase B (ir-schema-spec.md §6): each wire dict is converted to a typed
+        `StmtIR` sum at entry (one `stmt_from_dict` call), then dispatched on
+        the typed sum via `isinstance`. The lowering (the WhyML string each
+        handler emits) is byte-identical to the prior dict-indexing path — the
+        typed sum is an in-memory representation change only. `to_dict` is the
+        inverse of `stmt_from_dict`, so nested `ExprIR`/`List[StmtIR]` fields
+        round-trip faithfully when passed back to the still dict-based
+        `_expr_to_whyml` / `_stmts_to_whyml` (Phase B migrates statements only;
+        expressions.py is a follow-on)."""
         if not stmts: return ""
 
-        stmt = stmts[0]
+        stmt_d = stmts[0]
         rest = stmts[1:]
+        stmt = stmt_from_dict(stmt_d)
         code = ""
-        s_type = stmt["stmt"]
 
-        # Uniform handlers (table-driven): each returns the fully-formed block.
-        handler = self._STMT_HANDLERS.get(s_type)
-        if handler is not None:
-            return getattr(self, handler)(stmt, rest, local_refs, declared_refs, indent, in_loop)
+        # Typed dispatch on the sum constructor (replaces the prior
+        # `_STMT_HANDLERS` string table + `s_type == "…"` inline branches).
+        # Each handler receives the typed subclass and uses typed field access.
+        if isinstance(stmt, GhostAssignStmt):
+            return self._handle_ghost_assign_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
+        if isinstance(stmt, GhostArraySetStmt):
+            return self._handle_ghost_array_set_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
+        if isinstance(stmt, AssignStmt):
+            return self._handle_assign_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
+        if isinstance(stmt, TupleUnpackStmt):
+            return self._handle_tuple_unpack_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
+        if isinstance(stmt, AugAssignStmt):
+            return self._handle_augassign_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
+        if isinstance(stmt, FieldAssignStmt):
+            return self._handle_fieldassign_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
+        if isinstance(stmt, FieldAugAssignStmt):
+            return self._handle_fieldaugassign_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
+        if isinstance(stmt, ArraySetStmt):
+            return self._handle_array_set_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
+        if isinstance(stmt, ArraySliceSetStmt):
+            return self._handle_array_slice_set_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
+        if isinstance(stmt, WhileStmt):
+            return self._handle_while_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
+        if isinstance(stmt, ReturnStmt):
+            return self._handle_return_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
+        if isinstance(stmt, IfStmt):
+            return self._handle_if_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
+        if isinstance(stmt, ForStmt):
+            return self._handle_for_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
+        if isinstance(stmt, ExprStmt):
+            return self._handle_expr_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
+        if isinstance(stmt, TryStmt):
+            return self._handle_try_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
+        if isinstance(stmt, MatchStmt):
+            return self._handle_match_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
+        if isinstance(stmt, CriticalSectionStmt):
+            return self._handle_critical_section_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
 
-        # Inline statement types. Label/Continue/Raise return directly; ProofAssert/
-        # Assert/Pass/Break set `code` and fall through to the rest-chaining tail.
-        if s_type == "Label":
-            # `label L in <rest>` — scopes over the entire remaining block
+        # Inline statement types (formerly inline in this orchestrator).
+        # Label/Continue/Raise return directly; ProofAssert/Assert/Pass/Break
+        # set `code` and fall through to the rest-chaining tail.
+        if isinstance(stmt, LabelStmt):
             rest_code = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
             if not rest_code:
                 rest_code = f"{indent}()"
-            return f"{indent}label {stmt['name']} in\n{rest_code}"
+            return f"{indent}label {stmt.name} in\n{rest_code}"
 
-        elif s_type == "Continue":
-            # Raise the continue exception caught by the enclosing For loop's try/with
+        if isinstance(stmt, ContinueStmt):
             return f"{indent}raise PyCSL_Continue"
 
-        elif s_type == "Raise":
-            exc_type = safe_exc_name(stmt.get("exc_type", "PyCSL_Exception"))
+        if isinstance(stmt, RaiseStmt):
+            exc_type = safe_exc_name(stmt.exc_type or "PyCSL_Exception")
             return f"{indent}raise {exc_type}"
 
-        elif s_type == "ProofAssert":
-            # `#@ assert P` (prove-and-assume) / `#@ check P` (prove-and-discard) —
-            # a REAL proof obligation, unlike the Python `assert` (no-op) below.
-            kw = "check" if stmt.get("kind") == "check" else "assert"
+        if isinstance(stmt, ProofAssertStmt):
+            kw = "check" if stmt.assert_kind == "check" else "assert"
             self._in_spec = True
-            pred = self._expr_to_whyml(stmt["test"], local_refs)
+            pred = self._expr_to_whyml(stmt.test.to_dict(), local_refs)
             self._in_spec = False
-            origin = stmt.get("origin")
+            origin = stmt.origin if stmt.origin is not _ABSENT else None
             comment = f"{indent}(* {origin} *)\n" if origin else ""
             code = f"{comment}{indent}{kw} {{ {pred} }}"
 
-        elif s_type == "Assert":
-            # Python assert statements are runtime checks, not proof obligations.
-            # Skip them in WhyML — the pycsl annotations define the proof goals.
+        elif isinstance(stmt, AssertStmt):
             code = f'{indent}()'
 
-        elif s_type == "Pass":
+        elif isinstance(stmt, PassStmt):
             code = f"{indent}()"
 
-        elif s_type == "Break":
-            # WhyML doesn't have break; model as exception
+        elif isinstance(stmt, BreakStmt):
             code = f"{indent}raise PyCSL_Break"
+
+        elif isinstance(stmt, OpaqueStmt):
+            # An OpaqueStmt means `stmt_from_dict` could not faithfully class
+            # the wire dict (extra attribution keys not modeled by the typed
+            # schema, or an unknown stmt kind). The standing gate's byte-diff
+            # catches any new occurrence loudly; extend the typed sum class to
+            # cover the missing field rather than falling back to dict indexing.
+            from errors import PyCSLSemanticError
+            raise PyCSLSemanticError(
+                f"untyped IR stmt kind {stmt.kind!r} (opaque) is not covered "
+                f"by the typed StmtIR dispatch; raw keys: {sorted(stmt_d.keys())}",
+                stage="module6-stmt-dispatch",
+                code="PYCSL-IR-OPAQUESTMT",
+            )
 
         # Chain sequence of statements with semicolons
         if rest:
