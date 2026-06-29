@@ -728,7 +728,8 @@ class FunctionEmissionMixin:
 
         func_pure = func.get("pure", False)
         func_lemma = func.get("lemma", False)
-        is_recursive = IRScanner.is_recursive(name, body_stmts)
+        is_recursive = (IRScanner.is_recursive(func["name"], body_stmts)
+                        or IRScanner.is_recursive(name, body_stmts))
         use_rec = bool(func_variants) or is_recursive
         # A lemma is `assigns \nothing` so the purity heuristic flags it pure, but it
         # must NOT emit as a `let function` (a term) — it is a `let [rec] lemma` whose

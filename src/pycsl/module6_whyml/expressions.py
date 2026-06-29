@@ -1710,6 +1710,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # from Γ's τ; base types via the subtag relation; symbolic at the `Any` tail).
             # Supersedes the old opaque `isinstance_check`.
             return self._handle_isinstance(expr)
+        if func_name == "getattr" and 2 <= len(expr.get("args", [])) <= 3:
+            # `getattr(obj, name[, default])` — attribute access on an arbitrary object.
+            # Sound lowering (additive; previously fell through to an opaque `getattr_N`
+            # abstract val that mismatched on record-typed `self`):
+            #  • If `obj` is a Var of a known record type and `name` is a string literal
+            #    matching a declared field → emit the genuine record field access
+            #    `obj.<field>` (lets `\result == self.f` postconditions prove).
+            #  • Otherwise (the dynamic-config case `getattr(self, "_x", {})` where
+            #    `_x` isn't a declared field) → emit the `default` argument directly.
+            #    getattr DOES return default for an absent attribute, so this is sound;
+            #    the actual runtime value is opaque to the prover (fails-safe: any
+            #    contract depending on the real value fails to prove, never proves false).
+            return self._lower_getattr(expr, args, local_refs, invariant_ctx, subst)
         if func_name in ("set", "frozenset") and len(args) == 0:
             # Body set: same `map int (option int)` model as body dicts.
             # Sets store `Some 0` for "present" keys, `None` for absent.
@@ -1965,6 +1978,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                       "dict": "tag_dict", "Dict": "tag_dict", "set": "tag_dict",
                       "frozenset": "tag_dict", "object": "tag_object"}
 
+    # Literal int values for the on-demand `tag_*` logic functions (see
+    # `_emit_metatype_tags`). In PROGRAM context Why3 rejects references to
+    # logic `function` symbols ("Logical symbol tag_int is used in a non-ghost
+    # context"), so `isinstance` lowered to a runtime int comparison inlines
+    # these literals instead of naming the ghost `tag_*` functions.
+    _TAG_LITERAL = {"tag_int": 0, "tag_str": 1, "tag_float": 2, "tag_list": 3,
+                    "tag_dict": 4, "tag_record": 5, "tag_variant": 6,
+                    "tag_object": 99}
+
     def _emit_metatype_tags(self) -> None:
         """Emit the tag constants + the `subtag` relation (P0-validated). Decision A:
         no `tag_bool` — bool collapses to `tag_int` (Γ has `τ(bool)=int`). subtag is
@@ -2033,7 +2055,61 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             self._add_abstract_op("val isinstance_op (x: int) (t: int) : bool")
             return "(isinstance_op 0 0)"
         self._emit_metatype_tags()
+        # In program (non-spec) context, `subtag` and the `tag_*` logic functions
+        # are ghost symbols Why3 rejects inside an `if`/`while` condition
+        # ("Logical symbol subtag/tag_int is used in a non-ghost context").
+        # Lower to a runtime int equality on the value's type-tag discriminant,
+        # inlining the tag's literal int on BOTH sides: `(<typeof x literal or
+        # typeof_op call> = <T's tag literal>)` is a plain int `=` producing a
+        # bool accepted in program `if`. In spec context the predicate form is
+        # kept (it carries the sub-typing relation `a = b \/ b = 99`, exercising
+        # the `object` base-type decision per corpus 0632).
+        if not getattr(self, "_in_spec", False):
+            lhs = self._tag_of_value(args_ir[0])
+            if lhs in self._TAG_LITERAL:
+                lhs = str(self._TAG_LITERAL[lhs])
+            return f"({lhs} = {self._TAG_LITERAL[t_tag]})"
         return f"(subtag {self._tag_of_value(args_ir[0])} {t_tag})"
+
+    def _lower_getattr(self, expr: Dict[str, Any], args: List[str],
+                       local_refs: Set[str], invariant_ctx: bool,
+                       subst: Optional[Dict[str, str]]) -> str:
+        """Lower `getattr(obj, name[, default])` — see the `getattr` branch in
+        `_handle_call_expr`. Record-field access when the field is statically known;
+        else the default (sound under-approximation)."""
+        args_ir = expr.get("args", [])
+        obj_ir = args_ir[0]
+        name_ir = args_ir[1] if len(args_ir) > 1 else {}
+        default_ir = args_ir[2] if len(args_ir) > 2 else {"type": "Number", "value": 0}
+        # Resolve `obj` to a known record-typed Var and `name` to a string literal.
+        if isinstance(obj_ir, dict) and obj_ir.get("type") == "Var":
+            obj_name = obj_ir.get("name", "")
+            st = getattr(self, "_current_symbol_table", {})
+            obj_type = st.get(obj_name)
+            if obj_type and obj_type.lower() in getattr(self, "_record_types", {}):
+                rec_info = self._record_types[obj_type.lower()]
+                fields = rec_info.get("fields", []) if isinstance(rec_info, dict) else []
+                if isinstance(name_ir, dict) and name_ir.get("type") == "String":
+                    attr = name_ir.get("value", "")
+                    if attr in fields:
+                        rec_lower = obj_type.lower()
+                        return f"{whyml_ident(obj_name)}.{self._field_label(rec_lower, attr)}"
+        # Dynamic-config / unknown-field path: emit the default. getattr returns
+        # `default` for an absent attribute, so this is sound (the real runtime
+        # value is opaque; any contract depending on it fails to prove).
+        # For a NON-scalar default (dict/list/set literal) the lowered form is a
+        # map/array, which would mismatch the enclosing local's int-typed `ref`
+        # slot (first-assignment inference sees a `Call` RHS, not a collection
+        # literal, so it can't promote the local to a dict/array). Coerce those
+        # to an opaque `0` — the dict/list content is then unmodeled (a `.get`
+        # chain on the result will not prove; fails-safe). A scalar int/bool
+        # default passes through faithfully.
+        if len(args_ir) <= 2:
+            return "0"
+        nt = default_ir.get("type") if isinstance(default_ir, dict) else ""
+        if nt in ("DictLit", "ArrayLit", "SetLit", "Call"):
+            return "0"
+        return self._expr_to_whyml(default_ir, local_refs, invariant_ctx, subst)
 
     def _subst_params(self, ir: Any, arg_nodes: Dict[str, Any]) -> Any:
         """Deep-copy a value IR, replacing each `Var(param)` with its pre-lowered arg
