@@ -172,12 +172,12 @@ theorem test_is_sorted_empty (st : List (Ident × Val)) :
 -- Test 21: Phase 4 CValid is vacuously true (Hoare stub)
 theorem test_cvalid_hoare_stub (st : List (Ident × Val)) :
     evalContract st st none (.cValid (.var "p") (.int 10)) := by
-  simp [evalContract]
+  simp [evalContract, valid]
 
 -- Test 22: Phase 4 CSeparated is vacuously true (Hoare stub)
 theorem test_cseparated_hoare_stub (st : List (Ident × Val)) :
     evalContract st st none (.cSeparated (.var "a") (.var "b")) := by
-  simp [evalContract]
+  simp [evalContract, separated]
 
 -- Test 23: Phase 4 CLength2d returns array length (flat model)
 theorem test_clength2d_flat (st : List (Ident × Val)) (a : List Int)

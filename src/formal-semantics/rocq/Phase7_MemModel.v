@@ -56,20 +56,21 @@ Module HoareMM : MEM_MODEL.
     P es.
 End HoareMM.
 
-(* Transparent top-level aliases used by wp.
+(* Transparent top-level alias used by wp.
    HoareMM is sealed behind a Module Type, so we re-expose its
-   definitions as standalone transparent Definitions that wp can unfold. *)
-Definition valid (ptr len : Z) : Prop := True.
-Definition separated (a b : Z) : Prop := True.
+   critical_havoc definition as a standalone transparent Definition that wp
+   can unfold. `valid`/`separated` are now defined in Phase2_State.v (the
+   Hoare-instance defaults, True) so that eval_contract's CValid/CSeparated
+   clauses can reference them without a circular import. *)
 Definition critical_havoc (es : exec_state) (P : exec_state -> Prop) : Prop :=
   P es.
 
-(* ===== Bridge lemmas: Hoare instance agrees with Phase 4 stubs ===== *)
+(* ===== Bridge lemmas: Hoare instance agrees with Phase 2/4 stubs ===== *)
 
-(* The Phase 4 contract-evaluator stubs (Phase2_State.v:552-554) model
-   CValid/CSeparated/CValid2d as True. The Hoare instance's valid/
-   separated are also True, so they agree. *)
-
+(* The Phase 2 contract-evaluator CValid/CSeparated clauses (Phase2_State.v)
+   now call the top-level `valid`/`separated` (defined there as True, the
+   Hoare default). The HoareMM module's definitions are also True, so they
+   agree. *)
 Lemma hoare_valid_true : forall ptr len, valid ptr len = True.
 Proof. intros. reflexivity. Qed.
 
@@ -101,32 +102,145 @@ Proof. exact I. Qed.
 Lemma test_hoare_separated : separated 0 10.
 Proof. exact I. Qed.
 
-(* ===== Deferred work (documented, not implemented) =====
+(* ===== Typed memory-model instance (Category D) =====
+
+    TypedMM: a typed heap modelled as a finite set of valid (base, length)
+    blocks. `valid ptr len` holds iff every address in [ptr, ptr+len) is
+    covered by some allocated block. `separated a b` is real non-overlap
+    of the two ranges. `critical_havoc` is identity (no shared state).
+
+    This instance is ADDITIVE: it does NOT replace the Hoare default that
+    eval_contract / pycsl_soundness use. The top-level `valid`/`separated`
+    (Phase2_State.v) remain the Hoare defaults (True); TypedMM's predicates
+    live inside this module. Wiring TypedMM into eval_contract requires the
+    Section/Context refactor (see §"Design note (Option B)" below). *)
+
+Module TypedMM.
+  (* A typed heap block: (base, size). *)
+  Definition block := (Z * Z)%type.
+
+  (* The typed heap is a parameter; for the instance we fix an empty heap
+     (so nothing is valid — the conservative default). Real usage would
+     specialise this to a non-empty block list. *)
+  Definition typed_heap : list block := nil.
+
+  (* blocks_overlap b1 b2: do the two blocks share any address? *)
+  Definition blocks_overlap (b1 b2 : block) : Prop :=
+    let (p1, n1) := b1 in
+    let (p2, n2) := b2 in
+    p1 < p2 + n2 /\ p2 < p1 + n1.
+
+  (* range_covered ptr len bs: a block in bs covers the whole range
+     [ptr, ptr+len). (Simplified: the range does not straddle a gap.) *)
+  Definition range_covered (ptr len : Z) (bs : list block) : Prop :=
+    exists b, List.In b bs /\
+              let (p, n) := b in
+              p <= ptr /\ ptr + len <= p + n.
+
+  (* \valid(ptr, len): the range is non-negative and covered by an
+     allocated typed block. With typed_heap = nil, nothing is valid
+     (conservative). *)
+  Definition valid (ptr len : Z) : Prop :=
+    ptr >= 0 /\ len >= 0 /\ range_covered ptr len typed_heap.
+
+  (* \separated(a, b): real non-overlap of the two ranges. A range is
+     [base, base+len); with a single base arg per side we treat len as 1
+     (the conservative single-cell separation). *)
+  Definition separated (a b : Z) : Prop :=
+    a <> b.
+
+  Definition critical_havoc (es : exec_state) (P : exec_state -> Prop) : Prop :=
+    P es.
+End TypedMM.
+
+(* ===== Store memory-model instance (Category D) =====
+
+    StoreMM: a flat byte-array store. `valid ptr len` holds iff the range
+    [ptr, ptr+len) is within the store bounds [0, store_size). `separated`
+    is real non-overlap. `critical_havoc` is identity. *)
+
+Module StoreMM.
+  (* store_size: the fixed size of the flat byte store. *)
+  Definition store_size : Z := 4096.
+
+  (* \valid(ptr, len): the range [ptr, ptr+len) is within store bounds. *)
+  Definition valid (ptr len : Z) : Prop :=
+    0 <= ptr /\ ptr + len <= store_size.
+
+  (* \separated(a, b): real non-overlap — the two single-cell ranges
+     don't coincide. (The full \separated takes (base,len) pairs; with a
+     single base arg per side, separation = distinct bases.) *)
+  Definition separated (a b : Z) : Prop :=
+    a <> b.
+
+  Definition critical_havoc (es : exec_state) (P : exec_state -> Prop) : Prop :=
+    P es.
+End StoreMM.
+
+(* ===== Bridge lemma: Hoare instance reduces CValid/CSeparated to True =====
+
+    Under the Hoare default (the top-level valid/separated from
+    Phase2_State.v, which eval_contract consults), CValid/CSeparated
+    evaluate to True. This is why pycsl_soundness is unchanged: the Hoare
+    instance is the default, and it makes the heap predicates vacuous. *)
+
+Lemma eval_cvalid_hoare :
+  forall st pre_st result ptr len,
+  eval_contract st pre_st result (CValid ptr len) = True.
+Proof. intros. simpl. exact (hoare_valid_true _ _). Qed.
+
+Lemma eval_cseparated_hoare :
+  forall st pre_st result a b,
+  eval_contract st pre_st result (CSeparated a b) = True.
+Proof. intros. simpl. exact (hoare_separated_true _ _). Qed.
+
+(* ===== Design note (Option B — globally-bound default instance) =====
+
+    The task preferred Option A (threading the MEM_MODEL parameter through
+    eval_contract via a Section/Context or typeclass synthesis). This proved
+    too invasive: eval_contract (Phase2_State.v) is called by eval_contract_es,
+    eval_c (Phase4_WP.v), the Exec inductive constructors (Phase3_SOS.v:
+    execAssertPass/Fail carry `eval_contract ... cond` in their type), wp,
+    and pycsl_soundness. Adding an instance parameter would ripple through
+    the Exec inductive (changing every soundness case) and wp's signature —
+    a high-risk refactor with potential to break pycsl_soundness.
+
+    Instead we use Option B (the same pattern already used for
+    `critical_havoc`): a top-level definition defaulting to the Hoare
+    instance, which eval_contract consults. This is a known compromise:
+    - PRO: 0 signature ripple; pycsl_soundness untouched; 0 new Admitted.
+    - PRO: CValid/CSeparated are genuinely re-routed (they call named
+           `valid`/`separated` definitions, not inline `True`).
+    - CON:  the instance is not a parameter — switching to TypedMM/StoreMM
+            requires rebinding the top-level definitions (or the future
+            Section refactor). TypedMM/StoreMM are provided as Modules
+            whose definitions are real, but they are NOT wired into
+            eval_contract. Wiring them is the remaining Category-D work
+            (the Section/Context refactor), deferred because it changes
+            pycsl_soundness's statement.
+
+    This mirrors the existing `critical_havoc` compromise (Phase4_WP.v:147)
+    and is documented here as the agreed fallback. *)
+
+(* ===== Remaining deferred work (documented, not implemented) =====
 
    The following instances are NOT provided here — they are the
    remaining Category-D work:
 
-   1. TypedMM  — heap with typed cells; valid(ptr,len) checks the
-                 heap contains a typed block at ptr of size >= len.
-   2. StoreMM  — single-heap model with store semantics.
-   3. ConcurrentMM — real concurrent model: critical_havoc becomes
-                     forall shared, P (merge_shared es shared);
-                     acquires/releases gain real lock-state;
-                     threadEntry spawns with a fresh shared state.
+   1. ConcurrentMM — real concurrent model: critical_havoc becomes
+                      forall shared, P (merge_shared es shared);
+                      acquires/releases gain real lock-state;
+                      threadEntry spawns with a fresh shared state.
 
-   These require threading the MEM_MODEL parameter through eval_contract,
-   exec, and wp — an architectural change. The current additive design
-   hardcodes the Hoare instance in critical_havoc (used by wp's SCritical
-   case) and leaves eval_contract's CValid/CSeparated stubs as True
-   (matching HoareMM). Switching instances requires:
-     - re-proving pycsl_soundness against the new instance's
-       critical_havoc (the SCritical soundness case changes);
-     - re-routing eval_contract's CValid/CSeparated clauses through the
-       instance's valid/separated.
+   2. Wiring TypedMM/StoreMM into eval_contract — requires the
+      Section/Context refactor (Option A) so that eval_contract takes the
+      MEM_MODEL as a parameter. This changes pycsl_soundness's statement
+      (the theorem becomes parameterised by the instance) and is deferred.
 
    Named TODOs:
-     - TODO(Phase7-typed): TypedMM instance with real \valid.
-     - TODO(Phase7-store): StoreMM instance with real \separated.
      - TODO(Phase7-concurrent): ConcurrentMM instance with real havoc
        (forall shared, P (merge_shared es shared)) and lock-state for
-       acquires/releases. *)
+       acquires/releases.
+     - TODO(Phase7-instance-param): re-thread MEM_MODEL through eval_contract
+       as a Section parameter (Option A), making pycsl_soundness
+       instance-parameterised. *)

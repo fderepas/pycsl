@@ -168,6 +168,19 @@ def evalArrayIn (st preSt : State) (result : Option Val)
     | _ => False
   | _ => False
 
+-- ===== Phase 7 (Category D): Memory-model predicates (Hoare default) =====
+
+/-- These top-level definitions are the Hoare-instance `valid`/`separated`
+    (both `True`). `evalContract`'s `.cValid`/`.cSeparated` clauses call
+    them, so the heap-dependent predicates are re-routed through a named
+    MemModel surface rather than being inline `True`. `MemModel.lean`
+    provides the `MemModel` class, the `HoareMM` instance (whose definitions
+    are provably equal to these), and the new `TypedMM`/`StoreMM` instances
+    with real heap predicates. `pycslSoundness` uses these Hoare defaults
+    (unchanged). -/
+def valid (ptr len : Int) : Prop := True
+def separated (a b : Int) : Prop := True
+
 mutual
   def evalZ (st preSt : State) (result : Option Val) : ContractExpr → Int
     | .int n => n
@@ -262,13 +275,21 @@ mutual
                       | some (.array a) => v ∈ a
                       | _ => False
         | _ => False
-    -- Phase 2 and later: opaque/placeholder
-    -- Phase 4 — Category C library predicates (Hoare-model stubs).
-    -- \valid, \separated, \valid2d are heap-dependent; the Hoare model has
-    -- no heap, so they are vacuously True. They become real predicates when
-    -- Phase 7 (memory-model parameterisation) lands a heap interface.
-    | .cValid _ _ => True
-    | .cSeparated _ _ => True
+    -- Phase 4 — Category C library predicates (heap-dependent).
+    -- \valid, \separated, \valid2d are heap-dependent; Phase 7 (memory-model
+    -- parameterisation) re-routes \valid/\separated through the MemModel
+    -- interface. The top-level `valid`/`separated` definitions below
+    -- (Hoare instance: True) are what evalContract consults; alternative
+    -- instances (TypedMM, StoreMM in MemModel.lean) provide real heap
+    -- predicates but do NOT replace the Hoare default used by
+    -- pycslSoundness. This mirrors how `criticalHavoc` is re-routed
+    -- (WP.lean, defined in MemModel.lean). See MemModel.lean §"Design
+    -- note (Option B)" for the compromise rationale. \valid2d remains
+    -- True (no 2D heap model yet).
+    | .cValid ptr len =>
+      valid (evalZ st preSt result ptr) (evalZ st preSt result len)
+    | .cSeparated a b =>
+      separated (evalZ st preSt result a) (evalZ st preSt result b)
     | .cValid2d _ _ _ => True
     -- Phase 6 — class invariant: evaluate the predicate over current state.
     -- The className tag is documentation-only in the Hoare model; the

@@ -1,0 +1,217 @@
+DIGEST 3a3cce29d111e3c9d9119b9ada96280f
+FPyCSL.Phase6e_HandleAssignEnglish
+R1668:1673 Coq.ZArith.ZArith <> <> lib
+R1675:1680 Coq.Strings.String <> <> lib
+R1682:1685 Coq.Lists.List <> <> lib
+R1687:1690 Coq.Bool.Bool <> <> lib
+R1708:1717 PyCSL.Phase1_AST <> <> lib
+R1735:1746 PyCSL.Phase2_State <> <> lib
+R1764:1772 PyCSL.Phase4_WP <> <> lib
+R1790:1801 PyCSL.Phase6_WhyML <> <> lib
+R1819:1829 PyCSL.Phase6b_WPW <> <> lib
+R1847:1861 PyCSL.Phase6d_StmtGen <> <> lib
+R1879:1897 PyCSL.Phase6e_Corr_Simple <> <> lib
+ind 2109:2121 <> assign_branch
+constr 2137:2144 <> BrShared
+constr 2211:2217 <> BrFresh
+constr 2285:2294 <> BrExisting
+scheme 2109:2121 <> assign_branch_rect
+scheme 2109:2121 <> assign_branch_ind
+scheme 2109:2121 <> assign_branch_rec
+scheme 2109:2121 <> assign_branch_sind
+def 2622:2641 <> gen_assign_by_branch
+R2652:2664 PyCSL.Phase6e_HandleAssignEnglish <> assign_branch ind
+binder 2648:2648 <> b:3
+R2672:2676 PyCSL.Phase1_AST <> ident def
+binder 2668:2668 <> x:4
+R2684:2687 PyCSL.Phase1_AST <> expr ind
+binder 2680:2680 <> e:5
+R2692:2701 PyCSL.Phase6_WhyML <> whyml_stmt ind
+R2714:2714 PyCSL.Phase6e_HandleAssignEnglish <> b:3 var
+R2725:2732 PyCSL.Phase6e_HandleAssignEnglish <> BrShared constr
+R2739:2745 PyCSL.Phase6_WhyML <> WAssign constr
+R2747:2747 PyCSL.Phase6e_HandleAssignEnglish <> x:4 var
+R2749:2749 PyCSL.Phase6e_HandleAssignEnglish <> e:5 var
+R2755:2761 PyCSL.Phase6e_HandleAssignEnglish <> BrFresh constr
+R2769:2775 PyCSL.Phase6_WhyML <> WAssign constr
+R2777:2777 PyCSL.Phase6e_HandleAssignEnglish <> x:4 var
+R2779:2779 PyCSL.Phase6e_HandleAssignEnglish <> e:5 var
+R2785:2794 PyCSL.Phase6e_HandleAssignEnglish <> BrExisting constr
+R2799:2805 PyCSL.Phase6_WhyML <> WAssign constr
+R2807:2807 PyCSL.Phase6e_HandleAssignEnglish <> x:4 var
+R2809:2809 PyCSL.Phase6e_HandleAssignEnglish <> e:5 var
+prf 2943:2969 <> gen_assign_by_branch_eq_gen
+binder 2982:2982 <> b:7
+binder 2984:2984 <> x:8
+binder 2986:2986 <> e:9
+R3015:3017 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R2989:3008 PyCSL.Phase6e_HandleAssignEnglish <> gen_assign_by_branch def
+R3010:3010 PyCSL.Phase6e_HandleAssignEnglish <> b:7 var
+R3012:3012 PyCSL.Phase6e_HandleAssignEnglish <> x:8 var
+R3014:3014 PyCSL.Phase6e_HandleAssignEnglish <> e:9 var
+R3018:3020 PyCSL.Phase6d_StmtGen <> gen def
+R3023:3029 PyCSL.Phase1_AST <> SAssign constr
+R3031:3031 PyCSL.Phase6e_HandleAssignEnglish <> x:8 var
+R3033:3033 PyCSL.Phase6e_HandleAssignEnglish <> e:9 var
+prf 3265:3280 <> wp_branch_shared
+binder 3293:3293 <> x:10
+binder 3295:3295 <> e:11
+binder 3297:3298 <> Qn:12
+binder 3300:3301 <> Qr:13
+binder 3303:3304 <> Qc:14
+binder 3306:3307 <> Qb:15
+binder 3309:3310 <> Qe:16
+binder 3312:3317 <> pre_es:17
+binder 3319:3320 <> es:18
+R3366:3372 Coq.Init.Logic <> ::type_scope:x_'<->'_x not
+R3325:3326 PyCSL.Phase4_WP <> wp def
+R3329:3335 PyCSL.Phase1_AST <> SAssign constr
+R3337:3337 PyCSL.Phase6e_HandleAssignEnglish <> x:10 var
+R3339:3339 PyCSL.Phase6e_HandleAssignEnglish <> e:11 var
+R3342:3343 PyCSL.Phase6e_HandleAssignEnglish <> Qn:12 var
+R3345:3346 PyCSL.Phase6e_HandleAssignEnglish <> Qr:13 var
+R3348:3349 PyCSL.Phase6e_HandleAssignEnglish <> Qc:14 var
+R3351:3352 PyCSL.Phase6e_HandleAssignEnglish <> Qb:15 var
+R3354:3355 PyCSL.Phase6e_HandleAssignEnglish <> Qe:16 var
+R3357:3362 PyCSL.Phase6e_HandleAssignEnglish <> pre_es:17 var
+R3364:3365 PyCSL.Phase6e_HandleAssignEnglish <> es:18 var
+R3373:3376 PyCSL.Phase6b_WPW <> wp_w def
+R3379:3398 PyCSL.Phase6e_HandleAssignEnglish <> gen_assign_by_branch def
+R3400:3407 PyCSL.Phase6e_HandleAssignEnglish <> BrShared constr
+R3409:3409 PyCSL.Phase6e_HandleAssignEnglish <> x:10 var
+R3411:3411 PyCSL.Phase6e_HandleAssignEnglish <> e:11 var
+R3422:3424 PyCSL.Phase6b_WPW <> enc def
+R3426:3427 PyCSL.Phase6e_HandleAssignEnglish <> Qn:12 var
+R3429:3430 PyCSL.Phase6e_HandleAssignEnglish <> Qr:13 var
+R3432:3433 PyCSL.Phase6e_HandleAssignEnglish <> Qc:14 var
+R3435:3436 PyCSL.Phase6e_HandleAssignEnglish <> Qb:15 var
+R3438:3439 PyCSL.Phase6e_HandleAssignEnglish <> Qe:16 var
+R3442:3447 PyCSL.Phase6e_HandleAssignEnglish <> pre_es:17 var
+R3449:3450 PyCSL.Phase6e_HandleAssignEnglish <> es:18 var
+R3478:3504 PyCSL.Phase6e_HandleAssignEnglish <> gen_assign_by_branch_eq_gen thm
+R3478:3504 PyCSL.Phase6e_HandleAssignEnglish <> gen_assign_by_branch_eq_gen thm
+R3478:3504 PyCSL.Phase6e_HandleAssignEnglish <> gen_assign_by_branch_eq_gen thm
+R3513:3525 PyCSL.Phase6e_Corr_Simple <> wp_gen_assign thm
+R3513:3525 PyCSL.Phase6e_Corr_Simple <> wp_gen_assign thm
+prf 3540:3554 <> wp_branch_fresh
+binder 3567:3567 <> x:19
+binder 3569:3569 <> e:20
+binder 3571:3572 <> Qn:21
+binder 3574:3575 <> Qr:22
+binder 3577:3578 <> Qc:23
+binder 3580:3581 <> Qb:24
+binder 3583:3584 <> Qe:25
+binder 3586:3591 <> pre_es:26
+binder 3593:3594 <> es:27
+R3640:3646 Coq.Init.Logic <> ::type_scope:x_'<->'_x not
+R3599:3600 PyCSL.Phase4_WP <> wp def
+R3603:3609 PyCSL.Phase1_AST <> SAssign constr
+R3611:3611 PyCSL.Phase6e_HandleAssignEnglish <> x:19 var
+R3613:3613 PyCSL.Phase6e_HandleAssignEnglish <> e:20 var
+R3616:3617 PyCSL.Phase6e_HandleAssignEnglish <> Qn:21 var
+R3619:3620 PyCSL.Phase6e_HandleAssignEnglish <> Qr:22 var
+R3622:3623 PyCSL.Phase6e_HandleAssignEnglish <> Qc:23 var
+R3625:3626 PyCSL.Phase6e_HandleAssignEnglish <> Qb:24 var
+R3628:3629 PyCSL.Phase6e_HandleAssignEnglish <> Qe:25 var
+R3631:3636 PyCSL.Phase6e_HandleAssignEnglish <> pre_es:26 var
+R3638:3639 PyCSL.Phase6e_HandleAssignEnglish <> es:27 var
+R3647:3650 PyCSL.Phase6b_WPW <> wp_w def
+R3653:3672 PyCSL.Phase6e_HandleAssignEnglish <> gen_assign_by_branch def
+R3674:3680 PyCSL.Phase6e_HandleAssignEnglish <> BrFresh constr
+R3682:3682 PyCSL.Phase6e_HandleAssignEnglish <> x:19 var
+R3684:3684 PyCSL.Phase6e_HandleAssignEnglish <> e:20 var
+R3695:3697 PyCSL.Phase6b_WPW <> enc def
+R3699:3700 PyCSL.Phase6e_HandleAssignEnglish <> Qn:21 var
+R3702:3703 PyCSL.Phase6e_HandleAssignEnglish <> Qr:22 var
+R3705:3706 PyCSL.Phase6e_HandleAssignEnglish <> Qc:23 var
+R3708:3709 PyCSL.Phase6e_HandleAssignEnglish <> Qb:24 var
+R3711:3712 PyCSL.Phase6e_HandleAssignEnglish <> Qe:25 var
+R3715:3720 PyCSL.Phase6e_HandleAssignEnglish <> pre_es:26 var
+R3722:3723 PyCSL.Phase6e_HandleAssignEnglish <> es:27 var
+R3751:3777 PyCSL.Phase6e_HandleAssignEnglish <> gen_assign_by_branch_eq_gen thm
+R3751:3777 PyCSL.Phase6e_HandleAssignEnglish <> gen_assign_by_branch_eq_gen thm
+R3751:3777 PyCSL.Phase6e_HandleAssignEnglish <> gen_assign_by_branch_eq_gen thm
+R3786:3798 PyCSL.Phase6e_Corr_Simple <> wp_gen_assign thm
+R3786:3798 PyCSL.Phase6e_Corr_Simple <> wp_gen_assign thm
+prf 3813:3830 <> wp_branch_existing
+binder 3843:3843 <> x:28
+binder 3845:3845 <> e:29
+binder 3847:3848 <> Qn:30
+binder 3850:3851 <> Qr:31
+binder 3853:3854 <> Qc:32
+binder 3856:3857 <> Qb:33
+binder 3859:3860 <> Qe:34
+binder 3862:3867 <> pre_es:35
+binder 3869:3870 <> es:36
+R3916:3922 Coq.Init.Logic <> ::type_scope:x_'<->'_x not
+R3875:3876 PyCSL.Phase4_WP <> wp def
+R3879:3885 PyCSL.Phase1_AST <> SAssign constr
+R3887:3887 PyCSL.Phase6e_HandleAssignEnglish <> x:28 var
+R3889:3889 PyCSL.Phase6e_HandleAssignEnglish <> e:29 var
+R3892:3893 PyCSL.Phase6e_HandleAssignEnglish <> Qn:30 var
+R3895:3896 PyCSL.Phase6e_HandleAssignEnglish <> Qr:31 var
+R3898:3899 PyCSL.Phase6e_HandleAssignEnglish <> Qc:32 var
+R3901:3902 PyCSL.Phase6e_HandleAssignEnglish <> Qb:33 var
+R3904:3905 PyCSL.Phase6e_HandleAssignEnglish <> Qe:34 var
+R3907:3912 PyCSL.Phase6e_HandleAssignEnglish <> pre_es:35 var
+R3914:3915 PyCSL.Phase6e_HandleAssignEnglish <> es:36 var
+R3923:3926 PyCSL.Phase6b_WPW <> wp_w def
+R3929:3948 PyCSL.Phase6e_HandleAssignEnglish <> gen_assign_by_branch def
+R3950:3959 PyCSL.Phase6e_HandleAssignEnglish <> BrExisting constr
+R3961:3961 PyCSL.Phase6e_HandleAssignEnglish <> x:28 var
+R3963:3963 PyCSL.Phase6e_HandleAssignEnglish <> e:29 var
+R3974:3976 PyCSL.Phase6b_WPW <> enc def
+R3978:3979 PyCSL.Phase6e_HandleAssignEnglish <> Qn:30 var
+R3981:3982 PyCSL.Phase6e_HandleAssignEnglish <> Qr:31 var
+R3984:3985 PyCSL.Phase6e_HandleAssignEnglish <> Qc:32 var
+R3987:3988 PyCSL.Phase6e_HandleAssignEnglish <> Qb:33 var
+R3990:3991 PyCSL.Phase6e_HandleAssignEnglish <> Qe:34 var
+R3994:3999 PyCSL.Phase6e_HandleAssignEnglish <> pre_es:35 var
+R4001:4002 PyCSL.Phase6e_HandleAssignEnglish <> es:36 var
+R4030:4056 PyCSL.Phase6e_HandleAssignEnglish <> gen_assign_by_branch_eq_gen thm
+R4030:4056 PyCSL.Phase6e_HandleAssignEnglish <> gen_assign_by_branch_eq_gen thm
+R4030:4056 PyCSL.Phase6e_HandleAssignEnglish <> gen_assign_by_branch_eq_gen thm
+R4065:4077 PyCSL.Phase6e_Corr_Simple <> wp_gen_assign thm
+R4065:4077 PyCSL.Phase6e_Corr_Simple <> wp_gen_assign thm
+prf 4568:4597 <> handle_assign_branches_correct
+binder 4610:4610 <> b:37
+binder 4612:4612 <> x:38
+binder 4614:4614 <> e:39
+binder 4616:4617 <> Qn:40
+binder 4619:4620 <> Qr:41
+binder 4622:4623 <> Qc:42
+binder 4625:4626 <> Qb:43
+binder 4628:4629 <> Qe:44
+binder 4631:4636 <> pre_es:45
+binder 4638:4639 <> es:46
+R4685:4691 Coq.Init.Logic <> ::type_scope:x_'<->'_x not
+R4644:4645 PyCSL.Phase4_WP <> wp def
+R4648:4654 PyCSL.Phase1_AST <> SAssign constr
+R4656:4656 PyCSL.Phase6e_HandleAssignEnglish <> x:38 var
+R4658:4658 PyCSL.Phase6e_HandleAssignEnglish <> e:39 var
+R4661:4662 PyCSL.Phase6e_HandleAssignEnglish <> Qn:40 var
+R4664:4665 PyCSL.Phase6e_HandleAssignEnglish <> Qr:41 var
+R4667:4668 PyCSL.Phase6e_HandleAssignEnglish <> Qc:42 var
+R4670:4671 PyCSL.Phase6e_HandleAssignEnglish <> Qb:43 var
+R4673:4674 PyCSL.Phase6e_HandleAssignEnglish <> Qe:44 var
+R4676:4681 PyCSL.Phase6e_HandleAssignEnglish <> pre_es:45 var
+R4683:4684 PyCSL.Phase6e_HandleAssignEnglish <> es:46 var
+R4692:4695 PyCSL.Phase6b_WPW <> wp_w def
+R4698:4717 PyCSL.Phase6e_HandleAssignEnglish <> gen_assign_by_branch def
+R4719:4719 PyCSL.Phase6e_HandleAssignEnglish <> b:37 var
+R4721:4721 PyCSL.Phase6e_HandleAssignEnglish <> x:38 var
+R4723:4723 PyCSL.Phase6e_HandleAssignEnglish <> e:39 var
+R4734:4736 PyCSL.Phase6b_WPW <> enc def
+R4738:4739 PyCSL.Phase6e_HandleAssignEnglish <> Qn:40 var
+R4741:4742 PyCSL.Phase6e_HandleAssignEnglish <> Qr:41 var
+R4744:4745 PyCSL.Phase6e_HandleAssignEnglish <> Qc:42 var
+R4747:4748 PyCSL.Phase6e_HandleAssignEnglish <> Qb:43 var
+R4750:4751 PyCSL.Phase6e_HandleAssignEnglish <> Qe:44 var
+R4754:4759 PyCSL.Phase6e_HandleAssignEnglish <> pre_es:45 var
+R4761:4762 PyCSL.Phase6e_HandleAssignEnglish <> es:46 var
+R4837:4852 PyCSL.Phase6e_HandleAssignEnglish <> wp_branch_shared thm
+R4837:4852 PyCSL.Phase6e_HandleAssignEnglish <> wp_branch_shared thm
+R4865:4879 PyCSL.Phase6e_HandleAssignEnglish <> wp_branch_fresh thm
+R4865:4879 PyCSL.Phase6e_HandleAssignEnglish <> wp_branch_fresh thm
+R4892:4909 PyCSL.Phase6e_HandleAssignEnglish <> wp_branch_existing thm
+R4892:4909 PyCSL.Phase6e_HandleAssignEnglish <> wp_branch_existing thm

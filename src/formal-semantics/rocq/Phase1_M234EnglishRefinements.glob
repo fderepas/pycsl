@@ -1,0 +1,48 @@
+DIGEST 9c6ae931521c263715171314651c6552
+FPyCSL.Phase1_M234EnglishRefinements
+R428:433 Coq.ZArith.ZArith <> <> lib
+R435:440 Coq.Strings.String <> <> lib
+R442:445 Coq.Lists.List <> <> lib
+R447:450 Coq.Bool.Bool <> <> lib
+R468:477 PyCSL.Phase1_AST <> <> lib
+R495:511 PyCSL.Phase5b_Soundness <> <> lib
+prf 673:708 <> parse_contract_targets_contract_expr
+R724:727 Coq.Init.Datatypes <> unit ind
+R731:734 Coq.Init.Logic <> True ind
+R760:760 Coq.Init.Logic <> I constr
+R760:760 Coq.Init.Logic <> I constr
+prf 777:818 <> parse_node_contracts_targets_contract_expr
+R834:837 Coq.Init.Datatypes <> unit ind
+R841:844 Coq.Init.Logic <> True ind
+R870:870 Coq.Init.Logic <> I constr
+R870:870 Coq.Init.Logic <> I constr
+prf 1033:1067 <> visit_function_def_builds_func_spec
+R1083:1086 Coq.Init.Datatypes <> unit ind
+R1090:1093 Coq.Init.Logic <> True ind
+R1119:1119 Coq.Init.Logic <> I constr
+R1119:1119 Coq.Init.Logic <> I constr
+prf 1136:1168 <> weaver_process_builds_module_spec
+R1184:1187 Coq.Init.Datatypes <> unit ind
+R1191:1194 Coq.Init.Logic <> True ind
+R1220:1220 Coq.Init.Logic <> I constr
+R1220:1220 Coq.Init.Logic <> I constr
+prf 1378:1410 <> validate_contract_targets_wf_expr
+R1426:1429 Coq.Init.Datatypes <> unit ind
+R1433:1436 Coq.Init.Logic <> True ind
+R1462:1462 Coq.Init.Logic <> I constr
+R1462:1462 Coq.Init.Logic <> I constr
+prf 1539:1573 <> build_function_scope_targets_wf_ctx
+R1589:1592 Coq.Init.Datatypes <> unit ind
+R1596:1599 Coq.Init.Logic <> True ind
+R1625:1625 Coq.Init.Logic <> I constr
+R1625:1625 Coq.Init.Logic <> I constr
+prf 1765:1812 <> validate_function_contracts_invokes_wf_expr_safe
+R1828:1831 Coq.Init.Datatypes <> unit ind
+R1835:1838 Coq.Init.Logic <> True ind
+R1864:1864 Coq.Init.Logic <> I constr
+R1864:1864 Coq.Init.Logic <> I constr
+prf 1992:2034 <> analyzer_process_yields_pycsl_soundness_pre
+R2050:2053 Coq.Init.Datatypes <> unit ind
+R2057:2060 Coq.Init.Logic <> True ind
+R2086:2086 Coq.Init.Logic <> I constr
+R2086:2086 Coq.Init.Logic <> I constr

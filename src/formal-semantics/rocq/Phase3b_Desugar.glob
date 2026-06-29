@@ -1,0 +1,419 @@
+DIGEST cdc0721a7289226dbd8afc36ca0b73cb
+FPyCSL.Phase3b_Desugar
+R135:140 Coq.ZArith.ZArith <> <> lib
+R142:147 Coq.Strings.String <> <> lib
+R149:152 Coq.Lists.List <> <> lib
+R154:157 Coq.Bool.Bool <> <> lib
+R175:177 Coq.micromega.Lia <> <> lib
+R195:204 PyCSL.Phase1_AST <> <> lib
+R222:233 PyCSL.Phase2_State <> <> lib
+R251:268 PyCSL.Phase3b_DesugarDef <> <> lib
+R286:295 PyCSL.Phase3_SOS <> <> lib
+prf 720:732 <> bwd_while_aux
+R750:753 PyCSL.Phase1_AST <> stmt ind
+binder 746:746 <> b:1
+R762:771 PyCSL.Phase2_State <> exec_state rec
+binder 757:758 <> es:2
+R785:797 PyCSL.Phase1_AST <> contract_expr ind
+binder 775:777 <> inv:3
+binder 779:781 <> var:4
+R812:815 PyCSL.Phase1_AST <> expr ind
+binder 805:808 <> cond:5
+R825:831 PyCSL.Phase3_SOS <> outcome ind
+binder 819:821 <> out:6
+R839:839 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R901:909 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+binder 847:849 <> es0:7
+binder 851:854 <> out0:8
+R882:885 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R857:860 PyCSL.Phase3_SOS <> exec ind
+R862:864 PyCSL.Phase3b_Desugar <> es0:7 var
+R867:873 PyCSL.Phase3b_DesugarDef <> desugar def
+R875:875 PyCSL.Phase3b_Desugar <> b:1 var
+R878:881 PyCSL.Phase3b_Desugar <> out0:8 var
+R886:889 PyCSL.Phase3_SOS <> exec ind
+R891:893 PyCSL.Phase3b_Desugar <> es0:7 var
+R895:895 PyCSL.Phase3b_Desugar <> b:1 var
+R897:900 PyCSL.Phase3b_Desugar <> out0:8 var
+R955:962 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R910:913 PyCSL.Phase3_SOS <> exec ind
+R915:916 PyCSL.Phase3b_Desugar <> es:2 var
+R919:924 PyCSL.Phase1_AST <> SWhile constr
+R926:928 PyCSL.Phase3b_Desugar <> inv:3 var
+R930:932 PyCSL.Phase3b_Desugar <> var:4 var
+R934:937 PyCSL.Phase3b_Desugar <> cond:5 var
+R940:946 PyCSL.Phase3b_DesugarDef <> desugar def
+R948:948 PyCSL.Phase3b_Desugar <> b:1 var
+R952:954 PyCSL.Phase3b_Desugar <> out:6 var
+R963:966 PyCSL.Phase3_SOS <> exec ind
+R968:969 PyCSL.Phase3b_Desugar <> es:2 var
+R972:977 PyCSL.Phase1_AST <> SWhile constr
+R979:981 PyCSL.Phase3b_Desugar <> inv:3 var
+R983:985 PyCSL.Phase3b_Desugar <> var:4 var
+R987:990 PyCSL.Phase3b_Desugar <> cond:5 var
+R992:992 PyCSL.Phase3b_Desugar <> b:1 var
+R995:997 PyCSL.Phase3b_Desugar <> out:6 var
+R1059:1064 PyCSL.Phase1_AST <> SWhile constr
+R1080:1086 PyCSL.Phase3b_DesugarDef <> desugar def
+R1059:1064 PyCSL.Phase1_AST <> SWhile constr
+R1080:1086 PyCSL.Phase3b_DesugarDef <> desugar def
+R1289:1301 PyCSL.Phase3_SOS <> ExecWhileTrue constr
+R1289:1301 PyCSL.Phase3_SOS <> ExecWhileTrue constr
+R1442:1458 PyCSL.Phase3_SOS <> ExecWhileContinue constr
+R1442:1458 PyCSL.Phase3_SOS <> ExecWhileContinue constr
+R1595:1608 PyCSL.Phase3_SOS <> ExecWhileBreak constr
+R1595:1608 PyCSL.Phase3_SOS <> ExecWhileBreak constr
+R1718:1731 PyCSL.Phase3_SOS <> ExecWhileFalse constr
+R1718:1731 PyCSL.Phase3_SOS <> ExecWhileFalse constr
+prf 1755:1773 <> desugar_correct_fwd
+binder 1784:1785 <> es:9
+binder 1787:1787 <> s:10
+binder 1789:1791 <> out:11
+R1819:1824 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1796:1808 PyCSL.Phase3b_DesugarDef <> fresh_in_stmt def
+R1810:1816 PyCSL.Phase3b_DesugarDef <> for_idx def
+R1818:1818 PyCSL.Phase3b_Desugar <> s:10 var
+R1838:1841 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1825:1828 PyCSL.Phase3_SOS <> exec ind
+R1830:1831 PyCSL.Phase3b_Desugar <> es:9 var
+R1833:1833 PyCSL.Phase3b_Desugar <> s:10 var
+R1835:1837 PyCSL.Phase3b_Desugar <> out:11 var
+R1842:1845 PyCSL.Phase3_SOS <> exec ind
+R1847:1848 PyCSL.Phase3b_Desugar <> es:9 var
+R1851:1857 PyCSL.Phase3b_DesugarDef <> desugar def
+R1859:1859 PyCSL.Phase3b_Desugar <> s:10 var
+R1862:1864 PyCSL.Phase3b_Desugar <> out:11 var
+R1988:1995 PyCSL.Phase3_SOS <> ExecSkip constr
+R1988:1995 PyCSL.Phase3_SOS <> ExecSkip constr
+R2008:2017 PyCSL.Phase3_SOS <> ExecAssign constr
+R2008:2017 PyCSL.Phase3_SOS <> ExecAssign constr
+R2030:2042 PyCSL.Phase3_SOS <> ExecAugAssign constr
+R2030:2042 PyCSL.Phase3_SOS <> ExecAugAssign constr
+R2055:2066 PyCSL.Phase3_SOS <> ExecArraySet constr
+R2055:2066 PyCSL.Phase3_SOS <> ExecArraySet constr
+R2132:2138 PyCSL.Phase3_SOS <> ExecSeq constr
+R2132:2138 PyCSL.Phase3_SOS <> ExecSeq constr
+R2252:2264 PyCSL.Phase3_SOS <> ExecSeqReturn constr
+R2252:2264 PyCSL.Phase3_SOS <> ExecSeqReturn constr
+R2355:2369 PyCSL.Phase3_SOS <> ExecSeqContinue constr
+R2355:2369 PyCSL.Phase3_SOS <> ExecSeqContinue constr
+R2457:2468 PyCSL.Phase3_SOS <> ExecSeqBreak constr
+R2457:2468 PyCSL.Phase3_SOS <> ExecSeqBreak constr
+R2556:2567 PyCSL.Phase3_SOS <> ExecSeqThrow constr
+R2556:2567 PyCSL.Phase3_SOS <> ExecSeqThrow constr
+R2653:2662 PyCSL.Phase3_SOS <> ExecIfTrue constr
+R2653:2662 PyCSL.Phase3_SOS <> ExecIfTrue constr
+R2761:2771 PyCSL.Phase3_SOS <> ExecIfFalse constr
+R2761:2771 PyCSL.Phase3_SOS <> ExecIfFalse constr
+R2841:2853 PyCSL.Phase3_SOS <> ExecWhileTrue constr
+R2841:2853 PyCSL.Phase3_SOS <> ExecWhileTrue constr
+R2956:2972 PyCSL.Phase3_SOS <> ExecWhileContinue constr
+R2956:2972 PyCSL.Phase3_SOS <> ExecWhileContinue constr
+R3071:3084 PyCSL.Phase3_SOS <> ExecWhileBreak constr
+R3071:3084 PyCSL.Phase3_SOS <> ExecWhileBreak constr
+R3157:3170 PyCSL.Phase3_SOS <> ExecWhileFalse constr
+R3157:3170 PyCSL.Phase3_SOS <> ExecWhileFalse constr
+R3192:3203 PyCSL.Phase3_SOS <> ExecContinue constr
+R3192:3203 PyCSL.Phase3_SOS <> ExecContinue constr
+R3216:3224 PyCSL.Phase3_SOS <> ExecBreak constr
+R3216:3224 PyCSL.Phase3_SOS <> ExecBreak constr
+R3237:3246 PyCSL.Phase3_SOS <> ExecReturn constr
+R3237:3246 PyCSL.Phase3_SOS <> ExecReturn constr
+R3284:3297 PyCSL.Phase3_SOS <> ExecAssertPass constr
+R3284:3297 PyCSL.Phase3_SOS <> ExecAssertPass constr
+R3344:3357 PyCSL.Phase3_SOS <> ExecAssertFail constr
+R3344:3357 PyCSL.Phase3_SOS <> ExecAssertFail constr
+R3379:3393 PyCSL.Phase3_SOS <> ExecTupleUnpack constr
+R3379:3393 PyCSL.Phase3_SOS <> ExecTupleUnpack constr
+R3406:3418 PyCSL.Phase3_SOS <> ExecGhostDecl constr
+R3406:3418 PyCSL.Phase3_SOS <> ExecGhostDecl constr
+R3431:3445 PyCSL.Phase3_SOS <> ExecGhostAssign constr
+R3431:3445 PyCSL.Phase3_SOS <> ExecGhostAssign constr
+R3458:3466 PyCSL.Phase3_SOS <> ExecLabel constr
+R3458:3466 PyCSL.Phase3_SOS <> ExecLabel constr
+R3479:3487 PyCSL.Phase3_SOS <> ExecRaise constr
+R3479:3487 PyCSL.Phase3_SOS <> ExecRaise constr
+R3564:3581 PyCSL.Phase3_SOS <> ExecTryCatchCaught constr
+R3564:3581 PyCSL.Phase3_SOS <> ExecTryCatchCaught constr
+R3720:3735 PyCSL.Phase3_SOS <> ExecTryCatchMiss constr
+R3720:3735 PyCSL.Phase3_SOS <> ExecTryCatchMiss constr
+R3862:3879 PyCSL.Phase3_SOS <> ExecTryCatchNormal constr
+R3862:3879 PyCSL.Phase3_SOS <> ExecTryCatchNormal constr
+R3912:3926 PyCSL.Phase3_SOS <> ExecFieldAssign constr
+R3912:3926 PyCSL.Phase3_SOS <> ExecFieldAssign constr
+R3939:3956 PyCSL.Phase3_SOS <> ExecFieldAugAssign constr
+R3939:3956 PyCSL.Phase3_SOS <> ExecFieldAugAssign constr
+R3992:4003 PyCSL.Phase3_SOS <> ExecCritical constr
+R3992:4003 PyCSL.Phase3_SOS <> ExecCritical constr
+R4065:4079 PyCSL.Phase3_SOS <> ExecThreadEntry constr
+R4065:4079 PyCSL.Phase3_SOS <> ExecThreadEntry constr
+R4230:4241 PyCSL.Phase3_SOS <> ExecAcquires constr
+R4230:4241 PyCSL.Phase3_SOS <> ExecAcquires constr
+R4277:4288 PyCSL.Phase3_SOS <> ExecReleases constr
+R4277:4288 PyCSL.Phase3_SOS <> ExecReleases constr
+prf 4303:4321 <> desugar_correct_bwd
+binder 4332:4332 <> s:12
+binder 4334:4335 <> es:13
+binder 4337:4339 <> out:14
+R4367:4372 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4344:4356 PyCSL.Phase3b_DesugarDef <> fresh_in_stmt def
+R4358:4364 PyCSL.Phase3b_DesugarDef <> for_idx def
+R4366:4366 PyCSL.Phase3b_Desugar <> s:12 var
+R4396:4399 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4373:4376 PyCSL.Phase3_SOS <> exec ind
+R4378:4379 PyCSL.Phase3b_Desugar <> es:13 var
+R4382:4388 PyCSL.Phase3b_DesugarDef <> desugar def
+R4390:4390 PyCSL.Phase3b_Desugar <> s:12 var
+R4393:4395 PyCSL.Phase3b_Desugar <> out:14 var
+R4400:4403 PyCSL.Phase3_SOS <> exec ind
+R4405:4406 PyCSL.Phase3b_Desugar <> es:13 var
+R4408:4408 PyCSL.Phase3b_Desugar <> s:12 var
+R4410:4412 PyCSL.Phase3b_Desugar <> out:14 var
+R4699:4705 PyCSL.Phase3_SOS <> ExecSeq constr
+R4699:4705 PyCSL.Phase3_SOS <> ExecSeq constr
+R4760:4772 PyCSL.Phase3_SOS <> ExecSeqReturn constr
+R4760:4772 PyCSL.Phase3_SOS <> ExecSeqReturn constr
+R4812:4826 PyCSL.Phase3_SOS <> ExecSeqContinue constr
+R4812:4826 PyCSL.Phase3_SOS <> ExecSeqContinue constr
+R4866:4877 PyCSL.Phase3_SOS <> ExecSeqBreak constr
+R4866:4877 PyCSL.Phase3_SOS <> ExecSeqBreak constr
+R4917:4928 PyCSL.Phase3_SOS <> ExecSeqThrow constr
+R4917:4928 PyCSL.Phase3_SOS <> ExecSeqThrow constr
+R5070:5079 PyCSL.Phase3_SOS <> ExecIfTrue constr
+R5070:5079 PyCSL.Phase3_SOS <> ExecIfTrue constr
+R5135:5145 PyCSL.Phase3_SOS <> ExecIfFalse constr
+R5135:5145 PyCSL.Phase3_SOS <> ExecIfFalse constr
+R5235:5247 PyCSL.Phase3b_Desugar <> bwd_while_aux thm
+R5235:5247 PyCSL.Phase3b_Desugar <> bwd_while_aux thm
+R5381:5387 PyCSL.Phase3_SOS <> ExecFor constr
+R5381:5387 PyCSL.Phase3_SOS <> ExecFor constr
+R5519:5536 PyCSL.Phase3_SOS <> ExecTryCatchCaught constr
+R5519:5536 PyCSL.Phase3_SOS <> ExecTryCatchCaught constr
+R5591:5606 PyCSL.Phase3_SOS <> ExecTryCatchMiss constr
+R5591:5606 PyCSL.Phase3_SOS <> ExecTryCatchMiss constr
+R5662:5679 PyCSL.Phase3_SOS <> ExecTryCatchNormal constr
+R5662:5679 PyCSL.Phase3_SOS <> ExecTryCatchNormal constr
+R5783:5794 PyCSL.Phase3_SOS <> ExecCritical constr
+R5783:5794 PyCSL.Phase3_SOS <> ExecCritical constr
+R5894:5908 PyCSL.Phase3_SOS <> ExecThreadEntry constr
+R5894:5908 PyCSL.Phase3_SOS <> ExecThreadEntry constr
+prf 5949:5963 <> desugar_correct
+binder 5974:5975 <> es:15
+binder 5977:5977 <> s:16
+binder 5979:5981 <> out:17
+R6009:6014 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5986:5998 PyCSL.Phase3b_DesugarDef <> fresh_in_stmt def
+R6000:6006 PyCSL.Phase3b_DesugarDef <> for_idx def
+R6008:6008 PyCSL.Phase3b_Desugar <> s:16 var
+R6028:6032 Coq.Init.Logic <> ::type_scope:x_'<->'_x not
+R6015:6018 PyCSL.Phase3_SOS <> exec ind
+R6020:6021 PyCSL.Phase3b_Desugar <> es:15 var
+R6023:6023 PyCSL.Phase3b_Desugar <> s:16 var
+R6025:6027 PyCSL.Phase3b_Desugar <> out:17 var
+R6033:6036 PyCSL.Phase3_SOS <> exec ind
+R6038:6039 PyCSL.Phase3b_Desugar <> es:15 var
+R6042:6048 PyCSL.Phase3b_DesugarDef <> desugar def
+R6050:6050 PyCSL.Phase3b_Desugar <> s:16 var
+R6053:6055 PyCSL.Phase3b_Desugar <> out:17 var
+R6109:6127 PyCSL.Phase3b_Desugar <> desugar_correct_fwd thm
+R6109:6127 PyCSL.Phase3b_Desugar <> desugar_correct_fwd thm
+R6158:6176 PyCSL.Phase3b_Desugar <> desugar_correct_bwd thm
+R6158:6176 PyCSL.Phase3b_Desugar <> desugar_correct_bwd thm
+def 6403:6415 <> walrus_assign
+R6422:6426 PyCSL.Phase1_AST <> ident def
+binder 6418:6418 <> x:18
+R6434:6437 PyCSL.Phase1_AST <> expr ind
+binder 6430:6430 <> e:19
+R6442:6445 PyCSL.Phase1_AST <> stmt ind
+R6450:6456 PyCSL.Phase1_AST <> SAssign constr
+R6458:6458 PyCSL.Phase3b_Desugar <> x:18 var
+R6460:6460 PyCSL.Phase3b_Desugar <> e:19 var
+prf 6470:6485 <> walrus_assign_eq
+binder 6496:6496 <> x:20
+binder 6498:6498 <> e:21
+R6518:6520 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R6501:6513 PyCSL.Phase3b_Desugar <> walrus_assign def
+R6515:6515 PyCSL.Phase3b_Desugar <> x:20 var
+R6517:6517 PyCSL.Phase3b_Desugar <> e:21 var
+R6521:6527 PyCSL.Phase1_AST <> SAssign constr
+R6529:6529 PyCSL.Phase3b_Desugar <> x:20 var
+R6531:6531 PyCSL.Phase3b_Desugar <> e:21 var
+def 6571:6583 <> tuple_unpack2
+R6596:6600 PyCSL.Phase1_AST <> ident def
+binder 6586:6588 <> arr:22
+binder 6590:6590 <> x:23
+binder 6592:6592 <> y:24
+R6605:6608 PyCSL.Phase1_AST <> stmt ind
+R6615:6618 PyCSL.Phase1_AST <> SSeq constr
+R6621:6627 PyCSL.Phase1_AST <> SAssign constr
+R6629:6629 PyCSL.Phase3b_Desugar <> x:23 var
+R6632:6641 PyCSL.Phase1_AST <> ESubscript constr
+R6643:6645 PyCSL.Phase3b_Desugar <> arr:22 var
+R6648:6651 PyCSL.Phase1_AST <> EInt constr
+R6666:6672 PyCSL.Phase1_AST <> SAssign constr
+R6674:6674 PyCSL.Phase3b_Desugar <> y:24 var
+R6677:6686 PyCSL.Phase1_AST <> ESubscript constr
+R6688:6690 PyCSL.Phase3b_Desugar <> arr:22 var
+R6693:6696 PyCSL.Phase1_AST <> EInt constr
+prf 6711:6735 <> exec_tuple_unpack2_normal
+binder 6746:6747 <> es:25
+binder 6749:6751 <> arr:26
+binder 6753:6753 <> x:27
+binder 6755:6755 <> y:28
+R6771:6776 PyCSL.Phase2_State <> update def
+R6782:6790 PyCSL.Phase2_State <> reg_state proj
+R6778:6779 PyCSL.Phase3b_Desugar <> es:25 var
+R6793:6793 PyCSL.Phase3b_Desugar <> x:27 var
+R6811:6819 PyCSL.Phase2_State <> eval_expr def
+R6825:6833 PyCSL.Phase2_State <> reg_state proj
+R6821:6822 PyCSL.Phase3b_Desugar <> es:25 var
+R6837:6846 PyCSL.Phase1_AST <> ESubscript constr
+R6848:6850 PyCSL.Phase3b_Desugar <> arr:26 var
+R6853:6856 PyCSL.Phase1_AST <> EInt constr
+binder 6764:6766 <> st1:29
+R6868:6871 PyCSL.Phase3_SOS <> exec ind
+R6873:6874 PyCSL.Phase3b_Desugar <> es:25 var
+R6877:6889 PyCSL.Phase3b_Desugar <> tuple_unpack2 def
+R6891:6893 PyCSL.Phase3b_Desugar <> arr:26 var
+R6895:6895 PyCSL.Phase3b_Desugar <> x:27 var
+R6897:6897 PyCSL.Phase3b_Desugar <> y:28 var
+R6905:6911 PyCSL.Phase3_SOS <> ONormal constr
+R6914:6920 PyCSL.Phase2_State <> set_reg def
+R6923:6929 PyCSL.Phase2_State <> set_reg def
+R6931:6932 PyCSL.Phase3b_Desugar <> es:25 var
+R6934:6936 PyCSL.Phase3b_Desugar <> st1:29 var
+R6956:6961 PyCSL.Phase2_State <> update def
+R6963:6965 PyCSL.Phase3b_Desugar <> st1:29 var
+R6967:6967 PyCSL.Phase3b_Desugar <> y:28 var
+R6970:6978 PyCSL.Phase2_State <> eval_expr def
+R6980:6982 PyCSL.Phase3b_Desugar <> st1:29 var
+R6985:6994 PyCSL.Phase1_AST <> ESubscript constr
+R6996:6998 PyCSL.Phase3b_Desugar <> arr:26 var
+R7001:7004 PyCSL.Phase1_AST <> EInt constr
+R7039:7051 PyCSL.Phase3b_Desugar <> tuple_unpack2 def
+R7063:7069 PyCSL.Phase3_SOS <> ExecSeq constr
+R7078:7087 PyCSL.Phase3_SOS <> ExecAssign constr
+R7063:7069 PyCSL.Phase3_SOS <> ExecSeq constr
+R7078:7087 PyCSL.Phase3_SOS <> ExecAssign constr
+R7078:7087 PyCSL.Phase3_SOS <> ExecAssign constr
+def 7105:7117 <> desugar_match
+R7132:7135 PyCSL.Phase1_AST <> expr ind
+binder 7120:7128 <> scrutinee:30
+R7147:7150 Coq.Init.Datatypes <> list ind
+R7154:7156 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R7153:7153 Coq.Numbers.BinNums <> Z ind
+R7157:7160 PyCSL.Phase1_AST <> stmt ind
+binder 7139:7143 <> cases:31
+R7198:7201 PyCSL.Phase1_AST <> stmt ind
+binder 7188:7194 <> default:32
+R7206:7209 PyCSL.Phase1_AST <> stmt ind
+R7222:7226 PyCSL.Phase3b_Desugar <> cases:31 var
+R7237:7239 Coq.Init.Datatypes <> nil constr
+R7244:7250 PyCSL.Phase3b_Desugar <> default:32 var
+R7265:7268 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R7256:7256 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R7258:7259 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R7264:7264 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R7283:7285 PyCSL.Phase1_AST <> SIf constr
+R7288:7293 PyCSL.Phase1_AST <> EBinOp constr
+R7295:7299 PyCSL.Phase1_AST <> OpSub constr
+R7301:7309 PyCSL.Phase3b_Desugar <> scrutinee:30 var
+R7312:7315 PyCSL.Phase1_AST <> EInt constr
+R7332:7344 PyCSL.Phase3b_Desugar <> desugar_match:33 def
+R7361:7367 PyCSL.Phase3b_Desugar <> default:32 var
+R7346:7354 PyCSL.Phase3b_Desugar <> scrutinee:30 var
+prf 7399:7415 <> desugar_match_nil
+binder 7426:7434 <> scrutinee:35
+binder 7436:7442 <> default:36
+R7482:7484 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7447:7459 PyCSL.Phase3b_Desugar <> desugar_match def
+R7461:7469 PyCSL.Phase3b_Desugar <> scrutinee:35 var
+R7471:7473 Coq.Init.Datatypes <> nil constr
+R7475:7481 PyCSL.Phase3b_Desugar <> default:36 var
+R7485:7491 PyCSL.Phase3b_Desugar <> default:36 var
+prf 7526:7554 <> exec_desugar_match_single_hit
+binder 7565:7566 <> es:37
+binder 7568:7576 <> scrutinee:38
+binder 7578:7578 <> n:39
+binder 7580:7583 <> body:40
+binder 7585:7591 <> default:41
+binder 7593:7595 <> out:42
+R7643:7648 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R7634:7636 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7600:7608 PyCSL.Phase2_State <> eval_expr def
+R7614:7622 PyCSL.Phase2_State <> reg_state proj
+R7610:7611 PyCSL.Phase3b_Desugar <> es:37 var
+R7625:7633 PyCSL.Phase3b_Desugar <> scrutinee:38 var
+R7637:7640 PyCSL.Phase2_State <> VInt constr
+R7642:7642 PyCSL.Phase3b_Desugar <> n:39 var
+R7665:7670 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R7649:7652 PyCSL.Phase3_SOS <> exec ind
+R7654:7655 PyCSL.Phase3b_Desugar <> es:37 var
+R7657:7660 PyCSL.Phase3b_Desugar <> body:40 var
+R7662:7664 PyCSL.Phase3b_Desugar <> out:42 var
+R7671:7674 PyCSL.Phase3_SOS <> exec ind
+R7676:7677 PyCSL.Phase3b_Desugar <> es:37 var
+R7680:7692 PyCSL.Phase3b_Desugar <> desugar_match def
+R7694:7702 PyCSL.Phase3b_Desugar <> scrutinee:38 var
+R7714:7717 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R7705:7705 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R7707:7708 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R7713:7713 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R7706:7706 PyCSL.Phase3b_Desugar <> n:39 var
+R7709:7712 PyCSL.Phase3b_Desugar <> body:40 var
+R7718:7720 Coq.Init.Datatypes <> nil constr
+R7723:7729 PyCSL.Phase3b_Desugar <> default:41 var
+R7732:7734 PyCSL.Phase3b_Desugar <> out:42 var
+R7767:7777 PyCSL.Phase3_SOS <> ExecIfFalse constr
+R7767:7777 PyCSL.Phase3_SOS <> ExecIfFalse constr
+R7791:7799 PyCSL.Phase2_State <> eval_bool def
+R7835:7844 Coq.ZArith.BinInt Z sub_diag thm
+R7835:7844 Coq.ZArith.BinInt Z sub_diag thm
+R7835:7844 Coq.ZArith.BinInt Z sub_diag thm
+prf 7886:7915 <> exec_desugar_match_single_miss
+binder 7926:7927 <> es:43
+binder 7929:7937 <> scrutinee:44
+binder 7939:7939 <> n:45
+binder 7941:7944 <> body:46
+binder 7946:7952 <> default:47
+binder 7954:7956 <> out:48
+R8004:8009 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R7995:7997 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7961:7969 PyCSL.Phase2_State <> eval_expr def
+R7975:7983 PyCSL.Phase2_State <> reg_state proj
+R7971:7972 PyCSL.Phase3b_Desugar <> es:43 var
+R7986:7994 PyCSL.Phase3b_Desugar <> scrutinee:44 var
+R7998:8001 PyCSL.Phase2_State <> VInt constr
+R8003:8003 PyCSL.Phase3b_Desugar <> n:45 var
+R8029:8034 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R8010:8013 PyCSL.Phase3_SOS <> exec ind
+R8015:8016 PyCSL.Phase3b_Desugar <> es:43 var
+R8018:8024 PyCSL.Phase3b_Desugar <> default:47 var
+R8026:8028 PyCSL.Phase3b_Desugar <> out:48 var
+binder 8042:8042 <> m:49
+R8051:8056 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R8046:8049 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R8045:8045 PyCSL.Phase3b_Desugar <> m:49 var
+R8050:8050 PyCSL.Phase3b_Desugar <> n:45 var
+R8057:8060 PyCSL.Phase3_SOS <> exec ind
+R8062:8063 PyCSL.Phase3b_Desugar <> es:43 var
+R8066:8078 PyCSL.Phase3b_Desugar <> desugar_match def
+R8080:8088 PyCSL.Phase3b_Desugar <> scrutinee:44 var
+R8100:8103 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R8091:8091 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R8093:8094 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R8099:8099 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R8092:8092 PyCSL.Phase3b_Desugar <> m:49 var
+R8095:8098 PyCSL.Phase3b_Desugar <> body:46 var
+R8104:8106 Coq.Init.Datatypes <> nil constr
+R8109:8115 PyCSL.Phase3b_Desugar <> default:47 var
+R8118:8120 PyCSL.Phase3b_Desugar <> out:48 var
+R8153:8162 PyCSL.Phase3_SOS <> ExecIfTrue constr
+R8153:8162 PyCSL.Phase3_SOS <> ExecIfTrue constr
+R8176:8184 PyCSL.Phase2_State <> eval_bool def
+R8226:8235 Coq.ZArith.BinInt Z eqb_spec thm
+R8239:8241 Coq.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R8226:8235 Coq.ZArith.BinInt Z eqb_spec thm
+R8239:8241 Coq.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R8312:8314 Coq.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R8312:8314 Coq.ZArith.BinInt <> ::Z_scope:x_'-'_x not

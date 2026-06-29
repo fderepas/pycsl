@@ -1,0 +1,263 @@
+DIGEST 2b5e7c4809a555522d8b2606a4231695
+FPyCSL.Phase7_MemModel
+R1153:1158 Coq.ZArith.ZArith <> <> lib
+R1160:1165 Coq.Strings.String <> <> lib
+R1167:1170 Coq.Lists.List <> <> lib
+R1172:1175 Coq.Bool.Bool <> <> lib
+R1193:1202 PyCSL.Phase1_AST <> <> lib
+R1220:1231 PyCSL.Phase2_State <> <> lib
+modtype 1511:1519 <> MEM_MODEL
+ax 1595:1599 MEM_MODEL valid
+R1610:1613 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1609:1609 Coq.Numbers.BinNums <> Z ind
+R1615:1618 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1614:1614 Coq.Numbers.BinNums <> Z ind
+ax 1699:1707 MEM_MODEL separated
+R1714:1717 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1713:1713 Coq.Numbers.BinNums <> Z ind
+R1719:1722 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1718:1718 Coq.Numbers.BinNums <> Z ind
+ax 1914:1927 MEM_MODEL critical_havoc
+R1941:1944 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1931:1940 PyCSL.Phase2_State <> exec_state rec
+R1945:1945 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1964:1968 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1956:1959 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1946:1955 PyCSL.Phase2_State <> exec_state rec
+R1979:1987 PyCSL.Phase7_MemModel MEM_MODEL <> modtype
+R2221:2229 PyCSL.Phase7_MemModel MEM_MODEL <> mod
+mod 2211:2217 <> HoareMM
+def 2245:2249 HoareMM valid
+R2268:2268 Coq.Numbers.BinNums <> Z ind
+binder 2258:2260 <> ptr:7
+binder 2262:2264 <> len:8
+R2281:2284 Coq.Init.Logic <> True ind
+def 2300:2308 HoareMM separated
+R2319:2319 Coq.Numbers.BinNums <> Z ind
+binder 2313:2313 <> a:9
+binder 2315:2315 <> b:10
+R2332:2335 Coq.Init.Logic <> True ind
+def 2351:2364 HoareMM critical_havoc
+R2372:2381 PyCSL.Phase2_State <> exec_state rec
+binder 2367:2368 <> es:11
+R2399:2402 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2389:2398 PyCSL.Phase2_State <> exec_state rec
+binder 2385:2385 <> P:12
+R2423:2423 PyCSL.Phase7_MemModel <> P:12 var
+R2425:2426 PyCSL.Phase7_MemModel <> es:11 var
+R2433:2439 PyCSL.Phase7_MemModel HoareMM <> mod
+def 2846:2859 <> critical_havoc
+R2867:2876 PyCSL.Phase2_State <> exec_state rec
+binder 2862:2863 <> es:13
+R2894:2897 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2884:2893 PyCSL.Phase2_State <> exec_state rec
+binder 2880:2880 <> P:14
+R2916:2916 PyCSL.Phase7_MemModel <> P:14 var
+R2918:2919 PyCSL.Phase7_MemModel <> es:13 var
+prf 3245:3260 <> hoare_valid_true
+binder 3271:3273 <> ptr:15
+binder 3275:3277 <> len:16
+R3293:3295 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3280:3284 PyCSL.Phase2_State <> valid def
+R3286:3288 PyCSL.Phase7_MemModel <> ptr:15 var
+R3290:3292 PyCSL.Phase7_MemModel <> len:16 var
+R3296:3299 Coq.Init.Logic <> True ind
+prf 3342:3361 <> hoare_separated_true
+binder 3372:3372 <> a:17
+binder 3374:3374 <> b:18
+R3390:3392 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3377:3385 PyCSL.Phase2_State <> separated def
+R3387:3387 PyCSL.Phase7_MemModel <> a:17 var
+R3389:3389 PyCSL.Phase7_MemModel <> b:18 var
+R3393:3396 Coq.Init.Logic <> True ind
+prf 3503:3519 <> critical_havoc_eq
+binder 3530:3531 <> es:19
+binder 3533:3533 <> P:20
+R3555:3557 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3536:3549 PyCSL.Phase7_MemModel <> critical_havoc def
+R3551:3552 PyCSL.Phase7_MemModel <> es:19 var
+R3554:3554 PyCSL.Phase7_MemModel <> P:20 var
+R3558:3558 PyCSL.Phase7_MemModel <> P:20 var
+R3560:3561 PyCSL.Phase7_MemModel <> es:19 var
+prf 3689:3713 <> test_critical_havoc_const
+binder 3726:3727 <> es:21
+binder 3730:3730 <> b:22
+R3771:3773 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3741:3754 PyCSL.Phase7_MemModel <> critical_havoc def
+R3756:3757 PyCSL.Phase7_MemModel <> es:21 var
+R3769:3769 PyCSL.Phase7_MemModel <> b:22 var
+R3774:3774 PyCSL.Phase7_MemModel <> b:22 var
+R3799:3812 PyCSL.Phase7_MemModel <> critical_havoc def
+prf 3876:3897 <> test_critical_havoc_qn
+binder 3910:3911 <> es:23
+R3929:3932 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3919:3928 PyCSL.Phase2_State <> exec_state rec
+binder 3914:3915 <> Qn:24
+R3962:3964 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3942:3955 PyCSL.Phase7_MemModel <> critical_havoc def
+R3957:3958 PyCSL.Phase7_MemModel <> es:23 var
+R3960:3961 PyCSL.Phase7_MemModel <> Qn:24 var
+R3965:3966 PyCSL.Phase7_MemModel <> Qn:24 var
+R3968:3969 PyCSL.Phase7_MemModel <> es:23 var
+R3994:4007 PyCSL.Phase7_MemModel <> critical_havoc def
+prf 4079:4094 <> test_hoare_valid
+R4098:4102 PyCSL.Phase2_State <> valid def
+R4123:4123 Coq.Init.Logic <> I constr
+R4123:4123 Coq.Init.Logic <> I constr
+prf 4186:4205 <> test_hoare_separated
+R4209:4217 PyCSL.Phase2_State <> separated def
+R4238:4238 Coq.Init.Logic <> I constr
+R4238:4238 Coq.Init.Logic <> I constr
+mod 4978:4984 <> TypedMM
+def 5042:5046 TypedMM block
+R5053:5055 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R5052:5052 Coq.Numbers.BinNums <> Z ind
+R5056:5056 Coq.Numbers.BinNums <> Z ind
+def 5278:5287 TypedMM typed_heap
+R5291:5294 Coq.Init.Datatypes <> list ind
+R5296:5300 PyCSL.Phase7_MemModel TypedMM block def
+R5305:5307 Coq.Init.Datatypes <> nil constr
+def 5391:5404 TypedMM blocks_overlap
+R5415:5419 PyCSL.Phase7_MemModel TypedMM block def
+binder 5407:5408 <> b1:25
+binder 5410:5411 <> b2:26
+R5452:5453 PyCSL.Phase7_MemModel <> b1:25 var
+binder 5441:5442 <> p1:27
+binder 5445:5446 <> n1:28
+R5478:5479 PyCSL.Phase7_MemModel <> b2:26 var
+binder 5467:5468 <> p2:29
+binder 5471:5472 <> n2:30
+R5500:5503 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R5490:5492 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R5488:5489 PyCSL.Phase7_MemModel <> p1:27 var
+R5495:5497 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5493:5494 PyCSL.Phase7_MemModel <> p2:29 var
+R5498:5499 PyCSL.Phase7_MemModel <> n2:30 var
+R5506:5508 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R5504:5505 PyCSL.Phase7_MemModel <> p2:29 var
+R5511:5513 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5509:5510 PyCSL.Phase7_MemModel <> p1:27 var
+R5514:5515 PyCSL.Phase7_MemModel <> n1:28 var
+def 5673:5685 TypedMM range_covered
+R5698:5698 Coq.Numbers.BinNums <> Z ind
+binder 5688:5690 <> ptr:31
+binder 5692:5694 <> len:32
+R5707:5710 Coq.Init.Datatypes <> list ind
+R5712:5716 PyCSL.Phase7_MemModel TypedMM block def
+binder 5702:5703 <> bs:33
+R5733:5739 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R5741:5742 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+binder 5740:5740 <> b:34
+R5755:5772 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R5743:5749 Coq.Lists.List <> In def
+R5753:5754 PyCSL.Phase7_MemModel <> bs:33 var
+R5751:5751 PyCSL.Phase7_MemModel <> b:34 var
+R5787:5787 PyCSL.Phase7_MemModel <> b:34 var
+binder 5778:5778 <> p:35
+binder 5781:5781 <> n:36
+R5814:5817 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R5807:5810 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5806:5806 PyCSL.Phase7_MemModel <> p:35 var
+R5811:5813 PyCSL.Phase7_MemModel <> ptr:31 var
+R5827:5830 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R5821:5823 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5818:5820 PyCSL.Phase7_MemModel <> ptr:31 var
+R5824:5826 PyCSL.Phase7_MemModel <> len:32 var
+R5832:5834 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R5831:5831 PyCSL.Phase7_MemModel <> p:35 var
+R5835:5835 PyCSL.Phase7_MemModel <> n:36 var
+def 6011:6015 TypedMM valid
+R6028:6028 Coq.Numbers.BinNums <> Z ind
+binder 6018:6020 <> ptr:37
+binder 6022:6024 <> len:38
+R6053:6056 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R6048:6051 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R6045:6047 PyCSL.Phase7_MemModel <> ptr:37 var
+R6065:6068 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R6060:6063 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R6057:6059 PyCSL.Phase7_MemModel <> len:38 var
+R6069:6081 PyCSL.Phase7_MemModel TypedMM range_covered def
+R6083:6085 PyCSL.Phase7_MemModel <> ptr:37 var
+R6087:6089 PyCSL.Phase7_MemModel <> len:38 var
+R6091:6100 PyCSL.Phase7_MemModel TypedMM typed_heap def
+def 6311:6319 TypedMM separated
+R6328:6328 Coq.Numbers.BinNums <> Z ind
+binder 6322:6322 <> a:39
+binder 6324:6324 <> b:40
+R6346:6349 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R6345:6345 PyCSL.Phase7_MemModel <> a:39 var
+R6350:6350 PyCSL.Phase7_MemModel <> b:40 var
+def 6367:6380 TypedMM critical_havoc
+R6388:6397 PyCSL.Phase2_State <> exec_state rec
+binder 6383:6384 <> es:41
+R6415:6418 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R6405:6414 PyCSL.Phase2_State <> exec_state rec
+binder 6401:6401 <> P:42
+R6439:6439 PyCSL.Phase7_MemModel <> P:42 var
+R6441:6442 PyCSL.Phase7_MemModel <> es:41 var
+R6449:6455 PyCSL.Phase7_MemModel TypedMM <> mod
+mod 6731:6737 <> StoreMM
+def 6812:6821 StoreMM store_size
+R6825:6825 Coq.Numbers.BinNums <> Z ind
+def 6925:6929 StoreMM valid
+R6942:6942 Coq.Numbers.BinNums <> Z ind
+binder 6932:6934 <> ptr:43
+binder 6936:6938 <> len:44
+R6967:6970 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R6960:6963 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R6964:6966 PyCSL.Phase7_MemModel <> ptr:43 var
+R6980:6983 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R6974:6976 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R6971:6973 PyCSL.Phase7_MemModel <> ptr:43 var
+R6977:6979 PyCSL.Phase7_MemModel <> len:44 var
+R6984:6993 PyCSL.Phase7_MemModel StoreMM store_size def
+def 7218:7226 StoreMM separated
+R7235:7235 Coq.Numbers.BinNums <> Z ind
+binder 7229:7229 <> a:45
+binder 7231:7231 <> b:46
+R7253:7256 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R7252:7252 PyCSL.Phase7_MemModel <> a:45 var
+R7257:7257 PyCSL.Phase7_MemModel <> b:46 var
+def 7274:7287 StoreMM critical_havoc
+R7295:7304 PyCSL.Phase2_State <> exec_state rec
+binder 7290:7291 <> es:47
+R7322:7325 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R7312:7321 PyCSL.Phase2_State <> exec_state rec
+binder 7308:7308 <> P:48
+R7346:7346 PyCSL.Phase7_MemModel <> P:48 var
+R7348:7349 PyCSL.Phase7_MemModel <> es:47 var
+R7356:7362 PyCSL.Phase7_MemModel StoreMM <> mod
+prf 7733:7749 <> eval_cvalid_hoare
+binder 7762:7763 <> st:49
+binder 7765:7770 <> pre_st:50
+binder 7772:7777 <> result:51
+binder 7779:7781 <> ptr:52
+binder 7783:7785 <> len:53
+R7837:7839 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7790:7802 PyCSL.Phase2_State <> eval_contract def
+R7804:7805 PyCSL.Phase7_MemModel <> st:49 var
+R7807:7812 PyCSL.Phase7_MemModel <> pre_st:50 var
+R7814:7819 PyCSL.Phase7_MemModel <> result:51 var
+R7822:7827 PyCSL.Phase1_AST <> CValid constr
+R7829:7831 PyCSL.Phase7_MemModel <> ptr:52 var
+R7833:7835 PyCSL.Phase7_MemModel <> len:53 var
+R7840:7843 Coq.Init.Logic <> True ind
+R7875:7890 PyCSL.Phase7_MemModel <> hoare_valid_true thm
+R7875:7890 PyCSL.Phase7_MemModel <> hoare_valid_true thm
+prf 7910:7930 <> eval_cseparated_hoare
+binder 7943:7944 <> st:54
+binder 7946:7951 <> pre_st:55
+binder 7953:7958 <> result:56
+binder 7960:7960 <> a:57
+binder 7962:7962 <> b:58
+R8014:8016 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7967:7979 PyCSL.Phase2_State <> eval_contract def
+R7981:7982 PyCSL.Phase7_MemModel <> st:54 var
+R7984:7989 PyCSL.Phase7_MemModel <> pre_st:55 var
+R7991:7996 PyCSL.Phase7_MemModel <> result:56 var
+R7999:8008 PyCSL.Phase1_AST <> CSeparated constr
+R8010:8010 PyCSL.Phase7_MemModel <> a:57 var
+R8012:8012 PyCSL.Phase7_MemModel <> b:58 var
+R8017:8020 Coq.Init.Logic <> True ind
+R8052:8071 PyCSL.Phase7_MemModel <> hoare_separated_true thm
+R8052:8071 PyCSL.Phase7_MemModel <> hoare_separated_true thm

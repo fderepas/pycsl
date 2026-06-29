@@ -1,0 +1,1774 @@
+DIGEST c73bc48950b6e4764578610fd9a76cda
+FPyCSL.Phase2_State
+R80:85 Coq.ZArith.ZArith <> <> lib
+R87:92 Coq.Strings.String <> <> lib
+R94:97 Coq.Lists.List <> <> lib
+R99:102 Coq.Bool.Bool <> <> lib
+R120:137 Coq.Arith.PeanoNat <> <> lib
+R155:164 PyCSL.Phase1_AST <> <> lib
+ind 219:221 <> val
+constr 237:240 <> VInt
+constr 256:261 <> VArray
+R249:249 Coq.Numbers.BinNums <> Z ind
+binder 245:245 <> n:3
+R268:271 Coq.Init.Datatypes <> list ind
+R273:273 Coq.Numbers.BinNums <> Z ind
+binder 264:264 <> a:4
+scheme 219:221 <> val_rect
+scheme 219:221 <> val_ind
+scheme 219:221 <> val_rec
+scheme 219:221 <> val_sind
+def 318:322 <> state
+R327:330 Coq.Init.Datatypes <> list ind
+R338:340 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R333:337 PyCSL.Phase1_AST <> ident def
+R341:343 PyCSL.Phase2_State <> val ind
+def 376:381 <> lookup
+R389:393 PyCSL.Phase2_State <> state def
+binder 384:385 <> st:5
+R401:405 PyCSL.Phase1_AST <> ident def
+binder 397:397 <> x:6
+R410:415 Coq.Init.Datatypes <> option ind
+R417:419 PyCSL.Phase2_State <> val ind
+R432:433 PyCSL.Phase2_State <> st:5 var
+R444:446 Coq.Init.Datatypes <> nil constr
+R451:454 Coq.Init.Datatypes <> None constr
+R466:469 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R460:460 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R462:463 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R465:465 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R485:494 Coq.Strings.String <> eqb def
+R496:496 PyCSL.Phase2_State <> x:6 var
+R517:522 PyCSL.Phase2_State <> lookup:7 def
+R529:529 PyCSL.Phase2_State <> x:6 var
+R505:508 Coq.Init.Datatypes <> Some constr
+def 594:599 <> update
+R607:611 PyCSL.Phase2_State <> state def
+binder 602:603 <> st:9
+R619:623 PyCSL.Phase1_AST <> ident def
+binder 615:615 <> x:10
+R631:633 PyCSL.Phase2_State <> val ind
+binder 627:627 <> v:11
+R638:642 PyCSL.Phase2_State <> state def
+R655:658 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R649:649 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R651:652 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R654:654 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R650:650 PyCSL.Phase2_State <> x:10 var
+R653:653 PyCSL.Phase2_State <> v:11 var
+R659:660 PyCSL.Phase2_State <> st:9 var
+def 702:713 <> array_update
+R721:725 PyCSL.Phase2_State <> state def
+binder 716:717 <> st:12
+R735:739 PyCSL.Phase1_AST <> ident def
+binder 729:731 <> arr:13
+R747:747 Coq.Numbers.BinNums <> Z ind
+binder 743:743 <> i:14
+R755:755 Coq.Numbers.BinNums <> Z ind
+binder 751:751 <> v:15
+R760:764 PyCSL.Phase2_State <> state def
+R777:782 PyCSL.Phase2_State <> lookup def
+R784:785 PyCSL.Phase2_State <> st:12 var
+R787:789 PyCSL.Phase2_State <> arr:13 var
+R800:803 Coq.Init.Datatypes <> Some constr
+R806:811 PyCSL.Phase2_State <> VArray constr
+R834:841 Coq.ZArith.BinInt Z to_nat def
+R843:843 PyCSL.Phase2_State <> i:14 var
+binder 827:829 <> idx:16
+R855:855 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R863:868 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R898:898 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R857:861 Coq.ZArith.BinInt <> ::Z_scope:x_'<=?'_x not
+R862:862 PyCSL.Phase2_State <> i:14 var
+R870:873 Coq.ZArith.BinInt <> ::Z_scope:x_'<?'_x not
+R869:869 PyCSL.Phase2_State <> i:14 var
+R874:881 Coq.ZArith.BinInt Z of_nat def
+R884:894 Coq.Lists.List <> length abbrev
+R1039:1040 PyCSL.Phase2_State <> st:12 var
+R921:928 Coq.Lists.List <> app abbrev
+R951:958 Coq.Lists.List <> app abbrev
+R972:981 Coq.Lists.List <> skipn def
+R984:984 Coq.Init.Datatypes <> S constr
+R986:988 PyCSL.Phase2_State <> idx:16 var
+R962:965 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R961:961 PyCSL.Phase2_State <> v:15 var
+R966:968 Coq.Init.Datatypes <> nil constr
+R931:941 Coq.Lists.List <> firstn def
+R943:945 PyCSL.Phase2_State <> idx:16 var
+binder 915:916 <> a':17
+R1004:1009 PyCSL.Phase2_State <> update def
+R1011:1012 PyCSL.Phase2_State <> st:12 var
+R1014:1016 PyCSL.Phase2_State <> arr:13 var
+R1019:1024 PyCSL.Phase2_State <> VArray constr
+R1026:1027 PyCSL.Phase2_State <> a':17 var
+R1051:1052 PyCSL.Phase2_State <> st:12 var
+def 1185:1197 <> sum_list_from
+R1204:1207 Coq.Init.Datatypes <> list ind
+R1209:1209 Coq.Numbers.BinNums <> Z ind
+binder 1200:1200 <> a:18
+R1225:1227 Coq.Init.Datatypes <> nat ind
+binder 1213:1215 <> idx:19
+binder 1217:1221 <> count:20
+R1232:1232 Coq.Numbers.BinNums <> Z ind
+R1245:1249 PyCSL.Phase2_State <> count:20 var
+R1260:1260 Coq.Init.Datatypes <> O constr
+R1271:1271 Coq.Init.Datatypes <> S constr
+R1294:1296 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R1278:1285 Coq.Lists.List <> nth def
+R1291:1291 PyCSL.Phase2_State <> a:18 var
+R1287:1289 PyCSL.Phase2_State <> idx:19 var
+R1297:1309 PyCSL.Phase2_State <> sum_list_from:21 def
+R1314:1314 Coq.Init.Datatypes <> S constr
+R1316:1318 PyCSL.Phase2_State <> idx:19 var
+R1311:1311 PyCSL.Phase2_State <> a:18 var
+def 1342:1355 <> sum_list_range
+R1362:1365 Coq.Init.Datatypes <> list ind
+R1367:1367 Coq.Numbers.BinNums <> Z ind
+binder 1358:1358 <> a:23
+R1379:1381 Coq.Init.Datatypes <> nat ind
+binder 1371:1372 <> lo:24
+binder 1374:1375 <> hi:25
+R1386:1386 Coq.Numbers.BinNums <> Z ind
+R1396:1402 Coq.Arith.PeanoNat Nat ltb def
+R1404:1405 PyCSL.Phase2_State <> lo:24 var
+R1407:1408 PyCSL.Phase2_State <> hi:25 var
+R1415:1427 PyCSL.Phase2_State <> sum_list_from def
+R1429:1429 PyCSL.Phase2_State <> a:23 var
+R1431:1432 PyCSL.Phase2_State <> lo:24 var
+R1437:1439 Coq.Init.Peano <> ::nat_scope:x_'-'_x not
+R1435:1436 PyCSL.Phase2_State <> hi:25 var
+R1440:1441 PyCSL.Phase2_State <> lo:24 var
+def 1541:1556 <> sorted_list_from
+R1563:1566 Coq.Init.Datatypes <> list ind
+R1568:1568 Coq.Numbers.BinNums <> Z ind
+binder 1559:1559 <> a:26
+R1583:1585 Coq.Init.Datatypes <> nat ind
+binder 1572:1573 <> lo:27
+binder 1575:1579 <> count:28
+R1606:1610 PyCSL.Phase2_State <> count:28 var
+R1621:1621 Coq.Init.Datatypes <> O constr
+R1626:1629 Coq.Init.Logic <> True ind
+R1635:1635 Coq.Init.Datatypes <> S constr
+R1665:1665 Coq.Init.Datatypes <> O constr
+R1670:1673 Coq.Init.Logic <> True ind
+R1724:1727 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R1701:1704 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R1686:1693 Coq.Lists.List <> nth def
+R1698:1698 PyCSL.Phase2_State <> a:26 var
+R1695:1696 PyCSL.Phase2_State <> lo:27 var
+R1705:1712 Coq.Lists.List <> nth def
+R1721:1721 PyCSL.Phase2_State <> a:26 var
+R1715:1715 Coq.Init.Datatypes <> S constr
+R1717:1718 PyCSL.Phase2_State <> lo:27 var
+R1728:1743 PyCSL.Phase2_State <> sorted_list_from:29 def
+R1748:1748 Coq.Init.Datatypes <> S constr
+R1750:1751 PyCSL.Phase2_State <> lo:27 var
+R1745:1745 PyCSL.Phase2_State <> a:26 var
+def 1783:1799 <> sorted_list_range
+R1806:1809 Coq.Init.Datatypes <> list ind
+R1811:1811 Coq.Numbers.BinNums <> Z ind
+binder 1802:1802 <> a:32
+R1823:1825 Coq.Init.Datatypes <> nat ind
+binder 1815:1816 <> lo:33
+binder 1818:1819 <> hi:34
+R1843:1849 Coq.Arith.PeanoNat Nat ltb def
+R1851:1852 PyCSL.Phase2_State <> lo:33 var
+R1854:1855 PyCSL.Phase2_State <> hi:34 var
+R1899:1902 Coq.Init.Logic <> True ind
+R1862:1877 PyCSL.Phase2_State <> sorted_list_from def
+R1879:1879 PyCSL.Phase2_State <> a:32 var
+R1881:1882 PyCSL.Phase2_State <> lo:33 var
+R1887:1889 Coq.Init.Peano <> ::nat_scope:x_'-'_x not
+R1885:1886 PyCSL.Phase2_State <> hi:34 var
+R1890:1891 PyCSL.Phase2_State <> lo:33 var
+ind 2022:2030 <> ghost_val
+constr 2046:2050 <> GVInt
+constr 2067:2074 <> GVString
+constr 2093:2099 <> GVArray
+constr 2119:2124 <> GVList
+constr 2145:2150 <> GVDict
+constr 2223:2227 <> GVSet
+constr 2296:2303 <> GVTuple2
+constr 2319:2326 <> GVTuple3
+constr 2344:2351 <> GVTuple4
+R2060:2060 Coq.Numbers.BinNums <> Z ind
+binder 2056:2056 <> n:37
+R2081:2086 Coq.Strings.String <> string ind
+binder 2077:2077 <> s:38
+R2107:2110 Coq.Init.Datatypes <> list ind
+R2112:2112 Coq.Numbers.BinNums <> Z ind
+binder 2103:2103 <> a:39
+R2133:2136 Coq.Init.Datatypes <> list ind
+R2138:2138 Coq.Numbers.BinNums <> Z ind
+binder 2129:2129 <> l:40
+R2159:2162 Coq.Init.Datatypes <> list ind
+R2166:2168 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R2165:2165 Coq.Numbers.BinNums <> Z ind
+R2169:2169 Coq.Numbers.BinNums <> Z ind
+binder 2155:2155 <> d:41
+R2237:2240 Coq.Init.Datatypes <> list ind
+R2242:2242 Coq.Numbers.BinNums <> Z ind
+binder 2233:2233 <> s:42
+R2312:2312 Coq.Numbers.BinNums <> Z ind
+binder 2306:2306 <> a:43
+binder 2308:2308 <> b:44
+R2337:2337 Coq.Numbers.BinNums <> Z ind
+binder 2329:2329 <> a:45
+binder 2331:2331 <> b:46
+binder 2333:2333 <> c:47
+R2364:2364 Coq.Numbers.BinNums <> Z ind
+binder 2354:2354 <> a:48
+binder 2356:2356 <> b:49
+binder 2358:2358 <> c:50
+binder 2360:2360 <> d:51
+scheme 2022:2030 <> ghost_val_rect
+scheme 2022:2030 <> ghost_val_ind
+scheme 2022:2030 <> ghost_val_rec
+scheme 2022:2030 <> ghost_val_sind
+def 2441:2451 <> ghost_state
+R2456:2459 Coq.Init.Datatypes <> list ind
+R2467:2469 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R2462:2466 PyCSL.Phase1_AST <> ident def
+R2470:2478 PyCSL.Phase2_State <> ghost_val ind
+def 2559:2567 <> label_env
+R2572:2575 Coq.Init.Datatypes <> list ind
+R2583:2585 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R2578:2582 PyCSL.Phase1_AST <> ident def
+R2586:2596 PyCSL.Phase2_State <> ghost_state def
+def 2635:2646 <> ghost_lookup
+R2655:2665 PyCSL.Phase2_State <> ghost_state def
+binder 2649:2651 <> gst:52
+R2673:2677 PyCSL.Phase1_AST <> ident def
+binder 2669:2669 <> x:53
+R2682:2687 Coq.Init.Datatypes <> option ind
+R2689:2697 PyCSL.Phase2_State <> ghost_val ind
+R2710:2712 PyCSL.Phase2_State <> gst:52 var
+R2723:2725 Coq.Init.Datatypes <> nil constr
+R2730:2733 Coq.Init.Datatypes <> None constr
+R2745:2748 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R2739:2739 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2741:2742 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2744:2744 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2760:2769 Coq.Strings.String <> eqb def
+R2771:2771 PyCSL.Phase2_State <> x:53 var
+R2792:2803 PyCSL.Phase2_State <> ghost_lookup:54 def
+R2810:2810 PyCSL.Phase2_State <> x:53 var
+R2780:2783 Coq.Init.Datatypes <> Some constr
+def 2879:2890 <> ghost_update
+R2899:2909 PyCSL.Phase2_State <> ghost_state def
+binder 2893:2895 <> gst:56
+R2917:2921 PyCSL.Phase1_AST <> ident def
+binder 2913:2913 <> x:57
+R2929:2937 PyCSL.Phase2_State <> ghost_val ind
+binder 2925:2925 <> v:58
+R2942:2952 PyCSL.Phase2_State <> ghost_state def
+R2965:2968 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R2959:2959 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2961:2962 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2964:2964 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R2960:2960 PyCSL.Phase2_State <> x:57 var
+R2963:2963 PyCSL.Phase2_State <> v:58 var
+R2969:2971 PyCSL.Phase2_State <> gst:56 var
+def 3007:3018 <> label_lookup
+R3028:3036 PyCSL.Phase2_State <> label_env def
+binder 3021:3024 <> lenv:59
+R3044:3048 PyCSL.Phase1_AST <> ident def
+binder 3040:3040 <> L:60
+R3053:3058 Coq.Init.Datatypes <> option ind
+R3060:3070 PyCSL.Phase2_State <> ghost_state def
+R3083:3086 PyCSL.Phase2_State <> lenv:59 var
+R3097:3099 Coq.Init.Datatypes <> nil constr
+R3104:3107 Coq.Init.Datatypes <> None constr
+R3121:3124 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R3113:3113 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R3115:3116 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R3120:3120 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R3136:3145 Coq.Strings.String <> eqb def
+R3147:3147 PyCSL.Phase2_State <> L:60 var
+R3170:3181 PyCSL.Phase2_State <> label_lookup:61 def
+R3188:3188 PyCSL.Phase2_State <> L:60 var
+R3156:3159 Coq.Init.Datatypes <> Some constr
+rec 3263:3272 <> exec_state
+proj 3300:3308 <> reg_state
+proj 3323:3330 <> ghost_st
+proj 3352:3362 <> label_snaps
+R3314:3318 PyCSL.Phase2_State <> state def
+R3337:3347 PyCSL.Phase2_State <> ghost_state def
+R3366:3374 PyCSL.Phase2_State <> label_env def
+def 3422:3434 <> mk_exec_state
+R3442:3446 PyCSL.Phase2_State <> state def
+binder 3437:3438 <> st:67
+R3451:3460 PyCSL.Phase2_State <> exec_state rec
+R3470:3478 PyCSL.Phase2_State <> reg_state proj
+R3470:3478 PyCSL.Phase2_State <> reg_state proj
+R3470:3478 PyCSL.Phase2_State <> reg_state proj
+R3487:3494 PyCSL.Phase2_State <> ghost_st proj
+R3487:3494 PyCSL.Phase2_State <> ghost_st proj
+R3504:3514 PyCSL.Phase2_State <> label_snaps proj
+R3504:3514 PyCSL.Phase2_State <> label_snaps proj
+R3483:3484 PyCSL.Phase2_State <> st:67 var
+R3499:3501 Coq.Init.Datatypes <> nil constr
+R3519:3521 Coq.Init.Datatypes <> nil constr
+def 3539:3545 <> set_reg
+R3553:3562 PyCSL.Phase2_State <> exec_state rec
+binder 3548:3549 <> es:68
+R3571:3575 PyCSL.Phase2_State <> state def
+binder 3566:3567 <> st:69
+R3580:3589 PyCSL.Phase2_State <> exec_state rec
+R3599:3607 PyCSL.Phase2_State <> reg_state proj
+R3599:3607 PyCSL.Phase2_State <> reg_state proj
+R3599:3607 PyCSL.Phase2_State <> reg_state proj
+R3616:3623 PyCSL.Phase2_State <> ghost_st proj
+R3616:3623 PyCSL.Phase2_State <> ghost_st proj
+R3643:3653 PyCSL.Phase2_State <> label_snaps proj
+R3643:3653 PyCSL.Phase2_State <> label_snaps proj
+R3612:3613 PyCSL.Phase2_State <> st:69 var
+R3632:3639 PyCSL.Phase2_State <> ghost_st proj
+R3628:3629 PyCSL.Phase2_State <> es:68 var
+R3662:3672 PyCSL.Phase2_State <> label_snaps proj
+R3658:3659 PyCSL.Phase2_State <> es:68 var
+def 3691:3699 <> set_ghost
+R3707:3716 PyCSL.Phase2_State <> exec_state rec
+binder 3702:3703 <> es:70
+R3726:3736 PyCSL.Phase2_State <> ghost_state def
+binder 3720:3722 <> gst:71
+R3741:3750 PyCSL.Phase2_State <> exec_state rec
+R3760:3768 PyCSL.Phase2_State <> reg_state proj
+R3760:3768 PyCSL.Phase2_State <> reg_state proj
+R3760:3768 PyCSL.Phase2_State <> reg_state proj
+R3789:3796 PyCSL.Phase2_State <> ghost_st proj
+R3789:3796 PyCSL.Phase2_State <> ghost_st proj
+R3806:3816 PyCSL.Phase2_State <> label_snaps proj
+R3806:3816 PyCSL.Phase2_State <> label_snaps proj
+R3777:3785 PyCSL.Phase2_State <> reg_state proj
+R3773:3774 PyCSL.Phase2_State <> es:70 var
+R3801:3803 PyCSL.Phase2_State <> gst:71 var
+R3825:3835 PyCSL.Phase2_State <> label_snaps proj
+R3821:3822 PyCSL.Phase2_State <> es:70 var
+def 3854:3863 <> set_labels
+R3871:3880 PyCSL.Phase2_State <> exec_state rec
+binder 3866:3867 <> es:72
+R3891:3899 PyCSL.Phase2_State <> label_env def
+binder 3884:3887 <> lenv:73
+R3904:3913 PyCSL.Phase2_State <> exec_state rec
+R3923:3931 PyCSL.Phase2_State <> reg_state proj
+R3923:3931 PyCSL.Phase2_State <> reg_state proj
+R3923:3931 PyCSL.Phase2_State <> reg_state proj
+R3952:3959 PyCSL.Phase2_State <> ghost_st proj
+R3952:3959 PyCSL.Phase2_State <> ghost_st proj
+R3979:3989 PyCSL.Phase2_State <> label_snaps proj
+R3979:3989 PyCSL.Phase2_State <> label_snaps proj
+R3940:3948 PyCSL.Phase2_State <> reg_state proj
+R3936:3937 PyCSL.Phase2_State <> es:72 var
+R3968:3975 PyCSL.Phase2_State <> ghost_st proj
+R3964:3965 PyCSL.Phase2_State <> es:72 var
+R3994:3997 PyCSL.Phase2_State <> lenv:73 var
+def 4049:4060 <> eval_binop_z
+R4068:4072 PyCSL.Phase1_AST <> binop ind
+binder 4063:4064 <> op:74
+R4084:4084 Coq.Numbers.BinNums <> Z ind
+binder 4076:4077 <> n1:75
+binder 4079:4080 <> n2:76
+R4089:4089 Coq.Numbers.BinNums <> Z ind
+R4102:4103 PyCSL.Phase2_State <> op:74 var
+R4114:4118 PyCSL.Phase1_AST <> OpAdd constr
+R4125:4127 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R4123:4124 PyCSL.Phase2_State <> n1:75 var
+R4128:4129 PyCSL.Phase2_State <> n2:76 var
+R4135:4139 PyCSL.Phase1_AST <> OpSub constr
+R4146:4148 Coq.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R4144:4145 PyCSL.Phase2_State <> n1:75 var
+R4149:4150 PyCSL.Phase2_State <> n2:76 var
+R4156:4160 PyCSL.Phase1_AST <> OpMul constr
+R4167:4169 Coq.ZArith.BinInt <> ::Z_scope:x_'*'_x not
+R4165:4166 PyCSL.Phase2_State <> n1:75 var
+R4170:4171 PyCSL.Phase2_State <> n2:76 var
+R4177:4181 PyCSL.Phase1_AST <> OpDiv constr
+R4189:4193 Coq.ZArith.BinInt Z eqb def
+R4195:4196 PyCSL.Phase2_State <> n2:76 var
+R4212:4216 Coq.ZArith.BinInt Z div def
+R4218:4219 PyCSL.Phase2_State <> n1:75 var
+R4221:4222 PyCSL.Phase2_State <> n2:76 var
+R4228:4232 PyCSL.Phase1_AST <> OpMod constr
+R4240:4244 Coq.ZArith.BinInt Z eqb def
+R4246:4247 PyCSL.Phase2_State <> n2:76 var
+R4263:4270 Coq.ZArith.BinInt Z modulo def
+R4272:4273 PyCSL.Phase2_State <> n1:75 var
+R4275:4276 PyCSL.Phase2_State <> n2:76 var
+def 4377:4388 <> eval_cmpop_z
+R4396:4400 PyCSL.Phase1_AST <> cmpop ind
+binder 4391:4392 <> op:78
+R4412:4412 Coq.Numbers.BinNums <> Z ind
+binder 4404:4405 <> n1:79
+binder 4407:4408 <> n2:80
+R4417:4417 Coq.Numbers.BinNums <> Z ind
+R4434:4435 PyCSL.Phase2_State <> op:78 var
+R4450:4453 PyCSL.Phase1_AST <> OpEq constr
+R4458:4462 Coq.ZArith.BinInt Z eqb def
+R4464:4465 PyCSL.Phase2_State <> n1:79 var
+R4467:4468 PyCSL.Phase2_State <> n2:80 var
+R4478:4481 PyCSL.Phase1_AST <> OpNe constr
+R4486:4489 Coq.Init.Datatypes <> negb def
+R4492:4496 Coq.ZArith.BinInt Z eqb def
+R4498:4499 PyCSL.Phase2_State <> n1:79 var
+R4501:4502 PyCSL.Phase2_State <> n2:80 var
+R4513:4516 PyCSL.Phase1_AST <> OpLt constr
+R4521:4525 Coq.ZArith.BinInt Z ltb def
+R4527:4528 PyCSL.Phase2_State <> n1:79 var
+R4530:4531 PyCSL.Phase2_State <> n2:80 var
+R4541:4544 PyCSL.Phase1_AST <> OpLe constr
+R4549:4553 Coq.ZArith.BinInt Z leb def
+R4555:4556 PyCSL.Phase2_State <> n1:79 var
+R4558:4559 PyCSL.Phase2_State <> n2:80 var
+R4569:4572 PyCSL.Phase1_AST <> OpGt constr
+R4577:4581 Coq.ZArith.BinInt Z gtb def
+R4583:4584 PyCSL.Phase2_State <> n1:79 var
+R4586:4587 PyCSL.Phase2_State <> n2:80 var
+R4597:4600 PyCSL.Phase1_AST <> OpGe constr
+R4605:4609 Coq.ZArith.BinInt Z geb def
+R4611:4612 PyCSL.Phase2_State <> n1:79 var
+R4614:4615 PyCSL.Phase2_State <> n2:80 var
+def 4709:4717 <> eval_expr
+R4725:4729 PyCSL.Phase2_State <> state def
+binder 4720:4721 <> st:82
+R4737:4740 PyCSL.Phase1_AST <> expr ind
+binder 4733:4733 <> e:83
+R4745:4747 PyCSL.Phase2_State <> val ind
+R4760:4760 PyCSL.Phase2_State <> e:83 var
+R4771:4774 PyCSL.Phase1_AST <> EInt constr
+R4781:4784 PyCSL.Phase2_State <> VInt constr
+R4792:4795 PyCSL.Phase1_AST <> EVar constr
+R4808:4813 PyCSL.Phase2_State <> lookup def
+R4815:4816 PyCSL.Phase2_State <> st:82 var
+R4825:4828 Coq.Init.Datatypes <> Some constr
+R4839:4842 Coq.Init.Datatypes <> None constr
+R4847:4850 PyCSL.Phase2_State <> VInt constr
+R4862:4871 PyCSL.Phase1_AST <> ESubscript constr
+R4907:4915 PyCSL.Phase2_State <> eval_expr:84 def
+R4917:4918 PyCSL.Phase2_State <> st:82 var
+R4892:4897 PyCSL.Phase2_State <> lookup def
+R4899:4900 PyCSL.Phase2_State <> st:82 var
+R4933:4936 Coq.Init.Datatypes <> Some constr
+R4939:4944 PyCSL.Phase2_State <> VArray constr
+R4950:4953 PyCSL.Phase2_State <> VInt constr
+R4969:4969 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R4977:4982 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R5012:5012 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R4971:4975 Coq.ZArith.BinInt <> ::Z_scope:x_'<=?'_x not
+R4984:4987 Coq.ZArith.BinInt <> ::Z_scope:x_'<?'_x not
+R4988:4995 Coq.ZArith.BinInt Z of_nat def
+R4998:5008 Coq.Lists.List <> length abbrev
+R5069:5072 PyCSL.Phase2_State <> VInt constr
+R5025:5028 PyCSL.Phase2_State <> VInt constr
+R5031:5038 Coq.Lists.List <> nth def
+R5041:5048 Coq.ZArith.BinInt Z to_nat def
+R5090:5093 PyCSL.Phase2_State <> VInt constr
+R5109:5112 PyCSL.Phase1_AST <> ELen constr
+R5131:5136 PyCSL.Phase2_State <> lookup def
+R5138:5139 PyCSL.Phase2_State <> st:82 var
+R5156:5159 Coq.Init.Datatypes <> Some constr
+R5162:5167 PyCSL.Phase2_State <> VArray constr
+R5175:5178 PyCSL.Phase2_State <> VInt constr
+R5181:5188 Coq.ZArith.BinInt Z of_nat def
+R5191:5201 Coq.Lists.List <> length abbrev
+R5218:5221 PyCSL.Phase2_State <> VInt constr
+R5237:5242 PyCSL.Phase1_AST <> EBinOp constr
+R5283:5291 PyCSL.Phase2_State <> eval_expr:84 def
+R5293:5294 PyCSL.Phase2_State <> st:82 var
+R5266:5274 PyCSL.Phase2_State <> eval_expr:84 def
+R5276:5277 PyCSL.Phase2_State <> st:82 var
+R5310:5313 PyCSL.Phase2_State <> VInt constr
+R5319:5322 PyCSL.Phase2_State <> VInt constr
+R5330:5333 PyCSL.Phase2_State <> VInt constr
+R5336:5347 PyCSL.Phase2_State <> eval_binop_z def
+R5373:5376 PyCSL.Phase2_State <> VInt constr
+R5392:5395 PyCSL.Phase1_AST <> ENeg constr
+R5412:5420 PyCSL.Phase2_State <> eval_expr:84 def
+R5425:5425 PyCSL.Phase2_State <> e:83 var
+R5422:5423 PyCSL.Phase2_State <> st:82 var
+R5438:5441 PyCSL.Phase2_State <> VInt constr
+R5448:5451 PyCSL.Phase2_State <> VInt constr
+R5454:5455 Coq.ZArith.BinInt <> ::Z_scope:'-'_x not
+R5484:5487 PyCSL.Phase1_AST <> ECmp constr
+R5528:5536 PyCSL.Phase2_State <> eval_expr:84 def
+R5538:5539 PyCSL.Phase2_State <> st:82 var
+R5511:5519 PyCSL.Phase2_State <> eval_expr:84 def
+R5521:5522 PyCSL.Phase2_State <> st:82 var
+R5555:5558 PyCSL.Phase2_State <> VInt constr
+R5564:5567 PyCSL.Phase2_State <> VInt constr
+R5575:5578 PyCSL.Phase2_State <> VInt constr
+R5581:5592 PyCSL.Phase2_State <> eval_cmpop_z def
+R5618:5621 PyCSL.Phase2_State <> VInt constr
+R5637:5645 PyCSL.Phase1_AST <> EFieldGet constr
+R5850:5855 PyCSL.Phase2_State <> lookup def
+R5857:5858 PyCSL.Phase2_State <> st:82 var
+R5864:5867 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R5871:5874 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R5889:5892 Coq.Init.Datatypes <> Some constr
+R5907:5910 Coq.Init.Datatypes <> None constr
+R5917:5920 PyCSL.Phase2_State <> VInt constr
+R5936:5940 PyCSL.Phase1_AST <> ECall constr
+R6136:6139 PyCSL.Phase2_State <> VInt constr
+def 6209:6217 <> eval_bool
+R6225:6229 PyCSL.Phase2_State <> state def
+binder 6220:6221 <> st:86
+R6237:6240 PyCSL.Phase1_AST <> expr ind
+binder 6233:6233 <> e:87
+R6245:6248 Coq.Init.Datatypes <> bool ind
+R6261:6269 PyCSL.Phase2_State <> eval_expr def
+R6271:6272 PyCSL.Phase2_State <> st:86 var
+R6274:6274 PyCSL.Phase2_State <> e:87 var
+R6285:6288 PyCSL.Phase2_State <> VInt constr
+R6295:6299 Coq.Init.Datatypes <> false constr
+R6310:6313 Coq.Init.Datatypes <> true constr
+def 6383:6388 <> eval_z
+R6403:6407 PyCSL.Phase2_State <> state def
+binder 6391:6392 <> st:88
+binder 6394:6399 <> pre_st:89
+R6420:6425 Coq.Init.Datatypes <> option ind
+R6427:6429 PyCSL.Phase2_State <> val ind
+binder 6411:6416 <> result:90
+R6453:6465 PyCSL.Phase1_AST <> contract_expr ind
+binder 6449:6449 <> e:91
+R6470:6470 Coq.Numbers.BinNums <> Z ind
+R6483:6483 PyCSL.Phase2_State <> e:91 var
+R6494:6497 PyCSL.Phase1_AST <> CInt constr
+R6510:6513 PyCSL.Phase1_AST <> CVar constr
+R6526:6531 PyCSL.Phase2_State <> lookup def
+R6533:6534 PyCSL.Phase2_State <> st:88 var
+R6543:6546 Coq.Init.Datatypes <> Some constr
+R6549:6552 PyCSL.Phase2_State <> VInt constr
+R6579:6585 PyCSL.Phase1_AST <> CResult constr
+R6596:6601 PyCSL.Phase2_State <> result:90 var
+R6608:6611 Coq.Init.Datatypes <> Some constr
+R6614:6617 PyCSL.Phase2_State <> VInt constr
+R6644:6650 PyCSL.Phase1_AST <> CLength constr
+R6669:6674 PyCSL.Phase2_State <> lookup def
+R6676:6677 PyCSL.Phase2_State <> st:88 var
+R6694:6697 Coq.Init.Datatypes <> Some constr
+R6700:6705 PyCSL.Phase2_State <> VArray constr
+R6713:6720 Coq.ZArith.BinInt Z of_nat def
+R6723:6733 Coq.Lists.List <> length abbrev
+R6763:6771 PyCSL.Phase1_AST <> CLength2d constr
+R6924:6929 PyCSL.Phase2_State <> lookup def
+R6931:6932 PyCSL.Phase2_State <> st:88 var
+R6949:6952 Coq.Init.Datatypes <> Some constr
+R6955:6960 PyCSL.Phase2_State <> VArray constr
+R6968:6975 Coq.ZArith.BinInt Z of_nat def
+R6978:6988 Coq.Lists.List <> length abbrev
+R7018:7027 PyCSL.Phase1_AST <> CSubscript constr
+R7051:7056 PyCSL.Phase2_State <> eval_z:92 def
+R7068:7073 PyCSL.Phase2_State <> result:90 var
+R7061:7066 PyCSL.Phase2_State <> pre_st:89 var
+R7058:7059 PyCSL.Phase2_State <> st:88 var
+binder 7046:7046 <> n:95
+R7090:7095 PyCSL.Phase2_State <> lookup def
+R7097:7098 PyCSL.Phase2_State <> st:88 var
+R7115:7118 Coq.Init.Datatypes <> Some constr
+R7121:7126 PyCSL.Phase2_State <> VArray constr
+R7143:7143 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R7151:7156 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R7186:7186 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R7145:7149 Coq.ZArith.BinInt <> ::Z_scope:x_'<=?'_x not
+R7150:7150 PyCSL.Phase2_State <> n:95 var
+R7158:7161 Coq.ZArith.BinInt <> ::Z_scope:x_'<?'_x not
+R7157:7157 PyCSL.Phase2_State <> n:95 var
+R7162:7169 Coq.ZArith.BinInt Z of_nat def
+R7172:7182 Coq.Lists.List <> length abbrev
+R7199:7206 Coq.Lists.List <> nth def
+R7209:7216 Coq.ZArith.BinInt Z to_nat def
+R7218:7218 PyCSL.Phase2_State <> n:95 var
+R7263:7266 PyCSL.Phase1_AST <> COld constr
+R7273:7278 PyCSL.Phase2_State <> eval_z:92 def
+R7301:7301 PyCSL.Phase2_State <> e:91 var
+R7294:7299 PyCSL.Phase2_State <> result:90 var
+R7287:7292 PyCSL.Phase2_State <> pre_st:89 var
+R7280:7285 PyCSL.Phase2_State <> pre_st:89 var
+R7307:7312 PyCSL.Phase1_AST <> CBinOp constr
+R7330:7341 PyCSL.Phase2_State <> eval_binop_z def
+R7347:7352 PyCSL.Phase2_State <> eval_z:92 def
+R7364:7369 PyCSL.Phase2_State <> result:90 var
+R7357:7362 PyCSL.Phase2_State <> pre_st:89 var
+R7354:7355 PyCSL.Phase2_State <> st:88 var
+R7376:7381 PyCSL.Phase2_State <> eval_z:92 def
+R7393:7398 PyCSL.Phase2_State <> result:90 var
+R7386:7391 PyCSL.Phase2_State <> pre_st:89 var
+R7383:7384 PyCSL.Phase2_State <> st:88 var
+R7408:7411 PyCSL.Phase1_AST <> CNeg constr
+R7418:7420 Coq.ZArith.BinInt <> ::Z_scope:'-'_x not
+R7446:7446 Coq.ZArith.BinInt <> ::Z_scope:'-'_x not
+R7421:7426 PyCSL.Phase2_State <> eval_z:92 def
+R7445:7445 PyCSL.Phase2_State <> e:91 var
+R7438:7443 PyCSL.Phase2_State <> result:90 var
+R7431:7436 PyCSL.Phase2_State <> pre_st:89 var
+R7428:7429 PyCSL.Phase2_State <> st:88 var
+R7478:7494 PyCSL.Phase1_AST <> CChainedSubscript constr
+R7599:7604 PyCSL.Phase2_State <> eval_z:92 def
+R7616:7621 PyCSL.Phase2_State <> result:90 var
+R7609:7614 PyCSL.Phase2_State <> pre_st:89 var
+R7606:7607 PyCSL.Phase2_State <> st:88 var
+binder 7594:7594 <> n:96
+R7638:7643 PyCSL.Phase2_State <> lookup def
+R7645:7646 PyCSL.Phase2_State <> st:88 var
+R7663:7666 Coq.Init.Datatypes <> Some constr
+R7669:7674 PyCSL.Phase2_State <> VArray constr
+R7691:7691 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R7699:7704 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R7734:7734 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R7693:7697 Coq.ZArith.BinInt <> ::Z_scope:x_'<=?'_x not
+R7698:7698 PyCSL.Phase2_State <> n:96 var
+R7706:7709 Coq.ZArith.BinInt <> ::Z_scope:x_'<?'_x not
+R7705:7705 PyCSL.Phase2_State <> n:96 var
+R7710:7717 Coq.ZArith.BinInt Z of_nat def
+R7720:7730 Coq.Lists.List <> length abbrev
+R7747:7754 Coq.Lists.List <> nth def
+R7757:7764 Coq.ZArith.BinInt Z to_nat def
+R7766:7766 PyCSL.Phase2_State <> n:96 var
+R7811:7818 PyCSL.Phase1_AST <> CBoolLit constr
+R7848:7855 PyCSL.Phase1_AST <> CNoneLit constr
+R7866:7875 PyCSL.Phase1_AST <> CStringLit constr
+R7888:7896 PyCSL.Phase1_AST <> CIsSorted constr
+R7961:7964 PyCSL.Phase1_AST <> CSum constr
+R7995:8000 PyCSL.Phase2_State <> eval_z:92 def
+R8012:8017 PyCSL.Phase2_State <> result:90 var
+R8005:8010 PyCSL.Phase2_State <> pre_st:89 var
+R8002:8003 PyCSL.Phase2_State <> st:88 var
+binder 7987:7990 <> lo_z:97
+R8041:8046 PyCSL.Phase2_State <> eval_z:92 def
+R8058:8063 PyCSL.Phase2_State <> result:90 var
+R8051:8056 PyCSL.Phase2_State <> pre_st:89 var
+R8048:8049 PyCSL.Phase2_State <> st:88 var
+binder 8033:8036 <> hi_z:98
+R8081:8086 PyCSL.Phase2_State <> lookup def
+R8088:8089 PyCSL.Phase2_State <> st:88 var
+R8106:8109 Coq.Init.Datatypes <> Some constr
+R8112:8117 PyCSL.Phase2_State <> VArray constr
+R8131:8144 PyCSL.Phase2_State <> sum_list_range def
+R8149:8156 Coq.ZArith.BinInt Z to_nat def
+R8158:8161 PyCSL.Phase2_State <> lo_z:97 var
+R8165:8172 Coq.ZArith.BinInt Z to_nat def
+R8174:8177 PyCSL.Phase2_State <> hi_z:98 var
+R8205:8210 PyCSL.Phase1_AST <> CSlice constr
+R8278:8280 PyCSL.Phase1_AST <> CIn constr
+R8288:8293 PyCSL.Phase1_AST <> CNotIn constr
+R8414:8428 PyCSL.Phase1_AST <> CClassInvariant constr
+R8469:8484 PyCSL.Phase1_AST <> CResultSubscript constr
+R8504:8509 PyCSL.Phase2_State <> eval_z:92 def
+R8521:8526 PyCSL.Phase2_State <> result:90 var
+R8514:8519 PyCSL.Phase2_State <> pre_st:89 var
+R8511:8512 PyCSL.Phase2_State <> st:88 var
+binder 8499:8499 <> n:99
+R8543:8548 PyCSL.Phase2_State <> result:90 var
+R8561:8564 Coq.Init.Datatypes <> Some constr
+R8567:8572 PyCSL.Phase2_State <> VArray constr
+R8589:8589 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R8597:8602 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R8632:8632 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R8591:8595 Coq.ZArith.BinInt <> ::Z_scope:x_'<=?'_x not
+R8596:8596 PyCSL.Phase2_State <> n:99 var
+R8604:8607 Coq.ZArith.BinInt <> ::Z_scope:x_'<?'_x not
+R8603:8603 PyCSL.Phase2_State <> n:99 var
+R8608:8615 Coq.ZArith.BinInt Z of_nat def
+R8618:8628 Coq.Lists.List <> length abbrev
+R8645:8652 Coq.Lists.List <> nth def
+R8655:8662 Coq.ZArith.BinInt Z to_nat def
+R8664:8664 PyCSL.Phase2_State <> n:99 var
+R8709:8713 PyCSL.Phase1_AST <> CCall constr
+R8833:8835 PyCSL.Phase1_AST <> CAt constr
+R8854:8865 PyCSL.Phase2_State <> label_lookup def
+R8867:8869 Coq.Init.Datatypes <> nil constr
+R8944:8947 Coq.Init.Datatypes <> Some constr
+R8962:8965 Coq.Init.Datatypes <> None constr
+def 9249:9268 <> ghost_list_length_es
+R9276:9285 PyCSL.Phase2_State <> exec_state rec
+binder 9271:9272 <> es:101
+R9293:9302 PyCSL.Phase1_AST <> ghost_expr def
+binder 9289:9289 <> e:102
+R9307:9307 Coq.Numbers.BinNums <> Z ind
+R9320:9320 PyCSL.Phase2_State <> e:102 var
+R9331:9335 PyCSL.Phase1_AST <> CGNil constr
+R9346:9351 PyCSL.Phase1_AST <> CGCons constr
+R9361:9363 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R9364:9383 PyCSL.Phase2_State <> ghost_list_length_es:103 def
+R9385:9386 PyCSL.Phase2_State <> es:101 var
+R9394:9401 PyCSL.Phase1_AST <> CGAppend constr
+R9442:9444 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R9416:9435 PyCSL.Phase2_State <> ghost_list_length_es:103 def
+R9437:9438 PyCSL.Phase2_State <> es:101 var
+R9445:9464 PyCSL.Phase2_State <> ghost_list_length_es:103 def
+R9466:9467 PyCSL.Phase2_State <> es:101 var
+R9476:9479 PyCSL.Phase1_AST <> CGTl constr
+R9486:9490 Coq.ZArith.BinInt Z max def
+R9520:9522 Coq.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R9495:9514 PyCSL.Phase2_State <> ghost_list_length_es:103 def
+R9516:9517 PyCSL.Phase2_State <> es:101 var
+R9530:9533 PyCSL.Phase1_AST <> CVar constr
+R9550:9561 PyCSL.Phase2_State <> ghost_lookup def
+R9567:9574 PyCSL.Phase2_State <> ghost_st proj
+R9563:9564 PyCSL.Phase2_State <> es:101 var
+R9590:9593 Coq.Init.Datatypes <> Some constr
+R9596:9601 PyCSL.Phase2_State <> GVList constr
+R9611:9618 Coq.ZArith.BinInt Z of_nat def
+R9621:9631 Coq.Lists.List <> length abbrev
+R9644:9647 Coq.Init.Datatypes <> Some constr
+R9650:9656 PyCSL.Phase2_State <> GVArray constr
+R9665:9672 Coq.ZArith.BinInt Z of_nat def
+R9675:9685 Coq.Lists.List <> length abbrev
+R9696:9699 Coq.Init.Datatypes <> Some constr
+R9702:9706 PyCSL.Phase2_State <> GVSet constr
+R9717:9724 Coq.ZArith.BinInt Z of_nat def
+R9727:9737 Coq.Lists.List <> length abbrev
+def 9791:9812 <> ghost_string_length_es
+R9820:9829 PyCSL.Phase2_State <> exec_state rec
+binder 9815:9816 <> es:105
+R9837:9846 PyCSL.Phase1_AST <> ghost_expr def
+binder 9833:9833 <> e:106
+R9851:9851 Coq.Numbers.BinNums <> Z ind
+R9864:9864 PyCSL.Phase2_State <> e:106 var
+R9875:9878 PyCSL.Phase1_AST <> CVar constr
+R9895:9906 PyCSL.Phase2_State <> ghost_lookup def
+R9912:9919 PyCSL.Phase2_State <> ghost_st proj
+R9908:9909 PyCSL.Phase2_State <> es:105 var
+R9935:9938 Coq.Init.Datatypes <> Some constr
+R9941:9948 PyCSL.Phase2_State <> GVString constr
+R9958:9965 Coq.ZArith.BinInt Z of_nat def
+R9968:9980 Coq.Strings.String <> length def
+R10012:10022 PyCSL.Phase1_AST <> CGStrConcat constr
+R10065:10067 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10037:10058 PyCSL.Phase2_State <> ghost_string_length_es:107 def
+R10060:10061 PyCSL.Phase2_State <> es:105 var
+R10068:10089 PyCSL.Phase2_State <> ghost_string_length_es:107 def
+R10091:10092 PyCSL.Phase2_State <> es:105 var
+def 10125:10140 <> ghost_set_mem_es
+R10148:10157 PyCSL.Phase2_State <> exec_state rec
+binder 10143:10144 <> es:109
+R10168:10168 Coq.Numbers.BinNums <> Z ind
+binder 10161:10164 <> elem:110
+R10176:10185 PyCSL.Phase1_AST <> ghost_expr def
+binder 10172:10172 <> e:111
+R10190:10193 Coq.Init.Datatypes <> bool ind
+R10206:10206 PyCSL.Phase2_State <> e:111 var
+R10217:10226 PyCSL.Phase1_AST <> CGSetEmpty constr
+R10231:10235 Coq.Init.Datatypes <> false constr
+R10241:10248 PyCSL.Phase1_AST <> CGSetAdd constr
+R10271:10276 PyCSL.Phase2_State <> eval_z def
+R10282:10290 PyCSL.Phase2_State <> reg_state proj
+R10278:10279 PyCSL.Phase2_State <> es:109 var
+R10297:10305 PyCSL.Phase2_State <> reg_state proj
+R10293:10294 PyCSL.Phase2_State <> es:109 var
+R10308:10311 Coq.Init.Datatypes <> None constr
+binder 10265:10266 <> hv:114
+R10325:10329 Coq.ZArith.BinInt Z eqb def
+R10331:10332 PyCSL.Phase2_State <> hv:114 var
+R10334:10337 PyCSL.Phase2_State <> elem:110 var
+R10354:10369 PyCSL.Phase2_State <> ghost_set_mem_es:112 def
+R10374:10377 PyCSL.Phase2_State <> elem:110 var
+R10371:10372 PyCSL.Phase2_State <> es:109 var
+R10344:10347 Coq.Init.Datatypes <> true constr
+R10385:10388 PyCSL.Phase1_AST <> CVar constr
+R10405:10416 PyCSL.Phase2_State <> ghost_lookup def
+R10422:10429 PyCSL.Phase2_State <> ghost_st proj
+R10418:10419 PyCSL.Phase2_State <> es:109 var
+R10445:10448 Coq.Init.Datatypes <> Some constr
+R10451:10455 PyCSL.Phase2_State <> GVSet constr
+R10465:10476 Coq.Lists.List <> existsb def
+R10479:10483 Coq.ZArith.BinInt Z eqb def
+R10485:10488 PyCSL.Phase2_State <> elem:110 var
+R10506:10510 Coq.Init.Datatypes <> false constr
+R10529:10533 Coq.Init.Datatypes <> false constr
+def 10552:10568 <> ghost_set_card_es
+R10576:10585 PyCSL.Phase2_State <> exec_state rec
+binder 10571:10572 <> es:115
+R10593:10602 PyCSL.Phase1_AST <> ghost_expr def
+binder 10589:10589 <> e:116
+R10607:10607 Coq.Numbers.BinNums <> Z ind
+R10620:10620 PyCSL.Phase2_State <> e:116 var
+R10631:10640 PyCSL.Phase1_AST <> CGSetEmpty constr
+R10651:10658 PyCSL.Phase1_AST <> CGSetAdd constr
+R10681:10686 PyCSL.Phase2_State <> eval_z def
+R10692:10700 PyCSL.Phase2_State <> reg_state proj
+R10688:10689 PyCSL.Phase2_State <> es:115 var
+R10707:10715 PyCSL.Phase2_State <> reg_state proj
+R10703:10704 PyCSL.Phase2_State <> es:115 var
+R10718:10721 Coq.Init.Datatypes <> None constr
+binder 10675:10676 <> hv:119
+R10735:10750 PyCSL.Phase2_State <> ghost_set_mem_es def
+R10752:10753 PyCSL.Phase2_State <> es:115 var
+R10755:10756 PyCSL.Phase2_State <> hv:119 var
+R10802:10804 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R10805:10821 PyCSL.Phase2_State <> ghost_set_card_es:117 def
+R10823:10824 PyCSL.Phase2_State <> es:115 var
+R10769:10785 PyCSL.Phase2_State <> ghost_set_card_es:117 def
+R10787:10788 PyCSL.Phase2_State <> es:115 var
+R10832:10835 PyCSL.Phase1_AST <> CVar constr
+R10852:10863 PyCSL.Phase2_State <> ghost_lookup def
+R10869:10876 PyCSL.Phase2_State <> ghost_st proj
+R10865:10866 PyCSL.Phase2_State <> es:115 var
+R10892:10895 Coq.Init.Datatypes <> Some constr
+R10898:10902 PyCSL.Phase2_State <> GVSet constr
+R10912:10919 Coq.ZArith.BinInt Z of_nat def
+R10922:10932 Coq.Lists.List <> length abbrev
+def 11229:11245 <> ghost_list_nth_es
+def 12360:12368 <> eval_z_es
+R11260:11269 PyCSL.Phase2_State <> exec_state rec
+binder 11248:11249 <> es:120
+binder 11251:11256 <> pre_es:121
+R11282:11287 Coq.Init.Datatypes <> option ind
+R11289:11291 PyCSL.Phase2_State <> val ind
+binder 11273:11278 <> result:122
+R11326:11335 PyCSL.Phase1_AST <> ghost_expr def
+binder 11322:11322 <> e:123
+R11345:11345 Coq.Numbers.BinNums <> Z ind
+binder 11339:11341 <> idx:124
+R12383:12392 PyCSL.Phase2_State <> exec_state rec
+binder 12371:12372 <> es:125
+binder 12374:12379 <> pre_es:126
+R12405:12410 Coq.Init.Datatypes <> option ind
+R12412:12414 PyCSL.Phase2_State <> val ind
+binder 12396:12401 <> result:127
+R12437:12449 PyCSL.Phase1_AST <> contract_expr ind
+binder 12433:12433 <> e:128
+R11350:11350 Coq.Numbers.BinNums <> Z ind
+R12454:12454 Coq.Numbers.BinNums <> Z ind
+R11363:11363 PyCSL.Phase2_State <> e:123 var
+R11374:11378 PyCSL.Phase1_AST <> CGNil constr
+R11389:11394 PyCSL.Phase1_AST <> CGCons constr
+R11410:11414 Coq.ZArith.BinInt Z eqb def
+R11416:11418 PyCSL.Phase2_State <> idx:124 var
+R11469:11485 PyCSL.Phase2_State <> ghost_list_nth_es:129 def
+R11510:11512 Coq.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R11507:11509 PyCSL.Phase2_State <> idx:124 var
+R11497:11502 PyCSL.Phase2_State <> result:122 var
+R11490:11495 PyCSL.Phase2_State <> pre_es:121 var
+R11487:11488 PyCSL.Phase2_State <> es:120 var
+R11431:11439 PyCSL.Phase2_State <> eval_z_es:130 def
+R11451:11456 PyCSL.Phase2_State <> result:122 var
+R11444:11449 PyCSL.Phase2_State <> pre_es:121 var
+R11441:11442 PyCSL.Phase2_State <> es:120 var
+R11520:11527 PyCSL.Phase1_AST <> CGAppend constr
+R11554:11573 PyCSL.Phase2_State <> ghost_list_length_es def
+R11575:11576 PyCSL.Phase2_State <> es:120 var
+binder 11546:11549 <> len1:132
+R11591:11591 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R11601:11606 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R11618:11618 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R11593:11597 Coq.ZArith.BinInt <> ::Z_scope:x_'<=?'_x not
+R11598:11600 PyCSL.Phase2_State <> idx:124 var
+R11610:11613 Coq.ZArith.BinInt <> ::Z_scope:x_'<?'_x not
+R11607:11609 PyCSL.Phase2_State <> idx:124 var
+R11614:11617 PyCSL.Phase2_State <> len1:132 var
+R11680:11696 PyCSL.Phase2_State <> ghost_list_nth_es:129 def
+R11722:11724 Coq.ZArith.BinInt <> ::Z_scope:x_'-'_x not
+R11719:11721 PyCSL.Phase2_State <> idx:124 var
+R11725:11728 PyCSL.Phase2_State <> len1:132 var
+R11708:11713 PyCSL.Phase2_State <> result:122 var
+R11701:11706 PyCSL.Phase2_State <> pre_es:121 var
+R11698:11699 PyCSL.Phase2_State <> es:120 var
+R11629:11645 PyCSL.Phase2_State <> ghost_list_nth_es:129 def
+R11667:11669 PyCSL.Phase2_State <> idx:124 var
+R11657:11662 PyCSL.Phase2_State <> result:122 var
+R11650:11655 PyCSL.Phase2_State <> pre_es:121 var
+R11647:11648 PyCSL.Phase2_State <> es:120 var
+R11735:11738 PyCSL.Phase1_AST <> CGTl constr
+R11745:11761 PyCSL.Phase2_State <> ghost_list_nth_es:129 def
+R11786:11788 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R11783:11785 PyCSL.Phase2_State <> idx:124 var
+R11773:11778 PyCSL.Phase2_State <> result:122 var
+R11766:11771 PyCSL.Phase2_State <> pre_es:121 var
+R11763:11764 PyCSL.Phase2_State <> es:120 var
+R11796:11799 PyCSL.Phase1_AST <> CVar constr
+R11816:11827 PyCSL.Phase2_State <> ghost_lookup def
+R11833:11840 PyCSL.Phase2_State <> ghost_st proj
+R11829:11830 PyCSL.Phase2_State <> es:120 var
+R11856:11859 Coq.Init.Datatypes <> Some constr
+R11862:11867 PyCSL.Phase2_State <> GVList constr
+R11886:11886 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R11896:11901 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R11935:11935 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R11888:11892 Coq.ZArith.BinInt <> ::Z_scope:x_'<=?'_x not
+R11893:11895 PyCSL.Phase2_State <> idx:124 var
+R11905:11908 Coq.ZArith.BinInt <> ::Z_scope:x_'<?'_x not
+R11902:11904 PyCSL.Phase2_State <> idx:124 var
+R11909:11916 Coq.ZArith.BinInt Z of_nat def
+R11919:11929 Coq.Lists.List <> length abbrev
+R11948:11955 Coq.Lists.List <> nth def
+R11958:11965 Coq.ZArith.BinInt Z to_nat def
+R11967:11969 PyCSL.Phase2_State <> idx:124 var
+R11991:11994 Coq.Init.Datatypes <> Some constr
+R11997:12003 PyCSL.Phase2_State <> GVArray constr
+R12020:12020 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R12030:12035 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R12067:12067 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R12022:12026 Coq.ZArith.BinInt <> ::Z_scope:x_'<=?'_x not
+R12027:12029 PyCSL.Phase2_State <> idx:124 var
+R12039:12042 Coq.ZArith.BinInt <> ::Z_scope:x_'<?'_x not
+R12036:12038 PyCSL.Phase2_State <> idx:124 var
+R12043:12050 Coq.ZArith.BinInt Z of_nat def
+R12053:12063 Coq.Lists.List <> length abbrev
+R12080:12087 Coq.Lists.List <> nth def
+R12090:12097 Coq.ZArith.BinInt Z to_nat def
+R12099:12101 PyCSL.Phase2_State <> idx:124 var
+R12467:12467 PyCSL.Phase2_State <> e:128 var
+R12478:12481 PyCSL.Phase1_AST <> CInt constr
+R12494:12497 PyCSL.Phase1_AST <> CVar constr
+R12514:12519 PyCSL.Phase2_State <> lookup def
+R12525:12533 PyCSL.Phase2_State <> reg_state proj
+R12521:12522 PyCSL.Phase2_State <> es:125 var
+R12549:12552 Coq.Init.Datatypes <> Some constr
+R12555:12558 PyCSL.Phase2_State <> VInt constr
+R12591:12602 PyCSL.Phase2_State <> ghost_lookup def
+R12608:12615 PyCSL.Phase2_State <> ghost_st proj
+R12604:12605 PyCSL.Phase2_State <> es:125 var
+R12633:12636 Coq.Init.Datatypes <> Some constr
+R12639:12643 PyCSL.Phase2_State <> GVInt constr
+R12690:12696 PyCSL.Phase1_AST <> CResult constr
+R12707:12712 PyCSL.Phase2_State <> result:127 var
+R12719:12722 Coq.Init.Datatypes <> Some constr
+R12725:12728 PyCSL.Phase2_State <> VInt constr
+R12755:12761 PyCSL.Phase1_AST <> CLength constr
+R12780:12785 PyCSL.Phase2_State <> lookup def
+R12791:12799 PyCSL.Phase2_State <> reg_state proj
+R12787:12788 PyCSL.Phase2_State <> es:125 var
+R12817:12820 Coq.Init.Datatypes <> Some constr
+R12823:12828 PyCSL.Phase2_State <> VArray constr
+R12836:12843 Coq.ZArith.BinInt Z of_nat def
+R12846:12856 Coq.Lists.List <> length abbrev
+R12886:12894 PyCSL.Phase1_AST <> CLength2d constr
+R12986:12991 PyCSL.Phase2_State <> lookup def
+R12997:13005 PyCSL.Phase2_State <> reg_state proj
+R12993:12994 PyCSL.Phase2_State <> es:125 var
+R13023:13026 Coq.Init.Datatypes <> Some constr
+R13029:13034 PyCSL.Phase2_State <> VArray constr
+R13042:13049 Coq.ZArith.BinInt Z of_nat def
+R13052:13062 Coq.Lists.List <> length abbrev
+R13092:13101 PyCSL.Phase1_AST <> CSubscript constr
+R13125:13133 PyCSL.Phase2_State <> eval_z_es:130 def
+R13145:13150 PyCSL.Phase2_State <> result:127 var
+R13138:13143 PyCSL.Phase2_State <> pre_es:126 var
+R13135:13136 PyCSL.Phase2_State <> es:125 var
+binder 13120:13120 <> n:135
+R13167:13172 PyCSL.Phase2_State <> lookup def
+R13178:13186 PyCSL.Phase2_State <> reg_state proj
+R13174:13175 PyCSL.Phase2_State <> es:125 var
+R13204:13207 Coq.Init.Datatypes <> Some constr
+R13210:13215 PyCSL.Phase2_State <> VArray constr
+R13232:13232 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R13240:13245 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R13275:13275 Coq.Init.Datatypes <> ::bool_scope:x_'&&'_x not
+R13234:13238 Coq.ZArith.BinInt <> ::Z_scope:x_'<=?'_x not
+R13239:13239 PyCSL.Phase2_State <> n:135 var
+R13247:13250 Coq.ZArith.BinInt <> ::Z_scope:x_'<?'_x not
+R13246:13246 PyCSL.Phase2_State <> n:135 var
+R13251:13258 Coq.ZArith.BinInt Z of_nat def
+R13261:13271 Coq.Lists.List <> length abbrev
+R13288:13295 Coq.Lists.List <> nth def
+R13298:13305 Coq.ZArith.BinInt Z to_nat def
+R13307:13307 PyCSL.Phase2_State <> n:135 var
+R13352:13355 PyCSL.Phase1_AST <> COld constr
+R13363:13371 PyCSL.Phase2_State <> eval_z_es:130 def
+R13387:13392 PyCSL.Phase2_State <> result:127 var
+R13380:13385 PyCSL.Phase2_State <> pre_es:126 var
+R13373:13378 PyCSL.Phase2_State <> pre_es:126 var
+R13401:13406 PyCSL.Phase1_AST <> CBinOp constr
+R13424:13435 PyCSL.Phase2_State <> eval_binop_z def
+R13441:13449 PyCSL.Phase2_State <> eval_z_es:130 def
+R13461:13466 PyCSL.Phase2_State <> result:127 var
+R13454:13459 PyCSL.Phase2_State <> pre_es:126 var
+R13451:13452 PyCSL.Phase2_State <> es:125 var
+R13473:13481 PyCSL.Phase2_State <> eval_z_es:130 def
+R13493:13498 PyCSL.Phase2_State <> result:127 var
+R13486:13491 PyCSL.Phase2_State <> pre_es:126 var
+R13483:13484 PyCSL.Phase2_State <> es:125 var
+R13508:13511 PyCSL.Phase1_AST <> CNeg constr
+R13519:13521 Coq.ZArith.BinInt <> ::Z_scope:'-'_x not
+R13551:13551 Coq.ZArith.BinInt <> ::Z_scope:'-'_x not
+R13522:13530 PyCSL.Phase2_State <> eval_z_es:130 def
+R13542:13547 PyCSL.Phase2_State <> result:127 var
+R13535:13540 PyCSL.Phase2_State <> pre_es:126 var
+R13532:13533 PyCSL.Phase2_State <> es:125 var
+R13557:13559 PyCSL.Phase1_AST <> CAt constr
+R13579:13590 PyCSL.Phase2_State <> label_lookup def
+R13596:13606 PyCSL.Phase2_State <> label_snaps proj
+R13592:13593 PyCSL.Phase2_State <> es:125 var
+R13622:13625 Coq.Init.Datatypes <> Some constr
+R13634:13642 PyCSL.Phase2_State <> eval_z_es:130 def
+R13670:13675 PyCSL.Phase2_State <> result:127 var
+R13663:13668 PyCSL.Phase2_State <> pre_es:126 var
+R13645:13653 PyCSL.Phase2_State <> set_ghost def
+R13655:13656 PyCSL.Phase2_State <> es:125 var
+R13686:13689 Coq.Init.Datatypes <> None constr
+R13708:13711 PyCSL.Phase1_AST <> CSum constr
+R13742:13750 PyCSL.Phase2_State <> eval_z_es:130 def
+R13762:13767 PyCSL.Phase2_State <> result:127 var
+R13755:13760 PyCSL.Phase2_State <> pre_es:126 var
+R13752:13753 PyCSL.Phase2_State <> es:125 var
+binder 13734:13737 <> lo_z:136
+R13791:13799 PyCSL.Phase2_State <> eval_z_es:130 def
+R13811:13816 PyCSL.Phase2_State <> result:127 var
+R13804:13809 PyCSL.Phase2_State <> pre_es:126 var
+R13801:13802 PyCSL.Phase2_State <> es:125 var
+binder 13783:13786 <> hi_z:137
+R13834:13839 PyCSL.Phase2_State <> lookup def
+R13845:13853 PyCSL.Phase2_State <> reg_state proj
+R13841:13842 PyCSL.Phase2_State <> es:125 var
+R13871:13874 Coq.Init.Datatypes <> Some constr
+R13877:13882 PyCSL.Phase2_State <> VArray constr
+R13890:13903 PyCSL.Phase2_State <> sum_list_range def
+R13908:13915 Coq.ZArith.BinInt Z to_nat def
+R13917:13920 PyCSL.Phase2_State <> lo_z:136 var
+R13924:13931 Coq.ZArith.BinInt Z to_nat def
+R13933:13936 PyCSL.Phase2_State <> hi_z:137 var
+R14029:14033 PyCSL.Phase1_AST <> CGFst constr
+R14063:14072 PyCSL.Phase1_AST <> CGMkTuple2 constr
+R14086:14094 PyCSL.Phase2_State <> eval_z_es:130 def
+R14106:14111 PyCSL.Phase2_State <> result:127 var
+R14099:14104 PyCSL.Phase2_State <> pre_es:126 var
+R14096:14097 PyCSL.Phase2_State <> es:125 var
+R14122:14131 PyCSL.Phase1_AST <> CGMkTuple3 constr
+R14145:14153 PyCSL.Phase2_State <> eval_z_es:130 def
+R14165:14170 PyCSL.Phase2_State <> result:127 var
+R14158:14163 PyCSL.Phase2_State <> pre_es:126 var
+R14155:14156 PyCSL.Phase2_State <> es:125 var
+R14181:14190 PyCSL.Phase1_AST <> CGMkTuple4 constr
+R14204:14212 PyCSL.Phase2_State <> eval_z_es:130 def
+R14224:14229 PyCSL.Phase2_State <> result:127 var
+R14217:14222 PyCSL.Phase2_State <> pre_es:126 var
+R14214:14215 PyCSL.Phase2_State <> es:125 var
+R14240:14243 PyCSL.Phase1_AST <> CVar constr
+R14262:14273 PyCSL.Phase2_State <> ghost_lookup def
+R14279:14286 PyCSL.Phase2_State <> ghost_st proj
+R14275:14276 PyCSL.Phase2_State <> es:125 var
+R14304:14307 Coq.Init.Datatypes <> Some constr
+R14310:14317 PyCSL.Phase2_State <> GVTuple2 constr
+R14331:14334 Coq.Init.Datatypes <> Some constr
+R14337:14344 PyCSL.Phase2_State <> GVTuple3 constr
+R14366:14369 Coq.Init.Datatypes <> Some constr
+R14372:14379 PyCSL.Phase2_State <> GVTuple4 constr
+R14433:14437 PyCSL.Phase1_AST <> CGSnd constr
+R14467:14476 PyCSL.Phase1_AST <> CGMkTuple2 constr
+R14490:14498 PyCSL.Phase2_State <> eval_z_es:130 def
+R14510:14515 PyCSL.Phase2_State <> result:127 var
+R14503:14508 PyCSL.Phase2_State <> pre_es:126 var
+R14500:14501 PyCSL.Phase2_State <> es:125 var
+R14526:14535 PyCSL.Phase1_AST <> CGMkTuple3 constr
+R14549:14557 PyCSL.Phase2_State <> eval_z_es:130 def
+R14569:14574 PyCSL.Phase2_State <> result:127 var
+R14562:14567 PyCSL.Phase2_State <> pre_es:126 var
+R14559:14560 PyCSL.Phase2_State <> es:125 var
+R14585:14594 PyCSL.Phase1_AST <> CGMkTuple4 constr
+R14608:14616 PyCSL.Phase2_State <> eval_z_es:130 def
+R14628:14633 PyCSL.Phase2_State <> result:127 var
+R14621:14626 PyCSL.Phase2_State <> pre_es:126 var
+R14618:14619 PyCSL.Phase2_State <> es:125 var
+R14644:14647 PyCSL.Phase1_AST <> CVar constr
+R14666:14677 PyCSL.Phase2_State <> ghost_lookup def
+R14683:14690 PyCSL.Phase2_State <> ghost_st proj
+R14679:14680 PyCSL.Phase2_State <> es:125 var
+R14708:14711 Coq.Init.Datatypes <> Some constr
+R14714:14721 PyCSL.Phase2_State <> GVTuple2 constr
+R14735:14738 Coq.Init.Datatypes <> Some constr
+R14741:14748 PyCSL.Phase2_State <> GVTuple3 constr
+R14770:14773 Coq.Init.Datatypes <> Some constr
+R14776:14783 PyCSL.Phase2_State <> GVTuple4 constr
+R14837:14841 PyCSL.Phase1_AST <> CGTrd constr
+R14871:14880 PyCSL.Phase1_AST <> CGMkTuple3 constr
+R14894:14902 PyCSL.Phase2_State <> eval_z_es:130 def
+R14914:14919 PyCSL.Phase2_State <> result:127 var
+R14907:14912 PyCSL.Phase2_State <> pre_es:126 var
+R14904:14905 PyCSL.Phase2_State <> es:125 var
+R14930:14939 PyCSL.Phase1_AST <> CGMkTuple4 constr
+R14953:14961 PyCSL.Phase2_State <> eval_z_es:130 def
+R14973:14978 PyCSL.Phase2_State <> result:127 var
+R14966:14971 PyCSL.Phase2_State <> pre_es:126 var
+R14963:14964 PyCSL.Phase2_State <> es:125 var
+R14989:14992 PyCSL.Phase1_AST <> CVar constr
+R15011:15022 PyCSL.Phase2_State <> ghost_lookup def
+R15028:15035 PyCSL.Phase2_State <> ghost_st proj
+R15024:15025 PyCSL.Phase2_State <> es:125 var
+R15053:15056 Coq.Init.Datatypes <> Some constr
+R15059:15066 PyCSL.Phase2_State <> GVTuple3 constr
+R15082:15085 Coq.Init.Datatypes <> Some constr
+R15088:15095 PyCSL.Phase2_State <> GVTuple4 constr
+R15149:15153 PyCSL.Phase1_AST <> CGFth constr
+R15183:15192 PyCSL.Phase1_AST <> CGMkTuple4 constr
+R15206:15214 PyCSL.Phase2_State <> eval_z_es:130 def
+R15226:15231 PyCSL.Phase2_State <> result:127 var
+R15219:15224 PyCSL.Phase2_State <> pre_es:126 var
+R15216:15217 PyCSL.Phase2_State <> es:125 var
+R15242:15245 PyCSL.Phase1_AST <> CVar constr
+R15264:15275 PyCSL.Phase2_State <> ghost_lookup def
+R15281:15288 PyCSL.Phase2_State <> ghost_st proj
+R15277:15278 PyCSL.Phase2_State <> es:125 var
+R15306:15309 Coq.Init.Datatypes <> Some constr
+R15312:15319 PyCSL.Phase2_State <> GVTuple4 constr
+R15441:15449 PyCSL.Phase1_AST <> CGListLen constr
+R15456:15475 PyCSL.Phase2_State <> ghost_list_length_es def
+R15477:15478 PyCSL.Phase2_State <> es:125 var
+R15486:15494 PyCSL.Phase1_AST <> CGSetCard constr
+R15501:15517 PyCSL.Phase2_State <> ghost_set_card_es def
+R15519:15520 PyCSL.Phase2_State <> es:125 var
+R15528:15535 PyCSL.Phase1_AST <> CGStrLen constr
+R15542:15563 PyCSL.Phase2_State <> ghost_string_length_es def
+R15565:15566 PyCSL.Phase2_State <> es:125 var
+R15648:15652 PyCSL.Phase1_AST <> CGNth constr
+R15676:15684 PyCSL.Phase2_State <> eval_z_es:130 def
+R15696:15701 PyCSL.Phase2_State <> result:127 var
+R15689:15694 PyCSL.Phase2_State <> pre_es:126 var
+R15686:15687 PyCSL.Phase2_State <> es:125 var
+binder 15669:15671 <> idx:142
+R15712:15728 PyCSL.Phase2_State <> ghost_list_nth_es:129 def
+R15749:15751 PyCSL.Phase2_State <> idx:142 var
+R15740:15745 PyCSL.Phase2_State <> result:127 var
+R15733:15738 PyCSL.Phase2_State <> pre_es:126 var
+R15730:15731 PyCSL.Phase2_State <> es:125 var
+R15840:15845 PyCSL.Phase2_State <> eval_z def
+R15851:15859 PyCSL.Phase2_State <> reg_state proj
+R15847:15848 PyCSL.Phase2_State <> es:125 var
+R15870:15878 PyCSL.Phase2_State <> reg_state proj
+R15862:15867 PyCSL.Phase2_State <> pre_es:126 var
+R15881:15886 PyCSL.Phase2_State <> result:127 var
+R15888:15888 PyCSL.Phase2_State <> e:128 var
+def 15989:16001 <> eval_array_in
+R16016:16020 PyCSL.Phase2_State <> state def
+binder 16004:16005 <> st:143
+binder 16007:16012 <> pre_st:144
+R16033:16038 Coq.Init.Datatypes <> option ind
+R16040:16042 PyCSL.Phase2_State <> val ind
+binder 16024:16029 <> result:145
+R16088:16100 PyCSL.Phase1_AST <> contract_expr ind
+binder 16071:16074 <> elem:146
+binder 16076:16084 <> container:147
+R16124:16129 PyCSL.Phase2_State <> eval_z def
+R16131:16132 PyCSL.Phase2_State <> st:143 var
+R16134:16139 PyCSL.Phase2_State <> pre_st:144 var
+R16141:16146 PyCSL.Phase2_State <> result:145 var
+R16148:16151 PyCSL.Phase2_State <> elem:146 var
+binder 16119:16119 <> v:148
+R16164:16172 PyCSL.Phase2_State <> container:147 var
+R16183:16186 PyCSL.Phase1_AST <> CVar constr
+R16205:16210 PyCSL.Phase2_State <> lookup def
+R16212:16213 PyCSL.Phase2_State <> st:143 var
+R16230:16233 Coq.Init.Datatypes <> Some constr
+R16236:16241 PyCSL.Phase2_State <> VArray constr
+R16249:16255 Coq.Lists.List <> In def
+R16257:16257 PyCSL.Phase2_State <> v:148 var
+R16272:16276 Coq.Init.Logic <> False ind
+R16295:16299 Coq.Init.Logic <> False ind
+def 16911:16915 <> valid
+R16928:16928 Coq.Numbers.BinNums <> Z ind
+binder 16918:16920 <> ptr:150
+binder 16922:16924 <> len:151
+R16941:16944 Coq.Init.Logic <> True ind
+def 16958:16966 <> separated
+R16975:16975 Coq.Numbers.BinNums <> Z ind
+binder 16969:16969 <> a:152
+binder 16971:16971 <> b:153
+R16988:16991 Coq.Init.Logic <> True ind
+def 17053:17065 <> eval_contract
+R17080:17084 PyCSL.Phase2_State <> state def
+binder 17068:17069 <> st:154
+binder 17071:17076 <> pre_st:155
+R17097:17102 Coq.Init.Datatypes <> option ind
+R17104:17106 PyCSL.Phase2_State <> val ind
+binder 17088:17093 <> result:156
+R17137:17149 PyCSL.Phase1_AST <> contract_expr ind
+binder 17133:17133 <> e:157
+R17170:17170 PyCSL.Phase2_State <> e:157 var
+R17181:17184 PyCSL.Phase1_AST <> CInt constr
+R17192:17195 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R17202:17205 PyCSL.Phase1_AST <> CVar constr
+R17222:17227 PyCSL.Phase2_State <> lookup def
+R17229:17230 PyCSL.Phase2_State <> st:154 var
+R17239:17242 Coq.Init.Datatypes <> Some constr
+R17245:17248 PyCSL.Phase2_State <> VInt constr
+R17256:17260 Coq.Init.Logic <> False ind
+R17269:17272 Coq.Init.Logic <> True ind
+R17282:17288 PyCSL.Phase1_AST <> CResult constr
+R17303:17308 PyCSL.Phase2_State <> result:156 var
+R17315:17318 Coq.Init.Datatypes <> Some constr
+R17321:17324 PyCSL.Phase2_State <> VInt constr
+R17332:17336 Coq.Init.Logic <> False ind
+R17345:17348 Coq.Init.Logic <> True ind
+R17358:17364 PyCSL.Phase1_AST <> CLength constr
+R17370:17378 PyCSL.Phase1_AST <> CLength2d constr
+R17384:17393 PyCSL.Phase1_AST <> CSubscript constr
+R17401:17404 PyCSL.Phase1_AST <> COld constr
+R17410:17415 PyCSL.Phase1_AST <> CBinOp constr
+R17425:17428 PyCSL.Phase1_AST <> CNeg constr
+R17464:17467 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R17439:17444 PyCSL.Phase2_State <> eval_z def
+R17446:17447 PyCSL.Phase2_State <> st:154 var
+R17449:17454 PyCSL.Phase2_State <> pre_st:155 var
+R17456:17461 PyCSL.Phase2_State <> result:156 var
+R17463:17463 PyCSL.Phase2_State <> e:157 var
+R17464:17467 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R17439:17444 PyCSL.Phase2_State <> eval_z def
+R17446:17447 PyCSL.Phase2_State <> st:154 var
+R17449:17454 PyCSL.Phase2_State <> pre_st:155 var
+R17456:17461 PyCSL.Phase2_State <> result:156 var
+R17463:17463 PyCSL.Phase2_State <> e:157 var
+R17464:17467 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R17439:17444 PyCSL.Phase2_State <> eval_z def
+R17446:17447 PyCSL.Phase2_State <> st:154 var
+R17449:17454 PyCSL.Phase2_State <> pre_st:155 var
+R17456:17461 PyCSL.Phase2_State <> result:156 var
+R17463:17463 PyCSL.Phase2_State <> e:157 var
+R17464:17467 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R17439:17444 PyCSL.Phase2_State <> eval_z def
+R17446:17447 PyCSL.Phase2_State <> st:154 var
+R17449:17454 PyCSL.Phase2_State <> pre_st:155 var
+R17456:17461 PyCSL.Phase2_State <> result:156 var
+R17463:17463 PyCSL.Phase2_State <> e:157 var
+R17464:17467 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R17439:17444 PyCSL.Phase2_State <> eval_z def
+R17446:17447 PyCSL.Phase2_State <> st:154 var
+R17449:17454 PyCSL.Phase2_State <> pre_st:155 var
+R17456:17461 PyCSL.Phase2_State <> result:156 var
+R17463:17463 PyCSL.Phase2_State <> e:157 var
+R17464:17467 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R17439:17444 PyCSL.Phase2_State <> eval_z def
+R17446:17447 PyCSL.Phase2_State <> st:154 var
+R17449:17454 PyCSL.Phase2_State <> pre_st:155 var
+R17456:17461 PyCSL.Phase2_State <> result:156 var
+R17463:17463 PyCSL.Phase2_State <> e:157 var
+R17474:17476 PyCSL.Phase1_AST <> CEq constr
+R17514:17517 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R17488:17493 PyCSL.Phase2_State <> eval_z def
+R17495:17496 PyCSL.Phase2_State <> st:154 var
+R17498:17503 PyCSL.Phase2_State <> pre_st:155 var
+R17505:17510 PyCSL.Phase2_State <> result:156 var
+R17518:17523 PyCSL.Phase2_State <> eval_z def
+R17525:17526 PyCSL.Phase2_State <> st:154 var
+R17528:17533 PyCSL.Phase2_State <> pre_st:155 var
+R17535:17540 PyCSL.Phase2_State <> result:156 var
+R17549:17551 PyCSL.Phase1_AST <> CNe constr
+R17589:17592 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R17563:17568 PyCSL.Phase2_State <> eval_z def
+R17570:17571 PyCSL.Phase2_State <> st:154 var
+R17573:17578 PyCSL.Phase2_State <> pre_st:155 var
+R17580:17585 PyCSL.Phase2_State <> result:156 var
+R17593:17598 PyCSL.Phase2_State <> eval_z def
+R17600:17601 PyCSL.Phase2_State <> st:154 var
+R17603:17608 PyCSL.Phase2_State <> pre_st:155 var
+R17610:17615 PyCSL.Phase2_State <> result:156 var
+R17624:17626 PyCSL.Phase1_AST <> CLt constr
+R17664:17667 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R17638:17643 PyCSL.Phase2_State <> eval_z def
+R17645:17646 PyCSL.Phase2_State <> st:154 var
+R17648:17653 PyCSL.Phase2_State <> pre_st:155 var
+R17655:17660 PyCSL.Phase2_State <> result:156 var
+R17668:17673 PyCSL.Phase2_State <> eval_z def
+R17675:17676 PyCSL.Phase2_State <> st:154 var
+R17678:17683 PyCSL.Phase2_State <> pre_st:155 var
+R17685:17690 PyCSL.Phase2_State <> result:156 var
+R17699:17701 PyCSL.Phase1_AST <> CLe constr
+R17739:17742 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R17713:17718 PyCSL.Phase2_State <> eval_z def
+R17720:17721 PyCSL.Phase2_State <> st:154 var
+R17723:17728 PyCSL.Phase2_State <> pre_st:155 var
+R17730:17735 PyCSL.Phase2_State <> result:156 var
+R17743:17748 PyCSL.Phase2_State <> eval_z def
+R17750:17751 PyCSL.Phase2_State <> st:154 var
+R17753:17758 PyCSL.Phase2_State <> pre_st:155 var
+R17760:17765 PyCSL.Phase2_State <> result:156 var
+R17774:17776 PyCSL.Phase1_AST <> CGt constr
+R17814:17817 Coq.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R17788:17793 PyCSL.Phase2_State <> eval_z def
+R17795:17796 PyCSL.Phase2_State <> st:154 var
+R17798:17803 PyCSL.Phase2_State <> pre_st:155 var
+R17805:17810 PyCSL.Phase2_State <> result:156 var
+R17818:17823 PyCSL.Phase2_State <> eval_z def
+R17825:17826 PyCSL.Phase2_State <> st:154 var
+R17828:17833 PyCSL.Phase2_State <> pre_st:155 var
+R17835:17840 PyCSL.Phase2_State <> result:156 var
+R17849:17851 PyCSL.Phase1_AST <> CGe constr
+R17889:17892 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R17863:17868 PyCSL.Phase2_State <> eval_z def
+R17870:17871 PyCSL.Phase2_State <> st:154 var
+R17873:17878 PyCSL.Phase2_State <> pre_st:155 var
+R17880:17885 PyCSL.Phase2_State <> result:156 var
+R17893:17898 PyCSL.Phase2_State <> eval_z def
+R17900:17901 PyCSL.Phase2_State <> st:154 var
+R17903:17908 PyCSL.Phase2_State <> pre_st:155 var
+R17910:17915 PyCSL.Phase2_State <> result:156 var
+R17924:17927 PyCSL.Phase1_AST <> CAnd constr
+R17975:17978 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R17942:17954 PyCSL.Phase2_State <> eval_contract:158 def
+R17966:17971 PyCSL.Phase2_State <> result:156 var
+R17959:17964 PyCSL.Phase2_State <> pre_st:155 var
+R17956:17957 PyCSL.Phase2_State <> st:154 var
+R17979:17991 PyCSL.Phase2_State <> eval_contract:158 def
+R18003:18008 PyCSL.Phase2_State <> result:156 var
+R17996:18001 PyCSL.Phase2_State <> pre_st:155 var
+R17993:17994 PyCSL.Phase2_State <> st:154 var
+R18017:18019 PyCSL.Phase1_AST <> COr constr
+R18068:18071 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
+R18035:18047 PyCSL.Phase2_State <> eval_contract:158 def
+R18059:18064 PyCSL.Phase2_State <> result:156 var
+R18052:18057 PyCSL.Phase2_State <> pre_st:155 var
+R18049:18050 PyCSL.Phase2_State <> st:154 var
+R18072:18084 PyCSL.Phase2_State <> eval_contract:158 def
+R18096:18101 PyCSL.Phase2_State <> result:156 var
+R18089:18094 PyCSL.Phase2_State <> pre_st:155 var
+R18086:18087 PyCSL.Phase2_State <> st:154 var
+R18110:18113 PyCSL.Phase1_AST <> CNot constr
+R18120:18121 Coq.Init.Logic <> ::type_scope:'~'_x not
+R18122:18134 PyCSL.Phase2_State <> eval_contract:158 def
+R18153:18153 PyCSL.Phase2_State <> e:157 var
+R18146:18151 PyCSL.Phase2_State <> result:156 var
+R18139:18144 PyCSL.Phase2_State <> pre_st:155 var
+R18136:18137 PyCSL.Phase2_State <> st:154 var
+R18159:18166 PyCSL.Phase1_AST <> CImplies constr
+R18214:18217 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R18181:18193 PyCSL.Phase2_State <> eval_contract:158 def
+R18205:18210 PyCSL.Phase2_State <> result:156 var
+R18198:18203 PyCSL.Phase2_State <> pre_st:155 var
+R18195:18196 PyCSL.Phase2_State <> st:154 var
+R18218:18230 PyCSL.Phase2_State <> eval_contract:158 def
+R18242:18247 PyCSL.Phase2_State <> result:156 var
+R18235:18240 PyCSL.Phase2_State <> pre_st:155 var
+R18232:18233 PyCSL.Phase2_State <> st:154 var
+R18256:18259 PyCSL.Phase1_AST <> CIff constr
+R18307:18311 Coq.Init.Logic <> ::type_scope:x_'<->'_x not
+R18274:18286 PyCSL.Phase2_State <> eval_contract:158 def
+R18298:18303 PyCSL.Phase2_State <> result:156 var
+R18291:18296 PyCSL.Phase2_State <> pre_st:155 var
+R18288:18289 PyCSL.Phase2_State <> st:154 var
+R18312:18324 PyCSL.Phase2_State <> eval_contract:158 def
+R18336:18341 PyCSL.Phase2_State <> result:156 var
+R18329:18334 PyCSL.Phase2_State <> pre_st:155 var
+R18326:18327 PyCSL.Phase2_State <> st:154 var
+R18350:18356 PyCSL.Phase1_AST <> CForall constr
+R18383:18383 Coq.Numbers.BinNums <> Z ind
+binder 18379:18379 <> n:161
+R18392:18404 PyCSL.Phase2_State <> eval_contract:158 def
+R18436:18441 PyCSL.Phase2_State <> result:156 var
+R18429:18434 PyCSL.Phase2_State <> pre_st:155 var
+R18407:18412 PyCSL.Phase2_State <> update def
+R18414:18415 PyCSL.Phase2_State <> st:154 var
+R18420:18423 PyCSL.Phase2_State <> VInt constr
+R18425:18425 PyCSL.Phase2_State <> n:161 var
+R18452:18458 PyCSL.Phase1_AST <> CExists constr
+R18474:18480 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R18486:18493 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R18485:18485 Coq.Numbers.BinNums <> Z ind
+binder 18481:18481 <> n:162
+R18494:18506 PyCSL.Phase2_State <> eval_contract:158 def
+R18538:18543 PyCSL.Phase2_State <> result:156 var
+R18531:18536 PyCSL.Phase2_State <> pre_st:155 var
+R18509:18514 PyCSL.Phase2_State <> update def
+R18516:18517 PyCSL.Phase2_State <> st:154 var
+R18522:18525 PyCSL.Phase2_State <> VInt constr
+R18527:18527 PyCSL.Phase2_State <> n:162 var
+R18580:18596 PyCSL.Phase1_AST <> CChainedSubscript constr
+R18664:18667 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R18613:18618 PyCSL.Phase2_State <> eval_z def
+R18620:18621 PyCSL.Phase2_State <> st:154 var
+R18623:18628 PyCSL.Phase2_State <> pre_st:155 var
+R18630:18635 PyCSL.Phase2_State <> result:156 var
+R18638:18654 PyCSL.Phase1_AST <> CChainedSubscript constr
+R18674:18681 PyCSL.Phase1_AST <> CBoolLit constr
+R18689:18691 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R18692:18695 Coq.Init.Datatypes <> true constr
+R18701:18708 PyCSL.Phase1_AST <> CNoneLit constr
+R18713:18717 Coq.Init.Logic <> False ind
+R18723:18732 PyCSL.Phase1_AST <> CStringLit constr
+R18740:18743 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R18751:18759 PyCSL.Phase1_AST <> CIsSorted constr
+R18790:18795 PyCSL.Phase2_State <> eval_z def
+R18797:18798 PyCSL.Phase2_State <> st:154 var
+R18800:18805 PyCSL.Phase2_State <> pre_st:155 var
+R18807:18812 PyCSL.Phase2_State <> result:156 var
+binder 18782:18785 <> lo_z:163
+R18836:18841 PyCSL.Phase2_State <> eval_z def
+R18843:18844 PyCSL.Phase2_State <> st:154 var
+R18846:18851 PyCSL.Phase2_State <> pre_st:155 var
+R18853:18858 PyCSL.Phase2_State <> result:156 var
+binder 18828:18831 <> hi_z:164
+R18876:18881 PyCSL.Phase2_State <> lookup def
+R18883:18884 PyCSL.Phase2_State <> st:154 var
+R18901:18904 Coq.Init.Datatypes <> Some constr
+R18907:18912 PyCSL.Phase2_State <> VArray constr
+R18920:18936 PyCSL.Phase2_State <> sorted_list_range def
+R18941:18948 Coq.ZArith.BinInt Z to_nat def
+R18950:18953 PyCSL.Phase2_State <> lo_z:163 var
+R18957:18964 Coq.ZArith.BinInt Z to_nat def
+R18966:18969 PyCSL.Phase2_State <> hi_z:164 var
+R18983:18986 Coq.Init.Logic <> True ind
+R19000:19003 PyCSL.Phase1_AST <> CSum constr
+R19062:19065 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R19022:19027 PyCSL.Phase2_State <> eval_z def
+R19029:19030 PyCSL.Phase2_State <> st:154 var
+R19032:19037 PyCSL.Phase2_State <> pre_st:155 var
+R19039:19044 PyCSL.Phase2_State <> result:156 var
+R19047:19050 PyCSL.Phase1_AST <> CSum constr
+R19072:19077 PyCSL.Phase1_AST <> CSlice constr
+R19088:19091 Coq.Init.Logic <> True ind
+R19156:19158 PyCSL.Phase1_AST <> CIn constr
+R19182:19194 PyCSL.Phase2_State <> eval_array_in def
+R19196:19197 PyCSL.Phase2_State <> st:154 var
+R19199:19204 PyCSL.Phase2_State <> pre_st:155 var
+R19206:19211 PyCSL.Phase2_State <> result:156 var
+R19232:19237 PyCSL.Phase1_AST <> CNotIn constr
+R19261:19262 Coq.Init.Logic <> ::type_scope:'~'_x not
+R19263:19275 PyCSL.Phase2_State <> eval_array_in def
+R19277:19278 PyCSL.Phase2_State <> st:154 var
+R19280:19285 PyCSL.Phase2_State <> pre_st:155 var
+R19287:19292 PyCSL.Phase2_State <> result:156 var
+R19339:19354 PyCSL.Phase1_AST <> CResultSubscript constr
+R19409:19412 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R19365:19370 PyCSL.Phase2_State <> eval_z def
+R19372:19373 PyCSL.Phase2_State <> st:154 var
+R19375:19380 PyCSL.Phase2_State <> pre_st:155 var
+R19382:19387 PyCSL.Phase2_State <> result:156 var
+R19390:19405 PyCSL.Phase1_AST <> CResultSubscript constr
+R19419:19423 PyCSL.Phase1_AST <> CCall constr
+R19432:19435 Coq.Init.Logic <> True ind
+R19586:19588 PyCSL.Phase1_AST <> CAt constr
+R19597:19600 Coq.Init.Logic <> True ind
+R20344:20349 PyCSL.Phase1_AST <> CValid constr
+R20366:20370 PyCSL.Phase2_State <> valid def
+R20373:20378 PyCSL.Phase2_State <> eval_z def
+R20380:20381 PyCSL.Phase2_State <> st:154 var
+R20383:20388 PyCSL.Phase2_State <> pre_st:155 var
+R20390:20395 PyCSL.Phase2_State <> result:156 var
+R20403:20408 PyCSL.Phase2_State <> eval_z def
+R20410:20411 PyCSL.Phase2_State <> st:154 var
+R20413:20418 PyCSL.Phase2_State <> pre_st:155 var
+R20420:20425 PyCSL.Phase2_State <> result:156 var
+R20436:20445 PyCSL.Phase1_AST <> CSeparated constr
+R20458:20466 PyCSL.Phase2_State <> separated def
+R20469:20474 PyCSL.Phase2_State <> eval_z def
+R20476:20477 PyCSL.Phase2_State <> st:154 var
+R20479:20484 PyCSL.Phase2_State <> pre_st:155 var
+R20486:20491 PyCSL.Phase2_State <> result:156 var
+R20497:20502 PyCSL.Phase2_State <> eval_z def
+R20504:20505 PyCSL.Phase2_State <> st:154 var
+R20507:20512 PyCSL.Phase2_State <> pre_st:155 var
+R20514:20519 PyCSL.Phase2_State <> result:156 var
+R20528:20535 PyCSL.Phase1_AST <> CValid2d constr
+R20546:20549 Coq.Init.Logic <> True ind
+R20617:20626 PyCSL.Phase1_AST <> CGMapEmpty constr
+R20630:20634 PyCSL.Phase1_AST <> CGNil constr
+R20638:20647 PyCSL.Phase1_AST <> CGSetEmpty constr
+R20652:20655 Coq.Init.Logic <> True ind
+R20652:20655 Coq.Init.Logic <> True ind
+R20652:20655 Coq.Init.Logic <> True ind
+R20661:20668 PyCSL.Phase1_AST <> CGMapGet constr
+R20676:20683 PyCSL.Phase1_AST <> CGMapSet constr
+R20693:20703 PyCSL.Phase1_AST <> CGMapRemove constr
+R20712:20715 Coq.Init.Logic <> True ind
+R20712:20715 Coq.Init.Logic <> True ind
+R20712:20715 Coq.Init.Logic <> True ind
+R20721:20728 PyCSL.Phase1_AST <> CGHasKey constr
+R20736:20742 PyCSL.Phase1_AST <> CGMapEq constr
+R20751:20754 Coq.Init.Logic <> True ind
+R20751:20754 Coq.Init.Logic <> True ind
+R20760:20765 PyCSL.Phase1_AST <> CGCons constr
+R20773:20776 PyCSL.Phase1_AST <> CGHd constr
+R20782:20785 PyCSL.Phase1_AST <> CGTl constr
+R20791:20799 PyCSL.Phase1_AST <> CGListLen constr
+R20806:20809 Coq.Init.Logic <> True ind
+R20806:20809 Coq.Init.Logic <> True ind
+R20806:20809 Coq.Init.Logic <> True ind
+R20806:20809 Coq.Init.Logic <> True ind
+R20815:20819 PyCSL.Phase1_AST <> CGNth constr
+R20827:20835 PyCSL.Phase1_AST <> CGListMem constr
+R20843:20850 PyCSL.Phase1_AST <> CGAppend constr
+R20859:20862 Coq.Init.Logic <> True ind
+R20859:20862 Coq.Init.Logic <> True ind
+R20859:20862 Coq.Init.Logic <> True ind
+R20868:20875 PyCSL.Phase1_AST <> CGSetAdd constr
+R20883:20893 PyCSL.Phase1_AST <> CGSetRemove constr
+R20901:20908 PyCSL.Phase1_AST <> CGSetMem constr
+R20917:20920 Coq.Init.Logic <> True ind
+R20917:20920 Coq.Init.Logic <> True ind
+R20917:20920 Coq.Init.Logic <> True ind
+R20926:20934 PyCSL.Phase1_AST <> CGSetCard constr
+R20940:20949 PyCSL.Phase1_AST <> CGSetUnion constr
+R20957:20966 PyCSL.Phase1_AST <> CGSetInter constr
+R20975:20978 Coq.Init.Logic <> True ind
+R20975:20978 Coq.Init.Logic <> True ind
+R20975:20978 Coq.Init.Logic <> True ind
+R20984:20992 PyCSL.Phase1_AST <> CGSetDiff constr
+R21000:21010 PyCSL.Phase1_AST <> CGSetSubset constr
+R21018:21024 PyCSL.Phase1_AST <> CGSetEq constr
+R21033:21036 Coq.Init.Logic <> True ind
+R21033:21036 Coq.Init.Logic <> True ind
+R21033:21036 Coq.Init.Logic <> True ind
+R21042:21051 PyCSL.Phase1_AST <> CGMkTuple2 constr
+R21059:21068 PyCSL.Phase1_AST <> CGMkTuple3 constr
+R21078:21087 PyCSL.Phase1_AST <> CGMkTuple4 constr
+R21100:21103 Coq.Init.Logic <> True ind
+R21100:21103 Coq.Init.Logic <> True ind
+R21100:21103 Coq.Init.Logic <> True ind
+R21109:21113 PyCSL.Phase1_AST <> CGFst constr
+R21119:21123 PyCSL.Phase1_AST <> CGSnd constr
+R21129:21133 PyCSL.Phase1_AST <> CGTrd constr
+R21139:21143 PyCSL.Phase1_AST <> CGFth constr
+R21150:21153 Coq.Init.Logic <> True ind
+R21150:21153 Coq.Init.Logic <> True ind
+R21150:21153 Coq.Init.Logic <> True ind
+R21150:21153 Coq.Init.Logic <> True ind
+R21159:21169 PyCSL.Phase1_AST <> CGStrConcat constr
+R21177:21184 PyCSL.Phase1_AST <> CGStrLen constr
+R21190:21197 PyCSL.Phase1_AST <> CGStrNth constr
+R21206:21209 Coq.Init.Logic <> True ind
+R21206:21209 Coq.Init.Logic <> True ind
+R21206:21209 Coq.Init.Logic <> True ind
+R21215:21220 PyCSL.Phase1_AST <> CGMake constr
+R21228:21233 PyCSL.Phase1_AST <> CGCopy constr
+R21239:21249 PyCSL.Phase1_AST <> CGCopyRange constr
+R21260:21263 Coq.Init.Logic <> True ind
+R21260:21263 Coq.Init.Logic <> True ind
+R21260:21263 Coq.Init.Logic <> True ind
+R21488:21502 PyCSL.Phase1_AST <> CClassInvariant constr
+R21513:21525 PyCSL.Phase2_State <> eval_contract:158 def
+R21537:21542 PyCSL.Phase2_State <> result:156 var
+R21530:21535 PyCSL.Phase2_State <> pre_st:155 var
+R21527:21528 PyCSL.Phase2_State <> st:154 var
+def 21634:21645 <> eval_variant
+R21660:21664 PyCSL.Phase2_State <> state def
+binder 21648:21649 <> st:165
+binder 21651:21656 <> pre_st:166
+R21672:21684 PyCSL.Phase1_AST <> contract_expr ind
+binder 21668:21668 <> e:167
+R21689:21689 Coq.Numbers.BinNums <> Z ind
+R21696:21701 PyCSL.Phase2_State <> eval_z def
+R21703:21704 PyCSL.Phase2_State <> st:165 var
+R21706:21711 PyCSL.Phase2_State <> pre_st:166 var
+R21713:21716 Coq.Init.Datatypes <> None constr
+R21718:21718 PyCSL.Phase2_State <> e:167 var
+def 22196:22211 <> eval_contract_es
+R22226:22235 PyCSL.Phase2_State <> exec_state rec
+binder 22214:22215 <> es:168
+binder 22217:22222 <> pre_es:169
+R22248:22253 Coq.Init.Datatypes <> option ind
+R22255:22257 PyCSL.Phase2_State <> val ind
+binder 22239:22244 <> result:170
+R22292:22304 PyCSL.Phase1_AST <> contract_expr ind
+binder 22288:22288 <> e:171
+R22325:22325 PyCSL.Phase2_State <> e:171 var
+R22411:22413 PyCSL.Phase1_AST <> CAt constr
+R22435:22446 PyCSL.Phase2_State <> label_lookup def
+R22452:22462 PyCSL.Phase2_State <> label_snaps proj
+R22448:22449 PyCSL.Phase2_State <> es:168 var
+R22478:22481 Coq.Init.Datatypes <> Some constr
+R22490:22505 PyCSL.Phase2_State <> eval_contract_es:172 def
+R22533:22538 PyCSL.Phase2_State <> result:170 var
+R22526:22531 PyCSL.Phase2_State <> pre_es:169 var
+R22508:22516 PyCSL.Phase2_State <> set_ghost def
+R22518:22519 PyCSL.Phase2_State <> es:168 var
+R22551:22554 Coq.Init.Datatypes <> None constr
+R22559:22562 Coq.Init.Logic <> True ind
+R22643:22646 PyCSL.Phase1_AST <> CAnd constr
+R22697:22700 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R22661:22676 PyCSL.Phase2_State <> eval_contract_es:172 def
+R22688:22693 PyCSL.Phase2_State <> result:170 var
+R22681:22686 PyCSL.Phase2_State <> pre_es:169 var
+R22678:22679 PyCSL.Phase2_State <> es:168 var
+R22701:22716 PyCSL.Phase2_State <> eval_contract_es:172 def
+R22728:22733 PyCSL.Phase2_State <> result:170 var
+R22721:22726 PyCSL.Phase2_State <> pre_es:169 var
+R22718:22719 PyCSL.Phase2_State <> es:168 var
+R22742:22744 PyCSL.Phase1_AST <> COr constr
+R22795:22798 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
+R22759:22774 PyCSL.Phase2_State <> eval_contract_es:172 def
+R22786:22791 PyCSL.Phase2_State <> result:170 var
+R22779:22784 PyCSL.Phase2_State <> pre_es:169 var
+R22776:22777 PyCSL.Phase2_State <> es:168 var
+R22799:22814 PyCSL.Phase2_State <> eval_contract_es:172 def
+R22826:22831 PyCSL.Phase2_State <> result:170 var
+R22819:22824 PyCSL.Phase2_State <> pre_es:169 var
+R22816:22817 PyCSL.Phase2_State <> es:168 var
+R22840:22843 PyCSL.Phase1_AST <> CNot constr
+R22851:22852 Coq.Init.Logic <> ::type_scope:'~'_x not
+R22853:22868 PyCSL.Phase2_State <> eval_contract_es:172 def
+R22880:22885 PyCSL.Phase2_State <> result:170 var
+R22873:22878 PyCSL.Phase2_State <> pre_es:169 var
+R22870:22871 PyCSL.Phase2_State <> es:168 var
+R22894:22901 PyCSL.Phase1_AST <> CImplies constr
+R22952:22955 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R22916:22931 PyCSL.Phase2_State <> eval_contract_es:172 def
+R22943:22948 PyCSL.Phase2_State <> result:170 var
+R22936:22941 PyCSL.Phase2_State <> pre_es:169 var
+R22933:22934 PyCSL.Phase2_State <> es:168 var
+R22956:22971 PyCSL.Phase2_State <> eval_contract_es:172 def
+R22983:22988 PyCSL.Phase2_State <> result:170 var
+R22976:22981 PyCSL.Phase2_State <> pre_es:169 var
+R22973:22974 PyCSL.Phase2_State <> es:168 var
+R22997:23000 PyCSL.Phase1_AST <> CIff constr
+R23051:23055 Coq.Init.Logic <> ::type_scope:x_'<->'_x not
+R23015:23030 PyCSL.Phase2_State <> eval_contract_es:172 def
+R23042:23047 PyCSL.Phase2_State <> result:170 var
+R23035:23040 PyCSL.Phase2_State <> pre_es:169 var
+R23032:23033 PyCSL.Phase2_State <> es:168 var
+R23056:23071 PyCSL.Phase2_State <> eval_contract_es:172 def
+R23083:23088 PyCSL.Phase2_State <> result:170 var
+R23076:23081 PyCSL.Phase2_State <> pre_es:169 var
+R23073:23074 PyCSL.Phase2_State <> es:168 var
+R23097:23103 PyCSL.Phase1_AST <> CForall constr
+R23130:23130 Coq.Numbers.BinNums <> Z ind
+binder 23126:23126 <> n:174
+R23139:23154 PyCSL.Phase2_State <> eval_contract_es:172 def
+R23211:23216 PyCSL.Phase2_State <> result:170 var
+R23204:23209 PyCSL.Phase2_State <> pre_es:169 var
+R23157:23163 PyCSL.Phase2_State <> set_reg def
+R23165:23166 PyCSL.Phase2_State <> es:168 var
+R23169:23174 PyCSL.Phase2_State <> update def
+R23180:23188 PyCSL.Phase2_State <> reg_state proj
+R23176:23177 PyCSL.Phase2_State <> es:168 var
+R23194:23197 PyCSL.Phase2_State <> VInt constr
+R23199:23199 PyCSL.Phase2_State <> n:174 var
+R23227:23233 PyCSL.Phase1_AST <> CExists constr
+R23249:23255 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R23261:23268 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R23260:23260 Coq.Numbers.BinNums <> Z ind
+binder 23256:23256 <> n:175
+R23269:23284 PyCSL.Phase2_State <> eval_contract_es:172 def
+R23341:23346 PyCSL.Phase2_State <> result:170 var
+R23334:23339 PyCSL.Phase2_State <> pre_es:169 var
+R23287:23293 PyCSL.Phase2_State <> set_reg def
+R23295:23296 PyCSL.Phase2_State <> es:168 var
+R23299:23304 PyCSL.Phase2_State <> update def
+R23310:23318 PyCSL.Phase2_State <> reg_state proj
+R23306:23307 PyCSL.Phase2_State <> es:168 var
+R23324:23327 PyCSL.Phase2_State <> VInt constr
+R23329:23329 PyCSL.Phase2_State <> n:175 var
+R23411:23414 PyCSL.Phase1_AST <> CVar constr
+R23431:23436 PyCSL.Phase2_State <> lookup def
+R23442:23450 PyCSL.Phase2_State <> reg_state proj
+R23438:23439 PyCSL.Phase2_State <> es:168 var
+R23466:23469 Coq.Init.Datatypes <> Some constr
+R23472:23475 PyCSL.Phase2_State <> VInt constr
+R23483:23487 Coq.Init.Logic <> False ind
+R23495:23498 Coq.Init.Datatypes <> Some constr
+R23505:23508 Coq.Init.Logic <> True ind
+R23516:23519 Coq.Init.Datatypes <> None constr
+R23536:23547 PyCSL.Phase2_State <> ghost_lookup def
+R23553:23560 PyCSL.Phase2_State <> ghost_st proj
+R23549:23550 PyCSL.Phase2_State <> es:168 var
+R23578:23581 Coq.Init.Datatypes <> Some constr
+R23584:23588 PyCSL.Phase2_State <> GVInt constr
+R23596:23600 Coq.Init.Logic <> False ind
+R23610:23613 Coq.Init.Datatypes <> Some constr
+R23620:23623 Coq.Init.Logic <> True ind
+R23633:23636 Coq.Init.Datatypes <> None constr
+R23641:23644 Coq.Init.Logic <> True ind
+R23749:23752 PyCSL.Phase1_AST <> CInt constr
+R23760:23763 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R23770:23776 PyCSL.Phase1_AST <> CResult constr
+R23791:23796 PyCSL.Phase2_State <> result:170 var
+R23803:23806 Coq.Init.Datatypes <> Some constr
+R23809:23812 PyCSL.Phase2_State <> VInt constr
+R23820:23824 Coq.Init.Logic <> False ind
+R23833:23836 Coq.Init.Logic <> True ind
+R23846:23852 PyCSL.Phase1_AST <> CLength constr
+R23858:23866 PyCSL.Phase1_AST <> CLength2d constr
+R23872:23881 PyCSL.Phase1_AST <> CSubscript constr
+R23889:23892 PyCSL.Phase1_AST <> COld constr
+R23898:23903 PyCSL.Phase1_AST <> CBinOp constr
+R23913:23916 PyCSL.Phase1_AST <> CNeg constr
+R23955:23958 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R23927:23935 PyCSL.Phase2_State <> eval_z_es def
+R23937:23938 PyCSL.Phase2_State <> es:168 var
+R23940:23945 PyCSL.Phase2_State <> pre_es:169 var
+R23947:23952 PyCSL.Phase2_State <> result:170 var
+R23954:23954 PyCSL.Phase2_State <> e:171 var
+R23955:23958 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R23927:23935 PyCSL.Phase2_State <> eval_z_es def
+R23937:23938 PyCSL.Phase2_State <> es:168 var
+R23940:23945 PyCSL.Phase2_State <> pre_es:169 var
+R23947:23952 PyCSL.Phase2_State <> result:170 var
+R23954:23954 PyCSL.Phase2_State <> e:171 var
+R23955:23958 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R23927:23935 PyCSL.Phase2_State <> eval_z_es def
+R23937:23938 PyCSL.Phase2_State <> es:168 var
+R23940:23945 PyCSL.Phase2_State <> pre_es:169 var
+R23947:23952 PyCSL.Phase2_State <> result:170 var
+R23954:23954 PyCSL.Phase2_State <> e:171 var
+R23955:23958 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R23927:23935 PyCSL.Phase2_State <> eval_z_es def
+R23937:23938 PyCSL.Phase2_State <> es:168 var
+R23940:23945 PyCSL.Phase2_State <> pre_es:169 var
+R23947:23952 PyCSL.Phase2_State <> result:170 var
+R23954:23954 PyCSL.Phase2_State <> e:171 var
+R23955:23958 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R23927:23935 PyCSL.Phase2_State <> eval_z_es def
+R23937:23938 PyCSL.Phase2_State <> es:168 var
+R23940:23945 PyCSL.Phase2_State <> pre_es:169 var
+R23947:23952 PyCSL.Phase2_State <> result:170 var
+R23954:23954 PyCSL.Phase2_State <> e:171 var
+R23955:23958 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R23927:23935 PyCSL.Phase2_State <> eval_z_es def
+R23937:23938 PyCSL.Phase2_State <> es:168 var
+R23940:23945 PyCSL.Phase2_State <> pre_es:169 var
+R23947:23952 PyCSL.Phase2_State <> result:170 var
+R23954:23954 PyCSL.Phase2_State <> e:171 var
+R24040:24042 PyCSL.Phase1_AST <> CEq constr
+R24082:24085 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R24053:24061 PyCSL.Phase2_State <> eval_z_es def
+R24063:24064 PyCSL.Phase2_State <> es:168 var
+R24066:24071 PyCSL.Phase2_State <> pre_es:169 var
+R24073:24078 PyCSL.Phase2_State <> result:170 var
+R24086:24094 PyCSL.Phase2_State <> eval_z_es def
+R24096:24097 PyCSL.Phase2_State <> es:168 var
+R24099:24104 PyCSL.Phase2_State <> pre_es:169 var
+R24106:24111 PyCSL.Phase2_State <> result:170 var
+R24120:24122 PyCSL.Phase1_AST <> CNe constr
+R24162:24165 Coq.Init.Logic <> ::type_scope:x_'<>'_x not
+R24133:24141 PyCSL.Phase2_State <> eval_z_es def
+R24143:24144 PyCSL.Phase2_State <> es:168 var
+R24146:24151 PyCSL.Phase2_State <> pre_es:169 var
+R24153:24158 PyCSL.Phase2_State <> result:170 var
+R24166:24174 PyCSL.Phase2_State <> eval_z_es def
+R24176:24177 PyCSL.Phase2_State <> es:168 var
+R24179:24184 PyCSL.Phase2_State <> pre_es:169 var
+R24186:24191 PyCSL.Phase2_State <> result:170 var
+R24200:24202 PyCSL.Phase1_AST <> CLt constr
+R24242:24245 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R24213:24221 PyCSL.Phase2_State <> eval_z_es def
+R24223:24224 PyCSL.Phase2_State <> es:168 var
+R24226:24231 PyCSL.Phase2_State <> pre_es:169 var
+R24233:24238 PyCSL.Phase2_State <> result:170 var
+R24246:24254 PyCSL.Phase2_State <> eval_z_es def
+R24256:24257 PyCSL.Phase2_State <> es:168 var
+R24259:24264 PyCSL.Phase2_State <> pre_es:169 var
+R24266:24271 PyCSL.Phase2_State <> result:170 var
+R24280:24282 PyCSL.Phase1_AST <> CLe constr
+R24322:24325 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x not
+R24293:24301 PyCSL.Phase2_State <> eval_z_es def
+R24303:24304 PyCSL.Phase2_State <> es:168 var
+R24306:24311 PyCSL.Phase2_State <> pre_es:169 var
+R24313:24318 PyCSL.Phase2_State <> result:170 var
+R24326:24334 PyCSL.Phase2_State <> eval_z_es def
+R24336:24337 PyCSL.Phase2_State <> es:168 var
+R24339:24344 PyCSL.Phase2_State <> pre_es:169 var
+R24346:24351 PyCSL.Phase2_State <> result:170 var
+R24360:24362 PyCSL.Phase1_AST <> CGt constr
+R24402:24405 Coq.ZArith.BinInt <> ::Z_scope:x_'>'_x not
+R24373:24381 PyCSL.Phase2_State <> eval_z_es def
+R24383:24384 PyCSL.Phase2_State <> es:168 var
+R24386:24391 PyCSL.Phase2_State <> pre_es:169 var
+R24393:24398 PyCSL.Phase2_State <> result:170 var
+R24406:24414 PyCSL.Phase2_State <> eval_z_es def
+R24416:24417 PyCSL.Phase2_State <> es:168 var
+R24419:24424 PyCSL.Phase2_State <> pre_es:169 var
+R24426:24431 PyCSL.Phase2_State <> result:170 var
+R24440:24442 PyCSL.Phase1_AST <> CGe constr
+R24482:24485 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R24453:24461 PyCSL.Phase2_State <> eval_z_es def
+R24463:24464 PyCSL.Phase2_State <> es:168 var
+R24466:24471 PyCSL.Phase2_State <> pre_es:169 var
+R24473:24478 PyCSL.Phase2_State <> result:170 var
+R24486:24494 PyCSL.Phase2_State <> eval_z_es def
+R24496:24497 PyCSL.Phase2_State <> es:168 var
+R24499:24504 PyCSL.Phase2_State <> pre_es:169 var
+R24506:24511 PyCSL.Phase2_State <> result:170 var
+R24581:24593 PyCSL.Phase2_State <> eval_contract def
+R24599:24607 PyCSL.Phase2_State <> reg_state proj
+R24595:24596 PyCSL.Phase2_State <> es:168 var
+R24618:24626 PyCSL.Phase2_State <> reg_state proj
+R24610:24615 PyCSL.Phase2_State <> pre_es:169 var
+R24629:24634 PyCSL.Phase2_State <> result:170 var
+R24636:24636 PyCSL.Phase2_State <> e:171 var

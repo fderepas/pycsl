@@ -143,6 +143,11 @@ type contract_expr =
 | CGMake of contract_expr * contract_expr
 | CGCopy of ident
 | CGCopyRange of ident * contract_expr * contract_expr
+| CValid of contract_expr * contract_expr
+| CSeparated of contract_expr * contract_expr
+| CLength2d of ident
+| CValid2d of contract_expr * contract_expr * contract_expr
+| CClassInvariant of ident * contract_expr
 
 type aug_op =
 | AugAdd
@@ -185,6 +190,8 @@ type stmt =
 | SFieldAugAssign of ident * ident * binop * expr
 | SCritical of ident * stmt
 | SThreadEntry of stmt
+| SAcquires of ident
+| SReleases of ident
 
 (** val find_assoc :
     char list -> (char list * json_value) list -> json_value option **)

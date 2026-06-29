@@ -1,0 +1,234 @@
+DIGEST 72ce47e2f8eac4444f4f32f86a34d42c
+FPyCSL.Phase6L_EmitSimple
+R960:965 Coq.Strings.String <> <> lib
+R967:970 Coq.Lists.List <> <> lib
+R972:977 Coq.ZArith.ZArith <> <> lib
+R979:983 Coq.Strings.Ascii <> <> lib
+R1001:1010 PyCSL.Phase1_AST <> <> lib
+R1028:1039 PyCSL.Phase6_WhyML <> <> lib
+R1057:1071 PyCSL.Phase6d_StmtGen <> <> lib
+R1089:1104 PyCSL.Phase6L_EmitStmt <> <> lib
+R1122:1139 PyCSL.Phase6L_EmitAssign <> <> lib
+R1157:1177 PyCSL.Phase6L_EmitAugAssign <> <> lib
+R1195:1214 PyCSL.Phase6L_EmitArraySet <> <> lib
+R1232:1246 PyCSL.Phase6L_EmitSeq <> <> lib
+R1257:1269 Coq.Lists.List ListNotations <> mod
+def 1415:1427 <> exc_to_string
+R1436:1444 PyCSL.Phase6_WhyML <> whyml_exc ind
+binder 1430:1432 <> exc:1
+R1449:1454 Coq.Strings.String <> string ind
+R1467:1469 PyCSL.Phase6L_EmitSimple <> exc:1 var
+R1480:1488 PyCSL.Phase6_WhyML <> ExcReturn constr
+R1560:1567 PyCSL.Phase6_WhyML <> ExcBreak constr
+R1625:1635 PyCSL.Phase6_WhyML <> ExcContinue constr
+R1690:1697 PyCSL.Phase6_WhyML <> ExcNamed constr
+def 1775:1784 <> emit_raise
+R1793:1801 PyCSL.Phase6_WhyML <> whyml_exc ind
+binder 1787:1789 <> exc:3
+R1806:1811 Coq.Strings.String <> string ind
+R1826:1829 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R1830:1842 PyCSL.Phase6L_EmitSimple <> exc_to_string def
+R1844:1846 PyCSL.Phase6L_EmitSimple <> exc:3 var
+def 1861:1886 <> acceptable_raise_emissions
+R1895:1903 PyCSL.Phase6_WhyML <> whyml_exc ind
+binder 1889:1891 <> exc:4
+R1908:1911 Coq.Init.Datatypes <> list ind
+R1913:1918 Coq.Strings.String <> string ind
+R1925:1926 Coq.Lists.List ListNotations ::list_scope:'['_x_']' not
+R1956:1957 Coq.Lists.List ListNotations ::list_scope:'['_x_']' not
+R1935:1938 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R1939:1951 PyCSL.Phase6L_EmitSimple <> exc_to_string def
+R1953:1955 PyCSL.Phase6L_EmitSimple <> exc:4 var
+prf 1969:1986 <> emit_raise_correct
+binder 1999:2001 <> exc:5
+R2004:2005 Coq.Lists.List <> In def
+R2025:2050 PyCSL.Phase6L_EmitSimple <> acceptable_raise_emissions def
+R2052:2054 PyCSL.Phase6L_EmitSimple <> exc:5 var
+R2008:2017 PyCSL.Phase6L_EmitSimple <> emit_raise def
+R2019:2021 PyCSL.Phase6L_EmitSimple <> exc:5 var
+R2082:2091 PyCSL.Phase6L_EmitSimple <> emit_raise def
+R2094:2119 PyCSL.Phase6L_EmitSimple <> acceptable_raise_emissions def
+def 2858:2867 <> emit_label
+R2874:2878 PyCSL.Phase1_AST <> ident def
+binder 2870:2870 <> L:6
+R2883:2888 Coq.Strings.String <> string ind
+R2903:2906 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R2908:2911 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R2907:2907 PyCSL.Phase6L_EmitSimple <> L:6 var
+def 2931:2956 <> acceptable_label_emissions
+R2963:2967 PyCSL.Phase1_AST <> ident def
+binder 2959:2959 <> L:7
+R2972:2975 Coq.Init.Datatypes <> list ind
+R2977:2982 Coq.Strings.String <> string ind
+R2989:2990 Coq.Lists.List ListNotations ::list_scope:'['_x_']' not
+R3013:3014 Coq.Lists.List ListNotations ::list_scope:'['_x_']' not
+R2999:3002 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R3004:3007 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R3003:3003 PyCSL.Phase6L_EmitSimple <> L:7 var
+prf 3026:3043 <> emit_label_correct
+binder 3056:3056 <> L:8
+R3059:3060 Coq.Lists.List <> In def
+R3078:3103 PyCSL.Phase6L_EmitSimple <> acceptable_label_emissions def
+R3105:3105 PyCSL.Phase6L_EmitSimple <> L:8 var
+R3063:3072 PyCSL.Phase6L_EmitSimple <> emit_label def
+R3074:3074 PyCSL.Phase6L_EmitSimple <> L:8 var
+R3133:3142 PyCSL.Phase6L_EmitSimple <> emit_label def
+R3145:3170 PyCSL.Phase6L_EmitSimple <> acceptable_label_emissions def
+def 3465:3475 <> emit_assert
+R3485:3497 PyCSL.Phase1_AST <> contract_expr ind
+binder 3478:3481 <> cond:9
+R3507:3512 Coq.Strings.String <> string ind
+binder 3501:3503 <> msg:10
+R3517:3522 Coq.Strings.String <> string ind
+def 3547:3573 <> acceptable_assert_emissions
+R3594:3606 PyCSL.Phase1_AST <> contract_expr ind
+binder 3587:3590 <> cond:11
+R3616:3621 Coq.Strings.String <> string ind
+binder 3610:3612 <> msg:12
+R3626:3629 Coq.Init.Datatypes <> list ind
+R3631:3636 Coq.Strings.String <> string ind
+R3643:3644 Coq.Lists.List ListNotations ::list_scope:'['_x_']' not
+R3649:3650 Coq.Lists.List ListNotations ::list_scope:'['_x_']' not
+prf 3662:3680 <> emit_assert_correct
+binder 3693:3696 <> cond:13
+binder 3698:3700 <> msg:14
+R3707:3708 Coq.Lists.List <> In def
+R3734:3760 PyCSL.Phase6L_EmitSimple <> acceptable_assert_emissions def
+R3762:3765 PyCSL.Phase6L_EmitSimple <> cond:13 var
+R3767:3769 PyCSL.Phase6L_EmitSimple <> msg:14 var
+R3711:3721 PyCSL.Phase6L_EmitSimple <> emit_assert def
+R3723:3726 PyCSL.Phase6L_EmitSimple <> cond:13 var
+R3728:3730 PyCSL.Phase6L_EmitSimple <> msg:14 var
+R3797:3807 PyCSL.Phase6L_EmitSimple <> emit_assert def
+R3810:3836 PyCSL.Phase6L_EmitSimple <> acceptable_assert_emissions def
+def 4033:4047 <> emit_stmt_full2
+R4054:4065 PyCSL.Phase6L_EmitAssign <> assign_state rec
+binder 4050:4050 <> s:15
+R4074:4083 PyCSL.Phase6_WhyML <> whyml_stmt ind
+binder 4069:4070 <> ws:16
+R4088:4093 Coq.Strings.String <> string ind
+R4106:4107 PyCSL.Phase6L_EmitSimple <> ws:16 var
+R4118:4122 PyCSL.Phase6_WhyML <> WSkip constr
+R4153:4159 PyCSL.Phase6_WhyML <> WAssign constr
+R4179:4189 PyCSL.Phase6L_EmitAssign <> emit_assign def
+R4191:4191 PyCSL.Phase6L_EmitSimple <> s:15 var
+R4201:4210 PyCSL.Phase6_WhyML <> WAugAssign constr
+R4227:4241 PyCSL.Phase6L_EmitAugAssign <> emit_aug_assign def
+R4254:4262 PyCSL.Phase6_WhyML <> WArraySet constr
+R4280:4293 PyCSL.Phase6L_EmitArraySet <> emit_array_set def
+R4307:4310 PyCSL.Phase6_WhyML <> WSeq constr
+R4353:4356 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R4333:4347 PyCSL.Phase6L_EmitSimple <> emit_stmt_full2:17 def
+R4349:4349 PyCSL.Phase6L_EmitSimple <> s:15 var
+R4364:4399 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R4357:4363 PyCSL.Phase6L_EmitSeq <> seq_sep def
+R4400:4414 PyCSL.Phase6L_EmitSimple <> emit_stmt_full2:17 def
+R4416:4416 PyCSL.Phase6L_EmitSimple <> s:15 var
+R4425:4430 PyCSL.Phase6_WhyML <> WRaise constr
+R4451:4460 PyCSL.Phase6L_EmitSimple <> emit_raise def
+R4470:4475 PyCSL.Phase6_WhyML <> WLabel constr
+R4496:4505 PyCSL.Phase6L_EmitSimple <> emit_label def
+R4513:4519 PyCSL.Phase6_WhyML <> WAssert constr
+R4539:4549 PyCSL.Phase6L_EmitSimple <> emit_assert def
+R4564:4570 PyCSL.Phase6_WhyML <> WAssume constr
+R4718:4720 PyCSL.Phase6_WhyML <> WIf constr
+R4751:4756 PyCSL.Phase6_WhyML <> WWhile constr
+R4784:4792 PyCSL.Phase6_WhyML <> WTryCatch constr
+R4817:4826 PyCSL.Phase6_WhyML <> WGhostDecl constr
+R4850:4861 PyCSL.Phase6_WhyML <> WGhostAssign constr
+prf 4895:4923 <> emit_stmt_full2_raise_correct
+binder 4936:4936 <> s:19
+binder 4938:4940 <> exc:20
+R4947:4948 Coq.Lists.List <> In def
+R4984:5009 PyCSL.Phase6L_EmitSimple <> acceptable_raise_emissions def
+R5011:5013 PyCSL.Phase6L_EmitSimple <> exc:20 var
+R4951:4965 PyCSL.Phase6L_EmitSimple <> emit_stmt_full2 def
+R4967:4967 PyCSL.Phase6L_EmitSimple <> s:19 var
+R4970:4975 PyCSL.Phase6_WhyML <> WRaise constr
+R4977:4979 PyCSL.Phase6L_EmitSimple <> exc:20 var
+R5045:5062 PyCSL.Phase6L_EmitSimple <> emit_raise_correct thm
+R5045:5062 PyCSL.Phase6L_EmitSimple <> emit_raise_correct thm
+prf 5079:5107 <> emit_stmt_full2_label_correct
+binder 5120:5120 <> s:21
+binder 5122:5122 <> L:22
+R5129:5130 Coq.Lists.List <> In def
+R5164:5189 PyCSL.Phase6L_EmitSimple <> acceptable_label_emissions def
+R5191:5191 PyCSL.Phase6L_EmitSimple <> L:22 var
+R5133:5147 PyCSL.Phase6L_EmitSimple <> emit_stmt_full2 def
+R5149:5149 PyCSL.Phase6L_EmitSimple <> s:21 var
+R5152:5157 PyCSL.Phase6_WhyML <> WLabel constr
+R5159:5159 PyCSL.Phase6L_EmitSimple <> L:22 var
+R5223:5240 PyCSL.Phase6L_EmitSimple <> emit_label_correct thm
+R5223:5240 PyCSL.Phase6L_EmitSimple <> emit_label_correct thm
+prf 5257:5286 <> emit_stmt_full2_assert_correct
+binder 5299:5299 <> s:23
+binder 5301:5304 <> cond:24
+binder 5306:5308 <> msg:25
+R5315:5316 Coq.Lists.List <> In def
+R5365:5391 PyCSL.Phase6L_EmitSimple <> acceptable_assert_emissions def
+R5393:5396 PyCSL.Phase6L_EmitSimple <> cond:24 var
+R5398:5400 PyCSL.Phase6L_EmitSimple <> msg:25 var
+R5319:5333 PyCSL.Phase6L_EmitSimple <> emit_stmt_full2 def
+R5335:5335 PyCSL.Phase6L_EmitSimple <> s:23 var
+R5338:5344 PyCSL.Phase6_WhyML <> WAssert constr
+R5346:5349 PyCSL.Phase6L_EmitSimple <> cond:24 var
+R5351:5353 PyCSL.Phase6L_EmitSimple <> msg:25 var
+R5432:5450 PyCSL.Phase6L_EmitSimple <> emit_assert_correct thm
+R5432:5450 PyCSL.Phase6L_EmitSimple <> emit_assert_correct thm
+prf 5516:5545 <> emit_stmt_full2_sraise_correct
+binder 5558:5558 <> s:26
+binder 5560:5562 <> exc:27
+R5569:5570 Coq.Lists.List <> In def
+R5619:5644 PyCSL.Phase6L_EmitSimple <> acceptable_raise_emissions def
+R5647:5654 PyCSL.Phase6_WhyML <> ExcNamed constr
+R5656:5658 PyCSL.Phase6L_EmitSimple <> exc:27 var
+R5573:5587 PyCSL.Phase6L_EmitSimple <> emit_stmt_full2 def
+R5589:5589 PyCSL.Phase6L_EmitSimple <> s:26 var
+R5592:5594 PyCSL.Phase6d_StmtGen <> gen def
+R5597:5602 PyCSL.Phase1_AST <> SRaise constr
+R5604:5606 PyCSL.Phase6L_EmitSimple <> exc:27 var
+R5696:5698 PyCSL.Phase6d_StmtGen <> gen def
+R5701:5706 PyCSL.Phase1_AST <> SRaise constr
+R5720:5725 PyCSL.Phase6_WhyML <> WRaise constr
+R5728:5735 PyCSL.Phase6_WhyML <> ExcNamed constr
+R5696:5698 PyCSL.Phase6d_StmtGen <> gen def
+R5701:5706 PyCSL.Phase1_AST <> SRaise constr
+R5720:5725 PyCSL.Phase6_WhyML <> WRaise constr
+R5728:5735 PyCSL.Phase6_WhyML <> ExcNamed constr
+prf 5786:5815 <> emit_stmt_full2_slabel_correct
+binder 5828:5828 <> s:28
+binder 5830:5830 <> L:29
+R5837:5838 Coq.Lists.List <> In def
+R5878:5903 PyCSL.Phase6L_EmitSimple <> acceptable_label_emissions def
+R5905:5905 PyCSL.Phase6L_EmitSimple <> L:29 var
+R5841:5855 PyCSL.Phase6L_EmitSimple <> emit_stmt_full2 def
+R5857:5857 PyCSL.Phase6L_EmitSimple <> s:28 var
+R5860:5862 PyCSL.Phase6d_StmtGen <> gen def
+R5865:5870 PyCSL.Phase1_AST <> SLabel constr
+R5872:5872 PyCSL.Phase6L_EmitSimple <> L:29 var
+R5940:5942 PyCSL.Phase6d_StmtGen <> gen def
+R5945:5950 PyCSL.Phase1_AST <> SLabel constr
+R5962:5967 PyCSL.Phase6_WhyML <> WLabel constr
+R5940:5942 PyCSL.Phase6d_StmtGen <> gen def
+R5945:5950 PyCSL.Phase1_AST <> SLabel constr
+R5962:5967 PyCSL.Phase6_WhyML <> WLabel constr
+prf 6015:6045 <> emit_stmt_full2_sassert_correct
+binder 6058:6058 <> s:30
+binder 6060:6063 <> cond:31
+binder 6065:6067 <> msg:32
+R6074:6075 Coq.Lists.List <> In def
+R6130:6156 PyCSL.Phase6L_EmitSimple <> acceptable_assert_emissions def
+R6158:6161 PyCSL.Phase6L_EmitSimple <> cond:31 var
+R6163:6165 PyCSL.Phase6L_EmitSimple <> msg:32 var
+R6078:6092 PyCSL.Phase6L_EmitSimple <> emit_stmt_full2 def
+R6094:6094 PyCSL.Phase6L_EmitSimple <> s:30 var
+R6097:6099 PyCSL.Phase6d_StmtGen <> gen def
+R6102:6108 PyCSL.Phase1_AST <> SAssert constr
+R6110:6113 PyCSL.Phase6L_EmitSimple <> cond:31 var
+R6115:6117 PyCSL.Phase6L_EmitSimple <> msg:32 var
+R6207:6209 PyCSL.Phase6d_StmtGen <> gen def
+R6212:6218 PyCSL.Phase1_AST <> SAssert constr
+R6237:6243 PyCSL.Phase6_WhyML <> WAssert constr
+R6207:6209 PyCSL.Phase6d_StmtGen <> gen def
+R6212:6218 PyCSL.Phase1_AST <> SAssert constr
+R6237:6243 PyCSL.Phase6_WhyML <> WAssert constr

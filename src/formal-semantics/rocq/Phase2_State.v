@@ -487,6 +487,19 @@ Definition eval_array_in (st pre_st : state) (result : option val)
   | _ => False
   end.
 
+(* ===== Phase 7 (Category D): Memory-model predicates (Hoare default) =====
+
+   These top-level definitions are the Hoare-instance valid/separated
+   (both True). eval_contract's CValid/CSeparated clauses call them, so the
+   heap-dependent predicates are re-routed through a named MemModel surface
+   rather than being inline `True`. Phase7_MemModel.v provides the MEM_MODEL
+   module type, the HoareMM module (whose definitions are provably equal to
+   these), and the new TypedMM/StoreMM instances with real heap predicates.
+   pycsl_soundness uses these Hoare defaults (unchanged). *)
+
+Definition valid (ptr len : Z) : Prop := True.
+Definition separated (a b : Z) : Prop := True.
+
 (* Logical evaluation of contract expressions *)
 Fixpoint eval_contract (st pre_st : state) (result : option val)
                        (e : contract_expr) : Prop :=
@@ -545,12 +558,20 @@ Fixpoint eval_contract (st pre_st : state) (result : option val)
   | CCall _ _ => True     (* opaque in Hoare model; axiomatized by \trusted *)
   (* Phase 3 — \at: base model returns True (no label tracking without exec_state) *)
   | CAt _ _ => True
-  (* Phase 4 — Category C library predicates (Hoare-model stubs).
-     \valid, \separated, \valid2d are heap-dependent; the Hoare model has
-     no heap, so they are vacuously True. They become real predicates when
-     Phase 7 (memory-model parameterisation) lands a heap interface. *)
-  | CValid _ _ => True
-  | CSeparated _ _ => True
+  (* Phase 4 — Category C library predicates (heap-dependent).
+     \valid, \separated, \valid2d are heap-dependent; Phase 7 (memory-model
+     parameterisation) re-routes \valid/\separated through the MemModel
+     interface. The top-level `valid`/`separated` definitions below (Hoare
+     instance: True) are what eval_contract consults; alternative instances
+     (TypedMM, StoreMM in Phase7_MemModel.v) provide real heap predicates but
+     do NOT replace the Hoare default used by pycsl_soundness. This mirrors
+     how `critical_havoc` is re-routed (Phase4_WP.v:147, defined in
+     Phase7_MemModel.v). See Phase7_MemModel.v §"Design note (Option B)"
+     for the compromise rationale. \valid2d remains True (no 2D heap yet). *)
+  | CValid ptr len =>
+    valid (eval_z st pre_st result ptr) (eval_z st pre_st result len)
+  | CSeparated a b =>
+    separated (eval_z st pre_st result a) (eval_z st pre_st result b)
   | CValid2d _ _ _ => True
   (* Phase 3b ghost atoms — all opaque in base evaluator *)
   | CGMapEmpty | CGNil | CGSetEmpty => True

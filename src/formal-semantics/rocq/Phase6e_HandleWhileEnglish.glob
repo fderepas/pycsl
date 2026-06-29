@@ -1,0 +1,76 @@
+DIGEST 2d5f82021f486f446e5dc879668d8b31
+FPyCSL.Phase6e_HandleWhileEnglish
+R289:294 Coq.ZArith.ZArith <> <> lib
+R296:301 Coq.Strings.String <> <> lib
+R303:306 Coq.Lists.List <> <> lib
+R308:311 Coq.Bool.Bool <> <> lib
+R329:338 PyCSL.Phase1_AST <> <> lib
+R356:367 PyCSL.Phase2_State <> <> lib
+R385:393 PyCSL.Phase4_WP <> <> lib
+R411:422 PyCSL.Phase6_WhyML <> <> lib
+R440:450 PyCSL.Phase6b_WPW <> <> lib
+R468:484 PyCSL.Phase6c_ExprTrans <> <> lib
+R502:516 PyCSL.Phase6d_StmtGen <> <> lib
+R534:552 PyCSL.Phase6e_Corr_Simple <> <> lib
+R570:587 PyCSL.Phase6f_Corr_Loops <> <> lib
+R605:620 PyCSL.Phase6g_Corr_Exc <> <> lib
+ind 654:665 <> while_branch
+constr 681:691 <> BrWhileOnly
+scheme 654:665 <> while_branch_rect
+scheme 654:665 <> while_branch_ind
+scheme 654:665 <> while_branch_rec
+scheme 654:665 <> while_branch_sind
+def 706:724 <> gen_while_by_branch
+R735:746 PyCSL.Phase6e_HandleWhileEnglish <> while_branch ind
+binder 731:731 <> b:3
+binder 750:752 <> inv:4
+binder 754:756 <> var:5
+binder 758:761 <> cond:6
+binder 763:766 <> body:7
+R777:786 PyCSL.Phase6_WhyML <> whyml_stmt ind
+R799:799 PyCSL.Phase6e_HandleWhileEnglish <> b:3 var
+R810:820 PyCSL.Phase6e_HandleWhileEnglish <> BrWhileOnly constr
+R825:827 PyCSL.Phase6d_StmtGen <> gen def
+R830:835 PyCSL.Phase1_AST <> SWhile constr
+R837:839 PyCSL.Phase6e_HandleWhileEnglish <> inv:4 var
+R841:843 PyCSL.Phase6e_HandleWhileEnglish <> var:5 var
+R845:848 PyCSL.Phase6e_HandleWhileEnglish <> cond:6 var
+R850:853 PyCSL.Phase6e_HandleWhileEnglish <> body:7 var
+prf 870:895 <> gen_while_by_branch_eq_gen
+binder 908:908 <> b:9
+binder 910:912 <> inv:10
+binder 914:916 <> var:11
+binder 918:921 <> cond:12
+binder 923:926 <> body:13
+R968:970 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R929:947 PyCSL.Phase6e_HandleWhileEnglish <> gen_while_by_branch def
+R949:949 PyCSL.Phase6e_HandleWhileEnglish <> b:9 var
+R951:953 PyCSL.Phase6e_HandleWhileEnglish <> inv:10 var
+R955:957 PyCSL.Phase6e_HandleWhileEnglish <> var:11 var
+R959:962 PyCSL.Phase6e_HandleWhileEnglish <> cond:12 var
+R964:967 PyCSL.Phase6e_HandleWhileEnglish <> body:13 var
+R971:973 PyCSL.Phase6d_StmtGen <> gen def
+R976:981 PyCSL.Phase1_AST <> SWhile constr
+R983:985 PyCSL.Phase6e_HandleWhileEnglish <> inv:10 var
+R987:989 PyCSL.Phase6e_HandleWhileEnglish <> var:11 var
+R991:994 PyCSL.Phase6e_HandleWhileEnglish <> cond:12 var
+R996:999 PyCSL.Phase6e_HandleWhileEnglish <> body:13 var
+prf 1272:1300 <> handle_while_branches_correct
+binder 1313:1313 <> b:14
+binder 1315:1317 <> inv:15
+binder 1319:1321 <> var:16
+binder 1323:1326 <> cond:17
+binder 1328:1331 <> body:18
+R1375:1377 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R1336:1354 PyCSL.Phase6e_HandleWhileEnglish <> gen_while_by_branch def
+R1356:1356 PyCSL.Phase6e_HandleWhileEnglish <> b:14 var
+R1358:1360 PyCSL.Phase6e_HandleWhileEnglish <> inv:15 var
+R1362:1364 PyCSL.Phase6e_HandleWhileEnglish <> var:16 var
+R1366:1369 PyCSL.Phase6e_HandleWhileEnglish <> cond:17 var
+R1371:1374 PyCSL.Phase6e_HandleWhileEnglish <> body:18 var
+R1378:1380 PyCSL.Phase6d_StmtGen <> gen def
+R1383:1388 PyCSL.Phase1_AST <> SWhile constr
+R1390:1392 PyCSL.Phase6e_HandleWhileEnglish <> inv:15 var
+R1394:1396 PyCSL.Phase6e_HandleWhileEnglish <> var:16 var
+R1398:1401 PyCSL.Phase6e_HandleWhileEnglish <> cond:17 var
+R1403:1406 PyCSL.Phase6e_HandleWhileEnglish <> body:18 var
