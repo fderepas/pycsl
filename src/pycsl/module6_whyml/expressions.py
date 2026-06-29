@@ -1653,6 +1653,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         methods / isinstance / set / sorted / any / all / dict / list / join /
         str|repr|int|bool|abs / sum / hasattr. Returns the WhyML string, or None to fall
         through to the generic call path. (Extracted verbatim from `_handle_call_expr`.)"""
+        # no-more-int-3 A1 T1.2 (param-form) — `.get(k[, default])` on a
+        # dict-typed Var receiver: faithful match against `Map.get`, NOT an
+        # opaque `d_get_2` abstract op (which severs the result from the
+        # receiver's contents). Returns the WhyML string, or None to fall
+        # through to the generic dotted-call path (record-method `.get()` on
+        # a class instance, a non-dict receiver, or a non-Var receiver).
+        get_low = self._lower_dict_get_call(expr, args, func_name, local_refs,
+                                            invariant_ctx, subst)
+        if get_low is not None:
+            return get_low
         if func_name == "len" and len(args) == 1:
             return self._handle_len_call(expr, args)
         if func_name in ("min", "max") and len(args) == 2:
@@ -2070,6 +2080,58 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 lhs = str(self._TAG_LITERAL[lhs])
             return f"({lhs} = {self._TAG_LITERAL[t_tag]})"
         return f"(subtag {self._tag_of_value(args_ir[0])} {t_tag})"
+
+    def _lower_dict_get_call(self, expr: Dict[str, Any], args: List[str],
+                              func_name: str, local_refs: Optional[Set[str]],
+                              invariant_ctx: bool,
+                              subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """Lower `d.get(k[, default])` on a dict-typed Var receiver to a
+        faithful WhyML `match Map.get <recv> <k> with | Some v_ -> v_ |
+        None -> <default> end`. The receiver must be a SIMPLE Var bound to a
+        dict-typed parameter or body-local — record-field dict receivers
+        (`self.f.get(...)`) and computed receivers fall through to the
+        generic dotted-call path (their κ is not tracked in
+        `_dict_key_types`, so a faithful lowering could not type-check).
+
+        WhyML `Map.get` is total (returns `None` for an absent key), so —
+        unlike the subscript read `d[k]` — NO `assert { Map.get d k <> None }`
+        is emitted: `dict.get` is the missing-key-tolerant form, and the
+        `None -> default` arm is reachable (the body VC reflects this, so
+        an `ensures \result == <literal>` claim about an arbitrary dict's
+        value remains honestly unprovable — the faithful model, not a
+        trusted lie)."""
+        if "." not in func_name:
+            return None
+        recv, method = func_name.rsplit(".", 1)
+        if method != "get":
+            return None
+        if len(args) not in (1, 2):
+            return None
+        symtab = getattr(self, "_current_symbol_table", {}) or {}
+        recv_symtype = symtab.get(recv)
+        is_dict = (recv_symtype == "dict"
+                   or recv in getattr(self, "_dict_locals", set()))
+        if not is_dict:
+            return None
+        # Receiver WhyML: a body-local dict is a `ref` (reads deref via `!`);
+        # a dict parameter is a plain value. `_handle_var_expr` produces the
+        # correct form for each.
+        recv_whyml = self._expr_to_whyml({"type": "Var", "name": recv},
+                                         local_refs or set(),
+                                         invariant_ctx, subst)
+        kappa = getattr(self, "_dict_key_types", {}).get(recv)
+        nu = getattr(self, "_dict_value_types", {}).get(recv)
+        # Key: pass through unhashed when κ = string; int-coerce otherwise
+        # (matches the body subscript read path's key handling).
+        k = args[0] if kappa == "string" else self._coerce_to_int(args[0])
+        # Default: the user-provided arg if present, else the ν-typed missing
+        # placeholder (parallel to the subscript read's `None ->` arm).
+        if len(args) >= 2:
+            default = args[1]
+        else:
+            default = self._dv_missing_default(nu)
+        return (f"(match Map.get {recv_whyml} {k} "
+                f"with | Some v_ -> v_ | None -> {default} end)")
 
     def _lower_getattr(self, expr: Dict[str, Any], args: List[str],
                        local_refs: Set[str], invariant_ctx: bool,

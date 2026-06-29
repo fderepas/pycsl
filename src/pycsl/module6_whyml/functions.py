@@ -33,7 +33,22 @@ class FunctionEmissionMixin:
         # modelled as `map int (option int)` (parallel to body-level
         # dicts). Must come before the `list` branch since dict/set
         # share the map model, not the array model.
-        if symtype in ("set", "dict", "frozenset"):
+        # no-more-int-3 A1 T1.2 (param-form): a `Dict[str, ...]`-typed
+        # parameter is a real `map string (option ν)`, NOT a fixed
+        # `map int (option int)` — the body subscript/.get path passes
+        # string keys through unhashed (κ=string), so the parameter
+        # type MUST agree or Why3 rejects with "expected int, got
+        # string". The value type ν (`Dict[_, str]`/`Dict[_, List[int]]`/
+        # nested `Dict[_, Dict[int, int]]`) is threaded here too so a
+        # string/seq/nested-map-valued dict parameter matches its body
+        # reads. Byte-identical to the legacy `map int (option int)`
+        # for every int-keyed/int-valued dict (no `dict_key_types` /
+        # `dict_value_types` entry → the legacy default fires).
+        if symtype == "dict":
+            kt = getattr(self, "_dict_key_types", {}) or {}
+            vt = getattr(self, "_dict_value_types", {}) or {}
+            return f"({safe}: {self._dict_param_whyml_type(arg, kt, vt)})"
+        if symtype in ("set", "frozenset"):
             return f"({safe}: map int (option int))"
         if arg in array1d_params or symtype in ("list", "bytes", "bytearray"):
             # 0442.md B2 (no-more-int): bytes/bytearray are the byte-buffer array class.
@@ -1655,6 +1670,35 @@ class FunctionEmissionMixin:
         return "int"
 
     @staticmethod
+    def _dict_param_whyml_type(var_name: str,
+                               key_types: Dict[str, str],
+                               value_types: Dict[str, str],
+                               default: str = "map int (option int)") -> str:
+        """Compute the WhyML map type for a `dict`-typed parameter/local,
+        honoring κ (key type) and ν (value type) from the IR's
+        `dict_key_types` / `dict_value_types`. Falls back to `default`
+        (the byte-identical pre-existing behaviour) when neither is set
+        — i.e. for every int-keyed/int-valued dict the result is exactly
+        `map int (option int)`. Mirrors the body-local inference that
+        Why3 performs on the empty-map literal + polymorphic
+        `map_update_some`, but for a parameter there is no first-assignment
+        to drive inference, so the κ/ν must be in the declared type."""
+        kappa = key_types.get(var_name) if key_types else None
+        nu = value_types.get(var_name) if value_types else None
+        if not kappa and not nu:
+            return default
+        k = "string" if kappa == "string" else "int"
+        if nu == "string":
+            v = "string"
+        elif nu == "seq int":
+            v = "seq int"
+        elif nu and nu.startswith("map "):
+            v = nu  # nested map value, e.g. `map int (option int)`
+        else:
+            v = "int"
+        return f"map {k} (option {v})"
+
+    @staticmethod
     def _parse_mixin_sig(sig: str):
         """Parse a declared method signature `(self, x: int, y: str) -> int` into
         (params, return_type) where params is an ordered list of (name, py_type)
@@ -1737,12 +1781,23 @@ class FunctionEmissionMixin:
             symtable = func.get("symbol_table", {})
             body = func.get("body", [])
             local_assignees = IRScanner.find_assigned_vars(body)
+            # no-more-int-3 A1 T1.2 (param-form): thread the per-param
+            # κ/ν so a `Dict[str, ...]`-typed callee parameter's abstract
+            # val matches the caller's string-keyed argument. Byte-
+            # identical when the callee has no `dict_key_types` /
+            # `dict_value_types` entries (every existing int dict).
+            _kt = func.get("dict_key_types", {}) or {}
+            _vt = func.get("dict_value_types", {}) or {}
             param_types: List[str] = []
             for name, symtype in symtable.items():
                 # Locals (assigned inside the body) are NOT params.
                 if name in local_assignees:
                     continue
-                param_types.append(self._symtype_to_whyml(symtype))
+                if symtype == "dict" and (name in _kt or name in _vt):
+                    param_types.append(
+                        self._dict_param_whyml_type(name, _kt, _vt))
+                else:
+                    param_types.append(self._symtype_to_whyml(symtype))
             result[func["name"]] = param_types
         return result
 
@@ -1758,9 +1813,16 @@ class FunctionEmissionMixin:
         result: Dict[str, Dict[str, str]] = {}
         for func in functions:
             symtable = func.get("symbol_table", {})
+            # no-more-int-3 A1 T1.2 (param-form): see _build_method_param_types_map.
+            _kt = func.get("dict_key_types", {}) or {}
+            _vt = func.get("dict_value_types", {}) or {}
             by_name: Dict[str, str] = {}
             for pname in func.get("formal_params", []):
-                by_name[pname] = self._symtype_to_whyml(symtable.get(pname))
+                symtype = symtable.get(pname)
+                if symtype == "dict" and (pname in _kt or pname in _vt):
+                    by_name[pname] = self._dict_param_whyml_type(pname, _kt, _vt)
+                else:
+                    by_name[pname] = self._symtype_to_whyml(symtype)
             result[func["name"]] = by_name
         return result
 
