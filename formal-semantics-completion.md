@@ -2,7 +2,7 @@
 
 **Goal (one sentence):** Mechanize PyCSL's weakest-precondition calculus in Rocq and Lean to prove it sound against a structural operational semantics of the Python subset PyCSL verifies.
 
-**Current state (audited 2026-06-28 — the README was stale):** The `pycsl_soundness` theorem is PROVED with **0 `Admitted` (Rocq) / 0 `sorry` (Lean)** — including `desugar_correct`, `while_inv_preserved`, and `module6_encodes_mlw` (LINK 2's former residual axiom, now a proved Lemma). The model covers **22/22 `Stmt` constructors** with SOS + WP + soundness cases (not 10 as the old README claimed), and **25/36 catalogued features** are modelled. The trust boundary is **3 named axioms** (the SMT solver, `\trusted` contracts, and Why3's VCG) — necessary trust, not gaps. **11 features remain** (class invariants, lambda, `\valid`/`\separated`/`\length2d`/`\valid2d`, the typed/store/concurrent memory models, `acquires`/`releases`). The phases below are re-numbered to reflect what's DONE vs remaining.
+**Current state (audited 2026-06-28 — the README was stale):** The `pycsl_soundness` theorem is PROVED with **0 `Admitted` (Rocq) / 0 `sorry` (Lean)** — including `desugar_correct`, `while_inv_preserved`, and `module6_encodes_mlw` (LINK 2's former residual axiom, now a proved Lemma). The model covers **22/22 `Stmt` constructors** with SOS + WP + soundness cases (not 10 as the old README claimed), and **35/36 catalogued features** are modelled (Lambda closed 2026-06-28 via defunctionalization). The trust boundary is **3 named axioms** (the SMT solver, `\trusted` contracts, and Why3's VCG) — necessary trust, not gaps. **1 feature remains partially scoped** (the WhyML emitter-side closure model for `SCall` — a named gap in the emitter, NOT an Admitted proof; the calculus-side SOS+WP+soundness for `SCall` are proved). The phases below are re-numbered to reflect what's DONE vs remaining.
 
 This document details the work to close the gap between the proven subset and the full PyCSL.
 
@@ -172,9 +172,11 @@ Phase 8 (A):     Lambda (optional)                     0       [rarely used]
 
 ## 6. The single highest-value next step
 
-**DONE** — `desugar_correct` is proved in both provers (audited 2026-06-28). The formerly-Admitted for→while desugaring is now a full proof. The `pycsl_soundness` theorem is fully sorry-free for the modelled subset (22 Stmt constructors).
+**DONE** — `desugar_correct` is proved in both provers (audited 2026-06-28). The formerly-Admitted for→while desugaring is now a full proof. The `pycsl_soundness` theorem is fully sorry-free for the modelled subset (22+ Stmt constructors, 35/36 features).
 
 The new highest-value next step is **LINK 3 body-faithful** (§8): re-annotate `module6_whyml/statements.py` body-faithful so that the residual `module6_encodes_mlw` (now proved as a Lemma from the formal side) becomes provable from the IMPLEMENTATION side — closing the end-to-end chain from the running compiler to the WP theorem.
+
+**LINK 3 status (2026-06-28):** the typed-IR-schema refactor (`ir-schema-spec.md`, Phases A+B) closed the `Any`-typed dict blocker in the REAL codebase (Module6 consumes typed `StmtIR` sums; 624-file byte-diff clean; LINK 1 alignment achieved — the PyCSL IR `StmtIR` sum aligns constructor-by-constructor with the formal-semantics `Stmt` inductive). But the self-annotate isolation hit 4 mechanical blockers (B1 cross-file type resolution, B2 f-string hashing, B3 trusted sibling returns, B4 self-mutation) — see `ir-schema-spec.md` §10. The 5 leaf-emitter body-faithful contracts landed earlier (`ac8c98ff`) remain; the 12 `_handle_*` methods stay `\trusted` pending cross-file type resolution. The empirical byte-diff gate (LINK 2, `bin/extraction-byte-diff.sh`) remains the standing bridge: 26 cases, 0 failures.
 
 ---
 

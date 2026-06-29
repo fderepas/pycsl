@@ -2,7 +2,7 @@
 
 **Goal:** replace the `Dict[str, Any]` IR node representation with a typed sum-type schema so that `src/pycsl/module6_whyml/statements.py`'s 12 `_handle_*` methods can be body-faithfully annotated (closing LINK 3 of `formal-semantics-completion.md` §8).
 
-**Status:** Plan (awaiting implementation)
+**Status:** Phases A+B COMPLETE; Phase C PARTIAL. The refactor succeeded in the **real codebase** (the 12-method blocker converted from "architectural (can't type-check `Any`)" to "mechanical (typed field access)"), but the **self-annotate isolation** can't yet reap the payoff because pycsl doesn't resolve cross-file type imports — leaving B1 (opaque types) as the dominant residual blocker.
 
 ---
 
@@ -296,3 +296,38 @@ The refactor closes the **`Any`-typed dict blocker** for all 12. The residual bl
 - The end-to-end `module6_encodes_mlw` theorem — still needs the body-faithful contracts to compose into the per-method axiom. The refactor makes this PROVABLE; proving it is the post-refactor work.
 
 The refactor converts the 12-method blocker from "architectural (can't type-check `Any`)" to "mechanical (typed field access, prove per-method)" — the necessary precondition for LINK 3 to close.
+
+---
+
+## 10. Actual outcome (Phases A–C executed 2026-06-28)
+
+### Phase A — COMPLETE
+- `src/pycsl/ir_schema.py` — 110 typed sum classes defined: 24 `StmtIR` constructors, 84 `ExprIR` constructors, `ContractExprIR` (alias for `ExprIR`), 1 `OpaqueStmt`/`OpaqueExpr` fallback each.
+- `from_dict`/`to_dict` converters; round-trip test (`tests/test_ir_schema_roundtrip.py`) — 42 passed, walks 1127 IR nodes across all corpus goldens, asserts `to_dict(from_dict(d)) == d`.
+- ADDITIVE: Module5/Module6 unchanged. Standing gate byte-identical.
+- Commit: `4c386eed feat(ir-schema): add typed StmtIR/ExprIR sum classes (Phase A)`.
+
+### Phase B — COMPLETE
+- `src/pycsl/module6_whyml/statements.py` — entry-point `_stmts_to_whyml` rewritten to convert each wire dict to a `StmtIR` sum via `stmt_from_dict` and dispatch via `isinstance`; the `_STMT_HANDLERS` dispatch table REMOVED (replaced by typed dispatch).
+- All 19 handlers migrated (12 table-driven + 7 inline): GhostAssign, GhostArraySet, Assign, TupleUnpack, AugAssign, FieldAssign, FieldAugAssign, ArraySet, ArraySliceSet, While, Return, If, For, Expr, Try, Match, CriticalSection + Label, Continue, Raise, ProofAssert, Assert, Pass, Break.
+- `src/pycsl/module6_whyml/stmt_control_flow.py` — the compositional handlers (`_handle_while_stmt`, `_handle_for_stmt`, `_handle_if_stmt`, `_handle_try_stmt`, `_handle_match_stmt`, `_handle_return_stmt`) migrated to typed sums.
+- Fixed a Phase-A schema bug: `LambdaExpr.body` was `List[StmtIR]` but Module5 emits a single expression → corrected to `ExprIR`.
+- **624-file byte-diff sweep: 0 differences.** The typed sum is a pure in-memory representation change; the emitted WhyML is byte-identical.
+- Commit: `ebdf0cd1 refactor(ir-schema): migrate Module6 statement handlers to typed StmtIR sums (Phase B)`.
+
+### Phase C — PARTIAL (honest)
+- `src/self-annotate/src/module6_whyml/statements.py` — re-annotated. The code matches the Phase-B-migrated real source exactly. Added `#@ datatype expr_ir = …` and `#@ datatype stmt_ir = …` (module-level) mirroring the Phase-A sums.
+- **Body-faithful: 2 methods** (`_materialize_bridge`, `_materialize_str_bridge`) — trivial bridge methods with `requires True; ensures True; assigns \nothing`.
+- **Still `\trusted`: 24 methods** (the 12 `_handle_*` + 12 internal helpers). Four honest, scoped blockers (documented at `statements.py:47`):
+  - **B1 — Opaque `ir_schema` import (DOMINANT):** pycsl skips `from ir_schema import AssignStmt, stmt_from_dict, …` in single-file isolation ("external module, no local source found"). So `stmt: AssignStmt` is opaque and `stmt.target` is an Any-typed getattr — **the Phase A+B typed-schema payoff does NOT transfer to single-file isolation** without cross-file type resolution.
+  - **B2 — f-string hashing:** the `_handle_*` bodies build the emitted WhyML string with f-strings (`f"{indent}let {safe_target} := {val}"`). pycsl lowers f-string literal segments to hashed INTs → `str_concat` receives an int where a string is expected → WhyML type error. A real `ensures \result == "…" ^ body_code ^ "…"` is expressible in the contract grammar, but the BODY can't verify against it.
+  - **B3 — Trusted sibling returns:** `_handle_*` bodies call `self._expr_to_whyml` / `self._stmts_to_whyml` (themselves `\trusted`, `ensures True`); the emitted string depends on those unmodeled return values.
+  - **B4 — Self-mutation:** many bodies mutate transpiler state (`self._dict_locals.add`, `self._add_abstract_op`, …) with no transpiler-state record model, so the frame (`assigns`) can't be stated soundly.
+- Commit: `2106f891 feat(self-annotate): re-annotate module6 statements.py body-faithful (Phase C)`.
+
+### Net assessment
+The refactor SUCCEEDED in its stated goal — the **`Any`-typed dict blocker is closed in the real codebase** (Module6 now consumes typed `StmtIR` sums; 624-file byte-diff clean). LINK 1 alignment is achieved: the PyCSL IR `StmtIR` sum aligns constructor-by-constructor with the formal-semantics `Stmt` inductive.
+
+But LINK 3 (the body-faithful bridge to the self-annotate copy) is **NOT yet closed**: the typed-schema payoff doesn't transfer to single-file isolation (B1), compounded by f-string hashing (B2). The next blocker to attack is **cross-file type resolution** (so `from ir_schema import AssignStmt` resolves in self-annotate), then **f-string literal-segment lowering** (so `f"{indent}..."` builds a string, not a hashed int).
+
+The 4 blockers are now all MECHANICAL, not architectural — the `Any`-typed wall is gone; these are lowering-extension gaps.
