@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import unicodedata
-from typing import Dict, Set
+from typing import Dict, List, Set
 
 
 def stable_hash(s: str) -> int:
@@ -98,3 +98,50 @@ def safe_exc_name(name: str) -> str:
 def op_translate(op: str) -> str:
     """Translates operators; defaults to the same string (e.g., +, -, >, <)."""
     return OP_MAP.get(op, op)
+
+
+# Why3 string-literal escape map (see why3 `src/util/lexlib.mll`: rule `string`).
+# Why3 accepts printable ASCII (codepoints 32..126) verbatim inside a `"..."` and
+# supports the backslash escapes below. Any other raw byte — notably a raw newline
+# (LF, CR), tab, or non-ASCII/control character — raises "illegal character in
+# string", which previously made Python `"\n"` lower to a WhyML literal that Why3
+# rejected. `\xHH` (two hex digits) is the catch-all for the remaining range.
+_WHYML_STR_ESCAPES = {
+    '\\': '\\\\',
+    '"':  '\\"',
+    '\n': '\\n',
+    '\r': '\\r',
+    '\t': '\\t',
+    '\b': '\\b',
+}
+
+
+def whyml_string_literal(value: str) -> str:
+    """Render a Python `str` as a WhyML string literal.
+
+    Why3 string literals (`"..."`) accept printable ASCII (codepoints 32..126)
+    verbatim plus the backslash escapes `\\\\` `\\"` `\\n` `\\r` `\\t` `\\b`
+    (see `src/util/lexlib.mll`, rule `string`). Every other codepoint — raw
+    newlines, tabs, control bytes, non-ASCII — must be encoded as `\\xHH` or
+    Why3 rejects the literal with "illegal character in string". This used to
+    block any body-faithful annotation of code that builds strings containing
+    `";\\n"` (e.g. the `_handle_*` WhyML emitters). All escapes here are
+    accepted by Why3's lexer, so the emitted literal needs no `use string.Char`
+    and stays byte-identical for the common case (printable ASCII, no
+    backslash/quote) — only strings that previously failed to parse change.
+    """
+    out: List[str] = []
+    for ch in value:
+        esc = _WHYML_STR_ESCAPES.get(ch)
+        if esc is not None:
+            out.append(esc)
+        elif 32 <= ord(ch) <= 126:
+            out.append(ch)
+        else:
+            # Encode the codepoint's UTF-8 bytes as `\xHH` pairs. Why3's
+            # `string.Char` models Latin-1 (0..255); for codepoints > 255
+            # (e.g. emoji) this preserves the byte sequence Why3 would itself
+            # produce for an equivalent literal entered in a UTF-8 source.
+            for b in ch.encode("utf-8"):
+                out.append(f"\\x{b:02x}")
+    return '"' + ''.join(out) + '"'

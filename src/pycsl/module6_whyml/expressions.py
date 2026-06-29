@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Set, Tuple
 
-from module6_whyml.identifiers import op_translate, whyml_ident, stable_hash
+from module6_whyml.identifiers import op_translate, whyml_ident, stable_hash, whyml_string_literal
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
 from module6_whyml.expr_ghost_spec_ops import GhostSpecOpsMixin
@@ -3200,8 +3200,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # strings-plan Stage 1: a string literal is a real Why3 string. Where an int is
             # required (an abstract-op arg, a dict key), `_coerce_to_int` hashes it back, so
             # int-contexts keep working; string-typed contexts now get a real `"..."`.
-            escaped = expr["value"].replace('\\', '\\\\').replace('"', '\\"')
-            return f'"{escaped}"'
+            # `whyml_string_literal` escapes raw newlines/tabs/control bytes (Why3 rejects
+            # them with "illegal character in string") — `";\n"` lowers to `";\\n"`.
+            return whyml_string_literal(expr["value"])
         if t == "Result":   return getattr(self, "_result_alias", None) or "result"
         if t == "None":     return "0"
         if t == "ArrayLit":
@@ -3342,8 +3343,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # (check/ensures comparison) emit an unbound symbol.
             return f"(concat {l} {r})"
         if t == "String":
-            raw = ir.get("value", "")
-            return f'"{raw}"'
+            # Mirror `_expr_to_whyml`'s String case — escape control chars/newlines
+            # (this ghost-string-ctx path previously emitted the raw value with NO
+            # escaping at all, so a `"` or `\` in a spec-context string would also
+            # have produced invalid WhyML).
+            return whyml_string_literal(ir.get("value", ""))
         if t == "Var":
             name = ir.get("name", "")
             safe = whyml_ident(name)
