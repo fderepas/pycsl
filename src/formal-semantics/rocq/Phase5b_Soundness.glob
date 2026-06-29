@@ -1,4 +1,4 @@
-DIGEST 59dd1553774ddaa8588f707e16d73669
+DIGEST d5898e8c64a2796d7329b8bd2abea2b8
 FPyCSL.Phase5b_Soundness
 R185:190 Coq.ZArith.ZArith <> <> lib
 R192:197 Coq.Strings.String <> <> lib
@@ -236,1196 +236,1210 @@ R5772:5774 PyCSL.Phase5b_Soundness <> es':62 var
 R5888:5902 Coq.Strings.String <> eqb_spec thm
 R5888:5902 Coq.Strings.String <> eqb_spec thm
 R6110:6123 PyCSL.Phase7_MemModel <> critical_havoc def
-prf 6519:6534 <> lift_continue_wp
-binder 6547:6547 <> s:63
-binder 6549:6550 <> Qn:64
-binder 6552:6553 <> Qr:65
-binder 6555:6556 <> Qc:66
-binder 6558:6559 <> Qb:67
-binder 6561:6562 <> Qe:68
-binder 6564:6569 <> pre_es:69
-binder 6571:6572 <> es:70
-R6658:6664 Coq.Init.Logic <> ::type_scope:x_'<->'_x not
-R6577:6578 PyCSL.Phase4_WP <> wp def
-R6581:6593 PyCSL.Phase3b_DesugarDef <> lift_continue def
-R6596:6605 PyCSL.Phase1_AST <> SAugAssign constr
-R6607:6613 PyCSL.Phase3b_DesugarDef <> for_idx def
-R6615:6619 PyCSL.Phase1_AST <> OpAdd constr
-R6622:6625 PyCSL.Phase1_AST <> EInt constr
-R6631:6631 PyCSL.Phase5b_Soundness <> s:63 var
-R6634:6635 PyCSL.Phase5b_Soundness <> Qn:64 var
-R6637:6638 PyCSL.Phase5b_Soundness <> Qr:65 var
-R6640:6641 PyCSL.Phase5b_Soundness <> Qc:66 var
-R6643:6644 PyCSL.Phase5b_Soundness <> Qb:67 var
-R6646:6647 PyCSL.Phase5b_Soundness <> Qe:68 var
-R6649:6654 PyCSL.Phase5b_Soundness <> pre_es:69 var
-R6656:6657 PyCSL.Phase5b_Soundness <> es:70 var
-R6665:6666 PyCSL.Phase4_WP <> wp def
-R6668:6668 PyCSL.Phase5b_Soundness <> s:63 var
-R6670:6671 PyCSL.Phase5b_Soundness <> Qn:64 var
-R6673:6674 PyCSL.Phase5b_Soundness <> Qr:65 var
-binder 6681:6683 <> es':71
-R6688:6689 PyCSL.Phase5b_Soundness <> Qc:66 var
-R6692:6701 PyCSL.Phase5b_Soundness <> inc_idx_fn def
-R6703:6705 PyCSL.Phase5b_Soundness <> es':71 var
-R6709:6710 PyCSL.Phase5b_Soundness <> Qb:67 var
-R6712:6713 PyCSL.Phase5b_Soundness <> Qe:68 var
-R6715:6720 PyCSL.Phase5b_Soundness <> pre_es:69 var
-R6722:6723 PyCSL.Phase5b_Soundness <> es:70 var
-R6884:6888 Coq.Init.Logic <> proj1 thm
-binder 6916:6918 <> es':72
-R6923:6924 PyCSL.Phase4_WP <> wp def
-R6927:6939 PyCSL.Phase3b_DesugarDef <> lift_continue def
-R6942:6951 PyCSL.Phase1_AST <> SAugAssign constr
-R6953:6959 PyCSL.Phase3b_DesugarDef <> for_idx def
-R6961:6965 PyCSL.Phase1_AST <> OpAdd constr
-R6968:6971 PyCSL.Phase1_AST <> EInt constr
-R7035:7037 PyCSL.Phase5b_Soundness <> es':72 var
-R6884:6888 Coq.Init.Logic <> proj1 thm
-binder 6916:6918 <> es':73
-R6923:6924 PyCSL.Phase4_WP <> wp def
-R6927:6939 PyCSL.Phase3b_DesugarDef <> lift_continue def
-R6942:6951 PyCSL.Phase1_AST <> SAugAssign constr
-R6953:6959 PyCSL.Phase3b_DesugarDef <> for_idx def
-R6961:6965 PyCSL.Phase1_AST <> OpAdd constr
-R6968:6971 PyCSL.Phase1_AST <> EInt constr
-R7035:7037 PyCSL.Phase5b_Soundness <> es':73 var
-R7105:7105 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R7237:7261 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R7336:7336 Coq.Init.Logic <> ::type_scope:x_'='_x not
-binder 7110:7112 <> es':74
-R7117:7118 PyCSL.Phase4_WP <> wp def
-R7121:7133 PyCSL.Phase3b_DesugarDef <> lift_continue def
-R7136:7145 PyCSL.Phase1_AST <> SAugAssign constr
-R7147:7153 PyCSL.Phase3b_DesugarDef <> for_idx def
-R7155:7159 PyCSL.Phase1_AST <> OpAdd constr
-R7162:7165 PyCSL.Phase1_AST <> EInt constr
-R7234:7236 PyCSL.Phase5b_Soundness <> es':74 var
-binder 7266:7268 <> es':75
-R7273:7274 PyCSL.Phase4_WP <> wp def
-binder 7290:7293 <> es'':76
-R7302:7311 PyCSL.Phase5b_Soundness <> inc_idx_fn def
-R7313:7316 PyCSL.Phase5b_Soundness <> es'':76 var
-R7333:7335 PyCSL.Phase5b_Soundness <> es':75 var
-R7357:7381 Coq.Logic.FunctionalExtensionality <> functional_extensionality thm
-R7410:7437 Coq.Logic.PropExtensionality <> propositional_extensionality prfax
-R7105:7105 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R7237:7261 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R7336:7336 Coq.Init.Logic <> ::type_scope:x_'='_x not
-binder 7110:7112 <> es':77
-R7117:7118 PyCSL.Phase4_WP <> wp def
-R7121:7133 PyCSL.Phase3b_DesugarDef <> lift_continue def
-R7136:7145 PyCSL.Phase1_AST <> SAugAssign constr
-R7147:7153 PyCSL.Phase3b_DesugarDef <> for_idx def
-R7155:7159 PyCSL.Phase1_AST <> OpAdd constr
-R7162:7165 PyCSL.Phase1_AST <> EInt constr
-R7234:7236 PyCSL.Phase5b_Soundness <> es':77 var
-binder 7266:7268 <> es':78
-R7273:7274 PyCSL.Phase4_WP <> wp def
-binder 7290:7293 <> es'':79
-R7302:7311 PyCSL.Phase5b_Soundness <> inc_idx_fn def
-R7313:7316 PyCSL.Phase5b_Soundness <> es'':79 var
-R7333:7335 PyCSL.Phase5b_Soundness <> es':78 var
-R7357:7381 Coq.Logic.FunctionalExtensionality <> functional_extensionality thm
-R7410:7437 Coq.Logic.PropExtensionality <> propositional_extensionality prfax
-R7542:7546 Coq.Init.Logic <> proj2 thm
-binder 7574:7576 <> es':80
-R7581:7582 PyCSL.Phase4_WP <> wp def
-R7585:7597 PyCSL.Phase3b_DesugarDef <> lift_continue def
-R7600:7609 PyCSL.Phase1_AST <> SAugAssign constr
-R7611:7617 PyCSL.Phase3b_DesugarDef <> for_idx def
-R7619:7623 PyCSL.Phase1_AST <> OpAdd constr
-R7626:7629 PyCSL.Phase1_AST <> EInt constr
-R7693:7695 PyCSL.Phase5b_Soundness <> es':80 var
-R7542:7546 Coq.Init.Logic <> proj2 thm
-binder 7574:7576 <> es':81
-R7581:7582 PyCSL.Phase4_WP <> wp def
-R7585:7597 PyCSL.Phase3b_DesugarDef <> lift_continue def
-R7600:7609 PyCSL.Phase1_AST <> SAugAssign constr
-R7611:7617 PyCSL.Phase3b_DesugarDef <> for_idx def
-R7619:7623 PyCSL.Phase1_AST <> OpAdd constr
-R7626:7629 PyCSL.Phase1_AST <> EInt constr
-R7693:7695 PyCSL.Phase5b_Soundness <> es':81 var
-R7758:7758 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R7890:7914 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R7989:7989 Coq.Init.Logic <> ::type_scope:x_'='_x not
-binder 7763:7765 <> es':82
-R7770:7771 PyCSL.Phase4_WP <> wp def
-R7774:7786 PyCSL.Phase3b_DesugarDef <> lift_continue def
-R7789:7798 PyCSL.Phase1_AST <> SAugAssign constr
-R7800:7806 PyCSL.Phase3b_DesugarDef <> for_idx def
-R7808:7812 PyCSL.Phase1_AST <> OpAdd constr
-R7815:7818 PyCSL.Phase1_AST <> EInt constr
-R7887:7889 PyCSL.Phase5b_Soundness <> es':82 var
-binder 7919:7921 <> es':83
-R7926:7927 PyCSL.Phase4_WP <> wp def
-binder 7943:7946 <> es'':84
-R7955:7964 PyCSL.Phase5b_Soundness <> inc_idx_fn def
-R7966:7969 PyCSL.Phase5b_Soundness <> es'':84 var
-R7986:7988 PyCSL.Phase5b_Soundness <> es':83 var
-R8010:8034 Coq.Logic.FunctionalExtensionality <> functional_extensionality thm
-R8063:8090 Coq.Logic.PropExtensionality <> propositional_extensionality prfax
-R7758:7758 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R7890:7914 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R7989:7989 Coq.Init.Logic <> ::type_scope:x_'='_x not
-binder 7763:7765 <> es':85
-R7770:7771 PyCSL.Phase4_WP <> wp def
-R7774:7786 PyCSL.Phase3b_DesugarDef <> lift_continue def
-R7789:7798 PyCSL.Phase1_AST <> SAugAssign constr
-R7800:7806 PyCSL.Phase3b_DesugarDef <> for_idx def
-R7808:7812 PyCSL.Phase1_AST <> OpAdd constr
-R7815:7818 PyCSL.Phase1_AST <> EInt constr
-R7887:7889 PyCSL.Phase5b_Soundness <> es':85 var
-binder 7919:7921 <> es':86
-R7926:7927 PyCSL.Phase4_WP <> wp def
-binder 7943:7946 <> es'':87
-R7955:7964 PyCSL.Phase5b_Soundness <> inc_idx_fn def
-R7966:7969 PyCSL.Phase5b_Soundness <> es'':87 var
-R7986:7988 PyCSL.Phase5b_Soundness <> es':86 var
-R8010:8034 Coq.Logic.FunctionalExtensionality <> functional_extensionality thm
-R8063:8090 Coq.Logic.PropExtensionality <> propositional_extensionality prfax
-R8249:8253 Coq.Init.Logic <> proj1 thm
-R8249:8253 Coq.Init.Logic <> proj1 thm
-R8318:8322 Coq.Init.Logic <> proj1 thm
-R8318:8322 Coq.Init.Logic <> proj1 thm
-R8387:8391 Coq.Init.Logic <> proj2 thm
-R8387:8391 Coq.Init.Logic <> proj2 thm
-R8456:8460 Coq.Init.Logic <> proj2 thm
-R8456:8460 Coq.Init.Logic <> proj2 thm
-R8610:8616 PyCSL.Phase5b_Soundness <> wp_mono thm
-binder 8653:8655 <> es':88
-R8664:8673 PyCSL.Phase5b_Soundness <> inc_idx_fn def
-R8675:8677 PyCSL.Phase5b_Soundness <> es':88 var
-binder 8686:8688 <> es':89
-R8697:8706 PyCSL.Phase5b_Soundness <> inc_idx_fn def
-R8708:8710 PyCSL.Phase5b_Soundness <> es':89 var
-binder 8755:8758 <> exc':90
-binder 8760:8762 <> es':91
-R8770:8779 Coq.Strings.String <> eqb def
-R8781:8784 PyCSL.Phase5b_Soundness <> exc':90 var
-R8992:8995 PyCSL.Phase5b_Soundness <> exc':90 var
-R8997:8999 PyCSL.Phase5b_Soundness <> es':91 var
-R8827:8828 PyCSL.Phase4_WP <> wp def
-R8831:8843 PyCSL.Phase3b_DesugarDef <> lift_continue def
-R8846:8855 PyCSL.Phase1_AST <> SAugAssign constr
-R8857:8863 PyCSL.Phase3b_DesugarDef <> for_idx def
-R8865:8869 PyCSL.Phase1_AST <> OpAdd constr
-R8872:8875 PyCSL.Phase1_AST <> EInt constr
-R8948:8950 PyCSL.Phase5b_Soundness <> es':91 var
-binder 9022:9025 <> exc':92
-binder 9027:9029 <> es':93
-R9037:9046 Coq.Strings.String <> eqb def
-R9048:9051 PyCSL.Phase5b_Soundness <> exc':92 var
-R9198:9201 PyCSL.Phase5b_Soundness <> exc':92 var
-R9203:9205 PyCSL.Phase5b_Soundness <> es':93 var
-R9094:9095 PyCSL.Phase4_WP <> wp def
-binder 9111:9114 <> es'':94
-R9123:9132 PyCSL.Phase5b_Soundness <> inc_idx_fn def
-R9134:9137 PyCSL.Phase5b_Soundness <> es'':94 var
-R9154:9156 PyCSL.Phase5b_Soundness <> es':93 var
-binder 9240:9240 <> h:95
-R9245:9245 PyCSL.Phase5b_Soundness <> h:95 var
-binder 9255:9255 <> h:96
-R9260:9260 PyCSL.Phase5b_Soundness <> h:96 var
-binder 9270:9270 <> h:97
-R9275:9275 PyCSL.Phase5b_Soundness <> h:97 var
-binder 9285:9285 <> h:98
-R9290:9290 PyCSL.Phase5b_Soundness <> h:98 var
-R8610:8616 PyCSL.Phase5b_Soundness <> wp_mono thm
-binder 8653:8655 <> es':99
-R8664:8673 PyCSL.Phase5b_Soundness <> inc_idx_fn def
-R8675:8677 PyCSL.Phase5b_Soundness <> es':99 var
-binder 8686:8688 <> es':100
-R8697:8706 PyCSL.Phase5b_Soundness <> inc_idx_fn def
-R8708:8710 PyCSL.Phase5b_Soundness <> es':100 var
-binder 8755:8758 <> exc':101
-binder 8760:8762 <> es':102
-R8770:8779 Coq.Strings.String <> eqb def
-R8781:8784 PyCSL.Phase5b_Soundness <> exc':101 var
-R8992:8995 PyCSL.Phase5b_Soundness <> exc':101 var
-R8997:8999 PyCSL.Phase5b_Soundness <> es':102 var
-R8827:8828 PyCSL.Phase4_WP <> wp def
-R8831:8843 PyCSL.Phase3b_DesugarDef <> lift_continue def
-R8846:8855 PyCSL.Phase1_AST <> SAugAssign constr
-R8857:8863 PyCSL.Phase3b_DesugarDef <> for_idx def
-R8865:8869 PyCSL.Phase1_AST <> OpAdd constr
-R8872:8875 PyCSL.Phase1_AST <> EInt constr
-R8948:8950 PyCSL.Phase5b_Soundness <> es':102 var
-binder 9022:9025 <> exc':103
-binder 9027:9029 <> es':104
-R9037:9046 Coq.Strings.String <> eqb def
-R9048:9051 PyCSL.Phase5b_Soundness <> exc':103 var
-R9198:9201 PyCSL.Phase5b_Soundness <> exc':103 var
-R9203:9205 PyCSL.Phase5b_Soundness <> es':104 var
-R9094:9095 PyCSL.Phase4_WP <> wp def
-binder 9111:9114 <> es'':105
-R9123:9132 PyCSL.Phase5b_Soundness <> inc_idx_fn def
-R9134:9137 PyCSL.Phase5b_Soundness <> es'':105 var
-R9154:9156 PyCSL.Phase5b_Soundness <> es':104 var
-binder 9240:9240 <> h:106
-R9245:9245 PyCSL.Phase5b_Soundness <> h:106 var
-binder 9255:9255 <> h:107
-R9260:9260 PyCSL.Phase5b_Soundness <> h:107 var
-binder 9270:9270 <> h:108
-R9275:9275 PyCSL.Phase5b_Soundness <> h:108 var
-binder 9285:9285 <> h:109
-R9290:9290 PyCSL.Phase5b_Soundness <> h:109 var
-R9341:9350 Coq.Strings.String <> eqb def
-R9341:9350 Coq.Strings.String <> eqb def
-R9400:9404 Coq.Init.Logic <> proj1 thm
-R9400:9404 Coq.Init.Logic <> proj1 thm
-R9459:9463 Coq.Init.Logic <> proj1 thm
-binder 9512:9515 <> exc':110
-binder 9517:9519 <> es':111
-R9527:9536 Coq.Strings.String <> eqb def
-R9538:9541 PyCSL.Phase5b_Soundness <> exc':110 var
-R9776:9779 PyCSL.Phase5b_Soundness <> exc':110 var
-R9781:9783 PyCSL.Phase5b_Soundness <> es':111 var
-R9593:9594 PyCSL.Phase4_WP <> wp def
-R9597:9609 PyCSL.Phase3b_DesugarDef <> lift_continue def
-R9612:9621 PyCSL.Phase1_AST <> SAugAssign constr
-R9623:9629 PyCSL.Phase3b_DesugarDef <> for_idx def
-R9631:9635 PyCSL.Phase1_AST <> OpAdd constr
-R9638:9641 PyCSL.Phase1_AST <> EInt constr
-R9723:9725 PyCSL.Phase5b_Soundness <> es':111 var
-R9459:9463 Coq.Init.Logic <> proj1 thm
-binder 9512:9515 <> exc':112
-binder 9517:9519 <> es':113
-R9527:9536 Coq.Strings.String <> eqb def
-R9538:9541 PyCSL.Phase5b_Soundness <> exc':112 var
-R9776:9779 PyCSL.Phase5b_Soundness <> exc':112 var
-R9781:9783 PyCSL.Phase5b_Soundness <> es':113 var
-R9593:9594 PyCSL.Phase4_WP <> wp def
-R9597:9609 PyCSL.Phase3b_DesugarDef <> lift_continue def
-R9612:9621 PyCSL.Phase1_AST <> SAugAssign constr
-R9623:9629 PyCSL.Phase3b_DesugarDef <> for_idx def
-R9631:9635 PyCSL.Phase1_AST <> OpAdd constr
-R9638:9641 PyCSL.Phase1_AST <> EInt constr
-R9723:9725 PyCSL.Phase5b_Soundness <> es':113 var
-R9838:9842 Coq.Init.Logic <> proj2 thm
-binder 9888:9891 <> exc':114
-binder 9893:9895 <> es':115
-R9903:9912 Coq.Strings.String <> eqb def
-R9914:9917 PyCSL.Phase5b_Soundness <> exc':114 var
-R10143:10146 PyCSL.Phase5b_Soundness <> exc':114 var
-R10148:10150 PyCSL.Phase5b_Soundness <> es':115 var
-R9966:9967 PyCSL.Phase4_WP <> wp def
-R9970:9982 PyCSL.Phase3b_DesugarDef <> lift_continue def
-R9985:9994 PyCSL.Phase1_AST <> SAugAssign constr
-R9996:10002 PyCSL.Phase3b_DesugarDef <> for_idx def
-R10004:10008 PyCSL.Phase1_AST <> OpAdd constr
-R10011:10014 PyCSL.Phase1_AST <> EInt constr
-R10093:10095 PyCSL.Phase5b_Soundness <> es':115 var
-R9838:9842 Coq.Init.Logic <> proj2 thm
-binder 9888:9891 <> exc':116
-binder 9893:9895 <> es':117
-R9903:9912 Coq.Strings.String <> eqb def
-R9914:9917 PyCSL.Phase5b_Soundness <> exc':116 var
-R10143:10146 PyCSL.Phase5b_Soundness <> exc':116 var
-R10148:10150 PyCSL.Phase5b_Soundness <> es':117 var
-R9966:9967 PyCSL.Phase4_WP <> wp def
-R9970:9982 PyCSL.Phase3b_DesugarDef <> lift_continue def
-R9985:9994 PyCSL.Phase1_AST <> SAugAssign constr
-R9996:10002 PyCSL.Phase3b_DesugarDef <> for_idx def
-R10004:10008 PyCSL.Phase1_AST <> OpAdd constr
-R10011:10014 PyCSL.Phase1_AST <> EInt constr
-R10093:10095 PyCSL.Phase5b_Soundness <> es':117 var
-R10200:10206 PyCSL.Phase5b_Soundness <> wp_mono thm
-binder 10243:10245 <> es':118
-R10254:10263 PyCSL.Phase5b_Soundness <> inc_idx_fn def
-R10265:10267 PyCSL.Phase5b_Soundness <> es':118 var
-binder 10276:10278 <> es':119
-R10287:10296 PyCSL.Phase5b_Soundness <> inc_idx_fn def
-R10298:10300 PyCSL.Phase5b_Soundness <> es':119 var
-binder 10345:10348 <> exc':120
-binder 10350:10352 <> es':121
-R10360:10369 Coq.Strings.String <> eqb def
-R10371:10374 PyCSL.Phase5b_Soundness <> exc':120 var
-R10521:10524 PyCSL.Phase5b_Soundness <> exc':120 var
-R10526:10528 PyCSL.Phase5b_Soundness <> es':121 var
-R10417:10418 PyCSL.Phase4_WP <> wp def
-binder 10434:10437 <> es'':122
-R10446:10455 PyCSL.Phase5b_Soundness <> inc_idx_fn def
-R10457:10460 PyCSL.Phase5b_Soundness <> es'':122 var
-R10477:10479 PyCSL.Phase5b_Soundness <> es':121 var
-binder 10551:10554 <> exc':123
-binder 10556:10558 <> es':124
-R10566:10575 Coq.Strings.String <> eqb def
-R10577:10580 PyCSL.Phase5b_Soundness <> exc':123 var
-R10788:10791 PyCSL.Phase5b_Soundness <> exc':123 var
-R10793:10795 PyCSL.Phase5b_Soundness <> es':124 var
-R10623:10624 PyCSL.Phase4_WP <> wp def
-R10627:10639 PyCSL.Phase3b_DesugarDef <> lift_continue def
-R10642:10651 PyCSL.Phase1_AST <> SAugAssign constr
-R10653:10659 PyCSL.Phase3b_DesugarDef <> for_idx def
-R10661:10665 PyCSL.Phase1_AST <> OpAdd constr
-R10668:10671 PyCSL.Phase1_AST <> EInt constr
-R10744:10746 PyCSL.Phase5b_Soundness <> es':124 var
-binder 10830:10830 <> h:125
-R10835:10835 PyCSL.Phase5b_Soundness <> h:125 var
-binder 10845:10845 <> h:126
-R10850:10850 PyCSL.Phase5b_Soundness <> h:126 var
-binder 10860:10860 <> h:127
-R10865:10865 PyCSL.Phase5b_Soundness <> h:127 var
-binder 10875:10875 <> h:128
-R10880:10880 PyCSL.Phase5b_Soundness <> h:128 var
-R10200:10206 PyCSL.Phase5b_Soundness <> wp_mono thm
-binder 10243:10245 <> es':129
-R10254:10263 PyCSL.Phase5b_Soundness <> inc_idx_fn def
-R10265:10267 PyCSL.Phase5b_Soundness <> es':129 var
-binder 10276:10278 <> es':130
-R10287:10296 PyCSL.Phase5b_Soundness <> inc_idx_fn def
-R10298:10300 PyCSL.Phase5b_Soundness <> es':130 var
-binder 10345:10348 <> exc':131
-binder 10350:10352 <> es':132
-R10360:10369 Coq.Strings.String <> eqb def
-R10371:10374 PyCSL.Phase5b_Soundness <> exc':131 var
-R10521:10524 PyCSL.Phase5b_Soundness <> exc':131 var
-R10526:10528 PyCSL.Phase5b_Soundness <> es':132 var
-R10417:10418 PyCSL.Phase4_WP <> wp def
-binder 10434:10437 <> es'':133
-R10446:10455 PyCSL.Phase5b_Soundness <> inc_idx_fn def
-R10457:10460 PyCSL.Phase5b_Soundness <> es'':133 var
-R10477:10479 PyCSL.Phase5b_Soundness <> es':132 var
-binder 10551:10554 <> exc':134
-binder 10556:10558 <> es':135
-R10566:10575 Coq.Strings.String <> eqb def
-R10577:10580 PyCSL.Phase5b_Soundness <> exc':134 var
-R10788:10791 PyCSL.Phase5b_Soundness <> exc':134 var
-R10793:10795 PyCSL.Phase5b_Soundness <> es':135 var
-R10623:10624 PyCSL.Phase4_WP <> wp def
-R10627:10639 PyCSL.Phase3b_DesugarDef <> lift_continue def
-R10642:10651 PyCSL.Phase1_AST <> SAugAssign constr
-R10653:10659 PyCSL.Phase3b_DesugarDef <> for_idx def
-R10661:10665 PyCSL.Phase1_AST <> OpAdd constr
-R10668:10671 PyCSL.Phase1_AST <> EInt constr
-R10744:10746 PyCSL.Phase5b_Soundness <> es':135 var
-binder 10830:10830 <> h:136
-R10835:10835 PyCSL.Phase5b_Soundness <> h:136 var
-binder 10845:10845 <> h:137
-R10850:10850 PyCSL.Phase5b_Soundness <> h:137 var
-binder 10860:10860 <> h:138
-R10865:10865 PyCSL.Phase5b_Soundness <> h:138 var
-binder 10875:10875 <> h:139
-R10880:10880 PyCSL.Phase5b_Soundness <> h:139 var
-R10931:10940 Coq.Strings.String <> eqb def
-R10931:10940 Coq.Strings.String <> eqb def
-R10990:10994 Coq.Init.Logic <> proj2 thm
-R10990:10994 Coq.Init.Logic <> proj2 thm
-R11091:11104 PyCSL.Phase7_MemModel <> critical_havoc def
-prf 11383:11396 <> wp_desugar_fwd
-binder 11409:11409 <> s:140
-binder 11411:11412 <> Qn:141
-binder 11414:11415 <> Qr:142
-binder 11417:11418 <> Qc:143
-binder 11420:11421 <> Qb:144
-binder 11423:11424 <> Qe:145
-binder 11426:11431 <> pre_es:146
-binder 11433:11434 <> es:147
-R11468:11473 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R11439:11440 PyCSL.Phase4_WP <> wp def
-R11442:11442 PyCSL.Phase5b_Soundness <> s:140 var
-R11444:11445 PyCSL.Phase5b_Soundness <> Qn:141 var
-R11447:11448 PyCSL.Phase5b_Soundness <> Qr:142 var
-R11450:11451 PyCSL.Phase5b_Soundness <> Qc:143 var
-R11453:11454 PyCSL.Phase5b_Soundness <> Qb:144 var
-R11456:11457 PyCSL.Phase5b_Soundness <> Qe:145 var
-R11459:11464 PyCSL.Phase5b_Soundness <> pre_es:146 var
-R11466:11467 PyCSL.Phase5b_Soundness <> es:147 var
-R11474:11475 PyCSL.Phase4_WP <> wp def
-R11478:11484 PyCSL.Phase3b_DesugarDef <> desugar def
-R11486:11486 PyCSL.Phase5b_Soundness <> s:140 var
-R11489:11490 PyCSL.Phase5b_Soundness <> Qn:141 var
-R11492:11493 PyCSL.Phase5b_Soundness <> Qr:142 var
-R11495:11496 PyCSL.Phase5b_Soundness <> Qc:143 var
-R11498:11499 PyCSL.Phase5b_Soundness <> Qb:144 var
-R11501:11502 PyCSL.Phase5b_Soundness <> Qe:145 var
-R11504:11509 PyCSL.Phase5b_Soundness <> pre_es:146 var
-R11511:11512 PyCSL.Phase5b_Soundness <> es:147 var
-R11647:11653 PyCSL.Phase5b_Soundness <> wp_mono thm
-binder 11676:11678 <> es':148
-R11683:11684 PyCSL.Phase4_WP <> wp def
-R11711:11713 PyCSL.Phase5b_Soundness <> es':148 var
-binder 11734:11736 <> es':149
-R11741:11742 PyCSL.Phase4_WP <> wp def
-R11745:11751 PyCSL.Phase3b_DesugarDef <> desugar def
-R11779:11781 PyCSL.Phase5b_Soundness <> es':149 var
-binder 11849:11851 <> es':150
-binder 11853:11853 <> h:151
-R11885:11887 PyCSL.Phase5b_Soundness <> es':150 var
-R11889:11889 PyCSL.Phase5b_Soundness <> h:151 var
-binder 11910:11911 <> es:152
-binder 11913:11913 <> h:153
-R11918:11918 PyCSL.Phase5b_Soundness <> h:153 var
-binder 11926:11927 <> es:154
-binder 11929:11929 <> h:155
-R11934:11934 PyCSL.Phase5b_Soundness <> h:155 var
-binder 11942:11943 <> es:156
-binder 11945:11945 <> h:157
-R11950:11950 PyCSL.Phase5b_Soundness <> h:157 var
-binder 11958:11960 <> exc:158
-binder 11962:11963 <> es:159
-binder 11965:11965 <> h:160
-R11970:11970 PyCSL.Phase5b_Soundness <> h:160 var
-R11647:11653 PyCSL.Phase5b_Soundness <> wp_mono thm
-binder 11676:11678 <> es':161
-R11683:11684 PyCSL.Phase4_WP <> wp def
-R11711:11713 PyCSL.Phase5b_Soundness <> es':161 var
-binder 11734:11736 <> es':162
-R11741:11742 PyCSL.Phase4_WP <> wp def
-R11745:11751 PyCSL.Phase3b_DesugarDef <> desugar def
-R11779:11781 PyCSL.Phase5b_Soundness <> es':162 var
-binder 11849:11851 <> es':163
-binder 11853:11853 <> h:164
-R11885:11887 PyCSL.Phase5b_Soundness <> es':163 var
-R11889:11889 PyCSL.Phase5b_Soundness <> h:164 var
-binder 11910:11911 <> es:165
-binder 11913:11913 <> h:166
-R11918:11918 PyCSL.Phase5b_Soundness <> h:166 var
-binder 11926:11927 <> es:167
-binder 11929:11929 <> h:168
-R11934:11934 PyCSL.Phase5b_Soundness <> h:168 var
-binder 11942:11943 <> es:169
-binder 11945:11945 <> h:170
-R11950:11950 PyCSL.Phase5b_Soundness <> h:170 var
-binder 11958:11960 <> exc:171
-binder 11962:11963 <> es:172
-binder 11965:11965 <> h:173
-R11970:11970 PyCSL.Phase5b_Soundness <> h:173 var
-R12245:12248 Coq.Init.Logic <> conj constr
-R12256:12259 Coq.Init.Logic <> conj constr
-binder 12266:12268 <> es':174
-binder 12270:12271 <> hI:175
-binder 12273:12274 <> hG:176
-R12303:12305 PyCSL.Phase5b_Soundness <> es':174 var
-R12314:12316 PyCSL.Phase5b_Soundness <> es':174 var
-R12318:12319 PyCSL.Phase5b_Soundness <> hI:175 var
-R12321:12322 PyCSL.Phase5b_Soundness <> hG:176 var
-R12245:12248 Coq.Init.Logic <> conj constr
-R12256:12259 Coq.Init.Logic <> conj constr
-binder 12266:12268 <> es':177
-binder 12270:12271 <> hI:178
-binder 12273:12274 <> hG:179
-R12303:12305 PyCSL.Phase5b_Soundness <> es':177 var
-R12314:12316 PyCSL.Phase5b_Soundness <> es':177 var
-R12318:12319 PyCSL.Phase5b_Soundness <> hI:178 var
-R12321:12322 PyCSL.Phase5b_Soundness <> hG:179 var
-R12435:12438 Coq.Init.Logic <> conj constr
-R12446:12449 Coq.Init.Logic <> conj constr
-R12435:12438 Coq.Init.Logic <> conj constr
-R12446:12449 Coq.Init.Logic <> conj constr
-R12507:12513 PyCSL.Phase2_State <> set_reg def
-R12520:12525 PyCSL.Phase2_State <> update def
-R12532:12540 PyCSL.Phase2_State <> reg_state proj
-R12564:12572 PyCSL.Phase2_State <> eval_expr def
-R12579:12587 PyCSL.Phase2_State <> reg_state proj
-R12591:12600 PyCSL.Phase1_AST <> ESubscript constr
-R12607:12610 PyCSL.Phase1_AST <> EVar constr
-R12612:12618 PyCSL.Phase3b_DesugarDef <> for_idx def
-R12507:12513 PyCSL.Phase2_State <> set_reg def
-R12520:12525 PyCSL.Phase2_State <> update def
-R12532:12540 PyCSL.Phase2_State <> reg_state proj
-R12564:12572 PyCSL.Phase2_State <> eval_expr def
-R12579:12587 PyCSL.Phase2_State <> reg_state proj
-R12591:12600 PyCSL.Phase1_AST <> ESubscript constr
-R12607:12610 PyCSL.Phase1_AST <> EVar constr
-R12612:12618 PyCSL.Phase3b_DesugarDef <> for_idx def
-binder 12651:12654 <> es'':180
-R12692:12701 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
-R12665:12670 PyCSL.Phase4_WP <> eval_c def
-R12672:12675 PyCSL.Phase5b_Soundness <> es'':180 var
-R12684:12687 Coq.Init.Datatypes <> None constr
-R12748:12757 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
-R12724:12726 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
-R12702:12707 PyCSL.Phase4_WP <> eval_v def
-R12709:12712 PyCSL.Phase5b_Soundness <> es'':180 var
-R12727:12732 PyCSL.Phase4_WP <> eval_v def
-R12780:12783 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
-R12758:12763 PyCSL.Phase4_WP <> eval_v def
-R12765:12768 PyCSL.Phase5b_Soundness <> es'':180 var
-binder 12651:12654 <> es'':181
-R12692:12701 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
-R12665:12670 PyCSL.Phase4_WP <> eval_c def
-R12672:12675 PyCSL.Phase5b_Soundness <> es'':181 var
-R12684:12687 Coq.Init.Datatypes <> None constr
-R12748:12757 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
-R12724:12726 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
-R12702:12707 PyCSL.Phase4_WP <> eval_v def
-R12709:12712 PyCSL.Phase5b_Soundness <> es'':181 var
-R12727:12732 PyCSL.Phase4_WP <> eval_v def
-R12780:12783 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
-R12758:12763 PyCSL.Phase4_WP <> eval_v def
-R12765:12768 PyCSL.Phase5b_Soundness <> es'':181 var
-binder 12814:12817 <> es'':182
-R12849:12854 PyCSL.Phase2_State <> lookup def
-R12862:12870 PyCSL.Phase2_State <> reg_state proj
-R12856:12859 PyCSL.Phase5b_Soundness <> es'':182 var
-R12873:12879 PyCSL.Phase3b_DesugarDef <> for_idx def
-R12886:12889 Coq.Init.Datatypes <> Some constr
-R12892:12895 PyCSL.Phase2_State <> VInt constr
-binder 12832:12838 <> cur_idx:183
-R12938:12944 PyCSL.Phase2_State <> set_reg def
-R12946:12949 PyCSL.Phase5b_Soundness <> es'':182 var
-R12952:12957 PyCSL.Phase2_State <> update def
-R12965:12973 PyCSL.Phase2_State <> reg_state proj
-R12959:12962 PyCSL.Phase5b_Soundness <> es'':182 var
-R12976:12982 PyCSL.Phase3b_DesugarDef <> for_idx def
-R12985:12988 PyCSL.Phase2_State <> VInt constr
-R12998:13000 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
-R12991:12997 PyCSL.Phase5b_Soundness <> cur_idx:183 var
-binder 12931:12933 <> es3:184
-R13041:13050 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
-R13015:13020 PyCSL.Phase4_WP <> eval_c def
-R13022:13024 PyCSL.Phase5b_Soundness <> es3:184 var
-R13033:13036 Coq.Init.Datatypes <> None constr
-R13096:13105 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
-R13072:13074 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
-R13051:13056 PyCSL.Phase4_WP <> eval_v def
-R13058:13060 PyCSL.Phase5b_Soundness <> es3:184 var
-R13075:13080 PyCSL.Phase4_WP <> eval_v def
-R13127:13130 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
-R13106:13111 PyCSL.Phase4_WP <> eval_v def
-R13113:13115 PyCSL.Phase5b_Soundness <> es3:184 var
-binder 12814:12817 <> es'':185
-R12849:12854 PyCSL.Phase2_State <> lookup def
-R12862:12870 PyCSL.Phase2_State <> reg_state proj
-R12856:12859 PyCSL.Phase5b_Soundness <> es'':185 var
-R12873:12879 PyCSL.Phase3b_DesugarDef <> for_idx def
-R12886:12889 Coq.Init.Datatypes <> Some constr
-R12892:12895 PyCSL.Phase2_State <> VInt constr
-binder 12832:12838 <> cur_idx:186
-R12938:12944 PyCSL.Phase2_State <> set_reg def
-R12946:12949 PyCSL.Phase5b_Soundness <> es'':185 var
-R12952:12957 PyCSL.Phase2_State <> update def
-R12965:12973 PyCSL.Phase2_State <> reg_state proj
-R12959:12962 PyCSL.Phase5b_Soundness <> es'':185 var
-R12976:12982 PyCSL.Phase3b_DesugarDef <> for_idx def
-R12985:12988 PyCSL.Phase2_State <> VInt constr
-R12998:13000 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
-R12991:12997 PyCSL.Phase5b_Soundness <> cur_idx:186 var
-binder 12931:12933 <> es3:187
-R13041:13050 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
-R13015:13020 PyCSL.Phase4_WP <> eval_c def
-R13022:13024 PyCSL.Phase5b_Soundness <> es3:187 var
-R13033:13036 Coq.Init.Datatypes <> None constr
-R13096:13105 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
-R13072:13074 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
-R13051:13056 PyCSL.Phase4_WP <> eval_v def
-R13058:13060 PyCSL.Phase5b_Soundness <> es3:187 var
-R13075:13080 PyCSL.Phase4_WP <> eval_v def
-R13127:13130 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
-R13106:13111 PyCSL.Phase4_WP <> eval_v def
-R13113:13115 PyCSL.Phase5b_Soundness <> es3:187 var
-binder 13163:13166 <> es'':188
-R13195:13197 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R13179:13188 PyCSL.Phase5b_Soundness <> inc_idx_fn def
-R13190:13193 PyCSL.Phase5b_Soundness <> es'':188 var
-R13208:13211 PyCSL.Phase5b_Soundness <> es'':188 var
-R13264:13273 PyCSL.Phase5b_Soundness <> inc_idx_fn def
-binder 13163:13166 <> es'':189
-R13195:13197 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R13179:13188 PyCSL.Phase5b_Soundness <> inc_idx_fn def
-R13190:13193 PyCSL.Phase5b_Soundness <> es'':189 var
-R13208:13211 PyCSL.Phase5b_Soundness <> es'':189 var
-R13366:13370 Coq.Init.Logic <> proj2 thm
-R13373:13388 PyCSL.Phase5b_Soundness <> lift_continue_wp thm
-R13391:13397 PyCSL.Phase3b_DesugarDef <> desugar def
-binder 13427:13430 <> es'':190
-R13435:13436 PyCSL.Phase4_WP <> wp def
-R13439:13448 PyCSL.Phase1_AST <> SAugAssign constr
-R13450:13456 PyCSL.Phase3b_DesugarDef <> for_idx def
-R13458:13462 PyCSL.Phase1_AST <> OpAdd constr
-R13465:13468 PyCSL.Phase1_AST <> EInt constr
-R13508:13511 PyCSL.Phase5b_Soundness <> es'':190 var
-R13366:13370 Coq.Init.Logic <> proj2 thm
-R13373:13388 PyCSL.Phase5b_Soundness <> lift_continue_wp thm
-R13391:13397 PyCSL.Phase3b_DesugarDef <> desugar def
-binder 13427:13430 <> es'':191
-R13435:13436 PyCSL.Phase4_WP <> wp def
-R13439:13448 PyCSL.Phase1_AST <> SAugAssign constr
-R13450:13456 PyCSL.Phase3b_DesugarDef <> for_idx def
-R13458:13462 PyCSL.Phase1_AST <> OpAdd constr
-R13465:13468 PyCSL.Phase1_AST <> EInt constr
-R13508:13511 PyCSL.Phase5b_Soundness <> es'':191 var
-R13587:13587 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R13677:13701 Coq.Init.Logic <> ::type_scope:x_'='_x not
-binder 13592:13595 <> es'':192
-R13600:13601 PyCSL.Phase4_WP <> wp def
-R13604:13613 PyCSL.Phase1_AST <> SAugAssign constr
-R13615:13621 PyCSL.Phase3b_DesugarDef <> for_idx def
-R13623:13627 PyCSL.Phase1_AST <> OpAdd constr
-R13630:13633 PyCSL.Phase1_AST <> EInt constr
-R13673:13676 PyCSL.Phase5b_Soundness <> es'':192 var
-R13729:13753 Coq.Logic.FunctionalExtensionality <> functional_extensionality thm
-R13783:13803 PyCSL.Phase5b_Soundness <> wp_aug_assign_for_idx thm
-R13587:13587 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R13677:13701 Coq.Init.Logic <> ::type_scope:x_'='_x not
-binder 13592:13595 <> es'':193
-R13600:13601 PyCSL.Phase4_WP <> wp def
-R13604:13613 PyCSL.Phase1_AST <> SAugAssign constr
-R13615:13621 PyCSL.Phase3b_DesugarDef <> for_idx def
-R13623:13627 PyCSL.Phase1_AST <> OpAdd constr
-R13630:13633 PyCSL.Phase1_AST <> EInt constr
-R13673:13676 PyCSL.Phase5b_Soundness <> es'':193 var
-R13729:13753 Coq.Logic.FunctionalExtensionality <> functional_extensionality thm
-R13783:13803 PyCSL.Phase5b_Soundness <> wp_aug_assign_for_idx thm
-R13783:13803 PyCSL.Phase5b_Soundness <> wp_aug_assign_for_idx thm
-R13849:13849 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R13888:13891 Coq.Init.Logic <> ::type_scope:x_'='_x not
-binder 13854:13857 <> es'':194
-R13872:13881 PyCSL.Phase5b_Soundness <> inc_idx_fn def
-R13883:13886 PyCSL.Phase5b_Soundness <> es'':194 var
-R13919:13943 Coq.Logic.FunctionalExtensionality <> functional_extensionality thm
-R13849:13849 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R13888:13891 Coq.Init.Logic <> ::type_scope:x_'='_x not
-binder 13854:13857 <> es'':195
-R13872:13881 PyCSL.Phase5b_Soundness <> inc_idx_fn def
-R13883:13886 PyCSL.Phase5b_Soundness <> es'':195 var
-R13919:13943 Coq.Logic.FunctionalExtensionality <> functional_extensionality thm
-R14080:14086 PyCSL.Phase5b_Soundness <> wp_mono thm
-binder 14133:14136 <> exc':196
-binder 14138:14140 <> es':197
-R14148:14157 Coq.Strings.String <> eqb def
-R14159:14162 PyCSL.Phase5b_Soundness <> exc':196 var
-R14213:14216 PyCSL.Phase5b_Soundness <> exc':196 var
-R14218:14220 PyCSL.Phase5b_Soundness <> es':197 var
-R14173:14174 PyCSL.Phase4_WP <> wp def
-R14201:14203 PyCSL.Phase5b_Soundness <> es':197 var
-binder 14241:14244 <> exc':198
-binder 14246:14248 <> es':199
-R14256:14265 Coq.Strings.String <> eqb def
-R14267:14270 PyCSL.Phase5b_Soundness <> exc':198 var
-R14331:14334 PyCSL.Phase5b_Soundness <> exc':198 var
-R14336:14338 PyCSL.Phase5b_Soundness <> es':199 var
-R14281:14282 PyCSL.Phase4_WP <> wp def
-R14285:14291 PyCSL.Phase3b_DesugarDef <> desugar def
-R14319:14321 PyCSL.Phase5b_Soundness <> es':199 var
-binder 14382:14383 <> es:200
-binder 14385:14385 <> h:201
-R14390:14390 PyCSL.Phase5b_Soundness <> h:201 var
-binder 14398:14399 <> es:202
-binder 14401:14401 <> h:203
-R14406:14406 PyCSL.Phase5b_Soundness <> h:203 var
-binder 14414:14415 <> es:204
-binder 14417:14417 <> h:205
-R14422:14422 PyCSL.Phase5b_Soundness <> h:205 var
-binder 14430:14431 <> es:206
-binder 14433:14433 <> h:207
-R14438:14438 PyCSL.Phase5b_Soundness <> h:207 var
-R14080:14086 PyCSL.Phase5b_Soundness <> wp_mono thm
-binder 14133:14136 <> exc':208
-binder 14138:14140 <> es':209
-R14148:14157 Coq.Strings.String <> eqb def
-R14159:14162 PyCSL.Phase5b_Soundness <> exc':208 var
-R14213:14216 PyCSL.Phase5b_Soundness <> exc':208 var
-R14218:14220 PyCSL.Phase5b_Soundness <> es':209 var
-R14173:14174 PyCSL.Phase4_WP <> wp def
-R14201:14203 PyCSL.Phase5b_Soundness <> es':209 var
-binder 14241:14244 <> exc':210
-binder 14246:14248 <> es':211
-R14256:14265 Coq.Strings.String <> eqb def
-R14267:14270 PyCSL.Phase5b_Soundness <> exc':210 var
-R14331:14334 PyCSL.Phase5b_Soundness <> exc':210 var
-R14336:14338 PyCSL.Phase5b_Soundness <> es':211 var
-R14281:14282 PyCSL.Phase4_WP <> wp def
-R14285:14291 PyCSL.Phase3b_DesugarDef <> desugar def
-R14319:14321 PyCSL.Phase5b_Soundness <> es':211 var
-binder 14382:14383 <> es:212
-binder 14385:14385 <> h:213
-R14390:14390 PyCSL.Phase5b_Soundness <> h:213 var
-binder 14398:14399 <> es:214
-binder 14401:14401 <> h:215
-R14406:14406 PyCSL.Phase5b_Soundness <> h:215 var
-binder 14414:14415 <> es:216
-binder 14417:14417 <> h:217
-R14422:14422 PyCSL.Phase5b_Soundness <> h:217 var
-binder 14430:14431 <> es:218
-binder 14433:14433 <> h:219
-R14438:14438 PyCSL.Phase5b_Soundness <> h:219 var
-R14484:14498 Coq.Strings.String <> eqb_spec thm
-R14484:14498 Coq.Strings.String <> eqb_spec thm
-R14669:14682 PyCSL.Phase7_MemModel <> critical_havoc def
-def 14890:14901 <> outcome_post
-R14932:14935 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R14922:14931 PyCSL.Phase2_State <> exec_state rec
-binder 14908:14909 <> Qn:220
-binder 14911:14912 <> Qr:221
-binder 14914:14915 <> Qc:222
-binder 14917:14918 <> Qb:223
-R14957:14960 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R14952:14956 PyCSL.Phase1_AST <> ident def
-R14971:14974 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R14961:14970 PyCSL.Phase2_State <> exec_state rec
-binder 14947:14948 <> Qe:224
-R14992:14998 PyCSL.Phase3_SOS <> outcome ind
-binder 14986:14988 <> out:225
-R15019:15021 PyCSL.Phase5b_Soundness <> out:225 var
-R15032:15038 PyCSL.Phase3_SOS <> ONormal constr
-R15051:15052 PyCSL.Phase5b_Soundness <> Qn:220 var
-R15062:15070 PyCSL.Phase3_SOS <> OReturned constr
-R15081:15082 PyCSL.Phase5b_Soundness <> Qr:221 var
-R15092:15101 PyCSL.Phase3_SOS <> OContinued constr
-R15111:15112 PyCSL.Phase5b_Soundness <> Qc:222 var
-R15122:15127 PyCSL.Phase3_SOS <> OBroke constr
-R15141:15142 PyCSL.Phase5b_Soundness <> Qb:223 var
-R15152:15157 PyCSL.Phase3_SOS <> OThrew constr
-R15171:15172 PyCSL.Phase5b_Soundness <> Qe:224 var
-R15186:15192 PyCSL.Phase3_SOS <> OFailed constr
-R15205:15208 Coq.Init.Logic <> True ind
-prf 15386:15400 <> pycsl_soundness
-binder 15413:15414 <> es:227
-binder 15416:15416 <> s:228
-binder 15418:15420 <> out:229
-binder 15422:15423 <> Qn:230
-binder 15425:15426 <> Qr:231
-binder 15428:15429 <> Qc:232
-binder 15431:15432 <> Qb:233
-binder 15434:15435 <> Qe:234
-binder 15437:15442 <> pre_es:235
-R15460:15465 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R15447:15450 PyCSL.Phase3_SOS <> exec ind
-R15452:15453 PyCSL.Phase5b_Soundness <> es:227 var
-R15455:15455 PyCSL.Phase5b_Soundness <> s:228 var
-R15457:15459 PyCSL.Phase5b_Soundness <> out:229 var
-R15495:15500 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R15466:15467 PyCSL.Phase4_WP <> wp def
-R15469:15469 PyCSL.Phase5b_Soundness <> s:228 var
-R15471:15472 PyCSL.Phase5b_Soundness <> Qn:230 var
-R15474:15475 PyCSL.Phase5b_Soundness <> Qr:231 var
-R15477:15478 PyCSL.Phase5b_Soundness <> Qc:232 var
-R15480:15481 PyCSL.Phase5b_Soundness <> Qb:233 var
-R15483:15484 PyCSL.Phase5b_Soundness <> Qe:234 var
-R15486:15491 PyCSL.Phase5b_Soundness <> pre_es:235 var
-R15493:15494 PyCSL.Phase5b_Soundness <> es:227 var
-R15501:15512 PyCSL.Phase5b_Soundness <> outcome_post def
-R15514:15515 PyCSL.Phase5b_Soundness <> Qn:230 var
-R15517:15518 PyCSL.Phase5b_Soundness <> Qr:231 var
-R15520:15521 PyCSL.Phase5b_Soundness <> Qc:232 var
-R15523:15524 PyCSL.Phase5b_Soundness <> Qb:233 var
-R15526:15527 PyCSL.Phase5b_Soundness <> Qe:234 var
-R15529:15531 PyCSL.Phase5b_Soundness <> out:229 var
-R15826:15837 PyCSL.Phase5b_Soundness <> outcome_post def
-R16883:16886 Coq.Init.Logic <> conj constr
-R16895:16898 Coq.Init.Logic <> conj constr
-R16883:16886 Coq.Init.Logic <> conj constr
-R16895:16898 Coq.Init.Logic <> conj constr
-R17177:17180 Coq.Init.Logic <> conj constr
-R17189:17192 Coq.Init.Logic <> conj constr
-R17177:17180 Coq.Init.Logic <> conj constr
-R17189:17192 Coq.Init.Logic <> conj constr
-R17689:17689 Coq.Init.Logic <> I constr
-R17689:17689 Coq.Init.Logic <> I constr
-binder 18076:18079 <> exc':236
-binder 18081:18083 <> es':237
-R18112:18121 Coq.Strings.String <> eqb def
-R18123:18126 PyCSL.Phase5b_Soundness <> exc':236 var
-R18224:18227 PyCSL.Phase5b_Soundness <> exc':236 var
-R18229:18231 PyCSL.Phase5b_Soundness <> es':237 var
-R18158:18159 PyCSL.Phase4_WP <> wp def
-R18191:18193 PyCSL.Phase5b_Soundness <> es':237 var
-binder 18076:18079 <> exc':238
-binder 18081:18083 <> es':239
-R18112:18121 Coq.Strings.String <> eqb def
-R18123:18126 PyCSL.Phase5b_Soundness <> exc':238 var
-R18224:18227 PyCSL.Phase5b_Soundness <> exc':238 var
-R18229:18231 PyCSL.Phase5b_Soundness <> es':239 var
-R18158:18159 PyCSL.Phase4_WP <> wp def
-R18191:18193 PyCSL.Phase5b_Soundness <> es':239 var
-R18283:18297 Coq.Strings.String <> eqb_refl thm
-R18283:18297 Coq.Strings.String <> eqb_refl thm
-R18283:18297 Coq.Strings.String <> eqb_refl thm
-binder 18440:18443 <> exc':240
-binder 18445:18447 <> es':241
-R18476:18485 Coq.Strings.String <> eqb def
-R18487:18490 PyCSL.Phase5b_Soundness <> exc':240 var
-R18588:18591 PyCSL.Phase5b_Soundness <> exc':240 var
-R18593:18595 PyCSL.Phase5b_Soundness <> es':241 var
-R18522:18523 PyCSL.Phase4_WP <> wp def
-R18555:18557 PyCSL.Phase5b_Soundness <> es':241 var
-binder 18440:18443 <> exc':242
-binder 18445:18447 <> es':243
-R18476:18485 Coq.Strings.String <> eqb def
-R18487:18490 PyCSL.Phase5b_Soundness <> exc':242 var
-R18588:18591 PyCSL.Phase5b_Soundness <> exc':242 var
-R18593:18595 PyCSL.Phase5b_Soundness <> es':243 var
-R18522:18523 PyCSL.Phase4_WP <> wp def
-R18555:18557 PyCSL.Phase5b_Soundness <> es':243 var
-R18649:18663 Coq.Strings.String <> eqb_spec thm
-R18649:18663 Coq.Strings.String <> eqb_spec thm
-R18904:18917 PyCSL.Phase7_MemModel <> critical_havoc def
-R19143:19156 PyCSL.Phase5b_Soundness <> wp_desugar_fwd thm
-R19159:19162 PyCSL.Phase1_AST <> SFor constr
-R19143:19156 PyCSL.Phase5b_Soundness <> wp_desugar_fwd thm
-R19159:19162 PyCSL.Phase1_AST <> SFor constr
-prf 19437:19461 <> label_records_ghost_state
-binder 19474:19475 <> es:244
-binder 19477:19477 <> L:245
-binder 19479:19481 <> es':246
-R19518:19523 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R19486:19489 PyCSL.Phase3_SOS <> exec ind
-R19491:19492 PyCSL.Phase5b_Soundness <> es:244 var
-R19495:19500 PyCSL.Phase1_AST <> SLabel constr
-R19502:19502 PyCSL.Phase5b_Soundness <> L:245 var
-R19506:19512 PyCSL.Phase3_SOS <> ONormal constr
-R19514:19516 PyCSL.Phase5b_Soundness <> es':246 var
-R19556:19558 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R19524:19535 PyCSL.Phase2_State <> label_lookup def
-R19542:19552 PyCSL.Phase2_State <> label_snaps proj
-R19537:19539 PyCSL.Phase5b_Soundness <> es':246 var
-R19555:19555 PyCSL.Phase5b_Soundness <> L:245 var
-R19559:19562 Coq.Init.Datatypes <> Some constr
-R19568:19575 PyCSL.Phase2_State <> ghost_st proj
-R19564:19565 PyCSL.Phase5b_Soundness <> es:244 var
-R19654:19668 Coq.Strings.String <> eqb_refl thm
-R19654:19668 Coq.Strings.String <> eqb_refl thm
-R19654:19668 Coq.Strings.String <> eqb_refl thm
-prf 19770:19785 <> at_label_scoping
-binder 19798:19799 <> es:247
-binder 19801:19803 <> es':248
-binder 19805:19805 <> L:249
-binder 19807:19810 <> expr:250
-binder 19812:19817 <> pre_es:251
-binder 19819:19824 <> result:252
-R19861:19866 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R19829:19832 PyCSL.Phase3_SOS <> exec ind
-R19834:19835 PyCSL.Phase5b_Soundness <> es:247 var
-R19838:19843 PyCSL.Phase1_AST <> SLabel constr
-R19845:19845 PyCSL.Phase5b_Soundness <> L:249 var
-R19849:19855 PyCSL.Phase3_SOS <> ONormal constr
-R19857:19859 PyCSL.Phase5b_Soundness <> es':248 var
-R19914:19918 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R19867:19882 PyCSL.Phase2_State <> eval_contract_es def
-R19884:19886 PyCSL.Phase5b_Soundness <> es':248 var
-R19888:19893 PyCSL.Phase5b_Soundness <> pre_es:251 var
-R19895:19900 PyCSL.Phase5b_Soundness <> result:252 var
-R19903:19905 PyCSL.Phase1_AST <> CAt constr
-R19907:19910 PyCSL.Phase5b_Soundness <> expr:250 var
-R19912:19912 PyCSL.Phase5b_Soundness <> L:249 var
-R19919:19934 PyCSL.Phase2_State <> eval_contract_es def
-R19937:19945 PyCSL.Phase2_State <> set_ghost def
-R19947:19949 PyCSL.Phase5b_Soundness <> es':248 var
-R19955:19962 PyCSL.Phase2_State <> ghost_st proj
-R19951:19952 PyCSL.Phase5b_Soundness <> es:247 var
-R19966:19971 PyCSL.Phase5b_Soundness <> pre_es:251 var
-R19973:19978 PyCSL.Phase5b_Soundness <> result:252 var
-R19980:19983 PyCSL.Phase5b_Soundness <> expr:250 var
-R20057:20081 PyCSL.Phase5b_Soundness <> label_records_ghost_state thm
-R20057:20081 PyCSL.Phase5b_Soundness <> label_records_ghost_state thm
-R20057:20081 PyCSL.Phase5b_Soundness <> label_records_ghost_state thm
-prf 20265:20294 <> ghost_stmt_preserves_reg_state
-binder 20307:20308 <> es:253
-binder 20310:20310 <> s:254
-binder 20312:20314 <> es':255
-R20342:20347 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R20319:20322 PyCSL.Phase3_SOS <> exec ind
-R20324:20325 PyCSL.Phase5b_Soundness <> es:253 var
-R20327:20327 PyCSL.Phase5b_Soundness <> s:254 var
-R20330:20336 PyCSL.Phase3_SOS <> ONormal constr
-R20338:20340 PyCSL.Phase5b_Soundness <> es':255 var
-R20464:20469 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R20348:20348 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
-R20383:20389 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
-R20349:20355 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
-R20361:20362 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
-binder 20356:20356 <> x:256
-binder 20358:20358 <> t:257
-binder 20360:20360 <> e:258
-R20364:20366 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R20363:20363 PyCSL.Phase5b_Soundness <> s:254 var
-R20367:20376 PyCSL.Phase1_AST <> SGhostDecl constr
-R20378:20378 PyCSL.Phase5b_Soundness <> x:256 var
-R20380:20380 PyCSL.Phase5b_Soundness <> t:257 var
-R20382:20382 PyCSL.Phase5b_Soundness <> e:258 var
-R20390:20390 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
-R20433:20440 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
-R20463:20463 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
-R20391:20397 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
-R20406:20407 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
-binder 20398:20398 <> x:259
-binder 20400:20400 <> t:260
-binder 20402:20403 <> op:261
-binder 20405:20405 <> e:262
-R20409:20411 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R20408:20408 PyCSL.Phase5b_Soundness <> s:254 var
-R20412:20423 PyCSL.Phase1_AST <> SGhostAssign constr
-R20425:20425 PyCSL.Phase5b_Soundness <> x:259 var
-R20427:20427 PyCSL.Phase5b_Soundness <> t:260 var
-R20429:20430 PyCSL.Phase5b_Soundness <> op:261 var
-R20432:20432 PyCSL.Phase5b_Soundness <> e:262 var
-R20441:20447 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
-R20449:20450 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
-binder 20448:20448 <> L:263
-R20452:20454 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R20451:20451 PyCSL.Phase5b_Soundness <> s:254 var
-R20455:20460 PyCSL.Phase1_AST <> SLabel constr
-R20462:20462 PyCSL.Phase5b_Soundness <> L:263 var
-R20485:20487 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R20475:20483 PyCSL.Phase2_State <> reg_state proj
-R20470:20472 PyCSL.Phase5b_Soundness <> es':255 var
-R20492:20500 PyCSL.Phase2_State <> reg_state proj
-R20488:20489 PyCSL.Phase5b_Soundness <> es:253 var
-def 20831:20838 <> in_range
-R20848:20850 Coq.Init.Datatypes <> nat ind
-binder 20841:20844 <> bits:264
-R20858:20858 Coq.Numbers.BinNums <> Z ind
-binder 20854:20854 <> n:265
-R20904:20907 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
-R20909:20911 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
-R20873:20874 Coq.ZArith.BinInt <> ::Z_scope:'-'_x not
-R20875:20879 Coq.ZArith.BinInt Z pow def
-R20884:20891 Coq.ZArith.BinInt Z of_nat def
-R20898:20900 Coq.Init.Peano <> ::nat_scope:x_'-'_x not
-R20894:20897 PyCSL.Phase5b_Soundness <> bits:264 var
-R20908:20908 PyCSL.Phase5b_Soundness <> n:265 var
-R20908:20908 PyCSL.Phase5b_Soundness <> n:265 var
-R20912:20916 Coq.ZArith.BinInt Z pow def
-R20921:20928 Coq.ZArith.BinInt Z of_nat def
-R20935:20937 Coq.Init.Peano <> ::nat_scope:x_'-'_x not
-R20931:20934 PyCSL.Phase5b_Soundness <> bits:264 var
-def 21149:21165 <> bounded_assign_wp
-R21175:21177 Coq.Init.Datatypes <> nat ind
-binder 21168:21171 <> bits:266
-R21185:21189 PyCSL.Phase1_AST <> ident def
-binder 21181:21181 <> x:267
-R21197:21200 PyCSL.Phase1_AST <> expr ind
-binder 21193:21193 <> e:268
-R21249:21252 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R21239:21248 PyCSL.Phase2_State <> exec_state rec
-binder 21234:21235 <> Qn:269
-R21295:21304 PyCSL.Phase2_State <> exec_state rec
-binder 21290:21291 <> es:270
-R21328:21336 PyCSL.Phase2_State <> eval_expr def
-R21342:21350 PyCSL.Phase2_State <> reg_state proj
-R21338:21339 PyCSL.Phase5b_Soundness <> es:270 var
-R21353:21353 PyCSL.Phase5b_Soundness <> e:268 var
-binder 21323:21323 <> v:271
-R21360:21360 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
-R21400:21406 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
-binder 21368:21368 <> n:272
-R21381:21384 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R21372:21374 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R21371:21371 PyCSL.Phase5b_Soundness <> v:271 var
-R21375:21378 PyCSL.Phase2_State <> VInt constr
-R21380:21380 PyCSL.Phase5b_Soundness <> n:272 var
-R21385:21392 PyCSL.Phase5b_Soundness <> in_range def
-R21394:21397 PyCSL.Phase5b_Soundness <> bits:266 var
-R21399:21399 PyCSL.Phase5b_Soundness <> n:272 var
-R21407:21408 PyCSL.Phase5b_Soundness <> Qn:269 var
-R21411:21417 PyCSL.Phase2_State <> set_reg def
-R21419:21420 PyCSL.Phase5b_Soundness <> es:270 var
-R21423:21428 PyCSL.Phase2_State <> update def
-R21434:21442 PyCSL.Phase2_State <> reg_state proj
-R21430:21431 PyCSL.Phase5b_Soundness <> es:270 var
-R21445:21445 PyCSL.Phase5b_Soundness <> x:267 var
-R21447:21447 PyCSL.Phase5b_Soundness <> v:271 var
-def 21585:21587 <> ctx
-R21592:21595 Coq.Init.Datatypes <> list ind
-R21603:21605 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
-R21598:21602 PyCSL.Phase1_AST <> ident def
-R21606:21611 Coq.Strings.String <> string ind
-ind 21651:21657 <> wf_expr
-constr 21701:21705 <> WFNum
-constr 21744:21748 <> WFVar
-constr 21854:21861 <> WFResult
-constr 21888:21894 <> WFBinOp
-constr 21998:22005 <> WFForall
-constr 22107:22114 <> WFExists
-R21665:21667 PyCSL.Phase5b_Soundness <> ctx def
-binder 21660:21661 <> Γ:273
-R21685:21688 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R21672:21684 PyCSL.Phase1_AST <> contract_expr ind
-binder 21717:21717 <> n:276
-R21720:21726 PyCSL.Phase5b_Soundness <> wf_expr:274 ind
-R21732:21735 PyCSL.Phase1_AST <> CInt constr
-R21737:21737 PyCSL.Phase5b_Soundness <> n:276 var
-R21728:21729 PyCSL.Phase5b_Soundness <> Γ:273 var
-binder 21760:21760 <> x:277
-R21811:21829 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R21784:21787 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
-R21763:21769 Coq.Lists.List <> In def
-R21782:21783 PyCSL.Phase5b_Soundness <> Γ:273 var
-R21771:21771 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
-R21773:21774 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
-R21780:21780 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
-R21772:21772 PyCSL.Phase5b_Soundness <> x:277 var
-R21788:21794 Coq.Lists.List <> In def
-R21809:21810 PyCSL.Phase5b_Soundness <> Γ:273 var
-R21796:21796 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
-R21798:21799 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
-R21807:21807 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
-R21797:21797 PyCSL.Phase5b_Soundness <> x:277 var
-R21830:21836 PyCSL.Phase5b_Soundness <> wf_expr:274 ind
-R21842:21845 PyCSL.Phase1_AST <> CVar constr
-R21847:21847 PyCSL.Phase5b_Soundness <> x:277 var
-R21838:21839 PyCSL.Phase5b_Soundness <> Γ:273 var
-R21865:21871 PyCSL.Phase5b_Soundness <> wf_expr:274 ind
-R21876:21882 PyCSL.Phase1_AST <> CResult constr
-R21873:21874 PyCSL.Phase5b_Soundness <> Γ:273 var
-binder 21905:21906 <> op:278
-binder 21908:21909 <> e1:279
-binder 21911:21912 <> e2:280
-R21928:21931 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R21915:21921 PyCSL.Phase5b_Soundness <> wf_expr:274 ind
-R21926:21927 PyCSL.Phase5b_Soundness <> e1:279 var
-R21923:21924 PyCSL.Phase5b_Soundness <> Γ:273 var
-R21945:21964 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R21932:21938 PyCSL.Phase5b_Soundness <> wf_expr:274 ind
-R21943:21944 PyCSL.Phase5b_Soundness <> e2:280 var
-R21940:21941 PyCSL.Phase5b_Soundness <> Γ:273 var
-R21965:21971 PyCSL.Phase5b_Soundness <> wf_expr:274 ind
-R21977:21982 PyCSL.Phase1_AST <> CBinOp constr
-R21984:21985 PyCSL.Phase5b_Soundness <> op:278 var
-R21987:21988 PyCSL.Phase5b_Soundness <> e1:279 var
-R21990:21991 PyCSL.Phase5b_Soundness <> e2:280 var
-R21973:21974 PyCSL.Phase5b_Soundness <> Γ:273 var
-binder 22016:22016 <> x:281
-binder 22018:22021 <> body:282
-R22055:22074 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R22024:22030 PyCSL.Phase5b_Soundness <> wf_expr:274 ind
-R22051:22054 PyCSL.Phase5b_Soundness <> body:282 var
-R22043:22046 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
-R22033:22033 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
-R22035:22036 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
-R22042:22042 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
-R22034:22034 PyCSL.Phase5b_Soundness <> x:281 var
-R22047:22048 PyCSL.Phase5b_Soundness <> Γ:273 var
-R22075:22081 PyCSL.Phase5b_Soundness <> wf_expr:274 ind
-R22087:22093 PyCSL.Phase1_AST <> CForall constr
-R22095:22095 PyCSL.Phase5b_Soundness <> x:281 var
-R22097:22100 PyCSL.Phase5b_Soundness <> body:282 var
-R22083:22084 PyCSL.Phase5b_Soundness <> Γ:273 var
-binder 22125:22125 <> x:283
-binder 22127:22130 <> body:284
-R22164:22183 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R22133:22139 PyCSL.Phase5b_Soundness <> wf_expr:274 ind
-R22160:22163 PyCSL.Phase5b_Soundness <> body:284 var
-R22152:22155 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
-R22142:22142 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
-R22144:22145 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
-R22151:22151 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
-R22143:22143 PyCSL.Phase5b_Soundness <> x:283 var
-R22156:22157 PyCSL.Phase5b_Soundness <> Γ:273 var
-R22184:22190 PyCSL.Phase5b_Soundness <> wf_expr:274 ind
-R22196:22202 PyCSL.Phase1_AST <> CExists constr
-R22204:22204 PyCSL.Phase5b_Soundness <> x:283 var
-R22206:22209 PyCSL.Phase5b_Soundness <> body:284 var
-R22192:22193 PyCSL.Phase5b_Soundness <> Γ:273 var
-scheme 21651:21657 <> wf_expr_ind
-scheme 21651:21657 <> wf_expr_sind
-prf 22352:22363 <> wf_expr_safe
-binder 22376:22377 <> Γ:285
-binder 22379:22379 <> e:286
-binder 22381:22382 <> es:287
-R22399:22404 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R22387:22393 PyCSL.Phase5b_Soundness <> wf_expr ind
-R22395:22396 PyCSL.Phase5b_Soundness <> Γ:285 var
-R22398:22398 PyCSL.Phase5b_Soundness <> e:286 var
-R22405:22411 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
-R22413:22414 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
-binder 22412:22412 <> v:288
-R22458:22460 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R22415:22420 PyCSL.Phase2_State <> eval_z def
-R22426:22434 PyCSL.Phase2_State <> reg_state proj
-R22422:22423 PyCSL.Phase5b_Soundness <> es:287 var
-R22441:22449 PyCSL.Phase2_State <> reg_state proj
-R22437:22438 PyCSL.Phase5b_Soundness <> es:287 var
-R22452:22455 Coq.Init.Datatypes <> None constr
-R22457:22457 PyCSL.Phase5b_Soundness <> e:286 var
-R22461:22461 PyCSL.Phase5b_Soundness <> v:288 var
-prf 22826:22852 <> pycsl_soundness_with_oracle
-R22891:22899 PyCSL.Phase1_AST <> func_spec rec
-binder 22884:22887 <> spec:289
-R22936:22946 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R22929:22931 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R22916:22927 PyCSL.Phase1_AST <> spec_trusted proj
-R22910:22913 PyCSL.Phase5b_Soundness <> spec:289 var
-R22932:22935 Coq.Init.Datatypes <> true constr
-R22972:22981 PyCSL.Phase2_State <> exec_state rec
-binder 22955:22960 <> pre_es:290
-binder 22962:22968 <> post_es:291
-R23035:23047 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R22994:22999 PyCSL.Phase4_WP <> eval_c def
-R23001:23006 PyCSL.Phase5b_Soundness <> pre_es:290 var
-R23008:23013 PyCSL.Phase5b_Soundness <> pre_es:290 var
-R23015:23018 Coq.Init.Datatypes <> None constr
-R23026:23033 PyCSL.Phase1_AST <> spec_pre proj
-R23020:23023 PyCSL.Phase5b_Soundness <> spec:289 var
-R23048:23053 PyCSL.Phase4_WP <> eval_c def
-R23055:23061 PyCSL.Phase5b_Soundness <> post_es:291 var
-R23063:23068 PyCSL.Phase5b_Soundness <> pre_es:290 var
-R23070:23073 Coq.Init.Datatypes <> None constr
-R23081:23089 PyCSL.Phase1_AST <> spec_post proj
-R23075:23078 PyCSL.Phase5b_Soundness <> spec:289 var
-binder 22859:22872 <> trusted_oracle:292
-binder 23104:23105 <> es:293
-binder 23107:23107 <> s:294
-binder 23109:23111 <> out:295
-binder 23113:23114 <> Qn:296
-binder 23116:23117 <> Qr:297
-binder 23119:23120 <> Qc:298
-binder 23122:23123 <> Qb:299
-binder 23125:23126 <> Qe:300
-binder 23128:23133 <> pre_es:301
-R23151:23156 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R23138:23141 PyCSL.Phase3_SOS <> exec ind
-R23143:23144 PyCSL.Phase5b_Soundness <> es:293 var
-R23146:23146 PyCSL.Phase5b_Soundness <> s:294 var
-R23148:23150 PyCSL.Phase5b_Soundness <> out:295 var
-R23186:23191 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R23157:23158 PyCSL.Phase4_WP <> wp def
-R23160:23160 PyCSL.Phase5b_Soundness <> s:294 var
-R23162:23163 PyCSL.Phase5b_Soundness <> Qn:296 var
-R23165:23166 PyCSL.Phase5b_Soundness <> Qr:297 var
-R23168:23169 PyCSL.Phase5b_Soundness <> Qc:298 var
-R23171:23172 PyCSL.Phase5b_Soundness <> Qb:299 var
-R23174:23175 PyCSL.Phase5b_Soundness <> Qe:300 var
-R23177:23182 PyCSL.Phase5b_Soundness <> pre_es:301 var
-R23184:23185 PyCSL.Phase5b_Soundness <> es:293 var
-R23192:23203 PyCSL.Phase5b_Soundness <> outcome_post def
-R23205:23206 PyCSL.Phase5b_Soundness <> Qn:296 var
-R23208:23209 PyCSL.Phase5b_Soundness <> Qr:297 var
-R23211:23212 PyCSL.Phase5b_Soundness <> Qc:298 var
-R23214:23215 PyCSL.Phase5b_Soundness <> Qb:299 var
-R23217:23218 PyCSL.Phase5b_Soundness <> Qe:300 var
-R23220:23222 PyCSL.Phase5b_Soundness <> out:295 var
-R23292:23306 PyCSL.Phase5b_Soundness <> pycsl_soundness thm
-R23292:23306 PyCSL.Phase5b_Soundness <> pycsl_soundness thm
-ax 24364:24379 <> alt_ergo_correct
-binder 24393:24396 <> goal:302
-R24427:24430 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R24407:24421 PyCSL.Phase5b_Soundness <> smt_certificate def
-R24423:24426 PyCSL.Phase5b_Soundness <> goal:302 var
-R24431:24434 PyCSL.Phase5b_Soundness <> goal:302 var
-def 24767:24781 <> lin_arith_proof
-binder 24784:24787 <> goal:305
-R24802:24816 PyCSL.Phase5b_Soundness <> linear_arith_vc rec
-R24818:24821 PyCSL.Phase5b_Soundness <> goal:305 var
-binder 24798:24798 <> h:306
-R24826:24829 PyCSL.Phase5b_Soundness <> goal:305 var
-R24836:24842 PyCSL.Phase5b_Soundness <> lin_prf proj
-R24844:24847 PyCSL.Phase5b_Soundness <> goal:305 var
-R24849:24849 PyCSL.Phase5b_Soundness <> h:306 var
-ax 25098:25120 <> trusted_contracts_axiom
-R25141:25149 PyCSL.Phase1_AST <> func_spec rec
-binder 25134:25137 <> spec:307
-R25181:25186 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R25174:25176 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R25161:25172 PyCSL.Phase1_AST <> spec_trusted proj
-R25155:25158 PyCSL.Phase5b_Soundness <> spec:307 var
-R25177:25180 Coq.Init.Datatypes <> true constr
-R25212:25221 PyCSL.Phase2_State <> exec_state rec
-binder 25195:25200 <> pre_es:308
-binder 25202:25208 <> post_es:309
-R25270:25277 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R25229:25234 PyCSL.Phase4_WP <> eval_c def
-R25236:25241 PyCSL.Phase5b_Soundness <> pre_es:308 var
-R25243:25248 PyCSL.Phase5b_Soundness <> pre_es:308 var
-R25250:25253 Coq.Init.Datatypes <> None constr
-R25261:25268 PyCSL.Phase1_AST <> spec_pre proj
-R25255:25258 PyCSL.Phase5b_Soundness <> spec:307 var
-R25278:25283 PyCSL.Phase4_WP <> eval_c def
-R25285:25291 PyCSL.Phase5b_Soundness <> post_es:309 var
-R25293:25298 PyCSL.Phase5b_Soundness <> pre_es:308 var
-R25300:25303 Coq.Init.Datatypes <> None constr
-R25311:25319 PyCSL.Phase1_AST <> spec_post proj
-R25305:25308 PyCSL.Phase5b_Soundness <> spec:307 var
+R6726:6734 PyCSL.Phase2_State <> eval_expr def
+R6740:6748 PyCSL.Phase2_State <> reg_state proj
+R6726:6734 PyCSL.Phase2_State <> eval_expr def
+R6740:6748 PyCSL.Phase2_State <> reg_state proj
+prf 6969:6984 <> lift_continue_wp
+binder 6997:6997 <> s:63
+binder 6999:7000 <> Qn:64
+binder 7002:7003 <> Qr:65
+binder 7005:7006 <> Qc:66
+binder 7008:7009 <> Qb:67
+binder 7011:7012 <> Qe:68
+binder 7014:7019 <> pre_es:69
+binder 7021:7022 <> es:70
+R7108:7114 Coq.Init.Logic <> ::type_scope:x_'<->'_x not
+R7027:7028 PyCSL.Phase4_WP <> wp def
+R7031:7043 PyCSL.Phase3b_DesugarDef <> lift_continue def
+R7046:7055 PyCSL.Phase1_AST <> SAugAssign constr
+R7057:7063 PyCSL.Phase3b_DesugarDef <> for_idx def
+R7065:7069 PyCSL.Phase1_AST <> OpAdd constr
+R7072:7075 PyCSL.Phase1_AST <> EInt constr
+R7081:7081 PyCSL.Phase5b_Soundness <> s:63 var
+R7084:7085 PyCSL.Phase5b_Soundness <> Qn:64 var
+R7087:7088 PyCSL.Phase5b_Soundness <> Qr:65 var
+R7090:7091 PyCSL.Phase5b_Soundness <> Qc:66 var
+R7093:7094 PyCSL.Phase5b_Soundness <> Qb:67 var
+R7096:7097 PyCSL.Phase5b_Soundness <> Qe:68 var
+R7099:7104 PyCSL.Phase5b_Soundness <> pre_es:69 var
+R7106:7107 PyCSL.Phase5b_Soundness <> es:70 var
+R7115:7116 PyCSL.Phase4_WP <> wp def
+R7118:7118 PyCSL.Phase5b_Soundness <> s:63 var
+R7120:7121 PyCSL.Phase5b_Soundness <> Qn:64 var
+R7123:7124 PyCSL.Phase5b_Soundness <> Qr:65 var
+binder 7131:7133 <> es':71
+R7138:7139 PyCSL.Phase5b_Soundness <> Qc:66 var
+R7142:7151 PyCSL.Phase5b_Soundness <> inc_idx_fn def
+R7153:7155 PyCSL.Phase5b_Soundness <> es':71 var
+R7159:7160 PyCSL.Phase5b_Soundness <> Qb:67 var
+R7162:7163 PyCSL.Phase5b_Soundness <> Qe:68 var
+R7165:7170 PyCSL.Phase5b_Soundness <> pre_es:69 var
+R7172:7173 PyCSL.Phase5b_Soundness <> es:70 var
+R7334:7338 Coq.Init.Logic <> proj1 thm
+binder 7366:7368 <> es':72
+R7373:7374 PyCSL.Phase4_WP <> wp def
+R7377:7389 PyCSL.Phase3b_DesugarDef <> lift_continue def
+R7392:7401 PyCSL.Phase1_AST <> SAugAssign constr
+R7403:7409 PyCSL.Phase3b_DesugarDef <> for_idx def
+R7411:7415 PyCSL.Phase1_AST <> OpAdd constr
+R7418:7421 PyCSL.Phase1_AST <> EInt constr
+R7485:7487 PyCSL.Phase5b_Soundness <> es':72 var
+R7334:7338 Coq.Init.Logic <> proj1 thm
+binder 7366:7368 <> es':73
+R7373:7374 PyCSL.Phase4_WP <> wp def
+R7377:7389 PyCSL.Phase3b_DesugarDef <> lift_continue def
+R7392:7401 PyCSL.Phase1_AST <> SAugAssign constr
+R7403:7409 PyCSL.Phase3b_DesugarDef <> for_idx def
+R7411:7415 PyCSL.Phase1_AST <> OpAdd constr
+R7418:7421 PyCSL.Phase1_AST <> EInt constr
+R7485:7487 PyCSL.Phase5b_Soundness <> es':73 var
+R7555:7555 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7687:7711 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7786:7786 Coq.Init.Logic <> ::type_scope:x_'='_x not
+binder 7560:7562 <> es':74
+R7567:7568 PyCSL.Phase4_WP <> wp def
+R7571:7583 PyCSL.Phase3b_DesugarDef <> lift_continue def
+R7586:7595 PyCSL.Phase1_AST <> SAugAssign constr
+R7597:7603 PyCSL.Phase3b_DesugarDef <> for_idx def
+R7605:7609 PyCSL.Phase1_AST <> OpAdd constr
+R7612:7615 PyCSL.Phase1_AST <> EInt constr
+R7684:7686 PyCSL.Phase5b_Soundness <> es':74 var
+binder 7716:7718 <> es':75
+R7723:7724 PyCSL.Phase4_WP <> wp def
+binder 7740:7743 <> es'':76
+R7752:7761 PyCSL.Phase5b_Soundness <> inc_idx_fn def
+R7763:7766 PyCSL.Phase5b_Soundness <> es'':76 var
+R7783:7785 PyCSL.Phase5b_Soundness <> es':75 var
+R7807:7831 Coq.Logic.FunctionalExtensionality <> functional_extensionality thm
+R7860:7887 Coq.Logic.PropExtensionality <> propositional_extensionality prfax
+R7555:7555 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7687:7711 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7786:7786 Coq.Init.Logic <> ::type_scope:x_'='_x not
+binder 7560:7562 <> es':77
+R7567:7568 PyCSL.Phase4_WP <> wp def
+R7571:7583 PyCSL.Phase3b_DesugarDef <> lift_continue def
+R7586:7595 PyCSL.Phase1_AST <> SAugAssign constr
+R7597:7603 PyCSL.Phase3b_DesugarDef <> for_idx def
+R7605:7609 PyCSL.Phase1_AST <> OpAdd constr
+R7612:7615 PyCSL.Phase1_AST <> EInt constr
+R7684:7686 PyCSL.Phase5b_Soundness <> es':77 var
+binder 7716:7718 <> es':78
+R7723:7724 PyCSL.Phase4_WP <> wp def
+binder 7740:7743 <> es'':79
+R7752:7761 PyCSL.Phase5b_Soundness <> inc_idx_fn def
+R7763:7766 PyCSL.Phase5b_Soundness <> es'':79 var
+R7783:7785 PyCSL.Phase5b_Soundness <> es':78 var
+R7807:7831 Coq.Logic.FunctionalExtensionality <> functional_extensionality thm
+R7860:7887 Coq.Logic.PropExtensionality <> propositional_extensionality prfax
+R7992:7996 Coq.Init.Logic <> proj2 thm
+binder 8024:8026 <> es':80
+R8031:8032 PyCSL.Phase4_WP <> wp def
+R8035:8047 PyCSL.Phase3b_DesugarDef <> lift_continue def
+R8050:8059 PyCSL.Phase1_AST <> SAugAssign constr
+R8061:8067 PyCSL.Phase3b_DesugarDef <> for_idx def
+R8069:8073 PyCSL.Phase1_AST <> OpAdd constr
+R8076:8079 PyCSL.Phase1_AST <> EInt constr
+R8143:8145 PyCSL.Phase5b_Soundness <> es':80 var
+R7992:7996 Coq.Init.Logic <> proj2 thm
+binder 8024:8026 <> es':81
+R8031:8032 PyCSL.Phase4_WP <> wp def
+R8035:8047 PyCSL.Phase3b_DesugarDef <> lift_continue def
+R8050:8059 PyCSL.Phase1_AST <> SAugAssign constr
+R8061:8067 PyCSL.Phase3b_DesugarDef <> for_idx def
+R8069:8073 PyCSL.Phase1_AST <> OpAdd constr
+R8076:8079 PyCSL.Phase1_AST <> EInt constr
+R8143:8145 PyCSL.Phase5b_Soundness <> es':81 var
+R8208:8208 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R8340:8364 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R8439:8439 Coq.Init.Logic <> ::type_scope:x_'='_x not
+binder 8213:8215 <> es':82
+R8220:8221 PyCSL.Phase4_WP <> wp def
+R8224:8236 PyCSL.Phase3b_DesugarDef <> lift_continue def
+R8239:8248 PyCSL.Phase1_AST <> SAugAssign constr
+R8250:8256 PyCSL.Phase3b_DesugarDef <> for_idx def
+R8258:8262 PyCSL.Phase1_AST <> OpAdd constr
+R8265:8268 PyCSL.Phase1_AST <> EInt constr
+R8337:8339 PyCSL.Phase5b_Soundness <> es':82 var
+binder 8369:8371 <> es':83
+R8376:8377 PyCSL.Phase4_WP <> wp def
+binder 8393:8396 <> es'':84
+R8405:8414 PyCSL.Phase5b_Soundness <> inc_idx_fn def
+R8416:8419 PyCSL.Phase5b_Soundness <> es'':84 var
+R8436:8438 PyCSL.Phase5b_Soundness <> es':83 var
+R8460:8484 Coq.Logic.FunctionalExtensionality <> functional_extensionality thm
+R8513:8540 Coq.Logic.PropExtensionality <> propositional_extensionality prfax
+R8208:8208 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R8340:8364 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R8439:8439 Coq.Init.Logic <> ::type_scope:x_'='_x not
+binder 8213:8215 <> es':85
+R8220:8221 PyCSL.Phase4_WP <> wp def
+R8224:8236 PyCSL.Phase3b_DesugarDef <> lift_continue def
+R8239:8248 PyCSL.Phase1_AST <> SAugAssign constr
+R8250:8256 PyCSL.Phase3b_DesugarDef <> for_idx def
+R8258:8262 PyCSL.Phase1_AST <> OpAdd constr
+R8265:8268 PyCSL.Phase1_AST <> EInt constr
+R8337:8339 PyCSL.Phase5b_Soundness <> es':85 var
+binder 8369:8371 <> es':86
+R8376:8377 PyCSL.Phase4_WP <> wp def
+binder 8393:8396 <> es'':87
+R8405:8414 PyCSL.Phase5b_Soundness <> inc_idx_fn def
+R8416:8419 PyCSL.Phase5b_Soundness <> es'':87 var
+R8436:8438 PyCSL.Phase5b_Soundness <> es':86 var
+R8460:8484 Coq.Logic.FunctionalExtensionality <> functional_extensionality thm
+R8513:8540 Coq.Logic.PropExtensionality <> propositional_extensionality prfax
+R8699:8703 Coq.Init.Logic <> proj1 thm
+R8699:8703 Coq.Init.Logic <> proj1 thm
+R8768:8772 Coq.Init.Logic <> proj1 thm
+R8768:8772 Coq.Init.Logic <> proj1 thm
+R8837:8841 Coq.Init.Logic <> proj2 thm
+R8837:8841 Coq.Init.Logic <> proj2 thm
+R8906:8910 Coq.Init.Logic <> proj2 thm
+R8906:8910 Coq.Init.Logic <> proj2 thm
+R9060:9066 PyCSL.Phase5b_Soundness <> wp_mono thm
+binder 9103:9105 <> es':88
+R9114:9123 PyCSL.Phase5b_Soundness <> inc_idx_fn def
+R9125:9127 PyCSL.Phase5b_Soundness <> es':88 var
+binder 9136:9138 <> es':89
+R9147:9156 PyCSL.Phase5b_Soundness <> inc_idx_fn def
+R9158:9160 PyCSL.Phase5b_Soundness <> es':89 var
+binder 9205:9208 <> exc':90
+binder 9210:9212 <> es':91
+R9220:9229 Coq.Strings.String <> eqb def
+R9231:9234 PyCSL.Phase5b_Soundness <> exc':90 var
+R9442:9445 PyCSL.Phase5b_Soundness <> exc':90 var
+R9447:9449 PyCSL.Phase5b_Soundness <> es':91 var
+R9277:9278 PyCSL.Phase4_WP <> wp def
+R9281:9293 PyCSL.Phase3b_DesugarDef <> lift_continue def
+R9296:9305 PyCSL.Phase1_AST <> SAugAssign constr
+R9307:9313 PyCSL.Phase3b_DesugarDef <> for_idx def
+R9315:9319 PyCSL.Phase1_AST <> OpAdd constr
+R9322:9325 PyCSL.Phase1_AST <> EInt constr
+R9398:9400 PyCSL.Phase5b_Soundness <> es':91 var
+binder 9472:9475 <> exc':92
+binder 9477:9479 <> es':93
+R9487:9496 Coq.Strings.String <> eqb def
+R9498:9501 PyCSL.Phase5b_Soundness <> exc':92 var
+R9648:9651 PyCSL.Phase5b_Soundness <> exc':92 var
+R9653:9655 PyCSL.Phase5b_Soundness <> es':93 var
+R9544:9545 PyCSL.Phase4_WP <> wp def
+binder 9561:9564 <> es'':94
+R9573:9582 PyCSL.Phase5b_Soundness <> inc_idx_fn def
+R9584:9587 PyCSL.Phase5b_Soundness <> es'':94 var
+R9604:9606 PyCSL.Phase5b_Soundness <> es':93 var
+binder 9690:9690 <> h:95
+R9695:9695 PyCSL.Phase5b_Soundness <> h:95 var
+binder 9705:9705 <> h:96
+R9710:9710 PyCSL.Phase5b_Soundness <> h:96 var
+binder 9720:9720 <> h:97
+R9725:9725 PyCSL.Phase5b_Soundness <> h:97 var
+binder 9735:9735 <> h:98
+R9740:9740 PyCSL.Phase5b_Soundness <> h:98 var
+R9060:9066 PyCSL.Phase5b_Soundness <> wp_mono thm
+binder 9103:9105 <> es':99
+R9114:9123 PyCSL.Phase5b_Soundness <> inc_idx_fn def
+R9125:9127 PyCSL.Phase5b_Soundness <> es':99 var
+binder 9136:9138 <> es':100
+R9147:9156 PyCSL.Phase5b_Soundness <> inc_idx_fn def
+R9158:9160 PyCSL.Phase5b_Soundness <> es':100 var
+binder 9205:9208 <> exc':101
+binder 9210:9212 <> es':102
+R9220:9229 Coq.Strings.String <> eqb def
+R9231:9234 PyCSL.Phase5b_Soundness <> exc':101 var
+R9442:9445 PyCSL.Phase5b_Soundness <> exc':101 var
+R9447:9449 PyCSL.Phase5b_Soundness <> es':102 var
+R9277:9278 PyCSL.Phase4_WP <> wp def
+R9281:9293 PyCSL.Phase3b_DesugarDef <> lift_continue def
+R9296:9305 PyCSL.Phase1_AST <> SAugAssign constr
+R9307:9313 PyCSL.Phase3b_DesugarDef <> for_idx def
+R9315:9319 PyCSL.Phase1_AST <> OpAdd constr
+R9322:9325 PyCSL.Phase1_AST <> EInt constr
+R9398:9400 PyCSL.Phase5b_Soundness <> es':102 var
+binder 9472:9475 <> exc':103
+binder 9477:9479 <> es':104
+R9487:9496 Coq.Strings.String <> eqb def
+R9498:9501 PyCSL.Phase5b_Soundness <> exc':103 var
+R9648:9651 PyCSL.Phase5b_Soundness <> exc':103 var
+R9653:9655 PyCSL.Phase5b_Soundness <> es':104 var
+R9544:9545 PyCSL.Phase4_WP <> wp def
+binder 9561:9564 <> es'':105
+R9573:9582 PyCSL.Phase5b_Soundness <> inc_idx_fn def
+R9584:9587 PyCSL.Phase5b_Soundness <> es'':105 var
+R9604:9606 PyCSL.Phase5b_Soundness <> es':104 var
+binder 9690:9690 <> h:106
+R9695:9695 PyCSL.Phase5b_Soundness <> h:106 var
+binder 9705:9705 <> h:107
+R9710:9710 PyCSL.Phase5b_Soundness <> h:107 var
+binder 9720:9720 <> h:108
+R9725:9725 PyCSL.Phase5b_Soundness <> h:108 var
+binder 9735:9735 <> h:109
+R9740:9740 PyCSL.Phase5b_Soundness <> h:109 var
+R9791:9800 Coq.Strings.String <> eqb def
+R9791:9800 Coq.Strings.String <> eqb def
+R9850:9854 Coq.Init.Logic <> proj1 thm
+R9850:9854 Coq.Init.Logic <> proj1 thm
+R9909:9913 Coq.Init.Logic <> proj1 thm
+binder 9962:9965 <> exc':110
+binder 9967:9969 <> es':111
+R9977:9986 Coq.Strings.String <> eqb def
+R9988:9991 PyCSL.Phase5b_Soundness <> exc':110 var
+R10226:10229 PyCSL.Phase5b_Soundness <> exc':110 var
+R10231:10233 PyCSL.Phase5b_Soundness <> es':111 var
+R10043:10044 PyCSL.Phase4_WP <> wp def
+R10047:10059 PyCSL.Phase3b_DesugarDef <> lift_continue def
+R10062:10071 PyCSL.Phase1_AST <> SAugAssign constr
+R10073:10079 PyCSL.Phase3b_DesugarDef <> for_idx def
+R10081:10085 PyCSL.Phase1_AST <> OpAdd constr
+R10088:10091 PyCSL.Phase1_AST <> EInt constr
+R10173:10175 PyCSL.Phase5b_Soundness <> es':111 var
+R9909:9913 Coq.Init.Logic <> proj1 thm
+binder 9962:9965 <> exc':112
+binder 9967:9969 <> es':113
+R9977:9986 Coq.Strings.String <> eqb def
+R9988:9991 PyCSL.Phase5b_Soundness <> exc':112 var
+R10226:10229 PyCSL.Phase5b_Soundness <> exc':112 var
+R10231:10233 PyCSL.Phase5b_Soundness <> es':113 var
+R10043:10044 PyCSL.Phase4_WP <> wp def
+R10047:10059 PyCSL.Phase3b_DesugarDef <> lift_continue def
+R10062:10071 PyCSL.Phase1_AST <> SAugAssign constr
+R10073:10079 PyCSL.Phase3b_DesugarDef <> for_idx def
+R10081:10085 PyCSL.Phase1_AST <> OpAdd constr
+R10088:10091 PyCSL.Phase1_AST <> EInt constr
+R10173:10175 PyCSL.Phase5b_Soundness <> es':113 var
+R10288:10292 Coq.Init.Logic <> proj2 thm
+binder 10338:10341 <> exc':114
+binder 10343:10345 <> es':115
+R10353:10362 Coq.Strings.String <> eqb def
+R10364:10367 PyCSL.Phase5b_Soundness <> exc':114 var
+R10593:10596 PyCSL.Phase5b_Soundness <> exc':114 var
+R10598:10600 PyCSL.Phase5b_Soundness <> es':115 var
+R10416:10417 PyCSL.Phase4_WP <> wp def
+R10420:10432 PyCSL.Phase3b_DesugarDef <> lift_continue def
+R10435:10444 PyCSL.Phase1_AST <> SAugAssign constr
+R10446:10452 PyCSL.Phase3b_DesugarDef <> for_idx def
+R10454:10458 PyCSL.Phase1_AST <> OpAdd constr
+R10461:10464 PyCSL.Phase1_AST <> EInt constr
+R10543:10545 PyCSL.Phase5b_Soundness <> es':115 var
+R10288:10292 Coq.Init.Logic <> proj2 thm
+binder 10338:10341 <> exc':116
+binder 10343:10345 <> es':117
+R10353:10362 Coq.Strings.String <> eqb def
+R10364:10367 PyCSL.Phase5b_Soundness <> exc':116 var
+R10593:10596 PyCSL.Phase5b_Soundness <> exc':116 var
+R10598:10600 PyCSL.Phase5b_Soundness <> es':117 var
+R10416:10417 PyCSL.Phase4_WP <> wp def
+R10420:10432 PyCSL.Phase3b_DesugarDef <> lift_continue def
+R10435:10444 PyCSL.Phase1_AST <> SAugAssign constr
+R10446:10452 PyCSL.Phase3b_DesugarDef <> for_idx def
+R10454:10458 PyCSL.Phase1_AST <> OpAdd constr
+R10461:10464 PyCSL.Phase1_AST <> EInt constr
+R10543:10545 PyCSL.Phase5b_Soundness <> es':117 var
+R10650:10656 PyCSL.Phase5b_Soundness <> wp_mono thm
+binder 10693:10695 <> es':118
+R10704:10713 PyCSL.Phase5b_Soundness <> inc_idx_fn def
+R10715:10717 PyCSL.Phase5b_Soundness <> es':118 var
+binder 10726:10728 <> es':119
+R10737:10746 PyCSL.Phase5b_Soundness <> inc_idx_fn def
+R10748:10750 PyCSL.Phase5b_Soundness <> es':119 var
+binder 10795:10798 <> exc':120
+binder 10800:10802 <> es':121
+R10810:10819 Coq.Strings.String <> eqb def
+R10821:10824 PyCSL.Phase5b_Soundness <> exc':120 var
+R10971:10974 PyCSL.Phase5b_Soundness <> exc':120 var
+R10976:10978 PyCSL.Phase5b_Soundness <> es':121 var
+R10867:10868 PyCSL.Phase4_WP <> wp def
+binder 10884:10887 <> es'':122
+R10896:10905 PyCSL.Phase5b_Soundness <> inc_idx_fn def
+R10907:10910 PyCSL.Phase5b_Soundness <> es'':122 var
+R10927:10929 PyCSL.Phase5b_Soundness <> es':121 var
+binder 11001:11004 <> exc':123
+binder 11006:11008 <> es':124
+R11016:11025 Coq.Strings.String <> eqb def
+R11027:11030 PyCSL.Phase5b_Soundness <> exc':123 var
+R11238:11241 PyCSL.Phase5b_Soundness <> exc':123 var
+R11243:11245 PyCSL.Phase5b_Soundness <> es':124 var
+R11073:11074 PyCSL.Phase4_WP <> wp def
+R11077:11089 PyCSL.Phase3b_DesugarDef <> lift_continue def
+R11092:11101 PyCSL.Phase1_AST <> SAugAssign constr
+R11103:11109 PyCSL.Phase3b_DesugarDef <> for_idx def
+R11111:11115 PyCSL.Phase1_AST <> OpAdd constr
+R11118:11121 PyCSL.Phase1_AST <> EInt constr
+R11194:11196 PyCSL.Phase5b_Soundness <> es':124 var
+binder 11280:11280 <> h:125
+R11285:11285 PyCSL.Phase5b_Soundness <> h:125 var
+binder 11295:11295 <> h:126
+R11300:11300 PyCSL.Phase5b_Soundness <> h:126 var
+binder 11310:11310 <> h:127
+R11315:11315 PyCSL.Phase5b_Soundness <> h:127 var
+binder 11325:11325 <> h:128
+R11330:11330 PyCSL.Phase5b_Soundness <> h:128 var
+R10650:10656 PyCSL.Phase5b_Soundness <> wp_mono thm
+binder 10693:10695 <> es':129
+R10704:10713 PyCSL.Phase5b_Soundness <> inc_idx_fn def
+R10715:10717 PyCSL.Phase5b_Soundness <> es':129 var
+binder 10726:10728 <> es':130
+R10737:10746 PyCSL.Phase5b_Soundness <> inc_idx_fn def
+R10748:10750 PyCSL.Phase5b_Soundness <> es':130 var
+binder 10795:10798 <> exc':131
+binder 10800:10802 <> es':132
+R10810:10819 Coq.Strings.String <> eqb def
+R10821:10824 PyCSL.Phase5b_Soundness <> exc':131 var
+R10971:10974 PyCSL.Phase5b_Soundness <> exc':131 var
+R10976:10978 PyCSL.Phase5b_Soundness <> es':132 var
+R10867:10868 PyCSL.Phase4_WP <> wp def
+binder 10884:10887 <> es'':133
+R10896:10905 PyCSL.Phase5b_Soundness <> inc_idx_fn def
+R10907:10910 PyCSL.Phase5b_Soundness <> es'':133 var
+R10927:10929 PyCSL.Phase5b_Soundness <> es':132 var
+binder 11001:11004 <> exc':134
+binder 11006:11008 <> es':135
+R11016:11025 Coq.Strings.String <> eqb def
+R11027:11030 PyCSL.Phase5b_Soundness <> exc':134 var
+R11238:11241 PyCSL.Phase5b_Soundness <> exc':134 var
+R11243:11245 PyCSL.Phase5b_Soundness <> es':135 var
+R11073:11074 PyCSL.Phase4_WP <> wp def
+R11077:11089 PyCSL.Phase3b_DesugarDef <> lift_continue def
+R11092:11101 PyCSL.Phase1_AST <> SAugAssign constr
+R11103:11109 PyCSL.Phase3b_DesugarDef <> for_idx def
+R11111:11115 PyCSL.Phase1_AST <> OpAdd constr
+R11118:11121 PyCSL.Phase1_AST <> EInt constr
+R11194:11196 PyCSL.Phase5b_Soundness <> es':135 var
+binder 11280:11280 <> h:136
+R11285:11285 PyCSL.Phase5b_Soundness <> h:136 var
+binder 11295:11295 <> h:137
+R11300:11300 PyCSL.Phase5b_Soundness <> h:137 var
+binder 11310:11310 <> h:138
+R11315:11315 PyCSL.Phase5b_Soundness <> h:138 var
+binder 11325:11325 <> h:139
+R11330:11330 PyCSL.Phase5b_Soundness <> h:139 var
+R11381:11390 Coq.Strings.String <> eqb def
+R11381:11390 Coq.Strings.String <> eqb def
+R11440:11444 Coq.Init.Logic <> proj2 thm
+R11440:11444 Coq.Init.Logic <> proj2 thm
+R11541:11554 PyCSL.Phase7_MemModel <> critical_havoc def
+prf 11833:11846 <> wp_desugar_fwd
+binder 11859:11859 <> s:140
+binder 11861:11862 <> Qn:141
+binder 11864:11865 <> Qr:142
+binder 11867:11868 <> Qc:143
+binder 11870:11871 <> Qb:144
+binder 11873:11874 <> Qe:145
+binder 11876:11881 <> pre_es:146
+binder 11883:11884 <> es:147
+R11918:11923 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R11889:11890 PyCSL.Phase4_WP <> wp def
+R11892:11892 PyCSL.Phase5b_Soundness <> s:140 var
+R11894:11895 PyCSL.Phase5b_Soundness <> Qn:141 var
+R11897:11898 PyCSL.Phase5b_Soundness <> Qr:142 var
+R11900:11901 PyCSL.Phase5b_Soundness <> Qc:143 var
+R11903:11904 PyCSL.Phase5b_Soundness <> Qb:144 var
+R11906:11907 PyCSL.Phase5b_Soundness <> Qe:145 var
+R11909:11914 PyCSL.Phase5b_Soundness <> pre_es:146 var
+R11916:11917 PyCSL.Phase5b_Soundness <> es:147 var
+R11924:11925 PyCSL.Phase4_WP <> wp def
+R11928:11934 PyCSL.Phase3b_DesugarDef <> desugar def
+R11936:11936 PyCSL.Phase5b_Soundness <> s:140 var
+R11939:11940 PyCSL.Phase5b_Soundness <> Qn:141 var
+R11942:11943 PyCSL.Phase5b_Soundness <> Qr:142 var
+R11945:11946 PyCSL.Phase5b_Soundness <> Qc:143 var
+R11948:11949 PyCSL.Phase5b_Soundness <> Qb:144 var
+R11951:11952 PyCSL.Phase5b_Soundness <> Qe:145 var
+R11954:11959 PyCSL.Phase5b_Soundness <> pre_es:146 var
+R11961:11962 PyCSL.Phase5b_Soundness <> es:147 var
+R12097:12103 PyCSL.Phase5b_Soundness <> wp_mono thm
+binder 12126:12128 <> es':148
+R12133:12134 PyCSL.Phase4_WP <> wp def
+R12161:12163 PyCSL.Phase5b_Soundness <> es':148 var
+binder 12184:12186 <> es':149
+R12191:12192 PyCSL.Phase4_WP <> wp def
+R12195:12201 PyCSL.Phase3b_DesugarDef <> desugar def
+R12229:12231 PyCSL.Phase5b_Soundness <> es':149 var
+binder 12299:12301 <> es':150
+binder 12303:12303 <> h:151
+R12335:12337 PyCSL.Phase5b_Soundness <> es':150 var
+R12339:12339 PyCSL.Phase5b_Soundness <> h:151 var
+binder 12360:12361 <> es:152
+binder 12363:12363 <> h:153
+R12368:12368 PyCSL.Phase5b_Soundness <> h:153 var
+binder 12376:12377 <> es:154
+binder 12379:12379 <> h:155
+R12384:12384 PyCSL.Phase5b_Soundness <> h:155 var
+binder 12392:12393 <> es:156
+binder 12395:12395 <> h:157
+R12400:12400 PyCSL.Phase5b_Soundness <> h:157 var
+binder 12408:12410 <> exc:158
+binder 12412:12413 <> es:159
+binder 12415:12415 <> h:160
+R12420:12420 PyCSL.Phase5b_Soundness <> h:160 var
+R12097:12103 PyCSL.Phase5b_Soundness <> wp_mono thm
+binder 12126:12128 <> es':161
+R12133:12134 PyCSL.Phase4_WP <> wp def
+R12161:12163 PyCSL.Phase5b_Soundness <> es':161 var
+binder 12184:12186 <> es':162
+R12191:12192 PyCSL.Phase4_WP <> wp def
+R12195:12201 PyCSL.Phase3b_DesugarDef <> desugar def
+R12229:12231 PyCSL.Phase5b_Soundness <> es':162 var
+binder 12299:12301 <> es':163
+binder 12303:12303 <> h:164
+R12335:12337 PyCSL.Phase5b_Soundness <> es':163 var
+R12339:12339 PyCSL.Phase5b_Soundness <> h:164 var
+binder 12360:12361 <> es:165
+binder 12363:12363 <> h:166
+R12368:12368 PyCSL.Phase5b_Soundness <> h:166 var
+binder 12376:12377 <> es:167
+binder 12379:12379 <> h:168
+R12384:12384 PyCSL.Phase5b_Soundness <> h:168 var
+binder 12392:12393 <> es:169
+binder 12395:12395 <> h:170
+R12400:12400 PyCSL.Phase5b_Soundness <> h:170 var
+binder 12408:12410 <> exc:171
+binder 12412:12413 <> es:172
+binder 12415:12415 <> h:173
+R12420:12420 PyCSL.Phase5b_Soundness <> h:173 var
+R12695:12698 Coq.Init.Logic <> conj constr
+R12706:12709 Coq.Init.Logic <> conj constr
+binder 12716:12718 <> es':174
+binder 12720:12721 <> hI:175
+binder 12723:12724 <> hG:176
+R12753:12755 PyCSL.Phase5b_Soundness <> es':174 var
+R12764:12766 PyCSL.Phase5b_Soundness <> es':174 var
+R12768:12769 PyCSL.Phase5b_Soundness <> hI:175 var
+R12771:12772 PyCSL.Phase5b_Soundness <> hG:176 var
+R12695:12698 Coq.Init.Logic <> conj constr
+R12706:12709 Coq.Init.Logic <> conj constr
+binder 12716:12718 <> es':177
+binder 12720:12721 <> hI:178
+binder 12723:12724 <> hG:179
+R12753:12755 PyCSL.Phase5b_Soundness <> es':177 var
+R12764:12766 PyCSL.Phase5b_Soundness <> es':177 var
+R12768:12769 PyCSL.Phase5b_Soundness <> hI:178 var
+R12771:12772 PyCSL.Phase5b_Soundness <> hG:179 var
+R12885:12888 Coq.Init.Logic <> conj constr
+R12896:12899 Coq.Init.Logic <> conj constr
+R12885:12888 Coq.Init.Logic <> conj constr
+R12896:12899 Coq.Init.Logic <> conj constr
+R12957:12963 PyCSL.Phase2_State <> set_reg def
+R12970:12975 PyCSL.Phase2_State <> update def
+R12982:12990 PyCSL.Phase2_State <> reg_state proj
+R13014:13022 PyCSL.Phase2_State <> eval_expr def
+R13029:13037 PyCSL.Phase2_State <> reg_state proj
+R13041:13050 PyCSL.Phase1_AST <> ESubscript constr
+R13057:13060 PyCSL.Phase1_AST <> EVar constr
+R13062:13068 PyCSL.Phase3b_DesugarDef <> for_idx def
+R12957:12963 PyCSL.Phase2_State <> set_reg def
+R12970:12975 PyCSL.Phase2_State <> update def
+R12982:12990 PyCSL.Phase2_State <> reg_state proj
+R13014:13022 PyCSL.Phase2_State <> eval_expr def
+R13029:13037 PyCSL.Phase2_State <> reg_state proj
+R13041:13050 PyCSL.Phase1_AST <> ESubscript constr
+R13057:13060 PyCSL.Phase1_AST <> EVar constr
+R13062:13068 PyCSL.Phase3b_DesugarDef <> for_idx def
+binder 13101:13104 <> es'':180
+R13142:13151 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R13115:13120 PyCSL.Phase4_WP <> eval_c def
+R13122:13125 PyCSL.Phase5b_Soundness <> es'':180 var
+R13134:13137 Coq.Init.Datatypes <> None constr
+R13198:13207 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R13174:13176 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R13152:13157 PyCSL.Phase4_WP <> eval_v def
+R13159:13162 PyCSL.Phase5b_Soundness <> es'':180 var
+R13177:13182 PyCSL.Phase4_WP <> eval_v def
+R13230:13233 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R13208:13213 PyCSL.Phase4_WP <> eval_v def
+R13215:13218 PyCSL.Phase5b_Soundness <> es'':180 var
+binder 13101:13104 <> es'':181
+R13142:13151 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R13115:13120 PyCSL.Phase4_WP <> eval_c def
+R13122:13125 PyCSL.Phase5b_Soundness <> es'':181 var
+R13134:13137 Coq.Init.Datatypes <> None constr
+R13198:13207 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R13174:13176 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R13152:13157 PyCSL.Phase4_WP <> eval_v def
+R13159:13162 PyCSL.Phase5b_Soundness <> es'':181 var
+R13177:13182 PyCSL.Phase4_WP <> eval_v def
+R13230:13233 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R13208:13213 PyCSL.Phase4_WP <> eval_v def
+R13215:13218 PyCSL.Phase5b_Soundness <> es'':181 var
+binder 13264:13267 <> es'':182
+R13299:13304 PyCSL.Phase2_State <> lookup def
+R13312:13320 PyCSL.Phase2_State <> reg_state proj
+R13306:13309 PyCSL.Phase5b_Soundness <> es'':182 var
+R13323:13329 PyCSL.Phase3b_DesugarDef <> for_idx def
+R13336:13339 Coq.Init.Datatypes <> Some constr
+R13342:13345 PyCSL.Phase2_State <> VInt constr
+binder 13282:13288 <> cur_idx:183
+R13388:13394 PyCSL.Phase2_State <> set_reg def
+R13396:13399 PyCSL.Phase5b_Soundness <> es'':182 var
+R13402:13407 PyCSL.Phase2_State <> update def
+R13415:13423 PyCSL.Phase2_State <> reg_state proj
+R13409:13412 PyCSL.Phase5b_Soundness <> es'':182 var
+R13426:13432 PyCSL.Phase3b_DesugarDef <> for_idx def
+R13435:13438 PyCSL.Phase2_State <> VInt constr
+R13448:13450 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R13441:13447 PyCSL.Phase5b_Soundness <> cur_idx:183 var
+binder 13381:13383 <> es3:184
+R13491:13500 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R13465:13470 PyCSL.Phase4_WP <> eval_c def
+R13472:13474 PyCSL.Phase5b_Soundness <> es3:184 var
+R13483:13486 Coq.Init.Datatypes <> None constr
+R13546:13555 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R13522:13524 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R13501:13506 PyCSL.Phase4_WP <> eval_v def
+R13508:13510 PyCSL.Phase5b_Soundness <> es3:184 var
+R13525:13530 PyCSL.Phase4_WP <> eval_v def
+R13577:13580 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R13556:13561 PyCSL.Phase4_WP <> eval_v def
+R13563:13565 PyCSL.Phase5b_Soundness <> es3:184 var
+binder 13264:13267 <> es'':185
+R13299:13304 PyCSL.Phase2_State <> lookup def
+R13312:13320 PyCSL.Phase2_State <> reg_state proj
+R13306:13309 PyCSL.Phase5b_Soundness <> es'':185 var
+R13323:13329 PyCSL.Phase3b_DesugarDef <> for_idx def
+R13336:13339 Coq.Init.Datatypes <> Some constr
+R13342:13345 PyCSL.Phase2_State <> VInt constr
+binder 13282:13288 <> cur_idx:186
+R13388:13394 PyCSL.Phase2_State <> set_reg def
+R13396:13399 PyCSL.Phase5b_Soundness <> es'':185 var
+R13402:13407 PyCSL.Phase2_State <> update def
+R13415:13423 PyCSL.Phase2_State <> reg_state proj
+R13409:13412 PyCSL.Phase5b_Soundness <> es'':185 var
+R13426:13432 PyCSL.Phase3b_DesugarDef <> for_idx def
+R13435:13438 PyCSL.Phase2_State <> VInt constr
+R13448:13450 Coq.ZArith.BinInt <> ::Z_scope:x_'+'_x not
+R13441:13447 PyCSL.Phase5b_Soundness <> cur_idx:186 var
+binder 13381:13383 <> es3:187
+R13491:13500 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R13465:13470 PyCSL.Phase4_WP <> eval_c def
+R13472:13474 PyCSL.Phase5b_Soundness <> es3:187 var
+R13483:13486 Coq.Init.Datatypes <> None constr
+R13546:13555 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R13522:13524 Coq.ZArith.BinInt <> ::Z_scope:x_'<'_x not
+R13501:13506 PyCSL.Phase4_WP <> eval_v def
+R13508:13510 PyCSL.Phase5b_Soundness <> es3:187 var
+R13525:13530 PyCSL.Phase4_WP <> eval_v def
+R13577:13580 Coq.ZArith.BinInt <> ::Z_scope:x_'>='_x not
+R13556:13561 PyCSL.Phase4_WP <> eval_v def
+R13563:13565 PyCSL.Phase5b_Soundness <> es3:187 var
+binder 13613:13616 <> es'':188
+R13645:13647 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R13629:13638 PyCSL.Phase5b_Soundness <> inc_idx_fn def
+R13640:13643 PyCSL.Phase5b_Soundness <> es'':188 var
+R13658:13661 PyCSL.Phase5b_Soundness <> es'':188 var
+R13714:13723 PyCSL.Phase5b_Soundness <> inc_idx_fn def
+binder 13613:13616 <> es'':189
+R13645:13647 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R13629:13638 PyCSL.Phase5b_Soundness <> inc_idx_fn def
+R13640:13643 PyCSL.Phase5b_Soundness <> es'':189 var
+R13658:13661 PyCSL.Phase5b_Soundness <> es'':189 var
+R13816:13820 Coq.Init.Logic <> proj2 thm
+R13823:13838 PyCSL.Phase5b_Soundness <> lift_continue_wp thm
+R13841:13847 PyCSL.Phase3b_DesugarDef <> desugar def
+binder 13877:13880 <> es'':190
+R13885:13886 PyCSL.Phase4_WP <> wp def
+R13889:13898 PyCSL.Phase1_AST <> SAugAssign constr
+R13900:13906 PyCSL.Phase3b_DesugarDef <> for_idx def
+R13908:13912 PyCSL.Phase1_AST <> OpAdd constr
+R13915:13918 PyCSL.Phase1_AST <> EInt constr
+R13958:13961 PyCSL.Phase5b_Soundness <> es'':190 var
+R13816:13820 Coq.Init.Logic <> proj2 thm
+R13823:13838 PyCSL.Phase5b_Soundness <> lift_continue_wp thm
+R13841:13847 PyCSL.Phase3b_DesugarDef <> desugar def
+binder 13877:13880 <> es'':191
+R13885:13886 PyCSL.Phase4_WP <> wp def
+R13889:13898 PyCSL.Phase1_AST <> SAugAssign constr
+R13900:13906 PyCSL.Phase3b_DesugarDef <> for_idx def
+R13908:13912 PyCSL.Phase1_AST <> OpAdd constr
+R13915:13918 PyCSL.Phase1_AST <> EInt constr
+R13958:13961 PyCSL.Phase5b_Soundness <> es'':191 var
+R14037:14037 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R14127:14151 Coq.Init.Logic <> ::type_scope:x_'='_x not
+binder 14042:14045 <> es'':192
+R14050:14051 PyCSL.Phase4_WP <> wp def
+R14054:14063 PyCSL.Phase1_AST <> SAugAssign constr
+R14065:14071 PyCSL.Phase3b_DesugarDef <> for_idx def
+R14073:14077 PyCSL.Phase1_AST <> OpAdd constr
+R14080:14083 PyCSL.Phase1_AST <> EInt constr
+R14123:14126 PyCSL.Phase5b_Soundness <> es'':192 var
+R14179:14203 Coq.Logic.FunctionalExtensionality <> functional_extensionality thm
+R14233:14253 PyCSL.Phase5b_Soundness <> wp_aug_assign_for_idx thm
+R14037:14037 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R14127:14151 Coq.Init.Logic <> ::type_scope:x_'='_x not
+binder 14042:14045 <> es'':193
+R14050:14051 PyCSL.Phase4_WP <> wp def
+R14054:14063 PyCSL.Phase1_AST <> SAugAssign constr
+R14065:14071 PyCSL.Phase3b_DesugarDef <> for_idx def
+R14073:14077 PyCSL.Phase1_AST <> OpAdd constr
+R14080:14083 PyCSL.Phase1_AST <> EInt constr
+R14123:14126 PyCSL.Phase5b_Soundness <> es'':193 var
+R14179:14203 Coq.Logic.FunctionalExtensionality <> functional_extensionality thm
+R14233:14253 PyCSL.Phase5b_Soundness <> wp_aug_assign_for_idx thm
+R14233:14253 PyCSL.Phase5b_Soundness <> wp_aug_assign_for_idx thm
+R14299:14299 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R14338:14341 Coq.Init.Logic <> ::type_scope:x_'='_x not
+binder 14304:14307 <> es'':194
+R14322:14331 PyCSL.Phase5b_Soundness <> inc_idx_fn def
+R14333:14336 PyCSL.Phase5b_Soundness <> es'':194 var
+R14369:14393 Coq.Logic.FunctionalExtensionality <> functional_extensionality thm
+R14299:14299 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R14338:14341 Coq.Init.Logic <> ::type_scope:x_'='_x not
+binder 14304:14307 <> es'':195
+R14322:14331 PyCSL.Phase5b_Soundness <> inc_idx_fn def
+R14333:14336 PyCSL.Phase5b_Soundness <> es'':195 var
+R14369:14393 Coq.Logic.FunctionalExtensionality <> functional_extensionality thm
+R14530:14536 PyCSL.Phase5b_Soundness <> wp_mono thm
+binder 14583:14586 <> exc':196
+binder 14588:14590 <> es':197
+R14598:14607 Coq.Strings.String <> eqb def
+R14609:14612 PyCSL.Phase5b_Soundness <> exc':196 var
+R14663:14666 PyCSL.Phase5b_Soundness <> exc':196 var
+R14668:14670 PyCSL.Phase5b_Soundness <> es':197 var
+R14623:14624 PyCSL.Phase4_WP <> wp def
+R14651:14653 PyCSL.Phase5b_Soundness <> es':197 var
+binder 14691:14694 <> exc':198
+binder 14696:14698 <> es':199
+R14706:14715 Coq.Strings.String <> eqb def
+R14717:14720 PyCSL.Phase5b_Soundness <> exc':198 var
+R14781:14784 PyCSL.Phase5b_Soundness <> exc':198 var
+R14786:14788 PyCSL.Phase5b_Soundness <> es':199 var
+R14731:14732 PyCSL.Phase4_WP <> wp def
+R14735:14741 PyCSL.Phase3b_DesugarDef <> desugar def
+R14769:14771 PyCSL.Phase5b_Soundness <> es':199 var
+binder 14832:14833 <> es:200
+binder 14835:14835 <> h:201
+R14840:14840 PyCSL.Phase5b_Soundness <> h:201 var
+binder 14848:14849 <> es:202
+binder 14851:14851 <> h:203
+R14856:14856 PyCSL.Phase5b_Soundness <> h:203 var
+binder 14864:14865 <> es:204
+binder 14867:14867 <> h:205
+R14872:14872 PyCSL.Phase5b_Soundness <> h:205 var
+binder 14880:14881 <> es:206
+binder 14883:14883 <> h:207
+R14888:14888 PyCSL.Phase5b_Soundness <> h:207 var
+R14530:14536 PyCSL.Phase5b_Soundness <> wp_mono thm
+binder 14583:14586 <> exc':208
+binder 14588:14590 <> es':209
+R14598:14607 Coq.Strings.String <> eqb def
+R14609:14612 PyCSL.Phase5b_Soundness <> exc':208 var
+R14663:14666 PyCSL.Phase5b_Soundness <> exc':208 var
+R14668:14670 PyCSL.Phase5b_Soundness <> es':209 var
+R14623:14624 PyCSL.Phase4_WP <> wp def
+R14651:14653 PyCSL.Phase5b_Soundness <> es':209 var
+binder 14691:14694 <> exc':210
+binder 14696:14698 <> es':211
+R14706:14715 Coq.Strings.String <> eqb def
+R14717:14720 PyCSL.Phase5b_Soundness <> exc':210 var
+R14781:14784 PyCSL.Phase5b_Soundness <> exc':210 var
+R14786:14788 PyCSL.Phase5b_Soundness <> es':211 var
+R14731:14732 PyCSL.Phase4_WP <> wp def
+R14735:14741 PyCSL.Phase3b_DesugarDef <> desugar def
+R14769:14771 PyCSL.Phase5b_Soundness <> es':211 var
+binder 14832:14833 <> es:212
+binder 14835:14835 <> h:213
+R14840:14840 PyCSL.Phase5b_Soundness <> h:213 var
+binder 14848:14849 <> es:214
+binder 14851:14851 <> h:215
+R14856:14856 PyCSL.Phase5b_Soundness <> h:215 var
+binder 14864:14865 <> es:216
+binder 14867:14867 <> h:217
+R14872:14872 PyCSL.Phase5b_Soundness <> h:217 var
+binder 14880:14881 <> es:218
+binder 14883:14883 <> h:219
+R14888:14888 PyCSL.Phase5b_Soundness <> h:219 var
+R14934:14948 Coq.Strings.String <> eqb_spec thm
+R14934:14948 Coq.Strings.String <> eqb_spec thm
+R15119:15132 PyCSL.Phase7_MemModel <> critical_havoc def
+def 15340:15351 <> outcome_post
+R15382:15385 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R15372:15381 PyCSL.Phase2_State <> exec_state rec
+binder 15358:15359 <> Qn:220
+binder 15361:15362 <> Qr:221
+binder 15364:15365 <> Qc:222
+binder 15367:15368 <> Qb:223
+R15407:15410 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R15402:15406 PyCSL.Phase1_AST <> ident def
+R15421:15424 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R15411:15420 PyCSL.Phase2_State <> exec_state rec
+binder 15397:15398 <> Qe:224
+R15442:15448 PyCSL.Phase3_SOS <> outcome ind
+binder 15436:15438 <> out:225
+R15469:15471 PyCSL.Phase5b_Soundness <> out:225 var
+R15482:15488 PyCSL.Phase3_SOS <> ONormal constr
+R15501:15502 PyCSL.Phase5b_Soundness <> Qn:220 var
+R15512:15520 PyCSL.Phase3_SOS <> OReturned constr
+R15531:15532 PyCSL.Phase5b_Soundness <> Qr:221 var
+R15542:15551 PyCSL.Phase3_SOS <> OContinued constr
+R15561:15562 PyCSL.Phase5b_Soundness <> Qc:222 var
+R15572:15577 PyCSL.Phase3_SOS <> OBroke constr
+R15591:15592 PyCSL.Phase5b_Soundness <> Qb:223 var
+R15602:15607 PyCSL.Phase3_SOS <> OThrew constr
+R15621:15622 PyCSL.Phase5b_Soundness <> Qe:224 var
+R15636:15642 PyCSL.Phase3_SOS <> OFailed constr
+R15655:15658 Coq.Init.Logic <> True ind
+prf 15836:15850 <> pycsl_soundness
+binder 15863:15864 <> es:227
+binder 15866:15866 <> s:228
+binder 15868:15870 <> out:229
+binder 15872:15873 <> Qn:230
+binder 15875:15876 <> Qr:231
+binder 15878:15879 <> Qc:232
+binder 15881:15882 <> Qb:233
+binder 15884:15885 <> Qe:234
+binder 15887:15892 <> pre_es:235
+R15910:15915 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R15897:15900 PyCSL.Phase3_SOS <> exec ind
+R15902:15903 PyCSL.Phase5b_Soundness <> es:227 var
+R15905:15905 PyCSL.Phase5b_Soundness <> s:228 var
+R15907:15909 PyCSL.Phase5b_Soundness <> out:229 var
+R15945:15950 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R15916:15917 PyCSL.Phase4_WP <> wp def
+R15919:15919 PyCSL.Phase5b_Soundness <> s:228 var
+R15921:15922 PyCSL.Phase5b_Soundness <> Qn:230 var
+R15924:15925 PyCSL.Phase5b_Soundness <> Qr:231 var
+R15927:15928 PyCSL.Phase5b_Soundness <> Qc:232 var
+R15930:15931 PyCSL.Phase5b_Soundness <> Qb:233 var
+R15933:15934 PyCSL.Phase5b_Soundness <> Qe:234 var
+R15936:15941 PyCSL.Phase5b_Soundness <> pre_es:235 var
+R15943:15944 PyCSL.Phase5b_Soundness <> es:227 var
+R15951:15962 PyCSL.Phase5b_Soundness <> outcome_post def
+R15964:15965 PyCSL.Phase5b_Soundness <> Qn:230 var
+R15967:15968 PyCSL.Phase5b_Soundness <> Qr:231 var
+R15970:15971 PyCSL.Phase5b_Soundness <> Qc:232 var
+R15973:15974 PyCSL.Phase5b_Soundness <> Qb:233 var
+R15976:15977 PyCSL.Phase5b_Soundness <> Qe:234 var
+R15979:15981 PyCSL.Phase5b_Soundness <> out:229 var
+R16276:16287 PyCSL.Phase5b_Soundness <> outcome_post def
+R17333:17336 Coq.Init.Logic <> conj constr
+R17345:17348 Coq.Init.Logic <> conj constr
+R17333:17336 Coq.Init.Logic <> conj constr
+R17345:17348 Coq.Init.Logic <> conj constr
+R17627:17630 Coq.Init.Logic <> conj constr
+R17639:17642 Coq.Init.Logic <> conj constr
+R17627:17630 Coq.Init.Logic <> conj constr
+R17639:17642 Coq.Init.Logic <> conj constr
+R18139:18139 Coq.Init.Logic <> I constr
+R18139:18139 Coq.Init.Logic <> I constr
+binder 18526:18529 <> exc':236
+binder 18531:18533 <> es':237
+R18562:18571 Coq.Strings.String <> eqb def
+R18573:18576 PyCSL.Phase5b_Soundness <> exc':236 var
+R18674:18677 PyCSL.Phase5b_Soundness <> exc':236 var
+R18679:18681 PyCSL.Phase5b_Soundness <> es':237 var
+R18608:18609 PyCSL.Phase4_WP <> wp def
+R18641:18643 PyCSL.Phase5b_Soundness <> es':237 var
+binder 18526:18529 <> exc':238
+binder 18531:18533 <> es':239
+R18562:18571 Coq.Strings.String <> eqb def
+R18573:18576 PyCSL.Phase5b_Soundness <> exc':238 var
+R18674:18677 PyCSL.Phase5b_Soundness <> exc':238 var
+R18679:18681 PyCSL.Phase5b_Soundness <> es':239 var
+R18608:18609 PyCSL.Phase4_WP <> wp def
+R18641:18643 PyCSL.Phase5b_Soundness <> es':239 var
+R18733:18747 Coq.Strings.String <> eqb_refl thm
+R18733:18747 Coq.Strings.String <> eqb_refl thm
+R18733:18747 Coq.Strings.String <> eqb_refl thm
+binder 18890:18893 <> exc':240
+binder 18895:18897 <> es':241
+R18926:18935 Coq.Strings.String <> eqb def
+R18937:18940 PyCSL.Phase5b_Soundness <> exc':240 var
+R19038:19041 PyCSL.Phase5b_Soundness <> exc':240 var
+R19043:19045 PyCSL.Phase5b_Soundness <> es':241 var
+R18972:18973 PyCSL.Phase4_WP <> wp def
+R19005:19007 PyCSL.Phase5b_Soundness <> es':241 var
+binder 18890:18893 <> exc':242
+binder 18895:18897 <> es':243
+R18926:18935 Coq.Strings.String <> eqb def
+R18937:18940 PyCSL.Phase5b_Soundness <> exc':242 var
+R19038:19041 PyCSL.Phase5b_Soundness <> exc':242 var
+R19043:19045 PyCSL.Phase5b_Soundness <> es':243 var
+R18972:18973 PyCSL.Phase4_WP <> wp def
+R19005:19007 PyCSL.Phase5b_Soundness <> es':243 var
+R19099:19113 Coq.Strings.String <> eqb_spec thm
+R19099:19113 Coq.Strings.String <> eqb_spec thm
+R19354:19367 PyCSL.Phase7_MemModel <> critical_havoc def
+R19593:19606 PyCSL.Phase5b_Soundness <> wp_desugar_fwd thm
+R19609:19612 PyCSL.Phase1_AST <> SFor constr
+R19593:19606 PyCSL.Phase5b_Soundness <> wp_desugar_fwd thm
+R19609:19612 PyCSL.Phase1_AST <> SFor constr
+R20179:20181 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R20166:20174 PyCSL.Phase2_State <> eval_expr def
+R20182:20189 PyCSL.Phase2_State <> VClosure constr
+R20179:20181 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R20166:20174 PyCSL.Phase2_State <> eval_expr def
+R20182:20189 PyCSL.Phase2_State <> VClosure constr
+R20292:20295 PyCSL.Phase3_SOS <> exec ind
+R20302:20310 PyCSL.Phase3_SOS <> OReturned constr
+R20292:20295 PyCSL.Phase3_SOS <> exec ind
+R20302:20310 PyCSL.Phase3_SOS <> OReturned constr
+prf 20473:20497 <> label_records_ghost_state
+binder 20510:20511 <> es:244
+binder 20513:20513 <> L:245
+binder 20515:20517 <> es':246
+R20554:20559 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R20522:20525 PyCSL.Phase3_SOS <> exec ind
+R20527:20528 PyCSL.Phase5b_Soundness <> es:244 var
+R20531:20536 PyCSL.Phase1_AST <> SLabel constr
+R20538:20538 PyCSL.Phase5b_Soundness <> L:245 var
+R20542:20548 PyCSL.Phase3_SOS <> ONormal constr
+R20550:20552 PyCSL.Phase5b_Soundness <> es':246 var
+R20592:20594 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R20560:20571 PyCSL.Phase2_State <> label_lookup def
+R20578:20588 PyCSL.Phase2_State <> label_snaps proj
+R20573:20575 PyCSL.Phase5b_Soundness <> es':246 var
+R20591:20591 PyCSL.Phase5b_Soundness <> L:245 var
+R20595:20598 Coq.Init.Datatypes <> Some constr
+R20604:20611 PyCSL.Phase2_State <> ghost_st proj
+R20600:20601 PyCSL.Phase5b_Soundness <> es:244 var
+R20690:20704 Coq.Strings.String <> eqb_refl thm
+R20690:20704 Coq.Strings.String <> eqb_refl thm
+R20690:20704 Coq.Strings.String <> eqb_refl thm
+prf 20806:20821 <> at_label_scoping
+binder 20834:20835 <> es:247
+binder 20837:20839 <> es':248
+binder 20841:20841 <> L:249
+binder 20843:20846 <> expr:250
+binder 20848:20853 <> pre_es:251
+binder 20855:20860 <> result:252
+R20897:20902 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R20865:20868 PyCSL.Phase3_SOS <> exec ind
+R20870:20871 PyCSL.Phase5b_Soundness <> es:247 var
+R20874:20879 PyCSL.Phase1_AST <> SLabel constr
+R20881:20881 PyCSL.Phase5b_Soundness <> L:249 var
+R20885:20891 PyCSL.Phase3_SOS <> ONormal constr
+R20893:20895 PyCSL.Phase5b_Soundness <> es':248 var
+R20950:20954 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R20903:20918 PyCSL.Phase2_State <> eval_contract_es def
+R20920:20922 PyCSL.Phase5b_Soundness <> es':248 var
+R20924:20929 PyCSL.Phase5b_Soundness <> pre_es:251 var
+R20931:20936 PyCSL.Phase5b_Soundness <> result:252 var
+R20939:20941 PyCSL.Phase1_AST <> CAt constr
+R20943:20946 PyCSL.Phase5b_Soundness <> expr:250 var
+R20948:20948 PyCSL.Phase5b_Soundness <> L:249 var
+R20955:20970 PyCSL.Phase2_State <> eval_contract_es def
+R20973:20981 PyCSL.Phase2_State <> set_ghost def
+R20983:20985 PyCSL.Phase5b_Soundness <> es':248 var
+R20991:20998 PyCSL.Phase2_State <> ghost_st proj
+R20987:20988 PyCSL.Phase5b_Soundness <> es:247 var
+R21002:21007 PyCSL.Phase5b_Soundness <> pre_es:251 var
+R21009:21014 PyCSL.Phase5b_Soundness <> result:252 var
+R21016:21019 PyCSL.Phase5b_Soundness <> expr:250 var
+R21093:21117 PyCSL.Phase5b_Soundness <> label_records_ghost_state thm
+R21093:21117 PyCSL.Phase5b_Soundness <> label_records_ghost_state thm
+R21093:21117 PyCSL.Phase5b_Soundness <> label_records_ghost_state thm
+prf 21301:21330 <> ghost_stmt_preserves_reg_state
+binder 21343:21344 <> es:253
+binder 21346:21346 <> s:254
+binder 21348:21350 <> es':255
+R21378:21383 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R21355:21358 PyCSL.Phase3_SOS <> exec ind
+R21360:21361 PyCSL.Phase5b_Soundness <> es:253 var
+R21363:21363 PyCSL.Phase5b_Soundness <> s:254 var
+R21366:21372 PyCSL.Phase3_SOS <> ONormal constr
+R21374:21376 PyCSL.Phase5b_Soundness <> es':255 var
+R21500:21505 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R21384:21384 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
+R21419:21425 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
+R21385:21391 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R21397:21398 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+binder 21392:21392 <> x:256
+binder 21394:21394 <> t:257
+binder 21396:21396 <> e:258
+R21400:21402 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R21399:21399 PyCSL.Phase5b_Soundness <> s:254 var
+R21403:21412 PyCSL.Phase1_AST <> SGhostDecl constr
+R21414:21414 PyCSL.Phase5b_Soundness <> x:256 var
+R21416:21416 PyCSL.Phase5b_Soundness <> t:257 var
+R21418:21418 PyCSL.Phase5b_Soundness <> e:258 var
+R21426:21426 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
+R21469:21476 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
+R21499:21499 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
+R21427:21433 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R21442:21443 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+binder 21434:21434 <> x:259
+binder 21436:21436 <> t:260
+binder 21438:21439 <> op:261
+binder 21441:21441 <> e:262
+R21445:21447 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R21444:21444 PyCSL.Phase5b_Soundness <> s:254 var
+R21448:21459 PyCSL.Phase1_AST <> SGhostAssign constr
+R21461:21461 PyCSL.Phase5b_Soundness <> x:259 var
+R21463:21463 PyCSL.Phase5b_Soundness <> t:260 var
+R21465:21466 PyCSL.Phase5b_Soundness <> op:261 var
+R21468:21468 PyCSL.Phase5b_Soundness <> e:262 var
+R21477:21483 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R21485:21486 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+binder 21484:21484 <> L:263
+R21488:21490 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R21487:21487 PyCSL.Phase5b_Soundness <> s:254 var
+R21491:21496 PyCSL.Phase1_AST <> SLabel constr
+R21498:21498 PyCSL.Phase5b_Soundness <> L:263 var
+R21521:21523 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R21511:21519 PyCSL.Phase2_State <> reg_state proj
+R21506:21508 PyCSL.Phase5b_Soundness <> es':255 var
+R21528:21536 PyCSL.Phase2_State <> reg_state proj
+R21524:21525 PyCSL.Phase5b_Soundness <> es:253 var
+def 21867:21874 <> in_range
+R21884:21886 Coq.Init.Datatypes <> nat ind
+binder 21877:21880 <> bits:264
+R21894:21894 Coq.Numbers.BinNums <> Z ind
+binder 21890:21890 <> n:265
+R21940:21943 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R21945:21947 Coq.ZArith.BinInt <> ::Z_scope:x_'<='_x_'<'_x not
+R21909:21910 Coq.ZArith.BinInt <> ::Z_scope:'-'_x not
+R21911:21915 Coq.ZArith.BinInt Z pow def
+R21920:21927 Coq.ZArith.BinInt Z of_nat def
+R21934:21936 Coq.Init.Peano <> ::nat_scope:x_'-'_x not
+R21930:21933 PyCSL.Phase5b_Soundness <> bits:264 var
+R21944:21944 PyCSL.Phase5b_Soundness <> n:265 var
+R21944:21944 PyCSL.Phase5b_Soundness <> n:265 var
+R21948:21952 Coq.ZArith.BinInt Z pow def
+R21957:21964 Coq.ZArith.BinInt Z of_nat def
+R21971:21973 Coq.Init.Peano <> ::nat_scope:x_'-'_x not
+R21967:21970 PyCSL.Phase5b_Soundness <> bits:264 var
+def 22185:22201 <> bounded_assign_wp
+R22211:22213 Coq.Init.Datatypes <> nat ind
+binder 22204:22207 <> bits:266
+R22221:22225 PyCSL.Phase1_AST <> ident def
+binder 22217:22217 <> x:267
+R22233:22236 PyCSL.Phase1_AST <> expr ind
+binder 22229:22229 <> e:268
+R22285:22288 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R22275:22284 PyCSL.Phase2_State <> exec_state rec
+binder 22270:22271 <> Qn:269
+R22331:22340 PyCSL.Phase2_State <> exec_state rec
+binder 22326:22327 <> es:270
+R22364:22372 PyCSL.Phase2_State <> eval_expr def
+R22378:22386 PyCSL.Phase2_State <> reg_state proj
+R22374:22375 PyCSL.Phase5b_Soundness <> es:270 var
+R22389:22389 PyCSL.Phase5b_Soundness <> e:268 var
+binder 22359:22359 <> v:271
+R22396:22396 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R22436:22442 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+binder 22404:22404 <> n:272
+R22417:22420 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R22408:22410 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R22407:22407 PyCSL.Phase5b_Soundness <> v:271 var
+R22411:22414 PyCSL.Phase2_State <> VInt constr
+R22416:22416 PyCSL.Phase5b_Soundness <> n:272 var
+R22421:22428 PyCSL.Phase5b_Soundness <> in_range def
+R22430:22433 PyCSL.Phase5b_Soundness <> bits:266 var
+R22435:22435 PyCSL.Phase5b_Soundness <> n:272 var
+R22443:22444 PyCSL.Phase5b_Soundness <> Qn:269 var
+R22447:22453 PyCSL.Phase2_State <> set_reg def
+R22455:22456 PyCSL.Phase5b_Soundness <> es:270 var
+R22459:22464 PyCSL.Phase2_State <> update def
+R22470:22478 PyCSL.Phase2_State <> reg_state proj
+R22466:22467 PyCSL.Phase5b_Soundness <> es:270 var
+R22481:22481 PyCSL.Phase5b_Soundness <> x:267 var
+R22483:22483 PyCSL.Phase5b_Soundness <> v:271 var
+def 22621:22623 <> ctx
+R22628:22631 Coq.Init.Datatypes <> list ind
+R22639:22641 Coq.Init.Datatypes <> ::type_scope:x_'*'_x not
+R22634:22638 PyCSL.Phase1_AST <> ident def
+R22642:22647 Coq.Strings.String <> string ind
+ind 22687:22693 <> wf_expr
+constr 22737:22741 <> WFNum
+constr 22780:22784 <> WFVar
+constr 22890:22897 <> WFResult
+constr 22924:22930 <> WFBinOp
+constr 23034:23041 <> WFForall
+constr 23143:23150 <> WFExists
+R22701:22703 PyCSL.Phase5b_Soundness <> ctx def
+binder 22696:22697 <> Γ:273
+R22721:22724 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R22708:22720 PyCSL.Phase1_AST <> contract_expr ind
+binder 22753:22753 <> n:276
+R22756:22762 PyCSL.Phase5b_Soundness <> wf_expr:274 ind
+R22768:22771 PyCSL.Phase1_AST <> CInt constr
+R22773:22773 PyCSL.Phase5b_Soundness <> n:276 var
+R22764:22765 PyCSL.Phase5b_Soundness <> Γ:273 var
+binder 22796:22796 <> x:277
+R22847:22865 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R22820:22823 Coq.Init.Logic <> ::type_scope:x_'\/'_x not
+R22799:22805 Coq.Lists.List <> In def
+R22818:22819 PyCSL.Phase5b_Soundness <> Γ:273 var
+R22807:22807 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R22809:22810 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R22816:22816 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R22808:22808 PyCSL.Phase5b_Soundness <> x:277 var
+R22824:22830 Coq.Lists.List <> In def
+R22845:22846 PyCSL.Phase5b_Soundness <> Γ:273 var
+R22832:22832 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R22834:22835 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R22843:22843 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R22833:22833 PyCSL.Phase5b_Soundness <> x:277 var
+R22866:22872 PyCSL.Phase5b_Soundness <> wf_expr:274 ind
+R22878:22881 PyCSL.Phase1_AST <> CVar constr
+R22883:22883 PyCSL.Phase5b_Soundness <> x:277 var
+R22874:22875 PyCSL.Phase5b_Soundness <> Γ:273 var
+R22901:22907 PyCSL.Phase5b_Soundness <> wf_expr:274 ind
+R22912:22918 PyCSL.Phase1_AST <> CResult constr
+R22909:22910 PyCSL.Phase5b_Soundness <> Γ:273 var
+binder 22941:22942 <> op:278
+binder 22944:22945 <> e1:279
+binder 22947:22948 <> e2:280
+R22964:22967 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R22951:22957 PyCSL.Phase5b_Soundness <> wf_expr:274 ind
+R22962:22963 PyCSL.Phase5b_Soundness <> e1:279 var
+R22959:22960 PyCSL.Phase5b_Soundness <> Γ:273 var
+R22981:23000 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R22968:22974 PyCSL.Phase5b_Soundness <> wf_expr:274 ind
+R22979:22980 PyCSL.Phase5b_Soundness <> e2:280 var
+R22976:22977 PyCSL.Phase5b_Soundness <> Γ:273 var
+R23001:23007 PyCSL.Phase5b_Soundness <> wf_expr:274 ind
+R23013:23018 PyCSL.Phase1_AST <> CBinOp constr
+R23020:23021 PyCSL.Phase5b_Soundness <> op:278 var
+R23023:23024 PyCSL.Phase5b_Soundness <> e1:279 var
+R23026:23027 PyCSL.Phase5b_Soundness <> e2:280 var
+R23009:23010 PyCSL.Phase5b_Soundness <> Γ:273 var
+binder 23052:23052 <> x:281
+binder 23054:23057 <> body:282
+R23091:23110 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R23060:23066 PyCSL.Phase5b_Soundness <> wf_expr:274 ind
+R23087:23090 PyCSL.Phase5b_Soundness <> body:282 var
+R23079:23082 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R23069:23069 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R23071:23072 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R23078:23078 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R23070:23070 PyCSL.Phase5b_Soundness <> x:281 var
+R23083:23084 PyCSL.Phase5b_Soundness <> Γ:273 var
+R23111:23117 PyCSL.Phase5b_Soundness <> wf_expr:274 ind
+R23123:23129 PyCSL.Phase1_AST <> CForall constr
+R23131:23131 PyCSL.Phase5b_Soundness <> x:281 var
+R23133:23136 PyCSL.Phase5b_Soundness <> body:282 var
+R23119:23120 PyCSL.Phase5b_Soundness <> Γ:273 var
+binder 23161:23161 <> x:283
+binder 23163:23166 <> body:284
+R23200:23219 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R23169:23175 PyCSL.Phase5b_Soundness <> wf_expr:274 ind
+R23196:23199 PyCSL.Phase5b_Soundness <> body:284 var
+R23188:23191 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R23178:23178 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R23180:23181 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R23187:23187 Coq.Init.Datatypes <> ::core_scope:'('_x_','_x_','_'..'_','_x_')' not
+R23179:23179 PyCSL.Phase5b_Soundness <> x:283 var
+R23192:23193 PyCSL.Phase5b_Soundness <> Γ:273 var
+R23220:23226 PyCSL.Phase5b_Soundness <> wf_expr:274 ind
+R23232:23238 PyCSL.Phase1_AST <> CExists constr
+R23240:23240 PyCSL.Phase5b_Soundness <> x:283 var
+R23242:23245 PyCSL.Phase5b_Soundness <> body:284 var
+R23228:23229 PyCSL.Phase5b_Soundness <> Γ:273 var
+scheme 22687:22693 <> wf_expr_ind
+scheme 22687:22693 <> wf_expr_sind
+prf 23388:23399 <> wf_expr_safe
+binder 23412:23413 <> Γ:285
+binder 23415:23415 <> e:286
+binder 23417:23418 <> es:287
+R23435:23440 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R23423:23429 PyCSL.Phase5b_Soundness <> wf_expr ind
+R23431:23432 PyCSL.Phase5b_Soundness <> Γ:285 var
+R23434:23434 PyCSL.Phase5b_Soundness <> e:286 var
+R23441:23447 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R23449:23450 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+binder 23448:23448 <> v:288
+R23494:23496 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R23451:23456 PyCSL.Phase2_State <> eval_z def
+R23462:23470 PyCSL.Phase2_State <> reg_state proj
+R23458:23459 PyCSL.Phase5b_Soundness <> es:287 var
+R23477:23485 PyCSL.Phase2_State <> reg_state proj
+R23473:23474 PyCSL.Phase5b_Soundness <> es:287 var
+R23488:23491 Coq.Init.Datatypes <> None constr
+R23493:23493 PyCSL.Phase5b_Soundness <> e:286 var
+R23497:23497 PyCSL.Phase5b_Soundness <> v:288 var
+prf 23862:23888 <> pycsl_soundness_with_oracle
+R23927:23935 PyCSL.Phase1_AST <> func_spec rec
+binder 23920:23923 <> spec:289
+R23972:23982 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R23965:23967 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R23952:23963 PyCSL.Phase1_AST <> spec_trusted proj
+R23946:23949 PyCSL.Phase5b_Soundness <> spec:289 var
+R23968:23971 Coq.Init.Datatypes <> true constr
+R24008:24017 PyCSL.Phase2_State <> exec_state rec
+binder 23991:23996 <> pre_es:290
+binder 23998:24004 <> post_es:291
+R24071:24083 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R24030:24035 PyCSL.Phase4_WP <> eval_c def
+R24037:24042 PyCSL.Phase5b_Soundness <> pre_es:290 var
+R24044:24049 PyCSL.Phase5b_Soundness <> pre_es:290 var
+R24051:24054 Coq.Init.Datatypes <> None constr
+R24062:24069 PyCSL.Phase1_AST <> spec_pre proj
+R24056:24059 PyCSL.Phase5b_Soundness <> spec:289 var
+R24084:24089 PyCSL.Phase4_WP <> eval_c def
+R24091:24097 PyCSL.Phase5b_Soundness <> post_es:291 var
+R24099:24104 PyCSL.Phase5b_Soundness <> pre_es:290 var
+R24106:24109 Coq.Init.Datatypes <> None constr
+R24117:24125 PyCSL.Phase1_AST <> spec_post proj
+R24111:24114 PyCSL.Phase5b_Soundness <> spec:289 var
+binder 23895:23908 <> trusted_oracle:292
+binder 24140:24141 <> es:293
+binder 24143:24143 <> s:294
+binder 24145:24147 <> out:295
+binder 24149:24150 <> Qn:296
+binder 24152:24153 <> Qr:297
+binder 24155:24156 <> Qc:298
+binder 24158:24159 <> Qb:299
+binder 24161:24162 <> Qe:300
+binder 24164:24169 <> pre_es:301
+R24187:24192 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R24174:24177 PyCSL.Phase3_SOS <> exec ind
+R24179:24180 PyCSL.Phase5b_Soundness <> es:293 var
+R24182:24182 PyCSL.Phase5b_Soundness <> s:294 var
+R24184:24186 PyCSL.Phase5b_Soundness <> out:295 var
+R24222:24227 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R24193:24194 PyCSL.Phase4_WP <> wp def
+R24196:24196 PyCSL.Phase5b_Soundness <> s:294 var
+R24198:24199 PyCSL.Phase5b_Soundness <> Qn:296 var
+R24201:24202 PyCSL.Phase5b_Soundness <> Qr:297 var
+R24204:24205 PyCSL.Phase5b_Soundness <> Qc:298 var
+R24207:24208 PyCSL.Phase5b_Soundness <> Qb:299 var
+R24210:24211 PyCSL.Phase5b_Soundness <> Qe:300 var
+R24213:24218 PyCSL.Phase5b_Soundness <> pre_es:301 var
+R24220:24221 PyCSL.Phase5b_Soundness <> es:293 var
+R24228:24239 PyCSL.Phase5b_Soundness <> outcome_post def
+R24241:24242 PyCSL.Phase5b_Soundness <> Qn:296 var
+R24244:24245 PyCSL.Phase5b_Soundness <> Qr:297 var
+R24247:24248 PyCSL.Phase5b_Soundness <> Qc:298 var
+R24250:24251 PyCSL.Phase5b_Soundness <> Qb:299 var
+R24253:24254 PyCSL.Phase5b_Soundness <> Qe:300 var
+R24256:24258 PyCSL.Phase5b_Soundness <> out:295 var
+R24328:24342 PyCSL.Phase5b_Soundness <> pycsl_soundness thm
+R24328:24342 PyCSL.Phase5b_Soundness <> pycsl_soundness thm
+ax 25400:25415 <> alt_ergo_correct
+binder 25429:25432 <> goal:302
+R25463:25466 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R25443:25457 PyCSL.Phase5b_Soundness <> smt_certificate def
+R25459:25462 PyCSL.Phase5b_Soundness <> goal:302 var
+R25467:25470 PyCSL.Phase5b_Soundness <> goal:302 var
+def 25803:25817 <> lin_arith_proof
+binder 25820:25823 <> goal:305
+R25838:25852 PyCSL.Phase5b_Soundness <> linear_arith_vc rec
+R25854:25857 PyCSL.Phase5b_Soundness <> goal:305 var
+binder 25834:25834 <> h:306
+R25862:25865 PyCSL.Phase5b_Soundness <> goal:305 var
+R25872:25878 PyCSL.Phase5b_Soundness <> lin_prf proj
+R25880:25883 PyCSL.Phase5b_Soundness <> goal:305 var
+R25885:25885 PyCSL.Phase5b_Soundness <> h:306 var
+ax 26134:26156 <> trusted_contracts_axiom
+R26177:26185 PyCSL.Phase1_AST <> func_spec rec
+binder 26170:26173 <> spec:307
+R26217:26222 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R26210:26212 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R26197:26208 PyCSL.Phase1_AST <> spec_trusted proj
+R26191:26194 PyCSL.Phase5b_Soundness <> spec:307 var
+R26213:26216 Coq.Init.Datatypes <> true constr
+R26248:26257 PyCSL.Phase2_State <> exec_state rec
+binder 26231:26236 <> pre_es:308
+binder 26238:26244 <> post_es:309
+R26306:26313 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R26265:26270 PyCSL.Phase4_WP <> eval_c def
+R26272:26277 PyCSL.Phase5b_Soundness <> pre_es:308 var
+R26279:26284 PyCSL.Phase5b_Soundness <> pre_es:308 var
+R26286:26289 Coq.Init.Datatypes <> None constr
+R26297:26304 PyCSL.Phase1_AST <> spec_pre proj
+R26291:26294 PyCSL.Phase5b_Soundness <> spec:307 var
+R26314:26319 PyCSL.Phase4_WP <> eval_c def
+R26321:26327 PyCSL.Phase5b_Soundness <> post_es:309 var
+R26329:26334 PyCSL.Phase5b_Soundness <> pre_es:308 var
+R26336:26339 Coq.Init.Datatypes <> None constr
+R26347:26355 PyCSL.Phase1_AST <> spec_post proj
+R26341:26344 PyCSL.Phase5b_Soundness <> spec:307 var

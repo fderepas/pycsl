@@ -177,7 +177,7 @@ Lemma test_is_sorted_empty :
   forall st,
   eval_contract st st None (CIsSorted "a" (CInt 0) (CInt 0)).
 Proof.
-  intros. simpl. destruct (lookup st "a") as [[|]|]; simpl; exact I.
+  intros. simpl. destruct (lookup st "a") as [|v]; [|exact I]; destruct v; simpl; exact I.
 Qed.
 
 (* ===== Test 21: Phase 4 CValid is vacuously true (Hoare stub) ===== *)
@@ -301,5 +301,59 @@ Lemma test_soundness_acquires :
   outcome_post Qn Qr Qc Qb Qe (ONormal es).
 Proof.
   intros es m Qn Qr Qc Qb Qe pre_es Hexec Hwp.
+  eapply pycsl_soundness; eauto.
+Qed.
+
+(* ===== Phase 8 tests: Lambda / SCall ===== *)
+
+(* Test 38: VClosure value is constructible. *)
+Lemma test_vclosure_constructible :
+  forall st param body,
+  VClosure param body (st : list (ident * val)) = VClosure param body st.
+Proof. intros. reflexivity. Qed.
+
+(* Test 39: returned_state_has_result is PROVED in Phase3_SOS.v.
+   The lemma states: exec es s (OReturned st' v) -> lookup st'.(reg_state) "\result" = Some v.
+   It is used by the SCall soundness case. See Phase3_SOS.v for the proof. *)
+
+(* Test 40: ExecCall: SCall with a VClosure value produces ONormal
+   with result -> 42.
+   Body: SReturn (EInt 42). Closure captured state: the caller's state.
+   Call: SCall "r" fn (EInt 99) where fn evaluates to VClosure "x" (SReturn (EInt 42)) st.
+   Expected outcome: ONormal (set_reg es (update es.reg_state "r" (VInt 42))). *)
+Lemma test_exec_call_return :
+  forall es st,
+  eval_expr es.(reg_state) (EVar "f") = VClosure "x" (SReturn (EInt 42)) st ->
+  exec (set_reg (mk_exec_state st)
+                (update st "x" (eval_expr es.(reg_state) (EInt 99))))
+       (SReturn (EInt 42))
+       (OReturned
+          (set_reg (mk_exec_state st)
+                   (update st "\result" (VInt 42)))
+          (VInt 42)) ->
+  exec es (SCall "r" (EVar "f") (EInt 99))
+       (ONormal (set_reg es (update es.(reg_state) "r" (VInt 42)))).
+Proof.
+  intros es st Heval Hret.
+  eapply ExecCall.
+  - exact Heval.
+  - exact Hret.
+Qed.
+
+(* Test 41: wp (SCall r fn arg) is True when fn is not a VClosure. *)
+Lemma test_wp_call_non_closure :
+  forall es r fn arg Qn Qr Qc Qb Qe pre_es,
+  eval_expr es.(reg_state) fn = VInt 0 ->
+  wp (SCall r fn arg) Qn Qr Qc Qb Qe pre_es es = True.
+Proof. intros. simpl. rewrite H. reflexivity. Qed.
+
+(* Test 42: soundness holds for SCall. *)
+Lemma test_soundness_scall :
+  forall es r fn arg Qn Qr Qc Qb Qe pre_es out,
+  exec es (SCall r fn arg) out ->
+  wp (SCall r fn arg) Qn Qr Qc Qb Qe pre_es es ->
+  outcome_post Qn Qr Qc Qb Qe out.
+Proof.
+  intros es r fn arg Qn Qr Qc Qb Qe pre_es out Hexec Hwp.
   eapply pycsl_soundness; eauto.
 Qed.

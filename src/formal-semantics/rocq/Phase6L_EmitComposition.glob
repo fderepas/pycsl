@@ -1,4 +1,4 @@
-DIGEST a1dbb3f3f26e1c4f1291b40597c0f865
+DIGEST 5074a9f25036843d233179a1127a2579
 FPyCSL.Phase6L_EmitComposition
 R1850:1855 Coq.Strings.String <> <> lib
 R1857:1860 Coq.Lists.List <> <> lib
@@ -119,66 +119,68 @@ R4968:4976 PyCSL.Phase1_AST <> SAcquires constr
 R4997:5021 PyCSL.Phase6L_EmitStmt <> acceptable_skip_emissions def
 R5048:5056 PyCSL.Phase1_AST <> SReleases constr
 R5077:5101 PyCSL.Phase6L_EmitStmt <> acceptable_skip_emissions def
-prf 5366:5394 <> emit_stmt_full_complete_sound
-R5416:5427 PyCSL.Phase6L_EmitAssign <> assign_state rec
-binder 5408:5412 <> state:4
-R5435:5438 PyCSL.Phase1_AST <> stmt ind
-binder 5431:5431 <> s:5
-R5446:5447 Coq.Lists.List <> In def
-R5490:5504 PyCSL.Phase6L_EmitComposition <> acceptable_emit def
-R5506:5510 PyCSL.Phase6L_EmitComposition <> state:4 var
-R5512:5512 PyCSL.Phase6L_EmitComposition <> s:5 var
-R5450:5472 PyCSL.Phase6L_EmitBlocks <> emit_stmt_full_complete def
-R5474:5478 PyCSL.Phase6L_EmitComposition <> state:4 var
-R5481:5483 PyCSL.Phase6d_StmtGen <> gen def
-R5485:5485 PyCSL.Phase6L_EmitComposition <> s:5 var
-R5625:5643 PyCSL.Phase6L_EmitAssign <> emit_assign_correct thm
-R5625:5643 PyCSL.Phase6L_EmitAssign <> emit_assign_correct thm
-R5675:5697 PyCSL.Phase6L_EmitAugAssign <> emit_aug_assign_correct thm
-R5675:5697 PyCSL.Phase6L_EmitAugAssign <> emit_aug_assign_correct thm
-R5728:5749 PyCSL.Phase6L_EmitArraySet <> emit_array_set_correct thm
-R5728:5749 PyCSL.Phase6L_EmitArraySet <> emit_array_set_correct thm
-R6141:6159 PyCSL.Phase6L_EmitSimple <> emit_assert_correct thm
-R6141:6159 PyCSL.Phase6L_EmitSimple <> emit_assert_correct thm
-R6260:6282 PyCSL.Phase6L_EmitBlocks <> emit_ghost_decl_correct thm
-R6260:6282 PyCSL.Phase6L_EmitBlocks <> emit_ghost_decl_correct thm
-R6316:6340 PyCSL.Phase6L_EmitBlocks <> emit_ghost_assign_correct thm
-R6316:6340 PyCSL.Phase6L_EmitBlocks <> emit_ghost_assign_correct thm
-R6368:6385 PyCSL.Phase6L_EmitSimple <> emit_label_correct thm
-R6368:6385 PyCSL.Phase6L_EmitSimple <> emit_label_correct thm
-prf 7099:7135 <> emit_stmt_full_complete_in_acceptable
-binder 7148:7152 <> state:6
-binder 7154:7154 <> s:7
-R7161:7167 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
-R7171:7172 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
-binder 7168:7170 <> out:8
-R7216:7235 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
-R7210:7212 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R7173:7195 PyCSL.Phase6L_EmitBlocks <> emit_stmt_full_complete def
-R7197:7201 PyCSL.Phase6L_EmitComposition <> state:6 var
-R7204:7206 PyCSL.Phase6d_StmtGen <> gen def
-R7208:7208 PyCSL.Phase6L_EmitComposition <> s:7 var
-R7213:7215 PyCSL.Phase6L_EmitComposition <> out:8 var
-R7236:7237 Coq.Lists.List <> In def
-R7244:7258 PyCSL.Phase6L_EmitComposition <> acceptable_emit def
-R7260:7264 PyCSL.Phase6L_EmitComposition <> state:6 var
-R7266:7266 PyCSL.Phase6L_EmitComposition <> s:7 var
-R7239:7241 PyCSL.Phase6L_EmitComposition <> out:8 var
-R7305:7327 PyCSL.Phase6L_EmitBlocks <> emit_stmt_full_complete def
-R7336:7338 PyCSL.Phase6d_StmtGen <> gen def
-R7305:7327 PyCSL.Phase6L_EmitBlocks <> emit_stmt_full_complete def
-R7336:7338 PyCSL.Phase6d_StmtGen <> gen def
-R7373:7401 PyCSL.Phase6L_EmitComposition <> emit_stmt_full_complete_sound thm
-R7373:7401 PyCSL.Phase6L_EmitComposition <> emit_stmt_full_complete_sound thm
-prf 7487:7504 <> emit_deterministic
-binder 7517:7521 <> state:9
-binder 7523:7523 <> s:10
-R7567:7573 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R7530:7552 PyCSL.Phase6L_EmitBlocks <> emit_stmt_full_complete def
-R7554:7558 PyCSL.Phase6L_EmitComposition <> state:9 var
-R7561:7563 PyCSL.Phase6d_StmtGen <> gen def
-R7565:7565 PyCSL.Phase6L_EmitComposition <> s:10 var
-R7574:7596 PyCSL.Phase6L_EmitBlocks <> emit_stmt_full_complete def
-R7598:7602 PyCSL.Phase6L_EmitComposition <> state:9 var
-R7605:7607 PyCSL.Phase6d_StmtGen <> gen def
-R7609:7609 PyCSL.Phase6L_EmitComposition <> s:10 var
+R5128:5132 PyCSL.Phase1_AST <> SCall constr
+R5157:5181 PyCSL.Phase6L_EmitStmt <> acceptable_skip_emissions def
+prf 5462:5490 <> emit_stmt_full_complete_sound
+R5512:5523 PyCSL.Phase6L_EmitAssign <> assign_state rec
+binder 5504:5508 <> state:4
+R5531:5534 PyCSL.Phase1_AST <> stmt ind
+binder 5527:5527 <> s:5
+R5542:5543 Coq.Lists.List <> In def
+R5586:5600 PyCSL.Phase6L_EmitComposition <> acceptable_emit def
+R5602:5606 PyCSL.Phase6L_EmitComposition <> state:4 var
+R5608:5608 PyCSL.Phase6L_EmitComposition <> s:5 var
+R5546:5568 PyCSL.Phase6L_EmitBlocks <> emit_stmt_full_complete def
+R5570:5574 PyCSL.Phase6L_EmitComposition <> state:4 var
+R5577:5579 PyCSL.Phase6d_StmtGen <> gen def
+R5581:5581 PyCSL.Phase6L_EmitComposition <> s:5 var
+R5721:5739 PyCSL.Phase6L_EmitAssign <> emit_assign_correct thm
+R5721:5739 PyCSL.Phase6L_EmitAssign <> emit_assign_correct thm
+R5771:5793 PyCSL.Phase6L_EmitAugAssign <> emit_aug_assign_correct thm
+R5771:5793 PyCSL.Phase6L_EmitAugAssign <> emit_aug_assign_correct thm
+R5824:5845 PyCSL.Phase6L_EmitArraySet <> emit_array_set_correct thm
+R5824:5845 PyCSL.Phase6L_EmitArraySet <> emit_array_set_correct thm
+R6237:6255 PyCSL.Phase6L_EmitSimple <> emit_assert_correct thm
+R6237:6255 PyCSL.Phase6L_EmitSimple <> emit_assert_correct thm
+R6356:6378 PyCSL.Phase6L_EmitBlocks <> emit_ghost_decl_correct thm
+R6356:6378 PyCSL.Phase6L_EmitBlocks <> emit_ghost_decl_correct thm
+R6412:6436 PyCSL.Phase6L_EmitBlocks <> emit_ghost_assign_correct thm
+R6412:6436 PyCSL.Phase6L_EmitBlocks <> emit_ghost_assign_correct thm
+R6464:6481 PyCSL.Phase6L_EmitSimple <> emit_label_correct thm
+R6464:6481 PyCSL.Phase6L_EmitSimple <> emit_label_correct thm
+prf 7278:7314 <> emit_stmt_full_complete_in_acceptable
+binder 7327:7331 <> state:6
+binder 7333:7333 <> s:7
+R7340:7346 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R7350:7351 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+binder 7347:7349 <> out:8
+R7395:7414 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R7389:7391 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7352:7374 PyCSL.Phase6L_EmitBlocks <> emit_stmt_full_complete def
+R7376:7380 PyCSL.Phase6L_EmitComposition <> state:6 var
+R7383:7385 PyCSL.Phase6d_StmtGen <> gen def
+R7387:7387 PyCSL.Phase6L_EmitComposition <> s:7 var
+R7392:7394 PyCSL.Phase6L_EmitComposition <> out:8 var
+R7415:7416 Coq.Lists.List <> In def
+R7423:7437 PyCSL.Phase6L_EmitComposition <> acceptable_emit def
+R7439:7443 PyCSL.Phase6L_EmitComposition <> state:6 var
+R7445:7445 PyCSL.Phase6L_EmitComposition <> s:7 var
+R7418:7420 PyCSL.Phase6L_EmitComposition <> out:8 var
+R7484:7506 PyCSL.Phase6L_EmitBlocks <> emit_stmt_full_complete def
+R7515:7517 PyCSL.Phase6d_StmtGen <> gen def
+R7484:7506 PyCSL.Phase6L_EmitBlocks <> emit_stmt_full_complete def
+R7515:7517 PyCSL.Phase6d_StmtGen <> gen def
+R7552:7580 PyCSL.Phase6L_EmitComposition <> emit_stmt_full_complete_sound thm
+R7552:7580 PyCSL.Phase6L_EmitComposition <> emit_stmt_full_complete_sound thm
+prf 7666:7683 <> emit_deterministic
+binder 7696:7700 <> state:9
+binder 7702:7702 <> s:10
+R7746:7752 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R7709:7731 PyCSL.Phase6L_EmitBlocks <> emit_stmt_full_complete def
+R7733:7737 PyCSL.Phase6L_EmitComposition <> state:9 var
+R7740:7742 PyCSL.Phase6d_StmtGen <> gen def
+R7744:7744 PyCSL.Phase6L_EmitComposition <> s:10 var
+R7753:7775 PyCSL.Phase6L_EmitBlocks <> emit_stmt_full_complete def
+R7777:7781 PyCSL.Phase6L_EmitComposition <> state:9 var
+R7784:7786 PyCSL.Phase6d_StmtGen <> gen def
+R7788:7788 PyCSL.Phase6L_EmitComposition <> s:10 var

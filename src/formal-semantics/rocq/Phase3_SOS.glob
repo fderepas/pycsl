@@ -1,4 +1,4 @@
-DIGEST 7862c3dabc680596e670ce6283599698
+DIGEST a5bc23df19d19c774deeb903624fc988
 FPyCSL.Phase3_SOS
 R249:254 Coq.ZArith.ZArith <> <> lib
 R256:261 Coq.Strings.String <> <> lib
@@ -533,6 +533,7 @@ constr 12395:12409 <> ExecThreadEntry
 constr 12555:12561 <> ExecFor
 constr 12916:12927 <> ExecAcquires
 constr 12996:13007 <> ExecReleases
+constr 13127:13134 <> ExecCall
 R7032:7035 Coq.Init.Logic <> ::type_scope:x_'->'_x not
 R7022:7031 PyCSL.Phase2_State <> exec_state rec
 R7040:7043 Coq.Init.Logic <> ::type_scope:x_'->'_x not
@@ -1229,37 +1230,171 @@ R13067:13068 PyCSL.Phase3_SOS <> es:217 var
 R13045:13053 PyCSL.Phase1_AST <> SReleases constr
 R13055:13055 PyCSL.Phase3_SOS <> m:218 var
 R13041:13042 PyCSL.Phase3_SOS <> es:217 var
+binder 13151:13152 <> es:219
+binder 13154:13154 <> r:220
+binder 13156:13157 <> fn:221
+binder 13159:13161 <> arg:222
+binder 13163:13167 <> param:223
+binder 13169:13172 <> body:224
+binder 13174:13179 <> cstate:225
+binder 13181:13183 <> st':226
+binder 13185:13185 <> v:227
+R13250:13259 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R13221:13223 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R13194:13202 PyCSL.Phase2_State <> eval_expr def
+R13208:13216 PyCSL.Phase2_State <> reg_state proj
+R13204:13205 PyCSL.Phase3_SOS <> es:219 var
+R13219:13220 PyCSL.Phase3_SOS <> fn:221 var
+R13224:13231 PyCSL.Phase2_State <> VClosure constr
+R13233:13237 PyCSL.Phase3_SOS <> param:223 var
+R13239:13242 PyCSL.Phase3_SOS <> body:224 var
+R13244:13249 PyCSL.Phase3_SOS <> cstate:225 var
+R13404:13413 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R13260:13263 PyCSL.Phase3_SOS <> exec:70 ind
+R13388:13396 PyCSL.Phase3_SOS <> OReturned constr
+R13398:13400 PyCSL.Phase3_SOS <> st':226 var
+R13402:13402 PyCSL.Phase3_SOS <> v:227 var
+R13382:13385 PyCSL.Phase3_SOS <> body:224 var
+R13266:13272 PyCSL.Phase2_State <> set_reg def
+R13275:13287 PyCSL.Phase2_State <> mk_exec_state def
+R13289:13294 PyCSL.Phase3_SOS <> cstate:225 var
+R13318:13323 PyCSL.Phase2_State <> update def
+R13325:13330 PyCSL.Phase3_SOS <> cstate:225 var
+R13332:13336 PyCSL.Phase3_SOS <> param:223 var
+R13339:13347 PyCSL.Phase2_State <> eval_expr def
+R13353:13361 PyCSL.Phase2_State <> reg_state proj
+R13349:13350 PyCSL.Phase3_SOS <> es:219 var
+R13364:13366 PyCSL.Phase3_SOS <> arg:222 var
+R13414:13417 PyCSL.Phase3_SOS <> exec:70 ind
+R13440:13446 PyCSL.Phase3_SOS <> ONormal constr
+R13449:13455 PyCSL.Phase2_State <> set_reg def
+R13457:13458 PyCSL.Phase3_SOS <> es:219 var
+R13461:13466 PyCSL.Phase2_State <> update def
+R13472:13480 PyCSL.Phase2_State <> reg_state proj
+R13468:13469 PyCSL.Phase3_SOS <> es:219 var
+R13483:13483 PyCSL.Phase3_SOS <> r:220 var
+R13485:13485 PyCSL.Phase3_SOS <> v:227 var
+R13423:13427 PyCSL.Phase1_AST <> SCall constr
+R13429:13429 PyCSL.Phase3_SOS <> r:220 var
+R13431:13432 PyCSL.Phase3_SOS <> fn:221 var
+R13434:13436 PyCSL.Phase3_SOS <> arg:222 var
+R13419:13420 PyCSL.Phase3_SOS <> es:219 var
 scheme 7015:7018 <> exec_ind
 scheme 7015:7018 <> exec_sind
-prf 13109:13126 <> exec_deterministic
-binder 13139:13140 <> es:219
-binder 13142:13142 <> s:220
-binder 13144:13147 <> out1:221
-binder 13149:13152 <> out2:222
-R13171:13174 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R13157:13160 PyCSL.Phase3_SOS <> exec ind
-R13162:13163 PyCSL.Phase3_SOS <> es:219 var
-R13165:13165 PyCSL.Phase3_SOS <> s:220 var
-R13167:13170 PyCSL.Phase3_SOS <> out1:221 var
-R13189:13192 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R13175:13178 PyCSL.Phase3_SOS <> exec ind
-R13180:13181 PyCSL.Phase3_SOS <> es:219 var
-R13183:13183 PyCSL.Phase3_SOS <> s:220 var
-R13185:13188 PyCSL.Phase3_SOS <> out2:222 var
-R13197:13199 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R13193:13196 PyCSL.Phase3_SOS <> out1:221 var
-R13200:13203 PyCSL.Phase3_SOS <> out2:222 var
-binder 13428:13428 <> o:223
-R13443:13446 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R13431:13434 PyCSL.Phase3_SOS <> exec ind
-R13442:13442 PyCSL.Phase3_SOS <> o:223 var
-R13449:13451 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R13452:13452 PyCSL.Phase3_SOS <> o:223 var
-binder 13428:13428 <> o:224
-R13443:13446 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R13431:13434 PyCSL.Phase3_SOS <> exec ind
-R13442:13442 PyCSL.Phase3_SOS <> o:224 var
-R13449:13451 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R13452:13452 PyCSL.Phase3_SOS <> o:224 var
-R13470:13473 PyCSL.Phase3_SOS <> exec ind
-R13470:13473 PyCSL.Phase3_SOS <> exec ind
+prf 13498:13513 <> lookup_update_eq
+R13532:13536 PyCSL.Phase2_State <> state def
+binder 13527:13528 <> st:228
+R13544:13548 PyCSL.Phase1_AST <> ident def
+binder 13540:13540 <> x:229
+R13556:13558 PyCSL.Phase2_State <> val ind
+binder 13552:13552 <> v:230
+R13588:13590 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R13564:13569 PyCSL.Phase2_State <> lookup def
+R13572:13577 PyCSL.Phase2_State <> update def
+R13579:13580 PyCSL.Phase3_SOS <> st:228 var
+R13582:13582 PyCSL.Phase3_SOS <> x:229 var
+R13584:13584 PyCSL.Phase3_SOS <> v:230 var
+R13587:13587 PyCSL.Phase3_SOS <> x:229 var
+R13591:13594 Coq.Init.Datatypes <> Some constr
+R13596:13596 PyCSL.Phase3_SOS <> v:230 var
+R13630:13635 PyCSL.Phase2_State <> update def
+R13655:13669 Coq.Strings.String <> eqb_refl thm
+R13655:13669 Coq.Strings.String <> eqb_refl thm
+R13655:13669 Coq.Strings.String <> eqb_refl thm
+prf 13697:13721 <> returned_state_has_result
+binder 13734:13735 <> es:231
+binder 13737:13737 <> s:232
+binder 13739:13741 <> out:233
+R13759:13764 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R13746:13749 PyCSL.Phase3_SOS <> exec ind
+R13751:13752 PyCSL.Phase3_SOS <> es:231 var
+R13754:13754 PyCSL.Phase3_SOS <> s:232 var
+R13756:13758 PyCSL.Phase3_SOS <> out:233 var
+R13771:13773 PyCSL.Phase3_SOS <> out:233 var
+R13784:13792 PyCSL.Phase3_SOS <> OReturned constr
+R13835:13837 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R13803:13808 PyCSL.Phase2_State <> lookup def
+R13815:13823 PyCSL.Phase2_State <> reg_state proj
+R13838:13841 Coq.Init.Datatypes <> Some constr
+R13854:13857 Coq.Init.Logic <> True ind
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+R13935:13935 Coq.Init.Logic <> I constr
+prf 14021:14038 <> exec_deterministic
+binder 14051:14052 <> es:235
+binder 14054:14054 <> s:236
+binder 14056:14059 <> out1:237
+binder 14061:14064 <> out2:238
+R14083:14086 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R14069:14072 PyCSL.Phase3_SOS <> exec ind
+R14074:14075 PyCSL.Phase3_SOS <> es:235 var
+R14077:14077 PyCSL.Phase3_SOS <> s:236 var
+R14079:14082 PyCSL.Phase3_SOS <> out1:237 var
+R14101:14104 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R14087:14090 PyCSL.Phase3_SOS <> exec ind
+R14092:14093 PyCSL.Phase3_SOS <> es:235 var
+R14095:14095 PyCSL.Phase3_SOS <> s:236 var
+R14097:14100 PyCSL.Phase3_SOS <> out2:238 var
+R14109:14111 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R14105:14108 PyCSL.Phase3_SOS <> out1:237 var
+R14112:14115 PyCSL.Phase3_SOS <> out2:238 var
+R14432:14434 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R14415:14423 PyCSL.Phase2_State <> eval_expr def
+R14435:14442 PyCSL.Phase2_State <> VClosure constr
+R14432:14434 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R14415:14423 PyCSL.Phase2_State <> eval_expr def
+R14435:14442 PyCSL.Phase2_State <> VClosure constr
+R14489:14491 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R14472:14480 PyCSL.Phase2_State <> eval_expr def
+R14492:14499 PyCSL.Phase2_State <> VClosure constr
+R14489:14491 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R14472:14480 PyCSL.Phase2_State <> eval_expr def
+R14492:14499 PyCSL.Phase2_State <> VClosure constr
+binder 14605:14605 <> o:239
+R14620:14623 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R14608:14611 PyCSL.Phase3_SOS <> exec ind
+R14619:14619 PyCSL.Phase3_SOS <> o:239 var
+R14626:14628 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R14629:14629 PyCSL.Phase3_SOS <> o:239 var
+binder 14605:14605 <> o:240
+R14620:14623 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R14608:14611 PyCSL.Phase3_SOS <> exec ind
+R14619:14619 PyCSL.Phase3_SOS <> o:240 var
+R14626:14628 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R14629:14629 PyCSL.Phase3_SOS <> o:240 var
+R14647:14650 PyCSL.Phase3_SOS <> exec ind
+R14647:14650 PyCSL.Phase3_SOS <> exec ind

@@ -72,12 +72,13 @@ Axiom why3_implements_wp_w :
 (* wp_w_implies_wp: bridges wp_w back to the PyCSL WP using the
    bidirectional correspondence theorem from Phase6h_CorrMain. *)
 Corollary wp_w_implies_wp :
-  forall s Qn Qr Qc Qb Qe pre_es es,
+  forall s, is_emittable s ->
+  forall Qn Qr Qc Qb Qe pre_es es,
   wp_w (gen s) (enc Qn Qr Qc Qb Qe) pre_es es ->
   wp s Qn Qr Qc Qb Qe pre_es es.
 Proof.
-  intros s Qn Qr Qc Qb Qe pre_es es H.
-  exact (proj2 (wp_gen_correct s Qn Qr Qc Qb Qe pre_es es) H).
+  intros s Hem Qn Qr Qc Qb Qe pre_es es H.
+  exact (proj2 (wp_gen_correct s Hem Qn Qr Qc Qb Qe pre_es es) H).
 Qed.
 
 (* ===== Verified soundness theorem ===== *)
@@ -87,12 +88,13 @@ Qed.
    why3_implements_wp_w_derived from a Why3 VCG certificate + vcg_bridge),
    chains through wp_gen_correct and pycsl_soundness. *)
 Theorem pycsl_soundness_verified :
-  forall s Qn Qr Qc Qb Qe pre_es es out,
+  forall s, is_emittable s ->
+  forall Qn Qr Qc Qb Qe pre_es es out,
   exec es s out ->
   wp_w (gen s) (enc Qn Qr Qc Qb Qe) pre_es es ->
   outcome_post Qn Qr Qc Qb Qe out.
 Proof.
-  intros s Qn Qr Qc Qb Qe pre_es es out Hexec Hwpw.
+  intros s Hem Qn Qr Qc Qb Qe pre_es es out Hexec Hwpw.
   exact (pycsl_soundness es s out Qn Qr Qc Qb Qe pre_es Hexec
-           (wp_w_implies_wp s Qn Qr Qc Qb Qe pre_es es Hwpw)).
+           (wp_w_implies_wp s Hem Qn Qr Qc Qb Qe pre_es es Hwpw)).
 Qed.

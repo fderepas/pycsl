@@ -260,6 +260,7 @@ type stmt =
 | SThreadEntry of stmt
 | SAcquires of ident
 | SReleases of ident
+| SCall of ident * expr * expr
 
 type whyml_exc =
 | ExcReturn

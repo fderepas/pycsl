@@ -70,6 +70,7 @@ private theorem bwd_while_aux {b : Stmt}
   | execFor _ _ _ _ _ _ _ _ _ _ => simp at heq
   | execAcquires _ _ => simp at heq
   | execReleases _ _ => simp at heq
+  | @execCall _ _ _ _ _ _ _ _ _ _ _ _ => simp at heq
 
 -- =====================================================================
 -- Forward direction: Exec es s out → Exec es (desugar s) out
@@ -153,6 +154,9 @@ theorem desugar_correct_fwd (es : ExecState) (s : Stmt) (out : Outcome)
   | execFor _ _ _ _ _ _ _ _ h _ => exact h
   | execAcquires _ _ => exact .execAcquires _ _
   | execReleases _ _ => exact .execReleases _ _
+  | @execCall es r fn arg param body cstate st' v hfn hb =>
+    -- desugar (.call r fn arg) = .call r fn arg (leaf)
+    exact .execCall _ _ _ _ _ _ _ _ _ hfn hb
 
 -- =====================================================================
 -- Backward direction: Exec es (desugar s) out → Exec es s out
@@ -241,6 +245,7 @@ theorem desugar_correct_bwd (s : Stmt) (es : ExecState) (out : Outcome)
   -- Acquires/Releases: desugar is identity
   | .acquires _ => exact hd
   | .releases _ => exact hd
+  | .call r fn arg => exact hd
   termination_by sizeOf s
 
 theorem desugar_correct (es : ExecState) (s : Stmt) (out : Outcome)

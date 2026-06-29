@@ -14,6 +14,7 @@
 -/
 import PyCSL.AST
 import PyCSL.State
+import PyCSL.SOS
 import PyCSL.DesugarDef
 import PyCSL.MemModel
 
@@ -128,3 +129,17 @@ def wp : Stmt
 
   | .acquires _, Qn, _, _, _, _, _, es => Qn es
   | .releases _, Qn, _, _, _, _, _, es => Qn es
+  | .call r fn arg, Qn, _, _, _, _, _, es =>
+    -- Phase 8 — Lambda (Category A, optional).
+    -- WP is a closed formula quantifying over the body's exec outcomes.
+    -- When fn evaluates to a closure, the WP says: for any return value
+    -- v from the body's exec, Qn holds with r=v. When fn is not a
+    -- closure, the WP is vacuously True (no SOS rule fires).
+    match evalExpr es.regState fn with
+    | .closure param body cstate =>
+      ∀ st' v,
+        Exec (setReg (mkExecState cstate)
+                     (update cstate param (evalExpr es.regState arg)))
+             body (.returned st' v) →
+        Qn (setReg es (update es.regState r v))
+    | _ => True

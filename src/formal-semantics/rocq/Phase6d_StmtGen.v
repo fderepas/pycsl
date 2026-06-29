@@ -90,4 +90,28 @@ Fixpoint gen (s : stmt) : whyml_stmt :=
   (* Phase 7 acquires/releases: Hoare-model no-op (emit WSkip) *)
   | SAcquires _               => WSkip
   | SReleases _               => WSkip
+  (* Phase 8 lambda: SCall is an opaque statement that Module 6
+     does not emit WhyML for (closures are not in the WhyML model).
+     Emit WSkip — parity with SFieldAssign and STupleUnpack, which
+     also reduce to WSkip in the Hoare model. *)
+  | SCall _ _ _               => WSkip
+  end.
+
+(* Phase 8: is_emittable — True for all Stmt constructors EXCEPT SCall.
+    WhyML has no closure model, so gen (SCall ...) = WSkip does NOT
+    correspond to wp (SCall ...) (which is a behavioural formula over
+    the closure body's exec). wp_gen_correct is therefore stated only
+    for emittable stmts. pycsl_soundness (the direct SOS→WP→outcome
+    theorem) covers ALL stmts including SCall. *)
+Fixpoint is_emittable (s : stmt) : Prop :=
+  match s with
+  | SSeq s1 s2         => is_emittable s1 /\ is_emittable s2
+  | SIf _ s1 s2        => is_emittable s1 /\ is_emittable s2
+  | SWhile _ _ _ body  => is_emittable body
+  | SFor _ _ _ _ body _ => is_emittable body
+  | STryCatch b _ h    => is_emittable b /\ is_emittable h
+  | SCritical _ body   => is_emittable body
+  | SThreadEntry body  => is_emittable body
+  | SCall _ _ _        => False
+  | _                  => True
   end.

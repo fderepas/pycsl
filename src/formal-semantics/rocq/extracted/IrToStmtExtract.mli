@@ -182,6 +182,7 @@ type stmt =
 | SThreadEntry of stmt
 | SAcquires of ident
 | SReleases of ident
+| SCall of ident * expr * expr
 
 val find_assoc :
   char list -> (char list * json_value) list -> json_value option

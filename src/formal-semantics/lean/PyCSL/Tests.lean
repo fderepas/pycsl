@@ -360,3 +360,22 @@ theorem test_soundness_acquires (es : ExecState) (m : Ident)
     (hWp : wp (.acquires m) Qn Qr Qc Qb Qe preEs es) :
     outcomePost Qn Qr Qc Qb Qe (.normal es) :=
   pycsl_soundness es (.acquires m) (.normal es) Qn Qr Qc Qb Qe preEs hExec hWp
+
+-- ===== Phase 8 tests: Lambda / SCall =====
+
+-- Test: .call WP is True when fn is not a closure.
+theorem test_wp_call_non_closure (es : ExecState) (r : Ident) (fn arg : Expr)
+    (Qn Qr Qc Qb : ExecState → Prop) (Qe : Ident → ExecState → Prop)
+    (preEs : ExecState)
+    (h : evalExpr es.regState fn = .int 0) :
+    wp (.call r fn arg) Qn Qr Qc Qb Qe preEs es = True := by
+  simp [wp, h]
+
+-- Test: soundness holds for .call.
+theorem test_soundness_call (es : ExecState) (r : Ident) (fn arg : Expr)
+    (Qn Qr Qc Qb : ExecState → Prop) (Qe : Ident → ExecState → Prop)
+    (preEs : ExecState) (out : Outcome)
+    (hExec : Exec es (.call r fn arg) out)
+    (hWp : wp (.call r fn arg) Qn Qr Qc Qb Qe preEs es) :
+    outcomePost Qn Qr Qc Qb Qe out :=
+  pycsl_soundness es (.call r fn arg) out Qn Qr Qc Qb Qe preEs hExec hWp

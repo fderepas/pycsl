@@ -28,30 +28,41 @@ Open Scope Z_scope.
 
 (* ===== Master WP correspondence theorem ===== *)
 
+(* Phase 8: wp_gen_correct excludes SCall (is_emittable side condition).
+    WhyML has no closure model: gen (SCall ...) = WSkip, but wp (SCall ...)
+    is a behavioural formula over the closure body's exec. These are NOT
+    propositionally equal. SCall soundness is proved directly in
+    pycsl_soundness (Phase5b), which covers ALL stmts including SCall.
+    The WhyML correspondence path (wp_gen_correct → wp_w_implies_wp →
+    pycsl_soundness_verified) covers the 22 emittable constructors. *)
+
 Theorem wp_gen_correct :
-  forall s Qn Qr Qc Qb Qe pre_es es,
+  forall s, is_emittable s ->
+  forall Qn Qr Qc Qb Qe pre_es es,
   wp s Qn Qr Qc Qb Qe pre_es es <->
   wp_w (gen s) (enc Qn Qr Qc Qb Qe) pre_es es.
 Proof.
-  induction s; intros Qn Qr Qc Qb Qe pre_es es.
+  induction s; intros Hem Qn Qr Qc Qb Qe pre_es es.
   - (* SSkip *)       exact (wp_gen_skip Qn Qr Qc Qb Qe pre_es es).
   - (* SAssign *)     exact (wp_gen_assign x e Qn Qr Qc Qb Qe pre_es es).
   - (* SAugAssign *)  exact (wp_gen_aug_assign x op e Qn Qr Qc Qb Qe pre_es es).
   - (* SArraySet *)   exact (wp_gen_array_set arr i v Qn Qr Qc Qb Qe pre_es es).
   - (* SSeq *)
+    destruct Hem as [Hem1 Hem2].
     exact (wp_gen_seq s1 s2 Qn Qr Qc Qb Qe pre_es es
-             (fun Qn' Qr' Qc' Qb' Qe' pre_es' es' => IHs1 Qn' Qr' Qc' Qb' Qe' pre_es' es')
-             (fun Qn' Qr' Qc' Qb' Qe' pre_es' es' => IHs2 Qn' Qr' Qc' Qb' Qe' pre_es' es')).
+             (fun Qn' Qr' Qc' Qb' Qe' pre_es' es' => IHs1 Hem1 Qn' Qr' Qc' Qb' Qe' pre_es' es')
+             (fun Qn' Qr' Qc' Qb' Qe' pre_es' es' => IHs2 Hem2 Qn' Qr' Qc' Qb' Qe' pre_es' es')).
   - (* SIf *)
+    destruct Hem as [Hem1 Hem2].
     exact (wp_gen_if cond s1 s2 Qn Qr Qc Qb Qe pre_es es
-             (fun Qn' Qr' Qc' Qb' Qe' pre_es' es' => IHs1 Qn' Qr' Qc' Qb' Qe' pre_es' es')
-             (fun Qn' Qr' Qc' Qb' Qe' pre_es' es' => IHs2 Qn' Qr' Qc' Qb' Qe' pre_es' es')).
+             (fun Qn' Qr' Qc' Qb' Qe' pre_es' es' => IHs1 Hem1 Qn' Qr' Qc' Qb' Qe' pre_es' es')
+             (fun Qn' Qr' Qc' Qb' Qe' pre_es' es' => IHs2 Hem2 Qn' Qr' Qc' Qb' Qe' pre_es' es')).
   - (* SWhile: Coq names the recursive body sub-term 's' (not 'body') in induction *)
     exact (wp_gen_while inv var cond s Qn Qr Qc Qb Qe pre_es es
-             (fun Qn' Qr' Qc' Qb' Qe' pre_es' es' => IHs Qn' Qr' Qc' Qb' Qe' pre_es' es')).
+             (fun Qn' Qr' Qc' Qb' Qe' pre_es' es' => IHs Hem Qn' Qr' Qc' Qb' Qe' pre_es' es')).
   - (* SFor: same naming convention *)
     exact (wp_gen_for x arr inv var s allow_iter_mut Qn Qr Qc Qb Qe pre_es es
-             (fun Qn' Qr' Qc' Qb' Qe' pre_es' es' => IHs Qn' Qr' Qc' Qb' Qe' pre_es' es')).
+             (fun Qn' Qr' Qc' Qb' Qe' pre_es' es' => IHs Hem Qn' Qr' Qc' Qb' Qe' pre_es' es')).
   - (* SReturn *)     exact (wp_gen_return e Qn Qr Qc Qb Qe pre_es es).
   - (* SContinue *)   exact (wp_gen_continue Qn Qr Qc Qb Qe pre_es es).
   - (* SBreak *)      exact (wp_gen_break Qn Qr Qc Qb Qe pre_es es).
@@ -62,29 +73,34 @@ Proof.
   - (* SLabel *)      exact (wp_gen_label name Qn Qr Qc Qb Qe pre_es es).
   - (* SRaise *)      exact (wp_gen_raise exc Qn Qr Qc Qb Qe pre_es es).
   - (* STryCatch *)
+    destruct Hem as [Hem1 Hem2].
     exact (wp_gen_trycatch s1 exc s2 Qn Qr Qc Qb Qe pre_es es
-             (fun Qn' Qr' Qc' Qb' Qe' pre_es' es' => IHs1 Qn' Qr' Qc' Qb' Qe' pre_es' es')
-             (fun Qn' Qr' Qc' Qb' Qe' pre_es' es' => IHs2 Qn' Qr' Qc' Qb' Qe' pre_es' es')).
+             (fun Qn' Qr' Qc' Qb' Qe' pre_es' es' => IHs1 Hem1 Qn' Qr' Qc' Qb' Qe' pre_es' es')
+             (fun Qn' Qr' Qc' Qb' Qe' pre_es' es' => IHs2 Hem2 Qn' Qr' Qc' Qb' Qe' pre_es' es')).
   - (* SFieldAssign *)    exact (wp_gen_field_assign self_id f e Qn Qr Qc Qb Qe pre_es es).
   - (* SFieldAugAssign *) exact (wp_gen_field_aug_assign self_id f op e Qn Qr Qc Qb Qe pre_es es).
   - (* SCritical: body sub-term named 's' by Coq induction *)
     exact (wp_gen_critical mutex s Qn Qr Qc Qb Qe pre_es es
-             (fun Qn' Qr' Qc' Qb' Qe' pre_es' es' => IHs Qn' Qr' Qc' Qb' Qe' pre_es' es')).
+             (fun Qn' Qr' Qc' Qb' Qe' pre_es' es' => IHs Hem Qn' Qr' Qc' Qb' Qe' pre_es' es')).
   - (* SThreadEntry: body sub-term named 's' by Coq induction *)
     exact (wp_gen_thread_entry s Qn Qr Qc Qb Qe pre_es es
-             (fun Qn' Qr' Qc' Qb' Qe' pre_es' es' => IHs Qn' Qr' Qc' Qb' Qe' pre_es' es')).
+             (fun Qn' Qr' Qc' Qb' Qe' pre_es' es' => IHs Hem Qn' Qr' Qc' Qb' Qe' pre_es' es')).
   - (* SAcquisitions *)
     exact (wp_gen_acquires mutex Qn Qr Qc Qb Qe pre_es es).
   - (* SReleases *)
     exact (wp_gen_releases mutex Qn Qr Qc Qb Qe pre_es es).
+  - (* SCall: not emittable — vacuous (is_emittable (SCall ...) = False) *)
+    exfalso. exact Hem.
 Qed.
 
 (* ===== Corollary: using wp_w (gen s) implies wp s ===== *)
 
 Corollary wp_w_gen_implies_wp :
-  forall s Qn Qr Qc Qb Qe pre_es es,
+  forall s, is_emittable s ->
+  forall Qn Qr Qc Qb Qe pre_es es,
   wp_w (gen s) (enc Qn Qr Qc Qb Qe) pre_es es ->
   wp s Qn Qr Qc Qb Qe pre_es es.
 Proof.
-  intros. apply (proj2 (wp_gen_correct s Qn Qr Qc Qb Qe pre_es es)). assumption.
+  intros s Hem Qn Qr Qc Qb Qe pre_es es H.
+  apply (proj2 (wp_gen_correct s Hem Qn Qr Qc Qb Qe pre_es es)). assumption.
 Qed.

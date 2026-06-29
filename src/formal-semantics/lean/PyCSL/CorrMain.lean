@@ -24,7 +24,7 @@ import PyCSL.CorrExc
 
 -- ===== Master WP correspondence theorem =====
 
-theorem wpGenCorrect (s : Stmt) :
+theorem wpGenCorrect (s : Stmt) (hem : isEmittable s) :
     ∀ (Qn Qr Qc Qb : ExecState → Prop) (Qe : Ident → ExecState → Prop)
       (preEs es : ExecState),
     wp s Qn Qr Qc Qb Qe preEs es ↔
@@ -61,36 +61,41 @@ theorem wpGenCorrect (s : Stmt) :
   | fieldAugAssign selfId f op e =>
     intros; exact wpGen_fieldAugAssign selfId f op e _ _ _ _ _ _ _
   | seq s1 s2 ih1 ih2 =>
+    have ⟨hem1, hem2⟩ := hem
     intros Qn Qr Qc Qb Qe preEs es
-    exact wpGen_seq s1 s2 Qn Qr Qc Qb Qe preEs es ih1 ih2
+    exact wpGen_seq s1 s2 Qn Qr Qc Qb Qe preEs es (ih1 hem1) (ih2 hem2)
   | ite cond s1 s2 ih1 ih2 =>
+    have ⟨hem1, hem2⟩ := hem
     intros Qn Qr Qc Qb Qe preEs es
-    exact wpGen_if cond s1 s2 Qn Qr Qc Qb Qe preEs es ih1 ih2
+    exact wpGen_if cond s1 s2 Qn Qr Qc Qb Qe preEs es (ih1 hem1) (ih2 hem2)
   | while_ inv var cond body ih =>
     intros Qn Qr Qc Qb Qe preEs es
-    exact wpGen_while inv var cond body Qn Qr Qc Qb Qe preEs es ih
+    exact wpGen_while inv var cond body Qn Qr Qc Qb Qe preEs es (ih hem)
   | for_ x arr inv var body aim ih =>
     intros Qn Qr Qc Qb Qe preEs es
-    exact wpGen_for x arr inv var body aim Qn Qr Qc Qb Qe preEs es ih
+    exact wpGen_for x arr inv var body aim Qn Qr Qc Qb Qe preEs es (ih hem)
   | tryCatch s exc handler ih1 ih2 =>
+    have ⟨hem1, hem2⟩ := hem
     intros Qn Qr Qc Qb Qe preEs es
-    exact wpGen_tryCatch s handler exc Qn Qr Qc Qb Qe preEs es ih1 ih2
+    exact wpGen_tryCatch s handler exc Qn Qr Qc Qb Qe preEs es (ih1 hem1) (ih2 hem2)
   | critical mutex body ih =>
     intros Qn Qr Qc Qb Qe preEs es
-    exact wpGen_critical mutex body Qn Qr Qc Qb Qe preEs es ih
+    exact wpGen_critical mutex body Qn Qr Qc Qb Qe preEs es (ih hem)
   | threadEntry body ih =>
     intros Qn Qr Qc Qb Qe preEs es
-    exact wpGen_threadEntry body Qn Qr Qc Qb Qe preEs es ih
+    exact wpGen_threadEntry body Qn Qr Qc Qb Qe preEs es (ih hem)
   | acquires m =>
     intros; exact wpGen_acquires m _ _ _ _ _ _ _
   | releases m =>
     intros; exact wpGen_releases m _ _ _ _ _ _ _
+  | call _ _ _ => exact absurd hem (by simp [isEmittable])
 
 -- ===== Corollary: wpW (gen s) implies wp s =====
 
 theorem wpW_gen_implies_wp
-    (s : Stmt) (Qn Qr Qc Qb : ExecState → Prop) (Qe : Ident → ExecState → Prop)
+    (s : Stmt) (hem : isEmittable s)
+    (Qn Qr Qc Qb : ExecState → Prop) (Qe : Ident → ExecState → Prop)
     (preEs es : ExecState)
     (h : wpW (gen s) (enc Qn Qr Qc Qb Qe) preEs es) :
     wp s Qn Qr Qc Qb Qe preEs es :=
-  (wpGenCorrect s Qn Qr Qc Qb Qe preEs es).mpr h
+  (wpGenCorrect s hem Qn Qr Qc Qb Qe preEs es).mpr h

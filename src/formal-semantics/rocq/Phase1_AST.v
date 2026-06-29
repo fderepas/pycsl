@@ -262,4 +262,16 @@ Inductive stmt : Type :=
      lock_order) is the deferred ConcurrentMM instance work — see
      Phase7_MemModel.v §"Deferred work". *)
   | SAcquires    (mutex : ident)
-  | SReleases    (mutex : ident).
+  | SReleases    (mutex : ident)
+  (* Phase 8 — Lambda (Category A, optional).
+     `SCall result fn arg` calls `fn` (which must evaluate to a
+     `VClosure param body cstate`) with `arg`; executes the body
+     in `cstate[param -> argval]`; on `OReturned st' v`, binds
+     `result` to `v` in the ORIGINAL state. If the body produces
+     any non-return outcome, SCall is stuck (no SOS rule fires) —
+     a sound, limited model fitting the "rarely used" status.
+     `ELambda` is NOT added to `expr` to avoid making `expr`/`stmt`
+     mutually inductive; closures are constructed only at the value
+     level (`VClosure` in Phase2_State.v). This is the defunctionalized
+     closure model per the Phase 8 task spec. *)
+  | SCall       (result : ident) (fn : expr) (arg : expr).

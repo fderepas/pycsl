@@ -1,4 +1,4 @@
-DIGEST 0faeaf9e94ab419fb526d0fbd5bffdae
+DIGEST c019b62a0c06d0ae93102f4b9ca55717
 FPyCSL.Phase4_WP
 R484:489 Coq.ZArith.ZArith <> <> lib
 R491:496 Coq.Strings.String <> <> lib
@@ -448,9 +448,35 @@ R5589:5590 PyCSL.Phase4_WP <> Qb:12 var
 R5586:5587 PyCSL.Phase4_WP <> Qc:11 var
 R5583:5584 PyCSL.Phase4_WP <> Qr:10 var
 R5580:5581 PyCSL.Phase4_WP <> Qn:9 var
-R5733:5741 PyCSL.Phase1_AST <> SAcquires constr
-R5748:5749 PyCSL.Phase4_WP <> Qn:9 var
-R5751:5752 PyCSL.Phase4_WP <> es:15 var
-R5758:5766 PyCSL.Phase1_AST <> SReleases constr
-R5773:5774 PyCSL.Phase4_WP <> Qn:9 var
-R5776:5777 PyCSL.Phase4_WP <> es:15 var
+R5734:5742 PyCSL.Phase1_AST <> SAcquires constr
+R5749:5750 PyCSL.Phase4_WP <> Qn:9 var
+R5752:5753 PyCSL.Phase4_WP <> es:15 var
+R5759:5767 PyCSL.Phase1_AST <> SReleases constr
+R5774:5775 PyCSL.Phase4_WP <> Qn:9 var
+R5777:5778 PyCSL.Phase4_WP <> es:15 var
+R6822:6826 PyCSL.Phase1_AST <> SCall constr
+R6850:6858 PyCSL.Phase2_State <> eval_expr def
+R6864:6872 PyCSL.Phase2_State <> reg_state proj
+R6860:6861 PyCSL.Phase4_WP <> es:15 var
+R6889:6896 PyCSL.Phase2_State <> VClosure constr
+binder 6932:6934 <> st':41
+binder 6936:6936 <> v:42
+R7095:7106 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R6947:6950 PyCSL.Phase3_SOS <> exec ind
+R6953:6959 PyCSL.Phase2_State <> set_reg def
+R6962:6974 PyCSL.Phase2_State <> mk_exec_state def
+R7007:7012 PyCSL.Phase2_State <> update def
+R7028:7036 PyCSL.Phase2_State <> eval_expr def
+R7042:7050 PyCSL.Phase2_State <> reg_state proj
+R7038:7039 PyCSL.Phase4_WP <> es:15 var
+R7079:7087 PyCSL.Phase3_SOS <> OReturned constr
+R7089:7091 PyCSL.Phase4_WP <> st':41 var
+R7093:7093 PyCSL.Phase4_WP <> v:42 var
+R7107:7108 PyCSL.Phase4_WP <> Qn:9 var
+R7111:7117 PyCSL.Phase2_State <> set_reg def
+R7119:7120 PyCSL.Phase4_WP <> es:15 var
+R7123:7128 PyCSL.Phase2_State <> update def
+R7134:7142 PyCSL.Phase2_State <> reg_state proj
+R7130:7131 PyCSL.Phase4_WP <> es:15 var
+R7147:7147 PyCSL.Phase4_WP <> v:42 var
+R7162:7165 Coq.Init.Logic <> True ind

@@ -49,6 +49,12 @@ theorem wp_mono {s : Stmt}
   | fieldAugAssign _ _ _ _ => exact hn _ h
   | acquires _       => exact hn _ h
   | releases _       => exact hn _ h
+  | call r fn arg =>
+    -- Phase 8: SCall WP is a behavioural formula. Destruct on evalExpr fn.
+    rcases heq : evalExpr es.regState fn with _ | _ | ⟨p, b, c⟩
+    all_goals simp only [wp, heq] at h ⊢
+    all_goals try trivial
+    intro st' v Hexec; apply hn; exact (h st' v Hexec)
   | seq s1 s2 ih1 ih2 =>
     simp only [wp] at h ⊢
     exact ih1 (fun es' h' => ih2 hn hr hc hb he h') hr hc hb he h
@@ -122,6 +128,7 @@ private theorem liftContinue_wp (s : Stmt)
   | fieldAugAssign _ _ _ _ => simp only [liftContinue, wp]
   | acquires _       => simp only [liftContinue, wp]
   | releases _       => simp only [liftContinue, wp]
+  | call _ _ _       => simp only [liftContinue, wp]
   | while_ _ _ _ _ _ => simp only [liftContinue, wp]
   | for_ _ _ _ _ _ _ => simp only [liftContinue, wp]
   | continue_ => simp only [liftContinue, wp, incIdxFn, evalExpr, evalBinopZ]; rfl
@@ -180,6 +187,7 @@ theorem wp_desugar_fwd (s : Stmt)
   | fieldAugAssign _ _ _ _ => exact h
   | acquires _       => exact h
   | releases _       => exact h
+  | call r fn arg    => exact h
   | seq s1 s2 ih1 ih2 =>
     simp only [desugar, wp] at h ⊢
     -- Step 1: desugar s1 using IH for s1
@@ -354,6 +362,12 @@ theorem pycsl_soundness
   -- Acquires/Releases: leaf, Qn es
   | execAcquires _ _ => exact hWp
   | execReleases _ _ => exact hWp
+  | @execCall es r fn arg param body cstate st' v hfn hb =>
+    -- Phase 8: SCall fires when body produced .returned st' v.
+    -- The WP's behavioural formula gives Qn (setReg es (update r v)) directly.
+    simp only [wp] at hWp
+    rw [hfn] at hWp
+    exact hWp _ _ hb
 
 -- ===== Phase 3c: \at label scoping theorems =====
 

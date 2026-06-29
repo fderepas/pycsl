@@ -1,4 +1,4 @@
-DIGEST 4a1625a1f8f58bd44eb3347cebb6e7b5
+DIGEST bd88c20fa2ece18ff03da0aa28f991dd
 FPyCSL.Phase1_AST
 R139:144 Coq.ZArith.ZArith <> <> lib
 R146:151 Coq.Strings.String <> <> lib
@@ -538,6 +538,7 @@ constr 10647:10655 <> SCritical
 constr 10694:10705 <> SThreadEntry
 constr 11097:11105 <> SAcquires
 constr 11130:11138 <> SReleases
+constr 11855:11859 <> SCall
 R9405:9409 PyCSL.Phase1_AST <> ident def
 binder 9401:9401 <> x:188
 R9419:9422 PyCSL.Phase1_AST <> expr ind
@@ -639,6 +640,12 @@ R11119:11123 PyCSL.Phase1_AST <> ident def
 binder 11111:11115 <> mutex:238
 R11152:11156 PyCSL.Phase1_AST <> ident def
 binder 11144:11148 <> mutex:239
+R11877:11881 PyCSL.Phase1_AST <> ident def
+binder 11868:11873 <> result:240
+R11890:11893 PyCSL.Phase1_AST <> expr ind
+binder 11885:11886 <> fn:241
+R11903:11906 PyCSL.Phase1_AST <> expr ind
+binder 11897:11899 <> arg:242
 scheme 9360:9363 <> stmt_rect
 scheme 9360:9363 <> stmt_ind
 scheme 9360:9363 <> stmt_rec

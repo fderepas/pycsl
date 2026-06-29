@@ -70,3 +70,21 @@ def gen : Stmt → WhyMLStmt
   -- Phase 7 acquires/releases: Hoare-model no-op (emit wSkip)
   | .acquires _                => .wSkip
   | .releases _                => .wSkip
+  -- Phase 8 lambda: .call is an opaque statement (closures not in WhyML).
+  -- Emit wSkip — parity with .fieldAssign and .tupleUnpack.
+  | .call _ _ _                => .wSkip
+
+-- Phase 8: isEmittable — True for all Stmt constructors EXCEPT .call.
+-- WhyML has no closure model, so gen (.call ...) = .wSkip does NOT
+-- correspond to wp (.call ...) (which is a behavioural formula).
+-- wpGenCorrect is therefore stated only for emittable stmts.
+def isEmittable : Stmt → Prop
+  | .seq s1 s2        => isEmittable s1 ∧ isEmittable s2
+  | .ite _ s1 s2      => isEmittable s1 ∧ isEmittable s2
+  | .while_ _ _ _ b   => isEmittable b
+  | .for_ _ _ _ _ b _ => isEmittable b
+  | .tryCatch b _ h   => isEmittable b ∧ isEmittable h
+  | .critical _ b     => isEmittable b
+  | .threadEntry b    => isEmittable b
+  | .call _ _ _       => False
+  | _                 => True

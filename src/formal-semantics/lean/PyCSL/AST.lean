@@ -325,4 +325,16 @@ inductive Stmt where
       MemModel.lean §"Deferred work". -/
   | acquires   (mutex : Ident)
   | releases   (mutex : Ident)
+  /-- Phase 8 — Lambda (Category A, optional).
+      `call result fn arg` calls `fn` (which must evaluate to a
+      `.closure param body cstate`) with `arg`; executes the body
+      in `cstate[param -> argval]`; on `.returned st' v`, binds
+      `result` to `v` in the ORIGINAL state. If the body produces
+      any non-return outcome, SCall is stuck (no SOS rule fires) —
+      a sound, limited model fitting the "rarely used" status.
+      `Expr.lambda` is NOT added to avoid making `Expr`/`Stmt`
+      mutually inductive; closures are constructed only at the
+      value level (`.closure` in State.lean). This is the
+      defunctionalized closure model per the Phase 8 task spec. -/
+  | call       (result : Ident) (fn : Expr) (arg : Expr)
   deriving Repr

@@ -133,3 +133,7 @@ theorem wpGen_releases (m : Ident)
     wp (.releases m) Qn Qr Qc Qb Qe preEs es ↔
     wpW (gen (.releases m)) (enc Qn Qr Qc Qb Qe) preEs es := by
   simp [wp, gen, wpW, enc]
+
+-- Phase 8: SCall is NOT emittable (gen → wSkip, but wp is a behavioural
+-- formula). wpGenCorrect excludes .call via isEmittable. No wpGen_call
+-- lemma is needed.

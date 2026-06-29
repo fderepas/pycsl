@@ -59,11 +59,11 @@ theorem why3ImplementsWpW_derived
 
 -- wpW_implies_wp: bridges wpW back to the PyCSL WP using wpGenCorrect.
 theorem wpW_implies_wp
-    (s : Stmt) (Qn Qr Qc Qb : ExecState → Prop) (Qe : Ident → ExecState → Prop)
+    (s : Stmt) (hem : isEmittable s) (Qn Qr Qc Qb : ExecState → Prop) (Qe : Ident → ExecState → Prop)
     (preEs es : ExecState)
     (h : wpW (gen s) (enc Qn Qr Qc Qb Qe) preEs es) :
     wp s Qn Qr Qc Qb Qe preEs es :=
-  (wpGenCorrect s Qn Qr Qc Qb Qe preEs es).mpr h
+  (wpGenCorrect s hem Qn Qr Qc Qb Qe preEs es).mpr h
 
 -- ===== Verified soundness theorem =====
 
@@ -72,10 +72,11 @@ theorem wpW_implies_wp
 -- from a Why3 VCG certificate + vcgBridge), chains through wpGenCorrect and
 -- pycsl_soundness.
 theorem pycslSoundnessVerified
-    (s : Stmt) (Qn Qr Qc Qb : ExecState → Prop) (Qe : Ident → ExecState → Prop)
+    (s : Stmt) (hem : isEmittable s)
+    (Qn Qr Qc Qb : ExecState → Prop) (Qe : Ident → ExecState → Prop)
     (preEs es : ExecState) (out : Outcome)
     (hExec : Exec es s out)
     (hWpW : wpW (gen s) (enc Qn Qr Qc Qb Qe) preEs es) :
     outcomePost Qn Qr Qc Qb Qe out :=
   pycsl_soundness es s out Qn Qr Qc Qb Qe preEs hExec
-    (wpW_implies_wp s Qn Qr Qc Qb Qe preEs es hWpW)
+    (wpW_implies_wp s hem Qn Qr Qc Qb Qe preEs es hWpW)

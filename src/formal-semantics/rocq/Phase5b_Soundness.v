@@ -156,6 +156,14 @@ Proof.
   (* Phase 7: SAcquisitions/SReleases — leaf, Qn es *)
   - exact (hn _ Hwp).
   - exact (hn _ Hwp).
+  (* Phase 8: SCall — WP is a closed formula quantifying over the
+     body's exec outcomes. Destruct on eval_expr fn to split into
+     the VClosure case (behavioural formula) and the non-closure
+     case (True). In the VClosure case, lift Qn→Qn' through the
+     behavioural formula. *)
+  - simpl in Hwp.
+    destruct (eval_expr es.(reg_state) fn) eqn:Heq; simpl in Hwp; try exact Hwp.
+    intros st' v Hexec. apply hn. exact (Hwp _ _ Hexec).
 Qed.
 
 (* wp (lift_continue inc_idx s) Qn Qr Qc Qb Qe <->
@@ -446,6 +454,17 @@ Proof.
   (* ExecAcquisitions / ExecReleases — leaf, Qn es *)
   - exact Hwp.
   - exact Hwp.
+  (* ExecCall: SCall fires when body produced OReturned st' v.
+     The WP's behavioural formula gives `Qn (set_reg es (update r v))`
+     directly — `v` is universally quantified in the WP.
+     `returned_state_has_result` is proved as a standalone invariant
+     of the exec relation (Phase3_SOS.v) and is available for the
+     `match lookup` form of the WP if needed. *)
+  - match goal with
+    | [ Hfn : eval_expr _ _ = VClosure _ _ _ |- _ ] => rewrite Hfn in Hwp
+    end.
+    simpl in Hwp. eapply Hwp.
+    match goal with [ Hb : exec _ _ (OReturned _ _) |- _ ] => exact Hb end.
 Qed.
 
 (* ===== Phase 3c: \at label scoping theorems ===== *)

@@ -148,7 +148,34 @@ Fixpoint wp (s : stmt)
   | SThreadEntry body =>
     wp body Qn Qr Qc Qb Qe pre_es es
   (* Phase 7: acquires/releases — Hoare-instance identity (Qn es).
-     Real lock discipline deferred to ConcurrentMM. *)
+      Real lock discipline deferred to ConcurrentMM. *)
   | SAcquires _ => Qn es
   | SReleases _ => Qn es
+
+  (* Phase 8 — Lambda (Category A, optional).
+     `wp (SCall r fn arg)`: evaluate `fn` to a closure; evaluate
+     `arg`; the body's WP is encoded as a *behavioural* predicate
+     over the closure's exec outcomes — for any `st' v` such that
+     `exec cstate_es body (OReturned st' v)`, `Qn (set_reg es
+     (update es.reg_state r v))` must hold. Exceptions propagate via Qe.
+     When `fn` is not a VClosure, the WP is vacuously `True` (no SOS
+     rule fires, so soundness holds vacuously).
+     Why this shape rather than `wp body ...`: the body is extracted
+     at runtime from the `VClosure` value, so it is NOT a structural
+     sub-term of `SCall`. The standard `wp body` recursion would
+     break `wp_mono` (which inducts on `stmt`) — there is no IH for
+     the dynamic body. Encoding the body's behaviour via `exec`
+     keeps `wp` a closed formula, so `wp_mono`'s `SCall` case
+     reduces to first-order quantifier lifting, no induction on
+     body needed. Soundness discharges via `returned_state_has_result`. *)
+  | SCall r fn arg =>
+    match eval_expr es.(reg_state) fn with
+    | VClosure param body cstate =>
+      forall st' v,
+        exec (set_reg (mk_exec_state cstate)
+                      (update cstate param (eval_expr es.(reg_state) arg)))
+             body (OReturned st' v) ->
+        Qn (set_reg es (update es.(reg_state) r v))
+    | _ => True
+    end
   end.

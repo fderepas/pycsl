@@ -1,4 +1,4 @@
-DIGEST 3c2bff886de2ccb050016ac206e3ac32
+DIGEST f8360ceeb7c18d25bae597846fc8477e
 FPyCSL.Phase6h_CorrMain
 R541:546 Coq.ZArith.ZArith <> <> lib
 R548:553 Coq.Strings.String <> <> lib
@@ -16,395 +16,401 @@ R850:864 PyCSL.Phase6d_StmtGen <> <> lib
 R882:900 PyCSL.Phase6e_Corr_Simple <> <> lib
 R918:935 PyCSL.Phase6f_Corr_Loops <> <> lib
 R953:968 PyCSL.Phase6g_Corr_Exc <> <> lib
-prf 1052:1065 <> wp_gen_correct
-binder 1078:1078 <> s:1
-binder 1080:1081 <> Qn:2
-binder 1083:1084 <> Qr:3
-binder 1086:1087 <> Qc:4
-binder 1089:1090 <> Qb:5
-binder 1092:1093 <> Qe:6
-binder 1095:1100 <> pre_es:7
-binder 1102:1103 <> es:8
-R1137:1143 Coq.Init.Logic <> ::type_scope:x_'<->'_x not
-R1108:1109 PyCSL.Phase4_WP <> wp def
-R1111:1111 PyCSL.Phase6h_CorrMain <> s:1 var
-R1113:1114 PyCSL.Phase6h_CorrMain <> Qn:2 var
-R1116:1117 PyCSL.Phase6h_CorrMain <> Qr:3 var
-R1119:1120 PyCSL.Phase6h_CorrMain <> Qc:4 var
-R1122:1123 PyCSL.Phase6h_CorrMain <> Qb:5 var
-R1125:1126 PyCSL.Phase6h_CorrMain <> Qe:6 var
-R1128:1133 PyCSL.Phase6h_CorrMain <> pre_es:7 var
-R1135:1136 PyCSL.Phase6h_CorrMain <> es:8 var
-R1144:1147 PyCSL.Phase6b_WPW <> wp_w def
-R1150:1152 PyCSL.Phase6d_StmtGen <> gen def
-R1154:1154 PyCSL.Phase6h_CorrMain <> s:1 var
-R1158:1160 PyCSL.Phase6b_WPW <> enc def
-R1162:1163 PyCSL.Phase6h_CorrMain <> Qn:2 var
-R1165:1166 PyCSL.Phase6h_CorrMain <> Qr:3 var
-R1168:1169 PyCSL.Phase6h_CorrMain <> Qc:4 var
-R1171:1172 PyCSL.Phase6h_CorrMain <> Qb:5 var
-R1174:1175 PyCSL.Phase6h_CorrMain <> Qe:6 var
-R1178:1183 PyCSL.Phase6h_CorrMain <> pre_es:7 var
-R1185:1186 PyCSL.Phase6h_CorrMain <> es:8 var
-R1273:1283 PyCSL.Phase6e_Corr_Simple <> wp_gen_skip thm
-R1273:1283 PyCSL.Phase6e_Corr_Simple <> wp_gen_skip thm
-R1341:1353 PyCSL.Phase6e_Corr_Simple <> wp_gen_assign thm
-R1341:1353 PyCSL.Phase6e_Corr_Simple <> wp_gen_assign thm
-R1415:1431 PyCSL.Phase6e_Corr_Simple <> wp_gen_aug_assign thm
-R1415:1431 PyCSL.Phase6e_Corr_Simple <> wp_gen_aug_assign thm
-R1496:1511 PyCSL.Phase6e_Corr_Simple <> wp_gen_array_set thm
-R1496:1511 PyCSL.Phase6e_Corr_Simple <> wp_gen_array_set thm
-R1574:1583 PyCSL.Phase6f_Corr_Loops <> wp_gen_seq thm
-binder 1634:1636 <> Qn':9
-binder 1638:1640 <> Qr':10
-binder 1642:1644 <> Qc':11
-binder 1646:1648 <> Qb':12
-binder 1650:1652 <> Qe':13
-binder 1654:1660 <> pre_es':14
-binder 1662:1664 <> es':15
-R1674:1676 PyCSL.Phase6h_CorrMain <> Qn':9 var
-R1678:1680 PyCSL.Phase6h_CorrMain <> Qr':10 var
-R1682:1684 PyCSL.Phase6h_CorrMain <> Qc':11 var
-R1686:1688 PyCSL.Phase6h_CorrMain <> Qb':12 var
-R1690:1692 PyCSL.Phase6h_CorrMain <> Qe':13 var
-R1694:1700 PyCSL.Phase6h_CorrMain <> pre_es':14 var
-R1702:1704 PyCSL.Phase6h_CorrMain <> es':15 var
-binder 1725:1727 <> Qn':16
-binder 1729:1731 <> Qr':17
-binder 1733:1735 <> Qc':18
-binder 1737:1739 <> Qb':19
-binder 1741:1743 <> Qe':20
-binder 1745:1751 <> pre_es':21
-binder 1753:1755 <> es':22
-R1765:1767 PyCSL.Phase6h_CorrMain <> Qn':16 var
-R1769:1771 PyCSL.Phase6h_CorrMain <> Qr':17 var
-R1773:1775 PyCSL.Phase6h_CorrMain <> Qc':18 var
-R1777:1779 PyCSL.Phase6h_CorrMain <> Qb':19 var
-R1781:1783 PyCSL.Phase6h_CorrMain <> Qe':20 var
-R1785:1791 PyCSL.Phase6h_CorrMain <> pre_es':21 var
-R1793:1795 PyCSL.Phase6h_CorrMain <> es':22 var
-R1574:1583 PyCSL.Phase6f_Corr_Loops <> wp_gen_seq thm
-binder 1634:1636 <> Qn':23
-binder 1638:1640 <> Qr':24
-binder 1642:1644 <> Qc':25
-binder 1646:1648 <> Qb':26
-binder 1650:1652 <> Qe':27
-binder 1654:1660 <> pre_es':28
-binder 1662:1664 <> es':29
-R1674:1676 PyCSL.Phase6h_CorrMain <> Qn':23 var
-R1678:1680 PyCSL.Phase6h_CorrMain <> Qr':24 var
-R1682:1684 PyCSL.Phase6h_CorrMain <> Qc':25 var
-R1686:1688 PyCSL.Phase6h_CorrMain <> Qb':26 var
-R1690:1692 PyCSL.Phase6h_CorrMain <> Qe':27 var
-R1694:1700 PyCSL.Phase6h_CorrMain <> pre_es':28 var
-R1702:1704 PyCSL.Phase6h_CorrMain <> es':29 var
-binder 1725:1727 <> Qn':30
-binder 1729:1731 <> Qr':31
-binder 1733:1735 <> Qc':32
-binder 1737:1739 <> Qb':33
-binder 1741:1743 <> Qe':34
-binder 1745:1751 <> pre_es':35
-binder 1753:1755 <> es':36
-R1765:1767 PyCSL.Phase6h_CorrMain <> Qn':30 var
-R1769:1771 PyCSL.Phase6h_CorrMain <> Qr':31 var
-R1773:1775 PyCSL.Phase6h_CorrMain <> Qc':32 var
-R1777:1779 PyCSL.Phase6h_CorrMain <> Qb':33 var
-R1781:1783 PyCSL.Phase6h_CorrMain <> Qe':34 var
-R1785:1791 PyCSL.Phase6h_CorrMain <> pre_es':35 var
-R1793:1795 PyCSL.Phase6h_CorrMain <> es':36 var
-R1825:1833 PyCSL.Phase6f_Corr_Loops <> wp_gen_if thm
-binder 1889:1891 <> Qn':37
-binder 1893:1895 <> Qr':38
-binder 1897:1899 <> Qc':39
-binder 1901:1903 <> Qb':40
-binder 1905:1907 <> Qe':41
-binder 1909:1915 <> pre_es':42
-binder 1917:1919 <> es':43
-R1929:1931 PyCSL.Phase6h_CorrMain <> Qn':37 var
-R1933:1935 PyCSL.Phase6h_CorrMain <> Qr':38 var
-R1937:1939 PyCSL.Phase6h_CorrMain <> Qc':39 var
-R1941:1943 PyCSL.Phase6h_CorrMain <> Qb':40 var
-R1945:1947 PyCSL.Phase6h_CorrMain <> Qe':41 var
-R1949:1955 PyCSL.Phase6h_CorrMain <> pre_es':42 var
-R1957:1959 PyCSL.Phase6h_CorrMain <> es':43 var
-binder 1980:1982 <> Qn':44
-binder 1984:1986 <> Qr':45
-binder 1988:1990 <> Qc':46
-binder 1992:1994 <> Qb':47
-binder 1996:1998 <> Qe':48
-binder 2000:2006 <> pre_es':49
-binder 2008:2010 <> es':50
-R2020:2022 PyCSL.Phase6h_CorrMain <> Qn':44 var
-R2024:2026 PyCSL.Phase6h_CorrMain <> Qr':45 var
-R2028:2030 PyCSL.Phase6h_CorrMain <> Qc':46 var
-R2032:2034 PyCSL.Phase6h_CorrMain <> Qb':47 var
-R2036:2038 PyCSL.Phase6h_CorrMain <> Qe':48 var
-R2040:2046 PyCSL.Phase6h_CorrMain <> pre_es':49 var
-R2048:2050 PyCSL.Phase6h_CorrMain <> es':50 var
-R1825:1833 PyCSL.Phase6f_Corr_Loops <> wp_gen_if thm
-binder 1889:1891 <> Qn':51
-binder 1893:1895 <> Qr':52
-binder 1897:1899 <> Qc':53
-binder 1901:1903 <> Qb':54
-binder 1905:1907 <> Qe':55
-binder 1909:1915 <> pre_es':56
-binder 1917:1919 <> es':57
-R1929:1931 PyCSL.Phase6h_CorrMain <> Qn':51 var
-R1933:1935 PyCSL.Phase6h_CorrMain <> Qr':52 var
-R1937:1939 PyCSL.Phase6h_CorrMain <> Qc':53 var
-R1941:1943 PyCSL.Phase6h_CorrMain <> Qb':54 var
-R1945:1947 PyCSL.Phase6h_CorrMain <> Qe':55 var
-R1949:1955 PyCSL.Phase6h_CorrMain <> pre_es':56 var
-R1957:1959 PyCSL.Phase6h_CorrMain <> es':57 var
-binder 1980:1982 <> Qn':58
-binder 1984:1986 <> Qr':59
-binder 1988:1990 <> Qc':60
-binder 1992:1994 <> Qb':61
-binder 1996:1998 <> Qe':62
-binder 2000:2006 <> pre_es':63
-binder 2008:2010 <> es':64
-R2020:2022 PyCSL.Phase6h_CorrMain <> Qn':58 var
-R2024:2026 PyCSL.Phase6h_CorrMain <> Qr':59 var
-R2028:2030 PyCSL.Phase6h_CorrMain <> Qc':60 var
-R2032:2034 PyCSL.Phase6h_CorrMain <> Qb':61 var
-R2036:2038 PyCSL.Phase6h_CorrMain <> Qe':62 var
-R2040:2046 PyCSL.Phase6h_CorrMain <> pre_es':63 var
-R2048:2050 PyCSL.Phase6h_CorrMain <> es':64 var
-R2152:2163 PyCSL.Phase6f_Corr_Loops <> wp_gen_while thm
-binder 2223:2225 <> Qn':65
-binder 2227:2229 <> Qr':66
-binder 2231:2233 <> Qc':67
-binder 2235:2237 <> Qb':68
-binder 2239:2241 <> Qe':69
-binder 2243:2249 <> pre_es':70
-binder 2251:2253 <> es':71
-R2262:2264 PyCSL.Phase6h_CorrMain <> Qn':65 var
-R2266:2268 PyCSL.Phase6h_CorrMain <> Qr':66 var
-R2270:2272 PyCSL.Phase6h_CorrMain <> Qc':67 var
-R2274:2276 PyCSL.Phase6h_CorrMain <> Qb':68 var
-R2278:2280 PyCSL.Phase6h_CorrMain <> Qe':69 var
-R2282:2288 PyCSL.Phase6h_CorrMain <> pre_es':70 var
-R2290:2292 PyCSL.Phase6h_CorrMain <> es':71 var
-R2152:2163 PyCSL.Phase6f_Corr_Loops <> wp_gen_while thm
-binder 2223:2225 <> Qn':72
-binder 2227:2229 <> Qr':73
-binder 2231:2233 <> Qc':74
-binder 2235:2237 <> Qb':75
-binder 2239:2241 <> Qe':76
-binder 2243:2249 <> pre_es':77
-binder 2251:2253 <> es':78
-R2262:2264 PyCSL.Phase6h_CorrMain <> Qn':72 var
-R2266:2268 PyCSL.Phase6h_CorrMain <> Qr':73 var
-R2270:2272 PyCSL.Phase6h_CorrMain <> Qc':74 var
-R2274:2276 PyCSL.Phase6h_CorrMain <> Qb':75 var
-R2278:2280 PyCSL.Phase6h_CorrMain <> Qe':76 var
-R2282:2288 PyCSL.Phase6h_CorrMain <> pre_es':77 var
-R2290:2292 PyCSL.Phase6h_CorrMain <> es':78 var
-R2347:2356 PyCSL.Phase6f_Corr_Loops <> wp_gen_for thm
-binder 2432:2434 <> Qn':79
-binder 2436:2438 <> Qr':80
-binder 2440:2442 <> Qc':81
-binder 2444:2446 <> Qb':82
-binder 2448:2450 <> Qe':83
-binder 2452:2458 <> pre_es':84
-binder 2460:2462 <> es':85
-R2471:2473 PyCSL.Phase6h_CorrMain <> Qn':79 var
-R2475:2477 PyCSL.Phase6h_CorrMain <> Qr':80 var
-R2479:2481 PyCSL.Phase6h_CorrMain <> Qc':81 var
-R2483:2485 PyCSL.Phase6h_CorrMain <> Qb':82 var
-R2487:2489 PyCSL.Phase6h_CorrMain <> Qe':83 var
-R2491:2497 PyCSL.Phase6h_CorrMain <> pre_es':84 var
-R2499:2501 PyCSL.Phase6h_CorrMain <> es':85 var
-R2347:2356 PyCSL.Phase6f_Corr_Loops <> wp_gen_for thm
-binder 2432:2434 <> Qn':86
-binder 2436:2438 <> Qr':87
-binder 2440:2442 <> Qc':88
-binder 2444:2446 <> Qb':89
-binder 2448:2450 <> Qe':90
-binder 2452:2458 <> pre_es':91
-binder 2460:2462 <> es':92
-R2471:2473 PyCSL.Phase6h_CorrMain <> Qn':86 var
-R2475:2477 PyCSL.Phase6h_CorrMain <> Qr':87 var
-R2479:2481 PyCSL.Phase6h_CorrMain <> Qc':88 var
-R2483:2485 PyCSL.Phase6h_CorrMain <> Qb':89 var
-R2487:2489 PyCSL.Phase6h_CorrMain <> Qe':90 var
-R2491:2497 PyCSL.Phase6h_CorrMain <> pre_es':91 var
-R2499:2501 PyCSL.Phase6h_CorrMain <> es':92 var
-R2535:2547 PyCSL.Phase6e_Corr_Simple <> wp_gen_return thm
-R2535:2547 PyCSL.Phase6e_Corr_Simple <> wp_gen_return thm
-R2607:2621 PyCSL.Phase6e_Corr_Simple <> wp_gen_continue thm
-R2607:2621 PyCSL.Phase6e_Corr_Simple <> wp_gen_continue thm
-R2679:2690 PyCSL.Phase6e_Corr_Simple <> wp_gen_break thm
-R2679:2690 PyCSL.Phase6e_Corr_Simple <> wp_gen_break thm
-R2748:2760 PyCSL.Phase6e_Corr_Simple <> wp_gen_assert thm
-R2748:2760 PyCSL.Phase6e_Corr_Simple <> wp_gen_assert thm
-R2828:2846 PyCSL.Phase6e_Corr_Simple <> wp_gen_tuple_unpack thm
-R2828:2846 PyCSL.Phase6e_Corr_Simple <> wp_gen_tuple_unpack thm
-R2909:2925 PyCSL.Phase6e_Corr_Simple <> wp_gen_ghost_decl thm
-R2909:2925 PyCSL.Phase6e_Corr_Simple <> wp_gen_ghost_decl thm
-R2993:3011 PyCSL.Phase6e_Corr_Simple <> wp_gen_ghost_assign thm
-R2993:3011 PyCSL.Phase6e_Corr_Simple <> wp_gen_ghost_assign thm
-R3080:3091 PyCSL.Phase6e_Corr_Simple <> wp_gen_label thm
-R3080:3091 PyCSL.Phase6e_Corr_Simple <> wp_gen_label thm
-R3154:3165 PyCSL.Phase6e_Corr_Simple <> wp_gen_raise thm
-R3154:3165 PyCSL.Phase6e_Corr_Simple <> wp_gen_raise thm
-R3229:3243 PyCSL.Phase6g_Corr_Exc <> wp_gen_trycatch thm
-binder 3298:3300 <> Qn':93
-binder 3302:3304 <> Qr':94
-binder 3306:3308 <> Qc':95
-binder 3310:3312 <> Qb':96
-binder 3314:3316 <> Qe':97
-binder 3318:3324 <> pre_es':98
-binder 3326:3328 <> es':99
-R3338:3340 PyCSL.Phase6h_CorrMain <> Qn':93 var
-R3342:3344 PyCSL.Phase6h_CorrMain <> Qr':94 var
-R3346:3348 PyCSL.Phase6h_CorrMain <> Qc':95 var
-R3350:3352 PyCSL.Phase6h_CorrMain <> Qb':96 var
-R3354:3356 PyCSL.Phase6h_CorrMain <> Qe':97 var
-R3358:3364 PyCSL.Phase6h_CorrMain <> pre_es':98 var
-R3366:3368 PyCSL.Phase6h_CorrMain <> es':99 var
-binder 3389:3391 <> Qn':100
-binder 3393:3395 <> Qr':101
-binder 3397:3399 <> Qc':102
-binder 3401:3403 <> Qb':103
-binder 3405:3407 <> Qe':104
-binder 3409:3415 <> pre_es':105
-binder 3417:3419 <> es':106
-R3429:3431 PyCSL.Phase6h_CorrMain <> Qn':100 var
-R3433:3435 PyCSL.Phase6h_CorrMain <> Qr':101 var
-R3437:3439 PyCSL.Phase6h_CorrMain <> Qc':102 var
-R3441:3443 PyCSL.Phase6h_CorrMain <> Qb':103 var
-R3445:3447 PyCSL.Phase6h_CorrMain <> Qe':104 var
-R3449:3455 PyCSL.Phase6h_CorrMain <> pre_es':105 var
-R3457:3459 PyCSL.Phase6h_CorrMain <> es':106 var
-R3229:3243 PyCSL.Phase6g_Corr_Exc <> wp_gen_trycatch thm
-binder 3298:3300 <> Qn':107
-binder 3302:3304 <> Qr':108
-binder 3306:3308 <> Qc':109
-binder 3310:3312 <> Qb':110
-binder 3314:3316 <> Qe':111
-binder 3318:3324 <> pre_es':112
-binder 3326:3328 <> es':113
-R3338:3340 PyCSL.Phase6h_CorrMain <> Qn':107 var
-R3342:3344 PyCSL.Phase6h_CorrMain <> Qr':108 var
-R3346:3348 PyCSL.Phase6h_CorrMain <> Qc':109 var
-R3350:3352 PyCSL.Phase6h_CorrMain <> Qb':110 var
-R3354:3356 PyCSL.Phase6h_CorrMain <> Qe':111 var
-R3358:3364 PyCSL.Phase6h_CorrMain <> pre_es':112 var
-R3366:3368 PyCSL.Phase6h_CorrMain <> es':113 var
-binder 3389:3391 <> Qn':114
-binder 3393:3395 <> Qr':115
-binder 3397:3399 <> Qc':116
-binder 3401:3403 <> Qb':117
-binder 3405:3407 <> Qe':118
-binder 3409:3415 <> pre_es':119
-binder 3417:3419 <> es':120
-R3429:3431 PyCSL.Phase6h_CorrMain <> Qn':114 var
-R3433:3435 PyCSL.Phase6h_CorrMain <> Qr':115 var
-R3437:3439 PyCSL.Phase6h_CorrMain <> Qc':116 var
-R3441:3443 PyCSL.Phase6h_CorrMain <> Qb':117 var
-R3445:3447 PyCSL.Phase6h_CorrMain <> Qe':118 var
-R3449:3455 PyCSL.Phase6h_CorrMain <> pre_es':119 var
-R3457:3459 PyCSL.Phase6h_CorrMain <> es':120 var
-R3497:3515 PyCSL.Phase6e_Corr_Simple <> wp_gen_field_assign thm
-R3497:3515 PyCSL.Phase6e_Corr_Simple <> wp_gen_field_assign thm
-R3589:3611 PyCSL.Phase6e_Corr_Simple <> wp_gen_field_aug_assign thm
-R3589:3611 PyCSL.Phase6e_Corr_Simple <> wp_gen_field_aug_assign thm
-R3728:3742 PyCSL.Phase6f_Corr_Loops <> wp_gen_critical thm
-binder 3795:3797 <> Qn':121
-binder 3799:3801 <> Qr':122
-binder 3803:3805 <> Qc':123
-binder 3807:3809 <> Qb':124
-binder 3811:3813 <> Qe':125
-binder 3815:3821 <> pre_es':126
-binder 3823:3825 <> es':127
-R3834:3836 PyCSL.Phase6h_CorrMain <> Qn':121 var
-R3838:3840 PyCSL.Phase6h_CorrMain <> Qr':122 var
-R3842:3844 PyCSL.Phase6h_CorrMain <> Qc':123 var
-R3846:3848 PyCSL.Phase6h_CorrMain <> Qb':124 var
-R3850:3852 PyCSL.Phase6h_CorrMain <> Qe':125 var
-R3854:3860 PyCSL.Phase6h_CorrMain <> pre_es':126 var
-R3862:3864 PyCSL.Phase6h_CorrMain <> es':127 var
-R3728:3742 PyCSL.Phase6f_Corr_Loops <> wp_gen_critical thm
-binder 3795:3797 <> Qn':128
-binder 3799:3801 <> Qr':129
-binder 3803:3805 <> Qc':130
-binder 3807:3809 <> Qb':131
-binder 3811:3813 <> Qe':132
-binder 3815:3821 <> pre_es':133
-binder 3823:3825 <> es':134
-R3834:3836 PyCSL.Phase6h_CorrMain <> Qn':128 var
-R3838:3840 PyCSL.Phase6h_CorrMain <> Qr':129 var
-R3842:3844 PyCSL.Phase6h_CorrMain <> Qc':130 var
-R3846:3848 PyCSL.Phase6h_CorrMain <> Qb':131 var
-R3850:3852 PyCSL.Phase6h_CorrMain <> Qe':132 var
-R3854:3860 PyCSL.Phase6h_CorrMain <> pre_es':133 var
-R3862:3864 PyCSL.Phase6h_CorrMain <> es':134 var
-R3945:3963 PyCSL.Phase6f_Corr_Loops <> wp_gen_thread_entry thm
-binder 4010:4012 <> Qn':135
-binder 4014:4016 <> Qr':136
-binder 4018:4020 <> Qc':137
-binder 4022:4024 <> Qb':138
-binder 4026:4028 <> Qe':139
-binder 4030:4036 <> pre_es':140
-binder 4038:4040 <> es':141
-R4049:4051 PyCSL.Phase6h_CorrMain <> Qn':135 var
-R4053:4055 PyCSL.Phase6h_CorrMain <> Qr':136 var
-R4057:4059 PyCSL.Phase6h_CorrMain <> Qc':137 var
-R4061:4063 PyCSL.Phase6h_CorrMain <> Qb':138 var
-R4065:4067 PyCSL.Phase6h_CorrMain <> Qe':139 var
-R4069:4075 PyCSL.Phase6h_CorrMain <> pre_es':140 var
-R4077:4079 PyCSL.Phase6h_CorrMain <> es':141 var
-R3945:3963 PyCSL.Phase6f_Corr_Loops <> wp_gen_thread_entry thm
-binder 4010:4012 <> Qn':142
-binder 4014:4016 <> Qr':143
-binder 4018:4020 <> Qc':144
-binder 4022:4024 <> Qb':145
-binder 4026:4028 <> Qe':146
-binder 4030:4036 <> pre_es':147
-binder 4038:4040 <> es':148
-R4049:4051 PyCSL.Phase6h_CorrMain <> Qn':142 var
-R4053:4055 PyCSL.Phase6h_CorrMain <> Qr':143 var
-R4057:4059 PyCSL.Phase6h_CorrMain <> Qc':144 var
-R4061:4063 PyCSL.Phase6h_CorrMain <> Qb':145 var
-R4065:4067 PyCSL.Phase6h_CorrMain <> Qe':146 var
-R4069:4075 PyCSL.Phase6h_CorrMain <> pre_es':147 var
-R4077:4079 PyCSL.Phase6h_CorrMain <> es':148 var
-R4119:4133 PyCSL.Phase6e_Corr_Simple <> wp_gen_acquires thm
-R4119:4133 PyCSL.Phase6e_Corr_Simple <> wp_gen_acquires thm
-R4199:4213 PyCSL.Phase6e_Corr_Simple <> wp_gen_releases thm
-R4199:4213 PyCSL.Phase6e_Corr_Simple <> wp_gen_releases thm
-prf 4326:4344 <> wp_w_gen_implies_wp
-binder 4357:4357 <> s:149
-binder 4359:4360 <> Qn:150
-binder 4362:4363 <> Qr:151
-binder 4365:4366 <> Qc:152
-binder 4368:4369 <> Qb:153
-binder 4371:4372 <> Qe:154
-binder 4374:4379 <> pre_es:155
-binder 4381:4382 <> es:156
-R4430:4435 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R4387:4390 PyCSL.Phase6b_WPW <> wp_w def
-R4393:4395 PyCSL.Phase6d_StmtGen <> gen def
-R4397:4397 PyCSL.Phase6h_CorrMain <> s:149 var
-R4401:4403 PyCSL.Phase6b_WPW <> enc def
-R4405:4406 PyCSL.Phase6h_CorrMain <> Qn:150 var
-R4408:4409 PyCSL.Phase6h_CorrMain <> Qr:151 var
-R4411:4412 PyCSL.Phase6h_CorrMain <> Qc:152 var
-R4414:4415 PyCSL.Phase6h_CorrMain <> Qb:153 var
-R4417:4418 PyCSL.Phase6h_CorrMain <> Qe:154 var
-R4421:4426 PyCSL.Phase6h_CorrMain <> pre_es:155 var
-R4428:4429 PyCSL.Phase6h_CorrMain <> es:156 var
-R4436:4437 PyCSL.Phase4_WP <> wp def
-R4439:4439 PyCSL.Phase6h_CorrMain <> s:149 var
-R4441:4442 PyCSL.Phase6h_CorrMain <> Qn:150 var
-R4444:4445 PyCSL.Phase6h_CorrMain <> Qr:151 var
-R4447:4448 PyCSL.Phase6h_CorrMain <> Qc:152 var
-R4450:4451 PyCSL.Phase6h_CorrMain <> Qb:153 var
-R4453:4454 PyCSL.Phase6h_CorrMain <> Qe:154 var
-R4456:4461 PyCSL.Phase6h_CorrMain <> pre_es:155 var
-R4463:4464 PyCSL.Phase6h_CorrMain <> es:156 var
-R4491:4495 Coq.Init.Logic <> proj2 thm
-R4498:4511 PyCSL.Phase6h_CorrMain <> wp_gen_correct thm
-R4491:4495 Coq.Init.Logic <> proj2 thm
-R4498:4511 PyCSL.Phase6h_CorrMain <> wp_gen_correct thm
+prf 1556:1569 <> wp_gen_correct
+binder 1582:1582 <> s:1
+R1599:1604 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1585:1596 PyCSL.Phase6d_StmtGen <> is_emittable def
+R1598:1598 PyCSL.Phase6h_CorrMain <> s:1 var
+binder 1612:1613 <> Qn:2
+binder 1615:1616 <> Qr:3
+binder 1618:1619 <> Qc:4
+binder 1621:1622 <> Qb:5
+binder 1624:1625 <> Qe:6
+binder 1627:1632 <> pre_es:7
+binder 1634:1635 <> es:8
+R1669:1675 Coq.Init.Logic <> ::type_scope:x_'<->'_x not
+R1640:1641 PyCSL.Phase4_WP <> wp def
+R1643:1643 PyCSL.Phase6h_CorrMain <> s:1 var
+R1645:1646 PyCSL.Phase6h_CorrMain <> Qn:2 var
+R1648:1649 PyCSL.Phase6h_CorrMain <> Qr:3 var
+R1651:1652 PyCSL.Phase6h_CorrMain <> Qc:4 var
+R1654:1655 PyCSL.Phase6h_CorrMain <> Qb:5 var
+R1657:1658 PyCSL.Phase6h_CorrMain <> Qe:6 var
+R1660:1665 PyCSL.Phase6h_CorrMain <> pre_es:7 var
+R1667:1668 PyCSL.Phase6h_CorrMain <> es:8 var
+R1676:1679 PyCSL.Phase6b_WPW <> wp_w def
+R1682:1684 PyCSL.Phase6d_StmtGen <> gen def
+R1686:1686 PyCSL.Phase6h_CorrMain <> s:1 var
+R1690:1692 PyCSL.Phase6b_WPW <> enc def
+R1694:1695 PyCSL.Phase6h_CorrMain <> Qn:2 var
+R1697:1698 PyCSL.Phase6h_CorrMain <> Qr:3 var
+R1700:1701 PyCSL.Phase6h_CorrMain <> Qc:4 var
+R1703:1704 PyCSL.Phase6h_CorrMain <> Qb:5 var
+R1706:1707 PyCSL.Phase6h_CorrMain <> Qe:6 var
+R1710:1715 PyCSL.Phase6h_CorrMain <> pre_es:7 var
+R1717:1718 PyCSL.Phase6h_CorrMain <> es:8 var
+R1809:1819 PyCSL.Phase6e_Corr_Simple <> wp_gen_skip thm
+R1809:1819 PyCSL.Phase6e_Corr_Simple <> wp_gen_skip thm
+R1877:1889 PyCSL.Phase6e_Corr_Simple <> wp_gen_assign thm
+R1877:1889 PyCSL.Phase6e_Corr_Simple <> wp_gen_assign thm
+R1951:1967 PyCSL.Phase6e_Corr_Simple <> wp_gen_aug_assign thm
+R1951:1967 PyCSL.Phase6e_Corr_Simple <> wp_gen_aug_assign thm
+R2032:2047 PyCSL.Phase6e_Corr_Simple <> wp_gen_array_set thm
+R2032:2047 PyCSL.Phase6e_Corr_Simple <> wp_gen_array_set thm
+R2143:2152 PyCSL.Phase6f_Corr_Loops <> wp_gen_seq thm
+binder 2203:2205 <> Qn':9
+binder 2207:2209 <> Qr':10
+binder 2211:2213 <> Qc':11
+binder 2215:2217 <> Qb':12
+binder 2219:2221 <> Qe':13
+binder 2223:2229 <> pre_es':14
+binder 2231:2233 <> es':15
+R2248:2250 PyCSL.Phase6h_CorrMain <> Qn':9 var
+R2252:2254 PyCSL.Phase6h_CorrMain <> Qr':10 var
+R2256:2258 PyCSL.Phase6h_CorrMain <> Qc':11 var
+R2260:2262 PyCSL.Phase6h_CorrMain <> Qb':12 var
+R2264:2266 PyCSL.Phase6h_CorrMain <> Qe':13 var
+R2268:2274 PyCSL.Phase6h_CorrMain <> pre_es':14 var
+R2276:2278 PyCSL.Phase6h_CorrMain <> es':15 var
+binder 2299:2301 <> Qn':16
+binder 2303:2305 <> Qr':17
+binder 2307:2309 <> Qc':18
+binder 2311:2313 <> Qb':19
+binder 2315:2317 <> Qe':20
+binder 2319:2325 <> pre_es':21
+binder 2327:2329 <> es':22
+R2344:2346 PyCSL.Phase6h_CorrMain <> Qn':16 var
+R2348:2350 PyCSL.Phase6h_CorrMain <> Qr':17 var
+R2352:2354 PyCSL.Phase6h_CorrMain <> Qc':18 var
+R2356:2358 PyCSL.Phase6h_CorrMain <> Qb':19 var
+R2360:2362 PyCSL.Phase6h_CorrMain <> Qe':20 var
+R2364:2370 PyCSL.Phase6h_CorrMain <> pre_es':21 var
+R2372:2374 PyCSL.Phase6h_CorrMain <> es':22 var
+R2143:2152 PyCSL.Phase6f_Corr_Loops <> wp_gen_seq thm
+binder 2203:2205 <> Qn':23
+binder 2207:2209 <> Qr':24
+binder 2211:2213 <> Qc':25
+binder 2215:2217 <> Qb':26
+binder 2219:2221 <> Qe':27
+binder 2223:2229 <> pre_es':28
+binder 2231:2233 <> es':29
+R2248:2250 PyCSL.Phase6h_CorrMain <> Qn':23 var
+R2252:2254 PyCSL.Phase6h_CorrMain <> Qr':24 var
+R2256:2258 PyCSL.Phase6h_CorrMain <> Qc':25 var
+R2260:2262 PyCSL.Phase6h_CorrMain <> Qb':26 var
+R2264:2266 PyCSL.Phase6h_CorrMain <> Qe':27 var
+R2268:2274 PyCSL.Phase6h_CorrMain <> pre_es':28 var
+R2276:2278 PyCSL.Phase6h_CorrMain <> es':29 var
+binder 2299:2301 <> Qn':30
+binder 2303:2305 <> Qr':31
+binder 2307:2309 <> Qc':32
+binder 2311:2313 <> Qb':33
+binder 2315:2317 <> Qe':34
+binder 2319:2325 <> pre_es':35
+binder 2327:2329 <> es':36
+R2344:2346 PyCSL.Phase6h_CorrMain <> Qn':30 var
+R2348:2350 PyCSL.Phase6h_CorrMain <> Qr':31 var
+R2352:2354 PyCSL.Phase6h_CorrMain <> Qc':32 var
+R2356:2358 PyCSL.Phase6h_CorrMain <> Qb':33 var
+R2360:2362 PyCSL.Phase6h_CorrMain <> Qe':34 var
+R2364:2370 PyCSL.Phase6h_CorrMain <> pre_es':35 var
+R2372:2374 PyCSL.Phase6h_CorrMain <> es':36 var
+R2437:2445 PyCSL.Phase6f_Corr_Loops <> wp_gen_if thm
+binder 2501:2503 <> Qn':37
+binder 2505:2507 <> Qr':38
+binder 2509:2511 <> Qc':39
+binder 2513:2515 <> Qb':40
+binder 2517:2519 <> Qe':41
+binder 2521:2527 <> pre_es':42
+binder 2529:2531 <> es':43
+R2546:2548 PyCSL.Phase6h_CorrMain <> Qn':37 var
+R2550:2552 PyCSL.Phase6h_CorrMain <> Qr':38 var
+R2554:2556 PyCSL.Phase6h_CorrMain <> Qc':39 var
+R2558:2560 PyCSL.Phase6h_CorrMain <> Qb':40 var
+R2562:2564 PyCSL.Phase6h_CorrMain <> Qe':41 var
+R2566:2572 PyCSL.Phase6h_CorrMain <> pre_es':42 var
+R2574:2576 PyCSL.Phase6h_CorrMain <> es':43 var
+binder 2597:2599 <> Qn':44
+binder 2601:2603 <> Qr':45
+binder 2605:2607 <> Qc':46
+binder 2609:2611 <> Qb':47
+binder 2613:2615 <> Qe':48
+binder 2617:2623 <> pre_es':49
+binder 2625:2627 <> es':50
+R2642:2644 PyCSL.Phase6h_CorrMain <> Qn':44 var
+R2646:2648 PyCSL.Phase6h_CorrMain <> Qr':45 var
+R2650:2652 PyCSL.Phase6h_CorrMain <> Qc':46 var
+R2654:2656 PyCSL.Phase6h_CorrMain <> Qb':47 var
+R2658:2660 PyCSL.Phase6h_CorrMain <> Qe':48 var
+R2662:2668 PyCSL.Phase6h_CorrMain <> pre_es':49 var
+R2670:2672 PyCSL.Phase6h_CorrMain <> es':50 var
+R2437:2445 PyCSL.Phase6f_Corr_Loops <> wp_gen_if thm
+binder 2501:2503 <> Qn':51
+binder 2505:2507 <> Qr':52
+binder 2509:2511 <> Qc':53
+binder 2513:2515 <> Qb':54
+binder 2517:2519 <> Qe':55
+binder 2521:2527 <> pre_es':56
+binder 2529:2531 <> es':57
+R2546:2548 PyCSL.Phase6h_CorrMain <> Qn':51 var
+R2550:2552 PyCSL.Phase6h_CorrMain <> Qr':52 var
+R2554:2556 PyCSL.Phase6h_CorrMain <> Qc':53 var
+R2558:2560 PyCSL.Phase6h_CorrMain <> Qb':54 var
+R2562:2564 PyCSL.Phase6h_CorrMain <> Qe':55 var
+R2566:2572 PyCSL.Phase6h_CorrMain <> pre_es':56 var
+R2574:2576 PyCSL.Phase6h_CorrMain <> es':57 var
+binder 2597:2599 <> Qn':58
+binder 2601:2603 <> Qr':59
+binder 2605:2607 <> Qc':60
+binder 2609:2611 <> Qb':61
+binder 2613:2615 <> Qe':62
+binder 2617:2623 <> pre_es':63
+binder 2625:2627 <> es':64
+R2642:2644 PyCSL.Phase6h_CorrMain <> Qn':58 var
+R2646:2648 PyCSL.Phase6h_CorrMain <> Qr':59 var
+R2650:2652 PyCSL.Phase6h_CorrMain <> Qc':60 var
+R2654:2656 PyCSL.Phase6h_CorrMain <> Qb':61 var
+R2658:2660 PyCSL.Phase6h_CorrMain <> Qe':62 var
+R2662:2668 PyCSL.Phase6h_CorrMain <> pre_es':63 var
+R2670:2672 PyCSL.Phase6h_CorrMain <> es':64 var
+R2774:2785 PyCSL.Phase6f_Corr_Loops <> wp_gen_while thm
+binder 2845:2847 <> Qn':65
+binder 2849:2851 <> Qr':66
+binder 2853:2855 <> Qc':67
+binder 2857:2859 <> Qb':68
+binder 2861:2863 <> Qe':69
+binder 2865:2871 <> pre_es':70
+binder 2873:2875 <> es':71
+R2888:2890 PyCSL.Phase6h_CorrMain <> Qn':65 var
+R2892:2894 PyCSL.Phase6h_CorrMain <> Qr':66 var
+R2896:2898 PyCSL.Phase6h_CorrMain <> Qc':67 var
+R2900:2902 PyCSL.Phase6h_CorrMain <> Qb':68 var
+R2904:2906 PyCSL.Phase6h_CorrMain <> Qe':69 var
+R2908:2914 PyCSL.Phase6h_CorrMain <> pre_es':70 var
+R2916:2918 PyCSL.Phase6h_CorrMain <> es':71 var
+R2774:2785 PyCSL.Phase6f_Corr_Loops <> wp_gen_while thm
+binder 2845:2847 <> Qn':72
+binder 2849:2851 <> Qr':73
+binder 2853:2855 <> Qc':74
+binder 2857:2859 <> Qb':75
+binder 2861:2863 <> Qe':76
+binder 2865:2871 <> pre_es':77
+binder 2873:2875 <> es':78
+R2888:2890 PyCSL.Phase6h_CorrMain <> Qn':72 var
+R2892:2894 PyCSL.Phase6h_CorrMain <> Qr':73 var
+R2896:2898 PyCSL.Phase6h_CorrMain <> Qc':74 var
+R2900:2902 PyCSL.Phase6h_CorrMain <> Qb':75 var
+R2904:2906 PyCSL.Phase6h_CorrMain <> Qe':76 var
+R2908:2914 PyCSL.Phase6h_CorrMain <> pre_es':77 var
+R2916:2918 PyCSL.Phase6h_CorrMain <> es':78 var
+R2973:2982 PyCSL.Phase6f_Corr_Loops <> wp_gen_for thm
+binder 3058:3060 <> Qn':79
+binder 3062:3064 <> Qr':80
+binder 3066:3068 <> Qc':81
+binder 3070:3072 <> Qb':82
+binder 3074:3076 <> Qe':83
+binder 3078:3084 <> pre_es':84
+binder 3086:3088 <> es':85
+R3101:3103 PyCSL.Phase6h_CorrMain <> Qn':79 var
+R3105:3107 PyCSL.Phase6h_CorrMain <> Qr':80 var
+R3109:3111 PyCSL.Phase6h_CorrMain <> Qc':81 var
+R3113:3115 PyCSL.Phase6h_CorrMain <> Qb':82 var
+R3117:3119 PyCSL.Phase6h_CorrMain <> Qe':83 var
+R3121:3127 PyCSL.Phase6h_CorrMain <> pre_es':84 var
+R3129:3131 PyCSL.Phase6h_CorrMain <> es':85 var
+R2973:2982 PyCSL.Phase6f_Corr_Loops <> wp_gen_for thm
+binder 3058:3060 <> Qn':86
+binder 3062:3064 <> Qr':87
+binder 3066:3068 <> Qc':88
+binder 3070:3072 <> Qb':89
+binder 3074:3076 <> Qe':90
+binder 3078:3084 <> pre_es':91
+binder 3086:3088 <> es':92
+R3101:3103 PyCSL.Phase6h_CorrMain <> Qn':86 var
+R3105:3107 PyCSL.Phase6h_CorrMain <> Qr':87 var
+R3109:3111 PyCSL.Phase6h_CorrMain <> Qc':88 var
+R3113:3115 PyCSL.Phase6h_CorrMain <> Qb':89 var
+R3117:3119 PyCSL.Phase6h_CorrMain <> Qe':90 var
+R3121:3127 PyCSL.Phase6h_CorrMain <> pre_es':91 var
+R3129:3131 PyCSL.Phase6h_CorrMain <> es':92 var
+R3165:3177 PyCSL.Phase6e_Corr_Simple <> wp_gen_return thm
+R3165:3177 PyCSL.Phase6e_Corr_Simple <> wp_gen_return thm
+R3237:3251 PyCSL.Phase6e_Corr_Simple <> wp_gen_continue thm
+R3237:3251 PyCSL.Phase6e_Corr_Simple <> wp_gen_continue thm
+R3309:3320 PyCSL.Phase6e_Corr_Simple <> wp_gen_break thm
+R3309:3320 PyCSL.Phase6e_Corr_Simple <> wp_gen_break thm
+R3378:3390 PyCSL.Phase6e_Corr_Simple <> wp_gen_assert thm
+R3378:3390 PyCSL.Phase6e_Corr_Simple <> wp_gen_assert thm
+R3458:3476 PyCSL.Phase6e_Corr_Simple <> wp_gen_tuple_unpack thm
+R3458:3476 PyCSL.Phase6e_Corr_Simple <> wp_gen_tuple_unpack thm
+R3539:3555 PyCSL.Phase6e_Corr_Simple <> wp_gen_ghost_decl thm
+R3539:3555 PyCSL.Phase6e_Corr_Simple <> wp_gen_ghost_decl thm
+R3623:3641 PyCSL.Phase6e_Corr_Simple <> wp_gen_ghost_assign thm
+R3623:3641 PyCSL.Phase6e_Corr_Simple <> wp_gen_ghost_assign thm
+R3710:3721 PyCSL.Phase6e_Corr_Simple <> wp_gen_label thm
+R3710:3721 PyCSL.Phase6e_Corr_Simple <> wp_gen_label thm
+R3784:3795 PyCSL.Phase6e_Corr_Simple <> wp_gen_raise thm
+R3784:3795 PyCSL.Phase6e_Corr_Simple <> wp_gen_raise thm
+R3892:3906 PyCSL.Phase6g_Corr_Exc <> wp_gen_trycatch thm
+binder 3961:3963 <> Qn':93
+binder 3965:3967 <> Qr':94
+binder 3969:3971 <> Qc':95
+binder 3973:3975 <> Qb':96
+binder 3977:3979 <> Qe':97
+binder 3981:3987 <> pre_es':98
+binder 3989:3991 <> es':99
+R4006:4008 PyCSL.Phase6h_CorrMain <> Qn':93 var
+R4010:4012 PyCSL.Phase6h_CorrMain <> Qr':94 var
+R4014:4016 PyCSL.Phase6h_CorrMain <> Qc':95 var
+R4018:4020 PyCSL.Phase6h_CorrMain <> Qb':96 var
+R4022:4024 PyCSL.Phase6h_CorrMain <> Qe':97 var
+R4026:4032 PyCSL.Phase6h_CorrMain <> pre_es':98 var
+R4034:4036 PyCSL.Phase6h_CorrMain <> es':99 var
+binder 4057:4059 <> Qn':100
+binder 4061:4063 <> Qr':101
+binder 4065:4067 <> Qc':102
+binder 4069:4071 <> Qb':103
+binder 4073:4075 <> Qe':104
+binder 4077:4083 <> pre_es':105
+binder 4085:4087 <> es':106
+R4102:4104 PyCSL.Phase6h_CorrMain <> Qn':100 var
+R4106:4108 PyCSL.Phase6h_CorrMain <> Qr':101 var
+R4110:4112 PyCSL.Phase6h_CorrMain <> Qc':102 var
+R4114:4116 PyCSL.Phase6h_CorrMain <> Qb':103 var
+R4118:4120 PyCSL.Phase6h_CorrMain <> Qe':104 var
+R4122:4128 PyCSL.Phase6h_CorrMain <> pre_es':105 var
+R4130:4132 PyCSL.Phase6h_CorrMain <> es':106 var
+R3892:3906 PyCSL.Phase6g_Corr_Exc <> wp_gen_trycatch thm
+binder 3961:3963 <> Qn':107
+binder 3965:3967 <> Qr':108
+binder 3969:3971 <> Qc':109
+binder 3973:3975 <> Qb':110
+binder 3977:3979 <> Qe':111
+binder 3981:3987 <> pre_es':112
+binder 3989:3991 <> es':113
+R4006:4008 PyCSL.Phase6h_CorrMain <> Qn':107 var
+R4010:4012 PyCSL.Phase6h_CorrMain <> Qr':108 var
+R4014:4016 PyCSL.Phase6h_CorrMain <> Qc':109 var
+R4018:4020 PyCSL.Phase6h_CorrMain <> Qb':110 var
+R4022:4024 PyCSL.Phase6h_CorrMain <> Qe':111 var
+R4026:4032 PyCSL.Phase6h_CorrMain <> pre_es':112 var
+R4034:4036 PyCSL.Phase6h_CorrMain <> es':113 var
+binder 4057:4059 <> Qn':114
+binder 4061:4063 <> Qr':115
+binder 4065:4067 <> Qc':116
+binder 4069:4071 <> Qb':117
+binder 4073:4075 <> Qe':118
+binder 4077:4083 <> pre_es':119
+binder 4085:4087 <> es':120
+R4102:4104 PyCSL.Phase6h_CorrMain <> Qn':114 var
+R4106:4108 PyCSL.Phase6h_CorrMain <> Qr':115 var
+R4110:4112 PyCSL.Phase6h_CorrMain <> Qc':116 var
+R4114:4116 PyCSL.Phase6h_CorrMain <> Qb':117 var
+R4118:4120 PyCSL.Phase6h_CorrMain <> Qe':118 var
+R4122:4128 PyCSL.Phase6h_CorrMain <> pre_es':119 var
+R4130:4132 PyCSL.Phase6h_CorrMain <> es':120 var
+R4170:4188 PyCSL.Phase6e_Corr_Simple <> wp_gen_field_assign thm
+R4170:4188 PyCSL.Phase6e_Corr_Simple <> wp_gen_field_assign thm
+R4262:4284 PyCSL.Phase6e_Corr_Simple <> wp_gen_field_aug_assign thm
+R4262:4284 PyCSL.Phase6e_Corr_Simple <> wp_gen_field_aug_assign thm
+R4401:4415 PyCSL.Phase6f_Corr_Loops <> wp_gen_critical thm
+binder 4468:4470 <> Qn':121
+binder 4472:4474 <> Qr':122
+binder 4476:4478 <> Qc':123
+binder 4480:4482 <> Qb':124
+binder 4484:4486 <> Qe':125
+binder 4488:4494 <> pre_es':126
+binder 4496:4498 <> es':127
+R4511:4513 PyCSL.Phase6h_CorrMain <> Qn':121 var
+R4515:4517 PyCSL.Phase6h_CorrMain <> Qr':122 var
+R4519:4521 PyCSL.Phase6h_CorrMain <> Qc':123 var
+R4523:4525 PyCSL.Phase6h_CorrMain <> Qb':124 var
+R4527:4529 PyCSL.Phase6h_CorrMain <> Qe':125 var
+R4531:4537 PyCSL.Phase6h_CorrMain <> pre_es':126 var
+R4539:4541 PyCSL.Phase6h_CorrMain <> es':127 var
+R4401:4415 PyCSL.Phase6f_Corr_Loops <> wp_gen_critical thm
+binder 4468:4470 <> Qn':128
+binder 4472:4474 <> Qr':129
+binder 4476:4478 <> Qc':130
+binder 4480:4482 <> Qb':131
+binder 4484:4486 <> Qe':132
+binder 4488:4494 <> pre_es':133
+binder 4496:4498 <> es':134
+R4511:4513 PyCSL.Phase6h_CorrMain <> Qn':128 var
+R4515:4517 PyCSL.Phase6h_CorrMain <> Qr':129 var
+R4519:4521 PyCSL.Phase6h_CorrMain <> Qc':130 var
+R4523:4525 PyCSL.Phase6h_CorrMain <> Qb':131 var
+R4527:4529 PyCSL.Phase6h_CorrMain <> Qe':132 var
+R4531:4537 PyCSL.Phase6h_CorrMain <> pre_es':133 var
+R4539:4541 PyCSL.Phase6h_CorrMain <> es':134 var
+R4622:4640 PyCSL.Phase6f_Corr_Loops <> wp_gen_thread_entry thm
+binder 4687:4689 <> Qn':135
+binder 4691:4693 <> Qr':136
+binder 4695:4697 <> Qc':137
+binder 4699:4701 <> Qb':138
+binder 4703:4705 <> Qe':139
+binder 4707:4713 <> pre_es':140
+binder 4715:4717 <> es':141
+R4730:4732 PyCSL.Phase6h_CorrMain <> Qn':135 var
+R4734:4736 PyCSL.Phase6h_CorrMain <> Qr':136 var
+R4738:4740 PyCSL.Phase6h_CorrMain <> Qc':137 var
+R4742:4744 PyCSL.Phase6h_CorrMain <> Qb':138 var
+R4746:4748 PyCSL.Phase6h_CorrMain <> Qe':139 var
+R4750:4756 PyCSL.Phase6h_CorrMain <> pre_es':140 var
+R4758:4760 PyCSL.Phase6h_CorrMain <> es':141 var
+R4622:4640 PyCSL.Phase6f_Corr_Loops <> wp_gen_thread_entry thm
+binder 4687:4689 <> Qn':142
+binder 4691:4693 <> Qr':143
+binder 4695:4697 <> Qc':144
+binder 4699:4701 <> Qb':145
+binder 4703:4705 <> Qe':146
+binder 4707:4713 <> pre_es':147
+binder 4715:4717 <> es':148
+R4730:4732 PyCSL.Phase6h_CorrMain <> Qn':142 var
+R4734:4736 PyCSL.Phase6h_CorrMain <> Qr':143 var
+R4738:4740 PyCSL.Phase6h_CorrMain <> Qc':144 var
+R4742:4744 PyCSL.Phase6h_CorrMain <> Qb':145 var
+R4746:4748 PyCSL.Phase6h_CorrMain <> Qe':146 var
+R4750:4756 PyCSL.Phase6h_CorrMain <> pre_es':147 var
+R4758:4760 PyCSL.Phase6h_CorrMain <> es':148 var
+R4800:4814 PyCSL.Phase6e_Corr_Simple <> wp_gen_acquires thm
+R4800:4814 PyCSL.Phase6e_Corr_Simple <> wp_gen_acquires thm
+R4880:4894 PyCSL.Phase6e_Corr_Simple <> wp_gen_releases thm
+R4880:4894 PyCSL.Phase6e_Corr_Simple <> wp_gen_releases thm
+prf 5109:5127 <> wp_w_gen_implies_wp
+binder 5140:5140 <> s:149
+R5157:5162 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5143:5154 PyCSL.Phase6d_StmtGen <> is_emittable def
+R5156:5156 PyCSL.Phase6h_CorrMain <> s:149 var
+binder 5170:5171 <> Qn:150
+binder 5173:5174 <> Qr:151
+binder 5176:5177 <> Qc:152
+binder 5179:5180 <> Qb:153
+binder 5182:5183 <> Qe:154
+binder 5185:5190 <> pre_es:155
+binder 5192:5193 <> es:156
+R5241:5246 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5198:5201 PyCSL.Phase6b_WPW <> wp_w def
+R5204:5206 PyCSL.Phase6d_StmtGen <> gen def
+R5208:5208 PyCSL.Phase6h_CorrMain <> s:149 var
+R5212:5214 PyCSL.Phase6b_WPW <> enc def
+R5216:5217 PyCSL.Phase6h_CorrMain <> Qn:150 var
+R5219:5220 PyCSL.Phase6h_CorrMain <> Qr:151 var
+R5222:5223 PyCSL.Phase6h_CorrMain <> Qc:152 var
+R5225:5226 PyCSL.Phase6h_CorrMain <> Qb:153 var
+R5228:5229 PyCSL.Phase6h_CorrMain <> Qe:154 var
+R5232:5237 PyCSL.Phase6h_CorrMain <> pre_es:155 var
+R5239:5240 PyCSL.Phase6h_CorrMain <> es:156 var
+R5247:5248 PyCSL.Phase4_WP <> wp def
+R5250:5250 PyCSL.Phase6h_CorrMain <> s:149 var
+R5252:5253 PyCSL.Phase6h_CorrMain <> Qn:150 var
+R5255:5256 PyCSL.Phase6h_CorrMain <> Qr:151 var
+R5258:5259 PyCSL.Phase6h_CorrMain <> Qc:152 var
+R5261:5262 PyCSL.Phase6h_CorrMain <> Qb:153 var
+R5264:5265 PyCSL.Phase6h_CorrMain <> Qe:154 var
+R5267:5272 PyCSL.Phase6h_CorrMain <> pre_es:155 var
+R5274:5275 PyCSL.Phase6h_CorrMain <> es:156 var
+R5337:5341 Coq.Init.Logic <> proj2 thm
+R5344:5357 PyCSL.Phase6h_CorrMain <> wp_gen_correct thm
+R5337:5341 Coq.Init.Logic <> proj2 thm
+R5344:5357 PyCSL.Phase6h_CorrMain <> wp_gen_correct thm

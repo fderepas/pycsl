@@ -1,4 +1,4 @@
-DIGEST be135df9dff80f461522c4c4a4dde87a
+DIGEST 84e2d743a0ef848ed38c8b33dd0b86be
 FPyCSL.Phase6d_StmtGen
 R924:929 Coq.ZArith.ZArith <> <> lib
 R931:936 Coq.Strings.String <> <> lib
@@ -135,3 +135,32 @@ R4279:4287 PyCSL.Phase1_AST <> SAcquires constr
 R4308:4312 PyCSL.Phase6_WhyML <> WSkip constr
 R4318:4326 PyCSL.Phase1_AST <> SReleases constr
 R4347:4351 PyCSL.Phase6_WhyML <> WSkip constr
+R4607:4611 PyCSL.Phase1_AST <> SCall constr
+R4636:4640 PyCSL.Phase6_WhyML <> WSkip constr
+def 5063:5074 <> is_emittable
+R5081:5084 PyCSL.Phase1_AST <> stmt ind
+binder 5077:5077 <> s:9
+R5105:5105 PyCSL.Phase6d_StmtGen <> s:9 var
+R5116:5119 PyCSL.Phase1_AST <> SSeq constr
+R5153:5156 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R5138:5149 PyCSL.Phase6d_StmtGen <> is_emittable:10 def
+R5157:5168 PyCSL.Phase6d_StmtGen <> is_emittable:10 def
+R5177:5179 PyCSL.Phase1_AST <> SIf constr
+R5214:5217 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R5199:5210 PyCSL.Phase6d_StmtGen <> is_emittable:10 def
+R5218:5229 PyCSL.Phase6d_StmtGen <> is_emittable:10 def
+R5238:5243 PyCSL.Phase1_AST <> SWhile constr
+R5260:5271 PyCSL.Phase6d_StmtGen <> is_emittable:10 def
+R5282:5285 PyCSL.Phase1_AST <> SFor constr
+R5305:5316 PyCSL.Phase6d_StmtGen <> is_emittable:10 def
+R5327:5335 PyCSL.Phase1_AST <> STryCatch constr
+R5363:5366 Coq.Init.Logic <> ::type_scope:x_'/\'_x not
+R5349:5360 PyCSL.Phase6d_StmtGen <> is_emittable:10 def
+R5367:5378 PyCSL.Phase6d_StmtGen <> is_emittable:10 def
+R5386:5394 PyCSL.Phase1_AST <> SCritical constr
+R5408:5419 PyCSL.Phase6d_StmtGen <> is_emittable:10 def
+R5430:5441 PyCSL.Phase1_AST <> SThreadEntry constr
+R5452:5463 PyCSL.Phase6d_StmtGen <> is_emittable:10 def
+R5474:5478 PyCSL.Phase1_AST <> SCall constr
+R5496:5500 Coq.Init.Logic <> False ind
+R5528:5531 Coq.Init.Logic <> True ind

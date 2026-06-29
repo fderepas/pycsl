@@ -371,7 +371,39 @@ Inductive exec : exec_state -> stmt -> outcome -> Prop :=
 
   | ExecReleases :
       forall es m,
-      exec es (SReleases m) (ONormal es).
+      exec es (SReleases m) (ONormal es)
+
+  (* Phase 8 — Lambda (Category A, optional). *)
+  | ExecCall :
+      forall es r fn arg param body cstate st' v,
+      eval_expr es.(reg_state) fn = VClosure param body cstate ->
+      exec (set_reg (mk_exec_state cstate)
+                    (update cstate param (eval_expr es.(reg_state) arg)))
+           body (OReturned st' v) ->
+      exec es (SCall r fn arg) (ONormal (set_reg es (update es.(reg_state) r v))).
+
+Lemma lookup_update_eq :
+  forall (st : state) (x : ident) (v : val),
+  lookup (update st x v) x = Some v.
+Proof.
+  intros st x v. unfold update. simpl.
+  rewrite String.eqb_refl. reflexivity.
+Qed.
+
+Lemma returned_state_has_result :
+  forall es s out,
+  exec es s out ->
+  match out with
+  | OReturned st' v => lookup st'.(reg_state) "\result" = Some v
+  | _ => True
+  end.
+Proof.
+  intros es s out H.
+  induction H; simpl in *;
+    try exact I;
+    try assumption;
+    try reflexivity.
+Qed.
 
 (* ===== Determinism ===== *)
 Lemma exec_deterministic :
@@ -384,6 +416,10 @@ Proof.
     try reflexivity; try congruence; try contradiction;
     repeat (
       match goal with
+      (* Phase 8 ExecCall: unify VClosure parameters from the two hfn premises *)
+      | [ H1 : eval_expr ?st ?fn = VClosure ?p1 ?b1 ?c1,
+          H2 : eval_expr ?st ?fn = VClosure ?p2 ?b2 ?c2 |- _ ] =>
+          rewrite H1 in H2; injection H2 as Hp Hb Hc; subst
       | [ IH : forall o, exec ?e ?s o -> ?r = o,
           H  : exec ?e ?s ?o |- _ ] =>
           apply IH in H;

@@ -182,6 +182,21 @@ inductive Exec : ExecState → Stmt → Outcome → Prop where
   | execReleases (es : ExecState) (m : Ident) :
     Exec es (.releases m) (.normal es)
 
+  /-- Phase 8 — Lambda (Category A, optional).
+      `.call r fn arg`: evaluate `fn` to a `.closure param body cstate`,
+      evaluate `arg` to `argval`, execute `body` in `cstate[param -> argval]`,
+      and on `.returned st' v` bind `r -> v` in the ORIGINAL state.
+      Other body outcomes (normal/break/continue/throw/fail) are stuck. -/
+  | execCall (es : ExecState) (r : Ident) (fn arg : Expr)
+      (param : Ident) (body : Stmt) (cstate : State)
+      (st' : ExecState) (v : Val)
+    (hfn : evalExpr es.regState fn = .closure param body cstate)
+    (hb : Exec (setReg (mkExecState cstate)
+                        (update cstate param (evalExpr es.regState arg)))
+                body (.returned st' v)) :
+    Exec es (.call r fn arg)
+      (.normal (setReg es (update es.regState r v)))
+
 theorem exec_deterministic {es : ExecState} {s : Stmt} {out1 out2 : Outcome}
     (h1 : Exec es s out1) (h2 : Exec es s out2) : out1 = out2 := by
   induction h1 generalizing out2 with
@@ -313,3 +328,40 @@ theorem exec_deterministic {es : ExecState} {s : Stmt} {out1 out2 : Outcome}
     cases h2 with | execFor _ _ _ _ _ _ _ _ hd' => exact ih hd'
   | execAcquires _ _ => cases h2; rfl
   | execReleases _ _ => cases h2; rfl
+  | @execCall es r fn arg param body cstate st' v hfn hb ih =>
+    cases h2 with
+    | execCall _ _ _ _ param' body' cstate' st'' v' hfn' hb' =>
+      -- From hfn and hfn': VClosure params must match
+      have : evalExpr es.regState fn = .closure param' body' cstate' := hfn'
+      rw [hfn] at this
+      injection this with hp hb_eq hc
+      subst param'; subst body'; subst cstate'
+      -- Body exec determinism: st' = st'', v = v'
+      have heq := ih hb'; injection heq with hst hv; subst st''; subst v'
+      rfl
+
+/--
+  Phase 8 keystone: `\result` is bound to the returned value.
+  PROVED — 0 sorry. Uses a helper `outcomeHasResult` to avoid
+  Lean's dependent-match issue with `induction` on `Exec`. -/
+def outcomeHasResult (out : Outcome) : Prop :=
+  match out with
+  | .returned st' v => lookup st'.regState "\\result" = some v
+  | _ => True
+
+theorem returnedStateHasResult {es : ExecState} {s : Stmt} {out : Outcome}
+    (h : Exec es s out) : outcomeHasResult out := by
+  induction h with
+  | execReturn _ _ => simp [outcomeHasResult, lookup, update, setReg]
+  | execSeq _ _ _ _ _ _ _ _ ih2 => exact ih2
+  | execSeqReturn _ _ _ _ _ _ ih => exact ih
+  | execIfTrue _ _ _ _ _ _ _ ih => exact ih
+  | execIfFalse _ _ _ _ _ _ _ ih => exact ih
+  | execWhileTrue _ _ _ _ _ _ _ _ _ _ ih1 ih2 => exact ih2
+  | execWhileContinue _ _ _ _ _ _ _ _ _ _ ih1 ih2 => exact ih2
+  | execTryCatchCaught _ _ _ _ _ _ _ _ ih1 ih2 => exact ih2
+  | execTryCatchNormal _ _ _ _ _ _ _ ih => exact ih
+  | execCritical _ _ _ _ _ ih => exact ih
+  | execThreadEntry _ _ _ _ ih => exact ih
+  | execFor _ _ _ _ _ _ _ _ _ ih => exact ih
+  | _ => trivial

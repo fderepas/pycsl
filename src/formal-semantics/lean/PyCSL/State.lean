@@ -5,9 +5,17 @@
 import PyCSL.AST
 
 inductive Val where
-  | int   (n : Int)
-  | array (a : List Int)
-  deriving DecidableEq, Repr
+  | int     (n : Int)
+  | array   (a : List Int)
+  /-- Phase 8 — Lambda (Category A, optional).
+      `.closure param body closure` is the reified closure value of a
+      lambda: it captures the defining state `closure` so that `.call`
+      can later execute `body` in `closure[param -> argval]`. The captured
+      state is a plain `List (Ident × Val)` (regState only); ghost and
+      label snapshots are not captured by this minimal model. This is the
+      defunctionalized closure representation (no WhyML function value). -/
+  | closure (param : Ident) (body : Stmt) (closure : List (Ident × Val))
+  deriving Repr
 
 abbrev State := List (Ident × Val)
 
