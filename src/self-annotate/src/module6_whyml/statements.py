@@ -742,6 +742,25 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # via the standard `seq.Seq` `++` axioms (proven in the 07-1732 P0 probe).
             rhs = self._seq_operand(stmt.get("value", {}), local_refs)
             code = f"{indent}{safe_target} := (!{safe_target} ++ {rhs})"
+        elif raw_op == "+" and self._is_string_expr({"type": "Var", "name": target}) \
+                and self._is_string_expr(stmt.get("value", {})):
+            # 14-string-field-codec-plan Gap (str-augassign): `s += t` on a
+            # string-typed local/param lowers to the SAME string-concat bridge
+            # `s + t` uses in `_binop_to_whyml` (`str_concat_op` in body, `concat`
+            # in spec), not the int `+`. Without this the AugAssign arm would
+            # emit `s := !s + t` and Why3 type-errors (`string + string` →
+            # expected int). Fires only when BOTH the target is a str-typed
+            # symbol AND the RHS is a string expression — byte-identical for
+            # every non-string target (the prior path type-errored anyway).
+            val = self._expr_to_whyml(stmt["value"], local_refs)
+            if getattr(self, "_in_spec", False):
+                code = f"{indent}{safe_target} := (concat !{safe_target} {val})"
+            else:
+                self._add_abstract_op(
+                    "val str_concat_op (a: string) (b: string) : string\n"
+                    "    ensures { result = (concat a b) }\n"
+                    "    ensures { String.length result = String.length a + String.length b }")
+                code = f"{indent}{safe_target} := (str_concat_op !{safe_target} {val})"
         elif raw_op in bitwise_ops:
             op_fn = bitwise_ops[raw_op]
             self._add_abstract_op(f"val {op_fn} (x: int) (y: int) : int")
