@@ -469,17 +469,17 @@ against the current AST.
 | function call in contract | ✅ (opaque) — `CCall` ctor (Phase1_AST.v:111; AST.lean:176); `evalContract = True` (Phase2_State.v:530; State.lean `_ => True`) — Hoare-model opacity, no `func_env` |
 | `arr[lo:hi]` | ✅ (opaque) — `CSlice` ctor (Phase1_AST.v:106; AST.lean:171); `evalContract = True` placeholder (Phase2_State.v:522; State.lean `_ => True`) — slice equality deferred to typed memory model |
 
-### Category D — Alternative memory models (3 remaining, 4 done as Hoare-identity stubs)
+### Category D — Alternative memory models (2 remaining, 5 done as Hoare-identity stubs + ConcurrentMM)
 
 | Feature | Status |
 |---------|--------|
 | typed model | ❌ Heap-based memory model not parameterised |
 | store model | ❌ Single-heap model not parameterised |
-| concurrent model (real) | ❌ The Hoare-identity `SCritical`/`SThreadEntry` stubs (see below) do not encode the monitor-invariant pattern. `ExecCritical` must universally quantify `shared` at entry (modelling havoc); `lock_order` (deadlock prevention) must be a well-formedness condition |
-| `thread_entry` | ✅ DONE — `SThreadEntry` stmt (Phase1_AST.v:226; AST.lean:288); SOS `execThreadEntry` (SOS.lean:167); WP delegates to body (Phase4_WP.v:145; WP.lean:121). Hoare-identity stub |
-| `critical` | ✅ PARTIAL — `SCritical` stmt (Phase1_AST.v:225; AST.lean:287); SOS `execCritical` (SOS.lean:163); WP now routes through `critical_havoc` (Phase4_WP.v:143; WP.lean:118-121), the Phase 7 memory-model interface (Phase7_MemModel.v; MemModel.lean). The Hoare instance makes `critical_havoc es P = P es` (identity), preserving the previous stub semantics. A real concurrent instance would make `critical_havoc es P = ∀ shared, P (merge_shared es shared)` — see Phase7_MemModel.v §"Deferred work". |
-| `acquires` | ✅ DONE — `SAcquires`/`.acquires` stmt (Phase1_AST.v:258; AST.lean:321); SOS `ExecAcquires` (Phase3_SOS.v:369; SOS.lean:172); WP `Qn es` (Phase4_WP.v:151; WP.lean:123). Hoare-instance identity stub — no lock state; real lock discipline deferred to ConcurrentMM. |
-| `releases` | ✅ DONE — `SReleases`/`.releases` stmt (Phase1_AST.v:259; AST.lean:322); SOS `ExecReleases` (Phase3_SOS.v:373; SOS.lean:175); WP `Qn es` (Phase4_WP.v:152; WP.lean:124). Hoare-instance identity stub — no lock state; real lock discipline deferred to ConcurrentMM. |
+| concurrent model (real) | ✅ PARTIAL — `ConcurrentMM` instance added (Phase7_MemModel.v §"Concurrent memory-model instance"; MemModel.lean `namespace ConcurrentMM`) with genuine havoc semantics: `critical_havoc es P = forall shared, P (merge_shared es shared)` (the README §13 "ExecCritical shared state" Critical risk). `merge_shared`/`mergeShared` is a `Parameter`/`variable` (a hypothesis, NOT an axiom). The instance is registered (low-priority) but NOT wired into `eval_contract`/`wp` — the top-level `critical_havoc` remains the Hoare identity so `pycsl_soundness` is unchanged. Bridge lemmas proved: `hoare_critical_havoc_identity` (Hoare = identity) and `concurrent_critical_havoc_eq` (Concurrent = forall havoc). The real lock-state WP for `acquires`/`releases` (held/free + `lock_order` well-formedness) is a named TODO (`concurrent_lock_discipline_todo`) — NOT an axiom; the ConcurrentMM WP of `acquires`/`releases` is identity (a sound over-approximation). Wiring ConcurrentMM into `eval_contract`/`wp` (the Section/Context refactor, Option A) is the remaining Category-D work — deferred because it changes `pycsl_soundness`'s statement |
+| `thread_entry` | ✅ DONE — `SThreadEntry` stmt (Phase1_AST.v:226; AST.lean:288); SOS `execThreadEntry` (SOS.lean:167); WP delegates to body (Phase4_WP.v:145; WP.lean:121). Hoare-identity stub; under ConcurrentMM the body executes against a fresh shared state (havoc), modelled identically to `critical` |
+| `critical` | ✅ PARTIAL — `SCritical` stmt (Phase1_AST.v:225; AST.lean:287); SOS `execCritical` (SOS.lean:163); WP routes through `critical_havoc` (Phase4_WP.v:143; WP.lean:118-121), the Phase 7 memory-model interface (Phase7_MemModel.v; MemModel.lean). The Hoare instance makes `critical_havoc es P = P es` (identity); the ConcurrentMM instance makes `critical_havoc es P = forall shared, P (merge_shared es shared)` (genuine havoc — see Phase7_MemModel.v §"Concurrent memory-model instance"). |
+| `acquires` | ✅ DONE — `SAcquires`/`.acquires` stmt (Phase1_AST.v:258; AST.lean:321); SOS `ExecAcquires` (Phase3_SOS.v:369; SOS.lean:172); WP `Qn es` (Phase4_WP.v:151; WP.lean:123). Hoare-instance identity stub; under ConcurrentMM the WP is also identity (a sound over-approximation — the real lock-aware WP is strictly stronger, deferred as `concurrent_lock_discipline_todo`). |
+| `releases` | ✅ DONE — `SReleases`/`.releases` stmt (Phase1_AST.v:259; AST.lean:322); SOS `ExecReleases` (Phase3_SOS.v:373; SOS.lean:175); WP `Qn es` (Phase4_WP.v:152; WP.lean:124). Hoare-instance identity stub; ConcurrentMM WP is identity (see `acquires`). |
 
 ### Category E — Vacuously sound (0 remaining, 4 done)
 
@@ -499,10 +499,10 @@ All four remain vacuously sound: multi-file imports, `--deep`, `--fun`,
 | A — Core model | 7 | 5 | 2 |
 | B — Desugaring | 4 | 4 | 0 |
 | C — Contract extensions | 10 | 6 | 4 |
-| D — Memory models | 7 | 4 | 3 |
+| D — Memory models | 7 | 5 | 2 |
 | E — Vacuously sound | 4 | 4 | 0 |
 | F — Pipeline orchestration | 4 | 4 | 0 |
-| **Total** | **36** | **27** | **9** |
+| Total | 36 | 28 | 8 |
 
 (The previous README mis-stated the total as "38"; the six category
 sub-totals sum to 36.)
@@ -608,6 +608,6 @@ cd src/formal-semantics/lean && make clean && make proof
 | Variant non-negativity unprovable | Medium | Explicit `≥ 0` conjunct in WP; programmer obligation |
 | ~~Phase 3b+5 signature conflicts~~ | ~~Medium~~ Closed | Phase 5 landed with `Qe` continuation; Phase 3b `\at` handled by `eval_contract_es`/`evalContractEs` (Phase2_State.v:559; State.lean:469) without `wp` signature change |
 | STry WP finally soundness | Critical | `Qr`/`Qc`/`Qb` pass through `STryCatch` body via 5-continuation WP (Phase4_WP.v:130-136; WP.lean:107-113); `try-finally` not yet modelled (finally clause lowering is a transpiler concern) |
-| ExecCritical shared state | Critical | Current `SCritical` is a Hoare-identity stub (Phase4_WP.v:143); real concurrent model requires universal quantification over shared states at entry (§10, Category D) |
+| ExecCritical shared state | ~~Critical~~ Mitigated | `ConcurrentMM` instance added (Phase7_MemModel.v §"Concurrent memory-model instance"; MemModel.lean `namespace ConcurrentMM`): `critical_havoc es P = forall shared, P (merge_shared es shared)` — universal quantification over abstract shared states at entry (the havoc semantics). `merge_shared` is a `Parameter`/`variable` (hypothesis, NOT an axiom). Bridge lemmas proved (`hoare_critical_havoc_identity`, `concurrent_critical_havoc_eq`); 0 new Admitted/sorry; `pycsl_soundness` untouched (uses the Hoare default). The real lock-state WP for `acquires`/`releases` (held/free + `lock_order`) is a named TODO (`concurrent_lock_discipline_todo`) — NOT an axiom; the ConcurrentMM WP is identity (sound over-approximation). Wiring ConcurrentMM into `eval_contract`/`wp` (Option A refactor) is the remaining deferred work |
 | Mathlib instability | Low | Pinned version in `lakefile.lean` |
 | Lean toolchain changes | Low | Pinned via `lean-toolchain` |

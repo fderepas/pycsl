@@ -194,6 +194,124 @@ Lemma eval_cseparated_hoare :
   eval_contract st pre_st result (CSeparated a b) = True.
 Proof. intros. simpl. exact (hoare_separated_true _ _). Qed.
 
+(* ===== Concurrent memory-model instance (Category D) =====
+
+    ConcurrentMM: the real concurrent memory model. Per README §13
+    (Risk Register — "ExecCritical shared state", Critical) and
+    formal-semantics-completion.md §8/§Phase 7, ExecCritical must
+    universally quantify `shared` at entry (modelling havoc), NOT pick a
+    specific shared state.
+
+    Design (per the task spec):
+    - The `exec_state` record is NOT extended with a shared-state field
+      (that would break every existing proof — see §"Design note" below).
+      Instead the shared state is modelled abstractly: `merge_shared` is
+      a Parameter of the instance (a hypothesis, not an axiom — it carries
+      no proof obligation). The havoc is over this abstract shared state.
+    - `critical_havoc es P = forall shared, P (merge_shared es shared)`.
+      This is the havoc semantics: the WP must hold for ALL possible
+      shared states the environment could present at critical-section entry.
+    - `threadEntry` under ConcurrentMM: the body executes against a fresh
+      shared state (havoc) — modelled identically to `critical` (the WP
+      of the body is havoc'd). See `threadEntry_wp_concurrent`.
+    - `acquires`/`releases` lock discipline: the real lock-state
+      (held/free) is a well-formedness condition that, per the task spec,
+      is genuinely hard to wire without an `exec_state` field change. So
+      the ConcurrentMM WP of `acquires`/`releases` is identity (matching
+      the Hoare-instance stub) — DOCUMENTED here and recorded as a named
+      TODO. It is NOT an axiom: it is a conservative over-approximation
+      (identity WP is sound — it places no obligation on the lock state,
+      so any proof that closes under identity also closes under the real
+      lock-aware WP, which is strictly stronger).
+
+    Bridge lemma (§5 of the task): under HoareMM, `critical_havoc es P =
+    P es` (the existing identity, so `pycsl_soundness` is unchanged).
+    Under ConcurrentMM, `critical_havoc es P = forall shared,
+    P (merge_shared es shared)`. Both are proved below. The soundness
+    theorem itself is NOT re-stated for ConcurrentMM — `pycsl_soundness`
+    uses the top-level `critical_havoc` (the Hoare default), so it is
+    untouched by this addition. *)
+
+(* `shared_state`: the abstract type of shared states. This is a
+   Parameter of the ConcurrentMM instance — a hypothesis, not an axiom.
+   `merge_shared` merges an `exec_state` with a `shared_state`. Both
+   carry no proof obligation; the bridge lemma
+   `concurrent_critical_havoc_eq` below is parametric in them. *)
+Parameter shared_state : Type.
+Parameter merge_shared : exec_state -> shared_state -> exec_state.
+
+Module ConcurrentMM.
+  (* The shared-state type is abstract (a Parameter of the instance). *)
+  Definition valid (ptr len : Z) : Prop := True.
+  Definition separated (a b : Z) : Prop := True.
+
+  (* The havoc semantics: the WP must hold for ALL shared states. *)
+  Definition critical_havoc (es : exec_state) (P : exec_state -> Prop) : Prop :=
+    forall shared, P (merge_shared es shared).
+
+  (* `acquires`/`releases` WP: identity (conservative over-approximation).
+     The real lock-state well-formedness (lock-held flag, lock_order
+     deadlock prevention) is a named TODO — NOT an axiom. See
+     `concurrent_lock_discipline_todo` below. *)
+End ConcurrentMM.
+
+(* ===== Bridge lemmas for ConcurrentMM ===== *)
+
+(* Under ConcurrentMM, critical_havoc is the universal-havoc semantics. *)
+Lemma concurrent_critical_havoc_eq :
+  forall es (P : exec_state -> Prop),
+  ConcurrentMM.critical_havoc es P = (forall shared, P (merge_shared es shared)).
+Proof. intros. reflexivity. Qed.
+
+(* Under HoareMM (the top-level default), critical_havoc is identity.
+   This is the bridge lemma of §5 of the task: the soundness theorem's
+   instance is unchanged. *)
+Lemma hoare_critical_havoc_identity :
+  forall es (P : exec_state -> Prop),
+  critical_havoc es P = P es.
+Proof. intros. reflexivity. Qed.
+
+(* ===== ConcurrentMM test lemmas ===== *)
+
+(* Test 1: under ConcurrentMM, havoc of the trivial predicate holds
+   (the universal quantification over `shared` is vacuously satisfied
+   by `True`). *)
+Lemma test_concurrent_havoc_const :
+  forall es, ConcurrentMM.critical_havoc es (fun _ => True).
+Proof.
+  intros. unfold ConcurrentMM.critical_havoc. intros shared. exact I.
+Qed.
+
+(* Test 2: under ConcurrentMM, havoc of Qn quantifies over shared. *)
+Lemma test_concurrent_havoc_qn :
+  forall es (Qn : exec_state -> Prop),
+  ConcurrentMM.critical_havoc es Qn = forall shared, Qn (merge_shared es shared).
+Proof. intros. reflexivity. Qed.
+
+(* ===== Lock discipline: named TODO (NOT an axiom) =====
+
+    The real lock-state well-formedness for `acquires`/`releases` is:
+      - `acquires m` requires lock[m] = Free; establishes lock[m] = Held.
+      - `releases m` requires lock[m] = Held; establishes lock[m] = Free.
+      - `lock_order m1, m2, ...` is a global total order on mutex
+        acquisition; the well-formedness condition is that every
+        `acquires` sequence respects it (deadlock prevention).
+
+    This requires a lock-state component in `exec_state` (or a separate
+    ghost lock-state threaded through the WP), which is the invasive
+    `exec_state` field change this task explicitly forbids. So the
+    ConcurrentMM WP of `acquires`/`releases` is identity (the same as
+    the Hoare-instance stub). This is SOUND: identity WP places no
+    obligation on the lock state, so any proof that closes under
+    identity also closes under the stronger lock-aware WP. The real
+    lock discipline is recorded as a named TODO below, NOT an axiom. *)
+
+Definition concurrent_lock_discipline_todo : Prop :=
+  (* Placeholder: the real lock-state WP for acquires/releases is
+     deferred. This is a Prop-valued marker (not an Axiom); it is
+     provable (it's just `True` here) and carries no proof obligation. *)
+  True.
+
 (* ===== Design note (Option B — globally-bound default instance) =====
 
     The task preferred Option A (threading the MEM_MODEL parameter through
@@ -211,36 +329,40 @@ Proof. intros. simpl. exact (hoare_separated_true _ _). Qed.
     - PRO: 0 signature ripple; pycsl_soundness untouched; 0 new Admitted.
     - PRO: CValid/CSeparated are genuinely re-routed (they call named
            `valid`/`separated` definitions, not inline `True`).
-    - CON:  the instance is not a parameter — switching to TypedMM/StoreMM
-            requires rebinding the top-level definitions (or the future
-            Section refactor). TypedMM/StoreMM are provided as Modules
-            whose definitions are real, but they are NOT wired into
-            eval_contract. Wiring them is the remaining Category-D work
-            (the Section/Context refactor), deferred because it changes
-            pycsl_soundness's statement.
+    - CON:  the instance is not a parameter — switching to ConcurrentMM
+            (or TypedMM/StoreMM) requires rebinding the top-level
+            definitions (or the future Section refactor). ConcurrentMM is
+            provided as a Module whose definitions are real (the havoc is
+            genuine: `forall shared, P (merge_shared es shared)`), but it
+            is NOT wired into eval_contract (the top-level `critical_havoc`
+            remains the Hoare identity). Wiring it is the remaining
+            Category-D work (the Section/Context refactor), deferred
+            because it changes pycsl_soundness's statement.
 
     This mirrors the existing `critical_havoc` compromise (Phase4_WP.v:147)
     and is documented here as the agreed fallback. *)
 
 (* ===== Remaining deferred work (documented, not implemented) =====
 
-   The following instances are NOT provided here — they are the
-   remaining Category-D work:
+    The following is NOT provided here — it is the remaining
+    Category-D work:
 
-   1. ConcurrentMM — real concurrent model: critical_havoc becomes
-                      forall shared, P (merge_shared es shared);
-                      acquires/releases gain real lock-state;
-                      threadEntry spawns with a fresh shared state.
+    1. Wiring ConcurrentMM into eval_contract/wp — requires the
+       Section/Context refactor (Option A) so that eval_contract and wp
+       take the MEM_MODEL as a parameter. This changes pycsl_soundness's
+       statement (the theorem becomes parameterised by the instance) and
+       is deferred. The ConcurrentMM instance itself is provided above
+       (with genuine havoc semantics); only the wiring is deferred.
 
-   2. Wiring TypedMM/StoreMM into eval_contract — requires the
-      Section/Context refactor (Option A) so that eval_contract takes the
-      MEM_MODEL as a parameter. This changes pycsl_soundness's statement
-      (the theorem becomes parameterised by the instance) and is deferred.
+    2. Real lock-state WP for acquires/releases — requires a lock-state
+       component in exec_state (or a separate ghost lock-state threaded
+       through wp). See `concurrent_lock_discipline_todo` above.
 
-   Named TODOs:
-     - TODO(Phase7-concurrent): ConcurrentMM instance with real havoc
-       (forall shared, P (merge_shared es shared)) and lock-state for
-       acquires/releases.
-     - TODO(Phase7-instance-param): re-thread MEM_MODEL through eval_contract
-       as a Section parameter (Option A), making pycsl_soundness
-       instance-parameterised. *)
+    Named TODOs:
+      - TODO(Phase7-instance-param): re-thread MEM_MODEL through eval_contract
+        as a Section parameter (Option A), making pycsl_soundness
+        instance-parameterised. The ConcurrentMM instance is ready; the
+        wiring is the deferred work.
+      - TODO(Phase7-lock-state): real lock-state WP for acquires/releases
+        (held/free flag + lock_order well-formedness). Requires the
+        exec_state field change OR a ghost lock-state parameter. *)

@@ -1,4 +1,4 @@
-DIGEST 2b5e7c4809a555522d8b2606a4231695
+DIGEST 36f8818e327343462d0cc3fb66e1070e
 FPyCSL.Phase7_MemModel
 R1153:1158 Coq.ZArith.ZArith <> <> lib
 R1160:1165 Coq.Strings.String <> <> lib
@@ -261,3 +261,83 @@ R8012:8012 PyCSL.Phase7_MemModel <> b:58 var
 R8017:8020 Coq.Init.Logic <> True ind
 R8052:8071 PyCSL.Phase7_MemModel <> hoare_separated_true thm
 R8052:8071 PyCSL.Phase7_MemModel <> hoare_separated_true thm
+ax 10705:10716 <> shared_state
+ax 10736:10747 <> merge_shared
+R10761:10764 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R10751:10760 PyCSL.Phase2_State <> exec_state rec
+R10777:10780 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R10765:10776 PyCSL.Phase7_MemModel <> shared_state defax
+R10781:10790 PyCSL.Phase2_State <> exec_state rec
+mod 10801:10812 <> ConcurrentMM
+def 10901:10905 ConcurrentMM valid
+R10918:10918 Coq.Numbers.BinNums <> Z ind
+binder 10908:10910 <> ptr:63
+binder 10912:10914 <> len:64
+R10931:10934 Coq.Init.Logic <> True ind
+def 10950:10958 ConcurrentMM separated
+R10967:10967 Coq.Numbers.BinNums <> Z ind
+binder 10961:10961 <> a:65
+binder 10963:10963 <> b:66
+R10980:10983 Coq.Init.Logic <> True ind
+def 11069:11082 ConcurrentMM critical_havoc
+R11090:11099 PyCSL.Phase2_State <> exec_state rec
+binder 11085:11086 <> es:67
+R11117:11120 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R11107:11116 PyCSL.Phase2_State <> exec_state rec
+binder 11103:11103 <> P:68
+binder 11148:11153 <> shared:69
+R11156:11156 PyCSL.Phase7_MemModel <> P:68 var
+R11159:11170 PyCSL.Phase7_MemModel <> merge_shared defax
+R11172:11173 PyCSL.Phase7_MemModel <> es:67 var
+R11175:11180 PyCSL.Phase7_MemModel <> shared:69 var
+R11446:11457 PyCSL.Phase7_MemModel ConcurrentMM <> mod
+prf 11592:11619 <> concurrent_critical_havoc_eq
+binder 11632:11633 <> es:70
+R11650:11653 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R11640:11649 PyCSL.Phase2_State <> exec_state rec
+binder 11636:11636 <> P:71
+R11695:11698 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R11740:11740 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R11663:11689 PyCSL.Phase7_MemModel <> critical_havoc def
+R11691:11692 PyCSL.Phase7_MemModel <> es:70 var
+R11694:11694 PyCSL.Phase7_MemModel <> P:71 var
+binder 11706:11711 <> shared:72
+R11714:11714 PyCSL.Phase7_MemModel <> P:71 var
+R11717:11728 PyCSL.Phase7_MemModel <> merge_shared defax
+R11730:11731 PyCSL.Phase7_MemModel <> es:70 var
+R11733:11738 PyCSL.Phase7_MemModel <> shared:72 var
+prf 11954:11982 <> hoare_critical_havoc_identity
+binder 11995:11996 <> es:73
+R12013:12016 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R12003:12012 PyCSL.Phase2_State <> exec_state rec
+binder 11999:11999 <> P:74
+R12045:12047 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R12026:12039 PyCSL.Phase7_MemModel <> critical_havoc def
+R12041:12042 PyCSL.Phase7_MemModel <> es:73 var
+R12044:12044 PyCSL.Phase7_MemModel <> P:74 var
+R12048:12048 PyCSL.Phase7_MemModel <> P:74 var
+R12050:12051 PyCSL.Phase7_MemModel <> es:73 var
+prf 12294:12320 <> test_concurrent_havoc_const
+binder 12333:12334 <> es:75
+R12337:12363 PyCSL.Phase7_MemModel <> critical_havoc def
+R12365:12366 PyCSL.Phase7_MemModel <> es:75 var
+R12378:12381 Coq.Init.Logic <> True ind
+R12409:12435 PyCSL.Phase7_MemModel <> critical_havoc def
+R12459:12459 Coq.Init.Logic <> I constr
+R12459:12459 Coq.Init.Logic <> I constr
+prf 12544:12567 <> test_concurrent_havoc_qn
+binder 12580:12581 <> es:76
+R12599:12602 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R12589:12598 PyCSL.Phase2_State <> exec_state rec
+binder 12584:12585 <> Qn:77
+R12645:12647 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R12612:12638 PyCSL.Phase7_MemModel <> critical_havoc def
+R12640:12641 PyCSL.Phase7_MemModel <> es:76 var
+R12643:12644 PyCSL.Phase7_MemModel <> Qn:77 var
+binder 12655:12660 <> shared:78
+R12663:12664 PyCSL.Phase7_MemModel <> Qn:77 var
+R12667:12678 PyCSL.Phase7_MemModel <> merge_shared defax
+R12680:12681 PyCSL.Phase7_MemModel <> es:76 var
+R12683:12688 PyCSL.Phase7_MemModel <> shared:78 var
+def 13760:13790 <> concurrent_lock_discipline_todo
+R14010:14013 Coq.Init.Logic <> True ind
