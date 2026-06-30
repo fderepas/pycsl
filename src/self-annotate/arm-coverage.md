@@ -21,14 +21,16 @@ Z3 4.13.3; the **axioms** are human-audited where Z3 cannot case-split the strin
 | SFor | ✓ | ✓ | `for_code_init_semantics` | `for_code_state_coherent` | **LEMMA (Valid)** — full WP equiv deferred to `wp_for_desugar` (open gap) |
 | SReturn (plain) | ✓ | ✓ | `return_plain_semantics` | `return_plain_code_state_coherent` | **LEMMA (Valid)** — *promoted from axiom 2026-06-30; single-form spec, no disjunction* |
 | SReturn (raise/void) | ✓ | ✓ | `return_raise`/`return_void_semantics` | (covered per-branch by the two axioms) | audited |
-| SArraySet | ✓ | ✓ | `array_set_semantics` | `array_set_code_state_coherent` | **AXIOM (audited)** — no-rest disjunct differs; Z3 times out |
-| SSeq | ✓ | ✓ | `seq_semantics`/`seq_concat_semantics` | `seq_code_state_coherent` | **AXIOM (audited)** — sound, but Z3 times out 5s/1.45M steps on the disjunction case-split |
-| SSkip | ✓ | ✓ | `skip_semantics`/`skip_semantics_norest` | `skip_code_state_coherent` | **AXIOM (audited)** — no-rest disjunct differs |
+| SSeq | ✓ | ✓ | `seq_semantics`/`seq_concat_semantics` | `seq_code_state_coherent` | **LEMMA (Valid)** — *promoted from axiom 2026-06-30 via a guided `let lemma` case-split (per-disjunct asserts), 0.03s* |
+| SArraySet | ✓ | ✓ | `array_set_semantics` | `array_set_code_state_coherent` | **AXIOM (audited)** — no-rest disjunct has genuinely different semantics (`eval = st`, not `eval rest st`); needs a rest-conditioned spec |
+| SSkip | ✓ | ✓ | `skip_semantics`/`skip_semantics_norest` | `skip_code_state_coherent` | **AXIOM (audited)** — same: no-rest disjunct differs; not promotable without a rest-conditioned spec |
 
-**Tally:** 7 coherence **lemmas** (machine-checked), 3 audited-trusted coherence **axioms**
-(`array_set`, `seq`, `skip`) — all three blocked by the same string-concat disjunction case-split,
-a known Z3 limit, not a soundness hole. Each remains a legitimate stratified-trust point per the
-path's D1 ("explicitly audited-trusted" is an allowed decision).
+**Tally:** 8 coherence **lemmas** (machine-checked), 2 audited-trusted coherence **axioms**
+(`array_set`, `skip`). The two remaining axioms are NOT a Z3 case-split limit (that was `seq`,
+now promoted) — their no-rest emission disjunct has a genuinely different state semantics, so a
+clean lemma needs the code spec to condition the disjunction on whether `rest` is empty (a change
+that touches the byte-diff correspondence to the Python emitter). Each remains a legitimate
+stratified-trust point per the path's D1 ("explicitly audited-trusted" is an allowed decision).
 
 ## 2. Python emitter `_handle_*` methods (`module6_whyml/statements.py`) → arm decision
 

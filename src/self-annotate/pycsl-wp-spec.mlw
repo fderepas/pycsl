@@ -462,20 +462,22 @@ module PyCSL_WP_Coherence
     eval_whyml_stmts (s1_str ^ s2_str) st
     = eval_whyml_stmts s2_str (eval_whyml_stmts s1_str st)
 
-  (* Human-audited axiom (sound; not auto-dischargeable). handle_seq_code returns
-   * `s1^";\n"^s2` OR `s1^s2`; BOTH disjuncts have the SAME semantics
-   * (`seq_semantics` / `seq_concat_semantics` each give `eval s2 (eval s1 st)`),
-   * so the statement IS valid — but b14/finishable-path Steps 3-4 empirically
-   * re-confirmed that Z3 4.13.3 TIMES OUT discharging it as a `lemma`
-   * (5.0s / 1.45M steps) because the string-concat disjunction case-split blows
-   * up. Promoting it would need a manual case-split proof; left audited.
-   * (Contrast `return_plain_code_state_coherent`, promoted to a lemma: its code
-   * spec is single-form for use_raise=false, so no disjunction → discharges.) *)
-  axiom seq_code_state_coherent :
-    forall s1_str s2_str st st_mid.
-    eval_whyml_stmts s1_str st = st_mid ->
-    let code = handle_seq_code s1_str s2_str in
-    eval_whyml_stmts code st = eval_whyml_stmts s2_str st_mid
+  (* b14/finishable-path: PROMOTED from an audited axiom to a proved `let lemma`
+   * via a GUIDED case-split. handle_seq_code returns `s1^";\n"^s2` OR `s1^s2`;
+   * both disjuncts have the SAME semantics (`seq_semantics` / `seq_concat_semantics`
+   * each give `eval s2 (eval s1 st)`). The two per-disjunct assertions below each
+   * instantiate exactly ONE semantics axiom under its branch hypothesis (no split
+   * inside), and handle_seq_code's disjunctive ensures combines them — so Z3
+   * discharges it cheaply instead of timing out on the raw 5s/1.45M-step split. *)
+  let lemma seq_code_state_coherent (s1_str s2_str : string) (st st_mid : state)
+    requires { eval_whyml_stmts s1_str st = st_mid }
+    ensures  { eval_whyml_stmts (handle_seq_code s1_str s2_str) st
+               = eval_whyml_stmts s2_str st_mid }
+  = let code = handle_seq_code s1_str s2_str in
+    assert { code = s1_str ^ ";\n" ^ s2_str ->
+             eval_whyml_stmts code st = eval_whyml_stmts s2_str st_mid };
+    assert { code = s1_str ^ s2_str ->
+             eval_whyml_stmts code st = eval_whyml_stmts s2_str st_mid }
 
   (* ── SIf semantics + coherence ──────────────────────────────────────────── *)
 

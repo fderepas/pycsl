@@ -51,8 +51,8 @@ ARM = {
     "Return":          ("LEMMA",   "return_plain_code_state_coherent"),
     "ArraySet":        ("AXIOM",   "array_set_code_state_coherent"),
     "Pass":            ("AXIOM",   "skip_code_state_coherent"),
-    # Implicit sequencing of a block is the SSeq arm (audited axiom).
-    "_seq":            ("AXIOM",   "seq_code_state_coherent"),
+    # Implicit sequencing of a block is the SSeq arm (proved lemma).
+    "_seq":            ("LEMMA",   "seq_code_state_coherent"),
     # No base-WP arm yet — explicitly audited-trusted (LINK-2 only).
     "FieldAssign":     ("TRUSTED", "(no WP arm)"),
     "FieldAugAssign":  ("TRUSTED", "(no WP arm)"),
