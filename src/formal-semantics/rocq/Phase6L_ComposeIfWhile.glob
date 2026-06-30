@@ -1,4 +1,4 @@
-DIGEST 95c55a9702ccb1cb6962304e37dd6b4f
+DIGEST f3797d9d6a2c13136b45b62c3f53b8d1
 FPyCSL.Phase6L_ComposeIfWhile
 R1150:1155 Coq.Strings.String <> <> lib
 R1157:1160 Coq.Lists.List <> <> lib
@@ -114,670 +114,835 @@ ax 2493:2512 <> handle_continue_code
 R2523:2526 Coq.Init.Logic <> ::type_scope:x_'->'_x not
 R2517:2522 Coq.Strings.String <> string ind
 R2527:2532 Coq.Strings.String <> string ind
-ax 2682:2684 <> sep
-R2688:2693 Coq.Strings.String <> string ind
-ax 2797:2805 <> while_fix
-R2815:2818 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R2809:2814 Coq.Strings.String <> string ind
-R2825:2828 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R2819:2824 Coq.Strings.String <> string ind
-R2834:2837 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R2829:2833 PyCSL.Phase6L_ComposeIfWhile <> state defax
-R2838:2842 PyCSL.Phase6L_ComposeIfWhile <> state defax
-ax 3005:3014 <> eval_empty
-binder 3027:3028 <> st:35
-R3062:3064 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R3031:3046 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R3048:3058 Coq.Strings.String <> EmptyString constr
-R3060:3061 PyCSL.Phase6L_ComposeIfWhile <> st:35 var
-R3065:3066 PyCSL.Phase6L_ComposeIfWhile <> st:35 var
-ax 3076:3088 <> seq_semantics
-binder 3101:3102 <> s1:38
-binder 3104:3105 <> s2:39
-binder 3107:3108 <> st:40
-R3152:3158 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R3115:3130 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R3135:3138 Coq.Strings.String <> ::string_scope:x_'++'_x not
-R3133:3134 PyCSL.Phase6L_ComposeIfWhile <> s1:38 var
-R3142:3145 Coq.Strings.String <> ::string_scope:x_'++'_x not
-R3139:3141 PyCSL.Phase6L_ComposeIfWhile <> sep defax
-R3146:3147 PyCSL.Phase6L_ComposeIfWhile <> s2:39 var
-R3150:3151 PyCSL.Phase6L_ComposeIfWhile <> st:40 var
-R3159:3174 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R3176:3177 PyCSL.Phase6L_ComposeIfWhile <> s2:39 var
-R3180:3195 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R3197:3198 PyCSL.Phase6L_ComposeIfWhile <> s1:38 var
-R3200:3201 PyCSL.Phase6L_ComposeIfWhile <> st:40 var
-ax 3212:3219 <> skip_coh
-binder 3232:3237 <> indent:43
-binder 3239:3242 <> rest:44
-binder 3244:3245 <> st:45
-R3302:3304 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R3252:3267 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R3270:3285 PyCSL.Phase6L_ComposeIfWhile <> handle_skip_code defax
-R3287:3292 PyCSL.Phase6L_ComposeIfWhile <> indent:43 var
-R3294:3297 PyCSL.Phase6L_ComposeIfWhile <> rest:44 var
-R3300:3301 PyCSL.Phase6L_ComposeIfWhile <> st:45 var
-R3305:3320 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R3322:3325 PyCSL.Phase6L_ComposeIfWhile <> rest:44 var
-R3327:3328 PyCSL.Phase6L_ComposeIfWhile <> st:45 var
-ax 3338:3347 <> assign_coh
-binder 3360:3360 <> x:48
-binder 3362:3363 <> ev:49
-binder 3365:3370 <> indent:50
-binder 3372:3375 <> rest:51
-binder 3377:3378 <> st:52
-binder 3380:3384 <> e_val:53
-R3420:3427 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R3412:3414 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R3391:3405 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_expr defax
-R3407:3408 PyCSL.Phase6L_ComposeIfWhile <> ev:49 var
-R3410:3411 PyCSL.Phase6L_ComposeIfWhile <> st:52 var
-R3415:3419 PyCSL.Phase6L_ComposeIfWhile <> e_val:53 var
-R3490:3496 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R3428:3443 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R3446:3463 PyCSL.Phase6L_ComposeIfWhile <> handle_assign_code defax
-R3465:3465 PyCSL.Phase6L_ComposeIfWhile <> x:48 var
-R3467:3468 PyCSL.Phase6L_ComposeIfWhile <> ev:49 var
-R3470:3475 PyCSL.Phase6L_ComposeIfWhile <> indent:50 var
-R3477:3480 PyCSL.Phase6L_ComposeIfWhile <> rest:51 var
-R3482:3485 Coq.Init.Datatypes <> true constr
-R3488:3489 PyCSL.Phase6L_ComposeIfWhile <> st:52 var
-R3497:3512 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R3514:3517 PyCSL.Phase6L_ComposeIfWhile <> rest:51 var
-R3520:3525 PyCSL.Phase6L_ComposeIfWhile <> update defax
-R3527:3528 PyCSL.Phase6L_ComposeIfWhile <> st:52 var
-R3530:3530 PyCSL.Phase6L_ComposeIfWhile <> x:48 var
-R3532:3536 PyCSL.Phase6L_ComposeIfWhile <> e_val:53 var
-ax 3547:3559 <> array_set_coh
-binder 3572:3574 <> arr:56
-binder 3576:3577 <> is:57
-binder 3579:3580 <> vs:58
-binder 3582:3587 <> indent:59
-binder 3589:3592 <> rest:60
-binder 3594:3595 <> st:61
-binder 3597:3598 <> iv:62
-binder 3600:3601 <> nv:63
-R3639:3646 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R3629:3631 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R3608:3622 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_expr defax
-R3624:3625 PyCSL.Phase6L_ComposeIfWhile <> is:57 var
-R3627:3628 PyCSL.Phase6L_ComposeIfWhile <> st:61 var
-R3632:3635 PyCSL.Phase6L_ComposeIfWhile <> VInt defax
-R3637:3638 PyCSL.Phase6L_ComposeIfWhile <> iv:62 var
-R3678:3685 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R3668:3670 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R3647:3661 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_expr defax
-R3663:3664 PyCSL.Phase6L_ComposeIfWhile <> vs:58 var
-R3666:3667 PyCSL.Phase6L_ComposeIfWhile <> st:61 var
-R3671:3674 PyCSL.Phase6L_ComposeIfWhile <> VInt defax
-R3676:3677 PyCSL.Phase6L_ComposeIfWhile <> nv:63 var
-R3751:3757 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R3686:3701 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R3704:3724 PyCSL.Phase6L_ComposeIfWhile <> handle_array_set_code defax
-R3726:3728 PyCSL.Phase6L_ComposeIfWhile <> arr:56 var
-R3730:3731 PyCSL.Phase6L_ComposeIfWhile <> is:57 var
-R3733:3734 PyCSL.Phase6L_ComposeIfWhile <> vs:58 var
-R3736:3741 PyCSL.Phase6L_ComposeIfWhile <> indent:59 var
-R3743:3746 PyCSL.Phase6L_ComposeIfWhile <> rest:60 var
-R3749:3750 PyCSL.Phase6L_ComposeIfWhile <> st:61 var
-R3758:3773 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R3775:3778 PyCSL.Phase6L_ComposeIfWhile <> rest:60 var
-R3781:3793 PyCSL.Phase6L_ComposeIfWhile <> arr_set_state defax
-R3795:3796 PyCSL.Phase6L_ComposeIfWhile <> st:61 var
-R3798:3800 PyCSL.Phase6L_ComposeIfWhile <> arr:56 var
-R3802:3803 PyCSL.Phase6L_ComposeIfWhile <> iv:62 var
-R3805:3806 PyCSL.Phase6L_ComposeIfWhile <> nv:63 var
-ax 3817:3827 <> if_else_coh
-binder 3840:3843 <> cond:66
-binder 3845:3849 <> then_:67
-binder 3851:3855 <> else_:68
-binder 3857:3862 <> indent:69
-binder 3864:3865 <> st:70
-binder 3867:3874 <> cond_val:71
-R3915:3922 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R3904:3906 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R3881:3895 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_expr defax
-R3897:3900 PyCSL.Phase6L_ComposeIfWhile <> cond:66 var
-R3902:3903 PyCSL.Phase6L_ComposeIfWhile <> st:70 var
-R3907:3914 PyCSL.Phase6L_ComposeIfWhile <> cond_val:71 var
-R3988:3994 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R3923:3938 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R3941:3954 PyCSL.Phase6L_ComposeIfWhile <> handle_if_code defax
-R3956:3959 PyCSL.Phase6L_ComposeIfWhile <> cond:66 var
-R3961:3965 PyCSL.Phase6L_ComposeIfWhile <> then_:67 var
-R3967:3971 PyCSL.Phase6L_ComposeIfWhile <> else_:68 var
-R3973:3978 PyCSL.Phase6L_ComposeIfWhile <> indent:69 var
-R3980:3983 Coq.Init.Datatypes <> true constr
-R3986:3987 PyCSL.Phase6L_ComposeIfWhile <> st:70 var
-R3998:4000 PyCSL.Phase6L_ComposeIfWhile <> vnz defax
-R4002:4009 PyCSL.Phase6L_ComposeIfWhile <> cond_val:71 var
-R4047:4062 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R4064:4068 PyCSL.Phase6L_ComposeIfWhile <> else_:68 var
-R4070:4071 PyCSL.Phase6L_ComposeIfWhile <> st:70 var
-R4016:4031 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R4033:4037 PyCSL.Phase6L_ComposeIfWhile <> then_:67 var
-R4039:4040 PyCSL.Phase6L_ComposeIfWhile <> st:70 var
-ax 4081:4089 <> while_coh
-binder 4102:4105 <> cond:74
-binder 4107:4109 <> inv:75
-binder 4111:4113 <> var:76
-binder 4115:4118 <> body:77
-binder 4120:4125 <> indent:78
-binder 4127:4128 <> st:79
-R4199:4205 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R4135:4150 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R4153:4169 PyCSL.Phase6L_ComposeIfWhile <> handle_while_code defax
-R4171:4174 PyCSL.Phase6L_ComposeIfWhile <> cond:74 var
-R4176:4178 PyCSL.Phase6L_ComposeIfWhile <> inv:75 var
-R4180:4182 PyCSL.Phase6L_ComposeIfWhile <> var:76 var
-R4184:4187 PyCSL.Phase6L_ComposeIfWhile <> body:77 var
-R4189:4194 PyCSL.Phase6L_ComposeIfWhile <> indent:78 var
-R4197:4198 PyCSL.Phase6L_ComposeIfWhile <> st:79 var
-R4206:4214 PyCSL.Phase6L_ComposeIfWhile <> while_fix defax
-R4216:4219 PyCSL.Phase6L_ComposeIfWhile <> cond:74 var
-R4221:4224 PyCSL.Phase6L_ComposeIfWhile <> body:77 var
-R4226:4227 PyCSL.Phase6L_ComposeIfWhile <> st:79 var
-ax 4237:4246 <> return_coh
-binder 4259:4260 <> ev:82
-binder 4262:4267 <> indent:83
-binder 4269:4270 <> st:84
-binder 4272:4276 <> e_val:85
-R4312:4319 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R4304:4306 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R4283:4297 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_expr defax
-R4299:4300 PyCSL.Phase6L_ComposeIfWhile <> ev:82 var
-R4302:4303 PyCSL.Phase6L_ComposeIfWhile <> st:84 var
-R4307:4311 PyCSL.Phase6L_ComposeIfWhile <> e_val:85 var
-R4376:4378 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R4320:4335 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R4338:4355 PyCSL.Phase6L_ComposeIfWhile <> handle_return_code defax
-R4357:4358 PyCSL.Phase6L_ComposeIfWhile <> ev:82 var
-R4360:4365 PyCSL.Phase6L_ComposeIfWhile <> indent:83 var
-R4367:4371 Coq.Init.Datatypes <> false constr
-R4374:4375 PyCSL.Phase6L_ComposeIfWhile <> st:84 var
-R4379:4384 PyCSL.Phase6L_ComposeIfWhile <> update defax
-R4386:4387 PyCSL.Phase6L_ComposeIfWhile <> st:84 var
-R4389:4396 PyCSL.Phase6L_ComposeIfWhile <> resultId def
-R4398:4402 PyCSL.Phase6L_ComposeIfWhile <> e_val:85 var
-ax 4412:4423 <> continue_coh
-binder 4436:4441 <> indent:88
-binder 4443:4444 <> st:89
-R4496:4498 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R4447:4462 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R4465:4484 PyCSL.Phase6L_ComposeIfWhile <> handle_continue_code defax
-R4486:4491 PyCSL.Phase6L_ComposeIfWhile <> indent:88 var
-R4494:4495 PyCSL.Phase6L_ComposeIfWhile <> st:89 var
-R4499:4500 PyCSL.Phase6L_ComposeIfWhile <> st:89 var
-ax 4655:4661 <> expr_ir
-ax 4683:4691 <> emit_expr
-R4702:4705 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R4695:4701 PyCSL.Phase6L_ComposeIfWhile <> expr_ir defax
-R4706:4711 Coq.Strings.String <> string ind
-ax 4724:4729 <> eval_e
-R4743:4746 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R4736:4742 PyCSL.Phase6L_ComposeIfWhile <> expr_ir defax
-R4752:4755 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R4747:4751 PyCSL.Phase6L_ComposeIfWhile <> state defax
-R4756:4760 PyCSL.Phase6L_ComposeIfWhile <> value defax
-ax 4773:4780 <> eval_int
-R4792:4795 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R4785:4791 PyCSL.Phase6L_ComposeIfWhile <> expr_ir defax
-R4801:4804 Coq.Init.Logic <> ::type_scope:x_'->'_x not
-R4796:4800 PyCSL.Phase6L_ComposeIfWhile <> state defax
-R4805:4805 Coq.Numbers.BinNums <> Z ind
-ax 4814:4826 <> expr_coherent
-binder 4837:4837 <> e:100
-binder 4839:4840 <> st:101
-R4875:4877 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R4843:4857 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_expr defax
-R4860:4868 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R4870:4870 PyCSL.Phase6L_ComposeIfWhile <> e:100 var
-R4873:4874 PyCSL.Phase6L_ComposeIfWhile <> st:101 var
-R4878:4883 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
-R4885:4885 PyCSL.Phase6L_ComposeIfWhile <> e:100 var
-R4887:4888 PyCSL.Phase6L_ComposeIfWhile <> st:101 var
-ax 4897:4906 <> eval_e_int
-binder 4920:4920 <> e:104
-binder 4922:4923 <> st:105
-R4937:4939 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R4926:4931 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
-R4933:4933 PyCSL.Phase6L_ComposeIfWhile <> e:104 var
-R4935:4936 PyCSL.Phase6L_ComposeIfWhile <> st:105 var
-R4940:4943 PyCSL.Phase6L_ComposeIfWhile <> VInt defax
-R4946:4953 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
-R4955:4955 PyCSL.Phase6L_ComposeIfWhile <> e:104 var
-R4957:4958 PyCSL.Phase6L_ComposeIfWhile <> st:105 var
-prf 5286:5292 <> if_step
-binder 5305:5305 <> c:108
-binder 5307:5311 <> tcode:109
-binder 5313:5317 <> ecode:110
-binder 5319:5324 <> indent:111
-binder 5326:5327 <> rc:112
-binder 5329:5330 <> st:113
-R5430:5436 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R5337:5352 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R5413:5416 Coq.Strings.String <> ::string_scope:x_'++'_x not
-R5361:5374 PyCSL.Phase6L_ComposeIfWhile <> handle_if_code defax
-R5377:5385 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R5387:5387 PyCSL.Phase6L_ComposeIfWhile <> c:108 var
-R5390:5394 PyCSL.Phase6L_ComposeIfWhile <> tcode:109 var
-R5396:5400 PyCSL.Phase6L_ComposeIfWhile <> ecode:110 var
-R5402:5407 PyCSL.Phase6L_ComposeIfWhile <> indent:111 var
-R5409:5412 Coq.Init.Datatypes <> true constr
-R5420:5423 Coq.Strings.String <> ::string_scope:x_'++'_x not
-R5417:5419 PyCSL.Phase6L_ComposeIfWhile <> sep defax
-R5424:5425 PyCSL.Phase6L_ComposeIfWhile <> rc:112 var
-R5428:5429 PyCSL.Phase6L_ComposeIfWhile <> st:113 var
-R5437:5452 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R5454:5455 PyCSL.Phase6L_ComposeIfWhile <> rc:112 var
-R5469:5471 PyCSL.Phase6L_ComposeIfWhile <> vnz defax
-R5474:5479 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
-R5481:5481 PyCSL.Phase6L_ComposeIfWhile <> c:108 var
-R5483:5484 PyCSL.Phase6L_ComposeIfWhile <> st:113 var
-R5541:5556 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R5558:5562 PyCSL.Phase6L_ComposeIfWhile <> ecode:110 var
-R5564:5565 PyCSL.Phase6L_ComposeIfWhile <> st:113 var
-R5501:5516 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R5518:5522 PyCSL.Phase6L_ComposeIfWhile <> tcode:109 var
-R5524:5525 PyCSL.Phase6L_ComposeIfWhile <> st:113 var
-R5623:5635 PyCSL.Phase6L_ComposeIfWhile <> seq_semantics prfax
-R5623:5635 PyCSL.Phase6L_ComposeIfWhile <> seq_semantics prfax
-R5623:5635 PyCSL.Phase6L_ComposeIfWhile <> seq_semantics prfax
-R5649:5659 PyCSL.Phase6L_ComposeIfWhile <> if_else_coh prfax
-R5662:5670 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R5698:5703 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
-R5735:5747 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
-R5649:5659 PyCSL.Phase6L_ComposeIfWhile <> if_else_coh prfax
-R5662:5670 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R5698:5703 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
-R5735:5747 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
-R5649:5659 PyCSL.Phase6L_ComposeIfWhile <> if_else_coh prfax
-R5662:5670 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R5698:5703 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
-R5735:5747 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
-prf 5905:5914 <> while_step
-binder 5927:5927 <> c:114
-binder 5929:5931 <> inv:115
-binder 5933:5935 <> var:116
-binder 5937:5940 <> body:117
-binder 5942:5947 <> indent:118
-binder 5949:5950 <> rc:119
-binder 5952:5953 <> st:120
-R6052:6058 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R5960:5975 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R6035:6038 Coq.Strings.String <> ::string_scope:x_'++'_x not
-R5984:6000 PyCSL.Phase6L_ComposeIfWhile <> handle_while_code defax
-R6003:6011 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R6013:6013 PyCSL.Phase6L_ComposeIfWhile <> c:114 var
-R6016:6018 PyCSL.Phase6L_ComposeIfWhile <> inv:115 var
-R6020:6022 PyCSL.Phase6L_ComposeIfWhile <> var:116 var
-R6024:6027 PyCSL.Phase6L_ComposeIfWhile <> body:117 var
-R6029:6034 PyCSL.Phase6L_ComposeIfWhile <> indent:118 var
-R6042:6045 Coq.Strings.String <> ::string_scope:x_'++'_x not
-R6039:6041 PyCSL.Phase6L_ComposeIfWhile <> sep defax
-R6046:6047 PyCSL.Phase6L_ComposeIfWhile <> rc:119 var
-R6050:6051 PyCSL.Phase6L_ComposeIfWhile <> st:120 var
-R6059:6074 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R6076:6077 PyCSL.Phase6L_ComposeIfWhile <> rc:119 var
-R6080:6088 PyCSL.Phase6L_ComposeIfWhile <> while_fix defax
-R6091:6099 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R6101:6101 PyCSL.Phase6L_ComposeIfWhile <> c:114 var
-R6104:6107 PyCSL.Phase6L_ComposeIfWhile <> body:117 var
-R6109:6110 PyCSL.Phase6L_ComposeIfWhile <> st:120 var
-R6169:6181 PyCSL.Phase6L_ComposeIfWhile <> seq_semantics prfax
-R6169:6181 PyCSL.Phase6L_ComposeIfWhile <> seq_semantics prfax
-R6169:6181 PyCSL.Phase6L_ComposeIfWhile <> seq_semantics prfax
-R6195:6203 PyCSL.Phase6L_ComposeIfWhile <> while_coh prfax
-R6206:6214 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R6195:6203 PyCSL.Phase6L_ComposeIfWhile <> while_coh prfax
-R6206:6214 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R6195:6203 PyCSL.Phase6L_ComposeIfWhile <> while_coh prfax
-R6206:6214 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-ind 6649:6654 <> simple
-constr 6670:6676 <> Sk_skip
-constr 6682:6690 <> Sk_assign
-constr 6720:6728 <> Sk_arrset
-constr 6760:6765 <> Sk_seq
-constr 6790:6794 <> Sk_if
-R6696:6700 PyCSL.Phase6L_ComposeIfWhile <> ident def
-binder 6693:6693 <> x:123
-R6707:6713 PyCSL.Phase6L_ComposeIfWhile <> expr_ir defax
-binder 6704:6704 <> e:124
-R6734:6738 PyCSL.Phase6L_ComposeIfWhile <> ident def
-binder 6731:6731 <> a:125
-R6747:6753 PyCSL.Phase6L_ComposeIfWhile <> expr_ir defax
-binder 6742:6742 <> i:126
-binder 6744:6744 <> v:127
-R6778:6783 PyCSL.Phase6L_ComposeIfWhile <> simple:121 ind
-binder 6771:6772 <> s1:128
-binder 6774:6775 <> s2:129
-R6804:6810 PyCSL.Phase6L_ComposeIfWhile <> expr_ir defax
-binder 6801:6801 <> c:130
-R6821:6826 PyCSL.Phase6L_ComposeIfWhile <> simple:121 ind
-binder 6814:6815 <> tb:131
-binder 6817:6818 <> eb:132
-scheme 6649:6654 <> simple_rect
-scheme 6649:6654 <> simple_ind
-scheme 6649:6654 <> simple_rec
-scheme 6649:6654 <> simple_sind
-ind 6841:6844 <> stmt
-constr 6860:6868 <> St_simple
-constr 6888:6896 <> St_return
-constr 6917:6927 <> St_continue
-constr 6933:6940 <> St_while
-R6876:6881 PyCSL.Phase6L_ComposeIfWhile <> simple ind
-binder 6873:6873 <> s:135
-R6904:6910 PyCSL.Phase6L_ComposeIfWhile <> expr_ir defax
-binder 6901:6901 <> e:136
-R6949:6955 PyCSL.Phase6L_ComposeIfWhile <> expr_ir defax
-binder 6946:6946 <> c:137
-R6965:6970 PyCSL.Phase6L_ComposeIfWhile <> simple ind
-binder 6959:6962 <> body:138
-scheme 6841:6844 <> stmt_rect
-scheme 6841:6844 <> stmt_ind
-scheme 6841:6844 <> stmt_rec
-scheme 6841:6844 <> stmt_sind
-def 6986:6988 <> sel
-R6994:7000 PyCSL.Phase6L_ComposeIfWhile <> expr_ir defax
-binder 6991:6991 <> c:139
-R7008:7012 PyCSL.Phase6L_ComposeIfWhile <> state defax
-binder 7004:7005 <> st:140
-R7021:7025 PyCSL.Phase6L_ComposeIfWhile <> state defax
-binder 7016:7016 <> a:141
-binder 7018:7018 <> b:142
-R7030:7034 PyCSL.Phase6L_ComposeIfWhile <> state defax
-R7044:7046 PyCSL.Phase6L_ComposeIfWhile <> vnz defax
-R7049:7054 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
-R7056:7056 PyCSL.Phase6L_ComposeIfWhile <> c:139 var
-R7058:7059 PyCSL.Phase6L_ComposeIfWhile <> st:140 var
-R7074:7074 PyCSL.Phase6L_ComposeIfWhile <> b:142 var
-R7067:7067 PyCSL.Phase6L_ComposeIfWhile <> a:141 var
-def 7087:7092 <> wp_one
-R7098:7103 PyCSL.Phase6L_ComposeIfWhile <> simple ind
-binder 7095:7095 <> s:143
-R7111:7115 PyCSL.Phase6L_ComposeIfWhile <> state defax
-binder 7107:7108 <> st:144
-R7120:7124 PyCSL.Phase6L_ComposeIfWhile <> state defax
-R7137:7137 PyCSL.Phase6L_ComposeIfWhile <> s:143 var
-R7148:7154 PyCSL.Phase6L_ComposeIfWhile <> Sk_skip constr
-R7167:7168 PyCSL.Phase6L_ComposeIfWhile <> st:144 var
-R7174:7182 PyCSL.Phase6L_ComposeIfWhile <> Sk_assign constr
-R7193:7198 PyCSL.Phase6L_ComposeIfWhile <> update defax
-R7200:7201 PyCSL.Phase6L_ComposeIfWhile <> st:144 var
-R7206:7211 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
-R7215:7216 PyCSL.Phase6L_ComposeIfWhile <> st:144 var
-R7223:7231 PyCSL.Phase6L_ComposeIfWhile <> Sk_arrset constr
-R7242:7254 PyCSL.Phase6L_ComposeIfWhile <> arr_set_state defax
-R7256:7257 PyCSL.Phase6L_ComposeIfWhile <> st:144 var
-R7262:7269 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
-R7273:7274 PyCSL.Phase6L_ComposeIfWhile <> st:144 var
-R7278:7285 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
-R7289:7290 PyCSL.Phase6L_ComposeIfWhile <> st:144 var
-R7297:7302 PyCSL.Phase6L_ComposeIfWhile <> Sk_seq constr
-R7316:7321 PyCSL.Phase6L_ComposeIfWhile <> wp_one:145 def
-R7327:7332 PyCSL.Phase6L_ComposeIfWhile <> wp_one:145 def
-R7337:7338 PyCSL.Phase6L_ComposeIfWhile <> st:144 var
-R7345:7349 PyCSL.Phase6L_ComposeIfWhile <> Sk_if constr
-R7364:7366 PyCSL.Phase6L_ComposeIfWhile <> sel def
-R7370:7371 PyCSL.Phase6L_ComposeIfWhile <> st:144 var
-R7374:7379 PyCSL.Phase6L_ComposeIfWhile <> wp_one:145 def
-R7384:7385 PyCSL.Phase6L_ComposeIfWhile <> st:144 var
-R7389:7394 PyCSL.Phase6L_ComposeIfWhile <> wp_one:145 def
-R7399:7400 PyCSL.Phase6L_ComposeIfWhile <> st:144 var
-def 7479:7481 <> brk
-R7492:7497 Coq.Strings.String <> string ind
-binder 7484:7489 <> indent:147
-R7502:7507 Coq.Strings.String <> string ind
-R7512:7527 PyCSL.Phase6L_ComposeIfWhile <> handle_skip_code defax
-R7529:7534 PyCSL.Phase6L_ComposeIfWhile <> indent:147 var
-R7536:7546 Coq.Strings.String <> EmptyString constr
-def 7620:7627 <> emit_one
-R7633:7638 PyCSL.Phase6L_ComposeIfWhile <> simple ind
-binder 7630:7630 <> s:148
-R7646:7651 Coq.Strings.String <> string ind
-binder 7642:7643 <> rc:149
-R7663:7668 Coq.Strings.String <> string ind
-binder 7655:7660 <> indent:150
-R7673:7678 Coq.Strings.String <> string ind
-R7691:7691 PyCSL.Phase6L_ComposeIfWhile <> s:148 var
-R7702:7708 PyCSL.Phase6L_ComposeIfWhile <> Sk_skip constr
-R7721:7736 PyCSL.Phase6L_ComposeIfWhile <> handle_skip_code defax
-R7738:7743 PyCSL.Phase6L_ComposeIfWhile <> indent:150 var
-R7745:7746 PyCSL.Phase6L_ComposeIfWhile <> rc:149 var
-R7752:7760 PyCSL.Phase6L_ComposeIfWhile <> Sk_assign constr
-R7771:7788 PyCSL.Phase6L_ComposeIfWhile <> handle_assign_code defax
-R7793:7801 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R7806:7811 PyCSL.Phase6L_ComposeIfWhile <> indent:150 var
-R7813:7814 PyCSL.Phase6L_ComposeIfWhile <> rc:149 var
-R7816:7819 Coq.Init.Datatypes <> true constr
-R7825:7833 PyCSL.Phase6L_ComposeIfWhile <> Sk_arrset constr
-R7844:7864 PyCSL.Phase6L_ComposeIfWhile <> handle_array_set_code defax
-R7869:7877 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R7883:7891 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R7896:7901 PyCSL.Phase6L_ComposeIfWhile <> indent:150 var
-R7903:7904 PyCSL.Phase6L_ComposeIfWhile <> rc:149 var
-R7910:7915 PyCSL.Phase6L_ComposeIfWhile <> Sk_seq constr
-R7929:7936 PyCSL.Phase6L_ComposeIfWhile <> emit_one:151 def
-R7965:7970 PyCSL.Phase6L_ComposeIfWhile <> indent:150 var
-R7942:7949 PyCSL.Phase6L_ComposeIfWhile <> emit_one:151 def
-R7957:7962 PyCSL.Phase6L_ComposeIfWhile <> indent:150 var
-R7954:7955 PyCSL.Phase6L_ComposeIfWhile <> rc:149 var
-R7976:7980 PyCSL.Phase6L_ComposeIfWhile <> Sk_if constr
-R8130:8139 Coq.Strings.String <> ::string_scope:x_'++'_x not
-R8001:8014 PyCSL.Phase6L_ComposeIfWhile <> handle_if_code defax
-R8017:8025 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R8031:8038 PyCSL.Phase6L_ComposeIfWhile <> emit_one:151 def
-R8056:8061 PyCSL.Phase6L_ComposeIfWhile <> indent:150 var
-R8044:8046 PyCSL.Phase6L_ComposeIfWhile <> brk def
-R8048:8053 PyCSL.Phase6L_ComposeIfWhile <> indent:150 var
-R8086:8093 PyCSL.Phase6L_ComposeIfWhile <> emit_one:151 def
-R8111:8116 PyCSL.Phase6L_ComposeIfWhile <> indent:150 var
-R8099:8101 PyCSL.Phase6L_ComposeIfWhile <> brk def
-R8103:8108 PyCSL.Phase6L_ComposeIfWhile <> indent:150 var
-R8119:8124 PyCSL.Phase6L_ComposeIfWhile <> indent:150 var
-R8126:8129 Coq.Init.Datatypes <> true constr
-R8143:8146 Coq.Strings.String <> ::string_scope:x_'++'_x not
-R8140:8142 PyCSL.Phase6L_ComposeIfWhile <> sep defax
-R8147:8148 PyCSL.Phase6L_ComposeIfWhile <> rc:149 var
-prf 8223:8228 <> brk_id
-binder 8239:8244 <> indent:153
-binder 8246:8247 <> st:154
-R8282:8284 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R8250:8265 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R8268:8270 PyCSL.Phase6L_ComposeIfWhile <> brk def
-R8272:8277 PyCSL.Phase6L_ComposeIfWhile <> indent:153 var
-R8280:8281 PyCSL.Phase6L_ComposeIfWhile <> st:154 var
-R8285:8286 PyCSL.Phase6L_ComposeIfWhile <> st:154 var
-R8311:8313 PyCSL.Phase6L_ComposeIfWhile <> brk def
-R8324:8331 PyCSL.Phase6L_ComposeIfWhile <> skip_coh prfax
-R8324:8331 PyCSL.Phase6L_ComposeIfWhile <> skip_coh prfax
-R8324:8331 PyCSL.Phase6L_ComposeIfWhile <> skip_coh prfax
-R8340:8349 PyCSL.Phase6L_ComposeIfWhile <> eval_empty prfax
-R8340:8349 PyCSL.Phase6L_ComposeIfWhile <> eval_empty prfax
-prf 8454:8470 <> emit_one_coherent
-binder 8483:8483 <> s:155
-binder 8485:8486 <> rc:156
-binder 8488:8489 <> st:157
-binder 8491:8496 <> indent:158
-R8545:8547 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R8503:8518 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R8521:8528 PyCSL.Phase6L_ComposeIfWhile <> emit_one def
-R8530:8530 PyCSL.Phase6L_ComposeIfWhile <> s:155 var
-R8532:8533 PyCSL.Phase6L_ComposeIfWhile <> rc:156 var
-R8535:8540 PyCSL.Phase6L_ComposeIfWhile <> indent:158 var
-R8543:8544 PyCSL.Phase6L_ComposeIfWhile <> st:157 var
-R8548:8563 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R8565:8566 PyCSL.Phase6L_ComposeIfWhile <> rc:156 var
-R8569:8574 PyCSL.Phase6L_ComposeIfWhile <> wp_one def
-R8576:8576 PyCSL.Phase6L_ComposeIfWhile <> s:155 var
-R8578:8579 PyCSL.Phase6L_ComposeIfWhile <> st:157 var
-R8718:8725 PyCSL.Phase6L_ComposeIfWhile <> skip_coh prfax
-R8718:8725 PyCSL.Phase6L_ComposeIfWhile <> skip_coh prfax
-R8755:8764 PyCSL.Phase6L_ComposeIfWhile <> assign_coh prfax
-R8769:8777 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R8796:8801 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
-R8755:8764 PyCSL.Phase6L_ComposeIfWhile <> assign_coh prfax
-R8769:8777 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R8796:8801 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
-R8817:8829 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
-R8817:8829 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
-R8865:8877 PyCSL.Phase6L_ComposeIfWhile <> array_set_coh prfax
-R8882:8890 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R8896:8904 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R8938:8945 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
-R8954:8961 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
-R8865:8877 PyCSL.Phase6L_ComposeIfWhile <> array_set_coh prfax
-R8882:8890 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R8896:8904 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R8938:8945 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
-R8954:8961 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
-R8865:8877 PyCSL.Phase6L_ComposeIfWhile <> array_set_coh prfax
-R8882:8890 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R8896:8904 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R8938:8945 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
-R8954:8961 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
-R8865:8877 PyCSL.Phase6L_ComposeIfWhile <> array_set_coh prfax
-R8882:8890 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R8896:8904 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R8938:8945 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
-R8954:8961 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
-R8865:8877 PyCSL.Phase6L_ComposeIfWhile <> array_set_coh prfax
-R8882:8890 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R8896:8904 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R8938:8945 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
-R8954:8961 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
-R9004:9016 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
-R9004:9016 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
-R9004:9016 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
-R9025:9034 PyCSL.Phase6L_ComposeIfWhile <> eval_e_int prfax
-R9025:9034 PyCSL.Phase6L_ComposeIfWhile <> eval_e_int prfax
-R9051:9063 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
-R9051:9063 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
-R9051:9063 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
-R9072:9081 PyCSL.Phase6L_ComposeIfWhile <> eval_e_int prfax
-R9072:9081 PyCSL.Phase6L_ComposeIfWhile <> eval_e_int prfax
-R9168:9174 PyCSL.Phase6L_ComposeIfWhile <> if_step thm
-R9168:9174 PyCSL.Phase6L_ComposeIfWhile <> if_step thm
-R9168:9174 PyCSL.Phase6L_ComposeIfWhile <> if_step thm
-R9196:9198 PyCSL.Phase6L_ComposeIfWhile <> brk def
-R9196:9198 PyCSL.Phase6L_ComposeIfWhile <> brk def
-R9196:9198 PyCSL.Phase6L_ComposeIfWhile <> brk def
-R9228:9233 PyCSL.Phase6L_ComposeIfWhile <> brk_id thm
-R9228:9233 PyCSL.Phase6L_ComposeIfWhile <> brk_id thm
-R9228:9233 PyCSL.Phase6L_ComposeIfWhile <> brk_id thm
-R9255:9257 PyCSL.Phase6L_ComposeIfWhile <> brk def
-R9255:9257 PyCSL.Phase6L_ComposeIfWhile <> brk def
-R9255:9257 PyCSL.Phase6L_ComposeIfWhile <> brk def
-R9287:9292 PyCSL.Phase6L_ComposeIfWhile <> brk_id thm
-R9287:9292 PyCSL.Phase6L_ComposeIfWhile <> brk_id thm
-R9287:9292 PyCSL.Phase6L_ComposeIfWhile <> brk_id thm
-R9306:9308 PyCSL.Phase6L_ComposeIfWhile <> sel def
-def 9435:9442 <> wp_stmts
-R9449:9452 Coq.Init.Datatypes <> list ind
-R9454:9457 PyCSL.Phase6L_ComposeIfWhile <> stmt ind
-binder 9445:9446 <> ss:159
-R9465:9469 PyCSL.Phase6L_ComposeIfWhile <> state defax
-binder 9461:9462 <> st:160
-R9481:9486 Coq.Strings.String <> string ind
-binder 9473:9478 <> indent:161
-R9491:9495 PyCSL.Phase6L_ComposeIfWhile <> state defax
-R9508:9509 PyCSL.Phase6L_ComposeIfWhile <> ss:159 var
-R9520:9521 Coq.Lists.List ListNotations ::list_scope:'['_']' not
-R9533:9534 PyCSL.Phase6L_ComposeIfWhile <> st:160 var
-R9541:9544 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
-R9580:9588 PyCSL.Phase6L_ComposeIfWhile <> St_return constr
-R9598:9603 PyCSL.Phase6L_ComposeIfWhile <> update defax
-R9605:9606 PyCSL.Phase6L_ComposeIfWhile <> st:160 var
-R9608:9615 PyCSL.Phase6L_ComposeIfWhile <> resultId def
-R9618:9623 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
-R9627:9628 PyCSL.Phase6L_ComposeIfWhile <> st:160 var
-R9639:9649 PyCSL.Phase6L_ComposeIfWhile <> St_continue constr
-R9657:9658 PyCSL.Phase6L_ComposeIfWhile <> st:160 var
-R9668:9676 PyCSL.Phase6L_ComposeIfWhile <> St_simple constr
-R9686:9693 PyCSL.Phase6L_ComposeIfWhile <> wp_stmts:162 def
-R9715:9720 PyCSL.Phase6L_ComposeIfWhile <> indent:161 var
-R9701:9706 PyCSL.Phase6L_ComposeIfWhile <> wp_one def
-R9711:9712 PyCSL.Phase6L_ComposeIfWhile <> st:160 var
-R9730:9737 PyCSL.Phase6L_ComposeIfWhile <> St_while constr
-R9748:9755 PyCSL.Phase6L_ComposeIfWhile <> wp_stmts:162 def
-R9855:9860 PyCSL.Phase6L_ComposeIfWhile <> indent:161 var
-R9791:9799 PyCSL.Phase6L_ComposeIfWhile <> while_fix defax
-R9802:9810 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R9816:9823 PyCSL.Phase6L_ComposeIfWhile <> emit_one def
-R9831:9833 PyCSL.Phase6L_ComposeIfWhile <> brk def
-R9835:9840 PyCSL.Phase6L_ComposeIfWhile <> indent:161 var
-R9843:9848 PyCSL.Phase6L_ComposeIfWhile <> indent:161 var
-R9851:9852 PyCSL.Phase6L_ComposeIfWhile <> st:160 var
-def 9889:9898 <> emit_stmts
-R9905:9908 Coq.Init.Datatypes <> list ind
-R9910:9913 PyCSL.Phase6L_ComposeIfWhile <> stmt ind
-binder 9901:9902 <> ss:165
-R9925:9930 Coq.Strings.String <> string ind
-binder 9917:9922 <> indent:166
-R9935:9940 Coq.Strings.String <> string ind
-R9953:9954 PyCSL.Phase6L_ComposeIfWhile <> ss:165 var
-R9965:9966 Coq.Lists.List ListNotations ::list_scope:'['_']' not
-R9978:9980 PyCSL.Phase6L_ComposeIfWhile <> brk def
-R9982:9987 PyCSL.Phase6L_ComposeIfWhile <> indent:166 var
-R9994:9997 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
-R10033:10041 PyCSL.Phase6L_ComposeIfWhile <> St_return constr
-R10051:10068 PyCSL.Phase6L_ComposeIfWhile <> handle_return_code defax
-R10071:10079 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R10084:10089 PyCSL.Phase6L_ComposeIfWhile <> indent:166 var
-R10091:10095 Coq.Init.Datatypes <> false constr
-R10105:10115 PyCSL.Phase6L_ComposeIfWhile <> St_continue constr
-R10123:10142 PyCSL.Phase6L_ComposeIfWhile <> handle_continue_code defax
-R10144:10149 PyCSL.Phase6L_ComposeIfWhile <> indent:166 var
-R10159:10167 PyCSL.Phase6L_ComposeIfWhile <> St_simple constr
-R10177:10184 PyCSL.Phase6L_ComposeIfWhile <> emit_one def
-R10190:10199 PyCSL.Phase6L_ComposeIfWhile <> emit_stmts:167 def
-R10206:10211 PyCSL.Phase6L_ComposeIfWhile <> indent:166 var
-R10214:10219 PyCSL.Phase6L_ComposeIfWhile <> indent:166 var
-R10229:10236 PyCSL.Phase6L_ComposeIfWhile <> St_while constr
-R10383:10396 Coq.Strings.String <> ::string_scope:x_'++'_x not
-R10257:10273 PyCSL.Phase6L_ComposeIfWhile <> handle_while_code defax
-R10276:10284 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R10289:10299 Coq.Strings.String <> EmptyString constr
-R10301:10311 Coq.Strings.String <> EmptyString constr
-R10342:10349 PyCSL.Phase6L_ComposeIfWhile <> emit_one def
-R10357:10359 PyCSL.Phase6L_ComposeIfWhile <> brk def
-R10361:10366 PyCSL.Phase6L_ComposeIfWhile <> indent:166 var
-R10369:10374 PyCSL.Phase6L_ComposeIfWhile <> indent:166 var
-R10377:10382 PyCSL.Phase6L_ComposeIfWhile <> indent:166 var
-R10400:10403 Coq.Strings.String <> ::string_scope:x_'++'_x not
-R10397:10399 PyCSL.Phase6L_ComposeIfWhile <> sep defax
-R10404:10413 PyCSL.Phase6L_ComposeIfWhile <> emit_stmts:167 def
-R10420:10425 PyCSL.Phase6L_ComposeIfWhile <> indent:166 var
-prf 10613:10631 <> emit_stmts_coherent
-binder 10644:10645 <> ss:170
-binder 10647:10648 <> st:171
-binder 10650:10655 <> indent:172
-R10704:10706 Coq.Init.Logic <> ::type_scope:x_'='_x not
-R10662:10677 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
-R10680:10689 PyCSL.Phase6L_ComposeIfWhile <> emit_stmts def
-R10691:10692 PyCSL.Phase6L_ComposeIfWhile <> ss:170 var
-R10694:10699 PyCSL.Phase6L_ComposeIfWhile <> indent:172 var
-R10702:10703 PyCSL.Phase6L_ComposeIfWhile <> st:171 var
-R10707:10714 PyCSL.Phase6L_ComposeIfWhile <> wp_stmts def
-R10716:10717 PyCSL.Phase6L_ComposeIfWhile <> ss:170 var
-R10719:10720 PyCSL.Phase6L_ComposeIfWhile <> st:171 var
-R10722:10727 PyCSL.Phase6L_ComposeIfWhile <> indent:172 var
-R10816:10821 PyCSL.Phase6L_ComposeIfWhile <> brk_id thm
-R10816:10821 PyCSL.Phase6L_ComposeIfWhile <> brk_id thm
-R10895:10911 PyCSL.Phase6L_ComposeIfWhile <> emit_one_coherent thm
-R10895:10911 PyCSL.Phase6L_ComposeIfWhile <> emit_one_coherent thm
-R10895:10911 PyCSL.Phase6L_ComposeIfWhile <> emit_one_coherent thm
-R10968:10977 PyCSL.Phase6L_ComposeIfWhile <> return_coh prfax
-R10980:10988 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R11004:11009 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
-R10968:10977 PyCSL.Phase6L_ComposeIfWhile <> return_coh prfax
-R10980:10988 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
-R11004:11009 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
-R11025:11037 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
-R11025:11037 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
-R11070:11081 PyCSL.Phase6L_ComposeIfWhile <> continue_coh prfax
-R11070:11081 PyCSL.Phase6L_ComposeIfWhile <> continue_coh prfax
-R11113:11122 PyCSL.Phase6L_ComposeIfWhile <> while_step thm
-R11113:11122 PyCSL.Phase6L_ComposeIfWhile <> while_step thm
-R11113:11122 PyCSL.Phase6L_ComposeIfWhile <> while_step thm
+ax 2545:2568 <> handle_ghost_assign_code
+R2577:2580 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2572:2576 PyCSL.Phase6L_ComposeIfWhile <> ident def
+R2587:2590 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2581:2586 Coq.Strings.String <> string ind
+R2597:2600 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2591:2596 Coq.Strings.String <> string ind
+R2607:2610 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2601:2606 Coq.Strings.String <> string ind
+R2611:2616 Coq.Strings.String <> string ind
+ax 2655:2678 <> handle_ghost_arrset_code
+R2687:2690 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2682:2686 PyCSL.Phase6L_ComposeIfWhile <> ident def
+R2697:2700 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2691:2696 Coq.Strings.String <> string ind
+R2707:2710 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2701:2706 Coq.Strings.String <> string ind
+R2717:2720 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2711:2716 Coq.Strings.String <> string ind
+R2727:2730 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R2721:2726 Coq.Strings.String <> string ind
+R2731:2736 Coq.Strings.String <> string ind
+ax 2886:2888 <> sep
+R2892:2897 Coq.Strings.String <> string ind
+ax 3001:3009 <> while_fix
+R3019:3022 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3013:3018 Coq.Strings.String <> string ind
+R3029:3032 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3023:3028 Coq.Strings.String <> string ind
+R3038:3041 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3033:3037 PyCSL.Phase6L_ComposeIfWhile <> state defax
+R3042:3046 PyCSL.Phase6L_ComposeIfWhile <> state defax
+ax 3209:3218 <> eval_empty
+binder 3231:3232 <> st:39
+R3266:3268 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3235:3250 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R3252:3262 Coq.Strings.String <> EmptyString constr
+R3264:3265 PyCSL.Phase6L_ComposeIfWhile <> st:39 var
+R3269:3270 PyCSL.Phase6L_ComposeIfWhile <> st:39 var
+ax 3280:3292 <> seq_semantics
+binder 3305:3306 <> s1:42
+binder 3308:3309 <> s2:43
+binder 3311:3312 <> st:44
+R3356:3362 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3319:3334 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R3339:3342 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R3337:3338 PyCSL.Phase6L_ComposeIfWhile <> s1:42 var
+R3346:3349 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R3343:3345 PyCSL.Phase6L_ComposeIfWhile <> sep defax
+R3350:3351 PyCSL.Phase6L_ComposeIfWhile <> s2:43 var
+R3354:3355 PyCSL.Phase6L_ComposeIfWhile <> st:44 var
+R3363:3378 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R3380:3381 PyCSL.Phase6L_ComposeIfWhile <> s2:43 var
+R3384:3399 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R3401:3402 PyCSL.Phase6L_ComposeIfWhile <> s1:42 var
+R3404:3405 PyCSL.Phase6L_ComposeIfWhile <> st:44 var
+ax 3416:3423 <> skip_coh
+binder 3436:3441 <> indent:47
+binder 3443:3446 <> rest:48
+binder 3448:3449 <> st:49
+R3506:3508 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3456:3471 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R3474:3489 PyCSL.Phase6L_ComposeIfWhile <> handle_skip_code defax
+R3491:3496 PyCSL.Phase6L_ComposeIfWhile <> indent:47 var
+R3498:3501 PyCSL.Phase6L_ComposeIfWhile <> rest:48 var
+R3504:3505 PyCSL.Phase6L_ComposeIfWhile <> st:49 var
+R3509:3524 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R3526:3529 PyCSL.Phase6L_ComposeIfWhile <> rest:48 var
+R3531:3532 PyCSL.Phase6L_ComposeIfWhile <> st:49 var
+ax 3542:3551 <> assign_coh
+binder 3564:3564 <> x:52
+binder 3566:3567 <> ev:53
+binder 3569:3574 <> indent:54
+binder 3576:3579 <> rest:55
+binder 3581:3582 <> st:56
+binder 3584:3588 <> e_val:57
+R3624:3631 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3616:3618 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3595:3609 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_expr defax
+R3611:3612 PyCSL.Phase6L_ComposeIfWhile <> ev:53 var
+R3614:3615 PyCSL.Phase6L_ComposeIfWhile <> st:56 var
+R3619:3623 PyCSL.Phase6L_ComposeIfWhile <> e_val:57 var
+R3694:3700 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3632:3647 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R3650:3667 PyCSL.Phase6L_ComposeIfWhile <> handle_assign_code defax
+R3669:3669 PyCSL.Phase6L_ComposeIfWhile <> x:52 var
+R3671:3672 PyCSL.Phase6L_ComposeIfWhile <> ev:53 var
+R3674:3679 PyCSL.Phase6L_ComposeIfWhile <> indent:54 var
+R3681:3684 PyCSL.Phase6L_ComposeIfWhile <> rest:55 var
+R3686:3689 Coq.Init.Datatypes <> true constr
+R3692:3693 PyCSL.Phase6L_ComposeIfWhile <> st:56 var
+R3701:3716 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R3718:3721 PyCSL.Phase6L_ComposeIfWhile <> rest:55 var
+R3724:3729 PyCSL.Phase6L_ComposeIfWhile <> update defax
+R3731:3732 PyCSL.Phase6L_ComposeIfWhile <> st:56 var
+R3734:3734 PyCSL.Phase6L_ComposeIfWhile <> x:52 var
+R3736:3740 PyCSL.Phase6L_ComposeIfWhile <> e_val:57 var
+ax 3751:3763 <> array_set_coh
+binder 3776:3778 <> arr:60
+binder 3780:3781 <> is:61
+binder 3783:3784 <> vs:62
+binder 3786:3791 <> indent:63
+binder 3793:3796 <> rest:64
+binder 3798:3799 <> st:65
+binder 3801:3802 <> iv:66
+binder 3804:3805 <> nv:67
+R3843:3850 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3833:3835 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3812:3826 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_expr defax
+R3828:3829 PyCSL.Phase6L_ComposeIfWhile <> is:61 var
+R3831:3832 PyCSL.Phase6L_ComposeIfWhile <> st:65 var
+R3836:3839 PyCSL.Phase6L_ComposeIfWhile <> VInt defax
+R3841:3842 PyCSL.Phase6L_ComposeIfWhile <> iv:66 var
+R3882:3889 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3872:3874 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3851:3865 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_expr defax
+R3867:3868 PyCSL.Phase6L_ComposeIfWhile <> vs:62 var
+R3870:3871 PyCSL.Phase6L_ComposeIfWhile <> st:65 var
+R3875:3878 PyCSL.Phase6L_ComposeIfWhile <> VInt defax
+R3880:3881 PyCSL.Phase6L_ComposeIfWhile <> nv:67 var
+R3955:3961 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R3890:3905 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R3908:3928 PyCSL.Phase6L_ComposeIfWhile <> handle_array_set_code defax
+R3930:3932 PyCSL.Phase6L_ComposeIfWhile <> arr:60 var
+R3934:3935 PyCSL.Phase6L_ComposeIfWhile <> is:61 var
+R3937:3938 PyCSL.Phase6L_ComposeIfWhile <> vs:62 var
+R3940:3945 PyCSL.Phase6L_ComposeIfWhile <> indent:63 var
+R3947:3950 PyCSL.Phase6L_ComposeIfWhile <> rest:64 var
+R3953:3954 PyCSL.Phase6L_ComposeIfWhile <> st:65 var
+R3962:3977 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R3979:3982 PyCSL.Phase6L_ComposeIfWhile <> rest:64 var
+R3985:3997 PyCSL.Phase6L_ComposeIfWhile <> arr_set_state defax
+R3999:4000 PyCSL.Phase6L_ComposeIfWhile <> st:65 var
+R4002:4004 PyCSL.Phase6L_ComposeIfWhile <> arr:60 var
+R4006:4007 PyCSL.Phase6L_ComposeIfWhile <> iv:66 var
+R4009:4010 PyCSL.Phase6L_ComposeIfWhile <> nv:67 var
+ax 4021:4031 <> if_else_coh
+binder 4044:4047 <> cond:70
+binder 4049:4053 <> then_:71
+binder 4055:4059 <> else_:72
+binder 4061:4066 <> indent:73
+binder 4068:4069 <> st:74
+binder 4071:4078 <> cond_val:75
+R4119:4126 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4108:4110 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4085:4099 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_expr defax
+R4101:4104 PyCSL.Phase6L_ComposeIfWhile <> cond:70 var
+R4106:4107 PyCSL.Phase6L_ComposeIfWhile <> st:74 var
+R4111:4118 PyCSL.Phase6L_ComposeIfWhile <> cond_val:75 var
+R4192:4198 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4127:4142 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R4145:4158 PyCSL.Phase6L_ComposeIfWhile <> handle_if_code defax
+R4160:4163 PyCSL.Phase6L_ComposeIfWhile <> cond:70 var
+R4165:4169 PyCSL.Phase6L_ComposeIfWhile <> then_:71 var
+R4171:4175 PyCSL.Phase6L_ComposeIfWhile <> else_:72 var
+R4177:4182 PyCSL.Phase6L_ComposeIfWhile <> indent:73 var
+R4184:4187 Coq.Init.Datatypes <> true constr
+R4190:4191 PyCSL.Phase6L_ComposeIfWhile <> st:74 var
+R4202:4204 PyCSL.Phase6L_ComposeIfWhile <> vnz defax
+R4206:4213 PyCSL.Phase6L_ComposeIfWhile <> cond_val:75 var
+R4251:4266 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R4268:4272 PyCSL.Phase6L_ComposeIfWhile <> else_:72 var
+R4274:4275 PyCSL.Phase6L_ComposeIfWhile <> st:74 var
+R4220:4235 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R4237:4241 PyCSL.Phase6L_ComposeIfWhile <> then_:71 var
+R4243:4244 PyCSL.Phase6L_ComposeIfWhile <> st:74 var
+ax 4285:4293 <> while_coh
+binder 4306:4309 <> cond:78
+binder 4311:4313 <> inv:79
+binder 4315:4317 <> var:80
+binder 4319:4322 <> body:81
+binder 4324:4329 <> indent:82
+binder 4331:4332 <> st:83
+R4403:4409 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4339:4354 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R4357:4373 PyCSL.Phase6L_ComposeIfWhile <> handle_while_code defax
+R4375:4378 PyCSL.Phase6L_ComposeIfWhile <> cond:78 var
+R4380:4382 PyCSL.Phase6L_ComposeIfWhile <> inv:79 var
+R4384:4386 PyCSL.Phase6L_ComposeIfWhile <> var:80 var
+R4388:4391 PyCSL.Phase6L_ComposeIfWhile <> body:81 var
+R4393:4398 PyCSL.Phase6L_ComposeIfWhile <> indent:82 var
+R4401:4402 PyCSL.Phase6L_ComposeIfWhile <> st:83 var
+R4410:4418 PyCSL.Phase6L_ComposeIfWhile <> while_fix defax
+R4420:4423 PyCSL.Phase6L_ComposeIfWhile <> cond:78 var
+R4425:4428 PyCSL.Phase6L_ComposeIfWhile <> body:81 var
+R4430:4431 PyCSL.Phase6L_ComposeIfWhile <> st:83 var
+ax 4441:4450 <> return_coh
+binder 4463:4464 <> ev:86
+binder 4466:4471 <> indent:87
+binder 4473:4474 <> st:88
+binder 4476:4480 <> e_val:89
+R4516:4523 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R4508:4510 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4487:4501 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_expr defax
+R4503:4504 PyCSL.Phase6L_ComposeIfWhile <> ev:86 var
+R4506:4507 PyCSL.Phase6L_ComposeIfWhile <> st:88 var
+R4511:4515 PyCSL.Phase6L_ComposeIfWhile <> e_val:89 var
+R4580:4582 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4524:4539 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R4542:4559 PyCSL.Phase6L_ComposeIfWhile <> handle_return_code defax
+R4561:4562 PyCSL.Phase6L_ComposeIfWhile <> ev:86 var
+R4564:4569 PyCSL.Phase6L_ComposeIfWhile <> indent:87 var
+R4571:4575 Coq.Init.Datatypes <> false constr
+R4578:4579 PyCSL.Phase6L_ComposeIfWhile <> st:88 var
+R4583:4588 PyCSL.Phase6L_ComposeIfWhile <> update defax
+R4590:4591 PyCSL.Phase6L_ComposeIfWhile <> st:88 var
+R4593:4600 PyCSL.Phase6L_ComposeIfWhile <> resultId def
+R4602:4606 PyCSL.Phase6L_ComposeIfWhile <> e_val:89 var
+ax 4616:4627 <> continue_coh
+binder 4640:4645 <> indent:92
+binder 4647:4648 <> st:93
+R4700:4702 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R4651:4666 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R4669:4688 PyCSL.Phase6L_ComposeIfWhile <> handle_continue_code defax
+R4690:4695 PyCSL.Phase6L_ComposeIfWhile <> indent:92 var
+R4698:4699 PyCSL.Phase6L_ComposeIfWhile <> st:93 var
+R4703:4704 PyCSL.Phase6L_ComposeIfWhile <> st:93 var
+ax 4962:4977 <> ghost_assign_coh
+binder 4990:4991 <> gx:96
+binder 4993:4994 <> ev:97
+binder 4996:5001 <> indent:98
+binder 5003:5006 <> rest:99
+binder 5008:5009 <> st:100
+binder 5011:5015 <> e_val:101
+R5051:5058 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5043:5045 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R5022:5036 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_expr defax
+R5038:5039 PyCSL.Phase6L_ComposeIfWhile <> ev:97 var
+R5041:5042 PyCSL.Phase6L_ComposeIfWhile <> st:100 var
+R5046:5050 PyCSL.Phase6L_ComposeIfWhile <> e_val:101 var
+R5123:5129 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R5059:5074 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R5077:5100 PyCSL.Phase6L_ComposeIfWhile <> handle_ghost_assign_code defax
+R5102:5103 PyCSL.Phase6L_ComposeIfWhile <> gx:96 var
+R5105:5106 PyCSL.Phase6L_ComposeIfWhile <> ev:97 var
+R5108:5113 PyCSL.Phase6L_ComposeIfWhile <> indent:98 var
+R5115:5118 PyCSL.Phase6L_ComposeIfWhile <> rest:99 var
+R5121:5122 PyCSL.Phase6L_ComposeIfWhile <> st:100 var
+R5130:5145 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R5147:5150 PyCSL.Phase6L_ComposeIfWhile <> rest:99 var
+R5153:5158 PyCSL.Phase6L_ComposeIfWhile <> update defax
+R5160:5161 PyCSL.Phase6L_ComposeIfWhile <> st:100 var
+R5163:5164 PyCSL.Phase6L_ComposeIfWhile <> gx:96 var
+R5166:5170 PyCSL.Phase6L_ComposeIfWhile <> e_val:101 var
+ax 5181:5196 <> ghost_arrset_coh
+binder 5209:5210 <> ga:104
+binder 5212:5213 <> is:105
+binder 5215:5216 <> vs:106
+binder 5218:5223 <> indent:107
+binder 5225:5228 <> rest:108
+binder 5230:5231 <> st:109
+binder 5233:5234 <> iv:110
+binder 5236:5237 <> nv:111
+R5275:5282 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5265:5267 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R5244:5258 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_expr defax
+R5260:5261 PyCSL.Phase6L_ComposeIfWhile <> is:105 var
+R5263:5264 PyCSL.Phase6L_ComposeIfWhile <> st:109 var
+R5268:5271 PyCSL.Phase6L_ComposeIfWhile <> VInt defax
+R5273:5274 PyCSL.Phase6L_ComposeIfWhile <> iv:110 var
+R5314:5321 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5304:5306 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R5283:5297 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_expr defax
+R5299:5300 PyCSL.Phase6L_ComposeIfWhile <> vs:106 var
+R5302:5303 PyCSL.Phase6L_ComposeIfWhile <> st:109 var
+R5307:5310 PyCSL.Phase6L_ComposeIfWhile <> VInt defax
+R5312:5313 PyCSL.Phase6L_ComposeIfWhile <> nv:111 var
+R5389:5395 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R5322:5337 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R5340:5363 PyCSL.Phase6L_ComposeIfWhile <> handle_ghost_arrset_code defax
+R5365:5366 PyCSL.Phase6L_ComposeIfWhile <> ga:104 var
+R5368:5369 PyCSL.Phase6L_ComposeIfWhile <> is:105 var
+R5371:5372 PyCSL.Phase6L_ComposeIfWhile <> vs:106 var
+R5374:5379 PyCSL.Phase6L_ComposeIfWhile <> indent:107 var
+R5381:5384 PyCSL.Phase6L_ComposeIfWhile <> rest:108 var
+R5387:5388 PyCSL.Phase6L_ComposeIfWhile <> st:109 var
+R5396:5411 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R5413:5416 PyCSL.Phase6L_ComposeIfWhile <> rest:108 var
+R5419:5431 PyCSL.Phase6L_ComposeIfWhile <> arr_set_state defax
+R5433:5434 PyCSL.Phase6L_ComposeIfWhile <> st:109 var
+R5436:5437 PyCSL.Phase6L_ComposeIfWhile <> ga:104 var
+R5439:5440 PyCSL.Phase6L_ComposeIfWhile <> iv:110 var
+R5442:5443 PyCSL.Phase6L_ComposeIfWhile <> nv:111 var
+ax 5599:5605 <> expr_ir
+ax 5627:5635 <> emit_expr
+R5646:5649 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5639:5645 PyCSL.Phase6L_ComposeIfWhile <> expr_ir defax
+R5650:5655 Coq.Strings.String <> string ind
+ax 5668:5673 <> eval_e
+R5687:5690 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5680:5686 PyCSL.Phase6L_ComposeIfWhile <> expr_ir defax
+R5696:5699 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5691:5695 PyCSL.Phase6L_ComposeIfWhile <> state defax
+R5700:5704 PyCSL.Phase6L_ComposeIfWhile <> value defax
+ax 5717:5724 <> eval_int
+R5736:5739 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5729:5735 PyCSL.Phase6L_ComposeIfWhile <> expr_ir defax
+R5745:5748 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R5740:5744 PyCSL.Phase6L_ComposeIfWhile <> state defax
+R5749:5749 Coq.Numbers.BinNums <> Z ind
+ax 5758:5770 <> expr_coherent
+binder 5781:5781 <> e:122
+binder 5783:5784 <> st:123
+R5819:5821 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R5787:5801 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_expr defax
+R5804:5812 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R5814:5814 PyCSL.Phase6L_ComposeIfWhile <> e:122 var
+R5817:5818 PyCSL.Phase6L_ComposeIfWhile <> st:123 var
+R5822:5827 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
+R5829:5829 PyCSL.Phase6L_ComposeIfWhile <> e:122 var
+R5831:5832 PyCSL.Phase6L_ComposeIfWhile <> st:123 var
+ax 5841:5850 <> eval_e_int
+binder 5864:5864 <> e:126
+binder 5866:5867 <> st:127
+R5881:5883 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R5870:5875 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
+R5877:5877 PyCSL.Phase6L_ComposeIfWhile <> e:126 var
+R5879:5880 PyCSL.Phase6L_ComposeIfWhile <> st:127 var
+R5884:5887 PyCSL.Phase6L_ComposeIfWhile <> VInt defax
+R5890:5897 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
+R5899:5899 PyCSL.Phase6L_ComposeIfWhile <> e:126 var
+R5901:5902 PyCSL.Phase6L_ComposeIfWhile <> st:127 var
+prf 6230:6236 <> if_step
+binder 6249:6249 <> c:130
+binder 6251:6255 <> tcode:131
+binder 6257:6261 <> ecode:132
+binder 6263:6268 <> indent:133
+binder 6270:6271 <> rc:134
+binder 6273:6274 <> st:135
+R6374:6380 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R6281:6296 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R6357:6360 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R6305:6318 PyCSL.Phase6L_ComposeIfWhile <> handle_if_code defax
+R6321:6329 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R6331:6331 PyCSL.Phase6L_ComposeIfWhile <> c:130 var
+R6334:6338 PyCSL.Phase6L_ComposeIfWhile <> tcode:131 var
+R6340:6344 PyCSL.Phase6L_ComposeIfWhile <> ecode:132 var
+R6346:6351 PyCSL.Phase6L_ComposeIfWhile <> indent:133 var
+R6353:6356 Coq.Init.Datatypes <> true constr
+R6364:6367 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R6361:6363 PyCSL.Phase6L_ComposeIfWhile <> sep defax
+R6368:6369 PyCSL.Phase6L_ComposeIfWhile <> rc:134 var
+R6372:6373 PyCSL.Phase6L_ComposeIfWhile <> st:135 var
+R6381:6396 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R6398:6399 PyCSL.Phase6L_ComposeIfWhile <> rc:134 var
+R6413:6415 PyCSL.Phase6L_ComposeIfWhile <> vnz defax
+R6418:6423 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
+R6425:6425 PyCSL.Phase6L_ComposeIfWhile <> c:130 var
+R6427:6428 PyCSL.Phase6L_ComposeIfWhile <> st:135 var
+R6485:6500 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R6502:6506 PyCSL.Phase6L_ComposeIfWhile <> ecode:132 var
+R6508:6509 PyCSL.Phase6L_ComposeIfWhile <> st:135 var
+R6445:6460 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R6462:6466 PyCSL.Phase6L_ComposeIfWhile <> tcode:131 var
+R6468:6469 PyCSL.Phase6L_ComposeIfWhile <> st:135 var
+R6567:6579 PyCSL.Phase6L_ComposeIfWhile <> seq_semantics prfax
+R6567:6579 PyCSL.Phase6L_ComposeIfWhile <> seq_semantics prfax
+R6567:6579 PyCSL.Phase6L_ComposeIfWhile <> seq_semantics prfax
+R6593:6603 PyCSL.Phase6L_ComposeIfWhile <> if_else_coh prfax
+R6606:6614 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R6642:6647 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
+R6679:6691 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
+R6593:6603 PyCSL.Phase6L_ComposeIfWhile <> if_else_coh prfax
+R6606:6614 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R6642:6647 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
+R6679:6691 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
+R6593:6603 PyCSL.Phase6L_ComposeIfWhile <> if_else_coh prfax
+R6606:6614 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R6642:6647 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
+R6679:6691 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
+prf 6849:6858 <> while_step
+binder 6871:6871 <> c:136
+binder 6873:6875 <> inv:137
+binder 6877:6879 <> var:138
+binder 6881:6884 <> body:139
+binder 6886:6891 <> indent:140
+binder 6893:6894 <> rc:141
+binder 6896:6897 <> st:142
+R6996:7002 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R6904:6919 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R6979:6982 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R6928:6944 PyCSL.Phase6L_ComposeIfWhile <> handle_while_code defax
+R6947:6955 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R6957:6957 PyCSL.Phase6L_ComposeIfWhile <> c:136 var
+R6960:6962 PyCSL.Phase6L_ComposeIfWhile <> inv:137 var
+R6964:6966 PyCSL.Phase6L_ComposeIfWhile <> var:138 var
+R6968:6971 PyCSL.Phase6L_ComposeIfWhile <> body:139 var
+R6973:6978 PyCSL.Phase6L_ComposeIfWhile <> indent:140 var
+R6986:6989 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R6983:6985 PyCSL.Phase6L_ComposeIfWhile <> sep defax
+R6990:6991 PyCSL.Phase6L_ComposeIfWhile <> rc:141 var
+R6994:6995 PyCSL.Phase6L_ComposeIfWhile <> st:142 var
+R7003:7018 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R7020:7021 PyCSL.Phase6L_ComposeIfWhile <> rc:141 var
+R7024:7032 PyCSL.Phase6L_ComposeIfWhile <> while_fix defax
+R7035:7043 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R7045:7045 PyCSL.Phase6L_ComposeIfWhile <> c:136 var
+R7048:7051 PyCSL.Phase6L_ComposeIfWhile <> body:139 var
+R7053:7054 PyCSL.Phase6L_ComposeIfWhile <> st:142 var
+R7113:7125 PyCSL.Phase6L_ComposeIfWhile <> seq_semantics prfax
+R7113:7125 PyCSL.Phase6L_ComposeIfWhile <> seq_semantics prfax
+R7113:7125 PyCSL.Phase6L_ComposeIfWhile <> seq_semantics prfax
+R7139:7147 PyCSL.Phase6L_ComposeIfWhile <> while_coh prfax
+R7150:7158 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R7139:7147 PyCSL.Phase6L_ComposeIfWhile <> while_coh prfax
+R7150:7158 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R7139:7147 PyCSL.Phase6L_ComposeIfWhile <> while_coh prfax
+R7150:7158 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+ind 7593:7598 <> simple
+constr 7614:7620 <> Sk_skip
+constr 7626:7634 <> Sk_assign
+constr 7664:7672 <> Sk_arrset
+constr 7704:7711 <> Sk_ghost
+constr 7743:7753 <> Sk_gharrset
+constr 7786:7791 <> Sk_seq
+constr 7816:7820 <> Sk_if
+R7640:7644 PyCSL.Phase6L_ComposeIfWhile <> ident def
+binder 7637:7637 <> x:145
+R7651:7657 PyCSL.Phase6L_ComposeIfWhile <> expr_ir defax
+binder 7648:7648 <> e:146
+R7678:7682 PyCSL.Phase6L_ComposeIfWhile <> ident def
+binder 7675:7675 <> a:147
+R7691:7697 PyCSL.Phase6L_ComposeIfWhile <> expr_ir defax
+binder 7686:7686 <> i:148
+binder 7688:7688 <> v:149
+R7719:7723 PyCSL.Phase6L_ComposeIfWhile <> ident def
+binder 7715:7716 <> gx:150
+R7730:7736 PyCSL.Phase6L_ComposeIfWhile <> expr_ir defax
+binder 7727:7727 <> e:151
+R7760:7764 PyCSL.Phase6L_ComposeIfWhile <> ident def
+binder 7756:7757 <> ga:152
+R7773:7779 PyCSL.Phase6L_ComposeIfWhile <> expr_ir defax
+binder 7768:7768 <> i:153
+binder 7770:7770 <> v:154
+R7804:7809 PyCSL.Phase6L_ComposeIfWhile <> simple:143 ind
+binder 7797:7798 <> s1:155
+binder 7800:7801 <> s2:156
+R7830:7836 PyCSL.Phase6L_ComposeIfWhile <> expr_ir defax
+binder 7827:7827 <> c:157
+R7847:7852 PyCSL.Phase6L_ComposeIfWhile <> simple:143 ind
+binder 7840:7841 <> tb:158
+binder 7843:7844 <> eb:159
+scheme 7593:7598 <> simple_rect
+scheme 7593:7598 <> simple_ind
+scheme 7593:7598 <> simple_rec
+scheme 7593:7598 <> simple_sind
+ind 7867:7870 <> stmt
+constr 7886:7894 <> St_simple
+constr 7914:7922 <> St_return
+constr 7943:7953 <> St_continue
+constr 7959:7966 <> St_while
+R7902:7907 PyCSL.Phase6L_ComposeIfWhile <> simple ind
+binder 7899:7899 <> s:162
+R7930:7936 PyCSL.Phase6L_ComposeIfWhile <> expr_ir defax
+binder 7927:7927 <> e:163
+R7975:7981 PyCSL.Phase6L_ComposeIfWhile <> expr_ir defax
+binder 7972:7972 <> c:164
+R7991:7996 PyCSL.Phase6L_ComposeIfWhile <> simple ind
+binder 7985:7988 <> body:165
+scheme 7867:7870 <> stmt_rect
+scheme 7867:7870 <> stmt_ind
+scheme 7867:7870 <> stmt_rec
+scheme 7867:7870 <> stmt_sind
+def 8012:8014 <> sel
+R8020:8026 PyCSL.Phase6L_ComposeIfWhile <> expr_ir defax
+binder 8017:8017 <> c:166
+R8034:8038 PyCSL.Phase6L_ComposeIfWhile <> state defax
+binder 8030:8031 <> st:167
+R8047:8051 PyCSL.Phase6L_ComposeIfWhile <> state defax
+binder 8042:8042 <> a:168
+binder 8044:8044 <> b:169
+R8056:8060 PyCSL.Phase6L_ComposeIfWhile <> state defax
+R8070:8072 PyCSL.Phase6L_ComposeIfWhile <> vnz defax
+R8075:8080 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
+R8082:8082 PyCSL.Phase6L_ComposeIfWhile <> c:166 var
+R8084:8085 PyCSL.Phase6L_ComposeIfWhile <> st:167 var
+R8100:8100 PyCSL.Phase6L_ComposeIfWhile <> b:169 var
+R8093:8093 PyCSL.Phase6L_ComposeIfWhile <> a:168 var
+def 8113:8118 <> wp_one
+R8124:8129 PyCSL.Phase6L_ComposeIfWhile <> simple ind
+binder 8121:8121 <> s:170
+R8137:8141 PyCSL.Phase6L_ComposeIfWhile <> state defax
+binder 8133:8134 <> st:171
+R8146:8150 PyCSL.Phase6L_ComposeIfWhile <> state defax
+R8163:8163 PyCSL.Phase6L_ComposeIfWhile <> s:170 var
+R8174:8180 PyCSL.Phase6L_ComposeIfWhile <> Sk_skip constr
+R8193:8194 PyCSL.Phase6L_ComposeIfWhile <> st:171 var
+R8200:8208 PyCSL.Phase6L_ComposeIfWhile <> Sk_assign constr
+R8219:8224 PyCSL.Phase6L_ComposeIfWhile <> update defax
+R8226:8227 PyCSL.Phase6L_ComposeIfWhile <> st:171 var
+R8232:8237 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
+R8241:8242 PyCSL.Phase6L_ComposeIfWhile <> st:171 var
+R8249:8257 PyCSL.Phase6L_ComposeIfWhile <> Sk_arrset constr
+R8268:8280 PyCSL.Phase6L_ComposeIfWhile <> arr_set_state defax
+R8282:8283 PyCSL.Phase6L_ComposeIfWhile <> st:171 var
+R8288:8295 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
+R8299:8300 PyCSL.Phase6L_ComposeIfWhile <> st:171 var
+R8304:8311 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
+R8315:8316 PyCSL.Phase6L_ComposeIfWhile <> st:171 var
+R8323:8330 PyCSL.Phase6L_ComposeIfWhile <> Sk_ghost constr
+R8342:8347 PyCSL.Phase6L_ComposeIfWhile <> update defax
+R8349:8350 PyCSL.Phase6L_ComposeIfWhile <> st:171 var
+R8356:8361 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
+R8365:8366 PyCSL.Phase6L_ComposeIfWhile <> st:171 var
+R8373:8383 PyCSL.Phase6L_ComposeIfWhile <> Sk_gharrset constr
+R8395:8407 PyCSL.Phase6L_ComposeIfWhile <> arr_set_state defax
+R8409:8410 PyCSL.Phase6L_ComposeIfWhile <> st:171 var
+R8416:8423 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
+R8427:8428 PyCSL.Phase6L_ComposeIfWhile <> st:171 var
+R8432:8439 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
+R8443:8444 PyCSL.Phase6L_ComposeIfWhile <> st:171 var
+R8451:8456 PyCSL.Phase6L_ComposeIfWhile <> Sk_seq constr
+R8470:8475 PyCSL.Phase6L_ComposeIfWhile <> wp_one:172 def
+R8481:8486 PyCSL.Phase6L_ComposeIfWhile <> wp_one:172 def
+R8491:8492 PyCSL.Phase6L_ComposeIfWhile <> st:171 var
+R8499:8503 PyCSL.Phase6L_ComposeIfWhile <> Sk_if constr
+R8518:8520 PyCSL.Phase6L_ComposeIfWhile <> sel def
+R8524:8525 PyCSL.Phase6L_ComposeIfWhile <> st:171 var
+R8528:8533 PyCSL.Phase6L_ComposeIfWhile <> wp_one:172 def
+R8538:8539 PyCSL.Phase6L_ComposeIfWhile <> st:171 var
+R8543:8548 PyCSL.Phase6L_ComposeIfWhile <> wp_one:172 def
+R8553:8554 PyCSL.Phase6L_ComposeIfWhile <> st:171 var
+def 8633:8635 <> brk
+R8646:8651 Coq.Strings.String <> string ind
+binder 8638:8643 <> indent:174
+R8656:8661 Coq.Strings.String <> string ind
+R8666:8681 PyCSL.Phase6L_ComposeIfWhile <> handle_skip_code defax
+R8683:8688 PyCSL.Phase6L_ComposeIfWhile <> indent:174 var
+R8690:8700 Coq.Strings.String <> EmptyString constr
+def 8774:8781 <> emit_one
+R8787:8792 PyCSL.Phase6L_ComposeIfWhile <> simple ind
+binder 8784:8784 <> s:175
+R8800:8805 Coq.Strings.String <> string ind
+binder 8796:8797 <> rc:176
+R8817:8822 Coq.Strings.String <> string ind
+binder 8809:8814 <> indent:177
+R8827:8832 Coq.Strings.String <> string ind
+R8845:8845 PyCSL.Phase6L_ComposeIfWhile <> s:175 var
+R8856:8862 PyCSL.Phase6L_ComposeIfWhile <> Sk_skip constr
+R8875:8890 PyCSL.Phase6L_ComposeIfWhile <> handle_skip_code defax
+R8892:8897 PyCSL.Phase6L_ComposeIfWhile <> indent:177 var
+R8899:8900 PyCSL.Phase6L_ComposeIfWhile <> rc:176 var
+R8906:8914 PyCSL.Phase6L_ComposeIfWhile <> Sk_assign constr
+R8925:8942 PyCSL.Phase6L_ComposeIfWhile <> handle_assign_code defax
+R8947:8955 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R8960:8965 PyCSL.Phase6L_ComposeIfWhile <> indent:177 var
+R8967:8968 PyCSL.Phase6L_ComposeIfWhile <> rc:176 var
+R8970:8973 Coq.Init.Datatypes <> true constr
+R8979:8987 PyCSL.Phase6L_ComposeIfWhile <> Sk_arrset constr
+R8998:9018 PyCSL.Phase6L_ComposeIfWhile <> handle_array_set_code defax
+R9023:9031 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R9037:9045 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R9050:9055 PyCSL.Phase6L_ComposeIfWhile <> indent:177 var
+R9057:9058 PyCSL.Phase6L_ComposeIfWhile <> rc:176 var
+R9064:9071 PyCSL.Phase6L_ComposeIfWhile <> Sk_ghost constr
+R9083:9106 PyCSL.Phase6L_ComposeIfWhile <> handle_ghost_assign_code defax
+R9112:9120 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R9125:9130 PyCSL.Phase6L_ComposeIfWhile <> indent:177 var
+R9132:9133 PyCSL.Phase6L_ComposeIfWhile <> rc:176 var
+R9139:9149 PyCSL.Phase6L_ComposeIfWhile <> Sk_gharrset constr
+R9161:9184 PyCSL.Phase6L_ComposeIfWhile <> handle_ghost_arrset_code defax
+R9190:9198 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R9204:9212 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R9217:9222 PyCSL.Phase6L_ComposeIfWhile <> indent:177 var
+R9224:9225 PyCSL.Phase6L_ComposeIfWhile <> rc:176 var
+R9231:9236 PyCSL.Phase6L_ComposeIfWhile <> Sk_seq constr
+R9250:9257 PyCSL.Phase6L_ComposeIfWhile <> emit_one:178 def
+R9286:9291 PyCSL.Phase6L_ComposeIfWhile <> indent:177 var
+R9263:9270 PyCSL.Phase6L_ComposeIfWhile <> emit_one:178 def
+R9278:9283 PyCSL.Phase6L_ComposeIfWhile <> indent:177 var
+R9275:9276 PyCSL.Phase6L_ComposeIfWhile <> rc:176 var
+R9297:9301 PyCSL.Phase6L_ComposeIfWhile <> Sk_if constr
+R9451:9460 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R9322:9335 PyCSL.Phase6L_ComposeIfWhile <> handle_if_code defax
+R9338:9346 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R9352:9359 PyCSL.Phase6L_ComposeIfWhile <> emit_one:178 def
+R9377:9382 PyCSL.Phase6L_ComposeIfWhile <> indent:177 var
+R9365:9367 PyCSL.Phase6L_ComposeIfWhile <> brk def
+R9369:9374 PyCSL.Phase6L_ComposeIfWhile <> indent:177 var
+R9407:9414 PyCSL.Phase6L_ComposeIfWhile <> emit_one:178 def
+R9432:9437 PyCSL.Phase6L_ComposeIfWhile <> indent:177 var
+R9420:9422 PyCSL.Phase6L_ComposeIfWhile <> brk def
+R9424:9429 PyCSL.Phase6L_ComposeIfWhile <> indent:177 var
+R9440:9445 PyCSL.Phase6L_ComposeIfWhile <> indent:177 var
+R9447:9450 Coq.Init.Datatypes <> true constr
+R9464:9467 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R9461:9463 PyCSL.Phase6L_ComposeIfWhile <> sep defax
+R9468:9469 PyCSL.Phase6L_ComposeIfWhile <> rc:176 var
+prf 9544:9549 <> brk_id
+binder 9560:9565 <> indent:180
+binder 9567:9568 <> st:181
+R9603:9605 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R9571:9586 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R9589:9591 PyCSL.Phase6L_ComposeIfWhile <> brk def
+R9593:9598 PyCSL.Phase6L_ComposeIfWhile <> indent:180 var
+R9601:9602 PyCSL.Phase6L_ComposeIfWhile <> st:181 var
+R9606:9607 PyCSL.Phase6L_ComposeIfWhile <> st:181 var
+R9632:9634 PyCSL.Phase6L_ComposeIfWhile <> brk def
+R9645:9652 PyCSL.Phase6L_ComposeIfWhile <> skip_coh prfax
+R9645:9652 PyCSL.Phase6L_ComposeIfWhile <> skip_coh prfax
+R9645:9652 PyCSL.Phase6L_ComposeIfWhile <> skip_coh prfax
+R9661:9670 PyCSL.Phase6L_ComposeIfWhile <> eval_empty prfax
+R9661:9670 PyCSL.Phase6L_ComposeIfWhile <> eval_empty prfax
+prf 9775:9791 <> emit_one_coherent
+binder 9804:9804 <> s:182
+binder 9806:9807 <> rc:183
+binder 9809:9810 <> st:184
+binder 9812:9817 <> indent:185
+R9866:9868 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R9824:9839 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R9842:9849 PyCSL.Phase6L_ComposeIfWhile <> emit_one def
+R9851:9851 PyCSL.Phase6L_ComposeIfWhile <> s:182 var
+R9853:9854 PyCSL.Phase6L_ComposeIfWhile <> rc:183 var
+R9856:9861 PyCSL.Phase6L_ComposeIfWhile <> indent:185 var
+R9864:9865 PyCSL.Phase6L_ComposeIfWhile <> st:184 var
+R9869:9884 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R9886:9887 PyCSL.Phase6L_ComposeIfWhile <> rc:183 var
+R9890:9895 PyCSL.Phase6L_ComposeIfWhile <> wp_one def
+R9897:9897 PyCSL.Phase6L_ComposeIfWhile <> s:182 var
+R9899:9900 PyCSL.Phase6L_ComposeIfWhile <> st:184 var
+R10058:10065 PyCSL.Phase6L_ComposeIfWhile <> skip_coh prfax
+R10058:10065 PyCSL.Phase6L_ComposeIfWhile <> skip_coh prfax
+R10095:10104 PyCSL.Phase6L_ComposeIfWhile <> assign_coh prfax
+R10109:10117 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R10136:10141 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
+R10095:10104 PyCSL.Phase6L_ComposeIfWhile <> assign_coh prfax
+R10109:10117 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R10136:10141 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
+R10157:10169 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
+R10157:10169 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
+R10205:10217 PyCSL.Phase6L_ComposeIfWhile <> array_set_coh prfax
+R10222:10230 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R10236:10244 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R10278:10285 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
+R10294:10301 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
+R10205:10217 PyCSL.Phase6L_ComposeIfWhile <> array_set_coh prfax
+R10222:10230 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R10236:10244 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R10278:10285 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
+R10294:10301 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
+R10205:10217 PyCSL.Phase6L_ComposeIfWhile <> array_set_coh prfax
+R10222:10230 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R10236:10244 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R10278:10285 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
+R10294:10301 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
+R10205:10217 PyCSL.Phase6L_ComposeIfWhile <> array_set_coh prfax
+R10222:10230 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R10236:10244 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R10278:10285 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
+R10294:10301 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
+R10205:10217 PyCSL.Phase6L_ComposeIfWhile <> array_set_coh prfax
+R10222:10230 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R10236:10244 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R10278:10285 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
+R10294:10301 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
+R10344:10356 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
+R10344:10356 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
+R10344:10356 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
+R10365:10374 PyCSL.Phase6L_ComposeIfWhile <> eval_e_int prfax
+R10365:10374 PyCSL.Phase6L_ComposeIfWhile <> eval_e_int prfax
+R10391:10403 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
+R10391:10403 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
+R10391:10403 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
+R10412:10421 PyCSL.Phase6L_ComposeIfWhile <> eval_e_int prfax
+R10412:10421 PyCSL.Phase6L_ComposeIfWhile <> eval_e_int prfax
+R10450:10465 PyCSL.Phase6L_ComposeIfWhile <> ghost_assign_coh prfax
+R10471:10479 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R10499:10504 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
+R10450:10465 PyCSL.Phase6L_ComposeIfWhile <> ghost_assign_coh prfax
+R10471:10479 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R10499:10504 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
+R10521:10533 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
+R10521:10533 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
+R10571:10586 PyCSL.Phase6L_ComposeIfWhile <> ghost_arrset_coh prfax
+R10592:10600 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R10607:10615 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R10650:10657 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
+R10667:10674 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
+R10571:10586 PyCSL.Phase6L_ComposeIfWhile <> ghost_arrset_coh prfax
+R10592:10600 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R10607:10615 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R10650:10657 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
+R10667:10674 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
+R10571:10586 PyCSL.Phase6L_ComposeIfWhile <> ghost_arrset_coh prfax
+R10592:10600 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R10607:10615 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R10650:10657 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
+R10667:10674 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
+R10571:10586 PyCSL.Phase6L_ComposeIfWhile <> ghost_arrset_coh prfax
+R10592:10600 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R10607:10615 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R10650:10657 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
+R10667:10674 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
+R10571:10586 PyCSL.Phase6L_ComposeIfWhile <> ghost_arrset_coh prfax
+R10592:10600 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R10607:10615 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R10650:10657 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
+R10667:10674 PyCSL.Phase6L_ComposeIfWhile <> eval_int defax
+R10718:10730 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
+R10718:10730 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
+R10718:10730 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
+R10739:10748 PyCSL.Phase6L_ComposeIfWhile <> eval_e_int prfax
+R10739:10748 PyCSL.Phase6L_ComposeIfWhile <> eval_e_int prfax
+R10765:10777 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
+R10765:10777 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
+R10765:10777 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
+R10786:10795 PyCSL.Phase6L_ComposeIfWhile <> eval_e_int prfax
+R10786:10795 PyCSL.Phase6L_ComposeIfWhile <> eval_e_int prfax
+R10882:10888 PyCSL.Phase6L_ComposeIfWhile <> if_step thm
+R10882:10888 PyCSL.Phase6L_ComposeIfWhile <> if_step thm
+R10882:10888 PyCSL.Phase6L_ComposeIfWhile <> if_step thm
+R10910:10912 PyCSL.Phase6L_ComposeIfWhile <> brk def
+R10910:10912 PyCSL.Phase6L_ComposeIfWhile <> brk def
+R10910:10912 PyCSL.Phase6L_ComposeIfWhile <> brk def
+R10942:10947 PyCSL.Phase6L_ComposeIfWhile <> brk_id thm
+R10942:10947 PyCSL.Phase6L_ComposeIfWhile <> brk_id thm
+R10942:10947 PyCSL.Phase6L_ComposeIfWhile <> brk_id thm
+R10969:10971 PyCSL.Phase6L_ComposeIfWhile <> brk def
+R10969:10971 PyCSL.Phase6L_ComposeIfWhile <> brk def
+R10969:10971 PyCSL.Phase6L_ComposeIfWhile <> brk def
+R11001:11006 PyCSL.Phase6L_ComposeIfWhile <> brk_id thm
+R11001:11006 PyCSL.Phase6L_ComposeIfWhile <> brk_id thm
+R11001:11006 PyCSL.Phase6L_ComposeIfWhile <> brk_id thm
+R11020:11022 PyCSL.Phase6L_ComposeIfWhile <> sel def
+def 11149:11156 <> wp_stmts
+R11163:11166 Coq.Init.Datatypes <> list ind
+R11168:11171 PyCSL.Phase6L_ComposeIfWhile <> stmt ind
+binder 11159:11160 <> ss:186
+R11179:11183 PyCSL.Phase6L_ComposeIfWhile <> state defax
+binder 11175:11176 <> st:187
+R11195:11200 Coq.Strings.String <> string ind
+binder 11187:11192 <> indent:188
+R11205:11209 PyCSL.Phase6L_ComposeIfWhile <> state defax
+R11222:11223 PyCSL.Phase6L_ComposeIfWhile <> ss:186 var
+R11234:11235 Coq.Lists.List ListNotations ::list_scope:'['_']' not
+R11247:11248 PyCSL.Phase6L_ComposeIfWhile <> st:187 var
+R11255:11258 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R11294:11302 PyCSL.Phase6L_ComposeIfWhile <> St_return constr
+R11312:11317 PyCSL.Phase6L_ComposeIfWhile <> update defax
+R11319:11320 PyCSL.Phase6L_ComposeIfWhile <> st:187 var
+R11322:11329 PyCSL.Phase6L_ComposeIfWhile <> resultId def
+R11332:11337 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
+R11341:11342 PyCSL.Phase6L_ComposeIfWhile <> st:187 var
+R11353:11363 PyCSL.Phase6L_ComposeIfWhile <> St_continue constr
+R11371:11372 PyCSL.Phase6L_ComposeIfWhile <> st:187 var
+R11382:11390 PyCSL.Phase6L_ComposeIfWhile <> St_simple constr
+R11400:11407 PyCSL.Phase6L_ComposeIfWhile <> wp_stmts:189 def
+R11429:11434 PyCSL.Phase6L_ComposeIfWhile <> indent:188 var
+R11415:11420 PyCSL.Phase6L_ComposeIfWhile <> wp_one def
+R11425:11426 PyCSL.Phase6L_ComposeIfWhile <> st:187 var
+R11444:11451 PyCSL.Phase6L_ComposeIfWhile <> St_while constr
+R11462:11469 PyCSL.Phase6L_ComposeIfWhile <> wp_stmts:189 def
+R11569:11574 PyCSL.Phase6L_ComposeIfWhile <> indent:188 var
+R11505:11513 PyCSL.Phase6L_ComposeIfWhile <> while_fix defax
+R11516:11524 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R11530:11537 PyCSL.Phase6L_ComposeIfWhile <> emit_one def
+R11545:11547 PyCSL.Phase6L_ComposeIfWhile <> brk def
+R11549:11554 PyCSL.Phase6L_ComposeIfWhile <> indent:188 var
+R11557:11562 PyCSL.Phase6L_ComposeIfWhile <> indent:188 var
+R11565:11566 PyCSL.Phase6L_ComposeIfWhile <> st:187 var
+def 11603:11612 <> emit_stmts
+R11619:11622 Coq.Init.Datatypes <> list ind
+R11624:11627 PyCSL.Phase6L_ComposeIfWhile <> stmt ind
+binder 11615:11616 <> ss:192
+R11639:11644 Coq.Strings.String <> string ind
+binder 11631:11636 <> indent:193
+R11649:11654 Coq.Strings.String <> string ind
+R11667:11668 PyCSL.Phase6L_ComposeIfWhile <> ss:192 var
+R11679:11680 Coq.Lists.List ListNotations ::list_scope:'['_']' not
+R11692:11694 PyCSL.Phase6L_ComposeIfWhile <> brk def
+R11696:11701 PyCSL.Phase6L_ComposeIfWhile <> indent:193 var
+R11708:11711 Coq.Init.Datatypes <> ::list_scope:x_'::'_x not
+R11747:11755 PyCSL.Phase6L_ComposeIfWhile <> St_return constr
+R11765:11782 PyCSL.Phase6L_ComposeIfWhile <> handle_return_code defax
+R11785:11793 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R11798:11803 PyCSL.Phase6L_ComposeIfWhile <> indent:193 var
+R11805:11809 Coq.Init.Datatypes <> false constr
+R11819:11829 PyCSL.Phase6L_ComposeIfWhile <> St_continue constr
+R11837:11856 PyCSL.Phase6L_ComposeIfWhile <> handle_continue_code defax
+R11858:11863 PyCSL.Phase6L_ComposeIfWhile <> indent:193 var
+R11873:11881 PyCSL.Phase6L_ComposeIfWhile <> St_simple constr
+R11891:11898 PyCSL.Phase6L_ComposeIfWhile <> emit_one def
+R11904:11913 PyCSL.Phase6L_ComposeIfWhile <> emit_stmts:194 def
+R11920:11925 PyCSL.Phase6L_ComposeIfWhile <> indent:193 var
+R11928:11933 PyCSL.Phase6L_ComposeIfWhile <> indent:193 var
+R11943:11950 PyCSL.Phase6L_ComposeIfWhile <> St_while constr
+R12097:12110 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R11971:11987 PyCSL.Phase6L_ComposeIfWhile <> handle_while_code defax
+R11990:11998 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R12003:12013 Coq.Strings.String <> EmptyString constr
+R12015:12025 Coq.Strings.String <> EmptyString constr
+R12056:12063 PyCSL.Phase6L_ComposeIfWhile <> emit_one def
+R12071:12073 PyCSL.Phase6L_ComposeIfWhile <> brk def
+R12075:12080 PyCSL.Phase6L_ComposeIfWhile <> indent:193 var
+R12083:12088 PyCSL.Phase6L_ComposeIfWhile <> indent:193 var
+R12091:12096 PyCSL.Phase6L_ComposeIfWhile <> indent:193 var
+R12114:12117 Coq.Strings.String <> ::string_scope:x_'++'_x not
+R12111:12113 PyCSL.Phase6L_ComposeIfWhile <> sep defax
+R12118:12127 PyCSL.Phase6L_ComposeIfWhile <> emit_stmts:194 def
+R12134:12139 PyCSL.Phase6L_ComposeIfWhile <> indent:193 var
+prf 12327:12345 <> emit_stmts_coherent
+binder 12358:12359 <> ss:197
+binder 12361:12362 <> st:198
+binder 12364:12369 <> indent:199
+R12418:12420 Coq.Init.Logic <> ::type_scope:x_'='_x not
+R12376:12391 PyCSL.Phase6L_ComposeIfWhile <> eval_whyml_stmts defax
+R12394:12403 PyCSL.Phase6L_ComposeIfWhile <> emit_stmts def
+R12405:12406 PyCSL.Phase6L_ComposeIfWhile <> ss:197 var
+R12408:12413 PyCSL.Phase6L_ComposeIfWhile <> indent:199 var
+R12416:12417 PyCSL.Phase6L_ComposeIfWhile <> st:198 var
+R12421:12428 PyCSL.Phase6L_ComposeIfWhile <> wp_stmts def
+R12430:12431 PyCSL.Phase6L_ComposeIfWhile <> ss:197 var
+R12433:12434 PyCSL.Phase6L_ComposeIfWhile <> st:198 var
+R12436:12441 PyCSL.Phase6L_ComposeIfWhile <> indent:199 var
+R12530:12535 PyCSL.Phase6L_ComposeIfWhile <> brk_id thm
+R12530:12535 PyCSL.Phase6L_ComposeIfWhile <> brk_id thm
+R12609:12625 PyCSL.Phase6L_ComposeIfWhile <> emit_one_coherent thm
+R12609:12625 PyCSL.Phase6L_ComposeIfWhile <> emit_one_coherent thm
+R12609:12625 PyCSL.Phase6L_ComposeIfWhile <> emit_one_coherent thm
+R12682:12691 PyCSL.Phase6L_ComposeIfWhile <> return_coh prfax
+R12694:12702 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R12718:12723 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
+R12682:12691 PyCSL.Phase6L_ComposeIfWhile <> return_coh prfax
+R12694:12702 PyCSL.Phase6L_ComposeIfWhile <> emit_expr defax
+R12718:12723 PyCSL.Phase6L_ComposeIfWhile <> eval_e defax
+R12739:12751 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
+R12739:12751 PyCSL.Phase6L_ComposeIfWhile <> expr_coherent prfax
+R12784:12795 PyCSL.Phase6L_ComposeIfWhile <> continue_coh prfax
+R12784:12795 PyCSL.Phase6L_ComposeIfWhile <> continue_coh prfax
+R12827:12836 PyCSL.Phase6L_ComposeIfWhile <> while_step thm
+R12827:12836 PyCSL.Phase6L_ComposeIfWhile <> while_step thm
+R12827:12836 PyCSL.Phase6L_ComposeIfWhile <> while_step thm

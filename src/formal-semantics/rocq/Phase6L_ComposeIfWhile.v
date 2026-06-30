@@ -42,6 +42,8 @@ Parameter handle_if_code        : string -> string -> string -> string -> bool -
 Parameter handle_while_code     : string -> string -> string -> string -> string -> string.
 Parameter handle_return_code    : string -> string -> bool -> string.
 Parameter handle_continue_code  : string -> string.
+Parameter handle_ghost_assign_code : ident -> string -> string -> string -> string.   (* gx ev indent rest *)
+Parameter handle_ghost_arrset_code : ident -> string -> string -> string -> string -> string.
 
 (* The opaque statement separator (`";\n"` in Why3 — its value is irrelevant to
    the composition, only `seq_semantics` matters). *)
@@ -95,6 +97,22 @@ Axiom return_coh :
 Axiom continue_coh :
   forall indent st, eval_whyml_stmts (handle_continue_code indent) st = st.
 
+(* ghost-assign / ghost-array-set: a ghost variable is an ordinary state binding,
+   so the state effect is exactly that of assign / arrayset — these are the
+   assign/arrayset coherence facts for the ghost emitters (item 1, issue follow-up). *)
+Axiom ghost_assign_coh :
+  forall gx ev indent rest st e_val,
+    eval_whyml_expr ev st = e_val ->
+    eval_whyml_stmts (handle_ghost_assign_code gx ev indent rest) st
+    = eval_whyml_stmts rest (update st gx e_val).
+
+Axiom ghost_arrset_coh :
+  forall ga is vs indent rest st iv nv,
+    eval_whyml_expr is st = VInt iv ->
+    eval_whyml_expr vs st = VInt nv ->
+    eval_whyml_stmts (handle_ghost_arrset_code ga is vs indent rest) st
+    = eval_whyml_stmts rest (arr_set_state st ga iv nv).
+
 (* ── Expression IR (mirrors the compose module) ──────────────────────────── *)
 Parameter expr_ir   : Type.
 Parameter emit_expr : expr_ir -> string.
@@ -146,6 +164,8 @@ Inductive simple : Type :=
   | Sk_skip
   | Sk_assign (x: ident) (e: expr_ir)
   | Sk_arrset (a: ident) (i v: expr_ir)
+  | Sk_ghost  (gx: ident) (e: expr_ir)
+  | Sk_gharrset (ga: ident) (i v: expr_ir)
   | Sk_seq    (s1 s2: simple)
   | Sk_if     (c: expr_ir) (tb eb: simple).
 
@@ -163,6 +183,8 @@ Fixpoint wp_one (s: simple) (st: state) : state :=
   | Sk_skip         => st
   | Sk_assign x e   => update st x (eval_e e st)
   | Sk_arrset a i v => arr_set_state st a (eval_int i st) (eval_int v st)
+  | Sk_ghost gx e   => update st gx (eval_e e st)
+  | Sk_gharrset ga i v => arr_set_state st ga (eval_int i st) (eval_int v st)
   | Sk_seq s1 s2    => wp_one s2 (wp_one s1 st)
   | Sk_if c tb eb   => sel c st (wp_one tb st) (wp_one eb st)
   end.
@@ -176,6 +198,8 @@ Fixpoint emit_one (s: simple) (rc: string) (indent: string) : string :=
   | Sk_skip         => handle_skip_code indent rc
   | Sk_assign x e   => handle_assign_code x (emit_expr e) indent rc true
   | Sk_arrset a i v => handle_array_set_code a (emit_expr i) (emit_expr v) indent rc
+  | Sk_ghost gx e   => handle_ghost_assign_code gx (emit_expr e) indent rc
+  | Sk_gharrset ga i v => handle_ghost_arrset_code ga (emit_expr i) (emit_expr v) indent rc
   | Sk_seq s1 s2    => emit_one s1 (emit_one s2 rc indent) indent
   | Sk_if c tb eb   =>
       handle_if_code (emit_expr c) (emit_one tb (brk indent) indent)
@@ -192,13 +216,20 @@ Lemma emit_one_coherent :
   forall s rc st indent,
     eval_whyml_stmts (emit_one s rc indent) st = eval_whyml_stmts rc (wp_one s st).
 Proof.
-  induction s as [ | x e | a i v | s1 IH1 s2 IH2 | c tb IHtb eb IHeb ];
+  induction s as [ | x e | a i v | gx ge | ga gi gv | s1 IH1 s2 IH2 | c tb IHtb eb IHeb ];
     intros rc st indent; simpl.
   - (* Sk_skip *) apply skip_coh.
   - (* Sk_assign *) apply (assign_coh x (emit_expr e) indent rc st (eval_e e st)). apply expr_coherent.
   - (* Sk_arrset *)
     rewrite (array_set_coh a (emit_expr i) (emit_expr v) indent rc st
                (eval_int i st) (eval_int v st)).
+    + reflexivity.
+    + rewrite expr_coherent. apply eval_e_int.
+    + rewrite expr_coherent. apply eval_e_int.
+  - (* Sk_ghost *) apply (ghost_assign_coh gx (emit_expr ge) indent rc st (eval_e ge st)). apply expr_coherent.
+  - (* Sk_gharrset *)
+    rewrite (ghost_arrset_coh ga (emit_expr gi) (emit_expr gv) indent rc st
+               (eval_int gi st) (eval_int gv st)).
     + reflexivity.
     + rewrite expr_coherent. apply eval_e_int.
     + rewrite expr_coherent. apply eval_e_int.

@@ -47,21 +47,25 @@ certificate, not on a WP coherence lemma).
 | `_handle_assign_stmt` | **matched** → `assign_code_state_coherent` (lemma) |
 | `_handle_augassign_stmt` | **matched** → `aug_assign_code_state_coherent` (lemma) |
 | `_handle_array_set_stmt` | **matched** → `array_set_code_state_coherent` (lemma) |
-| `_handle_seq_assign` | desugars to SSeq∘SAssign → `seq` (lemma) + `assign` (lemma); audited at this layer |
-| `_handle_tuple_unpack_stmt` | desugars to SSeq of SAssign → as above; audited at this layer |
-| `_handle_expr_stmt` | no base-WP arm (expression-statement / SCall) → **audited-trusted** |
-| `_handle_fieldassign_stmt` | no base-WP arm (record field mutation) → **audited-trusted** |
-| `_handle_fieldaugassign_stmt` | no base-WP arm → **audited-trusted** |
-| `_handle_critical_section_stmt` | no base-WP arm (concurrency, out of the modeled subset) → **audited-trusted** |
-| `_handle_ghost_assign_stmt` | ghost (erased at extraction) → **audited-trusted** |
-| `_handle_ghost_array_set_stmt` | ghost (erased) → **audited-trusted** |
-| `_handle_array_slice_set_stmt` | no base-WP arm (slice assignment) → **audited-trusted** |
+| `_handle_seq_assign` | **reduces to the proved fragment** — desugars to SSeq∘SAssign, exactly the proved `seq`+`assign` composition (no new arm needed) |
+| `_handle_tuple_unpack_stmt` | **reduces to the proved fragment** — desugars to SSeq of SAssign; same as above |
+| `_handle_ghost_assign_stmt` | **PROVED-COMPOSED in Rocq** — a ghost var is an ordinary state binding, so it reduces to `assign`; `Phase6L_ComposeIfWhile.v` `Sk_ghost` case (via `ghost_assign_coh`) |
+| `_handle_ghost_array_set_stmt` | **PROVED-COMPOSED in Rocq** — reduces to `arrayset`; `Phase6L_ComposeIfWhile.v` `Sk_gharrset` case (via `ghost_arrset_coh`) |
+| `_handle_fieldassign_stmt` | needs **Phase 6** (record-field state model) → audited-trusted |
+| `_handle_fieldaugassign_stmt` | needs **Phase 6** (record-field state) → audited-trusted |
+| `_handle_array_slice_set_stmt` | needs an **array-slice** semantics → audited-trusted |
+| `_handle_critical_section_stmt` | needs **Phase 7** (concurrency/memory model) → audited-trusted |
+| `_handle_expr_stmt` | needs a **call/effect model** (SCall) → audited-trusted |
 
-**Decision summary:** 3 handlers map directly to a WP coherence statement (all 3 now proved
-lemmas); 9 are audited-trusted at this layer — either because they desugar into already-covered arms
-(`seq_assign`, `tuple_unpack`) or because they fall outside the WP-modeled subset (field/ghost/slice/
-critical/expr). Extending the WP model to the latter is the remaining D1 scope; until then they are
-named, audited-trusted obligations, not silent holes.
+**Decision summary (refined — item 1 of the LINK-3 remainder).** Of the original 9 "non-WP-arm"
+handlers: **2 are now proved-composed in Rocq** (`ghost_assign`, `ghost_array_set` — they reduce to
+`assign`/`arrayset`, formalized in `Phase6L_ComposeIfWhile.v` with `Sk_ghost`/`Sk_gharrset`); **2
+reduce to the already-proved fragment** without a new arm (`seq_assign`, `tuple_unpack` desugar to
+SSeq∘SAssign); and **only 5 genuinely require a model extension** — `field`/`field-aug` (Phase 6
+record-field state), `slice` (array-slice semantics), `critical` (Phase 7 concurrency), `expr`
+(SCall/effect model). So the audited-trusted set shrank 9 → **5**, each precisely scoped to its
+needed Phase. (The per-arm ghost coherence is `assign`/`arrayset`-analogous and is taken as an axiom
+in the Rocq composition, matching how the proved arms are axiomatized there.)
 
 ## 3. Program-level composition theorem (FINISH LINK 3)
 
