@@ -22,15 +22,18 @@ Z3 4.13.3; the **axioms** are human-audited where Z3 cannot case-split the strin
 | SReturn (plain) | ✓ | ✓ | `return_plain_semantics` | `return_plain_code_state_coherent` | **LEMMA (Valid)** — *promoted from axiom 2026-06-30; single-form spec, no disjunction* |
 | SReturn (raise/void) | ✓ | ✓ | `return_raise`/`return_void_semantics` | (covered per-branch by the two axioms) | audited |
 | SSeq | ✓ | ✓ | `seq_semantics`/`seq_concat_semantics` | `seq_code_state_coherent` | **LEMMA (Valid)** — *promoted from axiom 2026-06-30 via a guided `let lemma` case-split (per-disjunct asserts), 0.03s* |
-| SArraySet | ✓ | ✓ | `array_set_semantics` | `array_set_code_state_coherent` | **AXIOM (audited)** — no-rest disjunct has genuinely different semantics (`eval = st`, not `eval rest st`); needs a rest-conditioned spec |
-| SSkip | ✓ | ✓ | `skip_semantics`/`skip_semantics_norest` | `skip_code_state_coherent` | **AXIOM (audited)** — same: no-rest disjunct differs; not promotable without a rest-conditioned spec |
+| SArraySet | ✓ | ✓ | `array_set_semantics`/`array_set_semantics_norest` | `array_set_code_state_coherent` | **LEMMA (Valid)** — *promoted 2026-06-30: rest-conditioned spec + `arr_set_state` helper (named the update term to kill the E-matching explosion)* |
+| SSkip | ✓ | ✓ | `skip_semantics`/`skip_semantics_norest`/`eval_empty_semantics` | `skip_code_state_coherent` | **LEMMA (Valid)** — *promoted 2026-06-30: rest-conditioned spec + `eval_empty_semantics`* |
 
-**Tally:** 8 coherence **lemmas** (machine-checked), 2 audited-trusted coherence **axioms**
-(`array_set`, `skip`). The two remaining axioms are NOT a Z3 case-split limit (that was `seq`,
-now promoted) — their no-rest emission disjunct has a genuinely different state semantics, so a
-clean lemma needs the code spec to condition the disjunction on whether `rest` is empty (a change
-that touches the byte-diff correspondence to the Python emitter). Each remains a legitimate
-stratified-trust point per the path's D1 ("explicitly audited-trusted" is an allowed decision).
+**Tally:** **10 coherence lemmas (machine-checked) / 0 audited-trusted coherence axioms.** All ten
+WP arms now have a proved coherence lemma. The audited-trust surface is no longer in the coherence
+layer at all — it is fully relocated to the atomic per-construct **evaluator** axioms
+(`*_semantics`, `eval_empty_semantics`, `eval_whyml_stmts`/`eval_whyml_expr`), which is exactly the
+D2 trust boundary the finishable path intends ("Ceiling B confronted once, in the audited evaluator
+axioms"). Promoting `array_set`/`skip` (2026-06-30) used: (a) a **rest-conditioned code spec** — the
+no-rest emission form is reached IFF `rest` is empty, faithful to `_stmts_to_whyml`'s
+`if rest: code += ";\n"+rest`; (b) `eval_empty_semantics` (empty string = identity); and, for
+array_set, (c) the `arr_set_state` named helper so Z3 stops destructuring the array-update term.
 
 ## 2. Python emitter `_handle_*` methods (`module6_whyml/statements.py`) → arm decision
 
@@ -43,8 +46,8 @@ certificate, not on a WP coherence lemma).
 |---|---|
 | `_handle_assign_stmt` | **matched** → `assign_code_state_coherent` (lemma) |
 | `_handle_augassign_stmt` | **matched** → `aug_assign_code_state_coherent` (lemma) |
-| `_handle_array_set_stmt` | **matched** → `array_set_code_state_coherent` (audited axiom) |
-| `_handle_seq_assign` | desugars to SSeq∘SAssign → `seq` (axiom) + `assign` (lemma); audited at this layer |
+| `_handle_array_set_stmt` | **matched** → `array_set_code_state_coherent` (lemma) |
+| `_handle_seq_assign` | desugars to SSeq∘SAssign → `seq` (lemma) + `assign` (lemma); audited at this layer |
 | `_handle_tuple_unpack_stmt` | desugars to SSeq of SAssign → as above; audited at this layer |
 | `_handle_expr_stmt` | no base-WP arm (expression-statement / SCall) → **audited-trusted** |
 | `_handle_fieldassign_stmt` | no base-WP arm (record field mutation) → **audited-trusted** |
@@ -54,8 +57,53 @@ certificate, not on a WP coherence lemma).
 | `_handle_ghost_array_set_stmt` | ghost (erased) → **audited-trusted** |
 | `_handle_array_slice_set_stmt` | no base-WP arm (slice assignment) → **audited-trusted** |
 
-**Decision summary:** 3 handlers map directly to a WP coherence statement (2 lemmas + 1 audited
-axiom); 9 are audited-trusted at this layer — either because they desugar into already-covered arms
+**Decision summary:** 3 handlers map directly to a WP coherence statement (all 3 now proved
+lemmas); 9 are audited-trusted at this layer — either because they desugar into already-covered arms
 (`seq_assign`, `tuple_unpack`) or because they fall outside the WP-modeled subset (field/ghost/slice/
 critical/expr). Extending the WP model to the latter is the remaining D1 scope; until then they are
 named, audited-trusted obligations, not silent holes.
+
+## 3. Program-level composition theorem (FINISH LINK 3)
+
+The 10 per-arm coherence lemmas are now composed into a **whole-program** theorem in module
+`PyCSL_WP_Compose` (`pycsl-wp-spec.mlw`). Over a `stmt_ir` ADT with a CPS emitter `emit_stmts`
+(each statement embeds the emission of the rest, mirroring `_stmts_to_whyml`'s rest-threading)
+and a WP transformer `wp_stmts`, the lemma
+
+```why3
+let rec lemma emit_stmts_coherent (ss: list stmt) (st: state) (indent: string)
+  ensures { eval_whyml_stmts (emit_stmts ss indent) st = wp_stmts ss st }
+  variant { ss }
+```
+
+is **proved by structural induction** (Z3-Valid), each step discharged by the matching per-arm
+coherence lemma plus an audited `expr_coherent` axiom (the expression-level peer of the
+`eval_*_semantics`). This turns 10 disconnected per-arm facts into one statement: *evaluating the
+emitted WhyML for a whole statement list equals the WP state transformation.*
+
+**Covered (proved-composed, Z3-Valid):** `St_skip`, `St_assign`, **`St_arrset`**, `St_return`,
+`St_continue`. arrset (added 2026-06-30) was cracked with a SEPARATE abstract `eval_int` so
+int-typedness is non-looping (the naive `eval_e e st = VInt (vint (eval_e e st))` is a rewrite
+loop that times out Z3) plus two focused asserts pinning the index/value `VInt` form for the
+`array_set` lemma; the named `arr_set_state` helper keeps the array-update opaque.
+
+**`St_if` / `St_while` — attempted, Z3-blocked (a prover wall, NOT a soundness gap).** The per-arm
+`if`/`while` coherence lemmas ARE proved (§1); but folding them into the inductive program theorem
+times out in Z3 4.13.3 (4–6M steps) — the compositional `handle_if_code`/`handle_while_code` string
+templates spliced with `seq` blow up Z3's string theory, even when the if-step is isolated into its
+own lemma with the branch IHs as hypotheses, and even via a clean `has_else=true` specialization.
+Closing it needs a **manual proof** (Rocq, where the formal model lives, or Why3 term-naming +
+explicit case-splits throughout). Named next step; branch/loop bodies would be a `simple`
+(non-terminating) sub-fragment.
+
+**The 9 non-WP-arm `_handle_*` handlers (item 2) — explicit audited-trusted obligations.** §2 above
+is the formal stratification: `field`/`fieldaug`/`slice`/`critical`/`expr`/`ghost-assign`/
+`ghost-arrayset`/`tuple-unpack`/`seq-assign` are each a NAMED audited-trusted obligation (not a
+silent hole), pending a WP-model extension (Phases 6/7 of `formal-semantics-completion.md`).
+
+**String ↔ `stmt_ir` bridge to LINK 2's Rocq emitter (item 3) — AUDITED.** Recorded as a prose
+note in `PyCSL_WP_Compose` (`pycsl-wp-spec.mlw`): the Why3 `emit_stmts` corresponds to the
+Rocq-extracted `emit_stmt_full_complete` on the empirical basis of `bin/extraction-byte-diff.sh`
+(26/26). Stating it as a Why3 axiom (`forall ss. rocq_emit ss = emit_stmts ss`) makes Z3 expand the
+recursive `emit_stmts` and times out the composition proof, so it is kept as an audited prose
+correspondence; proving it would need cross-prover extraction equivalence (out of scope).
