@@ -87,14 +87,16 @@ int-typedness is non-looping (the naive `eval_e e st = VInt (vint (eval_e e st))
 loop that times out Z3) plus two focused asserts pinning the index/value `VInt` form for the
 `array_set` lemma; the named `arr_set_state` helper keeps the array-update opaque.
 
-**`St_if` / `St_while` — attempted, Z3-blocked (a prover wall, NOT a soundness gap).** The per-arm
-`if`/`while` coherence lemmas ARE proved (§1); but folding them into the inductive program theorem
-times out in Z3 4.13.3 (4–6M steps) — the compositional `handle_if_code`/`handle_while_code` string
-templates spliced with `seq` blow up Z3's string theory, even when the if-step is isolated into its
-own lemma with the branch IHs as hypotheses, and even via a clean `has_else=true` specialization.
-Closing it needs a **manual proof** (Rocq, where the formal model lives, or Why3 term-naming +
-explicit case-splits throughout). Named next step; branch/loop bodies would be a `simple`
-(non-terminating) sub-fragment.
+**`St_if` / `St_while` — CLOSED IN ROCQ (issue #74).** The composition times out in Z3 4.13.3 here
+(string-theory explosion on the `handle_if_code`/`handle_while_code` templates spliced with `seq`),
+so it is proved in Rocq instead: `src/formal-semantics/rocq/Phase6L_ComposeIfWhile.v`, theorem
+**`emit_stmts_coherent`**, proves exactly this composition — `if` (inside a `simple` fragment with
+`Sk_seq` blocks) and `while` — by structural induction in <40 lines of explicit rewriting (Rocq
+rewrites step-by-step, no E-matching). `Print Assumptions` confirms its only axioms are the per-arm
+`*_coh` facts (= the Why3-proved `*_code_state_coherent` lemmas) plus the abstract interface; **0
+Admitted**. So the if/while composition is proved, audited by Rocq, with the per-arm lemmas (proved
+in Why3) as the shared trust base. The `while` loop *denotation* (`while_fix`) remains abstract — its
+adequacy is the separate still-open `wp_for_desugar` gap, not part of the composition.
 
 **The 9 non-WP-arm `_handle_*` handlers (item 2) — explicit audited-trusted obligations.** §2 above
 is the formal stratification: `field`/`fieldaug`/`slice`/`critical`/`expr`/`ghost-assign`/

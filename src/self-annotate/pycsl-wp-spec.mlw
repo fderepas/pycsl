@@ -761,21 +761,22 @@ module PyCSL_WP_Compose
         end
     end
 
-  (* ── if / while composition — Z3-blocked (documented gap); arrset DONE ─────
-   * PROVED-COMPOSED above: skip, assign, ARRSET, return, continue. arrset was
-   * cracked by (a) a SEPARATE abstract `eval_int` so int-typedness is non-looping
-   * (the naive `eval_e e st = VInt (vint (eval_e e st))` is a rewrite loop), and
-   * (b) two focused asserts pinning the index/value VInt form for the array_set
-   * lemma; the named `arr_set_state` helper keeps the array-update opaque.
+  (* ── if / while composition — CLOSED IN ROCQ; arrset DONE in Why3 ──────────
+   * PROVED-COMPOSED in Why3 (emit_stmts_coherent above): skip, assign, ARRSET,
+   * return, continue. arrset was cracked with a separate abstract `eval_int`
+   * (non-looping int-typedness) + focused asserts + the named `arr_set_state`.
    *
-   * STILL Z3-BLOCKED — if / while: the compositional if/while string templates
-   * (handle_if_code / handle_while_code spliced with seq) blow up Z3 4.13.3's string
-   * theory (4–6M steps) even when the if-step is isolated into its own lemma with the
-   * branch IHs as hypotheses, and even via a clean has_else=true specialization. The
-   * per-arm if/while coherence lemmas ARE proved (above); only their COMPOSITION
-   * auto-discharge fails — a prover wall, not a soundness gap. Closing it needs a
-   * manual proof (Rocq, where the formal model lives, or Why3 term-naming + explicit
-   * case-splits throughout the induction). Named next step. *)
+   * if / while: the composition times out in Z3 4.13.3 here (string-theory
+   * explosion on the handle_if_code/handle_while_code templates spliced with seq),
+   * so it is CLOSED IN ROCQ instead — src/formal-semantics/rocq/Phase6L_ComposeIfWhile.v,
+   * theorem `emit_stmts_coherent`, proves exactly this composition (if INSIDE a
+   * `simple` fragment with `Sk_seq` blocks, and while) by structural induction in
+   * <40 lines of explicit rewriting (Rocq rewrites step-by-step; no E-matching).
+   * `Print Assumptions` confirms its only axioms are the per-arm `*_coh` facts —
+   * i.e. THESE Why3-proved `*_code_state_coherent` lemmas — plus the abstract
+   * interface; 0 Admitted. The if/while composition is therefore proved, audited by
+   * Rocq, with the per-arm lemmas (proved here in Why3) as the shared trust base.
+   * (issue #74). *)
 
   (* ── String <-> stmt_ir bridge to LINK 2's Rocq emitter (item 3) — AUDITED ────
    * `emit_stmts` above is the WHY3-side emitter. LINK 2 (bin/extraction-byte-diff.sh)
