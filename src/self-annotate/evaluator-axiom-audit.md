@@ -83,25 +83,33 @@ agree with (the agreement is the *proved* `*_code_state_coherent` lemma — NOT 
 
 ---
 
-## 3a. Per-arm effect axioms for the field/slice/critical/expr handlers
+## 3a. The field/slice/expr arms — now PROVED-coherent (atomic eval axioms only)
 
-The composition (`Phase6L_ComposeIfWhile.v`) now covers **all 15** emitted constructs. `critical` is proved **via its body** (the Hoare-instance `critical_havoc P = P` makes the lock
-transparent — only the atomic `critical_wrapper` axiom is audited). The other four —
-`field-assign`, `field-aug`, `slice-set`, `expr-stmt` (SCall) — do not yet have a WP arm with *proved*
-per-arm coherence (Phase-7 field-state, an array-slice semantics, Phase-8 SCall are future work).
-They are nonetheless **proved-composed**, with their per-arm state effect taken as an **audited axiom here** (the same status as §1–§2, one notch weaker than the 10 Why3-proved arms):
+These four — `field-assign`, `field-aug`, `slice-set`, `expr-stmt` (SCall) — were **promoted this turn**
+to the same tier as the 10 control-flow/core arms: each now has an emitter spec + an **atomic
+eval-semantics axiom** (`field_assign_semantics`/`field_aug_semantics`/`slice_set_semantics`/
+`expr_stmt_semantics`) + a **proved** coherence lemma (`*_code_state_coherent`, all Z3-Valid). So their
+trust is no longer a bundled "coherence" axiom — it is just the atomic eval-semantics axiom (audited,
+like every `*_semantics`), and the coherence is machine-checked. The construct **effects remain
+abstract** (`field_effect`/`field_aug_effect`/`slice_effect`/`expr_effect` are uninterpreted): a
+*concrete, faithful* effect — Phase 7 field-state, an array-slice semantics, Phase 8 SCall — is the only
+remaining future work, and it does NOT affect the (already proved) coherence. `critical` is proved
+**via its body** (the Hoare-instance `critical_havoc P = P` makes the lock transparent — only the atomic
+`critical_wrapper` axiom is audited; real concurrency = Phase 7).
 
-| construct | emitter | effect axiom | audited effect | justification |
+The four atomic eval-semantics axioms (audited, joining §1–§2):
+
+| construct | emitter spec | atomic eval axiom (audited) | proved coherence lemma | abstract effect (future-work) |
 |---|---|---|---|---|
-| field-assign | `handle_field_assign_code` | `field_assign_coh` | `field_effect st obj fld v` | the emitter writes field `fld` of `obj` (a `setattr`/record-field update); abstract until Phase 6 records. |
-| field-aug | `handle_field_aug_code` | `field_aug_coh` | `field_aug_effect …` | read-modify-write of a field; abstract until Phase 6. |
-| slice-set | `handle_slice_set_code` | `slice_set_coh` | `slice_effect st arr lo hi v` | array-region write `arr[lo:hi] = v`; int-valued bounds; abstract until an array-slice semantics. |
-| expr-stmt | `handle_expr_code` | `expr_stmt_coh` | `expr_effect st e` | an expression evaluated for effect (SCall); abstract until the Phase-8 call model. |
-| critical | `handle_critical_code` | `critical_wrapper` (eval-runs-body) | *none — proved via its body* | in the Hoare instance the lock is transparent (`critical_havoc P = P`), so critical RUNS its body; only `critical_wrapper` (the wrapper string evaluates to its body's evaluation) is audited; real concurrency = Phase 7. |
+| field-assign | `handle_field_assign_code` | `field_assign_semantics` | `field_assign_code_state_coherent` ✓ | `field_effect` — Phase-7 field-state |
+| field-aug | `handle_field_aug_code` | `field_aug_semantics` | `field_aug_code_state_coherent` ✓ | `field_aug_effect` — Phase-7 field-state |
+| slice-set | `handle_slice_set_code` | `slice_set_semantics` | `slice_set_code_state_coherent` ✓ | `slice_effect` — array-slice semantics |
+| expr-stmt | `handle_expr_code` | `expr_stmt_semantics` | `expr_code_state_coherent` ✓ | `expr_effect` — Phase-8 SCall |
+| critical | `handle_critical_code` | `critical_wrapper` (eval-runs-body) | proved via its body (`emit_one_coherent`) | *none — runs its body; real concurrency = Phase 7* |
 
-These five effect axioms are **provisional**: a faithful Phase 6/7/8 model would *replace* each with a
-proved per-arm coherence lemma (as the 10 control-flow/core arms have). Until then they are audited,
-and listed here as part of the boundary so the trust is explicit, not hidden in the composition.
+Each of the four now has a **proved** coherence lemma (✓, Z3-Valid) resting only on its atomic
+`*_semantics` axiom — exactly the tier of the 10. What stays open is the *concreteness* of the four
+abstract effects (Phase 7 / array-slice / Phase 8), which does not affect the proved coherence.
 
 ## 4. Expression-level audited facts (used by the composition)
 

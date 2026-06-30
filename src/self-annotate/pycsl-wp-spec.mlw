@@ -671,6 +671,76 @@ module PyCSL_WP_Coherence
          ^ inner ^ "done")
         (update st idx_var (VInt 0))
 
+  (* ── field-assign / field-aug / slice-set / expr-stmt ─────────────────────────
+   * Promoted to the SAME tier as the 10 control-flow/core arms: an emitter spec
+   * (the emitted string shape) + an ATOMIC eval-semantics axiom (eval of that
+   * literal string = the construct's effect) + a PROVED coherence lemma. The
+   * effect is abstract (faithful: "field/slice/call changes state somehow"; what
+   * it TRACKS is Phase 7/array-slice/Phase 8 future work). The coherence proof is
+   * what catches an emitter bug (a wrong emitted string would not discharge). *)
+
+  (* field-assign: `obj.fld <- val` *)
+  val function handle_field_assign_code (obj fld ev indent rest_str : string) : string
+    ensures { result = indent ^ obj ^ "." ^ fld ^ " <- " ^ ev ^ ";\n" ^ rest_str }
+  val function field_effect (st: state) (obj fld: string) (v: value) : state
+  axiom field_assign_semantics :
+    forall obj fld ev indent rest_str st e_val.
+    eval_whyml_expr ev st = e_val ->
+    eval_whyml_stmts (indent ^ obj ^ "." ^ fld ^ " <- " ^ ev ^ ";\n" ^ rest_str) st
+    = eval_whyml_stmts rest_str (field_effect st obj fld e_val)
+  lemma field_assign_code_state_coherent :
+    forall obj fld ev indent rest_str st e_val.
+    eval_whyml_expr ev st = e_val ->
+    eval_whyml_stmts (handle_field_assign_code obj fld ev indent rest_str) st
+    = eval_whyml_stmts rest_str (field_effect st obj fld e_val)
+
+  (* field-aug: `obj.fld <- obj.fld op val` *)
+  val function handle_field_aug_code (obj fld op_str ev indent rest_str : string) : string
+    ensures { result = indent ^ obj ^ "." ^ fld ^ " <- " ^ obj ^ "." ^ fld ^ " " ^ op_str ^ " " ^ ev ^ ";\n" ^ rest_str }
+  val function field_aug_effect (st: state) (obj fld op_str: string) (v: value) : state
+  axiom field_aug_semantics :
+    forall obj fld op_str ev indent rest_str st e_val.
+    eval_whyml_expr ev st = e_val ->
+    eval_whyml_stmts (indent ^ obj ^ "." ^ fld ^ " <- " ^ obj ^ "." ^ fld ^ " " ^ op_str ^ " " ^ ev ^ ";\n" ^ rest_str) st
+    = eval_whyml_stmts rest_str (field_aug_effect st obj fld op_str e_val)
+  lemma field_aug_code_state_coherent :
+    forall obj fld op_str ev indent rest_str st e_val.
+    eval_whyml_expr ev st = e_val ->
+    eval_whyml_stmts (handle_field_aug_code obj fld op_str ev indent rest_str) st
+    = eval_whyml_stmts rest_str (field_aug_effect st obj fld op_str e_val)
+
+  (* slice-set: `arr[lo:hi] <- val` (int-valued bounds/value) *)
+  val function handle_slice_set_code (arr lo_str hi_str val_str indent rest_str : string) : string
+    ensures { result = indent ^ arr ^ "[" ^ lo_str ^ ":" ^ hi_str ^ "] <- " ^ val_str ^ ";\n" ^ rest_str }
+  val function slice_effect (st: state) (arr: string) (lo hi vv: int) : state
+  axiom slice_set_semantics :
+    forall arr lo_str hi_str val_str indent rest_str st lo hi vv.
+    eval_whyml_expr lo_str st = VInt lo ->
+    eval_whyml_expr hi_str st = VInt hi ->
+    eval_whyml_expr val_str st = VInt vv ->
+    eval_whyml_stmts (indent ^ arr ^ "[" ^ lo_str ^ ":" ^ hi_str ^ "] <- " ^ val_str ^ ";\n" ^ rest_str) st
+    = eval_whyml_stmts rest_str (slice_effect st arr lo hi vv)
+  lemma slice_set_code_state_coherent :
+    forall arr lo_str hi_str val_str indent rest_str st lo hi vv.
+    eval_whyml_expr lo_str st = VInt lo ->
+    eval_whyml_expr hi_str st = VInt hi ->
+    eval_whyml_expr val_str st = VInt vv ->
+    eval_whyml_stmts (handle_slice_set_code arr lo_str hi_str val_str indent rest_str) st
+    = eval_whyml_stmts rest_str (slice_effect st arr lo hi vv)
+
+  (* expr-stmt (SCall): `let _ = call in ...` *)
+  val function handle_expr_code (call_str indent rest_str : string) : string
+    ensures { result = indent ^ "let _ = " ^ call_str ^ " in\n" ^ rest_str }
+  val function expr_effect (st: state) (call_str: string) : state
+  axiom expr_stmt_semantics :
+    forall call_str indent rest_str st.
+    eval_whyml_stmts (indent ^ "let _ = " ^ call_str ^ " in\n" ^ rest_str) st
+    = eval_whyml_stmts rest_str (expr_effect st call_str)
+  lemma expr_code_state_coherent :
+    forall call_str indent rest_str st.
+    eval_whyml_stmts (handle_expr_code call_str indent rest_str) st
+    = eval_whyml_stmts rest_str (expr_effect st call_str)
+
 end
 
 (* ── PyCSL_WP_Compose ─────────────────────────────────────────────────────────
