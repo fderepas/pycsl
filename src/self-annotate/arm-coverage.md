@@ -57,11 +57,11 @@ certificate, not on a WP coherence lemma).
 | `_handle_tuple_unpack_stmt` | **reduces to the proved fragment** — desugars to SSeq of SAssign; same as above |
 | `_handle_ghost_assign_stmt` | **PROVED-COMPOSED in Rocq** — a ghost var is an ordinary state binding, so it reduces to `assign`; `Phase6L_ComposeIfWhile.v` `Sk_ghost` case (via `ghost_assign_coh`) |
 | `_handle_ghost_array_set_stmt` | **PROVED-COMPOSED in Rocq** — reduces to `arrayset`; `Phase6L_ComposeIfWhile.v` `Sk_gharrset` case (via `ghost_arrset_coh`) |
-| `_handle_fieldassign_stmt` | **PROVED coherence in Why3** (`field_assign_code_state_coherent`) — same tier as the 10; rests on the atomic `field_assign_semantics` eval axiom; effect `field_effect` abstract (Phase-7 field-state = future work) |
-| `_handle_fieldaugassign_stmt` | **PROVED coherence in Why3** (`field_aug_code_state_coherent`); atomic `field_aug_semantics`; effect abstract (Phase 7) |
-| `_handle_array_slice_set_stmt` | **PROVED coherence in Why3** (`slice_set_code_state_coherent`); atomic `slice_set_semantics`; effect abstract (array-slice semantics = future work) |
+| `_handle_fieldassign_stmt` | **PROVED coherence in Why3** (`field_assign_code_state_coherent`); effect now **CONCRETE** — `field_effect st obj fld v = update st (obj"."fld) v` (flat field-state); `field_read_back` proves the field reads back |
+| `_handle_fieldaugassign_stmt` | **PROVED coherence in Why3** (`field_aug_code_state_coherent`); effect **CONCRETE** — read-modify-write of the flat field key (value-op `vop` primitive) |
+| `_handle_array_slice_set_stmt` | **PROVED coherence in Why3** (`slice_set_code_state_coherent`); effect **CONCRETE** — region-fill `slice_blit` (get-defined); `slice_read_in_range` proves in-range reads |
 | `_handle_critical_section_stmt` | **PROVED-COMPOSED via its BODY** — in the proved-sound Hoare instance `critical_havoc es P = P es` (`Phase4_WP.v:144`), a critical section *runs its body*, so its composition is proved from `emit_one_coherent` (the body) + the atomic `critical_wrapper` axiom (lock transparent); **no abstract effect**. Real concurrency (havoc over shared state) = Phase-7 ConcurrentMM. |
-| `_handle_expr_stmt` | **PROVED coherence in Why3** (`expr_code_state_coherent`); atomic `expr_stmt_semantics`; effect `expr_effect` abstract (Phase-8 SCall = future work) |
+| `_handle_expr_stmt` | **PROVED coherence in Why3** (`expr_code_state_coherent`); effect **CONCRETE** — `expr_effect st _ = st` (a generic value-returning call with discarded result is identity on tracked state; mutating `.append`/`.add` are separate array/map ops) |
 
 **Decision summary (refined — item 1 of the LINK-3 remainder, now CLOSED).** Of the original 9
 "non-WP-arm" handlers: **2 reduce to the already-proved fragment** (`seq_assign`, `tuple_unpack`
@@ -84,9 +84,11 @@ of all 15: done. The per-arm facts:
   body, `Phase4_WP.v:144`); proved from `emit_one_coherent` (the body) + the atomic `critical_wrapper`
   axiom. Real concurrency = Phase-7 ConcurrentMM.
 
-So there is **no arm left at the "bundled audited coherence" level** — all 15 are proved-coherent,
-each resting only on atomic audited eval-semantics axioms (`evaluator-axiom-audit.md`). The remaining
-future work is *concreteness* of 4 effects (Phase 7/array-slice/Phase 8), not the coherence.
+So **no arm is at the bundled-audited level, and no effect is uninterpreted** — all 15 are
+proved-coherent with concrete effects (field/field-aug/slice/expr concretized this turn; critical via
+body). The honest caveats of the concrete models: the field model is *flat* (distinct `obj"."fld` keys,
+no nested-record aliasing), `slice` is the constant-fill case, and `expr` is identity for *generic*
+value-returning calls. Trust remains the atomic eval-semantics axioms (`evaluator-axiom-audit.md`).
 
 ## 3. Program-level composition theorem (FINISH LINK 3)
 

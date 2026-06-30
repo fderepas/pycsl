@@ -108,8 +108,12 @@ The four atomic eval-semantics axioms (audited, joining §1–§2):
 | critical | `handle_critical_code` | `critical_wrapper` (eval-runs-body) | proved via its body (`emit_one_coherent`) | *none — runs its body; real concurrency = Phase 7* |
 
 Each of the four now has a **proved** coherence lemma (✓, Z3-Valid) resting only on its atomic
-`*_semantics` axiom — exactly the tier of the 10. What stays open is the *concreteness* of the four
-abstract effects (Phase 7 / array-slice / Phase 8), which does not affect the proved coherence.
+`*_semantics` axiom — exactly the tier of the 10. **And the effects are now CONCRETE** (this turn):
+`field`/`field-aug` = a flat field-state key update; `slice` = a region-fill (`slice_blit`, get-defined);
+`expr` = identity (a discarded generic call). Effect-dependent reasoning is demonstrated
+(`field_read_back`, `slice_read_in_range` proved). The only remaining primitives are value-level
+(`vop`); the honest caveats are a *flat* field model (no nested-record aliasing), constant-fill `slice`,
+and identity-`expr` for generic calls.
 
 ## 4. Expression-level audited facts (used by the composition)
 
