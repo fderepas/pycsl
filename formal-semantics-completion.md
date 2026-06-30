@@ -172,6 +172,12 @@ Phase 8 (A):     Lambda (optional)                     0       [rarely used]
 
 ## 6. The single highest-value next step
 
+> **Reconciled 2026-06-30 — the "LINK 3 body-faithful" framing below is SUPERSEDED.**
+> Two follow-on engagements (`b14.md`, `the-finishable-path.md`, both committed) changed the picture:
+> 1. **The body-faithful route is blocked by a *semantic ceiling*, not just B1–B4.** Even after clearing the four mechanical blockers, the `_handle_*` bodies use `Any`-typed `dict.get` + type-dispatch, `.to_dict()` reflection, and `str.endswith/rsplit/replace` over rich Python — operations PyCSL cannot model. So "re-annotate `statements.py` bodies body-faithful" is **not** the finishable next step. See `facing-the-facts.md` and `b14.md` §"Execution outcome".
+> 2. **LINK 3 was re-sited off the Python side onto the Why3 coherence side** (`the-finishable-path.md`), where it is largely done: `src/self-annotate/pycsl-wp-spec.mlw` now carries **7 proved coherence lemmas + 3 audited axioms** over all 10 WP arms, plus `src/self-annotate/arm-coverage.md` (the per-arm map) and `bin/per-run-certificate.sh` (an extensional per-compile certificate). The genuinely finishable LINK-3 work is *coherence lemmas + the per-run certificate*, not body-faithful emitter bodies.
+> The b14 foundations that DID land (byte-clean): the `str`-field invariant-witness fix, `@dataclass`→record registration (B1 at the language level), and all-string f-string→`string` (B2). The text below is retained as the historical 2026-06-28 framing.
+
 **DONE** — `desugar_correct` is proved in both provers (audited 2026-06-28). The formerly-Admitted for→while desugaring is now a full proof. The `pycsl_soundness` theorem is fully sorry-free for the modelled subset (22+ Stmt constructors, 35/36 features).
 
 The new highest-value next step is **LINK 3 body-faithful** (§8): re-annotate `module6_whyml/statements.py` body-faithful so that the residual `module6_encodes_mlw` (now proved as a Lemma from the formal side) becomes provable from the IMPLEMENTATION side — closing the end-to-end chain from the running compiler to the WP theorem.
@@ -251,6 +257,8 @@ With all three links closed, the argument is:
 4. **self-annotation** (LINK 3, the real compiler): the Python compiler files prove against PyCSL's own WP. — *51/51 prove, but emitter is stub-only; needs body-faithful re-annotation to make LINK 2 provable.*
 
 The gap is LINK 3's body-faithful coverage of `module6_whyml/statements.py` (and `expressions.py`, `preamble.py`). **That is the single piece of work that converts the WP theorem from "the formal model is sound" to "PyCSL, as it actually runs, is sound."**
+
+> **Reconciled 2026-06-30 — this "single piece of work" is RE-SITED, not the body-faithful sweep above.** `b14.md` established that body-faithful coverage of the emitter is blocked by a *semantic ceiling* (rich Python: `Any`-typed `dict.get`/dispatch, `.to_dict()`, `str.endswith/rsplit/replace`) — see `facing-the-facts.md`. The finishable version of LINK 3 (`the-finishable-path.md`) keeps `statements.py` as `\trusted` stubs but *re-discharges* them: the proof obligation moves to the Why3 side as per-arm **coherence lemmas** (`eval_whyml_stmts (emit_*_code …) = handle_* …`) over an audited evaluator. Current state of `module6_actual_matches_formal` (chain item 3) on this route: **8 of 10 arms are proved coherence lemmas, 2 are audited axioms** (`array_set`, `skip` — their no-rest emission disjunct has a genuinely different state semantics, so a clean lemma needs a rest-conditioned spec; `seq`, formerly the third, was promoted to a lemma via a guided case-split), with a per-compile coverage certificate (`bin/per-run-certificate.sh`) as the extensional bridge. LINK 2 itself was re-run and restored to **26/26 PASS** (the harness had bit-rotted against the Phase-B typed dispatch — 3 hand-built dicts omitted required optional keys). The 9 emitter `_handle_*` methods that map to no base-WP arm (field/ghost/slice/critical/expr) remain audited-trusted — naming the residual WP-model scope (`src/self-annotate/arm-coverage.md`).
 
 ---
 
