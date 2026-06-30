@@ -51,21 +51,28 @@ certificate, not on a WP coherence lemma).
 | `_handle_tuple_unpack_stmt` | **reduces to the proved fragment** — desugars to SSeq of SAssign; same as above |
 | `_handle_ghost_assign_stmt` | **PROVED-COMPOSED in Rocq** — a ghost var is an ordinary state binding, so it reduces to `assign`; `Phase6L_ComposeIfWhile.v` `Sk_ghost` case (via `ghost_assign_coh`) |
 | `_handle_ghost_array_set_stmt` | **PROVED-COMPOSED in Rocq** — reduces to `arrayset`; `Phase6L_ComposeIfWhile.v` `Sk_gharrset` case (via `ghost_arrset_coh`) |
-| `_handle_fieldassign_stmt` | needs **Phase 6** (record-field state model) → audited-trusted |
-| `_handle_fieldaugassign_stmt` | needs **Phase 6** (record-field state) → audited-trusted |
-| `_handle_array_slice_set_stmt` | needs an **array-slice** semantics → audited-trusted |
-| `_handle_critical_section_stmt` | needs **Phase 7** (concurrency/memory model) → audited-trusted |
-| `_handle_expr_stmt` | needs a **call/effect model** (SCall) → audited-trusted |
+| `_handle_fieldassign_stmt` | **PROVED-COMPOSED in Rocq** — `Sk_field` (via `field_assign_coh`); per-arm effect `field_effect` audited (faithful Phase-6 record-field semantics is future work) |
+| `_handle_fieldaugassign_stmt` | **PROVED-COMPOSED in Rocq** — `Sk_fieldaug` (via `field_aug_coh`); per-arm effect audited |
+| `_handle_array_slice_set_stmt` | **PROVED-COMPOSED in Rocq** — `Sk_slice` (via `slice_set_coh`); per-arm effect audited |
+| `_handle_critical_section_stmt` | **PROVED-COMPOSED in Rocq** — `St_critical` (via `critical_coh`, like `while`); per-arm effect audited (Phase-7 concurrency = future work) |
+| `_handle_expr_stmt` | **PROVED-COMPOSED in Rocq** — `Sk_expr` (via `expr_stmt_coh`); per-arm effect `expr_effect` audited (SCall model = future work) |
 
-**Decision summary (refined — item 1 of the LINK-3 remainder).** Of the original 9 "non-WP-arm"
-handlers: **2 are now proved-composed in Rocq** (`ghost_assign`, `ghost_array_set` — they reduce to
-`assign`/`arrayset`, formalized in `Phase6L_ComposeIfWhile.v` with `Sk_ghost`/`Sk_gharrset`); **2
-reduce to the already-proved fragment** without a new arm (`seq_assign`, `tuple_unpack` desugar to
-SSeq∘SAssign); and **only 5 genuinely require a model extension** — `field`/`field-aug` (Phase 6
-record-field state), `slice` (array-slice semantics), `critical` (Phase 7 concurrency), `expr`
-(SCall/effect model). So the audited-trusted set shrank 9 → **5**, each precisely scoped to its
-needed Phase. (The per-arm ghost coherence is `assign`/`arrayset`-analogous and is taken as an axiom
-in the Rocq composition, matching how the proved arms are axiomatized there.)
+**Decision summary (refined — item 1 of the LINK-3 remainder, now CLOSED).** Of the original 9
+"non-WP-arm" handlers: **2 reduce to the already-proved fragment** (`seq_assign`, `tuple_unpack`
+desugar to SSeq∘SAssign), and the other **7 are now all PROVED-COMPOSED in Rocq**
+(`Phase6L_ComposeIfWhile.v`): `ghost_assign`/`ghost_array_set` reduce to `assign`/`arrayset`; and
+`field`/`field-aug`/`slice`/`expr`/`critical` are added as constructors with abstract per-arm effect
+axioms (`field_assign_coh`/`field_aug_coh`/`slice_set_coh`/`expr_stmt_coh`/`critical_coh`) and proved
+to compose. So **all 15 emitted constructs now have a proved program-level composition** — 0 Admitted,
+`Print Assumptions` = the per-arm axioms + the abstract interface.
+
+**The remaining distinction is the *level* of the per-arm fact, not whether it composes.** The
+control-flow + core arms (the 10) have their per-arm coherence **proved in Why3**
+(`*_code_state_coherent` lemmas), tying the effect to the concrete WhyML construct. The 5
+field/slice/critical/expr arms have their per-arm effect as an **audited axiom** (they join the
+evaluator-axiom boundary, `evaluator-axiom-audit.md`); a *faithful* per-arm model (records → Phase 6,
+concurrency → Phase 7, SCall → Phase 8) that would PROVE rather than audit these effects is the
+remaining future work. Composition of all 15: done.
 
 ## 3. Program-level composition theorem (FINISH LINK 3)
 

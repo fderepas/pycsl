@@ -44,6 +44,15 @@ Parameter handle_return_code    : string -> string -> bool -> string.
 Parameter handle_continue_code  : string -> string.
 Parameter handle_ghost_assign_code : ident -> string -> string -> string -> string.   (* gx ev indent rest *)
 Parameter handle_ghost_arrset_code : ident -> string -> string -> string -> string -> string.
+Parameter handle_field_assign_code : ident -> ident -> string -> string -> string -> string. (* obj fld ev indent rest *)
+Parameter handle_field_aug_code    : ident -> ident -> string -> string -> string -> string.
+Parameter handle_slice_set_code    : ident -> string -> string -> string -> string -> string -> string. (* arr lo hi v indent rest *)
+Parameter handle_expr_code         : string -> string -> string -> string. (* ecode indent rest *)
+Parameter handle_critical_code     : ident -> string -> string -> string. (* mutex bodycode indent *)
+Parameter field_effect    : state -> ident -> ident -> value -> state.
+Parameter field_aug_effect: state -> ident -> ident -> value -> state.
+Parameter slice_effect    : state -> ident -> Z -> Z -> Z -> state.
+Parameter critical_effect : state -> ident -> string -> state.
 
 (* The opaque statement separator (`";\n"` in Why3 — its value is irrelevant to
    the composition, only `seq_semantics` matters). *)
@@ -115,6 +124,35 @@ Axiom ghost_arrset_coh :
     eval_whyml_stmts (handle_ghost_arrset_code ga is vs indent rest) st
     = eval_whyml_stmts rest (arr_set_state st ga iv nv).
 
+(* The 5 remaining handlers (field/field-aug/slice/expr/critical): their state
+   effect is abstract (a Phase-6/7-faithful record/array/concurrency model is
+   future work), but the per-arm coherence + composition are exactly the ghost/
+   while pattern. These per-arm axioms JOIN the audited evaluator boundary. *)
+Axiom field_assign_coh :
+  forall obj fld ev indent rest st e_val,
+    eval_whyml_expr ev st = e_val ->
+    eval_whyml_stmts (handle_field_assign_code obj fld ev indent rest) st
+    = eval_whyml_stmts rest (field_effect st obj fld e_val).
+
+Axiom field_aug_coh :
+  forall obj fld ev indent rest st e_val,
+    eval_whyml_expr ev st = e_val ->
+    eval_whyml_stmts (handle_field_aug_code obj fld ev indent rest) st
+    = eval_whyml_stmts rest (field_aug_effect st obj fld e_val).
+
+Axiom slice_set_coh :
+  forall arr los his vs indent rest st lo hi vv,
+    eval_whyml_expr los st = VInt lo ->
+    eval_whyml_expr his st = VInt hi ->
+    eval_whyml_expr vs st = VInt vv ->
+    eval_whyml_stmts (handle_slice_set_code arr los his vs indent rest) st
+    = eval_whyml_stmts rest (slice_effect st arr lo hi vv).
+
+Axiom critical_coh :
+  forall m bc indent st,
+    eval_whyml_stmts (handle_critical_code m bc indent) st = critical_effect st m bc.
+
+
 (* ── Expression IR (mirrors the compose module) ──────────────────────────── *)
 Parameter expr_ir   : Type.
 Parameter emit_expr : expr_ir -> string.
@@ -122,6 +160,11 @@ Parameter eval_e    : expr_ir -> state -> value.
 Parameter eval_int  : expr_ir -> state -> Z.
 Axiom expr_coherent : forall e st, eval_whyml_expr (emit_expr e) st = eval_e e st.
 Axiom eval_e_int    : forall e st, eval_e e st = VInt (eval_int e st).
+Parameter expr_effect : state -> expr_ir -> state.
+Axiom expr_stmt_coh :
+  forall e indent rest st,
+    eval_whyml_stmts (handle_expr_code (emit_expr e) indent rest) st
+    = eval_whyml_stmts rest (expr_effect st e).
 
 (* ── The Z3-HARD steps: if / while composition, in 2 rewrites each ────────── *)
 
@@ -168,6 +211,10 @@ Inductive simple : Type :=
   | Sk_arrset (a: ident) (i v: expr_ir)
   | Sk_ghost  (gx: ident) (e: expr_ir)
   | Sk_gharrset (ga: ident) (i v: expr_ir)
+  | Sk_field    (obj fld: ident) (e: expr_ir)
+  | Sk_fieldaug (obj fld: ident) (e: expr_ir)
+  | Sk_slice    (arr: ident) (lo hi v: expr_ir)
+  | Sk_expr     (e: expr_ir)
   | Sk_seq    (s1 s2: simple)
   | Sk_if     (c: expr_ir) (tb eb: simple).
 
@@ -175,7 +222,8 @@ Inductive stmt : Type :=
   | St_simple   (s: simple)
   | St_return   (e: expr_ir)
   | St_continue
-  | St_while    (c: expr_ir) (body: simple).
+  | St_while    (c: expr_ir) (body: simple)
+  | St_critical (m: ident) (body: simple).
 
 Definition sel (c: expr_ir) (st: state) (a b: state) : state :=
   if vnz (eval_e c st) then a else b.
@@ -187,6 +235,10 @@ Fixpoint wp_one (s: simple) (st: state) : state :=
   | Sk_arrset a i v => arr_set_state st a (eval_int i st) (eval_int v st)
   | Sk_ghost gx e   => update st gx (eval_e e st)
   | Sk_gharrset ga i v => arr_set_state st ga (eval_int i st) (eval_int v st)
+  | Sk_field obj fld e   => field_effect st obj fld (eval_e e st)
+  | Sk_fieldaug obj fld e=> field_aug_effect st obj fld (eval_e e st)
+  | Sk_slice arr lo hi v => slice_effect st arr (eval_int lo st) (eval_int hi st) (eval_int v st)
+  | Sk_expr e            => expr_effect st e
   | Sk_seq s1 s2    => wp_one s2 (wp_one s1 st)
   | Sk_if c tb eb   => sel c st (wp_one tb st) (wp_one eb st)
   end.
@@ -202,6 +254,10 @@ Fixpoint emit_one (s: simple) (rc: string) (indent: string) : string :=
   | Sk_arrset a i v => handle_array_set_code a (emit_expr i) (emit_expr v) indent rc
   | Sk_ghost gx e   => handle_ghost_assign_code gx (emit_expr e) indent rc
   | Sk_gharrset ga i v => handle_ghost_arrset_code ga (emit_expr i) (emit_expr v) indent rc
+  | Sk_field obj fld e   => handle_field_assign_code obj fld (emit_expr e) indent rc
+  | Sk_fieldaug obj fld e=> handle_field_aug_code obj fld (emit_expr e) indent rc
+  | Sk_slice arr lo hi v => handle_slice_set_code arr (emit_expr lo) (emit_expr hi) (emit_expr v) indent rc
+  | Sk_expr e            => handle_expr_code (emit_expr e) indent rc
   | Sk_seq s1 s2    => emit_one s1 (emit_one s2 rc indent) indent
   | Sk_if c tb eb   =>
       handle_if_code (emit_expr c) (emit_one tb (brk indent) indent)
@@ -218,7 +274,9 @@ Lemma emit_one_coherent :
   forall s rc st indent,
     eval_whyml_stmts (emit_one s rc indent) st = eval_whyml_stmts rc (wp_one s st).
 Proof.
-  induction s as [ | x e | a i v | gx ge | ga gi gv | s1 IH1 s2 IH2 | c tb IHtb eb IHeb ];
+  induction s as [ | x e | a i v | gx ge | ga gi gv
+                 | fobj ffld fe | aobj afld ae | sarr slo shi sv | xe
+                 | s1 IH1 s2 IH2 | c tb IHtb eb IHeb ];
     intros rc st indent; simpl.
   - (* Sk_skip *) apply skip_coh.
   - (* Sk_assign *) apply (assign_coh x (emit_expr e) indent rc st (eval_e e st)). apply expr_coherent.
@@ -235,6 +293,16 @@ Proof.
     + reflexivity.
     + rewrite expr_coherent. apply eval_e_int.
     + rewrite expr_coherent. apply eval_e_int.
+  - (* Sk_field *) apply (field_assign_coh fobj ffld (emit_expr fe) indent rc st (eval_e fe st)). apply expr_coherent.
+  - (* Sk_fieldaug *) apply (field_aug_coh aobj afld (emit_expr ae) indent rc st (eval_e ae st)). apply expr_coherent.
+  - (* Sk_slice *)
+    rewrite (slice_set_coh sarr (emit_expr slo) (emit_expr shi) (emit_expr sv) indent rc st
+               (eval_int slo st) (eval_int shi st) (eval_int sv st)).
+    + reflexivity.
+    + rewrite expr_coherent. apply eval_e_int.
+    + rewrite expr_coherent. apply eval_e_int.
+    + rewrite expr_coherent. apply eval_e_int.
+  - (* Sk_expr *) apply expr_stmt_coh.
   - (* Sk_seq *) rewrite IH1. rewrite IH2. reflexivity.
   - (* Sk_if *)
     rewrite if_step.
@@ -254,6 +322,8 @@ Fixpoint wp_stmts (ss: list stmt) (st: state) (indent: string) : state :=
       | St_simple sp   => wp_stmts rest (wp_one sp st) indent
       | St_while c body=> wp_stmts rest
                             (while_fix (emit_expr c) (emit_one body (brk indent) indent) st) indent
+      | St_critical m body => wp_stmts rest
+                            (critical_effect st m (emit_one body (brk indent) indent)) indent
       end
   end.
 
@@ -269,6 +339,9 @@ Fixpoint emit_stmts (ss: list stmt) (indent: string) : string :=
           handle_while_code (emit_expr c) EmptyString EmptyString
                             (emit_one body (brk indent) indent) indent
           ++ sep ++ emit_stmts rest indent
+      | St_critical m body =>
+          handle_critical_code m (emit_one body (brk indent) indent) indent
+          ++ sep ++ emit_stmts rest indent
       end
   end.
 
@@ -280,11 +353,15 @@ Theorem emit_stmts_coherent :
 Proof.
   induction ss as [ | s rest IH ]; intros st indent; simpl.
   - (* [] *) apply brk_id.
-  - destruct s as [ sp | e | | c body ].
+  - destruct s as [ sp | e | | c body | m cbody ].
     + (* St_simple *) rewrite emit_one_coherent. rewrite IH. reflexivity.
     + (* St_return *) apply (return_coh (emit_expr e) indent st (eval_e e st)). apply expr_coherent.
     + (* St_continue *) apply continue_coh.
     + (* St_while *) rewrite while_step. rewrite IH. reflexivity.
+    + (* St_critical *)
+      rewrite seq_semantics.
+      rewrite (critical_coh m (emit_one cbody (brk indent) indent) indent st).
+      rewrite IH. reflexivity.
 Qed.
 
 (* ── Reflection back to Why3 ──────────────────────────────────────────────────

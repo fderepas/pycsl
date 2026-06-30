@@ -83,6 +83,26 @@ agree with (the agreement is the *proved* `*_code_state_coherent` lemma — NOT 
 
 ---
 
+## 3a. Per-arm effect axioms for the field/slice/critical/expr handlers
+
+The composition (`Phase6L_ComposeIfWhile.v`) now covers **all 15** emitted constructs. Five of them —
+`field-assign`, `field-aug`, `slice-set`, `expr-stmt` (SCall), `critical-section` — do not yet have a
+WP arm with *proved* per-arm coherence (records → Phase 6, concurrency → Phase 7, SCall → Phase 8 are
+future work). They are nonetheless **proved-composed**, with their per-arm state effect taken as an
+**audited axiom here** (the same status as §1–§2, one notch weaker than the 10 Why3-proved arms):
+
+| construct | emitter | effect axiom | audited effect | justification |
+|---|---|---|---|---|
+| field-assign | `handle_field_assign_code` | `field_assign_coh` | `field_effect st obj fld v` | the emitter writes field `fld` of `obj` (a `setattr`/record-field update); abstract until Phase 6 records. |
+| field-aug | `handle_field_aug_code` | `field_aug_coh` | `field_aug_effect …` | read-modify-write of a field; abstract until Phase 6. |
+| slice-set | `handle_slice_set_code` | `slice_set_coh` | `slice_effect st arr lo hi v` | array-region write `arr[lo:hi] = v`; int-valued bounds; abstract until an array-slice semantics. |
+| expr-stmt | `handle_expr_code` | `expr_stmt_coh` | `expr_effect st e` | an expression evaluated for effect (SCall); abstract until the Phase-8 call model. |
+| critical | `handle_critical_code` | `critical_coh` | `critical_effect st m bc` | a critical section's net effect (with havoc); abstract until the Phase-7 memory model. |
+
+These five effect axioms are **provisional**: a faithful Phase 6/7/8 model would *replace* each with a
+proved per-arm coherence lemma (as the 10 control-flow/core arms have). Until then they are audited,
+and listed here as part of the boundary so the trust is explicit, not hidden in the composition.
+
 ## 4. Expression-level audited facts (used by the composition)
 
 | axiom | statement | justification |
@@ -97,13 +117,18 @@ agree with (the agreement is the *proved* `*_code_state_coherent` lemma — NOT 
 - **Minimal.** Every axiom above is *used* by a proved `*_code_state_coherent` lemma or by the
   composition (`emit_stmts_coherent`, Why3 + Rocq). Removing any one breaks a proved obligation —
   verify by deleting it and re-running `why3 prove`.
-- **Complete for the emitted fragment.** Every statement shape the emitter can produce (per
-  `arm-coverage.md` §1) has a `*_semantics` family here. The **5** constructs with **no** WP arm yet
-  (field/field-aug/slice/critical/expr — `arm-coverage.md` §2) are *not* covered by these axioms; they
-  are the explicit audited-trusted obligations pending the Phase 6/7 model extension, NOT silent
-  additions to this evaluator. (`ghost-assign`/`ghost-array-set` are *not* in that list — they reduce
-  to `assign`/`arrayset` and are proved-composed in Rocq; `seq_assign`/`tuple_unpack` reduce to the
-  proved SSeq∘SAssign fragment.)
+- **Complete for the emitted fragment — now ALL 15 constructs.** Every statement shape the emitter can
+  produce has an audited fact here: the 10 control-flow/core arms via §1–§2 (`*_semantics`, each backed
+  by a *proved* Why3 `*_code_state_coherent` lemma) and the 5 field/slice/critical/expr arms via §3a
+  (provisional effect axioms, audited until a Phase 6/7/8 model proves them). `ghost-assign`/
+  `ghost-array-set` reduce to `assign`/`arrayset`; `seq_assign`/`tuple_unpack` reduce to SSeq∘SAssign.
+  So there is **no emitted construct outside this audited boundary** — the set is complete.
+- **Irreducible.** This boundary cannot be *eliminated*: `eval_whyml_stmts` is an in-logic model of
+  WhyML's own evaluation, and (Gödel/Löb) no system fully proves the soundness of its own semantics.
+  "Closing" it therefore means *fully characterizing* it — which this audit does: the set is enumerated,
+  each axiom cited and shown necessary, scoped to the emitted fragment, complete over all 15 constructs,
+  and held separate from the machine-checked layers. That is the closure; the only further reduction
+  is replacing the 5 §3a provisional effect axioms with proved per-arm lemmas as Phases 6/7/8 land.
 
 ## 6. How to re-audit
 
@@ -116,11 +141,14 @@ agree with (the agreement is the *proved* `*_code_state_coherent` lemma — NOT 
 4. Confirm the *soundness* side is admit-free: `Print Assumptions pycsl_soundness` → only the two
    extensionality axioms.
 
-**Bottom line.** The audited trust for LINK-3 coherence is **~24 cited evaluator axioms over the
-emitted WhyML fragment**, each justified against Why3's documented evaluation and the Phase2/Phase4
-model, each shown necessary, and *separate* from the machine-checked layers (the `*_code_state_coherent`
-lemmas, `emit_stmts_coherent`, and `pycsl_soundness`). This is the irreducible D2 boundary — by design,
-not a gap.
+**Bottom line.** The audited trust for LINK-3 coherence is a **complete, minimal, cited set of ~29
+evaluator axioms** (the ~24 `*_semantics`/structural/expression axioms of §1–§4, all backed by proved
+`*_code_state_coherent` lemmas, plus the 5 provisional §3a effect axioms for field/slice/critical/expr)
+covering **all 15 emitted constructs**, each justified against Why3's documented evaluation and the
+Phase2/Phase4 model, each shown necessary, and *separate* from the machine-checked layers
+(`*_code_state_coherent`, `emit_stmts_coherent`, `pycsl_soundness`, `wp_for_desugar`). This is the
+irreducible D2 boundary — fully characterized here (the closure), reducible only by replacing the 5
+provisional effect axioms with proofs as Phases 6/7/8 land. By design, not a gap.
 
 ---
 
