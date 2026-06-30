@@ -14,6 +14,7 @@ Phase3b_Desugar.v
 Phase4_WP.v
 Phase5a_WhileInv.v
 Phase5b_Soundness.v
+Phase5c_WpForDesugar.v
 Phase6_WhyML.v
 Phase6b_WPW.v
 Phase6c_ExprTrans.v

@@ -49,7 +49,9 @@ Parameter handle_ghost_arrset_code : ident -> string -> string -> string -> stri
    the composition, only `seq_semantics` matters). *)
 Parameter sep : string.
 
-(* abstract loop denotation (the Why3 `while_fix`; its adequacy = open wp_for_desugar) *)
+(* abstract loop denotation (the Why3 `while_fix`); its adequacy is the audited
+   `while_semantics` evaluator axiom (see evaluator-axiom-audit.md). The *for*-loop
+   WP equivalence `wp_for_desugar` is now PROVED in Phase5c_WpForDesugar.v. *)
 Parameter while_fix : string -> string -> state -> state.   (* cond_str body_str st *)
 
 (* ── PER-ARM coherence facts — AXIOMS here, PROVED in Why3 ────────────────── *)

@@ -26,6 +26,8 @@ Phase5a_WhileInv.vo Phase5a_WhileInv.glob Phase5a_WhileInv.v.beautified Phase5a_
 Phase5a_WhileInv.vos Phase5a_WhileInv.vok Phase5a_WhileInv.required_vos: Phase5a_WhileInv.v Phase1_AST.vos Phase2_State.vos Phase3_SOS.vos Phase3b_Desugar.vos Phase4_WP.vos
 Phase5b_Soundness.vo Phase5b_Soundness.glob Phase5b_Soundness.v.beautified Phase5b_Soundness.required_vo: Phase5b_Soundness.v Phase1_AST.vo Phase2_State.vo Phase3_SOS.vo Phase3b_DesugarDef.vo Phase3b_Desugar.vo Phase4_WP.vo Phase5a_WhileInv.vo Phase7_MemModel.vo
 Phase5b_Soundness.vos Phase5b_Soundness.vok Phase5b_Soundness.required_vos: Phase5b_Soundness.v Phase1_AST.vos Phase2_State.vos Phase3_SOS.vos Phase3b_DesugarDef.vos Phase3b_Desugar.vos Phase4_WP.vos Phase5a_WhileInv.vos Phase7_MemModel.vos
+Phase5c_WpForDesugar.vo Phase5c_WpForDesugar.glob Phase5c_WpForDesugar.v.beautified Phase5c_WpForDesugar.required_vo: Phase5c_WpForDesugar.v Phase1_AST.vo Phase2_State.vo Phase3_SOS.vo Phase3b_DesugarDef.vo Phase3b_Desugar.vo Phase4_WP.vo Phase5a_WhileInv.vo Phase7_MemModel.vo Phase5b_Soundness.vo
+Phase5c_WpForDesugar.vos Phase5c_WpForDesugar.vok Phase5c_WpForDesugar.required_vos: Phase5c_WpForDesugar.v Phase1_AST.vos Phase2_State.vos Phase3_SOS.vos Phase3b_DesugarDef.vos Phase3b_Desugar.vos Phase4_WP.vos Phase5a_WhileInv.vos Phase7_MemModel.vos Phase5b_Soundness.vos
 Phase6_WhyML.vo Phase6_WhyML.glob Phase6_WhyML.v.beautified Phase6_WhyML.required_vo: Phase6_WhyML.v Phase1_AST.vo
 Phase6_WhyML.vos Phase6_WhyML.vok Phase6_WhyML.required_vos: Phase6_WhyML.v Phase1_AST.vos
 Phase6b_WPW.vo Phase6b_WPW.glob Phase6b_WPW.v.beautified Phase6b_WPW.required_vo: Phase6b_WPW.v Phase1_AST.vo Phase2_State.vo Phase3_SOS.vo Phase4_WP.vo Phase6_WhyML.vo
