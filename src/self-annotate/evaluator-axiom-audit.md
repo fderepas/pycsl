@@ -73,10 +73,13 @@ agree with (the agreement is the *proved* `*_code_state_coherent` lemma — NOT 
   `eval_while_fixpoint` denotation of the emitted while-string. The legacy `Phase5a_WhileInv.v`
   `while_inv_preserved` Admitted is a *separate, alternate* formulation NOT in the soundness closure.
 - **`for_code_init_semantics`.** `SFor` desugars to a while; `desugar_correct` (SOS-level) **is proved**
-  (`Phase3b_Desugar.v`). The WP-level equivalence (`wp_for_desugar`) — that the WP of the desugared
-  while equals `SFor`'s intended semantics — is the genuinely-open gap. It is plausibly derivable from
-  `desugar_correct` + WP soundness; until proved, the for-loop's full coherence rests on this audited
-  init axiom.
+  (`Phase3b_Desugar.v`). The WP-level equivalence (`wp_for_desugar`) is **now also PROVED** —
+  `Phase5c_WpForDesugar.v`, `wp_for_desugar` / `wp_desugar_iff`, proves `wp s ↔ wp (desugar s)` (both
+  directions; the forward `wp_desugar_fwd` was already in `Phase5b_Soundness.v`, this adds the backward
+  direction), with `Print Assumptions` = only the two standard extensionality axioms, **0 Admitted**.
+  So the SFor WP arm is now a *proved* mirror of its `SSeq∘SWhile` desugaring; the for-loop is no
+  longer an open WP-level gap. (`for_code_init_semantics` remains as the *evaluator*-string axiom for
+  the emitted for-init, like every other `*_semantics`.)
 
 ---
 
@@ -137,6 +140,12 @@ The composition threads the loop's effect through an **abstract** `while_fix` / 
 
 - **The `SWhile` WP rule IS proved sound** against the SOS: `Phase5b_Soundness.v` `pycsl_soundness`, whose `Print Assumptions` are **only** `propositional_extensionality` + `functional_extensionality_dep` (no `Admitted`). So the *while semantics is not an open question* at the WP/SOS level. (The `Phase5a_WhileInv.v` `while_inv_preserved` Admitted is a separate, alternate formulation **not** in the soundness closure — verified.)
 - **What stays audited:** the evaluator's `eval_while_fixpoint` denotation of the emitted while-*string* (the `while_semantics` axiom of §2) — i.e. the same evaluator-axiom trust as every other construct, nothing while-specific.
-- **The one genuinely-open WP-level gap is `wp_for_desugar`** — the *for* loop: `SFor` desugars to a while; `desugar_correct` (SOS-level) **is proved** (`Phase3b_Desugar.v`), but the WP-level equivalence of `SFor` with its desugaring is not yet closed. It is plausibly derivable from `desugar_correct` + WP soundness; until then the for-loop's full coherence rests on the audited `for_code_init_semantics` axiom (§2).
+- **`wp_for_desugar` is now CLOSED** — the *for* loop: `SFor` desugars to a while; `desugar_correct`
+  (SOS-level) was already proved (`Phase3b_Desugar.v`), and the **WP-level equivalence is now proved
+  too** (`Phase5c_WpForDesugar.v`, `wp_for_desugar` : `wp (SFor …) ↔ wp (desugar (SFor …))`, 0 Admitted,
+  `Print Assumptions` = only the two standard extensionality axioms). The hand-written SFor WP arm is a
+  *proved* mirror of its desugaring, both directions.
 
-**Net for items 2 & 3:** neither is a hidden hole. Item 3 is the (empirically-audited, 26/26) LINK-2 bridge; item 2's while semantics is *proved sound*, with only the standard evaluator-axiom audit remaining for the emitted while-string, plus the precisely-scoped, separate `wp_for_desugar` for-loop gap.
+**Net for items 2 & 3:** neither is a hidden hole. Item 3 is the (empirically-audited, 26/26) LINK-2
+bridge; item 2's while semantics is *proved sound*, the for-loop WP equivalence (`wp_for_desugar`) is
+now *proved*, and only the standard evaluator-axiom audit remains for the emitted while-string.

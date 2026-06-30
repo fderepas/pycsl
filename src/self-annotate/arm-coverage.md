@@ -18,7 +18,7 @@ Z3 4.13.3; the **axioms** are human-audited where Z3 cannot case-split the strin
 | SIf | ✓ | ✓ | `if_else`/`if_only` | `if_code_state_coherent` | **LEMMA (Valid)** |
 | SWhile | ✓ | ✓ | `while_semantics` (+ `eval_while_fixpoint`) | `while_code_state_coherent` | **LEMMA (Valid)** |
 | SContinue | ✓ | ✓ | `continue_semantics` | `continue_code_state_coherent` | **LEMMA (Valid)** |
-| SFor | ✓ | ✓ | `for_code_init_semantics` | `for_code_state_coherent` | **LEMMA (Valid)** — full WP equiv deferred to `wp_for_desugar` (open gap) |
+| SFor | ✓ | ✓ | `for_code_init_semantics` | `for_code_state_coherent` | **LEMMA (Valid)** — full WP equiv `wp_for_desugar` now **PROVED** (`Phase5c_WpForDesugar.v`, 0 Admitted) |
 | SReturn (plain) | ✓ | ✓ | `return_plain_semantics` | `return_plain_code_state_coherent` | **LEMMA (Valid)** — *promoted from axiom 2026-06-30; single-form spec, no disjunction* |
 | SReturn (raise/void) | ✓ | ✓ | `return_raise`/`return_void_semantics` | (covered per-branch by the two axioms) | audited |
 | SSeq | ✓ | ✓ | `seq_semantics`/`seq_concat_semantics` | `seq_code_state_coherent` | **LEMMA (Valid)** — *promoted from axiom 2026-06-30 via a guided `let lemma` case-split (per-disjunct asserts), 0.03s* |
@@ -99,8 +99,9 @@ so it is proved in Rocq instead: `src/formal-semantics/rocq/Phase6L_ComposeIfWhi
 rewrites step-by-step, no E-matching). `Print Assumptions` confirms its only axioms are the per-arm
 `*_coh` facts (= the Why3-proved `*_code_state_coherent` lemmas) plus the abstract interface; **0
 Admitted**. So the if/while composition is proved, audited by Rocq, with the per-arm lemmas (proved
-in Why3) as the shared trust base. The `while` loop *denotation* (`while_fix`) remains abstract — its
-adequacy is the separate still-open `wp_for_desugar` gap, not part of the composition.
+in Why3) as the shared trust base. The `while` loop *denotation* (`while_fix`) remains abstract — its adequacy is the audited
+`while_semantics` evaluator axiom. (The *for*-loop WP equivalence `wp_for_desugar` is now PROVED in
+`Phase5c_WpForDesugar.v`, 0 Admitted.)
 
 **The 9 non-WP-arm `_handle_*` handlers (item 2) — explicit audited-trusted obligations.** §2 above
 is the formal stratification: `field`/`fieldaug`/`slice`/`critical`/`expr`/`ghost-assign`/
