@@ -2070,7 +2070,40 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                 sz = self._array_init_size(stmt.value)
                                 if sz is not None:
                                     field_defaults[stmt.target.attr] = sz
+        # b14 B1 (ir-schema-spec.md): a `@dataclass` has no `__init__` — its
+        # fields are CLASS-BODY AnnAssigns (`target: str`, `value: "ExprIR"`).
+        # The synthesized `__init__` walk above finds none, so the class would
+        # coarsen to the opaque `int` alias and `obj.field` would lower to an
+        # abstract getattr. Collect the class-level AnnAssign fields here so a
+        # dataclass registers as a record with typed (str → string) fields,
+        # exactly like the TypedDict/NamedTuple paths. Additive: a non-dataclass
+        # class is untouched, and no pre-existing corpus class is a @dataclass
+        # (byte-identical fallback).
+        if not fields and self._is_dataclass_decorated(node):
+            for stmt in node.body:
+                if (isinstance(stmt, ast.AnnAssign)
+                        and isinstance(stmt.target, ast.Name)
+                        and stmt.target.id not in field_names_seen):
+                    ftype = self._field_type_from_annotation_inst(
+                        stmt.annotation, node.name)
+                    fields.append({"name": stmt.target.id, "type": ftype, "mutable": True})
+                    field_names_seen.add(stmt.target.id)
+                    if (stmt.value is not None and isinstance(stmt.value, ast.Constant)
+                            and isinstance(stmt.value.value, (int, float))):
+                        field_defaults[stmt.target.id] = int(stmt.value.value)
         return fields, field_defaults
+
+    @staticmethod
+    def _is_dataclass_decorated(node: ast.ClassDef) -> bool:
+        """True if `node` carries a `@dataclass` / `@dataclass(...)` /
+        `@dataclasses.dataclass` decorator (b14 B1 record registration)."""
+        for dec in node.decorator_list:
+            target = dec.func if isinstance(dec, ast.Call) else dec
+            if isinstance(target, ast.Name) and target.id == "dataclass":
+                return True
+            if isinstance(target, ast.Attribute) and target.attr == "dataclass":
+                return True
+        return False
 
     @staticmethod
     def _array_init_size(rhs: ast.expr) -> Optional[int]:

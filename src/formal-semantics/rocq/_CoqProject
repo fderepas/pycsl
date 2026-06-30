@@ -48,6 +48,7 @@ Phase6L_EmitComposition.v
 Phase6L_EmitStateAware.v
 Phase6L_EmitStateAwareCorr.v
 Phase6L_EmitExtract.v
+Phase6L_ComposeIfWhile.v
 Phase6m_VcgSemBridge.v
 Phase6i_Soundness.v
 Phase6n_ClassInvariants.v

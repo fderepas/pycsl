@@ -331,3 +331,16 @@ The refactor SUCCEEDED in its stated goal — the **`Any`-typed dict blocker is 
 But LINK 3 (the body-faithful bridge to the self-annotate copy) is **NOT yet closed**: the typed-schema payoff doesn't transfer to single-file isolation (B1), compounded by f-string hashing (B2). The next blocker to attack is **cross-file type resolution** (so `from ir_schema import AssignStmt` resolves in self-annotate), then **f-string literal-segment lowering** (so `f"{indent}..."` builds a string, not a hashed int).
 
 The 4 blockers are now all MECHANICAL, not architectural — the `Any`-typed wall is gone; these are lowering-extension gaps.
+
+---
+
+## 11. Reconciliation (2026-06-30) — the B1/B2 "next blockers" verdict above is SUPERSEDED
+
+Two follow-on engagements (`b14.md`, `the-finishable-path.md`, both committed) moved past §10's conclusion. Corrections:
+
+- **B2 (f-string hashing) — FIXED at the compiler level.** `module6_whyml/expressions.py::_handle_fstring_expr` now lowers an all-string-typed f-string to a faithful `str_concat_op`/`concat` chain (real Why3 `string`), not an int hash. Byte-identical across the 624-file corpus (mixed f-strings keep the legacy int model). So `f"{indent}..."` over string-typed parts now builds a `string`.
+- **B1 — addressed *differently* than §10 framed it.** §10 names the next blocker as *cross-file type resolution* (make `from ir_schema import AssignStmt` resolve in single-file self-annotate isolation). That was **not** done. Instead the general capability was added: `Module5_IREmitter._collect_class_fields` + `_is_dataclass_decorated` now register a `@dataclass` as a WhyML record with typed (`str`→`string`) fields, and the `by {}` invariant-witness was fixed to emit `""` for string fields (a *5th* blocker §10 never listed). This makes the real `ir_schema.py` dataclasses first-class records (LINK 1), and a record-typed param's `stmt.target` proves body-faithfully (corpus test `0743`). But for the self-annotate *file*, the `ir_schema` import is still opaque in single-file mode unless the sum classes are inlined locally — so B1-as-cross-file-resolution remains open; it is simply no longer the recommended lever.
+- **The deeper correction: "all 4 blockers are MECHANICAL → body-faithful is now reachable" is REFUTED.** `b14.md` established that even with B1–B4 cleared, the `_handle_*` bodies hit a **semantic ceiling** — `Any`-typed `dict.get` + type-dispatch, `.to_dict()` reflection, and content-level `str.endswith/rsplit/replace` over rich Python — which PyCSL cannot model (see `facing-the-facts.md`). So clearing the mechanical blockers does **not** unblock body-faithful emitter contracts.
+- **LINK 3 was re-sited, not body-faithfully closed.** Per `the-finishable-path.md`, the emitter stays `\trusted` but its obligations are re-discharged on the Why3 side as per-arm coherence lemmas (`pycsl-wp-spec.mlw`: 7 lemmas + 3 audited axioms over all 10 WP arms) plus a per-compile coverage certificate (`bin/per-run-certificate.sh`); the decision map is `src/self-annotate/arm-coverage.md`.
+
+What §10 got right and still holds: Phases A+B succeeded, the `Any`-typed dict blocker is closed in the real codebase, the 624-file byte-diff is clean, and **LINK 1 alignment is achieved** (the PyCSL IR `StmtIR` sum aligns constructor-by-constructor with the formal-semantics `Stmt` inductive).

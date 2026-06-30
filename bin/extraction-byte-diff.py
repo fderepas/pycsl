@@ -129,8 +129,11 @@ def main() -> None:
     case("raise-continue", emit_stmts([{"stmt": "Continue"}]))
 
     # raise-named: raise Foo
+    # NB: `exc_value` is an optional field of the typed RaiseStmt — Module 5 always
+    # emits it (None for a bare `raise Foo`), so the Phase-B `stmt_from_dict` requires
+    # it to round-trip; omitting it here classed the dict Opaque and broke the harness.
     case("raise-named-foo", emit_stmts(
-        [{"stmt": "Raise", "exc_type": "Foo"}]
+        [{"stmt": "Raise", "exc_type": "Foo", "exc_value": None}]
     ))
 
     # label: "label L in" (Module 6 wraps the rest of the block in
@@ -219,8 +222,10 @@ def main() -> None:
     ))
 
     # while-trivial: while x do invariant{true} variant{0} done
+    # `line` is a required field of the typed WhileStmt (Module 5 emits it).
     case("while-trivial", emit_stmts(
         [{"stmt": "While",
+          "line": 0,
           "test": {"type": "Var", "name": "x"},
           "invariants": [{"type": "Bool", "value": True}],
           "variants": [{"type": "Number", "value": 0}],
@@ -229,13 +234,17 @@ def main() -> None:
     ))
 
     # try-catch-simple: try () with E -> () end
+    # `orelse`/`finalbody` are required fields of the typed TryStmt (Module 5
+    # emits them, empty for a bare try/except).
     case("try-catch-simple", emit_stmts(
         [{"stmt": "Try",
           "body": [{"stmt": "Pass"}],
           "handlers": [
               {"exc_type": "E",
                "body": [{"stmt": "Pass"}]}
-          ]}]
+          ],
+          "orelse": [],
+          "finalbody": []}]
     ))
 
     # ghost-decl-int: let ghost gx = ref 0 in (first GhostAssign)

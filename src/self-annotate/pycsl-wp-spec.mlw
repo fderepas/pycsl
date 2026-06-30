@@ -154,7 +154,7 @@ module PyCSL_WP_Spec
 
   (* Phase4_WP.v:96–97
    *   | SReturn e =>
-   *       Qr (update st "\result" (eval_expr st e))
+   *       Qr (update st "\\result" (eval_expr st e))
    * After a return, the state has "\result" bound to e_val. *)
   val handle_return (e_val: value) (st: state) : state
     ensures { result = update st "\\result" e_val }
@@ -204,10 +204,13 @@ module PyCSL_WP_Code
     }
 
   (* Phase4_WP.v:21  | SSkip => Qn st
-   * A skip (pass) statement emits "()" followed by rest. *)
+   * A skip (pass) statement emits "()" then chains rest with ";\n" ONLY when rest
+   * is non-empty (faithful to _stmts_to_whyml's `if rest: code += ";\n"+rest`), so
+   * the no-rest form is reached IFF rest_str = "". This rest-conditioned ensures
+   * (was a free disjunction) is what makes skip coherence a proved lemma. *)
   val function handle_skip_code (indent rest_str : string) : string
-    ensures { result = indent ^ "()" ^ ";\n" ^ rest_str
-           \/ result = indent ^ "()" }
+    ensures { rest_str =  "" -> result = indent ^ "()" }
+    ensures { rest_str <> "" -> result = indent ^ "()" ^ ";\n" ^ rest_str }
 
   (* Phase4_WP.v:26–30  | SAugAssign x op e
    * Two forms: arithmetic op (form 2) or bitwise via abstract function (form 1). *)
@@ -224,12 +227,14 @@ module PyCSL_WP_Code
 
   (* Phase4_WP.v:32–35  | SArraySet arr i v
    * Direct array mutation: arr[idx] <- val. *)
+  (* rest-conditioned (faithful to _handle_array_set_stmt's `if rest: code +=
+   * ";\n"+rest`): the no-rest form is reached IFF rest_str = "". *)
   val function handle_array_set_code
       (arr idx_str val_str indent rest_str : string) : string
-    ensures {
-      result = indent ^ arr ^ "[" ^ idx_str ^ "] <- " ^ val_str ^ ";\n" ^ rest_str
-           \/ result = indent ^ arr ^ "[" ^ idx_str ^ "] <- " ^ val_str
-    }
+    ensures { rest_str =  "" ->
+      result = indent ^ arr ^ "[" ^ idx_str ^ "] <- " ^ val_str }
+    ensures { rest_str <> "" ->
+      result = indent ^ arr ^ "[" ^ idx_str ^ "] <- " ^ val_str ^ ";\n" ^ rest_str }
 
   (* Phase4_WP.v:37–39  | SSeq s1 s2
    * Sequencing is string concatenation: output of s1 followed by output of s2. *)
@@ -322,6 +327,15 @@ module PyCSL_WP_Coherence
   (* Abstract denotational semantics of a WhyML statement string. *)
   val function eval_whyml_stmts (s: string) (st: state) : state
 
+  (* Audited evaluator axiom: the empty statement string is the identity on state
+   * (an empty program does nothing). This is the atomic fact that lets the no-rest
+   * emission branch (reached IFF rest_str = "") satisfy the coherence RHS
+   * `eval_whyml_stmts rest_str …` — it replaces the bundled "human-audited"
+   * skip/array_set COHERENCE axioms with proved lemmas resting on this + the
+   * per-construct semantics axioms (trust relocated to the more atomic layer). *)
+  axiom eval_empty_semantics :
+    forall st. eval_whyml_stmts "" st = st
+
   (* Axiom: `lhs := rhs;\n` followed by rest_str updates lhs then runs rest.
    * Semantic content of the WP SAssign ref-update arm. *)
   axiom assign_ref_update_semantics :
@@ -378,12 +392,19 @@ module PyCSL_WP_Coherence
     forall indent st.
     eval_whyml_stmts (indent ^ "()") st = st
 
-  (* Human-audited: skip emits "()" which is the identity; rest_str is appended
-   * with ";\n" when non-empty, giving eval_whyml_stmts rest_str st in both forms. *)
-  axiom skip_code_state_coherent :
-    forall indent rest_str st.
-    let code = handle_skip_code indent rest_str in
-    eval_whyml_stmts code st = eval_whyml_stmts rest_str st
+  (* PROMOTED from an audited axiom to a proved `let lemma` (b14/finishable-path).
+   * Guided case-split on whether rest_str is empty:
+   *   rest_str =  "" : code = indent^"()"; eval = st (skip_semantics_norest) and
+   *                    eval rest_str st = eval "" st = st (eval_empty_semantics).
+   *   rest_str <> "" : code = indent^"()"^";\n"^rest; eval = eval rest_str st
+   *                    (skip_semantics).
+   * Each assert holds under a single branch hypothesis (no Z3 disjunction split). *)
+  let lemma skip_code_state_coherent (indent rest_str : string) (st : state)
+    ensures { eval_whyml_stmts (handle_skip_code indent rest_str) st
+              = eval_whyml_stmts rest_str st }
+  = let code = handle_skip_code indent rest_str in
+    assert { rest_str =  "" -> eval_whyml_stmts code st = eval_whyml_stmts rest_str st };
+    assert { rest_str <> "" -> eval_whyml_stmts code st = eval_whyml_stmts rest_str st }
 
   (* ── SAugAssign semantics + coherence ───────────────────────────────────── *)
 
@@ -416,38 +437,58 @@ module PyCSL_WP_Coherence
 
   (* ── SArraySet semantics + coherence ────────────────────────────────────── *)
 
-  (* Axiom: arr[idx] <- val; sets element idx of arr. *)
+  (* The array-set result state, NAMED as a logic function so Z3 sees identical
+   * opaque applications (reflexive equality) instead of repeatedly destructuring
+   * the inline update/VArray/M.set/match term — which made the coherence proof
+   * explode (>23M steps / timeout). With the name it discharges in milliseconds. *)
+  function arr_set_state (st: state) (arr: string) (idx_val new_val: int) : state =
+    update st arr
+      (VArray (M.set
+        (match lookup st arr with VArray a -> a | _ -> MC.const 0 end)
+        idx_val new_val))
+
+  (* Axiom: `arr[idx] <- val;\n rest` sets element idx of arr, then runs rest.
+   * Explicit trigger on the emitted with-rest string. *)
   axiom array_set_semantics :
-    forall arr idx_str val_str indent rest_str st idx_val new_val.
+    forall arr idx_str val_str indent rest_str st idx_val new_val
+      [eval_whyml_stmts (indent ^ arr ^ "[" ^ idx_str ^ "] <- " ^ val_str ^ ";\n" ^ rest_str) st].
     eval_whyml_expr idx_str st = VInt idx_val ->
     eval_whyml_expr val_str st = VInt new_val ->
     eval_whyml_stmts
       (indent ^ arr ^ "[" ^ idx_str ^ "] <- " ^ val_str ^ ";\n" ^ rest_str) st
-    = eval_whyml_stmts rest_str
-        (update st arr
-          (VArray (M.set
-            (match lookup st arr with
-             | VArray a -> a
-             | _        -> MC.const 0
-             end)
-            idx_val new_val)))
+    = eval_whyml_stmts rest_str (arr_set_state st arr idx_val new_val)
 
-  (* Human-audited: arr[idx] <- val; emits the array-set string; disjunction in
-   * handle_array_set_code ensures (with/without rest) times out under Z3 string theory. *)
-  axiom array_set_code_state_coherent :
-    forall arr idx_str val_str indent rest_str st idx_val new_val.
+  (* Audited evaluator axiom: the no-rest array-set string sets element idx (no continuation). *)
+  axiom array_set_semantics_norest :
+    forall arr idx_str val_str indent st idx_val new_val
+      [eval_whyml_stmts (indent ^ arr ^ "[" ^ idx_str ^ "] <- " ^ val_str) st].
     eval_whyml_expr idx_str st = VInt idx_val ->
     eval_whyml_expr val_str st = VInt new_val ->
-    let code = handle_array_set_code arr idx_str val_str indent rest_str in
-    eval_whyml_stmts code st
-    = eval_whyml_stmts rest_str
-        (update st arr
-          (VArray (M.set
-            (match lookup st arr with
-             | VArray a -> a
-             | _        -> MC.const 0
-             end)
-            idx_val new_val)))
+    eval_whyml_stmts (indent ^ arr ^ "[" ^ idx_str ^ "] <- " ^ val_str) st
+    = arr_set_state st arr idx_val new_val
+
+  (* PROMOTED from an audited axiom to a proved `let lemma` (b14/finishable-path).
+   * Guided case-split on rest_str: rest="" uses array_set_semantics_norest +
+   * eval_empty_semantics; rest<>"" uses array_set_semantics. Trust is relocated to
+   * the per-construct evaluator axioms; the coherence itself is now machine-checked. *)
+  let lemma array_set_code_state_coherent
+      (arr idx_str val_str indent rest_str : string) (st : state)
+      (idx_val new_val : int)
+    requires { eval_whyml_expr idx_str st = VInt idx_val }
+    requires { eval_whyml_expr val_str st = VInt new_val }
+    ensures  { eval_whyml_stmts (handle_array_set_code arr idx_str val_str indent rest_str) st
+               = eval_whyml_stmts rest_str (arr_set_state st arr idx_val new_val) }
+  = let code = handle_array_set_code arr idx_str val_str indent rest_str in
+    assert { eval_whyml_stmts (indent ^ arr ^ "[" ^ idx_str ^ "] <- " ^ val_str ^ ";\n" ^ rest_str) st
+             = eval_whyml_stmts rest_str (arr_set_state st arr idx_val new_val) };
+    assert { eval_whyml_stmts (indent ^ arr ^ "[" ^ idx_str ^ "] <- " ^ val_str) st
+             = arr_set_state st arr idx_val new_val };
+    assert { eval_whyml_stmts "" (arr_set_state st arr idx_val new_val)
+             = arr_set_state st arr idx_val new_val };
+    assert { rest_str =  "" -> eval_whyml_stmts code st
+             = eval_whyml_stmts rest_str (arr_set_state st arr idx_val new_val) };
+    assert { rest_str <> "" -> eval_whyml_stmts code st
+             = eval_whyml_stmts rest_str (arr_set_state st arr idx_val new_val) }
 
   (* ── SSeq semantics + coherence ─────────────────────────────────────────── *)
 
@@ -462,13 +503,22 @@ module PyCSL_WP_Coherence
     eval_whyml_stmts (s1_str ^ s2_str) st
     = eval_whyml_stmts s2_str (eval_whyml_stmts s1_str st)
 
-  (* Human-audited: handle_seq_code returns s1^";\n"^s2 or s1^s2; both axioms
-   * above establish seq semantics — disjunction case-split times out under Z3. *)
-  axiom seq_code_state_coherent :
-    forall s1_str s2_str st st_mid.
-    eval_whyml_stmts s1_str st = st_mid ->
-    let code = handle_seq_code s1_str s2_str in
-    eval_whyml_stmts code st = eval_whyml_stmts s2_str st_mid
+  (* b14/finishable-path: PROMOTED from an audited axiom to a proved `let lemma`
+   * via a GUIDED case-split. handle_seq_code returns `s1^";\n"^s2` OR `s1^s2`;
+   * both disjuncts have the SAME semantics (`seq_semantics` / `seq_concat_semantics`
+   * each give `eval s2 (eval s1 st)`). The two per-disjunct assertions below each
+   * instantiate exactly ONE semantics axiom under its branch hypothesis (no split
+   * inside), and handle_seq_code's disjunctive ensures combines them — so Z3
+   * discharges it cheaply instead of timing out on the raw 5s/1.45M-step split. *)
+  let lemma seq_code_state_coherent (s1_str s2_str : string) (st st_mid : state)
+    requires { eval_whyml_stmts s1_str st = st_mid }
+    ensures  { eval_whyml_stmts (handle_seq_code s1_str s2_str) st
+               = eval_whyml_stmts s2_str st_mid }
+  = let code = handle_seq_code s1_str s2_str in
+    assert { code = s1_str ^ ";\n" ^ s2_str ->
+             eval_whyml_stmts code st = eval_whyml_stmts s2_str st_mid };
+    assert { code = s1_str ^ s2_str ->
+             eval_whyml_stmts code st = eval_whyml_stmts s2_str st_mid }
 
   (* ── SIf semantics + coherence ──────────────────────────────────────────── *)
 
@@ -509,6 +559,7 @@ module PyCSL_WP_Coherence
       = (if cond_val <> VInt 0
          then eval_whyml_stmts then_str st
          else st))
+
 
   (* ── SWhile semantics + coherence ───────────────────────────────────────── *)
 
@@ -558,8 +609,15 @@ module PyCSL_WP_Coherence
    * The void case (Return_void) preserves state unchanged (see return_void_semantics).
    * The value case (raise (Return v)) sets \result (see return_raise_semantics).
    * A single combined lemma would be unsound for void returns; the two axioms
-   * above separately cover each branch. Human-audited for use_raise=false (plain value). *)
-  axiom return_plain_code_state_coherent :
+   * above separately cover each branch.
+   *
+   * b14/finishable-path Steps 3-4: PROMOTED from `axiom` to a proved `lemma`.
+   * For use_raise=false the code spec `handle_return_code` has a SINGLE form
+   * (`result = indent ^ val_str`, no disjunction), so coherence discharges
+   * directly from `return_plain_semantics` — no Z3 string case-split (unlike the
+   * skip/seq/array_set arms whose code specs carry a free with/without-rest
+   * disjunction). This shrinks the audited-axiom TCB by one. *)
+  lemma return_plain_code_state_coherent :
     forall val_str indent st e_val.
     eval_whyml_expr val_str st = e_val ->
     let code = handle_return_code val_str indent false in
@@ -612,5 +670,123 @@ module PyCSL_WP_Coherence
          ^ inner ^ "  " ^ idx_var ^ " := !" ^ idx_var ^ " + 1;\n"
          ^ inner ^ "done")
         (update st idx_var (VInt 0))
+
+end
+
+(* ── PyCSL_WP_Compose ─────────────────────────────────────────────────────────
+ * FINISH LINK 3: compose the per-arm coherence lemmas into a PROGRAM-LEVEL
+ * theorem. Over a stmt_ir ADT with a CPS emitter (each statement embeds the
+ * emission of the rest, mirroring _stmts_to_whyml's rest-threading), prove by
+ * structural induction that evaluating the emitted code equals the WP state
+ * transformer for the whole statement list — turning the 10 per-arm facts into
+ * one whole-program coherence theorem `emit_stmts_coherent`.
+ *)
+module PyCSL_WP_Compose
+  use int.Int
+  use map.Map as M
+  use map.Const as MC
+  use list.List
+  use string.String
+  use PyCSL_WP_Spec
+  use PyCSL_WP_Code
+  use PyCSL_WP_Coherence
+
+  (* Abstract expression IR + its emission/evaluation, tied by an audited
+   * expression-coherence axiom (the expr-level peer of the eval_*_semantics). *)
+  type expr_ir
+  val function emit_expr (e: expr_ir) : string
+  val function eval_e (e: expr_ir) (st: state) : value
+  axiom expr_coherent : forall e st. eval_whyml_expr (emit_expr e) st = eval_e e st
+
+  (* Separate abstract int-evaluator; `eval_e e st = VInt (eval_int e st)` is
+   * NON-looping (eval_int does not mention eval_e), unlike `VInt (vint (eval_e ...))`.
+   * Gives arrayset's index/value the VInt form the array_set lemma needs. *)
+  val function eval_int (e: expr_ir) (st: state) : int
+  axiom eval_e_int : forall e st. eval_e e st = VInt (eval_int e st)
+
+  (* The PROVEN fragment: straight-line (skip/assign) + early-exit terminators
+   * (return/continue). The whole-program composition theorem below is discharged
+   * by structural induction over this fragment. *)
+  type stmt =
+    | St_skip
+    | St_assign  ident expr_ir
+    | St_arrset  ident expr_ir expr_ir
+    | St_return  expr_ir
+    | St_continue
+
+  function wp_stmts (ss: list stmt) (st: state) : state =
+    match ss with
+    | Nil         -> st
+    | Cons s rest ->
+        match s with
+        | St_return e   -> update st "\\result" (eval_e e st)
+        | St_continue   -> st
+        | St_skip       -> wp_stmts rest st
+        | St_assign x e -> wp_stmts rest (update st x (eval_e e st))
+        | St_arrset arr i v -> wp_stmts rest (arr_set_state st arr (eval_int i st) (eval_int v st))
+        end
+    end
+
+  function emit_stmts (ss: list stmt) (indent: string) : string =
+    match ss with
+    | Nil         -> handle_skip_code indent ""
+    | Cons s rest ->
+        match s with
+        | St_return e   -> handle_return_code (emit_expr e) indent false
+        | St_continue   -> handle_continue_code indent
+        | St_skip       -> handle_skip_code indent (emit_stmts rest indent)
+        | St_assign x e -> handle_assign_code x (emit_expr e) indent (emit_stmts rest indent) true
+        | St_arrset arr i v -> handle_array_set_code arr (emit_expr i) (emit_expr v) indent (emit_stmts rest indent)
+        end
+    end
+
+  (* FINISH LINK 3 — whole-program composition theorem. Evaluating the emitted
+   * WhyML for a statement list equals the WP state transformer, by structural
+   * induction, each step discharged by the per-arm coherence lemma (+ expr_coherent). *)
+  let rec lemma emit_stmts_coherent (ss: list stmt) (st: state) (indent: string)
+    ensures { eval_whyml_stmts (emit_stmts ss indent) st = wp_stmts ss st }
+    variant { ss }
+  = match ss with
+    | Nil -> ()
+    | Cons s rest ->
+        match s with
+        | St_return _   -> ()
+        | St_continue   -> ()
+        | St_skip       -> emit_stmts_coherent rest st indent
+        | St_assign x e -> emit_stmts_coherent rest (update st x (eval_e e st)) indent
+        | St_arrset arr i v ->
+            assert { eval_whyml_expr (emit_expr i) st = VInt (eval_int i st) };
+            assert { eval_whyml_expr (emit_expr v) st = VInt (eval_int v st) };
+            emit_stmts_coherent rest (arr_set_state st arr (eval_int i st) (eval_int v st)) indent
+        end
+    end
+
+  (* ── if / while composition — CLOSED IN ROCQ; arrset DONE in Why3 ──────────
+   * PROVED-COMPOSED in Why3 (emit_stmts_coherent above): skip, assign, ARRSET,
+   * return, continue. arrset was cracked with a separate abstract `eval_int`
+   * (non-looping int-typedness) + focused asserts + the named `arr_set_state`.
+   *
+   * if / while: the composition times out in Z3 4.13.3 here (string-theory
+   * explosion on the handle_if_code/handle_while_code templates spliced with seq),
+   * so it is CLOSED IN ROCQ instead — src/formal-semantics/rocq/Phase6L_ComposeIfWhile.v,
+   * theorem `emit_stmts_coherent`, proves exactly this composition (if INSIDE a
+   * `simple` fragment with `Sk_seq` blocks, and while) by structural induction in
+   * <40 lines of explicit rewriting (Rocq rewrites step-by-step; no E-matching).
+   * `Print Assumptions` confirms its only axioms are the per-arm `*_coh` facts —
+   * i.e. THESE Why3-proved `*_code_state_coherent` lemmas — plus the abstract
+   * interface; 0 Admitted. The if/while composition is therefore proved, audited by
+   * Rocq, with the per-arm lemmas (proved here in Why3) as the shared trust base.
+   * (issue #74). *)
+
+  (* ── String <-> stmt_ir bridge to LINK 2's Rocq emitter (item 3) — AUDITED ────
+   * `emit_stmts` above is the WHY3-side emitter. LINK 2 (bin/extraction-byte-diff.sh)
+   * validates the ROCQ-extracted `emit_stmt_full_complete : stmt -> string` against
+   * the Python emitter byte-for-byte (26 cases, 0 diffs). The correspondence between
+   * the Why3 `emit_stmts` and the Rocq `emit_stmt_full_complete` is AUDITED on that
+   * empirical byte-diff basis (proving it needs cross-prover extraction equivalence,
+   * out of scope). It is recorded as prose rather than a Why3 axiom: stating it as
+   * `forall ss. rocq_emit ss = emit_stmts ss` makes Z3 expand the recursive
+   * `emit_stmts` during search and times out the composition proof. The trust basis
+   * is documented in arm-coverage.md and is bin/extraction-byte-diff.sh. *)
 
 end
