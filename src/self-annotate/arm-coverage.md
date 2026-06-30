@@ -54,25 +54,32 @@ certificate, not on a WP coherence lemma).
 | `_handle_fieldassign_stmt` | **PROVED-COMPOSED in Rocq** — `Sk_field` (via `field_assign_coh`); per-arm effect `field_effect` audited (faithful Phase-6 record-field semantics is future work) |
 | `_handle_fieldaugassign_stmt` | **PROVED-COMPOSED in Rocq** — `Sk_fieldaug` (via `field_aug_coh`); per-arm effect audited |
 | `_handle_array_slice_set_stmt` | **PROVED-COMPOSED in Rocq** — `Sk_slice` (via `slice_set_coh`); per-arm effect audited |
-| `_handle_critical_section_stmt` | **PROVED-COMPOSED in Rocq** — `St_critical` (via `critical_coh`, like `while`); per-arm effect audited (Phase-7 concurrency = future work) |
+| `_handle_critical_section_stmt` | **PROVED-COMPOSED via its BODY** — in the proved-sound Hoare instance `critical_havoc es P = P es` (`Phase4_WP.v:144`), a critical section *runs its body*, so its composition is proved from `emit_one_coherent` (the body) + the atomic `critical_wrapper` axiom (lock transparent); **no abstract effect**. Real concurrency (havoc over shared state) = Phase-7 ConcurrentMM. |
 | `_handle_expr_stmt` | **PROVED-COMPOSED in Rocq** — `Sk_expr` (via `expr_stmt_coh`); per-arm effect `expr_effect` audited (SCall model = future work) |
 
 **Decision summary (refined — item 1 of the LINK-3 remainder, now CLOSED).** Of the original 9
 "non-WP-arm" handlers: **2 reduce to the already-proved fragment** (`seq_assign`, `tuple_unpack`
 desugar to SSeq∘SAssign), and the other **7 are now all PROVED-COMPOSED in Rocq**
-(`Phase6L_ComposeIfWhile.v`): `ghost_assign`/`ghost_array_set` reduce to `assign`/`arrayset`; and
-`field`/`field-aug`/`slice`/`expr`/`critical` are added as constructors with abstract per-arm effect
-axioms (`field_assign_coh`/`field_aug_coh`/`slice_set_coh`/`expr_stmt_coh`/`critical_coh`) and proved
-to compose. So **all 15 emitted constructs now have a proved program-level composition** — 0 Admitted,
-`Print Assumptions` = the per-arm axioms + the abstract interface.
+(`Phase6L_ComposeIfWhile.v`): `ghost_assign`/`ghost_array_set` reduce to `assign`/`arrayset`; `critical` is proved **via its body**
+(the `critical_havoc` Hoare instance = run body, atomic `critical_wrapper` axiom); and
+`field`/`field-aug`/`slice`/`expr` are added as constructors with audited per-arm effect axioms
+(`field_assign_coh`/`field_aug_coh`/`slice_set_coh`/`expr_stmt_coh`) and proved to compose. So
+**all 15 emitted constructs now have a proved program-level composition** — 0 Admitted, `Print
+Assumptions` = the per-arm axioms + the abstract interface.
 
-**The remaining distinction is the *level* of the per-arm fact, not whether it composes.** The
-control-flow + core arms (the 10) have their per-arm coherence **proved in Why3**
-(`*_code_state_coherent` lemmas), tying the effect to the concrete WhyML construct. The 5
-field/slice/critical/expr arms have their per-arm effect as an **audited axiom** (they join the
-evaluator-axiom boundary, `evaluator-axiom-audit.md`); a *faithful* per-arm model (records → Phase 6,
-concurrency → Phase 7, SCall → Phase 8) that would PROVE rather than audit these effects is the
-remaining future work. Composition of all 15: done.
+**The remaining distinction is the *level* of the per-arm fact, not whether it composes.** Composition
+of all 15: done. The per-arm facts now split three ways:
+- **10 arms — per-arm coherence PROVED in Why3** (`*_code_state_coherent`), tying the effect to the
+  concrete WhyML.
+- **`critical` — proved-via-body** (this turn): tied to the proved-sound `critical_havoc` Hoare instance
+  (= run body, `Phase4_WP.v:144`); its composition is proved from `emit_one_coherent` (the body) + the
+  atomic `critical_wrapper` axiom (lock transparent in the sequential instance). **No abstract effect**;
+  real concurrency = Phase-7 ConcurrentMM.
+- **4 arms (`field`, `field-aug`, `slice`, `expr`) — audited per-arm effect**, each precisely scoped to
+  the model extension that would PROVE rather than audit it: `field`/`field-aug` → **Phase 7** field-state
+  tracking (currently `Qn es` no-op in `Phase4_WP.v:140`, a placeholder); `slice` → an **array-slice**
+  semantics; `expr` → the **Phase 8** SCall behavioural model (`Phase4_WP.v:171`). These 4 join the
+  evaluator-axiom boundary (`evaluator-axiom-audit.md` §3a).
 
 ## 3. Program-level composition theorem (FINISH LINK 3)
 

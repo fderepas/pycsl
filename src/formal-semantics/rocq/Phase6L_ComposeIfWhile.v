@@ -52,7 +52,6 @@ Parameter handle_critical_code     : ident -> string -> string -> string. (* mut
 Parameter field_effect    : state -> ident -> ident -> value -> state.
 Parameter field_aug_effect: state -> ident -> ident -> value -> state.
 Parameter slice_effect    : state -> ident -> Z -> Z -> Z -> state.
-Parameter critical_effect : state -> ident -> string -> state.
 
 (* The opaque statement separator (`";\n"` in Why3 — its value is irrelevant to
    the composition, only `seq_semantics` matters). *)
@@ -148,9 +147,15 @@ Axiom slice_set_coh :
     eval_whyml_stmts (handle_slice_set_code arr los his vs indent rest) st
     = eval_whyml_stmts rest (slice_effect st arr lo hi vv).
 
-Axiom critical_coh :
+(* critical: in the proved-sound Hoare instance, `critical_havoc es P = P es`
+   (Phase4_WP.v:144), so a critical section RUNS its body. The only audited fact
+   is that the emitted critical-wrapper string evaluates to its body's evaluation
+   (the lock/havoc is transparent in the sequential instance; real concurrency =
+   Phase-7 ConcurrentMM). The body's composition is then PROVED (emit_one_coherent),
+   so critical is proved-via-body, not an abstract effect. *)
+Axiom critical_wrapper :
   forall m bc indent st,
-    eval_whyml_stmts (handle_critical_code m bc indent) st = critical_effect st m bc.
+    eval_whyml_stmts (handle_critical_code m bc indent) st = eval_whyml_stmts bc st.
 
 
 (* ── Expression IR (mirrors the compose module) ──────────────────────────── *)
@@ -322,8 +327,7 @@ Fixpoint wp_stmts (ss: list stmt) (st: state) (indent: string) : state :=
       | St_simple sp   => wp_stmts rest (wp_one sp st) indent
       | St_while c body=> wp_stmts rest
                             (while_fix (emit_expr c) (emit_one body (brk indent) indent) st) indent
-      | St_critical m body => wp_stmts rest
-                            (critical_effect st m (emit_one body (brk indent) indent)) indent
+      | St_critical m body => wp_stmts rest (wp_one body st) indent
       end
   end.
 
@@ -358,10 +362,11 @@ Proof.
     + (* St_return *) apply (return_coh (emit_expr e) indent st (eval_e e st)). apply expr_coherent.
     + (* St_continue *) apply continue_coh.
     + (* St_while *) rewrite while_step. rewrite IH. reflexivity.
-    + (* St_critical *)
+    + (* St_critical — proved via the body's composition *)
       rewrite seq_semantics.
-      rewrite (critical_coh m (emit_one cbody (brk indent) indent) indent st).
-      rewrite IH. reflexivity.
+      rewrite (critical_wrapper m (emit_one cbody (brk indent) indent) indent st).
+      rewrite (emit_one_coherent cbody (brk indent) st indent).
+      rewrite brk_id. rewrite IH. reflexivity.
 Qed.
 
 (* ── Reflection back to Why3 ──────────────────────────────────────────────────

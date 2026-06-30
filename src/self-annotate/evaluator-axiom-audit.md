@@ -85,11 +85,11 @@ agree with (the agreement is the *proved* `*_code_state_coherent` lemma — NOT 
 
 ## 3a. Per-arm effect axioms for the field/slice/critical/expr handlers
 
-The composition (`Phase6L_ComposeIfWhile.v`) now covers **all 15** emitted constructs. Five of them —
-`field-assign`, `field-aug`, `slice-set`, `expr-stmt` (SCall), `critical-section` — do not yet have a
-WP arm with *proved* per-arm coherence (records → Phase 6, concurrency → Phase 7, SCall → Phase 8 are
-future work). They are nonetheless **proved-composed**, with their per-arm state effect taken as an
-**audited axiom here** (the same status as §1–§2, one notch weaker than the 10 Why3-proved arms):
+The composition (`Phase6L_ComposeIfWhile.v`) now covers **all 15** emitted constructs. `critical` is proved **via its body** (the Hoare-instance `critical_havoc P = P` makes the lock
+transparent — only the atomic `critical_wrapper` axiom is audited). The other four —
+`field-assign`, `field-aug`, `slice-set`, `expr-stmt` (SCall) — do not yet have a WP arm with *proved*
+per-arm coherence (Phase-7 field-state, an array-slice semantics, Phase-8 SCall are future work).
+They are nonetheless **proved-composed**, with their per-arm state effect taken as an **audited axiom here** (the same status as §1–§2, one notch weaker than the 10 Why3-proved arms):
 
 | construct | emitter | effect axiom | audited effect | justification |
 |---|---|---|---|---|
@@ -97,7 +97,7 @@ future work). They are nonetheless **proved-composed**, with their per-arm state
 | field-aug | `handle_field_aug_code` | `field_aug_coh` | `field_aug_effect …` | read-modify-write of a field; abstract until Phase 6. |
 | slice-set | `handle_slice_set_code` | `slice_set_coh` | `slice_effect st arr lo hi v` | array-region write `arr[lo:hi] = v`; int-valued bounds; abstract until an array-slice semantics. |
 | expr-stmt | `handle_expr_code` | `expr_stmt_coh` | `expr_effect st e` | an expression evaluated for effect (SCall); abstract until the Phase-8 call model. |
-| critical | `handle_critical_code` | `critical_coh` | `critical_effect st m bc` | a critical section's net effect (with havoc); abstract until the Phase-7 memory model. |
+| critical | `handle_critical_code` | `critical_wrapper` (eval-runs-body) | *none — proved via its body* | in the Hoare instance the lock is transparent (`critical_havoc P = P`), so critical RUNS its body; only `critical_wrapper` (the wrapper string evaluates to its body's evaluation) is audited; real concurrency = Phase 7. |
 
 These five effect axioms are **provisional**: a faithful Phase 6/7/8 model would *replace* each with a
 proved per-arm coherence lemma (as the 10 control-flow/core arms have). Until then they are audited,
