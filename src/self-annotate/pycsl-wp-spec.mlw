@@ -462,8 +462,15 @@ module PyCSL_WP_Coherence
     eval_whyml_stmts (s1_str ^ s2_str) st
     = eval_whyml_stmts s2_str (eval_whyml_stmts s1_str st)
 
-  (* Human-audited: handle_seq_code returns s1^";\n"^s2 or s1^s2; both axioms
-   * above establish seq semantics — disjunction case-split times out under Z3. *)
+  (* Human-audited axiom (sound; not auto-dischargeable). handle_seq_code returns
+   * `s1^";\n"^s2` OR `s1^s2`; BOTH disjuncts have the SAME semantics
+   * (`seq_semantics` / `seq_concat_semantics` each give `eval s2 (eval s1 st)`),
+   * so the statement IS valid — but b14/finishable-path Steps 3-4 empirically
+   * re-confirmed that Z3 4.13.3 TIMES OUT discharging it as a `lemma`
+   * (5.0s / 1.45M steps) because the string-concat disjunction case-split blows
+   * up. Promoting it would need a manual case-split proof; left audited.
+   * (Contrast `return_plain_code_state_coherent`, promoted to a lemma: its code
+   * spec is single-form for use_raise=false, so no disjunction → discharges.) *)
   axiom seq_code_state_coherent :
     forall s1_str s2_str st st_mid.
     eval_whyml_stmts s1_str st = st_mid ->
@@ -558,8 +565,15 @@ module PyCSL_WP_Coherence
    * The void case (Return_void) preserves state unchanged (see return_void_semantics).
    * The value case (raise (Return v)) sets \result (see return_raise_semantics).
    * A single combined lemma would be unsound for void returns; the two axioms
-   * above separately cover each branch. Human-audited for use_raise=false (plain value). *)
-  axiom return_plain_code_state_coherent :
+   * above separately cover each branch.
+   *
+   * b14/finishable-path Steps 3-4: PROMOTED from `axiom` to a proved `lemma`.
+   * For use_raise=false the code spec `handle_return_code` has a SINGLE form
+   * (`result = indent ^ val_str`, no disjunction), so coherence discharges
+   * directly from `return_plain_semantics` — no Z3 string case-split (unlike the
+   * skip/seq/array_set arms whose code specs carry a free with/without-rest
+   * disjunction). This shrinks the audited-axiom TCB by one. *)
+  lemma return_plain_code_state_coherent :
     forall val_str indent st e_val.
     eval_whyml_expr val_str st = e_val ->
     let code = handle_return_code val_str indent false in

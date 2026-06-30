@@ -78,6 +78,27 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     # `_materialize_str_bridge` — single trusted `_add_abstract_op` call with an
     # adjacent-string-literal argument (no f-string, no sibling return-value
     # dependency, no self-field write visible to pycsl).
+    #
+    # ── LINK-3 re-discharge (the-finishable-path.md Step 1) ──────────────────
+    # The `\trusted` stubs below are NOT "assumed correct by inspection". Their
+    # correctness is re-sited onto the Rocq/Why3 side of the byte-diff, where it
+    # is a finite set of per-handler coherence statements proved/audited in
+    # `src/self-annotate/pycsl-wp-spec.mlw`, plus the extensional LINK-2 bridge
+    # (`bin/extraction-byte-diff.sh`: the Rocq-extracted `emit_stmt_full_complete`
+    # diffed against this emitter). The per-handler decision map (matched lemma /
+    # audited axiom / no-WP-arm-audited-trusted) is `src/self-annotate/arm-coverage.md`.
+    # Provenance, by handler:
+    #   _handle_assign_stmt     ── validated-by: lemma assign_code_state_coherent      + LINK-2
+    #   _handle_augassign_stmt  ── validated-by: lemma aug_assign_code_state_coherent  + LINK-2
+    #   _handle_array_set_stmt  ── validated-by: axiom array_set_code_state_coherent (audited) + LINK-2
+    #   _handle_seq_assign / _handle_tuple_unpack_stmt
+    #                           ── validated-by: seq (axiom) ∘ assign (lemma), audited at this layer
+    #   _handle_expr_stmt / _handle_fieldassign_stmt / _handle_fieldaugassign_stmt /
+    #   _handle_critical_section_stmt / _handle_ghost_assign_stmt /
+    #   _handle_ghost_array_set_stmt / _handle_array_slice_set_stmt
+    #                           ── no base-WP arm yet: explicitly audited-trusted, LINK-2 only
+    # (Note: PyCSL's grammar rejects a `#@ validated-by:` contract keyword, so this
+    #  provenance is recorded as plain comments rather than inline `#@` directives.)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
