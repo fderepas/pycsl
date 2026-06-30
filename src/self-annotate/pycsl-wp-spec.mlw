@@ -316,6 +316,7 @@ module PyCSL_WP_Coherence
   use PyCSL_WP_Spec
   use PyCSL_WP_Code
   use string.String
+  use int.Int
 
   function (^) (s1 s2: string) : string = String.concat s1 s2
 
@@ -679,10 +680,23 @@ module PyCSL_WP_Coherence
    * it TRACKS is Phase 7/array-slice/Phase 8 future work). The coherence proof is
    * what catches an emitter bug (a wrong emitted string would not discharge). *)
 
+  (* value-level binary op (a primitive, like the int/bitwise ops elsewhere) — used
+   * only to give field-aug a CONCRETE read-modify-write effect. *)
+  val function vop (op_str: string) (a b: value) : value
+
+  (* array region fill: `slice_blit a lo hi vv` sets indices [lo,hi) to vv,
+   * leaving the rest of `a` unchanged. Extensionally DEFINED by its get-behaviour
+   * (so it is interpreted, not abstract). *)
+  function slice_blit (a: M.map int int) (lo hi vv: int) : M.map int int
+  axiom slice_blit_get :
+    forall a lo hi vv i.
+      M.get (slice_blit a lo hi vv) i = (if lo <= i /\ i < hi then vv else M.get a i)
+
   (* field-assign: `obj.fld <- val` *)
   val function handle_field_assign_code (obj fld ev indent rest_str : string) : string
     ensures { result = indent ^ obj ^ "." ^ fld ^ " <- " ^ ev ^ ";\n" ^ rest_str }
-  val function field_effect (st: state) (obj fld: string) (v: value) : state
+  function field_effect (st: state) (obj fld: string) (v: value) : state =
+    update st (obj ^ "." ^ fld) v
   axiom field_assign_semantics :
     forall obj fld ev indent rest_str st e_val.
     eval_whyml_expr ev st = e_val ->
@@ -694,10 +708,17 @@ module PyCSL_WP_Coherence
     eval_whyml_stmts (handle_field_assign_code obj fld ev indent rest_str) st
     = eval_whyml_stmts rest_str (field_effect st obj fld e_val)
 
+  (* The concrete effect now supports EFFECT-DEPENDENT reasoning (was impossible
+   * with the abstract effect): after `obj.fld <- v`, the field reads back as v. *)
+  lemma field_read_back :
+    forall st obj fld v. lookup (field_effect st obj fld v) (obj ^ "." ^ fld) = v
+
+
   (* field-aug: `obj.fld <- obj.fld op val` *)
   val function handle_field_aug_code (obj fld op_str ev indent rest_str : string) : string
     ensures { result = indent ^ obj ^ "." ^ fld ^ " <- " ^ obj ^ "." ^ fld ^ " " ^ op_str ^ " " ^ ev ^ ";\n" ^ rest_str }
-  val function field_aug_effect (st: state) (obj fld op_str: string) (v: value) : state
+  function field_aug_effect (st: state) (obj fld op_str: string) (v: value) : state =
+    update st (obj ^ "." ^ fld) (vop op_str (lookup st (obj ^ "." ^ fld)) v)
   axiom field_aug_semantics :
     forall obj fld op_str ev indent rest_str st e_val.
     eval_whyml_expr ev st = e_val ->
@@ -712,7 +733,8 @@ module PyCSL_WP_Coherence
   (* slice-set: `arr[lo:hi] <- val` (int-valued bounds/value) *)
   val function handle_slice_set_code (arr lo_str hi_str val_str indent rest_str : string) : string
     ensures { result = indent ^ arr ^ "[" ^ lo_str ^ ":" ^ hi_str ^ "] <- " ^ val_str ^ ";\n" ^ rest_str }
-  val function slice_effect (st: state) (arr: string) (lo hi vv: int) : state
+  function slice_effect (st: state) (arr: string) (lo hi vv: int) : state =
+    update st arr (VArray (slice_blit (match lookup st arr with VArray a -> a | _ -> MC.const 0 end) lo hi vv))
   axiom slice_set_semantics :
     forall arr lo_str hi_str val_str indent rest_str st lo hi vv.
     eval_whyml_expr lo_str st = VInt lo ->
@@ -728,10 +750,21 @@ module PyCSL_WP_Coherence
     eval_whyml_stmts (handle_slice_set_code arr lo_str hi_str val_str indent rest_str) st
     = eval_whyml_stmts rest_str (slice_effect st arr lo hi vv)
 
+  (* effect-dependent: after `arr[lo:hi] <- vv`, every index in [lo,hi) reads vv. *)
+  lemma slice_read_in_range :
+    forall st arr lo hi vv i. lo <= i < hi ->
+    match lookup (slice_effect st arr lo hi vv) arr with
+    | VArray a -> M.get a i = vv
+    | _ -> true
+    end
+
   (* expr-stmt (SCall): `let _ = call in ...` *)
   val function handle_expr_code (call_str indent rest_str : string) : string
     ensures { result = indent ^ "let _ = " ^ call_str ^ " in\n" ^ rest_str }
-  val function expr_effect (st: state) (call_str: string) : state
+  (* a generic value-returning call with its result discarded does not mutate the
+   * tracked state (mutating `.append`/`.add`/`.discard` are SEPARATE array/map ops,
+   * modeled by arrayset/dict-update); so a discarded generic call is the identity. *)
+  function expr_effect (st: state) (call_str: string) : state = st
   axiom expr_stmt_semantics :
     forall call_str indent rest_str st.
     eval_whyml_stmts (indent ^ "let _ = " ^ call_str ^ " in\n" ^ rest_str) st
