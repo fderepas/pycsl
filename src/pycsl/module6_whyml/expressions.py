@@ -2835,6 +2835,28 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         parts = expr.get("parts", [])
         if not parts:
             return "0"
+        # b14 B2: an f-string whose EVERY segment is string-typed (literal text and
+        # `str`-typed interpolations) lowers to a faithful Why3 `string` concat chain
+        # — the same `str_concat_op`/`concat` bridge as `s + t` (strings-plan Stage 2)
+        # — instead of collapsing each segment to an int hash. A mixed f-string (any
+        # int/opaque interpolation) keeps the legacy int-hash model below, so the
+        # corpus that interpolates non-string values stays byte-identical.
+        if all(self._is_string_expr(p) for p in parts):
+            acc = self._expr_to_whyml(parts[0], local_refs, invariant_ctx, subst)
+            n_parts = len(parts)
+            i_part = 1
+            while i_part < n_parts:
+                p = self._expr_to_whyml(parts[i_part], local_refs, invariant_ctx, subst)
+                if self._in_spec:
+                    acc = f"(concat {acc} {p})"
+                else:
+                    self._add_abstract_op(
+                        "val str_concat_op (a: string) (b: string) : string\n"
+                        "    ensures { result = (concat a b) }\n"
+                        "    ensures { String.length result = String.length a + String.length b }")
+                    acc = f"(str_concat_op {acc} {p})"
+                i_part += 1
+            return acc
         acc = self._coerce_str_arg(self._expr_to_whyml(parts[0], local_refs, invariant_ctx, subst))
         n_parts = len(parts)
         i_part = 1

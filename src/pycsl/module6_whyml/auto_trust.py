@@ -41,6 +41,14 @@ class AutoTrustMixin:
                 # Empty map witness (all keys → None); `const` is from
                 # map.Const, matching the empty-dict idiom in expressions.py.
                 parts.append(f"{fn} = (const (None: option int))")
+            elif ft in ("str", "string") or ft == "string":
+                # b14 B1 prerequisite: a `str`-annotated field is Why3 `string`
+                # (preamble.py `str`→`string`), so its witness must be the empty
+                # string literal, not the int `0`. Purely additive — no
+                # pre-existing corpus record reaches this branch (plain
+                # `self.x = x` Assigns collapse to int; only an annotated
+                # `self.x: str = x` AnnAssign yields a `string` field).
+                parts.append(f'{fn} = ""')
             else:
                 parts.append(f"{fn} = {vals.get(fn, 0)}")
         return "; ".join(parts)
