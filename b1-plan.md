@@ -248,3 +248,48 @@ reading was a measurement bug: `$?` after a `| tail` pipe captured tail's code.)
 un-`\trust` one leaf `_handle_*` that reads a typed `stmt` field and prove it
 body-faithful (the concrete close). Separately: fix the pre-existing errors.py
 int/string type error to get the suite back to green.
+
+---
+
+## 10. B1.4 RESULT (2026-07-01) — B1 type-resolution is closed; a downstream lowering bug is the next wall
+
+Un-`\trusted` the cleanest leaf — `_handle_ghost_array_set_stmt` (reads typed
+`stmt.target/index/value`, pure-concat body, **no state mutation**) — and let
+PyCSL CHECK its body (`--import-path src/pycsl`). It **FAILED**, and the failure
+precisely localizes the next blocker.
+
+**B1 itself is confirmed CLOSED.** The imported records resolve and the `val`
+signatures are correctly typed — the emitted WhyML has
+`val …__handle_ghost_array_set_stmt (… stmt: ghostarraysetstmt …)` and
+`type ghostarraysetstmt = { mutable ghostarraysetstmt_target: string; … }`. The
+Phase-A/B typed-schema payoff **does** reach single-file self-annotation now.
+
+**The new wall — imported-`@dataclass` field-access lowering.** The checked body
+emitted `arr := (whyml_ident stmt.target)` → Why3 **"unbound function or predicate
+symbol 'target'"**. Root cause (localized):
+- Fields that occur in *several* records (`target`, `value`, `op` — the ~26 Stmt
+  records collide) are **ambiguous**, so the record *declaration* prefixes them
+  via `_field_label` → `ghostarraysetstmt_target` (`expressions.py:2888`).
+- But the field *access* `stmt.target` did **not** prefix — because `rec_lower`
+  (the record type of `stmt`) is resolved only through the **`is_typeddict`-gated**
+  path (`expressions.py:2395`): a Var's record type is taken only when
+  `_record_types[sym]["is_typeddict"]`. An imported `@dataclass` is a record but
+  **not** a TypedDict, so `rec_lower` stays `None`, `_field_label` returns the bare
+  `target`, and it mismatches the prefixed declaration → unbound.
+- Secondary gap: `stmt.index.to_dict()` lowered to a receiver-less nullary
+  `stmt_index_to_dict_0 ()` (the sub-field `.to_dict()` call dropped its receiver).
+
+**So B1.4 is BLOCKED on a Module-6 lowering fix, not on type resolution:** teach
+the attribute-access lowering to resolve `rec_lower` for an imported-`@dataclass`
+-typed parameter (register the param's record type in `_current_symbol_table` +
+relax the `is_typeddict` gate to any record, so ambiguous fields prefix
+consistently on the access side), and fix the sub-field `.to_dict()` receiver
+loss. This is byte-diff-sensitive (it touches record field-access shared with the
+627-corpus's local records), so it needs its own careful, fully-gated pass — **not
+an unsupervised edit.** The mirror was reverted to its committed `\trusted` state
+(no code left changed).
+
+**Work-item status:** B1.0–B1.3 ✅. **B1.4 ◻ BLOCKED** on the imported-record
+field-access lowering (precisely localized above) — the next concrete fix.
+This is the honest edge: B1 *resolves* the types; *using* a typed imported-record
+field in a checked body needs one more Module-6 lowering fix.
