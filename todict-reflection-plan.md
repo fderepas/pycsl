@@ -312,3 +312,35 @@ future handler; byte-diff 0):
 `_handle_fieldassign_stmt`). Each new handler adds a few gated tool fixes that the
 next inherits — the per-handler cost is shrinking. The body-faithful-emitter track is
 a working, scaling pipeline.
+
+---
+
+## 14. Scaling limit found — `_handle_augassign_stmt` hits Ceiling B (heterogeneous reflection)
+
+Attempting the 4th handler exposed where the per-handler recipe stops being mechanical.
+`_handle_augassign_stmt` advanced cleanly through the familiar tail — declaring the
+array/seq state sets (`_array_locals`, `_array2d_params`, `_current_array1d_params`,
+`_seq_locals` as `Set[str]`), aligning the `_seq_operand` stub param, and a str-keyed
+dict-membership consistency fix — but its **str-augassign branch** hits a genuine wall:
+
+```python
+raw_op == "+" and self._is_string_expr({"type": "Var", "name": target})
+                and self._is_string_expr(stmt.value.to_dict())
+```
+
+In ONE handler, `self._is_string_expr` is called with BOTH `stmt.value` (a typed IR
+node — R1 routes it to `int`) AND an **inline-constructed dict** `{"type": "Var",
+"name": target}` (a heterogeneous `map`). A single abstract sibling `val` can't take
+both an `int` and a `map` for the same parameter — the heterogeneous `Dict[str, Any]`
+built on the fly and reflected on IS **Ceiling B**. Unlike R1 (`d = node.to_dict();
+d.get(k)`, a recognizer over the EXISTING typed IR), this is the emitter *manufacturing*
+a node dict and immediately querying it — there is no typed node to route to.
+
+**Takeaway.** The recipe scales mechanically for handlers that read typed fields, call
+`str`-returning siblings, and mutate declared state (three landed:
+`_handle_ghost_array_set_stmt`, `_handle_array_slice_set_stmt`,
+`_handle_fieldassign_stmt`). It STOPS at handlers that construct inline IR-node dicts
+and reflect on them mid-body. Un-`\trusting` those needs the real Ceiling-B lift — a
+typed constructor for IR nodes (so `{"type": "Var", …}` builds a typed `ExprIR`, not a
+`map`), which is the Phase-A/B story extended to node *construction*, not just
+consumption. That is a feature, not a per-handler stub — scoped, not attempted here.
