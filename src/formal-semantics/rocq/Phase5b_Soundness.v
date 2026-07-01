@@ -164,6 +164,8 @@ Proof.
   - simpl in Hwp.
     destruct (eval_expr es.(reg_state) fn) eqn:Heq; simpl in Hwp; try exact Hwp.
     intros st' v Hexec. apply hn. exact (Hwp _ _ Hexec).
+  (* Phase 8: SLambda — leaf, Qn (es[x↦closure]) *)
+  - exact (hn _ Hwp).
 Qed.
 
 (* wp (lift_continue inc_idx s) Qn Qr Qc Qb Qe <->
@@ -465,6 +467,9 @@ Proof.
     end.
     simpl in Hwp. eapply Hwp.
     match goal with [ Hb : exec _ _ (OReturned _ _) |- _ ] => exact Hb end.
+  (* ExecLambda: leaf — SOS outcome ONormal(es[x↦closure]) ≡ the WP term
+     Qn (es[x↦closure]), so exact Hwp closes it (the SAssign pattern). *)
+  - exact Hwp.
 Qed.
 
 (* ===== Phase 3c: \at label scoping theorems ===== *)

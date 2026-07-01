@@ -151,3 +151,7 @@ def wp : Stmt
              body (.returned st' v) →
         Qn (setReg es (update es.regState r v))
     | _ => True
+  -- Phase 8 — Lambda construction. Leaf: bind the captured closure value.
+  -- SOS outcome ≡ this WP term, so the soundness case is `exact hWp`.
+  | .lambda x param body, Qn, _, _, _, _, _, es =>
+    Qn (setReg es (update es.regState x (.closure param body es.regState)))

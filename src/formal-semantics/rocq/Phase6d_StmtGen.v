@@ -99,6 +99,9 @@ Fixpoint gen (s : stmt) : whyml_stmt :=
      Emit WSkip — parity with SFieldAssign and STupleUnpack, which
      also reduce to WSkip in the Hoare model. *)
   | SCall _ _ _               => WSkip
+  (* Phase 8 lambda construction: binds a closure value, which the WhyML
+     int-subset cannot represent — non-emittable, gen → WSkip (like SCall). *)
+  | SLambda _ _ _             => WSkip
   end.
 
 (* Phase 8: is_emittable — True for all Stmt constructors EXCEPT SCall.
@@ -117,5 +120,6 @@ Fixpoint is_emittable (s : stmt) : Prop :=
   | SCritical _ body   => is_emittable body
   | SThreadEntry body  => is_emittable body
   | SCall _ _ _        => False
+  | SLambda _ _ _      => False
   | _                  => True
   end.

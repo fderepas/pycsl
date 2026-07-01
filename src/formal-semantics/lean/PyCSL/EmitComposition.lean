@@ -66,6 +66,7 @@ def acceptableEmit (state : AssignState) : Stmt → List String
   | .acquires _                 => acceptableSkipEmissions  -- gen → wSkip
   | .releases _                 => acceptableSkipEmissions  -- gen → wSkip
   | .call _ _ _                 => acceptableSkipEmissions  -- gen → wSkip; Phase 8 lambda
+  | .lambda _ _ _               => acceptableSkipEmissions  -- gen → wSkip; Phase 8 lambda construction
 
 /-- The composition theorem: for every stmt constructor,
     `emitStmtFullComplete state (gen s)` lies in `acceptableEmit
@@ -141,6 +142,8 @@ theorem emitStmtFullCompleteSound (state : AssignState) (s : Stmt) :
   | releases _ =>
       simp [acceptableEmit, gen, emitStmtFullComplete, acceptableSkipEmissions]
   | call _ _ _ =>
+      simp [acceptableEmit, gen, emitStmtFullComplete, acceptableSkipEmissions]
+  | lambda _ _ _ =>
       simp [acceptableEmit, gen, emitStmtFullComplete, acceptableSkipEmissions]
 
 /-- Existential corollary: the emission is some specific string in

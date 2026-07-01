@@ -42,6 +42,7 @@ Fixpoint fresh_in_stmt (id : ident) (s : stmt) : Prop :=
   (* Phase 8: SCall body is not stored in a closure capture — freshness
      of for_idx in the body is the caller's responsibility. *)
   | SCall _ _ _ => True
+  | SLambda _ _ _ => True   (* Phase 8: closure body opaque to for-desugar freshness *)
   end.
 
 (* Decidable boolean version of freshness *)
@@ -75,6 +76,7 @@ Fixpoint fresh_in_stmt_b (id : ident) (s : stmt) : bool :=
   | SAcquires _ => true
   | SReleases _ => true
   | SCall _ _ _ => true
+  | SLambda _ _ _ => true
   end.
 
 (* lift_continue inc s: replace every shallow SContinue in s with (SSeq inc SContinue).
@@ -92,6 +94,7 @@ Fixpoint lift_continue (inc_stmt : stmt) (s : stmt) : stmt :=
   | SAcquires m            => SAcquires m
   | SReleases m            => SReleases m
   | SCall r fn arg         => SCall r fn arg
+  | SLambda x param body   => SLambda x param body   (* Phase 8: leaf, closure body untouched *)
   (* Leaf constructors: identity (explicit to generate clean equations) *)
   | SSkip                  => SSkip
   | SBreak                 => SBreak

@@ -118,6 +118,8 @@ Proof.
   - (* ExecCall: desugar (SCall r fn arg) = SCall r fn arg (leaf),
        so the desugared exec premise is the same as the original. *)
     eapply ExecCall; eassumption.
+  - (* ExecLambda: desugar (SLambda x param body) = SLambda ... (leaf) *)
+    apply ExecLambda.
 Qed.
 
 Lemma desugar_correct_bwd : forall s es out,

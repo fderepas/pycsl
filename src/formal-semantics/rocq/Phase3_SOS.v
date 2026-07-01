@@ -391,7 +391,15 @@ Inductive exec : exec_state -> stmt -> outcome -> Prop :=
       exec (set_reg (mk_exec_state cstate)
                     (update cstate param (eval_expr es.(reg_state) arg)))
            body (OReturned st' v) ->
-      exec es (SCall r fn arg) (ONormal (set_reg es (update es.(reg_state) r v))).
+      exec es (SCall r fn arg) (ONormal (set_reg es (update es.(reg_state) r v)))
+
+  (* Phase 8 — Lambda construction. `SLambda x param body` binds the
+     closure value capturing the current reg_state. Leaf; mirrors ExecAssign. *)
+  | ExecLambda :
+      forall es x param body,
+      exec es (SLambda x param body)
+        (ONormal (set_reg es (update es.(reg_state) x
+                    (VClosure param body es.(reg_state))))).
 
 Lemma lookup_update_eq :
   forall (st : state) (x : ident) (v : val),

@@ -89,6 +89,7 @@ theorem wpGenCorrect (s : Stmt) (hem : isEmittable s) :
   | releases m =>
     intros; exact wpGen_releases m _ _ _ _ _ _ _
   | call _ _ _ => exact absurd hem (by simp [isEmittable])
+  | lambda _ _ _ => exact absurd hem (by simp [isEmittable])
 
 -- ===== Corollary: wpW (gen s) implies wp s =====
 
