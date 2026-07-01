@@ -462,7 +462,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # (`ord(...)` is int → default `False` below, no edit needed.)
             if fn == "chr":
                 return True
-            return getattr(self, "_module_method_return_annotations", {}).get(fn) == "str"
+            # no-more-int emitter L4: a `self.<m>(…)` call keys the return-annotation
+            # map by the class-qualified name (`<self_type>__<m>`, as `_handle_dotted_
+            # call` does), so a `str`-returning sibling emitter (`self._stmts_to_whyml`,
+            # `self._expr_to_whyml`) is recognized as string — routing `s + <call>` to
+            # concat. A bare call is keyed by its name (unchanged).
+            ann = getattr(self, "_module_method_return_annotations", {})
+            if fn.startswith("self."):
+                tail = fn[len("self."):]
+                cls = getattr(self, "_current_self_type", None)
+                key = f"{cls}__{tail}" if cls else tail
+            else:
+                key = fn
+            return ann.get(key) == "str"
         return False
 
     def _is_float_expr(self, ir: Dict[str, Any]) -> bool:

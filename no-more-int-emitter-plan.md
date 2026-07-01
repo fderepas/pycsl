@@ -31,7 +31,9 @@ all of these:
 | **L2** | **String-local recognizer** — a local whose first assignment is a call to a `string`-returning function is typed `string` (let-bound as a string ref, excluded from the `ref 0` int pre-decl). Builds on L1. | ✅ **DONE, byte-clean** (§2a) |
 | **L2b** | **Cross-mixin-file sibling return types** — explicit `-> str` `\trusted` stubs for `_expr_to_whyml`/`_expr_to_whyml_string_ctx` (B3 siblings) in the mirror, so their `string` return type is in this module's table. | ✅ **DONE** (§2b) |
 | **L3** | **F-string result locals** — a local assigned an all-string f-string is typed `string` (fixpoint recognizer). The literals already lower as WhyML strings once all parts are string (b14 B2 + L2/L2b). | ✅ **DONE, byte-clean** (§3) |
-| **L4** | **Sub-field `.to_dict()` receiver** — `stmt.index.to_dict()` must keep its receiver (currently drops to a nullary `stmt_index_to_dict_0 ()`). | ◻ |
+| **L4** | **String-`+` / concat self-call resolution** — `_is_string_expr` resolves a `self.<m>(…)` str-returning sibling, so `code += ";\n" + self._stmts_to_whyml(…)` routes to `str_concat_op`. | ✅ **DONE, byte-clean** (§4) |
+| **L4b** | **Imported-stub param types** — `whyml_ident(name: str)` emits `val whyml_ident (name: int)`, but the field arg is `string`. Propagate imported/trusted-stub param annotations (the L1 analog for params). | ◻ |
+| **L4c** | **Sub-field `.to_dict()` receiver** — `stmt.index.to_dict()` drops its receiver (`stmt_index_to_dict_0 ()`); a faithfulness gap (typechecks under `ensures True`, matters for L5). | ◻ |
 | **L5** | **Close B1.4** — the leaf verifies body-faithful (`ensures \result == …`) once L1–L4 land; then scale to more handlers. | ◻ |
 
 Dependency: L2 needs L1; L5 needs L1–L4. L3/L4 are independent. A method that
@@ -126,3 +128,20 @@ Next surface (L4): the `if rest` branch `code := !code + (";\n" + self._stmts_to
 lowers `+` as int add because `_is_string_expr` doesn't resolve the *self-call*
 `self._stmts_to_whyml(…)` (the `_module_method_return_annotations` map isn't keyed
 for `self.<m>`) — the string-`+`/concat routing then misses.
+
+
+---
+
+## 4. L4 — string-`+` self-call resolution (DONE)
+
+The rest-branch `code += ";\n" + self._stmts_to_whyml(…)` lowered `+` as int add
+because `_is_string_expr`'s `Call` branch looked up `_module_method_return_
+annotations` by the raw func name — a `self.<m>` call missed the class-qualified
+key. Resolved self-calls to `<self_type>__<m>` (as `_handle_dotted_call` /the L2
+recognizer do). Now the rest-branch emits `str_concat_op !code (str_concat_op ";\n"
+(self__stmts_to_whyml_5 …))`. Byte-diff 0.
+
+**Next surface (L4b):** `let arr = ref (whyml_ident stmt.ghostarraysetstmt_target)`
+fails — the field is `string` but `val whyml_ident (name: int)` types the param int.
+Imported/trusted-stub PARAM annotations aren't propagated (L1 did returns only);
+`whyml_ident(name: str)` should emit `(name: string)`. That is the next layer.
