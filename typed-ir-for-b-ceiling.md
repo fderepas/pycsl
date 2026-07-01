@@ -345,3 +345,36 @@ assign_stmt, so they'd be inert until it's taken on).
 after the B-C4 lift costs less; the two that remain hardest (`assign`, and the big
 `_handle_array_set_stmt`/`_handle_critical_section_stmt`) need self-field dict
 reflection, a bounded next feature.
+
+---
+
+## 12. Self-field dict reflection — BUILT (the next feature for `assign`/big handlers)
+
+`self.<dict-field>.get(key)` now reads the DECLARED record map field instead of an
+opaque abstract — the reflection an emitter does over its OWN transpiler state (e.g.
+`_handle_assign_stmt`'s `self._current_symbol_table.get(target)`). Byte-clean, gated on
+the field being a real record dict/set field. Witness
+`src/self-annotate/self-field-dict-witness.py` verifies.
+
+**Parts (all byte-diff 0 across the 627-corpus):**
+1. **The read** — `_lower_dict_get_call` recognizes a `self.<field>.get(k)` whose
+   `<field>` is a `dict`/`set` record field (`_self_field_dict_nu`) and emits
+   `(match Map.get self.<field> <k> with Some v -> v | None -> <default>)`; the string
+   key is `str_hash_op`-hashed (matching the M.7 `.add` write). The receiver lowers via
+   a `FieldGet` IR so it is the real `self.<field>`, not `get_<field>`.
+2. **The value type** — a `dict[str, str]` field carries `option string` values
+   (`Module5._m5_get_dict_value_type` → the field's `value_type`; the preamble emits
+   `map int (option string)` and records `field_value_types`), so the get reads back a
+   `string`.
+3. **The recognizer** — `_is_string_expr` knows `self.<dict[str,str]-field>.get(k)` is a
+   `string`, so `… == "str"` routes through `str_eq_op`, not an int hash.
+4. **The imports** — a record with a `map …` field triggers `use map.Map`/`map.Const`/
+   `option.Option` even in a module with no body dict (real handlers already have one).
+
+**What this unblocks.** `_handle_assign_stmt` (and the big `_handle_array_set_stmt`/
+`_handle_critical_section_stmt`) read `self.<dict-field>.get(…)`; that opaque read was
+one of the three blockers §11 named. The remaining two for `assign` specifically are the
+reflection probes (R1×B-C3 emit_ir alias→`kind_of`, recognizer-time alias pre-scan,
+`_is_str_val` Call fall-through — prototyped in §11, land them WITH `assign`) and a
+`declared_refs.add` PARAM-set mutation. This feature is the reusable piece; the rest is
+per-handler.

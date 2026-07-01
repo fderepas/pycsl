@@ -1821,7 +1821,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             fname = child.target.id
             ftype = self._field_type_from_annotation_inst(child.annotation,
                                                            scope_name)
-            fields.append({"name": fname, "type": ftype, "mutable": True})
+            _fld = {"name": fname, "type": ftype, "mutable": True}
+            # self-field-dict-reflection (typed-ir-for-b-ceiling.md §12): record a
+            # `dict[str, str]` field's VALUE type so `self.<field>.get(k)` reads back a
+            # `string`, not the coarsened int (the class counterpart of the local dict ν).
+            _vt = self._m5_get_dict_value_type(child.annotation)
+            if _vt:
+                _fld["value_type"] = _vt
+            fields.append(_fld)
             # N1b: only fields with an explicit default value (x: int = 0)
             # populate `field_defaults`. A field WITHOUT a default is a
             # required positional argument (N7 — wrong arity is a static
@@ -2114,7 +2121,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         and stmt.target.id not in field_names_seen):
                     ftype = self._field_type_from_annotation_inst(
                         stmt.annotation, node.name)
-                    fields.append({"name": stmt.target.id, "type": ftype, "mutable": True})
+                    _fld2 = {"name": stmt.target.id, "type": ftype, "mutable": True}
+                    # self-field-dict-reflection (typed-ir §12): a `dict[str, str]` field's
+                    # value type, so `self.<field>.get(k)` reads a string.
+                    _vt2 = self._m5_get_dict_value_type(stmt.annotation)
+                    if _vt2:
+                        _fld2["value_type"] = _vt2
+                    fields.append(_fld2)
                     field_names_seen.add(stmt.target.id)
                     if (stmt.value is not None and isinstance(stmt.value, ast.Constant)
                             and isinstance(stmt.value.value, (int, float))):
