@@ -518,6 +518,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             node = {"type": "Attribute", "object": node, "attr": p}
         return node
 
+    @staticmethod
+    def _getattr_self_field(recv: Any):
+        """typed-ir-for-b-ceiling.md §14: if `recv` is `getattr(self, "<field>", …)`
+        (a defensive self-field access) return the string `<field>`, else None."""
+        if not (isinstance(recv, dict) and recv.get("type") == "Call"
+                and recv.get("func") == "getattr"):
+            return None
+        a = recv.get("args", [])
+        if (len(a) >= 2 and isinstance(a[0], dict) and a[0].get("name") == "self"
+                and isinstance(a[1], dict) and a[1].get("type") == "String"):
+            return a[1].get("value")
+        return None
+
     def _self_field_dict_nu(self, recv: str):
         """self-field-dict-reflection (typed-ir-for-b-ceiling.md §12): when `recv` is a
         `self.<field>` (or `<recordvar>.<field>`) naming a `dict`/`set`/`frozenset`
@@ -595,6 +608,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         t = ir.get("type")
         if t == "Call":
             _fn = ir.get("func", "")
+            # typed-ir-for-b-ceiling.md §14: `getattr(self, "<field>", <default>).get(k)`
+            # on a `dict[str,str]` field reads back a `string` — the getattr-defensive
+            # form of the §12 self-field-dict get (func is bare `"get"` with a `getattr`
+            # receiver, before the §14 rewrite).
+            if _fn == "get":
+                _gf = self._getattr_self_field(ir.get("receiver"))
+                if _gf is not None and self._self_field_dict_nu(f"self.{_gf}") == "string":
+                    return True
             if _fn.endswith(".get"):
                 # self-field-dict-reflection (typed-ir §12): `self.<dict[str,str]-field>
                 # .get(k)` reads back a `string` (`option string` values), so `… == "s"`
@@ -1996,6 +2017,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # receiver's contents). Returns the WhyML string, or None to fall
         # through to the generic dotted-call path (record-method `.get()` on
         # a class instance, a non-dict receiver, or a non-Var receiver).
+        # typed-ir-for-b-ceiling.md §14: the `getattr(self, "<field>", <default>).get(k)`
+        # idiom — the emitter's DEFENSIVE field access. The `.get`'s receiver is a
+        # `getattr` Call, not a flat `self.<field>` name, so it would fall to the opaque
+        # `get_1`. When the getattr names a DECLARED record dict/set field, rewrite the
+        # receiver to `self.<field>` so `.get`/`.items`/… route to the real map field
+        # (self-field dict reflection §12). Gated on @mutable_state → byte-identical.
+        if (isinstance(func_name, str) and "." not in func_name
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            _ga = self._getattr_self_field(expr.get("receiver"))
+            if _ga is not None and self._self_field_dict_nu(f"self.{_ga}") is not None:
+                expr = dict(expr)
+                expr["func"] = f"self.{_ga}.{func_name}"
+                func_name = expr["func"]
+                expr.pop("receiver", None)
         get_low = self._lower_dict_get_call(expr, args, func_name, local_refs,
                                             invariant_ctx, subst)
         if get_low is not None:
