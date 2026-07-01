@@ -10,6 +10,16 @@ This document details the work to close the gap between the proven subset and th
 
 ## 1. The honest starting point
 
+> **⏱ As-of banner (historical baseline — NOT current status).** This section is
+> the frozen *point of departure* from when the roadmap was drafted. It is
+> retained for history and deliberately not updated. Several rows are now
+> stale: `desugar_correct`/`wp_for_desugar` are **proved** (0 Admitted / 0
+> sorry, both provers), and the "38 unmodelled features" have largely landed —
+> Phases 1–8 are modelled, including Phase 6 (`self.field` real semantics) and
+> Phase 7 (memory models + the real concurrent model). For the **live** status
+> read the §2 phase blocks (each carries a "Status (done)" note) and §8 (the
+> LINK chain). Do not cite this table as the present state.
+
 | | Status |
 |---|---|
 | `pycsl_soundness` (Hoare-model core) | ✅ proven, 0 Admitted/0 sorry, both provers |
@@ -148,6 +158,13 @@ These are the hard problems, not just feature lists:
 ---
 
 ## 4. Sequencing summary
+
+> **⏱ As-of banner (historical plan — NOT current status).** The "38 → 0"
+> ladder below is the *original sequencing plan*, kept for history. It no
+> longer reflects reality: Phases 1–8 are done (see the §2 phase-block "Status
+> (done)" notes), the core is admit-free in both provers, and the residual is
+> only fidelity sharpenings + by-design audited trust (§ the live blocks). Read
+> the counts here as the intended order of work, not as remaining work.
 
 ```
 Phase 1 (B+E+F): desugar lemmas + vacuous doc        38 → 26  [cheapest; closes the one Admitted]
