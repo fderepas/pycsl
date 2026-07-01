@@ -278,3 +278,40 @@ class's ~15 fields as a `@mutable_state` record, contract `_add_abstract_op` wit
 on a **proven** foundation rather than the vacuous value-semantics one. Combined
 with the `.to_dict()`/dict-reflection modeling (the other §7 wall), this is the
 path to un-`\trusting` the state-mutating emitter handlers.
+
+---
+
+## 11. A3.2 + A3.4 PROVEN (2026-07-01) — the transpiler-state class modelled with CHECKED frames
+
+Modelled the emitter's mutable state (§0 census) as a `@mutable_state @dataclass`
+and PROVED its frames — built entirely on the landed mutable-self feature
+(M.2–M.7), **no new emitter code**. Artifact: `src/self-annotate/transpiler-state-model.py`
+(verifies).
+
+**A3.2 (state record).** `TranspilerState` with the set-of-name fields
+(`abstract_ops`, `dict_locals`, `array_locals`, `ghost_string_vars`) + scalars
+(`havoc_counter`, `in_spec`). Each mutation lowers to a real record-field write
+(`.add` → `map_update_some`; `+= 1`; `= True/False`).
+
+**A3.4 (the dominant mutator + inheritance).** `_add_abstract_op` (19 of the
+mutation sites) is a framed method `#@ assigns self.abstract_ops` → checked
+`writes { self.abstract_ops }`. A **composed handler** mutating three fields proves
+the UNION frame `writes { self.dict_locals, self.abstract_ops, self.havoc_counter }`,
+and **a caller that CALLS `add_abstract_op` inherits its write** (proven). Sound in
+both directions: a caller/mutator that under-declares (`assigns \nothing`, or omits
+a mutated field) **FAILS** ("unlisted write effect").
+
+**Status.** A3.1 ✅ · A3.2 ✅ · A3.3 ✅ (M.2–M.7 lowerings) · A3.4 ✅ · A3.5 ✅ ·
+**A3.6 partial** — the frame mechanism is proven on the state MODEL; applying it to
+a *real* mirror handler additionally needs the `.to_dict()`/dict-reflection modeling
+(the other §7 wall) before that handler type-checks. A3.7 docs (here).
+
+**Residual.** A `Dict[str,int]` record field (`known_collection_sizes`) emits
+int-keyed, so `self.sizes[name]=1` str-key mismatches — a record-dict-field
+key-type concern (no-more-int), not the frame mechanism; 1 of the ~15 fields.
+
+**Net.** The transpiler state has a **proven** `assigns`-frame model: every dominant
+field kind + the `_add_abstract_op` pattern + composed/inherited frames, all checked
+and non-vacuous, byte-safe (opt-in). A3's own goal — a soundly frameable
+transpiler-state model — is met. Un-`\trusting` a real state-mutating handler now
+reduces to the remaining `.to_dict()`/dict-reflection wall.
