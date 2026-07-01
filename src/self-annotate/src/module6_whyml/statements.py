@@ -5,6 +5,8 @@ from typing import Any, Dict, List, Optional, Set
 from module6_whyml.identifiers import op_translate, whyml_ident, safe_mutex_name, safe_exc_name, stable_hash
 from module6_whyml.ir_scanner import IRScanner
 from module6_whyml.stmt_control_flow import ControlFlowStmtMixin
+from dataclasses import dataclass
+def mutable_state(cls): return cls
 
 from ir_schema import (
     stmt_from_dict, _ABSENT,
@@ -35,7 +37,10 @@ from ir_schema import (
 #@ datatype stmt_ir = SAssign(string, expr_ir) | SAugAssign(string, string, expr_ir) | SArraySet(string, expr_ir, expr_ir) | SIf(expr_ir, int, int) | SWhile(expr_ir, int) | SFor(string, string, int) | SReturn(expr_ir) | SExpr(expr_ir) | SPass | SBreak | SContinue | SRaise(string)
 
 
+@mutable_state
+@dataclass
 class StatementEmissionMixin(ControlFlowStmtMixin):
+    _slice_set_tmp_counter: int = 0
     """Statement-emission dispatch: every `_handle_*_stmt` handler plus the
     statement-stream orchestrator (`_stmts_to_whyml`), body-wrapping helpers
     (`_emit_body_code`, `_wrap_body_with_return_catch`), first-assignment
@@ -541,10 +546,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 code += ";\n" + rest_code
         return code
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._slice_set_tmp_counter
     def _handle_array_slice_set_stmt(self, stmt: ArraySliceSetStmt, rest: List[Dict[str, Any]],
                                       local_refs: Set[str], declared_refs: Set[str],
                                       indent: str, in_loop: bool) -> str:
