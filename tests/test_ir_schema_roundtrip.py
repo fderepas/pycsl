@@ -150,7 +150,7 @@ def test_expr_from_dict_class_preservation():
         DictLitExpr, ListCompExpr, SetCompExpr, DictCompExpr, ForallItemsExpr,
         ArrayEqExpr, SeparatedExpr, Length2DExpr, Valid2DExpr,
         SetCardExpr, StrSubExpr, GhostMakeExpr, SliceExpr,
-        IsSortedExpr, SumExpr, GhostCopyRangeExpr, PermutationExpr,
+        IsSortedExpr, SumExpr, GhostCopyRangeExpr, PermutationExpr, CallExpr,
     )
     E = {"type": "Var", "name": "x"}
     cases = {
@@ -172,6 +172,7 @@ def test_expr_from_dict_class_preservation():
         SumExpr:      {"type": "Sum", "base": "a", "lo": E, "hi": E},
         GhostCopyRangeExpr: {"type": "GhostCopyRange", "arr": "a", "lo": E, "hi": E},
         PermutationExpr: {"type": "Permutation", "left": E, "right": E},
+        CallExpr: {"type": "Call", "func": "s.f", "args": [], "receiver": E},
     }
     for cls, d in cases.items():
         node = expr_from_dict(d)

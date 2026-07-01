@@ -61,6 +61,11 @@ _TYPED_EXPR_HANDLERS = {
     "_handle_ghost_copy_expr",
     "_handle_ghost_make_expr",
     # misc spec/expr handlers
+    "_handle_fstring_expr",
+    "_handle_attribute_expr",
+    "_handle_subscript",
+    "_handle_call_expr",
+    "_handle_binop",
     "_handle_arrayeq_expr",
     "_handle_permutation_expr",
     "_handle_separated_expr",
@@ -485,8 +490,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         self._add_abstract_op("val str_hash_op (s: string) : int")
         return f"(str_hash_op {whyml_str})"
 
-    def _handle_binop(self, expr: Dict[str, Any], local_refs: Set[str],
+    def _handle_binop(self, node: "ExprIR", local_refs: Set[str],
                       invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
+        # Phase-B-expr: typed signature. The body's deep, branchy child inspection
+        # stays dict-based via the node's canonical dict view (byte-identical); the
+        # handler does not read attribution keys, so the opaque-coerced node's
+        # to_dict() is faithful for its purposes.
+        expr = node.to_dict()
         raw_op = expr["op"]
         # [default] * size → Array.make size default
         if raw_op == "*" and expr["left"].get("type") == "ArrayLit":
@@ -1498,8 +1508,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # (declared `val function` in preamble._AXIOM_FUNCTIONS, no ensures/shim).
         return f"(field_to_str {arr} {off} {width})"
 
-    def _handle_call_expr(self, expr: Dict[str, Any], local_refs: Set[str],
+    def _handle_call_expr(self, node: "ExprIR", local_refs: Set[str],
                           invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
+        expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
         func_name = expr["func"]
         # A3 (bounded itertools): resolve `len(list(chain(…)))` / `len(chain(…))`
         # to a sum of `Array.length` BEFORE lowering the inner args, so the
@@ -2514,8 +2525,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         base = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)
         return f"{base}.{self._field_label(rec_lower, field_name)}"
 
-    def _handle_subscript(self, expr: Dict[str, Any], local_refs: Set[str],
+    def _handle_subscript(self, node: "ExprIR", local_refs: Set[str],
                           invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
+        expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
         value = expr["value"]
         index = self._expr_to_whyml(expr["index"], local_refs, invariant_ctx, subst)
         # typing-engagement ty2 / 29-1700-typing-spec-5 §2.2 T5: a string-literal
@@ -2722,9 +2734,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         else:
             return f"(Map.get !{self._heap_var} ({value_str} + {index}))"
 
-    def _handle_attribute_expr(self, expr: Dict[str, Any], local_refs: Set[str],
+    def _handle_attribute_expr(self, node: "ExprIR", local_refs: Set[str],
                                invariant_ctx: bool, subst: Dict[str, str]) -> str:
         """Handle non-self attribute access: record field or abstract getter."""
+        expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
         obj_ir = expr.get("object", {})
         attr = expr.get("attr", "unknown")
         # 07-0903 W2: `\result.<field>` — field access on a record-returning function's
@@ -2904,8 +2917,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             obj = self._coerce_to_int(obj)
         return f"({name} {obj} {hash_field})"
 
-    def _handle_fstring_expr(self, expr: Dict[str, Any], local_refs: Set[str],
+    def _handle_fstring_expr(self, node: "ExprIR", local_refs: Set[str],
                               invariant_ctx: bool, subst: Dict[str, str]) -> str:
+        expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
         parts = expr.get("parts", [])
         if not parts:
             return "0"

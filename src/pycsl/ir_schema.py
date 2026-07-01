@@ -580,6 +580,7 @@ class AttributeExpr(ExprIR):
 class CallExpr(ExprIR):
     func: str
     args: List["ExprIR"]
+    receiver: "ExprIR" = _ABSENT  # type: ignore[assignment]
 
 
 @dataclass(frozen=True)
@@ -1188,7 +1189,9 @@ def _expr_from_dict_inner(d: Dict[str, Any]) -> ExprIR:
         return AttributeExpr(kind=k, object=_e(d.get("object")),
                             attr=d.get("attr", ""))
     if k == "Call":
-        return CallExpr(kind=k, func=d.get("func", ""), args=_es(d.get("args", [])))
+        rec = d.get("receiver", _ABSENT)
+        return CallExpr(kind=k, func=d.get("func", ""), args=_es(d.get("args", [])),
+                        receiver=_e(rec) if rec is not _ABSENT else _ABSENT)
     if k == "Tuple":
         return TupleExpr(kind=k, elts=_es(d.get("elts", [])))
     if k == "ArrayLit":
@@ -1537,6 +1540,8 @@ def _expr_to_dict(e: ExprIR) -> Dict[str, Any]:
     elif isinstance(e, CallExpr):
         out["func"] = e.func
         out["args"] = [a.to_dict() for a in e.args]
+        if e.receiver is not _ABSENT:
+            out["receiver"] = e.receiver.to_dict()
     elif isinstance(e, TupleExpr):
         out["elts"] = [x.to_dict() for x in e.elts]
     elif isinstance(e, ArrayLitExpr):
