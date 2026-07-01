@@ -284,7 +284,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _seq_init_expr(self, val_ir: Dict[str, Any], local_refs: Set[str]) -> str:
+    def _seq_init_expr(self, val_ir: "ExprIR", local_refs: Set[str]) -> str:
         """07-1705-rev4 P3: lower a seq-local's RHS to a `seq int` value. A list literal
         `[v0, v1, …]` becomes a `Seq.cons` chain (qualified); any other array-typed RHS
         is bridged with `snapshot`."""
@@ -340,7 +340,6 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             "    ensures { Array.length result = Seq.length s }\n"
             "    ensures { forall i:int. 0 <= i < Seq.length s -> result[i] = Seq.get s i }")
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

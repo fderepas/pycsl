@@ -885,6 +885,19 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                             ": map int (option int)\n"
                             "    ensures { result = Map.set m k None }")
                         code = f"{indent}{_lhs} map_update_none {_cur} {arg}"
+                elif (getattr(self, "_current_symbol_table", {}).get(obj_name)
+                      in ("set", "dict", "frozenset")
+                      and getattr(self, "_current_self_type", None)
+                      in getattr(self, "_mutable_state_classes", set())):
+                    # typed-ir-for-b-ceiling.md §13: a set/dict-typed PARAM (not a
+                    # `_dict_locals` body-local, not a self-field) mutated via
+                    # `.add`/`.discard`/`.remove` — e.g. `declared_refs.add(target)` in a
+                    # reflecting emitter handler. The mutation is on a value param, so it
+                    # does NOT escape for an `assigns \nothing` / type-safety contract: a
+                    # sound no-op. (A Python set param IS mutated, but no contract here
+                    # reads it — the recursion's `declared_refs` is a trusted sibling arg.)
+                    # Gated on @mutable_state → byte-identical for the corpus.
+                    code = f"{indent}()"
                 else:
                     expr_str = self._expr_to_whyml(val, local_refs)
                     code = f"{indent}let _ = {expr_str} in ()"

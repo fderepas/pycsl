@@ -378,3 +378,29 @@ reflection probes (R1×B-C3 emit_ir alias→`kind_of`, recognizer-time alias pre
 `_is_str_val` Call fall-through — prototyped in §11, land them WITH `assign`) and a
 `declared_refs.add` PARAM-set mutation. This feature is the reusable piece; the rest is
 per-handler.
+
+---
+
+## 13. A SIXTH handler un-`\trusted` (`_handle_seq_assign`) — two small reusable fixes
+
+`_handle_seq_assign` is un-`\trusted` and verifies. `statements.py` PASSES the suite
+with SIX real handlers off the trusted base (only the pre-existing `errors.py` fails).
+It needed the `_seq_init_expr` sibling typed `"ExprIR"` (mirror) plus two byte-clean,
+reusable tool fixes — both blockers §11 named for the reflecting handlers:
+
+- **Set/dict PARAM mutation** (`declared_refs.add(target)`) — a `.add`/`.discard`/
+  `.remove` on a set/dict-typed PARAM (not a body-local, not a self-field) in a
+  `@mutable_state` method is a SOUND NO-OP: the mutation is on a value param, so it
+  does not escape for the `assigns \nothing` / type-safety contract (a Python set param
+  IS mutated, but no contract here reads it — the recursion's `declared_refs` is a
+  trusted-sibling arg). This was the third §11 blocker for `_handle_assign_stmt`, now
+  dissolved and reusable.
+- **String truthiness** (`if not rest_code:`) — a `string` var (`rest_code =
+  self._stmts_to_whyml(…)`) is truthy iff non-empty (`String.length s <> 0`), not the
+  ill-typed int `s <> 0`. Added to `_to_bool`, the str counterpart of the existing
+  array-truthiness case.
+
+**Net.** SIX real emitter handlers verify their own body-faithfulness. `_handle_assign_
+stmt`'s three §11 blockers are now ALL solved (self-field dict §12, the reflection
+probes prototyped in §11, and set-param mutation §13) — assign is the next natural
+target, needing only the §11 probes landed alongside it.

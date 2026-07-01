@@ -168,6 +168,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     or getattr(self, "_current_symbol_table", {}).get(name)
                     in ("list", "bytes", "bytearray")):
                 return f"(Array.length {whyml_str} <> 0)"
+            # typed-ir-for-b-ceiling.md §13: a STRING var (`rest_code = self._stmts_
+            # to_whyml(...)`) is truthy iff non-empty — `String.length s <> 0`, the
+            # faithful Python str-truthiness, not the ill-typed int `s <> 0`. Keyed on
+            # the same signals that lower the var to `string`; byte-identical (a corpus
+            # `if <str_var>:` would otherwise emit the ill-typed `<> 0`, so none exists).
+            if (name in getattr(self, "_string_local_vars", set())
+                    or getattr(self, "_current_symbol_table", {}).get(name)
+                    in ("str", "string")):
+                if self._in_spec:
+                    return f"(String.length {whyml_str} <> 0)"
+                self._add_abstract_op(
+                    "val str_length_op (s: string) : int\n"
+                    "    ensures { result = (String.length s) }")
+                return f"(str_length_op {whyml_str} <> 0)"
         # Coerce int → bool
         return f"({whyml_str} <> 0)"
 
