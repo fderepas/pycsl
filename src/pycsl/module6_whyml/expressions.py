@@ -19,6 +19,8 @@ from ir_schema import (
 # not read attribution keys. Grows one handler at a time, byte-diff gated.
 _TYPED_EXPR_HANDLERS = {
     "_handle_unaryop_expr",
+    "_handle_old_expr",
+    "_handle_at_expr",
 }
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
@@ -2907,34 +2909,38 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
     def _handle_old_expr(
         self,
-        expr: Dict[str, Any],
+        node: "OldExpr",
         local_refs: Set[str],
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
     ) -> str:
-        inner = expr["expr"]
-        if not self._value_semantic and inner.get("type") == "Subscript":
-            value = self._expr_to_whyml(inner["value"], local_refs, invariant_ctx, subst)
-            index = self._expr_to_whyml(inner["index"], local_refs, invariant_ctx, subst)
+        # Phase-B-expr: typed. `node` is an OldExpr (expr: ExprIR).
+        inner = node.expr
+        if not self._value_semantic and inner.kind == "Subscript":
+            d = inner.to_dict()
+            value = self._expr_to_whyml(d["value"], local_refs, invariant_ctx, subst)
+            index = self._expr_to_whyml(d["index"], local_refs, invariant_ctx, subst)
             return f"(Map.get (old !{self._heap_var}) ({value} + {index}))"
         e = self._expr_to_whyml(inner, local_refs, invariant_ctx, subst)
         return f"(old {e})"
 
     def _handle_at_expr(
         self,
-        expr: Dict[str, Any],
+        node: "AtExpr",
         local_refs: Set[str],
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
     ) -> str:
-        label = expr["label"]
-        inner = expr["expr"]
+        # Phase-B-expr: typed. `node` is an AtExpr (expr: ExprIR, label: str).
+        label = node.label
+        inner = node.expr
         if label == "PRE":
             e = self._expr_to_whyml(inner, local_refs, invariant_ctx, subst)
             return f"(old {e})"
-        if inner.get("type") == "Subscript" and not self._value_semantic:
-            value = self._expr_to_whyml(inner["value"], local_refs, invariant_ctx, subst)
-            index = self._expr_to_whyml(inner["index"], local_refs, invariant_ctx, subst)
+        if inner.kind == "Subscript" and not self._value_semantic:
+            d = inner.to_dict()
+            value = self._expr_to_whyml(d["value"], local_refs, invariant_ctx, subst)
+            index = self._expr_to_whyml(d["index"], local_refs, invariant_ctx, subst)
             return f"(Map.get ({self._heap_var} at {label}) ({value} + {index}))"
         e = self._expr_to_whyml(inner, local_refs, invariant_ctx, subst)
         return f"({e} at {label})"
