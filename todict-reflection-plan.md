@@ -280,3 +280,35 @@ frame.
 metacircular — has un-`\trusted` its first real reflecting-family, state-mutating
 handler. Scaling to the rest is the same per-handler recipe (B1 + R1 + string chain +
 A3), each a bounded gated pass on now-proven foundations.
+
+---
+
+## 13. SCALED — a THIRD real handler un-`\trusted` (`_handle_fieldassign_stmt`)
+
+`_handle_fieldassign_stmt` is no longer `\trusted` — it verifies (`assigns \nothing`);
+`statements.py` PASSES the suite with BOTH it and `_handle_array_slice_set_stmt`
+un-`\trusted` (only the pre-existing `errors.py` fails). Third real emitter handler off
+the trusted base, confirming the R3 recipe scales.
+
+**The per-handler recipe applied** (mirror-side, in the `@mutable_state` class):
+- declared the state field it reads as a set — `_all_record_fields: Set[str]`;
+- typed sibling stubs for the `str`-returning helpers it calls — `_field_label`,
+  `_array_coerce_arg`, `_coerce_to_int`, `_field_type_for` (`-> str`), plus a
+  no-effect `_add_abstract_op(decl: str)` (abstract-op registration is an opaque
+  output accumulator, not logic state — consistent with array_slice's frame).
+
+**Three byte-clean TOOL fixes** (each gated on `@mutable_state`, reusable by every
+future handler; byte-diff 0):
+1. **`_is_str_val` generalized** — in a `@mutable_state` class ANY string-typed value
+   binds a string local (`obj = stmt.object` — a `str` field read; `s = other_str`),
+   not just Call/FString results.
+2. **str-key set membership** — `field in self._all_record_fields` hashes the string
+   key with `str_hash_op` (the read-side analogue of M.7's `.add`).
+3. **`any()`/`all()` truthiness** — they lower to bool-returning vals, so `if not
+   any(…)` uses them directly, never the int `(… <> 0)` coercion.
+
+**Net.** THREE real emitter handlers now verify their own bodies
+(`_handle_ghost_array_set_stmt`, `_handle_array_slice_set_stmt`,
+`_handle_fieldassign_stmt`). Each new handler adds a few gated tool fixes that the
+next inherits — the per-handler cost is shrinking. The body-faithful-emitter track is
+a working, scaling pipeline.
