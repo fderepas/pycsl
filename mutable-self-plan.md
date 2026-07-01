@@ -181,3 +181,54 @@ by construction (marker-gated), and is **bounded** (global refs, no Why3 regions
 It converts "`assigns` is an unchecked declaration" into "`assigns` is a proven
 frame — for state that opts in," which is exactly what A3 and every future
 state-mutating verified method need.
+
+---
+
+## 8. SLICE-0 EXECUTION RESULT (2026-07-01) — approach VALIDATED at the Why3 level; PyCSL emission gap located
+
+Ran the §6 Slice-0. **The mutable-state approach is sound** — validated directly at
+the Why3 level — and PyCSL's exact emission gap is now pinned.
+
+### 8.1 The target shape PROVES (representation B, global ref) — hand-written `.mlw`, Z3
+```
+val n : ref int
+let bump () : unit  writes { n }  ensures { !n = old !n + 1 }  = n := !n + 1
+let chk  () : int   writes { n }  ensures { result = old !n + 1 } = bump (); !n
+```
+- **Escape**: `chk`'s goal is **Valid** — `bump`'s write is visible to the caller
+  (`result = old !n + 1`). A shared module-level `ref` gives caller-visible mutation.
+- **Non-vacuity / soundness**: the same `bump` with `writes { }` is **REJECTED** by
+  Why3 — *"this expression produces an unlisted write effect."* So a body `writes`
+  clause is a **checked** obligation: the very thing `a3-plan.md §9` found missing.
+
+⇒ The plan's premise holds: shared `ref` + a **body** `writes` clause = escape +
+checked, non-vacuous frame, with **no Why3 region system** (globals are unaliased).
+
+### 8.2 PyCSL emission gap (why §9's vacuity happens)
+- A plain module global `g` is emitted as a **per-function local** `let g = ref 0 in`
+  (re-initialized each call), **not** shared state, with **no `writes`** — so a
+  mutation is local/invisible and `assigns` is vacuous. This is the direct root of
+  the §9 falsification.
+- PyCSL **does** have a module-level shared-ref emitter — `_emit_shared_state`
+  emits `val g : ref int` — **but** it is the **concurrency** model (`#@ shared g
+  protected_by lock_g`, havoc'd at calls per `Module2_Parser:359`, mutex-coupled),
+  not clean persistent single-threaded state.
+- Records are value-semantic (`functions.py:68`).
+
+### 8.3 Verdict
+**Slice-0 succeeds as a proof-of-approach and a gap-locator, not (yet) as PyCSL
+emission.** The sound target is confirmed; the remaining work (**M.2–M.4**) is a
+bounded, byte-safe feature build:
+1. a `#@ mutable_state` marker (opt-in; unmarked code byte-identical);
+2. emit a marked class's fields (or a marked global) as **module-level shared
+   `ref`s** — either a *new* path or by **de-concurrency-coupling** `_emit_shared_state`
+   (drop the havoc/mutex for a non-`protected_by` mutable global);
+3. emit `writes { … }` on the **concrete** `let` body from `_build_method_writes_map`
+   (today it feeds only the abstract-op stub).
+Then re-run this §6 witness in PyCSL: `chk` must prove (escape) and the `\nothing`
+twin must FAIL (soundness). That is the M.5/M.7 handoff to A3.
+
+**No code landed** (Why3 target validation + PyCSL probes only). The falsifiable
+Slice-0 did its job: the approach is **sound and byte-safe by construction**, the
+Why3 mechanics are **confirmed** (escape + checked non-vacuous writes), and the
+build is now a precise, bounded M.2–M.4 — no longer an open question.
