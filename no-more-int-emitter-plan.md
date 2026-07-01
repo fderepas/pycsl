@@ -209,3 +209,52 @@ proof-of-concept the whole b1→no-more-int arc was after.
 
 **Landed this arc:** B1.1–B1.3 (type resolution) + B1.4 field-access + L1/L2/L2b/
 L3/L4/L4b/L4c (9 byte-clean layers) → **L5: first un-\trusted emitter handler.**
+
+---
+
+## 7. L5 SCALING ASSESSMENT (2026-07-01) — ghost_array_set was the unique simple leaf
+
+Probed every remaining `\trusted` `_handle_*` in the mirror by un-`\trusting` it and
+re-verifying `statements.py --import-path src/pycsl`. **All 11 fail** — but not for
+more string-typing reasons. Measured complexity of each real handler body
+(`statements.py`):
+
+| handler | `.to_dict()` | `.get()` | state-mut |
+|---|---:|---:|---:|
+| `_handle_assign_stmt` | 25 | 54 | 29 |
+| `_handle_seq_assign` | 24 | 49 | 24 |
+| `_handle_ghost_assign_stmt` | 23 | 49 | 24 |
+| `_handle_array_set_stmt` | 15 | 42 | 22 |
+| `_handle_augassign_stmt` | 5 | 26 | 16 |
+| `_handle_fieldaugassign_stmt` / `_handle_expr_stmt` | 3 / 2 | 25 | 12 / 8 |
+
+Every remaining handler does two things `ghost_array_set` did **not**:
+1. **IR-reflection** — `arr = stmt.X.to_dict(); arr.get("type") == "Var"` … The
+   imported-record `.to_dict()` lowers to `val irnode__to_dict (self) : unit`, and
+   the subsequent `.get("type")` dict-inspection has no model. This is the emitter
+   *reflecting on its own IR dicts* — the metacircular core, and precisely the
+   dict-typed reflection Phase-B-expr removed from the *runtime* path but which the
+   emitter's *own* body still performs.
+2. **Transpiler-state mutation** — `_add_abstract_op(…)`, `_dict_locals.add(…)`,
+   `_known_collection_sizes[…] = …` (8–29 sites). So none can be
+   `assigns \nothing`; each needs a **transpiler-state record** to state and prove
+   its frame (`a2-a3-plan.md` A3 / mirror comment B4).
+
+The `stmt_control_flow.py` handlers (if/while/for/return/…) are **trusted stubs**
+(`stmt: int`, fake bodies), not real logic — un-`\trusting` them proves nothing.
+
+**Conclusion.** `_handle_ghost_array_set_stmt` was the *unique* genuinely-simple
+leaf (typed-field reads → string build, no reflection, no mutation) — which is why
+the B1+L1–L4c string-typing chain closed it. **Scaling L5 to the other handlers is
+NOT more of the same chain**; it requires the two deep pieces the semantic-ceiling
+analysis always named as the hard core:
+- **A3** — a transpiler-state record so the state-mutating handlers' `assigns`
+  frames are stateable/provable; and
+- **`.to_dict()`/dict-reflection modeling** — so a handler that inspects
+  `stmt.X.to_dict().get(...)` type-checks and reasons about the dict.
+
+These are larger, distinct efforts (not byte-clean string-typing layers). The
+milestone stands — **one real emitter handler verified with a checked body** — and
+the remaining scaling is honestly gated on A3 + IR-reflection modeling, not on the
+string chain. Recommend treating those as their own plans rather than continuing to
+un-`\trust` handlers that cannot close without them.
