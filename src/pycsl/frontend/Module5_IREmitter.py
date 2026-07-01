@@ -2953,12 +2953,20 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         _scope_name = node.name
 
         # Function arguments (skip 'self' for methods)
+        param_annotations: Dict[str, str] = {}
         for arg in node.args.args:
             if arg.arg == 'self':
                 continue
             arg_type = (self._m5_get_type_name(arg.annotation, _scope_name, arg.arg)
                         if arg.annotation else "Any")
             scope[arg.arg] = arg_type
+            # no-more-int emitter L4b: preserve the param's annotated type as a
+            # scalar-dict field on the func IR (like `return_annotation`), so it
+            # survives import injection — which rebuilds `symbol_table` with `Any`
+            # params for a cross-tree stub, losing `name: str`. A consumer merges
+            # these back for `Any` params (functions._reset_function_state).
+            if arg_type not in (None, "Any"):
+                param_annotations[arg.arg] = arg_type
             if arg.annotation is not None:
                 nu = self._m5_get_dict_value_type(arg.annotation)
                 if nu is not None:
@@ -3006,7 +3014,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 if ga.target not in scope or ga.op == "=":
                     scope[ga.target] = dtype
 
-        return scope, dict_value_types, dict_key_types
+        return scope, dict_value_types, dict_key_types, param_annotations
 
     def _build_function_ir(self, node: ast.FunctionDef) -> Dict[str, Any]:
         """Build the core function IR dict (name, contracts, body)."""
@@ -3022,7 +3030,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         self._cur_literal_ensures = []
         # refactor.md B-final wedge: Module5 computes the scope itself rather than
         # copying Module4's `node.csl_symbol_table` (etc.). Byte-identical by design.
-        _sym, _dvt, _dkt = self._build_function_symbol_table(node)
+        _sym, _dvt, _dkt, _pann = self._build_function_symbol_table(node)
         symbol_table = {k: v for k, v in _sym.items() if k != 'self'}
         # scc3.md Phase B: expose this function's symbol table to `_csl_in` (built
         # below for contracts/body) so `x in S` dispatches on the collection type.
@@ -3136,6 +3144,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return {
             "name": func_name,
             "symbol_table": symbol_table,
+            "param_annotations": _pann,
             "param_defaults": param_defaults,
             "has_mutable_default": has_mutable_default,
             "acts": acts_ir,

@@ -144,6 +144,18 @@ class FunctionEmissionMixin:
         self._current_no_exception: Set[str] = set(contracts.get("no_exception", []) or [])
         self._current_no_exception_all: bool = bool(contracts.get("no_exception_all", False))
         symbol_table = func.get("symbol_table", {})
+        # no-more-int emitter L4b: an imported/injected stub's symbol_table is
+        # rebuilt with `Any` params (losing e.g. `name: str`). Restore the annotated
+        # param types from the IR-preserved `param_annotations` (Module5), which
+        # survives injection like `return_annotation`. Copy-on-write, and only fills
+        # `Any`/missing — never overrides a resolved type — so it is byte-identical
+        # whenever every param is already typed (the local case) or unannotated.
+        _pann = func.get("param_annotations") or {}
+        if _pann and any(symbol_table.get(k) in (None, "Any") for k in _pann):
+            symbol_table = dict(symbol_table)
+            for _k, _ty in _pann.items():
+                if symbol_table.get(_k) in (None, "Any"):
+                    symbol_table[_k] = _ty
         local_refs = IRScanner.find_assigned_vars(body_stmts)
         local_refs -= self._shared_var_names
         ghost_vars = IRScanner.find_ghost_vars(body_stmts)

@@ -109,13 +109,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     # Faithful: the real siblings do return `str`; this only surfaces that fact.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
-    def _expr_to_whyml(self, expr: int, local_refs: int, invariant_ctx: bool = False,
+    def _expr_to_whyml(self, expr: int, local_refs: Set[str], invariant_ctx: bool = False,
                        subst: int = None) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
-    def _expr_to_whyml_string_ctx(self, ir: int, local_refs: int) -> str:
+    def _expr_to_whyml_string_ctx(self, ir: int, local_refs: Set[str]) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
