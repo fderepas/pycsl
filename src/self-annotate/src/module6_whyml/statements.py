@@ -42,6 +42,10 @@ from ir_schema import (
 class StatementEmissionMixin(ControlFlowStmtMixin):
     _slice_set_tmp_counter: int = 0
     _all_record_fields: Set[str] = None
+    _array_locals: Set[str] = None
+    _array2d_params: Set[str] = None
+    _current_array1d_params: Set[str] = None
+    _seq_locals: Set[str] = None
     """Statement-emission dispatch: every `_handle_*_stmt` handler plus the
     statement-stream orchestrator (`_stmts_to_whyml`), body-wrapping helpers
     (`_emit_body_code`, `_wrap_body_with_return_catch`), first-assignment
@@ -141,14 +145,19 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
-    def _expr_to_whyml(self, expr: int, local_refs: Set[str], invariant_ctx: bool = False,
+    def _expr_to_whyml(self, expr: "ExprIR", local_refs: Set[str], invariant_ctx: bool = False,
                        subst: int = None) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
-    def _expr_to_whyml_string_ctx(self, ir: int, local_refs: Set[str]) -> str:
+    def _expr_to_whyml_string_ctx(self, ir: "ExprIR", local_refs: Set[str]) -> str:
         return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    def _is_string_expr(self, ir: "ExprIR") -> bool:
+        return True
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -290,7 +299,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _seq_operand(self, val_ir: Dict[str, Any], local_refs: Set[str]) -> str:
+    def _seq_operand(self, val_ir: "ExprIR", local_refs: Set[str]) -> str:
         """07-1705-rev4 P3: an operand that must be a `seq int` — `!b` if `b` is itself a
         seq local, else `snapshot(b)` to bridge an array-modelled value into seq."""
         if val_ir.get("type") == "Var" and val_ir.get("name") in self._seq_locals:
@@ -826,7 +835,6 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

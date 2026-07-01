@@ -272,3 +272,47 @@ GENUINELY MULTI-SEAM migration (~2 seams still open + augassign's tail), each fi
 byte-clean and gated. It is finishable, but as a focused pass that threads seam 6, then
 walks augassign to green — NOT a single edit. Recommend doing it with a fresh context
 budget; the seams above are the exact worklist.
+
+---
+
+## 10. B-C3 + B-C4 DONE — Ceiling B LIFTED, a FOURTH handler un-`\trusted`
+
+`_handle_augassign_stmt` is no longer `\trusted` — it verifies; `statements.py` PASSES
+the self-annotation suite with all FOUR real handlers un-`\trusted`
+(`_handle_ghost_array_set_stmt`, `_handle_array_slice_set_stmt`,
+`_handle_fieldassign_stmt`, `_handle_augassign_stmt`; only the pre-existing `errors.py`
+fails). The Ceiling-B pattern — `self._is_string_expr({"type":"Var",…})` alongside
+`self._is_string_expr(stmt.value.to_dict())` — now type-checks: both are `emit_ir`.
+
+**All 7 seams threaded, byte-clean:**
+1. sibling stub params (`int`/`Dict` → `"ExprIR"`) — mirror.
+2. record field-type resolver `ExprIR` → `emit_ir` — `preamble._emit_type_decls`.
+3. annotation → symtype (bare / forward-ref / `Optional[…]`), via a shared
+   `_irnode_ann_name` helper — `Module5._m5_get_type_name` + `_field_type_from_
+   annotation_inst`. **Critical fix:** the helper duck-types on `type(node).__name__`,
+   NOT `isinstance(_, ast.Constant)` — the frontend's AST nodes come from a different
+   `ast` module object, so isinstance spuriously returns False (the bug that stalled the
+   first B-C4 attempt).
+4. ADT declared BEFORE the record types — `Module6_WhyMLTranspiler`.
+5. inline `to_dict()`-identity → the receiver — `_handle_call_expr`.
+6. `_module_method_param_types` map — resolved once seam 3 fed the "ExprIR" tag through
+   the symbol table (`self__is_string_expr_1 (x0: emit_ir)`).
+7. augassign's residual no-more-int tail — `Optional[ExprIR]` `is None`/`is not None`
+   (modeled always-present, sound for the type-safety+frame contracts; `option emit_ir`
+   is the value-faithful follow-on); and the `bitwise_ops` str-dict — membership AND
+   subscript now BOTH `str_hash_op` the key (an int-keyed `map _ (option int)`), so they
+   agree.
+
+**B-C3 (reflection as projection) — implemented.** `<emit_ir>.get("type")` →
+`(kind_of node)`, `"name"`/`"attr"` → `(name_of node)`, `"value"` → `(value_of node)`,
+`"object"` → `(object_of node)` (`_lower_dict_get_call`), and `_is_string_expr`
+recognizes the string-valued projections so `node.get("type") == "Var"` routes through
+`str_eq_op`. Byte-clean; the lowering is correct (`if (str_eq_op (kind_of node) "Var")`).
+Not exercised by the current four handlers (they reflect via `.to_dict()` aliases, R1),
+so it stands as a proven capability for future reflecting handlers.
+
+**Net.** Ceiling B — the emitter manufacturing a heterogeneous IR-node dict and
+reflecting on it, feared irreducible — is LIFTED. FOUR real emitter handlers verify
+their own body-faithfulness. The witness `src/self-annotate/typed-irnode-witness.py`
+verifies; corpus byte-diff 0. Value-faithful `option emit_ir` for optionals remains the
+one honest simplification (§9 seam 7), a bounded follow-on.

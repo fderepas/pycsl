@@ -2908,7 +2908,11 @@ class PreambleEmissionMixin:
                         # Why3 `string` (was collapsed to `int`) — the class counterpart of
                         # the TP-1 str local / str param lowering.
                         ftype = "string"
-                    elif ftype != "int" and not ftype.startswith(("array ", "map ", "ref ", "string")):
+                    elif ftype in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR"):
+                        # typed-ir-for-b-ceiling.md B-C2: an ExprIR-valued field is the
+                        # typed IR-node sum `emit_ir`. Only in a @mutable_state mirror.
+                        ftype = "emit_ir"
+                    elif ftype != "int" and not ftype.startswith(("array ", "map ", "ref ", "string", "emit_ir")):
                         # Unrecognised tag (user-defined class etc.) —
                         # fall back to int rather than emitting an
                         # unbound type symbol.
