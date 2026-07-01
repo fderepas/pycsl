@@ -116,14 +116,19 @@ Lemma aware_emit_tuple_unpack :
     emit_stmt_state_aware aw (gen (STupleUnpack xs e)) = "()".
 Proof. reflexivity. Qed.
 
+(* Phase 6: flat-key field model. `self.f` is the synthetic variable
+   `self ++ "." ++ f`, so field (aug-)assign emits exactly like a plain
+   (aug-)assign to that key (gen reduces both to the same WhyML node). *)
 Lemma aware_emit_field_assign :
   forall aw self_id f e,
-    emit_stmt_state_aware aw (gen (SFieldAssign self_id f e)) = "()".
+    emit_stmt_state_aware aw (gen (SFieldAssign self_id f e))
+    = emit_stmt_state_aware aw (gen (SAssign (self_id ++ "." ++ f) e)).
 Proof. reflexivity. Qed.
 
 Lemma aware_emit_field_aug_assign :
   forall aw self_id f op e,
-    emit_stmt_state_aware aw (gen (SFieldAugAssign self_id f op e)) = "()".
+    emit_stmt_state_aware aw (gen (SFieldAugAssign self_id f op e))
+    = emit_stmt_state_aware aw (gen (SAugAssign (self_id ++ "." ++ f) op e)).
 Proof. reflexivity. Qed.
 
 (* ===== Aug-assign exact form ===== *)

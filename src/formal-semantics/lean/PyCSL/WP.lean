@@ -114,8 +114,16 @@ def wp : Stmt
           else Qe exc' es')
        preEs es
 
-  | .fieldAssign _ _ _, Qn, _, _, _, _, _, es => Qn es
-  | .fieldAugAssign _ _ _ _, Qn, _, _, _, _, _, es => Qn es
+  -- Phase 6: flat-key field-state model — mirrors .assign / .augAssign
+  -- on the synthetic key `selfId ++ "." ++ f` (matching evalExpr's
+  -- .fieldGet and Module 6's emission). Soundness cases unchanged.
+  | .fieldAssign selfId f e, Qn, _, _, _, _, _, es =>
+    Qn (setReg es (update es.regState (selfId ++ "." ++ f) (evalExpr es.regState e)))
+  | .fieldAugAssign selfId f op e, Qn, _, _, _, _, _, es =>
+    let cur := match lookup es.regState (selfId ++ "." ++ f) with | some (.int n) => n | _ => 0
+    let nv  := evalBinopZ op cur
+                 (match evalExpr es.regState e with | .int n => n | _ => 0)
+    Qn (setReg es (update es.regState (selfId ++ "." ++ f) (.int nv)))
 
   | .critical _ body, Qn, Qr, Qc, Qb, Qe, preEs, es =>
     -- Phase 7: criticalHavoc models the ExecCritical shared-state risk.

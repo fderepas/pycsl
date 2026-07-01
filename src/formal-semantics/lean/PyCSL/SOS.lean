@@ -154,11 +154,20 @@ inductive Exec : ExecState → Stmt → Outcome → Prop where
     Exec es body out →
     Exec es (.tryCatch body exc handler) out
 
+  -- Phase 6: flat-key field-state model — `self.f` is the synthetic
+  -- register variable `selfId ++ "." ++ f` (the same name evalExpr's
+  -- .fieldGet reads and Module 6 emits), so a write updates exactly the
+  -- key a later read observes. Mirrors execAssign / execAugAssign.
   | execFieldAssign (es : ExecState) (selfId f : Ident) (e : Expr) :
-    Exec es (.fieldAssign selfId f e) (.normal es)
+    Exec es (.fieldAssign selfId f e)
+      (.normal (setReg es (update es.regState (selfId ++ "." ++ f) (evalExpr es.regState e))))
 
   | execFieldAugAssign (es : ExecState) (selfId f : Ident) (op : Binop) (e : Expr) :
-    Exec es (.fieldAugAssign selfId f op e) (.normal es)
+    Exec es (.fieldAugAssign selfId f op e)
+      (.normal (setReg es (update es.regState (selfId ++ "." ++ f) (.int
+        (evalBinopZ op
+          (match lookup es.regState (selfId ++ "." ++ f) with | some (.int n) => n | _ => 0)
+          (match evalExpr es.regState e with | .int n => n | _ => 0))))))
 
   | execCritical (es : ExecState) (mutex : Ident) (body : Stmt) (out : Outcome) :
     Exec es body out →

@@ -136,9 +136,20 @@ Fixpoint wp (s : stmt)
           else Qe exc' es')
        pre_es es
 
-  (* Phase 6: field assignments — placeholder *)
-  | SFieldAssign _ _ _ => Qn es
-  | SFieldAugAssign _ _ _ _ => Qn es
+  (* Phase 6: field assignments — flat-key field-state model.
+     `self.f` is the synthetic register variable `self ++ "." ++ f`
+     (matching `eval_expr (EFieldGet …)` and Module 6's emission, and
+     the now-concrete Why3 LINK-3 `field_effect`). Mirrors SAssign /
+     SAugAssign exactly, so the soundness cases are unchanged. *)
+  | SFieldAssign self_id f e =>
+    Qn (set_reg es (update es.(reg_state) (self_id ++ "." ++ f)
+          (eval_expr es.(reg_state) e)))
+  | SFieldAugAssign self_id f op e =>
+    let cur := match lookup es.(reg_state) (self_id ++ "." ++ f) with
+               | Some (VInt n) => n | _ => 0 end in
+    let nv := eval_binop_z op cur
+                (match eval_expr es.(reg_state) e with VInt n => n | _ => 0 end) in
+    Qn (set_reg es (update es.(reg_state) (self_id ++ "." ++ f) (VInt nv)))
 
   (* Phase 8: concurrent — SCritical now uses critical_havoc (Phase 7).
      Hoare instance: critical_havoc es P = P es (identity).
