@@ -104,6 +104,8 @@ The **critical soundness** phase. Adds a 4th outcome and 4th continuation.
 
 **Gate:** record types in `val`/`state`; `EField`/`CField`; class-invariant wrapping. Reduces 10 → 8.
 
+**Status (done):** `self.field` now has **real read/write semantics** in both provers — `self.f` is the flat synthetic key `self^"."^f`, so `SFieldAssign`/`SFieldAugAssign` update exactly the key `EFieldGet` reads (Phase3_SOS.v, Phase4_WP.v, Phase6d_StmtGen.v; SOS.lean, WP.lean, StmtGen.lean), replacing the former `Qn es` placeholder and mirroring `SAssign`/`SAugAssign`. This is coherent with the now-concrete Why3 LINK-3 `field_effect` (`pycsl-wp-spec.mlw`). `pycsl_soundness`/`pycslSoundnessVerified` and the LINK-3 emitter composition re-proved with **0 new axioms**; non-vacuity is witnessed by a read-back theorem (`o.f := 5` ⟹ `o.f = 5`, no axioms). Class invariants landed earlier (Phase6n: `CClassInvariant` + `class_invariant_preserved`). **What remains for the full Phase-6 record gate** is a record-valued `val` constructor (nested-record *aliasing* — `a.b.c`, shared sub-records) so the class tag `cls` scopes to a structured record value; that is the architectural Phase-7 (memory-model) work. The flat-key model is faithful to what Module 6 actually emits (flat WhyML identifiers), so it is the correct model for the current transpiler.
+
 ### Phase 7 — Memory model parameterisation (Category D: 7 features)
 The **architectural** phase. Parameterise the formalisation over a memory model interface.
 
@@ -115,6 +117,8 @@ The **architectural** phase. Parameterise the formalisation over a memory model 
 | `\valid`/`\separated`/`\valid2d` (real) | Now expressible against the memory model interface (were `True` in Phase 4) |
 
 **Gate:** memory model interface; 4 instances (Hoare/typed/store/concurrent); soundness proven for each. Reduces 8 → 1.
+
+**Status (done):** the `MEM_MODEL` interface and all four instances exist (`Phase7_MemModel.v`; `MemModel.lean`), and **"soundness proven for each instance"** is now delivered for the only memory-model-sensitive WP arm (`SCritical`): `critical_sound_param` (`Phase7b_MemModelSoundness.v`; `MemModelSoundness.lean`) proves `SCritical` sound for *any* model whose `critical_havoc` is **sub-identity**, reducing to the proved `pycsl_soundness` on the body — the global `wp` is **unchanged** and **0 new axioms** are introduced (verified by `Print Assumptions` / `#print axioms`: only the classical axioms `pycsl_soundness` already uses). Four per-instance corollaries discharge it: Hoare/Typed/Store outright (identity havoc); ConcurrentMM under a *neutral shared state* hypothesis (not an axiom). The typed/store `valid`/`separated` predicates are proven **discriminating** (covering-block witness, empty-heap rejection, overlap hit/miss; in-bounds vs out-of-bounds; distinct vs equal) — no longer vacuous stubs. **The single residual (gate "8 → 1")** is the genuinely-hard real concurrent model: a **havoc-aware SOS** for `SCritical` (so ConcurrentMM's havoc is matched operationally) plus a **lock-state** component for `acquires`/`releases` (held/free + `lock_order`), both of which need the deferred `exec_state` field change. Wiring an instance through the global `wp`/`eval_contract` (the Section/typeclass refactor) is also deferred — but per-instance soundness no longer depends on it.
 
 ### Phase 8 — Lambda (Category A, optional)
 | Feature | Work |

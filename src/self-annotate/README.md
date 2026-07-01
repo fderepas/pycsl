@@ -33,6 +33,9 @@ only supported syntax.
 | `self-annotate-plan-to-contract.md` | Translation methodology: how proofs become `#@` annotations |
 | `self-annotate-global-plan.md` | Consolidated execution-plan history |
 | `audit-guide.md` | Global audit guide: Rocq theorem → PyCSL `#@` annotation |
+| `arm-coverage.md` | LINK 3: per-WP-arm emitter-coherence lemma coverage + handler decisions |
+| `evaluator-axiom-audit.md` | LINK 3: the audited "D2" evaluator-axiom trust boundary (Gödel/Löb floor) |
+| `pycsl-wp-spec.mlw` | LINK 3: the Why3 emitter-coherence proof (17 Valid / 0 non-Valid) |
 
 ---
 
@@ -49,10 +52,14 @@ Layer 1 — PyCSL #@ contracts on the Python implementation
 Layer 2 — Why3 + SMT solvers
    Output verification: the generated .mlw file is accepted by Why3
 
-Layer 3 — Why3 val spec module
-   Semantic equivalence: one val per WP arm, ensures clause mirrors
-   the Rocq fixpoint arm exactly.
-   See audit-guide.md for the audit procedure.
+Layer 3 — Emitter self-verification  (pycsl-wp-spec.mlw)
+   Coherence: the WhyML string the emitter prints, when evaluated, equals
+   the WP the calculus computes. One *_code_state_coherent lemma per WP arm
+   (14, Why3-proved) + critical proved-via-body; whole-program composition
+   (emit_stmts_coherent) proved in both Why3 and Rocq. All per-arm effects
+   concrete (no uninterpreted effect). Gate: 17 Valid / 0 non-Valid.
+   Residual trust = the audited evaluator-axiom boundary ("D2"), irreducible
+   by Gödel/Löb. See arm-coverage.md, evaluator-axiom-audit.md, audit-guide.md.
 ```
 
 Each layer covers what the others cannot:
@@ -60,6 +67,8 @@ Each layer covers what the others cannot:
 - Layer 1 proves the Python code doesn't silently drop statements,
   corrupt state, or diverge from the formal structure.
 - Layer 2 proves the actual generated WhyML satisfies the VCs.
+- Layer 3 proves the emitter is coherent with the WP calculus it claims
+  to implement (self-verification), down to the D2 evaluator-axiom floor.
 
 ---
 
@@ -225,8 +234,12 @@ def _stmts_to_whyml(self, stmts, local_refs, declared_refs, indent, in_loop):
 ### `Phase3b_Desugar.v` → `Module6._handle_for_stmt`
 
 Defines `desugar`, which transforms `SFor x arr inv var body` into an
-equivalent `SWhile` using index variable `_pycsl_idx`. The correctness
-lemma `desugar_correct` is currently `Admitted` (Rocq) / `sorry` (Lean).
+equivalent `SWhile` using index variable `_pycsl_idx`. The SOS-level
+correctness theorem `desugar_correct` is **PROVED** in both provers
+(Rocq: `Phase3b_Desugar.v:160` Qed.; Lean: `Desugar.lean:239`), and the
+WP-level equivalence `wp_for_desugar` — the SFor WP arm equals the WP of its
+`SSeq∘SWhile` desugaring, both directions — is **PROVED** (Rocq:
+`Phase5c_WpForDesugar.v:114` Qed., 0 Admitted, classical-axioms-only closure).
 
 The contract for `_handle_for_stmt` captures the freshness precondition:
 
@@ -236,9 +249,9 @@ def _handle_for_stmt(self, stmt, ...):
     #@ ensures "_pycsl_idx" in \result or "for_idx" in \result
 ```
 
-**Note**: Because `desugar_correct` is Admitted, the Layer B contract for
-`_handle_for_stmt` is the weakest link — it claims formal justification that
-is not yet machine-checked.
+**Note**: With `desugar_correct` and `wp_for_desugar` now proved, the Layer B
+contract for `_handle_for_stmt` is fully machine-justified — it is no longer
+the weakest link.
 
 ### `Phase4_WP.v` → All `_handle_*_stmt` Methods
 
@@ -341,14 +354,18 @@ library stubs in `data/lib_stubs/`.
 
 | Gap | Status |
 |---|---|
-| `desugar_correct` (Admitted/sorry) | Blocked — Rocq + Lean side proof not closed |
-| Semantic equivalence of generated WhyML | Out of scope for Layer 1; covered by Layer 2 (Why3) |
-| String predicate contracts (`"Return" in \result`) | Not expressible in current PyCSL contract language |
+| `desugar_correct` / `wp_for_desugar` | ✅ CLOSED — both proved (Qed.), 0 Admitted (Phase3b_Desugar.v:160, Phase5c_WpForDesugar.v:114) |
+| Semantic equivalence of generated WhyML | ✅ Addressed at Layer 3 — emitter-coherence proved per arm + composed (pycsl-wp-spec.mlw, 17 Valid); Layer 1 `#@` string predicates remain inexpressible (below) |
+| String predicate contracts (`"Return" in \result`) | Not expressible in current PyCSL contract language (covered instead by Layer 3 coherence) |
+| Evaluator-axiom boundary ("D2") | By-design irreducible (Gödel/Löb) — minimal, enumerated in evaluator-axiom-audit.md; not a closable gap |
+| Concrete-effect fidelity (flat field model, constant-fill slice, generic-call expr) | Sound but simplified. Field assign/read is now **fully modelled** (flat-key) and coherent across Rocq + Lean + Why3 (formal-semantics Phase 6); nested-record *aliasing* (record-valued state) is the remaining Phase 7 item |
 | CI integration for annotated files | Recommended but not yet implemented |
 
-The `desugar_correct` gap is the only one that affects soundness claims.
-All other gaps affect annotation completeness or expressiveness, not
-correctness.
+No remaining *open* gap affects the soundness chain: `desugar_correct`/
+`wp_for_desugar` are proved, and Layer-3 coherence is proved per arm and
+composed. What remains is the by-design audited D2 boundary and a few
+clearly-labelled model-fidelity simplifications — improvements in *fidelity*,
+not closures of a hole.
 
 ---
 
