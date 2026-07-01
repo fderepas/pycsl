@@ -2294,6 +2294,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if isinstance(val, (int, float)):
                     return str(int(val) if func_name == "int" else abs(int(val)))
             if func_name == "int":
+                # typed-ir §18: `int(<str>)` (e.g. `int(ghost_type[-1])`) is a genuine
+                # str→int conversion — an abstract `str_to_int` — not the int-identity.
+                # Fires only for a string arg → byte-identical (an int arg is identity).
+                if not self._in_spec and self._is_string_expr(arg_ir):
+                    self._add_abstract_op("val str_to_int (s: string) : int")
+                    return f"(str_to_int {args[0]})"
                 return args[0]
             # G2 strings: `str(s)` / `format(s)` (no spec) of a string is the identity —
             # the same Why3 string, faithfully (mirrors the int identity above). `repr(s)`

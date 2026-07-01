@@ -536,3 +536,35 @@ Mirror side: declared `_current_symbol_table: Dict[str,str]`/`_shared_var_names`
 flagship — the one that reflects on the IR, mutates transpiler state, defensively reads
 its own dict fields via `getattr`, and fans out to a rich set of typed siblings. The
 abstract-self-call-val typing seam is now correct for the whole emitter.
+
+---
+
+## 18. Field-vs-local collision + two no-more-int fixes (toward `_handle_ghost_assign_stmt`)
+
+Scaling toward `_handle_ghost_assign_stmt` produced three byte-clean, GENERAL fixes —
+the first is the key one:
+
+- **Field-vs-local label collision** (`_emit_type_decls`, witness
+  `src/self-annotate/field-vs-local-witness.py`): a record field whose name ALSO names
+  a LOCAL var in some method collided in Why3 — `stmt.ghost_type` resolved to the local
+  `ghost_type` ref ("this expression has type ref int … it cannot be applied"), not the
+  field. Such fields are now qualified (`<record>_<field>`) in both decl and access
+  (added to `_ambiguous_fields`). This was the SHARED first error of all three "ref
+  cannot be applied" handlers (`ghost_assign`, `tuple_unpack`, `critical_section`).
+- **Dict-FIELD subscript-set str key** (`_handle_array_set_stmt`): `self._ghost_tuple_
+  vars[target] = …` on a `Dict[str,_]` field hashes the string key with `str_hash_op`
+  (the write analogue of the §12 self-field-dict get).
+- **`int(<str>)` conversion** (`_handle_call_expr`): `int(ghost_type[-1])` is a genuine
+  str→int (`str_to_int`), not the int-identity.
+
+All @mutable_state-gated, byte-diff 0. The seven landed handlers stay green.
+
+**`_handle_ghost_assign_stmt` — a LONG handler, deferred.** With the collision fixed it
+advanced far (sibling stub `_resolve_effective_ghost_type`, seven ghost-var-kind state
+fields `_ghost_string_vars`/`_ghost_array_vars`/`_ghost_tuple_vars`/`_ghost_dict_vars`/
+`_ghost_list_vars`/`_ghost_set_vars` + a checked `assigns`, the dict-field subscript-set,
+`int(str)`) — but it tracks SEVEN ghost-var kinds, each a branch with its own set/dict
+mutation and str parsing, plus emit_ir-LOCAL typing (`val_ir := stmt.value`, an emit_ir
+local not yet recognized like a string local). It is bounded but broad — its own pass.
+The field-vs-local fix, though, is landed and reusable: it clears the first blocker for
+`tuple_unpack` and `critical_section` too.

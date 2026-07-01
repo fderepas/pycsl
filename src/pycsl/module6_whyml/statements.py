@@ -541,7 +541,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     op = "map_update_some"
                     nu = self._dict_value_types.get(var_name) if var_name else None
                     kappa = self._dict_key_types.get(var_name) if var_name else None
-                    k = index_expr if kappa == "string" else self._coerce_to_int(index_expr)
+                    if kappa == "string":
+                        k = index_expr
+                    elif (not self._in_spec
+                          and self._is_string_expr(stmt.index.to_dict())):
+                        # typed-ir §18: a STRING key into an int-keyed dict FIELD
+                        # (`self._ghost_tuple_vars[target] = …`, a `Dict[str,int]` field
+                        # → `map int (option int)`) is `str_hash_op`-hashed, matching the
+                        # self-field-dict get/membership. Byte-identical (int key coerces).
+                        self._add_abstract_op("val str_hash_op (s: string) : int")
+                        k = f"(str_hash_op {index_expr})"
+                    else:
+                        k = self._coerce_to_int(index_expr)
                     # The stored value is coerced per ν (seq-int snapshot /
                     # string|map pass-through / int-coerce). Consolidated in
                     # `_dv_store_value`.
