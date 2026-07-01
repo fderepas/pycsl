@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from module6_whyml.identifiers import op_translate, whyml_ident, stable_hash, whyml_string_literal
 from ir_schema import (
@@ -2770,8 +2770,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         self._add_abstract_op(f"val get_{attr} (x: int) : int")
         return f"(get_{attr} {obj_str})"
 
-    def _handle_var_expr(self, expr: Dict[str, Any], local_refs: Set[str],
+    def _handle_var_expr(self, node: "ExprIR", local_refs: Set[str],
                          subst: Optional[Dict[str, str]] = None) -> str:
+        expr = node.to_dict()   # Phase-B-expr: typed signature
         name = expr["name"]
         if subst and name in subst:
             name = subst[name]
@@ -2893,7 +2894,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return f"{whyml_ident(record_lower)}_{base}"
         return base
 
-    def _handle_field_get_expr(self, expr: Dict[str, Any], invariant_ctx: bool) -> str:
+    def _handle_field_get_expr(self, node: "ExprIR", invariant_ctx: bool) -> str:
+        expr = node.to_dict()   # Phase-B-expr: typed signature
         if invariant_ctx:
             return self._field_label(self._emit_record_ctx, expr['field'])
         obj = expr['object']
@@ -3352,7 +3354,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             result = f"(map_update_some {result} {elt_w} 0)"
         return result
 
-    def _expr_to_whyml(self, expr: Dict[str, Any], local_refs: Set[str],
+    def _expr_to_whyml(self, expr: "Union[Dict[str, Any], ExprIR]", local_refs: Set[str],
                        invariant_ctx: bool = False,
                        subst: Optional[Dict[str, str]] = None) -> str:
         """Recursively translates an expression dictionary into a WhyML string.
@@ -3541,8 +3543,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return "(dict_comp 0)"
 
         # Non-standard-signature handlers — called explicitly
-        if isinstance(node, VarExpr):      return self._handle_var_expr(expr, local_refs, subst)
-        if isinstance(node, FieldGetExpr): return self._handle_field_get_expr(expr, invariant_ctx)
+        if isinstance(node, VarExpr):      return self._handle_var_expr(node, local_refs, subst)
+        if isinstance(node, FieldGetExpr): return self._handle_field_get_expr(node, invariant_ctx)
 
         # All other types via uniform-quad-signature dispatch
         handler = self._EXPR_DISPATCH.get(t)
