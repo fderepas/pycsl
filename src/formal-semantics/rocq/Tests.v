@@ -357,3 +357,37 @@ Proof.
   intros es r fn arg Qn Qr Qc Qb Qe pre_es out Hexec Hwp.
   eapply pycsl_soundness; eauto.
 Qed.
+
+(* ===== Phase 8 — Lambda reachability + capture witnesses ===== *)
+
+(* WI-3 reachability / non-vacuity: build a closure via SLambda, call it, and
+   the WP forces r = 6. Unreachable before SLambda (nothing produced a
+   VClosure). Proved with no axioms. *)
+Definition test_lambda_prog : stmt :=
+  SSeq (SLambda "f" "a" (SReturn (EBinOp OpAdd (EVar "a") (EInt 1))))
+       (SCall "r" (EVar "f") (EInt 5)).
+Lemma test_lambda_reaches_6 :
+  forall es Qn,
+    (forall es', lookup es'.(reg_state) "r" = Some (VInt 6) -> Qn es') ->
+    wp test_lambda_prog Qn (fun _ => True) (fun _ => True) (fun _ => True) (fun _ _ => True) es es.
+Proof.
+  intros es Qn H. unfold test_lambda_prog. simpl.
+  intros st' v Hexec. apply H. inversion Hexec; subst. simpl. reflexivity.
+Qed.
+
+(* WI-4 lexical capture: `y=5; f=λa.a+y; y=99; r=f(0)` ⟹ r=5 — the closure
+   captures the DEFINING state (y=5), so reassigning y after definition does
+   not change the captured value. *)
+Definition test_capture_prog : stmt :=
+  SSeq (SAssign "y" (EInt 5))
+  (SSeq (SLambda "f" "a" (SReturn (EBinOp OpAdd (EVar "a") (EVar "y"))))
+  (SSeq (SAssign "y" (EInt 99))
+        (SCall "r" (EVar "f") (EInt 0)))).
+Lemma test_lambda_lexical_capture :
+  forall es Qn,
+    (forall es', lookup es'.(reg_state) "r" = Some (VInt 5) -> Qn es') ->
+    wp test_capture_prog Qn (fun _ => True) (fun _ => True) (fun _ => True) (fun _ _ => True) es es.
+Proof.
+  intros es Qn H. unfold test_capture_prog. simpl.
+  intros st' v Hexec. apply H. inversion Hexec; subst. simpl. reflexivity.
+Qed.

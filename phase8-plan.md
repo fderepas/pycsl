@@ -12,6 +12,28 @@
 
 ---
 
+## ✅ Execution status (2026-07-01 — COMPLETE)
+
+All work items executed; all gate criteria (§4) met.
+
+| WI | Status |
+|---|---|
+| WI-1 `SLambda` construction (both provers) | ✅ DONE — PR #84 |
+| WI-2 n-ary | ✅ via **currying** (documented alternative); formal model single-param |
+| WI-3 non-vacuity/reachability witness | ✅ `test_lambda_reaches_6` (no axioms), durable in `Tests.v`/`Tests.lean` |
+| WI-4 capture faithfulness | ✅ `test_lambda_lexical_capture` (no axioms) — `y=5;f=λa.a+y;y=99;r=f(0) ⟹ r=5` |
+| WI-5 LINK-1 decision | ✅ **5b** (documented boundary, 5a roadmap) — `arm-coverage.md §4` |
+| WI-6 soundness classification | ✅ `pycsl-translational-reference.md §T.6.11` (Interpreted static / no shim / passing = Ignored) |
+| WI-7 reference corpus | ✅ `0242` single-param, `0243` multi-param, `0745` capture — all Valid |
+| WI-8 conformance + non-vacuity | ✅ byte-diff 26/26; false-postcondition lambda **FAILS** (non-vacuous) |
+| WI-9 docs reconciliation | ✅ formal README §5/§10/§2.2, completion §2 Phase 8, `annotations.md §7.5`, `arm-coverage.md §4` |
+
+**Gate §4:** ① both provers green (0 Admitted/0 sorry) ✅ · ② trust base unchanged (0 new axioms) ✅ · ③ reachable + non-vacuous witness ✅ · ④ LINK 2 = 26/26, LINK-1 boundary documented ✅ · ⑤ corpus clean + false-postcondition fails ✅ · ⑥ docs reconciled ✅.
+
+Non-goals held (§5): inline `ELambda`-in-expr, recursion, escaping/first-class-passing, higher-order-in-contracts.
+
+---
+
 ## 0. Current status (measured, not assumed)
 
 Phase 8 is **partially landed and asymmetric** between the two sides:

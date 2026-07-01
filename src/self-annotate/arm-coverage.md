@@ -137,3 +137,33 @@ Rocq-extracted `emit_stmt_full_complete` on the empirical basis of `bin/extracti
 (26/26). Stating it as a Why3 axiom (`forall ss. rocq_emit ss = emit_stmts ss`) makes Z3 expand the
 recursive `emit_stmts` and times out the composition proof, so it is kept as an audited prose
 correspondence; proving it would need cross-prover extraction equivalence (out of scope).
+
+---
+
+## 4. Phase 8 — lambda LINK-1 decision (WI-5)
+
+The Python tool lowers a `lambda` to a first-class WhyML `fun` value
+(`_handle_lambda_expr`; `annotations.md §7.5`: `lambda x,y: e` → `fun (x)(y) -> e`),
+whereas the mechanized semantics uses the **defunctionalized** model — `SLambda`
+(construction, binds a `VClosure` capturing the defining `reg_state`) + `SCall`
+(application) — proved sound in both provers, 0 new axioms
+(`formal-semantics-completion.md` §2 Phase 8; witnesses `test_lambda_reaches_6`,
+`test_lambda_lexical_capture` in `Tests.v`/`Tests.lean`).
+
+**Decision: 5b (document the representational boundary), with 5a as the roadmap.**
+The tool's WhyML-`fun` is treated as a **sound lowering of the same abstract
+construct** the formal model defunctionalizes; the two are not yet aligned
+constructor-by-constructor in the IR. This is a NAMED audited boundary (like the
+string↔`stmt_ir` bridge of §3), not a silent hole:
+- it does not affect `pycsl_soundness` (SLambda/SCall are proved directly);
+- LINK 2 (`bin/extraction-byte-diff.sh`) remains **26/26** — SLambda is
+  non-emittable (`gen → WSkip`, `is_emittable = False`), so it adds no byte-diff
+  obligation;
+- full 5a alignment (an IR `LambdaIR`/`CallIR` sum aligning with `SLambda`/`SCall`,
+  as the Phase-A/B typed-IR migration did for other constructs) is the future
+  LINK-1 refinement.
+
+Divergences are honestly bounded: n-ary (tool) vs single-param+currying (formal);
+first-class function *passing* and escaping lambdas are Phase-8 non-goals
+(`phase8-plan.md` §5) — such programs fail verification rather than being
+silently accepted (probed: a lambda-as-argument case is rejected).
