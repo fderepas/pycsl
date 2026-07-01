@@ -159,6 +159,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     def _is_string_expr(self, ir: "ExprIR") -> bool:
         return True
 
+
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -966,7 +967,6 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

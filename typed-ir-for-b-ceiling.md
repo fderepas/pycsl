@@ -316,3 +316,32 @@ reflecting on it, feared irreducible — is LIFTED. FOUR real emitter handlers v
 their own body-faithfulness. The witness `src/self-annotate/typed-irnode-witness.py`
 verifies; corpus byte-diff 0. Value-faithful `option emit_ir` for optionals remains the
 one honest simplification (§9 seam 7), a bounded follow-on.
+
+---
+
+## 11. A FIFTH handler un-`\trusted` (`_handle_fieldaugassign_stmt`) — zero tool changes
+
+`_handle_fieldaugassign_stmt` is now un-`\trusted` and verifies with **no new tool
+code** — the B-C4 `emit_ir` infrastructure (typed field/param, inline `to_dict()`
+identity, `_add_abstract_op` opaque) was sufficient. `statements.py` PASSES the suite
+with FIVE real handlers off the trusted base (only the pre-existing `errors.py` fails).
+Confirms the infrastructure now amortizes: a reflecting-family handler that reads a
+typed `stmt.value`, emits via `_expr_to_whyml`, and registers ops needs only the mirror
+un-`\trust`.
+
+**`_handle_assign_stmt` (the flagship) — deeper, deferred.** An attempt got it partway
+(via three reusable-but-unlanded probes: **R1 × B-C3** — a `d = node.to_dict()` alias
+whose node is `emit_ir` routes `d.get("type")` to `kind_of`, not the legacy `get_kind`;
+a **recognizer-time alias pre-scan** so the string-local recognizer sees the alias; and
+a **`_is_str_val` Call fall-through** so an alias-get is recognized as `string`). But it
+then hit machinery beyond the reflection layer: `.get()` on a SELF-FIELD dict
+(`self._current_symbol_table.get(target)`), a `dict[str,str]` field with string values,
+and a `declared_refs.add(target)` PARAM mutation. Those are a separate sub-feature
+(self-field dict reflection), not the IR-node story — so assign_stmt is deferred with
+its worklist recorded here, and the three probes were not landed (they only fire for
+assign_stmt, so they'd be inert until it's taken on).
+
+**Net.** FIVE real emitter handlers verify their own body-faithfulness. Each new one
+after the B-C4 lift costs less; the two that remain hardest (`assign`, and the big
+`_handle_array_set_stmt`/`_handle_critical_section_stmt`) need self-field dict
+reflection, a bounded next feature.
