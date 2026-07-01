@@ -438,10 +438,31 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         self._add_abstract_op(f"val function {op_fn} (x: int) (y: int) : int")
         return f"({op_fn} {self._coerce_to_int(left)} {self._coerce_to_int(right)})"
 
+    def _todict_routed_ir(self, recv_dotted: str, key: str) -> Dict[str, Any]:
+        """todict-reflection-plan.md R1: the TYPED-field IR that `<recv>.get(key)`
+        routes to, where `recv` aliases `<node>.to_dict()`. The literal key `"type"`
+        → the node's `kind` tag; any other key → the same-named field. `recv_dotted`
+        may be dotted (`stmt.array`) → a nested receiver."""
+        field = "kind" if key == "type" else key
+        parts = recv_dotted.split(".")
+        node: Dict[str, Any] = {"type": "Var", "name": parts[0]}
+        for p in parts[1:]:
+            node = {"type": "Attribute", "object": node, "attr": p}
+        return {"type": "Attribute", "object": node, "attr": field}
+
     def _is_string_expr(self, ir: Dict[str, Any]) -> bool:
         """True if an IR expression is string-typed: a literal, a string-producing op, or a
         `str`-typed variable. (strings-plan Stage 2 — used to route `+` to `concat`.)"""
         t = ir.get("type")
+        if t == "Call":
+            _fn = ir.get("func", "")
+            if _fn.endswith(".get"):
+                _al = getattr(self, "_todict_aliases", {}).get(_fn[:-len(".get")])
+                if _al is not None:
+                    _kir = (ir.get("args") or [{}])[0]
+                    if isinstance(_kir, dict) and _kir.get("type") == "String":
+                        return self._is_string_expr(
+                            self._todict_routed_ir(_al, _kir.get("value")))
         if t == "String" or t in ("StrConcat", "StrSub"):
             return True
         if t == "Var":
@@ -2236,6 +2257,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return None
         if len(args) not in (1, 2):
             return None
+        # todict-reflection-plan.md R1: `d` aliases `node.to_dict()` — route
+        # `d.get(key)` to the node's TYPED field (no dict materialized).
+        _recv_dotted = getattr(self, "_todict_aliases", {}).get(recv)
+        if _recv_dotted is not None:
+            _kir = (expr.get("args") or [{}])[0]
+            if isinstance(_kir, dict) and _kir.get("type") == "String":
+                return self._expr_to_whyml(
+                    self._todict_routed_ir(_recv_dotted, _kir.get("value")),
+                    local_refs or set(), invariant_ctx, subst)
         symtab = getattr(self, "_current_symbol_table", {}) or {}
         recv_symtype = symtab.get(recv)
         is_dict = (recv_symtype == "dict"
