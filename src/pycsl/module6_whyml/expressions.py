@@ -3,6 +3,11 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from module6_whyml.identifiers import op_translate, whyml_ident, stable_hash, whyml_string_literal
+from ir_schema import (
+    expr_from_dict,
+    NumberExpr, StringExpr, ResultExpr, NoneExpr, RawWhymlExpr, BoolExpr,
+    UnknownPyExprExpr, SliceExpr, OldFieldExpr, StarredExpr, TupleExpr,
+)
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
 from module6_whyml.expr_ghost_spec_ops import GhostSpecOpsMixin
@@ -3263,12 +3268,46 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         """Recursively translates an expression dictionary into a WhyML string.
         When invariant_ctx is True, FieldGet emits bare field names (for record invariants).
         subst: optional name substitution dict applied before local_refs lookup (e.g. for-loop vars)."""
-        # Phase-B-expr: accept a typed ExprIR (Phase-A sum) as well as the legacy
-        # wire dict. Normalizing to the dict view here keeps the body byte-identical
-        # during the incremental migration; callers may pass either representation.
-        if expr and not isinstance(expr, dict):
-            expr = expr.to_dict()
+        # Phase-B-expr: accept a typed ExprIR (Phase-A sum) or the legacy wire
+        # dict. Normalize to a typed node once; converted kinds dispatch by
+        # isinstance below; un-converted kinds fall through to the legacy dict
+        # body (`node.to_dict()`). Byte-identical at every kind conversion.
         if not expr: return ""
+        node = expr_from_dict(expr) if isinstance(expr, dict) else expr
+        # --- typed fast-paths (E2: leaf kinds) ---
+        if isinstance(node, NumberExpr):
+            v = node.value
+            if isinstance(v, float) and not float(v).is_integer():
+                return repr(v)
+            if isinstance(v, float):
+                return f"{int(v)}.0"
+            return str(int(v))
+        if isinstance(node, RawWhymlExpr):
+            return node.whyml
+        if isinstance(node, StringExpr):
+            return whyml_string_literal(node.value)
+        if isinstance(node, ResultExpr):
+            return getattr(self, "_result_alias", None) or "result"
+        if isinstance(node, NoneExpr):
+            return "0"
+        if isinstance(node, BoolExpr):
+            if self._in_spec: return "true" if node.value else "false"
+            return "1" if node.value else "0"
+        if isinstance(node, UnknownPyExprExpr):
+            return "0"
+        if isinstance(node, SliceExpr):
+            return "0"
+        if isinstance(node, OldFieldExpr):
+            _of_rec = (self._current_self_type if node.object == "self"
+                       else (getattr(self, "_current_record_var_classes", {}).get(node.object, "") or "").lower() or None)
+            return f"(old {node.object}.{self._field_label(_of_rec, node.field)})"
+        if isinstance(node, StarredExpr):
+            return self._expr_to_whyml(node.value, local_refs, invariant_ctx, subst)
+        if isinstance(node, TupleExpr):
+            elts = [self._expr_to_whyml(e, local_refs, invariant_ctx, subst) for e in node.elts]
+            return f"({', '.join(elts)})"
+        # --- legacy dict body (un-converted kinds) ---
+        expr = node.to_dict()
         t = expr["type"]
 
         # Simple literals and trivial 1-3-line branches — kept inline
