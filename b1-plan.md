@@ -293,3 +293,35 @@ an unsupervised edit.** The mirror was reverted to its committed `\trusted` stat
 field-access lowering (precisely localized above) — the next concrete fix.
 This is the honest edge: B1 *resolves* the types; *using* a typed imported-record
 field in a checked body needs one more Module-6 lowering fix.
+
+---
+
+## 11. B1.4 FIELD-ACCESS FIX (2026-07-01) — the lowering bug is fixed; next layer is emitter-body int-typing
+
+Fixed the §10 field-access lowering bug. In `_handle_attribute_expr`'s
+`_record_locals` branch (`expressions.py`), an ambiguous field now qualifies via
+`_field_label` using the record's `whyml_name` (resolved from the symbol table;
+the `_record_types` key is CamelCase, so match on the raw name, not `.lower()`).
+Non-ambiguous fields keep the exact bare form.
+
+**Verified:** the un-`\trusted` `_handle_ghost_array_set_stmt` body now emits
+`whyml_ident stmt.ghostarraysetstmt_target` (correctly qualified) — the "unbound
+symbol 'target'" error is **gone**. **Byte-diff 0** across the 627-file corpus (no
+corpus driver has an ambiguous-field access through this path, so the change is
+inert there; only the imported-Stmt-record case is affected).
+
+**The next layer (revealed, NOT this fix):** the same handler now fails one line
+later with *"expression has type string, but expected int"* — because the
+emitter's own string-valued locals are modeled as int: `let arr = ref 0 in; arr :=
+whyml_ident(...)` (a `string`). This is the **no-more-int modeling gap applied to
+the emitter body** — the local-type inference defaults call-result locals to `int`
+instead of reading the callee's `-> str`. Plus the secondary `.to_dict()`
+receiver-loss (`stmt.index.to_dict()` → nullary `stmt_index_to_dict_0 ()`). Both
+are broader modeling fixes (string-typed locals + method-receiver lowering), not
+the field-access bug — the honest next blockers, tracked separately.
+
+**Net:** one concrete, byte-clean lowering bug removed from the body-faithful path
+(imported-record ambiguous-field access now correct). B1.4 still not fully closed
+(a handler body-faithful) — it now bottoms out at the emitter-body int-typing gap,
+which is the same modeling ceiling A2 documents, not a type-opacity issue.
+The mirror was reverted to its committed `\trusted` state.

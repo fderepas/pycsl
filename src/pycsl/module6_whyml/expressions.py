@@ -2765,6 +2765,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if obj_ir.get("type") == "Var":
             var_name = obj_ir.get("name", "")
             if var_name in self._record_locals:
+                # B1.4 (b1-plan.md §10): an AMBIGUOUS field (shared by >1 record —
+                # e.g. `target`/`value` across the imported Stmt dataclasses) is
+                # declared as the qualified label `<record>_<field>`, so its access
+                # must qualify too, else Why3 reports the bare name unbound. Resolve
+                # the record type from the symbol table and qualify via `_field_label`
+                # using the record's own whyml_name (the key may be CamelCase or
+                # lowered). Non-ambiguous fields keep the exact bare form —
+                # byte-identical for every existing (local-record) driver.
+                _rt = getattr(self, "_record_types", {})
+                _ot = getattr(self, "_current_symbol_table", {}).get(var_name)
+                if attr in getattr(self, "_ambiguous_fields", set()) and _ot:
+                    _key = _ot if _ot in _rt else (_ot.lower() if _ot.lower() in _rt else None)
+                    if _key is not None:
+                        _rl = _rt[_key].get("whyml_name", _ot.lower())
+                        return f"{whyml_ident(var_name)}.{self._field_label(_rl, attr)}"
                 return f"{whyml_ident(var_name)}.{attr}"
         obj_str = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
         self._add_abstract_op(f"val get_{attr} (x: int) : int")
