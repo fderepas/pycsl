@@ -454,3 +454,36 @@ the wire format at the boundary and the typed node from typed callers. Forcing
   change; **not** on the critical path. This is what would be needed to make the
   emitter body-faithful (semantic-ceiling WI-C4), together with the string-op
   models (A2) and transpiler-state record (A3).
+
+---
+
+## 17. FINAL DECISION (2026-07-01) — the dict-normalization is a real boundary, NOT a removable remainder
+
+Before attempting to remove `_expr_to_whyml`'s dict-normalization, I *measured*
+who actually calls it with a dict (instrumented the entry, ran the full 627-file
+sweep, aggregated the caller frames). Result — **~30 distinct functions** pass a
+dict, dominated by (calls in one sweep):
+
+| Caller | dict-calls | kind |
+|---|---:|---|
+| `_handle_binop` / `_handle_subscript` / `_handle_call_expr` / … | 12354 / 2927 / 502 | typed-handler **internal recursion** (`expr["left"]` after `node.to_dict()`) |
+| `_emit_contracts` / `_dotted_ensures_suffix` / `_check_witness_vals` | 1783 / 22 / 138 | **contract / spec / witness** emission (contract-expr is dict IR) |
+| `_handle_return_stmt` / `_handle_if_stmt` / `_handle_while_stmt` / `_handle_assign_stmt` / … | 755 / 87 / 82 / 467 | statement handlers' **spec/contract** call sites |
+| `_emit_type_decls` / `_emit_shared_state` / `_emit_module_globals` | 138 / 46 / 17 | type-decl / global emission |
+| `_expr_to_whyml_string_ctx` / `_seq_init_expr` / `_classify_iterable` / `_call_named_builtins` / … | 15 / 14 / 12 / 23 | misc dict-based helpers |
+
+**Conclusion — do NOT remove the normalization.** It is not leftover from the
+migration; it is the genuine **wire↔typed boundary**. Removing it would require
+migrating (a) the entire **contract/spec IR subsystem** (`contract_expr`, which
+Phase A/B never touched), (b) type-decl / witness / global / shared-state
+emission, and (c) the deep bodies of the complex handlers — a surface far larger
+than Phase-B-expr, for **zero** output change and **zero** verification benefit
+(the byte output is already identical; the handlers already dispatch typed).
+
+`_expr_to_whyml` therefore correctly stays `Union[Dict[str, Any], ExprIR]`: it
+accepts the wire dict at the boundary (contracts, decls, first-entry) and the
+typed node from typed callers. **Phase-B-expr is complete** as scoped: the
+expression *handlers* and dispatch are fully typed and `expr_from_dict` is fully
+faithful. The dict-accepting boundary is the right design, not a remainder — the
+next migration (if ever pursued) would be a distinct "Phase-B-contract" over the
+`contract_expr` subsystem, which the plan does not claim.
