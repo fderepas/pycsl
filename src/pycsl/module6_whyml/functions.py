@@ -1703,6 +1703,12 @@ class FunctionEmissionMixin:
             return "string"
         if symtype == "float":
             return "real"  # no-more-int Stage D
+        # typed-ir-for-b-ceiling.md B-C2: an `ExprIR`/`StmtIR`/`IRNode`-annotated
+        # param or field is the typed IR-node sum `exprir` (§2.1), so an inline
+        # `{"type": K}` construction and a real IR field unify at a sibling that takes
+        # both. Only present in a @mutable_state mirror → byte-identical for the corpus.
+        if symtype in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR", "exprir"):
+            return "emit_ir"
         return "int"
 
     @staticmethod

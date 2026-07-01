@@ -451,6 +451,53 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         self._add_abstract_op(f"val function {op_fn} (x: int) (y: int) : int")
         return f"({op_fn} {self._coerce_to_int(left)} {self._coerce_to_int(right)})"
 
+    # typed-ir-for-b-ceiling.md B-C1: the inline `{"type": K, …}` node kinds this
+    # lowers to `exprir` constructors, and the payload field each constructor reads.
+    _IRNODE_CTORS = {
+        "Var":      ("IrVar", ["name"]),
+        "Attribute": ("IrAttr", ["object", "attr"]),
+        "String":   ("IrStr", ["value"]),
+        "Number":   ("IrNum", ["value"]),
+        "RawWhyml": ("IrRaw", ["whyml"]),
+    }
+
+    def _lower_irnode_construction(self, expr: Dict[str, Any], local_refs: Set[str],
+                                   invariant_ctx: bool,
+                                   subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """typed-ir-for-b-ceiling.md B-C1: lower an inline IR-node dict literal
+        `{"type": "Var", "name": e}` to the typed `exprir` constructor `(EVar <e>)`.
+        A `"type"` key with a STRING-literal value names the kind; the remaining keys
+        supply the constructor payload. A kind we don't model, or a construction
+        missing a payload field, becomes `(EOther "<kind>")` — sound: reflection then
+        yields the tag and `""`, never a false value. Gated on @mutable_state (the
+        emitter model); returns None (→ the caller's map fallback) otherwise."""
+        if getattr(self, "_current_self_type", None) not in getattr(
+                self, "_mutable_state_classes", set()):
+            return None
+        keys = expr.get("keys", [])
+        values = expr.get("values", [])
+        if not keys or len(keys) != len(values):
+            return None
+        fields: Dict[str, Any] = {}
+        for k, v in zip(keys, values):
+            if not (isinstance(k, dict) and k.get("type") == "String"):
+                return None
+            fields[k.get("value")] = v
+        kind_ir = fields.get("type")
+        if not (isinstance(kind_ir, dict) and kind_ir.get("type") == "String"):
+            return None
+        kind = kind_ir.get("value")
+        ctor = self._IRNODE_CTORS.get(kind)
+        if ctor is None:
+            return f'(IrOther "{kind}")'
+        cname, payload = ctor
+        args = []
+        for f in payload:
+            if f not in fields:
+                return f'(IrOther "{kind}")'
+            args.append(self._expr_to_whyml(fields[f], local_refs, invariant_ctx, subst))
+        return f"({cname} {' '.join(args)})"
+
     def _todict_routed_ir(self, recv_dotted: str, key: str) -> Dict[str, Any]:
         """todict-reflection-plan.md R1: the TYPED-field IR that `<recv>.get(key)`
         routes to, where `recv` aliases `<node>.to_dict()`. The literal key `"type"`
@@ -3669,6 +3716,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                                     invariant_ctx, subst)
             if td_lit is not None:
                 return td_lit
+            # typed-ir-for-b-ceiling.md B-C1: an inline IR-node construction
+            # `{"type": "Var", "name": e}` lowers to the typed `exprir` constructor
+            # `(EVar <e>)`, not a heterogeneous map — so it unifies with a real ExprIR
+            # field at a sibling that takes both. Gated on @mutable_state (the emitter
+            # model); byte-identical for every other dict literal.
+            irnode = self._lower_irnode_construction(expr, local_refs, invariant_ctx, subst)
+            if irnode is not None:
+                return irnode
             # Body dict literal: empty `map int (option int)`. Non-empty
             # dict literals would need element-by-element `Map.set` but
             # are currently uncommon enough to fall through to empty.

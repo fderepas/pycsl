@@ -2706,6 +2706,38 @@ class PreambleEmissionMixin:
         out.append("")
         return out
 
+    def _emit_exprir_theory(self) -> List[str]:
+        """typed-ir-for-b-ceiling.md B-C1: the `exprir` algebraic sum + reflection
+        projections, mirroring the `ir_schema.ExprIR` variants the emitter constructs
+        inline. Lets an inline `{"type": "Var", …}` node lower to a TYPED value (an
+        `exprir` constructor) that unifies with a real ExprIR field, and lets reflection
+        (`.get("type")`/`.get("name")`) lower to a total projection. See §2.1.
+
+        Emitted only for a module with a @mutable_state class (the emitter model);
+        the 627-file corpus has none → byte-identical there."""
+        return [
+            "  (* typed-ir-for-b-ceiling.md B-C1: typed IR-node sum for the emitter model *)",
+            "  type emit_ir = IrVar string | IrAttr emit_ir string | IrStr string"
+            " | IrNum int | IrRaw string | IrOther string",
+            "",
+            "  function kind_of (e: emit_ir) : string =",
+            "    match e with",
+            "    | IrVar _ -> \"Var\" | IrAttr _ _ -> \"Attribute\"",
+            "    | IrStr _ -> \"String\" | IrNum _ -> \"Number\"",
+            "    | IrRaw _ -> \"RawWhyml\" | IrOther k -> k",
+            "    end",
+            "",
+            "  function name_of (e: emit_ir) : string =",
+            "    match e with IrVar n -> n | IrAttr _ a -> a | _ -> \"\" end",
+            "",
+            "  function value_of (e: emit_ir) : string =",
+            "    match e with IrStr v -> v | IrRaw v -> v | _ -> \"\" end",
+            "",
+            "  function object_of (e: emit_ir) : emit_ir =",
+            "    match e with IrAttr o _ -> o | _ -> IrOther \"\" end",
+            "",
+        ]
+
     def _emit_type_decls(self, type_decls: List[Dict[str, Any]]) -> Tuple[List[str], Set[str]]:
         """Emit record type declarations. Returns (lines, declared_types)."""
         out: List[str] = []
