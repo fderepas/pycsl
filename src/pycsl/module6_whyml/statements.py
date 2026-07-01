@@ -1245,7 +1245,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 return False
             t = v.get("type")
             if t == "Call":
-                return _ret_of(v.get("func", "")) == "string"
+                if _ret_of(v.get("func", "")) == "string":
+                    return True
             if t == "FString":
                 parts = v.get("parts", [])
                 if bool(parts) and all(self._is_string_expr(p) for p in parts):
@@ -1373,6 +1374,19 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         return (array_vars | dict_vars | lambda_vars | record_vars | variant_vars
                 | set(tuple_vars) | string_vars | seq_local_vars)
 
+    def _prescan_todict_aliases(self, body_stmts):
+        for st in body_stmts or []:
+            if not isinstance(st, dict): continue
+            if st.get("stmt") in ("assign", "Assign"):
+                v = st.get("value", {})
+                fn = v.get("func") if isinstance(v, dict) and v.get("type") == "Call" else None
+                tgt = st.get("target")
+                if isinstance(fn, str) and fn.endswith(".to_dict") and not v.get("args") and isinstance(tgt, str):
+                    self._todict_aliases[tgt] = fn[:-len(".to_dict")]
+            for key in ("body", "orelse", "finalbody", "then", "else_body"):
+                sub = st.get(key)
+                if isinstance(sub, list): self._prescan_todict_aliases(sub)
+
     def _emit_body_code(self, func: Dict[str, Any], body_stmts: List[Dict[str, Any]],
                          local_refs: Set[str], ghost_vars: Set[str], ref_params: Set[str],
                          is_method: bool, return_type: str) -> str:
@@ -1401,6 +1415,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # classification pass (Part B move 2) replaces the former five separate
         # `body_<kind>_vars` subtractions (incl. the record-vs-collections 0441
         # dedup, now subsumed by the union).
+        self._prescan_todict_aliases(body_stmts)
         typed_local_vars = self._typed_local_vars(body_stmts)
         # var -> class name for record-instance locals (`c = C()`), so method
         # calls `c.method(...)` can resolve the callee contract like `self.`.

@@ -531,6 +531,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return a[1].get("value")
         return None
 
+    def _todict_emit_ir_projection(self, recv_dotted, key, local_refs, invariant_ctx, subst):
+        node = self._todict_recv_node_ir(recv_dotted)
+        if not self._is_emit_ir_expr(node): return None
+        proj = {"type": "kind_of", "name": "name_of", "attr": "name_of", "value": "value_of", "object": "object_of"}.get(key)
+        if proj is None: return None
+        return f"({proj} {self._expr_to_whyml(node, local_refs or set(), invariant_ctx, subst)})"
+
     def _self_field_dict_nu(self, recv: str):
         """self-field-dict-reflection (typed-ir-for-b-ceiling.md §12): when `recv` is a
         `self.<field>` (or `<recordvar>.<field>`) naming a `dict`/`set`/`frozenset`
@@ -626,6 +633,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if _al is not None:
                     _kir = (ir.get("args") or [{}])[0]
                     if isinstance(_kir, dict) and _kir.get("type") == "String":
+                        if self._is_emit_ir_expr(self._todict_recv_node_ir(_al)):
+                            return _kir.get("value") in ("type", "name", "attr", "value")
                         return self._is_string_expr(
                             self._todict_routed_ir(_al, _kir.get("value")))
                 # typed-ir-for-b-ceiling.md B-C3: `<emit_ir>.get("type"|"name"|"attr"|
@@ -2486,6 +2495,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if _recv_dotted is not None:
             _kir = (expr.get("args") or [{}])[0]
             if isinstance(_kir, dict) and _kir.get("type") == "String":
+                _proj = self._todict_emit_ir_projection(_recv_dotted, _kir.get("value"), local_refs, invariant_ctx, subst)
+                if _proj is not None: return _proj
                 return self._expr_to_whyml(
                     self._todict_routed_ir(_recv_dotted, _kir.get("value")),
                     local_refs or set(), invariant_ctx, subst)
