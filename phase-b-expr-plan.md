@@ -313,3 +313,44 @@ with the split technique validated. The path to completion is now gated not by
 effort alone but by a **Phase-A schema-fidelity fix** (`expr_from_dict` →
 `OpaqueExpr` for several kinds) that must precede typing those kinds. That fix is
 the recommended next lever; it is itself byte-diff-gatable and not ceiling-blocked.
+
+---
+
+## 13. EXECUTION UPDATE (2026-07-01, cont'd) — expr_from_dict fully faithful; helper migration is the remaining (supervised) work
+
+Continued with the gated method. Two more increments landed byte-clean:
+
+- **Fidelity fix, round 2 (4 kinds):** DictLit/ListComp/SetComp/DictComp were
+  built fieldless → OpaqueExpr. Added the real fields (class + inner +
+  serializer). [PR #90]
+- **Fidelity fix, round 3 (8 kinds):** a **corpus-wide survey** found 8 kinds
+  whose `ir_schema` fields didn't match Module 5's wire shape —
+  ArrayEq (base1/base2→left/right), Separated (low/high→len1/len2),
+  Length2D (+rows/cols), Valid2D (+row/col), SetCard (+lo/hi),
+  StrSub (start/end→lo/hi), GhostMake (+default), Slice (+lower/upper/step).
+  Fixed each; re-survey shows **the only remaining OpaqueExpr is BinOp+`act_name`
+  — the designed attribution-key fallback.** So `expr_from_dict` is now
+  **class-faithful for every typed ExprIR kind.**
+
+Gates throughout: round-trip test 43 passed (class-preservation guard covers all
+17 fixed kinds); byte-diff vs 627-file baseline = 0; full proof re-confirmed.
+
+### State of the migration
+| Piece | Status |
+|---|---|
+| E1 interface shim + 21 boundary call sites | ✅ |
+| All 22 explicit `_expr_to_whyml` kinds → `isinstance` | ✅ |
+| `expr_from_dict` fidelity (all typed kinds faithful) | ✅ |
+| `_EXPR_DISPATCH` table dispatch | works via string key (correct); typed-keying is optional (a class→handler table with string fallback — *safe but low-value while handlers stay dict-typed*) |
+| **~30 helper signatures → `ExprIR`** (the WI-C4 payoff) | ⏳ **remaining — supervised** |
+| Delete dead legacy branches; finalize `_expr_to_whyml(expr: ExprIR)` | ⏳ remaining |
+
+### Why the helper migration was NOT done unattended
+Each of the ~30 expression helpers (`_handle_binop`, `_handle_call_expr`,
+`_handle_subscript`, `_emit_membership`, …) is `expr: Dict[str, Any]` with
+internal `expr["field"]` accesses. Migrating one = change the signature + convert
+every field access to the exact `ExprIR` attribute name + retype the recursive
+calls. A single wrong attribute → a subtle byte-diff (caught by the gate, but
+requiring bisection). Grinding 30 such conversions unattended risks a long
+bisection or a half-migrated state. This is the genuinely-supervised remainder;
+the foundation for it (typed dispatch + faithful `expr_from_dict`) is now solid.

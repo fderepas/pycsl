@@ -559,7 +559,9 @@ class SubscriptExpr(ExprIR):
 
 @dataclass(frozen=True)
 class SliceExpr(ExprIR):
-    pass
+    lower: "ExprIR"
+    upper: "ExprIR"
+    step: Any
 
 
 @dataclass(frozen=True)
@@ -709,19 +711,23 @@ class ValidExpr(ExprIR):
 @dataclass(frozen=True)
 class SeparatedExpr(ExprIR):
     base1: str
+    len1: "ExprIR"
     base2: str
-    low: "ExprIR"
-    high: "ExprIR"
+    len2: "ExprIR"
 
 
 @dataclass(frozen=True)
 class Length2DExpr(ExprIR):
     base: str
+    rows: "ExprIR"
+    cols: "ExprIR"
 
 
 @dataclass(frozen=True)
 class Valid2DExpr(ExprIR):
     base: str
+    row: "ExprIR"
+    col: "ExprIR"
 
 
 @dataclass(frozen=True)
@@ -731,8 +737,8 @@ class IsSortedExpr(ExprIR):
 
 @dataclass(frozen=True)
 class ArrayEqExpr(ExprIR):
-    base1: str
-    base2: str
+    left: "ExprIR"
+    right: "ExprIR"
 
 
 @dataclass(frozen=True)
@@ -810,8 +816,8 @@ class StrLengthExpr(ExprIR):
 @dataclass(frozen=True)
 class StrSubExpr(ExprIR):
     string: "ExprIR"
-    start: "ExprIR"
-    end: "ExprIR"
+    lo: "ExprIR"
+    hi: "ExprIR"
 
 
 @dataclass(frozen=True)
@@ -829,6 +835,7 @@ class GhostCopyRangeExpr(ExprIR):
 @dataclass(frozen=True)
 class GhostMakeExpr(ExprIR):
     size: "ExprIR"
+    default: "ExprIR"
 
 
 @dataclass(frozen=True)
@@ -911,6 +918,8 @@ class SetDiffExpr(ExprIR):
 @dataclass(frozen=True)
 class SetCardExpr(ExprIR):
     set: "ExprIR"
+    lo: "ExprIR"
+    hi: "ExprIR"
 
 
 @dataclass(frozen=True)
@@ -1167,7 +1176,7 @@ def _expr_from_dict_inner(d: Dict[str, Any]) -> ExprIR:
         return SubscriptExpr(kind=k, value=_e(d.get("value")),
                              index=_e(d.get("index")))
     if k == "Slice":
-        return SliceExpr(kind=k)
+        return SliceExpr(kind=k, lower=_e(d.get("lower")), upper=_e(d.get("upper")), step=d.get("step"))
     if k == "FieldGet":
         return FieldGetExpr(kind=k, object=d.get("object"),
                             field=d.get("field", ""))
@@ -1232,16 +1241,16 @@ def _expr_from_dict_inner(d: Dict[str, Any]) -> ExprIR:
     if k == "Valid":
         return ValidExpr(kind=k, base=d.get("base", ""), length=_e(d.get("length")))
     if k == "Separated":
-        return SeparatedExpr(kind=k, base1=d.get("base1", ""), base2=d.get("base2", ""),
-                             low=_e(d.get("low")), high=_e(d.get("high")))
+        return SeparatedExpr(kind=k, base1=d.get("base1", ""), len1=_e(d.get("len1")),
+                             base2=d.get("base2", ""), len2=_e(d.get("len2")))
     if k == "Length2D":
-        return Length2DExpr(kind=k, base=d.get("base", ""))
+        return Length2DExpr(kind=k, base=d.get("base", ""), rows=_e(d.get("rows")), cols=_e(d.get("cols")))
     if k == "Valid2D":
-        return Valid2DExpr(kind=k, base=d.get("base", ""))
+        return Valid2DExpr(kind=k, base=d.get("base", ""), row=_e(d.get("row")), col=_e(d.get("col")))
     if k == "IsSorted":
         return IsSortedExpr(kind=k, base=d.get("base", ""))
     if k == "ArrayEq":
-        return ArrayEqExpr(kind=k, base1=d.get("base1", ""), base2=d.get("base2", ""))
+        return ArrayEqExpr(kind=k, left=_e(d.get("left")), right=_e(d.get("right")))
     if k == "Permutation":
         return PermutationExpr(kind=k, base1=d.get("base1", ""), base2=d.get("base2", ""))
     if k == "Sum":
@@ -1273,14 +1282,14 @@ def _expr_from_dict_inner(d: Dict[str, Any]) -> ExprIR:
         return StrLengthExpr(kind=k, string=_e(d.get("string")))
     if k == "StrSub":
         return StrSubExpr(kind=k, string=_e(d.get("string")),
-                          start=_e(d.get("start")), end=_e(d.get("end")))
+                          lo=_e(d.get("lo")), hi=_e(d.get("hi")))
     if k == "GhostCopy":
         return GhostCopyExpr(kind=k, arr=d.get("arr", ""))
     if k == "GhostCopyRange":
         return GhostCopyRangeExpr(kind=k, arr=d.get("arr", ""),
                                   start=_e(d.get("start")), stop=_e(d.get("stop")))
     if k == "GhostMake":
-        return GhostMakeExpr(kind=k, size=_e(d.get("size")))
+        return GhostMakeExpr(kind=k, size=_e(d.get("size")), default=_e(d.get("default")))
     if k == "MapEmpty":
         return MapEmptyExpr(kind=k)
     if k == "MapGet":
@@ -1309,7 +1318,7 @@ def _expr_from_dict_inner(d: Dict[str, Any]) -> ExprIR:
     if k == "SetDiff":
         return SetDiffExpr(kind=k, left=_e(d.get("left")), right=_e(d.get("right")))
     if k == "SetCard":
-        return SetCardExpr(kind=k, set=_e(d.get("set")))
+        return SetCardExpr(kind=k, set=_e(d.get("set")), lo=_e(d.get("lo")), hi=_e(d.get("hi")))
     if k == "SetSubset":
         return SetSubsetExpr(kind=k, left=_e(d.get("left")), right=_e(d.get("right")))
     if k == "SetEq":
@@ -1512,7 +1521,9 @@ def _expr_to_dict(e: ExprIR) -> Dict[str, Any]:
         out["value"] = e.value.to_dict()
         out["index"] = e.index.to_dict()
     elif isinstance(e, SliceExpr):
-        pass
+        out["lower"] = e.lower.to_dict()
+        out["upper"] = e.upper.to_dict()
+        out["step"] = e.step
     elif isinstance(e, FieldGetExpr):
         out["object"] = e.object
         out["field"] = e.field
@@ -1588,18 +1599,22 @@ def _expr_to_dict(e: ExprIR) -> Dict[str, Any]:
         out["length"] = e.length.to_dict()
     elif isinstance(e, SeparatedExpr):
         out["base1"] = e.base1
+        out["len1"] = e.len1.to_dict()
         out["base2"] = e.base2
-        out["low"] = e.low.to_dict()
-        out["high"] = e.high.to_dict()
+        out["len2"] = e.len2.to_dict()
     elif isinstance(e, Length2DExpr):
         out["base"] = e.base
+        out["rows"] = e.rows.to_dict()
+        out["cols"] = e.cols.to_dict()
     elif isinstance(e, Valid2DExpr):
         out["base"] = e.base
+        out["row"] = e.row.to_dict()
+        out["col"] = e.col.to_dict()
     elif isinstance(e, IsSortedExpr):
         out["base"] = e.base
     elif isinstance(e, ArrayEqExpr):
-        out["base1"] = e.base1
-        out["base2"] = e.base2
+        out["left"] = e.left.to_dict()
+        out["right"] = e.right.to_dict()
     elif isinstance(e, PermutationExpr):
         out["base1"] = e.base1
         out["base2"] = e.base2
@@ -1635,8 +1650,8 @@ def _expr_to_dict(e: ExprIR) -> Dict[str, Any]:
         out["string"] = e.string.to_dict()
     elif isinstance(e, StrSubExpr):
         out["string"] = e.string.to_dict()
-        out["start"] = e.start.to_dict()
-        out["end"] = e.end.to_dict()
+        out["lo"] = e.lo.to_dict()
+        out["hi"] = e.hi.to_dict()
     elif isinstance(e, GhostCopyExpr):
         out["arr"] = e.arr
     elif isinstance(e, GhostCopyRangeExpr):
@@ -1645,6 +1660,7 @@ def _expr_to_dict(e: ExprIR) -> Dict[str, Any]:
         out["stop"] = e.stop.to_dict()
     elif isinstance(e, GhostMakeExpr):
         out["size"] = e.size.to_dict()
+        out["default"] = e.default.to_dict()
     elif isinstance(e, MapEmptyExpr):
         pass
     elif isinstance(e, MapGetExpr):
@@ -1685,6 +1701,8 @@ def _expr_to_dict(e: ExprIR) -> Dict[str, Any]:
         out["right"] = e.right.to_dict()
     elif isinstance(e, SetCardExpr):
         out["set"] = e.set.to_dict()
+        out["lo"] = e.lo.to_dict()
+        out["hi"] = e.hi.to_dict()
     elif isinstance(e, SetSubsetExpr):
         out["left"] = e.left.to_dict()
         out["right"] = e.right.to_dict()
