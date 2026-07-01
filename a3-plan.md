@@ -259,3 +259,22 @@ modeling — A3 sits on top of it. Until then the state-mutating handlers stay
 `.to_dict()`/dict-reflection (modeling) and A3 (mutation frame). A3's turns out to
 rest on an even more basic gap (mutable-`self`), so the honest next step is that
 verifier capability, not more emitter modeling.
+
+---
+
+## 10. SLICE-0 NOW GREEN (2026-07-01) — via mutable-self M.2–M.7
+
+The §9 falsification is resolved. `mutable-self-plan.md` built the missing
+capability (`@mutable_state` classes get CHECKED `assigns` frames — a body `writes`
+clause Why3 verifies, closing the §9 soundness hole), and M.7 made
+`self.<setfield>.add(x)` a real field write. **A3 Slice-0 now proves**
+(`src/self-annotate/transpiler-state-witnesses.py`): a `@mutable_state` transpiler-
+state class with a set field + a counter proves CHECKED, non-vacuous `assigns`
+frames; `assigns \nothing` FAILS. Byte-diff 0.
+
+**A3 is unblocked.** The remaining A3 work items (A3.1–A3.7) — model the transpiler
+class's ~15 fields as a `@mutable_state` record, contract `_add_abstract_op` with
+`assigns self._abstract_ops`, then a real state-mutating handler's frame — now sit
+on a **proven** foundation rather than the vacuous value-semantics one. Combined
+with the `.to_dict()`/dict-reflection modeling (the other §7 wall), this is the
+path to un-`\trusting` the state-mutating emitter handlers.

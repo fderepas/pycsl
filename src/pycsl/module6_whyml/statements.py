@@ -833,24 +833,48 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 # rejects direct `:= Map.set ...` on non-ghost refs.
                 method = func.rsplit(".", 1)[1]
                 obj_name = func.rsplit(".", 1)[0]
-                if obj_name in getattr(self, "_dict_locals", set()):
-                    safe_obj = whyml_ident(obj_name)
+                # M.7 (mutable-self-plan.md): `self.<setfield>.add(x)` on a
+                # @mutable_state class is a REAL write to the record's mutable map
+                # field (`self.f <- map_update_some self.f k 0`), so the method's
+                # `writes { self.f }` frame is genuinely exercised (non-vacuous) —
+                # instead of the opaque abstract-op that mutates nothing. Gated on
+                # @mutable_state → byte-identical for every unmarked class.
+                _msf = (obj_name.startswith("self.")
+                        and getattr(self, "_current_self_type", None)
+                        in getattr(self, "_mutable_state_classes", set())
+                        and obj_name[len("self."):] in self._all_record_fields)
+                if obj_name in getattr(self, "_dict_locals", set()) or _msf:
                     arg_ir = (val.get("args") or [{}])[0]
-                    arg = self._coerce_to_int(self._expr_to_whyml(arg_ir, local_refs))
+                    if _msf and self._is_string_expr(arg_ir):
+                        # M.7: a `Set[str]` key is hashed into the int-keyed map
+                        # (`str_hash_op` for a non-literal) so `map_update_some`'s
+                        # `k: int` typechecks — the frame's `writes` is what matters
+                        # here, not str-key content (the no-more-int str-set model is
+                        # a separate concern).
+                        arg = self._str_operand_to_int(
+                            self._expr_to_whyml(arg_ir, local_refs))
+                    else:
+                        arg = self._coerce_to_int(self._expr_to_whyml(arg_ir, local_refs))
+                    if _msf:
+                        _fld = f"self.{self._field_label(self._current_self_type, obj_name[len('self.'):])}"
+                        _lhs, _cur = f"{_fld} <-", _fld
+                    else:
+                        safe_obj = whyml_ident(obj_name)
+                        _lhs, _cur = f"{safe_obj} :=", f"!{safe_obj}"
                     if method == "add":
                         # set.add(x) — mark key present with Some 0.
                         self._add_abstract_op(
                             "val map_update_some (m: map int (option int)) (k: int) (v: int) "
                             ": map int (option int)\n"
                             "    ensures { result = Map.set m k (Some v) }")
-                        code = f"{indent}{safe_obj} := map_update_some !{safe_obj} {arg} 0"
+                        code = f"{indent}{_lhs} map_update_some {_cur} {arg} 0"
                     else:
                         # set.discard(x) / set.remove(x) / del d[k] — clear the key.
                         self._add_abstract_op(
                             "val map_update_none (m: map int (option int)) (k: int) "
                             ": map int (option int)\n"
                             "    ensures { result = Map.set m k None }")
-                        code = f"{indent}{safe_obj} := map_update_none !{safe_obj} {arg}"
+                        code = f"{indent}{_lhs} map_update_none {_cur} {arg}"
                 else:
                     expr_str = self._expr_to_whyml(val, local_refs)
                     code = f"{indent}let _ = {expr_str} in ()"
