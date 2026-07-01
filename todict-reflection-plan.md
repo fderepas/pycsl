@@ -128,3 +128,42 @@ driver has).
 covers str keys; node/list-valued keys are the next slice), R2.b (no-more-int on
 routed non-str reads), R3 (a real reflecting mirror handler with the A3 frame). The
 reflection wall is now a working recognizer, not an open ceiling.
+
+---
+
+## 8. R3 — R1 + A3 COMPOSE (2026-07-01); the real-handler tail characterized
+
+**The integration is PROVEN.** `src/self-annotate/r3-integration-witness.py` (verifies):
+a single un-`\trusted` handler that **reflects** (`d = stmt.to_dict();
+d.get("type") == "Var"` → `str_eq_op stmt.kind "Var"`; `d.get("target")` →
+`stmt.target`) **and mutates transpiler state** (`self.dict_locals.add(…)` → a real
+map write; `self.add_abstract_op(…)` inherited) verifies with a **CHECKED composed
+frame** `writes { self.dict_locals, self.abstract_ops }`. R1 (reflection→typed) and
+A3 (state frame) compose automatically — the R1 recognizer feeds the A3 set-field
+`.add` in one line (`self.dict_locals.add(d.get("target"))`). No trust; a wrong
+`assigns` FAILS.
+
+This is the R3 essence: a reflecting + state-mutating handler verified with a proven
+frame, integrating B1 + the string chain + R1 + A3.
+
+**The real-mirror-handler tail (honest).** Un-`\trusting` an *actual* mirror handler
+(e.g. `_handle_fieldassign_stmt`) additionally needs, per handler:
+1. **Mirror class `@mutable_state` + declared state fields** — `StatementEmissionMixin`
+   is a mixin, not a `@dataclass`; giving it the A3 model is a structural mirror
+   change (declare the ~15 state fields).
+2. **R1.3** — node/list-*valued* `d.get(key)` feeding `_expr_to_whyml` (the witness
+   covers str-valued keys; the real handlers also read sub-nodes).
+3. **A per-handler no-more-int pass** — each 300–700-line handler carries its own
+   residual str/int leaks (e.g. a `string, but expected int` surfaced in
+   `_handle_fieldassign_stmt`), the L1–L4c toolbox applied case-by-case.
+
+None is a new ceiling; each is enumerated, bounded, gated. R3-proper is the
+per-handler integration on top of the proven composition — a focused campaign, not
+an open question.
+
+**Net.** Every wall of the body-faithful-emitter arc is knocked down or reduced to
+bounded, gated follow-on: B1 (typing) ✅, field-access ✅, string chain ✅, first
+un-`\trusted` leaf ✅, mutable-self/soundness ✅, A3 frame ✅, R1 reflection ✅, and
+**R1+A3 composition ✅**. "Un-`\trust` a real state-mutating reflecting handler" is
+now the enumerated (mirror-`@mutable_state` + R1.3 + per-handler no-more-int)
+integration on proven foundations.
