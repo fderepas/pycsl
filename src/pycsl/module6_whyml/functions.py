@@ -1831,15 +1831,29 @@ class FunctionEmissionMixin:
             _kt = func.get("dict_key_types", {}) or {}
             _vt = func.get("dict_value_types", {}) or {}
             param_types: List[str] = []
+            _formal = set(func.get("formal_params", []))
+            _pann = func.get("param_annotations", {}) or {}
             for name, symtype in symtable.items():
-                # Locals (assigned inside the body) are NOT params.
-                if name in local_assignees:
+                if name in local_assignees and name not in _formal:
                     continue
+                # typed-ir §16: prefer a formal param's declared ANNOTATION over its
+                # symbol-table type — the latter drifts to `Any`/int when the body
+                # REASSIGNS the param (`val = _empty` in `_emit_first_assign`), which
+                # would mistype the abstract self-call val. Gated on @mutable_state.
+                if (name in _formal and name in _pann
+                        and getattr(self, "_mutable_state_classes", None)):
+                    symtype = _pann[name]
                 if symtype == "dict" and (name in _kt or name in _vt):
                     param_types.append(
                         self._dict_param_whyml_type(name, _kt, _vt))
                 else:
-                    param_types.append(self._symtype_to_whyml(symtype))
+                    _wt = self._symtype_to_whyml(symtype)
+                    if _wt == "int" and symtype and getattr(self, "_mutable_state_classes", None):
+                        _rt = getattr(self, "_record_types", {})
+                        _rec = (_rt.get(symtype) or _rt.get(str(symtype).lower())
+                                or next((v for k, v in _rt.items() if k.lower() == str(symtype).lower()), None))
+                        if _rec: _wt = _rec.get("whyml_name", str(symtype).lower())
+                    param_types.append(_wt)
             result[func["name"]] = param_types
         return result
 

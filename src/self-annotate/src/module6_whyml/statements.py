@@ -46,6 +46,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     _array2d_params: Set[str] = None
     _current_array1d_params: Set[str] = None
     _seq_locals: Set[str] = None
+    _current_symbol_table: Dict[str, str] = None
+    _shared_var_names: Set[str] = None
+    _decode_to_string: int = 0
     """Statement-emission dispatch: every `_handle_*_stmt` handler plus the
     statement-stream orchestrator (`_stmts_to_whyml`), body-wrapping helpers
     (`_emit_body_code`, `_wrap_body_with_return_catch`), first-assignment
@@ -159,13 +162,29 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     def _is_string_expr(self, ir: "ExprIR") -> bool:
         return True
 
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    #@ assigns \nothing
+    def _track_collection_metadata(self, target: str, val_ir: "ExprIR") -> None:
+        return
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    def _first_assign_kind(self, val: str, val_ir: "ExprIR") -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    def _val_is_bool(self, val_ir: "ExprIR") -> bool:
+        return True
+
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _emit_first_assign(self, kind: str, indent: str, safe_target: str, target: str,
-                           val: str, val_ir: Dict[str, Any]) -> str:
+                           val: str, val_ir: "ExprIR") -> str:
         """Emit the `let X = …` line for a first declaration of `target`,
         updating the locals-tracking sets as a side effect."""
         if kind == "record":
@@ -197,7 +216,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     #@ ensures True
     #@ assigns \nothing
     def _emit_array_local_reassign(self, target: str, safe_target: str, indent: str,
-                                    val_ir: Dict[str, Any], local_refs: Set[str]) -> str:
+                                    val_ir: "ExprIR", local_refs: Set[str]) -> str:
         """Reassigning an array-local (declared via `let arr = (Array.make
         1024 0) in`, NOT a ref) — emitting `arr := val` is invalid because
         `arr` isn't a `ref`. Model the reassignment as "reset the length
@@ -217,10 +236,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             parts.append(f"{indent}{len_name} := !{len_name} + 1")
         return ";\n".join(parts)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._decode_to_string
     def _handle_assign_stmt(self, stmt: AssignStmt, rest: List[Dict[str, Any]],
                              local_refs: Set[str], declared_refs: Set[str],
                              indent: str, in_loop: bool) -> str:

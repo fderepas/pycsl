@@ -496,3 +496,43 @@ dedicated pass over that seam (record params, reassigned params, annotation-vs-i
 type, then §14 #2/#3) — bounded but multi-fix. Reverted to keep the SIX landed handlers
 green. The tractable frontier remains the direct-reflection handlers; `assign` wants its
 own focused campaign with this worklist.
+
+---
+
+## 17. THE ASSIGN CAMPAIGN — DONE. `_handle_assign_stmt` un-`\trusted` (SEVEN handlers)
+
+`_handle_assign_stmt` — the flagship, the deepest statement handler — is no longer
+`\trusted`. It verifies with `assigns self._decode_to_string`; `statements.py` PASSES the
+suite with SEVEN real handlers off the trusted base (only the pre-existing `errors.py`
+fails). Byte-diff 0 across the 627-corpus.
+
+The campaign landed the abstract-self-call-val typing seam (the §16 worklist) plus the
+final pieces — all byte-clean, all gated on @mutable_state:
+
+- **Record-class param → the record type** (`_build_method_param_types_map`):
+  `self._handle_seq_assign(stmt: AssignStmt)` → the abstract carries `assignstmt`.
+- **Reassigned formal params kept** (same map): a formal param reassigned in the body
+  (`val = _empty`) is no longer dropped as a "local" (which misaligned the abstract's
+  parameter types).
+- **Annotation over inferred type** (same map): a formal param prefers its declared
+  annotation (`val: str`) over its drifted symbol-table type (`Any`→int).
+- **`let function` projections** (`_emit_exprir_theory`): `kind_of`/`name_of`/`value_of`/
+  `object_of` are `let function` (program+logic), so `vt = val_ir.get("type")` →
+  `(kind_of stmt.value)` is legal in the program body (a plain `function` is logic-only,
+  rejected in non-ghost context).
+- **Bool-flag self mutation** (§14 #2): `self._decode_to_string = True/…/restore` is a
+  genuine transient self-field write → the handler's frame is `assigns
+  self._decode_to_string` (a CHECKED write, not `\nothing`).
+- The reflection probes (R1×B-C3, alias pre-scan, `_is_str_val` Call fall-through) and
+  the self-field-dict/getattr recognizers (§12/§15) all fired. §14 #3 (set-field
+  membership) needed no new work — the existing str-key membership handled it.
+
+Mirror side: declared `_current_symbol_table: Dict[str,str]`/`_shared_var_names`/
+`_decode_to_string`; typed the `_track_collection_metadata`/`_first_assign_kind`/
+`_val_is_bool` sibling stubs and the `_emit_first_assign`/`_emit_array_local_reassign`
+`val_ir` params as `"ExprIR"`.
+
+**Net.** SEVEN real emitter handlers verify their own body-faithfulness, INCLUDING the
+flagship — the one that reflects on the IR, mutates transpiler state, defensively reads
+its own dict fields via `getattr`, and fans out to a rich set of typed siblings. The
+abstract-self-call-val typing seam is now correct for the whole emitter.
