@@ -1164,21 +1164,25 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         return out
 
     def _collect_str_call_result_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
-        """no-more-int emitter L2 (no-more-int-emitter-plan.md): a local whose
-        first assignment is a call to a `string`-returning function must be a
-        string-typed ref — never the integer `ref 0` pre-declaration — so the
-        `s := f(...)` (a WhyML `string`) typechecks. The callee's WhyML return
-        type comes from `_module_method_return_types` (L1 records `-> str`
-        functions as `string`); the key is resolved exactly as `_handle_dotted_
-        call` (a `self.<m>` call → `<self_type>__<m>`).
+        """no-more-int emitter L2/L3 (no-more-int-emitter-plan.md): a local whose
+        first assignment is a `string`-VALUED expression must be a string-typed ref
+        — never the integer `ref 0` pre-declaration — so the `s := <string>`
+        typechecks. Two string-valued shapes are recognized:
+          L2: a call to a `string`-returning function (return type from
+              `_module_method_return_types`, keyed like `_handle_dotted_call`); and
+          L3: an f-string whose every segment is string-typed (the same all-string
+              condition `_handle_fstring_expr` uses to emit `str_concat_op`/`concat`).
 
-        Byte-identical for any local NOT bound from a resolvable string-returning
-        call (the 627-corpus does not consult such a result into a local via this
-        path — see plan §1); a call whose callee return type is unknown (e.g. a
-        cross-mixin-file method not in this module's table) is left int, unchanged."""
+        Resolved to a **fixpoint**: a later `code = f"{arr}[{idx}]"` becomes string
+        only once its interpolated locals (`arr`, `idx`, bound from L2 calls) are
+        themselves marked — so the symbol table is grown iteratively.
+
+        Byte-identical for any local NOT bound from such an expression (the
+        627-corpus does not consult one into a `ref 0` local via this path — an
+        all-string f-string already lowers to a `string` value via b14 B2, and a
+        corpus local receiving it would already be string-typed elsewhere)."""
         rt = getattr(self, "_module_method_return_types", {})
-        out: Set[str] = set()
-        seen: Set[str] = set()
+        st = getattr(self, "_current_symbol_table", None)
 
         def _ret_of(fn: str):
             if fn.startswith("self."):
@@ -1189,16 +1193,29 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 key = fn
             return rt.get(key)
 
-        def rec(node):
+        def _is_str_val(v: Any) -> bool:
+            if not isinstance(v, dict):
+                return False
+            t = v.get("type")
+            if t == "Call":
+                return _ret_of(v.get("func", "")) == "string"
+            if t == "FString":
+                parts = v.get("parts", [])
+                return bool(parts) and all(self._is_string_expr(p) for p in parts)
+            return False
+
+        # Collect the FIRST assignment of each local (mirrors the ref-0 pre-decl,
+        # which is keyed on the first bind); later re-assigns do not re-type.
+        firsts: List[Tuple[str, Any]] = []
+        seen: Set[str] = set()
+
+        def rec(node: Any) -> None:
             if isinstance(node, dict):
                 if node.get("stmt") == "Assign" and isinstance(node.get("target"), str):
                     tgt = node["target"]
-                    v = node.get("value", {})
                     if tgt not in seen:
                         seen.add(tgt)
-                        if (isinstance(v, dict) and v.get("type") == "Call"
-                                and _ret_of(v.get("func", "")) == "string"):
-                            out.add(tgt)
+                        firsts.append((tgt, node.get("value", {})))
                 for x in node.values():
                     rec(x)
             elif isinstance(node, list):
@@ -1206,11 +1223,20 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     rec(x)
 
         rec(body_stmts)
-        st = getattr(self, "_current_symbol_table", None)
-        if st is not None:
-            for v in out:
-                if st.get(v) in (None, "Any"):
-                    st[v] = "str"
+
+        out: Set[str] = set()
+        changed = True
+        while changed:
+            changed = False
+            for tgt, v in firsts:
+                if tgt in out:
+                    continue
+                if _is_str_val(v):
+                    out.add(tgt)
+                    # grow the symbol table so a dependent f-string sees `tgt : str`
+                    if st is not None and st.get(tgt) in (None, "Any"):
+                        st[tgt] = "str"
+                    changed = True
         return out
 
     def _typed_local_vars(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
