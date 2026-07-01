@@ -436,3 +436,29 @@ handler — deferred with this worklist. The attempt was reverted to keep the SI
 handlers green (the re-applied probes are inert without `assign`, so not landed). The
 tractable frontier is elsewhere: a handler whose reflection is direct (`stmt.value`)
 rather than through `getattr(self, …)`.
+
+---
+
+## 15. The `getattr(self, field, default)` recognizer — BUILT (§14 blocker #1)
+
+`getattr(self, "<field>", <default>).get(key)` — the emitter's DEFENSIVE self-field
+access, the first of the three §14 sub-features `_handle_assign_stmt` needs — now routes
+to the REAL record map field instead of the opaque `get_1`. Byte-clean; witness
+`src/self-annotate/getattr-self-field-witness.py` verifies.
+
+**Two parts (byte-diff 0):**
+1. **The rewrite** (`_handle_call_expr`): a bare-method call (`func == "get"`) whose
+   `receiver` is `getattr(self, "<str>", <default>)` (`_getattr_self_field`) naming a
+   DECLARED dict/set field is rewritten to `self.<field>.<method>`, so it flows through
+   the self-field dict path (§12) — `(match Map.get self.<field> (str_hash_op k) …)`.
+   Gated on @mutable_state and on the field actually being a record dict/set field.
+2. **The recognizer** (`_is_string_expr`): the getattr-defensive form of a
+   `dict[str,str]` `.get` is a `string`, so `getattr(self, f, {}).get(k) == "s"` routes
+   through `str_eq_op`.
+
+**Status of the §14 worklist for `_handle_assign_stmt`.** #1 (the getattr idiom) is now
+DONE. Remaining: #2 bool-flag self mutation (`self._decode_to_string = True/False`) and
+#3 set-field membership on `_shared_var_names`/`_seq_locals`/`_array_locals` — both
+bounded scalar/set-field features, not new reflection. The recognizer here is reusable:
+the big `_handle_array_set_stmt`/`_handle_critical_section_stmt` use the same
+`getattr(self, …)` idiom.
