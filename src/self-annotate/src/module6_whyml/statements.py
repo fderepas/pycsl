@@ -100,6 +100,24 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     # (Note: PyCSL's grammar rejects a `#@ validated-by:` contract keyword, so this
     #  provenance is recorded as plain comments rather than inline `#@` directives.)
 
+    # no-more-int emitter L2b (no-more-int-emitter-plan.md): explicit `\trusted`
+    # stubs for the string-returning SIBLING emitters (B3) defined in the
+    # `ExpressionEmissionMixin` file, which `StatementEmissionMixin` composes with
+    # at runtime but does not inherit here. Declaring their `-> str` return type
+    # makes it available in this module's `_module_method_return_types`, so a local
+    # bound from `self._expr_to_whyml(...)` types as `string` (L2), not `ref 0`.
+    # Faithful: the real siblings do return `str`; this only surfaces that fact.
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    def _expr_to_whyml(self, expr: int, local_refs: int, invariant_ctx: bool = False,
+                       subst: int = None) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    def _expr_to_whyml_string_ctx(self, ir: int, local_refs: int) -> str:
+        return ""
+
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
