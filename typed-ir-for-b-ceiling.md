@@ -404,3 +404,35 @@ reusable tool fixes — both blockers §11 named for the reflecting handlers:
 stmt`'s three §11 blockers are now ALL solved (self-field dict §12, the reflection
 probes prototyped in §11, and set-param mutation §13) — assign is the next natural
 target, needing only the §11 probes landed alongside it.
+
+---
+
+## 14. `_handle_assign_stmt` — attempted; a deeper multi-feature tail (NOT the last three)
+
+Scaling to the flagship `_handle_assign_stmt` was attempted with all the pieces: the
+three reflection probes re-applied (R1×B-C3 emit_ir alias→`kind_of`, recognizer-time
+alias pre-scan, `_is_str_val` Call fall-through — all byte-clean), the state fields
+declared (`_current_symbol_table: Dict[str,str]`, `_shared_var_names`,
+`_decode_to_string`), and the `_track_collection_metadata` sibling stubbed. It advanced
+past `vt = val_ir.get("type")` (the reflection) and `_track_collection_metadata` — but
+then revealed that `assign`'s tail is DEEPER than the three §11 blockers, needing new
+sub-features:
+
+1. **The `getattr(self, "<field>", <default>).method()` idiom** — the emitter's
+   defensive field access (`getattr(self, "_current_symbol_table", {}).get(target)`,
+   3× in these handlers). The `.get` is a method on a `getattr` CALL result — a
+   STRUCTURED func, not the flat `self.<field>.get` string the self-field-dict
+   recognizer (§12) matches — so it falls to the opaque `get_1`. Handling it needs
+   recognizing `getattr(self, <str-field>, <default>)` as `self.<field>` at the call
+   seam, then routing the method.
+2. **Bool-flag self mutation** — `self._decode_to_string = True/False` (a scalar field
+   write, distinct from the set-field `.add` of §13).
+3. **Set-field membership on more state** — `target in self._shared_var_names` /
+   `self._seq_locals` / `self._array_locals`, plus `_emit_array_local_reassign`.
+
+None is hard alone, but there are SEVERAL, and #1 (structured-func reflection through
+`getattr`) is a genuine new feature. `assign` is therefore the most entangled statement
+handler — deferred with this worklist. The attempt was reverted to keep the SIX landed
+handlers green (the re-applied probes are inert without `assign`, so not landed). The
+tractable frontier is elsewhere: a handler whose reflection is direct (`stmt.value`)
+rather than through `getattr(self, …)`.
