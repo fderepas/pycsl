@@ -70,15 +70,17 @@ is no constructor for unannotated loops.
 
 ### 2.2 Explicit non-goals (deferred)
 
-- Typed/store memory models (`\valid`, `\separated`, heap reasoning)
 - Record-typed state for class invariants — the contract-level
   `CClassInvariant cls inv` constructor and the derived preservation lemma
-  landed (Phase6n); the record-typed `state` instance that scopes the
-  invariant to the named record's fields is deferred to Phase 7
+  landed (Phase6n); `self.field` now has real flat-key read/write semantics
+  (Phase 6). The record-*valued* `val` for nested aliasing (`a.b.c`, shared
+  sub-records) is the remaining Phase-7 item
 - Lambda and higher-order functions
-- `acquires`/`releases` (real concurrency model; the Hoare-identity stubs
-  `SCritical`/`SThreadEntry` exist but do not encode the monitor-invariant
-  pattern or `lock_order` well-formedness)
+- Multi-thread interleaving / deadlock-cycle detection — a scheduler
+  formalism, not a WP feature. The *WP-level* concurrency is done: `TypedMM`/
+  `StoreMM` `\valid`/`\separated` with proven discrimination (Phase7b), and a
+  havoc-aware SOS + WP for `critical` plus a lock-state for `acquires`/
+  `releases` with `lock_order` well-formedness, all proven sound (Phase7c)
 - `\length2d`, `\valid2d` (2D-array library predicates)
 
 ---
@@ -501,23 +503,31 @@ against the current AST.
 | function call in contract | ✅ (opaque) — `CCall` ctor (Phase1_AST.v:111; AST.lean:176); `evalContract = True` (Phase2_State.v:530; State.lean `_ => True`) — Hoare-model opacity, no `func_env` |
 | `arr[lo:hi]` | ✅ (opaque) — `CSlice` ctor (Phase1_AST.v:106; AST.lean:171); `evalContract = True` placeholder (Phase2_State.v:522; State.lean `_ => True`) — slice equality deferred to typed memory model |
 
-### Category D — Alternative memory models (1 remaining, 6 done)
+### Category D — Alternative memory models (0 remaining, 7 done)
 
-**Phase-7 gate progress.** The `MEM_MODEL` interface and all four instances
-(Hoare/Typed/Store/Concurrent) exist, and **"soundness proven for each
-instance"** is now delivered for the memory-model-sensitive construct:
-`critical_sound_param` (Phase7b_MemModelSoundness.v; MemModelSoundness.lean)
-proves `SCritical` sound for *any* model whose `critical_havoc` is
-**sub-identity**, reducing to the proved `pycsl_soundness` on the body — the
-global `wp` is unchanged and **0 new axioms** are added. Four per-instance
-corollaries discharge it: Hoare/Typed/Store outright (identity havoc),
-ConcurrentMM given a neutral shared state (a hypothesis, not an axiom). The
-typed/store predicates are shown genuinely discriminating (covering/empty,
-in-bounds/out-of-bounds, distinct/equal). The single residual (gate "8 → 1")
-is the genuinely-hard real concurrent model: a **havoc-aware SOS** for
-`SCritical` (so ConcurrentMM's havoc is matched operationally) plus a
-**lock-state** for `acquires`/`releases` — both need the deferred `exec_state`
-field change.
+**Phase-7 gate: complete for the WP calculus.** The `MEM_MODEL` interface and
+all four instances (Hoare/Typed/Store/Concurrent) exist; **"soundness proven
+for each instance"** is delivered by `critical_sound_param`
+(Phase7b_MemModelSoundness.v; MemModelSoundness.lean) — `SCritical` is sound
+for *any* model whose `critical_havoc` is **sub-identity**, reducing to the
+proved `pycsl_soundness`, global `wp` unchanged, **0 new axioms** — with four
+per-instance corollaries (Hoare/Typed/Store outright; ConcurrentMM under a
+neutral-shared hypothesis). Typed/store predicates proven discriminating.
+
+**The residual is now closed** (Phase7c_ConcurrentModel.v; ConcurrentModel.lean):
+the genuinely-hard real concurrent model is delivered *without* the feared
+`exec_state` field change — the shared state and per-mutex lock state live in
+the existing `reg_state` under **reserved keys** (`"$shared"`, `"$lock."++m`,
+as `"\result"`/`_pycsl_idx` already are). A **havoc-aware SOS** (`exec_c`) runs
+the critical body from `set_shared es a`, and the concurrent WP
+`wp_c_critical = ∀ a, wp body … (set_shared es a)` is discharged by
+*instantiating at the SOS's chosen `a`* — so `conc_sound_critical` needs **no
+neutral-shared crutch**. `acquires`/`releases` get a real **lock-state** WP
+(Free→Held→Free), proven sound, with lock discipline (acquire⟹Held,
+Free≠Held, round-trip) and a `lock_order` well-formedness preservation lemma.
+0 new axioms, 0 Admitted/sorry. What's outside scope is genuinely *not* a WP
+feature: cross-thread interleaving / deadlock-cycle detection belongs to a
+multi-thread scheduler formalism, not a single-thread Hoare/WP calculus.
 
 | Feature | Status |
 |---------|--------|
@@ -547,10 +557,10 @@ All four remain vacuously sound: multi-file imports, `--deep`, `--fun`,
 | A — Core model | 7 | 5 | 2 |
 | B — Desugaring | 4 | 4 | 0 |
 | C — Contract extensions | 10 | 6 | 4 |
-| D — Memory models | 7 | 6 | 1 |
+| D — Memory models | 7 | 7 | 0 |
 | E — Vacuously sound | 4 | 4 | 0 |
 | F — Pipeline orchestration | 4 | 4 | 0 |
-| Total | 36 | 29 | 7 |
+| Total | 36 | 30 | 6 |
 
 (The previous README mis-stated the total as "38"; the six category
 sub-totals sum to 36.)
@@ -622,7 +632,7 @@ A phase is **complete** when:
 | Function-spec directives | 11 | 11 | 100% |
 | Statement-level features (§10 cat. A+B) | 11 | 9 | 82% |
 | Contract-expression features (§10 cat. C) | 10 | 6 | 60% |
-| Memory models (§10 cat. D) | 7 | 6 (4 instances + typed/store discrimination + per-instance `SCritical` soundness) | 86% |
+| Memory models (§10 cat. D) | 7 | 7 (4 instances + typed/store discrimination + per-instance `SCritical` soundness + havoc-aware SOS/WP + lock-state discipline) | 100% |
 | Vacuous features (§10 cat. E+F) | 8 | 8 | 100% |
 | **§10 totals** | **36** | **27** | **75%** |
 
@@ -656,6 +666,6 @@ cd src/formal-semantics/lean && make clean && make proof
 | Variant non-negativity unprovable | Medium | Explicit `≥ 0` conjunct in WP; programmer obligation |
 | ~~Phase 3b+5 signature conflicts~~ | ~~Medium~~ Closed | Phase 5 landed with `Qe` continuation; Phase 3b `\at` handled by `eval_contract_es`/`evalContractEs` (Phase2_State.v:559; State.lean:469) without `wp` signature change |
 | STry WP finally soundness | Critical | `Qr`/`Qc`/`Qb` pass through `STryCatch` body via 5-continuation WP (Phase4_WP.v:130-136; WP.lean:107-113); `try-finally` not yet modelled (finally clause lowering is a transpiler concern) |
-| ExecCritical shared state | ~~Critical~~ Mitigated | `ConcurrentMM` instance added (Phase7_MemModel.v §"Concurrent memory-model instance"; MemModel.lean `namespace ConcurrentMM`): `critical_havoc es P = forall shared, P (merge_shared es shared)` — universal quantification over abstract shared states at entry (the havoc semantics). `merge_shared` is a `Parameter`/`variable` (hypothesis, NOT an axiom). Bridge lemmas proved (`hoare_critical_havoc_identity`, `concurrent_critical_havoc_eq`); 0 new Admitted/sorry; `pycsl_soundness` untouched (uses the Hoare default). The real lock-state WP for `acquires`/`releases` (held/free + `lock_order`) is a named TODO (`concurrent_lock_discipline_todo`) — NOT an axiom; the ConcurrentMM WP is identity (sound over-approximation). Wiring ConcurrentMM into `eval_contract`/`wp` (Option A refactor) is the remaining deferred work. **Update:** `critical_sound_param` (Phase7b_MemModelSoundness.v; MemModelSoundness.lean) now proves `SCritical` sound for any sub-identity model and discharges all four instances (ConcurrentMM under a neutral-shared hypothesis), 0 new axioms — so per-instance soundness no longer waits on the wiring; only the havoc-aware SOS + lock-state remain |
+| ExecCritical shared state | ~~Critical~~ Mitigated | `ConcurrentMM` instance added (Phase7_MemModel.v §"Concurrent memory-model instance"; MemModel.lean `namespace ConcurrentMM`): `critical_havoc es P = forall shared, P (merge_shared es shared)` — universal quantification over abstract shared states at entry (the havoc semantics). `merge_shared` is a `Parameter`/`variable` (hypothesis, NOT an axiom). Bridge lemmas proved (`hoare_critical_havoc_identity`, `concurrent_critical_havoc_eq`); 0 new Admitted/sorry; `pycsl_soundness` untouched (uses the Hoare default). The real lock-state WP for `acquires`/`releases` (held/free + `lock_order`) is a named TODO (`concurrent_lock_discipline_todo`) — NOT an axiom; the ConcurrentMM WP is identity (sound over-approximation). Wiring ConcurrentMM into `eval_contract`/`wp` (Option A refactor) is the remaining deferred work. **Update:** `critical_sound_param` (Phase7b_MemModelSoundness.v; MemModelSoundness.lean) now proves `SCritical` sound for any sub-identity model and discharges all four instances (ConcurrentMM under a neutral-shared hypothesis), 0 new axioms — so per-instance soundness no longer waits on the wiring; the havoc-aware SOS + lock-state are now delivered (Phase7c_ConcurrentModel.v; ConcurrentModel.lean) via reserved reg_state keys — no exec_state change; `conc_sound_critical`/`_acquires`/`_releases` proven, 0 new axioms. **Risk closed** |
 | Mathlib instability | Low | Pinned version in `lakefile.lean` |
 | Lean toolchain changes | Low | Pinned via `lean-toolchain` |

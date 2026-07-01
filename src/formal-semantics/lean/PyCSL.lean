@@ -29,5 +29,6 @@ import PyCSL.EmitComposition  -- Sub-α.14: aggregate composition lemma covering
 import PyCSL.SoundnessVerified
 import PyCSL.ClassInvariants   -- Phase 6: class invariant wrapping (Category A, derived)
 import PyCSL.MemModelSoundness -- Phase 7: instance-parameterised SCritical soundness + typed/store non-vacuity
+import PyCSL.ConcurrentModel  -- Phase 7 residual: havoc-aware SOS + lock-state, proven sound
 import PyCSL.Tests
 -- import PyCSL.Macros  -- Phase L5 bonus
