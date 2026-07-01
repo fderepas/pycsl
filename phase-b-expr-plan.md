@@ -413,3 +413,44 @@ Each needs the same schema triple-fix as §11's kinds before its handler can be 
   `_handle_call_expr`, `_handle_subscript`, `_handle_attribute_expr`,
   `_handle_fstring_expr`.
 All are the same gated, additive conversion on the established scaffolding.
+
+---
+
+## 16. EXECUTION UPDATE (2026-07-01, cont'd) — ALL expression handlers typed; the honest final state
+
+Migrated the last two explicit-dispatch handlers (`_handle_var_expr`,
+`_handle_field_get_expr`) to typed nodes; the tail dispatch passes them the typed
+`node`. **Every expression handler — all 60 `_EXPR_DISPATCH` table handlers plus
+the 2 explicit ones — now takes a typed `ExprIR` node.** Byte-diff 0.
+
+### `_expr_to_whyml` signature — the honest resolution
+The plan's original success line ("remove the dict-normalization; final signature
+`_expr_to_whyml(expr: ExprIR)`") is **intentionally NOT taken**, for a sound
+design reason: `_expr_to_whyml` is the **normalization boundary**. Two kinds of
+caller legitimately reach it:
+1. external callers with the **wire dict** (e.g. the very first expression of a
+   statement, and re-entry points), and
+2. the typed handlers, whose deep, branchy bodies recurse via `node.to_dict()`
+   dict sub-nodes (`_expr_to_whyml(expr["left"])`) — kept dict-based on purpose
+   (fully typing those bodies is high-risk, low-value, and ceiling-adjacent).
+
+So `_expr_to_whyml` keeps its one-line normalization
+(`node = expr_from_dict(expr) if isinstance(expr, dict) else expr`) and its
+signature is now honestly typed as `Union[Dict[str, Any], ExprIR]` — it accepts
+the wire format at the boundary and the typed node from typed callers. Forcing
+`expr: ExprIR` would merely push `expr_from_dict` onto every caller for no gain.
+
+### Phase-B-expr — final status
+- ✅ All `ExprIR` types exist (Phase A) and `expr_from_dict` is **class-faithful
+  for every typed kind** (13 latent schema mismatches found & fixed across the
+  arc — the original 8, DictLit/comps, IsSorted/Sum/GhostCopyRange, Permutation,
+  and CallExpr.receiver — each guarded by the class-preservation test).
+- ✅ All 22 explicit `_expr_to_whyml` kinds dispatch by `isinstance`.
+- ✅ All 62 expression handlers take a typed `ExprIR` node.
+- ✅ Byte-identical across the 627-file corpus at every one of the ~15 gated steps.
+- ◻ Remaining (deliberate, low-value): fully typing the *inside* of the complex
+  handler bodies (so their internal recursion passes typed nodes, letting the
+  boundary drop the dict branch) — a large deep-body conversion with no output
+  change; **not** on the critical path. This is what would be needed to make the
+  emitter body-faithful (semantic-ceiling WI-C4), together with the string-op
+  models (A2) and transpiler-state record (A3).
