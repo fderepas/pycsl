@@ -54,4 +54,5 @@ Phase6m_VcgSemBridge.v
 Phase6i_Soundness.v
 Phase6n_ClassInvariants.v
 Phase7b_MemModelSoundness.v
+Phase7c_ConcurrentModel.v
 Tests.v
