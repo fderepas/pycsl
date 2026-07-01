@@ -189,6 +189,12 @@ class FunctionEmissionMixin:
         # `array string` return type.
         self._seq_value_types: Dict[str, str] = func.get("seq_value_types", {})
         self._dict_locals = set()
+        # todict-reflection-plan.md R1: `d = node.to_dict()` binds `d` as an ALIAS of
+        # the typed node (map target → the receiver dotted-name string). A later
+        # `d.get(key)` routes to `node.<field>` (`_lower_dict_get_call`), dissolving
+        # the IR-reflection into typed field access. Empty for every non-reflecting
+        # function → byte-identical.
+        self._todict_aliases: Dict[str, str] = {}
         # no-more-int-3 A1: dict var -> WhyML value type ν (string) for
         # string-valued dicts; consulted by the dict literal / declaration /
         # MapGet-default / MapSet sites to emit `map int (option string)`.

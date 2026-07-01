@@ -87,6 +87,16 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         safe_target = whyml_ident(target)
         val_ir = stmt.value.to_dict()
         vt = val_ir.get("type", "")
+        # todict-reflection-plan.md R1: `d = <node>.to_dict()` binds `d` as a typed-node
+        # ALIAS (record the receiver dotted-name), and emits NOTHING — `d` is never a
+        # real value; every later `d.get(key)` routes to `node.<field>`
+        # (`_lower_dict_get_call`). Fires only on a literal `.to_dict()` no-arg call →
+        # byte-identical for every function that does not reflect on IR dicts.
+        if (vt == "Call" and isinstance(val_ir.get("func"), str)
+                and val_ir["func"].endswith(".to_dict") and not val_ir.get("args")):
+            self._todict_aliases[target] = val_ir["func"][:-len(".to_dict")]
+            _rest = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+            return _rest if _rest else f"{indent}()"
         self._track_collection_metadata(target, val_ir)
 
         # str-list-elements: a `.decode()` RHS bound to a STRING-typed local lowers to a

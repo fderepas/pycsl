@@ -64,8 +64,8 @@ recognizer produces is sound.
 | WI | Item | Gate |
 |---|---|---|
 | **R2.a** | str-field comparison → `str_eq_op` | ✅ DONE (§2) |
-| **R1.1** | Recognize `d = <typed-node>.to_dict()`; track `d` as an alias of the node (a `_todict_aliases` map, like `_dict_locals` but → the typed node). | alias recorded; `d` not a `ref 0` |
-| **R1.2** | Lower `d.get(key)` for an aliased `d` to the node's field: `"type"`→kind tag; other keys→`node.<key>` (schema-checked). Reuse `_lower_dict_get_call`'s Map path only as a fallback. | reflection witnesses (str/node/list keys) verify |
+| **R1.1** | Recognize `d = <typed-node>.to_dict()`; track the alias; no-op the assign. | ✅ **DONE, byte-clean** (§7) |
+| **R1.2** | Lower `d.get(key)` for an aliased `d` to `node.<field>` (`_todict_routed_ir`); `_is_string_expr` routes an alias-get too so the str-eq path fires. | ✅ **DONE, byte-clean** (§7) |
 | **R1.3** | The value flows: `d.get("value")` yields the typed sub-node (feeds `_expr_to_whyml`); `d.get("elts")` yields the list. | typed sub-node access works |
 | **R2.b** | Remaining no-more-int on routed reads (list `.get`, nested `.get`, etc.) — as they surface, per the L1–L4c toolbox. | each byte-gated |
 | **R3** | Apply to a real reflecting mirror handler (e.g. `_handle_array_set_stmt`) with the A3 frame — the first state-mutating handler un-`\trusted`. | handler verifies |
@@ -103,3 +103,28 @@ this plan shows the reflection wall is **bounded** (recognizer + no-more-int, no
 Ceiling B) and lands its first piece byte-clean. Together they reduce
 "un-`\trust` a real state-mutating handler" to the enumerated R1/R2/R3 work — a
 finite, gated feature, no longer an open ceiling.
+
+
+---
+
+## 7. R1 BUILT (2026-07-01) — the reflection recognizer, byte-clean
+
+`d = node.to_dict()` is recognized (`statements._handle_assign_stmt`): the target is
+recorded in `self._todict_aliases` (→ the receiver dotted-name) and the assign emits
+NOTHING — `d` is never a real value. Every `d.get(key)` then routes to the node's
+TYPED field via `_todict_routed_ir` (`"type"` → `node.kind`; other keys → `node.<key>`),
+in BOTH `_lower_dict_get_call` (the value) and `_is_string_expr` (so the binop str-eq
+path fires). The heterogeneous `Dict[str,Any]` is **never materialized** — each key
+resolves to its own typed field.
+
+**Verified** (`src/self-annotate/todict-r1-witnesses.py`): `d = n.to_dict();
+d.get("type") == "Var"` lowers to `if (str_eq_op n.kind "Var")` and proves; multi-key
+(`d.get("type") == "Var"` / `== "Const"`) proves. **Byte-diff 0** across the 627-file
+corpus (fires only on a literal `.to_dict()`/`.get()` reflection, which no corpus
+driver has).
+
+**Status.** R1.1 ✅ · R1.2 ✅ · R2.a ✅ (str-field, PR #119). Remaining: R1.3
+(`d.get("value")` yielding a typed SUB-NODE that feeds `_expr_to_whyml` — the witness
+covers str keys; node/list-valued keys are the next slice), R2.b (no-more-int on
+routed non-str reads), R3 (a real reflecting mirror handler with the A3 frame). The
+reflection wall is now a working recognizer, not an open ceiling.
