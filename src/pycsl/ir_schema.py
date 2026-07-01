@@ -745,8 +745,8 @@ class ArrayEqExpr(ExprIR):
 
 @dataclass(frozen=True)
 class PermutationExpr(ExprIR):
-    base1: str
-    base2: str
+    left: "ExprIR"
+    right: "ExprIR"
 
 
 @dataclass(frozen=True)
@@ -1256,7 +1256,7 @@ def _expr_from_dict_inner(d: Dict[str, Any]) -> ExprIR:
     if k == "ArrayEq":
         return ArrayEqExpr(kind=k, left=_e(d.get("left")), right=_e(d.get("right")))
     if k == "Permutation":
-        return PermutationExpr(kind=k, base1=d.get("base1", ""), base2=d.get("base2", ""))
+        return PermutationExpr(kind=k, left=_e(d.get("left")), right=_e(d.get("right")))
     if k == "Sum":
         return SumExpr(kind=k, base=d.get("base", ""), lo=_e(d.get("lo")), hi=_e(d.get("hi")))
     if k == "SliceAccess":
@@ -1622,8 +1622,8 @@ def _expr_to_dict(e: ExprIR) -> Dict[str, Any]:
         out["left"] = e.left.to_dict()
         out["right"] = e.right.to_dict()
     elif isinstance(e, PermutationExpr):
-        out["base1"] = e.base1
-        out["base2"] = e.base2
+        out["left"] = e.left.to_dict()
+        out["right"] = e.right.to_dict()
     elif isinstance(e, SumExpr):
         out["base"] = e.base
         out["lo"] = e.lo.to_dict()

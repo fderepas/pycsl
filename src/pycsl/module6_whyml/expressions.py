@@ -61,6 +61,13 @@ _TYPED_EXPR_HANDLERS = {
     "_handle_ghost_copy_expr",
     "_handle_ghost_make_expr",
     # misc spec/expr handlers
+    "_handle_arrayeq_expr",
+    "_handle_permutation_expr",
+    "_handle_separated_expr",
+    "_handle_valid2d_expr",
+    "_handle_length2d_expr",
+    "_handle_slice_access_expr",
+    "_handle_arraylen_expr",
     "_handle_issorted_expr",
     "_handle_sum_node_expr",
     "_handle_ghost_copy_range_expr",
@@ -3026,17 +3033,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
     def _handle_slice_access_expr(
         self,
-        expr: Dict[str, Any],
+        node: "ExprIR",
         local_refs: Set[str],
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
     ) -> str:
-        arr = self._expr_to_whyml(expr["value"], local_refs, invariant_ctx, subst)
-        sl = expr["slice"]
+        arr = self._expr_to_whyml(node.value, local_refs, invariant_ctx, subst)
+        sl = node.slice.to_dict()
         # strings-plan Stage 2: `s[a:b]` on a string is `String.substring s a (b-a)`. Spec
         # uses the logic symbol; body bridges through `str_sub_op` (and `str_length_op` for an
         # omitted upper bound), since `String.substring`/`String.length` aren't program values.
-        if self._is_string_expr(expr["value"]):
+        if self._is_string_expr(node.value.to_dict()):
             slo = self._expr_to_whyml(sl["lower"], local_refs, invariant_ctx, subst) if sl.get("lower") else "0"
             if sl.get("upper"):
                 shi = self._expr_to_whyml(sl["upper"], local_refs, invariant_ctx, subst)
@@ -3070,7 +3077,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # caller's `requires`/invariants. Only genuinely-int sources (e.g.
         # `str_conv s` for a sliced string param) fall back to the opaque
         # `array_slice` placeholder.
-        val = expr["value"]
+        val = node.value.to_dict()
         is_array_src = False
         if val.get("type") in ("Attribute", "FieldGet"):
             if self._field_type_of(val) in ("list", "tuple", "bytes", "bytearray"):
@@ -3089,13 +3096,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
     def _handle_arraylen_expr(
         self,
-        expr: Dict[str, Any],
+        node: "ExprIR",
         local_refs: Set[str],
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
     ) -> str:
         if self._value_semantic:
-            var = expr['var']
+            var = node.var
             # 07-1705-rev4 P3/P5: `\length(a)` of a seq-modelled list — BODY context only.
             # In a pre/post-condition a seq-promoted *param* names the original `array int`
             # entry value (the body seq shadow is out of scope), so fall through to
@@ -3122,7 +3129,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                              and var not in getattr(self, "_array_locals", set()))
                      else "")
             return f"(Array.length {deref}{var})"
-        return f"{expr['var']}_len"
+        return f"{node.var}_len"
 
     def _module_binding_names(self) -> Set[str]:
         """07-1839 P2: statically-declared module-level names — the sound lower bound for
@@ -3183,43 +3190,43 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
     def _handle_separated_expr(
         self,
-        expr: Dict[str, Any],
+        node: "ExprIR",
         local_refs: Set[str],
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
     ) -> str:
         if self._value_semantic:
             return "true"
-        b1 = expr["base1"]
-        l1 = self._expr_to_whyml(expr["len1"], local_refs, invariant_ctx, subst)
-        b2 = expr["base2"]
-        l2 = self._expr_to_whyml(expr["len2"], local_refs, invariant_ctx, subst)
+        b1 = node.base1
+        l1 = self._expr_to_whyml(node.len1, local_refs, invariant_ctx, subst)
+        b2 = node.base2
+        l2 = self._expr_to_whyml(node.len2, local_refs, invariant_ctx, subst)
         return f"(separated {b1} {l1} {b2} {l2})"
 
     def _handle_length2d_expr(
         self,
-        expr: Dict[str, Any],
+        node: "ExprIR",
         local_refs: Set[str],
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
     ) -> str:
-        base = expr["base"]
-        rows = self._expr_to_whyml(expr["rows"], local_refs, invariant_ctx, subst)
-        cols = self._expr_to_whyml(expr["cols"], local_refs, invariant_ctx, subst)
+        base = node.base
+        rows = self._expr_to_whyml(node.rows, local_refs, invariant_ctx, subst)
+        cols = self._expr_to_whyml(node.cols, local_refs, invariant_ctx, subst)
         if self._value_semantic:
             return f"({base}.rows = {rows} && {base}.columns = {cols})"
         return "true"
 
     def _handle_valid2d_expr(
         self,
-        expr: Dict[str, Any],
+        node: "ExprIR",
         local_refs: Set[str],
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
     ) -> str:
-        base = expr["base"]
-        row = self._expr_to_whyml(expr["row"], local_refs, invariant_ctx, subst)
-        col = self._expr_to_whyml(expr["col"], local_refs, invariant_ctx, subst)
+        base = node.base
+        row = self._expr_to_whyml(node.row, local_refs, invariant_ctx, subst)
+        col = self._expr_to_whyml(node.col, local_refs, invariant_ctx, subst)
         if self._value_semantic:
             return f"(valid_index {base} {row} {col})"
         return "true"
@@ -3240,7 +3247,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
     def _handle_arrayeq_expr(
         self,
-        expr: Dict[str, Any],
+        node: "ExprIR",
         local_refs: Set[str],
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
@@ -3251,8 +3258,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         predicate) so the SMT solver sees the per-index goal directly and
         can E-match it against `Array.blit`/`Array.sub` content
         postconditions (the predicate layer did not auto-unfold)."""
-        a = self._expr_to_whyml(expr["left"], local_refs, invariant_ctx, subst)
-        b = self._expr_to_whyml(expr["right"], local_refs, invariant_ctx, subst)
+        a = self._expr_to_whyml(node.left, local_refs, invariant_ctx, subst)
+        b = self._expr_to_whyml(node.right, local_refs, invariant_ctx, subst)
         if self._value_semantic:
             return (f"((Array.length {a} = Array.length {b}) /\\ "
                     f"(forall _ae : int. 0 <= _ae /\\ _ae < Array.length {a} "
@@ -3261,7 +3268,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
     def _handle_permutation_expr(
         self,
-        expr: Dict[str, Any],
+        node: "ExprIR",
         local_refs: Set[str],
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
@@ -3272,8 +3279,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         NOT unfolded — a proof-assistant-imported axiom (`#@ proof`, stage 4) is
         what constrains `permut`. Here the operator is just plumbed: a spec-only
         relation over two `array int` values."""
-        a = self._expr_to_whyml(expr["left"], local_refs, invariant_ctx, subst)
-        b = self._expr_to_whyml(expr["right"], local_refs, invariant_ctx, subst)
+        a = self._expr_to_whyml(node.left, local_refs, invariant_ctx, subst)
+        b = self._expr_to_whyml(node.right, local_refs, invariant_ctx, subst)
         if self._value_semantic:
             self._add_abstract_op("predicate permut (a: array int) (b: array int)")
             return f"(permut {a} {b})"
@@ -3469,13 +3476,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     _tl = self._expr_to_whyml(tt, local_refs, invariant_ctx, subst)
                     trig = f" [{self._strip_outer_parens(_tl)}]"
             self._pop_quant_binder(expr.get("var"), saved)
-            return f"(forall {expr['var']} : {bty}{trig}. {body})"
+            return f"(forall {node.var} : {bty}{trig}. {body})"
         if isinstance(node, ExistsExpr):
             bty = self._quant_binder_whyml(expr.get("binder_type"))
             saved = self._push_quant_binder(expr.get("var"), expr.get("binder_type"))
             body = self._expr_to_whyml(expr['body'], local_refs, invariant_ctx, subst)
             self._pop_quant_binder(expr.get("var"), saved)
-            return f"(exists {expr['var']} : {bty}. {body})"
+            return f"(exists {node.var} : {bty}. {body})"
         if isinstance(node, ForallItemsExpr):
             # 07-1311 Q3: `\forall k, v in d.items(); P` → over the map+option model,
             # `forall k. match Map.get d k with Some v -> P | None -> true end`. The value
