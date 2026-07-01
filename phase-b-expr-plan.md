@@ -1,5 +1,43 @@
 # phase-b-expr-plan.md — Migrate the expression subsystem to typed `ExprIR`
 
+> **✅ STATUS: COMPLETE as scoped (2026-07-01).** All **62** expression handlers
+> take a typed `ExprIR` node; `expr_from_dict` is class-faithful for every typed
+> kind; the emitter is **byte-identical** across the 627-file corpus at every one
+> of ~16 gated steps, with full proof re-confirmed throughout. Live execution log:
+> **§10–§17**; final state: **§16–§17**.
+>
+> **Key findings — some SUPERSEDE the original §1–§2 framing below (read those as
+> historical):**
+> 1. **The §2 "E1 shim" recipe was wrong.** A `dict→ExprIR` shim at the entry
+>    would break all 119 dispatch branches at once. The technique that actually
+>    worked is a *typed-fast-path + legacy-fallback split* (`node = expr_from_dict`
+>    once, typed fast-paths for converted kinds, `node.to_dict()` fallback for the
+>    rest), migrated kind-by-kind, byte-gated. See **§11**.
+> 2. **The fidelity gap was far larger than the plan assumed** — not a clean
+>    Phase-A payoff. **13** `ExprIR` classes had fields that did not match
+>    Module 5's wire shape and silently fell back to `OpaqueExpr` (an 8-kind batch,
+>    DictLit/ListComp/SetComp/DictComp, IsSorted/Sum, GhostCopyRange, Permutation,
+>    and `CallExpr.receiver`). The byte-diff gate + a new class-preservation test
+>    caught each; all were triple-fixed (class + inner + serializer) and are now
+>    regression-guarded. See **§11, §13, §15, §16**.
+> 3. **The §1 goal "final signature `_expr_to_whyml(expr: ExprIR)`" was measured
+>    and deliberately dropped.** Instrumenting the entry over the full sweep showed
+>    `_expr_to_whyml` is called with a dict from **~30 functions**, including the
+>    entire **contract/spec subsystem** (`contract_expr`, never touched by Phase
+>    A/B) plus type-decl / witness / global emission. The dict-normalization is a
+>    legitimate **wire↔typed boundary**, not a removable remainder; the signature
+>    is honestly `Union[Dict[str, Any], ExprIR]`. See **§17**.
+> 4. **Effort split held.** Types + dispatch + fidelity were tractable and fully
+>    byte-gated; the deep *bodies* of the complex handlers (binop/subscript/…) stay
+>    dict-based by design (`expr = node.to_dict()` at the top) — fully typing them
+>    yields **no** output or verification change and is off the critical path. §16.
+>
+> **What this unblocked (unchanged intent):** the compositional emitter handlers are
+> no longer gated on the expression subsystem being dict-typed — the
+> `semantic-ceiling-plan.md` WI-C1/C4 prerequisite is satisfied. The residual
+> body-faithful work still separately needs A2 (string-op models) + A3
+> (transpiler-state record); typing the expr subsystem was necessary, not sufficient.
+
 > **Purpose.** Migrate Module 6's expression consumers (`_expr_to_whyml` and its
 > ~30 helpers) from `Dict[str, Any]` to the typed `ExprIR` sums — the exact
 > analogue of Phase B for statements. This is the **true Wave-1 prerequisite**
@@ -43,6 +81,11 @@ statable. It is the same kind of change that succeeded for statements (Phase B:
 
 ## 1. Objective & success criterion
 
+> ⚠️ **Historical.** The success line below ("no `Dict[str, Any]` expression
+> signature; `_expr_to_whyml(expr: ExprIR)`") was **revised** — see the top-of-file
+> findings and **§17**: `_expr_to_whyml` legitimately stays a `Union` wire↔typed
+> boundary. Everything else in the objective was achieved.
+
 **Objective.** `_expr_to_whyml` and its expression-consumer helpers take **typed
 `ExprIR`** and dispatch by `isinstance` on the 85 `ExprIR` constructors; all 169
 call sites pass `ExprIR`; the `expr["type"]` string switch is gone; the emitted
@@ -57,6 +100,11 @@ across the full sweep; round-trip test still green.
 ---
 
 ## 2. Strategy — dual-representation, convert-at-boundary (mirror Phase B)
+
+> ⚠️ **Historical.** The **E1 shim** step below (dict→ExprIR at entry) does NOT
+> allow incremental migration (it breaks all 119 branches at once). The technique
+> that worked is the *typed-fast-path + legacy-fallback split* — see the top-of-file
+> findings and **§11**.
 
 Phase B's safe pattern: convert the wire dict to a sum **once at the entry**
 (`stmt_from_dict`), then dispatch by `isinstance`, keeping the emitted string
