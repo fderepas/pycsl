@@ -844,6 +844,19 @@ class FunctionEmissionMixin:
                                       func_exceptions, func_is_noreturn)
         self._emitting_val_contract = False
 
+        # mutable-self-plan.md M.4: a method of a `@mutable_state` class emits its
+        # `#@ assigns self.x` (from `_module_method_writes`) as a WhyML `writes { … }`
+        # clause on the CONCRETE `let` — so Why3 CHECKS the frame against the body (a
+        # wrong or `\nothing` assigns on a mutating body FAILS: the soundness fix).
+        # `writes { }` is valid Why3 and rejects any unlisted write. Opt-in via the
+        # class decorator → byte-identical for every unmarked class.
+        if (is_method and not emit_as_val
+                and self._current_self_type in getattr(self, "_mutable_state_classes", set())):
+            _wf = self._module_method_writes.get(func["name"], [])
+            _wc = ", ".join(f"self.{self._field_label(self._current_self_type, f)}"
+                            for f in _wf)
+            lines.append(f"    writes {{ {_wc} }}")
+
         if emit_as_val:
             lines.append("")
             return lines

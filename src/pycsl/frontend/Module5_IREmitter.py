@@ -1635,6 +1635,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             field_defaults[fname] = 0
         self.program_ir["type_decls"].append({
             "kind": "record", "name": node.name, "fields": fields,
+            "mutable_state": self._is_mutable_state_decorated(node),
             "class_invariants": [], "field_defaults": field_defaults,
             "has_hash": False, "has_eq": False, "is_unhashable": False,
             "constants": {}, "bases": [],
@@ -1810,6 +1811,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                               "value": {"type": "Var", "name": fname}})
         self.program_ir["type_decls"].append({
             "kind": "record", "name": node.name, "fields": fields,
+            "mutable_state": self._is_mutable_state_decorated(node),
             "class_invariants": [], "field_defaults": field_defaults,
             "has_hash": False, "has_eq": False, "is_unhashable": False,
             "constants": {}, "bases": [],
@@ -2106,6 +2108,21 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return False
 
     @staticmethod
+    def _is_mutable_state_decorated(node: ast.ClassDef) -> bool:
+        """mutable-self-plan.md M.2: True if `node` carries the `@mutable_state`
+        decorator — the opt-in marker for CHECKED-`assigns` shared mutable state.
+        A method of such a class emits its `#@ assigns self.x` as a WhyML `writes`
+        clause on the concrete `let` (M.4), so Why3 checks the frame (non-vacuity).
+        Absent on every existing class → byte-identical."""
+        for dec in node.decorator_list:
+            target = dec.func if isinstance(dec, ast.Call) else dec
+            if isinstance(target, ast.Name) and target.id == "mutable_state":
+                return True
+            if isinstance(target, ast.Attribute) and target.attr == "mutable_state":
+                return True
+        return False
+
+    @staticmethod
     def _array_init_size(rhs: ast.expr) -> Optional[int]:
         """Literal initial LENGTH of an array/list-valued RHS, else None.
         Recognises `bytearray(N)` / `list([0]*N)`-style calls, `[v] * N` /
@@ -2274,6 +2291,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             init_ensures = self._collect_init_ensures(node)
             self.program_ir["type_decls"].append({
                 "kind": "record", "name": node.name, "fields": fields,
+            "mutable_state": self._is_mutable_state_decorated(node),
+                "mutable_state": self._is_mutable_state_decorated(node),
                 "class_invariants": class_invariants_ir, "field_defaults": field_witness,
                 "has_hash": has_hash, "has_eq": has_eq,
                 "is_unhashable": has_eq and not has_hash,
