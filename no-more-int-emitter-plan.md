@@ -33,8 +33,8 @@ all of these:
 | **L3** | **F-string result locals** — a local assigned an all-string f-string is typed `string` (fixpoint recognizer). The literals already lower as WhyML strings once all parts are string (b14 B2 + L2/L2b). | ✅ **DONE, byte-clean** (§3) |
 | **L4** | **String-`+` / concat self-call resolution** — `_is_string_expr` resolves a `self.<m>(…)` str-returning sibling, so `code += ";\n" + self._stmts_to_whyml(…)` routes to `str_concat_op`. | ✅ **DONE, byte-clean** (§4) |
 | **L4b** | **Imported-stub param types** — Module5 preserves `param_annotations` (survives injection like `return_annotation`); the emitter merges them for `Any` params. `val whyml_ident (name: string)`. | ✅ **DONE, byte-clean** (§5) |
-| **L4c** | **Remaining int-leaks in the leaf body** — list-truthiness (`if rest:` → `rest <> 0` on an `array int`); `.to_dict()` receiver loss (`stmt_index_to_dict_0 ()`); each a distinct no-more-int fix. | ◻ (chain) |
-| **L5** | **Close B1.4** — the leaf verifies body-faithful (`ensures \result == …`) once L1–L4 land; then scale to more handlers. | ◻ |
+| **L4c** | **List-truthiness** — `if rest:` (a `List` param) lowers to `Array.length rest <> 0` (was the ill-typed `rest <> 0`). | ✅ **DONE, byte-clean** (§6) |
+| **L5** | **Close B1.4** — the leaf `_handle_ghost_array_set_stmt` is un-`\trusted` and VERIFIES (type-safe body + `assigns \nothing` frame). First non-stub `_handle_*`. | ✅ **DONE** (§6) |
 
 Dependency: L2 needs L1; L5 needs L1–L4. L3/L4 are independent. A method that
 also does string *content* ops (`.replace`/`.split`) additionally needs
@@ -176,3 +176,36 @@ Each is a distinct, byte-diff-sensitive no-more-int layer. **Closing one leaf is
 multi-layer chain** — the no-more-int doctrine's "long-term / EXTREME RIGOR" is
 literal here. Landed so far: B1.4 field-access + L1/L2/L2b/L3/L4/L4b (7 byte-clean
 layers). L5 (leaf verifies) remains gated on the L4c chain.
+
+
+---
+
+## 6. L4c + L5 — list-truthiness, and the FIRST un-\trusted emitter handler (DONE)
+
+**L4c.** `if rest:` (a `List[...]` param, lowered to `array int`) emitted the
+ill-typed `rest <> 0` (an array vs int). `_to_bool` now lowers a list/array-typed
+var to `Array.length rest <> 0` — the faithful Python list-truthiness — keyed on
+the same signals that type it `array int` (`_current_array1d_params` or a
+`list`/`bytes`/`bytearray` symbol type). Byte-diff 0 (a corpus `if <array_var>:`
+would otherwise have emitted the ill-typed `<> 0`, so none exists to change).
+
+**L5 — the milestone.** With B1.4 (field access) + L1/L2/L2b/L3/L4/L4b/L4c, the
+leaf **`_handle_ghost_array_set_stmt`** now verifies with a **checked (non-stub)
+body**: it is no longer `\trusted`, its body type-checks end-to-end (typed
+imported-record field, string locals, string concat, param types, list
+truthiness) and its `assigns \nothing` frame is PROVEN. `statements.py` PASSES the
+self-annotation suite with the handler un-`\trusted`. **This is the first
+`_handle_*` emitter method removed from the trusted base** — the body-faithful
+track, blocked for the entire project history, has its first verified emitter body.
+
+### Honest scope of L5
+The contract proven is `requires True / ensures True / assigns \nothing` on a
+**checked** body — i.e. **type-safety + frame**, not yet the value-faithful
+`ensures \result == <the exact WhyML string>`. That last step needs the string
+VALUES of the trusted siblings (`_expr_to_whyml`/`_stmts_to_whyml`) modelled (the
+B3 boundary), a separate effort. But the handler is no longer a black-box stub:
+its body is verified, and the trusted surface shrank by one real method — the
+proof-of-concept the whole b1→no-more-int arc was after.
+
+**Landed this arc:** B1.1–B1.3 (type resolution) + B1.4 field-access + L1/L2/L2b/
+L3/L4/L4b/L4c (9 byte-clean layers) → **L5: first un-\trusted emitter handler.**
