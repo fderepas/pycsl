@@ -391,7 +391,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # the M.7 `.add` write (`self.f <- map_update_some … (str_hash_op k) …`), so
             # `field in self._all_record_fields` typechecks. Fires only when the key is a
             # string expr (an int key keeps the `_coerce_to_int` path) → byte-identical.
-            if not self._in_spec and self._is_string_expr(expr.get("left", {})):
+            # A STRING key into an int-keyed map (a `Set[str]` field, OR a body dict
+            # `map _ (option int)`) is `str_hash_op`-hashed — the read-side analogue of the
+            # M.7 `.add`. The subscript `d[k]` hashes the same way (`_lower_dict_get_call`),
+            # so membership and subscript agree on the key type. Byte-identical (an int key
+            # keeps `_coerce_to_int`). typed-ir-for-b-ceiling.md §9.
+            _left_ir = expr.get("left", {})
+            _str_keyed_lit = getattr(self, "_dict_key_types", {}).get(
+                rhs.get("name", "") if rhs.get("type") == "Var" else "") == "string"
+            if not self._in_spec and self._is_string_expr(_left_ir) and not _str_keyed_lit:
                 self._add_abstract_op("val str_hash_op (s: string) : int")
                 left_c = f"(str_hash_op {left})"
             else:
@@ -461,6 +469,33 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         "RawWhyml": ("IrRaw", ["whyml"]),
     }
 
+    def _is_emit_ir_expr(self, ir: Any) -> bool:
+        """typed-ir-for-b-ceiling.md B-C2: True if `ir` lowers to the `emit_ir` sum — an
+        inline `{"type": K}` construction, an ExprIR-valued record field read
+        (`stmt.upper`), or an ExprIR-typed Var (param/local). Used to type `x is None`
+        and other emit_ir-vs-int decisions. Gated by the ExprIR annotation tags."""
+        if not isinstance(ir, dict):
+            return False
+        t = ir.get("type")
+        if t == "DictLit":
+            for k in ir.get("keys", []):
+                if isinstance(k, dict) and k.get("type") == "String" and k.get("value") == "type":
+                    return True
+            return False
+        if t in ("Attribute", "FieldGet"):
+            obj = ir.get("object", {})
+            if isinstance(obj, dict) and obj.get("type") == "Var":
+                rec = getattr(self, "_current_symbol_table", {}).get(obj.get("name", ""))
+                rt = getattr(self, "_record_types", {}).get(rec)
+                if rt:
+                    ft = rt.get("field_types", {}).get(ir.get("attr", ""))
+                    return ft in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR", "emit_ir")
+            return False
+        if t == "Var":
+            return getattr(self, "_current_symbol_table", {}).get(ir.get("name", "")) in (
+                "ExprIR", "StmtIR", "IRNode", "ContractExprIR")
+        return False
+
     def _lower_irnode_construction(self, expr: Dict[str, Any], local_refs: Set[str],
                                    invariant_ctx: bool,
                                    subst: Optional[Dict[str, str]]) -> Optional[str]:
@@ -523,6 +558,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     if isinstance(_kir, dict) and _kir.get("type") == "String":
                         return self._is_string_expr(
                             self._todict_routed_ir(_al, _kir.get("value")))
+                # typed-ir-for-b-ceiling.md B-C3: `<emit_ir>.get("type"|"name"|"attr"|
+                # "value")` projects to `kind_of`/`name_of`/`value_of` — all `string` —
+                # so `node.get("type") == "Var"` routes through `str_eq_op`, not an int
+                # hash. (`"object"` is emit_ir, not string → not matched here.)
+                _rn = _fn[:-len(".get")]
+                if self._is_emit_ir_expr({"type": "Var", "name": _rn}):
+                    _kir = (ir.get("args") or [{}])[0]
+                    if (isinstance(_kir, dict) and _kir.get("type") == "String"
+                            and _kir.get("value") in ("type", "name", "attr", "value")):
+                        return True
         if t == "String" or t in ("StrConcat", "StrSub"):
             return True
         if t == "Var":
@@ -666,6 +711,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                               invariant_ctx, subst)
                 chk = f"({var_str} = {union_ctor})"
                 return chk if raw_op == "==" else f"(not {chk})"
+            # typed-ir-for-b-ceiling.md B-C2: `x is None` on an `emit_ir`-typed operand
+            # (an `Optional[ExprIR]` field, e.g. `stmt.upper`) can't lower to `x = 0`
+            # (emit_ir <> int). We model the optional as always-present — `is None` →
+            # `false`, `is not None` → `true` — a SOUND simplification for the
+            # type-safety+frame contracts we prove here (both `if` arms still type-check;
+            # the arms write only locals, never self-fields, so the frame holds in both).
+            # The faithful `option emit_ir` (a real `Some/None` match) is the follow-on
+            # when a value-faithful `ensures` over an optional sub-node is needed. §9.
+            _nn = expr["right"] if expr["left"].get("type") == "None" else expr["left"]
+            if self._is_emit_ir_expr(_nn):
+                return "false" if raw_op == "==" else "true"
         op = op_translate(raw_op)
         # no-more-int Stage D: float arithmetic/comparison is over Why3 `real` (RealInfix
         # `+.`/`-.`/`*.`/`/.`/`<.`/…), not int. Both operands must be float; a mixed float/int
@@ -1646,6 +1702,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                           invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
         expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
         func_name = expr["func"]
+        # typed-ir-for-b-ceiling.md B-C2: an INLINE `<node>.to_dict()` (no args) in a
+        # @mutable_state method is IDENTITY on the typed IR — the node already IS its
+        # `emit_ir` value — so lower to the receiver (the BOUND form is R1's alias).
+        if (isinstance(func_name, str) and func_name.endswith(".to_dict")
+                and not expr.get("args")
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            _recv = func_name[:-len(".to_dict")]
+            _parts = _recv.split(".")
+            _rir = {"type": "Var", "name": _parts[0]}
+            for _p in _parts[1:]:
+                _rir = {"type": "Attribute", "object": _rir, "attr": _p}
+            return self._expr_to_whyml(_rir, local_refs, invariant_ctx, subst)
         # A3 (bounded itertools): resolve `len(list(chain(…)))` / `len(chain(…))`
         # to a sum of `Array.length` BEFORE lowering the inner args, so the
         # opaque `chain_*`/`list_new` abstract ops are never emitted.
@@ -2335,6 +2404,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return self._expr_to_whyml(
                     self._todict_routed_ir(_recv_dotted, _kir.get("value")),
                     local_refs or set(), invariant_ctx, subst)
+        # typed-ir-for-b-ceiling.md B-C3: reflection over an `emit_ir`-typed receiver —
+        # `node.get("type")` → `(kind_of node)`, `"name"`/`"attr"` → `(name_of node)`,
+        # `"value"` → `(value_of node)`, `"object"` → `(object_of node)`. A total
+        # projection over the sum, not a map read. Fires only when `recv` is emit_ir
+        # (a param/local ExprIR); gated by the ExprIR tags → byte-identical.
+        _recv_ir = {"type": "Var", "name": recv}
+        if self._is_emit_ir_expr(_recv_ir):
+            _kir = (expr.get("args") or [{}])[0]
+            if isinstance(_kir, dict) and _kir.get("type") == "String":
+                _proj = {"type": "kind_of", "name": "name_of", "attr": "name_of",
+                         "value": "value_of", "object": "object_of"}.get(_kir.get("value"))
+                if _proj:
+                    _rv = self._expr_to_whyml(_recv_ir, local_refs or set(),
+                                              invariant_ctx, subst)
+                    return f"({_proj} {_rv})"
         symtab = getattr(self, "_current_symbol_table", {}) or {}
         recv_symtype = symtab.get(recv)
         is_dict = (recv_symtype == "dict"
@@ -2862,6 +2946,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # the ambient default otherwise.
                 if getattr(self, "_dict_key_types", {}).get(dvar) == "string":
                     k = index
+                elif (not self._in_spec
+                      and self._is_string_expr((expr.get("slice") or expr.get("index") or {}))):
+                    # typed-ir-for-b-ceiling.md §9: a STRING key into an int-keyed body
+                    # dict (`bitwise_ops = {"&": "bit_and", …}` → `map _ (option int)`) is
+                    # `str_hash_op`-hashed — the SAME as the `in`-membership above, so both
+                    # agree on the key type. Byte-identical (int key keeps `_coerce_to_int`).
+                    self._add_abstract_op("val str_hash_op (s: string) : int")
+                    k = f"(str_hash_op {index})"
                 else:
                     k = self._coerce_to_int(index)
                 # The missing-key placeholder is typed per ν (consolidated).

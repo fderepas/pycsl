@@ -106,7 +106,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _is_string_expr(self, ir: int) -> bool:
+    def _is_string_expr(self, ir: "ExprIR") -> bool:
         return False
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -557,14 +557,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _expr_to_whyml(self, expr: int, local_refs: int, invariant_ctx: bool=False, subst: int=None) -> str:
+    def _expr_to_whyml(self, expr: "ExprIR", local_refs: int, invariant_ctx: bool=False, subst: int=None) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _expr_to_whyml_string_ctx(self, ir: int, local_refs: int) -> str:
+    def _expr_to_whyml_string_ctx(self, ir: "ExprIR", local_refs: int) -> str:
         return ""
 
 

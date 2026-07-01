@@ -456,16 +456,14 @@ class Module6_WhyMLTranspiler(
             # the whole existing corpus, so emission stays byte-identical there.
             out += self._emit_class_inv_axioms(self.ir)
 
-        type_lines, declared_types = self._emit_type_decls(type_decls)
-        out += type_lines
-
-        # typed-ir-for-b-ceiling.md B-C1: emit the `exprir` ADT + reflection
-        # projections when the module has a @mutable_state class (the emitter model).
-        # The 627-file corpus has NO @mutable_state class, so this is byte-identical
-        # there; only the self-annotation mirror gets the theory. Placed after the
-        # record types (projections may name them) and before the abstract-val block.
+        # typed-ir-for-b-ceiling.md B-C1/B-C2: the `emit_ir` ADT + projections BEFORE
+        # the record types — an ExprIR-valued field names `emit_ir`, so the ADT must be
+        # in scope first. Gated on a @mutable_state class; corpus has none → byte-identical.
         if getattr(self, "_mutable_state_classes", None):
             out += self._emit_exprir_theory()
+
+        type_lines, declared_types = self._emit_type_decls(type_decls)
+        out += type_lines
 
         # inductive.md: `#@ inductive` predicates emit AFTER datatypes (their rules
         # reference constructors) and BEFORE axioms/functions (which may mention the

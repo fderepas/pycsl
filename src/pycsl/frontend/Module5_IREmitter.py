@@ -1405,6 +1405,30 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # --- 3. Main Traversal Hooks ---
 
     @staticmethod
+    @staticmethod
+    def _irnode_ann_name(annotation):
+        """typed-ir-for-b-ceiling.md B-C2: the IR-node type name if `annotation` is
+        `ExprIR`/`StmtIR`/`IRNode`/`ContractExprIR` — bare Name, forward-ref string, or
+        `Optional[...]`-wrapped — else None. `emit_ir` is total, so `Optional[ExprIR]`
+        maps to the same field/param type."""
+        # Duck-type on `type(node).__name__`, NOT `isinstance(_, ast.Constant)`: the
+        # frontend's AST nodes can come from a different `ast` module object than a local
+        # `import ast`, so isinstance spuriously returns False (observed in practice).
+        a = annotation
+        if a is None:
+            return None
+        if type(a).__name__ == "Subscript" and type(getattr(a, "value", None)).__name__ == "Name" \
+                and getattr(a.value, "id", None) == "Optional":
+            a = getattr(a, "slice", a)
+        tn = type(a).__name__
+        if tn == "Constant" and isinstance(getattr(a, "value", None), str):
+            nm = a.value
+        elif tn == "Name":
+            nm = getattr(a, "id", None)
+        else:
+            nm = None
+        return nm if nm in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR") else None
+
     def _field_type_from_annotation(annotation: Optional[ast.expr]) -> str:
         """Lower a Python type annotation to the IR field-type tag.
 
@@ -1461,6 +1485,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         annotations), else falls back to the static legacy resolution. For
         non-Final/non-Union annotations, byte-identical."""
         if annotation is not None:
+            if self._irnode_ann_name(annotation) is not None:
+                return "ExprIR"          # typed-ir-for-b-ceiling.md B-C2 (field)
             try:
                 fin_tag = self._normalize_final_annotation(annotation)
                 if fin_tag is not None:
@@ -2885,6 +2911,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # non-Final annotations (byte-identical fall-through). A Final
         # recognition bug MUST NOT perturb a non-Final driver — fall back to the
         # legacy path (byte-identical) on any non-PyCSLIRError exception.
+        if self._irnode_ann_name(annotation) is not None:
+            return "ExprIR"              # typed-ir-for-b-ceiling.md B-C2 (param)
         try:
             fin_tag = self._normalize_final_annotation(annotation)
             if fin_tag is not None:
