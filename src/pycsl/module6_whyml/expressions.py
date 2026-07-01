@@ -21,6 +21,8 @@ _TYPED_EXPR_HANDLERS = {
     "_handle_unaryop_expr",
     "_handle_old_expr",
     "_handle_at_expr",
+    "_handle_named_expr_expr",
+    "_handle_ifexpr_expr",
 }
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
@@ -2947,28 +2949,30 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
     def _handle_ifexpr_expr(
         self,
-        expr: Dict[str, Any],
+        node: "IfExprExpr",
         local_refs: Set[str],
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
     ) -> str:
-        test = self._expr_to_whyml(expr["test"], local_refs, invariant_ctx, subst)
-        test = self._to_bool(test, expr["test"])
-        body = self._expr_to_whyml(expr["body"], local_refs, invariant_ctx, subst)
-        orelse = self._expr_to_whyml(expr["orelse"], local_refs, invariant_ctx, subst)
+        # Phase-B-expr: typed. IfExprExpr (test, body, orelse: ExprIR).
+        test = self._expr_to_whyml(node.test, local_refs, invariant_ctx, subst)
+        test = self._to_bool(test, node.test.to_dict())
+        body = self._expr_to_whyml(node.body, local_refs, invariant_ctx, subst)
+        orelse = self._expr_to_whyml(node.orelse, local_refs, invariant_ctx, subst)
         body = self._coerce_to_int(body)
         orelse = self._coerce_to_int(orelse)
         return f"(if {test} then {body} else {orelse})"
 
     def _handle_named_expr_expr(
         self,
-        expr: Dict[str, Any],
+        node: "NamedExprExpr",
         local_refs: Set[str],
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
     ) -> str:
-        target = whyml_ident(expr["target"])
-        v = self._expr_to_whyml(expr["value"], local_refs, invariant_ctx, subst)
+        # Phase-B-expr: typed. NamedExprExpr (target: str, value: ExprIR).
+        target = whyml_ident(node.target)
+        v = self._expr_to_whyml(node.value, local_refs, invariant_ctx, subst)
         if target in local_refs:
             return f"(begin {target} := {v}; !{target} end)"
         local_refs.add(target)
