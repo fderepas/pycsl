@@ -262,3 +262,54 @@ The migration is **de-risked and started** on solid footing (round-trip identity
 proven, shim byte-clean, boundary call sites typed), but the 119-branch internal
 rewrite is a supervised effort, not an unattended one. No broken state was landed;
 everything committed is byte-identical and fully verifying.
+
+---
+
+## 11. EXECUTION UPDATE (2026-07-01, cont'd) — E2–E6b done byte-clean; a Phase-A schema gap surfaced
+
+Ground through the internal typed dispatch with byte-diff gates between every
+batch (~41s/sweep). **17 of the ~22 explicit `_expr_to_whyml` kinds now dispatch
+by `isinstance`**, all byte-clean:
+
+- **E2 (leaves):** Number, RawWhyml, String, Result, None, Bool — typed
+  fast-paths (bodies read `node.value`/`node.whyml`).
+- **E3a:** UnknownPyExpr, Slice, OldField, Starred, Tuple — typed fast-paths.
+- **E6b:** ArrayLit, Forall, Exists, MapValueIs, Var, FieldGet — `isinstance`
+  dispatch, bodies unchanged (they use `expr = node.to_dict()` at the fallback
+  boundary). Byte-diff 0; full verification (proof+typecheck) re-confirmed
+  (0001/0100/0242/0243/0345/0510 → SUCCESS).
+
+**Technique that worked** (supersedes the plan's E1 shim, which would have broken
+all branches at once): a *typed-dispatcher + legacy-fallback split* —
+`node = expr_from_dict(expr)` once, typed fast-paths for converted kinds, then
+`expr = node.to_dict()` + the original dict body for un-converted kinds. Each
+kind moves from legacy to typed independently, byte-gated. Perf is fine
+(the per-call `expr_from_dict` did not regress the sweep).
+
+### The blocker the gate surfaced: Phase-A `expr_from_dict` is LOSSY for several kinds
+Converting a first all-at-once batch produced a byte-diff (caught by the gate).
+Root cause: `expr_from_dict` returns **`OpaqueExpr`** (not the typed class) for
+kinds whose `ir_schema` fields don't match Module 5's emitted IR shape, so
+`isinstance(node, XExpr)` is `False` and the branch is skipped. Measured lossy
+kinds: **ForallItems, DictLit, ListComp, SetComp, DictComp** (and, by the same
+mechanism, likely many of the ~50 `_EXPR_DISPATCH` table kinds:
+BinOp/Call/Subscript/…). These were left string-dispatched.
+
+### Remaining work (now precisely scoped)
+1. **Fix the Phase-A schema gap** — make `expr_from_dict` produce the typed class
+   (not `OpaqueExpr`) for the lossy kinds by aligning `ir_schema`'s field names
+   with Module 5's emission (extend the round-trip test to assert *class*
+   preservation, not just dict round-trip). **This is the true prerequisite for
+   completing the migration** — the internal dispatch cannot be typed for a kind
+   whose `expr_from_dict` is lossy.
+2. **Convert the `_EXPR_DISPATCH` table** (~50 kinds) to typed dispatch once (1)
+   lands — a class-keyed table + per-handler `ExprIR` migration.
+3. **Migrate the ~30 helper signatures** and **delete the dead legacy leaf
+   branches**; then drop `t = expr["type"]` and finalize `_expr_to_whyml(expr: ExprIR)`.
+
+### Net
+The internal typed dispatch is **~17 kinds done, byte-clean and fully verifying**,
+with the split technique validated. The path to completion is now gated not by
+effort alone but by a **Phase-A schema-fidelity fix** (`expr_from_dict` →
+`OpaqueExpr` for several kinds) that must precede typing those kinds. That fix is
+the recommended next lever; it is itself byte-diff-gatable and not ceiling-blocked.

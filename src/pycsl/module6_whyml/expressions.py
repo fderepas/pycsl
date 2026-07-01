@@ -3,6 +3,12 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from module6_whyml.identifiers import op_translate, whyml_ident, stable_hash, whyml_string_literal
+from ir_schema import (
+    expr_from_dict,
+    NumberExpr, StringExpr, ResultExpr, NoneExpr, RawWhymlExpr, BoolExpr,
+    UnknownPyExprExpr, SliceExpr, OldFieldExpr, StarredExpr, TupleExpr,
+    ArrayLitExpr, ForallExpr, ExistsExpr, MapValueIsExpr, VarExpr, FieldGetExpr,
+)
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
 from module6_whyml.expr_ghost_spec_ops import GhostSpecOpsMixin
@@ -3263,12 +3269,46 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         """Recursively translates an expression dictionary into a WhyML string.
         When invariant_ctx is True, FieldGet emits bare field names (for record invariants).
         subst: optional name substitution dict applied before local_refs lookup (e.g. for-loop vars)."""
-        # Phase-B-expr: accept a typed ExprIR (Phase-A sum) as well as the legacy
-        # wire dict. Normalizing to the dict view here keeps the body byte-identical
-        # during the incremental migration; callers may pass either representation.
-        if expr and not isinstance(expr, dict):
-            expr = expr.to_dict()
+        # Phase-B-expr: accept a typed ExprIR (Phase-A sum) or the legacy wire
+        # dict. Normalize to a typed node once; converted kinds dispatch by
+        # isinstance below; un-converted kinds fall through to the legacy dict
+        # body (`node.to_dict()`). Byte-identical at every kind conversion.
         if not expr: return ""
+        node = expr_from_dict(expr) if isinstance(expr, dict) else expr
+        # --- typed fast-paths (E2: leaf kinds) ---
+        if isinstance(node, NumberExpr):
+            v = node.value
+            if isinstance(v, float) and not float(v).is_integer():
+                return repr(v)
+            if isinstance(v, float):
+                return f"{int(v)}.0"
+            return str(int(v))
+        if isinstance(node, RawWhymlExpr):
+            return node.whyml
+        if isinstance(node, StringExpr):
+            return whyml_string_literal(node.value)
+        if isinstance(node, ResultExpr):
+            return getattr(self, "_result_alias", None) or "result"
+        if isinstance(node, NoneExpr):
+            return "0"
+        if isinstance(node, BoolExpr):
+            if self._in_spec: return "true" if node.value else "false"
+            return "1" if node.value else "0"
+        if isinstance(node, UnknownPyExprExpr):
+            return "0"
+        if isinstance(node, SliceExpr):
+            return "0"
+        if isinstance(node, OldFieldExpr):
+            _of_rec = (self._current_self_type if node.object == "self"
+                       else (getattr(self, "_current_record_var_classes", {}).get(node.object, "") or "").lower() or None)
+            return f"(old {node.object}.{self._field_label(_of_rec, node.field)})"
+        if isinstance(node, StarredExpr):
+            return self._expr_to_whyml(node.value, local_refs, invariant_ctx, subst)
+        if isinstance(node, TupleExpr):
+            elts = [self._expr_to_whyml(e, local_refs, invariant_ctx, subst) for e in node.elts]
+            return f"({', '.join(elts)})"
+        # --- legacy dict body (un-converted kinds) ---
+        expr = node.to_dict()
         t = expr["type"]
 
         # Simple literals and trivial 1-3-line branches — kept inline
@@ -3294,7 +3334,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return whyml_string_literal(expr["value"])
         if t == "Result":   return getattr(self, "_result_alias", None) or "result"
         if t == "None":     return "0"
-        if t == "ArrayLit":
+        if isinstance(node, ArrayLitExpr):
             elts = expr.get("elts", [])
             # 07-0903 W1 (no-more-int): a list/array of tuples lowers to a faithful
             # `array (t0, …)` — each element is a Why3 tuple, NOT collapsed to an int.
@@ -3345,7 +3385,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if t == "Tuple":
             elts = [self._expr_to_whyml(e, local_refs, invariant_ctx, subst) for e in expr.get("elts", [])]
             return f"({', '.join(elts)})"
-        if t == "Forall":
+        if isinstance(node, ForallExpr):
             bty = self._quant_binder_whyml(expr.get("binder_type"))
             saved = self._push_quant_binder(expr.get("var"), expr.get("binder_type"))
             body = self._expr_to_whyml(expr['body'], local_refs, invariant_ctx, subst)
@@ -3362,7 +3402,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     trig = f" [{self._strip_outer_parens(_tl)}]"
             self._pop_quant_binder(expr.get("var"), saved)
             return f"(forall {expr['var']} : {bty}{trig}. {body})"
-        if t == "Exists":
+        if isinstance(node, ExistsExpr):
             bty = self._quant_binder_whyml(expr.get("binder_type"))
             saved = self._push_quant_binder(expr.get("var"), expr.get("binder_type"))
             body = self._expr_to_whyml(expr['body'], local_refs, invariant_ctx, subst)
@@ -3377,7 +3417,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             body = self._expr_to_whyml(expr["body"], local_refs, invariant_ctx, subst)
             return (f"(forall {key} : int. match Map.get ({expr['map']}) ({key}) with "
                     f"| Some {val} -> {body} | None -> true end)")
-        if t == "MapValueIs":
+        if isinstance(node, MapValueIsExpr):
             # 07-1311 Q3: `\exists k. d[k] = Some v` — the value-membership witness for
             # `\forall v in d.values(); …`. A pure logic term over the `map`+`option` model.
             key = self._expr_to_whyml(expr["key"], local_refs, invariant_ctx, subst)
@@ -3412,8 +3452,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return "(dict_comp 0)"
 
         # Non-standard-signature handlers — called explicitly
-        if t == "Var":      return self._handle_var_expr(expr, local_refs, subst)
-        if t == "FieldGet": return self._handle_field_get_expr(expr, invariant_ctx)
+        if isinstance(node, VarExpr):      return self._handle_var_expr(expr, local_refs, subst)
+        if isinstance(node, FieldGetExpr): return self._handle_field_get_expr(expr, invariant_ctx)
 
         # All other types via uniform-quad-signature dispatch
         handler = self._EXPR_DISPATCH.get(t)
