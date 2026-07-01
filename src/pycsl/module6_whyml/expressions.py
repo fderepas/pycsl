@@ -508,6 +508,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             else:
                 key = fn
             return ann.get(key) == "str"
+        # todict-reflection-plan.md R3: in a @mutable_state class (the emitter model) an
+        # f-string is string-typed — `_handle_fstring_expr` there lowers every f-string
+        # (all-string OR mixed str/int via `int_to_string`) to a `string`. So a string
+        # target's `code += f"…"` routes to `str_concat_op`. Gated on @mutable_state →
+        # byte-identical for every other f-string.
+        if t == "FString":
+            return (bool(ir.get("parts"))
+                    and getattr(self, "_current_self_type", None)
+                    in getattr(self, "_mutable_state_classes", set()))
         # todict-reflection-plan.md: a record's `str`-typed FIELD read (`n.kind` on a
         # record-typed param/local, or `self.f`/`global.f`) is string-typed — so
         # `n.kind == "Var"` routes to `str_eq_op`, not the int-hash mismatch. self/

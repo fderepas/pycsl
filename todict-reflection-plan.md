@@ -244,3 +244,39 @@ string locals**). What remains for `_handle_array_slice_set_stmt` is the residua
 per-handler no-more-int tail — each surfaced gap byte-clean-fixable with the L1–L4c
 toolbox, discovered one at a time. The building blocks are all proven; closing this
 handler is the enumerated per-handler finish, converging.
+
+---
+
+## 12. R3-PROPER DONE (2026-07-01) — the first REAL state-mutating handler un-`\trusted`
+
+**`_handle_array_slice_set_stmt` is no longer `\trusted` — it verifies with a checked
+body.** `statements.py` PASSES the self-annotation suite with it un-`\trusted` (only
+the pre-existing, unrelated `errors.py` fails). This is the FIRST real emitter handler
+that MUTATES transpiler state removed from the trusted base — the culmination of the
+whole body-faithful-emitter arc.
+
+**What composed** (every piece proven earlier, integrated here):
+- **B1** — typed imported IR param (`stmt: arrayslicesetstmt`, via `--import-path`);
+- **field access** — `stmt.arrayslicesetstmt_array` (ambiguous-field qualification);
+- **R1 var-substitution** — `arr = stmt.array.to_dict(); self._expr_to_whyml(arr)` →
+  `self._expr_to_whyml(stmt.array)` (the recursive sub-expression emission);
+- **string-local typing** — `dst`/`src`/`lo`/`hi` (str-returning calls, f-strings);
+  the gensym `src_var` (**mixed str/int f-string** → `int_to_string`); `prologue`;
+  the conditional `hi` (**string pre-decl** `ref ""`); `code +=` on an f-string
+  (**FString in `_is_string_expr`**);
+- **A3 / mutable-self** — mirror class `@mutable_state @dataclass`,
+  `#@ assigns self._slice_set_tmp_counter` emitted as a CHECKED `writes { … }`.
+
+The last tool gap (this PR): `_is_string_expr` recognizes an f-string as string in a
+`@mutable_state` class, so `code += f"…"` routes to `str_concat_op`. Byte-diff 0.
+
+**Contract proven:** `requires True / ensures True / assigns
+self._slice_set_tmp_counter` on a CHECKED body — type-safety + frame (not yet the
+value-faithful `ensures \result == …`, which needs the B3 sibling string values).
+But the handler is no longer a black-box stub, and it MUTATES state with a proven
+frame.
+
+**Net.** The body-faithful-emitter track — blocked for the project's history, feared
+metacircular — has un-`\trusted` its first real reflecting-family, state-mutating
+handler. Scaling to the rest is the same per-handler recipe (B1 + R1 + string chain +
+A3), each a bounded gated pass on now-proven foundations.
