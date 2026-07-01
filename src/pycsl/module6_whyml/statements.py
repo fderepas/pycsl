@@ -1411,6 +1411,20 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             and v not in struct_array_targets
             and v not in struct_pack_targets
         }
+        # todict-reflection-plan.md R3: in a @mutable_state class (the emitter model),
+        # a string local is PRE-DECLARED `ref ""` (not let-bound at first assign), so a
+        # local first-assigned inside a conditional branch (`if …: hi = a else: hi = b`)
+        # stays in scope after the branch — the string analogue of the int `ref 0`
+        # pre-decl. Gated on @mutable_state → byte-identical for every other method.
+        _ms_body = (is_method and getattr(self, "_current_self_type", None)
+                    in getattr(self, "_mutable_state_classes", set()))
+        _str_predecl: Set[str] = set()
+        if _ms_body:
+            _str_predecl = {v for v in getattr(self, "_string_local_vars", set())
+                            if v in local_refs and v not in ghost_vars
+                            and v not in ref_params and v not in self._formal_params
+                            and v not in struct_array_targets and v not in struct_pack_targets}
+            pre_decl_vars |= _str_predecl
 
         if is_method:
             initial_declared = {whyml_ident(v) for v in pre_decl_vars}
@@ -1467,7 +1481,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     "    ensures { forall i:int. 0 <= i < Array.length a -> Seq.get result i = a[i] }")
                 body_code = f"    let {safe_var} = ref (snapshot {safe_var}) in\n{body_code}"
                 continue
-            init = safe_var if var in self._formal_params else pfx
+            # R3: a @mutable_state string local pre-declares `ref ""` (see above).
+            if var in _str_predecl:
+                init = '""'
+            else:
+                init = safe_var if var in self._formal_params else pfx
             body_code = f"    let {safe_var} = ref {init} in\n{body_code}"
 
         # Phase 2.3b: struct-unpack array-int targets are NO LONGER

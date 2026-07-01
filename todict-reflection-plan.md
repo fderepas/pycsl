@@ -223,3 +223,24 @@ pre-decl), and the handler's last blocker.
 reflection/var-subst ✅ + string-local typing (calls, f-strings, mixed f-strings) ✅
 → remaining: conditional string-local pre-declaration. One bounded fix from the
 first real state-mutating emitter handler un-`\trusted`.
+
+---
+
+## 11. Conditional string-local pre-decl (DONE, byte-clean)
+
+A string local first-assigned inside BOTH branches of a conditional now
+PRE-DECLARES `ref ""` before the branch (the string analogue of the int `ref 0`
+pre-decl), in a `@mutable_state` method — so it stays in scope after the branch,
+instead of being let-bound per-branch (out of scope). Witness
+`src/self-annotate/conditional-strlocal-witness.py` verifies; byte-diff 0 (gated on
+`@mutable_state`). This is the `hi` idiom in `_handle_array_slice_set_stmt`
+(`if stmt.upper is not None: hi = <str call> else: hi = f"…"`).
+
+**R3-proper — cumulative status.** Every structural/typing piece for the first real
+state-mutating emitter handler is now built and byte-clean: mirror
+`@mutable_state @dataclass` (viable) · A3 frame · R1 reflection + var-substitution ·
+string-local typing (calls, f-strings, **mixed str/int f-strings**, **conditional
+string locals**). What remains for `_handle_array_slice_set_stmt` is the residual
+per-handler no-more-int tail — each surfaced gap byte-clean-fixable with the L1–L4c
+toolbox, discovered one at a time. The building blocks are all proven; closing this
+handler is the enumerated per-handler finish, converging.
