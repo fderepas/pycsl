@@ -496,6 +496,36 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 "ExprIR", "StmtIR", "IRNode", "ContractExprIR")
         return False
 
+    def _todict_recv_node_ir(self, recv_dotted: str) -> Dict[str, Any]:
+        """The node IR for a dotted receiver (`self.types` → `Attribute(Var(self), types)`)."""
+        parts = recv_dotted.split(".")
+        node: Dict[str, Any] = {"type": "Var", "name": parts[0]}
+        for p in parts[1:]:
+            node = {"type": "Attribute", "object": node, "attr": p}
+        return node
+
+    def _self_field_dict_nu(self, recv: str):
+        """self-field-dict-reflection (typed-ir-for-b-ceiling.md §12): when `recv` is a
+        `self.<field>` (or `<recordvar>.<field>`) naming a `dict`/`set`/`frozenset`
+        record field, return the field's WhyML VALUE type ("string" for `dict[str, str]`,
+        else "int"); None otherwise. Lets `self.<dict-field>.get(k)` read the real map."""
+        if "." not in recv:
+            return None
+        obj, field = recv.rsplit(".", 1)
+        rt_name = (self._current_self_type if obj == "self"
+                   else getattr(self, "_current_record_var_classes", {}).get(obj))
+        if not rt_name:
+            return None
+        rts = getattr(self, "_record_types", {})
+        rt = (rts.get(rt_name) or rts.get(str(rt_name).lower())
+              or next((v for k, v in rts.items() if k.lower() == str(rt_name).lower()), None))
+        if not rt:
+            return None
+        ft = rt.get("field_types", {}).get(field)
+        if ft not in ("dict", "set", "frozenset"):
+            return None
+        return rt.get("field_value_types", {}).get(field, "int")
+
     def _lower_irnode_construction(self, expr: Dict[str, Any], local_refs: Set[str],
                                    invariant_ctx: bool,
                                    subst: Optional[Dict[str, str]]) -> Optional[str]:
@@ -552,6 +582,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if t == "Call":
             _fn = ir.get("func", "")
             if _fn.endswith(".get"):
+                # self-field-dict-reflection (typed-ir §12): `self.<dict[str,str]-field>
+                # .get(k)` reads back a `string` (`option string` values), so `… == "s"`
+                # routes through `str_eq_op`, not an int hash.
+                if self._self_field_dict_nu(_fn[:-len(".get")]) == "string":
+                    return True
                 _al = getattr(self, "_todict_aliases", {}).get(_fn[:-len(".get")])
                 if _al is not None:
                     _kir = (ir.get("args") or [{}])[0]
@@ -2423,6 +2458,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         recv_symtype = symtab.get(recv)
         is_dict = (recv_symtype == "dict"
                    or recv in getattr(self, "_dict_locals", set()))
+        # self-field-dict-reflection: `self.<dict-field>.get(key)` reads the declared
+        # record dict/set field via `Map.get self.<field> …` (not an opaque abstract).
+        # `_self_field_dict_nu` returns the field's value type when `recv` is a
+        # `dict`/`set`-typed record field, else None. typed-ir-for-b-ceiling.md §12.
+        _field_nu = self._self_field_dict_nu(recv)
+        if _field_nu is not None:
+            _o, _f = recv.rsplit(".", 1)
+            recv_whyml = self._expr_to_whyml(
+                {"type": "FieldGet", "object": _o, "field": _f},
+                local_refs or set(), invariant_ctx, subst)
+            _kir = (expr.get("args") or [{}])[0]
+            _kstr = isinstance(_kir, dict) and _kir.get("type") == "String"
+            if not self._in_spec and self._is_string_expr(_kir if isinstance(_kir, dict) else {}):
+                self._add_abstract_op("val str_hash_op (s: string) : int")
+                k = f"(str_hash_op {args[0]})"
+            else:
+                k = self._coerce_to_int(args[0])
+            default = args[1] if len(args) >= 2 else self._dv_missing_default(_field_nu)
+            return (f"(match Map.get {recv_whyml} {k} "
+                    f"with | Some v_ -> v_ | None -> {default} end)")
         if not is_dict:
             return None
         # Receiver WhyML: a body-local dict is a `ref` (reads deref via `!`);

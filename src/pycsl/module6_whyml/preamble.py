@@ -1828,13 +1828,22 @@ class PreambleEmissionMixin:
                 out.append("  use matrix.Matrix")
             if needs["needs_minmax"]:
                 out.append("  use int.MinMax")
-            if needs["needs_map_ghost"] or needs.get("needs_body_dict"):
+            # self-field-dict-reflection (typed-ir §12): a record with a `dict`/`set`
+            # FIELD (`map …`) needs `map.Map`/`map.Const` even if no body dict is used —
+            # e.g. a @mutable_state emitter whose only map is `self.<field>`. Corpus
+            # records with map fields already use a body dict → byte-identical.
+            _record_has_map = any(
+                f.get("type") in ("set", "dict", "frozenset")
+                for td in self.ir.get("type_decls", [])
+                for f in td.get("fields", []))
+            if needs["needs_map_ghost"] or needs.get("needs_body_dict") or _record_has_map:
                 out.append("  use map.Map")
                 out.append("  use map.Const")
-            if needs["needs_ghost_dict"] or needs.get("needs_body_dict"):
+            if needs["needs_ghost_dict"] or needs.get("needs_body_dict") or _record_has_map:
                 # Body-level Python dicts are modelled as
                 # `ref (map int (option int))` (parallel to ghost dicts);
-                # `None` marks absent keys.
+                # `None` marks absent keys. self-field-dict-reflection (§12): a record
+                # `map …` field also needs `option`.
                 out.append("  use option.Option")
             # `array.Array` MUST be imported AFTER `map.Map` — both
             # provide a `([])` operator, and when both are in scope the
@@ -2863,6 +2872,10 @@ class PreambleEmissionMixin:
                     "whyml_name": type_name,
                     "fields": [f["name"] for f in td["fields"]],
                     "field_types": {f["name"]: f.get("type", "int") for f in td["fields"]},
+                    # self-field-dict-reflection (typed-ir §12): per-field dict VALUE type,
+                    # so `self.<dict-field>.get(k)` reads back the right type.
+                    "field_value_types": {f["name"]: f["value_type"]
+                                          for f in td["fields"] if f.get("value_type")},
                     "defaults": td.get("field_defaults", {}),
                     # base_op.md Tier A — parametrized construction C(a, b)
                     "init_params": td.get("init_params", []),
@@ -2900,7 +2913,12 @@ class PreambleEmissionMixin:
                     # (body-set/body-dict model). `list`/`tuple` →
                     # `array int`. Everything else collapses to `int`.
                     if ftype in ("set", "dict", "frozenset"):
-                        ftype = "map int (option int)"
+                        # self-field-dict-reflection (typed-ir §12): a `dict[str, str]`
+                        # field carries `option string` values so `self.f.get(k)` reads a
+                        # string. Absent value_type → the legacy `option int`, byte-identical.
+                        _vt = f.get("value_type")
+                        ftype = ("map int (option string)" if _vt == "string"
+                                 else "map int (option int)")
                     elif ftype in ("list", "tuple"):
                         ftype = "array int"
                     elif ftype in ("string", "str"):
