@@ -387,3 +387,29 @@ the pattern above. The dispatch scaffolding + OpaqueExpr coercion are in place, 
 new handlers are additive. Final steps after the handlers: migrate the remaining
 non-dispatch helpers (`_to_bool`/`_is_string_expr`/…), remove the `_expr_to_whyml`
 dict normalization, and finalize `_expr_to_whyml(expr: ExprIR)`.
+
+---
+
+## 15. EXECUTION UPDATE (2026-07-01, cont'd) — helper migration to 45/60 (batched)
+
+Continued the helper migration in batches, byte-diff gated. **45 of 60
+`_EXPR_DISPATCH` handlers now take a typed `ExprIR` node** (byte-clean at each
+batch):
+- +24 ghost-collection ops (map/set/list, `expr_ghost_collections.py`) — one batch.
+- +11 ghost spec-ops (tuple/ctor/str/array, `expr_ghost_spec_ops.py`).
+- +5 misc (valid/setlit/lambda/in_globals/in_scope).
+
+**Two more latent fidelity bugs surfaced** (class fields ≠ wire), found by the
+class-preservation check during migration and left string-dispatched for now:
+- `IsSortedExpr` / `SumExpr`: class has `base` only, wire has `base/lo/hi`.
+- `GhostCopyRangeExpr`: class has `arr/start/stop`, wire has `arr/lo/hi`.
+Each needs the same schema triple-fix as §11's kinds before its handler can be typed.
+
+**Remaining 15 handlers:**
+- Need a fidelity fix first: `_handle_issorted_expr`, `_handle_sum_node_expr`,
+  `_handle_ghost_copy_range_expr` (+ check `arrayeq`/`permutation`/`separated`/
+  `valid2d`/`length2d`/`slice_access`/`arraylen`).
+- Complex core (deep child inspection, individual care): `_handle_binop`,
+  `_handle_call_expr`, `_handle_subscript`, `_handle_attribute_expr`,
+  `_handle_fstring_expr`.
+All are the same gated, additive conversion on the established scaffolding.
