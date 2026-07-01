@@ -3048,6 +3048,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     acc = f"(str_concat_op {acc} {p})"
                 i_part += 1
             return acc
+        # todict-reflection-plan.md R3: in a @mutable_state class (the emitter model),
+        # a MIXED str/int f-string (e.g. a gensym `f"__x_{n}"`) is still a STRING — the
+        # int segments convert via `int_to_string`. So an emitter local bound to it types
+        # as `string`. Gated on @mutable_state → byte-identical for every other f-string.
+        if (not self._in_spec and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            self._add_abstract_op("val int_to_string (n: int) : string")
+            self._add_abstract_op(
+                "val str_concat_op (a: string) (b: string) : string\n"
+                "    ensures { result = (concat a b) }\n"
+                "    ensures { String.length result = String.length a + String.length b }")
+
+            def _sp(pp: Dict[str, Any]) -> str:
+                w = self._expr_to_whyml(pp, local_refs, invariant_ctx, subst)
+                return w if self._is_string_expr(pp) else f"(int_to_string {self._coerce_to_int(w)})"
+            acc = _sp(parts[0])
+            for pp in parts[1:]:
+                acc = f"(str_concat_op {acc} {_sp(pp)})"
+            return acc
         acc = self._coerce_str_arg(self._expr_to_whyml(parts[0], local_refs, invariant_ctx, subst))
         n_parts = len(parts)
         i_part = 1
