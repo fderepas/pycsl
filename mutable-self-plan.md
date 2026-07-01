@@ -279,3 +279,26 @@ for marked classes).
 **Net:** `assigns` is now a **proven frame** for opt-in `@mutable_state` state —
 converting the `a3-plan.md §9` "unchecked declaration" into a checked obligation,
 byte-safe by construction. A3 is unblocked.
+
+---
+
+## 10. M.7 DONE (2026-07-01) — A3 handoff: transpiler-state set-fields get CHECKED frames
+
+M.7 required one lowering fix. `self.<setfield>.add(x)` on a `@mutable_state`
+class was lowering to an opaque abstract op (mutating nothing → the `writes`
+frame was vacuous). Now it lowers to a **real field write**
+`self.f <- map_update_some self.f k 0` (`statements._handle_expr_stmt`, gated on
+`@mutable_state` → byte-identical for unmarked classes); a `Set[str]` key is
+hashed (`str_hash_op`) into the int-keyed map so `map_update_some`'s `k:int`
+typechecks.
+
+**A3 Slice-0 (`src/self-annotate/transpiler-state-witnesses.py`) is now GREEN** —
+the exact witness `a3-plan.md §9` falsified: a `@mutable_state` state class with a
+set field (`dict_locals`) + a counter (`havoc_counter`) proves CHECKED `assigns`
+frames (`.add` → `writes { self.dict_locals }`; `+= 1` → `writes { self.havoc_counter }`),
+and the `assigns \nothing` twin FAILS. Byte-diff 0.
+
+**Status: M.1–M.7 ✅.** Mutable-self is complete for the A3 use case (scalar +
+set state fields, checked non-vacuous frames, byte-safe opt-in). Remaining: a
+proper stdlib `@mutable_state` (vs. the witness no-op); representation A / M.8
+(multi-instance) deferred. **A3 is unblocked and its Slice-0 proven.**
