@@ -28,5 +28,6 @@ import PyCSL.EmitBlocks       -- Sub-α.6/.7/.9/.10/.11: wIf/wWhile/wTryCatch/wG
 import PyCSL.EmitComposition  -- Sub-α.14: aggregate composition lemma covering all 22 Stmt constructors
 import PyCSL.SoundnessVerified
 import PyCSL.ClassInvariants   -- Phase 6: class invariant wrapping (Category A, derived)
+import PyCSL.MemModelSoundness -- Phase 7: instance-parameterised SCritical soundness + typed/store non-vacuity
 import PyCSL.Tests
 -- import PyCSL.Macros  -- Phase L5 bonus

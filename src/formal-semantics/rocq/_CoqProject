@@ -53,4 +53,5 @@ Phase6L_ComposeIfWhile.v
 Phase6m_VcgSemBridge.v
 Phase6i_Soundness.v
 Phase6n_ClassInvariants.v
+Phase7b_MemModelSoundness.v
 Tests.v
