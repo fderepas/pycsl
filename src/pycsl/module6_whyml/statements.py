@@ -1235,7 +1235,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 return _ret_of(v.get("func", "")) == "string"
             if t == "FString":
                 parts = v.get("parts", [])
-                return bool(parts) and all(self._is_string_expr(p) for p in parts)
+                if bool(parts) and all(self._is_string_expr(p) for p in parts):
+                    return True
+                # R3 (todict-reflection-plan.md): a @mutable_state class's MIXED str/int
+                # f-string (a gensym) is string — `_handle_fstring_expr` converts its int
+                # segments via `int_to_string`. So the receiving local types as string.
+                if bool(parts) and (getattr(self, "_current_self_type", None)
+                                    in getattr(self, "_mutable_state_classes", set())):
+                    return True
             return False
 
         # Collect the FIRST assignment of each local (mirrors the ref-0 pre-decl,

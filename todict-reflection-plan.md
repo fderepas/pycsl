@@ -196,3 +196,30 @@ R1 reflection/var-substitution (built) + a per-handler no-more-int pass (string-
 typing for the handler's `dst`/`src`/… locals — the L1–L4c toolbox, case-by-case).
 Every piece is proven/viable; closing one real handler is the enumerated per-handler
 finish, not an open ceiling.
+
+---
+
+## 10. Mixed str/int f-string (DONE, byte-clean); R3-proper down to conditional string-local pre-decl
+
+**Mixed str/int f-string → string (R3, byte-clean).** In a `@mutable_state` class a
+MIXED f-string (a gensym `f"__x_{n}"`, an int counter interpolated) is now a STRING:
+`_handle_fstring_expr` converts each int segment via `int_to_string` and concats;
+the string-local recognizer marks the receiving local string too. Witness
+`src/self-annotate/mixed-fstring-witness.py` verifies; byte-diff 0 (gated on
+`@mutable_state`). This closes the emitter's gensym locals (e.g.
+`_handle_array_slice_set_stmt`'s `src_var`, `prologue`).
+
+**R3-proper — `_handle_array_slice_set_stmt` remaining gap (measured).** With the
+mirror class `@mutable_state @dataclass` + `_slice_set_tmp_counter` declared, the
+handler now type-checks its A3 frame, R1 var-substitution, and every string local
+(`dst`/`src`/`lo`/`src_var`/`prologue`) — down to ONE gap: `hi`, assigned in BOTH
+branches of `if stmt.upper is not None: … else: …` and used after, is let-bound
+per-branch (out of scope). A string local first-assigned inside branches needs a
+**string pre-declaration** (`ref ""` before the `if`) — the string analogue of the
+int `ref 0` pre-decl. That is a bounded emitter fix (conditional string-local
+pre-decl), and the handler's last blocker.
+
+**R3-proper status:** mirror `@mutable_state` (viable) ✅ + A3 frame ✅ + R1
+reflection/var-subst ✅ + string-local typing (calls, f-strings, mixed f-strings) ✅
+→ remaining: conditional string-local pre-declaration. One bounded fix from the
+first real state-mutating emitter handler un-`\trusted`.
