@@ -1243,6 +1243,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 if bool(parts) and (getattr(self, "_current_self_type", None)
                                     in getattr(self, "_mutable_state_classes", set())):
                     return True
+            # R3 (todict-reflection-plan.md): in a @mutable_state class (the emitter
+            # model), ANY string-typed value binds a string local — e.g. `obj =
+            # stmt.object` (a `str` record field read), `s = other_str` (a str var).
+            # Gated on @mutable_state → byte-identical for every other method.
+            if (getattr(self, "_current_self_type", None)
+                    in getattr(self, "_mutable_state_classes", set())
+                    and self._is_string_expr(v)):
+                return True
             return False
 
         # Collect the FIRST assignment of each local (mirrors the ref-0 pre-decl,

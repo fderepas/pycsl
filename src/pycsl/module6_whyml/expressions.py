@@ -135,7 +135,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if whyml_str == "0":
                 return "false"
             return whyml_str
-        if t == "Call" and ir_expr.get("func", "") in ("isinstance", "hasattr"):
+        if t == "Call" and ir_expr.get("func", "") in ("isinstance", "hasattr", "any", "all"):
+            # `any(...)`/`all(...)` lower to the bool-returning `any_1`/`all_1` vals — a
+            # truthiness `if any(...)` / `not any(...)` must use them directly, never the
+            # int `(… <> 0)` coercion (bool <> int type error). No corpus driver uses
+            # `any`/`all` in a truthiness position, so this is byte-identical.
             return whyml_str
         # inductive.md: a predicate application `p(args)` is already a formula (Why3
         # `predicate`), not an int — never `<> 0`-coerce it (e.g. inside `and`/`or` in a
@@ -382,7 +386,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if ft in ("set", "dict", "frozenset"):
                 rhs_is_map = True
         if rhs_is_map:
-            left_c = self._coerce_to_int(left)
+            # todict-reflection-plan.md R3: a STRING key into a `Set[str]`/`dict[str,_]`
+            # (an int-keyed map) is hashed with `str_hash_op` — the read-side analogue of
+            # the M.7 `.add` write (`self.f <- map_update_some … (str_hash_op k) …`), so
+            # `field in self._all_record_fields` typechecks. Fires only when the key is a
+            # string expr (an int key keeps the `_coerce_to_int` path) → byte-identical.
+            if not self._in_spec and self._is_string_expr(expr.get("left", {})):
+                self._add_abstract_op("val str_hash_op (s: string) : int")
+                left_c = f"(str_hash_op {left})"
+            else:
+                left_c = self._coerce_to_int(left)
             arms = ("| Some _ -> false | None -> true" if negate
                     else "| Some _ -> true | None -> false")
             return f"(match Map.get ({right}) ({left_c}) with {arms} end)"

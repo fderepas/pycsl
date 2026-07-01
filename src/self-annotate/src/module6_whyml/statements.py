@@ -41,6 +41,7 @@ from ir_schema import (
 @dataclass
 class StatementEmissionMixin(ControlFlowStmtMixin):
     _slice_set_tmp_counter: int = 0
+    _all_record_fields: Set[str] = None
     """Statement-emission dispatch: every `_handle_*_stmt` handler plus the
     statement-stream orchestrator (`_stmts_to_whyml`), body-wrapping helpers
     (`_emit_body_code`, `_wrap_body_with_return_catch`), first-assignment
@@ -112,6 +113,32 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     # makes it available in this module's `_module_method_return_types`, so a local
     # bound from `self._expr_to_whyml(...)` types as `string` (L2), not `ref 0`.
     # Faithful: the real siblings do return `str`; this only surfaces that fact.
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    #@ assigns \nothing
+    def _add_abstract_op(self, decl: str) -> None:
+        return
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    def _field_label(self, record_lower: int, field: str) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    def _array_coerce_arg(self, val: str) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    def _coerce_to_int(self, val: str) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    def _field_type_for(self, obj: str, field: str) -> str:
+        return ""
+
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
     def _expr_to_whyml(self, expr: int, local_refs: Set[str], invariant_ctx: bool = False,
@@ -870,7 +897,6 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
