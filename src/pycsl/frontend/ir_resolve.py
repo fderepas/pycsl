@@ -66,10 +66,19 @@ def _rewrite_ir_calls(obj: Any, old_name: str, new_name: str) -> None:
             _rewrite_ir_calls(item, old_name, new_name)
 
 
+# B1 (b1-plan.md): opt-in extra import roots. Set by `resolve(...)` from the CLI
+# `--import-path` flag; searched *after* the built-in roots so default behaviour
+# (and byte output) is unchanged. This lets a single-file verification resolve a
+# dependency that lives elsewhere in the repo (e.g. the self-annotate mirror's
+# `from ir_schema import AssignStmt`, where `ir_schema.py` is in `src/pycsl/`).
+_EXTRA_IMPORT_PATHS: List[str] = []
+
+
 def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Optional[str]:
     """Convert dotted module path to filesystem .py path.
     Returns the resolved path or None if file not found.
-    Searches: main file's directory first, then CWD."""
+    Searches: main file's directory, CWD, repo `src/`, `Lib/`, then any
+    `--import-path` roots (`_EXTRA_IMPORT_PATHS`)."""
     parts = module_dotted.split(".")
 
     if level > 0:
@@ -91,7 +100,8 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
     script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     lib_dir = os.path.join(script_dir, "Lib")
     src_dir = os.path.dirname(script_dir)  # …/pycsl/src
-    for base in [os.path.dirname(os.path.abspath(main_file)), os.getcwd(), src_dir, lib_dir]:
+    for base in [os.path.dirname(os.path.abspath(main_file)), os.getcwd(),
+                 src_dir, lib_dir, *_EXTRA_IMPORT_PATHS]:
         candidate = os.path.join(base, *parts) + ".py"
         if os.path.isfile(candidate):
             return candidate
@@ -964,14 +974,19 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
 
 
 def resolve(ir_data: Dict[str, Any], validated_ast: _ast.AST, main_file: str,
-            deep: bool = False) -> Set[str]:
+            deep: bool = False, import_paths: Optional[List[str]] = None) -> Set[str]:
     """Run the four post-Module5 IR-resolution passes IN ORDER, in place on
     `ir_data`, and return the set of imported function local names.
 
     Order (must match the orchestrator's historical inline sequence):
       1. resolve_imports  → 2. apply_inheritance  → 3. apply_composition
       → 4. apply_inline_globals  → 5. apply_monomorphization (typing TY3)
+
+    `import_paths` (CLI `--import-path`, b1-plan.md) are extra roots searched by
+    `_resolve_module_path` after the built-in ones — opt-in, default unchanged.
     """
+    global _EXTRA_IMPORT_PATHS
+    _EXTRA_IMPORT_PATHS = [os.path.abspath(p) for p in (import_paths or [])]
     imported_names = resolve_imports(validated_ast, main_file, ir_data, deep=deep)
     apply_inheritance(ir_data)
     apply_composition(ir_data)
