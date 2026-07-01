@@ -230,6 +230,13 @@ def _parse_args() -> argparse.Namespace:
                         help="Recursively resolve transitive imports in "
                              "dependency files (default: only direct imports "
                              "of the main file are resolved).")
+    g_scope.add_argument("--import-path", action="append", default=[],
+                        metavar="DIR",
+                        help="Extra directory to search when resolving imports "
+                             "(repeatable), after the main file's dir/CWD/src/Lib. "
+                             "Lets single-file verification resolve a dependency "
+                             "elsewhere in the repo (e.g. --import-path src/pycsl "
+                             "so a self-annotate mirror finds ir_schema).")
     g_scope.add_argument("--diagnostics-json", action="store_true",
                         help="On a pipeline error, ALSO print the structured "
                              "diagnostic {code, stage, file, line, message} as a single "
@@ -488,7 +495,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # inline-globals — via the front-end's single resolution entry, leaving ir_data the
     # fully RESOLVED IR (the wire Module 6 / the core consumes). Pure relocation: the
     # passes and their order are unchanged, so emission stays byte-identical.
-    imported_names = _ir_resolve(ir_data, unified_ast, args.file, deep=args.deep)
+    imported_names = _ir_resolve(ir_data, unified_ast, args.file, deep=args.deep, import_paths=args.import_path)
 
     # 07-1143 R4: the Soundness Ledger is a provenance view of the fully-resolved IR
     # (after imports/inheritance/composition), so it runs here and short-circuits before

@@ -173,3 +173,43 @@ work (A2 string ops, A3 assigns-framing), not by type-opacity. It is a **bounded
 front-end fix** (two functions in `ir_resolve.py` + a CLI flag + reuse of Module 5's
 dataclass extraction), fully byte-diff-gated, and **not itself ceiling-blocked** —
 unlike the modeling it unblocks.
+
+---
+
+## 8. EXECUTION RESULT (2026-07-01) — §6 experiment validated; B1-a implemented, B1-b already worked
+
+Ran the §6 smallest experiment first. **Key discovery: B1-b was NOT broken.** A
+same-directory probe (`Foo` dataclass + importer using `o.x` in a contract)
+**already verified SUCCESS** — the resolver *does* inject an imported `@dataclass`
+as a typed record once the module is located (the `ir-schema-spec.md §11`
+dataclass→record machinery already covers imports). So the real blocker is **B1-a
+alone**: cross-directory module *location*.
+
+**Reproduced B1-a** (true cross-dir): `m_types.py` on `PYTHONPATH` but not in the
+importer's dir / CWD / `src` / `Lib` → `Foo` opaque → `o.x` untyped → **FAILED**.
+
+**Implemented B1-a** (Option A): a repeatable CLI `--import-path DIR`, threaded
+`pycsl.py → resolve(import_paths=…) → _EXTRA_IMPORT_PATHS`, searched by
+`_resolve_module_path` *after* the built-in roots (opt-in; default unchanged).
+
+**Gates (all green):**
+- §6 probe **flips FAIL → SUCCESS** with `--import-path <lib>` (module resolves →
+  `o.x : str` typed → contract proven).
+- **Non-vacuity:** a deliberately false `ensures \result == "…"` on the same typed
+  field **FAILS**.
+- **Byte-diff 0** across the 627-file corpus (default resolution unchanged).
+
+**Status of the work items:** B1.0 ✅ (reproduced), B1.1 ✅ (`--import-path`),
+B1.2 ✅ (already worked — no code needed). **Remaining (supervised, per plan):**
+- **B1.3** — wire the self-annotate runner to pass `--import-path src/pycsl` and
+  confirm the real mirror resolves `ir_schema` (no "external … skipping").
+- **B1.4** — un-`\trust` one leaf `_handle_*` reading a typed `stmt` field and
+  confirm it verifies body-faithful (the concrete close of B1).
+- **B1.5/B1.6** — corpus/non-vacuity on the real mirror; reconcile `b14.md` B1 /
+  `ir-schema-spec.md §10`.
+
+**Net:** the type-opacity mechanism is fixed and proven on the minimal case with
+full gates. The remaining B1.3–B1.4 apply it to the real mirror — the next step,
+where the deeper opacity (recursive dataclass fields that are themselves imported
+types, e.g. `stmt.value : ExprIR`) may surface and, per §6, is resolved with
+`--deep`-style recursion (still bounded, not ceiling-blocked).
