@@ -182,6 +182,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     "val str_length_op (s: string) : int\n"
                     "    ensures { result = (String.length s) }")
                 return f"(str_length_op {whyml_str} <> 0)"
+            # typed-ir §19: an emit_ir local (`if assume_inv:` on an `Optional[ExprIR]`)
+            # is truthy iff present — modeled always-present (`true`), like the emit_ir
+            # `is None` comparison; sound for the type-safety+frame contracts (both arms
+            # type-check, no self-field write). Gated by the emit_ir tags.
+            if (name in getattr(self, "_emit_ir_local_vars", set())
+                    or self._is_emit_ir_expr(ir_expr)):
+                return "true"
         # Coerce int → bool
         return f"({whyml_str} <> 0)"
 

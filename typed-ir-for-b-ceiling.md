@@ -568,3 +568,31 @@ mutation and str parsing, plus emit_ir-LOCAL typing (`val_ir := stmt.value`, an 
 local not yet recognized like a string local). It is bounded but broad — its own pass.
 The field-vs-local fix, though, is landed and reusable: it clears the first blocker for
 `tuple_unpack` and `critical_section` too.
+
+---
+
+## 19. Emit_ir-local recognizer (toward `_handle_critical_section_stmt`)
+
+A local bound to an `emit_ir` value — `assume_inv = stmt.assume_invariant` (an ExprIR
+field), an inline `{"type": K}` construction, a `d = node.to_dict()` alias, or another
+emit_ir local — is now recognized and pre-declared `ref (IrOther "")` (the emit_ir
+counterpart of the R3 string `ref ""` pre-decl), not the integer `ref 0`. Byte-clean,
+@mutable_state-gated; witness `src/self-annotate/emit-ir-local-witness.py` verifies.
+
+**Three parts:**
+- `_collect_emit_ir_result_locals` — a fixpoint over first-assignments (mirrors
+  `_collect_str_call_result_locals`), also grows the symbol table to `ExprIR` so
+  reflection on the local (`node.get("type")`) sees emit_ir.
+- `_emit_ir_predecl` in `_emit_body_code` — pre-declares them `ref (IrOther "")`.
+- `_to_bool` — an emit_ir local's truthiness (`if assume_inv:`) is modeled
+  always-present (`true`), like the emit_ir `is None` comparison (sound for the
+  type-safety+frame contracts; both arms type-check, no self-field write).
+
+**`_handle_critical_section_stmt` — deferred.** With the emit_ir-local recognizer it
+cleared `assume_inv`/truthiness but continued into: `safe_var = whyml_ident(var)` in a
+`for var in shared_for_mutex:` loop where `whyml_ident`'s abstract-val RETURN is `int`
+while its return-ANNOTATION map says `string` (a decl-vs-map inconsistency for a bare
+imported helper), the `self._havoc_counter += 1` scalar mutation, the
+`_mutex_inv_application` sibling, and a `[s.to_dict() for s in body_stmts]` comprehension.
+Bounded but broad — its own pass. The emit_ir-local recognizer is landed and reusable:
+it also clears `_handle_ghost_assign_stmt`'s `val_ir := stmt.value` (§18).
