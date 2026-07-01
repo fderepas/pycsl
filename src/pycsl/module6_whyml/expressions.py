@@ -152,6 +152,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             name = ir_expr.get("name", "")
             if name in self._array_locals:
                 return "true"
+            # no-more-int emitter L4c: a list/array-typed var (`array int`, e.g. the
+            # `rest: List[...]` param) is truthy iff non-empty — `Array.length x <> 0`,
+            # the faithful Python list-truthiness — not the int `x <> 0` (a type error
+            # on an array). Keyed on the SAME signals that lower the var to `array int`
+            # (`_current_array1d_params` or a `list`/`bytes`/`bytearray` symbol type), so
+            # `Array.length` is well-typed exactly when they fire. Byte-identical: a
+            # corpus `if <array_var>:` would otherwise emit the ill-typed `<> 0`, so none
+            # exists to change.
+            if (name in getattr(self, "_current_array1d_params", set())
+                    or getattr(self, "_current_symbol_table", {}).get(name)
+                    in ("list", "bytes", "bytearray")):
+                return f"(Array.length {whyml_str} <> 0)"
         # Coerce int → bool
         return f"({whyml_str} <> 0)"
 

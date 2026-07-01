@@ -437,7 +437,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # no-more-int emitter L5 (no-more-int-emitter-plan.md): this handler is no
+    # longer a trusted stub — after B1.4 (field access) + L1-L4c the body
+    # TYPE-CHECKS and its `assigns \nothing` frame is PROVEN. It is the FIRST
+    # _handle_* emitter method verified with a checked (non-stub) body. A
+    # body-faithful `ensures \result == ...` still needs the siblings' string
+    # VALUES modelled (B3); this proves type-safety + frame.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
