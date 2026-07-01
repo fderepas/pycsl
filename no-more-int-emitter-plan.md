@@ -28,7 +28,8 @@ all of these:
 | L | Layer | State |
 |---|---|---|
 | **L1** | **`-> str` function return-type propagation** — `_build_method_return_type_map` records a `str`-annotated function as WhyML `string` (was: only list/set/dict overridden; `str` fell through to the int-hash default). | ✅ **DONE, byte-clean** (§1) |
-| **L2** | **String-local recognizer** — a local whose first assignment is a call to a `string`-returning function is typed `string` (let-bound as a string ref, excluded from the `ref 0` int pre-decl). Builds on L1. | ▶ next |
+| **L2** | **String-local recognizer** — a local whose first assignment is a call to a `string`-returning function is typed `string` (let-bound as a string ref, excluded from the `ref 0` int pre-decl). Builds on L1. | ✅ **DONE, byte-clean** (§2a) |
+| **L2b** | **Cross-mixin-file method return types** — `self._expr_to_whyml(…)` (defined in a *different* mirror file) has no entry in this module's `_module_method_return_types`, so its result-local stays int. Resolve cross-file mixin method return types (B1-style). | ◻ |
 | **L3** | **String literals in f-strings** — `f"{a}[{i}]"`'s literal chunks (`"["`) lower as WhyML string literals, not int hashes (`465640005`); `str_concat` over all-string operands. | ◻ |
 | **L4** | **Sub-field `.to_dict()` receiver** — `stmt.index.to_dict()` must keep its receiver (currently drops to a nullary `stmt_index_to_dict_0 ()`). | ◻ |
 | **L5** | **Close B1.4** — the leaf verifies body-faithful (`ensures \result == …`) once L1–L4 land; then scale to more handlers. | ◻ |
@@ -68,3 +69,24 @@ enumerate honestly whenever a layer would ripple the corpus without A2.
 **Non-goals:** string *content* semantics (A2); the full corpus int→string
 migration (a separate, larger effort — this plan only flips the *emitter* path and
 stays byte-clean on the corpus where it can).
+
+
+---
+
+## 2a. L2 — string-local recognizer (DONE)
+
+Added `_collect_str_call_result_locals` (`statements.py`): a local whose first
+assignment is a call to a `string`-returning function (return type resolved from
+`_module_method_return_types`, keyed exactly as `_handle_dotted_call` — `self.<m>`
+→ `<self_type>__<m>`) is unioned into `string_vars`, so it let-binds as a string
+ref instead of the `ref 0` int pre-decl.
+
+**Measured:** byte-diff 0 across the 627-file corpus. On the B1.4 leaf, `arr =
+whyml_ident(stmt.target)` now emits `let arr = ref (whyml_ident stmt.ghost…_target)`
+(a `string` ref, was `ref 0`).
+
+**Surfaced next (L2b):** `idx`/`py_val` come from `self._expr_to_whyml(…)`, defined
+in the *expressions.py* mirror file, so its return type is absent from statements.py's
+method table (emitted as abstract `self__expr_to_whyml_2`) and the local stays int.
+Cross-mixin-file method-return-type resolution is the next layer — B1-style, but for
+methods across the mirror's files. After that: L3 (string literals) and L4 (`.to_dict`).
