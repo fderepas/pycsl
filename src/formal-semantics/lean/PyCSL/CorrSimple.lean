@@ -110,14 +110,18 @@ theorem wpGen_fieldAssign (selfId f : Ident) (e : Expr)
     (preEs es : ExecState) :
     wp (.fieldAssign selfId f e) Qn Qr Qc Qb Qe preEs es ↔
     wpW (gen (.fieldAssign selfId f e)) (enc Qn Qr Qc Qb Qe) preEs es := by
-  simp [wp, gen, wpW, enc]
+  -- gen → wAssign on the flat key `selfId ++ "." ++ f` (mirrors wpGen_assign).
+  constructor <;> intro h <;> simpa [wp, gen, wpW, enc] using h
 
 theorem wpGen_fieldAugAssign (selfId f : Ident) (op : Binop) (e : Expr)
     (Qn Qr Qc Qb : ExecState → Prop) (Qe : Ident → ExecState → Prop)
     (preEs es : ExecState) :
     wp (.fieldAugAssign selfId f op e) Qn Qr Qc Qb Qe preEs es ↔
     wpW (gen (.fieldAugAssign selfId f op e)) (enc Qn Qr Qc Qb Qe) preEs es := by
-  simp [wp, gen, wpW, enc]
+  -- gen → wAugAssign on the flat key; as in wpGen_augAssign, simp reduces
+  -- both sides to A ↔ A but leaves it unclosed (match wildcards elaborate
+  -- separately), so close with id/id.
+  constructor <;> intro h <;> simpa [wp, gen, wpW, enc] using h
 
 -- Phase 7: acquires/releases — gen → wSkip, wp → Qn es
 theorem wpGen_acquires (m : Ident)

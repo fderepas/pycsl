@@ -336,14 +336,25 @@ Inductive exec : exec_state -> stmt -> outcome -> Prop :=
       exec es s1 (ONormal es') ->
       exec es (STryCatch s1 exc handler) (ONormal es')
 
-  (* Phase 6: field assignment (heap not yet modelled — simplified) *)
+  (* Phase 6: field assignment — flat-key field-state model.
+     `self.f` is the synthetic register variable `self ++ "." ++ f`
+     (the same name Module 6 emits and that `eval_expr (EFieldGet …)`
+     reads), so a write updates exactly the key a later read observes.
+     This matches the now-concrete Why3 LINK-3 `field_effect`. *)
   | ExecFieldAssign :
       forall es self_id f e,
-      exec es (SFieldAssign self_id f e) (ONormal es)   (* heap model in Phase 6 *)
+      exec es (SFieldAssign self_id f e)
+        (ONormal (set_reg es (update es.(reg_state) (self_id ++ "." ++ f)
+                    (eval_expr es.(reg_state) e))))
 
   | ExecFieldAugAssign :
       forall es self_id f op e,
-      exec es (SFieldAugAssign self_id f op e) (ONormal es)
+      let cur := match lookup es.(reg_state) (self_id ++ "." ++ f) with
+                 | Some (VInt n) => n | _ => 0 end in
+      let nv  := eval_binop_z op cur
+                   (match eval_expr es.(reg_state) e with VInt n => n | _ => 0 end) in
+      exec es (SFieldAugAssign self_id f op e)
+        (ONormal (set_reg es (update es.(reg_state) (self_id ++ "." ++ f) (VInt nv))))
 
   (* Phase 8: concurrent statements (placeholder — Phase 8 adds proper semantics) *)
   | ExecCritical :

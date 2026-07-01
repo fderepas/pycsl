@@ -99,8 +99,9 @@ Definition acceptable_emit (state : assign_state) (s : stmt) : list string :=
   | STryCatch body exc h      =>
       acceptable_try_catch_emissions state (gen body) exc (gen h)
                                       emit_stmt_full_complete
-  | SFieldAssign _ _ _        => acceptable_skip_emissions  (* simplified to WSkip *)
-  | SFieldAugAssign _ _ _ _   => acceptable_skip_emissions  (* simplified to WSkip *)
+  (* Phase 6: flat-key field model — gen → WAssign/WAugAssign on `self.f`. *)
+  | SFieldAssign self_id f e      => acceptable_assign_emissions state (self_id ++ "." ++ f) e
+  | SFieldAugAssign self_id f op e => acceptable_aug_assign_emissions (self_id ++ "." ++ f) op e
   | SCritical _ body          => [ emit_stmt_full_complete state (gen body) ]
   | SThreadEntry body         => [ emit_stmt_full_complete state (gen body) ]
   | SAcquires _               => acceptable_skip_emissions  (* gen → WSkip *)
@@ -156,10 +157,10 @@ Proof.
   - left. reflexivity.
   (* STryCatch *)
   - left. reflexivity.
-  (* SFieldAssign — gen reduces to WSkip *)
-  - left. reflexivity.
-  (* SFieldAugAssign — gen reduces to WSkip *)
-  - left. reflexivity.
+  (* SFieldAssign — gen → WAssign on flat key *)
+  - apply emit_assign_correct.
+  (* SFieldAugAssign — gen → WAugAssign on flat key *)
+  - apply emit_aug_assign_correct.
   (* SCritical — gen body singleton *)
   - left. reflexivity.
   (* SThreadEntry — gen body singleton *)

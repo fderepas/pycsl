@@ -60,9 +60,11 @@ def gen : Stmt → WhyMLStmt
   | .raise_ exc                => .wRaise (.excNamed exc)
   | .tryCatch body exc handler => .wTryCatch (gen body) exc (gen handler)
 
-  -- Phase 6 field ops: Hoare-model placeholder
-  | .fieldAssign _ _ _         => .wSkip
-  | .fieldAugAssign _ _ _ _    => .wSkip
+  -- Phase 6 field ops: flat-key field-state model — `self.f` is the
+  -- synthetic variable `selfId ++ "." ++ f`, so field (aug-)assign
+  -- generates the WhyML (aug-)assign to that key (mirrors the wp/SOS arms).
+  | .fieldAssign selfId f e        => .wAssign (selfId ++ "." ++ f) e
+  | .fieldAugAssign selfId f op e  => .wAugAssign (selfId ++ "." ++ f) op e
 
   -- Phase 8 concurrency: transparent in Hoare model
   | .critical _ body           => gen body

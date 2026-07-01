@@ -80,9 +80,13 @@ Fixpoint gen (s : stmt) : whyml_stmt :=
   | SRaise exc                => WRaise (ExcNamed exc)
   | STryCatch body exc handler => WTryCatch (gen body) exc (gen handler)
 
-  (* Phase 6 field ops: Hoare-model placeholder *)
-  | SFieldAssign _ _ _        => WSkip
-  | SFieldAugAssign _ _ _ _   => WSkip
+  (* Phase 6 field ops: flat-key field-state model — `self.f` is the
+     synthetic register variable `self ++ "." ++ f`, so field assign
+     generates the corresponding WhyML (aug-)assign to that key. This
+     mirrors the now-non-placeholder wp/SOS field arms and Module 6's
+     flat-name emission. *)
+  | SFieldAssign self_id f e      => WAssign (self_id ++ "." ++ f) e
+  | SFieldAugAssign self_id f op e => WAugAssign (self_id ++ "." ++ f) op e
 
   (* Phase 8 concurrency: transparent in Hoare model *)
   | SCritical _ body          => gen body

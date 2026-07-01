@@ -58,8 +58,9 @@ def acceptableEmit (state : AssignState) : Stmt → List String
   | .raise_ exc                 => acceptableRaiseEmissions (.excNamed exc)
   | .tryCatch body exc handler  =>
       acceptableTryCatchEmissions state (gen body) exc (gen handler)
-  | .fieldAssign _ _ _          => acceptableSkipEmissions  -- gen → wSkip
-  | .fieldAugAssign _ _ _ _     => acceptableSkipEmissions  -- gen → wSkip
+  -- Phase 6: flat-key field model — gen → wAssign/wAugAssign on `self.f`.
+  | .fieldAssign selfId f e          => acceptableAssignEmissions state (selfId ++ "." ++ f) e
+  | .fieldAugAssign selfId f op e     => acceptableAugAssignEmissions (selfId ++ "." ++ f) op e
   | .critical _ body            => [ emitStmtFullComplete state (gen body) ]
   | .threadEntry body           => [ emitStmtFullComplete state (gen body) ]
   | .acquires _                 => acceptableSkipEmissions  -- gen → wSkip
@@ -125,10 +126,12 @@ theorem emitStmtFullCompleteSound (state : AssignState) (s : Stmt) :
       show emitStmtFullComplete state (.wTryCatch (gen body) exc (gen handler))
             ∈ acceptableTryCatchEmissions state (gen body) exc (gen handler)
       exact emitTryCatchCorrect state (gen body) exc (gen handler)
-  | fieldAssign _ _ _ =>
-      simp [acceptableEmit, gen, emitStmtFullComplete, acceptableSkipEmissions]
-  | fieldAugAssign _ _ _ _ =>
-      simp [acceptableEmit, gen, emitStmtFullComplete, acceptableSkipEmissions]
+  | fieldAssign selfId f e =>
+      simp [acceptableEmit, gen, emitStmtFullComplete]
+      exact emitAssignCorrect state (selfId ++ "." ++ f) e
+  | fieldAugAssign selfId f op e =>
+      simp [acceptableEmit, gen, emitStmtFullComplete]
+      exact emitAugAssignCorrect (selfId ++ "." ++ f) op e
   | critical _ body =>
       simp [acceptableEmit, gen]
   | threadEntry body =>
