@@ -2865,6 +2865,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         name = expr["name"]
         if subst and name in subst:
             name = subst[name]
+        # todict-reflection-plan.md R1 (var-substitution): `d = node.to_dict()` binds
+        # `d` as a full ALIAS of the typed node — so a bare `d` reference (e.g. passing
+        # `d` to `self._expr_to_whyml(d)`, the emitter's recursive sub-expression
+        # emission) lowers to the node itself. Complements the `d.get(key)` routing:
+        # both the reflective reads AND the recursive re-emission see the typed node.
+        _al = getattr(self, "_todict_aliases", {}).get(name)
+        if _al is not None:
+            _parts = _al.split(".")
+            _n: Dict[str, Any] = {"type": "Var", "name": _parts[0]}
+            for _p in _parts[1:]:
+                _n = {"type": "Attribute", "object": _n, "attr": _p}
+            return self._expr_to_whyml(_n, local_refs, False, subst)
         # body-gate gap-5: a scalar quantifier binder reads BARE (a bound logic var),
         # shadowing a same-named loop/local ref for the quantifier body's duration.
         if name in getattr(self, "_quant_scalar_binders", ()):

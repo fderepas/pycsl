@@ -167,3 +167,32 @@ un-`\trusted` leaf ✅, mutable-self/soundness ✅, A3 frame ✅, R1 reflection 
 **R1+A3 composition ✅**. "Un-`\trust` a real state-mutating reflecting handler" is
 now the enumerated (mirror-`@mutable_state` + R1.3 + per-handler no-more-int)
 integration on proven foundations.
+
+---
+
+## 9. R1 var-substitution + R3-proper status (2026-07-01)
+
+**R1 var-substitution (DONE, byte-clean).** `d = node.to_dict()` now binds `d` as a
+FULL alias: besides `d.get(key)` → `node.<field>`, a bare `d` reference lowers to
+the node itself (`_handle_var_expr`). So the pervasive emitter idiom
+`d = sub.to_dict(); self._expr_to_whyml(d)` (the recursive sub-expression emission)
+routes `d` → the typed sub-node instead of the opaque `unit` to_dict. Byte-diff 0;
+witness `src/self-annotate/todict-varsubst-witness.py` verifies.
+
+**R3-proper — measured status on a REAL handler.** Un-`\trusting`
+`_handle_array_slice_set_stmt` (with the mirror class marked `@mutable_state
+@dataclass` + `_slice_set_tmp_counter` declared) now emits:
+- `writes { self._slice_set_tmp_counter }` — the **A3 frame** ✓;
+- `dst = self._expr_to_whyml(stmt.arrayslicesetstmt_array …)` — the **R1
+  var-substitution** routed the bound to_dict alias to the typed field ✓.
+
+The mirror class `@mutable_state @dataclass` restructuring is **viable** (the mirror
+still verifies with all other handlers trusted). The remaining gap is a **per-handler
+string-local typing** issue (`dst = ref 0` int vs the string `_expr_to_whyml` result
+— the L2 chain applied to THIS handler's locals), not reflection or frame.
+
+**So R3-proper reduces to:** mirror `@mutable_state` (viable) + A3 frame (works) +
+R1 reflection/var-substitution (built) + a per-handler no-more-int pass (string-local
+typing for the handler's `dst`/`src`/… locals — the L1–L4c toolbox, case-by-case).
+Every piece is proven/viable; closing one real handler is the enumerated per-handler
+finish, not an open ceiling.
