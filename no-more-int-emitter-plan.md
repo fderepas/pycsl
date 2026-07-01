@@ -32,8 +32,8 @@ all of these:
 | **L2b** | **Cross-mixin-file sibling return types** — explicit `-> str` `\trusted` stubs for `_expr_to_whyml`/`_expr_to_whyml_string_ctx` (B3 siblings) in the mirror, so their `string` return type is in this module's table. | ✅ **DONE** (§2b) |
 | **L3** | **F-string result locals** — a local assigned an all-string f-string is typed `string` (fixpoint recognizer). The literals already lower as WhyML strings once all parts are string (b14 B2 + L2/L2b). | ✅ **DONE, byte-clean** (§3) |
 | **L4** | **String-`+` / concat self-call resolution** — `_is_string_expr` resolves a `self.<m>(…)` str-returning sibling, so `code += ";\n" + self._stmts_to_whyml(…)` routes to `str_concat_op`. | ✅ **DONE, byte-clean** (§4) |
-| **L4b** | **Imported-stub param types** — `whyml_ident(name: str)` emits `val whyml_ident (name: int)`, but the field arg is `string`. Propagate imported/trusted-stub param annotations (the L1 analog for params). | ◻ |
-| **L4c** | **Sub-field `.to_dict()` receiver** — `stmt.index.to_dict()` drops its receiver (`stmt_index_to_dict_0 ()`); a faithfulness gap (typechecks under `ensures True`, matters for L5). | ◻ |
+| **L4b** | **Imported-stub param types** — Module5 preserves `param_annotations` (survives injection like `return_annotation`); the emitter merges them for `Any` params. `val whyml_ident (name: string)`. | ✅ **DONE, byte-clean** (§5) |
+| **L4c** | **Remaining int-leaks in the leaf body** — list-truthiness (`if rest:` → `rest <> 0` on an `array int`); `.to_dict()` receiver loss (`stmt_index_to_dict_0 ()`); each a distinct no-more-int fix. | ◻ (chain) |
 | **L5** | **Close B1.4** — the leaf verifies body-faithful (`ensures \result == …`) once L1–L4 land; then scale to more handlers. | ◻ |
 
 Dependency: L2 needs L1; L5 needs L1–L4. L3/L4 are independent. A method that
@@ -145,3 +145,34 @@ recognizer do). Now the rest-branch emits `str_concat_op !code (str_concat_op ";
 fails — the field is `string` but `val whyml_ident (name: int)` types the param int.
 Imported/trusted-stub PARAM annotations aren't propagated (L1 did returns only);
 `whyml_ident(name: str)` should emit `(name: string)`. That is the next layer.
+
+
+---
+
+## 5. L4b — imported-stub param types (DONE)
+
+`whyml_ident(name: str)` emitted `val whyml_ident (name: int)` while the field arg
+is `string`. The imported stub's `symbol_table` is rebuilt with `Any` params by the
+injection (losing `name: str`). Fix mirrors `return_annotation`: Module5 now emits a
+`param_annotations` field (from the same `arg_type` it computes), which survives
+injection; `_reset_function_state` merges it into the symbol table for `Any`/missing
+params only (copy-on-write, never overriding a resolved type). Also fixed the L2b
+sibling stubs' `local_refs` param to `Set[str]` (was `int`) to match the callers.
+Byte-diff 0.
+
+**Result:** `val whyml_ident (name: string) : string`. The leaf now typechecks
+through the string locals + concat + field access + param types.
+
+### The honest remaining chain to L5
+The leaf still does not close — each fix exposes the NEXT int-leak, because the
+emitter body is pervasively int-modelled:
+- **list truthiness**: `if rest:` lowers to `rest <> 0` (an `array int` vs `int`);
+  needs `Array.length rest <> 0` (a list-truthiness fix).
+- **`.to_dict()` receiver loss**: `stmt.index.to_dict()` → nullary
+  `stmt_index_to_dict_0 ()` (drops the receiver) — a faithfulness gap.
+- likely further leaks below these.
+
+Each is a distinct, byte-diff-sensitive no-more-int layer. **Closing one leaf is a
+multi-layer chain** — the no-more-int doctrine's "long-term / EXTREME RIGOR" is
+literal here. Landed so far: B1.4 field-access + L1/L2/L2b/L3/L4/L4b (7 byte-clean
+layers). L5 (leaf verifies) remains gated on the L4c chain.
