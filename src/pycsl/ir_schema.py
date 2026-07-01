@@ -592,22 +592,27 @@ class ArrayLitExpr(ExprIR):
 
 @dataclass(frozen=True)
 class DictLitExpr(ExprIR):
-    pass
+    keys: List["ExprIR"]
+    values: List["ExprIR"]
 
 
 @dataclass(frozen=True)
 class ListCompExpr(ExprIR):
-    pass
+    elt: "ExprIR"
+    generators: List[Any]
 
 
 @dataclass(frozen=True)
 class DictCompExpr(ExprIR):
-    pass
+    key: "ExprIR"
+    value: "ExprIR"
+    generators: List[Any]
 
 
 @dataclass(frozen=True)
 class SetCompExpr(ExprIR):
-    pass
+    elt: "ExprIR"
+    generators: List[Any]
 
 
 # --- Quantifiers & contract-only expressions ------------------------------
@@ -1176,13 +1181,19 @@ def _expr_from_dict_inner(d: Dict[str, Any]) -> ExprIR:
     if k == "ArrayLit":
         return ArrayLitExpr(kind=k, elts=_es(d.get("elts", [])))
     if k == "DictLit":
-        return DictLitExpr(kind=k)
+        return DictLitExpr(kind=k,
+                           keys=[expr_from_dict(x) for x in d.get("keys", [])],
+                           values=[expr_from_dict(x) for x in d.get("values", [])])
     if k == "ListComp":
-        return ListCompExpr(kind=k)
+        return ListCompExpr(kind=k, elt=expr_from_dict(d["elt"]),
+                            generators=d.get("generators", []))
     if k == "DictComp":
-        return DictCompExpr(kind=k)
+        return DictCompExpr(kind=k, key=expr_from_dict(d["key"]),
+                            value=expr_from_dict(d["value"]),
+                            generators=d.get("generators", []))
     if k == "SetComp":
-        return SetCompExpr(kind=k)
+        return SetCompExpr(kind=k, elt=expr_from_dict(d["elt"]),
+                           generators=d.get("generators", []))
     if k == "Forall":
         bt = d.get("binder_type", _ABSENT)
         return ForallExpr(kind=k, var=d.get("var", ""), body=_e(d.get("body")),
@@ -1516,13 +1527,18 @@ def _expr_to_dict(e: ExprIR) -> Dict[str, Any]:
     elif isinstance(e, ArrayLitExpr):
         out["elts"] = [x.to_dict() for x in e.elts]
     elif isinstance(e, DictLitExpr):
-        pass
+        out["keys"] = [x.to_dict() for x in e.keys]
+        out["values"] = [x.to_dict() for x in e.values]
     elif isinstance(e, ListCompExpr):
-        pass
+        out["elt"] = e.elt.to_dict()
+        out["generators"] = e.generators
     elif isinstance(e, DictCompExpr):
-        pass
+        out["key"] = e.key.to_dict()
+        out["value"] = e.value.to_dict()
+        out["generators"] = e.generators
     elif isinstance(e, SetCompExpr):
-        pass
+        out["elt"] = e.elt.to_dict()
+        out["generators"] = e.generators
     elif isinstance(e, ForallExpr):
         out["var"] = e.var
         if e.binder_type is not _ABSENT:

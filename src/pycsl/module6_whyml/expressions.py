@@ -8,6 +8,7 @@ from ir_schema import (
     NumberExpr, StringExpr, ResultExpr, NoneExpr, RawWhymlExpr, BoolExpr,
     UnknownPyExprExpr, SliceExpr, OldFieldExpr, StarredExpr, TupleExpr,
     ArrayLitExpr, ForallExpr, ExistsExpr, MapValueIsExpr, VarExpr, FieldGetExpr,
+    DictLitExpr, ListCompExpr, SetCompExpr, DictCompExpr, ForallItemsExpr,
 )
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
@@ -3408,7 +3409,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             body = self._expr_to_whyml(expr['body'], local_refs, invariant_ctx, subst)
             self._pop_quant_binder(expr.get("var"), saved)
             return f"(exists {expr['var']} : {bty}. {body})"
-        if t == "ForallItems":
+        if isinstance(node, ForallItemsExpr):
             # 07-1311 Q3: `\forall k, v in d.items(); P` → over the map+option model,
             # `forall k. match Map.get d k with Some v -> P | None -> true end`. The value
             # `v` is bound by the match; the key `k` (int) by the outer forall. Register
@@ -3423,7 +3424,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             key = self._expr_to_whyml(expr["key"], local_refs, invariant_ctx, subst)
             val = self._expr_to_whyml(expr["value"], local_refs, invariant_ctx, subst)
             return f"(Map.get ({expr['map']}) ({key}) = Some ({val}))"
-        if t == "DictLit":
+        if isinstance(node, DictLitExpr):
             # typing-engagement ty2 / 29-1700-typing-spec-5 §2.2 T8: a dict
             # literal `{"x": 1, "y": 2}` in a TypedDict construction context
             # (the enclosing function/assignment target is a TypedDict record)
@@ -3441,13 +3442,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # are currently uncommon enough to fall through to empty.
             # TODO: handle `{k1: v1, k2: v2}` by chaining Map.set.
             return "(const (None: option int))"
-        if t == "ListComp":
+        if isinstance(node, ListCompExpr):
             self._add_abstract_op("val list_comp (x: int) : int")
             return "(list_comp 0)"
-        if t == "SetComp":
+        if isinstance(node, SetCompExpr):
             self._add_abstract_op("val set_comp (x: int) : int")
             return "(set_comp 0)"
-        if t == "DictComp":
+        if isinstance(node, DictCompExpr):
             self._add_abstract_op("val dict_comp (x: int) : int")
             return "(dict_comp 0)"
 
