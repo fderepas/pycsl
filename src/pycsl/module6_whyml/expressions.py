@@ -48,6 +48,18 @@ _TYPED_EXPR_HANDLERS = {
     "_handle_nth_expr",
     "_handle_mem_expr",
     "_handle_append_expr",
+    # ghost spec ops (tuple/ctor/str/array) — expr_ghost_spec_ops.py
+    "_handle_mktuple_expr",
+    "_handle_fst_expr",
+    "_handle_snd_expr",
+    "_handle_proj_expr",
+    "_handle_ctor_test_expr",
+    "_handle_ctor_payload_expr",
+    "_handle_strconcat_expr",
+    "_handle_str_length_expr",
+    "_handle_str_sub_expr",
+    "_handle_ghost_copy_expr",
+    "_handle_ghost_make_expr",
 }
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
