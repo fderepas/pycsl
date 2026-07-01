@@ -281,3 +281,90 @@ the residual trust for that arm is exactly one enumerated evaluator axiom — th
 plan is validated and Slices 1–5 are its systematic repetition. If step 3 or 5
 proves intractable (e.g. the string ops resist a faithful model), that is the
 precise, early signal to take §8's fallback.
+
+---
+
+## 12. EXECUTION RESULTS (2026-07-01, autonomous) — Ceiling A clears for leaves, blocks at `_expr_to_whyml`
+
+The plan was executed as far as evidence allows without a risky unsupervised
+emitter refactor. Outcome: **the leaf-level mechanism is VALIDATED; the
+compositional slices (1–5) are confirmed ceiling-blocked**, exactly at the point
+§7/§8 anticipated. Per §9's falsification criterion, the §8 fallback is taken.
+
+### 12.1 What was measured (probes + code audit, reproducible)
+
+- **Slice-0 target correction.** §9 named `_handle_assign_stmt` as the "clean"
+  first arm. The **real body refutes that**: it is a 6-way dispatch
+  (`shared_var` / `seq_local` / first-declare / `array_local` / bool / ref-update)
+  using `stmt.value.to_dict()` (reflection), `getattr(self,…).get(…)`, ~8 trusted
+  sibling calls (`_expr_to_whyml`, `_track_collection_metadata`,
+  `_first_assign_kind`, `_emit_first_assign`, `_handle_seq_assign`,
+  `_emit_array_local_reassign`, `_val_is_bool`, `_stmts_to_whyml`), and 2 state
+  mutations. `_handle_assign_stmt` is **not** a Slice-0 — it embodies the full
+  ceiling.
+- **The genuine leaves DO clear Ceiling A.** Standalone PyCSL probes proved
+  body-faithful string contracts for the trivial constant-string emitters:
+  - `ensures \result == indent + "raise PyCSL_Continue"` → **SUCCESS**
+  - `ensures \result == indent + "()"` (pass) → **SUCCESS**
+  - `ensures \result == indent + "raise " + exc` (raise) → **SUCCESS**
+  So B2's f-string→`str_concat` fix genuinely makes leaf emitter bodies provable.
+  Ceiling A is **clear wherever there is no reflection / no state / no sibling.**
+- **The compositional half bottoms out in `_expr_to_whyml` (the ceiling incarnate).**
+  Every non-trivial handler calls `_expr_to_whyml`, whose signature is still
+  `expr: Dict[str, Any]` — **Phase B migrated the *statement* side to typed
+  `StmtIR`, NOT the expression side.** Measured: **56** `Dict[str, Any]`
+  signatures remain on the expression subsystem; **41** `.to_dict()` sites remain
+  in the statement handlers; `_expr_to_whyml`'s body has 45+ reflective/state/
+  sibling operations over the full Python expression language.
+
+### 12.2 Per-slice verdict
+
+| Slice | Verdict | Evidence |
+|---|---|---|
+| Slice 0 (leaf mechanism) | ✅ **VALIDATED** | continue/pass/raise contracts prove |
+| Slice 1 (leaf handlers) | ⚠️ **achievable but needs emitter extraction** | the leaves are inline in the orchestrator, not separate methods; making them body-faithful requires a (byte-identical) extraction — deferred: not done unsupervised |
+| Slice 2 (`_expr_to_whyml` value contract, C4) | ❌ **BLOCKED (ceiling)** | `_expr_to_whyml` is `Dict[str,Any]`, reflective, 45+ ops; giving it a value contract requires migrating the whole expr subsystem to typed `ExprIR` first |
+| Slice 3 (compositional if/seq/while/for) | ❌ **BLOCKED** | depend on Slice 2 |
+| Slices 4–5 (connect / residue) | ❌ **BLOCKED** | depend on Slices 2–3 |
+
+### 12.3 The true prerequisite the plan under-scoped
+
+C1 ("eliminate `.to_dict()`") and C4 ("value contract for `_expr_to_whyml`") are
+**not** per-method touch-ups — they require a **"Phase B for expressions"**: a
+Phase-B-scale migration of the entire expression subsystem (the 56 `Dict[str,Any]`
+signatures) to typed `ExprIR`, mirroring what Phase B did for `StmtIR`, **gated
+byte-identical**. Only *after* that migration does `_expr_to_whyml` become a
+typed-field function whose value contract is even *statable*; and even then A2
+(faithful models for `endswith`/`rsplit`/`replace`/`stable_hash`) and A3
+(transpiler-state record for `assigns`) remain. So the honest critical path is:
+
+```
+Phase-B-expr (typed ExprIR migration, 56 sigs, byte-diff gated)   ← the real Wave-1, NOT in this plan
+      └─► then C4 (_expr_to_whyml value contract) becomes attackable
+             └─► then C1/C5/C6 (handler bodies) per the plan
+```
+
+### 12.4 Fallback taken (§8)
+
+Given Slice 2 is ceiling-blocked, the plan's §8 fallback applies. Recommended:
+- **Short term — stratified trust as-is (§8.3):** the emitter stays `\trusted`;
+  the Why3-side per-arm coherence lemmas (`pycsl-wp-spec.mlw`) remain the
+  discharge of LINK 3, with the audited evaluator axioms (D2) as the residual.
+  This is the *current* state and is not regressed by these findings.
+- **Medium term — the real lever is "Phase-B-expr"** (§12.3), a self-contained,
+  byte-diff-gated migration that is *not* itself ceiling-blocked (it is a
+  representation change, like Phase B was). It is the necessary precondition for
+  any compositional body-faithful work, and worth its own plan.
+- **Alternative — proof-producing certificate (§8.1):** upgrade
+  `bin/per-run-certificate.sh` from byte-diff to a semantic per-arm certificate.
+
+### 12.5 Net
+
+The plan's **thesis holds where it can**: Ceiling A is genuinely breakable for
+non-reflective code (leaves proved). But the **compositional handlers cannot be
+body-faithful until the expression subsystem is migrated to typed `ExprIR`** —
+the plan's C1/C4 silently presumed that migration, which was never done (Phase B
+was statements-only). No `_handle_*` was un-`\trusted` in this pass (doing so for
+a real arm requires either the deferred emitter extraction for a leaf, or the
+Phase-B-expr migration for a compositional one). The ceiling is now **precisely
+located and quantified** — the finding, not a conversion, is this pass's result.
