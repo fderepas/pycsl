@@ -139,3 +139,27 @@ if __name__ == "__main__":
     test_auto_dispatch()
     test_extras_fall_back_opaque()
     print(f"[+] round-trip OK across {len(_ir_files())} corpus IR files")
+
+
+def test_expr_from_dict_class_preservation():
+    """Phase-B-expr fidelity guard: kinds with a typed ExprIR class must NOT
+    fall back to OpaqueExpr through expr_from_dict (regression guard for the
+    DictLit/ListComp/SetComp/DictComp lossiness fixed in the schema)."""
+    from ir_schema import (
+        expr_from_dict, OpaqueExpr,
+        DictLitExpr, ListCompExpr, SetCompExpr, DictCompExpr, ForallItemsExpr,
+    )
+    E = {"type": "Var", "name": "x"}
+    cases = {
+        DictLitExpr:  {"type": "DictLit", "keys": [E], "values": [E]},
+        ListCompExpr: {"type": "ListComp", "elt": E, "generators": [{"g": 1}]},
+        SetCompExpr:  {"type": "SetComp", "elt": E, "generators": []},
+        DictCompExpr: {"type": "DictComp", "key": E, "value": E, "generators": []},
+        ForallItemsExpr: {"type": "ForallItems", "key": "k", "val": "v",
+                          "map": "m", "body": {"type": "Bool", "value": True}},
+    }
+    for cls, d in cases.items():
+        node = expr_from_dict(d)
+        assert isinstance(node, cls), f"{d['type']} -> {type(node).__name__}, expected {cls.__name__}"
+        assert not isinstance(node, OpaqueExpr)
+        assert node.to_dict() == d
