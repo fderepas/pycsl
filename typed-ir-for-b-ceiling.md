@@ -196,3 +196,40 @@ reproduction of the Ceiling-B pattern for future readers.
   updated to "Ceiling B LIFTED".
 - A FOURTH real emitter handler off the trusted base — and every *inline-reflecting*
   handler now reduced to the mechanical per-handler recipe.
+
+---
+
+## 8. Implementation log — B-C1 + B-C2 landed
+
+**B-C1 (theory + construction lowering) — DONE, byte-clean.** The `emit_ir` ADT
+(§2.1) + `kind_of`/`name_of`/`value_of`/`object_of` projections are emitted (once, as
+a single-line `type` decl so the abstract-val block can't split it) for any module
+with a `@mutable_state` class — `Module6_WhyMLTranspiler._emit_exprir_theory`. Inline
+`{"type": K, …}` dict literals lower to the matching constructor via
+`expressions._lower_irnode_construction` (`{"type":"Var","name":e}` → `(IrVar <e>)`;
+unknown kind / missing payload → `(IrOther "<kind>")`, sound).
+
+**B-C2 (ExprIR field/param typing) — DONE, byte-clean.** `_symtype_to_whyml` maps an
+`ExprIR`/`StmtIR`/`IRNode`/`ContractExprIR` symtype → the `emit_ir` type. So an inline
+construction (an `emit_ir`) and a real ExprIR field/param unify at a sibling.
+
+**Two discoveries during implementation:**
+1. The mirror imports `IRNode` → a `type irnode = int` opaque alias; and it already
+   carries FORMAL-SEMANTICS `#@ datatype expr_ir = EVar(string) | …` / `stmt_ir`
+   declarations (for the Rocq/Lean proofs, `statements.py:35`). Both own the names
+   `exprir`/`irnode` and the constructor `EVar`. The new ADT is therefore named
+   **`emit_ir`** with constructors **`IrVar`/`IrAttr`/`IrStr`/`IrNum`/`IrRaw`/
+   `IrOther`** to avoid every collision — it coexists with, and is distinct from, the
+   formal `expr_ir` (which is NOT wired to the real field types; those are still `int`).
+2. The multi-line `type` decl was spliced by the abstract-val insertion point
+   (`_find_abstract_val_insert_idx` inserts after the last `type ` line) → the ADT is
+   emitted as ONE line.
+
+**Gates passed:** the witness `src/self-annotate/typed-irnode-witness.py` (inline
+construction passed to an `ExprIR`-typed sibling) verifies; corpus byte-diff 0; the
+mirror `statements.py` still PASSES with the three handlers un-`\trusted`.
+
+**Remaining:** B-C3 (reflection `.get("type")` → `kind_of`, over an `emit_ir`
+receiver) and B-C4 (migrate the mirror's `_is_string_expr`/`_expr_to_whyml`/
+`_seq_operand` stubs from `int` to `ExprIR`, then un-`\trust` `_handle_augassign_stmt`
+— the ripple to re-verify array_slice/fieldassign is the migration cost noted in §5.2).

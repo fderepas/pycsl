@@ -459,6 +459,14 @@ class Module6_WhyMLTranspiler(
         type_lines, declared_types = self._emit_type_decls(type_decls)
         out += type_lines
 
+        # typed-ir-for-b-ceiling.md B-C1: emit the `exprir` ADT + reflection
+        # projections when the module has a @mutable_state class (the emitter model).
+        # The 627-file corpus has NO @mutable_state class, so this is byte-identical
+        # there; only the self-annotation mirror gets the theory. Placed after the
+        # record types (projections may name them) and before the abstract-val block.
+        if getattr(self, "_mutable_state_classes", None):
+            out += self._emit_exprir_theory()
+
         # inductive.md: `#@ inductive` predicates emit AFTER datatypes (their rules
         # reference constructors) and BEFORE axioms/functions (which may mention the
         # predicate in contracts). Empty for non-inductive modules → no change.
