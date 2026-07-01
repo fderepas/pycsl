@@ -4,12 +4,26 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from module6_whyml.identifiers import op_translate, whyml_ident, stable_hash, whyml_string_literal
 from ir_schema import (
-    expr_from_dict,
+    expr_from_dict, _expr_from_dict_inner, OpaqueExpr,
     NumberExpr, StringExpr, ResultExpr, NoneExpr, RawWhymlExpr, BoolExpr,
     UnknownPyExprExpr, SliceExpr, OldFieldExpr, StarredExpr, TupleExpr,
     ArrayLitExpr, ForallExpr, ExistsExpr, MapValueIsExpr, VarExpr, FieldGetExpr,
     DictLitExpr, ListCompExpr, SetCompExpr, DictCompExpr, ForallItemsExpr,
 )
+
+# Phase-B-expr: handlers migrated to accept a typed ExprIR node (rather than the
+# wire dict). The `_expr_to_whyml` tail dispatch passes the typed `node` to these
+# and the legacy dict to the rest; an OpaqueExpr (a node carrying extra
+# attribution keys the class doesn't model, e.g. BinOp+act_name) is coerced to
+# its typed class via `_expr_from_dict_inner` — safe because these handlers do
+# not read attribution keys. Grows one handler at a time, byte-diff gated.
+_TYPED_EXPR_HANDLERS = {
+    "_handle_unaryop_expr",
+    "_handle_old_expr",
+    "_handle_at_expr",
+    "_handle_named_expr_expr",
+    "_handle_ifexpr_expr",
+}
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
 from module6_whyml.expr_ghost_spec_ops import GhostSpecOpsMixin
@@ -2877,13 +2891,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
     def _handle_unaryop_expr(
         self,
-        expr: Dict[str, Any],
+        node: "UnaryOpExpr",
         local_refs: Set[str],
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
     ) -> str:
-        e = self._expr_to_whyml(expr["expr"], local_refs, invariant_ctx, subst)
-        op = op_translate(expr["op"])
+        # Phase-B-expr: typed. `node` is a UnaryOpExpr (op: str, expr: ExprIR).
+        e = self._expr_to_whyml(node.expr, local_refs, invariant_ctx, subst)
+        op = op_translate(node.op)
         if op == "+":
             return e
         if op == "~":
@@ -2891,67 +2906,73 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # identity `~x == -x - 1` (genuine int op, not a type-class leak).
             return f"((- {e}) - 1)"
         if op == "not":
-            e = self._to_bool(e, expr["expr"])
+            e = self._to_bool(e, node.expr.to_dict())
         return f"({op} {e})"
 
     def _handle_old_expr(
         self,
-        expr: Dict[str, Any],
+        node: "OldExpr",
         local_refs: Set[str],
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
     ) -> str:
-        inner = expr["expr"]
-        if not self._value_semantic and inner.get("type") == "Subscript":
-            value = self._expr_to_whyml(inner["value"], local_refs, invariant_ctx, subst)
-            index = self._expr_to_whyml(inner["index"], local_refs, invariant_ctx, subst)
+        # Phase-B-expr: typed. `node` is an OldExpr (expr: ExprIR).
+        inner = node.expr
+        if not self._value_semantic and inner.kind == "Subscript":
+            d = inner.to_dict()
+            value = self._expr_to_whyml(d["value"], local_refs, invariant_ctx, subst)
+            index = self._expr_to_whyml(d["index"], local_refs, invariant_ctx, subst)
             return f"(Map.get (old !{self._heap_var}) ({value} + {index}))"
         e = self._expr_to_whyml(inner, local_refs, invariant_ctx, subst)
         return f"(old {e})"
 
     def _handle_at_expr(
         self,
-        expr: Dict[str, Any],
+        node: "AtExpr",
         local_refs: Set[str],
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
     ) -> str:
-        label = expr["label"]
-        inner = expr["expr"]
+        # Phase-B-expr: typed. `node` is an AtExpr (expr: ExprIR, label: str).
+        label = node.label
+        inner = node.expr
         if label == "PRE":
             e = self._expr_to_whyml(inner, local_refs, invariant_ctx, subst)
             return f"(old {e})"
-        if inner.get("type") == "Subscript" and not self._value_semantic:
-            value = self._expr_to_whyml(inner["value"], local_refs, invariant_ctx, subst)
-            index = self._expr_to_whyml(inner["index"], local_refs, invariant_ctx, subst)
+        if inner.kind == "Subscript" and not self._value_semantic:
+            d = inner.to_dict()
+            value = self._expr_to_whyml(d["value"], local_refs, invariant_ctx, subst)
+            index = self._expr_to_whyml(d["index"], local_refs, invariant_ctx, subst)
             return f"(Map.get ({self._heap_var} at {label}) ({value} + {index}))"
         e = self._expr_to_whyml(inner, local_refs, invariant_ctx, subst)
         return f"({e} at {label})"
 
     def _handle_ifexpr_expr(
         self,
-        expr: Dict[str, Any],
+        node: "IfExprExpr",
         local_refs: Set[str],
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
     ) -> str:
-        test = self._expr_to_whyml(expr["test"], local_refs, invariant_ctx, subst)
-        test = self._to_bool(test, expr["test"])
-        body = self._expr_to_whyml(expr["body"], local_refs, invariant_ctx, subst)
-        orelse = self._expr_to_whyml(expr["orelse"], local_refs, invariant_ctx, subst)
+        # Phase-B-expr: typed. IfExprExpr (test, body, orelse: ExprIR).
+        test = self._expr_to_whyml(node.test, local_refs, invariant_ctx, subst)
+        test = self._to_bool(test, node.test.to_dict())
+        body = self._expr_to_whyml(node.body, local_refs, invariant_ctx, subst)
+        orelse = self._expr_to_whyml(node.orelse, local_refs, invariant_ctx, subst)
         body = self._coerce_to_int(body)
         orelse = self._coerce_to_int(orelse)
         return f"(if {test} then {body} else {orelse})"
 
     def _handle_named_expr_expr(
         self,
-        expr: Dict[str, Any],
+        node: "NamedExprExpr",
         local_refs: Set[str],
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
     ) -> str:
-        target = whyml_ident(expr["target"])
-        v = self._expr_to_whyml(expr["value"], local_refs, invariant_ctx, subst)
+        # Phase-B-expr: typed. NamedExprExpr (target: str, value: ExprIR).
+        target = whyml_ident(node.target)
+        v = self._expr_to_whyml(node.value, local_refs, invariant_ctx, subst)
         if target in local_refs:
             return f"(begin {target} := {v}; !{target} end)"
         local_refs.add(target)
@@ -3459,6 +3480,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # All other types via uniform-quad-signature dispatch
         handler = self._EXPR_DISPATCH.get(t)
         if handler:
+            if handler in _TYPED_EXPR_HANDLERS:
+                tn = node if not isinstance(node, OpaqueExpr) else _expr_from_dict_inner(node.raw)
+                return getattr(self, handler)(tn, local_refs, invariant_ctx, subst)
             return getattr(self, handler)(expr, local_refs, invariant_ctx, subst)
         return ""
 
