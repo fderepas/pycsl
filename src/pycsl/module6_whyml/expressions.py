@@ -487,6 +487,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             else:
                 key = fn
             return ann.get(key) == "str"
+        # todict-reflection-plan.md: a record's `str`-typed FIELD read (`n.kind` on a
+        # record-typed param/local, or `self.f`/`global.f`) is string-typed — so
+        # `n.kind == "Var"` routes to `str_eq_op`, not the int-hash mismatch. self/
+        # global/record-var via `_field_type_of`; a record-typed PARAM/local via the
+        # symbol table + the record's `field_types`. A non-str/unknown field → False
+        # (unchanged opaque path) → byte-identical outside genuine str-field reads.
+        if t in ("Attribute", "FieldGet"):
+            ft = self._field_type_of(ir)
+            if ft is None:
+                if t == "FieldGet":
+                    _rn, _fl = ir.get("object"), ir.get("field")
+                else:
+                    _r = ir.get("value") or ir.get("object")
+                    _rn = _r.get("name") if isinstance(_r, dict) else None
+                    _fl = ir.get("attr")
+                if isinstance(_rn, str):
+                    _rt = getattr(self, "_current_symbol_table", {}).get(_rn)
+                    if _rt and _rt in getattr(self, "_record_types", {}):
+                        ft = self._record_types[_rt].get("field_types", {}).get(_fl)
+            return ft in ("str", "string")
         return False
 
     def _is_float_expr(self, ir: Dict[str, Any]) -> bool:
