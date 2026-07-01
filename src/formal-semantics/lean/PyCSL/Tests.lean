@@ -379,3 +379,25 @@ theorem test_soundness_call (es : ExecState) (r : Ident) (fn arg : Expr)
     (hWp : wp (.call r fn arg) Qn Qr Qc Qb Qe preEs es) :
     outcomePost Qn Qr Qc Qb Qe out :=
   pycsl_soundness es (.call r fn arg) out Qn Qr Qc Qb Qe preEs hExec hWp
+
+-- ===== Phase 8 — Lambda reachability + capture witnesses =====
+
+-- WI-3 reachability / non-vacuity: build a closure via `.lambda`, call it, and
+-- the WP forces r = 6. Unreachable before `.lambda`. Proved with no axioms.
+theorem test_lambda_reaches_6 (es : ExecState) (Qn : ExecState → Prop)
+    (H : ∀ es', lookup es'.regState "r" = some (.int 6) → Qn es') :
+    wp (.seq (.lambda "f" "a" (.ret (.binop .add (.var "a") (.int 1))))
+             (.call "r" (.var "f") (.int 5)))
+       Qn (fun _ => True) (fun _ => True) (fun _ => True) (fun _ _ => True) es es := by
+  simp only [wp]; intro st' v Hexec; apply H; cases Hexec; rfl
+
+-- WI-4 lexical capture: `y=5; f=λa.a+y; y=99; r=f(0)` ⟹ r=5 (captures the
+-- defining state; reassigning y afterwards does not change the captured value).
+theorem test_lambda_lexical_capture (es : ExecState) (Qn : ExecState → Prop)
+    (H : ∀ es', lookup es'.regState "r" = some (.int 5) → Qn es') :
+    wp (.seq (.assign "y" (.int 5))
+        (.seq (.lambda "f" "a" (.ret (.binop .add (.var "a") (.var "y"))))
+        (.seq (.assign "y" (.int 99))
+              (.call "r" (.var "f") (.int 0)))))
+       Qn (fun _ => True) (fun _ => True) (fun _ => True) (fun _ _ => True) es es := by
+  simp only [wp]; intro st' v Hexec; apply H; cases Hexec; rfl

@@ -1403,6 +1403,16 @@ Transpiles to an anonymous function:
 fun (x: int) (y: int) -> (x + y)
 ```
 
+**Formal model (Phase 8, LINK 1).** The mechanized semantics models a lambda by
+the *defunctionalized* pair `SLambda x param body` (construction — binds a
+`VClosure` capturing the defining state) + `SCall` (application), proved sound in
+both provers with 0 new axioms (`formal-semantics-completion.md` §2 Phase 8). The
+WhyML-`fun` lowering shown here is a **sound lowering of that same construct**;
+the tool's `fun` is n-ary while the formal model is single-parameter + currying.
+Reference cases: `pycsl-reference/0242` (single-param), `0243` (multi-param),
+`0745` (lexical capture) — all Valid. Passing a lambda *as a function argument*
+is not supported (a documented Phase-8 non-goal).
+
 ---
 
 ## 10. Concurrent Model Annotations

@@ -1855,6 +1855,25 @@ $$\mathcal{T}_e\llbracket \texttt{lambda x: e} \rrbracket
 
 **Implementation:** `_handle_lambda_expr`.
 
+**Soundness classification (Phase 8).**
+- **Static plane (Interpreted):** the applied lambda's value contract is proved
+  by Why3 — a lambda bound and immediately/eventually called produces a VC over
+  its body (witnessed by `pycsl-reference/0242`, `0243`, `0745`, all Valid; and
+  a *false*-postcondition lambda program fails, so the VC is non-vacuous).
+- **Runtime plane:** the lambda is an ordinary WhyML `fun` value; no `pycsl_lib`
+  shim is required (it is `Interpreted`, not `Shimmed`).
+- **Formal model (LINK 1):** the mechanized semantics models lambda by the
+  *defunctionalized* `SLambda` (construction) + `SCall` (application) with a
+  `VClosure` value — see `formal-semantics-completion.md` §2 Phase 8. The tool's
+  WhyML-`fun` lowering above is a **sound lowering of the same construct**; the
+  constructor-by-constructor IR alignment (5a) is the future LINK-1 refinement,
+  the current representational boundary being documented (5b) in
+  `src/self-annotate/arm-coverage.md`.
+- **Divergence / Ignored:** first-class function *passing* (a lambda through a
+  function parameter) and returning/escaping lambdas are **Ignored** — a
+  documented non-goal (`phase8-plan.md` §5); such programs are rejected or
+  fail verification rather than silently accepted.
+
 ### §T.6.12  Slice Access
 
 $$\mathcal{T}_e\llbracket \texttt{arr[lo:hi]} \rrbracket
