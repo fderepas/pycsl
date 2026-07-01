@@ -30,7 +30,7 @@ all of these:
 | **L1** | **`-> str` function return-type propagation** — `_build_method_return_type_map` records a `str`-annotated function as WhyML `string` (was: only list/set/dict overridden; `str` fell through to the int-hash default). | ✅ **DONE, byte-clean** (§1) |
 | **L2** | **String-local recognizer** — a local whose first assignment is a call to a `string`-returning function is typed `string` (let-bound as a string ref, excluded from the `ref 0` int pre-decl). Builds on L1. | ✅ **DONE, byte-clean** (§2a) |
 | **L2b** | **Cross-mixin-file sibling return types** — explicit `-> str` `\trusted` stubs for `_expr_to_whyml`/`_expr_to_whyml_string_ctx` (B3 siblings) in the mirror, so their `string` return type is in this module's table. | ✅ **DONE** (§2b) |
-| **L3** | **String literals in f-strings** — `f"{a}[{i}]"`'s literal chunks (`"["`) lower as WhyML string literals, not int hashes (`465640005`); `str_concat` over all-string operands. | ◻ |
+| **L3** | **F-string result locals** — a local assigned an all-string f-string is typed `string` (fixpoint recognizer). The literals already lower as WhyML strings once all parts are string (b14 B2 + L2/L2b). | ✅ **DONE, byte-clean** (§3) |
 | **L4** | **Sub-field `.to_dict()` receiver** — `stmt.index.to_dict()` must keep its receiver (currently drops to a nullary `stmt_index_to_dict_0 ()`). | ◻ |
 | **L5** | **Close B1.4** — the leaf verifies body-faithful (`ensures \result == …`) once L1–L4 land; then scale to more handlers. | ◻ |
 
@@ -107,3 +107,22 @@ explicit — faithful, since the real siblings do return `str`).
 (self__expr_to_whyml_2 …)` as **string** refs. Mirror-only change → corpus byte-diff
 0. Next surface: `code` (the f-string) is still `ref 0` and its `str_concat`
 receives int-hashed literals → **L3**.
+
+
+---
+
+## 3. L3 — f-string result locals (DONE)
+
+Once L1/L2/L2b type the interpolated locals as string, an all-string f-string
+already lowers to `str_concat_op` over real string literals (b14 B2) — the literal
+int-hash (`465640005`) is gone. What remained: the *receiving* local (`code = f"…"`)
+was still `ref 0`. Generalized the string-local recognizer to a **fixpoint** that
+also marks a local first-assigned an all-string f-string (handling `FString`
+directly, without touching the widely-used `_is_string_expr`); the fixpoint marks
+`arr`/`idx` (L2 calls) first, then `code` (the f-string over them). Byte-diff 0.
+
+**Result:** all four leaf locals (`arr`, `idx`, `py_val`, `code`) are string refs.
+Next surface (L4): the `if rest` branch `code := !code + (";\n" + self._stmts_to_whyml(…))`
+lowers `+` as int add because `_is_string_expr` doesn't resolve the *self-call*
+`self._stmts_to_whyml(…)` (the `_module_method_return_annotations` map isn't keyed
+for `self.<m>`) — the string-`+`/concat routing then misses.
