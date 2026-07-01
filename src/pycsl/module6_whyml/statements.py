@@ -1313,6 +1313,60 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     changed = True
         return out
 
+    def _collect_emit_ir_result_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """typed-ir-for-b-ceiling.md §19: locals whose FIRST assignment is an `emit_ir`
+        value — an ExprIR field read (`assume_inv = stmt.assume_invariant`), an inline
+        `{"type": K}` construction, a `d = node.to_dict()` alias, or another emit_ir
+        local. They are pre-declared `ref (IrOther "")` (the emit_ir counterpart of the
+        R3 `ref ""` string pre-decl), not the integer `ref 0`. @mutable_state only."""
+        if (getattr(self, "_current_self_type", None)
+                not in getattr(self, "_mutable_state_classes", set())):
+            return set()
+        st = getattr(self, "_current_symbol_table", None)
+        firsts: List[Tuple[str, Any]] = []
+        seen: Set[str] = set()
+
+        def rec(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("stmt") == "Assign" and isinstance(node.get("target"), str):
+                    tgt = node["target"]
+                    if tgt not in seen:
+                        seen.add(tgt)
+                        firsts.append((tgt, node.get("value", {})))
+                for x in node.values():
+                    rec(x)
+            elif isinstance(node, list):
+                for x in node:
+                    rec(x)
+        rec(body_stmts)
+
+        def _is_emit_ir_val(v: Any, known: Set[str]) -> bool:
+            if not isinstance(v, dict):
+                return False
+            if self._is_emit_ir_expr(v):
+                return True
+            if v.get("type") == "Var" and v.get("name") in known:
+                return True
+            _fn = v.get("func")
+            if (v.get("type") == "Call" and isinstance(_fn, str)
+                    and _fn.endswith(".to_dict") and not v.get("args")):
+                return True
+            return False
+
+        out: Set[str] = set()
+        changed = True
+        while changed:
+            changed = False
+            for tgt, v in firsts:
+                if tgt in out:
+                    continue
+                if _is_emit_ir_val(v, out):
+                    out.add(tgt)
+                    if st is not None and st.get(tgt) in (None, "Any"):
+                        st[tgt] = "ExprIR"   # so reflection on the local sees emit_ir
+                    changed = True
+        return out
+
     def _typed_local_vars(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """Body locals that carry a NON-int WhyML type — array, dict/set, lambda,
         record, or variant — and so must be EXCLUDED from the integer `ref 0`
@@ -1375,6 +1429,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # no-more-int emitter L2: locals bound from a `string`-returning call.
         string_vars |= self._collect_str_call_result_locals(body_stmts)
         self._string_local_vars = string_vars
+        # typed-ir §19: emit_ir locals — excluded from the int `ref 0` pre-decl (they get
+        # a `ref (IrOther "")` pre-decl in `_emit_body_code`), so their `:=` typechecks.
+        self._emit_ir_local_vars = self._collect_emit_ir_result_locals(body_stmts)
         # 07-2333-rev2 Gap 3: a seq-promoted (growable) list LOCAL must NOT be pre-declared
         # as `ref 0 : ref int` — it is `ref (seq int)`, let-bound at its first assignment by
         # `_handle_seq_assign` (07-1705 P3). Excluding it here is what lets the first assign
@@ -1383,7 +1440,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # full set is safe.
         seq_local_vars = getattr(self, "_seq_locals", set()) - set(self._formal_params)
         return (array_vars | dict_vars | lambda_vars | record_vars | variant_vars
-                | set(tuple_vars) | string_vars | seq_local_vars)
+                | set(tuple_vars) | string_vars | seq_local_vars
+                | getattr(self, "_emit_ir_local_vars", set()))
 
     def _prescan_todict_aliases(self, body_stmts):
         for st in body_stmts or []:
@@ -1466,12 +1524,21 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         _ms_body = (is_method and getattr(self, "_current_self_type", None)
                     in getattr(self, "_mutable_state_classes", set()))
         _str_predecl: Set[str] = set()
+        _emit_ir_predecl: Set[str] = set()
         if _ms_body:
             _str_predecl = {v for v in getattr(self, "_string_local_vars", set())
                             if v in local_refs and v not in ghost_vars
                             and v not in ref_params and v not in self._formal_params
                             and v not in struct_array_targets and v not in struct_pack_targets}
             pre_decl_vars |= _str_predecl
+            # typed-ir §19: emit_ir locals pre-declare `ref (IrOther "")` (the emit_ir
+            # counterpart of the string `ref ""` pre-decl above).
+            _emit_ir_predecl = {v for v in getattr(self, "_emit_ir_local_vars", set())
+                                if v in local_refs and v not in ghost_vars
+                                and v not in ref_params and v not in self._formal_params
+                                and v not in struct_array_targets and v not in struct_pack_targets
+                                and v not in _str_predecl}
+            pre_decl_vars |= _emit_ir_predecl
 
         if is_method:
             initial_declared = {whyml_ident(v) for v in pre_decl_vars}
@@ -1531,6 +1598,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # R3: a @mutable_state string local pre-declares `ref ""` (see above).
             if var in _str_predecl:
                 init = '""'
+            elif var in _emit_ir_predecl:
+                init = '(IrOther "")'   # typed-ir §19: emit_ir local pre-decl
             else:
                 init = safe_var if var in self._formal_params else pfx
             body_code = f"    let {safe_var} = ref {init} in\n{body_code}"
