@@ -44,7 +44,7 @@ class ControlFlowStmtMixin:
         i_inv_w = 0
         while i_inv_w < n_inv_w:
             inv = invariants_w[i_inv_w]
-            inv_str = self._expr_to_whyml(inv.to_dict(), local_refs)
+            inv_str = self._expr_to_whyml(inv, local_refs)
             loop_code += f"{inner_indent}invariant {{ {inv_str} }}\n"
             i_inv_w += 1
         variants_w = stmt.variants
@@ -52,7 +52,7 @@ class ControlFlowStmtMixin:
         i_var_w = 0
         while i_var_w < n_var_w:
             var = variants_w[i_var_w]
-            var_str = self._expr_to_whyml(var.to_dict(), local_refs)
+            var_str = self._expr_to_whyml(var, local_refs)
             loop_code += f"{inner_indent}variant {{ {var_str} }}\n"
             i_var_w += 1
         self._in_spec = False
@@ -206,7 +206,7 @@ class ControlFlowStmtMixin:
         #@ loop variant n_inv_f - i_inv_f
         while i_inv_f < n_inv_f:
             inv = invariants_f[i_inv_f]
-            inv_str = self._expr_to_whyml(inv.to_dict(), inv_refs, subst=inv_subst)
+            inv_str = self._expr_to_whyml(inv, inv_refs, subst=inv_subst)
             while_parts.append(f"{inner_indent}invariant {{ {inv_str} }}")
             i_inv_f += 1
         variants_f = stmt.variants
@@ -217,7 +217,7 @@ class ControlFlowStmtMixin:
         #@ loop variant n_var_f - i_var_f
         while i_var_f < n_var_f:
             var_ir = variants_f[i_var_f]
-            var_str = self._expr_to_whyml(var_ir.to_dict(), inv_refs, subst=inv_subst)
+            var_str = self._expr_to_whyml(var_ir, inv_refs, subst=inv_subst)
             while_parts.append(f"{inner_indent}variant {{ {var_str} }}")
             i_var_f += 1
         self._in_spec = False
@@ -730,7 +730,7 @@ class ControlFlowStmtMixin:
     def _handle_match_stmt(self, stmt: MatchStmt, rest: List[Dict[str, Any]],
                            local_refs: Set[str], declared_refs: Set[str],
                            indent: str, in_loop: bool) -> str:
-        subject = self._expr_to_whyml(stmt.subject.to_dict(), local_refs)
+        subject = self._expr_to_whyml(stmt.subject, local_refs)
         cases = stmt.cases
         # typing-engagement ty1 / 25-1700-typing-spec-1 §1.3 C9: a `match` on a
         # Union-typed value must lower to a constructor-pattern match over the

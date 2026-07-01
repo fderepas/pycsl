@@ -310,8 +310,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                       local_refs: Set[str], declared_refs: Set[str],
                                       indent: str, in_loop: bool) -> str:
         arr = whyml_ident(stmt.target)
-        idx = self._expr_to_whyml(stmt.index.to_dict(), local_refs)
-        val = self._expr_to_whyml(stmt.value.to_dict(), local_refs)
+        idx = self._expr_to_whyml(stmt.index, local_refs)
+        val = self._expr_to_whyml(stmt.value, local_refs)
         # Why3 array element assignment: a[i] <- v
         code = f"{indent}{arr}[{idx}] <- {val}"
         if rest:
@@ -411,12 +411,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         """
         arr = stmt.array.to_dict()
         dst = self._expr_to_whyml(arr, local_refs)
-        lo = self._expr_to_whyml(stmt.lower.to_dict(), local_refs)
+        lo = self._expr_to_whyml(stmt.lower, local_refs)
         if stmt.upper is not None:
-            hi = self._expr_to_whyml(stmt.upper.to_dict(), local_refs)
+            hi = self._expr_to_whyml(stmt.upper, local_refs)
         else:
             hi = f"(Array.length {dst})"
-        src = self._expr_to_whyml(stmt.value.to_dict(), local_refs)
+        src = self._expr_to_whyml(stmt.value, local_refs)
         # If `src` is a non-trivial expression (e.g. `Array.sub ...`), it
         # cannot be referenced inside a logic `assert {...}` (WhyML program
         # functions are not logic functions). Bind it to a fresh local first
@@ -460,13 +460,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 arr.get("value", {}).get("name") not in getattr(self, "_dict_locals", set())):
             base = arr["value"]["name"]
             row_expr = self._expr_to_whyml(arr["index"], local_refs)
-            col_expr = self._expr_to_whyml(stmt.index.to_dict(), local_refs)
-            val_expr = self._expr_to_whyml(stmt.value.to_dict(), local_refs)
+            col_expr = self._expr_to_whyml(stmt.index, local_refs)
+            val_expr = self._expr_to_whyml(stmt.value, local_refs)
             code = f"{indent}set {base} {row_expr} {col_expr} {val_expr}"
         else:
             array_expr = self._expr_to_whyml(arr, local_refs)
-            index_expr = self._expr_to_whyml(stmt.index.to_dict(), local_refs)
-            val_expr = self._expr_to_whyml(stmt.value.to_dict(), local_refs)
+            index_expr = self._expr_to_whyml(stmt.index, local_refs)
+            val_expr = self._expr_to_whyml(stmt.value, local_refs)
             if self._value_semantic:
                 var_name = arr.get("name", "") if arr.get("type") == "Var" else ""
                 is_dict = var_name in getattr(self, "_dict_locals", set())
@@ -585,13 +585,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 let_bindings.append(f"{indent}let {tmp} = any int in")
                 seq_parts.append(f"{indent}{safe_var} := {tmp}")
             self._in_spec = True
-            inv_str = self._expr_to_whyml(assume_inv.to_dict(), set())
+            inv_str = self._expr_to_whyml(assume_inv, set())
             self._in_spec = False
             app = self._mutex_inv_application(mutex, inv_str)
             seq_parts.append(f"{indent}assume {{ {app} }}")
         elif assume_inv:
             self._in_spec = True
-            inv_str = self._expr_to_whyml(assume_inv.to_dict(), local_refs)
+            inv_str = self._expr_to_whyml(assume_inv, local_refs)
             self._in_spec = False
             seq_parts.append(f"{indent}assume {{ {inv_str} }}")
         # 0417 (typecheck-audit.md residual): if the critical section is the TAIL of a
@@ -616,13 +616,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             seq_parts.append(body_code)
         if prove_inv and shared_for_mutex:
             self._in_spec = True
-            inv_str = self._expr_to_whyml(prove_inv.to_dict(), set())
+            inv_str = self._expr_to_whyml(prove_inv, set())
             self._in_spec = False
             app = self._mutex_inv_application(mutex, inv_str)
             seq_parts.append(f"{indent}assert {{ {app} }}")
         elif prove_inv:
             self._in_spec = True
-            inv_str = self._expr_to_whyml(prove_inv.to_dict(), local_refs)
+            inv_str = self._expr_to_whyml(prove_inv, local_refs)
             self._in_spec = False
             seq_parts.append(f"{indent}assert {{ {inv_str} }}")
         if tail_ret is not None:
@@ -717,7 +717,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     ) -> str:
         obj = stmt.object
         field = stmt.field
-        val = self._expr_to_whyml(stmt.value.to_dict(), local_refs)
+        val = self._expr_to_whyml(stmt.value, local_refs)
         if val == "true":
             val = "1"
         elif val == "false":
@@ -775,7 +775,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     ) -> str:
         obj = stmt.object
         field = stmt.field
-        val = self._expr_to_whyml(stmt.value.to_dict(), local_refs)
+        val = self._expr_to_whyml(stmt.value, local_refs)
         op = op_translate(stmt.op)
         safe_field = whyml_ident(field)
         decl_fields = self._all_record_fields
@@ -940,7 +940,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         if isinstance(stmt, ProofAssertStmt):
             kw = "check" if stmt.assert_kind == "check" else "assert"
             self._in_spec = True
-            pred = self._expr_to_whyml(stmt.test.to_dict(), local_refs)
+            pred = self._expr_to_whyml(stmt.test, local_refs)
             self._in_spec = False
             origin = stmt.origin if stmt.origin is not _ABSENT else None
             comment = f"{indent}(* {origin} *)\n" if origin else ""
