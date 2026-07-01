@@ -395,6 +395,10 @@ class Module6_WhyMLTranspiler(
         all_bodies = [func["body"] for func in functions]
 
         self._all_record_fields = self._collect_record_fields(type_decls)
+        self._mutable_state_classes = {
+            whyml_ident(td["name"].lower()) for td in type_decls
+            if isinstance(td, dict) and td.get("kind") == "record" and td.get("mutable_state")
+        }
 
         # module-emission.md: OPT-IN axiom isolation. If a function carries
         # `#@ verify_module <name>` AND is emitted here as a REAL `let` body (i.e. it is

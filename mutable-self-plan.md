@@ -232,3 +232,50 @@ twin must FAIL (soundness). That is the M.5/M.7 handoff to A3.
 Slice-0 did its job: the approach is **sound and byte-safe by construction**, the
 Why3 mechanics are **confirmed** (escape + checked non-vacuous writes), and the
 build is now a precise, bounded M.2–M.4 — no longer an open question.
+
+---
+
+## 9. M.2–M.4 BUILT & GATED (2026-07-01) — checked `assigns` on `@mutable_state` classes works
+
+Built M.2–M.4 as a gated feature. **The soundness hole is closed** for opt-in
+classes, and the §9 falsification is flipped.
+
+**M.2 — marker.** `@mutable_state` decorator (detected like `@dataclass`,
+`Module5._is_mutable_state_decorated`) sets a `mutable_state` flag on the record
+type_decl. No grammar change; absent on every existing class.
+
+**M.3 — mutable fields.** Already present: `@dataclass` fields emit
+`type st = { mutable n: int }` (the `mutable` prefix existed); `self.x = v` already
+lowers to `self.x <- v`. No change needed — the gap was purely the missing body
+`writes`.
+
+**M.4 — checked frame.** `functions._emit_function` now emits `writes { self.x, … }`
+on the **concrete `let`** of a `@mutable_state` method (from `_module_method_writes`,
+the same source that fed only the abstract-op stub). Why3 checks the body against it.
+
+**M.5 witnesses (`src/self-annotate/mutable-state-witnesses.py`, verifies):**
+- **Escape** — `s = Counter(0); s.bump(); return s.n` proves `\result == 1`: the
+  mutation is visible to the caller (value-semantics FAILED this in `a3-plan.md §9`;
+  now SUCCESS).
+- **Non-vacuity / soundness** — the same body with `#@ assigns \nothing` now **FAILS**
+  ("unlisted write effect"): a lying frame is rejected. The `a3-plan.md §9` hole is
+  **closed** for `@mutable_state` classes.
+- **`writes` clause** confirmed emitted: `let st__bump (self: st) : unit  writes { self.n }`.
+
+**Gate: byte-diff 0** across the 627-file corpus — opt-in; every unmarked class is
+byte-identical (flag added to the record-append paths; the `writes` line fires only
+for marked classes).
+
+### Status
+- **M.1 ✅** (Slice-0, §8) · **M.2 ✅** · **M.3 ✅** (pre-existing) · **M.4 ✅** ·
+  **M.5 ✅** (escape + non-vacuity + `writes` emission).
+- **M.6 ✅** byte-diff 0.
+- **M.7 (handoff to A3)**: mark the transpiler-state class `@mutable_state` and
+  re-run `a3-plan.md` Slice-0 — the mutation-only witness should now prove a CHECKED
+  `assigns` (no longer vacuous). This is the next step; a proper stdlib
+  `@mutable_state` (vs. the witness's local no-op) is a small follow-on.
+- **M.8** (mutable-record representation A / multi-instance) remains deferred.
+
+**Net:** `assigns` is now a **proven frame** for opt-in `@mutable_state` state —
+converting the `a3-plan.md §9` "unchecked declaration" into a checked obligation,
+byte-safe by construction. A3 is unblocked.
