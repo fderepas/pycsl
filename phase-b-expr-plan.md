@@ -354,3 +354,36 @@ calls. A single wrong attribute → a subtle byte-diff (caught by the gate, but
 requiring bisection). Grinding 30 such conversions unattended risks a long
 bisection or a half-migrated state. This is the genuinely-supervised remainder;
 the foundation for it (typed dispatch + faithful `expr_from_dict`) is now solid.
+
+---
+
+## 14. EXECUTION UPDATE (2026-07-01, cont'd) — helper migration begun, pattern validated
+
+Helper-signature migration started, one-by-one, byte-diff gated. **5 handlers now
+take a typed `ExprIR` node** (byte-clean): `_handle_unaryop_expr`,
+`_handle_old_expr`, `_handle_at_expr`, `_handle_named_expr_expr`,
+`_handle_ifexpr_expr`.
+
+**The validated pattern** (each step byte-diff 0 vs the 627-file baseline):
+1. `_expr_to_whyml`'s tail dispatch passes the typed `node` to any handler in the
+   `_TYPED_EXPR_HANDLERS` set (legacy dict to the rest). A rare `OpaqueExpr`
+   (a node with extra attribution keys, e.g. BinOp+`act_name`) is coerced to its
+   typed class via `_expr_from_dict_inner` — safe because emitter handlers do not
+   read attribution keys.
+2. Handler body: `node.field` for the node's own fields; `child.kind == "…"` for
+   child type-checks (works on typed *and* opaque children, matching the old
+   `.get("type")`); `child.to_dict()[k]` for deep child field access
+   (opaque-safe); `self._expr_to_whyml(child, …)` for recursion (it accepts
+   `ExprIR`); pass `child.to_dict()` to any still-dict-typed sibling
+   (e.g. `_to_bool`).
+3. Add the handler name to `_TYPED_EXPR_HANDLERS`; `bin/byte-diff-sweep.sh` +
+   `diff -rq` must be 0.
+
+**Remaining:** ~45 of the ~50 `_EXPR_DISPATCH` handlers (incl. the complex core
+ones `_handle_binop`/`_handle_call_expr`/`_handle_subscript`/`_handle_fstring_expr`
+and the map/set/list ghost-op handlers in `expr_ghost_*.py`). Each is the same
+mechanical, gated conversion — a long tail best ground down incrementally with
+the pattern above. The dispatch scaffolding + OpaqueExpr coercion are in place, so
+new handlers are additive. Final steps after the handlers: migrate the remaining
+non-dispatch helpers (`_to_bool`/`_is_string_expr`/…), remove the `_expr_to_whyml`
+dict normalization, and finalize `_expr_to_whyml(expr: ExprIR)`.
