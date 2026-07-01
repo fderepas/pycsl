@@ -3263,6 +3263,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         """Recursively translates an expression dictionary into a WhyML string.
         When invariant_ctx is True, FieldGet emits bare field names (for record invariants).
         subst: optional name substitution dict applied before local_refs lookup (e.g. for-loop vars)."""
+        # Phase-B-expr: accept a typed ExprIR (Phase-A sum) as well as the legacy
+        # wire dict. Normalizing to the dict view here keeps the body byte-identical
+        # during the incremental migration; callers may pass either representation.
+        if expr and not isinstance(expr, dict):
+            expr = expr.to_dict()
         if not expr: return ""
         t = expr["type"]
 
