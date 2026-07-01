@@ -212,3 +212,50 @@ def mark(self, name: str) -> None:
 If 1–3 close, the transpiler-state frame route is validated and Slices 1–3 extend
 it (dominant `_add_abstract_op`, then counters/maps/flags, then a real handler's
 frame). If mutable-`self` resists, that is A3's real first problem, surfaced cheaply.
+
+---
+
+## 9. EXECUTION RESULT (2026-07-01) — Slice 0 FALSIFIED A3's foundation; mutable-`self` is the true prerequisite
+
+Ran the §8 Slice-0 falsifiable probes first (as §5/§7 mandate). **Outcome: the
+approach is falsified — `assigns` cannot soundly frame a state-mutating emitter
+method on PyCSL's current `self` semantics.** Evidence (probes in scratchpad):
+
+| probe | result | meaning |
+|---|---|---|
+| `bump` writes `self.n`, `#@ assigns self.n` | **SUCCESS** | a record method type-checks a field write |
+| `bump` writes `self.n`, `#@ assigns \nothing` | **SUCCESS** ⚠️ | **non-vacuity FAILS** — a wrong frame passes |
+| same, but `#@ assigns \nothing` on a **global**-mutating method | **SUCCESS** ⚠️ | `assigns` isn't checked for concrete bodies at all |
+| `bump` + `#@ ensures self.n == \old(self.n)+1` | **SUCCESS** | the write IS modelled — within the method |
+| caller: `s = St(0); s.bump(); ` `#@ ensures \result == s.n == 1` | **FAILED** | **the mutation does NOT escape** — value-semantics |
+
+**Root cause.** PyCSL models a record `self`/param **by value**: a method's field
+write mutates a LOCAL copy, is invisible to the caller, and needs no WhyML `writes`
+clause. `statements.py:988` confirms a concrete body "cannot INFER its `writes` from
+mutations"; the `assigns→writes` translation exists **only for abstract `val`
+declarations** (the OS model's `writes {self.disk}`), not for verified bodies. So:
+- every `assigns` on a state-mutating handler is **trivially `\nothing`** (nothing
+  escapes) → the frame is **vacuous** and any clause passes;
+- the real transpiler state **persists** across handler calls (a shared mutable
+  `self`), which value-semantics cannot represent.
+
+**Verdict — A3 as scoped is BLOCKED, and the true prerequisite is deeper than the
+plan assumed.** A sound transpiler-state frame needs **mutable-reference `self` /
+persistent shared-record semantics** in PyCSL: `self` as a mutable record whose
+field writes ARE observable to callers and ARE checked against a `writes`/`assigns`
+obligation. That is a substantial **verifier capability** (shared mutable state +
+frame-checking of concrete bodies), not the bounded modeling pass A3 envisioned
+(reusing the existing `assigns self.field` machinery — which §9 shows is
+declaration-only, not a proven obligation).
+
+**No code landed** (probes only; the emitter/mirror untouched). The falsifiable
+Slice-0 did exactly its job: it proved, cheaply, that the frame route does not hold
+on the current foundation, and located the real blocker. **Recommend a separate
+"mutable-self / persistent-state" verifier plan** BEFORE any transpiler-state
+modeling — A3 sits on top of it. Until then the state-mutating handlers stay
+`\trusted` (enumerated), and the standing fallback (stratified trust) is unchanged.
+
+**Net for the L5-scaling arc:** the two walls §7 named are now BOTH probed —
+`.to_dict()`/dict-reflection (modeling) and A3 (mutation frame). A3's turns out to
+rest on an even more basic gap (mutable-`self`), so the honest next step is that
+verifier capability, not more emitter modeling.
