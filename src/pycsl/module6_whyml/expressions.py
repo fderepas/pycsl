@@ -7,6 +7,7 @@ from ir_schema import (
     expr_from_dict,
     NumberExpr, StringExpr, ResultExpr, NoneExpr, RawWhymlExpr, BoolExpr,
     UnknownPyExprExpr, SliceExpr, OldFieldExpr, StarredExpr, TupleExpr,
+    ArrayLitExpr, ForallExpr, ExistsExpr, MapValueIsExpr, VarExpr, FieldGetExpr,
 )
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
@@ -3333,7 +3334,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return whyml_string_literal(expr["value"])
         if t == "Result":   return getattr(self, "_result_alias", None) or "result"
         if t == "None":     return "0"
-        if t == "ArrayLit":
+        if isinstance(node, ArrayLitExpr):
             elts = expr.get("elts", [])
             # 07-0903 W1 (no-more-int): a list/array of tuples lowers to a faithful
             # `array (t0, …)` — each element is a Why3 tuple, NOT collapsed to an int.
@@ -3384,7 +3385,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if t == "Tuple":
             elts = [self._expr_to_whyml(e, local_refs, invariant_ctx, subst) for e in expr.get("elts", [])]
             return f"({', '.join(elts)})"
-        if t == "Forall":
+        if isinstance(node, ForallExpr):
             bty = self._quant_binder_whyml(expr.get("binder_type"))
             saved = self._push_quant_binder(expr.get("var"), expr.get("binder_type"))
             body = self._expr_to_whyml(expr['body'], local_refs, invariant_ctx, subst)
@@ -3401,7 +3402,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     trig = f" [{self._strip_outer_parens(_tl)}]"
             self._pop_quant_binder(expr.get("var"), saved)
             return f"(forall {expr['var']} : {bty}{trig}. {body})"
-        if t == "Exists":
+        if isinstance(node, ExistsExpr):
             bty = self._quant_binder_whyml(expr.get("binder_type"))
             saved = self._push_quant_binder(expr.get("var"), expr.get("binder_type"))
             body = self._expr_to_whyml(expr['body'], local_refs, invariant_ctx, subst)
@@ -3416,7 +3417,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             body = self._expr_to_whyml(expr["body"], local_refs, invariant_ctx, subst)
             return (f"(forall {key} : int. match Map.get ({expr['map']}) ({key}) with "
                     f"| Some {val} -> {body} | None -> true end)")
-        if t == "MapValueIs":
+        if isinstance(node, MapValueIsExpr):
             # 07-1311 Q3: `\exists k. d[k] = Some v` — the value-membership witness for
             # `\forall v in d.values(); …`. A pure logic term over the `map`+`option` model.
             key = self._expr_to_whyml(expr["key"], local_refs, invariant_ctx, subst)
@@ -3451,8 +3452,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return "(dict_comp 0)"
 
         # Non-standard-signature handlers — called explicitly
-        if t == "Var":      return self._handle_var_expr(expr, local_refs, subst)
-        if t == "FieldGet": return self._handle_field_get_expr(expr, invariant_ctx)
+        if isinstance(node, VarExpr):      return self._handle_var_expr(expr, local_refs, subst)
+        if isinstance(node, FieldGetExpr): return self._handle_field_get_expr(expr, invariant_ctx)
 
         # All other types via uniform-quad-signature dispatch
         handler = self._EXPR_DISPATCH.get(t)
