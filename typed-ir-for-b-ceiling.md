@@ -233,3 +233,42 @@ mirror `statements.py` still PASSES with the three handlers un-`\trusted`.
 receiver) and B-C4 (migrate the mirror's `_is_string_expr`/`_expr_to_whyml`/
 `_seq_operand` stubs from `int` to `ExprIR`, then un-`\trust` `_handle_augassign_stmt`
 — the ripple to re-verify array_slice/fieldassign is the migration cost noted in §5.2).
+
+---
+
+## 9. B-C4 depth finding — the migration is multi-seam (attempted, reverted to green)
+
+B-C4 (un-`\trust` `_handle_augassign_stmt`) was attempted end-to-end. It got FAR — the
+inline `{"type":"Var","name":target}` lowers to `(IrVar !target)` inside augassign, and
+several migration steps landed byte-clean in a probe branch — but it is **not a single
+migration**: `ExprIR → emit_ir` must be threaded through SEVERAL INDEPENDENT
+type-resolution seams, each its own fix. §5.2's "migration cost" was understated. The
+probe reverted (main stays green at B-C1+B-C2; the mirror must never be left broken).
+
+**Seams identified (✓ = solved in the probe, byte-clean; ✗ = still open):**
+1. ✓ **Sibling stub params** — `_is_string_expr`/`_expr_to_whyml`/`_expr_to_whyml_string_ctx`/
+   `_seq_operand` mirror signatures `int`/`Dict[str,Any]` → `"ExprIR"`.
+2. ✓ **Record field types** — `preamble._emit_type_decls` ftype resolver: an `ExprIR`
+   field tag → `emit_ir` (else falls back to `int`).
+3. ✓ **Param annotation → symtype** — `Module5._m5_get_type_name` (and
+   `_field_type_from_annotation_inst`): preserve `ExprIR`/`StmtIR`/`IRNode` (bare,
+   forward-ref string, or `Optional[...]`) as the tag "ExprIR", via a shared
+   `_irnode_ann_name` helper.
+4. ✓ **ADT declared before records** — the `emit_ir` `type` must precede the record
+   types that name it (move the `_emit_exprir_theory` call above `type_lines`).
+5. ✓ **Inline `to_dict()` identity** — `<node>.to_dict()` (no args) in a @mutable_state
+   method → the receiver (an `emit_ir`), since to_dict is identity on the typed IR
+   (`_handle_call_expr` intercept). The BOUND form is R1's alias.
+6. ✗ **`_module_method_param_types` map** — `_resolve_dotted_signature` still returns
+   `['int']` for `_is_string_expr`'s param (the abstract self-call `val` is declared
+   `(x0: int)`), because the METHOD param symtype in this map is built via a path that
+   does NOT yet see the "ExprIR" tag. This is the next fix: thread the tag into
+   `_build_method_param_types_map` / the symbol-table param typing.
+7. ✗ **augassign's own residual no-more-int tail** — unreached; expect the same class of
+   per-handler gaps scale-h3 hit (dict-literal value types, etc.).
+
+**Assessment.** The mechanism (B-C1+B-C2) is sound and landed. B-C4 is a bounded but
+GENUINELY MULTI-SEAM migration (~2 seams still open + augassign's tail), each fix
+byte-clean and gated. It is finishable, but as a focused pass that threads seam 6, then
+walks augassign to green — NOT a single edit. Recommend doing it with a fresh context
+budget; the seams above are the exact worklist.
