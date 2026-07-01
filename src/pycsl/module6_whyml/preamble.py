@@ -2762,6 +2762,18 @@ class PreambleEmissionMixin:
                 for _f in _td["fields"]:
                     _field_counts[_f["name"]] = _field_counts.get(_f["name"], 0) + 1
         self._ambiguous_fields = {fn for fn, c in _field_counts.items() if c > 1}
+        # typed-ir-for-b-ceiling.md §18: a record field whose name ALSO names a local
+        # var in some method collides in Why3 — `stmt.ghost_type` resolves to the local
+        # `ghost_type` ref ("ref int … cannot be applied"), not the field. Qualify those
+        # fields (`<record>_<field>`) too, in both the decl and the access. Gated on
+        # @mutable_state (the emitter model) → byte-identical for the corpus.
+        if getattr(self, "_mutable_state_classes", None):
+            _local_names: Set[str] = set()
+            for _fn in self.ir.get("functions", []):
+                _local_names |= set(IRScanner.find_assigned_vars(_fn.get("body", [])))
+            _rec_fields = {f["name"] for td in type_decls
+                           if td.get("kind") == "record" for f in td.get("fields", [])}
+            self._ambiguous_fields |= (_rec_fields & _local_names)
         n = len(type_decls)
         i = 0
         _VPAY = {"int": "int", "bool": "int", "str": "string", "float": "real"}
