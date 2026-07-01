@@ -213,3 +213,38 @@ full gates. The remaining B1.3–B1.4 apply it to the real mirror — the next s
 where the deeper opacity (recursive dataclass fields that are themselves imported
 types, e.g. `stmt.value : ExprIR`) may surface and, per §6, is resolved with
 `--deep`-style recursion (still bounded, not ceiling-blocked).
+
+---
+
+## 9. B1.3 RESULT (2026-07-01) — the real mirror resolves ir_schema into typed records
+
+Wired the self-annotate runner and confirmed B1.3 end-to-end on the **real** mirror.
+
+**Achieved:**
+- `pycsl src/self-annotate/src/module6_whyml/statements.py --import-path src/pycsl`
+  now resolves the mirror's `from ir_schema import …`: **26 imported classes**
+  registered as records (e.g. `AssignStmt` = record + 17 helpers), **0 `ir_schema`
+  imports skipped** (was: all skipped, opaque). Still `Verification SUCCESS`.
+- **The §8 recursive-field worry did NOT materialize.** `ExprIR`-typed fields
+  (e.g. `stmt.value`) resolved cleanly — those classes live in `ir_schema` too and
+  come in as records in the same pass. No `--deep` recursion was needed.
+- Runner wiring (`bin/run-self-annotation-suite.sh`): a mirror-scoped
+  `--import-path $PROJECT_ROOT/src/pycsl` (applied only to `src/self-annotate/*`,
+  since real `src/pycsl/` files resolve their own dir and the redundant path
+  perturbs them). Regression-free for every mirror file (verdicts unchanged;
+  `statements.py`/`expressions.py` still SUCCESS, now with typed IR records).
+
+**Honest caveat — a PRE-EXISTING, UNRELATED suite failure:** `src/pycsl/errors.py`
+fails on `main` independent of B1 — a deterministic WhyML **type error** (`line 36:
+expression has type int, expected string`; a str/int mismatch, likely no-more-int
+fallout). Confirmed failing pre-#101, post-#101, and on a fully pristine tree, in
+0.8s. It is **not** caused or fixed by B1.3 (the runner change is scoped away from
+it). So the suite's overall exit is red *for a reason orthogonal to B1* — flagged
+here for separate triage, not conflated with this work. (An earlier "suite exit 0"
+reading was a measurement bug: `$?` after a `| tail` pipe captured tail's code.)
+
+**Work-item status:** B1.0 ✅ · B1.1 ✅ · B1.2 ✅ (already worked) · **B1.3 ✅**
+(mirror resolves ir_schema into typed records; runner wired). **Next — B1.4:**
+un-`\trust` one leaf `_handle_*` that reads a typed `stmt` field and prove it
+body-faithful (the concrete close). Separately: fix the pre-existing errors.py
+int/string type error to get the suite back to green.
