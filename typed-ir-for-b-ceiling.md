@@ -462,3 +462,37 @@ DONE. Remaining: #2 bool-flag self mutation (`self._decode_to_string = True/Fals
 bounded scalar/set-field features, not new reflection. The recognizer here is reusable:
 the big `_handle_array_set_stmt`/`_handle_critical_section_stmt` use the same
 `getattr(self, …)` idiom.
+
+---
+
+## 16. `_handle_assign_stmt` — deepest handler; a sibling-typing campaign (not a scale-up)
+
+A second attempt (with §15's getattr recognizer landed) got FURTHER but confirmed
+`_handle_assign_stmt` is a MULTI-FIX CAMPAIGN, not a single scale-up. It advanced through
+~8 distinct issues before the tail continued. The bound-alias reflection (`vt =
+val_ir.get("type") → kind_of`) and the getattr idiom (§15) both worked; the new blockers
+are in the ABSTRACT SELF-CALL VAL generation for the siblings `assign` calls
+(`_handle_seq_assign`, `_first_assign_kind`, `_emit_first_assign`, `_emit_array_local_
+reassign`, `_val_is_bool`, …):
+
+- **Record-class param → the record type** — `self._handle_seq_assign(stmt, …)` where
+  `stmt: AssignStmt`: the abstract must carry `assignstmt`, not `int` (fix drafted in
+  `_build_method_param_types_map`, byte-clean, @mutable_state-gated).
+- **Reassigned formal params dropped** — `_emit_first_assign`'s `val: str` param is
+  reassigned in the body (`val = _empty`), so the map builder skipped it as a "local",
+  short-changing the param list and MISALIGNING the abstract's parameter types (fix:
+  don't skip a name that is in `formal_params`; byte-clean).
+- **Reassigned-param TYPE drift** — after the two fixes above, `_emit_first_assign`'s
+  `val` param still resolves to `int` (its symbol-table type drifted from the `str`
+  annotation because the body reassigns it): the abstract self-call val must prefer the
+  param ANNOTATION over the re-inferred symbol-table type. NOT yet solved.
+- Plus §14 #2 (bool-flag self mutation `self._decode_to_string = …`) and #3 (set-field
+  membership) still ahead.
+
+**Assessment.** `assign` is the ONLY statement handler that calls a rich fan of typed
+siblings, so it exercises the abstract-self-call-val typing seam far harder than the six
+landed handlers (which mostly call `_expr_to_whyml`/`_add_abstract_op`). Closing it is a
+dedicated pass over that seam (record params, reassigned params, annotation-vs-inferred
+type, then §14 #2/#3) — bounded but multi-fix. Reverted to keep the SIX landed handlers
+green. The tractable frontier remains the direct-reflection handlers; `assign` wants its
+own focused campaign with this worklist.
