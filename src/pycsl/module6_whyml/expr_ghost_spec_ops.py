@@ -93,10 +93,10 @@ class GhostSpecOpsMixin:
     def _handle_ghost_copy_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
         return f"(Array.copy {node.arr})"
 
-    def _handle_ghost_copy_range_expr(self, expr: Dict[str, Any], lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
-        lo = self._e(expr["lo"], lr)
-        hi = self._e(expr["hi"], lr)
-        return f"(Array.sub {expr['arr']} {lo} ({hi} - {lo}))"
+    def _handle_ghost_copy_range_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
+        lo = self._e(node.lo, lr)
+        hi = self._e(node.hi, lr)
+        return f"(Array.sub {node.arr} {lo} ({hi} - {lo}))"
 
     def _handle_ghost_make_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
         n = self._e(node.size, lr)

@@ -61,6 +61,9 @@ _TYPED_EXPR_HANDLERS = {
     "_handle_ghost_copy_expr",
     "_handle_ghost_make_expr",
     # misc spec/expr handlers
+    "_handle_issorted_expr",
+    "_handle_sum_node_expr",
+    "_handle_ghost_copy_range_expr",
     "_handle_valid_expr",
     "_handle_setlit_expr",
     "_handle_lambda_expr",
@@ -3223,14 +3226,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
     def _handle_issorted_expr(
         self,
-        expr: Dict[str, Any],
+        node: "ExprIR",
         local_refs: Set[str],
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
     ) -> str:
-        base = expr["base"]
-        lo = self._expr_to_whyml(expr["lo"], local_refs, invariant_ctx, subst)
-        hi = self._expr_to_whyml(expr["hi"], local_refs, invariant_ctx, subst)
+        base = node.base
+        lo = self._expr_to_whyml(node.lo, local_refs, invariant_ctx, subst)
+        hi = self._expr_to_whyml(node.hi, local_refs, invariant_ctx, subst)
         if self._value_semantic:
             return f"(forall _si : int. {lo} <= _si /\\ _si < {hi} - 1 -> {base}[_si] <= {base}[_si + 1])"
         return "true"
@@ -3278,14 +3281,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
     def _handle_sum_node_expr(
         self,
-        expr: Dict[str, Any],
+        node: "ExprIR",
         local_refs: Set[str],
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
     ) -> str:
-        base = expr["base"]
-        lo = self._expr_to_whyml(expr["lo"], local_refs, invariant_ctx, subst)
-        hi = self._expr_to_whyml(expr["hi"], local_refs, invariant_ctx, subst)
+        base = node.base
+        lo = self._expr_to_whyml(node.lo, local_refs, invariant_ctx, subst)
+        hi = self._expr_to_whyml(node.hi, local_refs, invariant_ctx, subst)
         if self._value_semantic:
             return f"(pycsl_sum {base} {lo} {hi})"
         return "0"

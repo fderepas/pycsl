@@ -733,6 +733,8 @@ class Valid2DExpr(ExprIR):
 @dataclass(frozen=True)
 class IsSortedExpr(ExprIR):
     base: str
+    lo: "ExprIR"
+    hi: "ExprIR"
 
 
 @dataclass(frozen=True)
@@ -750,6 +752,8 @@ class PermutationExpr(ExprIR):
 @dataclass(frozen=True)
 class SumExpr(ExprIR):
     base: str
+    lo: "ExprIR"
+    hi: "ExprIR"
 
 
 @dataclass(frozen=True)
@@ -828,8 +832,8 @@ class GhostCopyExpr(ExprIR):
 @dataclass(frozen=True)
 class GhostCopyRangeExpr(ExprIR):
     arr: str
-    start: "ExprIR"
-    stop: "ExprIR"
+    lo: "ExprIR"
+    hi: "ExprIR"
 
 
 @dataclass(frozen=True)
@@ -1248,13 +1252,13 @@ def _expr_from_dict_inner(d: Dict[str, Any]) -> ExprIR:
     if k == "Valid2D":
         return Valid2DExpr(kind=k, base=d.get("base", ""), row=_e(d.get("row")), col=_e(d.get("col")))
     if k == "IsSorted":
-        return IsSortedExpr(kind=k, base=d.get("base", ""))
+        return IsSortedExpr(kind=k, base=d.get("base", ""), lo=_e(d.get("lo")), hi=_e(d.get("hi")))
     if k == "ArrayEq":
         return ArrayEqExpr(kind=k, left=_e(d.get("left")), right=_e(d.get("right")))
     if k == "Permutation":
         return PermutationExpr(kind=k, base1=d.get("base1", ""), base2=d.get("base2", ""))
     if k == "Sum":
-        return SumExpr(kind=k, base=d.get("base", ""))
+        return SumExpr(kind=k, base=d.get("base", ""), lo=_e(d.get("lo")), hi=_e(d.get("hi")))
     if k == "SliceAccess":
         return SliceAccessExpr(kind=k, value=_e(d.get("value")), slice=_e(d.get("slice")))
     if k == "FString":
@@ -1287,7 +1291,7 @@ def _expr_from_dict_inner(d: Dict[str, Any]) -> ExprIR:
         return GhostCopyExpr(kind=k, arr=d.get("arr", ""))
     if k == "GhostCopyRange":
         return GhostCopyRangeExpr(kind=k, arr=d.get("arr", ""),
-                                  start=_e(d.get("start")), stop=_e(d.get("stop")))
+                                  lo=_e(d.get("lo")), hi=_e(d.get("hi")))
     if k == "GhostMake":
         return GhostMakeExpr(kind=k, size=_e(d.get("size")), default=_e(d.get("default")))
     if k == "MapEmpty":
@@ -1612,6 +1616,8 @@ def _expr_to_dict(e: ExprIR) -> Dict[str, Any]:
         out["col"] = e.col.to_dict()
     elif isinstance(e, IsSortedExpr):
         out["base"] = e.base
+        out["lo"] = e.lo.to_dict()
+        out["hi"] = e.hi.to_dict()
     elif isinstance(e, ArrayEqExpr):
         out["left"] = e.left.to_dict()
         out["right"] = e.right.to_dict()
@@ -1620,6 +1626,8 @@ def _expr_to_dict(e: ExprIR) -> Dict[str, Any]:
         out["base2"] = e.base2
     elif isinstance(e, SumExpr):
         out["base"] = e.base
+        out["lo"] = e.lo.to_dict()
+        out["hi"] = e.hi.to_dict()
     elif isinstance(e, SliceAccessExpr):
         out["value"] = e.value.to_dict()
         out["slice"] = e.slice.to_dict()
@@ -1656,8 +1664,8 @@ def _expr_to_dict(e: ExprIR) -> Dict[str, Any]:
         out["arr"] = e.arr
     elif isinstance(e, GhostCopyRangeExpr):
         out["arr"] = e.arr
-        out["start"] = e.start.to_dict()
-        out["stop"] = e.stop.to_dict()
+        out["lo"] = e.lo.to_dict()
+        out["hi"] = e.hi.to_dict()
     elif isinstance(e, GhostMakeExpr):
         out["size"] = e.size.to_dict()
         out["default"] = e.default.to_dict()
