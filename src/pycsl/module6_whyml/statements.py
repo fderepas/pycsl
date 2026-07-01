@@ -1163,6 +1163,56 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     st[v] = "str"
         return out
 
+    def _collect_str_call_result_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+        """no-more-int emitter L2 (no-more-int-emitter-plan.md): a local whose
+        first assignment is a call to a `string`-returning function must be a
+        string-typed ref — never the integer `ref 0` pre-declaration — so the
+        `s := f(...)` (a WhyML `string`) typechecks. The callee's WhyML return
+        type comes from `_module_method_return_types` (L1 records `-> str`
+        functions as `string`); the key is resolved exactly as `_handle_dotted_
+        call` (a `self.<m>` call → `<self_type>__<m>`).
+
+        Byte-identical for any local NOT bound from a resolvable string-returning
+        call (the 627-corpus does not consult such a result into a local via this
+        path — see plan §1); a call whose callee return type is unknown (e.g. a
+        cross-mixin-file method not in this module's table) is left int, unchanged."""
+        rt = getattr(self, "_module_method_return_types", {})
+        out: Set[str] = set()
+        seen: Set[str] = set()
+
+        def _ret_of(fn: str):
+            if fn.startswith("self."):
+                tail = fn[len("self."):]
+                cls = getattr(self, "_current_self_type", None)
+                key = f"{cls}__{tail}" if cls else tail
+            else:
+                key = fn
+            return rt.get(key)
+
+        def rec(node):
+            if isinstance(node, dict):
+                if node.get("stmt") == "Assign" and isinstance(node.get("target"), str):
+                    tgt = node["target"]
+                    v = node.get("value", {})
+                    if tgt not in seen:
+                        seen.add(tgt)
+                        if (isinstance(v, dict) and v.get("type") == "Call"
+                                and _ret_of(v.get("func", "")) == "string"):
+                            out.add(tgt)
+                for x in node.values():
+                    rec(x)
+            elif isinstance(node, list):
+                for x in node:
+                    rec(x)
+
+        rec(body_stmts)
+        st = getattr(self, "_current_symbol_table", None)
+        if st is not None:
+            for v in out:
+                if st.get(v) in (None, "Any"):
+                    st[v] = "str"
+        return out
+
     def _typed_local_vars(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
         """Body locals that carry a NON-int WhyML type — array, dict/set, lambda,
         record, or variant — and so must be EXCLUDED from the integer `ref 0`
@@ -1222,6 +1272,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # on, so the variable type and the assigned value stay consistent in
         # every context (annotated `_dir_lookup` AND un-annotated `listdir`).
         string_vars |= self._collect_field_decode_str_locals(body_stmts)
+        # no-more-int emitter L2: locals bound from a `string`-returning call.
+        string_vars |= self._collect_str_call_result_locals(body_stmts)
         self._string_local_vars = string_vars
         # 07-2333-rev2 Gap 3: a seq-promoted (growable) list LOCAL must NOT be pre-declared
         # as `ref 0 : ref int` — it is `ref (seq int)`, let-bound at its first assignment by
