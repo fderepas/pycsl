@@ -4,12 +4,22 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 from module6_whyml.identifiers import op_translate, whyml_ident, stable_hash, whyml_string_literal
 from ir_schema import (
-    expr_from_dict,
+    expr_from_dict, _expr_from_dict_inner, OpaqueExpr,
     NumberExpr, StringExpr, ResultExpr, NoneExpr, RawWhymlExpr, BoolExpr,
     UnknownPyExprExpr, SliceExpr, OldFieldExpr, StarredExpr, TupleExpr,
     ArrayLitExpr, ForallExpr, ExistsExpr, MapValueIsExpr, VarExpr, FieldGetExpr,
     DictLitExpr, ListCompExpr, SetCompExpr, DictCompExpr, ForallItemsExpr,
 )
+
+# Phase-B-expr: handlers migrated to accept a typed ExprIR node (rather than the
+# wire dict). The `_expr_to_whyml` tail dispatch passes the typed `node` to these
+# and the legacy dict to the rest; an OpaqueExpr (a node carrying extra
+# attribution keys the class doesn't model, e.g. BinOp+act_name) is coerced to
+# its typed class via `_expr_from_dict_inner` — safe because these handlers do
+# not read attribution keys. Grows one handler at a time, byte-diff gated.
+_TYPED_EXPR_HANDLERS = {
+    "_handle_unaryop_expr",
+}
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
 from module6_whyml.expr_ghost_spec_ops import GhostSpecOpsMixin
@@ -2877,13 +2887,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
     def _handle_unaryop_expr(
         self,
-        expr: Dict[str, Any],
+        node: "UnaryOpExpr",
         local_refs: Set[str],
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
     ) -> str:
-        e = self._expr_to_whyml(expr["expr"], local_refs, invariant_ctx, subst)
-        op = op_translate(expr["op"])
+        # Phase-B-expr: typed. `node` is a UnaryOpExpr (op: str, expr: ExprIR).
+        e = self._expr_to_whyml(node.expr, local_refs, invariant_ctx, subst)
+        op = op_translate(node.op)
         if op == "+":
             return e
         if op == "~":
@@ -2891,7 +2902,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # identity `~x == -x - 1` (genuine int op, not a type-class leak).
             return f"((- {e}) - 1)"
         if op == "not":
-            e = self._to_bool(e, expr["expr"])
+            e = self._to_bool(e, node.expr.to_dict())
         return f"({op} {e})"
 
     def _handle_old_expr(
@@ -3459,6 +3470,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # All other types via uniform-quad-signature dispatch
         handler = self._EXPR_DISPATCH.get(t)
         if handler:
+            if handler in _TYPED_EXPR_HANDLERS:
+                tn = node if not isinstance(node, OpaqueExpr) else _expr_from_dict_inner(node.raw)
+                return getattr(self, handler)(tn, local_refs, invariant_ctx, subst)
             return getattr(self, handler)(expr, local_refs, invariant_ctx, subst)
         return ""
 
