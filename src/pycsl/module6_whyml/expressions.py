@@ -60,6 +60,12 @@ _TYPED_EXPR_HANDLERS = {
     "_handle_str_sub_expr",
     "_handle_ghost_copy_expr",
     "_handle_ghost_make_expr",
+    # misc spec/expr handlers
+    "_handle_valid_expr",
+    "_handle_setlit_expr",
+    "_handle_lambda_expr",
+    "_handle_in_globals_expr",
+    "_handle_in_scope_expr",
 }
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
@@ -3128,20 +3134,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         names.discard(None)
         return names
 
-    def _handle_in_globals_expr(self, expr: Dict[str, Any], local_refs: Set[str],
+    def _handle_in_globals_expr(self, node: "ExprIR", local_refs: Set[str],
                                 invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> str:
         """07-1839 P2: `\\in_globals(name)` — three-valued, true-only lower bound.
         decided-true (→ `true`) for a declared module binding; UNKNOWN otherwise → an
         uninterpreted bool (`in_globals_op`), so it is neither provably true nor false
         (open world: import/exec may inject the name). The unsound decided-false direction
         is never emitted."""
-        name = expr.get("name", "")
+        name = node.name
         if name in self._module_binding_names():
             return "true"
         self._add_abstract_op("val function in_globals_op (n: int) : bool")
         return f"(in_globals_op {sum(ord(c) for c in name)})"
 
-    def _handle_in_scope_expr(self, expr: Dict[str, Any], local_refs: Set[str],
+    def _handle_in_scope_expr(self, node: "ExprIR", local_refs: Set[str],
                               invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> str:
         """07-1839 P3: `\\in_scope(name)` — three-valued via definite-assignment.
         decided-true (→ `true`) if `name` is assigned on all paths (param or top-level
@@ -3149,7 +3155,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         neither a param nor assigned anywhere; UNKNOWN (conditionally assigned) → an
         uninterpreted bool. A dynamic exec havocs the binding set, so the decided-false
         direction is withheld afterwards (decision C)."""
-        name = expr.get("name", "")
+        name = node.name
         if name in getattr(self, "_scope_must", set()):
             return "true"
         if (not getattr(self, "_scope_dyn_exec", False)
@@ -3161,13 +3167,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
     def _handle_valid_expr(
         self,
-        expr: Dict[str, Any],
+        node: "ExprIR",
         local_refs: Set[str],
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
     ) -> str:
-        base = expr["base"]
-        length = self._expr_to_whyml(expr["length"], local_refs, invariant_ctx, subst)
+        base = node.base
+        length = self._expr_to_whyml(node.length, local_refs, invariant_ctx, subst)
         if self._value_semantic:
             return f"({length} >= 0 && {length} <= Array.length {base})"
         return f"(valid !{self._heap_var} {base} {length})"
@@ -3286,24 +3292,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
     def _handle_lambda_expr(
         self,
-        expr: Dict[str, Any],
+        node: "ExprIR",
         local_refs: Set[str],
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
     ) -> str:
-        params = expr.get("params", [])
-        body = self._expr_to_whyml(expr["body"], local_refs, invariant_ctx, subst)
+        params = node.params
+        body = self._expr_to_whyml(node.body, local_refs, invariant_ctx, subst)
         param_str = " ".join(f"({whyml_ident(p)}: int)" for p in params) if params else "()"
         return f"(fun {param_str} -> {body})"
 
     def _handle_setlit_expr(
         self,
-        expr: Dict[str, Any],
+        node: "ExprIR",
         local_refs: Set[str],
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
     ) -> str:
-        elts = expr.get("elts", [])
+        elts = node.elts
         # Empty set literal: `map int (option int)` initialised to None.
         if not elts:
             return "(const (None: option int))"
