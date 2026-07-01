@@ -951,6 +951,11 @@ class FunctionEmissionMixin:
                 # don't pre-decl a `ref 0` (int) target and then `:=` a
                 # map.
                 ret = "map int (option int)"
+            elif ann == "str" and ret == "int":
+                # no-more-int emitter campaign L1: a `-> str` function returns a
+                # WhyML `string`, not the legacy int hash — so a caller can type a
+                # `s = f(...)` local as string. (MEASUREMENT branch — gated.)
+                ret = "string"
             result[func["name"]] = ret
         return result
 
