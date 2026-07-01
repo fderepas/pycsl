@@ -274,4 +274,14 @@ Inductive stmt : Type :=
      mutually inductive; closures are constructed only at the value
      level (`VClosure` in Phase2_State.v). This is the defunctionalized
      closure model per the Phase 8 task spec. *)
-  | SCall       (result : ident) (fn : expr) (arg : expr).
+  | SCall       (result : ident) (fn : expr) (arg : expr)
+  (* Phase 8 — Lambda construction (Option 1, defunctionalized; human
+     reviewer decision 2026-07-01). `SLambda x param body` binds a
+     single-parameter closure value `VClosure param body cstate` at
+     name `x`, capturing the current reg_state as `cstate`. It is the
+     source-level *producer* of the closures `SCall` consumes — without
+     it no program could construct a VClosure, so the closure model was
+     source-unreachable. Multi-arg lambdas are curried. Leaf state
+     update (mirrors SAssign); non-emittable in the WhyML int-subset
+     (mirrors SCall). *)
+  | SLambda     (x param : ident) (body : stmt).

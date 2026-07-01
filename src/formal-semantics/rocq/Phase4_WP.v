@@ -189,4 +189,10 @@ Fixpoint wp (s : stmt)
         Qn (set_reg es (update es.(reg_state) r v))
     | _ => True
     end
+
+  (* Phase 8 — Lambda construction. Leaf: bind the captured closure value.
+     SOS outcome ≡ this WP term, so the soundness case is `exact Hwp`. *)
+  | SLambda x param body =>
+    Qn (set_reg es (update es.(reg_state) x
+          (VClosure param body es.(reg_state))))
   end.

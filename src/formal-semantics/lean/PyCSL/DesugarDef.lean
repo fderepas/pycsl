@@ -35,6 +35,7 @@ def freshInStmt (x : Ident) : Stmt → Bool
   | .acquires _         => true
   | .releases _         => true
   | .call _ _ _         => true
+  | .lambda _ _ _       => true
 
 -- liftContinue incStmt s: replace every shallow continue_ in s with (seq incStmt continue_).
 -- "Shallow" means: recurse into seq/ite/tryCatch/critical/threadEntry but
@@ -51,6 +52,7 @@ def freshInStmt (x : Ident) : Stmt → Bool
   | .acquires m             => .acquires m
   | .releases m             => .releases m
   | .call r fn arg          => .call r fn arg
+  | .lambda x param body    => .lambda x param body
   -- Leaf constructors: identity (explicit to generate clean equation lemmas)
   | .skip                   => .skip
   | .break_                 => .break_

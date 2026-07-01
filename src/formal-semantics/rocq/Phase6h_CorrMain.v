@@ -91,6 +91,8 @@ Proof.
     exact (wp_gen_releases mutex Qn Qr Qc Qb Qe pre_es es).
   - (* SCall: not emittable — vacuous (is_emittable (SCall ...) = False) *)
     exfalso. exact Hem.
+  - (* SLambda: not emittable — vacuous (is_emittable (SLambda ...) = False) *)
+    exfalso. exact Hem.
 Qed.
 
 (* ===== Corollary: using wp_w (gen s) implies wp s ===== *)

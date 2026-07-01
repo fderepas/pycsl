@@ -137,6 +137,27 @@ The **architectural** phase. Parameterise the formalisation over a memory model 
 
 **Gate:** closure values; `SCall` WP. Reduces 1 → 0.
 
+**Status (done, per `phase8-plan.md`, Option 1 — human-reviewer decision 2026-07-01):**
+Lambda is now modelled in both provers with the **defunctionalized** design. The
+value `VClosure param body cstate` and the call `SCall result fn arg`
+(behavioural WP) already existed but were **source-unreachable** — nothing could
+produce a `VClosure`. Phase 8 adds the missing producer: **`SLambda x param body`**
+(`Phase1_AST.v`; `AST.lean`), a leaf construction statement that binds a closure
+capturing the current `reg_state`. SOS `ExecLambda`, the WP arm, `wp_mono`,
+`desugar` (leaf identity), `is_emittable = False`/`gen → WSkip` (non-emittable
+like `SCall`), and the `pycsl_soundness` case are all proved in both provers,
+with **0 new axioms** (`Print Assumptions` / `#print axioms` unchanged — only the
+pre-existing classical axioms). **Non-vacuity** is witnessed by a reachability
+theorem — `f = λa. a+1; r = f(5)` ⟹ `r = 6`, proved with **no axioms** (the
+Phase-6/7 discipline; this was unprovable before `SLambda`). Multi-arg lambdas
+are handled by **currying** (WI-2's documented alternative), keeping the change
+strictly additive to the proved single-param `SCall`/`VClosure`. Deliberate
+non-goals (`phase8-plan.md` §5): inline `ELambda`-as-subexpression (would force
+`expr`/`stmt` mutual recursion), recursion, escaping closures, and
+higher-order-in-contracts. The real tool already lowers n-ary lambdas to WhyML
+`fun` (`_handle_lambda_expr`, annotations §7.5, corpus 0242/0243); reconciling
+that lowering with the defunctionalized model is the LINK-1 note (WI-5).
+
 ---
 
 ## 3. The keystone technical risks (from §13)

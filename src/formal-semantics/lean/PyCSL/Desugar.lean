@@ -71,6 +71,7 @@ private theorem bwd_while_aux {b : Stmt}
   | execAcquires _ _ => simp at heq
   | execReleases _ _ => simp at heq
   | @execCall _ _ _ _ _ _ _ _ _ _ _ _ => simp at heq
+  | execLambda _ _ _ _ => simp at heq
 
 -- =====================================================================
 -- Forward direction: Exec es s out → Exec es (desugar s) out
@@ -157,6 +158,9 @@ theorem desugar_correct_fwd (es : ExecState) (s : Stmt) (out : Outcome)
   | @execCall es r fn arg param body cstate st' v hfn hb =>
     -- desugar (.call r fn arg) = .call r fn arg (leaf)
     exact .execCall _ _ _ _ _ _ _ _ _ hfn hb
+  | execLambda _ _ _ _ =>
+    -- desugar (.lambda x param body) = .lambda ... (leaf)
+    exact .execLambda _ _ _ _
 
 -- =====================================================================
 -- Backward direction: Exec es (desugar s) out → Exec es s out
@@ -169,6 +173,7 @@ theorem desugar_correct_bwd (s : Stmt) (es : ExecState) (out : Outcome)
   -- Leaf cases: desugar is identity
   | .skip => exact hd
   | .assign _ _ => exact hd
+  | .lambda _ _ _ => exact hd
   | .augAssign _ _ _ => exact hd
   | .arraySet _ _ _ => exact hd
   | .continue_ => exact hd

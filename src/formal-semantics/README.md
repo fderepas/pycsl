@@ -264,6 +264,8 @@ constructors have WP rules (Rocq: `Phase4_WP.v:35-145`; Lean: `WP.lean:19-122`).
 | `SThreadEntry body` | `wp body …` | Hoare-identity stub |
 | `SAcquires m` | `Qn es` | Phase 7: Hoare-instance identity (no lock state) |
 | `SReleases m` | `Qn es` | Phase 7: Hoare-instance identity (no lock state) |
+| `SCall r fn arg` | closure ⟹ behavioural `∀ st' v, exec (cstate[param↦arg]) body (OReturned st' v) → Qn (es[r↦v])`; else `True` | Phase 8: defunctionalized call |
+| `SLambda x param body` | `Qn (es[x ↦ VClosure param body es.reg_state])` | Phase 8: closure construction (leaf; captures `reg_state`) |
 
 The `SFor` case delegates to `desugar` in both provers. In Lean, this
 requires a `wpFor` helper defined outside the structural recursion to
@@ -477,7 +479,7 @@ against the current AST.
 | String literals | ✅ DONE — `CStringLit`/`.stringLit` (Phase1_AST.v:103; AST.lean:168); `evalZ` = 0, `evalContract` = `s ≠ ""` (Phase2_State.v; State.lean:201,237) |
 | `None` | ✅ DONE — `CNoneLit`/`.noneLit` (Phase1_AST.v:102; AST.lean:167); `evalZ` = 0, `evalContract` = False (Phase2_State.v; State.lean:200,236) |
 | Assert | ✅ DONE — `SAssert` stmt (Phase1_AST.v:212; AST.lean:274); SOS `execAssertPass`/`execAssertFail` (SOS.lean:112-118); WP `eval_c cond ∧ Qn es` (Phase4_WP.v:110; WP.lean:89-90) |
-| Lambda | ❌ `ELambda`/`VClosure` not in AST; higher-order not modelled |
+| Lambda | ✅ DONE — defunctionalized (Option 1, human-reviewer decision). `VClosure param body cstate` value (Phase2_State.v; State.lean) + `SCall result fn arg` (behavioural WP) + **`SLambda x param body`** construction statement (Phase1_AST.v; AST.lean) that binds a closure capturing the current `reg_state`. SOS `ExecLambda`/`ExecCall`, WP arms, and soundness cases all proved; **0 new axioms** (`Print Assumptions`/`#print axioms` unchanged). Non-vacuity witnessed by a reachability theorem: `f = λa. a+1; r = f(5)` ⟹ `r = 6`, proved with no axioms (was UNREACHABLE before `SLambda`). Non-emittable in the WhyML int-subset (like `SCall`; `is_emittable = False`), so covered directly by `pycsl_soundness`, excluded from `wp_gen_correct`. Multi-arg via currying; inline `ELambda`-in-expr and escaping/higher-order-in-contracts remain deliberate non-goals (§2.2) |
 
 ### Category B — Prove as desugaring (0 remaining, 4 done)
 
@@ -554,13 +556,13 @@ All four remain vacuously sound: multi-file imports, `--deep`, `--fun`,
 
 | Category | Total | Done | Remaining |
 |----------|------:|:----:|:---------:|
-| A — Core model | 7 | 5 | 2 |
+| A — Core model | 7 | 6 | 1 |
 | B — Desugaring | 4 | 4 | 0 |
 | C — Contract extensions | 10 | 6 | 4 |
 | D — Memory models | 7 | 7 | 0 |
 | E — Vacuously sound | 4 | 4 | 0 |
 | F — Pipeline orchestration | 4 | 4 | 0 |
-| Total | 36 | 30 | 6 |
+| Total | 36 | 31 | 5 |
 
 (The previous README mis-stated the total as "38"; the six category
 sub-totals sum to 36.)

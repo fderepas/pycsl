@@ -75,6 +75,8 @@ def gen : Stmt → WhyMLStmt
   -- Phase 8 lambda: .call is an opaque statement (closures not in WhyML).
   -- Emit wSkip — parity with .fieldAssign and .tupleUnpack.
   | .call _ _ _                => .wSkip
+  -- Phase 8 lambda construction: binds a closure value (non-emittable, like .call)
+  | .lambda _ _ _              => .wSkip
 
 -- Phase 8: isEmittable — True for all Stmt constructors EXCEPT .call.
 -- WhyML has no closure model, so gen (.call ...) = .wSkip does NOT
@@ -89,4 +91,5 @@ def isEmittable : Stmt → Prop
   | .critical _ b     => isEmittable b
   | .threadEntry b    => isEmittable b
   | .call _ _ _       => False
+  | .lambda _ _ _     => False
   | _                 => True

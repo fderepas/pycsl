@@ -206,6 +206,12 @@ inductive Exec : ExecState → Stmt → Outcome → Prop where
     Exec es (.call r fn arg)
       (.normal (setReg es (update es.regState r v)))
 
+  /-- Phase 8 — Lambda construction. Binds the closure value capturing the
+      current regState. Leaf; mirrors execAssign. -/
+  | execLambda (es : ExecState) (x param : Ident) (body : Stmt) :
+    Exec es (.lambda x param body)
+      (.normal (setReg es (update es.regState x (.closure param body es.regState))))
+
 theorem exec_deterministic {es : ExecState} {s : Stmt} {out1 out2 : Outcome}
     (h1 : Exec es s out1) (h2 : Exec es s out2) : out1 = out2 := by
   induction h1 generalizing out2 with
@@ -223,6 +229,7 @@ theorem exec_deterministic {es : ExecState} {s : Stmt} {out1 out2 : Outcome}
   | execRaise _ _ => cases h2; rfl
   | execFieldAssign _ _ _ _ => cases h2; rfl
   | execFieldAugAssign _ _ _ _ _ => cases h2; rfl
+  | execLambda _ _ _ _ => cases h2; rfl
   | execAssertPass _ _ _ hcond =>
     cases h2 with
     | execAssertPass => rfl

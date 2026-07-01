@@ -337,4 +337,12 @@ inductive Stmt where
       value level (`.closure` in State.lean). This is the
       defunctionalized closure model per the Phase 8 task spec. -/
   | call       (result : Ident) (fn : Expr) (arg : Expr)
+  /-- Phase 8 — Lambda construction (Option 1, defunctionalized; human
+      reviewer decision 2026-07-01). `lambda x param body` binds a
+      single-parameter closure value `.closure param body cstate` at
+      name `x`, capturing the current regState as `cstate`. It is the
+      source-level producer of the closures `.call` consumes. Multi-arg
+      lambdas are curried. Leaf state update (mirrors `.assign`);
+      non-emittable in the WhyML int-subset (mirrors `.call`). -/
+  | lambda     (x param : Ident) (body : Stmt)
   deriving Repr

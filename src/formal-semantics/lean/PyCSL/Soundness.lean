@@ -49,6 +49,7 @@ theorem wp_mono {s : Stmt}
   | fieldAugAssign _ _ _ _ => exact hn _ h
   | acquires _       => exact hn _ h
   | releases _       => exact hn _ h
+  | lambda _ _ _     => exact hn _ h   -- Phase 8: leaf, Qn (es[x↦closure])
   | call r fn arg =>
     -- Phase 8: SCall WP is a behavioural formula. Destruct on evalExpr fn.
     rcases heq : evalExpr es.regState fn with _ | _ | ⟨p, b, c⟩
@@ -129,6 +130,7 @@ private theorem liftContinue_wp (s : Stmt)
   | acquires _       => simp only [liftContinue, wp]
   | releases _       => simp only [liftContinue, wp]
   | call _ _ _       => simp only [liftContinue, wp]
+  | lambda _ _ _     => simp only [liftContinue, wp]
   | while_ _ _ _ _ _ => simp only [liftContinue, wp]
   | for_ _ _ _ _ _ _ => simp only [liftContinue, wp]
   | continue_ => simp only [liftContinue, wp, incIdxFn, evalExpr, evalBinopZ]; rfl
@@ -188,6 +190,7 @@ theorem wp_desugar_fwd (s : Stmt)
   | acquires _       => exact h
   | releases _       => exact h
   | call r fn arg    => exact h
+  | lambda _ _ _     => exact h
   | seq s1 s2 ih1 ih2 =>
     simp only [desugar, wp] at h ⊢
     -- Step 1: desugar s1 using IH for s1
@@ -368,6 +371,9 @@ theorem pycsl_soundness
     simp only [wp] at hWp
     rw [hfn] at hWp
     exact hWp _ _ hb
+  | execLambda es x param body =>
+    -- Phase 8: leaf — SOS outcome ≡ WP term (the assign pattern).
+    exact hWp
 
 -- ===== Phase 3c: \at label scoping theorems =====
 

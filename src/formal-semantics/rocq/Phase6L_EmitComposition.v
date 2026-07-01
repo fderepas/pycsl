@@ -107,6 +107,7 @@ Definition acceptable_emit (state : assign_state) (s : stmt) : list string :=
   | SAcquires _               => acceptable_skip_emissions  (* gen → WSkip *)
   | SReleases _               => acceptable_skip_emissions  (* gen → WSkip *)
   | SCall _ _ _               => acceptable_skip_emissions  (* gen → WSkip; Phase 8 lambda *)
+  | SLambda _ _ _             => acceptable_skip_emissions  (* gen → WSkip; Phase 8 lambda construction *)
   end.
 
 (* ===== The composition theorem ===== *)
@@ -170,6 +171,8 @@ Proof.
   (* SReleases — gen reduces to WSkip *)
   - left. reflexivity.
   (* SCall — gen reduces to WSkip (Phase 8 lambda gap) *)
+  - left. reflexivity.
+  (* SLambda — gen reduces to WSkip (Phase 8 lambda construction) *)
   - left. reflexivity.
 Qed.
 
