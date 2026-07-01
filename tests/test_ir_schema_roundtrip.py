@@ -148,6 +148,8 @@ def test_expr_from_dict_class_preservation():
     from ir_schema import (
         expr_from_dict, OpaqueExpr,
         DictLitExpr, ListCompExpr, SetCompExpr, DictCompExpr, ForallItemsExpr,
+        ArrayEqExpr, SeparatedExpr, Length2DExpr, Valid2DExpr,
+        SetCardExpr, StrSubExpr, GhostMakeExpr, SliceExpr,
     )
     E = {"type": "Var", "name": "x"}
     cases = {
@@ -157,6 +159,14 @@ def test_expr_from_dict_class_preservation():
         DictCompExpr: {"type": "DictComp", "key": E, "value": E, "generators": []},
         ForallItemsExpr: {"type": "ForallItems", "key": "k", "val": "v",
                           "map": "m", "body": {"type": "Bool", "value": True}},
+        ArrayEqExpr:  {"type": "ArrayEq", "left": E, "right": E},
+        SeparatedExpr: {"type": "Separated", "base1": "a", "len1": E, "base2": "b", "len2": E},
+        Length2DExpr: {"type": "Length2D", "base": "a", "rows": E, "cols": E},
+        Valid2DExpr:  {"type": "Valid2D", "base": "a", "row": E, "col": E},
+        SetCardExpr:  {"type": "SetCard", "set": E, "lo": E, "hi": E},
+        StrSubExpr:   {"type": "StrSub", "string": E, "lo": E, "hi": E},
+        GhostMakeExpr: {"type": "GhostMake", "size": E, "default": E},
+        SliceExpr:    {"type": "Slice", "lower": E, "upper": E, "step": None},
     }
     for cls, d in cases.items():
         node = expr_from_dict(d)
