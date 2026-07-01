@@ -325,3 +325,43 @@ the field-access bug — the honest next blockers, tracked separately.
 (a handler body-faithful) — it now bottoms out at the emitter-body int-typing gap,
 which is the same modeling ceiling A2 documents, not a type-opacity issue.
 The mirror was reverted to its committed `\trusted` state.
+
+---
+
+## 12. EMITTER-BODY STRING-LOCAL TYPING (2026-07-01) — measured: campaign-scale, not surgical
+
+Attempted the next layer from §11 — typing the emitter's string-valued locals
+(`arr = whyml_ident(stmt.target)` etc.) as `string` instead of the `ref 0` int
+default. **Measured that it is not a bounded fix**; it opens the no-more-int
+campaign. Findings:
+
+1. **The return-type table has no strings.** Instrumenting `_module_method_
+   return_types` during the mirror emission printed **zero** functions with
+   return type `"string"`. So `whyml_ident`'s `-> str` is **not** propagated into
+   the table — a string-local recognizer keyed on the callee return type would not
+   even fire. Prerequisite: **imported/trusted-stub function return-type
+   propagation** into `_module_method_return_types` (a new gap).
+2. **Existing string-local inference is idiom-narrow.** Locals are typed `string`
+   only by *specific value-shape recognizers* (`_collect_str_element_reads`,
+   `_collect_field_decode_str_locals`, …), each deliberately byte-inert outside its
+   idiom. Call-result string typing would be a new recognizer of the same family —
+   but only after (1).
+3. **Two further no-more-int layers remain for even one leaf handler.** After
+   string locals, `_handle_ghost_array_set_stmt` still emits (a) **string literals
+   as int hashes** inside the f-string (`str_concat … 465640005 …` for `"["`), and
+   (b) the **`.to_dict()` receiver loss** (`stmt.index.to_dict()` → nullary
+   `stmt_index_to_dict_0 ()`). Each is its own byte-diff-sensitive fix.
+
+**Conclusion.** Verifying an emitter *body* is gated on the **no-more-int
+campaign** (imported-func return types → string locals → string literals →
+method-receiver lowering), which the project scopes as long-term / EXTREME RIGOR
+— **not** a surgical close of B1.4. The field-access fix (§11) was the last
+surgical win on this path; the remainder is campaign work, each layer
+corpus-wide byte-diff-sensitive. Recommend treating emitter-body faithfulness as
+its own campaign (or staying with the standing LINK-3 coherence route + stratified
+trust), rather than grinding these layers unsupervised.
+
+**B1 arc final status:** B1.0–B1.3 ✅ (type-opacity closed); B1.4 field-access ✅
+(§11, byte-clean); B1.4 *close* ◻ — bottoms out at the no-more-int emitter-body
+modeling (§12), the same ceiling A2 documents. The type-resolution wall that
+blocked the whole track is gone; what remains is modeling, precisely enumerated.
