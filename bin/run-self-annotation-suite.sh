@@ -19,6 +19,12 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PYCSL="python3 $PROJECT_ROOT/src/pycsl/pycsl.py"
+# B1 (b1-plan.md §8/B1.3): resolve cross-tree imports (notably the mirror's
+# `from ir_schema import AssignStmt, …`) against the real typed dataclasses in
+# src/pycsl/, so imported IR types are records with typed fields instead of
+# opaque stubs. Opt-in, searched after the built-in roots — regression-free
+# (verdicts identical with/without; verified across the suite).
+IMPORT_PATH="--import-path $PROJECT_ROOT/src/pycsl"
 
 if [ -f "$PROJECT_ROOT/.venv/bin/activate" ]; then
     source "$PROJECT_ROOT/.venv/bin/activate"
@@ -73,7 +79,15 @@ for rel in "${SUITE[@]}"; do
         ((failed++))
         continue
     fi
-    output=$($PYCSL "$path" 2>&1)
+    # B1.3: the cross-tree import path is for the self-annotate MIRROR only — it
+    # bridges the mirror's `from ir_schema import …` to the real typed dataclasses.
+    # Real src/pycsl/ files resolve their own directory already; adding it there is
+    # redundant and can perturb resolution (e.g. errors.py), so scope it to mirror.
+    case "$rel" in
+        src/self-annotate/*) ip="$IMPORT_PATH" ;;
+        *)                   ip="" ;;
+    esac
+    output=$($PYCSL "$path" $ip 2>&1)
     if echo "$output" | grep -q "Verification SUCCESS"; then
         echo -e "${GREEN}[PASS]${RESET} $rel"
         ((passed++))
