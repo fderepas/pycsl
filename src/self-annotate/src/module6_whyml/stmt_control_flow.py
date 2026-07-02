@@ -69,12 +69,76 @@ class ControlFlowStmtMixin:
                         declared_refs: Set[str], indent: str, in_loop: bool) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_while_stmt(self, stmt: int, rest: List[int], local_refs: int, declared_refs: int, indent: str, in_loop: bool) -> str:
-        return ""
+    def _handle_while_stmt(self, stmt: WhileStmt, rest: List[Dict[str, Any]],
+                            local_refs: Set[str], declared_refs: Set[str],
+                            indent: str, in_loop: bool) -> str:
+        _test_d = stmt.test.to_dict()
+        test = self._expr_to_whyml(_test_d, local_refs)
+        test = self._to_bool(test, _test_d)
+        _body_d = [s.to_dict() for s in stmt.body]
+        has_cont = IRScanner.has_continue(_body_d)
+        has_direct_ret = IRScanner.has_direct_return(_body_d)
+
+        loop_indent = (indent + "  ") if has_direct_ret else indent
+        inner_indent = loop_indent + "  "
+
+        body_str = self._stmts_to_whyml(
+            _body_d, local_refs, declared_refs.copy(), inner_indent, in_loop=True)
+
+        loop_code = f"{loop_indent}while {test} do\n"
+        self._in_spec = True
+        invariants_w = stmt.invariants
+        n_inv_w = len(invariants_w)
+        i_inv_w = 0
+        #@ loop invariant 0 <= i_inv_w and i_inv_w <= n_inv_w
+        #@ loop invariant n_inv_w == len(invariants_w)
+        #@ loop variant n_inv_w - i_inv_w
+        while i_inv_w < n_inv_w:
+            inv = invariants_w[i_inv_w]
+            inv_str = self._expr_to_whyml(inv, local_refs)
+            loop_code += f"{inner_indent}invariant {{ {inv_str} }}\n"
+            i_inv_w += 1
+        variants_w = stmt.variants
+        n_var_w = len(variants_w)
+        i_var_w = 0
+        #@ loop invariant 0 <= i_var_w and i_var_w <= n_var_w
+        #@ loop invariant n_var_w == len(variants_w)
+        #@ loop variant n_var_w - i_var_w
+        while i_var_w < n_var_w:
+            var = variants_w[i_var_w]
+            var_str = self._expr_to_whyml(var, local_refs)
+            loop_code += f"{inner_indent}variant {{ {var_str} }}\n"
+            i_var_w += 1
+        self._in_spec = False
+        if has_cont:
+            loop_code += f"{inner_indent}try\n"
+            loop_code += body_str + "\n"
+            loop_code += f"{inner_indent}with PyCSL_Continue -> () end\n"
+        else:
+            loop_code += body_str + "\n"
+        loop_code += f"{loop_indent}done"
+
+        has_break = IRScanner.uses_break(_body_d)
+        if has_break:
+            loop_code = (f"{loop_indent}try\n{loop_code}\n"
+                         f"{loop_indent}with PyCSL_Break -> () end")
+
+        if has_direct_ret and not in_loop:
+            rest_code = self._stmts_to_whyml(
+                rest, local_refs, declared_refs, indent + "  ", in_loop)
+            inner = loop_code
+            if rest_code:
+                inner += ";\n" + rest_code
+            return (f"{indent}try\n{inner}\n"
+                    f"{indent}with Return r -> r end")
+
+        code = loop_code
+        if rest:
+            code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+        return code
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
