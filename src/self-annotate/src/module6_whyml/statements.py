@@ -46,6 +46,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     _array2d_params: Set[str] = None
     _current_array1d_params: Set[str] = None
     _seq_locals: Set[str] = None
+    _dict_locals: Set[str] = None
+    _value_semantic: int = 0
     _current_symbol_table: Dict[str, str] = None
     _shared_var_names: Set[str] = None
     _decode_to_string: int = 0
@@ -1022,7 +1024,6 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
