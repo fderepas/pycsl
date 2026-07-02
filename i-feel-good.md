@@ -241,3 +241,36 @@ bash bin/run-self-annotation-suite.sh     # only the pre-existing errors.py may 
   reflecting-family `_handle_*` methods empty.
 - Byte-diff 0; negative drivers FAIL; suite green; `typed-ir-for-b-ceiling.md` §25 worklist
   closed and this plan's leaks marked ✅.
+
+---
+
+## 9. Execution log
+
+**S1–S4 DONE — `_handle_array_set_stmt` un-`\trusted` (the 10th handler).** Byte-diff 0
+across the 627-corpus; self-annotation suite unchanged (only the pre-existing `errors.py`
+fails). The six leak suppressors landed as designed, all `@mutable_state`/`emit_ir`-gated:
+
+- **I-A** (string-literal context): `_handle_ifexpr_expr` is string-aware — a ternary with a
+  string arm + a string/`None` arm is a string expression (`""`/`None`-arm → `""`, not an int
+  hash); `ft == "dict"` / `st.get(k) == "list"` route through `str_eq_op`.
+- **I-B** (total string-local): `_is_str_val` covers the `IfExpr` (string + string/None arms)
+  and the `Optional[str] = None; … = <str>` idiom (skip the `None` first-assign; `= None` →
+  `""`; `is None`/`is not None` on a string local → the always-present model).
+- **I-C** (sibling returns): typed `-> str` stubs added for `_field_type_of`,
+  `_maybe_emit_no_exception_assert`, `_dv_store_value` (+ `_resolve_effective_ghost_type`,
+  `_e` from §24).
+- **I-D** (form-complete `emit_ir` reflection): ONE `_EMIT_IR_PROJ` map + `_EMIT_IR_STR_KEYS`
+  / `_EMIT_IR_NODE_KEYS` referenced by every reflection site; added the `"field"` → `name_of`
+  projection; `_is_emit_ir_expr` closed under sub-node projections so nested `.get().get()` /
+  `["a"]["b"]` chains type-check (and the subscript-form projection in `_handle_subscript`).
+- **I-E** (self-state map reads): `_getattr_self_dict_aliases` + `_alias_self_field` route a
+  getattr-bound-local `X = getattr(self, "<field>", {})` `.get`/`[k]`/`[k]=v`/`in` to the real
+  `self.<field>` map; `List[str]` param → `array string` (new `param_list_elem_types`,
+  Module5→`_build_method_param_types_map`).
+- **I-F** (membership): membership on a getattr-alias routes to `Map.get`; the mirror declares
+  the read state fields (`_known_collection_sizes`, `_inline_array_temps`, `_dict_value_types`,
+  `_dict_key_types`).
+
+`assigns self._known_collection_sizes` is the checked frame. **10 real emitter handlers now
+verify their own body-faithfulness.** Remaining: **S5** — `tuple_unpack` + `critical_section`
+(the list-comprehension / list-local plumbing + `whyml_ident` return decl-vs-map).

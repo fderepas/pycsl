@@ -58,6 +58,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     _ghost_list_vars: Set[str] = None
     _ghost_set_vars: Set[str] = None
     _bounded_int: int = 0
+    _known_collection_sizes: Dict[str, int] = None
+    _inline_array_temps: Set[str] = None
+    _dict_value_types: Dict[str, str] = None
+    _dict_key_types: Dict[str, str] = None
     """Statement-emission dispatch: every `_handle_*_stmt` handler plus the
     statement-stream orchestrator (`_stmts_to_whyml`), body-wrapping helpers
     (`_emit_body_code`, `_wrap_body_with_return_catch`), first-assignment
@@ -195,6 +199,21 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
     def _e(self, ir: "ExprIR", local_refs: Set[str]) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    def _field_type_of(self, attr_ir: "ExprIR") -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    def _maybe_emit_no_exception_assert(self, kind: tuple, args: List[str]) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    def _dv_store_value(self, nu: str, val_expr: str) -> str:
         return ""
 
 
@@ -666,10 +685,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return prologue + code
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._known_collection_sizes
     def _handle_array_set_stmt(self, stmt: ArraySetStmt, rest: List[Dict[str, Any]],
                                 local_refs: Set[str], declared_refs: Set[str],
                                 indent: str, in_loop: bool) -> str:

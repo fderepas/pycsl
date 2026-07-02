@@ -113,6 +113,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # Tuple/Set literals can't be stored in int refs; use 0 as placeholder
         if vt in ("Tuple", "SetLit"):
             val = "0"
+        # i-feel-good.md I-B: `x = None` where x is a string local (an Optional[str], the
+        # emitter's `self_field_name = None`) → "" (the absent sentinel), so the `ref ""`
+        # string local stays string-typed. @mutable_state-gated → byte-identical elsewhere.
+        if (vt == "None" and target in getattr(self, "_string_local_vars", set())
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            val = '""'
 
         # Assignment to a module-level shared variable (always a ref, never re-declared)
         if target in self._shared_var_names:
@@ -491,14 +498,22 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         is_array = True
                     elif st.get(var_name) in ("dict", "set", "frozenset"):
                         is_dict = True
+                self_field_name_alias = None
+                if not is_array and not is_dict and var_name:
+                    # §26: `X[k] = v` where X aliases a self dict-field → a write to
+                    # `self.<field>` (the getattr-bound-local form of the field write).
+                    self_field_name_alias = getattr(
+                        self, "_getattr_self_dict_aliases", {}).get(var_name)
+                    if self_field_name_alias is not None:
+                        is_dict = True
                 # `self.<field>[k] = v` where <field> is set/dict-typed.
                 # Resolve via the record-type table; treat as a body-dict
                 # write on the field reference. Module5 emits self-field
                 # access as `FieldGet` in body context (alongside the
                 # `Attribute` shape used elsewhere); accept both.
-                self_field_name: Optional[str] = None
+                self_field_name: Optional[str] = self_field_name_alias
                 arr_type = arr.get("type")
-                if not is_array and not is_dict and arr_type in ("Attribute", "FieldGet"):
+                if self_field_name is None and not is_array and arr_type in ("Attribute", "FieldGet"):
                     ft = self._field_type_of(arr)
                     if ft in ("set", "dict", "frozenset"):
                         is_dict = True
@@ -1292,24 +1307,35 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # @mutable_state-gated → byte-identical for every other method.
             if (t == "IfExpr"
                     and getattr(self, "_current_self_type", None)
-                    in getattr(self, "_mutable_state_classes", set())
-                    and _is_str_val(v.get("body", {}))
-                    and _is_str_val(v.get("orelse", {}))):
-                return True
+                    in getattr(self, "_mutable_state_classes", set())):
+                _b, _o = v.get("body", {}), v.get("orelse", {})
+                _bs, _os = _is_str_val(_b), _is_str_val(_o)
+                _bn = isinstance(_b, dict) and _b.get("type") == "None"
+                _on = isinstance(_o, dict) and _o.get("type") == "None"
+                # a string arm + a (string|None) arm → a string local (None → "").
+                if (_bs or _os) and (_bs or _bn) and (_os or _on):
+                    return True
             return False
 
         # Collect the FIRST assignment of each local (mirrors the ref-0 pre-decl,
         # which is keyed on the first bind); later re-assigns do not re-type.
         firsts: List[Tuple[str, Any]] = []
         seen: Set[str] = set()
+        _ms_str = (getattr(self, "_current_self_type", None)
+                   in getattr(self, "_mutable_state_classes", set()))
 
         def rec(node: Any) -> None:
             if isinstance(node, dict):
                 if node.get("stmt") == "Assign" and isinstance(node.get("target"), str):
                     tgt = node["target"]
-                    if tgt not in seen:
+                    _v = node.get("value", {})
+                    # i-feel-good.md I-B: skip a leading `x = None` (the `Optional[str] =
+                    # None` init) so the first REAL assignment (`x = <str>`) classifies it.
+                    # @mutable_state only → byte-identical elsewhere.
+                    if tgt not in seen and not (
+                            _ms_str and isinstance(_v, dict) and _v.get("type") == "None"):
                         seen.add(tgt)
-                        firsts.append((tgt, node.get("value", {})))
+                        firsts.append((tgt, _v))
                 for x in node.values():
                     rec(x)
             elif isinstance(node, list):
@@ -1464,6 +1490,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 | getattr(self, "_emit_ir_local_vars", set()))
 
     def _prescan_todict_aliases(self, body_stmts):
+        _ms = (getattr(self, "_current_self_type", None)
+               in getattr(self, "_mutable_state_classes", set()))
         for st in body_stmts or []:
             if not isinstance(st, dict): continue
             if st.get("stmt") in ("assign", "Assign"):
@@ -1472,6 +1500,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 tgt = st.get("target")
                 if isinstance(fn, str) and fn.endswith(".to_dict") and not v.get("args") and isinstance(tgt, str):
                     self._todict_aliases[tgt] = fn[:-len(".to_dict")]
+                # §26: `X = getattr(self, "<field>", …)` where <field> is a dict/set
+                # record field → alias X to `self.<field>` (@mutable_state only).
+                if _ms and isinstance(tgt, str) and isinstance(v, dict):
+                    _gf = self._getattr_self_field(v)
+                    if _gf is not None and self._self_field_dict_nu(f"self.{_gf}") is not None:
+                        self._getattr_self_dict_aliases[tgt] = _gf
             for key in ("body", "orelse", "finalbody", "then", "else_body"):
                 sub = st.get(key)
                 if isinstance(sub, list): self._prescan_todict_aliases(sub)
