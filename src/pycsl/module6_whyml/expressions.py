@@ -2648,8 +2648,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 "isidentifier", "startswith", "endswith")
                 and expr.get("receiver") is not None):
             recv = self._expr_to_whyml(expr["receiver"], local_refs, invariant_ctx, subst)
-            all_args = [recv] + [self._expr_to_whyml(a, local_refs, invariant_ctx, subst)
-                                 for a in args]
+            # `args` are ALREADY lowered WhyML strings (set by `_handle_call_expr`); re-lowering
+            # them via `_expr_to_whyml` crashes on the string (`'str' has no attribute
+            # to_dict`). Exposed by self-annotating `<computed>.endswith(...)` (e.g.
+            # `val_ir["func"].endswith(".to_dict")`); the corpus has no computed-receiver
+            # isX/startswith/endswith, so this is byte-identical there.
+            all_args = [recv] + list(args)
             pname = whyml_ident(func_name) + f"_{len(all_args)}"
             ens = "ensures { ((result = 0) || (result = 1)) }"
             # Each operand keeps its real type (the receiver of `s[i].isdigit()` is a
