@@ -721,3 +721,89 @@ plus `expr_stmt`). expr_stmt is the first handler to close *after* the ADT was c
 the faithful string ops landed — validating that both were the right infrastructure. The
 tool fixes are general (subscript-args, or-unwrap, getattr-set membership, args-element
 emit_ir locals), reusable by `tuple_unpack`/`array_set`.
+
+---
+
+## 24. `_handle_ghost_assign_stmt` un-`\trusted` — the NINTH handler (B-C6 MkTuple ADT + ternary string-local)
+
+`_handle_ghost_assign_stmt` verifies and is no longer `\trusted`; `statements.py` PASSES
+the self-annotation suite with NINE real handlers off the trusted base (only the
+pre-existing `errors.py` fails; the 7 other suite entries are absent optional files, not
+proof failures). Byte-diff 0 across the 627-corpus.
+
+The §18 assessment ("a LONG handler, deferred — tracks SEVEN ghost-var kinds") held: it
+advanced through all seven ghost-kind branches, blocking in order on two bounded features,
+each byte-clean and @mutable_state/emit_ir-gated:
+
+1. **B-C6 — the emit_ir `MkTuple`/`elts` ADT extension** (the ghost-dict `+=` branch
+   reads `val_ir["elts"][0]`/`[1]` on an `emit_ir`). Added `IrTuple emit_ir emit_ir` to
+   the ADT, `kind_of (IrTuple _ _) = "MkTuple"`, and `elt0_of`/`elt1_of : emit_ir`
+   projections (`preamble._emit_exprir_theory`). Generalised `_emit_ir_args_recv_ir` with
+   a `key` param (default `"args"`, so B-C5's callers are unchanged) so it also recognises
+   the `elts` list; `_handle_subscript` routes `<emit_ir>["elts"][i]` (i∈0,1) → `elt{i}_of`,
+   and `_is_emit_ir_expr` recognises the elts-subscript form. This is the direct analogue
+   of B-C5 (Call/Subscript) for the tuple-literal element read.
+2. **Ternary string-local** (the ghost-list branch's `init_val = f"(…: list int)" if
+   val == "Nil" else val`). Extended `_is_str_val` (the string-local recognizer) so an
+   `IfExpr` whose both arms are string-valued binds a string local — recursing via
+   `_is_str_val` so the fixpoint marks a dependency arm (`py_val`) first. @mutable_state-gated.
+
+Mirror side: declared the seven ghost-kind state fields (`_ghost_{string,tuple,array,dict,
+list,set}_vars`, `_bounded_int`); typed the `_resolve_effective_ghost_type` (`-> str`) and
+`_e` (`-> str`) sibling stubs; frame `assigns self._ghost_string_vars, self._ghost_tuple_vars,
+self._ghost_array_vars, self._array_locals, self._ghost_dict_vars, self._ghost_list_vars,
+self._ghost_set_vars` (a CHECKED, non-vacuous seven-field union frame). `int(ghost_type[-1])`
+(§18's str→int) and the emit_ir-local `_val_d`/`val_ir` (§19) both fired unchanged.
+
+**Net.** NINE real emitter handlers verify their own body-faithfulness. The B-C6 ADT
+extension is reusable (a MkTuple/elts reflection now type-checks anywhere). Frontier:
+`tuple_unpack` (list-locals + comprehensions), `array_set` (nested emit_ir reflection +
+getattr-bound self-dict local + `Dict[str,int]` int-key), `critical_section` (list-comprehension
++ `whyml_ident` return-type decl-vs-map + `_havoc_counter` scalar mutation).
+
+---
+
+## 25. Measured worklist for the final three handlers (post-§24)
+
+With NINE handlers landed, the remaining three were each un-`\trusted`-probed against the
+current tree; their blockers are measured (not guessed). Each needs SEVERAL new features —
+none closes on a single fix, confirming §22's "biggest remaining piece" assessment. Ordered
+by leverage:
+
+**`_handle_array_set_stmt`** (deepest; the plan's 15-`.to_dict`/42-`.get`/22-mut handler):
+1. **Nested emit_ir reflection** — `arr.get("value").get("type")` / `arr["value"]["name"]`
+   / `arr["index"]` still lower to opaque `get_1`/`subscript_get` (B-C5 routes only a
+   single-level dotted receiver). Needs projection CHAINING: `.get("value").get("type")`
+   → `kind_of (svalue_of …)`, `["value"]["name"]` → `name_of (svalue_of …)`.
+2. **getattr-bound self-dict LOCAL** — `known_sizes = getattr(self, "_known_collection_sizes",
+   {})` then `var_name in known_sizes` / `known_sizes[k]` / `known_sizes[k] = v`; and
+   `st = getattr(self, "_current_symbol_table", {}); st.get(var_name) == "list"`. §12/§15 did
+   the DIRECT `.get`; this is bound-to-local-then-subscript/membership/subscript-set (an
+   alias-to-self-field for dict fields, analogous to R1's `_todict_aliases`).
+3. **Dict field key/value types** — `_known_collection_sizes: Dict[str,int]`,
+   `_dict_value_types`/`_dict_key_types` (`.get` → str compared to string literals);
+   plus declaring `_inline_array_temps`, `_dict_value_types`, `_dict_key_types`.
+
+**`_handle_tuple_unpack_stmt`** (list plumbing):
+1. **list-local-from-field** — `targets = stmt.targets` (a `List[str]` field → `array int`,
+   currently `ref 0`); used in a `while i_tu < n_tu` index loop.
+2. **list comprehensions in the emitter body** — `safe_targets = [whyml_ident(t) for t in
+   targets]`, `tmp_names = [f"_tu_{t}" for t in safe_targets]`, `lines = [f"…"]`.
+3. **list ops** — `", ".join(tmp_names)`, `lines.append(...)`, `"\n".join(lines)`.
+   (The Call/Subscript reflection is already handled by B-C5.)
+
+**`_handle_critical_section_stmt`** (self.ir reflection + comprehensions):
+1. **self.ir list-comprehension with filter** — `shared_for_mutex = [sv["name"] for sv in
+   self.ir.get("shared_vars", []) if sv.get("mutex") == mutex]` (dict-list reflection +
+   filtered comprehension over a self-field list-of-dicts).
+2. **`whyml_ident` return decl-vs-map** — in `for var in shared_for_mutex: safe_var =
+   whyml_ident(var)`, the abstract-val RETURN is `int` while its return-annotation map says
+   `string` (a decl-vs-map inconsistency for a bare imported helper).
+3. **`_havoc_counter += 1`** scalar self-mutation (frame); `_mutex_inv_application` sibling
+   stub; `[s.to_dict() for s in body_stmts]` comprehension.
+
+**Shared leverage.** The **list-comprehension + list-local** feature (a comprehension bound
+to a local in a `@mutable_state` method, and a `List[τ]` field → typed list local) unblocks
+BOTH `tuple_unpack` and `critical_section` — the highest-leverage next feature. **Nested
+emit_ir projection chaining** is a bounded B-C5 extension for `array_set`. Each remains a
+focused, byte-diff-gated pass; none is ADT-blocked at the Ceiling-B level (that is lifted).

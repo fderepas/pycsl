@@ -133,7 +133,10 @@ class ControlFlowStmtMixin:
             is_array = not is_dict and (
                 var_name in getattr(self, "_array2d_params", set()) or
                 var_name in getattr(self, "_array_locals", set()) or
-                var_name in getattr(self, "_current_array1d_params", set()))
+                var_name in getattr(self, "_current_array1d_params", set()) or
+                # self-ir-schema.md IR4: a comprehension-bound array local
+                # (`for var in shared_for_mutex`) iterates via `Array.length`/`arr[i]`.
+                var_name in getattr(self, "_array_elem_types", {}))
             if not is_array and not is_dict:
                 if getattr(self, "_current_symbol_table", {}).get(var_name) in ("list", "dict"):
                     is_array = True
@@ -195,6 +198,14 @@ class ControlFlowStmtMixin:
         len_expr, elem_expr, is_range = self._classify_iterable(iter_ir, local_refs, idx)
 
         while_parts = [f"{loop_indent}while !{idx} < {len_expr} do"]
+        # seq-model-pivot.md SQ5: a @mutable_state for-loop (the emitter's `for var in
+        # shared_for_mutex`) carries the index bound + a decreasing variant so the element
+        # read's `0 <= idx` and the loop's termination discharge (the `idx < len` upper bound
+        # is the loop condition). @mutable_state-gated → the corpus for-loops are byte-identical.
+        if (getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            while_parts.append(f"{inner_indent}invariant {{ 0 <= !{idx} }}")
+            while_parts.append(f"{inner_indent}variant {{ {len_expr} - !{idx} }}")
         inv_subst = {target: idx} if is_range else None
         inv_refs = local_refs | {idx}
         self._in_spec = True

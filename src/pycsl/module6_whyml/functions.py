@@ -195,6 +195,12 @@ class FunctionEmissionMixin:
         # the IR-reflection into typed field access. Empty for every non-reflecting
         # function → byte-identical.
         self._todict_aliases: Dict[str, str] = {}
+        # typed-ir-for-b-ceiling.md §26: `X = getattr(self, "<field>", {})` binds a
+        # local aliasing a dict/set self-field (the emitter's `known_sizes =
+        # getattr(self, "_known_collection_sizes", {})` / `st = getattr(self,
+        # "_current_symbol_table", {})`). A later reference / `X[k]` / `k in X` /
+        # `X.get(k)` routes to `self.<field>`. @mutable_state only → byte-identical.
+        self._getattr_self_dict_aliases: Dict[str, str] = {}
         # no-more-int-3 A1: dict var -> WhyML value type ν (string) for
         # string-valued dicts; consulted by the dict literal / declaration /
         # MapGet-default / MapSet sites to emit `map int (option string)`.
@@ -1830,11 +1836,19 @@ class FunctionEmissionMixin:
             # `dict_value_types` entries (every existing int dict).
             _kt = func.get("dict_key_types", {}) or {}
             _vt = func.get("dict_value_types", {}) or {}
+            _plet = func.get("param_list_elem_types", {}) or {}
             param_types: List[str] = []
             _formal = set(func.get("formal_params", []))
             _pann = func.get("param_annotations", {}) or {}
             for name, symtype in symtable.items():
                 if name in local_assignees and name not in _formal:
+                    continue
+                # i-feel-good.md I-B: a `List[str]` param → `array string` (not the
+                # collapsed `array int`), so a caller passing a string-list literal
+                # type-checks. @mutable_state-gated → byte-identical elsewhere.
+                if (_plet.get(name) == "string"
+                        and getattr(self, "_mutable_state_classes", None)):
+                    param_types.append("array string")
                     continue
                 # typed-ir §16: prefer a formal param's declared ANNOTATION over its
                 # symbol-table type — the latter drifts to `Any`/int when the body

@@ -51,6 +51,20 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     _current_symbol_table: Dict[str, str] = None
     _shared_var_names: Set[str] = None
     _decode_to_string: int = 0
+    _ghost_string_vars: Set[str] = None
+    _ghost_tuple_vars: Dict[str, int] = None
+    _ghost_array_vars: Set[str] = None
+    _ghost_dict_vars: Set[str] = None
+    _ghost_list_vars: Set[str] = None
+    _ghost_set_vars: Set[str] = None
+    _bounded_int: int = 0
+    _known_collection_sizes: Dict[str, int] = None
+    _inline_array_temps: Set[str] = None
+    _dict_value_types: Dict[str, str] = None
+    _dict_key_types: Dict[str, str] = None
+    _abstract_ops: Dict[str, str] = None
+    _havoc_counter: int = 0
+    _in_spec: int = 0
     """Statement-emission dispatch: every `_handle_*_stmt` handler plus the
     statement-stream orchestrator (`_stmts_to_whyml`), body-wrapping helpers
     (`_emit_body_code`, `_wrap_body_with_return_catch`), first-assignment
@@ -179,6 +193,43 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     #@ ensures True
     def _val_is_bool(self, val_ir: "ExprIR") -> bool:
         return True
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    def _resolve_effective_ghost_type(self, target: str, op: str, ghost_type: str) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    def _e(self, ir: "ExprIR", local_refs: Set[str]) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    def _field_type_of(self, attr_ir: "ExprIR") -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    def _maybe_emit_no_exception_assert(self, kind: tuple, args: List[str]) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    def _dv_store_value(self, nu: str, val_expr: str) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    def _mutex_inv_application(self, mutex: str, inv_str: str) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    def _handle_return_stmt(self, stmt: "ExprIR", rest: List[Dict[str, Any]],
+                            local_refs: Set[str], declared_refs: Set[str],
+                            indent: str, in_loop: bool) -> str:
+        return ""
 
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -396,10 +447,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             rest_code = f"{indent}()"
         return f"{indent}let ghost {safe_target} {binding} in\n{rest_code}"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._ghost_string_vars, self._ghost_tuple_vars, self._ghost_array_vars, self._array_locals, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars
     def _handle_ghost_assign_stmt(self, stmt: GhostAssignStmt, rest: List[Dict[str, Any]],
                                    local_refs: Set[str], declared_refs: Set[str],
                                    indent: str, in_loop: bool) -> str:
@@ -519,10 +569,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops
     def _handle_tuple_unpack_stmt(self, stmt: TupleUnpackStmt, rest: List[Dict[str, Any]],
                                    local_refs: Set[str], declared_refs: Set[str],
                                    indent: str, in_loop: bool) -> str:
@@ -578,6 +627,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         lines = [f"{indent}let ({pattern}) = {val_whyml} in"]
         n_tu = len(tmp_names)
         i_tu = 0
+        #@ loop invariant 0 <= i_tu and i_tu <= n_tu
+        #@ loop invariant n_tu == len(tmp_names)
+        #@ loop invariant len(safe_targets) == len(tmp_names)
+        #@ loop variant n_tu - i_tu
         while i_tu < n_tu:
             tmp = tmp_names[i_tu]
             st = safe_targets[i_tu]
@@ -650,10 +703,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return prologue + code
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._known_collection_sizes
     def _handle_array_set_stmt(self, stmt: ArraySetStmt, rest: List[Dict[str, Any]],
                                 local_refs: Set[str], declared_refs: Set[str],
                                 indent: str, in_loop: bool) -> str:
@@ -769,10 +821,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._havoc_counter, self._in_spec
     def _handle_critical_section_stmt(self, stmt: CriticalSectionStmt, rest: List[Dict[str, Any]],
                                        local_refs: Set[str], declared_refs: Set[str],
                                        indent: str, in_loop: bool) -> str:

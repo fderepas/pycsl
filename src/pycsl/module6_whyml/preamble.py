@@ -1701,7 +1701,11 @@ class PreambleEmissionMixin:
         needs_seq = any(
             "seq" in v for f in functions for v in f.get("dict_value_types", {}).values()
         ) or any(f.get("seq_promoted_vars") for f in functions) \
-          or needs_return_seq  # return-arr.md: Return_seq payload + materialize need seq.Seq
+          or needs_return_seq \
+          or bool(getattr(self, "_mutable_state_classes", None))
+        # ^ seq-model-pivot.md SQ1: a @mutable_state module may promote a REASSIGNED list-elem
+        #   local to `seq` (decided during emission, after this import scan), so `use seq.Seq`
+        #   must be present. The 627-corpus has no @mutable_state class → byte-identical.
         needs_map_ghost = any(IRScanner.uses_ghost_type(body, {"ghost_dict", "ghost_set"}) for body in all_bodies)
         needs_ghost_dict = any(IRScanner.uses_ghost_type(body, {"ghost_dict"}) for body in all_bodies)
         # Body-level Python dicts are modelled as `ref (map int (option int))`
@@ -2728,16 +2732,20 @@ class PreambleEmissionMixin:
             "  (* typed-ir-for-b-ceiling.md B-C1: typed IR-node sum for the emitter model *)",
             "  type emit_ir = IrVar string | IrAttr emit_ir string | IrStr string"
             " | IrNum int | IrRaw string | IrOther string"
-            " | IrCall string emit_ir int | IrSub emit_ir emit_ir",
+            " | IrCall string emit_ir int | IrSub emit_ir emit_ir"
+            " | IrTuple emit_ir emit_ir",
             "",
             "  (* B-C5: IrCall carries func name, first arg (arg0), arity; IrSub carries"
-            " value and index sub-nodes — the emitter reflects on Call/Subscript IR. *)",
+            " value and index sub-nodes — the emitter reflects on Call/Subscript IR."
+            " B-C6: IrTuple carries the first two elements (elts[0], elts[1]) — the"
+            " emitter reflects on a MkTuple node's `elts` in the ghost-dict `+=` branch. *)",
             "  let function kind_of (e: emit_ir) : string =",
             "    match e with",
             "    | IrVar _ -> \"Var\" | IrAttr _ _ -> \"Attribute\"",
             "    | IrStr _ -> \"String\" | IrNum _ -> \"Number\"",
             "    | IrRaw _ -> \"RawWhyml\"",
             "    | IrCall _ _ _ -> \"Call\" | IrSub _ _ -> \"Subscript\"",
+            "    | IrTuple _ _ -> \"MkTuple\"",
             "    | IrOther k -> k",
             "    end",
             "",
@@ -2764,6 +2772,18 @@ class PreambleEmissionMixin:
             "",
             "  let function sindex_of (e: emit_ir) : emit_ir =",
             "    match e with IrSub _ i -> i | _ -> IrOther \"\" end",
+            "",
+            "  let function elt0_of (e: emit_ir) : emit_ir =",
+            "    match e with IrTuple a _ -> a | _ -> IrOther \"\" end",
+            "",
+            "  let function elt1_of (e: emit_ir) : emit_ir =",
+            "    match e with IrTuple _ b -> b | _ -> IrOther \"\" end",
+            "",
+            "  (* self-ir-schema.md IR1: the typed slice of `self.ir` the emitter reflects on —"
+            " `self.ir.get(\"shared_vars\", [])` is an array of these records"
+            " (`sv[\"name\"]`/`sv.get(\"mutex\")`). Only the string TYPE is modelled; the"
+            " content stays opaque via `ir_shared_vars`. *)",
+            "  type sharedvar = { sv_name: string; sv_mutex: string }",
             "",
         ]
 
@@ -2952,7 +2972,15 @@ class PreambleEmissionMixin:
                         ftype = ("map int (option string)" if _vt == "string"
                                  else "map int (option int)")
                     elif ftype in ("list", "tuple"):
-                        ftype = "array int"
+                        # i-feel-good.md I-E: a `List[str]` field is `array string` (string
+                        # elements) in a @mutable_state module (the emitter model + its
+                        # imported IR records); the corpus has no such module → `array int`,
+                        # byte-identical.
+                        if (f.get("value_type") in ("string", "emit_ir")
+                                and getattr(self, "_mutable_state_classes", None)):
+                            ftype = f"array {f.get('value_type')}"
+                        else:
+                            ftype = "array int"
                     elif ftype in ("string", "str"):
                         # 07-2333-rev2 TP-3 (Gap 6): a `str`-annotated field is a faithful
                         # Why3 `string` (was collapsed to `int`) — the class counterpart of

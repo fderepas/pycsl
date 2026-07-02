@@ -1828,6 +1828,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             _vt = self._m5_get_dict_value_type(child.annotation)
             if _vt:
                 _fld["value_type"] = _vt
+            # i-feel-good.md I-E / self-ir-schema.md IR2: a `List[str]`→`array string` /
+            # `List[StmtIR]`→`array emit_ir` field element type (consulted only in a
+            # @mutable_state module; inert for the dict path).
+            else:
+                _le = self._m5_get_list_elem_type(child.annotation)
+                if _le is not None:
+                    _fld["value_type"] = _le
             fields.append(_fld)
             # N1b: only fields with an explicit default value (x: int = 0)
             # populate `field_defaults`. A field WITHOUT a default is a
@@ -2127,6 +2134,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     _vt2 = self._m5_get_dict_value_type(stmt.annotation)
                     if _vt2:
                         _fld2["value_type"] = _vt2
+                    else:
+                        _le2 = self._m5_get_list_elem_type(stmt.annotation)
+                        if _le2 is not None:
+                            _fld2["value_type"] = _le2
                     fields.append(_fld2)
                     field_names_seen.add(stmt.target.id)
                     if (stmt.value is not None and isinstance(stmt.value, ast.Constant)
@@ -2957,6 +2968,34 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return self._m5_get_type_name_legacy(annotation)
 
     @staticmethod
+    def _m5_get_list_elem_type(annotation: ast.expr) -> Optional[str]:
+        """i-feel-good.md I-B: the element type of a `List[str]`/`list[str]` annotation,
+        as a WhyML tag ("string"); None for any other annotation. Used to type a
+        string-list param `array string` (the abstract self-call val) instead of the
+        collapsed `array int`. Only `str` elements are captured (the emitter's list
+        plumbing is over WhyML identifiers / code fragments)."""
+        if (isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)
+                and annotation.value.id in ("List", "list")):
+            sl = annotation.slice
+            if isinstance(sl, ast.Index):          # py<3.9 compat
+                sl = sl.value
+            # the element name — a bare `List[str]` (Name) OR a forward-ref
+            # `List["StmtIR"]` (Constant string, e.g. the imported IR dataclasses).
+            _en = None
+            if isinstance(sl, ast.Name):
+                _en = sl.id
+            elif isinstance(sl, ast.Constant) and isinstance(sl.value, str):
+                _en = sl.value
+            if _en == "str":
+                return "string"
+            # self-ir-schema.md IR2: a `List[StmtIR]`/`List[ExprIR]` field is `array emit_ir`
+            # (the emit_ir IR-node sum), so a `body_stmts[-1]` read is an emit_ir node.
+            if _en in ("StmtIR", "ExprIR", "IRNode", "ContractExprIR"):
+                return "emit_ir"
+        return None
+
+    @staticmethod
     def _m5_get_dict_value_type(annotation: ast.expr) -> Optional[str]:
         """Port of Module4._get_dict_value_type. See that method for the rules."""
         if (isinstance(annotation, ast.Subscript)
@@ -3014,12 +3053,21 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
 
         # Function arguments (skip 'self' for methods)
         param_annotations: Dict[str, str] = {}
+        param_list_elem_types: Dict[str, str] = {}
         for arg in node.args.args:
             if arg.arg == 'self':
                 continue
             arg_type = (self._m5_get_type_name(arg.annotation, _scope_name, arg.arg)
                         if arg.annotation else "Any")
             scope[arg.arg] = arg_type
+            # i-feel-good.md I-B: capture a `List[str]`/`list[str]` param's ELEMENT type
+            # (string) so the abstract self-call val can type it `array string` instead of
+            # the collapsed `array int` — WITHOUT changing `scope` (byte-safe; only the
+            # @mutable_state param-type builder consults this map).
+            if arg.annotation is not None:
+                _le = self._m5_get_list_elem_type(arg.annotation)
+                if _le is not None:
+                    param_list_elem_types[arg.arg] = _le
             # no-more-int emitter L4b: preserve the param's annotated type as a
             # scalar-dict field on the func IR (like `return_annotation`), so it
             # survives import injection — which rebuilds `symbol_table` with `Any`
@@ -3074,7 +3122,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 if ga.target not in scope or ga.op == "=":
                     scope[ga.target] = dtype
 
-        return scope, dict_value_types, dict_key_types, param_annotations
+        return scope, dict_value_types, dict_key_types, param_annotations, param_list_elem_types
 
     def _build_function_ir(self, node: ast.FunctionDef) -> Dict[str, Any]:
         """Build the core function IR dict (name, contracts, body)."""
@@ -3090,7 +3138,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         self._cur_literal_ensures = []
         # refactor.md B-final wedge: Module5 computes the scope itself rather than
         # copying Module4's `node.csl_symbol_table` (etc.). Byte-identical by design.
-        _sym, _dvt, _dkt, _pann = self._build_function_symbol_table(node)
+        _sym, _dvt, _dkt, _pann, _plet = self._build_function_symbol_table(node)
         symbol_table = {k: v for k, v in _sym.items() if k != 'self'}
         # scc3.md Phase B: expose this function's symbol table to `_csl_in` (built
         # below for contracts/body) so `x in S` dispatches on the collection type.
@@ -3205,6 +3253,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             "name": func_name,
             "symbol_table": symbol_table,
             "param_annotations": _pann,
+            "param_list_elem_types": dict(_plet),
             "param_defaults": param_defaults,
             "has_mutable_default": has_mutable_default,
             "acts": acts_ir,

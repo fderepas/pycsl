@@ -55,6 +55,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             return f"{indent}let {safe_target} = ref {val} in\n"
         if kind == "bounded_int":
             return f"{indent}let {safe_target} = ref ({val} : int{self._bounded_int}) in\n"
+        # self-ir-schema.md IR2: a REASSIGNED array-elem local first-bound from a record
+        # array-field read (`body_stmts = stmt.body; body_stmts = body_stmts[:-1]`) must
+        # COPY the field array — a `ref` aliasing a record's mutable-array field is an
+        # illegal Why3 alias when later reassigned. `Array.copy` gives a fresh, reassignable
+        # array. @mutable_state (the elem-type map is empty for the corpus).
+        if (target in getattr(self, "_array_elem_types", {})
+                and isinstance(val_ir, dict)
+                and val_ir.get("type") in ("Attribute", "FieldGet")):
+            val = f"(Array.copy {val})"
         if self._val_is_bool(val_ir):
             val = f"(if {val} then 1 else 0)"
         return f"{indent}let {safe_target} = ref {val} in\n"
@@ -113,6 +122,20 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # Tuple/Set literals can't be stored in int refs; use 0 as placeholder
         if vt in ("Tuple", "SetLit"):
             val = "0"
+        # i-feel-good.md I-B: `x = None` where x is a string local (an Optional[str], the
+        # emitter's `self_field_name = None`) → "" (the absent sentinel), so the `ref ""`
+        # string local stays string-typed. @mutable_state-gated → byte-identical elsewhere.
+        if (vt == "None" and target in getattr(self, "_string_local_vars", set())
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            val = '""'
+        # self-ir-schema.md IR2: `x = None` where x is an emit_ir local (an
+        # `Optional[StmtIR]`, the emitter's `tail_ret = None`) → `(IrOther "")` (the emit_ir
+        # absent sentinel), so the `ref (IrOther "")` stays emit_ir-typed. @mutable_state.
+        if (vt == "None" and target in getattr(self, "_emit_ir_local_vars", set())
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            val = '(IrOther "")'
 
         # Assignment to a module-level shared variable (always a ref, never re-declared)
         if target in self._shared_var_names:
@@ -166,10 +189,26 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         seq local, else `snapshot(b)` to bridge an array-modelled value into seq."""
         if val_ir.get("type") == "Var" and val_ir.get("name") in self._seq_locals:
             return f"(!{whyml_ident(val_ir['name'])})"
-        self._add_abstract_op(
-            "val snapshot (a: array int) : seq int\n"
-            "    ensures { Seq.length result = Array.length a }\n"
-            "    ensures { forall i:int. 0 <= i < Array.length a -> Seq.get result i = a[i] }")
+        # seq-model-pivot.md SQ3: a SLICE of a seq local (`body_stmts[:-1]`) already lowers to
+        # a `seq` value (`seq_sub`) — pass it through, no `snapshot` (which expects an array).
+        if (val_ir.get("type") in ("Subscript", "SliceAccess")
+                and isinstance(val_ir.get("value"), dict)
+                and val_ir["value"].get("type") == "Var"
+                and val_ir["value"].get("name") in self._seq_locals):
+            return self._expr_to_whyml(val_ir, local_refs)
+        # seq-model-pivot.md SQ2: POLYMORPHIC `snapshot` in a @mutable_state module (bridges a
+        # `List[StmtIR]`/`List[str]` field → `seq emit_ir`/`seq string`); the corpus's
+        # `array int → seq int` snapshot is byte-identical (no @mutable_state).
+        if getattr(self, "_mutable_state_classes", None):
+            self._add_abstract_op(
+                "val snapshot (a: array 'a) : seq 'a\n"
+                "    ensures { Seq.length result = Array.length a }\n"
+                "    ensures { forall i:int. 0 <= i < Array.length a -> Seq.get result i = a[i] }")
+        else:
+            self._add_abstract_op(
+                "val snapshot (a: array int) : seq int\n"
+                "    ensures { Seq.length result = Array.length a }\n"
+                "    ensures { forall i:int. 0 <= i < Array.length a -> Seq.get result i = a[i] }")
         return f"(snapshot {self._expr_to_whyml(val_ir, local_refs)})"
 
     def _materialize_bridge(self) -> None:
@@ -491,14 +530,22 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         is_array = True
                     elif st.get(var_name) in ("dict", "set", "frozenset"):
                         is_dict = True
+                self_field_name_alias = None
+                if not is_array and not is_dict and var_name:
+                    # §26: `X[k] = v` where X aliases a self dict-field → a write to
+                    # `self.<field>` (the getattr-bound-local form of the field write).
+                    self_field_name_alias = getattr(
+                        self, "_getattr_self_dict_aliases", {}).get(var_name)
+                    if self_field_name_alias is not None:
+                        is_dict = True
                 # `self.<field>[k] = v` where <field> is set/dict-typed.
                 # Resolve via the record-type table; treat as a body-dict
                 # write on the field reference. Module5 emits self-field
                 # access as `FieldGet` in body context (alongside the
                 # `Attribute` shape used elsewhere); accept both.
-                self_field_name: Optional[str] = None
+                self_field_name: Optional[str] = self_field_name_alias
                 arr_type = arr.get("type")
-                if not is_array and not is_dict and arr_type in ("Attribute", "FieldGet"):
+                if self_field_name is None and not is_array and arr_type in ("Attribute", "FieldGet"):
                     ft = self._field_type_of(arr)
                     if ft in ("set", "dict", "frozenset"):
                         is_dict = True
@@ -884,10 +931,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         _lhs, _cur = f"{safe_obj} :=", f"!{safe_obj}"
                     if method == "add":
                         # set.add(x) — mark key present with Some 0.
+                        # list-comprehension-lowering.md L5: in a @mutable_state module the
+                        # decl is POLYMORPHIC (`map 'k (option 'v)`) so it unifies with a
+                        # string-VALUED dict field (`_abstract_ops: Dict[str,str]`) — the
+                        # name-dedup means one decl serves every map write in the module.
+                        # Corpus modules keep the fixed `map int (option int)` → byte-identical.
+                        _poly = getattr(self, "_mutable_state_classes", None)
                         self._add_abstract_op(
-                            "val map_update_some (m: map int (option int)) (k: int) (v: int) "
-                            ": map int (option int)\n"
-                            "    ensures { result = Map.set m k (Some v) }")
+                            ("val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) "
+                             ": map 'k (option 'v)\n" if _poly else
+                             "val map_update_some (m: map int (option int)) (k: int) (v: int) "
+                             ": map int (option int)\n")
+                            + "    ensures { result = Map.set m k (Some v) }")
                         code = f"{indent}{_lhs} map_update_some {_cur} {arg} 0"
                     else:
                         # set.discard(x) / set.remove(x) / del d[k] — clear the key.
@@ -1285,20 +1340,42 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     in getattr(self, "_mutable_state_classes", set())
                     and self._is_string_expr(v)):
                 return True
+            # typed-ir-for-b-ceiling.md §18 (ghost_assign): a ternary `<str> if cond
+            # else <str>` binds a string local — the emitter's `init_val = f"(…)"
+            # if val == "Nil" else val`. Both arms must be string-valued; recurse via
+            # `_is_str_val` (the fixpoint marks a dependency arm like `py_val` first).
+            # @mutable_state-gated → byte-identical for every other method.
+            if (t == "IfExpr"
+                    and getattr(self, "_current_self_type", None)
+                    in getattr(self, "_mutable_state_classes", set())):
+                _b, _o = v.get("body", {}), v.get("orelse", {})
+                _bs, _os = _is_str_val(_b), _is_str_val(_o)
+                _bn = isinstance(_b, dict) and _b.get("type") == "None"
+                _on = isinstance(_o, dict) and _o.get("type") == "None"
+                # a string arm + a (string|None) arm → a string local (None → "").
+                if (_bs or _os) and (_bs or _bn) and (_os or _on):
+                    return True
             return False
 
         # Collect the FIRST assignment of each local (mirrors the ref-0 pre-decl,
         # which is keyed on the first bind); later re-assigns do not re-type.
         firsts: List[Tuple[str, Any]] = []
         seen: Set[str] = set()
+        _ms_str = (getattr(self, "_current_self_type", None)
+                   in getattr(self, "_mutable_state_classes", set()))
 
         def rec(node: Any) -> None:
             if isinstance(node, dict):
                 if node.get("stmt") == "Assign" and isinstance(node.get("target"), str):
                     tgt = node["target"]
-                    if tgt not in seen:
+                    _v = node.get("value", {})
+                    # i-feel-good.md I-B: skip a leading `x = None` (the `Optional[str] =
+                    # None` init) so the first REAL assignment (`x = <str>`) classifies it.
+                    # @mutable_state only → byte-identical elsewhere.
+                    if tgt not in seen and not (
+                            _ms_str and isinstance(_v, dict) and _v.get("type") == "None"):
                         seen.add(tgt)
-                        firsts.append((tgt, node.get("value", {})))
+                        firsts.append((tgt, _v))
                 for x in node.values():
                     rec(x)
             elif isinstance(node, list):
@@ -1339,9 +1416,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             if isinstance(node, dict):
                 if node.get("stmt") == "Assign" and isinstance(node.get("target"), str):
                     tgt = node["target"]
-                    if tgt not in seen:
+                    _v = node.get("value", {})
+                    # self-ir-schema.md IR2: skip a leading `x = None` (the `Optional[emit_ir]
+                    # = None` init, e.g. `tail_ret = None; tail_ret = body_stmts[-1]`) so the
+                    # first REAL assignment classifies it — mirrors the string I-B skip.
+                    if tgt not in seen and not (
+                            isinstance(_v, dict) and _v.get("type") == "None"):
                         seen.add(tgt)
-                        firsts.append((tgt, node.get("value", {})))
+                        firsts.append((tgt, _v))
                 for x in node.values():
                     rec(x)
             elif isinstance(node, list):
@@ -1412,6 +1494,32 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # `is_array` sites WITHOUT touching `_array_locals` (declaration path).
         # Reset per body — `_typed_local_vars` is called once per `_emit_body_code`.
         self._inline_array_temps = set(array_vars)
+        # list-comprehension-lowering.md L2/L6: element type of an array local (string /
+        # emit_ir / int) — computed BEFORE the string-local collectors so `pattern = ",
+        # ".join(xs)` and `xs[i]` are seen as string when their array carries strings.
+        self._array_elem_types = self._collect_array_elem_types(body_stmts)
+        # seq-model-pivot.md SQ1: a REASSIGNED list-elem local (assigned >1×) is modeled as
+        # an immutable `seq` (freely reassignable), not a mutable `array` — a `ref (array _)`
+        # cannot be reassigned to a slice (Why3 region alias). Promote it to `_seq_locals`
+        # with its element value type; drop it from the array-elem map. @mutable_state.
+        if getattr(self, "_mutable_state_classes", None) and self._array_elem_types:
+            _acounts: Dict[str, int] = {}
+
+            def _acnt(n: Any) -> None:
+                if isinstance(n, dict):
+                    if n.get("stmt") == "Assign" and isinstance(n.get("target"), str):
+                        _acounts[n["target"]] = _acounts.get(n["target"], 0) + 1
+                    for _x in n.values():
+                        _acnt(_x)
+                elif isinstance(n, list):
+                    for _x in n:
+                        _acnt(_x)
+            _acnt(body_stmts)
+            for _nm, _et in list(self._array_elem_types.items()):
+                if _acounts.get(_nm, 0) >= 2:
+                    self._seq_locals.add(_nm)
+                    self._seq_value_types[_nm] = _et
+                    self._array_elem_types.pop(_nm, None)
         # 07-2333-rev2 TP-1 (str locals): a `str`-typed local (symbol-table τ = str/string,
         # not a formal param) must NOT be pre-declared as `ref 0 : ref int` — it is let-bound
         # at first assignment with its string value (`let r = "ab" in`), the local counterpart
@@ -1452,7 +1560,107 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 | set(tuple_vars) | string_vars | seq_local_vars
                 | getattr(self, "_emit_ir_local_vars", set()))
 
+    def _collect_array_elem_types(self, body_stmts: List[Dict[str, Any]]) -> Dict[str, str]:
+        """list-comprehension-lowering.md L1/L2/L6: map an array LOCAL → its element WhyML
+        type ("string"/"emit_ir"/"int"), from the shapes the emitter builds string arrays
+        with: a comprehension (`[elt for …]`), a list-repeat (`[e] * n`), an ArrayLit of
+        strings, a `List[str]` record-field read, or another such local. @mutable_state only
+        → empty (and inert) for every corpus function."""
+        out: Dict[str, str] = {}
+        if (getattr(self, "_current_self_type", None)
+                not in getattr(self, "_mutable_state_classes", set())):
+            return out
+        rt = getattr(self, "_record_types", {})
+        st = getattr(self, "_current_symbol_table", {})
+
+        def _elt_ty(e: Any) -> Optional[str]:
+            if not isinstance(e, dict):
+                return None
+            if self._is_string_expr(e):
+                return "string"
+            if self._is_emit_ir_expr(e):
+                return "emit_ir"
+            return "int"
+
+        def _val_elem_ty(v: Any) -> Optional[str]:
+            if not isinstance(v, dict):
+                return None
+            t = v.get("type")
+            if t == "ListComp":
+                # self-ir-schema.md IR2: bind each generator target to its iterable's
+                # element class (a `sharedvar` for `self.ir.get("shared_vars")`) so the
+                # element expr `sv["name"]` types; restore after.
+                _saved = {}
+                for _g in (v.get("generators") or []):
+                    _ec = self._iter_elem_class(_g.get("iter", {}))
+                    _tv = _g.get("target")
+                    if _ec and isinstance(_tv, str) and st is not None:
+                        _saved[_tv] = st.get(_tv)
+                        st[_tv] = _ec
+                _r = _elt_ty(v.get("elt", {}))
+                for _tv, _old in _saved.items():
+                    if _old is None: st.pop(_tv, None)
+                    else: st[_tv] = _old
+                return _r
+            if t == "Call" and isinstance(v.get("func"), str) and v["func"].endswith(".findall"):
+                return "string"      # L7: re.findall → array string
+            if t == "BinOp" and v.get("op") == "*":
+                for side in ("left", "right"):
+                    s = v.get(side, {})
+                    if isinstance(s, dict) and s.get("type") in ("ArrayLit", "ListLit"):
+                        _e = (s.get("elts") or [None])[0]
+                        return _elt_ty(_e) if _e else None
+            if t in ("ArrayLit", "ListLit"):
+                _e = (v.get("elts") or [None])[0]
+                return _elt_ty(_e) if _e else None
+            if t in ("Attribute", "FieldGet"):     # a List[str] record field → string elems
+                _recv = v.get("object")
+                if isinstance(_recv, dict):
+                    _recv = _recv.get("name")
+                _fld = v.get("field") or v.get("attr")
+                # `self.<field>` resolves via `_current_self_type`; a record-typed param
+                # (`stmt.<field>`) via the symbol table.
+                _cls = (getattr(self, "_current_self_type", None) if _recv == "self"
+                        else (st.get(_recv) if _recv else None))
+                _rec = (rt.get(_cls) or (rt.get(_cls.lower()) if _cls else None)) if _cls else None
+                if _rec and _rec.get("field_types", {}).get(_fld) in ("list", "tuple"):
+                    _vt = _rec.get("field_value_types", {}).get(_fld)
+                    return _vt if _vt in ("string", "emit_ir") else "int"
+            if t == "Var":
+                return out.get(v.get("name"))
+            return None
+
+        firsts: List[Tuple[str, Any]] = []
+        seen: Set[str] = set()
+
+        def rec(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("stmt") == "Assign" and isinstance(node.get("target"), str):
+                    tgt = node["target"]
+                    if tgt not in seen:
+                        seen.add(tgt)
+                        firsts.append((tgt, node.get("value", {})))
+                for x in node.values():
+                    rec(x)
+            elif isinstance(node, list):
+                for x in node:
+                    rec(x)
+        rec(body_stmts)
+        changed = True
+        while changed:                       # fixpoint for var-to-var propagation
+            changed = False
+            for tgt, v in firsts:
+                if tgt in out:
+                    continue
+                _ty = _val_elem_ty(v)
+                if _ty is not None:
+                    out[tgt] = _ty
+                    changed = True
+        return out
+
     def _prescan_todict_aliases(self, body_stmts):
+        _ms = (getattr(self, "_current_self_type", None)
+               in getattr(self, "_mutable_state_classes", set()))
         for st in body_stmts or []:
             if not isinstance(st, dict): continue
             if st.get("stmt") in ("assign", "Assign"):
@@ -1461,6 +1669,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 tgt = st.get("target")
                 if isinstance(fn, str) and fn.endswith(".to_dict") and not v.get("args") and isinstance(tgt, str):
                     self._todict_aliases[tgt] = fn[:-len(".to_dict")]
+                # §26: `X = getattr(self, "<field>", …)` where <field> is a dict/set
+                # record field → alias X to `self.<field>` (@mutable_state only).
+                if _ms and isinstance(tgt, str) and isinstance(v, dict):
+                    _gf = self._getattr_self_field(v)
+                    if _gf is not None and self._self_field_dict_nu(f"self.{_gf}") is not None:
+                        self._getattr_self_dict_aliases[tgt] = _gf
             for key in ("body", "orelse", "finalbody", "then", "else_body"):
                 sub = st.get(key)
                 if isinstance(sub, list): self._prescan_todict_aliases(sub)
