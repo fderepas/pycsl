@@ -274,3 +274,40 @@ fails). The six leak suppressors landed as designed, all `@mutable_state`/`emit_
 `assigns self._known_collection_sizes` is the checked frame. **10 real emitter handlers now
 verify their own body-faithfulness.** Remaining: **S5** — `tuple_unpack` + `critical_section`
 (the list-comprehension / list-local plumbing + `whyml_ident` return decl-vs-map).
+
+---
+
+## 10. Final status (this execution)
+
+**S1–S4 COMPLETE. S5 partially landed; blocked on list-comprehension lowering (a large,
+distinct feature).**
+
+Landed this run, all byte-diff 0 across the 627-corpus, self-annotation suite unchanged
+(only the pre-existing `errors.py` fails):
+- **`_handle_ghost_assign_stmt`** un-`\trusted` (9th handler) — B-C6 MkTuple ADT + ternary
+  string-local (`typed-ir-for-b-ceiling.md` §24).
+- **`_handle_array_set_stmt`** un-`\trusted` (10th handler) — the six suppressors I-A…I-F.
+- **S5 infra**: `List[str]` record field → `array string`; `List[str]` param → `array
+  string`; list-local-from-field recognizer (`targets = stmt.targets`). All @mutable_state-gated.
+
+**10 of 12 reflecting-family emitter handlers now verify their own body-faithfulness.**
+
+**Remaining — `tuple_unpack` + `critical_section` (S5 tail), gated on the list plumbing:**
+The measured blockers, in order (from the un-`\trust` probes):
+1. **List comprehension → typed collection** (THE crux). `[whyml_ident(t) for t in targets]`
+   lowers to an opaque `val list_comp (x:int):int`, not an `array string` map over the
+   iterable. Needed by both handlers (tuple_unpack ×2, critical_section ×1 with a filter).
+   This is a substantial front-end/lowering feature — its own sub-plan.
+2. **`join` on a string-list** — `", ".join(<array string>)` → `join_array (array int)` (int);
+   needs a string-join → `string`.
+3. **List-repeat** — `["int"] * len(targets)` → `array string`.
+4. **String `+` in @mutable_state** — `"(" + … + ")"` → `str_concat_op` (currently int `+`).
+5. **`_abstract_ops` as a `Dict[str,str]`** — declare the field; `k in`/`[k]`/`[k]=v` route to
+   the self-dict-field paths (I-E/I-F already cover the mechanism once declared).
+6. **List index / `len` / `.append`** on string-lists (`safe_targets[i]`, `lines.append(...)`).
+7. **critical_section only**: `self.ir.get("shared_vars")` list-of-dicts reflection + filtered
+   comprehension; the `whyml_ident` return decl-vs-map inconsistency; `_havoc_counter += 1`.
+
+None is ADT-blocked (Ceiling B is lifted); each is faithful value-modeling of the emitter's
+list/string plumbing. The list-comprehension lowering (#1) is the gating feature and the
+natural next plan; #2–#6 are bounded follow-ons on top of it.
