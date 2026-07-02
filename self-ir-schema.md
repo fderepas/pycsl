@@ -143,3 +143,40 @@ bash bin/run-self-annotation-suite.sh    # only pre-existing errors.py may fail
 - **12 real emitter handlers verify their own body-faithfulness** — the reflecting-family
   trusted base EMPTY.
 - Byte-diff 0; suite green; `list-comprehension-lowering.md` §8 (L8) closed.
+
+---
+
+## 8. Execution log
+
+**IR1–IR4 BUILT (byte-clean, byte-diff 0 across the 627-corpus, 11 handlers still green).**
+The entire `self.ir` reflection + emit_ir-collection machinery for critical_section works:
+
+- **IR1** — `self.ir.get("shared_vars", [])` → `(ir_shared_vars 0) : array sharedvar` (the
+  `sharedvar` record `{sv_name; sv_mutex}` in the emit_ir theory).
+- **IR2** — comprehension loop-var binding (`_iter_elem_class`): `sv : sharedvar`,
+  `s : emit_ir`; `List[StmtIR]` field → `array emit_ir` (forward-ref `List["StmtIR"]`
+  handled); `body_stmts[-1]` → emit_ir; `tail_ret = None` → `(IrOther "")` (Optional[emit_ir]
+  skip-None); `body_stmts[-1].value` → emit_ir sub-node (`svalue_of`) + `is not None`
+  always-present.
+- **IR3** — `sv["name"]` → string (sharedvar field) → the comprehension is `array string`.
+- **IR4** — `_havoc_counter`/`_in_spec` fields; `_mutex_inv_application`/`_handle_return_stmt`
+  stubs; `for var in shared_for_mutex` over `array string`; array-truthiness + seq-truthiness
+  (`not seq_parts`); seq-join (`";\n".join(seq_parts)` → `str_join_seq`).
+
+**IR5 — the honest wall: a Why3 mutable-array REGION limitation (not the reflection).**
+`body_stmts = body_stmts[:-1]` (line 862–866, the 0417 tail-return hoist) reassigns
+`body_stmts`, a `ref (array emit_ir)`. Why3's region system **forbids reassigning a
+`ref (array _)` to a different-region array** (`Array.sub` returns a fresh-region array) — it
+raises *"this application creates an illegal alias"*. `Array.copy` on the field-read breaks
+the field alias but NOT the reassignment alias — the issue is intrinsic to modelling a
+**reassignable list local as a mutable `array`**. The correct fix is to model reassignable
+list locals as an immutable **`seq`** (a pure value, freely reassignable, no regions) — the
+comprehension result, the `List[StmtIR]` field read, `body_stmts[:-1]`/`[-1]`, and the
+`[s.to_dict() for s in body_stmts]` comprehension would all move from `array` to `seq`. That
+is a distinct, larger modelling pivot (the `array`→`seq` split for reassignable lists), NOT
+the `self.ir` reflection this plan solved.
+
+**Net:** the `self.ir` REFLECTION (the hard conceptual problem — heterogeneous untyped-IR
+reflection) is SOLVED (IR1–IR4). critical_section remains `\trusted` on a Why3 mutable-array-
+region mechanic (`body_stmts[:-1]`), which needs the `seq`-model pivot — its own sub-plan.
+**11 of 12 reflecting-family emitter handlers verify their own body-faithfulness.**

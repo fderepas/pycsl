@@ -166,6 +166,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # Array locals can't be compared with <> 0; emit true (always allocated)
         if t == "Var":
             name = ir_expr.get("name", "")
+            # self-ir-schema.md IR4: a seq-promoted list local (`seq_parts = []; .append`)
+            # is truthy iff non-empty — `Seq.length x <> 0` (the seq counterpart of the
+            # array-length truthiness). @mutable_state path (via _seq_locals membership).
+            if (name in getattr(self, "_seq_locals", set())
+                    and getattr(self, "_current_self_type", None)
+                    in getattr(self, "_mutable_state_classes", set())):
+                return f"(Seq.length {whyml_str} <> 0)"
             if name in self._array_locals:
                 return "true"
             # no-more-int emitter L4c: a list/array-typed var (`array int`, e.g. the
@@ -178,7 +185,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # exists to change.
             if (name in getattr(self, "_current_array1d_params", set())
                     or getattr(self, "_current_symbol_table", {}).get(name)
-                    in ("list", "bytes", "bytearray")):
+                    in ("list", "bytes", "bytearray")
+                    # self-ir-schema.md IR4 / list-comp: a comprehension-bound array local
+                    # (`shared_for_mutex`) is truthy iff non-empty — recognized via the
+                    # element-type map (@mutable_state; empty for the corpus).
+                    or name in getattr(self, "_array_elem_types", {})):
                 return f"(Array.length {whyml_str} <> 0)"
             # typed-ir-for-b-ceiling.md §13: a STRING var (`rest_code = self._stmts_
             # to_whyml(...)`) is truthy iff non-empty — `String.length s <> 0`, the
@@ -542,6 +553,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if rt:
                     ft = rt.get("field_types", {}).get(ir.get("attr", ""))
                     return ft in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR", "emit_ir")
+            # self-ir-schema.md IR2: `<emit_ir>.value` / `.target` (a StmtIR field access on
+            # an emit_ir node, e.g. `body_stmts[-1].value`) is itself an emit_ir sub-node.
+            if (isinstance(obj, dict) and self._is_emit_ir_expr(obj)
+                    and getattr(self, "_current_self_type", None)
+                    in getattr(self, "_mutable_state_classes", set())):
+                return True
             return False
         if t == "Var":
             if ir.get("name", "") in getattr(self, "_todict_aliases", {}):
@@ -554,6 +571,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if self._emit_ir_args_recv_ir(ir.get("value", {})) is not None:
                 return True
             if self._emit_ir_args_recv_ir(ir.get("value", {}), "elts") is not None:
+                return True
+            # self-ir-schema.md IR2: an element of an `array emit_ir` local
+            # (`body_stmts[-1]`) is an emit_ir node.
+            _vv = ir.get("value", {})
+            if (isinstance(_vv, dict) and _vv.get("type") == "Var"
+                    and getattr(self, "_array_elem_types", {}).get(_vv.get("name")) == "emit_ir"):
                 return True
             # §26: a projection-key subscript `<emit_ir>["value"/"object"/"index"]`
             # is an emit_ir sub-node (chaining, e.g. `arr["value"]["name"]`).
@@ -601,6 +624,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         dict/set self-field, return the dotted `self.<field>`; else None."""
         fld = getattr(self, "_getattr_self_dict_aliases", {}).get(name)
         return f"self.{fld}" if fld is not None else None
+
+    def _iter_elem_class(self, iter_ir):
+        """self-ir-schema.md IR2: the record class of a comprehension iterable's ELEMENTS,
+        for typing the loop var during element-type inference. `self.ir.get("shared_vars")`
+        → "sharedvar"; None otherwise (the loop var stays untyped)."""
+        if (isinstance(iter_ir, dict) and iter_ir.get("type") == "Call"
+                and iter_ir.get("func") == "self.ir.get"):
+            _a = iter_ir.get("args") or []
+            if (_a and isinstance(_a[0], dict) and _a[0].get("type") == "String"
+                    and _a[0].get("value") == "shared_vars"):
+                return "sharedvar"
+        return None
 
     def _todict_emit_ir_projection(self, recv_dotted, key, local_refs, invariant_ctx, subst):
         node = self._todict_recv_node_ir(recv_dotted)
@@ -905,6 +940,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         return True
                 if (_v.get("type") == "Var"
                         and getattr(self, "_array_elem_types", {}).get(_v.get("name")) == "string"):
+                    return True
+                # self-ir-schema.md IR3: `sv["name"]`/`sv["mutex"]` on a `sharedvar`-typed
+                # comprehension loop var → the record's string field (used only for
+                # element-type inference; the comprehension itself is opaque).
+                if (_v.get("type") == "Var"
+                        and getattr(self, "_current_symbol_table", {}).get(_v.get("name")) == "sharedvar"
+                        and _kir.get("value") in ("name", "mutex")):
                     return True
             return self._is_string_expr(ir.get("value", {}))
         # `s + t` is a `BinOp(+)` node (string concatenation when both operands are
@@ -1400,7 +1442,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return False
         t = arg_ir.get("type")
         if t == "Var":
-            return getattr(self, "_array_elem_types", {}).get(arg_ir.get("name")) == "string"
+            _n = arg_ir.get("name")
+            if getattr(self, "_array_elem_types", {}).get(_n) == "string":
+                return True
+            if getattr(self, "_seq_value_types", {}).get(_n) == "string":
+                return True
+            # self-ir-schema.md IR4: a @mutable_state seq local (`seq_parts = []; .append`)
+            # holds emitted CODE strings — join it as a string seq (str_join_seq). If it
+            # were an int seq the WhyML would fail to type-check (loud, never silent).
+            return (_n in getattr(self, "_seq_locals", set())
+                    and getattr(self, "_current_self_type", None)
+                    in getattr(self, "_mutable_state_classes", set()))
         if t == "ListComp":
             return self._is_string_expr(arg_ir.get("elt", {}))
         if t in ("ArrayLit", "ListLit", "Tuple"):
@@ -2140,6 +2192,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _s = self._expr_to_whyml(_a[1], local_refs or set(), invariant_ctx, subst)
             self._add_abstract_op("val findall_str (pat s: string) : array string")
             return f"(findall_str {_p} {_s})"
+        # self-ir-schema.md IR1: `self.ir.get("shared_vars", [])` → the typed slice
+        # `(ir_shared_vars self.ir)` : `array sharedvar` (an opaque array of shared-var
+        # records with string `name`/`mutex` fields). Content unmodeled; only the element
+        # TYPE matters (so the comprehension over it is `array string`). @mutable_state.
+        if (isinstance(func_name, str) and func_name == "self.ir.get"
+                and len(expr.get("args", [])) >= 1
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            _k0 = expr["args"][0]
+            if (isinstance(_k0, dict) and _k0.get("type") == "String"
+                    and _k0.get("value") == "shared_vars"):
+                self._add_abstract_op("val ir_shared_vars (ir: int) : array sharedvar")
+                return "(ir_shared_vars 0)"
         # A3 (bounded itertools): resolve `len(list(chain(…)))` / `len(chain(…))`
         # to a sum of `Array.length` BEFORE lowering the inner args, so the
         # opaque `chain_*`/`list_new` abstract ops are never emitted.
@@ -3554,6 +3619,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         _rl = _rt[_key].get("whyml_name", _ot.lower())
                         return f"{whyml_ident(var_name)}.{self._field_label(_rl, attr)}"
                 return f"{whyml_ident(var_name)}.{attr}"
+        # self-ir-schema.md IR2: `<emit_ir>.value` / `.target` / … (a StmtIR field access on
+        # an emit_ir node, e.g. `body_stmts[-1].value`) is an opaque emit_ir SUB-NODE —
+        # `svalue_of` returns `IrOther ""` for a non-IrSub node (sound; content unmodeled),
+        # so `… is not None` type-checks (always-present, §B-C4). @mutable_state-gated.
+        if (self._is_emit_ir_expr(obj_ir)
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            _os = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
+            return f"(svalue_of {_os})"
         obj_str = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
         self._add_abstract_op(f"val get_{attr} (x: int) : int")
         return f"(get_{attr} {obj_str})"
@@ -3935,7 +4009,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             vn = val.get("name", "")
             if (vn in getattr(self, "_array_locals", set()) or
                     vn in getattr(self, "_current_array1d_params", set()) or
-                    self._current_symbol_table.get(vn) == "list"):
+                    self._current_symbol_table.get(vn) == "list"
+                    # self-ir-schema.md IR2: a comprehension/field array local
+                    # (`body_stmts[:-1]`) slices with the polymorphic `Array.sub`.
+                    or vn in getattr(self, "_array_elem_types", {})):
                 is_array_src = True
         if is_array_src:
             return f"(Array.sub {arr} ({lo}) (({hi}) - ({lo})))"
@@ -4390,9 +4467,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _d = node.to_dict()
                 _elt = _d.get("elt", {})
                 _gens = _d.get("generators", []) or []
+                # IR2: bind each generator target to its iterable's element class (e.g. a
+                # `sharedvar` for `sv in self.ir.get("shared_vars")`) so the element expr
+                # `sv["name"]` is typed. Restored after inference (the comprehension is opaque).
+                _symtab = getattr(self, "_current_symbol_table", None)
+                _saved = {}
+                if _symtab is not None:
+                    for _g in _gens:
+                        _ec = self._iter_elem_class(_g.get("iter", {}))
+                        _tv = _g.get("target")
+                        if _ec and isinstance(_tv, str):
+                            _saved[_tv] = _symtab.get(_tv)
+                            _symtab[_tv] = _ec
                 if self._is_string_expr(_elt):        _et = "string"
                 elif self._is_emit_ir_expr(_elt):     _et = "emit_ir"
                 else:                                 _et = "int"
+                for _tv, _old in _saved.items():
+                    if _old is None: _symtab.pop(_tv, None)
+                    else: _symtab[_tv] = _old
                 _src = _gens[0].get("iter", {}) if _gens else {}
                 _has_if = any(g.get("ifs") for g in _gens)
                 _srcw = self._expr_to_whyml(_src, local_refs or set(), invariant_ctx, subst)

@@ -1828,10 +1828,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             _vt = self._m5_get_dict_value_type(child.annotation)
             if _vt:
                 _fld["value_type"] = _vt
-            # i-feel-good.md I-E: a `List[str]` field carries string elements → `array
-            # string` (consulted only in a @mutable_state module; inert for the dict path).
-            elif self._m5_get_list_elem_type(child.annotation) == "string":
-                _fld["value_type"] = "string"
+            # i-feel-good.md I-E / self-ir-schema.md IR2: a `List[str]`→`array string` /
+            # `List[StmtIR]`→`array emit_ir` field element type (consulted only in a
+            # @mutable_state module; inert for the dict path).
+            else:
+                _le = self._m5_get_list_elem_type(child.annotation)
+                if _le is not None:
+                    _fld["value_type"] = _le
             fields.append(_fld)
             # N1b: only fields with an explicit default value (x: int = 0)
             # populate `field_defaults`. A field WITHOUT a default is a
@@ -2131,8 +2134,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     _vt2 = self._m5_get_dict_value_type(stmt.annotation)
                     if _vt2:
                         _fld2["value_type"] = _vt2
-                    elif self._m5_get_list_elem_type(stmt.annotation) == "string":
-                        _fld2["value_type"] = "string"
+                    else:
+                        _le2 = self._m5_get_list_elem_type(stmt.annotation)
+                        if _le2 is not None:
+                            _fld2["value_type"] = _le2
                     fields.append(_fld2)
                     field_names_seen.add(stmt.target.id)
                     if (stmt.value is not None and isinstance(stmt.value, ast.Constant)
@@ -2975,8 +2980,19 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             sl = annotation.slice
             if isinstance(sl, ast.Index):          # py<3.9 compat
                 sl = sl.value
-            if isinstance(sl, ast.Name) and sl.id == "str":
+            # the element name — a bare `List[str]` (Name) OR a forward-ref
+            # `List["StmtIR"]` (Constant string, e.g. the imported IR dataclasses).
+            _en = None
+            if isinstance(sl, ast.Name):
+                _en = sl.id
+            elif isinstance(sl, ast.Constant) and isinstance(sl.value, str):
+                _en = sl.value
+            if _en == "str":
                 return "string"
+            # self-ir-schema.md IR2: a `List[StmtIR]`/`List[ExprIR]` field is `array emit_ir`
+            # (the emit_ir IR-node sum), so a `body_stmts[-1]` read is an emit_ir node.
+            if _en in ("StmtIR", "ExprIR", "IRNode", "ContractExprIR"):
+                return "emit_ir"
         return None
 
     @staticmethod

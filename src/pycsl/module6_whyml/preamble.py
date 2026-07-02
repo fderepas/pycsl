@@ -2775,6 +2775,12 @@ class PreambleEmissionMixin:
             "  let function elt1_of (e: emit_ir) : emit_ir =",
             "    match e with IrTuple _ b -> b | _ -> IrOther \"\" end",
             "",
+            "  (* self-ir-schema.md IR1: the typed slice of `self.ir` the emitter reflects on —"
+            " `self.ir.get(\"shared_vars\", [])` is an array of these records"
+            " (`sv[\"name\"]`/`sv.get(\"mutex\")`). Only the string TYPE is modelled; the"
+            " content stays opaque via `ir_shared_vars`. *)",
+            "  type sharedvar = { sv_name: string; sv_mutex: string }",
+            "",
         ]
 
     def _emit_type_decls(self, type_decls: List[Dict[str, Any]]) -> Tuple[List[str], Set[str]]:
@@ -2966,9 +2972,9 @@ class PreambleEmissionMixin:
                         # elements) in a @mutable_state module (the emitter model + its
                         # imported IR records); the corpus has no such module → `array int`,
                         # byte-identical.
-                        if (f.get("value_type") == "string"
+                        if (f.get("value_type") in ("string", "emit_ir")
                                 and getattr(self, "_mutable_state_classes", None)):
-                            ftype = "array string"
+                            ftype = f"array {f.get('value_type')}"
                         else:
                             ftype = "array int"
                     elif ftype in ("string", "str"):

@@ -55,6 +55,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             return f"{indent}let {safe_target} = ref {val} in\n"
         if kind == "bounded_int":
             return f"{indent}let {safe_target} = ref ({val} : int{self._bounded_int}) in\n"
+        # self-ir-schema.md IR2: a REASSIGNED array-elem local first-bound from a record
+        # array-field read (`body_stmts = stmt.body; body_stmts = body_stmts[:-1]`) must
+        # COPY the field array — a `ref` aliasing a record's mutable-array field is an
+        # illegal Why3 alias when later reassigned. `Array.copy` gives a fresh, reassignable
+        # array. @mutable_state (the elem-type map is empty for the corpus).
+        if (target in getattr(self, "_array_elem_types", {})
+                and isinstance(val_ir, dict)
+                and val_ir.get("type") in ("Attribute", "FieldGet")):
+            val = f"(Array.copy {val})"
         if self._val_is_bool(val_ir):
             val = f"(if {val} then 1 else 0)"
         return f"{indent}let {safe_target} = ref {val} in\n"
@@ -120,6 +129,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 and getattr(self, "_current_self_type", None)
                 in getattr(self, "_mutable_state_classes", set())):
             val = '""'
+        # self-ir-schema.md IR2: `x = None` where x is an emit_ir local (an
+        # `Optional[StmtIR]`, the emitter's `tail_ret = None`) → `(IrOther "")` (the emit_ir
+        # absent sentinel), so the `ref (IrOther "")` stays emit_ir-typed. @mutable_state.
+        if (vt == "None" and target in getattr(self, "_emit_ir_local_vars", set())
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            val = '(IrOther "")'
 
         # Assignment to a module-level shared variable (always a ref, never re-declared)
         if target in self._shared_var_names:
@@ -1384,9 +1400,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             if isinstance(node, dict):
                 if node.get("stmt") == "Assign" and isinstance(node.get("target"), str):
                     tgt = node["target"]
-                    if tgt not in seen:
+                    _v = node.get("value", {})
+                    # self-ir-schema.md IR2: skip a leading `x = None` (the `Optional[emit_ir]
+                    # = None` init, e.g. `tail_ret = None; tail_ret = body_stmts[-1]`) so the
+                    # first REAL assignment classifies it — mirrors the string I-B skip.
+                    if tgt not in seen and not (
+                            isinstance(_v, dict) and _v.get("type") == "None"):
                         seen.add(tgt)
-                        firsts.append((tgt, node.get("value", {})))
+                        firsts.append((tgt, _v))
                 for x in node.values():
                     rec(x)
             elif isinstance(node, list):
@@ -1528,7 +1549,21 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 return None
             t = v.get("type")
             if t == "ListComp":
-                return _elt_ty(v.get("elt", {}))
+                # self-ir-schema.md IR2: bind each generator target to its iterable's
+                # element class (a `sharedvar` for `self.ir.get("shared_vars")`) so the
+                # element expr `sv["name"]` types; restore after.
+                _saved = {}
+                for _g in (v.get("generators") or []):
+                    _ec = self._iter_elem_class(_g.get("iter", {}))
+                    _tv = _g.get("target")
+                    if _ec and isinstance(_tv, str) and st is not None:
+                        _saved[_tv] = st.get(_tv)
+                        st[_tv] = _ec
+                _r = _elt_ty(v.get("elt", {}))
+                for _tv, _old in _saved.items():
+                    if _old is None: st.pop(_tv, None)
+                    else: st[_tv] = _old
+                return _r
             if t == "Call" and isinstance(v.get("func"), str) and v["func"].endswith(".findall"):
                 return "string"      # L7: re.findall → array string
             if t == "BinOp" and v.get("op") == "*":
@@ -1548,7 +1583,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 _cls = st.get(_recv) if _recv else None
                 _rec = (rt.get(_cls) or (rt.get(_cls.lower()) if _cls else None)) if _cls else None
                 if _rec and _rec.get("field_types", {}).get(_fld) in ("list", "tuple"):
-                    return "string" if _rec.get("field_value_types", {}).get(_fld) == "string" else "int"
+                    _vt = _rec.get("field_value_types", {}).get(_fld)
+                    return _vt if _vt in ("string", "emit_ir") else "int"
             if t == "Var":
                 return out.get(v.get("name"))
             return None

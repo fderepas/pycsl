@@ -63,6 +63,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     _dict_value_types: Dict[str, str] = None
     _dict_key_types: Dict[str, str] = None
     _abstract_ops: Dict[str, str] = None
+    _havoc_counter: int = 0
+    _in_spec: int = 0
     """Statement-emission dispatch: every `_handle_*_stmt` handler plus the
     statement-stream orchestrator (`_stmts_to_whyml`), body-wrapping helpers
     (`_emit_body_code`, `_wrap_body_with_return_catch`), first-assignment
@@ -215,6 +217,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
     def _dv_store_value(self, nu: str, val_expr: str) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    def _mutex_inv_application(self, mutex: str, inv_str: str) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    def _handle_return_stmt(self, stmt: "ExprIR", rest: List[Dict[str, Any]],
+                            local_refs: Set[str], declared_refs: Set[str],
+                            indent: str, in_loop: bool) -> str:
         return ""
 
 

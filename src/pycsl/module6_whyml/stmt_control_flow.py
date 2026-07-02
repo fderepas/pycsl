@@ -133,7 +133,10 @@ class ControlFlowStmtMixin:
             is_array = not is_dict and (
                 var_name in getattr(self, "_array2d_params", set()) or
                 var_name in getattr(self, "_array_locals", set()) or
-                var_name in getattr(self, "_current_array1d_params", set()))
+                var_name in getattr(self, "_current_array1d_params", set()) or
+                # self-ir-schema.md IR4: a comprehension-bound array local
+                # (`for var in shared_for_mutex`) iterates via `Array.length`/`arr[i]`.
+                var_name in getattr(self, "_array_elem_types", {}))
             if not is_array and not is_dict:
                 if getattr(self, "_current_symbol_table", {}).get(var_name) in ("list", "dict"):
                     is_array = True
