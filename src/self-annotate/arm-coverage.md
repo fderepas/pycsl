@@ -167,3 +167,37 @@ Divergences are honestly bounded: n-ary (tool) vs single-param+currying (formal)
 first-class function *passing* and escaping lambdas are Phase-8 non-goals
 (`phase8-plan.md` §5) — such programs fail verification rather than being
 silently accepted (probed: a lambda-as-argument case is rejected).
+
+---
+
+## Emitter-model abstract ops (the enumerated `\abstract` trust of the un-`\trusted` handlers)
+
+The 12 un-`\trusted` reflecting-family `_handle_*` handlers (see `typed-ir-for-b-ceiling.md`,
+`i-feel-good.md`, `list-comprehension-lowering.md`, `self-ir-schema.md`, `seq-model-pivot.md`)
+prove **type-safety + a checked `assigns` frame** — `requires True / ensures True`. Their
+bodies bottom out at a small, enumerated set of abstract `val`s, each carrying ONLY a
+**sound length/shape law** (never a content claim — a faithful under-approximation, the
+`str_repr_op` discipline). All are emitted ONLY inside a `@mutable_state` module (the emitter
+self-model); the 627-file corpus has no such class, so every op below is **byte-identical
+absent from the corpus** (byte-diff 0). None is a new opaque `\trusted` — they are auditable
+`\abstract` vals with the laws stated here.
+
+| op | signature | sound law (the ONLY claim) | plan |
+|---|---|---|---|
+| `emit_ir` ADT + `kind_of`/`name_of`/`value_of`/`object_of`/`func_of`/`nargs_of`/`arg0_of`/`svalue_of`/`sindex_of`/`elt0_of`/`elt1_of` | total projections over the `emit_ir` sum | each projection is TOTAL (a default off-variant); no content invented | typed-ir §2.1, B-C5/B-C6 |
+| `str_replace_op`/`str_case_op`/`str_strip_op`/`str_split_elem_op`/`str_concat_op` | `string … : string` | length relations only (`len old=len new ⇒ len preserved`, `≤ len s`, exact concat) | faithful-string-op §3 |
+| `str_join_arr` / `str_join_seq` | `(sep: string)(xs: array/seq string) : string` | `String.length result >= 0` (general-iterable join) | list-comp L2 |
+| `list_comp_<τ>` / `list_comp_<τ>_filt` / `list_comp_seq_<τ>` / `list_comp_stmts` | `(src: array/seq 'a) : array/seq <τ>` | `length result = length src` (unfiltered) / `<= length src` (filtered) | list-comp L1, seq SQ4 |
+| `findall_str` | `(pat s: string) : array string` | opaque array; only the element TYPE (string) is claimed | list-comp L7 |
+| `snapshot` (polymorphic) | `(a: array 'a) : seq 'a` | `length result = length a` + per-index equality (a faithful array→seq bridge) | seq SQ2 |
+| `seq_sub` | `(s: seq 'a)(lo hi: int) : seq 'a` | `0<=lo<=hi<=len ⇒ length result = hi-lo` (else unconstrained — sound) | seq SQ3 |
+| `sharedvar` record + `ir_shared_vars` | `(ir: int) : array sharedvar` | opaque array of `{sv_name: string; sv_mutex: string}`; content unmodeled | self-ir IR1 |
+| `str_dunder_op` | `() : string` | `x.__str__()` returns a string (the Python str dunder) — faithful | (no-more-int, errors.py) |
+
+**Audit stance.** Each law is universally true for every input; the opaque content forbids
+proving any FALSE postcondition about the produced value. The handlers' `ensures True` uses
+none of these laws for a value claim — only for TYPE-SAFETY (that the emitted string/array/seq
+type-checks) and the FRAME (`assigns <the mutated `@mutable_state` fields>`, a CHECKED
+`writes` obligation Why3 discharges). Promoting a handler to value-faithful
+`ensures \result == <the exact WhyML string>` is the separate B3 sibling-value effort
+(`semantic-ceiling-plan.md` §12), which these ops do NOT attempt.

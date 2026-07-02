@@ -1618,7 +1618,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 if isinstance(_recv, dict):
                     _recv = _recv.get("name")
                 _fld = v.get("field") or v.get("attr")
-                _cls = st.get(_recv) if _recv else None
+                # `self.<field>` resolves via `_current_self_type`; a record-typed param
+                # (`stmt.<field>`) via the symbol table.
+                _cls = (getattr(self, "_current_self_type", None) if _recv == "self"
+                        else (st.get(_recv) if _recv else None))
                 _rec = (rt.get(_cls) or (rt.get(_cls.lower()) if _cls else None)) if _cls else None
                 if _rec and _rec.get("field_types", {}).get(_fld) in ("list", "tuple"):
                     _vt = _rec.get("field_value_types", {}).get(_fld)

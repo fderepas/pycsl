@@ -2193,6 +2193,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _s = self._expr_to_whyml(_a[1], local_refs or set(), invariant_ctx, subst)
             self._add_abstract_op("val findall_str (pat s: string) : array string")
             return f"(findall_str {_p} {_s})"
+        # no-more-int: `x.__str__()` / `super().__str__()` returns a `string` (the Python
+        # str dunder), not the opaque int the generic dotted-call assigns — so a `-> str`
+        # method returning `super().__str__()` (errors.py `message`) type-checks. Faithful and
+        # universal; byte-clean (no corpus driver calls `.__str__()`).
+        if (isinstance(func_name, str)
+                and (func_name == "__str__" or func_name.endswith(".__str__"))
+                and not expr.get("args")):
+            self._add_abstract_op("val str_dunder_op () : string")
+            return "(str_dunder_op ())"
         # self-ir-schema.md IR1: `self.ir.get("shared_vars", [])` → the typed slice
         # `(ir_shared_vars self.ir)` : `array sharedvar` (an opaque array of shared-var
         # records with string `name`/`mutex` fields). Content unmodeled; only the element
