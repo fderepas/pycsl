@@ -62,7 +62,7 @@ verifies un-`\trusted` → byte-diff 0 (corpus) → suite green.
 | **CF2 ✅** | `_handle_if_stmt` | compositional: reflect on `stmt.test`, recurse `_stmts_to_whyml` on both arms. | tbd | ◻ TODO |
 | **CF3 ✅** | `_handle_while_stmt` | loop invariants/variants (the SQ5 `0<=idx`/variant discipline reused); recurse. | tbd | ◻ TODO |
 | **CF4 ✅** | `_handle_for_stmt` | iterable classification + the for-loop invariant/variant (already added for the emitter for-loops). | tbd | ◻ TODO |
-| **CF5** | `_handle_try_stmt` | exception arms / handler tables — the deepest CF handler. **Deeply explored** (2 passes, error 195→600). See §7 CF5-notes below. | `\nothing` | ◻ TODO (multi-part) |
+| **CF5** | `_handle_try_stmt` | the deepest CF handler. **3 passes, error 195→571 (~92%), ~50 constructs, regression-free**. Definitive model = `seq string` name-collections; full brick table in §7. Remaining: seq/array snapshot-bridging discipline + exception-arm tail. | `\nothing` | ◻ TODO (dedicated pass) |
 | **CF6** | `_handle_match_stmt` | match-case tables — broadest. | tbd | ◻ TODO |
 
 CF0 gates CF1–CF6; CF1 (read-only) is the cheapest end-to-end validation of the CF0 setup.
@@ -104,7 +104,7 @@ CF0 gates CF1–CF6; CF1 (read-only) is the cheapest end-to-end validation of th
 | Item 4 · CF2 if | ✅ DONE (proven, byte-diff 0) |
 | Item 4 · CF3 while | ✅ DONE (proven) |
 | Item 4 · CF4 for | ✅ DONE (proven, byte-diff 0) — tuple-return gap fixed |
-| Item 4 · CF5 try | ◻ TODO (array-string) — explored; model = `array string` name-collections; int-leak reverted |
+| Item 4 · CF5 try | ◻ TODO (dedicated pass) — 3 passes to 195→571; definitive `seq string` model + brick table in §7; regression-free but not landed |
 | Item 4 · CF6 match | ◻ TODO |
 
 **Verification (per CF stage):**
@@ -119,43 +119,56 @@ bash bin/run-self-annotation-suite.sh    # only pre-existing failures (if any) m
 
 ---
 
-## 7. CF5-notes — `_handle_try_stmt`, the deepest handler (2 exploration passes)
+## 7. CF5-notes — `_handle_try_stmt`, the deepest handler (THREE exploration passes)
 
-`try` is the single most entangled statement handler. Two full passes drove the type error
-from **line 195 → 600** of the handler body. Findings, so a future pass lands it fast:
+`try` is the single most entangled statement handler — it exercises nearly every collection
+construct SIMULTANEOUSLY (array-int stmt-lists, string name-collections, map-based sets, string
+ops, comprehensions, nested loops, exception-arm tables). Three passes drove the type error
+**195 → 571** (≈92% through the ~120-line body), fixing ~50 distinct constructs. All infra was
+verified **regression-free** (`statements.py`, the 12 handlers, stayed green each pass). Model
+evolution — each pass corrected the last:
 
-**The name-collection model = `array string` (NOT `array int`).** The vars `try_assigned` /
-`body_raised` / `candidates` / `sorted_assigned` hold variable/exception **names** (strings) —
-`for var in sorted(...): whyml_ident(var)` needs a `string` element. Modeling them as `array
-int` is itself an int-leak (the pass-1 mistake). **Working bricks** (pass 2, array-string half
-fully type-checks): `IRScanner.find_*`/`collect_*` → `array string`; `arr_union`/`array_concat`
-(length law) over `array string`; `sorted_str : array string → array string`; `set(<coll>)` →
-identity; `_val_elem_ty` string propagation from those sources; the `find_array_and_dict_vars`
-array-var recognition for them.
+- **Pass 1 — `array int`:** WRONG. The names are strings → `whyml_ident(var)` fails. An int-leak.
+- **Pass 2 — `array string`:** right element type, but a REASSIGNED collection (`x = sorted(x)`,
+  `x |= …`) is a `ref (array _)` → **Why3 region alias** on the rebind (`illegal alias`).
+- **Pass 3 — `seq string`:** CORRECT. A reassigned collection is an immutable, reassignable
+  `seq string`; `array string` sources bridge in via `snapshot`.
 
-**Three remaining blockers (why pass 2 was reverted, not landed):**
-1. **`<node>.get(key, [])` collides with the emit_ir `.get` router.** `h.get("body", [])` is a
-   STMT-LIST → `array int` (the `list_comp_stmts` node model, NOT a name-list). A broad
-   `.get(k,[])`→collection recognizer **regresses `statements.py`** — it catches
-   `val_ir.get("elts", [])` (an emit_ir sub-node access the emit_ir `.get` path already
-   handles). The recognizer must fire ONLY for non-emit_ir receivers / after the emit_ir router.
-2. **Seq/array-string duality.** `body_raised` is REASSIGNED (`= sorted(body_raised)`) → the
-   SQ1 seq-promotion fires (a `ref (array _)` can't rebind a fresh-region array) → it becomes
-   **`seq string`**, while `try_assigned` (only `|=`, one `Assign`) stays `array string`. So try
-   needs BOTH an array-string and a parallel **seq-string** op set (seq union `++ snapshot`,
-   `sorted` over seq, `list_comp_seq` — the last already exists).
-3. **`List[str]` return → `array string`.** The `_callee_raised_*` stubs (`-> List[str]`,
-   body `return []`) resolve to `array int` — the annotation's `[str]` element type is not
-   captured for returns (`functions.py::_compute_return_type` maps `ann=="list"` → `array
-   int`, and `_returns_string_seq` only catches seq-local returns). Needs list-return element
-   typing.
+**The definitive model (pass 3).** Name-collections (`try_assigned`/`body_raised`/`candidates`/
+`raw_parts`/`sorted_assigned`) are **`seq string`**. Sources return `array string` and are
+`snapshot`-bridged at the binding; ops are seq-typed. The full working brick set:
 
-Plus the un-reached tail: the **exception-arm / handler-table emission** (the `for h in
-handlers` body, `exc`/`handler_body` construction) is past line 600 — untyped-checked.
+| construct | lowering |
+|---|---|
+| `IRScanner.find_*`/`collect_*(<stmts>)` | `val … (l: array int) : array string` (a name-list) |
+| `<handler>.get("body", [])` (list default, NON-emit_ir recv) | `array int` stmt-list; GATED off emit_ir recv so `val_ir.get("elts",[])` keeps its int-model path (fixes blocker 1) |
+| `<handler>.get("exc_type")` (1-arg, string key, non-emit_ir) | `val …_str (k: string) : string` |
+| `x = find_(…)` / seq-source | seq-promote `x` (`_is_seq_src`), bind `ref (snapshot …)` |
+| `x \|= find_(…)` | `x := arr_union !x (snapshot <arr>)`, `arr_union (a b: seq string):seq string` |
+| `sorted(<seq>)` | `sorted_str (a: seq string) : seq string` (dispatch on `_seq_value_types`) |
+| `<str>.split(sep)` | `str_split_op (s sep: string) : array string` (whole-list form) |
+| `[a] + [comp]` | `array_concat (a b: seq string) : seq string`; comp → `list_comp_string_filt` |
+| `set(<coll>)` | identity (dedup unmodelled) |
+| `already_matched \|= seen_local` | `map_union` (map-based sets, distinct from name-lists) |
+| `seen_local.add(tag)` | `map_update_some … (str_hash_op tag)` — local-set string keys hashed |
+| `h.get("x") or "lit"` | string-`or`: `if not (str_eq_op a "") then a else b` |
+| `[tag for tag in <seq>]` | `list_comp_seq`; `_iter_elem_class` binds the loop var `string` |
+| `List[str]` return | Module5 captures `return_value_type`; `_build_method_return_type_map` + `_compute_return_type` → `array string` (fixes blocker 3) |
+| for-target over a seq/array string | seeded string in the string-collector BEFORE its fixpoint |
 
-**Recommendation:** land CF5 in its own focused pass — (a) gate `.get(k,[])`→array behind
-"receiver not emit_ir", (b) add the seq-string op parallel, (c) add `List[str]`→`array string`
-return typing, (d) then drive the exception-arm tail. `match` (CF6) is comparably broad.
+**The tangle that makes it a dedicated pass (pass-3 wall).** The `snapshot`-bridging is
+CONTEXT-dependent: a `let`-binding (`let x = ref (snapshot v)`) wraps an array source, but a
+`:=`-reassign (`x := arr_union …`) needs a seq-returning op directly. Ops (`sorted`, split,
+concat, union) appear in BOTH contexts, so `_seq_operand` must pass seq-producing values through
+WITHOUT re-`snapshot` (added `_seq_value_producing`). Getting every op's array-vs-seq return and
+every use-site's bridge consistent — PLUS the string-collector/seq-promotion ORDERING (a
+for-target over `sorted_assigned` needs `_seq_value_types` populated first) — is the remaining
+plumbing, on top of the un-reached **exception-arm/code-assembly tail** (past line 571: the
+`for h in handlers` connector/`code` construction, ~110 lines).
+
+**Recommendation:** land CF5 as its own dedicated pass starting from this brick table + the
+pass-3 `seq string` model. The hard part is not discovery (done) but the seq/array `snapshot`
+bridging discipline. `match` (CF6) is comparably broad and untouched.
 
 ---
 
