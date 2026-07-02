@@ -62,6 +62,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     _inline_array_temps: Set[str] = None
     _dict_value_types: Dict[str, str] = None
     _dict_key_types: Dict[str, str] = None
+    _abstract_ops: Dict[str, str] = None
     """Statement-emission dispatch: every `_handle_*_stmt` handler plus the
     statement-stream orchestrator (`_stmts_to_whyml`), body-wrapping helpers
     (`_emit_body_code`, `_wrap_body_with_return_catch`), first-assignment

@@ -899,10 +899,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         _lhs, _cur = f"{safe_obj} :=", f"!{safe_obj}"
                     if method == "add":
                         # set.add(x) — mark key present with Some 0.
+                        # list-comprehension-lowering.md L5: in a @mutable_state module the
+                        # decl is POLYMORPHIC (`map 'k (option 'v)`) so it unifies with a
+                        # string-VALUED dict field (`_abstract_ops: Dict[str,str]`) — the
+                        # name-dedup means one decl serves every map write in the module.
+                        # Corpus modules keep the fixed `map int (option int)` → byte-identical.
+                        _poly = getattr(self, "_mutable_state_classes", None)
                         self._add_abstract_op(
-                            "val map_update_some (m: map int (option int)) (k: int) (v: int) "
-                            ": map int (option int)\n"
-                            "    ensures { result = Map.set m k (Some v) }")
+                            ("val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) "
+                             ": map 'k (option 'v)\n" if _poly else
+                             "val map_update_some (m: map int (option int)) (k: int) (v: int) "
+                             ": map int (option int)\n")
+                            + "    ensures { result = Map.set m k (Some v) }")
                         code = f"{indent}{_lhs} map_update_some {_cur} {arg} 0"
                     else:
                         # set.discard(x) / set.remove(x) / del d[k] — clear the key.
@@ -1485,9 +1493,90 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # `seq int … expected int` leak). Params are not in pre_decl_vars, so unioning the
         # full set is safe.
         seq_local_vars = getattr(self, "_seq_locals", set()) - set(self._formal_params)
+        # list-comprehension-lowering.md L2/L6: element type of an array local (string /
+        # emit_ir / int) so `", ".join(xs)` and `xs[i]` type-check at the element type.
+        self._array_elem_types = self._collect_array_elem_types(body_stmts)
         return (array_vars | dict_vars | lambda_vars | record_vars | variant_vars
                 | set(tuple_vars) | string_vars | seq_local_vars
                 | getattr(self, "_emit_ir_local_vars", set()))
+
+    def _collect_array_elem_types(self, body_stmts: List[Dict[str, Any]]) -> Dict[str, str]:
+        """list-comprehension-lowering.md L1/L2/L6: map an array LOCAL → its element WhyML
+        type ("string"/"emit_ir"/"int"), from the shapes the emitter builds string arrays
+        with: a comprehension (`[elt for …]`), a list-repeat (`[e] * n`), an ArrayLit of
+        strings, a `List[str]` record-field read, or another such local. @mutable_state only
+        → empty (and inert) for every corpus function."""
+        out: Dict[str, str] = {}
+        if (getattr(self, "_current_self_type", None)
+                not in getattr(self, "_mutable_state_classes", set())):
+            return out
+        rt = getattr(self, "_record_types", {})
+        st = getattr(self, "_current_symbol_table", {})
+
+        def _elt_ty(e: Any) -> Optional[str]:
+            if not isinstance(e, dict):
+                return None
+            if self._is_string_expr(e):
+                return "string"
+            if self._is_emit_ir_expr(e):
+                return "emit_ir"
+            return "int"
+
+        def _val_elem_ty(v: Any) -> Optional[str]:
+            if not isinstance(v, dict):
+                return None
+            t = v.get("type")
+            if t == "ListComp":
+                return _elt_ty(v.get("elt", {}))
+            if t == "BinOp" and v.get("op") == "*":
+                for side in ("left", "right"):
+                    s = v.get(side, {})
+                    if isinstance(s, dict) and s.get("type") in ("ArrayLit", "ListLit"):
+                        _e = (s.get("elts") or [None])[0]
+                        return _elt_ty(_e) if _e else None
+            if t in ("ArrayLit", "ListLit"):
+                _e = (v.get("elts") or [None])[0]
+                return _elt_ty(_e) if _e else None
+            if t in ("Attribute", "FieldGet"):     # a List[str] record field → string elems
+                _recv = v.get("object")
+                if isinstance(_recv, dict):
+                    _recv = _recv.get("name")
+                _fld = v.get("field") or v.get("attr")
+                _cls = st.get(_recv) if _recv else None
+                _rec = (rt.get(_cls) or (rt.get(_cls.lower()) if _cls else None)) if _cls else None
+                if _rec and _rec.get("field_types", {}).get(_fld) in ("list", "tuple"):
+                    return "string" if _rec.get("field_value_types", {}).get(_fld) == "string" else "int"
+            if t == "Var":
+                return out.get(v.get("name"))
+            return None
+
+        firsts: List[Tuple[str, Any]] = []
+        seen: Set[str] = set()
+
+        def rec(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("stmt") == "Assign" and isinstance(node.get("target"), str):
+                    tgt = node["target"]
+                    if tgt not in seen:
+                        seen.add(tgt)
+                        firsts.append((tgt, node.get("value", {})))
+                for x in node.values():
+                    rec(x)
+            elif isinstance(node, list):
+                for x in node:
+                    rec(x)
+        rec(body_stmts)
+        changed = True
+        while changed:                       # fixpoint for var-to-var propagation
+            changed = False
+            for tgt, v in firsts:
+                if tgt in out:
+                    continue
+                _ty = _val_elem_ty(v)
+                if _ty is not None:
+                    out[tgt] = _ty
+                    changed = True
+        return out
 
     def _prescan_todict_aliases(self, body_stmts):
         _ms = (getattr(self, "_current_self_type", None)
