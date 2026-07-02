@@ -596,3 +596,34 @@ imported helper), the `self._havoc_counter += 1` scalar mutation, the
 `_mutex_inv_application` sibling, and a `[s.to_dict() for s in body_stmts]` comprehension.
 Bounded but broad — its own pass. The emit_ir-local recognizer is landed and reusable:
 it also clears `_handle_ghost_assign_stmt`'s `val_ir := stmt.value` (§18).
+
+---
+
+## 20. `_handle_tuple_unpack_stmt` — needs the emit_ir Call/Subscript extension (frontier)
+
+The prediction that `tuple_unpack` would close cleanly (only the §18/§19 shared blockers)
+was WRONG. It hit the shared blockers AND the emit_ir ADT's limit: it reflects on
+`val_ir.get("type") == "Call"` → `val_ir.get("func")` / `val_ir.get("args")` and on
+`val_ir.get("type") == "Subscript"` → `val_ir.get("value")` / `val_ir.get("index")`.
+The `emit_ir` ADT (§2.1) has no `Call` or `Subscript` variant, so `.get("func")` and the
+subscript's `.get("value")` have no projection.
+
+**Why this is a real feature, not a quick add.** A `Call` variant (`ECall string
+(list emit_ir)`) with a `func_of : string` projection and an args list, plus a
+`Subscript` variant with value/index SUB-NODES, would do it — EXCEPT the `"value"` key is
+HETEROGENEOUS: `String.value` is a `string` (`value_of`) but `Subscript.value` is an
+`emit_ir` sub-node. A single `.get("value")` projection cannot return both. The emitter
+disambiguates by CONTROL FLOW (`if val_ir.get("type") == "Subscript": … .get("value")`),
+so the reflection is context-typed — which the projection functions can't see. This is
+the same heterogeneous-`Dict[str, Any]` shape that motivated the whole ADT (Ceiling B),
+resurfacing for one key.
+
+**Frontier (honest).** The remaining three handlers — `tuple_unpack`, `expr_stmt`,
+`array_set` — ALL need the `emit_ir` ADT extended with `Call`/`Subscript` variants and a
+resolution of the heterogeneous `"value"` key (e.g. a distinct `svalue_of`/`func_of`
+routed by the enclosing `kind` check, or a wide-record fallback for those two variants).
+That is the next real feature/campaign. `ghost_assign` and `critical_section` are broad
+but NOT ADT-blocked (their tails are per-branch mutations + the whyml_ident return-type
+inconsistency). Six of the ten statement handlers with reflection are now un-`\trusted`;
+the remaining four split cleanly: emit_ir-ADT-extension (tuple/expr/array_set) vs
+per-branch breadth (ghost/critical).
