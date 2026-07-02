@@ -1247,6 +1247,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if raw_op in ("in", "not in"):
             return self._emit_membership(raw_op, expr, left, right, local_refs,
                                           invariant_ctx, subst)
+        # item34.md CF4: `<set> | {x}` (set union with a set literal, e.g. the for-loop's
+        # `local_refs | {target}`) is a set UNION — add each element to the map — not the int
+        # `bit_or`. @mutable_state; the string key is `str_hash_op`-hashed (matching M.7).
+        if (raw_op == "|"
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            _rset = expr.get("right", {})
+            if isinstance(_rset, dict) and _rset.get("type") in ("SetLit", "Set"):
+                self._add_abstract_op(
+                    "val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) "
+                    ": map 'k (option 'v)\n"
+                    "    ensures { result = Map.set m k (Some v) }")
+                _acc = left
+                for _e in _rset.get("elts", []):
+                    _ew = self._expr_to_whyml(_e, local_refs, invariant_ctx, subst)
+                    _key = (f"(str_hash_op {_ew})" if self._is_string_expr(_e)
+                            else self._coerce_to_int(_ew))
+                    if self._is_string_expr(_e):
+                        self._add_abstract_op("val str_hash_op (s: string) : int")
+                    _acc = f"(map_update_some {_acc} {_key} 0)"
+                return _acc
         if raw_op in self._BITWISE_FN_NAMES:
             return self._emit_bitwise_or_power(raw_op, expr, left, right)
         if raw_op == "?":
@@ -2195,6 +2216,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return _rw
             self._add_abstract_op("val to_emit_ir (x: 'a) : emit_ir")
             return f"(to_emit_ir {_rw})"
+        # item34.md CF4: `<set/dict>.copy()` (`declared_refs.copy()`) is IDENTITY in the
+        # immutable-map model (a Why3 `map` is a value) — return the receiver map. @mutable_state.
+        if (isinstance(func_name, str) and func_name.endswith(".copy")
+                and not expr.get("args")
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            _cr = func_name[:-len(".copy")]
+            _cp = _cr.split(".")
+            _cir = {"type": "Var", "name": _cp[0]}
+            for _p in _cp[1:]:
+                _cir = {"type": "Attribute", "object": _cir, "attr": _p}
+            return self._expr_to_whyml(_cir, local_refs, invariant_ctx, subst)
         # list-comprehension-lowering.md L7: `re.findall(pat, s)` → an abstract `array
         # string` (a list of matched substrings) with STRING args — modeled BEFORE the
         # generic arg-coercion (which would hash the pattern literal to int). Content

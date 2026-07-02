@@ -162,6 +162,12 @@ class IRScanner:
                         dict_vars.add(target)
                     elif vt == "SetLit" or (vt == "Call" and val.get("func") in ("set", "frozenset")):
                         dict_vars.add(target)
+                    elif (vt == "BinOp" and val.get("op") == "|"
+                          and isinstance(val.get("right"), dict)
+                          and val["right"].get("type") == "SetLit"):
+                        # item34.md CF4: `<set> | {x}` (set union with a literal, the for-loop's
+                        # `local_refs | {target}`) is a SET value → a map local.
+                        dict_vars.add(target)
                     elif vt == "SliceAccess":
                         array_vars.add(target)
                     elif (vt == "BinOp" and val.get("op") == "*"
