@@ -627,3 +627,39 @@ but NOT ADT-blocked (their tails are per-branch mutations + the whyml_ident retu
 inconsistency). Six of the ten statement handlers with reflection are now un-`\trusted`;
 the remaining four split cleanly: emit_ir-ADT-extension (tuple/expr/array_set) vs
 per-branch breadth (ghost/critical).
+
+---
+
+## 21. B-C5 — the emit_ir Call/Subscript ADT extension (BUILT)
+
+The `emit_ir` ADT now has `Call` and `Subscript` variants, resolving the heterogeneous
+`"value"` key that §20 flagged. Witness `src/self-annotate/call-subscript-witness.py`
+verifies; byte-diff 0; the seven landed handlers stay green.
+
+**ADT:** `… | IrCall string emit_ir int | IrSub emit_ir emit_ir` — `IrCall` carries
+(func name, first arg, arity); `IrSub` carries (value, index) sub-nodes.
+
+**Projections (all `let function`, program+logic):** `func_of : string`,
+`nargs_of : int`, `arg0_of : emit_ir`, `svalue_of : emit_ir`, `sindex_of : emit_ir`;
+`kind_of` extended (`IrCall → "Call"`, `IrSub → "Subscript"`).
+
+**Reflection routing (the §20 resolution).** The heterogeneous `"value"` key is resolved
+by OBSERVING that the reflecting handlers use `.get("value")`/`.get("index")` ONLY as
+sub-NODES (passed to `_expr_to_whyml` / reflected further), never as a string — so those
+keys route to `svalue_of`/`sindex_of` (emit_ir), while `"func"` routes to `func_of`
+(string). `"value"` no longer maps to the string `value_of` (which stays for the
+`IrStr`/`IrRaw` CONSTRUCTION path). Changing this broke NO landed handler or witness →
+confirms `.get("value")` is never string-reflected in the emitter. Also:
+`len(<emit_ir>.get("args"))` → `nargs_of`, `<emit_ir>.get("args")[0]` → `arg0_of` (via
+`_emit_ir_args_recv_ir`).
+
+**`_handle_tuple_unpack_stmt` — still deferred, but NO LONGER ADT-blocked.** With B-C5 its
+Call/Subscript reflection type-checks; it now falls back to its FIRST error,
+`targets = stmt.tupleunpackstmt_targets` — a LIST-local bound from a `List[str]` field
+(`array int`), typed `ref 0` — plus `safe_targets = [whyml_ident(t) for t in targets]` /
+`tmp_names = [f"_tu_{t}" for t in safe_targets]` LIST COMPREHENSIONS in the emitter body.
+Those are the next features (a list-local-from-field recognizer, analogous to §19's
+emit_ir locals; and comprehension lowering) — NOT the ADT. `_handle_expr_stmt` and
+`_handle_array_set_stmt` are now unblocked at the ADT level too (array_set's nested
+`arr.get("value").get("type")` will need `_is_emit_ir_expr` to see `svalue_of` results as
+emit_ir — a small follow-on).
