@@ -2728,16 +2728,20 @@ class PreambleEmissionMixin:
             "  (* typed-ir-for-b-ceiling.md B-C1: typed IR-node sum for the emitter model *)",
             "  type emit_ir = IrVar string | IrAttr emit_ir string | IrStr string"
             " | IrNum int | IrRaw string | IrOther string"
-            " | IrCall string emit_ir int | IrSub emit_ir emit_ir",
+            " | IrCall string emit_ir int | IrSub emit_ir emit_ir"
+            " | IrTuple emit_ir emit_ir",
             "",
             "  (* B-C5: IrCall carries func name, first arg (arg0), arity; IrSub carries"
-            " value and index sub-nodes — the emitter reflects on Call/Subscript IR. *)",
+            " value and index sub-nodes — the emitter reflects on Call/Subscript IR."
+            " B-C6: IrTuple carries the first two elements (elts[0], elts[1]) — the"
+            " emitter reflects on a MkTuple node's `elts` in the ghost-dict `+=` branch. *)",
             "  let function kind_of (e: emit_ir) : string =",
             "    match e with",
             "    | IrVar _ -> \"Var\" | IrAttr _ _ -> \"Attribute\"",
             "    | IrStr _ -> \"String\" | IrNum _ -> \"Number\"",
             "    | IrRaw _ -> \"RawWhyml\"",
             "    | IrCall _ _ _ -> \"Call\" | IrSub _ _ -> \"Subscript\"",
+            "    | IrTuple _ _ -> \"MkTuple\"",
             "    | IrOther k -> k",
             "    end",
             "",
@@ -2764,6 +2768,12 @@ class PreambleEmissionMixin:
             "",
             "  let function sindex_of (e: emit_ir) : emit_ir =",
             "    match e with IrSub _ i -> i | _ -> IrOther \"\" end",
+            "",
+            "  let function elt0_of (e: emit_ir) : emit_ir =",
+            "    match e with IrTuple a _ -> a | _ -> IrOther \"\" end",
+            "",
+            "  let function elt1_of (e: emit_ir) : emit_ir =",
+            "    match e with IrTuple _ b -> b | _ -> IrOther \"\" end",
             "",
         ]
 

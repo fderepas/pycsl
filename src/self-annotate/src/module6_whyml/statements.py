@@ -51,6 +51,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     _current_symbol_table: Dict[str, str] = None
     _shared_var_names: Set[str] = None
     _decode_to_string: int = 0
+    _ghost_string_vars: Set[str] = None
+    _ghost_tuple_vars: Dict[str, int] = None
+    _ghost_array_vars: Set[str] = None
+    _ghost_dict_vars: Set[str] = None
+    _ghost_list_vars: Set[str] = None
+    _ghost_set_vars: Set[str] = None
+    _bounded_int: int = 0
     """Statement-emission dispatch: every `_handle_*_stmt` handler plus the
     statement-stream orchestrator (`_stmts_to_whyml`), body-wrapping helpers
     (`_emit_body_code`, `_wrap_body_with_return_catch`), first-assignment
@@ -179,6 +186,16 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     #@ ensures True
     def _val_is_bool(self, val_ir: "ExprIR") -> bool:
         return True
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    def _resolve_effective_ghost_type(self, target: str, op: str, ghost_type: str) -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    def _e(self, ir: "ExprIR", local_refs: Set[str]) -> str:
+        return ""
 
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -396,10 +413,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             rest_code = f"{indent}()"
         return f"{indent}let ghost {safe_target} {binding} in\n{rest_code}"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._ghost_string_vars, self._ghost_tuple_vars, self._ghost_array_vars, self._array_locals, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars
     def _handle_ghost_assign_stmt(self, stmt: GhostAssignStmt, rest: List[Dict[str, Any]],
                                    local_refs: Set[str], declared_refs: Set[str],
                                    indent: str, in_loop: bool) -> str:

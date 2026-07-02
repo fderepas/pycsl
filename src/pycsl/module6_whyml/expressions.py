@@ -532,6 +532,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if t in ("Subscript", "SliceAccess"):
             if self._emit_ir_args_recv_ir(ir.get("value", {})) is not None:
                 return True
+            if self._emit_ir_args_recv_ir(ir.get("value", {}), "elts") is not None:
+                return True
         return False
 
     def _todict_recv_node_ir(self, recv_dotted: str) -> Dict[str, Any]:
@@ -567,11 +569,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if proj is None: return None
         return f"({proj} {self._expr_to_whyml(node, local_refs or set(), invariant_ctx, subst)})"
 
-    def _emit_ir_args_recv_ir(self, arg_ir):
+    def _emit_ir_args_recv_ir(self, arg_ir, key="args"):
         """B-C5: if `arg_ir` reads the "args" list of an emit_ir Call node — either the
         `<emit_ir>.get("args")` (Call) form OR the `<emit_ir>["args"]` (Subscript) form —
         return the receiver's emit_ir IR node, so `len(...)` lowers to `nargs_of` and
-        `...[0]` to `arg0_of`. None otherwise."""
+        `...[0]` to `arg0_of`. None otherwise.
+
+        B-C6: `key` generalises this to any list-valued reflection key; `key="elts"`
+        recognises a MkTuple node's `elts` list (routed to `elt{i}_of` by the caller)."""
         if not isinstance(arg_ir, dict):
             return None
         t = arg_ir.get("type")
@@ -580,16 +585,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # returns IrOther "" for a non-Call, so the explicit `or <default>` is subsumed.
         if t == "BoolOp" and arg_ir.get("op") == "or":
             _vs = arg_ir.get("values", [])
-            return self._emit_ir_args_recv_ir(_vs[0]) if _vs else None
+            return self._emit_ir_args_recv_ir(_vs[0], key) if _vs else None
         if t == "BinOp" and arg_ir.get("op") == "or":
-            return self._emit_ir_args_recv_ir(arg_ir.get("left", {}))
+            return self._emit_ir_args_recv_ir(arg_ir.get("left", {}), key)
         if t == "Call":
             fn = arg_ir.get("func")
             if not (isinstance(fn, str) and fn.endswith(".get")):
                 return None
             kir = (arg_ir.get("args") or [{}])[0]
             if not (isinstance(kir, dict) and kir.get("type") == "String"
-                    and kir.get("value") == "args"):
+                    and kir.get("value") == key):
                 return None
             recv = fn[:-len(".get")]
             dotted = getattr(self, "_todict_aliases", {}).get(recv)
@@ -598,7 +603,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         elif t in ("Subscript", "SliceAccess"):
             kir = arg_ir.get("index", {})
             if not (isinstance(kir, dict) and kir.get("type") == "String"
-                    and kir.get("value") == "args"):
+                    and kir.get("value") == key):
                 return None
             v = arg_ir.get("value", {})
             if isinstance(v, dict) and v.get("type") == "Var":
@@ -3092,6 +3097,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _ar0 = self._emit_ir_args_recv_ir(expr.get("value", {}))
         if _ar0 is not None and index == "0":
             return (f"(arg0_of {self._expr_to_whyml(_ar0, local_refs or set(), invariant_ctx, subst)})")
+        # B-C6: `<emit_ir>["elts"][i]` (i in 0,1) → `elt{i}_of` — a MkTuple element
+        # sub-node, for ghost_assign's ghost-dict `+=` branch `val_ir["elts"][0/1]`.
+        _elt = self._emit_ir_args_recv_ir(expr.get("value", {}), "elts")
+        if _elt is not None and index in ("0", "1"):
+            return (f"(elt{index}_of {self._expr_to_whyml(_elt, local_refs or set(), invariant_ctx, subst)})")
         # faithful-string-op.md §3.4: `<string>.split(sep)[i]` / `.rsplit(sep,k)[i]` → the
         # i-th piece — a substring of the receiver (str_split_elem_op). Length law only;
         # content unmodeled, so `[0]`/`[1]`/`[-1]` share the op (the bound holds for any i).

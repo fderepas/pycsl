@@ -1285,6 +1285,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     in getattr(self, "_mutable_state_classes", set())
                     and self._is_string_expr(v)):
                 return True
+            # typed-ir-for-b-ceiling.md §18 (ghost_assign): a ternary `<str> if cond
+            # else <str>` binds a string local — the emitter's `init_val = f"(…)"
+            # if val == "Nil" else val`. Both arms must be string-valued; recurse via
+            # `_is_str_val` (the fixpoint marks a dependency arm like `py_val` first).
+            # @mutable_state-gated → byte-identical for every other method.
+            if (t == "IfExpr"
+                    and getattr(self, "_current_self_type", None)
+                    in getattr(self, "_mutable_state_classes", set())
+                    and _is_str_val(v.get("body", {}))
+                    and _is_str_val(v.get("orelse", {}))):
+                return True
             return False
 
         # Collect the FIRST assignment of each local (mirrors the ref-0 pre-decl,

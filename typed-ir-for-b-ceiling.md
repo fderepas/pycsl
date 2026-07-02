@@ -721,3 +721,42 @@ plus `expr_stmt`). expr_stmt is the first handler to close *after* the ADT was c
 the faithful string ops landed — validating that both were the right infrastructure. The
 tool fixes are general (subscript-args, or-unwrap, getattr-set membership, args-element
 emit_ir locals), reusable by `tuple_unpack`/`array_set`.
+
+---
+
+## 24. `_handle_ghost_assign_stmt` un-`\trusted` — the NINTH handler (B-C6 MkTuple ADT + ternary string-local)
+
+`_handle_ghost_assign_stmt` verifies and is no longer `\trusted`; `statements.py` PASSES
+the self-annotation suite with NINE real handlers off the trusted base (only the
+pre-existing `errors.py` fails; the 7 other suite entries are absent optional files, not
+proof failures). Byte-diff 0 across the 627-corpus.
+
+The §18 assessment ("a LONG handler, deferred — tracks SEVEN ghost-var kinds") held: it
+advanced through all seven ghost-kind branches, blocking in order on two bounded features,
+each byte-clean and @mutable_state/emit_ir-gated:
+
+1. **B-C6 — the emit_ir `MkTuple`/`elts` ADT extension** (the ghost-dict `+=` branch
+   reads `val_ir["elts"][0]`/`[1]` on an `emit_ir`). Added `IrTuple emit_ir emit_ir` to
+   the ADT, `kind_of (IrTuple _ _) = "MkTuple"`, and `elt0_of`/`elt1_of : emit_ir`
+   projections (`preamble._emit_exprir_theory`). Generalised `_emit_ir_args_recv_ir` with
+   a `key` param (default `"args"`, so B-C5's callers are unchanged) so it also recognises
+   the `elts` list; `_handle_subscript` routes `<emit_ir>["elts"][i]` (i∈0,1) → `elt{i}_of`,
+   and `_is_emit_ir_expr` recognises the elts-subscript form. This is the direct analogue
+   of B-C5 (Call/Subscript) for the tuple-literal element read.
+2. **Ternary string-local** (the ghost-list branch's `init_val = f"(…: list int)" if
+   val == "Nil" else val`). Extended `_is_str_val` (the string-local recognizer) so an
+   `IfExpr` whose both arms are string-valued binds a string local — recursing via
+   `_is_str_val` so the fixpoint marks a dependency arm (`py_val`) first. @mutable_state-gated.
+
+Mirror side: declared the seven ghost-kind state fields (`_ghost_{string,tuple,array,dict,
+list,set}_vars`, `_bounded_int`); typed the `_resolve_effective_ghost_type` (`-> str`) and
+`_e` (`-> str`) sibling stubs; frame `assigns self._ghost_string_vars, self._ghost_tuple_vars,
+self._ghost_array_vars, self._array_locals, self._ghost_dict_vars, self._ghost_list_vars,
+self._ghost_set_vars` (a CHECKED, non-vacuous seven-field union frame). `int(ghost_type[-1])`
+(§18's str→int) and the emit_ir-local `_val_d`/`val_ir` (§19) both fired unchanged.
+
+**Net.** NINE real emitter handlers verify their own body-faithfulness. The B-C6 ADT
+extension is reusable (a MkTuple/elts reflection now type-checks anywhere). Frontier:
+`tuple_unpack` (list-locals + comprehensions), `array_set` (nested emit_ir reflection +
+getattr-bound self-dict local + `Dict[str,int]` int-key), `critical_section` (list-comprehension
++ `whyml_ident` return-type decl-vs-map + `_havoc_counter` scalar mutation).
