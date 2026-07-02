@@ -460,7 +460,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 _cpt: List[str] = []
                 if (getattr(self, "_current_self_type", None)
                         in getattr(self, "_mutable_state_classes", set())):
-                    _crt, _cpt, _, _ = self._resolve_dotted_signature(func_name)
+                    # resync-campaign.md R2: UNIQUE throwaway names (not `_, _`, which both
+                    # lower to `_tu_py_underscore` → a Why3 duplicate-variable in the unpack).
+                    _crt, _cpt, _re3, _re4 = self._resolve_dotted_signature(func_name)
                     if (_crt and _crt.startswith("(")
                             and _crt.count(",") + 1 == len(targets)):
                         tuple_ret = _crt
@@ -1522,6 +1524,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                     and _tg not in seen):
                                 seen.add(_tg)
                                 tuple_str.add(_tg)
+                # resync-campaign.md R2: a tuple-unpack from a TUPLE LITERAL (`_lhs, _cur =
+                # f"{_fld} <-", _fld`) — each target whose element is string-typed is a string
+                # local. @mutable_state.
+                if (_ms_str and node.get("stmt") == "TupleUnpack"
+                        and isinstance(node.get("value"), dict)
+                        and node["value"].get("type") == "Tuple"):
+                    _elts = node["value"].get("elts", [])
+                    for _i, _tg in enumerate(node.get("targets", [])):
+                        if (_i < len(_elts) and _tg not in seen
+                                and self._is_string_expr(_elts[_i])):
+                            seen.add(_tg)
+                            tuple_str.add(_tg)
                 # item34.md CF5: a for-loop target over a `string` name-collection (`for part
                 # in raw_parts`, `for tag in candidates`, `for var in sorted_assigned`) is a
                 # string local — so `part.strip()`/`whyml_ident(var)` type-check.

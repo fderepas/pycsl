@@ -91,6 +91,7 @@ _TYPED_EXPR_HANDLERS = {
 _EMIT_IR_PROJ = {
     "type": "kind_of", "name": "name_of", "attr": "name_of", "field": "name_of",
     "func": "func_of", "value": "svalue_of", "object": "object_of", "index": "sindex_of",
+    "args": "args_of",   # resync-campaign.md R1: the args LIST → `array emit_ir`
 }
 _EMIT_IR_STR_KEYS = ("type", "name", "attr", "field", "func")   # → string projections
 _EMIT_IR_NODE_KEYS = ("value", "object", "index")               # → emit_ir sub-nodes
@@ -128,6 +129,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         Other expressions (int) need `<> 0` coercion."""
         t = ir_expr.get("type", "")
         op = ir_expr.get("op", "")
+        # resync-campaign.md R1: `val_ir.get("args")` lowers to `(args_of …)` : `array emit_ir`
+        # — a truthiness (`if not val_ir.get("args")` = "no args") is array-emptiness, never the
+        # int `<> 0` coercion. @mutable_state emit_ir reflection only.
+        if whyml_str.startswith("(args_of "):
+            return f"(Array.length {whyml_str} <> 0)"
         # Already boolean: comparisons, not, bool literals, isinstance
         if t == "BinOp" and op in ("==", "!=", "<", ">", "<=", ">=", "in", "not in"):
             return whyml_str
@@ -872,6 +878,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         """True if an IR expression is string-typed: a literal, a string-producing op, or a
         `str`-typed variable. (strings-plan Stage 2 — used to route `+` to `concat`.)"""
         t = ir.get("type")
+        # resync-campaign.md R2: a ternary whose BOTH arms are string-typed is string (the
+        # emitter's `(if _poly then "<decl A>" else "<decl B>") + "…ensures…"` concat). Both
+        # arms must be string; @mutable_state (the emitter's string decls).
+        if (t == "IfExpr"
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())
+                and self._is_string_expr(ir.get("body", {}))
+                and self._is_string_expr(ir.get("orelse", {}))):
+            return True
+        # resync-campaign.md R2: `<str> or <str>` (`<get> or ""`) is string — so a `.lower()`
+        # on it type-checks. @mutable_state.
+        if (t == "BinOp" and ir.get("op") == "or"
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())
+                and self._is_string_expr(ir.get("left", {}))
+                and (self._is_string_expr(ir.get("right", {}))
+                     or (isinstance(ir.get("right"), dict)
+                         and ir["right"].get("type") == "None"))):
+            return True
         if t == "Call":
             _fn = ir.get("func", "")
             # faithful-string-op.md §3.1–3.3: `.replace`/`.lower`/`.upper`/`.strip` on a
@@ -1270,15 +1295,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # item34.md CF5: Python `<str> or <str>` (`h.get("exc_type") or "PyCSL_Exception"`)
             # returns the FIRST truthy STRING — `if not (str_eq_op a "") then a else b`. Both
             # operands string-typed, not in spec. @mutable_state.
+            # resync-campaign.md R2: the right arm may be `None` (`(…).lower() or None`) → "".
+            _r_none = isinstance(expr.get("right"), dict) and expr["right"].get("type") == "None"
             if (op == "||" and not self._in_spec
                     and getattr(self, "_current_self_type", None)
                     in getattr(self, "_mutable_state_classes", set())
                     and self._is_string_expr(expr["left"])
-                    and self._is_string_expr(expr["right"])):
+                    and (self._is_string_expr(expr["right"]) or _r_none)):
                 self._add_abstract_op(
                     "val str_eq_op (a b: string) : bool\n"
                     "    ensures { result <-> (a = b) }")
-                return f'(if (not (str_eq_op {left} "")) then {left} else {right})'
+                _rv = '""' if _r_none else right
+                return f'(if (not (str_eq_op {left} "")) then {left} else {_rv})'
             left_b = self._to_bool(left, expr["left"])
             right_b = self._to_bool(right, expr["right"])
             if self._in_spec:

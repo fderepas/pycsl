@@ -2767,6 +2767,11 @@ class PreambleEmissionMixin:
             "  let function arg0_of (e: emit_ir) : emit_ir =",
             "    match e with IrCall _ a _ -> a | _ -> IrOther \"\" end",
             "",
+            "  (* resync-campaign.md R1: the args LIST of a reflected Call node — opaque"
+            " `array emit_ir` (sound; the ADT carries only arg0/nargs, so content is"
+            " unmodelled). Used by the emitter's `val_ir.get(\"args\")`. *)",
+            "  val args_of (e: emit_ir) : array emit_ir",
+            "",
             "  let function svalue_of (e: emit_ir) : emit_ir =",
             "    match e with IrSub v _ -> v | _ -> IrOther \"\" end",
             "",

@@ -217,9 +217,12 @@ in sync).
 - **A real emitter bug was found + fixed** en route: `_call_named_builtins` re-lowered its
   already-lowered `args` (crash on `<computed>.endswith(…)`), committed byte-diff 0.
 
-**Status:** re-sync reverted to keep the mirror verifying (green tree). The sync-checker
-(committed) now makes the drift visible; the verification campaign to complete the re-sync is a
-scoped follow-on. Not yet wired as a hard gate.
+**Status: RESOLVED (`resync-campaign.md` executed).** All 10 drifted `statements.py` handlers
+re-ported verbatim from the live emitter (checker green: 19/19); they type-check AND PROVE;
+byte-diff 0; the checker is wired into `check-self-annotate-sync.sh`. The `args_of` emit_ir
+projection + a handful of `@mutable_state` recognizers closed the verification. All 17 body-
+faithful handlers (12 reflecting + 5 CF) now verify the CURRENT emitter — the integrity gap is
+closed and gated against future drift.
 
 ---
 

@@ -146,10 +146,10 @@ Per feature-plan convention, add a `@mutable_state` witness exercising the new e
 |---|---|
 | (found) emitter bug line-2651 | ✅ FIXED + committed (byte-diff 0) |
 | (found) checker `check-module6-mirror-sync.py` | ✅ committed |
-| R0 code re-sync (swap + 4 fields + 3 stubs) | ◻ TODO (proven reachable in the attempt; reverted) |
-| R1 emit_ir `args_of` list projection | ◻ TODO (the verification wall) |
-| R2 per-handler verification recognizers | ◻ TODO (cascading tail) |
-| R3 prove + byte-diff 0 + wire the hard gate | ◻ TODO |
+| R0 code re-sync (swap + fields + stubs) | ✅ DONE (checker green: 19/19 verbatim) |
+| R1 emit_ir `args_of` list projection | ✅ DONE (opaque `array emit_ir` + `_to_bool` emptiness) |
+| R2 per-handler verification recognizers | ✅ DONE (str-ternary/or in `_is_string_expr`, str-or None arm, tuple-literal str targets, getattr-set membership, unique throwaway names) |
+| R3 prove + byte-diff 0 + wire the hard gate | ✅ DONE — statements.py PROVES; byte-diff 0; checker wired into check-self-annotate-sync.sh |
 
 ---
 

@@ -48,4 +48,13 @@ if [ "$DIVERGED" -eq 0 ]; then
     echo "OK: all self-annotate mirrors are in sync"
 fi
 
+# resync-campaign.md R3.3: the module6_whyml/ subpackage mirror is heterogeneous (verbatim
+# un-trusted handlers + intentionally-divergent trusted stubs), so a whole-file diff is
+# meaningless — gate it with the method-level checker instead.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+echo "--- module6_whyml/ mirror (method-level) ---"
+if ! python3 "$SCRIPT_DIR/check-module6-mirror-sync.py"; then
+    DIVERGED=1
+fi
+
 exit "$DIVERGED"
