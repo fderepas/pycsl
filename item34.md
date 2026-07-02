@@ -62,7 +62,7 @@ verifies un-`\trusted` → byte-diff 0 (corpus) → suite green.
 | **CF2 ✅** | `_handle_if_stmt` | compositional: reflect on `stmt.test`, recurse `_stmts_to_whyml` on both arms. | tbd | ◻ TODO |
 | **CF3 ✅** | `_handle_while_stmt` | loop invariants/variants (the SQ5 `0<=idx`/variant discipline reused); recurse. | tbd | ◻ TODO |
 | **CF4 ✅** | `_handle_for_stmt` | iterable classification + the for-loop invariant/variant (already added for the emitter for-loops). | tbd | ◻ TODO |
-| **CF5** | `_handle_try_stmt` | exception arms / handler tables — broad. **Explored** (error 195→573): correct model is **`array string`** name-collections (var/exception names + tags are STRINGS). Bricks mapped: `IRScanner.find_*`/`collect_*` → `array string`; `arr_union`/`array_concat` over `array string`; `sorted`/`set(…)` over the collection; `<node>.get("body", [])` (list-literal default) → `array string`; `_callee_raised_*` stubs → `List[str]`. **Lesson:** an intermediate `array int` model is ITSELF an int-leak — `for var in sorted(...): whyml_ident(var)` needs a `string` element. Reverted (not landed) to avoid banking the int-leak; needs `_array_elem_types` string propagation from the call return type. | `\nothing` | ◻ TODO (array-string) |
+| **CF5** | `_handle_try_stmt` | exception arms / handler tables — the deepest CF handler. **Deeply explored** (2 passes, error 195→600). See §7 CF5-notes below. | `\nothing` | ◻ TODO (multi-part) |
 | **CF6** | `_handle_match_stmt` | match-case tables — broadest. | tbd | ◻ TODO |
 
 CF0 gates CF1–CF6; CF1 (read-only) is the cheapest end-to-end validation of the CF0 setup.
@@ -116,6 +116,46 @@ CF0 gates CF1–CF6; CF1 (read-only) is the cheapest end-to-end validation of th
 PYTHONHASHSEED=0 bash bin/byte-diff-sweep.sh /tmp/after && diff -rq <clean-HEAD-baseline> /tmp/after
 bash bin/run-self-annotation-suite.sh    # only pre-existing failures (if any) may remain
 ```
+
+---
+
+## 7. CF5-notes — `_handle_try_stmt`, the deepest handler (2 exploration passes)
+
+`try` is the single most entangled statement handler. Two full passes drove the type error
+from **line 195 → 600** of the handler body. Findings, so a future pass lands it fast:
+
+**The name-collection model = `array string` (NOT `array int`).** The vars `try_assigned` /
+`body_raised` / `candidates` / `sorted_assigned` hold variable/exception **names** (strings) —
+`for var in sorted(...): whyml_ident(var)` needs a `string` element. Modeling them as `array
+int` is itself an int-leak (the pass-1 mistake). **Working bricks** (pass 2, array-string half
+fully type-checks): `IRScanner.find_*`/`collect_*` → `array string`; `arr_union`/`array_concat`
+(length law) over `array string`; `sorted_str : array string → array string`; `set(<coll>)` →
+identity; `_val_elem_ty` string propagation from those sources; the `find_array_and_dict_vars`
+array-var recognition for them.
+
+**Three remaining blockers (why pass 2 was reverted, not landed):**
+1. **`<node>.get(key, [])` collides with the emit_ir `.get` router.** `h.get("body", [])` is a
+   STMT-LIST → `array int` (the `list_comp_stmts` node model, NOT a name-list). A broad
+   `.get(k,[])`→collection recognizer **regresses `statements.py`** — it catches
+   `val_ir.get("elts", [])` (an emit_ir sub-node access the emit_ir `.get` path already
+   handles). The recognizer must fire ONLY for non-emit_ir receivers / after the emit_ir router.
+2. **Seq/array-string duality.** `body_raised` is REASSIGNED (`= sorted(body_raised)`) → the
+   SQ1 seq-promotion fires (a `ref (array _)` can't rebind a fresh-region array) → it becomes
+   **`seq string`**, while `try_assigned` (only `|=`, one `Assign`) stays `array string`. So try
+   needs BOTH an array-string and a parallel **seq-string** op set (seq union `++ snapshot`,
+   `sorted` over seq, `list_comp_seq` — the last already exists).
+3. **`List[str]` return → `array string`.** The `_callee_raised_*` stubs (`-> List[str]`,
+   body `return []`) resolve to `array int` — the annotation's `[str]` element type is not
+   captured for returns (`functions.py::_compute_return_type` maps `ann=="list"` → `array
+   int`, and `_returns_string_seq` only catches seq-local returns). Needs list-return element
+   typing.
+
+Plus the un-reached tail: the **exception-arm / handler-table emission** (the `for h in
+handlers` body, `exc`/`handler_body` construction) is past line 600 — untyped-checked.
+
+**Recommendation:** land CF5 in its own focused pass — (a) gate `.get(k,[])`→array behind
+"receiver not emit_ir", (b) add the seq-string op parallel, (c) add `List[str]`→`array string`
+return typing, (d) then drive the exception-arm tail. `match` (CF6) is comparably broad.
 
 ---
 
