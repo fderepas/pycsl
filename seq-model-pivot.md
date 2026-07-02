@@ -134,3 +134,33 @@ bash bin/run-self-annotation-suite.sh    # only pre-existing errors.py may fail
 - **12 real emitter handlers verify their own body-faithfulness** — the reflecting-family
   trusted base EMPTY.
 - Byte-diff 0; suite green; `self-ir-schema.md` §8 (IR5) closed.
+
+---
+
+## 8. Execution log — DONE. `_handle_critical_section_stmt` un-`\trusted` (the 12th handler)
+
+**ALL 12 reflecting-family emitter handlers now verify their own body-faithfulness.**
+Full proof SUCCESS; byte-diff 0 across the 627-corpus; expressions.py mirror still PASSES.
+
+- **SQ1** — a REASSIGNED list-elem local (`body_stmts`, assigned >1×) is promoted to
+  `_seq_locals` with its element value type (dropped from `_array_elem_types`).
+- **SQ2** — POLYMORPHIC `snapshot : array 'a → seq 'a` in @mutable_state modules; the
+  `List[StmtIR]` field read `body_stmts = stmt.body` → `ref (snapshot stmt.body)` (`seq emit_ir`).
+- **SQ3** — `body_stmts[:-1]` → `seq_sub` (a pure seq sub-sequence, NO `array_slice`/region —
+  the reassignment alias is GONE); `body_stmts[-1]` → `Seq.get` (recognized emit_ir via
+  `_seq_value_types`); `_seq_operand` passes a seq slice through without `snapshot`.
+- **SQ4** — the seq comprehension: `[s.to_dict() for s in body_stmts]` re-materialises a stmt
+  list → `list_comp_stmts (src: seq 'a) : array int` (unifies with `_stmts_to_whyml`'s `array
+  int` param); a general seq comprehension → `list_comp_seq_<τ> : seq <τ>`.
+- **SQ5** — `assigns self._havoc_counter, self._in_spec` (the checked frame); a @mutable_state
+  for-loop carries `invariant { 0 <= idx }` + `variant { len - idx }` so the element-read
+  bounds and termination discharge (the same loop-invariant discipline tuple_unpack needed).
+
+**The `array`→`seq` insight:** a Python list that is REASSIGNED is a *value*, not a mutable
+region — Why3's immutable `seq` is the faithful model (and the one that type-checks). This is
+arguably MORE faithful than the mutable `array` for a reassigned local.
+
+**12 of 12 — the reflecting-family trusted base is EMPTY.** The entire body-faithful-emitter
+arc (`typed-ir-for-b-ceiling` → `i-feel-good` → `list-comprehension-lowering` → `self-ir-schema`
+→ `seq-model-pivot`) is complete: every reflecting `_handle_*` statement handler proves its own
+body.

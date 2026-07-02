@@ -572,11 +572,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return True
             if self._emit_ir_args_recv_ir(ir.get("value", {}), "elts") is not None:
                 return True
-            # self-ir-schema.md IR2: an element of an `array emit_ir` local
-            # (`body_stmts[-1]`) is an emit_ir node.
+            # self-ir-schema.md IR2 / seq-model-pivot.md SQ3: an element of an `array emit_ir`
+            # OR `seq emit_ir` local (`body_stmts[-1]`) is an emit_ir node.
             _vv = ir.get("value", {})
             if (isinstance(_vv, dict) and _vv.get("type") == "Var"
-                    and getattr(self, "_array_elem_types", {}).get(_vv.get("name")) == "emit_ir"):
+                    and (getattr(self, "_array_elem_types", {}).get(_vv.get("name")) == "emit_ir"
+                         or getattr(self, "_seq_value_types", {}).get(_vv.get("name")) == "emit_ir")):
                 return True
             # §26: a projection-key subscript `<emit_ir>["value"/"object"/"index"]`
             # is an emit_ir sub-node (chaining, e.g. `arr["value"]["name"]`).
@@ -3963,6 +3964,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     ) -> str:
         arr = self._expr_to_whyml(node.value, local_refs, invariant_ctx, subst)
         sl = node.slice.to_dict()
+        # seq-model-pivot.md SQ3: a slice of a seq local (`body_stmts[:-1]`) is a seq
+        # sub-sequence (`seq_sub`) — a pure immutable value, NO `array_slice`/region. Content
+        # opaque; the length law is conditional (sound). @mutable_state (via _seq_locals).
+        _bv = node.value.to_dict()
+        if (_bv.get("type") == "Var" and _bv.get("name") in getattr(self, "_seq_locals", set())):
+            _slo = (self._expr_to_whyml(sl["lower"], local_refs, invariant_ctx, subst)
+                    if sl.get("lower") else "0")
+            _shi = (self._expr_to_whyml(sl["upper"], local_refs, invariant_ctx, subst)
+                    if sl.get("upper") else f"(Seq.length {arr})")
+            self._add_abstract_op(
+                "val seq_sub (s: seq 'a) (lo hi: int) : seq 'a\n"
+                "    ensures { 0 <= lo <= hi <= Seq.length s -> Seq.length result = hi - lo }")
+            return f"(seq_sub {arr} {_slo} {_shi})"
         # strings-plan Stage 2: `s[a:b]` on a string is `String.substring s a (b-a)`. Spec
         # uses the logic symbol; body bridges through `str_sub_op` (and `str_length_op` for an
         # omitted upper bound), since `String.substring`/`String.length` aren't program values.
@@ -4479,20 +4493,39 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         if _ec and isinstance(_tv, str):
                             _saved[_tv] = _symtab.get(_tv)
                             _symtab[_tv] = _ec
-                if self._is_string_expr(_elt):        _et = "string"
-                elif self._is_emit_ir_expr(_elt):     _et = "emit_ir"
-                else:                                 _et = "int"
+                # a `.to_dict()` element is an emit_ir node (to_dict is identity on the typed IR).
+                _elt_todict = (isinstance(_elt, dict) and _elt.get("type") == "Call"
+                               and isinstance(_elt.get("func"), str)
+                               and _elt["func"].endswith(".to_dict"))
+                if self._is_string_expr(_elt):                    _et = "string"
+                elif _elt_todict or self._is_emit_ir_expr(_elt):  _et = "emit_ir"
+                else:                                             _et = "int"
                 for _tv, _old in _saved.items():
                     if _old is None: _symtab.pop(_tv, None)
                     else: _symtab[_tv] = _old
                 _src = _gens[0].get("iter", {}) if _gens else {}
                 _has_if = any(g.get("ifs") for g in _gens)
                 _srcw = self._expr_to_whyml(_src, local_refs or set(), invariant_ctx, subst)
-                _op = f"list_comp_{_et}" + ("_filt" if _has_if else "")
+                # seq-model-pivot.md SQ4: `[s.to_dict() for s in <stmt-list>]` re-materialises a
+                # STMT LIST — the plumbing type is `array int` (what `_stmts_to_whyml` consumes),
+                # so this comprehension produces `array int` (opaque) to unify with it, over a
+                # seq OR array source.
+                if _elt_todict:
+                    _sc = "seq 'a" if (isinstance(_src, dict) and _src.get("type") == "Var"
+                                       and _src.get("name") in getattr(self, "_seq_locals", set())) else "array 'a"
+                    self._add_abstract_op(f"val list_comp_stmts (src: {_sc}) : array int")
+                    return f"(list_comp_stmts {_srcw})"
+                # seq-model-pivot.md SQ4: over a SEQ iterable → the seq-variant comprehension
+                # (`seq 'a → seq <τ>`), so the result is a pure reassignable value.
+                _src_seq = (isinstance(_src, dict) and _src.get("type") == "Var"
+                            and _src.get("name") in getattr(self, "_seq_locals", set()))
+                _coll = "seq" if _src_seq else "array"
+                _len = "Seq.length" if _src_seq else "Array.length"
+                _op = f"list_comp_{'seq_' if _src_seq else ''}{_et}" + ("_filt" if _has_if else "")
                 _law = "<=" if _has_if else "="
                 self._add_abstract_op(
-                    f"val {_op} (src: array 'a) : array {_et}\n"
-                    f"    ensures {{ Array.length result {_law} Array.length src }}")
+                    f"val {_op} (src: {_coll} 'a) : {_coll} {_et}\n"
+                    f"    ensures {{ {_len} result {_law} {_len} src }}")
                 return f"({_op} {_srcw})"
             self._add_abstract_op("val list_comp (x: int) : int")
             return "(list_comp 0)"

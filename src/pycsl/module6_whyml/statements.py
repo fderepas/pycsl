@@ -189,10 +189,26 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         seq local, else `snapshot(b)` to bridge an array-modelled value into seq."""
         if val_ir.get("type") == "Var" and val_ir.get("name") in self._seq_locals:
             return f"(!{whyml_ident(val_ir['name'])})"
-        self._add_abstract_op(
-            "val snapshot (a: array int) : seq int\n"
-            "    ensures { Seq.length result = Array.length a }\n"
-            "    ensures { forall i:int. 0 <= i < Array.length a -> Seq.get result i = a[i] }")
+        # seq-model-pivot.md SQ3: a SLICE of a seq local (`body_stmts[:-1]`) already lowers to
+        # a `seq` value (`seq_sub`) — pass it through, no `snapshot` (which expects an array).
+        if (val_ir.get("type") in ("Subscript", "SliceAccess")
+                and isinstance(val_ir.get("value"), dict)
+                and val_ir["value"].get("type") == "Var"
+                and val_ir["value"].get("name") in self._seq_locals):
+            return self._expr_to_whyml(val_ir, local_refs)
+        # seq-model-pivot.md SQ2: POLYMORPHIC `snapshot` in a @mutable_state module (bridges a
+        # `List[StmtIR]`/`List[str]` field → `seq emit_ir`/`seq string`); the corpus's
+        # `array int → seq int` snapshot is byte-identical (no @mutable_state).
+        if getattr(self, "_mutable_state_classes", None):
+            self._add_abstract_op(
+                "val snapshot (a: array 'a) : seq 'a\n"
+                "    ensures { Seq.length result = Array.length a }\n"
+                "    ensures { forall i:int. 0 <= i < Array.length a -> Seq.get result i = a[i] }")
+        else:
+            self._add_abstract_op(
+                "val snapshot (a: array int) : seq int\n"
+                "    ensures { Seq.length result = Array.length a }\n"
+                "    ensures { forall i:int. 0 <= i < Array.length a -> Seq.get result i = a[i] }")
         return f"(snapshot {self._expr_to_whyml(val_ir, local_refs)})"
 
     def _materialize_bridge(self) -> None:
@@ -1482,6 +1498,28 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # emit_ir / int) — computed BEFORE the string-local collectors so `pattern = ",
         # ".join(xs)` and `xs[i]` are seen as string when their array carries strings.
         self._array_elem_types = self._collect_array_elem_types(body_stmts)
+        # seq-model-pivot.md SQ1: a REASSIGNED list-elem local (assigned >1×) is modeled as
+        # an immutable `seq` (freely reassignable), not a mutable `array` — a `ref (array _)`
+        # cannot be reassigned to a slice (Why3 region alias). Promote it to `_seq_locals`
+        # with its element value type; drop it from the array-elem map. @mutable_state.
+        if getattr(self, "_mutable_state_classes", None) and self._array_elem_types:
+            _acounts: Dict[str, int] = {}
+
+            def _acnt(n: Any) -> None:
+                if isinstance(n, dict):
+                    if n.get("stmt") == "Assign" and isinstance(n.get("target"), str):
+                        _acounts[n["target"]] = _acounts.get(n["target"], 0) + 1
+                    for _x in n.values():
+                        _acnt(_x)
+                elif isinstance(n, list):
+                    for _x in n:
+                        _acnt(_x)
+            _acnt(body_stmts)
+            for _nm, _et in list(self._array_elem_types.items()):
+                if _acounts.get(_nm, 0) >= 2:
+                    self._seq_locals.add(_nm)
+                    self._seq_value_types[_nm] = _et
+                    self._array_elem_types.pop(_nm, None)
         # 07-2333-rev2 TP-1 (str locals): a `str`-typed local (symbol-table τ = str/string,
         # not a formal param) must NOT be pre-declared as `ref 0 : ref int` — it is let-bound
         # at first assignment with its string value (`let r = "ab" in`), the local counterpart
