@@ -697,6 +697,10 @@ class FunctionEmissionMixin:
             # `names[i]` is a `string` feeding a string-typed callee like sys_stat).
             if self._returns_string_seq(body_stmts):
                 return_type = "array string"
+            # item34.md CF5: a `-> List[str]` annotation is authoritative for the element type
+            # even when the body returns an empty list (`return []`).
+            if func.get("return_value_type") == "string":
+                return_type = "array string"
         elif ann in ("set", "dict", "frozenset") and return_type == "int":
             return_type = "map int (option int)"
         elif ann == "str" and return_type == "int":
@@ -981,6 +985,10 @@ class FunctionEmissionMixin:
             ann = func.get("return_annotation")
             if ann == "list" and ret == "int":
                 ret = "array int"
+                # item34.md CF5: `-> List[str]` (element in `return_value_type`) → `array
+                # string`, so a `self.<m>(...)` call site abstracts as `array string`.
+                if func.get("return_value_type") == "string":
+                    ret = "array string"
             elif ann in ("set", "dict", "frozenset") and ret == "int":
                 # Functions annotated `-> Set[T]` / `-> Dict[K, V]` are
                 # auto-trusted via `_should_auto_trust_map_return`; their

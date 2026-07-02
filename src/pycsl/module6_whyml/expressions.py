@@ -643,6 +643,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if (_a and isinstance(_a[0], dict) and _a[0].get("type") == "String"
                     and _a[0].get("value") == "shared_vars"):
                 return "sharedvar"
+        # item34.md CF5: iterating a `string`-element name-collection (`for e in body_raised`,
+        # `for tag in candidates`) binds the loop var to a `string` — so `handler_catches(base,
+        # e)`/`whyml_ident(var)` type-check. Covers both the array-elem and seq-value maps.
+        if (isinstance(iter_ir, dict) and iter_ir.get("type") == "Var"
+                and (getattr(self, "_array_elem_types", {}).get(iter_ir.get("name")) == "string"
+                     or getattr(self, "_seq_value_types", {}).get(iter_ir.get("name")) == "string")):
+            return "str"
         return None
 
     def _todict_emit_ir_projection(self, recv_dotted, key, local_refs, invariant_ctx, subst):
@@ -890,6 +897,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if _gf is not None and self._self_field_dict_nu(f"self.{_gf}") == "string":
                     return True
             if _fn.endswith(".get"):
+                # item34.md CF5: `<handler>.get("exc_type")` — a 1-arg string-key `.get` on a
+                # NON-emit_ir receiver reads a string scalar field (matches `_grecv_str`).
+                _gargs = ir.get("args") or []
+                if (len(_gargs) == 1 and isinstance(_gargs[0], dict)
+                        and _gargs[0].get("type") == "String"
+                        and getattr(self, "_current_self_type", None)
+                        in getattr(self, "_mutable_state_classes", set())
+                        and not self._is_emit_ir_expr(
+                            {"type": "Var", "name": _fn[:-len(".get")]})):
+                    return True
                 # self-field-dict-reflection (typed-ir §12): `self.<dict[str,str]-field>
                 # .get(k)` reads back a `string` (`option string` values), so `… == "s"`
                 # routes through `str_eq_op`, not an int hash.
@@ -1062,6 +1079,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             default_val = self._expr_to_whyml(elts[0], local_refs, invariant_ctx, subst) if elts else "0"
             size = self._expr_to_whyml(expr["right"], local_refs, invariant_ctx, subst)
             return f"(Array.make {size} {default_val})"
+        # item34.md CF5: `[a] + [comp]` name-list concat (`[base] + [tag for … in body_raised
+        # …]`) → `seq string`. Each arm is seq-ified via `_seq_operand` (an ArrayLit singleton
+        # `snapshot`s; a comprehension over a seq is `list_comp_seq`), so the whole flow is
+        # uniformly seq. @mutable_state; LEFT is a list literal / comprehension.
+        if (raw_op == "+" and isinstance(expr.get("left"), dict)
+                and expr["left"].get("type") in ("ArrayLit", "ListLit", "ListComp")
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            _l = self._seq_operand(expr["left"], local_refs or set())
+            _r = self._seq_operand(expr["right"], local_refs or set())
+            self._add_abstract_op(
+                "val array_concat (a b: seq string) : seq string\n"
+                "    ensures { Seq.length result = Seq.length a + Seq.length b }")
+            return f"(array_concat {_l} {_r})"
         left = self._expr_to_whyml(expr["left"], local_refs, invariant_ctx, subst)
         right = self._expr_to_whyml(expr["right"], local_refs, invariant_ctx, subst)
         # bool-as-int convention: PyCSL int-encodes bool (a `-> bool` function returns 0/1,
@@ -1236,6 +1267,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             inner = f"(pycsl_mod {left} {right})"
             return self._wrap_with_no_exception_assert(("binop", raw_op), [left, right], inner)
         if op in ("&&", "||"):
+            # item34.md CF5: Python `<str> or <str>` (`h.get("exc_type") or "PyCSL_Exception"`)
+            # returns the FIRST truthy STRING — `if not (str_eq_op a "") then a else b`. Both
+            # operands string-typed, not in spec. @mutable_state.
+            if (op == "||" and not self._in_spec
+                    and getattr(self, "_current_self_type", None)
+                    in getattr(self, "_mutable_state_classes", set())
+                    and self._is_string_expr(expr["left"])
+                    and self._is_string_expr(expr["right"])):
+                self._add_abstract_op(
+                    "val str_eq_op (a b: string) : bool\n"
+                    "    ensures { result <-> (a = b) }")
+                return f'(if (not (str_eq_op {left} "")) then {left} else {right})'
             left_b = self._to_bool(left, expr["left"])
             right_b = self._to_bool(right, expr["right"])
             if self._in_spec:
@@ -2241,6 +2284,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _s = self._expr_to_whyml(_a[1], local_refs or set(), invariant_ctx, subst)
             self._add_abstract_op("val findall_str (pat s: string) : array string")
             return f"(findall_str {_p} {_s})"
+        # item34.md CF5: `<string>.split(sep)` (whole-list form, `exc.split("|")`) → a name
+        # list, seq-ified at the source (`snapshot`) → `seq string`. @mutable_state + string
+        # receiver. Distinct from the `<split>[i]` element form (`str_split_elem_op`).
+        if (isinstance(func_name, str) and func_name.endswith(".split")
+                and len(expr.get("args", [])) == 1
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())
+                and self._is_string_expr({"type": "Var", "name": func_name[:-len(".split")]})):
+            _sep = self._expr_to_whyml(expr["args"][0], local_refs or set(), invariant_ctx, subst)
+            _recvw = self._expr_to_whyml(
+                {"type": "Var", "name": func_name[:-len(".split")]}, local_refs or set(),
+                invariant_ctx, subst)
+            self._add_abstract_op("val str_split_op (s sep: string) : array string")
+            self._seq_snapshot_op()
+            return f"(snapshot (str_split_op {_recvw} {_sep}))"
         # no-more-int: `x.__str__()` / `super().__str__()` returns a `string` (the Python
         # str dunder), not the opaque int the generic dotted-call assigns — so a `-> str`
         # method returning `super().__str__()` (errors.py `message`) type-checks. Faithful and
@@ -2258,8 +2316,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and len(expr.get("args", [])) == 1
                 and getattr(self, "_current_self_type", None)
                 in getattr(self, "_mutable_state_classes", set())):
-            _mname = whyml_ident("IRScanner_" + func_name[len("IRScanner."):])
+            _tail = func_name[len("IRScanner."):]
+            _mname = whyml_ident("IRScanner_" + _tail)
             _aw = self._expr_to_whyml(expr["args"][0], local_refs or set(), invariant_ctx, subst)
+            # item34.md CF5 (uniform seq): `find_*`/`collect_*` return a NAME-collection —
+            # modelled as an immutable, reassignable `seq string` (a `ref (array _)` can't be
+            # rebound). The abstract yields a fresh `array string`; `snapshot` at the SOURCE
+            # makes it `seq string` so every downstream use is uniformly seq (no array/seq
+            # mix). The `has_*`/`ends_with_*`/`uses_*` predicates stay int (bool).
+            if _tail.startswith("find_") or _tail.startswith("collect_"):
+                self._add_abstract_op(f"val {_mname} (l: array int) : array string")
+                self._seq_snapshot_op()
+                return f"(snapshot ({_mname} {_aw}))"
             self._add_abstract_op(f"val {_mname} (l: array int) : int")
             return f"({_mname} {_aw})"
         # self-ir-schema.md IR1: `self.ir.get("shared_vars", [])` → the typed slice
@@ -2612,7 +2680,46 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # Body set: same `map int (option int)` model as body dicts.
             # Sets store `Some 0` for "present" keys, `None` for absent.
             return "(const (None: option int))"
+        _cf5_ms = (getattr(self, "_current_self_type", None)
+                   in getattr(self, "_mutable_state_classes", set()))
+        if (func_name in ("set", "frozenset") and len(args) == 1 and _cf5_ms
+                and expr.get("args") and isinstance(expr["args"][0], dict)
+                and expr["args"][0].get("type") == "Call"
+                and self._call_returns_seq_string(expr["args"][0].get("func", ""))):
+            # item34.md CF5: `set(<seq string collection>)` is the same list (dedup unmodelled).
+            return args[0]
+        if (isinstance(func_name, str) and func_name.endswith(".get") and len(args) == 2
+                and _cf5_ms and expr.get("args") and len(expr["args"]) == 2
+                and isinstance(expr["args"][1], dict)
+                and expr["args"][1].get("type") in ("ArrayLit", "ListLit", "List")
+                and not self._is_emit_ir_expr(
+                    {"type": "Var", "name": func_name[:-len(".get")]})):
+            # item34.md CF5: `<handler>.get("body", [])` — list-default on a NON-emit_ir handler
+            # dict → `array int` STMT-LIST (the `list_comp_stmts` node model consumed by
+            # `find_assigned_vars`/`_stmts_to_whyml`). GATED off emit_ir receivers so
+            # `val_ir.get("elts",[])` keeps its int-model `.get` path.
+            _grecv = whyml_ident(func_name.replace(".", "_"))
+            self._add_abstract_op(f"val {_grecv}_arr (k: string) : array int")
+            return f"({_grecv}_arr {args[0]})"
+        if (isinstance(func_name, str) and func_name.endswith(".get") and len(args) == 1
+                and _cf5_ms and expr.get("args") and isinstance(expr["args"][0], dict)
+                and expr["args"][0].get("type") == "String"
+                and not self._is_emit_ir_expr(
+                    {"type": "Var", "name": func_name[:-len(".get")]})):
+            # item34.md CF5: `<handler>.get("exc_type")` — 1-arg string-key `.get` on a
+            # non-emit_ir handler dict reads a string scalar field.
+            _grecv = whyml_ident(func_name.replace(".", "_"))
+            self._add_abstract_op(f"val {_grecv}_str (k: string) : string")
+            return f"({_grecv}_str {args[0]})"
         if func_name == "sorted" and len(args) == 1:
+            # item34.md CF5: `sorted(<seq string>)` → `seq string` (`sorted_seq`); the name
+            # collections are seq. Dispatch on the arg being a seq-string local.
+            _sa = expr.get("args", [{}])[0]
+            if (_cf5_ms and isinstance(_sa, dict) and _sa.get("type") == "Var"
+                    and _sa.get("name") in getattr(self, "_seq_locals", set())
+                    and getattr(self, "_seq_value_types", {}).get(_sa.get("name")) == "string"):
+                self._add_abstract_op("val sorted_seq (a: seq string) : seq string")
+                return f"(sorted_seq !{whyml_ident(_sa['name'])})"
             # Abstract `sorted` over an array — returns a permuted array.
             # We don't model the sortedness invariant here; callers that
             # need it should use `\is_sorted` in contracts.
@@ -4013,6 +4120,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if _b_none: body = '(IrOther "")'
             if _o_none: orelse = '(IrOther "")'
             return f"(if {test} then {body} else {orelse})"
+        # item34.md CF5: a ternary whose BOTH arms are `seq string` name-lists (`exc.split("|")
+        # if "|" in exc else [exc]`) — emit each arm seq-ified (`_seq_operand`), no int
+        # coercion. @mutable_state.
+        def _cf5_arr(d: Any) -> bool:
+            if not isinstance(d, dict):
+                return False
+            _tt = d.get("type")
+            if (_tt == "Call" and isinstance(d.get("func"), str)
+                    and d["func"].endswith(".split")):
+                return True
+            if _tt in ("ArrayLit", "ListLit", "ListComp"):
+                return True
+            if _tt == "Var":
+                return (getattr(self, "_seq_value_types", {}).get(d.get("name")) == "string"
+                        or getattr(self, "_array_elem_types", {}).get(d.get("name")) == "string")
+            return False
+        if _ms and _cf5_arr(_bd) and _cf5_arr(_od):
+            return (f"(if {test} then {self._seq_operand(_bd, local_refs or set())} "
+                    f"else {self._seq_operand(_od, local_refs or set())})")
         body = self._coerce_to_int(body)
         orelse = self._coerce_to_int(orelse)
         return f"(if {test} then {body} else {orelse})"

@@ -62,7 +62,7 @@ verifies un-`\trusted` → byte-diff 0 (corpus) → suite green.
 | **CF2 ✅** | `_handle_if_stmt` | compositional: reflect on `stmt.test`, recurse `_stmts_to_whyml` on both arms. | tbd | ◻ TODO |
 | **CF3 ✅** | `_handle_while_stmt` | loop invariants/variants (the SQ5 `0<=idx`/variant discipline reused); recurse. | tbd | ◻ TODO |
 | **CF4 ✅** | `_handle_for_stmt` | iterable classification + the for-loop invariant/variant (already added for the emitter for-loops). | tbd | ◻ TODO |
-| **CF5** | `_handle_try_stmt` | the deepest CF handler. **3 passes, error 195→571 (~92%), ~50 constructs, regression-free**. Definitive model = `seq string` name-collections; full brick table in §7. Remaining: seq/array snapshot-bridging discipline + exception-arm tail. | `\nothing` | ◻ TODO (dedicated pass) |
+| **CF5 ✅** | `_handle_try_stmt` | the deepest CF handler — LANDED (4th pass). Uniform `seq string` name-collections (snapshot-at-source), map-based sets, string-or, exception-arm tables. Proven; byte-diff 0. | `\nothing` | ✅ DONE |
 | **CF6** | `_handle_match_stmt` | match-case tables — broadest. | tbd | ◻ TODO |
 
 CF0 gates CF1–CF6; CF1 (read-only) is the cheapest end-to-end validation of the CF0 setup.
@@ -104,7 +104,7 @@ CF0 gates CF1–CF6; CF1 (read-only) is the cheapest end-to-end validation of th
 | Item 4 · CF2 if | ✅ DONE (proven, byte-diff 0) |
 | Item 4 · CF3 while | ✅ DONE (proven) |
 | Item 4 · CF4 for | ✅ DONE (proven, byte-diff 0) — tuple-return gap fixed |
-| Item 4 · CF5 try | ◻ TODO (dedicated pass) — 3 passes to 195→571; definitive `seq string` model + brick table in §7; regression-free but not landed |
+| Item 4 · CF5 try | ✅ DONE (proven, byte-diff 0) — uniform seq-string model (snapshot-at-source) landed the deepest handler (17th) |
 | Item 4 · CF6 match | ◻ TODO |
 
 **Verification (per CF stage):**

@@ -3146,6 +3146,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # STEP 1 (B-final): surface name for the \proj-index guard in `_csl_proj`.
         self._cur_func_name = f"function '{node.name}'"
         return_annotation = None
+        return_value_type = None
         is_noreturn = False
         if node.returns:
             if isinstance(node.returns, ast.Name):
@@ -3189,6 +3190,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                             node.returns, node.name)
                     else:
                         return_annotation = head.lower()
+                        # item34.md CF5: capture a `List[str]`/`List[int]` return's ELEMENT
+                        # type (mirrors the param path `_m5_get_list_elem_type`) so Module6
+                        # lowers `-> List[str]` to `array string` (the `_callee_raised_*`
+                        # name-list stubs), not the default `array int`.
+                        if head in ("List", "list"):
+                            return_value_type = self._m5_get_list_elem_type(node.returns)
             elif isinstance(node.returns, ast.Attribute):
                 # `typing.NoReturn` (Attribute value=Name "typing", attr
                 # "NoReturn") — the qualified spelling of the PEP 484 marker.
@@ -3264,6 +3271,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             "dict_key_types": dict(_dkt),
             "formal_params": formal_params,
             "return_annotation": return_annotation,
+            "return_value_type": return_value_type,
             # typing-engagement ty1 / 28-0000-typing-spec-4: `-> NoReturn` (PEP
             # 484) sets the IR flag consumed by Module 6 (`ensures { false }`,
             # NR1) and the non-vacuity gate (NR4 exemption). Emitted ONLY when

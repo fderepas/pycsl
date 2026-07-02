@@ -278,15 +278,140 @@ class ControlFlowStmtMixin:
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _callee_raised_in(self, stmts: List[int]) -> int:
-        return set()
+    def _callee_raised_in(self, stmts: List[Dict[str, Any]]) -> List[str]:
+        return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_try_stmt(self, stmt: int, rest: List[int], local_refs: int, declared_refs: int, indent: str, in_loop: bool) -> str:
-        return ""
+    def _handle_try_stmt(self, stmt: TryStmt, rest: List[Dict[str, Any]],
+                          local_refs: Set[str], declared_refs: Set[str],
+                          indent: str, in_loop: bool) -> str:
+        body_stmts = [s.to_dict() for s in stmt.body]
+        handlers = stmt.handlers
+        try_assigned = IRScanner.find_assigned_vars(body_stmts)
+        n_ha = len(handlers)
+        i_ha = 0
+        #@ loop invariant 0 <= i_ha and i_ha <= n_ha
+        #@ loop invariant n_ha == len(handlers)
+        #@ loop variant n_ha - i_ha
+        while i_ha < n_ha:
+            h = handlers[i_ha]
+            try_assigned |= IRScanner.find_assigned_vars(h.get("body", []))
+            i_ha += 1
+        pre_decls = ""
+        sorted_assigned = sorted(try_assigned)
+        n_sa = len(sorted_assigned)
+        i_sa = 0
+        # Pre-declare each try-body local as an outer ref so it stays in scope
+        # across `try … with … end`. The ref's initial value must MATCH the
+        # local's eventual type, else Why3 rejects the `:=`. A bare `ref 0`
+        # (int) breaks a record/dict local constructed inside the `try`:
+        #   - record / array locals are immutable `let X = {…}` bindings, not
+        #     refs — skip the pre-decl and let the body bind them (works when
+        #     the local is used within the try body, as the `check_code`
+        #     analyzer is; a record local that escapes into a handler/after the
+        #     try is unsupported — but that was already a type error).
+        #   - dict locals are `map int (option int)` — pre-declare the empty map
+        #     so `data = literal_eval(…)` / `d = {}` inside a try type-check.
+        #@ loop invariant 0 <= i_sa and i_sa <= n_sa
+        #@ loop invariant n_sa == len(sorted_assigned)
+        #@ loop variant n_sa - i_sa
+        while i_sa < n_sa:
+            var = sorted_assigned[i_sa]
+            safe_var = whyml_ident(var)
+            if safe_var not in declared_refs:
+                kind = self._try_local_decl_kind(
+                    self._first_assign_value_ir(var, body_stmts)
+                    or self._first_assign_value_ir(
+                        var, [s for h in handlers for s in h.get("body", [])]))
+                if kind == "record":
+                    pass  # let-bound inside the body; no outer ref
+                elif kind == "dict":
+                    pre_decls += (f"{indent}let {safe_var} = "
+                                  f"ref (const (None: option int)) in\n")
+                    declared_refs.add(safe_var)
+                else:
+                    pre_decls += f"{indent}let {safe_var} = ref 0 in\n"
+                    declared_refs.add(safe_var)
+            i_sa += 1
+        body_str = self._stmts_to_whyml(body_stmts, local_refs, declared_refs.copy(), indent + "  ", in_loop)
+        if not body_str:
+            body_str = f"{indent}  ()"
+        if handlers:
+            from exception_model import handler_catches
+            # Concrete exception tags that can actually escape the try body
+            # (raises inside, minus what nested trys catch). A handler
+            # `except OSError:` must produce a Why3 `with` arm for EACH such
+            # tag it catches (OSError itself + every modelled subclass that
+            # the body raises), because Why3 matches exception arms by exact
+            # tag — there is no subtyping at the `with` level.
+            body_raised = set(
+                IRScanner.collect_escaping_exceptions(body_stmts))
+            # A call inside the try body to a function that DECLARES
+            # `raises { E -> ... }` can raise E, even though there is no
+            # literal `raise E` statement here (the os wrappers: a wrapper's
+            # try body calls `sys_open`, which raises FileNotFoundError via
+            # its contract). Pull those callee-declared exceptions in so the
+            # handler expansion covers them.
+            body_raised |= self._callee_raised_in(body_stmts)
+            body_raised = sorted(body_raised)
+
+            code = f"{pre_decls}{indent}try\n{body_str}\n"
+            n_h = len(handlers)
+            i_h = 0
+            first_handler = True
+            already_matched: Set[str] = set()
+            # Why3 requires `try BODY with Exc1 -> h1 | Exc2 -> h2 end` —
+            # only the first arm uses `with`, subsequent arms use `|`.
+            # Emitting separate `with` clauses produces a syntax error.
+            #@ loop invariant 0 <= i_h and i_h <= n_h
+            #@ loop invariant n_h == len(handlers)
+            #@ loop variant n_h - i_h
+            while i_h < n_h:
+                h = handlers[i_h]
+                exc = h.get("exc_type") or "PyCSL_Exception"
+                # A `|`-separated handler (`except (A, B):`) is the union of
+                # its parts; each part is a base whose closure we expand.
+                raw_parts = (exc.split("|") if "|" in exc else [exc])
+                handler_body = self._stmts_to_whyml(
+                    h.get("body", []), local_refs, declared_refs.copy(),
+                    indent + "  ", in_loop)
+                if not handler_body:
+                    handler_body = f"{indent}  ()"
+                # Build the concrete set of tags this handler matches:
+                #   - each base part itself (so a literal `raise OSError`
+                #     or a base never raised in the body still matches, and
+                #     the arm is never empty -> no Why3 syntax error);
+                #   - every body-raised tag that is a subclass of a part.
+                arm_tags: List[str] = []
+                seen_local: Set[str] = set()
+                for part in raw_parts:
+                    base = part.strip()
+                    if not base:
+                        continue
+                    candidates = [base] + [
+                        e for e in body_raised if handler_catches(base, e)]
+                    for tag in candidates:
+                        if tag in already_matched or tag in seen_local:
+                            continue  # earlier arm already consumes this tag
+                        seen_local.add(tag)
+                        arm_tags.append(tag)
+                # Sanitize for WhyML: leading-underscore aliases like
+                # `_FooError` must match the sanitized preamble declaration.
+                for tag in arm_tags:
+                    ep = safe_exc_name(tag)
+                    connector = "with" if first_handler else "|"
+                    code += f"{indent}{connector} {ep} -> \n{handler_body}\n"
+                    first_handler = False
+                already_matched |= seen_local
+                i_h += 1
+            code += f"{indent}end"
+        else:
+            code = f"{pre_decls}{body_str}"
+        if rest:
+            code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+        return code
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

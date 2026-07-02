@@ -117,6 +117,18 @@ class IRScanner:
         return found
 
     @staticmethod
+    def _ifexpr_arm_is_array(d: Any) -> bool:
+        """item34.md CF5: an IfExpr arm that is syntactically an array — a list literal /
+        comprehension or a `<string>.split(sep)` call (`exc.split("|")`)."""
+        if not isinstance(d, dict):
+            return False
+        t = d.get("type")
+        if t in ("ArrayLit", "ListLit", "ListComp"):
+            return True
+        return (t == "Call" and isinstance(d.get("func"), str)
+                and d["func"].endswith(".split"))
+
+    @staticmethod
     def find_array_and_dict_vars(stmts: List[Dict[str, Any]]) -> Tuple[Set[str], Set[str]]:
         array_vars = set()
         dict_vars = set()
@@ -160,6 +172,29 @@ class IRScanner:
                         # is a count map; `OrderedDict` is a plain dict (order not
                         # modelled). The factory/iterable arg is dropped (empty).
                         dict_vars.add(target)
+                    elif (vt == "Call" and isinstance(val.get("func"), str)
+                          and (val["func"].startswith("IRScanner.find_")
+                               or val["func"].startswith("IRScanner.collect_")
+                               or val["func"].endswith(".split"))):
+                        # item34.md CF5: `find_*`/`collect_*`/`<str>.split(…)` return a name
+                        # list (`string`-element) → array-var (seq-promoted downstream).
+                        array_vars.add(target)
+                    elif (vt == "Call" and val.get("func") in ("set", "frozenset", "sorted", "list")
+                          and len(val.get("args", [])) == 1
+                          and isinstance(val["args"][0], dict)
+                          and val["args"][0].get("type") in ("Call", "Var")):
+                        # `set(collect_…)` / `sorted(<coll>)` over a name-collection → array-var.
+                        array_vars.add(target)
+                    elif (vt == "BinOp" and val.get("op") == "+"
+                          and isinstance(val.get("left"), dict)
+                          and val["left"].get("type") in ("ArrayLit", "ListLit", "ListComp")):
+                        # `[a] + [comp]` name-list concat → array-var.
+                        array_vars.add(target)
+                    elif (vt == "IfExpr"
+                          and IRScanner._ifexpr_arm_is_array(val.get("body"))
+                          and IRScanner._ifexpr_arm_is_array(val.get("orelse"))):
+                        # `<split> if … else [x]` (both arms arrays, `raw_parts`) → array-var.
+                        array_vars.add(target)
                     elif vt == "SetLit" or (vt == "Call" and val.get("func") in ("set", "frozenset")):
                         dict_vars.add(target)
                     elif (vt == "BinOp" and val.get("op") == "|"
