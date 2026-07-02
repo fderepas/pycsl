@@ -416,6 +416,23 @@ class TypeInferenceMixin:
                         found.add(tgt)
                 elif isinstance(val, dict) and val.get("type") == "Var" and tgt:
                     var_assigns[tgt] = val.get("name", "")
+                # i-feel-good.md I-E: a local first-assigned a `List`/`tuple` record-field
+                # read (`targets = stmt.targets`) is an array local — the list-local-from-
+                # field form. @mutable_state-gated → byte-identical for the corpus. The
+                # receiver is a record-typed PARAM (`stmt: TupleUnpackStmt`), whose class is
+                # in the symbol table (not `_current_record_var_classes`), so resolve the
+                # field type directly rather than via `_field_type_of`.
+                elif (isinstance(val, dict) and val.get("type") in ("Attribute", "FieldGet")
+                      and tgt and getattr(self, "_mutable_state_classes", None)):
+                    _recv = val.get("object")
+                    if isinstance(_recv, dict):
+                        _recv = _recv.get("name")
+                    _fld = val.get("field") or val.get("attr")
+                    _cls = getattr(self, "_current_symbol_table", {}).get(_recv) if _recv else None
+                    _rt = getattr(self, "_record_types", {})
+                    _rec = (_rt.get(_cls) or (_rt.get(_cls.lower()) if _cls else None)) if _cls else None
+                    if _rec and _rec.get("field_types", {}).get(_fld) in ("list", "tuple"):
+                        found.add(tgt)
             for k in ("body", "orelse"):
                 if k in s:
                     found |= self._collect_array_var_assigns(s[k])

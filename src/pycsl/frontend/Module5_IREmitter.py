@@ -1828,6 +1828,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             _vt = self._m5_get_dict_value_type(child.annotation)
             if _vt:
                 _fld["value_type"] = _vt
+            # i-feel-good.md I-E: a `List[str]` field carries string elements → `array
+            # string` (consulted only in a @mutable_state module; inert for the dict path).
+            elif self._m5_get_list_elem_type(child.annotation) == "string":
+                _fld["value_type"] = "string"
             fields.append(_fld)
             # N1b: only fields with an explicit default value (x: int = 0)
             # populate `field_defaults`. A field WITHOUT a default is a
@@ -2127,6 +2131,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     _vt2 = self._m5_get_dict_value_type(stmt.annotation)
                     if _vt2:
                         _fld2["value_type"] = _vt2
+                    elif self._m5_get_list_elem_type(stmt.annotation) == "string":
+                        _fld2["value_type"] = "string"
                     fields.append(_fld2)
                     field_names_seen.add(stmt.target.id)
                     if (stmt.value is not None and isinstance(stmt.value, ast.Constant)

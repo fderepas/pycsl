@@ -2962,7 +2962,15 @@ class PreambleEmissionMixin:
                         ftype = ("map int (option string)" if _vt == "string"
                                  else "map int (option int)")
                     elif ftype in ("list", "tuple"):
-                        ftype = "array int"
+                        # i-feel-good.md I-E: a `List[str]` field is `array string` (string
+                        # elements) in a @mutable_state module (the emitter model + its
+                        # imported IR records); the corpus has no such module → `array int`,
+                        # byte-identical.
+                        if (f.get("value_type") == "string"
+                                and getattr(self, "_mutable_state_classes", None)):
+                            ftype = "array string"
+                        else:
+                            ftype = "array int"
                     elif ftype in ("string", "str"):
                         # 07-2333-rev2 TP-3 (Gap 6): a `str`-annotated field is a faithful
                         # Why3 `string` (was collapsed to `int`) — the class counterpart of
