@@ -62,7 +62,7 @@ verifies un-`\trusted` → byte-diff 0 (corpus) → suite green.
 | **CF2 ✅** | `_handle_if_stmt` | compositional: reflect on `stmt.test`, recurse `_stmts_to_whyml` on both arms. | tbd | ◻ TODO |
 | **CF3 ✅** | `_handle_while_stmt` | loop invariants/variants (the SQ5 `0<=idx`/variant discipline reused); recurse. | tbd | ◻ TODO |
 | **CF4 ✅** | `_handle_for_stmt` | iterable classification + the for-loop invariant/variant (already added for the emitter for-loops). | tbd | ◻ TODO |
-| **CF5** | `_handle_try_stmt` | exception arms / handler tables — broad. | tbd | ◻ TODO |
+| **CF5** | `_handle_try_stmt` | exception arms / handler tables — broad. **Explored** (error 195→573): correct model is **`array string`** name-collections (var/exception names + tags are STRINGS). Bricks mapped: `IRScanner.find_*`/`collect_*` → `array string`; `arr_union`/`array_concat` over `array string`; `sorted`/`set(…)` over the collection; `<node>.get("body", [])` (list-literal default) → `array string`; `_callee_raised_*` stubs → `List[str]`. **Lesson:** an intermediate `array int` model is ITSELF an int-leak — `for var in sorted(...): whyml_ident(var)` needs a `string` element. Reverted (not landed) to avoid banking the int-leak; needs `_array_elem_types` string propagation from the call return type. | `\nothing` | ◻ TODO (array-string) |
 | **CF6** | `_handle_match_stmt` | match-case tables — broadest. | tbd | ◻ TODO |
 
 CF0 gates CF1–CF6; CF1 (read-only) is the cheapest end-to-end validation of the CF0 setup.
@@ -104,7 +104,7 @@ CF0 gates CF1–CF6; CF1 (read-only) is the cheapest end-to-end validation of th
 | Item 4 · CF2 if | ✅ DONE (proven, byte-diff 0) |
 | Item 4 · CF3 while | ✅ DONE (proven) |
 | Item 4 · CF4 for | ✅ DONE (proven, byte-diff 0) — tuple-return gap fixed |
-| Item 4 · CF5 try | ◻ TODO |
+| Item 4 · CF5 try | ◻ TODO (array-string) — explored; model = `array string` name-collections; int-leak reverted |
 | Item 4 · CF6 match | ◻ TODO |
 
 **Verification (per CF stage):**
