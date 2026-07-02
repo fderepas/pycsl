@@ -2727,13 +2727,18 @@ class PreambleEmissionMixin:
         return [
             "  (* typed-ir-for-b-ceiling.md B-C1: typed IR-node sum for the emitter model *)",
             "  type emit_ir = IrVar string | IrAttr emit_ir string | IrStr string"
-            " | IrNum int | IrRaw string | IrOther string",
+            " | IrNum int | IrRaw string | IrOther string"
+            " | IrCall string emit_ir int | IrSub emit_ir emit_ir",
             "",
+            "  (* B-C5: IrCall carries func name, first arg (arg0), arity; IrSub carries"
+            " value and index sub-nodes — the emitter reflects on Call/Subscript IR. *)",
             "  let function kind_of (e: emit_ir) : string =",
             "    match e with",
             "    | IrVar _ -> \"Var\" | IrAttr _ _ -> \"Attribute\"",
             "    | IrStr _ -> \"String\" | IrNum _ -> \"Number\"",
-            "    | IrRaw _ -> \"RawWhyml\" | IrOther k -> k",
+            "    | IrRaw _ -> \"RawWhyml\"",
+            "    | IrCall _ _ _ -> \"Call\" | IrSub _ _ -> \"Subscript\"",
+            "    | IrOther k -> k",
             "    end",
             "",
             "  let function name_of (e: emit_ir) : string =",
@@ -2744,6 +2749,21 @@ class PreambleEmissionMixin:
             "",
             "  let function object_of (e: emit_ir) : emit_ir =",
             "    match e with IrAttr o _ -> o | _ -> IrOther \"\" end",
+            "",
+            "  let function func_of (e: emit_ir) : string =",
+            "    match e with IrCall f _ _ -> f | _ -> \"\" end",
+            "",
+            "  let function nargs_of (e: emit_ir) : int =",
+            "    match e with IrCall _ _ n -> n | _ -> 0 end",
+            "",
+            "  let function arg0_of (e: emit_ir) : emit_ir =",
+            "    match e with IrCall _ a _ -> a | _ -> IrOther \"\" end",
+            "",
+            "  let function svalue_of (e: emit_ir) : emit_ir =",
+            "    match e with IrSub v _ -> v | _ -> IrOther \"\" end",
+            "",
+            "  let function sindex_of (e: emit_ir) : emit_ir =",
+            "    match e with IrSub _ i -> i | _ -> IrOther \"\" end",
             "",
         ]
 

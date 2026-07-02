@@ -541,9 +541,33 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     def _todict_emit_ir_projection(self, recv_dotted, key, local_refs, invariant_ctx, subst):
         node = self._todict_recv_node_ir(recv_dotted)
         if not self._is_emit_ir_expr(node): return None
-        proj = {"type": "kind_of", "name": "name_of", "attr": "name_of", "value": "value_of", "object": "object_of"}.get(key)
+        # B-C5: "func" projects to `func_of` (string); "value"/"index" to `svalue_of`/
+        # `sindex_of` (emit_ir SUB-NODES — the reflecting handlers always pass them to
+        # `_expr_to_whyml` or reflect further, never use them as a string).
+        proj = {"type": "kind_of", "name": "name_of", "attr": "name_of",
+                "value": "svalue_of", "object": "object_of", "func": "func_of",
+                "index": "sindex_of"}.get(key)
         if proj is None: return None
         return f"({proj} {self._expr_to_whyml(node, local_refs or set(), invariant_ctx, subst)})"
+
+    def _emit_ir_args_recv_ir(self, arg_ir):
+        """B-C5: if `arg_ir` is `<emit_ir>.get("args")` (a Call node), return the
+        receiver's emit_ir IR node — so `len(...)` lowers to `nargs_of` and `...[0]`
+        to `arg0_of`. None otherwise."""
+        if not isinstance(arg_ir, dict) or arg_ir.get("type") != "Call":
+            return None
+        fn = arg_ir.get("func")
+        if not (isinstance(fn, str) and fn.endswith(".get")):
+            return None
+        kir = (arg_ir.get("args") or [{}])[0]
+        if not (isinstance(kir, dict) and kir.get("type") == "String"
+                and kir.get("value") == "args"):
+            return None
+        recv = fn[:-len(".get")]
+        dotted = getattr(self, "_todict_aliases", {}).get(recv)
+        node = (self._todict_recv_node_ir(dotted) if dotted
+                else {"type": "Var", "name": recv})
+        return node if self._is_emit_ir_expr(node) else None
 
     def _self_field_dict_nu(self, recv: str):
         """self-field-dict-reflection (typed-ir-for-b-ceiling.md §12): when `recv` is a
@@ -641,7 +665,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     _kir = (ir.get("args") or [{}])[0]
                     if isinstance(_kir, dict) and _kir.get("type") == "String":
                         if self._is_emit_ir_expr(self._todict_recv_node_ir(_al)):
-                            return _kir.get("value") in ("type", "name", "attr", "value")
+                            return _kir.get("value") in ("type", "name", "attr", "func")
                         return self._is_string_expr(
                             self._todict_routed_ir(_al, _kir.get("value")))
                 # typed-ir-for-b-ceiling.md B-C3: `<emit_ir>.get("type"|"name"|"attr"|
@@ -652,7 +676,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if self._is_emit_ir_expr({"type": "Var", "name": _rn}):
                     _kir = (ir.get("args") or [{}])[0]
                     if (isinstance(_kir, dict) and _kir.get("type") == "String"
-                            and _kir.get("value") in ("type", "name", "attr", "value")):
+                            and _kir.get("value") in ("type", "name", "attr", "func")):
                         return True
         if t == "String" or t in ("StrConcat", "StrSub"):
             return True
@@ -1805,6 +1829,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # to a sum of `Array.length` BEFORE lowering the inner args, so the
         # opaque `chain_*`/`list_new` abstract ops are never emitted.
         if func_name == "len" and len(expr.get("args", [])) == 1:
+            # B-C5: `len(<emit_ir>.get("args"))` → `nargs_of` (Call arity).
+            _ar = self._emit_ir_args_recv_ir(expr["args"][0])
+            if _ar is not None:
+                return (f"(nargs_of {self._expr_to_whyml(_ar, local_refs or set(), invariant_ctx, subst)})")
             _le = self._iter_len_expr(expr["args"][0], local_refs or set())
             if _le is not None:
                 return _le
@@ -2523,7 +2551,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _kir = (expr.get("args") or [{}])[0]
             if isinstance(_kir, dict) and _kir.get("type") == "String":
                 _proj = {"type": "kind_of", "name": "name_of", "attr": "name_of",
-                         "value": "value_of", "object": "object_of"}.get(_kir.get("value"))
+                         "value": "svalue_of", "object": "object_of", "func": "func_of",
+                         "index": "sindex_of"}.get(_kir.get("value"))
                 if _proj:
                     _rv = self._expr_to_whyml(_recv_ir, local_refs or set(),
                                               invariant_ctx, subst)
@@ -2886,6 +2915,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
         value = expr["value"]
         index = self._expr_to_whyml(expr["index"], local_refs, invariant_ctx, subst)
+        # B-C5: `<emit_ir>.get("args")[0]` → `arg0_of` (the Call's first arg node).
+        _ar0 = self._emit_ir_args_recv_ir(expr.get("value", {}))
+        if _ar0 is not None and index == "0":
+            return (f"(arg0_of {self._expr_to_whyml(_ar0, local_refs or set(), invariant_ctx, subst)})")
         # typing-engagement ty2 / 29-1700-typing-spec-5 §2.2 T5: a string-literal
         # subscript `p["x"]` on a TypedDict-record-typed receiver lowers to a
         # record-field read `p.x` (the core-agent hard rule). Non-TypedDict
