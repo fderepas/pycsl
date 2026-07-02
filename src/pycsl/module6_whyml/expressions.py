@@ -569,6 +569,95 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 else {"type": "Var", "name": recv})
         return node if self._is_emit_ir_expr(node) else None
 
+    def _str_method_recv_and_tail(self, expr):
+        """faithful-string-op.md §4: for a string-method call `recv.tail(args)`, return
+        (receiver_ir, tail). Computed receiver → `expr['receiver']`; dotted simple-var
+        form (`s.replace`, `func.rsplit`) → a Var IR for the part before the last '.'.
+        A dotted MULTI-part receiver (`self.x.replace`) returns (None, None) — it falls
+        through to the opaque path (no regression) rather than mis-reconstructing."""
+        fn = expr.get("func", "")
+        if expr.get("receiver") is not None:
+            return expr["receiver"], fn
+        if isinstance(fn, str) and "." in fn:
+            recv, tail = fn.rsplit(".", 1)
+            if "." not in recv:
+                return {"type": "Var", "name": recv}, tail
+        return None, None
+
+    def _split_call_recv_sep(self, call_ir):
+        """faithful-string-op.md §3.4: if `call_ir` is `<string>.split(sep)` or
+        `<string>.rsplit(sep, k)`, return (receiver_ir, sep_ir) [sep_ir may be None for a
+        no-arg split]; else None. Used to lower `<split>[i]` to `str_split_elem_op`."""
+        if not isinstance(call_ir, dict) or call_ir.get("type") != "Call":
+            return None
+        recv_ir, tail = self._str_method_recv_and_tail(call_ir)
+        if tail not in ("split", "rsplit") or recv_ir is None:
+            return None
+        if not self._is_string_expr(recv_ir):
+            return None
+        return recv_ir, (call_ir.get("args") or [None])[0]
+
+    def _is_literal_string_join(self, ir):
+        """faithful-string-op.md §3.5: True if `ir` is `sep.join([s0, s1, …])` over a
+        LITERAL list/tuple of STRING elements (receiver form) — the case
+        `_handle_join_call` lowers to nested `str_concat_op` (a `string`)."""
+        if not isinstance(ir, dict) or ir.get("type") != "Call":
+            return False
+        if ir.get("func") != "join" or ir.get("receiver") is None:
+            return False
+        a = (ir.get("args") or [{}])[0]
+        if not isinstance(a, dict) or a.get("type") not in ("ArrayLit", "ListLit", "Tuple"):
+            return False
+        elts = a.get("elts", [])
+        return bool(elts) and all(self._is_string_expr(e) for e in elts)
+
+    _STR_VALUE_METHODS = ("replace", "lower", "upper", "strip", "lstrip", "rstrip")
+
+    def _is_str_value_method(self, expr):
+        """True if `expr` is a faithful string-VALUED method call on a string receiver
+        (§3.1–3.3). Shared by `_is_string_expr` (typing) and `_handle_string_value_method`
+        (lowering) so the two never disagree."""
+        if not isinstance(expr, dict) or expr.get("type") != "Call":
+            return False
+        recv_ir, tail = self._str_method_recv_and_tail(expr)
+        if tail not in self._STR_VALUE_METHODS or recv_ir is None:
+            return False
+        return self._is_string_expr(recv_ir)
+
+    def _handle_string_value_method(self, expr, args, local_refs, invariant_ctx, subst):
+        """faithful-string-op.md §3.1–3.3: lower `.replace`/`.lower`/`.upper`/`.strip`/
+        `.lstrip`/`.rstrip` on a string receiver to a faithful `string`-typed abstract op
+        with the STRONGEST SOUND length law (never over-claiming — the str_repr_op
+        discipline). None if not applicable."""
+        if not self._is_str_value_method(expr):
+            return None
+        recv_ir, tail = self._str_method_recv_and_tail(expr)
+        recv = self._expr_to_whyml(recv_ir, local_refs or set(), invariant_ctx, subst)
+        if tail == "replace" and len(args) == 2:
+            # §3.1: char-for-char (len old = len new) preserves length; general replace
+            # may grow/shrink, so no unconditional length law is sound.
+            # NB `old`/`new` are Why3 reserved keywords → params named `pat`/`rep`.
+            self._add_abstract_op(
+                "val str_replace_op (s pat rep: string) : string\n"
+                "    ensures { String.length pat = String.length rep"
+                " -> String.length result = String.length s }")
+            return f"(str_replace_op {recv} {args[0]} {args[1]})"
+        if tail in ("lower", "upper") and len(args) == 0:
+            # §3.2: case folding is NOT length-preserving in Unicode ("ß".upper()=="SS"),
+            # so ONLY the non-emptiness lower bound is sound — a length-equality law
+            # would be unsound.
+            self._add_abstract_op(
+                "val str_case_op (s: string) : string\n"
+                "    ensures { String.length s >= 1 -> String.length result >= 1 }")
+            return f"(str_case_op {recv})"
+        if tail in ("strip", "lstrip", "rstrip") and len(args) <= 1:
+            # §3.3: stripping only removes chars → result no longer than the input.
+            self._add_abstract_op(
+                "val str_strip_op (s: string) : string\n"
+                "    ensures { String.length result <= String.length s }")
+            return f"(str_strip_op {recv})"
+        return None
+
     def _self_field_dict_nu(self, recv: str):
         """self-field-dict-reflection (typed-ir-for-b-ceiling.md §12): when `recv` is a
         `self.<field>` (or `<recordvar>.<field>`) naming a `dict`/`set`/`frozenset`
@@ -646,6 +735,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         t = ir.get("type")
         if t == "Call":
             _fn = ir.get("func", "")
+            # faithful-string-op.md §3.1–3.3: `.replace`/`.lower`/`.upper`/`.strip` on a
+            # string receiver is itself string-typed, so a receiving local (`arr_name =
+            # func.rsplit(".",1)[0].replace(".","_")`) types as a string local.
+            if self._is_str_value_method(ir):
+                return True
+            # §3.5: a literal-string-list `sep.join([…])` is string (nested concat).
+            if self._is_literal_string_join(ir):
+                return True
             # typed-ir-for-b-ceiling.md §14: `getattr(self, "<field>", <default>).get(k)`
             # on a `dict[str,str]` field reads back a `string` — the getattr-defensive
             # form of the §12 self-field-dict get (func is bare `"get"` with a `getattr`
@@ -687,6 +784,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # node is string-typed exactly when its base is. Required so `s[a:b] == t` routes to
         # the real string-equality bridge rather than the mixed int-hash fallback (0471).
         if t in ("Subscript", "SliceAccess"):
+            # faithful-string-op.md §3.4: a split-element read `<string>.split(sep)[i]` is
+            # a substring → string-typed, even though the split CALL itself is a list.
+            if self._split_call_recv_sep(ir.get("value", {})) is not None:
+                return True
             return self._is_string_expr(ir.get("value", {}))
         # `s + t` is a `BinOp(+)` node (string concatenation when both operands are
         # strings) — so a concat expression is itself string-typed. Required so e.g.
@@ -1087,9 +1188,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return f"(iter_length {args[0]})"
         return f"{args[0].lstrip('!')}_len"
 
-    def _handle_join_call(self, expr: Dict[str, Any], args: List[str]) -> str:
+    def _handle_join_call(self, expr: Dict[str, Any], args: List[str],
+                          local_refs=None, invariant_ctx=False, subst=None) -> str:
         """Handle str.join(iterable): pick join_array for arrays, join_1 otherwise."""
         arg_ir = expr.get("args", [{}])[0] if expr.get("args") else {}
+        # faithful-string-op.md §3.5: a LITERAL list/tuple of STRINGS joined by `sep`
+        # lowers to nested `str_concat_op` (EXACT and faithful: `e0 ++ sep ++ e1 ++ …`),
+        # not the opaque int `join_array`. `sep` is `expr['receiver']` (join reaches here
+        # in the receiver form). A general/computed iterable stays on the int join below
+        # (its faithful `string` model needs a `seq string` element model — deferred).
+        _recv = expr.get("receiver")
+        _at = arg_ir.get("type", "")
+        if _recv is not None and _at in ("ArrayLit", "ListLit", "Tuple"):
+            _elts = arg_ir.get("elts", [])
+            if _elts and all(self._is_string_expr(e) for e in _elts):
+                self._add_abstract_op(
+                    "val str_concat_op (a: string) (b: string) : string\n"
+                    "    ensures { result = (concat a b) }\n"
+                    "    ensures { String.length result = String.length a"
+                    " + String.length b }")
+                _lr = local_refs or set()
+                _sep = self._expr_to_whyml(_recv, _lr, invariant_ctx, subst)
+                _ew = [self._expr_to_whyml(e, _lr, invariant_ctx, subst) for e in _elts]
+                _acc = _ew[-1]
+                for _k in range(len(_ew) - 2, -1, -1):
+                    _acc = f"(str_concat_op {_ew[_k]} (str_concat_op {_sep} {_acc}))"
+                return _acc
         var_name = arg_ir.get("name", "") if arg_ir.get("type") == "Var" else ""
         is_array = (var_name in getattr(self, "_array_locals", set()) or
                     var_name in getattr(self, "_current_array1d_params", set()))
@@ -1838,6 +1962,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return _le
         args = [self._expr_to_whyml(a, local_refs, invariant_ctx, subst) for a in expr["args"]]
 
+        # faithful-string-op.md §3.1–3.3: `.replace`/`.lower`/`.upper`/`.strip` on a
+        # string receiver → a faithful `string`-typed op, BEFORE the generic dotted-call
+        # fallback (which would emit an opaque int). Gated on a string receiver, so
+        # `datetime.replace`/`dataclasses.replace` (non-string) stay on the opaque path.
+        _svm = self._handle_string_value_method(expr, args, local_refs, invariant_ctx, subst)
+        if _svm is not None:
+            return _svm
+
         # FAITHFUL READ-NAME LOWERING (null-terminated byte-field decode recognizer).
         # Recognize the EXACT idiom `arr[a:b].split(b'\x00')[0].decode('utf-8', ...)`
         # over a byte-array slice and lower it to the genuine codec TERM
@@ -2248,7 +2380,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 "val function array_rev (a: array int) : array int")
             return f"(array_rev {self._array_coerce_arg(args[0])})"
         if func_name == "join" and len(args) == 1:
-            return self._handle_join_call(expr, args)
+            return self._handle_join_call(expr, args, local_refs, invariant_ctx, subst)
         if func_name == "hash" and len(args) == 1:
             # G2 strings: `hash(s)` of a string routes to the existing `str_hash_op`
             # (an uninterpreted `string -> int`) — yielding an int usable as a dict/set
@@ -2919,6 +3051,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _ar0 = self._emit_ir_args_recv_ir(expr.get("value", {}))
         if _ar0 is not None and index == "0":
             return (f"(arg0_of {self._expr_to_whyml(_ar0, local_refs or set(), invariant_ctx, subst)})")
+        # faithful-string-op.md §3.4: `<string>.split(sep)[i]` / `.rsplit(sep,k)[i]` → the
+        # i-th piece — a substring of the receiver (str_split_elem_op). Length law only;
+        # content unmodeled, so `[0]`/`[1]`/`[-1]` share the op (the bound holds for any i).
+        _sp = self._split_call_recv_sep(expr.get("value", {}))
+        if _sp is not None and not self._in_spec:
+            _rcv, _sep = _sp
+            _rcvw = self._expr_to_whyml(_rcv, local_refs or set(), invariant_ctx, subst)
+            _sepw = (self._expr_to_whyml(_sep, local_refs or set(), invariant_ctx, subst)
+                     if _sep is not None else '" "')
+            self._add_abstract_op(
+                "val str_split_elem_op (s sep: string) (i: int) : string\n"
+                "    ensures { String.length result <= String.length s }")
+            return f"(str_split_elem_op {_rcvw} {_sepw} {index})"
         # typing-engagement ty2 / 29-1700-typing-spec-5 §2.2 T5: a string-literal
         # subscript `p["x"]` on a TypedDict-record-typed receiver lowers to a
         # record-field read `p.x` (the core-agent hard rule). Non-TypedDict

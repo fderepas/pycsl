@@ -1,6 +1,7 @@
 # Faithful string-op modeling — project specification
 
-**Status:** DRAFT (scoping). Not yet implemented.
+**Status:** IMPLEMENTED (P1–P4). See §9 for the as-built notes (a few choices deviated
+from this draft — all toward more rigor or a cleaner outcome).
 **Owner:** Module 6 (WhyML lowering) + reference corpus.
 **Doctrine:** [no-more-int] — lower each Python string operation to its faithful
 `string`-typed WhyML form, not an opaque `int`. Reject value→int coercions.
@@ -247,3 +248,52 @@ adds reference tests. Because this is corpus-affecting, each phase regenerates t
   `s.rsplit(sep,1)[0].replace(a,b)`) require `_is_string_expr` / `_ret_of` to report
   `string` for each link so the OUTER op sees a string receiver — verify the recognizer
   composes (it does for `str_sub_op` today).
+
+---
+
+## 9. As-built notes (implementation)
+
+All four phases are implemented in `src/pycsl/module6_whyml/expressions.py` (recognizers +
+faithful ops) and `statements.py` (string-local recognition), with 10 reference tests
+under `test-suite/corpus/python-reference/stdlib/str_methods/` and an emitter witness
+`src/self-annotate/faithful-string-op-witness.py`. Choices that deviated from the draft:
+
+1. **`old`/`new` are Why3 RESERVED keywords.** `str_replace_op`'s params are named
+   `(s pat rep: string)`, not `(s old new: string)` — the latter is a syntax error.
+2. **The feature is BYTE-CLEAN, not corpus-affecting.** §1.1 assumed a faithful model
+   would change corpus bytes. It does NOT: `bin/byte-diff-sweep.sh` shows **diff 0** across
+   all 627 files after all four phases. The corpus's `.replace`/`.strip`/`.lower`/`.split`/
+   `.join` are the excluded `datetime`/`dataclasses.replace` module forms, or on receivers
+   the recognizers correctly do not fire on, or simply absent from the emitting path. So
+   the gate SIMPLIFIED to byte-diff 0 + reference tests + handlers green (stronger than the
+   planned "corpus still verifies"). Non-vacuity is proven by the reference `_proves`/
+   `_fails` pairs and the probes, not by corpus deltas.
+3. **`.strip` (draft P3) was folded into P1.** `str_strip_op` sits in the same
+   `_handle_string_value_method` dispatch as `.replace`/`.lower`/`.upper`; there was no
+   reason to stage it separately. So the landed order is P1 (replace/case/strip) → P2
+   (split-element) → P4 (literal join); the draft's P3 is subsumed.
+4. **Split-element `[-1]` and `[1]`** share `str_split_elem_op` (content unmodeled, so the
+   `<= len s` bound holds for any index) — as the draft anticipated.
+5. **`.join` — literal receiver-form only.** `_handle_join_call` lowers a LITERAL
+   list/tuple of strings joined by a literal/computed `sep` (the `receiver` form,
+   e.g. `",".join([a, b])`) to nested `str_concat_op` — EXACT length
+   (`sum(len eᵢ) + (n-1)·len sep`, proven by `join_proves.py`). A VAR-sep join
+   (`sep.join([...])` where `sep` is a variable → dotted `func="sep.join"`, no `receiver`)
+   and a general/computed iterable stay on the opaque int `join_array`/`join_1` — deferred
+   to a `seq string` model (§3.5, §8), unchanged.
+
+**String-local reach (the acceptance path).** The string-local recognizer's `_is_str_val`
+(`statements.py`) was extended so a local bound from a faithful string op is a STRING local
+(pre-decl `ref ""`) OUTSIDE `@mutable_state` too — scoped to the new ops (`_is_str_value_
+method` + split-element), not the whole `_is_string_expr`, to keep byte-diff 0. This is
+what makes `arr_name = func.rsplit(".", 1)[0].replace(".", "_")` type-check
+(`arr_name : string`), clearing `_handle_expr_stmt`'s first blocker (verified end-to-end).
+
+**Verification summary.** 10/10 reference tests behave correctly under `--proof` (5 sound
+laws Valid; 5 unsound claims Unknown/Timeout — non-vacuous). Byte-diff 0. The 7
+self-annotated handlers + all emit_ir/collision witnesses stay green. Self-annotation
+suite unchanged (only the pre-existing `errors.py` fails).
+
+**Sound laws as landed:** `str_replace_op` (equal-length ⇒ length preserved),
+`str_case_op` (non-emptiness bound only — Unicode-safe), `str_strip_op` (`≤ len s`),
+`str_split_elem_op` (`≤ len s`), `str_concat_op` (exact `len a + len b`, reused for join).

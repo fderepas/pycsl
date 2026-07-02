@@ -1255,6 +1255,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             if not isinstance(v, dict):
                 return False
             t = v.get("type")
+            # faithful-string-op.md §3: a local bound from `.replace`/`.lower`/`.upper`/
+            # `.strip` or a `<string>.split(sep)[i]` element is a STRING local (pre-decl
+            # `ref ""`), so its `:=` typechecks — outside @mutable_state too. Scoped to the
+            # new ops (not the whole `_is_string_expr`) to stay byte-clean.
+            if self._is_str_value_method(v):
+                return True
+            if (t in ("Subscript", "SliceAccess")
+                    and self._split_call_recv_sep(v.get("value", {})) is not None):
+                return True
             if t == "Call":
                 if _ret_of(v.get("func", "")) == "string":
                     return True
