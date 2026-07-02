@@ -59,7 +59,7 @@ verifies un-`\trusted` → byte-diff 0 (corpus) → suite green.
 | # | Handler | Notes (measured) | Frame | Status |
 |---|---|---|---|---|
 | **CF1 ✅** | `_handle_return_stmt` | 126 lines, **read-only** (`assigns \nothing`); reflects on `val_ir`; seq/array/string/tuple/union returns via materialize bridges + `_seq_init_expr`. The natural FIRST target. | `\nothing` | ◻ TODO |
-| **CF2** | `_handle_if_stmt` | compositional: reflect on `stmt.test`, recurse `_stmts_to_whyml` on both arms. | tbd | ◻ TODO |
+| **CF2 ✅** | `_handle_if_stmt` | compositional: reflect on `stmt.test`, recurse `_stmts_to_whyml` on both arms. | tbd | ◻ TODO |
 | **CF3** | `_handle_while_stmt` | loop invariants/variants (the SQ5 `0<=idx`/variant discipline reused); recurse. | tbd | ◻ TODO |
 | **CF4** | `_handle_for_stmt` | iterable classification + the for-loop invariant/variant (already added for the emitter for-loops). | tbd | ◻ TODO |
 | **CF5** | `_handle_try_stmt` | exception arms / handler tables — broad. | tbd | ◻ TODO |
@@ -101,7 +101,7 @@ CF0 gates CF1–CF6; CF1 (read-only) is the cheapest end-to-end validation of th
 | Item 3 (recursion-leaf value contracts) | **IRREDUCIBLE** — sound handling = stratified D2 axioms; audit tasks I3.1–I3.3 ◻ TODO |
 | Item 4 · CF0 structural setup | ✅ DONE |
 | Item 4 · CF1 return | ✅ DONE (proven, byte-diff 0) |
-| Item 4 · CF2 if | ◻ TODO |
+| Item 4 · CF2 if | ✅ DONE (proven, byte-diff 0) |
 | Item 4 · CF3 while | ◻ TODO |
 | Item 4 · CF4 for | ◻ TODO |
 | Item 4 · CF5 try | ◻ TODO |

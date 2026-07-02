@@ -2186,7 +2186,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _rir = {"type": "Var", "name": _parts[0]}
             for _p in _parts[1:]:
                 _rir = {"type": "Attribute", "object": _rir, "attr": _p}
-            return self._expr_to_whyml(_rir, local_refs, invariant_ctx, subst)
+            _rw = self._expr_to_whyml(_rir, local_refs, invariant_ctx, subst)
+            # An emit_ir receiver (an ExprIR field / alias) → IDENTITY (it already IS its
+            # emit_ir value). item34.md CF2: a record-typed receiver (`stmt.to_dict()` on an
+            # `IfStmt`/`WhileStmt` record) is a CONVERSION to the reflectable emit_ir node —
+            # an opaque abstract (content unmodeled; only the emit_ir TYPE matters).
+            if self._is_emit_ir_expr(_rir):
+                return _rw
+            self._add_abstract_op("val to_emit_ir (x: 'a) : emit_ir")
+            return f"(to_emit_ir {_rw})"
         # list-comprehension-lowering.md L7: `re.findall(pat, s)` → an abstract `array
         # string` (a list of matched substrings) with STRING args — modeled BEFORE the
         # generic arg-coercion (which would hash the pattern literal to int). Content
@@ -2209,6 +2217,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and not expr.get("args")):
             self._add_abstract_op("val str_dunder_op () : string")
             return "(str_dunder_op ())"
+        # item34.md CF2: `IRScanner.<pred>(<stmt-list>)` (e.g. `ends_with_return`,
+        # `has_early_return`) is a bool predicate over a `array int` stmt list — its abstract
+        # takes `array int` (matching the `list_comp_stmts` arg), not the default int.
+        # @mutable_state-gated (the corpus's IRScanner calls, if any, keep the int param).
+        if (isinstance(func_name, str) and func_name.startswith("IRScanner.")
+                and len(expr.get("args", [])) == 1
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            _mname = whyml_ident("IRScanner_" + func_name[len("IRScanner."):])
+            _aw = self._expr_to_whyml(expr["args"][0], local_refs or set(), invariant_ctx, subst)
+            self._add_abstract_op(f"val {_mname} (l: array int) : int")
+            return f"({_mname} {_aw})"
         # self-ir-schema.md IR1: `self.ir.get("shared_vars", [])` → the typed slice
         # `(ir_shared_vars self.ir)` : `array sharedvar` (an opaque array of shared-var
         # records with string `name`/`mutex` fields). Content unmodeled; only the element

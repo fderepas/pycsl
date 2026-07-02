@@ -60,6 +60,11 @@ class ControlFlowStmtMixin:
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
+    def _to_bool(self, whyml_str: str, ir_expr: "ExprIR") -> str:
+        return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
     def _stmts_to_whyml(self, rest: List[Dict[str, Any]], local_refs: Set[str],
                         declared_refs: Set[str], indent: str, in_loop: bool) -> str:
         return ""
@@ -124,15 +129,68 @@ class ControlFlowStmtMixin:
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _try_union_is_none_match(self, stmt: int, rest: List[int], local_refs: int, declared_refs: int, indent: str, in_loop: bool) -> Any:
-        return None
+    def _try_union_is_none_match(self, stmt: "ExprIR", rest: List[Dict[str, Any]],
+                                 local_refs: Set[str], declared_refs: Set[str],
+                                 indent: str, in_loop: bool) -> str:
+        return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_if_stmt(self, stmt: int, rest: List[int], local_refs: int, declared_refs: int, indent: str, in_loop: bool) -> str:
-        return ""
+    def _handle_if_stmt(self, stmt: IfStmt, rest: List[Dict[str, Any]],
+                        local_refs: Set[str], declared_refs: Set[str],
+                        indent: str, in_loop: bool) -> str:
+        # typing-engagement ty1 / 25-1700-typing-spec-1 §1.2 C5: `if x is None:`
+        # on a Union-typed variable lowers to a constructor-pattern `match`
+        # (Why3 does not allow `=` on algebraic types in a program `if`).
+        # `_try_union_is_none_match` does deep dict inspection of the test
+        # expression (BinOp/None/Var shape); pass the round-tripped dict so the
+        # helper's dict-based inspection stays byte-identical (expressions.py
+        # is Phase B+ scope — not yet on typed ExprIR).
+        union_match = self._try_union_is_none_match(stmt.to_dict(), rest, local_refs,
+                                                    declared_refs, indent, in_loop)
+        if union_match is not None:
+            return union_match
+        _test_d = stmt.test.to_dict()
+        test = self._expr_to_whyml(_test_d, local_refs)
+        test = self._to_bool(test, _test_d)
+        body = [s.to_dict() for s in stmt.body]
+        orelse = [s.to_dict() for s in stmt.orelse]
+        body_str = self._stmts_to_whyml(body, local_refs, declared_refs.copy(), indent + "  ", in_loop)
+        if not body_str:
+            body_str = f"{indent}  ()"
+        body_returns = IRScanner.ends_with_return(body)
+        if orelse:
+            orelse_str = self._stmts_to_whyml(orelse, local_refs, declared_refs.copy(), indent + "  ", in_loop)
+            if not orelse_str:
+                orelse_str = f"{indent}  ()"
+            code = (f"{indent}if {test} then begin\n{body_str}\n"
+                    f"{indent}end else begin\n{orelse_str}\n{indent}end")
+            if body_returns and IRScanner.ends_with_return(orelse):
+                return code
+        elif body_returns and rest:
+            rest_str = self._stmts_to_whyml(rest, local_refs, declared_refs, indent + "  ", in_loop)
+            if not rest_str:
+                rest_str = f"{indent}  ()"
+            return (f"{indent}if {test} then begin\n{body_str}\n"
+                    f"{indent}end else begin\n{rest_str}\n{indent}end")
+        else:
+            stripped = body_str.rstrip()
+            last_line = stripped.split('\n')[-1].strip() if stripped else ""
+            body_returns_value = (last_line.startswith("(") and
+                                  not last_line.startswith("()") and
+                                  "raise " not in last_line and
+                                  "<-" not in last_line and
+                                  ":=" not in last_line and
+                                  "subscript_set" not in last_line)
+            if body_returns_value:
+                code = (f"{indent}if {test} then begin\n{body_str}\n"
+                        f"{indent}end else begin\n{indent}  0\n{indent}end")
+            else:
+                code = f"{indent}if {test} then begin\n{body_str}\n{indent}end"
+        if rest:
+            code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+        return code
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
