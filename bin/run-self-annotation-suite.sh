@@ -59,6 +59,7 @@ SUITE=(
     "src/self-annotate/src/module6_whyml/auto_trust.py"
     "src/self-annotate/src/module6_whyml/expressions.py"
     "src/self-annotate/src/module6_whyml/statements.py"
+    "src/self-annotate/src/module6_whyml/stmt_control_flow.py"
     "src/self-annotate/src/module6_whyml/preamble.py"
 )
 

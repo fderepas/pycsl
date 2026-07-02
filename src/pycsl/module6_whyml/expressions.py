@@ -586,6 +586,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     and _kir.get("value") in _EMIT_IR_NODE_KEYS
                     and self._is_emit_ir_expr(ir.get("value", {}))):
                 return True
+        # item34.md CF1: `<x>.to_dict()` (no args) is an emit_ir node (to_dict is identity on
+        # the typed IR) in a @mutable_state module.
+        if (t == "Call" and isinstance(ir.get("func"), str)
+                and ir["func"].endswith(".to_dict") and not ir.get("args")
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            return True
         # §26: a `.get("value"/"object"/"index")` on an emit_ir receiver is an emit_ir
         # sub-node (nested `.get` chaining, e.g. `arr.get("value").get("type")`).
         if t == "Call":
@@ -3944,6 +3951,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if _ms and (_b_str or _o_str) and (_b_str or _b_none) and (_o_str or _o_none):
             if _b_none: body = '""'
             if _o_none: orelse = '""'
+            return f"(if {test} then {body} else {orelse})"
+        # item34.md CF1: the emit_ir analogue — `stmt.value.to_dict() if stmt.value is not
+        # None else None` (an `Optional[ExprIR]` ternary) is an emit_ir expression; a `None`
+        # arm → `(IrOther "")` (the emit_ir absent sentinel). @mutable_state.
+        _b_ir, _o_ir = self._is_emit_ir_expr(_bd), self._is_emit_ir_expr(_od)
+        if _ms and (_b_ir or _o_ir) and (_b_ir or _b_none) and (_o_ir or _o_none):
+            if _b_none: body = '(IrOther "")'
+            if _o_none: orelse = '(IrOther "")'
             return f"(if {test} then {body} else {orelse})"
         body = self._coerce_to_int(body)
         orelse = self._coerce_to_int(orelse)

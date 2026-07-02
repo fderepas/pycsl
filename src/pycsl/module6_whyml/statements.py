@@ -1442,6 +1442,16 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             if (v.get("type") == "Call" and isinstance(_fn, str)
                     and _fn.endswith(".to_dict") and not v.get("args")):
                 return True
+            # item34.md CF1: an `Optional[emit_ir]` ternary (`stmt.value.to_dict() if … else
+            # None`) is an emit_ir local — one arm emit_ir, the other emit_ir/None.
+            if v.get("type") == "IfExpr":
+                _b, _o = v.get("body", {}), v.get("orelse", {})
+                _bir = _is_emit_ir_val(_b, known) or self._is_emit_ir_expr(_b)
+                _oir = _is_emit_ir_val(_o, known) or self._is_emit_ir_expr(_o)
+                _bn = isinstance(_b, dict) and _b.get("type") == "None"
+                _on = isinstance(_o, dict) and _o.get("type") == "None"
+                if (_bir or _oir) and (_bir or _bn) and (_oir or _on):
+                    return True
             return False
 
         out: Set[str] = set()

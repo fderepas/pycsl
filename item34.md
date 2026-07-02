@@ -46,10 +46,10 @@ There is **no un-`\trust` deliverable** — that is provably unavailable.
 
 | # | Item | Gate | Status |
 |---|---|---|---|
-| **CF0.1** | Make `ControlFlowStmtMixin` (`src/self-annotate/src/module6_whyml/stmt_control_flow.py`) a `@mutable_state @dataclass` so the emit_ir / string-local / seq machinery fires. | class marked; unmarked emission unchanged | ◻ TODO |
-| **CF0.2** | Declare the state it READS: `_has_early_ret: int`, `_func_return_type: str`, `_current_tuple_arity: int` (+ existing `_seq_locals`/`_array_locals`). | fields declared | ◻ TODO |
-| **CF0.3** | Cross-file sibling stubs (`-> str`, `\trusted`): `_materialize_bridge`, `_materialize_str_bridge`, `_maybe_inject_union_return`, `_seq_init_expr`, `_bool_ir_to_int_wrap`, `_stmts_to_whyml`, `_expr_to_whyml`. | stubs typed | ◻ TODO |
-| **CF0.4** | Wire `stmt_control_flow.py` into `bin/run-self-annotation-suite.sh` (a new suite entry). | suite runs it | ◻ TODO |
+| **CF0.1** ✅ | Make `ControlFlowStmtMixin` (`src/self-annotate/src/module6_whyml/stmt_control_flow.py`) a `@mutable_state @dataclass` so the emit_ir / string-local / seq machinery fires. | class marked; unmarked emission unchanged | ◻ TODO |
+| **CF0.2** ✅ | Declare the state it READS: `_has_early_ret: int`, `_func_return_type: str`, `_current_tuple_arity: int` (+ existing `_seq_locals`/`_array_locals`). | fields declared | ◻ TODO |
+| **CF0.3** ✅ | Cross-file sibling stubs (`-> str`, `\trusted`): `_materialize_bridge`, `_materialize_str_bridge`, `_maybe_inject_union_return`, `_seq_init_expr`, `_bool_ir_to_int_wrap`, `_stmts_to_whyml`, `_expr_to_whyml`. | stubs typed | ◻ TODO |
+| **CF0.4** ✅ | Wire `stmt_control_flow.py` into `bin/run-self-annotation-suite.sh` (a new suite entry). | suite runs it | ◻ TODO |
 
 ### 2.1 Per-handler ports (each: port the REAL body → type → prove → un-`\trust` + frame)
 
@@ -58,7 +58,7 @@ verifies un-`\trusted` → byte-diff 0 (corpus) → suite green.
 
 | # | Handler | Notes (measured) | Frame | Status |
 |---|---|---|---|---|
-| **CF1** | `_handle_return_stmt` | 126 lines, **read-only** (`assigns \nothing`); reflects on `val_ir`; seq/array/string/tuple/union returns via materialize bridges + `_seq_init_expr`. The natural FIRST target. | `\nothing` | ◻ TODO |
+| **CF1 ✅** | `_handle_return_stmt` | 126 lines, **read-only** (`assigns \nothing`); reflects on `val_ir`; seq/array/string/tuple/union returns via materialize bridges + `_seq_init_expr`. The natural FIRST target. | `\nothing` | ◻ TODO |
 | **CF2** | `_handle_if_stmt` | compositional: reflect on `stmt.test`, recurse `_stmts_to_whyml` on both arms. | tbd | ◻ TODO |
 | **CF3** | `_handle_while_stmt` | loop invariants/variants (the SQ5 `0<=idx`/variant discipline reused); recurse. | tbd | ◻ TODO |
 | **CF4** | `_handle_for_stmt` | iterable classification + the for-loop invariant/variant (already added for the emitter for-loops). | tbd | ◻ TODO |
@@ -99,8 +99,8 @@ CF0 gates CF1–CF6; CF1 (read-only) is the cheapest end-to-end validation of th
 | Surface | Status |
 |---|---|
 | Item 3 (recursion-leaf value contracts) | **IRREDUCIBLE** — sound handling = stratified D2 axioms; audit tasks I3.1–I3.3 ◻ TODO |
-| Item 4 · CF0 structural setup | ◻ TODO |
-| Item 4 · CF1 return | ◻ TODO |
+| Item 4 · CF0 structural setup | ✅ DONE |
+| Item 4 · CF1 return | ✅ DONE (proven, byte-diff 0) |
 | Item 4 · CF2 if | ◻ TODO |
 | Item 4 · CF3 while | ◻ TODO |
 | Item 4 · CF4 for | ◻ TODO |
