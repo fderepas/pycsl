@@ -170,6 +170,42 @@ plumbing, on top of the un-reached **exception-arm/code-assembly tail** (past li
 pass-3 `seq string` model. The hard part is not discovery (done) but the seq/array `snapshot`
 bridging discipline. `match` (CF6) is comparably broad and untouched.
 
+**UPDATE: CF5 LANDED (4th pass).** The uniform `seq string` model — snapshot-ified at the
+SOURCE (`find_`/`collect_`/`.split` emit `(snapshot (op …))`) so the whole flow is seq with no
+array/seq mixing (the pass-3 wall) — closed it. Proven; byte-diff 0; the 17th handler.
+
+---
+
+## 8. Mirror-sync finding (`bin/check-module6-mirror-sync.py`)
+
+**The `module6_whyml` mirror is NOT covered by `check-self-annotate-sync.sh`** (that script
+only diffs `Module1–6`/`errors`/`ir_schema` against the rocq/lean mirrors). Added a
+method-level checker: every un-`\trusted` mirror method must have a body byte-identical (modulo
+`#@` lines / blanks) to the same-named LIVE emitter method; `\trusted` stubs are skipped.
+
+**It immediately exposed real drift** — the load-bearing invariant "verify the mirror ⇒ the
+live `_handle_*` is body-faithful" is currently only TRUE for the CF family:
+
+| mirror | un-`\trusted` methods in sync | drifted |
+|---|---|---|
+| `stmt_control_flow.py` (CF1–CF5) | **5/5 ✅** (verbatim ports of the current live emitter) | 0 |
+| `statements.py` (12 reflecting) | 4 | **10 drifted** |
+
+The 10 `statements.py` divergences have two causes:
+1. **Typed-IR migration (pre-session, dominant):** the LIVE emitter moved `_expr_to_whyml` to
+   take a typed `ExprIR` (`self._expr_to_whyml(stmt.value, …)`), but the mirror still passes
+   the pre-migration `stmt.value.to_dict()`. So the mirror reflects an OLDER emitter — verifying
+   it did NOT establish body-faithfulness of the CURRENT emitter for these handlers.
+2. **This session (3):** the CF4/CF5 tool changes to the LIVE `_handle_tuple_unpack_stmt`
+   (CF4), `_handle_augassign_stmt` (CF5 union), `_handle_expr_stmt` (CF5 str-key hash) were not
+   back-ported to the mirror.
+
+**Consequence:** the "12 reflecting handlers are body-faithful" claim is weaker than stated —
+they verify a STALE mirror. The CF-family claim (5 handlers) is solid (verbatim, machine-checked
+in sync). **Re-sync needed:** migrate the mirror `statements.py` handlers to the typed-IR API +
+back-port the 3 session changes, then re-verify, then wire the checker into the gate. Not yet a
+hard gate (it currently exits 1 by design, surfacing the debt).
+
 ---
 
 ## 6. Definition of done
