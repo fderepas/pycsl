@@ -202,9 +202,24 @@ The 10 `statements.py` divergences have two causes:
 
 **Consequence:** the "12 reflecting handlers are body-faithful" claim is weaker than stated —
 they verify a STALE mirror. The CF-family claim (5 handlers) is solid (verbatim, machine-checked
-in sync). **Re-sync needed:** migrate the mirror `statements.py` handlers to the typed-IR API +
-back-port the 3 session changes, then re-verify, then wire the checker into the gate. Not yet a
-hard gate (it currently exits 1 by design, surfacing the debt).
+in sync).
+
+**Re-sync attempt (findings).** Re-porting the 10 live handler bodies into the mirror is:
+- **CODE-trivial:** a body-swap + 4 field declarations (`_current_self_type`, `_heap_var`,
+  `_todict_aliases`, `_getattr_self_dict_aliases`) + 3 sibling stubs
+  (`_call_returns_string_collection`, `_resolve_dotted_signature`, `_str_operand_to_int`) makes
+  the mirror a verbatim copy — **the sync-checker then passes (all 19 methods)**.
+- **VERIFICATION is a campaign:** the CURRENT emitter reflects on emit_ir features the mirror's
+  emit_ir ADT does not model — notably `val_ir.get("args")` (the args LIST; the ADT carries only
+  `arg0_of`/`nargs_of`, not an `array emit_ir`). Making the re-synced bodies type-check/prove
+  needs the emit_ir ADT extended (an `args_of` list projection + `not <array>` / `X or […]`
+  handling) plus per-handler recognizers — a moderate campaign, cascading like the CF work.
+- **A real emitter bug was found + fixed** en route: `_call_named_builtins` re-lowered its
+  already-lowered `args` (crash on `<computed>.endswith(…)`), committed byte-diff 0.
+
+**Status:** re-sync reverted to keep the mirror verifying (green tree). The sync-checker
+(committed) now makes the drift visible; the verification campaign to complete the re-sync is a
+scoped follow-on. Not yet wired as a hard gate.
 
 ---
 
