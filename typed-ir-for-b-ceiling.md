@@ -663,3 +663,33 @@ emit_ir locals; and comprehension lowering) — NOT the ADT. `_handle_expr_stmt`
 `_handle_array_set_stmt` are now unblocked at the ADT level too (array_set's nested
 `arr.get("value").get("type")` will need `_is_emit_ir_expr` to see `svalue_of` results as
 emit_ir — a small follow-on).
+
+---
+
+## 22. `_handle_expr_stmt` — needs faithful emitter STRING-manipulation (not the ADT)
+
+The prediction that `expr_stmt` would close cleanly on B-C5 was WRONG. Its Call reflection
+(`val.get("type")=="Call"`, `val.get("func")`) DOES type-check now (B-C5). But its FIRST
+error is elsewhere: `arr_name = func.rsplit(".", 1)[0].replace(".", "_")` — the emitter
+building a WhyML identifier from the Python func name — lowers to `int` (opaque), so
+`whyml_ident(!arr_name)` fails (`arr_name` is `int`, `whyml_ident` wants `string`). A probe
+confirms the `.rsplit(sep, 1)[0].replace(a, b)` chain is NOT modeled as a faithful string.
+
+**This is a distinct, broad surface: the emitter's own STRING-BUILDING logic.** The
+handlers construct WhyML syntax with `.replace`, `.rsplit`, `.split`, `[i]`-of-split,
+f-strings, joins. Modeling these faithfully (`str_replace_op`, an `.rsplit(sep,1)[0]`
+head-op, …) is the no-more-int doctrine applied to the emitter's output-building — and,
+unlike §18–§21, it is CORPUS-AFFECTING (those ops currently lower to opaque int in real
+programs, so a faithful model changes their bytes; not a byte-clean @mutable_state gate).
+
+**Revised handler frontier (three layers, not one):**
+- ADT reflection — DONE (B-C5): Var/Attr/Str/Num/Call/Subscript all reflectable.
+- Per-branch breadth (`ghost_assign`, `critical_section`) — state mutations + the
+  whyml_ident-ARG typing (here the arg is int because a STRING chain wasn't recognized;
+  in §19 it was the whyml_ident RETURN — same helper, different side).
+- Emitter string-manipulation (`expr_stmt`, and inside the others) — faithful
+  `.replace`/`.rsplit`/`.split` string ops. Corpus-affecting; the biggest remaining piece.
+
+`tuple_unpack` (list-locals + comprehensions, §21) and `expr_stmt` (string ops) each need
+a DIFFERENT non-ADT feature. The clean-ADT-close era is over; what remains is faithful
+value-modeling of the emitter's list/string plumbing.
