@@ -693,3 +693,31 @@ programs, so a faithful model changes their bytes; not a byte-clean @mutable_sta
 `tuple_unpack` (list-locals + comprehensions, §21) and `expr_stmt` (string ops) each need
 a DIFFERENT non-ADT feature. The clean-ADT-close era is over; what remains is faithful
 value-modeling of the emitter's list/string plumbing.
+
+---
+
+## 23. `_handle_expr_stmt` un-`\trusted` — the EIGHTH handler (faithful string ops + B-C5 tail)
+
+`_handle_expr_stmt` verifies. With the faithful string ops (`faithful-string-op.md`) and
+the B-C5 ADT both landed, its blockers fell in order — each fix byte-clean, corpus diff 0:
+
+1. **String manipulation** (`arr_name = func.rsplit(".",1)[0].replace(".","_")`) —
+   CLEARED by the faithful string ops (`str_split_elem_op` + `str_replace_op`).
+2. **`val["args"][0]` subscript-args form** — `_emit_ir_args_recv_ir` extended to the
+   `<emit_ir>["args"]` Subscript form (not just `.get("args")`) → `arg0_of`.
+3. **`x in getattr(self, "_seq_locals", set())`** — `_emit_membership` now recognizes a
+   `getattr(self, "<field>", set())` self-field set (the §15 getattr form of `x in
+   self.<field>`), rewriting `right` to the direct `self.<label>` map (via `_field_label`,
+   NOT a synthetic Attribute IR — which lowers to the opaque `get_<field>` accessor).
+4. **Undeclared mirror fields** `_dict_locals`/`_value_semantic` — declared on the mixin.
+5. **`(val.get("args") or [{}])[0]`** — the defensive-default idiom: `_emit_ir_args_recv_ir`
+   unwraps a `BoolOp`/`BinOp` `or` (arg0_of already returns `IrOther ""` for a non-Call, so
+   the explicit `or <default>` is subsumed).
+6. **`arg_ir = (…)[0]` emit_ir local** — `_is_emit_ir_expr` extended so an args-list ELEMENT
+   Subscript types as emit_ir, so §19 pre-declares it `ref (IrOther "")`.
+
+**EIGHT real emitter handlers** now verify their own body-faithfulness (the seven from §17
+plus `expr_stmt`). expr_stmt is the first handler to close *after* the ADT was completed and
+the faithful string ops landed — validating that both were the right infrastructure. The
+tool fixes are general (subscript-args, or-unwrap, getattr-set membership, args-element
+emit_ir locals), reusable by `tuple_unpack`/`array_set`.

@@ -406,6 +406,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             ft = self._field_type_of(rhs)
             if ft in ("set", "dict", "frozenset"):
                 rhs_is_map = True
+        # typed-ir §15 (getattr) + faithful-string-op tail: `x in getattr(self, "<field>",
+        # set())` on a `set`/`dict` self-field — the defensive-read form of `x in
+        # self.<field>`. Rewrite `right` to the real `self.<field>` map so the string-key
+        # `str_hash_op` membership below fires (was falling to opaque `contains_check`).
+        if not rhs_is_map and rhs.get("type") == "Call":
+            _gf = self._getattr_self_field(rhs)
+            if _gf is not None and self._self_field_dict_nu(f"self.{_gf}") is not None:
+                rhs_is_map = True
+                # the direct `self.<label>` field access (matching the non-getattr
+                # `x in self._seq_locals` form), NOT a synthetic Attribute IR — which
+                # lowers to the opaque `get_<field>` accessor.
+                right = f"self.{self._field_label(getattr(self, '_current_self_type', None), _gf)}"
         if rhs_is_map:
             # todict-reflection-plan.md R3: a STRING key into a `Set[str]`/`dict[str,_]`
             # (an int-keyed map) is hashed with `str_hash_op` — the read-side analogue of
@@ -515,6 +527,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if t == "Var":
             return getattr(self, "_current_symbol_table", {}).get(ir.get("name", "")) in (
                 "ExprIR", "StmtIR", "IRNode", "ContractExprIR")
+        # B-C5: an args-list ELEMENT `<emit_ir Call>.args[i]` / `(… or [{}])[i]` is an
+        # emit_ir sub-node (arg0_of), so a local bound from it types as emit_ir (§19).
+        if t in ("Subscript", "SliceAccess"):
+            if self._emit_ir_args_recv_ir(ir.get("value", {})) is not None:
+                return True
         return False
 
     def _todict_recv_node_ir(self, recv_dotted: str) -> Dict[str, Any]:
@@ -551,22 +568,46 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return f"({proj} {self._expr_to_whyml(node, local_refs or set(), invariant_ctx, subst)})"
 
     def _emit_ir_args_recv_ir(self, arg_ir):
-        """B-C5: if `arg_ir` is `<emit_ir>.get("args")` (a Call node), return the
-        receiver's emit_ir IR node — so `len(...)` lowers to `nargs_of` and `...[0]`
-        to `arg0_of`. None otherwise."""
-        if not isinstance(arg_ir, dict) or arg_ir.get("type") != "Call":
+        """B-C5: if `arg_ir` reads the "args" list of an emit_ir Call node — either the
+        `<emit_ir>.get("args")` (Call) form OR the `<emit_ir>["args"]` (Subscript) form —
+        return the receiver's emit_ir IR node, so `len(...)` lowers to `nargs_of` and
+        `...[0]` to `arg0_of`. None otherwise."""
+        if not isinstance(arg_ir, dict):
             return None
-        fn = arg_ir.get("func")
-        if not (isinstance(fn, str) and fn.endswith(".get")):
+        t = arg_ir.get("type")
+        node = None
+        # unwrap the defensive default `(<emit_ir>.get("args") or [{}])` — arg0_of already
+        # returns IrOther "" for a non-Call, so the explicit `or <default>` is subsumed.
+        if t == "BoolOp" and arg_ir.get("op") == "or":
+            _vs = arg_ir.get("values", [])
+            return self._emit_ir_args_recv_ir(_vs[0]) if _vs else None
+        if t == "BinOp" and arg_ir.get("op") == "or":
+            return self._emit_ir_args_recv_ir(arg_ir.get("left", {}))
+        if t == "Call":
+            fn = arg_ir.get("func")
+            if not (isinstance(fn, str) and fn.endswith(".get")):
+                return None
+            kir = (arg_ir.get("args") or [{}])[0]
+            if not (isinstance(kir, dict) and kir.get("type") == "String"
+                    and kir.get("value") == "args"):
+                return None
+            recv = fn[:-len(".get")]
+            dotted = getattr(self, "_todict_aliases", {}).get(recv)
+            node = (self._todict_recv_node_ir(dotted) if dotted
+                    else {"type": "Var", "name": recv})
+        elif t in ("Subscript", "SliceAccess"):
+            kir = arg_ir.get("index", {})
+            if not (isinstance(kir, dict) and kir.get("type") == "String"
+                    and kir.get("value") == "args"):
+                return None
+            v = arg_ir.get("value", {})
+            if isinstance(v, dict) and v.get("type") == "Var":
+                dotted = getattr(self, "_todict_aliases", {}).get(v.get("name"))
+                node = self._todict_recv_node_ir(dotted) if dotted else v
+            else:
+                node = v
+        if node is None:
             return None
-        kir = (arg_ir.get("args") or [{}])[0]
-        if not (isinstance(kir, dict) and kir.get("type") == "String"
-                and kir.get("value") == "args"):
-            return None
-        recv = fn[:-len(".get")]
-        dotted = getattr(self, "_todict_aliases", {}).get(recv)
-        node = (self._todict_recv_node_ir(dotted) if dotted
-                else {"type": "Var", "name": recv})
         return node if self._is_emit_ir_expr(node) else None
 
     def _str_method_recv_and_tail(self, expr):
