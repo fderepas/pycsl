@@ -36,6 +36,8 @@ only supported syntax.
 | `arm-coverage.md` | LINK 3: per-WP-arm emitter-coherence lemma coverage + handler decisions |
 | `evaluator-axiom-audit.md` | LINK 3: the audited "D2" evaluator-axiom trust boundary (Gödel/Löb floor) |
 | `pycsl-wp-spec.mlw` | LINK 3: the Why3 emitter-coherence proof (17 Valid / 0 non-Valid) |
+| `bin/check-module6-mirror-sync.py` | Tier-2 sync gate: every un-`\trusted` `module6_whyml/` mirror method == the live emitter (see "Mirror Sync Mechanism") |
+| `../../item34.md` §8 / `../../resync-campaign.md` | The `statements.py` mirror-drift finding + the re-sync campaign plan |
 
 ---
 
@@ -331,6 +333,73 @@ When adding annotations for a new method:
 1. Read the relevant formal-semantics file (see the table in `coverage-report.md`).
 2. Add the `#@` block directly to `src/self-annotate/src/<file>.py`.
 3. Run `make verify-annotated` to confirm.
+
+---
+
+## Mirror Sync Mechanism
+
+The self-annotation is a **mirror**: `src/self-annotate/src/` reflects the live emitter
+`src/pycsl/`, and PyCSL verifies the mirror. That verification is only meaningful if the mirror's
+code is IDENTICAL to the live emitter it claims to reflect — otherwise it proves a stale copy.
+Two tiers keep them in sync, because the mirror is heterogeneous.
+
+### Tier 1 — whole-file copy (top-level modules)
+
+The pipeline modules (`Module1–6`, `ir_schema`, `errors`, `pycsl`, `__init__`, `ConcurrencyChecker`)
+are **verbatim copies + `#@` overlay**. Every non-`#@` line must match the live file.
+
+```bash
+make sync-annotate-src     # cp src/pycsl/<mod>.py → src/self-annotate/src/<mod>.py  (then re-apply #@)
+make verify-annotated      # pycsl --no-proof over src/self-annotate/src/*.py
+```
+
+- `bin/check-self-annotate-sync.sh` gates this: it diffs the non-`#@` lines of each live module
+  against the `rocq/` and `lean/` mirrors and exits 1 on divergence.
+- **Rule:** change a live module → `make sync-annotate-src` → re-apply the `#@` blocks for any new
+  method → `make verify-annotated`.
+
+### Tier 2 — method-level (the `module6_whyml/` subpackage)
+
+`src/self-annotate/src/module6_whyml/*.py` (`statements.py`, `stmt_control_flow.py`,
+`expressions.py`, …) is **NOT** a whole-file copy and is **NOT** covered by `sync-annotate-src`
+(the Makefile list omits the subpackage). It is heterogeneous:
+
+- **un-`\trusted` methods** — the body-faithful `_handle_*` handlers — are ported VERBATIM from the
+  live emitter (only `#@` contract/loop-invariant annotations added); while
+- **`\trusted` methods** are intentionally-divergent bodyless STUBS (the recursion-leaf / sibling
+  boundary — `_expr_to_whyml`, `_stmts_to_whyml`, …); the live emitter implements them in full.
+
+A whole-file diff is therefore meaningless here. The invariant is method-level:
+
+> **Every un-`\trusted` mirror method has a body byte-identical (modulo `#@` lines / blank lines)
+> to the same-named live emitter method.** `\trusted` stubs are skipped.
+
+`bin/check-module6-mirror-sync.py` enforces exactly this (parses both files, compares each
+un-`\trusted` method, exits 1 on drift):
+
+```bash
+python3 bin/check-module6-mirror-sync.py
+```
+
+- **Rule:** change a live `module6_whyml/*.py` handler → back-port the body to the mirror
+  (preserving its `#@` block + inline invariants) → `python3 bin/check-module6-mirror-sync.py` →
+  re-verify (`pycsl --no-proof <mirror>.py --import-path src/pycsl`).
+
+### Current drift status (see `item34.md §8`, `resync-campaign.md`)
+
+The Tier-2 checker was added AFTER the subpackage had already drifted (the emitter evolved —
+typed-IR migration + features — but the mirror was hand-maintained without a gate):
+
+| mirror file | un-`\trusted` handlers in sync |
+|---|---|
+| `stmt_control_flow.py` (CF: return/if/while/for/try) | **5/5 ✅ verbatim** |
+| `statements.py` (12 reflecting) | 4 (10 drifted) |
+
+So the **CF family** genuinely verifies the current emitter; the **10 reflecting handlers** verify
+a stale mirror. The re-sync (a body-swap that then needs the emit_ir model extended to re-verify)
+is planned in `resync-campaign.md`. The checker is not yet wired into
+`check-self-annotate-sync.sh` as a hard gate — that is the campaign's final step (R3.3), after the
+drift is fixed.
 
 ---
 
