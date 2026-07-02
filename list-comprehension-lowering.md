@@ -163,3 +163,46 @@ bash bin/run-self-annotation-suite.sh    # only pre-existing errors.py may fail
 - **12 real emitter handlers verify their own body-faithfulness** — the reflecting-family
   trusted base empty.
 - Byte-diff 0; negative drivers FAIL; suite green; `i-feel-good.md` §10 tail closed.
+
+---
+
+## 8. Execution log
+
+**L1–L7 COMPLETE — `_handle_tuple_unpack_stmt` un-`\trusted` (the 11th handler).** Byte-diff 0
+across the 627-corpus; self-annotation suite unchanged (only pre-existing `errors.py`). Landed:
+- **L1** comprehension → `list_comp_<τ>` (string/emit_ir/int) with the length law
+  (`=`/`≤`); comprehension-bound local is an array local; `_array_elem_types` tracks the
+  element type (computed BEFORE the string-local collectors).
+- **L2** `sep.join(<string-array>)` → `str_join_arr` (`string`); fires before the int
+  `is_array` path; recognized in `_is_string_expr`. **+ seq variant** `str_join_seq` for a
+  `.append`-grown string list (`lines`).
+- **L3** list-repeat `["x"] * n` → `Array.make n "x"` (already worked once the element is string).
+- **L4** string-`+` via the string-join recognition in `_is_string_expr`.
+- **L5** `_abstract_ops: Dict[str,str]`; `map_update_some` POLYMORPHIC in a @mutable_state
+  module (one decl unifies with string-valued dict fields); self-field dict-read default per ν
+  (`""`); self-field dict[str,str] subscript read recognized as string.
+- **L6** list index / `len` on a string array (`safe_targets[i]`, `len(tmp_names)`).
+- **L7** `re.findall(pat, s)` → `array string` (string args, modeled before arg-coercion);
+  `_handle_tuple_unpack_stmt` un-`\trusted` with `assigns self._abstract_ops` **plus loop
+  invariants** (`0 <= i_tu`, `n_tu == len(tmp_names)`, `len(safe_targets) == len(tmp_names)`
+  — the last two from the `list_comp` length law) so the `xs[i_tu]` array-bounds VCs discharge.
+
+**11 of 12 reflecting-family emitter handlers now verify their own body-faithfulness.**
+
+**L8 — `_handle_critical_section_stmt` — the honest wall (a DISTINCT, harder problem).** Its
+first blocker is `shared_for_mutex = [sv["name"] for sv in self.ir.get("shared_vars", []) if
+sv.get("mutex") == mutex]` — deep reflection on `self.ir`, the transpiler's **untyped nested
+input IR** (`Dict[str, Any]`, a list-of-dicts). The comprehension's element `sv["name"]` and
+filter `sv.get("mutex")` reflect on an opaque dict ELEMENT whose type the list-comp machinery
+(L1) cannot infer — sv is bound to elements of an untyped list, so `sv["name"]` is not
+recognized as a string and the whole comprehension collapses to `array int`. This is NOT the
+typed-collection plumbing L1–L7 solved; it is **heterogeneous untyped-`Dict[str,Any]`
+reflection over `self.ir`** — the same class of problem as the original Ceiling A (the
+reflective dict), resurfacing for the transpiler's *input* structure rather than its *output*.
+Modeling it soundly needs either a typed `self.ir` schema (a large front-end feature) or an
+audited abstract-array model of `self.ir.get(<key>)` with string-typed element projection — its
+own sub-plan. critical_section additionally needs the `whyml_ident` return decl-vs-map fix and
+the `_havoc_counter += 1` scalar frame, both bounded, but the `self.ir` reflection gates it.
+
+**Net:** L1–L7 delivered the complete list/string plumbing (11th handler); L8 is deferred as a
+distinct `self.ir`-reflection sub-problem, precisely scoped.
