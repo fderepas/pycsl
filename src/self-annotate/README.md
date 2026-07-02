@@ -36,7 +36,7 @@ only supported syntax.
 | `arm-coverage.md` | LINK 3: per-WP-arm emitter-coherence lemma coverage + handler decisions |
 | `evaluator-axiom-audit.md` | LINK 3: the audited "D2" evaluator-axiom trust boundary (Gödel/Löb floor) |
 | `pycsl-wp-spec.mlw` | LINK 3: the Why3 emitter-coherence proof (17 Valid / 0 non-Valid) |
-| `bin/check-module6-mirror-sync.py` | Tier-2 sync gate: every un-`\trusted` `module6_whyml/` mirror method == the live emitter (see "Mirror Sync Mechanism") |
+| `bin/check-self-annotate-mirror-sync.py` | Sync gate: every un-`\trusted` mirror method (whole tree) == the live emitter (see "Mirror Sync Mechanism") |
 | `../../item34.md` §8 / `../../resync-campaign.md` | The `statements.py` mirror-drift finding + the re-sync campaign plan |
 
 ---
@@ -339,67 +339,55 @@ When adding annotations for a new method:
 ## Mirror Sync Mechanism
 
 The self-annotation is a **mirror**: `src/self-annotate/src/` reflects the live emitter
-`src/pycsl/`, and PyCSL verifies the mirror. That verification is only meaningful if the mirror's
-code is IDENTICAL to the live emitter it claims to reflect — otherwise it proves a stale copy.
-Two tiers keep them in sync, because the mirror is heterogeneous.
+`src/pycsl/` (same layout, incl. `frontend/` and `module6_whyml/`), and PyCSL verifies the
+mirror. That verification is only meaningful if the mirror's code is IDENTICAL to the live
+emitter it claims to reflect — otherwise it proves a stale copy.
 
-### Tier 1 — whole-file copy (top-level modules)
+### The mirror is heterogeneous — so the check is method-level, not whole-file
 
-The pipeline modules (`Module1–6`, `ir_schema`, `errors`, `pycsl`, `__init__`, `ConcurrencyChecker`)
-are **verbatim copies + `#@` overlay**. Every non-`#@` line must match the live file.
-
-```bash
-make sync-annotate-src     # cp src/pycsl/<mod>.py → src/self-annotate/src/<mod>.py  (then re-apply #@)
-make verify-annotated      # pycsl --no-proof over src/self-annotate/src/*.py
-```
-
-- `bin/check-self-annotate-sync.sh` gates this: it diffs the non-`#@` lines of each live module
-  against the `rocq/` and `lean/` mirrors and exits 1 on divergence.
-- **Rule:** change a live module → `make sync-annotate-src` → re-apply the `#@` blocks for any new
-  method → `make verify-annotated`.
-
-### Tier 2 — method-level (the `module6_whyml/` subpackage)
-
-`src/self-annotate/src/module6_whyml/*.py` (`statements.py`, `stmt_control_flow.py`,
-`expressions.py`, …) is **NOT** a whole-file copy and is **NOT** covered by `sync-annotate-src`
-(the Makefile list omits the subpackage). It is heterogeneous:
-
-- **un-`\trusted` methods** — the body-faithful `_handle_*` handlers — are ported VERBATIM from the
-  live emitter (only `#@` contract/loop-invariant annotations added); while
+- **un-`\trusted` methods** — the body-faithful `_handle_*` handlers — are ported VERBATIM from
+  the live emitter (only `#@` contract/loop-invariant annotations added); while
 - **`\trusted` methods** are intentionally-divergent bodyless STUBS (the recursion-leaf / sibling
   boundary — `_expr_to_whyml`, `_stmts_to_whyml`, …); the live emitter implements them in full.
 
-A whole-file diff is therefore meaningless here. The invariant is method-level:
+A whole-file diff would spuriously flag every `\trusted` stub, so the load-bearing invariant is
+method-level:
 
 > **Every un-`\trusted` mirror method has a body byte-identical (modulo `#@` lines / blank lines)
-> to the same-named live emitter method.** `\trusted` stubs are skipped.
+> to the same-named live emitter method.** `\trusted` stubs, mirror-only files, and mirror-only
+> infra are skipped.
 
-`bin/check-module6-mirror-sync.py` enforces exactly this (parses both files, compares each
-un-`\trusted` method, exits 1 on drift):
+`bin/check-self-annotate-mirror-sync.py` enforces this over the WHOLE mirror tree (walks
+`src/self-annotate/src/**/*.py`, maps each to its `src/pycsl/` counterpart, compares each
+un-`\trusted` method). `bin/check-self-annotate-sync.sh` is a thin wrapper that runs it as the
+gate:
 
 ```bash
-python3 bin/check-module6-mirror-sync.py
+bash bin/check-self-annotate-sync.sh
+# OK: all 23 un-trusted self-annotate mirror methods are verbatim copies of the live emitter
 ```
 
-- **Rule:** change a live `module6_whyml/*.py` handler → back-port the body to the mirror
-  (preserving its `#@` block + inline invariants) → `python3 bin/check-module6-mirror-sync.py` →
-  re-verify (`pycsl --no-proof <mirror>.py --import-path src/pycsl`).
+Two complementary gates enforce this, both `\trusted`/subset-aware for the heterogeneous mirror:
 
-### Current drift status (see `item34.md §8`, `resync-campaign.md`)
-
-The Tier-2 checker was added AFTER the subpackage had already drifted (the emitter evolved —
-typed-IR migration + features — but the mirror was hand-maintained without a gate):
-
-| mirror file | un-`\trusted` handlers in sync |
+| gate | checks |
 |---|---|
-| `stmt_control_flow.py` (CF: return/if/while/for/try) | **5/5 ✅ verbatim** |
-| `statements.py` (12 reflecting) | 4 (10 drifted) |
+| `bin/check-self-annotate-sync.sh` → `check-self-annotate-mirror-sync.py` | un-`\trusted` method **bodies** are verbatim copies (the strong fidelity check) |
+| `bin/self-annotate-mirror-check.sh` | un-`\trusted` def **signatures** match the source + every mirror file has a live counterpart (structural) |
 
-So the **CF family** genuinely verifies the current emitter; the **10 reflecting handlers** verify
-a stale mirror. The re-sync (a body-swap that then needs the emit_ir model extended to re-verify)
-is planned in `resync-campaign.md`. The checker is not yet wired into
-`check-self-annotate-sync.sh` as a hard gate — that is the campaign's final step (R3.3), after the
-drift is fixed.
+- **Rule:** change a live emitter handler → back-port the body to the mirror (preserving its
+  `#@` block + inline invariants) → run both gates → re-verify
+  (`pycsl --no-proof <mirror>.py --import-path src/pycsl`).
+- The Makefile `sync-annotate-src` / `verify-annotated` targets are convenience helpers for the
+  whole-file top-level modules; they do **not** gate — the method-level checker above is the gate.
+
+### History: the retired whole-file `rocq/`/`lean/` tier
+
+`check-self-annotate-sync.sh` previously diffed non-`#@` lines of a fixed module list against
+`src/self-annotate/rocq/` and `.../lean/` mirrors. That tier was **vestigial**: those directories
+were empty and never git-tracked, and the module paths predated the `frontend/` refactor (so most
+were silently skipped). It has been replaced by the method-level checker above, which — verified
+across the whole mirror — shows **all 23 un-`\trusted` methods are in sync** (the `statements.py`
+drift was closed by `resync-campaign.md`; the CF family was always verbatim).
 
 ---
 
