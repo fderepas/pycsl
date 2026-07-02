@@ -381,8 +381,23 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             arity_fn = f"{safe_fn}_{nargs}"
             if arity_fn in self._abstract_ops:
                 tuple_ret = "(" + ", ".join(["int"] * len(targets)) + ")"
+                # item34.md CF4: use the callee's DECLARED signature (e.g.
+                # `_classify_iterable`'s `Tuple[str,str,bool]` → `(string,string,int)` and its
+                # `(ExprIR, Set, str)` params) instead of the homogeneous-int default, so a
+                # string/bool tuple slot and a non-int arg type-check. @mutable_state-gated →
+                # the corpus's int-tuple unpacks are byte-identical.
+                _cpt: List[str] = []
+                if (getattr(self, "_current_self_type", None)
+                        in getattr(self, "_mutable_state_classes", set())):
+                    _crt, _cpt, _, _ = self._resolve_dotted_signature(func_name)
+                    if (_crt and _crt.startswith("(")
+                            and _crt.count(",") + 1 == len(targets)):
+                        tuple_ret = _crt
                 if nargs == 0:
                     self._abstract_ops[arity_fn] = f"val {arity_fn} () : {tuple_ret}"
+                elif len(_cpt) == nargs:
+                    params = " ".join(f"(x{i}: {_cpt[i]})" for i in range(nargs))
+                    self._abstract_ops[arity_fn] = f"val {arity_fn} {params} : {tuple_ret}"
                 else:
                     # Per missing-bytes-struct-feature.md Phase 1:
                     # preserve the param types from the existing
@@ -1364,6 +1379,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         _ms_str = (getattr(self, "_current_self_type", None)
                    in getattr(self, "_mutable_state_classes", set()))
 
+        tuple_str: Set[str] = set()
+
         def rec(node: Any) -> None:
             if isinstance(node, dict):
                 if node.get("stmt") == "Assign" and isinstance(node.get("target"), str):
@@ -1376,6 +1393,22 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                             _ms_str and isinstance(_v, dict) and _v.get("type") == "None"):
                         seen.add(tgt)
                         firsts.append((tgt, _v))
+                # item34.md CF4: a tuple-unpack target whose callee-return SLOT is `string`
+                # (e.g. `len_expr, elem_expr, is_range = self._classify_iterable(...)` with
+                # return `(string, string, int)`) is a string local — pre-decl `ref ""`.
+                # @mutable_state-gated → corpus int-tuple unpacks unchanged.
+                if (_ms_str and node.get("stmt") == "TupleUnpack"
+                        and isinstance(node.get("value"), dict)
+                        and node["value"].get("type") == "Call"):
+                    _crt, _, _, _ = self._resolve_dotted_signature(
+                        node["value"].get("func", ""))
+                    if _crt and _crt.startswith("(") and _crt.endswith(")"):
+                        _slots = [s.strip() for s in _crt[1:-1].split(",")]
+                        for _i, _tg in enumerate(node.get("targets", [])):
+                            if (_i < len(_slots) and _slots[_i] == "string"
+                                    and _tg not in seen):
+                                seen.add(_tg)
+                                tuple_str.add(_tg)
                 for x in node.values():
                     rec(x)
             elif isinstance(node, list):
@@ -1397,6 +1430,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     if st is not None and st.get(tgt) in (None, "Any"):
                         st[tgt] = "str"
                     changed = True
+        for _tg in tuple_str:
+            out.add(_tg)
+            if st is not None and st.get(_tg) in (None, "Any"):
+                st[_tg] = "str"
         return out
 
     def _collect_emit_ir_result_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:

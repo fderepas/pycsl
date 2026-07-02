@@ -18,6 +18,7 @@ class ControlFlowStmtMixin:
     _has_early_ret: int = 0
     _func_return_type: str = ""
     _current_tuple_arity: int = 0
+    _havoc_counter: int = 0
     _seq_locals: Set[str] = None
     _array_locals: Set[str] = None
     "Control-flow statement handlers — `while` / `for` / `if` / `try` / `match`\n    / `return` — plus their private helpers (`_classify_iterable`,\n    `_first_assign_value_ir`, `_try_local_decl_kind`).\n\n    Extracted verbatim from `StatementEmissionMixin` (Part B move 3e, mirroring\n    the expressions.py split). `StatementEmissionMixin` inherits this mixin, so\n    the handlers resolve via MRO through the facade's `_STMT_HANDLERS` table and\n    recurse back into the core `self._stmts_to_whyml` / `self._expr_to_whyml`\n    (which stay in `StatementEmissionMixin`)."
@@ -144,15 +145,113 @@ class ControlFlowStmtMixin:
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _classify_iterable(self, iter_ir: int, local_refs: int, idx: str) -> int:
-        return ([], {})
+    def _classify_iterable(self, iter_ir: "ExprIR", local_refs: Set[str],
+                           idx: str) -> Tuple[str, str, bool]:
+        return ("", "", False)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_for_stmt(self, stmt: int, rest: List[int], local_refs: int, declared_refs: int, indent: str, in_loop: bool) -> str:
-        return ""
+    def _handle_for_stmt(self, stmt: ForStmt, rest: List[Dict[str, Any]],
+                          local_refs: Set[str], declared_refs: Set[str],
+                          indent: str, in_loop: bool) -> str:
+        target = stmt.target
+        safe_target = whyml_ident(target)
+        iter_ir = stmt.iter.to_dict()
+        idx = f"_idx_{safe_target}"
+        _body_d = [s.to_dict() for s in stmt.body]
+        has_direct_ret = IRScanner.has_direct_return(_body_d)
+        loop_indent = (indent + "  ") if has_direct_ret else indent
+        inner_indent = loop_indent + "  "
+
+        body_local = local_refs | {target}
+        body_declared = declared_refs.copy() | {target}
+        inner_body = self._stmts_to_whyml(
+            _body_d, body_local, body_declared, inner_indent, True)
+        if not inner_body:
+            inner_body = f"{inner_indent}()"
+
+        has_cont = IRScanner.has_continue(_body_d)
+        len_expr, elem_expr, is_range = self._classify_iterable(iter_ir, local_refs, idx)
+
+        while_parts = [f"{loop_indent}while !{idx} < {len_expr} do"]
+        # seq-model-pivot.md SQ5: a @mutable_state for-loop (the emitter's `for var in
+        # shared_for_mutex`) carries the index bound + a decreasing variant so the element
+        # read's `0 <= idx` and the loop's termination discharge (the `idx < len` upper bound
+        # is the loop condition). @mutable_state-gated → the corpus for-loops are byte-identical.
+        if (getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            while_parts.append(f"{inner_indent}invariant {{ 0 <= !{idx} }}")
+            while_parts.append(f"{inner_indent}variant {{ {len_expr} - !{idx} }}")
+        inv_subst = {target: idx} if is_range else None
+        inv_refs = local_refs | {idx}
+        self._in_spec = True
+        invariants_f = stmt.invariants
+        n_inv_f = len(invariants_f)
+        i_inv_f = 0
+        #@ loop invariant 0 <= i_inv_f and i_inv_f <= n_inv_f
+        #@ loop invariant self._havoc_counter >= \old(self._havoc_counter)
+        #@ loop variant n_inv_f - i_inv_f
+        while i_inv_f < n_inv_f:
+            inv = invariants_f[i_inv_f]
+            inv_str = self._expr_to_whyml(inv, inv_refs, subst=inv_subst)
+            while_parts.append(f"{inner_indent}invariant {{ {inv_str} }}")
+            i_inv_f += 1
+        variants_f = stmt.variants
+        n_var_f = len(variants_f)
+        i_var_f = 0
+        #@ loop invariant 0 <= i_var_f and i_var_f <= n_var_f
+        #@ loop invariant self._havoc_counter >= \old(self._havoc_counter)
+        #@ loop variant n_var_f - i_var_f
+        while i_var_f < n_var_f:
+            var_ir = variants_f[i_var_f]
+            var_str = self._expr_to_whyml(var_ir, inv_refs, subst=inv_subst)
+            while_parts.append(f"{inner_indent}variant {{ {var_str} }}")
+            i_var_f += 1
+        self._in_spec = False
+
+        if has_cont:
+            while_parts.append(f"{inner_indent}try")
+            while_parts.append(f"{inner_indent}  let {safe_target} = ref ({elem_expr}) in")
+            while_parts.append(inner_body)
+            while_parts.append(f"{inner_indent}with PyCSL_Continue -> () end;")
+        else:
+            while_parts.append(f"{inner_indent}let {safe_target} = ref ({elem_expr}) in")
+            while_parts.append(inner_body + ";")
+
+        while_parts.append(f"{inner_indent}{idx} := !{idx} + 1")
+        while_parts.append(f"{loop_indent}done")
+        has_break = IRScanner.uses_break(_body_d)
+        while_code = "\n".join(while_parts)
+
+        if has_break:
+            while_code = (f"{loop_indent}try\n{while_code}\n"
+                          f"{loop_indent}with PyCSL_Break -> () end")
+
+        idx_init = self._for_idx_init
+        if self._bounded_int:
+            idx_decl = f"{loop_indent}let {idx} = ref ({idx_init} : int{self._bounded_int}) in\n{while_code}"
+        else:
+            idx_decl = f"{loop_indent}let {idx} = ref {idx_init} in\n{while_code}"
+
+        if has_direct_ret and not self._has_early_ret and not in_loop:
+            rest_code = self._stmts_to_whyml(
+                rest, local_refs, declared_refs, indent + "  ", in_loop)
+            inner = idx_decl
+            if rest_code:
+                inner += ";\n" + rest_code
+            func_ret = self._func_return_type
+            if func_ret == "unit":
+                return (f"{indent}try\n{inner}\n"
+                        f"{indent}with Return_void -> () end")
+            return (f"{indent}try\n{inner}\n"
+                    f"{indent}with Return r -> r end")
+        else:
+            full_code = idx_decl
+            rest_code = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+            if rest_code:
+                return full_code + ";\n" + rest_code
+            return full_code
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
