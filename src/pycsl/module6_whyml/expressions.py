@@ -1340,6 +1340,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 for _k in range(len(_ew) - 2, -1, -1):
                     _acc = f"(str_concat_op {_ew[_k]} (str_concat_op {_sep} {_acc}))"
                 return _acc
+        # list-comprehension-lowering.md L2: a STRING-element array (a comprehension-bound
+        # local like `tmp_names`, a `List[str]` field, a repeat/literal) joins to a `string`
+        # — regardless of whether it is tracked as an `_array_locals` entry. Fires before the
+        # int `is_array` path below. @mutable_state (the elem-type map is empty elsewhere).
+        if self._join_arg_elem_is_string(arg_ir):
+            _sep2 = (self._expr_to_whyml(_recv, local_refs or set(), invariant_ctx, subst)
+                     if _recv is not None else '" "')
+            # A seq-promoted (`.append`-grown) string list is a `seq string`, not `array
+            # string` — use the seq-join variant (`lines = [f"…"]; lines.append(…)`).
+            if (arg_ir.get("type") == "Var"
+                    and arg_ir.get("name") in getattr(self, "_seq_locals", set())):
+                self._add_abstract_op(
+                    "val str_join_seq (sep: string) (xs: seq string) : string\n"
+                    "    ensures { String.length result >= 0 }")
+                return f"(str_join_seq {_sep2} {args[0]})"
+            self._add_abstract_op(
+                "val str_join_arr (sep: string) (xs: array string) : string\n"
+                "    ensures { String.length result >= 0 }")
+            return f"(str_join_arr {_sep2} {args[0]})"
         var_name = arg_ir.get("name", "") if arg_ir.get("type") == "Var" else ""
         is_array = (var_name in getattr(self, "_array_locals", set()) or
                     var_name in getattr(self, "_current_array1d_params", set()))
@@ -2108,6 +2127,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             for _p in _parts[1:]:
                 _rir = {"type": "Attribute", "object": _rir, "attr": _p}
             return self._expr_to_whyml(_rir, local_refs, invariant_ctx, subst)
+        # list-comprehension-lowering.md L7: `re.findall(pat, s)` → an abstract `array
+        # string` (a list of matched substrings) with STRING args — modeled BEFORE the
+        # generic arg-coercion (which would hash the pattern literal to int). Content
+        # unmodeled (sound); only the type + `len` matter. @mutable_state-gated.
+        if (isinstance(func_name, str) and func_name.endswith(".findall")
+                and len(expr.get("args", [])) == 2
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            _a = expr["args"]
+            _p = self._expr_to_whyml(_a[0], local_refs or set(), invariant_ctx, subst)
+            _s = self._expr_to_whyml(_a[1], local_refs or set(), invariant_ctx, subst)
+            self._add_abstract_op("val findall_str (pat s: string) : array string")
+            return f"(findall_str {_p} {_s})"
         # A3 (bounded itertools): resolve `len(list(chain(…)))` / `len(chain(…))`
         # to a sum of `Array.length` BEFORE lowering the inner args, so the
         # opaque `chain_*`/`list_new` abstract ops are never emitted.

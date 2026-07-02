@@ -555,10 +555,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops
     def _handle_tuple_unpack_stmt(self, stmt: TupleUnpackStmt, rest: List[Dict[str, Any]],
                                    local_refs: Set[str], declared_refs: Set[str],
                                    indent: str, in_loop: bool) -> str:
@@ -614,6 +613,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         lines = [f"{indent}let ({pattern}) = {val_whyml} in"]
         n_tu = len(tmp_names)
         i_tu = 0
+        #@ loop invariant 0 <= i_tu and i_tu <= n_tu
+        #@ loop invariant n_tu == len(tmp_names)
+        #@ loop invariant len(safe_targets) == len(tmp_names)
+        #@ loop variant n_tu - i_tu
         while i_tu < n_tu:
             tmp = tmp_names[i_tu]
             st = safe_targets[i_tu]

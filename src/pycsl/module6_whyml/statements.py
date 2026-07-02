@@ -1457,6 +1457,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # `is_array` sites WITHOUT touching `_array_locals` (declaration path).
         # Reset per body — `_typed_local_vars` is called once per `_emit_body_code`.
         self._inline_array_temps = set(array_vars)
+        # list-comprehension-lowering.md L2/L6: element type of an array local (string /
+        # emit_ir / int) — computed BEFORE the string-local collectors so `pattern = ",
+        # ".join(xs)` and `xs[i]` are seen as string when their array carries strings.
+        self._array_elem_types = self._collect_array_elem_types(body_stmts)
         # 07-2333-rev2 TP-1 (str locals): a `str`-typed local (symbol-table τ = str/string,
         # not a formal param) must NOT be pre-declared as `ref 0 : ref int` — it is let-bound
         # at first assignment with its string value (`let r = "ab" in`), the local counterpart
@@ -1493,9 +1497,6 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # `seq int … expected int` leak). Params are not in pre_decl_vars, so unioning the
         # full set is safe.
         seq_local_vars = getattr(self, "_seq_locals", set()) - set(self._formal_params)
-        # list-comprehension-lowering.md L2/L6: element type of an array local (string /
-        # emit_ir / int) so `", ".join(xs)` and `xs[i]` type-check at the element type.
-        self._array_elem_types = self._collect_array_elem_types(body_stmts)
         return (array_vars | dict_vars | lambda_vars | record_vars | variant_vars
                 | set(tuple_vars) | string_vars | seq_local_vars
                 | getattr(self, "_emit_ir_local_vars", set()))
@@ -1528,6 +1529,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             t = v.get("type")
             if t == "ListComp":
                 return _elt_ty(v.get("elt", {}))
+            if t == "Call" and isinstance(v.get("func"), str) and v["func"].endswith(".findall"):
+                return "string"      # L7: re.findall → array string
             if t == "BinOp" and v.get("op") == "*":
                 for side in ("left", "right"):
                     s = v.get(side, {})

@@ -414,6 +414,10 @@ class TypeInferenceMixin:
                     fn = val.get("func", "")
                     if tgt and self._call_return_whyml_type(fn) == "array int":
                         found.add(tgt)
+                    # list-comprehension-lowering.md L7: `re.findall(...)` → `array string`.
+                    elif (tgt and isinstance(fn, str) and fn.endswith(".findall")
+                          and getattr(self, "_mutable_state_classes", None)):
+                        found.add(tgt)
                 # list-comprehension-lowering.md L1: a local first-assigned a list
                 # comprehension is an array local (its element-typed array from
                 # `list_comp_<τ>`). @mutable_state-gated → byte-identical for the corpus.
