@@ -95,12 +95,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     @staticmethod
     def _coerce_str_arg(whyml_str: str) -> str:
         return ""
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _materialize_if_seq(self, whyml_str: str, arg_ir: Dict[str, Any]) -> str:
-        return ""
+    def _materialize_if_seq(self, whyml_str: str, arg_ir: "ExprIR") -> str:
+        """L2 (os-bodyvc-spec): if `arg_ir` is a seq-promoted local Var, bridge it seq→array with
+        `materialize` so it can flow into an `array int` slot (e.g. `bytes(parts)`,
+        `_write_entry(p, slot, n, parts)`). The return-arr `materialize` val is `seq int -> array int`
+        (length+element preserving), emitted on demand. Non-seq args are returned unchanged."""
+        if (isinstance(arg_ir, dict) and arg_ir.get("type") == "Var"
+                and arg_ir.get("name") in getattr(self, "_seq_locals", set())):
+            self._materialize_bridge()
+            return f"(materialize {whyml_str})"
+        return whyml_str
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -177,7 +184,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _is_float_expr(self, ir: Dict[str, Any]) -> bool:
+    def _is_float_expr(self, ir: "ExprIR") -> bool:
         return ""
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -217,7 +224,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_sum_call(self, expr: Dict[str, Any]) -> str:
+    def _handle_sum_call(self, expr: "ExprIR") -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate

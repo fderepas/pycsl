@@ -277,7 +277,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return str(stable_hash(whyml_str))
         return whyml_str
 
-    def _materialize_if_seq(self, whyml_str: str, arg_ir: Dict[str, Any]) -> str:
+    def _materialize_if_seq(self, whyml_str: str, arg_ir: "ExprIR") -> str:
         """L2 (os-bodyvc-spec): if `arg_ir` is a seq-promoted local Var, bridge it seq→array with
         `materialize` so it can flow into an `array int` slot (e.g. `bytes(parts)`,
         `_write_entry(p, slot, n, parts)`). The return-arr `materialize` val is `seq int -> array int`
