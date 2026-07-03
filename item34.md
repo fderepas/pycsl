@@ -63,7 +63,7 @@ verifies un-`\trusted` → byte-diff 0 (corpus) → suite green.
 | **CF3 ✅** | `_handle_while_stmt` | loop invariants/variants (the SQ5 `0<=idx`/variant discipline reused); recurse. | tbd | ◻ TODO |
 | **CF4 ✅** | `_handle_for_stmt` | iterable classification + the for-loop invariant/variant (already added for the emitter for-loops). | tbd | ◻ TODO |
 | **CF5 ✅** | `_handle_try_stmt` | the deepest CF handler — LANDED (4th pass). Uniform `seq string` name-collections (snapshot-at-source), map-based sets, string-or, exception-arm tables. Proven; byte-diff 0. | `\nothing` | ✅ DONE |
-| **CF6** | `_handle_match_stmt` | match-case tables — broadest. **Explored end-to-end (type-checkable, NOT a Ceiling); PARKED** — architecturally invasive (see §7b). | `\nothing` | ◻ PARKED |
+| **CF6 ✅** | `_handle_match_stmt` | match-case tables — broadest. LANDED via `cf6.md` (additive+gated): `stmts_of` opaque stmt-list vs `args_of` reflected list; subscript-vs-`.get` `pattern` split; IR-mutation no-op; `cases`-gated `List[Dict]`→emit_ir. Proven; byte-diff 0. | `\nothing` | ✅ DONE |
 
 CF0 gates CF1–CF6; CF1 (read-only) is the cheapest end-to-end validation of the CF0 setup.
 
@@ -105,7 +105,7 @@ CF0 gates CF1–CF6; CF1 (read-only) is the cheapest end-to-end validation of th
 | Item 4 · CF3 while | ✅ DONE (proven) |
 | Item 4 · CF4 for | ✅ DONE (proven, byte-diff 0) — tuple-return gap fixed |
 | Item 4 · CF5 try | ✅ DONE (proven, byte-diff 0) — uniform seq-string model (snapshot-at-source) landed the deepest handler (17th) |
-| Item 4 · CF6 match | ◻ PARKED — fully explored (type-checkable); architecturally invasive, reverted to green. See §7b |
+| Item 4 · CF6 match | ✅ DONE (proven, byte-diff 0) — landed via `cf6.md` (additive+gated pass); 18th & FINAL handler |
 
 **Verification (per CF stage):**
 ```bash

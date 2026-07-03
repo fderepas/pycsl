@@ -583,6 +583,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                 local_refs: Set[str], declared_refs: Set[str],
                                 indent: str, in_loop: bool) -> str:
         arr = stmt.array.to_dict()
+        # cf6.md M1.4: `<emit_ir>[k] = v` (`c["pattern"] = new_pat`) writes to an IMMUTABLE
+        # emit_ir value — the rewrite is UNMODELLED, a sound no-op for the type-safety+frame
+        # contract (the reflected IR is never claimed updated; `cases` is a local copy so the
+        # frame holds). @mutable_state / emit_ir-gated -> byte-identical elsewhere.
+        if (getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())
+                and self._is_emit_ir_expr(arr)):
+            return f"{indent}()"
         if arr.get("type") == "Var":
             var_name = arr.get("name", "")
             if var_name in getattr(self, "_dict_locals", set()):
@@ -1524,6 +1532,19 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                     and _tg not in seen):
                                 seen.add(_tg)
                                 tuple_str.add(_tg)
+                # cf6.md M1.6: a tuple-unpack from a TUPLE LOCAL (`_uvar, uinfo = union_info`) —
+                # each target whose slot type is `string` is a string local. @mutable_state.
+                if (_ms_str and node.get("stmt") == "TupleUnpack"
+                        and isinstance(node.get("value"), dict)
+                        and node["value"].get("type") == "Var"):
+                    _slt = getattr(self, "_tuple_var_slot_types", {}).get(
+                        node["value"].get("name"))
+                    if _slt:
+                        for _i, _tg in enumerate(node.get("targets", [])):
+                            if (_i < len(_slt) and _slt[_i] == "string"
+                                    and _tg not in seen):
+                                seen.add(_tg)
+                                tuple_str.add(_tg)
                 # resync-campaign.md R2: a tuple-unpack from a TUPLE LITERAL (`_lhs, _cur =
                 # f"{_fld} <-", _fld`) — each target whose element is string-typed is a string
                 # local. @mutable_state.
@@ -1610,11 +1631,23 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                             isinstance(_v, dict) and _v.get("type") == "None"):
                         seen.add(tgt)
                         firsts.append((tgt, _v))
+                # cf6.md M1.6: a tuple-unpack from a TUPLE LOCAL (`_uvar, uinfo = union_info`) —
+                # each target whose slot type is `emit_ir` is an emit_ir local.
+                if (node.get("stmt") == "TupleUnpack"
+                        and isinstance(node.get("value"), dict)
+                        and node["value"].get("type") == "Var"):
+                    _slt = getattr(self, "_tuple_var_slot_types", {}).get(
+                        node["value"].get("name"))
+                    if _slt:
+                        for _i, _tg in enumerate(node.get("targets", [])):
+                            if _i < len(_slt) and _slt[_i] == "emit_ir":
+                                tuple_emit.add(_tg)
                 for x in node.values():
                     rec(x)
             elif isinstance(node, list):
                 for x in node:
                     rec(x)
+        tuple_emit: Set[str] = set()
         rec(body_stmts)
 
         def _is_emit_ir_val(v: Any, known: Set[str]) -> bool:
@@ -1652,6 +1685,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     if st is not None and st.get(tgt) in (None, "Any"):
                         st[tgt] = "ExprIR"   # so reflection on the local sees emit_ir
                     changed = True
+        # cf6.md M1.6: emit_ir targets of a tuple-local unpack (`uinfo`).
+        for _tg in tuple_emit:
+            out.add(_tg)
+            if st is not None and st.get(_tg) in (None, "Any"):
+                st[_tg] = "ExprIR"
         return out
 
     def _typed_local_vars(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
@@ -1693,6 +1731,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # list-comprehension-lowering.md L2/L6: element type of an array local (string /
         # emit_ir / int) — computed BEFORE the string-local collectors so `pattern = ",
         # ".join(xs)` and `xs[i]` are seen as string when their array carries strings.
+        # cf6.md M2: a 2-pass fixpoint for the mutual dependency between array-element types and
+        # emit_ir locals — (1) classify array elements (`cases` → emit_ir from its field
+        # value_type), (2) classify emit_ir locals (now `c = cases[i]` / `pat = c["pattern"]`
+        # are structurally emit_ir, so `pat` is tagged), (3) re-classify array elements (now
+        # `existing_caps = pat.get("captures")` sees `pat` as emit_ir). Regression-safe: the
+        # emit_ir surface is `cases`-field- and @mutable_state-gated, so no corpus/non-match
+        # local reclassifies (pass 2 is a no-op there and pass 3 == pass 1).
+        self._array_elem_types = self._collect_array_elem_types(body_stmts)
+        self._emit_ir_local_vars = self._collect_emit_ir_result_locals(body_stmts)
         self._array_elem_types = self._collect_array_elem_types(body_stmts)
         # seq-model-pivot.md SQ1: a REASSIGNED list-elem local (assigned >1×) is modeled as
         # an immutable `seq` (freely reassignable), not a mutable `array` — a `ref (array _)`
@@ -1840,6 +1887,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     return "string"
                 if _fn in ("sorted", "set", "frozenset", "list") and v.get("args"):
                     return _val_elem_ty(v["args"][0])
+                # cf6.md M1.6: `<emit_ir>.get("captures"/"args")` reads the args LIST
+                # (`args_of`) - an emit_ir-element array (`existing_caps`).
+                if _fn.endswith(".get"):
+                    _ga = v.get("args") or []
+                    if (_ga and isinstance(_ga[0], dict) and _ga[0].get("type") == "String"
+                            and _ga[0].get("value") in ("captures", "args")
+                            and self._is_emit_ir_expr(
+                                {"type": "Var", "name": _fn[:-len(".get")]})):
+                        return "emit_ir"
+            # cf6.md M1.6: `<array> or []` - the element class is the left array's.
+            if t == "BinOp" and v.get("op") == "or":
+                return _val_elem_ty(v.get("left", {}))
             if (t == "BinOp" and v.get("op") == "+"
                     and isinstance(v.get("left"), dict)
                     and v["left"].get("type") in ("ArrayLit", "ListLit", "ListComp")):

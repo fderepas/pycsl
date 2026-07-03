@@ -632,6 +632,10 @@ class FunctionEmissionMixin:
                 return "string"
             if st == "float":
                 return "real"
+            # cf6.md M1.6: an emit_ir-typed slot (`_match_subject_union_info` returns
+            # `(str, ExprIR)`) → `emit_ir`, so the union-info unpack types `uinfo` as a node.
+            if st in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR"):
+                return "emit_ir"
             return "int"
         if t in ("ListLit", "ArrayLit", "ListComp", "SliceAccess"):
             return "array int"

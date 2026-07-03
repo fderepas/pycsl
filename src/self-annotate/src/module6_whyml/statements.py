@@ -167,6 +167,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     def _str_operand_to_int(self, s: str) -> str:
         return ""
 
+    # cf6.md M1.4: the emit_ir-node predicate (`_handle_array_set_stmt` uses it to no-op an
+    # `<emit_ir>[k]=v` write). Cross-mixin (lives in ExpressionEmissionMixin); a \trusted stub
+    # here so the reflecting mirror type-checks the call.
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    def _is_emit_ir_expr(self, ir: "ExprIR") -> bool:
+        return False
+
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
     def _field_label(self, record_lower: str, field: str) -> str:
@@ -776,6 +784,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                 local_refs: Set[str], declared_refs: Set[str],
                                 indent: str, in_loop: bool) -> str:
         arr = stmt.array.to_dict()
+        # cf6.md M1.4: `<emit_ir>[k] = v` (`c["pattern"] = new_pat`) writes to an IMMUTABLE
+        # emit_ir value — the rewrite is UNMODELLED, a sound no-op for the type-safety+frame
+        # contract (the reflected IR is never claimed updated; `cases` is a local copy so the
+        # frame holds). @mutable_state / emit_ir-gated -> byte-identical elsewhere.
+        if (getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())
+                and self._is_emit_ir_expr(arr)):
+            return f"{indent}()"
         if arr.get("type") == "Var":
             var_name = arr.get("name", "")
             if var_name in getattr(self, "_dict_locals", set()):

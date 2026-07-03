@@ -2771,6 +2771,10 @@ class PreambleEmissionMixin:
             " `array emit_ir` (sound; the ADT carries only arg0/nargs, so content is"
             " unmodelled). Used by the emitter's `val_ir.get(\"args\")`. *)",
             "  val args_of (e: emit_ir) : array emit_ir",
+            "  (* cf6.md M1.1: the OPAQUE statement-list of a match case (`c.get(\"body\")`) —"
+            " an `array int` (stmt-lists stay int-opaque, feeding `_stmts_to_whyml`), distinct"
+            " from `args_of`'s reflected `array emit_ir`. *)",
+            "  val stmts_of (e: emit_ir) : array int",
             "",
             "  let function svalue_of (e: emit_ir) : emit_ir =",
             "    match e with IrSub v _ -> v | _ -> IrOther \"\" end",

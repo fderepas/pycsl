@@ -92,9 +92,16 @@ _EMIT_IR_PROJ = {
     "type": "kind_of", "name": "name_of", "attr": "name_of", "field": "name_of",
     "func": "func_of", "value": "svalue_of", "object": "object_of", "index": "sindex_of",
     "args": "args_of",   # resync-campaign.md R1: the args LIST → `array emit_ir`
+    # cf6.md M1.1: match pattern/case keys — `pattern` (KIND) / `ctor` (NAME) are strings;
+    # `captures` is a reflected node list (`args_of`); `body` is an OPAQUE stmt-list
+    # (`stmts_of : → array int`); `guard` is a single node (`svalue_of`).
+    "pattern": "kind_of", "ctor": "name_of", "captures": "args_of",
+    "body": "stmts_of", "guard": "svalue_of",
 }
-_EMIT_IR_STR_KEYS = ("type", "name", "attr", "field", "func")   # → string projections
-_EMIT_IR_NODE_KEYS = ("value", "object", "index")               # → emit_ir sub-nodes
+# `pattern` is CONTEXT-DEPENDENT: SUBSCRIPT `c["pattern"]` → a sub-NODE (below); `.get("pattern")`
+# → the KIND string (here). Different code paths read each tuple, so it appears in both.
+_EMIT_IR_STR_KEYS = ("type", "name", "attr", "field", "func", "ctor", "pattern")   # via `.get`
+_EMIT_IR_NODE_KEYS = ("value", "object", "index", "pattern", "guard")   # via subscript → node
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
 from module6_whyml.expr_ghost_spec_ops import GhostSpecOpsMixin
@@ -134,6 +141,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # int `<> 0` coercion. @mutable_state emit_ir reflection only.
         if whyml_str.startswith("(args_of "):
             return f"(Array.length {whyml_str} <> 0)"
+        # cf6.md M1.6: `if existing_caps:` on an emit_ir-element ARRAY LOCAL is array-emptiness.
+        if (t == "Var"
+                and getattr(self, "_array_elem_types", {}).get(ir_expr.get("name")) == "emit_ir"):
+            return f"(Array.length ({whyml_str}) <> 0)"
+        # cf6.md M1.6: `if wb.strip():` — a STRING truthiness is non-emptiness. @mutable_state.
+        if (getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())
+                and self._is_string_expr(ir_expr)):
+            self._add_abstract_op(
+                "val str_eq_op (a b: string) : bool\n"
+                "    ensures { result <-> (a = b) }")
+            return f'(not (str_eq_op {whyml_str} ""))'
         # Already boolean: comparisons, not, bool literals, isinstance
         if t == "BinOp" and op in ("==", "!=", "<", ">", "<=", ">=", "in", "not in"):
             return whyml_str
@@ -557,6 +576,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 rec = getattr(self, "_current_symbol_table", {}).get(obj.get("name", ""))
                 rt = getattr(self, "_record_types", {}).get(rec)
                 if rt:
+                    # cf6.md M1.5: a field carrying a `value_type` (element type) is a COLLECTION
+                    # (`List[ExprIR]` → `array emit_ir`), NOT a scalar node — `_irnode_ann_name`
+                    # mis-tags `List[ExprIR]` as scalar `"ExprIR"`, so guard on the collection
+                    # marker. A scalar `value: ExprIR` field has no value_type → still matched.
+                    if ir.get("attr", "") in rt.get("field_value_types", {}):
+                        return False
                     ft = rt.get("field_types", {}).get(ir.get("attr", ""))
                     return ft in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR", "emit_ir")
             # self-ir-schema.md IR2: `<emit_ir>.value` / `.target` (a StmtIR field access on
@@ -974,9 +999,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return True
             # §26: subscript-form emit_ir string-projection `<emit_ir>["type"/"name"/
             # "attr"/"func"]` (the string keys) → string, for `arr["value"]["name"]`.
+            # cf6.md M1.3: EXCLUDE node keys — as a SUBSCRIPT `c["pattern"]` reads a sub-NODE,
+            # not the kind string (only `.get("pattern")` is the kind).
             _kir = ir.get("index", {})
             if (isinstance(_kir, dict) and _kir.get("type") == "String"
                     and _kir.get("value") in _EMIT_IR_STR_KEYS
+                    and _kir.get("value") not in _EMIT_IR_NODE_KEYS
                     and self._is_emit_ir_expr(ir.get("value", {}))):
                 return True
             # list-comprehension-lowering.md L5/L6: a `self.<dict[str,str]-field>[k]` read
@@ -1157,6 +1185,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _nn = expr["right"] if expr["left"].get("type") == "None" else expr["left"]
             if self._is_emit_ir_expr(_nn):
                 return "false" if raw_op == "==" else "true"
+            # cf6.md M1.6: `<tuple-local> is None` — a tuple value (`union_info =
+            # self._match_subject_union_info(…)`) is always present in this model, so `is None`
+            # → false / `is not None` → true (sound always-present; both `if` arms type-check).
+            if (isinstance(_nn, dict) and _nn.get("type") == "Var"
+                    and _nn.get("name") in getattr(self, "_ghost_tuple_vars", {})):
+                return "false" if raw_op == "==" else "true"
             # i-feel-good.md I-B: `x is None`/`is not None` on a string-typed operand — an
             # `Optional[str]` local (the emitter's `self_field_name = None; … = <str>`).
             # Same sound always-present model (empty-string "" is the absent sentinel; both
@@ -1292,6 +1326,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             inner = f"(pycsl_mod {left} {right})"
             return self._wrap_with_no_exception_assert(("binop", raw_op), [left, right], inner)
         if op in ("&&", "||"):
+            # cf6.md M1.6: `<array> or []` (`pat.get("captures", []) or []`) is the redundant
+            # empty-list default — the value IS the left array (`args_of pat`). @mutable_state.
+            _rr = expr.get("right", {})
+            if (op == "||" and not self._in_spec
+                    and getattr(self, "_current_self_type", None)
+                    in getattr(self, "_mutable_state_classes", set())
+                    and isinstance(_rr, dict)
+                    and _rr.get("type") in ("ListLit", "ListLiteral", "ArrayLit", "List")
+                    and not (_rr.get("elements") or _rr.get("elts") or _rr.get("values"))
+                    and left.startswith("(args_of ")):
+                return left
             # item34.md CF5: Python `<str> or <str>` (`h.get("exc_type") or "PyCSL_Exception"`)
             # returns the FIRST truthy STRING — `if not (str_eq_op a "") then a else b`. Both
             # operands string-typed, not in spec. @mutable_state.
@@ -3529,7 +3574,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _kidx = expr.get("index", {})
         if (isinstance(_kidx, dict) and _kidx.get("type") == "String"
                 and self._is_emit_ir_expr(value)):
-            _proj = _EMIT_IR_PROJ.get(_kidx.get("value"))
+            # cf6.md M1.3: SUBSCRIPT `c["pattern"]` reads the pattern SUB-NODE (`svalue_of`),
+            # whereas `.get("pattern")` reads its KIND string — same key, different meaning at
+            # different nesting. So subscript "pattern" projects to a NODE, not `kind_of`.
+            _kv = _kidx.get("value")
+            _proj = "svalue_of" if _kv == "pattern" else _EMIT_IR_PROJ.get(_kv)
             if _proj:
                 return f"({_proj} {self._expr_to_whyml(value, local_refs or set(), invariant_ctx, subst)})"
         # §26: `X[k]` where X aliases a self dict-field → `Map.get self.<field> <k>` (the

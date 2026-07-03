@@ -484,36 +484,154 @@ class ControlFlowStmtMixin:
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _pattern_has_constructor(self, pat: int) -> bool:
+    def _pattern_has_constructor(self, pat: "ExprIR") -> bool:
         return False
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _render_match_pattern(self, pat: int, top: bool=False) -> str:
+    def _match_pattern_cond(self, pat: "ExprIR", subject: str, local_refs: Set[str]) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _match_subject_union_info(self, stmt: int) -> int:
-        return None
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _union_ctor_for_arm_tag(self, vinfo: int, arm_tag: str) -> int:
-        return None
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_match_stmt(self, stmt: int, rest: List[int], local_refs: int, declared_refs: int, indent: str, in_loop: bool) -> str:
+    def _render_match_pattern(self, pat: "ExprIR", top: bool=False) -> str:
         return ""
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _match_subject_union_info(self, stmt: "ExprIR") -> Tuple[str, "ExprIR"]:
+        return ("", stmt)
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _union_ctor_for_arm_tag(self, vinfo: "ExprIR", arm_tag: str) -> Tuple[str, "ExprIR"]:
+        return ("", vinfo)
+
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _handle_match_stmt(self, stmt: MatchStmt, rest: List[Dict[str, Any]],
+                           local_refs: Set[str], declared_refs: Set[str],
+                           indent: str, in_loop: bool) -> str:
+        subject = self._expr_to_whyml(stmt.subject, local_refs)
+        cases = stmt.cases
+        # typing-engagement ty1 / 25-1700-typing-spec-1 §1.3 C9: a `match` on a
+        # Union-typed value must lower to a constructor-pattern match over the
+        # synthesized variant's constructors (`Arm_0_0 v -> ...`), NOT against
+        # the bare type name (`int -> ...`). A `case int():` pattern on a
+        # `Union[int, str]` subject is rewritten to the variant's `int`-armed
+        # constructor with a bound carrier, so Why3's native exhaustiveness
+        # check fires on a missing arm. (GAP-002.)
+        # `_match_subject_union_info` does deep dict inspection of the subject;
+        # pass the round-tripped dict (expressions.py is Phase B+ scope).
+        union_info = self._match_subject_union_info(stmt.to_dict())
+        if union_info is not None:
+            _uvar, uinfo = union_info
+            for c in cases:
+                pat = c["pattern"]
+                if pat.get("pattern") != "Constructor":
+                    continue
+                ctor_name = pat.get("ctor", "")
+                # `case int():` / `case str():` — map the type name to the
+                # variant's constructor for that arm.
+                match = self._union_ctor_for_arm_tag(uinfo, ctor_name)
+                if match is not None:
+                    arm_ctor, arm_ctor_info = match
+                    # Bind the carrier to a fresh local so the arm body can
+                    # use it; if the case captured a name, reuse it.
+                    existing_caps = pat.get("captures", []) or []
+                    if existing_caps:
+                        bind_name = self._render_match_pattern(existing_caps[0])
+                    else:
+                        bind_name = f"_u_{arm_ctor}"
+                    # Rewrite the pattern to the variant constructor with the
+                    # bound carrier. The carrier is positional.
+                    new_pat = {"pattern": "Constructor", "ctor": arm_ctor,
+                               "captures": [{"pattern": "Capture",
+                                             "name": bind_name}]}
+                    c["pattern"] = new_pat
+        # sum-types: a constructor-pattern match over a `#@ datatype` lowers to a real Why3
+        # `match … with` (so Why3 checks exhaustiveness), not the value-pattern if-chain.
+        # A5c: route to the native match if ANY arm involves a constructor — directly
+        # or inside an `Or` pattern (`case Red() | Green():`).
+        if any(self._pattern_has_constructor(c["pattern"]) for c in cases):
+            # A5c: a Why3 `match` arm cannot carry a boolean guard, so a guarded
+            # arm (`case Ctor(x) if g`) becomes `<pat> -> if g then <body> else
+            # <fall-through>`, where the fall-through is the catch-all (wildcard)
+            # body — the case a guard failure falls through to. The wildcard
+            # body is computed once. (Guarded arms without a wildcard catch-all
+            # fall through to `()` — documented boundary; Python guarded matches
+            # need a catch-all to be exhaustive anyway.)
+            wildcard_body = None
+            for c in cases:
+                if c["pattern"].get("pattern") == "Wildcard":
+                    wb = self._stmts_to_whyml(c.get("body", []), local_refs,
+                                              declared_refs.copy(), indent + "    ", in_loop)
+                    wildcard_body = wb if wb.strip() else f"{indent}    ()"
+                    break
+            arms: List[str] = []
+            for c in cases:
+                pat = c["pattern"]
+                body_str = self._stmts_to_whyml(c.get("body", []), local_refs,
+                                                declared_refs.copy(), indent + "    ", in_loop)
+                if not body_str.strip():
+                    body_str = f"{indent}    ()"
+                # A5c: render the pattern recursively — nested constructors
+                # (`Wrap (A n)`) and or-patterns (`Red | Green`) included.
+                arm = self._render_match_pattern(pat, top=True)
+                guard = c.get("guard")
+                if guard:
+                    guard_str = self._to_bool(
+                        self._expr_to_whyml(guard, local_refs), guard)
+                    fb = wildcard_body if wildcard_body is not None else f"{indent}    ()"
+                    body_str = (f"{indent}    if {guard_str} then begin\n{body_str}\n"
+                                f"{indent}    end else begin\n{fb}\n{indent}    end")
+                arms.append(f"{indent}  | {arm} ->\n{body_str}")
+            code = f"{indent}match {subject} with\n" + "\n".join(arms) + f"\n{indent}  end"
+            if rest:
+                code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+            return code
+        lines = []
+        n_cases = len(cases)
+        i_case = 0
+        #@ loop invariant 0 <= i_case and i_case <= n_cases
+        #@ loop invariant n_cases == len(cases)
+        #@ loop variant n_cases - i_case
+        while i_case < n_cases:
+            c = cases[i_case]
+            pat = c["pattern"]
+            guard = c.get("guard")
+            body_stmts = c.get("body", [])
+            body_str = self._stmts_to_whyml(body_stmts, local_refs, declared_refs.copy(),
+                                             indent + "  ", in_loop)
+            if not body_str:
+                body_str = f"{indent}  ()"
+            cond = self._match_pattern_cond(pat, subject, local_refs)
+            if guard:
+                guard_str = self._expr_to_whyml(guard, local_refs)
+                guard_str = self._to_bool(guard_str, guard)
+                cond = f"({cond} && {guard_str})" if cond != "true" else guard_str
+            if i_case == 0:
+                lines.append(f"{indent}if {cond} then begin")
+            elif cond == "true":
+                lines.append(f"{indent}end else begin")
+            else:
+                lines.append(f"{indent}end else if {cond} then begin")
+            lines.append(body_str)
+            i_case += 1
+        lines.append(f"{indent}end")
+        code = "\n".join(lines)
+        if rest:
+            code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+        return code
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

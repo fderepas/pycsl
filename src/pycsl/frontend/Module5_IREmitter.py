@@ -1833,6 +1833,9 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # @mutable_state module; inert for the dict path).
             else:
                 _le = self._m5_get_list_elem_type(child.annotation)
+                # cf6.md M1.2: a `cases: List[Dict[...]]` field (local class-def path) → emit_ir.
+                if _le is None and self._cf6_is_cases_list_of_dict(fname, child.annotation):
+                    _le = "emit_ir"
                 if _le is not None:
                     _fld["value_type"] = _le
             fields.append(_fld)
@@ -2136,6 +2139,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         _fld2["value_type"] = _vt2
                     else:
                         _le2 = self._m5_get_list_elem_type(stmt.annotation)
+                        # cf6.md M1.2: MatchStmt.cases (imported @dataclass) → array emit_ir.
+                        if _le2 is None and self._cf6_is_cases_list_of_dict(
+                                stmt.target.id, stmt.annotation):
+                            _le2 = "emit_ir"
                         if _le2 is not None:
                             _fld2["value_type"] = _le2
                     fields.append(_fld2)
@@ -2966,6 +2973,25 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 # fall back to the legacy path (byte-identical) on any error.
                 pass
         return self._m5_get_type_name_legacy(annotation)
+
+    @staticmethod
+    def _cf6_is_cases_list_of_dict(field_name, annotation) -> bool:
+        """cf6.md M1.2: True iff `field_name == "cases"` and `annotation` is `List[Dict[...]]`
+        — the MatchStmt case list, reflectable as `array emit_ir`. GATED to the `cases` field
+        name so OTHER `List[Dict]` fields (e.g. TryStmt.handlers) stay int-opaque (the CF5-safe
+        choice). Byte-safe: the corpus has no `cases: List[Dict[...]]` record field."""
+        if field_name != "cases" or annotation is None:
+            return False
+        if type(annotation).__name__ != "Subscript" \
+                or type(getattr(annotation, "value", None)).__name__ != "Name" \
+                or getattr(annotation.value, "id", None) not in ("List", "list"):
+            return False
+        sl = getattr(annotation, "slice", None)
+        if type(sl).__name__ == "Index":
+            sl = getattr(sl, "value", sl)
+        return (type(sl).__name__ == "Subscript"
+                and type(getattr(sl, "value", None)).__name__ == "Name"
+                and getattr(sl.value, "id", None) in ("Dict", "dict"))
 
     @staticmethod
     def _m5_get_list_elem_type(annotation: ast.expr) -> Optional[str]:
