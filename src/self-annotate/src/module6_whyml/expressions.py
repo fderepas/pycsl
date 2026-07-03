@@ -788,8 +788,61 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_slice_access_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
+    def _slice_array_or_opaque(self, node: "ExprIR", arr: str, sl: "ExprIR", local_refs: Set[str], invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> str:
         return ""
+
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _handle_slice_access_expr(
+        self,
+        node: "ExprIR",
+        local_refs: Set[str],
+        invariant_ctx: bool,
+        subst: Optional[Dict[str, str]],
+    ) -> str:
+        arr = self._expr_to_whyml(node.value, local_refs, invariant_ctx, subst)
+        sl = node.slice.to_dict()
+        # seq-model-pivot.md SQ3: a slice of a seq local (`body_stmts[:-1]`) is a seq
+        # sub-sequence (`seq_sub`) — a pure immutable value, NO `array_slice`/region. Content
+        # opaque; the length law is conditional (sound). @mutable_state (via _seq_locals).
+        _bv = node.value.to_dict()
+        if (_bv.get("type") == "Var" and _bv.get("name") in getattr(self, "_seq_locals", set())):
+            _slo = (self._expr_to_whyml(sl["lower"], local_refs, invariant_ctx, subst)
+                    if sl.get("lower") else "0")
+            _shi = (self._expr_to_whyml(sl["upper"], local_refs, invariant_ctx, subst)
+                    if sl.get("upper") else f"(Seq.length {arr})")
+            self._add_abstract_op(
+                "val seq_sub (s: seq 'a) (lo hi: int) : seq 'a\n"
+                "    ensures { 0 <= lo <= hi <= Seq.length s -> Seq.length result = hi - lo }")
+            return f"(seq_sub {arr} {_slo} {_shi})"
+        # strings-plan Stage 2: `s[a:b]` on a string is `String.substring s a (b-a)`. Spec
+        # uses the logic symbol; body bridges through `str_sub_op` (and `str_length_op` for an
+        # omitted upper bound), since `String.substring`/`String.length` aren't program values.
+        if self._is_string_expr(node.value.to_dict()):
+            slo = self._expr_to_whyml(sl["lower"], local_refs, invariant_ctx, subst) if sl.get("lower") else "0"
+            if sl.get("upper"):
+                shi = self._expr_to_whyml(sl["upper"], local_refs, invariant_ctx, subst)
+            elif self._in_spec:
+                shi = f"(String.length {arr})"
+            else:
+                self._add_abstract_op("val str_length_op (s: string) : int\n"
+                                      "    ensures { result = (String.length s) }")
+                shi = f"(str_length_op {arr})"
+            slen = f"(({shi}) - ({slo}))"
+            if self._in_spec:
+                return f"(String.substring {arr} {slo} {slen})"
+            # The length lemma is baked into the bridge's `ensures`: deriving
+            # `String.length (substring s lo len) = len` from the substring theory makes the
+            # SMT backend OOM for general (non-literal) args, but the fact is sound (cf. the
+            # Stage-0 literal probe), so we supply it directly under its bounds guard.
+            self._add_abstract_op(
+                "val str_sub_op (s: string) (lo len: int) : string\n"
+                "    ensures { result = (String.substring s lo len) }\n"
+                "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
+                " -> String.length result = len }")
+            return f"(str_sub_op {arr} {slo} {slen})"
+        return self._slice_array_or_opaque(node, arr, sl, local_refs, invariant_ctx, subst)
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True

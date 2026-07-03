@@ -97,6 +97,7 @@ _EMIT_IR_PROJ = {
     # (`stmts_of : → array int`); `guard` is a single node (`svalue_of`).
     "pattern": "kind_of", "ctor": "name_of", "captures": "args_of",
     "body": "stmts_of", "guard": "svalue_of", "parts": "args_of", "elts": "args_of",
+    "lower": "svalue_of", "upper": "svalue_of",   # 07-03-refactor R4: SliceExpr bound sub-nodes
 }
 # `pattern` is CONTEXT-DEPENDENT: SUBSCRIPT `c["pattern"]` → a sub-NODE (below); `.get("pattern")`
 # → the KIND string (here). Different code paths read each tuple, so it appears in both.
@@ -163,6 +164,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # int `<> 0` coercion. @mutable_state emit_ir reflection only.
         if whyml_str.startswith("(args_of "):
             return f"(Array.length {whyml_str} <> 0)"
+        # 07-03-refactor R4: `if <emit_ir sub-node>:` (an Optional[ExprIR] field, e.g.
+        # `if sl.get("lower")`) is a present-guard; the sub-node is always-present in the model, so
+        # `true` is a sound over-approx for the type-safety+frame contract. @mutable_state.
+        if (getattr(self, "_current_self_type", None) in getattr(self, "_mutable_state_classes", set())
+                and any(whyml_str.startswith(p) for p in
+                        ("(svalue_of ", "(object_of ", "(sindex_of ", "(arg0_of "))):
+            return "true"
         # cf6.md M1.6: `if existing_caps:` on an emit_ir-element ARRAY LOCAL is array-emptiness.
         if (t == "Var"
                 and getattr(self, "_array_elem_types", {}).get(ir_expr.get("name")) == "emit_ir"):
@@ -4380,6 +4388,34 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         local_refs.add(target)
         return f"(let {target} = ref {v} in !{target})"
 
+    def _slice_array_or_opaque(self, node: "ExprIR", arr: str, sl: "ExprIR",
+                               local_refs: Set[str], invariant_ctx: bool,
+                               subst: Optional[Dict[str, str]]) -> str:
+        """The array-source / opaque tail of `_handle_slice_access_expr`: `Array.sub` for a known
+        array source (`_field_type_of(val) in list/tuple/…`), else the opaque `array_slice`.
+        Extracted (07-03-refactor R4) as the trusted leaf — it calls `_field_type_of` (types.py),
+        whose cross-file stub defaults to int, so the whole tail stays trusted while the seq/string
+        slice cases in `_handle_slice_access_expr` convert."""
+        lo = self._expr_to_whyml(sl["lower"], local_refs, invariant_ctx, subst) if sl.get("lower") else "0"
+        hi = self._expr_to_whyml(sl["upper"], local_refs, invariant_ctx, subst) if sl.get("upper") else f"(Array.length {arr})"
+        val = node.value.to_dict()
+        is_array_src = False
+        if val.get("type") in ("Attribute", "FieldGet"):
+            if self._field_type_of(val) in ("list", "tuple", "bytes", "bytearray"):
+                is_array_src = True
+        elif val.get("type") == "Var":
+            vn = val.get("name", "")
+            if (vn in getattr(self, "_array_locals", set()) or
+                    vn in getattr(self, "_current_array1d_params", set()) or
+                    self._current_symbol_table.get(vn) == "list"
+                    or vn in getattr(self, "_array_elem_types", {})):
+                is_array_src = True
+        if is_array_src:
+            return f"(Array.sub {arr} ({lo}) (({hi}) - ({lo})))"
+        self._add_abstract_op("val array_slice (a: array int) (lo: int) (hi: int) : array int")
+        arr = self._array_coerce_arg(arr)
+        return f"(array_slice {arr} {lo} {hi})"
+
     def _handle_slice_access_expr(
         self,
         node: "ExprIR",
@@ -4428,36 +4464,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
                 " -> String.length result = len }")
             return f"(str_sub_op {arr} {slo} {slen})"
-        lo = self._expr_to_whyml(sl["lower"], local_refs, invariant_ctx, subst) if sl.get("lower") else "0"
-        hi = self._expr_to_whyml(sl["upper"], local_refs, invariant_ctx, subst) if sl.get("upper") else f"(Array.length {arr})"
-        # A known-array source (record array-field like `self.disk`, or an
-        # array local/param) gets real `Array.sub` semantics: the result has
-        # known length `hi-lo` and content `result[i] = arr[lo+i]`, so the
-        # prover can reason about read-back content (needed for round-trip
-        # proofs). Why3's `Array.sub` carries the bounds preconditions
-        # (`0<=lo`, `0<=len`, `lo+len <= length arr`), discharged from the
-        # caller's `requires`/invariants. Only genuinely-int sources (e.g.
-        # `str_conv s` for a sliced string param) fall back to the opaque
-        # `array_slice` placeholder.
-        val = node.value.to_dict()
-        is_array_src = False
-        if val.get("type") in ("Attribute", "FieldGet"):
-            if self._field_type_of(val) in ("list", "tuple", "bytes", "bytearray"):
-                is_array_src = True
-        elif val.get("type") == "Var":
-            vn = val.get("name", "")
-            if (vn in getattr(self, "_array_locals", set()) or
-                    vn in getattr(self, "_current_array1d_params", set()) or
-                    self._current_symbol_table.get(vn) == "list"
-                    # self-ir-schema.md IR2: a comprehension/field array local
-                    # (`body_stmts[:-1]`) slices with the polymorphic `Array.sub`.
-                    or vn in getattr(self, "_array_elem_types", {})):
-                is_array_src = True
-        if is_array_src:
-            return f"(Array.sub {arr} ({lo}) (({hi}) - ({lo})))"
-        self._add_abstract_op("val array_slice (a: array int) (lo: int) (hi: int) : array int")
-        arr = self._array_coerce_arg(arr)
-        return f"(array_slice {arr} {lo} {hi})"
+        return self._slice_array_or_opaque(node, arr, sl, local_refs, invariant_ctx, subst)
 
     def _handle_arraylen_expr(
         self,
