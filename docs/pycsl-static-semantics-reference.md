@@ -555,6 +555,23 @@ signal. The exemption is keyed on the IR `is_noreturn` flag (from the
 `-> NoReturn` annotation), NOT on the inferred postcondition — the latter
 would exempt every genuinely-vacuous function, defeating the gate.
 
+**The non-vacuity gate is ON BY DEFAULT (fail-closed).** After a file verifies,
+every body-bearing function is re-probed with an injected `ensures false`
+(`split_vc`, one goal per NORMAL-EXIT path); a function VACUOUS on ALL its exits
+(its assumed context is logically inconsistent, so every postcondition —
+including a false one — discharges for free) FAILS the run, naming the
+function. This closes the SMT nonlinear-integer-division vacuity soundness hole
+(`non-lin-int-div-fixed.md`; `csys-vacuity-investigation/ROOT-CAUSE.md`): a VC
+whose hypotheses the solver turns inconsistent can no longer certify a false
+`ensures` as green. Opt out with `--no-check-vacuity` (fast dev / byte-diff
+sweeps; `--no-proof` also skips it, so the gate never runs on the byte-diff
+path). **Two exemptions** — a function whose SOUND green is expected-vacuous on
+its unreachable normal exit: declared `-> NoReturn` (`is_noreturn`, NR1/NR4)
+AND `#@ \diverges` (the IR `diverges` flag — a diverging function satisfies any
+postcondition). The exempt-set is computed where the IR is in scope
+(`_run_pipeline`) and passed on `args._vacuity_exempt` to the gate in
+`_run_proofs`.
+
 #### §2.5c `TypedDict` literal-key access (typing-engagement ty2 / PEP 589)
 
 **Rule.** A subscript `p["x"]` on a TypedDict-record-typed variable `p` (PEP

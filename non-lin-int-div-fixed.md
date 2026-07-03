@@ -97,13 +97,35 @@ nonlinear div/mod terms. Fix by, in order of preference:
 3. **Guard the term** — if a nonlinear div only appears under a provable side-condition, emit the
    condition so the solver's context stays consistent.
 
-**T2 · S4 — regression-lock the reproducers.** Every fixed vacuity gets a negative reference driver
-(`# pycsl-expected: FAIL` with `ensures { false }`, and a positive driver asserting the REAL property that
-the previously-vacuous function should prove). These lock the fix against reintroduction.
+**T2 · S4 — regression-lock ✅ DONE (with a finding).** `0752.py` is the deterministic gate self-test
+(inconsistent context → the default gate FAILs it; `--no-check-vacuity` PASSes it). **Finding:** the
+SPECIFIC nonlinear-div vacuity NO LONGER REPRODUCES on the current toolchain — a minimal driver
+accumulating the ROOT-CAUSE facts (disjunctive-or + `((mx-mn)*1000)//mx` + `(num*1000)//(6*diff)`) does
+NOT prove its false postcondition (SMT correctly fails/times out, not vacuous). Consistent with the
+0-vacuity full sweep and `merge_collapse_false_green` (the observed os/csys case was the best-of-N merge
+bug, since fixed — not nonlinear div). So a nonlinear-div-SPECIFIC `# pycsl-expected: FAIL` driver would
+be fragile/solver-version-dependent and slow; `0752` (trigger-agnostic — the gate catches ANY vacuity) is
+the honest lock. No positive/negative pair per fixed vacuity is needed (0 vacuities were fixed).
 
-**S5 — unblock csys de-trust.** With the corpus genuinely non-vacuous under the default gate, the csys
-de-trust (blocked on this per `vacuity_nonlinear_div`) can proceed — re-attempt it as the acceptance
-consumer of the fix.
+**Item-2 acceptance (official battery, 2026-07-03):** `bin/run-reference-tests.sh --pycsl` under the
+default gate → **705/708 pass, ~814s (~13.5 min, gate ≈2–3× the ~5-min gate-off baseline)**. The 3
+CONFIRMED FAILs (0540/0700/0701) are PRE-EXISTING — each fails/times-out identically under
+`--no-check-vacuity` (0700 a proof failure, 0540/0701 don't complete in 300s gate-off). **ZERO
+vacuity-gate failures** across the whole battery (no `VACUOUS` hit). The stale front-end IR-conformance
+pre-flight (goldens `ir_version 1.2` vs derived `1.4`) is a separate pre-existing issue, skipped with
+`PYCSL_SKIP_CONFORMANCE_CHECK=1`.
+
+**S5 — unblock csys de-trust ⏳ IN PROGRESS (reframed).** With the default gate, de-trusting is now SAFE
+to attempt: a vacuous "proof" is CAUGHT, not silently accepted. **Correction (crucial):** the csys
+`\trusted: SMT-timeout-deep-branch` functions (`rgb_to_hsv`/`rgb_to_hls`/…) are NOT "unprovable" — by the
+**Curry-Howard isomorphism**, any true goal has a proof term and Rocq/Lean (complete for the logic) can
+ALWAYS construct it. SMT-timeout is a **Rocq/Lean proof OBLIGATION**, never a terminal trust state (see
+memory `smt_timeout_not_unprovable`). So the de-trust IS achievable — the honest path is `#@ proof
+rocq|lean` (the `0342`-gcd cross-validation template) discharging the deep-branch goals SMT times out on.
+DONE so far: confirmed de-trusting `rgb_to_hsv` with SMT alone times out (as expected — that is the
+routing signal to Rocq/Lean, NOT a dead end), and the gate would catch any vacuous shortcut.
+REMAINS: write the Rocq/Lean proofs for the 4 csys deep-branch functions and drop their `\trusted`
+markers — substantial proof-engineering work, tracked as the downstream consumer.
 
 ---
 
