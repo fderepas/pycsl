@@ -487,3 +487,38 @@ valid/valid2d/arrayeq/permutation/sum_node/lambda/in_scope/in_globals/setlit/sep
 **complete** — count **1294 → 1278**. The remaining 7 share NO cheap recognizer; each needs a
 dedicated reflection/narrowing feature (a `Plan`/high-reasoning pass), which is the loop's
 escalation target, not incremental grinding. Tree green, byte-diff 0, PROVEN at 1278.
+
+---
+
+## Execution Status — 2026-07-03 (this run)
+
+**Result: `\trusted` count 1294 → 1278 (16 T1.a expression handlers converted), every increment
+PROVEN + byte-diff 0 + mirror-sync verbatim.** The tractable T1.a tail is complete.
+
+**Converted (16):** unaryop, old, at, named_expr, issorted, length2d, valid, valid2d, arrayeq,
+permutation, sum_node, lambda, in_scope, in_globals, setlit, separated.
+
+**Recognizer foundation banked** (all `@mutable_state`/emit_ir-gated, byte-diff 0): IR-node params →
+emit_ir; `_EMIT_IR_STR_ATTRS` (kind/var/op/label/name/func/base/base1/base2 → discriminant/name
+projections); node-LIST attrs (elts/parts/args/captures → `args_of`, across lowering + array-var +
+elem-type collectors + the `_is_emit_ir_expr` scalar-exclusion, both attribute AND `.get` forms);
+getattr-set-membership `str_hash_op` for set fields; method-call-set membership; `_string_local_vars`
+in `_is_string_expr`; ~25 mirror state-field declarations.
+
+**Remaining 7 = hard-architectural (flagged for a dedicated high-reasoning / `Plan` pass — see the
+iteration-16 table).** Each needs a real modeling feature, NOT a recognizer:
+- `field_get` — CONFIRMED via focused pass: `expr['object']` must yield the object *name string*,
+  but emit_ir stores object as a *node* (`object_of`); the real IR (`FieldGet.object: str`) and the
+  flat emit_ir model disagree on this field's type. Needs a FieldGet-specific object-name projection
+  (`name_of ∘ object_of`, or a dedicated `objname_of`), distinct from `Attribute.object` (a node).
+- `var` — `_module_constants` values are `Union[str,int]`; needs value-narrowing (isinstance) the
+  int-collapse lacks.
+- `attribute` / `slice_access` / `call` (285L) — deep object/args/subscript-on-emit_ir reflection.
+- `fstring` — nested `_sp` helper types `parts[0]` differently under proof mode.
+- `ifexpr` — cross-method `_cf5_arr` interaction.
+
+**Process finding (iter-14):** the auto-try `--no-proof` check can FALSE-POSITIVE on nested-function
+constructs; the full-proof gate before commit is load-bearing, not redundant.
+
+**Clean stopping point.** Tree green at 1278; ready for a future dedicated session on the hard tail
+(recommend starting with `field_get`'s object-name projection — smallest, fully diagnosed above).
