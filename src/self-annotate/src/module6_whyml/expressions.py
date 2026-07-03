@@ -35,6 +35,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     _todict_aliases: Dict[str, str] = None
     _current_symbol_table: Dict[str, str] = None
     _mutable_state_classes: Set[str] = None
+    # self-tcb-reduction T1.a: further state fields the ported expression handlers read.
+    _in_spec: int = 0
+    _value_semantic: int = 0
+    _seq_locals: Set[str] = None
+    _result_alias: str = ""
+    _heap_var: str = ""
     'Expression-emission dispatch: every IR expression-shape `_handle_*_expr`\n    handler routed via `_EXPR_DISPATCH` on the facade, plus the orchestration\n    entrypoints (`_expr_to_whyml`, `_expr_to_whyml_string_ctx`) and the shared\n    helpers (`_to_bool`, `_coerce_*`, `_match_pattern_cond`, ...). Mixed into\n    Module6_WhyMLTranspiler. `_EXPR_DISPATCH` stays on the facade as a class\n    attribute — moving it would force a circular import.\n    '
     _BITWISE_FOLD_OPS = {'&': lambda a, b: a & b, '|': lambda a, b: a | b, '^': lambda a, b: a ^ b, '<<': lambda a, b: a << b, '>>': lambda a, b: a >> b, '**': lambda a, b: a ** b}
     _BITWISE_FN_NAMES = {'&': 'bit_and', '|': 'bit_or', '^': 'bit_xor', '<<': 'bit_lshift', '>>': 'bit_rshift', '**': 'py_pow'}
@@ -545,7 +551,6 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns \nothing
     def _handle_slice_access_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
         return ""
-
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True

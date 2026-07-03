@@ -352,3 +352,17 @@ machine-readably in `config/skills/self-tcb-reduction/self-tcb-reduction.json`.
   genuine cross-method interaction, not a per-handler leak. Flagged for a focused diagnostic pass;
   reverted to a stub to keep the tree green.
 - **Next:** diagnose `ifexpr → _cf5_arr`; meanwhile convert base-`ExprIR` handlers.
+
+### Iteration 8 (2026-07-03) — general infra: `_EMIT_IR_STR_ATTRS` map + 5 fields; arraylen escalated
+
+- **`_EMIT_IR_STR_ATTRS` recognizer (LANDED, byte-diff 0):** generalized the `.kind` fix into a map
+  of STRING-valued emit_ir attributes (`kind`→`kind_of`, `var`/`op`/`label`/`name`→`name_of`,
+  `func`→`func_of`) for base-`ExprIR`-annotated nodes accessing a concrete subclass's str field.
+  Both the lowering (`_handle_attribute_expr`) and typing (`_is_string_expr`). @mutable_state.
+- **5 more mixin fields declared:** `_in_spec`/`_value_semantic`/`_seq_locals`/`_result_alias`/
+  `_heap_var` (the E-1 field set grows as handlers surface reads).
+- **arraylen ESCALATED:** `var in getattr(self, "_seq_locals", set())` — the getattr-defensive
+  set-membership does NOT hash the string key (`Map.get _seq_locals !var` vs the direct-field form's
+  `str_hash_op`), so a string key hits an int-keyed map. A general getattr-set-membership recognizer
+  is the next fix (unblocks arraylen + others). Reverted to stub; tree green, byte-diff 0.
+- **Count after:** 1290 (infra iteration; no conversion). Tree green.
