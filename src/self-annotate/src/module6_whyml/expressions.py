@@ -69,7 +69,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _e(self, ir: Dict, lr: int) -> str:
+    def _e(self, ir: Dict, lr: Set[str]) -> str:
         return ""
 
     #@ requires True
@@ -95,12 +95,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     @staticmethod
     def _coerce_str_arg(whyml_str: str) -> str:
         return ""
-
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _materialize_if_seq(self, whyml_str: str, arg_ir: int) -> str:
+    def _materialize_if_seq(self, whyml_str: str, arg_ir: Dict[str, Any]) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -110,13 +109,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     @staticmethod
     def _array_coerce_arg(whyml_str: str) -> str:
         return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _deref(self, expr: str) -> str:
-        return ""
+        """Dereference a WhyML ref-typed operand: `x` → `!x` (idempotent — a leading
+        `!` is normalized, not doubled). Used by the set/list/map handlers, where a
+        collection operand may arrive already-dereffed."""
+        return f"!{expr.lstrip('!')}" if expr.startswith("!") else expr
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -173,14 +173,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns \nothing
     def _is_string_expr(self, ir: "ExprIR") -> bool:
         return False
-
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _is_float_expr(self, ir: int) -> bool:
-        return False
-
+    def _is_float_expr(self, ir: Dict[str, Any]) -> bool:
+        return ""
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -215,12 +213,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns \nothing
     def _handle_join_call(self, expr: int, args: List[str]) -> str:
         return ""
-
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_sum_call(self, expr: int) -> str:
+    def _handle_sum_call(self, expr: Dict[str, Any]) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -414,12 +411,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns \nothing
     def _tag_of_type(self, t_name: Optional[str]) -> Optional[str]:
         return None
-
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _tag_of_value(self, x_ir: int) -> str:
+    def _tag_of_value(self, x_ir: Dict[str, Any]) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -435,13 +431,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns \nothing
     def _handle_isinstance(self, expr: int) -> str:
         return ""
-
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _subst_params(self, ir: Any, arg_nodes: int) -> Any:
-        return None
+    def _subst_params(self, ir: Any, arg_nodes: Dict[str, Any]) -> Any:
+        return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -949,13 +944,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns \nothing
     def _handle_arraylen_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
         return ""
-
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _module_binding_names(self) -> Set[str]:
-        return set()
+        return ""
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
