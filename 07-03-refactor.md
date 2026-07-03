@@ -264,3 +264,29 @@ highest-leverage next target** — worth more than grinding the giants by hand.
 Count 1294 → **1275**; 21 `_handle_*` handlers now fully converted (+ nested-map & union-narrowing
 features + the refactoring playbook). Remaining trusted `_handle_*`: attribute, call, subscript
 (the giants), plus the 3 isolated cross-file leaves.
+
+## Cross-file signature wiring (2026-07-03) — the multiplier
+
+**Root cause found:** `_module_method_return_types`/`_param_types` only carry a cross-file method's
+signature when it's a DECLARED dep (`_mixin_dep_pseudo_functions` synthesizes from `#@ requires_method
+<m>: <sig>`). Undeclared cross-file calls → `val self__m (x0:int)(x1:int):int`. TWO fixes:
+1. **str-return propagation (general):** the pseudo-function dropped a `str` return annotation (only
+   list/set/dict/frozenset were kept), so a str-returning cross-file callee was `int_to_string`-
+   wrapped at call sites. Now `str` propagates → `_module_method_return_annotations` recognizes it.
+2. **declare the deps:** `#@ requires_method _seq_operand: (self, val_ir: ExprIR, local_refs: set)
+   -> str` on ifexpr's `_ifexpr_seq_arm`; `#@ requires_method _field_type_of: (self, attr_ir:
+   ExprIR) -> str` on slice_access's `_slice_array_or_opaque`. Both abstract vals now carry the real
+   `(emit_ir, map) -> string` signature.
+
+**Result:** `_ifexpr_seq_arm` + `_slice_array_or_opaque` CONVERT → **ifexpr & slice_access FULLY
+verified.** Byte-diff 0 (corpus deps return int → str-propagation inert) + full proof. Commit
+19acb5e1. **Count 1275 → 1273.**
+
+This is the general enabler: any expressions.py→statements.py/types.py str-returning call now types
+correctly given a `requires_method` declaration. R3/R6 (the call/subscript giants, which call many
+cross-file helpers) are now unblocked — split them (isolate + `requires_method`-declare the cross-file
+branches) exactly like ifexpr/slice_access.
+
+### Campaign total: 1294 → 1273, 23 `_handle_*` handlers fully converted
+Remaining trusted `_handle_*`: attribute, call, subscript (the giants) — now tractable via the
+proven isolate-split + cross-file-wiring pattern.
