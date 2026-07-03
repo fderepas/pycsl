@@ -341,3 +341,14 @@ machine-readably in `config/skills/self-tcb-reduction/self-tcb-reduction.json`.
   byte-diff 0, mirror-sync verbatim (27 methods). **Count 1293 → 1291.**
 - **Next:** `named_expr`/`ifexpr` (investigate the `_cf5_arr` cross-interaction), then the
   base-`ExprIR` handlers (`arraylen`/`slice_access`/…) and back to var's tail.
+
+### Iteration 7 (2026-07-03) — `named_expr` converts (1291→1290); `ifexpr` escalated
+
+- **`_handle_named_expr_expr` un-`\trusted` + PROVEN** on the accumulated recognizers — NO new
+  emitter change needed (byte-diff 0 by construction), mirror-sync verbatim (28 methods).
+  **Count 1291 → 1290.**
+- **`ifexpr` ESCALATED:** porting `_handle_ifexpr_expr` reproducibly breaks an UNTOUCHED sibling
+  `_cf5_arr` (its `d.get("name") == …` reverts to an int-hash compare instead of `str_eq_op`) — a
+  genuine cross-method interaction, not a per-handler leak. Flagged for a focused diagnostic pass;
+  reverted to a stub to keep the tree green.
+- **Next:** diagnose `ifexpr → _cf5_arr`; meanwhile convert base-`ExprIR` handlers.

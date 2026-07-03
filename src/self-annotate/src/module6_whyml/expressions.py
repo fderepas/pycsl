@@ -521,12 +521,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns \nothing
     def _handle_ifexpr_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
         return ""
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_named_expr_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
-        return ""
+    def _handle_named_expr_expr(
+        self,
+        node: "NamedExprExpr",
+        local_refs: Set[str],
+        invariant_ctx: bool,
+        subst: Optional[Dict[str, str]],
+    ) -> str:
+        # Phase-B-expr: typed. NamedExprExpr (target: str, value: ExprIR).
+        target = whyml_ident(node.target)
+        v = self._expr_to_whyml(node.value, local_refs, invariant_ctx, subst)
+        if target in local_refs:
+            return f"(begin {target} := {v}; !{target} end)"
+        local_refs.add(target)
+        return f"(let {target} = ref {v} in !{target})"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
