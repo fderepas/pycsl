@@ -989,6 +989,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return True
         if t == "Call":
             _fn = ir.get("func", "")
+            # `str(x)` is string-typed (identity on a str, `int_to_string` on an int) — so a
+            # `.lower()`/`.strip()` on it (`str(binder_type).lower()`) recognizes as a faithful
+            # string-value method rather than falling to the opaque scalar op.
+            if _fn == "str":
+                return True
             # faithful-string-op.md §3.1–3.3: `.replace`/`.lower`/`.upper`/`.strip` on a
             # string receiver is itself string-typed, so a receiving local (`arr_name =
             # func.rsplit(".",1)[0].replace(".","_")`) types as a string local.
@@ -4142,13 +4147,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         self._add_abstract_op(f"val constant {safe} : int")
         return safe
 
-    def _quant_binder_whyml(self, binder_type: Optional[str]) -> str:
+    def _quant_binder_whyml(self, binder_type: str) -> str:
         """quantification.md: map a quantifier binder type to its WhyML sort.
         `None` ⇒ legacy `int` (emitted verbatim → byte-identical for every existing
         quantifier). Scalars map int→int / bool→bool / str→string / float→real; a
         declared `#@ datatype` or class name lowers to its Why3 type (lowercased,
         e.g. `Color`→`color`). Module 4 has already rejected an unresolved name."""
-        if binder_type is None:
+        if not binder_type:
             return "int"
         scalars = {"int": "int", "bool": "bool", "str": "string", "float": "real"}
         # 07-1311 Q4: collection-typed binders lower to their faithful WhyML sort.

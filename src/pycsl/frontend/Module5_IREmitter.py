@@ -3146,6 +3146,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 for target in child.targets:
                     if isinstance(target, ast.Name) and target.id not in shared:
                         scope[target.id] = "Any"
+                        # local-dict-value-type: a `d = {"a": "x", ...}` literal with all-STRING
+                        # values is a `dict[_, str]`, so `d[k]` reads a `string` (default "") not the
+                        # int default. Infer the value type from a homogeneous string-valued DictLit
+                        # (a class-constant lookup table used LOCALLY, e.g. `_quant_binder_whyml`'s
+                        # `scalars`). No annotation needed. Byte-identical for int-valued dict locals.
+                        if (isinstance(child.value, ast.Dict) and child.value.values
+                                and all(isinstance(v, ast.Constant) and isinstance(v.value, str)
+                                        for v in child.value.values)):
+                            dict_value_types[target.id] = "string"
             elif isinstance(child, ast.AnnAssign):
                 if isinstance(child.target, ast.Name) and child.target.id not in shared:
                     scope[child.target.id] = (
