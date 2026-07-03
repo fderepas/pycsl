@@ -25,7 +25,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     _current_self_type: str = ""
     _emit_record_ctx: str = ""
     _lambda_locals: Set[str] = None
-    _module_constants: Dict[str, Any] = None
+    _module_constants: Dict[str, str] = None
     _module_global_classes: Dict[str, str] = None
     _quant_record_binders: Dict[str, str] = None
     _quant_scalar_binders: Set[str] = None
@@ -35,6 +35,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     _todict_aliases: Dict[str, str] = None
     _current_symbol_table: Dict[str, str] = None
     _mutable_state_classes: Set[str] = None
+    _variant_types: Dict[str, str] = None
     _seq_value_types: Dict[str, str] = None
     _array_elem_types: Dict[str, str] = None
     # self-tcb-reduction T1.a: further state fields the ported expression handlers read.
@@ -428,8 +429,71 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_var_expr(self, expr: int, local_refs: int, subst: int=None) -> str:
+    def _var_todict_alias(self, name: str, local_refs: Set[str], subst: Optional[Dict[str, str]]) -> str:
         return ""
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _handle_var_expr(self, node: "ExprIR", local_refs: Set[str],
+                         subst: Optional[Dict[str, str]] = None) -> str:
+        expr = node.to_dict()   # Phase-B-expr: typed signature
+        name = expr["name"]
+        if subst and name in subst:
+            name = subst[name]
+        # todict-reflection-plan.md R1 (var-substitution): `d = node.to_dict()` binds
+        # `d` as a full ALIAS of the typed node — so a bare `d` reference (e.g. passing
+        # `d` to `self._expr_to_whyml(d)`, the emitter's recursive sub-expression
+        # emission) lowers to the node itself. Complements the `d.get(key)` routing:
+        # both the reflective reads AND the recursive re-emission see the typed node.
+        _alias = self._var_todict_alias(name, local_refs, subst)
+        if _alias:
+            return _alias
+        # body-gate gap-5: a scalar quantifier binder reads BARE (a bound logic var),
+        # shadowing a same-named loop/local ref for the quantifier body's duration.
+        if name in getattr(self, "_quant_scalar_binders", ()):
+            return whyml_ident(name)
+        if name in self._array_locals:
+            return whyml_ident(name)
+        if name in self._lambda_locals:
+            return whyml_ident(name)
+        if name in self._record_locals:
+            return whyml_ident(name)
+        if name in local_refs:
+            return f"!{whyml_ident(name)}"
+        if name in self._current_params or name == "self":
+            return whyml_ident(name) if name != "self" else name
+        if name in self._shared_var_names:
+            return f"!{whyml_ident(name)}"
+        # module-constants-plan: a module-level int constant resolves to its literal,
+        # in both body and contract (so e.g. `kinds[0] == K_IHDR` discharges). Comes
+        # after the local/param/shared checks, so a same-named local correctly shadows
+        # it. Replaces the opaque `val constant` for these names.
+        if name in self._module_constants:
+            _cv = self._module_constants[name]
+            # 0442.md C5 (no-more-int): a string-literal constant folds to a real Why3
+            # string literal, not an int hash; an int constant folds to its value.
+            if isinstance(_cv, str):
+                return self._whyml_string_literal(_cv)
+            return f"({_cv})"
+        # inline.md Phase 1: a bare reference to a module-level global object resolves to
+        # its binding name (e.g. passing `acc` as an argument). After the local/param
+        # checks so a same-named local shadows it.
+        if name in getattr(self, "_module_global_classes", {}):
+            return whyml_ident(name)
+        # sum-types: a nullary `#@ datatype` constructor used as a value (`Red`).
+        if name in self._constructors and self._constructors[name]["arity"] == 0:
+            return name
+        # 07-0647-spec S1.2: a bare class NAME used as a VALUE (e.g. the type argument
+        # of `isinstance(x, C)`) must NOT reuse the record/variant TYPE name as its
+        # opaque constant — `type c` and `val constant c` would collide (a kind/type
+        # error). Give the value a distinct namespace.
+        if name in self._record_types or name in getattr(self, "_variant_types", {}):
+            csafe = f"_class_{whyml_ident(name)}"
+            self._add_abstract_op(f"val constant {csafe} : int")
+            return csafe
+        safe = whyml_ident(name)
+        self._add_abstract_op(f"val constant {safe} : int")
+        return safe
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

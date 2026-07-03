@@ -3996,6 +3996,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         self._add_abstract_op(f"val get_{attr} (x: int) : int")
         return f"(get_{attr} {obj_str})"
 
+    def _var_todict_alias(self, name: str, local_refs: Set[str],
+                          subst: Optional[Dict[str, str]]) -> str:
+        """If `name` is a `to_dict()` ALIAS (`_todict_aliases[name] == "self.types"`), rebuild the
+        dotted attribute IR and re-emit it; else return `""` (no alias — a dotted alias emission is
+        never empty). Extracted (07-03-refactor R1) as the ONE hard branch of `_handle_var_expr` —
+        it carries the `_parts = alias.split(".")` seq-slice for-loop whose `variant {}` references a
+        program `val` in a logic context (the R7 target), isolating it so the rest of var proves."""
+        _al = getattr(self, "_todict_aliases", {}).get(name)
+        if _al is None:
+            return ""
+        _parts = _al.split(".")
+        _n: Dict[str, Any] = {"type": "Var", "name": _parts[0]}
+        for _p in _parts[1:]:
+            _n = {"type": "Attribute", "object": _n, "attr": _p}
+        return self._expr_to_whyml(_n, local_refs, False, subst)
+
     def _handle_var_expr(self, node: "ExprIR", local_refs: Set[str],
                          subst: Optional[Dict[str, str]] = None) -> str:
         expr = node.to_dict()   # Phase-B-expr: typed signature
@@ -4007,13 +4023,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `d` to `self._expr_to_whyml(d)`, the emitter's recursive sub-expression
         # emission) lowers to the node itself. Complements the `d.get(key)` routing:
         # both the reflective reads AND the recursive re-emission see the typed node.
-        _al = getattr(self, "_todict_aliases", {}).get(name)
-        if _al is not None:
-            _parts = _al.split(".")
-            _n: Dict[str, Any] = {"type": "Var", "name": _parts[0]}
-            for _p in _parts[1:]:
-                _n = {"type": "Attribute", "object": _n, "attr": _p}
-            return self._expr_to_whyml(_n, local_refs, False, subst)
+        _alias = self._var_todict_alias(name, local_refs, subst)
+        if _alias:
+            return _alias
         # body-gate gap-5: a scalar quantifier binder reads BARE (a bound logic var),
         # shadowing a same-named loop/local ref for the quantifier body's duration.
         if name in getattr(self, "_quant_scalar_binders", ()):
