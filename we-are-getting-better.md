@@ -173,6 +173,13 @@ type was available), in new spots. 3 fixed, 3 still open.
 36. **[OPEN]** a **comprehension over a `.split()` CALL** (`[p.strip() for p in inner.split(",")]`) →
     opaque `(list_comp 0)` (the split-call iterable isn't recognized as a seq source when the receiver
     is a reassigned string local). Blocks `_split_tuple_type`.
+37. **[OPEN]** a **module-level constant dict** (`OP_MAP.get(op, op)` in `identifiers.py`) →
+    opaque `oP_MAP_get_2` — the constant-dict modeling is for CLASS fields; module-level constants
+    aren't declared record fields. Blocks `op_translate`.
+38. **[OPEN]** the **string-`or`** (`name.lstrip("_") or name`) recognizer is `@mutable_state`-gated, so
+    it doesn't fire in a MODULE function (no `self`, not in a mutable-state class) → the `or` lowers as
+    boolean (`<> 0` int). Blocks `safe_exc_name`. (Emitter module-fns can't use @mutable_state-gated
+    string recognizers.)
 
 **Round-2 status:** every int-leak class here has a *diagnosis*; #29–32 + #35 have a faithful lowering; #33/#34/#36
 are the next features (mirrored in `giant-recursion.md` §14's OPEN list). The doctrine holds — the
