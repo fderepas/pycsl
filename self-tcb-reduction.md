@@ -326,3 +326,18 @@ machine-readably in `config/skills/self-tcb-reduction/self-tcb-reduction.json`.
   converted to a verified body.**
 - **Next:** the other 4 concrete-subclass handlers (`at`/`ifexpr`/`named_expr`/`old`) now inherit
   the E-2 record resolution — likely quick conversions; then return to the base-`ExprIR` handlers.
+
+### Iteration 6 (2026-07-03) — 2 more conversions: `old` + `at` (count 1293→1291)
+
+- A batch-port of the 4 remaining concrete-subclass handlers exposed a cross-handler interaction
+  (`named_expr`/`ifexpr` perturbed an untouched sibling `_cf5_arr`) → reverted to strict per-stub
+  discipline.
+- **`.kind` emit_ir-attribute recognizer (LANDED, byte-diff 0):** `<emit_ir>.kind` is the
+  DISCRIMINANT string (`kind_of`), not a sub-node — fixed both the lowering
+  (`_handle_attribute_expr`: `attr == "kind"` → `kind_of`) and the typing (`_is_string_expr`:
+  `<emit_ir>.kind` → string, so `inner.kind == "Subscript"` routes through `str_eq_op`).
+  @mutable_state-gated.
+- **✅ `_handle_old_expr` + `_handle_at_expr` un-`\trusted` + PROVEN:** type-check, full proof green,
+  byte-diff 0, mirror-sync verbatim (27 methods). **Count 1293 → 1291.**
+- **Next:** `named_expr`/`ifexpr` (investigate the `_cf5_arr` cross-interaction), then the
+  base-`ExprIR` handlers (`arraylen`/`slice_access`/…) and back to var's tail.

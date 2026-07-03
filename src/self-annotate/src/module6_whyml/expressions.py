@@ -473,28 +473,54 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if op == "not":
             e = self._to_bool(e, node.expr.to_dict())
         return f"({op} {e})"
-
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_old_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
+    def _handle_old_expr(
+        self,
+        node: "OldExpr",
+        local_refs: Set[str],
+        invariant_ctx: bool,
+        subst: Optional[Dict[str, str]],
+    ) -> str:
+        # Phase-B-expr: typed. `node` is an OldExpr (expr: ExprIR).
+        inner = node.expr
+        if not self._value_semantic and inner.kind == "Subscript":
+            d = inner.to_dict()
+            value = self._expr_to_whyml(d["value"], local_refs, invariant_ctx, subst)
+            index = self._expr_to_whyml(d["index"], local_refs, invariant_ctx, subst)
+            return f"(Map.get (old !{self._heap_var}) ({value} + {index}))"
+        e = self._expr_to_whyml(inner, local_refs, invariant_ctx, subst)
+        return f"(old {e})"
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_at_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
-        return ""
-
+    def _handle_at_expr(
+        self,
+        node: "AtExpr",
+        local_refs: Set[str],
+        invariant_ctx: bool,
+        subst: Optional[Dict[str, str]],
+    ) -> str:
+        # Phase-B-expr: typed. `node` is an AtExpr (expr: ExprIR, label: str).
+        label = node.label
+        inner = node.expr
+        if label == "PRE":
+            e = self._expr_to_whyml(inner, local_refs, invariant_ctx, subst)
+            return f"(old {e})"
+        if inner.kind == "Subscript" and not self._value_semantic:
+            d = inner.to_dict()
+            value = self._expr_to_whyml(d["value"], local_refs, invariant_ctx, subst)
+            index = self._expr_to_whyml(d["index"], local_refs, invariant_ctx, subst)
+            return f"(Map.get ({self._heap_var} at {label}) ({value} + {index}))"
+        e = self._expr_to_whyml(inner, local_refs, invariant_ctx, subst)
+        return f"({e} at {label})"
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _handle_ifexpr_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
         return ""
-
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True

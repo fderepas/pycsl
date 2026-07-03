@@ -1088,6 +1088,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # (unchanged opaque path) → byte-identical outside genuine str-field reads.
         if t in ("Attribute", "FieldGet"):
             ft = self._field_type_of(ir)
+            # self-tcb-reduction T1.a: `<emit_ir>.kind` is the discriminant string (`kind_of`), so
+            # `inner.kind == "Subscript"` routes through `str_eq_op`. @mutable_state.
+            if ft is None and (ir.get("attr") or ir.get("field")) == "kind":
+                _ko = ir.get("value") or ir.get("object")
+                if isinstance(_ko, dict) and self._is_emit_ir_expr(_ko):
+                    return True
             if ft is None:
                 if t == "FieldGet":
                     _rn, _fl = ir.get("object"), ir.get("field")
@@ -3894,6 +3900,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and getattr(self, "_current_self_type", None)
                 in getattr(self, "_mutable_state_classes", set())):
             _os = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
+            # self-tcb-reduction T1.a: `<emit_ir>.kind` is the DISCRIMINANT (`kind_of`, a string),
+            # not a sub-node — so `inner.kind == "Subscript"` routes through `str_eq_op`.
+            if attr == "kind":
+                return f"(kind_of {_os})"
             return f"(svalue_of {_os})"
         obj_str = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
         self._add_abstract_op(f"val get_{attr} (x: int) : int")
