@@ -508,6 +508,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if getattr(self, "_module_method_return_types", {}).get(_key) in (
                         "map int (option int)", "set", "dict", "frozenset"):
                     rhs_is_map = True
+        # nested-map.md: `k in self._nested_dict.get(k1, {})` — `.get` on a NESTED-dict field
+        # returns the INNER map (its value_type is `map …`), so membership hashes the key into
+        # it. The lowered `right` is already the inner-map match-expr. @mutable_state.
+        if not rhs_is_map and rhs.get("type") == "Call":
+            _fn = rhs.get("func", "")
+            if isinstance(_fn, str) and _fn.endswith(".get"):
+                _recv = _fn[:-len(".get")]
+                _nu = self._self_field_dict_nu(_recv) if _recv.startswith("self.") else None
+                if isinstance(_nu, str) and _nu.startswith(("map ", "seq ", "array ")):
+                    rhs_is_map = True
         if rhs_is_map:
             # todict-reflection-plan.md R3: a STRING key into a `Set[str]`/`dict[str,_]`
             # (an int-keyed map) is hashed with `str_hash_op` — the read-side analogue of
@@ -3790,12 +3800,28 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _ib = value.get("value", {})
                 _nu = (getattr(self, "_dict_value_types", {}).get(_ib.get("name", ""))
                        if isinstance(_ib, dict) and _ib.get("type") == "Var" else None)
+                # nested-map.md: `self._nested_field[ko][ki]` — the inner base is a self dict-field
+                # whose value_type is itself a `map …` (nested dict), so the outer `[ki]` reads that
+                # inner map. Parallel to the body-dict `d[ko][ki]` case above.
+                if _nu is None and isinstance(_ib, dict) and _ib.get("type") in ("Attribute", "FieldGet"):
+                    _o = _ib.get("object"); _f = _ib.get("field") or _ib.get("attr")
+                    if isinstance(_o, str):
+                        _nu = self._self_field_dict_nu(f"{_o}.{_f}")
                 if _nu and _nu.startswith("map "):
                     _inner_v = (_nu.split("(option ", 1)[1].rsplit(")", 1)[0]
                                 if "(option " in _nu else "int")
                     _idef = '""' if _inner_v == "string" else "0"
-                    # inner key κi: int keys are hashed, string keys pass through.
-                    _k = index if "map string" in _nu else self._coerce_to_int(index)
+                    # inner key κi: a `map string` inner passes the key through; an int-keyed inner
+                    # (`map int …`, incl. nested-map.md's str-keys-hashed convention) hashes a STRING
+                    # key with `str_hash_op`, else int-coerces.
+                    _idx_ir = expr.get("index", {})
+                    if "map string" in _nu:
+                        _k = index
+                    elif not self._in_spec and self._is_string_expr(_idx_ir):
+                        self._add_abstract_op("val str_hash_op (s: string) : int")
+                        _k = f"(str_hash_op {index})"
+                    else:
+                        _k = self._coerce_to_int(index)
                     # `value_str` (the inner `d[ko]` read) lowers to a program
                     # `begin assert..; match.. end` block carrying its OWN
                     # KeyError assert — it cannot sit inside the outer read's
@@ -3876,8 +3902,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if not dvar and value.get("type") in ("Attribute", "FieldGet"):
                     _o = value.get("object")
                     _f = value.get("field") or value.get("attr")
-                    if isinstance(_o, str) and self._self_field_dict_nu(f"{_o}.{_f}") == "string":
+                    _fnu = (self._self_field_dict_nu(f"{_o}.{_f}")
+                            if isinstance(_o, str) else None)
+                    if _fnu == "string":
                         default = '""'
+                    elif (isinstance(_fnu, str) and _fnu.startswith("map int (")
+                          and _fnu.endswith(")")):
+                        # nested-map.md: a NESTED-dict field read (`self._class_constants[k]`)
+                        # yields the INNER map; the missing-key default is the empty inner map
+                        # (`const None`), not the int `0`.
+                        default = f"(const (None: {_fnu[len('map int ('):-1]}))"
                 inner = f"(match Map.get {value_str} {k} with | Some v_ -> v_ | None -> {default} end)"
                 # no_exception KeyError → assert has_key before the read.
                 return self._wrap_with_no_exception_assert(

@@ -3037,10 +3037,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     and v.value.id in ("Dict", "dict")
                     and isinstance(v.slice, ast.Tuple)
                     and len(v.slice.elts) == 2):
-                ki, vi = v.slice.elts
-                kw = "string" if (isinstance(ki, ast.Name) and ki.id == "str") else "int"
+                _ki, vi = v.slice.elts
                 vw = "string" if (isinstance(vi, ast.Name) and vi.id == "str") else "int"
-                return f"map {kw} (option {vw})"
+                # nested-map.md: the INNER map is int-keyed (str keys hashed via `str_hash_op`),
+                # matching the model's uniform `dict[str,_] ~ map int (option _)` convention, so
+                # membership/subscript on the inner map hash the key the same way as the outer.
+                return f"map int (option {vw})"
             if (isinstance(v, ast.Subscript)
                     and isinstance(v.value, ast.Name)
                     and v.value.id in ("List", "list")

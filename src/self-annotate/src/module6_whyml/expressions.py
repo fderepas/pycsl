@@ -19,7 +19,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     # State fields the ported expression handlers read (declared for @dataclass / @mutable_state).
     _all_record_fields: Set[str] = None
     _array_locals: Set[str] = None
-    _class_constants: Dict[str, Any] = None
+    _class_constants: Dict[str, Dict[str, int]] = None
     _constructors: Dict[str, Any] = None
     _current_params: Set[str] = None
     _current_self_type: str = ""
@@ -447,12 +447,33 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns \nothing
     def _field_label(self, record_lower: str, field: str) -> str:
         return ""
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_field_get_expr(self, node: int, invariant_ctx: bool) -> str:
-        return ""
+    def _handle_field_get_expr(self, node: "ExprIR", invariant_ctx: bool) -> str:
+        expr = node.to_dict()   # Phase-B-expr: typed signature
+        if invariant_ctx:
+            return self._field_label(self._emit_record_ctx, expr['field'])
+        obj = expr['object']
+        field = expr['field']
+        # Class-body integer constant referenced as `self.CONST` → its literal.
+        self_type = self._current_self_type
+        if (obj == "self" and self_type
+                and field in self._class_constants.get(self_type, {})):
+            return f"({self._class_constants[self_type][field]})"
+        decl_fields = self._all_record_fields
+        if field in decl_fields:
+            return f"{obj}.{self._field_label(self_type, field)}"
+        hash_field = stable_hash(field)
+        self_type = self._current_self_type
+        if obj == "self" and self_type:
+            name = f"getattr_{self_type}"
+            self._add_abstract_op(f"val {name} (x: {self_type}) (f: int) : int")
+        else:
+            name = "getattr_2"
+            self._add_abstract_op(f"val {name} (x: int) (f: int) : int")
+            obj = self._coerce_to_int(obj)
+        return f"({name} {obj} {hash_field})"
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True

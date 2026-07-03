@@ -565,3 +565,25 @@ recognizer.** Experiment reverted; tree green at 1278.
   handler needs a demand-driven modeling feature (spike → implement → gate), which is focused
   feature work, not loop iteration. **Recommend switching modes** (build one named feature, e.g.
   nested-map, on request) rather than continuing blind relaunch.
+
+### Iteration 19 (2026-07-03) — 🎯 NESTED-MAP FEATURE → field_get CONVERTS (1278→1277)
+
+The demand-driven feature (field_get = driver) that iteration 18 found necessary. **SMT spike first**
+(hand-written nested-map `.mlw`, `double_subscript` Valid 0.04s → Why3 handles nested maps trivially;
+the work is pipeline). Then 6 coordinated pipeline edits, all byte-diff 0 (corpus has no nested-dict
+field → inert) + PROVEN:
+1. **Module5 `_m5_get_dict_value_type`:** inner map is int-keyed (`map int (option _)`, str keys
+   hashed) — uniform with the model's `dict[str,_] ~ map int` convention (was `map string`).
+2. **preamble field-type:** a nested collection value (`value_type` starts `map`/`seq`/`array`) is
+   preserved as `map int (option (<inner>))`, not flattened to `option int`.
+3. **membership:** `k in self._nested.get(k1, {})` → the `.get` returns the inner map → map
+   membership (hash the key).
+4. **subscript default:** a nested-dict field read's missing-key default is the empty inner map
+   (`const None`), not int `0`.
+5. **nested subscript handler:** extended the body-dict `d[ko][ki]` case to a self-field inner base
+   (`self._nested[ko][ki]`).
+6. **inner-key hash:** the inner `[ki]` hashes a string key into the int-keyed inner map.
+- **✅ `_handle_field_get_expr` un-`\trusted` + PROVEN** — a FIRST hard-architectural handler
+  converted via a real modeling feature, not a recognizer. **Count 1278 → 1277.**
+- **Total: 17 handlers converted, count 1294 → 1277.** Remaining hard tail: var, attribute,
+  slice_access, call, fstring, ifexpr (each still needs its own feature).
