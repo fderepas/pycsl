@@ -482,6 +482,12 @@ class TypeInferenceMixin:
                     _rec = (_rt.get(_cls) or (_rt.get(_cls.lower()) if _cls else None)) if _cls else None
                     if _rec and _rec.get("field_types", {}).get(_fld) in ("list", "tuple"):
                         found.add(tgt)
+                    # self-tcb-reduction T1.a: `elts = node.elts` — a node-LIST attr on an emit_ir
+                    # node is an `array emit_ir` local (`args_of`). @mutable_state.
+                    elif _fld in ("elts", "parts", "args", "captures") and isinstance(
+                            val.get("object") or val.get("value"), dict) and self._is_emit_ir_expr(
+                            val.get("object") or val.get("value")):
+                        found.add(tgt)
             for k in ("body", "orelse"):
                 if k in s:
                     found |= self._collect_array_var_assigns(s[k])

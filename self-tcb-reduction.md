@@ -420,3 +420,17 @@ machine-readably in `config/skills/self-tcb-reduction/self-tcb-reduction.json`.
 - **✅ `in_scope` + `in_globals` un-`\trusted` + PROVEN:** full proof green, byte-diff 0, mirror-sync
   verbatim (38 methods). **Count 1282 → 1280.**
 - **Total this run: 14 handlers converted, count 1294 → 1280.**
+
+### Iteration 13 (2026-07-03) — node-LIST-attr recognizers → setlit converts (1280→1279)
+
+- **`_field_label` stub `record_lower` retyped `str`** (was Optional[str]-collapsed).
+- **node-LIST attribute recognizers (LANDED, byte-diff 0):** `node.elts`/`node.parts`/`node.args`/
+  `node.captures` (a node-list attr on a base-`ExprIR` node) → `args_of` (`array emit_ir`), across
+  four sites: the lowering (`_handle_attribute_expr`), the array-var collector (`x = node.elts` →
+  array local), the elem-type collector (→ emit_ir element), AND crucially `_is_emit_ir_expr` now
+  EXCLUDES these list-attrs (they are arrays, not scalar sub-nodes — was mis-declaring `elts`
+  as `ref (IrOther "")`). @mutable_state-gated.
+- **✅ `_handle_setlit_expr` un-`\trusted` + PROVEN** (39 methods verbatim). **Count 1280 → 1279.**
+- `fstring` uses the same `node.parts` but has a further leak (next). field_get/var/ifexpr remain
+  escalated (object-as-string / module-const-string / _cf5_arr).
+- **Total this run: 15 handlers converted, count 1294 → 1279.**

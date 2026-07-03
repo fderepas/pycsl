@@ -621,7 +621,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     return ft in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR", "emit_ir")
             # self-ir-schema.md IR2: `<emit_ir>.value` / `.target` (a StmtIR field access on
             # an emit_ir node, e.g. `body_stmts[-1].value`) is itself an emit_ir sub-node.
-            if (isinstance(obj, dict) and self._is_emit_ir_expr(obj)
+            # self-tcb-reduction T1.a: EXCLUDE node-LIST attrs (`.elts`/`.parts`/…) — those are
+            # `array emit_ir` (`args_of`), NOT a scalar node, so they are collected as array locals.
+            if ((ir.get("attr") or ir.get("field")) not in ("elts", "parts", "args", "captures")
+                    and isinstance(obj, dict) and self._is_emit_ir_expr(obj)
                     and getattr(self, "_current_self_type", None)
                     in getattr(self, "_mutable_state_classes", set())):
                 return True
@@ -3935,6 +3938,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # not a sub-node — so `inner.kind == "Subscript"` routes through `str_eq_op`.
             if attr in _EMIT_IR_STR_ATTRS:
                 return f"({_EMIT_IR_STR_ATTRS[attr]} {_os})"
+            # self-tcb-reduction T1.a: a node-LIST attr (`node.elts`/`node.parts`/…) → the args
+            # list (`args_of`, an `array emit_ir`), so `for elt in node.elts` iterates it.
+            if attr in ("elts", "parts", "args", "captures"):
+                return f"(args_of {_os})"
             return f"(svalue_of {_os})"
         obj_str = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
         self._add_abstract_op(f"val get_{attr} (x: int) : int")

@@ -445,7 +445,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _field_label(self, record_lower: Optional[str], field: str) -> str:
+    def _field_label(self, record_lower: str, field: str) -> str:
         return ""
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -744,12 +744,39 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         body = self._expr_to_whyml(node.body, local_refs, invariant_ctx, subst)
         param_str = " ".join(f"({whyml_ident(p)}: int)" for p in params) if params else "()"
         return f"(fun {param_str} -> {body})"
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_setlit_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
-        return ""
+    def _handle_setlit_expr(
+        self,
+        node: "ExprIR",
+        local_refs: Set[str],
+        invariant_ctx: bool,
+        subst: Optional[Dict[str, str]],
+    ) -> str:
+        elts = node.elts
+        # Empty set literal: `map int (option int)` initialised to None.
+        if not elts:
+            return "(const (None: option int))"
+        # Non-empty set literal `{a, b, c}`: chain map_update_some on an
+        # empty base. Each element is marked present with value 0.
+        # `Map.set` directly would be a logic-function call rejected as
+        # ghost; the program-val wrapper sidesteps that.
+        # list-comprehension-lowering.md L5: polymorphic decl in a @mutable_state module
+        # (unifies with a string-valued dict field); fixed in the corpus → byte-identical.
+        _poly = getattr(self, "_mutable_state_classes", None)
+        self._add_abstract_op(
+            ("val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) "
+             ": map 'k (option 'v)\n" if _poly else
+             "val map_update_some (m: map int (option int)) (k: int) (v: int) "
+             ": map int (option int)\n")
+            + "    ensures { result = Map.set m k (Some v) }")
+        result = "(const (None: option int))"
+        for elt in elts:
+            elt_w = self._coerce_to_int(self._expr_to_whyml(
+                elt, local_refs, invariant_ctx, subst))
+            result = f"(map_update_some {result} {elt_w} 0)"
+        return result
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

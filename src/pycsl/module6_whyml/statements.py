@@ -1896,6 +1896,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                             and self._is_emit_ir_expr(
                                 {"type": "Var", "name": _fn[:-len(".get")]})):
                         return "emit_ir"
+            # self-tcb-reduction T1.a: `node.elts`/`node.parts` (a node-list attr) → emit_ir elem.
+            if t in ("Attribute", "FieldGet") and (v.get("attr") or v.get("field")) in (
+                    "elts", "parts", "args", "captures"):
+                _o = v.get("object") or v.get("value")
+                if isinstance(_o, dict) and self._is_emit_ir_expr(_o):
+                    return "emit_ir"
             # cf6.md M1.6: `<array> or []` - the element class is the left array's.
             if t == "BinOp" and v.get("op") == "or":
                 return _val_elem_ty(v.get("left", {}))
