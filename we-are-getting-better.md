@@ -70,9 +70,11 @@ to `0`; then `x in <field>` becomes `contains_check x 0` (a string vs int mismat
     `.get(self_type, {})` came out `'mu -> option int` and the double-subscript `[…][…]` couldn't
     type. Built the nested-map feature (`map int (option (map int (option int)))`); also the inner
     map was `map string`-keyed (should be int-keyed + `str_hash_op`, uniform with the model).
-15. **[OPEN]** `_module_method_formal_params.get(func_name, [])` → `array int` (a `Dict[str,List[str]]`
-    dict-of-lists, another nested container flattened) — **the example that prompted this file.** The
-    param-name list is `array string`; still lowering as `array int`. Needs the Dict[str,List] model.
+15. **[FIXED]** `_module_method_formal_params.get(func_name, [])` → `array int` (a `Dict[str,List[str]]`
+    dict-of-lists, flattened) — **the example that prompted this file.** Built the nested dict-of-lists
+    model: `Dict[str, List[T]]` → `map int (option (seq T))`; `.get(k, [])` reads the inner `seq T`
+    (empty-seq default), and a local bound to it is classified `seq T` (no snapshot, no int leak).
+    Byte-diff 0 + proven; ref test 0746.
 
 ## E. Attribute / projection reads → `svalue_of`/`int` instead of the name/discriminant
 
@@ -135,5 +137,5 @@ available.** The recurring *sources* of an accidental `int` are now catalogued:
 
 Fixing them one conversion at a time is exactly the no-more-int doctrine executed as a squeeze: the
 count came down 21 markers, and along the way ~28 distinct value-flows moved off `int` onto
-`emit_ir`/`string`/`array`/`map`/`seq`. The one still **[OPEN]** (#15, `Dict[str,List]`) is the next
-faithful-type to build — and it's the last thing gating the `call`/`subscript` giants.
+`emit_ir`/`string`/`array`/`map`/`seq`. The last **[OPEN]** one (#15, `Dict[str,List]`) is now **[FIXED]** too — `Dict[str, List[T]]`
+lowers to `map int (option (seq T))`. Every catalogued int-leak class now has a faithful lowering.

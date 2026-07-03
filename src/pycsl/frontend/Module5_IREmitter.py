@@ -3046,9 +3046,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             if (isinstance(v, ast.Subscript)
                     and isinstance(v.value, ast.Name)
                     and v.value.id in ("List", "list")
-                    and isinstance(v.slice, ast.Name)
-                    and v.slice.id == "int"):
-                return "seq int"
+                    and isinstance(v.slice, ast.Name)):
+                # nested-map.md / #15: `Dict[str, List[T]]` — the value is a `seq T` (a list
+                # lowers to `seq`), so the field is `map int (option (seq T))`. `List[str]`→`seq
+                # string` (was unhandled → flattened to int); `List[int]`→`seq int` (unchanged).
+                return "seq string" if v.slice.id == "str" else "seq int"
         return None
 
     @staticmethod

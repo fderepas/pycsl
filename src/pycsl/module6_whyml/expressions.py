@@ -399,8 +399,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         dead under `#@ no_exception KeyError`, the ambient default otherwise)."""
         if nu == "string":
             return '""'
-        if nu == "seq int":
-            return "(Seq.empty: seq int)"
+        if nu and nu.startswith("seq "):
+            # #15: `Dict[str, List[T]]` value (`seq string`/`seq int`) -> the empty seq default.
+            return f"(Seq.empty: {nu})"
         if nu and nu.startswith("map "):
             inner_v = (nu.split("(option ", 1)[1].rsplit(")", 1)[0]
                        if "(option " in nu else "int")
@@ -3323,7 +3324,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 k = f"(str_hash_op {args[0]})"
             else:
                 k = self._coerce_to_int(args[0])
-            default = args[1] if len(args) >= 2 else self._dv_missing_default(_field_nu)
+            # #15: for a NESTED-collection value (`seq _`/`map _`), the explicit `[]`/`{}` default
+            # is a type-generic empty that lowers to the WRONG shape (`array int` for `[]`); use the
+            # ν-typed empty instead so the `None ->` arm matches the `Some v_` (inner seq/map).
+            if (isinstance(_field_nu, str)
+                    and _field_nu.startswith(("seq ", "map ", "array "))):
+                default = self._dv_missing_default(_field_nu)
+            else:
+                default = args[1] if len(args) >= 2 else self._dv_missing_default(_field_nu)
             return (f"(match Map.get {recv_whyml} {k} "
                     f"with | Some v_ -> v_ | None -> {default} end)")
         if not is_dict:

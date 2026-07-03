@@ -224,6 +224,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         if not isinstance(v, dict):
             return False
         t, f = v.get("type"), v.get("func")
+        # #15: `self._nested_seq_field.get(k)` already lowers to `seq _` (`Dict[str,List[T]]`) —
+        # pass through, no `snapshot` (which expects an array).
+        if (t == "Call" and isinstance(f, str) and f.endswith(".get")
+                and f[:-len(".get")].startswith("self.")):
+            _nu = self._self_field_dict_nu(f[:-len(".get")])
+            if isinstance(_nu, str) and _nu.startswith("seq "):
+                return True
         if t == "Call" and isinstance(f, str):
             if (f.startswith("IRScanner.find_") or f.startswith("IRScanner.collect_")
                     or f.endswith(".split")):
@@ -1774,6 +1781,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 if not isinstance(v, dict):
                     return False
                 _t, _f = v.get("type"), v.get("func")
+                # #15: `self._nested_seq_field.get(k)` yields the inner `seq _` (`Dict[str,List[T]]`),
+                # and a bare list comprehension lowers to `seq` — both make the local seq-valued.
+                if _t == "ListComp":
+                    return True
+                if (_t == "Call" and isinstance(_f, str) and _f.endswith(".get")
+                        and _f[:-len(".get")].startswith("self.")):
+                    _nu = self._self_field_dict_nu(_f[:-len(".get")])
+                    if isinstance(_nu, str) and _nu.startswith("seq "):
+                        return True
                 if _t == "Call" and isinstance(_f, str):
                     if (_f.startswith("IRScanner.find_") or _f.startswith("IRScanner.collect_")
                             or _f.endswith(".split") or _f == "sorted"):
@@ -1883,6 +1899,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # item34.md CF5: the seq string name-collection sources → `string` element.
             if t == "Call" and isinstance(v.get("func"), str):
                 _fn = v["func"]
+                # #15: `self._nested_seq_field.get(k)` (`Dict[str,List[T]]`) → the inner `seq T`
+                # element type, so the local is a `seq T` (promoted via `_is_seq_src`).
+                if _fn.endswith(".get") and _fn[:-len(".get")].startswith("self."):
+                    _nu = self._self_field_dict_nu(_fn[:-len(".get")])
+                    if isinstance(_nu, str) and _nu.startswith("seq "):
+                        return _nu[len("seq "):]
                 if (self._call_returns_string_collection(_fn) or _fn.endswith(".split")):
                     return "string"
                 if _fn in ("sorted", "set", "frozenset", "list") and v.get("args"):
