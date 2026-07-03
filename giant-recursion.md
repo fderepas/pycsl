@@ -157,3 +157,45 @@ headline number the wrong way.
 **Expected outcome if executed:** `_call_named_builtins` −1, `_handle_subscript` −1, `_handle_call_expr`
 0 to −1 → the giants go from 3 markers to **~0–1**, with ~1000 L of trusted code converted, and the
 last `_handle_*` handlers off the trusted core — the natural end of the self-tcb-reduction campaign.
+
+---
+
+## EXECUTION LOG — `_call_named_builtins` attempt (2026-07-03): the K≈0 prediction was wrong
+
+Executed §5 step 1 on the "easiest" giant. Got a long way, and learned the plan's optimism was
+misplaced in one specific, measurable way.
+
+**What worked (as predicted):**
+- The `Optional[str]`-return desugar: `-> str` + `return ""` sentinel + caller `if named:` truthiness.
+- Isolating the ONE genuinely-hard branch — the getattr-field `.get` rewrite, which *mutates* the IR
+  (`expr = dict(expr); expr["func"]=…; expr.pop("receiver")`) and so reassigns the `expr`/`func_name`
+  params (dropping them from the signature). Extracted to a trusted leaf `_call_dict_get_shape`. **+1.**
+
+**The tool gap the plan missed — a trusted stub CALLED BY VERIFIED CODE.** `_call_dict_get_shape` is the
+first trusted stub ever *called from a converted body*. That exposed a latent disagreement: the verified
+`let` signature lowered a `List[str]` param to `array int`, while the abstract-`val` path
+(`_build_method_param_types_map`) lowered it to `array string`. A `self.m(args)` call where one side is
+verified and the other abstract then fails to type-check. **Diagnosed and fixed** (`_param_type_str` now
+applies the same `@mutable_state`-gated `List[str]`→`array string` refinement) — a real, reusable fix,
+but a *prerequisite* the plan didn't list. **This will recur for every giant** (they all call helpers).
+
+**Why K is NOT ≈0 — the helper-stub cascade.** The plan's "calls to recursion leaves are FREE" corollary
+is true, but the giants mostly call **helper methods**, not the `_expr_to_whyml` recursion leaf. Each
+helper must be a mirror stub with a correct signature. `_call_named_builtins` calls **16** helpers; 14 are
+already in-mirror (need only `expr: Dict`→`"ExprIR"` signature touch-ups, byte-diff 0), but **2 were
+missing** (`_call_returns_seq_string`, `_lower_getattr`) → **+2 new stub markers**. Plus the getattr leaf
+(**+1**). So converting `_call_named_builtins` is **net +2**, not the predicted −1 — before counting the
+leaks still ahead.
+
+**Revised verdict (empirical, supersedes §7's optimism).** Even the easiest giant is **net-marker-positive**
+to convert, because a giant is a *dispatcher over a fan-out of helpers*, and pulling its body into the
+verified set drags each not-yet-mirrored helper in as a new leaf. `K` is not the count of *irreducible*
+branches — it's the count of **not-yet-converted transitive helper callees**, which for a top-level
+dispatcher is large. The giants are the LAST handlers precisely because they sit atop the helper DAG:
+converting them first maximizes K. **If the giants are ever converted, it must be bottom-up over the whole
+helper DAG** (convert every leaf helper first, so by the time the dispatcher is done its callees are all
+already-converted = free), NOT dispatcher-first. That is a much larger campaign than one giant.
+
+**Landed from this attempt:** nothing to the mirror (reverted to clean 1273). The one reusable artifact —
+the `_param_type_str` `List[str]`→`array string` agreement fix — is documented here as the first
+prerequisite for a future bottom-up DAG pass, not landed orphaned.
