@@ -308,3 +308,21 @@ the corrected §8 model assumed. Converting them is not "hard work on a known pa
 features first (§9 classes 2–3), each its own demand-driven mini-project. Absent a specific driver for
 those features, 1273 is the campaign's sound endpoint. If ever resumed, the FIRST buildable pieces are the
 two blocked features (dict-literal `emit_ir` construction; method tuple-returns), NOT another giant.
+
+---
+
+## 10. FEATURE BUILT — dict-literal `emit_ir` construction (2026-07-03)
+
+The §9 "construction" blocker (class 2) is **resolved**. Diagnosis: the construction machinery
+(`_lower_irnode_construction` → `IrVar`/`IrAttr`; `_collect_emit_ir_result_locals` → `ref (IrOther "")`)
+already existed and worked — the local `node` lowered correctly. The ONLY gap was the **return type**:
+`_compute_return_type` mapped the `-> Dict[str, Any]` annotation to `map int (option int)`, but the body
+returns `emit_ir`. Fix: a `_returns_emit_ir(body_stmts)` check (returns a `{"type":K}`-constructed local
+or an `emit_ir` expr) overrides the return type to `emit_ir`, ahead of the `ann in ("set","dict",…)`
+branch. `@mutable_state`-gated → byte-diff 0.
+
+**Both construction leaves now CONVERT** (`_todict_recv_node_ir`, `_todict_routed_ir`) — verified in the
+mirror, byte-diff 0, full proof, count still **1273** (added as verified bodies, +0 markers). Ref test
+**0747**. So 2 of the 24 MISSING helpers are now done, and the §9 "needs a new construction feature"
+blocker is cleared. Remaining giant blockers: the Optional-caller-sweep discipline (class 1) and method
+tuple-returns (class 3, `_str_method_recv_and_tail`).

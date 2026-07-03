@@ -315,6 +315,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns \nothing
     def _recognize_field_decode_idiom(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> Optional[str]:
         return None
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _todict_routed_ir(self, recv_dotted: str, key: str) -> Dict[str, Any]:
+        """todict-reflection-plan.md R1: the TYPED-field IR that `<recv>.get(key)`
+        routes to, where `recv` aliases `<node>.to_dict()`. The literal key `"type"`
+        → the node's `kind` tag; any other key → the same-named field. `recv_dotted`
+        may be dotted (`stmt.array`) → a nested receiver."""
+        field = "kind" if key == "type" else key
+        parts = recv_dotted.split(".")
+        node: Dict[str, Any] = {"type": "Var", "name": parts[0]}
+        for p in parts[1:]:
+            node = {"type": "Attribute", "object": node, "attr": p}
+        return {"type": "Attribute", "object": node, "attr": field}
+
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _todict_recv_node_ir(self, recv_dotted: str) -> Dict[str, Any]:
+        """The node IR for a dotted receiver (`self.types` → `Attribute(Var(self), types)`)."""
+        parts = recv_dotted.split(".")
+        node: Dict[str, Any] = {"type": "Var", "name": parts[0]}
+        for p in parts[1:]:
+            node = {"type": "Attribute", "object": node, "attr": p}
+        return node
+
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True

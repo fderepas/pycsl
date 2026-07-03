@@ -680,6 +680,34 @@ class FunctionEmissionMixin:
             return "(" + ", ".join(slots) + ")"
         return return_type
 
+    def _returns_emit_ir(self, body_stmts: List[Dict[str, Any]]) -> bool:
+        """True if the function returns a constructed `emit_ir` node — a `return <local>` whose
+        local's first assignment is an inline `{"type": K}` IR construction (or another emit_ir
+        value), or a `return <emit_ir expr>` directly. Drives the `emit_ir` return-type override
+        for the dict-literal IR-construction feature. @mutable_state-gated → False (inert) for the
+        corpus, so the return type is unchanged there."""
+        if (getattr(self, "_current_self_type", None)
+                not in getattr(self, "_mutable_state_classes", set())):
+            return False
+        eir = self._collect_emit_ir_result_locals(body_stmts)
+        found = [False]
+
+        def rec(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("stmt") == "Return":
+                    v = n.get("value", {})
+                    if isinstance(v, dict) and (
+                            (v.get("type") == "Var" and v.get("name") in eir)
+                            or self._is_emit_ir_expr(v)):
+                        found[0] = True
+                for x in n.values():
+                    rec(x)
+            elif isinstance(n, list):
+                for x in n:
+                    rec(x)
+        rec(body_stmts)
+        return found[0]
+
     def _compute_return_type(self, func: Dict[str, Any], body_stmts: List[Dict[str, Any]]) -> str:
         """Compute the WhyML return type for one function, applying the
         `List[T] → array int`, `Set[T]`/`Dict[K, V]` → `map int (option int)`,
@@ -688,6 +716,13 @@ class FunctionEmissionMixin:
         return_type = IRScanner.find_return_type(body_stmts)
         return_type = self._refine_tuple_return_type(func, body_stmts, return_type)
         ann = func.get("return_annotation")
+        # dict-literal emit_ir construction: a method that RETURNS a constructed IR node
+        # (`node = {"type":"Var",…}; … return node`) is `emit_ir`, not the `map int (option int)`
+        # its `-> Dict[str, Any]` annotation would otherwise imply (the Python type of an IR-node
+        # dict is a dict; the MODEL type is the `emit_ir` sum). Overrides the `ann in
+        # ("set","dict",…)` branch below. @mutable_state-gated → byte-identical for the corpus.
+        if self._returns_emit_ir(body_stmts):
+            return "emit_ir"
         # typing-engagement ty2 / 32-1700-typing-spec-8: a Protocol member is an
         # `abstract: True` bodyless `val` (the refinement target). Its body is
         # `...`/empty, so `find_return_type` returns "unit" — but the `-> T`
