@@ -32,14 +32,15 @@ class StructFormat:
     #@ assigns \nothing
     def slot_id(self) -> str:
         return ""
-
-
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _short_type(t: str) -> str:
-    return ""
+    if t == "int":
+        return "i"
+    if t == "array int":
+        return "a"
+    return "x"
 
 _TOKEN_RE = re.compile('(\\d*)([A-Za-z?])')
 #@ \trusted reviewer: pycsl-self-annotate
