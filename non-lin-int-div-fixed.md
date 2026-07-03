@@ -122,10 +122,18 @@ to attempt: a vacuous "proof" is CAUGHT, not silently accepted. **Correction (cr
 ALWAYS construct it. SMT-timeout is a **Rocq/Lean proof OBLIGATION**, never a terminal trust state (see
 memory `smt_timeout_not_unprovable`). So the de-trust IS achievable — the honest path is `#@ proof
 rocq|lean` (the `0342`-gcd cross-validation template) discharging the deep-branch goals SMT times out on.
-DONE so far: confirmed de-trusting `rgb_to_hsv` with SMT alone times out (as expected — that is the
-routing signal to Rocq/Lean, NOT a dead end), and the gate would catch any vacuous shortcut.
-REMAINS: write the Rocq/Lean proofs for the 4 csys deep-branch functions and drop their `\trusted`
-markers — substantial proof-engineering work, tracked as the downstream consumer.
+✅ **`rgb_to_hsv` DE-TRUSTED (2026-07-04)** — csys `\trusted` 4 → 3. The two nonlinear-div bounds SMT
+times out on are stated as WhyML axioms `Pycsl.Csys.Colorsys.{sat_bound,hue_bound}` (preamble.py
+`_AXIOM_REGISTRY`), proven in BOTH Rocq (`__init__.proofs/rocq/Colorsys.v`, `coqc` exit 0) and Lean
+(`.../lean/Colorsys.lean`, core Lean 4 no-Mathlib, `lean` exit 0) — no Admitted/Axiom/sorry. Key
+technique: prove each axiom on an ISOLATED leaf helper (`_hsv_saturation` gains `≤ 1000`; new
+`_hue_offset` bounds the hue division) so `rgb_to_hsv`'s VC stays LINEAR (the monolithic deep-branch VC
+OOM'd otherwise); plus a targeted `(r==g==b) ⟹ result==r` ensures on `_rgb_max`/`_rgb_min` (avoids the
+disjunctive-or explosion) and two guiding `#@ assert`s for the h-range. `pycsl --audit-proof` passes all
+4 citations; the FULL csys library verifies under the DEFAULT non-vacuity gate (genuinely non-vacuous).
+The mechanism is recorded in memory `cited_proof_mechanism`.
+REMAINS (future work): the same leaf-helper + cited-axiom pattern applies to the other 3 trusted
+deep-branch functions (`rgb_to_hls`, `hls_to_rgb`, `hsv_to_rgb`).
 
 ---
 

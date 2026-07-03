@@ -7,9 +7,15 @@
 # Each function matches the RST API signature and returns a tuple.
 #
 # Body-proven: rgb_to_yiq, yiq_to_rgb, _rgb_max, _rgb_min, _hsv_saturation,
-#              _hls_saturation, _hsv_p
-# Trusted bodies (SMT timeout on deep branch + division):
-#              rgb_to_hls, hls_to_rgb, rgb_to_hsv, hsv_to_rgb
+#              _hls_saturation, _hsv_p, _hue_offset, rgb_to_hsv
+# rgb_to_hsv de-trusted (non-lin-int-div-fixed.md S5): the nonlinear integer-
+# division bounds SMT times out on are discharged in the leaf helpers via the
+# `sat_bound` / `hue_bound` axioms, cross-validated by __init__.proofs/rocq/
+# Colorsys.v + __init__.proofs/lean/Colorsys.lean (Curry-Howard: SMT-timeout is
+# a Rocq/Lean proof obligation, never a terminal trust state).
+# Trusted bodies (SMT timeout on deep branch + division — de-trust via the same
+# leaf-helper + cited-axiom pattern is future work):
+#              rgb_to_hls, hls_to_rgb, hsv_to_rgb
 
 
 #@ requires 0 <= r and r <= 1000
@@ -58,6 +64,7 @@ def yiq_to_rgb(y: int, i: int, q: int) -> tuple:
 #@ requires 0 <= b and b <= 1000
 #@ ensures \result >= 0 and \result <= 1000
 #@ ensures \result >= r and \result >= g and \result >= b
+#@ ensures (r == g and g == b) ==> \result == r
 def _rgb_max(r: int, g: int, b: int) -> int:
     """Max of three RGB components."""
     mx = r
@@ -73,6 +80,7 @@ def _rgb_max(r: int, g: int, b: int) -> int:
 #@ requires 0 <= b and b <= 1000
 #@ ensures \result >= 0 and \result <= 1000
 #@ ensures \result <= r and \result <= g and \result <= b
+#@ ensures (r == g and g == b) ==> \result == r
 def _rgb_min(r: int, g: int, b: int) -> int:
     """Min of three RGB components."""
     mn = r
@@ -83,9 +91,12 @@ def _rgb_min(r: int, g: int, b: int) -> int:
     return mn
 
 
+#@ proof rocq Pycsl.Csys.Colorsys.sat_bound
+#@ proof lean Pycsl.Csys.Colorsys.sat_bound
 #@ requires 0 <= mx and mx <= 1000
 #@ requires 0 <= mn and mn <= mx
 #@ ensures \result >= 0
+#@ ensures \result <= 1000
 #@ ensures mn == mx ==> \result == 0
 #@ ensures mx > 0 ==> \result == ((mx - mn) * 1000) // mx
 #@ ensures mx == 0 ==> \result == 0
@@ -223,7 +234,17 @@ def hls_to_rgb(h: int, l: int, s: int) -> tuple:
     return (rv, gv, bv)
 
 
-#@ \trusted reviewer: SMT-timeout-deep-branch
+#@ proof rocq Pycsl.Csys.Colorsys.hue_bound
+#@ proof lean Pycsl.Csys.Colorsys.hue_bound
+#@ requires diff > 0
+#@ requires (0 - diff) <= num and num <= diff
+#@ ensures (0 - 167) <= \result and \result <= 167
+def _hue_offset(num: int, diff: int) -> int:
+    """Hue sector offset ((num*1000)//(6*diff)), bounded to [-167, 167] by the
+    `hue_bound` nonlinear-division axiom (cross-validated in Rocq + Lean)."""
+    return (num * 1000) // (6 * diff)
+
+
 #@ requires 0 <= r and r <= 1000
 #@ requires 0 <= g and g <= 1000
 #@ requires 0 <= b and b <= 1000
@@ -233,7 +254,9 @@ def hls_to_rgb(h: int, l: int, s: int) -> tuple:
 #@ ensures r == g and g == b ==> \result[1] == 0
 #@ assigns \nothing
 def rgb_to_hsv(r: int, g: int, b: int) -> tuple:
-    """RST: 'Convert the color from RGB coordinates to HSV coordinates.'"""
+    """RST: 'Convert the color from RGB coordinates to HSV coordinates.'
+    The nonlinear-division bounds are discharged in the leaf helpers
+    (`_hsv_saturation`, `_hue_offset`) so this body's VC is purely linear."""
     mx = _rgb_max(r, g, b)
     mn = _rgb_min(r, g, b)
     v = mx
@@ -242,13 +265,15 @@ def rgb_to_hsv(r: int, g: int, b: int) -> tuple:
         return (0, s, v)
     diff = mx - mn
     if r == mx:
-        h = ((g - b) * 1000) // (6 * diff)
+        h = _hue_offset(g - b, diff)
     elif g == mx:
-        h = 333 + ((b - r) * 1000) // (6 * diff)
+        h = 333 + _hue_offset(b - r, diff)
     else:
-        h = 667 + ((r - g) * 1000) // (6 * diff)
+        h = 667 + _hue_offset(r - g, diff)
+    #@ assert (0 - 167) <= h and h <= 834
     if h < 0:
         h = h + 1000
+    #@ assert 0 <= h and h <= 1000
     return (h, s, v)
 
 

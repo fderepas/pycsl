@@ -1251,6 +1251,23 @@ class PreambleEmissionMixin:
             "forall s : string. String.length (capwords_def s) <= String.length s",
         "Pycsl.Strmod.Capwords.capwords_empty":
             "capwords_def \"\" = \"\"",
+
+        # Pycsl.Csys.Colorsys — nonlinear integer-division bounds for the HSV
+        # conversion (de-trusting csys `rgb_to_hsv`; non-lin-int-div-fixed.md S5).
+        # SMT (Alt-Ergo/Z3 over int.EuclideanDivision) times out on these bounds
+        # through the deep sector branches; each is an honest arithmetic fact,
+        # cross-validated by src/pycsl_lib/csys/__init__.proofs/rocq/Colorsys.v
+        # + .../lean/Colorsys.lean (0 Axiom/Admitted/sorry). `sat_bound`: the HSV
+        # saturation `(diff*1000)//mx` is <= 1000 since diff <= mx (div monotone,
+        # div (mx*1000) mx = 1000). `hue_bound`: the hue offset `(n*1000)//(6*diff)`
+        # lies in [-167, 167] since |n| <= diff (upper div 1000 6 = 166; lower
+        # div (-1000) 6 = -167).
+        "Pycsl.Csys.Colorsys.sat_bound":
+            "forall d m : int [div (d * 1000) m]. "
+            "0 <= d -> d <= m -> m > 0 -> div (d * 1000) m <= 1000",
+        "Pycsl.Csys.Colorsys.hue_bound":
+            "forall n d : int [div (n * 1000) (6 * d)]. d > 0 -> (0 - d) <= n -> n <= d -> "
+            "(0 - 167) <= div (n * 1000) (6 * d) /\\ div (n * 1000) (6 * d) <= 167",
     }
 
     # gap-13: axioms that CONSTRAIN the axiom-func symbols a `#@ class invariant`
