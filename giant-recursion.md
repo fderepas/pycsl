@@ -447,7 +447,7 @@ bounded step rather than a research problem.
 
 ---
 
-## 14. CURRENT STATUS (2026-07-03) — 13 leaves converted, count 1273 → 1265
+## 14. CURRENT STATUS (2026-07-03) — 14 leaves converted, count 1273 → 1264
 
 The §13 scorecard is superseded by this. The bottom-up DAG campaign is well underway; each leaf is now
 a bounded triage-then-convert step (see the skill reference `config/skills/self-tcb-reduction/

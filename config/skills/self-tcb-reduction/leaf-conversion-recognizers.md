@@ -99,3 +99,22 @@ unrecognized-string receiver), a `_union__<m>_N` type (Optional param/return not
   ports can be batched safely (byte-diff trivial).
 - When a leaf needs ≥2 new *deep* features (not in-stack recognizers), **defer it** and move on —
   diminishing returns. Record which feature it's waiting on (§5) so it's a bounded pickup later.
+
+## 7. Cross-file conversion (2026-07-03 addendum)
+
+Each mirror file (`expressions.py`, `functions.py`, `types.py`, …) is a SEPARATE self-annotate target:
+verify it standalone with `pycsl.py src/self-annotate/src/module6_whyml/<file>.py --import-path src/pycsl`
+(the OTHER files resolve from live `src/pycsl`). So a leaf's file dictates which command gates it.
+
+- **Emitter-inert wins are file-local**: porting a STUB body in `functions.py`/`types.py` (no `src/pycsl`
+  change) is byte-diff-trivial exactly as in `expressions.py`. Converted `_union_arm_whyml_type`
+  (functions.py) this way — a LOCAL str→str dict + `.get`, handled by the local-dict-value-type feature.
+- **Self-field leaves need the file's class to be a @mutable_state RECORD.** `ExpressionEmissionMixin`
+  IS `@mutable_state @dataclass` with declared fields, so `self._field` membership/`.get`/subscript route.
+  `TypeInferenceMixin` (types.py) is a PLAIN class → `target in self._ghost_list_vars` falls to opaque
+  `contains_check … <int>`. Converting a self-field leaf there first needs the mirror class made a
+  `@mutable_state @dataclass` with its `_ghost_*_vars`/etc. fields declared — a per-FILE prerequisite,
+  not a per-leaf one. Blocks `_resolve_effective_ghost_type` (and other types.py self-field leaves).
+- **Mis-diagnosis watch**: a "getattr-field `.get` fails" leak is usually a MISSING field declaration
+  (an insertion no-op'd on a stale anchor), NOT an emitter gap — the mixin IS in `_record_types`
+  case-insensitively. Always grep the mirror to confirm the field is actually declared before theorizing.
