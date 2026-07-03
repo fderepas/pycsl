@@ -394,7 +394,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return f"(const (None: option ({nu})))"
         return None
 
-    def _dv_missing_default(self, nu: Optional[str]) -> str:
+    def _dv_missing_default(self, nu: str) -> str:
         """`None ->` placeholder for a dict subscript read (typed per ν; proven
         dead under `#@ no_exception KeyError`, the ambient default otherwise)."""
         if nu == "string":
@@ -4204,7 +4204,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         else:
             self._quant_record_binders.pop(var, None)
 
-    def _field_label(self, record_lower: Optional[str], field: str) -> str:
+    def _field_label(self, record_lower: str, field: str) -> str:
         """WhyML label for a record field. Ambiguous names (shared by >1
         record, e.g. an inherited field) are qualified `<record>_<field>` to
         avoid Why3's global field-label collision; unique names stay bare."""

@@ -35,6 +35,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     _todict_aliases: Dict[str, str] = None
     _current_symbol_table: Dict[str, str] = None
     _mutable_state_classes: Set[str] = None
+    _ambiguous_fields: Set[str] = None
     _variant_types: Dict[str, str] = None
     _seq_value_types: Dict[str, str] = None
     _array_elem_types: Dict[str, str] = None
@@ -138,13 +139,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns \nothing
     def _dv_empty_default(self, nu: Optional[str]) -> Optional[str]:
         return None
-
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _dv_missing_default(self, nu: Optional[str]) -> str:
-        return ""
+    def _dv_missing_default(self, nu: str) -> str:
+        """`None ->` placeholder for a dict subscript read (typed per ν; proven
+        dead under `#@ no_exception KeyError`, the ambient default otherwise)."""
+        if nu == "string":
+            return '""'
+        if nu and nu.startswith("seq "):
+            # #15: `Dict[str, List[T]]` value (`seq string`/`seq int`) -> the empty seq default.
+            return f"(Seq.empty: {nu})"
+        if nu and nu.startswith("map "):
+            inner_v = (nu.split("(option ", 1)[1].rsplit(")", 1)[0]
+                       if "(option " in nu else "int")
+            return f"(const (None: option {inner_v}))"
+        return "0"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -411,13 +421,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns \nothing
     def _emit_metatype_tags(self) -> None:
         pass
-
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _tag_of_type(self, t_name: Optional[str]) -> Optional[str]:
-        return None
+    def _tag_of_type(self, t_name: str) -> str:
+        return ""
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -594,13 +603,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns \nothing
     def _pop_quant_binder(self, var: Optional[str], token) -> None:
         pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _field_label(self, record_lower: str, field: str) -> str:
-        return ""
+        """WhyML label for a record field. Ambiguous names (shared by >1
+        record, e.g. an inherited field) are qualified `<record>_<field>` to
+        avoid Why3's global field-label collision; unique names stay bare."""
+        base = whyml_ident(field)
+        if field in getattr(self, "_ambiguous_fields", set()) and record_lower:
+            return f"{whyml_ident(record_lower)}_{base}"
+        return base
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
