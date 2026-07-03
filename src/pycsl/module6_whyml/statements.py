@@ -1892,7 +1892,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 if _fn.endswith(".get"):
                     _ga = v.get("args") or []
                     if (_ga and isinstance(_ga[0], dict) and _ga[0].get("type") == "String"
-                            and _ga[0].get("value") in ("captures", "args")
+                            and _ga[0].get("value") in ("captures", "args", "parts", "elts")
                             and self._is_emit_ir_expr(
                                 {"type": "Var", "name": _fn[:-len(".get")]})):
                         return "emit_ir"

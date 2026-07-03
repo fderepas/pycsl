@@ -96,7 +96,7 @@ _EMIT_IR_PROJ = {
     # `captures` is a reflected node list (`args_of`); `body` is an OPAQUE stmt-list
     # (`stmts_of : → array int`); `guard` is a single node (`svalue_of`).
     "pattern": "kind_of", "ctor": "name_of", "captures": "args_of",
-    "body": "stmts_of", "guard": "svalue_of",
+    "body": "stmts_of", "guard": "svalue_of", "parts": "args_of", "elts": "args_of",
 }
 # `pattern` is CONTEXT-DEPENDENT: SUBSCRIPT `c["pattern"]` → a sub-NODE (below); `.get("pattern")`
 # → the KIND string (here). Different code paths read each tuple, so it appears in both.

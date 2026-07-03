@@ -434,3 +434,18 @@ machine-readably in `config/skills/self-tcb-reduction/self-tcb-reduction.json`.
 - `fstring` uses the same `node.parts` but has a further leak (next). field_get/var/ifexpr remain
   escalated (object-as-string / module-const-string / _cf5_arr).
 - **Total this run: 15 handlers converted, count 1294 → 1279.**
+
+### Iteration 14 (2026-07-03) — `.get`-form node-list recognizers banked; fstring escalated
+
+- **`.get("parts"/"elts")` node-list recognizers (LANDED, byte-diff 0, PROVEN):** extended the
+  iteration-13 node-list handling from the attribute form to the `.get` form —
+  `_EMIT_IR_PROJ["parts"/"elts"] = args_of`, the array-var collector `.get` key lists, and
+  `_val_elem_ty`'s `.get` keys now include `parts`/`elts`. General infra for `x = expr.get("elts")`.
+- **fstring ESCALATED — important process finding:** the auto-try `--no-proof` check
+  **false-positived** on fstring (reported convert), but the FULL proof caught a type error in
+  proof mode — its nested `_sp` helper + `parts[0]` (emit_ir element) types differently under proof
+  than under `--no-proof`. The proof gate correctly blocked the bad commit. **Lesson: `--no-proof`
+  ≠ proof type-check for nested-function constructs; the full-proof gate before commit is
+  load-bearing, not redundant.** fstring reverted; needs the nested-`_sp` recognizer next.
+- **Count after:** 1279 (no new conversion; infra + a false-positive caught). Tree green, PROVEN,
+  byte-diff 0.

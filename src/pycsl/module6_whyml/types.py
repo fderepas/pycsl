@@ -439,7 +439,7 @@ class TypeInferenceMixin:
                         _ga = val.get("args") or []
                         if (_ga and isinstance(_ga[0], dict)
                                 and _ga[0].get("type") == "String"
-                                and _ga[0].get("value") in ("captures", "args", "body")):
+                                and _ga[0].get("value") in ("captures", "args", "body", "parts", "elts")):
                             found.add(tgt)
                 # list-comprehension-lowering.md L1: a local first-assigned a list
                 # comprehension is an array local (its element-typed array from
@@ -461,7 +461,7 @@ class TypeInferenceMixin:
                         _ga = _vv.get("args") or []
                         if (_ga and isinstance(_ga[0], dict)
                                 and _ga[0].get("type") == "String"
-                                and _ga[0].get("value") in ("captures", "args", "body")):
+                                and _ga[0].get("value") in ("captures", "args", "body", "parts", "elts")):
                             found.add(tgt)
                 elif isinstance(val, dict) and val.get("type") == "Var" and tgt:
                     var_assigns[tgt] = val.get("name", "")
