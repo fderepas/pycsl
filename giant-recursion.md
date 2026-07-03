@@ -67,6 +67,14 @@ path (param_whyml_types). Each is a small, local recognizer — none is a new *f
 
 ## 3. The strategy: bottom-up, fine-grained, convert-then-measure
 
+> **⚠️ SUPERSEDED (2026-07-03).** §3–§5 below describe a *dispatcher-first* fine-grained conversion
+> with the claim "K≈0, net −1." **The execution log (bottom of file) empirically disproved this**:
+> even the easiest giant lands net **+2** dispatcher-first, because a giant is a dispatcher over a
+> fan-out of helpers and converting it drags each not-yet-mirrored helper in as a new stub. §1 (marker
+> math) and §2 (toolbox) remain valid; §6 (gates) remains valid. The correct strategy is **bottom-up
+> over the helper DAG** — see the new **§8 (Helper-DAG inventory)** and the execution log. Read those
+> two, not §3–§5.
+
 **Do NOT** extract big chunks (`_call_special_shapes`) as trusted leaves. **DO**:
 
 **S1 — Enumerate branches.** For each giant, list its top-level `if <guard>: return …` branches (call
@@ -199,3 +207,74 @@ already-converted = free), NOT dispatcher-first. That is a much larger campaign 
 **Landed from this attempt:** nothing to the mirror (reverted to clean 1273). The one reusable artifact —
 the `_param_type_str` `List[str]`→`array string` agreement fix — is documented here as the first
 prerequisite for a future bottom-up DAG pass, not landed orphaned.
+
+---
+
+## 8. Helper-DAG inventory (2026-07-03) — the actual work behind the giants
+
+Built by transitive `self._x(...)` call-graph closure over the emitter (`src/pycsl/module6_whyml/*.py`
++ `Module6_WhyMLTranspiler.py`), cross-referenced against mirror status. Reproduce with the analysis
+script pattern in this session (parse defs → closure per giant → STUB/CONVERTED/MISSING per callee).
+
+### The scale — "the giants" ≡ a 77-helper closure, not 3 methods
+| Giant | transitive emitter-helpers | STUB | MISSING | CONVERTED |
+|-------|---------------------------:|-----:|--------:|----------:|
+| `_handle_call_expr`      | 73 | 46 | 23 | 4 |
+| `_handle_subscript`      | 35 | 17 | 14 | 4 |
+| `_call_named_builtins`   | 49 | 28 | 17 | 4 |
+| **UNION (distinct)**     | **77** | **49** | **24** | **4** |
+
+Subscript's closure is almost a subset of call's; the three share heavily. Converting all three ≡
+converting/adding **80 methods** (77 helpers + 3 dispatchers).
+
+### The marker arithmetic (why bottom-up flips the sign)
+- **49 STUB helpers** are *existing* `\trusted` markers → converting each is **−1**. (These are ordinary
+  self-tcb campaign work; the giants just sit atop them.)
+- **24 MISSING helpers** aren't in the mirror → to convert any caller they must be added: **±0** if
+  convertible (added as a verified body, no marker), **+1** if irreducible (added as a stub).
+- **3 dispatchers** → **−3** once their callees are all in-mirror.
+- **Best case** (all stubs + all missing convert): ≈ **−52**. **Worst case** (all 24 missing irreducible):
+  −49 −3 +24 = **−28**. **Either way NET-NEGATIVE** — the dispatcher-first +2 was an artifact of stubbing
+  the missing helpers instead of converting them.
+
+**So bottom-up over the DAG is a genuine count win** — but it is a large campaign (≈80 methods, a real
+fraction of the remaining 1273), not "one giant." The giants are the capstone of finishing most of the
+expression-emitter mirror.
+
+### Bottom-up start set — the 27 DAG leaves (callees all CONVERTED/EXTERNAL)
+Convert these FIRST; each unblocks its parents.
+
+**18 STUB leaves — immediate −1 each (do these first, lowest risk):**
+`_add_abstract_op` · `_array_coerce_arg` · `_coerce_str_arg` · `_coerce_to_int` · `_dv_missing_default` ·
+`_field_label` · `_field_type_of` · `_handle_sum_call` · `_inductive_sig_whyml` · `_is_null_byte_lit` ·
+`_maybe_emit_no_exception_assert` · `_pop_quant_binder` · `_push_quant_binder` · `_quant_binder_whyml` ·
+`_resolve_dotted_signature` · `_strip_outer_parens` · `_symtype_to_whyml` · `_tag_of_type`
+
+**9 MISSING leaves — add as verified bodies (±0 if convertible; this is the go/no-go probe):**
+`_alias_self_field` · `_getattr_self_field` · `_is_seq_arg` · `_iter_elem_class` · `_self_field_dict_nu` ·
+`_str_method_recv_and_tail` · `_todict_recv_node_ir` · `_todict_routed_ir` ·
+`_wrap_unannotated_call_with_strict_assert`
+
+### The 24 MISSING helpers (the risk set — each must convert at ±0 or cost +1)
+leaf-now: `_alias_self_field` · `_getattr_self_field` · `_is_seq_arg` · `_iter_elem_class` ·
+`_self_field_dict_nu` · `_str_method_recv_and_tail` · `_todict_recv_node_ir` · `_todict_routed_ir` ·
+`_wrap_unannotated_call_with_strict_assert`
+non-leaf: `_call_returns_seq_string` · `_emit_ir_args_recv_ir` · `_handle_string_value_method` ·
+`_is_literal_string_join` · `_is_str_value_method` · `_join_arg_elem_is_string` · `_lower_dict_get_call` ·
+`_lower_getattr` · `_lower_irnode_construction` · `_render_callee_condition` · `_seq_snapshot_op` ·
+`_split_call_recv_sep` · `_todict_emit_ir_projection` · `_wrap_call_with_callee_raises_assert` ·
+`_wrap_with_no_exception_assert`
+(4 of these live in `Module6_WhyMLTranspiler.py` / `statements.py` — cross-file, need `#@ requires_method`
+wiring or their own mirror stubs.)
+
+### Prerequisites before ANY of the above (from the execution log)
+- **P1** — land `_param_type_str`'s `@mutable_state`-gated `List[str]`→`array string` refinement (the
+  trusted-stub-called-by-verified-code agreement). Gates every helper that passes a `List[str]`.
+- **P2** — the IR-mutation isolate recipe (`expr = dict(expr)…` → trusted leaf), applied per-helper.
+
+### Go/No-Go — the next concrete step
+Probe the **9 MISSING leaves**: can they be added as *verified* bodies (±0), or are they irreducible
+(+1)? That verdict decides whether the whole bottom-up campaign nets negative. Start the probe with the
+smallest — `_getattr_self_field`, `_self_field_dict_nu`, `_str_method_recv_and_tail`, `_todict_recv_node_ir`
+(all leaf, all read-only reflection) — plus land P1. If they convert, proceed up the DAG via the 18 STUB
+leaves; if they don't, the giants stay net-positive and 1273 is the endpoint.
