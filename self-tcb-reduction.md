@@ -395,3 +395,17 @@ machine-readably in `config/skills/self-tcb-reduction/self-tcb-reduction.json`.
   cashes out across a whole family of handlers. `separated` still leaks (own recognizer next).
 - **Total this run:** 8 handlers converted (unaryop/old/at/named_expr/issorted/length2d/valid/
   valid2d), count 1294 → 1286.
+
+### Iteration 11 (2026-07-03) — auto-try harvests 4 more: arrayeq/permutation/sum_node/lambda (1286→1282)
+
+- Built a reusable **auto-try harness** (`/tmp/autotry.py`): ports each trusted handler, type-checks,
+  KEEPs it if green else reverts + captures the first leak. Ran it over all remaining trusted
+  `_handle_*_expr`.
+- **✅ 4 convert with ZERO new emitter change** (on the accumulated recognizers): `arrayeq`,
+  `permutation`, `sum_node`, `lambda` — un-`\trusted` + PROVEN, byte-diff 0 by construction,
+  mirror-sync verbatim (36 methods). **Count 1286 → 1282.**
+- **Leak map captured for the rest** (the next recognizer targets): `in_globals`/`in_scope`
+  (`name in <method-result>` string-membership), `field_get` (`_field_label` str arg), `arraylen`
+  (field-slice), `var` (module-const str branch), `fstring`/`slice_access`/`attribute`/`call`/
+  `separated` (emit_ir/args reflection), `ifexpr` (`_cf5_arr` interaction).
+- **Total this run: 12 handlers converted, count 1294 → 1282.**

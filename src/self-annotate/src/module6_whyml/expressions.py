@@ -298,7 +298,6 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns \nothing
     def _recognize_field_decode_idiom(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> Optional[str]:
         return None
-
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -450,7 +449,6 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns \nothing
     def _handle_field_get_expr(self, expr: int, invariant_ctx: bool) -> str:
         return ""
-
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -563,7 +561,6 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns \nothing
     def _module_binding_names(self) -> int:
         return set()
-
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -645,33 +642,81 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if self._value_semantic:
             return f"(forall _si : int. {lo} <= _si /\\ _si < {hi} - 1 -> {base}[_si] <= {base}[_si + 1])"
         return "true"
-
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_arrayeq_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
+    def _handle_arrayeq_expr(
+        self,
+        node: "ExprIR",
+        local_refs: Set[str],
+        invariant_ctx: bool,
+        subst: Optional[Dict[str, str]],
+    ) -> str:
+        """`\\array_eq(a, b)` — extensional array content equality:
+        same length and equal element at every index. Emitted as an
+        explicit quantified formula (rather than the `array_eq`
+        predicate) so the SMT solver sees the per-index goal directly and
+        can E-match it against `Array.blit`/`Array.sub` content
+        postconditions (the predicate layer did not auto-unfold)."""
+        a = self._expr_to_whyml(node.left, local_refs, invariant_ctx, subst)
+        b = self._expr_to_whyml(node.right, local_refs, invariant_ctx, subst)
+        if self._value_semantic:
+            return (f"((Array.length {a} = Array.length {b}) /\\ "
+                    f"(forall _ae : int. 0 <= _ae /\\ _ae < Array.length {a} "
+                    f"-> {a}[_ae] = {b}[_ae]))")
+        return "true"
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_permutation_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
-        return ""
-    #@ \trusted reviewer: pycsl-self-annotate
+    def _handle_permutation_expr(
+        self,
+        node: "ExprIR",
+        local_refs: Set[str],
+        invariant_ctx: bool,
+        subst: Optional[Dict[str, str]],
+    ) -> str:
+        """`\\permutation(a, b)` — `a` is a permutation of `b` (same multiset).
+        Lowers to an UNINTERPRETED `predicate permut` (no-more-int A2b Gap 1):
+        unlike `\\array_eq`, permutation is not first-order expressible, so it is
+        NOT unfolded — a proof-assistant-imported axiom (`#@ proof`, stage 4) is
+        what constrains `permut`. Here the operator is just plumbed: a spec-only
+        relation over two `array int` values."""
+        a = self._expr_to_whyml(node.left, local_refs, invariant_ctx, subst)
+        b = self._expr_to_whyml(node.right, local_refs, invariant_ctx, subst)
+        if self._value_semantic:
+            self._add_abstract_op("predicate permut (a: array int) (b: array int)")
+            return f"(permut {a} {b})"
+        return "true"
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_sum_node_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
+    def _handle_sum_node_expr(
+        self,
+        node: "ExprIR",
+        local_refs: Set[str],
+        invariant_ctx: bool,
+        subst: Optional[Dict[str, str]],
+    ) -> str:
+        base = node.base
+        lo = self._expr_to_whyml(node.lo, local_refs, invariant_ctx, subst)
+        hi = self._expr_to_whyml(node.hi, local_refs, invariant_ctx, subst)
+        if self._value_semantic:
+            return f"(pycsl_sum {base} {lo} {hi})"
+        return "0"
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_lambda_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
-        return ""
+    def _handle_lambda_expr(
+        self,
+        node: "ExprIR",
+        local_refs: Set[str],
+        invariant_ctx: bool,
+        subst: Optional[Dict[str, str]],
+    ) -> str:
+        params = node.params
+        body = self._expr_to_whyml(node.body, local_refs, invariant_ctx, subst)
+        param_str = " ".join(f"({whyml_ident(p)}: int)" for p in params) if params else "()"
+        return f"(fun {param_str} -> {body})"
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
