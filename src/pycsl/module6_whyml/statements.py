@@ -1434,6 +1434,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 key = fn
             return rt.get(key)
 
+        out: Set[str] = set()   # accumulating string locals — consulted by `_is_str_val` (slice base)
+
         def _is_str_val(v: Any) -> bool:
             if not isinstance(v, dict):
                 return False
@@ -1443,6 +1445,19 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # `ref ""`), so its `:=` typechecks — outside @mutable_state too. Scoped to the
             # new ops (not the whole `_is_string_expr`) to stay byte-clean.
             if self._is_str_value_method(v):
+                return True
+            # an emit_ir str-attribute read (`var = node.var` -> name_of) is a string local, so a
+            # dependent slice (`field = var[len("self."):]`) types as string. @mutable_state.
+            if (t in ("Attribute", "FieldGet") and _ms_str and self._is_string_expr(v)):
+                return True
+            # a SLICE of a STRING (`var[len("self."):]` prefix strip) is a substring -> string.
+            # The base may be a string local recognized EARLIER in this same fixpoint (`var =
+            # node.var`), so consult the accumulating `out` set too, not just `_is_string_expr`.
+            if (t in ("Subscript", "SliceAccess") and _ms_str
+                    and (self._is_string_expr(v.get("value", {}))
+                         or (isinstance(v.get("value"), dict)
+                             and v["value"].get("type") == "Var"
+                             and v["value"].get("name") in out))):
                 return True
             if (t in ("Subscript", "SliceAccess")
                     and self._split_call_recv_sep(v.get("value", {})) is not None):
@@ -1594,7 +1609,6 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 if st.get(_tg) in (None, "Any"):
                     st[_tg] = "str"
 
-        out: Set[str] = set()
         changed = True
         while changed:
             changed = False

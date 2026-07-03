@@ -986,12 +986,45 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 " -> String.length result = len }")
             return f"(str_sub_op {arr} {slo} {slen})"
         return self._slice_array_or_opaque(node, arr, sl, local_refs, invariant_ctx, subst)
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_arraylen_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
-        return ""
+    def _handle_arraylen_expr(
+        self,
+        node: "ExprIR",
+        local_refs: Set[str],
+        invariant_ctx: bool,
+        subst: Optional[Dict[str, str]],
+    ) -> str:
+        if self._value_semantic:
+            var = node.var
+            # 07-1705-rev4 P3/P5: `\length(a)` of a seq-modelled list — BODY context only.
+            # In a pre/post-condition a seq-promoted *param* names the original `array int`
+            # entry value (the body seq shadow is out of scope), so fall through to
+            # `Array.length` there.
+            if var in getattr(self, "_seq_locals", set()) and not self._in_spec:
+                deref = "!" if var in local_refs else ""
+                return f"(Seq.length {deref}{whyml_ident(var)})"
+            if var == "\\result":
+                return f"(Array.length {getattr(self, '_result_alias', None) or 'result'})"
+            if var.startswith("self."):
+                field = var[len("self."):]
+                # Mirror `_handle_field_get_expr`: in a type/class invariant
+                # the record fields are bare; in a method contract `self`
+                # is an in-scope parameter.
+                ref = field if invariant_ctx else f"self.{field}"
+                return f"(Array.length {ref})"
+            # An array LOCAL (`out = [0]*n`) is bound as a plain `Array.make` mutable
+            # array, NOT a ref — so it is referenced BARE even when it also appears in
+            # `local_refs` (mirrors `_handle_var_expr`'s `_array_locals` rule). Without
+            # this guard `\length(out)` in a loop invariant emitted `Array.length !out`,
+            # a deref of a non-ref → typecheck failure (`len(out)` and subscript `out[i]`
+            # were already correct via `_handle_var_expr`; only this `\length` path wasn't).
+            deref = ("!" if (var in local_refs
+                             and var not in getattr(self, "_array_locals", set()))
+                     else "")
+            return f"(Array.length {deref}{var})"
+        return f"{node.var}_len"
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
