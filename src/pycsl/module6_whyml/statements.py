@@ -2021,7 +2021,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 # record field → alias X to `self.<field>` (@mutable_state only).
                 if _ms and isinstance(tgt, str) and isinstance(v, dict):
                     _gf = self._getattr_self_field(v)
-                    if _gf is not None and self._self_field_dict_nu(f"self.{_gf}") is not None:
+                    if _gf and self._self_field_dict_nu(f"self.{_gf}") is not None:
                         self._getattr_self_dict_aliases[tgt] = _gf
             for key in ("body", "orelse", "finalbody", "then", "else_body"):
                 sub = st.get(key)

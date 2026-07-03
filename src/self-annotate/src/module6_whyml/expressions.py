@@ -329,6 +329,44 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         for p in parts[1:]:
             node = {"type": "Attribute", "object": node, "attr": p}
         return {"type": "Attribute", "object": node, "attr": field}
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _iter_elem_class(self, iter_ir: "ExprIR") -> str:
+        """self-ir-schema.md IR2: the record class of a comprehension iterable's ELEMENTS,
+        for typing the loop var during element-type inference. `self.ir.get("shared_vars")`
+        → "sharedvar"; None otherwise (the loop var stays untyped)."""
+        if (isinstance(iter_ir, dict) and iter_ir.get("type") == "Call"
+                and iter_ir.get("func") == "self.ir.get"):
+            _a = iter_ir.get("args") or []
+            if (_a and isinstance(_a[0], dict) and _a[0].get("type") == "String"
+                    and _a[0].get("value") == "shared_vars"):
+                return "sharedvar"
+        # item34.md CF5: iterating a `string`-element name-collection (`for e in body_raised`,
+        # `for tag in candidates`) binds the loop var to a `string` — so `handler_catches(base,
+        # e)`/`whyml_ident(var)` type-check. Covers both the array-elem and seq-value maps.
+        if (isinstance(iter_ir, dict) and iter_ir.get("type") == "Var"
+                and (getattr(self, "_array_elem_types", {}).get(iter_ir.get("name")) == "string"
+                     or getattr(self, "_seq_value_types", {}).get(iter_ir.get("name")) == "string")):
+            return "str"
+        return ""
+
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    @staticmethod
+    def _getattr_self_field(recv: "ExprIR") -> str:
+        """typed-ir-for-b-ceiling.md §14: if `recv` is `getattr(self, "<field>", …)`
+        (a defensive self-field access) return the string `<field>`, else None."""
+        if not (isinstance(recv, dict) and recv.get("type") == "Call"
+                and recv.get("func") == "getattr"):
+            return ""
+        a = recv.get("args", [])
+        if (len(a) >= 2 and isinstance(a[0], dict) and a[0].get("name") == "self"
+                and isinstance(a[1], dict) and a[1].get("type") == "String"):
+            return a[1].get("value")
+        return ""
+
 
     #@ requires True
     #@ ensures True

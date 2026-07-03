@@ -408,3 +408,39 @@ from converting; the highest-leverage next one is the **subscript-receiver `.get
 - ✅ Optional-caller-sweep discipline (§12) — validated byte-diff 0, but a per-leaf necessary-not-
   sufficient step; the reflection leaves each need one more feature (subscript-receiver `.get` the top
   one). The DAG is deeper than "3 features"; each leaf is its own small stack.
+
+---
+
+## 13. FEATURE BUILT + FIRST LEAVES CONVERTED — subscript-receiver `.get` projection (2026-07-03)
+
+The §12 highest-leverage next feature is built, and it **converted the first two DAG leaves** —
+`_getattr_self_field` and `_iter_elem_class` (both used by all 3 giants). Not just a feature: the first
+actual **conversions** on the giant DAG.
+
+**The gap:** `a[i].get("name")` — the receiver is an emit_ir ARRAY ELEMENT, carried in the Call's
+`receiver` field with a bare `func == "get"` (not a dotted Var). It collapsed to opaque `get_1`.
+
+**Built (all in `_lower_dict_get_call` / `_is_string_expr`, @mutable_state/emit_ir-gated → byte-diff 0):**
+1. A receiver-based emit_ir `.get` projection, placed BEFORE the `"." not in func_name` bail (func is
+   bare "get" here): `a[i].get("key")` → `(<proj> <lowered a[i]>)`.
+2. An element's `.get("value")` → `value_of` (its scalar string), not the `svalue_of` sub-node that
+   `_EMIT_IR_PROJ["value"]` picks for chaining.
+3. `_is_string_expr` recognizes the subscript-receiver `.get` with a string/value key, so
+   `a[0].get("name") == "self"` routes through `str_eq_op` (not an int-hash compare).
+
+**Converted (byte-diff 0, full proof, ref test 0749, count 1273 — added as verified bodies, +0 markers):**
+- `_getattr_self_field` — needed the Optional-caller-sweep (§12, 5 callers) + all 3 pieces above.
+- `_iter_elem_class` — needed only the desugar (its 2 callers already used `if _ec and …`) + the feature.
+
+**Milestone:** 2 of the 24 MISSING helpers now VERIFIED; the bottom-up DAG is moving. Each was the full
+stack the §9 probe predicted (Optional-sweep + a reflection feature) — but the stack is now BUILT and
+REUSABLE, so the next reflection leaves are cheaper.
+
+### Scorecard
+- ✅ dict-literal `emit_ir` construction (§10) — + `_todict_recv_node_ir`, `_todict_routed_ir` converted.
+- ✅ method tuple-returns (§11).
+- ✅ Optional-caller-sweep (§12).
+- ✅ subscript-receiver `.get` projection (§13) — + `_getattr_self_field`, `_iter_elem_class` converted.
+**4 leaves converted so far** (`_todict_*` ×2, `_getattr_self_field`, `_iter_elem_class`); ~20 MISSING +
+49 STUB helpers remain. The DAG is a long tail, but the reusable feature stack now makes each leaf a
+bounded step rather than a research problem.

@@ -501,7 +501,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # self-tcb-reduction T1.a: also fire for a SET self-field (`getattr(self, "_seq_locals",
             # set())`), not only dict fields — mirrors the direct `x in self._set_field` path so the
             # string key gets `str_hash_op`-hashed instead of the opaque `contains_check`.
-            _gf_coll = _gf is not None and (
+            _gf_coll = _gf and (
                 self._self_field_dict_nu(f"self.{_gf}") is not None
                 or self._field_type_of({"type": "Attribute",
                                         "object": {"type": "Var", "name": "self"},
@@ -515,7 +515,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # self-tcb-reduction T1.a: `x in self._method()` where the method returns a
         # `Set[str]`/`dict` (`name in self._module_binding_names()`) → map membership (the RHS
         # `right` is already the abstract-val call returning the map). @mutable_state.
-        if not rhs_is_map and rhs.get("type") == "Call" and self._getattr_self_field(rhs) is None:
+        if not rhs_is_map and rhs.get("type") == "Call" and not self._getattr_self_field(rhs):
             _fn = rhs.get("func", "")
             if isinstance(_fn, str) and _fn.startswith("self."):
                 _cls = getattr(self, "_current_self_type", None)
@@ -711,17 +711,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return node
 
     @staticmethod
-    def _getattr_self_field(recv: Any):
+    def _getattr_self_field(recv: "ExprIR") -> str:
         """typed-ir-for-b-ceiling.md §14: if `recv` is `getattr(self, "<field>", …)`
         (a defensive self-field access) return the string `<field>`, else None."""
         if not (isinstance(recv, dict) and recv.get("type") == "Call"
                 and recv.get("func") == "getattr"):
-            return None
+            return ""
         a = recv.get("args", [])
         if (len(a) >= 2 and isinstance(a[0], dict) and a[0].get("name") == "self"
                 and isinstance(a[1], dict) and a[1].get("type") == "String"):
             return a[1].get("value")
-        return None
+        return ""
 
     def _alias_self_field(self, name):
         """§26: if `name` is a local bound from `getattr(self, "<field>", …)` on a
@@ -729,7 +729,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         fld = getattr(self, "_getattr_self_dict_aliases", {}).get(name)
         return f"self.{fld}" if fld is not None else None
 
-    def _iter_elem_class(self, iter_ir):
+    def _iter_elem_class(self, iter_ir: "ExprIR") -> str:
         """self-ir-schema.md IR2: the record class of a comprehension iterable's ELEMENTS,
         for typing the loop var during element-type inference. `self.ir.get("shared_vars")`
         → "sharedvar"; None otherwise (the loop var stays untyped)."""
@@ -746,7 +746,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and (getattr(self, "_array_elem_types", {}).get(iter_ir.get("name")) == "string"
                      or getattr(self, "_seq_value_types", {}).get(iter_ir.get("name")) == "string")):
             return "str"
-        return None
+        return ""
 
     def _todict_emit_ir_projection(self, recv_dotted, key, local_refs, invariant_ctx, subst):
         node = self._todict_recv_node_ir(recv_dotted)
@@ -1008,8 +1008,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # form of the §12 self-field-dict get (func is bare `"get"` with a `getattr`
             # receiver, before the §14 rewrite).
             if _fn == "get":
+                # subscript-receiver .get with a STRING key (`a[i].get("name")`/`.get("type")`) on an
+                # emit_ir element → a string projection (name_of/kind_of/func_of/value_of), so a
+                # `== "self"` comparison routes through str_eq_op. @mutable_state / emit_ir-gated.
+                _grcv = ir.get("receiver")
+                if isinstance(_grcv, dict) and self._is_emit_ir_expr(_grcv):
+                    _gk = (ir.get("args") or [{}])[0]
+                    if (isinstance(_gk, dict) and _gk.get("type") == "String"
+                            and _gk.get("value") in _EMIT_IR_STR_KEYS + ("value",)):
+                        return True
                 _gf = self._getattr_self_field(ir.get("receiver"))
-                if _gf is not None and self._self_field_dict_nu(f"self.{_gf}") == "string":
+                if _gf and self._self_field_dict_nu(f"self.{_gf}") == "string":
                     return True
             if _fn.endswith(".get"):
                 # item34.md CF5: `<handler>.get("exc_type")` — a 1-arg string-key `.get` on a
@@ -2771,7 +2780,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and getattr(self, "_current_self_type", None)
                 in getattr(self, "_mutable_state_classes", set())):
             _ga = self._getattr_self_field(expr.get("receiver"))
-            if _ga is not None and self._self_field_dict_nu(f"self.{_ga}") is not None:
+            if _ga and self._self_field_dict_nu(f"self.{_ga}") is not None:
                 expr = dict(expr)
                 expr["func"] = f"self.{_ga}.{func_name}"
                 func_name = expr["func"]
@@ -3266,6 +3275,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         an `ensures \result == <literal>` claim about an arbitrary dict's
         value remains honestly unprovable — the faithful model, not a
         trusted lie)."""
+        # subscript-receiver .get projection: `a[i].get("name")` — the receiver is an emit_ir
+        # EXPRESSION (an array element `a[i]`, not a dotted Var), carried in the Call's `receiver`
+        # field with `func == "get"`. Project over the lowered receiver (kind_of/name_of/…). Must run
+        # BEFORE the `"." not in func_name` bail (func_name is bare "get" here). @mutable_state /
+        # emit_ir-gated (`_is_emit_ir_expr` is False otherwise) → byte-identical for the corpus.
+        if func_name == "get":
+            _rcv = expr.get("receiver")
+            if isinstance(_rcv, dict) and self._is_emit_ir_expr(_rcv):
+                _kir = (expr.get("args") or [{}])[0]
+                if isinstance(_kir, dict) and _kir.get("type") == "String":
+                    _k = _kir.get("value")
+                    # an element's `.get("value")` reads its SCALAR string (a leaf String/Number
+                    # node's value, e.g. `args[1]["value"]` = the getattr field name) → value_of,
+                    # not the sub-node svalue_of that `_EMIT_IR_PROJ["value"]` picks for chaining.
+                    _proj = "value_of" if _k == "value" else _EMIT_IR_PROJ.get(_k)
+                    if _proj:
+                        _rv = self._expr_to_whyml(_rcv, local_refs or set(),
+                                                  invariant_ctx, subst)
+                        return f"({_proj} {_rv})"
         if "." not in func_name:
             return None
         recv, method = func_name.rsplit(".", 1)
