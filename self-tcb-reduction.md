@@ -366,3 +366,20 @@ machine-readably in `config/skills/self-tcb-reduction/self-tcb-reduction.json`.
   `str_hash_op`), so a string key hits an int-keyed map. A general getattr-set-membership recognizer
   is the next fix (unblocks arraylen + others). Reverted to stub; tree green, byte-diff 0.
 - **Count after:** 1290 (infra iteration; no conversion). Tree green.
+
+### Iteration 9 (2026-07-03) — 2 general recognizers (getattr-set membership + string-local typing)
+
+- **getattr-set-membership hash (LANDED, byte-diff 0):** `x in getattr(self, "_set_field", set())`
+  now fires the `str_hash_op` key-hash for SET self-fields (not only dict fields) — mirrors the
+  direct `x in self._set_field` path. Unblocks the defensive-`in getattr(...)` idiom used across
+  many handlers.
+- **`_string_local_vars` in `_is_string_expr(Var)` (LANDED, byte-diff 0):** a collected string
+  LOCAL (`var = node.var` → name_of) now counts as string in membership/concat even before its
+  symbol-table type is set. Byte-safe (empty outside @mutable_state).
+- **arraylen further:** the seq/array-locals membership + `var` string-typing now lower; the next
+  leak is `field = var[len("self."):]` (a string SLICE local not yet collected as string in the
+  `f"self.{field}"` interpolation).
+- **Count after:** 1290 (2nd consecutive infra iteration; recognizers unblock the base-`ExprIR`
+  handlers). Tree green, byte-diff 0.
+- **Note:** to resume conversions, next iteration will try a handler the accumulated recognizers
+  already convert (or finish arraylen's string-slice-local), rather than keep drilling one handler.

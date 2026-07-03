@@ -482,7 +482,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `str_hash_op` membership below fires (was falling to opaque `contains_check`).
         if not rhs_is_map and rhs.get("type") == "Call":
             _gf = self._getattr_self_field(rhs)
-            if _gf is not None and self._self_field_dict_nu(f"self.{_gf}") is not None:
+            # self-tcb-reduction T1.a: also fire for a SET self-field (`getattr(self, "_seq_locals",
+            # set())`), not only dict fields — mirrors the direct `x in self._set_field` path so the
+            # string key gets `str_hash_op`-hashed instead of the opaque `contains_check`.
+            _gf_coll = _gf is not None and (
+                self._self_field_dict_nu(f"self.{_gf}") is not None
+                or self._field_type_of({"type": "Attribute",
+                                        "object": {"type": "Var", "name": "self"},
+                                        "attr": _gf}) in ("set", "dict", "frozenset"))
+            if _gf_coll:
                 rhs_is_map = True
                 # the direct `self.<label>` field access (matching the non-getattr
                 # `x in self._seq_locals` form), NOT a synthetic Attribute IR — which
@@ -1002,7 +1010,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if t == "String" or t in ("StrConcat", "StrSub"):
             return True
         if t == "Var":
-            return getattr(self, "_current_symbol_table", {}).get(ir.get("name", "")) == "str"
+            _vn = ir.get("name", "")
+            # self-tcb-reduction T1.a: a collected string LOCAL (`var = node.var` → name_of) counts
+            # as string even before its symbol-table type is set, so `var in self._seq_locals`
+            # hashes the key. Byte-safe: `_string_local_vars` is empty outside @mutable_state.
+            return (getattr(self, "_current_symbol_table", {}).get(_vn) == "str"
+                    or _vn in getattr(self, "_string_local_vars", set()))
         # Indexing/slicing a string yields a string (s[i] is a 1-char string, s[a:b] a
         # substring) — both reuse str_sub_op in their handlers, so the *result* of such a
         # node is string-typed exactly when its base is. Required so `s[a:b] == t` routes to
