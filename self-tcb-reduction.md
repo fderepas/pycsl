@@ -383,3 +383,15 @@ machine-readably in `config/skills/self-tcb-reduction/self-tcb-reduction.json`.
   handlers). Tree green, byte-diff 0.
 - **Note:** to resume conversions, next iteration will try a handler the accumulated recognizers
   already convert (or finish arraylen's string-slice-local), rather than keep drilling one handler.
+
+### Iteration 10 (2026-07-03) — 🎉 4 conversions (spec handlers) via `base`→name_of (1290→1286)
+
+- **Pivot (per iter-9 note):** stopped drilling arraylen; auto-tried the base-`ExprIR` handlers to
+  find which the accumulated recognizers already convert. Adding ONE map entry — `base` → `name_of`
+  to `_EMIT_IR_STR_ATTRS` — unblocked FOUR at once (they all read `node.base`).
+- **✅ `issorted` + `length2d` + `valid` + `valid2d` un-`\trusted` + PROVEN:** type-check, full
+  proof green, byte-diff 0, mirror-sync verbatim (32 methods). **Count 1290 → 1286.**
+- This validates the pivot strategy: once the shared recognizers accumulate, a single new entry
+  cashes out across a whole family of handlers. `separated` still leaks (own recognizer next).
+- **Total this run:** 8 handlers converted (unaryop/old/at/named_expr/issorted/length2d/valid/
+  valid2d), count 1294 → 1286.

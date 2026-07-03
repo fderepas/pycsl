@@ -544,7 +544,6 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return f"(begin {target} := {v}; !{target} end)"
         local_refs.add(target)
         return f"(let {target} = ref {v} in !{target})"
-
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -571,48 +570,81 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns \nothing
     def _handle_in_globals_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
         return ""
-
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _handle_in_scope_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
         return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_valid_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
-        return ""
-
+    def _handle_valid_expr(
+        self,
+        node: "ExprIR",
+        local_refs: Set[str],
+        invariant_ctx: bool,
+        subst: Optional[Dict[str, str]],
+    ) -> str:
+        base = node.base
+        length = self._expr_to_whyml(node.length, local_refs, invariant_ctx, subst)
+        if self._value_semantic:
+            return f"({length} >= 0 && {length} <= Array.length {base})"
+        return f"(valid !{self._heap_var} {base} {length})"
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _handle_separated_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
         return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_length2d_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
+    def _handle_length2d_expr(
+        self,
+        node: "ExprIR",
+        local_refs: Set[str],
+        invariant_ctx: bool,
+        subst: Optional[Dict[str, str]],
+    ) -> str:
+        base = node.base
+        rows = self._expr_to_whyml(node.rows, local_refs, invariant_ctx, subst)
+        cols = self._expr_to_whyml(node.cols, local_refs, invariant_ctx, subst)
+        if self._value_semantic:
+            return f"({base}.rows = {rows} && {base}.columns = {cols})"
+        return "true"
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_valid2d_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
-        return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
+    def _handle_valid2d_expr(
+        self,
+        node: "ExprIR",
+        local_refs: Set[str],
+        invariant_ctx: bool,
+        subst: Optional[Dict[str, str]],
+    ) -> str:
+        base = node.base
+        row = self._expr_to_whyml(node.row, local_refs, invariant_ctx, subst)
+        col = self._expr_to_whyml(node.col, local_refs, invariant_ctx, subst)
+        if self._value_semantic:
+            return f"(valid_index {base} {row} {col})"
+        return "true"
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_issorted_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
-        return ""
+    def _handle_issorted_expr(
+        self,
+        node: "ExprIR",
+        local_refs: Set[str],
+        invariant_ctx: bool,
+        subst: Optional[Dict[str, str]],
+    ) -> str:
+        base = node.base
+        lo = self._expr_to_whyml(node.lo, local_refs, invariant_ctx, subst)
+        hi = self._expr_to_whyml(node.hi, local_refs, invariant_ctx, subst)
+        if self._value_semantic:
+            return f"(forall _si : int. {lo} <= _si /\\ _si < {hi} - 1 -> {base}[_si] <= {base}[_si + 1])"
+        return "true"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -627,7 +659,6 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns \nothing
     def _handle_permutation_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
         return ""
-
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -641,7 +672,6 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns \nothing
     def _handle_lambda_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
         return ""
-
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
