@@ -4305,6 +4305,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     or getattr(self, "_array_elem_types", {}).get(d.get("name")) == "string")
         return False
 
+    def _ifexpr_seq_arm(self, test: str, _bd: "ExprIR", _od: "ExprIR",
+                        local_refs: Set[str]) -> str:
+        """CF5: a ternary whose BOTH arms are `seq string` name-lists (`exc.split("|") if … else
+        [exc]`) — emit each arm seq-ified (`_seq_operand`). Extracted (07-03-refactor R2/R1-pattern)
+        as the ONE branch of `_handle_ifexpr_expr` that stays trusted (its `_seq_operand` result +
+        `local_refs or set()` map-or don't yet lower cleanly), isolating it so the rest converts."""
+        # 07-03-refactor: `_ifexpr_seq_arm` is only reached from the @mutable_state seq-arm where
+        # `local_refs` is always a present Set, so `or set()` is a no-op (avoids the map-or lowering).
+        return (f"(if {test} then {self._seq_operand(_bd, local_refs)} "
+                f"else {self._seq_operand(_od, local_refs)})")
+
     def _handle_ifexpr_expr(
         self,
         node: "IfExprExpr",
@@ -4349,8 +4360,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # if "|" in exc else [exc]`) — emit each arm seq-ified (`_seq_operand`), no int
         # coercion. @mutable_state.
         if _ms and self._cf5_arr(_bd) and self._cf5_arr(_od):
-            return (f"(if {test} then {self._seq_operand(_bd, local_refs or set())} "
-                    f"else {self._seq_operand(_od, local_refs or set())})")
+            return self._ifexpr_seq_arm(test, _bd, _od, local_refs)
         body = self._coerce_to_int(body)
         orelse = self._coerce_to_int(orelse)
         return f"(if {test} then {body} else {orelse})"

@@ -713,8 +713,60 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_ifexpr_expr(self, node: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
+    def _ifexpr_seq_arm(self, test: str, _bd: "ExprIR", _od: "ExprIR", local_refs: Set[str]) -> str:
         return ""
+
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _handle_ifexpr_expr(
+        self,
+        node: "IfExprExpr",
+        local_refs: Set[str],
+        invariant_ctx: bool,
+        subst: Optional[Dict[str, str]],
+    ) -> str:
+        # Phase-B-expr: typed. IfExprExpr (test, body, orelse: ExprIR).
+        test = self._expr_to_whyml(node.test, local_refs, invariant_ctx, subst)
+        test = self._to_bool(test, node.test.to_dict())
+        # 07-03-refactor R2: split the tuple-unpack into two assignments so each arm types as
+        # emit_ir (via the `.to_dict()` recognizer) instead of the int tuple-unpack target.
+        _bd = node.body.to_dict()
+        _od = node.orelse.to_dict()
+        body = self._expr_to_whyml(node.body, local_refs, invariant_ctx, subst)
+        orelse = self._expr_to_whyml(node.orelse, local_refs, invariant_ctx, subst)
+        # i-feel-good.md I-A/I-B: a ternary is a STRING expression when at least one arm is
+        # string-typed and the other is string-or-`None` — emit the string arms directly (a
+        # bare `""`/`"lit"` stays a WhyML string, a `None` arm → "" the absent sentinel), so
+        # `arr.get("name","") if … else ""` and `d.get(k) if k else None` type-check as
+        # string. @mutable_state-gated → the corpus int model is byte-identical.
+        _ms = (getattr(self, "_current_self_type", None)
+               in getattr(self, "_mutable_state_classes", set()))
+        _b_str = self._is_string_expr(_bd)
+        _o_str = self._is_string_expr(_od)
+        _b_none = _bd.get("type") == "None"
+        _o_none = _od.get("type") == "None"
+        if _ms and (_b_str or _o_str) and (_b_str or _b_none) and (_o_str or _o_none):
+            if _b_none: body = '""'
+            if _o_none: orelse = '""'
+            return f"(if {test} then {body} else {orelse})"
+        # item34.md CF1: the emit_ir analogue — `stmt.value.to_dict() if stmt.value is not
+        # None else None` (an `Optional[ExprIR]` ternary) is an emit_ir expression; a `None`
+        # arm → `(IrOther "")` (the emit_ir absent sentinel). @mutable_state.
+        _b_ir = self._is_emit_ir_expr(_bd)
+        _o_ir = self._is_emit_ir_expr(_od)
+        if _ms and (_b_ir or _o_ir) and (_b_ir or _b_none) and (_o_ir or _o_none):
+            if _b_none: body = '(IrOther "")'
+            if _o_none: orelse = '(IrOther "")'
+            return f"(if {test} then {body} else {orelse})"
+        # item34.md CF5: a ternary whose BOTH arms are `seq string` name-lists (`exc.split("|")
+        # if "|" in exc else [exc]`) — emit each arm seq-ified (`_seq_operand`), no int
+        # coercion. @mutable_state.
+        if _ms and self._cf5_arr(_bd) and self._cf5_arr(_od):
+            return self._ifexpr_seq_arm(test, _bd, _od, local_refs)
+        body = self._coerce_to_int(body)
+        orelse = self._coerce_to_int(orelse)
+        return f"(if {test} then {body} else {orelse})"
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
