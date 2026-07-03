@@ -461,3 +461,29 @@ machine-readably in `config/skills/self-tcb-reduction/self-tcb-reduction.json`.
 - **✅ `_handle_separated_expr` un-`\trusted` + PROVEN** (full proof, not just --no-proof — per the
   iter-14 lesson), byte-diff 0, mirror-sync verbatim (40 methods). **Count 1279 → 1278.**
 - **Total this run: 16 handlers converted, count 1294 → 1278.**
+
+### Iteration 16 (2026-07-03) — ESCALATION CHECKPOINT: T1.a tractable tail exhausted (stays 1278)
+
+Attempted `slice_access` (77 lines) — the emit_ir-truthiness recognizer (`if sl.get("lower")` →
+`true`) landed but the handler kept cascading into deep reflection semantics (`sl["lower"]` =
+subscript-on-emit_ir returning the wrong type). Per **escalate-don't-thrash** (attempt budget),
+reverted it AND the orphaned recognizer (no converting consumer). Probed the rest by size/blocker.
+
+**All 7 remaining T1.a `_handle_*_expr` are hard-architectural — flagged for a focused
+high-reasoning pass, NOT the 1-minute incremental loop:**
+
+| Handler | Lines | Blocker (needs a focused pass) |
+|---------|-------|--------------------------------|
+| `_handle_field_get_expr` | 23 | **object-as-string ambiguity**: `FieldGet.object` is a str (name), `Attribute.object` is a sub-node — same `"object"` key, node-type-dependent projection the flat emit_ir model can't distinguish |
+| `_handle_var_expr` | 63 | **union-narrowing**: `_module_constants[name]` values are `Union[str,int]`; the `isinstance(_cv,str)` branch + `.replace` escaping needs value-narrowing the int-collapsed map lacks |
+| `_handle_attribute_expr` | 66 | deep `object`/`attr` reflection + per-node-type projection |
+| `_handle_slice_access_expr` | 77 | subscript-on-emit_ir (`sl["lower"]`) reflection semantics returning wrong element type |
+| `_handle_call_expr` | 285 | **the giant** — full args_of/func reflection across every call shape |
+| `_handle_fstring_expr` | ~55 | nested `_sp` helper types `parts[0]` differently under proof mode (iter-14) |
+| `_handle_ifexpr_expr` | ~40 | cross-method `_cf5_arr` interaction (iter-7) |
+
+**Verdict:** the tractable T1.a tail (16 handlers: unaryop/old/at/named_expr/issorted/length2d/
+valid/valid2d/arrayeq/permutation/sum_node/lambda/in_scope/in_globals/setlit/separated) is
+**complete** — count **1294 → 1278**. The remaining 7 share NO cheap recognizer; each needs a
+dedicated reflection/narrowing feature (a `Plan`/high-reasoning pass), which is the loop's
+escalation target, not incremental grinding. Tree green, byte-diff 0, PROVEN at 1278.
