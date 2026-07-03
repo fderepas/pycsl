@@ -152,3 +152,11 @@ broadest last: `call`/`fstring`) → **T1.b** (Module-6 helpers, dependency orde
 (`core_ir_semantic`, spike one method to fix the analyzer-invariant contract class, then batch) →
 **T3** (front-end, demand-gated, leaf-first) → **T4** (re-site to F3, convert only on demand).
 Parallelize only the triage probe; everything else serializes by shared-recognizer reuse.
+
+## 9. Reference: leaf-conversion recognizers & per-leaf triage
+
+For the *practical* how-to of individual stub conversions — the reusable recognizer stack, the
+pre-conversion triage matrix, the byte-diff-inertness principles, the leak-diagnosis recipe, the known
+OPEN gaps, and the efficiency rules — see **`leaf-conversion-recognizers.md`** (next to this file).
+Empirical from the 1273→1266 bottom-up-DAG campaign; the DAG strategy itself is in repo-root
+`giant-recursion.md`.
