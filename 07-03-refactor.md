@@ -375,3 +375,31 @@ piece; the rest is the long grind of the most-interconnected handler in the emit
 
 **Status:** feature landed (byte-diff 0, proven). Giants still at the trusted floor pending the
 per-site coercions above. Campaign: 1294 → **1273**, 23 handlers + the seq↔array enabler.
+
+## Giant conversion — the definitive structural finding (2026-07-03)
+
+Pushed the call giant conversion hard with both blockers (seq↔array, nested `Dict[str,List]`) now
+built. Got through the entire args/coercion/formal_params/defaults chain by adding general
+nested-container recognizers (nested-map `.get` → dict-local, loop-var-string over a seq slice,
+`ExprIR`-inner-value `Dict[str,Dict[str,ExprIR]]`, `_dv_missing_default` for `emit_ir`/`seq _`). Then
+hit the real wall — **not a leak, a structural one:**
+
+**Converting `_handle_call_expr` is net-MARKER-NEGATIVE.** The isolate-split needed **two** trusted
+leaves — `_call_special_shapes` (the emit_ir reflection: `to_dict`/`findall`/`split`/`IRScanner`/
+`ir.get`) *and* `_handle_string_value_method` — to convert the one parent. So `_handle_call_expr`
+(1 marker) → 2 leaves + converted parent = **+1 marker** (count 1273 → 1274). And each leaf
+recursively decomposes into *more* reflection sub-parts. The giant is a **recursive decomposition
+that bottoms out at multiple irreducible reflection leaves** — "completing" it *increases* the
+`\trusted` count while shrinking the trusted *surface*.
+
+**This is exactly why the campaign converted the small handlers (clean −1 each) and left the three
+giants.** They are the only handlers whose decomposition has ≥2 irreducible leaves; every other
+handler had exactly 0 or 1 (var/ifexpr/slice_access each left ≤1, so ≤0 net).
+
+**Verdict.** By the campaign's metric (`\trusted` marker count), the giants should NOT be converted —
+it's counterproductive. By the *doctrine* metric (lines of trusted code), converting them is a win
+(285 L → ~100 L of small leaves). The two goals diverge only here. Reverted to the clean **1273**.
+The real deliverables from the push: **the nested-map, nested-`Dict[str,List]` (#15), and seq↔array
+features** — all committed, byte-diff 0, proven, and generally useful.
+
+### Campaign final (definitive): 1294 → 1273, 23 handlers; giants intentionally left (net-negative).
