@@ -447,7 +447,7 @@ bounded step rather than a research problem.
 
 ---
 
-## 14. CURRENT STATUS (2026-07-03) — 11 leaves converted, count 1273 → 1266
+## 14. CURRENT STATUS (2026-07-03) — 12 leaves converted, count 1273 → 1265
 
 The §13 scorecard is superseded by this. The bottom-up DAG campaign is well underway; each leaf is now
 a bounded triage-then-convert step (see the skill reference `config/skills/self-tcb-reduction/
@@ -468,11 +468,13 @@ constant-dict modeling · local-dict-value-type (Module5) · `str(x)`-as-string.
 1. **The rest of the helper DAG** — ~13 MISSING + ~42 STUB helpers still trusted (bottom-up; the
    `\trusted` floor is now 1266, was 1273 at campaign start / 1294 at the original squeeze start).
 2. **5 OPEN feature-gaps** (ranked by leverage; blocks are per-leaf):
-   1. cross-collector string-local dependency (`var=node.var`; `field=var[k:]`) → `_handle_arraylen_expr`.
+   1. ✅ CLOSED — cross-collector string-local (`var=node.var`; `field=var[k:]`) → converted `_handle_arraylen_expr`.
    2. set-local declaration (`x=set(); x|=…`, `-> Set`) → `_module_binding_names`, quant-binder push/pop.
    3. BinOp-operand projection (`ir.get("left")`) → `_is_float_expr`.
    4. recursive emit_ir construction / deep-copy → `_subst_params`.
    5. `.get(k, <str default>)`→`func_of` → the last gap on `_str_method_recv_and_tail`.
+   6. getattr-field `.get` on a MIXIN field (mixin not in `_record_types`) → `_alias_self_field`.
+   7. comprehension over a `.split()` CALL → `_split_tuple_type`.
 3. **S5 consolidation** — merge shared irreducible leaves.
 4. **The 3 dispatchers LAST** (`_handle_call_expr`, `_handle_subscript`, `_call_named_builtins`) — only
    once all their callees are in-mirror; still trusted stubs today.

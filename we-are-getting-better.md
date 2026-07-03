@@ -157,15 +157,21 @@ type was available), in new spots. 3 fixed, 3 still open.
 31. **[FIXED]** **`str(x)` typed int** — not recognized as string, so `str(x).lower()` fell to an opaque
     scalar op instead of the faithful `str_lower_op`. `_is_string_expr` now treats `str(…)` as string.
     Converted `_quant_binder_whyml`. Test 0751.
-32. **[OPEN]** a **string SLICE** `var[len("self."):]` (prefix strip) is typed `int`, so `f"self.{field}"`
-    wraps it in `int_to_string`. The slice recognizer + `var=node.var` str-attr recognizer exist but
-    hit the **cross-collector fixpoint gap** (the slice checks `_string_local_vars`, but the base is only
-    in the accumulating set of `_collect_str_call_result_locals`). Blocks `_handle_arraylen_expr`.
+32. **[FIXED]** a **string SLICE** `var[len("self."):]` (prefix strip) was typed `int`. The slice +
+    `var=node.var` str-attr recognizers now resolve the **cross-collector fixpoint** — the accumulating
+    `out` set is hoisted above `_is_str_val` so the slice base (recognized earlier in the SAME fixpoint)
+    is seen. Converted `_handle_arraylen_expr`.
 33. **[OPEN]** a **set-valued local/return** (`x=set(); x|=…`, `-> Set[T]`) declares as `ref 0` (int).
     Blocks `_module_binding_names`, the quant-binder push/pop pair. Needs set-local declaration.
 34. **[OPEN]** a **BinOp-operand read** `ir.get("left")`/`.get("right")` → opaque `int` (the `emit_ir`
     ADT has no BinOp arm — `left`/`right` aren't projectable). Blocks `_is_float_expr`.
+35. **[OPEN]** a **getattr-field `.get`** (`getattr(self, "_aliases", {}).get(k)`) on a MIXIN field →
+    opaque `get_1` (the mirror mixin class isn't in `_record_types`, so `_self_field_dict_nu` can't see
+    its dict fields). Blocks `_alias_self_field`.
+36. **[OPEN]** a **comprehension over a `.split()` CALL** (`[p.strip() for p in inner.split(",")]`) →
+    opaque `(list_comp 0)` (the split-call iterable isn't recognized as a seq source when the receiver
+    is a reassigned string local). Blocks `_split_tuple_type`.
 
-**Round-2 status:** every int-leak class here has a *diagnosis*; #29–31 have a faithful lowering, #32–34
+**Round-2 status:** every int-leak class here has a *diagnosis*; #29–32 have a faithful lowering, #33–34
 are the next features (mirrored in `giant-recursion.md` §14's OPEN list). The doctrine holds — the
 int-collapse default keeps surfacing, and each fix moves one more value-flow off `int`.
