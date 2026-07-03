@@ -190,4 +190,4 @@ bash bin/run-self-annotation-suite.sh
 | M1.6 truthiness + tuple + array-or + collectors | ✅ DONE (byte-diff 0) |
 | M2 collector fixpoint (regression-safe) | ✅ DONE (byte-diff 0) |
 | M3 port match + un-`\trust` | ✅ DONE (byte-diff 0) |
-| M4 prove + byte-diff 0 + mirror sync | ✅ DONE — stmt_control_flow.py + statements.py both PROVE; byte-diff 0 (627); mirror-sync 24/24; driver = mirror (§3) |
+| M4 prove + byte-diff 0 + mirror sync + suite | ✅ DONE — stmt_control_flow.py + statements.py PROVE; byte-diff 0 (627); mirror-sync 24/24; `run-self-annotation-suite.sh` 20/27 proved, **0 FAIL** (7 pre-existing `(file missing)` = moved-to-frontend/, unrelated); driver = mirror (§3) |
