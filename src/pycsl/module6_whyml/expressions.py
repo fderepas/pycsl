@@ -383,7 +383,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     # duplicated at each of the three sites; these helpers centralise that ladder.
     # Output is byte-identical to the former inline branches.
 
-    def _dv_empty_default(self, nu: Optional[str]) -> Optional[str]:
+    def _dv_empty_default(self, nu: str) -> str:
         """Empty-map literal for a dict local's first assignment; `None` for an
         int dict (the caller keeps the `(const (None: option int))` it has)."""
         if nu == "string":
@@ -392,7 +392,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return "(const (None: option (seq int)))"
         if nu and nu.startswith("map "):
             return f"(const (None: option ({nu})))"
-        return None
+        return ""
 
     def _dv_missing_default(self, nu: str) -> str:
         """`None ->` placeholder for a dict subscript read (typed per ν; proven

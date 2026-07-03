@@ -50,7 +50,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # seq-int snapshot / nested-map / int-default). Consolidated in
             # `_dv_empty_default`; None ⇒ keep the caller's int-default `val`.
             _empty = self._dv_empty_default(self._dict_value_types.get(target))
-            if _empty is not None:
+            if _empty:
                 val = _empty
             return f"{indent}let {safe_target} = ref {val} in\n"
         if kind == "bounded_int":

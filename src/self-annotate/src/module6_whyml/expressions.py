@@ -132,13 +132,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns \nothing
     def _coerce_to_int(self, whyml_str: str) -> str:
         return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _dv_empty_default(self, nu: Optional[str]) -> Optional[str]:
-        return None
+    def _dv_empty_default(self, nu: str) -> str:
+        """Empty-map literal for a dict local's first assignment; `None` for an
+        int dict (the caller keeps the `(const (None: option int))` it has)."""
+        if nu == "string":
+            return "(const (None: option string))"
+        if nu == "seq int":
+            return "(const (None: option (seq int)))"
+        if nu and nu.startswith("map "):
+            return f"(const (None: option ({nu})))"
+        return ""
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -591,12 +597,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         safe = whyml_ident(name)
         self._add_abstract_op(f"val constant {safe} : int")
         return safe
-
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _quant_binder_whyml(self, binder_type: Optional[str]) -> str:
+    def _quant_binder_whyml(self, binder_type: str) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
