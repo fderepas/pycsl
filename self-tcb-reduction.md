@@ -292,3 +292,20 @@ machine-readably in `config/skills/self-tcb-reduction/self-tcb-reduction.json`.
   green, byte-diff 0.
 - **Next:** finish var's seq-parts-loop, land the FIRST expression-handler conversion (count →
   1293), then the passthrough-subst handlers become quick.
+
+### Iteration 4 (2026-07-03) — seq-slice iterable recognizer + _expr_to_whyml stub sig; var 95%
+
+- **Delegated:** `_handle_var_expr` (continuing).
+- **seq-slice iterable recognizer (LANDED, byte-diff 0):** `for _p in _parts[1:]` where
+  `_parts = s.split(".")` (a `seq string`) now iterates via `Seq.length`/`Seq.get` — a slice/
+  subscript of a `seq` local is a seq (`_classify_iterable`, @mutable_state-gated). Byte-safe.
+- **stub signature fix:** the mirror `_expr_to_whyml` stub's `local_refs`/`subst` params retyped
+  `Set[str]`/`Optional[Dict[str,str]]` so the abstract self-call val accepts what the reflecting
+  handlers pass (map-typed `subst`).
+- **var status:** now lowers through the todict-alias parts loop; the ONE remaining leak is the
+  niche module-constant branch `if type(val) == str: return '"' + val.replace(".","_") + '"'` —
+  `_module_constants` is int-valued (`map int (option int)`), so `val.replace(...)` doesn't type as
+  a string op. Needs module-constant value-typing (or a string-literal-anchored concat coercion) —
+  the next per-handler fix.
+- **Count after:** 1294 (unchanged). Tree green, byte-diff 0. var is ~95% converted — one niche
+  branch from the first count reduction.

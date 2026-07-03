@@ -167,6 +167,19 @@ class ControlFlowStmtMixin:
             if ret_type == "array int":
                 iter_expr = self._expr_to_whyml(iter_ir, local_refs)
                 return f"Array.length {iter_expr}", f"{iter_expr}[!{idx}]", False
+        # self-tcb-reduction T1.a: a slice/subscript of a `seq` local (`for _p in _parts[1:]`,
+        # `_parts = s.split(".")`) iterates via `Seq.length`/`Seq.get` (the slice is a seq).
+        # @mutable_state-gated → byte-identical for the corpus.
+        if (self._value_semantic
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())
+                and iter_ir.get("type") in ("SliceAccess", "Subscript")):
+            _base = iter_ir.get("value")
+            _bn = _base.get("name") if isinstance(_base, dict) and _base.get("type") == "Var" else None
+            if _bn and (_bn in getattr(self, "_seq_locals", set())
+                        or getattr(self, "_seq_value_types", {}).get(_bn)):
+                iter_expr = self._expr_to_whyml(iter_ir, local_refs)
+                return (f"(Seq.length {iter_expr})", f"(Seq.get {iter_expr} !{idx})", False)
         if not self._value_semantic:
             iter_expr = self._expr_to_whyml(iter_ir, local_refs)
             return f"{iter_expr}_len", f"Map.get !{self._heap_var} ({iter_expr} + !{idx})", False

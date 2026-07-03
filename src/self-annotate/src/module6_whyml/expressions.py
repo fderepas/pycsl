@@ -592,7 +592,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _expr_to_whyml(self, expr: "ExprIR", local_refs: int, invariant_ctx: bool=False, subst: int=None) -> str:
+    def _expr_to_whyml(self, expr: "ExprIR", local_refs: Set[str], invariant_ctx: bool=False, subst: Optional[Dict[str, str]]=None) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
