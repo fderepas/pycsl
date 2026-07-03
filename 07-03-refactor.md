@@ -403,3 +403,20 @@ The real deliverables from the push: **the nested-map, nested-`Dict[str,List]` (
 features** — all committed, byte-diff 0, proven, and generally useful.
 
 ### Campaign final (definitive): 1294 → 1273, 23 handlers; giants intentionally left (net-negative).
+
+---
+
+## Current status (2026-07-03) — R3/R6 subsumed by the giant-DAG campaign
+
+R1/R2/R4/R5/R7 are **done** (converted their targets). The two remaining proposals — **R3** (the
+`call`/`_call_named_builtins` giant) and **R6** (the `subscript` giant) — turned out NOT to be single
+refactors: each giant is a *dispatcher over a large helper DAG*, and converting it dispatcher-first is
+net-marker-POSITIVE (proven empirically). They are now tracked in repo-root **`giant-recursion.md`**,
+which runs the correct **bottom-up over the helper DAG** strategy.
+
+**Progress since:** the giant DAG campaign has converted **11 leaves** (count 1273 → **1266**) and built
+8 reusable emitter capabilities (dict-literal construction, tuple-returns, Optional caller/param sweeps,
+subscript-`.get` projection, constant-dict, local-dict-value-type, `str()`-as-string), all byte-diff 0.
+The 3 dispatchers (R3's `_handle_call_expr`/`_call_named_builtins`, R6's `_handle_subscript`) stay
+trusted until their callees are all in-mirror — see `giant-recursion.md` §14 for the live scorecard +
+the 5 remaining feature-gaps. **This file is now historical; R3/R6 = giant-recursion's remaining work.**

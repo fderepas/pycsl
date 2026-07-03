@@ -444,3 +444,35 @@ REUSABLE, so the next reflection leaves are cheaper.
 **4 leaves converted so far** (`_todict_*` ×2, `_getattr_self_field`, `_iter_elem_class`); ~20 MISSING +
 49 STUB helpers remain. The DAG is a long tail, but the reusable feature stack now makes each leaf a
 bounded step rather than a research problem.
+
+---
+
+## 14. CURRENT STATUS (2026-07-03) — 11 leaves converted, count 1273 → 1266
+
+The §13 scorecard is superseded by this. The bottom-up DAG campaign is well underway; each leaf is now
+a bounded triage-then-convert step (see the skill reference `config/skills/self-tcb-reduction/
+leaf-conversion-recognizers.md` for the how-to).
+
+### Leaves converted (11) — count 1273 → 1266
+- **MISSING → verified (±0 markers), 4:** `_todict_recv_node_ir`, `_todict_routed_ir` (§10);
+  `_getattr_self_field`, `_iter_elem_class` (§13).
+- **STUB → verified (−1 each), 7:** `_deref`, `_materialize_if_seq`, `_dv_missing_default`,
+  `_field_label`, `_tag_of_type`, `_dv_empty_default`, `_quant_binder_whyml`.
+
+### Reusable capabilities built (all byte-diff 0), ref tests 0747–0751
+dict-literal `emit_ir` construction (§10) · method tuple-returns `(emit_ir,string)` (§11) ·
+Optional-caller-sweep (§12) · subscript-receiver `.get` projection (§13) · Optional-**param** sweep ·
+constant-dict modeling · local-dict-value-type (Module5) · `str(x)`-as-string.
+
+### What REMAINS
+1. **The rest of the helper DAG** — ~13 MISSING + ~42 STUB helpers still trusted (bottom-up; the
+   `\trusted` floor is now 1266, was 1273 at campaign start / 1294 at the original squeeze start).
+2. **5 OPEN feature-gaps** (ranked by leverage; blocks are per-leaf):
+   1. cross-collector string-local dependency (`var=node.var`; `field=var[k:]`) → `_handle_arraylen_expr`.
+   2. set-local declaration (`x=set(); x|=…`, `-> Set`) → `_module_binding_names`, quant-binder push/pop.
+   3. BinOp-operand projection (`ir.get("left")`) → `_is_float_expr`.
+   4. recursive emit_ir construction / deep-copy → `_subst_params`.
+   5. `.get(k, <str default>)`→`func_of` → the last gap on `_str_method_recv_and_tail`.
+3. **S5 consolidation** — merge shared irreducible leaves.
+4. **The 3 dispatchers LAST** (`_handle_call_expr`, `_handle_subscript`, `_call_named_builtins`) — only
+   once all their callees are in-mirror; still trusted stubs today.

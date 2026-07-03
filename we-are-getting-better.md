@@ -138,4 +138,34 @@ available.** The recurring *sources* of an accidental `int` are now catalogued:
 Fixing them one conversion at a time is exactly the no-more-int doctrine executed as a squeeze: the
 count came down 21 markers, and along the way ~28 distinct value-flows moved off `int` onto
 `emit_ir`/`string`/`array`/`map`/`seq`. The last **[OPEN]** one (#15, `Dict[str,List]`) is now **[FIXED]** too — `Dict[str, List[T]]`
-lowers to `map int (option (seq T))`. Every catalogued int-leak class now has a faithful lowering.
+lowers to `map int (option (seq T))`. Every int-leak class catalogued **in Round 1** now has a faithful
+lowering — but the bottom-up-DAG leaf-conversion campaign (2026-07-03) surfaced MORE; see **Round 2**.
+
+---
+
+## Round 2 — int-leaks from the leaf-conversion campaign (2026-07-03)
+
+Converting the giant-DAG helper leaves (`giant-recursion.md`; count 1273 → 1266) surfaced a fresh batch
+of accidental-`int` lowerings — the same meta-pattern (the int-collapse default firing where a faithful
+type was available), in new spots. 3 fixed, 3 still open.
+
+29. **[FIXED]** a **class-constant lookup dict** (`_METATYPE_TAGS = {"int":"tag_int", …}`) was an opaque
+    `getattr` (int) → `k in self.TAGS`/`self.TAGS[k]` failed. Annotate it `Dict[str,str]` → a declared
+    abstract `map int (option string)` (contents unmodelled; sound). Converted `_tag_of_type`. Test 0750.
+30. **[FIXED]** a **LOCAL dict literal** with all-string values (`scalars = {"int":"int", …}`) →
+    `scalars[k]` defaulted to `0` (int); Module5 now infers `dict[_, str]` (default `""`). Test 0751.
+31. **[FIXED]** **`str(x)` typed int** — not recognized as string, so `str(x).lower()` fell to an opaque
+    scalar op instead of the faithful `str_lower_op`. `_is_string_expr` now treats `str(…)` as string.
+    Converted `_quant_binder_whyml`. Test 0751.
+32. **[OPEN]** a **string SLICE** `var[len("self."):]` (prefix strip) is typed `int`, so `f"self.{field}"`
+    wraps it in `int_to_string`. The slice recognizer + `var=node.var` str-attr recognizer exist but
+    hit the **cross-collector fixpoint gap** (the slice checks `_string_local_vars`, but the base is only
+    in the accumulating set of `_collect_str_call_result_locals`). Blocks `_handle_arraylen_expr`.
+33. **[OPEN]** a **set-valued local/return** (`x=set(); x|=…`, `-> Set[T]`) declares as `ref 0` (int).
+    Blocks `_module_binding_names`, the quant-binder push/pop pair. Needs set-local declaration.
+34. **[OPEN]** a **BinOp-operand read** `ir.get("left")`/`.get("right")` → opaque `int` (the `emit_ir`
+    ADT has no BinOp arm — `left`/`right` aren't projectable). Blocks `_is_float_expr`.
+
+**Round-2 status:** every int-leak class here has a *diagnosis*; #29–31 have a faithful lowering, #32–34
+are the next features (mirrored in `giant-recursion.md` §14's OPEN list). The doctrine holds — the
+int-collapse default keeps surfacing, and each fix moves one more value-flow off `int`.
