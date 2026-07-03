@@ -3185,26 +3185,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # The `tag_*` functions are used only in goals (after all decls), so they are fine.
         self._add_abstract_op("predicate subtag (a b: int) = a = b \\/ b = 99")
 
-    def _tag_of_type(self, t_name: Optional[str]) -> Optional[str]:
+    def _tag_of_type(self, t_name: str) -> str:
         """Tag for a *type name* (the 2nd arg of isinstance / a class / datatype).
         None ⇒ unknown target type (fully uninterpreted)."""
         if not t_name:
-            return None
+            return ""
         if t_name in self._METATYPE_TAGS:
             return self._METATYPE_TAGS[t_name]
         if t_name.lower() in getattr(self, "_record_types", {}):
             return "tag_record"
         if t_name in getattr(self, "_variant_types", {}):
             return "tag_variant"
-        return None
+        return ""
 
     def _tag_of_value(self, x_ir: Dict[str, Any]) -> str:
         """Tag of a *value* from Γ's τ (decision B: only a stable, concrete τ decides;
         `Any`/unstable/non-var → a free symbolic tag via `typeof_op`, so introspection on
         it stays unknown — never a wrong-decided)."""
         name = x_ir.get("name") if isinstance(x_ir, dict) and x_ir.get("type") == "Var" else None
-        tag = self._tag_of_type(getattr(self, "_current_symbol_table", {}).get(name)) if name else None
-        if tag is not None:
+        tag = self._tag_of_type(getattr(self, "_current_symbol_table", {}).get(name)) if name else ""
+        if tag:
             return tag
         self._add_abstract_op("val function typeof_op (n: int) : int")
         return f"(typeof_op {sum(ord(c) for c in name) if name else 0})"
@@ -3236,7 +3236,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         args_ir = expr.get("args", [])
         t_name = args_ir[1].get("name") if isinstance(args_ir[1], dict) else None
         t_tag = self._tag_of_type(t_name)
-        if t_tag is None:
+        if not t_tag:
             self._add_abstract_op("val isinstance_op (x: int) (t: int) : bool")
             return "(isinstance_op 0 0)"
         self._emit_metatype_tags()

@@ -414,18 +414,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     def _call_named_builtins(self, expr: int, args: List[str], func_name: str, local_refs: int=None, invariant_ctx: bool=False, subst: int=None) -> Optional[str]:
         return None
 
-    _METATYPE_TAGS = {'int': 'tag_int', 'bool': 'tag_int', 'str': 'tag_str', 'float': 'tag_float', 'list': 'tag_list', 'List': 'tag_list', 'dict': 'tag_dict', 'Dict': 'tag_dict', 'set': 'tag_dict', 'frozenset': 'tag_dict', 'object': 'tag_object'}
+    _METATYPE_TAGS: Dict[str, str] = {'int': 'tag_int', 'bool': 'tag_int', 'str': 'tag_str', 'float': 'tag_float', 'list': 'tag_list', 'List': 'tag_list', 'dict': 'tag_dict', 'Dict': 'tag_dict', 'set': 'tag_dict', 'frozenset': 'tag_dict', 'object': 'tag_object'}
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _emit_metatype_tags(self) -> None:
         pass
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _tag_of_type(self, t_name: str) -> str:
+        """Tag for a *type name* (the 2nd arg of isinstance / a class / datatype).
+        None ⇒ unknown target type (fully uninterpreted)."""
+        if not t_name:
+            return ""
+        if t_name in self._METATYPE_TAGS:
+            return self._METATYPE_TAGS[t_name]
+        if t_name.lower() in getattr(self, "_record_types", {}):
+            return "tag_record"
+        if t_name in getattr(self, "_variant_types", {}):
+            return "tag_variant"
         return ""
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
