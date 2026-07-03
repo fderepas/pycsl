@@ -259,8 +259,10 @@ def _parse_args() -> argparse.Namespace:
                              "WhyML is emitted, WITHOUT running `why3 prove --type-only`. "
                              "Use for fast byte-diff / dev sweeps and when why3 is absent. "
                              "(A missing why3 is already treated as skip-not-fail by the gate.)")
-    g_proof.add_argument("--check-vacuity", action="store_true",
-                        help="Run the NON-VACUITY GATE. After a file verifies, the gate "
+    g_proof.add_argument("--check-vacuity", dest="check_vacuity",
+                        action="store_true", default=True,
+                        help="Run the NON-VACUITY GATE (now ON BY DEFAULT — fail-closed). "
+                             "After a file verifies, the gate "
                              "re-proves, per body-bearing function, a probe with an extra "
                              "`ensures false`. split_vc emits one such goal per NORMAL-EXIT "
                              "path; the function is VACUOUS iff EVERY one proves Valid (every "
@@ -269,10 +271,17 @@ def _parse_args() -> argparse.Namespace:
                              "exit is consistent (its false-goal is Unknown/Timeout) the "
                              "function is SOUND, even when a DEAD branch's false-goal is Valid "
                              "(a consequence test's 'didn't-happen' branch is provably dead by "
-                             "design — this is why the criterion is ALL exits, not ANY). The "
-                             "probe filters to the injected goal only and uses a short per-goal "
-                             "timelimit. OPT-IN (surfaces pre-existing genuine vacuities, e.g. "
-                             "the os removal->absence proofs); a missing why3 skips it.")
+                             "design — this is why the criterion is ALL exits, not ANY). "
+                             "`-> NoReturn` and `#@ \\diverges` functions are EXEMPT (their "
+                             "sound green is expected-vacuous on the unreachable normal exit). "
+                             "The probe filters to the injected goal only and uses a short "
+                             "per-goal timelimit; a missing why3 skips it (skip-not-fail).")
+    g_proof.add_argument("--no-check-vacuity", dest="check_vacuity",
+                        action="store_false",
+                        help="Opt OUT of the (default-on) non-vacuity gate — for fast "
+                             "byte-diff / dev sweeps, or when a slow-to-manifest vacuity "
+                             "probe would dominate. The hole is then unguarded, so use only "
+                             "when soundness is being checked elsewhere.")
     g_proof.add_argument("--vacuity-timelimit", metavar="SECS", default="5",
                         help="Per-goal timelimit (seconds) for the non-vacuity gate probe "
                              "(default 5). An inconsistent context derives `false` quickly; "
@@ -505,6 +514,20 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         sys.exit(0)
 
     json_ir = _json.dumps(ir_data)
+
+    # Non-vacuity gate exempt-set — stashed on `args` (the object shared with
+    # `_run_proofs`, where the gate runs but `ir_data` is out of scope). A declared
+    # `-> NoReturn` (is_noreturn) or an explicit `#@ \diverges` function is SOUNDLY
+    # vacuous-looking on its unreachable normal exit (a diverging function satisfies
+    # any postcondition), so the gate must NOT flag it. Keyed on the annotation flags,
+    # never the inferred postcondition (which would exempt every genuine vacuity).
+    try:
+        from module6_whyml.identifiers import whyml_ident as _wid_vac
+        args._vacuity_exempt = {
+            _wid_vac(f.get("name", "")) for f in ir_data.get("functions", [])
+            if f.get("is_noreturn") or f.get("diverges")}
+    except Exception:
+        args._vacuity_exempt = set()
 
     # --fun filter: mark non-selected functions as trusted
     if args.fun:
@@ -1156,19 +1179,12 @@ def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argp
             """Run the non-vacuity gate before declaring success. If any function's
             context is vacuous, FAIL the run instead of reporting the (vacuous) green."""
             if getattr(args, "check_vacuity", False):
-                # NR4: build the skip-set of declared-NoReturn function names (WhyML
-                # names, matching the `let <name>` headers _function_body_eqs extracts).
-                # Keyed on the IR `is_noreturn` flag (from the `-> NoReturn` annotation),
-                # NOT on the inferred postcondition — the latter would exempt every
-                # genuinely-vacuous function, defeating the gate.
-                _nr_names = set()
-                try:
-                    from module6_whyml.identifiers import whyml_ident
-                    for _f in ir_data.get("functions", []):
-                        if _f.get("is_noreturn"):
-                            _nr_names.add(whyml_ident(_f.get("name", "")))
-                except Exception:
-                    pass
+                # Skip-set of functions whose (sound) green is EXPECTED to be
+                # vacuous-looking on the unreachable normal-exit path: declared
+                # `-> NoReturn` (NR1/NR4) and `#@ \diverges` functions. Computed in
+                # `_run_pipeline` (where the IR is in scope) and stashed on `args`,
+                # because here `ir_data` is out of scope (gate runs in `_run_proofs`).
+                _nr_names = getattr(args, "_vacuity_exempt", set())
                 vac = _run_vacuity_gate(mlw_code, provers, args, _nr_names)
                 if vac:
                     print("\n[-] NON-VACUITY GATE FAILED: the following function(s) verify "
@@ -1180,7 +1196,7 @@ def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argp
                           "coexisting in one context (helper `result == …//…` ensures, "
                           "division-bound inequalities, disjunctive value-equalities). See "
                           "getting-better/csys-vacuity-investigation/ROOT-CAUSE.md.")
-                    print("    (Opt out with --no-vacuity-check; tune with --vacuity-timelimit.)")
+                    print("    (Opt out with --no-check-vacuity; tune with --vacuity-timelimit.)")
                     if getattr(args, "diagnostics_json", False):
                         print(_json.dumps({
                             "code": "PYCSL-VACUOUS",

@@ -1,6 +1,16 @@
 # Root-cause: vacuous "green" when de-trusting csys (colorsys)
 
-**Status:** tool-level soundness hole confirmed and characterized. The csys
+**Status (2026-07-03): FIXED — the recommended fail-closed gate is now DEFAULT.**
+The non-vacuity gate (`--check-vacuity`) is ON BY DEFAULT (`non-lin-int-div-fixed.md`
+T1, pycsl.py:262); a function whose context proves `ensures false` on every normal
+exit → the run FAILS. `-> NoReturn` and `#@ \diverges` functions are exempt (sound
+divergence). The full 707-file pycsl-reference sweep under the default gate surfaced
+ZERO genuine vacuities (only the three `\diverges` tests, now exempt). The csys
+de-trust is therefore unblocked (S5). Original characterization below (retained).
+
+---
+
+**Original status:** tool-level soundness hole confirmed and characterized. The csys
 de-trust is **blocked** until the verifier is made fail-closed on vacuous
 contexts. `main` is untouched (4 honest `\trusted` retained).
 

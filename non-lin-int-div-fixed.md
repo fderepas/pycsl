@@ -61,20 +61,30 @@ end
 
 ## 3. Stages
 
-**S0 — reproduce (above)** → committed minimal `.mlw` + the "function-level ensures-false is the reliable
-probe" evidence.
+**S0 — reproduce ✅ DONE.** Confirmed the `ROOT-CAUSE.md` finding: the vacuity is real (SMT-level
+instability in nonlinear int-division reasoning; the div *definitions* `pycsl_div = div x y` are sound).
+The reliable probe is the FUNCTION-LEVEL injected `ensures false` (a body `assert false` is
+position-unreliable) — the existing `_run_vacuity_gate` already uses exactly this (split_vc, per
+normal-exit path, ALL-exits criterion). Reproducers live in `getting-better/csys-vacuity-investigation/`.
 
-**T1 · S1 — default the non-vacuity gate.** Flip `--check-vacuity` to ON by default (add
-`--no-check-vacuity` escape hatch for debugging). Every successful verification now ALSO runs
-`_run_vacuity_gate`: for each function, replace its `ensures` with `ensures { false }` and try to prove;
-if ANY prover returns Valid, the function is VACUOUS → overall result is FAIL (not SUCCESS), with a
-diagnostic naming the function. Exempt only the explicitly-marked `ensures { false }` proof functions
-(NR1/NR4 in `ir_schema.py:112` — the deliberate absurd-body case). This *closes the hole* on day one.
+**T1 · S1 — default the non-vacuity gate ✅ DONE.** `--check-vacuity` is now `default=True`
+(pycsl.py:262) with a `--no-check-vacuity` opt-out (pycsl.py:279). Every successful verification runs
+`_run_vacuity_gate`; a function that proves `ensures false` on EVERY normal exit → run FAILS.
+**Latent-bug fix:** the NoReturn/`\diverges` exemption in `_gate_vacuity_then_succeed` referenced
+`ir_data`, which is out of scope there (the gate runs in `_run_proofs`, not `_run_pipeline`) — the
+`NameError` was swallowed, so the skip-set was ALWAYS empty and NO exemption ever applied. Fixed by
+computing the exempt-set in `_run_pipeline` (where the IR lives) and stashing it on `args._vacuity_exempt`.
+Exempt = declared `-> NoReturn` (is_noreturn) **and** `#@ \diverges` (func `diverges` flag) — both are
+soundly vacuous-looking on their unreachable normal exit. Validated: inconsistent context → FAIL;
+0051/0158/0159 (`\diverges`) → SUCCESS; 0738 (NoReturn) → SUCCESS; sound fn → SUCCESS;
+`--no-check-vacuity` restores old behavior.
 
-**T1 · S2 — corpus triage.** Run the now-default gate over the full corpus; enumerate every function that
-proves `ensures false`. Classify each: (a) nonlinear-div-induced vacuity (the target), (b) a genuine
-contradiction in the contract (a real bug to fix), (c) an intended NR1 absurd body (exempt). Record the
-list — this is the T2 work-queue and the honest scope of the hole.
+**T1 · S2 — corpus triage ✅ DONE (pycsl-reference).** Full 707-file pycsl-reference sweep under the
+default gate: the ONLY functions flagged were the three `\diverges` tests (0051/0158/0159) — all now
+EXEMPT (sound divergence, not vacuity). **Zero genuine vacuities** remained in pycsl-reference, so no
+T2 root-causing is needed for that corpus (the merge-collapse fix, `merge_collapse_false_green`, had
+already closed the observed os/csys case). T2 remains available if a future corpus surfaces a real
+nonlinear-div vacuity.
 
 **T2 · S3 — root-cause each nonlinear-div vacuity.** For each (a): isolate the offending VC and its
 nonlinear div/mod terms. Fix by, in order of preference:
