@@ -587,3 +587,11 @@ field → inert) + PROVEN:
   converted via a real modeling feature, not a recognizer. **Count 1278 → 1277.**
 - **Total: 17 handlers converted, count 1294 → 1277.** Remaining hard tail: var, attribute,
   slice_access, call, fstring, ifexpr (each still needs its own feature).
+
+**Nested-map scope note (iter-19):** the feature is PROVEN on the emitter mirror (field_get's
+`_class_constants`, a @mutable_state/@dataclass field). A plain-class corpus reference test (0746,
+drafted) surfaced that a plain class's nested-dict field value_type is not extracted the same way
+(the field lowers flat `map int (option int)` while the membership fix assumes nested) — a separate
+plain-class field-collection generalization. Deferred (mirror proof is the validation); the corpus
+reference test lands with that generalization. Core field_get conversion is unaffected (proven,
+byte-diff 0).
