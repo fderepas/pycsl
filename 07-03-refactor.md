@@ -324,3 +324,30 @@ the giants just need the volume of coordinated edits.
 
 ### Campaign final: 1294 → 1273, 23 handlers converted
 Remaining trusted `_handle_*`: attribute, call, subscript (the giants) + `_call_named_builtins`.
+
+## R3 full-grind attempt — the definitive blocker (2026-07-03)
+
+Pushed the full giant conversion. Completed the mechanical layers cleanly:
+- isolated the 116-line reflection prefix (`_call_special_shapes`);
+- fixed all general-path helper stub IR-node params (`expr: int` → `"ExprIR"`, `local_refs` → `set`);
+- rewrote all **7** `Optional[str]` returns to the `""`-sentinel + truthiness form (byte-diff 0).
+
+**Then hit a FUNDAMENTAL typing gap, not a fixable leak:** the general path builds
+`args = [self._expr_to_whyml(a) for a in expr["args"]]` — a **list comprehension, which lowers to
+`seq string` by design** (`statements.py:245`, `list_comp_seq_*`). Every general-path helper is
+annotated `args: List[str]`, which maps to **`array string`**. There is **no Python annotation that
+maps a param to `seq string`**, so `args` (seq) cannot be passed to any typed helper — the val comes
+out `(… (x1: array string) …)` and the `!args` (seq string) argument mismatches.
+
+Resolving this needs a **new feature** — either a `seq`-typed parameter surface, or an automatic
+`snapshot` (seq→array) coercion at call sites when a seq flows into a `List[_]` param — neither of
+which the isolate/cross-file-wiring patterns provide. And splitting the general path into a second
+trusted leaf is **counterproductive**: `_handle_call_expr` (1 marker) → thin dispatcher + 2 trusted
+leaves = **2 markers** (worse).
+
+**Verdict (definitive):** the three giants (`call`, `subscript`, `_call_named_builtins`) are gated on
+this list-comp-`seq` vs `List`-`array` param gap (they all lower `args = […]` and pass it around).
+Converting them requires the seq↔array-param feature FIRST; then the isolate + Optional-sentinel
+recipe converges. Reverted to the clean **1273** — this is the honest floor for the current toolset.
+
+### Campaign final: 1294 → 1273, 23 handlers; giants blocked on a named feature-gap
