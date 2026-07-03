@@ -180,6 +180,18 @@ class ControlFlowStmtMixin:
                         or getattr(self, "_seq_value_types", {}).get(_bn)):
                 iter_expr = self._expr_to_whyml(iter_ir, local_refs)
                 return (f"(Seq.length {iter_expr})", f"(Seq.get {iter_expr} !{idx})", False)
+            # 07-03-refactor R2: a `[lo:]` slice of an array-`emit_ir` local (`for pp in parts[1:]`,
+            # `parts` from `expr.get("parts")`) iterates WITHOUT materialising the slice: run the
+            # counter from `lo` up to `Array.length parts`, reading `parts[idx]` (emit_ir). The
+            # element bounds fall straight out of the loop condition `idx < Array.length parts`
+            # (unlike a `parts[lo+idx]` offset, whose bounds VC the invariant doesn't expose).
+            if (iter_ir.get("type") == "SliceAccess" and _bn
+                    and getattr(self, "_array_elem_types", {}).get(_bn) == "emit_ir"):
+                _base_expr = self._expr_to_whyml(_base, local_refs)
+                _sl = iter_ir.get("slice") or {}
+                self._for_idx_init = (self._expr_to_whyml(_sl.get("lower"), local_refs)
+                                      if isinstance(_sl, dict) and _sl.get("lower") else "0")
+                return (f"Array.length {_base_expr}", f"{_base_expr}[!{idx}]", False)
         if not self._value_semantic:
             iter_expr = self._expr_to_whyml(iter_ir, local_refs)
             return f"{iter_expr}_len", f"Map.get !{self._heap_var} ({iter_expr} + !{idx})", False

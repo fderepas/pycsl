@@ -35,6 +35,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     _todict_aliases: Dict[str, str] = None
     _current_symbol_table: Dict[str, str] = None
     _mutable_state_classes: Set[str] = None
+    _seq_value_types: Dict[str, str] = None
+    _array_elem_types: Dict[str, str] = None
     # self-tcb-reduction T1.a: further state fields the ported expression handlers read.
     _in_spec: int = 0
     _value_semantic: int = 0
@@ -483,11 +485,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             self._add_abstract_op(f"val {name} (x: int) (f: int) : int")
             obj = self._coerce_to_int(obj)
         return f"({name} {obj} {hash_field})"
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _fstring_str_part(self, pp: "ExprIR", local_refs: Set[str],
+                          invariant_ctx: bool, subst: Dict[str, str]) -> str:
+        """One segment of a MIXED (str/int) f-string in a @mutable_state class: a string
+        segment passes through; an int/opaque segment is `int_to_string`-wrapped. Hoisted
+        (07-03-refactor R2) from the `_sp` nested closure in `_handle_fstring_expr` so the
+        segment logic types identically under proof mode and `--no-proof`."""
+        w = self._expr_to_whyml(pp, local_refs, invariant_ctx, subst)
+        return w if self._is_string_expr(pp) else f"(int_to_string {self._coerce_to_int(w)})"
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_fstring_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
+    def _handle_fstring_expr(self, node: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
         return ""
     #@ requires True
     #@ ensures True
@@ -553,11 +566,31 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return f"(Map.get ({self._heap_var} at {label}) ({value} + {index}))"
         e = self._expr_to_whyml(inner, local_refs, invariant_ctx, subst)
         return f"({e} at {label})"
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _cf5_arr(self, d: "ExprIR") -> bool:
+        """True if an IfExp arm `d` is a STRING-seq value (`.split(...)`, a list/comp literal,
+        or a str-seq/str-array Var) — so a `<seq> if c else <seq>` IfExp emits each arm seq-ified
+        rather than int-coerced. Hoisted (07-03-refactor R2) from the nested closure in
+        `_handle_ifexpr_expr` so the arm predicate types consistently under proof mode."""
+        if not isinstance(d, dict):
+            return False
+        _tt = d.get("type")
+        if (_tt == "Call" and isinstance(d.get("func"), str)
+                and d["func"].endswith(".split")):
+            return True
+        if _tt in ("ArrayLit", "ListLit", "ListComp"):
+            return True
+        if _tt == "Var":
+            return (getattr(self, "_seq_value_types", {}).get(d.get("name")) == "string"
+                    or getattr(self, "_array_elem_types", {}).get(d.get("name")) == "string")
+        return False
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_ifexpr_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
+    def _handle_ifexpr_expr(self, node: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
         return ""
     #@ requires True
     #@ ensures True

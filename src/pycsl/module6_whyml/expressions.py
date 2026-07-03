@@ -4157,6 +4157,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             obj = self._coerce_to_int(obj)
         return f"({name} {obj} {hash_field})"
 
+    def _fstring_str_part(self, pp: "ExprIR", local_refs: Set[str],
+                          invariant_ctx: bool, subst: Dict[str, str]) -> str:
+        """One segment of a MIXED (str/int) f-string in a @mutable_state class: a string
+        segment passes through; an int/opaque segment is `int_to_string`-wrapped. Hoisted
+        (07-03-refactor R2) from the `_sp` nested closure in `_handle_fstring_expr` so the
+        segment logic types identically under proof mode and `--no-proof`."""
+        w = self._expr_to_whyml(pp, local_refs, invariant_ctx, subst)
+        return w if self._is_string_expr(pp) else f"(int_to_string {self._coerce_to_int(w)})"
+
     def _handle_fstring_expr(self, node: "ExprIR", local_refs: Set[str],
                               invariant_ctx: bool, subst: Dict[str, str]) -> str:
         expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
@@ -4197,12 +4206,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 "    ensures { result = (concat a b) }\n"
                 "    ensures { String.length result = String.length a + String.length b }")
 
-            def _sp(pp: Dict[str, Any]) -> str:
-                w = self._expr_to_whyml(pp, local_refs, invariant_ctx, subst)
-                return w if self._is_string_expr(pp) else f"(int_to_string {self._coerce_to_int(w)})"
-            acc = _sp(parts[0])
+            acc = self._fstring_str_part(parts[0], local_refs, invariant_ctx, subst)
             for pp in parts[1:]:
-                acc = f"(str_concat_op {acc} {_sp(pp)})"
+                acc = f"(str_concat_op {acc} {self._fstring_str_part(pp, local_refs, invariant_ctx, subst)})"
             return acc
         acc = self._coerce_str_arg(self._expr_to_whyml(parts[0], local_refs, invariant_ctx, subst))
         n_parts = len(parts)
@@ -4273,6 +4279,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         e = self._expr_to_whyml(inner, local_refs, invariant_ctx, subst)
         return f"({e} at {label})"
 
+    def _cf5_arr(self, d: "ExprIR") -> bool:
+        """True if an IfExp arm `d` is a STRING-seq value (`.split(...)`, a list/comp literal,
+        or a str-seq/str-array Var) — so a `<seq> if c else <seq>` IfExp emits each arm seq-ified
+        rather than int-coerced. Hoisted (07-03-refactor R2) from the nested closure in
+        `_handle_ifexpr_expr` so the arm predicate types consistently under proof mode."""
+        if not isinstance(d, dict):
+            return False
+        _tt = d.get("type")
+        if (_tt == "Call" and isinstance(d.get("func"), str)
+                and d["func"].endswith(".split")):
+            return True
+        if _tt in ("ArrayLit", "ListLit", "ListComp"):
+            return True
+        if _tt == "Var":
+            return (getattr(self, "_seq_value_types", {}).get(d.get("name")) == "string"
+                    or getattr(self, "_array_elem_types", {}).get(d.get("name")) == "string")
+        return False
+
     def _handle_ifexpr_expr(
         self,
         node: "IfExprExpr",
@@ -4283,7 +4307,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # Phase-B-expr: typed. IfExprExpr (test, body, orelse: ExprIR).
         test = self._expr_to_whyml(node.test, local_refs, invariant_ctx, subst)
         test = self._to_bool(test, node.test.to_dict())
-        _bd, _od = node.body.to_dict(), node.orelse.to_dict()
+        # 07-03-refactor R2: split the tuple-unpack into two assignments so each arm types as
+        # emit_ir (via the `.to_dict()` recognizer) instead of the int tuple-unpack target.
+        _bd = node.body.to_dict()
+        _od = node.orelse.to_dict()
         body = self._expr_to_whyml(node.body, local_refs, invariant_ctx, subst)
         orelse = self._expr_to_whyml(node.orelse, local_refs, invariant_ctx, subst)
         # i-feel-good.md I-A/I-B: a ternary is a STRING expression when at least one arm is
@@ -4293,8 +4320,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # string. @mutable_state-gated → the corpus int model is byte-identical.
         _ms = (getattr(self, "_current_self_type", None)
                in getattr(self, "_mutable_state_classes", set()))
-        _b_str, _o_str = self._is_string_expr(_bd), self._is_string_expr(_od)
-        _b_none, _o_none = _bd.get("type") == "None", _od.get("type") == "None"
+        _b_str = self._is_string_expr(_bd)
+        _o_str = self._is_string_expr(_od)
+        _b_none = _bd.get("type") == "None"
+        _o_none = _od.get("type") == "None"
         if _ms and (_b_str or _o_str) and (_b_str or _b_none) and (_o_str or _o_none):
             if _b_none: body = '""'
             if _o_none: orelse = '""'
@@ -4302,7 +4331,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # item34.md CF1: the emit_ir analogue — `stmt.value.to_dict() if stmt.value is not
         # None else None` (an `Optional[ExprIR]` ternary) is an emit_ir expression; a `None`
         # arm → `(IrOther "")` (the emit_ir absent sentinel). @mutable_state.
-        _b_ir, _o_ir = self._is_emit_ir_expr(_bd), self._is_emit_ir_expr(_od)
+        _b_ir = self._is_emit_ir_expr(_bd)
+        _o_ir = self._is_emit_ir_expr(_od)
         if _ms and (_b_ir or _o_ir) and (_b_ir or _b_none) and (_o_ir or _o_none):
             if _b_none: body = '(IrOther "")'
             if _o_none: orelse = '(IrOther "")'
@@ -4310,20 +4340,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # item34.md CF5: a ternary whose BOTH arms are `seq string` name-lists (`exc.split("|")
         # if "|" in exc else [exc]`) — emit each arm seq-ified (`_seq_operand`), no int
         # coercion. @mutable_state.
-        def _cf5_arr(d: Any) -> bool:
-            if not isinstance(d, dict):
-                return False
-            _tt = d.get("type")
-            if (_tt == "Call" and isinstance(d.get("func"), str)
-                    and d["func"].endswith(".split")):
-                return True
-            if _tt in ("ArrayLit", "ListLit", "ListComp"):
-                return True
-            if _tt == "Var":
-                return (getattr(self, "_seq_value_types", {}).get(d.get("name")) == "string"
-                        or getattr(self, "_array_elem_types", {}).get(d.get("name")) == "string")
-            return False
-        if _ms and _cf5_arr(_bd) and _cf5_arr(_od):
+        if _ms and self._cf5_arr(_bd) and self._cf5_arr(_od):
             return (f"(if {test} then {self._seq_operand(_bd, local_refs or set())} "
                     f"else {self._seq_operand(_od, local_refs or set())})")
         body = self._coerce_to_int(body)
