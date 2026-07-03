@@ -297,3 +297,17 @@ suite unchanged (only the pre-existing `errors.py` fails).
 **Sound laws as landed:** `str_replace_op` (equal-length ⇒ length preserved),
 `str_case_op` (non-emptiness bound only — Unicode-safe), `str_strip_op` (`≤ len s`),
 `str_split_elem_op` (`≤ len s`), `str_concat_op` (exact `len a + len b`, reused for join).
+
+
+---
+
+## LANDED (2026-07-03) — final status
+
+**CLOSED.** P1–P4 implemented (see the §3 status header): `str.replace`/`.lower`/`.upper`/
+`.strip`/split-element read as faithful `string` with sound length laws, and literal-`.join` is
+exact. Every handler that motivated this (`_handle_expr_stmt`'s `func.rsplit(...)[0].replace(...)`,
+etc.) is **un-`\trusted` and PROVEN**. The one deferred item — GENERAL `sep.join(<runtime array>)`
+(P4, §8) — is a **demand-gated YAGNI exit** (`pycsl-how-to-develop §8.2`): no landed handler or
+corpus program needs it (all string-building composes from literal joins + concat), so it is not
+built. The `seq string` element-model that would host it now exists (`attic/seq-model-pivot.md`),
+so it is buildable-on-demand the moment a driver requires it. Nothing demanded remains here.

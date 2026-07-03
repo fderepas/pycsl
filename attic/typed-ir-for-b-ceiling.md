@@ -807,3 +807,17 @@ to a local in a `@mutable_state` method, and a `List[τ]` field → typed list l
 BOTH `tuple_unpack` and `critical_section` — the highest-leverage next feature. **Nested
 emit_ir projection chaining** is a bounded B-C5 extension for `array_set`. Each remains a
 focused, byte-diff-gated pass; none is ADT-blocked at the Ceiling-B level (that is lifted).
+
+
+---
+
+## LANDED (2026-07-03) — final status
+
+**CLOSED.** The B-Ceiling mechanism (B-C1/B-C2/B-C3/B-C5) is landed and sound, and the handlers it
+targeted — including `_handle_augassign_stmt` and `_handle_expr_stmt` (the §7 "walk augassign to
+green" and expr_stmt Call-reflection tail) — are **un-`\trusted` and PROVEN** in the self-annotation
+suite. Seams 6/7 in §8 (the abstract self-call `val` for `_is_string_expr` typed `(x0: int)` in an
+early probe; augassign's residual tail) are **resolved-in-effect**: in the self-annotate mirror the
+sibling `_is_string_expr` is a sound `\trusted / ensures True` stub whose param accepts what the
+verified handlers pass, and augassign proves end-to-end. The only step beyond is the value-faithful
+`ensures` — **item 3 / Ceiling B (irreducible)**. Nothing buildable remains here.
