@@ -68,6 +68,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     def _e(self, ir: Dict, lr: int) -> str:
         return ""
 
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _whyml_string_literal(self, s: str) -> str:
+        """A Python string → its WhyML double-quoted string literal, backslash and
+        double-quote escaped. Pure (`assigns \\nothing`). Extracted (07-03-refactor R5)
+        from the duplicated inline escaper in `_handle_var_expr` / `_call_named_builtins`."""
+        return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True

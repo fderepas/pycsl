@@ -136,6 +136,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         """Shorthand for _expr_to_whyml within ghost handlers."""
         return self._expr_to_whyml(ir, lr)
 
+    def _whyml_string_literal(self, s: str) -> str:
+        """A Python string → its WhyML double-quoted string literal, backslash and
+        double-quote escaped. Pure (`assigns \\nothing`). Extracted (07-03-refactor R5)
+        from the duplicated inline escaper in `_handle_var_expr` / `_call_named_builtins`."""
+        return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
     def _to_bool(self, whyml_str: str, ir_expr: Dict[str, Any]) -> str:
         """Coerce a WhyML expression to bool if it might be int.
         Comparison operators and bool literals are already bool.
@@ -3101,7 +3107,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     if isinstance(v, int):
                         return f"(- {abs(v)})" if v < 0 else str(v)
                     if isinstance(v, str):
-                        return '"' + v.replace('\\', '\\\\').replace('"', '\\"') + '"'
+                        return self._whyml_string_literal(v)
                 except (ValueError, SyntaxError):
                     pass  # not a valid literal → opaque
             self._add_abstract_op("val literal_eval_op (s: 'a) : int")
@@ -4033,7 +4039,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # 0442.md C5 (no-more-int): a string-literal constant folds to a real Why3
             # string literal, not an int hash; an int constant folds to its value.
             if isinstance(_cv, str):
-                return '"' + _cv.replace("\\", "\\\\").replace('"', '\\"') + '"'
+                return self._whyml_string_literal(_cv)
             return f"({_cv})"
         # inline.md Phase 1: a bare reference to a module-level global object resolves to
         # its binding name (e.g. passing `acc` as an argument). After the local/param
