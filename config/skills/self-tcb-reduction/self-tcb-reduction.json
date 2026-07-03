@@ -1,0 +1,141 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "sl_name": "self-tcb-reduction",
+  "version": "1.0.0",
+  "kind": "squeeze-loop",
+  "description": "Machine-readable configuration for the self-tcb-reduction Squeeze Loop: convert the self-annotation mirror's ~1290 \\trusted stubs to verified body-faithful methods, driving the trusted core to its irreducible floor. Companion: config/skills/self-tcb-reduction/SKILL.md and self-tcb-reduction.md.",
+  "terrain_archetype": ["A-transcription", "C-split-planes"],
+  "deliverable": "src/self-annotate/src/ with the \\trusted-stub count reduced to the enumerated floor; every .py stub either VERIFIED or FLOOR-audited with a reason.",
+  "correct_means": [
+    "mirror body verbatim-identical to the live emitter method (fidelity)",
+    "Why3 discharges the assigns-framed contract (type-safety)",
+    "byte-diff 0 across the 627-program reference corpus (corpus inertness)",
+    "total \\trusted wc -l strictly decreased",
+    "proof_axiom_allowlist unchanged (no smuggled axiom)"
+  ],
+  "coherent_and_wrong_guards": [
+    { "id": "mirror-drift", "risk": "a stub verifies a STALE copy no longer matching the live emitter", "caught_by": "fidelity plane (check-self-annotate-sync.sh, self-annotate-mirror-check.sh)" },
+    { "id": "corpus-perturbation", "risk": "a recognizer added to pass one stub silently changes real-program output", "caught_by": "corpus-inertness plane (byte-diff 0)" },
+    { "id": "reclassification-dodge", "risk": "a convertible stub is mislabelled 'irreducible floor' to skip the work", "caught_by": "floor-auditor (ceiling doctrine + differential)" },
+    { "id": "fake-axiom-or-weak-frame", "risk": "a stub 'verified' by an added axiom or a loose assigns", "caught_by": "Gate B (proof_axiom_allowlist diff) + Gate C (non-vacuity / tight assigns)" }
+  ],
+  "bounds": {
+    "U": {
+      "type": "soft-transcription-authority",
+      "sources": [
+        "the live emitter method in src/pycsl/ (verbatim transcription source)",
+        "fixed contract shape: '#@ requires True / ensures True / assigns <tight-frame>' (type-safety + frame; NEVER value-faithful; NEVER vacuous)",
+        "item-3 ceiling doctrine (remaining-trust.md, item34.md §1) bounding what may be re-sited to the floor"
+      ]
+    },
+    "L": {
+      "type": "hard-executable-oracle",
+      "planes": [
+        { "id": "fidelity", "cmd": ["bash bin/check-self-annotate-sync.sh", "bash bin/self-annotate-mirror-check.sh"], "verdict": "mirror body == live body, verbatim modulo #@" },
+        { "id": "type-safety", "cmd": ["python3 src/pycsl/pycsl.py <mirror> --import-path src/pycsl"], "verdict": "Why3 proof discharges; proof_axiom_allowlist unchanged" },
+        { "id": "corpus-inertness", "cmd": ["PYTHONHASHSEED=0 bash bin/byte-diff-sweep.sh /tmp/after", "diff -rq <baseline> /tmp/after", "bash bin/run-self-annotation-suite.sh", "find src/self-annotate/src -name '*.py' -exec grep -h '\\trusted' {} \\; | wc -l"], "verdict": "byte-diff 0 AND suite no-new-fail AND \\trusted count strictly decreased" }
+      ],
+      "all_planes_required": true,
+      "no_blend": true
+    }
+  },
+  "actors": [
+    {
+      "role": "coordinator",
+      "builds": "tier work-list, per-stub delegation, gate verdicts, the shrinking-count ledger",
+      "U": "self-tcb-reduction.md (tier order + floor denylist)",
+      "L": "the gate machine outputs",
+      "forbidden": ["edit mirror/emitter", "rubber-stamp a conversion"],
+      "must_not_see": []
+    },
+    {
+      "role": "converter",
+      "builds": "the verbatim mirror body + the assigns-framed #@ + any @mutable_state-gated recognizer in the LIVE emitter",
+      "U": "the live emitter method + the fixed contract shape",
+      "L": "Why3 type-check discharge (--no-proof) locally",
+      "forbidden": ["weaken/vacuate a contract", "add an axiom", "touch the corpus baseline or the floor-audit"],
+      "must_not_see": ["the byte-diff baseline", "the floor-auditor's reasoning"]
+    },
+    {
+      "role": "verifier",
+      "builds": "runs the three L planes fresh from the surface only; authors the non-vacuity + non-drift checks",
+      "U": "the plan's gate battery + the contract shape",
+      "L": "the actual oracle verdicts (sync exit, diff -rq, proof, wc -l, suite)",
+      "forbidden": ["read the converter's recognizer rationale", "edit mirror/emitter"],
+      "must_not_see": ["the converter's diffs (surface + gate results only)"]
+    },
+    {
+      "role": "floor-auditor",
+      "builds": "a PASS/REJECT verdict on every re-siting of a stub to F1/F3",
+      "U": "the item-3 ceiling doctrine (Gödel-2/Löb)",
+      "L": "the floor register + a differential (did a genuine conversion attempt actually fail?)",
+      "forbidden": ["reclassify a stub itself", "implement a fix"],
+      "must_not_see": ["the converter's convenience motive"]
+    },
+    {
+      "role": "triage-probe",
+      "optional": true,
+      "parallel": true,
+      "builds": "one recorded classification per stub: trivial-leaf | needs-recognizer | hard-architectural | floor",
+      "U": "the plan's tier definitions",
+      "L": "the stub's actual shape (does --no-proof pass as-is?)",
+      "forbidden": ["implement any conversion"],
+      "must_not_see": []
+    }
+  ],
+  "disjointness_C1": "converter holds live-emitter + type-check (never corpus baseline or ceiling doctrine); verifier holds acceptance oracles (never code rationale); floor-auditor holds ceiling doctrine (never convenience motive). No actor relieves its own constraint. Intersection = verbatim-faithful AND type-safe AND corpus-inert AND (if re-sited) genuinely irreducible.",
+  "catchability_C2": [
+    { "actor": "converter", "blind_spot": "mirror drift / corpus perturbation", "caught_by": "verifier (sync + byte-diff 0)" },
+    { "actor": "converter", "blind_spot": "vacuous/weak contract", "caught_by": "verifier non-vacuity + fixed shape" },
+    { "actor": "converter", "blind_spot": "dodge-by-mislabelling as floor", "caught_by": "floor-auditor" },
+    { "actor": "coordinator", "blind_spot": "accept-unjudged", "caught_by": "gate-defined done" }
+  ],
+  "gates": {
+    "A_editorial": "coordinator judges the delegation — right tier, NOT on the floor denylist, contract shape correct (type-safety+frame; not value-faithful; not vacuous). Amend/cut/sharpen; no mirror edit from a DRAFT.",
+    "B_machine": "all three L planes pass (fidelity AND type-safety AND corpus-inertness incl. strictly-decreased count); nothing smuggled (no added axiom/assumes).",
+    "C_coverage_no_blend": "the three planes never blend; non-vacuity (tight assigns; real transcribed body, not a stub); every re-sited stub carries a floor-auditor PASS; every touched stub ends VERIFIED or FLOOR:{F1|F3}+reason (none TRUSTED-unclassified)."
+  },
+  "loop_steps": [
+    "coordinator picks next stub from the current tier work-list (skip floor denylist), delegates surface-only",
+    "converter ports live body verbatim + #@ contract + recognizers, runs --no-proof @ STATUS: DRAFT",
+    "Gate A -> APPROVED",
+    "converter removes \\trusted marker, commits the increment",
+    "verifier runs the three L planes fresh (sync, proof, byte-diff 0, suite, count)",
+    "Gate B (machine) -> Gate C (no-blend + non-vacuity + floor-audit if re-sited)",
+    "stub DONE -> next; attempt-budget exceeded -> revert + floor-auditor triage (hard-architectural=flag focused pass | genuine floor=re-site); regression -> gap doc -> re-plan"
+  ],
+  "escalation": { "per_stub_attempt_budget": 3, "on_exceed": "revert stub; floor-auditor triages hard-architectural (flag for focused high-reasoning pass, e.g. match-class) vs genuine-floor (re-site with reason)", "no_progress_termination": "2 consecutive no-progress iterations -> re-site residual with floor-auditor sign-off" },
+  "floor_denylist": {
+    "F1_recursion_leaves": ["_expr_to_whyml", "_stmts_to_whyml", "<any mutually-recursive emitter sibling bottoming out in these>"],
+    "F2_D2_axioms": "the 37 axioms in src/self-annotate/pycsl-wp-spec.mlw (audited by I3.1; not .py stubs)",
+    "F3_opaque_boundaries": "methods whose faithful contract needs an external/undecidable surface (SMT invocation, CLI file I/O, why3 subprocess, agents/ LLM calls) -> \\abstract/\\trusted with a documented boundary, never a fake axiom"
+  },
+  "tiers": [
+    { "id": "T1", "scope": "Module 6 emitter (module6_whyml/ + Module6_WhyMLTranspiler.py)", "approx_stubs": 326, "soundness_weight": "HIGH", "tractability": "PROVEN", "order": 1,
+      "subtiers": [
+        { "id": "T1.a", "scope": "24 _handle_*_expr expression handlers in expressions.py", "order": "read-only first (var/attribute/field_get), broadest last (call/fstring)" },
+        { "id": "T1.b", "scope": "Module 6 emitter helpers (types, functions, preamble, ir_scanner, abstract_ops, auto_trust, identifiers, scc, struct_format, expr_ghost_*)", "order": "dependency order (a verified handler's callees first)" }
+      ]
+    },
+    { "id": "T2", "scope": "semantic analyzer core_ir_semantic.py", "approx_stubs": 66, "soundness_weight": "HIGH", "tractability": "new-contract-class (analyzer invariants)", "order": 2, "note": "spike one method to fix the pattern, then batch" },
+    { "id": "T3", "scope": "front-end pipeline (frontend/: pure_ast, Module5_IREmitter, Module2_Parser, Module3_Weaver, monomorphize, ir_resolve, Module1_Ingestor, ir_inline)", "approx_stubs": 671, "soundness_weight": "MEDIUM", "tractability": "harder (structural-preservation contracts)", "order": 3, "demand_gated": true, "note": "Layer-2 re-checks emitted WhyML on every run, so a front-end defect cannot pass silently; leaf-first" },
+    { "id": "T4", "scope": "tooling/orchestration (proof2why3/, pycsl.py, audit_proof*, exception_model)", "approx_stubs": 192, "soundness_weight": "LOW", "tractability": "mostly re-site to F3", "order": 4, "note": "default to documented boundary, not conversion; convert only on demand" }
+  ],
+  "oracle_setup": {
+    "E-0_baseline": "pin the clean-tree byte-diff baseline once (stash local edits, sweep clean HEAD, restore); every stub diffs against it",
+    "amortization": "type-check per stub (--no-proof, fast); batch full proof + byte-diff per FILE, not per stub"
+  },
+  "stabilizers": [
+    "vacuous/weak-contract -> Gate C non-vacuity + fixed shape",
+    "mirror-drift -> physical fidelity gate (converter never owns the sync verdict)",
+    "corpus-perturbation -> byte-diff 0 per stub",
+    "smuggled-axiom -> proof_axiom_allowlist diff in Gate B",
+    "reclassification-dodge -> independent floor-auditor with ceiling doctrine as U",
+    "plane-blending -> Gate C requires all three planes",
+    "self-declared-done -> gate-defined done",
+    "unsequenced-parallelism -> sequential per-file (shared recognizers); parallel only the triage probe",
+    "escalate-not-thrash -> per-stub attempt budget; flag the hard tail"
+  ],
+  "done_criteria": "every mirror .py stub is VERIFIED or FLOOR:{F1|F3}+reason; \\trusted wc -l at the enumerated floor; check-self-annotate-sync.sh AND self-annotate-mirror-check.sh AND run-self-annotation-suite.sh green; byte-diff 0 throughout; proof_axiom_allowlist unchanged.",
+  "start_scope": "E-0 baseline -> T1.a (24 expression handlers, read-only first)"
+}

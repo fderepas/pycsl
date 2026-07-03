@@ -183,3 +183,46 @@ add a `@mutable_state` witness per `pycsl-how-to-develop §8.2` if it can verify
 enumerated in the F1/F3 audited floor with a reason; the `wc -l` trusted count is reduced to that
 floor; `check-self-annotate-sync.sh`, `self-annotate-mirror-check.sh`, and
 `run-self-annotation-suite.sh` all green; byte-diff 0 throughout.
+
+---
+
+## 9. Execution vehicle — the `self-tcb-reduction` Squeeze Loop (SL)
+
+This campaign is executed as a **Squeeze Loop** (see `config/skills/sl-internal`): every stub
+conversion is held between a soft **upper bound `U`** and a hard **lower bound `L`**, and the
+actors are **disjoint** so the dominant *coherent-and-wrong* failure is always caught by an actor
+that cannot share the blind spot. The loop is packaged as the skill
+`config/skills/self-tcb-reduction/` (`SKILL.md` + `self-tcb-reduction.json`).
+
+- **Terrain: A (transcription) + C (split planes).** The live emitter exists on disk — the
+  converter *transcribes* it verbatim; and "correct" splits across **three disjoint oracle
+  planes** that must never blend: **fidelity** (mirror-sync: the mirror body == the live body),
+  **type-safety** (Why3 discharges the `assigns`-framed contract), **corpus-inertness** (byte-diff
+  0 across the 627-corpus).
+- **`U`** = the live emitter method + the fixed contract shape (`requires True / ensures True /
+  assigns <frame>` — *not* value-faithful, *not* vacuous) + the item-3 ceiling doctrine.
+- **`L`** = `check-self-annotate-sync.sh` ∧ Why3 proof discharge ∧ `diff -rq` byte-diff 0 ∧
+  `run-self-annotation-suite.sh` ∧ a strictly-shrinking `\trusted` `wc -l`.
+- **Dominant coherent-and-wrong (guard these):** (1) silent **mirror drift** — a stub that
+  "verifies" a stale copy → caught by the fidelity gate; (2) **corpus perturbation** — a recognizer
+  that quietly changes real-program output → caught by byte-diff 0; (3) **reclassification dodge**
+  — mislabelling a convertible stub as "irreducible floor" to skip the work → caught by an
+  independent **floor-auditor** demanding a Gödel/Löb-class reason; (4) **fake-axiom / weakened
+  frame** → caught by the `proof_axiom_allowlist` + assigns-tightness check.
+- **Actors (disjoint `(U,L)`):** **coordinator** (sequences tiers, delegates one stub, renders
+  gate verdicts, owns the shrinking-count ledger; never edits code, never rubber-stamps);
+  **converter** (transcribes the live body + contract + `@mutable_state`-gated recognizers; never
+  sees the corpus baseline or the floor-audit; may not weaken a contract or add an axiom);
+  **verifier** (runs the three oracle planes *fresh from the surface only*; never reads the
+  converter's recognizer rationale); **floor-auditor** (judges every *re-siting* to the floor
+  against the ceiling doctrine — PASS / REJECT; the coherent-and-wrong catcher for the dodge);
+  optional **triage probe** (one-shot parallel classification of all stubs into
+  trivial-leaf / needs-recognizer / hard-architectural / floor).
+- **Escalate, don't thrash:** a per-stub attempt budget; on exceed, revert and flag for a focused
+  pass (the hard-architectural ones like `match` were whole sessions) — the loop harvests the easy
+  majority and the floor-auditor triages the tail.
+- **Done is gate-defined** (never self-declared): every mirror `.py` stub is either a verified body
+  or floor-audited into F1/F2/F3, the `wc -l` count is at the floor, and all gates are green.
+
+The precise `(U,L)` pairs, barriers, gates A/B/C, loop steps, and the floor denylist are encoded
+machine-readably in `config/skills/self-tcb-reduction/self-tcb-reduction.json`.
