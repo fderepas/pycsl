@@ -41,6 +41,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     _seq_locals: Set[str] = None
     _result_alias: str = ""
     _heap_var: str = ""
+    _scope_must: Set[str] = None
+    _scope_all: Set[str] = None
+    _scope_params: Set[str] = None
+    _scope_dyn_exec: int = 0
     'Expression-emission dispatch: every IR expression-shape `_handle_*_expr`\n    handler routed via `_EXPR_DISPATCH` on the facade, plus the orchestration\n    entrypoints (`_expr_to_whyml`, `_expr_to_whyml_string_ctx`) and the shared\n    helpers (`_to_bool`, `_coerce_*`, `_match_pattern_cond`, ...). Mixed into\n    Module6_WhyMLTranspiler. `_EXPR_DISPATCH` stays on the facade as a class\n    attribute — moving it would force a circular import.\n    '
     _BITWISE_FOLD_OPS = {'&': lambda a, b: a & b, '|': lambda a, b: a | b, '^': lambda a, b: a ^ b, '<<': lambda a, b: a << b, '>>': lambda a, b: a >> b, '**': lambda a, b: a ** b}
     _BITWISE_FN_NAMES = {'&': 'bit_and', '|': 'bit_or', '^': 'bit_xor', '<<': 'bit_lshift', '>>': 'bit_rshift', '**': 'py_pow'}
@@ -559,20 +563,43 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _module_binding_names(self) -> int:
+    def _module_binding_names(self) -> Set[str]:
         return set()
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_in_globals_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
-        return ""
-    #@ \trusted reviewer: pycsl-self-annotate
+    def _handle_in_globals_expr(self, node: "ExprIR", local_refs: Set[str],
+                                invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> str:
+        """07-1839 P2: `\\in_globals(name)` — three-valued, true-only lower bound.
+        decided-true (→ `true`) for a declared module binding; UNKNOWN otherwise → an
+        uninterpreted bool (`in_globals_op`), so it is neither provably true nor false
+        (open world: import/exec may inject the name). The unsound decided-false direction
+        is never emitted."""
+        name = node.name
+        if name in self._module_binding_names():
+            return "true"
+        self._add_abstract_op("val function in_globals_op (n: int) : bool")
+        return f"(in_globals_op {sum(ord(c) for c in name)})"
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_in_scope_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
-        return ""
+    def _handle_in_scope_expr(self, node: "ExprIR", local_refs: Set[str],
+                              invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> str:
+        """07-1839 P3: `\\in_scope(name)` — three-valued via definite-assignment.
+        decided-true (→ `true`) if `name` is assigned on all paths (param or top-level
+        assignment before any branch/return); decided-false (→ `false`) if `name` is
+        neither a param nor assigned anywhere; UNKNOWN (conditionally assigned) → an
+        uninterpreted bool. A dynamic exec havocs the binding set, so the decided-false
+        direction is withheld afterwards (decision C)."""
+        name = node.name
+        if name in getattr(self, "_scope_must", set()):
+            return "true"
+        if (not getattr(self, "_scope_dyn_exec", False)
+                and name not in getattr(self, "_scope_all", set())
+                and name not in getattr(self, "_scope_params", set())):
+            return "false"
+        self._add_abstract_op("val function in_scope_op (n: int) : bool")
+        return f"(in_scope_op {sum(ord(c) for c in name)})"
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

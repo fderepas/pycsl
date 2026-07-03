@@ -409,3 +409,14 @@ machine-readably in `config/skills/self-tcb-reduction/self-tcb-reduction.json`.
   (field-slice), `var` (module-const str branch), `fstring`/`slice_access`/`attribute`/`call`/
   `separated` (emit_ir/args reflection), `ifexpr` (`_cf5_arr` interaction).
 - **Total this run: 12 handlers converted, count 1294 → 1282.**
+
+### Iteration 12 (2026-07-03) — in_scope + in_globals (1282→1280)
+
+- **in_scope:** declared its scope fields (`_scope_must`/`_scope_all`/`_scope_params`/
+  `_scope_dyn_exec`) → the iteration-9 getattr-set-membership recognizer hashed the keys. Converted.
+- **method-call-set membership recognizer (LANDED, byte-diff 0):** `x in self._method()` where the
+  method returns `Set[str]`/`dict` (`name in self._module_binding_names()`) → map membership. Plus
+  retyped the `_module_binding_names` stub `Set[str]`. Converted `in_globals`.
+- **✅ `in_scope` + `in_globals` un-`\trusted` + PROVEN:** full proof green, byte-diff 0, mirror-sync
+  verbatim (38 methods). **Count 1282 → 1280.**
+- **Total this run: 14 handlers converted, count 1294 → 1280.**

@@ -497,6 +497,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # `x in self._seq_locals` form), NOT a synthetic Attribute IR — which
                 # lowers to the opaque `get_<field>` accessor.
                 right = f"self.{self._field_label(getattr(self, '_current_self_type', None), _gf)}"
+        # self-tcb-reduction T1.a: `x in self._method()` where the method returns a
+        # `Set[str]`/`dict` (`name in self._module_binding_names()`) → map membership (the RHS
+        # `right` is already the abstract-val call returning the map). @mutable_state.
+        if not rhs_is_map and rhs.get("type") == "Call" and self._getattr_self_field(rhs) is None:
+            _fn = rhs.get("func", "")
+            if isinstance(_fn, str) and _fn.startswith("self."):
+                _cls = getattr(self, "_current_self_type", None)
+                _key = f"{_cls}__{_fn[len('self.'):]}" if _cls else _fn
+                if getattr(self, "_module_method_return_types", {}).get(_key) in (
+                        "map int (option int)", "set", "dict", "frozenset"):
+                    rhs_is_map = True
         if rhs_is_map:
             # todict-reflection-plan.md R3: a STRING key into a `Set[str]`/`dict[str,_]`
             # (an int-keyed map) is hashed with `str_hash_op` — the read-side analogue of
