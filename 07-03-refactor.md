@@ -351,3 +351,27 @@ Converting them requires the seq↔array-param feature FIRST; then the isolate +
 recipe converges. Reverted to the clean **1273** — this is the honest floor for the current toolset.
 
 ### Campaign final: 1294 → 1273, 23 handlers; giants blocked on a named feature-gap
+
+## seq↔array coercion feature — BUILT (2026-07-03)
+
+Built the feature the giants are gated on. Core mechanism in `_coerce_dotted_args`: when a
+`seq`-typed arg (`_is_seq_arg`: a seq local / `_seq_value_types` local / `list_comp_seq`/`seq_sub`/
+`Seq.` expr) flows into an `array _` (`List[_]`) param, bridge it seq→array with the existing
+`materialize` / `materialize_str` ops. `@mutable_state`-gated (`_is_seq_arg` is False without it) →
+**byte-diff 0** + full proof. Commit below.
+
+**Verified it works** on the call giant: with the feature, the `args = [comprehension]` (seq) →
+`List[str]` helper-param mismatch that blocked the whole general dispatch now type-checks. Pushed the
+call conversion much further with it — through the args-coercion, the `str_join_seq` join, a
+`bare-ListComp → seq` classification fix (`_is_seq_src`), the 7 Optional-returns, the general-path
+helper param typing, the wrap-helper `requires_method` deps, and ~6 field declarations.
+
+**Remaining for the full call conversion** (all mapped, none blocking the feature): the `args` local
+is `seq` (list comp) but reassigned/consumed as `List[str]` (array) in ~5 more spots — notably
+`args = args + [filled]` (default-arg fill) and `formal_params = self._module_method_formal_params.get(...)`
+where `_module_method_formal_params` is a `Dict[str, List[str]]` (a dict-of-lists, another nested
+container). Each needs a coercion or an isolate-split. The seq↔array feature is the load-bearing
+piece; the rest is the long grind of the most-interconnected handler in the emitter.
+
+**Status:** feature landed (byte-diff 0, proven). Giants still at the trusted floor pending the
+per-site coercions above. Campaign: 1294 → **1273**, 23 handlers + the seq↔array enabler.

@@ -1960,6 +1960,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         self._add_abstract_op(f"val {arity_name} {params} : {ret_type}{writes_clause}{ensures_suffix}")
         return f"({arity_name} {' '.join(coerced)})"
 
+    def _is_seq_arg(self, arg: str) -> bool:
+        """True if a lowered arg is a `seq`-typed value (a seq local or a seq-producing op), so
+        `_coerce_dotted_args` can bridge it to a `List[_]` (array) param via `materialize`.
+        @mutable_state-gated (seq locals only exist there) -> corpus byte-identical.
+        (seq<->array-coercion feature: enables converting emitter handlers that pass list-
+        comprehension results to `List[_]` helper params, e.g. `_handle_call_expr`'s `args`.)"""
+        if not getattr(self, "_mutable_state_classes", None):
+            return False
+        base = arg.strip().lstrip("!")
+        if (base in getattr(self, "_seq_locals", set())
+                or base in getattr(self, "_seq_value_types", {})):
+            return True
+        return arg.strip().startswith(("(list_comp_seq", "(seq_sub ", "(Seq."))
+
     def _coerce_dotted_args(self, args: List[str], param_types: List[str]) -> List[str]:
         """Coerce each dotted-call arg to its declared param type. The caller's arg may be
         int while the param expects array or map (e.g. an int from an abstract `get_*`
@@ -1968,6 +1982,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         for arg, ptype in zip(args, param_types):
             if ptype == "int":
                 coerced.append(self._coerce_to_int(arg))
+            elif ptype in ("array int", "array string") and self._is_seq_arg(arg):
+                # seq<->array coercion: a `seq`-typed arg (a list comprehension lowers to `seq`)
+                # flowing into a `List[_]` (= `array _`) param is bridged seq->array via
+                # `materialize`/`materialize_str`. @mutable_state-only detection (seq locals) ->
+                # byte-identical for the corpus (`_is_seq_arg` is False without _mutable_state).
+                if ptype == "array string":
+                    self._materialize_str_bridge()
+                    coerced.append(f"(materialize_str {arg})")
+                else:
+                    self._materialize_bridge()
+                    coerced.append(f"(materialize {arg})")
             elif ptype == "array int":
                 coerced.append(self._array_coerce_arg(arg))
             elif ptype == "map int (option int)":
