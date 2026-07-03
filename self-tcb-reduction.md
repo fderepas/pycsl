@@ -309,3 +309,20 @@ machine-readably in `config/skills/self-tcb-reduction/self-tcb-reduction.json`.
   the next per-handler fix.
 - **Count after:** 1294 (unchanged). Tree green, byte-diff 0. var is ~95% converted — one niche
   branch from the first count reduction.
+
+### Iteration 5 (2026-07-03) — 🎉 FIRST CONVERSION: `_handle_unaryop_expr` (count 1294→1293)
+
+- **Switch of target (per iter-4 note):** var's last leak needs `isinstance(_cv, str)` narrowing on
+  an int-valued module-constant dict — a deeper typing feature. Switched to the genuinely simple
+  `_handle_unaryop_expr` (only `_expr_to_whyml`/`op_translate`/`_to_bool` + field access).
+- **E-2 structural prerequisite (LANDED):** the concrete-ExprIR-subclass handlers annotate
+  `node: "UnaryOpExpr"` (a quoted forward-ref), unlike the base `node: "ExprIR"`. Two fixes:
+  (a) import the 5 concrete subclasses used (`AtExpr`/`IfExprExpr`/`NamedExprExpr`/`OldExpr`/
+  `UnaryOpExpr`) in the mirror so they register as records (fields `op`/`expr`); (b) a QUOTED
+  IR-subclass forward-ref param now resolves to that record in `Module5` (byte-safe: the corpus has
+  no quoted `*Expr`/`*Stmt` param). Plus the mirror `_to_bool` stub's `ir_expr` retyped `"ExprIR"`.
+- **✅ `_handle_unaryop_expr` un-`\trusted` + PROVEN:** type-checks, full proof green, byte-diff 0
+  across the 627-corpus, mirror-sync verbatim (25 methods). **Count 1294 → 1293 — the first stub
+  converted to a verified body.**
+- **Next:** the other 4 concrete-subclass handlers (`at`/`ifexpr`/`named_expr`/`old`) now inherit
+  the E-2 record resolution — likely quick conversions; then return to the base-`ExprIR` handlers.

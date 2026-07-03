@@ -5,6 +5,10 @@ from module6_whyml.identifiers import op_translate, whyml_ident, stable_hash
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
 from module6_whyml.expr_ghost_spec_ops import GhostSpecOpsMixin
+# self-tcb-reduction T1.a (E-2): import the concrete ExprIR subclasses the handlers annotate, so
+# `node: "UnaryOpExpr"` resolves to a record (fields `op`/`expr`), like the statement mirror's
+# `stmt: AssignStmt`. The base `node: "ExprIR"` handlers use the emit_ir keystone instead.
+from ir_schema import AtExpr, IfExprExpr, NamedExprExpr, OldExpr, UnaryOpExpr
 def mutable_state(cls): return cls
 ""  # pycsl
 # self-tcb-reduction T1.a: mark the expression mixin @mutable_state so the emit_ir ADT + the
@@ -58,7 +62,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _to_bool(self, whyml_str: str, ir_expr: int) -> str:
+    def _to_bool(self, whyml_str: str, ir_expr: "ExprIR") -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -447,13 +451,28 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns \nothing
     def _handle_fstring_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
         return ""
-
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_unaryop_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
-        return ""
+    def _handle_unaryop_expr(
+        self,
+        node: "UnaryOpExpr",
+        local_refs: Set[str],
+        invariant_ctx: bool,
+        subst: Optional[Dict[str, str]],
+    ) -> str:
+        # Phase-B-expr: typed. `node` is a UnaryOpExpr (op: str, expr: ExprIR).
+        e = self._expr_to_whyml(node.expr, local_refs, invariant_ctx, subst)
+        op = op_translate(node.op)
+        if op == "+":
+            return e
+        if op == "~":
+            # 0442.md C4: Python bitwise NOT on the int model is the two's-complement
+            # identity `~x == -x - 1` (genuine int op, not a type-class leak).
+            return f"((- {e}) - 1)"
+        if op == "not":
+            e = self._to_bool(e, node.expr.to_dict())
+        return f"({op} {e})"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

@@ -3087,6 +3087,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # (None ≡ empty map), so `if subst and name in subst: subst[name]` types as string-map
             # ops instead of a Union variant. Byte-safe: 0 corpus methods have an Optional[Dict] param.
             _eff_ann = arg.annotation
+            # self-tcb-reduction T1.a (E-2): a QUOTED IR-subclass forward-ref param
+            # (`node: "UnaryOpExpr"`) resolves to that class's record (fields `op`/`expr`), like the
+            # statement mirror's bare `stmt: AssignStmt`. Byte-safe: the corpus has no quoted
+            # `*Expr`/`*Stmt` param annotation.
+            if (isinstance(arg.annotation, ast.Constant)
+                    and isinstance(arg.annotation.value, str)
+                    and (arg.annotation.value.endswith("Expr")
+                         or arg.annotation.value.endswith("Stmt"))):
+                _eff_ann = ast.Name(id=arg.annotation.value)
             if (isinstance(arg.annotation, ast.Subscript)
                     and isinstance(arg.annotation.value, ast.Name)
                     and arg.annotation.value.id == "Optional"):
