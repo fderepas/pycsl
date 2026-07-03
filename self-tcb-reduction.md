@@ -595,3 +595,25 @@ drafted) surfaced that a plain class's nested-dict field value_type is not extra
 plain-class field-collection generalization. Deferred (mirror proof is the validation); the corpus
 reference test lands with that generalization. Core field_get conversion is unaffected (proven,
 byte-diff 0).
+
+### Iteration 20 (2026-07-03) — var union-narrowing SOLVED, but var blocked on a separate issue (stays 1277)
+
+Attempted `_handle_var_expr` (63 lines). The NAMED blocker — **union-narrowing SOLVED**:
+- `_module_constants` values are `Union[str,int]` (`_cv.replace(...)` string branch vs `f"({_cv})"`
+  int branch). Sound model: declare the value type `str` — then `isinstance(_cv, str)` is always-true,
+  the string branch type-checks, and the (dead) int branch's `f"({_cv})"` is string interpolation.
+  The `replace_2`-on-int leak is GONE. (+ declared the missing `_variant_types` field.)
+
+But var has a SECOND, independent blocker that is NOT union-narrowing — **a for-loop-over-seq-slice
+variant in a LOGIC context**:
+- var's `_todict_aliases` branch does `_parts = _al.split("."); for _p in _parts[1:]: …`. The slice
+  loop's `variant { (Seq.length (seq_sub _parts 1 0)) - _idx }` references `seq_sub`, which is a
+  program `val` (registered fine, declared at module top) — but a `variant {}` is a **logic** term,
+  where a program `val` is unbound. Fixing it via a logic `function seq_sub` + length axiom would
+  **smuggle an axiom** (against the no-added-axiom discipline); the clean fix is a logic-safe loop
+  variant for seq-slice loops (use the base seq's `Seq.length`, a pure logic fn) — a for-loop-variant
+  feature, separate from union-narrowing.
+- Reverted the attempt to clean 1277. **Union-narrowing modeling is proven correct** (the leak it
+  targets is gone); var's conversion waits on the seq-slice-variant fix.
+- **Count stays 1277 (17 converted).** The val-vs-logic seq-slice-variant issue is the same class as
+  fstring's nested-`_sp` — a logic-context constraint the loop's recognizers can't cross.
