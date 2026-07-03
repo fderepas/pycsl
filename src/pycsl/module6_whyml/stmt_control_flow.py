@@ -178,8 +178,16 @@ class ControlFlowStmtMixin:
             _bn = _base.get("name") if isinstance(_base, dict) and _base.get("type") == "Var" else None
             if _bn and (_bn in getattr(self, "_seq_locals", set())
                         or getattr(self, "_seq_value_types", {}).get(_bn)):
-                iter_expr = self._expr_to_whyml(iter_ir, local_refs)
-                return (f"(Seq.length {iter_expr})", f"(Seq.get {iter_expr} !{idx})", False)
+                # 07-03-refactor R7: iterate the BASE seq from `lo` (`Seq.get parts idx`, idx from
+                # lo) rather than materialising the slice as `seq_sub parts lo hi`. This keeps the
+                # loop bound + variant as `Seq.length parts` — a pure LOGIC function usable in the
+                # `variant {}` clause — instead of the program `val seq_sub`, which is unbound in a
+                # logic term. Element bounds fall straight out of `idx < Seq.length parts`.
+                _base_expr = self._expr_to_whyml(_base, local_refs)
+                _sl = iter_ir.get("slice") or {}
+                self._for_idx_init = (self._expr_to_whyml(_sl.get("lower"), local_refs)
+                                      if isinstance(_sl, dict) and _sl.get("lower") else "0")
+                return (f"(Seq.length {_base_expr})", f"(Seq.get {_base_expr} !{idx})", False)
             # 07-03-refactor R2: a `[lo:]` slice of an array-`emit_ir` local (`for pp in parts[1:]`,
             # `parts` from `expr.get("parts")`) iterates WITHOUT materialising the slice: run the
             # counter from `lo` up to `Array.length parts`, reading `parts[idx]` (emit_ir). The

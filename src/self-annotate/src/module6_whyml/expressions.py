@@ -425,12 +425,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns \nothing
     def _handle_attribute_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
         return ""
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _var_todict_alias(self, name: str, local_refs: Set[str], subst: Optional[Dict[str, str]]) -> str:
-        return ""
+    def _var_todict_alias(self, name: str, local_refs: Set[str],
+                          subst: Optional[Dict[str, str]]) -> str:
+        """If `name` is a `to_dict()` ALIAS (`_todict_aliases[name] == "self.types"`), rebuild the
+        dotted attribute IR and re-emit it; else return `""` (no alias — a dotted alias emission is
+        never empty). Extracted (07-03-refactor R1) as the ONE hard branch of `_handle_var_expr` —
+        it carries the `_parts = alias.split(".")` seq-slice for-loop whose `variant {}` references a
+        program `val` in a logic context (the R7 target), isolating it so the rest of var proves."""
+        _al = getattr(self, "_todict_aliases", {}).get(name)
+        if _al is None:
+            return ""
+        _parts = _al.split(".")
+        _n: Dict[str, Any] = {"type": "Var", "name": _parts[0]}
+        for _p in _parts[1:]:
+            _n = {"type": "Attribute", "object": _n, "attr": _p}
+        return self._expr_to_whyml(_n, local_refs, False, subst)
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
