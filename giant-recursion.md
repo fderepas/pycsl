@@ -278,3 +278,33 @@ Probe the **9 MISSING leaves**: can they be added as *verified* bodies (±0), or
 smallest — `_getattr_self_field`, `_self_field_dict_nu`, `_str_method_recv_and_tail`, `_todict_recv_node_ir`
 (all leaf, all read-only reflection) — plus land P1. If they convert, proceed up the DAG via the 18 STUB
 leaves; if they don't, the giants stay net-positive and 1273 is the endpoint.
+
+---
+
+## 9. PROBE RESULT — the 9 leaves (2026-07-03): NO-GO for a clean win
+
+Ran the go/no-go: ported each of the 9 DAG leaves toward a verified body and type-checked. The "leaves
+convert at ±0" assumption behind §8's −28…−52 arithmetic **does not survive contact**. The leaves split
+into four classes, and only one is cleanly convertible:
+
+| Class | Leaves | Verdict |
+|-------|--------|---------|
+| **Optional[str] reflection** | `_getattr_self_field`, `_alias_self_field`, `_iter_elem_class`, `_self_field_dict_nu` | **Costly.** Bodies are fine, but the `None`→`""` sentinel desugar **cascades to every caller across the emitter** (each `if x is not None:` → `if x:`). Miss one and the emitter *crashes*: desugaring `_self_field_dict_nu` broke its caller `_lower_dict_get_call` (`_o,_f = recv.rsplit(".",1)` on a now-non-None `""`), a hard `ValueError` during emission. Byte-diff-sensitive cross-emitter sweep per leaf — not the ±0 the arithmetic assumed. |
+| **emit_ir construction** | `_todict_recv_node_ir`, `_todict_routed_ir` | **Blocked — needs a new feature.** They build IR nodes with dict literals in a loop (`node = {"type":"Attribute","object":node,...}`). The literal `{"type":"Var",...}` classifies as a **map** (`int -> option int`), not `emit_ir` — Why3 rejects it. Requires a dict-literal→`emit_ir`-construction recognizer (`IrVar`/`IrAttr`) that does not exist. |
+| **tuple return** | `_str_method_recv_and_tail` | **Blocked — needs tuple-return support.** Returns `(receiver_ir, tail)` / `(None,None)`. Crashes the pipeline (`not enough values to unpack`) — the emitter has no model for a method returning a 2-tuple of `(emit_ir, string)`. |
+| **facade / cross-file** | `_wrap_unannotated_call_with_strict_assert` (+ the other `_wrap_*`, `_render_callee_condition`) | **Not mirror-convertible.** They live in `Module6_WhyMLTranspiler.py` (the facade), which the mirror doesn't include. They stay `#@ requires_method` externals. |
+
+**Verdict: NO-GO.** Even the DAG *leaves* — the supposed cheapest, unblock-everything start — are not
+clean ±0 conversions. Of 9: **0 convert for free**, 4 need a cross-emitter Optional-caller sweep
+(byte-diff-sensitive, crash-on-miss), 2 need a new dict-literal→`emit_ir` construction feature, 1 needs
+tuple-return support, 2 are cross-file. The §8 marker arithmetic (−28…−52) assumed the missing helpers
+convert at ±0; the probe shows each carries a hidden cost — a caller sweep, a new recognizer, or a
+cross-file boundary. So the bottom-up campaign, while *directionally* net-negative, is gated behind **≥3
+new emitter capabilities** (Optional-caller-sweep discipline, dict-literal IR construction, tuple returns)
+before a single leaf lands clean.
+
+**Recommendation: STOP at 1273.** The three giants and their 77-helper DAG are more entrenched than even
+the corrected §8 model assumed. Converting them is not "hard work on a known path" — it needs new emitter
+features first (§9 classes 2–3), each its own demand-driven mini-project. Absent a specific driver for
+those features, 1273 is the campaign's sound endpoint. If ever resumed, the FIRST buildable pieces are the
+two blocked features (dict-literal `emit_ir` construction; method tuple-returns), NOT another giant.
