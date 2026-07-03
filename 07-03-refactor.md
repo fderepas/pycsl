@@ -202,3 +202,36 @@ irreducible core; an 8-line one exposes it).
 **Bottom line:** yes — refactor. Start with R5 + R2 (safe, fast), prove the pattern on R1, then take
 the giants. The gates make it low-risk, and the empirical size/branch correlation makes the payoff
 predictable.
+
+---
+
+## Execution log — 2026-07-03
+
+| Step | Outcome | Commit | Count |
+|------|---------|--------|-------|
+| **R5** | `_whyml_string_literal` extracted; proven leaf. byte-diff 0. | df517398 | 1277 |
+| **R2** | fstring `_sp` → `_fstring_str_part`, ifexpr `_cf5_arr` hoisted; both proven leaves. byte-diff 0. | ae1dbab1 | 1277 |
+| **R1** | var's hard branch isolated to `_var_todict_alias`; `_handle_var_expr` (13 branches) CONVERTS. byte-diff 0. | 650ca7e3 | 1277 |
+| **R7** | logic-safe seq-slice loop variant → `_var_todict_alias` CONVERTS → **var fully verified**. byte-diff 0. | ca26b2e5 | **1276** |
+| **R4** | slice_access ESCALATED — deep-reflection cascade (slice-bound reflection + helper-arg emit_ir threading), beyond decomposition. | — | 1276 |
+| R3/R6 | not attempted (the 285–399 L giants). | — | — |
+
+**Headline: var fully converted (1277→1276, 18 handlers) via the R1+R7 isolate-then-fix pattern —
+the refactor thesis validated in practice.**
+
+### Key learning (refines the thesis)
+Decomposition/hoisting **isolates** the hard construct but does **not by itself convert** the parent —
+the isolated construct still needs its own targeted fix:
+- **var**: R1 isolated the seq-slice branch; **R7** (logic-safe variant) was the actual fix. ✅ converted.
+- **fstring**: R2 hoisted `_sp`, but the parent stays trusted on its **manual `while i_part < n_parts`
+  loops** (bound in a local `n_parts=len(parts)`, no invariant relating it to `Array.length`) — needs
+  a for-loop rewrite or an emitted bound invariant.
+- **ifexpr**: R2 hoisted `_cf5_arr` + split its 4 tuple-unpacks, but the **seq-arm branch**
+  (`_seq_operand` return-type + `local_refs or set()` map-or) blocks the parent.
+- **slice_access**: the blocker is **shared** `node.slice` bound-reflection + helpers called with
+  emit_ir args — not per-kind, so decomposition doesn't reach it; needs the reflection recognizers +
+  emit_ir-threading through `_field_type_of`/`_self_field_dict_nu`.
+
+So the refined recipe: **decompose to isolate → then apply the construct-specific fix** (a recognizer,
+a logic-safe variant, a for-loop rewrite). R5/R2 landed as proven infrastructure (helper leaves) that
+shrinks the trusted surface even where the parent stays trusted; R1+R7 is the full worked example.
