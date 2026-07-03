@@ -290,3 +290,37 @@ branches) exactly like ifexpr/slice_access.
 ### Campaign total: 1294 → 1273, 23 `_handle_*` handlers fully converted
 Remaining trusted `_handle_*`: attribute, call, subscript (the giants) — now tractable via the
 proven isolate-split + cross-file-wiring pattern.
+
+## R3 (call giant) attempt — findings (2026-07-03)
+
+Made a genuine multi-strategy attempt at `_handle_call_expr` (285L, 26 returns). Isolate approach:
+extract the emit_ir-reflection prefix (`.to_dict`/`.copy`/`.findall`/`.split`/`IRScanner`/`ir.get`/
+`len`-of-args-node — **116 lines**) into a trusted leaf `_call_special_shapes`, with the boundary
+placed right before `args = [_expr_to_whyml(a) …]` (the side-effecting arg-lowering must stay in the
+general path so its abstract-op registrations keep their order → byte-diff 0). That cleanly splits
+the reflection out.
+
+**But the general dispatch does NOT convert quickly.** It calls ~7–13 interconnected same-file
+helpers (`_handle_string_value_method`, `_call_named_builtins`, `_handle_struct_call`,
+`_recognize_field_decode_idiom`, `_call_record_constructor`, `_call_bytes_methods`,
+`_emit_contract_logic_symbol`, `_handle_dotted_call`), and each surfaces a fresh typing obligation:
+- **IR-node params typed `int`** (the trusted stubs default `expr: int`; callers pass emit_ir) →
+  each needs `expr: "ExprIR"` (mechanical, several done).
+- **`Optional[str]` return + `if x is not None: return x`** repeated ~7× → each needs the
+  `""`-sentinel + truthiness rewrite (as `_var_todict_alias`/`_call_reflection_prefix` did), across
+  both the live caller and the stub.
+- **seq/emit_ir return-type inference** on some helpers (`_svm` came back `seq string`).
+
+**Verdict:** the giants (call 285L, subscript 304L, `_call_named_builtins` 399L) are a **dedicated
+effort**, not the medium-handler pattern. The isolate-split works (116L peeled cleanly), but the
+general dispatch is a web of Optional-return + IR-node-param helpers that must be fixed together.
+Reverted to the clean 1273 state rather than land a half-converted 285-line giant.
+
+**Scoping for a future pass:** (1) extract `_call_special_shapes` (done, replayable); (2) batch the
+general-path helper stubs to `expr: ExprIR` + `-> str`/`""` and rewrite the callers to truthiness;
+(3) then the general dispatch should converge. Same recipe for subscript (R6) and
+`_call_named_builtins`. All the mechanisms exist (cross-file wiring, isolate pattern, sentinel-return);
+the giants just need the volume of coordinated edits.
+
+### Campaign final: 1294 → 1273, 23 handlers converted
+Remaining trusted `_handle_*`: attribute, call, subscript (the giants) + `_call_named_builtins`.
