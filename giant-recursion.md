@@ -326,3 +326,46 @@ mirror, byte-diff 0, full proof, count still **1273** (added as verified bodies,
 **0747**. So 2 of the 24 MISSING helpers are now done, and the §9 "needs a new construction feature"
 blocker is cleared. Remaining giant blockers: the Optional-caller-sweep discipline (class 1) and method
 tuple-returns (class 3, `_str_method_recv_and_tail`).
+
+---
+
+## 11. FEATURE BUILT — method tuple-returns with emit_ir/string slots (2026-07-03)
+
+The §9 "tuple return" blocker (class 3) is **resolved**. The tuple MECHANISM already existed
+(`Return_N` exception + `(_, _)` tuple type + `with Return_N r -> r`); the gap was **slot typing** —
+`_infer_tuple_slot_type` only knew array/map/str-via-symtab, defaulting reflection slots to `int`.
+
+**Built:**
+- `_infer_tuple_slot_type`: recognizes an `emit_ir` slot (sub-node projection `node["value"]`, IR
+  construction, emit_ir local) and a `string` slot (`node.kind`→kind_of, str local). **String is
+  checked FIRST** — `_is_emit_ir_expr` over-claims any attr on an emit_ir node as a sub-node, so a
+  str-attr like `.kind` must be caught before it.
+- `_refine_tuple_return_type`: sets the func's context (annotations merged, self_type from the IR
+  name) so the slot checks resolve during return-type-MAP building — else the caller's unpack reads a
+  stale `(int, int)` and mistypes the string slot (the P1-analog for tuple returns).
+- `_collect_emit_ir_result_locals`: a DIRECT call-unpack `a, b = self.m(…)` now types each `emit_ir`
+  slot target (mirroring the existing `string`-slot handling).
+- **Preamble fix**: the emit_ir ADT declares `args_of : array emit_ir`, so `use array.Array` is now
+  forced for any `@mutable_state` module (was missing when the bodies used no other array — 0747 hit
+  `unbound type symbol 'array'`).
+
+**Verified:** a method returning `(emit_ir, string)` + a caller unpacking it proves end-to-end. Ref
+test **0748**. Byte-diff 0, mirror proof green, count **1273**.
+
+**Process note — 0747 was VACUOUS.** The dict-literal ref test (0747) used a plain `@mutable_state`
+class, which is NOT a mutable-state *record* — that needs `@dataclass` (kind=="record") + `@mutable_state`.
+So the emit_ir path never fired and it passed as plain maps. **Fixed** (now `@dataclass`, return type
+verified `: emit_ir`). Lesson: an emit_ir standalone driver MUST be `@dataclass @mutable_state`, and the
+ref test must assert the emitted return type is `emit_ir`, not just that it verifies.
+
+### Giant-blocker scorecard (of the 3 §9 features)
+- ✅ dict-literal `emit_ir` construction (§10) — BUILT.
+- ✅ method tuple-returns emit_ir/string (§11) — BUILT.
+- ⬜ Optional-caller-sweep discipline (§9 class 1) — the remaining one: `None`→`""` desugar of an
+  Optional[str] leaf cascades to every `is not None` caller across the emitter (crash-on-miss). Not a
+  new capability — a mechanical, byte-diff-sensitive sweep; still the gating cost for the reflection
+  leaves.
+
+**Per-leaf note:** `_str_method_recv_and_tail` (the tuple leaf) now gets its emit_ir slot right but
+still needs a separate small gap — `expr.get("func", "")` (a 2-arg `.get` with a default) lowers opaque
+instead of `func_of`; a `.get(k, <str default>)`→projection recognizer would finish it.

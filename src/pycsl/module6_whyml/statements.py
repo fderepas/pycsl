@@ -1649,6 +1649,19 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         for _i, _tg in enumerate(node.get("targets", [])):
                             if _i < len(_slt) and _slt[_i] == "emit_ir":
                                 tuple_emit.add(_tg)
+                # tuple-return-of-emit_ir: `a, b = self.m(…)` (a DIRECT call unpack, no intermediate
+                # tuple local) where `m`'s return type has an `emit_ir` slot — each such target is an
+                # emit_ir local (mirrors the `string`-slot handling in _collect_string_result_locals).
+                if (node.get("stmt") == "TupleUnpack"
+                        and isinstance(node.get("value"), dict)
+                        and node["value"].get("type") == "Call"):
+                    _crt, _, _, _ = self._resolve_dotted_signature(
+                        node["value"].get("func", ""))
+                    if isinstance(_crt, str) and _crt.startswith("(") and _crt.endswith(")"):
+                        _slots = [c.strip() for c in _crt[1:-1].split(",")]
+                        for _i, _tg in enumerate(node.get("targets", [])):
+                            if _i < len(_slots) and _slots[_i] == "emit_ir":
+                                tuple_emit.add(_tg)
                 for x in node.values():
                     rec(x)
             elif isinstance(node, list):

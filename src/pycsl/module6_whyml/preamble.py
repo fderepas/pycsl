@@ -1622,6 +1622,10 @@ class PreambleEmissionMixin:
                 or any(IRScanner.uses_ghost_type(body, {"array"}) for body in all_bodies)
                 or axiom_needs_array
                 or _binder_needs_array
+                # the emit_ir ADT (emitted for any @mutable_state module) declares
+                # `args_of : array emit_ir`, so `use array.Array` is required even when the
+                # bodies use no other array. @mutable_state-gated → byte-identical for the corpus.
+                or bool(getattr(self, "_mutable_state_classes", None))
             )
         else:
             needs_array = False

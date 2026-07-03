@@ -622,6 +622,21 @@ class FunctionEmissionMixin:
         if not isinstance(elt, dict):
             return "int"
         t = elt.get("type")
+        # tuple-return-of-emit_ir feature: a slot that lowers to the `emit_ir` sum (an IR-node
+        # sub-projection `expr["receiver"]`, an inline `{"type":K}` construction, an emit_ir local)
+        # → `emit_ir`; a string-valued slot (a str attr projection / str local) → `string`. Checked
+        # ahead of the DictLit→map / Var→int defaults. @mutable_state-gated → the corpus's
+        # homogeneous-int tuples are unaffected.
+        if getattr(self, "_mutable_state_classes", None):
+            # string FIRST: a str-attr projection (`node.kind`/`.var`/`.op` → kind_of/name_of) is
+            # `string`, but `_is_emit_ir_expr` over-claims any attr on an emit_ir node as a sub-node
+            # — so the string check must precede it.
+            if self._is_string_expr(elt) or (t == "Var" and elt.get("name") in getattr(
+                    self, "_tuple_string_slot_locals", set())):
+                return "string"
+            if self._is_emit_ir_expr(elt) or (t == "Var" and elt.get("name") in getattr(
+                    self, "_tuple_emit_ir_slot_locals", set())):
+                return "emit_ir"
         if t == "Var":
             nm = elt.get("name")
             if nm in array_vars:
@@ -675,7 +690,27 @@ class FunctionEmissionMixin:
         array_vars, dict_vars = IRScanner.find_array_and_dict_vars(body_stmts)
         array_vars |= self._collect_array_var_assigns(body_stmts)
         symtab = func.get("symbol_table", {}) or {}
-        slots = [self._infer_tuple_slot_type(e, array_vars, dict_vars, symtab) for e in elts]
+        # tuple-return-of-emit_ir: the emit_ir/string slot checks (`_is_emit_ir_expr` /
+        # `_is_string_expr`) read `_current_symbol_table`/`_current_self_type`, which are NOT set
+        # when this runs during return-type-MAP building (before per-function state). Set the
+        # func's context (annotations merged, self_type from the `<class>__<method>` IR name) so a
+        # tuple-of-(emit_ir,string) method's MAP entry matches its own emitted signature — else the
+        # caller's unpack types the string slot as int (mirror of the P1 let-vs-val agreement).
+        _saved_st = getattr(self, "_current_symbol_table", None)
+        _saved_cs = getattr(self, "_current_self_type", None)
+        _st = dict(symtab)
+        for _k, _ty in (func.get("param_annotations") or {}).items():
+            if _st.get(_k) in (None, "Any"):
+                _st[_k] = _ty
+        self._current_symbol_table = _st
+        _nm = func.get("name", "")
+        if "__" in _nm:
+            self._current_self_type = _nm.split("__", 1)[0]
+        try:
+            slots = [self._infer_tuple_slot_type(e, array_vars, dict_vars, _st) for e in elts]
+        finally:
+            self._current_symbol_table = _saved_st
+            self._current_self_type = _saved_cs
         if len(slots) == return_type.count(",") + 1 and any(s != "int" for s in slots):
             return "(" + ", ".join(slots) + ")"
         return return_type
