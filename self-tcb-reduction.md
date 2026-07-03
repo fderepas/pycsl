@@ -537,3 +537,31 @@ constructs; the full-proof gate before commit is load-bearing, not redundant.
   int-collapse lacks. This is field_get's only remaining blocker (a real feature, not a recognizer).
 - field_get reverted to stub; tree PROVEN at 1278, byte-diff 0, 40 methods verbatim. The object-name
   projection is banked (correctness + de-risks the eventual field_get conversion to a single feature).
+
+### Iteration 18 (2026-07-03) — nested-dict feasibility CONFIRMED not expressible (stays 1278)
+
+Experiment: declared `_class_constants: Dict[str, Dict[str, int]]` (proper nested type) + ported
+field_get. Result: **identical leak** (`'mu -> option int` @ the `.get(self_type, {})` membership) —
+the field-type system **flattens `Dict[str, Dict]` → `map int (option int)`**, losing the inner
+structure, so `_class_constants[self_type][field]` (double-subscript) and `field in …get(…)` cannot
+type-check. Even an opaque-inner recognizer needs the type system to KNOW the field is nested, which
+it discards. **Verdict: field_get's remaining blocker is a genuine nested-map feature in the
+field-type system — a demand-driven feature warranting an SMT-feasibility spike, NOT a loop
+recognizer.** Experiment reverted; tree green at 1278.
+
+---
+
+## Loop yield assessment (after 18 iterations)
+
+- **Conversions: 16 handlers, 1294 → 1278** (iterations 5–15). The tractable T1.a tail is done.
+- **Iterations 16–18 yielded diagnoses + one correctness fix, ZERO conversions** — each remaining
+  handler's blocker was precisely characterized as a dedicated feature:
+  - `field_get` → nested-map field type (CONFIRMED not expressible today) + object-name (SOLVED).
+  - `var` → `Union[str,int]` value-narrowing.
+  - `attribute`/`slice_access`/`call` → deep object/args/subscript-on-emit_ir reflection.
+  - `fstring` → nested-`_sp` proof-mode typing.
+  - `ifexpr` → cross-method `_cf5_arr` interaction.
+- **Conclusion:** the 1-minute incremental loop has exhausted its conversion yield. Each further
+  handler needs a demand-driven modeling feature (spike → implement → gate), which is focused
+  feature work, not loop iteration. **Recommend switching modes** (build one named feature, e.g.
+  nested-map, on request) rather than continuing blind relaunch.
