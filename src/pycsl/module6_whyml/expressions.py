@@ -485,7 +485,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # §26: `k in X` where X aliases a self dict-field → membership on
                 # `self.<field>` (the getattr-bound-local form of `k in self.<field>`).
                 _alias = self._alias_self_field(rname)
-                if _alias is not None:
+                if _alias:
                     rhs_is_map = True
                     right = f"self.{self._field_label(getattr(self, '_current_self_type', None), _alias.split('.', 1)[1])}"
         if not rhs_is_map and rhs.get("type") in ("Attribute", "FieldGet"):
@@ -723,11 +723,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return a[1].get("value")
         return ""
 
-    def _alias_self_field(self, name):
+    def _alias_self_field(self, name: str) -> str:
         """§26: if `name` is a local bound from `getattr(self, "<field>", …)` on a
         dict/set self-field, return the dotted `self.<field>`; else None."""
         fld = getattr(self, "_getattr_self_dict_aliases", {}).get(name)
-        return f"self.{fld}" if fld is not None else None
+        return f"self.{fld}" if fld else ""
 
     def _iter_elem_class(self, iter_ir: "ExprIR") -> str:
         """self-ir-schema.md IR2: the record class of a comprehension iterable's ELEMENTS,
@@ -1043,7 +1043,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     return True
                 # §26: `X.get(k)` where X aliases a `dict[str,str]` self-field reads a string.
                 _alias0 = self._alias_self_field(_fn[:-len(".get")])
-                if _alias0 is not None and self._self_field_dict_nu(_alias0) == "string":
+                if _alias0 and self._self_field_dict_nu(_alias0) == "string":
                     return True
                 _al = getattr(self, "_todict_aliases", {}).get(_fn[:-len(".get")])
                 if _al is not None:
@@ -3308,7 +3308,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return None
         # §26: `X.get(k)` where X aliases a self dict-field → `self.<field>.get(k)`.
         _alias = self._alias_self_field(recv)
-        if _alias is not None:
+        if _alias:
             recv = _alias
             func_name = f"{_alias}.get"
         # todict-reflection-plan.md R1: `d` aliases `node.to_dict()` — route
@@ -3733,7 +3733,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # getattr-bound-local read; `known_sizes[var_name]`). Mirrors the field-dict get.
         if isinstance(value, dict) and value.get("type") == "Var":
             _al = self._alias_self_field(value.get("name", ""))
-            if _al is not None:
+            if _al:
                 _fld = _al.split(".", 1)[1]
                 _nu = self._self_field_dict_nu(_al)
                 _recv = f"self.{self._field_label(getattr(self, '_current_self_type', None), _fld)}"

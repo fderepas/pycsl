@@ -165,13 +165,15 @@ type was available), in new spots. 3 fixed, 3 still open.
     Blocks `_module_binding_names`, the quant-binder push/pop pair. Needs set-local declaration.
 34. **[OPEN]** a **BinOp-operand read** `ir.get("left")`/`.get("right")` → opaque `int` (the `emit_ir`
     ADT has no BinOp arm — `left`/`right` aren't projectable). Blocks `_is_float_expr`.
-35. **[OPEN]** a **getattr-field `.get`** (`getattr(self, "_aliases", {}).get(k)`) on a MIXIN field →
-    opaque `get_1` (the mirror mixin class isn't in `_record_types`, so `_self_field_dict_nu` can't see
-    its dict fields). Blocks `_alias_self_field`.
+35. **[FIXED — was a mis-diagnosis]** a **getattr-field `.get`** on a mixin dict field appeared to fail,
+    but the mixin IS in `_record_types` (case-insensitively); the real cause was that the field
+    `_getattr_self_dict_aliases` was never *declared* (an earlier insertion no-op'd on a stale anchor).
+    Declaring it `Dict[str, str]` + the Optional caller sweeps converts `_alias_self_field`. No new
+    emitter feature — the getattr-field `.get` machinery already works for any declared mixin dict field.
 36. **[OPEN]** a **comprehension over a `.split()` CALL** (`[p.strip() for p in inner.split(",")]`) →
     opaque `(list_comp 0)` (the split-call iterable isn't recognized as a seq source when the receiver
     is a reassigned string local). Blocks `_split_tuple_type`.
 
-**Round-2 status:** every int-leak class here has a *diagnosis*; #29–32 have a faithful lowering, #33–34
+**Round-2 status:** every int-leak class here has a *diagnosis*; #29–32 + #35 have a faithful lowering; #33/#34/#36
 are the next features (mirrored in `giant-recursion.md` §14's OPEN list). The doctrine holds — the
 int-collapse default keeps surfacing, and each fix moves one more value-flow off `int`.

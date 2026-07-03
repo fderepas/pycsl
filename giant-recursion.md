@@ -447,7 +447,7 @@ bounded step rather than a research problem.
 
 ---
 
-## 14. CURRENT STATUS (2026-07-03) — 12 leaves converted, count 1273 → 1265
+## 14. CURRENT STATUS (2026-07-03) — 13 leaves converted, count 1273 → 1265
 
 The §13 scorecard is superseded by this. The bottom-up DAG campaign is well underway; each leaf is now
 a bounded triage-then-convert step (see the skill reference `config/skills/self-tcb-reduction/
@@ -473,7 +473,7 @@ constant-dict modeling · local-dict-value-type (Module5) · `str(x)`-as-string.
    3. BinOp-operand projection (`ir.get("left")`) → `_is_float_expr`.
    4. recursive emit_ir construction / deep-copy → `_subst_params`.
    5. `.get(k, <str default>)`→`func_of` → the last gap on `_str_method_recv_and_tail`.
-   6. getattr-field `.get` on a MIXIN field (mixin not in `_record_types`) → `_alias_self_field`.
+   6. ✅ CLOSED — was a mis-diagnosis (missing field decl, not a gap); converted `_alias_self_field`.
    7. comprehension over a `.split()` CALL → `_split_tuple_type`.
 3. **S5 consolidation** — merge shared irreducible leaves.
 4. **The 3 dispatchers LAST** (`_handle_call_expr`, `_handle_subscript`, `_call_named_builtins`) — only

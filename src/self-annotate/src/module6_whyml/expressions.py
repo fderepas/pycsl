@@ -36,6 +36,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     _current_symbol_table: Dict[str, str] = None
     _mutable_state_classes: Set[str] = None
     _ambiguous_fields: Set[str] = None
+    _getattr_self_dict_aliases: Dict[str, str] = None
     _variant_types: Dict[str, str] = None
     _seq_value_types: Dict[str, str] = None
     _array_elem_types: Dict[str, str] = None
@@ -370,6 +371,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                      or getattr(self, "_seq_value_types", {}).get(iter_ir.get("name")) == "string")):
             return "str"
         return ""
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _alias_self_field(self, name: str) -> str:
+        """§26: if `name` is a local bound from `getattr(self, "<field>", …)` on a
+        dict/set self-field, return the dotted `self.<field>`; else None."""
+        fld = getattr(self, "_getattr_self_dict_aliases", {}).get(name)
+        return f"self.{fld}" if fld else ""
+
 
     #@ requires True
     #@ ensures True
