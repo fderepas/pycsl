@@ -1,14 +1,52 @@
 from __future__ import annotations
 from typing import Any, Dict, List, Optional, Set, Tuple
+from dataclasses import dataclass
 from module6_whyml.identifiers import op_translate, whyml_ident, stable_hash
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
 from module6_whyml.expr_ghost_spec_ops import GhostSpecOpsMixin
+def mutable_state(cls): return cls
 ""  # pycsl
+# self-tcb-reduction T1.a: mark the expression mixin @mutable_state so the emit_ir ADT + the
+# string/reflection recognizers fire for the un-`\trusted` `_handle_*_expr` bodies (the CF0 analog).
+@mutable_state
+@dataclass
 class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+    # State fields the ported expression handlers read (declared for @dataclass / @mutable_state).
+    _all_record_fields: Set[str] = None
+    _array_locals: Set[str] = None
+    _class_constants: Dict[str, Any] = None
+    _constructors: Dict[str, Any] = None
+    _current_params: Set[str] = None
+    _current_self_type: str = ""
+    _emit_record_ctx: str = ""
+    _lambda_locals: Set[str] = None
+    _module_constants: Dict[str, Any] = None
+    _module_global_classes: Dict[str, str] = None
+    _quant_record_binders: Dict[str, str] = None
+    _quant_scalar_binders: Set[str] = None
+    _record_locals: Set[str] = None
+    _record_types: Dict[str, Any] = None
+    _shared_var_names: Set[str] = None
+    _todict_aliases: Dict[str, str] = None
+    _current_symbol_table: Dict[str, str] = None
+    _mutable_state_classes: Set[str] = None
     'Expression-emission dispatch: every IR expression-shape `_handle_*_expr`\n    handler routed via `_EXPR_DISPATCH` on the facade, plus the orchestration\n    entrypoints (`_expr_to_whyml`, `_expr_to_whyml_string_ctx`) and the shared\n    helpers (`_to_bool`, `_coerce_*`, `_match_pattern_cond`, ...). Mixed into\n    Module6_WhyMLTranspiler. `_EXPR_DISPATCH` stays on the facade as a class\n    attribute — moving it would force a circular import.\n    '
     _BITWISE_FOLD_OPS = {'&': lambda a, b: a & b, '|': lambda a, b: a | b, '^': lambda a, b: a ^ b, '<<': lambda a, b: a << b, '>>': lambda a, b: a >> b, '**': lambda a, b: a ** b}
     _BITWISE_FN_NAMES = {'&': 'bit_and', '|': 'bit_or', '^': 'bit_xor', '<<': 'bit_lshift', '>>': 'bit_rshift', '**': 'py_pow'}
+
+    # self-tcb-reduction T1.a: sibling stubs the ported expression handlers call cross-mixin.
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    #@ assigns \nothing
+    def _add_abstract_op(self, decl: str) -> None:
+        return
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ ensures True
+    #@ assigns \nothing
+    def _is_emit_ir_expr(self, ir: "ExprIR") -> bool:
+        return False
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -356,14 +394,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns \nothing
     def _handle_subscript(self, expr: int, local_refs: int, invariant_ctx: bool=False, subst: int=None) -> str:
         return ""
-
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _handle_attribute_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
         return ""
-
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
@@ -398,7 +434,6 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns \nothing
     def _field_label(self, record_lower: Optional[str], field: str) -> str:
         return ""
-
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True

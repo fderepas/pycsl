@@ -226,3 +226,31 @@ that cannot share the blind spot. The loop is packaged as the skill
 
 The precise `(U,L)` pairs, barriers, gates A/B/C, loop steps, and the floor denylist are encoded
 machine-readably in `config/skills/self-tcb-reduction/self-tcb-reduction.json`.
+
+---
+
+## 10. Execution log
+
+### Iteration 1 (2026-07-03) — T1.a E-1 structural prerequisite LANDED; read-only handlers escalated
+
+- **Starting count:** 1291 `\trusted`.
+- **Delegated:** the 3 read-only expression handlers (`_handle_var_expr`, `_handle_field_get_expr`,
+  `_handle_attribute_expr`), per the execution order.
+- **Converter:** ported all 3 verbatim; the type-safety plane surfaced `unbound type symbol
+  emit_ir` — the mirror's `ExpressionEmissionMixin` was not `@mutable_state`, so the emit_ir ADT
+  theory never fired (the **CF0 analog** for the expression tier).
+- **E-1 structural prerequisite (LANDED):** marked `ExpressionEmissionMixin` `@mutable_state
+  @dataclass`, declared the state fields the expression handlers read, and added the
+  `_add_abstract_op` / `_is_emit_ir_expr` sibling stubs. `expressions.py` now emits the emit_ir
+  theory and **type-checks AND PROVES** with the marker in place; emitter (`src/pycsl`) untouched →
+  **byte-diff 0 by construction**; mirror-sync green (24 verbatim).
+- **Triage finding (escalation):** all 3 read-only handlers are the **needs-recognizer** class, not
+  trivial leaves — each reflects on `node` (an `emit_ir`), so a ported body leaks `int` vs
+  `emit_ir` on its first `node.get(...)`/`object_of` local (e.g. `obj_ir := object_of node` needs
+  the emit_ir-local recognizer). Per **escalate-don't-thrash**, the per-handler conversions are
+  flagged for a focused arc (the same multi-pass character as the statement-handler campaign), NOT
+  ground on at the end of a long session.
+- **Count after:** 1291 (unchanged — E-1 is a prerequisite; 0 stubs converted). Tree green.
+- **Next:** convert the read-only handlers on the now-ready `@mutable_state` expression mixin,
+  starting with `_handle_var_expr` (drive the `int`↔`emit_ir` local recognizers the way the
+  statement handlers did), then the rest of T1.a.
