@@ -451,7 +451,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_field_get_expr(self, expr: int, invariant_ctx: bool) -> str:
+    def _handle_field_get_expr(self, node: int, invariant_ctx: bool) -> str:
         return ""
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

@@ -522,3 +522,18 @@ constructs; the full-proof gate before commit is load-bearing, not redundant.
 
 **Clean stopping point.** Tree green at 1278; ready for a future dedicated session on the hard tail
 (recommend starting with `field_get`'s object-name projection — smallest, fully diagnosed above).
+
+### Iteration 17 (2026-07-03) — field_get object-name projection LANDED; nested-dict is the sole remaining blocker
+
+- **subscript-`['object']` → object NAME (LANDED, byte-diff 0, PROVEN):** the focused pass on
+  field_get's first blocker. `expr['object']` (subscript) now lowers to `name_of (object_of node)`
+  (the object's name string), disambiguated from `.get("object")` (a node) by access form — the same
+  device as `pattern`. Both un-trusted subscript-`object` users read it as a string, so this is a
+  faithfulness FIX (the old subscript-`object`→node was semantically wrong). Coordinated across the
+  lowering (`_handle_subscript`), `_is_emit_ir_expr` (exclude), and `_is_string_expr` (include).
+- **field_get's SECOND blocker isolated — nested-dict:** `_class_constants: Dict[str, Dict[str,int]]`
+  flattens to `map int (option int)`, so `field in self._class_constants.get(self_type, {})` +
+  the double-subscript `self._class_constants[self_type][field]` need a NESTED-map model the
+  int-collapse lacks. This is field_get's only remaining blocker (a real feature, not a recognizer).
+- field_get reverted to stub; tree PROVEN at 1278, byte-diff 0, 40 methods verbatim. The object-name
+  projection is banked (correctness + de-risks the eventual field_get conversion to a single feature).

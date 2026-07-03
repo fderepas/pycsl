@@ -650,9 +650,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return True
             # §26: a projection-key subscript `<emit_ir>["value"/"object"/"index"]`
             # is an emit_ir sub-node (chaining, e.g. `arr["value"]["name"]`).
+            # self-tcb-reduction T1.a: EXCLUDE subscript "object" — `expr['object']` is the object
+            # NAME string (`name_of ∘ object_of`), not a sub-node (see `_handle_subscript`).
             _kir = ir.get("index", {})
             if (isinstance(_kir, dict) and _kir.get("type") == "String"
-                    and _kir.get("value") in _EMIT_IR_NODE_KEYS
+                    and _kir.get("value") in _EMIT_IR_NODE_KEYS and _kir.get("value") != "object"
                     and self._is_emit_ir_expr(ir.get("value", {}))):
                 return True
         # item34.md CF1: `<x>.to_dict()` (no args) is an emit_ir node (to_dict is identity on
@@ -1046,8 +1048,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # not the kind string (only `.get("pattern")` is the kind).
             _kir = ir.get("index", {})
             if (isinstance(_kir, dict) and _kir.get("type") == "String"
-                    and _kir.get("value") in _EMIT_IR_STR_KEYS
-                    and _kir.get("value") not in _EMIT_IR_NODE_KEYS
+                    and (_kir.get("value") in _EMIT_IR_STR_KEYS or _kir.get("value") == "object")
+                    and (_kir.get("value") not in _EMIT_IR_NODE_KEYS or _kir.get("value") == "object")
                     and self._is_emit_ir_expr(ir.get("value", {}))):
                 return True
             # list-comprehension-lowering.md L5/L6: a `self.<dict[str,str]-field>[k]` read
@@ -3627,6 +3629,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # whereas `.get("pattern")` reads its KIND string — same key, different meaning at
             # different nesting. So subscript "pattern" projects to a NODE, not `kind_of`.
             _kv = _kidx.get("value")
+            # self-tcb-reduction T1.a: SUBSCRIPT `expr['object']` is the object NAME string
+            # (`FieldGet.object: str`) — the name of the object sub-node (`name_of ∘ object_of`),
+            # distinct from `.get("object")` (a node). The only un-trusted subscript-"object" user is
+            # `_handle_field_get_expr` (`obj == "self"`, `f"{obj}.{field}"`).
+            if _kv == "object":
+                _rv = self._expr_to_whyml(value, local_refs or set(), invariant_ctx, subst)
+                return f"(name_of (object_of {_rv}))"
             _proj = "svalue_of" if _kv == "pattern" else _EMIT_IR_PROJ.get(_kv)
             if _proj:
                 return f"({_proj} {self._expr_to_whyml(value, local_refs or set(), invariant_ctx, subst)})"
