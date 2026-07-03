@@ -63,7 +63,7 @@ verifies un-`\trusted` → byte-diff 0 (corpus) → suite green.
 | **CF3 ✅** | `_handle_while_stmt` | loop invariants/variants (the SQ5 `0<=idx`/variant discipline reused); recurse. | tbd | ◻ TODO |
 | **CF4 ✅** | `_handle_for_stmt` | iterable classification + the for-loop invariant/variant (already added for the emitter for-loops). | tbd | ◻ TODO |
 | **CF5 ✅** | `_handle_try_stmt` | the deepest CF handler — LANDED (4th pass). Uniform `seq string` name-collections (snapshot-at-source), map-based sets, string-or, exception-arm tables. Proven; byte-diff 0. | `\nothing` | ✅ DONE |
-| **CF6** | `_handle_match_stmt` | match-case tables — broadest. | tbd | ◻ TODO |
+| **CF6** | `_handle_match_stmt` | match-case tables — broadest. **Explored end-to-end (type-checkable, NOT a Ceiling); PARKED** — architecturally invasive (see §7b). | `\nothing` | ◻ PARKED |
 
 CF0 gates CF1–CF6; CF1 (read-only) is the cheapest end-to-end validation of the CF0 setup.
 
@@ -105,7 +105,7 @@ CF0 gates CF1–CF6; CF1 (read-only) is the cheapest end-to-end validation of th
 | Item 4 · CF3 while | ✅ DONE (proven) |
 | Item 4 · CF4 for | ✅ DONE (proven, byte-diff 0) — tuple-return gap fixed |
 | Item 4 · CF5 try | ✅ DONE (proven, byte-diff 0) — uniform seq-string model (snapshot-at-source) landed the deepest handler (17th) |
-| Item 4 · CF6 match | ◻ TODO |
+| Item 4 · CF6 match | ◻ PARKED — fully explored (type-checkable); architecturally invasive, reverted to green. See §7b |
 
 **Verification (per CF stage):**
 ```bash
@@ -173,6 +173,57 @@ bridging discipline. `match` (CF6) is comparably broad and untouched.
 **UPDATE: CF5 LANDED (4th pass).** The uniform `seq string` model — snapshot-ified at the
 SOURCE (`find_`/`collect_`/`.split` emit `(snapshot (op …))`) so the whole flow is seq with no
 array/seq mixing (the pass-3 wall) — closed it. Proven; byte-diff 0; the 17th handler.
+
+---
+
+## 7b. CF6-notes — `_handle_match_stmt`: type-checkable, but ARCHITECTURALLY invasive (parked)
+
+A full exploration drove `_handle_match_stmt` (112 lines) from its first type error (~line 195)
+through ALL THREE of its branches to a clean-ish type-check — the union-subject branch, the
+native constructor branch, and the value-pattern if-chain all lowered. **It is not a Ceiling; it
+is reachable.** But — unlike CF1–CF5, which were localized recognizers — match needs changes that
+reach ACROSS the whole control-flow handler family and risk regressing the landed handlers.
+Parked, tree reverted to the green 17-handler state. What it takes (measured):
+
+**Solved sub-problems (each a real, byte-clean mechanism):**
+- **Case-list reflection.** `MatchStmt.cases : List[Dict[str, Any]]` must lower to `array emit_ir`
+  so `c["pattern"]`/`c.get("ctor")` project. `List[Dict[…]]`→`emit_ir` — but GATED to the field
+  name `cases` (see the wall below).
+- **The `"pattern"` key is CONTEXT-DEPENDENT** — `c["pattern"]` (SUBSCRIPT) reads the pattern
+  SUB-NODE (`svalue_of`), while `pat.get("pattern")` (`.get`) reads the KIND string (`kind_of`).
+  Same key, different type at different nesting — resolved by putting `"pattern"` in BOTH
+  `_EMIT_IR_NODE_KEYS` (subscript path) and `_EMIT_IR_STR_KEYS`/`_EMIT_IR_PROJ` (`.get` path),
+  which are read by disjoint code paths (`_is_emit_ir_expr` vs `_is_string_expr`).
+- **`stmts_of : emit_ir → array int`** — a NEW projection distinct from `args_of : → array emit_ir`.
+  A case's `body` is an OPAQUE stmt-list (feeds the int-opaque `_stmts_to_whyml`), NOT a reflected
+  node-list. So `c.get("body")`→`stmts_of` (int), `c.get("captures")`→`args_of` (emit_ir). This
+  is the key insight: the emitter has TWO list-of-node views — reflected vs opaque.
+- **IR MUTATION as a sound no-op.** `c["pattern"] = new_pat` writes to an IMMUTABLE emit_ir value;
+  modeled as `()` (the rewrite is unmodeled — sound for type-safety+frame, since `cases` is a
+  local `Array.copy` so the frame holds regardless). This dissolves the "match mutates its own
+  reflected IR" tension that looked fatal.
+- **Latent bug found:** `_is_emit_ir_expr` treated a `List[ExprIR]` field (`stmt.invariants`) as a
+  SCALAR emit_ir node (`_irnode_ann_name` matches inside `List[…]`); guard on the field's
+  `value_type` (collection marker) to return False. Plus tuple-slot emit_ir typing, tuple-local
+  unpack typing, array/string truthiness in `_to_bool`, `<array> or []`, and a 2-pass
+  array-elem ↔ emit_ir-local collector fixpoint (mutual dependency `existing_caps`→`pat`→`cases`).
+
+**Why it is PARKED (the architectural wall, not a Ceiling):**
+1. **Blast radius.** `List[Dict]`→`emit_ir` is too broad — it also flipped `TryStmt.handlers`
+   (`List[Dict]`) to `emit_ir`, breaking CF5's `h.get("exc_type")` string reads. Must be GATED to
+   `cases`, but the gate has to fire on the IMPORTED-schema field-collection path (MatchStmt lives
+   in `ir_schema.py`), not just the local class-def loop — un-pinned.
+2. **The 2-pass collector fixpoint reclassifies siblings.** Running `_collect_array_elem_types`
+   twice with the emit_ir pass between changed the try handler's `raw_parts` seq/string typing — a
+   regression vector for the already-proven CF5.
+3. **Gates unverified.** byte-diff 0 across the 627-corpus is NOT established for `stmts_of` + the
+   collector reorder + the projections, and the full PROOF + mirror re-sync are pending.
+
+**Recommendation.** Land CF6 only as a DEDICATED pass that first makes the case-list-reflection +
+`stmts_of` model additive-and-gated (a `#@`/emit_ir-only surface with a corpus byte-diff-0 gate
+per §8.5 discipline), then re-ports match on top. The union-branch IR-mutation-as-no-op and the
+subscript-vs-`.get` `"pattern"` split are the reusable insights; the risk is entirely in keeping
+`cases`-reflection from leaking into the other CF handlers' opaque stmt-list model.
 
 ---
 
