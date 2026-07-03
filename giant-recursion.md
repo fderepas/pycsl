@@ -369,3 +369,42 @@ ref test must assert the emitted return type is `emit_ir`, not just that it veri
 **Per-leaf note:** `_str_method_recv_and_tail` (the tuple leaf) now gets its emit_ir slot right but
 still needs a separate small gap — `expr.get("func", "")` (a 2-arg `.get` with a default) lowers opaque
 instead of `func_of`; a `.get(k, <str default>)`→projection recognizer would finish it.
+
+---
+
+## 12. Optional-caller-sweep — VALIDATED as a discipline; leaves need MORE (2026-07-03)
+
+Built and validated the §9 class-1 blocker (the last of the 3). Unlike §10/§11 it is **not a recognizer**
+— it is a mechanical, byte-diff-sensitive transform: desugar an `Optional[str]` leaf to a `""`-sentinel
+(`-> str`, `return None`→`return ""`) and rewrite every caller's `is not None` (and `is None`) to
+truthiness. Safe because the leaf's real values ("string"/"int"/a field name) are never `""`.
+
+**Validated on `_self_field_dict_nu`** (15 call sites — used by ALL 3 giants): triaged each —
+`== "string"` comparisons and `isinstance(x)+x.startswith(...)` and `if x and …` are **auto-safe** with
+the sentinel (no change); only the 4 `is not None`/`is None` sites needed rewriting. Applied the desugar
++ 4 rewrites → **byte-diff 0** (output-preserving, confirmed by the full-corpus sweep). The discipline
+works and is repeatable.
+
+**But the sweep is NECESSARY, not SUFFICIENT — every reflection leaf has a SECOND gap:**
+- `_self_field_dict_nu` — nested `self._record_types[...]["field_value_types"][field]` access (record-type
+  structure not modelled) + a `recv.rsplit(".",1)` string tuple-unpack.
+- `_getattr_self_field` — a **subscript-receiver `.get` projection**: `a[0].get("name")` where `a =
+  args_of recv` (array emit_ir). `recv.get("args",[])` DOES lower to `args_of` (the emit_ir `.get`
+  projection ignores the 2-arg default), but `.get("name")` on an ARRAY-ELEMENT `a[0]` stays opaque
+  `get_1` — the projection only fires for a Var receiver, not `a[i]`.
+- `_iter_elem_class` — same subscript-receiver `.get` (`_a[0].get("type")`).
+- `_alias_self_field` — a `str`-valued self-field dict (`_getattr_self_dict_aliases`) `.get(name)` + an
+  internal Optional + an f-string.
+
+**So the Optional-caller-sweep is BUILT (validated, byte-diff 0, documented) but converts no leaf alone.**
+Reverted the demo sweeps (no orphaned refactors). The reflection leaves are now each **one MORE feature**
+from converting; the highest-leverage next one is the **subscript-receiver `.get` projection**
+(`<array emit_ir>[i].get("key")` → the projection) — it unblocks BOTH `_getattr_self_field` and
+`_iter_elem_class`.
+
+### Giant-blocker scorecard (final for this pass)
+- ✅ dict-literal `emit_ir` construction (§10).
+- ✅ method tuple-returns emit_ir/string (§11).
+- ✅ Optional-caller-sweep discipline (§12) — validated byte-diff 0, but a per-leaf necessary-not-
+  sufficient step; the reflection leaves each need one more feature (subscript-receiver `.get` the top
+  one). The DAG is deeper than "3 features"; each leaf is its own small stack.
