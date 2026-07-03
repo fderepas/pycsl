@@ -615,12 +615,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if self._value_semantic:
             return f"({length} >= 0 && {length} <= Array.length {base})"
         return f"(valid !{self._heap_var} {base} {length})"
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_separated_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
-        return ""
+    def _handle_separated_expr(
+        self,
+        node: "ExprIR",
+        local_refs: Set[str],
+        invariant_ctx: bool,
+        subst: Optional[Dict[str, str]],
+    ) -> str:
+        if self._value_semantic:
+            return "true"
+        b1 = node.base1
+        l1 = self._expr_to_whyml(node.len1, local_refs, invariant_ctx, subst)
+        b2 = node.base2
+        l2 = self._expr_to_whyml(node.len2, local_refs, invariant_ctx, subst)
+        return f"(separated {b1} {l1} {b2} {l2})"
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

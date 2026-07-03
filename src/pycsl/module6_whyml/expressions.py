@@ -108,7 +108,7 @@ _EMIT_IR_NODE_KEYS = ("value", "object", "index", "pattern", "guard")   # via su
 # `svalue_of` sub-node default. @mutable_state-gated in `_handle_attribute_expr`/`_is_string_expr`.
 _EMIT_IR_STR_ATTRS = {"kind": "kind_of", "var": "name_of", "op": "name_of",
                       "label": "name_of", "name": "name_of", "func": "func_of",
-                      "base": "name_of"}
+                      "base": "name_of", "base1": "name_of", "base2": "name_of"}
 from module6_whyml.struct_format import parse_format
 from module6_whyml.expr_ghost_collections import GhostCollectionOpsMixin
 from module6_whyml.expr_ghost_spec_ops import GhostSpecOpsMixin

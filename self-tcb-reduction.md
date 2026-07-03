@@ -449,3 +449,15 @@ machine-readably in `config/skills/self-tcb-reduction/self-tcb-reduction.json`.
   load-bearing, not redundant.** fstring reverted; needs the nested-`_sp` recognizer next.
 - **Count after:** 1279 (no new conversion; infra + a false-positive caught). Tree green, PROVEN,
   byte-diff 0.
+
+### Iteration 15 (2026-07-03) — separated converts via base1/base2→name_of (1279→1278)
+
+- **Probed the helper files** (identifiers/scc/…): they are a DIFFERENT verification domain
+  (module-level functions, not @mutable_state methods) where the gated recognizers don't fire and
+  un-gating risks byte-diff — so they're NOT the easy wins they looked like. Reverted; stayed in
+  the @mutable_state expr-handler domain.
+- **`base1`/`base2` → name_of (LANDED, byte-diff 0):** two more array-name fields added to
+  `_EMIT_IR_STR_ATTRS` (like `base`).
+- **✅ `_handle_separated_expr` un-`\trusted` + PROVEN** (full proof, not just --no-proof — per the
+  iter-14 lesson), byte-diff 0, mirror-sync verbatim (40 methods). **Count 1279 → 1278.**
+- **Total this run: 16 handlers converted, count 1294 → 1278.**
