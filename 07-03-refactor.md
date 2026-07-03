@@ -235,3 +235,32 @@ the isolated construct still needs its own targeted fix:
 So the refined recipe: **decompose to isolate → then apply the construct-specific fix** (a recognizer,
 a logic-safe variant, a for-loop rewrite). R5/R2 landed as proven infrastructure (helper leaves) that
 shrinks the trusted surface even where the parent stays trusted; R1+R7 is the full worked example.
+
+## Execution log — continuation (2026-07-03)
+
+| Step | Outcome | Commit | Count |
+|------|---------|--------|-------|
+| **R2 finish (fstring)** | while→for rewrite → fstring **FULLY converts** (for-loop auto-invariant discharges `parts[i]` bounds) | b2ff213b | **1275** |
+| **R2 finish (ifexpr)** | isolate seq-arm → `_ifexpr_seq_arm`; ifexpr body **converts** (55L→~5L trusted) | deb649c2 | 1275 |
+| **R4 (slice_access)** | isolate `_field_type_of` tail → `_slice_array_or_opaque`; body **converts** (77L→~25L trusted) + slice-bound reflection recognizers (lower/upper svalue_of, emit_ir-truthiness) | d7d00351 | 1275 |
+| R3/R6 | not done (285–399 L giants) | — | — |
+
+**This round: fstring fully converted + ifexpr & slice_access bodies converted (3 handlers), all
+byte-diff 0 + full proof.**
+
+### The common remaining blocker: cross-file signature propagation
+The three isolated trusted leaves (`_var_todict_alias` needed R7; `_ifexpr_seq_arm` calls
+`_seq_operand`; `_slice_array_or_opaque` calls `_field_type_of`) share ONE gap: a call from
+expressions.py to a method in **statements.py/types.py** generates an abstract-val stub
+`val self__seq_operand_2 (x0: int) (x1: int) : int` — the callee's real signature
+(`(ExprIR, Set) -> str`) is lost. `funcs_for_maps` *does* include imported stubs
+(Module6_WhyMLTranspiler.py:547), and `_build_method_return_type_map` *does* have a `-> str`→string
+branch (functions.py:1008), so this looks like a **keying / wiring issue** in the dotted-call
+abstract-val emission, not a fundamental gap — a bounded transpiler fix that would let the three
+leaves convert AND unblock R3/R6 (the giants call many cross-file helpers). **This is the
+highest-leverage next target** — worth more than grinding the giants by hand.
+
+### Running totals (whole campaign)
+Count 1294 → **1275**; 21 `_handle_*` handlers now fully converted (+ nested-map & union-narrowing
+features + the refactoring playbook). Remaining trusted `_handle_*`: attribute, call, subscript
+(the giants), plus the 3 isolated cross-file leaves.
