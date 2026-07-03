@@ -136,6 +136,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         Other expressions (int) need `<> 0` coercion."""
         t = ir_expr.get("type", "")
         op = ir_expr.get("op", "")
+        # self-tcb-reduction T1.a: `if subst:` on a dict/set param (an `Optional[Dict]` modeled as
+        # `map` — None ≡ empty) is the present-guard before `name in subst`; a sound over-approx
+        # for the type-safety+frame contract is `true` (the `in` does the real check). @mutable_state.
+        if (t == "Var"
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())
+                and getattr(self, "_current_symbol_table", {}).get(ir_expr.get("name"))
+                in ("dict", "set", "frozenset")):
+            return "true"
         # resync-campaign.md R1: `val_ir.get("args")` lowers to `(args_of …)` : `array emit_ir`
         # — a truthiness (`if not val_ir.get("args")` = "no args") is array-emptiness, never the
         # int `<> 0` coercion. @mutable_state emit_ir reflection only.

@@ -3083,8 +3083,21 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         for arg in node.args.args:
             if arg.arg == 'self':
                 continue
-            arg_type = (self._m5_get_type_name(arg.annotation, _scope_name, arg.arg)
-                        if arg.annotation else "Any")
+            # self-tcb-reduction T1.a: an `Optional[Dict[K,V]]` param is modeled as the `Dict[K,V]`
+            # (None ≡ empty map), so `if subst and name in subst: subst[name]` types as string-map
+            # ops instead of a Union variant. Byte-safe: 0 corpus methods have an Optional[Dict] param.
+            _eff_ann = arg.annotation
+            if (isinstance(arg.annotation, ast.Subscript)
+                    and isinstance(arg.annotation.value, ast.Name)
+                    and arg.annotation.value.id == "Optional"):
+                _inner = arg.annotation.slice
+                if type(_inner).__name__ == "Index":
+                    _inner = _inner.value
+                if (isinstance(_inner, ast.Subscript) and isinstance(_inner.value, ast.Name)
+                        and _inner.value.id in ("Dict", "dict")):
+                    _eff_ann = _inner
+            arg_type = (self._m5_get_type_name(_eff_ann, _scope_name, arg.arg)
+                        if _eff_ann else "Any")
             # self-tcb-reduction T1.a: an IR-node-typed PARAM (`node: "ExprIR"`, `stmt: "StmtIR"`)
             # is `emit_ir` — so the `_handle_*_expr` handlers reflect on it (`name_of node`).
             # Byte-safe: no corpus method annotates a param with the IR-node base names.
@@ -3106,11 +3119,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # these back for `Any` params (functions._reset_function_state).
             if arg_type not in (None, "Any"):
                 param_annotations[arg.arg] = arg_type
-            if arg.annotation is not None:
-                nu = self._m5_get_dict_value_type(arg.annotation)
+            if _eff_ann is not None:
+                nu = self._m5_get_dict_value_type(_eff_ann)
                 if nu is not None:
                     dict_value_types[arg.arg] = nu
-                kappa = self._m5_get_dict_key_type(arg.annotation)
+                kappa = self._m5_get_dict_key_type(_eff_ann)
                 if kappa is not None:
                     dict_key_types[arg.arg] = kappa
 

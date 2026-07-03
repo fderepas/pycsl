@@ -273,3 +273,22 @@ machine-readably in `config/skills/self-tcb-reduction/self-tcb-reduction.json`.
   byte-diff 0.
 - **Next:** convert `var` on the ready keystone (drive the Optional-dict-param + string-map
   recognizers), then `field_get`/`attribute`; the `node`-param blocker is now gone for all.
+
+### Iteration 3 (2026-07-03) — KEYSTONE-2 (Optional[Dict] param → map) + map-truthiness; var progressing
+
+- **Delegated:** `_handle_var_expr` again (on the ready IR-node-param keystone).
+- **Keystone-2 (LANDED, byte-diff 0):** an `Optional[Dict[K,V]]` param is now modeled as the
+  `Dict[K,V]` (None ≡ empty map) — `Module5._build_function_symbol_table` desugars it before the
+  Union synthesis, so `subst: Optional[Dict[str,str]]` → `map string (option string)` and
+  `name in subst` / `subst[name]` type as string-map ops. Byte-safe: 0 corpus methods have an
+  `Optional[Dict]` param. **Unblocks the `subst` param of every reflecting expression handler.**
+- **map-truthiness recognizer (byte-diff 0):** `if subst:` on a dict/set param → `true` (the
+  present-guard before `name in subst`; a sound over-approx for type-safety+frame). @mutable_state.
+- **var status:** most of the body now lowers cleanly (name_of, the membership ladder over
+  `_array_locals`/`_lambda_locals`/…, module-constant reads); the remaining leak is the
+  `_todict_aliases` branch's `for _p in _parts[1:]` loop over a `seq string` split — the seq-string
+  iteration recognizer (same family as CF5) is the next per-handler fix.
+- **Count after:** 1294 (unchanged — keystones are emitter infra; var not yet fully lowered). Tree
+  green, byte-diff 0.
+- **Next:** finish var's seq-parts-loop, land the FIRST expression-handler conversion (count →
+  1293), then the passthrough-subst handlers become quick.
