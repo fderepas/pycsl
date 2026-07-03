@@ -254,3 +254,22 @@ machine-readably in `config/skills/self-tcb-reduction/self-tcb-reduction.json`.
 - **Next:** convert the read-only handlers on the now-ready `@mutable_state` expression mixin,
   starting with `_handle_var_expr` (drive the `int`↔`emit_ir` local recognizers the way the
   statement handlers did), then the rest of T1.a.
+
+### Iteration 2 (2026-07-03) — KEYSTONE recognizer LANDED (IR-node param → emit_ir); var escalated
+
+- **Delegated:** `_handle_var_expr`. Ported verbatim; type-safety plane surfaced `name_of node`
+  leaking — the `node: "ExprIR"` **param** was typed `int`, not `emit_ir`.
+- **Keystone recognizer (LANDED, byte-diff 0):** an IR-node-typed PARAM (`node: "ExprIR"`,
+  `stmt: "StmtIR"`, …) now resolves to `emit_ir` — in the symbol table
+  (`Module5_IREmitter._build_function_symbol_table` via `_irnode_ann_name`) AND in the signature
+  (`functions._param_type_str`, mirroring `_symtype_to_whyml`). Byte-safe: no corpus method
+  annotates a param with the IR-node base names. **This unblocks the `node` param of ALL 24
+  expression handlers at once** — the #1 blocker for the whole tier.
+- **Escalation:** `var` additionally needs an Optional-`Dict[str,str]`-param + string-map
+  membership recognizer cluster (`if subst and name in subst: name = subst[name]`), plus its
+  remaining body — a full multi-recognizer cascade past this iteration's budget. Reverted `var` to
+  a stub; flagged for the next pass.
+- **Count after:** 1294 (unchanged — keystone is emitter infra; 0 stubs converted). Tree green,
+  byte-diff 0.
+- **Next:** convert `var` on the ready keystone (drive the Optional-dict-param + string-map
+  recognizers), then `field_get`/`attribute`; the `node`-param blocker is now gone for all.

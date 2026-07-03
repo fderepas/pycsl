@@ -3085,6 +3085,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 continue
             arg_type = (self._m5_get_type_name(arg.annotation, _scope_name, arg.arg)
                         if arg.annotation else "Any")
+            # self-tcb-reduction T1.a: an IR-node-typed PARAM (`node: "ExprIR"`, `stmt: "StmtIR"`)
+            # is `emit_ir` — so the `_handle_*_expr` handlers reflect on it (`name_of node`).
+            # Byte-safe: no corpus method annotates a param with the IR-node base names.
+            if arg.annotation is not None and self._irnode_ann_name(arg.annotation) is not None:
+                arg_type = self._irnode_ann_name(arg.annotation)
             scope[arg.arg] = arg_type
             # i-feel-good.md I-B: capture a `List[str]`/`list[str]` param's ELEMENT type
             # (string) so the abstract self-call val can type it `array string` instead of

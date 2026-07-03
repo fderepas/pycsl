@@ -73,6 +73,11 @@ class FunctionEmissionMixin:
         if symtype in self._variant_types:
             # sum-types: a `#@ datatype`-typed param is its Why3 variant type.
             return f"({safe}: {self._variant_types[symtype]['whyml_name']})"
+        # self-tcb-reduction T1.a: an IR-node-typed param (`node: "ExprIR"`) is `emit_ir` (the
+        # signature counterpart of `_symtype_to_whyml`), so the `_handle_*_expr` handlers reflect
+        # on it. Byte-safe: no corpus method annotates a param with the IR-node base names.
+        if symtype in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR", "exprir"):
+            return f"({safe}: emit_ir)"
         return f"({safe}: {int_type})"
 
     def _callable_whyml_arrow(self, symtype: str) -> str:
