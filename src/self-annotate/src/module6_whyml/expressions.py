@@ -572,12 +572,59 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         segment logic types identically under proof mode and `--no-proof`."""
         w = self._expr_to_whyml(pp, local_refs, invariant_ctx, subst)
         return w if self._is_string_expr(pp) else f"(int_to_string {self._coerce_to_int(w)})"
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _handle_fstring_expr(self, node: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
-        return ""
+    def _handle_fstring_expr(self, node: "ExprIR", local_refs: Set[str],
+                              invariant_ctx: bool, subst: Dict[str, str]) -> str:
+        expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
+        parts = expr.get("parts", [])
+        if not parts:
+            return "0"
+        # b14 B2: an f-string whose EVERY segment is string-typed (literal text and
+        # `str`-typed interpolations) lowers to a faithful Why3 `string` concat chain
+        # — the same `str_concat_op`/`concat` bridge as `s + t` (strings-plan Stage 2)
+        # — instead of collapsing each segment to an int hash. A mixed f-string (any
+        # int/opaque interpolation) keeps the legacy int-hash model below, so the
+        # corpus that interpolates non-string values stays byte-identical.
+        if all(self._is_string_expr(p) for p in parts):
+            acc = self._expr_to_whyml(parts[0], local_refs, invariant_ctx, subst)
+            # 07-03-refactor R2 (finish): a `for` over `parts[1:]` (array-emit_ir slice, R7) gets the
+            # auto index-bound invariant so `parts[i]` discharges -- unlike the manual
+            # `while i_part < n_parts` (bound in a local, no `Array.length` relation).
+            for part in parts[1:]:
+                p = self._expr_to_whyml(part, local_refs, invariant_ctx, subst)
+                if self._in_spec:
+                    acc = f"(concat {acc} {p})"
+                else:
+                    self._add_abstract_op(
+                        "val str_concat_op (a: string) (b: string) : string\n"
+                        "    ensures { result = (concat a b) }\n"
+                        "    ensures { String.length result = String.length a + String.length b }")
+                    acc = f"(str_concat_op {acc} {p})"
+            return acc
+        # todict-reflection-plan.md R3: in a @mutable_state class (the emitter model),
+        # a MIXED str/int f-string (e.g. a gensym `f"__x_{n}"`) is still a STRING — the
+        # int segments convert via `int_to_string`. So an emitter local bound to it types
+        # as `string`. Gated on @mutable_state → byte-identical for every other f-string.
+        if (not self._in_spec and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())):
+            self._add_abstract_op("val int_to_string (n: int) : string")
+            self._add_abstract_op(
+                "val str_concat_op (a: string) (b: string) : string\n"
+                "    ensures { result = (concat a b) }\n"
+                "    ensures { String.length result = String.length a + String.length b }")
+
+            acc = self._fstring_str_part(parts[0], local_refs, invariant_ctx, subst)
+            for pp in parts[1:]:
+                acc = f"(str_concat_op {acc} {self._fstring_str_part(pp, local_refs, invariant_ctx, subst)})"
+            return acc
+        acc = self._coerce_str_arg(self._expr_to_whyml(parts[0], local_refs, invariant_ctx, subst))
+        for part in parts[1:]:
+            p = self._coerce_str_arg(self._expr_to_whyml(part, local_refs, invariant_ctx, subst))
+            self._add_abstract_op("val str_concat (x: int) (y: int) : int")
+            acc = f"(str_concat {acc} {p})"
+        return acc
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

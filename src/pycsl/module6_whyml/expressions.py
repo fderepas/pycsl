@@ -4192,10 +4192,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # corpus that interpolates non-string values stays byte-identical.
         if all(self._is_string_expr(p) for p in parts):
             acc = self._expr_to_whyml(parts[0], local_refs, invariant_ctx, subst)
-            n_parts = len(parts)
-            i_part = 1
-            while i_part < n_parts:
-                p = self._expr_to_whyml(parts[i_part], local_refs, invariant_ctx, subst)
+            # 07-03-refactor R2 (finish): a `for` over `parts[1:]` (array-emit_ir slice, R7) gets the
+            # auto index-bound invariant so `parts[i]` discharges -- unlike the manual
+            # `while i_part < n_parts` (bound in a local, no `Array.length` relation).
+            for part in parts[1:]:
+                p = self._expr_to_whyml(part, local_refs, invariant_ctx, subst)
                 if self._in_spec:
                     acc = f"(concat {acc} {p})"
                 else:
@@ -4204,7 +4205,6 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         "    ensures { result = (concat a b) }\n"
                         "    ensures { String.length result = String.length a + String.length b }")
                     acc = f"(str_concat_op {acc} {p})"
-                i_part += 1
             return acc
         # todict-reflection-plan.md R3: in a @mutable_state class (the emitter model),
         # a MIXED str/int f-string (e.g. a gensym `f"__x_{n}"`) is still a STRING — the
@@ -4223,14 +4223,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 acc = f"(str_concat_op {acc} {self._fstring_str_part(pp, local_refs, invariant_ctx, subst)})"
             return acc
         acc = self._coerce_str_arg(self._expr_to_whyml(parts[0], local_refs, invariant_ctx, subst))
-        n_parts = len(parts)
-        i_part = 1
-        while i_part < n_parts:
-            part = parts[i_part]
+        for part in parts[1:]:
             p = self._coerce_str_arg(self._expr_to_whyml(part, local_refs, invariant_ctx, subst))
             self._add_abstract_op("val str_concat (x: int) (y: int) : int")
             acc = f"(str_concat {acc} {p})"
-            i_part += 1
         return acc
 
     def _handle_unaryop_expr(
