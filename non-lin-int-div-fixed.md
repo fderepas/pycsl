@@ -122,7 +122,7 @@ to attempt: a vacuous "proof" is CAUGHT, not silently accepted. **Correction (cr
 ALWAYS construct it. SMT-timeout is a **Rocq/Lean proof OBLIGATION**, never a terminal trust state (see
 memory `smt_timeout_not_unprovable`). So the de-trust IS achievable — the honest path is `#@ proof
 rocq|lean` (the `0342`-gcd cross-validation template) discharging the deep-branch goals SMT times out on.
-✅ **`rgb_to_hsv` DE-TRUSTED (2026-07-04)** — csys `\trusted` 4 → 3. The two nonlinear-div bounds SMT
+✅ **`rgb_to_hsv` + `rgb_to_hls` DE-TRUSTED (2026-07-04)** — csys `\trusted` 4 → 2. The two nonlinear-div bounds SMT
 times out on are stated as WhyML axioms `Pycsl.Csys.Colorsys.{sat_bound,hue_bound}` (preamble.py
 `_AXIOM_REGISTRY`), proven in BOTH Rocq (`__init__.proofs/rocq/Colorsys.v`, `coqc` exit 0) and Lean
 (`.../lean/Colorsys.lean`, core Lean 4 no-Mathlib, `lean` exit 0) — no Admitted/Axiom/sorry. Key
@@ -132,8 +132,13 @@ OOM'd otherwise); plus a targeted `(r==g==b) ⟹ result==r` ensures on `_rgb_max
 disjunctive-or explosion) and two guiding `#@ assert`s for the h-range. `pycsl --audit-proof` passes all
 4 citations; the FULL csys library verifies under the DEFAULT non-vacuity gate (genuinely non-vacuous).
 The mechanism is recorded in memory `cited_proof_mechanism`.
-REMAINS (future work): the same leaf-helper + cited-axiom pattern applies to the other 3 trusted
-deep-branch functions (`rgb_to_hls`, `hls_to_rgb`, `hsv_to_rgb`).
+`rgb_to_hls` reused the SAME (already-proven) `hue_bound` axiom (no new proof) via `_hue_offset`, its
+lightness `l=(mx+mn)//2` being constant-divisor (SMT-direct) and `s` from `_hls_saturation`. De-trusting
+it also EXPOSED + FIXED a latent contract bug hidden by trusting: the gray-case ensures named
+`result[1]==0` (lightness), but HLS gray is `(0, l, 0)` — it is `result[0]` (hue) and `result[2]`
+(saturation) that are 0; `l` is the gray value (Python `colorsys.rgb_to_hls(k,k,k)==(0,k,0)`).
+REMAINS (future work): the same pattern applies to the 2 remaining trusted functions
+(`hls_to_rgb`, `hsv_to_rgb`).
 
 ---
 

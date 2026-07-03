@@ -7,15 +7,18 @@
 # Each function matches the RST API signature and returns a tuple.
 #
 # Body-proven: rgb_to_yiq, yiq_to_rgb, _rgb_max, _rgb_min, _hsv_saturation,
-#              _hls_saturation, _hsv_p, _hue_offset, rgb_to_hsv
-# rgb_to_hsv de-trusted (non-lin-int-div-fixed.md S5): the nonlinear integer-
+#              _hls_saturation, _hsv_p, _hue_offset, rgb_to_hsv, rgb_to_hls
+# rgb_to_hsv + rgb_to_hls de-trusted (non-lin-int-div-fixed.md S5): the nonlinear integer-
 # division bounds SMT times out on are discharged in the leaf helpers via the
 # `sat_bound` / `hue_bound` axioms, cross-validated by __init__.proofs/rocq/
 # Colorsys.v + __init__.proofs/lean/Colorsys.lean (Curry-Howard: SMT-timeout is
-# a Rocq/Lean proof obligation, never a terminal trust state).
+# a Rocq/Lean proof obligation, never a terminal trust state). De-trusting
+# rgb_to_hls also exposed + fixed a latent contract bug: its gray-case ensures
+# named result[1] (lightness) == 0, but HLS gray is (0, l, 0) so it is result[0]
+# (hue) and result[2] (saturation) that are 0 — l is the gray value.
 # Trusted bodies (SMT timeout on deep branch + division — de-trust via the same
 # leaf-helper + cited-axiom pattern is future work):
-#              rgb_to_hls, hls_to_rgb, hsv_to_rgb
+#              hls_to_rgb, hsv_to_rgb
 
 
 #@ requires 0 <= r and r <= 1000
@@ -140,18 +143,21 @@ def _hsv_p(v: int, s: int) -> int:
 
 # --- Public API: HLS/HSV conversions (trusted bodies, sector branching) ---
 
-#@ \trusted reviewer: SMT-timeout-deep-branch
 #@ requires 0 <= r and r <= 1000
 #@ requires 0 <= g and g <= 1000
 #@ requires 0 <= b and b <= 1000
 #@ ensures \result[0] >= 0 and \result[0] <= 1000
 #@ ensures \result[1] >= 0 and \result[1] <= 1000
 #@ ensures \result[2] >= 0 and \result[2] <= 1000
-#@ ensures r == g and g == b ==> \result[1] == 0 and \result[2] == 0
+#@ ensures r == g and g == b ==> \result[0] == 0 and \result[2] == 0
 #@ assigns \nothing
 def rgb_to_hls(r: int, g: int, b: int) -> tuple:
     """RST: 'Convert the color from RGB coordinates to HLS coordinates.'
-    Returns (h, l, s) all in [0, 1000]."""
+    Returns (h, l, s) all in [0, 1000]. De-trusted (non-lin-int-div-fixed.md S5):
+    the nonlinear-division bounds are discharged in the leaf helpers (_hls_saturation,
+    _hue_offset) so this body's VC is purely linear. For gray (r==g==b) HLS is
+    (0, l, 0): hue and saturation are 0, lightness l is the gray value — hence the
+    postcondition is result[0]==0 and result[2]==0 (NOT result[1], which is l)."""
     mx = _rgb_max(r, g, b)
     mn = _rgb_min(r, g, b)
     l = (mx + mn) // 2
@@ -160,13 +166,15 @@ def rgb_to_hls(r: int, g: int, b: int) -> tuple:
     s = _hls_saturation(mx, mn)
     diff = mx - mn
     if r == mx:
-        h = ((g - b) * 1000) // (6 * diff)
+        h = _hue_offset(g - b, diff)
     elif g == mx:
-        h = 333 + ((b - r) * 1000) // (6 * diff)
+        h = 333 + _hue_offset(b - r, diff)
     else:
-        h = 667 + ((r - g) * 1000) // (6 * diff)
+        h = 667 + _hue_offset(r - g, diff)
+    #@ assert (0 - 167) <= h and h <= 834
     if h < 0:
         h = h + 1000
+    #@ assert 0 <= h and h <= 1000
     return (h, l, s)
 
 
