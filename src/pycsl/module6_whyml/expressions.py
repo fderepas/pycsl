@@ -4313,6 +4313,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     or getattr(self, "_array_elem_types", {}).get(d.get("name")) == "string")
         return False
 
+    #@ requires_method _seq_operand: (self, val_ir: ExprIR, local_refs: set) -> str
     def _ifexpr_seq_arm(self, test: str, _bd: "ExprIR", _od: "ExprIR",
                         local_refs: Set[str]) -> str:
         """CF5: a ternary whose BOTH arms are `seq string` name-lists (`exc.split("|") if … else
@@ -4388,6 +4389,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         local_refs.add(target)
         return f"(let {target} = ref {v} in !{target})"
 
+    #@ requires_method _field_type_of: (self, attr_ir: ExprIR) -> str
     def _slice_array_or_opaque(self, node: "ExprIR", arr: str, sl: "ExprIR",
                                local_refs: Set[str], invariant_ctx: bool,
                                subst: Optional[Dict[str, str]]) -> str:
@@ -4413,8 +4415,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if is_array_src:
             return f"(Array.sub {arr} ({lo}) (({hi}) - ({lo})))"
         self._add_abstract_op("val array_slice (a: array int) (lo: int) (hi: int) : array int")
-        arr = self._array_coerce_arg(arr)
-        return f"(array_slice {arr} {lo} {hi})"
+        # 07-03-refactor: store the coerced arg in a fresh local (not a reassigned param) so `arr`
+        # stays an immutable string param — else the `{arr}` interpolations lower to `!arr` (ref).
+        _carr = self._array_coerce_arg(arr)
+        return f"(array_slice {_carr} {lo} {hi})"
 
     def _handle_slice_access_expr(
         self,

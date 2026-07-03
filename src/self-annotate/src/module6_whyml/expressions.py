@@ -38,6 +38,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     _variant_types: Dict[str, str] = None
     _seq_value_types: Dict[str, str] = None
     _array_elem_types: Dict[str, str] = None
+    _current_array1d_params: Set[str] = None
     # self-tcb-reduction T1.a: further state fields the ported expression handlers read.
     _in_spec: int = 0
     _value_semantic: int = 0
@@ -709,12 +710,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return (getattr(self, "_seq_value_types", {}).get(d.get("name")) == "string"
                     or getattr(self, "_array_elem_types", {}).get(d.get("name")) == "string")
         return False
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _ifexpr_seq_arm(self, test: str, _bd: "ExprIR", _od: "ExprIR", local_refs: Set[str]) -> str:
-        return ""
+    #@ requires_method _seq_operand: (self, val_ir: ExprIR, local_refs: set) -> str
+    def _ifexpr_seq_arm(self, test: str, _bd: "ExprIR", _od: "ExprIR",
+                        local_refs: Set[str]) -> str:
+        """CF5: a ternary whose BOTH arms are `seq string` name-lists (`exc.split("|") if … else
+        [exc]`) — emit each arm seq-ified (`_seq_operand`). Extracted (07-03-refactor R2/R1-pattern)
+        as the ONE branch of `_handle_ifexpr_expr` that stays trusted (its `_seq_operand` result +
+        `local_refs or set()` map-or don't yet lower cleanly), isolating it so the rest converts."""
+        # 07-03-refactor: `_ifexpr_seq_arm` is only reached from the @mutable_state seq-arm where
+        # `local_refs` is always a present Set, so `or set()` is a no-op (avoids the map-or lowering).
+        return (f"(if {test} then {self._seq_operand(_bd, local_refs)} "
+                f"else {self._seq_operand(_od, local_refs)})")
 
     #@ requires True
     #@ ensures True
@@ -784,12 +793,39 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return f"(begin {target} := {v}; !{target} end)"
         local_refs.add(target)
         return f"(let {target} = ref {v} in !{target})"
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _slice_array_or_opaque(self, node: "ExprIR", arr: str, sl: "ExprIR", local_refs: Set[str], invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> str:
-        return ""
+    #@ requires_method _field_type_of: (self, attr_ir: ExprIR) -> str
+    def _slice_array_or_opaque(self, node: "ExprIR", arr: str, sl: "ExprIR",
+                               local_refs: Set[str], invariant_ctx: bool,
+                               subst: Optional[Dict[str, str]]) -> str:
+        """The array-source / opaque tail of `_handle_slice_access_expr`: `Array.sub` for a known
+        array source (`_field_type_of(val) in list/tuple/…`), else the opaque `array_slice`.
+        Extracted (07-03-refactor R4) as the trusted leaf — it calls `_field_type_of` (types.py),
+        whose cross-file stub defaults to int, so the whole tail stays trusted while the seq/string
+        slice cases in `_handle_slice_access_expr` convert."""
+        lo = self._expr_to_whyml(sl["lower"], local_refs, invariant_ctx, subst) if sl.get("lower") else "0"
+        hi = self._expr_to_whyml(sl["upper"], local_refs, invariant_ctx, subst) if sl.get("upper") else f"(Array.length {arr})"
+        val = node.value.to_dict()
+        is_array_src = False
+        if val.get("type") in ("Attribute", "FieldGet"):
+            if self._field_type_of(val) in ("list", "tuple", "bytes", "bytearray"):
+                is_array_src = True
+        elif val.get("type") == "Var":
+            vn = val.get("name", "")
+            if (vn in getattr(self, "_array_locals", set()) or
+                    vn in getattr(self, "_current_array1d_params", set()) or
+                    self._current_symbol_table.get(vn) == "list"
+                    or vn in getattr(self, "_array_elem_types", {})):
+                is_array_src = True
+        if is_array_src:
+            return f"(Array.sub {arr} ({lo}) (({hi}) - ({lo})))"
+        self._add_abstract_op("val array_slice (a: array int) (lo: int) (hi: int) : array int")
+        # 07-03-refactor: store the coerced arg in a fresh local (not a reassigned param) so `arr`
+        # stays an immutable string param — else the `{arr}` interpolations lower to `!arr` (ref).
+        _carr = self._array_coerce_arg(arr)
+        return f"(array_slice {_carr} {lo} {hi})"
 
     #@ requires True
     #@ ensures True

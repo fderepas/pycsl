@@ -1822,7 +1822,10 @@ class FunctionEmissionMixin:
                     "symbol_table": symtable,
                     "body": [],
                     "formal_params": [nm for nm, _ in params],
-                    "return_annotation": ret if ret in ("list", "set", "dict", "frozenset") else None,
+                    # 07-03-refactor (cross-file wiring): also propagate a `str` return so the
+                    # `_module_method_return_annotations` map recognizes the dep as string-returning
+                    # (a `self.<dep>(…)` call then routes through `str_concat`/no `int_to_string`).
+                    "return_annotation": ret if ret in ("list", "set", "dict", "frozenset", "str") else None,
                     # WhyML return type from the declared sig — the empty body would
                     # otherwise derive `unit`; the transpiler overrides the return-type
                     # map with this (Module6_WhyMLTranspiler.transpile).
