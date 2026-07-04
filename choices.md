@@ -506,3 +506,59 @@ Admitted/sorry, axioms ⊆ core set), the collision is closed by the per-field t
 soundly rejected, and float/wide-multi-slot stay honest documented residuals. `proof_axiom_allowlist`
 UNCHANGED (all faithful axioms flow through the registry + `--audit-proof`). Drivers 0777-0782;
 proofs 0777-0781.proofs/{rocq,lean}/StructResiduals.{v,lean}.
+
+## cleared-string RESIDUALS (items 1-2) — lower/upper determinism+idempotence+literal-fold; replace not-contains identity+literal-fold; NO new axiom
+
+**Context.** After cleared-string landed concat/slice/predicate content natively, two residuals
+remained YAGNI-exited: (1) `.lower()`/`.upper()` were a shared NON-deterministic `val str_case_op`
+with only a non-emptiness length law (no content, not even `s.lower()==s.lower()`); (2) general
+`.replace(a,b)` kept only the char-for-char length law. The residuals-closing pass RE-ATTEMPTED both
+with a Gate-B spike leading on the make-or-break CONTENT goals.
+
+**Spike (`test-suite/corpus/conformance/spikes/cleared-string-residuals.mlw`, Why3 1.8.2 / AE 2.6.2 /
+Z3 4.13.3).** All content goals Valid on BOTH provers, no E-matching blowup:
+| goal | Alt-Ergo | Z3 |
+|---|---|---|
+| g_lower_idem / g_upper_idem (idempotence via fold-marker) | Valid 0.04s / 12 steps | Valid 0.01s / 4728 steps |
+| g_lower_det (determinism) | Valid 0.03s / 6 steps | Valid 0.01s / 479 steps |
+| g_replace_absent (not-contains ⇒ identity) | Valid 0.03s / 37 steps | Valid 0.01s / 5731 steps |
+| g_replace_len (char-for-char length) | Valid 0.03s / 16 steps | Valid 0.01s / 613 steps |
+| g_lower_not_id (`lower s = s` SENTINEL) | Timeout (unprovable ✓) | Timeout (unprovable ✓) |
+
+**Choice.** GO on a NATIVE + DETERMINISTIC model, NO codepoint apparatus, NO new `axiom` keyword:
+
+- **Item 1 (case).** `str_case_op` → two DETERMINISTIC `val function str_lower_op`/`str_upper_op`,
+  each: non-emptiness length law + IDEMPOTENCE. Idempotence is encoded WITHOUT an `axiom` keyword and
+  WITHOUT self-reference (illegal in Why3), via a fresh uninterpreted "already-folded" marker
+  predicate: `ensures { marker result }` (output is folded) + `ensures { marker s -> result = s }`
+  (a folded input is a fixed point) ⇒ `f(f s)=f s`. Distinct symbols keep `s.lower()==s.upper()`
+  UNKNOWN. A STRING-LITERAL receiver is CONSTANT-FOLDED by Python's own `str.lower`/`upper` → exact
+  FULL-Unicode content. Drivers 0791 / 0793 (NEG).
+- **Item 2 (replace).** `str_replace_op` → DETERMINISTIC `val function` + a NOT-CONTAINS identity law
+  phrased as the negation of the substring-existential the `in`/`not in` operator emits (so
+  `requires pat not in s` connects); empty pat auto-excluded (matches CPython). All-literal calls
+  constant-fold. Drivers 0792 / 0794 (NEG).
+
+**Rationale / soundness.** (a) Determinism is FAITHFUL (lower/upper/replace ARE deterministic
+functions) and does NOT create the collapse hole the prior YAGNI note feared — only a SHARED symbol
+or an over-strong axiom would, and distinct `val function`s with distinct marker predicates relate to
+nothing. The `lower s = s` sentinel stays Unknown, confirming the model is not over-strong. (b)
+Idempotence is a UNIVERSAL sound law (Python folds are idempotent for ALL strings, Unicode incl.), a
+strict content gain over the old opaque fresh-`val`. (c) Constant-folding literals via Python's OWN
+method is unconditionally sound and Unicode-faithful (`"ß".upper()`→`"SS"`), the honest way to give
+real content on the literal case. (d) NO new global axiom: the whole delta is abstract-op `ensures` +
+one fresh marker predicate per case op; `proof_axiom_allowlist` UNCHANGED — no `#@ proof` lemma was
+needed (the properties are definitional abstract-op ensures, the same trust class as the length laws).
+
+**Residuals (evidence-backed boundaries, kept honest).**
+- The per-char ASCII case-MAP on a SYMBOLIC string is NOT modelled: it needs a codepoint bridge
+  (`chars : seq int`), an `is_ascii` contract predicate, and `ord`-on-derived-subscript — a large new
+  contract surface with ZERO corpus demand, plus a codepoint theory that risks slowing the heavy
+  os/self-annotate sweep. Full Unicode folding (`ß→SS`) is inherently not per-char/length-preserving.
+- The general grow/shrink `.replace` CONTENT is NOT soundly reachable: Why3's `replaceall` carries no
+  content axiom beyond empty-pat/not-contains, and CPython's ALL-occurrences replace ≠ Why3's
+  FIRST-occurrence `replace` (whose `replace_substring_indexof` decomposition cannot be borrowed
+  without a single-occurrence proof). No length law is claimed for grow/shrink (0794 rejects it).
+
+Mirror: `_handle_string_value_method` is mirror-absent (off the verification path) → mirror-sync green,
+`\trusted` non-increasing. Emission differential = the new drivers + `0751` (the only prior lower user).

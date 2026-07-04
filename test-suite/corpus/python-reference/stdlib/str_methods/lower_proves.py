@@ -1,4 +1,4 @@
-"""str.lower()/upper() — str_case_op (faithful-string-op.md §3.2).
+"""str.lower()/upper() — str_lower_op/str_upper_op (cleared-string RESIDUALS item 1).
 
 Sound law: case folding never maps a non-empty string to empty (non-emptiness bound).
 NB it is NOT length-preserving in Unicode ("ß".upper() == "SS"), so only this bound holds.

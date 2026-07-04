@@ -122,3 +122,53 @@ One driver per migrated op, each `#@ ensures` a CONTENT claim unprovable under t
 **Expected outcome:** high-value transforms (lower/upper/concat/slice, and char-for-char replace) become
 content-faithful; the general grow/shrink replace + full Unicode folding remain the honest residual;
 string equality/ordering/length were already faithful.
+
+---
+
+## OUTCOME (landed)
+
+**Representation.** PIVOTED from the plan's `chars : seq int` codepoint model to the NATIVE Why3 1.8.2
+`string.String` decomposition (it is a *rich* theory — `s_at`/`substring`/`concat`/`prefixof`/`contains`/
+`indexof`/`replace`/`replaceall` with content axioms — so the "nearly opaque" premise in §1 is outdated;
+choices.md cleared-string S1). Concat, slice, and the derived-receiver predicates are content-faithful
+with **zero new axioms**.
+
+**S3+S4 concat/slice — DONE.** `(a+b)[:len a]==a` (0765), `s[0:2]+s[2:4]==s[0:4]` (0766); native
+`prefixof_concat`/`concat_substring`. Negative 0768 (`(a+b)[:len a]==b`) correctly rejected.
+
+**S6 predicates — DONE.** `startswith`/`endswith`/`find` accept DERIVED string receivers via
+`_str_method_recv_and_tail` (0767); simple receivers byte-identical.
+
+**Item 1 `.lower()`/`.upper()` — DONE (sound core) + residual documented.** Replaced the shared
+non-deterministic `str_case_op` with DETERMINISTIC `val function str_lower_op`/`str_upper_op`, each
+carrying the non-emptiness length law + IDEMPOTENCE (Python `str.lower`/`upper` are idempotent for ALL
+strings), encoded via a fresh "already-folded" marker predicate (`str_is_lowerf`/`str_is_upperf`: output
+is folded ∧ folded input is a fixed point ⇒ `f(f s)=f s`) — **no new `axiom`**, no self-reference. So
+`s.lower().lower()==s.lower()` PROVES and `s.lower()==s.upper()` stays UNKNOWN (distinct symbols; no false
+collapse). A STRING-LITERAL receiver is CONSTANT-FOLDED by Python's own method → exact, *full-Unicode-
+faithful* content (`"Hello World".upper()=="HELLO WORLD"`; `"ß".upper()`→`"SS"`). Drivers 0791 (positive)
+/ 0793 (NEGATIVE: false length-preservation claim rejected). **Residual (boundary):** the per-char ASCII
+case-MAP on a SYMBOLIC string is NOT modelled — it would need a codepoint bridge (`chars : seq int`), an
+`is_ascii` contract predicate, and `ord`-on-derived-subscript (large new contract surface, ZERO corpus
+demand, and a codepoint theory that risks slowing the heavy os/self-annotate sweep); full Unicode folding
+(`ß→SS`) is inherently not per-char/length-preserving and stays out of scope on symbolic strings.
+
+**Item 2 general `.replace(a,b)` — DONE (sound core) + residual documented.** `str_replace_op` is now a
+DETERMINISTIC `val function` keeping the char-for-char length law (`len pat=len rep→len result=len s`) and
+gaining a NOT-CONTAINS identity: if `pat` occurs *nowhere* in `s` (stated as the negation of the
+substring-existential the `in`/`not in` operator emits, so `requires pat not in s` connects), then
+`result=s`. Empty pat auto-excluded (occurs everywhere), matching CPython — whose empty-pat `replace`
+DIFFERS from Why3 `replaceall`, so we deliberately do **not** pin to `String.replaceall`. All-literal
+calls constant-fold (`"a.b.c".replace(".","_")=="a_b_c"`). Drivers 0792 (positive) / 0794 (NEGATIVE: false
+grow-length claim rejected). **Residual (boundary):** the general grow/shrink CONTENT (single/multi-
+occurrence decomposition) is NOT soundly reachable — Why3's `replaceall` has no content axiom beyond
+empty-pat/not-contains, and CPython's ALL-occurrences semantics ≠ Why3's FIRST-occurrence `replace`
+(whose `replace_substring_indexof` decomposition cannot be borrowed without proving single-occurrence).
+
+**Gate B spikes.** `test-suite/corpus/conformance/spikes/cleared-string-{content,native,residuals}.mlw`
+— all content goals Valid on Alt-Ergo AND Z3, no E-matching blowup; the `lower s = s` sentinel correctly
+stays Unknown (no over-strong model). **No new axiom** anywhere (`proof_axiom_allowlist` unchanged);
+the abstract-op ensures + one fresh uninterpreted marker predicate per case op are the whole delta.
+
+**S7 mirror** — `_handle_string_value_method` is mirror-absent (off the verification path), so the mirror
+re-verifies unchanged (`\trusted` non-increasing).

@@ -895,24 +895,68 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if not self._is_str_value_method(expr):
             return None
         recv_ir, tail = self._str_method_recv_and_tail(expr)
+        # cleared-string RESIDUALS (items 1-2): CONSTANT-FOLD when the receiver (and,
+        # for `.replace`, both arguments) are STRING LITERALS. Python's OWN str method
+        # computes the exact result — content-faithful for the FULL Unicode semantics
+        # (`"ß".upper()=="SS"`, `"HELLO".lower()=="hello"`), no abstract op, no soundness
+        # risk. This is the honest way to give lower/upper/replace real content on the
+        # literal case (the general symbolic case keeps the sound laws below).
+        arg_irs = expr.get("args") or []
+        def _lit(ir):
+            return (ir.get("value") if isinstance(ir, dict) and ir.get("type") == "String"
+                    else None)
+        recv_lit = _lit(recv_ir) if isinstance(recv_ir, dict) else None
+        if recv_lit is not None:
+            if tail == "lower" and len(args) == 0:
+                return self._whyml_string_literal(recv_lit.lower())
+            if tail == "upper" and len(args) == 0:
+                return self._whyml_string_literal(recv_lit.upper())
+            if tail == "replace" and len(args) == 2:
+                p_lit, r_lit = _lit(arg_irs[0]) if len(arg_irs) > 0 else None, \
+                               _lit(arg_irs[1]) if len(arg_irs) > 1 else None
+                if p_lit is not None and r_lit is not None:
+                    return self._whyml_string_literal(recv_lit.replace(p_lit, r_lit))
         recv = self._expr_to_whyml(recv_ir, local_refs or set(), invariant_ctx, subst)
         if tail == "replace" and len(args) == 2:
-            # §3.1: char-for-char (len old = len new) preserves length; general replace
-            # may grow/shrink, so no unconditional length law is sound.
+            # §3.1 + cleared-string RESIDUALS item 2: `val function` (DETERMINISTIC) with
+            # the SOUND laws for CPython all-occurrences replace:
+            #  (a) char-for-char (len pat = len rep) preserves length; general grow/shrink
+            #      is length-free (never claim length preservation there);
+            #  (b) NOT-CONTAINS identity: if `pat` occurs NOWHERE in `s`, result = s. Stated
+            #      as the negation of the substring-existential the `in`/`not in` operator
+            #      emits, so a driver `requires pat not in s` connects. Empty pat is
+            #      auto-excluded (it "occurs" at every index) — matching CPython, whose
+            #      empty-pat replace DIFFERS from Why3 `replaceall` (so we do NOT pin to it).
             # NB `old`/`new` are Why3 reserved keywords → params named `pat`/`rep`.
             self._add_abstract_op(
-                "val str_replace_op (s pat rep: string) : string\n"
+                "val function str_replace_op (s pat rep: string) : string\n"
                 "    ensures { String.length pat = String.length rep"
-                " -> String.length result = String.length s }")
+                " -> String.length result = String.length s }\n"
+                "    ensures { (forall _ri:int. 0 <= _ri ->"
+                " _ri + String.length pat <= String.length s ->\n"
+                "                 String.substring s _ri (String.length pat) <> pat)\n"
+                "              -> result = s }")
             return f"(str_replace_op {recv} {args[0]} {args[1]})"
         if tail in ("lower", "upper") and len(args) == 0:
-            # §3.2: case folding is NOT length-preserving in Unicode ("ß".upper()=="SS"),
-            # so ONLY the non-emptiness lower bound is sound — a length-equality law
-            # would be unsound.
+            # §3.2 + cleared-string RESIDUALS item 1: `val function` (DETERMINISTIC) so equal
+            # receivers give equal results and `s.lower().lower() == s.lower()` proves.
+            # Case folding is NOT length-preserving in Unicode ("ß".upper()=="SS"), so only
+            # the non-emptiness lower bound is sound as a length law. IDEMPOTENCE (universal,
+            # true of Python for ALL strings incl. Unicode) is encoded via a fresh
+            # "already-folded" marker predicate (NO `axiom` keyword, NO self-reference): the
+            # output is folded, and a folded input is a fixed point ⇒ f(f s)=f(s). Distinct
+            # symbols for lower/upper ⇒ `s.lower()==s.upper()` stays UNKNOWN (no false
+            # collapse). Full Unicode/ASCII per-char case-MAP on a SYMBOLIC string stays the
+            # honest residual (only the literal case is content-mapped, by folding above).
+            op = "str_lower_op" if tail == "lower" else "str_upper_op"
+            marker = "str_is_lowerf" if tail == "lower" else "str_is_upperf"
             self._add_abstract_op(
-                "val str_case_op (s: string) : string\n"
-                "    ensures { String.length s >= 1 -> String.length result >= 1 }")
-            return f"(str_case_op {recv})"
+                f"predicate {marker} string\n"
+                f"  val function {op} (s: string) : string\n"
+                "    ensures { String.length s >= 1 -> String.length result >= 1 }\n"
+                f"    ensures {{ {marker} result }}\n"
+                f"    ensures {{ {marker} s -> result = s }}")
+            return f"({op} {recv})"
         if tail in ("strip", "lstrip", "rstrip") and len(args) <= 1:
             # §3.3: stripping only removes chars → result no longer than the input.
             self._add_abstract_op(

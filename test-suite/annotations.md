@@ -1529,10 +1529,19 @@ Untyped ghost declarations (`#@ ghost <name> = <expr>`) default to `int`.
 > == a` (`0765`), `s[0:2]+s[2:4] == s[0:4]` (`0766`); `startswith`/`endswith`/`find` accept a
 > DERIVED string receiver too (`(a+b).startswith(a)`, `0767`), not only a simple name. A false
 > content claim is correctly rejected (`0768`, `# pycsl-expected: FAIL`).
+> **`upper`/`lower` and `replace` (cleared-string RESIDUALS):** `.lower()`/`.upper()` lower to
+> DETERMINISTIC `str_lower_op`/`str_upper_op` (`val function`) with a non-emptiness length law +
+> IDEMPOTENCE (fold-marker predicate, no new axiom), so `s.lower().lower()==s.lower()` PROVES
+> (`0791`) while `s.lower()==s.upper()` stays UNKNOWN (`0793`, `# pycsl-expected: FAIL`); a
+> STRING-LITERAL receiver is constant-folded by Python's own method (`"Hello World".upper()=="HELLO
+> WORLD"`). `.replace` (`val function str_replace_op`) keeps the char-for-char `len pat=len rep →
+> len result=len s` law and gains a NOT-CONTAINS identity (`pat not in s ⇒ result=s`, `0792`);
+> all-literal calls constant-fold (`"a.b.c".replace(".","_")=="a_b_c"`).
 > **Out of scope / residual (documented, honest boundary):** code points (`ord`, char ordering),
-> `upper`/`lower` (no Why3 case-fold op; Python's full Unicode folding is not length-preserving,
-> `"ß".upper()=="SS"` — non-emptiness law only), the general grow/shrink `replace` (char-for-char
-> `len pat=len rep` case keeps `len result=len s`; grow/shrink stays length-only), `strip`
+> the per-char ASCII case-MAP on a SYMBOLIC string (needs a codepoint bridge + `is_ascii` contract
+> surface, zero demand) and full-Unicode folding (`"ß".upper()=="SS"`, not length-preserving), the
+> general grow/shrink `replace` CONTENT (CPython all-occurrences ≠ Why3 first-occurrence `replace`;
+> no faithful `replaceall` content axiom — `0794` rejects the false grow length claim), `strip`
 > (`len result ≤ len s`), `split` (list-of-strings), `.decode`/`.encode` (bytes↔str boundary),
 > `%`/f-string content. **A `str`-keyed dict/set is
 > now faithful** — `dict[str, ν] ~ map string (option ν)` with the native, injective Why3 string key
