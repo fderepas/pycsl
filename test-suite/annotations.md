@@ -1871,33 +1871,52 @@ result axioms).
 
 **Tests**: 0351, 0760.
 
-### §12.5a Content-faithful list comprehensions
+### §12.5a Content-faithful list / dict / set comprehensions
 
 A list comprehension `[elt for t in src (if cond)]` is content-faithful when
 the element lowers to a pure `int` logic term over the loop target only —
 identity `[x for x in a]` gives `result[i] == a[i]`, `+ - *` arithmetic
-`[x + 1 for x in a]` gives `result[i] == a[i] + 1`, and **field projections**
+`[x + 1 for x in a]` gives `result[i] == a[i] + 1`, **field projections**
 (cleared-array.md S2) `[p.x for p in a]` give `result[i] == a[i].x`
-(`[p.x + p.y for p in a]` → `result[i] == a[i].x + a[i].y`), all with
-`\length(result) == \length(a)`. A filter `[x for x in a if …]` keeps only the
-sound bound `\length(result) <= \length(a)`.
+(`[p.x + p.y for p in a]` → `result[i] == a[i].x + a[i].y`), and — **calls**
+(cleared-array item 1) `[g(x) for x in a]`, where `g` is a PURE module function
+(`assigns \nothing`, non-diverging → emitted as a Why3 `let function`, a logic
+symbol) — give `result[i] == g(a[i])`; all with `\length(result) == \length(a)`.
+
+A **filter** `[x for x in a if cond]` always keeps `\length(result) <=
+\length(a)`; when the element is the IDENTITY and every predicate `cond` lifts to
+a pure-bool logic term over the target (a comparison, or `and`/`or`/`not` of
+such), it ALSO carries the content-SUBSET law (cleared-array item 4): each
+survivor satisfies `cond` AND appears in `a`.
+
+A **dict** comprehension `{x: v for x in a}` with an IDENTITY key + pure-int
+value is content-faithful (cleared-array item 3): every source element is a KEY
+mapping to the transformed value — `\has_key(\result, a[i])` and
+`\map_get(\result, a[i]) == v[t:=a[i]]` (identity key pins soundness — colliding
+sources map to the same key AND value). A **set** comprehension `{f(x) for x in
+a}` (pure-int element) gives the membership law `\has_key(\result, f(a[i]))`
+(every produced element is present; sound under-approximation).
 
 Projection requires two enabling pieces: the contract grammar parses
 `a[k].field` (§3.1.4c `SubscriptFieldAccess`) so a driver can STATE the claim,
 and the abstract getter `get_<field>` is emitted as a pure `val function` in
 spec context so it is logic-usable and denotes one deterministic value across
-both mentions (a field read *is* deterministic — a faithful refinement).
+both mentions (a field read *is* deterministic — a faithful refinement). Calls
+reuse the pre-existing `emits_as_logic_symbol` path (a pure module function is
+already a `let function`); the content-law val is deferred and spliced in after
+the callee so it is in scope.
 
-Residual opaque shapes (never a false content claim): **call** `[g(x) …]` (`g`
-is a program `let`, not logic-usable — `\result == g(a[i])` does not type-check;
-would need a spec-callable `let function` feature), **subscript projection**
-`[x[k] …]` (`List[List[int]]` collapses to `array int`, no faithful collection
-element), string/seq elements, multi-generator, and set/dict comprehensions
-(cleared-array.md S1–S4 + S2).
+Residual opaque shapes (never a false content claim): **subscript projection**
+`[x[k] …]` (`List[List[int]]` / `List[Dict[…]]` collapse to `array int`, no
+faithful collection element — the inner collection type is not threaded),
+non-identity dict key / non-pure-int dict value or set element, string/seq/
+emit_ir elements, multi-generator (cleared-array.md S1–S5 + items 1,3,4).
 
 **Tests**: 0761 (identity), 0762 (arithmetic), 0769 (projection),
-0770 (arithmetic-over-projection), 0763 (filter bound),
-0764 / 0771 (NEGATIVE — false content claim rejected).
+0770 (arithmetic-over-projection), 0783 (call), 0763 (filter bound),
+0789 (filter subset), 0785 (dict), 0787 (set); NEGATIVE — false content claim
+rejected: 0764 / 0771 (list/projection), 0784 (call), 0786 (dict value),
+0788 (set membership), 0790 (filter over-strong).
 
 ### §12.6 `bytes` and `bytearray` type unification
 

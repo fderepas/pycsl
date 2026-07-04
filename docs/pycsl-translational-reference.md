@@ -2590,7 +2590,7 @@ by the Why3 project itself.
 | G3 | Boolean/int duality | `True + 1 = 2` in Python; in spec `true + 1` is a type error | The spec/body distinction handles this, but mixed use is fragile |
 | G4 | `None` mapped to `0` in non-ghost context | `None` and `0` are indistinguishable in WhyML for regular Python values | **Partially resolved:** ghost dicts use `map int (option int)` (§T.8.5), so `\has_key` distinguishes absent keys from keys with value 0. Raw Python `None` in non-ghost context still maps to 0. |
 | G5 | Array literals use fixed size 1024 | `[]` becomes `Array.make 1024 0` regardless of actual size | Use dynamic allocation or parametric size |
-| G6 | Dict/Set comprehensions abstract; **ListComp content-faithful for simple shapes** (cleared-array.md S1–S4 + S2) | `[x for x in a]` / `[x+1 for x in a]` / `[p.x for p in a]` / `[p.x+p.y for p in a]` (identity / pure-int `+ - *` arithmetic / FIELD PROJECTIONS over the loop target, over an `array int` source) now carry a per-index law `result[i] = <elt[target:=src[i]]>` + `length result = length src`; a filter `[x for x in a if …]` keeps only `length result <= length src`. Residuals stay opaque: call `[g(x) …]` (`g` is a program `let`, not logic-usable — `\result==g(a[i])` does not type-check), subscript projection `[x[k] …]` (`List[List[int]]`→`array int`, no faithful collection element), string/seq/emit_ir elements, multi-generator, and `{}`/`{k:v for …}`/`{f(x) for …}` | Implement concrete dict/set theories; a spec-callable `let function` feature would unlock call comprehensions |
+| G6 | **List/Dict/Set comprehensions content-faithful for lifting shapes** (cleared-array.md S1–S5 + items 1,3,4) | LIST `[x for x in a]` / `[x+1 for x in a]` / `[p.x for p in a]` / `[g(x) for x in a]` (identity / pure-int `+ - *` / FIELD PROJECTIONS / CALLS to a pure `let function`, over the loop target, `array int` source) carry a per-index law `result[i] = <elt[target:=src[i]]>` + `length result = length src`. FILTER `[x for x in a if cond]` keeps `length <=` and — identity element + lifting pure-bool `cond` — the content-SUBSET law (each survivor satisfies `cond` and ∈ src). DICT `{x: v for x in a}` (identity key + pure-int value) → `Map.get result (a[i]) = Some v`; SET `{f(x) for x in a}` (pure-int elt) → `Map.get result (f(a[i])) = Some 0` (membership). Residuals stay opaque: subscript projection `[x[k] …]` (`List[List[int]]`→`array int`, no faithful collection element), non-identity dict key / non-pure-int value/elt, string/seq/emit_ir elements, multi-generator | Nested-collection element-type threading (`array (array int)`) would unlock subscript projection |
 | G7 | `isinstance` / `hasattr` are **uninterpreted** `bool` ops (`isinstance_check` / `hasattr_check`), not concrete | Single type system limitation | Support union types or tagged variants |
 | G8 | For-each over non-array iterables | Uses abstract `iter_length` / `iter_get` | Provide concrete implementations per type |
 | G9 | `\map_eq` generates a `forall` quantifier | Wide `\map_eq` in deep loop invariants may exceed solver budget | Restrict `\map_eq` to shallow comparisons; prefer explicit key tracking in loop invariants |
@@ -2622,7 +2622,7 @@ The following constructs appear in Python but have no translation:
 | `yield` / generators | Not supported | Use explicit loops |
 | `async` / `await` | Not supported | Use concurrent model |
 | `global` / `nonlocal` | Not supported | Use explicit parameter passing |
-| List comprehensions (content) | Content-faithful for identity / pure-int `+ - *` arithmetic / field projections `p.x` over the loop target (cleared-array.md S1–S4 + S2); filter keeps a length bound; call `[g(x) …]` + subscript projection `[x[k] …]` + dict/set comps opaque | Use explicit loops for unliftable elements |
+| List comprehensions (content) | Content-faithful for identity / pure-int `+ - *` / field projections `p.x` / CALLS `g(x)` to a pure `let function` over the loop target (cleared-array.md S1–S5 + items 1,3,4); filter keeps a length bound + (identity elt, lifting `cond`) a content-subset law; dict `{x: v …}` (identity key) + set `{f(x) …}` carry membership laws; subscript projection `[x[k] …]` + non-identity/non-pure-int shapes opaque | Use explicit loops for unliftable elements |
 
 ---
 
@@ -2765,16 +2765,18 @@ val** `list_content_comp_<n>` carrying a per-index content law — *when* the
 element shape is liftable — and otherwise falls through to the opaque
 length-only `list_comp` path (§T.11.1 G6).
 
-**Liftable shape (S1 identity, S3 arithmetic, S2 projection):** exactly one
-generator whose target `t` is a plain name, an `array int` source `src` (NOT a
-`seq` local — the seq comprehension path owns those), no filter, and an element
-`elt` that lowers to a **pure, total `int`** logic term over the loop target `t`
-ONLY, built from: the identity `t`, integer literals, the total operators
-`+ - *`, and — **cleared-array.md S2** — FIELD PROJECTIONS `e.attr` over a
-liftable base (`[p.x for p in a]`, `[p.x + p.y for p in a]`). Division/modulo,
-calls, subscripts (`x[k]`), comparisons and booleans are excluded — they are not
-guaranteed pure-int logic terms, and division would leak partiality into a logic
-`ensures`. The emitted val:
+**Liftable shape (S1 identity, S3 arithmetic, S2 projection, item 1 call):**
+exactly one generator whose target `t` is a plain name, an `array int` source
+`src` (NOT a `seq` local — the seq comprehension path owns those), no filter, and
+an element `elt` that lowers to a **pure, total `int`** logic term over the loop
+target `t` ONLY, built from: the identity `t`, integer literals, the total
+operators `+ - *`, — **cleared-array.md S2** — FIELD PROJECTIONS `e.attr` over a
+liftable base (`[p.x for p in a]`, `[p.x + p.y for p in a]`), and —
+**cleared-array item 1** — CALLS `g(e, …)` to a module function already emitted
+as a pure `let function` (`[g(x) for x in a]`; see the call-comprehension note
+below). Division/modulo, subscripts (`x[k]`), comparisons and booleans are
+excluded — they are not guaranteed pure-int logic terms, and division would leak
+partiality into a logic `ensures`. The emitted val:
 
 $$\texttt{list\_content\_comp}_n(\textit{src}):\quad
   \texttt{Array.length result = Array.length } \textit{src}
@@ -2813,30 +2815,91 @@ choices make this consumable and sound:
   a subscripted element; see the concrete-syntax reference (`SubscriptFieldAccess`
   → `Attribute(Subscript(…), field)`, the SAME IR the body path produces).
 
-**Filter (S4):** a comprehension with an `if` keeps ONLY the sound bound
-`Array.length result <= Array.length src` — the surviving elements are not at
-their source indices, so no per-index content law holds (corpus `0763`). The
-*exact* filtered contents are a documented residual.
+**Call comprehension (item 1) — the callee must be a logic symbol.** A call
+`g(e, …)` lifts only when `g` is a **module function already emitted as a pure
+`let [rec] function`** — i.e. `emits_as_logic_symbol(g)` (pure = `assigns
+\nothing`, non-diverging, non-method, non-lemma, no local refs). Such a `g` IS
+usable in a logic term, so the per-index law `result[i] = g(src[i])` type-checks
+and a driver's own `\result[k] == g(a[k])` denotes the SAME `let function g`.
+The gate reads the set of functions emitted as logic symbols SO FAR
+(`_emitted_logic_funcs`, populated in callee-before-caller SCC order), so `g` is
+already declared when the caller's comprehension is processed. Because the
+content-law val references a USER function, it cannot go in the early abstract-op
+block (which precedes ALL functions — `g` would be unbound there); it is
+**deferred** (`_late_content_ops`) and spliced in just before the using
+function's `let` line by `_insert_late_content_ops`, landing after `g`. Sound: a
+pure `let function` is a total deterministic logic symbol, so `result[i] =
+g(src[i])` is a faithful re-expression of `[g(x) for x in a]`. Corpus `0783`
+(positive `\result[k] == g(a[k])`), `0784` (NEGATIVE — false `= g(a[k]) + 1`
+rejected). A NON-pure callee never enters `_emitted_logic_funcs`, so it never
+lifts (opaque fallback), and a mis-anchored deferral fails the L3 typecheck
+loudly (never a false proof).
+
+**Filter (S4 + item 4):** a comprehension with an `if` always keeps the sound
+bound `Array.length result <= Array.length src`. When the element is the
+IDENTITY (`[x for x in a if cond]`) AND every filter predicate `cond` lifts to a
+pure-bool logic term over the target (a comparison `< <= > >= == !=` of pure-int
+terms, or an `and`/`or`/`not` of such), it ALSO carries the **content-subset
+law** (`_filter_subset_law`): each survivor satisfies `cond` and appears in `src`
+—
+
+$$\forall i.\ 0 \le i < \texttt{len result} \Rightarrow
+  \textit{cond}[\,t := \texttt{result}[i]\,]
+  \;\wedge\;
+  \bigl(\exists j.\ 0 \le j < \texttt{len src} \wedge
+    \texttt{result}[i] = \texttt{src}[j]\bigr).$$
+
+The source index of a survivor is LOST (the survivors are compacted), so no
+per-index content law holds — only the honest subset facts. A non-identity
+element or a non-lifting predicate keeps the length-only bound. Corpus `0763`
+(length bound), `0789` (positive `\result[k] > 0`), `0790` (NEGATIVE — false
+over-strong `\result[k] >= 5` rejected).
+
+**Dict / set comprehensions (item 3).** `{k: v for x in a}` and `{f(x) for x in
+a}` (`_dict_content_comp` / `_set_content_comp`) now carry content laws when the
+key/value/element shapes lift, over an `array int` source with one generator and
+no filter:
+
+- **Dict `{x: v(x) for x in a}` — IDENTITY key + pure-int value.** Lowers to a
+  `map int (option int)` with the per-source membership law
+  `∀ i. Map.get result (src[i]) = Some (v[t:=src[i]])`. The identity-key guard is
+  the soundness pin: a non-injective key would make the per-source law unsound
+  (Python keeps the LAST colliding write), but with an identity key every
+  collision maps to the SAME key and — the value being a deterministic function
+  of the key — the SAME value, so insertion order is irrelevant. It is an
+  under-approximation of the domain (nothing about keys not in `src`). A
+  non-identity key stays opaque (`dict_comp`). Corpus `0785` (positive
+  `\has_key` + `\map_get`), `0786` (NEGATIVE — false value rejected).
+- **Set `{f(x) for x in a}` — pure-int element.** Lowers to a `map int (option
+  int)` (set model, present = `Some 0`) with the membership law
+  `∀ i. Map.get result (f[t:=src[i]]) = Some 0` — every produced element is
+  present. Sound under-approximation (nothing about ABSENT elements). Corpus
+  `0787` (positive `\has_key`), `0788` (NEGATIVE — a non-produced element's
+  membership rejected).
+
+A function returning a set/dict/frozenset triggers the `map.Map`/`option.Option`
+import in the preamble even with no body-level map op (the signature type is
+`map int (option int)`).
 
 **Residuals (opaque, never a false content claim):** the following element
 shapes fall through to `list_comp` / `list_comp_stmts` / `list_comp_seq_*`
-(length-only or fully opaque); set/dict comprehensions stay opaque (§T.11.1 G6):
+(length-only or fully opaque):
 
-- **Call `[g(x) …]`** — a module function `g` lowers to a program `let g`, which
-  is NOT usable in a logic term; a driver's own `\result == g(a[i])` does not even
-  type-check today (`unbound function or predicate symbol 'g'`). Lifting the call
-  would require emitting pure module functions as `let function` (a purity
-  analysis + a spec-callable-function feature) — a separate language capability
-  with no existing consumer. Documented opaque; not an emitter limitation of the
-  comprehension path. (cleared-array.md S3 outcome.)
 - **Subscript projection `[x[k] …]`** — the source `List[List[int]]` /
-  `List[Dict[…]]` collapses to `array int` (empirically: `List[List[int]]` →
-  `array int`), so `x` is an `int` and `x[k]` has no faithful collection element
-  to index; the recent `map string` dict model does not reach a *list element*.
+  `List[Dict[…]]` collapses to `array int` (empirically verified: both
+  `List[List[int]]` and `List[Dict[str, int]]` give an `array int` parameter and
+  a symbol-table entry of `'list'` — the inner collection type is not threaded),
+  so `x` is an `int` and `x[k]` has no faithful collection element to index; the
+  `map string` dict model does not reach a *list element*. Threading nested
+  element types (`array (array int)` / `array (map …)`) is a pervasive type-model
+  change (part of the broader no-more-int program) with zero corpus consumer.
   Documented opaque (no faithfully-typed collection element in the int model).
+- **Non-identity dict key / non-lifting dict value / non-pure-int set element** —
+  the collision-unsoundness / purity guards above are not met; opaque `dict_comp`
+  / `set_comp`.
 - string / seq / emit_ir elements, multi-generator, captured locals.
 
-No new `proof_axiom_allowlist` entry — the content law is a definitional
+No new `proof_axiom_allowlist` entry — every content law is a definitional
 `ensures` on the abstract val, discharged where the comprehension is used.
 
 ### §T.14.6  `Literal[v1, ..., vn]` annotations (typing-engagement ty1)

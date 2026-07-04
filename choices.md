@@ -298,6 +298,50 @@ collapse to `array int` (empirically verified), so the element `x` is an `int` w
 collection to index; the `map string` dict model never reaches a *list element*. No faithful law
 expressible.
 
+## cleared-array Round 3 — LIFT call `[g(x) …]`, dict `{x:v …}`, set `{f(x) …}`, filter-subset; item 2 stays boundary
+
+**Context.** The four recorded residuals (call comprehensions, subscript projection, dict/set comps,
+reversed+filter). Spike-first (`cleared-array-residuals.mlw`, Why3 1.8.2): the call law, dict/set
+membership laws, and filter-subset law ALL prove Valid on Alt-Ergo AND Z3 at ≥2 indices/keys, no
+E-matching blowup — GO for items 1, 3, 4.
+
+**Item 1 (call) — LIFT. The recorded blocker was mis-diagnosed.** A PURE module function `g` (`assigns
+\nothing`, non-diverging) is ALREADY emitted as `let function g` (via `emits_as_logic_symbol`), and a
+driver's `\result[k] == g(a[k])` DOES type-check today (demonstrated — Round 2's claim that it doesn't
+was for an IMPURE `g`). **Options.** (1) Give up (Round-2 YAGNI). (2) Build a NEW purity/spec-callable
+feature — unnecessary, it already exists. (3) Lift `Call(g, pure-int args)` in the whitelist gated on
+`g ∈ _emitted_logic_funcs` (populated in callee-before-caller SCC order), and DEFER the content-law val
+(`_late_content_ops`) so it is spliced in after `g` — the early abstract-op block precedes all functions,
+which would leave `g` unbound. **Choice.** Option 3. **Soundness:** a pure `let function` is a total
+deterministic logic symbol, so `result[i]=g(src[i])` is faithful; a non-pure callee never enters the set
+(opaque fallback); a mis-anchored deferral fails L3 typecheck loudly, never a false proof. Drivers
+0783/0784.
+
+**Item 3 (dict/set) — LIFT where key/value/elt lift.** Dict `{x: v(x) for x in a}` — **identity key**
+only (the soundness pin: a non-injective key ⇒ last-write-wins ⇒ the per-source law is unsound; an
+identity key makes every collision map to the same key AND deterministic value) + pure-int value →
+`Map.get result (src[i]) = Some v`. Set `{f(x) for x in a}` (pure-int elt) → `Map.get result (f(src[i]))
+= Some 0` (membership). Both under-approximate (say nothing about absent keys/elts). A set/dict return
+type now triggers the map import. Non-identity key / non-pure-int value or elt stay opaque. Drivers
+0785-0788. **Rationale.** Overturns the Round-1 S6 YAGNI now that the make-or-break shapes (identity-key
+dict, pure-int set) lift soundly and the SMT membership laws are proven tractable; still refuses the
+collision-unsound / impure shapes.
+
+**Item 4 (filter) — LIFT the content-subset law; reversed stays opaque.** Identity element + a filter
+predicate that lifts to a pure-bool logic term (comparisons + `and`/`or`/`not`, `_comp_cond_pure_bool`) →
+each survivor satisfies `cond` ∧ appears in `src` (the source index is lost, so NO per-index content).
+Non-identity/non-lifting keep length-only. Drivers 0789/0790. `reversed` unchanged (axiom-block
+entanglement, prior entry).
+
+**Item 2 (subscript projection) — CLOSED-AS-BOUNDARY (unchanged, evidence re-verified).** `List[List[int]]`
+and `List[Dict[str,int]]` both collapse the param to `array int` (symbol-table `'list'`); the inner
+collection type is not threaded, so no faithfully-typed element to index. The fix (nested element-type
+threading `array (array int)`) is a pervasive no-more-int type-model change with zero consumer — deferred.
+
+**Gates.** Corpus 735/738 (only 0540/0700/0701; no regressions). Emission byte-diff vs HEAD = exactly
+0763 (monotone filter-subset addition) + 8 new drivers; 662 files byte-identical. doc-coherency +
+mirror-sync green; NO new axiom (definitional `ensures` on abstract vals).
+
 ## cleared-string S0 (SMT spike) — GO; `chars : seq int` codepoint model proves all content goals fast, no E-matching blowup
 
 **Context.** Before any pipeline work, hand-write a `.mlw` LEADING with the make-or-break CONTENT

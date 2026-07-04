@@ -1903,6 +1903,16 @@ class PreambleEmissionMixin:
                        for v in func.get("symbol_table", {}).values()):
                     needs_body_dict = True
                     break
+        # cleared-array item 3: a function that RETURNS a set/dict/frozenset
+        # (`-> Dict[int, int]` / `-> set`) has WhyML type `map int (option int)`
+        # in its signature, so the map vocabulary must be imported even with no
+        # body-level dict op — e.g. `def d(a) -> Dict: return {x: v for x in a}`
+        # (a content-faithful dict comprehension). Mirrors the param-type check.
+        if not needs_body_dict:
+            for func in functions:
+                if func.get("return_annotation") in ("set", "dict", "frozenset"):
+                    needs_body_dict = True
+                    break
         # 07-1311 Q4: a `\forall m: dict;` binder needs `map.Map`/`option.Option` too.
         if _binder_needs_map:
             needs_body_dict = True

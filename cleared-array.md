@@ -170,3 +170,68 @@ never reaches a *list element*. No faithful law is expressible.
 exactly the comprehension/projection programs (getter `val function` toggle inert on all existing
 files); doc-coherency green; NO new `proof_axiom_allowlist` entry (definitional `ensures` on the
 abstract val, discharged at the use site).
+
+### Round 3 (this run, branch ghost-assign-bc6) — items 1, 3, 4 LIFTED; item 2 CLOSED-AS-BOUNDARY
+
+The four recorded residuals are all resolved. Fresh SMT spike
+(`test-suite/corpus/conformance/spikes/cleared-array-residuals.mlw`, Why3 1.8.2) — all GO, at ≥2
+indices/keys, no E-matching blowup:
+| VC | Alt-Ergo | Z3 |
+|---|---|---|
+| call law `result[i]=g(src[i])` (2-index + `let function` defn survives) | Valid 0.04s/29 | Valid 0.01s/7939 |
+| dict membership `Map.get result src[i]=Some(v src[i])` (2-key) | Valid 0.04s/26 | Valid 0.01s/11315 |
+| set membership `Map.get result (f src[i])=Some 0` (2-key) | Valid 0.04s/26 | Valid 0.01s/11278 |
+| filter subset (cond ∧ ∃j. result[i]=src[j]) | Valid 0.03s/33 | Valid 0.01s/7640 |
+
+**Item 1 — CALL comprehensions `[g(x) for x in a]` — DONE (content-faithful).** The *root diagnosis of
+the recorded blocker was wrong*: a PURE module function `g` (`assigns \nothing`, non-diverging) is
+ALREADY emitted as a Why3 `let function` (via `emits_as_logic_symbol`), and a driver's own
+`\result[k] == g(a[k])` DOES type-check today (demonstrated — `(g a[k])` is legal). The
+spec-callable-function feature was therefore already built; the only missing pieces were (a) lifting the
+CALL element in the comprehension whitelist (`_comp_elt_pure_int` now accepts `Call(g, pure-int args)`
+gated on `g ∈ _emitted_logic_funcs`) and (b) an ORDERING fix — the content-law val references the user
+`let function g`, so it cannot live in the early abstract-op block (which precedes all functions, leaving
+`g` unbound); it is deferred (`_late_content_ops`) and spliced in just before the using function by
+`_insert_late_content_ops`, landing after `g` (a callee, by SCC order). Sound (a pure `let function` is a
+total deterministic logic symbol); a non-pure callee never enters `_emitted_logic_funcs` (opaque
+fallback); a mis-anchored deferral fails the L3 typecheck loudly, never a false proof. Drivers: **0783**
+(positive `\result[k]==g(a[k])`), **0784** (NEGATIVE — false `=g(a[k])+1` rejected).
+
+**Item 3 — DICT / SET comprehensions — DONE (content law where key/value/elt lift).**
+`_dict_content_comp` / `_set_content_comp`, over an `array int` source, one generator, no filter:
+- DICT `{x: v(x) for x in a}` with an **identity key** + pure-int value → `map int (option int)` with
+  `∀i. Map.get result (src[i]) = Some (v[t:=src[i]])`. The identity-key guard is the soundness pin (a
+  non-injective key would make the per-source law unsound — Python keeps the LAST colliding write; an
+  identity key makes every collision map to the SAME key AND value). Under-approximates the domain.
+  Drivers **0785** (positive `\has_key` + `\map_get`), **0786** (NEGATIVE false value).
+- SET `{f(x) for x in a}` (pure-int elt) → `map int (option int)` (present=`Some 0`) with
+  `∀i. Map.get result (f[t:=src[i]]) = Some 0` (membership; under-approximates the set). Drivers **0787**
+  (positive `\has_key`), **0788** (NEGATIVE — a non-produced element's membership rejected).
+  A set/dict-returning function now triggers the `map.Map`/`option.Option` preamble import even with no
+  body map op (signature type is `map int (option int)`). Non-identity key / non-pure-int value or elt
+  stay opaque (`dict_comp`/`set_comp`), documented.
+
+**Item 4 — FILTER content-subset — DONE; `reversed` CLOSED-AS-BOUNDARY.** A filtered comprehension keeps
+the length bound; when the element is the IDENTITY and every predicate lifts to a pure-bool logic term
+(`_comp_cond_pure_bool`: comparisons + `and`/`or`/`not`), it ALSO carries the SOUND content-subset law
+(each survivor satisfies `cond` ∧ appears in `src` — the source index is lost, so no per-index content).
+Drivers **0789** (positive `0<\result[k]<100`, compound `and` predicate), **0790** (NEGATIVE over-strong
+`>=5` rejected). `reversed`/`array_rev` stays opaque (the cited `rev_permutation` axiom-block entanglement
+means a content `ensures` on the abstract op would be DROPPED for files citing the axiom — inconsistency
+for zero demand; choices.md `cleared-array (reversed)`).
+
+**Item 2 — SUBSCRIPT projection `[x[k] for x in a]` — CLOSED-AS-BOUNDARY (sharpened evidence).**
+Empirically re-verified: `List[List[int]]` AND `List[Dict[str,int]]` both lower the parameter to `array
+int` with a symbol-table entry of `'list'` — the inner collection type is NOT threaded, so the source
+element `x` is an `int` and `x[k]` has no faithfully-typed collection to index (falls to opaque
+`list_comp`). The `map string` dict model never reaches a *list element*. The fix (threading nested
+element types `array (array int)` / `array (map …)`) is a pervasive type-model change — part of the
+broader no-more-int program — with zero corpus consumer, so it is deferred; documented boundary.
+
+**Gates (Round 3):** full pycsl-reference corpus 735/738 (only the 3 known pre-existing 0540/0700/0701;
+no regressions; 0760-0764/0769-0771 stay green). Emission byte-differential vs HEAD = exactly `0763`
+(the item-4 filter driver gains the monotone subset law) + the 8 new drivers 0783-0790; all other 662
+files byte-identical (the call/dict/set lifts have ZERO existing corpus consumer; the getter/whitelist
+threading is inert on non-comprehension files). doc-coherency green. mirror-sync green (`\trusted`
+unchanged). NO new `proof_axiom_allowlist` entry — every content law is a definitional `ensures` on the
+abstract val, discharged at the use site.

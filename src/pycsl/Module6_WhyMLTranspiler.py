@@ -50,6 +50,18 @@ class Module6_WhyMLTranspiler(
         # is on the hook to keep the methods consistent).
         self.strict_hash_eq_consistency = bool(strict_hash_eq_consistency)
         self._abstract_ops: Dict[str, str] = {}  # Abstract val declarations: name → full decl string
+        # cleared-array item 1 (call comprehensions): the set of module functions
+        # already emitted as a pure `let [rec] function` (a logic symbol usable in a
+        # contract term). Populated in `_emit_function` as each function is emitted
+        # (callee-before-caller SCC order), so a comprehension `[g(x) for x in a]`
+        # processed during the CALLER's body can check `g` is spec-callable.
+        self._emitted_logic_funcs: Set[str] = set()
+        # cleared-array item 1: content-comp `val`s whose `ensures` references a USER
+        # `let function` (a call comprehension). Such a `val` must be declared AFTER
+        # its referenced function, so it is deferred here as (op_name, decl,
+        # using_func) and spliced in just before the using function's `let` line by
+        # `_insert_late_content_ops`, instead of into the early abstract-op block.
+        self._late_content_ops: List[Any] = []
         self._record_types: Dict[str, Any] = {}  # class_name_lower → {fields: [...], defaults: {...}}
         # sum-types: variant type name → {whyml_name, constructors}; constructor name →
         # {type, whyml_type, arity, payload}. Drive param typing, construction, and match.
@@ -605,6 +617,8 @@ class Module6_WhyMLTranspiler(
         self._build_callee_no_exception_summary(functions)
 
         sorted_functions, scc_info = sort_functions_by_scc(functions)
+        self._emitted_logic_funcs = set()
+        self._late_content_ops = []
         for func in sorted_functions:
             out += self._emit_function(func, scc_info)
 
@@ -613,6 +627,7 @@ class Module6_WhyMLTranspiler(
 
         out.append("end")
         self._insert_abstract_val_block(out)
+        self._insert_late_content_ops(out)
         return "\n".join(out)
 
     # ------------------------------------------------------------------
@@ -783,6 +798,11 @@ class Module6_WhyMLTranspiler(
             for nm in names:
                 self._verify_module_of[nm] = g
 
+        # cleared-array item 1: reset the logic-symbol tracking for this module set
+        # (call-comprehension lifting). The late-content-op flush (per module) below
+        # anchors each deferred content-law val to its using function.
+        self._emitted_logic_funcs = set()
+        self._late_content_ops = []
         # Partition the SORTED function list (preserve emission order) into the main
         # (untagged) set + one list per group.
         sorted_functions, scc_info = sort_functions_by_scc(functions)
@@ -899,6 +919,12 @@ class Module6_WhyMLTranspiler(
             main += self._emit_subtyping_goals(functions)
         main.append("end")
         self._insert_abstract_val_block(main)
+        # cleared-array item 1: flush any deferred call-comprehension content-law
+        # vals into the main module (their using functions are the untagged set).
+        # A call comprehension inside a `#@ verify_module` group is unsupported (the
+        # anchor would not be in `main`); the missing decl fails the L3 typecheck
+        # loudly — never a false proof.
+        self._insert_late_content_ops(main)
         out_modules.append(main)
 
         return "\n".join("\n".join(m) for m in out_modules)

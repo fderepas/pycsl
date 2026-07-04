@@ -4803,14 +4803,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
     # ---- cleared-array.md S1–S4: content-faithful comprehensions ----------
     def _comp_elt_pure_int(self, elt: Any, free: Set[str],
-                           getters: Optional[Set[str]] = None) -> bool:
+                           getters: Optional[Set[str]] = None,
+                           user_funcs: Optional[Set[str]] = None) -> bool:
         """True iff `elt` is a PURE, total `int`-valued expression the emitter
         lowers to a logic term built only from:
           * variables (collected into `free`),
           * integer literals,
-          * the total arithmetic operators `+ - *` (identity / arithmetic), and
+          * the total arithmetic operators `+ - *` (identity / arithmetic),
           * cleared-array.md S2 — FIELD PROJECTIONS `e.attr` on a liftable `e`
-            (the attr NAMES are collected into `getters`).
+            (the attr NAMES are collected into `getters`), and
+          * cleared-array item 1 — CALLS `g(e, …)` to a module function already
+            emitted as a pure `let function` (a logic symbol), with liftable int
+            args (the callee names are collected into `user_funcs`, gating the
+            deferred late-emission of the content-law `val`).
 
         Division / modulo are excluded (partiality — ZeroDivisionError semantics
         must not leak into a logic `ensures`); calls / subscripts / comparisons /
@@ -4836,13 +4841,37 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if t == "BinOp":
             if elt.get("op") not in ("+", "-", "*"):
                 return False
-            return (self._comp_elt_pure_int(elt.get("left", {}), free, getters)
-                    and self._comp_elt_pure_int(elt.get("right", {}), free, getters))
+            return (self._comp_elt_pure_int(elt.get("left", {}), free, getters, user_funcs)
+                    and self._comp_elt_pure_int(elt.get("right", {}), free, getters, user_funcs))
         if t == "UnaryOp":
             if elt.get("op") not in ("-", "+"):
                 return False
             return self._comp_elt_pure_int(
-                elt.get("operand", elt.get("value", {})), free, getters)
+                elt.get("operand", elt.get("value", {})), free, getters, user_funcs)
+        if t == "Call":
+            # cleared-array item 1: `g(args)` where `g` is a module function ALREADY
+            # emitted as a pure `let function` (a logic symbol usable in `ensures`),
+            # and every arg is itself a liftable pure-int term over the target. The
+            # callee is a total function (`assigns \nothing`, non-diverging → `pure`)
+            # so `result[i] = g(src[i])` is sound. Requires the `user_funcs`
+            # accumulator (only `_content_comp` opts in) — else a bare call is not
+            # liftable, keeping the whitelist byte-identical for other callers.
+            if user_funcs is None:
+                return False
+            fn = elt.get("func")
+            if not isinstance(fn, str) or "." in fn:
+                return False
+            if whyml_ident(fn) not in getattr(self, "_emitted_logic_funcs", set()):
+                return False
+            args = elt.get("args", []) or []
+            # keyword/starred args are not plain positional terms → not liftable.
+            if elt.get("keywords") or elt.get("kwargs") or elt.get("starargs"):
+                return False
+            for a in args:
+                if not self._comp_elt_pure_int(a, free, getters, user_funcs):
+                    return False
+            user_funcs.add(whyml_ident(fn))
+            return True
         if t in ("Attribute", "FieldGet"):
             # cleared-array.md S2 projection. The base must itself be a liftable
             # collapsed-int term (the loop target, or a projection/arithmetic over
@@ -4856,7 +4885,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             base = elt.get("object")
             if base is None or not isinstance(attr, str) or not attr:
                 return False
-            if not self._comp_elt_pure_int(base, free, getters):
+            if not self._comp_elt_pure_int(base, free, getters, user_funcs):
                 return False
             getters.add(attr)
             return True
@@ -4890,7 +4919,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         elt = _d.get("elt", {})
         free: Set[str] = set()
         getters: Set[str] = set()
-        if not self._comp_elt_pure_int(elt, free, getters):
+        user_funcs: Set[str] = set()
+        if not self._comp_elt_pure_int(elt, free, getters, user_funcs):
             return None
         # The element may reference the loop target ONLY (no captured locals —
         # they are not parameters of the abstract `val`).
@@ -4903,12 +4933,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         op = f"list_content_comp_{n}"
         has_if = bool(g.get("ifs"))
         if has_if:
-            # cleared-array.md S4: a filtered comprehension keeps only the SOUND
-            # length bound — the surviving elements are NOT at their source
-            # indices, so no per-index content law holds.
-            self._add_abstract_op(
-                f"val {op} (src: array int) : array int\n"
-                f"    ensures {{ Array.length result <= Array.length src }}")
+            # cleared-array.md S4 + item 4: a filtered comprehension keeps the
+            # SOUND length bound; when the element is the IDENTITY (`x`) and the
+            # filter predicate `cond` lifts to a pure-bool logic term over the
+            # target, ADD the content-SUBSET law — each surviving element satisfies
+            # `cond` AND appears in `src` (its source index is lost, so this is the
+            # honest fact, not a per-index content law).
+            subset = self._filter_subset_law(op, g, target, elt, free,
+                                             local_refs, subst)
+            if subset is not None:
+                self._add_abstract_op(subset)
+            else:
+                self._add_abstract_op(
+                    f"val {op} (src: array int) : array int\n"
+                    f"    ensures {{ Array.length result <= Array.length src }}")
             return f"({op} {srca})"
         # Lower the element with the loop target rebound to the per-index source
         # read `src[i]` (via a fresh scalar binder `_celt = src[i]`), in logic
@@ -4934,11 +4972,218 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # this content-law `ensures` and denoting one value with a driver's own
         # `a[k].attr`. The collected `getters` set gated the lift in
         # `_comp_elt_pure_int`; no extra registration is needed here.
-        self._add_abstract_op(
+        decl = (
             f"val {op} (src: array int) : array int\n"
             f"    ensures {{ Array.length result = Array.length src }}\n"
             f"    ensures {{ forall {binder} : int. 0 <= {binder} < Array.length src ->\n"
             f"                result[{binder}] = (let {celt} = src[{binder}] in {eltw}) }}")
+        if user_funcs:
+            # cleared-array item 1: the content law references a USER `let function`
+            # (`result[i] = g(src[i])`). That `val` must be declared AFTER `g`, so it
+            # cannot go in the early abstract-op block (which precedes all functions).
+            # Defer it, anchored to the function whose body holds the comprehension;
+            # `_insert_late_content_ops` splices it in just before that function.
+            using = getattr(self, "_current_emitting_func", None)
+            self._late_content_ops.append((op, decl, using))
+        else:
+            self._add_abstract_op(decl)
+        return f"({op} {srca})"
+
+    def _comp_cond_pure_bool(self, cond: Any, free: Set[str]) -> bool:
+        """cleared-array item 4. True iff a filter predicate `cond` lowers to a
+        PURE, total BOOLEAN logic term: a comparison (`< <= > >= == !=`) of
+        pure-int subterms, or an `and`/`or`/`not` combination of such. Free
+        variables are collected into `free` (checked ⊆ {target} by the caller).
+        Conservative — any other shape ⇒ not liftable (keep length-only)."""
+        if not isinstance(cond, dict):
+            return False
+        t = cond.get("type")
+        if t == "BinOp":
+            op = cond.get("op")
+            if op in ("and", "or"):
+                return (self._comp_cond_pure_bool(cond.get("left", {}), free)
+                        and self._comp_cond_pure_bool(cond.get("right", {}), free))
+            if op in ("<", "<=", ">", ">=", "==", "!="):
+                return (self._comp_elt_pure_int(cond.get("left", {}), free)
+                        and self._comp_elt_pure_int(cond.get("right", {}), free))
+            return False
+        if t == "UnaryOp":
+            if cond.get("op") in ("not",):
+                return self._comp_cond_pure_bool(
+                    cond.get("operand", cond.get("value", {})), free)
+            return False
+        return False
+
+    def _filter_subset_law(self, op: str, gen: Dict[str, Any], target: str,
+                           elt: Any, free: Set[str], local_refs: Set[str],
+                           subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """cleared-array item 4. When a filtered comprehension's ELEMENT is the
+        identity (`x`) and every filter predicate `cond` lifts to a pure-bool
+        logic term over the target ONLY, emit the SOUND content-subset law: each
+        surviving element satisfies `cond` AND appears in `src` (source index
+        lost). Returns the full `val` decl, or None to keep the length-only bound.
+
+        Soundness: with an identity element, every `result[i]` IS some `src[j]`
+        that passed the filter, so both conjuncts hold; no per-index content claim
+        is made (the surviving elements are compacted, not at their source
+        indices)."""
+        # Element must be the loop target itself (so result elements ∈ src).
+        if not (isinstance(elt, dict) and elt.get("type") == "Var"
+                and elt.get("name") == target):
+            return None
+        ifs = gen.get("ifs") or []
+        if not ifs:
+            return None
+        cfree: Set[str] = set()
+        for c in ifs:
+            if not self._comp_cond_pure_bool(c, cfree):
+                return None
+        # The predicate may reference the loop target ONLY.
+        if cfree - {target}:
+            return None
+        binder = "_ci"
+        celt = "_celt"
+        new_subst = dict(subst or {})
+        new_subst[target] = celt
+        sb = self._quant_scalar_binders
+        had_celt = celt in sb
+        sb.add(celt)
+        saved_in_spec = self._in_spec
+        self._in_spec = True
+        try:
+            conds = [self._expr_to_whyml(c, local_refs or set(), True, new_subst)
+                     for c in ifs]
+        finally:
+            self._in_spec = saved_in_spec
+            if not had_celt:
+                sb.discard(celt)
+        condw = " /\\ ".join(f"({c})" for c in conds)
+        return (
+            f"val {op} (src: array int) : array int\n"
+            f"    ensures {{ Array.length result <= Array.length src }}\n"
+            f"    ensures {{ forall {binder} : int. 0 <= {binder} < Array.length result ->\n"
+            f"                (let {celt} = result[{binder}] in {condw})\n"
+            f"                /\\ (exists _cj : int. 0 <= _cj < Array.length src /\\\n"
+            f"                     result[{binder}] = src[_cj]) }}")
+
+    def _lift_comp_elt(self, elt: Any, target: str, celt: str,
+                       local_refs: Set[str],
+                       subst: Optional[Dict[str, str]]) -> str:
+        """Lower a comprehension element/key/value with the loop `target` rebound
+        to the per-source scalar binder `celt` (`= src[i]`), in logic context.
+        Shared by the list / dict / set content-comp laws."""
+        new_subst = dict(subst or {})
+        new_subst[target] = celt
+        sb = self._quant_scalar_binders
+        had = celt in sb
+        sb.add(celt)
+        saved = self._in_spec
+        self._in_spec = True
+        try:
+            return self._expr_to_whyml(elt, local_refs or set(), True, new_subst)
+        finally:
+            self._in_spec = saved
+            if not had:
+                sb.discard(celt)
+
+    def _dict_content_comp(self, node: "ExprIR", local_refs: Set[str],
+                           invariant_ctx: bool,
+                           subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """cleared-array item 3. Content-faithful DICT comprehension
+        `{x: v(x) for x in a}` → a `map int (option int)` with the per-source
+        membership law `Map.get result (src[i]) = Some (<v[x:=src[i]]>)`.
+
+        Guards (return None to keep the opaque `dict_comp` otherwise):
+          * ONE generator, plain-name target, NO filter, `array int` source;
+          * KEY is the IDENTITY (the loop target). This is the soundness pin: a
+            non-injective key would make the per-source law unsound (Python keeps
+            the LAST colliding write), but an identity key means every collision
+            maps to the SAME key AND — since the value is a deterministic function
+            of that key — the SAME value, so insertion order is irrelevant;
+          * VALUE lifts to a pure-int logic term over the target only.
+        The law is an under-approximation of the domain (says nothing about keys
+        NOT in src), hence sound."""
+        _d = node.to_dict()
+        gens = _d.get("generators", []) or []
+        if len(gens) != 1:
+            return None
+        g = gens[0]
+        target = g.get("target")
+        if not isinstance(target, str) or g.get("ifs"):
+            return None
+        src_ir = g.get("iter", {})
+        if (isinstance(src_ir, dict) and src_ir.get("type") == "Var"
+                and src_ir.get("name") in getattr(self, "_seq_locals", set())):
+            return None
+        key = _d.get("key", {})
+        val = _d.get("value", {})
+        # KEY must be the identity (loop target) — the soundness pin above.
+        if not (isinstance(key, dict) and key.get("type") == "Var"
+                and key.get("name") == target):
+            return None
+        free: Set[str] = set()
+        getters: Set[str] = set()
+        if not self._comp_elt_pure_int(val, free, getters):
+            return None
+        if free - {target}:
+            return None
+        srcw = self._expr_to_whyml(src_ir, local_refs or set(), invariant_ctx, subst)
+        srca = self._array_coerce_arg(srcw)
+        n = getattr(self, "_comp_content_counter", 0)
+        self._comp_content_counter = n + 1
+        op = f"dict_content_comp_{n}"
+        binder = "_ci"
+        celt = "_celt"
+        valw = self._lift_comp_elt(val, target, celt, local_refs, subst)
+        self._add_abstract_op(
+            f"val {op} (src: array int) : map int (option int)\n"
+            f"    ensures {{ forall {binder} : int. 0 <= {binder} < Array.length src ->\n"
+            f"                Map.get result (src[{binder}]) "
+            f"= Some (let {celt} = src[{binder}] in {valw}) }}")
+        return f"({op} {srca})"
+
+    def _set_content_comp(self, node: "ExprIR", local_refs: Set[str],
+                          invariant_ctx: bool,
+                          subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """cleared-array item 3. Content-faithful SET comprehension
+        `{f(x) for x in a}` → a `map int (option int)` (present = `Some 0`, the set
+        model) with the membership law `Map.get result (<f[x:=src[i]]>) = Some 0`
+        — every produced element is present. Sound under-approximation of the set
+        (says nothing about ABSENT elements). Guards: ONE generator, plain-name
+        target, NO filter, `array int` source, element lifts to a pure-int term
+        over the target only."""
+        _d = node.to_dict()
+        gens = _d.get("generators", []) or []
+        if len(gens) != 1:
+            return None
+        g = gens[0]
+        target = g.get("target")
+        if not isinstance(target, str) or g.get("ifs"):
+            return None
+        src_ir = g.get("iter", {})
+        if (isinstance(src_ir, dict) and src_ir.get("type") == "Var"
+                and src_ir.get("name") in getattr(self, "_seq_locals", set())):
+            return None
+        elt = _d.get("elt", {})
+        free: Set[str] = set()
+        getters: Set[str] = set()
+        if not self._comp_elt_pure_int(elt, free, getters):
+            return None
+        if free - {target}:
+            return None
+        srcw = self._expr_to_whyml(src_ir, local_refs or set(), invariant_ctx, subst)
+        srca = self._array_coerce_arg(srcw)
+        n = getattr(self, "_comp_content_counter", 0)
+        self._comp_content_counter = n + 1
+        op = f"set_content_comp_{n}"
+        binder = "_ci"
+        celt = "_celt"
+        eltw = self._lift_comp_elt(elt, target, celt, local_refs, subst)
+        self._add_abstract_op(
+            f"val {op} (src: array int) : map int (option int)\n"
+            f"    ensures {{ forall {binder} : int. 0 <= {binder} < Array.length src ->\n"
+            f"                Map.get result (let {celt} = src[{binder}] in {eltw}) "
+            f"= Some 0 }}")
         return f"({op} {srca})"
 
     def _handle_issorted_expr(
@@ -5311,9 +5556,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             self._add_abstract_op("val list_comp (x: int) : int")
             return "(list_comp 0)"
         if isinstance(node, SetCompExpr):
+            # cleared-array item 3: content-faithful set comprehension (membership
+            # law) for a pure-int element over an `array int` source; opaque
+            # otherwise (DOCUMENTED — never a false content claim).
+            _sc = self._set_content_comp(node, local_refs, invariant_ctx, subst)
+            if _sc is not None:
+                return _sc
             self._add_abstract_op("val set_comp (x: int) : int")
             return "(set_comp 0)"
         if isinstance(node, DictCompExpr):
+            # cleared-array item 3: content-faithful dict comprehension (per-source
+            # membership law) for an IDENTITY key + pure-int value over an `array
+            # int` source; opaque otherwise (DOCUMENTED).
+            _dc = self._dict_content_comp(node, local_refs, invariant_ctx, subst)
+            if _dc is not None:
+                return _dc
             self._add_abstract_op("val dict_comp (x: int) : int")
             return "(dict_comp 0)"
 

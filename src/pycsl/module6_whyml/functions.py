@@ -860,6 +860,16 @@ class FunctionEmissionMixin:
         # so the dependency graph and the emission agree on "is this a logic symbol";
         # the emitter alone adds the emission-time `not local_refs` term.
         can_emit_as_logic = emits_as_logic_symbol(func) and not local_refs
+        # cleared-array item 1: record that `name` is now a spec-callable logic
+        # symbol (a pure `let function`), so a call comprehension `[name(x) for x
+        # in a]` emitted LATER (in a caller's body, callee-before-caller SCC order)
+        # can lift `result[i] = name(src[i])`. Recorded BEFORE the caller is
+        # emitted; a non-logic function never enters the set → never liftable.
+        if can_emit_as_logic:
+            self._emitted_logic_funcs.add(name)
+        # The function currently being emitted — the "using function" a deferred
+        # call-comprehension `val` must be spliced in front of (item 1).
+        self._current_emitting_func = name
 
         _scc_idx, _pos_in_scc, _scc_size = scc_info.get(func["name"], (0, 0, 1))
         # A non-first member of a multi-function SCC is a mutual-recursion
