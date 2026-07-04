@@ -226,3 +226,28 @@ and `_insert_abstract_val_block` skips the abstract-op twin by name) — so the 
 files and not others, an inconsistency for zero demand (no corpus needs reversed CONTENT; 0539 needs only
 the permutation, already delivered by the cited axiom). `sorted` (S5) is the landed permutation/ordering
 win; `reversed` content is a documented future residual, not worth the axiom-block entanglement.
+
+## cleared-string S0 (SMT spike) — GO; `chars : seq int` codepoint model proves all content goals fast, no E-matching blowup
+
+**Context.** Before any pipeline work, hand-write a `.mlw` LEADING with the make-or-break CONTENT
+goals (lower idempotence at an index, concat-prefix at two indices, `(a++b)[:len a]==a` reduced to
+per-index content, slice content at two indices) under the `chars s : seq int` codepoint model, plus
+a length-only baseline of the same shape; record Valid/timeout + timing for Alt-Ergo AND Z3.
+**Result (Why3 1.8.2, AE 2.6.2, Z3 4.13.3).**
+| goal | Alt-Ergo | Z3 |
+|---|---|---|
+| g_lower_idem (per-char lower idempotence) | Valid 0.05s / 45 steps | Valid 0.01s / 10274 steps |
+| g_concat_prefix2 (prefix at 2 indices) | Valid 0.05s / 36 steps | Valid 0.01s / 10716 steps |
+| g_concat_slice ((a++b)[:len a] content) | Valid 0.06s / 132 steps | Valid 0.01s / 10821 steps |
+| g_slice2 (slice content at 2 indices) | Valid 0.04s / 41 steps | Valid 0.01s / 11109 steps |
+| g_len_concat_slice (length-only baseline) | Valid 0.21s / 2184 steps | Valid 0.01s / 5265 steps |
+**Choice.** GO on the `chars : seq int` codepoint representation for S1–S6. Fixture committed at
+`test-suite/corpus/conformance/spikes/cleared-string-content.mlw`.
+**Rationale.** Every content goal proves fast on BOTH provers with NO E-matching blowup (AE step
+counts 36–132, i.e. SMALLER than the length-only baseline's 2184) — the feared `seq int` per-char
+quantified-law blowup does not materialise, and content timing is at or below the length-only model,
+so the ~2x YAGNI threshold is cleared with large margin. The `chars` bridge + per-char `Seq.get`
+laws (`lower_chars`/`concat_prefix`/`concat_suffix`/`sub_chars`) each are definitional laws true of
+Python semantics; `to_lower_c` stays an abstract total char-classifier with only the idempotence law
+(full Unicode folding out of scope, documented). Representation `chars : seq int` reasons better than
+a Why3-string-native decomposition (string.String exposes no usable char indexing), so it is chosen.

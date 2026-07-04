@@ -1,0 +1,80 @@
+(* cleared-string.md Gate-B spike: content-faithful string transforms.
+   LEADS with the make-or-break CONTENT goals (lower/concat/slice at an index),
+   NOT the easy length law. Records Valid-vs-timeout for Alt-Ergo AND Z3.
+   Representation under test: chars s : seq int (Unicode codepoints). *)
+module StrSpikeContent
+  use int.Int
+  use seq.Seq
+  use string.String
+
+  (* --- S1: the chars bridge (val-bridge pattern mirrors str_length_op) --- *)
+  function chars (s: string) : seq int
+  axiom chars_len : forall s. Seq.length (chars s) = String.length s
+
+  (* --- S2: lower() as a per-char map (to_lower_c abstract total classifier) --- *)
+  function to_lower_c (c: int) : int
+  axiom lower_idem : forall c. to_lower_c (to_lower_c c) = to_lower_c c
+  function s_lower (s: string) : string
+  axiom lower_len   : forall s. String.length (s_lower s) = String.length s
+  axiom lower_chars : forall s i. 0 <= i < String.length s ->
+      Seq.get (chars (s_lower s)) i = to_lower_c (Seq.get (chars s) i)
+
+  (* --- S3: concat content laws (prefix + suffix) --- *)
+  function s_concat (a b: string) : string
+  axiom concat_len    : forall a b.
+      String.length (s_concat a b) = String.length a + String.length b
+  axiom concat_prefix : forall a b i. 0 <= i < String.length a ->
+      Seq.get (chars (s_concat a b)) i = Seq.get (chars a) i
+  axiom concat_suffix : forall a b i. 0 <= i < String.length b ->
+      Seq.get (chars (s_concat a b)) (String.length a + i) = Seq.get (chars b) i
+
+  (* --- S4: slice content law --- *)
+  function s_sub (s: string) (lo len: int) : string
+  axiom sub_len   : forall s lo len. 0 <= lo -> 0 <= len -> lo + len <= String.length s ->
+      String.length (s_sub s lo len) = len
+  axiom sub_chars : forall s lo len k. 0 <= lo -> 0 <= len -> lo + len <= String.length s ->
+      0 <= k < len -> Seq.get (chars (s_sub s lo len)) k = Seq.get (chars s) (lo + k)
+
+  (* ===== make-or-break CONTENT goals ===== *)
+
+  (* G_lower_idem: lowering is idempotent at every index (E-matching probe on lower_chars). *)
+  goal g_lower_idem : forall s i. 0 <= i < String.length s ->
+      Seq.get (chars (s_lower (s_lower s))) i = Seq.get (chars (s_lower s)) i
+
+  (* G_concat_prefix: (a++b) agrees with a on a's prefix, at TWO independent indices. *)
+  goal g_concat_prefix2 : forall a b i j.
+      0 <= i < String.length a -> 0 <= j < String.length a ->
+      Seq.get (chars (s_concat a b)) i = Seq.get (chars a) i /\
+      Seq.get (chars (s_concat a b)) j = Seq.get (chars a) j
+
+  (* G_concat_slice_roundtrip: (a++b)[:len a] == a  (the headline driver claim),
+     reduced to per-index content: for i < |a|, ((a++b)[0:|a|])[i] = a[i]. *)
+  goal g_concat_slice : forall a b i. 0 <= i < String.length a ->
+      Seq.get (chars (s_sub (s_concat a b) 0 (String.length a))) i = Seq.get (chars a) i
+
+  (* G_slice_content: s[lo:lo+len][k] = s[lo+k], at two independent indices. *)
+  goal g_slice2 : forall s lo len k1 k2.
+      0 <= lo -> 0 <= len -> lo + len <= String.length s ->
+      0 <= k1 < len -> 0 <= k2 < len ->
+      Seq.get (chars (s_sub s lo len)) k1 = Seq.get (chars s) (lo + k1) /\
+      Seq.get (chars (s_sub s lo len)) k2 = Seq.get (chars s) (lo + k2)
+end
+
+(* Length-only baseline (today's model) on the SAME goals' length facet,
+   to compare timing / establish the ~2x YAGNI threshold. *)
+module StrSpikeLengthOnly
+  use int.Int
+  use string.String
+
+  function s_lower (s: string) : string
+  axiom lower_len : forall s. String.length s >= 1 -> String.length (s_lower s) >= 1
+  function s_concat (a b: string) : string
+  axiom concat_len : forall a b.
+      String.length (s_concat a b) = String.length a + String.length b
+  function s_sub (s: string) (lo len: int) : string
+  axiom sub_len : forall s lo len. 0 <= lo -> 0 <= len -> lo + len <= String.length s ->
+      String.length (s_sub s lo len) = len
+
+  goal g_len_concat_slice : forall a b.
+      String.length (s_sub (s_concat a b) 0 (String.length a)) = String.length a
+end
