@@ -1,0 +1,10 @@
+module PackUnguarded
+  use int.Int
+  use int.EuclideanDivision
+  function be16_hi (x: int) : int = mod (div x 256) 256
+  function be16_lo (x: int) : int = mod x 256
+  function unpack_be16 (hi lo: int) : int = hi * 256 + lo
+  (* WITHOUT the guard this is FALSE (fails at x >= 65536). A prover must NOT prove it. *)
+  goal rt_unguarded : forall x : int.
+    unpack_be16 (be16_hi x) (be16_lo x) = x
+end

@@ -1,0 +1,45 @@
+(* cleared-pack S0 — SMT-feasibility spike.
+   Make-or-break goal FIRST: the guarded round-trip over the abstract
+   pack/unpack pair reasons cleanly (Alt-Ergo/Z3), AND the guard is
+   load-bearing (a concrete byte model shows dropping it => counterexample). *)
+
+(* ---- Part A: the ABSTRACT-symbol model (what Module6 emits) ---- *)
+module PackAbstract
+  use int.Int
+  use array.Array
+
+  (* single uint16 slot, big-endian '>H' : size law = 2 bytes *)
+  val function struct_pack_fu16 (fmt: int) (x0: int) : array int
+    requires { 0 <= x0 < 65536 }            (* S2 in-range guard (real struct.pack raises otherwise) *)
+    ensures  { Array.length result = 2 }    (* S1 size law *)
+  val function struct_unpack_fu16 (fmt: int) (data: array int) : int
+
+  (* S3 guarded round-trip law (the cited axiom, byte-honest under the guard) *)
+  axiom rt_fu16 : forall fmt x0 : int.
+    0 <= x0 < 65536 -> struct_unpack_fu16 fmt (struct_pack_fu16 fmt x0) = x0
+
+  (* MAKE-OR-BREAK goal, led with: guarded round-trip discharges. *)
+  goal rt_a : forall fmt x0 : int.
+    0 <= x0 < 65536 ->
+    struct_unpack_fu16 fmt (struct_pack_fu16 fmt x0) = x0
+end
+
+(* ---- Part B: the CONCRETE byte model — proves the guard is load-bearing ---- *)
+module PackConcrete
+  use int.Int
+  use int.EuclideanDivision
+
+  (* big-endian uint16 with real struct truncation (mod 256 on the high byte) *)
+  function be16_hi (x: int) : int = mod (div x 256) 256
+  function be16_lo (x: int) : int = mod x 256
+  function unpack_be16 (hi lo: int) : int = hi * 256 + lo
+
+  (* GUARDED: round-trip holds *)
+  goal rt_guarded : forall x : int.
+    0 <= x < 65536 ->
+    unpack_be16 (be16_hi x) (be16_lo x) = x
+
+  (* GUARD-NECESSITY: at x = 65536 (just out of range) the round-trip BREAKS.
+     unpack(pack 65536) = 0, NOT 65536 — so the guard is load-bearing, not a lie. *)
+  goal guard_necessity_breaks : unpack_be16 (be16_hi 65536) (be16_lo 65536) = 0
+end
