@@ -97,6 +97,47 @@ for native keys); `str_hash_op` val-decl files 5→4. Also fixed an S3 latent bu
 κ=string map ran `_coerce_to_int` on a string LITERAL key → `stable_hash` int against a `map string`
 map (type error); now passes the raw string.
 
+## cleared-hash S5 (sets) — migrate string SET LOCALS; keep the write/read consistent
+
+**Context.** A runtime set shares the dict `map` model; the element IS the key. S1's membership
+inference (`x in s`) tags a set local κ=string, and the S3 membership fix reads the raw string — but
+the set `.add`/`.discard` write (statements.py) still hashed the element (`str_hash_op`/`stable_hash`),
+so a string set local became INCONSISTENT (write int key, read string key → type error).
+**Options.** (1) Complete S5: thread κ=string through the set-add/discard write (raw string element +
+polymorphic `map_update_some`/`_none`) AND extend S1 to tag a set from `.add`/`.discard`/`.remove` with
+a string element, so write and read always agree. (2) Restrict S1 to NOT tag sets (keep sets fully
+hashed & consistent) — leaves sets a residual.
+**Choice.** (1). Driver 0759 (string set, distinct-element absence).
+**Rationale.** Consistency is mandatory (an inconsistent write/read is a type error, not merely coarse),
+so the honest options are "both native" or "both hashed"; native is strictly more faithful and matches
+the delivered dict-local path. Empirically inert on the existing corpus (emission differential vs the
+S0-S3 commit = ONLY the new drivers 0755-0759; no existing set program was string-keyed-via-inference),
+so zero regression risk: full sweep 712/715 (== 710 + 5 new drivers; same 3 known pre-existing
+failures). A set tagged κ=string only via string evidence; an int/opaque set is never tagged.
+
+## cleared-hash S4 (record-field dicts/sets) — DOCUMENTED RESIDUAL boundary (not a false axiom)
+
+**Context.** A record-*field* dict/set (`self.TAGS: Dict[str,str]`, `self._nested: Dict[str,List[str]]`)
+still lowers to `map int (option ν)` + the opaque `str_hash_op` (corpus 0750, 0746; and the
+self-annotate mirror's many string-keyed fields — `_current_symbol_table`, etc.). Its κ IS knowable
+from the annotation, so this is κ-known-but-field, not truly κ-unknown.
+**Options.** (1) Thread field κ (`field_key_types`, a `_self_field_dict_kappa` helper, `map string`
+field-type emission in preamble.py, and a consistent raw-key update at ALL ~5 field-dict op sites:
+store, `.get`, subscript read, membership, set-add). (2) Keep fields on the hash as a documented
+residual (plan §5/§6.4 explicitly permit it).
+**Choice.** (2), for THIS pass. Recorded, never claimed collision-sound; NO false injectivity axiom
+added to `str_hash_op` (`proof_axiom_allowlist` unchanged).
+**Rationale.** Risk/reward is inverted for fields: the change must flip the field map type for EVERY
+string-keyed field of the already-fragile self-annotate mirror (which has a PRE-EXISTING string/int
+type error in statements.py, confirmed identical at HEAD~1 — not mine) and update all field-dict op
+sites in lockstep; any missed site is a type-error regression on the heavy mirror/os proof base. The
+corpus benefit is 2 tests (0750, 0746) whose own docstrings state they need only result TYPES, not tag
+values (a deliberately coarse abstract-field model). The SMT spike already proved `map string` scales
+(so this is NOT a provability limit — it is a bounded-blast-radius / YAGNI risk call, exactly the
+residual the plan blesses). The core soundness win — removing the collision-unsoundness smell for the
+common inferable Var-receiver dict/set — is fully delivered by S1-S3/S5. Fields remain the honest,
+documented opacity boundary; a future pass can thread field κ behind its own sweep + mirror re-verify.
+
 ## cleared-pack S5 (os corpus re-key) — keep os on legacy family; documented boundary
 
 **Context.** S5 asks to re-verify the os inode blit/read-back corpus against the faithful round-trip.

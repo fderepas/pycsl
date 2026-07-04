@@ -3229,12 +3229,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 _rhs = child.comparators[0]
                 if isinstance(_rhs, ast.Name) and _is_str_key(child.left):
                     _tag_str_keyed(_rhs.id)
-            # d.get(k[, default])
+            # d.get(k[, default])  /  s.add(k) / s.discard(k) / s.remove(k)
             elif (isinstance(child, ast.Call)
                     and isinstance(child.func, ast.Attribute)
-                    and child.func.attr == "get"
+                    and child.func.attr in ("get", "add", "discard", "remove")
                     and isinstance(child.func.value, ast.Name)
                     and child.args and _is_str_key(child.args[0])):
+                # `.add`/`.discard`/`.remove` with a string element pins a SET local's
+                # κ = string (a set shares the dict `map` model; its element is the key),
+                # so the set-add write and membership read agree on native string keys.
                 _tag_str_keyed(child.func.value.id)
 
         # Ghost variables — register all declarations. Only op == "=" declarations

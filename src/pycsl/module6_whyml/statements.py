@@ -1041,7 +1041,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     arg_ir = (val.get("args") or [{}])[0]
                     _ms_add = (getattr(self, "_current_self_type", None)
                                in getattr(self, "_mutable_state_classes", set()))
-                    if (_msf or _ms_add) and self._is_string_expr(arg_ir):
+                    # cleared-hash.md S5: a κ = string set LOCAL (`_dict_key_types[obj]
+                    # == "string"`, inferred from string-key membership/`.add`) is
+                    # `map string (option int)` with the NATIVE string element — the
+                    # write passes the RAW string, matching the membership read
+                    # (`x in s`, which now reads the raw key too). No `str_hash_op`.
+                    _set_kappa = getattr(self, "_dict_key_types", {}).get(obj_name)
+                    if _set_kappa == "string":
+                        arg = self._expr_to_whyml(arg_ir, local_refs)
+                    elif (_msf or _ms_add) and self._is_string_expr(arg_ir):
                         # M.7: a `Set[str]` key is hashed into the int-keyed map
                         # (`str_hash_op` for a non-literal) so `map_update_some`'s
                         # `k: int` typechecks — the frame's `writes` is what matters
@@ -1064,7 +1072,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         # string-VALUED dict field (`_abstract_ops: Dict[str,str]`) — the
                         # name-dedup means one decl serves every map write in the module.
                         # Corpus modules keep the fixed `map int (option int)` → byte-identical.
-                        _poly = getattr(self, "_mutable_state_classes", None)
+                        # cleared-hash.md S5: a κ = string set local also needs the
+                        # POLYMORPHIC decl so `map_update_some !s "a" 0` unifies at
+                        # `map string (option int)` (the raw string element).
+                        _poly = (getattr(self, "_mutable_state_classes", None)
+                                 or _set_kappa == "string")
                         self._add_abstract_op(
                             ("val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) "
                              ": map 'k (option 'v)\n" if _poly else
@@ -1074,10 +1086,16 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         code = f"{indent}{_lhs} map_update_some {_cur} {arg} 0"
                     else:
                         # set.discard(x) / set.remove(x) / del d[k] — clear the key.
+                        # cleared-hash.md S5: POLYMORPHIC decl for a κ = string set so the
+                        # native string element typechecks (`map string (option int)`).
+                        _poly_none = (getattr(self, "_mutable_state_classes", None)
+                                      or _set_kappa == "string")
                         self._add_abstract_op(
-                            "val map_update_none (m: map int (option int)) (k: int) "
-                            ": map int (option int)\n"
-                            "    ensures { result = Map.set m k None }")
+                            ("val map_update_none (m: map 'k (option 'v)) (k: 'k) "
+                             ": map 'k (option 'v)\n" if _poly_none else
+                             "val map_update_none (m: map int (option int)) (k: int) "
+                             ": map int (option int)\n")
+                            + "    ensures { result = Map.set m k None }")
                         code = f"{indent}{_lhs} map_update_none {_cur} {arg}"
                 elif (getattr(self, "_current_symbol_table", {}).get(obj_name)
                       in ("set", "dict", "frozenset")
