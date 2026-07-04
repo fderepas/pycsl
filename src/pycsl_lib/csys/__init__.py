@@ -6,8 +6,10 @@
 # All coordinates modelled as integers scaled 0..1000 representing [0.0, 1.0].
 # Each function matches the RST API signature and returns a tuple.
 #
+# ALL functions body-proven — ZERO \trusted (non-lin-int-div-fixed.md S5 complete).
 # Body-proven: rgb_to_yiq, yiq_to_rgb, _rgb_max, _rgb_min, _hsv_saturation,
-#              _hls_saturation, _hsv_p, _hue_offset, rgb_to_hsv, rgb_to_hls
+#              _hls_saturation, _hsv_p, _hue_offset, _hls_m2, _hls_channel,
+#              _hsv_channel, rgb_to_hsv, rgb_to_hls, hls_to_rgb, hsv_to_rgb
 # rgb_to_hsv + rgb_to_hls de-trusted (non-lin-int-div-fixed.md S5): the nonlinear integer-
 # division bounds SMT times out on are discharged in the leaf helpers via the
 # `sat_bound` / `hue_bound` axioms, cross-validated by __init__.proofs/rocq/
@@ -16,9 +18,10 @@
 # rgb_to_hls also exposed + fixed a latent contract bug: its gray-case ensures
 # named result[1] (lightness) == 0, but HLS gray is (0, l, 0) so it is result[0]
 # (hue) and result[2] (saturation) that are 0 — l is the gray value.
-# Trusted bodies (SMT timeout on deep branch + division — de-trust via the same
-# leaf-helper + cited-axiom pattern is future work):
-#              hls_to_rgb, hsv_to_rgb
+# rgb_to_hsv/rgb_to_hls nonlinear-div bounds are discharged by the sat_bound/hue_bound
+# axioms (Rocq+Lean cross-validated); hls_to_rgb/hsv_to_rgb clamp every output channel
+# to [0,1000], so their range VC is trivial once the nonlinear sector arithmetic is
+# isolated behind the opaque `ensures True` leaf helpers (_hls_m2/_hls_channel/_hsv_channel).
 
 
 #@ requires 0 <= r and r <= 1000
@@ -141,7 +144,46 @@ def _hsv_p(v: int, s: int) -> int:
     return (v * (1000 - s)) // 1000
 
 
-# --- Public API: HLS/HSV conversions (trusted bodies, sector branching) ---
+# Opaque sector-arithmetic leaf helpers (non-lin-int-div-fixed.md S5): the HLS/HSV
+# conversions clamp every output channel to [0, 1000], so the caller's range VC does
+# NOT depend on these nonlinear-division values. Extracting them behind `ensures True`
+# keeps the nonlinear terms OUT of the caller's context (the deep-branch VC is otherwise
+# SMT-timeout). The bodies are honestly verified (pure, total, no div-by-zero); the
+# caller proves its range from the clamps, independent of the returned value — sound.
+
+#@ requires 0 <= l and l <= 1000
+#@ requires 0 <= s and s <= 1000
+#@ ensures True
+#@ assigns \nothing
+def _hls_m2(l: int, s: int) -> int:
+    """HLS m2 intermediate (opaque; the caller clamps the derived channels)."""
+    if l <= 500:
+        return (l * (1000 + s)) // 1000
+    return l + s - (l * s) // 1000
+
+
+#@ ensures True
+#@ assigns \nothing
+def _hls_channel(m1: int, m2: int, hc: int) -> int:
+    """HLS sector interpolation for one output channel (opaque; caller clamps)."""
+    if hc < 167:
+        return m1 + (m2 - m1) * 6 * hc // 1000
+    if hc < 500:
+        return m2
+    if hc < 667:
+        return m1 + (m2 - m1) * 6 * (667 - hc) // 1000
+    return m1
+
+
+#@ requires 0 <= v and v <= 1000
+#@ ensures True
+#@ assigns \nothing
+def _hsv_channel(v: int, s: int, f: int) -> int:
+    """HSV sector value v*(1 - s*f) (opaque; caller clamps)."""
+    return (v * (1000 - (s * f) // 1000)) // 1000
+
+
+# --- Public API: HLS/HSV conversions ---
 
 #@ requires 0 <= r and r <= 1000
 #@ requires 0 <= g and g <= 1000
@@ -178,7 +220,6 @@ def rgb_to_hls(r: int, g: int, b: int) -> tuple:
     return (h, l, s)
 
 
-#@ \trusted reviewer: SMT-timeout-deep-branch
 #@ requires 0 <= h and h <= 1000
 #@ requires 0 <= l and l <= 1000
 #@ requires 0 <= s and s <= 1000
@@ -188,13 +229,13 @@ def rgb_to_hls(r: int, g: int, b: int) -> tuple:
 #@ ensures s == 0 ==> \result[0] == l and \result[1] == l and \result[2] == l
 #@ assigns \nothing
 def hls_to_rgb(h: int, l: int, s: int) -> tuple:
-    """RST: 'Convert the color from HLS coordinates to RGB coordinates.'"""
+    """RST: 'Convert the color from HLS coordinates to RGB coordinates.'
+    De-trusted (non-lin-int-div-fixed.md S5): the final clamps bound rv/gv/bv to
+    [0, 1000] regardless of the nonlinear sector arithmetic, so the range VC is
+    trivial; the guiding assert closes it without the deep-branch case explosion."""
     if s == 0:
         return (l, l, l)
-    if l <= 500:
-        m2 = (l * (1000 + s)) // 1000
-    else:
-        m2 = l + s - (l * s) // 1000
+    m2 = _hls_m2(l, s)
     m1 = 2 * l - m2
     hr = h + 333
     if hr > 1000:
@@ -203,30 +244,9 @@ def hls_to_rgb(h: int, l: int, s: int) -> tuple:
     hb = h - 333
     if hb < 0:
         hb = hb + 1000
-    if hr < 167:
-        rv = m1 + (m2 - m1) * 6 * hr // 1000
-    elif hr < 500:
-        rv = m2
-    elif hr < 667:
-        rv = m1 + (m2 - m1) * 6 * (667 - hr) // 1000
-    else:
-        rv = m1
-    if hg < 167:
-        gv = m1 + (m2 - m1) * 6 * hg // 1000
-    elif hg < 500:
-        gv = m2
-    elif hg < 667:
-        gv = m1 + (m2 - m1) * 6 * (667 - hg) // 1000
-    else:
-        gv = m1
-    if hb < 167:
-        bv = m1 + (m2 - m1) * 6 * hb // 1000
-    elif hb < 500:
-        bv = m2
-    elif hb < 667:
-        bv = m1 + (m2 - m1) * 6 * (667 - hb) // 1000
-    else:
-        bv = m1
+    rv = _hls_channel(m1, m2, hr)
+    gv = _hls_channel(m1, m2, hg)
+    bv = _hls_channel(m1, m2, hb)
     if rv < 0:
         rv = 0
     if rv > 1000:
@@ -239,6 +259,9 @@ def hls_to_rgb(h: int, l: int, s: int) -> tuple:
         bv = 0
     if bv > 1000:
         bv = 1000
+    #@ assert 0 <= rv and rv <= 1000
+    #@ assert 0 <= gv and gv <= 1000
+    #@ assert 0 <= bv and bv <= 1000
     return (rv, gv, bv)
 
 
@@ -285,7 +308,6 @@ def rgb_to_hsv(r: int, g: int, b: int) -> tuple:
     return (h, s, v)
 
 
-#@ \trusted reviewer: SMT-timeout-deep-branch
 #@ requires 0 <= h and h <= 1000
 #@ requires 0 <= s and s <= 1000
 #@ requires 0 <= v and v <= 1000
@@ -295,14 +317,17 @@ def rgb_to_hsv(r: int, g: int, b: int) -> tuple:
 #@ ensures s == 0 ==> \result[0] == v and \result[1] == v and \result[2] == v
 #@ assigns \nothing
 def hsv_to_rgb(h: int, s: int, v: int) -> tuple:
-    """RST: 'Convert the color from HSV coordinates to RGB coordinates.'"""
+    """RST: 'Convert the color from HSV coordinates to RGB coordinates.'
+    De-trusted (non-lin-int-div-fixed.md S5): the final clamps bound rv/gv/bv to
+    [0, 1000] regardless of the nonlinear sector arithmetic (p/q/t), so the range VC
+    is trivial; the guiding assert closes it without the 6-way sector explosion."""
     if s == 0:
         return (v, v, v)
     sector = (h * 6) // 1000
     f = (h * 6) - sector * 1000
     p = _hsv_p(v, s)
-    q = (v * (1000 - (s * f) // 1000)) // 1000
-    t = (v * (1000 - (s * (1000 - f)) // 1000)) // 1000
+    q = _hsv_channel(v, s, f)
+    t = _hsv_channel(v, s, 1000 - f)
     if sector == 0:
         rv = v
         gv = t
@@ -339,4 +364,7 @@ def hsv_to_rgb(h: int, s: int, v: int) -> tuple:
         bv = 0
     if bv > 1000:
         bv = 1000
+    #@ assert 0 <= rv and rv <= 1000
+    #@ assert 0 <= gv and gv <= 1000
+    #@ assert 0 <= bv and bv <= 1000
     return (rv, gv, bv)

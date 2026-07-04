@@ -2067,9 +2067,20 @@ proof obligation (the function must be shown to diverge or raise), not an
 unsoundness. The NR4 vacuity-gate exemption is a gate-precision concern, not a
 soundness gap.
 
+**Non-vacuity gate ON BY DEFAULT (fail-closed; non-lin-int-div-fixed.md).** After
+a file verifies, each body-bearing function is re-probed with an injected
+`ensures false` (`split_vc`, per normal-exit path); a function VACUOUS on ALL
+exits FAILs the run — closing the silent false-green from an inconsistent
+context (e.g. the SMT nonlinear-integer-division vacuity). `-> NoReturn` and
+`#@ \diverges` are EXEMPT (their sound green is expected-vacuous on the
+unreachable normal exit). Opt out with `--no-check-vacuity`; `--no-proof` also
+skips it. See `docs/pycsl-static-semantics-reference.md` §NR4.
+
 **Tests**: 0738 (NR1/NR2a witness — `-> NoReturn` raises), 0739 (NR2a negative
 — `-> NoReturn` with `return` rejected), 0740 (NR3 negative — dead successor
-rejected), 0741 (NR4 — NoReturn passes `--check-vacuity`).
+rejected), 0741 (NR4 — NoReturn passes `--check-vacuity`), 0752 (non-vacuity
+gate self-test — an inconsistent-context function FAILs under the default gate,
+PASSes with `--no-check-vacuity`).
 
 ### §12.12 `TypedDict` annotations (typing-engagement ty2)
 

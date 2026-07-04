@@ -137,8 +137,15 @@ lightness `l=(mx+mn)//2` being constant-divisor (SMT-direct) and `s` from `_hls_
 it also EXPOSED + FIXED a latent contract bug hidden by trusting: the gray-case ensures named
 `result[1]==0` (lightness), but HLS gray is `(0, l, 0)` — it is `result[0]` (hue) and `result[2]`
 (saturation) that are 0; `l` is the gray value (Python `colorsys.rgb_to_hls(k,k,k)==(0,k,0)`).
-REMAINS (future work): the same pattern applies to the 2 remaining trusted functions
-(`hls_to_rgb`, `hsv_to_rgb`).
+
+✅ **`hls_to_rgb` + `hsv_to_rgb` DE-TRUSTED → csys `\trusted` count is now ZERO (fully de-trusted).**
+These need NO new axiom: every output channel is CLAMPED to `[0,1000]` before return, so the range VC is
+trivial once the nonlinear sector arithmetic (`m2`, the interpolations, `q`/`t`) is isolated behind
+OPAQUE `ensures True` leaf helpers (`_hls_m2`, `_hls_channel`, `_hsv_channel`) — the honest boundary
+that keeps the nonlinear terms out of the deep-branch caller VC (bodies verified pure/total; the caller
+proves its range from the clamps, independent of the returned value). Full-file proof SUCCESS (all 15
+contracts); `pycsl --audit-proof` 4/4; each function passes the default gate; genuinely non-vacuous.
+**Whole csys library: 0 `\trusted`, 2 cross-validated cited axioms (Rocq+Lean), all contracts proven.**
 
 ---
 
