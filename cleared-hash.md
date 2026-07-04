@@ -195,8 +195,12 @@ fallback — hash tables no longer opaque.
 
 ## 9. Outcome (executed on branch `ghost-assign-bc6`)
 
-**Verdict: LANDED for the inferable common case (Var-receiver dict/set locals);
-record-field dicts/sets kept as the documented κ-known-but-field residual.**
+**Verdict: LANDED for BOTH the inferable common case (Var-receiver dict/set locals)
+AND record-field dicts/sets.** The prior run left record fields as a documented
+κ-known-but-field residual; a follow-up run (branch `ghost-assign-bc6`) THREADED field κ
+end-to-end, so a `Dict[str, ν]`/`Set[str]`/`FrozenSet[str]` FIELD now emits `map string
+(option ν)` with the native key and `str_hash_op` is retired for it (see the updated S4
+below and the `## cleared-hash S4 (record fields, follow-up)` entry in `choices.md`).
 
 - **S0 spike — GO.** `map string` proves `distinct_no_alias` on both Alt-Ergo (0.03s) and Z3
   (0.01s); the int+opaque-hash encoding times out on both. Fixtures:
@@ -212,22 +216,40 @@ record-field dicts/sets kept as the documented κ-known-but-field residual.**
   (`_coerce_to_int` hashed a string LITERAL key against a `map string` map).
 - **S5 (sets) — DONE.** String set locals: `.add`/`.discard` write the raw native element with a
   polymorphic `map_update_some`/`map_update_none`, matching the raw-key membership read.
-- **S4 (record fields) — DOCUMENTED RESIDUAL** (choices.md): field κ is knowable but threading it
-  would flip the field map type for every string-keyed field of the fragile self-annotate mirror and
-  touch ~5 op sites in lockstep, for a 2-test corpus benefit; the plan (§5/§6.4) blesses the residual.
-  NO false injectivity axiom; `proof_axiom_allowlist` unchanged.
+- **S4 (record fields) — DONE (follow-up run).** Field κ is now threaded end-to-end:
+  Module5 collects a `key_type` on a `Dict[str, ν]`/`Set[str]`/`FrozenSet[str]` FIELD
+  (`_m5_get_field_key_type`); preamble.py carries `field_key_types` on the record type and
+  emits the field as `map string (option ν)` when κ = string; a new `_self_field_dict_kappa`
+  helper (the κ counterpart of `_self_field_dict_nu`) routes the RAW native string key at ALL
+  field op sites in lockstep — store `self.d[k]=v`, subscript-read `self.d[k]` (direct + alias),
+  `.get`, membership `k in self.d` (direct + getattr-defensive), set `.add`/`.discard`. The
+  store also picks up the field's declared ν. `str_hash_op` is retired for these fields
+  (0746/0750 emissions confirm: `map int`+`str_hash_op` → `map string`, raw key). NO false
+  injectivity axiom; `proof_axiom_allowlist` unchanged. Residual (still honest): a dict/set
+  FIELD whose κ is NOT inferable (an un-annotated field initialized from `{}`, a non-`str` key)
+  keeps the `map int` + `str_hash_op` fallback.
 - **S6 (mirror) — re-verified.** Mirror-sync green after propagating the S5 body; no new mirror
   failure, no new `\trusted` (the pre-existing statements.py "string vs int" proof failure is
   independent — identical at HEAD~2).
 
-**Gates.** Corpus 712/715 (== 710 + 5 new drivers; the 3 known pre-existing failures
-0540/0700/0701, ZERO regressions). Emission differential = EXACTLY the string-keyed programs (S1:
-only `0751`; S5: only the new drivers — inert on the existing corpus). `str_hash_op` val-decl files
-5→4 (residual: `0485` genuine `hash(s)`, `0425` decode-string equality, `0750`/`0746` record fields —
-all documented boundaries). 5-surface docs + annotations.md + traceability updated; doc-coherency
-green. NO new axiom.
+**Gates (S1-S3/S5 locals, prior run).** Corpus 712/715 (== 710 + 5 new drivers; the 3 known
+pre-existing failures 0540/0700/0701, ZERO regressions). Emission differential = EXACTLY the
+string-keyed programs (S1: only `0751`; S5: only the new drivers — inert on the existing corpus).
 
-**Reference drivers.** `0755` distinct-key non-aliasing (un-annotated local), `0756` absent key,
-`0757` literal↔variable key consistency, `0758` NEGATIVE (`# pycsl-expected: FAIL`, false
-`d["a"]==d["b"]`), `0759` string set. All newly provable (or, for `0758`, correctly unprovable) under
-`map string`, and unprovable under the retired opaque hash.
+**Gates (S4 record fields, FOLLOW-UP run on `ghost-assign-bc6`).** Emission differential over the
+full pycsl-reference corpus = EXACTLY {`0746`, `0750`} (the two pre-existing record-field dict tests,
+both still PROVE, now emit `map string` + raw native key) plus the 5 new field drivers `0772`–`0776`
+— zero leak onto any other program (an int-keyed or un-annotated field is never flipped).
+`str_hash_op` val-decl now RETIRED for `0746`/`0750` (was in the S1-S5 residual list); the remaining
+`str_hash_op` users are the genuinely-opaque non-dict-key cases (`0485` `hash(s)`, `0425`
+decode-string equality) + any un-annotated / non-`str`-key dict/set (the honest κ-unknown residual).
+Self-annotate mirror: mirror-sync EXIT 0 after propagating the two verbatim statements.py edits;
+`\trusted` unchanged (statements.py 43=43; mirror total 1262). 5-surface docs + annotations.md +
+traceability (row 12.5.9) updated; doc-coherency green. NO new axiom; `proof_axiom_allowlist` unchanged.
+
+**Reference drivers.** LOCALS: `0755` distinct-key non-aliasing (un-annotated local), `0756` absent
+key, `0757` literal↔variable key consistency, `0758` NEGATIVE (`# pycsl-expected: FAIL`, false
+`d["a"]==d["b"]`), `0759` string set. RECORD FIELDS (S4 follow-up): `0772` distinct-key non-aliasing
+on `self.d`, `0773` absent-key, `0774` literal↔variable consistency, `0775` `set[str]` field, `0776`
+NEGATIVE (false `self.d["a"]==self.d["b"]`). All newly provable (or, for the NEGATIVE drivers,
+correctly unprovable) under `map string`, and impossible under the retired opaque hash.

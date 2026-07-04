@@ -547,6 +547,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _left_ir = expr.get("left", {})
             _str_keyed_lit = getattr(self, "_dict_key_types", {}).get(
                 rhs.get("name", "") if rhs.get("type") == "Var" else "") == "string"
+            # cleared-hash S4: a κ=string record dict/set FIELD map (`k in self.<field>`,
+            # incl. the `x in getattr(self, "<field>", set())` defensive form) is
+            # `map string (option ν)` — read the RAW native string key, matching the
+            # field store/`.get`/subscript. Covers the direct Attribute/FieldGet receiver
+            # and the getattr-rewritten `_gf` field.
+            if not _str_keyed_lit:
+                _mf = None
+                if rhs.get("type") in ("Attribute", "FieldGet"):
+                    _mo = rhs.get("object"); _ma = rhs.get("attr") or rhs.get("field")
+                    if isinstance(_mo, dict) and _mo.get("type") == "Var" and _ma:
+                        _mf = f"{_mo.get('name')}.{_ma}"
+                    elif isinstance(_mo, str) and _ma:
+                        _mf = f"{_mo}.{_ma}"
+                elif rhs.get("type") == "Call":
+                    _mgf = self._getattr_self_field(rhs)
+                    if _mgf:
+                        _mf = f"self.{_mgf}"
+                if _mf is not None and self._self_field_dict_kappa(_mf) == "string":
+                    _str_keyed_lit = True
             if _str_keyed_lit:
                 # cleared-hash.md S3: the receiver map is `map string (option ν)`
                 # (κ = string), so membership reads the RAW string key — native
@@ -923,6 +942,31 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if ft not in ("dict", "set", "frozenset"):
             return None
         return rt.get("field_value_types", {}).get(field, "int")
+
+    def _self_field_dict_kappa(self, recv: str):
+        """cleared-hash S4: the KEY type κ of a record dict/set FIELD named by `recv`
+        (a `self.<field>`/`<recordvar>.<field>`): "string" for a `dict[str, ν]` /
+        `set[str]` / `frozenset[str]` field (`map string (option ν)`, native injective
+        key), else "int" (`map int`, the legacy str_hash_op fallback); None when `recv`
+        is not a dict/set/frozenset record field. The κ counterpart of the ν-returning
+        `_self_field_dict_nu` — read and written raw everywhere so the field map's key
+        stays type-consistent (a mismatch is a WhyML type error)."""
+        if "." not in recv:
+            return None
+        obj, field = recv.rsplit(".", 1)
+        rt_name = (self._current_self_type if obj == "self"
+                   else getattr(self, "_current_record_var_classes", {}).get(obj))
+        if not rt_name:
+            return None
+        rts = getattr(self, "_record_types", {})
+        rt = (rts.get(rt_name) or rts.get(str(rt_name).lower())
+              or next((v for k, v in rts.items() if k.lower() == str(rt_name).lower()), None))
+        if not rt:
+            return None
+        ft = rt.get("field_types", {}).get(field)
+        if ft not in ("dict", "set", "frozenset"):
+            return None
+        return rt.get("field_key_types", {}).get(field, "int")
 
     def _lower_irnode_construction(self, expr: Dict[str, Any], local_refs: Set[str],
                                    invariant_ctx: bool,
@@ -3388,7 +3432,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 local_refs or set(), invariant_ctx, subst)
             _kir = (expr.get("args") or [{}])[0]
             _kstr = isinstance(_kir, dict) and _kir.get("type") == "String"
-            if not self._in_spec and self._is_string_expr(_kir if isinstance(_kir, dict) else {}):
+            # cleared-hash S4: a κ=string field is `map string (option ν)` — read the
+            # RAW native string key (no str_hash_op), matching the store/membership.
+            if self._self_field_dict_kappa(recv) == "string":
+                k = args[0]
+            elif not self._in_spec and self._is_string_expr(_kir if isinstance(_kir, dict) else {}):
                 self._add_abstract_op("val str_hash_op (s: string) : int")
                 k = f"(str_hash_op {args[0]})"
             else:
@@ -3774,7 +3822,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _nu = self._self_field_dict_nu(_al)
                 _recv = f"self.{self._field_label(getattr(self, '_current_self_type', None), _fld)}"
                 _kir = expr.get("index", {})
-                if not self._in_spec and self._is_string_expr(_kir):
+                # cleared-hash S4: κ=string aliased field → RAW native string key.
+                if self._self_field_dict_kappa(_al) == "string":
+                    _key = index
+                elif not self._in_spec and self._is_string_expr(_kir):
                     self._add_abstract_op("val str_hash_op (s: string) : int")
                     _key = f"(str_hash_op {index})"
                 else:
@@ -3997,7 +4048,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # `string`, so the `None` arm is a typed placeholder (`""`) —
                 # proven dead under `#@ no_exception KeyError` (faithful read),
                 # the ambient default otherwise.
-                if getattr(self, "_dict_key_types", {}).get(dvar) == "string":
+                # cleared-hash S4: a κ=string record dict/set FIELD (`self.<field>[k]`,
+                # no `dvar`) is `map string (option ν)` — read the RAW native string key
+                # (matching the field store/`.get`/membership); a mismatch is a type error.
+                _fld_kappa = None
+                if not dvar and value.get("type") in ("Attribute", "FieldGet"):
+                    _ko = value.get("object"); _kf = value.get("field") or value.get("attr")
+                    if isinstance(_ko, str):
+                        _fld_kappa = self._self_field_dict_kappa(f"{_ko}.{_kf}")
+                if (getattr(self, "_dict_key_types", {}).get(dvar) == "string"
+                        or _fld_kappa == "string"):
                     k = index
                 elif (not self._in_spec
                       and self._is_string_expr((expr.get("slice") or expr.get("index") or {}))):

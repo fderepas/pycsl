@@ -398,12 +398,16 @@ parsing stay out of reach; string→string transforms (`upper`/`lower`/`strip`/`
 (decode is an opaque `int`, the bytes↔str boundary). A `str`-keyed dict/set now keys on the
 **native, injective Why3 string** (`dict[str, ν] ~ map string (option ν)`, `String.(=)`), so distinct
 keys are provably non-aliasing (cleared-hash.md) — the key type κ = string is inferred for a
-parameter/AnnAssign local (`Dict[str, _]`), a string-key literal (`{"a": …}`), and string-key USAGE
-(`d[k]`/`k in d`/`d.get(k)` with a string literal or `str`-typed key). **Residual κ-unknown / opacity
-boundary:** a record *field* dict/set, and any dict whose key type is not inferable, keep the legacy
-`map int (option ν)` + the opaque `str_hash_op` fallback (documented, never claimed collision-sound);
-so does a bare `str→int` coercion (`hash(s)`, a `.decode()`-result string equality) — that is a
-distinct opacity, not a dict key.
+parameter/AnnAssign local (`Dict[str, _]`), a string-key literal (`{"a": …}`), string-key USAGE
+(`d[k]`/`k in d`/`d.get(k)` with a string literal or `str`-typed key), AND a **record FIELD** whose
+declared type is `Dict[str, ν]` / `Set[str]` / `FrozenSet[str]` (cleared-hash.md S4). For such a field
+the WhyML record field is `map string (option ν)` and EVERY field-dict/set op site (store `self.d[k]=v`,
+subscript-read `self.d[k]`, `.get`, membership `k in self.d`, set `.add`/`.discard`) reads and writes the
+RAW native string key in lockstep — a mismatch would be a WhyML type error. **Residual κ-unknown / opacity
+boundary:** a dict whose key type is not inferable (e.g. an un-annotated field initialized from `{}`,
+or a non-`str` key) keeps the legacy `map int (option ν)` + the opaque `str_hash_op` fallback
+(documented, never claimed collision-sound); so does a bare `str→int` coercion (`hash(s)`, a
+`.decode()`-result string equality) — that is a distinct opacity, not a dict key.
 
 The type universe is intentionally coarse: PyCSL does not perform
 full type inference. The type mapping is used only for:

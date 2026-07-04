@@ -691,6 +691,25 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     op = "map_update_some"
                     nu = self._dict_value_types.get(var_name) if var_name else None
                     kappa = self._dict_key_types.get(var_name) if var_name else None
+                    # cleared-hash S4: a record dict FIELD store (`self.<field>[k]=v`)
+                    # reads the field's declared κ/ν (`map string (option ν)` for a
+                    # `dict[str,ν]` field), so the write passes the RAW native string key
+                    # and the ν-typed value — type-consistent with the field read/membership.
+                    if self_field_name is not None:
+                        _fo = (arr.get("object")
+                               if arr.get("type") in ("Attribute", "FieldGet") else None)
+                        if isinstance(_fo, dict) and _fo.get("type") == "Var":
+                            _frecv = f"{_fo.get('name')}.{self_field_name}"
+                        elif isinstance(_fo, str):
+                            _frecv = f"{_fo}.{self_field_name}"
+                        else:
+                            _frecv = f"self.{self_field_name}"
+                        _fk = self._self_field_dict_kappa(_frecv)
+                        if _fk is not None:
+                            kappa = _fk
+                        _fn = self._self_field_dict_nu(_frecv)
+                        if _fn is not None:
+                            nu = _fn
                     if kappa == "string":
                         k = index_expr
                     elif (not self._in_spec
@@ -1047,6 +1066,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     # write passes the RAW string, matching the membership read
                     # (`x in s`, which now reads the raw key too). No `str_hash_op`.
                     _set_kappa = getattr(self, "_dict_key_types", {}).get(obj_name)
+                    # cleared-hash S4: a κ=string record SET FIELD (`self.<field>.add(x)`
+                    # on a `set[str]` field → `map string (option int)`) writes the RAW
+                    # native string element, matching the membership read `x in self.<field>`.
+                    if _set_kappa is None and self._self_field_dict_kappa(obj_name) == "string":
+                        _set_kappa = "string"
                     if _set_kappa == "string":
                         arg = self._expr_to_whyml(arg_ir, local_refs)
                     elif (_msf or _ms_add) and self._is_string_expr(arg_ir):

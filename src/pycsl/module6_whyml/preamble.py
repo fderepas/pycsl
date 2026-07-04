@@ -3017,6 +3017,11 @@ class PreambleEmissionMixin:
                     # so `self.<dict-field>.get(k)` reads back the right type.
                     "field_value_types": {f["name"]: f["value_type"]
                                           for f in td["fields"] if f.get("value_type")},
+                    # cleared-hash S4: per-field dict/set KEY type κ, so a
+                    # `dict[str,ν]`/`set[str]` field lowers to `map string (option ν)`
+                    # with the native, injective Why3 string key (retiring str_hash_op).
+                    "field_key_types": {f["name"]: f["key_type"]
+                                        for f in td["fields"] if f.get("key_type")},
                     "defaults": td.get("field_defaults", {}),
                     # base_op.md Tier A — parametrized construction C(a, b)
                     "init_params": td.get("init_params", []),
@@ -3057,17 +3062,22 @@ class PreambleEmissionMixin:
                         # self-field-dict-reflection (typed-ir §12): a `dict[str, str]`
                         # field carries `option string` values so `self.f.get(k)` reads a
                         # string. Absent value_type → the legacy `option int`, byte-identical.
+                        # cleared-hash S4: a string-KEYED field (κ=string, `key_type`) is
+                        # `map string (option ν)` with the native Why3 string key; every
+                        # field-dict op site reads the RAW string key (no str_hash_op).
+                        # Absent key_type → the legacy `map int` (byte-identical).
                         _vt = f.get("value_type")
+                        _kt = "string" if f.get("key_type") == "string" else "int"
                         if _vt == "string":
-                            ftype = "map int (option string)"
+                            ftype = f"map {_kt} (option string)"
                         elif isinstance(_vt, str) and _vt.startswith(("map ", "seq ", "array ")):
                             # nested-map.md: a NESTED collection value (`Dict[str, Dict[str,int]]`
                             # → value_type `map int (option int)`; `Dict[str, List[int]]` → `seq int`)
                             # is preserved as `map int (option (<inner>))`, NOT flattened to
                             # `option int`. `_m5_get_dict_value_type` already emits the inner type.
-                            ftype = f"map int (option ({_vt}))"
+                            ftype = f"map {_kt} (option ({_vt}))"
                         else:
-                            ftype = "map int (option int)"
+                            ftype = f"map {_kt} (option int)"
                     elif ftype in ("list", "tuple"):
                         # i-feel-good.md I-E: a `List[str]` field is `array string` (string
                         # elements) in a @mutable_state module (the emitter model + its

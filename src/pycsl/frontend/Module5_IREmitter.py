@@ -1853,6 +1853,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     _le = "emit_ir"
                 if _le is not None:
                     _fld["value_type"] = _le
+            # cleared-hash S4: the field's KEY type κ, so a string-keyed record
+            # dict/set field lowers to `map string (option ν)` with the native key.
+            _kt = self._m5_get_field_key_type(child.annotation)
+            if _kt:
+                _fld["key_type"] = _kt
             fields.append(_fld)
             # N1b: only fields with an explicit default value (x: int = 0)
             # populate `field_defaults`. A field WITHOUT a default is a
@@ -2160,6 +2165,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                             _le2 = "emit_ir"
                         if _le2 is not None:
                             _fld2["value_type"] = _le2
+                    # cleared-hash S4: the field's KEY type κ (`Dict[str,ν]`/`Set[str]`
+                    # → `map string`), so the record dict/set field uses the native key.
+                    _kt2 = self._m5_get_field_key_type(stmt.annotation)
+                    if _kt2:
+                        _fld2["key_type"] = _kt2
                     fields.append(_fld2)
                     field_names_seen.add(stmt.target.id)
                     if (stmt.value is not None and isinstance(stmt.value, ast.Constant)
@@ -3078,6 +3088,26 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 and len(annotation.slice.elts) == 2):
             k = annotation.slice.elts[0]
             if isinstance(k, ast.Name) and k.id == "str":
+                return "string"
+        return None
+
+    @staticmethod
+    def _m5_get_field_key_type(annotation: ast.expr) -> Optional[str]:
+        """cleared-hash S4: the KEY type κ of a dict/set FIELD annotation, so a
+        string-keyed record dict/set field lowers to `map string (option ν)` with
+        the native, injective Why3 string key (retiring `str_hash_op` for it).
+        `Dict[str, ν]` → the key `str`; `Set[str]`/`FrozenSet[str]` → the element
+        `str` (a set's element IS its key). Returns "string" or None (→ the legacy
+        `map int` + hash fallback for a genuinely-unknowable/non-string κ)."""
+        if not (isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)):
+            return None
+        head = annotation.value.id
+        if head in ("Dict", "dict"):
+            return PyCSLToJSONEmitter._m5_get_dict_key_type(annotation)
+        if head in ("Set", "set", "FrozenSet", "frozenset"):
+            elt = annotation.slice
+            if isinstance(elt, ast.Name) and elt.id == "str":
                 return "string"
         return None
 

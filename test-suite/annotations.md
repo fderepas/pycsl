@@ -1539,9 +1539,15 @@ Untyped ghost declarations (`#@ ghost <name> = <expr>`) default to `int`.
 > (`String.(=)`, no `str_hash_op`), so distinct keys are provably non-aliasing (cleared-hash.md,
 > drivers `0755`–`0758`; κ inferred for `Dict[str,_]` params/locals, string-key literals, and
 > string-key usage). A string **set** local is likewise native (`set() ~ map string (option int)`,
-> present ≡ `Some 0`): `s.add(x)` and `x in s` agree on the raw string element (`0759`). **Residual:**
-> a record *field* dict/set and any non-inferable-key dict keep the `map int` + opaque `str_hash_op`
-> fallback (documented, not collision-sound); `hash(s)` as a bare `str→int` stays opaque (`0485`).
+> present ≡ `Some 0`): `s.add(x)` and `x in s` agree on the raw string element (`0759`). A **record
+> FIELD** declared `Dict[str, ν]`/`Set[str]`/`FrozenSet[str]` is now native too (cleared-hash.md S4):
+> the WhyML record field is `map string (option ν)` and every field op site — store `self.d[k]=v`,
+> subscript `self.d[k]`, `.get`, membership `k in self.d`, set `.add`/`.discard` — reads/writes the raw
+> string key in lockstep (`0772` distinct-key non-aliasing, `0773` absent-key, `0774` literal↔variable,
+> `0775` set field, `0776` NEGATIVE false-claim; existing field tests `0746`/`0750` now native).
+> **Residual:** a dict/set whose key type is not inferable (an un-annotated field from `{}`, a non-`str`
+> key) keeps the `map int` + opaque `str_hash_op` fallback (documented, not collision-sound); `hash(s)`
+> as a bare `str→int` stays opaque (`0485`).
 
 **Ghost arrays** (hoare model only):
 | # | Syntax | Meaning |

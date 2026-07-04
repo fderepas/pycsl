@@ -138,6 +138,38 @@ residual the plan blesses). The core soundness win — removing the collision-un
 common inferable Var-receiver dict/set — is fully delivered by S1-S3/S5. Fields remain the honest,
 documented opacity boundary; a future pass can thread field κ behind its own sweep + mirror re-verify.
 
+## cleared-hash S4 (record fields, FOLLOW-UP) — threaded field κ; str_hash_op retired for annotated string-keyed fields
+
+**Context.** The prior S4 entry deferred record-field dicts/sets as a bounded-blast-radius risk call
+(the "future pass" it named). This follow-up (branch `ghost-assign-bc6`) DID it: a record FIELD whose
+declared type is `Dict[str, ν]`/`Set[str]`/`FrozenSet[str]` now lowers to `map string (option ν)` with
+the native, injective Why3 `String.(=)` key, retiring the opaque `str_hash_op` for that field.
+**Options.** (1) Thread field κ end-to-end (a `field_key_types` collection mirroring `field_value_types`,
+a `_self_field_dict_kappa` helper mirroring `_self_field_dict_nu`, `map string` field-type emission in
+preamble.py, and a RAW-key update at ALL field op sites in lockstep). (2) Keep the documented residual.
+**Choice.** (1). Implemented additively and tightly guarded: only a field with an INFERABLE string κ
+(from its `Dict[str,ν]`/`Set[str]`/`FrozenSet[str]` annotation) flips; an int-keyed field, and an
+un-annotated field initialized from `{}` (κ genuinely unknowable at the field), stay `map int`
+byte-identically. NO false injectivity axiom; `proof_axiom_allowlist` unchanged.
+**Op sites threaded (read/write in lockstep — a mismatch is a WhyML type error).** Store
+`self.d[k]=v` (statements.py `_handle_array_set_stmt`, also picks up the field ν); subscript-read
+`self.d[k]` direct (expressions.py) and via a getattr-bound alias; `.get` (`_lower_dict_get_call`);
+membership `k in self.d` direct + the `x in getattr(self, "<field>", set())` defensive form; set
+`.add`/`.discard` (statements.py `_handle_expr_stmt`, with the polymorphic `map_update_some`/`_none`).
+**Rationale / why now safe.** The emission differential over the full pycsl-reference corpus is EXACTLY
+{0746, 0750} (the two pre-existing record-field dict tests, both still PROVE, now native) plus the 5
+new field drivers — zero leak onto any other program (an int-keyed or un-annotated field is never
+flipped). The self-annotate mirror stays green: mirror-sync EXIT 0 after propagating the two verbatim
+statements.py edits, `\trusted` count unchanged (statements.py 43=43; mirror total 1262), and the
+`_self_field_dict_kappa`/`_nu` calls added to the mirror follow the SAME established
+undefined-helper-call pattern the mirror already uses (`_str_operand_to_int`, `_handle_if_stmt`, …).
+The residual named by the prior entry (mirror fragility + lockstep op sites) is discharged by the
+tight guard + the enumerated op-site list, not by a false axiom.
+**Drivers.** 0772 distinct-key non-aliasing on `self.d`, 0773 absent-key, 0774 literal↔variable
+consistency, 0775 `set[str]` field, 0776 NEGATIVE (`# pycsl-expected: FAIL`, false
+`self.d["a"]==self.d["b"]` stays unprovable). All newly provable (or correctly unprovable) on a
+`self.<field>` — impossible under the retired opaque hash.
+
 ## cleared-pack S5 (os corpus re-key) — keep os on legacy family; documented boundary
 
 **Context.** S5 asks to re-verify the os inode blit/read-back corpus against the faithful round-trip.
