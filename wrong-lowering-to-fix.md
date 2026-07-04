@@ -35,29 +35,38 @@ false-positive against the τ-blessed baseline.
 
 ## UNSOUND (severity 1) — proves a claim FALSE of real Python
 
-### WL-01 — Python `//` / `%` on a negative divisor lowered to Why3 Euclidean `div`/`mod`
-- **Construct / position:** `BinOp //` and `BinOp %` in a function body, any negative divisor.
-- **Current lowering:** `pycsl_div`/`pycsl_mod` with `ensures { result = div x y }` / `= mod x y`
-  over `use int.EuclideanDivision`. Guarded only by `requires { y <> 0 }` — the divisor SIGN is
-  unrestricted.
-- **Faithful target:** Python is FLOORED division (`//` rounds toward −∞; `%` sign follows the
-  divisor). A `pycsl_floordiv`/`pycsl_floormod` that matches — e.g. `div`/`mod` corrected by
-  `if (mod x y <> 0) && ((x<0) <> (y<0)) then q-1`.
-- **Class / severity:** UNSOUND / 1.
-- **Evidence:**
-  - `getting-better/wrong-lowering/wl01_floordiv_neg_UNSOUND.py` → **PROVEN** the FALSE
-    `\result == 4` for `(-7)//(-2)` (CPython = **3**). Detector D3.
-  - `wl01_floordiv_neg_TRUE.py` → UNPROVEN the TRUE `== 3`.
-  - `wl01_mod_neg_UNSOUND.py` → **PROVEN** the FALSE `\result == 1` for `7 % (-2)` (CPython = **−1**).
-- **Deliberate-collapse check:** NO. Not a τ-table row. Translational-reference §T.11 **G1** notes a
-  divergence exists — but (a) its example `(-7)//2` is itself WRONG (Euclidean `div(-7,2)==-4`, which
-  *agrees* with Python, as `cal_floordiv_pos_faithful` proves), (b) the real divergence (negative
-  *divisor*) is un-fenced (no `requires`, no rejection), and (c) the suggested `pycsl_floordiv` fix is
-  NOT implemented. So this is a documented-but-live UNSOUND gap, not a sound boundary.
-- **Fix direction / effort:** emit floored `pycsl_floordiv`/`pycsl_floormod` (correct `div`/`mod` by
-  the sign-of-remainder adjustment); update the contract-side `/`→`div` mapping likewise. / **M**.
-- **Dedup:** cross-ref translational-reference G1 (under-characterized; correct the example). Not in
-  we-are-getting-better.md.
+### WL-01 — Python `//` / `%` on a negative divisor lowered to Why3 Euclidean `div`/`mod` — **FIXED**
+- **Status:** ✅ **FIXED** (branch `ghost-assign-bc6`). `pycsl_div`/`pycsl_mod` now emit Python
+  **floored** division/modulo: Euclidean `div`/`mod` corrected by a sign-of-**divisor** adjustment
+  `if mod x y <> 0 && y < 0 then div x y - 1` (`+ y` for mod). The positive-divisor emission is
+  byte-identical to Euclidean. The spec/contract side emits the same correction inline over the
+  always-in-scope `div`/`mod` (operands `let`-bound once), so a body `a//b` and a contract
+  `\result == a//b` denote the identical floored value.
+- **Construct / position:** `BinOp //` and `BinOp %` in a function body OR contract, any divisor sign.
+- **Faithful target realized:** Python is FLOORED division (`//` rounds toward −∞; `%` sign follows the
+  divisor). Derivation is elementary; SMT discharges it — **no cited lemma needed**. Spike fixture:
+  `test-suite/corpus/conformance/spikes/wl01_floored_divmod_spike.mlw` — all concrete make-or-break
+  goals (`(-7)//(-2)=3`, `7%(-2)=-1`, `(-7)//2=-4`, `7//2=3`) Valid on **both** Alt-Ergo AND Z3; the
+  general nonlinear identity `x = (x//y)*y + (x%y)` is Valid on Alt-Ergo (0.04s) and times out only on
+  Z3 (known nonlinear-mult instability) — irrelevant to the drivers, which are concrete.
+- **Class / severity:** UNSOUND / 1 (was).
+- **Verdict flips (now):**
+  - `getting-better/wrong-lowering/wl01_floordiv_neg_UNSOUND.py` → **UNPROVEN** (the false `==4` is no
+    longer provable). Was PROVEN.
+  - `wl01_floordiv_neg_TRUE.py` → **PROVEN** the TRUE `== 3`. Was UNPROVEN.
+  - `wl01_mod_neg_UNSOUND.py` → **UNPROVEN** (false `==1` unprovable). Was PROVEN.
+  - `calibration/cal_floordiv_pos_faithful.py` (`(-7)//2==-4`) → **STAYS PROVEN** (positive divisor
+    unchanged).
+- **Regression locks (reference corpus):** `test-suite/corpus/pycsl-reference/0811.py` (POSITIVE —
+  proves `(-7)//(-2)==3`, `7%(-2)==-1`, positive-divisor coverage, and a symbolic-divisor
+  `\result == a//b`) and `0812.py` (NEGATIVE, `# pycsl-expected: FAIL` — asserts the old false `==4`,
+  now unprovable).
+- **G1 correction:** translational-reference §T.11 G1's example `(-7)//2` was itself WRONG (Euclidean
+  `div(-7,2)==-4` AGREES with Python). The true divergence is the negative *divisor*. G1 now marked
+  RESOLVED with the corrected note.
+- **Emission differential:** corpus byte-diff touches exactly the 33 div/mod-using reference programs
+  (helper block + contract-side `//`/`%`); positive-only lowering unchanged in shape; corpus still
+  proves.
 
 ### WL-02 — Python `/` (TRUE division, returns float) lowered to integer Euclidean `div`
 - **Construct / position:** `BinOp /` in a body, integer operands, int-return context.
@@ -197,7 +206,7 @@ false-positive against the τ-blessed baseline.
 
 | severity | count | findings |
 |---|---|---|
-| UNSOUND (1) | 2 | WL-01 (floor `//`/`%`, neg divisor), WL-02 (true `/` → int div) |
+| UNSOUND (1) | 2 | ~~WL-01 (floor `//`/`%`, neg divisor)~~ **FIXED**, WL-02 (true `/` → int div) |
 | FALSE-GREEN (2) | 0 new | WL-VAC (documented, cross-ref) |
 | COLLAPSED-with-consumer (3) | 2 | WL-03 (Tuple param), WL-04 (List[str/float] elem) |
 | WRONG-REPR (4) | 2 | WL-05 (dict/set param mut), WL-06 (bytes index) |

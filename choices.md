@@ -697,3 +697,48 @@ type-recursion bound. (b) A target-dependent comprehension index that is NOT a `
 (a `g(x)` call over the seq, or any non-`len` seq op) stays OPAQUE (length-only comprehension) — never a
 false content claim. (c) A target-dependent index over a MAP source (`List[Dict[..]]`) stays opaque
 (only seq sources get the target-dependent int index). No new axiom (Seq read/length laws are Why3 stdlib).
+
+## WL-01 — Python `//`/`%` floored division/modulo (SOUNDNESS FIX)
+
+**Decision.** Lower Python floor-division `//` and modulo `%` to Python-faithful **floored**
+semantics, not Why3's Euclidean `div`/`mod`. Python `//` rounds toward −∞ and `%` takes the sign of
+the **divisor**; Euclidean uses a non-negative remainder. The two AGREE when the divisor is positive
+and DIVERGE when it is negative — and PyCSL was PROVING FALSE arithmetic there: `(-7)//(-2)` proved
+`==4` (CPython `3`), `7%(-2)` proved `==1` (CPython `-1`).
+
+**Mechanism (no new axiom).** `pycsl_div`/`pycsl_mod` (body helpers, `src/pycsl/module6_whyml/preamble.py`)
+and the contract-side lowering (`src/pycsl/module6_whyml/expressions.py`, `op in {div,mod}` spec branch)
+correct Euclidean `div`/`mod` by a sign-of-divisor adjustment over the always-in-scope
+`int.EuclideanDivision`:
+`floordiv x y = if mod x y <> 0 && y < 0 then div x y - 1 else div x y`;
+`floormod x y = if mod x y <> 0 && y < 0 then mod x y + y else mod x y`.
+The `ensures` is definitional (`result = <floored term>`), discharged trivially. The spec side inlines
+the same correction with the operands `let`-bound once (no dependency on the divmod helper block being
+emitted, so contract-only usage stays sound).
+
+**Why not a stdlib primitive.** Why3 ships `int.EuclideanDivision` (non-negative remainder) and
+`int.ComputerDivision` (truncated, remainder sign = dividend). Neither IS Python floored. The
+sign-of-divisor correction over the already-`use`d Euclidean theory is the minimal, name-clash-free
+derivation (adding `ComputerDivision` would clash `div`/`mod` unqualified).
+
+**SMT feasibility (spike).** `test-suite/corpus/conformance/spikes/wl01_floored_divmod_spike.mlw`:
+all concrete goals (`(-7)//(-2)=3`, `7%(-2)=-1`, `(-7)//2=-4`, `7//2=3`, the `<> 4`/`<> 1` guards, and
+the sign/bound law for `%`) are **Valid on both Alt-Ergo 2.6.2 and Z3 4.13.3**. The general nonlinear
+identity `x = (x//y)*y + (x%y)` is Valid on Alt-Ergo (0.04s) and times out only on Z3 (documented
+nonlinear-multiplication instability) — irrelevant, since the drivers are concrete. No cited Rocq/Lean
+lemma needed.
+
+**Positive-divisor byte-identity.** For `y > 0` the correction condition `y < 0` is false, so the
+emitted body reduces to the old `div x y`/`mod x y`. The emission differs only for programs that use
+`//`/`%` (33 reference files: the helper block + contract-side term); positive-divisor arithmetic
+proves exactly as before.
+
+**Regression locks.** `test-suite/corpus/pycsl-reference/0811.py` (POSITIVE: faithful floored values
+incl. symbolic-divisor `\result == a//b`), `0812.py` (NEGATIVE `# pycsl-expected: FAIL`: the old false
+`==4`). Repro drivers `getting-better/wrong-lowering/wl01_*`. Translational-reference §T.11 G1 marked
+RESOLVED (its `(-7)//2` example was itself wrong — Euclidean agrees for a negative *dividend*; the
+divergence is a negative *divisor*).
+
+**Note for WL-02 (true `/`).** Untouched: `/` still shares the `pycsl_div` mechanism (int operands →
+floored int div). The real fix — `/` returns a `real` — is a separate concern; this change keeps the
+mechanism clean for it.

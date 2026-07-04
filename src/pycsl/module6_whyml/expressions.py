@@ -1504,12 +1504,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             right = self._coerce_str_arg(right)
         if op == "div":
             if self._in_spec:
-                return f"(div {left} {right})"
+                # WL-01: Python `//` is FLOORED division. Emit the sign-of-divisor
+                # correction inline over the always-in-scope Euclidean `div`/`mod`
+                # (bind operands once to avoid duplicating side-effect-free terms).
+                return (f"(let __fd = {left} in let __fr = {right} in "
+                        f"if mod __fd __fr <> 0 && __fr < 0 then div __fd __fr - 1 "
+                        f"else div __fd __fr)")
             inner = f"(pycsl_div {left} {right})"
             return self._wrap_with_no_exception_assert(("binop", raw_op), [left, right], inner)
         if op == "mod":
             if self._in_spec:
-                return f"(mod {left} {right})"
+                # WL-01: Python `%` has the sign of the DIVISOR (floored modulo).
+                return (f"(let __fd = {left} in let __fr = {right} in "
+                        f"if mod __fd __fr <> 0 && __fr < 0 then mod __fd __fr + __fr "
+                        f"else mod __fd __fr)")
             inner = f"(pycsl_mod {left} {right})"
             return self._wrap_with_no_exception_assert(("binop", raw_op), [left, right], inner)
         if op in ("&&", "||"):

@@ -184,18 +184,27 @@ Same as Hoare for local state, plus shared-state declarations
 #### Division and Modulo Wrappers
 
 When floor division (`//`) or modulo (`%`) appear in function bodies,
-helper functions are emitted to enforce the division-by-zero precondition:
+helper functions are emitted to enforce the division-by-zero precondition
+and to realize Python's **floored** semantics.
+
+Python `//` rounds toward −∞ and `%` takes the sign of the **divisor**;
+Why3's `int.EuclideanDivision` `div`/`mod` use a non-negative remainder.
+The two AGREE when the divisor is positive and DIVERGE when it is negative
+(e.g. `(-7)//(-2)` is `3` in Python but `div (-7) (-2) = 4` in Euclidean).
+The helpers correct Euclidean `div`/`mod` by a sign-of-divisor adjustment:
+for a negative divisor with a non-zero remainder, `floordiv = div − 1` and
+`floormod = mod + y`.
 
 ```whyml
   let pycsl_div (x: int) (y: int) : int
     requires { [@expl:division by zero] y <> 0 }
-    ensures { result = div x y }
-  = div x y
+    ensures { result = (if mod x y <> 0 && y < 0 then div x y - 1 else div x y) }
+  = if mod x y <> 0 && y < 0 then div x y - 1 else div x y
 
   let pycsl_mod (x: int) (y: int) : int
     requires { [@expl:modulo by zero] y <> 0 }
-    ensures { result = mod x y }
-  = mod x y
+    ensures { result = (if mod x y <> 0 && y < 0 then mod x y + y else mod x y) }
+  = if mod x y <> 0 && y < 0 then mod x y + y else mod x y
 ```
 
 When `ZeroDivisionError` is declared as a raised exception, the helpers
@@ -203,13 +212,16 @@ use `raises` instead of `requires`:
 
 ```whyml
   let pycsl_div (x: int) (y: int) : int
-    ensures { result = div x y }
+    ensures { result = (if mod x y <> 0 && y < 0 then div x y - 1 else div x y) }
     raises { ZeroDivisionError -> y = 0 }
-  = if y = 0 then raise ZeroDivisionError else div x y
+  = if y = 0 then raise ZeroDivisionError
+    else (if mod x y <> 0 && y < 0 then div x y - 1 else div x y)
 ```
 
 **Note:** In specification contexts (requires/ensures), `//` and `%`
-translate directly to `div` and `mod` without the wrapper.
+translate to the same floored correction inline over `div`/`mod`
+(operands bound once with `let`), so a body `a // b` and a contract
+`\result == a // b` denote the identical floored value.
 
 **Implementation:** `_emit_preamble_helpers`.
 
@@ -2518,7 +2530,7 @@ of the translation:
 | Library stubs (`src/pycsl_lib/`) | Hand-written contracts | **Medium** — not verified |
 | Abstract operations (`val iter_length`, etc.) | Transpiler-generated | **Medium** — uninterpreted |
 | Integer arithmetic is unbounded | Python semantics | Low (CPython uses bigints) |
-| Python's `//` matches Euclidean `div` | Language semantics | **Note**: Python uses floored division, which differs from Euclidean for negative operands |
+| Python's `//`/`%` are floored (rounds toward −∞; remainder sign = divisor) | Language semantics | Low — realized faithfully: `pycsl_div`/`pycsl_mod` correct Euclidean `div`/`mod` by a sign-of-divisor adjustment (WL-01 FIXED); positive-divisor case is byte-identical to Euclidean |
 
 ### §T.10.2  Preservation Lemmas
 
@@ -2531,8 +2543,11 @@ is faithful:
 
 - **Integer arithmetic:** `+`, `-`, `*` map directly.  WhyML integers
   are arbitrary-precision, matching Python's `int`.
-- **Division:** `//` maps to Euclidean `div` (with caveat: Python uses
-  floored division for negative operands — see §T.10.1).
+- **Division:** `//` (floor) and `%` map to floored `pycsl_div`/`pycsl_mod`,
+  which correct Euclidean `div`/`mod` by a sign-of-divisor adjustment so the
+  result matches Python for every divisor sign (WL-01 FIXED — the positive
+  divisor case coincides with Euclidean). `/` (true division) is a separate
+  concern (WL-02).
 - **Comparisons:** `==`, `!=`, `<`, `<=`, `>`, `>=` map to `=`, `<>`,
   `<`, `<=`, `>`, `>=` respectively.
 - **Boolean operators:** `and`/`or` map to `&&`/`||` (`identifiers.py`) in
@@ -2614,7 +2629,7 @@ by the Why3 project itself.
 
 | ID | Gap | Impact | Recommendation |
 |----|-----|--------|----------------|
-| G1 | Python floored division vs WhyML Euclidean division | For negative operands, `(-7) // 2` is `-4` in Python but `div (-7) 2 = -3` in WhyML | Add a `pycsl_floordiv` helper that matches Python semantics |
+| G1 | ~~Python floored division vs WhyML Euclidean division~~ **RESOLVED (WL-01 FIXED)** | The divergence is on a **negative divisor**, not a negative dividend: `(-7)//2` is `-4` in BOTH Python and Euclidean `div` (the earlier "`div (-7) 2 = -3`" note was wrong — Euclidean agrees here). The real bug was `(-7)//(-2)` (Python `3`, Euclidean `4`) and `7%(-2)` (Python `-1`, Euclidean `1`), which PyCSL proved as the false Euclidean values. `pycsl_div`/`pycsl_mod` now emit floored `div`/`mod` corrected by a sign-of-divisor adjustment (`if mod x y <> 0 && y < 0 then div x y − 1`, `+ y` for mod); positive-divisor emission is byte-identical to Euclidean. SMT (Alt-Ergo + Z3) discharge the concrete cases; no new axiom. Drivers: reference 0811 (POSITIVE), 0812 (NEGATIVE FAIL twin); repro `getting-better/wrong-lowering/wl01_*`. | Done — floored `pycsl_div`/`pycsl_mod` |
 | G2 | ~~String hashing is lossy~~ **RESOLVED + content-faithful (cleared-string.md)** | Runtime `str` is Why3 `string.String` with real content (τ(str)=string; §T.6.15). Concatenation and slicing prove their exact CONTENT (not just length) via Why3 1.8.2's rich native theory — `(a+b)[:len a]==a` (0765), `s[0:2]+s[2:4]==s[0:4]` (0766) — with NO new axiom; `startswith`/`endswith`/`find` accept derived string receivers (0767). The `chars:seq int` codepoint model in the plan was NOT needed (native decomposition reasons better; spike + choices.md cleared-string S0). `lower`/`upper` are now deterministic + idempotent + literal-constant-folded (cleared-string RESIDUALS item 1; drivers 0791/0793) and `replace` gains a not-contains identity + literal fold (item 2; drivers 0792/0794). Residual (honest, documented): no code-point/char type; the per-char ASCII case-MAP on a SYMBOLIC string (needs a codepoint bridge + `is_ascii` contract surface, zero demand), full-Unicode folding (`ß→SS`, not length-preserving), general grow/shrink `replace` CONTENT (CPython all-occurrences ≠ Why3 first-occurrence `replace`; no faithful `replaceall` content axiom), `strip`, `split`, `.decode`/`.encode`, `%`/f-string content stay opaque (`str`-keyed record-field dicts/sets use the native string key — cleared-hash.md S4, drivers 0772–0776) | Symbolic per-char case-MAP & general-replace content are the residual |
 | G3 | Boolean/int duality | `True + 1 = 2` in Python; in spec `true + 1` is a type error | The spec/body distinction handles this, but mixed use is fragile |
 | G4 | `None` mapped to `0` in non-ghost context | `None` and `0` are indistinguishable in WhyML for regular Python values | **Partially resolved:** ghost dicts use `map int (option int)` (§T.8.5), so `\has_key` distinguishes absent keys from keys with value 0. Raw Python `None` in non-ghost context still maps to 0. |

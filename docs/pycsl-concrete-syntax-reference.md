@@ -570,10 +570,12 @@ unary       ::= UNARY_OP unary
 | 3.2.9 | 9 (highest) | `not`, unary `-`, unary `+` | `UNARY_OP` | Right (prefix) | `UnaryOp` |
 
 **Notes:**
-- `/` in contracts maps to WhyML `div` (Euclidean integer division), not
-  Python's float division.
-- `//` also maps to WhyML `div`.
-- `%` maps to WhyML `mod`.
+- `//` (floor division) and `%` (modulo) map to Python's **floored**
+  semantics: a floored `div`/`mod` that corrects Why3's Euclidean `div`/`mod`
+  by a sign-of-divisor adjustment (rounds toward −∞; remainder sign follows
+  the divisor). The positive-divisor case coincides with Euclidean `div`/`mod`.
+- `/` in contracts currently maps to the same floored integer division (not
+  Python's float/true division — tracked separately as WL-02).
 - `<==>` is a single token (biconditional / "if and only if").
 - `in`/`not in` (§3.2.6b) are parsed as separate keywords, not as a
   single token. `not in` is distinguished from the unary `not` operator

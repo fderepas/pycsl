@@ -2159,26 +2159,33 @@ class PreambleEmissionMixin:
             out.append("  = if lo < hi then set_card_add_hi s (lo + 1) hi")
         if needs["needs_divmod"]:
             out.append("")
+            # WL-01 FIX: Python `//` is FLOORED division (rounds toward -inf) and `%`
+            # has the sign of the DIVISOR. Why3's int.EuclideanDivision `div`/`mod` use a
+            # NON-NEGATIVE remainder, which AGREES with Python when y > 0 but DIVERGES
+            # when y < 0 (e.g. (-7)//(-2): Euclidean 4, Python 3). We recover Python's
+            # floored semantics by a sign-of-divisor correction: for a negative divisor
+            # with a non-zero remainder, floordiv = div - 1 and floormod = mod + y. This
+            # keeps the positive-divisor case byte-for-byte equal to Euclidean.
             if "ZeroDivisionError" in needs["user_exceptions"]:
                 out.append("  let pycsl_div (x: int) (y: int) : int")
                 out.append("    raises { ZeroDivisionError -> y = 0 }")
-                out.append("    ensures { y <> 0 /\\ result = div x y }")
-                out.append("  = if y = 0 then raise ZeroDivisionError else div x y")
+                out.append("    ensures { y <> 0 /\\ result = (if mod x y <> 0 && y < 0 then div x y - 1 else div x y) }")
+                out.append("  = if y = 0 then raise ZeroDivisionError else (if mod x y <> 0 && y < 0 then div x y - 1 else div x y)")
                 out.append("")
                 out.append("  let pycsl_mod (x: int) (y: int) : int")
                 out.append("    raises { ZeroDivisionError -> y = 0 }")
-                out.append("    ensures { y <> 0 /\\ result = mod x y }")
-                out.append("  = if y = 0 then raise ZeroDivisionError else mod x y")
+                out.append("    ensures { y <> 0 /\\ result = (if mod x y <> 0 && y < 0 then mod x y + y else mod x y) }")
+                out.append("  = if y = 0 then raise ZeroDivisionError else (if mod x y <> 0 && y < 0 then mod x y + y else mod x y)")
             else:
                 out.append("  let pycsl_div (x: int) (y: int) : int")
                 out.append("    requires { [@expl:division by zero] y <> 0 }")
-                out.append("    ensures { result = div x y }")
-                out.append("  = div x y")
+                out.append("    ensures { result = (if mod x y <> 0 && y < 0 then div x y - 1 else div x y) }")
+                out.append("  = if mod x y <> 0 && y < 0 then div x y - 1 else div x y")
                 out.append("")
                 out.append("  let pycsl_mod (x: int) (y: int) : int")
                 out.append("    requires { [@expl:modulo by zero] y <> 0 }")
-                out.append("    ensures { result = mod x y }")
-                out.append("  = mod x y")
+                out.append("    ensures { result = (if mod x y <> 0 && y < 0 then mod x y + y else mod x y) }")
+                out.append("  = if mod x y <> 0 && y < 0 then mod x y + y else mod x y")
         return out
 
     def _inductive_refs_global_or_axiom_func(self, ir: Dict[str, Any]) -> bool:
