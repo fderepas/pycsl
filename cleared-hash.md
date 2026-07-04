@@ -190,3 +190,44 @@ plan's value is then the *honest boundary* (κ-unknown residual + no false axiom
 `stable_hash`-for-keys retired, the dict/set model faithfully injective, the corpus proving strictly more
 (the distinct-key properties), and `stable_hash` reduced to (at most) the non-dict opaque-string→int
 fallback — hash tables no longer opaque.
+
+---
+
+## 9. Outcome (executed on branch `ghost-assign-bc6`)
+
+**Verdict: LANDED for the inferable common case (Var-receiver dict/set locals);
+record-field dicts/sets kept as the documented κ-known-but-field residual.**
+
+- **S0 spike — GO.** `map string` proves `distinct_no_alias` on both Alt-Ergo (0.03s) and Z3
+  (0.01s); the int+opaque-hash encoding times out on both. Fixtures:
+  `test-suite/corpus/conformance/spikes/cleared-hash-{string,int-opaque}.mlw`. No scaling concern
+  ⇒ no YAGNI exit on provability grounds.
+- **S1 (κ inference) — DONE.** Module5 `_build_function_symbol_table` now tags a Var-receiver dict/set
+  local κ=string from (a) a string-key literal, (b) string-key usage (`d[k]`/`k in d`/`d.get(k)`),
+  (c) set-element methods (`.add`/`.discard`/`.remove`). Additive `setdefault` (never overrides an
+  annotation).
+- **S2/S3 — DONE.** κ=string locals emit `map string (option ν)` (empty-literal key type inferred
+  polymorphically by Why3 from the first native-string update) and every Var-receiver op site
+  (subscript r/w, membership, `.get`) reads the raw string key. Fixed a latent membership bug
+  (`_coerce_to_int` hashed a string LITERAL key against a `map string` map).
+- **S5 (sets) — DONE.** String set locals: `.add`/`.discard` write the raw native element with a
+  polymorphic `map_update_some`/`map_update_none`, matching the raw-key membership read.
+- **S4 (record fields) — DOCUMENTED RESIDUAL** (choices.md): field κ is knowable but threading it
+  would flip the field map type for every string-keyed field of the fragile self-annotate mirror and
+  touch ~5 op sites in lockstep, for a 2-test corpus benefit; the plan (§5/§6.4) blesses the residual.
+  NO false injectivity axiom; `proof_axiom_allowlist` unchanged.
+- **S6 (mirror) — re-verified.** Mirror-sync green after propagating the S5 body; no new mirror
+  failure, no new `\trusted` (the pre-existing statements.py "string vs int" proof failure is
+  independent — identical at HEAD~2).
+
+**Gates.** Corpus 712/715 (== 710 + 5 new drivers; the 3 known pre-existing failures
+0540/0700/0701, ZERO regressions). Emission differential = EXACTLY the string-keyed programs (S1:
+only `0751`; S5: only the new drivers — inert on the existing corpus). `str_hash_op` val-decl files
+5→4 (residual: `0485` genuine `hash(s)`, `0425` decode-string equality, `0750`/`0746` record fields —
+all documented boundaries). 5-surface docs + annotations.md + traceability updated; doc-coherency
+green. NO new axiom.
+
+**Reference drivers.** `0755` distinct-key non-aliasing (un-annotated local), `0756` absent key,
+`0757` literal↔variable key consistency, `0758` NEGATIVE (`# pycsl-expected: FAIL`, false
+`d["a"]==d["b"]`), `0759` string set. All newly provable (or, for `0758`, correctly unprovable) under
+`map string`, and unprovable under the retired opaque hash.
