@@ -1,0 +1,31 @@
+(* cleared-string.md Gate-B / S1 spike (representation decision): the NATIVE Why3
+   1.8.2 string.String theory ALREADY proves the content goals with ZERO new axioms
+   (no chars:seq int model, no extensionality axiom). This is why cleared-string
+   chose the native decomposition over the plan's chars model (choices.md S1).
+   Alt-Ergo proves all goals; Z3 OOMs only on g_sub_at, covered by AE under
+   PyCSL's best-of-N. *)
+module NativeStr
+  use int.Int
+  use string.String
+
+  (* headline: (a++b)[:len a] == a  — pure native, NO new axioms *)
+  goal g_concat_slice : forall a b.
+      substring (concat a b) 0 (length a) = a
+
+  (* slice identity: s[0:len s] == s *)
+  goal g_slice_id : forall s.
+      substring s 0 (length s) = s
+
+  (* startswith: prefixof p s from a concat *)
+  goal g_prefix : forall p rest.
+      prefixof p (concat p rest)
+
+  (* per-char content of concat prefix via s_at *)
+  goal g_concat_at : forall a b i. 0 <= i < length a ->
+      s_at (concat a b) i = s_at a i
+
+  (* slice per-char content: (s[lo:lo+len])[k] = s[lo+k] *)
+  goal g_sub_at : forall s lo len k.
+      0 <= lo -> 0 <= len -> lo + len <= length s -> 0 <= k < len ->
+      s_at (substring s lo len) k = s_at s (lo + k)
+end

@@ -78,3 +78,39 @@ module StrSpikeLengthOnly
   goal g_len_concat_slice : forall a b.
       String.length (s_sub (s_concat a b) 0 (String.length a)) = String.length a
 end
+
+(* Extensionality bridge: strings are determined by (length + codepoint sequence).
+   This is the load-bearing law that turns per-index content back into native `=`,
+   so drivers asserting `derived_string == literal` prove. Sound/definitional
+   (chars is injective on strings of equal length). *)
+module StrSpikeExt
+  use int.Int
+  use seq.Seq
+  use string.String
+
+  function chars (s: string) : seq int
+  axiom chars_len : forall s. Seq.length (chars s) = String.length s
+  axiom chars_ext : forall s t. String.length s = String.length t ->
+      (forall i. 0 <= i < String.length s -> Seq.get (chars s) i = Seq.get (chars t) i) ->
+      s = t
+
+  function s_concat (a b: string) : string
+  axiom concat_len    : forall a b.
+      String.length (s_concat a b) = String.length a + String.length b
+  axiom concat_prefix : forall a b i. 0 <= i < String.length a ->
+      Seq.get (chars (s_concat a b)) i = Seq.get (chars a) i
+
+  function s_sub (s: string) (lo len: int) : string
+  axiom sub_len   : forall s lo len. 0 <= lo -> 0 <= len -> lo + len <= String.length s ->
+      String.length (s_sub s lo len) = len
+  axiom sub_chars : forall s lo len k. 0 <= lo -> 0 <= len -> lo + len <= String.length s ->
+      0 <= k < len -> Seq.get (chars (s_sub s lo len)) k = Seq.get (chars s) (lo + k)
+
+  (* THE HEADLINE DRIVER as native string equality: (a++b)[:len a] == a *)
+  goal g_concat_slice_eq : forall a b.
+      s_sub (s_concat a b) 0 (String.length a) = a
+
+  (* slice full-string identity: s[0:len s] == s *)
+  goal g_slice_id : forall s.
+      s_sub s 0 (String.length s) = s
+end

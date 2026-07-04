@@ -1523,8 +1523,17 @@ Untyped ghost declarations (`#@ ghost <name> = <expr>`) default to `int`.
 > `s.startswith`/`.endswith`/`.find` lower through abstract `val …_op` bridges to the same
 > `String.length`/`concat`/`String.substring`/`=` symbols, and the `\str_*` spec operators above
 > relate the result to content. Drivers: corpus `0471` (substring search) and `0472`–`0494`.
-> **Out of scope:** code points (`ord`, char ordering), `upper`/`lower`/`strip`/`replace`/`split`
-> (opaque), `.decode`/`.encode` (opaque bytes↔str boundary), f-strings. **A `str`-keyed dict/set is
+> **CONTENT-faithful, not just length (cleared-string.md):** concatenation and slicing prove their
+> exact content via Why3's rich native `string.String` theory with NO new axiom — `(a+b)[:len(a)]
+> == a` (`0765`), `s[0:2]+s[2:4] == s[0:4]` (`0766`); `startswith`/`endswith`/`find` accept a
+> DERIVED string receiver too (`(a+b).startswith(a)`, `0767`), not only a simple name. A false
+> content claim is correctly rejected (`0768`, `# pycsl-expected: FAIL`).
+> **Out of scope / residual (documented, honest boundary):** code points (`ord`, char ordering),
+> `upper`/`lower` (no Why3 case-fold op; Python's full Unicode folding is not length-preserving,
+> `"ß".upper()=="SS"` — non-emptiness law only), the general grow/shrink `replace` (char-for-char
+> `len pat=len rep` case keeps `len result=len s`; grow/shrink stays length-only), `strip`
+> (`len result ≤ len s`), `split` (list-of-strings), `.decode`/`.encode` (bytes↔str boundary),
+> `%`/f-string content. **A `str`-keyed dict/set is
 > now faithful** — `dict[str, ν] ~ map string (option ν)` with the native, injective Why3 string key
 > (`String.(=)`, no `str_hash_op`), so distinct keys are provably non-aliasing (cleared-hash.md,
 > drivers `0755`–`0758`; κ inferred for `Dict[str,_]` params/locals, string-key literals, and

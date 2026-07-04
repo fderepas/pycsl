@@ -251,3 +251,86 @@ laws (`lower_chars`/`concat_prefix`/`concat_suffix`/`sub_chars`) each are defini
 Python semantics; `to_lower_c` stays an abstract total char-classifier with only the idempotence law
 (full Unicode folding out of scope, documented). Representation `chars : seq int` reasons better than
 a Why3-string-native decomposition (string.String exposes no usable char indexing), so it is chosen.
+
+## cleared-string S1 (representation PIVOT) — use the NATIVE Why3 `string.String` decomposition, NOT the plan's `chars : seq int` model
+
+**Context.** The plan's premise (§1 root cause) is that "Why3's builtin `string` is nearly opaque —
+exposes length + equality but no usable char-indexing/decomposition", and it prescribes adding a
+`chars : seq int` codepoint model with new bridge axioms (`chars_len`, per-char content laws, and — as
+the spike revealed — an extensionality axiom `chars_ext`). During S1 I inspected the actual Why3 1.8.2
+`string.mlw` in use and found this premise is OUTDATED: `string.String` is a RICH theory exposing
+`s_at` (char-at-index), `substring`, `concat`, `prefixof`/`suffixof`/`contains`/`indexof`/`replace`/
+`replaceall` with full content axioms (`concat_at`, `substring_at`, `substring_length`,
+`concat_substring`, `substring_substring`, `prefixof_concat`, `length_concat`, …). Crucially,
+PyCSL's abstract vals ALREADY pin their results to these native symbols: `str_concat_op` ⊨
+`result = concat a b`, `str_sub_op` ⊨ `result = String.substring s lo len`, `str_startswith_op` ⊨
+`result=1 <-> substring s 0 (len p)=p`.
+**Options.** (1) Implement the plan literally: add `chars : seq int` + `chars_len`/`chars_ext`/per-char
+laws to every string program, and re-express every transform over `chars`. (2) Use the NATIVE
+`string.String` decomposition already in scope — add reference drivers + close the small genuine gaps.
+The spike explicitly delegates this choice to "whichever reasons better".
+**Evidence (Why3 1.8.2, AE 2.6.2, Z3 4.13.3).** Native-only spike (`native.mlw`, NO new axioms):
+`substring (concat a b) 0 (length a) = a` — AE Valid 0.04s/16 steps, Z3 0.01s; `prefixof p (concat p r)`
+— Valid fast both; per-char `s_at (concat a b) i = s_at a i` — Valid fast; slice `s_at (substring …)`
+— AE 0.05s (Z3 OOM, covered by AE under best-of-N). End-to-end the headline drivers ALREADY prove with
+today's code: `(a+b)[:len a]==a` (0765) and `s[0:i]+s[i:]==s` prove with zero source change.
+**Choice.** Option 2 — the native `string.String` representation. The `chars : seq int` apparatus is
+NOT added.
+**Rationale.** Native reasons strictly better: (a) ZERO new axioms (the plan's chars model needs 3+
+bridge axioms incl. extensionality — a TCB growth the native path avoids entirely); (b) it is ALREADY
+imported (`use string.String`), so no `use seq.Seq` + per-program preamble block is injected into every
+string program — the emission stays byte-identical on the whole existing corpus (verified: the S6
+change diffs 0 on all 5 simple-receiver corpus files); (c) it does not risk slowing the heavy os /
+self-annotate proof base with a codepoint theory. This is the plan's own "pick whichever reasons
+better / YAGNI exit" applied at the representation level, with the make-or-break goals proven on the
+chosen representation.
+
+## cleared-string S3+S4 (concat + slice) — ALREADY content-faithful natively; deliverable is the locking drivers
+
+**Context.** With the native representation, `+` and `[i:j]` already carry exact content via
+`str_concat_op`/`str_sub_op`'s pin to `concat`/`substring` and Why3's `prefixof_concat` /
+`concat_substring` / `substring_substring` axioms.
+**Choice.** No emitter change for concat/slice; ADD reference drivers 0765 (`(a+b)[:len a]==a`) and
+0766 (`s[0:2]+s[2:4]==s[0:4]`) that PROVE the content and lock it against regression, plus the negative
+0768 (`(a+b)[:len a]==b` — `# pycsl-expected: FAIL`).
+**Rationale.** The plan's §7 drivers were MISSING; adding them is the real, honest deliverable for
+these ops (the content-faithfulness itself is delivered by the native theory). 0766 proves in 0.79s
+(acceptable); the headline 0765 in 0.01s.
+
+## cleared-string S6 (predicates) — extend content-faithful startswith/endswith/find to DERIVED receivers
+
+**Context.** `_content_string_method` already gave startswith/endswith/find a native-`substring`
+witness `ensures`, but ONLY for a SIMPLE `str`-typed Var receiver (`self._current_symbol_table.get(recv)
+== "str"`); a derived-string receiver (`(a+b).startswith(a)`) fell through to an opaque uninterpreted
+0/1 predicate.
+**Options.** (1) Leave derived receivers opaque. (2) Route the receiver through the existing
+`_str_method_recv_and_tail` (which already supports computed receivers for the value-method path) and
+gate on `_is_string_expr(recv_ir)`, lowering the receiver expression.
+**Choice.** (2). Driver 0767 (`(pre+rest).startswith(pre)` proves; plus the simple-receiver form).
+**Rationale.** Sound (the witness ties result to `substring recv 0 (len p) = p`, and the derived recv
+is pinned to its native op) and strictly more faithful. Zero blast radius: `_is_string_expr(Var)` is a
+SUPERSET of the old symbol-table check, so simple receivers emit byte-identically (verified diff-0 on
+0447/0453/0491/0492/0493); no existing corpus file uses a derived-receiver string predicate, so the
+emission differential is EXACTLY the new drivers. Full sweep 717/720 (== the 3 known pre-existing
+failures 0540/0700/0701; zero regressions).
+
+## cleared-string S2 (lower/upper) + S5 (general replace) — YAGNI exit; documented residual
+
+**Context.** `.lower()`/`.upper()` lower to `str_case_op` (a `val`, non-emptiness law only); Why3's
+`string.String` exposes NO case-folding operation. `.replace` keeps the sound char-for-char length law
+(`len pat=len rep -> len result=len s`); the general grow/shrink case is length-free.
+**Options.** (1) Model case folding content-faithfully (introduce a deterministic `str_lower`/`str_upper`
+logic function + `to_lower_c` codepoint classifier + a literal→codepoint value bridge so
+`"ABC".lower()=="abc"` proves). (2) Keep length-only, document as residual.
+**Choice.** (2), for both lower/upper CONTENT and general replace.
+**Rationale/evidence.** (a) SOUNDNESS: Python's `str.lower()`/`.upper()` use FULL Unicode case folding
+which is NOT length-preserving (`"ß".upper()=="SS"`, `"İ".lower()` grows), so NO unconditional per-char
+or length law is sound; a faithful model would need an `is_ascii`-guarded content law plus the
+literal→codepoint value machinery — high cost. (b) DEMAND: no corpus goal needs lower/upper CONTENT
+(the string-ness/length is what programs use); `.lower()` is even rejected in a contract, so content is
+only expressible as `\result == "lit"`. (c) NO false claim is reachable today: `str_case_op` is a `val`
+(fresh per call), so a body-level `s.lower()==s.upper()` does NOT prove (verified Unknown) — the shared
+symbol is NOT a soundness hole. Modelling simple/ASCII folding when Python does full folding would also
+DIVERGE from faithful semantics for the ß-class. Recorded as the honest residual (translational
+§T.6.15, §T.11.1 G2, annotations.md). General grow/shrink replace likewise stays length-only (never
+claims length preservation — the sound char-for-char law is retained).

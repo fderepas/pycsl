@@ -2739,23 +2739,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
         `s.startswith(p)` / `s.endswith(p)` / `s.find(sub)` are lowered to abstract ops whose
         `ensures` relate the (int) result to `String.substring` over the *receiver as an
-        operand*. Applies ONLY to a simple, `str`-typed receiver with a single string
-        argument; a chained receiver (`node.name.startswith(…)`) or a non-`str` receiver
-        falls through to the opaque baked-into-the-name predicate path. startswith/endswith
-        keep the 0/1 int result (so control-flow / `\result ∈ {0,1}` uses are unaffected) and
-        gain a `(result = 1) <-> <substring condition>` clause; find returns an index ≥ -1
-        with a found-index witness."""
-        if "." not in func_name:
-            return None
-        recv, method = func_name.rsplit(".", 1)
+        operand*. Applies to ANY string-valued receiver — a simple `str`-typed name OR a
+        derived string expression (`(a + b).startswith(a)`, `s[i:].startswith(p)`), lowered
+        through `_str_method_recv_and_tail` (cleared-string.md S6). Only a MULTI-dot receiver
+        (`self.name.startswith(…)`) or a non-string receiver falls through to the opaque
+        baked-into-the-name predicate path. startswith/endswith keep the 0/1 int result (so
+        control-flow / `\result ∈ {0,1}` uses are unaffected) and gain a
+        `(result = 1) <-> <substring condition>` clause; find returns an index ≥ -1 with a
+        found-index witness."""
+        recv_ir, method = self._str_method_recv_and_tail(expr)
         if method not in ("startswith", "endswith", "find"):
             return None
-        if "." in recv or self._current_symbol_table.get(recv) != "str":
+        if recv_ir is None or not self._is_string_expr(recv_ir):
             return None
         if len(args) != 1 or not self._is_string_expr(expr["args"][0]):
             return None
-        r = self._expr_to_whyml({"type": "Var", "name": recv}, local_refs,
-                                invariant_ctx, subst)
+        r = self._expr_to_whyml(recv_ir, local_refs, invariant_ctx, subst)
         p = args[0]
         if method == "startswith":
             self._add_abstract_op(

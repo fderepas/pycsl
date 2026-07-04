@@ -1929,16 +1929,37 @@ string — so `s[a:b] == t` routes to the string path).
 | `s.endswith(q)` | — | `str_endswith_op s q : int`, `result=1 <-> substring s (len s-len q) (len q) = q` | `_content_string_method` |
 | `s.find(sub)` | — | `str_find_op s sub : int`, `result≥-1` and `result≥0 -> substring s result (len sub) = sub` | `_content_string_method` |
 
+**Content-faithful, not merely length (cleared-string.md).** Because each bridge pins its result
+to a *native* `string.String` symbol (`concat` / `String.substring`) and Why3 1.8.2's
+`string.String` is a **rich** theory — `length_concat`, `prefixof_concat`, `substring_length`,
+`concat_substring`, `substring_substring`, `s_at`/`concat_at` — the exact CONTENT of concatenation
+and slicing is provable with **zero new axiom**: `(a + b)[:len(a)] == a` (driver 0765),
+`s[0:2] + s[2:4] == s[0:4]` (driver 0766), `s[0:i] + s[i:] == s`. This is a strict gain over the
+old length-only reading, which is why the plan's `chars : seq int` codepoint model was **not**
+needed — the native decomposition reasons better (spike
+`test-suite/corpus/conformance/spikes/cleared-string-content.mlw`; choices.md cleared-string S0).
+
 The `str_sub_op` length lemma and the `str_contains_op`/find witnesses are baked into the
 bridge `ensures` because the general `String.length (substring …)` / existential-occurrence
 algebra otherwise exhausts the SMT solver (the bridge `ensures` are *assumed*, being on an
-abstract `val`). `startswith`/`endswith`/`find` apply only to a **simple `str`-typed receiver**;
-a chained or non-`str` receiver (`node.name.startswith(…)`) keeps the opaque
-predicate-as-`0/1`-op model. **Mixed string/int** comparison (a `str` vs an opaque int, e.g. a
-`.decode()` result) reverts to the legacy opaque int-equality by hashing the string side
-(`str_hash_op`). **Opaque / deferred:** `upper`/`lower`/`strip`/`replace` (string→string),
-`split` (list-of-strings), `.decode`/`.encode` (codec, the bytes↔str boundary), f-strings, and
-all code-point / lexicographic reasoning.
+abstract `val`). `startswith`/`endswith`/`find` apply to **any string-valued receiver** — a simple
+`str`-typed name OR a *derived* string expression `(a + b).startswith(a)`, `s[i:].startswith(p)`
+(lowered through `_str_method_recv_and_tail`; driver 0767); only a **multi-dot** receiver
+(`self.name.startswith(…)`) or a non-string receiver keeps the opaque predicate-as-`0/1`-op model.
+**Mixed string/int** comparison (a `str` vs an opaque int, e.g. a `.decode()` result) reverts to the
+legacy opaque int-equality by hashing the string side (`str_hash_op`).
+
+**Residual opacity (documented, honest boundary — cleared-string.md §5).** `lower`/`upper`:
+Why3's `string.String` exposes **no** case-folding operation, and Python's `str.lower()`/`.upper()`
+use *full* Unicode folding which is **not length-preserving** (`"ß".upper() == "SS"`), so
+`str_case_op` keeps only the sound non-emptiness law (`len s ≥ 1 → len result ≥ 1`); its result is
+an opaque `val` (each call fresh), so no CONTENT and not even `s.lower() == s.lower()` is claimed —
+modelling simple/ASCII case folding + the literal→codepoint value bridge is high-cost / low-demand
+and deferred. `replace` (string→string): the char-for-char case keeps `len pat = len rep → len
+result = len s` (sound); the general grow/shrink case stays length-only (never claims length
+preservation). Also opaque: `strip` (`len result ≤ len s` only), `split` (list-of-strings),
+`.decode`/`.encode` (codec, the bytes↔str boundary), `%`/f-string CONTENT, and all lexicographic
+code-point reasoning.
 
 **Implementation:** `expressions.py` (`_is_string_expr`, `_content_string_method`,
 `_emit_membership`, `_handle_binop`, `_handle_subscript`, `_handle_slice_access_expr`),
@@ -2565,7 +2586,7 @@ by the Why3 project itself.
 | ID | Gap | Impact | Recommendation |
 |----|-----|--------|----------------|
 | G1 | Python floored division vs WhyML Euclidean division | For negative operands, `(-7) // 2` is `-4` in Python but `div (-7) 2 = -3` in WhyML | Add a `pycsl_floordiv` helper that matches Python semantics |
-| G2 | ~~String hashing is lossy~~ **RESOLVED** | Runtime `str` is now Why3 `string.String` with real content (τ(str)=string; §T.6.15) — content `==`/`+`/`len`/slice/index/`in`/`startswith`/`endswith`/`find` are sound. Residual gaps: no code-point/char type; `upper`/`lower`/`strip`/`replace`/`split` and `.decode`/`.encode` stay opaque; f-strings hash; `str`-keyed dicts still hash the key | Code-point model & string→string transforms deferred |
+| G2 | ~~String hashing is lossy~~ **RESOLVED + content-faithful (cleared-string.md)** | Runtime `str` is Why3 `string.String` with real content (τ(str)=string; §T.6.15). Concatenation and slicing prove their exact CONTENT (not just length) via Why3 1.8.2's rich native theory — `(a+b)[:len a]==a` (0765), `s[0:2]+s[2:4]==s[0:4]` (0766) — with NO new axiom; `startswith`/`endswith`/`find` accept derived string receivers (0767). The `chars:seq int` codepoint model in the plan was NOT needed (native decomposition reasons better; spike + choices.md cleared-string S0). Residual (honest, documented): no code-point/char type; `upper`/`lower` (no Why3 case-fold op; full-Unicode folding not length-preserving), general grow/shrink `replace`, `strip`, `split`, `.decode`/`.encode`, `%`/f-string content stay opaque; `str`-keyed record-field dicts still hash the key | Case-fold codepoint model & general replace deferred |
 | G3 | Boolean/int duality | `True + 1 = 2` in Python; in spec `true + 1` is a type error | The spec/body distinction handles this, but mixed use is fragile |
 | G4 | `None` mapped to `0` in non-ghost context | `None` and `0` are indistinguishable in WhyML for regular Python values | **Partially resolved:** ghost dicts use `map int (option int)` (§T.8.5), so `\has_key` distinguishes absent keys from keys with value 0. Raw Python `None` in non-ghost context still maps to 0. |
 | G5 | Array literals use fixed size 1024 | `[]` becomes `Array.make 1024 0` regardless of actual size | Use dynamic allocation or parametric size |
