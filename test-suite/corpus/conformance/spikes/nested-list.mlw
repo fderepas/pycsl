@@ -1,0 +1,76 @@
+(* nested-list.md Gate-B spike — DECISION FIXTURE.
+   Question: the faithful WhyML representation for List[List[T]] /
+   List[Dict[str,int]] so an inner element a[i] is a real indexable collection.
+
+   VERDICT: List[List[τ]] ~ array (seq τ);  List[Dict[str,int]] ~ array (map string (option int)).
+   The OUTER list stays `array` (byte-identical to a flat List[τ] = array τ, and
+   its length / a[i] / outer row-replacement a[i]=row machinery is unchanged).
+   The INNER collection is a PURE Why3 type (seq τ / map κ (option ν)) — pure is
+   MANDATORY: Why3 forbids a mutable element type inside `array`.
+
+   Candidate results (Alt-Ergo 2.6.2 / Z3 4.13.3, -t 10):
+     * array (array int)  — REJECTED by Why3 typecheck:
+         "This application instantiates pure type variable 'a with a mutable
+          type array int"  (Array.get cannot return a mutable element). NOT VIABLE.
+     * seq  (seq int)      — all goals Valid, AE 0.03s / Z3 <0.01s.  Viable but
+         makes the OUTER list immutable too (would perturb flat-list emission).
+     * array (seq int)     — WINNER. all goals Valid, AE 0.03s / Z3 <0.02s.
+         outer array (mutable, byte-identical flat-list machinery) + inner seq
+         (pure content). row-replacement a[i]=row sound; subscript-projection
+         [x[k] for x in a] -> result[i]=a[i][k] Valid.
+     * array (map string (option int)) — Valid, AE 0.03s / Z3 <0.01s. List[Dict[str,int]].
+
+   BOUNDARY: in-place inner mutation a[i][j]=v / a[i].append(..) is NOT
+   expressible on `seq` (immutable) -> documented residual (reject/opaque, never
+   an unsound update). Outer row-replacement a[i]=newrow IS sound. *)
+
+module NestedArraySeq            (* WINNER: List[List[int]] ~ array (seq int) *)
+  use int.Int
+  use seq.Seq
+  use array.Array
+
+  (* nested read content at two indices *)
+  let test_read2 (a: array (seq int)) (i j: int) : int
+    requires { 0 <= i < length a }
+    requires { 0 <= j < Seq.length (a[i]) }
+    ensures  { result = Seq.get (a[i]) j }
+  = Seq.get (a[i]) j
+
+  (* inner length len(a[i]) *)
+  let test_innerlen (a: array (seq int)) (i: int) : int
+    requires { 0 <= i < length a }
+    ensures  { result = Seq.length (a[i]) }
+  = Seq.length (a[i])
+
+  (* SOUND outer row-replacement a[i] = newrow (whole-row reassignment) *)
+  let test_setrow (a: array (seq int)) (i: int) (row: seq int) : unit
+    requires { 0 <= i < length a }
+    ensures  { a[i] = row }
+  = a[i] <- row
+
+  (* subscript-projection comprehension [x[k] for x in a] -> result[i] = a[i][k] *)
+  val proj (a: array (seq int)) (k: int) : array int
+    ensures { length result = length a }
+    ensures { forall i. 0 <= i < length a -> 0 <= k < Seq.length (a[i]) ->
+                        result[i] = Seq.get (a[i]) k }
+  let test_proj (a: array (seq int)) (i k: int) : unit
+    requires { 0 <= i < length a }
+    requires { 0 <= k < Seq.length (a[i]) }
+  = let r = proj a k in assert { r[i] = Seq.get (a[i]) k }
+end
+
+module NestedArrayMap           (* List[Dict[str,int]] ~ array (map string (option int)) *)
+  use int.Int
+  use map.Map
+  use option.Option
+  use array.Array
+
+  let test_read_map (a: array (map string (option int))) (i: int) (key: string) : option int
+    requires { 0 <= i < length a }
+    ensures  { result = Map.get (a[i]) key }
+  = Map.get (a[i]) key
+
+  goal member_D : forall a: array (map string (option int)), i: int, key: string, v: int.
+      0 <= i < length a -> Map.get (a[i]) key = Some v ->
+      Map.get (a[i]) key = Some v
+end

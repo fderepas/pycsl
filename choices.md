@@ -595,3 +595,34 @@ needed (the properties are definitional abstract-op ensures, the same trust clas
 
 Mirror: `_handle_string_value_method` is mirror-absent (off the verification path) → mirror-sync green,
 `\trusted` non-increasing. Emission differential = the new drivers + `0751` (the only prior lower user).
+
+## nested-list S0 (Gate-B spike) — representation DECISION
+
+**Decision.** `List[List[τ]]` lowers to **`array (seq τ)`**; `List[Dict[str,int]]` to
+`array (map string (option int))`; recursively. The OUTER list stays `array` (byte-identical to a flat
+`List[τ] = array τ`, and its `length` / `a[i]` / outer row-replacement `a[i]=row` machinery is
+unchanged). The INNER collection is a PURE Why3 type (`seq τ` / `map κ (option ν)`).
+
+**Why not `array (array τ)`.** Why3 REJECTS it at typecheck: `Array.get` cannot return a mutable
+element — "This application instantiates pure type variable 'a with a mutable type array int". A pure
+inner type is MANDATORY, so the inner collection is `seq`/`map`, never `array`.
+
+**Why not `seq (seq τ)` (fully immutable).** Provable (AE 0.03s / Z3 <0.01s) but would flip the OUTER
+list to immutable too, perturbing every flat-list emission (length/subscript machinery is array-based).
+`array (seq τ)` keeps the outer array intact → flat lists byte-identical.
+
+**Spike evidence** (`test-suite/corpus/conformance/spikes/nested-list.mlw`, Alt-Ergo 2.6.2 / Z3 4.13.3, -t 10):
+- `array (array int)` — REJECTED (typecheck, mutable element). NOT VIABLE.
+- `seq (seq int)` — all Valid, AE 0.03s / Z3 <0.01s.
+- `array (seq int)` — WINNER. read2/innerlen/setrow/subscript-projection all Valid, AE 0.03s / Z3 <0.02s.
+- `array (map string (option int))` — Valid, AE 0.03s / Z3 <0.01s (List[Dict[str,int]]).
+
+**Recursion shape.** One `_rec(T)` = the pure element-position WhyML type: `int/bool→int`, `str→string`,
+`float→real`, `List[U]→seq (_rec U)`, `Dict[K,V]→map κ(K) (option (_rec V))`, `Set[U]→map (_rec U) (option int)`.
+A top-level `List[T]` param = `array (_rec T)`. Flat `List[int]`: `_rec(int)=int → array int` (byte-identical).
+This subsumes the existing `_m5_get_dict_value_type` (which already returns `seq int` for `Dict[str,List[T]]`).
+
+**Boundary (YAGNI read-only for inner).** In-place inner mutation `a[i][j]=v` / `a[i].append(..)` is NOT
+expressible on `seq` (immutable) → documented residual: reject or keep opaque, never an unsound update.
+Outer whole-row replacement `a[i]=newrow` IS sound and stays expressible. No new axiom (nested read/index
+laws are Why3 stdlib `seq.Seq` / `map.Map`).
