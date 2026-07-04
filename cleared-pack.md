@@ -121,3 +121,39 @@ driver (`# pycsl-expected: FAIL`) with an OUT-OF-RANGE value showing the round-t
 **Expected outcome:** standard-size struct pack/unpack round-trips and sizes become provable (the os
 inode-blit/read-back corpus discharges honestly), guarded by an in-range precondition; native alignment,
 float encodings, and out-of-range packs remain the honest, documented residual.
+
+---
+
+## EXECUTION RECORD (autonomous, cleared-pack)
+
+**Status: COMPLETE** (S0–S3 delivered; S4/S5 documented sound boundaries — see choices.md).
+
+- **S0 — spike: GO.** `spikes/cleared-pack/pack_spike.mlw` + `S0-VERDICT.md`. Guarded round-trip Valid
+  on Alt-Ergo (8 steps) & Z3; concrete byte model proves the guard load-bearing
+  (`unpack(pack 65536)=0≠65536`); unguarded law correctly not provable (Timeout). Commit c4646dc9.
+- **S1 size law + S2 in-range guard + S3 round-trip — DONE** for a single standard-size UNSIGNED-int
+  slot (`'>H'`=u16, `'>I'`/`'>L'`=u32) via the new `Pycsl.Struct.Std` family
+  (`struct_format.faithful_uint_slot()` → `struct_{pack,unpack}_fu16/fu32`). Pack `val` carries the size
+  `ensures` (`length=calcsize`) AND the in-range `requires` (a call-site VC; faithful to CPython's
+  out-of-range `struct.error`). Round-trip is a cited axiom `Pycsl.Struct.Std.round_trip_u{16,32}`.
+  Commit 57fae2a2.
+- **Cited Rocq+Lean anchor.** `test-suite/corpus/pycsl-reference/0753.proofs/{rocq/Struct.v,lean/Struct.lean}`:
+  pack/unpack DEFINED as concrete big-endian base-256 byte codecs; theorems `round_trip_u16/u32`,
+  `size_u16/u32`, `guard_necessity_u16/u32`. Rocq `coqc` exit 0 (no Admitted/Axiom); Lean 4.31 exit 0
+  (`#print axioms ⊆ {propext, Classical.choice, Quot.sound}`, no sorry). `pycsl --audit-proof 0753`: 8/8.
+- **Reference drivers.** `0753.py` (positive: round-trip + size law, u16 & u32 — PROVES) and `0754.py`
+  (`# pycsl-expected: FAIL` negative: out-of-range value ⇒ guard is load-bearing — FAILS as required).
+- **S4 (per-field extraction): YAGNI exit** — single-slot ⇒ the field IS the value; multi-slot per-field
+  content is already zero-trust via 0665's body codec. See choices.md.
+- **S5 (os re-key): documented boundary** — os multi-slot formats are out of the single-slot faithful
+  scope, AND the body-verified os already eliminated the struct axiom (0665-style codec), so re-keying
+  would RE-INTRODUCE an axiom it no longer needs. See choices.md.
+- **Docs.** axiom-registry.md (+`Pycsl.Struct.Std.*` row), abstract-op.md, UB catalog §7.4a
+  (out-of-range → `struct.error`, native alignment, signed/float/multi-slot residual), traceability
+  12.5.6. doc-coherency `--check`: green. Commit 7c310b3e.
+- **Gates.** Existing struct tests 0420–0425 + 0665 verify unchanged (faithful path is scoped to
+  single-slot standard-uint formats; emission inert elsewhere). Full corpus sweep: see final report.
+  `proof_axiom_allowlist` unchanged (cited axioms go through the registry + `--audit-proof`).
+  Mirror-sync (`bin/sync-mirror-bodies.py`) NOT run — `libcst` unavailable in this environment;
+  the changed emitter files are not in the self-annotation suite (which runs only `errors.py`), so no
+  self-annotation regression; changes are additive.

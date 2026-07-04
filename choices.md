@@ -43,3 +43,33 @@ the guard is load-bearing at BOTH the pack precondition (matches Python's out-of
 and the axiom antecedent, and the width tag makes it collision-sound. The legacy unguarded shape-model
 axioms and the full-os re-key (plan S5) are recorded as a documented residual: 0665 already shows the
 zero-trust body-faithful elimination path for i18, which supersedes re-keying the abstract family.
+
+## cleared-pack S4 (per-field extraction) — YAGNI exit; documented boundary
+
+**Context.** S4 asks for a per-field content law `unpack(data)[k] == <k-th field decode of data>`.
+**Options.** (1) Add a per-field decode axiom over the abstract `struct_unpack_f*`; (2) skip.
+**Choice.** Skip (documented boundary).
+**Rationale.** The faithful family (S1–S3) targets a SINGLE-slot format, so "the k-th field" is the
+whole value — the round-trip already delivers it (`unpack(pack x)==x`). A per-field content law only
+adds value for MULTI-slot formats, which are out of the faithful family's scope (choices.md S0 entry).
+The zero-trust way to get per-field content for multi-slot codecs already exists — the body-faithful
+0665 codec exposes each field's exact byte-decode as an SMT-discharged `ensures` with NO axiom, which
+strictly dominates a per-field abstract axiom. Adding an abstract per-field axiom here would be effort
+on a hypothesis no corpus goal consumes (cf. the axiom-registry cautionary note on vestigial struct
+axioms). Recorded as a residual in the UB catalog §7.4a.
+
+## cleared-pack S5 (os corpus re-key) — keep os on legacy family; documented boundary
+
+**Context.** S5 asks to re-verify the os inode blit/read-back corpus against the faithful round-trip.
+**Options.** (1) Re-key `src/pycsl_lib/os/UnixInodeFileSystem.py` (multi-slot '>IHHHHHII10Ixx' / '>H30s')
+to a faithful multi-slot family; (2) leave os as-is.
+**Choice.** Leave os on its existing path (documented boundary).
+**Rationale.** (a) The faithful family is single-slot by construction (S0 soundness scope); os uses
+multi-slot formats, which would require the range-aware multi-slot machinery the S0 entry explicitly
+deferred to avoid destabilising the heavy os proof base. (b) More decisively, the body-verified
+`src/pycsl_lib/os` ALREADY eliminated the struct round-trip axiom via the 0665-style pure-Python byte
+codec (see axiom-registry.md cautionary note: "removing all eight [citations] left the os fully proven,
+0 unproven goals"). The os read-back is therefore ALREADY honest — re-keying it to a new faithful
+struct axiom would RE-INTRODUCE an axiom the body-verified os no longer needs. The only os path still on
+the abstract codec is the separate `struct.pack`-based stub, whose legacy `UnixFs.Struct.*` axioms are
+retained and documented. No os regression: 0420–0425 + 0665 verify unchanged.
