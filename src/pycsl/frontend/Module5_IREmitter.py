@@ -3046,6 +3046,86 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 return "emit_ir"
         return None
 
+    # nested-list.md S1: ONE recursive annotation -> WhyML *element-position* type.
+    # An element-position type is a PURE Why3 type (Why3 forbids a mutable element
+    # inside `array`), so a nested `List[U]` becomes `seq (_rec U)` (NOT `array`),
+    # a `Dict[K,V]` becomes `map κ(K) (option (_rec V))`, a `Set[U]` becomes
+    # `map (_rec U) (option int)`. The Gate-B spike (test-suite/corpus/conformance/
+    # spikes/nested-list.mlw) fixed `array (seq τ)` as the outer nested-list type:
+    # the OUTER `List[T]` param is `array (_rec T)` (see `_m5_get_list_nested_elem_whyml`),
+    # so a flat `List[int]` stays `array int` byte-identically. Depth-bounded; an
+    # unknown/too-deep leaf returns None (the caller keeps the scalar `int` default).
+    _M5_MAX_NEST_DEPTH = 4
+
+    @staticmethod
+    def _m5_annotation_to_whyml_type(annotation: ast.expr,
+                                     depth: int = 0) -> Optional[str]:
+        rec = PyCSLToJSONEmitter._m5_annotation_to_whyml_type
+        if depth > PyCSLToJSONEmitter._M5_MAX_NEST_DEPTH:
+            return None
+        if isinstance(annotation, ast.Name):
+            nm = annotation.id
+            if nm in ("int", "bool"):
+                return "int"
+            if nm == "str":
+                return "string"
+            if nm == "float":
+                return "real"
+            return None
+        if not (isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)):
+            return None
+        head = annotation.value.id
+        sl = annotation.slice
+        if isinstance(sl, ast.Index):        # py<3.9 compat
+            sl = sl.value
+
+        def _paren(t: str) -> str:
+            return f"({t})" if " " in t else t
+
+        if head in ("List", "list"):
+            inner = rec(sl, depth + 1)
+            if inner is None:
+                return None
+            return f"seq {_paren(inner)}"
+        if head in ("Set", "set", "FrozenSet", "frozenset"):
+            inner = rec(sl, depth + 1)
+            if inner is None:
+                return None
+            return f"map {_paren(inner)} (option int)"
+        if head in ("Dict", "dict"):
+            if not (isinstance(sl, ast.Tuple) and len(sl.elts) == 2):
+                return None
+            k, v = sl.elts
+            kappa = "string" if (isinstance(k, ast.Name) and k.id == "str") else "int"
+            vw = rec(v, depth + 1)
+            if vw is None:
+                return None
+            return f"map {kappa} (option {_paren(vw)})"
+        return None
+
+    @staticmethod
+    def _m5_get_list_nested_elem_whyml(annotation: ast.expr) -> Optional[str]:
+        """nested-list.md S2: for a `List[U]` param whose element `U` is itself a
+        CONTAINER (List/Dict/Set/FrozenSet), the outer list's WhyML element type —
+        the pure `_rec(U)` (`seq ..`/`map ..`). Returns None for a scalar-leaf list
+        (`List[int]`/`List[str]`/`List[emit_ir]`), which keeps the byte-identical
+        `array int`/legacy element path. Only the outer level is nested here; the
+        recursion inside `_m5_annotation_to_whyml_type` handles arbitrary depth."""
+        if not (isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)
+                and annotation.value.id in ("List", "list")):
+            return None
+        sl = annotation.slice
+        if isinstance(sl, ast.Index):
+            sl = sl.value
+        if not (isinstance(sl, ast.Subscript)
+                and isinstance(sl.value, ast.Name)
+                and sl.value.id in ("List", "list", "Dict", "dict",
+                                    "Set", "set", "FrozenSet", "frozenset")):
+            return None
+        return PyCSLToJSONEmitter._m5_annotation_to_whyml_type(sl, depth=1)
+
     @staticmethod
     def _m5_get_dict_value_type(annotation: ast.expr) -> Optional[str]:
         """Port of Module4._get_dict_value_type. See that method for the rules."""
@@ -3129,6 +3209,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # Function arguments (skip 'self' for methods)
         param_annotations: Dict[str, str] = {}
         param_list_elem_types: Dict[str, str] = {}
+        # nested-list.md S2: a `List[<container>]` param -> the outer list's WhyML
+        # element type (`seq ..`/`map ..`), so Module6 emits `array (seq τ)` and the
+        # nested read `a[i][j]` routes to `Seq.get`/`Map.get`. Empty for every flat
+        # `List[int]`/scalar-leaf list (byte-identical `array int`).
+        param_list_nested_elem: Dict[str, str] = {}
         for arg in node.args.args:
             if arg.arg == 'self':
                 continue
@@ -3170,6 +3255,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 _le = self._m5_get_list_elem_type(arg.annotation)
                 if _le is not None:
                     param_list_elem_types[arg.arg] = _le
+                # nested-list.md S2: nested-container element type (`seq ..`/`map ..`).
+                _ne = self._m5_get_list_nested_elem_whyml(arg.annotation)
+                if _ne is not None:
+                    param_list_nested_elem[arg.arg] = _ne
             # no-more-int emitter L4b: preserve the param's annotated type as a
             # scalar-dict field on the func IR (like `return_annotation`), so it
             # survives import injection — which rebuilds `symbol_table` with `Any`
@@ -3309,7 +3398,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 if ga.target not in scope or ga.op == "=":
                     scope[ga.target] = dtype
 
-        return scope, dict_value_types, dict_key_types, param_annotations, param_list_elem_types
+        return (scope, dict_value_types, dict_key_types, param_annotations,
+                param_list_elem_types, param_list_nested_elem)
 
     def _build_function_ir(self, node: ast.FunctionDef) -> Dict[str, Any]:
         """Build the core function IR dict (name, contracts, body)."""
@@ -3325,7 +3415,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         self._cur_literal_ensures = []
         # refactor.md B-final wedge: Module5 computes the scope itself rather than
         # copying Module4's `node.csl_symbol_table` (etc.). Byte-identical by design.
-        _sym, _dvt, _dkt, _pann, _plet = self._build_function_symbol_table(node)
+        _sym, _dvt, _dkt, _pann, _plet, _plne = self._build_function_symbol_table(node)
         symbol_table = {k: v for k, v in _sym.items() if k != 'self'}
         # scc3.md Phase B: expose this function's symbol table to `_csl_in` (built
         # below for contracts/body) so `x in S` dispatches on the collection type.
@@ -3448,6 +3538,9 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             "symbol_table": symbol_table,
             "param_annotations": _pann,
             "param_list_elem_types": dict(_plet),
+            # nested-list.md S2: outer-list element type for a `List[<container>]`
+            # param (`seq ..`/`map ..`). Empty for flat lists → byte-identical.
+            "param_list_nested_elem": dict(_plne),
             "param_defaults": param_defaults,
             "has_mutable_default": has_mutable_default,
             "acts": acts_ir,
@@ -3571,6 +3664,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     array2d.add(base)
         if candidate_params:
             array2d.update(self._collect_2d_params(func_ir["body"], candidate_params))
+        # nested-list.md S2: a param explicitly annotated `List[<container>]` takes the
+        # faithful `array (seq/map ..)` path — it must NOT be hijacked into the flat
+        # rectangular `matrix int` model (which drops per-row `len(a[i])`). The matrix
+        # path stays for `\length2d`-contract / bare-`list` 2-D params (0018/0019).
+        _nested = set(func_ir.get("param_list_nested_elem", {}))
+        array2d -= _nested
         if array2d:
             func_ir["array2d_params"] = sorted(array2d)
         array1d: Set[str] = set()

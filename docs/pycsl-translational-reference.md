@@ -273,6 +273,7 @@ def test_precondition(x: int) -> int:
 | `str` | `string` | Why3 `string.String` value type — real content (see §T.6 string ops); memory-model-independent |
 | `float` | `real` | Why3 `real.RealInfix` (`+.`/`-.`/…); float literals are real constants. Was the unsound `int` (no-more-int Stage D) |
 | `list` | `array int` | Hoare/Concurrent model (default — fixed-length, mutable, region-bearing) |
+| `List[List[τ]]` (NESTED) | `array (seq τ)` | **nested-list.md — a list whose element is itself a container carries its FAITHFUL nested type, recursively (`_m5_annotation_to_whyml_type`).** The OUTER list stays `array` (byte-identical to a flat `List[τ] = array τ`; `len(a)`/`a[i]`/outer whole-row reassignment `a[i]=row` unchanged); the INNER collection is a **PURE** Why3 type — `seq τ` for `List`, `map κ (option ν)` for `Dict[K,V]`, `map (…) (option int)` for `Set`. Pure is MANDATORY: Why3 forbids a mutable element inside `array` (`array (array τ)` is type-rejected; Gate-B spike `test-suite/corpus/conformance/spikes/nested-list.mlw`). So `a[i]` is a real `seq`/`map`, `a[i][j]`→`Seq.get (a[i]) j`, `a[i][key]`→`Map.get (a[i]) key`, `len(a[i])`→`Seq.length (a[i])`, and the subscript-projection comprehension `[x[k] for x in a]` is content-faithful (`result[i] = Seq.get (a[i]) k`). Drivers 0797–0800; NEGATIVE 0801 (false content). Depth-bounded (≤4); an unknown/too-deep leaf keeps the scalar `int` default (documented residual). **Boundary:** in-place INNER mutation `a[i][j]=v` / `a[i].append(..)` has no sound rendering on the immutable `seq` — it is REJECTED (a hard type/verification failure, never a silent unsound update; driver 0802), NOT silently accepted. Un-annotated/bare-`list` nested params stay `array int` (never a false nested claim); a `\length2d`-contract param stays `matrix int` (rectangular 2-D) |
 | `list` (grown) | `ref (seq int)` | **07-1705-rev4: a list that is *grown* (`+=` / `+` concat) is modelled as a growable immutable `seq.Seq` value in a region-free ref** — `array.Array` is fixed-length and cannot be rebound (Why3 region rule, `07-1732-findings.md`). Init `[…]`→`Seq.cons` chain; `+=`→`a := !a ++ snapshot(b)` (length-additive + element-preserving, **provable**); `len`→`Seq.length`, `a[i]`→`Seq.get`. A grown PARAM is shadowed at entry `let a = ref (snapshot a)`; `return a` materialises back to `array int` (`materialize`, a fresh array). The seq-promotion analysis (Module5 `seq_promoted_vars`) selects these; `Seq.*` is emitted only in body context (a contract uses the array entry value). Supersedes the old effect-opaque `array_extend` |
 | `list` | `loc` + `_len` | Typed/Store model |
 | `dict` / `set` / `frozenset` | `map κ (option ν)` | Parametric map (no-more-int A1): κ ∈ {`int`, `string`}, and the value type **ν ∈ {`int`, `string`, `seq int`, nested `map …`}**, where — `int` (the default), `string` (str-valued dict), `seq int` (list-valued dict, **immutable seq snapshot** — no mutate-through-alias; A1-residual, driver 0543), and a nested `map …` (dict-of-dict, double subscript). Default `map int (option int)`. `set`/`frozenset` use the same model (value ignored). **κ = string ⇒ `map string (option ν)` with the NATIVE, injective Why3 string key** (`String.(=)`, no `str_hash_op`), so distinct keys are provably non-aliasing (cleared-hash.md, drivers 0755–0758 locals, 0772–0776 record fields). κ = string is inferred for a `Dict[str, _]` param/AnnAssign local, a string-key literal (`{"a": …}`), string-key USAGE (`d[k]`/`k in d`/`d.get(k)` with a string literal or `str`-typed key), a string CONCATENATION key `d[a + b]` (both operands `str`; `str_concat_op` pinned to left-cancellative Why3 `concat`, so `a != c ⇒ d[a+b]` non-aliasing proves — cleared-hash.md residual-close 1a, driver 0795) — Module5 `_build_function_symbol_table` — AND a record FIELD declared `Dict[str, ν]`/`Set[str]`/`FrozenSet[str]` (cleared-hash.md S4: `field_key_types` on the record type flips the field map to `map string`; every field op site — store `self.d[k]=v`, subscript `self.d[k]`, `.get`, membership `k in self.d`, set `.add`/`.discard` — reads/writes the raw native string key in lockstep). **Residual κ-unknown (CLOSED honest boundary):** a dict/set whose key the model cannot pin to a decidable/injective string (an un-annotated field from `{}`, a non-`str` key, or a derived-string key like `s.upper()`) keeps the legacy `map int` + opaque `str_hash_op` fallback — NOT collision-sound: a distinct-key non-aliasing claim on it stays UNPROVABLE (driver 0796, `# pycsl-expected: FAIL`), NO false injectivity axiom on `str_hash_op` (`proof_axiom_allowlist` unchanged). Non-dict-key hashing (`hash(s)` 0485, decode-equality 0425) is a SEPARATE out-of-scope opacity. Implementation: the ν ladder is consolidated into three helpers `_dv_empty_default`/`_dv_missing_default`/`_dv_store_value` in `module6_whyml/expressions.py` (refactor F1) |
@@ -2617,7 +2618,7 @@ by the Why3 project itself.
 | G3 | Boolean/int duality | `True + 1 = 2` in Python; in spec `true + 1` is a type error | The spec/body distinction handles this, but mixed use is fragile |
 | G4 | `None` mapped to `0` in non-ghost context | `None` and `0` are indistinguishable in WhyML for regular Python values | **Partially resolved:** ghost dicts use `map int (option int)` (§T.8.5), so `\has_key` distinguishes absent keys from keys with value 0. Raw Python `None` in non-ghost context still maps to 0. |
 | G5 | Array literals use fixed size 1024 | `[]` becomes `Array.make 1024 0` regardless of actual size | Use dynamic allocation or parametric size |
-| G6 | **List/Dict/Set comprehensions content-faithful for lifting shapes** (cleared-array.md S1–S5 + items 1,3,4) | LIST `[x for x in a]` / `[x+1 for x in a]` / `[p.x for p in a]` / `[g(x) for x in a]` (identity / pure-int `+ - *` / FIELD PROJECTIONS / CALLS to a pure `let function`, over the loop target, `array int` source) carry a per-index law `result[i] = <elt[target:=src[i]]>` + `length result = length src`. FILTER `[x for x in a if cond]` keeps `length <=` and — identity element + lifting pure-bool `cond` — the content-SUBSET law (each survivor satisfies `cond` and ∈ src). DICT `{x: v for x in a}` (identity key + pure-int value) → `Map.get result (a[i]) = Some v`; SET `{f(x) for x in a}` (pure-int elt) → `Map.get result (f(a[i])) = Some 0` (membership). Residuals stay opaque: subscript projection `[x[k] …]` (`List[List[int]]`→`array int`, no faithful collection element), non-identity dict key / non-pure-int value/elt, string/seq/emit_ir elements, multi-generator | Nested-collection element-type threading (`array (array int)`) would unlock subscript projection |
+| G6 | **List/Dict/Set comprehensions content-faithful for lifting shapes** (cleared-array.md S1–S5 + items 1,3,4) | LIST `[x for x in a]` / `[x+1 for x in a]` / `[p.x for p in a]` / `[g(x) for x in a]` (identity / pure-int `+ - *` / FIELD PROJECTIONS / CALLS to a pure `let function`, over the loop target, `array int` source) carry a per-index law `result[i] = <elt[target:=src[i]]>` + `length result = length src`. FILTER `[x for x in a if cond]` keeps `length <=` and — identity element + lifting pure-bool `cond` — the content-SUBSET law (each survivor satisfies `cond` and ∈ src). DICT `{x: v for x in a}` (identity key + pure-int value) → `Map.get result (a[i]) = Some v`; SET `{f(x) for x in a}` (pure-int elt) → `Map.get result (f(a[i])) = Some 0` (membership). Subscript projection `[x[k] …]` is now content-faithful over a NESTED source (nested-list.md S4: `List[List[τ]]`→`array (seq τ)`, `result[i] = Seq.get (a[i]) k`). Residuals stay opaque: non-identity dict key / non-pure-int value/elt, string/emit_ir elements, multi-generator, target-dependent or >2-level subscript index | — |
 | G7 | `isinstance` / `hasattr` are **uninterpreted** `bool` ops (`isinstance_check` / `hasattr_check`), not concrete | Single type system limitation | Support union types or tagged variants |
 | G8 | For-each over non-array iterables | Uses abstract `iter_length` / `iter_get` | Provide concrete implementations per type |
 | G9 | `\map_eq` generates a `forall` quantifier | Wide `\map_eq` in deep loop invariants may exceed solver budget | Restrict `\map_eq` to shallow comparisons; prefer explicit key tracking in loop invariants |
@@ -2801,9 +2802,14 @@ operators `+ - *`, — **cleared-array.md S2** — FIELD PROJECTIONS `e.attr` ov
 liftable base (`[p.x for p in a]`, `[p.x + p.y for p in a]`), and —
 **cleared-array item 1** — CALLS `g(e, …)` to a module function already emitted
 as a pure `let function` (`[g(x) for x in a]`; see the call-comprehension note
-below). Division/modulo, subscripts (`x[k]`), comparisons and booleans are
-excluded — they are not guaranteed pure-int logic terms, and division would leak
-partiality into a logic `ensures`. The emitted val:
+below). Division/modulo, comparisons and booleans are excluded — they are not
+guaranteed pure-int logic terms, and division would leak partiality into a logic
+`ensures`. **SUBSCRIPT projection `x[k]` (nested-list.md S4)** is ALSO liftable
+when `src` is a NESTED-list param (`array (seq τ)` / `array (map κ (option ν))`,
+`_list_nested_elem`): `_nested_subscript_comp` emits the content law
+`result[i] = Seq.get (src[i]) k` (seq) / `Map.get (src[i]) key` (map), with the
+captured index var `k` threaded as an extra val parameter; driver 0799. The
+generic (non-nested) emitted val:
 
 $$\texttt{list\_content\_comp}_n(\textit{src}):\quad
   \texttt{Array.length result = Array.length } \textit{src}
@@ -2912,15 +2918,15 @@ import in the preamble even with no body-level map op (the signature type is
 shapes fall through to `list_comp` / `list_comp_stmts` / `list_comp_seq_*`
 (length-only or fully opaque):
 
-- **Subscript projection `[x[k] …]`** — the source `List[List[int]]` /
-  `List[Dict[…]]` collapses to `array int` (empirically verified: both
-  `List[List[int]]` and `List[Dict[str, int]]` give an `array int` parameter and
-  a symbol-table entry of `'list'` — the inner collection type is not threaded),
-  so `x` is an `int` and `x[k]` has no faithful collection element to index; the
-  `map string` dict model does not reach a *list element*. Threading nested
-  element types (`array (array int)` / `array (map …)`) is a pervasive type-model
-  change (part of the broader no-more-int program) with zero corpus consumer.
-  Documented opaque (no faithfully-typed collection element in the int model).
+- **Subscript projection `[x[k] …]`** — **LIFTED (nested-list.md S4).** A
+  `List[List[τ]]` source now lowers to `array (seq τ)` (a `List[Dict[..]]` source
+  to `array (map κ (option ν))`), so the loop target `x` IS a real `seq`/`map` and
+  `x[k]` is a faithful `Seq.get`/`Map.get`. `[x[k] for x in a]` carries the
+  per-index content law `result[i] = Seq.get (a[i]) k` (`_nested_subscript_comp`),
+  proving `\result[i] == a[i][k]` (driver 0799). The captured index var `k` becomes
+  an extra parameter of the abstract val. Residual: a target-dependent index
+  `x[f(x)]`, a deeper `a[i][j][k]` (>2 levels), or an un-annotated leaf stays
+  opaque; those keep the scalar `int` / opaque path.
 - **Non-identity dict key / non-lifting dict value / non-pure-int set element** —
   the collision-unsoundness / purity guards above are not met; opaque `dict_comp`
   / `set_comp`.

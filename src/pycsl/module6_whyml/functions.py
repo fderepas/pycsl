@@ -53,6 +53,13 @@ class FunctionEmissionMixin:
         if arg in array1d_params or symtype in ("list", "bytes", "bytearray"):
             # 0442.md B2 (no-more-int): bytes/bytearray are the byte-buffer array class.
             if self._value_semantic:
+                # nested-list.md S2: a `List[<container>]` param is `array (seq τ)` /
+                # `array (map κ (option ν))` — the inner collection is a PURE Why3 type
+                # (Why3 forbids a mutable element inside `array`; see the Gate-B spike).
+                # Flat lists have no entry → `array int`, byte-identical.
+                _ne = getattr(self, "_list_nested_elem", {}).get(arg)
+                if _ne is not None:
+                    return f"({safe}: array ({_ne}))"
                 return f"({safe}: array {int_type})"
             return f"({safe}: loc) ({safe}_len: int)"
         if symtype == "str":
@@ -193,6 +200,10 @@ class FunctionEmissionMixin:
         # string materialize bridge, the `Return_seq_str` payload, and the
         # `array string` return type.
         self._seq_value_types: Dict[str, str] = func.get("seq_value_types", {})
+        # nested-list.md S2: a `List[<container>]` param -> the outer list's WhyML
+        # element type (`seq ..`/`map ..`). Drives the `array (seq τ)` param type and
+        # the nested read `a[i][j]` (Seq.get / Map.get). Empty for flat lists.
+        self._list_nested_elem: Dict[str, str] = func.get("param_list_nested_elem", {})
         self._dict_locals = set()
         # todict-reflection-plan.md R1: `d = node.to_dict()` binds `d` as an ALIAS of
         # the typed node (map target → the receiver dotted-name string). A later

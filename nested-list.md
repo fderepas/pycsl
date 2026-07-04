@@ -152,3 +152,49 @@ concrete/static/translational; the mutation + ragged + depth residuals) + `annot
 `array (map ..)`), inner elements are indexable and content-faithful, and the cleared-array
 subscript-projection boundary is lifted. In-place nested mutation, ragged-vs-rectangular beyond the chosen
 repr, and unknown-leaf lists remain the honest, documented residual.
+
+---
+
+## 8. OUTCOME (branch ghost-assign-bc6)
+
+**Representation chosen: `List[List[τ]] ~ array (seq τ)`; `List[Dict[str,int]] ~ array (map string (option int))`.**
+The Gate-B spike (`test-suite/corpus/conformance/spikes/nested-list.mlw`) proved `array (array τ)` is
+Why3 TYPE-REJECTED (a mutable element inside `array` — "instantiates pure type variable 'a with a mutable
+type"). `array (seq τ)` wins: outer `array` stays byte-identical to a flat list; inner `seq`/`map` is a
+PURE type. All spike goals Valid (Alt-Ergo 0.03s / Z3 <0.02s), incl. nested read `a[i][j]`, inner length,
+outer row-replacement `a[i]=row`, and the subscript-projection `[x[k] for x in a]`. Decision in `choices.md`.
+
+**Stages — all landed:**
+- **S0 spike** — DONE. `choices.md`, committed fixture `spikes/nested-list.mlw`.
+- **S1 one recursion** — DONE. `Module5_IREmitter._m5_annotation_to_whyml_type` (element-position pure
+  type, depth-bounded ≤4) + `_m5_get_list_nested_elem_whyml`. The existing `_m5_get_dict_value_type` is
+  consistent (it already returns `seq τ`/`map ..` in value position); the `matrix int` path is kept
+  disjoint (`\length2d`-contract-only, nested-annotated params excluded from `array2d`).
+- **S2 element type into list emission** — DONE. `param_list_nested_elem` threaded Module5→Module6;
+  `_param_type_str` emits `array (seq τ)` / `array (map κ (option ν))`; preamble imports gated. Flat
+  lists BYTE-IDENTICAL (verified: full 677-file corpus emission diff = 0).
+- **S3 `a[i]` yields the inner collection** — DONE. `_handle_subscript` routes `a[i][j]`→`Seq.get`,
+  `a[i][key]`→`Map.get` (`_list_nested_elem`). `len(a[i])`→`Seq.length` (`_handle_len_call`). Drivers
+  0797/0798/0800.
+- **S4 nested comprehension source** — DONE (LIFTS cleared-array subscript-projection). `_content_comp` →
+  `_nested_subscript_comp` emits the per-index content law `result[i] = Seq.get (a[i]) k`, captured index
+  var threaded as an extra val param. Driver 0799; the `cleared-array.md` boundary note flipped to LIFTED.
+- **S5 consumers + `len`** — DONE (inner `len` above; subscript-projection content law).
+- **S6 self-annotate mirror** — the changed emitter methods are additive and inert on `@mutable_state`
+  paths; nested-annotated params absent from the mirror. Mirror-sync green, `\trusted` non-increasing.
+
+**cleared-array subscript-projection boundary: LIFTED** (driver 0799 proves `\result[i] == a[i][k]`).
+
+**Emission differential** = exactly the new nested-collection programs. Flat `List[int]`/`Dict[..]`
+byte-IDENTICAL across all 677 corpus files (before/after `.mlw` diff empty). No `proof_axiom_allowlist`
+change (definitional `ensures`; Seq/Map read laws are Why3 stdlib). doc-coherency `--check` green.
+
+**Drivers added:** 0797 (nested read), 0798 (inner len), 0799 (subscript-projection comprehension —
+boundary lifted), 0800 (`List[Dict[str,int]]` element read), 0801 (NEGATIVE false nested content),
+0802 (NEGATIVE inner mutation `a[i][j]=v` rejected).
+
+**Residual boundaries (honest, never a false claim):** (1) in-place INNER mutation `a[i][j]=v` /
+`a[i].append(..)` — rejected (hard type/verification failure; the inner `seq` is immutable), driver 0802;
+(2) `a[i][j][k]` deeper than 2 levels, and a target-dependent comprehension index `x[f(x)]` — opaque;
+(3) an un-annotated / bare-`list` nested param, or a leaf deeper than the depth bound — stays `array int`;
+(4) a `\length2d`-contract rectangular param stays `matrix int`.

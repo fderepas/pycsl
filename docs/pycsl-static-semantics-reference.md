@@ -306,6 +306,19 @@ these (and `list`/`Tuple[...]`) to `list` → `array int` in the WhyML record, b
 buffer / tuple field is array-backed (e.g. the `self.disk: bytearray` virtual disk). So the
 same annotation can be `int` as a parameter but `array int` as a field.
 
+**§ Nested containers (nested-list.md).** A parameter annotated with a container whose ELEMENT
+is itself a container — `List[List[τ]]`, `List[Dict[K,V]]`, `List[Set[τ]]`, recursively — does NOT
+collapse its element to `int`. Module5 (`_m5_get_list_nested_elem_whyml` → the shared recursive
+`_m5_annotation_to_whyml_type`) records the outer list's faithful element type in
+`param_list_nested_elem`, and the emitter realizes the parameter as `array (seq τ)` /
+`array (map κ (option ν))` (`_param_type_str`). The OUTER list stays `array` (a flat `List[τ]` is
+byte-identically `array τ`); the INNER collection is a PURE Why3 type (`seq`/`map`) — Why3 forbids a
+mutable element inside `array`. A nested-annotated parameter is EXCLUDED from the `matrix int` 2-D
+detection (`_detect_array_dimensions`), which stays reserved for `\length2d`-contract rectangular
+params. Depth is bounded (≤4); an unknown/too-deep leaf keeps the scalar `int` default. In-place
+inner mutation (`a[i][j]=v`) has no sound rendering on the immutable inner `seq` and is rejected
+(hard failure), never silently accepted.
+
 **‡ Classes / records.** A class introduces a record type in `Γ_c` (§1.2): `self`, the
 result of a constructor call `C()`, **and** a bare `C`-typed *parameter* whose class is registered
 in `_record_types` are all typed as the class's WhyML record (field defaults per `τ`). A record
