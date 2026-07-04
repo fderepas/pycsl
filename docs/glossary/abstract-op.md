@@ -45,7 +45,16 @@ its trust vanish.
 ### Abstract op pinned by a cited lemma
 
 `struct.unpack(">H30s", data)` is an abstract `val` whose round-trip `ensures` is pinned by
-`#@ proof rocq UnixFs.Struct.i18.round_trip`, whose Rocq witness closes by `reflexivity`.
+`#@ proof rocq UnixFs.Struct.i18.round_trip`, whose Rocq witness closes by `reflexivity` (the
+legacy, UNGUARDED shape-model — the byte content is uninterpreted).
+
+A single standard-size unsigned-int slot (`struct.pack('>H', x)`, `struct.unpack('>I', d)`) is
+instead lowered to the **faithful, guarded** `Pycsl.Struct.Std` family
+(`struct_{pack,unpack}_fu16`/`fu32`): the abstract `val` now carries a size-law `ensures` and an
+in-range `requires`, and its round-trip is pinned by `#@ proof rocq|lean Pycsl.Struct.Std.round_trip_u16`
+whose Rocq+Lean witnesses give pack/unpack a CONCRETE base-256 byte-codec definition — so the
+round-trip is a real theorem and the guard is proven load-bearing (`unpack(pack 65536) = 0 ≠ 65536`),
+not a `reflexivity` over uninterpreted symbols. See `docs/glossary/axiom-registry.md`.
 
 ### Val-bridge
 

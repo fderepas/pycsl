@@ -177,6 +177,47 @@ error.
 **Corpus cross-reference:** `0396` (deny-list rejection), `0397`
 (`\trusted` opt-in), `0398` (`cffi`), `0400` (CLI override).
 
+### §7.4a `struct.pack` / `struct.unpack` — faithful slots vs. residual boundary
+
+`struct` is a C extension, but PyCSL models a subset of it faithfully rather
+than treating every call as opaque (`module6_whyml/struct_format.py`,
+`expressions.py:_handle_struct_call`). A **compile-time-constant** format string
+is parsed into a slot sequence; two tiers result:
+
+- **Faithful, guarded (in scope).** A *single* standard-size **unsigned** integer
+  slot with an explicit standard byte-order prefix — `'>H'`/`'<H'`/`'=H'`/`'!H'`
+  (u16) and `'>I'`/`'>L'` … (u32) — lowers to the `Pycsl.Struct.Std` family
+  (`struct_{pack,unpack}_fu16`/`fu32`) carrying a **size law**
+  (`len(pack(fmt,x)) == calcsize(fmt)`), an **in-range guard**, and a
+  **round-trip** `unpack(fmt, pack(fmt, x)) == x`. See `axiom-registry.md`.
+
+- **Residual boundary (out of scope → opaque or rejected).** The following are
+  *documented, honest residuals*, NOT faithfully modelled:
+  - **Out-of-range value** for a standard-size slot. Real `struct.pack` RAISES
+    `struct.error` (`'H' format requires 0 <= number <= 65535`). PyCSL models
+    this as the pack `val`'s `requires 0 <= x < 2^(8N)` — a **call-site VC**: an
+    out-of-range pack is a proof FAILURE, not a silent truncation. The guard is
+    *load-bearing* — dropping it makes the round-trip FALSE (the
+    `guard_necessity_u*` counterexamples: `unpack(pack 65536) = 0 ≠ 65536`).
+    Negative corpus driver: `0754` (`# pycsl-expected: FAIL`).
+  - **Native size / alignment** (`'@'` prefix or NO prefix). Native sizes and
+    struct padding are platform-dependent, so `calcsize` and the byte layout are
+    undefined; these formats never enter the faithful path (they stay on the
+    opaque abstract `iN` symbols or are rejected as dynamic).
+  - **Signed** integer slots (`b`/`h`/`i`/`l`/`q`) — two's-complement round-trip
+    is not yet modelled; **float** slots (`f`/`d`) — the IEEE-754 encoding is not
+    modelled (PyCSL has no float codec); **multi-slot** and **bytes/`Ns`** shapes
+    — these keep the *legacy, unguarded* `UnixFs.Struct.*` shape-model axioms
+    (which postulate the inverse over uninterpreted symbols; see the cautionary
+    note in `axiom-registry.md`). The zero-trust way to model any of these is the
+    body-faithful pure-Python byte codec of `0665` (`pack16`/`pack32`/
+    `pack_inode`), which proves the guarded round-trip by SMT composition with
+    NO axiom.
+
+**Corpus cross-reference:** `0753` (faithful u16/u32 round-trip + size law,
+positive), `0754` (out-of-range guard-necessity, `# pycsl-expected: FAIL`),
+`0665` (zero-axiom body-faithful codec), `0420`–`0425` (legacy abstract family).
+
 ---
 
 ## §7.5 `__del__` / finalizer rejection
