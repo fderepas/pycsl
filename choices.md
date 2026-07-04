@@ -153,3 +153,26 @@ codec (see axiom-registry.md cautionary note: "removing all eight [citations] le
 struct axiom would RE-INTRODUCE an axiom the body-verified os no longer needs. The only os path still on
 the abstract codec is the separate `struct.pack`-based stub, whose legacy `UnixFs.Struct.*` axioms are
 retained and documented. No os regression: 0420–0425 + 0665 verify unchanged.
+
+## cleared-array S0 + S0-bis (SMT spike) — GO; per-index law AND sorted permut+sortedness both tractable
+
+**Context.** Before touching the comprehension lowering, hand-write a `.mlw` LEADING with the make-or-break
+per-index defining law `forall i. 0<=i<len src -> result[i] = f(src[i])` consumed at a USE site (a `val`
+with the quantified `ensures`, instantiated at two independent indices to probe E-matching blowup), plus
+the identity specialization, the filter length bound, and — separately (S0-bis) — the `sorted`
+permutation+sortedness law (`permut_all src result /\ forall k1<=k2. result[k1] <= result[k2]`).
+**Result (Why3 1.8.2, AE 2.6.2, Z3 4.13.3).**
+| VC | Alt-Ergo | Z3 |
+|---|---|---|
+| test_elt (per-index law, 2-point instantiation) | Valid 0.04s / 27 steps | Valid 0.02s / 32576 steps |
+| test_id (identity result[i]=src[i]) | Valid 0.04s / 14 steps | Valid 0.02s / 32002 steps |
+| test_filt (length bound) | Valid 0.03s | Valid 0.01s |
+| test_sorted (permut_all + sortedness) | Valid 0.04s / 16 steps | Valid 0.02s / 32906 steps |
+**Choice.** GO on S1–S4 (content laws) AND S5 (`sorted` permut+sortedness — the S0-bis spike HOLDS, it is
+NOT intractable). Fixture: `test-suite/corpus/conformance/spikes/cleared-array-comp.mlw`.
+**Rationale.** The quantified per-index law instantiates cleanly at multiple points with no E-matching
+blowup on either prover (AE step counts tiny); `permut_all` + the pairwise sortedness predicate are
+discharged fast — so `sorted_1` can gain a real permutation+sortedness contract with NO new global axiom
+(the ensures is on the abstract `val`, discharged where used). One import gotcha recorded: `use map.Map`
+and `use array.Array` both export the `[]` mixfix; a comprehension `.mlw` must NOT import `map.Map` when
+it uses array indexing (they collide → "expected 'xi -> 'xi1").
