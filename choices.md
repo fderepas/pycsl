@@ -405,3 +405,60 @@ symbol is NOT a soundness hole. Modelling simple/ASCII folding when Python does 
 DIVERGE from faithful semantics for the ß-class. Recorded as the honest residual (translational
 §T.6.15, §T.11.1 G2, annotations.md). General grow/shrink replace likewise stays length-only (never
 claims length preservation — the sound char-for-char law is retained).
+
+## cleared-pack RESIDUALS (items 1-5) — widen the faithful family to a per-field width/signedness tag; reject native alignment; supersede os re-key
+
+**Context.** The single-slot faithful `Pycsl.Struct.Std` family (S1-S3) left five residuals: (1)
+multi-slot standard-int, (2) signed integers, (3) floats + `s`/`p`, (4) native `@` alignment, (5)
+S4 per-field / S5 os re-key. The S0 decision (above) had scoped faithful to single-slot to avoid the
+`slot_id` collision (`'>HH'` and `'<ii'` both `struct_pack_i2`) and to leave the heavy os proof base
+untouched.
+
+**Options for the collision (the item-1 blocker).**
+1. Re-key ALL pack/unpack to a range-aware `slot_id` and re-verify os. HIGH risk (destabilises os),
+   large churn.
+2. A single guard per existing `slot_id`. Unsound (collision) or useless.
+3. Extend the width-tagged single-slot scheme to a PER-FIELD width/signedness tag
+   (`faithful_slots()` → tag-join; symbol `struct_{pack,unpack}_f<tag>`), gated by a WHITELIST of
+   shapes that carry a cited Rocq+Lean byte-codec proof (`_FAITHFUL_SHAPES`). Whitelisted shapes route
+   faithful; everything else (incl. the legacy os `i2`/`i18`/`i1a1`) stays on the opaque/legacy path.
+
+**Choice.** Option 3, with these sub-decisions:
+- **Whitelist gate (`_FAITHFUL_SHAPES`).** Faithful ⟺ std prefix + all scalar-int fields + tag-tuple
+  IN the whitelist. This is the honest "claim only what we have proven" boundary AND it keeps the os
+  shapes untouched by construction. Deliberately EXCLUDES `u16u16` (`'>HH'` = 0420's legacy `i2`) and
+  the wide `i18` — so 0420-0425/0665 emit BYTE-IDENTICALLY (zero churn to the os proof base). The
+  multi-slot demo therefore uses `u16u32` (`'>HI'`) and signed `i32i32` (`'<ii'`), which no legacy
+  test uses.
+- **Exact-match fix for sibling axiom keys.** `round_trip_u16` is a textual prefix of
+  `round_trip_u16u32` (and `i32` of `i32i32`); the `_AXIOM_FUNCTIONS` `startswith` match would drag the
+  single-slot val decls into a multi-slot citation. Added `_axiom_fn_prefix_match`: namespace keys
+  (trailing `.`) prefix-match; full-lemma keys match EXACTLY. Correct for every pre-existing entry
+  (verified: only my two new sibling pairs were affected).
+- **Signed = two's complement, derived from unsigned.** `pk_iN x = pkU_N (x mod 2^8N)`;
+  `up_iN d = let u = upU_N d in if u >= 2^(8N-1) then u - 2^8N else u`. Round-trip proven for the whole
+  signed range from the unsigned round-trip + a modular argument. i64 needed the 8-digit base-256
+  telescoping (`urt64`) — provable with `lia`/`omega`; NO width was intractable.
+- **Multi-slot = disjoint-byte concatenation.** `pk_u16u32 x0 x1 = pk16 x0 ++ pk32 x1`; unpack projects
+  each field's byte range. Round-trip = f_equal on the two single-field round-trips.
+- **`s` fixed-bytes = truncate codec (`firstn N`).** Under the length guard `len d = N`, `firstn N d = d`
+  → array identity. Faithful (struct truncates >N, pads <N; the guard pins =N).
+- **Float `f`/`d` = DOCUMENTED YAGNI (UB §7.4c), NOT a faked axiom.** The IEEE-754 bit-extraction does
+  not lower to the int/real model (no `real → bits` total function in scope). Size law kept; round-trip
+  opacity note. This is a modelling gap, not an SMT timeout — so it is honest opacity, per the plan.
+- **Native `@` = REJECTED (UB §7.4b), NOT silently opaque.** `expressions.py:_handle_struct_call` raises
+  a clear diagnostic for a `'@'` prefix; `calcsize()` returns `None` for `'@'` defensively. Rejection is
+  the SOUND choice (native size/padding is platform-dependent; an opaque model could carry a wrongly-
+  sized `len(...)` claim). No existing `.py` corpus program uses `'@'` → zero regression. Negative driver
+  0782.
+- **S4/S5 = SUPERSEDED, definitively.** 0665's zero-trust body codec already gives the os an axiom-free
+  round-trip; re-keying os to a struct axiom would RE-INTRODUCE an axiom. Multi-slot per-field content is
+  delivered by the tuple round-trip (0777/0778 prove `\result == field_k`); a separate per-field axiom is
+  subsumed and, for wide/legacy shapes, dominated by the 0665 body codec.
+
+**Rationale.** Maximises rigor without destabilising os: every faithful shape is byte-honest (size +
+per-field-guarded round-trip + guard-necessity, all cross-validated Rocq+Lean, `coqc`/`lean` exit 0, no
+Admitted/sorry, axioms ⊆ core set), the collision is closed by the per-field tag, native alignment is
+soundly rejected, and float/wide-multi-slot stay honest documented residuals. `proof_axiom_allowlist`
+UNCHANGED (all faithful axioms flow through the registry + `--audit-proof`). Drivers 0777-0782;
+proofs 0777-0781.proofs/{rocq,lean}/StructResiduals.{v,lean}.

@@ -2201,16 +2201,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if fmt_ir.get("type") != "String":
             return None   # Dynamic format string
         fmt = fmt_ir.get("value", "")
+        # cleared-pack item 4 (UB-7.4b): NATIVE size/alignment ('@' prefix) is
+        # platform-dependent — a standard-size size law or round-trip would be
+        # UNSOUND (native alignment inserts padding). REJECT it with a clear
+        # diagnostic rather than silently emit an opaque (but wrongly-sized) model.
+        if isinstance(fmt, str) and fmt[:1] == "@":
+            from errors import PyCSLSemanticError
+            raise PyCSLSemanticError(
+                f"struct format '{fmt}': native size/alignment ('@' prefix) is "
+                f"unsupported (UB-7.4b). Native layout is platform-dependent, so "
+                f"PyCSL cannot soundly model its size or round-trip. Use an explicit "
+                f"standard-size byte-order prefix ('<', '>', '=', or '!').")
         parsed = parse_format(fmt)
         if parsed is None:
             return None   # Unsupported char in format
 
         slot_id = parsed.slot_id()
-        # cleared-pack: a single standard-size unsigned-int slot lowers to the
-        # FAITHFUL, guarded `Pycsl.Struct.Std` family (`struct_{pack,unpack}_f<sig>`)
-        # — byte-codec-anchored round-trip + size law + in-range guard. All other
-        # shapes keep the opaque abstract `iN` symbols (documented boundary).
-        faithful = parsed.faithful_uint_slot()
+        # cleared-pack: a WHITELISTED scalar-int shape (single OR multi-slot,
+        # signed OR unsigned) lowers to the FAITHFUL, guarded `Pycsl.Struct.Std`
+        # family (`struct_{pack,unpack}_f<tag-join>`) — byte-codec-anchored
+        # round-trip + size law + per-field in-range guard. A single fixed-bytes
+        # `s` slot lowers to the array-identity family `struct_{pack,unpack}_fs<N>`.
+        # All other shapes keep the opaque abstract `iN`/`i1a1` symbols
+        # (documented boundary — incl. the legacy os shapes and float/native).
+        faithful = parsed.faithful_slots()          # scalar shape or None
+        faithful_tag = parsed.faithful_tag()        # tag-join or None
+        bytes_n = parsed.faithful_bytes_slot()      # fixed-bytes N or None
         if func_name == "struct.unpack":
             # struct.unpack(fmt, data) → (t1, ..., tN)
             # Abstract: val struct_unpack_<slot_id> (fmt: int) (data: array int) : (t1, ..., tN)
@@ -2221,8 +2237,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             else:
                 ret_type = "(" + ", ".join(parsed.slots) + ")"
             if faithful is not None:
-                sig, _w, _hi = faithful
-                sym = f"struct_unpack_f{sig}"
+                sym = f"struct_unpack_f{faithful_tag}"
+            elif bytes_n is not None:
+                sym = f"struct_unpack_fs{bytes_n}"
             else:
                 sym = f"struct_unpack_{slot_id}"
             # `val function` — both program-callable and a logical
@@ -2246,8 +2263,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if len(value_args) != parsed.arity:
                 return None
             if faithful is not None:
-                sig, _w, _hi = faithful
-                sym = f"struct_pack_f{sig}"
+                sym = f"struct_pack_f{faithful_tag}"
+            elif bytes_n is not None:
+                sym = f"struct_pack_fs{bytes_n}"
             else:
                 sym = f"struct_pack_{slot_id}"
             params = ["(fmt: int)"] + [

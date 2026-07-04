@@ -133,6 +133,47 @@ class PreambleEmissionMixin:
             "forall fmt x0 : int. 0 <= x0 < 4294967296 -> "
             "struct_unpack_fu32 fmt (struct_pack_fu32 fmt x0) = x0",
 
+        # cleared-pack RESIDUALS (items 1-2): the faithful family widened to a
+        # per-field width/signedness tag. Same anchor discipline as u16/u32:
+        # pack/unpack are DEFINED as concrete big-endian base-256 byte codecs (signed
+        # via two's complement) in the driver .proofs, so each round-trip is a genuine
+        # theorem, guarded by the per-field in-range `requires` (faithful to CPython's
+        # out-of-range struct.error). Cross-validated Rocq + Lean, no Admitted/sorry.
+        #
+        # item 1 — MULTI-SLOT unsigned '>HI' = (u16, u32), tags u16u32. The per-field
+        # tag makes the symbol distinct from any legacy `iN` shape (closes the S0
+        # collision: '>HH'=u16u16 and '<ii'=i32i32 no longer share `struct_pack_i2`).
+        "Pycsl.Struct.Std.round_trip_u16u32":
+            "forall fmt x0 x1 : int. 0 <= x0 < 65536 -> 0 <= x1 < 4294967296 -> "
+            "struct_unpack_fu16u32 fmt (struct_pack_fu16u32 fmt x0 x1) = (x0, x1)",
+
+        # item 2 — SIGNED singles (two's complement, range [-2^(8N-1), 2^(8N-1))).
+        # '>h'=i16, '>i'/'>l'=i32, '>q'=i64.
+        "Pycsl.Struct.Std.round_trip_i16":
+            "forall fmt x0 : int. -32768 <= x0 < 32768 -> "
+            "struct_unpack_fi16 fmt (struct_pack_fi16 fmt x0) = x0",
+        "Pycsl.Struct.Std.round_trip_i32":
+            "forall fmt x0 : int. -2147483648 <= x0 < 2147483648 -> "
+            "struct_unpack_fi32 fmt (struct_pack_fi32 fmt x0) = x0",
+        "Pycsl.Struct.Std.round_trip_i64":
+            "forall fmt x0 : int. -9223372036854775808 <= x0 < 9223372036854775808 -> "
+            "struct_unpack_fi64 fmt (struct_pack_fi64 fmt x0) = x0",
+
+        # items 1+2 — MULTI-SLOT SIGNED '<ii' = (i32, i32), tags i32i32. Demonstrates
+        # the tag resolving the collision: a two-int32 format is `struct_pack_fi32i32`,
+        # NEVER the same symbol as a two-uint16 `>HH`.
+        "Pycsl.Struct.Std.round_trip_i32i32":
+            "forall fmt x0 x1 : int. -2147483648 <= x0 < 2147483648 -> "
+            "-2147483648 <= x1 < 2147483648 -> "
+            "struct_unpack_fi32i32 fmt (struct_pack_fi32i32 fmt x0 x1) = (x0, x1)",
+
+        # item 3 — FIXED-BYTES 's' round-trip = array identity under the length guard.
+        # '>4s' packs a 4-byte buffer verbatim and unpacks it back. Byte-codec anchor
+        # is the trivial list identity `take N (pad N d) = d` when `length d = N`.
+        "Pycsl.Struct.Std.round_trip_s4":
+            "forall fmt : int, d : array int. Array.length d = 4 -> "
+            "struct_unpack_fs4 fmt (struct_pack_fs4 fmt d) = d",
+
         # UnixFs.Dir — directory-scan reflection. The bounded scan over the 16
         # root-directory slots returns a non-negative inode IFF some live slot
         # decodes to `name`. INDUCTIVE over the slot loop (SMT times out:
@@ -1448,6 +1489,52 @@ class PreambleEmissionMixin:
             "    ensures  { Array.length result = 4 }",
             "val function struct_unpack_fu32 (fmt: int) (data: array int) : int",
         ],
+        # cleared-pack RESIDUALS: per-field width/sign-tagged faithful families.
+        # Each pack `val` carries the S1 size law (`length = calcsize`) AND the S2
+        # per-field in-range `requires` (a CALL-SITE VC; real struct.pack raises
+        # out-of-range). Multi-slot unpack returns a tuple in field order.
+        # item 1 — multi-slot unsigned u16u32 (6 bytes).
+        "Pycsl.Struct.Std.round_trip_u16u32": [
+            "val function struct_pack_fu16u32 (fmt: int) (x0: int) (x1: int) : array int\n"
+            "    requires { 0 <= x0 < 65536 }\n"
+            "    requires { 0 <= x1 < 4294967296 }\n"
+            "    ensures  { Array.length result = 6 }",
+            "val function struct_unpack_fu16u32 (fmt: int) (data: array int) : (int, int)",
+        ],
+        # item 2 — signed singles (two's complement).
+        "Pycsl.Struct.Std.round_trip_i16": [
+            "val function struct_pack_fi16 (fmt: int) (x0: int) : array int\n"
+            "    requires { -32768 <= x0 < 32768 }\n"
+            "    ensures  { Array.length result = 2 }",
+            "val function struct_unpack_fi16 (fmt: int) (data: array int) : int",
+        ],
+        "Pycsl.Struct.Std.round_trip_i32": [
+            "val function struct_pack_fi32 (fmt: int) (x0: int) : array int\n"
+            "    requires { -2147483648 <= x0 < 2147483648 }\n"
+            "    ensures  { Array.length result = 4 }",
+            "val function struct_unpack_fi32 (fmt: int) (data: array int) : int",
+        ],
+        "Pycsl.Struct.Std.round_trip_i64": [
+            "val function struct_pack_fi64 (fmt: int) (x0: int) : array int\n"
+            "    requires { -9223372036854775808 <= x0 < 9223372036854775808 }\n"
+            "    ensures  { Array.length result = 8 }",
+            "val function struct_unpack_fi64 (fmt: int) (data: array int) : int",
+        ],
+        # items 1+2 — multi-slot signed i32i32 (8 bytes).
+        "Pycsl.Struct.Std.round_trip_i32i32": [
+            "val function struct_pack_fi32i32 (fmt: int) (x0: int) (x1: int) : array int\n"
+            "    requires { -2147483648 <= x0 < 2147483648 }\n"
+            "    requires { -2147483648 <= x1 < 2147483648 }\n"
+            "    ensures  { Array.length result = 8 }",
+            "val function struct_unpack_fi32i32 (fmt: int) (data: array int) : (int, int)",
+        ],
+        # item 3 — fixed-bytes s4 (array identity under the length guard).
+        "Pycsl.Struct.Std.round_trip_s4": [
+            "val function struct_pack_fs4 (fmt: int) (d: array int) : array int\n"
+            "    requires { Array.length d = 4 }\n"
+            "    ensures  { Array.length result = 4 }",
+            "val function struct_unpack_fs4 (fmt: int) (data: array int) : array int",
+        ],
         # UnixFs.Content (gap-17): the inode SIZE view. `inode_size disk ino`
         # is the big-endian uint32 decode of the four on-disk bytes at
         # 512 + ino*64 (the inode SIZE field, struct '>I...' field 0). It is a
@@ -2149,6 +2236,22 @@ class PreambleEmissionMixin:
                 _walk(inv)
         return hit
 
+    @staticmethod
+    def _axiom_fn_prefix_match(qn: str, prefix: str) -> bool:
+        """Whether cited qualname `qn` pulls the `_AXIOM_FUNCTIONS[prefix]` decls.
+
+        A KEY ending in '.' is a NAMESPACE prefix (`UnixFs.Struct.i18.`,
+        `UnixFs.Content.`) and matches any descendant qualname; any other key is a
+        FULL lemma qualname and must match EXACTLY. This exactness is essential now
+        that sibling faithful lemmas are textual prefixes of one another
+        (`…round_trip_u16` ⊂ `…round_trip_u16u32`, `…round_trip_i32` ⊂
+        `…round_trip_i32i32`): citing the multi-slot lemma must NOT drag in the
+        single-slot val decls. Correct for every pre-existing entry (namespace keys
+        already carry the trailing dot; exact-lemma keys are cited verbatim)."""
+        if prefix.endswith("."):
+            return qn.startswith(prefix)
+        return qn == prefix
+
     def _precompute_axiom_logic_funcs(self, ir: Dict[str, Any]) -> None:
         """Populate `self._axiom_logic_funcs` — the NAMES of `val function FOO`
         / `function FOO` symbols declared by the `_AXIOM_FUNCTIONS` decls for
@@ -2189,7 +2292,7 @@ class PreambleEmissionMixin:
         cited_fn_names: Set[str] = set()
         for qn in sorted(seen):
             for prefix, fn_decls in self._AXIOM_FUNCTIONS.items():
-                if qn.startswith(prefix):
+                if self._axiom_fn_prefix_match(qn, prefix):
                     cited_fn_names |= _names_of(fn_decls)
 
         # (b) axiom-function names APPLIED by an `#@ inductive` rule, even when
@@ -2350,7 +2453,7 @@ class PreambleEmissionMixin:
         declared_fns: Set[str] = set(already)
         for qn in sorted(seen_qualnames):
             for prefix, fn_decls in self._AXIOM_FUNCTIONS.items():
-                if qn.startswith(prefix):
+                if self._axiom_fn_prefix_match(qn, prefix):
                     for fn_decl in fn_decls:
                         if fn_decl not in declared_fns:
                             out.append(f"  {fn_decl}")

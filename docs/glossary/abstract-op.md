@@ -48,13 +48,16 @@ its trust vanish.
 `#@ proof rocq UnixFs.Struct.i18.round_trip`, whose Rocq witness closes by `reflexivity` (the
 legacy, UNGUARDED shape-model — the byte content is uninterpreted).
 
-A single standard-size unsigned-int slot (`struct.pack('>H', x)`, `struct.unpack('>I', d)`) is
-instead lowered to the **faithful, guarded** `Pycsl.Struct.Std` family
-(`struct_{pack,unpack}_fu16`/`fu32`): the abstract `val` now carries a size-law `ensures` and an
-in-range `requires`, and its round-trip is pinned by `#@ proof rocq|lean Pycsl.Struct.Std.round_trip_u16`
-whose Rocq+Lean witnesses give pack/unpack a CONCRETE base-256 byte-codec definition — so the
-round-trip is a real theorem and the guard is proven load-bearing (`unpack(pack 65536) = 0 ≠ 65536`),
-not a `reflexivity` over uninterpreted symbols. See `docs/glossary/axiom-registry.md`.
+A WHITELISTED scalar shape is instead lowered to the **faithful, guarded** `Pycsl.Struct.Std`
+family with a **per-field width/signedness tag** (`struct_{pack,unpack}_f<tag>` — `fu16`, `fu32`,
+`fi16`, `fi32`, `fi64`, `fu16u32`, `fi32i32`, `fs4`): the abstract `val` carries a size-law
+`ensures` and a per-field in-range `requires`, and its round-trip is pinned by
+`#@ proof rocq|lean Pycsl.Struct.Std.round_trip_<tag>` whose Rocq+Lean witnesses give pack/unpack a
+CONCRETE base-256 byte-codec definition (signed via two's complement, multi-slot via disjoint-byte
+concatenation) — so the round-trip is a real theorem and the guard is proven load-bearing
+(`unpack(pack 65536) = 0 ≠ 65536`; `unpack(pack 32768) = -32768 ≠ 32768`), not a `reflexivity` over
+uninterpreted symbols. The per-field tag also makes `'>HH'` and `'<ii'` distinct symbols (no more
+`struct_pack_i2` collision). See `docs/glossary/axiom-registry.md` and UB catalog §7.4a–c.
 
 ### Val-bridge
 

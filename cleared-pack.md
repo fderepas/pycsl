@@ -124,7 +124,59 @@ float encodings, and out-of-range packs remain the honest, documented residual.
 
 ---
 
-## EXECUTION RECORD (autonomous, cleared-pack)
+## RESIDUALS CLOSED (autonomous, branch ghost-assign-bc6) — items 1–5
+
+**Status: ALL FIVE RESIDUALS RESOLVED.** The single-slot faithful family (S1–S3 below)
+was widened to a per-field width/signedness tag; the remaining boundaries are closed as
+implemented-and-proven or evidence-backed documented boundaries.
+
+- **Item 1 — MULTI-SLOT standard-int: DONE (implemented + proven + gated).** The blocker
+  (the legacy `slot_id` encoded only WhyML types, so `'>HH'` and `'<ii'` collided on
+  `struct_pack_i2`) is CLOSED by a per-field width/signedness-tagged `slot_id`
+  (`struct_format.faithful_slots()` → tag-join; `'>HH'`=`u16u16` vs `'<ii'`=`i32i32` are
+  now distinct symbols). Faithful multi-slot shapes `u16u32` (`'>HI'`, unsigned) and
+  `i32i32` (`'<ii'`, signed) carry per-field in-range `requires`, a size law, and a guarded
+  tuple round-trip axiom anchored by concrete byte-codec Rocq+Lean proofs
+  (`0777`/`0778.proofs/{rocq,lean}/StructResiduals.*`: `round_trip_u16u32`, `round_trip_i32i32`,
+  size + guard-necessity). Drivers `0777` (u16u32 round-trip + size, PROVES), `0780`
+  (out-of-range field, `# pycsl-expected: FAIL`). `coqc` exit 0 / `lean` exit 0 / `--audit-proof`
+  green.
+- **Item 2 — SIGNED integers (`h`/`i`/`l`/`q`): DONE.** Two's-complement byte codecs for
+  `i16` (`'>h'`), `i32` (`'>i'`/`'>l'`), `i64` (`'>q'`), signed range guard
+  `[-2^(8N-1), 2^(8N-1))`. Round-trip proven across the WHOLE range (positive/negative halves +
+  INT_MIN) in Rocq+Lean (`round_trip_i16/i32/i64`, derived from the unsigned round-trip via a
+  modular two's-complement argument; `urt64` = 8-digit base-256 telescoping — NO width was
+  intractable). Driver `0778` (i16/i32/i64 round-trip + size, PROVES), `0781` (out-of-range,
+  FAIL).
+- **Item 3 — floats + `s`/`p`: DONE (`s`) / DOCUMENTED-YAGNI (`f`/`d`).** Fixed-bytes `s4`
+  (`'>4s'`) implemented as byte-array identity `unpack(pack d)==d` under `len(d)==N`, size law,
+  cited proof (`round_trip_s4`/`size_s4`, `firstn 4 d = d`). Driver `0779` (PROVES). `p`
+  (Pascal) kept as size-law-only legacy boundary (length-prefix byte makes the round-trip
+  conditional). **Float `f`/`d`: DOCUMENTED YAGNI exit (UB §7.4c) with the specific failing
+  step** — the IEEE-754 sign/exponent/mantissa bit-extraction does NOT lower to PyCSL's int/real
+  model (no `real → bits` total function / no bit-cast in scope); size law kept, round-trip
+  opacity note added, no faked axiom.
+- **Item 4 — native (`@`) alignment: CLOSED-AS-BOUNDARY (REJECTED + UB rule).** A `'@'`-prefixed
+  format is now REJECTED at transpilation with a clear diagnostic
+  (`expressions.py:_handle_struct_call`; `calcsize()` also returns `None` for `'@'`). New UB
+  catalog rule **§7.4b**. Rejection (not silent opacity) chosen because native size/padding is
+  platform-dependent and an opaque model could carry a wrongly-sized `len(...)` claim. Negative
+  driver `0782` (FAIL with UB-7.4b). No existing `.py` corpus program uses `'@'` → zero
+  regression.
+- **Item 5 — S4 per-field / S5 os re-key: CLOSED-AS-SUPERSEDED (definitive).** `0665`'s
+  zero-trust pure-Python body codec (`pack16`/`pack32`/`pack_inode`) already gives the os inode
+  blit/read-back an honest, AXIOM-FREE round-trip (axiom-registry.md cautionary note: removing all
+  struct citations left os "fully proven, 0 unproven goals"). Re-keying os to any struct axiom
+  would RE-INTRODUCE an axiom it no longer needs — so S5 is SUPERSEDED, not pending. S4 per-field:
+  for the single-slot faithful shapes the field IS the value (round-trip delivers it); the new
+  multi-slot round-trip delivers each field via tuple projection (drivers `0777`/`0778` prove
+  `\result == field_k`); a separate per-field content axiom is subsumed and, for wide/legacy
+  shapes, dominated by the `0665` body codec. Both verified by pointing at `0665` + the
+  body-verified os (`0420`–`0425` + `0665` verify unchanged).
+
+---
+
+## EXECUTION RECORD (autonomous, cleared-pack) — original single-slot delivery
 
 **Status: COMPLETE** (S0–S3 delivered; S4/S5 documented sound boundaries — see choices.md).
 
