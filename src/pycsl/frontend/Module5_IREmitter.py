@@ -3253,6 +3253,18 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 return True
             if isinstance(_k, ast.JoinedStr):  # f-string key
                 return True
+            # cleared-hash residual-close 1(a): a string CONCATENATION `a + b`
+            # (BOTH operands provably strings) is a string key. Its native Why3
+            # key `str_concat_op a b` is pinned to `concat` (with the length
+            # axiom → left/right cancellative), so tagging κ = string reads the
+            # RAW native key and RECOVERS distinct-key non-aliasing that the
+            # opaque `str_hash_op` (a collision-admitting bodyless `val`) cannot
+            # prove. Sound: `str + str` is a string; an int `a + b` has non-`str`
+            # operands (`_is_str_key` false) so is NEVER tagged. Recurses for
+            # nested concatenation (`a + b + c`).
+            if (isinstance(_k, ast.BinOp) and isinstance(_k.op, ast.Add)
+                    and _is_str_key(_k.left) and _is_str_key(_k.right)):
+                return True
             return False
 
         def _tag_str_keyed(_name: str) -> None:
