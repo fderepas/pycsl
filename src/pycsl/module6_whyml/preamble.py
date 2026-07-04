@@ -1869,7 +1869,10 @@ class PreambleEmissionMixin:
             "seq" in v for f in functions for v in f.get("dict_value_types", {}).values()
         ) or any(f.get("seq_promoted_vars") for f in functions) \
           or needs_return_seq \
-          or bool(getattr(self, "_mutable_state_classes", None))
+          or bool(getattr(self, "_mutable_state_classes", None)) \
+          or any(t.startswith("seq ") for f in functions
+                 for t in f.get("param_list_nested_elem", {}).values())
+        # ^ nested-list.md S2: a `List[List[τ]]` param is `array (seq τ)` → `use seq.Seq`.
         # ^ seq-model-pivot.md SQ1: a @mutable_state module may promote a REASSIGNED list-elem
         #   local to `seq` (decided during emission, after this import scan), so `use seq.Seq`
         #   must be present. The 627-corpus has no @mutable_state class → byte-identical.
@@ -1911,6 +1914,14 @@ class PreambleEmissionMixin:
         if not needs_body_dict:
             for func in functions:
                 if func.get("return_annotation") in ("set", "dict", "frozenset"):
+                    needs_body_dict = True
+                    break
+        # nested-list.md S2: a `List[Dict[..]]`/`List[Set[..]]` param is
+        # `array (map κ (option ν))` → needs `map.Map` + `option.Option`.
+        if not needs_body_dict:
+            for func in functions:
+                if any(t.startswith("map ")
+                       for t in func.get("param_list_nested_elem", {}).values()):
                     needs_body_dict = True
                     break
         # 07-1311 Q4: a `\forall m: dict;` binder needs `map.Map`/`option.Option` too.

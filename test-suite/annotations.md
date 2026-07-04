@@ -1925,11 +1925,15 @@ reuse the pre-existing `emits_as_logic_symbol` path (a pure module function is
 already a `let function`); the content-law val is deferred and spliced in after
 the callee so it is in scope.
 
-Residual opaque shapes (never a false content claim): **subscript projection**
-`[x[k] …]` (`List[List[int]]` / `List[Dict[…]]` collapse to `array int`, no
-faithful collection element — the inner collection type is not threaded),
-non-identity dict key / non-pure-int dict value or set element, string/seq/
-emit_ir elements, multi-generator (cleared-array.md S1–S5 + items 1,3,4).
+**Subscript projection** `[x[k] …]` is now content-faithful over a NESTED source
+(nested-list.md S4): a `List[List[τ]]` param lowers to `array (seq τ)` (a
+`List[Dict[..]]` param to `array (map κ (option ν))`), so `x` is a real `seq`/`map`,
+`x[k]` a faithful `Seq.get`/`Map.get`, and `[x[k] for x in a]` carries
+`result[i] = Seq.get (a[i]) k` (driver 0799). Residual opaque shapes (never a false
+content claim): non-identity dict key / non-pure-int dict value or set element,
+string/emit_ir elements, multi-generator, a target-dependent or >2-level subscript
+index, an un-annotated/too-deep leaf (cleared-array.md S1–S5 + items 1,3,4;
+nested-list.md).
 
 **Tests**: 0761 (identity), 0762 (arithmetic), 0769 (projection),
 0770 (arithmetic-over-projection), 0783 (call), 0763 (filter bound),

@@ -159,10 +159,13 @@ type-check today (`unbound function or predicate symbol 'g'` — demonstrated). 
 require a separate language feature (purity analysis + spec-callable `let function` emission), and
 there is NO existing consumer. YAGNI exit; not a limitation of the comprehension path.
 
-**Subscript projection `[x[k] for x in a]` — STAYS OPAQUE (documented, sharpened).** The source
-`List[List[int]]` / `List[Dict[…]]` collapses to `array int` (empirically verified), so `x` is an `int`
-and `x[k]` has no faithfully-typed collection element to index — the recent `map string` dict model
-never reaches a *list element*. No faithful law is expressible.
+**Subscript projection `[x[k] for x in a]` — LIFTED (nested-list.md, branch ghost-assign-bc6).** The
+former root cause — `List[List[int]]` / `List[Dict[…]]` collapsing the element to `int` — is fixed:
+nested lists now lower to `array (seq τ)` / `array (map κ (option ν))` (Gate-B spike chose `array (seq τ)`;
+`array (array τ)` is Why3 type-rejected). So the loop target `x` IS a real `seq`/`map`, `x[k]` a faithful
+`Seq.get`/`Map.get`, and `[x[k] for x in a]` carries the per-index content law `result[i] = Seq.get (a[i]) k`
+(`_nested_subscript_comp`), proving `\result[i] == a[i][k]` — driver 0799 (positive), 0801 (NEGATIVE false
+content). Residual: a target-dependent index, a >2-level `a[i][j][k]`, or an un-annotated leaf stays opaque.
 
 **Dict/set comprehensions (S6), `reversed` — unchanged** (Round-1 residual; choices.md).
 
@@ -220,13 +223,14 @@ Drivers **0789** (positive `0<\result[k]<100`, compound `and` predicate), **0790
 means a content `ensures` on the abstract op would be DROPPED for files citing the axiom — inconsistency
 for zero demand; choices.md `cleared-array (reversed)`).
 
-**Item 2 — SUBSCRIPT projection `[x[k] for x in a]` — CLOSED-AS-BOUNDARY (sharpened evidence).**
-Empirically re-verified: `List[List[int]]` AND `List[Dict[str,int]]` both lower the parameter to `array
-int` with a symbol-table entry of `'list'` — the inner collection type is NOT threaded, so the source
-element `x` is an `int` and `x[k]` has no faithfully-typed collection to index (falls to opaque
-`list_comp`). The `map string` dict model never reaches a *list element*. The fix (threading nested
-element types `array (array int)` / `array (map …)`) is a pervasive type-model change — part of the
-broader no-more-int program — with zero corpus consumer, so it is deferred; documented boundary.
+**Item 2 — SUBSCRIPT projection `[x[k] for x in a]` — NOW LIFTED (nested-list.md, branch
+ghost-assign-bc6).** Superseded: the "threading nested element types" fix that this item deferred is now
+implemented. Nested lists lower to `array (seq τ)` / `array (map κ (option ν))` (the Gate-B spike chose
+`array (seq τ)`; `array (array τ)` is Why3 type-rejected — a mutable element in a pure type var). The
+inner element `x` is a real `seq`/`map`, `x[k]` a faithful `Seq.get`/`Map.get`, and the comprehension
+carries `result[i] = Seq.get (a[i]) k` — driver 0799 (positive), 0801 (NEGATIVE). See the τ-table row
+`List[List[τ]] ~ array (seq τ)` in the translational reference. Residual: target-dependent / >2-level
+index, un-annotated leaf.
 
 **Gates (Round 3):** full pycsl-reference corpus 735/738 (only the 3 known pre-existing 0540/0700/0701;
 no regressions; 0760-0764/0769-0771 stay green). Emission byte-differential vs HEAD = exactly `0763`

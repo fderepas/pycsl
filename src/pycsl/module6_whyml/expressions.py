@@ -1627,6 +1627,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if (isinstance(_b, dict) and _b.get("type") == "Var"
                     and getattr(self, "_dict_value_types", {}).get(_b.get("name", "")) == "seq int"):
                 return f"(Seq.length {args[0]})"
+            # nested-list.md S5: `len(a[i])` where `a` is a `List[List[τ]]` param
+            # (`array (seq τ)`) — the inner read is a `seq τ`, so its length is
+            # `Seq.length`, not the opaque `iter_length`. `args[0]` already carries
+            # the lowered `a[i]` (`let _row = a[i] in Seq.get ..` NOT produced for a
+            # bare inner read — the len arg is the inner Subscript `a[i]`, which
+            # lowers to a plain `a[i]` Array.get). A `map`-element inner would need
+            # a cardinality op (out of scope) → stays `iter_length`.
+            if (isinstance(_b, dict) and _b.get("type") == "Var"
+                    and getattr(self, "_list_nested_elem", {}).get(
+                        _b.get("name", ""), "").startswith("seq ")):
+                return f"(Seq.length {args[0]})"
         # 07-1705-rev4 P3: len() of a seq-modelled (growable) list local is `Seq.length`.
         # A seq-promoted PARAM in a CONTRACT refers to its array entry value (so fall through
         # to Array.length there — the `not _in_spec` guard); but a seq-promoted LOCAL is always
@@ -3993,6 +4004,47 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                       for k in range(_tarity))
                     _base = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)
                     return f"(let ({_bind}) = {_base} in _r{_idx}_)"
+        # nested-list.md S3: `a[i][j]` where `a` is a `List[<container>]` param
+        # (`array (seq τ)` / `array (map κ (option ν))`, see `_list_nested_elem`).
+        # The inner read `a[i]` yields the PURE element collection, so the outer
+        # `[j]`/`[key]` is a `Seq.get`/`Map.get` on it — NOT a second `Array.get`
+        # nor the opaque `subscript_get`. The inner read is hoisted into a `let`
+        # (it may carry its OWN body-context KeyError/IndexError assert block, which
+        # cannot sit inside the outer read's application/assert). Only the
+        # Var-based 2-level case is faithful; deeper `a[i][j][k]` falls through to
+        # the opaque path (documented depth residual — the type recursion is
+        # depth-bounded too).
+        if (value.get("type") == "Subscript"
+                and value.get("value", {}).get("type") == "Var"
+                and value["value"]["name"] in getattr(self, "_list_nested_elem", {})):
+            _ne = self._list_nested_elem[value["value"]["name"]]
+            _inner = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)  # a[i]
+            if _ne.startswith("seq "):
+                _read = f"(Seq.get _row {index})"
+                _wrapped = self._wrap_with_no_exception_assert(
+                    ("subscript", "read"), [f"(Seq.length _row)", index], _read)
+                return f"(let _row = {_inner} in {_wrapped})"
+            if _ne.startswith("map "):
+                # inner element is a `map κ (option ν)` (List[Dict[..]]): the outer
+                # `[key]` reads that map. κ=string passes the key through native;
+                # otherwise a string key is `str_hash_op`-hashed (int-keyed map),
+                # matching the body-dict subscript convention.
+                _inner_v = (_ne.split("(option ", 1)[1].rsplit(")", 1)[0]
+                            if "(option " in _ne else "int")
+                _idef = '""' if _inner_v == "string" else "0"
+                _idx_ir = expr.get("index", {})
+                if "map string" in _ne:
+                    _k = index
+                elif not self._in_spec and self._is_string_expr(_idx_ir):
+                    self._add_abstract_op("val str_hash_op (s: string) : int")
+                    _k = f"(str_hash_op {index})"
+                else:
+                    _k = self._coerce_to_int(index)
+                _read = (f"(match Map.get _row {_k} "
+                         f"with | Some v_ -> v_ | None -> {_idef} end)")
+                _wrapped = self._wrap_with_no_exception_assert(
+                    ("map_get", None), ["_row", _k], _read)
+                return f"(let _row = {_inner} in {_wrapped})"
         # Detect 2D access: a[i][j] → Subscript(Subscript(Var(a), i), j)
         if (value.get("type") == "Subscript" and
                 value.get("value", {}).get("type") == "Var" and
@@ -4935,6 +4987,107 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return True
         return False
 
+    def _nested_subscript_comp(self, op_name, gen: Dict[str, Any], target: str,
+                               elt: Any, src_ir: Any, local_refs: Set[str],
+                               subst: Optional[Dict[str, str]],
+                               invariant_ctx: bool) -> Optional[str]:
+        """nested-list.md S4: content law for `[x[k] for x in a]` where `a` is a
+        `List[<container>]` param (`array (seq τ)` / `array (map κ (option ν))`)
+        and the element is a subscript `x[k]` of the loop target. Returns the
+        abstract-val application, or None if the shape is not this projection
+        (falls through to the generic / opaque path).
+
+        The result is `array <inner>` where <inner> is the seq's element (or the
+        dict value ν). The per-index content law
+            result[i] = Seq.get (src[i]) k        (seq source)
+            result[i] = match Map.get (src[i]) key with Some v -> v | None -> d end   (map source)
+        re-expresses `a[i][k]` with the SAME inner read a driver's own
+        `\result[i] == a[i][k]` lowers to (see `_handle_subscript` S3) — sound,
+        no new axiom (definitional `ensures`; Seq/Map read laws are Why3 stdlib)."""
+        if not (isinstance(src_ir, dict) and src_ir.get("type") == "Var"):
+            return None
+        _ne = getattr(self, "_list_nested_elem", {}).get(src_ir.get("name", ""))
+        if _ne is None:
+            return None
+        # element must be exactly `x[k]` — a subscript OF the loop target.
+        if not (isinstance(elt, dict) and elt.get("type") == "Subscript"):
+            return None
+        _ev = elt.get("value", {})
+        if not (isinstance(_ev, dict) and _ev.get("type") == "Var"
+                and _ev.get("name") == target):
+            return None
+        idx_ir = elt.get("index", {})
+        # the index must NOT reference the loop target (it is a captured
+        # constant/param `k` / a literal); a target-dependent index is out of
+        # scope. For a seq source the index is a pure-int term (validated +
+        # free-var-collected via `_comp_elt_pure_int`); for a map source it is a
+        # String key literal (target-independent by construction).
+        # captured index free-vars (`k`, `key`) become EXTRA parameters of the
+        # abstract val (a module-level `val` cannot see the enclosing function's
+        # params otherwise). Each maps to (whyml_name, whyml_type); the call site
+        # passes the same vars. Restricted to vars whose lowering is a bare ident
+        # (no `!`-deref) so the decl param name == the term in `idxw`.
+        _extra: List[Tuple[str, str]] = []   # (name, whyml_type)
+        if _ne.startswith("seq "):
+            _idxfree = set()
+            if not self._comp_elt_pure_int(idx_ir, _idxfree):
+                return None
+            if target in _idxfree:
+                return None
+            for _fv in sorted(_idxfree):
+                _fvw = self._expr_to_whyml({"type": "Var", "name": _fv},
+                                           local_refs or set(), invariant_ctx, subst)
+                if _fvw != whyml_ident(_fv):
+                    return None            # ref-deref / renamed → out of scope
+                _extra.append((_fvw, "int"))
+        elif _ne.startswith("map "):
+            if not (isinstance(idx_ir, dict) and idx_ir.get("type") in ("String", "Var")):
+                return None
+            if idx_ir.get("type") == "Var":
+                if idx_ir.get("name") == target:
+                    return None
+                _kv = idx_ir.get("name", "")
+                _kvw = self._expr_to_whyml({"type": "Var", "name": _kv},
+                                           local_refs or set(), invariant_ctx, subst)
+                if _kvw != whyml_ident(_kv):
+                    return None
+                _extra.append((_kvw, "string" if "map string" in _ne else "int"))
+        srcw = self._expr_to_whyml(src_ir, local_refs or set(), invariant_ctx, subst)
+        srca = self._array_coerce_arg(srcw)
+        n = getattr(self, "_comp_content_counter", 0)
+        self._comp_content_counter = n + 1
+        op = f"list_content_comp_{n}"
+        binder = "_ci"
+        saved_in_spec = self._in_spec
+        self._in_spec = True
+        try:
+            idxw = self._expr_to_whyml(idx_ir, local_refs or set(), True, subst)
+        finally:
+            self._in_spec = saved_in_spec
+        if _ne.startswith("seq "):
+            res_elem = _ne[len("seq "):]
+            read = f"(Seq.get (src[{binder}]) {idxw})"
+        elif _ne.startswith("map "):
+            # ν = the option's inner type; the missing-key default is typed per ν.
+            res_elem = (_ne.split("(option ", 1)[1].rsplit(")", 1)[0]
+                        if "(option " in _ne else "int")
+            _dflt = '""' if res_elem == "string" else "0"
+            # κ=string passes the key through native; else int-coerce (spec context).
+            _key = idxw if "map string" in _ne else self._coerce_to_int(idxw)
+            read = (f"(match Map.get (src[{binder}]) {_key} "
+                    f"with | Some v_ -> v_ | None -> {_dflt} end)")
+        else:
+            return None
+        _pdecl = "".join(f" ({nm}: {ty})" for nm, ty in _extra)
+        decl = (
+            f"val {op} (src: array ({_ne})){_pdecl} : array ({res_elem})\n"
+            f"    ensures {{ Array.length result = Array.length src }}\n"
+            f"    ensures {{ forall {binder} : int. 0 <= {binder} < Array.length src ->\n"
+            f"                result[{binder}] = {read} }}")
+        self._add_abstract_op(decl)
+        _cargs = "".join(f" {nm}" for nm, _ in _extra)
+        return f"({op} {srca}{_cargs})"
+
     def _content_comp(self, node: "ExprIR", local_refs: Set[str],
                       invariant_ctx: bool,
                       subst: Optional[Dict[str, str]]) -> Optional[str]:
@@ -4961,6 +5114,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and src_ir.get("name") in getattr(self, "_seq_locals", set())):
             return None
         elt = _d.get("elt", {})
+        # nested-list.md S4: the subscript-projection comprehension
+        # `[x[k] for x in a]` over a `List[List[τ]]` / `List[Dict[..]]` source
+        # `a` (`array (seq τ)` / `array (map κ (option ν))`). The loop target `x`
+        # IS the inner collection, so `x[k]` is a faithful `Seq.get`/`Map.get`.
+        # This LIFTS the cleared-array subscript-projection boundary (which stayed
+        # opaque only because nested lists used to collapse to `array int`).
+        if not g.get("ifs"):
+            _nested = self._nested_subscript_comp(op_name=None, gen=g, target=target,
+                                                  elt=elt, src_ir=src_ir,
+                                                  local_refs=local_refs, subst=subst,
+                                                  invariant_ctx=invariant_ctx)
+            if _nested is not None:
+                return _nested
         free: Set[str] = set()
         getters: Set[str] = set()
         user_funcs: Set[str] = set()

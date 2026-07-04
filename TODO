@@ -1,15 +1,27 @@
-you wrote for instance
-```
-● Great progress (the seq↔array feature works). New leak: formal_params (from _module_method_formal_params.get) is array int but expected otherwise.
-```
-Incorrect lowering using int happened at lot during the past 2 days.
-List them all in `we-are-getting-better.md`.
----
+  cleared-pack.md                                                                                                                                                                                                                        
 
-Take all examples in `we-are-getting-better.md` and for each add a new test in `test-suite/corpus/pycsl-reference/` here is what each test should do:
-- fail is the type is lowered to int
-- success if the good type is returned.
+  - Float f/d round-trip — needs IEEE-754 bit-level modeling; no real→bits total function exists in the int/real model (UB §7.4c). Size law kept. Genuinely hard, narrow.
+  - p (Pascal-string) — legacy size-law boundary.
+  - Native @ alignment — rejected by design (UB §7.4b); not a gap.
 
+  cleared-array.md
+ 
+  - Subscript-projection [x[k] for x in a] — nested List[List[int]] collapses to array int, so the element has no faithfully-typed collection to index. Would require nested element-type threading — a broad no-more-int type-model
+  change with zero current consumer.
+  - reversed — kept opaque to avoid entangling with the cited rev_permutation axiom block. Low value.
+ 
+  cleared-string.md
+
+  - Per-char case-MAP on symbolic strings — .lower()/.upper() now have determinism + idempotence + literal-fold, but content on a symbolic string needs the codepoint bridge (the chars:seq int apparatus deliberately not built) + an
+  is_ascii predicate + ord-on-derived-subscript. Large surface, zero demand.
+  - Full Unicode case-folding (ß→SS) — inherently not per-char/length-preserving; won't-do.
+  - General all-occurrences .replace() content — not soundly reachable: Why3's replaceall has no content axiom, and CPython all-occurrences ≠ Why3 first-occurrence.
+
+  cleared-hash.md
+
+  - κ-unknown fallback — inference is now maximal over the injectivity-bearing key surface (locals, params, fields, and string-concat keys). What stays on int+hash is correctly opaque: derived-string keys (d[s.upper()] — str_upper_op
+  is genuinely non-injective) and truly un-annotated/non-str-key dicts. Locked honest by XFAIL 0796. Not a gap — the honest boundary.
+  - Non-dict-key hashing (0485 hash(s), 0425 decode-equality) — out of scope (not dict keys; the int result of hash() is the faithful Python semantics).
 
 ---
 
