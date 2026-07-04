@@ -2569,7 +2569,7 @@ by the Why3 project itself.
 | G3 | Boolean/int duality | `True + 1 = 2` in Python; in spec `true + 1` is a type error | The spec/body distinction handles this, but mixed use is fragile |
 | G4 | `None` mapped to `0` in non-ghost context | `None` and `0` are indistinguishable in WhyML for regular Python values | **Partially resolved:** ghost dicts use `map int (option int)` (§T.8.5), so `\has_key` distinguishes absent keys from keys with value 0. Raw Python `None` in non-ghost context still maps to 0. |
 | G5 | Array literals use fixed size 1024 | `[]` becomes `Array.make 1024 0` regardless of actual size | Use dynamic allocation or parametric size |
-| G6 | Dict/Set/ListComp are abstract | `{}`, `[x for x in ...]`, `{k:v for ...}` use uninterpreted functions | Implement concrete dict/set theories |
+| G6 | Dict/Set comprehensions abstract; **ListComp content-faithful for simple shapes** (cleared-array.md S1–S4) | `[x for x in a]` / `[x+1 for x in a]` (identity / pure-int `+ - *` arithmetic over the loop target, over an `array int` source) now carry a per-index law `result[i] = <elt[target:=src[i]]>` + `length result = length src`; a filter `[x for x in a if …]` keeps only `length result <= length src`. Unliftable element shapes (call/projection with captures, string/seq/emit_ir elements, multi-generator) and `{}`/`{k:v for …}`/`{f(x) for …}` stay opaque | Implement concrete dict/set theories; lift more element shapes (projection/call) |
 | G7 | `isinstance` / `hasattr` are **uninterpreted** `bool` ops (`isinstance_check` / `hasattr_check`), not concrete | Single type system limitation | Support union types or tagged variants |
 | G8 | For-each over non-array iterables | Uses abstract `iter_length` / `iter_get` | Provide concrete implementations per type |
 | G9 | `\map_eq` generates a `forall` quantifier | Wide `\map_eq` in deep loop invariants may exceed solver budget | Restrict `\map_eq` to shallow comparisons; prefer explicit key tracking in loop invariants |
@@ -2601,7 +2601,7 @@ The following constructs appear in Python but have no translation:
 | `yield` / generators | Not supported | Use explicit loops |
 | `async` / `await` | Not supported | Use concurrent model |
 | `global` / `nonlocal` | Not supported | Use explicit parameter passing |
-| List/dict comprehensions (concrete) | Abstract only | Use explicit loops |
+| List comprehensions (content) | Content-faithful for identity / pure-int `+ - *` arithmetic over the loop target (cleared-array.md S1–S4); filter keeps a length bound; other element shapes + dict/set comps opaque | Use explicit loops for unliftable elements |
 
 ---
 
@@ -2709,16 +2709,75 @@ arms only.
 
 | Form | Why3 emission |
 |------|---------------|
-| `sorted(arr)` | abstract `val sorted_1 (a: array int) : array int` |
+| `sorted(arr)` | abstract `val sorted_1 (a: array int) : array int` **+ length/sortedness/permutation `ensures`** |
 | `any(arr)` | abstract `val any_1 (a: array int) : bool` |
 | `all(arr)` | abstract `val all_1 (a: array int) : bool` |
 
-The abstract vals have no axioms about their results. Contracts cannot
-meaningfully assert order or element identity through `sorted_1` etc.
+**`sorted` (cleared-array.md S5, spike-proven S0-bis).** `sorted_1` now carries
+three **definitional `ensures`** — discharged where `sorted` is *used*, NOT a
+global axiom:
+
+$$\texttt{sorted\_1}(a):\quad
+  \texttt{Array.length result = Array.length } a
+  \;\wedge\;
+  (\forall i.\ 0 \le i < \texttt{len} - 1 \Rightarrow \texttt{result}[i] \le \texttt{result}[i{+}1])
+  \;\wedge\;
+  \texttt{permut result } a.$$
+
+The sortedness clause is the exact formula `\is_sorted(result, 0, \length(result))`
+lowers to, and the permutation clause reuses the SAME uninterpreted `permut`
+predicate that `\permutation(result, a)` lowers to (argument order `result, a`),
+so a driver's `\is_sorted` / `\permutation` postconditions match the emission
+directly (corpus `0760`). The conjunction is satisfiable (a sorted permutation
+always exists) ⇒ no vacuity; adding `ensures` to an abstract val is monotone ⇒
+cannot regress a previously-opaque proof. `any_1` / `all_1` remain opaque.
 
 The target of `s = sorted(arr)` is tracked as array-typed (via
 `is_array_val` recognising the `(sorted_1 ` prefix), so the pre-decl
 path emits `let s = (sorted_1 arr) in` instead of `let s = ref 0 in`.
+
+### §T.14.5a  Content-faithful list comprehensions (cleared-array.md S1–S4)
+
+A list comprehension `[elt for t in src (if cond)]` is lowered by
+`_content_comp` (`module6_whyml/expressions.py`) to a **per-instance abstract
+val** `list_content_comp_<n>` carrying a per-index content law — *when* the
+element shape is liftable — and otherwise falls through to the opaque
+length-only `list_comp` path (§T.11.1 G6).
+
+**Liftable shape (S1 identity, S3 arithmetic):** exactly one generator whose
+target `t` is a plain name, an `array int` source `src` (NOT a `seq` local —
+the seq comprehension path owns those), no filter, and an element `elt` that is
+a **pure, total `int`** expression over the loop target `t` ONLY (identity `t`,
+integer literals, and the total operators `+ - *`; division/modulo, calls,
+subscripts, attributes, comparisons and booleans are excluded — they are not
+guaranteed pure-int logic terms, and division would leak partiality into a logic
+`ensures`). The emitted val:
+
+$$\texttt{list\_content\_comp}_n(\textit{src}):\quad
+  \texttt{Array.length result = Array.length } \textit{src}
+  \;\wedge\;
+  \bigl(\forall i.\ 0 \le i < \texttt{len}\ \textit{src} \Rightarrow
+     \texttt{result}[i] = \textit{elt}[\,t := \textit{src}[i]\,]\bigr).$$
+
+The element is lowered once with the target `t` rebound (via a fresh scalar
+binder `_celt = src[i]`) to the per-index source read, in logic context. The
+free variables of `elt` must be `⊆ {t}` (a captured enclosing local is not a
+parameter of the val ⇒ opaque fallback). Corpus: `0761` (identity), `0762`
+(arithmetic), `0764` (NEGATIVE — a false `result[i] = a[i]+1` claim on an
+identity comprehension is correctly rejected).
+
+**Filter (S4):** a comprehension with an `if` keeps ONLY the sound bound
+`Array.length result <= Array.length src` — the surviving elements are not at
+their source indices, so no per-index content law holds (corpus `0763`). The
+*exact* filtered contents are a documented residual.
+
+**Residuals (opaque, never a false content claim):** unliftable element shapes
+(call `[g(x) …]`, projection `[x.f …]` / `[x[k] …]`, string / seq / emit_ir
+elements, multi-generator, captured locals) fall through to `list_comp` /
+`list_comp_stmts` / `list_comp_seq_*` (length-only or fully opaque); set/dict
+comprehensions stay opaque (§T.11.1 G6). No new `proof_axiom_allowlist` entry —
+the content law is a definitional `ensures` on the abstract val, discharged
+where the comprehension is used.
 
 ### §T.14.6  `Literal[v1, ..., vn]` annotations (typing-engagement ty1)
 

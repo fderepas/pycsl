@@ -176,3 +176,53 @@ discharged fast — so `sorted_1` can gain a real permutation+sortedness contrac
 (the ensures is on the abstract `val`, discharged where used). One import gotcha recorded: `use map.Map`
 and `use array.Array` both export the `[]` mixfix; a comprehension `.mlw` must NOT import `map.Map` when
 it uses array indexing (they collide → "expected 'xi -> 'xi1").
+
+## cleared-array S1–S4 — lift ONLY pure-int (identity + `+ - *`) elements over the target; opaque otherwise
+
+**Context.** After the GO spike, the ListComp lowering must attach a per-index content law
+`result[i] = <elt[target:=src[i]]>`. The element `elt` is an arbitrary sub-expression; to appear in a
+logic `ensures` on the abstract `val list_content_comp_<n>(src)` it must be (a) a PURE, TOTAL `int` term
+and (b) reference no free variable other than the loop target (the val has only `src` as a parameter).
+**Options.** (1) Lift EVERY element by textual substitution and let Why3 typecheck reject the bad ones —
+fragile (a `val`-call element or a partial `div` would emit ill-typed/unsound `ensures`, and per-instance
+typecheck failure is hard to detect additively). (2) Lift a fresh UNINTERPRETED `elt_fn_<n>` so
+`result[i] = elt_fn(src[i])` for ANY element — sound but the driver cannot name `elt_fn`, so it proves
+nothing a driver actually writes (`result[i] == a[i]+1` won't match). (3) Whitelist a small set of element
+node shapes KNOWN to lower to pure-int logic terms — identity `Var(target)`, integer literals, and the
+total operators `+ - *` (recursively) — plus a free-variable check `⊆ {target}`; everything else falls
+through to the existing opaque length-only path.
+**Choice.** Option 3 (`_comp_elt_pure_int` + `_content_comp`). Division/modulo excluded (partiality —
+ZeroDivisionError must not leak into a logic `ensures`); calls/subscripts/attributes/comparisons/booleans
+excluded (not guaranteed pure-int). Seq-local sources are left to the existing seq comprehension path.
+**Rationale.** Maximally rigorous: every emitted content law is a genuine pure-int term the driver can
+name and match (verified by 0761/0762), the negative 0764 shows the law is not over-strong, and the
+whitelist can only UNDER-approximate (fall through to opaque) — it can never emit a false content claim.
+S2 projection `[x.f …]` and S3 call `[g(x) …]` in the int-heavy model do not reliably lower to pure-int
+logic terms (they hit opaque `getattr`/`val` ops), so they stay in the opaque residual DOCUMENTED rather
+than risk an ill-typed or unsound `ensures`; arithmetic `[x+1 …]` is the landed S3 representative of "the
+element is a computed function of the source element". No new global axiom (definitional `ensures` on the
+abstract val).
+
+## cleared-array S6 (dict/set comprehensions) — YAGNI exit; documented opaque residual
+
+**Context.** S6 asks for dict/set comprehension content laws (`{k: v for …}` → map-get law; `{f(x) …}` →
+membership). **Options.** (1) implement map/set membership laws; (2) keep opaque, document.
+**Choice.** Keep opaque (documented in §T.11.1 G6 + §T.14.5a). **Rationale.** No corpus consumes dict/set
+comprehension content; the value/key element shapes face the SAME int-model purity wall as ListComp S2/S3
+(the only shapes that lift cleanly are already covered for lists), and the set-membership law is a distinct
+theory add with no demand. Recording as a residual rather than speculative machinery (cf. the axiom-registry
+caution on vestigial abstractions). The list-comprehension content path (S1–S4) + `sorted` (S5) deliver the
+plan's headline content-faithfulness; dict/set remain the honest opaque boundary.
+
+## cleared-array (reversed) — keep `array_rev` opaque; do NOT add a content law (axiom entanglement)
+
+**Context.** The plan says "also covers `reversed`". `reversed(xs)` lowers to `val function array_rev
+(a: array int)`, which is ALSO an `_AXIOM_FUNCTIONS` symbol (preamble.py:1396): the cited `rev_permutation`
+axiom `forall s. permut (array_rev s) s` (corpus 0539) declares it in the axiom block.
+**Options.** (1) Add an exact content `ensures { result[i] = a[len-1-i] }` to `array_rev`; (2) leave opaque.
+**Choice.** Leave opaque. **Rationale.** A content `ensures` on the abstract-op declaration would be
+DROPPED for files that cite `rev_permutation` (the axiom block emits the plain `val function array_rev`,
+and `_insert_abstract_val_block` skips the abstract-op twin by name) — so the law would exist for some
+files and not others, an inconsistency for zero demand (no corpus needs reversed CONTENT; 0539 needs only
+the permutation, already delivered by the cited axiom). `sorted` (S5) is the landed permutation/ordering
+win; `reversed` content is a documented future residual, not worth the axiom-block entanglement.

@@ -1836,14 +1836,39 @@ returns an `int` auto-injects into the matching arm constructor (`Arm_0_0 (expr)
 
 ### §12.5 `sorted` builtin
 
-`sorted(arr)` emits an abstract `val sorted_1 (a: array int) : array int`.
-The abstract val has no axioms about the result's contents — Why3
-knows only that it returns an array. Contracts cannot meaningfully
-assert order or element identity through `sorted_1`.
+`sorted(arr)` emits an abstract `val sorted_1 (a: array int) : array int`
+carrying three **definitional `ensures`** (cleared-array.md S5) — discharged
+where `sorted` is used, NOT a global axiom:
 
-`any(arr)` and `all(arr)` emit similar abstract vals returning `bool`.
+* `Array.length result = Array.length a`;
+* adjacent sortedness `forall i. 0 <= i < len-1 -> result[i] <= result[i+1]`
+  (the exact formula `\is_sorted(result, 0, \length(result))` lowers to);
+* `permut result a` (the SAME uninterpreted `permut` predicate that
+  `\permutation(result, a)` lowers to).
 
-**Tests**: 0351.
+So a driver CAN prove that `sorted`'s result is sorted and a permutation of the
+input (test 0760). The conjunction is satisfiable ⇒ no vacuity; adding `ensures`
+to an abstract val is monotone ⇒ cannot regress a prior opaque proof.
+
+`any(arr)` and `all(arr)` emit similar abstract vals returning `bool` (no
+result axioms).
+
+**Tests**: 0351, 0760.
+
+### §12.5a Content-faithful list comprehensions
+
+A list comprehension `[elt for t in src (if cond)]` is content-faithful when
+the element is a pure `int` expression over the loop target only — identity
+`[x for x in a]` gives `result[i] == a[i]`, and `+ - *` arithmetic
+`[x + 1 for x in a]` gives `result[i] == a[i] + 1`, both with
+`\length(result) == \length(a)`. A filter `[x for x in a if …]` keeps only the
+sound bound `\length(result) <= \length(a)`. Unliftable element shapes
+(calls, projections with captured locals, string/seq elements, multi-generator)
+and set/dict comprehensions stay opaque — never a false content claim
+(cleared-array.md S1–S4).
+
+**Tests**: 0761 (identity), 0762 (arithmetic), 0763 (filter bound),
+0764 (NEGATIVE — false content claim rejected).
 
 ### §12.6 `bytes` and `bytearray` type unification
 

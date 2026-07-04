@@ -2934,11 +2934,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     and getattr(self, "_seq_value_types", {}).get(_sa.get("name")) == "string"):
                 self._add_abstract_op("val sorted_seq (a: seq string) : seq string")
                 return f"(sorted_seq !{whyml_ident(_sa['name'])})"
-            # Abstract `sorted` over an array — returns a permuted array.
-            # We don't model the sortedness invariant here; callers that
-            # need it should use `\is_sorted` in contracts.
+            # cleared-array.md S5 (spike-proven, S0-bis): `sorted(a)` over an
+            # `array int` returns a permuted, sorted array with the SAME length.
+            # The three facts are DEFINITIONAL `ensures` on the abstract `val`
+            # (discharged where `sorted` is USED, NOT a global axiom):
+            #   * `Array.length result = Array.length a`
+            #   * adjacent sortedness — the exact formula `\is_sorted(result)`
+            #     lowers to, so a driver's `\is_sorted(result)` matches directly;
+            #   * `permut result a` — the SAME uninterpreted predicate
+            #     `\permutation(result, a)` lowers to (arg order result,a), so a
+            #     driver's `\permutation(result, a)` matches directly.
+            # sortedness + permut + equal-length is satisfiable (a sorted
+            # permutation always exists) → no vacuity; adding ensures is
+            # monotone → cannot regress a prior opaque proof.
+            self._add_abstract_op("predicate permut (a: array int) (b: array int)")
             self._add_abstract_op(
-                "val sorted_1 (a: array int) : array int")
+                "val sorted_1 (a: array int) : array int\n"
+                "    ensures { Array.length result = Array.length a }\n"
+                "    ensures { forall _si : int. 0 <= _si < Array.length result - 1 ->\n"
+                "                result[_si] <= result[_si + 1] }\n"
+                "    ensures { permut result a }")
             return f"(sorted_1 {self._array_coerce_arg(args[0])})"
         if func_name in ("any", "all") and len(args) == 1:
             # `any(iterable)` / `all(iterable)` over an array — abstract.
@@ -4695,6 +4710,104 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return f"(valid_index {base} {row} {col})"
         return "true"
 
+    # ---- cleared-array.md S1–S4: content-faithful comprehensions ----------
+    def _comp_elt_pure_int(self, elt: Any, free: Set[str]) -> bool:
+        """True iff `elt` is a PURE, total `int`-valued expression built only
+        from variables (collected into `free`), integer literals, and the total
+        arithmetic operators `+ - *` (identity / arithmetic shapes). Division /
+        modulo are excluded (partiality — ZeroDivisionError semantics must not
+        leak into a logic `ensures`); calls / subscripts / attributes /
+        comparisons / booleans are excluded (not guaranteed pure-int logic
+        terms). Conservative: any unrecognised node ⇒ not liftable."""
+        if not isinstance(elt, dict):
+            return False
+        t = elt.get("type")
+        if t == "Var":
+            free.add(elt.get("name", ""))
+            return True
+        if t == "Number":
+            return isinstance(elt.get("value"), int)
+        if t == "BinOp":
+            if elt.get("op") not in ("+", "-", "*"):
+                return False
+            return (self._comp_elt_pure_int(elt.get("left", {}), free)
+                    and self._comp_elt_pure_int(elt.get("right", {}), free))
+        if t == "UnaryOp":
+            if elt.get("op") not in ("-", "+"):
+                return False
+            return self._comp_elt_pure_int(elt.get("operand", elt.get("value", {})), free)
+        return False
+
+    def _content_comp(self, node: "ExprIR", local_refs: Set[str],
+                      invariant_ctx: bool,
+                      subst: Optional[Dict[str, str]]) -> Optional[str]:
+        """cleared-array.md S1–S4. Emit a CONTENT-faithful comprehension for a
+        supported element shape, or return None to fall through to the opaque
+        length-only path. Supported: ONE generator whose target is a plain name,
+        an `array int` source (NOT a seq local — the seq comprehension path owns
+        those), and an element that is pure-int over the target ONLY (identity or
+        `+ - *` arithmetic). A filter (`if`) keeps ONLY the sound length bound."""
+        _d = node.to_dict()
+        gens = _d.get("generators", []) or []
+        if len(gens) != 1:
+            return None
+        g = gens[0]
+        target = g.get("target")
+        if not isinstance(target, str):
+            return None
+        src_ir = g.get("iter", {})
+        # The seq comprehension path (mutable-state, `_seq_locals`) is left
+        # untouched — its result must stay a reassignable `seq` value.
+        if (isinstance(src_ir, dict) and src_ir.get("type") == "Var"
+                and src_ir.get("name") in getattr(self, "_seq_locals", set())):
+            return None
+        elt = _d.get("elt", {})
+        free: Set[str] = set()
+        if not self._comp_elt_pure_int(elt, free):
+            return None
+        # The element may reference the loop target ONLY (no captured locals —
+        # they are not parameters of the abstract `val`).
+        if free - {target}:
+            return None
+        srcw = self._expr_to_whyml(src_ir, local_refs or set(), invariant_ctx, subst)
+        srca = self._array_coerce_arg(srcw)
+        n = getattr(self, "_comp_content_counter", 0)
+        self._comp_content_counter = n + 1
+        op = f"list_content_comp_{n}"
+        has_if = bool(g.get("ifs"))
+        if has_if:
+            # cleared-array.md S4: a filtered comprehension keeps only the SOUND
+            # length bound — the surviving elements are NOT at their source
+            # indices, so no per-index content law holds.
+            self._add_abstract_op(
+                f"val {op} (src: array int) : array int\n"
+                f"    ensures {{ Array.length result <= Array.length src }}")
+            return f"({op} {srca})"
+        # Lower the element with the loop target rebound to the per-index source
+        # read `src[i]` (via a fresh scalar binder `_celt = src[i]`), in logic
+        # context. The result is a pure int term over `_celt`.
+        binder = "_ci"
+        celt = "_celt"
+        new_subst = dict(subst or {})
+        new_subst[target] = celt
+        sb = self._quant_scalar_binders
+        had_celt = celt in sb
+        sb.add(celt)
+        saved_in_spec = self._in_spec
+        self._in_spec = True
+        try:
+            eltw = self._expr_to_whyml(elt, local_refs or set(), True, new_subst)
+        finally:
+            self._in_spec = saved_in_spec
+            if not had_celt:
+                sb.discard(celt)
+        self._add_abstract_op(
+            f"val {op} (src: array int) : array int\n"
+            f"    ensures {{ Array.length result = Array.length src }}\n"
+            f"    ensures {{ forall {binder} : int. 0 <= {binder} < Array.length src ->\n"
+            f"                result[{binder}] = (let {celt} = src[{binder}] in {eltw}) }}")
+        return f"({op} {srca})"
+
     def _handle_issorted_expr(
         self,
         node: "ExprIR",
@@ -4994,6 +5107,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # TODO: handle `{k1: v1, k2: v2}` by chaining Map.set.
             return "(const (None: option int))"
         if isinstance(node, ListCompExpr):
+            # cleared-array.md S1–S4: FIRST try the CONTENT-faithful path for a
+            # simple, sound element shape (identity / pure-int arithmetic over the
+            # loop target, over an `array int` source). Emits a per-instance
+            # `list_content_comp_<n>` val carrying `Array.length result = len src`
+            # /\ `forall i. result[i] = <elt[target:=src[i]]>` (or a length bound
+            # for a filter). Falls through to the opaque length-only path below for
+            # every unliftable element shape (seq/stmt-list/emit_ir/string/call/
+            # projection with captures) — DOCUMENTED, never a false content claim.
+            _content = self._content_comp(node, local_refs, invariant_ctx, subst)
+            if _content is not None:
+                return _content
             # list-comprehension-lowering.md L1: a comprehension `[elt for t in src (if …)]`
             # → an abstract array of the ELEMENT type with a length law (`= len src` with no
             # filter, `<= len src` with an `if`). Content is unmodeled (sound under-approx —
