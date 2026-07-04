@@ -195,6 +195,18 @@ class SubscriptAccess(CSLNode):
     index: CSLNode
 
 @dataclass
+class SubscriptFieldAccess(CSLNode):
+    """cleared-array.md S2: `<array>[<index>].<field>` — a FIELD PROJECTION off a
+    subscripted collection element in a contract (e.g. `a[k].x`, `\\result[k].x`).
+    Lowers to `Attribute(Subscript(Var(array), index), field)` — the SAME shape
+    the body path already produces for `a[i].x`, so the abstract getter
+    `get_<field>` matches a content-faithful projection-comprehension law
+    (`\\result[k] == a[k].x`). Enables a driver to CONSUME the S2 lift."""
+    array: str       # the collection name, or "\\result"
+    index: CSLNode
+    field: str
+
+@dataclass
 class Forall(QuantifierNode):
     var: str
     body: CSLNode
@@ -1880,6 +1892,13 @@ class _ContractParser:
                 e2 = self._parse_expr()
                 self.expect_op("]")
                 return ChainedSubscript(name, e1, e2)
+            # cleared-array.md S2: `<name>[<idx>].<field>` — projection off a
+            # subscripted element (the consumer of a projection-comprehension
+            # content law).
+            if self.at_op("."):
+                self.advance()
+                field = self.expect_name()
+                return SubscriptFieldAccess(name, e1, field)
             return SubscriptAccess(name, e1)
         return Var(name)
 
@@ -1890,6 +1909,11 @@ class _ContractParser:
                 self.advance()
                 idx = self._parse_expr()
                 self.expect_op("]")
+                # cleared-array.md S2: `\result[<idx>].<field>` projection.
+                if self.at_op("."):
+                    self.advance()
+                    field = self.expect_name()
+                    return SubscriptFieldAccess("\\result", idx, field)
                 return SubscriptAccess("\\result", idx)
             if self.at_op("."):
                 self.advance()

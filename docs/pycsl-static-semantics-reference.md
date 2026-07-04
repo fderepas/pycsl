@@ -488,6 +488,15 @@ the location written; value-semantic arrays bar local-alias escape) and no calle
 The field-subscript atom `self.f[i]` is well-formed where `self.f` is an instance array field
 in scope (Γ_f), with `i : int`; it is the term used in `\preserves` postconditions.
 
+The subscript-projection atom `a[i].field` / `\result[i].field` (cleared-array.md S2,
+`SubscriptFieldAccess`) is well-formed where `a` is a subscriptable collection in scope and
+`i : int`; it lowers to `Attribute(Subscript(a, i), field)`. In the int-collapsed list model
+the element `a[i]` is an `int`, so `.field` denotes the abstract getter `get_field : int → int`
+(emitted as a deterministic pure `val function` in spec context — logic-usable and
+single-valued). No field-existence check is imposed: the getter is uninterpreted, so the atom is
+a sound opaque read; it is the CONSUMER term of a projection-comprehension content law
+`\result[k] == a[k].field`.
+
 #### §2.5a `Final[T]` write-policy (typing-engagement ty1 / PEP 591)
 
 ```

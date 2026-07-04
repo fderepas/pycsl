@@ -755,6 +755,7 @@ def _pack_uint16_be(v: int) -> list: ...
 | 3 | `self.field` | `FieldAccess` | Class field access |
 | 3b | `self.field[i]` | `FieldSubscript` | Element of an instance ARRAY field (e.g. for region-preservation: `self.disk[i] == \old(self.disk[i])`). Lowers to a subscript of the record field in the hoare model. |
 | 4 | `arr[i]` | `SubscriptAccess` | Array element access |
+| 4c | `arr[i].field` / `\result[i].field` | `SubscriptFieldAccess` | Field PROJECTION off a subscripted element (cleared-array.md S2). Lowers to `Attribute(Subscript(…), field)` — the consumer of a projection-comprehension content law `\result[k] == a[k].x`. |
 | 5 | `\result` | `Result` | Return value (only in `ensures`) |
 | 6 | `\old(<expr>)` | `Old` | Value of expression at function entry |
 | 7 | `\at(<expr>, L)` | `At` | Value of expression at label `L` |
@@ -1867,17 +1868,30 @@ result axioms).
 ### §12.5a Content-faithful list comprehensions
 
 A list comprehension `[elt for t in src (if cond)]` is content-faithful when
-the element is a pure `int` expression over the loop target only — identity
-`[x for x in a]` gives `result[i] == a[i]`, and `+ - *` arithmetic
-`[x + 1 for x in a]` gives `result[i] == a[i] + 1`, both with
+the element lowers to a pure `int` logic term over the loop target only —
+identity `[x for x in a]` gives `result[i] == a[i]`, `+ - *` arithmetic
+`[x + 1 for x in a]` gives `result[i] == a[i] + 1`, and **field projections**
+(cleared-array.md S2) `[p.x for p in a]` give `result[i] == a[i].x`
+(`[p.x + p.y for p in a]` → `result[i] == a[i].x + a[i].y`), all with
 `\length(result) == \length(a)`. A filter `[x for x in a if …]` keeps only the
-sound bound `\length(result) <= \length(a)`. Unliftable element shapes
-(calls, projections with captured locals, string/seq elements, multi-generator)
-and set/dict comprehensions stay opaque — never a false content claim
-(cleared-array.md S1–S4).
+sound bound `\length(result) <= \length(a)`.
 
-**Tests**: 0761 (identity), 0762 (arithmetic), 0763 (filter bound),
-0764 (NEGATIVE — false content claim rejected).
+Projection requires two enabling pieces: the contract grammar parses
+`a[k].field` (§3.1.4c `SubscriptFieldAccess`) so a driver can STATE the claim,
+and the abstract getter `get_<field>` is emitted as a pure `val function` in
+spec context so it is logic-usable and denotes one deterministic value across
+both mentions (a field read *is* deterministic — a faithful refinement).
+
+Residual opaque shapes (never a false content claim): **call** `[g(x) …]` (`g`
+is a program `let`, not logic-usable — `\result == g(a[i])` does not type-check;
+would need a spec-callable `let function` feature), **subscript projection**
+`[x[k] …]` (`List[List[int]]` collapses to `array int`, no faithful collection
+element), string/seq elements, multi-generator, and set/dict comprehensions
+(cleared-array.md S1–S4 + S2).
+
+**Tests**: 0761 (identity), 0762 (arithmetic), 0769 (projection),
+0770 (arithmetic-over-projection), 0763 (filter bound),
+0764 / 0771 (NEGATIVE — false content claim rejected).
 
 ### §12.6 `bytes` and `bytearray` type unification
 

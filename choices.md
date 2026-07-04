@@ -227,6 +227,45 @@ files and not others, an inconsistency for zero demand (no corpus needs reversed
 the permutation, already delivered by the cited axiom). `sorted` (S5) is the landed permutation/ordering
 win; `reversed` content is a documented future residual, not worth the axiom-block entanglement.
 
+## cleared-array S2 (Round 2) — LIFT projection `[p.x for p in a]`; call + subscript-projection stay opaque (sharpened)
+
+**Context.** Round 1 (dcaf2367) kept projection `[x.f …]` and call `[g(x) …]` opaque, blaming "the
+int-heavy model doesn't reliably lower to pure-int logic terms." Round 2 re-examined with a spike-first
+diagnosis. **Spike (`proj_call_spike.mlw`, Why3 1.8.2): GO** — the per-index projection law
+`result[i] = get_f(src[i])` consumed at a use-site at TWO indices (AE 0.03s/27 steps, Z3 0.01s/7014) and
+the call law `result[i] = g(src[i])` with a propagated `ensures` (AE 0.03s/22, Z3 0.01s/7161) BOTH prove
+fast, no E-matching blowup. So the SMT law was NEVER the obstacle. The real obstacles were two engineering
+gaps, diagnosed empirically:
+- `[p.x for p in a]` over `List[Point]` → source is `array int` (records collapse), so `p.x` lowers to
+  the abstract getter `get_x`. That getter was a program `val` (non-deterministic, unusable in an
+  `ensures`), and the contract grammar could not even PARSE the consumer `a[k].x`.
+
+**Options.** (1) Give up (Round-1 residual). (2) Make `get_x` a `val function` GLOBALLY — rejected:
+changes emission for EVERY getattr program (violates the emission-differential-= comprehension-programs
+gate). (3) Confine the lift: emit `get_x` as a pure `val function` ONLY in spec context (`self._in_spec`),
+add a `SubscriptFieldAccess` contract atom (`a[k].field`), and extend the `_content_comp` whitelist to
+`Attribute` elements over the target (+ arithmetic over them).
+
+**Choice.** Option 3. Projection `[p.x for p in a]` / `[p.x + p.y for p in a]` now proves
+`\result[k] == a[k].x` (drivers 0769/0770; NEGATIVE 0771 rejects `a[k].y`). **Rationale / soundness:** a
+field read IS deterministic, so `val function get_x` is a faithful refinement (removes spurious
+non-determinism, never adds a value claim); `result[i] = get_x(src[i])` is exactly the true semantics
+`a[i].x` re-expressed with the SAME getter the driver's `a[k].x` lowers to. Confinement is provable: the
+`val`→`val function` toggle fires only in spec context, and 0/105 existing getattr-in-contract corpus
+files reach the spec-context `get_` fallback → INERT on the corpus; the `SubscriptFieldAccess` atom is a
+brand-new grammar form. No global axiom (definitional `ensures` on the abstract val).
+
+**Call `[g(x) …]` — STAYS OPAQUE (sharpened, not "int-heavy hand-wave").** A module function lowers to a
+program `let g`; `g` is unusable in a logic term and a driver's own `\result == g(a[i])` does NOT
+type-check today (`unbound function or predicate symbol 'g'` — demonstrated). Lifting requires a separate
+language capability (purity analysis + spec-callable `let function` emission) with zero existing consumer.
+YAGNI exit.
+
+**Subscript projection `[x[k] …]` — STAYS OPAQUE (sharpened).** `List[List[int]]` / `List[Dict[…]]`
+collapse to `array int` (empirically verified), so the element `x` is an `int` with no faithfully-typed
+collection to index; the `map string` dict model never reaches a *list element*. No faithful law
+expressible.
+
 ## cleared-string S0 (SMT spike) — GO; `chars : seq int` codepoint model proves all content goals fast, no E-matching blowup
 
 **Context.** Before any pipeline work, hand-write a `.mlw` LEADING with the make-or-break CONTENT

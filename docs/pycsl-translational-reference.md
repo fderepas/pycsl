@@ -2590,7 +2590,7 @@ by the Why3 project itself.
 | G3 | Boolean/int duality | `True + 1 = 2` in Python; in spec `true + 1` is a type error | The spec/body distinction handles this, but mixed use is fragile |
 | G4 | `None` mapped to `0` in non-ghost context | `None` and `0` are indistinguishable in WhyML for regular Python values | **Partially resolved:** ghost dicts use `map int (option int)` (§T.8.5), so `\has_key` distinguishes absent keys from keys with value 0. Raw Python `None` in non-ghost context still maps to 0. |
 | G5 | Array literals use fixed size 1024 | `[]` becomes `Array.make 1024 0` regardless of actual size | Use dynamic allocation or parametric size |
-| G6 | Dict/Set comprehensions abstract; **ListComp content-faithful for simple shapes** (cleared-array.md S1–S4) | `[x for x in a]` / `[x+1 for x in a]` (identity / pure-int `+ - *` arithmetic over the loop target, over an `array int` source) now carry a per-index law `result[i] = <elt[target:=src[i]]>` + `length result = length src`; a filter `[x for x in a if …]` keeps only `length result <= length src`. Unliftable element shapes (call/projection with captures, string/seq/emit_ir elements, multi-generator) and `{}`/`{k:v for …}`/`{f(x) for …}` stay opaque | Implement concrete dict/set theories; lift more element shapes (projection/call) |
+| G6 | Dict/Set comprehensions abstract; **ListComp content-faithful for simple shapes** (cleared-array.md S1–S4 + S2) | `[x for x in a]` / `[x+1 for x in a]` / `[p.x for p in a]` / `[p.x+p.y for p in a]` (identity / pure-int `+ - *` arithmetic / FIELD PROJECTIONS over the loop target, over an `array int` source) now carry a per-index law `result[i] = <elt[target:=src[i]]>` + `length result = length src`; a filter `[x for x in a if …]` keeps only `length result <= length src`. Residuals stay opaque: call `[g(x) …]` (`g` is a program `let`, not logic-usable — `\result==g(a[i])` does not type-check), subscript projection `[x[k] …]` (`List[List[int]]`→`array int`, no faithful collection element), string/seq/emit_ir elements, multi-generator, and `{}`/`{k:v for …}`/`{f(x) for …}` | Implement concrete dict/set theories; a spec-callable `let function` feature would unlock call comprehensions |
 | G7 | `isinstance` / `hasattr` are **uninterpreted** `bool` ops (`isinstance_check` / `hasattr_check`), not concrete | Single type system limitation | Support union types or tagged variants |
 | G8 | For-each over non-array iterables | Uses abstract `iter_length` / `iter_get` | Provide concrete implementations per type |
 | G9 | `\map_eq` generates a `forall` quantifier | Wide `\map_eq` in deep loop invariants may exceed solver budget | Restrict `\map_eq` to shallow comparisons; prefer explicit key tracking in loop invariants |
@@ -2622,7 +2622,7 @@ The following constructs appear in Python but have no translation:
 | `yield` / generators | Not supported | Use explicit loops |
 | `async` / `await` | Not supported | Use concurrent model |
 | `global` / `nonlocal` | Not supported | Use explicit parameter passing |
-| List comprehensions (content) | Content-faithful for identity / pure-int `+ - *` arithmetic over the loop target (cleared-array.md S1–S4); filter keeps a length bound; other element shapes + dict/set comps opaque | Use explicit loops for unliftable elements |
+| List comprehensions (content) | Content-faithful for identity / pure-int `+ - *` arithmetic / field projections `p.x` over the loop target (cleared-array.md S1–S4 + S2); filter keeps a length bound; call `[g(x) …]` + subscript projection `[x[k] …]` + dict/set comps opaque | Use explicit loops for unliftable elements |
 
 ---
 
@@ -2757,7 +2757,7 @@ The target of `s = sorted(arr)` is tracked as array-typed (via
 `is_array_val` recognising the `(sorted_1 ` prefix), so the pre-decl
 path emits `let s = (sorted_1 arr) in` instead of `let s = ref 0 in`.
 
-### §T.14.5a  Content-faithful list comprehensions (cleared-array.md S1–S4)
+### §T.14.5a  Content-faithful list comprehensions (cleared-array.md S1–S4 + S2)
 
 A list comprehension `[elt for t in src (if cond)]` is lowered by
 `_content_comp` (`module6_whyml/expressions.py`) to a **per-instance abstract
@@ -2765,14 +2765,16 @@ val** `list_content_comp_<n>` carrying a per-index content law — *when* the
 element shape is liftable — and otherwise falls through to the opaque
 length-only `list_comp` path (§T.11.1 G6).
 
-**Liftable shape (S1 identity, S3 arithmetic):** exactly one generator whose
-target `t` is a plain name, an `array int` source `src` (NOT a `seq` local —
-the seq comprehension path owns those), no filter, and an element `elt` that is
-a **pure, total `int`** expression over the loop target `t` ONLY (identity `t`,
-integer literals, and the total operators `+ - *`; division/modulo, calls,
-subscripts, attributes, comparisons and booleans are excluded — they are not
+**Liftable shape (S1 identity, S3 arithmetic, S2 projection):** exactly one
+generator whose target `t` is a plain name, an `array int` source `src` (NOT a
+`seq` local — the seq comprehension path owns those), no filter, and an element
+`elt` that lowers to a **pure, total `int`** logic term over the loop target `t`
+ONLY, built from: the identity `t`, integer literals, the total operators
+`+ - *`, and — **cleared-array.md S2** — FIELD PROJECTIONS `e.attr` over a
+liftable base (`[p.x for p in a]`, `[p.x + p.y for p in a]`). Division/modulo,
+calls, subscripts (`x[k]`), comparisons and booleans are excluded — they are not
 guaranteed pure-int logic terms, and division would leak partiality into a logic
-`ensures`). The emitted val:
+`ensures`. The emitted val:
 
 $$\texttt{list\_content\_comp}_n(\textit{src}):\quad
   \texttt{Array.length result = Array.length } \textit{src}
@@ -2784,21 +2786,58 @@ The element is lowered once with the target `t` rebound (via a fresh scalar
 binder `_celt = src[i]`) to the per-index source read, in logic context. The
 free variables of `elt` must be `⊆ {t}` (a captured enclosing local is not a
 parameter of the val ⇒ opaque fallback). Corpus: `0761` (identity), `0762`
-(arithmetic), `0764` (NEGATIVE — a false `result[i] = a[i]+1` claim on an
-identity comprehension is correctly rejected).
+(arithmetic), `0769` (projection), `0770` (arithmetic-over-projection),
+`0764`/`0771` (NEGATIVE — a false content claim, respectively `result[i]=a[i]+1`
+on an identity comprehension and `result[k]=a[k].y` on an `[p.x …]` projection,
+is correctly rejected).
+
+**Projection lowering (S2) — the getter must be logic-usable.** In the
+int-collapsed list model a source element `src[i]` is an `int`, so a projection
+`p.x` lowers to the abstract getter `get_x : int → int`
+(`_handle_attribute_expr`). The per-index law is therefore
+`result[i] = get_x(src[i])`, a faithful re-expression of `a[i].x`. Two enabling
+choices make this consumable and sound:
+
+- **Getter as a pure `val function` in spec context.** `_handle_attribute_expr`
+  emits `get_attr` as a `val function` (not a program `val`) whenever the access
+  occurs in a logic/spec context (`self._in_spec`). A program `val` is
+  non-deterministic and unusable in an `ensures`; the `val function` form is a
+  deterministic pure symbol — usable in logic and denoting ONE value across every
+  mention, so a driver's `\result[k] == a[k].x` (same `get_x`) matches the
+  content law. This is a faithful refinement (a field read *is* deterministic);
+  it removes spurious non-determinism, never adds a value claim. It is inert on
+  every existing corpus program (0 of them emit a spec-context `get_` fallback)
+  and byte-identical for body-only getters (still a plain `val`).
+- **Subscript-then-projection contract syntax `a[k].field`.** The consumer form
+  `\result[k] == a[k].x` requires the contract grammar to parse a projection off
+  a subscripted element; see the concrete-syntax reference (`SubscriptFieldAccess`
+  → `Attribute(Subscript(…), field)`, the SAME IR the body path produces).
 
 **Filter (S4):** a comprehension with an `if` keeps ONLY the sound bound
 `Array.length result <= Array.length src` — the surviving elements are not at
 their source indices, so no per-index content law holds (corpus `0763`). The
 *exact* filtered contents are a documented residual.
 
-**Residuals (opaque, never a false content claim):** unliftable element shapes
-(call `[g(x) …]`, projection `[x.f …]` / `[x[k] …]`, string / seq / emit_ir
-elements, multi-generator, captured locals) fall through to `list_comp` /
-`list_comp_stmts` / `list_comp_seq_*` (length-only or fully opaque); set/dict
-comprehensions stay opaque (§T.11.1 G6). No new `proof_axiom_allowlist` entry —
-the content law is a definitional `ensures` on the abstract val, discharged
-where the comprehension is used.
+**Residuals (opaque, never a false content claim):** the following element
+shapes fall through to `list_comp` / `list_comp_stmts` / `list_comp_seq_*`
+(length-only or fully opaque); set/dict comprehensions stay opaque (§T.11.1 G6):
+
+- **Call `[g(x) …]`** — a module function `g` lowers to a program `let g`, which
+  is NOT usable in a logic term; a driver's own `\result == g(a[i])` does not even
+  type-check today (`unbound function or predicate symbol 'g'`). Lifting the call
+  would require emitting pure module functions as `let function` (a purity
+  analysis + a spec-callable-function feature) — a separate language capability
+  with no existing consumer. Documented opaque; not an emitter limitation of the
+  comprehension path. (cleared-array.md S3 outcome.)
+- **Subscript projection `[x[k] …]`** — the source `List[List[int]]` /
+  `List[Dict[…]]` collapses to `array int` (empirically: `List[List[int]]` →
+  `array int`), so `x` is an `int` and `x[k]` has no faithful collection element
+  to index; the recent `map string` dict model does not reach a *list element*.
+  Documented opaque (no faithfully-typed collection element in the int model).
+- string / seq / emit_ir elements, multi-generator, captured locals.
+
+No new `proof_axiom_allowlist` entry — the content law is a definitional
+`ensures` on the abstract val, discharged where the comprehension is used.
 
 ### §T.14.6  `Literal[v1, ..., vn]` annotations (typing-engagement ty1)
 

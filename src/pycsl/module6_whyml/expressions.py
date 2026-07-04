@@ -4103,7 +4103,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return f"(args_of {_os})"
             return f"(svalue_of {_os})"
         obj_str = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
-        self._add_abstract_op(f"val get_{attr} (x: int) : int")
+        # cleared-array.md S2: in a SPEC/logic context (a contract or a
+        # projection-comprehension content law), the abstract getter must be a
+        # pure `val function` so it is usable in the `ensures` AND denotes ONE
+        # deterministic value across every mention (the driver's `a[k].attr` and
+        # the comprehension law reduce to the same `get_attr`). A body-only getter
+        # stays the historical program `val` (byte-identical). Keep-longer dedup in
+        # `_add_abstract_op` upgrades a same-file plain `val` in place → confined to
+        # files that project a collapsed-int element in a contract (a NEW grammar
+        # form) or via a projection comprehension. Sound: a field read is a
+        # deterministic function of the (collapsed) element — a faithful refinement
+        # that only removes spurious non-determinism, never adds a value claim.
+        if getattr(self, "_in_spec", False):
+            self._add_abstract_op(f"val function get_{attr} (x: int) : int")
+        else:
+            self._add_abstract_op(f"val get_{attr} (x: int) : int")
         return f"(get_{attr} {obj_str})"
 
     def _var_todict_alias(self, name: str, local_refs: Set[str],
@@ -4710,14 +4724,29 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return "true"
 
     # ---- cleared-array.md S1–S4: content-faithful comprehensions ----------
-    def _comp_elt_pure_int(self, elt: Any, free: Set[str]) -> bool:
-        """True iff `elt` is a PURE, total `int`-valued expression built only
-        from variables (collected into `free`), integer literals, and the total
-        arithmetic operators `+ - *` (identity / arithmetic shapes). Division /
-        modulo are excluded (partiality — ZeroDivisionError semantics must not
-        leak into a logic `ensures`); calls / subscripts / attributes /
-        comparisons / booleans are excluded (not guaranteed pure-int logic
-        terms). Conservative: any unrecognised node ⇒ not liftable."""
+    def _comp_elt_pure_int(self, elt: Any, free: Set[str],
+                           getters: Optional[Set[str]] = None) -> bool:
+        """True iff `elt` is a PURE, total `int`-valued expression the emitter
+        lowers to a logic term built only from:
+          * variables (collected into `free`),
+          * integer literals,
+          * the total arithmetic operators `+ - *` (identity / arithmetic), and
+          * cleared-array.md S2 — FIELD PROJECTIONS `e.attr` on a liftable `e`
+            (the attr NAMES are collected into `getters`).
+
+        Division / modulo are excluded (partiality — ZeroDivisionError semantics
+        must not leak into a logic `ensures`); calls / subscripts / comparisons /
+        booleans are excluded (not guaranteed pure-int logic terms).
+
+        Projection soundness: in the int-collapsed list model a source element is
+        an `int`, so `e.attr` lowers to the abstract getter `get_attr : int → int`
+        (`_handle_attribute_expr`). That getter is a DETERMINISTIC read of the
+        (collapsed) element, so `result[i] = get_attr(src[i])` is a faithful
+        re-expression of `a[i].attr` — the SAME `get_attr` a driver's own
+        `\result[i] == a[i].attr` lowers to. The lift only holds once every such
+        getter is emitted as a pure `val function` (done by `_content_comp` via
+        the collected `getters` set), so the two mentions denote one value.
+        Conservative: any unrecognised node ⇒ not liftable."""
         if not isinstance(elt, dict):
             return False
         t = elt.get("type")
@@ -4729,23 +4758,43 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if t == "BinOp":
             if elt.get("op") not in ("+", "-", "*"):
                 return False
-            return (self._comp_elt_pure_int(elt.get("left", {}), free)
-                    and self._comp_elt_pure_int(elt.get("right", {}), free))
+            return (self._comp_elt_pure_int(elt.get("left", {}), free, getters)
+                    and self._comp_elt_pure_int(elt.get("right", {}), free, getters))
         if t == "UnaryOp":
             if elt.get("op") not in ("-", "+"):
                 return False
-            return self._comp_elt_pure_int(elt.get("operand", elt.get("value", {})), free)
+            return self._comp_elt_pure_int(
+                elt.get("operand", elt.get("value", {})), free, getters)
+        if t in ("Attribute", "FieldGet"):
+            # cleared-array.md S2 projection. The base must itself be a liftable
+            # collapsed-int term (the loop target, or a projection/arithmetic over
+            # it); the attr is an int-collapsed getter. Requires the `getters`
+            # accumulator (only `_content_comp` passes it) — otherwise a bare
+            # projection is NOT liftable (keeps the arithmetic-only whitelist
+            # byte-identical for callers that don't opt in).
+            if getters is None:
+                return False
+            attr = elt.get("attr") or elt.get("field")
+            base = elt.get("object")
+            if base is None or not isinstance(attr, str) or not attr:
+                return False
+            if not self._comp_elt_pure_int(base, free, getters):
+                return False
+            getters.add(attr)
+            return True
         return False
 
     def _content_comp(self, node: "ExprIR", local_refs: Set[str],
                       invariant_ctx: bool,
                       subst: Optional[Dict[str, str]]) -> Optional[str]:
-        """cleared-array.md S1–S4. Emit a CONTENT-faithful comprehension for a
-        supported element shape, or return None to fall through to the opaque
+        """cleared-array.md S1–S4 + S2. Emit a CONTENT-faithful comprehension for
+        a supported element shape, or return None to fall through to the opaque
         length-only path. Supported: ONE generator whose target is a plain name,
         an `array int` source (NOT a seq local — the seq comprehension path owns
-        those), and an element that is pure-int over the target ONLY (identity or
-        `+ - *` arithmetic). A filter (`if`) keeps ONLY the sound length bound."""
+        those), and an element that lowers to a pure-int logic term over the
+        target ONLY — identity, `+ - *` arithmetic, or FIELD PROJECTIONS `x.attr`
+        (and arithmetic over them). A filter (`if`) keeps ONLY the sound length
+        bound."""
         _d = node.to_dict()
         gens = _d.get("generators", []) or []
         if len(gens) != 1:
@@ -4762,7 +4811,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return None
         elt = _d.get("elt", {})
         free: Set[str] = set()
-        if not self._comp_elt_pure_int(elt, free):
+        getters: Set[str] = set()
+        if not self._comp_elt_pure_int(elt, free, getters):
             return None
         # The element may reference the loop target ONLY (no captured locals —
         # they are not parameters of the abstract `val`).
@@ -4800,6 +4850,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             self._in_spec = saved_in_spec
             if not had_celt:
                 sb.discard(celt)
+        # cleared-array.md S2: the element was lowered with `_in_spec = True`
+        # (above), so each projected `x.attr` already registered its getter as a
+        # pure `val function get_attr` (see `_handle_attribute_expr`) — usable in
+        # this content-law `ensures` and denoting one value with a driver's own
+        # `a[k].attr`. The collected `getters` set gated the lift in
+        # `_comp_elt_pure_int`; no extra registration is needed here.
         self._add_abstract_op(
             f"val {op} (src: array int) : array int\n"
             f"    ensures {{ Array.length result = Array.length src }}\n"

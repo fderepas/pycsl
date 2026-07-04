@@ -16,6 +16,7 @@ from frontend.Module2_Parser import (
     FieldAccess as CSLFieldAccess, FieldSubscript as CSLFieldSubscript,
     GlobalFieldSubscript as CSLGlobalFieldSubscript,
     Forall, Exists, ArrayLength, InGlobals, InScope, SubscriptAccess,
+    SubscriptFieldAccess,
     AssignsRegion, Valid, Separated, At as CSLAt,
     Length2D, Valid2D, FunctionVariant, StringLiteral as CSLStringLiteral,
     CallExpr, IsSorted, ArrayEq, Permutation, Sum, CSLBool, CSLNone, CSLIn, CSLNotIn, CSLSlice, DictView, ForallItems,
@@ -326,6 +327,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         InGlobals:        "_csl_in_globals",
         InScope:          "_csl_in_scope",
         SubscriptAccess:  "_csl_subscript",
+        SubscriptFieldAccess: "_csl_subscript_field",
         AssignsRegion:    "_csl_assigns_region",
         Valid:            "_csl_valid",
         Separated:        "_csl_separated",
@@ -498,6 +500,19 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return {"type": "Subscript",
                 "value": {"type": "Var", "name": node.array},
                 "index": self._csl_to_ir(node.index)}
+
+    def _csl_subscript_field(self, node: SubscriptFieldAccess) -> Dict[str, Any]:
+        # cleared-array.md S2: `<array>[<idx>].<field>` → Attribute over a
+        # Subscript — the SAME IR the body path produces for `a[i].x`, so the
+        # abstract getter `get_<field>` denotes one value across the driver's
+        # `\result[k] == a[k].x` and the projection-comprehension content law.
+        base = ({"type": "Result"} if node.array == "\\result"
+                else {"type": "Var", "name": node.array})
+        return {"type": "Attribute",
+                "object": {"type": "Subscript",
+                           "value": base,
+                           "index": self._csl_to_ir(node.index)},
+                "attr": node.field}
 
     def _csl_chained_subscript(self, node: ChainedSubscript) -> Dict[str, Any]:
         inner = {"type": "Subscript",

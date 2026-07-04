@@ -114,3 +114,59 @@ driver (`# pycsl-expected: FAIL`) asserting a false content claim. Update annota
 **Expected outcome:** identity/projection/call comprehensions become content-faithful (`result[i] ==
 f(src[i])`), `sorted` gains permutation+sortedness (if the spike holds), and the unliftable-element +
 exact-filter-contents cases remain the honest residual.
+
+---
+
+## 8. OUTCOME (landed)
+
+### Round 1 (commit dcaf2367) — S1, S3, S4, S5
+- **S1 identity** `[x for x in a]` → `result[i] == a[i]`: LANDED (0761).
+- **S3 arithmetic** `[x+1 for x in a]` → `result[i] == a[i]+1` (pure-int `+ - *`): LANDED (0762).
+- **S4 filter** `[x for x in a if …]` → `len result <= len src` only: LANDED (0763).
+- **S5 `sorted`** → permutation + adjacent-sortedness + equal length: LANDED (0760).
+- Round 1 kept **projection** and **call** OPAQUE ("int-heavy model — don't reliably lower to pure-int
+  logic terms").
+
+### Round 2 (this run, branch ghost-assign-bc6) — S2 projection LIFTED; call/subscript stay opaque
+**Spike (GO).** `proj_call_spike.mlw`: the per-index projection law `result[i] = get_f(src[i])`
+consumed at a driver use-site at TWO indices, and the call law `result[i] = g(src[i])` with a
+propagated `ensures`. Why3 1.8.2:
+| VC | Alt-Ergo | Z3 |
+|---|---|---|
+| test_proj (projection law, 2-index) | Valid 0.03s / 27 steps | Valid 0.01s / 7014 steps |
+| test_call (call law + propagated post) | Valid 0.03s / 22 steps | Valid 0.01s / 7161 steps |
+Both SMT-tractable, no E-matching blowup. The SMT law was never the obstacle.
+
+**S2 projection `[p.x for p in a]` / `[p.x + p.y for p in a]` — NOW CONTENT-FAITHFUL.** Root
+diagnosis: in the int-collapsed list model a source element is an `int`, so `p.x` lowers to the
+abstract getter `get_x : int → int`. That is FINE for a content law (`result[i] = get_x(src[i])` is a
+faithful re-expression of `a[i].x`) once TWO gaps are closed:
+1. The getter was a program `val` (non-deterministic, unusable in an `ensures`). Fix: emit it as a
+   pure `val function` in spec context (`_handle_attribute_expr`, gated on `self._in_spec`). Sound
+   refinement (a field read *is* deterministic); INERT on the corpus (0 of 105 getattr-in-contract
+   files emit a spec-context `get_` fallback).
+2. The contract grammar could not PARSE the consumer `a[k].x` (subscript-then-projection). Fix: a new
+   `SubscriptFieldAccess` atom (`Module2_Parser` + `Module5_IREmitter`) lowering to
+   `Attribute(Subscript(…), field)` — the SAME IR the body path produces.
+The `_content_comp` whitelist now accepts `Attribute` element nodes over the target (and arithmetic
+over them). Drivers: 0769 (projection), 0770 (arithmetic-over-projection), 0771 (NEGATIVE — a false
+`result[k] == a[k].y` on an `[p.x …]` comprehension is correctly rejected, clean Unknown not a
+typecheck error).
+
+**Call `[g(x) for x in a]` — STAYS OPAQUE (documented, sharpened).** A module function `g` lowers to a
+program `let g`, which is NOT usable in a logic term; a driver's own `\result == g(a[i])` does not even
+type-check today (`unbound function or predicate symbol 'g'` — demonstrated). Lifting the call would
+require a separate language feature (purity analysis + spec-callable `let function` emission), and
+there is NO existing consumer. YAGNI exit; not a limitation of the comprehension path.
+
+**Subscript projection `[x[k] for x in a]` — STAYS OPAQUE (documented, sharpened).** The source
+`List[List[int]]` / `List[Dict[…]]` collapses to `array int` (empirically verified), so `x` is an `int`
+and `x[k]` has no faithfully-typed collection element to index — the recent `map string` dict model
+never reaches a *list element*. No faithful law is expressible.
+
+**Dict/set comprehensions (S6), `reversed` — unchanged** (Round-1 residual; choices.md).
+
+**Gates:** corpus proof sweep green (no new regressions beyond 0540/0700/0701); emission differential =
+exactly the comprehension/projection programs (getter `val function` toggle inert on all existing
+files); doc-coherency green; NO new `proof_axiom_allowlist` entry (definitional `ensures` on the
+abstract val, discharged at the use site).
