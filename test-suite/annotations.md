@@ -1935,6 +1935,15 @@ string/emit_ir elements, multi-generator, a target-dependent or >2-level subscri
 index, an un-annotated/too-deep leaf (cleared-array.md S1–S5 + items 1,3,4;
 nested-list.md).
 
+**In-place inner mutation** `a[i][j] = v` (nested-list-mutable.md): a `List[List[int]]`
+param that the body inner-mutates routes to the MUTABLE built-in `matrix int` model
+(not the read-only `array (seq int)`), a per-param usage/mutation analysis so the two
+representations coexist. `a[i][j]=v`→`Matrix.set`, `a[i][j]`→`Matrix.get`, `len(a)`→
+`a.rows`, `len(a[i])`→`a.columns`. The update reads back and is non-aliasing (drivers
+0802/0803). RECTANGULAR + int-leaf only; a non-int-leaf inner mutation is REJECTED
+(driver 0804), `a[i].append(..)` stays opaque, ragged in-place mutation is out of the
+rectangular `matrix` model. No new axiom (Matrix laws are Why3 stdlib).
+
 **Tests**: 0761 (identity), 0762 (arithmetic), 0769 (projection),
 0770 (arithmetic-over-projection), 0783 (call), 0763 (filter bound),
 0789 (filter subset), 0785 (dict), 0787 (set); NEGATIVE — false content claim

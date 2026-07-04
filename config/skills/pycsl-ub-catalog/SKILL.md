@@ -341,6 +341,39 @@ Note: contracts must be placed **above** the decorator to attach.
 
 ---
 
+## §7.8 ragged / non-int-leaf in-place inner mutation of a nested list
+
+**Source pattern that triggers it.** An in-place inner ELEMENT mutation
+`a[i][j] = v` on a nested list `a: List[List[τ]]` (nested-list-mutable.md).
+
+**Detection mechanism.** Module5 `_collect_inner_mutated_params` flags a nested
+`List[List[…]]` param that the body inner-mutates (`a[i][j]=v`). An INT-leaf
+(`List[List[int]]`) routes to the mutable built-in `matrix int` model
+(`Matrix.set`/`Matrix.get`). Any other inner-mutated nested param stays on the
+read-only, PURE-`seq`/`map` `array (seq τ)` model.
+
+**Verification stance.** The mutable model is `matrix int`, which is **RECTANGULAR**
+(a single uniform `columns`) and **int-leaf**. This is the perimeter:
+- A NON-int-leaf inner mutation (`List[List[str]]` = `array (seq string)`) has no
+  mutable 2-D built-in — the inner `seq` is immutable, so `a[i][j]=v` is a *hard
+  type/verification failure* (REJECTED, never a silent unsound update). NEGATIVE
+  driver `0804`.
+- `a[i].append(...)` (SHAPE-CHANGE — a growable nested row) stays *opaque* (the
+  `append_1` no-op makes no false post-state claim).
+- The `matrix int` model **assumes rectangularity** (every row has `columns`
+  elements). A genuinely RAGGED nested list mutated in place is outside the model's
+  faithful domain — the rectangular assumption is a structural precondition (the
+  same stance as the `\length2d` matrix path, 0018/0019). Passing a ragged list to
+  a function verified under the matrix model is UB. Worst case is a type-error
+  rejection (safe), never a false proof — `Matrix.set`/`Matrix.get` are faithful
+  Why3 stdlib ops, so no unsound update is ever emitted.
+
+**Corpus cross-reference:** `0802` (rectangular int read-back — supported),
+`0803` (non-aliasing — supported), `0804` (non-int-leaf inner mutation — rejected),
+`0797`/`0798` (read-only ragged nested lists — stay on `array (seq τ)`).
+
+---
+
 ## Verification-perimeter philosophy
 
 PyCSL's verification target is a subset of Python — value-only,

@@ -191,10 +191,50 @@ change (definitional `ensures`; Seq/Map read laws are Why3 stdlib). doc-coherenc
 
 **Drivers added:** 0797 (nested read), 0798 (inner len), 0799 (subscript-projection comprehension —
 boundary lifted), 0800 (`List[Dict[str,int]]` element read), 0801 (NEGATIVE false nested content),
-0802 (NEGATIVE inner mutation `a[i][j]=v` rejected).
+0802 (POSITIVE in-place inner mutation read-back — see §9), 0803 (POSITIVE non-aliasing — §9),
+0804 (NEGATIVE non-int-leaf inner mutation rejected — §9).
 
-**Residual boundaries (honest, never a false claim):** (1) in-place INNER mutation `a[i][j]=v` /
-`a[i].append(..)` — rejected (hard type/verification failure; the inner `seq` is immutable), driver 0802;
-(2) `a[i][j][k]` deeper than 2 levels, and a target-dependent comprehension index `x[f(x)]` — opaque;
-(3) an un-annotated / bare-`list` nested param, or a leaf deeper than the depth bound — stays `array int`;
-(4) a `\length2d`-contract rectangular param stays `matrix int`.
+**Residual boundaries (honest, never a false claim):** (1) in-place INNER ELEMENT mutation `a[i][j]=v`
+is now SUPPORTED for RECTANGULAR int-leaf `List[List[int]]` via the mutable `matrix int` model (§9);
+a NON-int-leaf inner mutation, `a[i].append(..)` (shape-change), and ragged in-place mutation remain
+boundaries (§9); (2) `a[i][j][k]` deeper than 2 levels, and a target-dependent comprehension index
+`x[f(x)]` — opaque; (3) an un-annotated / bare-`list` nested param, or a leaf deeper than the depth
+bound — stays `array int`; (4) a `\length2d`-contract rectangular param stays `matrix int`.
+
+---
+
+## 9. OUTCOME 2 — in-place inner element mutation `a[i][j]=v` (nested-list-mutable, branch ghost-assign-bc6)
+
+**Representation chosen: an in-place inner-mutated `List[List[int]]` ~ `matrix int`** (the mutable
+built-in Why3 2-D structure), coexisting per-param with the read-only `array (seq τ)` model.
+
+**Gate-B spike** (`test-suite/corpus/conformance/spikes/nested-list-mutable.mlw`, decision in `choices.md`).
+Compared `matrix int` vs flattened `array int`+offsets (both tractable; `array (array int)` already
+type-rejected). The emitted imperative `let` VCs — read `Matrix.get`, update read-back
+`(set a i j v; get a i j)=v`, non-aliasing `(i2,j2)≠(i,j) → get unchanged`, `dims_preserved`, `innerlen`
+— all **Valid in BOTH Alt-Ergo (≤0.05s) AND Z3 (≤0.01s)**. (Z3 times out only on the pure ghost-`update`
+GOAL forms — map-update E-matching — which are NOT emitted; Alt-Ergo proves them; per
+`smt_timeout_not_unprovable` an SMT timeout on a non-emitted goal is not a boundary.) `matrix` WINS on
+tractability + built-in status (zero custom machinery; the plan's natural target).
+
+**Coexistence strategy (usage/mutation analysis).** A nested-list param has ONE WhyML type. Module5
+`_collect_inner_mutated_params` detects the `a[i][j]=v` write; an INT-leaf inner-mutated param is dropped
+from `param_list_nested_elem` and kept in `array2d_params` → emitted as `matrix int`. A read-only nested
+param stays on `array (seq τ)` (ragged-capable). This is the SOUND minimal-disruption choice: the landed
+read drivers 0797/0798 use RAGGED inputs and prove per-row `len(a[i])`, which a rectangular `matrix`
+(single `columns`) cannot express — so UNIFYING all rectangular-int nested lists onto `matrix` was
+rejected (would break 0797/0798). Lowering: `a[i][j]=v`→`Matrix.set`, `a[i][j]`→`Matrix.get`,
+`len(a)`→`a.rows`, `len(a[i])`→`a.columns` (the last two new in `_handle_len_call`).
+
+**What now works vs stays boundary.** WORKS: rectangular int-leaf `a[i][j]=v` read-back (0802) +
+non-aliasing (0803), fully usable alongside `a[i][j]` read and `len`. BOUNDARY (honest, never a false
+claim): a NON-int-leaf inner mutation (`List[List[str]]` = immutable `array (seq string)`) is REJECTED
+(hard type/verification failure; NEGATIVE 0804); `a[i].append(..)` (shape-change / nested growable) stays
+OPAQUE (`append_1` no-op — no false post-state claim); ragged in-place mutation is out of the rectangular
+`matrix` model (UB catalog §7.8 — the rectangular assumption is a structural precondition, same stance as
+the `\length2d` matrix path). No unsound update is ever emitted (Matrix get/set/frame are Why3 stdlib).
+
+**Emission differential** = EXACTLY the new mutable-nested programs. Read-only nested drivers 0797–0800
+and flat `List[int]`/`Dict[..]` byte-IDENTICAL (the routing fires only on a nested param the body
+inner-mutates via `a[i][j]=v` — no passing corpus file did this before). No `proof_axiom_allowlist`
+change. doc-coherency + mirror-sync green.

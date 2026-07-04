@@ -1620,6 +1620,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         `_handle_call_expr` via `_iter_len_expr`, before the inner args are lowered.)"""
         arg_ir = expr.get("args", [{}])[0] if expr.get("args") else {}
         atype = arg_ir.get("type", "")
+        # nested-list-mutable.md: a matrix-routed (in-place inner-mutated int-leaf)
+        # nested list `a` is a built-in `matrix int`. `len(a)` = `a.rows` (outer row
+        # count); `len(a[i])` = `a.columns` (the rectangular per-row length). Emit the
+        # Matrix record projections directly from the base name — the lowered `args[0]`
+        # for `a[i]` is a matrix (rows aren't first-class), so it is NOT used here.
+        _a2d = getattr(self, "_array2d_params", set())
+        if atype == "Var" and arg_ir.get("name") in _a2d:
+            return f"({arg_ir['name']}.rows)"
+        if atype == "Subscript":
+            _mb = arg_ir.get("value", {})
+            if (isinstance(_mb, dict) and _mb.get("type") == "Var"
+                    and _mb.get("name") in _a2d):
+                return f"({_mb['name']}.columns)"
         # §B′: len(d[k]) where d is a seq-valued dict (`Dict[_, List[int]]`) — the
         # read is a `seq int`, so its length is `Seq.length`.
         if atype == "Subscript":

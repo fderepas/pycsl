@@ -626,3 +626,44 @@ This subsumes the existing `_m5_get_dict_value_type` (which already returns `seq
 expressible on `seq` (immutable) → documented residual: reject or keep opaque, never an unsound update.
 Outer whole-row replacement `a[i]=newrow` IS sound and stays expressible. No new axiom (nested read/index
 laws are Why3 stdlib `seq.Seq` / `map.Map`).
+
+## nested-list-mutable (Gate-B spike) — in-place inner mutation `a[i][j]=v` via `matrix int`
+
+**Decision.** A `List[List[int]]` param that is IN-PLACE INNER-MUTATED (`a[i][j] = v` in the body)
+routes to the MUTABLE built-in Why3 **`matrix int`** model. A read-only nested list stays on the landed
+`array (seq τ)` read model. This is a **usage/mutation analysis** (option (a) — coexistence): the two
+representations coexist, selected per-param by whether the body inner-mutates it.
+
+**Why not unify all rectangular-int nested lists onto `matrix` (option (b)).** The landed read drivers
+0797/0798 use RAGGED inputs (`[[1,2],[3,4,5]]`) and prove per-row `len(a[i])` — a `matrix` has a single
+uniform `columns`, so it cannot express ragged per-row length. Unifying would BREAK 0797/0798. The
+mutation analysis keeps read-only nested lists ragged-capable on `array (seq τ)` (0797-0800 byte-identical)
+and only inner-mutated int-leaf params on `matrix int`.
+
+**Why `matrix int` (over flattened `array int` + offsets).** Both are tractable (spike below), but `matrix`
+is the BUILT-IN Why3 mutable 2-D structure — `Matrix.get`/`Matrix.set`/`rows`/`columns` with a proven
+frame — needing zero custom machinery. Flattening needs an offset array + injective-layout reasoning for
+non-aliasing. `matrix` is rectangular int; the natural target.
+
+**Coexistence lowering.** Inner-mutated int-leaf param → dropped from `param_list_nested_elem`, kept in
+`array2d_params` (Module5 `_collect_inner_mutated_params`). Module6: `a[i][j]=v`→`Matrix.set a i j v`,
+`a[i][j]`→`Matrix.get a i j` (both pre-existing array2d paths), `len(a)`→`a.rows`, `len(a[i])`→`a.columns`
+(new, `_handle_len_call`). The `matrix` model is RECTANGULAR (uniform `columns`) — the rectangular
+assumption is structural (same stance as the existing `\length2d` matrix path 0018/0019).
+
+**Spike evidence** (`test-suite/corpus/conformance/spikes/nested-list-mutable.mlw`, Alt-Ergo 2.6.2 / Z3 4.13.3, -t 10):
+- `matrix int` — the emitted imperative `let` VCs (`m_read`, `m_update_readback`, `m_update_noalias`,
+  `m_dims_preserved`, `m_innerlen`) all Valid in BOTH Alt-Ergo (≤0.05s) AND Z3 (≤0.01s). Read-back
+  `(set a i j v; get a i j)=v` and non-aliasing `(i2,j2)≠(i,j) → get unchanged` both Valid.
+  (The pure ghost-`update` goal forms time out in Z3 on map-update E-matching but Alt-Ergo proves them;
+  they are NOT what is emitted — emission uses imperative `set`/`get`, which BOTH provers discharge fast.
+  Per [[smt_timeout_not_unprovable]], an SMT timeout on a non-emitted goal is not a boundary.)
+- flattened `array int` + offset — also all Valid (AE ≤0.05s / Z3 ≤0.02s) but needs custom offset
+  machinery; NOT chosen.
+- `array (array int)` — already Why3 TYPE-REJECTED (mutable element inside `array`); not re-pursued.
+
+**Boundary (honest residual).** In-place inner mutation is int-leaf + rectangular ONLY. A NON-int leaf
+(`List[List[str]]` = `array (seq string)`) inner mutation is REJECTED (hard type failure — immutable `seq`;
+driver 0804). `a[i].append(...)` (shape-change) stays OPAQUE (`append_1` no-op — makes no false post-state
+claim). Ragged in-place mutation is out of the rectangular `matrix` model (UB-catalog: rectangular
+assumption). No new axiom (Matrix get/set/frame laws are Why3 stdlib `matrix.Matrix`).

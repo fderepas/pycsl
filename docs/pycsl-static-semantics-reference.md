@@ -313,11 +313,22 @@ collapse its element to `int`. Module5 (`_m5_get_list_nested_elem_whyml` → the
 `param_list_nested_elem`, and the emitter realizes the parameter as `array (seq τ)` /
 `array (map κ (option ν))` (`_param_type_str`). The OUTER list stays `array` (a flat `List[τ]` is
 byte-identically `array τ`); the INNER collection is a PURE Why3 type (`seq`/`map`) — Why3 forbids a
-mutable element inside `array`. A nested-annotated parameter is EXCLUDED from the `matrix int` 2-D
-detection (`_detect_array_dimensions`), which stays reserved for `\length2d`-contract rectangular
-params. Depth is bounded (≤4); an unknown/too-deep leaf keeps the scalar `int` default. In-place
-inner mutation (`a[i][j]=v`) has no sound rendering on the immutable inner `seq` and is rejected
-(hard failure), never silently accepted.
+mutable element inside `array`. A READ-ONLY nested-annotated parameter is EXCLUDED from the
+`matrix int` 2-D detection (`_detect_array_dimensions`). Depth is bounded (≤4); an unknown/too-deep
+leaf keeps the scalar `int` default.
+
+**§ In-place inner mutation (nested-list-mutable.md).** A `List[List[int]]` parameter that the body
+IN-PLACE INNER-MUTATES — `a[i][j] = v` (an `ArraySet` whose array is itself a `Subscript` rooted at
+the param; Module5 `_collect_inner_mutated_params`) — CANNOT use the read-only `array (seq int)` model
+(its inner `seq` is immutable). A usage/mutation analysis instead routes such a parameter to the MUTABLE
+built-in `matrix int` model: it is dropped from `param_list_nested_elem` and kept in `array2d_params`.
+Lowering: `a[i][j]=v`→`Matrix.set`, `a[i][j]`→`Matrix.get`, `len(a)`→`a.rows`, `len(a[i])`→`a.columns`.
+The two representations COEXIST — read-only nested lists stay on `array (seq τ)` (ragged-capable); only
+an inner-mutated INT-leaf param uses `matrix int` (RECTANGULAR, uniform `columns`). A NON-int-leaf
+inner mutation (`List[List[str]]` → `array (seq string)`, immutable `seq`) is REJECTED (a hard
+type/verification failure, never silently accepted); `a[i].append(..)` (shape-change) stays opaque;
+ragged in-place mutation is out of the rectangular `matrix` model. `\length2d`-contract rectangular
+params likewise use `matrix int`.
 
 **‡ Classes / records.** A class introduces a record type in `Γ_c` (§1.2): `self`, the
 result of a constructor call `C()`, **and** a bare `C`-typed *parameter* whose class is registered

@@ -1417,6 +1417,38 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             self._scan_2d_in_stmt(stmt, param_names, result)
         return sorted(result)
 
+    def _collect_inner_mutated_params(self, body_ir: List[Dict[str, Any]],
+                                      param_names: Set[str]) -> Set[str]:
+        """nested-list-mutable.md: names in `param_names` that are IN-PLACE
+        INNER-MUTATED via `a[i][j] = v` — an `ArraySet` whose `array` is itself a
+        `Subscript` rooted at the param, with non-string indices (a genuine 2-D
+        element write, not a dict-field store). These route to the mutable `matrix
+        int` model. Recurses into nested statement bodies (If/While/For)."""
+        result: Set[str] = set()
+
+        def scan(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("stmt") == "ArraySet":
+                    arr = node.get("array", {})
+                    if isinstance(arr, dict) and arr.get("type") == "Subscript":
+                        root = arr.get("value", {})
+                        if (isinstance(root, dict) and root.get("type") == "Var"
+                                and root.get("name") in param_names):
+                            idx1 = arr.get("index", {})
+                            idx2 = node.get("index", {})
+                            if (idx1.get("type") != "String"
+                                    and idx2.get("type") != "String"):
+                                result.add(root["name"])
+                for v in node.values():
+                    scan(v)
+            elif isinstance(node, list):
+                for x in node:
+                    scan(x)
+
+        for stmt in body_ir:
+            scan(stmt)
+        return result
+
     # --- 3. Main Traversal Hooks ---
 
     @staticmethod
@@ -3669,7 +3701,25 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # rectangular `matrix int` model (which drops per-row `len(a[i])`). The matrix
         # path stays for `\length2d`-contract / bare-`list` 2-D params (0018/0019).
         _nested = set(func_ir.get("param_list_nested_elem", {}))
-        array2d -= _nested
+        # nested-list-mutable.md (coexistence): a nested `List[List[int]]` param that is
+        # IN-PLACE INNER-MUTATED (`a[i][j] = v` in the body) CANNOT use the read-only
+        # `array (seq int)` model — the inner `seq` is a PURE/immutable Why3 value. Such
+        # a param routes instead to the MUTABLE built-in `matrix int` model (`Matrix.set`
+        # reads back and is non-aliasing; Gate-B spike nested-list-mutable.mlw). The
+        # matrix model is RECTANGULAR (uniform `columns`) and int-leaf only, so ONLY an
+        # int-leaf (`seq int`) inner-mutated param qualifies; a non-int-leaf
+        # (`List[List[str]]` = `seq string`) or dict-leaf inner mutation stays on the
+        # immutable `array (map/seq ..)` model → rejected (documented boundary). A
+        # read-only nested param stays on `array (seq/map ..)` (ragged-capable — 0797-0800
+        # byte-identical). So subtract from `array2d` only the read-only nested params.
+        _plne = func_ir.get("param_list_nested_elem", {})
+        _inner_mut = self._collect_inner_mutated_params(func_ir["body"], _nested)
+        _matrix_routed = {p for p in _inner_mut if _plne.get(p) == "seq int"}
+        array2d -= (_nested - _matrix_routed)
+        for _p in _matrix_routed:
+            # a matrix-routed param is mutable `matrix int`, NOT `array (seq int)`; drop
+            # its nested-elem tag so Module6 does not also emit the read-only seq model.
+            _plne.pop(_p, None)
         if array2d:
             func_ir["array2d_params"] = sorted(array2d)
         array1d: Set[str] = set()
