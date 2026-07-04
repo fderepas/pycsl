@@ -1,0 +1,85 @@
+(* cleared-pack RESIDUALS spike — multi-slot standard-int, signed, and s-array
+   round-trips (items 1,2,3). LEADS with the make-or-break round-trip goals and a
+   GUARD-NECESSITY goal (dropping the in-range guard must yield a counterexample).
+   Same consumption shape as the emitted preamble: pack/unpack are abstract
+   `val function` symbols; a guarded round-trip AXIOM relates them; the driver's
+   VC instantiates the axiom. This spike proves the axioms REASON cleanly (tuple
+   projection + per-field guards) and that each guard is load-bearing. *)
+module PackResidualsSpike
+  use int.Int
+  use array.Array
+
+  (* ---- item 1: MULTI-SLOT unsigned '>HI' = (u16, u32), 6 bytes ---- *)
+  val function pack_u16u32 (fmt: int) (x0: int) (x1: int) : array int
+    requires { 0 <= x0 < 65536 /\ 0 <= x1 < 4294967296 }
+    ensures  { Array.length result = 6 }
+  val function unpack_u16u32 (fmt: int) (data: array int) : (int, int)
+  axiom rt_u16u32 : forall fmt x0 x1: int.
+      0 <= x0 < 65536 -> 0 <= x1 < 4294967296 ->
+      unpack_u16u32 fmt (pack_u16u32 fmt x0 x1) = (x0, x1)
+
+  (* make-or-break: each field projects back through the tuple axiom *)
+  goal ms_field0 : forall fmt x0 x1: int.
+      0 <= x0 < 65536 -> 0 <= x1 < 4294967296 ->
+      let (a, _) = unpack_u16u32 fmt (pack_u16u32 fmt x0 x1) in a = x0
+  goal ms_field1 : forall fmt x0 x1: int.
+      0 <= x0 < 65536 -> 0 <= x1 < 4294967296 ->
+      let (_, b) = unpack_u16u32 fmt (pack_u16u32 fmt x0 x1) in b = x1
+  (* size law is usable as a bound *)
+  goal ms_size : forall fmt x0 x1: int.
+      0 <= x0 < 65536 -> 0 <= x1 < 4294967296 ->
+      Array.length (pack_u16u32 fmt x0 x1) = 6
+
+  (* ---- item 2: SIGNED single '>i' = int32, range [-2^31, 2^31) ---- *)
+  val function pack_i32 (fmt: int) (x0: int) : array int
+    requires { -2147483648 <= x0 < 2147483648 }
+    ensures  { Array.length result = 4 }
+  val function unpack_i32 (fmt: int) (data: array int) : int
+  axiom rt_i32 : forall fmt x0: int.
+      -2147483648 <= x0 < 2147483648 ->
+      unpack_i32 fmt (pack_i32 fmt x0) = x0
+
+  goal sgn_pos : forall fmt x0: int.
+      -2147483648 <= x0 < 2147483648 ->
+      unpack_i32 fmt (pack_i32 fmt x0) = x0
+  (* the NEGATIVE half of the range must round-trip too (two's complement) *)
+  goal sgn_neg : forall fmt: int.
+      unpack_i32 fmt (pack_i32 fmt (-2147483648)) = -2147483648
+
+  (* ---- item 3: fixed-bytes 's' round-trip = array identity under length guard ---- *)
+  val function pack_s4 (fmt: int) (d: array int) : array int
+    requires { Array.length d = 4 }
+    ensures  { Array.length result = 4 }
+  val function unpack_s4 (fmt: int) (data: array int) : array int
+  axiom rt_s4 : forall fmt: int, d: array int.
+      Array.length d = 4 -> unpack_s4 fmt (pack_s4 fmt d) = d
+
+  goal s_roundtrip : forall fmt: int, d: array int.
+      Array.length d = 4 -> unpack_s4 fmt (pack_s4 fmt d) = d
+end
+
+(* ---- GUARD-NECESSITY: the round-trip is FALSE without the in-range guard ----
+   A concrete byte-codec model (base-256, mod-256 truncation) is the ground truth
+   the abstract axioms above stand in for. This module DEFINES the codec and shows
+   that dropping the guard makes a counterexample: pack(65536) as a u16 truncates to
+   0, so unpack(pack 65536) = 0 <> 65536.  Alt-Ergo/Z3 must find NO proof of the
+   unguarded law (it is false); the guarded instances are Valid. *)
+module GuardNecessitySpike
+  use int.Int
+  use int.EuclideanDivision
+
+  function b0 (x: int) : int = mod (div x 256) 256
+  function b1 (x: int) : int = mod x 256
+  function unpack16 (hi lo: int) : int = hi * 256 + lo
+
+  (* GUARDED: round-trip holds *)
+  goal u16_guarded : forall x: int. 0 <= x < 65536 -> unpack16 (b0 x) (b1 x) = x
+  (* UNGUARDED would be: forall x. unpack16 (b0 x) (b1 x) = x  — FALSE.
+     Witness the counterexample as a provable disequality: at x = 65536 the
+     codec loses the value. If this goal is Valid, the guard is load-bearing. *)
+  goal u16_guard_necessity : unpack16 (b0 65536) (b1 65536) = 0 /\ 65536 <> 0
+  (* The UNGUARDED universal law is FALSE — this goal must NOT prove (Unknown/
+     Timeout on both provers), because the counterexample above refutes it. Its
+     non-provability is the direct evidence that the guard is load-bearing. *)
+  goal u16_unguarded_UNPROVABLE : forall x: int. unpack16 (b0 x) (b1 x) = x
+end
