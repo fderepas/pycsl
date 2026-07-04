@@ -1524,7 +1524,13 @@ Untyped ghost declarations (`#@ ghost <name> = <expr>`) default to `int`.
 > `String.length`/`concat`/`String.substring`/`=` symbols, and the `\str_*` spec operators above
 > relate the result to content. Drivers: corpus `0471` (substring search) and `0472`–`0494`.
 > **Out of scope:** code points (`ord`, char ordering), `upper`/`lower`/`strip`/`replace`/`split`
-> (opaque), `.decode`/`.encode` (opaque bytes↔str boundary), f-strings, `str`-keyed dicts (hash).
+> (opaque), `.decode`/`.encode` (opaque bytes↔str boundary), f-strings. **A `str`-keyed dict/set is
+> now faithful** — `dict[str, ν] ~ map string (option ν)` with the native, injective Why3 string key
+> (`String.(=)`, no `str_hash_op`), so distinct keys are provably non-aliasing (cleared-hash.md,
+> drivers `0755`–`0758`; κ inferred for `Dict[str,_]` params/locals, string-key literals, and
+> string-key usage). **Residual:** a record *field* dict/set and any non-inferable-key dict keep the
+> `map int` + opaque `str_hash_op` fallback (documented, not collision-sound); `hash(s)` as a bare
+> `str→int` stays opaque (`0485`).
 
 **Ghost arrays** (hoare model only):
 | # | Syntax | Meaning |

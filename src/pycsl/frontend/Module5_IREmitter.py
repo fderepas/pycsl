@@ -3155,6 +3155,18 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                 and all(isinstance(v, ast.Constant) and isinstance(v.value, str)
                                         for v in child.value.values)):
                             dict_value_types[target.id] = "string"
+                        # cleared-hash.md S1(a): a dict LITERAL with all-STRING keys
+                        # (`d = {"a": 1, "b": 2}`) is string-keyed (κ = string) → it
+                        # lowers to `map string (option ν)` with native `String.(=)`,
+                        # NOT `map int` + the opaque `str_hash_op`. `None` keys (a
+                        # sparse literal) do not count; a homogeneous string-key
+                        # literal is the safe, unambiguous signal. Does not override
+                        # an explicit annotation (setdefault below runs only if
+                        # unset). Int-keyed literals are unchanged.
+                        if (isinstance(child.value, ast.Dict) and child.value.keys
+                                and all(isinstance(k, ast.Constant) and isinstance(k.value, str)
+                                        for k in child.value.keys)):
+                            dict_key_types.setdefault(target.id, "string")
             elif isinstance(child, ast.AnnAssign):
                 if isinstance(child.target, ast.Name) and child.target.id not in shared:
                     scope[child.target.id] = (
@@ -3175,6 +3187,55 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     for elt in child.target.elts:
                         if isinstance(elt, ast.Name) and elt.id not in shared:
                             scope[elt.id] = "Any"
+
+        # cleared-hash.md S1(b): USAGE-based κ inference. A dict local written or
+        # read with a STRING key (`d[k] = v`, `d[k]`, `k in d`, `d.get(k)` where `k`
+        # is a string literal or a `str`-typed name) is string-keyed → `map string
+        # (option ν)`, native equality, no `str_hash_op`. Python dicts are
+        # homogeneously keyed, so any string-key evidence pins κ = string soundly;
+        # a dict used only with int keys is never tagged (stays `map int`). This
+        # subsumes the un-annotated `d = {}` local that today emits the opaque
+        # `str_hash_op` (a bodyless `val` illegal in the resulting VC formula).
+        # Does not override an explicit `Dict[str, _]` annotation or the literal
+        # signal above (setdefault). Only fires for names bound in `scope` (a
+        # dict local/param of THIS function), never shared module vars.
+        _str_typed = {n for n, t in scope.items() if t == "str"}
+
+        def _is_str_key(_k: ast.expr) -> bool:
+            if isinstance(_k, ast.Constant) and isinstance(_k.value, str):
+                return True
+            if isinstance(_k, ast.Name) and _k.id in _str_typed:
+                return True
+            if isinstance(_k, ast.JoinedStr):  # f-string key
+                return True
+            return False
+
+        def _tag_str_keyed(_name: str) -> None:
+            if _name in scope and _name not in shared:
+                dict_key_types.setdefault(_name, "string")
+
+        for child in ast.walk(node):
+            # d[k]  (subscript read OR the target of `d[k] = v`)
+            if (isinstance(child, ast.Subscript)
+                    and isinstance(child.value, ast.Name)):
+                _idx = child.slice
+                if type(_idx).__name__ == "Index":  # py<3.9 compat
+                    _idx = _idx.value
+                if _is_str_key(_idx):
+                    _tag_str_keyed(child.value.id)
+            # k in d  /  k not in d
+            elif isinstance(child, ast.Compare) and len(child.ops) == 1 \
+                    and isinstance(child.ops[0], (ast.In, ast.NotIn)):
+                _rhs = child.comparators[0]
+                if isinstance(_rhs, ast.Name) and _is_str_key(child.left):
+                    _tag_str_keyed(_rhs.id)
+            # d.get(k[, default])
+            elif (isinstance(child, ast.Call)
+                    and isinstance(child.func, ast.Attribute)
+                    and child.func.attr == "get"
+                    and isinstance(child.func.value, ast.Name)
+                    and child.args and _is_str_key(child.args[0])):
+                _tag_str_keyed(child.func.value.id)
 
         # Ghost variables — register all declarations. Only op == "=" declarations
         # carry a meaningful declared_type; augmented assignments must not overwrite

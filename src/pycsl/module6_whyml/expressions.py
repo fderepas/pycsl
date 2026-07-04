@@ -547,7 +547,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _left_ir = expr.get("left", {})
             _str_keyed_lit = getattr(self, "_dict_key_types", {}).get(
                 rhs.get("name", "") if rhs.get("type") == "Var" else "") == "string"
-            if not self._in_spec and self._is_string_expr(_left_ir) and not _str_keyed_lit:
+            if _str_keyed_lit:
+                # cleared-hash.md S3: the receiver map is `map string (option ν)`
+                # (κ = string), so membership reads the RAW string key — native
+                # `String.(=)`, no hash. `_coerce_to_int` would hash a string
+                # LITERAL to an int (`stable_hash`), an int operand against a
+                # `map string` map (a type error) and the very collision-opacity
+                # this migration removes. A `str`-typed variable key passes
+                # through `left` unchanged.
+                left_c = left
+            elif not self._in_spec and self._is_string_expr(_left_ir):
                 self._add_abstract_op("val str_hash_op (s: string) : int")
                 left_c = f"(str_hash_op {left})"
             else:

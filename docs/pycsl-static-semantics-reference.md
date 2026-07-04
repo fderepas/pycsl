@@ -177,7 +177,7 @@ specification logic's type universe:
 τ(bytes)          = int †     (* byte buffer *)
 τ(bytearray)      = int †     (* mutable byte buffer *)
 τ(dict)           = dict
-τ(Dict[K, V])     = dict      (* parametric dict — key/value types opaque *)
+τ(Dict[K, V])     = dict      (* κ=string ⇒ map string (option ν), native String.(=); else map int *)
 τ(set)            = dict      (* sets share the dict model; see translational §T.14.2 *)
 τ(Set[T])         = dict
 τ(frozenset)      = dict      (* frozensets share the set/dict model *)
@@ -395,8 +395,15 @@ program/value context directly). **Limitations:** no character/code-point type (
 length-1 substring `String.substring s i 1`), so `ord`, character ordering, and codepoint-level
 parsing stay out of reach; string→string transforms (`upper`/`lower`/`strip`/`replace`) and
 `split` remain opaque abstract ops; `bytes`↔`str` codecs (`.decode`/`.encode`) stay opaque
-(decode is an opaque `int`, the bytes↔str boundary). `str`-keyed dicts still key on the int
-hash (the dict model is `map int (option int)`).
+(decode is an opaque `int`, the bytes↔str boundary). A `str`-keyed dict/set now keys on the
+**native, injective Why3 string** (`dict[str, ν] ~ map string (option ν)`, `String.(=)`), so distinct
+keys are provably non-aliasing (cleared-hash.md) — the key type κ = string is inferred for a
+parameter/AnnAssign local (`Dict[str, _]`), a string-key literal (`{"a": …}`), and string-key USAGE
+(`d[k]`/`k in d`/`d.get(k)` with a string literal or `str`-typed key). **Residual κ-unknown / opacity
+boundary:** a record *field* dict/set, and any dict whose key type is not inferable, keep the legacy
+`map int (option ν)` + the opaque `str_hash_op` fallback (documented, never claimed collision-sound);
+so does a bare `str→int` coercion (`hash(s)`, a `.decode()`-result string equality) — that is a
+distinct opacity, not a dict key.
 
 The type universe is intentionally coarse: PyCSL does not perform
 full type inference. The type mapping is used only for:

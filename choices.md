@@ -58,6 +58,45 @@ strictly dominates a per-field abstract axiom. Adding an abstract per-field axio
 on a hypothesis no corpus goal consumes (cf. the axiom-registry cautionary note on vestigial struct
 axioms). Recorded as a residual in the UB catalog §7.4a.
 
+## cleared-hash S0 (SMT spike) — GO; `map string` proves the make-or-break, opaque hash cannot
+
+**Context.** Before any pipeline work, hand-write a `.mlw` LEADING with `distinct_no_alias`
+(`k1<>k2 -> get (set d k1 v) k2 = get d k2`) plus present/absent/literal-var, in BOTH the
+`map string (option int)` encoding and the int+opaque-`str_hash_op` encoding; record Valid/timeout
++ timing for Alt-Ergo AND Z3.
+**Result (Why3 1.8.2, AE 2.6.2, Z3 4.13.3).**
+| goal | string AE | string Z3 | int+hash AE | int+hash Z3 |
+|---|---|---|---|---|
+| distinct_no_alias | Valid 0.03s | Valid 0.01s | **Timeout 10s** | **Timeout 10s** |
+| present | Valid 0.04s | Valid 0.01s | Valid 0.04s | Valid 0.00s |
+| absent | Timeout 10s | Valid 0.01s | — | — |
+| literal_var_consistency | Valid 0.03s | Valid 0.01s | — | — |
+**Choice.** GO. Fixtures committed at `test-suite/corpus/conformance/spikes/cleared-hash-{string,int-opaque}.mlw`.
+**Rationale.** The string encoding proves the make-or-break `distinct_no_alias` fast on BOTH provers;
+the opaque-hash encoding CANNOT (times out on both — the model admits a collision, exactly the
+unsoundness smell the migration removes). `absent` (distinct string LITERALS) times out on Alt-Ergo
+(weak string-literal disequality) but Z3 discharges it in 0.01s — PyCSL runs both provers best-of, so
+this is covered (verified end-to-end by driver 0756). No scaling concern → no YAGNI exit.
+
+## cleared-hash S1 (κ-inference scope) — infer κ=string for Var-receiver LOCALS; fields/sets deferred
+
+**Context.** Today κ=string is inferred only for `Dict[str,_]` params/AnnAssign locals (already
+`map string`). Un-annotated string-key locals (`d = {}`, then `d[k]=v`) emit `map int` + `str_hash_op`
+— a bodyless `val` ILLEGAL in the resulting VC formula (`unbound symbol`), so they FAIL today.
+**Options.** (1) Infer κ from a string-key literal + string-key USAGE (subscript/`in`/`.get`, string
+literal or `str`-typed name) for function locals/params. (2) Additionally thread κ through record
+FIELDS and sets (S4/S5) in the same pass.
+**Choice.** (1) now (Module5 `_build_function_symbol_table`, additive `setdefault` — never overrides
+an annotation, only tags on genuine string-key evidence). Fields/sets assessed separately (see the
+S4 entry); Python dicts are homogeneously keyed, so any string-key evidence pins κ=string soundly.
+**Rationale.** Highest value / lowest risk: currently-FAILING un-annotated locals become faithful;
+CANNOT regress a passing test (a passing dict local used with int keys is never tagged). Empirically
+confirmed: full corpus 707/710 (== the 3 known pre-existing failures 0540/0700/0701, zero
+regressions); emission differential = EXACTLY {0751} (a string→str local dict, `str_hash_op` dropped
+for native keys); `str_hash_op` val-decl files 5→4. Also fixed an S3 latent bug: membership on a
+κ=string map ran `_coerce_to_int` on a string LITERAL key → `stable_hash` int against a `map string`
+map (type error); now passes the raw string.
+
 ## cleared-pack S5 (os corpus re-key) — keep os on legacy family; documented boundary
 
 **Context.** S5 asks to re-verify the os inode blit/read-back corpus against the faithful round-trip.
