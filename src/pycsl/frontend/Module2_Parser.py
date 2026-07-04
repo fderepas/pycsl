@@ -496,6 +496,16 @@ class ChainedSubscript(CSLNode):
     index2: CSLNode
 
 @dataclass
+class NestedSubscript(CSLNode):
+    """nested-list.md §8 EXTENSION: `base[index]` where `base` is itself an
+    arbitrary subscript expression — the DEEPER-than-2 chain `arr[i][j][k]`
+    (and beyond). Depth ≤2 stays `ChainedSubscript` (byte-identical); this node
+    wraps the third and further index levels so `\\result == a[i][j][k]` parses.
+    Lowers to `Subscript(<base IR>, <index IR>)`."""
+    base: CSLNode
+    index: CSLNode
+
+@dataclass
 class CallExpr(CSLNode):
     """Represents a function call in a contract expression."""
     func: str
@@ -1891,7 +1901,17 @@ class _ContractParser:
                 self.advance()
                 e2 = self._parse_expr()
                 self.expect_op("]")
-                return ChainedSubscript(name, e1, e2)
+                # nested-list.md §8 EXTENSION: a THIRD+ index level (`a[i][j][k]`,
+                # up to the type-recursion bound) wraps the depth-2 ChainedSubscript
+                # in NestedSubscript nodes. Depth ≤2 stays ChainedSubscript
+                # (byte-identical); each further `[eN]` nests one more Subscript.
+                node = ChainedSubscript(name, e1, e2)
+                while self.at_op("["):
+                    self.advance()
+                    eN = self._parse_expr()
+                    self.expect_op("]")
+                    node = NestedSubscript(node, eN)
+                return node
             # cleared-array.md S2: `<name>[<idx>].<field>` — projection off a
             # subscripted element (the consumer of a projection-comprehension
             # content law).

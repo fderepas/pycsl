@@ -1651,6 +1651,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     and getattr(self, "_list_nested_elem", {}).get(
                         _b.get("name", ""), "").startswith("seq ")):
                 return f"(Seq.length {args[0]})"
+            # nested-list §8 EXTENSION: `len(a[i][j])` (deeper than 2) — the inner
+            # read `a[i][j]` is a `seq τ` (one level above the leaf), so its length
+            # is `Seq.length`. Uses the recursive access-type (peel one container
+            # per index level); byte-identical to the depth-2 branch above for the
+            # `len(a[i])` case (both return `(Seq.length args[0])`), so only the
+            # deeper chains are newly handled.
+            _at = self._nested_access_type(arg_ir)
+            if _at is not None and _at.startswith("seq "):
+                return f"(Seq.length {args[0]})"
         # 07-1705-rev4 P3: len() of a seq-modelled (growable) list local is `Seq.length`.
         # A seq-promoted PARAM in a CONTRACT refers to its array entry value (so fall through
         # to Array.length there — the `not _in_spec` guard); but a seq-promoted LOCAL is always
@@ -3866,6 +3875,60 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         base = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)
         return f"{base}.{self._field_label(rec_lower, field_name)}"
 
+    @staticmethod
+    def _peel_container(t: str) -> Optional[str]:
+        """nested-list §8 EXTENSION: given the WhyML type `t` of a collection value,
+        return the element type produced by indexing it ONCE. `array X`/`seq X` →
+        X (one layer of outer parens stripped); `map κ (option ν)` → ν; a scalar
+        (`int`/`string`/`real`) → None (no more indexing → opaque)."""
+        t = t.strip()
+        for pref in ("array ", "seq "):
+            if t.startswith(pref):
+                inner = t[len(pref):].strip()
+                # strip ONE matching outer-paren layer, if the whole inner is wrapped.
+                if inner.startswith("(") and inner.endswith(")"):
+                    depth = 0
+                    ok = True
+                    for _ci, _ch in enumerate(inner):
+                        if _ch == "(":
+                            depth += 1
+                        elif _ch == ")":
+                            depth -= 1
+                            if depth == 0 and _ci != len(inner) - 1:
+                                ok = False
+                                break
+                    if ok:
+                        inner = inner[1:-1].strip()
+                return inner
+        if t.startswith("map "):
+            if "(option " in t:
+                return t.split("(option ", 1)[1].rsplit(")", 1)[0].strip()
+            return None
+        return None
+
+    def _nested_access_type(self, node: Any) -> Optional[str]:
+        """nested-list §8 EXTENSION: the WhyML type of a nested-list access `node`
+        (the value it evaluates to), for a chain rooted at a `_list_nested_elem`
+        param. `Var(a)` (a nested-elem) → `array (<elem>)`; `Subscript(base, _)` →
+        one container level peeled from `_nested_access_type(base)` (= the type of
+        `base[idx]`). None if the chain is not a nested-list access, or once the
+        peel bottoms out at a scalar (a read one level TOO deep). This drives the
+        depth-generalized `a[i][j][k]` subscript lowering; the depth cap is
+        inherited from the type recursion (`_list_nested_elem` is None past bound)."""
+        if not isinstance(node, dict):
+            return None
+        if node.get("type") == "Var":
+            _ne = getattr(self, "_list_nested_elem", {}).get(node.get("name", ""))
+            if _ne is not None:
+                return f"array ({_ne})"
+            return None
+        if node.get("type") == "Subscript":
+            _bt = self._nested_access_type(node.get("value", {}))
+            if _bt is None:
+                return None
+            return self._peel_container(_bt)
+        return None
+
     def _handle_subscript(self, node: "ExprIR", local_refs: Set[str],
                           invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
         expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
@@ -4017,20 +4080,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                       for k in range(_tarity))
                     _base = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)
                     return f"(let ({_bind}) = {_base} in _r{_idx}_)"
-        # nested-list.md S3: `a[i][j]` where `a` is a `List[<container>]` param
+        # nested-list.md S3 (+ §8/§9 EXTENSION: arbitrary depth): `a[i][j]` /
+        # `a[i][j][k]` … where `a` is a `List[<container>]` param
         # (`array (seq τ)` / `array (map κ (option ν))`, see `_list_nested_elem`).
         # The inner read `a[i]` yields the PURE element collection, so the outer
         # `[j]`/`[key]` is a `Seq.get`/`Map.get` on it — NOT a second `Array.get`
         # nor the opaque `subscript_get`. The inner read is hoisted into a `let`
         # (it may carry its OWN body-context KeyError/IndexError assert block, which
-        # cannot sit inside the outer read's application/assert). Only the
-        # Var-based 2-level case is faithful; deeper `a[i][j][k]` falls through to
-        # the opaque path (documented depth residual — the type recursion is
-        # depth-bounded too).
-        if (value.get("type") == "Subscript"
-                and value.get("value", {}).get("type") == "Var"
-                and value["value"]["name"] in getattr(self, "_list_nested_elem", {})):
-            _ne = self._list_nested_elem[value["value"]["name"]]
+        # cannot sit inside the outer read's application/assert). The element type
+        # of `value` is computed RECURSIVELY (`_nested_access_type`) by peeling one
+        # container level per index level, so `a[i][j][k]` composes `Seq.get` to the
+        # type-recursion depth bound (MAX_NEST_DEPTH=4). `_inner` is lowered by a
+        # recursive `_expr_to_whyml`, which re-enters this same block for the deeper
+        # levels. Deeper than the type bound → `_nested_access_type` is None → the
+        # opaque `subscript_get` fallback (documented depth residual). Byte-identical
+        # to the former 2-level unfold for depth ≤2 (verified via corpus emission diff).
+        _ne = self._nested_access_type(value) if value.get("type") == "Subscript" else None
+        if _ne is not None and (_ne.startswith("seq ") or _ne.startswith("map ")):
             _inner = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)  # a[i]
             if _ne.startswith("seq "):
                 _read = f"(Seq.get _row {index})"

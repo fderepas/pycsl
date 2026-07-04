@@ -21,6 +21,7 @@ from frontend.Module2_Parser import (
     Length2D, Valid2D, FunctionVariant, StringLiteral as CSLStringLiteral,
     CallExpr, IsSorted, ArrayEq, Permutation, Sum, CSLBool, CSLNone, CSLIn, CSLNotIn, CSLSlice, DictView, ForallItems,
     ChainedSubscript,
+    NestedSubscript,
     GhostArraySetDecl,
     MkTupleExpr, FstExpr, SndExpr, ProjExpr, CtorTest, CtorPayload,
     StrConcatExpr, StrLengthExpr, StrSubExpr,
@@ -349,6 +350,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         CSLNotIn:         "_csl_not_in",
         CSLSlice:         "_csl_slice",
         ChainedSubscript: "_csl_chained_subscript",
+        NestedSubscript:  "_csl_nested_subscript",
         # Ghost expression nodes
         MkTupleExpr:      "_csl_mktuple",
         FstExpr:          "_csl_fst",
@@ -521,6 +523,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return {"type": "Subscript",
                 "value": inner,
                 "index": self._csl_to_ir(node.index2)}
+
+    def _csl_nested_subscript(self, node: "NestedSubscript") -> Dict[str, Any]:
+        """nested-list.md §8 EXTENSION: `a[i][j][k]` (depth ≥3) — a Subscript whose
+        base is itself the deeper subscript IR. Recurses through the ChainedSubscript
+        base for depth 2 and NestedSubscript bases for depth ≥3."""
+        return {"type": "Subscript",
+                "value": self._csl_to_ir(node.base),
+                "index": self._csl_to_ir(node.index)}
 
     def _csl_assigns_region(self, node: AssignsRegion) -> Dict[str, Any]:
         return {"type": "AssignsRegion", "base": node.base,

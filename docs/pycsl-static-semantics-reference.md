@@ -315,7 +315,13 @@ collapse its element to `int`. Module5 (`_m5_get_list_nested_elem_whyml` → the
 byte-identically `array τ`); the INNER collection is a PURE Why3 type (`seq`/`map`) — Why3 forbids a
 mutable element inside `array`. A READ-ONLY nested-annotated parameter is EXCLUDED from the
 `matrix int` 2-D detection (`_detect_array_dimensions`). Depth is bounded (≤4); an unknown/too-deep
-leaf keeps the scalar `int` default.
+leaf keeps the scalar `int` default. The subscript READ composes RECURSIVELY to the depth bound
+(nested-list.md §8/§9 EXTENSION): `_handle_subscript`/`_nested_access_type` peel one container level
+per index level, so `a[i][j][k]` → `Seq.get (Seq.get (a[i]) j) k` (and `len(a[i][j])` → `Seq.length`)
+up to depth 4 (drivers 0805 depth-3, 0806 NEGATIVE; depth-4 in the Gate-B spike). A FIFTH level is
+beyond the type-recursion cap → the param is not nested-elem → the deep read falls to the opaque
+`subscript_get` and does NOT type-check as a faithful read (rejected, never silently accepted;
+driver 0807).
 
 **§ In-place inner mutation (nested-list-mutable.md).** A `List[List[int]]` parameter that the body
 IN-PLACE INNER-MUTATES — `a[i][j] = v` (an `ArraySet` whose array is itself a `Subscript` rooted at
