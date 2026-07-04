@@ -667,3 +667,33 @@ assumption is structural (same stance as the existing `\length2d` matrix path 00
 driver 0804). `a[i].append(...)` (shape-change) stays OPAQUE (`append_1` no-op — makes no false post-state
 claim). Ragged in-place mutation is out of the rectangular `matrix` model (UB-catalog: rectangular
 assumption). No new axiom (Matrix get/set/frame laws are Why3 stdlib `matrix.Matrix`).
+
+## nested-list §8/§9 EXTENSION (Gate-B spike) — deeper nesting a[i][j][k] + target-dependent comp index
+
+**Decision.** Both residuals LIFT — no cap below the existing type-recursion bound (`_M5_MAX_NEST_DEPTH=4`).
+(1) A DEEPER nested read `a[i][j][k]` (List[List[List[τ]]] ~ `array (seq (seq τ))`, up to depth 4)
+composes `Seq.get` on the pure inner seqs; the subscript-lowering (S3) is generalized from the fixed
+2-level unfold to a recursive one driven by the element-type string (peel one container per index level).
+(2) A TARGET-DEPENDENT comprehension index `[x[f(x)] for x in a]` where the index lifts to a pure int
+logic term over the loop target `x` (a `seq τ`) — specifically `len(x)` + integer literals + captured
+int params under `+ - *` (e.g. `x[len(x)-1]`) — proves via the content law
+`result[i] = Seq.get (src[i]) (Seq.length (src[i]) - 1)`. An index that does NOT lift to this grammar
+(a call `g(x)` over the seq, a non-`len` seq operation) stays OPAQUE (documented residual).
+
+**Spike evidence** (`test-suite/corpus/conformance/spikes/nested-list-deep.mlw`, Alt-Ergo 2.6.2 / Z3 4.13.3, -t 10):
+- DeepRead: `test_read3` / `test_use3` (depth-3 read consumed at a use-site) / `test_innerlen3`
+  (`len(a[i][j])` = `Seq.length (Seq.get (a[i]) j)`) / `test_read4` (depth-4) — ALL Valid,
+  AE ≤0.03s (≤5 steps) / Z3 ≤0.01s. NO E-matching blowup as nesting deepens (the real risk — cleared).
+- TargetDependentComp: `test_target_idx` (law `result[i] = Seq.get (src[i]) (Seq.length (src[i]) - 1)`
+  consumed at TWO indices) / `test_target_offset` (captured-offset `len(x)-c`) — Valid, AE ≤0.04s
+  (≤29 steps) / Z3 ≤0.02s. The quantified `Seq.length` under `Seq.get` did NOT blow up.
+
+**Why no cap below 4.** Depth 4 (the type-recursion ceiling) is already fast in both provers; deeper
+than 4 the type recursion returns None → the param is not nested-elem → the read stays the opaque
+`subscript_get` fallback (unchanged). So the cap is inherited from the type bound, not a new SMT limit.
+
+**Boundary (honest residual).** (a) A read deeper than depth 4 stays opaque (`subscript_get`) — the
+type-recursion bound. (b) A target-dependent comprehension index that is NOT a `len(x)`-arithmetic term
+(a `g(x)` call over the seq, or any non-`len` seq op) stays OPAQUE (length-only comprehension) — never a
+false content claim. (c) A target-dependent index over a MAP source (`List[Dict[..]]`) stays opaque
+(only seq sources get the target-dependent int index). No new axiom (Seq read/length laws are Why3 stdlib).
